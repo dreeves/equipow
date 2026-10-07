@@ -269,8 +269,8 @@ footer {
       <div class="scroll">
         <!-- Cell titles reuse the legend's labels below -->
         <table class="block">
-          <tr class="ns"><th scope="row"><i>n</i></th><td class="s" title='Stan alone'>320</td><td class="s" title='Stan alone'>336</td><td class="s" title='Stan alone'>352</td><td class="s" title='Stan alone'>368</td><td class="s" title='Stan alone'>400</td><td class="s" title='Stan alone'>416</td><td class="c" title='Claude alone'>432</td><td class="s" title='Stan alone'>464</td><td class="c" title='Claude alone'>480</td><td class="j" title='Claude and Stan'>496</td><td class="c" title='Claude alone'>512</td><td class="s" title='Stan alone'>528</td><td class="j" title='Claude and Stan'>2<sup>24</sup></td></tr>
-          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="s">9</td><td class="s">≥ 10</td><td class="s">9</td><td class="s">9</td><td class="s">9</td><td class="s">9</td><td class="c">≥ 11</td><td class="s">9</td><td class="c">≥ 12</td><td class="j">9</td><td class="c">9</td><td class="s">≥ 10</td><td class="j">≥ 25</td></tr>
+          <tr class="ns"><th scope="row"><i>n</i></th><td class="s" title='Stan alone'>320</td><td class="j" title='Claude and Stan'>336</td><td class="s" title='Stan alone'>352</td><td class="s" title='Stan alone'>368</td><td class="s" title='Stan alone'>400</td><td class="s" title='Stan alone'>416</td><td class="c" title='Claude alone'>432</td><td class="s" title='Stan alone'>464</td><td class="c" title='Claude alone'>480</td><td class="j" title='Claude and Stan'>496</td><td class="c" title='Claude alone'>512</td><td class="s" title='Stan alone'>528</td><td class="j" title='Claude and Stan'>2<sup>24</sup></td></tr>
+          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="s">9</td><td class="j">10</td><td class="s">9</td><td class="s">9</td><td class="s">9</td><td class="s">9</td><td class="c">≥ 11</td><td class="s">9</td><td class="c">≥ 12</td><td class="j">9</td><td class="c">9</td><td class="s">≥ 10</td><td class="j">≥ 25</td></tr>
         </table>
       </div>
     </div>
@@ -296,10 +296,12 @@ footer {
         <code>B24B649ED92CD2C36496CB2DB6295D974138BA41</code>
       </p>
     </li>
-    <li class="s">
-      <span class="mk" aria-hidden="true">●</span>
-      <p class="entry"><i>n</i> = 336: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ≥ 10</span></p>
+    <li class="j">
+      <span class="mk" aria-hidden="true">◆●</span>
+      <p class="entry"><i>n</i> = 336: &nbsp;<span class="nw"><i>m</i><sup>*</sup> = 10</span></p>
       <p>An example of order 10 that Stan had before Claude's work; it is not in the paper.</p>
+      <!-- TODO: says order 11 is ruled out by the residue condition mod 5 (Claude's proof) -->
+      <p>Order 11 is ruled out by the residue condition mod 5.</p>
       <p class="code">
         <span>Stan's example <span class="nw">(<i>m</i> = 10)</span>:</span>
         <code>C87695B43E0ED258AB29C7793D8521DB227C0B746D</code>
@@ -336,6 +338,8 @@ footer {
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry"><i>n</i> = 512: &nbsp;<span class="nw"><i>m</i><sup>*</sup> = 9</span></p>
       <p>The Thue–Morse polynomial τ<sub>9</sub> has order 9. Order 10 is ruled out by the residue conditions mod 3, 9 and 27.</p>
+      <!-- TODO: links the short proof that 512 has no order-10 example, which also covers 496, and the Mathematica script that checks its computations -->
+      <p>Claude: "A short proof, which also covers 496: <a href="proof512.txt">proof512.txt</a>. The Mathematica script <a href="proof512.wl">proof512.wl</a> checks its computations."</p>
     </li>
     <li class="s">
       <span class="mk" aria-hidden="true">●</span>

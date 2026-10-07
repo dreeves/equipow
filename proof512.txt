@@ -1,0 +1,106 @@
+Claude: "512 and 496 are not in L_10
+(so m*(512) = 9, and with Stan's order-9 example also m*(496) = 9)
+
+
+NOTATION
+
+a_0, ..., a_{n-1} ∈ {+1, -1} and f(x) = Σ a_i x^i. The sequence has order ≥ m iff (x-1)^m divides f,
+iff Σ_i a_i i^k = 0 for k = 0, ..., m-1. (Numbering the positions 1..n instead of 0..n-1 changes nothing.)
+
+S(r mod M) = Σ a_i over 0 ≤ i < n with i ≡ r (mod M),
+s(r mod M) = #{0 ≤ i < n : i ≡ r (mod M)}.
+So S(r mod M) ≡ s(r mod M) (mod 2) and |S(r mod M)| ≤ s(r mod M).
+
+[P] = 1 if P holds, 0 otherwise. For w: Z → Z,
+Δ^10 w(j) = Σ_{t=0..10} C(10,t) (-1)^(10-t) w(j+t), the 10th forward difference.
+
+
+LEMMA 1. Let N ≥ 1 and w: Z → Z with Δ^10 w(j) ≡ 0 (mod N) for every integer j. If (x-1)^10 divides
+f = Σ a_i x^i with integer a_i, then Σ_i w(i) a_i ≡ 0 (mod N). If w has period P, it suffices to check
+j = 0, ..., P-1.
+
+Proof. (x-1)^10 is monic, so f = (x-1)^10 g with g = Σ g_j x^j in Z[x]. With c_t = C(10,t)(-1)^(10-t),
+the coefficients of (x-1)^10, a_i = Σ_j g_j c_{i-j}, so
+  Σ_i w(i) a_i = Σ_j g_j Σ_t c_t w(j+t) = Σ_j g_j Δ^10 w(j) ≡ 0 (mod N).  ∎
+
+
+LEMMA 2. If (x-1)^10 divides f, then S(0 mod 3) + S(1 mod 3) + S(2 mod 3) = 0 and
+S(0 mod 3) ≡ S(1 mod 3) ≡ S(2 mod 3) (mod 243).
+
+Proof. Lemma 1 with w = 1 (Δ^10 w = 0); with w = [i ≡ 0 (3)] - [i ≡ 1 (3)], whose Δ^10 w(0), Δ^10 w(1),
+Δ^10 w(2) are 0, -243, 243; and with w = [i ≡ 1 (3)] - [i ≡ 2 (3)], whose values are 243, 0, -243.  ∎
+
+
+THEOREM A. No ±1 sequence of length 512 has order 10.
+
+Proof. Suppose a_0, ..., a_511 has order ≥ 10. Write S_q = S(q mod 3); here s(0, 1, 2 mod 3) = 171, 171, 170.
+
+1. S_0 and S_1 are odd, so S_0 - S_1 is even; by Lemma 2 it is ≡ 0 (mod 243), and |S_0 - S_1| ≤ 342.
+   So S_0 = S_1 = u. Then S_2 = -2u ≡ u (mod 243), so 81 | u; u is odd and |u| ≤ 171, so u = ±81.
+   Replacing a by -a if necessary, (S_0, S_1, S_2) = (81, 81, -162). Of the 170 positions i ≡ 2 (mod 3),
+   exactly 4 have a_i = +1.
+
+2. Let w be the function of period 27
+     w(i) = [i ≡ 1 (3)] - [i ≡ 0 (3)] + 81([i ≡ 8 (9)] - [i ≡ 2 (9)]) + 729([i ≡ 23 (27)] - [i ≡ 14 (27)]).
+   Δ^10 w(j) ≡ 0 (mod 3^7 = 2187) for j = 0, ..., 26 (values below). By Lemma 1, Σ_i w(i) a_i ≡ 0 (mod 2187).
+
+3. Of the 4 positions i ≡ 2 (mod 3) with a_i = +1, let A, B, C, D be the numbers with i ≡ 2 (mod 9),
+   i ≡ 8 (mod 9), i ≡ 23 (mod 27), i ≡ 14 (mod 27). The class sizes are s(2 mod 9) = 57, s(8 mod 9) = 56,
+   s(23 mod 27) = s(14 mod 27) = 19, and all other positions i ≡ 2 (mod 3) have a_i = -1. So
+     Σ_i w(i) a_i = (S_1 - S_0) + 81[(2B - 56) - (2A - 57)] + 729[(2C - 19) - (2D - 19)]
+                  = 81 (1 + 2(B - A) + 18(C - D)),
+   and step 2 gives 1 + 2(B - A) + 18(C - D) ≡ 0 (mod 27). Modulo 9 this says B - A ≡ 4 (mod 9).
+   Since A + B ≤ 4, B = 4 and A = 0: all four +1's lie in the class 8 (mod 9), so C = D = 0
+   (23 ≡ 14 ≡ 5 (mod 9)). Then 1 + 2(B - A) + 18(C - D) = 9, which is not ≡ 0 (mod 27). Contradiction.  ∎
+
+The Thue-Morse sequence of length 2^9 has order 9 (Prouhet), so m*(512) = 9.
+
+
+THEOREM B. No ±1 sequence of length 496 has order 10.
+
+Proof. Here s(0, 1, 2 mod 3) = 166, 165, 165. As in step 1, with S_1 and S_2 odd: S_1 = S_2 = u = ±81 and
+S_0 = -2u. Replacing a by -a if necessary, (S_0, S_1, S_2) = (-162, 81, 81), so exactly 2 of the 166 positions
+i ≡ 0 (mod 3) have a_i = +1. Let A, B be the numbers of them with i ≡ 0 (mod 9), i ≡ 3 (mod 9);
+s(0 mod 9) = 56 and s(3 mod 9) = 55. Let w be the function of period 9
+  w(i) = [i ≡ 1 (3)] - [i ≡ 2 (3)] + 81([i ≡ 3 (9)] - [i ≡ 0 (9)]).
+Δ^10 w(j) ≡ 0 (mod 3^6 = 729) for j = 0, ..., 8 (values below), so by Lemma 1
+  0 ≡ Σ_i w(i) a_i = (S_1 - S_2) + 81[(2B - 55) - (2A - 56)] = 81 (1 + 2(B - A))   (mod 729).
+So B - A ≡ 4 (mod 9), which is impossible because |B - A| ≤ 2.  ∎
+
+So the same argument settles 496, and it needs only the moduli 3 and 9.
+
+
+THE COMPUTATIONAL STEP (the hypotheses of Lemma 1)
+
+Lemma 2:    Δ^10 w(0), Δ^10 w(1), Δ^10 w(2) = 0, -243, 243  and  243, 0, -243.
+Theorem A:  Δ^10 w(j) / 2187 for j = 0, ..., 26:
+            0, -4, 8, -11, 12, -9, -4, 32, -66, 84, -74, 48, -26, 16, -16, 26, -48, 74, -84, 66, -32, 4, 9,
+            -12, 11, -8, 4
+Theorem B:  Δ^10 w(j) / 729 for j = 0, ..., 8:  -12, 0, 12, -24, 33, -37, 37, -33, 24
+
+proof512.wl (Mathematica) recomputes these exactly. It also redoes the case analysis by
+enumeration: all (S_0, S_1, S_2) allowed by size, parity and Lemma 2 (exactly the two used above, for each n);
+and all placements of the four +1's among the 9 classes i ≡ 2 (mod 3) mod 27 (495 per sign), resp. of the
+two +1's among the 3 classes i ≡ 0 (mod 3) mod 9 (6 per sign): none satisfies the congruence. A separate Python
+check also counts over the actual position sets, 2·C(170,4) and 2·C(166,2) of them: none satisfies it.
+
+
+REMARKS
+
+Residue-lattice form. For w of period M, Σ_i w(i) a_i = Σ_r w(r) d_r with d_r = S(r mod M), and
+Δ^10 w(j) = <w, coefficient vector of x^j (x-1)^10 mod (x^M - 1)>. So each w is a dual vector of the residue
+lattice spanned by x^t (x-1)^10 mod (x^M - 1), and the proof is the residue argument mod 3, 9, 27 with the
+lattice condition mod 27 (resp. mod 9) replaced by this single congruence. The two w's were found by
+LatticeReduce on the dual of the projection of that lattice (M = 27, resp. 9) onto the coordinates of the
+nearly constant class mod 3 and the two other class sums mod 3.
+
+The factor (x+1), available because n < 2^10, is not used. For odd M it gives the same lattice:
+T = 1 + x + ... + x^(M-1) has T(-1) = 1, so 1 - T = (x+1)Q with Q in Z[x], and since (x-1)T = x^M - 1,
+(x-1)^10 g ≡ (x-1)^10 g (1 - T) = (x-1)^10 (x+1) g Q  (mod x^M - 1).
+
+Cross-checks done separately in Python, all exact, none needed for the proof:
+- the chain of the earlier chat for 512: mod 3 gives the 2 vectors ±(81, 81, -162); mod 9 gives exactly 2025
+  residue vectors per sign, all with S(2 mod 9) = S(5 mod 9) = ∓57 and S(8 mod 9) = ∓48; none of the 4050
+  extends to an admissible residue vector mod 27. For 496, no admissible residue vector mod 9 exists.
+- the sequences of order ≥ 10 at lengths 240, 336, 432, 480, 528 satisfy all five congruences, and
+  Thue-Morse of length 512 (order 9) violates the one of Theorem A."
