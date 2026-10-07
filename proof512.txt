@@ -1,4 +1,6 @@
-Claude: "512 and 496 are not in L_10
+This file is all Claude.
+
+512 and 496 are not in L_10
 (so m*(512) = 9, and with BGPW's order-9 example also m*(496) = 9)
 
 
@@ -103,4 +105,4 @@ Cross-checks done separately in Python, all exact, none needed for the proof:
   residue vectors per sign, all with S(2 mod 9) = S(5 mod 9) = ∓57 and S(8 mod 9) = ∓48; none of the 4050
   extends to an admissible residue vector mod 27. For 496, no admissible residue vector mod 9 exists.
 - the sequences of order ≥ 10 at lengths 240, 336, 432, 480, 528 satisfy all five congruences, and
-  Thue-Morse of length 512 (order 9) violates the one of Theorem A."
+  Thue-Morse of length 512 (order 9) violates the one of Theorem A.
