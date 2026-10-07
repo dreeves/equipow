@@ -33,7 +33,7 @@
   --rule: #1b1d22;
   /* Provenance hues, checked with the dataviz palette validator against this
      mode's surface. The worst color-blind pair is 6.4 (deutan), legal only
-     with a second cue, so every hue also carries a glyph: ◆ Claude, ● Stan,
+     with a second cue, so every hue also carries a glyph: ◆ Claude, ● BGPW,
      ◆● both. */
   --claude: #c15f3c;
   --joint: #2a9466;
@@ -224,6 +224,11 @@ code {
   overflow-wrap: anywhere;
 }
 
+/* Claude's examples written out as sets, to paste into Mathematica */
+.sets { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; max-width: 46rem; }
+.sets pre { margin: 0; overflow-x: auto; }
+.sets pre code { display: block; }
+
 footer {
   display: grid;
   gap: 0.5rem;
@@ -269,7 +274,7 @@ footer {
       <div class="scroll">
         <!-- Cell titles reuse the legend's labels below -->
         <table class="block">
-          <tr class="ns"><th scope="row"><i>n</i></th><td class="s" title='Stan alone'>320</td><td class="j" title='Claude and Stan'>336</td><td class="s" title='Stan alone'>352</td><td class="s" title='Stan alone'>368</td><td class="s" title='Stan alone'>400</td><td class="s" title='Stan alone'>416</td><td class="c" title='Claude alone'>432</td><td class="s" title='Stan alone'>464</td><td class="c" title='Claude alone'>480</td><td class="j" title='Claude and Stan'>496</td><td class="c" title='Claude alone'>512</td><td class="s" title='Stan alone'>528</td><td class="j" title='Claude and Stan'>2<sup>24</sup></td></tr>
+          <tr class="ns"><th scope="row"><i>n</i></th><td class="s" title='BGPW'>320</td><td class="j" title='Claude and Stan'>336</td><td class="s" title='BGPW'>352</td><td class="s" title='BGPW'>368</td><td class="s" title='BGPW'>400</td><td class="s" title='BGPW'>416</td><td class="c" title='Claude alone'>432</td><td class="s" title='BGPW'>464</td><td class="c" title='Claude alone'>480</td><td class="j" title='Claude and Stan'>496</td><td class="c" title='Claude alone'>512</td><td class="s" title='BGPW'>528</td><td class="j" title='Claude and Stan'>2<sup>24</sup></td></tr>
           <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="s">9</td><td class="j">10</td><td class="s">9</td><td class="s">9</td><td class="s">9</td><td class="s">9</td><td class="c">≥ 11</td><td class="s">9</td><td class="c">≥ 12</td><td class="j">9</td><td class="c">9</td><td class="s">≥ 10</td><td class="j">≥ 25</td></tr>
         </table>
       </div>
@@ -279,7 +284,7 @@ footer {
   <ul class="legend">
     <li><span class="key c" aria-hidden="true">◆</span>Claude alone</li>
     <li><span class="key j" aria-hidden="true">◆●</span>Claude and Stan</li>
-    <li><span class="key s" aria-hidden="true">●</span>Stan alone</li>
+    <li><span class="key s" aria-hidden="true">●</span>BGPW</li>
     <li><span class="key" aria-hidden="true"></span>The published paper (2021)</li>
   </ul>
 </figure>
@@ -290,7 +295,7 @@ footer {
     <li class="s">
       <span class="mk" aria-hidden="true">●</span>
       <p class="entry"><i>n</i> = 320, 352, 368, 400, 416, 464: &nbsp;<span class="nw"><i>m</i><sup>*</sup> = 9</span></p>
-      <p>Examples of order 9 found by Stan. Order 10 is ruled out by the paper's Proposition 4.3 <span class="nw">(<i>p</i> = 3)</span>.</p>
+      <p>Examples of order 9 found by BGPW. Order 10 is ruled out by the paper's Proposition 4.3 <span class="nw">(<i>p</i> = 3)</span>.</p>
       <p class="code">
         <span><i>p</i><sub>320</sub>, a second example, found independently by Claude <span class="nw">(<i>m</i> = 9)</span>:</span>
         <code>B24B649ED92CD2C36496CB2DB6295D974138BA41</code>
@@ -299,11 +304,10 @@ footer {
     <li class="j">
       <span class="mk" aria-hidden="true">◆●</span>
       <p class="entry"><i>n</i> = 336: &nbsp;<span class="nw"><i>m</i><sup>*</sup> = 10</span></p>
-      <p>An example of order 10 that Stan had before Claude's work; it is not in the paper.</p>
-      <!-- TODO: says order 11 is ruled out by the residue condition mod 5 (Claude's proof) -->
-      <p>Order 11 is ruled out by the residue condition mod 5.</p>
+      <p>An example of order 10 that BGPW had before Claude's work; it is not in the paper.</p>
+      <p>Order 11 is ruled out by the residue condition mod 5 (Claude's proof).</p>
       <p class="code">
-        <span>Stan's example <span class="nw">(<i>m</i> = 10)</span>:</span>
+        <span>BGPW's example <span class="nw">(<i>m</i> = 10)</span>:</span>
         <code>C87695B43E0ED258AB29C7793D8521DB227C0B746D</code>
       </p>
       <p class="code">
@@ -314,7 +318,7 @@ footer {
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry"><i>n</i> = 432: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ≥ 11</span></p>
-      <p>An antisymmetric example of order 11 found by Claude. Stan also showed order 10.</p>
+      <p>An antisymmetric example of order 11 found by Claude. BGPW also showed order 10.</p>
       <p class="code">
         <span><i>p</i><sub>432</sub> <span class="nw">(<i>m</i> = 11)</span>:</span>
         <code>5A56B0EE234E8794ADE3D0C384F72A5C63A8BD65035EF015B78B46</code>
@@ -332,19 +336,19 @@ footer {
     <li class="j">
       <span class="mk" aria-hidden="true">◆●</span>
       <p class="entry"><i>n</i> = 496: &nbsp;<span class="nw"><i>m</i><sup>*</sup> = 9</span></p>
-      <p>An example of order 9 found by Stan. Order 10 is ruled out by the residue condition mod 27, by the same argument as for 512; the solvers CP-SAT and SCIP agree.</p>
+      <p>An example of order 9 found by BGPW. Order 10 is ruled out by the residue condition mod 27, by the same argument as for 512; the solvers CP-SAT and SCIP agree.</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry"><i>n</i> = 512: &nbsp;<span class="nw"><i>m</i><sup>*</sup> = 9</span></p>
       <p>The Thue–Morse polynomial τ<sub>9</sub> has order 9. Order 10 is ruled out by the residue conditions mod 3, 9 and 27.</p>
-      <!-- TODO: links the short proof that 512 has no order-10 example, which also covers 496, and the Mathematica script that checks its computations -->
-      <p>Claude: "A short proof, which also covers 496: <a href="proof512.txt">proof512.txt</a>. The Mathematica script <a href="proof512.wl">proof512.wl</a> checks its computations."</p>
+      <p>A short proof by Claude, which also covers 496: <a href="proof512.txt">proof512.txt</a>. 
+        The Mathematica script <a href="https://raw.githubusercontent.com/dreeves/equipow/main/proof512.wl">proof512.wl</a> checks its computations.</p>
     </li>
     <li class="s">
       <span class="mk" aria-hidden="true">●</span>
       <p class="entry"><i>n</i> = 528: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ≥ 10</span></p>
-      <p>Stan had an example of order 10 before Claude's work. Claude found another independently, by joining an example of length 192 and order 9 to an antisymmetric piece of length 336 and order 9, chosen so that their 9th power sums cancel.</p>
+      <p>BGPW had an example of order 10 before Claude's work. Claude found another independently, by joining an example of length 192 and order 9 to an antisymmetric piece of length 336 and order 9, chosen so that their 9th power sums cancel.</p>
       <p class="code">
         <span><i>f</i> = <i>p</i><sub>192</sub> ∨ <i>p</i><sub>336</sub>; &nbsp;<i>p</i><sub>192</sub> <span class="nw">(<i>m</i> = 9)</span>:</span>
         <code>C1BE1E21CD63D295A7887A59</code>
@@ -363,12 +367,95 @@ footer {
   </ul>
 </section>
 
+<section class="sets">
+  <h2>Claude's examples as sets</h2>
+  <p>Each set is the half of the partition that contains 0, numbered from 0, in Mathematica format.</p>
+  <pre><code>SClaude[9][320] = {0, 2, 3, 6, 9, 12, 14, 15, 17, 18, 21, 24, 27, 28, 29, 30, 32, 33, 35,
+  36, 39, 42, 44, 45, 48, 49, 51, 54, 56, 57, 62, 63, 65, 66, 69, 72,
+  75, 77, 78, 80, 81, 84, 86, 87, 90, 92, 93, 95, 96, 98, 99, 101,
+  102, 106, 108, 111, 113, 115, 116, 117, 119, 120, 123, 125, 126,
+  127, 129, 135, 138, 139, 140, 144, 146, 147, 148, 150, 153, 159,
+  161, 162, 163, 164, 165, 167, 168, 170, 174, 176, 177, 178, 182,
+  183, 185, 186, 187, 188, 189, 191, 195, 197, 198, 201, 205, 207,
+  209, 210, 212, 214, 215, 216, 219, 222, 225, 228, 230, 231, 234,
+  236, 237, 240, 243, 245, 246, 248, 249, 251, 252, 255, 258, 259,
+  260, 261, 264, 266, 267, 269, 272, 273, 276, 278, 279, 281, 282,
+  285, 288, 293, 294, 296, 297, 299, 300, 303, 306, 308, 309, 311,
+  312, 314, 315, 318};
+SClaude[9][336] = {0, 3, 4, 5, 9, 11, 13, 17, 18, 19, 20, 23, 24, 25, 26, 30, 33, 34, 37,
+  38, 40, 43, 44, 45, 48, 51, 53, 54, 55, 61, 62, 63, 67, 68, 69, 70,
+  73, 74, 75, 78, 79, 83, 84, 86, 89, 90, 94, 96, 97, 98, 100, 102,
+  103, 104, 105, 113, 114, 116, 117, 118, 119, 122, 124, 128, 129,
+  130, 132, 137, 138, 139, 140, 142, 143, 145, 148, 151, 153, 154,
+  159, 160, 161, 163, 164, 165, 166, 167, 173, 177, 178, 179, 180,
+  183, 185, 186, 188, 189, 191, 194, 199, 200, 201, 202, 204, 208,
+  209, 210, 212, 214, 215, 220, 223, 224, 225, 226, 227, 228, 229,
+  234, 236, 240, 242, 243, 244, 247, 248, 250, 253, 254, 255, 258,
+  259, 263, 264, 269, 270, 271, 275, 276, 277, 278, 279, 283, 285,
+  286, 288, 289, 293, 294, 296, 299, 300, 303, 304, 306, 307, 308,
+  313, 314, 319, 320, 321, 323, 325, 327, 328, 329, 333, 334};
+SClaude[11][432] = {0, 2, 5, 7, 8, 10, 12, 15, 17, 20, 21, 22, 23, 27, 31, 32, 33, 35, 36,
+  37, 40, 42, 43, 47, 49, 50, 51, 52, 57, 58, 60, 62, 63, 65, 67, 70,
+  75, 76, 77, 82, 84, 85, 86, 87, 90, 91, 92, 93, 97, 98, 99, 100,
+  102, 103, 108, 112, 113, 115, 117, 119, 120, 122, 126, 127, 128,
+  131, 132, 133, 137, 139, 141, 142, 143, 145, 150, 152, 155, 156,
+  158, 160, 161, 162, 163, 164, 165, 168, 170, 175, 180, 181, 182,
+  183, 184, 185, 186, 188, 190, 193, 196, 201, 202, 203, 205, 208,
+  210, 211, 212, 215, 217, 218, 222, 224, 225, 227, 231, 232, 233,
+  234, 236, 237, 239, 240, 242, 244, 252, 253, 254, 255, 257, 258,
+  259, 260, 262, 264, 265, 272, 274, 277, 278, 280, 282, 283, 284,
+  285, 287, 291, 293, 295, 296, 297, 301, 302, 306, 307, 308, 310,
+  313, 315, 317, 320, 321, 322, 324, 325, 326, 327, 330, 335, 336,
+  337, 342, 343, 348, 350, 351, 352, 353, 357, 358, 359, 360, 362,
+  363, 365, 367, 370, 372, 375, 376, 377, 378, 383, 385, 386, 387,
+  390, 392, 393, 397, 401, 402, 403, 405, 406, 407, 412, 413, 415,
+  417, 418, 420, 422, 425, 427, 428, 430};
+SClaude[12][480] = {0, 2, 3, 8, 9, 12, 14, 15, 16, 17, 20, 23, 25, 28, 29, 30, 31, 35, 36,
+  37, 38, 42, 44, 45, 49, 50, 52, 56, 57, 59, 63, 64, 65, 66, 70, 71,
+  72, 74, 77, 78, 82, 83, 85, 86, 87, 91, 92, 93, 98, 99, 101, 103,
+  105, 106, 107, 108, 109, 113, 116, 118, 119, 123, 126, 127, 129,
+  133, 134, 135, 136, 139, 141, 143, 146, 148, 150, 151, 152, 154,
+  155, 156, 159, 161, 162, 164, 170, 174, 175, 177, 178, 180, 181,
+  184, 185, 186, 187, 189, 190, 192, 193, 196, 202, 204, 205, 208,
+  209, 211, 212, 215, 216, 217, 220, 221, 222, 231, 232, 233, 234,
+  235, 238, 239, 240, 241, 244, 245, 246, 247, 248, 257, 258, 259,
+  262, 263, 264, 267, 268, 270, 271, 274, 275, 277, 283, 286, 287,
+  289, 290, 292, 293, 294, 295, 298, 299, 301, 302, 304, 305, 309,
+  315, 317, 318, 320, 323, 324, 325, 327, 328, 329, 331, 333, 336,
+  338, 340, 343, 344, 345, 346, 350, 352, 353, 356, 360, 361, 363,
+  366, 370, 371, 372, 373, 374, 376, 378, 380, 381, 386, 387, 388,
+  392, 393, 394, 396, 397, 401, 402, 405, 407, 408, 409, 413, 414,
+  415, 416, 420, 422, 423, 427, 429, 430, 434, 435, 437, 441, 442,
+  443, 444, 448, 449, 450, 451, 454, 456, 459, 462, 463, 464, 465,
+  467, 470, 471, 476, 477, 479};
+SClaude[10][528] = {0, 1, 7, 8, 10, 11, 12, 13, 14, 19, 20, 21, 22, 26, 31, 32, 33, 36,
+  37, 39, 41, 42, 46, 47, 48, 49, 51, 54, 56, 59, 61, 63, 64, 66, 69,
+  70, 71, 72, 76, 81, 82, 83, 84, 86, 89, 91, 92, 95, 97, 98, 101,
+  103, 104, 106, 111, 112, 113, 114, 116, 117, 118, 123, 124, 126,
+  129, 131, 133, 134, 136, 138, 139, 141, 146, 147, 148, 151, 153,
+  156, 157, 161, 162, 163, 164, 166, 167, 168, 173, 174, 175, 176,
+  182, 185, 186, 187, 188, 189, 192, 195, 196, 197, 201, 203, 205,
+  209, 210, 211, 212, 215, 216, 217, 218, 222, 225, 226, 229, 230,
+  232, 235, 236, 237, 240, 243, 245, 246, 247, 253, 254, 255, 259,
+  260, 261, 262, 265, 266, 267, 270, 271, 275, 276, 278, 281, 282,
+  286, 288, 289, 290, 292, 294, 295, 296, 297, 305, 306, 308, 309,
+  310, 311, 314, 316, 320, 321, 322, 324, 329, 330, 331, 332, 334,
+  335, 337, 340, 343, 345, 346, 351, 352, 353, 355, 356, 357, 358,
+  359, 365, 369, 370, 371, 372, 375, 377, 378, 380, 381, 383, 386,
+  391, 392, 393, 394, 396, 400, 401, 402, 404, 406, 407, 412, 415,
+  416, 417, 418, 419, 420, 421, 426, 428, 432, 434, 435, 436, 439,
+  440, 442, 445, 446, 447, 450, 451, 455, 456, 461, 462, 463, 467,
+  468, 469, 470, 471, 475, 477, 478, 480, 481, 485, 486, 488, 491,
+  492, 495, 496, 498, 499, 500, 505, 506, 511, 512, 513, 515, 517,
+  519, 520, 521, 525, 526};</code></pre>
+</section>
+
 <footer>
   <p>The first three blocks are copied from Table 2 of the published paper.</p>
   <p>The hex codes follow the paper's Table 5 convention: the left half of the signs <span class="nw">(1 = +1, 0 = −1)</span>, then the rest by <span class="nw">(−1)<sup><i>m</i></sup></span> symmetry.</p>
   <p>The sign # denotes the expanded product, <span class="nw"><i>f</i> # <i>g</i> = <i>f</i>(<i>x</i>)·<i>g</i>(<i>x</i><sup><i>n<sub>f</sub></i></sup>)</span>, where <i>n<sub>f</sub></i> is the length of <i>f</i>. The sign ∨ denotes the join.</p>
   <p>Every example whose code is given here was checked by Claude with exact integer power sums.</p>
-  <p>Stan's examples at lengths 352, 368, 400, 416, 464 and 496 were not re-checked here.</p>
+  <p>BGPW's examples at lengths 352, 368, 400, 416, 464 and 496 were not re-checked here.</p>
   <p><a href="https://github.com/dreeves/equipow">Source</a> &amp; <a href="https://equipow.dreev.es/sourcery.html">Sourcery</a></p>
 </footer>
 

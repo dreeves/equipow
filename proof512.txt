@@ -1,5 +1,5 @@
 Claude: "512 and 496 are not in L_10
-(so m*(512) = 9, and with Stan's order-9 example also m*(496) = 9)
+(so m*(512) = 9, and with BGPW's order-9 example also m*(496) = 9)
 
 
 NOTATION
@@ -88,8 +88,8 @@ check also counts over the actual position sets, 2·C(170,4) and 2·C(166,2) of 
 REMARKS
 
 Residue-lattice form. For w of period M, Σ_i w(i) a_i = Σ_r w(r) d_r with d_r = S(r mod M), and
-Δ^10 w(j) = <w, coefficient vector of x^j (x-1)^10 mod (x^M - 1)>. So each w is a dual vector of the residue
-lattice spanned by x^t (x-1)^10 mod (x^M - 1), and the proof is the residue argument mod 3, 9, 27 with the
+Δ^10 w(j) = <w, coefficient vector of x^j (x-1)^10 mod (x^M - 1)>. So wA/3^7 and wB/3^6 lie in the dual of the
+residue lattice spanned by x^t (x-1)^10 mod (x^M - 1) (M = 27, resp. 9), and the proof is the residue argument mod 3, 9, 27 with the
 lattice condition mod 27 (resp. mod 9) replaced by this single congruence. The two w's were found by
 LatticeReduce on the dual of the projection of that lattice (M = 27, resp. 9) onto the coordinates of the
 nearly constant class mod 3 and the two other class sums mod 3.
