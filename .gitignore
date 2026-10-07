@@ -1,0 +1,5 @@
+__pycache__/
+.DS_Store
+overnight_240_v3_journal*.jsonl
+overnight_240_v3.log
+overnight_240_v3.err
