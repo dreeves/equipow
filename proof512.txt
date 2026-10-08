@@ -1,4 +1,5 @@
 This file is all Claude.
+Claude: "Written on 2026-10-07 by a Claude Opus 5.5 subagent in Claude Code, from the residue argument mod 3, 9 and 27 that Claude Opus 5.5 first gave in the claude.ai chat, and checked by a second Opus 5.5 subagent."
 
 512 and 496 are not in L_10
 (so m*(512) = 9, and with BGPW's order-9 example also m*(496) = 9)

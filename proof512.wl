@@ -1,4 +1,6 @@
 (* This script is all Claude *)
+(* TODO: says which Claude models wrote and checked this script *)
+(* Claude: "Written on 2026-10-07 by a Claude Opus 5.5 subagent in Claude Code. Its comments and messages were later rewritten by Claude Opus 5.5 and reviewed by another Opus 5.5 subagent." *)
 (* Checks the computations in proof512.txt, which proves that 512 and 496 are not in L_10:
    no sequence of 512 or of 496 signs has order 10 or more.
    Run with wolframscript -file proof512.wl. All arithmetic is exact. The last line printed is the verdict. *)

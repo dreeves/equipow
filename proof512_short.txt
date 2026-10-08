@@ -1,0 +1,91 @@
+This file is all Claude.
+Claude: "Written on 2026-10-08 by a Claude Fable 5.1 subagent in Claude Code. The same day, three Claude Opus 5.5 subagents found the same argument independently, an Opus 5.5 referee confirmed each, and Claude Opus 5.5 checked this text by hand."
+
+512 is not in L_10: no sequence of 512 signs has order 10. (Hence m*(512) = 9, since Thue–Morse has order 9.)
+
+A proof with no computer step.
+
+
+THEOREM. There is no a_0, ..., a_511 ∈ {1, -1} with Σ_i a_i i^j = 0 for every j = 0, 1, ..., 9.
+
+NOTATION. f(x) = Σ_{i=0}^{511} a_i x^i ∈ Z[x]. For P ∈ Z[x] and q ∈ {0, 1, 2} let P_q ∈ Z[y] collect the
+coefficients of P at the exponents ≡ q (mod 3):
+    P(x) = P_0(x³) + x P_1(x³) + x² P_2(x³).
+Then (P + Q)_q = P_q + Q_q, (R(x³) P(x))_q = R(y) P_q(y), and P ≡ Q (mod N) coefficientwise implies
+P_q ≡ Q_q (mod N). In particular f_2(y) = Σ_{m=0}^{169} a_{3m+2} y^m, the polynomial of the signs at the
+positions i ≡ 2 (mod 3) (these are i = 3m + 2 with 0 ≤ m ≤ 169; 170 positions).
+S_q = Σ_{i ≡ q (3)} a_i = f_q(1), and d_r = Σ_{i ≡ r (9)} a_i.
+
+PROOF. Suppose such a sequence exists. Since Σ_i a_i i^j = 0 for j ≤ 9 is equivalent to Σ_i a_i C(i, j) = 0
+for j ≤ 9 (the two families span the same polynomials of degree ≤ 9 in i), the Taylor coefficients of f at
+x = 1 of orders 0, ..., 9 vanish: (x-1)^10 divides f in Q[x], hence in Z[x] because (x-1)^10 is monic.
+Write f = (x-1)^10 g with g ∈ Z[x].
+
+Step 1: f modulo x³ - 1. Grouping the terms of (x-1)^10 = Σ_{t=0}^{10} (-1)^{10-t} C(10,t) x^t by t mod 3
+(t ≡ 0: 1 - 120 + 210 - 10; t ≡ 1: -10 + 210 - 120 + 1; t ≡ 2: 45 - 252 + 45) gives
+    (x-1)^10 ≡ 81 + 81x - 162x² = 81(1 + x + x²) - 243x²  (mod x³ - 1).                       (1)
+Since x(1 + x + x²) ≡ 1 + x + x² (mod x³ - 1), (1 + x + x²) g ≡ g(1)(1 + x + x²), so
+    f = (x-1)^10 g ≡ 81 g(1)(1 + x + x²) - 243 x² g  (mod x³ - 1),
+and f ≡ S_0 + S_1 x + S_2 x² (mod x³ - 1). Therefore S_0 ≡ S_1 ≡ S_2 ≡ 81 g(1) (mod 243).
+The classes i ≡ 0, 1, 2 (mod 3) have 171, 171, 170 elements, so S_0, S_1 are odd, S_2 is even, and
+|S_0|, |S_1| ≤ 171, |S_2| ≤ 170. S_0 - S_1 is even, divisible by 243, and |S_0 - S_1| ≤ 342 < 486: S_0 = S_1 =: u.
+From f(1) = 0, S_2 = -2u; from S_2 ≡ S_0 (mod 243), 243 | 3u, so 81 | u; u is odd and |u| ≤ 171, so u = ±81.
+Replacing every a_i by -a_i (which preserves the hypothesis) we may take u = 81:
+    (S_0, S_1, S_2) = (81, 81, -162).
+Consequently a_i = -1 for all but exactly four of the 170 positions i ≡ 2 (mod 3)
+(#(+1) - #(-1) = -162 and #(+1) + #(-1) = 170). Call these four positions 3m_1 + 2, ..., 3m_4 + 2,
+with 0 ≤ m_k ≤ 169, and let e_r = #{k : m_k ≡ r (mod 3)}, so e_0 + e_1 + e_2 = 4.
+
+Step 2: f - (x-1)^10 is divisible by (x-1)^9 (x³ - 1). By (1) and Step 1, f ≡ 81 + 81x - 162x² ≡ (x-1)^10
+(mod x³ - 1). So F := f - (x-1)^10 is divisible in Z[x] by x³ - 1, and also by (x-1)^10 (both f and (x-1)^10
+are). In Q[x] this gives lcm((x-1)^10, x³ - 1) = (x-1)^10 (x² + x + 1) = (x-1)^9 (x³ - 1) | F, and since this
+lcm is monic with integer coefficients the quotient is in Z[x]:
+    f = (x-1)^10 + (x-1)^9 (x³ - 1) h  for some h ∈ Z[x].                                           (2)
+
+Step 3: reduction modulo 9. From (x-1)³ = (x³ - 1) - 3x(x-1),
+    (x-1)^9 = ((x³-1) - 3x(x-1))³ ≡ (x³ - 1)³  (mod 9),
+the omitted terms being multiples of 9 and 27. Multiplying by x - 1 and by x³ - 1:
+(x-1)^10 ≡ (x-1)(x³-1)³ and (x-1)^9 (x³-1) ≡ (x³-1)^4 (mod 9). With (2):
+    f ≡ (x-1)(x³-1)³ + (x³-1)^4 h  (mod 9).
+Take the q = 2 components (with y = x³). (x-1)(x³-1)³ = x(y-1)³ - (y-1)³ has no exponent ≡ 2 (mod 3), so
+its 2-component is 0; the 2-component of (x³-1)^4 h is (y-1)^4 h_2(y). Hence
+    f_2(y) ≡ (y - 1)^4 h_2(y)  (mod 9).                                                            (3)
+
+Step 4: two consequences of (3).
+(a) Reduce (3) modulo y³ - 1. (y-1)^4 = y^4 - 4y³ + 6y² - 4y + 1 ≡ -3 - 3y + 6y² ≡ -3(1 + y + y²)
+(mod 9, y³ - 1), and (1 + y + y²) h_2 ≡ h_2(1)(1 + y + y²) (mod y³ - 1). So
+    f_2 ≡ -3 h_2(1) (1 + y + y²)  (mod 9, y³ - 1).
+The coefficients of f_2 mod y³ - 1 are d_2, d_5, d_8 (the sums of a_{3m+2} over m ≡ 0, 1, 2 (mod 3)), so
+d_2 ≡ d_5 ≡ d_8 (mod 9). The numbers of m ∈ [0, 169] with m ≡ 0, 1, 2 (mod 3) are 57, 57, 56, so
+d_2 = 2e_0 - 57 and d_8 = 2e_2 - 56, and d_2 - d_8 = 2(e_0 - e_2) - 1 ≡ 0 (mod 9) gives e_0 - e_2 ≡ 5 (mod 9).
+As |e_0 - e_2| ≤ 4, e_0 - e_2 = -4, i.e. e_2 = 4: every m_k ≡ 2 (mod 3).
+(b) Expand f_2 in powers of y - 1: f_2(y) = Σ_j T_j (y-1)^j with T_j = Σ_{m=0}^{169} C(m, j) a_{3m+2} ∈ Z
+(from y^m = (1 + (y-1))^m). By (3), f_2 - (y-1)^4 h_2 = 9u with u ∈ Z[y]; expanding both sides in powers
+of y - 1 and comparing the coefficients of (y-1)², T_2 - 0 = 9 · (an integer). So T_2 ≡ 0 (mod 9). But
+    T_2 = -Σ_{m=0}^{169} C(m,2) + 2 Σ_{k=1}^{4} C(m_k, 2) = -C(170, 3) + 2 Σ_k C(m_k, 2),
+C(170, 3) = 170·169·28 = 804440 ≡ 8·7·1 ≡ 2 (mod 9), and for m = 3l + 2,
+C(m, 2) = (3l+2)(3l+1)/2 = 1 + 9 l(l+1)/2 ≡ 1 (mod 9), so by (a) Σ_k C(m_k, 2) ≡ 4 (mod 9). Hence
+T_2 ≡ -2 + 8 = 6 (mod 9), a contradiction.  ∎
+
+
+REMARKS.
+
+1. What replaced the computer step. proof512.txt uses the class sums only through the lattice
+{f mod (x^27 - 1) : (x-1)^10 | f}, whose certificate needs a weight of period 27 with all 10th differences
+divisible by 3^7 (27 integers to check). Here Step 1 is used in full: f ≡ (x-1)^10 (mod x³ - 1) exactly,
+which upgrades (x-1)^10 | f to (x-1)^9 (x³-1) | f - (x-1)^10, and modulo 9 this is (3), a statement about
+the signs on the class i ≡ 2 (mod 3) alone. The weight of proof512.txt, restricted to that class and divided
+by 81, is (i_1 - 1) + 9([i ≡ 23 (27)] - [i ≡ 14 (27)]) with i_1 = floor(i/3) mod 3; in the present setting
+it is a congruence modulo 27 that follows from (2), and (3) suffices anyway.
+
+2. Equivalent form of Step 4. (3) says T_0 ≡ T_1 ≡ T_2 ≡ T_3 ≡ 0 (mod 9) for the binomial moments
+T_j = Σ_m C(m, j) a_{3m+2} of the signs on the class i ≡ 2 (mod 3). Since C(m, j) mod 9 depends only on
+m mod 27 for j ≤ 3, this is a finite check; by computer, no four exceptional positions satisfy all four,
+but T_1 ≡ T_2 ≡ 0 alone leave 8 residue patterns. Step 4 as written needs only (a) and T_2.
+
+3. 496. The same method handles 496 in one step: the class sizes 166, 165, 165 force (S_0, S_1, S_2) =
+(-162, 81, 81) up to sign; then f ≡ 81(1 + x + x²) - 243 ≡ x(x-1)^10 (mod x³ - 1) [multiply (1) by x],
+so f - x(x-1)^10 is divisible by (x-1)^9 (x³-1), and the 0-component of x(x-1)(x³-1)³ = (x² - x)(y-1)³
+is 0, giving f_0 ≡ (y-1)^4 h_0 (mod 9). The class i ≡ 0 (mod 3) has 166 positions 3m (m ≤ 165; 56, 55, 55
+of them with m ≡ 0, 1, 2 mod 3) and two exceptional signs, and d_0 ≡ d_3 (mod 9) reads
+2(e_0 - e_1) - 1 ≡ 0 (mod 9), impossible with |e_0 - e_1| ≤ 2.
