@@ -139,10 +139,10 @@ def main():
              rc != 0 if selfneg else (rc, kv(err, 'total')), True if selfneg else (0, str(want)))
     for (n, k, want) in [(48, 5, 204), (64, 6, 6)]:
         tot = []
-        for extra in ([], ['--nocoset'], ['--head', '0'], ['--passes', '3']):
+        for extra in ([], ['--nocoset'], ['--head', '0'], ['--passes', '4']):
             r = subprocess.run(['./tri', str(n), str(k)] + PLUS[(n, k)] + extra, cwd=HERE, capture_output=True, text=True)
             tot.append(int(kv(r.stderr, 'sols')))
-        qual(f'Q6 tri ({n},{k}) same count with and without the coset key, head 0, 3 passes', len(set(tot)), 1)
+        qual(f'Q6 tri ({n},{k}) same count with and without the coset key, head 0, 4 passes', len(set(tot)), 1)
     rc, out, err = run([sys.executable, 'tri.py', '112', '7', '--print'])
     qual('Q6 tri (112,7) total', (rc, kv(err, 'total')), (0, '2'))
     qual('Q6 tri (112,7) printed set equals the prior antisymmetric set', sorted(out.split()), prior('sol_anti_n112_k7.txt'))

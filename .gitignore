@@ -1,6 +1,6 @@
 __pycache__/
 .DS_Store
-overnight_240_v3.err
+overnight_*.err
 count128/tri
 count128/harness
 count128/mitm
