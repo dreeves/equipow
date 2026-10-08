@@ -1,3 +1,11 @@
+Claude's up-next list:
+
+1. A second pass of the 240 search, with longer time limits for the sub-cases the first pass leaves open.
+2. Searches like the 240 one for 304, 288, 432, 480, 528 and 576, starting with 304. If 304 has order 9, then 2^20 has order 21, since 8·304·368 + 320·480 = 2^20.
+3. Count the order-7 partitions of {0, …, 127}. The antisymmetric ones alone number 303, and no count has been published.
+
+---
+
 More comments from Stan:
 
 this 512 result while nice is not all that important. There is no expectation that the magic value will be this low. Could be 17 though!
@@ -10,47 +18,11 @@ Danny Reeves and me:  The 170-year-old Prouhet result that the "power-sum expone
 
 ---
 
-I do want to store the sets. I have Claude’s 432. Can you send Claude’s 480?
-
 Keeping this accurate seems good. Maybe C. can eliminate some of the ≤ with upper bound proofs.
 
 ---
 
-Claude found:    432 :11  I have the set
-
-480:12  Can you send me the set for my package, which has all the sets.
-
-2⁵¹  Stong
-
-
----
-
 Unfortunately I now have a NEW problem that seems interesting in this area! So let me list the loose ends.
-
-I want to have all the new examples in my database. Right now I have only this:
-
-SClaude[11][432] = {2, 4, 5, 7, 10, 12, 14, 15, 17, 19, 20, 25, 26,
-   27, 29, 30, 31, 35, 39, 40, 42, 45, 46, 47, 49, 54, 55, 56, 57, 60,
-    62, 65, 67, 69, 70, 72, 73, 74, 75, 79, 80, 81, 82, 84, 89, 90,
-   95, 96, 97, 102, 105, 106, 107, 108, 110, 111, 112, 115, 117, 119,
-   122, 124, 125, 126, 130, 131, 135, 136, 137, 139, 141, 145, 147,
-   148, 149, 150, 152, 154, 155, 158, 160, 167, 168, 170, 172, 173,
-   174, 175, 177, 178, 179, 180, 188, 190, 192, 193, 195, 196, 198,
-   199, 200, 201, 205, 207, 208, 210, 214, 215, 217, 220, 221, 222,
-   224, 227, 229, 230, 231, 236, 239, 242, 244, 246, 247, 248, 249,
-   250, 251, 252, 257, 262, 264, 267, 268, 269, 270, 271, 272, 274,
-   276, 277, 280, 282, 287, 289, 290, 291, 293, 295, 299, 300, 301,
-   304, 305, 306, 310, 312, 313, 315, 317, 319, 320, 324, 329, 330,
-   332, 333, 334, 335, 339, 340, 341, 342, 345, 346, 347, 348, 350,
-   355, 356, 357, 362, 365, 367, 369, 370, 372, 374, 375, 380, 381,
-   382, 383, 385, 389, 390, 392, 395, 396, 397, 399, 400, 401, 405,
-   409, 410, 411, 412, 415, 417, 420, 422, 424, 425, 427, 430,
-   432};  (* use complement?? *)
-
-SClaude[12][480];
-
-
-So 480 needed.
 
 ---
 
