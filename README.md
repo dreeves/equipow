@@ -6,27 +6,33 @@ Claude's up-next list:
 
 ---
 
-More comments from Stan:
+Stan and Claude Dialog:
 
 this 512 result while nice is not all that important. There is no expectation that the magic value will be this low. Could be 17 though!
 
+Claude: "17 isn't ruled out. Joins of products of the known blocks still bottom out at 2^24. Joins whose pieces cancel each other's top power sum, the trick behind Claude's 528, can't work for any k ≤ 16 with at most four pieces built from known blocks, and 17 is the first k they don't rule out. With 512 = 9, the smallest k with 2^k of order k + 1 is somewhere from 10 to 24."
+
 336 is a 10. I had this in my package pre-Claude, so that is one error.  Maybe a useful building block?
+
+Claude: "336 is exactly 10: the residue condition mod 5 rules out 11. It doesn't help as a building block. With every known block, 336:10 and 480:12 included, joins of products still bottom out at 2^24. The obstruction is divisibility by 3: 2^k isn't a multiple of 3, but 336 and 480 are."
 
 ---
 
 Danny Reeves and me:  The 170-year-old Prouhet result that the "power-sum exponent" of 2^n is ≥ n was proved (2019) by Stong with a very ingenious argument to not be sharp, in that for 2^51 it is 52.  We have that down to: for 2^24 it is 25, using Stong’s method. See https://en.wikipedia.org/wiki/Prouhet%E2%80%93Tarry%E2%80%93Escott_problem  for defns.
 
+Claude: "Prouhet's paper is from 1851, so it's 175 years old. And 2^51 now gets at least 53: with f the 2^24 construction, f # f # τ3 has order 25 + 25 + 3."
+
 ---
 
 Keeping this accurate seems good. Maybe C. can eliminate some of the ≤ with upper bound proofs.
 
----
-
-Unfortunately I now have a NEW problem that seems interesting in this area! So let me list the loose ends.
+Claude: "Done for 336 (exactly 10, by mod 5) and 512 (exactly 9; the proof in proof512.txt also covers 496). Two new entries: 448 = 9, where mod 3 rules out 10, and 576 ∈ {10, 11, 12}, where mod 5 rules out 13. For 432, 480, 528, 288 and 304, every residue test tried passes, so they need full searches like the one for 240. Separately, OEIS A323629 leaves 112 out of L_7, though Berend and Golan (2006) and Theorem 3.1 of your paper both have it."
 
 ---
 
 Did you try for improving 24 using a value I think Claude did not know about:  336:10
+
+Claude: "Yes, and it doesn't lower 24 (see above). The open table entry that would: if 304 has order 9, then 8·304·368 + 320·480 = 2^20, which gives 2^20 order 21. A search for 304 is up next."
 
 ---
 
@@ -42,6 +48,8 @@ Another way of looking at it: We know that for the classic example the next expo
 
 Maybe this is known in the context of Littlewood polynomials: we see a second Littlewood polynomial. 
 
+Claude: "It's known. Roth, Siegel and Vardy asked exactly this (IEEE Trans. Inform. Theory 40 (1994) 1826–1840, p. 1830): Thue–Morse is the only one for k ≤ 5, and there are others for every k ≥ 6. Boyd proved the k ≤ 5 case (Math. Comp. 66 (1997) 1697–1703, Theorem 3) and found exactly 3 at 64, all symmetric (Math. Comp. 71 (2002) 1205–1217, Example 5). Section 7 of your paper's arXiv version cites Boyd for this."
+
 ---
 
 There are 3 distinct examples in the case of 2^6. So my “new” question is already answered.  But this helps put Stong’s work in context.
@@ -49,11 +57,15 @@ There are 3 distinct examples in the case of 2^6. So my “new” question is al
 At 64 we get new examples, but not any additional exponents.
 At 2^24 we get a new example, but with a new exponent.
 
+Claude: "An exhaustive search confirms the 3 at 64, and finds Thue–Morse alone at 32. At 128 the antisymmetric ones alone number 303. No full count has been published, and one is up next."
+
 ---
 
 A new result. And it can be certified instantaneously. By Danny Reeves and me, using Claude AI.
 
 Recall that in our 2019 paper we gave Stong’s clever proof that there is a subset A of {0,1,…,2^51 -1} such that, if B is A’s complement, then the sums of A^j and B^j are equal for j = 0, 1, …, 52. The point here is that the Prouhet 1851 work gets this up to exponent 51. This gives one more exponent, defeating the conjecture that the Prouhet result is sharp.
+
+Claude: "Two off-by-ones: order 52 means equal sums for j = 0, 1, …, 51, and Prouhet's partition of {0, …, 2^51 − 1} has equal sums only up to j = 50."
 
 We now have this for 2^24 instead of 2^51. It comes from these two facts:
 
@@ -73,3 +85,5 @@ In the notation of the last section of our paper (attached for convenience) the 
 ```math
 \left(p_{320,9}^{\#2} \mathbin{\#} p_{112,7}\right) \vee \left(p_{432,11} \mathbin{\#} p_{48,6} \mathbin{\#} (1-x)^{\#8}\right)
 ```
+
+Claude: "The lower bound, nothing at powers of 2 up to 512, rests on 512 = 9, now proved in proof512.txt."

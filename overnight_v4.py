@@ -48,6 +48,10 @@ the integer filter and the symmetry reduction are exact integer arithmetic; the 
 Changes from overnight_240_v3.py, which this file reproduces at N = 240, ORDER = 11 (quals_v4.py checks that the
 two build the same CP-SAT models and the same splits there):
   - N and ORDER come from the command line, and CASCADE, CUTS and BUDGET from SETTINGS[(N, ORDER)].
+  - The residue lattices keep the factor x+1 only when N < 2^order (lattice_poly).  v3 asserted N < 2^order,
+    which fails in the control's walk at ORDER - 1 whenever N >= 2^(ORDER-1), as for 304 at order 8.
+  - An LP status other than OPTIMAL or INFEASIBLE, such as GLOP's ABNORMAL, makes no claim about a vector, which
+    then gets a child of its own; v3 crashed (see Relaxation).
   - control() takes its examples from EXAMPLES.
 
 Run:   python3 overnight_v4.py N ORDER   (resumes from overnight_N_ORDER_journal.jsonl next to this file)
@@ -69,6 +73,16 @@ from ortools.linear_solver import pywraplp
 #   BUDGET   CP-SAT deterministic time by node depth; the last is for the bottom of the cascade.
 SETTINGS = {
     (240, 11): ((3, 5, 7, 4, 8, 11, 13, 9), (27, 25, 32, 11, 13), (40,) * 8 + (1200,)),    # overnight_240_v3.py's
+    # Small runs for the end-to-end quals in quals_v4.py, whose answers Table 2 gives (m*(48) = 6 and m*(96) = 7
+    # have witnesses; m*(40) = m*(56) = 5 and m*(64) = m*(104) = 6 close).  Tiny budgets above the bottom make
+    # every node there UNKNOWN, so the tree gets split; cascades and cuts avoid the moduli whose residue
+    # conditions alone leave no admissible vector, which would close the tree at its first split.
+    (40, 6): ((4, 7, 8), (16,), (0.01, 0.01, 0.01, 5)),
+    (48, 6): ((5, 4), (16,), (0.01, 0.01, 5)),
+    (56, 6): ((3, 5, 4), (16,), (0.01, 0.01, 0.01, 5)),
+    (64, 7): ((4, 7), (16,), (0.01, 0.01, 5)),
+    (96, 7): ((5, 4), (16,), (0.01, 0.01, 5)),
+    (104, 7): ((5, 7, 4), (16,), (0.01, 0.01, 0.01, 5)),
 }
 POOL_BUDGET = 0.1                         # a pool's budget is at least this much deterministic time per member
 PROCESSES = os.cpu_count()                # nodes worked on at once, each in its own process
@@ -81,6 +95,13 @@ SETTLED = ('INFEASIBLE', 'CLOSED')        # the verdicts that close a node's sub
 EXAMPLES = {
     (240, 10): "C394E65AB989457A86B7D0D921636E",                              # the paper's Table 5
     (432, 11): "5A56B0EE234E8794ADE3D0C384F72A5C63A8BD65035EF015B78B46",      # Claude's p432 (index.html)
+    (192, 9): "C1BE1E21CD63D295A7887A59",                                     # p192 (index.html)
+    (320, 9): "B24B649ED92CD2C36496CB2DB6295D974138BA41",                      # Claude's p320 (index.html)
+    (336, 9): "9C5479E2669C97071E731A62EBC06F28E87B4961DF",                    # Claude's p336 (index.html)
+    (48, 6): "C27D8C", (112, 7): "A5994DB29B45A0",                           # the paper's Table 5 (index.html)
+    (64, 6): "96696996",                                                      # Thue-Morse, tau_6
+    # found with CP-SAT for the end-to-end quals (symmetric or antisymmetric), checked with exact power sums
+    (40, 5): "3E136", (48, 5): "5AA5C3", (56, 5): "B219F61", (96, 6): "5C5780DFC30E", (104, 6): "663C5CB48A5D6",
 }
 HERE = os.path.dirname(os.path.abspath(__file__))
 N = ORDER = CASCADE = CUTS = BUDGET = JOURNAL = LOG = None     # set by configure()
@@ -90,9 +111,9 @@ SOURCE = hashlib.sha1(open(__file__, 'rb').read()).hexdigest()   # this file, as
 
 
 def configure(n, order):
-    """Make this process's run the one for length n and order n: N and ORDER, SETTINGS[(n, order)], the journal
-    and log paths, and no results cached for another configuration.  main() calls it, and so does each worker
-    process as it starts."""
+    """Make this process's run the one for length n and order order: N and ORDER, SETTINGS[(n, order)], the
+    journal and log paths, and no results cached for another configuration.  main() calls it, and so does each
+    worker process as it starts (see make_executor)."""
     global N, ORDER, CASCADE, CUTS, BUDGET, JOURNAL, LOG
     # TODO: error copy; says SETTINGS has no entry for this length and order
     assert (n, order) in SETTINGS, f'Claude: "no settings for N = {n}, order {order}"'
@@ -174,14 +195,20 @@ def rep(gs, M, v): return min(act(g, M, v) for g in gs)
 
 # ---------- residue lattices and the moment equations ----------
 
+def lattice_poly(order):
+    """The coefficients, lowest first, of (x-1)^order, times x+1 when N < 2^order: a sequence of that order has
+    f(x) = (x-1)^order h(x), so f(-1) is a multiple of 2^order, and |f(-1)| <= N < 2^order then forces f(-1) = 0."""
+    poly = [1]
+    for root in [1] * order + [-1] * (N < 2 ** order):
+        poly = [a - root * b for a, b in zip([0] + poly, poly + [0])]
+    return poly
+
+
 @lru_cache(maxsize=None)
 def lattice_basis(M, order):
-    """Columns spanning the residue lattice mod M: the coefficient vectors of (x-1)^order (x+1) g(x)
-    reduced mod x^M - 1.  The factor x+1 is allowed because |f(-1)| <= N < 2^order forces f(-1) = 0."""
-    assert N < 2 ** order
-    poly = [1]
-    for root in [1] * order + [-1]:
-        poly = [a - root * b for a, b in zip([0] + poly, poly + [0])]
+    """Columns spanning the residue lattice mod M: the coefficient vectors of p(x) g(x) reduced mod x^M - 1,
+    for p = lattice_poly(order)."""
+    poly = lattice_poly(order)
     G = [[0] * M for _ in range(M)]
     for k in range(M):
         for t, c in enumerate(poly): G[k][(t + k) % M] += c
@@ -314,7 +341,10 @@ def moment_basis(order):
 
 
 class Relaxation:
-    """The LP relaxation, 0 <= x_p <= 1, of a node's children by counts mod M."""
+    """The LP relaxation, 0 <= x_p <= 1, of a node's children by counts mod M.  The LP proves a vector's
+    relaxation infeasible by an INFEASIBLE status, or by the vector's lying outside the box of count bounds,
+    which only OPTIMAL bound solves set; any other status (GLOP's ABNORMAL, say) makes no claim.  So a vector
+    joins the pool only when proven infeasible, and a solver failure costs a child of its own, never a crash."""
     def __init__(self, order, node, M):
         s = self.s = pywraplp.Solver.CreateSolver('GLOP')
         # Presolve with warm starts gave ABNORMAL statuses at order 10; without it GLOP matched HiGHS and
@@ -342,24 +372,23 @@ class Relaxation:
         obj.Clear()
         for p, c in objective.items(): obj.SetCoefficient(self.x[p], c)
         obj.SetMinimization()
-        st = self.s.Solve()
-        assert st in (pywraplp.Solver.OPTIMAL, pywraplp.Solver.INFEASIBLE), st
-        return st
+        return self.s.Solve()
 
     def bound(self, r, sign):
-        assert self.solve({p: sign for p in range(r, N, self.M)}) == pywraplp.Solver.OPTIMAL
-        return sign * self.s.Objective().Value()
+        """The least (sign 1) or greatest (sign -1) count in class r, from an OPTIMAL solve; otherwise no bound."""
+        st = self.solve({p: sign for p in range(r, N, self.M)})
+        return sign * self.s.Objective().Value() if st == pywraplp.Solver.OPTIMAL else -sign * float('inf')
 
     def check(self, v):
-        """Is the relaxation feasible with counts mod M equal to v?"""
+        """Is the relaxation with counts mod M equal to v not proven infeasible?"""
         for r, ct in enumerate(self.rows): ct.SetBounds(v[r], v[r])
         st = self.solve({})
         for r, ct in enumerate(self.rows): ct.SetBounds(0, size(self.M, r))
-        return st == pywraplp.Solver.OPTIMAL
+        return st != pywraplp.Solver.INFEASIBLE
 
     def feasible_set(self, vecs):
-        """The members of vecs with a feasible relaxation; only those inside the box of LP count bounds are
-        tested one by one."""
+        """The members of vecs whose relaxation the LP does not prove infeasible; only those inside the box of LP
+        count bounds are tested one by one."""
         if self.solve({}) == pywraplp.Solver.INFEASIBLE:             # the node's own relaxation is infeasible
             return []
         lo = [self.bound(r, 1) for r in range(self.M)]
@@ -493,6 +522,11 @@ def work(order, node, budget, known, source):
     return verdict, a, children, t1 - t0, time.time() - t1
 
 
+def make_executor():
+    """PROCESSES worker processes, each configured for this run as it starts."""
+    return ProcessPoolExecutor(PROCESSES, initializer=configure, initargs=(N, ORDER))
+
+
 def search(order, journal, log, executor):
     """Close the tree from the top node depth-first, PROCESSES nodes at a time.  A subtree is closed when its
     node is INFEASIBLE or all its children's subtrees are closed; each closed subtree with children is
@@ -554,7 +588,7 @@ def control():
     """Startup control.  Exact checks at ORDER: every column of the moment-and-count matrix passes each
     cascade prefix's integer filter (so the filter accepts every integer solution); every generator of each
     residue lattice lies in its basis's span; and the residue vectors of every example of order ORDER in
-    EXAMPLES lie in the lattices (which do not depend on the length, below 2^ORDER).  Then, at ORDER - 1,
+    EXAMPLES lie in the lattices (which do not depend on the length when f(-1) = 0, asserted).  Then, at ORDER - 1,
     follow the example of that order and length N down the cascade with the real split: at each split its
     image under the stabilizer must land in a child of its own (so its LP relaxation was not proven
     infeasible) whose CP-SAT model accepts it; at ORDER the final node's model must reject it."""
@@ -563,12 +597,10 @@ def control():
         A = rows + sum((count_rows(M) for M in CASCADE[:i]), ())
         assert all(integer_system(ORDER, CASCADE[:i]).solvable([row[p] for row in A]) for p in range(N))
     bs = [from_hex(h, m) for (n, m), h in EXAMPLES.items() if m == ORDER]
-    assert bs and all(exact_order(b) == ORDER and len(b) < 2 ** ORDER for b in bs)
+    assert bs and all(exact_order(b) == ORDER and sum(t * (-1) ** p for p, t in enumerate(b)) == 0 for b in bs)
     for M in sorted(set(CASCADE + CUTS)):
         span = ExactSystem(lattice_basis(M, ORDER))
-        poly = [1]
-        for root in [1] * ORDER + [-1]:
-            poly = [u - root * w for u, w in zip([0] + poly, poly + [0])]
+        poly = lattice_poly(ORDER)
         gens = [[sum(c for t, c in enumerate(poly) if (t + k) % M == r) for r in range(M)] for k in range(M)]
         assert all(span.solvable(g) for g in gens)
         assert all(span.solvable([sum(b[p] for p in range(r, len(b), M)) for r in range(M)]) for b in bs)
@@ -604,7 +636,7 @@ def run():
     control()
     # TODO: says the startup control passed: the example of order ORDER-1 and length N survived every split, and order ORDER rejects it
     log_to_file(f'Claude: "startup control passed: the order-{ORDER - 1} example of length {N} survived every split, and order {ORDER} rejects it"')
-    with ProcessPoolExecutor(PROCESSES, initializer=configure, initargs=(N, ORDER)) as executor:
+    with make_executor() as executor:
         res = search(ORDER, journal, log_to_file, executor)
     hours = (time.time() - t0) / 3600
     for node in res['open']:
@@ -625,8 +657,8 @@ def run():
 
 # A fingerprint of the code that decides verdicts, taken as imported (see header()).
 CODE = hashlib.sha1(''.join(inspect.getsource(f) for f in (
-    lattice_basis, add_lattice, moment_rows, count_rows, ExactSystem, integer_system, admissible, act, stabilizer,
-    rep, split, build_model, solve, solve_node, node_key, work, search)).encode()).hexdigest()
+    lattice_poly, lattice_basis, add_lattice, moment_rows, count_rows, ExactSystem, integer_system, admissible, act,
+    stabilizer, rep, split, build_model, solve, solve_node, node_key, work, search)).encode()).hexdigest()
 
 
 if __name__ == '__main__':

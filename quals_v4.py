@@ -66,7 +66,6 @@ class length:
     def __enter__(self):
         self.saved = v4.N
         v4.N = self.n
-        v4.configure.__globals__  # (v4's own namespace; the caches below are its lru_caches)
         for f in (v4.lattice_basis, v4.moment_rows, v4.integer_system, v4.admissible, v4.moment_basis): f.cache_clear()
     def __exit__(self, *exc):
         v4.N = self.saved
@@ -106,13 +105,13 @@ def q_settings_table():
     # Replicata: SETTINGS and EXAMPLES.
     # Expectata: (240, 11) holds overnight_240_v3.py's exact CASCADE, CUTS and BUDGET; (304, 9) is present; every
     # entry has one budget per depth plus the bottom; every entry has its control's examples: one of length N
-    # and order ORDER - 1, and at least one of order ORDER and length below 2^ORDER.
+    # and order ORDER - 1, and at least one of order ORDER.
     assert v4.SETTINGS[240, 11] == (v3.CASCADE, v3.CUTS, v3.BUDGET)
     assert (304, 9) in v4.SETTINGS
     for (n, order), (cascade, cuts, budget) in v4.SETTINGS.items():
         assert len(budget) == len(cascade) + 1, (n, order)
         assert (n, order - 1) in v4.EXAMPLES, (n, order)
-        assert any(m == order and k < 2 ** order for k, m in v4.EXAMPLES), (n, order)
+        assert any(m == order for _, m in v4.EXAMPLES), (n, order)
 
 
 def q_examples_exact():
@@ -176,7 +175,7 @@ def q_v4_builds_v3_models_at_240_11():
             assert v3.lattice_basis(M, order) == v4.lattice_basis(M, order), (order, M)
     pool = TOP4 + ((8, ((1, 1, 5, 5, 29, 29, 25, 25), (1, 1, 5, 13, 29, 29, 25, 17))),)
     for order, node in ((11, ()), (11, TOP4), (11, pool), (10, example_node(v3.CASCADE))):
-        assert v3.build_model(order, node)[0].Proto() == v4.build_model(order, node)[0].Proto(), node
+        assert str(v3.build_model(order, node)[0].Proto()) == str(v4.build_model(order, node)[0].Proto()), node
     node = ()
     for M in (3, 5, 7, 4):
         assert v3.split(11, node) == v4.split(11, node), M
@@ -230,9 +229,9 @@ def q_lattice_basis_spans_generators():
     # Expectata: the generators and lattice_basis's columns span the same lattice (each in the other's
     # span, tested with v2's independently written IntegerSystem).
     import overnight_240_v2 as v2
-    for n, order in ((240, 10), (240, 11), (304, 8), (304, 9)):
-        at(n, order + (n == 304 and order == 8))
-        for M in sorted(set(v4.CASCADE + v4.CUTS)):
+    for n, target in ((240, 11), (304, 9)):
+        at(n, target)
+        for order, M in itertools.product((target - 1, target), sorted(set(v4.CASCADE + v4.CUTS))):
             gens = residue_lattice_gens(M, order, n < 2 ** order)
             B = v4.lattice_basis(M, order)
             in_basis = v2.IntegerSystem([list(row) for row in B])
@@ -452,9 +451,6 @@ def fake_pywraplp(abnormal, made):
     solver = types.SimpleNamespace(CreateSolver=create, OPTIMAL=pywraplp.Solver.OPTIMAL,
                                    INFEASIBLE=pywraplp.Solver.INFEASIBLE, ABNORMAL=pywraplp.Solver.ABNORMAL)
     return types.SimpleNamespace(Solver=solver)
-
-
-LP_NODE = TOP4[:3]          # 240@11: the node whose mod-4 split the LP policy quals use (set below)
 
 
 def q_lp_status_policy():
@@ -874,7 +870,7 @@ def check_closed_run(n, order):
         assert 'ALL NODES CLOSED' in text and 'NOT FINISHED' not in text and 'WITNESS' not in text, text[-2000:]
     top = [r['verdict'] for r in records[1:] if r['key'] == '']
     assert top == ['UNKNOWN', 'CLOSED'], top
-    assert '[1] {}: UNKNOWN' in texts[0] and '[' not in texts[1].split('startup control passed')[1].split('ALL NODES')[0]
+    assert '[1] {}: UNKNOWN' in texts[0] and '] {' not in texts[1]
 
 
 def q_end_to_end_48_6_finds_a_witness():
