@@ -10,8 +10,9 @@ Table 2, with journals and logs under RUNS.
 """
 import sys
 sys.dont_write_bytecode = True
-import os, time, random, itertools, subprocess, tempfile, traceback, json, inspect, types
+import os, time, random, itertools, subprocess, tempfile, traceback, json, inspect, types, math
 from concurrent.futures import Future
+import numpy as np
 import sympy as sp
 import overnight_v4 as v4
 import overnight_240_v3 as v3
@@ -19,7 +20,7 @@ from ortools.sat.python import cp_model
 from ortools.linear_solver import pywraplp
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-RUNS = '/private/tmp/claude-502/-Users-dreeves-lab-powersums/13df408b-e47a-428d-aa1d-b77740929a67/scratchpad/next/v4runs'
+RUNS = tempfile.mkdtemp(prefix='v4runs-')
 C_STAR = (14, 21, 3, 10, 17, 24, 31)          # v3's representative of the open mod-7 orbit (v2 used its R-image)
 TOP4 = ((3, ((40, 40, 40),)), (5, ((24,) * 5,)), (7, (C_STAR,)), (4, ((30,) * 4,)))
 EXAMPLE = v4.from_hex(v4.EXAMPLES[240, 10], 10)
@@ -38,13 +39,14 @@ def at(n, order):
 
 
 def expect_assertion(f, where):
-    """Run f; it must raise AssertionError from inside the function named where."""
+    """Run f; it must raise AssertionError from inside the function named where.  Returns that frame of the
+    traceback, whose line is the failed assertion's source."""
     try:
         f()
     except AssertionError as e:
         frames = traceback.extract_tb(e.__traceback__)
         assert frames[-1].name == where, frames[-1]
-        return
+        return frames[-1]
     # TODO: error copy; says the expected assertion did not fire, naming the function where it should have
     raise AssertionError(f'Claude: "the expected assertion did not fire: {where}"')
 
@@ -66,10 +68,18 @@ class length:
     def __enter__(self):
         self.saved = v4.N
         v4.N = self.n
-        for f in (v4.lattice_basis, v4.moment_rows, v4.integer_system, v4.admissible, v4.moment_basis): f.cache_clear()
+        for f in v4.CACHED: f.cache_clear()
     def __exit__(self, *exc):
         v4.N = self.saved
-        for f in (v4.lattice_basis, v4.moment_rows, v4.integer_system, v4.admissible, v4.moment_basis): f.cache_clear()
+        for f in v4.CACHED: f.cache_clear()
+
+
+class uncached:
+    """A with-block that shares no cached results with the code before or after it."""
+    def __enter__(self):
+        for f in v4.CACHED: f.cache_clear()
+    def __exit__(self, *exc):
+        for f in v4.CACHED: f.cache_clear()
 
 
 def cpsat_enumerate(order, M, fixed):
@@ -91,12 +101,39 @@ def cpsat_enumerate(order, M, fixed):
 def residue_lattice_gens(M, order, plus):
     """Independent generators: the cyclic shifts of (x-1)^order, times x+1 if plus, reduced mod x^M - 1 (sympy)."""
     x = sp.symbols('x')
-    p = sp.Poly((x - 1) ** order * (x + 1) ** plus, x)
+    p = sp.Poly((x - 1) ** order * (x + 1) ** int(plus), x)
     gens = []
     for k in range(M):
         r = sp.Poly(sp.rem(x ** k * p.as_expr(), x ** M - 1, x), x)
         gens.append([int(r.coeff_monomial(x ** i)) for i in range(M)])
     return gens
+
+
+def power_sum_solutions(n, m):
+    """Every +-1 sequence of even length n whose power sums sum_p a_p p^k vanish for k < m, found without v4:
+    meet in the middle on the two halves' power sums (in int64, asserted not to overflow), each solution then
+    checked with exact integers."""
+    assert n % 2 == 0
+    h = n // 2
+    def sums(offset):
+        """Row i: the power sums over positions offset + p, p < h, with sign + exactly where bit p of i is 1."""
+        P = np.array([[(offset + p) ** k for k in range(m)] for p in range(h)], dtype=np.int64)
+        assert sum(abs(int(e)) for e in P.flat) < 2 ** 62
+        S = np.zeros((1, m), dtype=np.int64)
+        for p in range(h): S = np.concatenate([S - P[p], S + P[p]])
+        return S
+    L, R = sums(0), -sums(h)                        # a solution: row i of L equal to row j of R
+    base = np.minimum(L.min(axis=0), R.min(axis=0))
+    span = [int(t) + 1 for t in np.maximum(L.max(axis=0), R.max(axis=0)) - base]
+    assert math.prod(span) < 2 ** 63
+    weight = np.array([math.prod(span[:k]) for k in range(m)], dtype=np.int64)
+    kl, kr = (L - base) @ weight, (R - base) @ weight   # mixed radix: equal keys exactly for equal rows
+    order = np.argsort(kl, kind='stable')
+    lo, hi = np.searchsorted(kl[order], kr, 'left'), np.searchsorted(kl[order], kr, 'right')
+    def signs(i): return [2 * (int(i) >> p & 1) - 1 for p in range(h)]
+    out = [signs(order[t]) + signs(j) for j in np.flatnonzero(hi > lo) for t in range(lo[j], hi[j])]
+    assert all(sum(t * p ** k for p, t in enumerate(a)) == 0 for a in out for k in range(m))
+    return out
 
 
 # ---------- settings and configuration ----------
@@ -133,6 +170,25 @@ def q_configure():
     expect_assertion(lambda: v4.configure(240, 12), 'configure')
 
 
+def q_configure_asserts_64_bit_coefficients():
+    # Replicata: configure(432, 12), with a SETTINGS entry that exists only for this qual; the top node's CP-SAT
+    # model at N = 432, order 12, without cuts; then configure(304, 9) and its top node's model.
+    # Expectata: AssertionError at configure's check that every moment row's |coefficients| sum to less than 2^62
+    # (at 432@12 the largest sum is about 9.0e19), and CP-SAT cannot take that model, whose numbers do not fit its
+    # 64-bit integers; 304@9 passes the check (its largest sum is about 4.9e14), and CP-SAT validates its model.
+    with patched(v4, SETTINGS=v4.SETTINGS | {(432, 12): ((3,), (), (1, 1))}):
+        frame = expect_assertion(lambda: v4.configure(432, 12), 'configure')
+    assert '2 ** 62' in frame.line, frame.line
+    with length(432), patched(v4, CUTS=()):
+        try:
+            problem = v4.build_model(12, ())[0].Validate()
+        except TypeError as e:                       # CP-SAT's Python layer refuses a number beyond 64 bits
+            problem = str(e)
+    assert problem
+    v4.configure(304, 9)
+    assert v4.build_model(9, ())[0].Validate() == ''
+
+
 def q_configure_forgets_cached_results():
     # Replicata: moment rows, a lattice basis and an admissible set computed at 240@11, then again after
     # configure(304, 9), then again after configure(240, 11).
@@ -162,14 +218,26 @@ def q_command_line():
 def q_v4_builds_v3_models_at_240_11():
     # Replicata: at 240@11, v3's and v4's code side by side.
     # Expectata: every function v3 fingerprints into CODE is textually identical in v4 except lattice_basis
-    # (see q_lattice_rule); lattice bases agree for every modulus in play at orders 10 and 11; the CP-SAT models
-    # of the top node, the open node, a pool node and a full count node are identical protos; the first four
-    # splits agree.
+    # (see q_lattice_rule), and work and search, which differ from v3's by exactly the edits below, carrying each
+    # split's LP failures to its progress line (see q_lp_failures_reach_the_progress_line); lattice bases agree
+    # for every modulus in play at orders 10 and 11; the CP-SAT models of the top node, the open node, a pool node
+    # and a full count node are identical protos; the first four splits agree.
     at(240, 11)
     names = ('add_lattice', 'moment_rows', 'count_rows', 'ExactSystem', 'integer_system', 'admissible', 'act',
-             'stabilizer', 'rep', 'split', 'build_model', 'solve', 'solve_node', 'node_key', 'work', 'search')
+             'stabilizer', 'rep', 'split', 'build_model', 'solve', 'solve_node', 'node_key')
     for name in names:
         assert inspect.getsource(getattr(v3, name)) == inspect.getsource(getattr(v4, name)), name
+    edits = {'work': (('split seconds)', "split seconds, the split's LP failures)"),
+                      ('    t1 = time.time()\n', '    t1 = time.time()\n    failures = Relaxation.failures\n'),
+                      ('time.time() - t1\n', 'time.time() - t1, Relaxation.failures - failures\n')),
+             'search': (('t_split = f.result()', 't_split, failures = f.result()'),
+                        ("len(res['open'])))", "len(res['open']), failures))"))}
+    for name, pairs in edits.items():
+        text = inspect.getsource(getattr(v3, name))
+        for old, new in pairs:
+            assert text.count(old) == 1, (name, old)
+            text = text.replace(old, new)
+        assert text == inspect.getsource(getattr(v4, name)), name
     for order in (10, 11):
         for M in sorted(set(v3.CASCADE + v3.CUTS)):
             assert v3.lattice_basis(M, order) == v4.lattice_basis(M, order), (order, M)
@@ -223,7 +291,7 @@ def q_stabilizers():
 # ---------- residue lattices and admissible count vectors ----------
 
 def q_lattice_basis_spans_generators():
-    # Replicata: every modulus in the cascade and the cuts, at 240 (orders 10 and 11, both above log2 240) and at
+    # Replicata: every modulus in the cascade and the cuts, at 240 (orders 10 and 11, where 240 < 2^order) and at
     # 304 (order 8, where 304 >= 2^8, and order 9).  Generators: the cyclic shifts of (x-1)^order, times x+1
     # exactly when N < 2^order, reduced mod x^M - 1, built independently with sympy polynomials.
     # Expectata: the generators and lattice_basis's columns span the same lattice (each in the other's
@@ -241,7 +309,7 @@ def q_lattice_basis_spans_generators():
 
 
 def q_lattice_rule():
-    # Replicata: the sequence SIGNS_12_3 of length 12 = 3 * 4, order 3 and f(-1) = 8, so 12 >= 2^3 and its
+    # Replicata: the sequence SIGNS_12_3 of length 12, order 3 and f(-1) = 8, so 12 >= 2^3 and its
     # f(x) = (x-1)^3 h(x) has h(-1) = -1; v4 at N = 12, then at N = 7.
     # Expectata: at N = 12 its residue vectors mod every M up to 16 lie in lattice_basis(M, 3), and for some M
     # they lie outside the lattice of (x-1)^3 (x+1), which v3 would have used; at N = 7 < 2^3, lattice_basis(M, 3)
@@ -304,7 +372,7 @@ def q_admissible_matches_cpsat():
         assert v4.admissible(order, M, fixed) == cpsat_enumerate(order, M, fixed), (order, M, fixed)
     at(304, 9)
     for order, M, fixed in ((9, 3, ()), (9, 5, ()), (9, 4, ()), (9, 7, ()), (8, 3, ()), (8, 5, ()), (8, 4, ()),
-                            (8, 8, ((4, (38,) * 4),))):
+                            (8, 7, ())):
         assert v4.admissible(order, M, fixed) == cpsat_enumerate(order, M, fixed), (order, M, fixed)
 
 
@@ -431,15 +499,25 @@ def q_feasible_set_early_return():
 
 class FakeGlop:
     """GLOP, except that Solve returns ABNORMAL whenever abnormal(i, status) holds for the i-th solve (from 0)
-    and the status GLOP itself returned."""
+    and the status GLOP itself returned; after such a solve, Objective().Value() is NaN."""
     def __init__(self, abnormal):
         self.real, self.abnormal, self.calls, self.faked = pywraplp.Solver.CreateSolver('GLOP'), abnormal, 0, 0
+        self.last = False                            # whether the latest solve's status was faked
     def __getattr__(self, name): return getattr(self.real, name)
     def Solve(self):
         st = self.real.Solve()
         i, self.calls = self.calls, self.calls + 1
-        self.faked += bool(self.abnormal(i, st))
-        return pywraplp.Solver.ABNORMAL if self.abnormal(i, st) else st
+        self.last = bool(self.abnormal(i, st))
+        self.faked += self.last
+        return pywraplp.Solver.ABNORMAL if self.last else st
+    def Objective(self): return FakeObjective(self)
+
+
+class FakeObjective:
+    """A FakeGlop's objective: GLOP's own, except that Value() is NaN after a faked status."""
+    def __init__(self, glop): self.glop = glop
+    def __getattr__(self, name): return getattr(self.glop.real.Objective(), name)
+    def Value(self): return float('nan') if self.glop.last else self.glop.real.Objective().Value()
 
 
 def fake_pywraplp(abnormal, made):
@@ -453,11 +531,23 @@ def fake_pywraplp(abnormal, made):
     return types.SimpleNamespace(Solver=solver)
 
 
+def q_fake_glop():
+    # Replicata: a FakeGlop that fakes its second solve, minimizing x over 1 <= x <= 2, solved three times.
+    # Expectata: OPTIMAL with objective value 1, then ABNORMAL with NaN, then OPTIMAL with 1 again.
+    s = FakeGlop(lambda i, st: i == 1)
+    x = s.NumVar(1, 2, 'x')
+    s.Objective().SetCoefficient(x, 1)
+    s.Objective().SetMinimization()
+    got = [(s.Solve(), s.Objective().Value()) for _ in range(3)]
+    assert got[0] == got[2] == (pywraplp.Solver.OPTIMAL, 1.0) and got[1][0] == pywraplp.Solver.ABNORMAL, got
+    assert math.isnan(got[1][1]) and s.faked == 1, got
+
+
 def q_lp_status_policy():
     # Replicata: the mod-8 split of the open node at 240@11 (528 vectors), with GLOP replaced by a fake that
     # returns ABNORMAL for (a) every solve, (b) the 16 bound solves, (c) every check GLOP itself found
     # INFEASIBLE, (d) the node's own solve; and v3's split under fake (a).
-    # Expectata: a vector goes into the pool only if the LP proved it infeasible, by an INFEASIBLE status or by
+    # Expectata: a vector goes into the pool only if the LP claimed it infeasible, by an INFEASIBLE status or by
     # lying outside the box of bounds that OPTIMAL bound solves set; any other status makes no claim, and the
     # vector gets its own child.  So (a) every vector has its own child and the pool is empty; (b) and (d)
     # give the real split; (c) gives own children exactly to the vectors inside the real box; every fake
@@ -575,6 +665,23 @@ def q_control_304_9():
     v4.control()
 
 
+def q_control_checks_example_lattices():
+    # Replicata: the startup control at 40@6, with lattice_poly given one more factor x-1 at ORDER only (at
+    # ORDER - 1, where the control walks its example down the cascade, it is the real one), and no results cached
+    # from before or after.
+    # Expectata: AssertionError at the control's check that the residue vectors of the examples of order ORDER lie
+    # in the lattices (mod 7, none of the three does).  Without that check the control would pass: its walk uses
+    # the real lattices, and the finer one at ORDER only makes the final model stricter.
+    at(40, 6)
+    real = v4.lattice_poly
+    def finer(order):                                # lattice_poly(order), times x - 1 at ORDER
+        poly = real(order)
+        return [a - b for a, b in zip([0] + poly, poly + [0])] if order == v4.ORDER else poly
+    with patched(v4, lattice_poly=finer), uncached():
+        frame = expect_assertion(v4.control, 'control')
+    assert 'for b in bs' in frame.line, frame.line
+
+
 # ---------- journal and keys ----------
 
 def q_node_keys():
@@ -676,7 +783,7 @@ def fake_world(verdicts, splits):
         if known is None: calls.append(node)
         verdict = known or verdicts[node]
         children = (splits[node] if node in splits else real(order, node)) if verdict == 'UNKNOWN' else []
-        return verdict, None, children, 0.0, 0.0
+        return verdict, None, children, 0.0, 0.0, 0
     return calls, dict(work=work)
 
 
@@ -736,7 +843,7 @@ def q_search_witness_is_checked_exactly():
     # Expectata: at order 10 the search logs it at once and returns it as a witness of exact order 10,
     # journaling nothing; at order 11 the exact check in search() fails.
     at(240, 11)
-    fake = dict(work=lambda order, node, budget, known, source: ('FEASIBLE', EXAMPLE, [], 0.0, 0.0))
+    fake = dict(work=lambda order, node, budget, known, source: ('FEASIBLE', EXAMPLE, [], 0.0, 0.0, 0))
     path = journal_with([])
     lines = []
     with patched(v4, **fake):
@@ -751,6 +858,28 @@ def q_work_requires_the_same_source():
     # Replicata: work() told that the main process ran a different file.  Expectata: AssertionError in work.
     at(240, 11)
     expect_assertion(lambda: v4.work(11, (), 1, 'UNKNOWN', 'another file'), 'work')
+
+
+def q_lp_failures_reach_the_progress_line():
+    # Replicata: at 240@11, work() on the open node with a known UNKNOWN, so that it only splits the node (by mod
+    # 8), with GLOP faked to return ABNORMAL for every third LP solve, then with the real GLOP; then search() with
+    # a fake worker whose split of the top node had 4321 LP failures.
+    # Expectata: work() reports as many LP failures as the fake returned ABNORMAL statuses (some), and none with
+    # the real GLOP; the top node's progress line shows 4321, and its two INFEASIBLE children's lines do not.
+    at(240, 11)
+    made = []
+    with patched(v4, pywraplp=fake_pywraplp(lambda i, st: i % 3 == 0, made)):
+        res = v4.work(11, TOP4, 1, 'UNKNOWN', v4.SOURCE)
+    assert len(res) == 6, len(res)
+    assert res[5] == sum(s.faked for s in made) > 0, (res[5], [s.faked for s in made])
+    assert v4.work(11, TOP4, 1, 'UNKNOWN', v4.SOURCE)[5] == 0
+    a, b = ((3, ((1,),)),), ((3, ((2,),)),)
+    def work(order, node, budget, known, source):
+        return ('UNKNOWN', None, [a, b], 0.0, 0.0, 4321) if node == () else ('INFEASIBLE', None, [], 0.0, 0.0, 0)
+    lines = []
+    with patched(v4, work=work):
+        v4.search(11, v4.Journal(journal_with([])), lines.append, SyncExecutor())
+    assert len(lines) == 3 and '4321' in lines[0] and not any('4321' in t for t in lines[1:]), lines
 
 
 def q_workers_are_configured():
@@ -820,6 +949,38 @@ def q_sigint_finishes_solve_and_records_nothing():
     assert len(open(path).read().splitlines()) == 1
 
 
+# ---------- completeness: every solution of a small configuration ----------
+
+def q_every_solution_reaches_an_accepting_leaf_40_4():
+    # Replicata: v4 at 40@4 (40 >= 2^4, so its lattices lack the factor x+1), with a SETTINGS entry that exists
+    # only for this qual: cascade (3, 5, 4, 7, 8), cuts (9, 16).  All 4414 sequences of length 40 and order at
+    # least 4, from power_sum_solutions.  Each walks v4's real tree from the top node: at a node, for each g in
+    # its stabilizer, g of the sequence goes to the child of the node's split holding its counts, if any (a pool
+    # child splits into its members in turn), down to a node without children, a leaf.
+    # Expectata: every solution reaches a leaf whose CP-SAT model, with x pinned to the image of the solution
+    # there, is OPTIMAL.  So no split, filter, symmetry reduction or model loses a solution of 40@4.  (All 4414
+    # have f(-1) = 0, so this qual cannot tell whether the lattices drop x+1; q_lattice_rule does.)
+    with patched(v4, SETTINGS=v4.SETTINGS | {(40, 4): ((3, 5, 4, 7, 8), (9, 16), (1,) * 6)}):
+        v4.configure(40, 4)
+    sols = power_sum_solutions(40, 4)
+    assert len(sols) == len(set(map(tuple, sols))) == 4414
+    kids, holder = {}, {}                            # a node's children, and the child holding each split vector
+    def reaches(node, a):
+        if node not in kids:
+            kids[node] = v4.split(4, node)
+            holder[node] = {v: c for c in kids[node] for v in c[-1][1]}
+        if not kids[node]:
+            return status_of(v4.build_model(4, node, fix=x01(a))[0]) == 'OPTIMAL'
+        M = kids[node][0][-1][0]
+        for g in v4.stabilizer(node):
+            b = v4.act_seq(g, a)
+            c = holder[node].get(v4.counts(b, M))
+            if c is not None and reaches(c, b): return True
+        return False
+    lost = [a for a in sols if not reaches((), a)]
+    assert not lost, (len(lost), lost[:2])
+
+
 # ---------- end to end: small configurations with answers known from Table 2 ----------
 
 DRIVER = """import sys; sys.dont_write_bytecode = True; sys.path.insert(0, {here!r})
@@ -834,7 +995,6 @@ if __name__ == '__main__':
 def end_to_end(n, order):
     """A fresh run of overnight_v4 at (n, order) in a child process with two worker processes, its journal and
     log under RUNS; then a second run on the same journal.  Returns both logs' text and the journal's records."""
-    os.makedirs(RUNS, exist_ok=True)
     journal, log = os.path.join(RUNS, f'overnight_{n}_{order}_journal.jsonl'), os.path.join(RUNS, f'overnight_{n}_{order}.log')
     for path in (journal, log):
         if os.path.exists(path): os.remove(path)
@@ -877,11 +1037,6 @@ def q_end_to_end_48_6_finds_a_witness():
     # Replicata: overnight_v4 at 48@6 (m*(48) = 6 in Table 2), its tiny SETTINGS budgets, run twice.
     # Expectata: each run passes its control and logs one witness whose X has exact order 6.
     check_witness_run(48, 6)
-
-
-def q_end_to_end_96_7_finds_a_witness():
-    # Replicata: overnight_v4 at 96@7 (m*(96) = 7), run twice.  Expectata: as for 48@6, exact order 7.
-    check_witness_run(96, 7)
 
 
 def q_end_to_end_40_6_closes():

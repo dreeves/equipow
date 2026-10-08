@@ -3,6 +3,7 @@ Claude's up-next list:
 1. A second pass of the 240 search, with longer time limits for the sub-cases the first pass leaves open.
 2. Searches like the 240 one for 304, 288, 432, 480, 528 and 576, starting with 304. If 304 has order 9, then 2^20 has order 21, since 8·304·368 + 320·480 = 2^20.
 3. Count the order-7 partitions of {0, …, 127}. The antisymmetric ones alone number 303, and no count has been published.
+   Claude: "Done: 431 partitions, 367 up to reversal. See the reply to Stan's uniqueness question below."
 
 ---
 
@@ -57,7 +58,7 @@ There are 3 distinct examples in the case of 2^6. So my “new” question is al
 At 64 we get new examples, but not any additional exponents.
 At 2^24 we get a new example, but with a new exponent.
 
-Claude: "An exhaustive search confirms the 3 at 64, and finds Thue–Morse alone at 32. At 128 the antisymmetric ones alone number 303. No full count has been published, and one is up next."
+Claude: "An exhaustive search confirms the 3 at 64, and finds Thue–Morse alone at 32. At 128 there are 431 partitions, 367 up to reversal: the 303 antisymmetric ones, Thue–Morse among them, and 128 more that come in reversed pairs. No count at 128 had been published. Also, the order-7 partition of {0, …, 111} is unique."
 
 ---
 

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""N in L_ORDER?  Version 4: the count-vector cube-and-conquer of overnight_240_v3.py, for any length N and order.
+"""N in L_ORDER?  Version 4: the count-vector cube-and-conquer of overnight_240_v3.py, for any length N and order
+whose moment equations fit CP-SAT's 64-bit integers (configure asserts it; at 432@12 they do not).
 
 The question, from Buhler, Golan, Pratt and Wagon, Math. Comp. 90 (2021) 1435-1453, Table 2: is there a +-1
 sequence a_0..a_{N-1} whose power sums sum_p a_p p^k vanish for k = 0..ORDER-1, that is, of order at least ORDER?
@@ -14,13 +15,15 @@ Vocabulary used throughout this file, each term defined once here:
                  counts.
   node           the sequences whose counts mod M lie in V_M for each pair (M, V_M) of a tuple of
                  constraints; a vertex of the search tree.  The top node is the empty tuple.
-  pool           the one child of a split holding every vector whose LP relaxation is infeasible (perhaps
-                 none, perhaps one), so that a single CP-SAT run can close them all.  A pool with more than
-                 one member splits into one child per member.
+  pool           the one child of a split holding every vector whose LP relaxation the LP claims is infeasible
+                 (perhaps none, perhaps one; see Relaxation), so that a single CP-SAT run can close them all.
+                 A pool with more than one member splits into one child per member.
   split          the children of a node with verdict UNKNOWN: a pool's members, as above; otherwise, by the
                  next cascade modulus M, the admissible vectors mod M that pass the exact integer filter,
-                 reduced to one per orbit of the node's stabilizer, each with a child of its own when its LP
-                 relaxation is feasible and the rest in one pool.  At the bottom of the cascade, none.
+                 reduced to one per orbit of the node's stabilizer, each with a child of its own unless the LP
+                 claims its relaxation is infeasible, and the rest in one pool.  At the bottom of the cascade, none.
+  LP failure     an LP solve whose status is neither OPTIMAL nor INFEASIBLE, such as GLOP's ABNORMAL; it claims
+                 nothing about a vector (see Relaxation).  Each node's progress line counts those of its split.
   cascade        the moduli used for splitting, in order.
   G              the symmetries of the problem, written (reverse, sign): R reverses positions, F flips
                  signs, phi = RF.  All of them preserve the order.
@@ -52,7 +55,9 @@ two build the same CP-SAT models and the same splits there):
     which fails in the control's walk at ORDER - 1 whenever N >= 2^(ORDER-1), as for 304 at order 8.
   - An LP status other than OPTIMAL or INFEASIBLE, such as GLOP's ABNORMAL, makes no claim about a vector, which
     then gets a child of its own; v3 crashed (see Relaxation).
+  - work() also returns its split's LP failures, and search() shows them in the node's progress line.
   - control() takes its examples from EXAMPLES.
+  - configure() asserts that every moment row's |coefficients| sum to less than 2^62, as CP-SAT needs.
 
 Run:   python3 overnight_v4.py N ORDER   (resumes from overnight_N_ORDER_journal.jsonl next to this file)
 Quals: python3 quals_v4.py
@@ -73,16 +78,31 @@ from ortools.linear_solver import pywraplp
 #   BUDGET   CP-SAT deterministic time by node depth; the last is for the bottom of the cascade.
 SETTINGS = {
     (240, 11): ((3, 5, 7, 4, 8, 11, 13, 9), (27, 25, 32, 11, 13), (40,) * 8 + (1200,)),    # overnight_240_v3.py's
-    # Small runs for the end-to-end quals in quals_v4.py, whose answers Table 2 gives (m*(48) = 6 and m*(96) = 7
-    # have witnesses; m*(40) = m*(56) = 5 and m*(64) = m*(104) = 6 close).  Tiny budgets above the bottom make
-    # every node there UNKNOWN, so the tree gets split; cascades and cuts avoid the moduli whose residue
-    # conditions alone leave no admissible vector, which would close the tree at its first split.
+    # 304@9.  Splitting to depth 4 with this cascade, the pools not expanded into their members, gives, per level,
+    # the children of their own (then the vectors pooled): mod 3, 1 (0); mod 5, 5 (4); mod 4, 17 (68); mod 7, 53
+    # (10939).  Expanding the pools as well (their members gave no children of their own) makes those pooled
+    # counts 168 at mod 4 and 127707 at mod 7.  The mod-8 splits
+    # (given mod 4) of five depth-4 nodes gave 1, 1, 1, 8 and 59 children of their own, with pools of 4991 to
+    # 9999 (one of them out of 130321 admissible vectors); one mod-9 split (given mod 3) gave 35 (329).  So, as
+    # in v3, the first levels have few children and the last ones many, mostly pooled.  v3's 11 and 13 are left
+    # out: at order 9 their lattice indices are only 11^8 and 13^8, against classes of about 28 positions, which
+    # leaves some 10^7 admissible vectors each (scaling v3's counts; the enumeration did not finish in 20 s) at
+    # every split; 8 and 9 refine 4 and 3 instead.  CP-SAT at budget 40 left the most balanced depth-4 node
+    # UNKNOWN (18 CPU-s), and closed four depth-5 nodes and one depth-6 node in 0.2 to 1.2 CPU-s each and a
+    # depth-4 pool of 728 in 2.2 CPU-s.  CUTS are v3's list: moduli outside the cascade, so they constrain every
+    # node: 27, 25 and 32, the next prime powers above the cascade's 9, 5 and 8, and the primes 11 and 13.  They
+    # were not tuned separately for 304.
+    (304, 9): ((3, 5, 4, 7, 8, 9), (27, 25, 32, 11, 13), (40,) * 6 + (1200,)),
+    # Small runs for the end-to-end quals in quals_v4.py, whose answers Table 2 gives (m*(48) = 6 has witnesses;
+    # m*(40) = m*(56) = 5 and m*(64) = m*(104) = 6 close).  Tiny budgets above the bottom leave the upper nodes
+    # UNKNOWN, so the tree gets split.  Cascades and cuts avoid the moduli whose residue conditions alone leave no
+    # admissible vector (3 and 9 at 40@6; 3, 5 and 9 at 64@7; 8 at 104@7), which let CP-SAT close the top node at
+    # once, except for 104@7's last split modulus, 8, which closes that tree by exact enumeration.
     (40, 6): ((4, 7, 8), (16,), (0.01, 0.01, 0.01, 5)),
     (48, 6): ((5, 4), (16,), (0.01, 0.01, 5)),
     (56, 6): ((3, 5, 4), (16,), (0.01, 0.01, 0.01, 5)),
     (64, 7): ((4, 7), (16,), (0.01, 0.01, 5)),
-    (96, 7): ((5, 4), (16,), (0.01, 0.01, 5)),
-    (104, 7): ((5, 7, 4), (16,), (0.01, 0.01, 0.01, 5)),
+    (104, 7): ((5, 4, 8), (9,), (0.01, 0.01, 0.01, 5)),
 }
 POOL_BUDGET = 0.1                         # a pool's budget is at least this much deterministic time per member
 PROCESSES = os.cpu_count()                # nodes worked on at once, each in its own process
@@ -99,9 +119,10 @@ EXAMPLES = {
     (320, 9): "B24B649ED92CD2C36496CB2DB6295D974138BA41",                      # Claude's p320 (index.html)
     (336, 9): "9C5479E2669C97071E731A62EBC06F28E87B4961DF",                    # Claude's p336 (index.html)
     (48, 6): "C27D8C", (112, 7): "A5994DB29B45A0",                           # the paper's Table 5 (index.html)
+    (304, 8): "A9E21ACCB5C96794C56D9C4255B4336DEAD8A4",                       # the paper's Table 5 (arXiv:1912.03491)
     (64, 6): "96696996",                                                      # Thue-Morse, tau_6
     # found with CP-SAT for the end-to-end quals (symmetric or antisymmetric), checked with exact power sums
-    (40, 5): "3E136", (48, 5): "5AA5C3", (56, 5): "B219F61", (96, 6): "5C5780DFC30E", (104, 6): "663C5CB48A5D6",
+    (40, 5): "3E136", (48, 5): "5AA5C3", (56, 5): "B219F61", (104, 6): "663C5CB48A5D6",
 }
 HERE = os.path.dirname(os.path.abspath(__file__))
 N = ORDER = CASCADE = CUTS = BUDGET = JOURNAL = LOG = None     # set by configure()
@@ -113,7 +134,9 @@ SOURCE = hashlib.sha1(open(__file__, 'rb').read()).hexdigest()   # this file, as
 def configure(n, order):
     """Make this process's run the one for length n and order order: N and ORDER, SETTINGS[(n, order)], the
     journal and log paths, and no results cached for another configuration.  main() calls it, and so does each
-    worker process as it starts (see make_executor)."""
+    worker process as it starts (see make_executor).  CP-SAT works in 64-bit integers and rejects a linear
+    constraint whose terms can sum to 2^62 or more in absolute value, so every moment row's |coefficients| must
+    sum to less than 2^62."""
     global N, ORDER, CASCADE, CUTS, BUDGET, JOURNAL, LOG
     # TODO: error copy; says SETTINGS has no entry for this length and order
     assert (n, order) in SETTINGS, f'Claude: "no settings for N = {n}, order {order}"'
@@ -121,7 +144,9 @@ def configure(n, order):
     CASCADE, CUTS, BUDGET = SETTINGS[n, order]
     JOURNAL = os.path.join(HERE, f'overnight_{n}_{order}_journal.jsonl')
     LOG = os.path.join(HERE, f'overnight_{n}_{order}.log')
-    for f in (lattice_basis, moment_rows, integer_system, admissible, moment_basis): f.cache_clear()
+    for f in CACHED: f.cache_clear()
+    # TODO: error copy; says the moment equations at this length and order have coefficients too big for CP-SAT's 64-bit integers
+    assert all(sum(map(abs, row)) < 2 ** 62 for row in moment_rows(order)[0]), f'Claude: "the moment equations at N = {n}, order {order} have coefficients too big for CP-SAT"'
 
 
 def header():
@@ -138,10 +163,10 @@ def log_to_file(msg):
 
 # ---------- messages (copy; kept out of CODE so that rewriting them never invalidates a journal) ----------
 
-def say_node(i, key, verdict, t_solve, t_split, closed, waiting, running, left_open):
-    # TODO: per-node progress line; says: [node number] {node}: CP-SAT verdict (its own status word) (solve seconds + split seconds); closed so far, waiting, running, left open
+def say_node(i, key, verdict, t_solve, t_split, closed, waiting, running, left_open, failures):
+    # TODO: per-node progress line; says: [node number] {node}: CP-SAT verdict (its own status word) (solve seconds + split seconds); closed so far, waiting, running, left open, and the LP failures in this node's split (LP solves whose status was neither OPTIMAL nor INFEASIBLE)
     return (f'[{i}] {{{key}}}: {verdict} ({t_solve:.1f} + {t_split:.1f} s); '
-            f'Claude: "closed {closed}, waiting {waiting}, running {running}, open {left_open}"')
+            f'Claude: "closed {closed}, waiting {waiting}, running {running}, open {left_open}, LP failures {failures}"')
 
 
 def say_witness(key, eo, a):
@@ -340,11 +365,17 @@ def moment_basis(order):
     return np.linalg.qr(np.vander(t, order, increasing=True))[0]
 
 
+CACHED = (lattice_basis, moment_rows, integer_system, admissible, moment_basis)   # results that depend on N
+
+
 class Relaxation:
-    """The LP relaxation, 0 <= x_p <= 1, of a node's children by counts mod M.  The LP proves a vector's
-    relaxation infeasible by an INFEASIBLE status, or by the vector's lying outside the box of count bounds,
-    which only OPTIMAL bound solves set; any other status (GLOP's ABNORMAL, say) makes no claim.  So a vector
-    joins the pool only when proven infeasible, and a solver failure costs a child of its own, never a crash."""
+    """The LP relaxation, 0 <= x_p <= 1, of a node's children by counts mod M.  The LP claims a vector's
+    relaxation is infeasible by an INFEASIBLE status, or by the vector's lying outside the box of count bounds,
+    which only OPTIMAL bound solves set; an LP failure (any other status, GLOP's ABNORMAL, say) makes no claim.
+    So a vector joins the pool only when claimed infeasible, and an LP failure costs a child of its own, never a
+    crash.  Relaxation.failures counts the LP failures in this process."""
+    failures = 0
+
     def __init__(self, order, node, M):
         s = self.s = pywraplp.Solver.CreateSolver('GLOP')
         # Presolve with warm starts gave ABNORMAL statuses at order 10; without it GLOP matched HiGHS and
@@ -367,12 +398,14 @@ class Relaxation:
         self.M = M
 
     def solve(self, objective):
-        """The status of minimizing objective, a dict p -> coefficient."""
+        """The status of minimizing objective, a dict p -> coefficient; an LP failure adds 1 to failures."""
         obj = self.s.Objective()
         obj.Clear()
         for p, c in objective.items(): obj.SetCoefficient(self.x[p], c)
         obj.SetMinimization()
-        return self.s.Solve()
+        st = self.s.Solve()
+        Relaxation.failures += st not in (pywraplp.Solver.OPTIMAL, pywraplp.Solver.INFEASIBLE)
+        return st
 
     def bound(self, r, sign):
         """The least (sign 1) or greatest (sign -1) count in class r, from an OPTIMAL solve; otherwise no bound."""
@@ -380,14 +413,14 @@ class Relaxation:
         return sign * self.s.Objective().Value() if st == pywraplp.Solver.OPTIMAL else -sign * float('inf')
 
     def check(self, v):
-        """Is the relaxation with counts mod M equal to v not proven infeasible?"""
+        """Is the relaxation with counts mod M equal to v not claimed infeasible?"""
         for r, ct in enumerate(self.rows): ct.SetBounds(v[r], v[r])
         st = self.solve({})
         for r, ct in enumerate(self.rows): ct.SetBounds(0, size(self.M, r))
         return st != pywraplp.Solver.INFEASIBLE
 
     def feasible_set(self, vecs):
-        """The members of vecs whose relaxation the LP does not prove infeasible; only those inside the box of LP
+        """The members of vecs whose relaxation the LP does not claim is infeasible; only those inside the box of LP
         count bounds are tested one by one."""
         if self.solve({}) == pywraplp.Solver.INFEASIBLE:             # the node's own relaxation is infeasible
             return []
@@ -513,13 +546,14 @@ def work(order, node, budget, known, source):
     """One node's step, run in a worker process: CP-SAT's verdict within the budget (or known, a reusable
     UNKNOWN from the journal) and, for UNKNOWN, the node's children.  source is the main process's SOURCE:
     the worker must run the very file whose control passed.  Returns (verdict, the sequence of a FEASIBLE
-    verdict or None, children, solve seconds, split seconds)."""
+    verdict or None, children, solve seconds, split seconds, the split's LP failures)."""
     assert source == SOURCE
     t0 = time.time()
     verdict, a = (known, None) if known else solve_node(order, node, budget)
     t1 = time.time()
+    failures = Relaxation.failures
     children = split(order, node) if verdict == 'UNKNOWN' else []
-    return verdict, a, children, t1 - t0, time.time() - t1
+    return verdict, a, children, t1 - t0, time.time() - t1, Relaxation.failures - failures
 
 
 def make_executor():
@@ -558,7 +592,7 @@ def search(order, journal, log, executor):
         done, _ = wait(running, return_when=FIRST_COMPLETED)
         for f in done:
             node, known = running.pop(f)
-            verdict, a, children, t_solve, t_split = f.result()
+            verdict, a, children, t_solve, t_split, failures = f.result()
             if verdict == 'FEASIBLE':
                 eo = exact_order(a)
                 assert eo >= order                                   # a CP-SAT solution must pass the exact test
@@ -575,7 +609,7 @@ def search(order, journal, log, executor):
             else:
                 settle(node, verdict == 'INFEASIBLE')
             i += 1
-            log(say_node(i, node_key(node), verdict, t_solve, t_split, res['closed'], len(stack), len(running), len(res['open'])))
+            log(say_node(i, node_key(node), verdict, t_solve, t_split, res['closed'], len(stack), len(running), len(res['open']), failures))
     return res
 
 
@@ -590,7 +624,7 @@ def control():
     residue lattice lies in its basis's span; and the residue vectors of every example of order ORDER in
     EXAMPLES lie in the lattices (which do not depend on the length when f(-1) = 0, asserted).  Then, at ORDER - 1,
     follow the example of that order and length N down the cascade with the real split: at each split its
-    image under the stabilizer must land in a child of its own (so its LP relaxation was not proven
+    image under the stabilizer must land in a child of its own (so the LP did not claim its relaxation is
     infeasible) whose CP-SAT model accepts it; at ORDER the final node's model must reject it."""
     rows, _ = moment_rows(ORDER)
     for i in range(1, len(CASCADE) + 1):
@@ -605,6 +639,8 @@ def control():
         assert all(span.solvable(g) for g in gens)
         assert all(span.solvable([sum(b[p] for p in range(r, len(b), M)) for r in range(M)]) for b in bs)
     m = ORDER - 1
+    # TODO: error copy; says EXAMPLES has no example of length N and order ORDER-1, which the control needs
+    assert (N, m) in EXAMPLES, f'Claude: "EXAMPLES has no example of length {N} and order {m}"'
     a, node = from_hex(EXAMPLES[N, m], m), ()
     assert len(a) == N and exact_order(a) == m
     for M in CASCADE:

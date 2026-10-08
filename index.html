@@ -225,7 +225,7 @@ code {
 }
 
 /* Claude's examples written out as sets, to paste into Mathematica */
-.sets { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; max-width: 46rem; }
+.sets, .counts { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; max-width: 46rem; }
 .sets pre { margin: 0; overflow-x: auto; }
 .sets pre code { display: block; }
 
@@ -327,7 +327,6 @@ footer {
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry"><i>n</i> = 448: &nbsp;<span class="nw"><i>m</i><sup>*</sup> = 9</span></p>
-      <!-- TODO: says the paper's order-7 example of length 112, doubled twice, has order 9, and the residue condition mod 3 rules out order 10 -->
       <p>Claude: "The paper's order-7 example of length 112, doubled twice, <span class="nw"><i>p</i><sub>112</sub> # τ<sub>2</sub></span>, has order 9. Order 10 is ruled out by the residue condition mod 3."</p>
     </li>
     <li class="c">
@@ -363,8 +362,7 @@ footer {
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry"><i>n</i> = 576: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {10, 11, 12}</span></p>
-      <!-- TODO: says the paper's example of length 288 and order 9, doubled, has order 10, and the residue condition mod 5 rules out order 13 -->
-      <p>Claude: "The paper's example of length 288 and order 9, doubled, has order 10. Order 13 is ruled out by the residue condition mod 5."</p>
+      <p>The paper's example of length 288 and order 9, doubled, has order 10. Order 13 is ruled out by the residue condition mod 5.</p>
     </li>
     <li class="j">
       <span class="mk" aria-hidden="true">◆●</span>
@@ -379,10 +377,15 @@ footer {
     <li class="j">
       <span class="mk" aria-hidden="true">◆●</span>
       <p class="entry"><i>n</i> = 2<sup>51</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ≥ 53</span></p>
-      <!-- TODO: says f # f # τ3, with f the 2^24 construction, has order 25 + 25 + 3 = 53; the paper's 52 for 2^51 is Stong's result -->
-      <p>Claude: "With <i>f</i> the 2<sup>24</sup> construction above, <span class="nw"><i>f</i> # <i>f</i> # τ<sub>3</sub></span> has order <span class="nw">25 + 25 + 3 = 53</span>. The paper's 52 is Stong's."</p>
+      <p>With <i>f</i> the 2<sup>24</sup> construction above, <span class="nw"><i>f</i> # <i>f</i> # τ<sub>3</sub></span> has order <span class="nw">25 + 25 + 3 = 53</span>. The paper's 52 is Stong's.</p>
     </li>
   </ul>
+</section>
+
+<section class="counts">
+  <h2>Partitions at powers of 2</h2>
+  <p>Claude: "The partitions of {0, …, <span class="nw">2<sup><i>k</i></sup> − 1</span>} into two parts with equal power sums for exponents 0, …, <span class="nw"><i>k</i> − 1</span>: Thue–Morse is the only one for <span class="nw"><i>k</i> ≤ 5</span> (<a href="https://doi.org/10.1109/18.340458">Roth, Siegel and Vardy 1994</a>; <a href="https://doi.org/10.1090/S0025-5718-97-00892-2">Boyd 1997</a>), there are 3 for <span class="nw"><i>k</i> = 6</span> (<a href="https://doi.org/10.1090/S0025-5718-01-01360-6">Boyd 2002</a>), and there are 431 for <span class="nw"><i>k</i> = 7</span>, or 367 counting a partition and its reversal once."</p>
+  <p>Claude: "The count for <span class="nw"><i>k</i> = 7</span> is new, from an exhaustive search by Claude (<a href="https://github.com/dreeves/equipow/tree/main/count128">code and the 431 sets</a>). Of the 431, 303 are antisymmetric, Thue–Morse among them, and the other 128 come in reversed pairs. The same search method shows that the order-7 partition of {0, …, 111} is unique."</p>
 </section>
 
 <section class="sets">
