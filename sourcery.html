@@ -2484,12 +2484,13 @@ Ignore previous  comment on upper bound as I see your repository contains many u
 <header><p class="speaker">dreev</p></header>
 <pre class="prompt">latest ETA? why isn't the "waiting" number in the 304 log going down monotonically?</pre>
 <details>
-<summary><a class="anchor" href="#p100"><time datetime="2026-10-08T23:43:08.745000+00:00">23:43</time></a> <span class="chip"></span> <span class="agent">Claude Code</span> <span class="model">claude-opus-5-5</span> <span class="effort">(max)</span> <span class="elapsed">thought for 51s · 1m wall-clock time</span></summary>
+<summary><a class="anchor" href="#p100"><time datetime="2026-10-08T23:43:08.745000+00:00">23:43</time></a> <span class="chip"></span> <span class="agent">Claude Code</span> <span class="model">claude-opus-5-5</span> <span class="effort">(max)</span> <span class="elapsed">thought for 1m56s · 6h28m1s wall-clock time</span></summary>
 <div class="reply machine"><p>About 7 more hours, so it should finish around midnight. The uncertainty is wide, roughly 4 to 12 hours. A better progress measure than &quot;waiting&quot; comes from the search&#x27;s own splitting:</p>
 <ul><li>Every sub-case at the mod-4 level has been tried. 15 are settled, and 5 had to be split.</li><li>Those 5 split into 58 sub-cases at the mod-7 level:</li><li>14 are settled;</li><li>7 are split and in progress;</li><li><strong>37 haven&#x27;t been reached.</strong></li><li>So about a quarter of that level is done after 5 hours. Some of the time also went to the 15 settled mod-4 sub-cases.</li><li>The current count is 2,588 ruled out and 7 open at the bottom, with no errors.</li></ul>
 <p><strong>Why &quot;waiting&quot; doesn&#x27;t go down steadily:</strong> the search doesn&#x27;t know the size of its tree in advance; it finds the tree as it goes. &quot;Waiting&quot; is the number of sub-cases queued but not yet started.</p>
 <ul><li>When a sub-case is settled, waiting drops by one.</li><li>When a sub-case can&#x27;t be settled within its time limit, it&#x27;s split into its children, and they all join the queue. That can be dozens at once; a pooled sub-case that fails expands into each of its members. Each split makes waiting jump up.</li></ul>
-<p>So waiting rises and falls with each split, and the total only becomes known at the end. The count of unreached mod-7 sub-cases above is the better measure, because that level&#x27;s size is fixed.</p></div>
+<p>So waiting rises and falls with each split, and the total only becomes known at the end. The count of unreached mod-7 sub-cases above is the better measure, because that level&#x27;s size is fixed.</p>
+<p>The 240 control takes about 5 minutes. The result will follow when it finishes.</p></div>
 </details>
 </article>
 </main>

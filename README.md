@@ -4,6 +4,7 @@ Claude's up-next list:
 2. Searches like the 240 one for 304, 288, 432, 480, 528 and 576, starting with 304. If 304 has order 9, then 2^20 has order 21, since 8·304·368 + 320·480 = 2^20.
 3. Count the order-7 partitions of {0, …, 127}. The antisymmetric ones alone number 303, and no count has been published.
    Claude: "Done: 431 partitions, 367 up to reversal. See the reply to Stan's uniqueness question below."
+4. Could we get a nice visualization of the progress of these searches?
 
 ---
 
