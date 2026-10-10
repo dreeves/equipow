@@ -115,7 +115,7 @@ SETTINGS = {
     # out: at order 9 their lattice indices are only 11^8 and 13^8, against classes of about 28 positions, which
     # leaves some 10^7 admissible vectors each (scaling v3's counts; the enumeration did not finish in 20 s) at
     # every split; 8 and 9 refine 4 and 3 instead.
-    (304, 9): ((3, 5, 4, 7, 8, 9), (10000,) * 6 + (2000000,)),
+    (304, 9): ((3, 5, 4, 7, 8, 9), (10000,) * 6 + (10000000,)),
     # Small runs for the end-to-end quals in quals_v5.py, whose answers Table 2 gives (m*(48) = 6 has witnesses;
     # m*(40) = m*(56) = 5 and m*(64) = m*(104) = 6 close).  A budget of 1 above the bottom (3, POOL_BUDGET, for a
     # node of one vector) leaves the upper nodes UNKNOWN, so the tree gets split; at the bottom, the most any of these
