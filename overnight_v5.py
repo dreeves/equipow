@@ -62,7 +62,8 @@ Changes from overnight_v4.py:
   - The journal and log are overnight_v5_N_ORDER_journal.jsonl and overnight_v5_N_ORDER.log.  A solve's journal
     record adds lps, leaves and proof (see solve_node); the header adds solver, budget_unit and highs (the HiGHS
     build), and drops cuts.
-  - CODE fingerprints all of certbb.py as well, and SOURCE holds the sha1 of both files, which work() checks.
+  - CODE fingerprints all of certbb.py and width.py as well, and SOURCE holds the sha1 of the three files, which
+    work() checks.
   - control() checks certbb's rows (solve_node with the box pinned to the example) where v4 ran CP-SAT on pinned
     models.
   - The ALL NODES CLOSED line says the result rests on certificates checked in exact integer arithmetic.

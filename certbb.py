@@ -3,7 +3,7 @@
 A node's 0/1 points are searched by an LP-based branch and bound in floating point (HiGHS), but a box is closed only
 by a certificate that exact integer arithmetic checks, so an INFEASIBLE verdict never rests on floating point.  The
 search emits a proof, a stream of tokens, which a Check replays from scratch as the tokens come, keeping none of them;
-Check shares only node_rows, lower_bound and fixed with the search.  Every check in the exact part raises ProofError
+Check shares only node_rows, lower_bound, fixed and cuts with the search.  Every check in the exact part raises ProofError
 explicitly, and certbb refuses to be imported under python -O, which would skip the assert statements of the rest.
 
 Vocabulary, each term defined once here:
@@ -17,8 +17,8 @@ Vocabulary, each term defined once here:
                moment equations and count constraints; its lattice cuts are left out (see the note below).
   cut          ('D', u, c), u a list of N integers and c an integer: splits a box into the side u.x <= c (proved
                first) and the side u.x >= c + 1, which between them hold every integer point of the box; u must take
-               a value <= c and a value > c on the box, so that the cut cuts it (as a split must split a free
-               position).
+               a value <= c and a value > c on the box, so that the cut cuts it (cuts(u, c, lo, hi); as a split must
+               split a free position).
   path         the cut rows a box lies under, one per cut on the way down to it: (sign, a, beta) with a the nonzero
                (position, coefficient) pairs of u, sign +1 for the side a.x >= beta (beta = c + 1) and -1 for the
                side a.x <= beta (beta = c).
@@ -43,12 +43,16 @@ Vocabulary, each term defined once here:
                the Guide's own Lp, with the direction row added), and so of u.x; when no integer lies between them,
                the direction is thin, the two sides' LPs (u.x <= c and u.x >= c + 1, c the integer below) are
                infeasible, and their dual rays, made integer as Lp.multipliers makes the search's, carried from the
-               row w to the row u by the direction's exact multipliers, are checked by lower_bound; both passing, the
-               cut and the two certificates are emitted and the box is closed in 3 tokens.  Otherwise the next
-               direction, and after the last the branch and bound exactly as without the test.  Its range solves,
-               and the side solves of a thin direction that did not close, are counted in the width stat, not in
-               the LP-solve budget; the sides of a cut that closed are the two leaves' solves and count in both lp
-               and leaves.
+               row w to the row u by the direction's exact multipliers, are checked as Check checks them (the sign
+               on the cut row, lower_bound), and the cut as Check checks it (cuts); all passing, the cut and the two
+               certificates are emitted and the box is closed in 3 tokens.  Otherwise the next direction, and after
+               the last the branch and bound exactly as without the test.  Its range solves, and the side solves of
+               a thin direction that did not close, are counted in the width stat, not in the LP-solve budget; the
+               sides of a cut that closed are the two leaves' solves and count in both lp and leaves.  The test
+               costs at most 4 dim LP solves per choice, dim the number of directions: two range solves per
+               direction and two side solves per thin direction that did not close, such as one whose range in
+               exact arithmetic touches an integer that the float range falls short of (none at the 240@11 nodes
+               measured; up to 23 per node at 304@9).
 
 The lattice cuts: overnight_v4.build_model also asks that the residue sums of a = 2x - 1 mod each cut modulus lie in a
 lattice.  Every 0/1 point satisfying the moment equations satisfies them (that is how lattice_basis derives them), so
@@ -121,13 +125,19 @@ def fixed(lo, hi, p, t):
     return lo, hi
 
 
+def cuts(u, c, lo, hi):
+    """Does the cut (u, c) cut the box: does u.x take a value <= c and a value > c on it (see 'cut').  Exact integers."""
+    return (sum(min(t * l, t * h) for t, l, h in zip(u, lo, hi, strict=True)) <= c
+            < sum(max(t * l, t * h) for t, l, h in zip(u, lo, hi, strict=True)))
+
+
 class Check:
     """A proof checked as it is made: feed(token) for each token in turn, as solve emits them, then end().  Each raises
     ProofError at the first sign that the tokens are not a proof that no 0/1 point of the box (by default all of
     {0,1}^N) satisfies any choice of the node's rows: a token that is wrong, an end that comes too early, a token
     after the last box.  It keeps no token, only the current choice's rows, the boxes still open for it with their
     paths (at most one more than the depth of the proof tree), and sha1, a running hashlib.sha1 of the tokens (see
-    'proof sha1').  This, node_rows, lower_bound and fixed are all an INFEASIBLE verdict rests on."""
+    'proof sha1').  This, node_rows, lower_bound, fixed and cuts are all an INFEASIBLE verdict rests on."""
     def __init__(self, moments, node, lo=None, hi=None):
         self.sha1 = hashlib.sha1()
         self.steps = self.replay(moments, node, lo, hi)
@@ -172,8 +182,7 @@ class Check:
                     require(type(arg) is list and len(arg) == N and all(type(t) is int for t in arg) and type(c) is int,
                             f'Claude: "a cut is not {N} integers and an integer"')
                     # TODO: error copy; says a cut leaves one of its sides without a point of the box, so it cuts nothing
-                    require(sum(min(t * a, t * b) for t, a, b in zip(arg, l, u, strict=True)) <= c
-                            < sum(max(t * a, t * b) for t, a, b in zip(arg, l, u, strict=True)), 'Claude: "a cut does not cut the box"')
+                    require(cuts(arg, c, l, u), 'Claude: "a cut does not cut the box"')
                     a = [(p, t) for p, t in enumerate(arg) if t]
                     boxes += [(l, u, path + [(1, a, c + 1)]), (l, u, path + [(-1, a, c)])]
         # TODO: error copy; says the proof has tokens after its last box was closed
@@ -409,14 +418,16 @@ class Guide:
             kfloor, kfrac = width.offset(d, b)
             c = math.floor(span[1] + kfrac)
             if c < span[0] + kfrac:                                   # thin: no integer in [lo + kfrac, hi + kfrac]
+                C = kfloor + c                                        # the cut: u.x <= C or u.x >= C + 1
                 sparse = [(p, t) for p, t in enumerate(d.u) if t]
                 certs = []
-                for sign, bounds, beta in ((-1, (-INF, c - kfrac), kfloor + c), (1, (c + 1 - kfrac, INF), kfloor + c + 1)):
+                for sign, bounds, beta in ((-1, (-INF, c - kfrac), C), (1, (c + 1 - kfrac, INF), C + 1)):
                     status, y = self.lp.side(*bounds, l, u)
                     n = self.certificate(y, d) if status == 'Infeasible' and y is not None else None
+                    # Check's own conditions on a certificate (the sign could only be wrong if HiGHS's ray or extremes were)
                     certs.append(n if n is not None and sign * n[-1] >= 0 and lower_bound(rows + [(sparse, beta)], l, u, n) > 0 else None)
-                if all(n is not None for n in certs):
-                    emit(('D', d.u, kfloor + c))
+                if all(n is not None for n in certs) and cuts(d.u, C, l, u):      # Check's conditions on the three tokens
+                    emit(('D', list(d.u), C))
                     for n in certs: emit(('L', n))
                     stats['lp'] += 2
                     stats['leaves'] += 2

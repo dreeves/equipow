@@ -54,12 +54,12 @@ The estimate's model, its terms defined once here (overnight_v5.py's search() is
   bottom      the depth of the cascade's last level, len(budgets) - 1; a node there is a job of one certbb solve.
   replay      search()'s stack and running jobs as of the state's time t, rebuilt from the current pass's progress
               lines.  Each line says which node finished, and its counts give how many jobs were submitted before it
-              (its running + 1 - the previous line's running) and how many children it pushed: the cache's, if the
-              node's split is cached; none, if the node cannot split (INFEASIBLE, or at the bottom); else its waiting +
-              running - (the previous line's waiting + running) + 1, which holds when no settled node is skipped (a
-              first pass skips none; asserted).  A job submitted after line i started at line i's time; the first job
-              started at its own end less its duration.  Every line's waiting and running are asserted against the
-              replayed stack and running jobs.
+              (its running + 1 - the previous line's running), how many settled nodes were skipped (its closed count's
+              rise, less 1 if the line is INFEASIBLE: search() counts a skipped node closed), and so how many children
+              its node pushed (the rest of the waiting count's change), the cache's split if it holds one (asserted
+              equal), else that many unnamed children, whom no later pop skips, as no journal has them.  A job
+              submitted after line i started at line i's time; the first job started at its own end less its duration.
+              Every line's waiting and running are asserted against the replayed stack and running jobs.
   kind        what a pending or running node will cost: 'leaf', a certbb solve at the bottom (a fresh node, or a
               re-solve of a leaf left UNKNOWN at a smaller budget); 'subtree', a fresh node above the bottom, whose
               verdict and split are unknown, so that its whole subtree is to come; 'resplit', a node the journal had
@@ -119,7 +119,7 @@ import overnight_v5 as v5
 HERE = os.path.dirname(os.path.abspath(__file__))
 PAGE = os.path.join(HERE, 'progress.html')
 CACHE = os.path.join(HERE, '.progress_cache.json')
-RUNS = ((304, 9), (240, 11))           # the certified runs, (N, ORDER), in the page's order
+RUNS = ((240, 11),)                    # the certified runs, (N, ORDER), in the page's order; 304@9 is settled (2026-10-10)
 REFRESH = 60                           # seconds between rewrites under --watch, and between the page's reloads
 NICE = 15                              # the niceness the process lowers itself to
 # The deepest level enumerated.  Splitting cost the runs themselves (their logs' split seconds, on loaded workers)
@@ -247,7 +247,8 @@ def read_run(journal, log):
          dates                  for each record, the index of the line it is dated by, never decreasing;
          bounds                 for each pass, the index of its first record (len(records) for a pass with none yet).
     A fresh record must be its line's node, verdict and budget, and a line without one must be a node split again (all
-    asserted).  The log is read first: each record is written before its line, so every line read has its record in
+    asserted), but for a line whose record is nowhere in the journal: a migration dropped it, so that a later pass
+    solves the node again (scratch/width/migrate_now.py dropped those the width test closes), and the line goes undated.  The log is read first: each record is written before its line, so every line read has its record in
     the journal read after it.  The records after the last line's own, but for the CLOSED records it wrote, belong to
     lines not read yet, and are left out."""
     lines = complete_lines(log)
@@ -263,6 +264,7 @@ def read_run(journal, log):
     node_lines = [[i for i in range(a, b) if kinds[i] == 'node'] for a, b in zip(starts, starts[1:] + [len(lines)])]
     assert [len(x) for x in node_lines] == [len(p['nodes']) for p in passes]
     records = [json.loads(x) for x in texts[1:]]
+    present = {(r['key'], r['verdict'], r['budget']) for r in records}
     replayed = object.__new__(v5.Journal)          # made without Journal's __init__, which would create a journal
     replayed.records = {}
     fresh, dates = {}, []
@@ -284,6 +286,7 @@ def read_run(journal, log):
                 assert nd['verdict'] == 'UNKNOWN', (log, i)
                 continue
             closings()
+            if (nd['key'], nd['verdict'], budget) not in present: continue          # dropped by a migration
             # TODO: error copy; says the journal at this path has no record for a progress line that reports a fresh verdict, naming the line
             assert len(dates) < len(records), f'Claude: "the journal {journal} lacks the record of line {i + 1} of its log"'
             r = records[len(dates)]
@@ -433,7 +436,7 @@ def replay(state):
     settled = {k for k, r in state['final_at_start'].items() if r['verdict'] in v5.SETTLED}
     root = Node('', None, 0)
     stack, running = [root], []
-    w, r, at = 1, 0, None              # the previous line's waiting and running (before the first: the top node, 0)
+    w, r, c, at = 1, 0, 0, None        # the previous line's waiting, running and closed (before the first: the top node, 0, 0)
 
     def pop(at):                       # search() pops the top: a settled node it skips, another it submits
         node = stack.pop()
@@ -446,12 +449,12 @@ def replay(state):
 
     for nd in p['nodes']:
         submit = nd['running'] + 1 - r
+        skip = nd['closed'] - c - (nd['verdict'] == 'INFEASIBLE')     # search() counts each settled node it skips closed
+        K = nd['waiting'] - w + submit + skip                          # so the rest of the waiting count's change is the children
         splits = nd['verdict'] == 'UNKNOWN' and len(nd['key'].split()) < len(budgets) - 1
-        kids = cache[nd['key']] if nd['key'] in cache else None
-        K = len(kids) if kids is not None else nd['waiting'] + nd['running'] - w - r + 1 if splits else 0
-        skip = w - submit + K - nd['waiting']
+        kids = cache.get(nd['key'])
         # TODO: error copy; says the replay of search() cannot account for a progress line's counts, naming the state and the line
-        assert submit >= 0 and K >= 0 and skip >= 0 and (kids is not None or not splits or skip == 0), \
+        assert submit >= 0 and skip >= 0 and K >= 0 and (splits or K == 0) and (kids is None or len(kids) == K), \
             f'Claude: "the replay of {state["label"]} cannot account for line [{nd["i"]}]"'
         first = nd['t'] - nd['solve'] - nd['split'] if at is None else at
         while submit or skip:          # the pops between the previous line and this one, as many of each as counted
@@ -468,7 +471,7 @@ def replay(state):
         stack.extend(node.kids)
         # TODO: error copy; says the replay of search() disagrees with a progress line's waiting or running count, naming the state and the line
         assert (len(stack), len(running)) == (nd['waiting'], nd['running']), f'Claude: "the replay of {state["label"]} breaks at line [{nd["i"]}]"'
-        w, r, at = nd['waiting'], nd['running'], nd['t']
+        w, r, c, at = nd['waiting'], nd['running'], nd['closed'], nd['t']
     while p['nodes'] and stack and len(running) < P: pop(at)     # the refill after the last line, as search() makes it
     return root, stack, running
 
@@ -725,6 +728,11 @@ def survey(n, order, journal, log, procs, now, cache, etas):
     state = run_state(procs, n, order, p['outcome'])
     end = now if state == 'running' else p['last']
     levels = enumerate_levels(final, budgets, order, cache, DEEPEST)
+    # The nodes the current pass splits again: UNKNOWN within their budget above the bottom when it began.  The replay
+    # needs their children (see kind in the vocabulary), so they are split here, each once (children caches them).
+    start = {r['key']: r for r in R['records'][:R['bounds'][-1]]}
+    for k in [k for k, r in start.items() if r['verdict'] == 'UNKNOWN' and len(k.split()) < bottom and r['budget'] >= budget_of(k, budgets)]:
+        children(k, order, cache)
     rows = level_rows(levels, final, budgets, bottom)
     for r in rows: r['modulus'] = ([None] + list(v5.CASCADE))[r['depth']]
     stats = {k: status(k, final, budgets) for k in set(final) | set(levels[-1])}
@@ -827,58 +835,83 @@ def work_html(s):
     return f'<div class="work"><span class="bar">{bar}</span><span class="count">{num(e["done"])} / {num(e["work"])} done</span></div>'
 
 
+def hrs(h):
+    """Hours for a direct label: to a tenth below 10, whole from 10 on."""
+    return f'{h:.1f}' if h < 10 else f'{h:.0f}'
+
+
+def tick_step(top):
+    """The step between an axis's ticks from 0 to at least top hours (top > 0): 1, 2 or 5 times a power of 10, the least
+    that needs at most 5 steps."""
+    e = math.floor(math.log10(top / 5))
+    return next(m * 10 ** e for m in (1, 2, 5, 10) if top / (m * 10 ** e) <= 5)
+
+
 def eta_chart(s):
-    """The run's ETA chart (see ETA in the vocabulary), the chart dreeves asked for, which knows nothing of passes:
-    against the search's elapsed running time (hours, over all passes), the elapsed time itself (blue, the diagonal),
-    the recorded ETAs (red; one with no estimate left out) over the shaded band of their ranges, and elapsed + ETA
-    (black, emphasized); at the last ETA, a vertical line across its range and markers on the red and black lines, so
-    that a record of one ETA shows too, and the blue line carried on ahead, dashed, to where it is level with the black
-    marker (dreeves, 2026-10-10), the x axis reaching that far; a cross line at the last ETA; ticks at 0 and the top of
-    each axis; then the readout, the last ETA's numbers, which the page's script changes to those of the ETA nearest
-    the pointer (data-points holds every ETA's x and numbers); then a legend in dreeves's words.  A recorded time's
-    elapsed running time comes from the passes it falls in, which it must (asserted)."""
-    W, H, L, R, T, B = 640, 200, 44, 14, 12, 22
+    """The run's ETA chart (see ETA in the vocabulary), the chart dreeves asked for, which knows nothing of passes.
+    Against the search's elapsed running time (hours, over all passes) it draws the elapsed time itself (blue, the
+    diagonal) and, carried on ahead and dashed, to where it is level with elapsed + ETA's last value (dreeves,
+    2026-10-10); the recorded ETAs (red; one with no estimate left out) over the shaded band of their ranges; and
+    elapsed + ETA (black, emphasized).  At the last ETA: a vertical line across its range, markers on the red and black
+    lines, and dreeves's direct labels (2026-10-10): the ETA in red right of its marker, the projected total right of
+    its, and the elapsed time in blue on the x axis under them.  Both axes have round ticks (tick_step), the x axis
+    reaching the projected finish, and gridlines across at the y ticks.  A cross line, hidden at rest, and a tip,
+    hidden and empty at rest, are the page's script's to show: the numbers of the recorded ETA nearest the pointer,
+    which data-points holds for every one.  Then a legend in dreeves's words.  A recorded time's elapsed running time
+    comes from the passes (see elapsed); it must fall between the first pass's start and the snapshot (asserted)."""
+    W, H, L, R, T, B = 640, 240, 48, 72, 14, 30
+    CROWD = 44                                                    # an x tick label nearer the elapsed label than this is left out
     spans = s['passes']
     starts = [a for a, _ in spans]
     before = list(itertools.accumulate((b - a for a, b in spans), initial=0.0))   # running seconds before each pass
-    def elapsed(t):                                               # the running hours before time t, a recorded time
+    def elapsed(t):
+        """The running hours before time t, a recorded time: one after a pass's last line (its process ran on, or was
+        stopped, unlogged) counts as that pass's end, the log's clock being the page's only one."""
         k = bisect.bisect_right(starts, t) - 1
-        # TODO: error copy; says the record of ETAs holds a time when the search was not running
-        assert k >= 0 and t <= spans[k][1], f'Claude: "the ETA of {clock(t)} falls when {s["n"]} {s["order"]} was not running"'
-        return (before[k] + t - starts[k]) / HOUR
+        # TODO: error copy; says the record of ETAs holds a time before the search began or after the snapshot
+        assert k >= 0 and t <= spans[-1][1], f'Claude: "the ETA of {clock(t)} falls outside the running of {s["n"]} {s["order"]}"'
+        return (before[k] + min(t, spans[k][1]) - starts[k]) / HOUR
     records = [(t, elapsed(t), *e) for t, e in sorted((float(t), e) for t, e in s['etas'].items()) if e is not None]
     points = [(x, m, lo, hi) for _, x, m, lo, hi in records]
-    xtop = max([before[-1] / HOUR] + [x + m for x, m, _, _ in points[-1:]])     # now, or the last ETA's projected finish
-    ytop = nice_ceiling(max([xtop] + [max(x + m, hi) for x, m, _, hi in points]))
-    def X(x): return L + (W - L - R) * x / max(xtop, 1 / HOUR)           # an axis at least one second long, as chart's
-    def Y(y): return H - B - (H - T - B) * y / ytop
-    def line(cls, pts): return f'<polyline class="{cls}" points="{" ".join(f"{X(x):.2f},{Y(y):.2f}" for x, y in pts)}"/>'
-    band = f'<polygon class="band" points="{" ".join(f"{X(x):.2f},{Y(y):.2f}" for x, y in [(x, hi) for x, _, _, hi in points] + [(x, lo) for x, _, lo, _ in reversed(points)])}"/>'
-    ahead = ''.join(f'<line class="ahead" x1="{X(x):.2f}" y1="{Y(x):.2f}" x2="{X(x + m):.2f}" y2="{Y(x + m):.2f}"/>'
-                    for x, m, _, _ in points[-1:])
-    cross = ''.join(f'<line class="cross" x1="{X(x):.2f}" y1="{Y(ytop):.2f}" x2="{X(x):.2f}" y2="{Y(0):.2f}"/>' for x, _, _, _ in points[-1:])
-    # TODO: the numbers of one recorded ETA: when it was made, to the minute; the elapsed time then; the ETA and its range; elapsed + ETA; in hours, labeled in dreeves's words
-    entries = [{'x': float(f'{X(x):.2f}'), 'text': f'{time.strftime("%Y-%m-%d %H:%M", time.localtime(t))} · elapsed {x:.1f} h · '
-                f'ETA {m:.1f} h ({lo:.1f}–{hi:.1f}) · elapsed + ETA {x + m:.1f} h'} for t, x, m, lo, hi in records]
-    readout = ''.join(f'<p class="readout">{html.escape(e["text"], quote=False)}</p>' for e in entries[-1:])
-    now = ''.join(f'<line class="range" x1="{X(x):.2f}" y1="{Y(lo):.2f}" x2="{X(x):.2f}" y2="{Y(hi):.2f}"/>'
-                  f'<circle class="now togo" cx="{X(x):.2f}" cy="{Y(m):.2f}" r="3.5"/>'
-                  f'<circle class="now total" cx="{X(x):.2f}" cy="{Y(x + m):.2f}" r="3.5"/>' for x, m, lo, hi in points[-1:])
+    now = before[-1] / HOUR
+    xmax = max([now, 1 / HOUR] + [x + m for x, m, _, _ in points[-1:]])        # now (at least a second), or the projected finish
+    ymax = max([xmax] + [max(x + m, hi) for x, m, _, hi in points])
+    xs, ys = tick_step(xmax), tick_step(ymax)
+    xticks = [xs * i for i in range(math.ceil(xmax / xs) + 1)]
+    yticks = [ys * i for i in range(math.ceil(ymax / ys) + 1)]
+    def X(x): return L + (W - L - R) * x / xticks[-1]
+    def Y(y): return H - B - (H - T - B) * y / yticks[-1]
+    def pts(ps): return " ".join(f"{X(x):.2f},{Y(y):.2f}" for x, y in ps)
+    def line(cls, ps): return f'<polyline class="{cls}" points="{pts(ps)}"/>'
+    def unit(ticks): return [f'{v:g}' for v in ticks[:-1]] + [f'{ticks[-1]:g} h']
+    grid = ''.join(f'<line class="grid" x1="{L}" y1="{Y(v):.2f}" x2="{W - R}" y2="{Y(v):.2f}"/>' for v in yticks[1:])
+    axis = f'<line class="axis" x1="{L}" y1="{Y(0):.2f}" x2="{W - R}" y2="{Y(0):.2f}"/>'
+    ylabels = ''.join(f'<text class="ytick" x="{L - 6}" y="{Y(v) + 4:.2f}" text-anchor="end">{label}</text>' for v, label in zip(yticks, unit(yticks)))
+    xlabels = ''.join(f'<text class="xtick" x="{X(v):.2f}" y="{H - 8}" text-anchor="middle">{label}</text>'
+                      for v, label in zip(xticks, unit(xticks)) if abs(X(v) - X(now)) >= CROWD)
+    band = f'<polygon class="band" points="{pts([(x, hi) for x, _, _, hi in points] + [(x, lo) for x, _, lo, _ in reversed(points)])}"/>'
+    ahead = ''.join(f'<line class="ahead" x1="{X(x):.2f}" y1="{Y(x):.2f}" x2="{X(x + m):.2f}" y2="{Y(x + m):.2f}"/>' for x, m, _, _ in points[-1:])
+    last = ''.join(f'<line class="range" x1="{X(x):.2f}" y1="{Y(lo):.2f}" x2="{X(x):.2f}" y2="{Y(hi):.2f}"/>'
+                   f'<circle class="now togo" cx="{X(x):.2f}" cy="{Y(m):.2f}" r="4"/>'
+                   f'<circle class="now total" cx="{X(x):.2f}" cy="{Y(x + m):.2f}" r="4"/>'
+                   # TODO: dreeves's direct labels: the latest ETA, in hours, right of its red marker; the projected total, in hours, right of its black marker
+                   f'<text class="label togo" x="{X(x) + 8:.2f}" y="{Y(m) + 4:.2f}">ETA {hrs(m)} h</text>'
+                   f'<text class="label total" x="{X(x) + 8:.2f}" y="{Y(x + m) - 6:.2f}">{hrs(x + m)} h</text>'
+                   f'<line class="cross" x1="{X(x):.2f}" y1="{Y(yticks[-1]):.2f}" x2="{X(x):.2f}" y2="{Y(0):.2f}" visibility="hidden"/>'
+                   for x, m, lo, hi in points[-1:])
+    # TODO: dreeves's direct label: the elapsed time, in hours, in blue on the x axis under the latest ETA
+    nowlabel = f'<text class="label spent" x="{X(now):.2f}" y="{H - 8}" text-anchor="middle">{hrs(now)} h</text>'
+    entries = [{'x': float(f'{X(x):.2f}'), 'when': time.strftime('%Y-%m-%d %H:%M', time.localtime(t)), 'elapsed': f'{x:.1f}',
+                'eta': f'{m:.1f}', 'lo': f'{lo:.1f}', 'hi': f'{hi:.1f}', 'total': f'{x + m:.1f}'} for t, x, m, lo, hi in records]
     # TODO: the three series' names, dreeves's own words (2026-10-09): elapsed time, ETA, and their sum
     keys = ''.join(f'<span class="k"><span class="key {k}"></span>{label}</span> ' for k, label in
                    (('spent', 'elapsed time'), ('togo', 'ETA'), ('total', 'elapsed + ETA')))
     return (f'<figure class="forecast-fig" data-points="{html.escape(json.dumps(entries, ensure_ascii=False), quote=True)}">'
             f'<svg class="forecast" viewBox="0 0 {W} {H}">'
-            f'<line class="grid" x1="{L}" y1="{Y(ytop):.2f}" x2="{W - R}" y2="{Y(ytop):.2f}"/>'
-            f'<line class="axis" x1="{L}" y1="{Y(0):.2f}" x2="{W - R}" y2="{Y(0):.2f}"/>'
-            + band + line('spent', [(0, 0), (before[-1] / HOUR,) * 2]) + ahead + line('togo', [(x, m) for x, m, _, _ in points])
-            + line('total', [(x, x + m) for x, m, _, _ in points])
-            + now + cross
-            + f'<text class="tick" x="{L - 6}" y="{Y(ytop) + 4:.2f}" text-anchor="end">{ytop:,} h</text>'
-            f'<text class="tick" x="{L - 6}" y="{Y(0) + 4:.2f}" text-anchor="end">0</text>'
-            f'<text class="tick" x="{L}" y="{H - 4}">0</text>'
-            f'<text class="tick" x="{W - R}" y="{H - 4}" text-anchor="end">{hours(xtop * HOUR)} h</text>'
-            f'</svg>{readout}<figcaption class="keys">{keys}</figcaption></figure>')
+            + grid + axis + band + line('spent', [(0, 0), (now, now)]) + ahead
+            + line('togo', [(x, m) for x, m, _, _ in points]) + line('total', [(x, x + m) for x, m, _, _ in points])
+            + last + ylabels + xlabels + nowlabel
+            + f'</svg><div class="tip" hidden></div><figcaption class="keys">{keys}</figcaption></figure>')
 
 
 def opens_html(s):
@@ -939,21 +972,31 @@ function tick() {
 }
 tick();
 setInterval(tick, 1000);
-// Then each ETA chart's readout: when a pointer moves or presses (a touch) over the chart, the recorded ETA nearest it
-// in elapsed time gets the cross line, and its numbers go under the chart.  A chart with no recorded ETA has none.
+// Then each ETA chart's hover: when a pointer moves or presses (a touch) over the chart, the cross line goes to the
+// recorded ETA nearest it in elapsed time and the tip shows that ETA's numbers, beside the line on its roomier side;
+// when the pointer leaves, both hide.  A chart with no recorded ETA has nothing to show.
 for (const fig of document.querySelectorAll('.forecast-fig')) {
   const points = JSON.parse(fig.dataset.points);
   if (!points.length) continue;
-  const svg = fig.querySelector('svg'), cross = svg.querySelector('.cross'), out = fig.querySelector('.readout');
+  const svg = fig.querySelector('svg'), cross = svg.querySelector('.cross'), tip = fig.querySelector('.tip');
+  const W = svg.viewBox.baseVal.width;
   function show(e) {
-    const r = svg.getBoundingClientRect(), x = (e.clientX - r.left) / r.width * svg.viewBox.baseVal.width;
+    const r = svg.getBoundingClientRect(), x = (e.clientX - r.left) / r.width * W;
     const p = points.reduce((a, b) => Math.abs(b.x - x) < Math.abs(a.x - x) ? b : a);
     cross.setAttribute('x1', p.x);
     cross.setAttribute('x2', p.x);
-    out.textContent = p.text;
+    cross.setAttribute('visibility', 'visible');
+    // TODO: the numbers of the ETA nearest the pointer, in dreeves's words for the series: when it was made; the elapsed time then; the ETA and its range; elapsed + ETA
+    const lines = [['when', p.when], ['spent', `elapsed ${p.elapsed} h`], ['togo', `ETA ${p.eta} h (${p.lo}–${p.hi})`],
+                   ['total', `elapsed + ETA ${p.total} h`]];
+    tip.replaceChildren(...lines.map(([k, t]) => Object.assign(document.createElement('div'), {className: k, textContent: t})));
+    tip.hidden = false;
+    const at = p.x / W * r.width;
+    tip.style.left = `${at > r.width / 2 ? at - tip.offsetWidth - 12 : at + 12}px`;
   }
   svg.addEventListener('pointermove', show);
   svg.addEventListener('pointerdown', show);
+  svg.addEventListener('pointerleave', () => { cross.setAttribute('visibility', 'hidden'); tip.hidden = true; });
 }
 """
 
@@ -1055,17 +1098,27 @@ code { font-family: var(--mono); font-size: 0.8125rem; overflow-wrap: anywhere; 
 .count { white-space: nowrap; color: var(--muted); }
 
 /* The ETA chart (class forecast): elapsed time, ETA, and elapsed + ETA, emphasized, against elapsed time. */
-.forecast-fig { margin: 0; display: grid; gap: 0.3rem; }
+.forecast-fig { margin: 0; display: grid; gap: 0.3rem; position: relative; }
 .forecast { display: block; width: 100%; height: auto; overflow: visible; cursor: crosshair; touch-action: pan-y; }
 .forecast polyline { fill: none; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
 .forecast .spent { stroke: var(--c-spent); stroke-width: 1.5; }
 .forecast .togo { stroke: var(--c-togo); stroke-width: 1.5; }
-.forecast .total { stroke: var(--ink); stroke-width: 3; }
+.forecast .total { stroke: var(--ink); stroke-width: 2.5; }
 .forecast .band { fill: color-mix(in oklab, var(--c-togo) 16%, var(--paper)); stroke: none; }
-.forecast .range { stroke: var(--c-togo); stroke-width: 1; vector-effect: non-scaling-stroke; }
 .forecast .ahead { stroke: var(--c-spent); stroke-width: 1.5; stroke-dasharray: 5 4; vector-effect: non-scaling-stroke; }
 .forecast .cross { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 2 3; vector-effect: non-scaling-stroke; }
-.readout { font-size: 0.875rem; font-variant-numeric: tabular-nums lining-nums; }
+.forecast text.label { font-size: 12px; font-weight: 600; stroke: none; font-variant-numeric: tabular-nums lining-nums; }
+.forecast .label.togo { fill: var(--c-togo); }
+.forecast .label.total { fill: var(--ink); }
+.forecast .label.spent { fill: var(--c-spent); }
+.tip { position: absolute; top: 0.4rem; padding: 0.35rem 0.6rem; background: var(--paper); border: 1px solid var(--hair);
+       border-radius: 6px; font-size: 0.8125rem; line-height: 1.4; white-space: nowrap; pointer-events: none;
+       font-variant-numeric: tabular-nums lining-nums; box-shadow: 0 1px 5px color-mix(in oklab, var(--ink) 14%, transparent); }
+.tip .when { color: var(--muted); }
+.tip .spent { color: var(--c-spent); }
+.tip .togo { color: var(--c-togo); }
+.tip .total { color: var(--ink); font-weight: 600; }
+.forecast .range { stroke: color-mix(in oklab, var(--c-togo) 30%, var(--paper)); stroke-width: 6; stroke-linecap: round; vector-effect: non-scaling-stroke; }
 .forecast .now.togo { fill: var(--c-togo); }
 .forecast .now.total { fill: var(--ink); }
 .forecast .axis, .forecast .grid { stroke: var(--hair); stroke-width: 1; vector-effect: non-scaling-stroke; }

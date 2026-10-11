@@ -14,14 +14,15 @@ the thin directions among the last three).  On the LP's affine subspace A x = b,
 w_j = u_j - A^T n_j the exact projection of u_j off the row space (n_j rational, by a fraction-free solve of
 (A A^T) n_j = A u_j) and kappa_j = n_j . b: w_j is what the LP sees, which keeps its values small, and kappa_j is the
 choice's offset.  Nothing here is relied on for soundness (certbb's exact checks of the certificates a direction
-leads to are), so the identities are asserted as they are made: every row kills every basis vector, rank + dim = N,
-R u_j = e_j, A w_j = 0.  Cached per (order, moduli, A) in each process; in overnight_v5's runs that is per cascade
-prefix, once per worker (about 3 CPU-s at the bottom of 240@11).
+leads to are), so the identities are asserted as they are made: every row kills every basis vector, there are deg K
+rows and A A^T is nonsingular (so rank + dim = N), the Bareiss divisions are exact, R u_j = e_j, A w_j = 0.  Cached
+per (order, moduli, A) in each process; in overnight_v5's runs that is per cascade prefix, once per worker (about 3
+CPU-s at the bottom of 240@11).
 
 Vocabulary, each term defined once here:
   kernel polynomial  K(x) as above, kernel_poly(order, moduli), its coefficients lowest degree first.
   kernel basis       Q, kernel_basis(order, moduli, N): row j the coefficients of x^j K(x), j < N - deg K.
-  direction          Direction(j, u, num, den, w): u = u_j as a list of N ints; num and den (ints, den > 0, coprime
+  direction          Direction(j, u, num, den, w): u = u_j as a tuple of N ints; num and den (ints, den > 0, coprime
                      with the entries of num) with n_j = num / den; w = w_j as floats, the LP row.
   offset             kappa_j for a choice's right-hand sides b: offset(direction, b) = (floor, frac), kappa_j =
                      floor + frac exactly with frac in [0, 1) as a float, so that u.x = w.x + frac + floor and the LP's
@@ -118,18 +119,22 @@ def lll(B):
 
 def bareiss(G, C):
     """For the nonsingular integer matrix G and the integer matrix C: den = +-det G and the integer matrix Z with
-    G Z = den C, by fraction-free elimination (Bareiss) and back substitution scaled by den (exact divisions,
-    asserted; Z = den G^-1 C is integral by Cramer's rule)."""
+    G Z = den C, by fraction-free elimination (Bareiss: every division is exact, asserted, as is a pivot at each
+    step, which a singular G lacks) and back substitution scaled by den (exact divisions, asserted; Z = den G^-1 C is
+    integral by Cramer's rule)."""
     n, m = len(G), len(C[0])
     M = [list(g) + list(c) for g, c in zip(G, C, strict=True)]
     prev = 1
     for k in range(n):
-        piv = next(i for i in range(k, n) if M[i][k])
+        piv = next((i for i in range(k, n) if M[i][k]), None)
+        assert piv is not None, 'G is singular'
         M[k], M[piv] = M[piv], M[k]
         for i in range(k + 1, n):
             Mik, Mkk, rowi, rowk = M[i][k], M[k][k], M[i], M[k]
             for j in range(k + 1, n + m):
-                rowi[j] = (Mkk * rowi[j] - Mik * rowk[j]) // prev
+                q, r = divmod(Mkk * rowi[j] - Mik * rowk[j], prev)
+                assert r == 0
+                rowi[j] = q
             rowi[k] = 0
         prev = M[k][k]
     den = M[n - 1][n - 1]
@@ -159,7 +164,7 @@ def directions(order, moduli, A):
         z, u = Tinv[j], [0] * n                                  # Q u = T^-1 e_j by back substitution through K
         for i in range(dim):
             u[i + deg] = z[i] - sum(K[t] * u[i + t] for t in range(deg))
-        U.append(u)
+        U.append(tuple(u))
     Rl = R.tolist()
     assert all(sum(a * b for a, b in zip(Rl[i], U[j])) == int(i == j) for i in range(dim) for j in range(dim))
     G = [[sum(x * y for x, y in zip(r1, r2)) for r2 in A] for r1 in A]       # A A^T

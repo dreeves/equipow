@@ -3,13 +3,13 @@
 
 Each qual is a function q_*: a passing qual returns, a failing one raises.  Each qual's comment gives its
 replicata (the setup) and expectata (what must happen); a failure's message or traceback gives the resultata (what
-happened instead).  Tiny real runs of overnight_v5 (40@6, 48@6 and 64@7, one worker process each, journals and logs
-in a temporary directory) supply real journal and log lines; synthetic journals on the real split of 40@6 and 64@7
-supply trees whose level counts are known.
+happened instead).  Tiny real runs of overnight_v5 (40@6, 48@6 and 64@7, one worker process each, the width test
+off, journals and logs in a temporary directory) supply real journal and log lines; synthetic journals on the real
+split of 40@6 and 64@7 supply trees whose level counts are known.
 """
 import sys
 sys.dont_write_bytecode = True
-import os, re, json, time, bisect, shutil, tempfile, threading, traceback, subprocess, collections, html.parser
+import os, re, json, time, bisect, shutil, tempfile, threading, traceback, subprocess, contextlib, collections, html.parser
 import numpy as np
 import overnight_v5 as v5
 import progress
@@ -18,7 +18,9 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 TINY = {}                                     # tiny real runs by name, made once per process (see tiny)
 
 DRIVER = """import sys; sys.dont_write_bytecode = True; sys.path.insert(0, {here!r})
-import overnight_v5 as v5
+import overnight_v5 as v5, certbb
+assert callable(certbb.Guide.width_test)
+certbb.Guide.width_test = lambda self, pairs, rows, l, u, emit, stats: False    # off, here and in the workers (see drive)
 if __name__ == '__main__':
     v5.configure({n}, {order})
     v5.JOURNAL, v5.LOG, v5.PROCESSES, v5.BUDGET = {journal!r}, {log!r}, 1, {budget!r}
@@ -28,7 +30,9 @@ if __name__ == '__main__':
 
 def drive(n, order, budget, journal, log):
     """One real pass of overnight_v5 at (n, order) with the given budgets and one worker process, appending to the
-    journal and log given."""
+    journal and log given, with certbb's width test off: it closes these tiny runs outright (64@7 at budgets 1, 1, 1
+    included), and the quals need runs that split and leave leaves open as 240@11 does.  The driver script patches it
+    at its top level, which the worker processes run again as they start."""
     script = os.path.join(os.path.dirname(journal), f'drive_{n}_{order}.py')
     open(script, 'w').write(DRIVER.format(here=HERE, n=n, order=order, journal=journal, log=log, budget=tuple(budget)))
     p = subprocess.run([sys.executable, '-B', script], capture_output=True, text=True, timeout=600)
@@ -450,6 +454,34 @@ def q_dating_leaves_out_records_whose_lines_are_unread():
     assert part['records'] == whole['records'][:keep] and keep < len(whole['records']), (keep, len(part['records']))
 
 
+def q_dating_skips_lines_whose_records_a_migration_dropped():
+    # Replicata: the tiny resolved run's journal with one fresh UNKNOWN record of its pass 1 removed, as
+    # scratch/width/migrate_now.py removed the records of nodes the width test closes so that a later pass solves them
+    # again; then, instead, the journal with two fresh records of pass 1 swapped.
+    # Expectata: the first is read: the line of the removed record has no fresh record, every other line keeps its own,
+    # and the bounds move down by one from pass 2 on; the second fails with AssertionError, since a record that exists
+    # but out of order is no migration's doing.
+    journal, log = tiny('resolved')
+    v5.configure(64, 7)
+    R = progress.read_run(journal, log)
+    i, j = sorted(R['fresh'].items())[0]
+    assert R['records'][j]['verdict'] == 'UNKNOWN' and R['bounds'][1] > j, (R['records'][j], R['bounds'])
+    texts = progress.complete_lines(journal)
+    d = tempfile.mkdtemp(prefix='progress-quals-')
+    cut = os.path.join(d, 'cut.jsonl')
+    open(cut, 'w').write(''.join(x + '\n' for k, x in enumerate(texts) if k != j + 1))
+    C = progress.read_run(cut, log)
+    assert i not in C['fresh'] and len(C['records']) == len(R['records']) - 1, (sorted(C['fresh'])[:5], len(C['records']))
+    assert all(C['fresh'][k] == (v if v < j else v - 1) for k, v in R['fresh'].items() if k != i)
+    assert C['bounds'] == [R['bounds'][0]] + [b - 1 for b in R['bounds'][1:]], (C['bounds'], R['bounds'])
+    k1, k2 = sorted(R['fresh'].values())[:2]
+    swapped = list(texts)
+    swapped[k1 + 1], swapped[k2 + 1] = swapped[k2 + 1], swapped[k1 + 1]
+    bad = os.path.join(d, 'swapped.jsonl')
+    open(bad, 'w').write(''.join(x + '\n' for x in swapped))
+    expect_assertion(progress.read_run, bad, log)
+
+
 def q_passes_at_cut_the_log():
     # Replicata: the tiny resolved run, read whole; its log cut after each of its lines in turn, parsed afresh.
     # Expectata: passes_at(R, k) equals parse_log of the first k lines, for every k from the first start line on.
@@ -561,13 +593,25 @@ CUTS = {(304, 9): '2026-10-09 20:42:02', (240, 11): '2026-10-09 17:54:56'}
 LIVE = {}
 
 
+@contextlib.contextmanager
+def as_written(n, order):
+    """overnight_v5 configured for (n, order) with its CODE the one in that run's journal header, the code that wrote
+    it, so that a run's files stay fixtures as the code changes (304@9's header keeps the code its run had); CODE is
+    restored after."""
+    v5.configure(n, order)
+    saved = v5.CODE
+    v5.CODE = json.loads(open(v5.JOURNAL).readline())['code']
+    try: yield
+    finally: v5.CODE = saved
+
+
 def live(n, order):
     """read_run of the live run (n, order) and its cached splits (progress.CACHE, which progress.py keeps; asserted
-    present), made once."""
+    present), both as_written, made once."""
     if (n, order) not in LIVE:
-        v5.configure(n, order)
-        cache = progress.load_cache(progress.CACHE)[f'{n}_{order}_{v5.CODE}']
-        LIVE[n, order] = (progress.read_run(v5.JOURNAL, v5.LOG), cache)
+        with as_written(n, order):
+            cache = progress.load_cache(progress.CACHE)[f'{n}_{order}_{v5.CODE}']
+            LIVE[n, order] = (progress.read_run(v5.JOURNAL, v5.LOG), cache)
     return LIVE[n, order]
 
 
@@ -576,16 +620,17 @@ STATES = []
 
 def states():
     """The estimate's states of the live runs every half hour of running in each pass up to CUTS, and at CUTS, made
-    once: 304@9 pass 1 (24 states, its end known: 23:10:13), pass 2 (7), 240@11 pass 1 (39)."""
+    once: 304@9 pass 1 (25 states, its end known: 23:10:13), pass 2 (7), 240@11 pass 1 (39); a pass begun after
+    CUTS (304@9's later passes, 240@11's pass 2) has none."""
     if not STATES:
         for (n, order), cut in CUTS.items():
             R, cache = live(n, order)
             end = progress.stamp(cut)
-            for k, p in enumerate(R['passes'], 1):
+            begun = R['passes'][:bisect.bisect_right([p['start'] for p in R['passes']], end)]
+            for k, p in enumerate(begun, 1):
                 stop = min(end, p['last'])
                 times = [p['start'] + h for h in range(0, int(stop - p['start']) + 1, 1800)] + [stop]
                 for t in times:
-                    if t > end: continue
                     STATES.append(progress.state_at(R, t, cache, f'{n}@{order} p{k} +{(t - p["start"]) / 3600:.1f}h'))
     return STATES
 
@@ -786,6 +831,74 @@ def q_survey_records_its_eta():
     assert ended == {str(int(progress.parse_log(log)[-1]['last'])): None}, ended
 
 
+PASS2 = {}                                    # 240@11's pass 2 survey, made once per process (see pass2)
+PASS2_AT = '2026-10-10 22:40:10'              # a time in 240@11's pass 2 (begun 22:27:36), now past, so fixed
+
+
+def pass2():
+    """240@11 surveyed at PASS2_AT, running, from its files as they were then (the log's lines up to it and the records
+    dated by them, written to a temporary directory: survey takes the files' last pass for the current one, and the
+    run has had later passes) and its cached splits minus those of every node the journal had UNKNOWN within its
+    budget above the bottom when pass 2 began (the resplit nodes), with DEEPEST 0, so that the survey must make them;
+    made once (it splits nodes as deep as level 7, several CPU-minutes), as_written.  Returns the survey, the resplit
+    keys, the cache the survey filled, and read_run's R of the files as they were."""
+    if not PASS2:
+        with as_written(240, 11):
+            t = progress.stamp(PASS2_AT)
+            now = progress.read_run(v5.JOURNAL, v5.LOG)
+            lines = bisect.bisect_right(now['stamps'], t)
+            d = tempfile.mkdtemp(prefix='progress-quals-')
+            journal, log = os.path.join(d, 'journal.jsonl'), os.path.join(d, 'run.log')
+            open(log, 'w').write(''.join(line + '\n' for line in now['lines'][:lines]))
+            records = now['records'][:sum(1 for x in now['dates'] if x < lines)]
+            open(journal, 'w').write(''.join(json.dumps(r) + '\n' for r in [v5.header()] + records))
+            R = progress.read_run(journal, log)
+            assert len(R['records']) == len(records)
+            assert len(R['passes']) == 2 and R['passes'][1]['start'] <= t
+            budgets = R['passes'][1]['budgets']
+            start = {r['key']: r for r in R['records'][:R['bounds'][1]]}
+            resplit = sorted(key for key, r in start.items() if r['verdict'] == 'UNKNOWN' and len(key.split()) < len(budgets) - 1
+                             and r['budget'] >= progress.budget_of(key, budgets))
+            cache = {key: c for key, c in progress.load_cache(progress.CACHE)[f'240_11_{v5.CODE}'].items() if key not in resplit}
+            procs = [(1, 0, 'S', 'python3 overnight_v5.py 240 11')]
+            saved = progress.DEEPEST
+            progress.DEEPEST = 0
+            try:
+                s = progress.survey(240, 11, journal, log, procs, t, cache, {})
+            finally:
+                progress.DEEPEST = saved
+        PASS2.update(s=s, resplit=resplit, cache=cache, R=R)
+    return PASS2['s'], PASS2['resplit'], PASS2['cache'], PASS2['R']
+
+
+def q_survey_splits_a_later_pass_s_resplit_nodes_first():
+    # Replicata: pass2(): the live 240@11 run surveyed in its pass 2 with the splits of its resplit nodes taken out of
+    # the cache and DEEPEST 0.
+    # Expectata: the survey made and cached the split of every resplit node, each equal to overnight_v5.split's, and
+    # gave an estimate (draws) without failing.
+    s, resplit, cache, R = pass2()
+    assert resplit and all(key in cache for key in resplit), [key for key in resplit if key not in cache][:3]
+    for key in resplit[:3]:
+        assert cache[key] == [v5.node_key(c) for c in v5.split(11, progress.parse_key(key))], key
+    assert s['draws'] is not None, s['state']
+
+
+def q_replay_counts_skips_by_the_closed_count():
+    # Replicata: pass2()'s run as of PASS2_AT, whose pass 2 splits nodes new to the journal (their splits not cached)
+    # while it skips the nodes the journal already settles.
+    # Expectata: the replay accounts for every progress line: the skips between two lines are the rise of the log's
+    # closed count less one for the line's own INFEASIBLE, and a line's children the rest of its waiting count's
+    # change; at least one line splits a node whose split is not cached, and at least one pop is a skip; every line's
+    # waiting and running match (asserted inside), and at most the pass's processes run.
+    s, resplit, cache, R = pass2()
+    state = progress.state_at(R, progress.stamp(PASS2_AT), cache, '240@11 p2')
+    nodes = state['passes'][-1]['nodes']
+    assert any(nd['verdict'] == 'UNKNOWN' and len(nd['key'].split()) < 8 and nd['key'] not in cache for nd in nodes), 'no uncached split'
+    root, stack, running = progress.replay(state)
+    def walk(n): return [n] + [m for c in n.kids for m in walk(c)]
+    assert any(n.state == 'skipped' for n in walk(root)) and len(running) <= state['processes'], len(running)
+
+
 # ---------- the page ----------
 
 class Visible(html.parser.HTMLParser):
@@ -833,10 +946,10 @@ def tiny_page(now=None):
     return progress.page(surveys, time.time() if now is None else now)
 
 
-TITLE = 'Search progress (this page is 100% AI-generated)'     # dreeves's wording, 2026-10-09
+TITLE = 'Search progress'     # dreeves's wording, as he edited progress.py by 2026-10-10
 
 
-def q_page_is_declared_ai_generated_with_no_attributions():
+def q_page_has_its_title_and_no_attributions():
     # Replicata: the page of the tiny runs, whose logs end in NOT FINISHED, ALL NODES CLOSED and WITNESS FOUND lines.
     # Expectata: dreeves's title, exactly, in the browser's tab and at the top; nowhere a reader looks is there a
     # Claude: "..." attribution, the outcome lines quoted from the logs included, which appear without it.
@@ -909,31 +1022,46 @@ def q_page_shows_this_pass_work_and_nothing_the_chart_shows():
     assert 'class="timeline"' not in text and 'class="pdf"' not in text and 'class="track"' not in text
 
 
-def q_page_draws_the_eta_chart():
-    # Replicata: the tiny resolved run (64@7: two passes, ended) surveyed, its passes set to 11.6 h and 1.6 h of
-    # running (from 0 and from 86400 s) and its record of ETAs to three: [2, 1, 4] h (mean, then the band's ends) at
-    # 0 s (pass 1's start), none (None) at pass 1's end, and [1, 0.5, 3] h at pass 2's end; the page of it.
-    # Expectata: the chart knows nothing of passes (dreeves, 2026-10-10: it shows how long the search has to go): one
-    # svg of class forecast with one blue polyline (class spent), the diagonal from (0, 0) to (13.2, 13.2) h, the
-    # elapsed running time; one shaded band (a polygon of class band) along the band's top ends left to right and
-    # its bottom ends back, for each recorded ETA that is not None; one red polyline (togo) and one black (total)
-    # with a point per such ETA, in time order, at (elapsed running time then, ETA) and (elapsed running time then,
-    # elapsed + ETA), all to the scale the blue line gives; at the last such ETA a vertical line of class range
-    # across its band and markers (circles of class now) on the red and the black lines, so that a record of one
-    # ETA shows too; the blue line carried on ahead, dashed (a line of class ahead), from the last ETA's elapsed time
-    # to where it is level with the black marker (dreeves, 2026-10-10), the x axis reaching that far (14.2 h); a
-    # vertical line of class cross at the last ETA, which the readout moves (see q_page_reads_out_the_eta_chart); no
-    # other line but the axis and the grid; the black stroke the widest; the legend in dreeves's words: elapsed time
-    # (blue), ETA (red), elapsed + ETA (black); the colors are the palette's blue and red and the page's ink.
+def eta_chart_case():
+    """The ETA chart of the tiny resolved run (64@7: two passes, ended) surveyed, its passes set to 11.6 h and 1.6 h of
+    running (from 0 and from 86400 s) and its record of ETAs to three: [2, 1, 4] h (mean, then the band's ends) at 0 s
+    (pass 1's start), none (None) at pass 1's end, and [1, 0.5, 3] h at pass 2's end; and the page of it."""
     journal, log = tiny('resolved')
     s = progress.survey(64, 7, journal, log, [], time.time(), {}, {})
     s = dict(s, passes=[(0.0, 11.6 * 3600), (86400.0, 86400 + 1.6 * 3600)],
              etas={'0': [2.0, 1.0, 4.0], str(int(11.6 * 3600)): None, str(int(86400 + 1.6 * 3600)): [1.0, 0.5, 3.0]})
-    sec, = run_sections(progress.page([s], time.time()))
+    text = progress.page([s], time.time())
+    sec, = run_sections(text)
+    return s, text, sec
+
+
+def q_page_draws_the_eta_chart():
+    # Replicata: eta_chart_case().
+    # Expectata: the chart knows nothing of passes (dreeves, 2026-10-10: it shows how long the search has to go). One
+    # svg of class forecast with:
+    # - round ticks on both axes, every 5 h from 0 to 15 h here (a step of 1, 2 or 5 times a power of 10, at most 5
+    #   steps, the last at or past every value drawn: the elapsed time, the projected finish 14.2 h, every elapsed +
+    #   ETA and band top), labeled, the top one with its unit; a gridline (class grid) at each y tick but 0, which is
+    #   the axis line (class axis);
+    # - the series, to the scale the blue line gives: one blue polyline (class spent), the diagonal from (0, 0) to
+    #   (13.2, 13.2) h, the elapsed running time; the blue line carried on ahead, dashed (a line of class ahead), from
+    #   the last ETA's elapsed time to where it is level with the black marker, (14.2, 14.2) (dreeves, 2026-10-10); one
+    #   shaded band (a polygon of class band) along the band's top ends left to right and its bottom ends back, for each
+    #   recorded ETA that is not None; one red polyline (togo) and one black (total) with a point per such ETA, in time
+    #   order, at (elapsed then, ETA) and (elapsed then, elapsed + ETA);
+    # - at the last such ETA: a vertical line of class range across its band; markers (circles of class now) on the
+    #   red and the black lines; and dreeves's direct labels (2026-10-10): "ETA 1.0 h" in red just right of the red
+    #   marker, the projected total "14 h" just right of the black marker, and the elapsed time "13 h" in blue on the x
+    #   axis under that point, where no other x tick label crowds it (hours to a tenth below 10, whole from 10 on);
+    # - a vertical line of class cross, hidden at rest, which the script shows (see q_page_reads_out_the_eta_chart);
+    # - no other line; the black stroke the widest; the legend in dreeves's words: elapsed time (blue), ETA (red),
+    #   elapsed + ETA (black); the colors the palette's blue and red and the page's ink.
+    s, text, sec = eta_chart_case()
     svg = re.search(r'<svg class="forecast"[^>]*>(.*?)</svg>', sec, re.S)
     assert svg, sec[:500]
+    body = svg[1]
     def pts(text): return [tuple(map(float, xy.split(','))) for xy in text.split()]
-    lines = [(k, pts(v)) for k, v in re.findall(r'<polyline class="(spent|togo|total)" points="([^"]*)"/>', svg[1])]
+    lines = [(k, pts(v)) for k, v in re.findall(r'<polyline class="(spent|togo|total)" points="([^"]*)"/>', body)]
     assert [k for k, _ in lines] == ['spent', 'togo', 'total'], [k for k, _ in lines]
     (x0, y0), (x1, y1) = lines[0][1][0], lines[0][1][-1]          # blue at 0 h and at 13.2 h
     def X(h): return x0 + (x1 - x0) * h / 13.2
@@ -941,62 +1069,84 @@ def q_page_draws_the_eta_chart():
     def near(p, q): return abs(p[0] - q[0]) < 0.05 and abs(p[1] - q[1]) < 0.05
     def check(got, want, what): assert len(got) == len(want) and all(near(g, (X(a), Y(b))) for g, (a, b) in zip(got, want)), (what, got, [(X(a), Y(b)) for a, b in want])
     for (k, got), w in zip(lines, [[(0, 0), (13.2, 13.2)], [(0, 2), (13.2, 1)], [(0, 2), (13.2, 14.2)]]): check(got, w, k)
-    band = re.findall(r'<polygon class="band" points="([^"]*)"/>', svg[1])
+    band = re.findall(r'<polygon class="band" points="([^"]*)"/>', body)
     assert len(band) == 1, band
     check(pts(band[0]), [(0, 4), (13.2, 3), (13.2, 0.5), (0, 1)], 'band')
-    rng = re.findall(r'<line class="range" x1="([\d.]+)" y1="([\d.]+)" x2="([\d.]+)" y2="([\d.]+)"/>', svg[1])
-    assert len(rng) == 1, rng
-    r = tuple(map(float, rng[0]))
-    check([r[:2], r[2:]], [(13.2, 0.5), (13.2, 3)], 'range')
-    now = re.findall(r'<circle class="now (togo|total)" cx="([\d.]+)" cy="([\d.]+)" r="[\d.]+"/>', svg[1])
+    def seg(cls): return [tuple(map(float, m)) for m in re.findall(rf'<line class="{cls}" x1="([\d.]+)" y1="([\d.]+)" x2="([\d.]+)" y2="([\d.]+)"', body)]
+    ahead, rng = seg('ahead'), seg('range')
+    assert len(ahead) == 1 and len(rng) == 1, (ahead, rng)
+    check([ahead[0][:2], ahead[0][2:]], [(13.2, 13.2), (14.2, 14.2)], 'ahead')
+    check([rng[0][:2], rng[0][2:]], [(13.2, 0.5), (13.2, 3)], 'range')
+    grid, axis = seg('grid'), seg('axis')
+    assert len(axis) == 1 and abs(axis[0][1] - Y(0)) < 0.05 and axis[0][1] == axis[0][3], axis
+    assert sorted(round((y0 - g[1]) / (y0 - Y(1)), 3) for g in grid) == [5, 10, 15] and all(g[1] == g[3] for g in grid), grid
+    yt = re.findall(r'<text class="ytick" x="[\d.]+" y="([\d.]+)"[^>]*>([^<]*)</text>', body)
+    assert [v for _, v in yt] == ['0', '5', '10', '15 h'], yt
+    assert all(abs(float(y) - 4 - Y(int(v.split()[0]))) < 0.05 for y, v in yt), yt
+    xt = re.findall(r'<text class="xtick" x="([\d.]+)" y="[\d.]+"[^>]*>([^<]*)</text>', body)
+    assert [v for _, v in xt] == ['0', '5', '10', '15 h'] and all(abs(float(x) - X(int(v.split()[0]))) < 0.05 for x, v in xt), xt
+    now = re.findall(r'<circle class="now (togo|total)" cx="([\d.]+)" cy="([\d.]+)" r="[\d.]+"/>', body)
     assert [k for k, _, _ in now] == ['togo', 'total'], now
     check([tuple(map(float, n[1:])) for n in now], [(13.2, 1), (13.2, 14.2)], 'now')
-    ahead = re.findall(r'<line class="ahead" x1="([\d.]+)" y1="([\d.]+)" x2="([\d.]+)" y2="([\d.]+)"/>', svg[1])
-    assert len(ahead) == 1, ahead
-    a = tuple(map(float, ahead[0]))
-    check([a[:2], a[2:]], [(13.2, 13.2), (14.2, 14.2)], 'ahead')
-    assert abs(X(14.2) - (640 - 14)) < 0.05, X(14.2)                       # the x axis ends at the projected finish
-    cross = re.findall(r'<line class="cross" x1="([\d.]+)" y1="[\d.]+" x2="([\d.]+)" y2="[\d.]+"/>', svg[1])
-    assert len(cross) == 1 and cross[0][0] == cross[0][1] and abs(float(cross[0][0]) - X(13.2)) < 0.05, cross
-    assert re.findall(r'<line class="(\w+)"', svg[1]) == ['grid', 'axis', 'ahead', 'range', 'cross'], re.findall(r'<line class="(\w+)"', svg[1])
-    assert svg[1].index('class="band"') < svg[1].index('class="togo"')            # the band lies under the red line
+    labels = {k: (float(x), float(y), v) for k, x, y, v in re.findall(r'<text class="label (togo|total|spent)" x="([\d.]+)" y="([\d.]+)"[^>]*>([^<]*)</text>', body)}
+    assert {k: v for k, (_, _, v) in labels.items()} == {'togo': 'ETA 1.0 h', 'total': '14 h', 'spent': '13 h'}, labels
+    for k, h in (('togo', 1), ('total', 14.2)):
+        x, y, _ = labels[k]
+        assert X(13.2) < x < X(13.2) + 20 and abs(y - Y(h)) < 16, (k, labels[k], X(13.2), Y(h))
+    x, y, _ = labels['spent']
+    assert abs(x - X(13.2)) < 0.05 and y > Y(0), (labels['spent'], X(13.2), Y(0))
+    assert re.search(r'<line class="cross" [^>]*visibility="hidden"', body), body[:400]
+    assert sorted(re.findall(r'<line class="(\w+)"', body)) == sorted(['axis', 'ahead', 'range', 'cross', 'grid', 'grid', 'grid']), re.findall(r'<line class="(\w+)"', body)
     light = re.search(r'^:root \{ --c-spent: (#[0-9a-f]{6}); --c-togo: (#[0-9a-f]{6}); \}$', progress.STYLE, re.M)
     assert light and light.groups() == ('#2a78d6', '#e34948'), light and light.groups()
     widths = {k: float(w) for k, w in re.findall(r'\.forecast \.(spent|togo|total) \{[^}]*stroke-width: ([\d.]+)', progress.STYLE)}
     assert set(widths) == {'spent', 'togo', 'total'} and widths['total'] > max(widths['spent'], widths['togo']), widths
+    fills = dict(re.findall(r'\.forecast \.label\.(togo|total|spent) \{ fill: var\(--([\w-]+)\); \}', progress.STYLE))
+    assert fills == {'togo': 'c-togo', 'total': 'ink', 'spent': 'c-spent'}, fills
     legend = shown(sec[sec.index('<svg class="forecast"'):])
     for words in ('elapsed time', 'ETA', 'elapsed + ETA'):          # dreeves's names for the series, 2026-10-09
         assert words in legend, (words, legend[:300])
 
 
+def q_eta_chart_puts_a_record_after_a_pass_s_last_line_at_its_end():
+    # Replicata: eta_chart_case() with one more ETA, [3, 2, 5] h, recorded 1000 s after pass 1's last line (as the page
+    # records one while a pass's process runs on past its last line, or after it is stopped); then the same with a
+    # record after the snapshot's time instead.
+    # Expectata: the first is drawn at pass 1's end (11.6 h elapsed), between the ETAs before and after it in time; the
+    # second fails with AssertionError (no ETA can be made after the snapshot).
+    s, text, sec = eta_chart_case()
+    late = dict(s, etas=dict(s['etas'], **{str(int(11.6 * 3600 + 1000)): [3.0, 2.0, 5.0]}))
+    body = re.search(r'<svg class="forecast"[^>]*>(.*?)</svg>', progress.eta_chart(late), re.S)[1]
+    spent = [tuple(map(float, xy.split(','))) for xy in re.search(r'<polyline class="spent" points="([^"]*)"', body)[1].split()]
+    togo = [tuple(map(float, xy.split(','))) for xy in re.search(r'<polyline class="togo" points="([^"]*)"', body)[1].split()]
+    (x0, _), (x1, _) = spent
+    assert len(togo) == 3 and abs(togo[1][0] - (x0 + (x1 - x0) * 11.6 / 13.2)) < 0.05, (togo, x0, x1)
+    after = dict(s, etas=dict(s['etas'], **{str(int(86400 + 1.6 * 3600 + 60)): [1.0, 0.5, 3.0]}))
+    expect_assertion(progress.eta_chart, after)
+
+
 def q_page_reads_out_the_eta_chart():
-    # Replicata: the chart of q_page_draws_the_eta_chart (records [2, 1, 4] h at 0 s, None at pass 1's end, [1, 0.5, 3] h
-    # at pass 2's end, 13.2 h of running in all).
+    # Replicata: eta_chart_case().
     # Expectata: the chart's figure carries data-points, a JSON list with one entry per recorded ETA that is not None,
-    # in time order: x, its elapsed time in the svg's units (the cross line's and the markers' x), and text, the
-    # numbers in dreeves's words: "<when the ETA was made, to the minute> · elapsed <h> h · ETA <h> h (<lo>–<hi>) ·
-    # elapsed + ETA <h> h", to a tenth of an hour; at rest the readout under the chart says the last entry's text and
-    # the cross line stands at its x; the page's one script moves both to the entry nearest the pointer on
-    # pointermove and pointerdown (a touch), reading data-points.
-    journal, log = tiny('resolved')
-    s = progress.survey(64, 7, journal, log, [], time.time(), {}, {})
-    s = dict(s, passes=[(0.0, 11.6 * 3600), (86400.0, 86400 + 1.6 * 3600)],
-             etas={'0': [2.0, 1.0, 4.0], str(int(11.6 * 3600)): None, str(int(86400 + 1.6 * 3600)): [1.0, 0.5, 3.0]})
-    text = progress.page([s], time.time())
-    sec, = run_sections(text)
+    # in time order: x, its elapsed time in the svg's units (the markers' x for the last), and its numbers to a tenth of
+    # an hour: when (the ETA's time, to the minute), elapsed, eta, lo, hi and total; at rest the figure's tip (a div of
+    # class tip) is hidden and empty, and no readout line sits under the chart (the direct labels give the latest
+    # numbers); the page's one script, on pointermove and pointerdown (a touch), shows the cross line at the entry
+    # nearest the pointer and fills the tip with its numbers in dreeves's words, and on pointerleave hides both.
+    s, text, sec = eta_chart_case()
     fig = re.search(r'<figure class="forecast-fig" data-points="([^"]*)">', sec)
     assert fig, sec[sec.index('<figure'):][:200]
     entries = json.loads(html.unescape(fig[1]))
     when = [time.strftime('%Y-%m-%d %H:%M', time.localtime(t)) for t in (0, 86400 + 1.6 * 3600)]
-    assert [e['text'] for e in entries] == [f'{when[0]} · elapsed 0.0 h · ETA 2.0 h (1.0–4.0) · elapsed + ETA 2.0 h',
-                                            f'{when[1]} · elapsed 13.2 h · ETA 1.0 h (0.5–3.0) · elapsed + ETA 14.2 h'], entries
+    assert [{k: v for k, v in e.items() if k != 'x'} for e in entries] == [
+        {'when': when[0], 'elapsed': '0.0', 'eta': '2.0', 'lo': '1.0', 'hi': '4.0', 'total': '2.0'},
+        {'when': when[1], 'elapsed': '13.2', 'eta': '1.0', 'lo': '0.5', 'hi': '3.0', 'total': '14.2'}], entries
     marks = re.findall(r'<circle class="now togo" cx="([\d.]+)"', sec)
-    cross = re.findall(r'<line class="cross" x1="([\d.]+)"', sec)
-    assert entries[-1]['x'] == float(marks[0]) == float(cross[0]) and entries[0]['x'] < entries[-1]['x'], (entries, marks, cross)
-    readout = re.findall(r'<p class="readout">(.*?)</p>', sec)
-    assert readout == [html.escape(entries[-1]['text'], quote=False)], readout
+    assert entries[-1]['x'] == float(marks[0]) and entries[0]['x'] < entries[-1]['x'], (entries, marks)
+    assert re.search(r'<div class="tip" hidden></div>', sec) and 'class="readout"' not in sec, sec[-600:]
     script, = re.findall(r'<script>(.*?)</script>', text, re.S)
-    assert all(w in script for w in ('pointermove', 'pointerdown', 'dataset.points', '.readout', '.cross')), script
+    assert all(w in script for w in ('pointermove', 'pointerdown', 'pointerleave', 'dataset.points', '.tip', '.cross',
+                                     'elapsed', 'ETA', 'elapsed + ETA')), script
 
 
 def q_page_is_self_contained():

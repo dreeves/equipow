@@ -1,0 +1,1059 @@
+#!/usr/bin/env python3
+"""Quals for index.html's chart of m*(n) for the even n up to 1000.  Run: python3 -B quals_index.py [name ...]   (no
+arguments: all quals).
+
+Each qual is a function q_*: a passing qual returns, a failing one raises.  Each qual's comment gives its replicata (the
+setup) and expectata (what must happen); a failure's message or traceback gives the resultata (what happened instead).
+The static quals read index.html, the committed index.html (git show HEAD:index.html) and mstar.js.  The browser quals
+load a copy of index.html in headless Chrome (in an iframe of the width each configuration asks for, since the
+window cannot be narrower than 500 px), in a temporary directory with a copy of mstar.js (or made-up data), with two
+scripts added: EARLY, first in the head, which records errors and every string drawn on a canvas, and HARNESS, last in
+the body, which drives the chart with synthetic events and posts what it saw to the host page, which writes it into
+the DOM that --dump-dom returns.
+The harness locates the chart only by its pixels, reads the view only through the readout (the cell under a
+synthetic pointer) and finds the n labels by where their strings were drawn, so the quals hold the chart to what a
+reader sees.
+"""
+import sys
+sys.dont_write_bytecode = True
+import os, re, json, html, math, time, shutil, signal, difflib, tempfile, threading, traceback, subprocess
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+INDEX = os.path.join(HERE, 'index.html')
+DATA = os.path.join(HERE, 'mstar.js')         # made by mstar.py; the chart's data
+CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+TOKENS = ('--exists', '--open', '--impossible')                    # the chart's three colors, in the order of kind
+PROVENANCE = ('--claude', '--joint', '--stan')
+NMAX, MIN_SPAN = 1000, 12
+EVEN = list(range(2, NMAX + 1, 2))            # the chart's columns: an odd n has no partition at any m, so is left out
+NCOL = len(EVEN)
+STEPS = (2, 10, 20, 50, 100, 200, 500)        # the steps of the n labels: 1, 2, 5, 10, ... without the odd ones
+RUNS = {}                                     # browser runs by configuration name, made once per process (see run)
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Reading the page
+
+def page(): return open(INDEX, encoding='utf-8').read()
+
+
+def committed():
+    return subprocess.run(['git', '-C', HERE, 'show', 'HEAD:index.html'], capture_output=True, text=True,
+                          check=True).stdout
+
+
+def opcodes():
+    """difflib's line opcodes from the committed index.html to the working one."""
+    return difflib.SequenceMatcher(None, committed().splitlines(), page().splitlines(), autojunk=False).get_opcodes()
+
+
+def regions(lines):
+    """For each line: 'style' or 'script' for the lines inside a <style> or an inline <script> element, 'html' for the
+    rest (the tag lines included)."""
+    out, state = [], 'html'
+    for line in lines:
+        s = line.strip()
+        if state == 'html' and s in ('<style>', '<script>'):
+            out.append('html'); state = s[1:-1]; continue
+        if state != 'html' and s == f'</{state}>':
+            out.append('html'); state = 'html'; continue
+        out.append(state)
+    assert state == 'html'
+    return out
+
+
+def inserted():
+    """The working index.html's lines, their regions, and the indices of the lines inserted since HEAD."""
+    lines = page().splitlines()
+    return lines, regions(lines), [j for tag, _, _, j1, j2 in opcodes() if tag == 'insert' for j in range(j1, j2)]
+
+
+def section():
+    """The chart's section: the HTML from <section class="mstar" to its </section>."""
+    text = page()
+    m = re.search(r'<section class="mstar".*?</section>', text, re.S)
+    assert m, 'no <section class="mstar">'
+    return m.group(0)
+
+
+def theme_blocks():
+    """The custom properties of the page's three theme blocks: light (:root), dark by preference, dark by attribute."""
+    css = re.search(r'<style>(.*?)</style>', page(), re.S).group(1)
+    heads = (r'\n:root \{', r'@media \(prefers-color-scheme: dark\) \{\s*:root:not\(\[data-theme="light"\]\) \{',
+             r'\n:root\[data-theme="dark"\] \{')
+    out = []
+    for h in heads:
+        ms = list(re.finditer(h + r'(.*?)\n\s*\}', css, re.S))
+        assert len(ms) == 1, h
+        out.append(dict(re.findall(r'(--[\w-]+):\s*([^;]+);', ms[0].group(1))))
+    return out
+
+
+def mstar_data():
+    """MSTAR as the browser sees it: node runs mstar.js and prints MSTAR as JSON."""
+    assert os.path.exists(DATA), DATA
+    src = open(DATA, encoding='utf-8').read()
+    p = subprocess.run(['node', '-e', src + '\nprocess.stdout.write(JSON.stringify(MSTAR))'], capture_output=True,
+                       text=True, timeout=60)
+    assert p.returncode == 0, p.stderr[-2000:]
+    return json.loads(p.stdout)
+
+
+def table_entries():
+    """(n, low, high) for every entry of the page's tables with n <= NMAX: Table 2's blocks and the new results.
+    An exact value v gives (v, v); 'a or b' and 'a–b' give (a, b); '≥ a' gives (a, inf)."""
+    fig = re.search(r'<figure>.*?</figure>', page(), re.S).group(0)
+    out = []
+    for table in re.findall(r'<table class="block">.*?</table>', fig, re.S):
+        ns = re.findall(r'<td[^>]*>(.*?)</td>', re.search(r'<tr class="ns">.*?</tr>', table, re.S).group(0))
+        vs = re.findall(r'<td[^>]*>(.*?)</td>', re.search(r'<tr class="vals">.*?</tr>', table, re.S).group(0))
+        assert len(ns) == len(vs) and ns, table
+        for n, v in zip(ns, vs):
+            power = re.fullmatch(r'(\d+)<sup>(\d+)</sup>', n)
+            if power:
+                assert int(power.group(1)) ** int(power.group(2)) > NMAX, n
+                continue
+            forms = ((r'(\d+)', lambda a: (a, a)), (r'(\d+) or (\d+)', lambda a, b: (a, b)),
+                     (r'(\d+)–(\d+)', lambda a, b: (a, b)), (r'≥ (\d+)', lambda a: (a, math.inf)))
+            hits = [f(*map(int, m.groups())) for p, f in forms for m in [re.fullmatch(p, v)] if m]
+            assert len(hits) == 1, (n, v)
+            out.append((int(n), *hits[0]))
+    return out
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Color: the dataviz palette validator's arithmetic (OKLab ΔE ×100, Machado-Oliveira-Fernandes 2009 at severity 1.0)
+
+MACHADO = {'protan': ((0.152286, 1.052583, -0.204868), (0.114503, 0.786281, 0.099216), (-0.003882, -0.048116, 1.051998)),
+           'deutan': ((0.367322, 0.860646, -0.227968), (0.280085, 0.672501, 0.047413), (-0.011820, 0.042940, 0.968881))}
+
+
+def linear(h):
+    assert re.fullmatch(r'#[0-9a-f]{6}', h), h
+    return [(c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4)
+            for c in (int(h[i:i + 2], 16) / 255 for i in (1, 3, 5))]
+
+
+def oklab(rgb):
+    r, g, b = rgb
+    l, m, s = (math.copysign(abs(x) ** (1 / 3), x) for x in (0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b,
+                                                              0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b,
+                                                              0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b))
+    return (0.2104542553 * l + 0.7936177850 * m - 0.0040720468 * s, 1.9779984951 * l - 2.4285922050 * m + 0.4505937099 * s,
+            0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * s)
+
+
+def seen(h, kind):
+    rgb = linear(h)
+    return rgb if kind == 'normal' else [min(1, max(0, sum(a * c for a, c in zip(row, rgb)))) for row in MACHADO[kind]]
+
+
+def delta_e(h1, h2, kind='normal'): return 100 * math.dist(oklab(seen(h1, kind)), oklab(seen(h2, kind)))
+
+
+def worst_cvd(colors):
+    """The validator's worst all-pairs CVD pair: (ΔE, kind), the minimum over protan and deutan."""
+    return min((delta_e(a, b, k), k) for i, a in enumerate(colors) for b in colors[i + 1:] for k in MACHADO)
+
+
+def worst_normal(colors): return min(delta_e(a, b) for i, a in enumerate(colors) for b in colors[i + 1:])
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# The browser runs
+
+EARLY = r"""<script>
+window.__errors = []; window.__texts = []; window.__fills = [];
+addEventListener('error', e => {
+  if (e instanceof ErrorEvent) __errors.push('error: ' + e.message);
+  else if (e.target && e.target.tagName === 'SCRIPT') __errors.push('script failed to load: ' + e.target.src);
+}, true);
+addEventListener('unhandledrejection', e => __errors.push('rejection: ' + e.reason));
+for (const k of ['error', 'warn']) {
+  const f = console[k].bind(console);
+  console[k] = (...a) => { __errors.push(k + ': ' + a.map(String).join(' ')); f(...a); };
+}
+const __fillText = CanvasRenderingContext2D.prototype.fillText;
+CanvasRenderingContext2D.prototype.fillText = function (t, x, y, ...rest) {
+  __texts.push(String(t)); __fills.push([String(t), x, y]); return __fillText.call(this, t, x, y, ...rest); };
+Element.prototype.setPointerCapture = function () {};     // synthetic pointers are never active, so capture would throw
+</script>
+"""
+
+HARNESS = r"""<script>
+(() => {
+const OPTS = __OPTS__;
+function battery(R) {
+  const cv = document.getElementById('mstar-chart'), ro = document.getElementById('mstar-readout');
+  const reset = document.getElementById('mstar-reset'), rect = () => cv.getBoundingClientRect();
+  R.readout0 = ro.textContent;
+  R.canvasCss = [rect().width, rect().height];
+  R.canvasDev = [cv.width, cv.height];
+  R.dpr = devicePixelRatio; R.innerW = innerWidth; R.scrollW = document.documentElement.scrollWidth;
+  const main = document.querySelector('main'), ms = getComputedStyle(main);
+  R.mainContentW = main.clientWidth - parseFloat(ms.paddingLeft) - parseFloat(ms.paddingRight);
+  R.touchAction = getComputedStyle(cv).touchAction;
+  if (cv.height === 0) return;
+  const tok = name => getComputedStyle(cv).getPropertyValue(name).trim().toLowerCase();
+  const C = {exists: tok('--exists'), open: tok('--open'), impossible: tok('--impossible'), paper: tok('--paper'), ink: tok('--ink')};
+  R.tokens = C;
+  const dpr = devicePixelRatio, ctx = cv.getContext('2d'), T = MSTAR.mtop, cols = MSTAR.cols;
+  const colorOf = (n, m) => m <= cols[n - 1][0] ? C.exists : m <= cols[n - 1][1] ? C.open : C.impossible;
+  let img = null;
+  const snap = () => { img = ctx.getImageData(0, 0, cv.width, cv.height); };
+  const pix = (X, Y) => { const i = (Y * img.width + X) * 4, d = img.data;
+    return '#' + [d[i], d[i + 1], d[i + 2]].map(v => v.toString(16).padStart(2, '0')).join(''); };
+  // Layout from pixels: the rows are the runs of non-paper pixels down the middle device column, from the top (the
+  // first T of them; the axis may add more below), and the plot spans the run of impossible pixels across row T.
+  snap();
+  const runs = [];
+  for (let Y = 0, s = -1, X = cv.width >> 1; Y <= cv.height; Y++) {
+    const on = Y < cv.height && pix(X, Y) !== C.paper;
+    if (on && s < 0) s = Y;
+    if (!on && s >= 0) { runs.push([s, Y]); s = -1; }
+  }
+  const rows = runs.slice(0, T);
+  R.rows = rows;
+  const rowY = m => (rows[T - m][0] + rows[T - m][1]) / 2;        // device px, the middle of row m
+  const Yt = Math.floor(rowY(T));
+  let PL = 0, PR = cv.width - 1;
+  while (pix(PL, Yt) !== C.impossible) PL++;
+  while (pix(PR, Yt) !== C.impossible) PR--;
+  PR++;
+  R.plot = [PL, PR];
+  const L = PL / dpr, W = (PR - PL) / dpr, yProbe = rowY(1) / dpr;      // CSS px
+  const ptr = (type, x, y, o) => { const r = rect(), e = new PointerEvent(type, {clientX: r.left + x, clientY: r.top + y,
+    pointerId: 1, pointerType: 'mouse', buttons: 0, bubbles: true, cancelable: true, ...o}); cv.dispatchEvent(e); return e; };
+  const cellOf = t => { const m = t.match(/^n = (\d+), m = (\d+) · /); return m ? [+m[1], +m[2]] : null; };
+  // Every hover's readout is counted, and kept if it reports an odd n (no column is an odd n).
+  const hover = (x, y) => { ptr('pointermove', x, y, {}); const t = ro.textContent, c = cellOf(t);
+    R.readouts++; if (c && c[0] % 2) R.oddReadouts.push(t); return t; };
+  // Column j is n = 2j: jAt is the column read out at CSS x in row 1.
+  const jAt = x => { const c = cellOf(hover(x, yProbe)); if (!c) throw new Error('no cell read out at ' + x); return c[0] / 2; };
+  function view() {        // the visible u-interval [u0, u0 + span), column j spanning u from j - 1 to j
+    let a = L + 0.25, b = Math.min(L + 160, L + W - 0.25);
+    const j1 = jAt(a);
+    if (!(jAt(b) > j1)) throw new Error('no column boundary near the left edge');
+    for (let i = 0; i < 26; i++) { const c = (a + b) / 2; if (jAt(c) > j1) b = c; else a = c; }
+    const x1 = b;                                   // u = j1 here
+    let a2 = Math.max(L + 0.25, L + W - 160), b2 = L + W - 0.25;
+    const j2 = jAt(b2);
+    if (!(jAt(a2) < j2)) throw new Error('no column boundary near the right edge');
+    for (let i = 0; i < 26; i++) { const c = (a2 + b2) / 2; if (jAt(c) < j2) a2 = c; else b2 = c; }
+    const x2 = b2;                                  // u = j2 - 1 here
+    const slope = (j2 - 1 - j1) / (x2 - x1);        // u per CSS px
+    return {u0: j1 - (x1 - L) * slope, span: slope * W};
+  }
+  const first = v => Math.ceil(v.u0 - 1e-3) + 1, final = v => Math.floor(v.u0 + v.span + 1e-3);   // whole columns in view
+  const middleX = (v, j) => L + (j - 0.5 - v.u0) * W / v.span;                                      // CSS px
+  function checkPixels(v) {    // every column at least 3 device px wide: its middle pixel has its color in every row,
+    const k = v.span / (PR - PL);   // and the pixel just below each row is paper.  The outline of the cell read out
+    if (1 / k < 3) return;          // spoils its neighbors, so the view is checked twice: outlining its first column,
+    const [a, b] = [first(v), final(v)];   // then its last, and checking the columns 2 or more away from it.
+    for (const [o, from, to] of [[a, a + 2, b], [b, a, b - 2]]) {
+      hover(middleX(v, o), rowY(T) / dpr);
+      snap();
+      for (let j = from; j <= to; j++) {
+        const X = PL + Math.floor((j - 0.5 - v.u0) / k);
+        for (let m = 1; m <= T; m++) {
+          const want = colorOf(2 * j, m), got = pix(X, Math.floor(rowY(m))), gap = pix(X, rows[T - m][1]);
+          R.pixelChecks++;
+          if (got !== want || gap !== C.paper) R.pixelBad.push([2 * j, m, want, got, gap]);
+        }
+        R.pixelColumns[2 * j] = 1;
+      }
+    }
+  }
+  // Row 1 is exists in every even column and impossible in every odd one, so with no odd column drawn, even mixed into a
+  // pixel, every pixel of row 1 is exists.  The outline of the cell read out goes to row T first.
+  function checkRowOne(v, i) {
+    hover(middleX(v, first(v)), rowY(T) / dpr);
+    snap();
+    for (let X = PL, Y = Math.floor(rowY(1)); X < PR; X++) {
+      R.rowOneChecks++;
+      if (pix(X, Y) !== C.exists) R.rowOneBad.push([i, X, pix(X, Y)]);
+    }
+  }
+  // The n labels of one draw (the one a change of the cell read out makes): the strings drawn below the rows and right
+  // of the plot's left edge, as [string, x in device px].
+  function labels(v) {
+    hover(middleX(v, first(v)), rowY(T) / dpr);
+    __fills.length = 0;
+    hover(middleX(v, first(v)), rowY(T - 1) / dpr);
+    return {v, labels: __fills.filter(([t, x, y]) => y > rows[T - 1][1] && x >= PL - 1).map(([t, x]) => [t, x])};
+  }
+  function sampleHovers(v, every) {    // hover the middle of cells lo, lo + 1 and hi + 1 of every every-th column
+    for (let j = first(v); j <= final(v); j += every) {
+      const n = 2 * j, [lo, hi] = cols[n - 1];
+      for (const m of new Set([lo, lo + 1, hi + 1])) {
+        if (m < 1 || m > T) continue;
+        R.hovers.push([n, m, hover(middleX(v, j), rowY(m) / dpr)]);
+      }
+    }
+  }
+  const key = (k, o) => { const e = new KeyboardEvent('keydown', {key: k, bubbles: true, cancelable: true, ...o});
+    cv.dispatchEvent(e); return e.defaultPrevented; };
+  // Chrome makes a synthetic wheel event's clientX a whole number, so wheel returns where the pointer really was, as a
+  // fraction of the plot's width, with whether the default was prevented.
+  const wheel = (x, o) => { const r = rect(), e = new WheelEvent('wheel', {clientX: r.left + x, clientY: r.top + yProbe,
+    deltaMode: 0, bubbles: true, cancelable: true, ...o}); cv.dispatchEvent(e); return [e.defaultPrevented, (e.clientX - r.left - L) / W]; };
+  const touch = (type, id, x) => ptr(type, x, yProbe, {pointerId: id, pointerType: 'touch', isPrimary: false,
+    buttons: type === 'pointerup' ? 0 : 1});
+  const gesture = (type, scale, x) => { const r = rect(), e = new Event(type, {bubbles: true, cancelable: true});
+    Object.assign(e, {scale, clientX: r.left + x, clientY: r.top + yProbe}); cv.dispatchEvent(e); return e.defaultPrevented; };
+  const step = (name, f) => { const a = view(), x = f(), b = view(); R.steps[name] = {a, b, x, disabled: disabled()}; };
+
+  // The zoom buttons: whether each is disabled (null if it is missing), and how each looks, at load.
+  const zin = document.getElementById('mstar-zoom-in'), zout = document.getElementById('mstar-zoom-out');
+  const disabled = () => [zin, zout].map(b => b && b.disabled);
+  const look = b => b && (({opacity, display, visibility}) => ({opacity: +opacity, display, visibility,
+    size: [b.getBoundingClientRect().width, b.getBoundingClientRect().height]}))(getComputedStyle(b));
+  R.disabled0 = disabled();
+  R.looks0 = [zin, zout].map(look);
+  R.readouts = 0; R.oddReadouts = [];
+  R.views = [view()];
+  R.hovers = []; R.pixelChecks = 0; R.pixelBad = []; R.pixelColumns = {}; R.steps = {}; R.rowOneChecks = 0; R.rowOneBad = [];
+  R.labelDraws = [labels(R.views[0])];
+  checkRowOne(R.views[0], 0);
+  // A hover at the middle of every device px across row 1 of the full view: the n read out, left to right, each once.
+  R.across = [];
+  for (let X = PL; X < PR; X++) { const c = cellOf(hover((X + 0.5) / dpr, yProbe)); R.across.push(c && c[0]); }
+  R.across = R.across.filter((n, i, a) => i === 0 || n !== a[i - 1]);
+  sampleHovers(R.views[0], OPTS.hoverEvery);
+  // Sweep: zoom in, go to the left end, and step right by 3/4 of a view at a time to the right end.
+  cv.focus();
+  for (let i = 0; i < 7; i++) key('+');
+  for (let i = 0; i < 300; i++) key('ArrowLeft');
+  for (let guard = 0; guard < 100; guard++) {
+    const v = view();
+    R.views.push(v);
+    sampleHovers(v, OPTS.hoverEvery);
+    checkPixels(v);
+    checkRowOne(v, R.views.length - 1);
+    R.labelDraws.push(labels(v));
+    if (v.u0 + v.span > NCOL - 1e-6) break;
+    for (let i = 0; i < 6; i++) key('ArrowRight');
+  }
+  R.pixelColumns = Object.keys(R.pixelColumns).map(Number).sort((a, b) => a - b);
+  // The cell read out is outlined in ink, just outside it.
+  reset.click();
+  for (let i = 0; i < 5; i++) key('+');
+  {
+    const v = view(), k = v.span / (PR - PL), j = Math.round(v.u0 + v.span / 2), n = 2 * j, m = 2;
+    R.outlineText = hover((PL + (j - 0.5 - v.u0) / k) / dpr, rowY(m) / dpr);
+    snap();
+    R.outline = {n, m, want: colorOf(n, m), ink: C.ink, middle: pix(PL + Math.floor((j - 0.5 - v.u0) / k), Math.floor(rowY(m))),
+                 left: pix(Math.floor(PL + (j - 1 - v.u0) / k - dpr), Math.floor(rowY(m))),
+                 right: pix(Math.floor(PL + (j - v.u0) / k + dpr), Math.floor(rowY(m)))};
+  }
+  // Interactions, each from a view zoomed in 3 steps about the middle unless said otherwise.
+  const zoomed = () => { reset.click(); for (let i = 0; i < 3; i++) key('+'); };
+  zoomed(); step('right', () => key('ArrowRight'));
+  zoomed(); step('left', () => key('ArrowLeft'));
+  zoomed(); step('plus', () => key('+'));
+  zoomed(); step('equals', () => key('='));
+  zoomed(); step('minus', () => key('-'));
+  zoomed(); step('down', () => key('ArrowDown'));
+  zoomed(); step('ctrlPlus', () => key('+', {ctrlKey: true}));
+  zoomed(); step('metaRight', () => key('ArrowRight', {metaKey: true}));
+  zoomed(); step('ctrlWheel', () => wheel(L + 0.3 * W, {deltaY: -100, ctrlKey: true}));
+  zoomed(); step('metaWheel', () => wheel(L + 0.3 * W, {deltaY: 50, metaKey: true}));
+  zoomed(); step('lineWheel', () => wheel(L + 0.3 * W, {deltaY: -3, deltaMode: 1, ctrlKey: true}));
+  zoomed(); step('sideWheel', () => wheel(L + 0.3 * W, {deltaX: 60, deltaY: 5}));
+  zoomed(); step('upWheel', () => wheel(L + 0.3 * W, {deltaY: 100, deltaX: 2}));
+  zoomed(); step('drag', () => { ptr('pointerdown', L + 0.6 * W, yProbe, {buttons: 1});
+    ptr('pointermove', L + 0.6 * W - 100, yProbe, {buttons: 1}); ptr('pointerup', L + 0.6 * W - 100, yProbe, {}); return 100; });
+  zoomed(); step('pinch', () => { touch('pointerdown', 11, L + 0.4 * W); touch('pointerdown', 12, L + 0.6 * W);
+    touch('pointermove', 11, L + 0.3 * W); touch('pointermove', 12, L + 0.7 * W);
+    touch('pointerup', 11, L + 0.3 * W); touch('pointerup', 12, L + 0.7 * W); return [0.2 * W, 0.4 * W, 0.5 * W]; });
+  zoomed(); step('swipe', () => { touch('pointerdown', 13, L + 0.5 * W); touch('pointermove', 13, L + 0.3 * W);
+    touch('pointerup', 13, L + 0.3 * W); return 0.2 * W; });
+  zoomed(); step('gesture', () => [gesture('gesturestart', 1, L + 0.25 * W), gesture('gesturechange', 2, L + 0.25 * W),
+    gesture('gestureend', 2, L + 0.25 * W), 0.25 * W]);
+  zoomed(); step('gestureWhileTouching', () => { touch('pointerdown', 21, L + 0.5 * W);
+    const p = [gesture('gesturestart', 1, L + 0.25 * W), gesture('gesturechange', 2, L + 0.25 * W)];
+    touch('pointerup', 21, L + 0.5 * W); return p; });
+  zoomed(); step('reset', () => { key('ArrowRight'); key('+'); reset.click(); });
+  zoomed(); step('zoomInFar', () => { for (let i = 0; i < 40; i++) key('+'); });
+  R.labelDraws.push(labels(R.steps.zoomInFar.b));
+  zoomed(); step('zoomOutFar', () => { for (let i = 0; i < 40; i++) key('-'); });
+  zoomed(); step('panFar', () => { for (let i = 0; i < 300; i++) key('ArrowRight'); });
+  zoomed(); step('wheelOutFar', () => wheel(L + 0.5 * W, {deltaY: 5000, ctrlKey: true})[0]);
+  // A tap reads out the cell under it, and so does a mouse click.
+  zoomed();
+  {
+    const v = view(), x = L + 0.37 * W, k = v.span / W;
+    hover(L + 0.8 * W, rowY(5) / dpr);
+    touch('pointerdown', 14, x); touch('pointerup', 14, x);
+    R.tap = {want: [2 * (Math.floor(v.u0 + (x - L) * k) + 1), 1], text: ro.textContent};
+    ptr('pointerup', L + 0.2 * W, yProbe, {pointerId: 99});        // an up with no down: nothing happens
+    R.tap.after = ro.textContent;
+    const x2 = L + 0.63 * W;
+    hover(L + 0.8 * W, rowY(5) / dpr);
+    ptr('pointerdown', x2, yProbe, {buttons: 1}); ptr('pointerup', x2, yProbe, {});
+    R.click = {want: [2 * (Math.floor(v.u0 + (x2 - L) * k) + 1), 1], text: ro.textContent};
+  }
+  // The zoom buttons: a click of each from a view zoomed in 3 steps; then, from the full view, clicks of + until it is
+  // disabled and then of − until it is disabled, the view measured after each.
+  try {
+    zoomed(); step('zoomInButton', () => zin.click());
+    zoomed(); step('zoomOutButton', () => zout.click());
+    reset.click();
+    R.clicks = [['start', view(), disabled()]];
+    for (const [b, kind] of [[zin, 'in'], [zout, 'out']]) {
+      for (let i = 0; i < 40 && !b.disabled; i++) { b.click(); R.clicks.push([kind, view(), disabled()]); }
+    }
+  } catch (e) { R.buttonsError = String(e && e.stack || e); }
+}
+const R = {errors: window.__errors, opts: OPTS};
+const go = () => {
+  try { battery(R); } catch (e) { R.harnessError = String(e && e.stack || e); }
+  R.texts = [...new Set(window.__texts)];
+  parent.postMessage(JSON.stringify(R), '*');
+};
+const NCOL = 500;                                                  // the columns: n = 2, 4, ..., 1000
+addEventListener('load', () => document.fonts.ready.then(() => setTimeout(go, 50)));
+})();
+</script>
+"""
+
+
+# Headless Chrome's window is at least 500 px wide, so the page runs in an iframe as wide as the configuration asks;
+# the harness posts its report to this host page, which writes it into its own DOM for --dump-dom.
+HOST = """<!doctype html>
+<html><head><meta charset="utf-8"></head><body style="margin: 0">
+<iframe src="index.html" style="display: block; border: 0; width: __WIDTH__px; height: 1000px"></iframe>
+<script>
+addEventListener('message', e => {
+  const pre = document.createElement('pre'); pre.id = 'harness-out'; pre.textContent = e.data; document.body.append(pre);
+});
+</script>
+</body></html>
+"""
+
+
+def kinds_data(violation=None):
+    """Made-up data that follows the contract and uses every kind of reason: odd columns are ["none"] and ["odd"]; an even
+    n has lo = 1 from an example and hi = 2^v - 1 ("two") if that is at most 7, else 7 by the residue condition mod 3;
+    a few columns use the other kinds.  violation, if given, names the change in VIOLATIONS that breaks it."""
+    cols = []
+    for n in range(1, NMAX + 1):
+        two = (n & -n) - 1
+        cols.append([0, 0, ['none'], ['odd']] if n % 2 else
+                    [1, two, ['example', 'a made-up label'], ['two']] if two <= 7 else
+                    [1, 7, ['example', 'a made-up label'], ['residue', 3]])
+    for n, c in ((4, [2, 2, ['product', 2, 2], ['norm', 3]]), (8, [3, 3, ['table2'], ['table2']]),
+                 (12, [2, 3, ['join', 4, 8], ['two']]), (16, [4, 4, ['page', 'BGPW'], ['page', 'Claude and Stan']]),
+                 (20, [3, 3, ['page', 'Claude alone'], ['two']]), (24, [4, 5, ['example', 'BGPW Table 5'], ['residue', 9]]),
+                 (32, [5, 7, ['product', 16, 2], ['norm', 5]]), (48, [6, 7, ['table2'], ['norm', 7]])):
+        cols[n - 1] = c
+    data = {'nmax': NMAX, 'mtop': max(c[1] for c in cols) + 1, 'cols': cols}
+    VIOLATIONS.get(violation, (lambda data: None,))[0](data)
+    return 'const MSTAR = ' + json.dumps(data) + ';\n'
+
+
+def column(n, entry):
+    """A change to made-up data: column n becomes entry."""
+    def change(data): data['cols'][n - 1] = entry
+    return change
+
+
+VIOLATIONS = {   # name: (a change that breaks the contract, what the page's error line must quote)
+    'lo above hi': (column(100, [5, 3, ['example', 'a made-up label'], ['two']]),
+                    "[100,[5,3,['example','a made-up label'],['two']]]"),
+    'unknown kind': (column(100, [1, 3, ['guess'], ['two']]), "[100,[1,3,['guess'],['two']]]"),
+    'arity': (column(100, [1, 3, ['join', 50], ['two']]), "[100,[1,3,['join',50],['two']]]"),
+    'join lengths': (column(100, [1, 3, ['join', 40, 50], ['two']]), "[100,[1,3,['join',40,50],['two']]]"),
+    'join order': (column(100, [3, 3, ['join', 50, 50], ['two']]), "[100,[3,3,['join',50,50],['two']]]"),
+    'product order': (column(100, [3, 3, ['product', 50, 2], ['two']]), "[100,[3,3,['product',50,2],['two']]]"),
+    'two': (column(100, [1, 2, ['example', 'x'], ['two']]), "[100,[1,2,['example','x'],['two']]]"),
+    'norm divisor': (column(100, [1, 3, ['example', 'x'], ['norm', 5]]), "[100,[1,3,['example','x'],['norm',5]]]"),
+    'norm composite': (column(100, [1, 3, ['example', 'x'], ['norm', 9]]), "[100,[1,3,['example','x'],['norm',9]]]"),
+    'table2 n': (column(100, [1, 3, ['table2'], ['two']]), "[100,[1,3,['table2'],['two']]]"),
+    'page who': (column(100, [1, 3, ['page', 'Stan'], ['two']]), "[100,[1,3,['page','Stan'],['two']]]"),
+    'empty label': (column(100, [1, 3, ['example', ''], ['two']]), "[100,[1,3,['example',''],['two']]]"),
+    'none at even n': (column(100, [0, 3, ['none'], ['two']]), "[100,[0,3,['none'],['two']]]"),
+    'odd at even n': (column(100, [0, 0, ['none'], ['odd']]), "[100,[0,0,['none'],['odd']]]"),
+    'example at odd n': (column(99, [0, 0, ['example', 'x'], ['odd']]), "[99,[0,0,['example','x'],['odd']]]"),
+    'five entries': (column(100, [1, 3, ['example', 'x'], ['two'], 0]), "[100,[1,3,['example','x'],['two'],0]]"),
+    'hi at mtop': (column(100, [1, 8, ['example', 'x'], ['residue', 3]]), "[100,[1,8,['example','x'],['residue',3]]]"),
+    'mtop': (lambda data: data.update(mtop=9), '[9]'),
+    'nmax': (lambda data: data.update(nmax=999), '[999,8]'),
+}
+
+
+CONFIGS = {   # name: (mstar.js, window width, device pixel ratio, theme, hover every this many columns)
+    'light': ('real', 1280, 2, None, 1),
+    'dark': ('real', 1280, 1, 'dark', 5),
+    'phone': ('real', 390, 3, None, 5),
+    'kinds': ('kinds', 1280, 2, None, 1),
+    'missing': (None, 1280, 2, None, 1),
+} | {f'violates {v}': (v, 1280, 1, None, 1) for v in VIOLATIONS}
+SOURCES = {'real': lambda: open(DATA, encoding='utf-8').read(), 'kinds': kinds_data} | {
+    v: (lambda v=v: kinds_data(v)) for v in VIOLATIONS}           # mstar.js's text, by CONFIGS's first entry
+
+
+def run(name):
+    """The harness's report for one configuration, made on first use."""
+    if name not in RUNS:
+        data, width, dpr, theme, every = CONFIGS[name]
+        d = tempfile.mkdtemp(prefix='index-quals-')
+        text = page()
+        assert text.count('<head>\n') == 1 and text.count('</body>') == 1 and text.count('<html lang="en">') == 1
+        text = text.replace('<head>\n', '<head>\n' + EARLY).replace('</body>', HARNESS.replace(
+            '__OPTS__', json.dumps({'hoverEvery': every})) + '</body>')
+        if theme: text = text.replace('<html lang="en">', f'<html lang="en" data-theme="{theme}">')
+        open(os.path.join(d, 'index.html'), 'w', encoding='utf-8').write(text)
+        if data is not None: open(os.path.join(d, 'mstar.js'), 'w', encoding='utf-8').write(SOURCES[data]())
+        open(os.path.join(d, 'host.html'), 'w').write(HOST.replace('__WIDTH__', str(width)))
+        dom = chrome(d, [f'--window-size={max(width, 500) + 40},1100', f'--force-device-scale-factor={dpr}',
+                         '--virtual-time-budget=10000', '--dump-dom', 'file://' + os.path.join(d, 'host.html')])
+        m = re.search(r'<pre id="harness-out">(.*?)</pre>', dom, re.S)
+        assert m, (name, dom[-3000:])
+        RUNS[name] = json.loads(html.unescape(m.group(1)))
+        shutil.rmtree(d)
+    return RUNS[name]
+
+
+def chrome(d, args, stderr=subprocess.DEVNULL):
+    """Headless Chrome with its own profile in directory d: the DOM it dumps.  This Chrome prints the dump and then
+    does not exit, so the dump is read up to </html> and then Chrome's own process group is sent SIGTERM (a watchdog
+    does the same after 600 s, and the dump is then incomplete, which the caller's assert reports)."""
+    p = subprocess.Popen([CHROME, '--headless=new', f'--user-data-dir={d}/profile', '--no-first-run',
+                          '--no-default-browser-check', '--disable-extensions', *args],
+                         stdout=subprocess.PIPE, stderr=stderr, text=True, start_new_session=True)
+    stop = lambda: os.killpg(p.pid, signal.SIGTERM)
+    watchdog = threading.Timer(600, stop)
+    watchdog.start()
+    out = []
+    for line in p.stdout:
+        out.append(line)
+        if '</html>' in line: break
+    watchdog.cancel()
+    if p.poll() is None: stop()
+    p.wait(timeout=60)
+    return ''.join(out)
+
+
+def console_lines():
+    """The lines Chrome logs from the page's console when it loads index.html as is, with the real mstar.js beside it."""
+    d = tempfile.mkdtemp(prefix='index-quals-')
+    shutil.copy(INDEX, os.path.join(d, 'index.html'))
+    shutil.copy(DATA, os.path.join(d, 'mstar.js'))
+    with open(os.path.join(d, 'stderr.txt'), 'w') as f:
+        chrome(d, ['--enable-logging=stderr', '--v=0', '--window-size=1280,1000', '--virtual-time-budget=10000',
+                   '--dump-dom', 'file://' + os.path.join(d, 'index.html')], stderr=f)
+    lines = [line for line in open(os.path.join(d, 'stderr.txt'), errors='replace') if ':CONSOLE' in line]
+    shutil.rmtree(d)
+    return lines
+
+
+def valid_run(name):
+    """A run on valid data: the harness finished and nothing recorded an error."""
+    R = run(name)
+    assert 'harnessError' not in R, R['harnessError']
+    assert R['errors'] == [], R['errors']
+    return R
+
+
+def unclaimed(text):
+    """text with every Claude: "…" removed: what is left must hold no English, only numbers and math."""
+    return re.sub(r'Claude: "[^"]*"', '', text)
+
+
+def english(text): return re.findall(r'[A-Za-z]{2,}', text)
+
+
+def close(a, b, tol): return abs(a - b) <= tol
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Static quals
+
+def q_insertions_only():
+    # Replicata: index.html against the committed one (git show HEAD:index.html), compared line by line with difflib.
+    # Expectata: every opcode is 'equal' or 'insert': not a character of the existing page changed or went missing.
+    tags = {tag for tag, *_ in opcodes()}
+    assert tags <= {'equal', 'insert'}, [op for op in opcodes() if op[0] not in ('equal', 'insert')]
+
+
+def q_section_follows_table2():
+    # Replicata: index.html.
+    # Expectata: the page's one <figure> (Table 2) is followed, with only blank lines and comments between, by
+    # <section class="mstar" aria-labelledby="mstar-title">, and that by <section class="remarks">.  In order, the
+    # section holds: the h2 mstar-title; a caption paragraph; a legend whose three swatches are exists, open and
+    # impossible; the reset button; the canvas mstar-chart (height 0 until drawn, focusable, an image with a label);
+    # and the readout paragraph mstar-readout, polite live region.
+    text = page()
+    assert text.count('<figure>') == 1 and text.count('</figure>') == 1
+    after = text[text.index('</figure>') + len('</figure>'):]
+    filler = r'(?:\s|<!--.*?-->)*'
+    m = re.match(filler + r'<section class="mstar" aria-labelledby="mstar-title">.*?</section>', after, re.S)
+    assert m, after[:400]
+    assert re.match(filler + r'<section class="remarks">', after[m.end():], re.S), after[m.end():m.end() + 400]
+    parts = [r'<h2 id="mstar-title">', r'<p>', r'<ul class="legend">', r'<span class="swatch exists" aria-hidden="true">',
+             r'<span class="swatch open" aria-hidden="true">', r'<span class="swatch impossible" aria-hidden="true">',
+             r'</ul>', r'<button type="button" id="mstar-reset">',
+             r'<canvas id="mstar-chart" height="0" tabindex="0" role="img" aria-label=',
+             r'<p id="mstar-readout" aria-live="polite">']
+    assert re.search('.*?'.join(parts), section(), re.S), section()
+
+
+def q_scripts_load_data_then_draw():
+    # Replicata: index.html's script tags.
+    # Expectata: exactly two, after </main> and before </body>: a classic <script src="mstar.js"> (no type, async or
+    # defer, so it also loads from file://) and then one inline script.
+    text = page()
+    assert re.findall(r'<script\b[^>]*>', text) == ['<script src="mstar.js">', '<script>'], re.findall(r'<script\b[^>]*>', text)
+    assert text.index('</main>') < text.index('<script src="mstar.js"></script>') < text.index('<script>\n') < \
+        text.index('</script>\n</body>')
+
+
+def q_inline_script_passes_node_check():
+    # Replicata: the inline script, saved as a .js file, through node --check.
+    # Expectata: exit 0: it parses as a classic script.
+    js = re.search(r'<script>\n(.*?)</script>', page(), re.S).group(1)
+    d = tempfile.mkdtemp(prefix='index-quals-')
+    path = os.path.join(d, 'chart.js')
+    open(path, 'w', encoding='utf-8').write(js)
+    p = subprocess.run(['node', '--check', path], capture_output=True, text=True, timeout=60)
+    shutil.rmtree(d)
+    assert p.returncode == 0, p.stderr
+
+
+def q_new_copy_is_attributed():
+    # Replicata: the lines inserted since HEAD, by region (HTML, inline script, style).
+    # Expectata: in HTML, a line's visible text and its aria-label, title and alt values hold English only inside
+    # Claude: "…"; every Claude: "…" closes on its line; each line with one (HTML or script) has a TODO comment as the
+    # nearest non-blank line above (<!-- TODO: in HTML, // TODO: in script), and each such TODO comment is followed by
+    # one; no inserted CSS uses content:.  Inserted lines exist.
+    lines, region, ins = inserted()
+    assert ins
+    bad = []
+    for j in ins:
+        line, r = lines[j], region[j]
+        if r == 'style' and re.search(r'(?<![\w-])content\s*:', line): bad.append((j + 1, 'content:', line))
+        if r == 'html':
+            bare = re.sub(r'<!--.*?-->', '', line)
+            texts = [re.sub(r'<[^>]*>', ' ', bare)] + re.findall(r'\b(?:aria-label|title|alt)=(?:\'([^\']*)\'|"([^"]*)")', bare)
+            for t in texts:
+                for s in (t if isinstance(t, tuple) else (t,)):
+                    if english(unclaimed(html.unescape(s))): bad.append((j + 1, 'unattributed English', s))
+        if r in ('html', 'script') and 'Claude: "' in line:
+            if line.count('Claude: "') != len(re.findall(r'Claude: "[^"]*"', line)): bad.append((j + 1, 'unclosed', line))
+            above = next(lines[i] for i in range(j - 1, -1, -1) if lines[i].strip())
+            todo = '<!-- TODO:' in above if r == 'html' else above.strip().startswith('// TODO:')
+            if not todo: bad.append((j + 1, 'no TODO above', line))
+        if 'TODO' in line:
+            below = next(lines[i] for i in range(j + 1, len(lines)) if lines[i].strip())
+            if 'Claude: "' not in below: bad.append((j + 1, 'TODO with no Claude: "…" below', line))
+    assert not bad, bad
+
+
+def q_tokens_in_all_three_theme_blocks():
+    # Replicata: the custom properties of index.html's three theme blocks.
+    # Expectata: --exists, --open and --impossible are in all three, as #rrggbb; the two dark blocks agree on them.
+    light, dark, dark2 = theme_blocks()
+    for t in TOKENS:
+        assert all(t in b and re.fullmatch(r'#[0-9a-f]{6}', b[t]) for b in (light, dark, dark2)), t
+        assert dark[t] == dark2[t], t
+
+
+def q_palette_reads_for_color_blind_readers():
+    # Replicata: the chart's three colors in each mode, with the validator's arithmetic, all pairs (any two touch).
+    # Expectata: in both modes the worst color-blind pair (protan or deutan) is at least the validator's target 8, the
+    # worst pair in normal vision at least its floor 15; exists and impossible differ in OKLab lightness by at least
+    # 0.25; each of the three is at least 15 from each provenance hue of its mode; and the CSS comment above the light
+    # tokens reports these worst pairs as the arithmetic gives them, to 0.1.
+    light, dark, _ = theme_blocks()
+    css = re.search(r'<style>(.*?)</style>', page(), re.S).group(1)
+    comment = re.search(r'/\*((?:(?!\*/).)*)\*/\s*--exists:', css, re.S)
+    assert comment, 'no comment directly above --exists'
+    said = re.sub(r'\s+', ' ', comment.group(1))
+    for mode, b in (('light', light), ('dark', dark)):
+        colors = [b[t] for t in TOKENS]
+        cvd, kind = worst_cvd(colors)
+        normal = worst_normal(colors)
+        assert cvd >= 8 and normal >= 15, (mode, cvd, normal)
+        assert abs(oklab(linear(colors[0]))[0] - oklab(linear(colors[2]))[0]) >= 0.25, mode
+        for c in colors:
+            for p in PROVENANCE:
+                assert delta_e(c, b[p]) >= 15, (mode, c, p, delta_e(c, b[p]))
+        claim = f'{mode.capitalize()}: worst color-blind pair ΔE {cvd:.1f} ({kind}), worst normal-vision pair {normal:.1f}'
+        assert claim in said, (claim, said)
+
+
+def q_chart_agrees_with_tables():
+    # Replicata: mstar.js (the chart's data) and the entries of the page's tables with n up to 1000.
+    # Expectata: for each entry (n, low, high): the column's [lo, hi] lies inside [low, high], and an exact entry
+    # (low = high) is lo = hi.  304's two entries (8 or 9 in Table 2, 8 since) both hold.
+    cols = mstar_data()['cols']
+    entries = table_entries()
+    assert len(entries) == 38 + 15, len(entries)
+    for n, low, high in entries:
+        lo, hi = cols[n - 1][:2]
+        assert low <= lo <= hi <= high, (n, low, high, lo, hi)
+
+
+def q_citations_match_the_page():
+    # Replicata: mstar.js's reasons that cite the page: ["table2"] and ["page", who], as loWhy or hiWhy.
+    # Expectata: a ["table2"] column is one of Table 2's n; a ["page", who] column is one of the new results' n, and its
+    # cell there has the title who.
+    fig = re.search(r'<figure>.*?</figure>', page(), re.S).group(0)
+    new = re.search(r'<div class="new-block">.*?</table>', fig, re.S).group(0)
+    titles = {int(n): who for who, n in re.findall(r"<td class=\"[cjs]\" title='([^']*)'>(\d+)</td>", new)}
+    assert len(titles) == 15, titles
+    table2 = {n for n, *_ in table_entries()} - set(titles)
+    assert len(table2) == 37, sorted(table2)          # 304 is in both
+    cited = 0
+    for n, (lo, hi, lw, hw) in enumerate(mstar_data()['cols'], 1):
+        for w in (lw, hw):
+            if w[0] == 'table2': assert n in table2 | {304}, (n, w); cited += 1
+            if w[0] == 'page': assert titles.get(n) == w[1], (n, w, titles.get(n)); cited += 1
+    assert cited, 'mstar.js cites neither table'
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Browser quals
+
+def q_page_loads_clean():
+    # Replicata: index.html with the real mstar.js in headless Chrome, 1280 px wide at 2 device px per CSS px; and the
+    # page loaded as is (nothing added), with Chrome logging its console to stderr.
+    # Expectata: no errors, console errors or warnings; the canvas is drawn (nonzero height, as wide as main's content);
+    # the readout still shows its Claude-attributed hint; the chart opens showing all 500 columns, n = 2 to 1000.  The
+    # plain load logs nothing at all to the console.
+    assert console_lines() == [], console_lines()
+    R = valid_run('light')
+    assert R['canvasDev'][1] > 0 and close(R['canvasCss'][0], R['mainContentW'], 1), R
+    assert re.fullmatch(r'Claude: "[^"]*"', R['readout0']), R['readout0']
+    v = R['views'][0]
+    assert close(v['u0'], 0, 0.01) and close(v['span'], NCOL, 0.05), v
+
+
+def q_drawn_cells_match_data():
+    # Replicata: the light, dark and phone runs: the full view, and a sweep of the 500 columns n = 2, 4, …, 1000
+    # zoomed in, so every column is at least 3 device px wide.
+    # Expectata: every even column is checked, in every row: its middle pixel has its color from mstar.js (exists up
+    # to lo, open up to hi, impossible above) as the page's tokens give it, and the pixel below each row is paper.  In
+    # the full view and every view of the sweep, every pixel of row 1 is exists, from the plot's left edge to its
+    # right: no odd column (impossible in every row, since lo = hi = 0) is drawn, not even mixed into a pixel.
+    data = mstar_data()
+    assert all(data['cols'][n - 1][0] >= 1 for n in EVEN), 'some even column has no exists cell in row 1'
+    for name in ('light', 'dark', 'phone'):
+        R = valid_run(name)
+        assert R['pixelBad'] == [], (name, R['pixelBad'][:10])
+        assert R['pixelColumns'] == EVEN, (name, sorted(set(EVEN) ^ set(R['pixelColumns']))[:20])
+        assert R['pixelChecks'] >= NCOL * len(R['rows']), (name, R['pixelChecks'])
+        assert len(R['rows']) == data['mtop'], (name, len(R['rows']))
+        assert R['rowOneBad'] == [], (name, len(R['rowOneBad']), R['rowOneBad'][:10])
+        assert R['rowOneChecks'] == len(R['views']) * (R['plot'][1] - R['plot'][0]), (name, R['rowOneChecks'])
+
+
+def q_readout_reports_even_n_only():
+    # Replicata: the light, dark and phone runs: every hover of the harness (the full view, every view of the sweep, the
+    # searches for column edges, which probe within a millionth of a px of them, and the interactions), and a hover at
+    # the middle of every device px across row 1 of the full view.
+    # Expectata: no readout reports an odd n; across the full view the readout goes through n = 2, 4, …, 1000, each
+    # once, in order from left to right.
+    for name in ('light', 'dark', 'phone'):
+        R = valid_run(name)
+        assert R['oddReadouts'] == [] and R['readouts'] > 2 * NCOL, (name, R['readouts'], R['oddReadouts'][:5])
+        assert R['across'] == EVEN, (name, R['across'][:20])
+
+
+def q_n_labels_are_even_and_round():
+    # Replicata: the n labels (the strings drawn below the rows, right of the plot's left edge) of one draw in each of
+    # the full view, every view of the sweep, and the view zoomed in as far as it goes; in the light and phone runs.
+    # Expectata: they are the multiples of one step s, from 2, 10, 20, 50, 100, 200, 500 (so every label is an even n),
+    # whose columns' middles are in view, in order, each centered on its column's middle to within a device px; s is
+    # the first of those steps that puts the labels at least 48 CSS px apart.
+    for name in ('light', 'phone'):
+        R = valid_run(name)
+        (PL, PR), dpr = R['plot'], R['dpr']
+        assert len(R['labelDraws']) == len(R['views']) + 1, (name, len(R['labelDraws']))
+        for d in R['labelDraws']:
+            v, got = d['v'], d['labels']
+            s = next(s for s in STEPS if s / 2 * (PR - PL) / dpr / v['span'] >= 48)
+            want = [n for n in range(s, NMAX + 1, s) if v['u0'] - 1e-6 <= n / 2 - 0.5 <= v['u0'] + v['span'] + 1e-6]
+            assert [t for t, _ in got] == [str(n) for n in want], (name, v, s, got)
+            for t, x in got:
+                assert close(x, PL + (int(t) / 2 - 0.5 - v['u0']) * (PR - PL) / v['span'], 1), (name, v, t, x)
+
+
+def q_zoom_buttons_sit_beside_show_all():
+    # Replicata: the chart's section.
+    # Expectata: right before the reset button, with only blank space and comments between, a zoom-out button labelled
+    # − and then a zoom-in button labelled + (math, not English); each has an aria-label and a title that are Claude: "…"
+    # (q_new_copy_is_attributed checks the TODO comments above them); and the hint in the readout mentions the − and +
+    # buttons.
+    s = section()
+    tags = {i: re.search(rf'<button type="button" id="{i}"([^>]*)>([^<]*)</button>', s)
+            for i in ('mstar-zoom-out', 'mstar-zoom-in', 'mstar-reset')}
+    assert all(tags.values()), {i: bool(t) for i, t in tags.items()}
+    out, zin, reset = tags.values()
+    for a, b in ((out, zin), (zin, reset)):
+        assert re.fullmatch(r'(?:\s|<!--.*?-->)*', s[a.end():b.start()], re.S), s[a.end():b.start()]
+    for t, label in ((out, '−'), (zin, '+')):
+        attrs, text = t.groups()
+        assert text == label, (t.group(0), label)
+        for a in ('aria-label', 'title'):
+            v = re.search(rf"\b{a}='([^']*)'", attrs)
+            assert v and re.fullmatch(r'Claude: "[^"]*"', v.group(1)), (a, attrs)
+    hint = re.search(r'<p id="mstar-readout" aria-live="polite">(Claude: "[^"]*")</p>', s)
+    assert hint and '−' in hint.group(1) and '+' in hint.group(1) and 'button' in hint.group(1), s
+
+
+def q_zoom_buttons_zoom_about_the_middle():
+    # Replicata: the light run: the zoom buttons at load; a click of each from a view zoomed in 3 steps; then, from the
+    # full view, clicks of + until it is disabled and then of − until it is disabled, the view measured after each; and
+    # the buttons after every interaction step (keys, wheels, drags, pinches, gestures, reset).
+    # Expectata: + zooms in by 1.5 and − out by 1.5 about the middle (the u at the middle stays), as the + and − keys do,
+    # stopping at 12 and 500 columns: 10 clicks each way.  + is disabled exactly when the view is 12 columns and −
+    # exactly when it is all 500: at load (− only), after every click and after every step (so − after the reset
+    # button).  A disabled button is grayed out, not hidden: opacity at most 0.5 but displayed, visible and as big as
+    # the other, whose opacity is 1.
+    R = valid_run('light')
+    assert 'buttonsError' not in R, R['buttonsError']
+    S = R['steps']
+    for name, f in (('zoomInButton', 1 / 1.5), ('zoomOutButton', 1.5)):
+        a, b = S[name]['a'], S[name]['b']
+        assert close(b['span'], a['span'] * f, 1e-3) and close(b['u0'] + b['span'] / 2, a['u0'] + a['span'] / 2, 1e-3), (name, S[name])
+    clicks = R['clicks']
+    assert [k for k, *_ in clicks] == ['start'] + ['in'] * 10 + ['out'] * 10, [k for k, *_ in clicks]
+    for (_, a, _), (kind, b, _) in zip(clicks, clicks[1:]):
+        want = min(max(a['span'] * (1 / 1.5 if kind == 'in' else 1.5), MIN_SPAN), NCOL)
+        assert close(b['span'], want, 1e-3) and close(b['u0'] + b['span'] / 2, a['u0'] + a['span'] / 2, 1e-3), (a, kind, b)
+    states = [(v, d) for _, v, d in clicks] + [(s['b'], s['disabled']) for s in S.values()] + [(R['views'][0], R['disabled0'])]
+    for v, d in states:
+        assert d == [close(v['span'], MIN_SPAN, 0.01), close(v['span'], NCOL, 0.05)], (v, d)
+    zin, zout = R['looks0']
+    assert zin['opacity'] == 1 and zout['opacity'] <= 0.5 and zout['display'] != 'none' and zout['visibility'] == 'visible', R['looks0']
+    assert all(close(a, b, 2) for a, b in zip(zout['size'], zin['size'])) and min(zout['size']) > 10, R['looks0']
+
+
+def q_caption_says_why_odd_n_are_left_out():
+    # Replicata: the chart's caption, the paragraph after its heading, as text (tags removed), and the line above it.
+    # Expectata: the caption's Claude: "…" says that odd n are left out (it has the words odd n), and the TODO comment
+    # directly above it recaps that too.
+    lines = section().splitlines()
+    i = next(i for i, line in enumerate(lines) if line.strip().startswith('<p>'))
+    assert re.search(r'Claude: "[^"]*\bodd n\b[^"]*"', html.unescape(re.sub(r'<[^>]*>', '', lines[i]))), lines[i]
+    assert lines[i - 1].strip().startswith('<!-- TODO:') and re.search(r'\bodd n\b', lines[i - 1]), lines[i - 1]
+
+
+def q_dark_mode_uses_dark_tokens():
+    # Replicata: the dark run (data-theme="dark" on the root) and the light run.
+    # Expectata: the chart's colors and paper are the dark block's values in the dark run and the light block's in the
+    # light run (the pixel checks of q_drawn_cells_match_data compare against these).
+    light, dark, _ = theme_blocks()
+    for name, b in (('light', light), ('dark', dark)):
+        tokens = valid_run(name)['tokens']
+        assert all(tokens[t[2:]] == b[t] for t in TOKENS + ('--paper', '--ink')), (name, tokens)
+
+
+def q_hover_reads_out_cells():
+    # Replicata: the light run's hovers: the middle of cells lo, lo + 1 and hi + 1 of every column, in the full view
+    # and zoomed in; and the kinds run's, on made-up data with every kind of reason.
+    # Expectata: each readout is "n = N, m = M · BOUNDS · REASONS" for the hovered cell, BOUNDS being "m*(N) = lo"
+    # when lo = hi and "lo ≤ m*(N) ≤ hi" otherwise; REASONS are Claude: "…" strings: for a green cell (m ≤ lo) one
+    # that starts "order lo ", for a red cell (m > hi) one that starts "order hi+1 ", for a gray cell both, joined by
+    # " · ".  Every column, n = 2, 4, …, 1000, is read out in both runs.
+    for name in ('light', 'kinds'):
+        R = valid_run(name)
+        cols = json.loads(kinds_data()[len('const MSTAR = '):-2])['cols'] if name == 'kinds' else mstar_data()['cols']
+        assert {n for n, _, _ in R['hovers']} == set(EVEN), name
+        for n, m, text in R['hovers']:
+            lo, hi = cols[n - 1][:2]
+            bounds = f'm*({n}) = {lo}' if lo == hi else f'{lo} ≤ m*({n}) ≤ {hi}'
+            reasons = [f'order {lo} '] * (m <= hi) + [f'order {hi + 1} '] * (m > lo)
+            got = re.fullmatch(r'n = (\d+), m = (\d+) · (.*?) · (Claude: ".*")', text)
+            assert got and (int(got[1]), int(got[2]), got[3]) == (n, m, bounds), (name, n, m, text)
+            parts = re.findall(r'Claude: "([^"]*)"', got[4])
+            assert ' · '.join(f'Claude: "{p}"' for p in parts) == got[4], (name, text)
+            assert len(parts) == len(reasons) and all(p.startswith(r) for p, r in zip(parts, reasons)), (name, n, m, text)
+
+
+def q_visible_text_is_attributed():
+    # Replicata: every string the kinds and light runs drew on the canvas, and every readout they showed.
+    # Expectata: canvas strings are numbers or the single letters n and m; outside Claude: "…" a readout holds no
+    # English (no run of two letters); and the readout's hint and the canvas's label are Claude: "…" through and through.
+    for name in ('kinds', 'light'):
+        R = valid_run(name)
+        assert R['texts'] and all(re.fullmatch(r'\d+|[nm]', t) for t in R['texts']), (name, R['texts'])
+        for *_, text in R['hovers']: assert not english(unclaimed(text)), (name, text)
+        assert re.fullmatch(r'Claude: "[^"]*"', R['readout0']), R['readout0']
+    label = re.search(r"aria-label='([^']*)'", section()).group(1)
+    assert re.fullmatch(r'Claude: "[^"]*"', label), label
+
+
+def q_keys_pan_and_zoom():
+    # Replicata: from a view zoomed in 3 steps, with the canvas focused: one keydown each of ArrowRight, ArrowLeft, +,
+    # =, -, ArrowDown, ctrl and +, cmd and ArrowRight.
+    # Expectata: the arrows pan by an eighth of the view (u0 ± span/8) without zooming; + and = zoom in by 1.5 and -
+    # out by 1.5, about the middle; those keys' default actions are prevented.  ArrowDown, ctrl + and cmd ArrowRight
+    # change nothing and keep their default actions (page scroll, browser zoom, history).
+    S = valid_run('light')['steps']
+    for name, sign in (('right', 1), ('left', -1)):
+        a, b, prevented = S[name]['a'], S[name]['b'], S[name]['x']
+        assert prevented and close(b['span'], a['span'], 1e-3) and close(b['u0'] - a['u0'], sign * a['span'] / 8, 1e-3), (name, S[name])
+    for name, f in (('plus', 1 / 1.5), ('equals', 1 / 1.5), ('minus', 1.5)):
+        a, b, prevented = S[name]['a'], S[name]['b'], S[name]['x']
+        assert prevented and close(b['span'], a['span'] * f, 1e-3), (name, S[name])
+        assert close(b['u0'] + b['span'] / 2, a['u0'] + a['span'] / 2, 1e-3), (name, S[name])
+    for name in ('down', 'ctrlPlus', 'metaRight'):
+        a, b, prevented = S[name]['a'], S[name]['b'], S[name]['x']
+        assert not prevented and close(b['u0'], a['u0'], 1e-3) and close(b['span'], a['span'], 1e-3), (name, S[name])
+
+
+def q_wheel_zooms_and_pans_but_lets_the_page_scroll():
+    # Replicata: from a view zoomed in 3 steps, at about 30% of the plot's width (Chrome rounds a synthetic wheel's
+    # position to a whole px): ctrl + wheel up 100 px; cmd + wheel down 50 px; ctrl + wheel up 3 lines; a wheel 60 px
+    # right and 5 down; a wheel 100 px down and 2 right.
+    # Expectata: ctrl and cmd zoom by 2^(delta in px / 100) (a line is 16 px) about the pointer: the u under it stays;
+    # the mostly-sideways wheel pans by its 60 px; all four have their default prevented.  The mostly-down wheel changes
+    # nothing and is not prevented, so the page scrolls.
+    S = valid_run('light')['steps']
+    for name, f in (('ctrlWheel', 0.5), ('metaWheel', 2 ** 0.5), ('lineWheel', 2 ** -0.48)):
+        a, b, (prevented, x) = S[name]['a'], S[name]['b'], S[name]['x']
+        assert prevented and close(b['span'], a['span'] * f, 1e-3) and close(x, 0.3, 0.01), (name, S[name])
+        assert close(a['u0'] + x * a['span'], b['u0'] + x * b['span'], 1e-3), (name, S[name])
+    a, b, (prevented, _) = S['sideWheel']['a'], S['sideWheel']['b'], S['sideWheel']['x']
+    R = valid_run('light')
+    W = (R['plot'][1] - R['plot'][0]) / R['dpr']
+    assert prevented and close(b['span'], a['span'], 1e-3) and close(b['u0'] - a['u0'], 60 * a['span'] / W, 1e-3), S['sideWheel']
+    a, b, (prevented, _) = S['upWheel']['a'], S['upWheel']['b'], S['upWheel']['x']
+    assert not prevented and close(b['u0'], a['u0'], 1e-6) and close(b['span'], a['span'], 1e-6), S['upWheel']
+
+
+def q_drag_and_touch_pan_and_pinch():
+    # Replicata: from a view zoomed in 3 steps: a mouse drag 100 px left; a one-finger touch swipe 20% of the plot left;
+    # a two-finger pinch from 40% and 60% of the plot's width out to 30% and 70%; then the canvas's touch-action.
+    # Expectata: the drag and the swipe pan by their distance (content follows the pointer); the pinch zooms in about
+    # the fingers' midpoint by (d0 + 1) / (d + 1), d0 and d the fingers' spread in px before and after, and the u under
+    # the midpoint stays; touch-action is pan-y, so vertical swipes still scroll the page.
+    R = valid_run('light')
+    S, W = R['steps'], (R['plot'][1] - R['plot'][0]) / R['dpr']
+    for name in ('drag', 'swipe'):
+        a, b, dx = S[name]['a'], S[name]['b'], S[name]['x']
+        assert close(b['span'], a['span'], 1e-3) and close(b['u0'] - a['u0'], dx * a['span'] / W, 1e-3), (name, S[name])
+    a, b, (d0, d, xm) = S['pinch']['a'], S['pinch']['b'], S['pinch']['x']
+    assert close(b['span'], a['span'] * (d0 + 1) / (d + 1), 1e-3), S['pinch']
+    assert close(a['u0'] + xm * a['span'] / W, b['u0'] + xm * b['span'] / W, 1e-3), S['pinch']
+    assert R['touchAction'] == 'pan-y', R['touchAction']
+
+
+def q_safari_gestures_zoom_unless_touching():
+    # Replicata: from a view zoomed in 3 steps: Safari's gesturestart, gesturechange (scale 2) and gestureend at 25% of
+    # the plot's width; then the same while a touch pointer is down.
+    # Expectata: the first zooms in by 2 about the pointer, with gesturestart's and gesturechange's defaults prevented;
+    # the second changes nothing (the pointer events own a touch pinch), defaults still prevented.
+    R = valid_run('light')
+    S, W = R['steps'], (R['plot'][1] - R['plot'][0]) / R['dpr']
+    a, b, (p1, p2, _, x) = S['gesture']['a'], S['gesture']['b'], S['gesture']['x']
+    assert p1 and p2 and close(b['span'], a['span'] / 2, 1e-3), S['gesture']
+    assert close(a['u0'] + x * a['span'] / W, b['u0'] + x * b['span'] / W, 1e-3), S['gesture']
+    a, b, (p1, p2) = S['gestureWhileTouching']['a'], S['gestureWhileTouching']['b'], S['gestureWhileTouching']['x']
+    assert p1 and p2 and close(b['span'], a['span'], 1e-6) and close(b['u0'], a['u0'], 1e-6), S['gestureWhileTouching']
+
+
+def q_view_stays_within_limits():
+    # Replicata: from a view zoomed in 3 steps: 40 presses of +; of -; 300 of ArrowRight; ctrl + wheel down 5000 px;
+    # and (separately) ArrowRight, +, then the reset button.
+    # Expectata: zooming in stops at 12 columns and out at all 500; panning stops with n = 1000 at the right edge; the
+    # reset button shows all 500 columns, n = 2 to 1000.
+    S = valid_run('light')['steps']
+    assert close(S['zoomInFar']['b']['span'], MIN_SPAN, 0.01), S['zoomInFar']
+    for name in ('zoomOutFar', 'wheelOutFar', 'reset'):
+        assert close(S[name]['b']['span'], NCOL, 0.05) and close(S[name]['b']['u0'], 0, 0.01), (name, S[name])
+    b = S['panFar']['b']
+    assert close(b['u0'] + b['span'], NCOL, 0.01), S['panFar']
+
+
+def q_tap_and_outline():
+    # Replicata: in a zoomed view, a touch tap at 37% of the plot's width in row 1 (after hovering elsewhere), then a
+    # pointerup with no pointerdown, then a mouse click (down and up, no move) at 63% in row 1 (after hovering
+    # elsewhere); and, in a view zoomed in 5 steps, a hover over the middle of the middle column's cell in row 2.
+    # Expectata: the tap and the click each read out the cell under them (an even n) and the stray pointerup changes
+    # nothing; the hovered cell keeps its color in the middle and is outlined in ink just outside its left and right
+    # edges.
+    R = valid_run('light')
+    n, m = R['tap']['want']
+    assert R['tap']['text'].startswith(f'n = {n}, m = {m} · ') and R['tap']['after'] == R['tap']['text'], R['tap']
+    n, m = R['click']['want']
+    assert R['click']['text'].startswith(f'n = {n}, m = {m} · '), R['click']
+    o = R['outline']
+    assert R['outlineText'].startswith(f'n = {o["n"]}, m = {o["m"]} · '), R['outlineText']
+    assert o['middle'] == o['want'] and o['left'] == o['ink'] and o['right'] == o['ink'], o
+
+
+def q_phone_has_no_sideways_scroll():
+    # Replicata: index.html with the real mstar.js, 390 px wide at 3 device px per CSS px.
+    # Expectata: no errors; the page is no wider than the window; the canvas is as wide as main's content.
+    R = valid_run('phone')
+    assert R['scrollW'] <= R['innerW'] and close(R['canvasCss'][0], R['mainContentW'], 1), R
+
+
+def q_missing_data_says_so():
+    # Replicata: index.html with no mstar.js beside it.
+    # Expectata: the canvas stays 0 px tall and the readout says, Claude-attributed, that the chart could not be drawn,
+    # naming MSTAR; the failed script load and the uncaught error are recorded (the chart fails loudly).
+    R = run('missing')
+    assert 'harnessError' not in R, R['harnessError']
+    assert R['canvasDev'][1] == 0 and R['canvasCss'][1] == 0, R
+    assert re.fullmatch(r'Claude: "[^"]*MSTAR[^"]*"', R['readout0']), R['readout0']
+    assert any('script failed to load' in e for e in R['errors']) and any('MSTAR' in e for e in R['errors']), R['errors']
+
+
+def q_malformed_data_fails_loudly():
+    # Replicata: made-up data whose column 100 has lo = 5 > hi = 3.
+    # Expectata: the canvas stays 0 px tall; the readout says, Claude-attributed, that the chart could not be drawn,
+    # quoting column 100 as JSON; the error is uncaught (recorded).
+    R = run('violates lo above hi')
+    assert 'harnessError' not in R, R['harnessError']
+    assert R['canvasDev'][1] == 0 and R['canvasCss'][1] == 0, R
+    assert re.fullmatch(r'Claude: "[^"]*\[100,\[5,3,[^"]*"', R['readout0']), R['readout0']
+    assert any('[100,[5,3,' in e for e in R['errors']), R['errors']
+
+
+def q_contract_violations_fail_loudly():
+    # Replicata: made-up data broken in one way each (VIOLATIONS): lo above hi; an unknown kind of reason; a reason with too few
+    # arguments; a join of lengths that do not add up to n; a join or product claiming more than its parts give; "two"
+    # with the wrong hi; "norm" for a prime dividing n, and for a composite; "table2" at an n not in Table 2; "page" for
+    # a provenance the page does not use; an example with an empty label; "none" or "odd" at an even n; an example at
+    # an odd n; a column of five entries; hi at mtop; mtop above max hi + 1; nmax not 1000.
+    # Expectata: in each case the canvas stays 0 px tall and the readout says, Claude-attributed, that the chart could
+    # not be drawn, quoting the offending column as JSON (or mtop, or nmax and mtop), and the error is uncaught.
+    for v, (_, quoted) in VIOLATIONS.items():
+        R = run(f'violates {v}')
+        assert 'harnessError' not in R and R['canvasDev'][1] == 0 and R['canvasCss'][1] == 0, (v, R)
+        assert R['readout0'] == f'Claude: "the chart could not be drawn: Error: {quoted}"', (v, R['readout0'])
+        assert R['errors'] == [f'error: Uncaught Error: {quoted}'], (v, R['errors'])
+
+
+def q_made_up_data_draws():
+    # Replicata: made-up data that uses every kind of reason (kinds_data).
+    # Expectata: no errors; the chart is drawn with one row per m up to mtop.
+    R = valid_run('kinds')
+    assert R['canvasDev'][1] > 0 and len(R['rows']) == 8, R['rows']
+
+
+def main():
+    names = sys.argv[1:] or [n for n in globals() if n.startswith('q_')]
+    failed = 0
+    for n in names:
+        t0, c0 = time.time(), time.process_time()
+        try:
+            globals()[n]()
+            # TODO: runner line; says the named qual passed, with its seconds and this process's CPU seconds
+            print(f'Claude: "PASSED" {n} ({time.time() - t0:.1f} s, {time.process_time() - c0:.1f} CPU s)', flush=True)
+        except Exception:
+            failed += 1
+            # TODO: runner line; says the named qual failed, with its seconds and this process's CPU seconds, followed by the traceback
+            print(f'Claude: "FAILED" {n} ({time.time() - t0:.1f} s, {time.process_time() - c0:.1f} CPU s)\n' + traceback.format_exc(), flush=True)
+    # TODO: runner summary; says how many quals passed out of how many
+    print(f'Claude: "{len(names) - failed} of {len(names)} passed"')
+    sys.exit(1 if failed else 0)
+
+
+if __name__ == '__main__':
+    main()

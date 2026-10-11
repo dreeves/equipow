@@ -38,6 +38,16 @@
   --claude: #c15f3c;
   --joint: #2a9466;
   --stan: #3460c8;
+  /* The m*(n) chart's colors, checked with the dataviz palette validator against each mode's surface, all pairs,
+     since any two can touch. Light: worst color-blind pair ΔE 13.4 (protan), worst normal-vision pair 17.8. Dark:
+     worst color-blind pair ΔE 18.1 (deutan), worst normal-vision pair 19.9. Its other checks fail by design: exists
+     and impossible sit far apart in lightness, outside its band (which also keeps exists clear of --joint); open is
+     a gray, and impossible, most of the chart, is muted (in light mode about as much chroma as sRGB allows at its
+     lightness), so both are below its chroma floor and below 3:1 against the light surface, impossible in dark too;
+     the readout states each cell's bounds in words. */
+  --exists: #2e5d1b;
+  --open: #9b9ea6;
+  --impossible: #fcc0ba;
   --tint: 16%;
   --serif: "STIX Two Text", "Times New Roman", Times, serif;
   --mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
@@ -52,6 +62,9 @@
     --claude: #d46c46;
     --joint: #2aa070;
     --stan: #5f86dc;
+    --exists: #89cc7b;
+    --open: #656970;
+    --impossible: #5a2522;
     --tint: 24%;
     color-scheme: dark;
   }
@@ -64,6 +77,9 @@
   --claude: #d46c46;
   --joint: #2aa070;
   --stan: #5f86dc;
+  --exists: #89cc7b;
+  --open: #656970;
+  --impossible: #5a2522;
   --tint: 24%;
   color-scheme: dark;
 }
@@ -229,6 +245,37 @@ code {
 .sets pre { margin: 0; overflow-x: auto; }
 .sets pre code { display: block; }
 
+/* Claude's chart of m*(n) for n up to 1000: one canvas, drawn by the script at the end from mstar.js. Pan and zoom
+   act on n only, and vertical swipes still scroll the page. */
+.mstar { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; }
+.mstar-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem 1.6rem;
+}
+.swatch { display: inline-block; width: 1.4rem; height: 0.9rem; background: var(--hue); }
+.swatch.exists { --hue: var(--exists); }
+.swatch.open { --hue: var(--open); }
+.swatch.impossible { --hue: var(--impossible); }
+.mstar-zoom { display: flex; gap: 0.5rem; }
+.mstar-bar button {
+  font: inherit;
+  font-size: 0.9375rem;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  padding: 0.1rem 0.75rem;
+  cursor: pointer;
+}
+.mstar-bar button:disabled { opacity: 0.4; cursor: default; }  /* a zoom button at its limit, grayed out */
+#mstar-chart { display: block; width: 100%; touch-action: pan-y; cursor: grab; }
+#mstar-chart:active { cursor: grabbing; }
+#mstar-chart:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+#mstar-readout { min-height: 3lh; font-size: 0.9375rem; font-variant-numeric: tabular-nums lining-nums; }
+#mstar-readout .swatch { margin-right: 0.5rem; vertical-align: -0.1em; }
+
 footer {
   display: grid;
   gap: 0.5rem;
@@ -307,6 +354,28 @@ footer {
     <li><span class="key" aria-hidden="true"></span>The published paper (2021)</li>
   </ul>
 </figure>
+
+<!-- Claude's chart of what is known about m*(n) for every n up to 1000, drawn by the script at the end from mstar.js -->
+<section class="mstar" aria-labelledby="mstar-title">
+  <!-- TODO: heading; says the chart shows the bounds on m*(n) for every n up to 1000 -->
+  <h2 id="mstar-title">Bounds on <span class="nw"><i>m</i><sup>*</sup>(<i>n</i>)</span> for every even <i>n</i> up to 1000</h2>
+  <!-- cell (n, m) is green when m*(n) ≥ m is known, red when m*(n) < m is proven, and gray when neither is; and that odd n are left out, because an odd number of integers can't be split into two halves of equal size, so no partition exists for any m -->
+  <div class="mstar-bar">
+    <ul class="legend">
+      <li><span class="swatch exists" aria-hidden="true"></span><span class="nw"><i>m</i> ≤ <i>m</i><sup>*</sup>(<i>n</i>)</span></li>
+      <li><span class="swatch open" aria-hidden="true"></span>open</li>
+      <li><span class="swatch impossible" aria-hidden="true"></span><span class="nw"><i>m</i> &gt; <i>m</i><sup>*</sup>(<i>n</i>)</span></li>
+    </ul>
+    <div class="mstar-zoom">
+      <button type="button" id="mstar-zoom-out" aria-label='zoom out"' title='Claude: "zoom out"'>−</button>
+      <button type="button" id="mstar-zoom-in" aria-label='zoom in' title='Claude: "zoom in"'>+</button>
+      <!-- zooms back out to every column, n = 2 to 1000 -->
+      <button type="button" id="mstar-reset">↺</button>
+    </div>
+  </div>
+  <canvas id="mstar-chart" height="0" tabindex="0" role="img" aria-label='chart of the bounds on m*(n) for even n up to 1000; the arrow keys pan, and + and − zoom'></canvas>
+  <p id="mstar-readout" aria-live="polite">Hover over a cell for details. Drag or swipe sideways to pan; zoom with the − and + buttons, pinching, or ctrl-scroll.</p>
+</section>
 
 <section class="remarks">
   <h2>Where the new results come from</h2>
@@ -537,5 +606,283 @@ SClaude[10][528] = {
 </footer>
 
 </main>
+<script src="mstar.js"></script>
+<script>
+// Claude's chart of m*(n) for the even n up to 1000, drawn from MSTAR, which mstar.js defines (mstar.py makes it and
+// states its contract).  Column n is green (exists) in rows m = 1 to lo, gray (open) up to hi and red (impossible) above,
+// up to row MSTAR.mtop.  Odd n get no column: an odd n has no partition at any m, as the caption says.  Pan and zoom act
+// on n only: the view is the interval [u0, u0 + span) of u, column n spanning u from n / 2 - 1 to n / 2.  Each device
+// pixel of the plot mixes the colors of the cells it covers, weighted by how much of it each covers, so all NCOL = 500
+// columns can show at once even where they are narrower than a pixel.
+(() => {
+const cv = document.getElementById('mstar-chart'), ro = document.getElementById('mstar-readout');
+try {
+  const D = MSTAR, NMAX = 1000, NCOL = NMAX / 2, MIN_SPAN = 12, TAP = 6;
+  // Layout in CSS px: the m labels left of the plot, room right of it for the last n label, rows ROW tall whose bottom
+  // GAP is page surface, and the n axis below.
+  const LEFT = 44, RIGHT = 16, TOP = 2, ROW = 14, GAP = 2, AXIS = 30;
+  const assert = (ok, ...what) => { if (!ok) throw new Error(JSON.stringify(what).replace(/"/g, "'")); };
+  const WHO = ['BGPW', 'Claude alone', 'Claude and Stan'];         // the provenance labels of the new results above
+  const prime = p => { for (let d = 2; d * d <= p; d++) if (p % d === 0) return false; return p >= 2; };
+  const sub = k => String(k).replace(/\d/g, d => '₀₁₂₃₄₅₆₇₈₉'[d]);
+  const loOf = n => D.cols[n - 1][0];
+  // The reasons of the data contract.  ok(n, lo or hi, ...its arguments) checks one; text(n, lo or hi, ...) gives it in
+  // Claude's words, starting "order lo" or "order hi + 1".  Odd n get no column, so "none" and "odd" have no text.
+  const LO = {
+    none: {ok: (n, lo) => lo === 0 && n % 2 === 1},
+    example: {
+      ok: (n, lo, label) => typeof label === 'string' && label !== '',
+      // TODO: readout reason; says order lo is known from an example, naming where the example comes from
+      text: (n, lo, label) => `Claude: "order ${lo} from an example (${label})"`,
+    },
+    join: {
+      ok: (n, lo, a, b) => [a, b].every(Number.isInteger) && a >= 1 && b >= 1 && a + b === n && lo <= Math.min(loOf(a), loOf(b)),
+      // TODO: readout reason; says order lo is known from the join of the examples of lengths a and b
+      text: (n, lo, a, b) => `Claude: "order ${lo} from the join p${sub(a)}\u00a0∨\u00a0p${sub(b)}"`,
+    },
+    product: {
+      ok: (n, lo, a, b) => [a, b].every(Number.isInteger) && a >= 2 && b >= 2 && a * b === n && lo <= loOf(a) + loOf(b),
+      // TODO: readout reason; says order lo is known from the expanded product of the examples of lengths a and b
+      text: (n, lo, a, b) => `Claude: "order ${lo} from the product p${sub(a)}\u00a0#\u00a0p${sub(b)}"`,
+    },
+    table2: {
+      ok: (n, lo) => n % 8 === 0 && n <= 304,
+      // TODO: readout reason; says order lo is known from the paper's Table 2
+      text: (n, lo) => `Claude: "order ${lo} from the paper's Table 2"`,
+    },
+    page: {
+      ok: (n, lo, who) => WHO.includes(who),
+      // TODO: readout reason; says order lo is known from this page's new results, naming whose they are
+      text: (n, lo, who) => `Claude: "order ${lo} from the new results above (${who})"`,
+    },
+  };
+  const HI = {
+    odd: {ok: (n, hi) => hi === 0 && n % 2 === 1},
+    two: {
+      ok: (n, hi) => n % 2 === 0 && hi === (n & -n) - 1,
+      // TODO: readout reason; says order hi + 1 is ruled out because hi + 1 is the largest power of 2 dividing n
+      text: (n, hi) => `Claude: "order ${hi + 1} ruled out: ${hi + 1} is the power of 2 in ${n}"`,
+    },
+    norm: {
+      ok: (n, hi, p) => Number.isInteger(p) && prime(p) && n % p !== 0,
+      // TODO: readout reason; says order hi + 1 is ruled out by the norm bound for the prime p
+      text: (n, hi, p) => `Claude: "order ${hi + 1} ruled out by the norm bound for p\u00a0=\u00a0${p}"`,
+    },
+    residue: {
+      ok: (n, hi, M) => Number.isInteger(M) && M >= 2,
+      // TODO: readout reason; says order hi + 1 is ruled out by the residue condition mod M
+      text: (n, hi, M) => `Claude: "order ${hi + 1} ruled out by the residue condition mod ${M}"`,
+    },
+    table2: {
+      ok: (n, hi) => n % 8 === 0 && n <= 304,
+      // TODO: readout reason; says order hi + 1 is ruled out by the paper's Table 2
+      text: (n, hi) => `Claude: "order ${hi + 1} ruled out by the paper's Table 2"`,
+    },
+    page: {
+      ok: (n, hi, who) => WHO.includes(who),
+      // TODO: readout reason; says order hi + 1 is ruled out in this page's new results, naming whose they are
+      text: (n, hi, who) => `Claude: "order ${hi + 1} ruled out in the new results above (${who})"`,
+    },
+  };
+  assert(D.nmax === NMAX && Number.isInteger(D.mtop) && Array.isArray(D.cols) && D.cols.length === NMAX, D.nmax, D.mtop);
+  D.cols.forEach((c, i) => {
+    const n = i + 1, [lo, hi, lw, hw] = c;
+    assert(c.length === 4 && Number.isInteger(lo) && Number.isInteger(hi) && 0 <= lo && lo <= hi && hi < D.mtop, n, c);
+    for (const [K, w, v] of [[LO, lw, lo], [HI, hw, hi]]) {
+      assert(Object.hasOwn(K, w[0]) && K[w[0]].ok.length === w.length + 1 && K[w[0]].ok(n, v, ...w.slice(1)), n, c);
+    }
+    assert((lw[0] === 'none') === (n % 2 === 1) && (hw[0] === 'odd') === (n % 2 === 1), n, c);
+  });
+  assert(D.mtop === Math.max(...D.cols.map(c => c[1])) + 1, D.mtop);
+
+  const KIND = ['exists', 'open', 'impossible'];                  // the colors' tokens, by kind of cell
+  const kindOf = (n, m) => m <= D.cols[n - 1][0] ? 0 : m <= D.cols[n - 1][1] ? 1 : 2;
+  const style = getComputedStyle(cv), token = name => style.getPropertyValue(name).trim();
+  const rgb = name => {
+    const h = token(name);
+    assert(/^#[0-9a-f]{6}$/i.test(h), name, h);
+    return [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+  };
+  const T = D.mtop, cssH = TOP + T * ROW + AXIS;
+  cv.style.height = `${cssH}px`;
+  const ctx = cv.getContext('2d'), strip = document.createElement('canvas'), sctx = strip.getContext('2d');
+  const zoomIn = document.getElementById('mstar-zoom-in'), zoomOut = document.getElementById('mstar-zoom-out');
+  let u0 = 0, span = NCOL, cur = null, geo = null;               // the view, the cell read out, the last draw's layout
+
+  function draw() {
+    zoomIn.disabled = span === MIN_SPAN;                           // each zoom button grays out at its limit
+    zoomOut.disabled = span === NCOL;
+    const dpr = devicePixelRatio, L = Math.round(LEFT * dpr), R = Math.round(RIGHT * dpr), top = Math.round(TOP * dpr);
+    const pitch = Math.round(ROW * dpr), gap = Math.round(GAP * dpr);
+    const W = Math.round(cv.getBoundingClientRect().width * dpr) - L - R;   // the plot's width in device px
+    assert(W > 0, W);
+    cv.width = L + W + R;
+    cv.height = Math.round(cssH * dpr);
+    geo = {dpr, L, W, top, pitch};
+    // The plot as a strip one device pixel per row, then stretched to the rows' height: pixel x covers u from u0 + x k
+    // to u0 + (x + 1) k.
+    const colors = KIND.map(t => rgb(`--${t}`)), k = span / W, img = sctx.createImageData(W, T);
+    const mix = new Float64Array(3 * T);
+    for (let x = 0; x < W; x++) {
+      const a = u0 + x * k, b = Math.min(a + k, NCOL);
+      mix.fill(0);
+      for (let c = Math.floor(a); c < b; c++) {                   // u from c to c + 1: column n = 2c + 2
+        const w = (Math.min(b, c + 1) - Math.max(a, c)) / k;
+        for (let m = 1; m <= T; m++) {
+          const col = colors[kindOf(2 * c + 2, m)];
+          for (let j = 0; j < 3; j++) mix[3 * (m - 1) + j] += w * col[j];
+        }
+      }
+      for (let m = 1; m <= T; m++) {
+        const i = 4 * ((T - m) * W + x);
+        for (let j = 0; j < 3; j++) img.data[i + j] = Math.round(mix[3 * (m - 1) + j]);
+        img.data[i + 3] = 255;
+      }
+    }
+    strip.width = W;
+    strip.height = T;
+    sctx.putImageData(img, 0, 0);
+    ctx.fillStyle = token('--paper');
+    ctx.fillRect(0, 0, cv.width, cv.height);
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(strip, 0, 0, W, T, L, top, W, T * pitch);
+    for (let r = 1; r <= T; r++) ctx.fillRect(L, top + r * pitch - gap, W, gap);
+    // Axes: every m on the left; below, n under the middle of its column, at the first of 2, 10, 20, 50, ... (1, 2, 5,
+    // 10, ... without the odd steps, so every label is even) that leaves room for each label.
+    const serif = token('--serif'), base = top + T * pitch;
+    ctx.fillStyle = token('--muted');
+    ctx.font = `${12 * dpr}px ${serif}`;
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    for (let m = 1; m <= T; m++) ctx.fillText(String(m), L - 7 * dpr, top + (T - m) * pitch + (pitch - gap) / 2);
+    const step = [2, 10, 20, 50, 100, 200, 500].find(s => s / 2 / k >= 48 * dpr);
+    assert(step, W, span);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    for (let n = Math.ceil((2 * u0 + 1) / step) * step; n / 2 - 0.5 <= u0 + span; n += step) {
+      const x = L + (n / 2 - 0.5 - u0) / k;
+      ctx.fillRect(Math.round(x - dpr / 2), base, dpr, 4 * dpr);
+      ctx.fillText(String(n), x, base + 7 * dpr);
+    }
+    ctx.fillStyle = token('--ink');
+    ctx.font = `italic ${15 * dpr}px ${serif}`;
+    ctx.textAlign = 'left';
+    ctx.fillText('n', 2 * dpr, base + 6 * dpr);
+    ctx.textBaseline = 'middle';
+    ctx.fillText('m', 2 * dpr, top + T * pitch / 2);
+    if (cur !== null) {                                            // outline the cell read out, just outside it
+      const x0 = L + (cur.n / 2 - 1 - u0) / k, x1 = L + (cur.n / 2 - u0) / k, y0 = top + (T - cur.m) * pitch;
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(L - 2 * dpr, 0, W + 4 * dpr, base);
+      ctx.clip();
+      ctx.strokeStyle = token('--ink');
+      ctx.lineWidth = 2 * dpr;
+      ctx.strokeRect(x0 - dpr, y0 - dpr, x1 - x0 + 2 * dpr, pitch - gap + 2 * dpr);
+      ctx.restore();
+    }
+  }
+
+  const at = e => { const r = cv.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };   // CSS px
+  const uAt = x => u0 + (x * geo.dpr - geo.L) * span / geo.W;
+  function cellAt([x, y]) {                                        // the cell at CSS x, y, or null outside the plot
+    const X = x * geo.dpr - geo.L, n = 2 * Math.floor(u0 + X * span / geo.W) + 2, m = T - Math.floor((y * geo.dpr - geo.top) / geo.pitch);
+    return X >= 0 && X < geo.W && m >= 1 && m <= T ? {n, m} : null;
+  }
+  const el = (tag, text) => Object.assign(document.createElement(tag), {textContent: text});
+  const nw = (...parts) => { const s = el('span', ''); s.className = 'nw'; s.append(...parts); return s; };   // no wrap
+  const swatch = document.createElement('span');
+  function select(c) {                                             // read out cell c and outline it
+    if (c === null || (cur !== null && c.n === cur.n && c.m === cur.m)) return;
+    cur = c;
+    const {n, m} = c, [lo, hi, lw, hw] = D.cols[n - 1], kind = kindOf(n, m);
+    const why = [() => LO[lw[0]].text(n, lo, ...lw.slice(1)), () => HI[hw[0]].text(n, hi, ...hw.slice(1))];
+    const mstar = [el('i', 'm'), el('sup', '*'), `(${n})`];
+    swatch.className = `swatch ${KIND[kind]}`;
+    ro.replaceChildren(swatch, nw(el('i', 'n'), ` = ${n}, `, el('i', 'm'), ` = ${m}`), ' · ',
+      nw(...(lo === hi ? [...mstar, ` = ${lo}`] : [`${lo} ≤ `, ...mstar, ` ≤ ${hi}`])), ' · ',
+      [[why[0]], why, [why[1]]][kind].map(f => f()).join(' · '));
+    draw();
+  }
+
+  const clampSpan = s => Math.min(Math.max(s, MIN_SPAN), NCOL);
+  function setView(a, s) {
+    span = clampSpan(s);
+    u0 = Math.min(Math.max(a, 0), NCOL - span);
+    draw();
+  }
+  function zoomAbout(x, s) {                                       // to span s, the u at CSS x staying put
+    const u = uAt(x), t = clampSpan(s);
+    setView(u - (u - u0) * t / span, t);
+  }
+  // Pointers: the first two drag the view, their midpoint holding the u it had when the set of pointers last changed,
+  // and their spread scaling the span.  One pointer has spread 0, so the + 1s leave its span alone: it pans.
+  const pointers = new Map();                                      // pointerId: CSS x, y now and when it went down
+  let grip = null;
+  const firstTwo = () => [...pointers.values()].slice(0, 2);
+  const mid = ps => (ps[0].x + ps.at(-1).x) / 2;
+  const spread = ps => Math.hypot(ps[0].x - ps.at(-1).x, ps[0].y - ps.at(-1).y);
+  const regrip = () => { const ps = firstTwo(); grip = ps.length ? {u: uAt(mid(ps)), span, d: spread(ps)} : null; };
+  function follow() {
+    const ps = firstTwo(), s = clampSpan(grip.span * (grip.d + 1) / (spread(ps) + 1));
+    setView(grip.u - (mid(ps) * geo.dpr - geo.L) * s / geo.W, s);
+  }
+  cv.addEventListener('pointerdown', e => {
+    cv.setPointerCapture(e.pointerId);
+    const [x, y] = at(e);
+    pointers.set(e.pointerId, {x, y, x0: x, y0: y});
+    regrip();
+  });
+  cv.addEventListener('pointermove', e => {
+    const p = pointers.get(e.pointerId), [x, y] = at(e);
+    if (p) { Object.assign(p, {x, y}); follow(); }
+    if (e.buttons === 0) select(cellAt([x, y]));                  // hover: a mouse or pen with no button down
+  });
+  const lift = e => { const p = pointers.get(e.pointerId); pointers.delete(e.pointerId); regrip(); return p; };
+  cv.addEventListener('pointerup', e => {
+    const p = lift(e), [x, y] = at(e);
+    if (p && Math.hypot(x - p.x0, y - p.y0) < TAP) select(cellAt([x, y]));    // a tap or a click
+  });
+  cv.addEventListener('pointercancel', lift);
+  // Wheel: with ctrl or cmd (a trackpad pinch sends ctrl) it zooms about the pointer; mostly sideways, it pans; mostly
+  // down or up it is left alone, so the page scrolls.
+  cv.addEventListener('wheel', e => {
+    const px = [1, 16, geo.W / geo.dpr][e.deltaMode];              // CSS px per unit of delta: pixel, line, page
+    if (e.ctrlKey || e.metaKey) {
+      zoomAbout(at(e)[0], span * 2 ** (e.deltaY * px / 100));
+      e.preventDefault();
+    } else if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+      setView(u0 + e.deltaX * px * span * geo.dpr / geo.W, span);
+      e.preventDefault();
+    }
+  }, {passive: false});
+  // Safari's trackpad pinch comes as gesture events; with a touch pointer down, the pointers already zoom.
+  let gestureSpan = span;
+  cv.addEventListener('gesturestart', e => { e.preventDefault(); gestureSpan = span; });
+  cv.addEventListener('gesturechange', e => {
+    e.preventDefault();
+    if (pointers.size === 0) zoomAbout(at(e)[0], gestureSpan / e.scale);
+  });
+  const middle = () => (geo.L + geo.W / 2) / geo.dpr;
+  const KEYS = new Map([['ArrowLeft', () => setView(u0 - span / 8, span)], ['ArrowRight', () => setView(u0 + span / 8, span)],
+    ['+', () => zoomAbout(middle(), span / 1.5)], ['=', () => zoomAbout(middle(), span / 1.5)],
+    ['-', () => zoomAbout(middle(), span * 1.5)]]);
+  cv.addEventListener('keydown', e => {
+    const f = KEYS.get(e.key);
+    if (f && !(e.ctrlKey || e.metaKey || e.altKey)) { f(); e.preventDefault(); }
+  });
+  zoomIn.addEventListener('click', KEYS.get('+'));                 // the zoom buttons do what the + and - keys do
+  zoomOut.addEventListener('click', KEYS.get('-'));
+  document.getElementById('mstar-reset').addEventListener('click', () => setView(0, NCOL));
+  draw();
+  new ResizeObserver(() => draw()).observe(cv);
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => draw());
+  document.fonts.ready.then(() => draw());
+} catch (e) {
+  ro.textContent = `Error drawing the chart: ${e}`;
+  throw e;
+}
+})();
+</script>
 </body>
 </html>

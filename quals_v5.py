@@ -1809,9 +1809,11 @@ def q_end_to_end_64_7_closes():
 
 def q_end_to_end_104_7_closes():
     # Replicata: overnight_v5 at 104@7 (m*(104) = 6), run twice.
-    # Expectata: as for 40@6, except that no INFEASIBLE verdict needed a leaf: the mod-8 splits leave no admissible
-    # vector, so that tree closes by exact enumeration (see SETTINGS), and its INFEASIBLE nodes are empty pools.
-    assert set(check_closed_run(104, 7)) == {0}
+    # Expectata: as for 40@6, except that the top's children close before any further split (so before the mod-8
+    # splits, which leave no admissible vector): its empty pool by exact enumeration (no leaf), and each of its three
+    # other children by the width test's one cut (its 2 leaves).
+    leaves = check_closed_run(104, 7)
+    assert sorted(leaves) == [0, 2, 2, 2], leaves
 
 
 # ---------- runner ----------
