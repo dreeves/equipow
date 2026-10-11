@@ -319,16 +319,25 @@ SWEEPS = {'natural': lambda M: tuple(range(M)), 'digits': digits}
 
 
 @lru_cache(maxsize=None)
-def basis(M, m, sweep):
-    """Columns spanning L(M, m) in Hermite normal form, the coordinates taken in the order SWEEPS[sweep](M), and each
-    column's pivot (its last nonzero row): the pivots increase and their entries are positive (asserted), as
-    residue_vectors needs."""
+def lattice(M, m):
+    """L(M, m) as the columns of sympy's Hermite normal form of its generators, the coefficient vectors of
+    x^k (x-1)^m mod x^M - 1, k = 0..M-1."""
     poly = [1]
     for _ in range(m): poly = [a - b for a, b in zip([0] + poly, poly + [0])]         # (x-1)^m, lowest first
     G = [[0] * M for _ in range(M)]
     for k in range(M):
         for t, c in enumerate(poly): G[k][(t + k) % M] += c
-    H = hermite_normal_form(sp.Matrix([[row[r] for r in SWEEPS[sweep](M)] for row in G]).T)
+    return hermite_normal_form(sp.Matrix(G).T)
+
+
+@lru_cache(maxsize=None)
+def basis(M, m, sweep):
+    """Columns spanning L(M, m) in Hermite normal form with the coordinates in the order SWEEPS[sweep](M), and each
+    column's pivot (its last nonzero row): the pivots increase and their entries are positive (asserted), as
+    residue_vectors needs.  It is the Hermite normal form of lattice(M, m)'s rows so reordered: the same lattice, and
+    for some sweeps far faster than from the generators (L(25, 13) in 'digits': 0.01 s against 126 s)."""
+    H = lattice(M, m)
+    H = hermite_normal_form(sp.Matrix([[H[r, j] for j in range(H.shape[1])] for r in SWEEPS[sweep](M)]))
     B = tuple(tuple(int(H[i, j]) for j in range(H.shape[1])) for i in range(M))
     piv = tuple(max(i for i in range(M) if B[i][j]) for j in range(len(B[0])))
     assert list(piv) == sorted(set(piv)) and all(B[piv[j]][j] > 0 for j in range(len(piv))), (M, m)

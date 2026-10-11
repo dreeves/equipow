@@ -511,7 +511,7 @@ const MSTAR = {"nmax": 1000, "mtop": 16, "cols": [
 [0, 0, ["none"], ["odd"]],
 [1, 1, ["join", 2, 508], ["two"]],
 [0, 0, ["none"], ["odd"]],
-[9, 9, ["example", "Thue\u2013Morse"], ["page", "Claude alone"]],
+[9, 9, ["example", "Thue\u2013Morse"], ["residue", 27]],
 [0, 0, ["none"], ["odd"]],
 [1, 1, ["join", 2, 512], ["two"]],
 [0, 0, ["none"], ["odd"]],
