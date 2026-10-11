@@ -152,8 +152,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 N = ORDER = CASCADE = BUDGET = JOURNAL = LOG = None     # set by configure()
 
 
-# this file and certbb.py, as this process imported them
-SOURCE = tuple(hashlib.sha1(open(f, 'rb').read()).hexdigest() for f in (__file__, certbb.__file__))
+# this file, certbb.py and width.py, as this process imported them
+SOURCE = tuple(hashlib.sha1(open(f, 'rb').read()).hexdigest() for f in (__file__, certbb.__file__, certbb.width.__file__))
 
 
 def configure(n, order):
@@ -684,10 +684,11 @@ def run():
 
 
 # A fingerprint of the code that decides verdicts, taken as imported (see header()): this file's functions that do,
-# and all of certbb.py.
+# all of certbb.py, and all of width.py (its directions decide which nodes certbb's width test closes).
 CODE = hashlib.sha1((''.join(inspect.getsource(f) for f in (
     lattice_poly, lattice_basis, moment_rows, moments, count_rows, ExactSystem, integer_system, admissible, act,
-    stabilizer, rep, split, solve_node, node_key, work, search)) + inspect.getsource(certbb)).encode()).hexdigest()
+    stabilizer, rep, split, solve_node, node_key, work, search)) + inspect.getsource(certbb)
+    + inspect.getsource(certbb.width)).encode()).hexdigest()
 
 
 if __name__ == '__main__':

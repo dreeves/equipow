@@ -7,3 +7,7 @@ count128/mitm
 count128/bdfs
 count128/qualrun/
 count128/profiles/
+scratch/
+.progress_cache.json
+.progress_cache.json.*.tmp
+progress.html.*.tmp

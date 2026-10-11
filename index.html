@@ -16,7 +16,7 @@
 <meta property="og:image" content="https://equipow.dreev.es/preview.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content='The paper&apos;s table of m*(n) up to n = 304 and 2^51, then new results from 320 to 2^51'>
+<meta property="og:image:alt" content='The paper&apos;s table of m*(n) up to n = 304 and 2^51, then new results from 304 to 2^51'>
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:site" content="@dreev">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -293,8 +293,8 @@ footer {
       <div class="scroll">
         <!-- Cell titles reuse the legend's labels below -->
         <table class="block">
-          <tr class="ns"><th scope="row"><i>n</i></th><td class="s" title='BGPW'>320</td><td class="j" title='Claude and Stan'>336</td><td class="s" title='BGPW'>352</td><td class="s" title='BGPW'>368</td><td class="s" title='BGPW'>400</td><td class="s" title='BGPW'>416</td><td class="c" title='Claude alone'>432</td><td class="c" title='Claude alone'>448</td><td class="s" title='BGPW'>464</td><td class="c" title='Claude alone'>480</td><td class="j" title='Claude and Stan'>496</td><td class="c" title='Claude alone'>512</td><td class="s" title='BGPW'>528</td><td class="c" title='Claude alone'>576</td><td class="j" title='Claude and Stan'>2<sup>24</sup></td><td class="j" title='Claude and Stan'>2<sup>51</sup></td></tr>
-          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="s">9</td><td class="j">10</td><td class="s">9</td><td class="s">9</td><td class="s">9</td><td class="s">9</td><td class="c">≥ 11</td><td class="c">9</td><td class="s">9</td><td class="c">≥ 12</td><td class="j">9</td><td class="c">9</td><td class="s">≥ 10</td><td class="c">10–12</td><td class="j">≥ 25</td><td class="j">≥ 53</td></tr>
+          <tr class="ns"><th scope="row"><i>n</i></th><td class="c" title='Claude alone'>304</td><td class="s" title='BGPW'>320</td><td class="j" title='Claude and Stan'>336</td><td class="s" title='BGPW'>352</td><td class="s" title='BGPW'>368</td><td class="s" title='BGPW'>400</td><td class="s" title='BGPW'>416</td><td class="c" title='Claude alone'>432</td><td class="c" title='Claude alone'>448</td><td class="s" title='BGPW'>464</td><td class="c" title='Claude alone'>480</td><td class="j" title='Claude and Stan'>496</td><td class="c" title='Claude alone'>512</td><td class="s" title='BGPW'>528</td><td class="c" title='Claude alone'>576</td><td class="j" title='Claude and Stan'>2<sup>24</sup></td><td class="j" title='Claude and Stan'>2<sup>51</sup></td></tr>
+          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="c">8</td><td class="s">9</td><td class="j">10</td><td class="s">9</td><td class="s">9</td><td class="s">9</td><td class="s">9</td><td class="c">≥ 11</td><td class="c">9</td><td class="s">9</td><td class="c">≥ 12</td><td class="j">9</td><td class="c">9</td><td class="s">≥ 10</td><td class="c">10–12</td><td class="j">≥ 25</td><td class="j">≥ 53</td></tr>
         </table>
       </div>
     </div>
@@ -311,6 +311,14 @@ footer {
 <section class="remarks">
   <h2>Where the new results come from</h2>
   <ul>
+    <li class="c">
+      <span class="mk" aria-hidden="true">◆</span>
+      <p class="entry"><i>n</i> = 304: &nbsp;<span class="nw"><i>m</i><sup>*</sup> = 8</span></p>
+      <!-- TODO: says a computer search rules out order 9: it splits the question by how many +1's fall in each residue class mod 3, 5, 4, 7, 8 and 9, closes every case with a certificate checked in exact integer arithmetic, and needed splitting further mod 11 and 13 for the last 8 cases; and that this closes the route to order 21 for 2^20 through 8·304·368 + 320·480, which needed 304 to have order 9 -->
+      <p>Claude: "Order 9 is ruled out by a computer search. It splits the question by how many +1's fall in each residue class mod 3, 5, 4, 7, 8 and 9, and closes every case with a certificate checked in exact integer arithmetic; the last 8 cases needed splitting further, mod 11 and then mod 13. That closes the route to order 21 for 2<sup>20</sup> through <span class="nw">8·304·368 + 320·480 = 2<sup>20</sup></span>, which needed 304 to have order 9."</p>
+      <!-- TODO: names the code of the search, with links, and says its journals hold every verdict with the hash of its proof -->
+      <p>Claude: "The code is <a href="https://github.com/dreeves/equipow/blob/main/overnight_v5.py">overnight_v5.py</a> with <a href="https://github.com/dreeves/equipow/blob/main/certbb.py">certbb.py</a>, and <a href="https://github.com/dreeves/equipow/blob/main/boxsplit.py">boxsplit.py</a> for the last 8 cases; their journals hold every verdict with the hash of its proof."</p>
+    </li>
     <li class="s">
       <span class="mk" aria-hidden="true">●</span>
       <p class="entry"><i>n</i> = 320, 352, 368, 400, 416, 464: &nbsp;<span class="nw"><i>m</i><sup>*</sup> = 9</span></p>

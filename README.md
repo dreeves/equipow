@@ -2,6 +2,8 @@ Claude's up-next list:
 
 1. A second pass of the 240 search, with longer time limits for the sub-cases the first pass leaves open.
 2. Searches like the 240 one for 304, 288, 432, 480, 528 and 576, starting with 304. If 304 has order 9, then 2^20 has order 21, since 8·304·368 + 320·480 = 2^20.
+   <!-- TODO: says the 304 search is done: 304 has order exactly 8, every case closed by an exactly checked certificate, so this route to order 21 for 2^20 is closed -->
+   Claude: "Done for 304: it has order exactly 8. Every case closed with a certificate checked in exact integer arithmetic (overnight_v5.py, then boxsplit.py for the last 8), so this route to order 21 for 2^20 is closed."
 3. Count the order-7 partitions of {0, …, 127}. The antisymmetric ones alone number 303, and no count has been published.
    Claude: "Done: 431 partitions, 367 up to reversal. See the reply to Stan's uniqueness question below."
 4. Could we get a nice visualization of the progress of these searches?

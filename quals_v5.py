@@ -970,24 +970,26 @@ def q_search_witness_is_checked_exactly():
 
 def q_work_requires_the_same_source():
     # Replicata: SOURCE; work() told that the main process ran a different overnight_v5.py, a different certbb.py,
-    # or neither in the form of SOURCE.
-    # Expectata: SOURCE is the sha1 of the bytes of overnight_v5.py and of certbb.py; each call fails with
-    # AssertionError in work.
+    # a different width.py, or neither in the form of SOURCE.
+    # Expectata: SOURCE is the sha1 of the bytes of overnight_v5.py, of certbb.py and of width.py; each call fails
+    # with AssertionError in work.
     at(240, 11)
     assert v5.SOURCE == tuple(hashlib.sha1(open(os.path.join(HERE, f), 'rb').read()).hexdigest()
-                              for f in ('overnight_v5.py', 'certbb.py'))
-    for source in ('another file', (v5.SOURCE[0], '0' * 40), ('0' * 40, v5.SOURCE[1])):
+                              for f in ('overnight_v5.py', 'certbb.py', 'width.py'))
+    for source in ('another file', (v5.SOURCE[0], '0' * 40, v5.SOURCE[2]), ('0' * 40,) + v5.SOURCE[1:],
+                   v5.SOURCE[:2] + ('0' * 40,), v5.SOURCE[:2]):
         expect_assertion(lambda: v5.work(11, (), 1, 'UNKNOWN', source), 'work')
 
 
 def q_code_and_source_cover_certbb():
-    # Replicata: fresh processes importing overnight_v5 from copies of overnight_v5.py and certbb.py in a scratch
-    # directory, first unchanged, then with one comment line added to the copy of certbb.py.
+    # Replicata: fresh processes importing overnight_v5 from copies of overnight_v5.py, certbb.py and width.py (which
+    # certbb imports) in a scratch directory, first unchanged, then with one comment line added to the copy of
+    # certbb.py.
     # Expectata: unchanged, CODE and SOURCE equal this process's; with the comment, CODE and SOURCE's certbb.py
-    # entry differ while SOURCE's overnight_v5.py entry is the same, so a change to certbb.py alone gives a fresh
-    # journal header and is caught by every worker.
+    # entry differ while SOURCE's overnight_v5.py and width.py entries are the same, so a change to certbb.py alone
+    # gives a fresh journal header and is caught by every worker.
     d = tempfile.mkdtemp()
-    for f in ('overnight_v5.py', 'certbb.py'):
+    for f in ('overnight_v5.py', 'certbb.py', 'width.py'):
         open(os.path.join(d, f), 'w').write(open(os.path.join(HERE, f)).read())
     probe = (f"import sys, json; sys.dont_write_bytecode = True; sys.path.insert(0, {d!r})\n"
              f"import overnight_v5 as v5\n"
@@ -1001,7 +1003,7 @@ def q_code_and_source_cover_certbb():
     assert ask() == (v5.CODE, v5.SOURCE)
     open(os.path.join(d, 'certbb.py'), 'a').write('# one more line\n')
     code, source = ask()
-    assert code != v5.CODE and source[0] == v5.SOURCE[0] and source[1] != v5.SOURCE[1]
+    assert code != v5.CODE and source[0] == v5.SOURCE[0] and source[1] != v5.SOURCE[1] and source[2] == v5.SOURCE[2]
 
 
 def q_lp_failures_reach_the_progress_line():
