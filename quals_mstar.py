@@ -143,7 +143,7 @@ def q_two_lemma():
         f, k = (1 << n) - 1, 0                            # bit i is the coefficient of x^i: 1 + x + ... + x^(n-1)
         while bin(f).count('1') % 2 == 0:                 # f(1) = 0 mod 2: x + 1 divides f
             q, acc = 0, 0
-            for i in range(f.bit_length() - 1, 0, -1):    # synthetic division by x + 1 from the top: q_(i-1) = sum_(j>=i) f_j
+            for i in range(f.bit_length() - 1, 0, -1):    # divide by x + 1 from the top: q_(i-1) = sum_(j>=i) f_j
                 acc ^= (f >> i) & 1
                 q |= acc << (i - 1)
             f, k = q, k + 1
@@ -168,9 +168,9 @@ def norm_of(S, p):
 
 
 def q_norm_lemma():
-    # Replicata: for n = 2..12 and every sequence of order >= 1, each prime p <= 7 not dividing n: N, the norm of f(zeta_p)
-    # computed exactly from the residue sums S_r as the product of the conjugates; and the same for every explicit
-    # sequence of mstar.explicit() of order >= 1, p in 3, 5, 7 not dividing its length.
+    # Replicata: for n = 2..12 and every sequence of order >= 1, each prime p <= 7 not dividing n: N, the norm of
+    # f(zeta_p), computed exactly from the residue sums S_r as the product of the conjugates; and the same for every
+    # explicit sequence of mstar.explicit() of order >= 1, p in 3, 5, 7 not dividing its length.
     # Expectata: N != 0, p^order divides N, and N^2 (p-1)^(p-1) <= (p sum_r size_r^2)^(p-1), so order <= norm(n, p).
     def check(a, p):
         n, o = len(a), exact_order_div(a)
@@ -396,6 +396,9 @@ def q_gray_columns():
 
 # ---------- residue tests ----------
 
+def counts(n, P, W): return tuple((W[r] + len(range(r, n, P))) // 2 for r in range(P))     # +1's per class mod P
+
+
 def v5_admissible(n, order, M, fixed):
     """overnight_v5.admissible at length n (its N set only for this call), as residue sums D = 2c - size."""
     saved = v5.N
@@ -429,7 +432,7 @@ def q_residue_vectors_match_v5():
     # Replicata: mstar.residue_vectors (all of them), in each sweep of mstar.SWEEPS, and overnight_v5.admissible on
     # (n, order, M): (304, 9, 3), (512, 10, 3), (240, 11, 5), (240, 11, 7), (64, 6, 8), (48, 6, 9), (40, 5, 7),
     # (480, 13, 7); and through a parent: 304@9 mod 9 under each vector mod 3, 240@11 mod 8 under each vector mod 4,
-    # 48@6 and 24@4 mod 25 under each vector mod 5, 64@6 mod 27 under each vector mod 9.
+    # 48@6 and 24@4 mod 25 under each vector mod 5, 40@5 mod 27 under each vector mod 9.
     # Expectata: the same vectors, in every sweep.
     def ours(n, m, M, parent, sweep):
         return sorted(mstar.residue_vectors(n, M, m, parent, mstar.Budget(10 ** 8), sweep))
@@ -438,38 +441,44 @@ def q_residue_vectors_match_v5():
         for n, m, M in ((304, 9, 3), (512, 10, 3), (240, 11, 5), (240, 11, 7), (64, 6, 8), (48, 6, 9), (40, 5, 7),
                         (480, 13, 7)):
             assert ours(n, m, M, None, sweep) == v5_admissible(n, m, M, ()), (n, m, M, sweep)
-        for n, m, P, M in ((304, 9, 3, 9), (240, 11, 4, 8), (48, 6, 5, 25), (24, 4, 5, 25), (64, 6, 9, 27)):
+        for n, m, P, M in ((304, 9, 3, 9), (240, 11, 4, 8), (48, 6, 5, 25), (24, 4, 5, 25), (40, 5, 9, 27)):
             for W in v5_admissible(n, m, P, ()):
-                c = tuple((W[r] + len(range(r, n, P))) // 2 for r in range(P))
-                assert ours(n, m, M, (P, W), sweep) == v5_admissible(n, m, M, ((P, c),)), (n, m, M, W, sweep)
+                assert ours(n, m, M, (P, W), sweep) == v5_admissible(n, m, M, ((P, counts(n, P, W)),)), (n, M, W, sweep)
 
 
 def q_residue_controls():
-    # Replicata: every claim (m, chain, sweep) of mstar.RESIDUE at a column settled at lo = m - 1 with an explicit loWhy,
-    # and the sequence mstar builds for that column: its residue vector at each level of the chain, looked for among the
-    # enumeration (in the claim's sweep) at order m - 1 under its own vector of the level before (stopping when found,
-    # at most 2*10^6 nodes per level).
+    # Replicata: (a) every claim (m, chain, sweep) of mstar.RESIDUE at a column settled at lo = m - 1 with an explicit
+    # loWhy, but 512's (at order 9 the enumeration mod 27 under Thue-Morse's own vector mod 9 passes 10^8 nodes), and
+    # the sequence mstar builds for that column, at order m - 1; (b) every explicit sequence of length at most 32 and
+    # order m >= 3, at order m, along every chain and sweep of mstar.RESIDUE.  Each time, the sequence's residue vector
+    # at each level of the chain is looked for among the enumeration in the sweep under the sequence's own vector of the
+    # level before, stopping when found, at most 2*10^6 nodes per level.
     # Expectata: found at every level (so an enumeration that missed admissible vectors would fail here); at least 15
-    # such controls.
+    # controls of kind (a).
     _, got = disk()
-    done = 0
-    for n, (m, chain, sweep) in mstar.RESIDUE.items():
-        lo, hi, why, _ = got['m']['cols'][n - 1]
-        if [lo, hi] != [m - 1, m - 1] or why[0] not in EXPLICIT: continue
-        a, parent = mstar.build(n), None
-        assert mstar.order(a) >= m - 1, n
+    def control(a, m, chain, sweep):
+        parent = None
         for M in chain:
             D = tuple(sum(a[r::M]) for r in range(M))
             budget = mstar.Budget(2 * 10 ** 6)
-            assert any(v == D for v in mstar.residue_vectors(n, M, m - 1, parent, budget, sweep)), (n, chain, M)
+            assert any(v == D for v in mstar.residue_vectors(len(a), M, m, parent, budget, sweep)), (len(a), chain, M)
             parent = (M, D)
+    done = 0
+    for n, (m, chain, sweep) in mstar.RESIDUE.items():
+        lo, hi, why, _ = got['m']['cols'][n - 1]
+        if [lo, hi] != [m - 1, m - 1] or why[0] not in EXPLICIT or n == 512: continue
+        assert mstar.order(mstar.build(n)) >= m - 1, n
+        control(mstar.build(n), m - 1, chain, sweep)
         done += 1
     assert done >= 15, done
+    for chain, sweep in sorted(set((chain, sweep) for _, chain, sweep in mstar.RESIDUE.values())):
+        for (n, label), a in mstar.explicit().items():
+            if n <= 32 and mstar.order(a) >= 3: control(a, mstar.order(a), chain, sweep)
 
 
 def q_residue_claims():
-    # Replicata: every claim (m, chain, sweep) of mstar.RESIDUE at its n, enumerated through its chain to the end with no
-    # cap, by mstar.chain_none; and, independently, by overnight_v5.admissible level by level (every vector of each
+    # Replicata: every claim (m, chain, sweep) of mstar.RESIDUE at its n, enumerated through its chain to the end with
+    # no cap, by mstar.chain_none; and, independently, by overnight_v5.admissible level by level (every vector of each
     # level under every vector of the level before), for every claim but 512's (v5's sweep, 'natural', needs more than
     # 5*10^6 nodes there; proof512.txt on the page proves the same claim by hand).
     # Expectata: no admissible vector at the last modulus, by both; the claim lowers hi below two and norm (none is
@@ -480,8 +489,7 @@ def q_residue_claims():
         assert sweep in mstar.SWEEPS and mstar.chain_none(n, m, chain, sweep, 10 ** 8), (n, m, chain)
         level = v5_admissible(n, m, chain[0], ()) if n != 512 else []
         for P, M in zip(chain, chain[1:]):
-            level = [D for W in level
-                     for D in v5_admissible(n, m, M, ((P, tuple((W[r] + len(range(r, n, P))) // 2 for r in range(P))),))]
+            level = [D for W in level for D in v5_admissible(n, m, M, ((P, counts(n, P, W)),))]
         assert level == [], (n, m, chain)
         assert m - 1 < min([mstar.two(n)] + [mstar.norm(n, p) for p in mstar.PRIMES if n % p]), n
         assert m - 1 >= got['m']['cols'][n - 1][0], n

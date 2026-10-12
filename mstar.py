@@ -134,8 +134,9 @@ TABLE2 = {8: (3, 3), 16: (4, 4), 24: (4, 4), 32: (5, 5), 40: (5, 5), 48: (6, 6),
           304: (8, 9), 2 ** 51: (52, None)}
 NEW = {304: (8, 8, 'Claude alone'), 320: (9, 9, 'BGPW'), 336: (10, 10, 'Claude and Stan'), 352: (9, 9, 'BGPW'),
        368: (9, 9, 'BGPW'), 400: (9, 9, 'BGPW'), 416: (9, 9, 'BGPW'), 432: (11, None, 'Claude alone'),
-       448: (9, 9, 'Claude alone'), 464: (9, 9, 'BGPW'), 480: (12, None, 'Claude alone'), 496: (9, 9, 'Claude and Stan'),
-       512: (9, 9, 'Claude alone'), 528: (10, None, 'BGPW'), 576: (10, 12, 'Claude alone'),
+       448: (9, 9, 'Claude alone'), 464: (9, 9, 'BGPW'), 480: (12, None, 'Claude alone'),
+       496: (9, 9, 'Claude and Stan'), 512: (9, 9, 'Claude alone'), 528: (10, None, 'BGPW'),
+       576: (10, 12, 'Claude alone'),
        2 ** 24: (25, None, 'Claude and Stan'), 2 ** 51: (53, None, 'Claude and Stan')}
 # CITED[n]: the page's values at n as (lo, hi, reason), Table 2's first, then the new results'
 CITED = {}
@@ -421,8 +422,9 @@ def chain_none(n, m, chain, sweep, cap):
 # bound down, the chains (3), (4), (5), (7), (3, 9), (4, 8), (11), (13), (4, 8, 16), (5, 25), (3, 9, 27), (7, 49),
 # (4, 8, 16, 32) in the sweep 'natural', each capped at 300000 nodes; a column's claim is the least order killed.  Then
 # again with larger caps, and in the sweep 'digits', where CP-SAT (as a guide only) found no vector or the page cites a
-# proof by residues: 120 and 136 mod 8, 624 at order 13 mod 25, 512 mod 27.  Each claim's sweep is the faster of the
-# two (the same for a prime).  Claims that do not set hi (where a citation is lower: 96, 240, 288) are left out.
+# proof by residues: 120 and 136 mod 8, 624 at order 13 mod 25, 512 mod 27.  Each claim's sweep is 'digits' (the same
+# as 'natural' for a prime) but 624's, which takes 670000 nodes in 'natural' and 3.1 million in 'digits'.  Claims that
+# do not set hi (where a citation is lower: 96, 240, 288) are left out.
 RESIDUE = {24: (5, (5, 25), 'digits'), 40: (6, (3,), 'digits'), 48: (7, (5, 25), 'digits'),
            72: (7, (4, 8), 'digits'), 80: (7, (3, 9), 'digits'), 88: (7, (3, 9), 'digits'), 104: (7, (4, 8), 'digits'),
            120: (7, (4, 8), 'digits'), 128: (8, (3,), 'digits'), 136: (7, (4, 8), 'digits'),
@@ -464,7 +466,8 @@ def build(n):
     """The sequence behind column n's explicit lo, built from the explicit sequences by its joins and products."""
     why = explicit_lo()[1][n]
     rule = {'none': lambda: [1] * n, 'example': lambda: explicit()[n, why[1]],
-            'join': lambda: join(build(why[1]), build(why[2])), 'product': lambda: product(build(why[1]), build(why[2]))}
+            'join': lambda: join(build(why[1]), build(why[2])),
+            'product': lambda: product(build(why[1]), build(why[2]))}
     return rule[why[0]]()
 
 
