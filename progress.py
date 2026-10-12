@@ -128,7 +128,8 @@ NICE = 15                              # the niceness the process lowers itself 
 DEEPEST = 6
 REPLICATES = 2000                      # draws in an estimate: a Monte Carlo precision setting
 SEED = 0                               # the estimate's random generator's seed: an estimate is a function of its state
-QUANTILES = (0.1, 0.9)                 # the estimate's range, the ETA's band: the middle 80% of its draws
+QUANTILES = (0.05, 0.95)               # the estimate's range, the ETA's band: the middle 90% of its draws (80% was too
+                                       # narrow: backtested on 304@9's two finished passes, it held the truth 22 of 31 times)
 HOUR = 3600                            # seconds
 STATUSES = ('settled', 'open', 'split', 'pending')     # the order of the page's columns, bars and legend
 
@@ -603,13 +604,16 @@ def makespan(loads, items):
     return a.max(axis=1)
 
 
-# KNOWN FLAW, recorded at dreeves's request on 2026-10-12, not yet fixed: this is not a calibrated Bayesian ETA.  In
-# his words: "seemingly there's no attempt to make an actual bayesian estimate of the ETA but rather a best-case
-# estimate if no more splits or whatever happen, which we know they will."  It does draw a pending subtree's cost from
-# its depth's completed or partly completed subtrees, but those are mostly the early, cheap ones, so it runs optimistic:
-# 240@11's pass 3 read about 6 h on 2026-10-11 at 22:54 and about 118 h by 2026-10-12 at 12:52.  A fix should model the
-# total remaining work's posterior (heavy-tailed subtree sizes, queue growth from splits) and be backtested against
-# finished passes (304@9's, 240@11's first two), whose true remaining time at every past moment is known.
+# KNOWN FLAW, recorded at dreeves's request on 2026-10-12: this is not a calibrated Bayesian ETA.  In his words:
+# "seemingly there's no attempt to make an actual bayesian estimate of the ETA but rather a best-case estimate if no
+# more splits or whatever happen, which we know they will."  It does draw a pending subtree's cost from its depth's
+# completed or partly completed subtrees.  A backtest on the only passes that ended on their own, 304@9's first two
+# (every half hour, scratch-free: quals_progress.states()), found it noisy rather than one-sided: in pass 1 the mean ran
+# 2-3x too high for most of the pass, in pass 2 about 1.3x too low, and the middle-80% band held the truth 22 of 31
+# times.  240@11's pass 3 swung from about 6 h (2026-10-11 22:54) to about 118 h (2026-10-12 12:52).  The stopgap
+# (2026-10-12): the page labels the ETA and the total with their bands' ranges, not the mean, and the band is the
+# middle 90%.  A real fix would model the total remaining work's posterior (heavy-tailed subtree sizes, queue growth
+# from splits) and be backtested on more finished passes.
 def estimate(state, parts=None):
     """REPLICATES samples of the current pass's remaining hours of running (see the vocabulary), or an empty array (no
     estimate).  parts, if a dict, receives the pieces: the tree, the kinds, the draws, the items, the work, the speed."""
@@ -901,9 +905,11 @@ def eta_chart(s):
     last = ''.join(f'<line class="range" x1="{X(x):.2f}" y1="{Y(lo):.2f}" x2="{X(x):.2f}" y2="{Y(hi):.2f}"/>'
                    f'<circle class="now togo" cx="{X(x):.2f}" cy="{Y(m):.2f}" r="4"/>'
                    f'<circle class="now total" cx="{X(x):.2f}" cy="{Y(x + m):.2f}" r="4"/>'
-                   # TODO: dreeves's direct labels: the latest ETA, in hours, right of its red marker; the projected total, in hours, right of its black marker
-                   f'<text class="label togo" x="{X(x) + 8:.2f}" y="{Y(m) + 4:.2f}">ETA {hrs(m)} h</text>'
-                   f'<text class="label total" x="{X(x) + 8:.2f}" y="{Y(x + m) - 6:.2f}">{hrs(x + m)} h</text>'
+                   # TODO: dreeves's direct labels: the latest ETA's range (its band), in hours, right of its red marker; the projected
+                   # total's range, in hours, right of its black marker.  Ranges, not the mean: a single number read as more precise
+                   # than the estimate is (2026-10-12)
+                   f'<text class="label togo" x="{X(x) + 8:.2f}" y="{Y(m) + 4:.2f}">ETA {hrs(lo)}–{hrs(hi)} h</text>'
+                   f'<text class="label total" x="{X(x) + 8:.2f}" y="{Y(x + m) - 6:.2f}">{hrs(x + lo)}–{hrs(x + hi)} h</text>'
                    f'<line class="cross" x1="{X(x):.2f}" y1="{Y(yticks[-1]):.2f}" x2="{X(x):.2f}" y2="{Y(0):.2f}" visibility="hidden"/>'
                    for x, m, lo, hi in points[-1:])
     # TODO: dreeves's direct label: the elapsed time, in hours, in blue on the x axis under the latest ETA

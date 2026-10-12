@@ -1050,8 +1050,9 @@ def q_page_draws_the_eta_chart():
     #   recorded ETA that is not None; one red polyline (togo) and one black (total) with a point per such ETA, in time
     #   order, at (elapsed then, ETA) and (elapsed then, elapsed + ETA);
     # - at the last such ETA: a vertical line of class range across its band; markers (circles of class now) on the
-    #   red and the black lines; and dreeves's direct labels (2026-10-10): "ETA 1.0 h" in red just right of the red
-    #   marker, the projected total "14 h" just right of the black marker, and the elapsed time "13 h" in blue on the x
+    #   red and the black lines; and dreeves's direct labels (2026-10-10), ranges since 2026-10-12 (the band's ends, not
+    #   the mean, which read as more precise than it is): "ETA 0.5–3.0 h" in red just right of the red
+    #   marker, the projected total "14–16 h" just right of the black marker, and the elapsed time "13 h" in blue on the x
     #   axis under that point, where no other x tick label crowds it (hours to a tenth below 10, whole from 10 on);
     # - a vertical line of class cross, hidden at rest, which the script shows (see q_page_reads_out_the_eta_chart);
     # - no other line; the black stroke the widest; the legend in dreeves's words: elapsed time (blue), ETA (red),
@@ -1089,7 +1090,7 @@ def q_page_draws_the_eta_chart():
     assert [k for k, _, _ in now] == ['togo', 'total'], now
     check([tuple(map(float, n[1:])) for n in now], [(13.2, 1), (13.2, 14.2)], 'now')
     labels = {k: (float(x), float(y), v) for k, x, y, v in re.findall(r'<text class="label (togo|total|spent)" x="([\d.]+)" y="([\d.]+)"[^>]*>([^<]*)</text>', body)}
-    assert {k: v for k, (_, _, v) in labels.items()} == {'togo': 'ETA 1.0 h', 'total': '14 h', 'spent': '13 h'}, labels
+    assert {k: v for k, (_, _, v) in labels.items()} == {'togo': 'ETA 0.5–3.0 h', 'total': '14–16 h', 'spent': '13 h'}, labels
     for k, h in (('togo', 1), ('total', 14.2)):
         x, y, _ = labels[k]
         assert X(13.2) < x < X(13.2) + 20 and abs(y - Y(h)) < 16, (k, labels[k], X(13.2), Y(h))
