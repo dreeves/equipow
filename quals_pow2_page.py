@@ -5,19 +5,20 @@ to 72: the section "pow2" right after the m*(n) chart, drawn from pow2.js.  Run:
 
 Each qual is a function q_*: a passing qual returns, a failing one raises.  Each qual's comment gives its replicata (the
 setup) and expectata (what must happen); a failure's message or traceback gives the resultata (what happened instead).
-The static quals read index.html, index.html as it was before this chart (git show BASE:index.html) and pow2.js.  The
-browser quals load copies of index.html, each with mstar.js beside it and a pow2.js (the real one, made-up data, or
-none), in headless Chrome driven through the DevTools protocol by DRIVER, a Node script: a true viewport of each
-configuration's width and pixel ratio, its theme by prefers-color-scheme, real mouse moves and touch taps at the middle
-of each cell, and screenshots whose pixels are checked against the data.  DRIVER finds the cells by geometry alone: the
-plot is the svg in #pow2-chart, K columns of equal width, and rows ROW CSS px apart from the top (row E) down to row 1,
-the bottom GAP px of each row page surface.
+The static quals read index.html, index.html as it would be without this chart (git show BASE:index.html with EDITS
+made) and pow2.js.  The browser quals load copies of index.html, each with mstar.js beside it and a pow2.js (the real
+one, made-up data, or none), in headless Chrome driven through the DevTools protocol by DRIVER, a Node script: a true
+viewport of each configuration's width and pixel ratio, its theme by prefers-color-scheme, real mouse moves and touch
+taps at the middle of each cell, and screenshots whose pixels are checked against the data.  DRIVER finds the cells by
+geometry alone: the plot is the svg in #pow2-chart, K columns of equal width, and rows ROW CSS px apart from the top
+(row E) down to row 1, the bottom GAP px of each row page surface.
 """
 import sys
 sys.dont_write_bytecode = True
 import os, re, json, html, time, shutil, difflib, tempfile, traceback, subprocess
 from math import prod
 from PIL import Image
+import quals_index                            # the m*(n) chart's quals, for their list of the table's updates
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 INDEX = os.path.join(HERE, 'index.html')
@@ -26,8 +27,19 @@ MSTAR = os.path.join(HERE, 'mstar.js')        # made by mstar.py; the m*(n) char
 ICONS = ('favicon.ico', 'favicon.svg', 'apple-touch-icon.png')   # the page's icons, which it also loads
 CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
 # The last commit before this chart ("Settings and things").  The chart went in as insertions only, so the static
-# quals diff against it; rebase it when dreeves next edits the page's existing text.
+# quals diff against the page as it was then with EDITS made, the edits since then that are not this chart's (see
+# committed); add to EDITS when dreeves next edits the page's existing text.
 BASE = '5365370'
+# dreeves's copyedit of this chart (2026-10-11): his words, which stand without a Claude: "…" attribution.  The quals
+# hold the page to them exactly, and any other English the chart shows must be Claude: "…".
+HEADING = 'Bounds on <span class="nw"><i>m</i><sup>*</sup>(2<sup><i>k</i></sup>) − <i>k</i></span> for every <i>k</i> up to 72'
+LABEL = 'Chart of the bounds on m*(2^k) − k, the excess over Thue–Morse, for k from 1 to 72'   # the chart's aria-label
+HINT = 'Hover over a cell for details.'       # the readout until a cell is read out
+# The lines of the page that hold his words, stripped: the copy rules of q_new_copy_is_attributed pass over them.
+DREEVES_LINES = (f'<h2 id="pow2-title">{HEADING}</h2>',
+                 f'<div id="pow2-chart" role="img" aria-label=\'{LABEL}\'></div>',
+                 f'<p id="pow2-readout" aria-live="polite">{HINT}</p>')
+HIS = (re.sub(r'<[^>]*>', '', HEADING), LABEL, HINT)   # his words as a reader gets them: the heading's text, label, hint
 K, ROW, GAP = 72, 14, 2                       # columns k = 1..K; rows ROW CSS px apart, the bottom GAP of each surface
 KINDS = ('exists', 'open', 'impossible')      # the kinds of cell, as the tokens of their colors name them
 F = [2 ** 24, 25]                             # f, the construction of length 2^24 and order 25, as a block [n, m]
@@ -44,14 +56,53 @@ RUNS = {}                                     # DRIVER's reports by configuratio
 def page(): return open(INDEX, encoding='utf-8').read()
 
 
+def after(line, *new):
+    """An edit (old, new, count) that inserts the lines new right after line, which occurs once."""
+    return line + '\n', line + '\n' + ''.join(s + '\n' for s in new), 1
+
+
+# The edits of the page's text since BASE that are not this chart's, made by dreeves or for him, as (old, new, how many
+# times old occurs): the new results' updates that quals_index.py lists (its TABLE_UPDATE); the CSS rule that keeps
+# their table in one row; a sentence each on the residue condition at 432, 480 and 528; and in the m*(n) chart, two
+# stale comments fixed, his fixes of its zoom-out and reset buttons' labels, and its provenance label "Claude and Stan"
+# become "Claude and BGPW".
+EDITS = quals_index.TABLE_UPDATE + (
+    after('.new-block { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.45rem; }',
+          "/* The new results' entries for 432, 480 and 528 became ranges (2026-10-11), which made that table 12 px wider than",
+          '   main; a little less side padding in its cells keeps it in one row, unscrolled, at 945 px. */',
+          '.new-block table.block td { padding-inline: 0.65rem; }'),
+    after('      <p>An antisymmetric example of order 11 found by Claude. BGPW also showed order 10.</p>',
+          '      <!-- TODO: says order 13 at 432 is ruled out by the residue condition mod 5, so m*(432) is 11 or 12 -->',
+          '      <p>Claude: "Order 13 is ruled out by the residue condition mod 5."</p>'),
+    after('      <p>A symmetric example of order 12 found by Claude.</p>',
+          '      <!-- TODO: says order 15 at 480 is ruled out by the residue condition mod 7, so m*(480) is 12, 13 or 14 -->',
+          '      <p>Claude: "Order 15 is ruled out by the residue condition mod 7."</p>'),
+    after("      <p>BGPW had an example of order 10 before Claude's work. Claude found another independently, by joining an example of length 192 and order 9 to an antisymmetric piece of length 336 and order 9, chosen so that their 9th power sums cancel.</p>",
+          "      <!-- TODO: says order 13 at 528 is ruled out by the residue condition mod 5 (Claude's proof), so m*(528) is 10, 11 or 12 -->",
+          '      <p>Claude: "Order 13 is ruled out by the residue condition mod 5."</p>'),
+    ('  <!-- TODO: heading; says the chart shows the bounds on m*(n) for every n up to 1000 -->\n',
+     '  <!-- the chart shows the bounds on m*(n) for every even n up to 1000 -->\n', 1),
+    ("id=\"mstar-zoom-out\" aria-label='zoom out\"'", "id=\"mstar-zoom-out\" aria-label='zoom out'", 1),
+    ('<button type="button" id="mstar-reset">↺</button>',
+     "<button type=\"button\" id=\"mstar-reset\" aria-label='reset zoom' title='reset zoom'>↺</button>", 1),
+    ('an odd n has no partition at any m, as the caption says.  Pan and zoom act',
+     'an odd n has no partition at any m.  Pan and zoom act', 1),
+    ("const WHO = ['BGPW', 'Claude alone', 'Claude and Stan'];", "const WHO = ['BGPW', 'Claude alone', 'Claude and BGPW'];",
+     1))
+
+
 def committed():
-    """index.html as it was before this chart (BASE)."""
-    return subprocess.run(['git', '-C', HERE, 'show', f'{BASE}:index.html'], capture_output=True, text=True,
+    """index.html as it would be without this chart: as it was at BASE, with EDITS made (each count asserted)."""
+    text = subprocess.run(['git', '-C', HERE, 'show', f'{BASE}:index.html'], capture_output=True, text=True,
                           check=True).stdout
+    for old, new, count in EDITS:
+        assert text.count(old) == count, (old, text.count(old))
+        text = text.replace(old, new)
+    return text
 
 
 def opcodes():
-    """difflib's line opcodes from index.html before this chart (BASE) to the working one."""
+    """difflib's line opcodes from index.html without this chart (BASE with EDITS made) to the working one."""
     return difflib.SequenceMatcher(None, committed().splitlines(), page().splitlines(), autojunk=False).get_opcodes()
 
 
@@ -71,7 +122,7 @@ def regions(lines):
 
 
 def inserted():
-    """The working index.html's lines, their regions, and the indices of the lines inserted since BASE."""
+    """The working index.html's lines, their regions, and the indices of the lines inserted: this chart's."""
     lines = page().splitlines()
     return lines, regions(lines), [j for tag, _, _, j1, j2 in opcodes() if tag == 'insert' for j in range(j1, j2)]
 
@@ -163,7 +214,9 @@ def check_readouts(data, reads):
 
 
 def unclaimed(text):
-    """text with every Claude: "…" removed: what is left must hold no English, only numbers and math."""
+    """text with dreeves's words (HIS) and every Claude: "…" removed: what is left must hold no English, only numbers
+    and math."""
+    for s in HIS: text = text.replace(s, '')
     return re.sub(r'Claude: "[^"]*"', '', text)
 
 
@@ -522,8 +575,9 @@ def cell_box(R, geo, k, e):
 # Static quals
 
 def q_insertions_only():
-    # Replicata: index.html against the page before this chart (git show BASE:index.html), line by line with difflib.
-    # Expectata: every opcode is 'equal' or 'insert': not a character of the page before this chart changed or went
+    # Replicata: index.html against the page without this chart (git show BASE:index.html with EDITS made), line by
+    # line with difflib.
+    # Expectata: every opcode is 'equal' or 'insert': not a character of the page without this chart changed or went
     # missing; and lines were inserted.
     tags = {tag for tag, *_ in opcodes()}
     assert tags <= {'equal', 'insert'}, [op for op in opcodes() if op[0] not in ('equal', 'insert')]
@@ -534,9 +588,10 @@ def q_section_follows_mstar_chart():
     # Replicata: index.html.
     # Expectata: the m*(n) chart's <section class="mstar" aria-labelledby="mstar-title"> is followed, with only blank
     # lines and comments between, by <section class="pow2" aria-labelledby="pow2-title">, and that by <section
-    # class="remarks">.  The new section holds, in order and with only blank lines and comments between: the h2
-    # pow2-title; a paragraph of class pow2-caption; the div pow2-chart, empty until drawn, an image with a label; and
-    # the readout paragraph pow2-readout, a polite live region.
+    # class="remarks">.  The new section holds, in order and with only blank lines and comments between: dreeves's
+    # heading, the h2 pow2-title; a paragraph of class pow2-caption; the div pow2-chart, empty until drawn, an image
+    # with his label; and the readout paragraph pow2-readout, a polite live region holding his hint: his three lines
+    # (DREEVES_LINES) byte for byte.
     text, filler = page(), r'(?:\s|<!--.*?-->)*'
     m = re.search(r'<section class="mstar" aria-labelledby="mstar-title">.*?</section>', text, re.S)
     assert m
@@ -544,9 +599,8 @@ def q_section_follows_mstar_chart():
     assert s, text[m.end():m.end() + 400]
     rest = text[m.end() + s.end():]
     assert re.match(filler + r'<section class="remarks">', rest, re.S), rest[:400]
-    parts = (r'<h2 id="pow2-title">.*?</h2>', r'<p class="pow2-caption">.*?</p>',
-             r'<div id="pow2-chart" role="img" aria-label=\'[^\']*\'></div>',
-             r'<p id="pow2-readout" aria-live="polite">.*?</p>')
+    heading, label, hint = map(re.escape, DREEVES_LINES)
+    parts = (heading, r'<p class="pow2-caption">.*?</p>', label, hint)
     whole = r'<section[^>]*>' + filler + filler.join(parts) + filler + '</section>'
     assert re.fullmatch(whole, s.group(1), re.S), s.group(1)
 
@@ -576,17 +630,20 @@ def q_inline_script_passes_node_check():
 
 
 def q_new_copy_is_attributed():
-    # Replicata: the lines inserted since BASE, by region (HTML, inline script, style).
-    # Expectata: inserted lines exist.  In HTML, a line's visible text (comments and tags removed, entities decoded) and
-    # its aria-label, title and alt values hold English (a run of two letters) only inside Claude: "…", hold no stray
-    # double quote, and close every Claude: "…" they open; in script, every Claude: "…" closes on its line.  Each line
-    # with a Claude: "…" has a TODO comment as the nearest non-blank line above (<!-- TODO: in HTML, // TODO: in
-    # script); each line that mentions TODO is such a comment and is followed by a line with a Claude: "…"; no inserted
-    # CSS uses content:.
+    # Replicata: the inserted lines (this chart's), by region (HTML, inline script, style).
+    # Expectata: inserted lines exist, and each of DREEVES_LINES is one of them, exactly once: those lines hold his
+    # words, so the rules that follow pass over them.  In HTML, a line's visible text (comments and tags removed,
+    # entities decoded) and its aria-label, title and alt values hold English (a run of two letters) only inside
+    # Claude: "…", hold no stray double quote, and close every Claude: "…" they open; in script, every Claude: "…"
+    # closes on its line.  Each line with a Claude: "…" has a TODO comment as the nearest non-blank line above (<!--
+    # TODO: in HTML, // TODO: in script); each line that mentions TODO is such a comment and is followed by a line with
+    # a Claude: "…"; no inserted CSS uses content:.
     lines, region, ins = inserted()
     assert ins
+    his = [j for j in ins if lines[j].strip() in DREEVES_LINES]
+    assert sorted(lines[j].strip() for j in his) == sorted(DREEVES_LINES), [lines[j] for j in his]
     bad = []
-    for j in ins:
+    for j in (j for j in ins if j not in his):
         line, r = lines[j], region[j]
         if r == 'style' and re.search(r'(?<![\w-])content\s*:', line): bad.append((j + 1, 'content:', line))
         if r == 'html':
@@ -608,7 +665,7 @@ def q_new_copy_is_attributed():
 
 
 def q_new_css_is_scoped():
-    # Replicata: the CSS inserted since BASE (the inserted lines of the style block, comments removed).
+    # Replicata: this chart's CSS (the inserted lines of the style block, comments removed).
     # Expectata: it is whole rules, and every selector of every rule starts with .pow2 or #pow2 (a class or id of the
     # new section), so the new CSS styles nothing of the frozen m*(n) chart or the rest of the page.
     lines, region, ins = inserted()
@@ -644,12 +701,12 @@ def q_page_loads_clean():
     # px wide light and dark, 390 px wide light and dark).
     # Expectata: no exception, no console message at all, and no logged error or warning; the m*(n) chart above is
     # drawn (its canvas taller than 0); the new chart is one svg of K * E rects, E = POW2.etop; the readout is a polite
-    # live region showing a hint, one Claude: "…" and nothing else.
+    # live region showing dreeves's hint, HINT, and nothing else.
     for name in DRAWN:
         R = valid(name)
         assert R['load']['canvasH'] > 0, (name, R['load'])
         assert R['geo']['svgs'] == 1 and R['geo']['rects'] == K * R['data']['etop'], (name, R['geo']['rects'])
-        assert R['load']['live'] == 'polite' and re.fullmatch(r'Claude: "[^"]*"', R['load']['readout']), R['load']
+        assert R['load']['live'] == 'polite' and R['load']['readout'] == HINT, R['load']
 
 
 def q_drawn_cells_match_data():
@@ -742,8 +799,8 @@ def q_labels_mark_every_e_and_round_k():
 def q_visible_text_is_attributed():
     # Replicata: the section's rendered text (innerText) at load and its aria-label, title and alt values, in the four
     # drawn configurations; every readout of the hovers, taps and outlines there and on the made-up data.
-    # Expectata: outside Claude: "…" none holds English (a run of two letters), and each closes every Claude: "…" it
-    # opens.
+    # Expectata: outside Claude: "…" and dreeves's words (HIS: the heading's text, the label and the hint) none holds
+    # English (a run of two letters), and each closes every Claude: "…" it opens.
     texts = []
     for name in DRAWN + ('kinds',):
         R = valid(name)

@@ -220,11 +220,11 @@ def q_page_parse():
 
 
 def q_page_parse_is_strict():
-    # Replicata: index.html with one change each: Table 2's 136 -> 7 (the first value of its block); 528's "10–12" ->
+    # Replicata: index.html with one change each: Table 2's 136 -> 7 (the first value of its block); 528's "10–12" (class j) ->
     # "10–11"; 320's title BGPW -> Claude alone; the code C27D8C -> C27D8D; the first block table dropped.
     # Expectata: AssertionError from mstar.page_sources for each (the parse must equal the hand copy).
     html = open(os.path.join(HERE, 'index.html'), encoding='utf-8').read()
-    for old, new in (('<td class="s">10–12</td>', '<td class="s">10–11</td>'),
+    for old, new in (('<td class="j">10–12</td>', '<td class="j">10–11</td>'),
                      ("<td class=\"s\" title='BGPW'>320</td>", "<td class=\"s\" title='Claude alone'>320</td>"),
                      ('<code>C27D8C</code>', '<code>C27D8D</code>')):
         assert html.count(old) == 1, old

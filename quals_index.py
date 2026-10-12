@@ -47,6 +47,10 @@ DREEVES_LINES = (f'<h2 id="mstar-title">{HEADING}</h2>',
                  f'<button type="button" id="mstar-zoom-out" aria-label=\'{ZOOM_LABELS[0]}\' title=\'Claude: "zoom out"\'>−</button>',
                  f'<button type="button" id="mstar-zoom-in" aria-label=\'{ZOOM_LABELS[1]}\' title=\'Claude: "zoom in"\'>+</button>',
                  '<button type="button" id="mstar-reset" aria-label=\'reset zoom\' title=\'reset zoom\'>↺</button>',
+                 # and his copyedit of the powers-of-2 chart (its own quals, quals_pow2_page.py, hold it too)
+                 '<h2 id="pow2-title">Bounds on <span class="nw"><i>m</i><sup>*</sup>(2<sup><i>k</i></sup>) − <i>k</i></span> for every <i>k</i> up to 72</h2>',
+                 '<div id="pow2-chart" role="img" aria-label=\'Chart of the bounds on m*(2^k) − k, the excess over Thue–Morse, for k from 1 to 72\'></div>',
+                 '<p id="pow2-readout" aria-live="polite">Hover over a cell for details.</p>',
                  f'<canvas id="mstar-chart" height="0" tabindex="0" role="img" aria-label=\'{CANVAS_LABEL}\'></canvas>',
                  f'<p id="mstar-readout" aria-live="polite">{HINT}</p>',
                  f'ro.textContent = `{ERROR}${{e}}`;')
@@ -651,7 +655,7 @@ def q_section_follows_table2():
     assert re.match(filler + r'<section class="pow2"', after[m.end():], re.S), after[m.end():m.end() + 400]
     parts = [r'<h2 id="mstar-title">', r'<ul class="legend">', r'<span class="swatch exists" aria-hidden="true">',
              r'<span class="swatch open" aria-hidden="true">', r'<span class="swatch impossible" aria-hidden="true">',
-             r'</ul>', r'<button type="button" id="mstar-reset">',
+             r'</ul>', r'<button type="button" id="mstar-reset" ',
              r'<canvas id="mstar-chart" height="0" tabindex="0" role="img" aria-label=',
              r'<p id="mstar-readout" aria-live="polite">']
     assert re.search('.*?'.join(parts), section(), re.S), section()

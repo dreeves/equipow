@@ -6,14 +6,15 @@ Each qual is a function q_*: a passing qual returns, a failing one raises.  Each
 instead).  Quals marked "regression" pin numbers found independently earlier, by the split and verify-split angles of
 scratch/strategy (2026-10-10), rather than stating a property; those that name an angle of scratch/boxsplit (the
 soundness, recheck and mutants verifications of the first build, 2026-10-10) are the quals that angle asked for.  The
-quals read the 304@9 run's journal and never write it (the last qual checks that); the driver's journals and logs
+quals read the 304@9 run's journal as written (as_written: under the code its header names) and never write it (the
+last qual checks that); the driver's journals and logs
 they make go under scratch/boxsplit/quals/, wiped at the start.  About 3 CPU-minutes in all (plus q_run_on_one_leaf's
 two runs in child processes), 5 minutes of wall time beside a loaded machine; the leaf-0 tree and the two coverage
 quals are the slow ones.
 """
 import sys
 sys.dont_write_bytecode = True
-import os, json, time, random, shutil, hashlib, inspect, traceback, subprocess
+import os, json, time, random, shutil, hashlib, inspect, traceback, subprocess, contextlib
 import numpy as np
 import sympy as sp
 from sympy.matrices.normalforms import hermite_normal_form
@@ -53,6 +54,18 @@ def at(n, order):
 
 
 def leaf(i): return bx.parse_key(OPEN8[i])
+
+
+@contextlib.contextmanager
+def as_written():
+    """boxsplit configured for 304@9 with overnight_v5's CODE the one in the run's journal header, the code that wrote
+    it, so that the run's files stay fixtures as the code changes (quals_progress.as_written's way); CODE is restored
+    after."""
+    at(304, 9)
+    saved = v5.CODE
+    v5.CODE = json.loads(open(v5.JOURNAL).readline())['code']
+    try: yield
+    finally: v5.CODE = saved
 
 
 def paths(name):
@@ -269,13 +282,13 @@ def q_configure():
 
 
 def q_open_leaves():
-    # Replicata: the 304@9 run's journal, read through overnight_v5.Journal (so its header must be the current code's),
-    # then open_leaves.
+    # Replicata: the 304@9 run's journal, read through overnight_v5.Journal as written (under the code its header
+    # names), then open_leaves.
     # Expectata (regression): exactly the 8 leaves of OPEN8, in that order (the order of the run's 'open:' lines),
     # each a depth-6 node of one vector per cascade modulus; parse_key round-trips each key through node_key; a pool
     # key is not a node of vectors: parse_key raises ValueError.
-    at(304, 9)
-    journal = v5.Journal(v5.JOURNAL)
+    with as_written():
+        journal = v5.Journal(v5.JOURNAL)
     leaves = bx.open_leaves(journal)
     assert [v5.node_key(n) for n in leaves] == list(OPEN8), [v5.node_key(n) for n in leaves]
     for n in leaves:
@@ -646,13 +659,13 @@ def q_control_checks_the_extension_at_order():
 
 
 def q_solve_piece_pins_to_solve_node():
-    # Replicata: at 304@9, the bottom leaf the journal records INFEASIBLE in the fewest LP solves, at that budget plus
-    # 10; leaf 0 at budget 5 (UNKNOWN); the order-8 example's depth-6 node pinned to the example at orders 8 and 9;
-    # each through solve_piece with moments(order) and through overnight_v5.solve_node.
+    # Replicata: at 304@9, the bottom leaf the journal (read as written) records INFEASIBLE in the fewest LP solves, at
+    # that budget plus 10; leaf 0 at budget 5 (UNKNOWN); the order-8 example's depth-6 node pinned to the example at
+    # orders 8 and 9; each through solve_piece with moments(order) and through overnight_v5.solve_node.
     # Expectata: identical (verdict, sequence, {lps, leaves, proof}) each time, so solve_piece is solve_node but for
     # taking the moments as a parameter.
-    at(304, 9)
-    journal = v5.Journal(v5.JOURNAL)
+    with as_written():
+        journal = v5.Journal(v5.JOURNAL)
     cheapest = min((r['lps'], k) for k, r in journal.records.items()
                    if r['verdict'] == 'INFEASIBLE' and '#' not in k and len(k.split()) == 6)
     node8, a = example_node(8, 6)
@@ -732,15 +745,15 @@ def q_settle_refuses_a_verdict_the_driver_never_writes():
 
 
 def q_ground_truth_leaf_closes():
-    # Replicata: the journaled INFEASIBLE leaf TRUTH (13499 LP solves in the run) through close_tree at order 9 with the
-    # extension, into a fresh journal under RUNS; the journal reread.
+    # Replicata: the journaled INFEASIBLE leaf TRUTH (13499 LP solves in the run's journal, read as written) through
+    # close_tree at order 9 with the extension, into a fresh journal under RUNS; the journal reread.
     # Expectata: close_tree returns (every piece closed) with a tally of 1 box split, 1 own child, 96 pool members and
     # 186 outside nodes (regression: verify-split's bench_B13499.txt); every record is INFEASIBLE, under the leaf's
     # key, within its budget, with a 40-digit proof sha1: the own child's 67 LP solves, the pool's 96 and the outside
     # nodes' 1 each; the reread journal holds the same records.
-    at(304, 9)
+    with as_written():
+        assert v5.Journal(v5.JOURNAL).records[TRUTH]['lps'] == 13499
     node = bx.parse_key(TRUTH)
-    assert v5.Journal(v5.JOURNAL).records[TRUTH]['lps'] == 13499
     path, _ = paths('truth')
     journal, lines = bx.Journal(path), []
     tally = bx.close_tree(9, node, 0, journal, quiet(lines))

@@ -391,7 +391,7 @@ footer {
 
 <!-- Claude's chart of what is known about m*(n) for every n up to 1000, drawn by the script at the end from mstar.js -->
 <section class="mstar" aria-labelledby="mstar-title">
-  <!-- TODO: heading; says the chart shows the bounds on m*(n) for every n up to 1000 -->
+  <!-- the chart shows the bounds on m*(n) for every even n up to 1000 -->
   <h2 id="mstar-title">Bounds on <span class="nw"><i>m</i><sup>*</sup>(<i>n</i>)</span> for every even <i>n</i> up to 1000</h2>
   <!-- cell (n, m) is green when m*(n) ≥ m is known, red when m*(n) < m is proven, and gray when neither is; and that odd n are left out, because an odd number of integers can't be split into two halves of equal size, so no partition exists for any m -->
   <div class="mstar-bar">
@@ -659,7 +659,7 @@ SClaude[10][528] = {
 <script>
 // Claude's chart of m*(n) for the even n up to 1000, drawn from MSTAR, which mstar.js defines (mstar.py makes it and
 // states its contract).  Column n is green (exists) in rows m = 1 to lo, gray (open) up to hi and red (impossible) above,
-// up to row MSTAR.mtop.  Odd n get no column: an odd n has no partition at any m, as the caption says.  Pan and zoom act
+// up to row MSTAR.mtop.  Odd n get no column: an odd n has no partition at any m.  Pan and zoom act
 // on n only: the view is the interval [u0, u0 + span) of u, column n spanning u from n / 2 - 1 to n / 2.  Each device
 // pixel of the plot mixes the colors of the cells it covers, weighted by how much of it each covers, so all NCOL = 500
 // columns can show at once even where they are narrower than a pixel.
