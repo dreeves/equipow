@@ -34,7 +34,7 @@ F = [2 ** 24, 25]                             # f, the construction of length 2^
 KLABELS = list(range(10, K + 1, 10))          # the k labels below the plot
 OUTLINE = (36, 5)                             # the cell whose outline the screenshots check
 MSTAR_LAYOUT = (44, 16, 2, 14)                # the m*(n) chart's plot: left and right gutters, top, row pitch (CSS px)
-WHO = ('BGPW', 'Claude alone', 'Claude and Stan')   # the provenance labels of the page's new results
+WHO = ('BGPW', 'Claude alone', 'Claude and BGPW')   # the provenance labels of the page's new results
 RUNS = {}                                     # DRIVER's reports by configuration name, made once per process (see run)
 
 
@@ -203,7 +203,7 @@ def kinds_cols():
         L, j = divmod(k, 24)
         cols.append([k + L, norm(2 ** k, 3), ['power', L, j] if L else ['thue-morse'], ['norm', 3]])
     whys = {1: ['two'], 2: ['norm', 3], 3: ['table2'], 4: ['page', 'BGPW'], 5: ['residue', 9],
-            6: ['page', 'Claude alone'], 7: ['residue', 3], 8: ['table2'], 9: ['page', 'Claude and Stan']}
+            6: ['page', 'Claude alone'], 7: ['residue', 3], 8: ['table2'], 9: ['page', 'Claude and BGPW']}
     for k, why in whys.items(): cols[k - 1] = [k, k, ['thue-morse'], ['mstar', why]]
     joins = {24: JOIN24, 25: [[F, [2, 1]]], 34: [[[1024, 10], F]], 51: STONG}
     for k, ps in joins.items():

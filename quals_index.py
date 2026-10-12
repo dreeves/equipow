@@ -37,7 +37,7 @@ BASE = '014048c'
 # dreeves's copyedit of the chart (917fe7f): his words, which stand without a Claude: "…" attribution.  The quals hold
 # the page to them exactly, and any other English the chart shows must be Claude: "…".
 HEADING = 'Bounds on <span class="nw"><i>m</i><sup>*</sup>(<i>n</i>)</span> for every even <i>n</i> up to 1000'
-ZOOM_LABELS = ('zoom out"', 'zoom in')        # the zoom buttons' aria-labels, the stray quote as he committed it
+ZOOM_LABELS = ('zoom out', 'zoom in')         # the zoom buttons' aria-labels (he fixed a stray quote, 2026-10-11)
 CANVAS_LABEL = 'chart of the bounds on m*(n) for even n up to 1000; the arrow keys pan, and + and − zoom'
 HINT = 'Hover over a cell for details. Drag or swipe sideways to pan; zoom with the − and + buttons, pinching, or ctrl-scroll.'
 ERROR = 'Error drawing the chart: '           # the readout when the chart cannot be drawn, followed by the error
@@ -46,6 +46,7 @@ DREEVES_LINES = (f'<h2 id="mstar-title">{HEADING}</h2>',
                  '<li><span class="swatch open" aria-hidden="true"></span>open</li>',
                  f'<button type="button" id="mstar-zoom-out" aria-label=\'{ZOOM_LABELS[0]}\' title=\'Claude: "zoom out"\'>−</button>',
                  f'<button type="button" id="mstar-zoom-in" aria-label=\'{ZOOM_LABELS[1]}\' title=\'Claude: "zoom in"\'>+</button>',
+                 '<button type="button" id="mstar-reset" aria-label=\'reset zoom\' title=\'reset zoom\'>↺</button>',
                  f'<canvas id="mstar-chart" height="0" tabindex="0" role="img" aria-label=\'{CANVAS_LABEL}\'></canvas>',
                  f'<p id="mstar-readout" aria-live="polite">{HINT}</p>',
                  f'ro.textContent = `{ERROR}${{e}}`;')
@@ -57,22 +58,29 @@ DREEVES_LINES = (f'<h2 id="mstar-title">{HEADING}</h2>',
 def page(): return open(INDEX, encoding='utf-8').read()
 
 
-# The table's update of 2026-10-11, which dreeves asked for: 432, 480 and 528 gained the upper bounds the chart proves,
-# in the new results' table and in their remarks' entries.  The only edits of the page's text before the chart.
-TABLE_UPDATE = (('<td class="c">≥ 11</td>', '<td class="c">11–12</td>'),
-                ('<td class="c">≥ 12</td>', '<td class="c">12–14</td>'),
-                ('<td class="s">≥ 10</td>', '<td class="s">10–12</td>'),
-                ('<i>m</i><sup>*</sup> ≥ 11</span>', '<i>m</i><sup>*</sup> ∈ {11, 12}</span>'),
-                ('<i>m</i><sup>*</sup> ≥ 12</span>', '<i>m</i><sup>*</sup> ∈ {12, 13, 14}</span>'),
-                ('<i>m</i><sup>*</sup> ≥ 10</span>', '<i>m</i><sup>*</sup> ∈ {10, 11, 12}</span>'))
+# The page's updates of 2026-10-11, which dreeves asked for, the only edits of its text before the chart: 432, 480 and
+# 528 gained the upper bounds the chart proves, in the new results' table and in their remarks' entries; the green
+# label "Claude and Stan" became "Claude and BGPW" (BGPW includes Stan), and 528, a BGPW example with Claude's upper
+# bound, became green.  (old, new, how many times old occurs).
+TABLE_UPDATE = (('<td class="c">≥ 11</td>', '<td class="c">11–12</td>', 1),
+                ('<td class="c">≥ 12</td>', '<td class="c">12–14</td>', 1),
+                ('<td class="s">≥ 10</td>', '<td class="j">10–12</td>', 1),
+                ('<i>m</i><sup>*</sup> ≥ 11</span>', '<i>m</i><sup>*</sup> ∈ {11, 12}</span>', 1),
+                ('<i>m</i><sup>*</sup> ≥ 12</span>', '<i>m</i><sup>*</sup> ∈ {12, 13, 14}</span>', 1),
+                ('<i>m</i><sup>*</sup> ≥ 10</span>', '<i>m</i><sup>*</sup> ∈ {10, 11, 12}</span>', 1),
+                ("title='Claude and Stan'", "title='Claude and BGPW'", 4),
+                ("<td class=\"s\" title='BGPW'>528</td>", "<td class=\"j\" title='Claude and BGPW'>528</td>", 1),
+                ('◆●</span>Claude and Stan</li>', '◆●</span>Claude and BGPW</li>', 1),
+                ('<li class="s">\n      <span class="mk" aria-hidden="true">●</span>\n      <p class="entry"><i>n</i> = 528:',
+                 '<li class="j">\n      <span class="mk" aria-hidden="true">◆●</span>\n      <p class="entry"><i>n</i> = 528:', 1))
 
 
 def committed():
-    """index.html as it was before the chart (BASE), with TABLE_UPDATE's edits made (each once, asserted)."""
+    """index.html as it was before the chart (BASE), with TABLE_UPDATE's edits made (each count asserted)."""
     text = subprocess.run(['git', '-C', HERE, 'show', f'{BASE}:index.html'], capture_output=True, text=True,
                           check=True).stdout
-    for old, new in TABLE_UPDATE:
-        assert text.count(old) == 1, old
+    for old, new, count in TABLE_UPDATE:
+        assert text.count(old) == count, (old, text.count(old))
         text = text.replace(old, new)
     return text
 
@@ -487,7 +495,7 @@ def kinds_data(violation=None):
                     [1, two, ['example', 'a made-up label'], ['two']] if two <= 7 else
                     [1, 7, ['example', 'a made-up label'], ['residue', 3]])
     for n, c in ((4, [2, 2, ['product', 2, 2], ['norm', 3]]), (8, [3, 3, ['table2'], ['table2']]),
-                 (12, [2, 3, ['join', 4, 8], ['two']]), (16, [4, 4, ['page', 'BGPW'], ['page', 'Claude and Stan']]),
+                 (12, [2, 3, ['join', 4, 8], ['two']]), (16, [4, 4, ['page', 'BGPW'], ['page', 'Claude and BGPW']]),
                  (20, [3, 3, ['page', 'Claude alone'], ['two']]), (24, [4, 5, ['example', 'BGPW Table 5'], ['residue', 9]]),
                  (32, [5, 7, ['product', 16, 2], ['norm', 5]]), (48, [6, 7, ['table2'], ['norm', 7]])):
         cols[n - 1] = c
@@ -780,7 +788,7 @@ def q_citations_match_the_page():
     # results' cell titles; the remarks under "Where the new results come from", each by the n its entry lists.
     # Expectata: a ["table2"] column is one of Table 2's n; a ["page", who] column is one of the new results' n.  As
     # hiWhy, who is its cell's title (whose proof); as loWhy, its remark credits the example to who, saying
-    # "example(s) of order lo found by who." (at 496 the title credits Claude and Stan, for the proof of the upper
+    # "example(s) of order lo found by who." (at 496 the title credits Claude and BGPW, for the proof of the upper
     # bound, and the remark credits BGPW for the example).
     fig = re.search(r'<figure>.*?</figure>', page(), re.S).group(0)
     new = re.search(r'<div class="new-block">.*?</table>', fig, re.S).group(0)

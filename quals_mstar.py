@@ -214,7 +214,7 @@ def q_page_parse():
     src = mstar.page_sources(open(os.path.join(HERE, 'index.html'), encoding='utf-8').read())
     assert src['table2'] == mstar.TABLE2 and len(mstar.TABLE2) == 39
     assert src['new'] == mstar.NEW and len(mstar.NEW) == 17
-    assert set(who for _, _, who in mstar.NEW.values()) == {'BGPW', 'Claude alone', 'Claude and Stan'}
+    assert set(who for _, _, who in mstar.NEW.values()) == {'BGPW', 'Claude alone', 'Claude and BGPW'}
     assert [(m, h) for _, m, h in mstar.PAGE_CODES] == [(m, h) for m, h in src['codes']]
     assert sorted((m, n) for m, n, _ in src['sets']) == sorted(mstar.PAGE_SET_KEYS)
 
@@ -241,11 +241,11 @@ def q_explicit_sources_exact():
     # Replicata: mstar.explicit(), every explicit sequence with its label; and each source list on its own.
     # Expectata: every sequence is +-1 of its key's length; Thue-Morse tau_k has order k; BGPW's Table 4 pairs give
     # both lengths at their m; BGPW's Table 5, the page's codes and sets, and overnight_v5.EXAMPLES have exactly their
-    # stated orders (by synthetic division); every EXAMPLES entry has a label; no label credits Stan alone.
+    # stated orders (by synthetic division); every EXAMPLES entry has a label; no label names Stan (BGPW includes him).
     ex = mstar.explicit()
     for (n, label), a in ex.items():
         assert len(a) == n and set(a) <= {1, -1}, (n, label)
-        assert 'Stan' not in label or 'Claude and Stan' in label, label
+        assert 'Stan' not in label, label
     for k in range(1, 10): assert exact_order_div(mstar.thue_morse(k)) == k
     for m, ns, h in mstar.BGPW_T4:
         for n in ns: assert exact_order_div(mstar.from_rp(h, m, n)) == m, (m, n)
@@ -282,8 +282,8 @@ def q_schema():
             assert type(why) is list and why and why[0] in forms, (n, why)
             assert tuple(type(x) for x in why[1:]) == forms[why[0]], (n, why)
         assert (lw == ['none']) == (n % 2 == 1) == (hw == ['odd']), (n, c)
-        assert lw[0] != 'page' or lw[1] in ('BGPW', 'Claude alone', 'Claude and Stan'), (n, lw)
-        assert hw[0] != 'page' or hw[1] in ('BGPW', 'Claude alone', 'Claude and Stan'), (n, hw)
+        assert lw[0] != 'page' or lw[1] in ('BGPW', 'Claude alone', 'Claude and BGPW'), (n, lw)
+        assert hw[0] != 'page' or hw[1] in ('BGPW', 'Claude alone', 'Claude and BGPW'), (n, hw)
 
 
 def q_mstar_js_is_current():
@@ -343,12 +343,12 @@ def q_cited_lo_credits_whose_example():
     # Replicata: every column of mstar.js whose loWhy is ["page", who], and the page's remark whose entry lists its n.
     # Expectata: the remark credits the example to who, saying "example(s) of order lo found by who." (a cited lo's who
     # names whose example it is; a cited hi's, whose proof, which is the cell's title).  So 496's loWhy is
-    # ["page", "BGPW"], though its cell's title is 'Claude and Stan', for the proof of the upper bound; the remark
+    # ["page", "BGPW"], though its cell's title is 'Claude and BGPW', for the proof of the upper bound; the remark
     # reads "An example of order 9 found by BGPW."
     _, got = disk()
     remarks = page_remarks()
     cited = {n: c for n, c in enumerate(got['m']['cols'], 1) if c[2][0] == 'page'}
-    assert 496 in cited and mstar.NEW[496][2] == 'Claude and Stan', sorted(cited)
+    assert 496 in cited and mstar.NEW[496][2] == 'Claude and BGPW', sorted(cited)
     for n, (lo, hi, why, _) in cited.items():
         assert re.search(rf'\b[Ee]xamples? of order {lo} found by {re.escape(why[1])}\.', remarks[n]), (n, why, remarks[n])
 
