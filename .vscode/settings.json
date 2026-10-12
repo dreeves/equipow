@@ -1,3 +1,8 @@
 {
-    "liveServer.settings.port": 5501
+    "liveServer.settings.port": 5501,
+    "liveServer.settings.ignoreFiles": [
+        ".vscode/**", "**/*.scss", "**/*.sass", "**/*.ts", "node_modules/**", "venv/**", ".venv/**",
+        "**/*.log", "**/*.err", "**/*.jsonl", "**/*.tmp", "progress.html", ".progress_cache.json",
+        "scratch/**", "**/__pycache__/**"
+    ]
 }
