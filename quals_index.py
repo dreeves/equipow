@@ -51,6 +51,8 @@ DREEVES_LINES = (f'<h2 id="mstar-title">{HEADING}</h2>',
                  '<h2 id="pow2-title">Bounds on <span class="nw"><i>m</i><sup>*</sup>(2<sup><i>k</i></sup>) − <i>k</i></span> for every <i>k</i> up to 72</h2>',
                  '<div id="pow2-chart" role="img" aria-label=\'Chart of the bounds on m*(2^k) − k, the excess over Thue–Morse, for k from 1 to 72\'></div>',
                  '<p id="pow2-readout" aria-live="polite">Hover over a cell for details.</p>',
+                 # the powers-of-2 chart's legend repeats his "open" line, copied from this chart's (2026-10-12)
+                 '<li><span class="swatch open" aria-hidden="true"></span>open</li>',
                  f'<canvas id="mstar-chart" height="0" tabindex="0" role="img" aria-label=\'{CANVAS_LABEL}\'></canvas>',
                  f'<p id="mstar-readout" aria-live="polite">{HINT}</p>',
                  f'ro.textContent = `{ERROR}${{e}}`;')
@@ -83,7 +85,10 @@ TABLE_UPDATE = (('<td class="c">≥ 11</td>', '<td class="c">11–12</td>', 1),
                 ('<i>n</i> = 2<sup>24</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ≥ 25</span>',
                  '<i>n</i> = 2<sup>24</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {25, …, 29}</span>', 1),
                 ('<i>n</i> = 2<sup>51</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ≥ 53</span>',
-                 '<i>n</i> = 2<sup>51</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {54, …, 63}</span>', 1))
+                 '<i>n</i> = 2<sup>51</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {54, …, 63}</span>', 1),
+                # the powers of 2's own table, flush under the first (2026-10-12); its titles reuse the legend's labels
+                ('          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="c">8</td><td class="s">9</td><td class="j">10</td><td class="s">9</td><td class="s">9</td><td class="s">9</td><td class="s">9</td><td class="c">11–12</td><td class="c">9</td><td class="s">9</td><td class="c">12–14</td><td class="j">9</td><td class="c">9</td><td class="j">10–12</td><td class="c">10–12</td></tr>\n        </table>\n',
+                 '          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="c">8</td><td class="s">9</td><td class="j">10</td><td class="s">9</td><td class="s">9</td><td class="s">9</td><td class="s">9</td><td class="c">11–12</td><td class="c">9</td><td class="s">9</td><td class="c">12–14</td><td class="j">9</td><td class="c">9</td><td class="j">10–12</td><td class="c">10–12</td></tr>\n        </table>\n        <table class="block">\n          <tr class="ns"><th scope="row"><i>n</i></th><td class="j" title=\'Claude and BGPW\'>2<sup>24</sup></td><td class="c" title=\'Claude alone\'>2<sup>33</sup></td><td class="c" title=\'Claude alone\'>2<sup>49</sup></td><td class="j" title=\'Claude and BGPW\'>2<sup>51</sup></td><td class="c" title=\'Claude alone\'>2<sup>57</sup></td><td class="c" title=\'Claude alone\'>2<sup>67</sup></td></tr>\n          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="j">25–29</td><td class="c">35–41</td><td class="c">52–61</td><td class="j">54–63</td><td class="c">61–71</td><td class="c">72–83</td></tr>\n', 1))
 
 
 def committed():

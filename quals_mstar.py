@@ -210,10 +210,11 @@ def q_norm_formula():
 def q_page_parse():
     # Replicata: mstar.page_sources on index.html as it is.
     # Expectata: Table 2 and the new-results block exactly as hand-copied into mstar.py (TABLE2, NEW, with each new
-    # cell's title), the codes and the sets with their orders; Table 2 has the paper's 39 entries and NEW 17.
+    # cell's title), the codes and the sets with their orders; Table 2 has the paper's 39 entries and NEW 21 (17 until
+    # 2026-10-12, when 2^33, 2^49, 2^57 and 2^67 joined the powers of 2).
     src = mstar.page_sources(open(os.path.join(HERE, 'index.html'), encoding='utf-8').read())
     assert src['table2'] == mstar.TABLE2 and len(mstar.TABLE2) == 39
-    assert src['new'] == mstar.NEW and len(mstar.NEW) == 17
+    assert src['new'] == mstar.NEW and len(mstar.NEW) == 21
     assert set(who for _, _, who in mstar.NEW.values()) == {'BGPW', 'Claude alone', 'Claude and BGPW'}
     assert [(m, h) for _, m, h in mstar.PAGE_CODES] == [(m, h) for m, h in src['codes']]
     assert sorted((m, n) for m, n, _ in src['sets']) == sorted(mstar.PAGE_SET_KEYS)
