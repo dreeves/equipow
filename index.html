@@ -414,8 +414,13 @@ footer {
 <!-- Claude's chart of what is known about m*(2^k) − k, the excess over Thue–Morse, for every k up to 72, drawn by the script at the end from pow2.js -->
 <section class="pow2" aria-labelledby="pow2-title">
   <h2 id="pow2-title">Bounds on <span class="nw"><i>m</i><sup>*</sup>(2<sup><i>k</i></sup>) − <i>k</i></span> for every <i>k</i> up to 72</h2>
-  <!-- TODO: caption; says column k is n = 2^k, where Thue–Morse has order k, an excess of 0, and row e is order k + e, an excess of e; that cell (k, e) is green when m*(2^k) ≥ k + e is known, red when m*(2^k) < k + e is proven, and gray when neither is; and that in the readout f is the construction of length 2^24 and order 25 in the remarks below -->
-  <p class="pow2-caption">Claude: "Column <i>k</i> is <span class="nw"><i>n</i> = 2<sup><i>k</i></sup></span>, where Thue–Morse has order <i>k</i>, an excess of 0; row <i>e</i> is order <span class="nw"><i>k</i> + <i>e</i></span>, an excess of <i>e</i>. Cell (<i>k</i>, <i>e</i>) is green when <span class="nw"><i>m</i><sup>*</sup>(2<sup><i>k</i></sup>) ≥ <i>k</i> + <i>e</i></span> is known, red when <span class="nw"><i>m</i><sup>*</sup>(2<sup><i>k</i></sup>) &lt; <i>k</i> + <i>e</i></span> is proven, and gray when neither is. In the readout, <i>f</i> is the construction of length 2<sup>24</sup> and order 25 in the remarks below."</p>
+  <!-- TODO: caption; says column k is n = 2^k, where Thue–Morse has order k, an excess of 0, and row e is order k + e, an excess of e; that cell (k, e) is green when m*(2^k) ≥ k + e is known, red when m*(2^k) < k + e is proven, and gray when neither is; and that in the readout f is the construction of length 2^24 and order 25 in the remarks below, τ_j is Thue–Morse of length 2^j, and p_n is a sequence of length n whose order is the lower bound in column n of the chart above -->
+  <p class="pow2-caption">Claude: "Column <i>k</i> is <span class="nw"><i>n</i> = 2<sup><i>k</i></sup></span>, where Thue–Morse has order <i>k</i>, an excess of 0; row <i>e</i> is order <span class="nw"><i>k</i> + <i>e</i></span>, an excess of <i>e</i>. Cell (<i>k</i>, <i>e</i>) is green when <span class="nw"><i>m</i><sup>*</sup>(2<sup><i>k</i></sup>) ≥ <i>k</i> + <i>e</i></span> is known, red when <span class="nw"><i>m</i><sup>*</sup>(2<sup><i>k</i></sup>) &lt; <i>k</i> + <i>e</i></span> is proven, and gray when neither is. In the readout, <i>f</i> is the construction of length 2<sup>24</sup> and order 25 in the remarks below, τ<sub><i>j</i></sub> is Thue–Morse of length 2<sup><i>j</i></sup>, and <i>p</i><sub><i>n</i></sub> is a sequence of length <i>n</i> whose order is the lower bound in column <i>n</i> of the chart above."</p>
+  <ul class="legend">
+    <li><span class="swatch exists" aria-hidden="true"></span><span class="nw"><i>k</i> + <i>e</i> ≤ <i>m</i><sup>*</sup>(2<sup><i>k</i></sup>)</span></li>
+    <li><span class="swatch open" aria-hidden="true"></span>open</li>
+    <li><span class="swatch impossible" aria-hidden="true"></span><span class="nw"><i>k</i> + <i>e</i> &gt; <i>m</i><sup>*</sup>(2<sup><i>k</i></sup>)</span></li>
+  </ul>
   <div id="pow2-chart" role="img" aria-label='Chart of the bounds on m*(2^k) − k, the excess over Thue–Morse, for k from 1 to 72'></div>
   <p id="pow2-readout" aria-live="polite">Hover over a cell for details.</p>
 </section>
@@ -939,8 +944,8 @@ try {
 // it and states its contract).  Column k is n = 2^k; row e is order k + e, an excess of e over Thue–Morse's order k.
 // Cell (k, e) is green (exists) when k + e <= lo, gray (open) when lo < k + e <= hi, and red (impossible) above, up to
 // row E = POW2.etop.  The plot is one svg with a rect per cell, its viewBox K columns wide and E * ROW px tall,
-// stretched to the plot's width; a cell reads itself out when a pointer enters it, a mouse hovering or a finger
-// tapping.
+// stretched to the plot's width; a cell reads itself out when the mouse enters it: a mouse hovering, or a finger
+// tapping (a tap sends the mouse events, a swipe that scrolls the page sends none).
 (() => {
 const chart = document.getElementById('pow2-chart'), ro = document.getElementById('pow2-readout');
 try {
@@ -1060,6 +1065,10 @@ try {
   const el = (tag, cls, text) => Object.assign(document.createElement(tag), {className: cls, textContent: text});
   const at = (node, style) => { Object.assign(node.style, style); return node; };
   const nw = (...parts) => { const s = el('span', 'nw', ''); s.append(...parts); return s; };   // no wrap
+  // A text as the readout's nodes: each run of sub's subscript digits becomes a <sub> of plain digits, which the page's
+  // font draws; it has no glyphs for U+2080–2089, and the fallback fonts that drew them differed from digit to digit.
+  const subbed = s => s.split(/([₀-₉]+)/).map((t, i) => i % 2
+    ? el('sub', '', [...t].map(d => '₀₁₂₃₄₅₆₇₈₉'.indexOf(d)).join('')) : t);
   const svg = document.createElementNS(NS, 'svg'), outline = el('div', 'pow2-outline', ''), swatch = el('span', '', '');
   svg.setAttribute('viewBox', `0 0 ${K} ${E * ROW}`);
   svg.setAttribute('preserveAspectRatio', 'none');
@@ -1074,7 +1083,7 @@ try {
       nw(el('i', '', 'k'), ` = ${k}, `, el('i', '', 'n'), ' = ', ...two(), ', ', el('i', '', 'm'),
          ` = ${k} + ${e} = ${k + e}`),
       ' · ', MEANING[kind], ' · ', nw(`${lo} ≤ `, el('i', '', 'm'), el('sup', '', '*'), '(', ...two(), `) ≤ ${hi}`),
-      ' · ', [[why[0]], why, [why[1]]][kind].map(f => f()).join(' · '));
+      ' · ', ...subbed([[why[0]], why, [why[1]]][kind].map(f => f()).join(' · ')));
     at(outline, {left: `calc(${(k - 1) / K * 100}% - 2px)`, width: `calc(${100 / K}% + 4px)`,
                  top: `${(E - e) * ROW - 2}px`, height: `${ROW - GAP + 4}px`});
     outline.hidden = false;
@@ -1083,7 +1092,7 @@ try {
     const r = document.createElementNS(NS, 'rect');
     const attributes = {x: k - 1, y: (E - e) * ROW, width: 1, height: ROW - GAP, class: KIND[kindOf(k, e)]};
     for (const [a, v] of Object.entries(attributes)) r.setAttribute(a, v);
-    r.addEventListener('pointerenter', () => select(k, e));
+    r.addEventListener('mouseenter', () => select(k, e));
     svg.append(r);
   }
   // The axes: every e left of the plot, beside the letter e; below it, the letter k and every tenth k under its column

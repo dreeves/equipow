@@ -39,6 +39,10 @@ OPEN8 = (
     "3:[51,10,91] 5:[18,43,18,43,30] 4:[38,38,38,38] 7:[15,22,29,25,25,18,18] 8:[21,21,21,21,17,17,17,17] 9:[17,2,29,17,5,32,17,3,30]",
     "3:[51,10,91] 5:[18,18,43,43,30] 4:[38,38,38,38] 7:[29,22,15,18,18,25,25] 8:[17,17,17,21,21,21,21,17] 9:[17,2,29,17,5,32,17,3,30]",
 )
+# The 304@9 journal's lines before the handoff (2026-10-10 17:25), which appended the CLOSED records of OPEN8's leaves
+# that the driver closed, in OPEN8's order, before overnight_v5.py's last pass closed their ancestors (regression: the
+# copy scratch/boxsplit/overnight_v5_304_9_journal.before_handoff.jsonl has these lines).
+HANDOFF = 8932
 # A bottom leaf the journal records INFEASIBLE at 13499 LP solves (the verify-split angle's ground truth).
 TRUTH = "3:[51,10,91] 5:[18,43,18,43,30] 4:[38,38,38,38] 7:[15,22,29,25,25,18,18] 8:[17,21,17,21,21,17,21,17] 9:[17,2,29,17,5,32,17,3,30]"
 RAMP = (17, 16, 15, 14, 13, 12, 11, 15, 14, 13, 12)       # leaf 0's two own children by 11 (regression)
@@ -282,13 +286,21 @@ def q_configure():
 
 
 def q_open_leaves():
-    # Replicata: the 304@9 run's journal, read through overnight_v5.Journal as written (under the code its header
-    # names), then open_leaves.
-    # Expectata (regression): exactly the 8 leaves of OPEN8, in that order (the order of the run's 'open:' lines),
-    # each a depth-6 node of one vector per cascade modulus; parse_key round-trips each key through node_key; a pool
-    # key is not a node of vectors: parse_key raises ValueError.
+    # Replicata: the 304@9 run's journal cut before the handoff (its first HANDOFF lines, copied under RUNS) and the
+    # whole journal, each read through overnight_v5.Journal as written (under the code its header names), then
+    # open_leaves.
+    # Expectata (regression): before the handoff, exactly the 8 leaves of OPEN8, in that order (the order of the run's
+    # 'open:' lines), each a depth-6 node of one vector per cascade modulus; parse_key round-trips each key through
+    # node_key; a pool key is not a node of vectors: parse_key raises ValueError.  The whole journal: the cut's lines,
+    # then the 8 leaves' CLOSED records in OPEN8's order, and no open leaf.
+    cut = os.path.join(RUNS, 'before_handoff_journal.jsonl')
     with as_written():
-        journal = v5.Journal(v5.JOURNAL)
+        lines = open(v5.JOURNAL).read().splitlines()
+        open(cut, 'w').write(''.join(line + '\n' for line in lines[:HANDOFF]))
+        journal, whole = v5.Journal(cut), v5.Journal(v5.JOURNAL)
+    assert [json.loads(line) for line in lines[HANDOFF:HANDOFF + 8]] == [
+        {'key': k, 'verdict': 'CLOSED', 'budget': v5.node_budget(bx.parse_key(k))} for k in OPEN8]
+    assert bx.open_leaves(whole) == []
     leaves = bx.open_leaves(journal)
     assert [v5.node_key(n) for n in leaves] == list(OPEN8), [v5.node_key(n) for n in leaves]
     for n in leaves:

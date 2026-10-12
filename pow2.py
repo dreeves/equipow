@@ -12,6 +12,18 @@ sweep and claim, and states the two lemmas; this file uses them in its sense, an
            112 * 320^2 + 432 * 48 * 2^8 = 2^24, order min(7 + 9 + 9, 11 + 6 + 8) = 25 by BGPW's Theorem 4.1
            (Multiplication and Addition), the blocks' orders from mstar.js.  F_PRODUCTS below; f^{#L} is f # ... # f,
            L factors: length 2^(24L), order 25L.
+  atom     a block (n, lo(n)), n <= 1000, that no single join or product of shorter columns' closure values reaches
+           (closure: the best orders that joins and products of the columns reach, length by length).
+  search   scratch/pow2/scan.py (not run here), which found BASES (but BASES[67], found by the same search written again
+           independently, scratch/pow2/verify/p2v_e5.py): for an excess e and a K, is 2^K a join of products
+           of blocks, each of order >= K + e?  By distributivity (a # (b v c) and (b v c) # a have the lengths and
+           orders of (a # b) v (a # c)), any expression in joins and products of blocks is matched, length for length
+           and with orders at least as high, by a join of products of atoms (f too).  Such a product is a core (its
+           atoms other than tau_1) times tau_1^j; its order >= K + e and length <= 2^K make the core's excess >= e;
+           the shortest such product with a given core has length L 2^max(0, K + e - O) (its coin; L and O the core's
+           length and order), and any longer one is 2^i times as long, the length of 2^i coins.  So 2^K is such a join
+           exactly when it is a sum of coins (each any number of times), which shortest paths on residues modulo the
+           least coin decide exactly; the search enumerates every core with L <= 2^K and excess >= e.
 
 The data contract.  pow2.js is a classic script (no modules, so the page also works from file://) defining one global:
     const POW2 = {"kmax": 72, "etop": E, "cols": [[lo, hi, loWhy, hiWhy], ...]};
@@ -48,10 +60,61 @@ JS = os.path.join(HERE, 'pow2.js')
 F = [2 ** 24, 25]
 F_PRODUCTS = [[[112, 7], [320, 9], [320, 9]], [[432, 11], [48, 6], [256, 8]]]
 RESIDUE_CAP = 10 ** 8                        # nodes allowed to the enumeration of one claim
-# RESIDUE[k] = (m, chain, sweep): the claims at n = 2^k, each checked by mstar.chain_none on every run.
+# RESIDUE[k] = (m, chain, sweep): the claims at n = 2^k, each checked by mstar.chain_none on every run.  None yet.
+# Tried (scratch/pow2/res/) at 1024, order 11 (the norm bound for 3 allows 11): the chains (3), (3, 9), (4, 8),
+# (4, 8, 16), (5), (7), (11) and (13) each have an admissible vector (mod 3 exactly +-(0, 243, -243), which is
+# x^2 (x-1)^11 mod x^3 - 1); (3, 9, 27) in the sweep 'digits' passed 3 * 10^7 nodes unfinished (660654 admissible
+# vectors mod 9, and each of the first 58 of them alone passed 3 * 10^5 nodes mod 27); (31) and (5, 25) passed
+# 2 * 10^6 nodes unfinished.
 RESIDUE = {}
-# JOINS[k]: a join of products at 2^k, found by the search in scratch/pow2/, checked here on every run.
-JOINS = {}
+# BASES[K0]: a join of products at 2^K0, each product a list of blocks, of order K0 + e, found by the docstring's
+# search.  From blocks with sequences in hand (mstar.explicit_lo): for e = 2, 3 and 4, at the first K0 the search
+# reaches e (no K below it reaches e, exhaustively); for e = 5 at 72, and no K below 72 reaches 5 (mod 3, below).  From
+# all of mstar.js's blocks, the cited ones too: e = 4 at 57 and e = 5 at 67, the first K0 that reaches each
+# (exhaustively; for 5 also mod 3), with columns that the page cites as BGPW's examples (mstar.js's ["page", "BGPW"])
+# at order 9: 352 and 464 in BASES[57], 400 in BASES[67].  Those two come last, so that wherever one ties a base with
+# sequences in hand (BASES[57] at every k >= 59, BASES[67] at 72), the base in hand wins.  Mod 3 (checked by
+# scratch/pow2/fix/mod3.py): 3 does not divide 2^K, so some product of the join has length prime to 3, a product of
+# 3-free blocks whose core has excess >= e.  For e = 5 and K <= 72, every such product that fits in 2^K is longer than
+# 2^(K-1), so the join has exactly one, of a length that must be 2^K's residue mod 3, and none has it for K <= 66 (all
+# blocks) or K <= 71 (blocks in hand); and no such core has excess 6 within 2^72, so no K <= 72 reaches e = 6.  At
+# every k >= K0 the same join, each product times tau_(k - K0), is a candidate for lo (lifted); join_lo checks it on
+# every run.
+BASES = {33: [[[208, 8], [320, 9], [320, 9], [320, 9]],
+              [[336, 10], [336, 10], [336, 10], [32, 5]],
+              [[304, 8], [480, 12], [480, 12], [8, 3]]],
+         49: [[[112, 7], [320, 9], [320, 9], [320, 9], [320, 9], [320, 9]],
+              [[40, 5], [112, 7], [320, 9], [320, 9], [320, 9], [480, 12], [2, 1]],
+              [[272, 8], [336, 10], [336, 10], [336, 10], [432, 11], [8, 3]],
+              [[208, 8], [208, 8], [480, 12], [480, 12], [480, 12]],
+              [[192, 9], [336, 10], [336, 10], [432, 11], [480, 12]],
+              [[12, 3], [480, 12], [480, 12], [480, 12], [480, 12], [2, 1]]],
+         59: [[[208, 8], [320, 9], [320, 9], [320, 9], [320, 9], [320, 9], [320, 9], [2, 1]],
+              [[112, 7], [208, 8], [320, 9], [320, 9], [320, 9], [320, 9], [480, 12]],
+              [[112, 7], [320, 9], [320, 9], [480, 12], [480, 12], [480, 12], [4, 2]],
+              [[192, 9], [192, 9], [336, 10], [432, 11], [432, 11], [432, 11], [4, 2]],
+              [[192, 9], [248, 7], [432, 11], [480, 12], [480, 12], [480, 12]],
+              [[144, 8], [192, 9], [432, 11], [432, 11], [480, 12], [480, 12]]],
+         72: [[[40, 5], [320, 9], [320, 9], [320, 9], [320, 9], [320, 9], [320, 9], [320, 9], [320, 9]],
+              [[88, 6], [320, 9], [320, 9], [320, 9], [320, 9], [320, 9], [480, 12], [480, 12], [4, 2]],
+              [[192, 9], [192, 9], [192, 9], [208, 8], [336, 10], [336, 10], [432, 11], [432, 11]],
+              [[192, 9], [208, 8], [432, 11], [432, 11], [432, 11], [432, 11], [480, 12], [16, 4]],
+              [[320, 9], [320, 9], [320, 9], [480, 12], [480, 12], [480, 12], [480, 12], [4, 2]],
+              [[272, 8], [320, 9], [480, 12], [480, 12], [480, 12], [480, 12], [480, 12]],
+              [[192, 9], [192, 9], [336, 10], [480, 12], [480, 12], [480, 12], [480, 12], [2, 1]]],
+         57: [[[112, 7], [320, 9], [320, 9], [320, 9], [320, 9], [320, 9], [352, 9]],
+              [[192, 9], [208, 8], [304, 8], [464, 9], [480, 12], [480, 12], [8, 3]],
+              [[192, 9], [192, 9], [336, 10], [432, 11], [432, 11], [432, 11]],
+              [[40, 5], [240, 10], [336, 10], [480, 12], [480, 12], [480, 12]],
+              [[432, 11], [480, 12], [480, 12], [480, 12], [480, 12], [4, 2]]],
+         67: [[[320, 9], [320, 9], [320, 9], [320, 9], [320, 9], [320, 9], [320, 9], [400, 9]],
+              [[320, 9], [320, 9], [320, 9], [320, 9], [320, 9], [480, 12], [480, 12], [8, 3]],
+              [[112, 7], [320, 9], [320, 9], [320, 9], [480, 12], [480, 12], [480, 12], [4, 2]],
+              [[192, 9], [336, 10], [336, 10], [432, 11], [432, 11], [432, 11], [528, 10]],
+              [[432, 11], [432, 11], [432, 11], [480, 12], [480, 12], [480, 12], [16, 4]],
+              [[320, 9], [480, 12], [480, 12], [480, 12], [480, 12], [480, 12], [8, 3]],
+              [[432, 11], [480, 12], [480, 12], [480, 12], [480, 12], [480, 12], [2, 1]],
+              [[96, 7], [480, 12], [480, 12], [480, 12], [480, 12], [480, 12], [480, 12]]]}
 
 
 # ---------- mstar.js ----------
@@ -94,6 +157,16 @@ def power_products(k, L, j):
     assert L >= 1 and 0 <= j < 24 and 24 * L + j == k, (k, L, j)
     assert join_lo(24, F_PRODUCTS) == F[1]
     return [[F] * L + [[2 ** j, j]]]
+
+
+def lifted(products, j):
+    """A join of products with each product times tau_j, the tau factors of each merged into one (tau_a # tau_b =
+    tau_(a+b): lengths 2^a 2^b, orders a + b) and tau_0, of length 1, left out."""
+    out = []
+    for p in products:
+        t = j + sum(m for n, m in p if n == 2 ** m)
+        out.append([b for b in p if b[0] != 2 ** b[1]] + [[2 ** t, t]] * (t > 0))
+    return out
 
 
 LO_RULES = {'thue-morse': lambda k: [[[2 ** k, k]]], 'power': power_products, 'joins': lambda k, ps: ps}
@@ -152,14 +225,15 @@ def hi_of(k, why): return HI_RULES[why[0]](k, *why[1:])
 
 @lru_cache(maxsize=None)
 def columns():
-    """[lo, hi, loWhy, hiWhy] for k = 1..KMAX (index k-1): lo the best of Thue-Morse, f^{#L} # tau_j and JOINS[k]; hi
+    """[lo, hi, loWhy, hiWhy] for k = 1..KMAX (index k-1): lo the best of Thue-Morse, f^{#L} # tau_j and BASES lifted; hi
     the least of mstar.js's column 2^k (k <= 9), the norm lemma for each of NORM_PRIMES and the claim RESIDUE[k].
     Asserts k + floor(k/24) <= lo <= hi, that no prime beyond NORM_PRIMES gives a lower norm bound, and lo = hi = k
     = mstar.js's lo and hi for k <= 9."""
     out = []
     for k in range(1, KMAX + 1):
         L, j = divmod(k, 24)
-        los = [['thue-morse']] + [['power', L, j]] * (L >= 1) + [['joins', ps] for q, ps in JOINS.items() if q == k]
+        los = ([['thue-morse']] + [['power', L, j]] * (L >= 1)
+               + [['joins', lifted(ps, k - K0)] for K0, ps in BASES.items() if K0 <= k])
         his = ([['mstar', c[3]] for n, c in enumerate(mstar_cols(), 1) if n == 2 ** k] + [['norm', p] for p in NORM_PRIMES]
                + [['residue', list(ch)] for q, (_, ch, _) in RESIDUE.items() if q == k])
         lw, hw = max(los, key=lambda w: lo_of(k, w)), min(his, key=lambda w: hi_of(k, w))

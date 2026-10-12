@@ -151,8 +151,8 @@ NEW = {304: (8, 8, 'Claude alone'), 320: (9, 9, 'BGPW'), 336: (10, 10, 'Claude a
 # is that cited value (no sequence of that order is here; columns() asserts that these are exactly those n).  A cited
 # lo's ["page", who] names whose example it is, and a cited hi's whose proof, the cell's title.  At 496 they differ:
 # the title is 'Claude and BGPW', for the proof of the upper bound, and the remark reads "An example of order 9 found
-# by BGPW."
-EXAMPLE_BY = {352: 'BGPW', 368: 'BGPW', 400: 'BGPW', 464: 'BGPW', 496: 'BGPW'}
+# by BGPW."  Empty since 2026-10-12: FOUND made every such lo explicit (352, 368, 400, 464 and 496 had been cited).
+EXAMPLE_BY = {}
 # CITED[n]: the page's values at n as (lo, hi, hiWhy), Table 2's first, then the new results'
 CITED = {}
 for _n, (_lo, _hi) in TABLE2.items(): CITED.setdefault(_n, []).append((_lo, _hi, ['table2']))
@@ -168,6 +168,14 @@ PAGE_CODES = (('index.html p320', 9, 'B24B649ED92CD2C36496CB2DB6295D974138BA41')
               ('index.html p192', 9, 'C1BE1E21CD63D295A7887A59'),
               ('index.html p112', 7, 'A5994DB29B45A0'),
               ('index.html p48', 6, 'C27D8C'))
+# Claude's own examples of order 9 at the lengths where the page credits BGPW's (352, 368, 400, 464 and 496), found on
+# 2026-10-12 by a CP-SAT search (scratch/lower24-design/wider/), as (n, m, hex) in overnight_v5.from_hex's convention;
+# BGPW's examples came first, as the page says.  Their label is 'found here', as brute force's.
+FOUND = ((352, 9, '969E4C06F693B61B683699E934D241A6DB4936D7CDA6'),
+         (368, 9, 'B449E6A1DB4AB5A123D2DB84B7592CB2496596DB64B4C9'),
+         (400, 9, 'A70B2F45D60B4BE22CD2DE51B49B4924DB6D26D349A6926DB4'),
+         (464, 9, '8EA4DC62B3DF10709957C395683E3A4D369A6F30DA6984D36D86934C26'),
+         (496, 9, 'C2BAD83D5017FA285E3D82ED96135DA2394EB48A6D349E6994D349B6D34DA7'))
 # The sets of the page's section "Claude's examples as sets", as (m, n) for SClaude[m][n], in page order
 PAGE_SET_KEYS = ((9, 320), (9, 336), (11, 432), (9, 448), (12, 480), (10, 528))
 
@@ -282,8 +290,9 @@ def brute(n):
 def explicit():
     """Every explicit sequence, as {(n, label): sequence}, in this order of preference: Thue-Morse, BGPW's Table 4,
     BGPW's Table 5 (arXiv v1, and the published one through overnight_v5.EXAMPLES), the page's codes, the page's sets,
-    the rest of overnight_v5.EXAMPLES, and brute force ("found here", order >= 1 only).  Each sequence's exact order
-    is asserted equal to what its source says; at a repeated (n, label) the one of higher order stays."""
+    the rest of overnight_v5.EXAMPLES, brute force ("found here", order >= 1 only) and FOUND ("found here").  Each
+    sequence's exact order is asserted equal to what its source says; at a repeated (n, label) the one of higher order
+    stays."""
     src = page_sources(open(PAGE, encoding='utf-8').read())
     v5_bgpw = [(k, h) for k, h in v5.EXAMPLES.items() if EXAMPLE_LABELS[k] == 'BGPW Table 5']
     v5_rest = [(k, h) for k, h in v5.EXAMPLES.items() if EXAMPLE_LABELS[k] != 'BGPW Table 5']
@@ -296,7 +305,9 @@ def explicit():
                + [(label, m, v5.from_hex(h, m)) for label, m, h in PAGE_CODES]
                + [(f'index.html SClaude[{m}][{n}]', m, from_set(S, n)) for m, n, S in src['sets']]
                + [(EXAMPLE_LABELS[n, m], m, v5.from_hex(h, m)) for (n, m), h in v5_rest]
-               + [('found here', *brute(n)) for n in range(1, BRUTE_MAX + 1) if brute(n)[0] >= 1])
+               + [('found here', *brute(n)) for n in range(1, BRUTE_MAX + 1) if brute(n)[0] >= 1]
+               + [('found here', m, v5.from_hex(h, m)) for n, m, h in FOUND])
+    assert all(len(v5.from_hex(h, m)) == n for n, m, h in FOUND)
     out, orders = {}, {}
     for label, m, a in entries:
         assert order(a) == m, (label, len(a), m)
@@ -453,7 +464,8 @@ RESIDUE = {24: (5, (5, 25), 'digits'), 40: (6, (3,), 'digits'), 48: (7, (5, 25),
            576: (13, (5,), 'digits'), 608: (11, (3,), 'digits'), 624: (13, (5, 25), 'natural'),
            640: (11, (3,), 'digits'), 656: (11, (3,), 'digits'), 672: (14, (5,), 'digits'), 688: (11, (3,), 'digits'),
            704: (11, (3,), 'digits'), 720: (15, (16,), 'digits'), 736: (11, (3, 9), 'digits'),
-           768: (14, (5,), 'digits'), 864: (15, (5,), 'digits'), 912: (14, (5,), 'digits'), 960: (16, (7,), 'digits')}
+           768: (14, (5,), 'digits'), 784: (11, (3, 9, 27), 'digits'), 864: (15, (5,), 'digits'),
+           912: (14, (5,), 'digits'), 960: (16, (7,), 'digits')}
 
 
 # ---------- the columns ----------

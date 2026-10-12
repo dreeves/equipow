@@ -6,7 +6,8 @@ Each qual is a function q_*: a passing qual returns, a failing one raises.  Each
 replicata (the setup) and expectata (what must happen); a failure's message or traceback gives the resultata
 (what happened instead).  Where a qual checks pow2.py's arithmetic it does so by an independent route: mstar.js and
 pow2.js as node sees them (not pow2.py's parse), the norm lemma's class sizes as n // p + (r < n % p) and against
-mstar.norm, lengths multiplied out here, and residue claims enumerated again, also by overnight_v5.admissible.
+mstar.norm, lengths multiplied out here, orders of the blocks' sequences by synthetic division, and residue claims
+enumerated again.  Quals marked "regression" pin numbers found earlier rather than stating a property.
 """
 import sys
 sys.dont_write_bytecode = True
@@ -14,7 +15,6 @@ import os, json, math, time, subprocess, traceback, itertools
 from functools import lru_cache
 import sympy as sp
 import mstar
-import overnight_v5 as v5
 import pow2
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -82,6 +82,15 @@ def block_order(b):
     return m
 
 
+def exact_order_div(a):
+    """The order of a sequence by synthetic division by x - 1 in exact integers (independent of mstar.order's power
+    sums): f = (x-1) g has g_k = -(f_0 + ... + f_k), and the sign is irrelevant."""
+    c, m = list(a), 0
+    while sum(c) == 0:
+        c, m = list(itertools.accumulate(c[:-1])), m + 1
+    return m
+
+
 def length(p):
     out = 1
     for n, _ in p: out *= n
@@ -129,6 +138,41 @@ def q_lo_at_least_thue_morse_and_f_powers():
         assert lo >= k + k // 24, (k, lo)
         assert lw[0] == 'joins' or lo == k + k // 24, (k, lo, lw)
         assert lw[0] != 'joins' or lo > k + k // 24, (k, lo, lw)
+
+
+def q_new_lower_bounds():
+    # Replicata (regression): pow2.js's lo - k, the excess known at 2^k, for k = 1..72, and the kind of its loWhy.
+    # Expectata: 0 by Thue-Morse for k <= 23; 1 by f # tau_j for 24..32; 2 for 33..48 (joins from pow2.BASES[33],
+    # but f # f at 48, where the two tie); 3 by joins for 49..56; 4 by joins for 57..66 (from BASES[57] at 57 and 58,
+    # and from BASES[59], with sequences in hand, from 59); 5 by joins for 67..72 (from BASES[67] up to 71, and from
+    # BASES[72], with sequences in hand, at 72).  The bases are at 2^33 order 35, 2^49 order 52, 2^57 order 61, 2^59
+    # order 63, 2^67 order 72 and 2^72 order 77, each lifted by tau_(k - K0) above.
+    want = {k: 0 if k < 24 else 1 if k < 33 else 2 if k < 49 else 3 if k < 57 else 4 if k < 67 else 5
+            for k in range(1, KMAX + 1)}
+    kind = {k: 'thue-morse' if k < 24 else 'power' if k < 33 or k == 48 else 'joins' for k in range(1, KMAX + 1)}
+    for k, (lo, hi, lw, hw) in enumerate(cols(), 1): assert (lo - k, lw[0]) == (want[k], kind[k]), (k, lo, lw[0])
+    orders = {K0: pow2.join_lo(K0, ps) for K0, ps in pow2.BASES.items()}
+    assert orders == {33: 35, 49: 52, 57: 61, 59: 63, 67: 72, 72: 77}, orders
+    pairs = ((57, 57), (58, 57), (59, 59), (66, 59), (67, 67), (71, 67), (72, 72))
+    assert [cols()[k - 1][2][1] == pow2.lifted(pow2.BASES[K0], k - K0) for k, K0 in pairs] == [True] * len(pairs)
+
+
+def q_base_blocks_and_their_sources():
+    # Replicata: every block of every product of pow2.BASES other than tau_j, n <= 1000: mstar.js's lo and loWhy at n,
+    # mstar's explicit lo (sequences in hand only, no citation), and the order of mstar.build(n), the sequence behind
+    # it, by synthetic division here.
+    # Expectata: mstar.js's lo is the block's order everywhere.  Every block of every base but BASES[57] and BASES[67]
+    # has a sequence in hand of exactly that order (explicit lo and the built sequence's order equal it), so those
+    # bases are built from sequences in hand by BGPW's Theorem 4.1; besides such blocks, BASES[57] uses exactly 352 and
+    # 464 at order 9 and BASES[67] exactly 400 at order 9, whose lo mstar.js cites as BGPW's examples (["page",
+    # "BGPW"]).
+    blocks = {K0: {(n, m) for p in ps for n, m in p if n != 2 ** m} for K0, ps in pow2.BASES.items()}
+    assert all(n <= 1000 and mstar_disk()[n - 1][0] == m for bs in blocks.values() for n, m in bs), blocks
+    cited = {K0: {(n, m) for n, m in bs if mstar_disk()[n - 1][2] == ['page', 'BGPW']} for K0, bs in blocks.items()}
+    assert cited == {33: set(), 49: set(), 57: {(352, 9), (464, 9)}, 59: set(), 67: {(400, 9)}, 72: set()}, cited
+    for n, m in sorted(set().union(*blocks.values()) - set().union(*cited.values())):
+        a = mstar.build(n)
+        assert mstar.explicit_lo()[0][n] == m == exact_order_div(a) and len(a) == n, (n, m)
 
 
 def q_small_k_agree_with_mstar():
@@ -200,9 +244,8 @@ def q_norm_never_below_a_known_order():
 
 def q_residue_claims():
     # Replicata: every claim (m, chain, sweep) of pow2.RESIDUE at n = 2^k, enumerated by mstar.chain_none to the end
-    # (cap 10^9 nodes); and, independently, by overnight_v5.admissible level by level (every vector of each level under
-    # every vector of the level before) for the claims whose first modulus is at most 27.
-    # Expectata: no admissible vector at the last modulus, by both; m - 1 >= lo.
+    # (cap 10^9 nodes).  (There are none yet: 1024 at order 11 through (3, 9, 27) did not finish; see pow2.RESIDUE.)
+    # Expectata: no admissible vector at the last modulus; m - 1 >= lo.
     for k, (m, chain, sweep) in pow2.RESIDUE.items():
         assert sweep in mstar.SWEEPS and mstar.chain_none(2 ** k, m, chain, sweep, 10 ** 9), (k, m, chain)
         assert m - 1 >= cols()[k - 1][0], k

@@ -8,10 +8,10 @@ setup) and expectata (what must happen); a failure's message or traceback gives 
 The static quals read index.html, index.html as it would be without this chart (git show BASE:index.html with EDITS
 made) and pow2.js.  The browser quals load copies of index.html, each with mstar.js beside it and a pow2.js (the real
 one, made-up data, or none), in headless Chrome driven through the DevTools protocol by DRIVER, a Node script: a true
-viewport of each configuration's width and pixel ratio, its theme by prefers-color-scheme, real mouse moves and touch
-taps at the middle of each cell, and screenshots whose pixels are checked against the data.  DRIVER finds the cells by
-geometry alone: the plot is the svg in #pow2-chart, K columns of equal width, and rows ROW CSS px apart from the top
-(row E) down to row 1, the bottom GAP px of each row page surface.
+viewport of each configuration's width and pixel ratio, its theme by prefers-color-scheme, real mouse moves, touch taps
+and swipes, and screenshots whose pixels are checked against the data.  DRIVER finds the cells by geometry alone: the
+plot is the svg in #pow2-chart, K columns of equal width, and rows ROW CSS px apart from the top (row E) down to row 1,
+the bottom GAP px of each row page surface.
 """
 import sys
 sys.dont_write_bytecode = True
@@ -39,12 +39,20 @@ HINT = 'Hover over a cell for details.'       # the readout until a cell is read
 DREEVES_LINES = (f'<h2 id="pow2-title">{HEADING}</h2>',
                  f'<div id="pow2-chart" role="img" aria-label=\'{LABEL}\'></div>',
                  f'<p id="pow2-readout" aria-live="polite">{HINT}</p>')
-HIS = (re.sub(r'<[^>]*>', '', HEADING), LABEL, HINT)   # his words as a reader gets them: the heading's text, label, hint
+# The legend, copied from the m*(n) chart's mutatis mutandis at dreeves's request (2026-10-12): its one English word,
+# "open", is his from that legend, so it stands without a Claude: "…" attribution, as his lines do.
+LEGEND_LINES = ('<ul class="legend">',
+                '<li><span class="swatch exists" aria-hidden="true"></span><span class="nw"><i>k</i> + <i>e</i> ≤ <i>m</i><sup>*</sup>(2<sup><i>k</i></sup>)</span></li>',
+                '<li><span class="swatch open" aria-hidden="true"></span>open</li>',
+                '<li><span class="swatch impossible" aria-hidden="true"></span><span class="nw"><i>k</i> + <i>e</i> &gt; <i>m</i><sup>*</sup>(2<sup><i>k</i></sup>)</span></li>',
+                '</ul>')
+HIS = (re.sub(r'<[^>]*>', '', HEADING), LABEL, HINT, 'open')   # his words as a reader gets them: heading text, label, hint, legend
 K, ROW, GAP = 72, 14, 2                       # columns k = 1..K; rows ROW CSS px apart, the bottom GAP of each surface
 KINDS = ('exists', 'open', 'impossible')      # the kinds of cell, as the tokens of their colors name them
 F = [2 ** 24, 25]                             # f, the construction of length 2^24 and order 25, as a block [n, m]
 KLABELS = list(range(10, K + 1, 10))          # the k labels below the plot
 OUTLINE = (36, 5)                             # the cell whose outline the screenshots check
+SWIPE = (29, 8)                               # the cell a phone's swipe starts on, after the outline's tap
 MSTAR_LAYOUT = (44, 16, 2, 14)                # the m*(n) chart's plot: left and right gutters, top, row pitch (CSS px)
 WHO = ('BGPW', 'Claude alone', 'Claude and BGPW')   # the provenance labels of the page's new results
 RUNS = {}                                     # DRIVER's reports by configuration name, made once per process (see run)
@@ -162,7 +170,7 @@ def real():
 # ---------------------------------------------------------------------------------------------------------------------
 # What the readout writes (the expectations of the readout quals)
 
-def sub(k): return ''.join('₀₁₂₃₄₅₆₇₈₉'[int(d)] for d in str(k))
+def sub(k): return f'_({k})'                  # a subscript, as DRIVER's TEXT writes a <sub>
 
 
 def block(b):
@@ -184,7 +192,8 @@ def reason_math(k, why):
             'residue': lambda chain: 'mod ' + ', '.join(map(str, chain))}[kind](*args)
 
 
-# A readout's text, each <sup> written ^(…): the cell, its meaning, the column's bounds, then the reasons.
+# A readout's text, each <sup> written ^(…) and each <sub> _(…): the cell, its meaning, the column's bounds, then the
+# reasons.
 READOUT = re.compile(r'k = (\d+), n = 2\^\((\d+)\), m = (\d+) \+ (\d+) = (\d+) · (Claude: "[^"]*") · '
                      r'(\d+) ≤ m\^\(\*\)\(2\^\((\d+)\)\) ≤ (\d+) · (.*)')
 
@@ -337,10 +346,11 @@ const stop = () => { if (chrome.exitCode === null) process.kill(-chrome.pid, 'SI
 const watchdog = setTimeout(() => { stop(); process.exit(3); }, 400000);
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-// In the page.  TEXT: an element's text, each <sup> written ^(…).
+// In the page.  TEXT: an element's text, each <sup> written ^(…) and each <sub> _(…).
 const TEXT = el => {
   const c = el.cloneNode(true);
   c.querySelectorAll('sup').forEach(s => s.replaceWith(`^(${s.textContent})`));
+  c.querySelectorAll('sub').forEach(s => s.replaceWith(`_(${s.textContent})`));
   return c.textContent;
 };
 const PROBE = text => {
@@ -406,6 +416,34 @@ const shot = async path => {
   const {data} = await send('Page.captureScreenshot', {format: 'png'});
   writeFileSync(path, Buffer.from(data, 'base64'));
 };
+const settle = async () => {          // until the page's scroll position has held still for 100 ms (at most 5 s)
+  let last = null;
+  for (let i = 0; i < 50; i++) {
+    await sleep(100);
+    const now = await ev(() => `${scrollX} ${scrollY}`);
+    if (now === last) return;
+    last = now;
+  }
+};
+// The platform fonts drawing each <sub> of the readout, and the readout's font-family.  What is logged meanwhile goes to
+// log, not to the page's errors: it is DevTools' own (enabling CSS logs that a file: page may not load itself).
+const subFonts = async () => {
+  const page = current;
+  current = {errors: []};
+  await send('DOM.enable');
+  await send('CSS.enable');
+  const {root} = await send('DOM.getDocument', {depth: 0});
+  const {nodeIds} = await send('DOM.querySelectorAll', {nodeId: root.nodeId, selector: '#pow2-readout sub'});
+  const subs = [];
+  for (const nodeId of nodeIds) {
+    subs.push((await send('CSS.getPlatformFontsForNode', {nodeId})).fonts.map(f => f.familyName));
+  }
+  await send('CSS.disable');
+  await send('DOM.disable');
+  const log = current.errors;
+  current = page;
+  return {subs, log, family: await ev(() => getComputedStyle(document.getElementById('pow2-readout')).fontFamily)};
+};
 const input = {
   mouse: (x, y) => send('Input.dispatchMouseEvent', {type: 'mouseMoved', x, y}),
   touch: async (x, y) => { await send('Input.dispatchTouchEvent', {type: 'touchStart', touchPoints: [{x, y}]});
@@ -459,7 +497,20 @@ async function main() {
     R.outline = await ev(READ, TEXT);
     R.outlineGeo = await ev(GEOMETRY);
     R.outlineDom = await ev(DOM, [[0, 0, x, y], [0, 0, x - W / C.K / 2 - 1, y]]);   // its middle; 1 px left of it
+    R.subFonts = await subFonts();
     await shot(C.shots[1]);
+    if (C.swipe) {                    // a finger's swipe up 200 px that starts on cell C.swipeFrom, then the readout
+      const [, , sx, sy] = cells.find(([k, e]) => k === C.swipeFrom[0] && e === C.swipeFrom[1]);
+      const from = await ev(() => scrollY);
+      await send('Input.dispatchTouchEvent', {type: 'touchStart', touchPoints: [{x: sx, y: sy, id: 1}]});
+      for (let i = 1; i <= 10; i++) {
+        await send('Input.dispatchTouchEvent', {type: 'touchMove', touchPoints: [{x: sx, y: sy - 20 * i, id: 1}]});
+        await sleep(16);
+      }
+      await send('Input.dispatchTouchEvent', {type: 'touchEnd', touchPoints: []});
+      await settle();
+      R.swipe = {...await ev(READ, TEXT), from, to: await ev(() => scrollY)};
+    }
     R.mstar = [];
     await ev(() => document.getElementById('mstar-chart').scrollIntoView({block: 'center'}));
     await ev(FRAMES);
@@ -485,8 +536,10 @@ process.exit(code);
 
 # What DRIVER does in each configuration: its pages' pow2.js (by SOURCES; None for none); the viewport, as a phone
 # (mobile, with touch) or not; the theme; whether the chart is drawn, and then whether every cell gets a mouse move
-# (hover) or a touch tap (tap), and whether the m*(n) chart's cells (2^k, hi + 1) are read out too (mstar).
-DESKTOP, PHONE = dict(width=1280, height=900, mobile=False), dict(width=390, height=844, mobile=True)
+# (hover) or a touch tap (tap), whether the m*(n) chart's cells (2^k, hi + 1) are read out too (mstar), and whether a
+# swipe follows the outline's tap (swipe).
+DESKTOP = dict(width=1280, height=900, mobile=False, swipe=False)
+PHONE = dict(width=390, height=844, mobile=True, swipe=True)
 CONFIGS = {
     'light': DESKTOP | dict(data=['real'], dpr=2, theme='light', drawn=True, hover=True, tap=False, mstar=True),
     'dark': DESKTOP | dict(data=['real'], dpr=1, theme='dark', drawn=True, hover=False, tap=False, mstar=False),
@@ -502,8 +555,9 @@ DRAWN = ('light', 'dark', 'phone', 'phone dark')             # the configuration
 
 def run(name):
     """DRIVER's report for one configuration, made on first use: per page, its errors and probe at load, and for a drawn
-    chart its geometry, the element at each cell's middle, the readouts of the hovers and taps, the outline's readout,
-    the m*(n) chart's readouts of the cells compared, and the two screenshots (load, outline) as images."""
+    chart its geometry, the element at each cell's middle, the readouts of the hovers and taps, the outline's readout
+    and the fonts of its <sub>s, the readout after the swipe, the m*(n) chart's readouts of the cells compared, and the
+    two screenshots (load, outline) as images."""
     if name not in RUNS:
         c = CONFIGS[name]
         d = tempfile.mkdtemp(prefix='pow2-quals-')
@@ -521,9 +575,9 @@ def run(name):
         mstar = [[k, data['cols'][k - 1][1] + 1] for k in range(1, 10)
                  if c['mstar'] and data['cols'][k - 1][3][0] == 'mstar']
         shots = [os.path.join(d, 'load.png'), os.path.join(d, 'outline.png')]
-        cfg = {k: c[k] for k in ('width', 'height', 'dpr', 'mobile', 'theme', 'drawn', 'hover', 'tap')} | dict(
+        cfg = {k: c[k] for k in ('width', 'height', 'dpr', 'mobile', 'theme', 'drawn', 'hover', 'tap', 'swipe')} | dict(
             chrome=CHROME, dir=d, urls=urls, K=K, E=data['etop'] if data else 0, ROW=ROW, GAP=GAP, outline=OUTLINE,
-            shots=shots, mstarCells=mstar, mstarLayout=MSTAR_LAYOUT)
+            swipeFrom=SWIPE, shots=shots, mstarCells=mstar, mstarLayout=MSTAR_LAYOUT)
         try:
             p = subprocess.run(['node', '--input-type=module', '-e', DRIVER], input=json.dumps(cfg),
                                capture_output=True, text=True, timeout=600)
@@ -589,7 +643,8 @@ def q_section_follows_mstar_chart():
     # Expectata: the m*(n) chart's <section class="mstar" aria-labelledby="mstar-title"> is followed, with only blank
     # lines and comments between, by <section class="pow2" aria-labelledby="pow2-title">, and that by <section
     # class="remarks">.  The new section holds, in order and with only blank lines and comments between: dreeves's
-    # heading, the h2 pow2-title; a paragraph of class pow2-caption; the div pow2-chart, empty until drawn, an image
+    # heading, the h2 pow2-title; a paragraph of class pow2-caption; the legend (LEGEND_LINES, its swatches exists,
+    # open and impossible, as the m*(n) chart's); the div pow2-chart, empty until drawn, an image
     # with his label; and the readout paragraph pow2-readout, a polite live region holding his hint: his three lines
     # (DREEVES_LINES) byte for byte.
     text, filler = page(), r'(?:\s|<!--.*?-->)*'
@@ -600,7 +655,8 @@ def q_section_follows_mstar_chart():
     rest = text[m.end() + s.end():]
     assert re.match(filler + r'<section class="remarks">', rest, re.S), rest[:400]
     heading, label, hint = map(re.escape, DREEVES_LINES)
-    parts = (heading, r'<p class="pow2-caption">.*?</p>', label, hint)
+    legend = r'(?:\s|<!--.*?-->)*'.join(map(re.escape, LEGEND_LINES))
+    parts = (heading, r'<p class="pow2-caption">.*?</p>', legend, label, hint)
     whole = r'<section[^>]*>' + filler + filler.join(parts) + filler + '</section>'
     assert re.fullmatch(whole, s.group(1), re.S), s.group(1)
 
@@ -640,8 +696,8 @@ def q_new_copy_is_attributed():
     # a Claude: "…"; no inserted CSS uses content:.
     lines, region, ins = inserted()
     assert ins
-    his = [j for j in ins if lines[j].strip() in DREEVES_LINES]
-    assert sorted(lines[j].strip() for j in his) == sorted(DREEVES_LINES), [lines[j] for j in his]
+    his = [j for j in ins if lines[j].strip() in DREEVES_LINES + LEGEND_LINES]
+    assert sorted(lines[j].strip() for j in his) == sorted(DREEVES_LINES + LEGEND_LINES), [lines[j] for j in his]
     bad = []
     for j in (j for j in ins if j not in his):
         line, r = lines[j], region[j]
@@ -691,6 +747,17 @@ def q_mstar_wording_is_copied_verbatim():
     a, b = entries(mstar, 'HI'), entries(mine, 'MSTAR_HI')
     assert sorted(b) == sorted(('two', 'norm', 'residue', 'table2', 'page')), sorted(b)
     for kind in b: assert a[kind] == b[kind], (kind, a[kind], b[kind])
+
+
+def q_caption_defines_readout_symbols():
+    # Replicata: the caption (the paragraph pow2-caption).
+    # Expectata: it says what each symbol is that the readout writes for a block of a construction: f, τ_j (Thue-Morse)
+    # and p_n (from a column of the m*(n) chart), each as the remarks write it: "<i>f</i> is", "τ<sub><i>j</i></sub> is"
+    # and "<i>p</i><sub><i>n</i></sub> is".
+    m = re.search(r'<p class="pow2-caption">(.*?)</p>', page(), re.S)
+    assert m, 'pow2-caption'
+    missing = [s for s in ('<i>f</i> is', 'τ<sub><i>j</i></sub> is', '<i>p</i><sub><i>n</i></sub> is') if s not in m[1]]
+    assert not missing, missing
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -744,6 +811,37 @@ def q_tap_reads_out_every_cell():
     # Expectata: after each, the readout is that cell's, as in q_hover_reads_out_every_cell.
     R = valid('phone')
     check_readouts(R['data'], R['taps'])
+
+
+def q_swipe_scrolls_and_keeps_readout():
+    # Replicata: the 390 px configurations, light and dark: after the tap on cell OUTLINE, a real touch swipe up 200 px
+    # (touchStart, ten touchMoves 20 px apart, touchEnd) that starts on cell SWIPE, then the page left to settle.
+    # Expectata: the page scrolled down, and not sideways; the readout is still OUTLINE's, word for word, since a swipe
+    # reads out nothing (a tap or a hover does).
+    for name in ('phone', 'phone dark'):
+        R = valid(name)
+        s = R['swipe']
+        assert s['to'] > s['from'] and s['scrollW'] <= R['load']['innerWidth'], (name, s['from'], s['to'], s['scrollW'])
+        assert (s['text'], s['children']) == (R['outline']['text'], R['outline']['children']), (name, s['text'][:60])
+
+
+def q_readout_subscripts_in_page_font():
+    # Replicata: in each drawn configuration, the readout of cell OUTLINE, whose lo is a join of products of blocks,
+    # after its mouse move or tap; and the platform fonts that draw each <sub> in it (DevTools'
+    # CSS.getPlatformFontsForNode).
+    # Expectata: the readout holds no Unicode subscript digit (U+2080-2089: the page's fonts have none, so fallback
+    # fonts drew them, two different ones side by side); each subscript it writes is a <sub> (as many <sub>s as TEXT
+    # writes _(…), at least one per block of the join); and each <sub> is drawn in one font, the first of the
+    # readout's font-family.  (While DevTools reads the fonts it logs only that a file: page may not load itself.)
+    k, e = OUTLINE
+    for name in DRAWN:
+        R = valid(name)
+        text, fonts, (lo, hi, lw, hw) = R['outline']['text'], R['subFonts'], R['data']['cols'][k - 1]
+        family = fonts['family'].split(',')[0].strip().strip('"')
+        assert all(x.startswith('log error security: Unsafe attempt to load URL file:') for x in fonts['log']), fonts
+        assert lw[0] == 'joins' and not re.search('[₀-₉]', text), (name, lw[0], text)
+        assert len(fonts['subs']) == text.count('_(') >= sum(map(len, lw[1])), (name, text, fonts)
+        assert all(f == [family] for f in fonts['subs']), (name, family, fonts['subs'])
 
 
 def q_outline_marks_the_cell():
