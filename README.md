@@ -1,36 +1,27 @@
 Claude's up-next list:
 
-1. A second pass of the 240 search, with longer time limits for the sub-cases the first pass leaves open.
-2. Searches like the 240 one for 304, 288, 432, 480, 528 and 576, starting with 304. If 304 has order 9, then 2^20 has order 21, since 8·304·368 + 320·480 = 2^20.
-   <!-- TODO: says the 304 search is done: 304 has order exactly 8, every case closed by an exactly checked certificate, so this route to order 21 for 2^20 is closed -->
-   Claude: "Done for 304: it has order exactly 8. Every case closed with a certificate checked in exact integer arithmetic (overnight_v5.py, then boxsplit.py for the last 8), so this route to order 21 for 2^20 is closed."
-3. Count the order-7 partitions of {0, …, 127}. The antisymmetric ones alone number 303, and no count has been published.
-   Claude: "Done: 431 partitions, 367 up to reversal. See the reply to Stan's uniqueness question below."
-4. Could we get a nice visualization of the progress of these searches?
+* Count the order-7 partitions of {0, …, 127}. The antisymmetric ones alone number 303, and no count has been published.
+  Claude: "Done: 431 partitions, 367 up to reversal. See the reply to Stan's uniqueness question below."
 
 ---
 
-Stan and Claude Dialog:
+Stan notes:
 
-this 512 result while nice is not all that important. There is no expectation that the magic value will be this low. Could be 17 though!
+This 512 result while nice is not all that important. There is no expectation that the magic value will be this low. Could be 17 though!
 
 Claude: "17 isn't ruled out. Joins of products of the known blocks still bottom out at 2^24. Joins whose pieces cancel each other's top power sum, the trick behind Claude's 528, can't work for any k ≤ 16 with at most four pieces built from known blocks, and 17 is the first k they don't rule out. With 512 = 9, the smallest k with 2^k of order k + 1 is somewhere from 10 to 24."
 
-336 is a 10. I had this in my package pre-Claude, so that is one error.  Maybe a useful building block?
+336 is a 10. I had this in my package pre-Claude, so that is one error. Maybe a useful building block?
 
 Claude: "336 is exactly 10: the residue condition mod 5 rules out 11. It doesn't help as a building block. With every known block, 336:10 and 480:12 included, joins of products still bottom out at 2^24. The obstruction is divisibility by 3: 2^k isn't a multiple of 3, but 336 and 480 are."
 
 ---
 
-Danny Reeves and me:  The 170-year-old Prouhet result that the "power-sum exponent" of 2^n is ≥ n was proved (2019) by Stong with a very ingenious argument to not be sharp, in that for 2^51 it is 52.  We have that down to: for 2^24 it is 25, using Stong’s method. See https://en.wikipedia.org/wiki/Prouhet%E2%80%93Tarry%E2%80%93Escott_problem  for defns.
-
-Claude: "Prouhet's paper is from 1851, so it's 175 years old. And 2^51 now gets at least 53: with f the 2^24 construction, f # f # τ3 has order 25 + 25 + 3."
+Danny Reeves and me:  The 175-year-old Prouhet result that the "power-sum exponent" of 2^n is ≥ n was proved (2019) by Stong with a very ingenious argument to not be sharp, in that for 2^51 it is 52.  We have that down to: for 2^24 it is 25, using Stong’s method. See https://en.wikipedia.org/wiki/Prouhet%E2%80%93Tarry%E2%80%93Escott_problem for defns.
 
 ---
 
-Keeping this accurate seems good. Maybe C. can eliminate some of the ≤ with upper bound proofs.
-
-Claude: "Done for 336 (exactly 10, by mod 5) and 512 (exactly 9; the proof in proof512.txt also covers 496). Two new entries: 448 = 9, where mod 3 rules out 10, and 576 ∈ {10, 11, 12}, where mod 5 rules out 13. For 432, 480, 528, 288 and 304, every residue test tried passes, so they need full searches like the one for 240. Separately, OEIS A323629 leaves 112 out of L_7, though Berend and Golan (2006) and Theorem 3.1 of your paper both have it."
+Claude: OEIS A323629 leaves 112 out of L_7, though Berend and Golan (2006) and Theorem 3.1 of BGPW both have it.
 
 ---
 
@@ -67,9 +58,7 @@ Claude: "An exhaustive search confirms the 3 at 64, and finds Thue–Morse alone
 
 A new result. And it can be certified instantaneously. By Danny Reeves and me, using Claude AI.
 
-Recall that in our 2019 paper we gave Stong’s clever proof that there is a subset A of {0,1,…,2^51 -1} such that, if B is A’s complement, then the sums of A^j and B^j are equal for j = 0, 1, …, 52. The point here is that the Prouhet 1851 work gets this up to exponent 51. This gives one more exponent, defeating the conjecture that the Prouhet result is sharp.
-
-Claude: "Two off-by-ones: order 52 means equal sums for j = 0, 1, …, 51, and Prouhet's partition of {0, …, 2^51 − 1} has equal sums only up to j = 50."
+Recall that in our 2019 paper we gave Stong’s clever proof that there is a subset A of {0,1,…,2^51 -1} such that, if B is A’s complement, then the sums of A^j and B^j are equal for j = 0, 1, …, 51. The point here is that the Prouhet 1851 work gets this up to exponent 50. This gives one more exponent, defeating the conjecture that the Prouhet result is sharp.
 
 We now have this for 2^24 instead of 2^51. It comes from these two facts:
 
@@ -89,5 +78,3 @@ In the notation of the last section of our paper (attached for convenience) the 
 ```math
 \left(p_{320,9}^{\#2} \mathbin{\#} p_{112,7}\right) \vee \left(p_{432,11} \mathbin{\#} p_{48,6} \mathbin{\#} (1-x)^{\#8}\right)
 ```
-
-Claude: "The lower bound, nothing at powers of 2 up to 512, rests on 512 = 9, now proved in proof512.txt."
