@@ -162,6 +162,9 @@ table.block th {
   min-width: 4.2rem;
 }
 .new-block { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.45rem; }
+/* The new results' entries for 432, 480 and 528 became ranges (2026-10-11), which made that table 12 px wider than
+   main; a little less side padding in its cells keeps it in one row, unscrolled, at 945 px. */
+.new-block table.block td { padding-inline: 0.65rem; }
 
 /* Provenance: tint on both cells of an entry, a bar under its value, and a
    glyph centered above its n. Text stays in ink. */
@@ -276,6 +279,37 @@ code {
 #mstar-readout { min-height: 3lh; font-size: 0.9375rem; font-variant-numeric: tabular-nums lining-nums; }
 #mstar-readout .swatch { margin-right: 0.5rem; vertical-align: -0.1em; }
 
+/* Claude's chart of the bounds on m*(2^k) − k for k up to 72: one svg of 72 columns stretched to the plot's width,
+   drawn by the script at the end from pow2.js, with the e labels left of it and the k labels below.  As in the m*(n)
+   chart, rows are 14 px tall, the bottom 2 px of each page surface, and the plot has 44 px of gutter on its left and
+   16 px on its right, so the two plots line up. */
+.pow2 { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; }
+.pow2-caption { max-width: 46rem; }
+#pow2-chart {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 16px;
+  grid-template-rows: auto 30px;
+  font-size: 12px;
+  line-height: 12px;
+  color: var(--muted);
+}
+#pow2-chart svg { display: block; width: 100%; shape-rendering: crispEdges; }
+#pow2-chart rect.exists { fill: var(--exists); }
+#pow2-chart rect.open { fill: var(--open); }
+#pow2-chart rect.impossible { fill: var(--impossible); }
+.pow2-es { grid-area: 1 / 1; position: relative; }
+.pow2-es span { position: absolute; right: 7px; }
+.pow2-es i { position: absolute; left: 2px; top: 50%; transform: translateY(-50%); font-size: 15px; color: var(--ink); }
+.pow2-plot { grid-area: 1 / 2; position: relative; }
+.pow2-outline { position: absolute; border: 2px solid var(--ink); pointer-events: none; }  /* the cell read out */
+.pow2-k { grid-area: 2 / 1; padding: 6px 0 0 2px; font-size: 15px; color: var(--ink); }
+.pow2-ks { grid-area: 2 / 2; position: relative; }
+.pow2-ks span { position: absolute; transform: translateX(-50%); }
+.pow2-tick { top: 0; width: 1px; height: 4px; background: var(--muted); }
+.pow2-klabel { top: 7px; }
+#pow2-readout { min-height: 3lh; font-size: 0.9375rem; font-variant-numeric: tabular-nums lining-nums; }
+#pow2-readout .swatch { margin-right: 0.5rem; vertical-align: -0.1em; }
+
 footer {
   display: grid;
   gap: 0.5rem;
@@ -341,7 +375,7 @@ footer {
         <!-- Cell titles reuse the legend's labels below -->
         <table class="block">
           <tr class="ns"><th scope="row"><i>n</i></th><td class="c" title='Claude alone'>304</td><td class="s" title='BGPW'>320</td><td class="j" title='Claude and Stan'>336</td><td class="s" title='BGPW'>352</td><td class="s" title='BGPW'>368</td><td class="s" title='BGPW'>400</td><td class="s" title='BGPW'>416</td><td class="c" title='Claude alone'>432</td><td class="c" title='Claude alone'>448</td><td class="s" title='BGPW'>464</td><td class="c" title='Claude alone'>480</td><td class="j" title='Claude and Stan'>496</td><td class="c" title='Claude alone'>512</td><td class="s" title='BGPW'>528</td><td class="c" title='Claude alone'>576</td><td class="j" title='Claude and Stan'>2<sup>24</sup></td><td class="j" title='Claude and Stan'>2<sup>51</sup></td></tr>
-          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="c">8</td><td class="s">9</td><td class="j">10</td><td class="s">9</td><td class="s">9</td><td class="s">9</td><td class="s">9</td><td class="c">≥ 11</td><td class="c">9</td><td class="s">9</td><td class="c">≥ 12</td><td class="j">9</td><td class="c">9</td><td class="s">≥ 10</td><td class="c">10–12</td><td class="j">≥ 25</td><td class="j">≥ 53</td></tr>
+          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="c">8</td><td class="s">9</td><td class="j">10</td><td class="s">9</td><td class="s">9</td><td class="s">9</td><td class="s">9</td><td class="c">11–12</td><td class="c">9</td><td class="s">9</td><td class="c">12–14</td><td class="j">9</td><td class="c">9</td><td class="s">10–12</td><td class="c">10–12</td><td class="j">≥ 25</td><td class="j">≥ 53</td></tr>
         </table>
       </div>
     </div>
@@ -367,14 +401,23 @@ footer {
       <li><span class="swatch impossible" aria-hidden="true"></span><span class="nw"><i>m</i> &gt; <i>m</i><sup>*</sup>(<i>n</i>)</span></li>
     </ul>
     <div class="mstar-zoom">
-      <button type="button" id="mstar-zoom-out" aria-label='zoom out"' title='Claude: "zoom out"'>−</button>
+      <button type="button" id="mstar-zoom-out" aria-label='zoom out' title='Claude: "zoom out"'>−</button>
       <button type="button" id="mstar-zoom-in" aria-label='zoom in' title='Claude: "zoom in"'>+</button>
       <!-- zooms back out to every column, n = 2 to 1000 -->
-      <button type="button" id="mstar-reset">↺</button>
+      <button type="button" id="mstar-reset" aria-label='reset zoom' title='reset zoom'>↺</button>
     </div>
   </div>
   <canvas id="mstar-chart" height="0" tabindex="0" role="img" aria-label='chart of the bounds on m*(n) for even n up to 1000; the arrow keys pan, and + and − zoom'></canvas>
   <p id="mstar-readout" aria-live="polite">Hover over a cell for details. Drag or swipe sideways to pan; zoom with the − and + buttons, pinching, or ctrl-scroll.</p>
+</section>
+
+<!-- Claude's chart of what is known about m*(2^k) − k, the excess over Thue–Morse, for every k up to 72, drawn by the script at the end from pow2.js -->
+<section class="pow2" aria-labelledby="pow2-title">
+  <h2 id="pow2-title">Bounds on <span class="nw"><i>m</i><sup>*</sup>(2<sup><i>k</i></sup>) − <i>k</i></span> for every <i>k</i> up to 72</h2>
+  <!-- TODO: caption; says column k is n = 2^k, where Thue–Morse has order k, an excess of 0, and row e is order k + e, an excess of e; that cell (k, e) is green when m*(2^k) ≥ k + e is known, red when m*(2^k) < k + e is proven, and gray when neither is; and that in the readout f is the construction of length 2^24 and order 25 in the remarks below -->
+  <p class="pow2-caption">Claude: "Column <i>k</i> is <span class="nw"><i>n</i> = 2<sup><i>k</i></sup></span>, where Thue–Morse has order <i>k</i>, an excess of 0; row <i>e</i> is order <span class="nw"><i>k</i> + <i>e</i></span>, an excess of <i>e</i>. Cell (<i>k</i>, <i>e</i>) is green when <span class="nw"><i>m</i><sup>*</sup>(2<sup><i>k</i></sup>) ≥ <i>k</i> + <i>e</i></span> is known, red when <span class="nw"><i>m</i><sup>*</sup>(2<sup><i>k</i></sup>) &lt; <i>k</i> + <i>e</i></span> is proven, and gray when neither is. In the readout, <i>f</i> is the construction of length 2<sup>24</sup> and order 25 in the remarks below."</p>
+  <div id="pow2-chart" role="img" aria-label='Chart of the bounds on m*(2^k) − k, the excess over Thue–Morse, for k from 1 to 72'></div>
+  <p id="pow2-readout" aria-live="polite">Hover over a cell for details.</p>
 </section>
 
 <section class="remarks">
@@ -413,8 +456,10 @@ footer {
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry"><i>n</i> = 432: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ≥ 11</span></p>
+      <p class="entry"><i>n</i> = 432: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {11, 12}</span></p>
       <p>An antisymmetric example of order 11 found by Claude. BGPW also showed order 10.</p>
+      <!-- TODO: says order 13 at 432 is ruled out by the residue condition mod 5, so m*(432) is 11 or 12 -->
+      <p>Claude: "Order 13 is ruled out by the residue condition mod 5."</p>
       <p class="code">
         <span><i>p</i><sub>432</sub> <span class="nw">(<i>m</i> = 11)</span>:</span>
         <code>5A56B0EE234E8794ADE3D0C384F72A5C63A8BD65035EF015B78B46</code>
@@ -431,8 +476,10 @@ footer {
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry"><i>n</i> = 480: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ≥ 12</span></p>
+      <p class="entry"><i>n</i> = 480: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {12, 13, 14}</span></p>
       <p>A symmetric example of order 12 found by Claude.</p>
+      <!-- TODO: says order 15 at 480 is ruled out by the residue condition mod 7, so m*(480) is 12, 13 or 14 -->
+      <p>Claude: "Order 15 is ruled out by the residue condition mod 7."</p>
       <p class="code">
         <span><i>p</i><sub>480</sub> <span class="nw">(<i>m</i> = 12)</span>:</span>
         <code>B0CBC94F1E2C68D1E3A6371C357C4B1347952BB968236CF6C82CD9CE01F3</code>
@@ -453,8 +500,10 @@ footer {
     </li>
     <li class="s">
       <span class="mk" aria-hidden="true">●</span>
-      <p class="entry"><i>n</i> = 528: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ≥ 10</span></p>
+      <p class="entry"><i>n</i> = 528: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {10, 11, 12}</span></p>
       <p>BGPW had an example of order 10 before Claude's work. Claude found another independently, by joining an example of length 192 and order 9 to an antisymmetric piece of length 336 and order 9, chosen so that their 9th power sums cancel.</p>
+      <!-- TODO: says order 13 at 528 is ruled out by the residue condition mod 5 (Claude's proof), so m*(528) is 10, 11 or 12 -->
+      <p>Claude: "Order 13 is ruled out by the residue condition mod 5."</p>
       <p class="code">
         <span><i>f</i> = <i>p</i><sub>192</sub> ∨ <i>p</i><sub>336</sub>; &nbsp;<i>p</i><sub>192</sub> <span class="nw">(<i>m</i> = 9)</span>:</span>
         <code>C1BE1E21CD63D295A7887A59</code>
@@ -880,6 +929,176 @@ try {
   document.fonts.ready.then(() => draw());
 } catch (e) {
   ro.textContent = `Error drawing the chart: ${e}`;
+  throw e;
+}
+})();
+</script>
+<script src="pow2.js"></script>
+<script>
+// Claude's chart of the bounds on m*(2^k) − k for k up to 72, drawn from POW2, which pow2.js defines (pow2.py makes
+// it and states its contract).  Column k is n = 2^k; row e is order k + e, an excess of e over Thue–Morse's order k.
+// Cell (k, e) is green (exists) when k + e <= lo, gray (open) when lo < k + e <= hi, and red (impossible) above, up to
+// row E = POW2.etop.  The plot is one svg with a rect per cell, its viewBox K columns wide and E * ROW px tall,
+// stretched to the plot's width; a cell reads itself out when a pointer enters it, a mouse hovering or a finger
+// tapping.
+(() => {
+const chart = document.getElementById('pow2-chart'), ro = document.getElementById('pow2-readout');
+try {
+  const D = POW2, K = 72, ROW = 14, GAP = 2, NS = 'http://www.w3.org/2000/svg';
+  const assert = (ok, ...what) => { if (!ok) throw new Error(JSON.stringify(what).replace(/"/g, "'")); };
+  const WHO = ['BGPW', 'Claude alone', 'Claude and Stan'];         // the provenance labels of the new results above
+  const prime = p => { for (let d = 2; d * d <= p; d++) if (p % d === 0) return false; return p >= 2; };
+  const sub = k => String(k).replace(/\d/g, d => '₀₁₂₃₄₅₆₇₈₉'[d]);
+  // The norm lemma's bound at n = 2^k for an odd prime p, in exact integers (mstar.py's norm): the largest m with
+  // p^(2m) (p-1)^(p-1) <= (p sum_r size(p, r)^2)^(p-1), size(p, r) the number of i in 0..n-1 with i = r (mod p).
+  const normBound = (k, p) => {
+    const n = 2n ** BigInt(k), P = BigInt(p), sizes = Array.from({length: p}, (_, r) => (n - BigInt(r) + P - 1n) / P);
+    const rhs = (P * sizes.reduce((t, x) => t + x * x, 0n)) ** (P - 1n);
+    let m = 0n;
+    while (P ** (2n * m + 2n) * (P - 1n) ** (P - 1n) <= rhs) m++;
+    return Number(m);
+  };
+  // A block [n, m] of a join's product: f, the construction of length 2^24 and order 25 (the remarks below); τ_j,
+  // Thue–Morse of length 2^j; or p_n, the sequence behind column n <= 1000 of the m*(n) chart.  name gives its symbol
+  // in the readout, and '' for anything else, which the contract rules out.
+  const name = ([n, m]) => n === 2 ** 24 && m === 25 ? 'f' : n === 2 ** m ? `τ${sub(m)}` : n <= 1000 ? `p${sub(n)}`
+    : '';
+  const isBlock = b => Array.isArray(b) && b.length === 2 && b.every(Number.isInteger) && b[0] >= 1 && b[1] >= 0
+    && name(b) !== '';
+  const length = p => p.reduce((t, [n]) => t * BigInt(n), 1n), order = p => p.reduce((t, [, m]) => t + m, 0);
+  const joined = ps => ps.map(p => `(${p.map(name).join(' # ')})`).join(' ∨ ');     // a join of products, written out
+  // The reasons of the data contract.  ok(k, lo or hi, ...its arguments) checks one; text(k, lo or hi, ...) gives it in
+  // Claude's words, starting "order lo" or "order hi + 1".
+  const LO = {
+    'thue-morse': {
+      ok: (k, lo) => lo === k,
+      // TODO: readout reason; says order lo, which is k, is known from Thue–Morse, τ_k
+      text: (k, lo) => `Claude: "order ${lo} from Thue–Morse, τ${sub(k)}"`,
+    },
+    power: {
+      ok: (k, lo, L, j) => [L, j].every(Number.isInteger) && L >= 1 && j >= 0 && 24 * L + j === k && lo === k + L,
+      // TODO: readout reason; says order lo is known from the expanded product of L copies of f and τ_j
+      text: (k, lo, L, j) => `Claude: "order ${lo} from ${'f # '.repeat(L)}τ${sub(j)}"`,
+    },
+    joins: {
+      ok: (k, lo, ps) => Array.isArray(ps) && ps.length >= 1 && ps.every(p => Array.isArray(p) && p.length >= 1
+        && p.every(isBlock)) && ps.reduce((t, p) => t + length(p), 0n) === 2n ** BigInt(k)
+        && lo === Math.min(...ps.map(order)),
+      // TODO: readout reason; says order lo is known from the join of these expanded products
+      text: (k, lo, ps) => `Claude: "order ${lo} from the join ${joined(ps)}"`,
+    },
+  };
+  // The m*(n) chart's reasons of an upper bound at an even n, copied line for line from its script: the reasons of
+  // ["mstar", why], k <= 9.
+  const MSTAR_HI = {
+    two: {
+      ok: (n, hi) => n % 2 === 0 && hi === (n & -n) - 1,
+      // TODO: readout reason; says order hi + 1 is ruled out because hi + 1 is the largest power of 2 dividing n
+      text: (n, hi) => `Claude: "order ${hi + 1} ruled out: ${hi + 1} is the power of 2 in ${n}"`,
+    },
+    norm: {
+      ok: (n, hi, p) => Number.isInteger(p) && prime(p) && n % p !== 0,
+      // TODO: readout reason; says order hi + 1 is ruled out by the norm bound for the prime p
+      text: (n, hi, p) => `Claude: "order ${hi + 1} ruled out by the norm bound for p\u00a0=\u00a0${p}"`,
+    },
+    residue: {
+      ok: (n, hi, M) => Number.isInteger(M) && M >= 2,
+      // TODO: readout reason; says order hi + 1 is ruled out by the residue condition mod M
+      text: (n, hi, M) => `Claude: "order ${hi + 1} ruled out by the residue condition mod ${M}"`,
+    },
+    table2: {
+      ok: (n, hi) => n % 8 === 0 && n <= 304,
+      // TODO: readout reason; says order hi + 1 is ruled out by the paper's Table 2
+      text: (n, hi) => `Claude: "order ${hi + 1} ruled out by the paper's Table 2"`,
+    },
+    page: {
+      ok: (n, hi, who) => WHO.includes(who),
+      // TODO: readout reason; says order hi + 1 is ruled out in this page's new results, naming whose they are
+      text: (n, hi, who) => `Claude: "order ${hi + 1} ruled out in the new results above (${who})"`,
+    },
+  };
+  const HI = {
+    mstar: {
+      ok: (k, hi, why) => k <= 9 && Array.isArray(why) && Object.hasOwn(MSTAR_HI, why[0])
+        && MSTAR_HI[why[0]].ok.length === why.length + 1 && MSTAR_HI[why[0]].ok(2 ** k, hi, ...why.slice(1)),
+      text: (k, hi, why) => MSTAR_HI[why[0]].text(2 ** k, hi, ...why.slice(1)),
+    },
+    norm: {
+      ok: (k, hi, p) => Number.isInteger(p) && p > 2 && prime(p) && hi === normBound(k, p),
+      text: (k, hi, p) => MSTAR_HI.norm.text(2 ** k, hi, p),        // the same lemma, in the same words
+    },
+    residue: {
+      ok: (k, hi, chain) => Array.isArray(chain) && chain.length >= 1 && chain.every(Number.isInteger) && chain[0] >= 2
+        && chain.slice(1).every((M, i) => M > chain[i] && M % chain[i] === 0),
+      // TODO: readout reason; says order hi + 1 is ruled out by the residue conditions mod each modulus of the chain
+      text: (k, hi, chain) => `Claude: "order ${hi + 1} ruled out by the residue conditions mod ${chain.join(', ')}"`,
+    },
+  };
+  assert(Object.keys(D).sort().join() === 'cols,etop,kmax', Object.keys(D));
+  assert(D.kmax === K && Array.isArray(D.cols) && D.cols.length === K && Number.isInteger(D.etop), D.kmax, D.etop);
+  D.cols.forEach((c, i) => {
+    const k = i + 1, [lo, hi, lw, hw] = c;
+    assert(c.length === 4 && Number.isInteger(lo) && Number.isInteger(hi) && k <= lo && lo <= hi && hi < k + D.etop,
+           k, c);
+    for (const [R, w, v] of [[LO, lw, lo], [HI, hw, hi]]) {
+      assert(Array.isArray(w) && Object.hasOwn(R, w[0]) && R[w[0]].ok.length === w.length + 1
+             && R[w[0]].ok(k, v, ...w.slice(1)), k, c);
+    }
+  });
+  assert(D.etop === Math.max(...D.cols.map((c, i) => c[1] - i)), D.etop);   // E = max(hi - k) + 1
+
+  const E = D.etop, KIND = ['exists', 'open', 'impossible'];       // the kinds of cell, by the tokens of their colors
+  const kindOf = (k, e) => (k + e > D.cols[k - 1][0]) + (k + e > D.cols[k - 1][1]);
+  const MEANING = [                                                // what a cell of each kind says, in the readout
+    // TODO: readout; says the order of a green cell is known to be reached at its n
+    'Claude: "known"',
+    // TODO: readout; says it is open whether the order of a gray cell can be reached at its n
+    'Claude: "open"',
+    // TODO: readout; says the order of a red cell is proven impossible at its n
+    'Claude: "impossible"',
+  ];
+  const el = (tag, cls, text) => Object.assign(document.createElement(tag), {className: cls, textContent: text});
+  const at = (node, style) => { Object.assign(node.style, style); return node; };
+  const nw = (...parts) => { const s = el('span', 'nw', ''); s.append(...parts); return s; };   // no wrap
+  const svg = document.createElementNS(NS, 'svg'), outline = el('div', 'pow2-outline', ''), swatch = el('span', '', '');
+  svg.setAttribute('viewBox', `0 0 ${K} ${E * ROW}`);
+  svg.setAttribute('preserveAspectRatio', 'none');
+  svg.style.height = `${E * ROW}px`;
+  outline.hidden = true;
+  function select(k, e) {                                          // read out cell (k, e) and outline it
+    const [lo, hi, lw, hw] = D.cols[k - 1], kind = kindOf(k, e);
+    const why = [() => LO[lw[0]].text(k, lo, ...lw.slice(1)), () => HI[hw[0]].text(k, hi, ...hw.slice(1))];
+    const two = () => ['2', el('sup', '', String(k))];           // 2^k
+    swatch.className = `swatch ${KIND[kind]}`;
+    ro.replaceChildren(swatch,
+      nw(el('i', '', 'k'), ` = ${k}, `, el('i', '', 'n'), ' = ', ...two(), ', ', el('i', '', 'm'),
+         ` = ${k} + ${e} = ${k + e}`),
+      ' · ', MEANING[kind], ' · ', nw(`${lo} ≤ `, el('i', '', 'm'), el('sup', '', '*'), '(', ...two(), `) ≤ ${hi}`),
+      ' · ', [[why[0]], why, [why[1]]][kind].map(f => f()).join(' · '));
+    at(outline, {left: `calc(${(k - 1) / K * 100}% - 2px)`, width: `calc(${100 / K}% + 4px)`,
+                 top: `${(E - e) * ROW - 2}px`, height: `${ROW - GAP + 4}px`});
+    outline.hidden = false;
+  }
+  for (let k = 1; k <= K; k++) for (let e = 1; e <= E; e++) {
+    const r = document.createElementNS(NS, 'rect');
+    const attributes = {x: k - 1, y: (E - e) * ROW, width: 1, height: ROW - GAP, class: KIND[kindOf(k, e)]};
+    for (const [a, v] of Object.entries(attributes)) r.setAttribute(a, v);
+    r.addEventListener('pointerenter', () => select(k, e));
+    svg.append(r);
+  }
+  // The axes: every e left of the plot, beside the letter e; below it, the letter k and every tenth k under its column
+  const es = el('div', 'pow2-es', ''), plot = el('div', 'pow2-plot', ''), ks = el('div', 'pow2-ks', '');
+  for (let e = 1; e <= E; e++) es.append(at(el('span', '', String(e)), {top: `${(E - e) * ROW}px`}));
+  es.append(el('i', '', 'e'));
+  for (let k = 10; k <= K; k += 10) {
+    const left = `${(k - 0.5) / K * 100}%`;
+    ks.append(at(el('span', 'pow2-tick', ''), {left}), at(el('span', 'pow2-klabel', String(k)), {left}));
+  }
+  plot.append(svg, outline);
+  chart.append(es, plot, el('i', 'pow2-k', 'k'), ks);
+} catch (e) {
+  // TODO: error line, replacing the hint; says this chart could not be drawn, followed by the error
+  ro.textContent = `Claude: "Error drawing this chart:" ${e}`;
   throw e;
 }
 })();

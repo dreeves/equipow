@@ -6,8 +6,9 @@ Each qual is a function q_*: a passing qual returns, a failing one raises.  Each
 setup) and expectata (what must happen); a failure's message or traceback gives the resultata (what happened instead).
 The static quals read index.html, index.html as it was before the chart (git show BASE:index.html) and mstar.js.  The
 browser quals load a copy of index.html in headless Chrome (in an iframe of the width each configuration asks for,
-since the window cannot be narrower than 500 px), in a temporary directory with a copy of mstar.js (or made-up data),
-with two scripts added: EARLY, first in the head, which records errors and every string drawn on a canvas, and
+since the window cannot be narrower than 500 px), in a temporary directory with a copy of mstar.js (or made-up data)
+and of pow2.js (the data of the page's chart of powers of 2), with two scripts added:
+EARLY, first in the head, which records errors and every string drawn on a canvas, and
 HARNESS, last in the body, which drives the chart with synthetic events and posts what it saw to the host page, which
 writes it into the DOM that --dump-dom returns.
 The harness locates the chart only by its pixels, reads the view only through the readout (the cell under a
@@ -21,6 +22,7 @@ import os, re, json, html, math, time, shutil, signal, difflib, tempfile, thread
 HERE = os.path.dirname(os.path.abspath(__file__))
 INDEX = os.path.join(HERE, 'index.html')
 DATA = os.path.join(HERE, 'mstar.js')         # made by mstar.py; the chart's data
+POW2 = os.path.join(HERE, 'pow2.js')          # made by pow2.py; the data of the chart of powers of 2, also on the page
 CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
 TOKENS = ('--exists', '--open', '--impossible')                    # the chart's three colors, in the order of kind
 PROVENANCE = ('--claude', '--joint', '--stan')
@@ -55,10 +57,24 @@ DREEVES_LINES = (f'<h2 id="mstar-title">{HEADING}</h2>',
 def page(): return open(INDEX, encoding='utf-8').read()
 
 
+# The table's update of 2026-10-11, which dreeves asked for: 432, 480 and 528 gained the upper bounds the chart proves,
+# in the new results' table and in their remarks' entries.  The only edits of the page's text before the chart.
+TABLE_UPDATE = (('<td class="c">≥ 11</td>', '<td class="c">11–12</td>'),
+                ('<td class="c">≥ 12</td>', '<td class="c">12–14</td>'),
+                ('<td class="s">≥ 10</td>', '<td class="s">10–12</td>'),
+                ('<i>m</i><sup>*</sup> ≥ 11</span>', '<i>m</i><sup>*</sup> ∈ {11, 12}</span>'),
+                ('<i>m</i><sup>*</sup> ≥ 12</span>', '<i>m</i><sup>*</sup> ∈ {12, 13, 14}</span>'),
+                ('<i>m</i><sup>*</sup> ≥ 10</span>', '<i>m</i><sup>*</sup> ∈ {10, 11, 12}</span>'))
+
+
 def committed():
-    """index.html as it was before the chart (BASE)."""
-    return subprocess.run(['git', '-C', HERE, 'show', f'{BASE}:index.html'], capture_output=True, text=True,
+    """index.html as it was before the chart (BASE), with TABLE_UPDATE's edits made (each once, asserted)."""
+    text = subprocess.run(['git', '-C', HERE, 'show', f'{BASE}:index.html'], capture_output=True, text=True,
                           check=True).stdout
+    for old, new in TABLE_UPDATE:
+        assert text.count(old) == 1, old
+        text = text.replace(old, new)
+    return text
 
 
 def opcodes():
@@ -119,11 +135,20 @@ def mstar_data():
 
 
 def table_entries():
-    """(n, low, high) for every entry of the page's tables with n <= NMAX: Table 2's blocks and the new results.
-    An exact value v gives (v, v); 'a or b' and 'a–b' give (a, b); '≥ a' gives (a, inf)."""
-    fig = re.search(r'<figure>.*?</figure>', page(), re.S).group(0)
+    """(n, low, high) for every entry of the page's tables with n <= NMAX: Table 2's blocks and the new results."""
+    return entries(re.search(r'<figure>.*?</figure>', page(), re.S).group(0))
+
+
+def new_results():
+    """(n, low, high) for every entry of the new results' table with n <= NMAX, as entries() reads them."""
+    return entries(re.search(r'<div class="new-block">.*?</table>', page(), re.S).group(0))
+
+
+def entries(fragment):
+    """(n, low, high) for every entry with n <= NMAX of the tables of class block in fragment.  An exact value v gives
+    (v, v); 'a or b' and 'a–b' give (a, b); '≥ a' gives (a, inf)."""
     out = []
-    for table in re.findall(r'<table class="block">.*?</table>', fig, re.S):
+    for table in re.findall(r'<table class="block">.*?</table>', fragment, re.S):
         ns = re.findall(r'<td[^>]*>(.*?)</td>', re.search(r'<tr class="ns">.*?</tr>', table, re.S).group(0))
         vs = re.findall(r'<td[^>]*>(.*?)</td>', re.search(r'<tr class="vals">.*?</tr>', table, re.S).group(0))
         assert len(ns) == len(vs) and ns, table
@@ -524,6 +549,7 @@ def run(name):
         if theme: text = text.replace('<html lang="en">', f'<html lang="en" data-theme="{theme}">')
         open(os.path.join(d, 'index.html'), 'w', encoding='utf-8').write(text)
         if data is not None: open(os.path.join(d, 'mstar.js'), 'w', encoding='utf-8').write(SOURCES[data]())
+        shutil.copy(POW2, os.path.join(d, 'pow2.js'))
         open(os.path.join(d, 'host.html'), 'w').write(HOST.replace('__WIDTH__', str(width)))
         dom = chrome(d, [f'--window-size={max(width, 500) + 40},1100', f'--force-device-scale-factor={dpr}',
                          '--virtual-time-budget=10000', '--dump-dom', 'file://' + os.path.join(d, 'host.html')])
@@ -559,6 +585,7 @@ def console_lines():
     d = tempfile.mkdtemp(prefix='index-quals-')
     shutil.copy(INDEX, os.path.join(d, 'index.html'))
     shutil.copy(DATA, os.path.join(d, 'mstar.js'))
+    shutil.copy(POW2, os.path.join(d, 'pow2.js'))
     with open(os.path.join(d, 'stderr.txt'), 'w') as f:
         chrome(d, ['--enable-logging=stderr', '--v=0', '--window-size=1280,1000', '--virtual-time-budget=10000',
                    '--dump-dom', 'file://' + os.path.join(d, 'index.html')], stderr=f)
@@ -602,7 +629,8 @@ def q_insertions_only():
 def q_section_follows_table2():
     # Replicata: index.html.
     # Expectata: the page's one <figure> (Table 2) is followed, with only blank lines and comments between, by
-    # <section class="mstar" aria-labelledby="mstar-title">, and that by <section class="remarks">.  In order, the
+    # <section class="mstar" aria-labelledby="mstar-title">, and that by <section class="pow2" (the chart of powers of
+    # 2; quals_pow2_page.py holds it to being followed by <section class="remarks">).  In order, the
     # section holds: the h2 mstar-title; a legend whose three swatches are exists, open and impossible; the reset
     # button; the canvas mstar-chart (height 0 until drawn, focusable, an image with a label); and the readout
     # paragraph mstar-readout, polite live region.  (dreeves's copyedit dropped the caption paragraph.)
@@ -612,7 +640,7 @@ def q_section_follows_table2():
     filler = r'(?:\s|<!--.*?-->)*'
     m = re.match(filler + r'<section class="mstar" aria-labelledby="mstar-title">.*?</section>', after, re.S)
     assert m, after[:400]
-    assert re.match(filler + r'<section class="remarks">', after[m.end():], re.S), after[m.end():m.end() + 400]
+    assert re.match(filler + r'<section class="pow2"', after[m.end():], re.S), after[m.end():m.end() + 400]
     parts = [r'<h2 id="mstar-title">', r'<ul class="legend">', r'<span class="swatch exists" aria-hidden="true">',
              r'<span class="swatch open" aria-hidden="true">', r'<span class="swatch impossible" aria-hidden="true">',
              r'</ul>', r'<button type="button" id="mstar-reset">',
@@ -623,10 +651,12 @@ def q_section_follows_table2():
 
 def q_scripts_load_data_then_draw():
     # Replicata: index.html's script tags.
-    # Expectata: exactly two, after </main> and before </body>: a classic <script src="mstar.js"> (no type, async or
-    # defer, so it also loads from file://) and then one inline script.
+    # Expectata: exactly four, after </main> and before </body>: a classic <script src="mstar.js"> (no type, async or
+    # defer, so it also loads from file://) and then one inline script; then the chart of powers of 2's, likewise
+    # (quals_pow2_page.py holds those two).
     text = page()
-    assert re.findall(r'<script\b[^>]*>', text) == ['<script src="mstar.js">', '<script>'], re.findall(r'<script\b[^>]*>', text)
+    assert re.findall(r'<script\b[^>]*>', text) == ['<script src="mstar.js">', '<script>', '<script src="pow2.js">', '<script>'], \
+        re.findall(r'<script\b[^>]*>', text)
     assert text.index('</main>') < text.index('<script src="mstar.js"></script>') < text.index('<script>\n') < \
         text.index('</script>\n</body>')
 
@@ -720,6 +750,29 @@ def q_chart_agrees_with_tables():
     for n, low, high in entries:
         lo, hi = cols[n - 1][:2]
         assert low <= lo <= hi <= high, (n, low, high, lo, hi)
+
+
+def q_new_results_state_what_the_chart_proves():
+    # Replicata: the new results' table on index.html and the remarks' entries under "Where the new results come
+    # from" (each entry's n's and its "m* = v", "≥ v" or "∈ {a, ..., b}"), for n <= NMAX; mstar.js's columns.
+    # Expectata: every one states exactly the chart's [lo, hi] at its n, so no "≥" stands where the chart proves an
+    # upper bound (dreeves's report of 2026-10-11: 432's entry said ≥ 11 beside the chart's 11–12).
+    cols = mstar_data()['cols']
+    table = [(n, lo, hi) for n, lo, hi in new_results()]
+    assert len(table) == 15, table
+    remarks = []
+    for ns, v in re.findall(r'<p class="entry"><i>n</i> = ([^:]*): &nbsp;<span class="nw"><i>m</i><sup>\*</sup> ([^<]*)</span>',
+                            page()):
+        forms = ((r'= (\d+)', lambda a: (a, a)), (r'≥ (\d+)', lambda a: (a, math.inf)),
+                 (r'∈ \{(\d+)(?:, \d+)*, (\d+)\}', lambda a, b: (a, b)))
+        hits = [f(*map(int, m.groups())) for p, f in forms for m in [re.fullmatch(p, v)] if m]
+        assert len(hits) == 1, (ns, v)
+        if v.startswith('∈'): assert [int(t) for t in re.findall(r'\d+', v)] == list(range(hits[0][0], hits[0][1] + 1)), v
+        remarks += [(int(n), *hits[0]) for n in ns.split(', ') if re.fullmatch(r'\d+', n)]
+    assert len(remarks) == 15, remarks
+    wrong = [(where, n, lo, hi, cols[n - 1][:2]) for where, got in (('table', table), ('remark', remarks))
+             for n, lo, hi in got if [lo, hi] != cols[n - 1][:2]]
+    assert not wrong, wrong
 
 
 def q_citations_match_the_page():
