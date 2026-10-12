@@ -146,6 +146,35 @@ NEW = {304: (8, 8, 'Claude alone'), 320: (9, 9, 'BGPW'), 336: (10, 10, 'Claude a
        448: (9, 9, 'Claude alone'), 464: (9, 9, 'BGPW'), 480: (12, 14, 'Claude alone'),
        496: (9, 9, 'Claude and BGPW'), 512: (9, 9, 'Claude alone'), 528: (10, 12, 'Claude and BGPW'),
        576: (10, 12, 'Claude alone'),
+       384: (10, 11, 'Claude alone'),
+       544: (9, 10, 'Claude alone'),
+       560: (9, 10, 'Claude alone'),
+       592: (9, 10, 'Claude alone'),
+       608: (9, 10, 'Claude alone'),
+       624: (10, 12, 'Claude alone'),
+       640: (10, 10, 'Claude alone'),
+       656: (9, 10, 'Claude alone'),
+       672: (11, 13, 'Claude alone'),
+       688: (9, 10, 'Claude alone'),
+       704: (10, 10, 'Claude alone'),
+       720: (10, 14, 'Claude alone'),
+       736: (10, 10, 'Claude alone'),
+       752: (9, 11, 'Claude alone'),
+       768: (11, 13, 'Claude alone'),
+       784: (9, 10, 'Claude alone'),
+       800: (10, 11, 'Claude alone'),
+       816: (10, 14, 'Claude alone'),
+       832: (10, 11, 'Claude alone'),
+       848: (9, 11, 'Claude alone'),
+       864: (12, 14, 'Claude alone'),
+       880: (10, 11, 'Claude alone'),
+       896: (10, 11, 'Claude alone'),
+       912: (11, 13, 'Claude alone'),
+       928: (10, 11, 'Claude alone'),
+       944: (10, 11, 'Claude alone'),
+       960: (13, 15, 'Claude alone'),
+       976: (10, 11, 'Claude alone'),
+       992: (10, 11, 'Claude alone'),
        2 ** 24: (25, 29, 'Claude and BGPW'), 2 ** 33: (35, 41, 'Claude alone'),
        2 ** 49: (52, 61, 'Claude alone'), 2 ** 51: (54, 63, 'Claude and BGPW'),
        2 ** 57: (61, 71, 'Claude alone'), 2 ** 67: (72, 83, 'Claude alone')}
@@ -161,18 +190,24 @@ for _n, (_lo, _hi) in TABLE2.items(): CITED.setdefault(_n, []).append((_lo, _hi,
 for _n, (_lo, _hi, _who) in NEW.items(): CITED.setdefault(_n, []).append((_lo, _hi, ['page', _who]))
 # The hex codes in the page's remarks, in page order, as (label, m, hex) in the paper's Table 5 convention
 # (overnight_v5.from_hex).  The label names the page and the code's name there.
-PAGE_CODES = (('index.html p320', 9, 'B24B649ED92CD2C36496CB2DB6295D974138BA41'),
+PAGE_CODES = (('index.html BGPW 352', 9, 'A4DB4926DB4D36584B26936D2CFA54B6F04B2C13D4A2'),
+              ('index.html BGPW 368', 9, '96C965925B75B0CB249E583CF26B2E836C31DAC874B67D'),
+              ('index.html BGPW 400', 9, '34DB69269A69269A6D379A8D1C57459C5B45E5100DBAF7EAAA'),
+              ('index.html BGPW 464', 9, '93C96596CB2586DB1C965964E69975A207755BE209CE5E28F2C35A92BA'),
+              ('index.html p320', 9, 'B24B649ED92CD2C36496CB2DB6295D974138BA41'),
               ('index.html BGPW 336', 10, 'C87695B43E0ED258AB29C7793D8521DB227C0B746D'),
               ('index.html p336', 9, '9C5479E2669C97071E731A62EBC06F28E87B4961DF'),
               ('index.html p432', 11, '5A56B0EE234E8794ADE3D0C384F72A5C63A8BD65035EF015B78B46'),
               ('index.html p448', 9, 'A5994DB29B45A0FA5D26B24D665A5A66B24D64BA5F05A2D94DB299A5'),
               ('index.html p480', 12, 'B0CBC94F1E2C68D1E3A6371C357C4B1347952BB968236CF6C82CD9CE01F3'),
+              ('index.html BGPW 496', 9, 'C96992D92DB24B7596496D1A530DB5994EA699A9ACE072BDC57403B339A4CE'),
               ('index.html p192', 9, 'C1BE1E21CD63D295A7887A59'),
               ('index.html p112', 7, 'A5994DB29B45A0'),
               ('index.html p48', 6, 'C27D8C'))
 # Claude's own examples of order 9 at the lengths where the page credits BGPW's (352, 368, 400, 464 and 496), found on
 # 2026-10-12 by a CP-SAT search (scratch/lower24-design/wider/), as (n, m, hex) in overnight_v5.from_hex's convention;
-# BGPW's examples came first, as the page says.  Their label is 'found here', as brute force's.
+# BGPW's examples came first, as the page says, and since 2026-10-12 the page shows theirs (PAGE_CODES), which win
+# the tie, so these are an independent check.  Their label is 'found here', as brute force's.
 FOUND = ((352, 9, '969E4C06F693B61B683699E934D241A6DB4936D7CDA6'),
          (368, 9, 'B449E6A1DB4AB5A123D2DB84B7592CB2496596DB64B4C9'),
          (400, 9, 'A70B2F45D60B4BE22CD2DE51B49B4924DB6D26D349A6926DB4'),
@@ -198,13 +233,16 @@ def page_value(s):
     raise AssertionError(s)
 
 
+PAPER = 'The published paper (2021)'      # the legend's label, and the title, of the paper's values
+
+
 def page_sources(html):
     """Table 2, the new results, the codes and the sets, parsed out of index.html and asserted equal to the hand
     copies above.  Returns {'table2': {n: (lo, hi)}, 'new': {n: (lo, hi, who)}, 'codes': [(m, hex)],
-    'sets': [(m, n, set)]}.  The page's tables of class "block" are Table 2's three, then the new results' two (n up to
-    576, then the powers of 2)."""
+    'sets': [(m, n, set)]}.  The page's tables of class "block" are Table 2's three, then the new results' five (every
+    multiple of 16 from 304 to 992 in four rows of 11, then the powers of 2)."""
     tables = re.findall(r'<table class="block">(.*?)</table>', html, re.S)
-    assert len(tables) == 5, len(tables)
+    assert len(tables) == 8, len(tables)
     rows = []
     for t in tables:
         ns = re.findall(r'<td([^>]*)>(.*?)</td>', re.search(r'<tr class="ns">(.*?)</tr>', t, re.S)[1])
@@ -214,8 +252,12 @@ def page_sources(html):
     table2 = {n: v for row in rows[:3] for n, title, v in row}
     assert all(title is None for row in rows[:3] for _, title, _ in row)
     assert len(table2) == sum(map(len, rows[:3])) == 39
-    new = {n: v + (title[1],) for row in rows[3:] for n, title, v in row}
-    assert len(new) == sum(map(len, rows[3:]))
+    # The final row copies Table 2's powers of 2, uncolored and titled as the legend's "The published paper (2021)":
+    # each must equal Table 2's entry, and they are no new results.
+    copies = [(n, v) for row in rows[3:] for n, title, v in row if title[1] == PAPER]
+    assert copies and all(table2[n] == v for n, v in copies), copies
+    new = {n: v + (title[1],) for row in rows[3:] for n, title, v in row if title[1] != PAPER}
+    assert len(new) + len(copies) == sum(map(len, rows[3:]))
     codes = []
     for block in re.findall(r'<p class="code">(.*?)</p>', html, re.S):
         ms = [int(m) for m in re.findall(r'\(<i>m</i> = (\d+)\)', block)]

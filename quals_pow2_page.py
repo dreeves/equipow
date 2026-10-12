@@ -46,7 +46,7 @@ LEGEND_LINES = ('<ul class="legend">',
                 '<li><span class="swatch open" aria-hidden="true"></span>open</li>',
                 '<li><span class="swatch impossible" aria-hidden="true"></span><span class="nw"><i>k</i> + <i>e</i> &gt; <i>m</i><sup>*</sup>(2<sup><i>k</i></sup>)</span></li>',
                 '</ul>')
-HIS = (re.sub(r'<[^>]*>', '', HEADING), LABEL, HINT, 'open')   # his words as a reader gets them: heading text, label, hint, legend
+HIS = (re.sub(r'<[^>]*>', '', HEADING), LABEL, HINT, 'known', 'open', 'impossible')   # his words as a reader gets them
 K, ROW, GAP = 72, 14, 2                       # columns k = 1..K; rows ROW CSS px apart, the bottom GAP of each surface
 KINDS = ('exists', 'open', 'impossible')      # the kinds of cell, as the tokens of their colors name them
 F = [2 ** 24, 25]                             # f, the construction of length 2^24 and order 25, as a block [n, m]
@@ -202,11 +202,12 @@ def reason_math(k, why):
 
 # A readout's text, each <sup> written ^(…) and each <sub> _(…): the cell, its meaning, the column's bounds, then the
 # reasons.
-READOUT = re.compile(r'k = (\d+), n = 2\^\((\d+)\), m = (\d+) \+ (\d+) = (\d+) · (Claude: "[^"]*") · '
+READOUT = re.compile(r'k = (\d+), n = 2\^\((\d+)\), m = (\d+) \+ (\d+) = (\d+) · (known|open|impossible) · '
                      r'(\d+) ≤ m\^\(\*\)\(2\^\((\d+)\)\) ≤ (\d+) · (.*)')
 
 
 def kind_of(col, k, e): return (k + e > col[0]) + (k + e > col[1])     # 0 exists, 1 open, 2 impossible
+MEANINGS = ('known', 'open', 'impossible')    # each kind's word in the readout, dreeves's (approved 2026-10-12)
 
 
 def check_readouts(data, reads):
@@ -220,6 +221,7 @@ def check_readouts(data, reads):
         g = READOUT.fullmatch(r['text'])
         assert g and [int(g[i]) for i in (1, 2, 3, 4, 5, 7, 8, 9)] == [k, k, k, e, k + e, lo, k, hi], (k, e, r)
         assert r['children'][:1] == [f'swatch {KINDS[kind]}'], (k, e, r)
+        assert g[6] == MEANINGS[kind], (k, e, r)
         meaning.setdefault(kind, set()).add(g[6])
         parts = re.findall(r'Claude: "[^"]*"', g[10])
         assert ' · '.join(parts) == g[10], (k, e, r)
@@ -806,7 +808,7 @@ def q_hover_reads_out_every_cell():
     # Replicata: the 1280 px light configuration: a real mouse move to the middle of every cell, column by column.
     # Expectata: after each, the readout is that cell's: its first child is a swatch of the cell's kind, and its text
     # (each <sup> written ^(…)) is "k = K, n = 2^(K), m = K + E = M · MEANING · lo ≤ m^(*)(2^(K)) ≤ hi · REASONS":
-    # MEANING one Claude: "…" per kind, the same for every cell of that kind and different between kinds; REASONS the
+    # MEANING dreeves's word for the cell's kind (MEANINGS: known, open, impossible); REASONS the
     # Claude: "…" of lo's reason for a green cell, of hi's for a red one and both for a gray one, joined by " · ", lo's
     # starting "order lo " and hi's "order hi + 1 ", each holding its reason's math (reason_math).
     R = valid('light')

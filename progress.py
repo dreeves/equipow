@@ -603,6 +603,13 @@ def makespan(loads, items):
     return a.max(axis=1)
 
 
+# KNOWN FLAW, recorded at dreeves's request on 2026-10-12, not yet fixed: this is not a calibrated Bayesian ETA.  In
+# his words: "seemingly there's no attempt to make an actual bayesian estimate of the ETA but rather a best-case
+# estimate if no more splits or whatever happen, which we know they will."  It does draw a pending subtree's cost from
+# its depth's completed or partly completed subtrees, but those are mostly the early, cheap ones, so it runs optimistic:
+# 240@11's pass 3 read about 6 h on 2026-10-11 at 22:54 and about 118 h by 2026-10-12 at 12:52.  A fix should model the
+# total remaining work's posterior (heavy-tailed subtree sizes, queue growth from splits) and be backtested against
+# finished passes (304@9's, 240@11's first two), whose true remaining time at every past moment is known.
 def estimate(state, parts=None):
     """REPLICATES samples of the current pass's remaining hours of running (see the vocabulary), or an empty array (no
     estimate).  parts, if a dict, receives the pieces: the tree, the kinds, the draws, the items, the work, the speed."""
