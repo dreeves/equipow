@@ -316,15 +316,41 @@ def q_columns_rebuilt():
 
 def q_lo_reasons():
     # Replicata: every column's lo and loWhy, against the page's values and the explicit sources.
-    # Expectata: a table2 or page lo equals the cited lower value, and the best explicit construction there is lower
-    # (else the checked one would be preferred); an example's lo equals that sequence's exact order.
+    # Expectata: a table2 or page lo equals the cited lower value, a page lo's who is mstar.EXAMPLE_BY's (whose
+    # example the page's remarks credit), and the best explicit construction there is lower (else the checked one
+    # would be preferred); an example's lo equals that sequence's exact order.
     _, got = disk()
     cs, ex = got['m']['cols'], mstar.explicit()
     for n, (lo, hi, why, _) in enumerate(cs, 1):
         if why[0] == 'table2': assert mstar.TABLE2[n][0] == lo, n
-        if why[0] == 'page': assert mstar.NEW[n][0] == lo and mstar.NEW[n][2] == why[1], n
+        if why[0] == 'page': assert mstar.NEW[n][0] == lo and mstar.EXAMPLE_BY[n] == why[1], n
         if why[0] in ('table2', 'page'): assert mstar.explicit_lo()[0][n] < lo, n
         if why[0] == 'example': assert exact_order_div(ex[n, why[1]]) == lo, n
+
+
+def page_remarks():
+    """{n: the rest of the page's remark (its <li> under "Where the new results come from") whose entry lists n}, for
+    the n the entries write in digits."""
+    html = open(os.path.join(HERE, 'index.html'), encoding='utf-8').read()
+    section = re.search(r'<section class="remarks">(.*?)</section>', html, re.S)[1]
+    out = {}
+    for ns, body in re.findall(r'<p class="entry"><i>n</i> = ([\d, ]+):(.*?)</li>', section, re.S):
+        for n in ns.split(', '): out[int(n)] = body
+    return out
+
+
+def q_cited_lo_credits_whose_example():
+    # Replicata: every column of mstar.js whose loWhy is ["page", who], and the page's remark whose entry lists its n.
+    # Expectata: the remark credits the example to who, saying "example(s) of order lo found by who." (a cited lo's who
+    # names whose example it is; a cited hi's, whose proof, which is the cell's title).  So 496's loWhy is
+    # ["page", "BGPW"], though its cell's title is 'Claude and Stan', for the proof of the upper bound; the remark
+    # reads "An example of order 9 found by BGPW."
+    _, got = disk()
+    remarks = page_remarks()
+    cited = {n: c for n, c in enumerate(got['m']['cols'], 1) if c[2][0] == 'page'}
+    assert 496 in cited and mstar.NEW[496][2] == 'Claude and Stan', sorted(cited)
+    for n, (lo, hi, why, _) in cited.items():
+        assert re.search(rf'\b[Ee]xamples? of order {lo} found by {re.escape(why[1])}\.', remarks[n]), (n, why, remarks[n])
 
 
 def q_hi_reasons():
@@ -493,6 +519,72 @@ def q_residue_claims():
         assert level == [], (n, m, chain)
         assert m - 1 < min([mstar.two(n)] + [mstar.norm(n, p) for p in mstar.PRIMES if n % p]), n
         assert m - 1 >= got['m']['cols'][n - 1][0], n
+
+
+def box_in_plain_lattice(n, M, m):
+    """Brute force: every vector D of the box (|D_r| <= size(M, r), D_r = size(M, r) mod 2, sum_r D_r = 0) that lies
+    in the plain lattice L(M, m), tested exactly by overnight_v5.ExactSystem on its generators x^k (x-1)^m mod
+    x^M - 1 (no factor x + 1 at any n); sorted."""
+    poly = [1]
+    for _ in range(m): poly = [a - b for a, b in zip([0] + poly, poly + [0])]          # (x-1)^m, lowest first
+    G = [[0] * M for _ in range(M)]                       # G[r][k]: coordinate r of x^k (x-1)^m mod x^M - 1
+    for k in range(M):
+        for t, c in enumerate(poly): G[(t + k) % M][k] += c
+    es = v5.ExactSystem(G)
+    sizes = [len(range(r, n, M)) for r in range(M)]
+    return sorted(D for D in itertools.product(*[range(-s, s + 1, 2) for s in sizes]) if sum(D) == 0 and es.solvable(D))
+
+
+def q_plus_lattice_keeps_every_vector():
+    # Replicata: small cases (n, M), M a prime power, at orders m = 1..7: the brute-force box vectors in the plain
+    # lattice L(M, m) (box_in_plain_lattice), against mstar.residue_vectors in each sweep, which enumerates L+(M, m)
+    # (the factor x + 1 more) when n < 2^m; for M >= 4 even, also under each such vector mod M/2 as a parent.  And
+    # mstar.lattice(M, m, plus) with plus False and True, M in 2, 3, 4, 5, 8, 9, 16.
+    # Expectata: the same vectors every time: the refinement never removes a vector that L(M, m) admits within the box.
+    # The cases have teeth: at least 3 with M even and n < 2^m hold vectors, and at least 3 with n >= 2^m hold a vector
+    # with D(-1) != 0, which L+ lacks (so the condition n < 2^m matters).  L+ = L for odd M; for even M, L+ is a proper
+    # sublattice, of rank M - 2 against M - 1.
+    held = lost = 0
+    for n, M in ((8, 2), (8, 4), (12, 4), (12, 8), (16, 4), (16, 8), (16, 16), (10, 5), (12, 3), (14, 7), (18, 9),
+                 (20, 4), (24, 8)):
+        for m in range(1, 8):
+            want = box_in_plain_lattice(n, M, m)
+            under = {}                                    # want by its sums over the classes mod M/2
+            for D in want: under.setdefault(tuple(sum(D[q::M // 2]) for q in range(M // 2)), []).append(D)
+            parents = box_in_plain_lattice(n, M // 2, m) if M % 2 == 0 and M >= 4 else []
+            for sweep in mstar.SWEEPS:
+                got = sorted(mstar.residue_vectors(n, M, m, None, mstar.Budget(10 ** 7), sweep))
+                assert got == want, (n, M, m, sweep, len(got), len(want))
+                for W in parents:
+                    got = sorted(mstar.residue_vectors(n, M, m, (M // 2, W), mstar.Budget(10 ** 7), sweep))
+                    assert got == under.get(W, []), (n, M, m, W, sweep)
+            held += M % 2 == 0 and n < 2 ** m and want != []
+            lost += any(sum(d * (-1) ** r for r, d in enumerate(D)) for D in want) and M % 2 == 0
+    assert held >= 3 and lost >= 3, (held, lost)
+    for M in (2, 3, 4, 5, 8, 9, 16):
+        for m in range(1, 8):
+            A, B = mstar.lattice(M, m, False), mstar.lattice(M, m, True)
+            assert A.shape[1] == M - 1 and B.shape[1] == M - 1 - (M % 2 == 0) and (A == B) == (M % 2 == 1), (M, m)
+
+
+def q_720_order_15_is_ruled_out():
+    # Replicata: column 720 of mstar.js (720 = 16 * 45); mstar.RESIDUE[720], enumerated by chain_none with a cap of 10
+    # nodes; the generators x^k (x-1)^15 mod x^16 - 1 of L(16, 15), and the class sizes of 720 mod 16.
+    # Expectata: hi = 14 with hiWhy ["residue", 16], from the claim (15, (16,), a sweep), which the enumeration settles
+    # within the 10 nodes (it uses L+, as 720 < 2^15).  Independently, BGPW's Prop. 4.4 (q = 4) in residue form: every
+    # generator is odd in every coordinate and is +-2^15 at x = -1, and every class has 45 elements, so in an
+    # admissible D = sum_k z_k g_k every D_r is odd, so sum_k z_k is odd, so |D(-1)| = 2^15 |sum_k +-z_k| >= 2^15 > 720,
+    # while |D(-1)| <= sum_r size(16, r) = 720: there is none.
+    _, got = disk()
+    lo, hi, _, why = got['m']['cols'][720 - 1]
+    assert (hi, why) == (14, ['residue', 16]), (lo, hi, why)
+    m, chain, sweep = mstar.RESIDUE[720]
+    assert (m, chain) == (15, (16,)) and mstar.chain_none(720, m, chain, sweep, 10) is True
+    poly = [1]
+    for _ in range(15): poly = [a - b for a, b in zip([0] + poly, poly + [0])]
+    G = [[poly[(r - k) % 16] for r in range(16)] for k in range(16)]          # G[k]: x^k (x-1)^15 mod x^16 - 1
+    assert all(x % 2 for g in G for x in g) and {sum(x * (-1) ** r for r, x in enumerate(g)) for g in G} == {2 ** 15, -2 ** 15}
+    assert {len(range(r, 720, 16)) for r in range(16)} == {45} and 2 ** 15 > 720
 
 
 def q_chain_none_fails_loudly():

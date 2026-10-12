@@ -23,6 +23,15 @@ Vocabulary used throughout this file, each term defined once here:
                  D_r = size(M, r) (mod 2).
   residue lattice  L(M, m), the coefficient vectors of (x-1)^m g(x) mod x^M - 1 for g in Z[x].  A sequence of order
                  >= m has its residue sums mod M in L(M, m): f = (x-1)^m g with g in Z[x], since (x-1)^m is monic.
+  L+(M, m)       the coefficient vectors of (x-1)^m (x+1) g(x) mod x^M - 1 for g in Z[x], inside L(M, m).  When n < 2^m,
+                 every D in L(M, m) with |D_r| <= size(M, r) for all r is in L+(M, m), so residue_vectors enumerates
+                 L+(M, m) instead, as overnight_v5.lattice_poly does: the same vectors, found far sooner (720 at order
+                 15 mod 16 takes one node, where L(16, 15) passes 10^6).  Proof: D(x) = (x-1)^m g(x) + (x^M - 1) q(x)
+                 with g, q in Z[x].  If M is even, x = -1 gives D(-1) = (-2)^m g(-1), a multiple of 2^m, while
+                 |D(-1)| <= sum_r size(M, r) = n < 2^m; so D(-1) = 0, so g(-1) = 0, so g = (x+1) h with h in Z[x]
+                 (x + 1 is monic), and D is in L+(M, m).  If M is odd, L+(M, m) = L(M, m) for m >= 1: with
+                 Phi = 1 + x + ... + x^(M-1) = (x+1) s(x) + Phi(-1), s in Z[x] and Phi(-1) = 1,
+                 (x-1)^m = (x-1)^(m-1) (x^M - 1) - (x+1) (x-1)^m s(x), which lies in L+(M, m).
   parent         (P, W): residue sums W mod P, for P dividing M.  The vectors mod M under it are those whose sums
                  over the classes r = q (mod P) are the W_q; a sequence's residue sums mod M sum this way to its own
                  residue sums mod P.
@@ -55,11 +64,11 @@ lo < m <= hi, and red when m > hi; row T is red in every column.
   loWhy  ["none"] (lo = 0, n odd); ["example", label] (an explicit sequence of length n, label saying where it is
          from); ["join", a, b] (the sequence for a, then the one for b; lo is the lesser of theirs); ["product", a, b]
          (f_a(x) f_b(x^a); lo is the sum of theirs); ["table2"] (BGPW's Table 2, cited); ["page", who] (the page's new
-         results, cited; who is that cell's title).  Every example, join and product is a sequence built here from
-         explicit sequences only and checked with exact power sums; a join's or product's parts are themselves columns
-         with such reasons.
+         results, cited; who found the example, as the page's remarks credit it: EXAMPLE_BY).  Every example, join and
+         product is a sequence built here from explicit sequences only and checked with exact power sums; a join's or
+         product's parts are themselves columns with such reasons.
   hiWhy  ["odd"] (n odd: hi = 0); ["two"]; ["norm", p]; ["residue", M] (the claim in RESIDUE: no admissible vector mod
-         M at order hi + 1); ["table2"]; ["page", who].
+         M at order hi + 1); ["table2"]; ["page", who] (who proved it: that cell's title).
   When sources tie, a reason checked here wins over a citation, and the simpler one among those: example, join,
   product; odd, two, norm (the least p), residue.
 
@@ -138,7 +147,13 @@ NEW = {304: (8, 8, 'Claude alone'), 320: (9, 9, 'BGPW'), 336: (10, 10, 'Claude a
        496: (9, 9, 'Claude and Stan'), 512: (9, 9, 'Claude alone'), 528: (10, None, 'BGPW'),
        576: (10, 12, 'Claude alone'),
        2 ** 24: (25, None, 'Claude and Stan'), 2 ** 51: (53, None, 'Claude and Stan')}
-# CITED[n]: the page's values at n as (lo, hi, reason), Table 2's first, then the new results'
+# EXAMPLE_BY[n]: who found the example of order NEW[n][0] at n, as the page's remarks credit it, for each n whose lo
+# is that cited value (no sequence of that order is here; columns() asserts that these are exactly those n).  A cited
+# lo's ["page", who] names whose example it is, and a cited hi's whose proof, the cell's title.  At 496 they differ:
+# the title is 'Claude and Stan', for the proof of the upper bound, and the remark reads "An example of order 9 found
+# by BGPW."
+EXAMPLE_BY = {352: 'BGPW', 368: 'BGPW', 400: 'BGPW', 464: 'BGPW', 496: 'BGPW'}
+# CITED[n]: the page's values at n as (lo, hi, hiWhy), Table 2's first, then the new results'
 CITED = {}
 for _n, (_lo, _hi) in TABLE2.items(): CITED.setdefault(_n, []).append((_lo, _hi, ['table2']))
 for _n, (_lo, _hi, _who) in NEW.items(): CITED.setdefault(_n, []).append((_lo, _hi, ['page', _who]))
@@ -320,11 +335,11 @@ SWEEPS = {'natural': lambda M: tuple(range(M)), 'digits': digits}
 
 
 @lru_cache(maxsize=None)
-def lattice(M, m):
-    """L(M, m) as the columns of sympy's Hermite normal form of its generators, the coefficient vectors of
-    x^k (x-1)^m mod x^M - 1, k = 0..M-1."""
+def lattice(M, m, plus):
+    """L(M, m), or L+(M, m) when plus, as the columns of sympy's Hermite normal form of its generators, the coefficient
+    vectors of x^k (x-1)^m mod x^M - 1, k = 0..M-1, each times x + 1 when plus."""
     poly = [1]
-    for _ in range(m): poly = [a - b for a, b in zip([0] + poly, poly + [0])]         # (x-1)^m, lowest first
+    for root in [1] * m + [-1] * plus: poly = [a - root * b for a, b in zip([0] + poly, poly + [0])]   # lowest first
     G = [[0] * M for _ in range(M)]
     for k in range(M):
         for t, c in enumerate(poly): G[k][(t + k) % M] += c
@@ -332,12 +347,13 @@ def lattice(M, m):
 
 
 @lru_cache(maxsize=None)
-def basis(M, m, sweep):
-    """Columns spanning L(M, m) in Hermite normal form with the coordinates in the order SWEEPS[sweep](M), and each
-    column's pivot (its last nonzero row): the pivots increase and their entries are positive (asserted), as
-    residue_vectors needs.  It is the Hermite normal form of lattice(M, m)'s rows so reordered: the same lattice, and
-    for some sweeps far faster than from the generators (L(25, 13) in 'digits': 0.01 s against 126 s)."""
-    H = lattice(M, m)
+def basis(M, m, sweep, plus):
+    """Columns spanning lattice(M, m, plus) in Hermite normal form with the coordinates in the order
+    SWEEPS[sweep](M), and each column's pivot (its last nonzero row): the pivots increase and their entries are
+    positive (asserted), as residue_vectors needs.  It is the Hermite normal form of lattice(M, m, plus)'s rows so
+    reordered: the same lattice, and for some sweeps far faster than from the generators (L(25, 13) in 'digits':
+    0.01 s against 126 s)."""
+    H = lattice(M, m, plus)
     H = hermite_normal_form(sp.Matrix([[H[r, j] for j in range(H.shape[1])] for r in SWEEPS[sweep](M)]))
     B = tuple(tuple(int(H[i, j]) for j in range(H.shape[1])) for i in range(M))
     piv = tuple(max(i for i in range(M) if B[i][j]) for j in range(len(B[0])))
@@ -359,13 +375,13 @@ class Budget:
 
 def residue_vectors(n, M, m, parent, budget, sweep):
     """Yield every admissible vector of residue sums mod M at order m >= 1 (under parent = (P, W), or None), by
-    back substitution in basis(M, m, sweep), as overnight_v5.admissible does (in the sweep 'natural'): going down the
-    rows, a pivot row i of column j takes d_i = base + B[i][j] z_j for each z_j that keeps d_i in range, and any other
-    row is determined by the coefficients already chosen.  A row is kept only if d_i meets the size and parity
-    conditions and the rows still to come in its class mod P can still reach the parent's sum.  Each call of climb
-    spends a node of the budget."""
+    back substitution in basis(M, m, sweep, n < 2^m) (L+(M, m) when n < 2^m, which has the same admissible vectors),
+    as overnight_v5.admissible does (in the sweep 'natural'): going down the rows, a pivot row i of column j takes
+    d_i = base + B[i][j] z_j for each z_j that keeps d_i in range, and any other row is determined by the coefficients
+    already chosen.  A row is kept only if d_i meets the size and parity conditions and the rows still to come in its
+    class mod P can still reach the parent's sum.  Each call of climb spends a node of the budget."""
     assert m >= 1 and M >= 2
-    B, piv = basis(M, m, sweep)
+    B, piv = basis(M, m, sweep, n < 2 ** m)
     cls = SWEEPS[sweep](M)                              # row i holds the residue sum of the class cls[i] mod M
     s = [len(range(r, n, M)) for r in cls]
     P, W = parent or (1, (0,))                          # without a parent, sum_r D_r = f(1) = 0
@@ -422,9 +438,10 @@ def chain_none(n, m, chain, sweep, cap):
 # bound down, the chains (3), (4), (5), (7), (3, 9), (4, 8), (11), (13), (4, 8, 16), (5, 25), (3, 9, 27), (7, 49),
 # (4, 8, 16, 32) in the sweep 'natural', each capped at 300000 nodes; a column's claim is the least order killed.  Then
 # again with larger caps, and in the sweep 'digits', where CP-SAT (as a guide only) found no vector or the page cites a
-# proof by residues: 120 and 136 mod 8, 624 at order 13 mod 25, 512 mod 27.  Each claim's sweep is 'digits' (the same
-# as 'natural' for a prime) but 624's, which takes 670000 nodes in 'natural' and 3.1 million in 'digits'.  Claims that
-# do not set hi (where a citation is lower: 96, 240, 288) are left out.
+# proof by residues: 120 and 136 mod 8, 624 at order 13 mod 25, 512 mod 27.  720's, at order 15 mod 16, is BGPW's
+# Prop. 4.4 (q = 4) in residue form, from the check of mstar.js; it settles at once in L+(16, 15).  Each claim's sweep
+# is 'digits' (the same as 'natural' for a prime) but 624's, which takes 670000 nodes in 'natural' and 3.1 million in
+# 'digits'.  Claims that do not set hi (where a citation is lower: 96, 240, 288) are left out.
 RESIDUE = {24: (5, (5, 25), 'digits'), 40: (6, (3,), 'digits'), 48: (7, (5, 25), 'digits'),
            72: (7, (4, 8), 'digits'), 80: (7, (3, 9), 'digits'), 88: (7, (3, 9), 'digits'), 104: (7, (4, 8), 'digits'),
            120: (7, (4, 8), 'digits'), 128: (8, (3,), 'digits'), 136: (7, (4, 8), 'digits'),
@@ -435,8 +452,8 @@ RESIDUE = {24: (5, (5, 25), 'digits'), 40: (6, (3,), 'digits'), 48: (7, (5, 25),
            496: (10, (3, 9), 'digits'), 512: (10, (3, 9, 27), 'digits'), 528: (13, (5,), 'digits'),
            576: (13, (5,), 'digits'), 608: (11, (3,), 'digits'), 624: (13, (5, 25), 'natural'),
            640: (11, (3,), 'digits'), 656: (11, (3,), 'digits'), 672: (14, (5,), 'digits'), 688: (11, (3,), 'digits'),
-           704: (11, (3,), 'digits'), 736: (11, (3, 9), 'digits'), 768: (14, (5,), 'digits'),
-           864: (15, (5,), 'digits'), 912: (14, (5,), 'digits'), 960: (16, (7,), 'digits')}
+           704: (11, (3,), 'digits'), 720: (15, (16,), 'digits'), 736: (11, (3, 9), 'digits'),
+           768: (14, (5,), 'digits'), 864: (15, (5,), 'digits'), 912: (14, (5,), 'digits'), 960: (16, (7,), 'digits')}
 
 
 # ---------- the columns ----------
@@ -474,8 +491,9 @@ def build(n):
 @lru_cache(maxsize=None)
 def columns():
     """[lo, hi, loWhy, hiWhy] for n = 1..NMAX (index n-1), asserting along the way: every claim of RESIDUE, every
-    built sequence's order, lo <= hi, the page's exact values and ranges, brute force, and that no join or product
-    leans on a column whose lo is a citation."""
+    built sequence's order, lo <= hi, the page's exact values and ranges, brute force, that no join or product
+    leans on a column whose lo is a citation, and that EXAMPLE_BY names exactly the columns whose lo is the new
+    results'."""
     lo_x, why_x = explicit_lo()
     for n, (m, chain, sweep) in RESIDUE.items(): assert chain_none(n, m, chain, sweep, RESIDUE_CAP), (n, m, chain)
     out = []
@@ -483,7 +501,8 @@ def columns():
         a = build(n)
         assert len(a) == n and order(a) >= lo_x[n], n
         cited = CITED.get(n, [])
-        lo, lw = max([(lo_x[n], list(why_x[n]))] + [(c[0], c[2]) for c in cited], key=lambda c: c[0])
+        lo, lw = max([(lo_x[n], list(why_x[n]))] + [(v[0], ['table2']) for k, v in TABLE2.items() if k == n]
+                     + [(NEW[k][0], ['page', who]) for k, who in EXAMPLE_BY.items() if k == n], key=lambda c: c[0])
         his = ([(0, ['odd'])] * (n % 2) + [(two(n), ['two'])] + [(norm(n, p), ['norm', p]) for p in PRIMES if n % p]
                + [(m - 1, ['residue', chain[-1]]) for k, (m, chain, _) in RESIDUE.items() if k == n]
                + [(c[1], c[2]) for c in cited if c[1] is not None])
@@ -494,6 +513,7 @@ def columns():
     for n, (lo, hi, lw, hw) in enumerate(out, 1):
         assert lw[0] not in ('join', 'product') or all(out[k - 1][2] == list(why_x[k]) for k in lw[1:]), n
         assert n > BRUTE_MAX or lo == hi == brute(n)[0], n
+    assert {n for n, c in enumerate(out, 1) if c[2][0] == 'page'} == set(EXAMPLE_BY), EXAMPLE_BY
     return tuple(out)
 
 

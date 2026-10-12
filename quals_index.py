@@ -4,12 +4,12 @@ arguments: all quals).
 
 Each qual is a function q_*: a passing qual returns, a failing one raises.  Each qual's comment gives its replicata (the
 setup) and expectata (what must happen); a failure's message or traceback gives the resultata (what happened instead).
-The static quals read index.html, the committed index.html (git show HEAD:index.html) and mstar.js.  The browser quals
-load a copy of index.html in headless Chrome (in an iframe of the width each configuration asks for, since the
-window cannot be narrower than 500 px), in a temporary directory with a copy of mstar.js (or made-up data), with two
-scripts added: EARLY, first in the head, which records errors and every string drawn on a canvas, and HARNESS, last in
-the body, which drives the chart with synthetic events and posts what it saw to the host page, which writes it into
-the DOM that --dump-dom returns.
+The static quals read index.html, index.html as it was before the chart (git show BASE:index.html) and mstar.js.  The
+browser quals load a copy of index.html in headless Chrome (in an iframe of the width each configuration asks for,
+since the window cannot be narrower than 500 px), in a temporary directory with a copy of mstar.js (or made-up data),
+with two scripts added: EARLY, first in the head, which records errors and every string drawn on a canvas, and
+HARNESS, last in the body, which drives the chart with synthetic events and posts what it saw to the host page, which
+writes it into the DOM that --dump-dom returns.
 The harness locates the chart only by its pixels, reads the view only through the readout (the cell under a
 synthetic pointer) and finds the n labels by where their strings were drawn, so the quals hold the chart to what a
 reader sees.
@@ -29,6 +29,24 @@ EVEN = list(range(2, NMAX + 1, 2))            # the chart's columns: an odd n ha
 NCOL = len(EVEN)
 STEPS = (2, 10, 20, 50, 100, 200, 500)        # the steps of the n labels: 1, 2, 5, 10, ... without the odd ones
 RUNS = {}                                     # browser runs by configuration name, made once per process (see run)
+# The last commit before the chart ("Got 304:8").  The chart went in as insertions only, so the static quals diff
+# against it, which guards that change; rebase it when dreeves next edits the page's existing text.
+BASE = '014048c'
+# dreeves's copyedit of the chart (917fe7f): his words, which stand without a Claude: "…" attribution.  The quals hold
+# the page to them exactly, and any other English the chart shows must be Claude: "…".
+HEADING = 'Bounds on <span class="nw"><i>m</i><sup>*</sup>(<i>n</i>)</span> for every even <i>n</i> up to 1000'
+ZOOM_LABELS = ('zoom out"', 'zoom in')        # the zoom buttons' aria-labels, the stray quote as he committed it
+CANVAS_LABEL = 'chart of the bounds on m*(n) for even n up to 1000; the arrow keys pan, and + and − zoom'
+HINT = 'Hover over a cell for details. Drag or swipe sideways to pan; zoom with the − and + buttons, pinching, or ctrl-scroll.'
+ERROR = 'Error drawing the chart: '           # the readout when the chart cannot be drawn, followed by the error
+# The lines of the page that hold his words, stripped: the copy rules of q_new_copy_is_attributed pass over them.
+DREEVES_LINES = (f'<h2 id="mstar-title">{HEADING}</h2>',
+                 '<li><span class="swatch open" aria-hidden="true"></span>open</li>',
+                 f'<button type="button" id="mstar-zoom-out" aria-label=\'{ZOOM_LABELS[0]}\' title=\'Claude: "zoom out"\'>−</button>',
+                 f'<button type="button" id="mstar-zoom-in" aria-label=\'{ZOOM_LABELS[1]}\' title=\'Claude: "zoom in"\'>+</button>',
+                 f'<canvas id="mstar-chart" height="0" tabindex="0" role="img" aria-label=\'{CANVAS_LABEL}\'></canvas>',
+                 f'<p id="mstar-readout" aria-live="polite">{HINT}</p>',
+                 f'ro.textContent = `{ERROR}${{e}}`;')
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -38,12 +56,13 @@ def page(): return open(INDEX, encoding='utf-8').read()
 
 
 def committed():
-    return subprocess.run(['git', '-C', HERE, 'show', 'HEAD:index.html'], capture_output=True, text=True,
+    """index.html as it was before the chart (BASE)."""
+    return subprocess.run(['git', '-C', HERE, 'show', f'{BASE}:index.html'], capture_output=True, text=True,
                           check=True).stdout
 
 
 def opcodes():
-    """difflib's line opcodes from the committed index.html to the working one."""
+    """difflib's line opcodes from index.html before the chart (BASE) to the working one."""
     return difflib.SequenceMatcher(None, committed().splitlines(), page().splitlines(), autojunk=False).get_opcodes()
 
 
@@ -63,7 +82,7 @@ def regions(lines):
 
 
 def inserted():
-    """The working index.html's lines, their regions, and the indices of the lines inserted since HEAD."""
+    """The working index.html's lines, their regions, and the indices of the lines inserted since BASE."""
     lines = page().splitlines()
     return lines, regions(lines), [j for tag, _, _, j1, j2 in opcodes() if tag == 'insert' for j in range(j1, j2)]
 
@@ -571,19 +590,22 @@ def close(a, b, tol): return abs(a - b) <= tol
 # Static quals
 
 def q_insertions_only():
-    # Replicata: index.html against the committed one (git show HEAD:index.html), compared line by line with difflib.
-    # Expectata: every opcode is 'equal' or 'insert': not a character of the existing page changed or went missing.
+    # Replicata: index.html against the page before the chart (git show BASE:index.html), compared line by line with
+    # difflib.
+    # Expectata: every opcode is 'equal' or 'insert': not a character of the page before the chart changed or went
+    # missing; and lines were inserted.
     tags = {tag for tag, *_ in opcodes()}
     assert tags <= {'equal', 'insert'}, [op for op in opcodes() if op[0] not in ('equal', 'insert')]
+    assert 'insert' in tags, tags
 
 
 def q_section_follows_table2():
     # Replicata: index.html.
     # Expectata: the page's one <figure> (Table 2) is followed, with only blank lines and comments between, by
     # <section class="mstar" aria-labelledby="mstar-title">, and that by <section class="remarks">.  In order, the
-    # section holds: the h2 mstar-title; a caption paragraph; a legend whose three swatches are exists, open and
-    # impossible; the reset button; the canvas mstar-chart (height 0 until drawn, focusable, an image with a label);
-    # and the readout paragraph mstar-readout, polite live region.
+    # section holds: the h2 mstar-title; a legend whose three swatches are exists, open and impossible; the reset
+    # button; the canvas mstar-chart (height 0 until drawn, focusable, an image with a label); and the readout
+    # paragraph mstar-readout, polite live region.  (dreeves's copyedit dropped the caption paragraph.)
     text = page()
     assert text.count('<figure>') == 1 and text.count('</figure>') == 1
     after = text[text.index('</figure>') + len('</figure>'):]
@@ -591,7 +613,7 @@ def q_section_follows_table2():
     m = re.match(filler + r'<section class="mstar" aria-labelledby="mstar-title">.*?</section>', after, re.S)
     assert m, after[:400]
     assert re.match(filler + r'<section class="remarks">', after[m.end():], re.S), after[m.end():m.end() + 400]
-    parts = [r'<h2 id="mstar-title">', r'<p>', r'<ul class="legend">', r'<span class="swatch exists" aria-hidden="true">',
+    parts = [r'<h2 id="mstar-title">', r'<ul class="legend">', r'<span class="swatch exists" aria-hidden="true">',
              r'<span class="swatch open" aria-hidden="true">', r'<span class="swatch impossible" aria-hidden="true">',
              r'</ul>', r'<button type="button" id="mstar-reset">',
              r'<canvas id="mstar-chart" height="0" tabindex="0" role="img" aria-label=',
@@ -622,15 +644,19 @@ def q_inline_script_passes_node_check():
 
 
 def q_new_copy_is_attributed():
-    # Replicata: the lines inserted since HEAD, by region (HTML, inline script, style).
-    # Expectata: in HTML, a line's visible text and its aria-label, title and alt values hold English only inside
-    # Claude: "…"; every Claude: "…" closes on its line; each line with one (HTML or script) has a TODO comment as the
-    # nearest non-blank line above (<!-- TODO: in HTML, // TODO: in script), and each such TODO comment is followed by
-    # one; no inserted CSS uses content:.  Inserted lines exist.
+    # Replicata: the lines inserted since BASE, by region (HTML, inline script, style).
+    # Expectata: inserted lines exist, and each of DREEVES_LINES is one of them, exactly once: those lines hold his
+    # words, so the rules that follow pass over them.  In HTML, a line's visible text and its aria-label, title and alt
+    # values hold English only inside Claude: "…"; every Claude: "…" closes on its line; each line with one (HTML or
+    # script) has a TODO comment as the nearest non-blank line above (<!-- TODO: in HTML, // TODO: in script), and each
+    # TODO comment is followed by a line with one, or by one of his lines (the heading's TODO comment sits above his
+    # heading); no inserted CSS uses content:.
     lines, region, ins = inserted()
     assert ins
+    his = [j for j in ins if lines[j].strip() in DREEVES_LINES]
+    assert sorted(lines[j].strip() for j in his) == sorted(DREEVES_LINES), [lines[j] for j in his]
     bad = []
-    for j in ins:
+    for j in (j for j in ins if j not in his):
         line, r = lines[j], region[j]
         if r == 'style' and re.search(r'(?<![\w-])content\s*:', line): bad.append((j + 1, 'content:', line))
         if r == 'html':
@@ -646,7 +672,8 @@ def q_new_copy_is_attributed():
             if not todo: bad.append((j + 1, 'no TODO above', line))
         if 'TODO' in line:
             below = next(lines[i] for i in range(j + 1, len(lines)) if lines[i].strip())
-            if 'Claude: "' not in below: bad.append((j + 1, 'TODO with no Claude: "…" below', line))
+            if 'Claude: "' not in below and below.strip() not in DREEVES_LINES:
+                bad.append((j + 1, 'TODO with no Claude: "…" below', line))
     assert not bad, bad
 
 
@@ -696,20 +723,29 @@ def q_chart_agrees_with_tables():
 
 
 def q_citations_match_the_page():
-    # Replicata: mstar.js's reasons that cite the page: ["table2"] and ["page", who], as loWhy or hiWhy.
-    # Expectata: a ["table2"] column is one of Table 2's n; a ["page", who] column is one of the new results' n, and its
-    # cell there has the title who.
+    # Replicata: mstar.js's reasons that cite the page: ["table2"] and ["page", who], as loWhy or hiWhy; the new
+    # results' cell titles; the remarks under "Where the new results come from", each by the n its entry lists.
+    # Expectata: a ["table2"] column is one of Table 2's n; a ["page", who] column is one of the new results' n.  As
+    # hiWhy, who is its cell's title (whose proof); as loWhy, its remark credits the example to who, saying
+    # "example(s) of order lo found by who." (at 496 the title credits Claude and Stan, for the proof of the upper
+    # bound, and the remark credits BGPW for the example).
     fig = re.search(r'<figure>.*?</figure>', page(), re.S).group(0)
     new = re.search(r'<div class="new-block">.*?</table>', fig, re.S).group(0)
     titles = {int(n): who for who, n in re.findall(r"<td class=\"[cjs]\" title='([^']*)'>(\d+)</td>", new)}
     assert len(titles) == 15, titles
     table2 = {n for n, *_ in table_entries()} - set(titles)
     assert len(table2) == 37, sorted(table2)          # 304 is in both
+    section = re.search(r'<section class="remarks">(.*?)</section>', page(), re.S).group(1)
+    remarks = {int(n): body for ns, body in re.findall(r'<p class="entry"><i>n</i> = ([\d, ]+):(.*?)</li>', section, re.S)
+               for n in ns.split(', ')}
     cited = 0
     for n, (lo, hi, lw, hw) in enumerate(mstar_data()['cols'], 1):
         for w in (lw, hw):
             if w[0] == 'table2': assert n in table2 | {304}, (n, w); cited += 1
-            if w[0] == 'page': assert titles.get(n) == w[1], (n, w, titles.get(n)); cited += 1
+            if w[0] == 'page': assert n in titles, (n, w); cited += 1
+        if hw[0] == 'page': assert titles[n] == hw[1], (n, hw, titles[n])
+        if lw[0] == 'page':
+            assert re.search(rf'\b[Ee]xamples? of order {lo} found by {re.escape(lw[1])}\.', remarks[n]), (n, lw, remarks[n])
     assert cited, 'mstar.js cites neither table'
 
 
@@ -720,12 +756,12 @@ def q_page_loads_clean():
     # Replicata: index.html with the real mstar.js in headless Chrome, 1280 px wide at 2 device px per CSS px; and the
     # page loaded as is (nothing added), with Chrome logging its console to stderr.
     # Expectata: no errors, console errors or warnings; the canvas is drawn (nonzero height, as wide as main's content);
-    # the readout still shows its Claude-attributed hint; the chart opens showing all 500 columns, n = 2 to 1000.  The
-    # plain load logs nothing at all to the console.
+    # the readout still shows dreeves's hint (HINT); the chart opens showing all 500 columns, n = 2 to 1000.  The plain
+    # load logs nothing at all to the console.
     assert console_lines() == [], console_lines()
     R = valid_run('light')
     assert R['canvasDev'][1] > 0 and close(R['canvasCss'][0], R['mainContentW'], 1), R
-    assert re.fullmatch(r'Claude: "[^"]*"', R['readout0']), R['readout0']
+    assert R['readout0'] == HINT, R['readout0']
     v = R['views'][0]
     assert close(v['u0'], 0, 0.01) and close(v['span'], NCOL, 0.05), v
 
@@ -783,9 +819,8 @@ def q_n_labels_are_even_and_round():
 def q_zoom_buttons_sit_beside_show_all():
     # Replicata: the chart's section.
     # Expectata: right before the reset button, with only blank space and comments between, a zoom-out button labelled
-    # − and then a zoom-in button labelled + (math, not English); each has an aria-label and a title that are Claude: "…"
-    # (q_new_copy_is_attributed checks the TODO comments above them); and the hint in the readout mentions the − and +
-    # buttons.
+    # − and then a zoom-in button labelled + (math, not English); each has dreeves's aria-label (ZOOM_LABELS) and a
+    # title that is Claude: "…"; and the hint in the readout, his (HINT), mentions the − and + buttons.
     s = section()
     tags = {i: re.search(rf'<button type="button" id="{i}"([^>]*)>([^<]*)</button>', s)
             for i in ('mstar-zoom-out', 'mstar-zoom-in', 'mstar-reset')}
@@ -793,14 +828,15 @@ def q_zoom_buttons_sit_beside_show_all():
     out, zin, reset = tags.values()
     for a, b in ((out, zin), (zin, reset)):
         assert re.fullmatch(r'(?:\s|<!--.*?-->)*', s[a.end():b.start()], re.S), s[a.end():b.start()]
-    for t, label in ((out, '−'), (zin, '+')):
+    for t, label, aria in ((out, '−', ZOOM_LABELS[0]), (zin, '+', ZOOM_LABELS[1])):
         attrs, text = t.groups()
         assert text == label, (t.group(0), label)
-        for a in ('aria-label', 'title'):
-            v = re.search(rf"\b{a}='([^']*)'", attrs)
-            assert v and re.fullmatch(r'Claude: "[^"]*"', v.group(1)), (a, attrs)
-    hint = re.search(r'<p id="mstar-readout" aria-live="polite">(Claude: "[^"]*")</p>', s)
-    assert hint and '−' in hint.group(1) and '+' in hint.group(1) and 'button' in hint.group(1), s
+        v = re.search(r"\baria-label='([^']*)'", attrs)
+        assert v and v.group(1) == aria, attrs
+        v = re.search(r"\btitle='([^']*)'", attrs)
+        assert v and re.fullmatch(r'Claude: "[^"]*"', v.group(1)), attrs
+    hint = re.search(r'<p id="mstar-readout" aria-live="polite">([^<]*)</p>', s)
+    assert hint and hint.group(1) == HINT and '−' in HINT and '+' in HINT and 'buttons' in HINT, s
 
 
 def q_zoom_buttons_zoom_about_the_middle():
@@ -831,14 +867,16 @@ def q_zoom_buttons_zoom_about_the_middle():
     assert all(close(a, b, 2) for a, b in zip(zout['size'], zin['size'])) and min(zout['size']) > 10, R['looks0']
 
 
-def q_caption_says_why_odd_n_are_left_out():
-    # Replicata: the chart's caption, the paragraph after its heading, as text (tags removed), and the line above it.
-    # Expectata: the caption's Claude: "…" says that odd n are left out (it has the words odd n), and the TODO comment
-    # directly above it recaps that too.
-    lines = section().splitlines()
-    i = next(i for i, line in enumerate(lines) if line.strip().startswith('<p>'))
-    assert re.search(r'Claude: "[^"]*\bodd n\b[^"]*"', html.unescape(re.sub(r'<[^>]*>', '', lines[i]))), lines[i]
-    assert lines[i - 1].strip().startswith('<!-- TODO:') and re.search(r'\bodd n\b', lines[i - 1]), lines[i - 1]
+def q_heading_says_even_n():
+    # Replicata: the chart's heading and the canvas's label for screen readers, which are dreeves's words since his
+    # copyedit (it dropped the caption that said why odd n are left out).
+    # Expectata: the heading is HEADING, which says "every even n", and the label is CANVAS_LABEL, which says "even n":
+    # the chart has a column for each even n only.
+    s = section()
+    heading = re.search(r'<h2 id="mstar-title">(.*?)</h2>', s).group(1)
+    assert heading == HEADING and 'every even <i>n</i>' in heading, heading
+    label = re.search(r"<canvas [^>]*aria-label='([^']*)'", s).group(1)
+    assert label == CANVAS_LABEL and 'even n' in label, label
 
 
 def q_dark_mode_uses_dark_tokens():
@@ -876,14 +914,15 @@ def q_hover_reads_out_cells():
 def q_visible_text_is_attributed():
     # Replicata: every string the kinds and light runs drew on the canvas, and every readout they showed.
     # Expectata: canvas strings are numbers or the single letters n and m; outside Claude: "…" a readout holds no
-    # English (no run of two letters); and the readout's hint and the canvas's label are Claude: "…" through and through.
+    # English (no run of two letters); and the readout's hint and the canvas's label are dreeves's words, exactly
+    # (HINT, CANVAS_LABEL).
     for name in ('kinds', 'light'):
         R = valid_run(name)
         assert R['texts'] and all(re.fullmatch(r'\d+|[nm]', t) for t in R['texts']), (name, R['texts'])
         for *_, text in R['hovers']: assert not english(unclaimed(text)), (name, text)
-        assert re.fullmatch(r'Claude: "[^"]*"', R['readout0']), R['readout0']
-    label = re.search(r"aria-label='([^']*)'", section()).group(1)
-    assert re.fullmatch(r'Claude: "[^"]*"', label), label
+        assert R['readout0'] == HINT, R['readout0']
+    label = re.search(r"<canvas [^>]*aria-label='([^']*)'", section()).group(1)
+    assert label == CANVAS_LABEL, label
 
 
 def q_keys_pan_and_zoom():
@@ -995,23 +1034,23 @@ def q_phone_has_no_sideways_scroll():
 
 def q_missing_data_says_so():
     # Replicata: index.html with no mstar.js beside it.
-    # Expectata: the canvas stays 0 px tall and the readout says, Claude-attributed, that the chart could not be drawn,
-    # naming MSTAR; the failed script load and the uncaught error are recorded (the chart fails loudly).
+    # Expectata: the canvas stays 0 px tall and the readout is dreeves's error line (ERROR) followed by the error,
+    # which names MSTAR; the failed script load and the uncaught error are recorded (the chart fails loudly).
     R = run('missing')
     assert 'harnessError' not in R, R['harnessError']
     assert R['canvasDev'][1] == 0 and R['canvasCss'][1] == 0, R
-    assert re.fullmatch(r'Claude: "[^"]*MSTAR[^"]*"', R['readout0']), R['readout0']
+    assert re.fullmatch(re.escape(ERROR) + r'.*\bMSTAR\b.*', R['readout0']), R['readout0']
     assert any('script failed to load' in e for e in R['errors']) and any('MSTAR' in e for e in R['errors']), R['errors']
 
 
 def q_malformed_data_fails_loudly():
     # Replicata: made-up data whose column 100 has lo = 5 > hi = 3.
-    # Expectata: the canvas stays 0 px tall; the readout says, Claude-attributed, that the chart could not be drawn,
-    # quoting column 100 as JSON; the error is uncaught (recorded).
+    # Expectata: the canvas stays 0 px tall; the readout is dreeves's error line (ERROR) followed by the error, which
+    # quotes column 100 as JSON; the error is uncaught (recorded).
     R = run('violates lo above hi')
     assert 'harnessError' not in R, R['harnessError']
     assert R['canvasDev'][1] == 0 and R['canvasCss'][1] == 0, R
-    assert re.fullmatch(r'Claude: "[^"]*\[100,\[5,3,[^"]*"', R['readout0']), R['readout0']
+    assert re.fullmatch(re.escape(ERROR) + r'.*\[100,\[5,3,.*', R['readout0']), R['readout0']
     assert any('[100,[5,3,' in e for e in R['errors']), R['errors']
 
 
@@ -1021,12 +1060,12 @@ def q_contract_violations_fail_loudly():
     # with the wrong hi; "norm" for a prime dividing n, and for a composite; "table2" at an n not in Table 2; "page" for
     # a provenance the page does not use; an example with an empty label; "none" or "odd" at an even n; an example at
     # an odd n; a column of five entries; hi at mtop; mtop above max hi + 1; nmax not 1000.
-    # Expectata: in each case the canvas stays 0 px tall and the readout says, Claude-attributed, that the chart could
-    # not be drawn, quoting the offending column as JSON (or mtop, or nmax and mtop), and the error is uncaught.
+    # Expectata: in each case the canvas stays 0 px tall and the readout is dreeves's error line (ERROR) followed by
+    # the error, which quotes the offending column as JSON (or mtop, or nmax and mtop), and the error is uncaught.
     for v, (_, quoted) in VIOLATIONS.items():
         R = run(f'violates {v}')
         assert 'harnessError' not in R and R['canvasDev'][1] == 0 and R['canvasCss'][1] == 0, (v, R)
-        assert R['readout0'] == f'Claude: "the chart could not be drawn: Error: {quoted}"', (v, R['readout0'])
+        assert R['readout0'] == f'{ERROR}Error: {quoted}', (v, R['readout0'])
         assert R['errors'] == [f'error: Uncaught Error: {quoted}'], (v, R['errors'])
 
 
