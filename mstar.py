@@ -146,7 +146,9 @@ NEW = {304: (8, 8, 'Claude alone'), 320: (9, 9, 'BGPW'), 336: (10, 10, 'Claude a
        448: (9, 9, 'Claude alone'), 464: (9, 9, 'BGPW'), 480: (12, 14, 'Claude alone'),
        496: (9, 9, 'Claude and BGPW'), 512: (9, 9, 'Claude alone'), 528: (10, 12, 'Claude and BGPW'),
        576: (10, 12, 'Claude alone'),
-       2 ** 24: (25, None, 'Claude and BGPW'), 2 ** 51: (53, None, 'Claude and BGPW')}
+       2 ** 24: (25, 29, 'Claude and BGPW'), 2 ** 33: (35, 41, 'Claude alone'),
+       2 ** 49: (52, 61, 'Claude alone'), 2 ** 51: (54, 63, 'Claude and BGPW'),
+       2 ** 57: (61, 71, 'Claude alone'), 2 ** 67: (72, 83, 'Claude alone')}
 # EXAMPLE_BY[n]: who found the example of order NEW[n][0] at n, as the page's remarks credit it, for each n whose lo
 # is that cited value (no sequence of that order is here; columns() asserts that these are exactly those n).  A cited
 # lo's ["page", who] names whose example it is, and a cited hi's whose proof, the cell's title.  At 496 they differ:
@@ -199,9 +201,10 @@ def page_value(s):
 def page_sources(html):
     """Table 2, the new results, the codes and the sets, parsed out of index.html and asserted equal to the hand
     copies above.  Returns {'table2': {n: (lo, hi)}, 'new': {n: (lo, hi, who)}, 'codes': [(m, hex)],
-    'sets': [(m, n, set)]}.  The page's tables of class "block" are Table 2's three, then the new results."""
+    'sets': [(m, n, set)]}.  The page's tables of class "block" are Table 2's three, then the new results' two (n up to
+    576, then the powers of 2)."""
     tables = re.findall(r'<table class="block">(.*?)</table>', html, re.S)
-    assert len(tables) == 4, len(tables)
+    assert len(tables) == 5, len(tables)
     rows = []
     for t in tables:
         ns = re.findall(r'<td([^>]*)>(.*?)</td>', re.search(r'<tr class="ns">(.*?)</tr>', t, re.S)[1])
@@ -211,8 +214,8 @@ def page_sources(html):
     table2 = {n: v for row in rows[:3] for n, title, v in row}
     assert all(title is None for row in rows[:3] for _, title, _ in row)
     assert len(table2) == sum(map(len, rows[:3])) == 39
-    new = {n: v + (title[1],) for n, title, v in rows[3]}
-    assert len(new) == len(rows[3])
+    new = {n: v + (title[1],) for row in rows[3:] for n, title, v in row}
+    assert len(new) == sum(map(len, rows[3:]))
     codes = []
     for block in re.findall(r'<p class="code">(.*?)</p>', html, re.S):
         ms = [int(m) for m in re.findall(r'\(<i>m</i> = (\d+)\)', block)]

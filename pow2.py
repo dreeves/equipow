@@ -79,7 +79,8 @@ RESIDUE = {}
 # 2^(K-1), so the join has exactly one, of a length that must be 2^K's residue mod 3, and none has it for K <= 66 (all
 # blocks) or K <= 71 (blocks in hand); and no such core has excess 6 within 2^72, so no K <= 72 reaches e = 6.  At
 # every k >= K0 the same join, each product times tau_(k - K0), is a candidate for lo (lifted); join_lo checks it on
-# every run.
+# every run.  Since 2026-10-12 mstar.FOUND holds sequences of order 9 at 352, 368, 400, 464 and 496, so every base here
+# is built from sequences in hand, and blocks in hand reach e = 4 at 57 and e = 5 at 67 as well.
 BASES = {33: [[[208, 8], [320, 9], [320, 9], [320, 9]],
               [[336, 10], [336, 10], [336, 10], [32, 5]],
               [[304, 8], [480, 12], [480, 12], [8, 3]]],

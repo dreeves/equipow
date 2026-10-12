@@ -374,8 +374,12 @@ footer {
       <div class="scroll">
         <!-- Cell titles reuse the legend's labels below -->
         <table class="block">
-          <tr class="ns"><th scope="row"><i>n</i></th><td class="c" title='Claude alone'>304</td><td class="s" title='BGPW'>320</td><td class="j" title='Claude and BGPW'>336</td><td class="s" title='BGPW'>352</td><td class="s" title='BGPW'>368</td><td class="s" title='BGPW'>400</td><td class="s" title='BGPW'>416</td><td class="c" title='Claude alone'>432</td><td class="c" title='Claude alone'>448</td><td class="s" title='BGPW'>464</td><td class="c" title='Claude alone'>480</td><td class="j" title='Claude and BGPW'>496</td><td class="c" title='Claude alone'>512</td><td class="j" title='Claude and BGPW'>528</td><td class="c" title='Claude alone'>576</td><td class="j" title='Claude and BGPW'>2<sup>24</sup></td><td class="j" title='Claude and BGPW'>2<sup>51</sup></td></tr>
-          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="c">8</td><td class="s">9</td><td class="j">10</td><td class="s">9</td><td class="s">9</td><td class="s">9</td><td class="s">9</td><td class="c">11–12</td><td class="c">9</td><td class="s">9</td><td class="c">12–14</td><td class="j">9</td><td class="c">9</td><td class="j">10–12</td><td class="c">10–12</td><td class="j">≥ 25</td><td class="j">≥ 53</td></tr>
+          <tr class="ns"><th scope="row"><i>n</i></th><td class="c" title='Claude alone'>304</td><td class="s" title='BGPW'>320</td><td class="j" title='Claude and BGPW'>336</td><td class="s" title='BGPW'>352</td><td class="s" title='BGPW'>368</td><td class="s" title='BGPW'>400</td><td class="s" title='BGPW'>416</td><td class="c" title='Claude alone'>432</td><td class="c" title='Claude alone'>448</td><td class="s" title='BGPW'>464</td><td class="c" title='Claude alone'>480</td><td class="j" title='Claude and BGPW'>496</td><td class="c" title='Claude alone'>512</td><td class="j" title='Claude and BGPW'>528</td><td class="c" title='Claude alone'>576</td></tr>
+          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="c">8</td><td class="s">9</td><td class="j">10</td><td class="s">9</td><td class="s">9</td><td class="s">9</td><td class="s">9</td><td class="c">11–12</td><td class="c">9</td><td class="s">9</td><td class="c">12–14</td><td class="j">9</td><td class="c">9</td><td class="j">10–12</td><td class="c">10–12</td></tr>
+        </table>
+        <table class="block">
+          <tr class="ns"><th scope="row"><i>n</i></th><td class="j" title='Claude and BGPW'>2<sup>24</sup></td><td class="c" title='Claude alone'>2<sup>33</sup></td><td class="c" title='Claude alone'>2<sup>49</sup></td><td class="j" title='Claude and BGPW'>2<sup>51</sup></td><td class="c" title='Claude alone'>2<sup>57</sup></td><td class="c" title='Claude alone'>2<sup>67</sup></td></tr>
+          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="j">25–29</td><td class="c">35–41</td><td class="c">52–61</td><td class="j">54–63</td><td class="c">61–71</td><td class="c">72–83</td></tr>
         </table>
       </div>
     </div>
@@ -521,18 +525,46 @@ footer {
     </li>
     <li class="j">
       <span class="mk" aria-hidden="true">◆●</span>
-      <p class="entry"><i>n</i> = 2<sup>24</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ≥ 25</span></p>
+      <p class="entry"><i>n</i> = 2<sup>24</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {25, …, 29}</span></p>
       <p>Joint construction: <span class="nw">2<sup>24</sup> = 320<sup>2</sup>·112 + 432·48·2<sup>8</sup></span>, that is, <span class="nw"><i>f</i> = (<i>p</i><sub>320</sub> # <i>p</i><sub>320</sub> # <i>p</i><sub>112</sub>)</span> <span class="nw">∨ (<i>p</i><sub>432</sub> # <i>p</i><sub>48</sub> # τ<sub>8</sub>)</span>. Hence <span class="nw"><i>m</i><sup>*</sup>(2<sup><i>k</i></sup>) ≥ <i>k</i> + 1</span> for every <span class="nw"><i>k</i> ≥ 24</span>.</p>
+      <!-- TODO: says the upper bound 29 at 2^24 is the norm bound for the residue sums mod 3 -->
+      <p>Claude: "The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above."</p>
       <p class="code">
         <span><i>p</i><sub>112</sub> <span class="nw">(<i>m</i> = 7)</span> and <i>p</i><sub>48</sub> <span class="nw">(<i>m</i> = 6)</span>, from the paper's Table 5:</span>
         <code>A5994DB29B45A0</code>
         <code>C27D8C</code>
       </p>
     </li>
+    <li class="c">
+      <span class="mk" aria-hidden="true">◆</span>
+      <p class="entry"><i>n</i> = 2<sup>33</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {35, …, 41}</span></p>
+      <!-- TODO: says order 35 at 2^33 comes from a join of three products of the examples above and Thue–Morse (lengths and orders spelled out), making 2^33 the first power of 2 known to beat Thue–Morse by 2, where f # f first did at 2^48; and that the upper bound is the residue condition mod 3 -->
+      <p>Claude: "<span class="nw">2<sup>33</sup> = 208·320<sup>3</sup> + 336<sup>3</sup>·2<sup>5</sup> + 304·480<sup>2</sup>·2<sup>3</sup></span>: a join of three products of examples above (of orders 8, 9, 10, 8 and 12) and Thue–Morse, each of order 35. That beats Thue–Morse by 2 at a lower power of 2 than <span class="nw"><i>f</i> # <i>f</i></span> does at 2<sup>48</sup>. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above."</p>
+    </li>
+    <li class="c">
+      <span class="mk" aria-hidden="true">◆</span>
+      <p class="entry"><i>n</i> = 2<sup>49</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {52, …, 61}</span></p>
+      <!-- TODO: says order 52 at 2^49 comes from a join of six such products, each of order 52, making 2^49 the first power of 2 known to beat Thue–Morse by 3; and that the upper bound is the residue condition mod 3 -->
+      <p>Claude: "A join of six products of examples above and Thue–Morse, each of order 52; the powers-of-2 chart above lists them. That beats Thue–Morse by 3. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above."</p>
+    </li>
     <li class="j">
       <span class="mk" aria-hidden="true">◆●</span>
-      <p class="entry"><i>n</i> = 2<sup>51</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ≥ 53</span></p>
+      <p class="entry"><i>n</i> = 2<sup>51</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {54, …, 63}</span></p>
       <p>With <i>f</i> the 2<sup>24</sup> construction above, <span class="nw"><i>f</i> # <i>f</i> # τ<sub>3</sub></span> has order <span class="nw">25 + 25 + 3 = 53</span>. The paper's 52 is Stong's.</p>
+      <!-- TODO: says the six products of the 2^49 entry, each times tau_2, give order 54 at 2^51; and that the upper bound is the residue condition mod 3 -->
+      <p>Claude: "The six products of the 2<sup>49</sup> entry, each times τ<sub>2</sub>, give order 54. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above."</p>
+    </li>
+    <li class="c">
+      <span class="mk" aria-hidden="true">◆</span>
+      <p class="entry"><i>n</i> = 2<sup>57</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {61, …, 71}</span></p>
+      <!-- TODO: says order 61 at 2^57 comes from a join of five such products, each of order 61, making 2^57 the first power of 2 known to beat Thue–Morse by 4; and that the upper bound is the residue condition mod 3 -->
+      <p>Claude: "A join of five products of examples above and Thue–Morse, each of order 61; the powers-of-2 chart above lists them. That beats Thue–Morse by 4. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above."</p>
+    </li>
+    <li class="c">
+      <span class="mk" aria-hidden="true">◆</span>
+      <p class="entry"><i>n</i> = 2<sup>67</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {72, …, 83}</span></p>
+      <!-- TODO: says order 72 at 2^67 comes from a join of eight such products, each of order 72, making 2^67 the first power of 2 known to beat Thue–Morse by 5; and that the upper bound is the residue condition mod 3 -->
+      <p>Claude: "A join of eight products of examples above and Thue–Morse, each of order 72; the powers-of-2 chart above lists them. That beats Thue–Morse by 5. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above."</p>
     </li>
   </ul>
 </section>

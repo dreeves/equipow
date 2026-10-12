@@ -63,7 +63,8 @@ def page(): return open(INDEX, encoding='utf-8').read()
 
 
 # The page's updates of 2026-10-11, which dreeves asked for, the only edits of its text before the chart: 432, 480 and
-# 528 gained the upper bounds the chart proves, in the new results' table and in their remarks' entries; the green
+# 528 gained the upper bounds the chart proves, in the new results' table and in their remarks' entries (and on
+# 2026-10-12 the powers of 2 moved to a second table, stating the powers-of-2 chart's ranges); the green
 # label "Claude and Stan" became "Claude and BGPW" (BGPW includes Stan), and 528, a BGPW example with Claude's upper
 # bound, became green.  (old, new, how many times old occurs).
 TABLE_UPDATE = (('<td class="c">≥ 11</td>', '<td class="c">11–12</td>', 1),
@@ -76,7 +77,13 @@ TABLE_UPDATE = (('<td class="c">≥ 11</td>', '<td class="c">11–12</td>', 1),
                 ("<td class=\"s\" title='BGPW'>528</td>", "<td class=\"j\" title='Claude and BGPW'>528</td>", 1),
                 ('◆●</span>Claude and Stan</li>', '◆●</span>Claude and BGPW</li>', 1),
                 ('<li class="s">\n      <span class="mk" aria-hidden="true">●</span>\n      <p class="entry"><i>n</i> = 528:',
-                 '<li class="j">\n      <span class="mk" aria-hidden="true">◆●</span>\n      <p class="entry"><i>n</i> = 528:', 1))
+                 '<li class="j">\n      <span class="mk" aria-hidden="true">◆●</span>\n      <p class="entry"><i>n</i> = 528:', 1),
+                ("<td class=\"j\" title='Claude and BGPW'>2<sup>24</sup></td><td class=\"j\" title='Claude and BGPW'>2<sup>51</sup></td></tr>", '</tr>', 1),
+                ('<td class="j">≥ 25</td><td class="j">≥ 53</td></tr>', '</tr>', 1),
+                ('<i>n</i> = 2<sup>24</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ≥ 25</span>',
+                 '<i>n</i> = 2<sup>24</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {25, …, 29}</span>', 1),
+                ('<i>n</i> = 2<sup>51</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ≥ 53</span>',
+                 '<i>n</i> = 2<sup>51</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {54, …, 63}</span>', 1))
 
 
 def committed():
@@ -142,6 +149,15 @@ def mstar_data():
     src = open(DATA, encoding='utf-8').read()
     p = subprocess.run(['node', '-e', src + '\nprocess.stdout.write(JSON.stringify(MSTAR))'], capture_output=True,
                        text=True, timeout=60)
+    assert p.returncode == 0, p.stderr[-2000:]
+    return json.loads(p.stdout)
+
+
+def pow2_data():
+    """POW2 as the browser sees it: node runs pow2.js (beside index.html, made by pow2.py) and prints POW2 as JSON."""
+    path = os.path.join(HERE, 'pow2.js')
+    p = subprocess.run(['node', '-e', open(path, encoding='utf-8').read() + '\nprocess.stdout.write(JSON.stringify(POW2))'],
+                       capture_output=True, text=True, timeout=60)
     assert p.returncode == 0, p.stderr[-2000:]
     return json.loads(p.stdout)
 
@@ -765,25 +781,43 @@ def q_chart_agrees_with_tables():
 
 
 def q_new_results_state_what_the_chart_proves():
-    # Replicata: the new results' table on index.html and the remarks' entries under "Where the new results come
-    # from" (each entry's n's and its "m* = v", "≥ v" or "∈ {a, ..., b}"), for n <= NMAX; mstar.js's columns.
-    # Expectata: every one states exactly the chart's [lo, hi] at its n, so no "≥" stands where the chart proves an
-    # upper bound (dreeves's report of 2026-10-11: 432's entry said ≥ 11 beside the chart's 11–12).
-    cols = mstar_data()['cols']
-    table = [(n, lo, hi) for n, lo, hi in new_results()]
-    assert len(table) == 15, table
+    # Replicata: the new results' tables on index.html (every n, the powers of 2 included) and the remarks' entries under
+    # "Where the new results come from" (each entry's n's and its "m* = v", "≥ v", "∈ {a, b, ...}" or "∈ {a, …, b}");
+    # mstar.js's columns for n <= NMAX and pow2.js's for n = 2^k.
+    # Expectata: every one states exactly its chart's [lo, hi] at its n, so no "≥" stands where a chart proves an upper
+    # bound (dreeves's report of 2026-10-11: 432's entry said ≥ 11 beside the chart's 11–12; and 2^51's said ≥ 53
+    # beside the powers-of-2 chart's 54–63 until 2026-10-12).
+    cols, pow2 = mstar_data()['cols'], pow2_data()['cols']
+    def chart(n):
+        k = n.bit_length() - 1
+        assert n <= NMAX or n == 2 ** k <= 2 ** pow2_data()['kmax'], n
+        return cols[n - 1][:2] if n <= NMAX else pow2[k - 1][:2]
+    def n_of(cell):
+        m = re.fullmatch(r'(\d+)|2<sup>(\d+)</sup>', cell)
+        assert m, cell
+        return int(m.group(1)) if m.group(1) else 2 ** int(m.group(2))
+    forms = ((r'(\d+)', lambda a: (a, a)), (r'(\d+) or (\d+)', lambda a, b: (a, b)), (r'(\d+)–(\d+)', lambda a, b: (a, b)),
+             (r'≥ (\d+)', lambda a: (a, math.inf)), (r'= (\d+)', lambda a: (a, a)),
+             (r'∈ \{(\d+)(?:, \d+)*, (\d+)\}', lambda a, b: (a, b)), (r'∈ \{(\d+), …, (\d+)\}', lambda a, b: (a, b)))
+    def value(v):
+        hits = [f(*map(int, m.groups())) for p, f in forms for m in [re.fullmatch(p, v)] if m]
+        assert len(hits) == 1, v
+        assert '…' in v or not v.startswith('∈') or [int(t) for t in re.findall(r'\d+', v)] == list(range(hits[0][0], hits[0][1] + 1)), v
+        return hits[0]
+    frame = re.search(r'<div class="new-block">.*?<div class="scroll">(.*?)</div>', page(), re.S).group(1)
+    table = []
+    for t in re.findall(r'<table class="block">.*?</table>', frame, re.S):
+        ns = re.findall(r'<td[^>]*>(.*?)</td>', re.search(r'<tr class="ns">.*?</tr>', t, re.S).group(0))
+        vs = re.findall(r'<td[^>]*>(.*?)</td>', re.search(r'<tr class="vals">.*?</tr>', t, re.S).group(0))
+        assert len(ns) == len(vs) and ns, t
+        table += [(n_of(n), *value(v)) for n, v in zip(ns, vs)]
     remarks = []
     for ns, v in re.findall(r'<p class="entry"><i>n</i> = ([^:]*): &nbsp;<span class="nw"><i>m</i><sup>\*</sup> ([^<]*)</span>',
                             page()):
-        forms = ((r'= (\d+)', lambda a: (a, a)), (r'≥ (\d+)', lambda a: (a, math.inf)),
-                 (r'∈ \{(\d+)(?:, \d+)*, (\d+)\}', lambda a, b: (a, b)))
-        hits = [f(*map(int, m.groups())) for p, f in forms for m in [re.fullmatch(p, v)] if m]
-        assert len(hits) == 1, (ns, v)
-        if v.startswith('∈'): assert [int(t) for t in re.findall(r'\d+', v)] == list(range(hits[0][0], hits[0][1] + 1)), v
-        remarks += [(int(n), *hits[0]) for n in ns.split(', ') if re.fullmatch(r'\d+', n)]
-    assert len(remarks) == 15, remarks
-    wrong = [(where, n, lo, hi, cols[n - 1][:2]) for where, got in (('table', table), ('remark', remarks))
-             for n, lo, hi in got if [lo, hi] != cols[n - 1][:2]]
+        remarks += [(n_of(n), *value(v)) for n in ns.split(', ')]
+    assert sorted(n for n, *_ in table) == sorted(n for n, *_ in remarks), (table, remarks)
+    wrong = [(where, n, lo, hi, chart(n)) for where, got in (('table', table), ('remark', remarks))
+             for n, lo, hi in got if [lo, hi] != chart(n)]
     assert not wrong, wrong
 
 

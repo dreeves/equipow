@@ -161,15 +161,14 @@ def q_base_blocks_and_their_sources():
     # Replicata: every block of every product of pow2.BASES other than tau_j, n <= 1000: mstar.js's lo and loWhy at n,
     # mstar's explicit lo (sequences in hand only, no citation), and the order of mstar.build(n), the sequence behind
     # it, by synthetic division here.
-    # Expectata: mstar.js's lo is the block's order everywhere.  Every block of every base but BASES[57] and BASES[67]
-    # has a sequence in hand of exactly that order (explicit lo and the built sequence's order equal it), so those
-    # bases are built from sequences in hand by BGPW's Theorem 4.1; besides such blocks, BASES[57] uses exactly 352 and
-    # 464 at order 9 and BASES[67] exactly 400 at order 9, whose lo mstar.js cites as BGPW's examples (["page",
-    # "BGPW"]).
+    # Expectata: mstar.js's lo is the block's order everywhere, and every block of every base has a sequence in hand of
+    # exactly that order (explicit lo and the built sequence's order equal it), so every base is built from sequences
+    # in hand by BGPW's Theorem 4.1.  (Until 2026-10-12, BASES[57]'s 352 and 464 and BASES[67]'s 400 were cited as
+    # BGPW's examples; mstar.FOUND now holds sequences for them.)
     blocks = {K0: {(n, m) for p in ps for n, m in p if n != 2 ** m} for K0, ps in pow2.BASES.items()}
     assert all(n <= 1000 and mstar_disk()[n - 1][0] == m for bs in blocks.values() for n, m in bs), blocks
     cited = {K0: {(n, m) for n, m in bs if mstar_disk()[n - 1][2] == ['page', 'BGPW']} for K0, bs in blocks.items()}
-    assert cited == {33: set(), 49: set(), 57: {(352, 9), (464, 9)}, 59: set(), 67: {(400, 9)}, 72: set()}, cited
+    assert cited == {K0: set() for K0 in pow2.BASES}, cited
     for n, m in sorted(set().union(*blocks.values()) - set().union(*cited.values())):
         a = mstar.build(n)
         assert mstar.explicit_lo()[0][n] == m == exact_order_div(a) and len(a) == n, (n, m)

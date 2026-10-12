@@ -341,14 +341,13 @@ def page_remarks():
 
 def q_cited_lo_credits_whose_example():
     # Replicata: every column of mstar.js whose loWhy is ["page", who], and the page's remark whose entry lists its n.
-    # Expectata: the remark credits the example to who, saying "example(s) of order lo found by who." (a cited lo's who
-    # names whose example it is; a cited hi's, whose proof, which is the cell's title).  So 496's loWhy is
-    # ["page", "BGPW"], though its cell's title is 'Claude and BGPW', for the proof of the upper bound; the remark
-    # reads "An example of order 9 found by BGPW."
+    # Expectata: none since 2026-10-12, when mstar.FOUND made the cited lows at 352, 368, 400, 464 and 496 explicit
+    # (EXAMPLE_BY is empty to match); should one come back, its remark credits the example to who, saying "example(s)
+    # of order lo found by who." (a cited lo's who names whose example it is; a cited hi's, whose proof, the title).
     _, got = disk()
     remarks = page_remarks()
     cited = {n: c for n, c in enumerate(got['m']['cols'], 1) if c[2][0] == 'page'}
-    assert 496 in cited and mstar.NEW[496][2] == 'Claude and BGPW', sorted(cited)
+    assert sorted(cited) == sorted(mstar.EXAMPLE_BY) == [], sorted(cited)
     for n, (lo, hi, why, _) in cited.items():
         assert re.search(rf'\b[Ee]xamples? of order {lo} found by {re.escape(why[1])}\.', remarks[n]), (n, why, remarks[n])
 
@@ -413,11 +412,12 @@ def q_known_shape():
 
 def q_gray_columns():
     # Replicata (regression): the gray columns of mstar.js.
-    # Expectata: the user's 35 less 640, which the residue condition mod 3 settles at 10 (lo 10 from 2 x 320).
+    # Expectata: the user's 35 less 640, which the residue condition mod 3 settles at 10 (lo 10 from 2 x 320), and less
+    # 704 and 736, settled at 10 on 2026-10-12 (lo 10 from 2 x 352 and 2 x 368, mstar.FOUND's; hi by mod 3 and mod 9).
     _, got = disk()
     gray = tuple(n for n, c in enumerate(got['m']['cols'], 1) if c[0] < c[1])
-    assert gray == tuple(n for n in USER_GRAY if n != 640), gray
-    assert got['m']['cols'][639][:2] == [10, 10]
+    assert gray == tuple(n for n in USER_GRAY if n not in (640, 704, 736)), gray
+    assert [got['m']['cols'][n - 1][:2] for n in (640, 704, 736)] == [[10, 10]] * 3
 
 
 # ---------- residue tests ----------
@@ -505,15 +505,17 @@ def q_residue_controls():
 def q_residue_claims():
     # Replicata: every claim (m, chain, sweep) of mstar.RESIDUE at its n, enumerated through its chain to the end with
     # no cap, by mstar.chain_none; and, independently, by overnight_v5.admissible level by level (every vector of each
-    # level under every vector of the level before), for every claim but 512's (v5's sweep, 'natural', needs more than
-    # 5*10^6 nodes there; proof512.txt on the page proves the same claim by hand).
+    # level under every vector of the level before), for every claim but 512's and 784's, both through (3, 9, 27), where
+    # v5's sweep, 'natural', runs past 5*10^6 nodes (past 3 CPU-hours at 784): proof512.txt on the page proves 512's by
+    # hand, and 784's was re-proved on 2026-10-12 by two other enumerations, scratch/lower24-design/onecell2/full27.py
+    # (none of the 1320 admissible vectors mod 9 has a refinement mod 27) and judge/chain784.py.
     # Expectata: no admissible vector at the last modulus, by both; the claim lowers hi below two and norm (none is
     # dead weight); m - 1 >= lo (a claim at or below a known example's order would be a bug).
     _, got = disk()
     assert mstar.RESIDUE[512] == (10, (3, 9, 27), 'digits')
     for n, (m, chain, sweep) in mstar.RESIDUE.items():
         assert sweep in mstar.SWEEPS and mstar.chain_none(n, m, chain, sweep, 10 ** 8), (n, m, chain)
-        level = v5_admissible(n, m, chain[0], ()) if n != 512 else []
+        level = v5_admissible(n, m, chain[0], ()) if n not in (512, 784) else []
         for P, M in zip(chain, chain[1:]):
             level = [D for W in level for D in v5_admissible(n, m, M, ((P, counts(n, P, W)),))]
         assert level == [], (n, m, chain)
