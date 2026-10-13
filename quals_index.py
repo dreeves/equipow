@@ -25,7 +25,7 @@ DATA = os.path.join(HERE, 'mstar.js')         # made by mstar.py; the chart's da
 POW2 = os.path.join(HERE, 'pow2.js')          # made by pow2.py; the data of the chart of powers of 2, also on the page
 CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
 TOKENS = ('--exists', '--open', '--impossible')                    # the chart's three colors, in the order of kind
-PROVENANCE = ('--claude', '--joint', '--stan')
+PROVENANCE = ('--claude', '--stan')
 NMAX, MIN_SPAN = 1000, 12
 EVEN = list(range(2, NMAX + 1, 2))            # the chart's columns: an odd n has no partition at any m, so is left out
 NCOL = len(EVEN)
@@ -114,7 +114,23 @@ TABLE_UPDATE = (('<td class="c">≥ 11</td>', '<td class="c">11–12</td>', 1),
                 ('<i>n</i> = 2<sup>51</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {54, …, 63}</span>', '<i>n</i> = 2<sup>51</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {55, …, 63}</span>', 1),
                 # the powers of 2 in two rows, split after 2^49 (dreeves, 2026-10-12)
                 ('        <table class="block">\n          <tr class="ns"><th scope="row"><i>n</i></th><td title=\'The published paper (2021)\'>2<sup>3</sup></td><td title=\'The published paper (2021)\'>2<sup>4</sup></td><td title=\'The published paper (2021)\'>2<sup>5</sup></td><td title=\'The published paper (2021)\'>2<sup>6</sup></td><td title=\'The published paper (2021)\'>2<sup>7</sup></td><td title=\'The published paper (2021)\'>2<sup>8</sup></td><td class="c" title=\'Claude alone\'>2<sup>9</sup></td><td class="c" title=\'Claude alone\'>2<sup>18</sup></td><td class="j" title=\'Claude and BGPW\'>2<sup>24</sup></td><td class="c" title=\'Claude alone\'>2<sup>33</sup></td><td class="c" title=\'Claude alone\'>2<sup>41</sup></td><td class="c" title=\'Claude alone\'>2<sup>48</sup></td><td class="c" title=\'Claude alone\'>2<sup>49</sup></td><td class="j" title=\'Claude and BGPW\'>2<sup>51</sup></td><td class="c" title=\'Claude alone\'>2<sup>57</sup></td><td class="c" title=\'Claude alone\'>2<sup>61</sup></td><td class="c" title=\'Claude alone\'>2<sup>67</sup></td><td class="c" title=\'Claude alone\'>2<sup>71</sup></td></tr>\n          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td><td>8</td><td class="c">9</td><td class="c">19–22</td><td class="j">25–29</td><td class="c">35–41</td><td class="c">44–51</td><td class="c">52–59</td><td class="c">53–61</td><td class="j">55–63</td><td class="c">61–71</td><td class="c">66–76</td><td class="c">72–83</td><td class="c">77–88</td></tr>\n        </table>\n',
-                 '        <table class="block">\n          <tr class="ns"><th scope="row"><i>n</i></th><td title=\'The published paper (2021)\'>2<sup>3</sup></td><td title=\'The published paper (2021)\'>2<sup>4</sup></td><td title=\'The published paper (2021)\'>2<sup>5</sup></td><td title=\'The published paper (2021)\'>2<sup>6</sup></td><td title=\'The published paper (2021)\'>2<sup>7</sup></td><td title=\'The published paper (2021)\'>2<sup>8</sup></td><td class="c" title=\'Claude alone\'>2<sup>9</sup></td><td class="c" title=\'Claude alone\'>2<sup>18</sup></td><td class="j" title=\'Claude and BGPW\'>2<sup>24</sup></td><td class="c" title=\'Claude alone\'>2<sup>33</sup></td><td class="c" title=\'Claude alone\'>2<sup>41</sup></td><td class="c" title=\'Claude alone\'>2<sup>48</sup></td><td class="c" title=\'Claude alone\'>2<sup>49</sup></td></tr>\n          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td><td>8</td><td class="c">9</td><td class="c">19–22</td><td class="j">25–29</td><td class="c">35–41</td><td class="c">44–51</td><td class="c">52–59</td><td class="c">53–61</td></tr>\n        </table>\n        <table class="block">\n          <tr class="ns"><th scope="row"><i>n</i></th><td class="j" title=\'Claude and BGPW\'>2<sup>51</sup></td><td class="c" title=\'Claude alone\'>2<sup>57</sup></td><td class="c" title=\'Claude alone\'>2<sup>61</sup></td><td class="c" title=\'Claude alone\'>2<sup>67</sup></td><td class="c" title=\'Claude alone\'>2<sup>71</sup></td></tr>\n          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="j">55–63</td><td class="c">61–71</td><td class="c">66–76</td><td class="c">72–83</td><td class="c">77–88</td></tr>\n        </table>\n', 1))
+                 '        <table class="block">\n          <tr class="ns"><th scope="row"><i>n</i></th><td title=\'The published paper (2021)\'>2<sup>3</sup></td><td title=\'The published paper (2021)\'>2<sup>4</sup></td><td title=\'The published paper (2021)\'>2<sup>5</sup></td><td title=\'The published paper (2021)\'>2<sup>6</sup></td><td title=\'The published paper (2021)\'>2<sup>7</sup></td><td title=\'The published paper (2021)\'>2<sup>8</sup></td><td class="c" title=\'Claude alone\'>2<sup>9</sup></td><td class="c" title=\'Claude alone\'>2<sup>18</sup></td><td class="j" title=\'Claude and BGPW\'>2<sup>24</sup></td><td class="c" title=\'Claude alone\'>2<sup>33</sup></td><td class="c" title=\'Claude alone\'>2<sup>41</sup></td><td class="c" title=\'Claude alone\'>2<sup>48</sup></td><td class="c" title=\'Claude alone\'>2<sup>49</sup></td></tr>\n          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td><td>8</td><td class="c">9</td><td class="c">19–22</td><td class="j">25–29</td><td class="c">35–41</td><td class="c">44–51</td><td class="c">52–59</td><td class="c">53–61</td></tr>\n        </table>\n        <table class="block">\n          <tr class="ns"><th scope="row"><i>n</i></th><td class="j" title=\'Claude and BGPW\'>2<sup>51</sup></td><td class="c" title=\'Claude alone\'>2<sup>57</sup></td><td class="c" title=\'Claude alone\'>2<sup>61</sup></td><td class="c" title=\'Claude alone\'>2<sup>67</sup></td><td class="c" title=\'Claude alone\'>2<sup>71</sup></td></tr>\n          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="j">55–63</td><td class="c">61–71</td><td class="c">66–76</td><td class="c">72–83</td><td class="c">77–88</td></tr>\n        </table>\n', 1),
+                # the table's colors: no --joint, Claude and BGPW as stripes of the other two (dreeves, 2026-10-12)
+                ("  /* Provenance hues, checked with the dataviz palette validator against this\n     mode's surface. The worst color-blind pair is 6.4 (deutan), legal only\n     with a second cue, so every hue also carries a glyph: ◆ Claude, ● BGPW,\n     ◆● both. */\n", "  /* Provenance hues, checked with the dataviz palette validator against this\n     mode's surface: color-blind ΔE 23.6 (protan). Every hue also carries a\n     glyph: ◆ Claude, ● BGPW, and ◆● both, whose cells are stripes of the\n     two. */\n", 1),
+                ('  --joint: #2a9466;\n', '', 1),
+                ('    --joint: #2aa070;\n', '', 1),
+                ('\n  --joint: #2aa070;\n', '\n', 1),
+                ('td.j { --hue: var(--joint); --glyph: "◆●"; }\n', 'td.j { --glyph: "◆●"; }\n', 1),
+                ('  color: var(--hue);\n}\n\n.legend {', '  color: var(--hue);\n}\n/* Claude and BGPW: stripes of the two tints over a striped bar, its glyph half in each hue */\ntd.j, .key.j { background: repeating-linear-gradient(135deg, color-mix(in oklab, var(--claude) var(--tint), var(--paper)) 0 0.3rem, color-mix(in oklab, var(--stan) var(--tint), var(--paper)) 0.3rem 0.6rem); }\ntr.vals td.j, .key.j { background: repeating-linear-gradient(90deg, var(--claude) 0 0.3rem, var(--stan) 0.3rem 0.6rem) bottom / 100% 3px no-repeat, repeating-linear-gradient(135deg, color-mix(in oklab, var(--claude) var(--tint), var(--paper)) 0 0.3rem, color-mix(in oklab, var(--stan) var(--tint), var(--paper)) 0.3rem 0.6rem); box-shadow: none; }\ntr.ns td.j::before, .key.j > span, .remarks li.j .mk { background: linear-gradient(90deg, var(--claude) 50%, var(--stan) 50%); -webkit-background-clip: text; background-clip: text; color: transparent; }\n\n.legend {', 1),
+                ('.key.j { --hue: var(--joint); }\n', '', 1),
+                ('.remarks li.j .mk { color: var(--joint); }\n', '', 1),
+                ('<span class="key j" aria-hidden="true">◆●</span>', '<span class="key j" aria-hidden="true"><span>◆●</span></span>', 1),
+                # a glyph line in every n cell of the new results; the powers' bounds mod 3; 2^20 in the 304 remark (2026-10-12)
+                ('tr.ns td.c::before, tr.ns td.j::before, tr.ns td.s::before {\n  content: var(--glyph);\n', '.new-block tr.ns td::before {\n  content: var(--glyph, "\\a0");\n', 1),
+                ('/* Provenance: tint on both cells of an entry, a bar under its value, and a\n   glyph centered above its n. Text stays in ink. */\n', '/* Provenance: tint on both cells of an entry, a bar under its value, and a\n   glyph centered above its n (in every n cell of the new results a line for it, blank\n   where there is none, so they all line up). Text stays in ink. */\n', 1),
+                ('        <table class="block">\n          <tr class="ns"><th scope="row"><i>n</i></th><td title=\'The published paper (2021)\'>2<sup>3</sup></td><td title=\'The published paper (2021)\'>2<sup>4</sup></td><td title=\'The published paper (2021)\'>2<sup>5</sup></td><td title=\'The published paper (2021)\'>2<sup>6</sup></td><td title=\'The published paper (2021)\'>2<sup>7</sup></td><td title=\'The published paper (2021)\'>2<sup>8</sup></td><td class="c" title=\'Claude alone\'>2<sup>9</sup></td><td class="c" title=\'Claude alone\'>2<sup>18</sup></td><td class="j" title=\'Claude and BGPW\'>2<sup>24</sup></td><td class="c" title=\'Claude alone\'>2<sup>33</sup></td><td class="c" title=\'Claude alone\'>2<sup>41</sup></td><td class="c" title=\'Claude alone\'>2<sup>48</sup></td><td class="c" title=\'Claude alone\'>2<sup>49</sup></td></tr>\n          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td><td>8</td><td class="c">9</td><td class="c">19–22</td><td class="j">25–29</td><td class="c">35–41</td><td class="c">44–51</td><td class="c">52–59</td><td class="c">53–61</td></tr>\n        </table>\n        <table class="block">\n          <tr class="ns"><th scope="row"><i>n</i></th><td class="j" title=\'Claude and BGPW\'>2<sup>51</sup></td><td class="c" title=\'Claude alone\'>2<sup>57</sup></td><td class="c" title=\'Claude alone\'>2<sup>61</sup></td><td class="c" title=\'Claude alone\'>2<sup>67</sup></td><td class="c" title=\'Claude alone\'>2<sup>71</sup></td></tr>\n          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="j">55–63</td><td class="c">61–71</td><td class="c">66–76</td><td class="c">72–83</td><td class="c">77–88</td></tr>\n        </table>\n', '        <table class="block">\n          <tr class="ns"><th scope="row"><i>n</i></th><td title=\'The published paper (2021)\'>2<sup>3</sup></td><td title=\'The published paper (2021)\'>2<sup>4</sup></td><td title=\'The published paper (2021)\'>2<sup>5</sup></td><td title=\'The published paper (2021)\'>2<sup>6</sup></td><td title=\'The published paper (2021)\'>2<sup>7</sup></td><td title=\'The published paper (2021)\'>2<sup>8</sup></td><td class="c" title=\'Claude alone\'>2<sup>9</sup></td><td class="c" title=\'Claude alone\'>2<sup>18</sup></td><td class="j" title=\'Claude and BGPW\'>2<sup>24</sup></td><td class="c" title=\'Claude alone\'>2<sup>33</sup></td><td class="c" title=\'Claude alone\'>2<sup>41</sup></td><td class="c" title=\'Claude alone\'>2<sup>48</sup></td><td class="c" title=\'Claude alone\'>2<sup>49</sup></td></tr>\n          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td><td>8</td><td class="c">9</td><td class="c">19–21</td><td class="j">25–29</td><td class="c">35–40</td><td class="c">44–50</td><td class="c">52–59</td><td class="c">53–60</td></tr>\n        </table>\n        <table class="block">\n          <tr class="ns"><th scope="row"><i>n</i></th><td class="j" title=\'Claude and BGPW\'>2<sup>51</sup></td><td class="c" title=\'Claude alone\'>2<sup>57</sup></td><td class="c" title=\'Claude alone\'>2<sup>61</sup></td><td class="c" title=\'Claude alone\'>2<sup>67</sup></td><td class="c" title=\'Claude alone\'>2<sup>71</sup></td></tr>\n          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="j">55–63</td><td class="c">61–70</td><td class="c">66–75</td><td class="c">72–83</td><td class="c">77–88</td></tr>\n        </table>\n', 1),
+                ('which needed 304 to have order 9 -->\n', 'which needed 304 to have order 9, though 2^20 now has order 21 another way, the 2^18 entry times tau_2 -->\n', 1),
+                (', which needed 304 to have order 9."</p>\n', ', which needed 304 to have order 9. 2<sup>20</sup> now has order 21 another way: the 2<sup>18</sup> entry below, each product times τ<sub>2</sub>."</p>\n', 1))
 
 
 def committed():
@@ -296,6 +312,9 @@ function battery(R) {
   const main = document.querySelector('main'), ms = getComputedStyle(main);
   R.mainContentW = main.clientWidth - parseFloat(ms.paddingLeft) - parseFloat(ms.paddingRight);
   R.touchAction = getComputedStyle(cv).touchAction;
+  R.nTextBottoms = [...document.querySelectorAll('.new-block tr.ns')].map(tr => [...tr.querySelectorAll('td')].map(td => {
+    const t = [...td.childNodes].find(x => x.nodeType === 3 && x.textContent.trim()), r = document.createRange();
+    r.selectNodeContents(t); return r.getBoundingClientRect().bottom; }));
   if (cv.height === 0) return;
   const tok = name => getComputedStyle(cv).getPropertyValue(name).trim().toLowerCase();
   const C = {exists: tok('--exists'), open: tok('--open'), impossible: tok('--impossible'), paper: tok('--paper'), ink: tok('--ink')};
@@ -739,9 +758,12 @@ def q_new_copy_is_attributed():
     # values hold English only inside Claude: "…"; every Claude: "…" closes on its line; each line with one (HTML or
     # script) has a TODO comment as the nearest non-blank line above (<!-- TODO: in HTML, // TODO: in script), and each
     # TODO comment is followed by a line with one, or by one of his lines (the heading's TODO comment sits above his
-    # heading); no inserted CSS uses content:.
+    # heading); but a comment <!-- TODO for dreeves: … --> (Claude's suggestion for rewording his words, which he asked
+    # for on 2026-10-12) closes on its line and sits directly above a line of the page before the chart, unchanged; no
+    # inserted CSS uses content:.
     lines, region, ins = inserted()
     assert ins
+    old = set(range(len(lines))) - set(ins)
     his = [j for j in ins if lines[j].strip() in DREEVES_LINES]
     assert sorted(lines[j].strip() for j in his) == sorted(DREEVES_LINES), [lines[j] for j in his]
     bad = []
@@ -760,8 +782,10 @@ def q_new_copy_is_attributed():
             todo = '<!-- TODO:' in above if r == 'html' else above.strip().startswith('// TODO:')
             if not todo: bad.append((j + 1, 'no TODO above', line))
         if 'TODO' in line:
-            below = next(lines[i] for i in range(j + 1, len(lines)) if lines[i].strip())
-            if 'Claude: "' not in below and below.strip() not in DREEVES_LINES:
+            k = next(i for i in range(j + 1, len(lines)) if lines[i].strip())
+            if line.strip().startswith('<!-- TODO for dreeves:'):
+                if not (line.strip().endswith(' -->') and k in old): bad.append((j + 1, 'TODO for dreeves not above his words', line))
+            elif 'Claude: "' not in lines[k] and lines[k].strip() not in DREEVES_LINES:
                 bad.append((j + 1, 'TODO with no Claude: "…" below', line))
     assert not bad, bad
 
@@ -797,6 +821,79 @@ def q_palette_reads_for_color_blind_readers():
                 assert delta_e(c, b[p]) >= 15, (mode, c, p, delta_e(c, b[p]))
         claim = f'{mode.capitalize()}: worst color-blind pair ΔE {cvd:.1f} ({kind}), worst normal-vision pair {normal:.1f}'
         assert claim in said, (claim, said)
+
+
+def q_chart_colors_stand_apart():
+    # Replicata: the charts' colors and the table's provenance hues in each mode, and the page's CSS (dreeves,
+    # 2026-10-12: the charts' gray and green too similar; their red too like the table's orange for Claude alone; "the
+    # 'claude and BGPW' color could be a striping of the other two").
+    # Expectata: exists is the green the table used for Claude and BGPW until then (dreeves: "how about the green we're
+    # no longer using for 'claude and BGPW' -- that looked pretty good"), #2a9466 in light mode and #2aa070 in dark;
+    # impossible's OKLab hue is at least 30 degrees from --claude's; Claude and BGPW has no hue of its own (no --joint,
+    # anywhere): its cells and legend key are stripes of --claude's and --stan's tints over a striped bar, and its glyph
+    # is half in each hue.
+    def lch(h):
+        L, a, b = oklab(linear(h))
+        return L, math.hypot(a, b), math.degrees(math.atan2(b, a)) % 360
+    for mode, b in zip(('light', 'dark', 'dark'), theme_blocks()):
+        assert '--joint' not in b, mode
+        assert b['--exists'] == {'light': '#2a9466', 'dark': '#2aa070'}[mode], (mode, b['--exists'])
+        d = abs(lch(b['--impossible'])[2] - lch(b['--claude'])[2])
+        assert min(d, 360 - d) >= 30, (mode, b['--impossible'], d)
+    css = re.search(r'<style>(.*?)</style>', page(), re.S).group(1)
+    assert '--joint' not in css
+    tints = ('repeating-linear-gradient(135deg, color-mix(in oklab, var(--claude) var(--tint), var(--paper)) 0 0.3rem, '
+             'color-mix(in oklab, var(--stan) var(--tint), var(--paper)) 0.3rem 0.6rem)')
+    bar = 'repeating-linear-gradient(90deg, var(--claude) 0 0.3rem, var(--stan) 0.3rem 0.6rem) bottom / 100% 3px no-repeat'
+    half = 'linear-gradient(90deg, var(--claude) 50%, var(--stan) 50%)'
+    assert f'td.j, .key.j {{ background: {tints}; }}' in css
+    assert f'tr.vals td.j, .key.j {{ background: {bar}, {tints}; box-shadow: none; }}' in css
+    assert (f'tr.ns td.j::before, .key.j > span, .remarks li.j .mk {{ background: {half}; -webkit-background-clip: text; '
+            'background-clip: text; color: transparent; }') in css
+    assert '<span class="key j" aria-hidden="true"><span>◆●</span></span>' in page()
+
+
+def q_new_results_n_cells_line_up():
+    # Replicata: index.html in the browser (light, desktop): in each n row of the new results' tables, the bottom of the
+    # first line of each cell's n (its digits, or the 2 of 2^k).
+    # Expectata (dreeves, 2026-10-12: "minor spacing issue (remember anti-magic)"): the six rows' cells line up within
+    # half a pixel, the uncolored copies of Table 2's powers of 2 among them: every n cell of the new results takes the
+    # same room above its n, glyph or no glyph.
+    rows = valid_run('light')['nTextBottoms']
+    assert len(rows) == 6 and all(len(r) >= 5 for r in rows), rows
+    assert all(max(r) - min(r) <= 0.5 for r in rows), rows
+
+
+def q_remarks_name_the_chart_s_constructions():
+    # Replicata: each remark sentence of the form Claude: "Order m from examples above, doubled (a = 2·b, ...) or joined
+    # (a = b + c, ...); ...", item by item, against mstar.js's loWhy at a.
+    # Expectata: every item is the chart's own construction: a = 2·b is ["product", 2, b], a = b + c is ["join", b, c],
+    # as their TODOs say ("how the m*(n) chart gets these").  (On 2026-10-12 the example at 560 made the chart's joins
+    # 240 + 560, 336 + 560 and 432 + 560 win its ties at 800, 896 and 992, which a remark still called doublings.)
+    cols = mstar_data()['cols']
+    items = 0
+    for s in re.findall(r'Claude: "Order \d+ from examples above, (.*?); order', page()):
+        for kind, body in re.findall(r'(doubled|joined) \(([^)]*)\)', s):
+            for a, b, c in re.findall(r'(\d+) = (?:2·(\d+)|(\d+ \+ \d+))', body):
+                want = ['product', 2, int(b)] if kind == 'doubled' else ['join', *map(int, c.split(' + '))]
+                assert (kind == 'doubled') == bool(b), (kind, a, b, c)
+                assert cols[int(a) - 1][2] == want, (a, cols[int(a) - 1][2], want)
+                items += 1
+    assert items >= 25, items
+
+
+def q_suggestions_for_dreeves_sit_above_his_words():
+    # Replicata: index.html's <!-- TODO for dreeves: … --> comments, and the first non-blank line below each.
+    # Expectata (dreeves, 2026-10-12: "can you add TODOs explaining how you think i should change the wording?"): one
+    # directly above each of his lines that the day's results left stale or ambiguous: the 2^24 remark ("for every
+    # k ≥ 24"), the footer ("were not re-checked here"), and the two labels p336 of the order-9 example at 336 (the
+    # powers-of-2 chart's p336 is the order-10 one).  q_new_copy_is_attributed keeps each such line his, unchanged.
+    lines = page().splitlines()
+    below = [next(lines[i] for i in range(j + 1, len(lines)) if lines[i].strip()).strip()
+             for j, line in enumerate(lines) if line.strip().startswith('<!-- TODO for dreeves:')]
+    want = ('<p>Joint construction: ', "<p>BGPW's examples at lengths ", '<span><i>p</i><sub>336</sub>, an antisymmetric example',
+            '<span><i>f</i> = <i>p</i><sub>192</sub> ∨ <i>p</i><sub>336</sub>;')
+    assert len(below) == len(want) and all(sum(b.startswith(w) for b in below) == 1 for w in want), below
 
 
 def q_chart_agrees_with_tables():

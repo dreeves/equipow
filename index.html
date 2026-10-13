@@ -32,22 +32,21 @@
   --muted: #596070;
   --rule: #1b1d22;
   /* Provenance hues, checked with the dataviz palette validator against this
-     mode's surface. The worst color-blind pair is 6.4 (deutan), legal only
-     with a second cue, so every hue also carries a glyph: ◆ Claude, ● BGPW,
-     ◆● both. */
+     mode's surface: color-blind ΔE 23.6 (protan). Every hue also carries a
+     glyph: ◆ Claude, ● BGPW, and ◆● both, whose cells are stripes of the
+     two. */
   --claude: #c15f3c;
-  --joint: #2a9466;
   --stan: #3460c8;
   /* The m*(n) chart's colors, checked with the dataviz palette validator against each mode's surface, all pairs,
-     since any two can touch. Light: worst color-blind pair ΔE 13.4 (protan), worst normal-vision pair 17.8. Dark:
-     worst color-blind pair ΔE 18.1 (deutan), worst normal-vision pair 19.9. Its other checks fail by design: exists
-     and impossible sit far apart in lightness, outside its band (which also keeps exists clear of --joint); open is
-     a gray, and impossible, most of the chart, is muted (in light mode about as much chroma as sRGB allows at its
-     lightness), so both are below its chroma floor and below 3:1 against the light surface, impossible in dark too;
-     the readout states each cell's bounds in words. */
-  --exists: #2e5d1b;
+     since any two can touch. Light: worst color-blind pair ΔE 9.9 (protan), worst normal-vision pair 16.1. Dark:
+     worst color-blind pair ΔE 11.9 (deutan), worst normal-vision pair 16.9. Its other checks fail by design: exists
+     and impossible sit far apart in lightness, outside its band; open is a gray, and impossible, most of the chart,
+     is muted, so both are below its chroma floor and below 3:1 against the light surface, impossible in dark too; the
+     readout states each cell's bounds in words. Exists is the green the table used for Claude and BGPW, and
+     impossible a rose, away from the table's orange (dreeves, 2026-10-12). */
+  --exists: #2a9466;
   --open: #9b9ea6;
-  --impossible: #fcc0ba;
+  --impossible: #f7bfd3;
   --tint: 16%;
   --serif: "STIX Two Text", "Times New Roman", Times, serif;
   --mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
@@ -60,11 +59,10 @@
     --muted: #a2a6b0;
     --rule: #c9c7c2;
     --claude: #d46c46;
-    --joint: #2aa070;
     --stan: #5f86dc;
-    --exists: #89cc7b;
+    --exists: #2aa070;
     --open: #656970;
-    --impossible: #5a2522;
+    --impossible: #5d1c3a;
     --tint: 24%;
     color-scheme: dark;
   }
@@ -75,11 +73,10 @@
   --muted: #a2a6b0;
   --rule: #c9c7c2;
   --claude: #d46c46;
-  --joint: #2aa070;
   --stan: #5f86dc;
-  --exists: #89cc7b;
+  --exists: #2aa070;
   --open: #656970;
-  --impossible: #5a2522;
+  --impossible: #5d1c3a;
   --tint: 24%;
   color-scheme: dark;
 }
@@ -167,20 +164,25 @@ table.block th {
 .new-block table.block td { padding-inline: 0.65rem; }
 
 /* Provenance: tint on both cells of an entry, a bar under its value, and a
-   glyph centered above its n. Text stays in ink. */
+   glyph centered above its n (in every n cell of the new results a line for it, blank
+   where there is none, so they all line up). Text stays in ink. */
 td.c { --hue: var(--claude); --glyph: "◆"; }
-td.j { --hue: var(--joint); --glyph: "◆●"; }
+td.j { --glyph: "◆●"; }
 td.s { --hue: var(--stan); --glyph: "●"; }
 td.c, td.j, td.s { background: color-mix(in oklab, var(--hue) var(--tint), var(--paper)); }
 tr.vals td.c, tr.vals td.j, tr.vals td.s { box-shadow: inset 0 -3px 0 var(--hue); }
-tr.ns td.c::before, tr.ns td.j::before, tr.ns td.s::before {
-  content: var(--glyph);
+.new-block tr.ns td::before {
+  content: var(--glyph, "\a0");
   display: block;
   font-size: 0.8rem;
   line-height: 1.2;
   letter-spacing: 0.08em;
   color: var(--hue);
 }
+/* Claude and BGPW: stripes of the two tints over a striped bar, its glyph half in each hue */
+td.j, .key.j { background: repeating-linear-gradient(135deg, color-mix(in oklab, var(--claude) var(--tint), var(--paper)) 0 0.3rem, color-mix(in oklab, var(--stan) var(--tint), var(--paper)) 0.3rem 0.6rem); }
+tr.vals td.j, .key.j { background: repeating-linear-gradient(90deg, var(--claude) 0 0.3rem, var(--stan) 0.3rem 0.6rem) bottom / 100% 3px no-repeat, repeating-linear-gradient(135deg, color-mix(in oklab, var(--claude) var(--tint), var(--paper)) 0 0.3rem, color-mix(in oklab, var(--stan) var(--tint), var(--paper)) 0.3rem 0.6rem); box-shadow: none; }
+tr.ns td.j::before, .key.j > span, .remarks li.j .mk { background: linear-gradient(90deg, var(--claude) 50%, var(--stan) 50%); -webkit-background-clip: text; background-clip: text; color: transparent; }
 
 .legend {
   list-style: none;
@@ -205,7 +207,6 @@ tr.ns td.c::before, tr.ns td.j::before, tr.ns td.s::before {
   box-shadow: inset 0 -3px 0 var(--hue, transparent);
 }
 .key.c { --hue: var(--claude); }
-.key.j { --hue: var(--joint); }
 .key.s { --hue: var(--stan); }
 
 /* Remarks: one per new entry or group, marked like its cells */
@@ -227,7 +228,6 @@ tr.ns td.c::before, tr.ns td.j::before, tr.ns td.s::before {
   letter-spacing: 0.08em;
 }
 .remarks li.c .mk { color: var(--claude); }
-.remarks li.j .mk { color: var(--joint); }
 .remarks li.s .mk { color: var(--stan); }
 .entry { font-weight: 600; font-variant-numeric: tabular-nums lining-nums; }
 .code {
@@ -391,11 +391,11 @@ footer {
         </table>
         <table class="block">
           <tr class="ns"><th scope="row"><i>n</i></th><td title='The published paper (2021)'>2<sup>3</sup></td><td title='The published paper (2021)'>2<sup>4</sup></td><td title='The published paper (2021)'>2<sup>5</sup></td><td title='The published paper (2021)'>2<sup>6</sup></td><td title='The published paper (2021)'>2<sup>7</sup></td><td title='The published paper (2021)'>2<sup>8</sup></td><td class="c" title='Claude alone'>2<sup>9</sup></td><td class="c" title='Claude alone'>2<sup>18</sup></td><td class="j" title='Claude and BGPW'>2<sup>24</sup></td><td class="c" title='Claude alone'>2<sup>33</sup></td><td class="c" title='Claude alone'>2<sup>41</sup></td><td class="c" title='Claude alone'>2<sup>48</sup></td><td class="c" title='Claude alone'>2<sup>49</sup></td></tr>
-          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td><td>8</td><td class="c">9</td><td class="c">19–22</td><td class="j">25–29</td><td class="c">35–41</td><td class="c">44–51</td><td class="c">52–59</td><td class="c">53–61</td></tr>
+          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td><td>8</td><td class="c">9</td><td class="c">19–21</td><td class="j">25–29</td><td class="c">35–40</td><td class="c">44–50</td><td class="c">52–59</td><td class="c">53–60</td></tr>
         </table>
         <table class="block">
           <tr class="ns"><th scope="row"><i>n</i></th><td class="j" title='Claude and BGPW'>2<sup>51</sup></td><td class="c" title='Claude alone'>2<sup>57</sup></td><td class="c" title='Claude alone'>2<sup>61</sup></td><td class="c" title='Claude alone'>2<sup>67</sup></td><td class="c" title='Claude alone'>2<sup>71</sup></td></tr>
-          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="j">55–63</td><td class="c">61–71</td><td class="c">66–76</td><td class="c">72–83</td><td class="c">77–88</td></tr>
+          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="j">55–63</td><td class="c">61–70</td><td class="c">66–75</td><td class="c">72–83</td><td class="c">77–88</td></tr>
         </table>
       </div>
     </div>
@@ -403,7 +403,7 @@ footer {
 
   <ul class="legend">
     <li><span class="key c" aria-hidden="true">◆</span>Claude alone</li>
-    <li><span class="key j" aria-hidden="true">◆●</span>Claude and BGPW</li>
+    <li><span class="key j" aria-hidden="true"><span>◆●</span></span>Claude and BGPW</li>
     <li><span class="key s" aria-hidden="true">●</span>BGPW</li>
     <li><span class="key" aria-hidden="true"></span>The published paper (2021)</li>
   </ul>
@@ -451,8 +451,8 @@ footer {
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry"><i>n</i> = 304: &nbsp;<span class="nw"><i>m</i><sup>*</sup> = 8</span></p>
-      <!-- TODO: says a computer search rules out order 9: it splits the question by how many +1's fall in each residue class mod 3, 5, 4, 7, 8 and 9, closes every case with a certificate checked in exact integer arithmetic, and needed splitting further mod 11 and 13 for the last 8 cases; and that this closes the route to order 21 for 2^20 through 8·304·368 + 320·480, which needed 304 to have order 9 -->
-      <p>Claude: "Order 9 is ruled out by a computer search. It splits the question by how many +1's fall in each residue class mod 3, 5, 4, 7, 8 and 9, and closes every case with a certificate checked in exact integer arithmetic; the last 8 cases needed splitting further, mod 11 and then mod 13. That closes the route to order 21 for 2<sup>20</sup> through <span class="nw">8·304·368 + 320·480 = 2<sup>20</sup></span>, which needed 304 to have order 9."</p>
+      <!-- TODO: says a computer search rules out order 9: it splits the question by how many +1's fall in each residue class mod 3, 5, 4, 7, 8 and 9, closes every case with a certificate checked in exact integer arithmetic, and needed splitting further mod 11 and 13 for the last 8 cases; and that this closes the route to order 21 for 2^20 through 8·304·368 + 320·480, which needed 304 to have order 9, though 2^20 now has order 21 another way, the 2^18 entry times tau_2 -->
+      <p>Claude: "Order 9 is ruled out by a computer search. It splits the question by how many +1's fall in each residue class mod 3, 5, 4, 7, 8 and 9, and closes every case with a certificate checked in exact integer arithmetic; the last 8 cases needed splitting further, mod 11 and then mod 13. That closes the route to order 21 for 2<sup>20</sup> through <span class="nw">8·304·368 + 320·480 = 2<sup>20</sup></span>, which needed 304 to have order 9. 2<sup>20</sup> now has order 21 another way: the 2<sup>18</sup> entry below, each product times τ<sub>2</sub>."</p>
       <!-- TODO: names the code of the search, with links, and says its journals hold every verdict with the hash of its proof -->
       <p>Claude: "The code is <a href="https://github.com/dreeves/equipow/blob/main/overnight_v5.py">overnight_v5.py</a> with <a href="https://github.com/dreeves/equipow/blob/main/certbb.py">certbb.py</a>, and <a href="https://github.com/dreeves/equipow/blob/main/boxsplit.py">boxsplit.py</a> for the last 8 cases; their journals hold every verdict with the hash of its proof."</p>
     </li>
@@ -491,6 +491,7 @@ footer {
         <code>C87695B43E0ED258AB29C7793D8521DB227C0B746D</code>
       </p>
       <p class="code">
+        <!-- TODO for dreeves: this label gives p336 to the order-9 piece, but the powers-of-2 chart's caption defines p_n by the m*(n) chart's lower bound, so its readout's p336 is BGPW's order-10 example above. Suggestion: call this one q336, here and in the 528 entry's "f = p192 ∨ p336". -->
         <span><i>p</i><sub>336</sub>, an antisymmetric example found independently by Claude; it is the second part of the 528 example below <span class="nw">(<i>m</i> = 9)</span>:</span>
         <code>9C5479E2669C97071E731A62EBC06F28E87B4961DF</code>
       </p>
@@ -550,6 +551,7 @@ footer {
       <!-- TODO: says order 13 at 528 is ruled out by the residue condition mod 5 (Claude's proof), so m*(528) is 10, 11 or 12 -->
       <p>Claude: "Order 13 is ruled out by the residue condition mod 5."</p>
       <p class="code">
+        <!-- TODO for dreeves: if the order-9 piece at 336 becomes q336 (see the 336 entry), this reads "f = p192 ∨ q336". -->
         <span><i>f</i> = <i>p</i><sub>192</sub> ∨ <i>p</i><sub>336</sub>; &nbsp;<i>p</i><sub>192</sub> <span class="nw">(<i>m</i> = 9)</span>:</span>
         <code>C1BE1E21CD63D295A7887A59</code>
       </p>
@@ -557,7 +559,7 @@ footer {
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry"><i>n</i> = 560: &nbsp;<span class="nw"><i>m</i><sup>*</sup> = 10</span></p>
-      <!-- TODO: says this is a symmetric example of order 10 (found by Claude), and that order 11 at 560 is ruled out by the norm bound for the residue sums mod 3, so m*(560) = 10 -->
+      <!-- TODO: says this is a symmetric example of order 10, and that order 11 at 560 is ruled out by the norm bound for the residue sums mod 3, so m*(560) = 10 -->
       <p>Claude: "A symmetric example of order 10. Order 11 is ruled out by the norm bound for the residue sums mod 3."</p>
       <p class="code">
         <span><i>p</i><sub>560</sub> <span class="nw">(<i>m</i> = 10)</span>:</span>
@@ -572,66 +574,67 @@ footer {
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry"><i>n</i> = 384, 800, 832, 880, 896, 928, 944, 976, 992: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {10, 11}</span></p>
-      <!-- TODO: says how the m*(n) chart gets these: order 10 from examples above doubled or joined (each spelled out), order 12 ruled out by residue conditions or the norm bound mod 3 -->
-      <p>Claude: "Order 10 from examples above, doubled (384 = 2·192, 800 = 2·400, 832 = 2·416, 896 = 2·448, 928 = 2·464 and 992 = 2·496) or joined (880 = 240 + 640, 944 = 240 + 704 and 976 = 240 + 736); order 12 is ruled out by the residue condition mod 5 at 384 and the norm bound for the residue sums mod 3 at 800, 832, 880, 896, 928, 944, 976 and 992."</p>
+      <!-- TODO: says how the m*(n) chart gets these: order 10 from examples above doubled or joined (each spelled out), order 12 ruled out by the residue conditions and norm bounds it names -->
+      <p>Claude: "Order 10 from examples above, doubled (384 = 2·192, 832 = 2·416 and 928 = 2·464) or joined (800 = 240 + 560, 880 = 240 + 640, 896 = 336 + 560, 944 = 240 + 704, 976 = 240 + 736 and 992 = 432 + 560); order 12 is ruled out by the residue condition mod 5 at 384 and the norm bound for the residue sums mod 3 at 800, 832, 880, 896, 928, 944, 976 and 992."</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry"><i>n</i> = 544, 592, 608, 656, 688, 784: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {9, 10}</span></p>
-      <!-- TODO: says how the m*(n) chart gets these: order 9 from examples above doubled or joined (each spelled out), order 11 ruled out by residue conditions or the norm bound mod 3 -->
+      <!-- TODO: says how the m*(n) chart gets these: order 9 from examples above doubled or joined (each spelled out), order 11 ruled out by the residue conditions and norm bounds it names -->
       <p>Claude: "Order 9 from examples above, joined (544 = 192 + 352, 592 = 192 + 400, 608 = 192 + 416, 656 = 192 + 464, 688 = 192 + 496 and 784 = 192 + 592); order 11 is ruled out by the norm bound for the residue sums mod 3 at 544 and 592, the residue condition mod 3 at 608, 656 and 688 and the residue condition mod 27 at 784."</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry"><i>n</i> = 624: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {10, 11, 12}</span></p>
-      <!-- TODO: says how the m*(n) chart gets these: order 10 from examples above doubled or joined (each spelled out), order 13 ruled out by residue conditions or the norm bound mod 3 -->
+      <!-- TODO: says how the m*(n) chart gets these: order 10 from examples above doubled or joined (each spelled out), order 13 ruled out by the residue conditions and norm bounds it names -->
       <p>Claude: "Order 10 from examples above, joined (624 = 240 + 384); order 13 is ruled out by the residue condition mod 25."</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry"><i>n</i> = 640, 704, 736: &nbsp;<span class="nw"><i>m</i><sup>*</sup> = 10</span></p>
-      <!-- TODO: says how the m*(n) chart gets these: order 10 from examples above doubled or joined (each spelled out), order 11 ruled out by residue conditions or the norm bound mod 3 -->
+      <!-- TODO: says how the m*(n) chart gets these: order 10 from examples above doubled or joined (each spelled out), order 11 ruled out by the residue conditions and norm bounds it names -->
       <p>Claude: "Order 10 from examples above, doubled (640 = 2·320, 704 = 2·352 and 736 = 2·368); order 11 is ruled out by the residue condition mod 3 at 640 and 704 and the residue condition mod 9 at 736."</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry"><i>n</i> = 672, 768, 912: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {11, 12, 13}</span></p>
-      <!-- TODO: says how the m*(n) chart gets these: order 11 from examples above doubled or joined (each spelled out), order 14 ruled out by residue conditions or the norm bound mod 3 -->
+      <!-- TODO: says how the m*(n) chart gets these: order 11 from examples above doubled or joined (each spelled out), order 14 ruled out by the residue conditions and norm bounds it names -->
       <p>Claude: "Order 11 from examples above, doubled (672 = 2·336 and 768 = 2·384) or joined (912 = 432 + 480); order 14 is ruled out by the residue condition mod 5."</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry"><i>n</i> = 720, 816: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {10, …, 14}</span></p>
-      <!-- TODO: says how the m*(n) chart gets these: order 10 from examples above doubled or joined (each spelled out), order 15 ruled out by residue conditions or the norm bound mod 3 -->
+      <!-- TODO: says how the m*(n) chart gets these: order 10 from examples above doubled or joined (each spelled out), order 15 ruled out by the residue conditions and norm bounds it names -->
       <p>Claude: "Order 10 from examples above, joined (720 = 240 + 480 and 816 = 240 + 576); order 15 is ruled out by the residue condition mod 16 at 720 and the norm bound for the residue sums mod 5 at 816."</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry"><i>n</i> = 752, 848: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {9, 10, 11}</span></p>
-      <!-- TODO: says how the m*(n) chart gets these: order 9 from examples above doubled or joined (each spelled out), order 12 ruled out by residue conditions or the norm bound mod 3 -->
+      <!-- TODO: says how the m*(n) chart gets these: order 9 from examples above doubled or joined (each spelled out), order 12 ruled out by the residue conditions and norm bounds it names -->
       <p>Claude: "Order 9 from examples above, joined (752 = 192 + 560 and 848 = 192 + 656); order 12 is ruled out by the norm bound for the residue sums mod 3."</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry"><i>n</i> = 864: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {12, 13, 14}</span></p>
-      <!-- TODO: says how the m*(n) chart gets these: order 12 from examples above doubled or joined (each spelled out), order 15 ruled out by residue conditions or the norm bound mod 3 -->
+      <!-- TODO: says how the m*(n) chart gets these: order 12 from examples above doubled or joined (each spelled out), order 15 ruled out by the residue conditions and norm bounds it names -->
       <p>Claude: "Order 12 from examples above, doubled (864 = 2·432); order 15 is ruled out by the residue condition mod 5."</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry"><i>n</i> = 960: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {13, 14, 15}</span></p>
-      <!-- TODO: says how the m*(n) chart gets these: order 13 from examples above doubled or joined (each spelled out), order 16 ruled out by residue conditions or the norm bound mod 3 -->
+      <!-- TODO: says how the m*(n) chart gets these: order 13 from examples above doubled or joined (each spelled out), order 16 ruled out by the residue conditions and norm bounds it names -->
       <p>Claude: "Order 13 from examples above, doubled (960 = 2·480); order 16 is ruled out by the residue condition mod 7."</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry"><i>n</i> = 2<sup>18</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {19, …, 22}</span></p>
-      <!-- TODO: says order 19 at 2^18 comes from a join of two products of the examples above (p320 # p560, and p48 # p432 # tau_2; lengths and orders spelled out), making 2^18 the least power of 2 known to beat Thue–Morse, where f first did at 2^24; and that the upper bound is the norm bound for the residue sums mod 3 -->
-      <p>Claude: "<span class="nw">2<sup>18</sup> = 320·560 + 48·432·2<sup>2</sup></span>: a join of two products of examples above (of orders 9, 10, 6 and 11) and Thue–Morse, each of order 19. That beats Thue–Morse by 1 at a lower power of 2 than <i>f</i> does at 2<sup>24</sup>. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above."</p>
+      <p class="entry"><i>n</i> = 2<sup>18</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {19, …, 21}</span></p>
+      <!-- TODO: says order 19 at 2^18 comes from a join of two products of the examples above (p320 # p560, and p48 # p432 # tau_2; lengths and orders spelled out), each of order 19, which beats Thue–Morse by 1 at a lower power of 2 than f does at 2^24; and that the upper bound is the residue condition mod 3 -->
+      <p>Claude: "<span class="nw">2<sup>18</sup> = 320·560 + 48·432·2<sup>2</sup></span>: a join of two products of examples above (of orders 9, 10, 6 and 11) and Thue–Morse, each of order 19. That beats Thue–Morse by 1 at a lower power of 2 than <i>f</i> does at 2<sup>24</sup>. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above."</p>
     </li>
     <li class="j">
       <span class="mk" aria-hidden="true">◆●</span>
       <p class="entry"><i>n</i> = 2<sup>24</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {25, …, 29}</span></p>
+      <!-- TODO for dreeves: "Hence m*(2^k) ≥ k + 1 for every k ≥ 24" is still true, but since the 2^18 entry above, k + 1 holds for every k ≥ 18, so a reader may take 24 as where it starts. Suggestion: end the sentence "…for every k ≥ 24, and by the 2^18 entry above for every k ≥ 18." -->
       <p>Joint construction: <span class="nw">2<sup>24</sup> = 320<sup>2</sup>·112 + 432·48·2<sup>8</sup></span>, that is, <span class="nw"><i>f</i> = (<i>p</i><sub>320</sub> # <i>p</i><sub>320</sub> # <i>p</i><sub>112</sub>)</span> <span class="nw">∨ (<i>p</i><sub>432</sub> # <i>p</i><sub>48</sub> # τ<sub>8</sub>)</span>. Hence <span class="nw"><i>m</i><sup>*</sup>(2<sup><i>k</i></sup>) ≥ <i>k</i> + 1</span> for every <span class="nw"><i>k</i> ≥ 24</span>.</p>
       <!-- TODO: says the upper bound 29 at 2^24 is the norm bound for the residue sums mod 3 -->
       <p>Claude: "The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above."</p>
@@ -643,27 +646,27 @@ footer {
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry"><i>n</i> = 2<sup>33</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {35, …, 41}</span></p>
-      <!-- TODO: says order 35 at 2^33 comes from a join of three products of the examples above and Thue–Morse (lengths and orders spelled out), making 2^33 the first power of 2 known to beat Thue–Morse by 2, where f # f first did at 2^48; and that the upper bound is the norm bound for the residue sums mod 3 -->
-      <p>Claude: "<span class="nw">2<sup>33</sup> = 208·320<sup>3</sup> + 336<sup>3</sup>·2<sup>5</sup> + 304·480<sup>2</sup>·2<sup>3</sup></span>: a join of three products of examples above (of orders 8, 9, 10, 8 and 12) and Thue–Morse, each of order 35. That beats Thue–Morse by 2 at a lower power of 2 than <span class="nw"><i>f</i> # <i>f</i></span> does at 2<sup>48</sup>. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above."</p>
+      <p class="entry"><i>n</i> = 2<sup>33</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {35, …, 40}</span></p>
+      <!-- TODO: says order 35 at 2^33 comes from a join of three products of the examples above and Thue–Morse (lengths and orders spelled out), making 2^33 the first power of 2 known to beat Thue–Morse by 2, where f # f first did at 2^48; and that the upper bound is the residue condition mod 3 -->
+      <p>Claude: "<span class="nw">2<sup>33</sup> = 208·320<sup>3</sup> + 336<sup>3</sup>·2<sup>5</sup> + 304·480<sup>2</sup>·2<sup>3</sup></span>: a join of three products of examples above (of orders 8, 9, 10, 8 and 12) and Thue–Morse, each of order 35. That beats Thue–Morse by 2 at a lower power of 2 than <span class="nw"><i>f</i> # <i>f</i></span> does at 2<sup>48</sup>. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above."</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry"><i>n</i> = 2<sup>41</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {44, …, 51}</span></p>
-      <!-- TODO: says order 44 at 2^41 comes from a join of five products of the examples above and Thue–Morse, each of order 44, making 2^41 the first power of 2 known to beat Thue–Morse by 3; and that the upper bound is the norm bound for the residue sums mod 3 -->
-      <p>Claude: "A join of five products of examples above and Thue–Morse, each of order 44; the powers-of-2 chart above lists them. That beats Thue–Morse by 3. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above."</p>
+      <p class="entry"><i>n</i> = 2<sup>41</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {44, …, 50}</span></p>
+      <!-- TODO: says order 44 at 2^41 comes from a join of five products of the examples above and Thue–Morse, each of order at least 44, which beats Thue–Morse by 3; and that the upper bound is the residue condition mod 3 -->
+      <p>Claude: "A join of five products of examples above and Thue–Morse, each of order at least 44; the powers-of-2 chart above lists them. That beats Thue–Morse by 3. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above."</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry"><i>n</i> = 2<sup>48</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {52, …, 59}</span></p>
-      <!-- TODO: says order 52 at 2^48 comes from a join of six products of the examples above and Thue–Morse, each of order 52, making 2^48 the first power of 2 known to beat Thue–Morse by 4; and that the upper bound is the norm bound for the residue sums mod 3 -->
+      <!-- TODO: says order 52 at 2^48 comes from a join of six products of the examples above and Thue–Morse, each of order 52, which beats Thue–Morse by 4; and that the upper bound is the norm bound for the residue sums mod 3 -->
       <p>Claude: "A join of six products of examples above and Thue–Morse, each of order 52; the powers-of-2 chart above lists them. That beats Thue–Morse by 4. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above."</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry"><i>n</i> = 2<sup>49</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {53, …, 61}</span></p>
-      <!-- TODO: says order 53 at 2^49 comes from the join of the 2^48 entry with each product times tau_1, which beats Thue–Morse by 4; and that the upper bound is the norm bound for the residue sums mod 3 -->
-      <p>Claude: "The join of the 2<sup>48</sup> entry, each product times τ<sub>1</sub>, has order 53. That beats Thue–Morse by 4. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above."</p>
+      <p class="entry"><i>n</i> = 2<sup>49</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {53, …, 60}</span></p>
+      <!-- TODO: says order 53 at 2^49 comes from the join of the 2^48 entry with each product times tau_1, which beats Thue–Morse by 4; and that the upper bound is the residue condition mod 3 -->
+      <p>Claude: "The join of the 2<sup>48</sup> entry, each product times τ<sub>1</sub>, has order 53. That beats Thue–Morse by 4. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above."</p>
     </li>
     <li class="j">
       <span class="mk" aria-hidden="true">◆●</span>
@@ -674,15 +677,15 @@ footer {
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry"><i>n</i> = 2<sup>57</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {61, …, 71}</span></p>
-      <!-- TODO: says order 61 at 2^57 comes from the join of the 2^48 entry with each product times tau_9, which beats Thue–Morse by 4; and that the upper bound is the norm bound for the residue sums mod 3 -->
-      <p>Claude: "The join of the 2<sup>48</sup> entry, each product times τ<sub>9</sub>, has order 61. That beats Thue–Morse by 4. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above."</p>
+      <p class="entry"><i>n</i> = 2<sup>57</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {61, …, 70}</span></p>
+      <!-- TODO: says order 61 at 2^57 comes from the join of the 2^48 entry with each product times tau_9, which beats Thue–Morse by 4; and that the upper bound is the residue condition mod 3 -->
+      <p>Claude: "The join of the 2<sup>48</sup> entry, each product times τ<sub>9</sub>, has order 61. That beats Thue–Morse by 4. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above."</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry"><i>n</i> = 2<sup>61</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {66, …, 76}</span></p>
-      <!-- TODO: says order 66 at 2^61 comes from a join of eleven products of the examples above and Thue–Morse, each of order 66, making 2^61 the first power of 2 known to beat Thue–Morse by 5; and that the upper bound is the norm bound for the residue sums mod 3 -->
-      <p>Claude: "A join of eleven products of examples above and Thue–Morse, each of order 66; the powers-of-2 chart above lists them. That beats Thue–Morse by 5. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above."</p>
+      <p class="entry"><i>n</i> = 2<sup>61</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {66, …, 75}</span></p>
+      <!-- TODO: says order 66 at 2^61 comes from a join of eleven products of the examples above and Thue–Morse, each of order at least 66, which beats Thue–Morse by 5; and that the upper bound is the residue condition mod 3 -->
+      <p>Claude: "A join of eleven products of examples above and Thue–Morse, each of order at least 66; the powers-of-2 chart above lists them. That beats Thue–Morse by 5. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above."</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
@@ -693,7 +696,7 @@ footer {
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry"><i>n</i> = 2<sup>71</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {77, …, 88}</span></p>
-      <!-- TODO: says order 77 at 2^71 comes from a join of six products of the examples above and Thue–Morse, each of order 77, making 2^71 the first power of 2 known to beat Thue–Morse by 6; and that the upper bound is the norm bound for the residue sums mod 3 -->
+      <!-- TODO: says order 77 at 2^71 comes from a join of six products of the examples above and Thue–Morse, each of order 77, which beats Thue–Morse by 6; and that the upper bound is the norm bound for the residue sums mod 3 -->
       <p>Claude: "A join of six products of examples above and Thue–Morse, each of order 77; the powers-of-2 chart above lists them. That beats Thue–Morse by 6. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above."</p>
     </li>
   </ul>
@@ -839,6 +842,7 @@ SClaude[10][560] = {
   <p>The hex codes follow the paper's Table 5 convention: the left half of the signs <span class="nw">(1 = +1, 0 = −1)</span>, then the rest by <span class="nw">(−1)<sup><i>m</i></sup></span> symmetry.</p>
   <p>The sign # denotes the expanded product, <span class="nw"><i>f</i> # <i>g</i> = <i>f</i>(<i>x</i>)·<i>g</i>(<i>x</i><sup><i>n<sub>f</sub></i></sup>)</span>, where <i>n<sub>f</sub></i> is the length of <i>f</i>. The sign ∨ denotes the join.</p>
   <p>Every example whose code is given here was checked by Claude with exact integer power sums.</p>
+  <!-- TODO for dreeves: since 2026-10-12 the page gives BGPW's codes at 352, 368, 400, 464 and 496, so the sentence above ("Every example whose code is given here was checked by Claude") already covers them; only 416 has no code, and its order 9 also follows from doubling the paper's example at 208. Suggestion: "BGPW's example at length 416 was not re-checked here." -->
   <p>BGPW's examples at lengths 352, 368, 400, 416, 464 and 496 were not re-checked here.</p>
   <p><a href="https://github.com/dreeves/equipow">Source</a> &amp; <a href="https://equipow.dreev.es/sourcery.html">Sourcery</a></p>
 </footer>

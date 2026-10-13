@@ -175,11 +175,11 @@ NEW = {304: (8, 8, 'Claude alone'), 320: (9, 9, 'BGPW'), 336: (10, 10, 'Claude a
        960: (13, 15, 'Claude alone'),
        976: (10, 11, 'Claude alone'),
        992: (10, 11, 'Claude alone'),
-       2 ** 18: (19, 22, 'Claude alone'), 2 ** 24: (25, 29, 'Claude and BGPW'),
-       2 ** 33: (35, 41, 'Claude alone'), 2 ** 41: (44, 51, 'Claude alone'),
-       2 ** 48: (52, 59, 'Claude alone'), 2 ** 49: (53, 61, 'Claude alone'),
-       2 ** 51: (55, 63, 'Claude and BGPW'), 2 ** 57: (61, 71, 'Claude alone'),
-       2 ** 61: (66, 76, 'Claude alone'), 2 ** 67: (72, 83, 'Claude alone'),
+       2 ** 18: (19, 21, 'Claude alone'), 2 ** 24: (25, 29, 'Claude and BGPW'),
+       2 ** 33: (35, 40, 'Claude alone'), 2 ** 41: (44, 50, 'Claude alone'),
+       2 ** 48: (52, 59, 'Claude alone'), 2 ** 49: (53, 60, 'Claude alone'),
+       2 ** 51: (55, 63, 'Claude and BGPW'), 2 ** 57: (61, 70, 'Claude alone'),
+       2 ** 61: (66, 75, 'Claude alone'), 2 ** 67: (72, 83, 'Claude alone'),
        2 ** 71: (77, 88, 'Claude alone')}
 # EXAMPLE_BY[n]: who found the example of order NEW[n][0] at n, as the page's remarks credit it, for each n whose lo
 # is that cited value (no sequence of that order is here; columns() asserts that these are exactly those n).  A cited
@@ -443,7 +443,7 @@ def residue_vectors(n, M, m, parent, budget, sweep):
     assert m >= 1 and M >= 2
     B, piv = basis(M, m, sweep, n < 2 ** m)
     cls = SWEEPS[sweep](M)                              # row i holds the residue sum of the class cls[i] mod M
-    s = [len(range(r, n, M)) for r in cls]
+    s = [(n - r + M - 1) // M for r in cls]            # len(range(r, n, M)), which overflows past 2^63
     P, W = parent or (1, (0,))                          # without a parent, sum_r D_r = f(1) = 0
     assert M % P == 0 and len(W) == P, (M, parent)
     room = [sum(s[t] for t in range(i) if cls[t] % P == cls[i] % P) for i in range(M)]   # the classmates below row i

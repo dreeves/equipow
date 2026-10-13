@@ -8,7 +8,7 @@ sweep and claim, and states the two lemmas; this file uses them in its sense, an
            product's excess is the sum of its factors'.
   block    a length and an order known at that length, written [n, m]: a column n <= 1000 of mstar.js at its lo,
            tau_j as [2^j, j], or f as [2^24, 25].
-  f        (112 # 320 # 320) v (432 # 48 # tau_8) (index.html's remarks; its set is X_order25_2^24.txt.gz): length
+  f        (320 # 320 # 112) v (432 # 48 # tau_8) (index.html's remarks; its set is X_order25_2^24.txt.gz): length
            112 * 320^2 + 432 * 48 * 2^8 = 2^24, order min(7 + 9 + 9, 11 + 6 + 8) = 25 by BGPW's Theorem 4.1
            (Multiplication and Addition), the blocks' orders from mstar.js.  F_PRODUCTS below; f^{#L} is f # ... # f,
            L factors: length 2^(24L), order 25L.
@@ -60,25 +60,37 @@ JS = os.path.join(HERE, 'pow2.js')
 F = [2 ** 24, 25]
 F_PRODUCTS = [[[112, 7], [320, 9], [320, 9]], [[432, 11], [48, 6], [256, 8]]]
 RESIDUE_CAP = 10 ** 8                        # nodes allowed to the enumeration of one claim
-# RESIDUE[k] = (m, chain, sweep): the claims at n = 2^k, each checked by mstar.chain_none on every run.  None yet.
+# RESIDUE[k] = (m, chain, sweep): the claims at n = 2^k, each checked by mstar.chain_none on every run.  Since
+# 2026-10-12 (found by the verification of that day's update, scratch/w560/verify/upper/): at these 32 k the residue
+# condition mod 3 leaves no admissible vector at m = norm(2^k, 3), the order the norm bound for 3 allows, so hi is one
+# less there.
 # Tried (scratch/pow2/res/) at 1024, order 11 (the norm bound for 3 allows 11): the chains (3), (3, 9), (4, 8),
 # (4, 8, 16), (5), (7), (11) and (13) each have an admissible vector (mod 3 exactly +-(0, 243, -243), which is
 # x^2 (x-1)^11 mod x^3 - 1); (3, 9, 27) in the sweep 'digits' passed 3 * 10^7 nodes unfinished (660654 admissible
 # vectors mod 9, and each of the first 58 of them alone passed 3 * 10^5 nodes mod 27); (31) and (5, 25) passed
 # 2 * 10^6 nodes unfinished.
-RESIDUE = {}
+RESIDUE = {11: (13, (3,), 'digits'), 12: (14, (3,), 'digits'), 14: (17, (3,), 'digits'), 15: (18, (3,), 'digits'),
+           18: (22, (3,), 'digits'), 19: (23, (3,), 'digits'), 20: (24, (3,), 'digits'), 22: (27, (3,), 'digits'),
+           23: (28, (3,), 'digits'), 26: (32, (3,), 'digits'), 30: (37, (3,), 'digits'), 31: (38, (3,), 'digits'),
+           33: (41, (3,), 'digits'), 34: (42, (3,), 'digits'), 37: (46, (3,), 'digits'), 38: (47, (3,), 'digits'),
+           39: (48, (3,), 'digits'), 41: (51, (3,), 'digits'), 42: (52, (3,), 'digits'), 45: (56, (3,), 'digits'),
+           49: (61, (3,), 'digits'), 50: (62, (3,), 'digits'), 53: (66, (3,), 'digits'), 56: (70, (3,), 'digits'),
+           57: (71, (3,), 'digits'), 58: (72, (3,), 'digits'), 60: (75, (3,), 'digits'), 61: (76, (3,), 'digits'),
+           64: (80, (3,), 'digits'), 68: (85, (3,), 'digits'), 69: (86, (3,), 'digits'), 72: (90, (3,), 'digits')}
 # BASES[K0]: for each excess e = 1..5, a join of products at 2^K0, each product a list of blocks, of order K0 + e, at
 # the first K0 that reaches e: the docstring's search, over all of mstar.js's blocks (each with a sequence in hand),
 # finds that no K below K0 reaches e, exhaustively (scratch/w560/rescan_all_e*.out, 2026-10-12).  Equal products in a
-# join are written once per binary digit of their count, times tau of that digit (two copies of P have the length of
-# P # tau_1 and a lower order).  BASES[71], for e = 6, is the join that a constructive variant of the search
-# (scratch/w560/scan6.py) finds at 71: no K <= 66 reaches e = 6, exhaustively, and 67..70 are undecided (too many
-# coins for the search, and the variant finds no join there).  No K <= 72 reaches e = 7: no coin there has a length
-# prime to 3, which a join summing to 2^K needs (3 does not divide 2^K).  At every k >= K0 the same join, each product
-# times tau_(k - K0), is a candidate for lo (lifted); join_lo checks it on every run.  The example of order 10 at 560
-# (2026-10-12) moved the first K0 for e = 1 from 24 (f) to 18, for e = 3 from 49 to 41, for e = 4 from 57 to 48 and
-# for e = 5 from 67 to 61, and gave e = 6 at 71 (BASES[33] is unchanged); the superseded bases, at 49, 57, 59, 67 and
-# 72, are gone, the new ones lifted matching or beating them at every k.
+# join are written once per binary digit of their count, times tau of that digit (two copies of P have the length of P
+# # tau_1 and a lower order).  BASES[71], for e = 6, is the join that a constructive variant of the search
+# (scratch/w560/scan6.py) finds at 71, the first K0 that reaches e = 6: no K <= 66 does, exhaustively, and at 67..70 a
+# join summing to 2^K would need products of 3-free blocks whose lengths are 2^K mod 3, which none has at 67..69,
+# while at 70 the one that does leaves a rest that no product reaches mod 9 (scratch/w560/verify/firsts/indep_e6.out
+# and firsts-confirm-0/).  No K <= 72 reaches e = 7: no coin there has a length prime to 3, which a join summing to
+# 2^K needs (3 does not divide 2^K).  At every k >= K0 the same join, each product times tau_(k - K0), is a candidate
+# for lo (lifted); join_lo checks it on every run.  The example of order 10 at 560 (2026-10-12) moved the first K0 for
+# e = 1 from 24 (f) to 18, for e = 3 from 49 to 41, for e = 4 from 57 to 48 and for e = 5 from 67 to 61, and gave e =
+# 6 at 71 (BASES[33] is unchanged); the superseded bases, at 49, 57, 59, 67 and 72, are gone, the new ones lifted
+# matching or beating them at every k.
 BASES = {18: [[[320, 9], [560, 10]],
               [[48, 6], [432, 11], [4, 2]]],
          33: [[[208, 8], [320, 9], [320, 9], [320, 9]],

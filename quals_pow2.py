@@ -242,9 +242,23 @@ def q_norm_never_below_a_known_order():
                 assert all(m <= norm_here(n, q) for q in pow2.NORM_PRIMES if n % q), (k, n, m)
 
 
+def q_mod3_residue_lowers_hi_at_32_columns():
+    # Replicata (regression): pow2.RESIDUE and pow2.js's hiWhy and hi.
+    # Expectata: the residue condition mod 3 at the order the norm bound for 3 allows, pow2.norm(2^k, 3), leaves no
+    # admissible vector at exactly these 32 k (found by the verification of the 2026-10-12 update; q_residue_claims
+    # enumerates each), so there hi is one less, with hiWhy ["residue", [3]]; elsewhere it stays the norm bound.
+    K = (11, 12, 14, 15, 18, 19, 20, 22, 23, 26, 30, 31, 33, 34, 37, 38, 39, 41, 42, 45, 49, 50, 53, 56, 57, 58, 60, 61,
+         64, 68, 69, 72)
+    assert sorted(pow2.RESIDUE) == list(K), sorted(pow2.RESIDUE)
+    assert all(pow2.RESIDUE[k] == (pow2.norm(2 ** k, 3), (3,), 'digits') for k in K)
+    for k, (lo, hi, lw, hw) in enumerate(cols(), 1):
+        if k <= 9: continue
+        assert (hw, hi) == ((['residue', [3]], pow2.norm(2 ** k, 3) - 1) if k in K else (['norm', 3], pow2.norm(2 ** k, 3))), (k, hw, hi)
+
+
 def q_residue_claims():
     # Replicata: every claim (m, chain, sweep) of pow2.RESIDUE at n = 2^k, enumerated by mstar.chain_none to the end
-    # (cap 10^9 nodes).  (There are none yet: 1024 at order 11 through (3, 9, 27) did not finish; see pow2.RESIDUE.)
+    # (cap 10^9 nodes): the 32 claims mod 3 of q_mod3_residue_lowers_hi_at_32_columns, since 2026-10-12.
     # Expectata: no admissible vector at the last modulus; m - 1 >= lo.
     for k, (m, chain, sweep) in pow2.RESIDUE.items():
         assert sweep in mstar.SWEEPS and mstar.chain_none(2 ** k, m, chain, sweep, 10 ** 9), (k, m, chain)
