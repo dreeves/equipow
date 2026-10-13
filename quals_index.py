@@ -911,6 +911,20 @@ def q_2_18_shows_its_construction():
     assert all(f'<code>{h}</code>' in page() for _, h in codes), codes
 
 
+def q_remarks_open_with_how_the_upper_bounds_are_proven():
+    # Replicata: the start of index.html's section "Where the new results come from".
+    # Expectata (dreeves, 2026-10-12: define "the norm bound" and "the residue condition", which the remarks and charts
+    # cite, "in nice understandable non-llmish prose", with a note that certificates for the residue claims are tbd):
+    # between the heading and the list of remarks, Claude's paragraphs on the residue condition, then the norm bound,
+    # then the certificates still to be done.
+    sec = re.search(r'<h2>Where the new results come from</h2>\n(.*?)\n  <ul>\n', page(), re.S).group(1)
+    said = re.findall(r'<p>Claude: "(.*?)"</p>', sec)
+    assert len(said) == 3, sec
+    assert said[0].startswith('How the upper bounds are proven.') and 'The residue condition mod <i>M</i> rules out' in said[0]
+    assert said[1].startswith('The norm bound for a prime <i>p</i> that does not divide <i>n</i>')
+    assert 'are still to be done.' in said[2] and 'proof512.wl' in said[2]
+
+
 def q_chart_agrees_with_tables():
     # Replicata: mstar.js (the chart's data) and the entries of the page's tables with n up to 1000.
     # Expectata: for each entry (n, low, high): the column's [lo, hi] lies inside [low, high], and an exact entry
