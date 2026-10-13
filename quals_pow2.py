@@ -142,18 +142,19 @@ def q_lo_at_least_thue_morse_and_f_powers():
 
 def q_new_lower_bounds():
     # Replicata (regression): pow2.js's lo - k, the excess known at 2^k, for k = 1..72, and the kind of its loWhy.
-    # Expectata: 0 by Thue-Morse for k <= 23; 1 by f # tau_j for 24..32; 2 for 33..48 (joins from pow2.BASES[33],
-    # but f # f at 48, where the two tie); 3 by joins for 49..56; 4 by joins for 57..66 (from BASES[57] at 57 and 58,
-    # and from BASES[59], with sequences in hand, from 59); 5 by joins for 67..72 (from BASES[67] up to 71, and from
-    # BASES[72], with sequences in hand, at 72).  The bases are at 2^33 order 35, 2^49 order 52, 2^57 order 61, 2^59
-    # order 63, 2^67 order 72 and 2^72 order 77, each lifted by tau_(k - K0) above.
-    want = {k: 0 if k < 24 else 1 if k < 33 else 2 if k < 49 else 3 if k < 57 else 4 if k < 67 else 5
+    # Expectata: 0 by Thue-Morse for k <= 17; 1 for 18..32 (joins from pow2.BASES[18] up to 23, then f # tau_j, which
+    # ties them and comes first); 2 by joins for 33..40 (BASES[33]); 3 for 41..47 (BASES[41]); 4 for 48..60
+    # (BASES[48]); 5 for 61..70 (BASES[61]); 6 for 71 and 72 (BASES[71]).  The bases are at 2^18 order 19, 2^33 order
+    # 35, 2^41 order 44, 2^48 order 52, 2^61 order 66 and 2^71 order 77, each lifted by tau_(k - K0) above.  (Before
+    # 2026-10-12's example of order 10 at 560: 0 below 24, 1 from 24 by f, 2 from 33, 3 from 49, 4 from 57 and 5 from 67.)
+    want = {k: 0 if k < 18 else 1 if k < 33 else 2 if k < 41 else 3 if k < 48 else 4 if k < 61 else 5 if k < 71 else 6
             for k in range(1, KMAX + 1)}
-    kind = {k: 'thue-morse' if k < 24 else 'power' if k < 33 or k == 48 else 'joins' for k in range(1, KMAX + 1)}
+    kind = {k: 'thue-morse' if k < 18 else 'power' if 24 <= k < 33 else 'joins' for k in range(1, KMAX + 1)}
     for k, (lo, hi, lw, hw) in enumerate(cols(), 1): assert (lo - k, lw[0]) == (want[k], kind[k]), (k, lo, lw[0])
     orders = {K0: pow2.join_lo(K0, ps) for K0, ps in pow2.BASES.items()}
-    assert orders == {33: 35, 49: 52, 57: 61, 59: 63, 67: 72, 72: 77}, orders
-    pairs = ((57, 57), (58, 57), (59, 59), (66, 59), (67, 67), (71, 67), (72, 72))
+    assert orders == {18: 19, 33: 35, 41: 44, 48: 52, 61: 66, 71: 77}, orders
+    pairs = ((18, 18), (23, 18), (33, 33), (40, 33), (41, 41), (47, 41), (48, 48), (60, 48), (61, 61), (70, 61), (71, 71),
+             (72, 71))
     assert [cols()[k - 1][2][1] == pow2.lifted(pow2.BASES[K0], k - K0) for k, K0 in pairs] == [True] * len(pairs)
 
 

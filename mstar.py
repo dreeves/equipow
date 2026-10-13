@@ -148,7 +148,7 @@ NEW = {304: (8, 8, 'Claude alone'), 320: (9, 9, 'BGPW'), 336: (10, 10, 'Claude a
        576: (10, 12, 'Claude alone'),
        384: (10, 11, 'Claude alone'),
        544: (9, 10, 'Claude alone'),
-       560: (9, 10, 'Claude alone'),
+       560: (10, 10, 'Claude alone'),
        592: (9, 10, 'Claude alone'),
        608: (9, 10, 'Claude alone'),
        624: (10, 12, 'Claude alone'),
@@ -175,9 +175,12 @@ NEW = {304: (8, 8, 'Claude alone'), 320: (9, 9, 'BGPW'), 336: (10, 10, 'Claude a
        960: (13, 15, 'Claude alone'),
        976: (10, 11, 'Claude alone'),
        992: (10, 11, 'Claude alone'),
-       2 ** 24: (25, 29, 'Claude and BGPW'), 2 ** 33: (35, 41, 'Claude alone'),
-       2 ** 49: (52, 61, 'Claude alone'), 2 ** 51: (54, 63, 'Claude and BGPW'),
-       2 ** 57: (61, 71, 'Claude alone'), 2 ** 67: (72, 83, 'Claude alone')}
+       2 ** 18: (19, 22, 'Claude alone'), 2 ** 24: (25, 29, 'Claude and BGPW'),
+       2 ** 33: (35, 41, 'Claude alone'), 2 ** 41: (44, 51, 'Claude alone'),
+       2 ** 48: (52, 59, 'Claude alone'), 2 ** 49: (53, 61, 'Claude alone'),
+       2 ** 51: (55, 63, 'Claude and BGPW'), 2 ** 57: (61, 71, 'Claude alone'),
+       2 ** 61: (66, 76, 'Claude alone'), 2 ** 67: (72, 83, 'Claude alone'),
+       2 ** 71: (77, 88, 'Claude alone')}
 # EXAMPLE_BY[n]: who found the example of order NEW[n][0] at n, as the page's remarks credit it, for each n whose lo
 # is that cited value (no sequence of that order is here; columns() asserts that these are exactly those n).  A cited
 # lo's ["page", who] names whose example it is, and a cited hi's whose proof, the cell's title.  At 496 they differ:
@@ -202,6 +205,7 @@ PAGE_CODES = (('index.html BGPW 352', 9, 'A4DB4926DB4D36584B26936D2CFA54B6F04B2C
               ('index.html p480', 12, 'B0CBC94F1E2C68D1E3A6371C357C4B1347952BB968236CF6C82CD9CE01F3'),
               ('index.html BGPW 496', 9, 'C96992D92DB24B7596496D1A530DB5994EA699A9ACE072BDC57403B339A4CE'),
               ('index.html p192', 9, 'C1BE1E21CD63D295A7887A59'),
+              ('index.html p560', 10, '34D2E9F0DA19EC92492D966936ABCA25FAD924D26F2591EB64926924925D6E1A4BFE92'),
               ('index.html p112', 7, 'A5994DB29B45A0'),
               ('index.html p48', 6, 'C27D8C'))
 # Claude's own examples of order 9 at the lengths where the page credits BGPW's (352, 368, 400, 464 and 496), found on
@@ -214,7 +218,7 @@ FOUND = ((352, 9, '969E4C06F693B61B683699E934D241A6DB4936D7CDA6'),
          (464, 9, '8EA4DC62B3DF10709957C395683E3A4D369A6F30DA6984D36D86934C26'),
          (496, 9, 'C2BAD83D5017FA285E3D82ED96135DA2394EB48A6D349E6994D349B6D34DA7'))
 # The sets of the page's section "Claude's examples as sets", as (m, n) for SClaude[m][n], in page order
-PAGE_SET_KEYS = ((9, 320), (9, 336), (11, 432), (9, 448), (12, 480), (10, 528))
+PAGE_SET_KEYS = ((9, 320), (9, 336), (11, 432), (9, 448), (12, 480), (10, 528), (10, 560))
 
 
 def page_n(s):
@@ -239,10 +243,10 @@ PAPER = 'The published paper (2021)'      # the legend's label, and the title, o
 def page_sources(html):
     """Table 2, the new results, the codes and the sets, parsed out of index.html and asserted equal to the hand
     copies above.  Returns {'table2': {n: (lo, hi)}, 'new': {n: (lo, hi, who)}, 'codes': [(m, hex)],
-    'sets': [(m, n, set)]}.  The page's tables of class "block" are Table 2's three, then the new results' five (every
-    multiple of 16 from 304 to 992 in four rows of 11, then the powers of 2)."""
+    'sets': [(m, n, set)]}.  The page's tables of class "block" are Table 2's three, then the new results' six (every
+    multiple of 16 from 304 to 992 in four rows of 11, then the powers of 2 in two rows)."""
     tables = re.findall(r'<table class="block">(.*?)</table>', html, re.S)
-    assert len(tables) == 8, len(tables)
+    assert len(tables) == 9, len(tables)
     rows = []
     for t in tables:
         ns = re.findall(r'<td([^>]*)>(.*?)</td>', re.search(r'<tr class="ns">(.*?)</tr>', t, re.S)[1])

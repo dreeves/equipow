@@ -14,16 +14,16 @@ sweep and claim, and states the two lemmas; this file uses them in its sense, an
            L factors: length 2^(24L), order 25L.
   atom     a block (n, lo(n)), n <= 1000, that no single join or product of shorter columns' closure values reaches
            (closure: the best orders that joins and products of the columns reach, length by length).
-  search   scratch/pow2/scan.py (not run here), which found BASES (but BASES[67], found by the same search written again
-           independently, scratch/pow2/verify/p2v_e5.py): for an excess e and a K, is 2^K a join of products
-           of blocks, each of order >= K + e?  By distributivity (a # (b v c) and (b v c) # a have the lengths and
-           orders of (a # b) v (a # c)), any expression in joins and products of blocks is matched, length for length
-           and with orders at least as high, by a join of products of atoms (f too).  Such a product is a core (its
-           atoms other than tau_1) times tau_1^j; its order >= K + e and length <= 2^K make the core's excess >= e;
-           the shortest such product with a given core has length L 2^max(0, K + e - O) (its coin; L and O the core's
-           length and order), and any longer one is 2^i times as long, the length of 2^i coins.  So 2^K is such a join
-           exactly when it is a sum of coins (each any number of times), which shortest paths on residues modulo the
-           least coin decide exactly; the search enumerates every core with L <= 2^K and excess >= e.
+  search   scratch/pow2/verify/p2v_search.py (not run here; rerun as scratch/w560/rescan.py once 560 reached order
+           10), which found BASES: for an excess e and a K, is 2^K a join of products of blocks, each of order >= K +
+           e?  By distributivity (a # (b v c) and (b v c) # a have the lengths and orders of (a # b) v (a # c)), any
+           expression in joins and products of blocks is matched, length for length and with orders at least as high,
+           by a join of products of atoms (f too).  Such a product is a core (its atoms other than tau_1) times
+           tau_1^j; its order >= K + e and length <= 2^K make the core's excess >= e; the shortest such product with a
+           given core has length L 2^max(0, K + e - O) (its coin; L and O the core's length and order), and any longer
+           one is 2^i times as long, the length of 2^i coins.  So 2^K is such a join exactly when it is a sum of coins
+           (each any number of times), which shortest paths on residues modulo the least coin decide exactly; the
+           search enumerates every core with L <= 2^K and excess >= e.
 
 The data contract.  pow2.js is a classic script (no modules, so the page also works from file://) defining one global:
     const POW2 = {"kmax": 72, "etop": E, "cols": [[lo, hi, loWhy, hiWhy], ...]};
@@ -67,55 +67,51 @@ RESIDUE_CAP = 10 ** 8                        # nodes allowed to the enumeration 
 # vectors mod 9, and each of the first 58 of them alone passed 3 * 10^5 nodes mod 27); (31) and (5, 25) passed
 # 2 * 10^6 nodes unfinished.
 RESIDUE = {}
-# BASES[K0]: a join of products at 2^K0, each product a list of blocks, of order K0 + e, found by the docstring's
-# search.  From blocks with sequences in hand (mstar.explicit_lo): for e = 2, 3 and 4, at the first K0 the search
-# reaches e (no K below it reaches e, exhaustively); for e = 5 at 72, and no K below 72 reaches 5 (mod 3, below).  From
-# all of mstar.js's blocks, the cited ones too: e = 4 at 57 and e = 5 at 67, the first K0 that reaches each
-# (exhaustively; for 5 also mod 3), with columns that the page cites as BGPW's examples (mstar.js's ["page", "BGPW"])
-# at order 9: 352 and 464 in BASES[57], 400 in BASES[67].  Those two come last, so that wherever one ties a base with
-# sequences in hand (BASES[57] at every k >= 59, BASES[67] at 72), the base in hand wins.  Mod 3 (checked by
-# scratch/pow2/fix/mod3.py): 3 does not divide 2^K, so some product of the join has length prime to 3, a product of
-# 3-free blocks whose core has excess >= e.  For e = 5 and K <= 72, every such product that fits in 2^K is longer than
-# 2^(K-1), so the join has exactly one, of a length that must be 2^K's residue mod 3, and none has it for K <= 66 (all
-# blocks) or K <= 71 (blocks in hand); and no such core has excess 6 within 2^72, so no K <= 72 reaches e = 6.  At
-# every k >= K0 the same join, each product times tau_(k - K0), is a candidate for lo (lifted); join_lo checks it on
-# every run.  Since 2026-10-12 mstar.FOUND holds sequences of order 9 at 352, 368, 400, 464 and 496, so every base here
-# is built from sequences in hand, and blocks in hand reach e = 4 at 57 and e = 5 at 67 as well.
-BASES = {33: [[[208, 8], [320, 9], [320, 9], [320, 9]],
+# BASES[K0]: for each excess e = 1..5, a join of products at 2^K0, each product a list of blocks, of order K0 + e, at
+# the first K0 that reaches e: the docstring's search, over all of mstar.js's blocks (each with a sequence in hand),
+# finds that no K below K0 reaches e, exhaustively (scratch/w560/rescan_all_e*.out, 2026-10-12).  Equal products in a
+# join are written once per binary digit of their count, times tau of that digit (two copies of P have the length of
+# P # tau_1 and a lower order).  BASES[71], for e = 6, is the join that a constructive variant of the search
+# (scratch/w560/scan6.py) finds at 71: no K <= 66 reaches e = 6, exhaustively, and 67..70 are undecided (too many
+# coins for the search, and the variant finds no join there).  No K <= 72 reaches e = 7: no coin there has a length
+# prime to 3, which a join summing to 2^K needs (3 does not divide 2^K).  At every k >= K0 the same join, each product
+# times tau_(k - K0), is a candidate for lo (lifted); join_lo checks it on every run.  The example of order 10 at 560
+# (2026-10-12) moved the first K0 for e = 1 from 24 (f) to 18, for e = 3 from 49 to 41, for e = 4 from 57 to 48 and
+# for e = 5 from 67 to 61, and gave e = 6 at 71 (BASES[33] is unchanged); the superseded bases, at 49, 57, 59, 67 and
+# 72, are gone, the new ones lifted matching or beating them at every k.
+BASES = {18: [[[320, 9], [560, 10]],
+              [[48, 6], [432, 11], [4, 2]]],
+         33: [[[208, 8], [320, 9], [320, 9], [320, 9]],
               [[336, 10], [336, 10], [336, 10], [32, 5]],
               [[304, 8], [480, 12], [480, 12], [8, 3]]],
-         49: [[[112, 7], [320, 9], [320, 9], [320, 9], [320, 9], [320, 9]],
-              [[40, 5], [112, 7], [320, 9], [320, 9], [320, 9], [480, 12], [2, 1]],
-              [[272, 8], [336, 10], [336, 10], [336, 10], [432, 11], [8, 3]],
-              [[208, 8], [208, 8], [480, 12], [480, 12], [480, 12]],
-              [[192, 9], [336, 10], [336, 10], [432, 11], [480, 12]],
-              [[12, 3], [480, 12], [480, 12], [480, 12], [480, 12], [2, 1]]],
-         59: [[[208, 8], [320, 9], [320, 9], [320, 9], [320, 9], [320, 9], [320, 9], [2, 1]],
-              [[112, 7], [208, 8], [320, 9], [320, 9], [320, 9], [320, 9], [480, 12]],
-              [[112, 7], [320, 9], [320, 9], [480, 12], [480, 12], [480, 12], [4, 2]],
-              [[192, 9], [192, 9], [336, 10], [432, 11], [432, 11], [432, 11], [4, 2]],
-              [[192, 9], [248, 7], [432, 11], [480, 12], [480, 12], [480, 12]],
-              [[144, 8], [192, 9], [432, 11], [432, 11], [480, 12], [480, 12]]],
-         72: [[[40, 5], [320, 9], [320, 9], [320, 9], [320, 9], [320, 9], [320, 9], [320, 9], [320, 9]],
-              [[88, 6], [320, 9], [320, 9], [320, 9], [320, 9], [320, 9], [480, 12], [480, 12], [4, 2]],
-              [[192, 9], [192, 9], [192, 9], [208, 8], [336, 10], [336, 10], [432, 11], [432, 11]],
-              [[192, 9], [208, 8], [432, 11], [432, 11], [432, 11], [432, 11], [480, 12], [16, 4]],
-              [[320, 9], [320, 9], [320, 9], [480, 12], [480, 12], [480, 12], [480, 12], [4, 2]],
-              [[272, 8], [320, 9], [480, 12], [480, 12], [480, 12], [480, 12], [480, 12]],
-              [[192, 9], [192, 9], [336, 10], [480, 12], [480, 12], [480, 12], [480, 12], [2, 1]]],
-         57: [[[112, 7], [320, 9], [320, 9], [320, 9], [320, 9], [320, 9], [352, 9]],
-              [[192, 9], [208, 8], [304, 8], [464, 9], [480, 12], [480, 12], [8, 3]],
-              [[192, 9], [192, 9], [336, 10], [432, 11], [432, 11], [432, 11]],
-              [[40, 5], [240, 10], [336, 10], [480, 12], [480, 12], [480, 12]],
-              [[432, 11], [480, 12], [480, 12], [480, 12], [480, 12], [4, 2]]],
-         67: [[[320, 9], [320, 9], [320, 9], [320, 9], [320, 9], [320, 9], [320, 9], [400, 9]],
-              [[320, 9], [320, 9], [320, 9], [320, 9], [320, 9], [480, 12], [480, 12], [8, 3]],
-              [[112, 7], [320, 9], [320, 9], [320, 9], [480, 12], [480, 12], [480, 12], [4, 2]],
-              [[192, 9], [336, 10], [336, 10], [432, 11], [432, 11], [432, 11], [528, 10]],
-              [[432, 11], [432, 11], [432, 11], [480, 12], [480, 12], [480, 12], [16, 4]],
-              [[320, 9], [480, 12], [480, 12], [480, 12], [480, 12], [480, 12], [8, 3]],
-              [[432, 11], [480, 12], [480, 12], [480, 12], [480, 12], [480, 12], [2, 1]],
-              [[96, 7], [480, 12], [480, 12], [480, 12], [480, 12], [480, 12], [480, 12]]]}
+         41: [[[368, 9], [560, 10], [560, 10], [560, 10], [32, 5]],
+              [[432, 11], [432, 11], [432, 11], [432, 11], [2, 1]],
+              [[240, 10], [240, 10], [480, 12], [480, 12], [2, 1]],
+              [[240, 10], [432, 11], [432, 11], [480, 12]],
+              [[240, 10], [240, 10], [480, 12], [480, 12]]],
+         48: [[[320, 9], [560, 10], [560, 10], [560, 10], [560, 10], [8, 3]],
+              [[208, 8], [480, 12], [480, 12], [560, 10], [560, 10]],
+              [[144, 8], [192, 9], [432, 11], [432, 11], [432, 11], [4, 2]],
+              [[192, 9], [192, 9], [336, 10], [480, 12], [480, 12]],
+              [[48, 6], [432, 11], [432, 11], [480, 12], [480, 12]],
+              [[480, 12], [480, 12], [480, 12], [480, 12], [16, 4]]],
+         61: [[[320, 9], [320, 9], [352, 9], [352, 9], [560, 10], [560, 10], [560, 10]],
+              [[48, 6], [480, 12], [480, 12], [480, 12], [480, 12], [480, 12], [16, 4]],
+              [[432, 11], [432, 11], [432, 11], [432, 11], [432, 11], [528, 10], [2, 1]],
+              [[48, 6], [480, 12], [480, 12], [480, 12], [480, 12], [480, 12], [8, 3]],
+              [[240, 10], [432, 11], [432, 11], [432, 11], [432, 11], [432, 11], [2, 1]],
+              [[352, 9], [432, 11], [432, 11], [432, 11], [480, 12], [480, 12]],
+              [[320, 9], [368, 9], [480, 12], [480, 12], [480, 12], [480, 12]],
+              [[48, 6], [480, 12], [480, 12], [480, 12], [480, 12], [480, 12], [4, 2]],
+              [[240, 10], [240, 10], [336, 10], [432, 11], [480, 12], [480, 12], [2, 1]],
+              [[48, 6], [480, 12], [480, 12], [480, 12], [480, 12], [480, 12], [2, 1]],
+              [[48, 6], [480, 12], [480, 12], [480, 12], [480, 12], [480, 12]]],
+         71: [[[320, 9], [320, 9], [400, 9], [560, 10], [560, 10], [560, 10], [560, 10], [560, 10]],
+              [[112, 7], [112, 7], [112, 7], [464, 9], [480, 12], [480, 12], [480, 12], [560, 10], [2, 1]],
+              [[192, 9], [192, 9], [192, 9], [192, 9], [192, 9], [336, 10], [432, 11], [432, 11]],
+              [[144, 8], [192, 9], [432, 11], [432, 11], [432, 11], [480, 12], [480, 12], [8, 3]],
+              [[112, 7], [368, 9], [480, 12], [480, 12], [480, 12], [480, 12], [480, 12], [2, 1]],
+              [[192, 9], [336, 10], [336, 10], [432, 11], [480, 12], [480, 12], [480, 12], [2, 1]]]}
 
 
 # ---------- mstar.js ----------

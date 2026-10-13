@@ -210,11 +210,12 @@ def q_norm_formula():
 def q_page_parse():
     # Replicata: mstar.page_sources on index.html as it is.
     # Expectata: Table 2 and the new-results block exactly as hand-copied into mstar.py (TABLE2, NEW, with each new
-    # cell's title), the codes and the sets with their orders; Table 2 has the paper's 39 entries and NEW 50 (17 until
-    # 2026-10-12, when 2^33, 2^49, 2^57 and 2^67 joined the powers of 2 and every multiple of 16 up to 992 the rest).
+    # cell's title), the codes and the sets with their orders; Table 2 has the paper's 39 entries and NEW 55 (17 until
+    # 2026-10-12, when 2^33, 2^49, 2^57 and 2^67 joined the powers of 2 and every multiple of 16 up to 992 the rest, and
+    # then 2^18, 2^41, 2^48, 2^61 and 2^71, once 560 reached order 10).
     src = mstar.page_sources(open(os.path.join(HERE, 'index.html'), encoding='utf-8').read())
     assert src['table2'] == mstar.TABLE2 and len(mstar.TABLE2) == 39
-    assert src['new'] == mstar.NEW and len(mstar.NEW) == 50
+    assert src['new'] == mstar.NEW and len(mstar.NEW) == 55
     assert set(who for _, _, who in mstar.NEW.values()) == {'BGPW', 'Claude alone', 'Claude and BGPW'}
     assert [(m, h) for _, m, h in mstar.PAGE_CODES] == [(m, h) for m, h in src['codes']]
     assert sorted((m, n) for m, n, _ in src['sets']) == sorted(mstar.PAGE_SET_KEYS)
@@ -413,12 +414,15 @@ def q_known_shape():
 
 def q_gray_columns():
     # Replicata (regression): the gray columns of mstar.js.
-    # Expectata: the user's 35 less 640, which the residue condition mod 3 settles at 10 (lo 10 from 2 x 320), and less
-    # 704 and 736, settled at 10 on 2026-10-12 (lo 10 from 2 x 352 and 2 x 368, mstar.FOUND's; hi by mod 3 and mod 9).
+    # Expectata: the user's 35 less 640, which the residue condition mod 3 settles at 10 (lo 10 from 2 x 320), less
+    # 704 and 736, settled at 10 on 2026-10-12 (lo 10 from 2 x 352 and 2 x 368, mstar.FOUND's; hi by mod 3 and mod 9),
+    # and less 560, settled at 10 the same day (lo 10 from the page's p560, found by a lattice search; hi by the norm
+    # bound mod 3).
     _, got = disk()
     gray = tuple(n for n, c in enumerate(got['m']['cols'], 1) if c[0] < c[1])
-    assert gray == tuple(n for n in USER_GRAY if n not in (640, 704, 736)), gray
-    assert [got['m']['cols'][n - 1][:2] for n in (640, 704, 736)] == [[10, 10]] * 3
+    assert gray == tuple(n for n in USER_GRAY if n not in (560, 640, 704, 736)), gray
+    assert [got['m']['cols'][n - 1][:2] for n in (560, 640, 704, 736)] == [[10, 10]] * 4
+    assert got['m']['cols'][560 - 1][2] == ['example', 'index.html p560']
 
 
 # ---------- residue tests ----------
