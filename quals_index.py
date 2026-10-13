@@ -154,7 +154,10 @@ TABLE_UPDATE = (('<td class="c">≥ 11</td>', '<td class="c">11–12</td>', 1),
                 ('\n  --claude: #d46c46;\n', '\n', 1),
                 ('\n  --stan: #5f86dc;\n', '\n', 1),
                 ('\n  --tint: 24%;\n', '\n', 1),
-                ('\n  color-scheme: dark;\n}\n', '\n', 1))
+                ('\n  color-scheme: dark;\n}\n', '\n', 1),
+                # dreeves's own edit of the intro: the {0, 1, …, n − 1} convention (2026-10-13),
+                ('    (Fun fact: This property of having equal power sums for exponents from 0 up to some <i>k</i> is invariant under translating and scaling.\n', '    Fun fact, this property of having equal power sums for exponents from 0 up to some <i>k</i> is invariant under translating and scaling.\n', 1),
+                ('    You can in fact start with any set of <i>n</i> equally spaced integers.)\n', '    You can in fact start with any set of <i>n</i> equally spaced integers.\n  </p>\n  <p class="lede">\n    From now on we use the convention that the <i>n</i>-element set to be partitioned is {0, 1, …, <i>n</i> − 1}.\n', 1))
 
 
 def committed():

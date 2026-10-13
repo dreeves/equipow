@@ -1005,6 +1005,25 @@ def q_page_has_few_words():
     assert len(opened) <= OLD_WORDS / 5, (len(opened), opened)
 
 
+def q_strip_checks_off_subtrees():
+    # Replicata: 240@11's pass 2 surveyed at PASS2_AT (see pass2), and its section of the page.
+    # Expectata (dreeves, 2026-10-12: "a simple visualization of the subtrees directly that indicates visually how long
+    # each might take ... like checking off the subtrees as they're done"): the survey's strip is the nodes of this pass
+    # at the shallowest depth where a subtree waits, in search()'s order, each (key, seconds so far, expected seconds)
+    # with 0 <= so far <= expected (finished: equal; waiting: 0); the section draws them in an svg of class strip, one
+    # group per node, each a rect todo as wide as its expected share and a rect done as wide as its share so far.
+    s, resplit, cache, R = pass2()
+    st = s['strip']
+    assert st and st['cells'] and all(0 <= done <= exp for _, done, exp in st['cells']), st
+    assert any(done == exp > 0 for _, done, exp in st['cells']) and any(done == 0 < exp for _, done, exp in st['cells'])
+    svg = re.search(r'<svg class="strip"[^>]*>(.*?)</svg>', progress.run_html(s), re.S)
+    assert svg and svg[1].count('<g>') == len(st['cells']), len(st['cells'])
+    W = float(re.search(r'<svg class="strip" viewBox="0 0 ([\d.]+) ', progress.run_html(s))[1])
+    total = sum(exp for _, _, exp in st['cells'])
+    widths = [float(w) for w in re.findall(r'<rect class="todo" x="[\d.]+" y="0" width="([\d.]+)"', svg[1])]
+    assert all(abs(w - W * exp / total) < 0.01 for w, (_, _, exp) in zip(widths, st['cells'])), widths[:5]
+
+
 def q_page_shows_this_pass_work_and_nothing_the_chart_shows():
     # Replicata: the page of the tiny resolving run (running, its pass 2 just begun) and of the tiny open run (ended).
     # Expectata: the running run's section says how many of this pass's sub-cases are done ("0 / 7 done"), the ended

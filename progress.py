@@ -752,7 +752,8 @@ def survey(n, order, journal, log, procs, now, cache, etas):
     opens = sorted(((k, r['budget'], stats[k]) for k, r in final.items() if r['verdict'] == 'UNKNOWN' and leaf(k, bottom)),
                    key=lambda x: parse_key(x[0]))
     spans = [(q['start'], q['last']) for q in passes[:-1]] + [(p['start'], end)]
-    draws = estimate(state_at(R, end, cache, f'{n}@{order} at {clock(end)}')) if state != 'ended' else None
+    parts = {}
+    draws = estimate(state_at(R, end, cache, f'{n}@{order} at {clock(end)}'), parts) if state != 'ended' else None
     etas[str(int(end))] = [float(draws.mean())] + [float(q) for q in np.quantile(draws, QUANTILES)] if draws is not None and len(draws) else None
     return {'n': n, 'order': order, 'state': state, 'outcome': p['outcome'], 'budgets': budgets,
             'passes': spans,
@@ -762,7 +763,23 @@ def survey(n, order, journal, log, procs, now, cache, etas):
             'levels': rows, 'deepest': len(levels) - 1,
             'processes': p['processes'],
             'work': work(levels[-1], len(levels) - 1, stats, p['nodes']) if state != 'ended' else None,
-            'draws': draws, 'etas': etas, 'series': series(passes, end), 'open_list': opens}
+            'draws': draws, 'etas': etas, 'strip': strip(parts) if draws is not None and len(draws) else None, 'series': series(passes, end), 'open_list': opens}
+
+
+def strip(parts):
+    """The strip (dreeves, 2026-10-12: the subtrees "checked off as they're done"): the nodes of this pass at the shallowest
+    depth where a node of kind 'subtree' waits, in search()'s order (the tree's, reversed: it pops the last child
+    first), as {'depth', 'cells': [(key, seconds so far,
+    expected seconds)]}: a finished one its cost twice; a partway one its cost so far, and that plus the mean of its
+    remaining draws; a waiting or running one 0, and the mean of its draws.  None when no subtree waits."""
+    kinds, rem, sofar = parts['kinds'], parts['rem'], parts['sofar']
+    depths = [n.depth for n, k in kinds.items() if k == 'subtree']
+    if not depths: return None
+    d = min(depths)
+    cells = [(n.key, sofar[n] if n.state == 'done' else 0.0,
+              (sofar[n] if n.state == 'done' else 0.0) + (float(rem[n].mean()) if n in rem else 0.0))
+             for n in parts['nodes'] if n.depth == d and (n.fresh or n in kinds)][::-1]
+    return {'depth': d, 'cells': cells}
 
 
 # ---------- the page ----------
@@ -957,6 +974,29 @@ def details_html(s):
             f'<p class="legend">{legend}</p>{levels_html(s)}<div class="charts">{c1}{c2}</div>{opens_html(s)}</div></details>')
 
 
+def strip_html(s):
+    """The strip (see strip) as an svg: one group per node, a rect todo as wide as its share of the expected seconds and
+    over it a rect done as wide as its share so far, with its numbers in a title; above it, how many are finished."""
+    st = s.get('strip')
+    if not st: return ''
+    W, H, cells = 640, 18, st['cells']
+    total = sum(e for _, _, e in cells) or 1.0
+    x, groups = 0.0, []
+    for key, done, exp in cells:
+        w, f = W * exp / total, W * done / total
+        groups.append(f'<g><title>{html.escape(key or "?")}: {hours(done)} of about {hours(exp)} h</title>'
+                      f'<rect class="todo" x="{x:.2f}" y="0" width="{w:.2f}" height="{H}"/>'
+                      f'<rect class="done" x="{x:.2f}" y="0" width="{f:.2f}" height="{H}"/></g>')
+        x += w
+    finished = sum(1 for _, d, e in cells if d == e)
+    started = sum(1 for _, d, e in cells if 0 < d < e)
+    # the strip's label; says the level, how many of its subtrees are finished and under way, and the share of its expected work done
+    label = (f'depth {st["depth"]}: {finished} of {len(cells)} done, {started} in progress; ~'
+             f'{100 * sum(d for _, d, _ in cells) / total:.0f}% of the expected work')
+    return (f'<figure class="strip-fig"><figcaption>{label}</figcaption>'
+            f'<svg class="strip" viewBox="0 0 {W} {H}" preserveAspectRatio="none">{"".join(groups)}</svg></figure>')
+
+
 def run_html(s):
     """One run's section: its question and state; this pass's work; how the pass ended, once it has; its ETA chart;
     its details."""
@@ -972,7 +1012,7 @@ def run_html(s):
     outcome = f'<p class="outcome">{html.escape(unattributed(s["outcome"]), quote=False)}</p>' if s['outcome'] else ''
     return (f'<section class="run"><div class="run-head"><h2><i>m</i><sup>*</sup>({s["n"]}) ≥ {s["order"]}?</h2>'
             f'<span class="state {s["state"]}"><span aria-hidden="true">{glyph}</span> {states[s["state"]]}</span></div>'
-            f'{work_html(s)}{outcome}{eta_chart(s)}{details_html(s)}</section>')
+            f'{work_html(s)}{strip_html(s)}{outcome}{eta_chart(s)}{details_html(s)}</section>')
 
 
 SCRIPT = """
@@ -1112,6 +1152,10 @@ code { font-family: var(--mono); font-size: 0.8125rem; overflow-wrap: anywhere; 
 
 /* The ETA chart (class forecast): elapsed time, ETA, and elapsed + ETA, emphasized, against elapsed time. */
 .forecast-fig { margin: 0; display: grid; gap: 0.3rem; position: relative; }
+.strip-fig { margin: 0; display: grid; gap: 0.3rem; }
+.strip { display: block; width: 100%; height: 1.4rem; }
+.strip .todo { fill: color-mix(in oklab, var(--ink) 10%, var(--paper)); stroke: var(--paper); stroke-width: 0.6; }
+.strip .done { fill: var(--c-spent); stroke: var(--paper); stroke-width: 0.6; }
 .forecast { display: block; width: 100%; height: auto; overflow: visible; cursor: crosshair; touch-action: pan-y; }
 .forecast polyline { fill: none; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
 .forecast .spent { stroke: var(--c-spent); stroke-width: 1.5; }

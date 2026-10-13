@@ -121,9 +121,10 @@ Print["Controls (not part of the proof)"];
    the hex digits give the left half (bit 1 = +1), and a_{n-1-i} = (-1)^m a_i gives the rest *)
 lp[h_, m_] := With[{l = 2 IntegerDigits[FromDigits[h, 16], 2, 4 StringLength[h]] - 1}, Join[l, (-1)^m Reverse[l]]];
 
-(* Order: the least k with Sum_i a_i i^k != 0. Positions run 1..n here to avoid 0^0, which doesn't change the order. *)
-order[f_] := Module[{a = Flatten[Position[f, 1]], b = Flatten[Position[f, -1]], k = 0},
-   While[Total[a^k] == Total[b^k], k++]; k];
+(* Order: the least k with Sum_i a_i i^k != 0, positions 0..n-1. The 0th power sum is the count (0^0 = 1), which
+   Mathematica leaves Indeterminate, so k = 0 compares counts and k >= 1 compares Total[positions^k]. *)
+order[f_] := Module[{a = Flatten[Position[f, 1]] - 1, b = Flatten[Position[f, -1]] - 1},
+   LengthWhile[Prepend[Table[Total[a^k] - Total[b^k], {k, 1, 40}], Length[a] - Length[b]], # == 0 &]];
 
 (* Sum_i w(i) a_i over positions 0..n-1 *)
 wsum[w_, a_] := Sum[w[i] a[[i + 1]], {i, 0, Length[a] - 1}];

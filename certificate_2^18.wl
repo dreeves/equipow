@@ -1,4 +1,4 @@
-(* Partition of {1,...,2^18} with equal power sums for exponents 0..18 (order 19). *)
+(* Partition of {0,...,2^18-1} with equal power sums for exponents 0..18 (order 19). *)
 (* Blocks (+-1 coefficient lists); order = number of leading power sums that agree. *)
 (* Each block is decoded from its hex code on index.html, in the published paper's Table 5 convention: the hex digits
    give the left half of the signs (1 = +1, 0 = -1), then the rest by (-1)^m symmetry. *)
@@ -9,14 +9,17 @@ p560 = fromHex["34D2E9F0DA19EC92492D966936ABCA25FAD924D26F2591EB64926924925D6E1A
 p432 = fromHex["5A56B0EE234E8794ADE3D0C384F72A5C63A8BD65035EF015B78B46", 11];   (* order 11, antisymmetric; the page's p432 *)
 p48 = fromHex["C27D8C", 6];   (* order 6; Boyd; BGPW Table 5 *)
 tm4 = Table[(-1)^DigitCount[i, 2, 1], {i, 0, 3}];   (* Thue-Morse, order 2 *)
-order[w_] := LengthWhile[Table[Total[Flatten[Position[w, 1]]^k] - Total[Flatten[Position[w, -1]]^k], {k, 0, 13}], # == 0 &];
+(* positions run 0..n-1; the 0th power sum of a set is its size (0^0 = 1), which Mathematica leaves Indeterminate,
+   so k = 0 compares sizes and k >= 1 compares Total[set^k] *)
+order[w_] := Module[{a = Flatten[Position[w, 1]] - 1, b = Flatten[Position[w, -1]] - 1},
+  LengthWhile[Prepend[Table[Total[a^k] - Total[b^k], {k, 1, 13}], Length[a] - Length[b]], # == 0 &]];
 {order[p320], order[p560], order[p432], order[p48], order[tm4]}   (* expect {9, 10, 11, 6, 2} *)
 xp[f_, g_] := Flatten[Outer[Times, g, f]];   (* expanded product f#g: length multiplies, orders add *)
 a = xp[p320, p560];            (* 320*560     = 179200, order 9+10   = 19 *)
 b = xp[xp[p48, p432], tm4];    (* 48*432*4    = 82944,  order 6+11+2 = 19 *)
 f = Join[a, b];                (* length 2^18 *)
-X = Flatten[Position[f, 1]];   (* the 2^17 elements of one half *)
+X = Flatten[Position[f, First[f]]] - 1;   (* the half that contains 0: its 2^17 elements, in {0, ..., 2^18 - 1} *)
 {Length[f] == 2^18, Length[X] == 2^17}
-(* direct check, exponent k: Total[X^k] == Sum[i^k, {i, 1, 2^18}]/2  for k = 0..18, fails at k = 19 *)
-Table[Total[X^k] - Sum[i^k, {i, 1, 2^18}]/2, {k, 0, 19}]
+(* direct check, exponent k: Total[X^k] == Sum[i^k, {i, 0, 2^18 - 1}]/2  for k = 1..18, fails at k = 19; k = 0 is the half's size *)
+Prepend[Table[Total[X^k] - Sum[i^k, {i, 0, 2^18 - 1}]/2, {k, 1, 19}], Length[X] - 2^18/2]
 (* the half itself:  Export["X_order19_2^18.txt", X, "List"] *)
