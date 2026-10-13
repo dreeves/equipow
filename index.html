@@ -37,48 +37,17 @@
      two. */
   --claude: #c15f3c;
   --stan: #3460c8;
-  /* The m*(n) chart's colors, checked with the dataviz palette validator against each mode's surface, all pairs,
-     since any two can touch. Light: worst color-blind pair ΔE 9.9 (protan), worst normal-vision pair 16.1. Dark:
-     worst color-blind pair ΔE 11.9 (deutan), worst normal-vision pair 16.9. Its other checks fail by design: exists
-     and impossible sit far apart in lightness, outside its band; open is a gray, and impossible, most of the chart,
-     is muted, so both are below its chroma floor and below 3:1 against the light surface, impossible in dark too; the
-     readout states each cell's bounds in words. Exists is the green the table used for Claude and BGPW, and
-     impossible a rose, away from the table's orange (dreeves, 2026-10-12). */
-  --exists: #2a9466;
-  --open: #9b9ea6;
-  --impossible: #f7bfd3;
+  /* The m*(n) chart's colors, Astra's crimson, charcoal and jade, as dreeves chose them (2026-10-12), with the
+     dataviz palette validator's arithmetic against the page's surface, all pairs, since any two can touch. Light:
+     worst color-blind pair ΔE 6.0 (deutan), worst normal-vision pair 29.0. The readout states each cell's bounds in
+     words. */
+  --exists: #00A86B; /* CHART COLOR GREEN */
+  --open: #243447; /* CHART COLOR BLACK */
+  --impossible: #EBC1C5; /* CHART COLOR RED */
   --tint: 16%;
   --serif: "STIX Two Text", "Times New Roman", Times, serif;
   --mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
   color-scheme: light;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --paper: #16171b;
-    --ink: #e9e7e2;
-    --muted: #a2a6b0;
-    --rule: #c9c7c2;
-    --claude: #d46c46;
-    --stan: #5f86dc;
-    --exists: #2aa070;
-    --open: #656970;
-    --impossible: #5d1c3a;
-    --tint: 24%;
-    color-scheme: dark;
-  }
-}
-:root[data-theme="dark"] {
-  --paper: #16171b;
-  --ink: #e9e7e2;
-  --muted: #a2a6b0;
-  --rule: #c9c7c2;
-  --claude: #d46c46;
-  --stan: #5f86dc;
-  --exists: #2aa070;
-  --open: #656970;
-  --impossible: #5d1c3a;
-  --tint: 24%;
-  color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
@@ -434,8 +403,8 @@ footer {
 <!-- Claude's chart of what is known about m*(2^k) − k, the excess over Thue–Morse, for every k up to 72, drawn by the script at the end from pow2.js -->
 <section class="pow2" aria-labelledby="pow2-title">
   <h2 id="pow2-title">Bounds on <span class="nw"><i>m</i><sup>*</sup>(2<sup><i>k</i></sup>) − <i>k</i></span> for every <i>k</i> up to 72</h2>
-  <!-- TODO: caption; says column k is n = 2^k, where Thue–Morse has order k, an excess of 0, and row e is order k + e, an excess of e; that cell (k, e) is green when m*(2^k) ≥ k + e is known, red when m*(2^k) < k + e is proven, and gray when neither is; and that in the readout f is the construction of length 2^24 and order 25 in the remarks below, τ_j is Thue–Morse of length 2^j, and p_n is a sequence of length n whose order is the lower bound in column n of the chart above -->
-  <p class="pow2-caption">Claude: "Column <i>k</i> is <span class="nw"><i>n</i> = 2<sup><i>k</i></sup></span>, where Thue–Morse has order <i>k</i>, an excess of 0; row <i>e</i> is order <span class="nw"><i>k</i> + <i>e</i></span>, an excess of <i>e</i>. Cell (<i>k</i>, <i>e</i>) is green when <span class="nw"><i>m</i><sup>*</sup>(2<sup><i>k</i></sup>) ≥ <i>k</i> + <i>e</i></span> is known, red when <span class="nw"><i>m</i><sup>*</sup>(2<sup><i>k</i></sup>) &lt; <i>k</i> + <i>e</i></span> is proven, and gray when neither is. In the readout, <i>f</i> is the construction of length 2<sup>24</sup> and order 25 in the remarks below, τ<sub><i>j</i></sub> is Thue–Morse of length 2<sup><i>j</i></sup>, and <i>p</i><sub><i>n</i></sub> is a sequence of length <i>n</i> whose order is the lower bound in column <i>n</i> of the chart above."</p>
+  <!-- TODO: caption; says column k is n = 2^k, where Thue–Morse has order k, an excess of 0, and row e is order k + e, an excess of e; that cell (k, e) is green when m*(2^k) ≥ k + e is known, red when m*(2^k) < k + e is proven, and black when neither is; and that in the readout f is the construction of length 2^24 and order 25 in the remarks below, τ_j is Thue–Morse of length 2^j, and p_n is a sequence of length n whose order is the lower bound in column n of the chart above -->
+  <p class="pow2-caption">Claude: "Column <i>k</i> is <span class="nw"><i>n</i> = 2<sup><i>k</i></sup></span>, where Thue–Morse has order <i>k</i>, an excess of 0; row <i>e</i> is order <span class="nw"><i>k</i> + <i>e</i></span>, an excess of <i>e</i>. Cell (<i>k</i>, <i>e</i>) is green when <span class="nw"><i>m</i><sup>*</sup>(2<sup><i>k</i></sup>) ≥ <i>k</i> + <i>e</i></span> is known, red when <span class="nw"><i>m</i><sup>*</sup>(2<sup><i>k</i></sup>) &lt; <i>k</i> + <i>e</i></span> is proven, and black when neither is. In the readout, <i>f</i> is the construction of length 2<sup>24</sup> and order 25 in the remarks below, τ<sub><i>j</i></sub> is Thue–Morse of length 2<sup><i>j</i></sup>, and <i>p</i><sub><i>n</i></sub> is a sequence of length <i>n</i> whose order is the lower bound in column <i>n</i> of the chart above."</p>
   <ul class="legend">
     <li><span class="swatch exists" aria-hidden="true"></span><span class="nw"><i>k</i> + <i>e</i> ≤ <i>m</i><sup>*</sup>(2<sup><i>k</i></sup>)</span></li>
     <li><span class="swatch open" aria-hidden="true"></span>open</li>
@@ -491,8 +460,8 @@ footer {
         <code>C87695B43E0ED258AB29C7793D8521DB227C0B746D</code>
       </p>
       <p class="code">
-        <!-- TODO for dreeves: this label gives p336 to the order-9 piece, but the powers-of-2 chart's caption defines p_n by the m*(n) chart's lower bound, so its readout's p336 is BGPW's order-10 example above. Suggestion: call this one q336, here and in the 528 entry's "f = p192 ∨ p336". -->
-        <span><i>p</i><sub>336</sub>, an antisymmetric example found independently by Claude; it is the second part of the 528 example below <span class="nw">(<i>m</i> = 9)</span>:</span>
+        <!-- TODO: labels this code q336 (not p336, which the powers-of-2 chart uses for the order-10 example above): an antisymmetric example found independently by Claude, the second part of the 528 example below, of order 9 -->
+        <span>Claude: "<i>q</i><sub>336</sub>, an antisymmetric example found independently by Claude; it is the second part of the 528 example below" <span class="nw">(<i>m</i> = 9)</span>:</span>
         <code>9C5479E2669C97071E731A62EBC06F28E87B4961DF</code>
       </p>
     </li>
@@ -551,8 +520,7 @@ footer {
       <!-- TODO: says order 13 at 528 is ruled out by the residue condition mod 5 (Claude's proof), so m*(528) is 10, 11 or 12 -->
       <p>Claude: "Order 13 is ruled out by the residue condition mod 5."</p>
       <p class="code">
-        <!-- TODO for dreeves: if the order-9 piece at 336 becomes q336 (see the 336 entry), this reads "f = p192 ∨ q336". -->
-        <span><i>f</i> = <i>p</i><sub>192</sub> ∨ <i>p</i><sub>336</sub>; &nbsp;<i>p</i><sub>192</sub> <span class="nw">(<i>m</i> = 9)</span>:</span>
+        <span><i>f</i> = <i>p</i><sub>192</sub> ∨ <i>q</i><sub>336</sub>; &nbsp;<i>p</i><sub>192</sub> <span class="nw">(<i>m</i> = 9)</span>:</span>
         <code>C1BE1E21CD63D295A7887A59</code>
       </p>
     </li>
@@ -634,8 +602,8 @@ footer {
     <li class="j">
       <span class="mk" aria-hidden="true">◆●</span>
       <p class="entry"><i>n</i> = 2<sup>24</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {25, …, 29}</span></p>
-      <!-- TODO for dreeves: "Hence m*(2^k) ≥ k + 1 for every k ≥ 24" is still true, but since the 2^18 entry above, k + 1 holds for every k ≥ 18, so a reader may take 24 as where it starts. Suggestion: end the sentence "…for every k ≥ 24, and by the 2^18 entry above for every k ≥ 18." -->
-      <p>Joint construction: <span class="nw">2<sup>24</sup> = 320<sup>2</sup>·112 + 432·48·2<sup>8</sup></span>, that is, <span class="nw"><i>f</i> = (<i>p</i><sub>320</sub> # <i>p</i><sub>320</sub> # <i>p</i><sub>112</sub>)</span> <span class="nw">∨ (<i>p</i><sub>432</sub> # <i>p</i><sub>48</sub> # τ<sub>8</sub>)</span>. Hence <span class="nw"><i>m</i><sup>*</sup>(2<sup><i>k</i></sup>) ≥ <i>k</i> + 1</span> for every <span class="nw"><i>k</i> ≥ 24</span>.</p>
+      <!-- TODO: says the joint construction 2^24 = 320^2·112 + 432·48·2^8, that is, f = (p320 # p320 # p112) ∨ (p432 # p48 # tau_8), gives m*(2^k) ≥ k + 1 for every k ≥ 24, and the 2^18 entry above gives it for every k ≥ 18 -->
+      <p>Claude: "Joint construction: <span class="nw">2<sup>24</sup> = 320<sup>2</sup>·112 + 432·48·2<sup>8</sup></span>, that is, <span class="nw"><i>f</i> = (<i>p</i><sub>320</sub> # <i>p</i><sub>320</sub> # <i>p</i><sub>112</sub>)</span> <span class="nw">∨ (<i>p</i><sub>432</sub> # <i>p</i><sub>48</sub> # τ<sub>8</sub>)</span>. Hence <span class="nw"><i>m</i><sup>*</sup>(2<sup><i>k</i></sup>) ≥ <i>k</i> + 1</span> for every <span class="nw"><i>k</i> ≥ 24</span>, and by the 2<sup>18</sup> entry above for every <span class="nw"><i>k</i> ≥ 18</span>."</p>
       <!-- TODO: says the upper bound 29 at 2^24 is the norm bound for the residue sums mod 3 -->
       <p>Claude: "The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above."</p>
       <p class="code">
@@ -842,8 +810,8 @@ SClaude[10][560] = {
   <p>The hex codes follow the paper's Table 5 convention: the left half of the signs <span class="nw">(1 = +1, 0 = −1)</span>, then the rest by <span class="nw">(−1)<sup><i>m</i></sup></span> symmetry.</p>
   <p>The sign # denotes the expanded product, <span class="nw"><i>f</i> # <i>g</i> = <i>f</i>(<i>x</i>)·<i>g</i>(<i>x</i><sup><i>n<sub>f</sub></i></sup>)</span>, where <i>n<sub>f</sub></i> is the length of <i>f</i>. The sign ∨ denotes the join.</p>
   <p>Every example whose code is given here was checked by Claude with exact integer power sums.</p>
-  <!-- TODO for dreeves: since 2026-10-12 the page gives BGPW's codes at 352, 368, 400, 464 and 496, so the sentence above ("Every example whose code is given here was checked by Claude") already covers them; only 416 has no code, and its order 9 also follows from doubling the paper's example at 208. Suggestion: "BGPW's example at length 416 was not re-checked here." -->
-  <p>BGPW's examples at lengths 352, 368, 400, 416, 464 and 496 were not re-checked here.</p>
+  <!-- TODO: says BGPW's example at length 416, the only one of theirs whose code is not given here, was not re-checked -->
+  <p>Claude: "BGPW's example at length 416 was not re-checked here."</p>
   <p><a href="https://github.com/dreeves/equipow">Source</a> &amp; <a href="https://equipow.dreev.es/sourcery.html">Sourcery</a></p>
 </footer>
 
@@ -1118,7 +1086,6 @@ try {
   document.getElementById('mstar-reset').addEventListener('click', () => setView(0, NCOL));
   draw();
   new ResizeObserver(() => draw()).observe(cv);
-  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => draw());
   document.fonts.ready.then(() => draw());
 } catch (e) {
   ro.textContent = `Error drawing the chart: ${e}`;

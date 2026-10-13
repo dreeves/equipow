@@ -1,3 +1,5 @@
+EquipowerfulPackage.m is a Mathematica package by Stan Wagon.
+
 BGPW's five order-9 examples (lengths 352, 368, 400, 464, 496):
 
 In[1]:= S[9][352]

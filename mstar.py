@@ -199,7 +199,7 @@ PAGE_CODES = (('index.html BGPW 352', 9, 'A4DB4926DB4D36584B26936D2CFA54B6F04B2C
               ('index.html BGPW 464', 9, '93C96596CB2586DB1C965964E69975A207755BE209CE5E28F2C35A92BA'),
               ('index.html p320', 9, 'B24B649ED92CD2C36496CB2DB6295D974138BA41'),
               ('index.html BGPW 336', 10, 'C87695B43E0ED258AB29C7793D8521DB227C0B746D'),
-              ('index.html p336', 9, '9C5479E2669C97071E731A62EBC06F28E87B4961DF'),
+              ('index.html q336', 9, '9C5479E2669C97071E731A62EBC06F28E87B4961DF'),
               ('index.html p432', 11, '5A56B0EE234E8794ADE3D0C384F72A5C63A8BD65035EF015B78B46'),
               ('index.html p448', 9, 'A5994DB29B45A0FA5D26B24D665A5A66B24D64BA5F05A2D94DB299A5'),
               ('index.html p480', 12, 'B0CBC94F1E2C68D1E3A6371C357C4B1347952BB968236CF6C82CD9CE01F3'),
@@ -302,7 +302,7 @@ BGPW_T5 = ((5, 40, 'C1EC9'), (6, 48, 'C27D8C'), (6, 72, '998EAA3C5'), (6, 88, '9
 # Where each of overnight_v5.EXAMPLES comes from, by its comments there: the published paper's Table 5, the page, or
 # Thue-Morse; the rest were found with CP-SAT for overnight_v5's quals.
 EXAMPLE_LABELS = {(240, 10): 'BGPW Table 5', (432, 11): 'index.html p432', (192, 9): 'BGPW Table 5',
-                  (320, 9): 'index.html p320', (336, 9): 'index.html p336', (48, 6): 'BGPW Table 5',
+                  (320, 9): 'index.html p320', (336, 9): 'index.html q336', (48, 6): 'BGPW Table 5',
                   (112, 7): 'BGPW Table 5', (304, 8): 'BGPW Table 5', (64, 6): 'Thue–Morse',
                   (40, 5): 'overnight_v5 EXAMPLES', (48, 5): 'overnight_v5 EXAMPLES', (56, 5): 'overnight_v5 EXAMPLES',
                   (104, 6): 'overnight_v5 EXAMPLES'}

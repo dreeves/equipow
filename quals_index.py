@@ -130,7 +130,31 @@ TABLE_UPDATE = (('<td class="c">≥ 11</td>', '<td class="c">11–12</td>', 1),
                 ('/* Provenance: tint on both cells of an entry, a bar under its value, and a\n   glyph centered above its n. Text stays in ink. */\n', '/* Provenance: tint on both cells of an entry, a bar under its value, and a\n   glyph centered above its n (in every n cell of the new results a line for it, blank\n   where there is none, so they all line up). Text stays in ink. */\n', 1),
                 ('        <table class="block">\n          <tr class="ns"><th scope="row"><i>n</i></th><td title=\'The published paper (2021)\'>2<sup>3</sup></td><td title=\'The published paper (2021)\'>2<sup>4</sup></td><td title=\'The published paper (2021)\'>2<sup>5</sup></td><td title=\'The published paper (2021)\'>2<sup>6</sup></td><td title=\'The published paper (2021)\'>2<sup>7</sup></td><td title=\'The published paper (2021)\'>2<sup>8</sup></td><td class="c" title=\'Claude alone\'>2<sup>9</sup></td><td class="c" title=\'Claude alone\'>2<sup>18</sup></td><td class="j" title=\'Claude and BGPW\'>2<sup>24</sup></td><td class="c" title=\'Claude alone\'>2<sup>33</sup></td><td class="c" title=\'Claude alone\'>2<sup>41</sup></td><td class="c" title=\'Claude alone\'>2<sup>48</sup></td><td class="c" title=\'Claude alone\'>2<sup>49</sup></td></tr>\n          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td><td>8</td><td class="c">9</td><td class="c">19–22</td><td class="j">25–29</td><td class="c">35–41</td><td class="c">44–51</td><td class="c">52–59</td><td class="c">53–61</td></tr>\n        </table>\n        <table class="block">\n          <tr class="ns"><th scope="row"><i>n</i></th><td class="j" title=\'Claude and BGPW\'>2<sup>51</sup></td><td class="c" title=\'Claude alone\'>2<sup>57</sup></td><td class="c" title=\'Claude alone\'>2<sup>61</sup></td><td class="c" title=\'Claude alone\'>2<sup>67</sup></td><td class="c" title=\'Claude alone\'>2<sup>71</sup></td></tr>\n          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="j">55–63</td><td class="c">61–71</td><td class="c">66–76</td><td class="c">72–83</td><td class="c">77–88</td></tr>\n        </table>\n', '        <table class="block">\n          <tr class="ns"><th scope="row"><i>n</i></th><td title=\'The published paper (2021)\'>2<sup>3</sup></td><td title=\'The published paper (2021)\'>2<sup>4</sup></td><td title=\'The published paper (2021)\'>2<sup>5</sup></td><td title=\'The published paper (2021)\'>2<sup>6</sup></td><td title=\'The published paper (2021)\'>2<sup>7</sup></td><td title=\'The published paper (2021)\'>2<sup>8</sup></td><td class="c" title=\'Claude alone\'>2<sup>9</sup></td><td class="c" title=\'Claude alone\'>2<sup>18</sup></td><td class="j" title=\'Claude and BGPW\'>2<sup>24</sup></td><td class="c" title=\'Claude alone\'>2<sup>33</sup></td><td class="c" title=\'Claude alone\'>2<sup>41</sup></td><td class="c" title=\'Claude alone\'>2<sup>48</sup></td><td class="c" title=\'Claude alone\'>2<sup>49</sup></td></tr>\n          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td><td>8</td><td class="c">9</td><td class="c">19–21</td><td class="j">25–29</td><td class="c">35–40</td><td class="c">44–50</td><td class="c">52–59</td><td class="c">53–60</td></tr>\n        </table>\n        <table class="block">\n          <tr class="ns"><th scope="row"><i>n</i></th><td class="j" title=\'Claude and BGPW\'>2<sup>51</sup></td><td class="c" title=\'Claude alone\'>2<sup>57</sup></td><td class="c" title=\'Claude alone\'>2<sup>61</sup></td><td class="c" title=\'Claude alone\'>2<sup>67</sup></td><td class="c" title=\'Claude alone\'>2<sup>71</sup></td></tr>\n          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="j">55–63</td><td class="c">61–70</td><td class="c">66–75</td><td class="c">72–83</td><td class="c">77–88</td></tr>\n        </table>\n', 1),
                 ('which needed 304 to have order 9 -->\n', 'which needed 304 to have order 9, though 2^20 now has order 21 another way, the 2^18 entry times tau_2 -->\n', 1),
-                (', which needed 304 to have order 9."</p>\n', ', which needed 304 to have order 9. 2<sup>20</sup> now has order 21 another way: the 2<sup>18</sup> entry below, each product times τ<sub>2</sub>."</p>\n', 1))
+                (', which needed 304 to have order 9."</p>\n', ', which needed 304 to have order 9. 2<sup>20</sup> now has order 21 another way: the 2<sup>18</sup> entry below, each product times τ<sub>2</sub>."</p>\n', 1),
+                # Claude's corrected wording where a TODO for dreeves stood (dreeves, 2026-10-12)
+                ('      <p>Joint construction: <span class="nw">2<sup>24</sup> = 320<sup>2</sup>·112 + 432·48·2<sup>8</sup></span>, that is, <span class="nw"><i>f</i> = (<i>p</i><sub>320</sub> # <i>p</i><sub>320</sub> # <i>p</i><sub>112</sub>)</span> <span class="nw">∨ (<i>p</i><sub>432</sub> # <i>p</i><sub>48</sub> # τ<sub>8</sub>)</span>. Hence <span class="nw"><i>m</i><sup>*</sup>(2<sup><i>k</i></sup>) ≥ <i>k</i> + 1</span> for every <span class="nw"><i>k</i> ≥ 24</span>.</p>', '      <p>Claude: "Joint construction: <span class="nw">2<sup>24</sup> = 320<sup>2</sup>·112 + 432·48·2<sup>8</sup></span>, that is, <span class="nw"><i>f</i> = (<i>p</i><sub>320</sub> # <i>p</i><sub>320</sub> # <i>p</i><sub>112</sub>)</span> <span class="nw">∨ (<i>p</i><sub>432</sub> # <i>p</i><sub>48</sub> # τ<sub>8</sub>)</span>. Hence <span class="nw"><i>m</i><sup>*</sup>(2<sup><i>k</i></sup>) ≥ <i>k</i> + 1</span> for every <span class="nw"><i>k</i> ≥ 24</span>, and by the 2<sup>18</sup> entry above for every <span class="nw"><i>k</i> ≥ 18</span>."</p>', 1),
+                ("  <p>BGPW's examples at lengths 352, 368, 400, 416, 464 and 496 were not re-checked here.</p>", '  <p>Claude: "BGPW\'s example at length 416 was not re-checked here."</p>', 1),
+                ('        <span><i>p</i><sub>336</sub>, an antisymmetric example found independently by Claude; it is the second part of the 528 example below <span class="nw">(<i>m</i> = 9)</span>:</span>', '        <span>Claude: "<i>q</i><sub>336</sub>, an antisymmetric example found independently by Claude; it is the second part of the 528 example below" <span class="nw">(<i>m</i> = 9)</span>:</span>', 1),
+                ('        <span><i>f</i> = <i>p</i><sub>192</sub> ∨ <i>p</i><sub>336</sub>; &nbsp;<i>p</i><sub>192</sub> <span class="nw">(<i>m</i> = 9)</span>:</span>', '        <span><i>f</i> = <i>p</i><sub>192</sub> ∨ <i>q</i><sub>336</sub>; &nbsp;<i>p</i><sub>192</sub> <span class="nw">(<i>m</i> = 9)</span>:</span>', 1),
+                # no dark mode: its two theme blocks deleted (dreeves, 2026-10-12),
+                ('\n@media (prefers-color-scheme: dark) {\n  :root:not([data-theme="light"]) {\n', '\n', 1),
+                ('\n    --paper: #16171b;\n', '\n', 1),
+                ('\n    --ink: #e9e7e2;\n', '\n', 1),
+                ('\n    --muted: #a2a6b0;\n', '\n', 1),
+                ('\n    --rule: #c9c7c2;\n', '\n', 1),
+                ('\n    --claude: #d46c46;\n', '\n', 1),
+                ('\n    --stan: #5f86dc;\n', '\n', 1),
+                ('\n    --tint: 24%;\n', '\n', 1),
+                ('\n    color-scheme: dark;\n', '\n', 1),
+                ('\n  }\n}\n:root[data-theme="dark"] {\n', '\n', 1),
+                ('\n  --paper: #16171b;\n', '\n', 1),
+                ('\n  --ink: #e9e7e2;\n', '\n', 1),
+                ('\n  --muted: #a2a6b0;\n', '\n', 1),
+                ('\n  --rule: #c9c7c2;\n', '\n', 1),
+                ('\n  --claude: #d46c46;\n', '\n', 1),
+                ('\n  --stan: #5f86dc;\n', '\n', 1),
+                ('\n  --tint: 24%;\n', '\n', 1),
+                ('\n  color-scheme: dark;\n}\n', '\n', 1))
 
 
 def committed():
@@ -178,16 +202,12 @@ def section():
 
 
 def theme_blocks():
-    """The custom properties of the page's three theme blocks: light (:root), dark by preference, dark by attribute."""
+    """The custom properties of the page's one theme block, :root, as a one-item list (dreeves, 2026-10-12: no dark
+    mode, so no other theme block)."""
     css = re.search(r'<style>(.*?)</style>', page(), re.S).group(1)
-    heads = (r'\n:root \{', r'@media \(prefers-color-scheme: dark\) \{\s*:root:not\(\[data-theme="light"\]\) \{',
-             r'\n:root\[data-theme="dark"\] \{')
-    out = []
-    for h in heads:
-        ms = list(re.finditer(h + r'(.*?)\n\s*\}', css, re.S))
-        assert len(ms) == 1, h
-        out.append(dict(re.findall(r'(--[\w-]+):\s*([^;]+);', ms[0].group(1))))
-    return out
+    ms = list(re.finditer(r'\n:root \{(.*?)\n\s*\}', css, re.S))
+    assert len(ms) == 1 and 'prefers-color-scheme' not in page() and 'data-theme' not in page()
+    return [dict(re.findall(r'(--[\w-]+):\s*([^;]+);', ms[0].group(1)))]
 
 
 def mstar_data():
@@ -606,7 +626,6 @@ VIOLATIONS = {   # name: (a change that breaks the contract, what the page's err
 
 CONFIGS = {   # name: (mstar.js, window width, device pixel ratio, theme, hover every this many columns)
     'light': ('real', 1280, 2, None, 1),
-    'dark': ('real', 1280, 1, 'dark', 5),
     'phone': ('real', 390, 3, None, 5),
     'kinds': ('kinds', 1280, 2, None, 1),
     'missing': (None, 1280, 2, None, 1),
@@ -758,12 +777,9 @@ def q_new_copy_is_attributed():
     # values hold English only inside Claude: "…"; every Claude: "…" closes on its line; each line with one (HTML or
     # script) has a TODO comment as the nearest non-blank line above (<!-- TODO: in HTML, // TODO: in script), and each
     # TODO comment is followed by a line with one, or by one of his lines (the heading's TODO comment sits above his
-    # heading); but a comment <!-- TODO for dreeves: … --> (Claude's suggestion for rewording his words, which he asked
-    # for on 2026-10-12) closes on its line and sits directly above a line of the page before the chart, unchanged; no
-    # inserted CSS uses content:.
+    # heading); no inserted CSS uses content:.
     lines, region, ins = inserted()
     assert ins
-    old = set(range(len(lines))) - set(ins)
     his = [j for j in ins if lines[j].strip() in DREEVES_LINES]
     assert sorted(lines[j].strip() for j in his) == sorted(DREEVES_LINES), [lines[j] for j in his]
     bad = []
@@ -781,44 +797,46 @@ def q_new_copy_is_attributed():
             above = next(lines[i] for i in range(j - 1, -1, -1) if lines[i].strip())
             todo = '<!-- TODO:' in above if r == 'html' else above.strip().startswith('// TODO:')
             if not todo: bad.append((j + 1, 'no TODO above', line))
-        if 'TODO' in line:
-            k = next(i for i in range(j + 1, len(lines)) if lines[i].strip())
-            if line.strip().startswith('<!-- TODO for dreeves:'):
-                if not (line.strip().endswith(' -->') and k in old): bad.append((j + 1, 'TODO for dreeves not above his words', line))
-            elif 'Claude: "' not in lines[k] and lines[k].strip() not in DREEVES_LINES:
+        if re.search(r'\bTODO\b', line):                # the word, not TODOCOLOR (dreeves's tag on the chart's colors)
+            below = next(lines[i] for i in range(j + 1, len(lines)) if lines[i].strip())
+            if 'Claude: "' not in below and below.strip() not in DREEVES_LINES:
                 bad.append((j + 1, 'TODO with no Claude: "…" below', line))
     assert not bad, bad
 
 
+def q_color_definitions_are_tagged_todocolor():
+    # Replicata: index.html's lines that mention TODOCOLOR.
+    # Expectata (dreeves, 2026-10-12: "can you tag the color definitions with "TODOCOLOR" so i can tweak them myself?",
+    # then "i meant just the red/black/green for the chart"): exactly the three lines that define --exists, --open and
+    # --impossible end with /* TODOCOLOR */, and no other line mentions it.
+    lines = [l for l in page().splitlines() if 'TODOCOLOR' in l]
+    assert len(lines) == 3 and all(re.fullmatch(r'\s*--(exists|open|impossible): #[0-9a-f]{6}; /\* TODOCOLOR \*/', l) for l in lines), lines
+
+
 def q_tokens_in_all_three_theme_blocks():
     # Replicata: the custom properties of index.html's three theme blocks.
-    # Expectata: --exists, --open and --impossible are in all three, as #rrggbb; the two dark blocks agree on them.
-    light, dark, dark2 = theme_blocks()
+    # Expectata: --exists, --open and --impossible are in it, as #rrggbb (one block since 2026-10-12: no dark mode).
+    light, = theme_blocks()
     for t in TOKENS:
-        assert all(t in b and re.fullmatch(r'#[0-9a-f]{6}', b[t]) for b in (light, dark, dark2)), t
-        assert dark[t] == dark2[t], t
+        assert t in light and re.fullmatch(r'#[0-9a-f]{6}', light[t]), t
 
 
 def q_palette_reads_for_color_blind_readers():
     # Replicata: the chart's three colors in each mode, with the validator's arithmetic, all pairs (any two touch).
-    # Expectata: in both modes the worst color-blind pair (protan or deutan) is at least the validator's target 8, the
-    # worst pair in normal vision at least its floor 15; exists and impossible differ in OKLab lightness by at least
-    # 0.25; each of the three is at least 15 from each provenance hue of its mode; and the CSS comment above the light
-    # tokens reports these worst pairs as the arithmetic gives them, to 0.1.
-    light, dark, _ = theme_blocks()
+    # Expectata: the worst pair in normal vision is at least the validator's floor 15, and the CSS comment above the
+    # tokens reports the worst pairs, color-blind (protan or deutan) and normal, as the arithmetic gives them, to 0.1.
+    # (Until 2026-10-12 it also held the color-blind pair to 8, exists and impossible 0.25 apart in lightness, and each
+    # of the three 15 from each provenance hue, in a dark mode too; dreeves chose Astra's colors and no dark mode.)
+    light, = theme_blocks()
     css = re.search(r'<style>(.*?)</style>', page(), re.S).group(1)
     comment = re.search(r'/\*((?:(?!\*/).)*)\*/\s*--exists:', css, re.S)
     assert comment, 'no comment directly above --exists'
     said = re.sub(r'\s+', ' ', comment.group(1))
-    for mode, b in (('light', light), ('dark', dark)):
+    for mode, b in (('light', light),):
         colors = [b[t] for t in TOKENS]
         cvd, kind = worst_cvd(colors)
         normal = worst_normal(colors)
-        assert cvd >= 8 and normal >= 15, (mode, cvd, normal)
-        assert abs(oklab(linear(colors[0]))[0] - oklab(linear(colors[2]))[0]) >= 0.25, mode
-        for c in colors:
-            for p in PROVENANCE:
-                assert delta_e(c, b[p]) >= 15, (mode, c, p, delta_e(c, b[p]))
+        assert normal >= 15, (mode, normal)
         claim = f'{mode.capitalize()}: worst color-blind pair ΔE {cvd:.1f} ({kind}), worst normal-vision pair {normal:.1f}'
         assert claim in said, (claim, said)
 
@@ -827,19 +845,17 @@ def q_chart_colors_stand_apart():
     # Replicata: the charts' colors and the table's provenance hues in each mode, and the page's CSS (dreeves,
     # 2026-10-12: the charts' gray and green too similar; their red too like the table's orange for Claude alone; "the
     # 'claude and BGPW' color could be a striping of the other two").
-    # Expectata: exists is the green the table used for Claude and BGPW until then (dreeves: "how about the green we're
-    # no longer using for 'claude and BGPW' -- that looked pretty good"), #2a9466 in light mode and #2aa070 in dark;
-    # impossible's OKLab hue is at least 30 degrees from --claude's; Claude and BGPW has no hue of its own (no --joint,
+    # Expectata: the chart's colors are Astra's, as dreeves chose them: exists jade #249e70, open charcoal #24292e and
+    # impossible crimson #c43d50 (until then, impossible's hue was held 30 degrees from --claude's, which crimson's is
+    # not); Claude and BGPW has no hue of its own (no --joint,
     # anywhere): its cells and legend key are stripes of --claude's and --stan's tints over a striped bar, and its glyph
     # is half in each hue.
     def lch(h):
         L, a, b = oklab(linear(h))
         return L, math.hypot(a, b), math.degrees(math.atan2(b, a)) % 360
-    for mode, b in zip(('light', 'dark', 'dark'), theme_blocks()):
+    for mode, b in zip(('light',), theme_blocks()):
         assert '--joint' not in b, mode
-        assert b['--exists'] == {'light': '#2a9466', 'dark': '#2aa070'}[mode], (mode, b['--exists'])
-        d = abs(lch(b['--impossible'])[2] - lch(b['--claude'])[2])
-        assert min(d, 360 - d) >= 30, (mode, b['--impossible'], d)
+        assert (b['--exists'], b['--open'], b['--impossible']) == ('#249e70', '#24292e', '#c43d50'), mode
     css = re.search(r'<style>(.*?)</style>', page(), re.S).group(1)
     assert '--joint' not in css
     tints = ('repeating-linear-gradient(135deg, color-mix(in oklab, var(--claude) var(--tint), var(--paper)) 0 0.3rem, '
@@ -882,18 +898,23 @@ def q_remarks_name_the_chart_s_constructions():
     assert items >= 25, items
 
 
-def q_suggestions_for_dreeves_sit_above_his_words():
-    # Replicata: index.html's <!-- TODO for dreeves: … --> comments, and the first non-blank line below each.
-    # Expectata (dreeves, 2026-10-12: "can you add TODOs explaining how you think i should change the wording?"): one
-    # directly above each of his lines that the day's results left stale or ambiguous: the 2^24 remark ("for every
-    # k ≥ 24"), the footer ("were not re-checked here"), and the two labels p336 of the order-9 example at 336 (the
-    # powers-of-2 chart's p336 is the order-10 one).  q_new_copy_is_attributed keeps each such line his, unchanged.
-    lines = page().splitlines()
-    below = [next(lines[i] for i in range(j + 1, len(lines)) if lines[i].strip()).strip()
-             for j, line in enumerate(lines) if line.strip().startswith('<!-- TODO for dreeves:')]
-    want = ('<p>Joint construction: ', "<p>BGPW's examples at lengths ", '<span><i>p</i><sub>336</sub>, an antisymmetric example',
-            '<span><i>f</i> = <i>p</i><sub>192</sub> ∨ <i>p</i><sub>336</sub>;')
-    assert len(below) == len(want) and all(sum(b.startswith(w) for b in below) == 1 for w in want), below
+def q_claude_rewords_what_the_day_made_stale():
+    # Replicata: index.html: the 2^24 remark's paragraph, the footer's sentence on BGPW's examples, and the two labels of
+    # the order-9 example at 336.
+    # Expectata (dreeves, 2026-10-12: "for the "TODO for dreeves" lines, go ahead and change them back to Claude: "…"
+    # with your own corrected wording"): the 2^24 paragraph is Claude's and ends "…for every k ≥ 24, and by the 2^18
+    # entry above for every k ≥ 18."; the footer's is Claude's and names only 416 as not re-checked; the order-9 example
+    # at 336 is q336 in both labels, the first Claude's (the powers-of-2 chart's p336 is the order-10 one); and no TODO
+    # for dreeves is left.
+    text = page()
+    assert 'TODO for dreeves' not in text and '<i>p</i><sub>336</sub>' not in text and 'at lengths 352, 368' not in text
+    assert '<p>Claude: "Joint construction: ' in text
+    assert ('≥ 24</span>, and by the 2<sup>18</sup> entry above for every <span class="nw"><i>k</i> ≥ 18</span>."</p>'
+            in text)
+    assert '<p>Claude: "BGPW\'s example at length 416 was not re-checked here."</p>' in text
+    assert ('<span>Claude: "<i>q</i><sub>336</sub>, an antisymmetric example found independently by Claude; it is the second '
+            'part of the 528 example below" <span class="nw">(<i>m</i> = 9)</span>:</span>') in text
+    assert '<span><i>f</i> = <i>p</i><sub>192</sub> ∨ <i>q</i><sub>336</sub>; &nbsp;' in text
 
 
 def q_chart_agrees_with_tables():
@@ -1000,7 +1021,7 @@ def q_page_loads_clean():
 
 
 def q_drawn_cells_match_data():
-    # Replicata: the light, dark and phone runs: the full view, and a sweep of the 500 columns n = 2, 4, …, 1000
+    # Replicata: the light and phone runs: the full view, and a sweep of the 500 columns n = 2, 4, …, 1000
     # zoomed in, so every column is at least 3 device px wide.
     # Expectata: every even column is checked, in every row: its middle pixel has its color from mstar.js (exists up
     # to lo, open up to hi, impossible above) as the page's tokens give it, and the pixel below each row is paper.  In
@@ -1008,7 +1029,7 @@ def q_drawn_cells_match_data():
     # right: no odd column (impossible in every row, since lo = hi = 0) is drawn, not even mixed into a pixel.
     data = mstar_data()
     assert all(data['cols'][n - 1][0] >= 1 for n in EVEN), 'some even column has no exists cell in row 1'
-    for name in ('light', 'dark', 'phone'):
+    for name in ('light', 'phone'):
         R = valid_run(name)
         assert R['pixelBad'] == [], (name, R['pixelBad'][:10])
         assert R['pixelColumns'] == EVEN, (name, sorted(set(EVEN) ^ set(R['pixelColumns']))[:20])
@@ -1019,12 +1040,12 @@ def q_drawn_cells_match_data():
 
 
 def q_readout_reports_even_n_only():
-    # Replicata: the light, dark and phone runs: every hover of the harness (the full view, every view of the sweep, the
+    # Replicata: the light and phone runs: every hover of the harness (the full view, every view of the sweep, the
     # searches for column edges, which probe within a millionth of a px of them, and the interactions), and a hover at
     # the middle of every device px across row 1 of the full view.
     # Expectata: no readout reports an odd n; across the full view the readout goes through n = 2, 4, …, 1000, each
     # once, in order from left to right.
-    for name in ('light', 'dark', 'phone'):
+    for name in ('light', 'phone'):
         R = valid_run(name)
         assert R['oddReadouts'] == [] and R['readouts'] > 2 * NCOL, (name, R['readouts'], R['oddReadouts'][:5])
         assert R['across'] == EVEN, (name, R['across'][:20])
@@ -1112,14 +1133,13 @@ def q_heading_says_even_n():
     assert label == CANVAS_LABEL and 'even n' in label, label
 
 
-def q_dark_mode_uses_dark_tokens():
-    # Replicata: the dark run (data-theme="dark" on the root) and the light run.
-    # Expectata: the chart's colors and paper are the dark block's values in the dark run and the light block's in the
-    # light run (the pixel checks of q_drawn_cells_match_data compare against these).
-    light, dark, _ = theme_blocks()
-    for name, b in (('light', light), ('dark', dark)):
-        tokens = valid_run(name)['tokens']
-        assert all(tokens[t[2:]] == b[t] for t in TOKENS + ('--paper', '--ink')), (name, tokens)
+def q_light_run_uses_the_theme_tokens():
+    # Replicata: the light run.
+    # Expectata: the chart's colors, paper and ink are the theme block's values (the pixel checks of
+    # q_drawn_cells_match_data compare against these).  (A dark run did the same for the dark blocks until 2026-10-12.)
+    light, = theme_blocks()
+    tokens = valid_run('light')['tokens']
+    assert all(tokens[t[2:]] == light[t] for t in TOKENS + ('--paper', '--ink')), tokens
 
 
 def q_hover_reads_out_cells():
