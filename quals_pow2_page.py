@@ -139,7 +139,11 @@ EDITS = quals_index.TABLE_UPDATE + (
     ('\n  --exists: #4ade80;\n  --open: #000000;\n  --impossible: #cc0351;\n', '\n', 1),
     ("  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => draw());\n", '', 1),
     ("  /* The m*(n) chart's colors (dreeves, 2026-10-12: black for open, a bright green against it, and a brighter red, its\n     hue at least 30 degrees from the table's orange), checked with the dataviz palette validator's arithmetic against\n     each mode's surface, all pairs, since any two can touch. Light: worst color-blind pair ΔE 25.4 (deutan), worst\n     normal-vision pair 46.6. Dark: worst color-blind pair ΔE 24.7 (deutan), worst normal-vision pair 45.6. The\n     readout states each cell's bounds in words. */\n", "  /* The m*(n) chart's colors, Astra's crimson, charcoal and jade, as dreeves chose them (2026-10-12), with the\n     dataviz palette validator's arithmetic against the page's surface, all pairs, since any two can touch. Light:\n     worst color-blind pair ΔE 6.0 (deutan), worst normal-vision pair 29.0. The readout states each cell's bounds in\n     words. */\n", 1),
-    ('\n  --exists: #4ade80;\n  --open: #000000;\n  --impossible: #c90065;\n', '\n  --exists: #249e70; /* TODOCOLOR */\n  --open: #24292e; /* TODOCOLOR */\n  --impossible: #c43d50; /* TODOCOLOR */\n', 1))
+    ('\n  --exists: #4ade80;\n  --open: #000000;\n  --impossible: #c90065;\n', '\n  --exists: #249e70; /* TODOCOLOR */\n  --open: #24292e; /* TODOCOLOR */\n  --impossible: #c43d50; /* TODOCOLOR */\n', 1),
+    # the 2^18 remark writes out its construction and links certificate_2^18.wl (dreeves, 2026-10-12),
+    ('      <!-- TODO: says order 19 at 2^18 comes from a join of two products of the examples above (p320 # p560, and p48 # p432 # tau_2; lengths and orders spelled out), each of order 19, which beats Thue–Morse by 1 at a lower power of 2 than f does at 2^24; and that the upper bound is the residue condition mod 3 -->\n      <p>Claude: "<span class="nw">2<sup>18</sup> = 320·560 + 48·432·2<sup>2</sup></span>: a join of two products of examples above (of orders 9, 10, 6 and 11) and Thue–Morse, each of order 19. That beats Thue–Morse by 1 at a lower power of 2 than <i>f</i> does at 2<sup>24</sup>. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above."</p>\n', '      <!-- TODO: says 2^18 = 320·560 + 48·432·2^2, that is, (p320 # p560) ∨ (p48 # p432 # tau_2), a join of two products each of order 9 + 10 = 6 + 11 + 2 = 19, the code of p48 (the paper\'s) being with the 2^24 entry below; that this beats Thue–Morse by 1 at a lower power of 2 than f does at 2^24; that a linked Mathematica script builds one half of the partition, all 2^17 of its numbers, and checks its power sums exactly; and that the upper bound is the residue condition mod 3 -->\n      <p>Claude: "<span class="nw">2<sup>18</sup> = 320·560 + 48·432·2<sup>2</sup></span>, that is, <span class="nw">(<i>p</i><sub>320</sub> # <i>p</i><sub>560</sub>)</span> <span class="nw">∨ (<i>p</i><sub>48</sub> # <i>p</i><sub>432</sub> # τ<sub>2</sub>)</span>, a join of two products each of order <span class="nw">9 + 10 = 6 + 11 + 2 = 19</span> (the code of <i>p</i><sub>48</sub>, the paper\'s, is with the 2<sup>24</sup> entry below). That beats Thue–Morse by 1 at a lower power of 2 than <i>f</i> does at 2<sup>24</sup>. The Mathematica script <a href="https://raw.githubusercontent.com/dreeves/equipow/main/certificate_2%5E18.wl">certificate_2^18.wl</a> builds one half of the partition, all 2<sup>17</sup> of its numbers, and checks its power sums exactly. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above."</p>\n', 1),
+    # the comment above the chart's colors, which are dreeves's to tweak (2026-10-12),
+    ("  /* The m*(n) chart's colors, Astra's crimson, charcoal and jade, as dreeves chose them (2026-10-12), with the\n     dataviz palette validator's arithmetic against the page's surface, all pairs, since any two can touch. Light:\n     worst color-blind pair ΔE 6.0 (deutan), worst normal-vision pair 29.0. The readout states each cell's bounds in\n     words. */\n", "  /* The m*(n) chart's colors, dreeves's to tweak (2026-10-12); the readout states each cell's bounds in words. */\n", 1))
 
 
 def committed():
@@ -153,8 +157,10 @@ def committed():
 
 
 def opcodes():
-    """difflib's line opcodes from index.html without this chart (BASE with EDITS made) to the working one."""
-    return difflib.SequenceMatcher(None, committed().splitlines(), page().splitlines(), autojunk=False).get_opcodes()
+    """difflib's line opcodes from index.html without this chart (BASE with EDITS made) to the working one, the chart's
+    three color lines compared by name only: their values and comments are dreeves's to tweak (2026-10-12)."""
+    mask = lambda text: re.sub(r'^(\s*--(?:exists|open|impossible):).*$', r'\1', text, flags=re.M).splitlines()
+    return difflib.SequenceMatcher(None, mask(committed()), mask(page()), autojunk=False).get_opcodes()
 
 
 def regions(lines):
@@ -990,7 +996,7 @@ def q_drawn_runs_use_the_theme_tokens():
     light, = theme_blocks()
     for name in DRAWN:
         R = valid(name)
-        assert all(R['load']['tokens'][t] == light[f'--{t}'] for t in KINDS + ('paper', 'ink')), (name, R['load']['tokens'])
+        assert all(R['load']['tokens'][t] == light[f'--{t}'].lower() for t in KINDS + ('paper', 'ink')), (name, R['load']['tokens'])
 
 
 def q_made_up_data_reads_every_kind():

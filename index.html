@@ -37,10 +37,7 @@
      two. */
   --claude: #c15f3c;
   --stan: #3460c8;
-  /* The m*(n) chart's colors, Astra's crimson, charcoal and jade, as dreeves chose them (2026-10-12), with the
-     dataviz palette validator's arithmetic against the page's surface, all pairs, since any two can touch. Light:
-     worst color-blind pair ΔE 6.0 (deutan), worst normal-vision pair 29.0. The readout states each cell's bounds in
-     words. */
+  /* The m*(n) chart's colors, dreeves's to tweak (2026-10-12); the readout states each cell's bounds in words. */
   --exists: #00A86B; /* CHART COLOR GREEN */
   --open: #243447; /* CHART COLOR BLACK */
   --impossible: #EBC1C5; /* CHART COLOR RED */
@@ -596,8 +593,8 @@ footer {
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry"><i>n</i> = 2<sup>18</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {19, …, 21}</span></p>
-      <!-- TODO: says order 19 at 2^18 comes from a join of two products of the examples above (p320 # p560, and p48 # p432 # tau_2; lengths and orders spelled out), each of order 19, which beats Thue–Morse by 1 at a lower power of 2 than f does at 2^24; and that the upper bound is the residue condition mod 3 -->
-      <p>Claude: "<span class="nw">2<sup>18</sup> = 320·560 + 48·432·2<sup>2</sup></span>: a join of two products of examples above (of orders 9, 10, 6 and 11) and Thue–Morse, each of order 19. That beats Thue–Morse by 1 at a lower power of 2 than <i>f</i> does at 2<sup>24</sup>. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above."</p>
+      <!-- TODO: says 2^18 = 320·560 + 48·432·2^2, that is, (p320 # p560) ∨ (p48 # p432 # tau_2), a join of two products each of order 9 + 10 = 6 + 11 + 2 = 19, the code of p48 (the paper's) being with the 2^24 entry below; that this beats Thue–Morse by 1 at a lower power of 2 than f does at 2^24; that a linked Mathematica script builds one half of the partition, all 2^17 of its numbers, and checks its power sums exactly; and that the upper bound is the residue condition mod 3 -->
+      <p>Claude: "<span class="nw">2<sup>18</sup> = 320·560 + 48·432·2<sup>2</sup></span>, that is, <span class="nw">(<i>p</i><sub>320</sub> # <i>p</i><sub>560</sub>)</span> <span class="nw">∨ (<i>p</i><sub>48</sub> # <i>p</i><sub>432</sub> # τ<sub>2</sub>)</span>, a join of two products each of order <span class="nw">9 + 10 = 6 + 11 + 2 = 19</span> (the code of <i>p</i><sub>48</sub>, the paper's, is with the 2<sup>24</sup> entry below). That beats Thue–Morse by 1 at a lower power of 2 than <i>f</i> does at 2<sup>24</sup>. The Mathematica script <a href="https://raw.githubusercontent.com/dreeves/equipow/main/certificate_2%5E18.wl">certificate_2^18.wl</a> builds one half of the partition, all 2<sup>17</sup> of its numbers, and checks its power sums exactly. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above."</p>
     </li>
     <li class="j">
       <span class="mk" aria-hidden="true">◆●</span>

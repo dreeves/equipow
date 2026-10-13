@@ -804,50 +804,29 @@ def q_new_copy_is_attributed():
     assert not bad, bad
 
 
-def q_color_definitions_are_tagged_todocolor():
-    # Replicata: index.html's lines that mention TODOCOLOR.
-    # Expectata (dreeves, 2026-10-12: "can you tag the color definitions with "TODOCOLOR" so i can tweak them myself?",
-    # then "i meant just the red/black/green for the chart"): exactly the three lines that define --exists, --open and
-    # --impossible end with /* TODOCOLOR */, and no other line mentions it.
-    lines = [l for l in page().splitlines() if 'TODOCOLOR' in l]
-    assert len(lines) == 3 and all(re.fullmatch(r'\s*--(exists|open|impossible): #[0-9a-f]{6}; /\* TODOCOLOR \*/', l) for l in lines), lines
-
-
 def q_tokens_in_all_three_theme_blocks():
     # Replicata: the custom properties of index.html's three theme blocks.
     # Expectata: --exists, --open and --impossible are in it, as #rrggbb (one block since 2026-10-12: no dark mode).
     light, = theme_blocks()
     for t in TOKENS:
-        assert t in light and re.fullmatch(r'#[0-9a-f]{6}', light[t]), t
+        assert t in light and re.fullmatch(r'#[0-9a-fA-F]{6}', light[t]), t
 
 
 def q_palette_reads_for_color_blind_readers():
     # Replicata: the chart's three colors in each mode, with the validator's arithmetic, all pairs (any two touch).
-    # Expectata: the worst pair in normal vision is at least the validator's floor 15, and the CSS comment above the
-    # tokens reports the worst pairs, color-blind (protan or deutan) and normal, as the arithmetic gives them, to 0.1.
-    # (Until 2026-10-12 it also held the color-blind pair to 8, exists and impossible 0.25 apart in lightness, and each
-    # of the three 15 from each provenance hue, in a dark mode too; dreeves chose Astra's colors and no dark mode.)
+    # Expectata: the worst pair in normal vision is at least the validator's floor 15.  (The colors are dreeves's to tweak
+    # since 2026-10-12, so no comment states their numbers.  Until then it also held the color-blind pair to 8, exists
+    # and impossible 0.25 apart in lightness, and each of the three 15 from each provenance hue, in a dark mode too.)
     light, = theme_blocks()
-    css = re.search(r'<style>(.*?)</style>', page(), re.S).group(1)
-    comment = re.search(r'/\*((?:(?!\*/).)*)\*/\s*--exists:', css, re.S)
-    assert comment, 'no comment directly above --exists'
-    said = re.sub(r'\s+', ' ', comment.group(1))
-    for mode, b in (('light', light),):
-        colors = [b[t] for t in TOKENS]
-        cvd, kind = worst_cvd(colors)
-        normal = worst_normal(colors)
-        assert normal >= 15, (mode, normal)
-        claim = f'{mode.capitalize()}: worst color-blind pair ΔE {cvd:.1f} ({kind}), worst normal-vision pair {normal:.1f}'
-        assert claim in said, (claim, said)
+    assert worst_normal([light[t].lower() for t in TOKENS]) >= 15, [light[t] for t in TOKENS]
 
 
 def q_chart_colors_stand_apart():
     # Replicata: the charts' colors and the table's provenance hues in each mode, and the page's CSS (dreeves,
     # 2026-10-12: the charts' gray and green too similar; their red too like the table's orange for Claude alone; "the
     # 'claude and BGPW' color could be a striping of the other two").
-    # Expectata: the chart's colors are Astra's, as dreeves chose them: exists jade #249e70, open charcoal #24292e and
-    # impossible crimson #c43d50 (until then, impossible's hue was held 30 degrees from --claude's, which crimson's is
-    # not); Claude and BGPW has no hue of its own (no --joint,
+    # Expectata: the chart's colors are dreeves's to tweak (2026-10-12: "so i can tweak them myself"), so none is pinned
+    # here; Claude and BGPW has no hue of its own (no --joint,
     # anywhere): its cells and legend key are stripes of --claude's and --stan's tints over a striped bar, and its glyph
     # is half in each hue.
     def lch(h):
@@ -855,7 +834,6 @@ def q_chart_colors_stand_apart():
         return L, math.hypot(a, b), math.degrees(math.atan2(b, a)) % 360
     for mode, b in zip(('light',), theme_blocks()):
         assert '--joint' not in b, mode
-        assert (b['--exists'], b['--open'], b['--impossible']) == ('#249e70', '#24292e', '#c43d50'), mode
     css = re.search(r'<style>(.*?)</style>', page(), re.S).group(1)
     assert '--joint' not in css
     tints = ('repeating-linear-gradient(135deg, color-mix(in oklab, var(--claude) var(--tint), var(--paper)) 0 0.3rem, '
@@ -915,6 +893,22 @@ def q_claude_rewords_what_the_day_made_stale():
     assert ('<span>Claude: "<i>q</i><sub>336</sub>, an antisymmetric example found independently by Claude; it is the second '
             'part of the 528 example below" <span class="nw">(<i>m</i> = 9)</span>:</span>') in text
     assert '<span><i>f</i> = <i>p</i><sub>192</sub> ∨ <i>q</i><sub>336</sub>; &nbsp;' in text
+
+
+def q_2_18_shows_its_construction():
+    # Replicata: the 2^18 remark on index.html, and certificate_2^18.wl beside it.
+    # Expectata (dreeves, 2026-10-12: "for 2^18, index.html should show the proof, right? ... can we also get mathematica
+    # code to generate the full list of 2^18/2 integers?"): the remark writes out the construction, (p320 # p560) ∨
+    # (p48 # p432 # τ2), says where p48's code is, and links the script; the script decodes the four blocks from hex
+    # codes that are exactly codes on the page.
+    li = re.search(r'<p class="entry"><i>n</i> = 2<sup>18</sup>: .*?</li>', page(), re.S).group(0)
+    assert '<span class="nw">(<i>p</i><sub>320</sub> # <i>p</i><sub>560</sub>)</span>' in li, li
+    assert '<span class="nw">∨ (<i>p</i><sub>48</sub> # <i>p</i><sub>432</sub> # τ<sub>2</sub>)</span>' in li, li
+    assert 'with the 2<sup>24</sup> entry below' in li and 'certificate_2%5E18.wl">certificate_2^18.wl</a>' in li, li
+    wl = open(os.path.join(HERE, 'certificate_2^18.wl'), encoding='utf-8').read()
+    codes = re.findall(r'(p\d+) = fromHex\["([0-9A-F]+)", \d+\];', wl)
+    assert [k for k, _ in codes] == ['p320', 'p560', 'p432', 'p48'], codes
+    assert all(f'<code>{h}</code>' in page() for _, h in codes), codes
 
 
 def q_chart_agrees_with_tables():
@@ -1139,7 +1133,7 @@ def q_light_run_uses_the_theme_tokens():
     # q_drawn_cells_match_data compare against these).  (A dark run did the same for the dark blocks until 2026-10-12.)
     light, = theme_blocks()
     tokens = valid_run('light')['tokens']
-    assert all(tokens[t[2:]] == light[t] for t in TOKENS + ('--paper', '--ink')), tokens
+    assert all(tokens[t[2:]] == light[t].lower() for t in TOKENS + ('--paper', '--ink')), tokens
 
 
 def q_hover_reads_out_cells():
