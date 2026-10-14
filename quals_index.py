@@ -710,6 +710,31 @@ def unclaimed(text):
 def english(text): return re.findall(r'[A-Za-z]{2,}', text)
 
 
+# dreeves's second form for Claude's words (2026-10-14, for Claude's account of its lattice search): "all the english
+# text in a block quote attributed to claude".  The quote runs from a line QUOTE_OPEN to a line QUOTE_CLOSE, its last
+# line inside is QUOTE_ATTRIB, and its TODO comment (a recap, for dreeves) is the nearest non-blank line above it, or
+# above QUOTE_LEADIN, the lead-in dreeves put between the two (his words, 2026-10-14), when that is there.
+QUOTE_OPEN, QUOTE_ATTRIB, QUOTE_CLOSE = '<blockquote class="claude">', '<p class="attrib">— Claude</p>', '</blockquote>'
+QUOTE_LEADIN = ('<p>', 'Still Claude:', '</p>')
+
+
+def claude_quotes(lines):
+    """(the indices of the lines of every block quote attributed to Claude, from its lead-in if it has one or else
+    QUOTE_OPEN, to QUOTE_CLOSE; the indices of their TODO comments), each quote asserted to be of that form: closed, not
+    nested, ending in QUOTE_ATTRIB, with a <!-- TODO: comment above it or above its lead-in."""
+    out, todos = set(), set()
+    for j in (j for j, line in enumerate(lines) if line.strip() == QUOTE_OPEN):
+        k = next(i for i in range(j + 1, len(lines)) if lines[i].strip() in (QUOTE_OPEN, QUOTE_CLOSE))
+        assert lines[k].strip() == QUOTE_CLOSE, ('nested or unclosed', j + 1)
+        assert [l.strip() for l in lines[j + 1:k] if l.strip()][-1] == QUOTE_ATTRIB, ('no attribution', j + 1)
+        above = [i for i in range(j - 1, -1, -1) if lines[i].strip()]
+        lead = len(QUOTE_LEADIN) * (tuple(lines[i].strip() for i in reversed(above[:len(QUOTE_LEADIN)])) == QUOTE_LEADIN)
+        assert lines[above[lead]].strip().startswith('<!-- TODO:'), ('no TODO', j + 1)
+        out |= set(range(above[lead] + 1, k + 1))
+        todos.add(above[lead])
+    return out, todos
+
+
 def close(a, b, tol): return abs(a - b) <= tol
 
 
@@ -777,16 +802,18 @@ def q_new_copy_is_attributed():
     # Replicata: the lines inserted since BASE, by region (HTML, inline script, style).
     # Expectata: inserted lines exist, and each of DREEVES_LINES is one of them, exactly once: those lines hold his
     # words, so the rules that follow pass over them.  In HTML, a line's visible text and its aria-label, title and alt
-    # values hold English only inside Claude: "…"; every Claude: "…" closes on its line; each line with one (HTML or
+    # values hold English only inside Claude: "…" or inside a block quote attributed to Claude (claude_quotes, whose
+    # lines the rules that follow pass over too); every Claude: "…" closes on its line; each line with one (HTML or
     # script) has a TODO comment as the nearest non-blank line above (<!-- TODO: in HTML, // TODO: in script), and each
     # TODO comment is followed by a line with one, or by one of his lines (the heading's TODO comment sits above his
-    # heading); no inserted CSS uses content:.
+    # heading), or is a quote's (above its lead-in or QUOTE_OPEN); no inserted CSS uses content:.
     lines, region, ins = inserted()
     assert ins
     his = [j for j in ins if lines[j].strip() in DREEVES_LINES]
     assert sorted(lines[j].strip() for j in his) == sorted(DREEVES_LINES), [lines[j] for j in his]
+    quoted, quote_todos = claude_quotes(lines)
     bad = []
-    for j in (j for j in ins if j not in his):
+    for j in (j for j in ins if j not in his and j not in quoted):
         line, r = lines[j], region[j]
         if r == 'style' and re.search(r'(?<![\w-])content\s*:', line): bad.append((j + 1, 'content:', line))
         if r == 'html':
@@ -802,7 +829,7 @@ def q_new_copy_is_attributed():
             if not todo: bad.append((j + 1, 'no TODO above', line))
         if re.search(r'\bTODO\b', line):                # the word, not TODOCOLOR (dreeves's tag on the chart's colors)
             below = next(lines[i] for i in range(j + 1, len(lines)) if lines[i].strip())
-            if 'Claude: "' not in below and below.strip() not in DREEVES_LINES:
+            if 'Claude: "' not in below and below.strip() not in DREEVES_LINES and j not in quote_todos:
                 bad.append((j + 1, 'TODO with no Claude: "…" below', line))
     assert not bad, bad
 

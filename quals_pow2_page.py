@@ -145,7 +145,14 @@ EDITS = quals_index.TABLE_UPDATE + (
     # the comment above the chart's colors, which are dreeves's to tweak (2026-10-12),
     ("  /* The m*(n) chart's colors, Astra's crimson, charcoal and jade, as dreeves chose them (2026-10-12), with the\n     dataviz palette validator's arithmetic against the page's surface, all pairs, since any two can touch. Light:\n     worst color-blind pair ΔE 6.0 (deutan), worst normal-vision pair 29.0. The readout states each cell's bounds in\n     words. */\n", "  /* The m*(n) chart's colors, dreeves's to tweak (2026-10-12); the readout states each cell's bounds in words. */\n", 1),
     # the 2^18 remark: the certificate builds the half that contains 0 (dreeves, 2026-10-13),
-    ('      <!-- TODO: says 2^18 = 320·560 + 48·432·2^2, that is, (p320 # p560) ∨ (p48 # p432 # tau_2), a join of two products each of order 9 + 10 = 6 + 11 + 2 = 19, the code of p48 (the paper\'s) being with the 2^24 entry below; that this beats Thue–Morse by 1 at a lower power of 2 than f does at 2^24; that a linked Mathematica script builds one half of the partition, all 2^17 of its numbers, and checks its power sums exactly; and that the upper bound is the residue condition mod 3 -->\n      <p>Claude: "<span class="nw">2<sup>18</sup> = 320·560 + 48·432·2<sup>2</sup></span>, that is, <span class="nw">(<i>p</i><sub>320</sub> # <i>p</i><sub>560</sub>)</span> <span class="nw">∨ (<i>p</i><sub>48</sub> # <i>p</i><sub>432</sub> # τ<sub>2</sub>)</span>, a join of two products each of order <span class="nw">9 + 10 = 6 + 11 + 2 = 19</span> (the code of <i>p</i><sub>48</sub>, the paper\'s, is with the 2<sup>24</sup> entry below). That beats Thue–Morse by 1 at a lower power of 2 than <i>f</i> does at 2<sup>24</sup>. The Mathematica script <a href="https://raw.githubusercontent.com/dreeves/equipow/main/certificate_2%5E18.wl">certificate_2^18.wl</a> builds one half of the partition, all 2<sup>17</sup> of its numbers, and checks its power sums exactly. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above."</p>\n', '      <!-- TODO: says 2^18 = 320·560 + 48·432·2^2, that is, (p320 # p560) ∨ (p48 # p432 # tau_2), a join of two products each of order 9 + 10 = 6 + 11 + 2 = 19, the code of p48 (the paper\'s) being with the 2^24 entry below; that this beats Thue–Morse by 1 at a lower power of 2 than f does at 2^24; that a linked Mathematica script builds the half of the partition that contains 0, all 2^17 of its numbers, and checks its power sums exactly; and that the upper bound is the residue condition mod 3 -->\n      <p>Claude: "<span class="nw">2<sup>18</sup> = 320·560 + 48·432·2<sup>2</sup></span>, that is, <span class="nw">(<i>p</i><sub>320</sub> # <i>p</i><sub>560</sub>)</span> <span class="nw">∨ (<i>p</i><sub>48</sub> # <i>p</i><sub>432</sub> # τ<sub>2</sub>)</span>, a join of two products each of order <span class="nw">9 + 10 = 6 + 11 + 2 = 19</span> (the code of <i>p</i><sub>48</sub>, the paper\'s, is with the 2<sup>24</sup> entry below). That beats Thue–Morse by 1 at a lower power of 2 than <i>f</i> does at 2<sup>24</sup>. The Mathematica script <a href="https://raw.githubusercontent.com/dreeves/equipow/main/certificate_2%5E18.wl">certificate_2^18.wl</a> builds the half of the partition that contains 0, all 2<sup>17</sup> of its numbers, and checks its power sums exactly. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above."</p>\n', 1))
+    ('      <!-- TODO: says 2^18 = 320·560 + 48·432·2^2, that is, (p320 # p560) ∨ (p48 # p432 # tau_2), a join of two products each of order 9 + 10 = 6 + 11 + 2 = 19, the code of p48 (the paper\'s) being with the 2^24 entry below; that this beats Thue–Morse by 1 at a lower power of 2 than f does at 2^24; that a linked Mathematica script builds one half of the partition, all 2^17 of its numbers, and checks its power sums exactly; and that the upper bound is the residue condition mod 3 -->\n      <p>Claude: "<span class="nw">2<sup>18</sup> = 320·560 + 48·432·2<sup>2</sup></span>, that is, <span class="nw">(<i>p</i><sub>320</sub> # <i>p</i><sub>560</sub>)</span> <span class="nw">∨ (<i>p</i><sub>48</sub> # <i>p</i><sub>432</sub> # τ<sub>2</sub>)</span>, a join of two products each of order <span class="nw">9 + 10 = 6 + 11 + 2 = 19</span> (the code of <i>p</i><sub>48</sub>, the paper\'s, is with the 2<sup>24</sup> entry below). That beats Thue–Morse by 1 at a lower power of 2 than <i>f</i> does at 2<sup>24</sup>. The Mathematica script <a href="https://raw.githubusercontent.com/dreeves/equipow/main/certificate_2%5E18.wl">certificate_2^18.wl</a> builds one half of the partition, all 2<sup>17</sup> of its numbers, and checks its power sums exactly. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above."</p>\n', '      <!-- TODO: says 2^18 = 320·560 + 48·432·2^2, that is, (p320 # p560) ∨ (p48 # p432 # tau_2), a join of two products each of order 9 + 10 = 6 + 11 + 2 = 19, the code of p48 (the paper\'s) being with the 2^24 entry below; that this beats Thue–Morse by 1 at a lower power of 2 than f does at 2^24; that a linked Mathematica script builds the half of the partition that contains 0, all 2^17 of its numbers, and checks its power sums exactly; and that the upper bound is the residue condition mod 3 -->\n      <p>Claude: "<span class="nw">2<sup>18</sup> = 320·560 + 48·432·2<sup>2</sup></span>, that is, <span class="nw">(<i>p</i><sub>320</sub> # <i>p</i><sub>560</sub>)</span> <span class="nw">∨ (<i>p</i><sub>48</sub> # <i>p</i><sub>432</sub> # τ<sub>2</sub>)</span>, a join of two products each of order <span class="nw">9 + 10 = 6 + 11 + 2 = 19</span> (the code of <i>p</i><sub>48</sub>, the paper\'s, is with the 2<sup>24</sup> entry below). That beats Thue–Morse by 1 at a lower power of 2 than <i>f</i> does at 2<sup>24</sup>. The Mathematica script <a href="https://raw.githubusercontent.com/dreeves/equipow/main/certificate_2%5E18.wl">certificate_2^18.wl</a> builds the half of the partition that contains 0, all 2<sup>17</sup> of its numbers, and checks its power sums exactly. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above."</p>\n', 1),
+    # Claude's account of its lattice search, at Stan Wagon's request: its section's CSS (2026-10-14)
+    after('.sets pre code { display: block; }', '',
+          "/* Claude's account of its lattice search, at Stan Wagon's request (2026-10-14): one block quote, ruled in Claude's hue */",
+          '.lattice { display: grid; grid-template-columns: minmax(0, 1fr); max-width: 46rem; }',
+          '.lattice blockquote { margin: 0; padding-left: 1.1rem; border-left: 3px solid var(--claude); display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; }',
+          '.lattice ul { margin: 0; padding-left: 1.2rem; display: grid; gap: 0.6rem; }',
+          '.lattice .attrib { color: var(--muted); }'))
 
 
 def committed():
@@ -740,13 +747,16 @@ def q_new_copy_is_attributed():
     # Claude: "…", hold no stray double quote, and close every Claude: "…" they open; in script, every Claude: "…"
     # closes on its line.  Each line with a Claude: "…" has a TODO comment as the nearest non-blank line above (<!--
     # TODO: in HTML, // TODO: in script); each line that mentions TODO is such a comment and is followed by a line with
-    # a Claude: "…"; no inserted CSS uses content:.
+    # a Claude: "…" or is the TODO comment of a block quote attributed to Claude; no inserted CSS uses content:.  The
+    # lines of such a quote, with dreeves's lead-in (quals_index.claude_quotes, his second form for Claude's words),
+    # hold Claude's English as a whole, or his, so the copy rules pass over them.
     lines, region, ins = inserted()
     assert ins
-    his = [j for j in ins if lines[j].strip() in DREEVES_LINES + LEGEND_LINES]
+    quoted, quote_todos = quals_index.claude_quotes(lines)
+    his = [j for j in ins if j not in quoted and lines[j].strip() in DREEVES_LINES + LEGEND_LINES]
     assert sorted(lines[j].strip() for j in his) == sorted(DREEVES_LINES + LEGEND_LINES), [lines[j] for j in his]
     bad = []
-    for j in (j for j in ins if j not in his):
+    for j in (j for j in ins if j not in his and j not in quoted):
         line, r = lines[j], region[j]
         if r == 'style' and re.search(r'(?<![\w-])content\s*:', line): bad.append((j + 1, 'content:', line))
         if r == 'html':
@@ -763,7 +773,8 @@ def q_new_copy_is_attributed():
         if re.search(r'\bTODO\b', line):                # the word, not TODOCOLOR (dreeves's tag on the chart's colors)
             below = next(lines[i] for i in range(j + 1, len(lines)) if lines[i].strip())
             comment = line.strip().startswith('<!-- TODO:' if r == 'html' else '// TODO:')
-            if not comment or 'Claude: "' not in below: bad.append((j + 1, 'TODO', line))
+            if not comment or ('Claude: "' not in below and j not in quote_todos):
+                bad.append((j + 1, 'TODO', line))
     assert not bad, bad
 
 
