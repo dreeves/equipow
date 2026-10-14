@@ -556,6 +556,12 @@ def make_executor():
     return ProcessPoolExecutor(PROCESSES, initializer=configure, initargs=(N, ORDER))
 
 
+# BEFORE THE NEXT SEARCH (dreeves, 2026-10-13): shuffle each node's children before stack.extend(children) below, with a
+# seed from the node's key (reproducible), so that subtrees run in random order and progress.py's estimate, which costs
+# waiting subtrees from finished ones, samples them fairly.  240@11's depth-5 subtrees ran in an order that grew costly:
+# the first 25 took about 0.2 worker-hours each, then came ones of 169 and 282+ (2026-10-13), so its ETA kept rising.
+# progress.py's replay must make the same shuffle (one shared function), and each pass's start line should say whether
+# it shuffles, so that earlier passes still replay in their order.  Verdicts are by node, so the proofs are unaffected.
 def search(order, journal, log, executor):
     """Close the tree from the top node depth-first, PROCESSES nodes at a time.  A subtree is closed when its
     node is INFEASIBLE or all its children's subtrees are closed; each closed subtree with children is

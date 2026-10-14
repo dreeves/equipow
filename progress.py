@@ -614,6 +614,9 @@ def makespan(loads, items):
 # (2026-10-12): the page labels the ETA and the total with their bands' ranges, not the mean, and the band is the
 # middle 90%.  A real fix would model the total remaining work's posterior (heavy-tailed subtree sizes, queue growth
 # from splits) and be backtested on more finished passes.
+# A likely cause, found 2026-10-13: search() takes siblings in an order whose cost grows (240@11's first 25 depth-5
+# subtrees took about 0.2 worker-hours each, later ones 169 and 282+), so finished subtrees are no fair sample of the
+# waiting ones.  The planned fix, before the next search: shuffled sibling order (the note above overnight_v5.search).
 def estimate(state, parts=None):
     """REPLICATES samples of the current pass's remaining hours of running (see the vocabulary), or an empty array (no
     estimate).  parts, if a dict, receives the pieces: the tree, the kinds, the draws, the items, the work, the speed."""
@@ -766,6 +769,15 @@ def survey(n, order, journal, log, procs, now, cache, etas):
             'draws': draws, 'etas': etas, 'strip': strip(parts) if draws is not None and len(draws) else None, 'series': series(passes, end), 'open_list': opens}
 
 
+# KNOWN DISCREPANCY (dreeves, 2026-10-13: "27 / 217 done" over the strip's "28 of 212 done", both at depth 5):
+# - 217 vs 212: work() counts every key of the level that the pass touched or that is unsettled; strip() keeps a node
+#   only if fresh (certbb solved it this pass) or waiting or running (in kinds), so it drops the nodes this pass
+#   re-split (kind 'resplit': UNKNOWN from an earlier pass, split again for free) once they are done: 5 at 240@11 on
+#   2026-10-13, 4 still partway.  Their subtrees' work, done and to come, is then missing from the strip.  The fix:
+#   keep every done node that is not skipped (n.state == 'done' and not a skip), at sofar[n] and sofar[n] + its
+#   remaining draws' mean, as for a partway node.
+# - 27 vs 28 done: work()'s done is the journal's status, settled or open; the strip's is no work left this pass,
+#   which also counts a subtree that finished with open leaves (the journal still calls it split).
 def strip(parts):
     """The strip (dreeves, 2026-10-12: the subtrees "checked off as they're done"): the nodes of this pass at the shallowest
     depth where a node of kind 'subtree' waits, in search()'s order (the tree's, reversed: it pops the last child
