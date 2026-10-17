@@ -161,14 +161,13 @@ EDITS = quals_index.TABLE_UPDATE + (
     # the section "Search progress" (dreeves, 2026-10-17): its CSS, after the lattice section's
     after('.lattice .attrib { color: var(--muted); }',
           '',
-          "/* The search's progress (dreeves, 2026-10-17: a collapsible section of index.html in place of progress.html), a block",
-          "   quote in Claude's hue like the lattice section's.  The statuses' colors, checked with the dataviz palette validator",
+          "/* The search's progress (dreeves, 2026-10-17: a collapsible section of index.html in place of progress.html).",
+          "   The statuses' colors, checked with the dataviz palette validator",
           "   against the page's white, all pairs: worst color-blind pair ΔE 10.8 (protan), worst normal-vision pair 17.6.",
           "   Pending is a light neutral on purpose (below the validator's chroma floor and lightness band), and pending and",
           '   running sit below 3:1 against the white, so the key names every status beside its swatch and count.  The ETA',
           "   chart keeps progress.html's colors and marks (dreeves, 2026-10-09 and 10-10). */",
           '.progress { display: grid; grid-template-columns: minmax(0, 1fr); max-width: 46rem; --progress-settled: #3a9f7a; --progress-open: #a8283f; --progress-split: #4a73d0; --progress-pending: #bfc3c8; --progress-running: #e09a1c; --progress-spent: #2a78d6; --progress-togo: #e34948; --progress-hair: #e1e0d9; }',
-          '.progress blockquote { margin: 0; padding-left: 1.1rem; border-left: 3px solid var(--claude); display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.8rem; }',
           '.progress summary { cursor: pointer; }',
           '.progress summary h2 { display: inline; }',
           '.progress details > * + * { margin-top: 0.8rem; }',
@@ -218,8 +217,7 @@ EDITS = quals_index.TABLE_UPDATE + (
           '.progress-tip { font-size: 0.875rem; color: var(--muted); font-variant-numeric: tabular-nums lining-nums; }',
           '.progress-tip .spent { color: var(--progress-spent); stroke: none; }',
           '.progress-tip .togo { color: var(--progress-togo); stroke: none; }',
-          '.progress-tip .total { color: var(--ink); font-weight: 600; stroke: none; }',
-          '.progress .attrib { color: var(--muted); }'))
+          '.progress-tip .total { color: var(--ink); font-weight: 600; stroke: none; }'))
 
 
 def committed():
@@ -818,10 +816,13 @@ def q_new_copy_is_attributed():
     # TODO: in HTML, // TODO: in script); each line that mentions TODO is such a comment and is followed by a line with
     # a Claude: "…" or is the TODO comment of a block quote attributed to Claude; no inserted CSS uses content:.  The
     # lines of such a quote, with dreeves's lead-in (quals_index.claude_quotes, his second form for Claude's words),
-    # hold Claude's English as a whole, or his, so the copy rules pass over them.
+    # hold Claude's English as a whole, or his, so the copy rules pass over them, and so over the section "Search
+    # progress" (quals_index.progress_lines: dreeves took it out of its quote on 2026-10-17).
     lines, region, ins = inserted()
     assert ins
     quoted, quote_todos = quals_index.claude_quotes(lines)
+    section, section_todo = quals_index.progress_lines(lines)
+    quoted, quote_todos = quoted | section, quote_todos | {section_todo}
     his = [j for j in ins if j not in quoted and lines[j].strip() in DREEVES_LINES + LEGEND_LINES]
     assert sorted(lines[j].strip() for j in his) == sorted(DREEVES_LINES + LEGEND_LINES), [lines[j] for j in his]
     bad = []

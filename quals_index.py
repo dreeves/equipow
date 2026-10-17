@@ -751,6 +751,17 @@ def claude_quotes(lines):
     return out, todos
 
 
+def progress_lines(lines):
+    """(the indices of the lines of the section "Search progress", from its TODO comment, its first line, to its
+    </section>; that TODO comment's index), the section asserted to be of that form.  Its copy is unattributed, as
+    progress.html's was (dreeves, 2026-10-09, for the page): on 2026-10-17 he took the section out of the block quote
+    attributed to Claude that it was made in, so the copy rules pass over its lines as over a quote's."""
+    j = next(i for i, line in enumerate(lines) if line.startswith('<section class="progress"'))
+    k = next(i for i in range(j, len(lines)) if lines[i] == '</section>')
+    assert lines[j + 1].strip().startswith('<!-- TODO:') and lines[j + 1].strip().endswith('-->'), lines[j + 1][:80]
+    return set(range(j + 1, k + 1)), j + 1
+
+
 def close(a, b, tol): return abs(a - b) <= tol
 
 
@@ -823,12 +834,15 @@ def q_new_copy_is_attributed():
     # lines the rules that follow pass over too); every Claude: "…" closes on its line; each line with one (HTML or
     # script) has a TODO comment as the nearest non-blank line above (<!-- TODO: in HTML, // TODO: in script), and each
     # TODO comment is followed by a line with one, or by one of his lines (the heading's TODO comment sits above his
-    # heading), or is a quote's (above its lead-in or QUOTE_OPEN); no inserted CSS uses content:.
+    # heading), or is a quote's (above its lead-in or QUOTE_OPEN); no inserted CSS uses content:.  The section
+    # "Search progress" is passed over as a quote is, its TODO taken (progress_lines: dreeves took it out of its quote).
     lines, region, ins = inserted()
     assert ins
     his = [j for j in ins if lines[j].strip() in DREEVES_LINES]
     assert sorted(lines[j].strip() for j in his) == sorted(DREEVES_LINES), [lines[j] for j in his]
     quoted, quote_todos = claude_quotes(lines)
+    section, section_todo = progress_lines(lines)
+    quoted, quote_todos = quoted | section, quote_todos | {section_todo}
     bad = []
     for j in (j for j in ins if j not in his and j not in quoted):
         line, r = lines[j], region[j]
@@ -1513,21 +1527,22 @@ def progress_run(case='main'):
 def rgb(hexcolor): return [int(hexcolor[i:i + 2], 16) for i in (1, 3, 5)]
 
 
-def q_progress_section_is_a_closed_claude_quote():
+def q_progress_section_is_closed_and_unattributed():
     # Replicata: index.html's section "Search progress".
     # Expectata: a <section class="progress" aria-labelledby="progress-title"> after the sets' section and before the
-    # footer, holding one block quote attributed to Claude (claude_quotes' form) around a <details> without open, so
-    # it starts closed, whose <summary> is the heading "Search progress" (dreeves's title for progress.html,
-    # 2026-10-09), with a key of the five statuses; no <script> on the page names progress.js, which the section's
-    # script loads only once it is opened.
+    # footer: first its TODO comment (progress_lines' form), then a <details> without open, so it starts closed, whose
+    # <summary> is the heading "Search progress" (dreeves's title for progress.html, 2026-10-09), with a key of the five
+    # statuses; its copy unattributed, no block quote and no "Claude:" (dreeves, 2026-10-17: he took the section out
+    # of the block quote it was made in, as progress.html's copy had none); no <script> on the page names
+    # progress.js, which the section's script loads only once it is opened.
     text = page()
     sec = re.search(r'<section class="progress" aria-labelledby="progress-title">\n(.*?)\n</section>\n', text, re.S)
     assert sec and text.index('<section class="sets">') < sec.start() < text.index('<footer>'), sec
     body = sec.group(1)
-    lines = body.split('\n')
-    quoted, todos = claude_quotes(lines)
-    assert len(todos) == 1 and all(i in quoted or i in todos for i, l in enumerate(lines) if l.strip()), lines[:3]
-    assert body.count('<details>') == 1 and '<details open' not in body and body.count('</details>') == 1
+    lines = text.split('\n')
+    section, todo = progress_lines(lines)
+    assert lines[todo + 1].strip() == '<details>' and '<details open' not in body and body.count('</details>') == 1
+    assert '<blockquote' not in body and 'Claude:' not in body and 'attrib' not in body, body[:200]
     assert '<summary><h2 id="progress-title">Search progress</h2></summary>' in body
     assert [s for s in re.findall(r'data-count="(\w+)"', body)] == list(STATUSES)
     assert not re.search(r'<script[^>]*progress', text)
@@ -1550,6 +1565,28 @@ def q_progress_classes_meet_only_its_own_css():
     foreign = [s for s in selectors if not re.match(scoped, s)]
     bad = [(s, c) for s in foreign for c in classes if re.search(rf'\.{re.escape(c)}(?![\w-])', s)]
     assert classes and not bad, bad
+
+
+def q_progress_css_names_only_what_the_section_has():
+    # Replicata: the page's CSS rules whose selectors start with the section's classes (.progress, .progress-*); the
+    # section's markup with its script (the page's fifth, which makes the chart's and the tip's marks).
+    # Expectata: every class and element such a selector names occurs in them, so no rule of the section's matches
+    # nothing.  (2026-10-17: dreeves took the section out of its block quote, which left .progress blockquote and
+    # .progress .attrib matching nothing.)
+    text = page()
+    sec = re.search(r'<section class="progress".*?</section>', text, re.S).group(0)
+    js = re.findall(r'<script>\n(.*?)</script>', text, re.S)[-1]
+    style = re.sub(r'/\*.*?\*/', '', text[text.index('<style>'):text.index('</style>')], flags=re.S)
+    selectors = [s.strip() for sel in re.findall(r'([^{}]+)\{', style) for s in sel.split(',')]
+    ours = [re.sub(r'\[[^\]]*\]|::?[\w-]+(\([^)]*\))?', '', s) for s in selectors
+            if re.match(r'\.progress(-[\w-]+)?(?![\w-])', s)]
+    named = {(kind, name) for s in ours for kind, name in re.findall(r'(\.|(?:^|(?<=[\s>+~])))([a-z][\w-]*)', s)}
+    def present(kind, name):
+        if kind == '.':
+            return re.search(rf'(?<![\w-]){re.escape(name)}(?![\w-])', sec + js)
+        return re.search(rf'<{name}\b', sec) or re.search(rf"""['"]{name}['"]""", js)
+    missing = sorted((kind or '<') + name for kind, name in named if not present(kind, name))
+    assert len(ours) > 40 and ('.', 'progress') in named and ('', 'canvas') in named and not missing, missing
 
 
 def q_progress_script_passes_node_check():
