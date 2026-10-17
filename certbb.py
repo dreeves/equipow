@@ -8,7 +8,9 @@ explicitly, and certbb refuses to be imported under python -O, which would skip 
 
 Vocabulary, each term defined once here:
   moments      the exact moment rows of an order, a Moments built from overnight_v5.moment_rows(order) = (W, rhs):
-               W[k] the coefficients of row k at positions 0..N-1, rhs[k] its right-hand side.
+               W[k] the coefficients of row k at positions 0..N-1, rhs[k] its right-hand side; then any further rows
+               given as more (boxsplit's outside node has one, a count row), which every part below takes as one
+               more row but the width test, whose directions are those of the moment rows and the count rows.
   box          lo_p <= x_p <= hi_p for each position p, with lo_p, hi_p in {0, 1}: the 0/1 points a branch has left,
                under the cut rows of its path.
   choice       one count vector per constraint (M, V) of a node; a pool (several vectors in V) offers several.
@@ -37,7 +39,8 @@ Vocabulary, each term defined once here:
                ones for 'static'): 'frac' the most fractional; 'ends' the farthest from the middle of 0..N-1, the
                most fractional of those; 'static' the farthest from the middle, then the lowest.
   direction    an integer vector u of width.py, with the float row w and the offset kappa for which u.x = w.x + kappa
-               on the choice's rows: the LP sees w.x, which stays small.
+               on the choice's moment rows and count rows, and so on any further rows too, which only narrow the LP's
+               polytope: the LP sees w.x, which stays small.
   width test   at the root box of a choice whose LP is Optimal, with room in the budget for two more LP solves: for
                each direction in turn, the least and greatest value of w.x over the LP's polytope (two LP solves of
                the Guide's own Lp, with the direction row added), and so of u.x; when no integer lies between them,
@@ -63,6 +66,7 @@ close a box that holds a solution.
 if not __debug__: raise ImportError('Claude: "certbb refuses to run under python -O, which skips assert statements"')
 import itertools, math, hashlib
 from functools import cached_property
+from types import MappingProxyType
 import numpy as np
 import scipy.optimize._highspy._core as highs
 import width
@@ -88,11 +92,13 @@ def require(ok, what):
 
 
 class Moments:
-    """The moment rows of one order, exact: W and rhs as given, N = len(W[0]), and sparse, the rows as (a, beta)
-    pairs with a the nonzero (position, coefficient) pairs."""
-    def __init__(self, W, rhs):
-        self.W, self.rhs, self.N = W, rhs, len(W[0])
-        self.sparse = tuple((tuple((p, c) for p, c in enumerate(w) if c), b) for w, b in zip(W, rhs, strict=True))
+    """The moment rows of one order, exact, then the further rows more = (W', rhs') (see 'moments'): order = len(W),
+    W and rhs the moment rows' followed by more's, N = len(W[0]), and sparse, all the rows as (a, beta) pairs with a
+    the nonzero (position, coefficient) pairs."""
+    def __init__(self, W, rhs, more=((), ())):
+        self.order = len(W)
+        self.W, self.rhs, self.N = W + more[0], rhs + more[1], len(W[0])
+        self.sparse = tuple((tuple((p, c) for p, c in enumerate(w) if c), b) for w, b in zip(self.W, self.rhs, strict=True))
 
 
 def node_rows(moments, choice):
@@ -223,9 +229,10 @@ def moment_transform(W):
 
 
 class Lp:
-    """HiGHS's LP for the choices of a node, with linearly independent rows: the moment rows as moment_transform gives
-    them, then the count rows of each modulus that divides no other modulus of the node, all classes but the last (the
-    moment row of degree 0 already says the counts sum to N/2), their right-hand sides set per choice by set_counts.
+    """HiGHS's LP for the choices of a node, with linearly independent rows: the moment rows and any further rows (all
+    of moments.W) as moment_transform gives them, then the count rows of each modulus that divides no other modulus of
+    the node, all classes but the last (the moment row of degree 0 already says the counts sum to N/2), their
+    right-hand sides set per choice by set_counts.
     row[i] is the index in node_rows of the i-th count row, and slot[i] its (constraint, class) pair.
     The box goes in as column bounds.  Dual simplex, no presolve, one thread, warm-started, at most ITERATIONS simplex
     iterations per solve (a solve that stops there closes nothing, so its box is split).  Primal simplex used about
@@ -374,10 +381,11 @@ def choose(x, lo, hi, rule):
 class Guide:
     """The width test's instruments for the choices of one solve call: its own Lp (so that the search's keeps its
     state and warm starts untouched, and the branch and bound runs exactly as without the test) and the directions
-    of width.py for the LP's exact rows A (keep: their node_rows indices), both made at the first test (cached
-    properties), the directions cached per process by width.directions."""
+    of width.py for the LP's exact moment rows and count rows A (keep: their node_rows indices; a further row is in
+    the Lp and its certificates, not in A), both made at the first test (cached properties), the directions cached
+    per process by width.directions."""
     def __init__(self, moments, lp):
-        self.moments, self.moduli, self.keep = moments, lp.moduli, list(range(lp.k)) + list(lp.row)
+        self.moments, self.moduli, self.keep = moments, lp.moduli, list(range(moments.order)) + list(lp.row)
         rows, A = node_rows(moments, [(M, (0,) * M) for M in lp.moduli]), []     # the coefficients: any choice's
         for i in self.keep:
             a, _ = rows[i]
@@ -390,7 +398,7 @@ class Guide:
     def lp(self): return Lp(self.moments, self.moduli)
 
     @cached_property
-    def dirs(self): return width.directions(len(self.moments.W), self.moduli, self.A)
+    def dirs(self): return width.directions(self.moments.order, self.moduli, self.A)
 
     def certificate(self, y, d):
         """Integer multipliers on the exact rows and then the direction row u of d, for the dual ray y of the Lp with
@@ -438,22 +446,35 @@ class Guide:
         return False
 
 
-def solve(moments, node, lps, emit, lo=None, hi=None, rule='ends'):
+def solve(moments, node, lps, emit, lo=None, hi=None, rule='ends', certificates=MappingProxyType({})):
     """The verdict on a node within lps LP solves, and the 0/1 point of a FEASIBLE verdict.  Each proof token goes to
     emit as it is made, and only after lower_bound has found its certificate's bound positive, so no unchecked
-    certificate leaves solve.  Returns (verdict, x, stats): lp counts the LP solves of boxes (the budget's: the
-    search's, and the two sides of a cut that closed), width the width test's other LP solves (see 'width test'),
-    cuts the cuts emitted, cut_fail the thin directions whose sides did not both certify, width_other the range
-    solves that ended neither Optimal nor otherwise usable."""
+    certificate leaves solve.  certificates maps a choice (one vector per constraint, as itertools.product gives them)
+    to a certificate for its root box, made elsewhere (boxsplit's box split carries one over to the vectors it also
+    rules out): it must close that box, a list of integers whose bound lower_bound finds positive (else ProofError),
+    and it does so without an LP solve.  Returns (verdict, x, stats): lp counts the LP solves of boxes (the budget's:
+    the search's, and the two sides of a cut that closed), given the choices closed by a given certificate, width the
+    width test's other LP solves (see 'width test'), cuts the cuts emitted, cut_fail the thin directions whose sides
+    did not both certify, width_other the range solves that ended neither Optimal nor otherwise usable."""
     N = moments.N
     stats = dict(lp=0, leaves=0, splits=0, cert_fail=0, lp_other=0, max_depth=0, explored=0.0, choices=0,
-                 width=0, cuts=0, cut_fail=0, width_other=0)
+                 given=0, width=0, cuts=0, cut_fail=0, width_other=0)
     lp = Lp(moments, [M for M, _ in node])
     guide = Guide(moments, lp)
     for choice in itertools.product(*(V for _, V in node)):
         stats['choices'] += 1
         pairs = [(M, v) for (M, _), v in zip(node, choice, strict=True)]
         rows = node_rows(moments, pairs)
+        if choice in certificates:
+            n = certificates[choice]
+            # TODO: error copy; says a certificate given for a choice is not integers whose bound closes its root box
+            require(type(n) is list and all(type(m) is int for m in n)
+                    and lower_bound(rows, list(lo or [0] * N), list(hi or [1] * N), n) > 0, 'Claude: "a given certificate fails"')
+            emit(('L', n))
+            stats['given'] += 1
+            stats['leaves'] += 1
+            stats['explored'] += 1.0
+            continue
         lp.set_counts(pairs)
         stack = [(list(lo or [0] * N), list(hi or [1] * N), 0, None)]
         while stack:

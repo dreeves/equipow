@@ -15,6 +15,8 @@ quals are the slow ones.
 import sys
 sys.dont_write_bytecode = True
 import os, json, time, random, shutil, hashlib, inspect, traceback, subprocess, contextlib
+from collections import Counter
+from concurrent.futures import Future
 import numpy as np
 import sympy as sp
 from sympy.matrices.normalforms import hermite_normal_form
@@ -43,13 +45,18 @@ OPEN8 = (
 # that the driver closed, in OPEN8's order, before overnight_v5.py's last pass closed their ancestors (regression: the
 # copy scratch/boxsplit/overnight_v5_304_9_journal.before_handoff.jsonl has these lines).
 HANDOFF = 8932
+# An open leaf of 240@11 that the width test closes by a cut in 3 LP solves (quals_width.py's THIN[0]).
+THIN240 = ('3:[40,40,40] 5:[24,24,24,24,24] 7:[14,21,3,10,17,24,31] 4:[30,30,30,30] 8:[17,17,13,21,13,13,17,9] '
+           '11:[11,11,11,11,11,11,11,11,11,5,16] 13:[12,11,10,9,8,7,12,11,10,9,8,7,6] 9:[15,12,18,15,12,9,10,16,13]')
 # A bottom leaf the journal records INFEASIBLE at 13499 LP solves (the verify-split angle's ground truth).
 TRUTH = "3:[51,10,91] 5:[18,43,18,43,30] 4:[38,38,38,38] 7:[15,22,29,25,25,18,18] 8:[17,21,17,21,21,17,21,17] 9:[17,2,29,17,5,32,17,3,30]"
 RAMP = (17, 16, 15, 14, 13, 12, 11, 15, 14, 13, 12)       # leaf 0's two own children by 11 (regression)
 OTHER = (15, 11, 18, 14, 10, 17, 13, 14, 10, 17, 13)
 LEAF0_BOX = ((5, 6, 9, 7, 5, 6, 4, 6, 6, 5, 5), (24, 22, 23, 21, 19, 22, 23, 22, 22, 21, 21))   # its count box by 11
-# Leaf 0's extension tree as the run's log tallied it (regression: the leaf-0 summary line of the run of 2026-10-10).
-LEAF0_TALLY = {'splits': 2, 'own': 2, 'pool': 3991, 'outside': 290, 'lps': 14294, 'glop': 4043}
+# Leaf 0's extension tree as the run's log tallied it (regression: the leaf-0 summary line of the run of 2026-10-10,
+# 14294 certbb LP solves and 4043 GLOP solves), with carry since 2026-10-17: every pool member carried, so the pools'
+# 3991 LP solves and GLOP checks are gone (10303 = 14294 - 3991; 52 = the count boxes' 23 + 27 and the 2 own vectors').
+LEAF0_TALLY = {'splits': 2, 'own': 2, 'pool': 3991, 'carried': 3991, 'outside': 290, 'lps': 10303, 'glop': 52}
 
 
 def at(n, order):
@@ -114,6 +121,17 @@ def patched(mod, **kw):
         def __exit__(self, *exc):
             for k, val in self.saved.items(): setattr(mod, k, val)
     return P()
+
+
+class SyncExecutor:
+    """An executor that runs each task at once, in this process (quals_v5's), as a context manager like
+    ProcessPoolExecutor, so that module patches reach the work."""
+    def __enter__(self): return self
+    def __exit__(self, *exc): return False
+    def submit(self, fn, *args):
+        f = Future()
+        f.set_result(fn(*args))
+        return f
 
 
 def coset(order, node, M, box):
@@ -188,14 +206,15 @@ def example_node(order, depth):
     return node, a
 
 
-def made_up_main():
-    """A made-up run journal under RUNS: the run's header and TRUTH as its one open leaf, UNKNOWN at the bottom
-    budget.  Returns its path."""
+def made_up_main(keys=(TRUTH,)):
+    """A made-up run journal under RUNS: the run's header and the keys (TRUTH by default) as its open leaves, each
+    UNKNOWN at the bottom budget.  Returns its path."""
     main = os.path.join(RUNS, 'main_journal.jsonl')
     with open(main, 'w') as fh:
         fh.write(json.dumps(v5.header()) + '\n')
-        fh.write(json.dumps({'key': TRUTH, 'verdict': 'UNKNOWN', 'budget': 10000000, 'lps': 10000000, 'leaves': 0,
-                             'proof': '0' * 40}) + '\n')
+        for key in keys:
+            fh.write(json.dumps({'key': key, 'verdict': 'UNKNOWN', 'budget': 10000000, 'lps': 10000000, 'leaves': 0,
+                                 'proof': '0' * 40}) + '\n')
     return main
 
 
@@ -215,7 +234,7 @@ def pieces(node, M):
     """The keys of the pieces of node's box split by M at ORDER, recomputed here, and its own children as nodes."""
     rel = v5.Relaxation(v5.ORDER, node, M)
     lo, hi = box = bx.count_box(rel)
-    own, pool, _ = bx.box_split(v5.ORDER, node, M, rel, box)
+    own, pool, _, _ = bx.box_split(v5.ORDER, node, M, rel, box)
     keys = {f'{v5.node_key(node)} {M}:{r}={t}' for r in range(M) for t in range(v5.size(M, r) + 1) if not lo[r] <= t <= hi[r]}
     keys |= {v5.node_key(node + ((M, pool),))} | {v5.node_key(node + ((M, (v,)),)) for v in own}
     return keys, [node + ((M, (v,)),) for v in own]
@@ -250,7 +269,7 @@ def oracle_pieces(order, node, i, realin, shrink, rng):
     if shrink:
         lo = tuple(l + rng.randint(0, 2) for l in lo)
         hi = tuple(h - rng.randint(0, 2) for h in hi)
-    own, pool, outside = bx.box_split(order, node, M, rel, (lo, hi))
+    own, pool, outside, _ = bx.box_split(order, node, M, rel, (lo, hi))
     cnt = {b: v5.counts(list(b), M) for b in realin}
     for r, t in outside:
         yield ('outside', [b for b in realin if cnt[b][r] == t],
@@ -270,17 +289,26 @@ def oracle_pieces(order, node, i, realin, shrink, rng):
 # ---------- configuration, the run's journal, keys ----------
 
 def q_configure():
-    # Replicata: configure(304, 9); configure(240, 11); the extension table.
+    # Replicata: configure(304, 9); configure(240, 11); configure(48, 6); the extension table.
     # Expectata: the first configures overnight_v5 for 304@9, takes the extension moduli (11, 13) with budgets
     # (10000, 2000000), and names the driver's journal and log overnight_v5_304_9_boxsplit_journal.jsonl and
-    # overnight_v5_304_9_boxsplit.log next to boxsplit.py, neither of them the run's; the second: AssertionError in
-    # configure (no extension for 240@11); every extension has one budget per modulus, whole and positive.
+    # overnight_v5_304_9_boxsplit.log next to boxsplit.py, neither of them the run's; the second likewise for 240@11,
+    # its cascade (3, 5, 7, 4, 8, 11, 13, 9), the extension modulus 17 with budget 2000000, and the names
+    # overnight_v5_240_11_boxsplit_journal.jsonl and overnight_v5_240_11_boxsplit.log; the third, a run overnight_v5
+    # has settings for and the driver no extension: AssertionError in configure; every extension has one budget per
+    # modulus, whole and positive.
     bx.configure(304, 9)
     assert (v5.N, v5.ORDER, v5.CASCADE) == (304, 9, (3, 5, 4, 7, 8, 9))
     assert (bx.MODULI, bx.BUDGETS) == ((11, 13), (10000, 2000000))
     assert bx.JOURNAL == os.path.join(HERE, 'overnight_v5_304_9_boxsplit_journal.jsonl') != v5.JOURNAL
     assert bx.LOG == os.path.join(HERE, 'overnight_v5_304_9_boxsplit.log') != v5.LOG
-    expect_assertion(lambda: bx.configure(240, 11), 'configure')
+    bx.configure(240, 11)
+    assert (v5.N, v5.ORDER, v5.CASCADE) == (240, 11, (3, 5, 7, 4, 8, 11, 13, 9))
+    assert (bx.MODULI, bx.BUDGETS) == ((17,), (2000000,))
+    assert bx.JOURNAL == os.path.join(HERE, 'overnight_v5_240_11_boxsplit_journal.jsonl') != v5.JOURNAL
+    assert bx.LOG == os.path.join(HERE, 'overnight_v5_240_11_boxsplit.log') != v5.LOG
+    assert (48, 6) in v5.SETTINGS and (48, 6) not in bx.EXTENSION
+    expect_assertion(lambda: bx.configure(48, 6), 'configure')
     assert all(len(b) == len(m) and all(type(t) is int and t >= 1 for t in b) for m, b in bx.EXTENSION.values())
     bx.configure(304, 9)
 
@@ -409,7 +437,8 @@ def q_box_split_regression():
 def q_box_split_filters_like_split():
     # Replicata: the depth-4 parent of open leaf 0 by 8 (fixed: its mod-4 vector) and the depth-5 parent of open leaf 2
     # by 9 (its stabilizer is {id}, its own parent's {id, phi}), each through box_split on the full box with a stand-in
-    # relaxation whose check claims nothing, so that every vector comes back as an own child.
+    # relaxation whose check claims nothing and carry patched to give no certificate, so that every vector comes back
+    # as an own child.
     # Expectata (the mutants angle): exactly overnight_v5.split's vectors before its LP, in admissible's order:
     # admissible, then the integer filter (which keeps 10000 of the 130321 admissible vectors by 8), then the orbit
     # reduction by the node's own stabilizer (5050 and 364 vectors; the parent's stabilizer would leave 193 of the
@@ -424,9 +453,63 @@ def q_box_split_filters_like_split():
         M = v5.CASCADE[depth]
         keep = split_filter(9, X, M)
         theirs = [v for v in v5.admissible(9, M, tuple((P, V[0]) for P, V in X if M % P == 0)) if keep(v)]
-        own, pool, outside = bx.box_split(9, X, M, ClaimsNothing(), full_box(M))
-        assert len(theirs) == want and (own, pool, outside) == (theirs, (), []), (i, len(own), len(theirs))
+        with patched(bx, carry=lambda *args: {}):
+            got = bx.box_split(9, X, M, ClaimsNothing(), full_box(M))
+        assert len(theirs) == want and got == (theirs, (), [], {}), (i, len(got[0]), len(theirs))
     assert v5.stabilizer(leaf(2)[:5]) == [(0, 1)] and v5.stabilizer(leaf(2)[:4]) == [(0, 1), (1, -1)]
+
+
+def leaf0_vectors():
+    """Leaf 0's vectors by 11 inside its count box, as box_split makes them (admissible_box, the integer filter and
+    the orbit reduction), and its relaxation by 11."""
+    node = leaf(0)
+    rel = v5.Relaxation(9, node, 11)
+    keep = split_filter(9, node, 11)
+    return [v for v in bx.admissible_box(9, 11, (), bx.count_box(rel)) if keep(v)], rel
+
+
+def q_carry_gives_only_certificates_that_close():
+    # Replicata: at 304@9, leaf 0's vectors by 11 inside its count box through carry; each vector GLOP's
+    # Relaxation.check claims feasible.
+    # Expectata: a dict from some of those vectors to certificates, each a list of integers whose bound lower_bound
+    # finds positive on that vector's own rows (node_rows of the leaf and the vector) and the root box, recomputed
+    # here rather than taken from carry's arithmetic; none of them a vector GLOP claims feasible; and at least ten
+    # carried vectors per certificate made.
+    at(304, 9)
+    vecs, rel = leaf0_vectors()
+    given = bx.carry(9, leaf(0), 11, vecs)
+    assert given and set(given) <= set(vecs), len(given)
+    mom, zero, one = v5.moments(9), [0] * v5.N, [1] * v5.N
+    for v, n in given.items():
+        assert type(n) is list and all(type(m) is int for m in n), v
+        rows = certbb.node_rows(mom, [(P, V[0]) for P, V in leaf(0)] + [(11, v)])
+        assert certbb.lower_bound(rows, zero, one, n) > 0, v
+    assert not any(rel.check(v) for v in given)
+    made = {tuple(n) for n in given.values()}
+    assert 10 * len(made) <= len(given), (len(made), len(given))
+
+
+def q_box_split_carries_its_pool():
+    # Replicata: leaf 0's box split by 11 (q_box_split_regression's first), carry on the vectors inside its count box,
+    # and the pooled node (the leaf with the pool by 11) through certbb.solve at POOL_BUDGET per member, given those
+    # certificates for its members' choices.
+    # Expectata: box_split's fourth value is carry's dict, every key a pool member; its own, pool and outside are
+    # q_box_split_regression's (carrying moves no vector across: GLOP sorts only the vectors carry gives nothing, and
+    # a carried vector's relaxation is infeasible); the pooled node is INFEASIBLE, its given count the dict's size and
+    # its LP solves one per member not carried, and certbb.verify accepts its tokens.
+    at(304, 9)
+    node = leaf(0)
+    vecs, rel = leaf0_vectors()
+    own, pool, outside, given = bx.box_split(9, node, 11, rel, bx.count_box(rel))
+    assert given == bx.carry(9, node, 11, vecs) and set(given) <= set(pool), len(given)
+    assert (own, len(pool), len(outside)) == ([OTHER, RAMP], 2083, 128), (own, len(pool), len(outside))
+    pooled = node + ((11, pool),)
+    head = tuple(V[0] for _, V in node)
+    tokens = []
+    verdict, _, stats = certbb.solve(v5.moments(9), pooled, v5.POOL_BUDGET * len(pool), tokens.append,
+                                     certificates={head + (v,): n for v, n in given.items()})
+    assert (verdict, stats['given'], stats['lp']) == ('INFEASIBLE', len(given), len(pool) - len(given)), (verdict, stats)
+    certbb.verify(v5.moments(9), pooled, tokens)
 
 
 def q_coverage_leaf0_by_11():
@@ -442,7 +525,7 @@ def q_coverage_leaf0_by_11():
     node = leaf(0)
     rel = v5.Relaxation(9, node, 11)
     lo, hi = box = bx.count_box(rel)
-    own, pool, outside = bx.box_split(9, node, 11, rel, box)
+    own, pool, outside, _ = bx.box_split(9, node, 11, rel, box)
     gs = v5.stabilizer(node)
     assert all(sorted([v5.act(g, 11, lo), v5.act(g, 11, hi)]) == sorted([lo, hi]) for g in gs)
     enumerated, covered = set(own) | set(pool), set(outside)
@@ -475,7 +558,7 @@ def q_coverage_ramp_by_13():
     node = leaf(0) + ((11, (RAMP,)),)
     rel = v5.Relaxation(9, node, 13)
     lo, hi = box = bx.count_box(rel)
-    own, pool, outside = bx.box_split(9, node, 13, rel, box)
+    own, pool, outside, _ = bx.box_split(9, node, 13, rel, box)
     assert sorted(outside) == [(r, t) for r in range(13) for t in range(v5.size(13, r) + 1) if not lo[r] <= t <= hi[r]]
     enumerated = set(own) | set(pool)
     gs = v5.stabilizer(node)
@@ -564,6 +647,42 @@ def q_negative_control_at_order_8():
     assert checked == 22 + 26, checked
 
 
+def q_outside_node_takes_the_width_test():
+    # Replicata: at 240@11, where the width test closes nodes, the leaf THIN240 through certbb.solve at POOL_BUDGET,
+    # its tokens collected; then the node outside_moments(11, 17, 0, t) on it, t the middle of class 0's count box by
+    # 17 (so that its LP is feasible, as an outside node's is where HiGHS and GLOP disagree at the box's edge), through
+    # certbb.solve and solve_piece at POOL_BUDGET; the Guides that certbb.solve makes for the two, watched.
+    # Expectata: the outside node's Guide has the leaf's rows A, and its keep is the leaf's with the count rows'
+    # node_rows indices one higher: it skips the further row (index 11, moments.order); both are INFEASIBLE in 3 LP
+    # solves, 2 leaves and 1 cut, on the tokens D, L, L; the outside node's cut is the leaf's own (the further row only
+    # narrows the LP's polytope, so the thin direction stays thin) and its certificates are one entry longer (the
+    # further row's); certbb.verify accepts the outside node's tokens on its moments, with solve_piece's proof sha1,
+    # and refuses them on the leaf's moments (ProofError).
+    v5.configure(240, 11)
+    node = bx.parse_key(THIN240)
+    lo, hi = bx.count_box(v5.Relaxation(11, node, 17))
+    mom = bx.outside_moments(11, 17, 0, (lo[0] + hi[0]) // 2)
+    guides, tokens = [], ([], [])
+
+    class Guide(certbb.Guide):
+        def __init__(self, moments, lp):
+            super().__init__(moments, lp)
+            guides.append(self)
+
+    with patched(certbb, Guide=Guide):
+        got = [certbb.solve(m, node, v5.POOL_BUDGET, out.append) for m, out in ((v5.moments(11), tokens[0]), (mom, tokens[1]))]
+    leaf, outside = guides
+    assert mom.order == 11 and len(mom.W) == len(mom.rhs) == len(mom.sparse) == 12
+    assert outside.A == leaf.A and outside.keep == leaf.keep[:11] + [i + 1 for i in leaf.keep[11:]] and 11 not in outside.keep
+    for (verdict, _, stats), out in zip(got, tokens, strict=True):
+        assert (verdict, stats['lp'], stats['leaves'], stats['cuts']) == ('INFEASIBLE', 3, 2, 1), (verdict, stats)
+        assert [t[0] for t in out] == ['D', 'L', 'L'], [t[0] for t in out]
+    assert tokens[1][0] == tokens[0][0] and all(len(b[1]) == len(a[1]) + 1 for a, b in zip(tokens[0][1:], tokens[1][1:]))
+    assert certbb.verify(mom, node, tokens[1]) == bx.solve_piece(mom, node, v5.POOL_BUDGET)[2]['proof']
+    expect_proof_error(lambda: certbb.verify(v5.moments(11), node, tokens[1]))
+    at(304, 9)
+
+
 def q_small_n_oracle():
     # Replicata: the configuration 24@4 (cascade (3, 4), budgets (1, 1, 1); extension (5, 7), budgets (50, 1000))
     # patched into overnight_v5.SETTINGS and boxsplit.EXTENSION; all ±1 sequences of length 24 with vanishing power
@@ -609,7 +728,7 @@ def q_startup_control():
     # the second: AssertionError in control.
     at(304, 9)
     bx.control()
-    with patched(bx, box_split=lambda *args: ([], (), [])):
+    with patched(bx, box_split=lambda *args: ([], (), [], {})):
         expect_assertion(bx.control, 'control')
 
 
@@ -697,11 +816,11 @@ def q_solve_piece_checks_the_end():
     # Expectata (the mutants angle): ProofError both times (an INFEASIBLE verdict stands only on a complete proof).
     at(304, 9)
 
-    def short(moments, node, lps, emit, lo=None, hi=None):
+    def short(moments, node, lps, emit, lo=None, hi=None, certificates=None):
         emit(('B', 0))
         return 'INFEASIBLE', None, {'lp': 1, 'leaves': 0}
 
-    def silent(moments, node, lps, emit, lo=None, hi=None):
+    def silent(moments, node, lps, emit, lo=None, hi=None, certificates=None):
         return 'INFEASIBLE', None, {'lp': 0, 'leaves': 0}
 
     for fake in (short, silent):
@@ -760,21 +879,29 @@ def q_ground_truth_leaf_closes():
     # Replicata: the journaled INFEASIBLE leaf TRUTH (13499 LP solves in the run's journal, read as written) through
     # close_tree at order 9 with the extension, into a fresh journal under RUNS; the journal reread.
     # Expectata: close_tree returns (every piece closed) with a tally of 1 box split, 1 own child, 96 pool members and
-    # 186 outside nodes (regression: verify-split's bench_B13499.txt); every record is INFEASIBLE, under the leaf's
-    # key, within its budget, with a 40-digit proof sha1: the own child's 67 LP solves, the pool's 96 and the outside
-    # nodes' 1 each; the reread journal holds the same records.
+    # 186 outside nodes (regression: verify-split's bench_B13499.txt), c of the members carried, c the size of the box
+    # split's carried dict (regression, 2026-10-17: all 96); every record is INFEASIBLE, under the leaf's key, within
+    # its budget, with a 40-digit proof sha1: the own child's 67 LP solves, the pool's 96 - c (one per member not
+    # carried; 96 before carrying) and the outside nodes' 1 each, each record's leaves at most its LP solves but the
+    # pool's, whose carried members close without one; GLOP's solves are the count box's 23 and one per vector not
+    # carried; the reread journal holds the same records.
     with as_written():
         assert v5.Journal(v5.JOURNAL).records[TRUTH]['lps'] == 13499
     node = bx.parse_key(TRUTH)
     path, _ = paths('truth')
     journal, lines = bx.Journal(path), []
     tally = bx.close_tree(9, node, 0, journal, quiet(lines))
-    assert dict(tally) == {'splits': 1, 'own': 1, 'pool': 96, 'outside': 186, 'lps': 67 + 96 + 186, 'glop': 1 + 22 + 97}, dict(tally)
+    rel = v5.Relaxation(9, node, 11)
+    c = len(bx.box_split(9, node, 11, rel, bx.count_box(rel))[3])
+    assert c == 96, c
+    assert dict(tally) == {'splits': 1, 'own': 1, 'pool': 96, 'outside': 186, 'carried': c, 'lps': 67 + 96 - c + 186,
+                           'glop': 1 + 22 + 97 - c}, dict(tally)
     recs = journal.records
     assert len(recs) == 188 and all(k.startswith(TRUTH + ' 11:') for k in recs)
     for r in recs.values():
-        assert r['verdict'] == 'INFEASIBLE' and 0 <= r['leaves'] <= r['lps'] <= r['budget'] and len(r['proof']) == 40, r
-    assert sorted(r['lps'] for r in recs.values()) == [1] * 186 + [67, 96]
+        assert r['verdict'] == 'INFEASIBLE' and 0 <= r['lps'] <= r['budget'] and len(r['proof']) == 40, r
+        assert 0 <= r['leaves'] <= r['lps'] + c * ('#' in r['key'].split()[-1]), r
+    assert sorted(r['lps'] for r in recs.values()) == sorted([1] * 186 + [67, 96 - c])
     assert {r['budget'] for k, r in recs.items() if '=' in k} == {v5.POOL_BUDGET}
     assert bx.Journal(path).records == recs
     assert len(lines) == 4 and lines[0].startswith('{' + TRUTH + '} by 11')
@@ -850,7 +977,7 @@ def q_pool_unknown_stops_the_driver():
     at(304, 9)
     calls = []
 
-    def fake(moments, node, key, budget, journal, log):
+    def fake(moments, node, key, budget, journal, log, certificates=None):
         calls.append(key)
         verdict = 'UNKNOWN' if '#' in key.split()[-1] else 'INFEASIBLE'
         return {'key': key, 'verdict': verdict, 'budget': budget, 'lps': budget, 'leaves': 0, 'proof': '0' * 40}
@@ -862,16 +989,16 @@ def q_pool_unknown_stops_the_driver():
 
 def q_witness_and_failures_stop_the_driver():
     # Replicata: settle with solve_piece faked FEASIBLE with the order-8 example, at ORDER 8 (a witness) and at ORDER 9
-    # (it fails the exact order check); close_tree past the last modulus; close_tree with settle faked UNKNOWN; the
-    # journal after each.
+    # (it fails the exact order check); close_tree with settle faked UNKNOWN; the journal after each.
     # Expectata: a witness is logged (its exact order and X) and SystemExit follows; at ORDER 9, AssertionError in
-    # settle; past the last modulus, AssertionError in close_tree naming the node; an UNKNOWN outside node stops
-    # close_tree at once (AssertionError in close_tree, one settle made); nothing is journaled in any case.
+    # settle; an UNKNOWN outside node stops close_tree at once (AssertionError in close_tree, one settle made); nothing
+    # is journaled in any case.  (Past the last modulus, close_tree stopped with an AssertionError until 2026-10-17,
+    # when dreeves agreed that such a node be left open: q_a_node_past_the_last_modulus_stays_open.)
     at(304, 9)
     path, _ = paths('stop')
     journal, lines = bx.Journal(path), []
     a = v5.from_hex(v5.EXAMPLES[304, 8], 8)
-    fake = lambda *args: ('FEASIBLE', a, {'lps': 1, 'leaves': 0, 'proof': '0' * 40})
+    fake = lambda *args, **kw: ('FEASIBLE', a, {'lps': 1, 'leaves': 0, 'proof': '0' * 40})
     with patched(bx, solve_piece=fake), patched(v5, ORDER=8):
         try:
             bx.settle(v5.moments(9), leaf(0), 'k', 3, journal, quiet(lines))
@@ -882,15 +1009,42 @@ def q_witness_and_failures_stop_the_driver():
     assert len(lines) == 1 and 'WITNESS FOUND in {k}, exact order 8: X = [' in lines[0], lines
     with patched(bx, solve_piece=fake):
         expect_assertion(lambda: bx.settle(v5.moments(9), leaf(0), 'k', 3, journal, quiet(lines)), 'settle')
-    frame = expect_assertion(lambda: bx.close_tree(9, leaf(0), 2, journal, quiet(lines)), 'close_tree')
-    assert 'len(MODULI)' in frame.line
     calls = []
-    def unknown(moments, node, key, budget, journal, log):
+    def unknown(moments, node, key, budget, journal, log, certificates=None):
         calls.append(key)
         return {'key': key, 'verdict': 'UNKNOWN', 'budget': budget, 'lps': budget, 'leaves': 0, 'proof': '0' * 40}
     with patched(bx, settle=unknown):
         expect_assertion(lambda: bx.close_tree(9, leaf(0), 0, journal, quiet(lines)), 'close_tree')
     assert len(calls) == 1 and calls[0].endswith(' 11:0=0'), calls
+    assert journal.records == {} and open(path).read().count('\n') == 1
+
+
+def q_a_node_past_the_last_modulus_stays_open():
+    # Replicata: close_tree on TRUTH with the extension cut to its first modulus, 11 (budget 10000), and settle faked:
+    # outside nodes and the pool INFEASIBLE, the own child UNKNOWN; then close_tree on leaf 0 at i = 2, past the last of
+    # the extension's two moduli.
+    # Expectata (dreeves, 2026-10-17: an own vector still open at its budget is recorded as open, and the run goes on):
+    # no assertion; the first returns a tally whose open counts the one own child, its log's last line naming the
+    # child open; the second returns a tally of one open node and no split, one line naming leaf 0 open; nothing is
+    # journaled.
+    at(304, 9)
+    node = bx.parse_key(TRUTH)
+    path, _ = paths('open')
+    journal = bx.Journal(path)
+
+    def fake(moments, node, key, budget, journal, log, certificates=None):
+        verdict = 'UNKNOWN' if ':[' in key.split()[-1] else 'INFEASIBLE'
+        return {'key': key, 'verdict': verdict, 'budget': budget, 'lps': budget, 'leaves': 0, 'proof': '0' * 40}
+
+    lines = []
+    with patched(bx, settle=fake, MODULI=(11,), BUDGETS=(10000,)):
+        tally = bx.close_tree(9, node, 0, journal, quiet(lines))
+    child = node + ((11, (bx.box_split(9, node, 11, v5.Relaxation(9, node, 11), bx.count_box(v5.Relaxation(9, node, 11)))[0][0],)),)
+    assert tally['open'] == 1 and tally['own'] == 1, dict(tally)
+    assert v5.node_key(child) in lines[-1] and 'open' in lines[-1], lines[-1]
+    lines = []
+    tally = bx.close_tree(9, leaf(0), 2, journal, quiet(lines))
+    assert dict(tally) == {'open': 1} and len(lines) == 1 and OPEN8[0] in lines[0] and 'open' in lines[0], (dict(tally), lines)
     assert journal.records == {} and open(path).read().count('\n') == 1
 
 
@@ -907,9 +1061,11 @@ def q_run_on_one_leaf():
     # Replicata: the driver's run() in a child process on a made-up overnight_v5 journal under RUNS that holds the run's
     # header and the leaf TRUTH as UNKNOWN at the bottom budget, the driver's journal and log under RUNS too; then a
     # second run on the same files.
-    # Expectata: each run's log holds the start line (1 open leaf), the control line, the box-split line, the leaf's
-    # summary line saying its extension tree closed, and the final ALL 1 LEAVES CLOSED line, and the second run solves
-    # nothing: it reuses every record (the journal is unchanged); the made-up journal is unchanged too.
+    # Expectata: each run's log holds the start line (1 open leaf), the control line and the final ALL 1 LEAVES CLOSED
+    # line; the first also the leaf's start line, its box-split line and its summary line saying its extension tree
+    # closed, and its journal the leaf's CLOSED record after the 188 pieces' records; the second skips the leaf, whose
+    # CLOSED record it finds (since 2026-10-17; before, it reused every piece's record): no leaf line, nothing solved,
+    # the journal unchanged; the made-up journal is unchanged too.
     at(304, 9)
     main = made_up_main()
     before = open(main).read()
@@ -925,12 +1081,91 @@ def q_run_on_one_leaf():
         os.rename(log, log + f'.{len(texts)}')
     for text in texts:
         assert 'start: n = 304, order at least 9, open leaves 1' in text, text
-        assert 'startup control passed' in text and f'{{{TRUTH}}} by 11:' in text, text
-        assert f'leaf 0 {{{TRUTH}}}: extension tree closed' in text and 'ALL 1 LEAVES CLOSED' in text, text
-        assert 'WITNESS' not in text
-    assert records[0] == records[1] and len(records[0].splitlines()) == 189
-    assert 'INFEASIBLE' in texts[0] and texts[1].count('INFEASIBLE') == texts[0].count('INFEASIBLE')
+        assert 'startup control passed' in text and 'ALL 1 LEAVES CLOSED' in text and 'WITNESS' not in text, text
+    assert f'leaf 0: {{{TRUTH}}}' in texts[0] and f'{{{TRUTH}}} by 11:' in texts[0], texts[0]
+    assert f'leaf 0 {{{TRUTH}}}: extension tree closed' in texts[0], texts[0]
+    assert TRUTH not in texts[1] and texts[0].count('INFEASIBLE') > 1 and texts[1].count('INFEASIBLE') == 1, texts[1]
+    lines = records[0].splitlines()
+    assert records[0] == records[1] and len(lines) == 190, len(lines)
+    assert json.loads(lines[-1]) == {'key': TRUTH, 'verdict': 'CLOSED', 'budget': v5.node_budget(bx.parse_key(TRUTH))}
     assert open(main).read() == before
+
+
+def q_run_works_leaves_in_parallel():
+    # Replicata: the driver's run() in a child process, with its worker processes, on a made-up run journal holding
+    # TRUTH and open leaf 2 (OPEN8[2]); then a second run on the same files.
+    # Expectata (dreeves, 2026-10-17: the cases in parallel, in shuffled order): the first log holds the start line (2
+    # open leaves), the control line, each leaf's start line in the order of their keys' sha1, each leaf's summary line
+    # saying its tree closed, and ALL 2 LEAVES CLOSED; the driver's journal holds each leaf's CLOSED record; the second
+    # run skips both leaves (no leaf line), writes no record and also ends ALL 2 LEAVES CLOSED.
+    at(304, 9)
+    keys = (TRUTH, OPEN8[2])
+    main = made_up_main(keys)
+    journal, log = paths('parallel')
+    script = os.path.join(RUNS, 'parallel.py')
+    open(script, 'w').write(SCRIPT.format(here=HERE, main=main, journal=journal, log=log))
+    texts, records = [], []
+    for _ in range(2):
+        p = subprocess.run([sys.executable, '-B', script], capture_output=True, text=True, timeout=1800)
+        assert p.returncode == 0, p.stderr[-3000:]
+        texts.append(open(log).read())
+        records.append(open(journal).read())
+        os.rename(log, log + f'.{len(texts)}')
+    first = texts[0]
+    assert 'start: n = 304, order at least 9, open leaves 2' in first and 'startup control passed' in first, first
+    order = sorted(keys, key=lambda k: hashlib.sha1(k.encode()).hexdigest())
+    starts = [first.index(f'leaf {keys.index(k)}: {{{k}}}') for k in order]
+    assert starts == sorted(starts), starts
+    for i, k in enumerate(keys):
+        assert f'leaf {i} {{{k}}}: extension tree closed' in first, (i, first)
+    assert 'ALL 2 LEAVES CLOSED' in first and 'ALL 2 LEAVES CLOSED' in texts[1], texts[1]
+    closed = [json.loads(line)['key'] for line in records[0].splitlines()[1:] if json.loads(line)['verdict'] == 'CLOSED']
+    assert sorted(closed) == sorted(keys) and records[1] == records[0], closed
+    assert not any(k in texts[1] for k in keys), texts[1]
+
+
+def q_a_witness_in_a_worker_reaches_the_log():
+    # Replicata: drive() on leaf 0 with SyncExecutor, a fresh driver journal and a list for its lines, at ORDER 8 with
+    # solve_piece faked FEASIBLE with the order-8 example of length 304.
+    # Expectata: SystemExit, after the leaf's start line and the worker's witness line (its exact order and X) are
+    # written; the journal holds its header only.
+    at(304, 9)
+    path, _ = paths('witness')
+    journal, lines = bx.Journal(path), []
+    a = v5.from_hex(v5.EXAMPLES[304, 8], 8)
+    fake = lambda *args, **kw: ('FEASIBLE', a, {'lps': 1, 'leaves': 0, 'proof': '0' * 40})
+    with patched(bx, solve_piece=fake), patched(v5, ORDER=8):
+        try:
+            bx.drive([leaf(0)], journal, lines.append, SyncExecutor())
+        except SystemExit:
+            pass
+        else:
+            raise AssertionError('no SystemExit')
+    assert f'leaf 0: {{{OPEN8[0]}}}' in lines[0] and any('WITNESS FOUND' in l and 'exact order 8' in l for l in lines), lines
+    assert open(path).read().count('\n') == 1
+
+
+def q_leaves_go_in_a_fixed_shuffle():
+    # Replicata: drive() on the eight open leaves of OPEN8 with SyncExecutor and work_leaf faked to close each at once
+    # (no record, an empty tally); then again with leaf 3's CLOSED record in the journal.
+    # Expectata: the leaves' start lines come in the order of their keys' sha1, each followed by its summary line; each
+    # leaf gets a CLOSED record; the second drive skips leaf 3, closed on record, and starts the other seven again in
+    # the same order.
+    at(304, 9)
+    leaves = [leaf(i) for i in range(8)]
+    order = sorted(range(8), key=lambda i: hashlib.sha1(OPEN8[i].encode()).hexdigest())
+    fake = lambda node, known, source: ([], [], Counter(open=0, cpu=0.0))
+    for skip in (None, 3):
+        path, _ = paths(f'shuffle{skip}')
+        journal, lines = bx.Journal(path), []
+        if skip is not None: journal.put(OPEN8[skip], 'CLOSED', v5.node_budget(leaves[skip]), {})
+        with patched(bx, work_leaf=fake):
+            bx.drive(leaves, journal, lines.append, SyncExecutor())
+        want = [i for i in order if i != skip]
+        assert [l for l in lines if f'leaf {want[0]}: ' in l], lines
+        got = [int(l.split('Claude: "leaf ')[1].split(':')[0]) for l in lines if ': {' in l and 'extension tree' not in l]
+        assert got == want, (got, want)
+        assert {k for k, r in bx.Journal(path).records.items() if r['verdict'] == 'CLOSED'} == {OPEN8[i] for i in range(8)}
 
 
 def q_run_calls_the_control():
@@ -951,12 +1186,12 @@ def q_run_calls_the_control():
 
 def q_run_stops_when_a_leaf_does_not_close():
     # Replicata: run() in this process on a made-up run journal with TRUTH open, POOL_BUDGET 0 (every outside node
-    # UNKNOWN at once).
+    # UNKNOWN at once), its leaves' work done in this process (SyncExecutor in place of the worker processes).
     # Expectata (the mutants angle): AssertionError out of close_tree through run(); the log has the control line and
     # no line saying a tree or all leaves closed.
     at(304, 9)
     journal, log = paths('fail')
-    with patched(v5, JOURNAL=made_up_main(), POOL_BUDGET=0), patched(bx, JOURNAL=journal, LOG=log):
+    with patched(v5, JOURNAL=made_up_main(), POOL_BUDGET=0), patched(bx, JOURNAL=journal, LOG=log, make_executor=SyncExecutor):
         expect_assertion(bx.run, 'close_tree')
     text = open(log).read()
     assert 'startup control passed' in text and 'extension tree closed' not in text and 'LEAVES CLOSED' not in text, text
@@ -964,10 +1199,10 @@ def q_run_stops_when_a_leaf_does_not_close():
 
 def q_code_covers_the_verdict_functions():
     # Replicata: boxsplit.CODE, and the sha1 of the source texts of the driver's verdict functions in the order the
-    # vocabulary names them.
+    # vocabulary names them (carry since 2026-10-17: it decides which vectors GLOP sorts, and the pool's certificates).
     # Expectata (the mutants angle): equal.
-    names = ('parse_key', 'open_leaves', 'admissible_box', 'count_box', 'box_split', 'outside_moments', 'outside_key',
-             'solve_piece', 'settle', 'close_tree')
+    names = ('parse_key', 'open_leaves', 'admissible_box', 'count_box', 'carry', 'box_split', 'outside_moments',
+             'outside_key', 'solve_piece', 'settle', 'close_tree')
     assert bx.CODE == hashlib.sha1(''.join(inspect.getsource(getattr(bx, n)) for n in names).encode()).hexdigest()
 
 

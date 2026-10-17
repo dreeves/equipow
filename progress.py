@@ -125,13 +125,15 @@ gives the state, the hours of running so far and to go, the record of ETAs and t
 """
 import sys
 sys.dont_write_bytecode = True
-import os, re, json, time, bisect, itertools, subprocess, collections
+import os, re, json, time, bisect, hashlib, itertools, subprocess, collections
 import numpy as np
 import overnight_v5 as v5
+import boxsplit as bx
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 JS = os.path.join(HERE, 'progress.js')         # the data file of index.html's section "Search progress" (see the vocabulary)
 CACHE = os.path.join(HERE, '.progress_cache.json')
+EXTENDED = ((240, 11),)                # the runs whose boxsplit.py pass the section shows after the run (2026-10-17)
 RUNS = ((240, 11),)                    # the certified runs, (N, ORDER), in the section's order; 304@9 is settled (2026-10-10)
 REFRESH = 60                           # seconds between rewrites under --watch (the section reloads the data file as often)
 NICE = 15                              # the niceness the process lowers itself to
@@ -242,11 +244,12 @@ def processes():
     return [(int(a), int(b), c, d) for a, b, c, d in (line.split(None, 3) for line in out.stdout.splitlines())]
 
 
-def run_state(procs, n, order, outcome):
-    """The run's state (see the vocabulary), from the process list and the current pass's outcome line (or None)."""
-    main = [p for p in procs if re.search(rf'(?:^|[\s/])overnight_v5\.py {n} {order}\s*$', p[3])]
+def run_state(procs, program, n, order, outcome):
+    """The state (see the vocabulary) of program's run (overnight_v5.py's or boxsplit.py's), from the process list and
+    the current pass's outcome line (or None)."""
+    main = [p for p in procs if re.search(rf'(?:^|[\s/]){re.escape(program)} {n} {order}\s*$', p[3])]
     # TODO: error copy; says several processes run this search at once, giving how many, the length and the order
-    assert len(main) <= 1, f'Claude: "{len(main)} processes run overnight_v5.py {n} {order}"'
+    assert len(main) <= 1, f'Claude: "{len(main)} processes run {program} {n} {order}"'
     mine = main + [p for p in procs if p[1] in {q[0] for q in main}]
     return ('ended' if outcome is not None or not main else
             'frozen' if any(p[2].startswith('T') for p in mine) else 'running')
@@ -791,7 +794,7 @@ def survey(n, order, journal, log, procs, now, cache, etas):
     budgets, bottom = p['budgets'], len(v5.CASCADE)
     assert len(budgets) == bottom + 1
     final = {r['key']: r for r in R['records']}
-    state = run_state(procs, n, order, p['outcome'])
+    state = run_state(procs, 'overnight_v5.py', n, order, p['outcome'])
     end = now if state == 'running' else p['last']
     levels = enumerate_levels(final, budgets, order, cache, DEEPEST)
     # The nodes the current pass splits again: UNKNOWN within their budget above the bottom when it began.  The replay
@@ -814,7 +817,7 @@ def survey(n, order, journal, log, procs, now, cache, etas):
     running = {nd.key for nd in parts.get('nodes', []) if nd.state == 'running' and nd.key is not None}
     to_go = ({'mean': float(draws.mean()) * HOUR} | dict(zip(('lo', 'hi'), (float(q) * HOUR for q in np.quantile(draws, QUANTILES))))
              if draws is not None and len(draws) else None)
-    return {'n': n, 'order': order, 'state': state, 'outcome': p['outcome'], 'budgets': budgets,
+    return {'program': 'overnight_v5.py', 'n': n, 'order': order, 'state': state, 'outcome': p['outcome'], 'budgets': budgets,
             'sea': sea(final, budgets, cache, running), 'so_far': sum(b - a for a, b in spans), 'to_go': to_go,
             'passes': spans,
             'elapsed': end - p['start'], 'last': p['last'],
@@ -824,6 +827,134 @@ def survey(n, order, journal, log, procs, now, cache, etas):
             'processes': p['processes'],
             'work': work(levels[-1], len(levels) - 1, stats, p['nodes']) if state != 'ended' else None,
             'draws': draws, 'etas': etas, 'open_list': opens}
+
+
+# ---------- a run's boxsplit pass (boxsplit.py over its open leaves; dreeves, 2026-10-17) ----------
+
+def box_files(n, order):
+    """The driver's journal and log of the run (n, order), and the run's journal, named as boxsplit.configure names
+    them."""
+    bx.configure(n, order)
+    return bx.JOURNAL, bx.LOG, v5.JOURNAL
+
+
+BOX_FORMS = {                          # the driver's log line forms, as boxsplit's run, drive and say_* write them
+    'start': re.compile(STAMP + r'Claude: "start: n = (\d+), order at least (\d+), open leaves (\d+) of .+ \((\d+) closed '
+                        r'on record\), extension moduli \[[\d, ]+\] with budgets \[[\d, ]+\] \(LP solves; a pool or an '
+                        r'outside node \d+ per member\), (\d+) processes, HiGHS .+, \d+ earlier verdicts"$'),
+    'control': re.compile(STAMP + r'Claude: "startup control passed: .*"$'),
+    'leaf': re.compile(STAMP + r'Claude: "leaf (\d+): \{.*\}"$'),
+    'split': re.compile(STAMP + r'\{.*\} by \d+: Claude: "box widths .*"$'),
+    'outside': re.compile(STAMP + r'\{.*\} by \d+: Claude: "\d+ outside nodes INFEASIBLE .*"$'),
+    'piece': re.compile(STAMP + r'\{.*\}: (?:INFEASIBLE|UNKNOWN); Claude: "\d+ LP solves \(\d+\.\d s\)"$'),
+    'open': re.compile(STAMP + r'Claude: "open: \{.*\}"$'),
+    'done': re.compile(STAMP + r'Claude: "leaf (\d+) \{.*\}: extension tree (closed|not closed)[:,] .*"$'),
+    'outcome': re.compile(STAMP + r'(Claude: "(?:ALL \d+ LEAVES CLOSED \(|NOT FINISHED: |WITNESS FOUND in ).*")$'),
+}
+
+
+def parse_box_lines(lines):
+    """The passes of a driver's log whose complete lines these are, in order, each a dict: start and last, the times of
+    its start line and its last line; n, order, leaves (the run's open leaves), on_record (those the driver's journal
+    held closed) and processes, from its start line; starts, the time each leaf (by its index into the open leaves)
+    started; dones, (the time, whether its tree closed) of each leaf done; outcome, its final line (ALL ... LEAVES
+    CLOSED, NOT FINISHED or a witness), as the log has it, after the time, else None.  Every line must have exactly
+    one known form, every pass must begin with a start line, no line may follow its outcome but the next start line,
+    and a leaf is done only after it started in the pass (all asserted)."""
+    passes = []
+    for line in lines:
+        forms = [(kind, m) for kind, form in BOX_FORMS.items() if (m := form.match(line))]
+        # TODO: error copy; says a line of the driver's log has none of the forms progress.py knows, quoting the line
+        assert len(forms) == 1, f'Claude: "a boxsplit log line of no known form: {line}"'
+        kind, m = forms[0]
+        t = stamp(m[1])
+        if kind == 'start':
+            passes.append({'start': t, 'n': int(m[2]), 'order': int(m[3]), 'leaves': int(m[4]), 'on_record': int(m[5]),
+                           'processes': int(m[6]), 'starts': {}, 'dones': {}, 'outcome': None})
+        # TODO: error copy; says a line of the driver's log comes before any start line or after its pass's outcome line, quoting it
+        assert passes and passes[-1]['outcome'] is None, f'Claude: "a boxsplit log line out of place: {line}"'
+        p = passes[-1]
+        p['last'] = t
+        if kind == 'leaf': p['starts'][int(m[2])] = t
+        if kind == 'done':
+            assert int(m[2]) in p['starts'], line
+            p['dones'][int(m[2])] = (t, m[3] == 'closed')
+        if kind == 'outcome': p['outcome'] = m[2]
+    return passes
+
+
+def driver_records(path):
+    """The driver's journal's last record per key, under boxsplit's header for the configured run (asserted), each
+    checked as overnight_v5.Journal.admit checks it (read_journal's way)."""
+    lines = complete_lines(path)
+    # TODO: error copy; says the driver's journal at this path was written by another configuration or another version of the code
+    assert json.loads(lines[0]) == bx.header(), f'Claude: "the journal {path} belongs to another configuration"'
+    journal = object.__new__(v5.Journal)
+    journal.records = {}
+    for r in map(json.loads, lines[1:]): journal.admit(r)
+    return journal.records
+
+
+def survey_box(n, order, journal, log, main, procs, now, etas):
+    """The boxsplit pass of the run (n, order) as the driver's journal and log, the run's journal (main, whose open
+    leaves the driver works), the process list and the time now show it, in survey's shape: program boxsplit.py, its
+    state, its seconds of running (its passes'), its estimate (to_go; see below) and record of ETAs (etas, to which this
+    snapshot's goes, as survey's), and its sea: one dot per open leaf, grouped and ordered as survey's sea, settled if
+    the driver's journal records it CLOSED, running if it started in the current pass of a running driver and is not
+    done, open if its last pass left a node of its tree open, else pending.
+    The estimate: an urn (see the vocabulary) of the wall seconds, start to done, of every leaf done in a pass, its new
+    ball the longest of them (a leaf's tree has no budget to bound it); each running leaf drawn above its elapsed
+    seconds (censored, the longest-running first), holding its worker for the rest; each pending leaf a job in the
+    driver's order (its key's sha1); makespan on the pass's workers.  None when the driver is not running or no leaf
+    is done yet."""
+    bx.configure(n, order)
+    saved = v5.JOURNAL
+    v5.JOURNAL = main
+    try:
+        leaves = [v5.node_key(nd) for nd in bx.open_leaves(v5.Journal(main))]
+    finally:
+        v5.JOURNAL = saved
+    records = driver_records(journal)
+    passes = parse_box_lines(complete_lines(log))
+    p = passes[-1]
+    # TODO: error copy; says the driver's log's last start line names another length, order or count of open leaves than the run's journal
+    assert (p['n'], p['order'], p['leaves']) == (n, order, len(leaves)), f'Claude: "the boxsplit log of {n} {order} does not match its run"'
+    state = run_state(procs, 'boxsplit.py', n, order, p['outcome'])
+    end = now if state == 'running' else p['last']
+    spans = [(q['start'], q['last']) for q in passes[:-1]] + [(p['start'], end)]
+    closed = {k for k, r in records.items() if r['verdict'] == 'CLOSED'}
+    done = {i: q['dones'][i] for q in passes for i in q['dones']}           # the latest pass's, for each leaf done
+    running = {i: t for i, t in p['starts'].items() if i not in p['dones'] and state == 'running'}
+    assert all(leaves[i] in closed for i, (_, ok) in done.items() if ok)
+
+    def status(i):
+        if leaves[i] in closed: return 'settled'
+        if i in running: return 'running'
+        if i in done: return 'open'
+        return 'pending'
+
+    groups = {}
+    for i in sorted(range(len(leaves)), key=lambda i: tree_order(leaves[i])):
+        groups.setdefault(' '.join(leaves[i].split()[:SEA_DEPTH]), []).append(str(SEA_STATUSES.index(status(i))))
+    tally = collections.Counter(c for g in groups.values() for c in g)
+    sea = {'depth': SEA_DEPTH, 'keys': list(groups), 'groups': [''.join(g) for g in groups.values()],
+           'counts': {s: tally[str(i)] for i, s in enumerate(SEA_STATUSES)}}
+    walls = np.array([t - q['starts'][i] for q in passes for i, (t, _) in q['dones'].items()])
+    draws = None
+    if state == 'running' and len(walls):
+        rng = np.random.default_rng(SEED)
+        todo = sorted((i for i in range(len(leaves)) if status(i) == 'pending'),
+                      key=lambda i: hashlib.sha1(leaves[i].encode()).hexdigest())
+        urn = Urn(rng, walls, gap_ball(rng, walls.max(), walls.max()), len(running) + len(todo))
+        loads = np.zeros((REPLICATES, p['processes']))
+        for j, e in enumerate(sorted((now - t for t in running.values()), reverse=True)):
+            loads[:, j] = urn.draw(e) - e
+        draws = makespan(loads, [('job', urn.draw()) for _ in todo]) / HOUR
+    etas[str(int(end))] = [float(draws.mean())] + [float(q) for q in np.quantile(draws, QUANTILES)] if draws is not None else None
+    to_go = ({'mean': float(draws.mean()) * HOUR} | dict(zip(('lo', 'hi'), (float(q) * HOUR for q in np.quantile(draws, QUANTILES))))
+             if draws is not None else None)
+    return {'program': 'boxsplit.py', 'n': n, 'order': order, 'state': state, 'outcome': p['outcome'],
+            'so_far': sum(b - a for a, b in spans), 'to_go': to_go, 'passes': spans, 'etas': etas, 'sea': sea}
 
 
 # ---------- files and the command line ----------
@@ -863,7 +994,7 @@ def eta_records(s):
 
 def js_text(surveys, now):
     """The data file (see the vocabulary): one call, progressData(...);, of the snapshot's JSON: made (now, in whole
-    seconds) and, per run, n, order, state, so_far (its passes' seconds of running), to_go ({mean, lo, hi}, seconds of
+    seconds) and, per run, program (overnight_v5.py or boxsplit.py), n, order, state, so_far (its passes' seconds of running), to_go ({mean, lo, hi}, seconds of
     running: the estimate's mean and QUANTILES; null without one), etas (its record of ETAs, eta_records, as [time,
     running seconds before it, mean, lo, hi], the time in whole seconds and the rest in seconds to a tenth, evenly thinned to at most ETA_POINTS, the last kept), statuses
     (SEA_STATUSES) and its sea (depth, keys, groups, counts)."""
@@ -871,7 +1002,7 @@ def js_text(surveys, now):
         rs = eta_records(s)
         keep = sorted(set(range(0, len(rs), max(1, -(-len(rs) // ETA_POINTS)))) | {len(rs) - 1}) if rs else []
         return [[int(rs[i][0])] + [round(HOUR * v, 1) for v in rs[i][1:]] for i in keep]
-    runs = [{'n': s['n'], 'order': s['order'], 'state': s['state'], 'so_far': s['so_far'], 'to_go': s['to_go'],
+    runs = [{'program': s['program'], 'n': s['n'], 'order': s['order'], 'state': s['state'], 'so_far': s['so_far'], 'to_go': s['to_go'],
              'etas': etas(s), 'statuses': list(SEA_STATUSES)} | s['sea'] for s in surveys]
     return 'progressData(' + json.dumps({'made': int(now), 'runs': runs}, separators=(',', ':'), ensure_ascii=False) + ');\n'
 
@@ -888,6 +1019,8 @@ def main(argv):
         cache, procs, now = load_cache(CACHE), processes(), time.time()
         surveys = [survey(n, order, *files(n, order), procs, now, cache.setdefault(f'{n}_{order}_{v5.CODE}', {}),
                           cache.setdefault(f'{n}_{order}_{v5.CODE}_etas', {})) for n, order in RUNS]
+        surveys += [survey_box(n, order, *box_files(n, order), procs, now,
+                               cache.setdefault(f'{n}_{order}_boxsplit_{bx.CODE}_etas', {})) for n, order in EXTENDED]
         write_atomic(JS, js_text(surveys, now))
         save_cache(CACHE, cache)
         if not argv: return

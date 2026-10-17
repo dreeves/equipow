@@ -1014,7 +1014,8 @@ def q_migration_script():
     # (FIRST_WIDTH_CODE) and records: the top node UNKNOWN, HARD INFEASIBLE (lps 3), THIN[0] UNKNOWN at 2000000 (a leaf
     # the width test closes), NOTTHIN[0] UNKNOWN at 10000 and again at 2000000 (a leaf it does not close), HARD's parent
     # CLOSED; a 304@9 journal made of the real journal's first 300 lines (the old header; its top nodes' last records
-    # are UNKNOWN) and the boxsplit journal's first 50 (read only); migrate_journals.migrate on each with the process
+    # are UNKNOWN) and the boxsplit journal's first 50 (read only), as written: boxsplit's CODE the one its header
+    # names; migrate_journals.migrate on each with the process
     # scan patched to find nothing and KEPT patched to the quals' directory (so that the real copies' places stay
     # free); then migrate on a journal whose run the patched scan reports alive, on one while the page watcher is
     # reported alive, on the migrated 240 journal again, and on a journal with an unknown name.
@@ -1046,7 +1047,8 @@ def q_migration_script():
         os.makedirs(d)
         paths[name] = os.path.join(d, name)
         open(paths[name], 'w').write(text)
-    with patched(mj, alive=lambda pattern: [], KEPT=kept_dir):
+    written = json.loads(texts['overnight_v5_304_9_boxsplit_journal.jsonl'].splitlines()[0])['boxsplit']
+    with patched(mj, alive=lambda pattern: [], KEPT=kept_dir), patched(mj.bx, CODE=written):
         for name, text in texts.items():
             old = text.splitlines()
             copy = mj.migrate(paths[name])

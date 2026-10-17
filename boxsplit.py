@@ -14,7 +14,10 @@ without closing them.
 Run:   nice -n 19 python3 -B boxsplit.py N ORDER
        It reads overnight_v5_N_ORDER_journal.jsonl next to this file, the run's journal, and never writes it; its own
        verdicts go to overnight_v5_N_ORDER_boxsplit_journal.jsonl, from which it resumes, and its lines to
-       overnight_v5_N_ORDER_boxsplit.log.  overnight_v5.py and certbb.py are imported unchanged.
+       overnight_v5_N_ORDER_boxsplit.log.  overnight_v5.py and certbb.py are imported as they are.  It works on
+       overnight_v5's PROCESSES open leaves at a time, each in a worker process, in a fixed shuffle (the order of their
+       keys' sha1, so that the leaves done so far are a fair sample of those left), and skips a leaf whose CLOSED
+       record is in its journal (since 2026-10-17, when 240@11's 606 open leaves called for it).
 Quals: nice -n 19 python3 -B quals_boxsplit.py
 
 Vocabulary: overnight_v5.py's terms (order, size, counts mod M, admissible, node, pool, split, cascade, G,
@@ -30,19 +33,26 @@ sha1) mean what they mean there; TOL and POOL_BUDGET are overnight_v5's.  Each n
                   which is per position.
   box split       a node's split by M restricted to its count box: the admissible vectors inside the box
                   (admissible_box, overnight_v5.admissible with that one more condition), through the same integer filter
-                  and orbit reduction as overnight_v5.split, each a child of its own unless the LP claims its relaxation
-                  infeasible, the rest in one pool; and one outside node per (class, value) outside the box.
+                  and orbit reduction as overnight_v5.split, each a child of its own unless carry gives it a certificate
+                  or the LP claims its relaxation infeasible, the rest in one pool; and one outside node per (class,
+                  value) outside the box.
+  carry           a certificate for one vector's root box, made by certbb's root LP solve, carried over to every later
+                  vector of the same box split whose root box it also closes.  The vectors differ only in the right-hand
+                  sides of the count rows by M, so for a certificate n made at v, lower_bound at w is lower_bound at v
+                  plus sum_r n_r (w_r - v_r) over those rows: exact integers, one dot product per vector (2026-10-17: at
+                  240@11, about one LP solve per 100 vectors by 17, the rest carried; scratch/trial240).
   outside node    for a class r mod M and a value t outside the count box: the node's sequences with count t in class r.
-                  certbb takes it as the node with the moments extended by that one count row (outside_moments), so its
-                  LP, its certificates and its proof check all carry the row; its budget is POOL_BUDGET, one member's.
+                  certbb takes it as the node with the moments extended by that one count row, a further row of
+                  certbb.Moments (outside_moments), so its LP, its certificates and its proof check all carry the row,
+                  and its width test takes the node's directions; its budget is POOL_BUDGET, one member's.
   piece           what the driver hands certbb: an own child, a pool, or an outside node.  Each has a record in the
                   driver's journal under its key: an own child's and a pool's as overnight_v5.node_key makes them, an
                   outside node's the node's key followed by M:r=t (outside_key).
   extension tree  of an open leaf: its box split by MODULI[0], each own child's verdict at BUDGETS[0], the box split by
                   MODULI[1] of each own child left UNKNOWN, and so on through MODULI.  It is closed when every pool,
                   every outside node and every own child at the last modulus is INFEASIBLE.  An own child UNKNOWN at
-                  the last modulus would need a modulus that is not there: the driver says so and stops (nothing deeper
-                  is built).
+                  the last modulus would need a modulus that is not there: it is left open, logged, and its leaf's tree
+                  is not closed (dreeves, 2026-10-17: the run goes on; the driver stopped there before).
   control         the startup check.  First the exact checks overnight_v5.control makes at ORDER for the cascade, made
                   for the extension: every column of the moment-and-count matrix passes the integer filter of each
                   extended prefix (cascade + MODULI[:i]), and every generator of each extension modulus's residue
@@ -66,13 +76,20 @@ exactly when one of its classes is outside the box; the quals pin admissible_box
 an own child or a pool member, a piece of the tree; or some class value v_r is outside the box, and a satisfies the
 rows of the outside node (r, v_r), a piece of the tree.  GLOP's bounds and claims only sort the vectors among the
 pieces: a bound that is wrong makes a piece that holds a sequence, which certbb cannot close, so the driver stops
-(assert) or finds a witness; TOL only widens the box.  Nothing closes without a certificate.  A FEASIBLE verdict is a
+(assert: an outside node or a pool), leaves it open (an own child past the last modulus) or finds a witness; TOL only
+widens the box.  carry's certificates only sort vectors into the pool and go to certbb.solve with it, which emits one
+for a member only after lower_bound finds it positive on that member's rows, and certbb.Check checks it again; a
+carried vector's relaxation is infeasible, so GLOP, not asked, would have pooled it too.  Nothing closes without a
+certificate.  A FEASIBLE verdict is a
 sequence that satisfies the piece's rows exactly, checked by exact power sums: a witness, logged, and the end of the
 driver.  So when the driver ends with every extension tree closed, no sequence of order at least ORDER lies in any
 open leaf, and with the run's journal, none of length N exists.
 """
 import os, sys, json, time, math, hashlib, inspect
 from collections import Counter
+from concurrent.futures import ProcessPoolExecutor, wait, FIRST_COMPLETED
+from types import MappingProxyType
+import numpy as np
 from ortools.linear_solver import pywraplp
 import overnight_v5 as v5
 import certbb
@@ -83,8 +100,15 @@ import certbb
 #   prototype (verify_split.md), 23 of the 37 mod-11 own children of the 8 leaves closed in 3 to 107 LP solves and the
 #   other 14 needed the split by 13, after which their 10 own grandchildren closed in 3 to 67; so a mod-11 child gets
 #   10000, the run's budget above its bottom, and a mod-13 child 2000000, the run's first bottom budget.
-EXTENSION = {(304, 9): ((11, 13), (10000, 2000000))}
+#   240@11: 17 alone.  Its open leaves' count boxes are the full range by 17, 19, 23 and 25 and nearly so by 27 and 32;
+#   by 16 they narrow (widths 10 to 13 of 16), but admissible_box's enumeration there (the residue lattice mod 16 has
+#   rank 14, and the counts mod 8 leave 8 classes free) ran 6 CPU-minutes on one leaf without finishing.  By 17 there
+#   are 1224656 admissible vectors, 613282 of them after the integer filter and the orbit reduction at one leaf (its
+#   stabilizer {id, phi}), all inside the box: no outside node (scratch/boxsplit-240/measure, 2026-10-12).  An own
+#   child gets the run's bottom budget, as the last modulus's at 304@9.
+EXTENSION = {(304, 9): ((11, 13), (10000, 2000000)), (240, 11): ((17,), (2000000,))}
 CONTROL_CUT = 2          # the control takes the box split inside the box cut to within this of the example's counts
+SCREEN = 1e-6            # carry's float screen passes a vector whose scaled bound is above -SCREEN; exact integers decide
 HERE = os.path.dirname(os.path.abspath(__file__))
 MODULI = BUDGETS = JOURNAL = LOG = None       # set by configure()
 assert all(len(budgets) == len(moduli) and all(type(b) is int and b >= 1 for b in budgets)
@@ -109,19 +133,25 @@ def header():
     return v5.header() | {'tag': 'boxsplit', 'boxsplit': CODE}
 
 
-def log_to_file(msg):
-    line = time.strftime('%Y-%m-%d %H:%M:%S ') + msg
+def stamped(msg): return time.strftime('%Y-%m-%d %H:%M:%S ') + msg
+
+
+def write_line(line):
     print(line, flush=True)
     with open(LOG, 'a') as fh: fh.write(line + '\n')
 
 
+def log_to_file(msg): write_line(stamped(msg))
+
+
 # ---------- messages (copy; kept out of CODE so that rewriting them never invalidates a journal) ----------
 
-def say_split(key, M, box, own, pool, outside, failures, secs):
-    # TODO: box-split line; says: {node} by M: the count box's widths per class, how many vectors inside it passed the filter and the orbit reduction, how many of them are own children, the pool's size, the number of outside nodes, the LP failures (GLOP solves whose status was neither OPTIMAL nor INFEASIBLE), and the seconds
+def say_split(key, M, box, own, pool, given, outside, failures, secs):
+    # TODO: box-split line; says: {node} by M: the count box's widths per class, how many vectors inside it passed the filter and the orbit reduction, how many of them are own children, the pool's size and how many of its members carry gave a certificate, the number of outside nodes, the LP failures (GLOP solves whose status was neither OPTIMAL nor INFEASIBLE), and the seconds
     lo, hi = box
     return (f'{{{key}}} by {M}: Claude: "box widths {[h - l + 1 for l, h in zip(lo, hi)]}, {len(own) + len(pool)} vectors inside, '
-            f'{len(own)} own children, pool {len(pool)}, {len(outside)} outside nodes, LP failures {failures} ({secs:.1f} s)"')
+            f'{len(own)} own children, pool {len(pool)} ({len(given)} carried), {len(outside)} outside nodes, '
+            f'LP failures {failures} ({secs:.1f} s)"')
 
 
 def say_outside(key, M, n, lps, secs):
@@ -144,11 +174,35 @@ def say_leaf(i, key):
     return f'Claude: "leaf {i}: {{{key}}}"'
 
 
+def say_open(key):
+    # TODO: says this node is left open: UNKNOWN past the last extension modulus, with no modulus left to split it by
+    return f'Claude: "open: {{{key}}}"'
+
+
+def say_counts(tally):
+    # TODO: the counts of a leaf's tree, for the two summary lines below: box splits, own children, pool members and how many of them carried, outside nodes, certbb's LP solves, GLOP's solves and CPU seconds
+    return (f'{tally["splits"]} box splits, {tally["own"]} own children, {tally["pool"]} pool members '
+            f'({tally["carried"]} carried), {tally["outside"]} outside nodes, {tally["lps"]} certbb LP solves, '
+            f'{tally["glop"]} GLOP solves, {tally["cpu"]:.0f} CPU s')
+
+
 def say_leaf_closed(i, key, tally):
-    # TODO: per-leaf summary line; says: leaf number and node: its extension tree closed, with its box splits, own children, pool members, outside nodes, certbb's LP solves, GLOP's solves and CPU seconds
-    return (f'Claude: "leaf {i} {{{key}}}: extension tree closed: {tally["splits"]} box splits, {tally["own"]} own children, '
-            f'{tally["pool"]} pool members, {tally["outside"]} outside nodes, {tally["lps"]} certbb LP solves, '
-            f'{tally["glop"]} GLOP solves, {tally["cpu"]:.0f} CPU s"')
+    # TODO: per-leaf summary line; says: leaf number and node: its extension tree closed, with its counts
+    return f'Claude: "leaf {i} {{{key}}}: extension tree closed: {say_counts(tally)}"'
+
+
+def say_leaf_open(i, key, tally):
+    # TODO: per-leaf summary line; says: leaf number and node: its extension tree is not closed, how many nodes were left open, then its counts
+    return f'Claude: "leaf {i} {{{key}}}: extension tree not closed, {tally["open"]} nodes left open: {say_counts(tally)}"'
+
+
+def say_start(leaves, journal):
+    # TODO: start line; says: start: n, order at least, how many open leaves the run's journal holds and how many of them the driver's journal already records closed, the extension moduli and certbb's budgets for their own children in LP solves (a pool or an outside node getting so many per member), the processes, the HiGHS build, and how many verdicts the driver's journal already holds
+    done = sum(journal.records.get(v5.node_key(nd), {}).get('verdict') == 'CLOSED' for nd in leaves)
+    return (f'Claude: "start: n = {v5.N}, order at least {v5.ORDER}, open leaves {len(leaves)} of {v5.JOURNAL} '
+            f'({done} closed on record), extension moduli {list(MODULI)} with budgets {list(BUDGETS)} (LP solves; a '
+            f'pool or an outside node {v5.POOL_BUDGET} per member), {v5.PROCESSES} processes, HiGHS {certbb.HIGHS}, '
+            f'{len(journal.records)} earlier verdicts"')
 
 
 # ---------- the run's journal: its open leaves ----------
@@ -251,33 +305,75 @@ def count_box(rel):
             tuple(min(v5.size(M, r), math.floor(t + v5.TOL)) for r, t in enumerate(hi)))
 
 
+def carry(order, node, M, vecs):
+    """The certificates carried over (see 'carry') among vecs, vectors of node's split by M in sorted order: a dict from
+    each vector whose root box one of them closes to that certificate.  The first vector not yet given one gets
+    certbb.solve's root step on one certbb.Lp, warm-started across vectors as certbb.solve keeps it across a pool's
+    members: the LP solve, Lp.multipliers on an Infeasible status, lower_bound positive on its rows.  Its certificate
+    n then goes to it and to every later vector w whose bound, lower_bound at v plus sum_r n_r (w_r - v_r) over the
+    count rows by M (the last M rows), is positive in exact integers; a float screen of that bound picks the vectors to
+    compute it for.  A vector whose root step gives no certificate gets none here (GLOP sorts it)."""
+    moments = v5.moments(order)
+    lp = certbb.Lp(moments, [P for P, _ in node] + [M])
+    zero, one = [0] * v5.N, [1] * v5.N
+    V = np.array(vecs, dtype=np.float64).reshape(len(vecs), M)
+    left = np.ones(len(vecs), dtype=bool)                           # no certificate tried on it yet
+    given, rows, W, i = {}, np.arange(len(vecs)), V, 0             # W = V[rows], compacted as vectors get done
+    while left[i:].any():
+        i += int(np.argmax(left[i:]))
+        v = vecs[i]
+        left[i] = False
+        pairs = [(P, W[0]) for P, W in node] + [(M, v)]
+        lp.set_counts(pairs)
+        status, z = lp.solve(zero, one)
+        n = lp.multipliers(z) if status == 'Infeasible' and z is not None else None
+        b = certbb.lower_bound(certbb.node_rows(moments, pairs), zero, one, n) if n is not None else 0
+        if b <= 0: continue                                          # no certificate here: GLOP sorts the vector
+        g = n[-M:]
+        base = b - sum(x * y for x, y in zip(g, v, strict=True))
+        given[v] = n
+        top = max(1, *map(abs, g))
+        if 2 * int(left.sum()) < len(rows):                          # most of W's rows done: compact it
+            rows = np.flatnonzero(left)
+            W = V[rows]
+        for j in rows[(W @ np.array([t / top for t in g]) + base / top > -SCREEN) & left[rows]]:
+            if base + sum(x * y for x, y in zip(g, vecs[j], strict=True)) > 0:
+                given[vecs[j]] = n
+                left[j] = False
+    return given
+
+
 def box_split(order, node, M, rel, box):
     """The box split (see the vocabulary) of node by M inside box, rel being the node's Relaxation by M, whose claims
-    sort the vectors: (own, pool, outside), own the vectors with a child of their own in admissible's order, pool the
-    rest as a sorted tuple, outside the (class, value) pairs outside the box in class order.  The vectors are
-    overnight_v5.split's cut to the box: admissible_box in place of admissible, then its integer filter and orbit
-    reduction, then Relaxation.check on each (feasible_set's test of the vectors inside the box)."""
+    sort the vectors carry gives no certificate: (own, pool, outside, given), own the vectors with a child of their own
+    in admissible's order, pool the rest as a sorted tuple, outside the (class, value) pairs outside the box in class
+    order, given carry's dict, all of whose vectors are pool members.  The vectors are overnight_v5.split's cut to the
+    box: admissible_box in place of admissible, then its integer filter and orbit reduction, then Relaxation.check on
+    each that carry gives none (feasible_set's test of the vectors inside the box; a carried vector's relaxation is
+    infeasible, so the test would pool it too)."""
     lo, hi = box
     fixed = tuple((P, V[0]) for P, V in node if M % P == 0)
     rhs = v5.moment_rows(order)[1] + tuple(t for _, V in node for t in V[0])
     ok = v5.integer_system(order, tuple(P for P, _ in node) + (M,)).fiber(rhs)
     gs = v5.stabilizer(node)
     vecs = [v for v in admissible_box(order, M, fixed, box) if ok(v) and v == v5.rep(gs, M, v)]
-    own = [v for v in vecs if rel.check(v)]
+    given = carry(order, node, M, vecs)
+    own = [v for v in vecs if v not in given and rel.check(v)]
     pool = tuple(sorted(set(vecs) - set(own)))
     outside = [(r, t) for r in range(M) for t in range(v5.size(M, r) + 1) if not lo[r] <= t <= hi[r]]
-    return own, pool, outside
+    return own, pool, outside, given
 
 
 # ---------- pieces: certbb's verdicts, journaled ----------
 
 def outside_moments(order, M, r, t):
-    """certbb's Moments for the outside node (r, t) mod M: the moment rows of the order and one more row, the count
-    row of class r mod M with right-hand side t.  certbb takes them for the moments, so its Lp carries the row (its
-    rows stay independent: a count row is no combination of polynomial rows), and node_rows, lower_bound and Check
-    check every certificate on it."""
+    """certbb's Moments for the outside node (r, t) mod M: the moment rows of the order and one further row, the count
+    row of class r mod M with right-hand side t.  certbb takes it as one more row of the moments, so its Lp carries the
+    row (its rows stay independent: a count row is no combination of polynomial rows), and node_rows, lower_bound and
+    Check check every certificate on it; its width test takes the directions of the moment rows and the node's count
+    rows, as for the node itself (the further row only narrows the LP's polytope)."""
     W, rhs = v5.moment_rows(order)
-    return certbb.Moments(W + (v5.count_rows(M)[r],), rhs + (t,))
+    return certbb.Moments(W, rhs, ((v5.count_rows(M)[r],), (t,)))
 
 
 def outside_key(node, M, r, t):
@@ -285,26 +381,27 @@ def outside_key(node, M, r, t):
     return f'{v5.node_key(node)} {M}:{r}={t}'
 
 
-def solve_piece(moments, node, budget, lo=None, hi=None):
+def solve_piece(moments, node, budget, lo=None, hi=None, certificates=MappingProxyType({})):
     """overnight_v5.solve_node with the moments as a parameter, so that an outside node (outside_moments) goes through
-    the same certbb.solve and certbb.Check as any node: certbb's verdict within the budget, the sequence of a FEASIBLE
-    verdict, and the journal's fields lps, leaves and proof.  quals_boxsplit pins it to solve_node."""
+    the same certbb.solve and certbb.Check as any node, and with certbb.solve's certificates (a pool's, carried): certbb's
+    verdict within the budget, the sequence of a FEASIBLE verdict, and the journal's fields lps, leaves and proof.
+    quals_boxsplit pins it to solve_node."""
     check = certbb.Check(moments, node, lo, hi)
-    verdict, x, stats = certbb.solve(moments, node, budget, check.feed, lo, hi)
+    verdict, x, stats = certbb.solve(moments, node, budget, check.feed, lo, hi, certificates=certificates)
     if verdict == 'INFEASIBLE': check.end()                          # raises unless the proof is complete
     found = {'lps': stats['lp'], 'leaves': stats['leaves'], 'proof': check.sha1.hexdigest()}
     return verdict, [2 * t - 1 for t in x] if verdict == 'FEASIBLE' else None, found
 
 
-def settle(moments, node, key, budget, journal, log):
+def settle(moments, node, key, budget, journal, log, certificates=MappingProxyType({})):
     """A piece's journal record, INFEASIBLE or UNKNOWN: the one on record if it holds within the budget (see
     overnight_v5.Journal.reuse), else certbb's fresh verdict through solve_piece, journaled.  A FEASIBLE verdict is a
     witness, checked by exact power sums (asserted), logged, and the end of the driver.  The record's verdict is
     asserted to be one of those two: the journal is trusted on resume as overnight_v5's is, but a record of any other
-    verdict (CLOSED, which overnight_v5's Journal admits and reuses at any budget, and which the driver never writes)
-    is no verdict of certbb's on the piece."""
+    verdict (CLOSED, which overnight_v5's Journal admits and reuses at any budget, and which the driver writes only for
+    a leaf whose tree closed) is no verdict of certbb's on the piece.  certificates go to solve_piece (a pool's)."""
     if journal.reuse(key, budget) is None:
-        verdict, a, found = solve_piece(moments, node, budget)
+        verdict, a, found = solve_piece(moments, node, budget, certificates=certificates)
         if verdict == 'FEASIBLE':
             eo = v5.exact_order(a)
             assert eo >= v5.ORDER                                    # a certbb solution must pass the exact test
@@ -319,18 +416,23 @@ def settle(moments, node, key, budget, journal, log):
 
 def close_tree(order, node, i, journal, log):
     """Close the extension tree under node, an UNKNOWN node at depth len(CASCADE) + i, from MODULI[i] on (see
-    'extension tree'); returns its tally: box splits, own children, pool members, outside nodes, certbb's LP solves and
-    GLOP's solves.  Every outside node and every pool must come back INFEASIBLE (asserted); an own child left UNKNOWN
-    is split by the next modulus, and there must be one (asserted)."""
+    'extension tree'); returns its tally: box splits, own children, pool members, the members carried, outside nodes,
+    certbb's LP solves, GLOP's solves (the count box's and the checks of the vectors not carried), and the nodes left
+    open.  Every outside node and every pool must come back INFEASIBLE (asserted); the pool's solve gets carry's
+    certificates for its members; an own child left UNKNOWN is split by the next modulus, and past the last one, at
+    i = len(MODULI), the node is left open (logged)."""
     key = v5.node_key(node)
-    # TODO: error copy; says this node is UNKNOWN at the last extension modulus, and a split by a further modulus is not built
-    assert i < len(MODULI), f'Claude: "{{{key}}} is UNKNOWN at the last extension modulus; no further split is built"'
+    assert i <= len(MODULI), (key, i)
+    if i == len(MODULI):                                             # no modulus left to split it by: it stays open
+        log(say_open(key))
+        return Counter(open=1)
     M, t0, failures = MODULI[i], time.time(), v5.Relaxation.failures
     rel = v5.Relaxation(order, node, M)
     box = count_box(rel)
-    own, pool, outside = box_split(order, node, M, rel, box)
-    log(say_split(key, M, box, own, pool, outside, v5.Relaxation.failures - failures, time.time() - t0))
-    tally = Counter(splits=1, own=len(own), pool=len(pool), outside=len(outside), glop=1 + 2 * M + len(own) + len(pool))
+    own, pool, outside, given = box_split(order, node, M, rel, box)
+    log(say_split(key, M, box, own, pool, given, outside, v5.Relaxation.failures - failures, time.time() - t0))
+    tally = Counter(splits=1, own=len(own), pool=len(pool), carried=len(given), outside=len(outside),
+                    glop=1 + 2 * M + len(own) + len(pool) - len(given))
     t0 = time.time()
     for r, t in outside:
         rec = settle(outside_moments(order, M, r, t), node, outside_key(node, M, r, t), v5.POOL_BUDGET, journal, log)
@@ -339,7 +441,9 @@ def close_tree(order, node, i, journal, log):
     log(say_outside(key, M, len(outside), tally['lps'], time.time() - t0))
     t0 = time.time()
     pooled = node + ((M, pool),)
-    rec = settle(v5.moments(order), pooled, v5.node_key(pooled), v5.POOL_BUDGET * len(pool), journal, log)
+    head = tuple(V[0] for _, V in node)
+    rec = settle(v5.moments(order), pooled, v5.node_key(pooled), v5.POOL_BUDGET * len(pool), journal, log,
+                 certificates={head + (v,): n for v, n in given.items()})
     assert rec['verdict'] == 'INFEASIBLE', say_not_closed(rec)
     tally['lps'] += rec['lps']
     log(say_piece(rec, time.time() - t0))
@@ -413,30 +517,93 @@ def control():
     assert solve_piece(v5.moments(v5.ORDER), node, 1, x, x)[0] == 'INFEASIBLE'
 
 
+class Batch(Journal):
+    """The driver's Journal for one leaf in a worker process: records holding the driver journal's records under the
+    leaf (for reuse), admit and reuse as they are, put keeping each new record in made instead of writing it; the main
+    process writes them (drive)."""
+    def __init__(self, records):
+        self.records, self.made = dict(records), []
+
+    def put(self, key, verdict, budget, found):
+        rec = {'key': key, 'verdict': verdict, 'budget': budget} | found
+        self.admit(rec)
+        self.made.append(rec)
+
+
+def work_leaf(leaf, known, source):
+    """One open leaf's extension tree, in a worker process: close_tree into a Batch of known, the driver journal's
+    records under the leaf, its lines stamped as they are made.  source is the main process's SOURCE: the worker must
+    run the very files whose control passed.  Returns (the new records, the lines, the tally with its CPU seconds), the
+    tally None when settle found a witness (its line among the lines, written before the driver ends)."""
+    assert source == SOURCE
+    batch, lines = Batch(known), []
+    c0 = time.process_time()
+    try:
+        tally = close_tree(v5.ORDER, leaf, 0, batch, lambda msg: lines.append(stamped(msg)))
+    except SystemExit:                                               # settle's witness, its line among lines
+        return batch.made, lines, None
+    tally['cpu'] = time.process_time() - c0
+    return batch.made, lines, tally
+
+
+def make_executor():
+    """overnight_v5.PROCESSES worker processes, each configured for this run as it starts."""
+    return ProcessPoolExecutor(v5.PROCESSES, initializer=configure, initargs=(v5.N, v5.ORDER))
+
+
+def drive(leaves, journal, write, executor):
+    """Close the open leaves' extension trees, PROCESSES leaves at a time through the executor (work_leaf), in the
+    order of their keys' sha1, a fixed shuffle (so that the leaves done so far are a fair sample of those left); a leaf
+    whose CLOSED record is in the driver's journal is skipped.  write takes stamped lines.  As each leaf finishes, its
+    records are journaled and its lines written, then its summary line, and its CLOSED record when its tree closed (no
+    node left open).  Returns the tallies of the leaves worked, by index into leaves; a witness ends the driver
+    (SystemExit) once its line is written."""
+    keys = [v5.node_key(nd) for nd in leaves]
+    order = sorted(range(len(leaves)), key=lambda i: hashlib.sha1(keys[i].encode()).hexdigest())
+    todo = [i for i in reversed(order) if journal.records.get(keys[i], {}).get('verdict') != 'CLOSED']
+    tallies, running = {}, {}
+    while todo or running:
+        while todo and len(running) < v5.PROCESSES:
+            i = todo.pop()
+            write(stamped(say_leaf(i, keys[i])))
+            known = {k: r for k, r in journal.records.items() if k.startswith(keys[i] + ' ')}
+            running[executor.submit(work_leaf, leaves[i], known, SOURCE)] = i
+        done, _ = wait(running, return_when=FIRST_COMPLETED)
+        for f in done:
+            i = running.pop(f)
+            made, lines, tally = f.result()
+            for rec in made:
+                journal.put(rec['key'], rec['verdict'], rec['budget'], {k: rec[k] for k in ('lps', 'leaves', 'proof')})
+            for line in lines: write(line)
+            if tally is None: raise SystemExit(1)                    # a witness, its line written above
+            write(stamped((say_leaf_open if tally['open'] else say_leaf_closed)(i, keys[i], tally)))
+            if not tally['open']: journal.put(keys[i], 'CLOSED', v5.node_budget(leaves[i]), {})
+            tallies[i] = tally
+    return tallies
+
+
 def run():
-    """The run that configure() set up: the run's open leaves, the control, each leaf's extension tree, and the
-    outcome, all in the log."""
+    """The run that configure() set up: the run's open leaves, the control, each leaf's extension tree (drive, with
+    make_executor's workers), and the outcome, all in the log."""
     t0 = time.time()
     # TODO: error copy; says the run's journal, which the driver takes its open leaves from, is not there
     assert os.path.exists(v5.JOURNAL), f'Claude: "no journal {v5.JOURNAL} to take the open leaves from"'
     leaves = open_leaves(v5.Journal(v5.JOURNAL))                     # read, never written
     journal = Journal(JOURNAL)
-    # TODO: start line; says: start: n, order at least, how many open leaves the run's journal holds, the extension moduli and certbb's budgets for their own children in LP solves (a pool or an outside node getting so many per member), the HiGHS build, and how many verdicts the driver's journal already holds
-    log_to_file(f'Claude: "start: n = {v5.N}, order at least {v5.ORDER}, open leaves {len(leaves)} of {v5.JOURNAL}, '
-                f'extension moduli {list(MODULI)} with budgets {list(BUDGETS)} (LP solves; a pool or an outside node '
-                f'{v5.POOL_BUDGET} per member), HiGHS {certbb.HIGHS}, {len(journal.records)} earlier verdicts"')
+    log_to_file(say_start(leaves, journal))
     control()
     # TODO: says the startup control passed: the example of order ORDER-1 and length N lands in an own child at every extension modulus, and order ORDER rejects it
     log_to_file(f'Claude: "startup control passed: the order-{v5.ORDER - 1} example of length {v5.N} lands in an own '
                 f'child at each of {list(MODULI)}, and order {v5.ORDER} rejects it"')
-    tallies = []
-    for i, leaf in enumerate(leaves):
-        log_to_file(say_leaf(i, v5.node_key(leaf)))
-        c0 = time.process_time()
-        tallies.append(dict(close_tree(v5.ORDER, leaf, 0, journal, log_to_file), cpu=time.process_time() - c0))
-    for i, (leaf, tally) in enumerate(zip(leaves, tallies, strict=True)):
-        log_to_file(say_leaf_closed(i, v5.node_key(leaf), tally))
+    with make_executor() as executor:
+        tallies = drive(leaves, journal, write_line, executor)
     hours = (time.time() - t0) / 3600
+    left = sorted(i for i, t in tallies.items() if t['open'])
+    if left:
+        # TODO: final line when some leaf's tree did not close; says the driver is not finished: how many leaves have nodes left open and how many nodes, how many leaves closed, and the hours taken
+        log_to_file(f'Claude: "NOT FINISHED: {len(left)} leaves with {sum(tallies[i]["open"] for i in left)} nodes left '
+                    f'open, {len(leaves) - len(left)} leaves closed ({hours:.2f} h)"')
+        return
     # TODO: final line; says every open leaf's extension tree closed, with their count and the hours taken: every piece is INFEASIBLE on a certificate checked in exact integer arithmetic, so no sequence of order at least ORDER lies in any of them
     log_to_file(f'Claude: "ALL {len(leaves)} LEAVES CLOSED ({hours:.2f} h): every piece of every extension tree is '
                 f'INFEASIBLE on a certificate checked in exact integer arithmetic, so no ±1 sequence of length {v5.N} '
@@ -453,8 +620,10 @@ def main():
 # A fingerprint of the driver's code that decides verdicts, taken as imported (see header()); overnight_v5's and
 # certbb's are in the header's code field.
 CODE = hashlib.sha1(''.join(inspect.getsource(f) for f in (
-    parse_key, open_leaves, admissible_box, count_box, box_split, outside_moments, outside_key, solve_piece, settle,
-    close_tree)).encode()).hexdigest()
+    parse_key, open_leaves, admissible_box, count_box, carry, box_split, outside_moments, outside_key, solve_piece,
+    settle, close_tree)).encode()).hexdigest()
+# The files a worker must run as the main process does (work_leaf): this one, and overnight_v5's SOURCE.
+SOURCE = (hashlib.sha1(open(__file__, 'rb').read()).hexdigest(),) + v5.SOURCE
 
 
 if __name__ == '__main__':

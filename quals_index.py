@@ -1422,7 +1422,7 @@ def q_made_up_data_draws():
 STATUSES = ('settled', 'open', 'split', 'pending', 'running')
 # made-up data: one running run, three groups, every status, three recorded ETAs an hour apart
 PROGRESS_DATA = {'made': 1792200000, 'runs': [{
-    'n': 64, 'order': 7, 'state': 'running', 'so_far': 7200.0, 'to_go': {'mean': 3600.0, 'lo': 1800.0, 'hi': 10800.0},
+    'program': 'overnight_v5.py', 'n': 64, 'order': 7, 'state': 'running', 'so_far': 7200.0, 'to_go': {'mean': 3600.0, 'lo': 1800.0, 'hi': 10800.0},
     'etas': [[1792192800, 0.0, 10800.0, 7200.0, 14400.0], [1792196400, 3600.0, 7200.0, 3600.0, 10800.0],
              [1792200000, 7200.0, 3600.0, 1800.0, 10800.0]],
     'statuses': list(STATUSES), 'depth': 1, 'keys': ['3:[0,0,3]', '3:[1,1,1]', '3:[2,1,0]'],
@@ -1432,7 +1432,13 @@ PROGRESS_DATA = {'made': 1792200000, 'runs': [{
 PROGRESS_ETA_DATA = {'made': 1792200000, 'runs': [dict(PROGRESS_DATA['runs'][0], state='ended', so_far=47520.0, to_go=None,
                                                        etas=[[1792100000, 0.0, 7200.0, 3600.0, 14400.0],
                                                              [1792192160, 47520.0, 3600.0, 1800.0, 10800.0]])]}
+# two runs, the second the first as boxsplit.py's pass with no ETA recorded yet (dreeves, 2026-10-17: a second block for
+# 240@11's boxsplit pass)
+PROGRESS_TWO = {'made': 1792200000, 'runs': [PROGRESS_DATA['runs'][0], dict(PROGRESS_DATA['runs'][0], program='boxsplit.py', to_go=None, etas=[])]}
 PROGRESS_EARLY = '<script>window.PROGRESS_POLL_MS = 1000;</script>\n'      # a 1 s poll, for the quals
+# a browser that last left the section open (dreeves, 2026-10-17: "i keep having to re-expand the search progress
+# section", Live Server reloading the page as files change), set before the page's scripts run
+PROGRESS_REMEMBERED = '<script>localStorage.setItem("progress-open", "1");</script>\n'
 # The harness: notes what has loaded, opens the section, waits 3.5 s, reads each dot's middle pixel, the key's counts,
 # the state line and the times, the time bar's parts, the subtrees' blocks and the ETA chart (its markup at rest), hovers over the third
 # group's first dot and over the ETA chart's second record, gives progressData a changed snapshot (one dot running ->
@@ -1453,9 +1459,11 @@ PROGRESS_HARNESS = """<script>
     window.harnessMarker = 'kept';
     out.before = {open: details.open, loads: view().loads, renders: view().renders,
                   scripts: [...document.scripts].filter(s => /progress[.]js/.test(s.getAttribute('src') || '')).length};
+    out.stored = {before: localStorage.getItem('progress-open')};
     details.open = true;
     await sleep(3500);
     out.opened = {loads: view().loads, renders: view().renders};
+    out.stored.opened = localStorage.getItem('progress-open');
     const run = view().data.runs[0];
     out.dots = run.groups.flatMap((g, gi) => [...g].map((c, j) => [+c, pixel(gi, j)]));
     const css = getComputedStyle(section);
@@ -1463,6 +1471,8 @@ PROGRESS_HARNESS = """<script>
     out.counts = counts();
     out.state = [...section.querySelectorAll('[data-state]')].filter(e => !e.hidden).map(e => e.textContent.replace(/\\s+/g, ' ').trim());
     out.made = section.querySelector('[data-made]').textContent;
+    out.heads = [...section.querySelectorAll('.progress-runs h3')].map(h => h.textContent.replace(/\\s+/g, ' ').trim());
+    out.etaDisplays = [...section.querySelectorAll('.progress-runs .progress-eta')].map(e => getComputedStyle(e).display);
     out.age = section.querySelector('[data-age]').textContent;
     const canvas = section.querySelector('canvas'), L = view().layouts[0], [hx, hy] = L.place(2, 0);
     const box = canvas.getBoundingClientRect(), dpr = canvas.width / box.width;
@@ -1489,6 +1499,7 @@ PROGRESS_HARNESS = """<script>
     const atClose = view().loads;
     await sleep(3500);
     out.closed = {atClose, loads: view().loads};
+    out.stored.closed = localStorage.getItem('progress-open');
   } catch (e) { out.harnessError = String(e && e.stack || e); }
   const pre = document.createElement('pre');
   pre.id = 'harness-out';
@@ -1501,14 +1512,16 @@ PROGRESS_RUNS = {}                             # progress_run's reports, by case
 
 
 def progress_run(case='main'):
-    """The harness's report on index.html with the case's data (main: PROGRESS_DATA; eta: PROGRESS_ETA_DATA) as
-    progress.js beside it, made on first use."""
+    """The harness's report on index.html with the case's data (main: PROGRESS_DATA; eta: PROGRESS_ETA_DATA; two:
+    PROGRESS_TWO; remembered: PROGRESS_DATA, with PROGRESS_REMEMBERED's stored state) as progress.js beside it, made on
+    first use."""
     if case not in PROGRESS_RUNS:
-        data = {'main': PROGRESS_DATA, 'eta': PROGRESS_ETA_DATA}[case]
+        data = {'main': PROGRESS_DATA, 'eta': PROGRESS_ETA_DATA, 'two': PROGRESS_TWO, 'remembered': PROGRESS_DATA}[case]
+        early = PROGRESS_EARLY + (PROGRESS_REMEMBERED if case == 'remembered' else '')
         d = tempfile.mkdtemp(prefix='index-quals-')
         text = page()
         assert text.count('<head>\n') == 1 and text.count('</body>') == 1
-        text = text.replace('<head>\n', '<head>\n' + PROGRESS_EARLY).replace('</body>', PROGRESS_HARNESS + '</body>')
+        text = text.replace('<head>\n', '<head>\n' + early).replace('</body>', PROGRESS_HARNESS + '</body>')
         open(os.path.join(d, 'index.html'), 'w', encoding='utf-8').write(text)
         open(os.path.join(d, 'progress.js'), 'w', encoding='utf-8').write('progressData(' + json.dumps(data) + ');\n')
         shutil.copy(DATA, os.path.join(d, 'mstar.js'))
@@ -1612,6 +1625,19 @@ def q_progress_loads_only_while_open():
     assert R['closed']['loads'] == R['closed']['atClose'], R['closed']
 
 
+def q_progress_remembers_it_was_left_open():
+    # Replicata: progress_run with no stored state (main), and with this browser's stored state saying it last left the
+    # section open (remembered, PROGRESS_REMEMBERED); in each, the stored state as the harness begins, after it opens
+    # the section and after it closes it.
+    # Expectata (dreeves, 2026-10-17: reloads kept closing the section; "2": remember it in the browser): main starts
+    # closed with nothing stored, stores "1" once opened and nothing once closed; remembered starts open, its data
+    # loading already (a progress.js script and at least one load before the harness touched it), then the same.
+    main, kept = progress_run(), progress_run('remembered')
+    assert main['before']['open'] is False and main['stored'] == {'before': None, 'opened': '1', 'closed': None}, main['stored']
+    assert kept['before']['open'] is True and kept['before']['loads'] >= 1 and kept['before']['scripts'] >= 1, kept['before']
+    assert kept['stored'] == {'before': '1', 'opened': '1', 'closed': None}, kept['stored']
+
+
 def q_progress_draws_each_dot_in_its_status_color():
     # Replicata: progress_run, the middle pixel of every dot after opening, and the CSS custom properties
     # --progress-<status> (STATUSES).
@@ -1635,6 +1661,17 @@ def q_progress_states_times_and_hours():
     want = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(PROGRESS_DATA['made']))
     assert R['made'] == want, (R['made'], want)
     assert re.fullmatch(r'(\d+ d )?\d+:\d\d:\d\d', R['age']), R['age']
+
+
+def q_progress_names_each_run_s_program():
+    # Replicata: progress_run with two runs: PROGRESS_DATA's, then the same as boxsplit.py's pass (PROGRESS_TWO).
+    # Expectata: two headings, in the data's order, each the run's question and its program, overnight_v5.py then
+    # boxsplit.py (dreeves, 2026-10-17: a second block for the boxsplit pass over 240@11's open cases); the first run's
+    # ETA chart shows and the second's, with no ETA recorded, does not (it showed an empty frame on 2026-10-17: the
+    # chart's CSS display overrode its hidden attribute).
+    R = progress_run('two')
+    assert R['heads'] == ['m*(64) ≥ 7? overnight_v5.py', 'm*(64) ≥ 7? boxsplit.py'], R['heads']
+    assert R['etaDisplays'] == ['grid', 'none'], R['etaDisplays']
 
 
 def q_progress_redraws_in_place_and_reads_out_a_subtree():

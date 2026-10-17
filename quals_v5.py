@@ -1737,6 +1737,57 @@ def q_pools():
     certbb.verify(v5.moments(10), base + ((9, (other,)),), tokens, lo, hi)
 
 
+def q_solve_takes_given_certificates():
+    # Replicata: at 240@11, the first three members of the open mod-4 node's real mod-8 pool, as one pool (q_pools'
+    # (b)), solved once with its proof collected; then solved again with certificates mapping each member's choice to
+    # the one token of its proof, and again with only the first member's.
+    # Expectata: the first solve is INFEASIBLE in 3 LP solves, one ('L', n) token per member (each closes at its root
+    # box); given all three certificates, INFEASIBLE in 0 LP solves with 3 given, the very same tokens, which verify;
+    # given only the first, INFEASIBLE in 2 LP solves with 1 given, the first token the given one and the proof
+    # verifying (the other two certificates may differ: an LP's dual ray depends on the basis it is warm-started from).
+    at(240, 11)
+    pool = v5.split(11, TOP4)[-1][-1][1][:3]
+    node = TOP4 + ((8, pool),)
+    verdict, _, stats, tokens = solved(11, node)
+    assert (verdict, stats['lp'], [t[0] for t in tokens]) == ('INFEASIBLE', 3, ['L'] * 3), (verdict, stats, tokens)
+    choices = list(itertools.product(*(V for _, V in node)))
+    given = {c: t[1] for c, t in zip(choices, tokens, strict=True)}
+    verdict, _, stats, again = solved(11, node, certificates=given)
+    assert (verdict, stats['lp'], stats['given'], again) == ('INFEASIBLE', 0, 3, tokens), (verdict, stats)
+    certbb.verify(v5.moments(11), node, again)
+    verdict, _, stats, again = solved(11, node, certificates={choices[0]: tokens[0][1]})
+    assert (verdict, stats['lp'], stats['given'], again[0]) == ('INFEASIBLE', 2, 1, tokens[0]), (verdict, stats)
+    certbb.verify(v5.moments(11), node, again)
+
+
+def q_a_given_certificate_must_close_its_box():
+    # Replicata: (a) at 240@11, the first member of q_solve_takes_given_certificates' pool, given a certificate of all
+    # zeros (bound 0), then one entry short of its rows; (b) order 10, the box pinned to the published example, the
+    # example's own counts for 3, 5, 7, 4, 8, 11 and 13 with q_pools' other mod-9 vector (INFEASIBLE, its proof one
+    # certificate), then with the example's own mod-9 counts (a FEASIBLE choice), given that certificate.
+    # Expectata: ProofError each time, from solve itself, with no token emitted: a given certificate never stands
+    # unless lower_bound finds it positive on its choice's rows and box, so it never closes a box holding a point.
+    at(240, 11)
+    node = TOP4 + ((8, v5.split(11, TOP4)[-1][-1][1][:1]),)
+    choice = next(itertools.product(*(V for _, V in node)))
+    rows = certbb.node_rows(v5.moments(11), [(M, v) for (M, _), v in zip(node, choice, strict=True)])
+    for n in ([0] * len(rows), [1] * (len(rows) - 1)):
+        emitted = []
+        expect_proof_error(lambda: certbb.solve(v5.moments(11), node, BIG, emitted.append, certificates={choice: n}))
+        assert emitted == []
+    x = x01(EXAMPLE)
+    base = example_node((3, 5, 7, 4, 8, 11, 13))
+    other = v5.admissible(10, 9, ((3, v5.counts(EXAMPLE, 3)),))[0]
+    verdict, _, _, tokens = solved(10, base + ((9, (other,)),), lo=x, hi=x)
+    assert verdict == 'INFEASIBLE' and [t[0] for t in tokens] == ['L'], (verdict, tokens)
+    node = base + ((9, (v5.counts(EXAMPLE, 9),)),)
+    assert solved(10, node, lo=x, hi=x)[0] == 'FEASIBLE'
+    emitted = []
+    expect_proof_error(lambda: certbb.solve(v5.moments(10), node, BIG, emitted.append, x, x,
+                                            certificates={tuple(v for _, (v,) in node): tokens[0][1]}))
+    assert emitted == []
+
+
 def journal_leaves(verdict, k, seed):
     """k random depth-8 single-vector nodes overnight_240_v3's journal holds with this verdict at budget 120 (closed
     within 120 s of wall-clock time, in the run before quick-restart search); read only."""

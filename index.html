@@ -232,6 +232,7 @@ code {
 .progress details > * + * { margin-top: 0.8rem; }
 .progress-runs, .progress-run { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.6rem; }
 .progress h3 { margin: 0; font-size: 1.05rem; }
+.progress h3 code { font-family: var(--mono); font-size: 0.8rem; font-weight: 400; color: var(--muted); }
 .progress p { margin: 0; }
 .progress canvas { display: block; width: 100%; }
 .progress-bar { position: relative; display: flex; height: 0.7rem; border-radius: 2px; overflow: hidden; background: var(--progress-hair); }
@@ -250,6 +251,7 @@ code {
 .progress-readout code { font-family: var(--mono); font-size: 0.8rem; color: var(--ink); overflow-wrap: anywhere; }
 .progress-readout .progress-sw { margin-left: 0.6rem; }
 .progress-eta { margin: 0.4rem 0 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.3rem; }
+.progress-eta[hidden] { display: none; }
 .progress-eta svg { display: block; width: 100%; height: auto; overflow: visible; cursor: crosshair; touch-action: pan-y; }
 .progress-eta polyline { fill: none; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
 .progress-eta .spent { stroke: var(--progress-spent); stroke-width: 1.5; }
@@ -997,7 +999,7 @@ SClaude[11][800] = {
 </section>
 
 <section class="progress" aria-labelledby="progress-title">
-  <!-- TODO: Claude's copy, at dreeves's request (2026-10-17), on the certified searches' progress, in a section that starts closed: when the snapshot was made and how old it is; per run, its question, whether it is running, frozen or ended, and its hours of running so far and to go, also as a bar drawn to scale; a sea of dots, one per sub-case, each subtree a block of its own, colored by status, with a key of the statuses and their counts and a readout of the subtree under the pointer; and progress.html's ETA chart (elapsed time, ETA and elapsed + ETA, in dreeves's words), with a tip for the recorded ETA under the pointer -->
+  <!-- TODO: Claude's copy, at dreeves's request (2026-10-17), on the certified searches' progress, in a section that starts closed: when the snapshot was made and how old it is; per run, its question and the program that runs it (overnight_v5.py, or boxsplit.py over a run's open sub-cases), whether it is running, frozen or ended, and its hours of running so far and to go, also as a bar drawn to scale; a sea of dots, one per sub-case, each subtree a block of its own, colored by status, with a key of the statuses and their counts and a readout of the subtree under the pointer; and progress.html's ETA chart (elapsed time, ETA and elapsed + ETA, in dreeves's words), with a tip for the recorded ETA under the pointer -->
     <details>
       <summary><h2 id="progress-title">Search progress</h2></summary>
       <p>As of <span data-made>—</span> (<span data-age>—</span> ago).</p>
@@ -1005,7 +1007,7 @@ SClaude[11][800] = {
       <div class="progress-runs"></div>
       <template class="progress-run">
         <div class="progress-run">
-          <h3><span class="nw"><i>m</i><sup>*</sup>(<span data-n></span>) ≥ <span data-order></span>?</span></h3>
+          <h3><span class="nw"><i>m</i><sup>*</sup>(<span data-n></span>) ≥ <span data-order></span>?</span> <code data-program></code></h3>
           <p>
             <span data-state="running">Running: <b data-so-far></b> h so far, <b data-to-go></b> h to go.</span>
             <span data-state="frozen">Frozen: <b data-so-far></b> h so far, <b data-to-go></b> h to go.</span>
@@ -1505,7 +1507,9 @@ try {
 // Claude's section "Search progress" (dreeves, 2026-10-17).  progress.py writes its data file, progress.js: one call,
 // progressData({made, runs}) (its contract: progress.js_text).  While the section is open a script element loads
 // progress.js, again every POLL ms (a minute, or window.PROGRESS_POLL_MS, which the quals set), skipped while the tab
-// is hidden; the section draws only when the snapshot changed, in place, and loads nothing while closed.  Every word
+// is hidden; the section draws only when the snapshot changed, in place, and loads nothing while closed.  This browser
+// keeps whether it last left the section open (localStorage, KEPT), and the section opens itself on load if so (dreeves,
+// 2026-10-17: reloads, as Live Server's when files change, kept closing it).  Every word
 // it shows is in the section's HTML (its template); this script writes numbers, times and marks.
 // Per run: a bar of hours so far and to go, to scale (so far, then the band's bottom, then the rest of the band, the
 // mean marked); the sea, one dot per sub-case of the data's groups, each group a block of cells (strips below), cells
@@ -1525,6 +1529,7 @@ try {
   const template = section.querySelector('template.progress-run');
   const missing = section.querySelector('.progress-missing');
   const POLL = window.PROGRESS_POLL_MS || 60000;
+  const KEPT = 'progress-open';                // localStorage: "1" while this browser last left the section open
   const view = window.progressView = {loads: 0, renders: 0, data: null, layouts: []};
   let poll = null, ticker = null, made = null, resizing = null;
 
@@ -1579,6 +1584,7 @@ try {
       runsBox.appendChild(box);
       box.querySelector('[data-n]').textContent = run.n;
       box.querySelector('[data-order]').textContent = run.order;
+      box.querySelector('[data-program]').textContent = run.program;
       for (const e of box.querySelectorAll('[data-state]')) e.hidden = e.dataset.state !== run.state;
       for (const e of box.querySelectorAll('[data-so-far]')) e.textContent = hours(run.so_far);
       for (const e of box.querySelectorAll('[data-to-go]')) e.textContent = run.to_go ? `${hours(run.to_go.lo)}–${hours(run.to_go.hi)}` : '—';
@@ -1745,7 +1751,13 @@ try {
     poll = setInterval(() => { if (!document.hidden) load(); }, POLL);
     ticker = setInterval(tick, 1000);
   }
-  details.addEventListener('toggle', sync);
+  // The stored state is a convenience: where storage is unavailable (a private window, blocked site data) the
+  // section works as without it, starting closed.
+  function keep() {
+    try { if (details.open) localStorage.setItem(KEPT, '1'); else localStorage.removeItem(KEPT); } catch (e) {}
+  }
+  try { details.open = localStorage.getItem(KEPT) === '1'; } catch (e) {}
+  details.addEventListener('toggle', () => { keep(); sync(); });
   sync();                                      // in case it is open already: its toggle may have fired before this ran
   window.addEventListener('resize', () => {
     clearTimeout(resizing);
