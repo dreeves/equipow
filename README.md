@@ -1,5 +1,8 @@
 EquipowerfulPackage.m is a Mathematica package by Stan Wagon.
 
+Up next: What n:m, if we could find them, would most help reduce our 2^18?
+
+
 BGPW's five order-9 examples (lengths 352, 368, 400, 464, 496):
 
 In[1]:= S[9][352]

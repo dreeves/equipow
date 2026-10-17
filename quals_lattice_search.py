@@ -46,9 +46,11 @@ EXTRA = ('latticeSearch[16, 4, 0, "Want" -> Infinity]',)
 KNOWN = (('C27D8C', 48, 6, 1), ('A5994DB29B45A0', 112, 7, -1), ('B24B649ED92CD2C36496CB2DB6295D974138BA41', 320, 9, -1))
 # The searches the section describes, with the lattice dimension it states: (length, d, how d comes about).  For a
 # direct search d = h - floor(m/2), h = n/2 free signs; 336 has one more equation (the matching); 560's direct search
-# would have had 275, and its search with residue sums fixed had 145 free signs under 16 equations.
+# would have had 275, and its search with residue sums fixed had 145 free signs under 16 equations; 800's (2026-10-17,
+# scratch/est800/t800/go800f.py and mitm9.py) would have had 395 and had 133 free signs under 14 equations.
 DIMS = ((144, 68, 72 - 8 // 2), (240, 115, 120 - 10 // 2), (320, 156, 160 - 9 // 2), (336, 163, 168 - 9 // 2 - 1),
-        (432, 211, 216 - 11 // 2), (480, 234, 240 - 12 // 2), (560, 275, 280 - 10 // 2), (560, 129, 145 - 16))
+        (432, 211, 216 - 11 // 2), (480, 234, 240 - 12 // 2), (560, 275, 280 - 10 // 2), (560, 129, 145 - 16),
+        (800, 395, 400 - 11 // 2), (800, 119, 133 - 14))
 RUNS = {}                                     # what run() returned, by its code, made once per process
 
 
@@ -197,6 +199,21 @@ def q_section_states_the_dimensions():
         assert d == count, (n, d, count)
         mine = [it for it in items if it.startswith(f'<b>{n}</b>')]
         assert len(mine) == 1 and f'<i>d</i> = {d}' in mine[0], (n, d, mine)
+
+
+def q_section_says_when_an_empty_result_proves_none():
+    # Replicata: the section's text; and latticeSearch[112, 7, -1, "Want" -> Infinity, "MaxNodes" -> 10^6,
+    # "TimeLimit" -> 1], an unpruned search of a tree of 285 million nodes that holds 2 sequences (CALLS), cut off.
+    # Expectata: the section says an empty list proves there are none only when "complete" is True, and that a search
+    # cut off by "MaxNodes" returns False (Stan Wagon read an empty result at 240, order 10, as "no solution",
+    # 2026-10-16); and the cut-off search does: every trial stops at 10^6 nodes, and "complete" is False.
+    t = text(section())
+    assert 'An empty list of sequences proves there are none only when the result\'s "complete" is True' in t, t
+    assert 'a search cut off by "MaxNodes" returns False' in t, t
+    call = 'latticeSearch[112, 7, -1, "Want" -> Infinity, "MaxNodes" -> 10^6, "TimeLimit" -> 1]'
+    comp, trials, nodes = run(f'With[{{r = {call}}}, Print[ExportString[{{r["complete"], r["trials"], r["nodes"]}}, '
+                              f'"JSON", "Compact" -> True]]]')
+    assert comp is False and trials >= 1 and nodes == trials * 10 ** 6, (comp, trials, nodes)
 
 
 # ---------------------------------------------------------------------------------------------------------------------

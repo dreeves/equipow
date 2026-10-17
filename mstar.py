@@ -162,7 +162,7 @@ NEW = {304: (8, 8, 'Claude alone'), 320: (9, 9, 'BGPW'), 336: (10, 10, 'Claude a
        752: (9, 11, 'Claude alone'),
        768: (11, 13, 'Claude alone'),
        784: (9, 10, 'Claude alone'),
-       800: (10, 11, 'Claude alone'),
+       800: (11, 11, 'Claude alone'),
        816: (10, 14, 'Claude alone'),
        832: (10, 11, 'Claude alone'),
        848: (9, 11, 'Claude alone'),
@@ -175,12 +175,15 @@ NEW = {304: (8, 8, 'Claude alone'), 320: (9, 9, 'BGPW'), 336: (10, 10, 'Claude a
        960: (13, 15, 'Claude alone'),
        976: (10, 11, 'Claude alone'),
        992: (10, 11, 'Claude alone'),
-       2 ** 18: (19, 21, 'Claude alone'), 2 ** 24: (25, 29, 'Claude and BGPW'),
-       2 ** 33: (35, 40, 'Claude alone'), 2 ** 41: (44, 50, 'Claude alone'),
-       2 ** 48: (52, 59, 'Claude alone'), 2 ** 49: (53, 60, 'Claude alone'),
-       2 ** 51: (55, 63, 'Claude and BGPW'), 2 ** 57: (61, 70, 'Claude alone'),
-       2 ** 61: (66, 75, 'Claude alone'), 2 ** 67: (72, 83, 'Claude alone'),
-       2 ** 71: (77, 88, 'Claude alone')}
+       2 ** 17: (18, 20, 'Claude alone'), 2 ** 18: (19, 21, 'Claude alone'),
+       2 ** 24: (25, 29, 'Claude and BGPW'), 2 ** 27: (29, 33, 'Claude alone'),
+       2 ** 33: (35, 40, 'Claude alone'), 2 ** 34: (37, 41, 'Claude alone'),
+       2 ** 38: (42, 46, 'Claude alone'), 2 ** 41: (45, 50, 'Claude alone'),
+       2 ** 46: (51, 57, 'Claude alone'), 2 ** 48: (53, 59, 'Claude alone'),
+       2 ** 49: (54, 60, 'Claude alone'), 2 ** 51: (56, 63, 'Claude and BGPW'),
+       2 ** 52: (58, 64, 'Claude alone'), 2 ** 57: (64, 70, 'Claude alone'),
+       2 ** 61: (68, 75, 'Claude alone'), 2 ** 66: (74, 82, 'Claude alone'),
+       2 ** 67: (75, 83, 'Claude alone'), 2 ** 71: (79, 88, 'Claude alone')}
 # EXAMPLE_BY[n]: who found the example of order NEW[n][0] at n, as the page's remarks credit it, for each n whose lo
 # is that cited value (no sequence of that order is here; columns() asserts that these are exactly those n).  A cited
 # lo's ["page", who] names whose example it is, and a cited hi's whose proof, the cell's title.  At 496 they differ:
@@ -206,6 +209,7 @@ PAGE_CODES = (('index.html BGPW 352', 9, 'A4DB4926DB4D36584B26936D2CFA54B6F04B2C
               ('index.html BGPW 496', 9, 'C96992D92DB24B7596496D1A530DB5994EA699A9ACE072BDC57403B339A4CE'),
               ('index.html p192', 9, 'C1BE1E21CD63D295A7887A59'),
               ('index.html p560', 10, '34D2E9F0DA19EC92492D966936ABCA25FAD924D26F2591EB64926924925D6E1A4BFE92'),
+              ('index.html p800', 11, '966965968F2C965B25B44B25B3596D924B6D96496C964B65B2CB24B25B2C96CB6C97496CB2CD6E960B243A59A592DB2DB6D9'),
               ('index.html p112', 7, 'A5994DB29B45A0'),
               ('index.html p48', 6, 'C27D8C'))
 # Claude's own examples of order 9 at the lengths where the page credits BGPW's (352, 368, 400, 464 and 496), found on
@@ -218,7 +222,7 @@ FOUND = ((352, 9, '969E4C06F693B61B683699E934D241A6DB4936D7CDA6'),
          (464, 9, '8EA4DC62B3DF10709957C395683E3A4D369A6F30DA6984D36D86934C26'),
          (496, 9, 'C2BAD83D5017FA285E3D82ED96135DA2394EB48A6D349E6994D349B6D34DA7'))
 # The sets of the page's section "Claude's examples as sets", as (m, n) for SClaude[m][n], in page order
-PAGE_SET_KEYS = ((9, 320), (9, 336), (11, 432), (9, 448), (12, 480), (10, 528), (10, 560))
+PAGE_SET_KEYS = ((9, 320), (9, 336), (11, 432), (9, 448), (12, 480), (10, 528), (10, 560), (11, 800))
 
 
 def page_n(s):

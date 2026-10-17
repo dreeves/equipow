@@ -157,14 +157,30 @@ TABLE_UPDATE = (('<td class="c">≥ 11</td>', '<td class="c">11–12</td>', 1),
                 ('\n  color-scheme: dark;\n}\n', '\n', 1),
                 # dreeves's own edit of the intro: the {0, 1, …, n − 1} convention (2026-10-13),
                 ('    (Fun fact: This property of having equal power sums for exponents from 0 up to some <i>k</i> is invariant under translating and scaling.\n', '    Fun fact, this property of having equal power sums for exponents from 0 up to some <i>k</i> is invariant under translating and scaling.\n', 1),
-                ('    You can in fact start with any set of <i>n</i> equally spaced integers.)\n', '    You can in fact start with any set of <i>n</i> equally spaced integers.\n  </p>\n  <p class="lede">\n    From now on we use the convention that the <i>n</i>-element set to be partitioned is {0, 1, …, <i>n</i> − 1}.\n', 1))
+                ('    You can in fact start with any set of <i>n</i> equally spaced integers.)\n', '    You can in fact start with any set of <i>n</i> equally spaced integers.\n  </p>\n  <p class="lede">\n    From now on we use the convention that the <i>n</i>-element set to be partitioned is {0, 1, …, <i>n</i> − 1}.\n', 1),
+                # 800 settled at 11 by a lattice search's example (2026-10-17)
+                ('<td class="c">9–10</td><td class="c">10–11</td><td class="c">10–14</td>', '<td class="c">9–10</td><td class="c">11</td><td class="c">10–14</td>', 1),
+                # 800's set and its code block, data that the copy quals would read as English: the set ends the sets'
+                # <code> (on 560's last line); the code block sits where 800's remark is inserted around it (2026-10-17)
+                ('  546, 547, 549, 552, 553, 555, 558, 559};</code></pre>', '  546, 547, 549, 552, 553, 555, 558, 559};\nSClaude[11][800] = {\n  0, 3, 5, 6, 9, 10, 12, 15, 17, 18, 21, 23, 24, 27, 29, 30, 32, 36,\n  37, 38, 39, 42, 44, 45, 48, 51, 53, 54, 57, 59, 60, 62, 63, 66, 69,\n  71, 72, 74, 75, 77, 81, 84, 86, 87, 90, 93, 95, 96, 98, 99, 102,\n  103, 105, 107, 108, 111, 113, 114, 116, 117, 119, 120, 123, 126,\n  129, 132, 134, 135, 137, 138, 140, 141, 143, 144, 147, 149, 150,\n  153, 156, 159, 161, 162, 164, 165, 168, 171, 173, 174, 177, 180,\n  182, 183, 185, 186, 189, 191, 192, 194, 195, 198, 200, 201, 204,\n  206, 207, 210, 213, 216, 218, 219, 222, 225, 227, 228, 230, 231,\n  234, 236, 237, 240, 243, 245, 246, 248, 249, 252, 254, 255, 257,\n  258, 260, 261, 264, 267, 269, 270, 271, 273, 276, 279, 281, 282,\n  284, 285, 288, 290, 291, 294, 296, 297, 300, 301, 303, 305, 306,\n  308, 309, 310, 312, 315, 317, 318, 324, 326, 327, 330, 333, 338,\n  339, 340, 342, 345, 347, 348, 351, 352, 354, 357, 359, 360, 363,\n  366, 368, 369, 371, 372, 374, 375, 378, 380, 381, 383, 384, 386,\n  387, 389, 390, 392, 393, 395, 396, 399, 401, 402, 405, 408, 411,\n  414, 417, 420, 422, 423, 426, 429, 432, 434, 435, 437, 438, 441,\n  443, 444, 446, 449, 450, 453, 455, 456, 458, 462, 463, 464, 465,\n  467, 468, 470, 471, 474, 476, 477, 478, 479, 480, 483, 485, 486,\n  488, 492, 495, 497, 500, 501, 504, 506, 507, 510, 512, 513, 516,\n  519, 521, 522, 524, 525, 527, 531, 533, 534, 536, 537, 540, 543,\n  546, 548, 549, 552, 555, 557, 558, 560, 561, 564, 566, 567, 570,\n  573, 575, 576, 578, 579, 582, 584, 585, 587, 588, 590, 591, 594,\n  596, 597, 600, 602, 603, 606, 609, 611, 612, 615, 618, 620, 621,\n  623, 624, 627, 629, 630, 632, 633, 636, 639, 641, 642, 644, 645,\n  647, 648, 651, 653, 654, 657, 660, 663, 666, 668, 669, 671, 672,\n  674, 675, 677, 678, 681, 684, 687, 689, 690, 693, 695, 698, 699,\n  702, 705, 707, 708, 710, 711, 714, 716, 717, 719, 720, 721, 723,\n  726, 729, 731, 732, 734, 735, 738, 741, 743, 744, 747, 749, 750,\n  752, 753, 756, 758, 759, 764, 765, 766, 768, 771, 773, 774, 777,\n  779, 780, 783, 785, 786, 788, 791, 792, 795, 797, 798};</code></pre>', 1),
+                ('    </li>\n    <li class="j">\n      <span class="mk" aria-hidden="true">◆●</span>\n      <p class="entry"><i>n</i> = 2<sup>24</sup>: &nbsp;', '    </li>\n      <p class="code">\n        <span><i>p</i><sub>800</sub> <span class="nw">(<i>m</i> = 11)</span>:</span>\n        <code>966965968F2C965B25B44B25B3596D924B6D96496C964B65B2CB24B25B2C96CB6C97496CB2CD6E960B243A59A592DB2DB6D9</code>\n      </p>\n    <li class="j">\n      <span class="mk" aria-hidden="true">◆●</span>\n      <p class="entry"><i>n</i> = 2<sup>24</sup>: &nbsp;', 1),
+                # the powers of 2 once 800 reached order 11 (2026-10-17): the first power of 2 for each excess
+                # added (2^17, 2^27, 2^34, 2^38, 2^46, 2^52 and 2^66), 2^41 to 2^71 raised, the rows split after 2^34
+                ('        <table class="block">\n          <tr class="ns"><th scope="row"><i>n</i></th><td title=\'The published paper (2021)\'>2<sup>3</sup></td><td title=\'The published paper (2021)\'>2<sup>4</sup></td><td title=\'The published paper (2021)\'>2<sup>5</sup></td><td title=\'The published paper (2021)\'>2<sup>6</sup></td><td title=\'The published paper (2021)\'>2<sup>7</sup></td><td title=\'The published paper (2021)\'>2<sup>8</sup></td><td class="c" title=\'Claude alone\'>2<sup>9</sup></td><td class="c" title=\'Claude alone\'>2<sup>18</sup></td><td class="j" title=\'Claude and BGPW\'>2<sup>24</sup></td><td class="c" title=\'Claude alone\'>2<sup>33</sup></td><td class="c" title=\'Claude alone\'>2<sup>41</sup></td><td class="c" title=\'Claude alone\'>2<sup>48</sup></td><td class="c" title=\'Claude alone\'>2<sup>49</sup></td></tr>\n          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td><td>8</td><td class="c">9</td><td class="c">19–21</td><td class="j">25–29</td><td class="c">35–40</td><td class="c">44–50</td><td class="c">52–59</td><td class="c">53–60</td></tr>\n        </table>\n        <table class="block">\n          <tr class="ns"><th scope="row"><i>n</i></th><td class="j" title=\'Claude and BGPW\'>2<sup>51</sup></td><td class="c" title=\'Claude alone\'>2<sup>57</sup></td><td class="c" title=\'Claude alone\'>2<sup>61</sup></td><td class="c" title=\'Claude alone\'>2<sup>67</sup></td><td class="c" title=\'Claude alone\'>2<sup>71</sup></td></tr>\n          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="j">55–63</td><td class="c">61–70</td><td class="c">66–75</td><td class="c">72–83</td><td class="c">77–88</td></tr>\n        </table>\n', '        <table class="block">\n          <tr class="ns"><th scope="row"><i>n</i></th><td title=\'The published paper (2021)\'>2<sup>3</sup></td><td title=\'The published paper (2021)\'>2<sup>4</sup></td><td title=\'The published paper (2021)\'>2<sup>5</sup></td><td title=\'The published paper (2021)\'>2<sup>6</sup></td><td title=\'The published paper (2021)\'>2<sup>7</sup></td><td title=\'The published paper (2021)\'>2<sup>8</sup></td><td class="c" title=\'Claude alone\'>2<sup>9</sup></td><td class="c" title=\'Claude alone\'>2<sup>17</sup></td><td class="c" title=\'Claude alone\'>2<sup>18</sup></td><td class="j" title=\'Claude and BGPW\'>2<sup>24</sup></td><td class="c" title=\'Claude alone\'>2<sup>27</sup></td><td class="c" title=\'Claude alone\'>2<sup>33</sup></td><td class="c" title=\'Claude alone\'>2<sup>34</sup></td></tr>\n          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td><td>8</td><td class="c">9</td><td class="c">18–20</td><td class="c">19–21</td><td class="j">25–29</td><td class="c">29–33</td><td class="c">35–40</td><td class="c">37–41</td></tr>\n        </table>\n        <table class="block">\n          <tr class="ns"><th scope="row"><i>n</i></th><td class="c" title=\'Claude alone\'>2<sup>38</sup></td><td class="c" title=\'Claude alone\'>2<sup>41</sup></td><td class="c" title=\'Claude alone\'>2<sup>46</sup></td><td class="c" title=\'Claude alone\'>2<sup>48</sup></td><td class="c" title=\'Claude alone\'>2<sup>49</sup></td><td class="j" title=\'Claude and BGPW\'>2<sup>51</sup></td><td class="c" title=\'Claude alone\'>2<sup>52</sup></td><td class="c" title=\'Claude alone\'>2<sup>57</sup></td><td class="c" title=\'Claude alone\'>2<sup>61</sup></td><td class="c" title=\'Claude alone\'>2<sup>66</sup></td><td class="c" title=\'Claude alone\'>2<sup>67</sup></td><td class="c" title=\'Claude alone\'>2<sup>71</sup></td></tr>\n          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="c">42–46</td><td class="c">45–50</td><td class="c">51–57</td><td class="c">53–59</td><td class="c">54–60</td><td class="j">56–63</td><td class="c">58–64</td><td class="c">64–70</td><td class="c">68–75</td><td class="c">74–82</td><td class="c">75–83</td><td class="c">79–88</td></tr>\n        </table>\n', 1))
+
+# Edits of the remarks' lines that are in the page before the chart (BASE) or in TABLE_UPDATE, kept apart from
+# TABLE_UPDATE because quals_pow2_page.py applies TABLE_UPDATE before its own edits of those remarks, and its own
+# edit of 2026-10-17 covers these lines already: 800's example of order 11 (2026-10-17) moved the first power of 2
+# that beats Thue-Morse by 1 to 2^17, which 2^24's sentence cites, and raised 2^51 to 56.
+REMARK_UPDATE = (('and by the 2<sup>18</sup> entry above for every <span class="nw"><i>k</i> ≥ 18</span>."</p>', 'and by the 2<sup>17</sup> entry above for every <span class="nw"><i>k</i> ≥ 17</span>."</p>', 1),
+                 ('<i>n</i> = 2<sup>51</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {55, …, 63}</span>', '<i>n</i> = 2<sup>51</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {56, …, 63}</span>', 1))
 
 
 def committed():
     """index.html as it was before the chart (BASE), with TABLE_UPDATE's edits made (each count asserted)."""
     text = subprocess.run(['git', '-C', HERE, 'show', f'{BASE}:index.html'], capture_output=True, text=True,
                           check=True).stdout
-    for old, new, count in TABLE_UPDATE:
+    for old, new, count in TABLE_UPDATE + REMARK_UPDATE:
         assert text.count(old) == count, (old, text.count(old))
         text = text.replace(old, new)
     return text
@@ -910,14 +926,14 @@ def q_claude_rewords_what_the_day_made_stale():
     # Replicata: index.html: the 2^24 remark's paragraph, the footer's sentence on BGPW's examples, and the two labels of
     # the order-9 example at 336.
     # Expectata (dreeves, 2026-10-12: "for the "TODO for dreeves" lines, go ahead and change them back to Claude: "…"
-    # with your own corrected wording"): the 2^24 paragraph is Claude's and ends "…for every k ≥ 24, and by the 2^18
-    # entry above for every k ≥ 18."; the footer's is Claude's and names only 416 as not re-checked; the order-9 example
+    # with your own corrected wording"): the 2^24 paragraph is Claude's and ends "…for every k ≥ 24, and by the 2^17
+    # entry above for every k ≥ 17." (2^18 until 800's example of order 11, 2026-10-17); the footer's is Claude's and names only 416 as not re-checked; the order-9 example
     # at 336 is q336 in both labels, the first Claude's (the powers-of-2 chart's p336 is the order-10 one); and no TODO
     # for dreeves is left.
     text = page()
     assert 'TODO for dreeves' not in text and '<i>p</i><sub>336</sub>' not in text and 'at lengths 352, 368' not in text
     assert '<p>Claude: "Joint construction: ' in text
-    assert ('≥ 24</span>, and by the 2<sup>18</sup> entry above for every <span class="nw"><i>k</i> ≥ 18</span>."</p>'
+    assert ('≥ 24</span>, and by the 2<sup>17</sup> entry above for every <span class="nw"><i>k</i> ≥ 17</span>."</p>'
             in text)
     assert '<p>Claude: "BGPW\'s example at length 416 was not re-checked here."</p>' in text
     assert ('<span>Claude: "<i>q</i><sub>336</sub>, an antisymmetric example found independently by Claude; it is the second '
@@ -938,6 +954,22 @@ def q_2_18_shows_its_construction():
     wl = open(os.path.join(HERE, 'certificate_2^18.wl'), encoding='utf-8').read()
     codes = re.findall(r'(p\d+) = fromHex\["([0-9A-F]+)", \d+\];', wl)
     assert [k for k, _ in codes] == ['p320', 'p560', 'p432', 'p48'], codes
+    assert all(f'<code>{h}</code>' in page() for _, h in codes), codes
+
+
+def q_2_17_shows_its_construction():
+    # Replicata: the 2^17 remark on index.html, and certificate_2^17.wl beside it.
+    # Expectata (as for 2^18, which dreeves asked for on 2026-10-12; 800's example of order 11, 2026-10-17, moved the
+    # first power of 2 that beats Thue-Morse by 1 from 2^18 to 2^17): the remark writes out the construction,
+    # (p112 # p800) v (p48 # p432 # tau_1), says where p112's and p48's codes are, and links the script; the script
+    # decodes the four blocks from hex codes that are exactly codes on the page.
+    li = re.search(r'<p class="entry"><i>n</i> = 2<sup>17</sup>: .*?</li>', page(), re.S).group(0)
+    assert '<span class="nw">(<i>p</i><sub>112</sub> # <i>p</i><sub>800</sub>)</span>' in li, li
+    assert '<span class="nw">∨ (<i>p</i><sub>48</sub> # <i>p</i><sub>432</sub> # τ<sub>1</sub>)</span>' in li, li
+    assert 'with the 2<sup>24</sup> entry below' in li and 'certificate_2%5E17.wl">certificate_2^17.wl</a>' in li, li
+    wl = open(os.path.join(HERE, 'certificate_2^17.wl'), encoding='utf-8').read()
+    codes = re.findall(r'(p\d+) = fromHex\["([0-9A-F]+)", \d+\];', wl)
+    assert [k for k, _ in codes] == ['p112', 'p800', 'p48', 'p432'], codes
     assert all(f'<code>{h}</code>' in page() for _, h in codes), codes
 
 
@@ -1022,9 +1054,9 @@ def q_citations_match_the_page():
     value = lambda cell: int(cell) if cell.isdigit() else 2 ** int(re.fullmatch(r'2<sup>(\d+)</sup>', cell).group(1))
     titled = {value(n): who for who, n in re.findall(r"<td(?: class=\"[cjs]\")? title='([^']*)'>([^<]*(?:<sup>\d+</sup>)?)</td>", new)}
     titles = {n: who for n, who in titled.items() if who != 'The published paper (2021)'}
-    # the 44 multiples of 16 from 304 to 992 (512 written 2^9) and 11 larger powers of 2, 2^18 to 2^71 (6 until 560
-    # reached order 10 on 2026-10-12)
-    assert len(titles) == 44 + 11 and sorted(n for n, who in titled.items() if n not in titles) == [8, 16, 32, 64, 128, 256], titled
+    # the 44 multiples of 16 from 304 to 992 (512 written 2^9) and 18 larger powers of 2, 2^17 to 2^71 (6 until 560
+    # reached order 10 on 2026-10-12, 11 until 800 reached order 11 on 2026-10-17)
+    assert len(titles) == 44 + 18 and sorted(n for n, who in titled.items() if n not in titles) == [8, 16, 32, 64, 128, 256], titled
     table2 = {n for n, *_ in table_entries()} - set(titles)
     assert len(table2) == 37, sorted(table2)          # 304 is in both
     section = re.search(r'<section class="remarks">(.*?)</section>', page(), re.S).group(1)

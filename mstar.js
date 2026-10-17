@@ -799,7 +799,7 @@ const MSTAR = {"nmax": 1000, "mtop": 16, "cols": [
 [0, 0, ["none"], ["odd"]],
 [1, 1, ["join", 2, 796], ["two"]],
 [0, 0, ["none"], ["odd"]],
-[10, 11, ["join", 240, 560], ["norm", 3]],
+[11, 11, ["example", "index.html p800"], ["norm", 3]],
 [0, 0, ["none"], ["odd"]],
 [1, 1, ["join", 2, 800], ["two"]],
 [0, 0, ["none"], ["odd"]],
