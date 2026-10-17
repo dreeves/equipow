@@ -272,16 +272,17 @@ def q_command_line():
 
 def q_v5_is_v4_but_the_node_solver():
     # Replicata: at 240@11, overnight_v4's and overnight_v5's code side by side.
-    # Expectata: v5 drops exactly v4's CP-SAT code (add_lattice, build_model, solve, status_with_fix) and adds moments;
-    # every other function and class v4 fingerprints into CODE, and the split's helpers, is textually identical, except
-    # solve_node (certbb's, see its quals) and work and search, which differ from v4's by exactly the edits below,
-    # carrying the solve's journal fields (lps, leaves, proof) to the journal; lattice bases agree for every modulus in
-    # play at orders 10 and 11; the first four splits agree.
+    # Expectata: v5 drops exactly v4's CP-SAT code (add_lattice, build_model, solve, status_with_fix) and adds moments
+    # and sibling_order (2026-10-17: search() pushes a node's children shuffled); every other function and class v4
+    # fingerprints into CODE, and the split's helpers, is textually identical, except solve_node (certbb's, see its
+    # quals) and work and search, which differ from v4's by exactly the edits below, carrying the solve's journal fields
+    # (lps, leaves, proof) to the journal, and in search the children's order; lattice bases agree for every modulus
+    # in play at orders 10 and 11; the first four splits agree.
     at(240, 11)
     at4(240, 11)
     def names(mod): return {k for k, f in vars(mod).items() if callable(f) and getattr(f, '__module__', None) == mod.__name__}
     assert names(v4) - names(v5) == {'add_lattice', 'build_model', 'solve', 'status_with_fix'}, names(v4) - names(v5)
-    assert names(v5) - names(v4) == {'moments'}, names(v5) - names(v4)
+    assert names(v5) - names(v4) == {'moments', 'sibling_order'}, names(v5) - names(v4)
     same = ('lattice_poly', 'lattice_basis', 'moment_rows', 'count_rows', 'ExactSystem', 'integer_system', 'admissible',
             'act', 'stabilizer', 'rep', 'split', 'node_key', 'node_budget', 'moment_basis', 'Relaxation', 'is_pool',
             'size', 'gbinom', 'from_hex', 'exact_order', 'counts', 'act_seq', 'say_witness', 'log_to_file',
@@ -296,7 +297,8 @@ def q_v5_is_v4_but_the_node_solver():
              'search': (("journal.put(node_key(p), 'CLOSED', node_budget(p))", "journal.put(node_key(p), 'CLOSED', node_budget(p), {})"),
                         ('t_split, failures = f.result()', 't_split, failures, found = f.result()'),
                         ('# a CP-SAT solution must pass', '# a certbb solution must pass'),
-                        ('verdict, node_budget(node))\n', 'verdict, node_budget(node), found)\n'))}
+                        ('verdict, node_budget(node))\n', 'verdict, node_budget(node), found)\n'),
+                        ('stack.extend(children)', 'stack.extend(sibling_order(node_key(node), children))'))}
     for name, pairs in edits.items():
         text = inspect.getsource(getattr(v4, name))
         for old, new in pairs:
@@ -904,22 +906,67 @@ def search(path, order=11):
 
 def q_search_closes_tree_and_journals_it():
     # Replicata: the top node is UNKNOWN and splits into two INFEASIBLE children; then the same search again.
-    # Expectata: 2 closed, nothing open, no witness, each node solved once (depth-first: the last child
-    # first), the top journaled CLOSED, each solve's record carrying its journal fields; the second search solves and
-    # splits nothing, settling the top from the journal (1 closed).
+    # Expectata: 2 closed, nothing open, no witness, each node solved once (depth-first: the last child of
+    # sibling_order first, since 2026-10-17; the last of the split before), the top journaled CLOSED, each solve's
+    # record carrying its journal fields; the second search solves and splits nothing, settling the top from the
+    # journal (1 closed).
     at(240, 11)
     a, b = ((3, ((1,),)),), ((3, ((2,),)),)
     calls, fake = fake_world({(): 'UNKNOWN', a: 'INFEASIBLE', b: 'INFEASIBLE'}, {(): [a, b]})
     path = journal_with([])
     with patched(v5, CASCADE=(3, 5), BUDGET=(20, 20, 60), **fake):
         assert search(path) == {'closed': 2, 'open': [], 'witness': None, 'exact_order': None}
-        assert calls == [(), b, a] and v5.Journal(path).records['']['verdict'] == 'CLOSED'
+        assert calls == [()] + v5.sibling_order('', [a, b])[::-1] and v5.Journal(path).records['']['verdict'] == 'CLOSED'
         recs = [json.loads(line) for line in open(path).read().splitlines()[1:]]
         assert [r['verdict'] for r in recs] == ['UNKNOWN', 'INFEASIBLE', 'INFEASIBLE', 'CLOSED']
         assert all(r == {'key': r['key'], 'verdict': r['verdict'], 'budget': r['budget']} | FOUND for r in recs[:3])
         calls.clear()
         assert search(path) == {'closed': 1, 'open': [], 'witness': None, 'exact_order': None} and calls == []
 
+
+
+def q_sibling_order_is_a_fixed_shuffle():
+    # Replicata: v5.sibling_order(key, items) for 40 keys (the top's and made-up ones) and 6 items, twice each.
+    # Expectata (dreeves, 2026-10-13: shuffle the children before the next search, so that progress.py's estimate
+    # samples subtrees fairly): each a permutation of the items, the same every time for the same key and count (it
+    # depends on nothing else), and they differ from key to key, most of them not the split's own order.
+    items = list('abcdef')
+    keys = [''] + [f'3:[{i},{40 - i},0]' for i in range(39)]
+    perms = [v5.sibling_order(k, items) for k in keys]
+    assert all(sorted(p) == items for p in perms) and perms == [v5.sibling_order(k, items) for k in keys]
+    assert v5.sibling_order('3:[1,2,3]', [10, 20, 30]) == [{'a': 10, 'b': 20, 'c': 30}[c] for c in v5.sibling_order('3:[1,2,3]', list('abc'))]
+    assert len({tuple(p) for p in perms}) >= 30 and sum(p != items for p in perms) >= 35, perms[:5]
+
+
+def q_search_pushes_children_in_sibling_order():
+    # Replicata: the top node UNKNOWN, (fake) split into six INFEASIBLE children c0..c5, searched with one worker.
+    # Expectata: after the top, the children are solved in the reverse of v5.sibling_order('', [c0..c5]): search()
+    # pushes them in that order and pops the last first.
+    at(240, 11)
+    kids = [((3, ((i,),)),) for i in range(6)]
+    calls, fake = fake_world({(): 'UNKNOWN'} | {c: 'INFEASIBLE' for c in kids}, {(): kids})
+    with patched(v5, CASCADE=(3, 5), BUDGET=(20, 20, 60), PROCESSES=1, **fake):
+        assert search(journal_with([]))['closed'] == 6
+    assert calls == [()] + v5.sibling_order('', kids)[::-1], calls
+
+
+def q_start_line_says_siblings_shuffled():
+    # Replicata: run() with the control, journal, executor and search faked.
+    # Expectata: its start line ends "N earlier verdicts, siblings shuffled" (2026-10-17), so that progress.py's replay
+    # shuffles the children of this pass's nodes as search() does, and an earlier pass's (without it) in split order.
+    at(240, 11)
+    class FakeJournal:
+        records = {}
+        def __init__(self, path): pass
+    class FakeExecutor:
+        def __enter__(self): return self
+        def __exit__(self, *exc): pass
+    lines = []
+    res = {'closed': 5, 'open': [], 'witness': None, 'exact_order': None}
+    with patched(v5, control=lambda: None, Journal=FakeJournal, make_executor=FakeExecutor,
+                 search=lambda order, journal, log, executor: res, log_to_file=lines.append):
+        v5.run()
+    assert lines[0].startswith('Claude: "start: n = 240,') and lines[0].endswith(', 0 earlier verdicts, siblings shuffled"'), lines[0]
 
 def q_search_reports_open_leaves_and_reuses_journal():
     # Replicata: cascade (3, 5); an UNKNOWN chain down to the bottom, with one INFEASIBLE sibling; then the

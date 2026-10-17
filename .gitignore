@@ -10,4 +10,4 @@ count128/profiles/
 scratch/
 .progress_cache.json
 .progress_cache.json.*.tmp
-progress.html.*.tmp
+progress.js.*.tmp

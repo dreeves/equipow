@@ -220,6 +220,66 @@ code {
 .lattice ul { margin: 0; padding-left: 1.2rem; display: grid; gap: 0.6rem; }
 .lattice .attrib { color: var(--muted); }
 
+/* The search's progress (dreeves, 2026-10-17: a collapsible section of index.html in place of progress.html), a block
+   quote in Claude's hue like the lattice section's.  The statuses' colors, checked with the dataviz palette validator
+   against the page's white, all pairs: worst color-blind pair ΔE 10.8 (protan), worst normal-vision pair 17.6.
+   Pending is a light neutral on purpose (below the validator's chroma floor and lightness band), and pending and
+   running sit below 3:1 against the white, so the key names every status beside its swatch and count.  The ETA
+   chart keeps progress.html's colors and marks (dreeves, 2026-10-09 and 10-10). */
+.progress { display: grid; grid-template-columns: minmax(0, 1fr); max-width: 46rem; --progress-settled: #3a9f7a; --progress-open: #a8283f; --progress-split: #4a73d0; --progress-pending: #bfc3c8; --progress-running: #e09a1c; --progress-spent: #2a78d6; --progress-togo: #e34948; --progress-hair: #e1e0d9; }
+.progress blockquote { margin: 0; padding-left: 1.1rem; border-left: 3px solid var(--claude); display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.8rem; }
+.progress summary { cursor: pointer; }
+.progress summary h2 { display: inline; }
+.progress details > * + * { margin-top: 0.8rem; }
+.progress-runs, .progress-run { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.6rem; }
+.progress h3 { margin: 0; font-size: 1.05rem; }
+.progress p { margin: 0; }
+.progress canvas { display: block; width: 100%; }
+.progress-bar { position: relative; display: flex; height: 0.7rem; border-radius: 2px; overflow: hidden; background: var(--progress-hair); }
+.progress-bar [data-bar="so-far"] { background: var(--progress-spent); }
+.progress-bar [data-bar="lo"] { background: color-mix(in oklab, var(--progress-togo) 45%, var(--paper)); }
+.progress-bar [data-bar="band"] { background: color-mix(in oklab, var(--progress-togo) 16%, var(--paper)); }
+.progress-bar [data-bar="mean"] { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--progress-togo); }
+.progress-key { display: flex; flex-wrap: wrap; gap: 0.3rem 1.2rem; margin: 0; padding: 0; list-style: none; }
+.progress-sw { display: inline-block; width: 0.7rem; height: 0.7rem; margin-right: 0.35rem; border-radius: 2px; vertical-align: -0.05rem; }
+.progress-sw[data-status="settled"] { background: var(--progress-settled); }
+.progress-sw[data-status="open"] { background: var(--progress-open); }
+.progress-sw[data-status="split"] { background: var(--progress-split); }
+.progress-sw[data-status="pending"] { background: var(--progress-pending); }
+.progress-sw[data-status="running"] { background: var(--progress-running); }
+.progress-readout { color: var(--muted); min-height: 2.6rem; }
+.progress-readout code { font-family: var(--mono); font-size: 0.8rem; color: var(--ink); overflow-wrap: anywhere; }
+.progress-readout .progress-sw { margin-left: 0.6rem; }
+.progress-eta { margin: 0.4rem 0 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.3rem; }
+.progress-eta svg { display: block; width: 100%; height: auto; overflow: visible; cursor: crosshair; touch-action: pan-y; }
+.progress-eta polyline { fill: none; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.progress-eta .spent { stroke: var(--progress-spent); stroke-width: 1.5; }
+.progress-eta .togo { stroke: var(--progress-togo); stroke-width: 1.5; }
+.progress-eta .total { stroke: var(--ink); stroke-width: 2.5; }
+.progress-eta .band { fill: color-mix(in oklab, var(--progress-togo) 16%, var(--paper)); stroke: none; }
+.progress-eta .ahead { stroke: var(--progress-spent); stroke-width: 1.5; stroke-dasharray: 5 4; vector-effect: non-scaling-stroke; }
+.progress-eta .cross { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 2 3; vector-effect: non-scaling-stroke; }
+.progress-eta .range { stroke: color-mix(in oklab, var(--progress-togo) 30%, var(--paper)); stroke-width: 6; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.progress-eta .now.togo { fill: var(--progress-togo); stroke: none; }
+.progress-eta .now.total { fill: var(--ink); stroke: none; }
+.progress-eta .axis, .progress-eta .grid { stroke: var(--progress-hair); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.progress-eta text { font-size: 11px; fill: var(--muted); stroke: none; font-variant-numeric: tabular-nums lining-nums; }
+.progress-eta text.label { font-size: 12px; font-weight: 600; }
+.progress-eta .label.togo { fill: var(--progress-togo); }
+.progress-eta .label.total { fill: var(--ink); }
+.progress-eta .label.spent { fill: var(--progress-spent); }
+.progress-eta-keys { font-size: 0.875rem; color: var(--muted); display: flex; flex-wrap: wrap; align-items: center; gap: 0.2rem 0.8rem; }
+.progress-item { white-space: nowrap; display: inline-flex; align-items: center; gap: 0.35rem; }
+.progress-line { display: inline-block; width: 1.4em; border-top: 2px solid var(--k2); }
+.progress-line.spent { --k2: var(--progress-spent); }
+.progress-line.togo { --k2: var(--progress-togo); }
+.progress-line.total { --k2: var(--ink); border-top-width: 3px; }
+.progress-tip { font-size: 0.875rem; color: var(--muted); font-variant-numeric: tabular-nums lining-nums; }
+.progress-tip .spent { color: var(--progress-spent); stroke: none; }
+.progress-tip .togo { color: var(--progress-togo); stroke: none; }
+.progress-tip .total { color: var(--ink); font-weight: 600; stroke: none; }
+.progress .attrib { color: var(--muted); }
+
 /* Claude's chart of m*(n) for n up to 1000: one canvas, drawn by the script at the end from mstar.js. Pan and zoom
    act on n only, and vertical swipes still scroll the page. */
 .mstar { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; }
@@ -938,6 +998,56 @@ SClaude[11][800] = {
   779, 780, 783, 785, 786, 788, 791, 792, 795, 797, 798};</code></pre>
 </section>
 
+<section class="progress" aria-labelledby="progress-title">
+  <!-- TODO: a block quote by Claude, at dreeves's request (2026-10-17), on the certified searches' progress, in a section that starts closed: when the snapshot was made and how old it is; per run, its question, whether it is running, frozen or ended, and its hours of running so far and to go, also as a bar drawn to scale; a sea of dots, one per sub-case, each subtree a block of its own, colored by status, with a key of the statuses and their counts and a readout of the subtree under the pointer; and progress.html's ETA chart (elapsed time, ETA and elapsed + ETA, in dreeves's words), with a tip for the recorded ETA under the pointer -->
+    <details>
+      <summary><h2 id="progress-title">Search progress</h2></summary>
+      <p>As of <span data-made>—</span> (<span data-age>—</span> ago).</p>
+      <p class="progress-missing" hidden>No snapshot: progress.js did not load.</p>
+      <div class="progress-runs"></div>
+      <template class="progress-run">
+        <div class="progress-run">
+          <h3><span class="nw"><i>m</i><sup>*</sup>(<span data-n></span>) ≥ <span data-order></span>?</span></h3>
+          <p>
+            <span data-state="running">Running: <b data-so-far></b> h so far, <b data-to-go></b> h to go.</span>
+            <span data-state="frozen">Frozen: <b data-so-far></b> h so far, <b data-to-go></b> h to go.</span>
+            <span data-state="ended">Ended after <b data-so-far></b> h of running.</span>
+          </p>
+          <div class="progress-bar" aria-hidden="true"><span data-bar="so-far"></span><span data-bar="lo"></span><span data-bar="band"></span><i data-bar="mean"></i></div>
+          <canvas role="img" aria-label="One dot per sub-case, colored by its status, each subtree a block of its own"></canvas>
+          <ul class="progress-key">
+            <li><span class="progress-sw" data-status="settled"></span>settled <span data-count="settled"></span></li>
+            <li><span class="progress-sw" data-status="open"></span>open <span data-count="open"></span></li>
+            <li><span class="progress-sw" data-status="split"></span>split <span data-count="split"></span></li>
+            <li><span class="progress-sw" data-status="pending"></span>pending <span data-count="pending"></span></li>
+            <li><span class="progress-sw" data-status="running"></span>running <span data-count="running"></span></li>
+          </ul>
+          <p class="progress-readout" data-readout>Hover over the dots for a subtree's key and counts.</p>
+          <div class="progress-eta" hidden>
+            <svg viewBox="0 0 640 240" role="img" aria-label="The recorded ETAs against the hours of running, with the elapsed time and elapsed + ETA">
+              <g data-grid></g>
+              <polygon class="band" data-band></polygon>
+              <polyline class="spent" data-spent></polyline>
+              <line class="ahead" data-ahead></line>
+              <polyline class="togo" data-togo></polyline>
+              <polyline class="total" data-total></polyline>
+              <line class="range" data-range></line>
+              <circle class="now togo" r="4" data-now-togo></circle>
+              <circle class="now total" r="4" data-now-total></circle>
+              <text class="label togo" data-label-togo>ETA <tspan data-togo-range></tspan> h</text>
+              <text class="label total" data-label-total><tspan data-total-range></tspan> h</text>
+              <text class="label spent" text-anchor="middle" data-label-spent><tspan data-spent-h></tspan> h</text>
+              <g data-ticks></g>
+              <line class="cross" visibility="hidden" data-cross></line>
+            </svg>
+            <p class="progress-eta-keys"><span class="progress-item"><span class="progress-line spent"></span>elapsed time</span> <span class="progress-item"><span class="progress-line togo"></span>ETA</span> <span class="progress-item"><span class="progress-line total"></span>elapsed + ETA</span></p>
+            <p class="progress-tip" hidden data-tip><span data-tip-when></span>: <span class="spent"><span data-tip-elapsed></span> h elapsed</span>, <span class="togo">ETA <span data-tip-eta></span> h (<span data-tip-range></span> h)</span>, <span class="total">elapsed + ETA <span data-tip-total></span> h</span></p>
+          </div>
+        </div>
+      </template>
+    </details>
+</section>
+
 <footer>
   <p>The first three blocks are copied from Table 2 of the published paper.</p>
   <p>The hex codes follow the paper's Table 5 convention: the left half of the signs <span class="nw">(1 = +1, 0 = −1)</span>, then the rest by <span class="nw">(−1)<sup><i>m</i></sup></span> symmetry.</p>
@@ -1391,6 +1501,258 @@ try {
   ro.textContent = `Claude: "Error drawing this chart:" ${e}`;
   throw e;
 }
+})();
+</script>
+<script>
+// Claude's section "Search progress" (dreeves, 2026-10-17).  progress.py writes its data file, progress.js: one call,
+// progressData({made, runs}) (its contract: progress.js_text).  While the section is open a script element loads
+// progress.js, again every POLL ms (a minute, or window.PROGRESS_POLL_MS, which the quals set), skipped while the tab
+// is hidden; the section draws only when the snapshot changed, in place, and loads nothing while closed.  Every word
+// it shows is in the section's HTML (its template); this script writes numbers, times and marks.
+// Per run: a bar of hours so far and to go, to scale (so far, then the band's bottom, then the rest of the band, the
+// mean marked); the sea, one dot per sub-case of the data's groups, each group a block of cells (strips below), cells
+// of pitch px, chosen from 10 down to 2 px so that the sea is at most about 560 px tall, a dot a device px short of its
+// cell (none short below 3 device px); and progress.html's ETA chart
+// (eta_chart there: dreeves's design), from the run's recorded ETAs.
+// Strips: an ordered strip layout (Bederson, Shneiderman and Wattenberg 2002) on whole cells.  The groups, in order,
+// fill strips across the cols; a strip's blocks share its height h, each as wide as its count needs at that height, a
+// cell's gap between blocks and between strips; h is the least at which the strip's blocks fit across, and a strip
+// takes the next group unless that worsens its worst block's aspect ratio.
+// window.progressView holds the loads, renders, data and, per run, its layout (rects, cols, rows, pitch;
+// place(group, dot): device px) and the ETA chart's record x positions (etaXs, in its viewBox), for the quals.
+(() => {
+  const section = document.querySelector('section.progress');
+  const details = section.querySelector('details');
+  const runsBox = section.querySelector('.progress-runs');
+  const template = section.querySelector('template.progress-run');
+  const missing = section.querySelector('.progress-missing');
+  const POLL = window.PROGRESS_POLL_MS || 60000;
+  const view = window.progressView = {loads: 0, renders: 0, data: null, layouts: []};
+  let poll = null, ticker = null, made = null, resizing = null;
+
+  const pad = x => String(x).padStart(2, '0');
+  const local = t => {
+    const d = new Date(t * 1000);
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
+  const stamp = t => `${local(t)}:${pad(new Date(t * 1000).getSeconds())}`;
+  const duration = sec => {
+    const s = Math.max(0, Math.floor(sec)), d = Math.floor(s / 86400);
+    return (d ? `${d} d ` : '') + `${Math.floor(s / 3600) % 24}:${pad(Math.floor(s / 60) % 60)}:${pad(s % 60)}`;
+  };
+  const hours = sec => (sec / 3600).toFixed(1);
+  const hrs = h => h < 10 ? h.toFixed(1) : h.toFixed(0);             // progress.py's hrs: a tenth below 10, whole from 10
+  const num = v => String(Number(v.toPrecision(12)));
+  const pct = v => `${+(100 * v).toFixed(4)}%`;
+  const tickStep = top => {                                           // progress.py's tick_step
+    const e = Math.floor(Math.log10(top / 5));
+    return [1, 2, 5, 10].map(m => m * 10 ** e).find(step => top / step <= 5);
+  };
+
+  function load() {
+    view.loads += 1;
+    const s = document.createElement('script');
+    s.src = 'progress.js?' + Date.now();
+    s.onload = () => s.remove();
+    s.onerror = () => { s.remove(); missing.hidden = false; };
+    document.head.appendChild(s);
+  }
+
+  function tick() {
+    if (made !== null) section.querySelector('[data-age]').textContent = duration(Date.now() / 1000 - made);
+  }
+
+  window.progressData = data => {
+    missing.hidden = true;
+    if (data.made === made) return;
+    made = data.made;
+    view.data = data;
+    render();
+  };
+
+  function render() {
+    const data = view.data;
+    view.renders += 1;
+    section.querySelector('[data-made]').textContent = stamp(data.made);
+    tick();
+    runsBox.replaceChildren();
+    view.layouts = data.runs.map(run => {
+      const box = template.content.firstElementChild.cloneNode(true);
+      runsBox.appendChild(box);
+      box.querySelector('[data-n]').textContent = run.n;
+      box.querySelector('[data-order]').textContent = run.order;
+      for (const e of box.querySelectorAll('[data-state]')) e.hidden = e.dataset.state !== run.state;
+      for (const e of box.querySelectorAll('[data-so-far]')) e.textContent = hours(run.so_far);
+      for (const e of box.querySelectorAll('[data-to-go]')) e.textContent = run.to_go ? `${hours(run.to_go.lo)}–${hours(run.to_go.hi)}` : '—';
+      for (const e of box.querySelectorAll('[data-count]')) e.textContent = run.counts[e.dataset.count].toLocaleString('en-US');
+      bar(box, run);
+      const L = sea(box, run);
+      L.etaXs = etaChart(box.querySelector('.progress-eta'), run);
+      return L;
+    });
+  }
+
+  function bar(box, run) {
+    const g = run.to_go, total = run.so_far + (g ? g.hi : 0) || 1;
+    const part = name => box.querySelector(`[data-bar="${name}"]`);
+    part('so-far').style.width = pct(run.so_far / total);
+    part('lo').style.width = pct(g ? g.lo / total : 0);
+    part('band').style.width = pct(g ? (g.hi - g.lo) / total : 0);
+    part('mean').style.left = pct(g ? (run.so_far + g.mean) / total : 0);
+    part('mean').hidden = !g;
+  }
+
+  function strips(sizes, W) {
+    const sum = a => a.reduce((s, v) => s + v, 0);
+    const widths = (g, h) => g.map(s => Math.min(W, Math.max(1, Math.ceil(s / h))));
+    const fit = g => {
+      let h = Math.max(1, Math.ceil(sum(g) / Math.max(1, W - g.length + 1)));
+      while (sum(widths(g, h)) + g.length - 1 > W) h++;
+      return h;
+    };
+    const worst = (g, h) => Math.max(...widths(g, h).map(w => Math.max(w / h, h / w)));
+    const rects = [];
+    let i = 0, y = 0;
+    while (i < sizes.length) {
+      let g = [sizes[i]], h = fit(g), j = i + 1;
+      while (j < sizes.length && 2 * g.length + 1 <= W) {
+        const g2 = g.concat(sizes[j]), h2 = fit(g2);
+        if (worst(g2, h2) > worst(g, h)) break;
+        g = g2; h = h2; j++;
+      }
+      let x = 0;
+      for (const w of widths(g, h)) { rects.push({x, y, w, h}); x += w + 1; }
+      y += h + 1;
+      i = j;
+    }
+    return {rects, rows: Math.max(1, y - 1)};
+  }
+
+  function sea(box, run) {
+    const canvas = box.querySelector('canvas');
+    const css = getComputedStyle(section);
+    const colors = run.statuses.map(s => css.getPropertyValue('--progress-' + s).trim());
+    const groups = run.groups, sizes = groups.map(g => g.length);
+    const Wpx = canvas.clientWidth, dpr = window.devicePixelRatio || 1;
+    let L = null;
+    for (let pitch = 10; pitch >= 2 && !L; pitch--) {
+      const cols = Math.max(1, Math.floor(Wpx / pitch)), S = strips(sizes, cols);
+      if (S.rows * pitch <= 560 || pitch === 2) L = {...S, cols, pitch};
+    }
+    const cell = L.pitch * dpr, size = Math.round(cell) >= 3 ? Math.round(cell) - 1 : Math.max(1, Math.round(cell));   // no gap below 3 px: a 1-px dot in a 2-px cell reads as white
+    L.cell = cell;
+    L.size = size;
+    L.place = (gi, j) => {
+      const r = L.rects[gi];
+      return [Math.round((r.x + j % r.w) * cell), Math.round((r.y + Math.floor(j / r.w)) * cell), size];
+    };
+    canvas.style.height = L.rows * L.pitch + 'px';
+    canvas.width = Math.round(Wpx * dpr);
+    canvas.height = Math.round(L.rows * L.pitch * dpr);
+    const ctx = canvas.getContext('2d');
+    groups.forEach((g, gi) => {
+      for (let j = 0; j < g.length; j++) {
+        const [x, y] = L.place(gi, j);
+        ctx.fillStyle = colors[+g[j]];
+        ctx.fillRect(x, y, size, size);
+      }
+    });
+    const readout = box.querySelector('[data-readout]'), hint = [...readout.childNodes];
+    canvas.addEventListener('mousemove', ev => {
+      const b = canvas.getBoundingClientRect();
+      const col = Math.floor((ev.clientX - b.left) / L.pitch), row = Math.floor((ev.clientY - b.top) / L.pitch);
+      const gi = L.rects.findIndex(r => col >= r.x && col < r.x + r.w && row >= r.y && row < r.y + r.h);
+      if (gi < 0 || (row - L.rects[gi].y) * L.rects[gi].w + col - L.rects[gi].x >= sizes[gi]) { readout.replaceChildren(...hint); return; }
+      const code = document.createElement('code');
+      code.textContent = run.keys[gi] || '∅';
+      const parts = [code];
+      run.statuses.forEach((s, i) => {
+        let k = 0;
+        for (const c of groups[gi]) if (+c === i) k++;
+        if (!k) return;
+        const sw = document.createElement('span');
+        sw.className = 'progress-sw';
+        sw.dataset.status = s;
+        parts.push(sw, document.createTextNode(k.toLocaleString('en-US')));
+      });
+      readout.replaceChildren(...parts);
+    });
+    canvas.addEventListener('mouseleave', () => readout.replaceChildren(...hint));
+    return L;
+  }
+
+  function etaChart(fig, run) {
+    const pts = run.etas.map(([t, x, m, lo, hi]) => [t, x / 3600, m / 3600, lo / 3600, hi / 3600]);
+    fig.hidden = !pts.length;
+    if (!pts.length) return [];
+    const NS = 'http://www.w3.org/2000/svg', W = 640, H = 240, L = 48, R = 72, T = 14, B = 30, CROWD = 44;
+    const now = run.so_far / 3600, last = pts[pts.length - 1];
+    const xmax = Math.max(now, 1 / 3600, last[1] + last[2]);
+    const ymax = Math.max(xmax, ...pts.map(p => Math.max(p[1] + p[2], p[4])));
+    const xs = tickStep(xmax), ys = tickStep(ymax);
+    const xticks = Array.from({length: Math.ceil(xmax / xs) + 1}, (_, i) => xs * i);
+    const yticks = Array.from({length: Math.ceil(ymax / ys) + 1}, (_, i) => ys * i);
+    const X = x => L + (W - L - R) * x / xticks[xticks.length - 1];
+    const Y = y => H - B - (H - T - B) * y / yticks[yticks.length - 1];
+    const P = ps => ps.map(([x, y]) => `${X(x).toFixed(2)},${Y(y).toFixed(2)}`).join(' ');
+    const set = (el, attrs) => { for (const k in attrs) el.setAttribute(k, typeof attrs[k] === 'number' ? attrs[k].toFixed(2) : attrs[k]); return el; };
+    const make = (tag, attrs, text) => { const e = set(document.createElementNS(NS, tag), attrs); if (text !== undefined) e.textContent = text; return e; };
+    const q = sel => fig.querySelector(sel);
+    const unit = ticks => ticks.map((v, i) => num(v) + (i === ticks.length - 1 ? ' h' : ''));
+    q('[data-grid]').replaceChildren(...yticks.slice(1).map(v => make('line', {class: 'grid', x1: L, y1: Y(v), x2: W - R, y2: Y(v)})),
+                                     make('line', {class: 'axis', x1: L, y1: Y(0), x2: W - R, y2: Y(0)}));
+    set(q('[data-band]'), {points: P(pts.map(p => [p[1], p[4]]).concat(pts.slice().reverse().map(p => [p[1], p[3]])))});
+    set(q('[data-spent]'), {points: P([[0, 0], [now, now]])});
+    set(q('[data-ahead]'), {x1: X(last[1]), y1: Y(last[1]), x2: X(last[1] + last[2]), y2: Y(last[1] + last[2])});
+    set(q('[data-togo]'), {points: P(pts.map(p => [p[1], p[2]]))});
+    set(q('[data-total]'), {points: P(pts.map(p => [p[1], p[1] + p[2]]))});
+    set(q('[data-range]'), {x1: X(last[1]), y1: Y(last[3]), x2: X(last[1]), y2: Y(last[4])});
+    set(q('[data-now-togo]'), {cx: X(last[1]), cy: Y(last[2])});
+    set(q('[data-now-total]'), {cx: X(last[1]), cy: Y(last[1] + last[2])});
+    set(q('[data-label-togo]'), {x: X(last[1]) + 8, y: Y(last[2]) + 4});
+    q('[data-togo-range]').textContent = `${hrs(last[3])}–${hrs(last[4])}`;
+    set(q('[data-label-total]'), {x: X(last[1]) + 8, y: Y(last[1] + last[2]) - 6});
+    q('[data-total-range]').textContent = `${hrs(last[1] + last[3])}–${hrs(last[1] + last[4])}`;
+    set(q('[data-label-spent]'), {x: X(now), y: H - 8});
+    q('[data-spent-h]').textContent = hrs(now);
+    q('[data-ticks]').replaceChildren(
+      ...yticks.map((v, i) => make('text', {class: 'ytick', x: L - 6, y: Y(v) + 4, 'text-anchor': 'end'}, unit(yticks)[i])),
+      ...xticks.map((v, i) => [v, unit(xticks)[i]]).filter(([v]) => Math.abs(X(v) - X(now)) >= CROWD)
+               .map(([v, label]) => make('text', {class: 'xtick', x: X(v), y: H - 8, 'text-anchor': 'middle'}, label)));
+    const svg = fig.querySelector('svg'), cross = q('[data-cross]'), tip = q('[data-tip]');
+    const xsvg = pts.map(p => X(p[1]));
+    set(cross, {x1: X(last[1]), y1: Y(yticks[yticks.length - 1]), x2: X(last[1]), y2: Y(0)});   // hidden at rest
+    svg.addEventListener('mousemove', ev => {
+      const b = svg.getBoundingClientRect(), x = (ev.clientX - b.left) * W / b.width;
+      let k = 0;
+      for (let i = 1; i < xsvg.length; i++) if (Math.abs(xsvg[i] - x) < Math.abs(xsvg[k] - x)) k = i;
+      const [t, ex, m, lo, hi] = pts[k];
+      set(cross, {x1: xsvg[k], y1: Y(yticks[yticks.length - 1]), x2: xsvg[k], y2: Y(0)}).setAttribute('visibility', 'visible');
+      q('[data-tip-when]').textContent = local(t);
+      q('[data-tip-elapsed]').textContent = ex.toFixed(1);
+      q('[data-tip-eta]').textContent = m.toFixed(1);
+      q('[data-tip-range]').textContent = `${lo.toFixed(1)}–${hi.toFixed(1)}`;
+      q('[data-tip-total]').textContent = (ex + m).toFixed(1);
+      tip.hidden = false;
+    });
+    svg.addEventListener('mouseleave', () => { cross.setAttribute('visibility', 'hidden'); tip.hidden = true; });
+    return xsvg;
+  }
+
+  function sync() {
+    clearInterval(poll);
+    clearInterval(ticker);
+    if (!details.open) return;
+    load();
+    poll = setInterval(() => { if (!document.hidden) load(); }, POLL);
+    ticker = setInterval(tick, 1000);
+  }
+  details.addEventListener('toggle', sync);
+  sync();                                      // in case it is open already: its toggle may have fired before this ran
+  window.addEventListener('resize', () => {
+    clearTimeout(resizing);
+    resizing = setTimeout(() => { if (details.open && view.data) render(); }, 200);
+  });
 })();
 </script>
 </body>

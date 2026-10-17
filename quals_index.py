@@ -17,7 +17,7 @@ reader sees.
 """
 import sys
 sys.dont_write_bytecode = True
-import os, re, json, html, math, time, shutil, signal, difflib, tempfile, threading, traceback, subprocess
+import os, re, json, html, html.parser, math, time, shutil, signal, difflib, tempfile, threading, traceback, subprocess
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 INDEX = os.path.join(HERE, 'index.html')
@@ -792,12 +792,13 @@ def q_section_follows_table2():
 
 def q_scripts_load_data_then_draw():
     # Replicata: index.html's script tags.
-    # Expectata: exactly four, after </main> and before </body>: a classic <script src="mstar.js"> (no type, async or
+    # Expectata: exactly five, after </main> and before </body>: a classic <script src="mstar.js"> (no type, async or
     # defer, so it also loads from file://) and then one inline script; then the chart of powers of 2's, likewise
-    # (quals_pow2_page.py holds those two).
+    # (quals_pow2_page.py holds those two); then the inline script of the section "Search progress", which loads
+    # progress.js itself (2026-10-17).
     text = page()
-    assert re.findall(r'<script\b[^>]*>', text) == ['<script src="mstar.js">', '<script>', '<script src="pow2.js">', '<script>'], \
-        re.findall(r'<script\b[^>]*>', text)
+    assert re.findall(r'<script\b[^>]*>', text) == ['<script src="mstar.js">', '<script>', '<script src="pow2.js">', '<script>',
+                                                    '<script>'], re.findall(r'<script\b[^>]*>', text)
     assert text.index('</main>') < text.index('<script src="mstar.js"></script>') < text.index('<script>\n') < \
         text.index('</script>\n</body>')
 
@@ -1398,6 +1399,333 @@ def q_made_up_data_draws():
     R = valid_run('kinds')
     assert R['canvasDev'][1] > 0 and len(R['rows']) == 8, R['rows']
 
+
+# ---------------------------------------------------------------------------------------------------------------------
+# The section "Search progress" (dreeves, 2026-10-17: "make it a collapsible section of index.html -- no separate
+# progress page -- and have it do something less crude than reloading the page every minute"), which draws
+# progress.py's data file, progress.js (its contract: progress.js_text).
+
+STATUSES = ('settled', 'open', 'split', 'pending', 'running')
+# made-up data: one running run, three groups, every status, three recorded ETAs an hour apart
+PROGRESS_DATA = {'made': 1792200000, 'runs': [{
+    'n': 64, 'order': 7, 'state': 'running', 'so_far': 7200.0, 'to_go': {'mean': 3600.0, 'lo': 1800.0, 'hi': 10800.0},
+    'etas': [[1792192800, 0.0, 10800.0, 7200.0, 14400.0], [1792196400, 3600.0, 7200.0, 3600.0, 10800.0],
+             [1792200000, 7200.0, 3600.0, 1800.0, 10800.0]],
+    'statuses': list(STATUSES), 'depth': 1, 'keys': ['3:[0,0,3]', '3:[1,1,1]', '3:[2,1,0]'],
+    'groups': ['0123', '4', '00110'], 'counts': {'settled': 4, 'open': 3, 'split': 1, 'pending': 1, 'running': 1}}]}
+# progress.html's ETA chart case (quals_progress.eta_chart_case): 13.2 h of running, ended, ETAs of [2, 1, 4] h at
+# its start and [1, 0.5, 3] h at its end
+PROGRESS_ETA_DATA = {'made': 1792200000, 'runs': [dict(PROGRESS_DATA['runs'][0], state='ended', so_far=47520.0, to_go=None,
+                                                       etas=[[1792100000, 0.0, 7200.0, 3600.0, 14400.0],
+                                                             [1792192160, 47520.0, 3600.0, 1800.0, 10800.0]])]}
+PROGRESS_EARLY = '<script>window.PROGRESS_POLL_MS = 1000;</script>\n'      # a 1 s poll, for the quals
+# The harness: notes what has loaded, opens the section, waits 3.5 s, reads each dot's middle pixel, the key's counts,
+# the state line and the times, the time bar's parts, the subtrees' blocks and the ETA chart (its markup at rest), hovers over the third
+# group's first dot and over the ETA chart's second record, gives progressData a changed snapshot (one dot running ->
+# open), then closes the section and waits 3.5 s more; its report goes into <pre id="harness-out">.
+PROGRESS_HARNESS = """<script>
+(async () => {
+  const out = {};
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const section = document.querySelector('section.progress'), details = section.querySelector('details');
+  const view = () => window.progressView;
+  const pixel = (gi, j) => {
+    const [x, y, size] = view().layouts[0].place(gi, j);
+    const p = section.querySelector('canvas').getContext('2d').getImageData(x + (size >> 1), y + (size >> 1), 1, 1).data;
+    return [p[0], p[1], p[2]];
+  };
+  const counts = () => Object.fromEntries([...section.querySelectorAll('[data-count]')].map(e => [e.dataset.count, e.textContent]));
+  try {
+    window.harnessMarker = 'kept';
+    out.before = {open: details.open, loads: view().loads, renders: view().renders,
+                  scripts: [...document.scripts].filter(s => /progress[.]js/.test(s.getAttribute('src') || '')).length};
+    details.open = true;
+    await sleep(3500);
+    out.opened = {loads: view().loads, renders: view().renders};
+    const run = view().data.runs[0];
+    out.dots = run.groups.flatMap((g, gi) => [...g].map((c, j) => [+c, pixel(gi, j)]));
+    const css = getComputedStyle(section);
+    out.colors = run.statuses.map(s => css.getPropertyValue('--progress-' + s).trim());
+    out.counts = counts();
+    out.state = [...section.querySelectorAll('[data-state]')].filter(e => !e.hidden).map(e => e.textContent.replace(/\\s+/g, ' ').trim());
+    out.made = section.querySelector('[data-made]').textContent;
+    out.age = section.querySelector('[data-age]').textContent;
+    const canvas = section.querySelector('canvas'), L = view().layouts[0], [hx, hy] = L.place(2, 0);
+    const box = canvas.getBoundingClientRect(), dpr = canvas.width / box.width;
+    canvas.dispatchEvent(new MouseEvent('mousemove', {clientX: box.left + (hx + L.size / 2) / dpr, clientY: box.top + (hy + L.size / 2) / dpr, bubbles: true}));
+    out.readout = section.querySelector('[data-readout]').textContent.replace(/\\s+/g, ' ').trim();
+    out.bar = Object.fromEntries([...section.querySelectorAll('[data-bar]')].map(e => [e.dataset.bar, e.style.width || e.style.left]));
+    out.blocks = {rects: L.rects, cols: L.cols, rows: L.rows};
+    const fig = section.querySelector('.progress-eta'), svg = fig.querySelector('svg');
+    const text = sel => fig.querySelector(sel).textContent.replace(/\\s+/g, ' ').trim();
+    out.eta = {hidden: fig.hidden, widths: [svg.getBoundingClientRect().width, section.querySelector('canvas').getBoundingClientRect().width],
+               togo: fig.querySelector('[data-togo]').getAttribute('points').trim().split(/\\s+/).length,
+               labelTogo: text('[data-label-togo]'), labelTotal: text('[data-label-total]'), labelSpent: text('[data-label-spent]')};
+    out.etaSvg = svg.outerHTML;
+    const sb = svg.getBoundingClientRect();
+    svg.dispatchEvent(new MouseEvent('mousemove', {clientX: sb.left + L.etaXs[1] * sb.width / 640, clientY: sb.top + sb.height / 2, bubbles: true}));
+    out.eta.tip = fig.querySelector('[data-tip]').hidden ? null : text('[data-tip]');
+    out.etaLegend = text('.progress-eta-keys');
+    const d2 = JSON.parse(JSON.stringify(view().data));
+    d2.made += 60; d2.runs[0].groups[1] = '1'; d2.runs[0].counts.running -= 1; d2.runs[0].counts.open += 1;
+    window.progressData(d2);
+    out.changed = {renders: view().renders, pixel: pixel(1, 0), counts: counts(), marker: window.harnessMarker};
+    details.open = false;
+    await sleep(100);
+    const atClose = view().loads;
+    await sleep(3500);
+    out.closed = {atClose, loads: view().loads};
+  } catch (e) { out.harnessError = String(e && e.stack || e); }
+  const pre = document.createElement('pre');
+  pre.id = 'harness-out';
+  pre.textContent = JSON.stringify(out);
+  document.body.appendChild(pre);
+})();
+</script>
+"""
+PROGRESS_RUNS = {}                             # progress_run's reports, by case, made once per process
+
+
+def progress_run(case='main'):
+    """The harness's report on index.html with the case's data (main: PROGRESS_DATA; eta: PROGRESS_ETA_DATA) as
+    progress.js beside it, made on first use."""
+    if case not in PROGRESS_RUNS:
+        data = {'main': PROGRESS_DATA, 'eta': PROGRESS_ETA_DATA}[case]
+        d = tempfile.mkdtemp(prefix='index-quals-')
+        text = page()
+        assert text.count('<head>\n') == 1 and text.count('</body>') == 1
+        text = text.replace('<head>\n', '<head>\n' + PROGRESS_EARLY).replace('</body>', PROGRESS_HARNESS + '</body>')
+        open(os.path.join(d, 'index.html'), 'w', encoding='utf-8').write(text)
+        open(os.path.join(d, 'progress.js'), 'w', encoding='utf-8').write('progressData(' + json.dumps(data) + ');\n')
+        shutil.copy(DATA, os.path.join(d, 'mstar.js'))
+        shutil.copy(POW2, os.path.join(d, 'pow2.js'))
+        dom = chrome(d, ['--window-size=1000,1100', '--force-device-scale-factor=2', '--virtual-time-budget=20000',
+                         '--dump-dom', 'file://' + os.path.join(d, 'index.html')])
+        m = re.search(r'<pre id="harness-out">(.*?)</pre>', dom, re.S)
+        assert m, dom[-3000:]
+        PROGRESS_RUNS[case] = json.loads(html.unescape(m.group(1)))
+        shutil.rmtree(d)
+    R = PROGRESS_RUNS[case]
+    assert 'harnessError' not in R, R['harnessError']
+    return R
+
+
+def rgb(hexcolor): return [int(hexcolor[i:i + 2], 16) for i in (1, 3, 5)]
+
+
+def q_progress_section_is_a_closed_claude_quote():
+    # Replicata: index.html's section "Search progress".
+    # Expectata: a <section class="progress" aria-labelledby="progress-title"> after the sets' section and before the
+    # footer, holding one block quote attributed to Claude (claude_quotes' form) around a <details> without open, so
+    # it starts closed, whose <summary> is the heading "Search progress" (dreeves's title for progress.html,
+    # 2026-10-09), with a key of the five statuses; no <script> on the page names progress.js, which the section's
+    # script loads only once it is opened.
+    text = page()
+    sec = re.search(r'<section class="progress" aria-labelledby="progress-title">\n(.*?)\n</section>\n', text, re.S)
+    assert sec and text.index('<section class="sets">') < sec.start() < text.index('<footer>'), sec
+    body = sec.group(1)
+    lines = body.split('\n')
+    quoted, todos = claude_quotes(lines)
+    assert len(todos) == 1 and all(i in quoted or i in todos for i, l in enumerate(lines) if l.strip()), lines[:3]
+    assert body.count('<details>') == 1 and '<details open' not in body and body.count('</details>') == 1
+    assert '<summary><h2 id="progress-title">Search progress</h2></summary>' in body
+    assert [s for s in re.findall(r'data-count="(\w+)"', body)] == list(STATUSES)
+    assert not re.search(r'<script[^>]*progress', text)
+
+
+def q_progress_classes_meet_only_its_own_css():
+    # Replicata: the classes the section "Search progress" uses, and the page's CSS rules whose selectors start neither
+    # with its own classes (.progress, .progress-*) nor with another section's class or a chart's id (they match only
+    # inside that section).
+    # Expectata: no such rule names one of the section's classes but nw (the page's no-wrap span, used on purpose).
+    # (2026-10-17: the ETA chart's legend took the page's legend rule for .key, which drew its line swatches as
+    # boxes.)
+    text = page()
+    sec = re.search(r'<section class="progress".*?</section>', text, re.S).group(0)
+    classes = {c for attr in re.findall(r'\bclass="([^"]*)"', sec) for c in attr.split()} - {'nw'}
+    others = set(re.findall(r'<section class="([\w-]+)"', text)) - {'progress'}
+    style = re.sub(r'/\*.*?\*/', '', text[text.index('<style>'):text.index('</style>')], flags=re.S)
+    selectors = [s.strip() for sel in re.findall(r'([^{}]+)\{', style) for s in sel.split(',')]
+    scoped = r'(\.progress(-[\w-]+)?|\.(' + '|'.join(map(re.escape, others)) + r')|#(pow2|mstar)[\w-]*)(?![\w-])'
+    foreign = [s for s in selectors if not re.match(scoped, s)]
+    bad = [(s, c) for s in foreign for c in classes if re.search(rf'\.{re.escape(c)}(?![\w-])', s)]
+    assert classes and not bad, bad
+
+
+def q_progress_script_passes_node_check():
+    # Replicata: the section's inline script (the page's fifth), saved as a .js file, through node --check.
+    # Expectata: exit 0: it parses as a classic script.
+    js = re.findall(r'<script>\n(.*?)</script>', page(), re.S)[-1]
+    d = tempfile.mkdtemp(prefix='index-quals-')
+    path = os.path.join(d, 'progress-section.js')
+    open(path, 'w', encoding='utf-8').write(js)
+    p = subprocess.run(['node', '--check', path], capture_output=True, text=True, timeout=60)
+    shutil.rmtree(d)
+    assert 'progressData' in js and p.returncode == 0, p.stderr
+
+
+def q_progress_loads_only_while_open():
+    # Replicata: progress_run: index.html in headless Chrome with PROGRESS_DATA as progress.js, the poll 1 s.
+    # Expectata: closed at load, with nothing loaded or drawn and no script naming progress.js; opened, it loads
+    # progress.js, again each second (at least 3 loads in 3.5 s), and draws once, since the snapshot did not change;
+    # closed again, it loads nothing more.
+    R = progress_run()
+    assert R['before'] == {'open': False, 'loads': 0, 'renders': 0, 'scripts': 0}, R['before']
+    assert R['opened']['loads'] >= 3 and R['opened']['renders'] == 1, R['opened']
+    assert R['closed']['loads'] == R['closed']['atClose'], R['closed']
+
+
+def q_progress_draws_each_dot_in_its_status_color():
+    # Replicata: progress_run, the middle pixel of every dot after opening, and the CSS custom properties
+    # --progress-<status> (STATUSES).
+    # Expectata: one dot per status digit of the data, in its order, each pixel exactly its status's color; the key's
+    # counts are the data's.
+    R = progress_run()
+    want = [(int(c), STATUSES[int(c)]) for g in PROGRESS_DATA['runs'][0]['groups'] for c in g]
+    assert [s for s, _ in R['dots']] == [s for s, _ in want], R['dots']
+    assert all(len(c) == 7 and c.startswith('#') for c in R['colors']), R['colors']
+    assert all(px == rgb(R['colors'][s]) for s, px in R['dots']), (R['dots'], R['colors'])
+    assert R['counts'] == {s: str(PROGRESS_DATA['runs'][0]['counts'][s]) for s in STATUSES}, R['counts']
+
+
+def q_progress_states_times_and_hours():
+    # Replicata: progress_run's state line, snapshot time and age after opening.
+    # Expectata: only the running state's line shows, with 2.0 h so far and a 0.5–3.0 h band to go (PROGRESS_DATA's
+    # so_far and to_go); the snapshot time is the data's made in local time (YYYY-MM-DD HH:MM:SS), and its age a
+    # duration in digits.
+    R = progress_run()
+    assert R['state'] == ['Running: 2.0 h so far, 0.5–3.0 h to go.'], R['state']
+    want = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(PROGRESS_DATA['made']))
+    assert R['made'] == want, (R['made'], want)
+    assert re.fullmatch(r'(\d+ d )?\d+:\d\d:\d\d', R['age']), R['age']
+
+
+def q_progress_redraws_in_place_and_reads_out_a_subtree():
+    # Replicata: progress_run: a hover over the third group's first dot; then progressData given a changed snapshot
+    # (one minute later, the running dot open).
+    # Expectata: the readout holds the third group's key; after the call the section has drawn again in the same
+    # document (the harness's marker survives: no reload), that dot is open's color and the key counts it.
+    R = progress_run()
+    assert R['readout'].startswith(PROGRESS_DATA['runs'][0]['keys'][2]), R['readout']
+    c = R['changed']
+    assert c['marker'] == 'kept' and c['renders'] == 2, c
+    assert c['pixel'] == rgb(R['colors'][STATUSES.index('open')]), (c['pixel'], R['colors'])
+    assert c['counts']['open'] == '4' and c['counts']['running'] == '0', c['counts']
+
+
+
+def q_progress_draws_time_to_scale():
+    # Replicata: progress_run's time bar: its parts' widths and the mean's mark, as the section sets them.
+    # Expectata (dreeves, 2026-10-09: "lead with time so far and time to go, to scale"): out of so far + the band's
+    # top (2 h + 3 h), so far 40%, the band's bottom 10% after it, the rest of the band 50%, and the mean's mark at 60%.
+    R = progress_run()
+    assert {k: float(v.rstrip('%')) for k, v in R['bar'].items()} == {'so-far': 40.0, 'lo': 10.0, 'band': 50.0, 'mean': 60.0}, R['bar']
+
+
+def q_progress_lays_out_each_subtree_as_a_block():
+    # Replicata: progress_run's layout of the sea: a rectangle of cells per group (x, y, w, h), in a grid cols wide.
+    # Expectata: each group's rectangle holds its dots (w h at least its count) inside the grid; no two rectangles
+    # touch (a cell's gap at least between them); and they come in reading order, as the groups do.
+    B = progress_run()['blocks']
+    rects, sizes = B['rects'], [len(g) for g in PROGRESS_DATA['runs'][0]['groups']]
+    assert len(rects) == len(sizes) and all(r['w'] * r['h'] >= n for r, n in zip(rects, sizes)), (rects, sizes)
+    assert all(r['x'] >= 0 and r['y'] >= 0 and r['x'] + r['w'] <= B['cols'] and r['y'] + r['h'] <= B['rows'] for r in rects), B
+    apart = lambda a, b: a['x'] + a['w'] < b['x'] or b['x'] + b['w'] < a['x'] or a['y'] + a['h'] < b['y'] or b['y'] + b['h'] < a['y']
+    assert all(apart(a, b) for i, a in enumerate(rects) for b in rects[i + 1:]), rects
+    assert [(r['y'], r['x']) for r in rects] == sorted((r['y'], r['x']) for r in rects), rects
+
+
+def q_progress_draws_the_eta_chart():
+    # Replicata: progress_run's ETA chart (progress.html's, ported: dreeves, 2026-10-09 and 10-10), from
+    # PROGRESS_DATA's three recorded ETAs; a hover over the second.
+    # Expectata: shown, as wide as the sea (2026-10-17: as a figure, the page's figure rule shrank it to its content); the
+    # ETA's line has a point per record; the direct labels give the last record's range,
+    # "ETA 0.5–3.0 h", the projected total's, "2.5–5.0 h", and the elapsed time, "2.0 h"; the tip names the second
+    # record: its time (local, to the minute), 1.0 h elapsed, its ETA 2.0 h with its range 1.0–3.0 h, and the total
+    # 3.0 h.
+    E = progress_run()['eta']
+    assert not E['hidden'] and E['togo'] == 3 and abs(E['widths'][0] - E['widths'][1]) <= 1, E
+    assert (E['labelTogo'], E['labelTotal'], E['labelSpent']) == ('ETA 0.5–3.0 h', '2.5–5.0 h', '2.0 h'), E
+    when = time.strftime('%Y-%m-%d %H:%M', time.localtime(PROGRESS_DATA['runs'][0]['etas'][1][0]))
+    assert E['tip'] == f'{when}: 1.0 h elapsed, ETA 2.0 h (1.0–3.0 h), elapsed + ETA 3.0 h', E['tip']
+
+
+class SvgParts(html.parser.HTMLParser):
+    """An svg's elements in document order, each [tag, attributes, text], an element's text with its children's."""
+    def __init__(self):
+        super().__init__()
+        self.items, self.open = [], []
+    def handle_starttag(self, tag, attrs):
+        item = [tag, dict(attrs), '']
+        self.items.append(item)
+        self.open.append(item)
+    def handle_endtag(self, tag):
+        while self.open and self.open.pop()[0] != tag: pass
+    def handle_data(self, data):
+        for item in self.open: item[2] += data
+
+
+def q_progress_eta_chart_keeps_progress_html_s_spec():
+    # Replicata: progress_run('eta'): the section's ETA chart of PROGRESS_ETA_DATA, progress.html's case (13.2 h of
+    # running; ETAs [2, 1, 4] h at 0 h and [1, 0.5, 3] h at 13.2 h), as markup; and the section's CSS.
+    # Expectata, progress.html's (quals_progress's q_page_draws_the_eta_chart until 2026-10-17, when index.html's
+    # section took the chart over): it knows nothing of passes (dreeves, 2026-10-10); round ticks every 5 h from 0 to
+    # 15 h on both axes, labeled, the top one with its unit, a gridline at each y tick but 0, which is the axis; the
+    # diagonal of elapsed time (spent) from (0, 0) to (13.2, 13.2) h, carried on ahead, dashed, to (14.2, 14.2); the
+    # band along the ETAs' tops left to right and their bottoms back; the ETA (togo) and elapsed + ETA (total) with a
+    # point per ETA; at the last, a vertical range line across its band, markers on both lines, and dreeves's direct
+    # labels (2026-10-10; ranges since 2026-10-12): "ETA 0.5–3.0 h" just right of the red marker, "14–16 h" just right
+    # of the black one, and "13 h" in blue on the x axis under it; a cross line hidden at rest; no other line; the
+    # black stroke the widest; the palette's blue (#2a78d6) and red (#e34948) and the page's ink; the legend in
+    # dreeves's words: elapsed time, ETA, elapsed + ETA.
+    R = progress_run('eta')
+    parts = SvgParts()
+    parts.feed(R['etaSvg'])
+    els = [(tag, a, re.sub(r'\s+', ' ', text).strip()) for tag, a, text in parts.items]
+    def pts(text): return [tuple(map(float, xy.split(','))) for xy in text.split()]
+    polys = {a['class']: pts(a['points']) for tag, a, _ in els if tag == 'polyline'}
+    assert sorted(polys) == ['spent', 'togo', 'total'], polys.keys()
+    (x0, y0), (x1, y1) = polys['spent'][0], polys['spent'][-1]          # blue at 0 h and at 13.2 h
+    def X(h): return x0 + (x1 - x0) * h / 13.2
+    def Y(h): return y0 + (y1 - y0) * h / 13.2
+    def near(p, q): return abs(p[0] - q[0]) < 0.05 and abs(p[1] - q[1]) < 0.05
+    def check(got, want, what): assert len(got) == len(want) and all(near(g, (X(a), Y(b))) for g, (a, b) in zip(got, want)), (what, got, [(X(a), Y(b)) for a, b in want])
+    for k, w in (('spent', [(0, 0), (13.2, 13.2)]), ('togo', [(0, 2), (13.2, 1)]), ('total', [(0, 2), (13.2, 14.2)])): check(polys[k], w, k)
+    band = [pts(a['points']) for tag, a, _ in els if tag == 'polygon' and a.get('class') == 'band']
+    assert len(band) == 1, band
+    check(band[0], [(0, 4), (13.2, 3), (13.2, 0.5), (0, 1)], 'band')
+    lines = [(a['class'], tuple(float(a[k]) for k in ('x1', 'y1', 'x2', 'y2')), a) for tag, a, _ in els if tag == 'line']
+    assert sorted(c for c, _, _ in lines) == sorted(['axis', 'ahead', 'range', 'cross', 'grid', 'grid', 'grid']), [c for c, _, _ in lines]
+    seg = {c: s for c, s, _ in lines if c != 'grid'}
+    check([seg['ahead'][:2], seg['ahead'][2:]], [(13.2, 13.2), (14.2, 14.2)], 'ahead')
+    check([seg['range'][:2], seg['range'][2:]], [(13.2, 0.5), (13.2, 3)], 'range')
+    assert abs(seg['axis'][1] - Y(0)) < 0.05 and seg['axis'][1] == seg['axis'][3], seg['axis']
+    grid = [s for c, s, _ in lines if c == 'grid']
+    assert sorted(round((y0 - g[1]) / (y0 - Y(1)), 3) for g in grid) == [5, 10, 15] and all(g[1] == g[3] for g in grid), grid
+    cross = next(a for c, _, a in lines if c == 'cross')
+    assert cross.get('visibility') == 'hidden', cross
+    yt = [(float(a['y']), text) for tag, a, text in els if tag == 'text' and a.get('class') == 'ytick']
+    assert [v for _, v in yt] == ['0', '5', '10', '15 h'] and all(abs(y - 4 - Y(int(v.split()[0]))) < 0.05 for y, v in yt), yt
+    xt = [(float(a['x']), text) for tag, a, text in els if tag == 'text' and a.get('class') == 'xtick']
+    assert [v for _, v in xt] == ['0', '5', '10', '15 h'] and all(abs(x - X(int(v.split()[0]))) < 0.05 for x, v in xt), xt
+    now = {a['class'].split()[1]: (float(a['cx']), float(a['cy'])) for tag, a, _ in els if tag == 'circle'}
+    assert sorted(now) == ['togo', 'total'], now
+    check([now['togo'], now['total']], [(13.2, 1), (13.2, 14.2)], 'now')
+    labels = {a['class'].split()[1]: (float(a['x']), float(a['y']), text) for tag, a, text in els
+              if tag == 'text' and a.get('class', '').startswith('label ')}
+    assert {k: v for k, (_, _, v) in labels.items()} == {'togo': 'ETA 0.5–3.0 h', 'total': '14–16 h', 'spent': '13 h'}, labels
+    for k, h in (('togo', 1), ('total', 14.2)):
+        x, y, _ = labels[k]
+        assert X(13.2) < x < X(13.2) + 20 and abs(y - Y(h)) < 16, (k, labels[k], X(13.2), Y(h))
+    x, y, _ = labels['spent']
+    assert abs(x - X(13.2)) < 0.05 and y > Y(0), (labels['spent'], X(13.2), Y(0))
+    style = page()[page().index('<style>'):page().index('</style>')]
+    assert re.search(r'--progress-spent: #2a78d6;', style) and re.search(r'--progress-togo: #e34948;', style)
+    widths = {k: float(w) for k, w in re.findall(r'\.progress-eta \.(spent|togo|total) \{[^}]*stroke-width: ([\d.]+)', style)}
+    assert set(widths) == {'spent', 'togo', 'total'} and widths['total'] > max(widths['spent'], widths['togo']), widths
+    fills = dict(re.findall(r'\.progress-eta \.label\.(togo|total|spent) \{ fill: var\(--([\w-]+)\); \}', style))
+    assert fills == {'togo': 'progress-togo', 'total': 'ink', 'spent': 'progress-spent'}, fills
+    assert R['etaLegend'] == 'elapsed time ETA elapsed + ETA', R['etaLegend']
 
 def main():
     names = sys.argv[1:] or [n for n in globals() if n.startswith('q_')]

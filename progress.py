@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""A page showing how far the certified searches of overnight_v5.py have got.
+"""How far the certified searches of overnight_v5.py have got: the data file of index.html's section "Search progress"
+(dreeves, 2026-10-17, in place of the page progress.html this file used to write).
 
-Run:   python3 -B progress.py            writes progress.html once
+Run:   python3 -B progress.py            writes progress.js once
        python3 -B progress.py --watch    rewrites it every REFRESH seconds until stopped
-Either way the process first lowers its priority to nice NICE.  progress.html, next to this file, is one
-self-contained page (its only fetches are Google Fonts, as index.html's), reloads itself every REFRESH seconds, and is
+Either way the process first lowers its priority to nice NICE.  progress.js, next to this file and index.html, is
 replaced atomically (see write_atomic), so a reader never sees half of it.  Quals: python3 -B quals_progress.py
 
 For each run (N, ORDER) in RUNS it reads overnight_v5_N_ORDER_journal.jsonl and overnight_v5_N_ORDER.log (see
@@ -39,17 +39,33 @@ keys are kept in CACHE, a file git ignores, by run and by overnight_v5.CODE.  Vo
               which search() writes just after it; a CLOSED record by the line of the record before it (every CLOSED
               record follows a fresh record of its own pass: in a later pass, nothing closes until a re-solved leaf
               settles).  So the journal as of any line is the records dated by it or earlier (see read_run).
+  data file   progress.js (JS), next to index.html, whose section "Search progress" (dreeves, 2026-10-17: "make it a
+              collapsible section of index.html -- no separate progress page") loads it while the section is open,
+              again every minute, and redraws when the snapshot changed: one call, progressData(...);, of each run's
+              state, seconds of running so far and to go, and sea (see js_text).
+  live        a journal key not below an INFEASIBLE one.  A sub-case split in one pass and re-solved INFEASIBLE in a
+              later one (the width test did that to six of 240@11's on 2026-10-11) keeps its old children's
+              records, which no longer count: the levels, the tallies, the open leaves and the sea take the live
+              keys only (see live_keys).
+  tree order  the keys sorted by their constraints, compared one by one (see tree_order): a node just before its
+              descendants, siblings by their count vectors.
+  sea         one dot per frontier sub-case (dreeves, 2026-10-17: "a sea of dots for subtrees or whatever,
+              color-coded for settled, open, split, etc"): the journal's live keys (see live), the running ones, and
+              the cached children of the split ones, less every key that another of them extends; each dot's
+              status is the key's, or running.  A split dot is a split sub-case whose children are not known here
+              (no cached split and none recorded).  The dots are in tree order, grouped by their sub-case at depth
+              SEA_DEPTH (or above the bottom, if that is shallower; a shallower dot is its own group).
   estimate    of a running or frozen run: REPLICATES draws of the current pass's remaining hours of running, from the
-              model below; or none, when the model has nothing to draw from.  The page gives their mean (the ETA) and
-              their QUANTILES (the band around it).  Provisional (2026-10-09): the survival-analysis
+              model below; or none, when the model has nothing to draw from.  The data file gives their mean (the ETA)
+              and their QUANTILES (the band around it).  Provisional (2026-10-09): the survival-analysis
               design of the workflow in scratch/eta-dist/, ported whole, while that workflow's judges are still out.
   ETA         the mean of a snapshot's estimate (dreeves's name for it): E[hours of running until the current pass
               ends], which is when the search ends, unless the pass leaves sub-cases open, as 304@9's first did; no
-              estimate foresees a later pass.  Each time the page is made it records its ETA with the estimate's range
-              (its draws' QUANTILES), by the snapshot's time, in CACHE (by run and overnight_v5.CODE), and its ETA chart
-              draws that record, the range as a shaded band: only ETAs the page actually made, none reconstructed for
-              times before the record began (dreeves, 2026-10-09), against the search's elapsed running time, whatever
-              its passes (dreeves, 2026-10-10).
+              estimate foresees a later pass.  Each time the data file is made it records its ETA with the estimate's
+              range (its draws' QUANTILES), by the snapshot's time, in CACHE (by run and overnight_v5.CODE); the data
+              file carries that record (see eta_records), and the section's ETA chart draws it, the range as a shaded
+              band: only ETAs actually made, none reconstructed for times before the record began (dreeves,
+              2026-10-09), against the search's elapsed running time, whatever its passes (dreeves, 2026-10-10).
 The estimate's model, its terms defined once here (overnight_v5.py's search() is the process it models):
   bottom      the depth of the cascade's last level, len(budgets) - 1; a node there is a job of one certbb solve.
   replay      search()'s stack and running jobs as of the state's time t, rebuilt from the current pass's progress
@@ -104,23 +120,20 @@ The estimate's model, its terms defined once here (overnight_v5.py's search() is
   no estimate an empty array: when a node of kind 'subtree' waits at a depth with no population yet (a fresh subtree
               needs a member's job and split), or no fresh leaf solve has been logged yet (no speed, so no gap).  The
               model then has nothing to draw from.
-It says exactly how old the snapshot is: the time it was
-made, and a running age that its one script keeps up to date.  For each run it gives this pass's work at the estimate's
-level, how the pass ended once it has, its ETA chart (which conveys everything the page once said in words, its
-timeline and its density: dreeves, 2026-10-10), and, in a details element, the passes, the levels, two charts and the
-open leaves.
+The data file says when the snapshot was made, to the second, and the section keeps its age up to date.  Per run it
+gives the state, the hours of running so far and to go, the record of ETAs and the sea (see js_text).
 """
 import sys
 sys.dont_write_bytecode = True
-import os, re, json, time, html, math, bisect, itertools, subprocess, collections
+import os, re, json, time, bisect, itertools, subprocess, collections
 import numpy as np
 import overnight_v5 as v5
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-PAGE = os.path.join(HERE, 'progress.html')
+JS = os.path.join(HERE, 'progress.js')         # the data file of index.html's section "Search progress" (see the vocabulary)
 CACHE = os.path.join(HERE, '.progress_cache.json')
-RUNS = ((240, 11),)                    # the certified runs, (N, ORDER), in the page's order; 304@9 is settled (2026-10-10)
-REFRESH = 60                           # seconds between rewrites under --watch, and between the page's reloads
+RUNS = ((240, 11),)                    # the certified runs, (N, ORDER), in the section's order; 304@9 is settled (2026-10-10)
+REFRESH = 60                           # seconds between rewrites under --watch (the section reloads the data file as often)
 NICE = 15                              # the niceness the process lowers itself to
 # The deepest level enumerated.  Splitting cost the runs themselves (their logs' split seconds, on loaded workers)
 # under 4 s per node on average down to depth 5, but 6.4 s at depth 6 of 240@11 (up to 51 s).  Levels 0..6 need
@@ -131,7 +144,10 @@ SEED = 0                               # the estimate's random generator's seed:
 QUANTILES = (0.05, 0.95)               # the estimate's range, the ETA's band: the middle 90% of its draws (80% was too
                                        # narrow: backtested on 304@9's two finished passes, it held the truth 22 of 31 times)
 HOUR = 3600                            # seconds
-STATUSES = ('settled', 'open', 'split', 'pending')     # the order of the page's columns, bars and legend
+STATUSES = ('settled', 'open', 'split', 'pending')     # the statuses, in the order of the levels' counts
+SEA_DEPTH = 5                          # the sea's groups are the sub-cases at this depth (240@11's 291), or above the bottom
+SEA_STATUSES = STATUSES + ('running',)  # a dot's status, by its index in the data file
+ETA_POINTS = 400                       # the most recorded ETAs the data file carries per run
 
 
 # ---------- reading the runs' files ----------
@@ -164,7 +180,7 @@ STAMP = r'(\d{4}-\d\d-\d\d \d\d:\d\d:\d\d) '
 FORMS = {                              # the log's line forms, as overnight_v5's run, search and say_* write them
     'start': re.compile(STAMP + r'Claude: "start: n = (\d+), order at least (\d+), (\d+) processes, budgets '
                         r'\[([\d, ]+)\] \(LP solves; a pool at least (\d+) per member\), HiGHS (.+), split moduli '
-                        r'\[([\d, ]+)\], (\d+) earlier verdicts"$'),
+                        r'\[([\d, ]+)\], (\d+) earlier verdicts(, siblings shuffled)?"$'),
     'control': re.compile(STAMP + r'Claude: "startup control passed: .*"$'),
     'node': re.compile(STAMP + r'\[(\d+)\] \{(.*)\}: (\w+) \((\d+\.\d) \+ (\d+\.\d) s\); Claude: "closed (\d+), '
                        r'waiting (\d+), running (\d+), open (\d+), LP failures (\d+)"$'),
@@ -182,6 +198,8 @@ def parse_lines(lines):
     """The passes of the log whose complete lines these are, in order, each a dict:
          start, last     the times (epoch seconds) of its start line and of its last line;
          n, order, processes, budgets, pool_budget, highs, moduli, earlier    its start line's fields;
+         shuffled        whether its start line says it shuffles each node's children (overnight_v5.sibling_order,
+                         since 2026-10-17), so that its replay pushes them in that order, not the split's;
          nodes           its progress lines, each a dict of t, i, key, verdict, solve and split (seconds), and the
                          log's counts closed, waiting, running, open and failures;
          opens           the keys of its open lines;
@@ -199,7 +217,7 @@ def parse_lines(lines):
         if kind == 'start':
             passes.append({'start': t, 'n': int(m[2]), 'order': int(m[3]), 'processes': int(m[4]), 'budgets': ints(m[5]),
                            'pool_budget': int(m[6]), 'highs': m[7], 'moduli': ints(m[8]), 'earlier': int(m[9]),
-                           'nodes': [], 'opens': [], 'outcome': None})
+                           'shuffled': m[10] is not None, 'nodes': [], 'opens': [], 'outcome': None})
         # TODO: error copy; says a line of the log comes before any start line or after its pass's outcome line, quoting it
         assert passes and passes[-1]['outcome'] is None, f'Claude: "a log line out of place: {line}"'
         p = passes[-1]
@@ -356,6 +374,58 @@ def status(key, final, budgets):
     return 'open' if leaf(key, len(budgets) - 1) else 'split'
 
 
+def tree_order(key):
+    """The key's place in tree order (see the vocabulary): its constraints compared one by one, a count vector
+    M:[a,b,...] as (M, 0, (a, b, ...), '') and a pool M:#c:sha1 as (M, 1, (c,), sha1), so that a node sorts just
+    before its descendants."""
+    out = []
+    for part in key.split():
+        M, v = part.split(':', 1)
+        if v.startswith('['): out.append((int(M), 0, tuple(int(t) for t in v[1:-1].split(',')), ''))
+        else:
+            pool = re.fullmatch(r'#(\d+):([0-9a-f]{40})', v)
+            assert pool, key
+            out.append((int(M), 1, (int(pool[1]),), pool[2]))
+    return tuple(out)
+
+
+def below(key, above):
+    """Whether key's node is a proper descendant of above's."""
+    return key != above and (above == '' or key.startswith(above + ' '))
+
+
+def live_keys(final):
+    """The journal's keys less those below an INFEASIBLE one (see live in the vocabulary)."""
+    keys, cut = set(), None                    # cut: the last INFEASIBLE key kept, in tree order
+    for k in sorted(final, key=tree_order):
+        if cut is not None and below(k, cut): continue
+        keys.add(k)
+        cut = k if final[k]['verdict'] == 'INFEASIBLE' else None
+    return keys
+
+
+def sea(final, budgets, cache, running):
+    """The sea (see the vocabulary) of the journal's last records final under these budgets, with the splits cached so
+    far and the keys running now: {'depth', 'keys' (its groups' sub-cases), 'groups' (each a string of its dots'
+    statuses, as indices into SEA_STATUSES), 'counts' (by status)}."""
+    bottom = len(budgets) - 1
+    depth = min(SEA_DEPTH, bottom - 1)
+    assert depth >= 0, budgets
+    live = live_keys(final)
+    nodes = live | set(running)
+    for k in live:
+        if status(k, final, budgets) == 'split' and k in cache: nodes.update(cache[k])
+    keys = sorted(nodes, key=tree_order)
+    front = [k for i, k in enumerate(keys) if not (i + 1 < len(keys) and below(keys[i + 1], k))]
+    groups = {}
+    for k in front:
+        s = 'running' if k in running else status(k, final, budgets)
+        groups.setdefault(' '.join(k.split()[:depth]), []).append(str(SEA_STATUSES.index(s)))
+    tally = collections.Counter(c for g in groups.values() for c in g)
+    return {'depth': depth, 'keys': list(groups), 'groups': [''.join(g) for g in groups.values()],
+            'counts': {s: tally[str(i)] for i, s in enumerate(SEA_STATUSES)}}
+
+
 def parse_key(key):
     """The node whose overnight_v5.node_key is key (asserted).  A pool's key holds a count and a hash, not its
     members, so it has no node here (asserted)."""
@@ -385,10 +455,10 @@ def enumerate_levels(final, budgets, order, cache, deepest):
 
 def level_rows(levels, final, budgets, bottom):
     """One row per depth 0..bottom: its depth, whether it is enumerated, and its counts by status.  An enumerated
-    level counts its sub-cases; a deeper one counts the journal's keys at its depth, its pending count unknown
-    (None).  Every journal key at an enumerated depth must be a sub-case of that level (asserted)."""
+    level counts its sub-cases; a deeper one counts the journal's live keys (see live) at its depth, its pending count
+    unknown (None).  Every live key at an enumerated depth must be a sub-case of that level (asserted)."""
     keyed = collections.defaultdict(list)
-    for k in final: keyed[len(k.split())].append(k)
+    for k in live_keys(final): keyed[len(k.split())].append(k)
     rows = []
     for d in range(bottom + 1):
         known = d < len(levels)
@@ -418,7 +488,8 @@ def work(level, depth, stats, nodes):
 
 class Node:
     """A node of the current pass's tree as the replay knows it: key (None while a split that is not cached hides it),
-    parent and depth, kids (in split order), state ('pending' in the stack, 'running', 'done' with a progress line, or
+    parent and depth, kids (in the order search() pushes them: overnight_v5.sibling_order's in a pass that shuffles,
+    the split's before), state ('pending' in the stack, 'running', 'done' with a progress line, or
     'skipped', settled before the pass), cost (a done node's solve + split seconds), start (a running node's start
     time), fresh (a done node that certbb solved in this pass, not a resplit)."""
     __slots__ = ('key', 'parent', 'depth', 'kids', 'state', 'cost', 'start', 'fresh')
@@ -454,6 +525,7 @@ def replay(state):
         K = nd['waiting'] - w + submit + skip                          # so the rest of the waiting count's change is the children
         splits = nd['verdict'] == 'UNKNOWN' and len(nd['key'].split()) < len(budgets) - 1
         kids = cache.get(nd['key'])
+        if kids is not None and p['shuffled']: kids = v5.sibling_order(nd['key'], kids)
         # TODO: error copy; says the replay of search() cannot account for a progress line's counts, naming the state and the line
         assert submit >= 0 and skip >= 0 and K >= 0 and (splits or K == 0) and (kids is None or len(kids) == K), \
             f'Claude: "the replay of {state["label"]} cannot account for line [{nd["i"]}]"'
@@ -611,7 +683,7 @@ def makespan(loads, items):
 # (every half hour, scratch-free: quals_progress.states()), found it noisy rather than one-sided: in pass 1 the mean ran
 # 2-3x too high for most of the pass, in pass 2 about 1.3x too low, and the middle-80% band held the truth 22 of 31
 # times.  240@11's pass 3 swung from about 6 h (2026-10-11 22:54) to about 118 h (2026-10-12 12:52).  The stopgap
-# (2026-10-12): the page labels the ETA and the total with their bands' ranges, not the mean, and the band is the
+# (2026-10-12): the ETA chart labels the ETA and the total with their bands' ranges, not the mean, and the band is the
 # middle 90%.  A real fix would model the total remaining work's posterior (heavy-tailed subtree sizes, queue growth
 # from splits) and be backtested on more finished passes.
 # A likely cause, found 2026-10-13: search() takes siblings in an order whose cost grows (240@11's first 25 depth-5
@@ -632,7 +704,9 @@ def estimate(state, parts=None):
             if kinds[node] == 'resplit' and not node.kids:
                 # TODO: error copy; says the cache lacks the split of a node that search() will split again, naming it
                 assert node.depth == bottom or node.key in state['cache'], f'Claude: "no cached split for {node.key}"'
-                node.kids = [Node(c, node, node.depth + 1) for c in state['cache'].get(node.key, [])]
+                kids = state['cache'].get(node.key, [])
+                if state['passes'][-1]['shuffled']: kids = v5.sibling_order(node.key, kids)
+                node.kids = [Node(c, node, node.depth + 1) for c in kids]
         for c in node.kids: walk(c)
     walk(root)
     done_leaves = [n for n in nodes if n.state == 'done' and n.fresh and n.depth == bottom]
@@ -700,36 +774,14 @@ def estimate(state, parts=None):
     return span / HOUR
 
 
-
-
 # ---------- one run ----------
-
-def series(passes, end):
-    """The page's charts' data: for each pass, its points (x, y) of settled (INFEASIBLE progress lines so far, over
-    all passes) and of open (the log's count in that pass), x the seconds of running over all passes, a pass's
-    running time running from its start line to its last line (to end, for the current pass); the passes' boundaries;
-    and the span of x."""
-    settled, offset, out = 0, 0.0, {'settled': [], 'open': [], 'bounds': []}
-    for p, e in zip(passes, [q['last'] for q in passes[:-1]] + [end]):
-        s_pts, o_pts = [(offset, settled)], [(offset, 0)]
-        for nd in p['nodes']:
-            settled += nd['verdict'] == 'INFEASIBLE'
-            s_pts.append((offset + nd['t'] - p['start'], settled))
-            o_pts.append((offset + nd['t'] - p['start'], nd['open']))
-        out['settled'].append(s_pts)
-        out['open'].append(o_pts)
-        out['bounds'].append(offset)
-        offset += e - p['start']
-    out['bounds'] = out['bounds'][1:]
-    out['span'] = offset
-    return out
 
 
 def survey(n, order, journal, log, procs, now, cache, etas):
-    """Everything the page shows of the run (n, order), from its journal and log, the process list and the time now
-    (epoch seconds); cache holds the run's splits (see children), etas its record of ETAs (see the vocabulary), to
-    which this snapshot's is added: [the mean of its draws, then their QUANTILES], None with none (an ended run has
-    none), by its time in whole seconds."""
+    """The run (n, order) as its journal and log, the process list and the time now (epoch seconds) show it: what the
+    data file needs of it, and more; cache holds the run's splits (see children), etas its record of ETAs (see the
+    vocabulary), to which this snapshot's is added: [the mean of its draws, then their QUANTILES], None with none (an
+    ended run has none), by its time in whole seconds."""
     v5.configure(n, order)
     R = read_run(journal, log)
     passes = R['passes']
@@ -749,546 +801,29 @@ def survey(n, order, journal, log, procs, now, cache, etas):
         children(k, order, cache)
     rows = level_rows(levels, final, budgets, bottom)
     for r in rows: r['modulus'] = ([None] + list(v5.CASCADE))[r['depth']]
-    stats = {k: status(k, final, budgets) for k in set(final) | set(levels[-1])}
-    tally = collections.Counter(stats[k] for k in final)
+    live = live_keys(final)
+    stats = {k: status(k, final, budgets) for k in live | set(levels[-1])}
+    tally = collections.Counter(stats[k] for k in live)
     last = (p['nodes'] or [{'t': None, 'waiting': None, 'running': None}])[-1]
-    opens = sorted(((k, r['budget'], stats[k]) for k, r in final.items() if r['verdict'] == 'UNKNOWN' and leaf(k, bottom)),
+    opens = sorted(((k, final[k]['budget'], stats[k]) for k in live if final[k]['verdict'] == 'UNKNOWN' and leaf(k, bottom)),
                    key=lambda x: parse_key(x[0]))
     spans = [(q['start'], q['last']) for q in passes[:-1]] + [(p['start'], end)]
     parts = {}
     draws = estimate(state_at(R, end, cache, f'{n}@{order} at {clock(end)}'), parts) if state != 'ended' else None
     etas[str(int(end))] = [float(draws.mean())] + [float(q) for q in np.quantile(draws, QUANTILES)] if draws is not None and len(draws) else None
+    running = {nd.key for nd in parts.get('nodes', []) if nd.state == 'running' and nd.key is not None}
+    to_go = ({'mean': float(draws.mean()) * HOUR} | dict(zip(('lo', 'hi'), (float(q) * HOUR for q in np.quantile(draws, QUANTILES))))
+             if draws is not None and len(draws) else None)
     return {'n': n, 'order': order, 'state': state, 'outcome': p['outcome'], 'budgets': budgets,
+            'sea': sea(final, budgets, cache, running), 'so_far': sum(b - a for a, b in spans), 'to_go': to_go,
             'passes': spans,
             'elapsed': end - p['start'], 'last': p['last'],
-            'settled': sum(r['verdict'] == 'INFEASIBLE' for r in final.values()), 'open': tally['open'],
+            'settled': sum(final[k]['verdict'] == 'INFEASIBLE' for k in live), 'open': tally['open'],
             'split': tally['split'], 'line': last['t'], 'waiting': last['waiting'], 'running': last['running'],
             'levels': rows, 'deepest': len(levels) - 1,
             'processes': p['processes'],
             'work': work(levels[-1], len(levels) - 1, stats, p['nodes']) if state != 'ended' else None,
-            'draws': draws, 'etas': etas, 'strip': strip(parts) if draws is not None and len(draws) else None, 'series': series(passes, end), 'open_list': opens}
-
-
-# KNOWN DISCREPANCY (dreeves, 2026-10-13: "27 / 217 done" over the strip's "28 of 212 done", both at depth 5):
-# - 217 vs 212: work() counts every key of the level that the pass touched or that is unsettled; strip() keeps a node
-#   only if fresh (certbb solved it this pass) or waiting or running (in kinds), so it drops the nodes this pass
-#   re-split (kind 'resplit': UNKNOWN from an earlier pass, split again for free) once they are done: 5 at 240@11 on
-#   2026-10-13, 4 still partway.  Their subtrees' work, done and to come, is then missing from the strip.  The fix:
-#   keep every done node that is not skipped (n.state == 'done' and not a skip), at sofar[n] and sofar[n] + its
-#   remaining draws' mean, as for a partway node.
-# - 27 vs 28 done: work()'s done is the journal's status, settled or open; the strip's is no work left this pass,
-#   which also counts a subtree that finished with open leaves (the journal still calls it split).
-def strip(parts):
-    """The strip (dreeves, 2026-10-12: the subtrees "checked off as they're done"): the nodes of this pass at the shallowest
-    depth where a node of kind 'subtree' waits, in search()'s order (the tree's, reversed: it pops the last child
-    first), as {'depth', 'cells': [(key, seconds so far,
-    expected seconds)]}: a finished one its cost twice; a partway one its cost so far, and that plus the mean of its
-    remaining draws; a waiting or running one 0, and the mean of its draws.  None when no subtree waits."""
-    kinds, rem, sofar = parts['kinds'], parts['rem'], parts['sofar']
-    depths = [n.depth for n, k in kinds.items() if k == 'subtree']
-    if not depths: return None
-    d = min(depths)
-    cells = [(n.key, sofar[n] if n.state == 'done' else 0.0,
-              (sofar[n] if n.state == 'done' else 0.0) + (float(rem[n].mean()) if n in rem else 0.0))
-             for n in parts['nodes'] if n.depth == d and (n.fresh or n in kinds)][::-1]
-    return {'depth': d, 'cells': cells}
-
-
-# ---------- the page ----------
-
-def num(x): return '—' if x is None else f'{x:,}'
-def hours(sec): return f'{sec / 3600:.1f}'
-def clock(t): return '—' if t is None else time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(t))
-def duration(sec):
-    """A length of time as days, hours, minutes and seconds, all four always given; the page's script writes the
-    snapshot's age the same way."""
-    sec = int(sec)
-    return f'{sec // 86400} d {sec % 86400 // 3600} h {sec % 3600 // 60} min {sec % 60} s'
-def unattributed(line):
-    """A log line's text without the Claude: \"...\" quotation that overnight_v5.py wraps it in (asserted)."""
-    m = re.fullmatch(r'Claude: "(.*)"', line)
-    assert m, line
-    return m[1]
-def sw(kind): return f"<span class='sw {kind}'></span>"   # single quotes, so it can sit inside copy
-
-
-def thin(points, most=300):
-    """At most about most points, evenly picked, the last always kept."""
-    return points[::max(1, len(points) // most)] + points[-1:]
-
-
-def nice_ceiling(y):
-    """The least round number (1, 1.5, 2, 2.5, 3, 4, 5, 6 or 8 times a power of 10, or the next power) that is at least
-    y and at least 1; y is a whole number, so the result is too."""
-    k = 10 ** (len(str(max(1, int(y)))) - 1)
-    return next(round(m * k) for m in (1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10) if m * k >= y)
-
-
-def key_html(parts, same=0):
-    """A key's constraints, each kept on one line, the first same of them (shared with the key above) faded."""
-    return ' '.join(f'<span class="part{" same" if i < same else ""}">{part}</span>' for i, part in enumerate(parts))
-
-
-def chart(lines, bounds, span, title):
-    """An SVG line chart: one polyline per pass, against seconds of running from 0 to span, with the passes'
-    boundaries as hairlines, ticks at 0 and the top, and the last value at the line's end."""
-    W, H, L, R, T, B = 320, 132, 44, 8, 18, 20
-    top = nice_ceiling(max(y for pts in lines for _, y in pts))
-    def X(x): return L + (W - L - R) * x / max(span, 1)
-    def Y(y): return H - B - (H - T - B) * y / top
-    x1, y1 = lines[-1][-1]
-    return (f'<figure class="chart"><figcaption>{title}</figcaption><svg viewBox="0 0 {W} {H}">'
-            f'<line class="grid" x1="{L}" y1="{Y(top):.1f}" x2="{W - R}" y2="{Y(top):.1f}"/>'
-            f'<line class="axis" x1="{L}" y1="{Y(0):.1f}" x2="{W - R}" y2="{Y(0):.1f}"/>'
-            + ''.join(f'<line class="pass" x1="{X(b):.1f}" y1="{T}" x2="{X(b):.1f}" y2="{Y(0):.1f}"/>' for b in bounds)
-            + ''.join(f'<polyline class="line" points="{" ".join(f"{X(x):.1f},{Y(y):.1f}" for x, y in thin(pts))}"/>'
-                      for pts in lines)
-            + f'<text class="tick" x="{L - 6}" y="{Y(top) + 4:.1f}" text-anchor="end">{top:,}</text>'
-            f'<text class="tick" x="{L - 6}" y="{Y(0) + 4:.1f}" text-anchor="end">0</text>'
-            f'<text class="tick" x="{L}" y="{H - 4}">0</text>'
-            f'<text class="tick" x="{W - R}" y="{H - 4}" text-anchor="end">{hours(span)} h</text>'
-            f'<text class="end" x="{X(x1):.1f}" y="{Y(y1) - 6:.1f}" text-anchor="end">{y1:,}</text>'
-            '</svg></figure>')
-
-
-def levels_html(s):
-    """The levels: a header of swatches, then per level its number, modulus, counts and (enumerated) bar."""
-    def cells(r):
-        c = r['counts']
-        bar = ''.join(f'<span class="seg {k}" style="flex-grow:{c[k]}"></span>' for k in STATUSES if r['enumerated'] and c[k])
-        return (f'<div class="lv{"" if r["enumerated"] else " journal"}"><span class="d">{r["depth"]}</span>'
-                f'<span class="m">{num(r["modulus"])}</span>' + ''.join(f'<span class="n">{num(c[k])}</span>' for k in STATUSES)
-                + f'<span class="barcell"><span class="bar">{bar}</span></span></div>')
-    head = ('<div class="lv head"><span class="d"></span><span class="m"><i>M</i></span>'
-            + ''.join(f'<span class="n">{sw(k)}</span>' for k in STATUSES) + '<span class="barcell"></span></div>')
-    return f'<div class="levels">{head}<span class="rule"></span>{"".join(cells(r) for r in s["levels"])}</div>'
-
-
-def work_html(s):
-    """This pass's sub-cases at the deepest enumerated level (see work): a bar of the done, partway and pending ones,
-    and how many are done; nothing for an ended run."""
-    e = s['work']
-    if e is None: return ''
-    bar = ''.join(f'<span class="seg {k}" style="flex-grow:{n}"></span>'
-                  for k, n in (('settled', e['done']), ('split', e['progress']), ('pending', e['pending'])) if n)
-    # TODO: how many of this pass's sub-cases at the estimate's level are done, of how many
-    return f'<div class="work"><span class="bar">{bar}</span><span class="count">{num(e["done"])} / {num(e["work"])} done</span></div>'
-
-
-def hrs(h):
-    """Hours for a direct label: to a tenth below 10, whole from 10 on."""
-    return f'{h:.1f}' if h < 10 else f'{h:.0f}'
-
-
-def tick_step(top):
-    """The step between an axis's ticks from 0 to at least top hours (top > 0): 1, 2 or 5 times a power of 10, the least
-    that needs at most 5 steps."""
-    e = math.floor(math.log10(top / 5))
-    return next(m * 10 ** e for m in (1, 2, 5, 10) if top / (m * 10 ** e) <= 5)
-
-
-def eta_chart(s):
-    """The run's ETA chart (see ETA in the vocabulary), the chart dreeves asked for, which knows nothing of passes.
-    Against the search's elapsed running time (hours, over all passes) it draws the elapsed time itself (blue, the
-    diagonal) and, carried on ahead and dashed, to where it is level with elapsed + ETA's last value (dreeves,
-    2026-10-10); the recorded ETAs (red; one with no estimate left out) over the shaded band of their ranges; and
-    elapsed + ETA (black, emphasized).  At the last ETA: a vertical line across its range, markers on the red and black
-    lines, and dreeves's direct labels (2026-10-10): the ETA in red right of its marker, the projected total right of
-    its, and the elapsed time in blue on the x axis under them.  Both axes have round ticks (tick_step), the x axis
-    reaching the projected finish, and gridlines across at the y ticks.  A cross line, hidden at rest, and a tip,
-    hidden and empty at rest, are the page's script's to show: the numbers of the recorded ETA nearest the pointer,
-    which data-points holds for every one.  Then a legend in dreeves's words.  A recorded time's elapsed running time
-    comes from the passes (see elapsed); it must fall between the first pass's start and the snapshot (asserted)."""
-    W, H, L, R, T, B = 640, 240, 48, 72, 14, 30
-    CROWD = 44                                                    # an x tick label nearer the elapsed label than this is left out
-    spans = s['passes']
-    starts = [a for a, _ in spans]
-    before = list(itertools.accumulate((b - a for a, b in spans), initial=0.0))   # running seconds before each pass
-    def elapsed(t):
-        """The running hours before time t, a recorded time: one after a pass's last line (its process ran on, or was
-        stopped, unlogged) counts as that pass's end, the log's clock being the page's only one."""
-        k = bisect.bisect_right(starts, t) - 1
-        # TODO: error copy; says the record of ETAs holds a time before the search began or after the snapshot
-        assert k >= 0 and t <= spans[-1][1], f'Claude: "the ETA of {clock(t)} falls outside the running of {s["n"]} {s["order"]}"'
-        return (before[k] + min(t, spans[k][1]) - starts[k]) / HOUR
-    records = [(t, elapsed(t), *e) for t, e in sorted((float(t), e) for t, e in s['etas'].items()) if e is not None]
-    points = [(x, m, lo, hi) for _, x, m, lo, hi in records]
-    now = before[-1] / HOUR
-    xmax = max([now, 1 / HOUR] + [x + m for x, m, _, _ in points[-1:]])        # now (at least a second), or the projected finish
-    ymax = max([xmax] + [max(x + m, hi) for x, m, _, hi in points])
-    xs, ys = tick_step(xmax), tick_step(ymax)
-    xticks = [xs * i for i in range(math.ceil(xmax / xs) + 1)]
-    yticks = [ys * i for i in range(math.ceil(ymax / ys) + 1)]
-    def X(x): return L + (W - L - R) * x / xticks[-1]
-    def Y(y): return H - B - (H - T - B) * y / yticks[-1]
-    def pts(ps): return " ".join(f"{X(x):.2f},{Y(y):.2f}" for x, y in ps)
-    def line(cls, ps): return f'<polyline class="{cls}" points="{pts(ps)}"/>'
-    def unit(ticks): return [f'{v:g}' for v in ticks[:-1]] + [f'{ticks[-1]:g} h']
-    grid = ''.join(f'<line class="grid" x1="{L}" y1="{Y(v):.2f}" x2="{W - R}" y2="{Y(v):.2f}"/>' for v in yticks[1:])
-    axis = f'<line class="axis" x1="{L}" y1="{Y(0):.2f}" x2="{W - R}" y2="{Y(0):.2f}"/>'
-    ylabels = ''.join(f'<text class="ytick" x="{L - 6}" y="{Y(v) + 4:.2f}" text-anchor="end">{label}</text>' for v, label in zip(yticks, unit(yticks)))
-    xlabels = ''.join(f'<text class="xtick" x="{X(v):.2f}" y="{H - 8}" text-anchor="middle">{label}</text>'
-                      for v, label in zip(xticks, unit(xticks)) if abs(X(v) - X(now)) >= CROWD)
-    band = f'<polygon class="band" points="{pts([(x, hi) for x, _, _, hi in points] + [(x, lo) for x, _, lo, _ in reversed(points)])}"/>'
-    ahead = ''.join(f'<line class="ahead" x1="{X(x):.2f}" y1="{Y(x):.2f}" x2="{X(x + m):.2f}" y2="{Y(x + m):.2f}"/>' for x, m, _, _ in points[-1:])
-    last = ''.join(f'<line class="range" x1="{X(x):.2f}" y1="{Y(lo):.2f}" x2="{X(x):.2f}" y2="{Y(hi):.2f}"/>'
-                   f'<circle class="now togo" cx="{X(x):.2f}" cy="{Y(m):.2f}" r="4"/>'
-                   f'<circle class="now total" cx="{X(x):.2f}" cy="{Y(x + m):.2f}" r="4"/>'
-                   # TODO: dreeves's direct labels: the latest ETA's range (its band), in hours, right of its red marker; the projected
-                   # total's range, in hours, right of its black marker.  Ranges, not the mean: a single number read as more precise
-                   # than the estimate is (2026-10-12)
-                   f'<text class="label togo" x="{X(x) + 8:.2f}" y="{Y(m) + 4:.2f}">ETA {hrs(lo)}–{hrs(hi)} h</text>'
-                   f'<text class="label total" x="{X(x) + 8:.2f}" y="{Y(x + m) - 6:.2f}">{hrs(x + lo)}–{hrs(x + hi)} h</text>'
-                   f'<line class="cross" x1="{X(x):.2f}" y1="{Y(yticks[-1]):.2f}" x2="{X(x):.2f}" y2="{Y(0):.2f}" visibility="hidden"/>'
-                   for x, m, lo, hi in points[-1:])
-    # TODO: dreeves's direct label: the elapsed time, in hours, in blue on the x axis under the latest ETA
-    nowlabel = f'<text class="label spent" x="{X(now):.2f}" y="{H - 8}" text-anchor="middle">{hrs(now)} h</text>'
-    entries = [{'x': float(f'{X(x):.2f}'), 'when': time.strftime('%Y-%m-%d %H:%M', time.localtime(t)), 'elapsed': f'{x:.1f}',
-                'eta': f'{m:.1f}', 'lo': f'{lo:.1f}', 'hi': f'{hi:.1f}', 'total': f'{x + m:.1f}'} for t, x, m, lo, hi in records]
-    # TODO: the three series' names, dreeves's own words (2026-10-09): elapsed time, ETA, and their sum
-    keys = ''.join(f'<span class="k"><span class="key {k}"></span>{label}</span> ' for k, label in
-                   (('spent', 'elapsed time'), ('togo', 'ETA'), ('total', 'elapsed + ETA')))
-    return (f'<figure class="forecast-fig" data-points="{html.escape(json.dumps(entries, ensure_ascii=False), quote=True)}">'
-            f'<svg class="forecast" viewBox="0 0 {W} {H}">'
-            + grid + axis + band + line('spent', [(0, 0), (now, now)]) + ahead
-            + line('togo', [(x, m) for x, m, _, _ in points]) + line('total', [(x, x + m) for x, m, _, _ in points])
-            + last + ylabels + xlabels + nowlabel
-            + f'</svg><div class="tip" hidden></div><figcaption class="keys">{keys}</figcaption></figure>')
-
-
-def opens_html(s):
-    """The leaves whose last verdict is UNKNOWN, under their parents (the key less its last constraint), each with its
-    status's swatch: open, or pending (to be solved again in this pass), in gray."""
-    groups = collections.defaultdict(list)
-    for key, _, st in s['open_list']: groups[' '.join(key.split()[:-1])].append((key.split()[-1], st))
-    items, above = [], []
-    for parent, leaves in groups.items():
-        parts = parent.split()
-        items.append(f'<li><code class="parent">{key_html(parts, len(os.path.commonprefix([parts, above])))}</code><ul>'
-                     + ''.join(f'<li class="{st}">{sw(st)} <code>{key_html([last])}</code></li>' for last, st in leaves) + '</ul></li>')
-        above = parts
-    return f'<ul class="opens">{"".join(items)}</ul>'
-
-
-def details_html(s):
-    """The run's details, shown on request: its passes, its levels, its two charts and its open leaves."""
-    # TODO: one line per pass: its number, its start, the end of its running (its last log line, or the snapshot's time while it runs) and its hours
-    passes = '<br>'.join(f'pass {i} · {clock(a)} → {clock(b)} · {hours(b - a)}\u00a0h' for i, (a, b) in enumerate(s['passes'], 1))
-    # TODO: the statuses' swatches, each with its name: settled, open, split, pending
-    legend = ''.join(f'<span>{sw(k)}\u00a0{k}</span>' for k in STATUSES)
-    sr = s['series']
-    # TODO: title of the chart of sub-cases settled by a certificate, against hours of running over all passes
-    c1 = chart(sr['settled'], sr['bounds'], sr['span'], 'settled')
-    # TODO: title of the chart of open leaves (the log's count, which starts again at 0 in each pass), against hours of running over all passes
-    c2 = chart(sr['open'], sr['bounds'], sr['span'], 'open')
-    # TODO: the summary of the details element that holds the rest of what the page knows about the run
-    return (f'<details><summary>details</summary><div class="more"><p class="passes">{passes}</p>'
-            f'<p class="legend">{legend}</p>{levels_html(s)}<div class="charts">{c1}{c2}</div>{opens_html(s)}</div></details>')
-
-
-def strip_html(s):
-    """The strip (see strip) as an svg: one group per node, a rect todo as wide as its share of the expected seconds and
-    over it a rect done as wide as its share so far, with its numbers in a title; above it, how many are finished."""
-    st = s.get('strip')
-    if not st: return ''
-    W, H, cells = 640, 18, st['cells']
-    total = sum(e for _, _, e in cells) or 1.0
-    x, groups = 0.0, []
-    for key, done, exp in cells:
-        w, f = W * exp / total, W * done / total
-        groups.append(f'<g><title>{html.escape(key or "?")}: {hours(done)} of about {hours(exp)} h</title>'
-                      f'<rect class="todo" x="{x:.2f}" y="0" width="{w:.2f}" height="{H}"/>'
-                      f'<rect class="done" x="{x:.2f}" y="0" width="{f:.2f}" height="{H}"/></g>')
-        x += w
-    finished = sum(1 for _, d, e in cells if d == e)
-    started = sum(1 for _, d, e in cells if 0 < d < e)
-    # the strip's label; says the level, how many of its subtrees are finished and under way, and the share of its expected work done
-    label = (f'depth {st["depth"]}: {finished} of {len(cells)} done, {started} in progress; ~'
-             f'{100 * sum(d for _, d, _ in cells) / total:.0f}% of the expected work')
-    return (f'<figure class="strip-fig"><figcaption>{label}</figcaption>'
-            f'<svg class="strip" viewBox="0 0 {W} {H}" preserveAspectRatio="none">{"".join(groups)}</svg></figure>')
-
-
-def run_html(s):
-    """One run's section: its question and state; this pass's work; how the pass ended, once it has; its ETA chart;
-    its details."""
-    states = {
-        # TODO: state of a run whose process is at work
-        'running': 'running',
-        # TODO: state of a run whose process, or one of its workers, is stopped (as by SIGSTOP)
-        'frozen': 'frozen',
-        # TODO: state of a run with no process, or whose current pass has logged how it ended
-        'ended': 'ended',
-    }
-    glyph = {'running': '●', 'frozen': '❚❚', 'ended': '■'}[s['state']]
-    outcome = f'<p class="outcome">{html.escape(unattributed(s["outcome"]), quote=False)}</p>' if s['outcome'] else ''
-    return (f'<section class="run"><div class="run-head"><h2><i>m</i><sup>*</sup>({s["n"]}) ≥ {s["order"]}?</h2>'
-            f'<span class="state {s["state"]}"><span aria-hidden="true">{glyph}</span> {states[s["state"]]}</span></div>'
-            f'{work_html(s)}{strip_html(s)}{outcome}{eta_chart(s)}{details_html(s)}</section>')
-
-
-SCRIPT = """
-// The page's one script.  First the snapshot's age, written as duration() in progress.py writes a length of time.
-// Clocks that disagree by a moment could make it negative; it is shown as 0 s then.
-const age = document.getElementById('age'), made = Number(age.dataset.made);
-function tick() {
-  const s = Math.max(0, Math.floor((Date.now() - made) / 1000));
-  age.textContent = `${Math.floor(s / 86400)} d ${Math.floor(s % 86400 / 3600)} h ${Math.floor(s % 3600 / 60)} min ${s % 60} s`;
-}
-tick();
-setInterval(tick, 1000);
-// Then each ETA chart's hover: when a pointer moves or presses (a touch) over the chart, the cross line goes to the
-// recorded ETA nearest it in elapsed time and the tip shows that ETA's numbers, beside the line on its roomier side;
-// when the pointer leaves, both hide.  A chart with no recorded ETA has nothing to show.
-for (const fig of document.querySelectorAll('.forecast-fig')) {
-  const points = JSON.parse(fig.dataset.points);
-  if (!points.length) continue;
-  const svg = fig.querySelector('svg'), cross = svg.querySelector('.cross'), tip = fig.querySelector('.tip');
-  const W = svg.viewBox.baseVal.width;
-  function show(e) {
-    const r = svg.getBoundingClientRect(), x = (e.clientX - r.left) / r.width * W;
-    const p = points.reduce((a, b) => Math.abs(b.x - x) < Math.abs(a.x - x) ? b : a);
-    cross.setAttribute('x1', p.x);
-    cross.setAttribute('x2', p.x);
-    cross.setAttribute('visibility', 'visible');
-    // TODO: the numbers of the ETA nearest the pointer, in dreeves's words for the series: when it was made; the elapsed time then; the ETA and its range; elapsed + ETA
-    const lines = [['when', p.when], ['spent', `elapsed ${p.elapsed} h`], ['togo', `ETA ${p.eta} h (${p.lo}–${p.hi})`],
-                   ['total', `elapsed + ETA ${p.total} h`]];
-    tip.replaceChildren(...lines.map(([k, t]) => Object.assign(document.createElement('div'), {className: k, textContent: t})));
-    tip.hidden = false;
-    const at = p.x / W * r.width;
-    tip.style.left = `${at > r.width / 2 ? at - tip.offsetWidth - 12 : at + 12}px`;
-  }
-  svg.addEventListener('pointermove', show);
-  svg.addEventListener('pointerdown', show);
-  svg.addEventListener('pointerleave', () => { cross.setAttribute('visibility', 'hidden'); tip.hidden = true; });
-}
-"""
-
-
-STYLE = """
-/* Layout: index.html's journal-page column, its fonts, colors and tokens; one section per run. */
-:root {
-  --paper: #ffffff;
-  --ink: #1b1d22;
-  --muted: #596070;
-  --rule: #1b1d22;
-  --serif: "STIX Two Text", "Times New Roman", Times, serif;
-  --mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
-  color-scheme: light;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --paper: #16171b;
-    --ink: #e9e7e2;
-    --muted: #a2a6b0;
-    --rule: #c9c7c2;
-    color-scheme: dark;
-  }
-}
-:root[data-theme="dark"] {
-  --paper: #16171b;
-  --ink: #e9e7e2;
-  --muted: #a2a6b0;
-  --rule: #c9c7c2;
-  color-scheme: dark;
-}
-/* The statuses, by how finished a sub-case is: one ink ramp, darkest (in dark mode, brightest) for settled. */
-:root {
-  --settled: var(--ink);
-  --open: var(--muted);
-  --split: color-mix(in oklab, var(--ink) 38%, var(--paper));
-  --pending: color-mix(in oklab, var(--ink) 11%, var(--paper));
-  --hair: color-mix(in oklab, var(--rule) 30%, var(--paper));
-}
-
-* { box-sizing: border-box; }
-html { background: var(--paper); }
-body {
-  margin: 0;
-  background: var(--paper);
-  color: var(--ink);
-  font-family: var(--serif);
-  font-size: 1.0625rem;
-  line-height: 1.5;
-}
-main {
-  max-width: 48rem;
-  margin: 0 auto;
-  padding-block: 2.5rem 3rem;
-  padding-inline: max(1rem, env(safe-area-inset-left, 0px));
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 2.25rem;
-}
-header { display: grid; gap: 0.5rem; max-width: 42rem; }
-h1 { margin: 0; font-size: 2rem; font-weight: 600; line-height: 1.15; text-wrap: balance; }
-h2 { margin: 0; font-size: 1.5rem; font-weight: 600; }
-p { margin: 0; }
-sup { line-height: 0; }
-b { font-weight: 600; }
-code { font-family: var(--mono); font-size: 0.8125rem; overflow-wrap: anywhere; }
-.work, .passes, .levels, .charts { font-variant-numeric: tabular-nums lining-nums; }
-
-.run {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 0.8rem;
-  padding-top: 1.75rem;
-  border-top: 1px solid var(--hair);
-}
-.run-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.3rem 1rem; }
-.state {
-  font-size: 0.875rem;
-  padding: 0.05rem 0.6rem;
-  border: 1px solid var(--rule);
-  border-radius: 999px;
-  white-space: nowrap;
-}
-.state.ended { color: var(--muted); border-color: var(--hair); }
-.stale { border-left: 3px solid var(--ink); padding-left: 0.75rem; }
-#age { white-space: nowrap; }
-.outcome { font-size: 0.9375rem; border-left: 3px solid var(--rule); padding-left: 0.75rem; }
-.legend, .passes { font-size: 0.9375rem; }
-.legend { display: flex; flex-wrap: wrap; gap: 0.2rem 1.1rem; }
-
-/* The three series of the ETA chart, in the colors dreeves named: the categorical palette's blue and red (the pair
-   validated for color-vision deficiency, light and dark), and ink, wider, for the sum he asked to be emphasized. */
-:root { --c-spent: #2a78d6; --c-togo: #e34948; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --c-spent: #3987e5; --c-togo: #e66767; } }
-:root[data-theme="dark"] { --c-spent: #3987e5; --c-togo: #e66767; }
-
-.work { display: flex; align-items: center; gap: 0.75rem; font-size: 0.9375rem; }
-.work .bar { flex: 1 1 auto; }
-.count { white-space: nowrap; color: var(--muted); }
-
-/* The ETA chart (class forecast): elapsed time, ETA, and elapsed + ETA, emphasized, against elapsed time. */
-.forecast-fig { margin: 0; display: grid; gap: 0.3rem; position: relative; }
-.strip-fig { margin: 0; display: grid; gap: 0.3rem; }
-.strip { display: block; width: 100%; height: 1.4rem; }
-.strip .todo { fill: color-mix(in oklab, var(--ink) 10%, var(--paper)); stroke: var(--paper); stroke-width: 0.6; }
-.strip .done { fill: var(--c-spent); stroke: var(--paper); stroke-width: 0.6; }
-.forecast { display: block; width: 100%; height: auto; overflow: visible; cursor: crosshair; touch-action: pan-y; }
-.forecast polyline { fill: none; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
-.forecast .spent { stroke: var(--c-spent); stroke-width: 1.5; }
-.forecast .togo { stroke: var(--c-togo); stroke-width: 1.5; }
-.forecast .total { stroke: var(--ink); stroke-width: 2.5; }
-.forecast .band { fill: color-mix(in oklab, var(--c-togo) 16%, var(--paper)); stroke: none; }
-.forecast .ahead { stroke: var(--c-spent); stroke-width: 1.5; stroke-dasharray: 5 4; vector-effect: non-scaling-stroke; }
-.forecast .cross { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 2 3; vector-effect: non-scaling-stroke; }
-.forecast text.label { font-size: 12px; font-weight: 600; stroke: none; font-variant-numeric: tabular-nums lining-nums; }
-.forecast .label.togo { fill: var(--c-togo); }
-.forecast .label.total { fill: var(--ink); }
-.forecast .label.spent { fill: var(--c-spent); }
-.tip { position: absolute; top: 0.4rem; padding: 0.35rem 0.6rem; background: var(--paper); border: 1px solid var(--hair);
-       border-radius: 6px; font-size: 0.8125rem; line-height: 1.4; white-space: nowrap; pointer-events: none;
-       font-variant-numeric: tabular-nums lining-nums; box-shadow: 0 1px 5px color-mix(in oklab, var(--ink) 14%, transparent); }
-.tip .when { color: var(--muted); }
-.tip .spent { color: var(--c-spent); }
-.tip .togo { color: var(--c-togo); }
-.tip .total { color: var(--ink); font-weight: 600; }
-.forecast .range { stroke: color-mix(in oklab, var(--c-togo) 30%, var(--paper)); stroke-width: 6; stroke-linecap: round; vector-effect: non-scaling-stroke; }
-.forecast .now.togo { fill: var(--c-togo); }
-.forecast .now.total { fill: var(--ink); }
-.forecast .axis, .forecast .grid { stroke: var(--hair); stroke-width: 1; vector-effect: non-scaling-stroke; }
-.forecast text { font-size: 11px; fill: var(--muted); font-variant-numeric: tabular-nums lining-nums; }
-.keys { font-size: 0.875rem; color: var(--muted); display: flex; flex-wrap: wrap; align-items: center; gap: 0.2rem 0.5rem; }
-.keys .k { white-space: nowrap; display: inline-flex; align-items: center; gap: 0.35rem; }
-.key { display: inline-block; width: 1.4em; border-top: 2px solid var(--k2); vertical-align: middle; }
-.key.spent { --k2: var(--c-spent); }
-.key.togo { --k2: var(--c-togo); }
-.key.total { --k2: var(--ink); border-top-width: 3px; }
-/* On a narrow screen the chart's 640 units shrink to about 360 px: its ticks' text, in those units, grows to match. */
-@media (max-width: 34rem) { .forecast text { font-size: 19px; } }
-
-details summary { cursor: pointer; width: max-content; color: var(--muted); font-size: 0.9375rem; }
-.more { display: grid; gap: 0.9rem; padding-top: 0.75rem; }
-.sw {
-  display: inline-block;
-  width: 0.8em;
-  height: 0.8em;
-  vertical-align: -0.05em;
-  background: var(--k);
-  box-shadow: inset 0 0 0 1px var(--hair);
-}
-.settled { --k: var(--settled); }
-.open { --k: var(--open); }
-.split { --k: var(--split); }
-.pending { --k: var(--pending); }
-
-/* Levels: one grid; each row's cells join it (display: contents), so the columns line up.  On a narrow screen a
-   row's bar takes a line of its own. */
-.levels {
-  display: grid;
-  grid-template-columns: 1.4rem 1.9rem repeat(4, minmax(3.6rem, auto)) minmax(6rem, 1fr);
-  column-gap: 0.8rem;
-  align-items: center;
-  font-size: 0.9375rem;
-}
-.lv { display: contents; }
-.lv > * { padding-block: 0.22rem; }
-.lv .n { text-align: right; }
-.lv .m { text-align: right; color: var(--muted); }
-.lv .d { color: var(--muted); }
-.lv.head > * { padding-block: 0 0.3rem; }
-.levels .rule { grid-column: 1 / -1; height: 1px; background: var(--hair); margin-bottom: 0.15rem; }
-.lv.journal > * { color: var(--muted); }
-.bar { display: flex; gap: 2px; height: 0.6rem; border-radius: 3px; overflow: hidden; }
-.seg { flex-basis: 0; min-width: 2px; background: var(--k); }
-@media (max-width: 34rem) {
-  .levels { grid-template-columns: 1.2rem 1.7rem repeat(4, minmax(0, 1fr)); column-gap: 0.6rem; }
-  .barcell { grid-column: 1 / -1; padding-block: 0 0.45rem; }
-  .lv.head .barcell { display: none; }
-}
-
-/* Charts: two small multiples, one series each, on a shared x of hours of running. */
-.charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: 1rem 1.75rem; }
-.chart { margin: 0; display: grid; gap: 0.3rem; }
-.chart figcaption { font-size: 0.875rem; color: var(--muted); }
-.chart svg { display: block; width: 100%; height: auto; overflow: visible; }
-.chart .line { fill: none; stroke: var(--ink); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
-.chart .axis, .chart .grid, .chart .pass { stroke: var(--hair); stroke-width: 1; vector-effect: non-scaling-stroke; }
-.chart text { font-size: 11px; fill: var(--muted); font-variant-numeric: tabular-nums lining-nums; }
-.chart .end { fill: var(--ink); }
-
-/* Open sub-cases, under their parents. */
-.opens, .opens ul { list-style: none; margin: 0; padding: 0; }
-.opens { display: grid; gap: 0.45rem; }
-.opens ul { display: flex; flex-wrap: wrap; gap: 0 1.1rem; padding-left: 1rem; }
-.opens code { font-size: 0.75rem; line-height: 1.45; }
-.opens .part { white-space: nowrap; }
-.opens .parent { color: var(--ink); }
-.opens .same { color: color-mix(in oklab, var(--muted) 70%, var(--paper)); }
-.opens li.pending code { color: var(--muted); }
-"""
-
-
-def page(surveys, now):
-    """The whole page, self-contained, for these surveys made at the time now."""
-    title = 'Search progress'      # dreeves's wording, 2026-10-09
-    # TODO: says exactly how stale the page is: the time it was made, to the second, with its time zone, and its age, which the script fills in and keeps up
-    made = f'As of {clock(now)} {time.strftime("%Z", time.localtime(now))} (<b id="age" data-made="{round(now * 1000)}">—</b> ago)'
-    return f"""<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta http-equiv="refresh" content="{REFRESH}">
-<title>{title}</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono&family=STIX+Two+Text:ital,wght@0,400;0,600;1,400&display=swap">
-<style>{STYLE}</style>
-</head>
-<body>
-<main>
-<header><h1>{title}</h1><p class="stale">{made}</p></header>
-{''.join(run_html(s) for s in surveys)}
-</main>
-<script>{SCRIPT}</script>
-</body>
-</html>
-"""
+            'draws': draws, 'etas': etas, 'open_list': opens}
 
 
 # ---------- files and the command line ----------
@@ -1304,19 +839,56 @@ def write_atomic(path, text):
     os.replace(tmp, path)
 
 
+# ---------- the data file ----------
+
+def clock(t): return '—' if t is None else time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(t))
+
+
+def eta_records(s):
+    """The run's record of ETAs (see ETA in the vocabulary) with an estimate, in time order, as (time, running hours
+    before it, mean, lo, hi), hours.  A recorded time's running hours come from the passes: one after a pass's last
+    line (its process ran on, or was stopped, unlogged) counts as that pass's end, the log's clock being the only one;
+    it must fall between the first pass's start and the snapshot (asserted)."""
+    spans = s['passes']
+    starts = [a for a, _ in spans]
+    before = list(itertools.accumulate((b - a for a, b in spans), initial=0.0))   # running seconds before each pass
+    def elapsed(t):
+        k = bisect.bisect_right(starts, t) - 1
+        # TODO: error copy; says the record of ETAs holds a time before the search began or after the snapshot
+        assert k >= 0 and t <= spans[-1][1], f'Claude: "the ETA of {clock(t)} falls outside the running of {s["n"]} {s["order"]}"'
+        return (before[k] + min(t, spans[k][1]) - starts[k]) / HOUR
+    return [(t, elapsed(t), *e) for t, e in sorted(((float(t), e) for t, e in s['etas'].items()), key=lambda te: te[0])
+            if e is not None]
+
+
+def js_text(surveys, now):
+    """The data file (see the vocabulary): one call, progressData(...);, of the snapshot's JSON: made (now, in whole
+    seconds) and, per run, n, order, state, so_far (its passes' seconds of running), to_go ({mean, lo, hi}, seconds of
+    running: the estimate's mean and QUANTILES; null without one), etas (its record of ETAs, eta_records, as [time,
+    running seconds before it, mean, lo, hi], the time in whole seconds and the rest in seconds to a tenth, evenly thinned to at most ETA_POINTS, the last kept), statuses
+    (SEA_STATUSES) and its sea (depth, keys, groups, counts)."""
+    def etas(s):
+        rs = eta_records(s)
+        keep = sorted(set(range(0, len(rs), max(1, -(-len(rs) // ETA_POINTS)))) | {len(rs) - 1}) if rs else []
+        return [[int(rs[i][0])] + [round(HOUR * v, 1) for v in rs[i][1:]] for i in keep]
+    runs = [{'n': s['n'], 'order': s['order'], 'state': s['state'], 'so_far': s['so_far'], 'to_go': s['to_go'],
+             'etas': etas(s), 'statuses': list(SEA_STATUSES)} | s['sea'] for s in surveys]
+    return 'progressData(' + json.dumps({'made': int(now), 'runs': runs}, separators=(',', ':'), ensure_ascii=False) + ');\n'
+
+
 def load_cache(path): return json.load(open(path)) if os.path.exists(path) else {}
 def save_cache(path, cache): write_atomic(path, json.dumps(cache, sort_keys=True))
 
 
 def main(argv):
-    # TODO: error copy; says how to run the script: with no argument to write the page once, or with --watch to keep rewriting it
+    # TODO: error copy; says how to run the script: with no argument to write the data file once, or with --watch to keep rewriting it
     assert argv in ([], ['--watch']), 'Claude: "usage: python3 -B progress.py [--watch]"'
     os.nice(max(0, NICE - os.nice(0)))
     while True:
         cache, procs, now = load_cache(CACHE), processes(), time.time()
         surveys = [survey(n, order, *files(n, order), procs, now, cache.setdefault(f'{n}_{order}_{v5.CODE}', {}),
                           cache.setdefault(f'{n}_{order}_{v5.CODE}_etas', {})) for n, order in RUNS]
-        write_atomic(PAGE, page(surveys, now))
+        write_atomic(JS, js_text(surveys, now))
         save_cache(CACHE, cache)
         if not argv: return
         time.sleep(REFRESH)

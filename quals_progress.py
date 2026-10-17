@@ -9,7 +9,7 @@ split of 40@6 and 64@7 supply trees whose level counts are known.
 """
 import sys
 sys.dont_write_bytecode = True
-import os, re, json, time, bisect, shutil, tempfile, threading, traceback, subprocess, contextlib, collections, html.parser
+import os, re, json, time, bisect, shutil, tempfile, threading, traceback, subprocess, contextlib, collections
 import numpy as np
 import overnight_v5 as v5
 import progress
@@ -177,6 +177,42 @@ def q_log_of_a_witness_run():
     p, = progress.parse_log(tiny('witness')[1])
     assert p['outcome'].startswith('Claude: "WITNESS FOUND, exact order 6: X = [') and p['outcome'].endswith(']"')
 
+
+
+def q_start_line_says_whether_siblings_are_shuffled():
+    # Replicata: parse_lines of two one-line logs: a start line as overnight_v5 writes it since 2026-10-17, ending
+    # ", siblings shuffled", and one as it wrote before.
+    # Expectata: both parse, the first pass shuffled, the second not (its replay keeps the split's order).
+    head = ('2026-10-17 05:00:00 Claude: "start: n = 64, order at least 7, 1 processes, budgets [1, 1, 3] (LP solves; a '
+            'pool at least 3 per member), HiGHS 1.12.0 (4f96ee8), split moduli [3, 5], 0 earlier verdicts')
+    new, = progress.parse_lines([head + ', siblings shuffled"'])
+    old, = progress.parse_lines([head + '"'])
+    assert (new['shuffled'], old['shuffled']) == (True, False), (new, old)
+    assert {k: v for k, v in new.items() if k != 'shuffled'} == {k: v for k, v in old.items() if k != 'shuffled'}
+
+
+def q_replay_pushes_a_shuffled_pass_s_children_in_sibling_order():
+    # Replicata: progress.replay of a made-up pass of one worker: the top node UNKNOWN, split (cached) into three
+    # children, which then finish INFEASIBLE in the order search() pops them when it shuffles (the reverse of
+    # overnight_v5.sibling_order of the split), each progress line's counts as search() logs them; once with the pass
+    # marked shuffled, once not.
+    # Expectata: shuffled, the replay accounts for every line (each finished node is the running one it popped) and
+    # ends with nothing waiting or running; not shuffled, it pops the children in the split's order, so the second
+    # line's node is not the one running, and it fails.
+    kids = ['3:[0,1,2]', '3:[1,1,1]', '3:[2,1,0]']
+    order = v5.sibling_order('', kids)[::-1]
+    assert order != kids[::-1], order                       # the shuffle changes the order here
+    lines = [{'t': 1.0, 'i': 1, 'key': '', 'verdict': 'UNKNOWN', 'solve': 0.5, 'split': 0.1, 'closed': 0, 'waiting': 3,
+              'running': 0, 'open': 0, 'failures': 0}]
+    lines += [{'t': 2.0 + j, 'i': 2 + j, 'key': k, 'verdict': 'INFEASIBLE', 'solve': 0.5, 'split': 0.0, 'closed': j + 1,
+               'waiting': 2 - j, 'running': 0, 'open': 0, 'failures': 0} for j, k in enumerate(order)]
+    def state(shuffled):
+        p = {'start': 0.0, 'last': 4.0, 'shuffled': shuffled, 'nodes': lines, 'opens': [], 'outcome': None}
+        return {'t': 4.0, 'label': 'a made-up pass', 'passes': [p], 'cache': {'': kids}, 'processes': 1,
+                'budgets': [10, 10, 10], 'final_at_start': {}}
+    root, stack, running = progress.replay(state(True))
+    assert (stack, running) == ([], []) and [n.key for n in root.kids] == v5.sibling_order('', kids), (stack, running)
+    expect_assertion(progress.replay, state(False))
 
 def q_log_with_an_unknown_line_fails():
     # Replicata: the tiny closed run's log with one made-up line appended.
@@ -794,22 +830,6 @@ def q_survey_of_a_resolving_run():
     assert (s['draws'] * 3600 >= 7 * 4 * speed - 1e-9).all() and (s['draws'] * 3600 <= 7 * 100000 * speed + 1e-9).all()
 
 
-def q_survey_series_match_the_journal():
-    # Replicata: the tiny resolved run (64@7, two passes: 7 left open, then re-solved).
-    # Expectata: one line of points per pass; the settled series ends at the journal's INFEASIBLE count and starts
-    # pass 2 where pass 1 ended; the open series starts each pass at 0 and ends at the last pass's open count (0); one
-    # pass boundary, where pass 2's points start; the series run from 0 to the summed pass durations.
-    journal, log = tiny('resolved')
-    s = progress.survey(64, 7, journal, log, [], time.time(), {}, {})
-    v5.configure(64, 7)
-    final = progress.read_journal(journal)
-    settled, opened = s['series']['settled'], s['series']['open']
-    assert len(settled) == len(opened) == 2 and settled[0][0] == (0, 0) and settled[1][0][1] == settled[0][-1][1] == 3
-    assert settled[-1][-1][1] == s['settled'] == sum(r['verdict'] == 'INFEASIBLE' for r in final.values())
-    assert opened[0][0][1] == opened[1][0][1] == 0 and opened[0][-1][1] == 7 and opened[-1][-1][1] == 0
-    assert s['series']['bounds'] == [settled[1][0][0]] and s['series']['span'] >= settled[-1][-1][0]
-
-
 def q_survey_records_its_eta():
     # Replicata: the tiny resolving run (64@7, running, its pass 2 just begun) surveyed 30 s and then 40 s into that
     # pass, with one record (a dict); the tiny open run (ended) surveyed with another, empty.
@@ -899,289 +919,32 @@ def q_replay_counts_skips_by_the_closed_count():
     assert any(n.state == 'skipped' for n in walk(root)) and len(running) <= state['processes'], len(running)
 
 
-# ---------- the page ----------
-
-class Visible(html.parser.HTMLParser):
-    """The text a reader sees: text outside style, script and code elements (the title's included), and the
-    attributes that browsers show (title, alt, aria-label, placeholder).  With opened False, only what shows before
-    any details element is opened: of a details element, its summary alone."""
-    def __init__(self, opened=True):
-        super().__init__()
-        self.opened, self.stack, self.texts = opened, [], []
-    def hidden(self):
-        return bool({'style', 'script', 'code'} & set(self.stack)) or (
-            not self.opened and 'details' in self.stack and 'summary' not in self.stack)
-    def handle_starttag(self, tag, attrs):
-        self.stack.append(tag)
-        self.handle_startendtag(tag, attrs)
-    def handle_startendtag(self, tag, attrs):
-        if not self.hidden(): self.texts += [v for k, v in attrs if k in ('title', 'alt', 'aria-label', 'placeholder') and v]
-    def handle_endtag(self, tag):
-        while self.stack and self.stack.pop() != tag: pass
-    def handle_data(self, data):
-        if not self.hidden(): self.texts.append(data)
-
-
-def shown(fragment, opened=True):
-    """A fragment's visible text (see Visible), with its whitespace, no-break spaces included, collapsed to spaces."""
-    v = Visible(opened)
-    v.feed(fragment)
-    return re.sub(r'\s+', ' ', ' '.join(v.texts).replace(' ', ' '))
-
-
-def run_sections(text):
-    """The page's run sections, in order, each from its start tag to the next one's (the last to the page's end)."""
-    return re.split(r'(?=<section class="run")', text)[1:]
-
-
-def tiny_page(now=None):
-    """A page of the tiny runs: closed as frozen, resolving as running, witness as ended; made at now (default: the
-    present)."""
-    surveys = []
-    for name, n, order, procs in (('closed', 40, 6, [(1, 0, 'T', 'python3 overnight_v5.py 40 6')]),
-                                  ('resolving', 64, 7, [(2, 0, 'S', 'python3 overnight_v5.py 64 7')]),
-                                  ('open', 64, 7, []), ('witness', 48, 6, [])):
-        journal, log = tiny(name)
-        surveys.append(progress.survey(n, order, journal, log, procs, progress.parse_log(log)[-1]['last'] + 5, {}, {}))
-    return progress.page(surveys, time.time() if now is None else now)
-
-
-TITLE = 'Search progress'     # dreeves's wording, as he edited progress.py by 2026-10-10
-
-
-def q_page_has_its_title_and_no_attributions():
-    # Replicata: the page of the tiny runs, whose logs end in NOT FINISHED, ALL NODES CLOSED and WITNESS FOUND lines.
-    # Expectata: dreeves's title, exactly, in the browser's tab and at the top; nowhere a reader looks is there a
-    # Claude: "..." attribution, the outcome lines quoted from the logs included, which appear without it.
-    text = tiny_page()
-    assert f'<title>{TITLE}</title>' in text and f'<h1>{TITLE}</h1>' in text, re.findall(r'<(?:title|h1)>.*?</', text)
-    v = Visible()
-    v.feed(text)
-    seen = ' '.join(v.texts)
-    assert 'Claude:' not in seen, seen[:3000]
-    for outcome in ('NOT FINISHED: ', 'ALL NODES CLOSED (', 'WITNESS FOUND, exact order '):
-        assert outcome in seen, (outcome, seen[:3000])
-
-
-def q_page_states_exactly_how_stale_it_is():
-    # Replicata: the page of the tiny runs made at a fixed time t, 9 s after the latest of their logs' last lines.
-    # Expectata: before the first run, the snapshot's time to the second with its time zone, and an element with
-    # id="age" carrying t in milliseconds, which the page's one script fills with the time since then, written as
-    # duration() writes it.
-    ends = [progress.parse_log(tiny(name)[1])[-1]['last'] for name in ('closed', 'resolving', 'open', 'witness')]
-    t = max(ends) + 9.25
-    text = tiny_page(t)
-    first_run = text.index('<section class="run"')
-    stamp = f'{progress.clock(t)} {time.strftime("%Z", time.localtime(t))}'
-    assert stamp in text[:first_run], (stamp, text[:first_run][-1500:])
-    age = re.search(r'<b id="age" data-made="(\d+)">', text)
-    assert age and age.start() < first_run and int(age[1]) == round(t * 1000), age
-    script = re.findall(r'<script>(.*?)</script>', text, re.S)
-    assert len(script) == 1 and "getElementById('age')" in script[0] and 'setInterval' in script[0], script
-    assert progress.duration(9.25) == '0 d 0 h 0 min 9 s' and progress.duration(90061) == '1 d 1 h 1 min 1 s'
-
-
-# The page's own words (see copy_words) when dreeves, at 19:42 on 2026-10-09, asked to "get rid of most of the words":
-# 725 for the page of the tiny runs, measured then with that page's code.
-OLD_WORDS = 725
-
-
-def copy_words(text, opened=True):
-    """The page's own words that a reader sees (runs of two or more letters): its title (dreeves's) and the logs'
-    outcome lines (quoted from overnight_v5's logs) left out; with opened False, only those that show before any
-    details element is opened."""
-    seen = shown(text, opened).replace(TITLE, ' ')
-    for line in re.findall(r'<p class="outcome">(.*?)</p>', text): seen = seen.replace(html.unescape(line), ' ', 1)
-    return re.findall(r'[A-Za-z]{2,}', seen)
-
-
-def q_page_has_few_words():
-    # Replicata: the page of the tiny runs.
-    # Expectata: of the OLD_WORDS words the page had of its own, at most a tenth show as the page opens, and at most
-    # a fifth with every details element opened.
-    text = tiny_page()
-    shut, opened = copy_words(text, opened=False), copy_words(text)
-    assert len(shut) <= OLD_WORDS / 10, (len(shut), shut)
-    assert len(opened) <= OLD_WORDS / 5, (len(opened), opened)
-
-
-def q_strip_checks_off_subtrees():
-    # Replicata: 240@11's pass 2 surveyed at PASS2_AT (see pass2), and its section of the page.
-    # Expectata (dreeves, 2026-10-12: "a simple visualization of the subtrees directly that indicates visually how long
-    # each might take ... like checking off the subtrees as they're done"): the survey's strip is the nodes of this pass
-    # at the shallowest depth where a subtree waits, in search()'s order, each (key, seconds so far, expected seconds)
-    # with 0 <= so far <= expected (finished: equal; waiting: 0); the section draws them in an svg of class strip, one
-    # group per node, each a rect todo as wide as its expected share and a rect done as wide as its share so far.
-    s, resplit, cache, R = pass2()
-    st = s['strip']
-    assert st and st['cells'] and all(0 <= done <= exp for _, done, exp in st['cells']), st
-    assert any(done == exp > 0 for _, done, exp in st['cells']) and any(done == 0 < exp for _, done, exp in st['cells'])
-    svg = re.search(r'<svg class="strip"[^>]*>(.*?)</svg>', progress.run_html(s), re.S)
-    assert svg and svg[1].count('<g>') == len(st['cells']), len(st['cells'])
-    W = float(re.search(r'<svg class="strip" viewBox="0 0 ([\d.]+) ', progress.run_html(s))[1])
-    total = sum(exp for _, _, exp in st['cells'])
-    widths = [float(w) for w in re.findall(r'<rect class="todo" x="[\d.]+" y="0" width="([\d.]+)"', svg[1])]
-    assert all(abs(w - W * exp / total) < 0.01 for w, (_, _, exp) in zip(widths, st['cells'])), widths[:5]
-
-
-def q_page_shows_this_pass_work_and_nothing_the_chart_shows():
-    # Replicata: the page of the tiny resolving run (running, its pass 2 just begun) and of the tiny open run (ended).
-    # Expectata: the running run's section says how many of this pass's sub-cases are done ("0 / 7 done"), the ended
-    # run's has no such count; neither has the text or the timeline that dreeves jettisoned on 2026-10-10 as conveyed
-    # by the ETA chart: no "so far", no "to go", no timeline, no density.
-    procs = [(1, 0, 'S', 'python3 overnight_v5.py 64 7')]
-    journal, log = tiny('resolving')
-    a = progress.survey(64, 7, journal, log, procs, progress.parse_log(log)[-1]['start'] + 30, {}, {})
-    c = progress.survey(64, 7, *tiny('open'), [], time.time(), {}, {})
-    text = progress.page([a, c], time.time())
-    first, second = [shown(sec) for sec in run_sections(text)]
-    assert first.count('0 / 7 done') == 1 and 'done' not in second, (first[:300], second[:300])
-    for gone in ('so far', 'to go'):
-        assert gone not in first + second, gone
-    assert 'class="timeline"' not in text and 'class="pdf"' not in text and 'class="track"' not in text
-
+# ---------- the record of ETAs ----------
 
 def eta_chart_case():
-    """The ETA chart of the tiny resolved run (64@7: two passes, ended) surveyed, its passes set to 11.6 h and 1.6 h of
-    running (from 0 and from 86400 s) and its record of ETAs to three: [2, 1, 4] h (mean, then the band's ends) at 0 s
-    (pass 1's start), none (None) at pass 1's end, and [1, 0.5, 3] h at pass 2's end; and the page of it."""
+    """The tiny resolved run (64@7: two passes, ended) surveyed, its passes set to 11.6 h and 1.6 h of running (from 0
+    and from 86400 s) and its record of ETAs to three: [2, 1, 4] h (mean, then the band's ends) at 0 s (pass 1's
+    start), none (None) at pass 1's end, and [1, 0.5, 3] h at pass 2's end (the case of the ETA chart of progress.html,
+    which index.html's section "Search progress" took over on 2026-10-17)."""
     journal, log = tiny('resolved')
     s = progress.survey(64, 7, journal, log, [], time.time(), {}, {})
-    s = dict(s, passes=[(0.0, 11.6 * 3600), (86400.0, 86400 + 1.6 * 3600)],
-             etas={'0': [2.0, 1.0, 4.0], str(int(11.6 * 3600)): None, str(int(86400 + 1.6 * 3600)): [1.0, 0.5, 3.0]})
-    text = progress.page([s], time.time())
-    sec, = run_sections(text)
-    return s, text, sec
+    return dict(s, passes=[(0.0, 11.6 * 3600), (86400.0, 86400 + 1.6 * 3600)],
+                etas={'0': [2.0, 1.0, 4.0], str(int(11.6 * 3600)): None, str(int(86400 + 1.6 * 3600)): [1.0, 0.5, 3.0]})
 
 
-def q_page_draws_the_eta_chart():
-    # Replicata: eta_chart_case().
-    # Expectata: the chart knows nothing of passes (dreeves, 2026-10-10: it shows how long the search has to go). One
-    # svg of class forecast with:
-    # - round ticks on both axes, every 5 h from 0 to 15 h here (a step of 1, 2 or 5 times a power of 10, at most 5
-    #   steps, the last at or past every value drawn: the elapsed time, the projected finish 14.2 h, every elapsed +
-    #   ETA and band top), labeled, the top one with its unit; a gridline (class grid) at each y tick but 0, which is
-    #   the axis line (class axis);
-    # - the series, to the scale the blue line gives: one blue polyline (class spent), the diagonal from (0, 0) to
-    #   (13.2, 13.2) h, the elapsed running time; the blue line carried on ahead, dashed (a line of class ahead), from
-    #   the last ETA's elapsed time to where it is level with the black marker, (14.2, 14.2) (dreeves, 2026-10-10); one
-    #   shaded band (a polygon of class band) along the band's top ends left to right and its bottom ends back, for each
-    #   recorded ETA that is not None; one red polyline (togo) and one black (total) with a point per such ETA, in time
-    #   order, at (elapsed then, ETA) and (elapsed then, elapsed + ETA);
-    # - at the last such ETA: a vertical line of class range across its band; markers (circles of class now) on the
-    #   red and the black lines; and dreeves's direct labels (2026-10-10), ranges since 2026-10-12 (the band's ends, not
-    #   the mean, which read as more precise than it is): "ETA 0.5–3.0 h" in red just right of the red
-    #   marker, the projected total "14–16 h" just right of the black marker, and the elapsed time "13 h" in blue on the x
-    #   axis under that point, where no other x tick label crowds it (hours to a tenth below 10, whole from 10 on);
-    # - a vertical line of class cross, hidden at rest, which the script shows (see q_page_reads_out_the_eta_chart);
-    # - no other line; the black stroke the widest; the legend in dreeves's words: elapsed time (blue), ETA (red),
-    #   elapsed + ETA (black); the colors the palette's blue and red and the page's ink.
-    s, text, sec = eta_chart_case()
-    svg = re.search(r'<svg class="forecast"[^>]*>(.*?)</svg>', sec, re.S)
-    assert svg, sec[:500]
-    body = svg[1]
-    def pts(text): return [tuple(map(float, xy.split(','))) for xy in text.split()]
-    lines = [(k, pts(v)) for k, v in re.findall(r'<polyline class="(spent|togo|total)" points="([^"]*)"/>', body)]
-    assert [k for k, _ in lines] == ['spent', 'togo', 'total'], [k for k, _ in lines]
-    (x0, y0), (x1, y1) = lines[0][1][0], lines[0][1][-1]          # blue at 0 h and at 13.2 h
-    def X(h): return x0 + (x1 - x0) * h / 13.2
-    def Y(h): return y0 + (y1 - y0) * h / 13.2
-    def near(p, q): return abs(p[0] - q[0]) < 0.05 and abs(p[1] - q[1]) < 0.05
-    def check(got, want, what): assert len(got) == len(want) and all(near(g, (X(a), Y(b))) for g, (a, b) in zip(got, want)), (what, got, [(X(a), Y(b)) for a, b in want])
-    for (k, got), w in zip(lines, [[(0, 0), (13.2, 13.2)], [(0, 2), (13.2, 1)], [(0, 2), (13.2, 14.2)]]): check(got, w, k)
-    band = re.findall(r'<polygon class="band" points="([^"]*)"/>', body)
-    assert len(band) == 1, band
-    check(pts(band[0]), [(0, 4), (13.2, 3), (13.2, 0.5), (0, 1)], 'band')
-    def seg(cls): return [tuple(map(float, m)) for m in re.findall(rf'<line class="{cls}" x1="([\d.]+)" y1="([\d.]+)" x2="([\d.]+)" y2="([\d.]+)"', body)]
-    ahead, rng = seg('ahead'), seg('range')
-    assert len(ahead) == 1 and len(rng) == 1, (ahead, rng)
-    check([ahead[0][:2], ahead[0][2:]], [(13.2, 13.2), (14.2, 14.2)], 'ahead')
-    check([rng[0][:2], rng[0][2:]], [(13.2, 0.5), (13.2, 3)], 'range')
-    grid, axis = seg('grid'), seg('axis')
-    assert len(axis) == 1 and abs(axis[0][1] - Y(0)) < 0.05 and axis[0][1] == axis[0][3], axis
-    assert sorted(round((y0 - g[1]) / (y0 - Y(1)), 3) for g in grid) == [5, 10, 15] and all(g[1] == g[3] for g in grid), grid
-    yt = re.findall(r'<text class="ytick" x="[\d.]+" y="([\d.]+)"[^>]*>([^<]*)</text>', body)
-    assert [v for _, v in yt] == ['0', '5', '10', '15 h'], yt
-    assert all(abs(float(y) - 4 - Y(int(v.split()[0]))) < 0.05 for y, v in yt), yt
-    xt = re.findall(r'<text class="xtick" x="([\d.]+)" y="[\d.]+"[^>]*>([^<]*)</text>', body)
-    assert [v for _, v in xt] == ['0', '5', '10', '15 h'] and all(abs(float(x) - X(int(v.split()[0]))) < 0.05 for x, v in xt), xt
-    now = re.findall(r'<circle class="now (togo|total)" cx="([\d.]+)" cy="([\d.]+)" r="[\d.]+"/>', body)
-    assert [k for k, _, _ in now] == ['togo', 'total'], now
-    check([tuple(map(float, n[1:])) for n in now], [(13.2, 1), (13.2, 14.2)], 'now')
-    labels = {k: (float(x), float(y), v) for k, x, y, v in re.findall(r'<text class="label (togo|total|spent)" x="([\d.]+)" y="([\d.]+)"[^>]*>([^<]*)</text>', body)}
-    assert {k: v for k, (_, _, v) in labels.items()} == {'togo': 'ETA 0.5–3.0 h', 'total': '14–16 h', 'spent': '13 h'}, labels
-    for k, h in (('togo', 1), ('total', 14.2)):
-        x, y, _ = labels[k]
-        assert X(13.2) < x < X(13.2) + 20 and abs(y - Y(h)) < 16, (k, labels[k], X(13.2), Y(h))
-    x, y, _ = labels['spent']
-    assert abs(x - X(13.2)) < 0.05 and y > Y(0), (labels['spent'], X(13.2), Y(0))
-    assert re.search(r'<line class="cross" [^>]*visibility="hidden"', body), body[:400]
-    assert sorted(re.findall(r'<line class="(\w+)"', body)) == sorted(['axis', 'ahead', 'range', 'cross', 'grid', 'grid', 'grid']), re.findall(r'<line class="(\w+)"', body)
-    light = re.search(r'^:root \{ --c-spent: (#[0-9a-f]{6}); --c-togo: (#[0-9a-f]{6}); \}$', progress.STYLE, re.M)
-    assert light and light.groups() == ('#2a78d6', '#e34948'), light and light.groups()
-    widths = {k: float(w) for k, w in re.findall(r'\.forecast \.(spent|togo|total) \{[^}]*stroke-width: ([\d.]+)', progress.STYLE)}
-    assert set(widths) == {'spent', 'togo', 'total'} and widths['total'] > max(widths['spent'], widths['togo']), widths
-    fills = dict(re.findall(r'\.forecast \.label\.(togo|total|spent) \{ fill: var\(--([\w-]+)\); \}', progress.STYLE))
-    assert fills == {'togo': 'c-togo', 'total': 'ink', 'spent': 'c-spent'}, fills
-    legend = shown(sec[sec.index('<svg class="forecast"'):])
-    for words in ('elapsed time', 'ETA', 'elapsed + ETA'):          # dreeves's names for the series, 2026-10-09
-        assert words in legend, (words, legend[:300])
-
-
-def q_eta_chart_puts_a_record_after_a_pass_s_last_line_at_its_end():
-    # Replicata: eta_chart_case() with one more ETA, [3, 2, 5] h, recorded 1000 s after pass 1's last line (as the page
-    # records one while a pass's process runs on past its last line, or after it is stopped); then the same with a
-    # record after the snapshot's time instead.
-    # Expectata: the first is drawn at pass 1's end (11.6 h elapsed), between the ETAs before and after it in time; the
-    # second fails with AssertionError (no ETA can be made after the snapshot).
-    s, text, sec = eta_chart_case()
+def q_eta_records_put_a_record_after_a_pass_s_last_line_at_its_end():
+    # Replicata: eta_chart_case() with one more ETA, [3, 2, 5] h, recorded 1000 s after pass 1's last line (as the
+    # watcher records one while a pass's process runs on past its last line, or after it is stopped); then the same
+    # with a record after the snapshot's time instead.
+    # Expectata: progress.eta_records gives the first at pass 1's end (11.6 h of running), between the records before
+    # and after it in time, the None left out; the second fails with AssertionError (no ETA can be made after the
+    # snapshot).  (Until 2026-10-17, progress.html's ETA chart drew it there.)
+    s = eta_chart_case()
     late = dict(s, etas=dict(s['etas'], **{str(int(11.6 * 3600 + 1000)): [3.0, 2.0, 5.0]}))
-    body = re.search(r'<svg class="forecast"[^>]*>(.*?)</svg>', progress.eta_chart(late), re.S)[1]
-    spent = [tuple(map(float, xy.split(','))) for xy in re.search(r'<polyline class="spent" points="([^"]*)"', body)[1].split()]
-    togo = [tuple(map(float, xy.split(','))) for xy in re.search(r'<polyline class="togo" points="([^"]*)"', body)[1].split()]
-    (x0, _), (x1, _) = spent
-    assert len(togo) == 3 and abs(togo[1][0] - (x0 + (x1 - x0) * 11.6 / 13.2)) < 0.05, (togo, x0, x1)
+    got = [(round(x, 6), m, lo, hi) for _, x, m, lo, hi in progress.eta_records(late)]
+    assert got == [(0.0, 2.0, 1.0, 4.0), (11.6, 3.0, 2.0, 5.0), (13.2, 1.0, 0.5, 3.0)], got
     after = dict(s, etas=dict(s['etas'], **{str(int(86400 + 1.6 * 3600 + 60)): [1.0, 0.5, 3.0]}))
-    expect_assertion(progress.eta_chart, after)
-
-
-def q_page_reads_out_the_eta_chart():
-    # Replicata: eta_chart_case().
-    # Expectata: the chart's figure carries data-points, a JSON list with one entry per recorded ETA that is not None,
-    # in time order: x, its elapsed time in the svg's units (the markers' x for the last), and its numbers to a tenth of
-    # an hour: when (the ETA's time, to the minute), elapsed, eta, lo, hi and total; at rest the figure's tip (a div of
-    # class tip) is hidden and empty, and no readout line sits under the chart (the direct labels give the latest
-    # numbers); the page's one script, on pointermove and pointerdown (a touch), shows the cross line at the entry
-    # nearest the pointer and fills the tip with its numbers in dreeves's words, and on pointerleave hides both.
-    s, text, sec = eta_chart_case()
-    fig = re.search(r'<figure class="forecast-fig" data-points="([^"]*)">', sec)
-    assert fig, sec[sec.index('<figure'):][:200]
-    entries = json.loads(html.unescape(fig[1]))
-    when = [time.strftime('%Y-%m-%d %H:%M', time.localtime(t)) for t in (0, 86400 + 1.6 * 3600)]
-    assert [{k: v for k, v in e.items() if k != 'x'} for e in entries] == [
-        {'when': when[0], 'elapsed': '0.0', 'eta': '2.0', 'lo': '1.0', 'hi': '4.0', 'total': '2.0'},
-        {'when': when[1], 'elapsed': '13.2', 'eta': '1.0', 'lo': '0.5', 'hi': '3.0', 'total': '14.2'}], entries
-    marks = re.findall(r'<circle class="now togo" cx="([\d.]+)"', sec)
-    assert entries[-1]['x'] == float(marks[0]) and entries[0]['x'] < entries[-1]['x'], (entries, marks)
-    assert re.search(r'<div class="tip" hidden></div>', sec) and 'class="readout"' not in sec, sec[-600:]
-    script, = re.findall(r'<script>(.*?)</script>', text, re.S)
-    assert all(w in script for w in ('pointermove', 'pointerdown', 'pointerleave', 'dataset.points', '.tip', '.cross',
-                                     'elapsed', 'ETA', 'elapsed + ETA')), script
-
-
-def q_page_is_self_contained():
-    # Replicata: the page of the tiny runs.
-    # Expectata: a meta refresh every 60 s; one script, inline (the snapshot's age and the ETA charts' readouts), no
-    # other; every URL is Google
-    # Fonts' (as index.html's);
-    # light and dark tokens as index.html has them: :root, :root:not([data-theme="light"]) under
-    # prefers-color-scheme dark, and :root[data-theme="dark"]; tabular numerals.
-    text = tiny_page()
-    assert '<meta http-equiv="refresh" content="60">' in text and text.count('<script') == 1 and '<script>' in text
-    urls = re.findall(r'https?://[^\s"\'<>)]+', text)
-    assert urls and all(u.startswith(('https://fonts.googleapis.com', 'https://fonts.gstatic.com')) for u in urls), urls
-    assert re.search(r'@media \(prefers-color-scheme: dark\) \{\s*:root:not\(\[data-theme="light"\]\) \{', text)
-    assert ':root[data-theme="dark"] {' in text and 'tabular-nums' in text
+    expect_assertion(progress.eta_records, after)
 
 
 # ---------- writing ----------
@@ -1215,21 +978,22 @@ def q_write_atomic():
 
 
 def q_watch_rewrites_and_sleeps():
-    # Replicata: progress.main(['--watch']) with the tiny closed run as its only run, its page and cache in a
-    # temporary directory, and time.sleep replaced by a stub that stops the loop at its second call; then
+    # Replicata: progress.main(['--watch']) with the tiny closed run as its only run, its data file (progress.js) and
+    # cache in a temporary directory, and time.sleep replaced by a stub that stops the loop at its second call; then
     # main(['--bogus']).
-    # Expectata: the page is written twice with the run's question in it, the stub sees 60 s each time, the cache
+    # Expectata: the data file is written twice with the run in it (2026-10-17: index.html's section reads it, in place
+    # of the page progress.html), the stub sees 60 s each time, the cache
     # file holds the run's splits and its record of ETAs, and this process now runs at nice 15 or more; a bad
     # argument fails with AssertionError.
     d = tempfile.mkdtemp(prefix='progress-quals-')
-    saved = (progress.RUNS, progress.PAGE, progress.CACHE, progress.files, time.sleep)
+    saved = (progress.RUNS, progress.JS, progress.CACHE, progress.files, time.sleep)
     sleeps, writes = [], []
     class Stop(Exception): pass
     def stub(s):
         sleeps.append(s)
-        writes.append(os.stat(progress.PAGE).st_mtime_ns)
+        writes.append(os.stat(progress.JS).st_mtime_ns)
         if len(sleeps) == 2: raise Stop
-    progress.RUNS, progress.PAGE, progress.CACHE = ((40, 6),), os.path.join(d, 'p.html'), os.path.join(d, 'c.json')
+    progress.RUNS, progress.JS, progress.CACHE = ((40, 6),), os.path.join(d, 'p.js'), os.path.join(d, 'c.json')
     progress.files = lambda n, order: tiny('closed')
     time.sleep = stub
     try:
@@ -1237,13 +1001,171 @@ def q_watch_rewrites_and_sleeps():
     except Stop:
         pass
     finally:
-        progress.RUNS, progress.PAGE, progress.CACHE, progress.files, time.sleep = saved
+        progress.RUNS, progress.JS, progress.CACHE, progress.files, time.sleep = saved
     assert sleeps == [60, 60] and len(writes) == 2, (sleeps, writes)
-    assert '<sup>*</sup>(40) ≥ 6?' in open(os.path.join(d, 'p.html')).read()
+    assert [r['n'] for r in progress_data(open(os.path.join(d, 'p.js')).read())['runs']] == [40]
+    assert sorted(os.listdir(d)) == ['c.json', 'p.js'], os.listdir(d)
     assert list(json.load(open(os.path.join(d, 'c.json')))) == [f'40_6_{v5.CODE}', f'40_6_{v5.CODE}_etas']
     assert os.nice(0) >= 15
     expect_assertion(progress.main, ['--bogus'])
 
+
+# ---------- the data file of index.html's section "Search progress" (dreeves, 2026-10-17) ----------
+
+def tree_tokens(key):
+    """A key's constraints as comparable tuples, an order made here apart from progress.py's: a count vector
+    M:[a,b,...] as (M, 0, (a, b, ...), ''), a pool M:#c:sha1 as (M, 1, (c,), sha1).  Parents sort before children."""
+    out = []
+    for t in key.split():
+        M, v = t.split(':', 1)
+        out.append((int(M), 0, tuple(int(x) for x in v[1:-1].split(',')), '') if v.startswith('[') else
+                   (int(M), 1, (int(v.split(':')[0][1:]),), v.split(':')[1]))
+    return tuple(out)
+
+
+def frontier_sea(final, depth):
+    """The sea of an ended run, made here apart from progress.sea: the journal's keys, less those below an INFEASIBLE
+    key, that no other key extends (none of its constraints a prefix of another's), a settled dot per INFEASIBLE one and
+    an open dot per UNKNOWN one, grouped by their first depth constraints (a shallower key its own group), groups and
+    dots in tree_tokens order: (group keys, strings of status indices)."""
+    infeasible = [k for k, r in final.items() if r['verdict'] == 'INFEASIBLE']
+    under = lambda k, a: k != a and (a == '' or k.startswith(a + ' '))
+    tops = {k for k in infeasible if not any(under(k, ' '.join(k.split()[:i])) for i in range(len(k.split()))
+                                              if ' '.join(k.split()[:i]) in final and final[' '.join(k.split()[:i])]['verdict'] == 'INFEASIBLE')}
+    keys = sorted((k for k in final if not any(' '.join(k.split()[:i]) in tops for i in range(len(k.split())))), key=tree_tokens)
+    front = [k for i, k in enumerate(keys) if not (i + 1 < len(keys) and (k == '' or keys[i + 1].startswith(k + ' ')))]
+    groups = collections.OrderedDict()
+    for k in front:
+        g = ' '.join(k.split()[:depth])
+        assert final[k]['verdict'] in ('INFEASIBLE', 'UNKNOWN'), (k, final[k])
+        groups.setdefault(g, []).append(str(progress.SEA_STATUSES.index('settled' if final[k]['verdict'] == 'INFEASIBLE' else 'open')))
+    return list(groups), [''.join(s) for s in groups.values()]
+
+
+def progress_data(text):
+    """The JSON of a data file's one call, progressData(...);, asserted to be all of the text."""
+    m = re.fullmatch(r'progressData\((.*)\);\n', text, re.S)
+    assert m, text[:200]
+    return json.loads(m.group(1))
+
+
+def q_levels_skip_records_below_an_infeasible_sub_case():
+    # Replicata: a made-up journal with budgets 10 at every depth (bottom 2): the top node UNKNOWN at 10, split (cached)
+    # into A and B; A split once (its child A1 INFEASIBLE at 10) and re-solved INFEASIBLE at 20 since, as the width
+    # test did to six of 240@11's sub-cases on 2026-10-11, so A1's record is stale; B UNKNOWN at 10, split (cached) into
+    # B1, an UNKNOWN leaf at 10; progress.enumerate_levels and level_rows on it, and progress.live_keys.
+    # Expectata: the live keys are all but A1; level 2 is B1 alone, A1 left out (240@11's ended run had made level_rows
+    # fail its assertion that every journal key of an enumerated level is a sub-case of it, the watcher's end on
+    # 2026-10-16); level 1 counts A settled and B split, level 2 B1 open.
+    A, B = '3:[1,1,1]', '3:[2,1,0]'
+    A1, B1 = A + ' 5:[1,0,0,0,0]', B + ' 5:[0,1,0,0,0]'
+    rec = lambda verdict, budget: {'verdict': verdict, 'budget': budget}
+    final = {'': rec('UNKNOWN', 10), A: rec('INFEASIBLE', 20), A1: rec('INFEASIBLE', 10), B: rec('UNKNOWN', 10),
+             B1: rec('UNKNOWN', 10)}
+    budgets = [10, 10, 10]
+    assert progress.live_keys(final) == {'', A, B, B1}, progress.live_keys(final)
+    levels = progress.enumerate_levels(final, budgets, 7, {'': [A, B], B: [B1]}, 6)
+    assert levels == [[''], [A, B], [B1]], levels
+    rows = progress.level_rows(levels, final, budgets, 2)
+    assert [r['counts'] for r in rows] == [{'settled': 0, 'open': 0, 'split': 1, 'pending': 0},
+                                           {'settled': 1, 'open': 0, 'split': 1, 'pending': 0},
+                                           {'settled': 0, 'open': 1, 'split': 0, 'pending': 0}], rows
+
+
+def q_sea_of_an_ended_open_run():
+    # Replicata: the tiny open run (64@7, ended NOT FINISHED), surveyed with no process running.
+    # Expectata: its sea (progress.sea, the dots of index.html's section) is frontier_sea of its journal at the sea's
+    # depth (progress.SEA_DEPTH, or the depth above the bottom if that is shallower): one dot per sub-case the search
+    # left without children, a settled one per INFEASIBLE record and an open one per open leaf, none split, pending or
+    # running, in tree order and grouped by their sub-case at that depth; and the counts are those dots'.
+    journal, log = tiny('open')
+    s = progress.survey(64, 7, journal, log, [], time.time(), {}, {})
+    final = progress.read_journal(journal)
+    sea = s['sea']
+    assert sea['depth'] == min(progress.SEA_DEPTH, len(v5.CASCADE) - 1), sea['depth']
+    assert (sea['keys'], sea['groups']) == frontier_sea(final, sea['depth']), sea
+    assert sea['counts'] == {'settled': sum(r['verdict'] == 'INFEASIBLE' for r in final.values()), 'open': 7, 'split': 0,
+                             'pending': 0, 'running': 0}, sea['counts']
+
+
+def q_sea_marks_split_pending_and_running():
+    # Replicata: progress.sea on a made-up journal with budgets 10 at every depth (bottom 2, so its depth is 1): the top
+    # node UNKNOWN at 10, its cached children A..E; A INFEASIBLE; B UNKNOWN at 10, its cached children B1 (UNKNOWN at
+    # 10, a leaf) and B2 (no record); C UNKNOWN at 10 with no cached split and no recorded children; D no record and
+    # running; E UNKNOWN at 5, an earlier budget.
+    # Expectata: groups in tree order E, C, A, B, D: E pending (its budget is old), C split (children unknown), A
+    # settled, B its two children B2 pending and B1 open, D running; counts 1 settled, 1 open, 1 split, 2 pending,
+    # 1 running.
+    A, B, C, D, E = '3:[1,1,1]', '3:[2,1,0]', '3:[0,1,2]', '3:[3,0,0]', '3:[0,0,3]'
+    B1, B2 = B + ' 5:[1,0,0,0,0]', B + ' 5:[0,1,0,0,0]'
+    rec = lambda verdict, budget: {'verdict': verdict, 'budget': budget}
+    final = {'': rec('UNKNOWN', 10), A: rec('INFEASIBLE', 10), B: rec('UNKNOWN', 10), B1: rec('UNKNOWN', 10),
+             C: rec('UNKNOWN', 10), E: rec('UNKNOWN', 5)}
+    cache = {'': [A, B, C, D, E], B: [B1, B2]}
+    sea = progress.sea(final, [10, 10, 10], cache, {D})
+    i = lambda *names: ''.join(str(progress.SEA_STATUSES.index(n)) for n in names)
+    assert sea['depth'] == 1 and sea['keys'] == [E, C, A, B, D], sea
+    assert sea['groups'] == [i('pending'), i('split'), i('settled'), i('pending', 'open'), i('running')], sea['groups']
+    assert sea['counts'] == {'settled': 1, 'open': 1, 'split': 1, 'pending': 2, 'running': 1}, sea['counts']
+
+
+def q_sea_of_240_at_11():
+    # Replicata (regression): progress.sea of 240@11's journal as its run ended (2026-10-16 23:59, NOT FINISHED: 606
+    # nodes left open), under its last pass's budgets, no cache, nothing running.
+    # Expectata: frontier_sea of the journal at depth 5: 71494 settled dots (its 73185 INFEASIBLE records less the
+    # 1691 below six sub-cases that a pass split and a later one re-solved INFEASIBLE, in 3 LP solves each, once the
+    # width test came in on 2026-10-11) and 606 open (its open leaves), in 296 groups (its 291 sub-cases at depth 5
+    # and 5 settled above them).
+    v5.configure(240, 11)
+    final = progress.read_journal(v5.JOURNAL)
+    budgets = progress.parse_log(v5.LOG)[-1]['budgets']
+    sea = progress.sea(final, budgets, {}, set())
+    assert sea['depth'] == 5 and (sea['keys'], sea['groups']) == frontier_sea(final, 5)
+    assert sea['counts'] == {'settled': 73185 - 1691, 'open': 606, 'split': 0, 'pending': 0, 'running': 0}, sea['counts']
+    assert len(sea['groups']) == 296, len(sea['groups'])
+
+
+def q_js_is_one_progress_data_call():
+    # Replicata: progress.js_text for the surveys of the tiny open and closed runs at a fixed time.
+    # Expectata: one call, progressData(...);, of JSON with made (the time, in whole seconds) and runs, each with n,
+    # order, state, so_far (its passes' seconds of running), to_go (null: no estimate for an ended run), etas (none
+    # recorded here) and its sea (depth, keys, groups, counts, as progress.sea gives it) with the statuses' names, and
+    # nothing else.
+    now = 1792200000.25
+    surveys = [progress.survey(n, order, *tiny(name), [], now, {}, {}) for n, order, name in ((64, 7, 'open'), (40, 6, 'closed'))]
+    data = progress_data(progress.js_text(surveys, now))
+    assert set(data) == {'made', 'runs'} and data['made'] == 1792200000, data.keys()
+    for r, s in zip(data['runs'], surveys):
+        assert set(r) == {'n', 'order', 'state', 'so_far', 'to_go', 'etas', 'statuses', 'depth', 'keys', 'groups', 'counts'}, set(r)
+        assert (r['n'], r['order'], r['state'], r['to_go'], r['etas']) == (s['n'], s['order'], 'ended', None, []), r
+        assert r['so_far'] == sum(b - a for a, b in s['passes']) > 0, (r['so_far'], s['passes'])
+        assert r['statuses'] == list(progress.SEA_STATUSES)
+        assert {k: r[k] for k in ('depth', 'keys', 'groups', 'counts')} == s['sea'], r
+        assert sum(r['counts'].values()) == sum(map(len, r['groups']))
+
+
+
+def q_js_etas_are_the_record_on_running_time():
+    # Replicata: the tiny closed run (40@6, two passes, the second of no length) surveyed with a made-up record of ETAs
+    # (hours: mean, lo, hi) at 600 times of its first pass, one of them with no estimate, and progress.js_text of it.
+    # Expectata: the run's etas are the record's estimates in time order, the one with none left out (and the survey's
+    # own record of its snapshot, none for an ended run), as [the time, seconds of running before it, mean, lo, hi], the
+    # time in whole seconds and the rest to a tenth, thinned to at most progress.ETA_POINTS without repeats, the last always kept; a time's running
+    # seconds are its time less the first pass's start.
+    journal, log = tiny('closed')
+    passes = progress.parse_log(log)
+    a, b = passes[0]['start'], passes[0]['last']
+    assert b > a, passes
+    times = [a + (b - a) * i / 599 for i in range(600)]
+    etas = {repr(t): [1.0 + i, 0.5 + i, 2.0 + i] for i, t in enumerate(times)}
+    etas[repr(times[300])] = None
+    s = progress.survey(40, 6, journal, log, [], passes[-1]['last'] + 5, {}, etas)
+    got = progress_data(progress.js_text([s], passes[-1]['last'] + 5))['runs'][0]['etas']
+    want = sorted((int(float(t)), float(t) - a, *(3600 * v for v in e)) for t, e in etas.items() if e is not None)
+    near = lambda g, w: all(abs(x - y) <= 0.051 for x, y in zip(g, w))          # seconds to a tenth
+    assert len(got) <= progress.ETA_POINTS and near(got[-1], want[-1]), (len(got), got[-1:], want[-1:])
+    assert all(any(near(g, w) for w in want) for g in got), got[:5]
+    assert [g[1] for g in got] == sorted(g[1] for g in got) and len({tuple(g) for g in got}) == len(got), got[:5]
 
 # ---------- runner ----------
 

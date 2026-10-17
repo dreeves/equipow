@@ -556,12 +556,17 @@ def make_executor():
     return ProcessPoolExecutor(PROCESSES, initializer=configure, initargs=(N, ORDER))
 
 
-# BEFORE THE NEXT SEARCH (dreeves, 2026-10-13): shuffle each node's children before stack.extend(children) below, with a
-# seed from the node's key (reproducible), so that subtrees run in random order and progress.py's estimate, which costs
-# waiting subtrees from finished ones, samples them fairly.  240@11's depth-5 subtrees ran in an order that grew costly:
-# the first 25 took about 0.2 worker-hours each, then came ones of 169 and 282+ (2026-10-13), so its ETA kept rising.
-# progress.py's replay must make the same shuffle (one shared function), and each pass's start line should say whether
-# it shuffles, so that earlier passes still replay in their order.  Verdicts are by node, so the proofs are unaffected.
+def sibling_order(key, items):
+    """The items (a node's children, as split() gives them, or their keys) in the order search() pushes them, which
+    it pops last first: shuffled, each item's place set by the sha1 of the node's key and the item's index in the
+    split, so the order is the same on every run and in progress.py's replay, which shuffles with this function.
+    (dreeves, 2026-10-13: subtrees in random order, so that progress.py's estimate, which costs waiting subtrees from
+    finished ones, samples them fairly.  240@11's depth-5 subtrees ran in an order that grew costly: the first 25 took
+    about 0.2 worker-hours each, then came ones of 169 and 282+, so its ETA kept rising.)  Verdicts are by node, so
+    the proofs are unaffected; a pass's start line says that it shuffles (since 2026-10-17)."""
+    return [items[i] for i in sorted(range(len(items)), key=lambda i: hashlib.sha1(f'{key}#{i}'.encode()).hexdigest())]
+
+
 def search(order, journal, log, executor):
     """Close the tree from the top node depth-first, PROCESSES nodes at a time.  A subtree is closed when its
     node is INFEASIBLE or all its children's subtrees are closed; each closed subtree with children is
@@ -606,7 +611,7 @@ def search(order, journal, log, executor):
             if children:
                 pending[node] = len(children)
                 for c in children: parent[c] = node
-                stack.extend(children)
+                stack.extend(sibling_order(node_key(node), children))
             else:
                 settle(node, verdict == 'INFEASIBLE')
             i += 1
@@ -664,10 +669,10 @@ def run():
     """The run that configure() set up: the control, the search, and its outcome, all in the log."""
     t0 = time.time()
     journal = Journal(JOURNAL)
-    # TODO: start line; says: start: n, order at least, processes, certbb's budgets in LP solves by depth and at least so many per pool member, the HiGHS build, split moduli, and how many verdicts the journal already holds
+    # TODO: start line; says: start: n, order at least, processes, certbb's budgets in LP solves by depth and at least so many per pool member, the HiGHS build, split moduli, how many verdicts the journal already holds, and that this pass shuffles each node's children (sibling_order)
     log_to_file(f'Claude: "start: n = {N}, order at least {ORDER}, {PROCESSES} processes, budgets {list(BUDGET)} '
                 f'(LP solves; a pool at least {POOL_BUDGET} per member), HiGHS {certbb.HIGHS}, split moduli {list(CASCADE)}, '
-                f'{len(journal.records)} earlier verdicts"')
+                f'{len(journal.records)} earlier verdicts, siblings shuffled"')
     control()
     # TODO: says the startup control passed: the example of order ORDER-1 and length N survived every split, and order ORDER rejects it
     log_to_file(f'Claude: "startup control passed: the order-{ORDER - 1} example of length {N} survived every split, and order {ORDER} rejects it"')
@@ -694,7 +699,7 @@ def run():
 # all of certbb.py, and all of width.py (its directions decide which nodes certbb's width test closes).
 CODE = hashlib.sha1((''.join(inspect.getsource(f) for f in (
     lattice_poly, lattice_basis, moment_rows, moments, count_rows, ExactSystem, integer_system, admissible, act,
-    stabilizer, rep, split, solve_node, node_key, work, search)) + inspect.getsource(certbb)
+    stabilizer, rep, split, solve_node, node_key, work, sibling_order, search)) + inspect.getsource(certbb)
     + inspect.getsource(certbb.width)).encode()).hexdigest()
 
 
