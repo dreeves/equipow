@@ -1475,6 +1475,21 @@ PROGRESS_EARLY = '<script>window.PROGRESS_POLL_MS = 1000;</script>\n'      # a 1
 # a browser that last left the section open (dreeves, 2026-10-17: "i keep having to re-expand the search progress
 # section", Live Server reloading the page as files change), set before the page's scripts run
 PROGRESS_REMEMBERED = '<script>localStorage.setItem("progress-open", "1");</script>\n'
+NNBSP = '\u202f'                               # the narrow no-break space between a number and its unit h (2026-10-17)
+
+
+def ampm(t):
+    """A time as the section's status line gives it: local 12-hour hours without a leading zero, minutes, am or pm."""
+    lt = time.localtime(t)
+    return f'{lt.tm_hour % 12 or 12}:{lt.tm_min:02d}{"am" if lt.tm_hour < 12 else "pm"}'
+
+
+def finish(t1, t2):
+    """The status line's finish times: the first's weekday, the first, a spaced en dash, the second's weekday only when
+    its date differs, the second."""
+    day = lambda t: time.strftime('%a', time.localtime(t))
+    same = time.strftime('%Y-%m-%d', time.localtime(t1)) == time.strftime('%Y-%m-%d', time.localtime(t2))
+    return f'{day(t1)} {ampm(t1)} – {"" if same else day(t2) + " "}{ampm(t2)}'
 # The harness: notes what has loaded, opens the section, waits 3.5 s, reads each dot's middle pixel, the key's counts,
 # the state line and the times, the time bar's parts, the subtrees' blocks and the ETA chart (its markup at rest), hovers over the third
 # group's first dot and over the ETA chart's second record, gives progressData a changed snapshot (one dot running ->
@@ -1505,7 +1520,8 @@ PROGRESS_HARNESS = """<script>
     const css = getComputedStyle(section);
     out.colors = run.statuses.map(s => css.getPropertyValue('--progress-' + s).trim());
     out.counts = counts();
-    out.state = [...section.querySelectorAll('[data-state]')].filter(e => !e.hidden).map(e => e.textContent.replace(/\\s+/g, ' ').trim());
+    const squeeze = t => t.replace(/[ \\t\\n\\r]+/g, ' ').trim();       // ASCII whitespace only: U+202F, before a unit, is text
+    out.state = [...section.querySelectorAll('[data-state]')].filter(e => !e.hidden).map(e => squeeze(e.textContent));
     out.made = section.querySelector('[data-made]').textContent;
     out.heads = [...section.querySelectorAll('.progress-runs h3')].map(h => h.textContent.replace(/\\s+/g, ' ').trim());
     out.etaDisplays = [...section.querySelectorAll('.progress-runs .progress-eta')].map(e => getComputedStyle(e).display);
@@ -1517,7 +1533,7 @@ PROGRESS_HARNESS = """<script>
     out.bar = Object.fromEntries([...section.querySelectorAll('[data-bar]')].map(e => [e.dataset.bar, e.style.width || e.style.left]));
     out.blocks = {rects: L.rects, cols: L.cols, rows: L.rows};
     const fig = section.querySelector('.progress-eta'), svg = fig.querySelector('svg');
-    const text = sel => fig.querySelector(sel).textContent.replace(/\\s+/g, ' ').trim();
+    const text = sel => squeeze(fig.querySelector(sel).textContent);
     out.eta = {hidden: fig.hidden, widths: [svg.getBoundingClientRect().width, section.querySelector('canvas').getBoundingClientRect().width],
                togo: fig.querySelector('[data-togo]').getAttribute('points').trim().split(/\\s+/).length,
                labelTogo: text('[data-label-togo]'), labelTotal: text('[data-label-total]'), labelSpent: text('[data-label-spent]')};
@@ -1789,22 +1805,29 @@ def q_progress_draws_each_dot_in_its_status_color():
 
 def q_progress_states_times_and_hours():
     # Replicata: progress_run's state line, snapshot time and age after opening.
-    # Expectata: only the running state's line shows, with 2.0 h so far and a 0.5–3.0 h band to go (PROGRESS_DATA's
-    # so_far and to_go), and in parentheses the clock times that band ends between, from the snapshot's time, each as
-    # local weekday and HH:MM (dreeves, 2026-10-17: the finish as a clock time); the snapshot time is the data's made in
+    # Expectata: only the running state's line shows, in dreeves's form of 2026-10-17 ("Running: 11.4 h so far +
+    # 34.2–50.6 h to go = 45–62 h (Mon 6:27am – 10:58pm)"): 2.0 h so far + a 0.5–3.0 h band to go (PROGRESS_DATA's so_far
+    # and to_go) = 2.5–5.0 h in all, each number and its h apart by a narrow no-break space (his "thin space"), then in
+    # parentheses the local times that band ends between (finish: the weekday once unless the dates differ, 12-hour
+    # times with am or pm), no period; the snapshot time is the data's made in
     # local time (YYYY-MM-DD HH:MM:SS), and its age a duration in digits.  And since dreeves's request of 2026-10-17, the
     # status line sits below the ETA chart, where its legend was, outside the chart's box (so that it shows when the
     # chart has no record), its parts in the chart's colors: the hours so far blue (spent), the hours to go red (togo),
-    # the clock times black (total, the page's ink).
+    # the hours in all and the clock times purple (total: #7b1fa2 since dreeves's "blue+red=purple", 2026-10-17; the
+    # page's ink before).
     R = progress_run()
-    made, go = PROGRESS_DATA['made'], PROGRESS_DATA['runs'][0]['to_go']
-    at = lambda t: time.strftime('%a %H:%M', time.localtime(t))
-    assert R['state'] == [f'Running: 2.0 h so far, 0.5–3.0 h to go ({at(made + go["lo"])}–{at(made + go["hi"])}).'], R['state']
+    made, go, h = PROGRESS_DATA['made'], PROGRESS_DATA['runs'][0]['to_go'], NNBSP + 'h'
+    want = f'Running: 2.0{h} so far + 0.5–3.0{h} to go = 2.5–5.0{h} ({finish(made + go["lo"], made + go["hi"])})'
+    assert R['state'] == [want], (R['state'], want)
+    at = lambda d, hh, mm: time.mktime((2026, 10, d, hh, mm, 0, 0, 0, -1))        # local times; 2026-10-19 is a Monday
+    assert finish(at(19, 6, 27), at(19, 17, 38)) == 'Mon 6:27am – 5:38pm', finish(at(19, 6, 27), at(19, 17, 38))
+    assert finish(at(19, 6, 27), at(20, 0, 18)) == 'Mon 6:27am – Tue 12:18am', finish(at(19, 6, 27), at(20, 0, 18))
+    assert finish(at(19, 12, 5), at(26, 12, 5)) == 'Mon 12:05pm – Mon 12:05pm'
     want = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(PROGRESS_DATA['made']))
     assert R['made'] == want, (R['made'], want)
     assert re.fullmatch(r'(\d+ d )?\d+:\d\d:\d\d', R['age']), R['age']
     assert R['status']['afterChart'] is True, R['status']
-    assert R['status']['colors'] == [['spent', 'rgb(42, 120, 214)'], ['togo', 'rgb(227, 73, 72)'], ['total', 'rgb(27, 29, 34)']], R['status']
+    assert R['status']['colors'] == [['spent', 'rgb(42, 120, 214)'], ['togo', 'rgb(227, 73, 72)'], ['total', 'rgb(123, 31, 162)']], R['status']
 
 
 def q_progress_names_each_run_s_program():
@@ -1866,9 +1889,10 @@ def q_progress_draws_the_eta_chart():
     R = progress_run()
     E = R['eta']
     assert not E['hidden'] and E['togo'] == 3 and abs(E['widths'][0] - E['widths'][1]) <= 1, E
-    assert (E['labelTogo'], E['labelTotal'], E['labelSpent']) == ('0.5–3.0 h', '2.5–5.0 h', '2.0 h'), E
+    h = NNBSP + 'h'
+    assert (E['labelTogo'], E['labelTotal'], E['labelSpent']) == (f'0.5–3.0{h}', f'2.5–5.0{h}', f'2.0{h}'), E
     when = time.strftime('%Y-%m-%d %H:%M', time.localtime(PROGRESS_DATA['runs'][0]['etas'][1][0]))
-    assert E['tip'] == f'{when}: elapsed 1.0 h, ETA 2.0 h (1.0–3.0 h), elapsed + ETA 3.0 h', E['tip']
+    assert E['tip'] == f'{when}: elapsed 1.0{h}, ETA 2.0{h} (1.0–3.0{h}), elapsed + ETA 3.0{h}', E['tip']
     assert R['tipRest']['visibility'] == 'hidden' and R['tipRest']['height'] > 0 and R['jump'] == 0, (R['tipRest'], R['jump'])
 
 
@@ -1904,11 +1928,21 @@ def q_progress_eta_chart_keeps_progress_html_s_spec():
     # from the black marker across to it and down to the x axis, (13.2, 14.2), (14.2, 14.2), (14.2, 0) h.  Then, at
     # dreeves's request (2026-10-17): the ETA's ideal course, a red dotted line (ideal) from the red marker down to the x
     # axis at the finish, (13.2, 1) to (14.2, 0) h; the red label without its "ETA", "0.5–3.0 h"; and no legend: the
-    # status line below the chart says what each color is (q_progress_states_times_and_hours).
+    # status line below the chart says what each color is (q_progress_states_times_and_hours).  Then, at dreeves's
+    # request (2026-10-17: "1. shouldn't the black line also have a confidence band? 2. shouldn't there be a blue dot for
+    # consistency? 3. ooh, how about purple instead of black, because blue+red=purple?"): elapsed + ETA's band too, the
+    # ETAs' band raised by each record's elapsed time, (0, 4), (13.2, 16.2), (13.2, 13.7), (0, 1) h, with its own range
+    # line at the last, (13.2, 13.7) to (13.2, 16.2) h; a blue marker at the last record's elapsed time, (13.2, 13.2) h,
+    # where the dashed elapsed time starts; elapsed + ETA purple, #7b1fa2 (the validator's numbers are in the CSS), in
+    # its line, band, range line, marker, label and the finish marker's ring, the black ink no more; and the y axis
+    # taller, to the top of elapsed + ETA's band (16.2 h), so its ticks run from 0 to 20 h.  The two bands can overlap,
+    # and so can the two range lines (not here; in boxsplit.py's chart of 2026-10-17, from 46 to 51 h), so both bands
+    # and both range lines multiply onto what is under them: neither hides the other (the purple range line hid the red
+    # one's top until they did, 2026-10-17).
     R = progress_run('eta')
     parts = SvgParts()
     parts.feed(R['etaSvg'])
-    els = [(tag, a, re.sub(r'\s+', ' ', text).strip()) for tag, a, text in parts.items]
+    els = [(tag, a, re.sub(r'[ \t\n\r]+', ' ', text).strip()) for tag, a, text in parts.items]   # U+202F stays: it is text
     def pts(text): return [tuple(map(float, xy.split(','))) for xy in text.split()]
     polys = {a['class']: pts(a['points']) for tag, a, _ in els if tag == 'polyline'}
     assert sorted(polys) == ['guide', 'spent', 'togo', 'total'], polys.keys()
@@ -1919,41 +1953,49 @@ def q_progress_eta_chart_keeps_progress_html_s_spec():
     def check(got, want, what): assert len(got) == len(want) and all(near(g, (X(a), Y(b))) for g, (a, b) in zip(got, want)), (what, got, [(X(a), Y(b)) for a, b in want])
     for k, w in (('spent', [(0, 0), (13.2, 13.2)]), ('togo', [(0, 2), (13.2, 1)]), ('total', [(0, 2), (13.2, 14.2)]),
                  ('guide', [(13.2, 14.2), (14.2, 14.2), (14.2, 0)])): check(polys[k], w, k)
-    band = [pts(a['points']) for tag, a, _ in els if tag == 'polygon' and a.get('class') == 'band']
-    assert len(band) == 1, band
-    check(band[0], [(0, 4), (13.2, 3), (13.2, 0.5), (0, 1)], 'band')
+    bands = {a['class']: pts(a['points']) for tag, a, _ in els if tag == 'polygon'}
+    assert sorted(bands) == ['band togo', 'band total'], bands.keys()
+    check(bands['band togo'], [(0, 4), (13.2, 3), (13.2, 0.5), (0, 1)], 'band togo')
+    check(bands['band total'], [(0, 4), (13.2, 16.2), (13.2, 13.7), (0, 1)], 'band total')
     lines = [(a['class'], tuple(float(a[k]) for k in ('x1', 'y1', 'x2', 'y2')), a) for tag, a, _ in els if tag == 'line']
-    assert sorted(c for c, _, _ in lines) == sorted(['axis', 'ahead', 'ideal', 'range', 'cross', 'grid', 'grid', 'grid']), [c for c, _, _ in lines]
+    assert sorted(c for c, _, _ in lines) == sorted(['axis', 'ahead', 'ideal', 'range togo', 'range total', 'cross'] + ['grid'] * 4), [c for c, _, _ in lines]
     seg = {c: s for c, s, _ in lines if c != 'grid'}
     check([seg['ahead'][:2], seg['ahead'][2:]], [(13.2, 13.2), (14.2, 14.2)], 'ahead')
     check([seg['ideal'][:2], seg['ideal'][2:]], [(13.2, 1), (14.2, 0)], 'ideal')
-    check([seg['range'][:2], seg['range'][2:]], [(13.2, 0.5), (13.2, 3)], 'range')
+    check([seg['range togo'][:2], seg['range togo'][2:]], [(13.2, 0.5), (13.2, 3)], 'range togo')
+    check([seg['range total'][:2], seg['range total'][2:]], [(13.2, 13.7), (13.2, 16.2)], 'range total')
     assert abs(seg['axis'][1] - Y(0)) < 0.05 and seg['axis'][1] == seg['axis'][3], seg['axis']
     grid = [s for c, s, _ in lines if c == 'grid']
-    assert sorted(round((y0 - g[1]) / (y0 - Y(1)), 3) for g in grid) == [5, 10, 15] and all(g[1] == g[3] for g in grid), grid
+    assert sorted(round((y0 - g[1]) / (y0 - Y(1)), 3) for g in grid) == [5, 10, 15, 20] and all(g[1] == g[3] for g in grid), grid
     cross = next(a for c, _, a in lines if c == 'cross')
     assert cross.get('visibility') == 'hidden', cross
     yt = [(float(a['y']), text) for tag, a, text in els if tag == 'text' and a.get('class') == 'ytick']
-    assert [v for _, v in yt] == ['0', '5', '10', '15 h'] and all(abs(y - 4 - Y(int(v.split()[0]))) < 0.05 for y, v in yt), yt
+    assert [v for _, v in yt] == ['0', '5', '10', '15', '20\u202fh'] and all(abs(y - 4 - Y(int(v.split()[0]))) < 0.05 for y, v in yt), yt
     xt = [(float(a['x']), text) for tag, a, text in els if tag == 'text' and a.get('class') == 'xtick']
-    assert [v for _, v in xt] == ['0', '5', '10', '15 h'] and all(abs(x - X(int(v.split()[0]))) < 0.05 for x, v in xt), xt
+    assert [v for _, v in xt] == ['0', '5', '10', '15\u202fh'] and all(abs(x - X(int(v.split()[0]))) < 0.05 for x, v in xt), xt
     now = {a['class'].split()[1]: (float(a['cx']), float(a['cy'])) for tag, a, _ in els if tag == 'circle'}
-    assert sorted(now) == ['finish', 'togo', 'total'], now
-    check([now['togo'], now['total'], now['finish']], [(13.2, 1), (13.2, 14.2), (14.2, 14.2)], 'now')
+    assert sorted(now) == ['finish', 'spent', 'togo', 'total'], now
+    check([now['spent'], now['togo'], now['total'], now['finish']], [(13.2, 13.2), (13.2, 1), (13.2, 14.2), (14.2, 14.2)], 'now')
     labels = {a['class'].split()[1]: (float(a['x']), float(a['y']), text) for tag, a, text in els
               if tag == 'text' and a.get('class', '').startswith('label ')}
-    assert {k: v for k, (_, _, v) in labels.items()} == {'togo': '0.5–3.0 h', 'total': '14–16 h', 'spent': '13 h'}, labels
+    assert {k: v for k, (_, _, v) in labels.items()} == {'togo': '0.5–3.0\u202fh', 'total': '14–16\u202fh', 'spent': '13\u202fh'}, labels
     for k, h in (('togo', 1), ('total', 14.2)):
         x, y, _ = labels[k]
         assert X(13.2) < x < X(13.2) + 20 and abs(y - Y(h)) < 16, (k, labels[k], X(13.2), Y(h))
     x, y, _ = labels['spent']
     assert abs(x - X(13.2)) < 0.05 and y > Y(0), (labels['spent'], X(13.2), Y(0))
     style = page()[page().index('<style>'):page().index('</style>')]
-    assert re.search(r'--progress-spent: #2a78d6;', style) and re.search(r'--progress-togo: #e34948;', style)
+    assert re.search(r'--progress-spent: #2a78d6;', style) and re.search(r'--progress-togo: #e34948;', style) and re.search(r'--progress-total: #7b1fa2;', style)
     widths = {k: float(w) for k, w in re.findall(r'\.progress-eta \.(spent|togo|total) \{[^}]*stroke-width: ([\d.]+)', style)}
     assert set(widths) == {'spent', 'togo', 'total'} and widths['total'] > max(widths['spent'], widths['togo']), widths
     fills = dict(re.findall(r'\.progress-eta \.label\.(togo|total|spent) \{ fill: var\(--([\w-]+)\); \}', style))
-    assert fills == {'togo': 'progress-togo', 'total': 'ink', 'spent': 'progress-spent'}, fills
+    assert fills == {'togo': 'progress-togo', 'total': 'progress-total', 'spent': 'progress-spent'}, fills
+    tints = {(b, s): c for b, s, c in re.findall(r'\.progress-eta \.(band|range)\.(togo|total) \{ [\w-]+: color-mix\(in oklab, var\(--progress-(togo|total)\) \d+%', style)}
+    assert tints == {(b, s): s for b in ('band', 'range') for s in ('togo', 'total')}, tints
+    dots = dict(re.findall(r'\.progress-eta \.now\.(spent|togo|total) \{ fill: var\(--progress-([\w-]+)\);', style))
+    assert dots == {'spent': 'spent', 'togo': 'togo', 'total': 'total'}, dots
+    assert re.search(r'\.progress-eta \.now\.finish \{ fill: var\(--paper\); stroke: var\(--progress-total\);', style)
+    assert all(re.search(rf'\.progress-eta \.{k} \{{[^}}]*mix-blend-mode: multiply;', style) for k in ('band', 'range')), 'an overlap hidden'
     assert R['status']['legends'] == 0, R['status']
 
 def main():
