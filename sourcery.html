@@ -5254,8 +5254,16 @@ next: DRY violation: the line at the top we show on hover should be the same as 
 
 and for further consistency: instead of "Running:" as the prefix, how about "@2026-10-17 20:40:59" (in black) and then some whitespace, no colon, and then the blue+red=purple numbers</pre>
 <details>
-<summary><a class="anchor" href="#p238"><time datetime="2026-10-18T04:58:19.368000+00:00">04:58</time></a> <span class="chip"></span> <span class="agent">Claude Code</span></summary>
-<div class="reply machine empty"><p>Response still generating when this transcript was captured</p></div>
+<summary><a class="anchor" href="#p238"><time datetime="2026-10-18T04:58:19.368000+00:00">04:58</time></a> <span class="chip"></span> <span class="agent">Claude Code</span> <span class="model">claude-opus-5-5</span> <span class="effort">(max)</span> <span class="elapsed">thought for 10m1s · 14m43s wall-clock time</span></summary>
+<div class="reply machine"><p>Quals are red (the harness can&#x27;t find the new timestamp field yet). Mirroring the CSS in the page qual, then editing the page.</p>
+<p>A stray placeholder pair aborted the page edit (nothing written to index.html; the qual mirror went through). Redoing the page edit properly.</p>
+<p>All green: 57/57 and 24/24. Fixing one stale word in the script&#x27;s header comment, then rendering.</p>
+<p>The status line reads as asked and the labels are gone. Checking the hover tip with a scripted mousemove.</p>
+<p>All three are done. The quals failed first and now pass (57/57 in <code>quals_index.py</code>, 24/24 in <code>quals_pow2_page.py</code>), and I checked both the resting and hover states in headless Chrome.</p>
+<ol><li><strong>Dot labels commented out:</strong> all three, including the blue &quot;12 h&quot; under the blue dot, since &quot;so far&quot; in the status line gives the same number. The rule that dropped x-axis ticks near that blue label is commented out too, so the axis now shows every tick. To bring the labels back, uncomment four spots in [index.html](index.html) (the markup, the CSS, the JS that places them, and the tick rule) and the matching checks in [quals_index.py](quals_index.py), which sit next to the new &quot;no labels&quot; checks.</li><li><strong>Hover line = status line:</strong> both now come from one template, filled in by one function. Hovering shows, for example, &quot;@2026-10-17 15:36:45  6.6 h so far + 36.4–48.2 h to go = 43–55 h (Mon 4:00am – 3:50pm)&quot;. Hovering the latest record gives exactly the status line, and a qual checks that, markup included.</li></ol>
+<ul><li>The hover line no longer shows the mean ETA, only the range, same as the status line.</li><li>It&#x27;s now the status line&#x27;s size and colors instead of small gray text. Both lines use fixed-width digits, which the hover line already did.</li><li>No new if-statements: the three &quot;no estimate yet → —&quot; checks moved into the shared function.</li></ul>
+<ol><li><strong>&quot;@&quot; prefix:</strong> &quot;@&quot; plus the snapshot time in black, then an em space, then the numbers, with no colon. For a running search that time is also the latest record&#x27;s.</li></ol>
+<p>The frozen and ended lines still read &quot;Frozen: …&quot; and &quot;Ended after 192.3 h of running.&quot; Should they also start with the @-time?</p></div>
 </details>
 </article>
 </main>

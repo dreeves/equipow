@@ -276,17 +276,18 @@ code {
 .progress-eta .now.finish { fill: var(--paper); stroke: var(--progress-total); stroke-width: 1.5; }
 .progress-eta .axis, .progress-eta .grid { stroke: var(--progress-hair); stroke-width: 1; vector-effect: non-scaling-stroke; }
 .progress-eta text { font-size: 11px; fill: var(--muted); stroke: none; font-variant-numeric: tabular-nums lining-nums; }
+/* The labels at the latest record, commented out with them (dreeves, 2026-10-17: "comment it out for now"):
 .progress-eta text.label { font-size: 12px; font-weight: 600; stroke: var(--paper); stroke-width: 4px; stroke-linejoin: round; paint-order: stroke; }
 .progress-eta .label.togo { fill: var(--progress-togo); }
 .progress-eta .label.total { fill: var(--progress-total); }
-.progress-eta .label.spent { fill: var(--progress-spent); }
-.progress-tip { font-size: 0.875rem; color: var(--muted); font-variant-numeric: tabular-nums lining-nums; visibility: hidden; }
-.progress-tip .spent { color: var(--progress-spent); stroke: none; }
-.progress-tip .togo { color: var(--progress-togo); stroke: none; }
-.progress-tip .total { color: var(--progress-total); font-weight: 600; stroke: none; }
-.progress-status .spent { color: var(--progress-spent); }
-.progress-status .togo { color: var(--progress-togo); }
-.progress-status .total { color: var(--progress-total); }
+.progress-eta .label.spent { fill: var(--progress-spent); } */
+/* The tip and the status line: one line, a snapshot's (template.progress-line).  Stroke none: the tip sits in the
+   chart's box, whose series rules stroke. */
+.progress-tip, .progress-status { font-variant-numeric: tabular-nums lining-nums; }
+.progress-tip { visibility: hidden; }
+.progress-tip .spent, .progress-status .spent { color: var(--progress-spent); stroke: none; }
+.progress-tip .togo, .progress-status .togo { color: var(--progress-togo); stroke: none; }
+.progress-tip .total, .progress-status .total { color: var(--progress-total); stroke: none; }
 
 /* Claude's table of the smallest length known for each order (Stan Wagon's suggestion, 2026-10-17): a block quote in
    Claude's hue like the lattice section's, its table drawn as the paper's (table.block) but not of that class, which
@@ -1032,7 +1033,7 @@ SClaude[11][800] = {
 </section>
 
 <section class="progress" aria-labelledby="progress-title">
-  <!-- TODO: Claude's copy, at dreeves's request (2026-10-17), on the certified searches' progress, in a section that starts closed: when the snapshot was made and how old it is; per run, its question and the program that runs it (overnight_v5.py, or boxsplit.py over a run's open sub-cases), whether it is running, frozen or ended, and its hours of running so far + to go = in all (dreeves's form, 2026-10-17; running: with the local times that range ends between, in parentheses), as a bar drawn to scale at the top and as the status line below the ETA chart, its parts in the chart's colors in place of a legend (dreeves, 2026-10-17); a sea of dots, one per sub-case, each subtree a block of its own, colored by status, with a key of the statuses and their counts and a readout of the subtree under the pointer; and progress.html's ETA chart (elapsed time, ETA and elapsed + ETA, in dreeves's words), with a tip above it for the recorded ETA under the pointer -->
+  <!-- TODO: Claude's copy, at dreeves's request (2026-10-17), on the certified searches' progress, in a section that starts closed: when the snapshot was made and how old it is; per run, its question and the program that runs it (overnight_v5.py, or boxsplit.py over a run's open sub-cases), whether it is running, frozen or ended, and its hours of running so far + to go = in all (dreeves's form, 2026-10-17; running: after an @ and the snapshot's time in place of "Running:" (dreeves, 2026-10-17), with the local times that range ends between, in parentheses), as a bar drawn to scale at the top and as the status line below the ETA chart, its parts in the chart's colors in place of a legend (dreeves, 2026-10-17); a sea of dots, one per sub-case, each subtree a block of its own, colored by status, with a key of the statuses and their counts and a readout of the subtree under the pointer; and progress.html's ETA chart (elapsed time, ETA and elapsed + ETA, in dreeves's words), with a tip above it: the status line's running form for the recorded ETA under the pointer, at its time (dreeves, 2026-10-17: "the same as the line below, just an earlier snapshot thereof") -->
     <details>
       <summary><h2 id="progress-title">Search progress</h2></summary>
       <p>As of <span data-made>—</span> (<span data-age>—</span> ago).</p>
@@ -1052,7 +1053,7 @@ SClaude[11][800] = {
           </ul>
           <p class="progress-readout" data-readout>Hover over the dots for a subtree's key and counts.</p>
           <div class="progress-eta" hidden>
-            <p class="progress-tip" data-tip><span data-tip-when></span>: <span class="spent">elapsed <span data-tip-elapsed></span>&#8239;h</span>, <span class="togo">ETA <span data-tip-eta></span>&#8239;h (<span data-tip-range></span>&#8239;h)</span>, <span class="total">elapsed + ETA <span data-tip-total></span>&#8239;h</span></p>
+            <p class="progress-tip" data-tip></p>
             <svg viewBox="0 0 640 240" role="img" aria-label="The recorded ETAs against the hours of running, with the elapsed time and elapsed + ETA">
               <g data-grid></g>
               <polygon class="band togo" data-band-togo></polygon>
@@ -1069,20 +1070,23 @@ SClaude[11][800] = {
               <circle class="now togo" r="4" data-now-togo></circle>
               <circle class="now total" r="4" data-now-total></circle>
               <circle class="now finish" r="4" data-now-finish></circle>
+              <!-- The labels at the latest record, commented out at dreeves's request (2026-10-17: "comment it out for now"):
               <text class="label togo" data-label-togo><tspan data-togo-range></tspan>&#8239;h</text>
               <text class="label total" data-label-total><tspan data-total-range></tspan>&#8239;h</text>
               <text class="label spent" text-anchor="middle" data-label-spent><tspan data-spent-h></tspan>&#8239;h</text>
+              -->
               <g data-ticks></g>
               <line class="cross" visibility="hidden" data-cross></line>
             </svg>
           </div>
           <p class="progress-status">
-            <span data-state="running">Running: <span class="spent"><b data-so-far></b>&#8239;h so far</span> + <span class="togo"><b data-to-go></b>&#8239;h to go</span> = <span class="total"><b data-sum></b>&#8239;h (<b data-done></b>)</span></span>
+            <span data-state="running"></span>
             <span data-state="frozen">Frozen: <span class="spent"><b data-so-far></b>&#8239;h so far</span> + <span class="togo"><b data-to-go></b>&#8239;h to go</span> = <span class="total"><b data-sum></b>&#8239;h</span></span>
             <span data-state="ended">Ended after <span class="spent"><b data-so-far></b>&#8239;h</span> of running.</span>
           </p>
         </div>
       </template>
+      <template class="progress-line">@<span data-when></span>&emsp;<span class="spent"><b data-so-far></b>&#8239;h so far</span> + <span class="togo"><b data-to-go></b>&#8239;h to go</span> = <span class="total"><b data-sum></b>&#8239;h (<b data-done></b>)</span></template>
     </details>
 </section>
 
@@ -1566,7 +1570,7 @@ try {
 // is hidden; the section draws only when the snapshot changed, in place, and loads nothing while closed.  This browser
 // keeps whether it last left the section open (localStorage, KEPT), and the section opens itself on load if so (dreeves,
 // 2026-10-17: reloads, as Live Server's when files change, kept closing it).  Every word
-// it shows is in the section's HTML (its template); this script writes numbers, times and marks.
+// it shows is in the section's HTML (its templates); this script writes numbers, times and marks.
 // Per run: a bar of hours so far and to go, to scale (so far, then the band's bottom, then the rest of the band, the
 // mean marked); the sea, one dot per sub-case of the data's groups, each group a block of cells (strips below), cells
 // of pitch px, chosen from 10 down to 2 px so that the sea is at most about 560 px tall, a dot a device px short of its
@@ -1583,6 +1587,7 @@ try {
   const details = section.querySelector('details');
   const runsBox = section.querySelector('.progress-runs');
   const template = section.querySelector('template.progress-run');
+  const line = section.querySelector('template.progress-line');      // a snapshot's line: the status line's running form, and the tip
   const missing = section.querySelector('.progress-missing');
   const POLL = window.PROGRESS_POLL_MS || 60000;
   const KEPT = 'progress-open';                // localStorage: "1" while this browser last left the section open
@@ -1606,6 +1611,16 @@ try {
   };
   const hours = sec => (sec / 3600).toFixed(1);
   const hrs = h => h < 10 ? h.toFixed(1) : h.toFixed(0);             // progress.py's hrs: a tenth below 10, whole from 10
+  // A snapshot's line (template.progress-line), into el's fields: the snapshot's time t, its seconds of running so far
+  // x and its estimate g of the seconds to go ({lo, hi}; null: none), as the frozen and ended forms take them too.
+  const snapshot = (el, t, x, g) => {
+    const fill = (field, text) => { for (const e of el.querySelectorAll(`[data-${field}]`)) e.textContent = text; };
+    fill('when', stamp(t));
+    fill('so-far', hours(x));
+    fill('to-go', g ? `${hours(g.lo)}–${hours(g.hi)}` : '—');
+    fill('sum', g ? `${hrs((x + g.lo) / 3600)}–${hrs((x + g.hi) / 3600)}` : '—');
+    fill('done', g ? finish(t + g.lo, t + g.hi) : '—');
+  };
   const num = v => String(Number(v.toPrecision(12)));
   const pct = v => `${+(100 * v).toFixed(4)}%`;
   const tickStep = top => {                                           // progress.py's tick_step
@@ -1647,10 +1662,8 @@ try {
       box.querySelector('[data-order]').textContent = run.order;
       box.querySelector('[data-program]').textContent = run.program;
       for (const e of box.querySelectorAll('[data-state]')) e.hidden = e.dataset.state !== run.state;
-      for (const e of box.querySelectorAll('[data-so-far]')) e.textContent = hours(run.so_far);
-      for (const e of box.querySelectorAll('[data-to-go]')) e.textContent = run.to_go ? `${hours(run.to_go.lo)}–${hours(run.to_go.hi)}` : '—';
-      for (const e of box.querySelectorAll('[data-sum]')) e.textContent = run.to_go ? `${hrs((run.so_far + run.to_go.lo) / 3600)}–${hrs((run.so_far + run.to_go.hi) / 3600)}` : '—';
-      for (const e of box.querySelectorAll('[data-done]')) e.textContent = run.to_go ? finish(data.made + run.to_go.lo, data.made + run.to_go.hi) : '—';
+      for (const e of box.querySelectorAll('[data-tip], [data-state="running"]')) e.replaceChildren(line.content.cloneNode(true));
+      snapshot(box.querySelector('.progress-status'), data.made, run.so_far, run.to_go);
       for (const e of box.querySelectorAll('[data-count]')) e.textContent = run.counts[e.dataset.count].toLocaleString('en-US');
       bar(box, run);
       const L = sea(box, run);
@@ -1784,30 +1797,29 @@ try {
     set(q('[data-now-spent]'), {cx: X(last[1]), cy: Y(last[1])});
     set(q('[data-now-togo]'), {cx: X(last[1]), cy: Y(last[2])});
     set(q('[data-now-total]'), {cx: X(last[1]), cy: Y(last[1] + last[2])});
-    set(q('[data-label-togo]'), {x: X(last[1]) + 8, y: Y(last[2]) + 4});
-    q('[data-togo-range]').textContent = `${hrs(last[3])}–${hrs(last[4])}`;
-    set(q('[data-label-total]'), {x: X(last[1]) + 8, y: Y(last[1] + last[2]) - 6});
-    q('[data-total-range]').textContent = `${hrs(last[1] + last[3])}–${hrs(last[1] + last[4])}`;
-    set(q('[data-label-spent]'), {x: X(now), y: H - 8});
-    q('[data-spent-h]').textContent = hrs(now);
+    // The labels at the latest record, commented out at dreeves's request (2026-10-17: "comment it out for now"):
+    // set(q('[data-label-togo]'), {x: X(last[1]) + 8, y: Y(last[2]) + 4});
+    // q('[data-togo-range]').textContent = `${hrs(last[3])}–${hrs(last[4])}`;
+    // set(q('[data-label-total]'), {x: X(last[1]) + 8, y: Y(last[1] + last[2]) - 6});
+    // q('[data-total-range]').textContent = `${hrs(last[1] + last[3])}–${hrs(last[1] + last[4])}`;
+    // set(q('[data-label-spent]'), {x: X(now), y: H - 8});
+    // q('[data-spent-h]').textContent = hrs(now);
     q('[data-ticks]').replaceChildren(
       ...yticks.map((v, i) => make('text', {class: 'ytick', x: L - 6, y: Y(v) + 4, 'text-anchor': 'end'}, unit(yticks)[i])),
-      ...xticks.map((v, i) => [v, unit(xticks)[i]]).filter(([v]) => Math.abs(X(v) - X(now)) >= CROWD)
+      ...xticks.map((v, i) => [v, unit(xticks)[i]])
+               // .filter(([v]) => Math.abs(X(v) - X(now)) >= CROWD)      // room for the elapsed time's label, commented out with it
                .map(([v, label]) => make('text', {class: 'xtick', x: X(v), y: H - 8, 'text-anchor': 'middle'}, label)));
     const svg = fig.querySelector('svg'), cross = q('[data-cross]'), tip = q('[data-tip]');
     const xsvg = pts.map(p => X(p[1]));
+    const at = k => { const [t, x, , lo, hi] = run.etas[k]; snapshot(tip, t, x, {lo, hi}); };   // record k's line
+    at(pts.length - 1);                         // laid out at rest, invisible, as the latest record's line
     set(cross, {x1: X(last[1]), y1: Y(yticks[yticks.length - 1]), x2: X(last[1]), y2: Y(0)});   // hidden at rest
     svg.addEventListener('mousemove', ev => {
       const b = svg.getBoundingClientRect(), x = (ev.clientX - b.left) * W / b.width;
       let k = 0;
       for (let i = 1; i < xsvg.length; i++) if (Math.abs(xsvg[i] - x) < Math.abs(xsvg[k] - x)) k = i;
-      const [t, ex, m, lo, hi] = pts[k];
       set(cross, {x1: xsvg[k], y1: Y(yticks[yticks.length - 1]), x2: xsvg[k], y2: Y(0)}).setAttribute('visibility', 'visible');
-      q('[data-tip-when]').textContent = local(t);
-      q('[data-tip-elapsed]').textContent = ex.toFixed(1);
-      q('[data-tip-eta]').textContent = m.toFixed(1);
-      q('[data-tip-range]').textContent = `${lo.toFixed(1)}–${hi.toFixed(1)}`;
-      q('[data-tip-total]').textContent = (ex + m).toFixed(1);
+      at(k);
       tip.style.visibility = 'visible';           // laid out at rest (the CSS hides it), so showing it moves nothing
     });
     svg.addEventListener('mouseleave', () => { cross.setAttribute('visibility', 'hidden'); tip.style.visibility = ''; });
