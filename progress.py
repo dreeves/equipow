@@ -832,10 +832,9 @@ def survey(n, order, journal, log, procs, now, cache, etas):
 # ---------- a run's boxsplit pass (boxsplit.py over its open leaves; dreeves, 2026-10-17) ----------
 
 def box_files(n, order):
-    """The driver's journal and log of the run (n, order), and the run's journal, named as boxsplit.configure names
-    them."""
+    """The driver's log of the run (n, order) and the run's journal, named as boxsplit.configure names them."""
     bx.configure(n, order)
-    return bx.JOURNAL, bx.LOG, v5.JOURNAL
+    return bx.LOG, v5.JOURNAL
 
 
 BOX_FORMS = {                          # the driver's log line forms, as boxsplit's run, drive and say_* write them
@@ -883,25 +882,15 @@ def parse_box_lines(lines):
     return passes
 
 
-def driver_records(path):
-    """The driver's journal's last record per key, under boxsplit's header for the configured run (asserted), each
-    checked as overnight_v5.Journal.admit checks it (read_journal's way)."""
-    lines = complete_lines(path)
-    # TODO: error copy; says the driver's journal at this path was written by another configuration or another version of the code
-    assert json.loads(lines[0]) == bx.header(), f'Claude: "the journal {path} belongs to another configuration"'
-    journal = object.__new__(v5.Journal)
-    journal.records = {}
-    for r in map(json.loads, lines[1:]): journal.admit(r)
-    return journal.records
-
-
-def survey_box(n, order, journal, log, main, procs, now, etas):
-    """The boxsplit pass of the run (n, order) as the driver's journal and log, the run's journal (main, whose open
-    leaves the driver works), the process list and the time now show it, in survey's shape: program boxsplit.py, its
-    state, its seconds of running (its passes'), its estimate (to_go; see below) and record of ETAs (etas, to which this
-    snapshot's goes, as survey's), and its sea: one dot per open leaf, grouped and ordered as survey's sea, settled if
-    the driver's journal records it CLOSED, running if it started in the current pass of a running driver and is not
-    done, open if its last pass left a node of its tree open, else pending.
+def survey_box(n, order, log, main, procs, now, etas):
+    """The boxsplit pass of the run (n, order) as the driver's log, the run's journal (main, whose open leaves the
+    driver works), the process list and the time now show it, in survey's shape: program boxsplit.py, its state, its
+    seconds of running (its passes'), its estimate (to_go; see below) and record of ETAs (etas, to which this snapshot's
+    goes, as survey's), and its sea: one dot per open leaf, grouped and ordered as survey's sea, running if it started
+    in the current pass of a running driver and is not done in it, else settled or open as its latest line saying it is
+    done says its tree closed or not, else pending.  The log alone says all this, every pass's lines kept; the driver's
+    journal is not read: the driver writes a leaf's done line and then its CLOSED record, so a reader of both could see
+    the one without the other (the watcher's crash of 2026-10-17 16:03).
     The estimate: an urn (see the vocabulary) of the wall seconds, start to done, of every leaf done in a pass, its new
     ball the longest of them (a leaf's tree has no budget to bound it); each running leaf drawn above its elapsed
     seconds (censored, the longest-running first), holding its worker for the rest; each pending leaf a job in the
@@ -914,7 +903,6 @@ def survey_box(n, order, journal, log, main, procs, now, etas):
         leaves = [v5.node_key(nd) for nd in bx.open_leaves(v5.Journal(main))]
     finally:
         v5.JOURNAL = saved
-    records = driver_records(journal)
     passes = parse_box_lines(complete_lines(log))
     p = passes[-1]
     # TODO: error copy; says the driver's log's last start line names another length, order or count of open leaves than the run's journal
@@ -922,15 +910,12 @@ def survey_box(n, order, journal, log, main, procs, now, etas):
     state = run_state(procs, 'boxsplit.py', n, order, p['outcome'])
     end = now if state == 'running' else p['last']
     spans = [(q['start'], q['last']) for q in passes[:-1]] + [(p['start'], end)]
-    closed = {k for k, r in records.items() if r['verdict'] == 'CLOSED'}
-    done = {i: q['dones'][i] for q in passes for i in q['dones']}           # the latest pass's, for each leaf done
+    done = {i: ok for q in passes for i, (_, ok) in q['dones'].items()}    # each leaf's latest: did its tree close
     running = {i: t for i, t in p['starts'].items() if i not in p['dones'] and state == 'running'}
-    assert all(leaves[i] in closed for i, (_, ok) in done.items() if ok)
 
     def status(i):
-        if leaves[i] in closed: return 'settled'
         if i in running: return 'running'
-        if i in done: return 'open'
+        if i in done: return 'settled' if done[i] else 'open'
         return 'pending'
 
     groups = {}

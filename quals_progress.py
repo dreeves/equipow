@@ -1277,9 +1277,9 @@ def q_box_log_with_an_unknown_line_fails():
 def q_box_survey_of_a_closed_pass():
     # Replicata: progress.survey_box of the tiny real boxsplit pass, no process running.
     # Expectata: program boxsplit.py, state ended, no estimate, its seconds of running its pass's span, a record of
-    # ETAs with nothing in it, and a sea of one dot, settled (the leaf's CLOSED record), in one group.
+    # ETAs with nothing in it, and a sea of one dot, settled (its line saying its tree closed), in one group.
     journal, log, main = tiny_box()
-    s = progress.survey_box(304, 9, journal, log, main, [], time.time(), {})
+    s = progress.survey_box(304, 9, log, main, [], time.time(), {})
     p = progress.parse_box_lines(progress.complete_lines(log))[0]
     assert (s['program'], s['n'], s['order'], s['state'], s['to_go']) == ('boxsplit.py', 304, 9, 'ended', None), s
     assert s['so_far'] == p['last'] - p['start'] and s['passes'] == [(p['start'], p['last'])], (s['so_far'], p)
@@ -1302,7 +1302,7 @@ def q_box_survey_marks_settled_open_running_and_pending():
     journal, log, main = made_up_box(t0)
     procs = [(900, 1, 'SN', 'python3 -u -B boxsplit.py 304 9')]
     etas = {}
-    s = progress.survey_box(304, 9, journal, log, main, procs, t0 + 152, etas)
+    s = progress.survey_box(304, 9, log, main, procs, t0 + 152, etas)
     status = dict(zip(sorted(OPEN4, key=progress.tree_order), ''.join(s['sea']['groups'])))
     name = lambda k: progress.SEA_STATUSES[int(status[k])]
     assert [name(k) for k in OPEN4] == ['settled', 'open', 'running', 'pending'], [name(k) for k in OPEN4]
@@ -1312,10 +1312,25 @@ def q_box_survey_marks_settled_open_running_and_pending():
     go = s['to_go']
     assert (go['lo'], go['hi']) == (150.0, 300.0) and 150 < go['mean'] < 300, go
     assert list(etas) == [str(int(t0 + 152))] and abs(etas[str(int(t0 + 152))][0] - go['mean'] / 3600) < 1e-12, etas
-    s = progress.survey_box(304, 9, journal, log, main, [], t0 + 152, {})
+    s = progress.survey_box(304, 9, log, main, [], t0 + 152, {})
     assert [progress.SEA_STATUSES[int(c)] for c in ''.join(s['sea']['groups'])].count('running') == 0
     assert (s['state'], s['so_far'], s['to_go']) == ('ended', 302.0, None), s
     assert s['sea']['counts'] == {'settled': 1, 'open': 1, 'split': 0, 'pending': 2, 'running': 0}, s['sea']['counts']
+
+
+def q_box_survey_reads_the_log_alone():
+    # Replicata: made_up_box's pass with its driver's journal deleted, so that no CLOSED record backs leaf 0's line
+    # saying its tree closed (the driver writes that line and then the record: the watcher crashed on 2026-10-17 at
+    # 16:03, having read the journal just before the record and the log just after the line), surveyed at t0 + 152
+    # with its process running.
+    # Expectata: no crash, and the statuses of q_box_survey_marks_settled_open_running_and_pending: leaf 0 settled, from
+    # its line alone, leaf 1 open, leaf 2 running, leaf 3 pending.
+    t0 = 1792200000.0
+    journal, log, main = made_up_box(t0)
+    os.remove(journal)
+    s = progress.survey_box(304, 9, log, main, [(900, 1, 'SN', 'python3 -u -B boxsplit.py 304 9')], t0 + 152, {})
+    status = dict(zip(sorted(OPEN4, key=progress.tree_order), ''.join(s['sea']['groups'])))
+    assert [progress.SEA_STATUSES[int(status[k])] for k in OPEN4] == ['settled', 'open', 'running', 'pending'], s['sea']
 
 
 def q_js_names_each_run_s_program():
@@ -1325,7 +1340,7 @@ def q_js_names_each_run_s_program():
     now = time.time()
     journal, log, main = tiny_box()
     surveys = [progress.survey(64, 7, *tiny('open'), [], now, {}, {}),
-               progress.survey_box(304, 9, journal, log, main, [], now, {})]
+               progress.survey_box(304, 9, log, main, [], now, {})]
     runs = progress_data(progress.js_text(surveys, now))['runs']
     assert [r['program'] for r in runs] == ['overnight_v5.py', 'boxsplit.py'], runs
     assert set(runs[0]) == set(runs[1]), (set(runs[0]) ^ set(runs[1]))

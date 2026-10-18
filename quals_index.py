@@ -1486,6 +1486,7 @@ PROGRESS_HARNESS = """<script>
                togo: fig.querySelector('[data-togo]').getAttribute('points').trim().split(/\\s+/).length,
                labelTogo: text('[data-label-togo]'), labelTotal: text('[data-label-total]'), labelSpent: text('[data-label-spent]')};
     out.etaSvg = svg.outerHTML;
+    out.etaTextStrokes = [...svg.querySelectorAll('text')].map(t => [t.textContent, getComputedStyle(t).stroke]);
     const sb = svg.getBoundingClientRect();
     svg.dispatchEvent(new MouseEvent('mousemove', {clientX: sb.left + L.etaXs[1] * sb.width / 640, clientY: sb.top + sb.height / 2, bubbles: true}));
     out.eta.tip = fig.querySelector('[data-tip]').hidden ? null : text('[data-tip]');
@@ -1625,6 +1626,15 @@ def q_progress_loads_only_while_open():
     assert R['closed']['loads'] == R['closed']['atClose'], R['closed']
 
 
+def q_progress_eta_text_is_not_outlined():
+    # Replicata: progress_run's ETA chart (PROGRESS_DATA's run), the computed stroke of each of its text elements.
+    # Expectata: none, for the tick labels and for the three labels at the record's end (ETA, total, elapsed), which
+    # share their lines' classes (togo, total, spent): those classes' line rules outranked the text rule until
+    # 2026-10-17 and outlined the labels in their lines' colors (dreeves: "the messed up font/bolding").
+    R = progress_run()
+    assert R['etaTextStrokes'] and all(stroke == 'none' for _, stroke in R['etaTextStrokes']), R['etaTextStrokes']
+
+
 def q_progress_remembers_it_was_left_open():
     # Replicata: progress_run with no stored state (main), and with this browser's stored state saying it last left the
     # section open (remembered, PROGRESS_REMEMBERED); in each, the stored state as the harness begins, after it opens
@@ -1654,10 +1664,13 @@ def q_progress_draws_each_dot_in_its_status_color():
 def q_progress_states_times_and_hours():
     # Replicata: progress_run's state line, snapshot time and age after opening.
     # Expectata: only the running state's line shows, with 2.0 h so far and a 0.5–3.0 h band to go (PROGRESS_DATA's
-    # so_far and to_go); the snapshot time is the data's made in local time (YYYY-MM-DD HH:MM:SS), and its age a
-    # duration in digits.
+    # so_far and to_go), and in parentheses the clock times that band ends between, from the snapshot's time, each as
+    # local weekday and HH:MM (dreeves, 2026-10-17: the finish as a clock time); the snapshot time is the data's made in
+    # local time (YYYY-MM-DD HH:MM:SS), and its age a duration in digits.
     R = progress_run()
-    assert R['state'] == ['Running: 2.0 h so far, 0.5–3.0 h to go.'], R['state']
+    made, go = PROGRESS_DATA['made'], PROGRESS_DATA['runs'][0]['to_go']
+    at = lambda t: time.strftime('%a %H:%M', time.localtime(t))
+    assert R['state'] == [f'Running: 2.0 h so far, 0.5–3.0 h to go ({at(made + go["lo"])}–{at(made + go["hi"])}).'], R['state']
     want = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(PROGRESS_DATA['made']))
     assert R['made'] == want, (R['made'], want)
     assert re.fullmatch(r'(\d+ d )?\d+:\d\d:\d\d', R['age']), R['age']
@@ -1751,20 +1764,23 @@ def q_progress_eta_chart_keeps_progress_html_s_spec():
     # labels (2026-10-10; ranges since 2026-10-12): "ETA 0.5–3.0 h" just right of the red marker, "14–16 h" just right
     # of the black one, and "13 h" in blue on the x axis under it; a cross line hidden at rest; no other line; the
     # black stroke the widest; the palette's blue (#2a78d6) and red (#e34948) and the page's ink; the legend in
-    # dreeves's words: elapsed time, ETA, elapsed + ETA.
+    # dreeves's words: elapsed time, ETA, elapsed + ETA.  And since 2026-10-17 (dreeves: "1. yes"), the projected finish
+    # marked: a hollow marker (finish) where the dashed elapsed time meets elapsed + ETA, at (14.2, 14.2) h, and a guide
+    # from the black marker across to it and down to the x axis, (13.2, 14.2), (14.2, 14.2), (14.2, 0) h.
     R = progress_run('eta')
     parts = SvgParts()
     parts.feed(R['etaSvg'])
     els = [(tag, a, re.sub(r'\s+', ' ', text).strip()) for tag, a, text in parts.items]
     def pts(text): return [tuple(map(float, xy.split(','))) for xy in text.split()]
     polys = {a['class']: pts(a['points']) for tag, a, _ in els if tag == 'polyline'}
-    assert sorted(polys) == ['spent', 'togo', 'total'], polys.keys()
+    assert sorted(polys) == ['guide', 'spent', 'togo', 'total'], polys.keys()
     (x0, y0), (x1, y1) = polys['spent'][0], polys['spent'][-1]          # blue at 0 h and at 13.2 h
     def X(h): return x0 + (x1 - x0) * h / 13.2
     def Y(h): return y0 + (y1 - y0) * h / 13.2
     def near(p, q): return abs(p[0] - q[0]) < 0.05 and abs(p[1] - q[1]) < 0.05
     def check(got, want, what): assert len(got) == len(want) and all(near(g, (X(a), Y(b))) for g, (a, b) in zip(got, want)), (what, got, [(X(a), Y(b)) for a, b in want])
-    for k, w in (('spent', [(0, 0), (13.2, 13.2)]), ('togo', [(0, 2), (13.2, 1)]), ('total', [(0, 2), (13.2, 14.2)])): check(polys[k], w, k)
+    for k, w in (('spent', [(0, 0), (13.2, 13.2)]), ('togo', [(0, 2), (13.2, 1)]), ('total', [(0, 2), (13.2, 14.2)]),
+                 ('guide', [(13.2, 14.2), (14.2, 14.2), (14.2, 0)])): check(polys[k], w, k)
     band = [pts(a['points']) for tag, a, _ in els if tag == 'polygon' and a.get('class') == 'band']
     assert len(band) == 1, band
     check(band[0], [(0, 4), (13.2, 3), (13.2, 0.5), (0, 1)], 'band')
@@ -1783,8 +1799,8 @@ def q_progress_eta_chart_keeps_progress_html_s_spec():
     xt = [(float(a['x']), text) for tag, a, text in els if tag == 'text' and a.get('class') == 'xtick']
     assert [v for _, v in xt] == ['0', '5', '10', '15 h'] and all(abs(x - X(int(v.split()[0]))) < 0.05 for x, v in xt), xt
     now = {a['class'].split()[1]: (float(a['cx']), float(a['cy'])) for tag, a, _ in els if tag == 'circle'}
-    assert sorted(now) == ['togo', 'total'], now
-    check([now['togo'], now['total']], [(13.2, 1), (13.2, 14.2)], 'now')
+    assert sorted(now) == ['finish', 'togo', 'total'], now
+    check([now['togo'], now['total'], now['finish']], [(13.2, 1), (13.2, 14.2), (14.2, 14.2)], 'now')
     labels = {a['class'].split()[1]: (float(a['x']), float(a['y']), text) for tag, a, text in els
               if tag == 'text' and a.get('class', '').startswith('label ')}
     assert {k: v for k, (_, _, v) in labels.items()} == {'togo': 'ETA 0.5–3.0 h', 'total': '14–16 h', 'spent': '13 h'}, labels
