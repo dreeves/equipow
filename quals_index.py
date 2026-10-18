@@ -1964,7 +1964,9 @@ def q_progress_eta_chart_keeps_progress_html_s_spec():
     # taller, to the top of elapsed + ETA's band (16.2 h), so its ticks run from 0 to 20 h.  The two bands can overlap,
     # and so can the two range lines (not here; in boxsplit.py's chart of 2026-10-17, from 46 to 51 h), so both bands
     # and both range lines multiply onto what is under them: neither hides the other (the purple range line hid the red
-    # one's top until they did, 2026-10-17).
+    # one's top until they did, 2026-10-17).  And the guide purple too, as it carries elapsed + ETA's level across to the
+    # finish and down to it on the x axis (dreeves, 2026-10-18: "that looks black and should be purple"; the page's
+    # muted gray before).
     R = progress_run('eta')
     parts = SvgParts()
     parts.feed(R['etaSvg'])
@@ -2025,6 +2027,7 @@ def q_progress_eta_chart_keeps_progress_html_s_spec():
     dots = dict(re.findall(r'\.progress-eta \.now\.(spent|togo|total) \{ fill: var\(--progress-([\w-]+)\);', style))
     assert dots == {'spent': 'spent', 'togo': 'togo', 'total': 'total'}, dots
     assert re.search(r'\.progress-eta \.now\.finish \{ fill: var\(--paper\); stroke: var\(--progress-total\);', style)
+    assert re.search(r'\.progress-eta \.guide \{ stroke: var\(--progress-total\);', style), 'the guide not purple'
     assert all(re.search(rf'\.progress-eta \.{k} \{{[^}}]*mix-blend-mode: multiply;', style) for k in ('band', 'range')), 'an overlap hidden'
     assert R['status']['legends'] == 0, R['status']
 
