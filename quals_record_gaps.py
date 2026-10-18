@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Quals for record_gaps.wl, the Mathematica script that makes the table of Theorem 1's constructions (Stan Wagon asked
-for it, extending his table of the first two rows, 2026-10-18), and for its link on index.html.
+for it, extending his table of the first two rows, 2026-10-18), and for its link and the same table on index.html.
 Run: python3 -B quals_record_gaps.py [name ...] (no arguments: all quals).
 
 Each qual is a function q_*: a passing qual returns, a failing one raises.  Each qual's comment gives its replicata (the
@@ -10,8 +10,9 @@ against pow2.js, the page's data for the chart of powers of 2, formatted here in
 """
 import sys
 sys.dont_write_bytecode = True
-import os, re, json, shutil, tempfile, itertools, traceback, time
+import os, re, json, html, shutil, tempfile, itertools, traceback, time
 import quals_lattice_search as ls          # read only: script (wolframscript on a temporary file) and seats
+import quals_index as qi                   # read only: chrome (headless Chrome's dump of a page's DOM)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 INDEX = os.path.join(HERE, 'index.html')
@@ -163,6 +164,38 @@ def q_page_links_the_wl():
     assert m, sec[:1500]
     assert re.findall(r'href="([^"]*record_gaps[^"]*)"', sec) == [WL_URL] and WL_URL in m.group(1), m.group(1)
     assert os.path.isfile(WL)
+
+
+def q_page_shows_the_table():
+    # Replicata: index.html in headless Chrome beside mstar.js and pow2.js, its DOM dumped once its scripts ran
+    # (quals_index.chrome); the table of record gaps in it, each cell's text with a superscript as ^ (rows() form).
+    # Expectata (dreeves, 2026-10-18: "a similar version of that table in the html"): right after the paragraph that
+    # links record_gaps.wl, in a sideways-scrolling div (the page's .scroll), a table whose head is Stan Wagon's header
+    # (HEADER) and whose body is rows(), one tbody per record gap (so the rules fall between them): its first row the
+    # bound's cell, spanning the gap's rows, then the product's two cells; each other row the product's two cells.
+    d = tempfile.mkdtemp(prefix='record-gaps-quals-')
+    try:
+        for name in ('index.html', 'mstar.js', 'pow2.js'): shutil.copy(os.path.join(HERE, name), d)
+        dom = qi.chrome(d, ['--virtual-time-budget=5000', '--dump-dom', 'file://' + os.path.join(d, 'index.html')])
+    finally:
+        shutil.rmtree(d)
+    m = re.search(r'<p>Claude: "[^\n]*record_gaps\.wl</a>[^\n]*"</p>\s*<div class="scroll">\s*'
+                  r'<table class="pow2-gaps" data-record-gaps="">(.*?)</table>\s*</div>', dom, re.S)
+    assert m, dom[-2000:]
+    text = lambda cell: html.unescape(re.sub(r'<[^>]+>', '', re.sub(r'<sup>(.*?)</sup>', r'^\1', cell)))
+    head = re.fullmatch(r'\s*<thead><tr>(.*?)</tr></thead>(.*)', m.group(1), re.S)
+    assert head and [text(c) for c in re.findall(r'<th>(.*?)</th>', head.group(1))] == HEADER, m.group(1)[:400]
+    bodies = re.findall(r'<tbody>(.*?)</tbody>', head.group(2), re.S)
+    assert ''.join(f'<tbody>{b}</tbody>' for b in bodies) == head.group(2).strip(), head.group(2)[:400]
+    got = []
+    for (k, ps), body in zip(records(), bodies):
+        trs = re.findall(r'<tr>(.*?)</tr>', body, re.S)
+        cells = [re.findall(r'<td( rowspan="\d+")?>(.*?)</td>', tr, re.S) for tr in trs]
+        assert len(trs) == len(ps) and cells[0][0][0] == f' rowspan="{len(ps)}"', (k, body[:300])
+        assert all(not span for row in cells for span, _ in row[-2:]) and all(len(row) == 2 for row in cells[1:]), (k, body[:300])
+        got += [[text(c) for _, c in row] for row in cells]
+    want = [[c for c in row if c != 'SpanFromAbove'] for row in rows()]
+    assert len(bodies) == len(records()) and got == want, (got[:6], want[:6])
 
 
 def main():

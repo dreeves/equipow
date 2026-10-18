@@ -336,6 +336,13 @@ code {
    16 px on its right, so the two plots line up. */
 .pow2 { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; }
 .pow2-caption { max-width: 46rem; }
+/* Claude's table of the construction behind each bound of Theorem 1, ruled as the table of smallest lengths: a record
+   gap's products one per row, its bound's cell spanning them, each gap a tbody of its own so that the rules fall
+   between gaps and between columns but not between a gap's products; in a .scroll div, so a phone scrolls it. */
+.pow2-gaps { border-collapse: collapse; border: 1px solid var(--rule); font-variant-numeric: tabular-nums lining-nums; }
+.pow2-gaps th, .pow2-gaps td { border-left: 1px solid var(--rule); padding: 0.3rem 0.7rem; text-align: left; vertical-align: baseline; white-space: nowrap; }
+.pow2-gaps th { font-weight: 400; }
+.pow2-gaps thead, .pow2-gaps tbody { border-bottom: 1px solid var(--rule); }
 #pow2-chart {
   display: grid;
   grid-template-columns: 44px minmax(0, 1fr) 16px;
@@ -490,8 +497,13 @@ footer {
   <h2 id="pow2-title">Bounds on <span class="nw"><i>m</i><sup>*</sup>(2<sup><i>k</i></sup>) − <i>k</i></span> for every <i>k</i> up to 72</h2>
   <p><b>Theorem 1.</b> <span class="nw"><i>m</i><sup>*</sup>(2<sup>17</sup>) ≥ 18</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>27</sup>) ≥ 29</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>34</sup>) ≥ 37</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>38</sup>) ≥ 42</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>46</sup>) ≥ 51</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>52</sup>) ≥ 58</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>57</sup>) ≥ 64</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>66</sup>) ≥ 74</span> and <span class="nw"><i>m</i><sup>*</sup>(2<sup>9</sup>) = 9</span>.</p>
   <p>or <b>Theorem 1.</b> For <span class="nw"><i>i</i> = 1, 2, …, 8</span>, the known smallest values of <i>n</i> for which <span class="nw"><i>m</i><sup>*</sup>(2<sup><i>n</i></sup>) − <i>n</i> ≥ <i>i</i></span> are 17, 27, 34, 38, 46, 52, 57, 66.</p>
-  <!-- TODO: says the linked Mathematica script makes a table of the constructions behind Theorem 1, one row per record gap, and checks each row's arithmetic -->
-  <p>Claude: "The Mathematica script <a href="https://raw.githubusercontent.com/dreeves/equipow/main/record_gaps.wl">record_gaps.wl</a> makes a table of the constructions behind Theorem 1, one row per record gap, and checks each row's arithmetic."</p>
+  <!-- TODO: says the table below shows the construction behind each bound of Theorem 1: 2^k as a join of products, one product per line, each with its order, the sum of its factors' orders, the bound being the least of those orders; and that the linked Mathematica script makes the same table and checks each row's arithmetic -->
+  <p>Claude: "The table below shows the construction behind each bound of Theorem 1: <span class="nw">2<sup><i>k</i></sup></span> as a join of products, one per line, each with its order, the sum of its factors' orders; the bound is the least of those orders. The Mathematica script <a href="https://raw.githubusercontent.com/dreeves/equipow/main/record_gaps.wl">record_gaps.wl</a> makes the same table and checks each row's arithmetic."</p>
+  <div class="scroll">
+    <table class="pow2-gaps" data-record-gaps>
+      <thead><tr><th>Record gaps</th><th>The power of 2</th><th>The order</th></tr></thead>
+    </table>
+  </div>
   <!-- TODO: caption; says column k is n = 2^k, where Thue–Morse has order k, an excess of 0, and row e is order k + e, an excess of e; that cell (k, e) is green when m*(2^k) ≥ k + e is known, red when m*(2^k) < k + e is proven, and black when neither is; and that in the readout f is the construction of length 2^24 and order 25 in the remarks below, τ_j is Thue–Morse of length 2^j, and p_n is a sequence of length n whose order is the lower bound in column n of the chart above -->
   <p class="pow2-caption">Claude: "Column <i>k</i> is <span class="nw"><i>n</i> = 2<sup><i>k</i></sup></span>, where Thue–Morse has order <i>k</i>, an excess of 0; row <i>e</i> is order <span class="nw"><i>k</i> + <i>e</i></span>, an excess of <i>e</i>. Cell (<i>k</i>, <i>e</i>) is green when <span class="nw"><i>m</i><sup>*</sup>(2<sup><i>k</i></sup>) ≥ <i>k</i> + <i>e</i></span> is known, red when <span class="nw"><i>m</i><sup>*</sup>(2<sup><i>k</i></sup>) &lt; <i>k</i> + <i>e</i></span> is proven, and black when neither is. In the readout, <i>f</i> is the construction of length 2<sup>24</sup> and order 25 in the remarks below, τ<sub><i>j</i></sub> is Thue–Morse of length 2<sup><i>j</i></sup>, and <i>p</i><sub><i>n</i></sub> is a sequence of length <i>n</i> whose order is the lower bound in column <i>n</i> of the chart above."</p>
   <ul class="legend">
@@ -1543,6 +1555,39 @@ try {
 } catch (e) {
   // TODO: error line, replacing the hint; says this chart could not be drawn, followed by the error
   ro.textContent = `Claude: "Error drawing this chart:" ${e}`;
+  throw e;
+}
+})();
+// Claude's table of the construction behind each bound of Theorem 1 (Stan Wagon's table, extended, 2026-10-18;
+// record_gaps.wl makes the same one in Mathematica), from POW2: for each record gap g = 1, 2, ..., the least k whose lo
+// is at least k + g, and the join of products that pow2.py found there, each record gap a tbody of its own.  A product
+// is a row: its blocks ascending by length, a repeated one written once, as a power (368²) in the power of 2 and as
+// count·order (2·9) in the order; a + before every product but the first; the bound's cell spans its record gap's rows.
+(() => {
+const table = document.querySelector('[data-record-gaps]');
+try {
+  const assert = (ok, ...what) => { if (!ok) throw new Error(JSON.stringify(what).replace(/"/g, "'")); };
+  const at = g => POW2.cols.findIndex((c, i) => c[0] >= i + 1 + g) + 1;      // the least k with lo >= k + g; 0 if none
+  const factors = p => {                               // a product's blocks, ascending by length, each with its count
+    const b = [...p].sort((x, y) => x[0] - y[0] || x[1] - y[1]);
+    return [...new Set(b.map(String))].map(s => [...s.split(',').map(Number), b.filter(x => String(x) === s).length]);
+  };
+  const sum = p => p.reduce((s, [, m]) => s + m, 0);
+  const length = p => factors(p).map(([n, , c]) => c > 1 ? `${n}<sup>${c}</sup>` : `${n}`).join('·');
+  const order = p => factors(p).map(([, m, c]) => c > 1 ? `${c}·${m}` : `${m}`).join(' + ') + ` = ${sum(p)}`;
+  for (let g = 1; at(g); g++) {
+    const k = at(g), [lo, , [kind, join]] = POW2.cols[k - 1];
+    assert(kind === 'joins' && lo === k + g && Math.min(...join.map(sum)) === lo, k, kind, lo);
+    assert(join.reduce((s, p) => s + p.reduce((t, [n]) => t * BigInt(n), 1n), 0n) === 2n ** BigInt(k), k);
+    const plus = ['', ...join.slice(1).map(() => '+ ')];
+    const body = document.createElement('tbody');
+    body.innerHTML = join.map((p, i) => `<tr><td>${plus[i]}${length(p)}</td><td>${order(p)}</td></tr>`).join('');
+    body.rows[0].insertAdjacentHTML('afterbegin', `<td rowspan="${join.length}"><i>m</i><sup>*</sup>(2<sup>${k}</sup>) ≥ ${lo}</td>`);
+    table.append(body);
+  }
+} catch (e) {
+  // TODO: error line, as the table's caption; says this table could not be made, followed by the error
+  table.createCaption().textContent = `Claude: "Error making this table:" ${e}`;
   throw e;
 }
 })();

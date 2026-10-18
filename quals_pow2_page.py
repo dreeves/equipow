@@ -48,6 +48,10 @@ LEGEND_LINES = ('<ul class="legend">',
                 '</ul>')
 # dreeves and Stan Wagon's theorem atop the section (2026-10-17; quals_index.THEOREM, where it is pinned to pow2.js)
 THEOREM, THEOREM_ALT = quals_index.THEOREM, quals_index.THEOREM_ALT        # and its alternative form, below it
+# Stan Wagon's header for the table of record gaps (his table of 2026-10-18, which record_gaps.wl and the page extend):
+# its line and its words, byte for byte
+STAN_WORDS = ('Record gaps', 'The power of 2', 'The order')
+STAN_LINES = (''.join(['<thead><tr>'] + [f'<th>{w}</th>' for w in STAN_WORDS] + ['</tr></thead>']),)
 HIS = (re.sub(r'<[^>]*>', '', HEADING), re.sub(r'<[^>]*>', '', THEOREM), re.sub(r'<[^>]*>', '', THEOREM_ALT), LABEL, HINT,
        'known', 'open', 'impossible')   # his words as a reader gets them
 K, ROW, GAP = 72, 14, 2                       # columns k = 1..K; rows ROW CSS px apart, the bottom GAP of each surface
@@ -371,9 +375,9 @@ def check_readouts(data, reads):
 
 
 def unclaimed(text):
-    """text with dreeves's words (HIS) and every Claude: "…" removed: what is left must hold no English, only numbers
-    and math."""
-    for s in HIS: text = text.replace(s, '')
+    """text with dreeves's and Stan Wagon's words (HIS, STAN_WORDS) and every Claude: "…" removed: what is left must
+    hold no English, only numbers and math."""
+    for s in HIS + STAN_WORDS: text = text.replace(s, '')
     return re.sub(r'Claude: "[^"]*"', '', text)
 
 
@@ -791,7 +795,9 @@ def q_section_follows_mstar_chart():
     # class="remarks">.  The new section holds, in order and with only blank lines and comments between: dreeves's
     # heading, the h2 pow2-title; his and Stan Wagon's theorem and its alternative form (THEOREM and THEOREM_ALT,
     # since 2026-10-17); Claude's paragraph linking record_gaps.wl, the script of the table behind the theorem (Stan
-    # Wagon's request, 2026-10-18; quals_record_gaps checks it); a paragraph of class pow2-caption; the legend (LEGEND_LINES, its swatches exists,
+    # Wagon's request, 2026-10-18; quals_record_gaps checks it), and the same table (dreeves, 2026-10-18), its header
+    # Stan Wagon's (STAN_LINES), its body filled from pow2.js, in a sideways-scrolling div; a paragraph of class
+    # pow2-caption; the legend (LEGEND_LINES, its swatches exists,
     # open and impossible, as the m*(n) chart's); the div pow2-chart, empty until drawn, an image
     # with his label; and the readout paragraph pow2-readout, a polite live region holding his hint: his three lines
     # (DREEVES_LINES) byte for byte.
@@ -804,8 +810,11 @@ def q_section_follows_mstar_chart():
     assert re.match(filler + r'<section class="remarks">', rest, re.S), rest[:400]
     heading, label, hint = map(re.escape, DREEVES_LINES)
     legend = r'(?:\s|<!--.*?-->)*'.join(map(re.escape, LEGEND_LINES))
-    gaps = r'<p>Claude: "The Mathematica script <a href="https://raw\.githubusercontent\.com/dreeves/equipow/main/record_gaps\.wl">record_gaps\.wl</a> [^\n]*"</p>'
-    parts = (heading, re.escape(THEOREM), re.escape(THEOREM_ALT), gaps, r'<p class="pow2-caption">.*?</p>', legend, label, hint)
+    gaps = r'<p>Claude: "[^\n]*<a href="https://raw\.githubusercontent\.com/dreeves/equipow/main/record_gaps\.wl">record_gaps\.wl</a>[^\n]*"</p>'
+    table = filler.join(map(re.escape, ('<div class="scroll">', '<table class="pow2-gaps" data-record-gaps>', *STAN_LINES,
+                                        '</table>', '</div>')))
+    parts = (heading, re.escape(THEOREM), re.escape(THEOREM_ALT), gaps, table, r'<p class="pow2-caption">.*?</p>', legend,
+             label, hint)
     whole = r'<section[^>]*>' + filler + filler.join(parts) + filler + '</section>'
     assert re.fullmatch(whole, s.group(1), re.S), s.group(1)
 
@@ -838,7 +847,7 @@ def q_inline_script_passes_node_check():
 def q_new_copy_is_attributed():
     # Replicata: the inserted lines (this chart's), by region (HTML, inline script, style).
     # Expectata: inserted lines exist, and each of DREEVES_LINES is one of them, exactly once: those lines hold his
-    # words, so the rules that follow pass over them.  In HTML, a line's visible text (comments and tags removed,
+    # words, so the rules that follow pass over them (and so over STAN_LINES, Stan Wagon's header, since 2026-10-18).  In HTML, a line's visible text (comments and tags removed,
     # entities decoded) and its aria-label, title and alt values hold English (a run of two letters) only inside
     # Claude: "…", hold no stray double quote, and close every Claude: "…" they open; in script, every Claude: "…"
     # closes on its line.  Each line with a Claude: "…" has a TODO comment as the nearest non-blank line above (<!--
@@ -852,8 +861,9 @@ def q_new_copy_is_attributed():
     quoted, quote_todos = quals_index.claude_quotes(lines)
     section, section_todo = quals_index.progress_lines(lines)
     quoted, quote_todos = quoted | section, quote_todos | {section_todo}
-    his = [j for j in ins if j not in quoted and lines[j].strip() in DREEVES_LINES + LEGEND_LINES + (THEOREM, THEOREM_ALT)]
-    assert sorted(lines[j].strip() for j in his) == sorted(DREEVES_LINES + LEGEND_LINES + (THEOREM, THEOREM_ALT)), [lines[j] for j in his]
+    human = DREEVES_LINES + LEGEND_LINES + (THEOREM, THEOREM_ALT) + STAN_LINES       # Stan Wagon's header too
+    his = [j for j in ins if j not in quoted and lines[j].strip() in human]
+    assert sorted(lines[j].strip() for j in his) == sorted(human), [lines[j] for j in his]
     bad = []
     for j in (j for j in ins if j not in his and j not in quoted):
         line, r = lines[j], region[j]
@@ -1054,7 +1064,8 @@ def q_labels_mark_every_e_and_round_k():
 def q_visible_text_is_attributed():
     # Replicata: the section's rendered text (innerText) at load and its aria-label, title and alt values, in the four
     # drawn configurations; every readout of the hovers, taps and outlines there and on the made-up data.
-    # Expectata: outside Claude: "…" and dreeves's words (HIS: the heading's text, the label and the hint) none holds
+    # Expectata: outside Claude: "…", dreeves's words (HIS: the heading's text, the label and the hint) and Stan
+    # Wagon's header (STAN_WORDS, since 2026-10-18) none holds
     # English (a run of two letters), and each closes every Claude: "…" it opens.
     texts = []
     for name in DRAWN + ('kinds',):
