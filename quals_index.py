@@ -56,6 +56,20 @@ DREEVES_LINES = (f'<h2 id="mstar-title">{HEADING}</h2>',
                  f'<canvas id="mstar-chart" height="0" tabindex="0" role="img" aria-label=\'{CANVAS_LABEL}\'></canvas>',
                  f'<p id="mstar-readout" aria-live="polite">{HINT}</p>',
                  f'ro.textContent = `{ERROR}${{e}}`;')
+# dreeves and Stan Wagon's theorem, from their draft (2026-10-17: "xxxTheorem 1. m*(2^17) ≥ 18, …"), typeset atop the
+# powers-of-2 section at dreeves's request ("sure"), in their words but for 64 at 2^57 (their 63 was the excess of 2^52)
+# and without the draft's marker xxx and its note to themselves ("and same for smaller powers; Berend and Golan,
+# check"): his words, so they stand without a Claude: "…" attribution, and the quals hold the page to them exactly.
+THEOREM = ('<p><b>Theorem 1.</b> ' + ', '.join(f'<span class="nw"><i>m</i><sup>*</sup>(2<sup>{k}</sup>) ≥ {v}</span>' for k, v in
+           ((17, 18), (27, 29), (34, 37), (38, 42), (46, 51), (52, 58), (57, 64), (66, 74))) +
+           ' and <span class="nw"><i>m</i><sup>*</sup>(2<sup>9</sup>) = 9</span>.</p>')
+# and its alternative form from the same draft ("or xxxTheorem 1. For i = 1, 2, …, 8, the known smallest values of n
+# for which m*(2^n) − n ≥ i are 17, 27, 34, 38, 46, 52, 57, 66."), right below it at dreeves's request (2026-10-17: "can
+# we get the alternate version of the theorem statement added?"), in their words, with their "or", without the xxx
+THEOREM_ALT = ('<p>or <b>Theorem 1.</b> For <span class="nw"><i>i</i> = 1, 2, …, 8</span>, the known smallest values of '
+               '<i>n</i> for which <span class="nw"><i>m</i><sup>*</sup>(2<sup><i>n</i></sup>) − <i>n</i> ≥ <i>i</i></span> are '
+               '17, 27, 34, 38, 46, 52, 57, 66.</p>')
+DREEVES_LINES += (THEOREM, THEOREM_ALT)
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -1561,6 +1575,26 @@ def progress_run(case='main'):
 
 
 def rgb(hexcolor): return [int(hexcolor[i:i + 2], 16) for i in (1, 3, 5)]
+
+
+def q_theorem_states_pow2_s_thresholds():
+    # Replicata: the theorem atop the powers-of-2 section (THEOREM) and its alternative form (THEOREM_ALT), their
+    # numbers read off; and pow2.js (pow2_data).
+    # Expectata: the page holds THEOREM once, right after the section's heading, and THEOREM_ALT once, right after it;
+    # THEOREM's bounds are m*(2^k) ≥ k + e for e = 1, …, 8 in turn, each k the least power whose known lower bound
+    # reaches k + e in pow2.js, so that a new result that moves a threshold fails here until the theorem changes with
+    # it; then m*(2^9) = 9, pow2.js's bounds at 2^9 both 9; and THEOREM_ALT's eight values are those same ks.
+    text = page()
+    heading = next(line for line in DREEVES_LINES if 'pow2-title' in line)
+    assert text.count(THEOREM) == 1 and re.search(re.escape(heading) + r'\n\s*' + re.escape(THEOREM), text), 'no theorem below the heading'
+    assert text.count(THEOREM_ALT) == 1 and re.search(re.escape(THEOREM) + r'\n\s*' + re.escape(THEOREM_ALT), text), 'no alternative below it'
+    bounds = [(int(k), op, int(v)) for k, op, v in re.findall(r'\(2<sup>(\d+)</sup>\) (≥|=) (\d+)', THEOREM)]
+    cols = pow2_data()['cols']
+    firsts = [next(k for k in range(1, len(cols) + 1) if cols[k - 1][0] - k >= e) for e in range(1, 9)]
+    assert bounds[:8] == [(k, '≥', k + e) for e, k in enumerate(firsts, 1)], (bounds, firsts)
+    assert bounds[8:] == [(9, '=', 9)] and cols[8][:2] == [9, 9], (bounds[8:], cols[8][:2])
+    values = [int(v) for v in re.search(r' are ([\d, ]+)\.</p>$', THEOREM_ALT).group(1).split(', ')]
+    assert values == firsts, (values, firsts)
 
 
 def q_smallest_section_is_a_claude_quote():

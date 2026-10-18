@@ -46,7 +46,10 @@ LEGEND_LINES = ('<ul class="legend">',
                 '<li><span class="swatch open" aria-hidden="true"></span>open</li>',
                 '<li><span class="swatch impossible" aria-hidden="true"></span><span class="nw"><i>k</i> + <i>e</i> &gt; <i>m</i><sup>*</sup>(2<sup><i>k</i></sup>)</span></li>',
                 '</ul>')
-HIS = (re.sub(r'<[^>]*>', '', HEADING), LABEL, HINT, 'known', 'open', 'impossible')   # his words as a reader gets them
+# dreeves and Stan Wagon's theorem atop the section (2026-10-17; quals_index.THEOREM, where it is pinned to pow2.js)
+THEOREM, THEOREM_ALT = quals_index.THEOREM, quals_index.THEOREM_ALT        # and its alternative form, below it
+HIS = (re.sub(r'<[^>]*>', '', HEADING), re.sub(r'<[^>]*>', '', THEOREM), re.sub(r'<[^>]*>', '', THEOREM_ALT), LABEL, HINT,
+       'known', 'open', 'impossible')   # his words as a reader gets them
 K, ROW, GAP = 72, 14, 2                       # columns k = 1..K; rows ROW CSS px apart, the bottom GAP of each surface
 KINDS = ('exists', 'open', 'impossible')      # the kinds of cell, as the tokens of their colors name them
 F = [2 ** 24, 25]                             # f, the construction of length 2^24 and order 25, as a block [n, m]
@@ -779,7 +782,8 @@ def q_section_follows_mstar_chart():
     # Expectata: the m*(n) chart's <section class="mstar" aria-labelledby="mstar-title"> is followed, with only blank
     # lines and comments between, by <section class="pow2" aria-labelledby="pow2-title">, and that by <section
     # class="remarks">.  The new section holds, in order and with only blank lines and comments between: dreeves's
-    # heading, the h2 pow2-title; a paragraph of class pow2-caption; the legend (LEGEND_LINES, its swatches exists,
+    # heading, the h2 pow2-title; his and Stan Wagon's theorem and its alternative form (THEOREM and THEOREM_ALT,
+    # since 2026-10-17); a paragraph of class pow2-caption; the legend (LEGEND_LINES, its swatches exists,
     # open and impossible, as the m*(n) chart's); the div pow2-chart, empty until drawn, an image
     # with his label; and the readout paragraph pow2-readout, a polite live region holding his hint: his three lines
     # (DREEVES_LINES) byte for byte.
@@ -792,7 +796,7 @@ def q_section_follows_mstar_chart():
     assert re.match(filler + r'<section class="remarks">', rest, re.S), rest[:400]
     heading, label, hint = map(re.escape, DREEVES_LINES)
     legend = r'(?:\s|<!--.*?-->)*'.join(map(re.escape, LEGEND_LINES))
-    parts = (heading, r'<p class="pow2-caption">.*?</p>', legend, label, hint)
+    parts = (heading, re.escape(THEOREM), re.escape(THEOREM_ALT), r'<p class="pow2-caption">.*?</p>', legend, label, hint)
     whole = r'<section[^>]*>' + filler + filler.join(parts) + filler + '</section>'
     assert re.fullmatch(whole, s.group(1), re.S), s.group(1)
 
@@ -839,8 +843,8 @@ def q_new_copy_is_attributed():
     quoted, quote_todos = quals_index.claude_quotes(lines)
     section, section_todo = quals_index.progress_lines(lines)
     quoted, quote_todos = quoted | section, quote_todos | {section_todo}
-    his = [j for j in ins if j not in quoted and lines[j].strip() in DREEVES_LINES + LEGEND_LINES]
-    assert sorted(lines[j].strip() for j in his) == sorted(DREEVES_LINES + LEGEND_LINES), [lines[j] for j in his]
+    his = [j for j in ins if j not in quoted and lines[j].strip() in DREEVES_LINES + LEGEND_LINES + (THEOREM, THEOREM_ALT)]
+    assert sorted(lines[j].strip() for j in his) == sorted(DREEVES_LINES + LEGEND_LINES + (THEOREM, THEOREM_ALT)), [lines[j] for j in his]
     bad = []
     for j in (j for j in ins if j not in his and j not in quoted):
         line, r = lines[j], region[j]
