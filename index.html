@@ -282,6 +282,16 @@ code {
 .progress-tip .togo { color: var(--progress-togo); stroke: none; }
 .progress-tip .total { color: var(--ink); font-weight: 600; stroke: none; }
 
+/* Claude's table of the smallest length known for each order (Stan Wagon's suggestion, 2026-10-17): a block quote in
+   Claude's hue like the lattice section's, its table drawn as the paper's (table.block) but not of that class, which
+   mstar.py reads as Table 2's and the new results'; its body filled from mstar.js. */
+.smallest { display: grid; grid-template-columns: minmax(0, 1fr); max-width: 46rem; }
+.smallest blockquote { margin: 0; padding-left: 1.1rem; border-left: 3px solid var(--claude); display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; }
+.smallest table { justify-self: start; border-collapse: collapse; font-variant-numeric: tabular-nums lining-nums; }
+.smallest th, .smallest td { border: 1px solid var(--rule); padding: 0.3rem 0.7rem; text-align: center; }
+.smallest th { font-weight: 400; }
+.smallest .attrib { color: var(--muted); }
+
 /* Claude's chart of m*(n) for n up to 1000: one canvas, drawn by the script at the end from mstar.js. Pan and zoom
    act on n only, and vertical swipes still scroll the page. */
 .mstar { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; }
@@ -794,6 +804,19 @@ footer {
       <p>Claude: "The join of the 2<sup>66</sup> entry, each product times τ<sub>5</sub>, has order 79. That beats Thue–Morse by 8. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above."</p>
     </li>
   </ul>
+</section>
+
+<section class="smallest" aria-labelledby="smallest-title">
+  <!-- TODO: a block quote by Claude, at Stan Wagon's suggestion (2026-10-17): a table that keeps, for each order m, the smallest n up to 1000 for which a sequence of length n and order m is known (from the chart's data, mstar.js, so that it follows every new result), a check mark where that n is proven smallest, and the smallest n whose upper bound doesn't rule order m out; the proven ones are the terms a(m − 1) of OEIS A323395 -->
+  <blockquote class="claude">
+    <h2 id="smallest-title">The smallest length known for each order</h2>
+    <p>For each order <i>m</i>, the smallest <i>n</i> up to 1000 for which a sequence of length <i>n</i> and order <i>m</i> is known, from the chart above, and the smallest <i>n</i> whose upper bound doesn't rule order <i>m</i> out. Where the two agree, <i>n</i> is proven smallest (✓): the term <span class="nw"><i>a</i>(<i>m</i> − 1)</span> of OEIS <a href="https://oeis.org/A323395">A323395</a>.</p>
+    <table>
+      <thead><tr><th>order <i>m</i></th><th>smallest known <i>n</i></th><th>proven smallest</th><th>smallest <i>n</i> not ruled out</th></tr></thead>
+      <tbody data-smallest></tbody>
+    </table>
+    <p class="attrib">— Claude</p>
+  </blockquote>
 </section>
 
 <section class="counts">
@@ -1505,6 +1528,24 @@ try {
   ro.textContent = `Claude: "Error drawing this chart:" ${e}`;
   throw e;
 }
+})();
+</script>
+<script>
+// Claude's table of the smallest length known for each order (Stan Wagon's suggestion, 2026-10-17), from mstar.js: for
+// order m, the least n whose lower bound is at least m (a sequence of order m is known) and the least n whose upper
+// bound is (order m is not ruled out), proven smallest when the two agree; orders from 1 to the largest known at some n
+// up to MSTAR.nmax.
+(() => {
+  const least = test => MSTAR.cols.findIndex(test) + 1;             // the least n whose column passes the test; 0 if none
+  const cell = text => Object.assign(document.createElement('td'), {textContent: text});
+  const rows = [];
+  for (let m = 1; least(c => c[0] >= m); m++) {
+    const known = least(c => c[0] >= m), possible = least(c => c[1] >= m);
+    const row = document.createElement('tr');
+    row.append(cell(m), cell(known), cell(known === possible ? '✓' : ''), cell(possible));
+    rows.push(row);
+  }
+  document.querySelector('[data-smallest]').replaceChildren(...rows);
 })();
 </script>
 <script>

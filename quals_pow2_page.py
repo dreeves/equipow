@@ -221,7 +221,19 @@ EDITS = quals_index.TABLE_UPDATE + (
           '.progress-tip { font-size: 0.875rem; color: var(--muted); font-variant-numeric: tabular-nums lining-nums; }',
           '.progress-tip .spent { color: var(--progress-spent); stroke: none; }',
           '.progress-tip .togo { color: var(--progress-togo); stroke: none; }',
-          '.progress-tip .total { color: var(--ink); font-weight: 600; stroke: none; }'))
+          '.progress-tip .total { color: var(--ink); font-weight: 600; stroke: none; }'),
+    # Claude's table of the smallest length known for each order (2026-10-17): its CSS, after the section "Search progress"'s
+    after('.progress-tip .total { color: var(--ink); font-weight: 600; stroke: none; }',
+          '',
+          "/* Claude's table of the smallest length known for each order (Stan Wagon's suggestion, 2026-10-17): a block quote in",
+          "   Claude's hue like the lattice section's, its table drawn as the paper's (table.block) but not of that class, which",
+          "   mstar.py reads as Table 2's and the new results'; its body filled from mstar.js. */",
+          '.smallest { display: grid; grid-template-columns: minmax(0, 1fr); max-width: 46rem; }',
+          '.smallest blockquote { margin: 0; padding-left: 1.1rem; border-left: 3px solid var(--claude); display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; }',
+          '.smallest table { justify-self: start; border-collapse: collapse; font-variant-numeric: tabular-nums lining-nums; }',
+          '.smallest th, .smallest td { border: 1px solid var(--rule); padding: 0.3rem 0.7rem; text-align: center; }',
+          '.smallest th { font-weight: 400; }',
+          '.smallest .attrib { color: var(--muted); }'))
 
 
 def committed():
@@ -263,8 +275,8 @@ def inserted():
 
 
 def scripts():
-    """The page's inline scripts, in order: the m*(n) chart's, then this chart's, then the section "Search progress"'s
-    (2026-10-17)."""
+    """The page's inline scripts, in order: the m*(n) chart's, then this chart's, then the table of smallest lengths'
+    (2026-10-17), then the section "Search progress"'s (2026-10-17)."""
     return re.findall(r'<script>\n(.*?)</script>', page(), re.S)
 
 
@@ -787,13 +799,13 @@ def q_section_follows_mstar_chart():
 
 def q_scripts_load_pow2_after_mstar():
     # Replicata: index.html's script tags.
-    # Expectata: exactly five, after </main>: the m*(n) chart's <script src="mstar.js"> and its inline script, then a
+    # Expectata: exactly six, after </main>: the m*(n) chart's <script src="mstar.js"> and its inline script, then a
     # classic <script src="pow2.js"> (no type, async or defer, so it also loads from file://) right after them and one
-    # inline script; then the inline script of the section "Search progress" (2026-10-17), the last thing before
-    # </body>.
+    # inline script; then the inline script of the table of smallest lengths (2026-10-17); then the inline script of
+    # the section "Search progress" (2026-10-17), the last thing before </body>.
     text = page()
     tags = re.findall(r'<script\b[^>]*>', text)
-    assert tags == ['<script src="mstar.js">', '<script>', '<script src="pow2.js">', '<script>', '<script>'], tags
+    assert tags == ['<script src="mstar.js">', '<script>', '<script src="pow2.js">', '<script>', '<script>', '<script>'], tags
     assert text.index('</main>') < text.index('<script src="mstar.js"></script>')
     assert text.count('</script>\n<script src="pow2.js"></script>\n<script>\n') == 1
     assert text.endswith('</script>\n</body>\n</html>\n')
@@ -870,7 +882,7 @@ def q_mstar_wording_is_copied_verbatim():
     # Expectata: this chart has an entry for each kind of the m*(n) chart's hiWhy at an even n (two, norm, residue,
     # table2, page), each line for line the same as the m*(n) chart's, so a reason ["mstar", why] reads the same in both
     # charts.
-    mstar, mine, _ = scripts()
+    mstar, mine, _, _ = scripts()
     def entries(script, name):
         body = re.search(rf'\n  const {name} = \{{\n(.*?)\n  \}};', script, re.S)
         assert body, name

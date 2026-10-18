@@ -765,6 +765,25 @@ def progress_lines(lines):
 def close(a, b, tol): return abs(a - b) <= tol
 
 
+# The section "The smallest length known for each order" (Stan Wagon's suggestion, relayed 2026-10-17: "keep track of a
+# table that shows the first n that gives 1,2,3,4,5,…,12"; dreeves: "yeah").  Orders 1 to 10 have their smallest
+# lengths proven (regression, 2026-10-17: OEIS A323395's a(0) to a(8), and 240, which Stan is adding as a(9)).
+SMALLEST_PROVEN = (2, 4, 8, 16, 32, 48, 96, 144, 192, 240)
+
+
+def smallest_rows(cols):
+    """The rows the section's script makes from MSTAR's cols, computed here: for each order m from 1 while some n has a
+    known sequence of order m (its lower bound at least m), the texts of m, the least such n, a check mark if that n is
+    also the least n whose upper bound is at least m (else nothing), and that least n."""
+    least = lambda test: next((n for n, c in enumerate(cols, 1) if test(c)), None)
+    rows, m = [], 1
+    while least(lambda c: c[0] >= m):
+        known, possible = least(lambda c: c[0] >= m), least(lambda c: c[1] >= m)
+        rows.append([str(m), str(known), '✓' if known == possible else '', str(possible)])
+        m += 1
+    return rows
+
+
 # ---------------------------------------------------------------------------------------------------------------------
 # Static quals
 
@@ -803,13 +822,16 @@ def q_section_follows_table2():
 
 def q_scripts_load_data_then_draw():
     # Replicata: index.html's script tags.
-    # Expectata: exactly five, after </main> and before </body>: a classic <script src="mstar.js"> (no type, async or
+    # Expectata: exactly six, after </main> and before </body>: a classic <script src="mstar.js"> (no type, async or
     # defer, so it also loads from file://) and then one inline script; then the chart of powers of 2's, likewise
-    # (quals_pow2_page.py holds those two); then the inline script of the section "Search progress", which loads
-    # progress.js itself (2026-10-17).
+    # (quals_pow2_page.py holds those two); then the inline script of the table of smallest lengths, which reads MSTAR
+    # (2026-10-17); then the inline script of the section "Search progress", which loads progress.js itself
+    # (2026-10-17).
     text = page()
     assert re.findall(r'<script\b[^>]*>', text) == ['<script src="mstar.js">', '<script>', '<script src="pow2.js">', '<script>',
-                                                    '<script>'], re.findall(r'<script\b[^>]*>', text)
+                                                    '<script>', '<script>'], re.findall(r'<script\b[^>]*>', text)
+    inline = re.findall(r'<script>\n(.*?)</script>', text, re.S)
+    assert '[data-smallest]' in inline[2] and 'progressData' in inline[3], [js[:60] for js in inline]
     assert text.index('</main>') < text.index('<script src="mstar.js"></script>') < text.index('<script>\n') < \
         text.index('</script>\n</body>')
 
@@ -1539,6 +1561,62 @@ def progress_run(case='main'):
 
 
 def rgb(hexcolor): return [int(hexcolor[i:i + 2], 16) for i in (1, 3, 5)]
+
+
+def q_smallest_section_is_a_claude_quote():
+    # Replicata: index.html's section "The smallest length known for each order".
+    # Expectata: a <section class="smallest" aria-labelledby="smallest-title"> right after the remarks' section and
+    # right before the counts' section (only blank lines and comments between): a TODO comment, then one block quote
+    # attributed to Claude (claude_quotes' form) holding the heading, a link to OEIS A323395, and a table of the
+    # columns order m, smallest known n, proven smallest and smallest n not ruled out, its body empty in the HTML: the
+    # script fills it from mstar.js; and not of class block, so that the page keeps the nine tables of that class that
+    # mstar.py reads as Table 2's and the new results' (its count asserted there, which a tenth broke on 2026-10-17).
+    text = page()
+    filler = r'(?:\s|<!--.*?-->)*'
+    m = re.search(r'<section class="remarks">.*?</section>\n' + filler +
+                  r'(<section class="smallest" aria-labelledby="smallest-title">\n.*?\n</section>)\n' + filler +
+                  r'<section class="counts">', text, re.S)
+    assert m, 'no section "smallest" between the remarks and the counts'
+    lines = m.group(1).split('\n')
+    quoted, todos = claude_quotes(lines)
+    assert todos == {1} and quoted == set(range(2, len(lines) - 1)), (todos, len(lines))
+    body = m.group(1)
+    assert body.count('<blockquote class="claude">') == 1 and '<h2 id="smallest-title">' in body, body[:300]
+    assert 'href="https://oeis.org/A323395"' in body, body
+    heads = [re.sub(r'<[^>]+>', '', h) for h in re.findall(r'<th>(.*?)</th>', body)]
+    assert heads == ['order m', 'smallest known n', 'proven smallest', 'smallest n not ruled out'], heads
+    assert '<table>' in body and '<tbody data-smallest></tbody>' in body, body
+    assert text.count('<table class="block">') == 9, text.count('<table class="block">')
+
+
+def q_smallest_table_matches_mstar():
+    # Replicata: index.html in headless Chrome beside mstar.js and pow2.js, its DOM dumped once its scripts ran; and
+    # smallest_rows of MSTAR (mstar_data), computed here.
+    # Expectata: the table's body holds exactly smallest_rows' rows, in order; the first ten orders' smallest lengths
+    # are SMALLEST_PROVEN, each marked proven (regression, 2026-10-17).
+    d = tempfile.mkdtemp(prefix='index-quals-')
+    for src, name in ((INDEX, 'index.html'), (DATA, 'mstar.js'), (POW2, 'pow2.js')): shutil.copy(src, os.path.join(d, name))
+    dom = chrome(d, ['--virtual-time-budget=5000', '--dump-dom', 'file://' + os.path.join(d, 'index.html')])
+    shutil.rmtree(d)
+    body = re.search(r'<tbody data-smallest="">(.*?)</tbody>', dom, re.S)
+    assert body, dom[-2000:]
+    got = [[html.unescape(re.sub(r'<[^>]+>', '', c)) for c in re.findall(r'<td>(.*?)</td>', tr, re.S)]
+           for tr in re.findall(r'<tr>(.*?)</tr>', body.group(1), re.S)]
+    want = smallest_rows(mstar_data()['cols'])
+    assert got == want, (got, want)
+    assert [r[1] for r in got[:10]] == [str(n) for n in SMALLEST_PROVEN] and all(r[2] == '✓' for r in got[:10]), got[:10]
+
+
+def q_smallest_script_passes_node_check():
+    # Replicata: the inline script that fills the table of smallest lengths, saved as a .js file, through node --check.
+    # Expectata: exit 0: it parses as a classic script.
+    js = next(js for js in re.findall(r'<script>\n(.*?)</script>', page(), re.S) if '[data-smallest]' in js)
+    d = tempfile.mkdtemp(prefix='index-quals-')
+    path = os.path.join(d, 'smallest.js')
+    open(path, 'w', encoding='utf-8').write(js)
+    p = subprocess.run(['node', '--check', path], capture_output=True, text=True, timeout=60)
+    shutil.rmtree(d)
+    assert p.returncode == 0, p.stderr
 
 
 def q_progress_section_is_closed_and_unattributed():
