@@ -1522,11 +1522,18 @@ PROGRESS_HARNESS = """<script>
                togo: fig.querySelector('[data-togo]').getAttribute('points').trim().split(/\\s+/).length,
                labelTogo: text('[data-label-togo]'), labelTotal: text('[data-label-total]'), labelSpent: text('[data-label-spent]')};
     out.etaSvg = svg.outerHTML;
-    out.etaTextStrokes = [...svg.querySelectorAll('text')].map(t => [t.textContent, getComputedStyle(t).stroke]);
+    out.etaTextStrokes = [...svg.querySelectorAll('text')].map(t => [t.getAttribute('class'), t.textContent, getComputedStyle(t).stroke, getComputedStyle(t).paintOrder]);
+    const status = section.querySelector('.progress-run [data-state]').parentElement, shown = [...status.children].find(e => !e.hidden);
+    out.status = {afterChart: !fig.contains(status) && !!(fig.compareDocumentPosition(status) & Node.DOCUMENT_POSITION_FOLLOWING),
+                  colors: [...shown.querySelectorAll('.spent, .togo, .total')].map(e => [e.className, getComputedStyle(e).color]),
+                  legends: section.querySelectorAll('.progress-eta-keys').length};
+    const tipEl = fig.querySelector('[data-tip]');
+    out.tipRest = {visibility: getComputedStyle(tipEl).visibility, height: tipEl.getBoundingClientRect().height};
+    const top0 = status.getBoundingClientRect().top;
     const sb = svg.getBoundingClientRect();
     svg.dispatchEvent(new MouseEvent('mousemove', {clientX: sb.left + L.etaXs[1] * sb.width / 640, clientY: sb.top + sb.height / 2, bubbles: true}));
-    out.eta.tip = fig.querySelector('[data-tip]').hidden ? null : text('[data-tip]');
-    out.etaLegend = text('.progress-eta-keys');
+    out.eta.tip = getComputedStyle(tipEl).visibility === 'visible' ? text('[data-tip]') : null;
+    out.jump = status.getBoundingClientRect().top - top0;
     const d2 = JSON.parse(JSON.stringify(view().data));
     d2.made += 60; d2.runs[0].groups[1] = '1'; d2.runs[0].counts.running -= 1; d2.runs[0].counts.open += 1;
     window.progressData(d2);
@@ -1740,11 +1747,18 @@ def q_progress_loads_only_while_open():
 
 def q_progress_eta_text_is_not_outlined():
     # Replicata: progress_run's ETA chart (PROGRESS_DATA's run), the computed stroke of each of its text elements.
-    # Expectata: none, for the tick labels and for the three labels at the record's end (ETA, total, elapsed), which
-    # share their lines' classes (togo, total, spent): those classes' line rules outranked the text rule until
-    # 2026-10-17 and outlined the labels in their lines' colors (dreeves: "the messed up font/bolding").
+    # Expectata: none for the tick labels; for the three labels at the record's end (ETA, total, elapsed), which share
+    # their lines' classes (togo, total, spent), only the page's paper color painted under the letters (paint-order
+    # stroke first), a halo that hides the lines behind a label (the red dotted line runs from the red marker through
+    # its label) and draws no outline.  The lines' rules outranked the text rule until 2026-10-17 and outlined the
+    # labels in their lines' colors (dreeves: "the messed up font/bolding").
     R = progress_run()
-    assert R['etaTextStrokes'] and all(stroke == 'none' for _, stroke in R['etaTextStrokes']), R['etaTextStrokes']
+    strokes = R['etaTextStrokes']
+    labels = [s for s in strokes if s[0].split()[0] == 'label']
+    ticks = [s for s in strokes if s[0] in ('ytick', 'xtick')]
+    assert len(labels) == 3 and len(labels) + len(ticks) == len(strokes), strokes
+    assert all(stroke == 'rgb(255, 255, 255)' and order.startswith('stroke') for _, _, stroke, order in labels), labels
+    assert all(stroke == 'none' for _, _, stroke, _ in ticks), ticks
 
 
 def q_progress_remembers_it_was_left_open():
@@ -1778,7 +1792,10 @@ def q_progress_states_times_and_hours():
     # Expectata: only the running state's line shows, with 2.0 h so far and a 0.5–3.0 h band to go (PROGRESS_DATA's
     # so_far and to_go), and in parentheses the clock times that band ends between, from the snapshot's time, each as
     # local weekday and HH:MM (dreeves, 2026-10-17: the finish as a clock time); the snapshot time is the data's made in
-    # local time (YYYY-MM-DD HH:MM:SS), and its age a duration in digits.
+    # local time (YYYY-MM-DD HH:MM:SS), and its age a duration in digits.  And since dreeves's request of 2026-10-17, the
+    # status line sits below the ETA chart, where its legend was, outside the chart's box (so that it shows when the
+    # chart has no record), its parts in the chart's colors: the hours so far blue (spent), the hours to go red (togo),
+    # the clock times black (total, the page's ink).
     R = progress_run()
     made, go = PROGRESS_DATA['made'], PROGRESS_DATA['runs'][0]['to_go']
     at = lambda t: time.strftime('%a %H:%M', time.localtime(t))
@@ -1786,6 +1803,8 @@ def q_progress_states_times_and_hours():
     want = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(PROGRESS_DATA['made']))
     assert R['made'] == want, (R['made'], want)
     assert re.fullmatch(r'(\d+ d )?\d+:\d\d:\d\d', R['age']), R['age']
+    assert R['status']['afterChart'] is True, R['status']
+    assert R['status']['colors'] == [['spent', 'rgb(42, 120, 214)'], ['togo', 'rgb(227, 73, 72)'], ['total', 'rgb(27, 29, 34)']], R['status']
 
 
 def q_progress_names_each_run_s_program():
@@ -1838,15 +1857,19 @@ def q_progress_draws_the_eta_chart():
     # Replicata: progress_run's ETA chart (progress.html's, ported: dreeves, 2026-10-09 and 10-10), from
     # PROGRESS_DATA's three recorded ETAs; a hover over the second.
     # Expectata: shown, as wide as the sea (2026-10-17: as a figure, the page's figure rule shrank it to its content); the
-    # ETA's line has a point per record; the direct labels give the last record's range,
-    # "ETA 0.5–3.0 h", the projected total's, "2.5–5.0 h", and the elapsed time, "2.0 h"; the tip names the second
-    # record: its time (local, to the minute), 1.0 h elapsed, its ETA 2.0 h with its range 1.0–3.0 h, and the total
-    # 3.0 h.
-    E = progress_run()['eta']
+    # ETA's line has a point per record; the direct labels give the last record's range, "0.5–3.0 h" (its "ETA" dropped
+    # at dreeves's request, 2026-10-17: the colors say which is which), the projected total's, "2.5–5.0 h", and the
+    # elapsed time, "2.0 h"; the tip, laid out but invisible at rest (a line of its own, so that showing it moves
+    # nothing: the page jumped on hover until 2026-10-17), names the second record: its time (local, to the minute),
+    # elapsed 1.0 h (elapsed before its number since 2026-10-17, as ETA's and elapsed + ETA's), its ETA 2.0 h with its
+    # range 1.0–3.0 h, and the total 3.0 h; and the hover moved the status line below the chart not at all.
+    R = progress_run()
+    E = R['eta']
     assert not E['hidden'] and E['togo'] == 3 and abs(E['widths'][0] - E['widths'][1]) <= 1, E
-    assert (E['labelTogo'], E['labelTotal'], E['labelSpent']) == ('ETA 0.5–3.0 h', '2.5–5.0 h', '2.0 h'), E
+    assert (E['labelTogo'], E['labelTotal'], E['labelSpent']) == ('0.5–3.0 h', '2.5–5.0 h', '2.0 h'), E
     when = time.strftime('%Y-%m-%d %H:%M', time.localtime(PROGRESS_DATA['runs'][0]['etas'][1][0]))
-    assert E['tip'] == f'{when}: 1.0 h elapsed, ETA 2.0 h (1.0–3.0 h), elapsed + ETA 3.0 h', E['tip']
+    assert E['tip'] == f'{when}: elapsed 1.0 h, ETA 2.0 h (1.0–3.0 h), elapsed + ETA 3.0 h', E['tip']
+    assert R['tipRest']['visibility'] == 'hidden' and R['tipRest']['height'] > 0 and R['jump'] == 0, (R['tipRest'], R['jump'])
 
 
 class SvgParts(html.parser.HTMLParser):
@@ -1878,7 +1901,10 @@ def q_progress_eta_chart_keeps_progress_html_s_spec():
     # black stroke the widest; the palette's blue (#2a78d6) and red (#e34948) and the page's ink; the legend in
     # dreeves's words: elapsed time, ETA, elapsed + ETA.  And since 2026-10-17 (dreeves: "1. yes"), the projected finish
     # marked: a hollow marker (finish) where the dashed elapsed time meets elapsed + ETA, at (14.2, 14.2) h, and a guide
-    # from the black marker across to it and down to the x axis, (13.2, 14.2), (14.2, 14.2), (14.2, 0) h.
+    # from the black marker across to it and down to the x axis, (13.2, 14.2), (14.2, 14.2), (14.2, 0) h.  Then, at
+    # dreeves's request (2026-10-17): the ETA's ideal course, a red dotted line (ideal) from the red marker down to the x
+    # axis at the finish, (13.2, 1) to (14.2, 0) h; the red label without its "ETA", "0.5–3.0 h"; and no legend: the
+    # status line below the chart says what each color is (q_progress_states_times_and_hours).
     R = progress_run('eta')
     parts = SvgParts()
     parts.feed(R['etaSvg'])
@@ -1897,9 +1923,10 @@ def q_progress_eta_chart_keeps_progress_html_s_spec():
     assert len(band) == 1, band
     check(band[0], [(0, 4), (13.2, 3), (13.2, 0.5), (0, 1)], 'band')
     lines = [(a['class'], tuple(float(a[k]) for k in ('x1', 'y1', 'x2', 'y2')), a) for tag, a, _ in els if tag == 'line']
-    assert sorted(c for c, _, _ in lines) == sorted(['axis', 'ahead', 'range', 'cross', 'grid', 'grid', 'grid']), [c for c, _, _ in lines]
+    assert sorted(c for c, _, _ in lines) == sorted(['axis', 'ahead', 'ideal', 'range', 'cross', 'grid', 'grid', 'grid']), [c for c, _, _ in lines]
     seg = {c: s for c, s, _ in lines if c != 'grid'}
     check([seg['ahead'][:2], seg['ahead'][2:]], [(13.2, 13.2), (14.2, 14.2)], 'ahead')
+    check([seg['ideal'][:2], seg['ideal'][2:]], [(13.2, 1), (14.2, 0)], 'ideal')
     check([seg['range'][:2], seg['range'][2:]], [(13.2, 0.5), (13.2, 3)], 'range')
     assert abs(seg['axis'][1] - Y(0)) < 0.05 and seg['axis'][1] == seg['axis'][3], seg['axis']
     grid = [s for c, s, _ in lines if c == 'grid']
@@ -1915,7 +1942,7 @@ def q_progress_eta_chart_keeps_progress_html_s_spec():
     check([now['togo'], now['total'], now['finish']], [(13.2, 1), (13.2, 14.2), (14.2, 14.2)], 'now')
     labels = {a['class'].split()[1]: (float(a['x']), float(a['y']), text) for tag, a, text in els
               if tag == 'text' and a.get('class', '').startswith('label ')}
-    assert {k: v for k, (_, _, v) in labels.items()} == {'togo': 'ETA 0.5–3.0 h', 'total': '14–16 h', 'spent': '13 h'}, labels
+    assert {k: v for k, (_, _, v) in labels.items()} == {'togo': '0.5–3.0 h', 'total': '14–16 h', 'spent': '13 h'}, labels
     for k, h in (('togo', 1), ('total', 14.2)):
         x, y, _ = labels[k]
         assert X(13.2) < x < X(13.2) + 20 and abs(y - Y(h)) < 16, (k, labels[k], X(13.2), Y(h))
@@ -1927,7 +1954,7 @@ def q_progress_eta_chart_keeps_progress_html_s_spec():
     assert set(widths) == {'spent', 'togo', 'total'} and widths['total'] > max(widths['spent'], widths['togo']), widths
     fills = dict(re.findall(r'\.progress-eta \.label\.(togo|total|spent) \{ fill: var\(--([\w-]+)\); \}', style))
     assert fills == {'togo': 'progress-togo', 'total': 'ink', 'spent': 'progress-spent'}, fills
-    assert R['etaLegend'] == 'elapsed time ETA elapsed + ETA', R['etaLegend']
+    assert R['status']['legends'] == 0, R['status']
 
 def main():
     names = sys.argv[1:] or [n for n in globals() if n.startswith('q_')]
