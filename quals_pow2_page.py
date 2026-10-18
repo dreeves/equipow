@@ -790,7 +790,8 @@ def q_section_follows_mstar_chart():
     # lines and comments between, by <section class="pow2" aria-labelledby="pow2-title">, and that by <section
     # class="remarks">.  The new section holds, in order and with only blank lines and comments between: dreeves's
     # heading, the h2 pow2-title; his and Stan Wagon's theorem and its alternative form (THEOREM and THEOREM_ALT,
-    # since 2026-10-17); a paragraph of class pow2-caption; the legend (LEGEND_LINES, its swatches exists,
+    # since 2026-10-17); Claude's paragraph linking record_gaps.wl, the script of the table behind the theorem (Stan
+    # Wagon's request, 2026-10-18; quals_record_gaps checks it); a paragraph of class pow2-caption; the legend (LEGEND_LINES, its swatches exists,
     # open and impossible, as the m*(n) chart's); the div pow2-chart, empty until drawn, an image
     # with his label; and the readout paragraph pow2-readout, a polite live region holding his hint: his three lines
     # (DREEVES_LINES) byte for byte.
@@ -803,7 +804,8 @@ def q_section_follows_mstar_chart():
     assert re.match(filler + r'<section class="remarks">', rest, re.S), rest[:400]
     heading, label, hint = map(re.escape, DREEVES_LINES)
     legend = r'(?:\s|<!--.*?-->)*'.join(map(re.escape, LEGEND_LINES))
-    parts = (heading, re.escape(THEOREM), re.escape(THEOREM_ALT), r'<p class="pow2-caption">.*?</p>', legend, label, hint)
+    gaps = r'<p>Claude: "The Mathematica script <a href="https://raw\.githubusercontent\.com/dreeves/equipow/main/record_gaps\.wl">record_gaps\.wl</a> [^\n]*"</p>'
+    parts = (heading, re.escape(THEOREM), re.escape(THEOREM_ALT), gaps, r'<p class="pow2-caption">.*?</p>', legend, label, hint)
     whole = r'<section[^>]*>' + filler + filler.join(parts) + filler + '</section>'
     assert re.fullmatch(whole, s.group(1), re.S), s.group(1)
 
