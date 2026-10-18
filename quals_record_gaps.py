@@ -13,6 +13,7 @@ sys.dont_write_bytecode = True
 import os, re, json, html, shutil, tempfile, itertools, traceback, time
 import quals_lattice_search as ls          # read only: script (wolframscript on a temporary file) and seats
 import quals_index as qi                   # read only: chrome (headless Chrome's dump of a page's DOM)
+import quals_pow2_page as qp               # read only: kinds_cols and kinds_data, made-up columns of every kind of reason
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 INDEX = os.path.join(HERE, 'index.html')
@@ -42,24 +43,29 @@ def pow2_cols():
     return json.loads(src[src.index('{'):src.rindex('}') + 1])['cols']
 
 
-def records():
-    """pow2.js's record gaps: for g = 1, 2, ..., [k, products], k the least with lo - k >= g, its loWhy's join."""
-    cols, out = pow2_cols(), []
+F = [2 ** 24, 25]                             # f as a block (pow2.py's vocabulary): length 2^24, order 25
+# a lower bound's reason (pow2.py's loWhy) as a join of products of blocks: a join as it is; f^{#L} # tau_j as the one
+# product of L blocks f and tau_j, [2^j, j] (tau_0, [1, 0], when j is 0)
+JOIN = {'joins': lambda why: why[1], 'power': lambda why: [[F] * why[1] + [[2 ** why[2], why[2]]]]}
+
+
+def records(cols=None):
+    """The record gaps of pow2.js's columns (or of cols): for g = 1, 2, ..., [k, products], k the least with lo - k >= g
+    and its reason's join (JOIN)."""
+    cols, out = cols or pow2_cols(), []
     for g in itertools.count(1):
         ks = [k for k in range(1, len(cols) + 1) if cols[k - 1][0] - k >= g]
         if not ks: return out
-        why = cols[ks[0] - 1][2]
-        assert why[0] == 'joins', (ks[0], why)
-        out.append([ks[0], why[1]])
+        out.append([ks[0], JOIN[cols[ks[0] - 1][2][0]](cols[ks[0] - 1][2])])
 
 
-def rows():
+def rows(cols=None):
     """The table's rows below its header, formatted here from records(): per record gap g, the bound m*(2^k) >= k + g
     on the first line, then per product a line of its length (its blocks ascending by length, a repeated one as a
     power, a + before all but the first) and its order (its blocks' orders in that order, a repeated one as count·order,
     then = their sum)."""
     out = []
-    for g, (k, ps) in enumerate(records(), 1):
+    for g, (k, ps) in enumerate(records(cols), 1):
         for i, p in enumerate(ps):
             fs = [(n, m, len(list(run))) for (n, m), run in itertools.groupby(sorted(map(tuple, p)))]
             length = '·'.join(f'{n}^{c}' if c > 1 else f'{n}' for n, m, c in fs)
@@ -166,16 +172,14 @@ def q_page_links_the_wl():
     assert os.path.isfile(WL)
 
 
-def q_page_shows_the_table():
-    # Replicata: index.html in headless Chrome beside mstar.js and pow2.js, its DOM dumped once its scripts ran
-    # (quals_index.chrome); the table of record gaps in it, each cell's text with a superscript as ^ (rows() form).
-    # Expectata (dreeves, 2026-10-18: "a similar version of that table in the html"): right after the paragraph that
-    # links record_gaps.wl, in a sideways-scrolling div (the page's .scroll), a table whose head is Stan Wagon's header
-    # (HEADER) and whose body is rows(), one tbody per record gap (so the rules fall between them): its first row the
-    # bound's cell, spanning the gap's rows, then the product's two cells; each other row the product's two cells.
+def page_table(pow2_text, cols):
+    """index.html in headless Chrome beside mstar.js and pow2_text as pow2.js (cols its columns), its DOM dumped once
+    its scripts ran (quals_index.chrome): the table of record gaps in it, asserted to be of q_page_shows_the_table's
+    form, as rows of cell texts (a superscript as ^)."""
     d = tempfile.mkdtemp(prefix='record-gaps-quals-')
     try:
-        for name in ('index.html', 'mstar.js', 'pow2.js'): shutil.copy(os.path.join(HERE, name), d)
+        for name in ('index.html', 'mstar.js'): shutil.copy(os.path.join(HERE, name), d)
+        open(os.path.join(d, 'pow2.js'), 'w', encoding='utf-8').write(pow2_text)
         dom = qi.chrome(d, ['--virtual-time-budget=5000', '--dump-dom', 'file://' + os.path.join(d, 'index.html')])
     finally:
         shutil.rmtree(d)
@@ -188,14 +192,37 @@ def q_page_shows_the_table():
     bodies = re.findall(r'<tbody>(.*?)</tbody>', head.group(2), re.S)
     assert ''.join(f'<tbody>{b}</tbody>' for b in bodies) == head.group(2).strip(), head.group(2)[:400]
     got = []
-    for (k, ps), body in zip(records(), bodies):
+    for (k, ps), body in zip(records(cols), bodies):
         trs = re.findall(r'<tr>(.*?)</tr>', body, re.S)
         cells = [re.findall(r'<td( rowspan="\d+")?>(.*?)</td>', tr, re.S) for tr in trs]
         assert len(trs) == len(ps) and cells[0][0][0] == f' rowspan="{len(ps)}"', (k, body[:300])
         assert all(not span for row in cells for span, _ in row[-2:]) and all(len(row) == 2 for row in cells[1:]), (k, body[:300])
         got += [[text(c) for _, c in row] for row in cells]
+    assert len(bodies) == len(records(cols)), (len(bodies), len(records(cols)))
+    return got
+
+
+def q_page_shows_the_table():
+    # Replicata: page_table of the real pow2.js.
+    # Expectata (dreeves, 2026-10-18: "a similar version of that table in the html"): right after the paragraph that
+    # links record_gaps.wl, in a sideways-scrolling div (the page's .scroll), a table whose head is Stan Wagon's header
+    # (HEADER) and whose body is rows(), one tbody per record gap (so the rules fall between them): its first row the
+    # bound's cell, spanning the gap's rows, then the product's two cells; each other row the product's two cells.
+    got = page_table(open(POW2_JS, encoding='utf-8').read(), pow2_cols())
     want = [[c for c in row if c != 'SpanFromAbove'] for row in rows()]
-    assert len(bodies) == len(records()) and got == want, (got[:6], want[:6])
+    assert got == want, (got[:6], want[:6])
+
+
+def q_page_table_writes_out_powers_of_f():
+    # Replicata: page_table of quals_pow2_page's made-up columns, which use every kind of reason (kinds_data): there
+    # record gap 1 is first a join at 2^24, record gap 2 first f^{#2} # tau_0 at 2^48, a reason of kind power.
+    # Expectata: the table writes a power of f as one product of L blocks f, [2^24, 25], and tau_j, [2^j, j]: at 2^48,
+    # one line, 1·16777216^2 of order 0 + 2·25 = 50; every row as rows() gives them for those columns (JOIN).
+    cols = qp.kinds_cols()
+    got = page_table(qp.kinds_data(), cols)
+    want = [[c for c in row if c != 'SpanFromAbove'] for row in rows(cols)]
+    assert got == want, (got, want)
+    assert ['m^*(2^48) ≥ 50', '1·16777216^2', '0 + 2·25 = 50'] in got, got
 
 
 def main():

@@ -1560,9 +1560,9 @@ try {
 })();
 // Claude's table of the construction behind each bound of Theorem 1 (Stan Wagon's table, extended, 2026-10-18;
 // record_gaps.wl makes the same one in Mathematica), from POW2: for each record gap g = 1, 2, ..., the least k whose lo
-// is at least k + g, and the join of products that pow2.py found there, each record gap a tbody of its own.  A product
-// is a row: its blocks ascending by length, a repeated one written once, as a power (368²) in the power of 2 and as
-// count·order (2·9) in the order; a + before every product but the first; the bound's cell spans its record gap's rows.
+// is at least k + g, and its reason as a join of products of blocks (JOIN), each record gap a tbody of its own.  A
+// product is a row: its blocks ascending by length, a repeated one written once, as a power (368²) in the power of 2
+// and as count·order (2·9) in the order; a + before every product but the first; the bound's cell spans its rows.
 (() => {
 const table = document.querySelector('[data-record-gaps]');
 try {
@@ -1573,11 +1573,15 @@ try {
     return [...new Set(b.map(String))].map(s => [...s.split(',').map(Number), b.filter(x => String(x) === s).length]);
   };
   const sum = p => p.reduce((s, [, m]) => s + m, 0);
+  const F = [2 ** 24, 25];                           // f, the construction of length 2^24 and order 25 (the remarks below)
+  // a lower bound's reason as a join of products of blocks: a join as it is; f^{#L} # τ_j as the one product of L
+  // blocks f and τ_j, [2^j, j] (τ_0, [1, 0], when j is 0); any other kind has no entry, and its record gap throws
+  const JOIN = {joins: ([, ps]) => ps, power: ([, L, j]) => [[...Array(L).fill(F), [2 ** j, j]]]};
   const length = p => factors(p).map(([n, , c]) => c > 1 ? `${n}<sup>${c}</sup>` : `${n}`).join('·');
   const order = p => factors(p).map(([, m, c]) => c > 1 ? `${c}·${m}` : `${m}`).join(' + ') + ` = ${sum(p)}`;
   for (let g = 1; at(g); g++) {
-    const k = at(g), [lo, , [kind, join]] = POW2.cols[k - 1];
-    assert(kind === 'joins' && lo === k + g && Math.min(...join.map(sum)) === lo, k, kind, lo);
+    const k = at(g), [lo, , why] = POW2.cols[k - 1], join = JOIN[why[0]](why);
+    assert(lo === k + g && Math.min(...join.map(sum)) === lo, k, lo);
     assert(join.reduce((s, p) => s + p.reduce((t, [n]) => t * BigInt(n), 1n), 0n) === 2n ** BigInt(k), k);
     const plus = ['', ...join.slice(1).map(() => '+ ')];
     const body = document.createElement('tbody');
