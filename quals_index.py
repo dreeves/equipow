@@ -75,6 +75,10 @@ DREEVES_LINES += (THEOREM, THEOREM_ALT)
 STAN_WORDS = ('Record gaps', 'The power of 2', 'The order')
 STAN_HEADER = ''.join(['<thead><tr>'] + [f'<th>{w}</th>' for w in STAN_WORDS] + ['</tr></thead>'])
 DREEVES_LINES += (STAN_HEADER,)
+# his note under Table 2 crediting Richard Stong (2026-10-18, commit 23ba3db, "Stong got 2^51": his rewording of the
+# line Claude had put there at his request), byte for byte
+STONG_NOTE = '<p>Note: <i>m</i><sup>*</sup>(2<sup>51</sup>) ≥ 52 is due to Richard Stong.</p>'
+DREEVES_LINES += (STONG_NOTE,)
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -1627,14 +1631,13 @@ def q_table2_credits_stong_for_2_51():
     # Replicata: index.html's figure of Table 2: its three blocks, then what comes before the new results' block.
     # Expectata (dreeves, 2026-10-18: "can you indicate somehow that the 2^51 result in the table is due to Richard
     # Stong?"): Table 2's last block ends with n = 2^51 and its value "≥ 52", the cells untouched (mstar.py reads them);
-    # right after the blocks' scroll frame, before the new results, a TODO comment and one paragraph of Claude's copy
-    # (Claude: "…") naming that entry, 2^51 and ≥ 52, and Richard Stong.
+    # right after the blocks' scroll frame, before the new results, his note (STONG_NOTE, his rewording of Claude's
+    # line, commit 23ba3db).
     fig = re.search(r'<figure>.*?</figure>', page(), re.S).group(0)
     blocks = re.findall(r'<table class="block">(.*?)</table>', fig, re.S)[:3]
     assert blocks[2].rstrip().endswith('<td>2<sup>51</sup></td></tr>\n        <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td lang="en">10 or 11</td><td>7</td><td>8</td><td>7</td><td>8</td><td>7</td><td lang="en">9 or 10</td><td>7</td><td lang="en">8 or 9</td><td>≥ 52</td></tr>'), blocks[2][-300:]
-    m = re.search(r'</table>\n    </div>\n    <!-- TODO: [^\n]*-->\n    <p>Claude: "([^\n]*)"</p>\n\n    <div class="new-block">', fig)
-    assert m, fig[fig.index('2<sup>51</sup>'):][:800]
-    assert all(w in m.group(1) for w in ('2<sup>51</sup>', '≥ 52', 'Richard Stong')), m.group(1)
+    assert re.search(r'</table>\n    </div>\n    ' + re.escape(STONG_NOTE) + r'\n\n    <div class="new-block">', fig), \
+        fig[fig.index('2<sup>51</sup>'):][:800]
 
 
 def q_theorem_states_pow2_s_thresholds():

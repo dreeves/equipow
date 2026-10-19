@@ -5431,11 +5431,19 @@ and for further consistency: instead of "Running:" as the prefix, how about "@20
 <header><p class="speaker">dreev</p></header>
 <pre class="prompt">oh, i guess keep it then. next: can you indicate somehow that the 2^51 result in the table is due to Richard Stong?</pre>
 <details>
-<summary><a class="anchor" href="#p250"><time datetime="2026-10-19T02:49:45.451000+00:00">02:49</time></a> <span class="chip"></span> <span class="agent">Claude Code</span> <span class="model">claude-opus-5-5</span> <span class="effort">(max)</span> <span class="elapsed">thought for 2m48s · 2m51s wall-clock time</span></summary>
+<summary><a class="anchor" href="#p250"><time datetime="2026-10-19T02:49:45.451000+00:00">02:49</time></a> <span class="chip"></span> <span class="agent">Claude Code</span> <span class="model">claude-opus-5-5</span> <span class="effort">(max)</span> <span class="elapsed">thought for 3m59s · 19m38s wall-clock time</span></summary>
 <div class="reply machine"><p>Keeping the 240:11 block. Next, finding where 2^51 appears and what the page and data already say about Stong:</p>
 <p>2^51 is the last column of the m*(n) table&#x27;s final block (line 428). The remarks below already say &quot;The paper&#x27;s 52 is Stong&#x27;s.&quot; Reading that part of the table and how it marks provenance:</p>
 <p>I&#x27;ll keep it to a plain paragraph with no new CSS. That way it touches neither Table 2&#x27;s cells nor the frozen chart&#x27;s code. The qual comes first:</p>
-<p>Red, and for the right reason: the cells check passed and the note is missing. Adding the note:</p></div>
+<p>Red, and for the right reason: the cells check passed and the note is missing. Adding the note:</p>
+<p>quals_index (59/59, with the new qual), quals_pow2_page (24/24) and quals_mstar (26/26) pass; quals_record_gaps is still running. Rendering the note under Table 2:</p>
+<p>Your line has no TODO comment and no Claude attribution, so my new qual and the attribution checks should now fail. Running them to see:</p>
+<p>Both suites pass again: quals_index 59/59 and quals_pow2_page 24/24. One memory check: whether &quot;when you reword a Claude line, register your line as human text in the quals&quot; is already recorded.</p>
+<p>Your note &quot;Note: m*(2⁵¹) ≥ 52 is due to Richard Stong.&quot; now sits directly under Table 2 — the wording you committed in 23ba3db (&quot;Stong got 2^51&quot;) over my draft.</p>
+<p>I didn&#x27;t mark the cell itself because mstar.py parses Table 2&#x27;s cells strictly, and changing it would mean touching the frozen m*(n) chart&#x27;s code. So the &quot;≥ 52&quot; cell is unchanged and the note sits right below that table, above the new results.</p>
+<p>After your rewording, the quals flagged your note as unattributed English, and the new qual still expected my wording. I updated the quals, not your line:</p>
+<ul><li>Your line is recorded once in quals_index as human text, like your other lines, and quals_pow2_page takes it from there.</li><li>The new qual, which I wrote first and watched fail, now expects your exact line under Table 2 and that the cell still reads &quot;≥ 52&quot;.</li><li>quals_index passes 59 of 59, quals_pow2_page 24 of 24, quals_mstar 26 of 26 and quals_record_gaps 7 of 7. The last two ran before the quals fix, which doesn&#x27;t touch them.</li></ul>
+<p>I also saved this rule to memory: when you reword one of my lines, the quals adopt your exact wording, and your line is never edited to satisfy a qual.</p></div>
 </details>
 </article>
 </main>

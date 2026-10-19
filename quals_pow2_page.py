@@ -858,7 +858,7 @@ def q_new_copy_is_attributed():
     quoted, quote_todos = quals_index.claude_quotes(lines)
     section, section_todo = quals_index.progress_lines(lines)
     quoted, quote_todos = quoted | section, quote_todos | {section_todo}
-    human = DREEVES_LINES + LEGEND_LINES + (THEOREM, THEOREM_ALT) + STAN_LINES       # Stan Wagon's header too
+    human = DREEVES_LINES + LEGEND_LINES + (THEOREM, THEOREM_ALT) + STAN_LINES + (quals_index.STONG_NOTE,)   # Stan Wagon's header and dreeves's note on Stong too
     his = [j for j in ins if j not in quoted and lines[j].strip() in human]
     assert sorted(lines[j].strip() for j in his) == sorted(human), [lines[j] for j in his]
     bad = []
