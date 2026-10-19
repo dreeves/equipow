@@ -273,7 +273,6 @@ code {
 .progress-eta .now.spent { fill: var(--progress-spent); stroke: none; }
 .progress-eta .now.togo { fill: var(--progress-togo); stroke: none; }
 .progress-eta .now.total { fill: var(--progress-total); stroke: none; }
-.progress-eta .now.finish { fill: var(--paper); stroke: var(--progress-total); stroke-width: 1.5; }
 .progress-eta .axis, .progress-eta .grid { stroke: var(--progress-hair); stroke-width: 1; vector-effect: non-scaling-stroke; }
 .progress-eta text { font-size: 11px; fill: var(--muted); stroke: none; font-variant-numeric: tabular-nums lining-nums; }
 /* The labels at the latest record, commented out with them (dreeves, 2026-10-17: "comment it out for now"):
@@ -285,6 +284,7 @@ code {
    chart's box, whose series rules stroke. */
 .progress-tip, .progress-status { font-variant-numeric: tabular-nums lining-nums; }
 .progress-tip { visibility: hidden; }
+.progress-tip.projected { font-style: italic; }   /* the tip past the last record: a projection */
 .progress-tip .spent, .progress-status .spent { color: var(--progress-spent); stroke: none; }
 .progress-tip .togo, .progress-status .togo { color: var(--progress-togo); stroke: none; }
 .progress-tip .total, .progress-status .total { color: var(--progress-total); stroke: none; }
@@ -429,6 +429,7 @@ footer {
         <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td lang="en">10 or 11</td><td>7</td><td>8</td><td>7</td><td>8</td><td>7</td><td lang="en">9 or 10</td><td>7</td><td lang="en">8 or 9</td><td>≥ 52</td></tr>
       </table>
     </div>
+    <p>Note: <i>m</i><sup>*</sup>(2<sup>51</sup>) ≥ 52 is due to Richard Stong.</p>
 
     <div class="new-block">
       <p class="block-label">New results since the paper</p>
@@ -1047,7 +1048,7 @@ SClaude[11][800] = {
 </section>
 
 <section class="progress" aria-labelledby="progress-title">
-  <!-- TODO: Claude's copy, at dreeves's request (2026-10-17), on the certified searches' progress, in a section that starts closed: when the snapshot was made and how old it is; per run, its question and the program that runs it (overnight_v5.py, or boxsplit.py over a run's open sub-cases), whether it is running, frozen or ended, and its hours of running so far + to go = in all (dreeves's form, 2026-10-17; running: after an @ and the snapshot's time in place of "Running:" (dreeves, 2026-10-17), with the local times that range ends between, in parentheses), as a bar drawn to scale at the top and as the status line below the ETA chart, its parts in the chart's colors in place of a legend (dreeves, 2026-10-17); a sea of dots, one per sub-case, each subtree a block of its own, colored by status, with a key of the statuses and their counts and a readout of the subtree under the pointer; and progress.html's ETA chart (elapsed time, ETA and elapsed + ETA, in dreeves's words), with a tip above it: the status line's running form for the recorded ETA under the pointer, at its time (dreeves, 2026-10-17: "the same as the line below, just an earlier snapshot thereof") -->
+  <!-- TODO: Claude's copy, at dreeves's request (2026-10-17), on the certified searches' progress, in a section that starts closed: when the snapshot was made and how old it is; per run, its question and the program that runs it (overnight_v5.py, or boxsplit.py over a run's open sub-cases), whether it is running, frozen or ended, and its hours of running so far + to go = in all (dreeves's form, 2026-10-17; running: after an @ and the snapshot's time in place of "Running:" (dreeves, 2026-10-17), with the local times that range ends between, in parentheses), as a bar drawn to scale at the top and as the status line below the ETA chart, its parts in the chart's colors in place of a legend (dreeves, 2026-10-17); a sea of dots, one per sub-case, each subtree a block of its own, colored by status, with a key of the statuses and their counts and a readout of the subtree under the pointer; and progress.html's ETA chart (elapsed time, ETA and elapsed + ETA, in dreeves's words), with a tip above it: the status line's running form for the recorded ETA under the pointer, at its time (dreeves, 2026-10-17: "the same as the line below, just an earlier snapshot thereof"), and right of the last record that record's line carried on to the hour of running under the pointer, in italics, a projection (dreeves, 2026-10-18) -->
     <details>
       <summary><h2 id="progress-title">Search progress</h2></summary>
       <p>As of <span data-made>—</span> (<span data-age>—</span> ago).</p>
@@ -1083,7 +1084,6 @@ SClaude[11][800] = {
               <circle class="now spent" r="4" data-now-spent></circle>
               <circle class="now togo" r="4" data-now-togo></circle>
               <circle class="now total" r="4" data-now-total></circle>
-              <circle class="now finish" r="4" data-now-finish></circle>
               <!-- The labels at the latest record, commented out at dreeves's request (2026-10-17: "comment it out for now"):
               <text class="label togo" data-label-togo><tspan data-togo-range></tspan>&#8239;h</text>
               <text class="label total" data-label-total><tspan data-total-range></tspan>&#8239;h</text>
@@ -1840,7 +1840,6 @@ try {
     set(q('[data-ahead]'), {x1: X(last[1]), y1: Y(last[1]), x2: X(fin), y2: Y(fin)});
     set(q('[data-guide]'), {points: P([[last[1], fin], [fin, fin], [fin, 0]])});      // across from the purple marker, then down
     set(q('[data-ideal]'), {x1: X(last[1]), y1: Y(last[2]), x2: X(fin), y2: Y(0)});    // the ETA's ideal course: an hour less each hour
-    set(q('[data-now-finish]'), {cx: X(fin), cy: Y(fin)});
     set(q('[data-togo]'), {points: P(pts.map(p => [p[1], p[2]]))});
     set(q('[data-total]'), {points: P(pts.map(p => [p[1], p[1] + p[2]]))});
     set(q('[data-range-togo]'), {x1: X(last[1]), y1: Y(last[3]), x2: X(last[1]), y2: Y(last[4])});
@@ -1861,16 +1860,27 @@ try {
                // .filter(([v]) => Math.abs(X(v) - X(now)) >= CROWD)      // room for the elapsed time's label, commented out with it
                .map(([v, label]) => make('text', {class: 'xtick', x: X(v), y: H - 8, 'text-anchor': 'middle'}, label)));
     const svg = fig.querySelector('svg'), cross = q('[data-cross]'), tip = q('[data-tip]');
-    const xsvg = pts.map(p => X(p[1]));
-    const at = k => { const [t, x, , lo, hi] = run.etas[k]; snapshot(tip, t, x, {lo, hi}); };   // record k's line
-    at(pts.length - 1);                         // laid out at rest, invisible, as the latest record's line
+    const xsvg = pts.map(p => X(p[1])), end = xsvg[xsvg.length - 1], hour = X(1) - X(0);   // viewBox units
+    // record k's line carried on s seconds of running past it (0: the record's own): the clock and the hours so far
+    // advance together, and the ETA's band falls second for second, to no less than 0 (the run may be done by then);
+    // in italics (projected) when carried on, the projection past the last record (dreeves, 2026-10-18)
+    const at = (k, s) => {
+      const [t, x, , lo, hi] = run.etas[k];
+      snapshot(tip, t + s, x + s, {lo: Math.max(0, lo - s), hi: Math.max(0, hi - s)});
+      tip.classList.toggle('projected', s > 0);
+    };
+    at(pts.length - 1, 0);                      // laid out at rest, invisible, as the latest record's line
     set(cross, {x1: X(last[1]), y1: Y(yticks[yticks.length - 1]), x2: X(last[1]), y2: Y(0)});   // hidden at rest
     svg.addEventListener('mousemove', ev => {
-      const b = svg.getBoundingClientRect(), x = (ev.clientX - b.left) * W / b.width;
+      const b = svg.getBoundingClientRect(), x = Math.min((ev.clientX - b.left) * W / b.width, W - R);   // not past the axis
+      // left of the last record, the nearest record (the latest of equals); right of it, the last record carried on to
+      // the pointer, in whole minutes (the records' cadence)
+      const near = Math.min(x, end), s = 60 * Math.round(60 * (Math.max(x, end) - end) / hour);
       let k = 0;
-      for (let i = 1; i < xsvg.length; i++) if (Math.abs(xsvg[i] - x) < Math.abs(xsvg[k] - x)) k = i;
-      set(cross, {x1: xsvg[k], y1: Y(yticks[yticks.length - 1]), x2: xsvg[k], y2: Y(0)}).setAttribute('visibility', 'visible');
-      at(k);
+      for (let i = 1; i < xsvg.length; i++) if (Math.abs(xsvg[i] - near) <= Math.abs(xsvg[k] - near)) k = i;
+      const cx = xsvg[k] + hour * s / 3600;
+      set(cross, {x1: cx, y1: Y(yticks[yticks.length - 1]), x2: cx, y2: Y(0)}).setAttribute('visibility', 'visible');
+      at(k, s);
       tip.style.visibility = 'visible';           // laid out at rest (the CSS hides it), so showing it moves nothing
     });
     svg.addEventListener('mouseleave', () => { cross.setAttribute('visibility', 'hidden'); tip.style.visibility = ''; });

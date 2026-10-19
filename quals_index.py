@@ -1566,6 +1566,13 @@ PROGRESS_HARNESS = """<script>
     svg.dispatchEvent(new MouseEvent('mousemove', {clientX: sb.left + L.etaXs[L.etaXs.length - 1] * sb.width / 640, clientY: sb.top + sb.height / 2, bubbles: true}));
     out.eta.tipLast = text('[data-tip]');
     out.eta.sameMarkup = tipEl.innerHTML === status.querySelector('[data-state="running"]').innerHTML;
+    out.eta.projectedAtRecord = tipEl.classList.contains('projected');
+    const xAt = h => L.etaXs[0] + h * (L.etaXs[1] - L.etaXs[0]);      // viewBox x at h hours: PROGRESS_DATA's records sit at 0, 1, 2 h
+    svg.dispatchEvent(new MouseEvent('mousemove', {clientX: sb.left + xAt(2.5) * sb.width / 640, clientY: sb.top + sb.height / 2, bubbles: true}));
+    out.eta.tipAhead = text('[data-tip]');
+    out.eta.ahead = {projected: tipEl.classList.contains('projected'), style: getComputedStyle(tipEl).fontStyle,
+                     cross: Number(fig.querySelector('[data-cross]').getAttribute('x1')), want: xAt(2.5)};
+    out.jumpAhead = status.getBoundingClientRect().top - top0;
     const d2 = JSON.parse(JSON.stringify(view().data));
     d2.made += 60; d2.runs[0].groups[1] = '1'; d2.runs[0].counts.running -= 1; d2.runs[0].counts.open += 1;
     window.progressData(d2);
@@ -1614,6 +1621,20 @@ def progress_run(case='main'):
 
 
 def rgb(hexcolor): return [int(hexcolor[i:i + 2], 16) for i in (1, 3, 5)]
+
+
+def q_table2_credits_stong_for_2_51():
+    # Replicata: index.html's figure of Table 2: its three blocks, then what comes before the new results' block.
+    # Expectata (dreeves, 2026-10-18: "can you indicate somehow that the 2^51 result in the table is due to Richard
+    # Stong?"): Table 2's last block ends with n = 2^51 and its value "≥ 52", the cells untouched (mstar.py reads them);
+    # right after the blocks' scroll frame, before the new results, a TODO comment and one paragraph of Claude's copy
+    # (Claude: "…") naming that entry, 2^51 and ≥ 52, and Richard Stong.
+    fig = re.search(r'<figure>.*?</figure>', page(), re.S).group(0)
+    blocks = re.findall(r'<table class="block">(.*?)</table>', fig, re.S)[:3]
+    assert blocks[2].rstrip().endswith('<td>2<sup>51</sup></td></tr>\n        <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td lang="en">10 or 11</td><td>7</td><td>8</td><td>7</td><td>8</td><td>7</td><td lang="en">9 or 10</td><td>7</td><td lang="en">8 or 9</td><td>≥ 52</td></tr>'), blocks[2][-300:]
+    m = re.search(r'</table>\n    </div>\n    <!-- TODO: [^\n]*-->\n    <p>Claude: "([^\n]*)"</p>\n\n    <div class="new-block">', fig)
+    assert m, fig[fig.index('2<sup>51</sup>'):][:800]
+    assert all(w in m.group(1) for w in ('2<sup>51</sup>', '≥ 52', 'Richard Stong')), m.group(1)
 
 
 def q_theorem_states_pow2_s_thresholds():
@@ -1926,6 +1947,25 @@ def q_progress_draws_the_eta_chart():
     assert R['tipRest']['visibility'] == 'hidden' and R['tipRest']['height'] > 0 and R['jump'] == 0, (R['tipRest'], R['jump'])
 
 
+def q_progress_tip_projects_past_the_last_record():
+    # Replicata: progress_run: hovers over the ETA chart's records, then at 2.5 h of running, half an hour past its last
+    # record (PROGRESS_DATA's, at 2 h: 0.5–3.0 h to go).
+    # Expectata (dreeves, 2026-10-18: "the hover feature of showing the historical ETA might as well work for the whole
+    # graph, right? i guess what we'd need is a way to make the distinction clear between historical vs projected"):
+    # there the tip is the last record's line carried on half an hour, in italics (class projected): the clock and the
+    # hours so far half an hour on, 2.5 h so far, the band half an hour lower and no lower than 0, 0.0–2.5 h to go, so
+    # 2.5–5.0 h in all and the status line's finish times; the cross line at the pointer; over a record, no italics;
+    # and the status line below the chart did not move.
+    R = progress_run()
+    E, h = R['eta'], NNBSP + 'h'
+    t = PROGRESS_DATA['made'] + 1800
+    want = f'@{stamp(t)}{EMSP}2.5{h} so far + 0.0–2.5{h} to go = 2.5–5.0{h} ({finish(t, t + 9000)})'
+    assert E['tipAhead'] == want, (E['tipAhead'], want)
+    A = E['ahead']
+    assert A['projected'] is True and A['style'] == 'italic' and abs(A['cross'] - A['want']) < 0.05, A
+    assert E['projectedAtRecord'] is False and R['jumpAhead'] == 0, (E['projectedAtRecord'], R['jumpAhead'])
+
+
 class SvgParts(html.parser.HTMLParser):
     """An svg's elements in document order, each [tag, attributes, text], an element's text with its children's."""
     def __init__(self):
@@ -1971,7 +2011,8 @@ def q_progress_eta_chart_keeps_progress_html_s_spec():
     # and both range lines multiply onto what is under them: neither hides the other (the purple range line hid the red
     # one's top until they did, 2026-10-17).  And the guide purple too, as it carries elapsed + ETA's level across to the
     # finish and down to it on the x axis (dreeves, 2026-10-18: "that looks black and should be purple"; the page's
-    # muted gray before).
+    # muted gray before).  And no finish marker since 2026-10-18 (dreeves: "remove the hollow purple dot at the upper
+    # right; that might look cleaner"): the guide alone marks the projected finish.
     R = progress_run('eta')
     parts = SvgParts()
     parts.feed(R['etaSvg'])
@@ -2007,8 +2048,8 @@ def q_progress_eta_chart_keeps_progress_html_s_spec():
     xt = [(float(a['x']), text) for tag, a, text in els if tag == 'text' and a.get('class') == 'xtick']
     assert [v for _, v in xt] == ['0', '5', '10', '15\u202fh'] and all(abs(x - X(int(v.split()[0]))) < 0.05 for x, v in xt), xt
     now = {a['class'].split()[1]: (float(a['cx']), float(a['cy'])) for tag, a, _ in els if tag == 'circle'}
-    assert sorted(now) == ['finish', 'spent', 'togo', 'total'], now
-    check([now['spent'], now['togo'], now['total'], now['finish']], [(13.2, 13.2), (13.2, 1), (13.2, 14.2), (14.2, 14.2)], 'now')
+    assert sorted(now) == ['spent', 'togo', 'total'], now
+    check([now['spent'], now['togo'], now['total']], [(13.2, 13.2), (13.2, 1), (13.2, 14.2)], 'now')
     labels = {a['class'].split()[1]: (float(a['x']), float(a['y']), text) for tag, a, text in els
               if tag == 'text' and a.get('class', '').startswith('label ')}
     assert labels == {}, labels
@@ -2031,7 +2072,7 @@ def q_progress_eta_chart_keeps_progress_html_s_spec():
     assert tints == {(b, s): s for b in ('band', 'range') for s in ('togo', 'total')}, tints
     dots = dict(re.findall(r'\.progress-eta \.now\.(spent|togo|total) \{ fill: var\(--progress-([\w-]+)\);', style))
     assert dots == {'spent': 'spent', 'togo': 'togo', 'total': 'total'}, dots
-    assert re.search(r'\.progress-eta \.now\.finish \{ fill: var\(--paper\); stroke: var\(--progress-total\);', style)
+    assert not re.search(r'\.finish\b', style), 'a rule for the finish marker'
     assert re.search(r'\.progress-eta \.guide \{ stroke: var\(--progress-total\);', style), 'the guide not purple'
     assert all(re.search(rf'\.progress-eta \.{k} \{{[^}}]*mix-blend-mode: multiply;', style) for k in ('band', 'range')), 'an overlap hidden'
     assert R['status']['legends'] == 0, R['status']
