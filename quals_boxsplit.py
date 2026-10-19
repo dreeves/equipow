@@ -293,7 +293,9 @@ def q_configure():
     # Expectata: the first configures overnight_v5 for 304@9, takes the extension moduli (11, 13) with budgets
     # (10000, 2000000), and names the driver's journal and log overnight_v5_304_9_boxsplit_journal.jsonl and
     # overnight_v5_304_9_boxsplit.log next to boxsplit.py, neither of them the run's; the second likewise for 240@11,
-    # its cascade (3, 5, 7, 4, 8, 11, 13, 9), the extension modulus 17 with budget 2000000, and the names
+    # its cascade (3, 5, 7, 4, 8, 11, 13, 9), the extension moduli 17 and 19, each with budget 2000000 (19 since
+    # 2026-10-19, when the pass by 17 left 4 own children of 4 leaves UNKNOWN at 2000000; dreeves: "sure", to splitting
+    # them by 19 as 304@9's were by 13), and the names
     # overnight_v5_240_11_boxsplit_journal.jsonl and overnight_v5_240_11_boxsplit.log; the third, a run overnight_v5
     # has settings for and the driver no extension: AssertionError in configure; every extension has one budget per
     # modulus, whole and positive.
@@ -304,7 +306,7 @@ def q_configure():
     assert bx.LOG == os.path.join(HERE, 'overnight_v5_304_9_boxsplit.log') != v5.LOG
     bx.configure(240, 11)
     assert (v5.N, v5.ORDER, v5.CASCADE) == (240, 11, (3, 5, 7, 4, 8, 11, 13, 9))
-    assert (bx.MODULI, bx.BUDGETS) == ((17,), (2000000,))
+    assert (bx.MODULI, bx.BUDGETS) == ((17, 19), (2000000, 2000000))
     assert bx.JOURNAL == os.path.join(HERE, 'overnight_v5_240_11_boxsplit_journal.jsonl') != v5.JOURNAL
     assert bx.LOG == os.path.join(HERE, 'overnight_v5_240_11_boxsplit.log') != v5.LOG
     assert (48, 6) in v5.SETTINGS and (48, 6) not in bx.EXTENSION

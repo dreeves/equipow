@@ -100,13 +100,15 @@ import certbb
 #   prototype (verify_split.md), 23 of the 37 mod-11 own children of the 8 leaves closed in 3 to 107 LP solves and the
 #   other 14 needed the split by 13, after which their 10 own grandchildren closed in 3 to 67; so a mod-11 child gets
 #   10000, the run's budget above its bottom, and a mod-13 child 2000000, the run's first bottom budget.
-#   240@11: 17 alone.  Its open leaves' count boxes are the full range by 17, 19, 23 and 25 and nearly so by 27 and 32;
-#   by 16 they narrow (widths 10 to 13 of 16), but admissible_box's enumeration there (the residue lattice mod 16 has
-#   rank 14, and the counts mod 8 leave 8 classes free) ran 6 CPU-minutes on one leaf without finishing.  By 17 there
-#   are 1224656 admissible vectors, 613282 of them after the integer filter and the orbit reduction at one leaf (its
-#   stabilizer {id, phi}), all inside the box: no outside node (scratch/boxsplit-240/measure, 2026-10-12).  An own
-#   child gets the run's bottom budget, as the last modulus's at 304@9.
-EXTENSION = {(304, 9): ((11, 13), (10000, 2000000)), (240, 11): ((17,), (2000000,))}
+#   240@11: 17, then 19.  Its open leaves' count boxes are the full range by 17, 19, 23 and 25 and nearly so by 27 and
+#   32; by 16 they narrow (widths 10 to 13 of 16), but admissible_box's enumeration there (the residue lattice mod 16
+#   has rank 14, and the counts mod 8 leave 8 classes free) ran 6 CPU-minutes on one leaf without finishing.  By 17
+#   there are 1224656 admissible vectors, 613282 of them after the integer filter and the orbit reduction at one leaf
+#   (its stabilizer {id, phi}), all inside the box: no outside node (scratch/boxsplit-240/measure, 2026-10-12).  An own
+#   child gets the run's bottom budget, as the last modulus's at 304@9.  The pass by 17 alone (2026-10-17 to 19)
+#   closed 602 of the 606 leaves and left one own child in each of the other 4 UNKNOWN at that budget; those are split
+#   by 19, the next modulus coprime to the cascade (dreeves, 2026-10-19), their own children at the same budget.
+EXTENSION = {(304, 9): ((11, 13), (10000, 2000000)), (240, 11): ((17, 19), (2000000, 2000000))}
 CONTROL_CUT = 2          # the control takes the box split inside the box cut to within this of the example's counts
 SCREEN = 1e-6            # carry's float screen passes a vector whose scaled bound is above -SCREEN; exact integers decide
 HERE = os.path.dirname(os.path.abspath(__file__))
