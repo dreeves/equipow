@@ -244,7 +244,20 @@ EDITS = quals_index.TABLE_UPDATE + (
           '.smallest table { justify-self: start; border-collapse: collapse; font-variant-numeric: tabular-nums lining-nums; }',
           '.smallest th, .smallest td { border: 1px solid var(--rule); padding: 0.3rem 0.7rem; text-align: center; }',
           '.smallest th { font-weight: 400; }',
-          '.smallest .attrib { color: var(--muted); }'))
+          '.smallest .attrib { color: var(--muted); }'),
+    # the m*(n) chart's gold rings on the terms a(m − 1) of OEIS A323395 that its data proves (dreeves, 2026-10-19:
+    # "green with gold trim"): their color token, the legend's swatch and line, RECORDS, the rings drawn with the
+    # outline of the cell read out (one ring function for both), and the readout's note
+    after('  --impossible: #c43d50; /* TODOCOLOR */', '  --record: #FFB300;   /* the gold ring of a(m − 1), OEIS A323395, in the m*(n) chart (dreeves, 2026-10-19); the dataviz validator against its three colors and the paper: worst color-blind ΔE 12.8 (protan, the green), normal-vision 16.0 (the red) */'),
+    after('.swatch.impossible { --hue: var(--impossible); }', '.swatch.record { box-shadow: 0 0 0 2px var(--record); }   /* a(m − 1): green, ringed in gold as in the chart */'),
+    after('      <li><span class="swatch impossible" aria-hidden="true"></span><span class="nw"><i>m</i> &gt; <i>m</i><sup>*</sup>(<i>n</i>)</span></li>',
+          "      <!-- TODO: legend label for the cells ringed in gold; says such a cell's n is a(m − 1) of OEIS A323395, the least n of order m (linked) -->", '      <li><span class="swatch exists record" aria-hidden="true"></span><span>Claude: "<span class="nw"><i>n</i> = <i>a</i>(<i>m</i> − 1)</span> of OEIS <a href="https://oeis.org/A323395">A323395</a>, the least <i>n</i> of order <i>m</i>"</span></li>'),
+    after('  const T = D.mtop, cssH = TOP + T * ROW + AXIS;',
+          '  // a(m − 1) of OEIS A323395 where the data proves it, ringed in gold (dreeves, 2026-10-19: "green with gold trim"):', '  // for each order m, the least n known to reach m, when it is also the least n whose upper bound allows m (as the', '  // table of smallest lengths below has it).', '  const least = test => D.cols.findIndex(test) + 1;                // the least n whose column passes test; 0 if none', '  const RECORDS = Array.from({length: T}, (_, i) => i + 1).map(m => ({n: least(c => c[0] >= m), m}))', '    .filter(({n, m}) => n > 0 && n === least(c => c[1] >= m));'),
+    ("    if (cur !== null) {                                            // outline the cell read out, just outside it\n      const x0 = L + (cur.n / 2 - 1 - u0) / k, x1 = L + (cur.n / 2 - u0) / k, y0 = top + (T - cur.m) * pitch;\n      ctx.save();\n      ctx.beginPath();\n      ctx.rect(L - 2 * dpr, 0, W + 4 * dpr, base);\n      ctx.clip();\n      ctx.strokeStyle = token('--ink');\n      ctx.lineWidth = 2 * dpr;\n      ctx.strokeRect(x0 - dpr, y0 - dpr, x1 - x0 + 2 * dpr, pitch - gap + 2 * dpr);\n      ctx.restore();\n    }\n",
+     "    // Rings just outside cells, 2 device px wide: each of RECORDS in gold, then the cell read out in ink.\n    const ring = ({n, m}) => {\n      const x0 = L + (n / 2 - 1 - u0) / k, x1 = L + (n / 2 - u0) / k, y0 = top + (T - m) * pitch;\n      ctx.strokeRect(x0 - dpr, y0 - dpr, x1 - x0 + 2 * dpr, pitch - gap + 2 * dpr);\n    };\n    ctx.save();\n    ctx.beginPath();\n    ctx.rect(L - 2 * dpr, 0, W + 4 * dpr, base);\n    ctx.clip();\n    ctx.lineWidth = 2 * dpr;\n    ctx.strokeStyle = token('--record');\n    RECORDS.forEach(ring);\n    ctx.strokeStyle = token('--ink');\n    if (cur !== null) ring(cur);                                   // outline the cell read out, just outside it\n    ctx.restore();\n", 1),
+    after("      [[why[0]], why, [why[1]]][kind].map(f => f()).join(' · '));",
+          '    // TODO: readout note on a cell ringed in gold; says its n is the least of order m: the term a(m − 1) of OEIS A323395', '    ro.append(...RECORDS.filter(r => r.n === n && r.m === m).map(() => ` · Claude: "the least n of order ${m}: a(${m - 1}) of OEIS A323395"`));'))
 
 
 def committed():

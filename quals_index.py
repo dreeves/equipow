@@ -379,10 +379,19 @@ function battery(R) {
     r.selectNodeContents(t); return r.getBoundingClientRect().bottom; }));
   if (cv.height === 0) return;
   const tok = name => getComputedStyle(cv).getPropertyValue(name).trim().toLowerCase();
-  const C = {exists: tok('--exists'), open: tok('--open'), impossible: tok('--impossible'), paper: tok('--paper'), ink: tok('--ink')};
+  const C = {exists: tok('--exists'), open: tok('--open'), impossible: tok('--impossible'), paper: tok('--paper'), ink: tok('--ink'),
+             record: tok('--record')};
   R.tokens = C;
   const dpr = devicePixelRatio, ctx = cv.getContext('2d'), T = MSTAR.mtop, cols = MSTAR.cols;
   const colorOf = (n, m) => m <= cols[n - 1][0] ? C.exists : m <= cols[n - 1][1] ? C.open : C.impossible;
+  // The cells ringed in gold (dreeves, 2026-10-19): for each order m, the least n known to reach m when no smaller n's
+  // upper bound allows m.  A ring spoils the pixels around its cell, in its row and the row above, so the generic
+  // checks pass over the columns next to it there, and checkPixels checks the ring itself (RECS, ringChecks, ringBad).
+  const least = test => cols.findIndex(test) + 1;
+  const RECS = [];
+  for (let m = 1; m <= T; m++) { const n = least(c => c[0] >= m); if (n && n === least(c => c[1] >= m)) RECS.push([n, m]); }
+  R.records = RECS; R.ringChecks = 0; R.ringBad = []; R.ringed = {}; R.rowOneSkips = 0;
+  const nearRing = (j, m) => RECS.some(([n, r]) => Math.abs(j - n / 2) <= 1 && (m === r || m === r + 1));
   let img = null;
   const snap = () => { img = ctx.getImageData(0, 0, cv.width, cv.height); };
   const pix = (X, Y) => { const i = (Y * img.width + X) * 4, d = img.data;
@@ -440,20 +449,34 @@ function battery(R) {
       for (let j = from; j <= to; j++) {
         const X = PL + Math.floor((j - 0.5 - v.u0) / k);
         for (let m = 1; m <= T; m++) {
+          if (nearRing(j, m)) continue;
           const want = colorOf(2 * j, m), got = pix(X, Math.floor(rowY(m))), gap = pix(X, rows[T - m][1]);
           R.pixelChecks++;
           if (got !== want || gap !== C.paper) R.pixelBad.push([2 * j, m, want, got, gap]);
         }
         R.pixelColumns[2 * j] = 1;
       }
+      for (const [n, r] of RECS) {    // a ringed cell in this pass: gold just outside its left and right, and below it
+        const j = n / 2;
+        if (j < from || j > to) continue;
+        const Y = Math.floor(rowY(r)), x0 = PL + (j - 1 - v.u0) / k, x1 = PL + (j - v.u0) / k;
+        const got = [pix(Math.floor(x0 - dpr), Y), pix(Math.floor(x1 + dpr), Y), pix(PL + Math.floor((j - 0.5 - v.u0) / k), rows[T - r][1])];
+        R.ringChecks++; R.ringed[n] = 1;
+        if (got.some(c => c !== C.record)) R.ringBad.push([n, r, got]);
+      }
     }
   }
   // Row 1 is exists in every even column and impossible in every odd one, so with no odd column drawn, even mixed into a
   // pixel, every pixel of row 1 is exists.  The outline of the cell read out goes to row T first.
-  function checkRowOne(v, i) {
+  function checkRowOne(v, i) {     // but where a ring of row 1 runs, a device px either side (rowOneSkips)
     hover(middleX(v, first(v)), rowY(T) / dpr);
     snap();
+    const k = v.span / (PR - PL), bands = RECS.filter(([, r]) => r === 1).flatMap(([n]) => {
+      const x0 = PL + (n / 2 - 1 - v.u0) / k, x1 = PL + (n / 2 - v.u0) / k;
+      return [[x0 - 2 * dpr - 1, x0 + 1], [x1 - 1, x1 + 2 * dpr + 1]];
+    });
     for (let X = PL, Y = Math.floor(rowY(1)); X < PR; X++) {
+      if (bands.some(([a, b]) => a <= X && X <= b)) { R.rowOneSkips++; continue; }
       R.rowOneChecks++;
       if (pix(X, Y) !== C.exists) R.rowOneBad.push([i, X, pix(X, Y)]);
     }
@@ -807,6 +830,17 @@ def smallest_rows(cols):
     return rows
 
 
+def a323395_cells(cols):
+    """The cells (n, m) the chart rings in gold (dreeves, 2026-10-19): smallest_rows' proven ones, the terms a(m − 1)
+    of OEIS A323395 that the data proves."""
+    return [(int(n), int(m)) for m, n, proven, _ in smallest_rows(cols) if proven]
+
+
+def ring_note(m):
+    """The readout's note on a ringed cell of order m (Claude's words, without the Claude: "…")."""
+    return f'the least n of order {m}: a({m - 1}) of OEIS A323395'
+
+
 # ---------------------------------------------------------------------------------------------------------------------
 # Static quals
 
@@ -825,7 +859,8 @@ def q_section_follows_table2():
     # Expectata: the page's one <figure> (Table 2) is followed, with only blank lines and comments between, by
     # <section class="mstar" aria-labelledby="mstar-title">, and that by <section class="pow2" (the chart of powers of
     # 2; quals_pow2_page.py holds it to being followed by <section class="remarks">).  In order, the
-    # section holds: the h2 mstar-title; a legend whose three swatches are exists, open and impossible; the reset
+    # section holds: the h2 mstar-title; a legend whose swatches are exists, open and impossible, then (since
+    # 2026-10-19) exists ringed in gold for a(m − 1) of OEIS A323395; the reset
     # button; the canvas mstar-chart (height 0 until drawn, focusable, an image with a label); and the readout
     # paragraph mstar-readout, polite live region.  (dreeves's copyedit dropped the caption paragraph.)
     text = page()
@@ -837,6 +872,7 @@ def q_section_follows_table2():
     assert re.match(filler + r'<section class="pow2"', after[m.end():], re.S), after[m.end():m.end() + 400]
     parts = [r'<h2 id="mstar-title">', r'<ul class="legend">', r'<span class="swatch exists" aria-hidden="true">',
              r'<span class="swatch open" aria-hidden="true">', r'<span class="swatch impossible" aria-hidden="true">',
+             r'<span class="swatch exists record" aria-hidden="true"></span><span>Claude: "[^\n]*https://oeis\.org/A323395[^\n]*"</span></li>',
              r'</ul>', r'<button type="button" id="mstar-reset" ',
              r'<canvas id="mstar-chart" height="0" tabindex="0" role="img" aria-label=',
              r'<p id="mstar-readout" aria-live="polite">']
@@ -1156,7 +1192,9 @@ def q_drawn_cells_match_data():
     # Expectata: every even column is checked, in every row: its middle pixel has its color from mstar.js (exists up
     # to lo, open up to hi, impossible above) as the page's tokens give it, and the pixel below each row is paper.  In
     # the full view and every view of the sweep, every pixel of row 1 is exists, from the plot's left edge to its
-    # right: no odd column (impossible in every row, since lo = hi = 0) is drawn, not even mixed into a pixel.
+    # right: no odd column (impossible in every row, since lo = hi = 0) is drawn, not even mixed into a pixel; but for
+    # the ring of a cell of row 1 (q_chart_rings_a323395_terms_in_gold), passed over a device px either side
+    # (rowOneSkips), and the cells next to a ring in its row and the row above, which that qual checks instead.
     data = mstar_data()
     assert all(data['cols'][n - 1][0] >= 1 for n in EVEN), 'some even column has no exists cell in row 1'
     for name in ('light', 'phone'):
@@ -1166,7 +1204,27 @@ def q_drawn_cells_match_data():
         assert R['pixelChecks'] >= NCOL * len(R['rows']), (name, R['pixelChecks'])
         assert len(R['rows']) == data['mtop'], (name, len(R['rows']))
         assert R['rowOneBad'] == [], (name, len(R['rowOneBad']), R['rowOneBad'][:10])
-        assert R['rowOneChecks'] == len(R['views']) * (R['plot'][1] - R['plot'][0]), (name, R['rowOneChecks'])
+        assert R['rowOneChecks'] + R['rowOneSkips'] == len(R['views']) * (R['plot'][1] - R['plot'][0]), (name, R['rowOneChecks'])
+        assert R['rowOneSkips'] <= len(R['views']) * (4 * R['dpr'] + 6), (name, R['rowOneSkips'])
+
+
+def q_chart_rings_a323395_terms_in_gold():
+    # Replicata: the light and phone runs: the cells the chart rings (R's records), the ring checks of the sweep, and
+    # the token --record.
+    # Expectata (dreeves, 2026-10-19: "in the chart can you highlight the known values for a(m-1)? maybe make those
+    # green with gold trim or whatever else you think might work visually"): the ringed cells are exactly
+    # a323395_cells of mstar.js, today (2, 1), (4, 2), (8, 3), (16, 4), (32, 5), (48, 6), (96, 7), (144, 8), (192, 9)
+    # and (240, 10), SMALLEST_PROVEN by order; each is ringed in --record, #ffb300 (the dataviz validator's pick against
+    # the chart's three colors and the paper), just outside its left and right and below it, in each view of the
+    # sweep that checks it, and every one is checked.  (Its readout's note: q_hover_reads_out_cells.)
+    want = a323395_cells(mstar_data()['cols'])
+    assert want == [(n, m) for m, n in enumerate(SMALLEST_PROVEN, 1)], want
+    for name in ('light', 'phone'):
+        R = valid_run(name)
+        assert [tuple(c) for c in R['records']] == want, (name, R['records'])
+        assert R['tokens']['record'] == '#ffb300', (name, R['tokens'])
+        assert R['ringChecks'] >= len(want) and R['ringBad'] == [], (name, R['ringChecks'], R['ringBad'][:5])
+        assert sorted(map(int, R['ringed'])) == [n for n, _ in want], (name, R['ringed'])
 
 
 def q_readout_reports_even_n_only():
@@ -1278,15 +1336,17 @@ def q_hover_reads_out_cells():
     # Expectata: each readout is "n = N, m = M · BOUNDS · REASONS" for the hovered cell, BOUNDS being "m*(N) = lo"
     # when lo = hi and "lo ≤ m*(N) ≤ hi" otherwise; REASONS are Claude: "…" strings: for a green cell (m ≤ lo) one
     # that starts "order lo ", for a red cell (m > hi) one that starts "order hi+1 ", for a gray cell both, joined by
-    # " · ".  Every column, n = 2, 4, …, 1000, is read out in both runs.
+    # " · "; and for a cell ringed in gold (a323395_cells, since 2026-10-19) one more, ring_note.  Every column, n = 2,
+    # 4, …, 1000, is read out in both runs.
     for name in ('light', 'kinds'):
         R = valid_run(name)
         cols = json.loads(kinds_data()[len('const MSTAR = '):-2])['cols'] if name == 'kinds' else mstar_data()['cols']
         assert {n for n, _, _ in R['hovers']} == set(EVEN), name
+        rings = a323395_cells(cols)
         for n, m, text in R['hovers']:
             lo, hi = cols[n - 1][:2]
             bounds = f'm*({n}) = {lo}' if lo == hi else f'{lo} ≤ m*({n}) ≤ {hi}'
-            reasons = [f'order {lo} '] * (m <= hi) + [f'order {hi + 1} '] * (m > lo)
+            reasons = [f'order {lo} '] * (m <= hi) + [f'order {hi + 1} '] * (m > lo) + [ring_note(m)] * ((n, m) in rings)
             got = re.fullmatch(r'n = (\d+), m = (\d+) · (.*?) · (Claude: ".*")', text)
             assert got and (int(got[1]), int(got[2]), got[3]) == (n, m, bounds), (name, n, m, text)
             parts = re.findall(r'Claude: "([^"]*)"', got[4])
