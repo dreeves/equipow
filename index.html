@@ -336,7 +336,7 @@ code {
    16 px on its right, so the two plots line up. */
 .pow2 { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; }
 .pow2-caption { max-width: 46rem; }
-/* Claude's table of the construction behind each bound of Theorem 1, ruled as the table of smallest lengths: a record
+/* Claude's table of the construction behind each inequality of Theorem 1, ruled as the table of smallest lengths: a record
    gap's products one per row, its bound's cell spanning them, each gap a tbody of its own so that the rules fall
    between gaps and between columns but not between a gap's products; in a .scroll div, so a phone scrolls it. */
 .pow2-gaps { border-collapse: collapse; border: 1px solid var(--rule); font-variant-numeric: tabular-nums lining-nums; }
@@ -497,8 +497,8 @@ footer {
   <h2 id="pow2-title">Bounds on <span class="nw"><i>m</i><sup>*</sup>(2<sup><i>k</i></sup>) − <i>k</i></span> for every <i>k</i> up to 72</h2>
   <p><b>Theorem 1.</b> <span class="nw"><i>m</i><sup>*</sup>(2<sup>17</sup>) ≥ 18</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>27</sup>) ≥ 29</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>34</sup>) ≥ 37</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>38</sup>) ≥ 42</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>46</sup>) ≥ 51</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>52</sup>) ≥ 58</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>57</sup>) ≥ 64</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>66</sup>) ≥ 74</span> and <span class="nw"><i>m</i><sup>*</sup>(2<sup>9</sup>) = 9</span>.</p>
   <p>or <b>Theorem 1.</b> For <span class="nw"><i>i</i> = 1, 2, …, 8</span>, the known smallest values of <i>n</i> for which <span class="nw"><i>m</i><sup>*</sup>(2<sup><i>n</i></sup>) − <i>n</i> ≥ <i>i</i></span> are 17, 27, 34, 38, 46, 52, 57, 66.</p>
-  <!-- TODO: says the table below shows the construction behind each bound of Theorem 1: 2^k as a join of products, one product per line, each with its order, the sum of its factors' orders, the bound being the least of those orders; and that the linked Mathematica script makes the same table and checks each row's arithmetic -->
-  <p>Claude: "The table below shows the construction behind each bound of Theorem 1: <span class="nw">2<sup><i>k</i></sup></span> as a join of products, one per line, each with its order, the sum of its factors' orders; the bound is the least of those orders. The Mathematica script <a href="https://raw.githubusercontent.com/dreeves/equipow/main/record_gaps.wl">record_gaps.wl</a> makes the same table and checks each row's arithmetic."</p>
+  <!-- TODO: says the table below shows the construction behind each inequality of Theorem 1: 2^k as a join of products, one product per line, each with its order, the sum of its factors' orders, the bound being the least of those orders; and that the linked Mathematica script makes the same table and checks each row's arithmetic -->
+  <p>Claude: "The table below shows the construction behind each inequality of Theorem 1: <span class="nw">2<sup><i>k</i></sup></span> as a join of products, one per line, each with its order, the sum of its factors' orders; the bound is the least of those orders. The Mathematica script <a href="https://raw.githubusercontent.com/dreeves/equipow/main/record_gaps.wl">record_gaps.wl</a> makes the same table and checks each row's arithmetic."</p>
   <div class="scroll">
     <table class="pow2-gaps" data-record-gaps>
       <thead><tr><th>Record gaps</th><th>The power of 2</th><th>The order</th></tr></thead>
@@ -1558,7 +1558,7 @@ try {
   throw e;
 }
 })();
-// Claude's table of the construction behind each bound of Theorem 1 (Stan Wagon's table, extended, 2026-10-18;
+// Claude's table of the construction behind each inequality of Theorem 1 (Stan Wagon's table, extended, 2026-10-18;
 // record_gaps.wl makes the same one in Mathematica), from POW2: for each record gap g = 1, 2, ..., the least k whose lo
 // is at least k + g, and its reason as a join of products of blocks (JOIN), each record gap a tbody of its own.  A
 // product is a row: its blocks ascending by length, a repeated one written once, as a power (368²) in the power of 2

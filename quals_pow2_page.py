@@ -48,10 +48,7 @@ LEGEND_LINES = ('<ul class="legend">',
                 '</ul>')
 # dreeves and Stan Wagon's theorem atop the section (2026-10-17; quals_index.THEOREM, where it is pinned to pow2.js)
 THEOREM, THEOREM_ALT = quals_index.THEOREM, quals_index.THEOREM_ALT        # and its alternative form, below it
-# Stan Wagon's header for the table of record gaps (his table of 2026-10-18, which record_gaps.wl and the page extend):
-# its line and its words, byte for byte
-STAN_WORDS = ('Record gaps', 'The power of 2', 'The order')
-STAN_LINES = (''.join(['<thead><tr>'] + [f'<th>{w}</th>' for w in STAN_WORDS] + ['</tr></thead>']),)
+STAN_WORDS, STAN_LINES = quals_index.STAN_WORDS, (quals_index.STAN_HEADER,)     # Stan Wagon's header (2026-10-18)
 HIS = (re.sub(r'<[^>]*>', '', HEADING), re.sub(r'<[^>]*>', '', THEOREM), re.sub(r'<[^>]*>', '', THEOREM_ALT), LABEL, HINT,
        'known', 'open', 'impossible')   # his words as a reader gets them
 K, ROW, GAP = 72, 14, 2                       # columns k = 1..K; rows ROW CSS px apart, the bottom GAP of each surface

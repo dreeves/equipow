@@ -70,6 +70,11 @@ THEOREM_ALT = ('<p>or <b>Theorem 1.</b> For <span class="nw"><i>i</i> = 1, 2, �
                '<i>n</i> for which <span class="nw"><i>m</i><sup>*</sup>(2<sup><i>n</i></sup>) − <i>n</i> ≥ <i>i</i></span> are '
                '17, 27, 34, 38, 46, 52, 57, 66.</p>')
 DREEVES_LINES += (THEOREM, THEOREM_ALT)
+# Stan Wagon's header for the table of record gaps (his table of 2026-10-18, which record_gaps.wl and the table below
+# the theorem extend): its words and its line, byte for byte; a human's words, so the copy rules pass over them too
+STAN_WORDS = ('Record gaps', 'The power of 2', 'The order')
+STAN_HEADER = ''.join(['<thead><tr>'] + [f'<th>{w}</th>' for w in STAN_WORDS] + ['</tr></thead>'])
+DREEVES_LINES += (STAN_HEADER,)
 
 
 # ---------------------------------------------------------------------------------------------------------------------

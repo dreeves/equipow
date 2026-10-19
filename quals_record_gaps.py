@@ -12,7 +12,7 @@ import sys
 sys.dont_write_bytecode = True
 import os, re, json, html, shutil, tempfile, itertools, traceback, time
 import quals_lattice_search as ls          # read only: script (wolframscript on a temporary file) and seats
-import quals_index as qi                   # read only: chrome (headless Chrome's dump of a page's DOM)
+import quals_index as qi                   # read only: chrome (headless Chrome's dump of a page's DOM), STAN_WORDS
 import quals_pow2_page as qp               # read only: kinds_cols and kinds_data, made-up columns of every kind of reason
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -20,7 +20,7 @@ INDEX = os.path.join(HERE, 'index.html')
 WL = os.path.join(HERE, 'record_gaps.wl')
 WL_URL = 'https://raw.githubusercontent.com/dreeves/equipow/main/record_gaps.wl'
 POW2_JS = os.path.join(HERE, 'pow2.js')
-HEADER = ['Record gaps', 'The power of 2', 'The order']        # Stan Wagon's, byte for byte
+HEADER = list(qi.STAN_WORDS)                                   # Stan Wagon's, byte for byte
 THEOREM_KS = [17, 27, 34, 38, 46, 52, 57, 66]                  # Theorem 1's alternative form on index.html
 # Stan Wagon's two rows (his table of 2026-10-18), one product per line (dreeves, 2026-10-18), as text: a superscript
 # a^b, SpanFromAbove where the first column's cell spans the lines below it
