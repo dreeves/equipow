@@ -36,9 +36,12 @@ keys are kept in CACHE, a file git ignores, by run and by overnight_v5.CODE.  Vo
   work        of a pass, at the deepest enumerated level: the sub-cases not settled when the pass began, or touched by
               it, each done (settled or open), partway (split), or pending.
   dating      each journal record is dated by a line of the log: a fresh verdict's record by its node's progress line,
-              which search() writes just after it; a CLOSED record by the line of the record before it (every CLOSED
-              record follows a fresh record of its own pass: in a later pass, nothing closes until a re-solved leaf
-              settles).  So the journal as of any line is the records dated by it or earlier (see read_run).
+              which search() writes just after it; a CLOSED record by the line of the record before it or by its
+              node's latest progress line before it, whichever is later: search() closes a node only after the node's
+              own line, and a pass after a handoff closes nodes with no fresh record of its own (the watcher died on
+              240@11's last pass, 2026-10-20, when those were dated before it), while a handoff's CLOSED records, for
+              leaves no later pass submits, stay before the pass.  So the journal as of any line is the records dated
+              by it or earlier (see read_run).
   data file   progress.js (JS), next to index.html, whose section "Search progress" (dreeves, 2026-10-17: "make it a
               collapsible section of index.html -- no separate progress page") loads it while the section is open,
               again every minute, and redraws when the snapshot changed: one call, progressData(...);, of each run's
@@ -248,13 +251,13 @@ def processes():
 
 def run_state(procs, program, n, order, outcome):
     """The state (see the vocabulary) of program's run (overnight_v5.py's or boxsplit.py's), from the process list and
-    the current pass's outcome line (or None)."""
+    the current pass's outcome line (or None): frozen when its main process is stopped; a stopped worker only takes
+    capacity away, and the run goes on (dreeves, 2026-10-20: two of 240@11's four boxsplit workers were paused)."""
     main = [p for p in procs if re.search(rf'(?:^|[\s/]){re.escape(program)} {n} {order}\s*$', p[3])]
     # TODO: error copy; says several processes run this search at once, giving how many, the length and the order
     assert len(main) <= 1, f'Claude: "{len(main)} processes run {program} {n} {order}"'
-    mine = main + [p for p in procs if p[1] in {q[0] for q in main}]
     return ('ended' if outcome is not None or not main else
-            'frozen' if any(p[2].startswith('T') for p in mine) else 'running')
+            'frozen' if main[0][2].startswith('T') else 'running')
 
 
 # ---------- the run, dated ----------
@@ -291,18 +294,20 @@ def read_run(journal, log):
     present = {(r['key'], r['verdict'], r['budget']) for r in records}
     replayed = object.__new__(v5.Journal)          # made without Journal's __init__, which would create a journal
     replayed.records = {}
-    fresh, dates = {}, []
+    fresh, dates, last = {}, [], {}                # last: each key's latest progress line read so far
 
     def admit(line):                               # the next record, dated by this line
-        assert line is not None
+        assert line >= 0
         replayed.admit(records[len(dates)])
         dates.append(line)
 
-    def closings():                                # the CLOSED records next in the journal, dated by the last record's line
-        while len(dates) < len(records) and records[len(dates)]['verdict'] == 'CLOSED': admit(dates[-1] if dates else None)
+    def closings():                                # the CLOSED records next in the journal, dated as dating says
+        while len(dates) < len(records) and records[len(dates)]['verdict'] == 'CLOSED':
+            admit(max(dates[-1:] + [last.get(records[len(dates)]['key'], -1)]))
 
     for p, indices in zip(passes, node_lines):
         for i, nd in zip(indices, p['nodes']):
+            last[nd['key']] = i
             budget = budget_of(nd['key'], p['budgets'])
             prev = replayed.records.get(nd['key'], {'verdict': 'UNKNOWN', 'budget': -1})
             assert prev['verdict'] == 'UNKNOWN', (log, i)                # search() never submits a settled node
@@ -446,6 +451,17 @@ def children(key, order, cache):
     """overnight_v5.split's children of the key's node, as keys, kept in cache by key so each node is split once."""
     if key not in cache: cache[key] = [v5.node_key(c) for c in v5.split(order, parse_key(key))]
     return cache[key]
+
+
+def resplits(R, order, cache):
+    """cache, holding the splits of the nodes the run's current pass splits again: UNKNOWN within their budget above
+    the bottom when it began.  The replay needs their children (see kind in the vocabulary), which an estimate alone
+    asks for: splitting them for an ended run would be work for nothing (240@11's last 88 took 626 s)."""
+    budgets = R['passes'][-1]['budgets']
+    start = {r['key']: r for r in R['records'][:R['bounds'][-1]]}
+    for k in [k for k, r in start.items() if r['verdict'] == 'UNKNOWN' and len(k.split()) < len(budgets) - 1 and r['budget'] >= budget_of(k, budgets)]:
+        children(k, order, cache)
+    return cache
 
 
 def enumerate_levels(final, budgets, order, cache, deepest):
@@ -808,13 +824,8 @@ def survey(n, order, journal, log, procs, now, cache, etas):
     assert len(budgets) == bottom + 1
     final = {r['key']: r for r in R['records']}
     state = run_state(procs, 'overnight_v5.py', n, order, p['outcome'])
-    end = now if state == 'running' else p['last']
+    end = now if state == 'running' else max([p['last'], *map(float, etas)])   # every ETA is recorded while it runs
     levels = enumerate_levels(final, budgets, order, cache, DEEPEST)
-    # The nodes the current pass splits again: UNKNOWN within their budget above the bottom when it began.  The replay
-    # needs their children (see kind in the vocabulary), so they are split here, each once (children caches them).
-    start = {r['key']: r for r in R['records'][:R['bounds'][-1]]}
-    for k in [k for k, r in start.items() if r['verdict'] == 'UNKNOWN' and len(k.split()) < bottom and r['budget'] >= budget_of(k, budgets)]:
-        children(k, order, cache)
     rows = level_rows(levels, final, budgets, bottom)
     for r in rows: r['modulus'] = ([None] + list(v5.CASCADE))[r['depth']]
     live = live_keys(final)
@@ -825,8 +836,8 @@ def survey(n, order, journal, log, procs, now, cache, etas):
                    key=lambda x: parse_key(x[0]))
     spans = [(q['start'], q['last']) for q in passes[:-1]] + [(p['start'], end)]
     parts = {}
-    draws = estimate(state_at(R, end, cache, f'{n}@{order} at {clock(end)}'), parts) if state != 'ended' else None
-    etas[str(int(end))] = [float(np.median(draws))] + [float(q) for q in np.quantile(draws, QUANTILES)] if draws is not None and len(draws) else None
+    draws = estimate(state_at(R, end, resplits(R, order, cache), f'{n}@{order} at {clock(end)}'), parts) if state != 'ended' else None
+    etas.setdefault(str(int(end)), [float(np.median(draws))] + [float(q) for q in np.quantile(draws, QUANTILES)] if draws is not None and len(draws) else None)   # a record made stands
     running = {nd.key for nd in parts.get('nodes', []) if nd.state == 'running' and nd.key is not None}
     to_go = ({'median': float(np.median(draws)) * HOUR} | dict(zip(('lo', 'hi'), (float(q) * HOUR for q in np.quantile(draws, QUANTILES))))
              if draws is not None and len(draws) else None)
@@ -895,6 +906,20 @@ def parse_box_lines(lines):
     return passes
 
 
+def driver_leaves(main):
+    """The leaves boxsplit.py's driver works for the run whose journal is main, as nodes, in the driver's order: the
+    run's open leaves (boxsplit.open_leaves': the keys at the cascade's bottom, one vector per modulus, whose latest
+    verdict is UNKNOWN) and those a handoff has closed since (CLOSED there, which overnight_v5 never writes at the
+    bottom: its CLOSED records are for nodes with children), in the order of their latest records, which a handoff
+    keeps (scratch/boxsplit-240/handoff.py appends them in the open leaves' order).  dreeves, 2026-10-20: 240@11's
+    handoff closed its 606 leaves, and the watcher, taking the open ones alone, found none for the driver's log."""
+    journal = v5.Journal(main)
+    latest = {json.loads(line)['key']: i for i, line in enumerate(open(main).read().splitlines()[1:])}
+    keys = [k for k, rec in journal.records.items()
+            if rec['verdict'] in ('UNKNOWN', 'CLOSED') and len(k.split()) == len(v5.CASCADE) and '#' not in k]
+    return [bx.parse_key(k) for k in sorted(keys, key=latest.get)]
+
+
 def survey_box(n, order, log, main, procs, now, etas):
     """The boxsplit pass of the run (n, order) as the driver's log, the run's journal (main, whose open leaves the
     driver works), the process list and the time now show it, in survey's shape: program boxsplit.py, its state, its
@@ -915,7 +940,7 @@ def survey_box(n, order, log, main, procs, now, etas):
     saved = v5.JOURNAL
     v5.JOURNAL = main
     try:
-        leaves = [v5.node_key(nd) for nd in bx.open_leaves(v5.Journal(main))]
+        leaves = [v5.node_key(nd) for nd in driver_leaves(main)]
     finally:
         v5.JOURNAL = saved
     passes = parse_box_lines(complete_lines(log))
@@ -923,7 +948,7 @@ def survey_box(n, order, log, main, procs, now, etas):
     # TODO: error copy; says the driver's log's last start line names another length, order or count of open leaves than the run's journal
     assert (p['n'], p['order'], p['leaves']) == (n, order, len(leaves)), f'Claude: "the boxsplit log of {n} {order} does not match its run"'
     state = run_state(procs, 'boxsplit.py', n, order, p['outcome'])
-    end = now if state == 'running' else p['last']
+    end = now if state == 'running' else max([p['last'], *map(float, etas)])   # every ETA is recorded while it runs
     spans = [(q['start'], q['last']) for q in passes[:-1]] + [(p['start'], end)]
     done = {i: ok for q in passes for i, (_, ok) in q['dones'].items()}    # each leaf's latest: did its tree close
     running = {i: t for i, t in p['starts'].items() if i not in p['dones'] and state == 'running'}
@@ -952,7 +977,7 @@ def survey_box(n, order, log, main, procs, now, etas):
         for j, e in enumerate(ages):
             loads[:, j] = urn.draw(e) - e
         draws = makespan(loads, [('job', urn.draw()) for _ in todo]) / HOUR
-    etas[str(int(end))] = [float(np.median(draws))] + [float(q) for q in np.quantile(draws, QUANTILES)] if draws is not None else None
+    etas.setdefault(str(int(end)), [float(np.median(draws))] + [float(q) for q in np.quantile(draws, QUANTILES)] if draws is not None else None)   # a record made stands
     to_go = ({'median': float(np.median(draws)) * HOUR} | dict(zip(('lo', 'hi'), (float(q) * HOUR for q in np.quantile(draws, QUANTILES))))
              if draws is not None else None)
     return {'program': 'boxsplit.py', 'n': n, 'order': order, 'state': state, 'outcome': p['outcome'],

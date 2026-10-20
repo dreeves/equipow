@@ -45,6 +45,9 @@ def tiny(name):
          open       64@7 with budgets (1, 1, 1): NOT FINISHED, 7 leaves left open at budget 3;
          resolved   open's journal and log, then a second pass with 64@7's SETTINGS budgets, which settles them;
          resolving  open's journal and log, with resolved's second start line appended: a re-solve pass just begun;
+         handed     open's journal and log, a handoff's CLOSED record for each leaf open left open (as
+                    scratch/boxsplit-240/handoff.py writes them), then a second pass at open's budgets, which closes the
+                    rest with no fresh record;
          witness    48@6 with its SETTINGS budgets: a witness."""
     if name not in TINY:
         d = tempfile.mkdtemp(prefix='progress-quals-')
@@ -60,6 +63,14 @@ def tiny(name):
             for path, src in ((journal, tiny('open')[0]), (log, tiny('open')[1])): shutil.copy(src, path)
             start = [l for l in open(tiny('resolved')[1]).read().splitlines() if 'Claude: "start:' in l][1]
             open(log, 'a').write(start + '\n')
+        if name == 'handed':
+            for path, src in ((journal, tiny('open')[0]), (log, tiny('open')[1])): shutil.copy(src, path)
+            v5.configure(64, 7)
+            final, budgets = progress.read_journal(journal), (1, 1, 1)
+            handoff = v5.Journal(journal)
+            for k in [k for k in final if progress.status(k, final, budgets) == 'open']:
+                handoff.put(k, 'CLOSED', progress.budget_of(k, budgets), {})
+            drive(64, 7, budgets, journal, log)
         if name == 'witness':
             drive(48, 6, v5.SETTINGS[48, 6][1], journal, log)
         TINY[name] = (journal, log)
@@ -408,7 +419,9 @@ def q_split_runs_once_per_node():
 def q_run_state():
     # Replicata: process lists as (pid, ppid, stat, command), for the run 240@11 of overnight_v5.py, and of boxsplit.py.
     # Expectata: no process of the run -> ended (whatever runs for other lengths); the run's process and workers all
-    # unstopped -> running; the main process or any one worker stopped (stat T) -> frozen; an outcome line in the
+    # unstopped -> running; the main process stopped (stat T) -> frozen, but a worker stopped while the main process
+    # runs -> running (dreeves, 2026-10-20: pausing two of 240@11's four boxsplit workers left the run going on two,
+    # and the watcher calling it frozen crashed it); an outcome line in the
     # current pass -> ended even while the process exits; two main processes of the run -> AssertionError; and the
     # program counts: overnight_v5.py 240 11 running leaves boxsplit.py's run ended, and the other way round.
     py = '/opt/homebrew/bin/Python'
@@ -419,7 +432,7 @@ def q_run_state():
     assert progress.run_state(other[:4], 'overnight_v5.py', 240, 11, None) == 'ended'
     assert progress.run_state([main] + workers + other[:4], 'overnight_v5.py', 240, 11, None) == 'running'
     assert progress.run_state([(100, 1, 'TN', main[3])] + workers, 'overnight_v5.py', 240, 11, None) == 'frozen'
-    assert progress.run_state([main, workers[0], (102, 100, 'T', 'x')], 'overnight_v5.py', 240, 11, None) == 'frozen'
+    assert progress.run_state([main, workers[0], (102, 100, 'T', 'x')], 'overnight_v5.py', 240, 11, None) == 'running'
     assert progress.run_state([main] + workers, 'overnight_v5.py', 240, 11, 'Claude: "NOT FINISHED: ..."') == 'ended'
     assert progress.run_state([(7, 1, 'S', 'python3 /a/b/overnight_v5.py 240 11')], 'overnight_v5.py', 240, 11, None) == 'running'
     expect_assertion(progress.run_state, [main, (103, 1, 'S', main[3])], 'overnight_v5.py', 240, 11, None)
@@ -476,6 +489,28 @@ def q_dating_finds_each_pass_journal():
     for i, j in R['fresh'].items():
         nd_key = re.search(r'\] \{(.*)\}: ', R['lines'][i])[1]
         assert R['records'][j]['key'] == nd_key and R['dates'][j] == i, (i, j)
+
+
+def q_dating_after_a_handoff():
+    # Replicata: read_run of the tiny handed run (64@7: the open run's journal and log, a handoff's CLOSED record for
+    # each of its 7 open leaves, then a pass at its budgets), and estimate() of its state as of that pass's start and
+    # each of its progress lines.  The watcher died this way on 2026-10-20, in 240@11's last pass, after the handoff of
+    # boxsplit.py's 606 leaves.
+    # Expectata: pass 2 ends ALL NODES CLOSED having written CLOSED records alone, none for a leaf; its first record
+    # (bounds[1]) is the first after the handoff's, the records before it the open run's and then the handoff's 7;
+    # dates never decrease; and estimate() of each state, with the splits survey() makes for it (resplits), is an
+    # array (the replay accounts for every line: asserted inside).
+    v5.configure(64, 7)
+    R, O = progress.read_run(*tiny('handed')), progress.read_run(*tiny('open'))
+    p, k = R['passes'][1], len(O['records'])
+    assert p['outcome'].startswith('Claude: "ALL NODES CLOSED'), p['outcome']
+    assert R['records'][:k] == O['records'] and R['bounds'] == [0, k + 7], (R['bounds'], k)
+    assert all(r['verdict'] == 'CLOSED' and progress.leaf(r['key'], 2) for r in R['records'][k:k + 7])
+    assert len(R['records']) > k + 7 and not any(r['verdict'] != 'CLOSED' or progress.leaf(r['key'], 2) for r in R['records'][k + 7:])
+    assert R['dates'] == sorted(R['dates']) and len(R['dates']) == len(R['records'])
+    cache = progress.resplits(R, 7, {})
+    for t in [p['start']] + [nd['t'] for nd in p['nodes']]:
+        assert type(progress.estimate(progress.state_at(R, t, cache, f'handed at {t}'))) is np.ndarray
 
 
 def q_dating_leaves_out_records_whose_lines_are_unread():
@@ -813,6 +848,34 @@ def q_survey_of_an_ended_open_run():
     assert sum(r['counts']['open'] for r in s['levels']) == 7
 
 
+def q_survey_of_an_ended_run_splits_nothing_for_the_replay():
+    # Replicata: the tiny handed run (64@7, ended: its pass 2 split the open run's split nodes again and closed them all)
+    # surveyed with an empty cache, no process running and DEEPEST 0 (so that the levels split nothing),
+    # overnight_v5.split counted; then its log without the outcome line, a process running, surveyed the same way at
+    # its pass 2's last line.
+    # Expectata: ended, no estimate, and not one split: the splits of the nodes a pass splits again are the replay's,
+    # and an ended run's survey makes none (2026-10-20: the watcher would have spent 626 s of CPU splitting the 88 such
+    # nodes of 240@11's last pass after it ended); running, an estimate, and those nodes split.
+    journal, log = tiny('handed')
+    lines = progress.complete_lines(log)
+    assert progress.FORMS['outcome'].match(lines[-1]), lines[-1]
+    cut = os.path.join(tempfile.mkdtemp(prefix='progress-quals-'), 'cut.log')
+    open(cut, 'w').write(''.join(line + '\n' for line in lines[:-1]))
+    calls, real, saved = [], v5.split, progress.DEEPEST
+    def counting(order, node):
+        calls.append(v5.node_key(node))
+        return real(order, node)
+    v5.split, progress.DEEPEST = counting, 0
+    try:
+        s = progress.survey(64, 7, journal, log, [], time.time(), {}, {})
+        ended = list(calls)
+        r = progress.survey(64, 7, journal, cut, [(1, 0, 'S', 'python3 overnight_v5.py 64 7')], progress.stamp(lines[-2][:19]), {}, {})
+    finally:
+        v5.split, progress.DEEPEST = real, saved
+    assert s['state'] == 'ended' and s['draws'] is None and ended == [], ended
+    assert r['state'] == 'running' and r['draws'] is not None and calls, (r['state'], calls)
+
+
 def q_survey_of_a_resolving_run():
     # Replicata: the tiny open run's files plus the start line of a pass with bottom budget 100000, the process
     # running, 30 s after that start line.
@@ -1118,14 +1181,22 @@ def q_sea_marks_split_pending_and_running():
 
 def q_sea_of_240_at_11():
     # Replicata (regression): progress.sea of 240@11's journal as its run ended (2026-10-16 23:59, NOT FINISHED: 606
-    # nodes left open), under its last pass's budgets, no cache, nothing running.
+    # nodes left open), under its last pass's budgets, no cache, nothing running: its journal and log as committed in
+    # 8297bae (2026-10-17), before boxsplit.py's verdicts were handed back to it (2026-10-20).
     # Expectata: frontier_sea of the journal at depth 5: 71494 settled dots (its 73185 INFEASIBLE records less the
     # 1691 below six sub-cases that a pass split and a later one re-solved INFEASIBLE, in 3 LP solves each, once the
     # width test came in on 2026-10-11) and 606 open (its open leaves), in 296 groups (its 291 sub-cases at depth 5
     # and 5 settled above them).
     v5.configure(240, 11)
-    final = progress.read_journal(v5.JOURNAL)
-    budgets = progress.parse_log(v5.LOG)[-1]['budgets']
+    d = tempfile.mkdtemp(prefix='progress-quals-')
+    journal, log = (os.path.join(d, os.path.basename(p)) for p in (v5.JOURNAL, v5.LOG))
+    for path, live in ((journal, v5.JOURNAL), (log, v5.LOG)):
+        with open(path, 'w', encoding='utf-8') as f:
+            f.write(subprocess.run(['git', '-C', HERE, 'show', f'8297bae:{os.path.relpath(live, HERE)}'],
+                                   capture_output=True, text=True, check=True).stdout)
+    final = progress.read_journal(journal)
+    budgets = progress.parse_log(log)[-1]['budgets']
+    shutil.rmtree(d)                                    # 23 MB of journal
     sea = progress.sea(final, budgets, {}, set())
     assert sea['depth'] == 5 and (sea['keys'], sea['groups']) == frontier_sea(final, 5)
     assert sea['counts'] == {'settled': 73185 - 1691, 'open': 606, 'split': 0, 'pending': 0, 'running': 0}, sea['counts']
@@ -1401,6 +1472,51 @@ def q_box_estimate_with_no_leaf_of_its_pass_done_is_gotts():
     assert sorted(statuses) == ['running', 'settled', 'settled', 'settled'], statuses
     go, e = s['to_go'], 1000.0
     assert 0.87 * e < go['median'] < 1.15 * e and 0.036 * e < go['lo'] < 0.07 * e and 14 * e < go['hi'] < 28 * e, go
+
+
+def q_box_survey_of_a_frozen_pass_keeps_its_records():
+    # Replicata: made_up_box's pass surveyed running at t0 + 400 (its last line is at t0 + 302; the survey records an
+    # ETA at t0 + 400), then frozen (its main process stopped) at t0 + 500, with the same record of ETAs.
+    # Expectata (dreeves, 2026-10-20: fix the watcher): no crash; frozen, the pass's running time ends at the later of
+    # its last line and its last recorded ETA, t0 + 400 (every ETA is recorded while the run runs), so its seconds of
+    # running are 400, and the record of ETAs holds the one made at t0 + 400, at 400 s of running.  (Until then a
+    # frozen pass ended at its last line, t0 + 302, and eta_records asserted on the later record: the watcher's crash
+    # of 2026-10-19 18:09, when two workers were paused.)
+    t0 = 1792200000.0
+    journal, log, main = made_up_box(t0)
+    etas = {}
+    progress.survey_box(304, 9, log, main, [(900, 1, 'SN', 'python3 -u -B boxsplit.py 304 9')], t0 + 400, etas)
+    assert list(etas) == [str(int(t0 + 400))], etas
+    s = progress.survey_box(304, 9, log, main, [(900, 1, 'TN', 'python3 -u -B boxsplit.py 304 9')], t0 + 500, etas)
+    assert (s['state'], s['so_far']) == ('frozen', 400.0), (s['state'], s['so_far'])
+    recs = progress.eta_records(s)
+    assert [(int(t), round(x * 3600, 6)) for t, x, *_ in recs] == [(int(t0 + 400), 400.0)], recs
+
+
+def q_box_survey_after_a_handoff():
+    # Replicata: made_up_box's run after a handoff: CLOSED records for its four open leaves appended to the run's
+    # journal (as scratch/boxsplit-240/handoff.py writes them, in the open leaves' order, at each leaf's budget),
+    # surveyed with no process running.
+    # Expectata (dreeves, 2026-10-20: fix the watcher, which asserted "the boxsplit log of 240 11 does not match its
+    # run" once 240@11's handoff closed its 606 leaves): no crash; the pass's leaves are the four, in their order (the
+    # driver's leaves are the run's open leaves and those a handoff closed: CLOSED at the bottom, which overnight_v5
+    # never writes there), so the statuses are q_box_survey_marks_settled_open_running_and_pending's with no process:
+    # leaf 0 settled, leaf 1 open, leaves 2 and 3 pending.
+    import boxsplit as bx
+    t0 = 1792200000.0
+    journal, log, main = made_up_box(t0)
+    bx.configure(304, 9)
+    saved = v5.JOURNAL
+    v5.JOURNAL = main
+    try:
+        run = v5.Journal(main)
+        for nd in bx.open_leaves(run): run.put(v5.node_key(nd), 'CLOSED', v5.node_budget(nd), {})
+        assert bx.open_leaves(v5.Journal(main)) == []
+    finally:
+        v5.JOURNAL = saved
+    s = progress.survey_box(304, 9, log, main, [], t0 + 400, {})
+    status = dict(zip(sorted(OPEN4, key=progress.tree_order), ''.join(s['sea']['groups'])))
+    assert [progress.SEA_STATUSES[int(status[k])] for k in OPEN4] == ['settled', 'open', 'pending', 'pending'], s['sea']
 
 
 def q_js_names_each_run_s_program():

@@ -4,5 +4,6 @@
         ".vscode/**", "**/*.scss", "**/*.sass", "**/*.ts", "node_modules/**", "venv/**", ".venv/**",
         "**/*.log", "**/*.err", "**/*.jsonl", "**/*.tmp", "progress.js", ".progress_cache.json",
         "scratch/**", "**/__pycache__/**", "**/*.py"
-    ]
+    ],
+    "python.analysis.exclude": ["scratch/**", "**/node_modules", "**/__pycache__", "**/.*"]
 }

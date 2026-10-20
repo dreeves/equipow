@@ -141,7 +141,8 @@ TABLE2 = {8: (3, 3), 16: (4, 4), 24: (4, 4), 32: (5, 5), 40: (5, 5), 48: (6, 6),
           200: (7, 7), 208: (8, 8), 216: (7, 7), 224: (8, 8), 232: (7, 7),
           240: (10, 11), 248: (7, 7), 256: (8, 8), 264: (7, 7), 272: (8, 8), 280: (7, 7), 288: (9, 10), 296: (7, 7),
           304: (8, 9), 2 ** 51: (52, None)}
-NEW = {304: (8, 8, 'Claude alone'), 320: (9, 9, 'BGPW'), 336: (10, 10, 'Claude and BGPW'), 352: (9, 9, 'BGPW'),
+NEW = {240: (10, 10, 'Claude alone'),
+       304: (8, 8, 'Claude alone'), 320: (9, 9, 'BGPW'), 336: (10, 10, 'Claude and BGPW'), 352: (9, 9, 'BGPW'),
        368: (9, 9, 'BGPW'), 400: (9, 9, 'BGPW'), 416: (9, 9, 'BGPW'), 432: (11, 12, 'Claude alone'),
        448: (9, 9, 'Claude alone'), 464: (9, 9, 'BGPW'), 480: (12, 14, 'Claude alone'),
        496: (9, 9, 'Claude and BGPW'), 512: (9, 9, 'Claude alone'), 528: (10, 12, 'Claude and BGPW'),
@@ -248,7 +249,8 @@ def page_sources(html):
     """Table 2, the new results, the codes and the sets, parsed out of index.html and asserted equal to the hand
     copies above.  Returns {'table2': {n: (lo, hi)}, 'new': {n: (lo, hi, who)}, 'codes': [(m, hex)],
     'sets': [(m, n, set)]}.  The page's tables of class "block" are Table 2's three, then the new results' six (every
-    multiple of 16 from 304 to 992 in four rows of 11, then the powers of 2 in two rows)."""
+    multiple of 16 from 304 to 992, after 240 (2026-10-20), in four rows, the first of 12 and the rest of 11, then
+    the powers of 2 in two rows)."""
     tables = re.findall(r'<table class="block">(.*?)</table>', html, re.S)
     assert len(tables) == 9, len(tables)
     rows = []

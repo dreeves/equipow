@@ -239,7 +239,7 @@ const MSTAR = {"nmax": 1000, "mtop": 16, "cols": [
 [0, 0, ["none"], ["odd"]],
 [1, 1, ["join", 2, 236], ["two"]],
 [0, 0, ["none"], ["odd"]],
-[10, 11, ["example", "BGPW Table 5"], ["table2"]],
+[10, 10, ["example", "BGPW Table 5"], ["page", "Claude alone"]],
 [0, 0, ["none"], ["odd"]],
 [1, 1, ["join", 2, 240], ["two"]],
 [0, 0, ["none"], ["odd"]],
