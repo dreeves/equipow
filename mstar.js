@@ -383,7 +383,7 @@ const MSTAR = {"nmax": 1000, "mtop": 16, "cols": [
 [0, 0, ["none"], ["odd"]],
 [1, 1, ["join", 2, 380], ["two"]],
 [0, 0, ["none"], ["odd"]],
-[10, 11, ["product", 2, 192], ["residue", 5]],
+[10, 10, ["example", "overnight_v5 EXAMPLES"], ["page", "Astra alone"]],
 [0, 0, ["none"], ["odd"]],
 [1, 1, ["join", 2, 384], ["two"]],
 [0, 0, ["none"], ["odd"]],

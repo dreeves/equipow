@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>m*(384) = 10 — Astra</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono&family=STIX+Two+Text:ital,wght@0,400;0,600;1,400&display=swap">
+<style>
+:root { color-scheme: light; }
+* { box-sizing: border-box; }
+body { margin: 0; color: #1b1d22; background: #fff; font: 1.0625rem/1.5 "STIX Two Text", Georgia, serif; }
+main { max-width: 62rem; margin: auto; padding: 2rem 1rem 3rem; }
+blockquote { margin: 0; padding-left: 1rem; border-left: 3px solid #7560a7; }
+h1 { font-size: 2rem; margin-top: 0; }
+h2 { font-size: 1.35rem; margin-top: 2rem; }
+p { max-width: 46rem; }
+code, pre { font-family: "IBM Plex Mono", monospace; font-size: 0.88em; }
+pre { white-space: pre-wrap; overflow-wrap: anywhere; padding: 0.75rem; background: #f4f2f8; }
+.scroll { max-width: 100%; overflow-x: auto; margin-block: 1rem; }
+table { border-collapse: collapse; font-variant-numeric: tabular-nums; }
+th, td { border: 1px solid #596070; padding: 0.35rem 0.55rem; text-align: right; white-space: nowrap; }
+#certificates td:last-child { text-align: left; }
+.math { overflow-x: auto; padding-block: 0.3rem; white-space: nowrap; }
+.attrib { color: #7560a7; font-weight: 600; }
+a { color: #3460c8; }
+</style>
+</head>
+<body>
+<main>
+  <!-- TODO: Astra's complete proof that m*(384) = 10, giving the witness, the necessary residue conditions, every modular certificate, the finite contradiction, and reproducible verification commands. -->
+    <h1><i>m</i><sup>*</sup>(384) = 10</h1>
+    <p><a href="index.html#proof384">The result on the main page</a> · <a href="proof384.py">Standalone exact verifier</a></p>
+    <p><i>This page is all Astra.</i></p>
+    <p>The claim is that 0, …, 383 can be partitioned into two sets with equal sums of powers of degrees 0 through 9, but cannot be partitioned with equal sums through degree 10. Degree 0 requires equal cardinalities. Shifting every position by 1 gives the same statement for 1, …, 384, by the binomial theorem.</p>
+    <p>Write the partition as signs <i>a</i><sub>p</sub> ∈ {−1, +1}, with +1 on one part. “Order at least <i>m</i>” means Σ<sub>p=0</sub><sup>383</sup> <i>a</i><sub>p</sub><i>p</i><sup>k</sup> = 0 for 0 ≤ <i>k</i> &lt; <i>m</i>. The proof below supplies both bounds. All arithmetic is integral; no numerical solver or assumption of symmetry is used to exclude order 11.</p>
+
+    <h2>1. An explicit witness of order 10</h2>
+    <p>Expand each hexadecimal digit below into four bits, most significant bit first, retaining leading zero bits. This gives 192 bits. Append those 192 bits in reverse order to obtain bits <i>x</i><sub>0</sub>, …, <i>x</i><sub>383</sub>, then put <i>a</i><sub>p</sub> = 2<i>x</i><sub>p</sub> − 1. This specifies every sign unambiguously.</p>
+    <pre><code id="witness">C1BE1E21CD63D295A7887A5965A1EE1A56B4394C7B87827C</code></pre>
+    <p>There are 192 plus signs and 192 minus signs. Direct integer evaluation gives</p>
+    <div class="math">Σ <i>a</i><sub>p</sub><i>p</i><sup>k</sup> = 0 &nbsp; (<i>k</i> = 0, …, 9),</div>
+    <div class="math">Σ <i>a</i><sub>p</sub><i>p</i><sup>10</sup> = <code id="moment10">-8784705084103065600</code>.</div>
+    <p>The verifier evaluates these sums directly. This proves <i>m</i><sup>*</sup>(384) ≥ 10. The witness is the existing doubled order-9 construction at 192; its symmetry is used only to encode this example.</p>
+
+    <h2>2. Only four residue-count patterns can have order 11</h2>
+    <p>Suppose an order-11 partition exists, and let <i>f</i>(<i>z</i>) = Σ <i>a</i><sub>p</sub><i>z</i><sup>p</sup>. The polynomials C(<i>p</i>, <i>k</i>), for 0 ≤ <i>k</i> ≤ 10, form a basis for the polynomials of degree at most 10. Thus all eleven binomial moments vanish, so <i>f</i> and its first ten derivatives vanish at 1. Consequently (<i>z</i> − 1)<sup>11</sup> divides <i>f</i> in ℤ[<i>z</i>]; the quotient has integer coefficients because the divisor is monic.</p>
+    <p>Let <i>d</i><sub>r</sub> be the sum of signs at positions congruent to <i>r</i> mod 5, and let ℓ = (77, 77, 77, 77, 76) be the sizes of those five classes. Reducing (<i>z</i> − 1)<sup>11</sup> modulo <i>z</i><sup>5</sup> − 1 gives the coefficient vector</p>
+    <div class="math"><i>g</i> = (450, −450, 275, 0, −275).</div>
+    <p>Therefore <i>d</i> is an integer combination of the five cyclic shifts of <i>g</i>. Every shift satisfies the following linear conditions, so every possible <i>d</i> satisfies them:</p>
+    <div class="math">Σ <i>d</i><sub>r</sub> = 0, &nbsp; <i>d</i><sub>r</sub> ≡ 0 (mod 25),</div>
+    <div class="math"><i>d</i><sub>2</sub> − 4<i>d</i><sub>0</sub> − 2<i>d</i><sub>1</sub> ≡ 0 (mod 125),</div>
+    <div class="math"><i>d</i><sub>3</sub> − 3<i>d</i><sub>0</sub> − 3<i>d</i><sub>1</sub> ≡ 0 (mod 125).</div>
+    <p>Also |<i>d</i><sub>r</sub>| ≤ ℓ<sub>r</sub> and <i>d</i><sub>r</sub> ≡ ℓ<sub>r</sub> (mod 2). Hence each of <i>d</i><sub>0</sub>, …, <i>d</i><sub>3</sub> lies in {−75, −25, 25, 75}, while <i>d</i><sub>4</sub> = −Σ<sub>r=0</sub><sup>3</sup> <i>d</i><sub>r</sub> lies in {−50, 0, 50}. Checking the 4<sup>4</sup> choices leaves exactly the four rows below for the numbers of plus signs <i>c</i><sub>r</sub> = (<i>d</i><sub>r</sub> + ℓ<sub>r</sub>)/2. These are necessary conditions only; no assertion of sufficiency is needed.</p>
+    <p>The same reduction can be checked by hand. Put <i>e</i><sub>r</sub> = <i>d</i><sub>r</sub>/25. The first four entries belong to {−3, −1, 1, 3}, which contains exactly one representative of each nonzero residue mod 5; the fifth belongs to {−2, 0, 2}. Write <i>a</i> = <i>e</i><sub>0</sub> and <i>b</i> = <i>e</i><sub>1</sub> modulo 5. The two congruences give <i>e</i><sub>2</sub> ≡ 4<i>a</i> + 2<i>b</i> and <i>e</i><sub>3</sub> ≡ 3<i>a</i> + 3<i>b</i>. Since these entries are nonzero mod 5, <i>b</i> cannot be 3<i>a</i> or 4<i>a</i>. If <i>b</i> = <i>a</i>, all four entries have the same residue, hence the same integer value; their sum would force |<i>e</i><sub>4</sub>| ≥ 4. Thus <i>b</i> = 2<i>a</i>. The four residues are then <i>a</i>, 2<i>a</i>, 3<i>a</i>, 4<i>a</i>, so their integer representatives are a permutation of −3, −1, 1, 3 and <i>e</i><sub>4</sub> = 0. The four choices for <i>a</i> give precisely the table.</p>
+    <div class="scroll"><table id="counts">
+      <thead><tr><th><i>c</i><sub>0</sub></th><th><i>c</i><sub>1</sub></th><th><i>c</i><sub>2</sub></th><th><i>c</i><sub>3</sub></th><th><i>c</i><sub>4</sub></th><th><i>r</i></th><th><i>s</i></th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>26</td><td>51</td><td>76</td><td>38</td><td>0</td><td>3</td></tr>
+        <tr><td>26</td><td>76</td><td>1</td><td>51</td><td>38</td><td>2</td><td>1</td></tr>
+        <tr><td>51</td><td>1</td><td>76</td><td>26</td><td>38</td><td>1</td><td>2</td></tr>
+        <tr><td>76</td><td>51</td><td>26</td><td>1</td><td>38</td><td>3</td><td>0</td></tr>
+      </tbody>
+    </table></div>
+    <p>In each row, class <i>r</i> has exactly one plus sign and class <i>s</i> exactly one minus sign. Their positions are <i>r</i> + 5<i>i</i> and <i>s</i> + 5<i>j</i>, where 0 ≤ <i>i</i>, <i>j</i> ≤ 76. Thus all possible partitions lie in these 4·77² = 23,716 cases. All four rows are checked; no case is discarded by symmetry.</p>
+
+    <h2>3. The equations remaining after those positions are fixed</h2>
+    <p>Put <i>x</i><sub>p</sub> = (<i>a</i><sub>p</sub> + 1)/2 ∈ {0, 1}. Define a 16-entry integer column</p>
+    <div class="math"><i>A</i><sub>p</sub> = (C(<i>p</i>, 0), …, C(<i>p</i>, 10), [<i>p</i> ≡ 0], …, [<i>p</i> ≡ 4])<sup>T</sup>,</div>
+    <p>where the brackets are 0-or-1 indicators of congruence mod 5, and C(<i>p</i>, <i>k</i>) = 0 when <i>k</i> &gt; <i>p</i>. For a row <i>c</i> of the table, the target is</p>
+    <div class="math"><i>b</i> = (C(384, 1)/2, …, C(384, 11)/2, <i>c</i><sub>0</sub>, …, <i>c</i><sub>4</sub>)<sup>T</sup>.</div>
+    <p>Each half here is integral: modulo 2, (1 + <i>z</i>)<sup>384</sup> = 1 + <i>z</i><sup>128</sup> + <i>z</i><sup>256</sup> + <i>z</i><sup>384</sup>, so C(384, 1), …, C(384, 11) are even. The moment target follows from Σ<sub>p=0</sub><sup>383</sup> C(<i>p</i>, <i>k</i>) = C(384, <i>k</i> + 1). Begin with class <i>r</i> all zero and class <i>s</i> all one. After inserting the exceptional one and removing the exceptional one, the remaining 230 variables must satisfy</p>
+    <div class="math">Σ<sub>p mod 5 ∉ {r,s}</sub> <i>x</i><sub>p</sub><i>A</i><sub>p</sub> = <i>R</i>(<i>i</i>, <i>j</i>),</div>
+    <div class="math"><i>R</i>(<i>i</i>, <i>j</i>) = <i>b</i> − Σ<sub>t=0</sub><sup>76</sup> <i>A</i><sub>s+5t</sub> − <i>A</i><sub>r+5i</sub> + <i>A</i><sub>s+5j</sub>.</div>
+    <p>A certificate consists of an integer modulus <i>q</i> and an integer row vector λ such that λ·<i>A</i><sub>p</sub> ≡ 0 (mod <i>q</i>) for every free position. Any integer solution must then satisfy λ·<i>R</i>(<i>i</i>, <i>j</i>) ≡ 0 (mod <i>q</i>). A nonzero residue proves that this case has no solution, even if the remaining variables are allowed to be arbitrary integers.</p>
+
+    <h2>4. Every certificate coefficient</h2>
+    <p>The first eleven entries of λ multiply the binomial rows in increasing degree; its final five entries multiply the count rows in residue order 0, …, 4. The unordered pair in the first two columns specifies which two classes are fixed. Use the four rows for that pair in the order shown, for either ordering of <i>r</i> and <i>s</i>.</p>
+    <div class="scroll"><table id="certificates">
+      <thead><tr><th colspan="2">Fixed classes</th><th><i>q</i></th><th>λ</th></tr></thead>
+      <tbody>
+        <tr><td>0</td><td>3</td><td>25</td><td><code>(1,-1,1,0,-3,-20,5,0,0,0,0,0,0,0,0,0)</code></td></tr>
+        <tr><td>0</td><td>3</td><td>125</td><td><code>(-32,-93,-32,-11,15,35,-20,-5,0,5,0,0,0,0,0,0)</code></td></tr>
+        <tr><td>0</td><td>3</td><td>125</td><td><code>(-46,46,-46,0,13,5,-15,-15,-20,0,25,0,0,0,0,0)</code></td></tr>
+        <tr><td>0</td><td>3</td><td>625</td><td><code>(-216,215,-214,30,-105,315,-30,50,25,0,-100,0,1,0,0,0)</code></td></tr>
+        <tr><td>1</td><td>2</td><td>25</td><td><code>(0,-1,1,0,-2,-20,5,0,0,0,0,0,0,0,0,0)</code></td></tr>
+        <tr><td>1</td><td>2</td><td>125</td><td><code>(0,1,42,-4,10,-60,-5,-20,0,5,0,0,0,0,0,0)</code></td></tr>
+        <tr><td>1</td><td>2</td><td>125</td><td><code>(0,56,29,-5,-3,-5,-10,-10,-5,0,25,0,0,0,0,0)</code></td></tr>
+        <tr><td>1</td><td>2</td><td>625</td><td><code>(-1,233,-6,-55,-50,-305,5,0,-50,0,-25,1,0,0,0,0)</code></td></tr>
+      </tbody>
+    </table></div>
+    <p>There is no need to trust how these vectors were found. For each row, compute λ·<i>A</i><sub>p</sub> for every free position 0 ≤ <i>p</i> &lt; 384 and check divisibility by <i>q</i>. This is at most 8·230 evaluations. An alternative is to fix a free residue class <i>h</i> and expand λ·<i>A</i><sub>h+5t</sub> in C(<i>t</i>, 0), …, C(<i>t</i>, 10). Its coefficients are the first eleven forward differences at 0; checking each is divisible by <i>q</i> proves the identity for every nonnegative integer <i>t</i>.</p>
+    <p>Explicitly, for <i>W</i>(<i>t</i>) = λ·<i>A</i><sub>h+5t</sub>, define</p>
+    <div class="math">Δ<sup>k</sup><i>W</i>(0) = Σ<sub>u=0</sub><sup>k</sup> (−1)<sup>k−u</sup>C(<i>k</i>, <i>u</i>)<i>W</i>(<i>u</i>).</div>
+    <p>Since <i>W</i> has degree at most 10, the exact identity <i>W</i>(<i>t</i>) = Σ<sub>k=0</sub><sup>10</sup> Δ<sup>k</sup><i>W</i>(0) C(<i>t</i>, <i>k</i>) holds. This reduces the divisibility check on each free residue class to eleven integer calculations.</p>
+
+    <h2>5. Exhaustion and the final contradiction</h2>
+    <p>The position reduction also has a short algebraic check. Write <i>B</i>(<i>t</i>) = <i>t</i>(<i>t</i> − 1)/2. For every count row, the first certificate is equivalent to <i>i</i> + <i>j</i> ≡ 1 (mod 5). The next two are equivalent to <i>Q</i><sub>2</sub>(<i>i</i>, <i>j</i>) ≡ <i>Q</i><sub>3</sub>(<i>i</i>, <i>j</i>) ≡ 0 (mod 25), and the fourth is equivalent to <i>E</i>(<i>i</i>, <i>j</i>) ≡ 0 (mod 625), with the following polynomials:</p>
+    <div class="scroll"><table id="reduced">
+      <thead><tr><th><i>r</i></th><th><i>s</i></th><th><i>Q</i><sub>2</sub></th><th><i>Q</i><sub>3</sub></th><th><i>E</i></th></tr></thead>
+      <tbody>
+        <tr><td>0</td><td>3</td><td>−18i + 8j − 20B(i) + 5B(j)</td><td>13 − 18i + 17j</td><td>575 − 275i + 375j − 500B(i) + 250B(j)</td></tr>
+        <tr><td>2</td><td>1</td><td>−23i + 18j − 15B(i) + 10B(j)</td><td>24 − 4i + 6j</td><td>300 − 375i + 525j − 375B(i) + 125B(j)</td></tr>
+        <tr><td>1</td><td>2</td><td>−18i + 23j − 10B(i) + 15B(j)</td><td>1 − 6i + 4j</td><td>325 − 525i + 375j − 125B(i) + 375B(j)</td></tr>
+        <tr><td>3</td><td>0</td><td>−8i + 18j − 5B(i) + 20B(j)</td><td>12 − 17i + 18j</td><td>50 − 375i + 275j − 250B(i) + 500B(j)</td></tr>
+      </tbody>
+    </table></div>
+    <p>To obtain these conditions from the certificate table, substitute the definition of <i>R</i>. Each of the first three residuals is divisible by 5. Divide by 5, reducing their moduli from 25, 125, 125 to 5, 25, 25. The first divided residual is respectively 1, 3, 2, or 4 times (<i>i</i> + <i>j</i> − 1) mod 5; these factors are invertible. The second and third divided residuals are the displayed <i>Q</i><sub>2</sub> and <i>Q</i><sub>3</sub> mod 25. The fourth residual is <i>E</i> mod 625. These identities can be checked by expanding in binomial polynomials as described above.</p>
+    <p>In all four rows, <i>Q</i><sub>2</sub> ≡ 2<i>i</i> + 3<i>j</i> (mod 5). Together with <i>i</i> + <i>j</i> ≡ 1 this forces <i>i</i> ≡ <i>j</i> ≡ 3 (mod 5). Write <i>i</i> = 3 + 5<i>u</i> and <i>j</i> = 3 + 5<i>v</i>; then <i>B</i>(<i>i</i>) ≡ <i>B</i>(<i>j</i>) ≡ 3 (mod 25). Substitution into <i>Q</i><sub>2</sub> gives <i>j</i> − <i>i</i> ≡ 0, 10, −10, 0 (mod 25), respectively. Substitution into <i>Q</i><sub>3</sub> then gives (<i>i</i>, <i>j</i>) ≡ (13, 13), (8, 18), (18, 8), (13, 13) (mod 25), respectively.</p>
+    <p>Evaluate λ·<i>R</i>(<i>i</i>, <i>j</i>) for the 77² position pairs in each count row. Retain a pair only when its residue is zero. The exact numbers remaining after each successive certificate are:</p>
+    <div class="scroll"><table id="survivors">
+      <thead><tr><th><i>r</i></th><th><i>s</i></th><th>After 1</th><th>After 2</th><th>After 3</th><th>After 4</th></tr></thead>
+      <tbody>
+        <tr><td>0</td><td>3</td><td>1187</td><td>45</td><td>9</td><td>0</td></tr>
+        <tr><td>2</td><td>1</td><td>1187</td><td>45</td><td>9</td><td>0</td></tr>
+        <tr><td>1</td><td>2</td><td>1187</td><td>45</td><td>9</td><td>0</td></tr>
+        <tr><td>3</td><td>0</td><td>1187</td><td>45</td><td>9</td><td>0</td></tr>
+      </tbody>
+    </table></div>
+    <p>The nine pairs remaining after the third certificate have the following explicit form: <i>i</i> = <i>i</i><sub>0</sub> + 25<i>u</i>, <i>j</i> = <i>j</i><sub>0</sub> + 25<i>v</i>, with <i>u</i>, <i>v</i> ∈ {0, 1, 2}. The fourth certificate gives the same nonzero residue for all nine pairs in each row:</p>
+    <div class="scroll"><table id="last-cases">
+      <thead><tr><th><i>r</i></th><th><i>s</i></th><th><i>i</i><sub>0</sub></th><th><i>j</i><sub>0</sub></th><th>Pairs</th><th>λ·<i>R</i> mod 625</th></tr></thead>
+      <tbody>
+        <tr><td>0</td><td>3</td><td>13</td><td>13</td><td>9</td><td>500</td></tr>
+        <tr><td>2</td><td>1</td><td>8</td><td>18</td><td>9</td><td>375</td></tr>
+        <tr><td>1</td><td>2</td><td>18</td><td>8</td><td>9</td><td>250</td></tr>
+        <tr><td>3</td><td>0</td><td>13</td><td>13</td><td>9</td><td>125</td></tr>
+      </tbody>
+    </table></div>
+    <p>The last residues can be checked without listing the nine pairs. Since <i>B</i>(<i>t</i> + 25) − <i>B</i>(<i>t</i>) = 25(<i>t</i> + 12) and every nonconstant coefficient of <i>E</i> is divisible by 25, <i>E</i> has period 25 in each variable modulo 625. At the four base pairs its integer values are −17,625, 15,375, −14,750, and 18,250, giving the four nonzero residues in the table. Each contradicts the required divisibility by 625.</p>
+    <p>Every possible order-11 partition would have appeared in one of these cases, and every case is impossible. An order greater than 11 would also satisfy all the order-11 equations, so it is excluded as well. Combined with the explicit witness, this proves <i>m</i><sup>*</sup>(384) = 10.</p>
+
+    <h2>6. Reproduce the checks</h2>
+    <p>Save <a href="proof384.py">proof384.py</a> and run it with Python 3.8 or later. It uses only the standard library, contains the witness and all certificate coefficients, and checks the generator congruences, complete count coverage, all free columns, all 23,716 cases, and the witness's exact moments.</p>
+    <pre><code>python3 proof384.py</code></pre>
+    <p>The expected output is:</p>
+    <pre><code>Astra: "m*(384) = 10; 4 vectores, 23716 casus, 0 superstites."</code></pre>
+    <p>Its proof obligations remain active under <code>python3 -O proof384.py</code>. A failed obligation raises an error; an incomplete run is not a proof.</p>
+    <p>For independent checks of the numbers printed on this page, save this HTML file as <code>proof384.html</code> alongside the verifier, <a href="quals_proof384.py">quals_proof384.py</a>, <a href="quals_proof384_page.py">quals_proof384_page.py</a>, and <a href="index.html">index.html</a>, then run:</p>
+    <pre><code>python3 -m unittest quals_proof384 quals_proof384_page</code></pre>
+    <p>The publication quals read the displayed hexadecimal witness and certificate tables from this HTML file and independently recompute the integer checks. They do not import the verifier's arithmetic or certificate constants. The verifier's own quals also reject corrupted certificates and missing coverage.</p>
+</main>
+</body>
+</html>

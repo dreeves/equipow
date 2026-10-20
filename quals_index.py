@@ -202,6 +202,20 @@ TABLE_UPDATE = (('<td class="c">≥ 11</td>', '<td class="c">11–12</td>', 1),
                 # "a certificate" as a residue proof): 304's TODO recap and Claude line, both in BASE
                 ('closes every case with a certificate checked in exact integer arithmetic', 'closes every case with linear-programming certificates checked in exact integer arithmetic', 2))
 
+# 384 settled at 10 by Astra's exact modular certificate (2026-10-20).  These precise edits add its author to the
+# existing table's visual vocabulary; all other original prose and styling remain protected by the baseline diff.
+TABLE_UPDATE += (("<td class=\"c\" title='Claude alone'>384</td>", "<td class=\"a\" title='Astra alone'>384</td>", 1),
+                 ('<td class="s">9</td><td class="s">9</td><td class="c">10–11</td><td class="s">9</td>',
+                  '<td class="s">9</td><td class="s">9</td><td class="a">10</td><td class="s">9</td>', 1),
+                 ('  --stan: #3460c8;', '  --stan: #3460c8;\n  /* Astra\'s result uses a separate hue and the glyph ✦. */\n  --astra: #7560a7;', 1),
+                 ('td.c { --hue: var(--claude); --glyph: "◆"; }', 'td.c { --hue: var(--claude); --glyph: "◆"; }\ntd.a { --hue: var(--astra); --glyph: "✦"; }', 1),
+                 ('td.c, td.j, td.s { background:', 'td.a, td.c, td.j, td.s { background:', 1),
+                 ('tr.vals td.c, tr.vals td.j, tr.vals td.s { box-shadow:', 'tr.vals td.a, tr.vals td.c, tr.vals td.j, tr.vals td.s { box-shadow:', 1),
+                 ('.key.c { --hue: var(--claude); }', '.key.c { --hue: var(--claude); }\n.key.a { --hue: var(--astra); }', 1),
+                 ('.remarks li.c .mk { color: var(--claude); }', '.remarks li.c .mk { color: var(--claude); }\n.remarks li.a .mk { color: var(--astra); }', 1),
+                 ('    <li><span class="key c" aria-hidden="true">◆</span>Claude alone</li>',
+                  '    <li><span class="key c" aria-hidden="true">◆</span>Claude alone</li>\n    <!-- TODO: identifies Astra\'s contributions by the purple star. -->\n    <li><span class="key a" aria-hidden="true">✦</span>Astra alone</li>', 1))
+
 # Edits of the remarks' lines that are in the page before the chart (BASE) or in TABLE_UPDATE, kept apart from
 # TABLE_UPDATE because quals_pow2_page.py applies TABLE_UPDATE before its own edits of those remarks, and its own
 # edit of 2026-10-17 covers these lines already: 800's example of order 11 (2026-10-17) moved the first power of 2
@@ -775,9 +789,13 @@ def valid_run(name):
     return R
 
 
+# dreeves requested Astra attribution on the same terms as Claude for the 384 result (2026-10-20).
+ATTRIBUTION = r'(?:Claude|Astra): "'
+
+
 def unclaimed(text):
-    """text with every Claude: "…" removed: what is left must hold no English, only numbers and math."""
-    return re.sub(r'Claude: "[^"]*"', '', text)
+    """text with each Claude or Astra quotation removed: what remains must hold no English, only numbers and math."""
+    return re.sub(ATTRIBUTION + r'[^"]*"', '', text)
 
 
 def english(text): return re.findall(r'[A-Za-z]{2,}', text)
@@ -823,9 +841,12 @@ def close(a, b, tol): return abs(a - b) <= tol
 
 
 # The section "The smallest length known for each order" (Stan Wagon's suggestion, relayed 2026-10-17: "keep track of a
-# table that shows the first n that gives 1,2,3,4,5,…,12"; dreeves: "yeah").  Orders 1 to 10 have their smallest
-# lengths proven (regression, 2026-10-17: OEIS A323395's a(0) to a(8), and 240, which Stan is adding as a(9)).
-SMALLEST_PROVEN = (2, 4, 8, 16, 32, 48, 96, 144, 192, 240)
+# table that shows the first n that gives 1,2,3,4,5,…,12"; dreeves: "yeah").  Orders 1 to 11 have their smallest
+# lengths proven: OEIS A323395's a(0) to a(8), 240 as a(9), and (2026-10-20) 432 as a(10), after proof384.py.
+SMALLEST_PROVEN = (2, 4, 8, 16, 32, 48, 96, 144, 192, 240, 432)
+ASTRA_SMALLEST_NOTE = (
+    '  <!-- TODO: attributes the new minimality result to Astra and identifies the new exclusion that completes the existing bounds. -->',
+    '  <p>Astra: "The <a href="#proof384">exclusion of order 11 at 384</a> closes the last gap below 432. Together with the existing order-11 example at 432 and the other exclusions in the chart, this proves <span class="nw"><i>a</i>(10) = 432</span>."</p>')
 
 
 def smallest_rows(cols):
@@ -854,6 +875,21 @@ def ring_note(m):
 
 # ---------------------------------------------------------------------------------------------------------------------
 # Static quals
+
+def q_384_proof_is_attributed_and_linked():
+    # Replicata: the updated new-results table and remarks, plus the generated chart's smallest-length rows.
+    # Expectata: 384 is marked as Astra's result, a separately attributed proof links the standalone checker, and
+    # order 11 is now proven to have smallest length 432.  The earlier Claude account remains attributed to Claude.
+    text = page()
+    assert '<td class="a" title=\'Astra alone\'>384</td>' in text
+    remark = re.search(r'<li class="a" id="proof384">(.*?)</li>', text, re.S)
+    assert remark, 'no Astra remark for 384'
+    assert 'Astra: "' in remark.group(1) and 'href="proof384.py"' in remark.group(1)
+    assert '<i>m</i><sup>*</sup> = 10' in remark.group(1)
+    assert smallest_rows(mstar_data()['cols'])[10] == ['11', '432', '✓', '432']
+    smallest = re.search(r'<section class="smallest".*?</section>', text, re.S).group(0)
+    assert '</blockquote>' in smallest and 'Astra: "' in smallest.split('</blockquote>', 1)[1]
+
 
 def q_insertions_only():
     # Replicata: index.html against the page before the chart (git show BASE:index.html), compared line by line with
@@ -922,8 +958,8 @@ def q_new_copy_is_attributed():
     # Replicata: the lines inserted since BASE, by region (HTML, inline script, style).
     # Expectata: inserted lines exist, and each of DREEVES_LINES is one of them, exactly once: those lines hold his
     # words, so the rules that follow pass over them.  In HTML, a line's visible text and its aria-label, title and alt
-    # values hold English only inside Claude: "…" or inside a block quote attributed to Claude (claude_quotes, whose
-    # lines the rules that follow pass over too); every Claude: "…" closes on its line; each line with one (HTML or
+    # values hold English only inside Claude: "…" or Astra: "…", or a block quote attributed to Claude (claude_quotes,
+    # whose lines the rules that follow pass over too); every quotation closes on its line; each line with one (HTML or
     # script) has a TODO comment as the nearest non-blank line above (<!-- TODO: in HTML, // TODO: in script), and each
     # TODO comment is followed by a line with one, or by one of his lines (the heading's TODO comment sits above his
     # heading), or is a quote's (above its lead-in or QUOTE_OPEN); no inserted CSS uses content:.  The section
@@ -945,15 +981,15 @@ def q_new_copy_is_attributed():
             for t in texts:
                 for s in (t if isinstance(t, tuple) else (t,)):
                     if english(unclaimed(html.unescape(s))): bad.append((j + 1, 'unattributed English', s))
-        if r in ('html', 'script') and 'Claude: "' in line:
-            if line.count('Claude: "') != len(re.findall(r'Claude: "[^"]*"', line)): bad.append((j + 1, 'unclosed', line))
+        if r in ('html', 'script') and re.search(ATTRIBUTION, line):
+            if len(re.findall(ATTRIBUTION, line)) != len(re.findall(ATTRIBUTION + r'[^"]*"', line)): bad.append((j + 1, 'unclosed', line))
             above = next(lines[i] for i in range(j - 1, -1, -1) if lines[i].strip())
             todo = '<!-- TODO:' in above if r == 'html' else above.strip().startswith('// TODO:')
             if not todo: bad.append((j + 1, 'no TODO above', line))
         if re.search(r'\bTODO\b', line):                # the word, not TODOCOLOR (dreeves's tag on the chart's colors)
             below = next(lines[i] for i in range(j + 1, len(lines)) if lines[i].strip())
-            if 'Claude: "' not in below and below.strip() not in DREEVES_LINES and j not in quote_todos:
-                bad.append((j + 1, 'TODO with no Claude: "…" below', line))
+            if not re.search(ATTRIBUTION, below) and below.strip() not in DREEVES_LINES and j not in quote_todos:
+                bad.append((j + 1, 'TODO with no attributed quotation below', line))
     assert not bad, bad
 
 
@@ -1160,7 +1196,7 @@ def q_citations_match_the_page():
     fig = re.search(r'<figure>.*?</figure>', page(), re.S).group(0)
     new = re.search(r'<div class="new-block">.*?<div class="scroll">(.*?)</div>', fig, re.S).group(1)
     value = lambda cell: int(cell) if cell.isdigit() else 2 ** int(re.fullmatch(r'2<sup>(\d+)</sup>', cell).group(1))
-    titled = {value(n): who for who, n in re.findall(r"<td(?: class=\"[cjs]\")? title='([^']*)'>([^<]*(?:<sup>\d+</sup>)?)</td>", new)}
+    titled = {value(n): who for who, n in re.findall(r"<td(?: class=\"[acjs]\")? title='([^']*)'>([^<]*(?:<sup>\d+</sup>)?)</td>", new)}
     titles = {n: who for n, who in titled.items() if who != 'The published paper (2021)'}
     # 240 (since 2026-10-20), the 44 multiples of 16 from 304 to 992 (512 written 2^9) and 18 larger powers of 2,
     # 2^17 to 2^71 (6 until 560 reached order 10 on 2026-10-12, 11 until 800 reached order 11 on 2026-10-17)
@@ -1226,7 +1262,7 @@ def q_chart_rings_a323395_terms_in_gold():
     # Expectata (dreeves, 2026-10-19: "in the chart can you highlight the known values for a(m-1)? maybe make those
     # green with gold trim or whatever else you think might work visually"): the ringed cells are exactly
     # a323395_cells of mstar.js, today (2, 1), (4, 2), (8, 3), (16, 4), (32, 5), (48, 6), (96, 7), (144, 8), (192, 9)
-    # and (240, 10), SMALLEST_PROVEN by order; each is ringed in --record, #ffb300 (the dataviz validator's pick against
+    # (240, 10) and (432, 11), SMALLEST_PROVEN by order; each is ringed in --record, #ffb300 (the validator's pick against
     # the chart's three colors and the paper), just outside its left and right and below it, in each view of the
     # sweep that checks it, and every one is checked.  (Its readout's note: q_hover_reads_out_cells.)
     want = a323395_cells(mstar_data()['cols'])
@@ -1754,6 +1790,7 @@ def q_smallest_section_is_a_claude_quote():
     # columns order m, smallest known n, proven smallest and smallest n not ruled out, its body empty in the HTML: the
     # script fills it from mstar.js; and not of class block, so that the page keeps the nine tables of that class that
     # mstar.py reads as Table 2's and the new results' (its count asserted there, which a tenth broke on 2026-10-17).
+    # Astra's separately attributed minimality note follows the intact Claude quote (2026-10-20).
     text = page()
     filler = r'(?:\s|<!--.*?-->)*'
     m = re.search(r'<section class="remarks">.*?</section>\n' + filler +
@@ -1762,7 +1799,8 @@ def q_smallest_section_is_a_claude_quote():
     assert m, 'no section "smallest" between the remarks and the counts'
     lines = m.group(1).split('\n')
     quoted, todos = claude_quotes(lines)
-    assert todos == {1} and quoted == set(range(2, len(lines) - 1)), (todos, len(lines))
+    assert todos == {1} and quoted == set(range(2, len(lines) - 3)), (todos, len(lines))
+    assert tuple(lines[-3:-1]) == ASTRA_SMALLEST_NOTE, lines[-3:-1]
     body = m.group(1)
     assert body.count('<blockquote class="claude">') == 1 and '<h2 id="smallest-title">' in body, body[:300]
     assert 'href="https://oeis.org/A323395"' in body, body
@@ -1775,8 +1813,8 @@ def q_smallest_section_is_a_claude_quote():
 def q_smallest_table_matches_mstar():
     # Replicata: index.html in headless Chrome beside mstar.js and pow2.js, its DOM dumped once its scripts ran; and
     # smallest_rows of MSTAR (mstar_data), computed here.
-    # Expectata: the table's body holds exactly smallest_rows' rows, in order; the first ten orders' smallest lengths
-    # are SMALLEST_PROVEN, each marked proven (regression, 2026-10-17).
+    # Expectata: the table's body holds exactly smallest_rows' rows, in order; the first eleven orders' smallest
+    # lengths are SMALLEST_PROVEN, each marked proven (432 added on 2026-10-20 after proof384.py).
     d = tempfile.mkdtemp(prefix='index-quals-')
     for src, name in ((INDEX, 'index.html'), (DATA, 'mstar.js'), (POW2, 'pow2.js')): shutil.copy(src, os.path.join(d, name))
     dom = chrome(d, ['--virtual-time-budget=5000', '--dump-dom', 'file://' + os.path.join(d, 'index.html')])
@@ -1787,7 +1825,8 @@ def q_smallest_table_matches_mstar():
            for tr in re.findall(r'<tr>(.*?)</tr>', body.group(1), re.S)]
     want = smallest_rows(mstar_data()['cols'])
     assert got == want, (got, want)
-    assert [r[1] for r in got[:10]] == [str(n) for n in SMALLEST_PROVEN] and all(r[2] == '✓' for r in got[:10]), got[:10]
+    proven = got[:len(SMALLEST_PROVEN)]
+    assert [r[1] for r in proven] == [str(n) for n in SMALLEST_PROVEN] and all(r[2] == '✓' for r in proven), proven
 
 
 def q_smallest_script_passes_node_check():

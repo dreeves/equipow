@@ -147,7 +147,7 @@ NEW = {240: (10, 10, 'Claude alone'),
        448: (9, 9, 'Claude alone'), 464: (9, 9, 'BGPW'), 480: (12, 14, 'Claude alone'),
        496: (9, 9, 'Claude and BGPW'), 512: (9, 9, 'Claude alone'), 528: (10, 12, 'Claude and BGPW'),
        576: (10, 12, 'Claude alone'),
-       384: (10, 11, 'Claude alone'),
+       384: (10, 10, 'Astra alone'),
        544: (9, 10, 'Claude alone'),
        560: (10, 10, 'Claude alone'),
        592: (9, 10, 'Claude alone'),
@@ -308,6 +308,7 @@ BGPW_T5 = ((5, 40, 'C1EC9'), (6, 48, 'C27D8C'), (6, 72, '998EAA3C5'), (6, 88, '9
 # Where each of overnight_v5.EXAMPLES comes from, by its comments there: the published paper's Table 5, the page, or
 # Thue-Morse; the rest were found with CP-SAT for overnight_v5's quals.
 EXAMPLE_LABELS = {(240, 10): 'BGPW Table 5', (432, 11): 'index.html p432', (192, 9): 'BGPW Table 5',
+                  (384, 10): 'overnight_v5 EXAMPLES',
                   (320, 9): 'index.html p320', (336, 9): 'index.html q336', (48, 6): 'BGPW Table 5',
                   (112, 7): 'BGPW Table 5', (304, 8): 'BGPW Table 5', (64, 6): 'Thue–Morse',
                   (40, 5): 'overnight_v5 EXAMPLES', (48, 5): 'overnight_v5 EXAMPLES', (56, 5): 'overnight_v5 EXAMPLES',

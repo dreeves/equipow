@@ -58,7 +58,7 @@ KLABELS = list(range(10, K + 1, 10))          # the k labels below the plot
 OUTLINE = (36, 5)                             # the cell whose outline the screenshots check
 SWIPE = (29, 8)                               # the cell a phone's swipe starts on, after the outline's tap
 MSTAR_LAYOUT = (44, 16, 2, 14)                # the m*(n) chart's plot: left and right gutters, top, row pitch (CSS px)
-WHO = ('BGPW', 'Claude alone', 'Claude and BGPW')   # the provenance labels of the page's new results
+WHO = ('BGPW', 'Claude alone', 'Claude and BGPW', 'Astra alone')   # provenance labels of the page's new results
 RUNS = {}                                     # DRIVER's reports by configuration name, made once per process (see run)
 
 
@@ -260,6 +260,11 @@ EDITS = quals_index.TABLE_UPDATE + (
           '    // TODO: readout note on a cell ringed in gold; says its n is the least of order m: the term a(m − 1) of OEIS A323395', '    ro.append(...RECORDS.filter(r => r.n === n && r.m === m).map(() => ` · Claude: "the least n of order ${m}: a(${m - 1}) of OEIS A323395"`));'))
 
 
+# Astra's exact upper bound at 384 is a new page provenance (2026-10-20); the m*(n) chart validates it too.
+EDITS += (("const WHO = ['BGPW', 'Claude alone', 'Claude and BGPW'];",
+           "const WHO = ['BGPW', 'Claude alone', 'Claude and BGPW', 'Astra alone'];", 1),)
+
+
 def committed():
     """index.html as it would be without this chart: as it was at BASE, with EDITS made (each count asserted)."""
     text = subprocess.run(['git', '-C', HERE, 'show', f'{BASE}:index.html'], capture_output=True, text=True,
@@ -385,16 +390,16 @@ def check_readouts(data, reads):
 
 
 def unclaimed(text):
-    """text with dreeves's and Stan Wagon's words (HIS, STAN_WORDS) and every Claude: "…" removed: what is left must
-    hold no English, only numbers and math."""
+    """text with dreeves's and Stan Wagon's words (HIS, STAN_WORDS) and every Claude or Astra quotation removed:
+    what remains must hold no English, only numbers and math."""
     for s in HIS + STAN_WORDS: text = text.replace(s, '')
-    return re.sub(r'Claude: "[^"]*"', '', text)
+    return quals_index.unclaimed(text)
 
 
 def english(text): return re.findall(r'[A-Za-z]{2,}', text)
 
 
-def closed(text): return text.count('Claude: "') == len(re.findall(r'Claude: "[^"]*"', text))
+def closed(text): return len(re.findall(quals_index.ATTRIBUTION, text)) == len(re.findall(quals_index.ATTRIBUTION + r'[^"]*"', text))
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -859,8 +864,8 @@ def q_new_copy_is_attributed():
     # Expectata: inserted lines exist, and each of DREEVES_LINES is one of them, exactly once: those lines hold his
     # words, so the rules that follow pass over them (and so over STAN_LINES, Stan Wagon's header, since 2026-10-18).  In HTML, a line's visible text (comments and tags removed,
     # entities decoded) and its aria-label, title and alt values hold English (a run of two letters) only inside
-    # Claude: "…", hold no stray double quote, and close every Claude: "…" they open; in script, every Claude: "…"
-    # closes on its line.  Each line with a Claude: "…" has a TODO comment as the nearest non-blank line above (<!--
+    # Claude: "…" or Astra: "…", hold no stray double quote, and close every quotation they open; in script, every
+    # quotation closes on its line.  Each line with a quotation has a TODO comment as the nearest non-blank line above (<!--
     # TODO: in HTML, // TODO: in script); each line that mentions TODO is such a comment and is followed by a line with
     # a Claude: "…" or is the TODO comment of a block quote attributed to Claude; no inserted CSS uses content:.  The
     # lines of such a quote, with dreeves's lead-in (quals_index.claude_quotes, his second form for Claude's words),
@@ -885,14 +890,14 @@ def q_new_copy_is_attributed():
             for t in map(html.unescape, texts):
                 if english(unclaimed(t)) or '"' in unclaimed(t) or not closed(t): bad.append((j + 1, 'copy', t))
         if r == 'script' and not closed(line): bad.append((j + 1, 'unclosed', line))
-        if 'Claude: "' in line:
+        if re.search(quals_index.ATTRIBUTION, line):
             above = next(lines[i] for i in range(j - 1, -1, -1) if lines[i].strip())
             todo = '<!-- TODO:' in above if r == 'html' else above.strip().startswith('// TODO:')
             if not todo: bad.append((j + 1, 'no TODO above', line))
         if re.search(r'\bTODO\b', line):                # the word, not TODOCOLOR (dreeves's tag on the chart's colors)
             below = next(lines[i] for i in range(j + 1, len(lines)) if lines[i].strip())
             comment = line.strip().startswith('<!-- TODO:' if r == 'html' else '// TODO:')
-            if not comment or ('Claude: "' not in below and j not in quote_todos):
+            if not comment or (not re.search(quals_index.ATTRIBUTION, below) and j not in quote_todos):
                 bad.append((j + 1, 'TODO', line))
     assert not bad, bad
 

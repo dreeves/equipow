@@ -37,6 +37,8 @@
      two. */
   --claude: #c15f3c;
   --stan: #3460c8;
+  /* Astra's result uses a separate hue and the glyph ✦. */
+  --astra: #7560a7;
   /* The m*(n) chart's colors, dreeves's to tweak (2026-10-12); the readout states each cell's bounds in words. */
   --exists: #00A86B; /* CHART COLOR GREEN */
   --open: #243447; /* CHART COLOR BLACK */
@@ -134,10 +136,11 @@ table.block th {
    glyph centered above its n (in every n cell of the new results a line for it, blank
    where there is none, so they all line up). Text stays in ink. */
 td.c { --hue: var(--claude); --glyph: "◆"; }
+td.a { --hue: var(--astra); --glyph: "✦"; }
 td.j { --glyph: "◆●"; }
 td.s { --hue: var(--stan); --glyph: "●"; }
-td.c, td.j, td.s { background: color-mix(in oklab, var(--hue) var(--tint), var(--paper)); }
-tr.vals td.c, tr.vals td.j, tr.vals td.s { box-shadow: inset 0 -3px 0 var(--hue); }
+td.a, td.c, td.j, td.s { background: color-mix(in oklab, var(--hue) var(--tint), var(--paper)); }
+tr.vals td.a, tr.vals td.c, tr.vals td.j, tr.vals td.s { box-shadow: inset 0 -3px 0 var(--hue); }
 .new-block tr.ns td::before {
   content: var(--glyph, "\a0");
   display: block;
@@ -174,6 +177,7 @@ tr.ns td.j::before, .key.j > span, .remarks li.j .mk { background: linear-gradie
   box-shadow: inset 0 -3px 0 var(--hue, transparent);
 }
 .key.c { --hue: var(--claude); }
+.key.a { --hue: var(--astra); }
 .key.s { --hue: var(--stan); }
 
 /* Remarks: one per new entry or group, marked like its cells */
@@ -195,6 +199,7 @@ tr.ns td.j::before, .key.j > span, .remarks li.j .mk { background: linear-gradie
   letter-spacing: 0.08em;
 }
 .remarks li.c .mk { color: var(--claude); }
+.remarks li.a .mk { color: var(--astra); }
 .remarks li.s .mk { color: var(--stan); }
 .entry { font-weight: 600; font-variant-numeric: tabular-nums lining-nums; }
 .code {
@@ -438,8 +443,8 @@ footer {
       <div class="scroll">
         <!-- Cell titles reuse the legend's labels below -->
         <table class="block">
-          <tr class="ns"><th scope="row"><i>n</i></th><td class="c" title='Claude alone'>240</td><td class="c" title='Claude alone'>304</td><td class="s" title='BGPW'>320</td><td class="j" title='Claude and BGPW'>336</td><td class="s" title='BGPW'>352</td><td class="s" title='BGPW'>368</td><td class="c" title='Claude alone'>384</td><td class="s" title='BGPW'>400</td><td class="s" title='BGPW'>416</td><td class="c" title='Claude alone'>432</td><td class="c" title='Claude alone'>448</td><td class="s" title='BGPW'>464</td></tr>
-          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="c">10</td><td class="c">8</td><td class="s">9</td><td class="j">10</td><td class="s">9</td><td class="s">9</td><td class="c">10–11</td><td class="s">9</td><td class="s">9</td><td class="c">11–12</td><td class="c">9</td><td class="s">9</td></tr>
+          <tr class="ns"><th scope="row"><i>n</i></th><td class="c" title='Claude alone'>240</td><td class="c" title='Claude alone'>304</td><td class="s" title='BGPW'>320</td><td class="j" title='Claude and BGPW'>336</td><td class="s" title='BGPW'>352</td><td class="s" title='BGPW'>368</td><td class="a" title='Astra alone'>384</td><td class="s" title='BGPW'>400</td><td class="s" title='BGPW'>416</td><td class="c" title='Claude alone'>432</td><td class="c" title='Claude alone'>448</td><td class="s" title='BGPW'>464</td></tr>
+          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="c">10</td><td class="c">8</td><td class="s">9</td><td class="j">10</td><td class="s">9</td><td class="s">9</td><td class="a">10</td><td class="s">9</td><td class="s">9</td><td class="c">11–12</td><td class="c">9</td><td class="s">9</td></tr>
         </table>
         <table class="block">
           <tr class="ns"><th scope="row"><i>n</i></th><td class="c" title='Claude alone'>480</td><td class="j" title='Claude and BGPW'>496</td><td class="j" title='Claude and BGPW'>528</td><td class="c" title='Claude alone'>544</td><td class="c" title='Claude alone'>560</td><td class="c" title='Claude alone'>576</td><td class="c" title='Claude alone'>592</td><td class="c" title='Claude alone'>608</td><td class="c" title='Claude alone'>624</td><td class="c" title='Claude alone'>640</td><td class="c" title='Claude alone'>656</td></tr>
@@ -467,6 +472,7 @@ footer {
 
   <ul class="legend">
     <li><span class="key c" aria-hidden="true">◆</span>Claude alone</li>
+    <li><span class="key a" aria-hidden="true">✦</span>Astra alone</li>
     <li><span class="key j" aria-hidden="true"><span>◆●</span></span>Claude and BGPW</li>
     <li><span class="key s" aria-hidden="true">●</span>BGPW</li>
     <li><span class="key" aria-hidden="true"></span>The published paper (2021)</li>
@@ -668,11 +674,19 @@ footer {
         <code>966965968F2C965B25B44B25B3596D924B6D96496C964B65B2CB24B25B2C96CB6C97496CB2CD6E960B243A59A592DB2DB6D9</code>
       </p>
     </li>
+    <li class="a" id="proof384">
+      <span class="mk" aria-hidden="true">✦</span>
+      <p class="entry"><i>n</i> = 384: &nbsp;<span class="nw"><i>m</i><sup>*</sup> = 10</span></p>
+      <!-- TODO: credits the existing doubled construction for order 10 and explains the four residue-count patterns forced by order 11. -->
+      <p>Astra: "Order 10 comes from doubling the order-9 example at 192. For order 11, congruences on the signed sums mod 5 leave only four possible vectors of +1 counts in residue classes 0, …, 4: (1, 26, 51, 76, 38), (26, 76, 1, 51, 38), (51, 1, 76, 26, 38), and (76, 51, 26, 1, 38)."</p>
+      <!-- TODO: explains the exhaustive finite exclusion, without any assumption of symmetry, and links the standalone exact verifier. -->
+      <p>Astra: "Each vector has a class with just one +1 and a class with just one −1. Choosing their positions leaves <span class="nw">4·77² = 23,716</span> cases. Every case contradicts at least one exact integer congruence mod 25, 125, or 625. This rules out order 11 without assuming symmetry. The <a href="proof384.html">complete proof</a> gives the witness, every certificate coefficient, the remaining cases, and reproduction commands. The standalone verifier <a href="proof384.py">proof384.py</a> checks every congruence and case, and checks an order-10 example; it uses only Python's standard library."</p>
+    </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry"><i>n</i> = 384, 832, 880, 896, 928, 944, 976, 992: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {10, 11}</span></p>
+      <p class="entry"><i>n</i> = 832, 880, 896, 928, 944, 976, 992: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {10, 11}</span></p>
       <!-- TODO: says how the m*(n) chart gets these: order 10 from examples above doubled or joined (each spelled out), order 12 ruled out by the residue conditions and norm bounds it names -->
-      <p>Claude: "Order 10 from examples above, doubled (384 = 2·192, 832 = 2·416 and 928 = 2·464) or joined (880 = 240 + 640, 896 = 336 + 560, 944 = 240 + 704, 976 = 240 + 736 and 992 = 432 + 560); order 12 is ruled out by the residue condition mod 5 at 384 and the norm bound for the residue sums mod 3 at 832, 880, 896, 928, 944, 976 and 992."</p>
+      <p>Claude: "Order 10 from examples above, doubled (832 = 2·416 and 928 = 2·464) or joined (880 = 240 + 640, 896 = 336 + 560, 944 = 240 + 704, 976 = 240 + 736 and 992 = 432 + 560); order 12 is ruled out by the norm bound for the residue sums mod 3 at 832, 880, 896, 928, 944, 976 and 992."</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
@@ -852,6 +866,8 @@ footer {
     </table>
     <p class="attrib">— Claude</p>
   </blockquote>
+  <!-- TODO: attributes the new minimality result to Astra and identifies the new exclusion that completes the existing bounds. -->
+  <p>Astra: "The <a href="#proof384">exclusion of order 11 at 384</a> closes the last gap below 432. Together with the existing order-11 example at 432 and the other exclusions in the chart, this proves <span class="nw"><i>a</i>(10) = 432</span>."</p>
 </section>
 
 <section class="counts">
@@ -1142,7 +1158,7 @@ try {
   // GAP is page surface, and the n axis below.
   const LEFT = 44, RIGHT = 16, TOP = 2, ROW = 14, GAP = 2, AXIS = 30;
   const assert = (ok, ...what) => { if (!ok) throw new Error(JSON.stringify(what).replace(/"/g, "'")); };
-  const WHO = ['BGPW', 'Claude alone', 'Claude and BGPW'];         // the provenance labels of the new results above
+  const WHO = ['BGPW', 'Claude alone', 'Claude and BGPW', 'Astra alone'];         // the provenance labels of the new results above
   const prime = p => { for (let d = 2; d * d <= p; d++) if (p % d === 0) return false; return p >= 2; };
   const sub = k => String(k).replace(/\d/g, d => '₀₁₂₃₄₅₆₇₈₉'[d]);
   const loOf = n => D.cols[n - 1][0];
@@ -1428,7 +1444,7 @@ const chart = document.getElementById('pow2-chart'), ro = document.getElementByI
 try {
   const D = POW2, K = 72, ROW = 14, GAP = 2, NS = 'http://www.w3.org/2000/svg';
   const assert = (ok, ...what) => { if (!ok) throw new Error(JSON.stringify(what).replace(/"/g, "'")); };
-  const WHO = ['BGPW', 'Claude alone', 'Claude and BGPW'];         // the provenance labels of the new results above
+  const WHO = ['BGPW', 'Claude alone', 'Claude and BGPW', 'Astra alone'];         // the provenance labels of the new results above
   const prime = p => { for (let d = 2; d * d <= p; d++) if (p % d === 0) return false; return p >= 2; };
   const sub = k => String(k).replace(/\d/g, d => '₀₁₂₃₄₅₆₇₈₉'[d]);
   // The norm lemma's bound at n = 2^k for an odd prime p, in exact integers (mstar.py's norm): the largest m with

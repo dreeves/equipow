@@ -218,9 +218,21 @@ def q_page_parse():
     src = mstar.page_sources(open(os.path.join(HERE, 'index.html'), encoding='utf-8').read())
     assert src['table2'] == mstar.TABLE2 and len(mstar.TABLE2) == 39
     assert src['new'] == mstar.NEW and len(mstar.NEW) == 63
-    assert set(who for _, _, who in mstar.NEW.values()) == {'BGPW', 'Claude alone', 'Claude and BGPW'}
+    assert set(who for _, _, who in mstar.NEW.values()) == {'BGPW', 'Claude alone', 'Claude and BGPW', 'Astra alone'}
     assert [(m, h) for _, m, h in mstar.PAGE_CODES] == [(m, h) for m, h in src['codes']]
     assert sorted((m, n) for m, n, _ in src['sets']) == sorted(mstar.PAGE_SET_KEYS)
+
+
+def q_384_settled_by_astra():
+    # Replicata: the page's hand-copied result and its generated chart column after Astra's exact mod-5 proof.
+    # Expectata: 384 is settled at 10, with the new upper bound attributed to Astra; 432 is the first length whose
+    # upper bound still permits order 11, and it has a verified construction of that order.
+    assert mstar.NEW[384] == (10, 10, 'Astra alone'), mstar.NEW[384]
+    _, got = disk()
+    cols = got['m']['cols']
+    assert cols[383][:2] == [10, 10] and cols[383][3] == ['page', 'Astra alone'], cols[383]
+    assert next(n for n, col in enumerate(cols, 1) if col[1] >= 11) == 432
+    assert cols[431][0] == 11, cols[431]
 
 
 def q_page_parse_is_strict():
@@ -286,8 +298,8 @@ def q_schema():
             assert type(why) is list and why and why[0] in forms, (n, why)
             assert tuple(type(x) for x in why[1:]) == forms[why[0]], (n, why)
         assert (lw == ['none']) == (n % 2 == 1) == (hw == ['odd']), (n, c)
-        assert lw[0] != 'page' or lw[1] in ('BGPW', 'Claude alone', 'Claude and BGPW'), (n, lw)
-        assert hw[0] != 'page' or hw[1] in ('BGPW', 'Claude alone', 'Claude and BGPW'), (n, hw)
+        assert lw[0] != 'page' or lw[1] in ('BGPW', 'Claude alone', 'Claude and BGPW', 'Astra alone'), (n, lw)
+        assert hw[0] != 'page' or hw[1] in ('BGPW', 'Claude alone', 'Claude and BGPW', 'Astra alone'), (n, hw)
 
 
 def q_mstar_js_is_current():
@@ -421,11 +433,12 @@ def q_gray_columns():
     # and less 560, settled at 10 the same day (lo 10 from the page's p560, found by a lattice search; hi by the norm
     # bound mod 3), and less 800, settled at 11 on 2026-10-17 (lo 11 from the page's p800, found by a lattice search;
     # hi by the norm bound mod 3), and less 240, settled at 10 on 2026-10-20 (lo 10 from the paper's Table 5 example; hi
-    # by the certified search, overnight_v5.py and then boxsplit.py by 17 and 19, the page's new result).
+    # by the certified search, overnight_v5.py and then boxsplit.py by 17 and 19, the page's new result), and less
+    # 384, settled at 10 by Astra's exact modular certificate (2026-10-20, proof384.py).
     _, got = disk()
     gray = tuple(n for n, c in enumerate(got['m']['cols'], 1) if c[0] < c[1])
-    assert gray == tuple(n for n in USER_GRAY if n not in (240, 560, 640, 704, 736, 800)), gray
-    assert [got['m']['cols'][n - 1][:2] for n in (240, 560, 640, 704, 736, 800)] == [[10, 10]] * 5 + [[11, 11]]
+    assert gray == tuple(n for n in USER_GRAY if n not in (240, 384, 560, 640, 704, 736, 800)), gray
+    assert [got['m']['cols'][n - 1][:2] for n in (240, 384, 560, 640, 704, 736, 800)] == [[10, 10]] * 6 + [[11, 11]]
     assert got['m']['cols'][240 - 1][2:] == [['example', 'BGPW Table 5'], ['page', 'Claude alone']]
     assert got['m']['cols'][560 - 1][2] == ['example', 'index.html p560']
     assert got['m']['cols'][800 - 1][2:] == [['example', 'index.html p800'], ['norm', 3]]
