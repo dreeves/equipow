@@ -197,7 +197,10 @@ TABLE_UPDATE = (('<td class="c">≥ 11</td>', '<td class="c">11–12</td>', 1),
                 # 240 settled at 10 (2026-10-20: overnight_v5.py, then boxsplit.py by 17 and 19, the final pass ALL
                 # NODES CLOSED), a cell of its own before 304's (dreeves: "Before 304 in new results")
                 ('<th scope="row"><i>n</i></th><td class="c" title=\'Claude alone\'>304</td>', '<th scope="row"><i>n</i></th><td class="c" title=\'Claude alone\'>240</td><td class="c" title=\'Claude alone\'>304</td>', 1),
-                ('(<i>n</i>)</th><td class="c">8</td><td class="s">9</td><td class="j">10</td>', '(<i>n</i>)</th><td class="c">10</td><td class="c">8</td><td class="s">9</td><td class="j">10</td>', 1))
+                ('(<i>n</i>)</th><td class="c">8</td><td class="s">9</td><td class="j">10</td>', '(<i>n</i>)</th><td class="c">10</td><td class="c">8</td><td class="s">9</td><td class="j">10</td>', 1),
+                # the search remarks name their certificates' kind (2026-10-20, dreeves's "sure", after Stan Wagon read
+                # "a certificate" as a residue proof): 304's TODO recap and Claude line, both in BASE
+                ('closes every case with a certificate checked in exact integer arithmetic', 'closes every case with linear-programming certificates checked in exact integer arithmetic', 2))
 
 # Edits of the remarks' lines that are in the page before the chart (BASE) or in TABLE_UPDATE, kept apart from
 # TABLE_UPDATE because quals_pow2_page.py applies TABLE_UPDATE before its own edits of those remarks, and its own
@@ -1694,6 +1697,20 @@ def progress_run(case='main'):
 
 
 def rgb(hexcolor): return [int(hexcolor[i:i + 2], 16) for i in (1, 3, 5)]
+
+
+def q_search_remarks_name_their_certificates():
+    # Replicata: index.html's remarks for 240 and 304, whose orders 11 and 9 computer searches ruled out.
+    # Expectata (dreeves, 2026-10-20: "sure", after Stan Wagon read "closes every case with a certificate" as a residue
+    # proof): each remark says, in its Claude line and in the TODO recap above it, that the search closes every case
+    # with linear-programming certificates checked in exact integer arithmetic; the page says "a certificate checked"
+    # nowhere.
+    text = page()
+    for n in (240, 304):
+        li = re.search(r'<li class="c">\s*<span class="mk" aria-hidden="true">◆</span>\s*<p class="entry"><i>n</i> = '
+                       + str(n) + r': .*?</li>', text, re.S).group(0)
+        assert li.count('closes every case with linear-programming certificates checked in exact integer arithmetic') == 2, (n, li[:600])
+    assert 'a certificate checked' not in text
 
 
 def q_table2_credits_stong_for_2_51():
