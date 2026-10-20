@@ -17,13 +17,17 @@ import progress
 HERE = os.path.dirname(os.path.abspath(__file__))
 TINY = {}                                     # tiny real runs by name, made once per process (see tiny)
 
-DRIVER = """import sys; sys.dont_write_bytecode = True; sys.path.insert(0, {here!r})
+DRIVER = """import sys, time; sys.dont_write_bytecode = True; sys.path.insert(0, {here!r})
 import overnight_v5 as v5, certbb
 assert callable(certbb.Guide.width_test)
 certbb.Guide.width_test = lambda self, pairs, rows, l, u, emit, stats: False    # off, here and in the workers (see drive)
 if __name__ == '__main__':
     v5.configure({n}, {order})
     v5.JOURNAL, v5.LOG, v5.PROCESSES, v5.BUDGET = {journal!r}, {log!r}, 1, {budget!r}
+    def control(control=v5.control):                                            # held a second (see drive)
+        time.sleep(1)
+        control()
+    v5.control = control
     v5.run()
 """
 
@@ -32,7 +36,9 @@ def drive(n, order, budget, journal, log):
     """One real pass of overnight_v5 at (n, order) with the given budgets and one worker process, appending to the
     journal and log given, with certbb's width test off: it closes these tiny runs outright (64@7 at budgets 1, 1, 1
     included), and the quals need runs that split and leave leaves open as 240@11 does.  The driver script patches it
-    at its top level, which the worker processes run again as they start."""
+    at its top level, which the worker processes run again as they start.  It also holds the startup control a second,
+    which run() begins just after the start line, so that every pass lasts a second at least: the log's stamps are
+    whole seconds, and a tiny pass can run within one (q_each_tiny_pass_lasts_a_second_at_least)."""
     script = os.path.join(os.path.dirname(journal), f'drive_{n}_{order}.py')
     open(script, 'w').write(DRIVER.format(here=HERE, n=n, order=order, journal=journal, log=log, budget=tuple(budget)))
     p = subprocess.run([sys.executable, '-B', script], capture_output=True, text=True, timeout=600)
@@ -188,6 +194,18 @@ def q_log_of_a_witness_run():
     p, = progress.parse_log(tiny('witness')[1])
     assert p['outcome'].startswith('Claude: "WITNESS FOUND, exact order 6: X = [') and p['outcome'].endswith(']"')
 
+
+
+def q_each_tiny_pass_lasts_a_second_at_least():
+    # Replicata: the logs of the tiny closed, open, resolved, handed and witness runs (resolving's last pass is a start
+    # line alone).
+    # Expectata: every pass's last line is stamped at least a second after its start line, whatever the clock: the
+    # log's stamps are whole seconds, a tiny pass can run within one, and q_js_is_one_progress_data_call and
+    # q_js_etas_are_the_record_on_running_time need its length (they failed by luck once in three full runs,
+    # 2026-10-20; dreeves chose a second's hold in the driver).
+    for name in ('closed', 'open', 'resolved', 'handed', 'witness'):
+        passes = progress.parse_log(tiny(name)[1])
+        assert all(p['last'] - p['start'] >= 1 for p in passes), (name, [(p['start'], p['last']) for p in passes])
 
 
 def q_start_line_says_whether_siblings_are_shuffled():
@@ -1225,7 +1243,7 @@ def q_js_is_one_progress_data_call():
 
 
 def q_js_etas_are_the_record_on_running_time():
-    # Replicata: the tiny closed run (40@6, two passes, the second of no length) surveyed with a made-up record of ETAs
+    # Replicata: the tiny closed run (40@6, two passes, each at least a second long) surveyed with a made-up record of ETAs
     # (hours: mean, lo, hi) at 600 times of its first pass, one of them with no estimate, and progress.js_text of it.
     # Expectata: the run's etas are the record's estimates in time order, the one with none left out (and the survey's
     # own record of its snapshot, none for an ended run), as [the time, seconds of running before it, mean, lo, hi], the
