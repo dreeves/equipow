@@ -520,6 +520,8 @@ function battery(R) {
       for (const m of new Set([lo, lo + 1, hi + 1])) {
         if (m < 1 || m > T) continue;
         R.hovers.push([n, m, hover(middleX(v, j), rowY(m) / dpr)]);
+        const {backgroundColor, boxShadow} = getComputedStyle(ro.querySelector('.swatch'));
+        R.swatches.push([n, m, backgroundColor, boxShadow]);
       }
     }
   }
@@ -544,7 +546,7 @@ function battery(R) {
   R.looks0 = [zin, zout].map(look);
   R.readouts = 0; R.oddReadouts = [];
   R.views = [view()];
-  R.hovers = []; R.pixelChecks = 0; R.pixelBad = []; R.pixelColumns = {}; R.steps = {}; R.rowOneChecks = 0; R.rowOneBad = [];
+  R.hovers = []; R.swatches = []; R.pixelChecks = 0; R.pixelBad = []; R.pixelColumns = {}; R.steps = {}; R.rowOneChecks = 0; R.rowOneBad = [];
   R.labelDraws = [labels(R.views[0])];
   checkRowOne(R.views[0], 0);
   // A hover at the middle of every device px across row 1 of the full view: the n read out, left to right, each once.
@@ -1400,6 +1402,32 @@ def q_hover_reads_out_cells():
             parts = re.findall(r'Claude: "([^"]*)"', got[4])
             assert ' · '.join(f'Claude: "{p}"' for p in parts) == got[4], (name, text)
             assert len(parts) == len(reasons) and all(p.startswith(r) for p, r in zip(parts, reasons)), (name, n, m, text)
+
+
+def q_hover_swatch_matches_gold_trim():
+    # Replicata: the light and kinds runs' hover sweeps, sampling the readout swatch after each cell selection.
+    # Expectata: all proven OEIS cells (all 11 in the real data) have a 2 px gold ring on their swatch, every other
+    # swatch has no ring, and its fill retains the cell's exists/open/impossible color.  The sweeps include both
+    # directions of transition between record and ordinary cells, so a ring cannot persist after leaving a record.
+    # Resultata: each assertion reports the hovered cell and its expected and computed CSS values.
+    rgb = lambda h: 'rgb(' + ', '.join(str(int(h[i:i + 2], 16)) for i in (1, 3, 5)) + ')'
+    assert a323395_cells(mstar_data()['cols']) == [(n, m) for m, n in enumerate(SMALLEST_PROVEN, 1)]
+    for name in ('light', 'kinds'):
+        R = valid_run(name)
+        cols = json.loads(kinds_data()[len('const MSTAR = '):-2])['cols'] if name == 'kinds' else mstar_data()['cols']
+        rings = set(a323395_cells(cols))
+        swatches = R['swatches']
+        assert rings <= {(n, m) for n, m, _, _ in swatches}, (name, rings, swatches)
+        assert {(False, True), (True, False)} <= {
+            (tuple(a[:2]) in rings, tuple(b[:2]) in rings) for a, b in zip(swatches, swatches[1:])}, name
+        assert {0, 1, 2} == {(m <= cols[n - 1][0]) + (m <= cols[n - 1][1])
+                            for n, m, _, _ in swatches if (n, m) not in rings}, name
+        shadows = {False: 'none', True: rgb(R['tokens']['record']) + ' 0px 0px 0px 2px'}
+        for n, m, fill, shadow in swatches:
+            lo, hi = cols[n - 1][:2]
+            kind = ('impossible', 'open', 'exists')[(m <= lo) + (m <= hi)]
+            want = (rgb(R['tokens'][kind]), shadows[(n, m) in rings])
+            assert (fill, shadow) == want, (name, n, m, 'expected', want, 'computed', (fill, shadow))
 
 
 def q_visible_text_is_attributed():

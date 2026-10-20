@@ -264,6 +264,13 @@ EDITS = quals_index.TABLE_UPDATE + (
 EDITS += (("const WHO = ['BGPW', 'Claude alone', 'Claude and BGPW'];",
            "const WHO = ['BGPW', 'Claude alone', 'Claude and BGPW', 'Astra alone'];", 1),)
 
+# The first chart's hover swatch shares its OEIS note's record lookup and the legend's gold trim (2026-10-20).
+EDITS += (after("    const mstar = [el('i', 'm'), el('sup', '*'), `(${n})`];",
+                '    const records = RECORDS.filter(r => r.n === n && r.m === m);'),
+          after('    swatch.className = `swatch ${KIND[kind]}`;',
+                "    swatch.classList.toggle('record', records.length > 0);"),
+          ('ro.append(...RECORDS.filter(r => r.n === n && r.m === m).map(', 'ro.append(...records.map(', 1))
+
 
 def committed():
     """index.html as it would be without this chart: as it was at BASE, with EDITS made (each count asserted)."""

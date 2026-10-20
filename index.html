@@ -1344,12 +1344,14 @@ try {
     const {n, m} = c, [lo, hi, lw, hw] = D.cols[n - 1], kind = kindOf(n, m);
     const why = [() => LO[lw[0]].text(n, lo, ...lw.slice(1)), () => HI[hw[0]].text(n, hi, ...hw.slice(1))];
     const mstar = [el('i', 'm'), el('sup', '*'), `(${n})`];
+    const records = RECORDS.filter(r => r.n === n && r.m === m);
     swatch.className = `swatch ${KIND[kind]}`;
+    swatch.classList.toggle('record', records.length > 0);
     ro.replaceChildren(swatch, nw(el('i', 'n'), ` = ${n}, `, el('i', 'm'), ` = ${m}`), ' · ',
       nw(...(lo === hi ? [...mstar, ` = ${lo}`] : [`${lo} ≤ `, ...mstar, ` ≤ ${hi}`])), ' · ',
       [[why[0]], why, [why[1]]][kind].map(f => f()).join(' · '));
     // TODO: readout note on a cell ringed in gold; says its n is the least of order m: the term a(m − 1) of OEIS A323395
-    ro.append(...RECORDS.filter(r => r.n === n && r.m === m).map(() => ` · Claude: "the least n of order ${m}: a(${m - 1}) of OEIS A323395"`));
+    ro.append(...records.map(() => ` · Claude: "the least n of order ${m}: a(${m - 1}) of OEIS A323395"`));
     draw();
   }
 
