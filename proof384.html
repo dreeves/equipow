@@ -30,7 +30,7 @@ a { color: #3460c8; }
 <main>
   <!-- TODO: Astra's complete proof that m*(384) = 10, giving the witness, the necessary residue conditions, every modular certificate, the finite contradiction, and reproducible verification commands. -->
     <h1><i>m</i><sup>*</sup>(384) = 10</h1>
-    <p><a href="index.html#proof384">The result on the main page</a> · <a href="proof384.py">Standalone exact verifier</a></p>
+    <p><a href="index.html#proof384">The result on the main page</a> · <a href="proof384.py">Standalone exact verifier</a> · <a href="proof384.wl">Mathematica</a></p>
     <p><i>This page is all Astra.</i></p>
     <p>The claim is that 0, …, 383 can be partitioned into two sets with equal sums of powers of degrees 0 through 9, but cannot be partitioned with equal sums through degree 10. Degree 0 requires equal cardinalities. Shifting every position by 1 gives the same statement for 1, …, 384, by the binomial theorem.</p>
     <p>Write the partition as signs <i>a</i><sub>p</sub> ∈ {−1, +1}, with +1 on one part. “Order at least <i>m</i>” means Σ<sub>p=0</sub><sup>383</sup> <i>a</i><sub>p</sub><i>p</i><sup>k</sup> = 0 for 0 ≤ <i>k</i> &lt; <i>m</i>. The proof below supplies both bounds. All arithmetic is integral; no numerical solver or assumption of symmetry is used to exclude order 11.</p>
@@ -133,6 +133,9 @@ a { color: #3460c8; }
     <h2>6. Reproduce the checks</h2>
     <p>Save <a href="proof384.py">proof384.py</a> and run it with Python 3.8 or later. It uses only the standard library, contains the witness and all certificate coefficients, and checks the generator congruences, complete count coverage, all free columns, all 23,716 cases, and the witness's exact moments.</p>
     <pre><code>python3 proof384.py</code></pre>
+    <!-- TODO: link the Mathematica verifier and give its command. -->
+    <p>Mathematica: <a href="proof384.wl">proof384.wl</a></p>
+    <pre><code>wolframscript -file proof384.wl</code></pre>
     <p>The expected output is:</p>
     <pre><code>Astra: "m*(384) = 10; 4 vectores, 23716 casus, 0 superstites."</code></pre>
     <p>Its proof obligations remain active under <code>python3 -O proof384.py</code>. A failed obligation raises an error; an incomplete run is not a proof.</p>
