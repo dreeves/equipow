@@ -838,7 +838,8 @@ def q_survey_of_a_resolving_run():
 def q_survey_records_its_eta():
     # Replicata: the tiny resolving run (64@7, running, its pass 2 just begun) surveyed 30 s and then 40 s into that
     # pass, with one record (a dict); the tiny open run (ended) surveyed with another, empty.
-    # Expectata: the first record holds exactly the two snapshots' ETAs, each [its survey's mean draw, then the
+    # Expectata: the first record holds exactly the two snapshots' ETAs, each [its survey's median draw (its mean until
+    # 2026-10-19, when the boxsplit estimate's Lindy tail made means useless), then the
     # draws' QUANTILES], by its time in whole seconds, and is the surveys' etas; the ended run's holds one None, by its
     # last line's time (an ended run has no estimate).
     journal, log = tiny('resolving')
@@ -847,7 +848,7 @@ def q_survey_records_its_eta():
     etas = {}
     a = progress.survey(64, 7, journal, log, procs, start + 30, {}, etas)
     b = progress.survey(64, 7, journal, log, procs, start + 40, {}, etas)
-    def eta(d): return [float(d.mean())] + [float(q) for q in np.quantile(d, progress.QUANTILES)]
+    def eta(d): return [float(np.median(d))] + [float(q) for q in np.quantile(d, progress.QUANTILES)]
     assert etas == {str(int(start + 30)): eta(a['draws']), str(int(start + 40)): eta(b['draws'])}, etas
     assert a['etas'] is etas and b['etas'] is etas
     journal, log = tiny('open')
@@ -1294,10 +1295,12 @@ def q_box_survey_marks_settled_open_running_and_pending():
     # then with none.
     # Expectata: running: leaf 0 settled, leaf 1 open, leaf 2 running, leaf 3 pending, the dots in tree order grouped
     # at SEA_DEPTH, counts 1 each and none split; its seconds of running 152; an estimate from the two finished leaves'
-    # wall times, 100 s and 300 s: leaf 2, 150 s along, holds a worker until 300 s (no finished leaf took between 150
-    # and 300 s), and leaf 3, on a free worker, takes 100 s or 300 s, so the remaining 150 s or 300 s, both drawn: the
-    # band 150 to 300 s, the mean between; and the ETA recorded at t0 + 152.  With no process: ended, leaf 2 pending,
-    # no estimate, its seconds of running 302 (its last line's).
+    # wall times, 100 s and 300 s, and a time not seen yet drawn from the Lindy tail above 300 s, the longest seen in
+    # the pass (lindy_ball; since 2026-10-19, when dreeves okayed the Lindy effect in place of the longest time seen as
+    # a ceiling): leaf 2, 150 s along, holds a worker until 300 s or longer, and leaf 3, on a free worker, takes 100 s,
+    # 300 s, leaf 2's time or longer, so the band's bottom is 150 s, its top past 300 s (no ceiling), and its median
+    # between; and the ETA recorded at t0 + 152 is that median.  With no process: ended, leaf 2 pending, no estimate,
+    # its seconds of running 302 (its last line's).
     t0 = 1792200000.0
     journal, log, main = made_up_box(t0)
     procs = [(900, 1, 'SN', 'python3 -u -B boxsplit.py 304 9')]
@@ -1310,8 +1313,8 @@ def q_box_survey_marks_settled_open_running_and_pending():
     assert s['sea']['counts'] == {'settled': 1, 'open': 1, 'split': 0, 'pending': 1, 'running': 1}, s['sea']['counts']
     assert (s['state'], s['so_far']) == ('running', 152.0), (s['state'], s['so_far'])
     go = s['to_go']
-    assert (go['lo'], go['hi']) == (150.0, 300.0) and 150 < go['mean'] < 300, go
-    assert list(etas) == [str(int(t0 + 152))] and abs(etas[str(int(t0 + 152))][0] - go['mean'] / 3600) < 1e-12, etas
+    assert go['lo'] == 150.0 and go['hi'] > 300.0 and 150 <= go['median'] < go['hi'], go
+    assert list(etas) == [str(int(t0 + 152))] and abs(etas[str(int(t0 + 152))][0] - go['median'] / 3600) < 1e-12, etas
     s = progress.survey_box(304, 9, log, main, [], t0 + 152, {})
     assert [progress.SEA_STATUSES[int(c)] for c in ''.join(s['sea']['groups'])].count('running') == 0
     assert (s['state'], s['so_far'], s['to_go']) == ('ended', 302.0, None), s
@@ -1331,6 +1334,73 @@ def q_box_survey_reads_the_log_alone():
     s = progress.survey_box(304, 9, log, main, [(900, 1, 'SN', 'python3 -u -B boxsplit.py 304 9')], t0 + 152, {})
     status = dict(zip(sorted(OPEN4, key=progress.tree_order), ''.join(s['sea']['groups'])))
     assert [progress.SEA_STATUSES[int(status[k])] for k in OPEN4] == ['settled', 'open', 'running', 'pending'], s['sea']
+
+
+def made_up_second_box_pass(t0):
+    """made_up_box's run with its first pass over and a second begun: leaves 0, 1, 2 and 3 started at t0 + 2, leaf 0
+    closed at t0 + 102, leaf 3 at t0 + 152 and leaf 2 at t0 + 202, leaf 1 left a node open at t0 + 302, the pass NOT
+    FINISHED then; the second pass started at t0 + 1000 with CLOSED records for leaves 0, 2 and 3 in the driver's
+    journal, its control passed, leaf 1 started again at t0 + 1002 and still at work.  Returns (the driver's journal,
+    its log, the run's journal)."""
+    import boxsplit as bx
+    bx.configure(304, 9)
+    d = tempfile.mkdtemp(prefix='progress-quals-')
+    main, journal, log = (os.path.join(d, f) for f in ('main.jsonl', 'box.jsonl', 'box.log'))
+    made_up_main(main, OPEN4)
+    saved = v5.JOURNAL
+    v5.JOURNAL = main
+    try:
+        leaves = bx.open_leaves(v5.Journal(main))
+        driver = bx.Journal(journal)
+        first = bx.say_start(leaves, driver)
+        for i in (0, 2, 3): driver.put(OPEN4[i], 'CLOSED', v5.node_budget(leaves[i]), {})
+        second = bx.say_start(leaves, driver)
+    finally:
+        v5.JOURNAL = saved
+    at = lambda dt, msg: time.strftime('%Y-%m-%d %H:%M:%S ', time.localtime(t0 + dt)) + msg
+    tally = collections.Counter(splits=1, own=1, pool=9, carried=9, outside=3, lps=12, glop=24, cpu=5.0)
+    control = ('Claude: "startup control passed: the order-8 example of length 304 lands in an own child at each of '
+               '[11, 13], and order 9 rejects it"')
+    lines = [at(0, first), at(1, control)] + [at(2, bx.say_leaf(i, OPEN4[i])) for i in range(4)]
+    lines += [at(102, bx.say_leaf_closed(0, OPEN4[0], tally)), at(152, bx.say_leaf_closed(3, OPEN4[3], tally)),
+              at(202, bx.say_leaf_closed(2, OPEN4[2], tally)), at(302, bx.say_open(OPEN4[1] + ' 11:[1,2,3,4,5,6,7,8,9,10,11]')),
+              at(302, bx.say_leaf_open(1, OPEN4[1], tally + collections.Counter(open=1))),
+              at(302, 'Claude: "NOT FINISHED: 1 leaves with 1 nodes left open, 3 leaves closed (0.08 h)"')]
+    lines += [at(1000, second), at(1001, control), at(1002, bx.say_leaf(1, OPEN4[1]))]
+    open(log, 'w').write(''.join(l + '\n' for l in lines))
+    return journal, log, main
+
+
+def q_lindy_ball_is_scale_free():
+    # Replicata: progress.lindy_ball with top 100 s: 20000 draws for a leaf not begun (e = -inf), then 20000 for a leaf
+    # 500 s along.
+    # Expectata (the Lindy effect, Gott's form; dreeves, 2026-10-19: "ok, let's try it"): every draw at least s, the
+    # larger of top and e (100 s, then 500 s), and above it the scale-free tail P(T > t) = s / t: about half the draws
+    # past 2s and a tenth past 10s, each within three standard errors.
+    rng = np.random.default_rng(0)
+    for e, s in ((-np.inf, 100.0), (500.0, 500.0)):
+        x = progress.lindy_ball(rng, 100.0)(np.arange(20000), e)
+        assert x.min() >= s, (e, x.min())
+        for k, share in ((2, 0.5), (10, 0.1)):
+            se = np.sqrt(share * (1 - share) / len(x))
+            assert abs((x > k * s).mean() - share) < 3 * se, (e, k, (x > k * s).mean())
+
+
+def q_box_estimate_with_no_leaf_of_its_pass_done_is_gotts():
+    # Replicata: progress.survey_box of made_up_second_box_pass at t0 + 2002 with its process running: in the second
+    # pass, leaf 1 is 1000 s along and no leaf is done; the first pass's leaves took 100 to 300 s.
+    # Expectata (dreeves, 2026-10-19: "ok, let's try it"): the estimate draws from the current pass's finished leaves
+    # only, none here, so leaf 1's time is the Lindy tail above its own 1000 s (lindy_ball): Gott's rule, its remaining
+    # time's median 1000 s, its 5% point 1000/19 s and its 95% point 19000 s, each within three standard errors of
+    # REPLICATES draws (the median in 0.87 to 1.15 e, the 5% point in 0.036 to 0.07 e, the 95% point in 14 to 28 e).
+    # (Under the old ceiling, the first pass's times, all shorter, put the remaining time at 0.)
+    t0 = 1792200000.0
+    journal, log, main = made_up_second_box_pass(t0)
+    s = progress.survey_box(304, 9, log, main, [(900, 1, 'SN', 'python3 -u -B boxsplit.py 304 9')], t0 + 2002, {})
+    statuses = [progress.SEA_STATUSES[int(c)] for c in ''.join(s['sea']['groups'])]
+    assert sorted(statuses) == ['running', 'settled', 'settled', 'settled'], statuses
+    go, e = s['to_go'], 1000.0
+    assert 0.87 * e < go['median'] < 1.15 * e and 0.036 * e < go['lo'] < 0.07 * e and 14 * e < go['hi'] < 28 * e, go
 
 
 def q_js_names_each_run_s_program():

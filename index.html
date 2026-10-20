@@ -243,7 +243,7 @@ code {
 .progress-bar [data-bar="so-far"] { background: var(--progress-spent); }
 .progress-bar [data-bar="lo"] { background: color-mix(in oklab, var(--progress-togo) 45%, var(--paper)); }
 .progress-bar [data-bar="band"] { background: color-mix(in oklab, var(--progress-togo) 16%, var(--paper)); }
-.progress-bar [data-bar="mean"] { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--progress-togo); }
+.progress-bar [data-bar="median"] { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--progress-togo); }
 .progress-key { display: flex; flex-wrap: wrap; gap: 0.3rem 1.2rem; margin: 0; padding: 0; list-style: none; }
 .progress-sw { display: inline-block; width: 0.7rem; height: 0.7rem; margin-right: 0.35rem; border-radius: 2px; vertical-align: -0.05rem; }
 .progress-sw[data-status="settled"] { background: var(--progress-settled); }
@@ -483,7 +483,6 @@ footer {
       <li><span class="swatch exists" aria-hidden="true"></span><span class="nw"><i>m</i> ≤ <i>m</i><sup>*</sup>(<i>n</i>)</span></li>
       <li><span class="swatch open" aria-hidden="true"></span>open</li>
       <li><span class="swatch impossible" aria-hidden="true"></span><span class="nw"><i>m</i> &gt; <i>m</i><sup>*</sup>(<i>n</i>)</span></li>
-      <!-- TODO: legend label for the cells ringed in gold; says such a cell's n is a(m − 1) of OEIS A323395, the least n of order m (linked) -->
       <li><span class="swatch exists record" aria-hidden="true"></span><span><span class="nw"><i>n</i> = <i>a</i>(<i>m</i> − 1)</span> of OEIS <a href="https://oeis.org/A323395">A323395</a>, the smallest <i>n</i> for a given <i>m</i></span></li>
     </ul>
     <div class="mstar-zoom">
@@ -1061,7 +1060,7 @@ SClaude[11][800] = {
       <template class="progress-run">
         <div class="progress-run">
           <h3><span class="nw"><i>m</i><sup>*</sup>(<span data-n></span>) ≥ <span data-order></span>?</span> <code data-program></code></h3>
-          <div class="progress-bar" aria-hidden="true"><span data-bar="so-far"></span><span data-bar="lo"></span><span data-bar="band"></span><i data-bar="mean"></i></div>
+          <div class="progress-bar" aria-hidden="true"><span data-bar="so-far"></span><span data-bar="lo"></span><span data-bar="band"></span><i data-bar="median"></i></div>
           <canvas role="img" aria-label="One dot per sub-case, colored by its status, each subtree a block of its own"></canvas>
           <ul class="progress-key">
             <li><span class="progress-sw" data-status="settled"></span>settled <span data-count="settled"></span></li>
@@ -1639,7 +1638,7 @@ try {
 // 2026-10-17: reloads, as Live Server's when files change, kept closing it).  Every word
 // it shows is in the section's HTML (its templates); this script writes numbers, times and marks.
 // Per run: a bar of hours so far and to go, to scale (so far, then the band's bottom, then the rest of the band, the
-// mean marked); the sea, one dot per sub-case of the data's groups, each group a block of cells (strips below), cells
+// median marked); the sea, one dot per sub-case of the data's groups, each group a block of cells (strips below), cells
 // of pitch px, chosen from 10 down to 2 px so that the sea is at most about 560 px tall, a dot a device px short of its
 // cell (none short below 3 device px); and progress.html's ETA chart
 // (eta_chart there: dreeves's design), from the run's recorded ETAs.
@@ -1745,8 +1744,8 @@ try {
     part('so-far').style.width = pct(run.so_far / total);
     part('lo').style.width = pct(g ? g.lo / total : 0);
     part('band').style.width = pct(g ? (g.hi - g.lo) / total : 0);
-    part('mean').style.left = pct(g ? (run.so_far + g.mean) / total : 0);
-    part('mean').hidden = !g;
+    part('median').style.left = pct(g ? (run.so_far + g.median) / total : 0);
+    part('median').hidden = !g;
   }
 
   function strips(sizes, W) {

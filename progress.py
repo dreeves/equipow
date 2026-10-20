@@ -56,11 +56,13 @@ keys are kept in CACHE, a file git ignores, by run and by overnight_v5.CODE.  Vo
               (no cached split and none recorded).  The dots are in tree order, grouped by their sub-case at depth
               SEA_DEPTH (or above the bottom, if that is shallower; a shallower dot is its own group).
   estimate    of a running or frozen run: REPLICATES draws of the current pass's remaining hours of running, from the
-              model below; or none, when the model has nothing to draw from.  The data file gives their mean (the ETA)
-              and their QUANTILES (the band around it).  Provisional (2026-10-09): the survival-analysis
+              model below; or none, when the model has nothing to draw from.  The data file gives their median (the ETA)
+              and their QUANTILES (the band around it); their mean until 2026-10-19, when the boxsplit estimate took a
+              Lindy tail (lindy_ball), whose mean is infinite.  Provisional (2026-10-09): the survival-analysis
               design of the workflow in scratch/eta-dist/, ported whole, while that workflow's judges are still out.
-  ETA         the mean of a snapshot's estimate (dreeves's name for it): E[hours of running until the current pass
-              ends], which is when the search ends, unless the pass leaves sub-cases open, as 304@9's first did; no
+  ETA         the median of a snapshot's estimate (dreeves's name for it; its mean until 2026-10-19, as the records
+              made before then hold): the hours of running until the current pass ends, as likely more as less, which
+              is when the search ends, unless the pass leaves sub-cases open, as 304@9's first did; no
               estimate foresees a later pass.  Each time the data file is made it records its ETA with the estimate's
               range (its draws' QUANTILES), by the snapshot's time, in CACHE (by run and overnight_v5.CODE); the data
               file carries that record (see eta_records), and the section's ETA chart draws it, the range as a shaded
@@ -643,6 +645,17 @@ def gap_ball(rng, lo, hi):
     return new
 
 
+def lindy_ball(rng, top):
+    """The boxsplit leaf urn's new ball (see urn in the vocabulary; dreeves, 2026-10-19, the Lindy effect in Gott's
+    form): a time not seen yet, s / U above s, the larger of top (the longest time seen in the pass) and e, with U
+    uniform on (0, 1]: the scale-free tail P(T > t) = s / t, so that a leaf that has outrun every time seen is expected
+    to run on in proportion to its age, where a ceiling at the longest seen had it about to finish.  Its mean is
+    infinite, so the estimate's center is its median (see estimate)."""
+    def new(rows, e):
+        return max(top, e) / (1.0 - rng.random(len(rows)))           # 1 - U is uniform on (0, 1]: never s / 0
+    return new
+
+
 def fresh_ball(rng, own, kids, below):
     """A subtree urn's new ball (see urn in the vocabulary): a fresh subtree, a uniformly chosen member's own job (own,
     its seconds) and split (kids, its count of children), its children each picked from the urn below."""
@@ -783,7 +796,7 @@ def estimate(state, parts=None):
 def survey(n, order, journal, log, procs, now, cache, etas):
     """The run (n, order) as its journal and log, the process list and the time now (epoch seconds) show it: what the
     data file needs of it, and more; cache holds the run's splits (see children), etas its record of ETAs (see the
-    vocabulary), to which this snapshot's is added: [the mean of its draws, then their QUANTILES], None with none (an
+    vocabulary), to which this snapshot's is added: [the median of its draws, then their QUANTILES], None with none (an
     ended run has none), by its time in whole seconds."""
     v5.configure(n, order)
     R = read_run(journal, log)
@@ -813,9 +826,9 @@ def survey(n, order, journal, log, procs, now, cache, etas):
     spans = [(q['start'], q['last']) for q in passes[:-1]] + [(p['start'], end)]
     parts = {}
     draws = estimate(state_at(R, end, cache, f'{n}@{order} at {clock(end)}'), parts) if state != 'ended' else None
-    etas[str(int(end))] = [float(draws.mean())] + [float(q) for q in np.quantile(draws, QUANTILES)] if draws is not None and len(draws) else None
+    etas[str(int(end))] = [float(np.median(draws))] + [float(q) for q in np.quantile(draws, QUANTILES)] if draws is not None and len(draws) else None
     running = {nd.key for nd in parts.get('nodes', []) if nd.state == 'running' and nd.key is not None}
-    to_go = ({'mean': float(draws.mean()) * HOUR} | dict(zip(('lo', 'hi'), (float(q) * HOUR for q in np.quantile(draws, QUANTILES))))
+    to_go = ({'median': float(np.median(draws)) * HOUR} | dict(zip(('lo', 'hi'), (float(q) * HOUR for q in np.quantile(draws, QUANTILES))))
              if draws is not None and len(draws) else None)
     return {'program': 'overnight_v5.py', 'n': n, 'order': order, 'state': state, 'outcome': p['outcome'], 'budgets': budgets,
             'sea': sea(final, budgets, cache, running), 'so_far': sum(b - a for a, b in spans), 'to_go': to_go,
@@ -891,11 +904,13 @@ def survey_box(n, order, log, main, procs, now, etas):
     done says its tree closed or not, else pending.  The log alone says all this, every pass's lines kept; the driver's
     journal is not read: the driver writes a leaf's done line and then its CLOSED record, so a reader of both could see
     the one without the other (the watcher's crash of 2026-10-17 16:03).
-    The estimate: an urn (see the vocabulary) of the wall seconds, start to done, of every leaf done in a pass, its new
-    ball the longest of them (a leaf's tree has no budget to bound it); each running leaf drawn above its elapsed
-    seconds (censored, the longest-running first), holding its worker for the rest; each pending leaf a job in the
-    driver's order (its key's sha1); makespan on the pass's workers.  None when the driver is not running or no leaf
-    is done yet."""
+    The estimate: an urn (see the vocabulary) of the wall seconds, start to done, of every leaf done in the current
+    pass (an earlier pass did other work: 240@11's second pass split by 19 the nodes its first left open by 17), its new
+    ball lindy_ball's Lindy tail above the longest time seen in the pass, done or still running (a leaf's tree has no
+    budget to bound it); each running leaf drawn above its elapsed seconds (censored, the longest-running first),
+    holding its worker for the rest; each pending leaf a job in the driver's order (its key's sha1); makespan on the
+    pass's workers.  With no leaf of the pass done, every draw is the new ball: Gott's rule.  None when the driver is not
+    running or no leaf of the pass has begun."""
     bx.configure(n, order)
     saved = v5.JOURNAL
     v5.JOURNAL = main
@@ -924,19 +939,21 @@ def survey_box(n, order, log, main, procs, now, etas):
     tally = collections.Counter(c for g in groups.values() for c in g)
     sea = {'depth': SEA_DEPTH, 'keys': list(groups), 'groups': [''.join(g) for g in groups.values()],
            'counts': {s: tally[str(i)] for i, s in enumerate(SEA_STATUSES)}}
-    walls = np.array([t - q['starts'][i] for q in passes for i, (t, _) in q['dones'].items()])
+    walls = np.array([t - p['starts'][i] for i, (t, _) in p['dones'].items()], dtype=float)   # the pass's done leaves
+    ages = sorted((now - t for t in running.values()), reverse=True)  # its running leaves', the longest-running first
+    top = max([*walls, *ages], default=0.0)                          # the longest time seen in the pass
     draws = None
-    if state == 'running' and len(walls):
+    if state == 'running' and top > 0:
         rng = np.random.default_rng(SEED)
         todo = sorted((i for i in range(len(leaves)) if status(i) == 'pending'),
                       key=lambda i: hashlib.sha1(leaves[i].encode()).hexdigest())
-        urn = Urn(rng, walls, gap_ball(rng, walls.max(), walls.max()), len(running) + len(todo))
+        urn = Urn(rng, walls, lindy_ball(rng, top), len(running) + len(todo))
         loads = np.zeros((REPLICATES, p['processes']))
-        for j, e in enumerate(sorted((now - t for t in running.values()), reverse=True)):
+        for j, e in enumerate(ages):
             loads[:, j] = urn.draw(e) - e
         draws = makespan(loads, [('job', urn.draw()) for _ in todo]) / HOUR
-    etas[str(int(end))] = [float(draws.mean())] + [float(q) for q in np.quantile(draws, QUANTILES)] if draws is not None else None
-    to_go = ({'mean': float(draws.mean()) * HOUR} | dict(zip(('lo', 'hi'), (float(q) * HOUR for q in np.quantile(draws, QUANTILES))))
+    etas[str(int(end))] = [float(np.median(draws))] + [float(q) for q in np.quantile(draws, QUANTILES)] if draws is not None else None
+    to_go = ({'median': float(np.median(draws)) * HOUR} | dict(zip(('lo', 'hi'), (float(q) * HOUR for q in np.quantile(draws, QUANTILES))))
              if draws is not None else None)
     return {'program': 'boxsplit.py', 'n': n, 'order': order, 'state': state, 'outcome': p['outcome'],
             'so_far': sum(b - a for a, b in spans), 'to_go': to_go, 'passes': spans, 'etas': etas, 'sea': sea}
@@ -962,7 +979,7 @@ def clock(t): return '—' if t is None else time.strftime('%Y-%m-%d %H:%M:%S', 
 
 def eta_records(s):
     """The run's record of ETAs (see ETA in the vocabulary) with an estimate, in time order, as (time, running hours
-    before it, mean, lo, hi), hours.  A recorded time's running hours come from the passes: one after a pass's last
+    before it, median (mean before 2026-10-19), lo, hi), hours.  A recorded time's running hours come from the passes: one after a pass's last
     line (its process ran on, or was stopped, unlogged) counts as that pass's end, the log's clock being the only one;
     it must fall between the first pass's start and the snapshot (asserted)."""
     spans = s['passes']
@@ -979,9 +996,9 @@ def eta_records(s):
 
 def js_text(surveys, now):
     """The data file (see the vocabulary): one call, progressData(...);, of the snapshot's JSON: made (now, in whole
-    seconds) and, per run, program (overnight_v5.py or boxsplit.py), n, order, state, so_far (its passes' seconds of running), to_go ({mean, lo, hi}, seconds of
-    running: the estimate's mean and QUANTILES; null without one), etas (its record of ETAs, eta_records, as [time,
-    running seconds before it, mean, lo, hi], the time in whole seconds and the rest in seconds to a tenth, evenly thinned to at most ETA_POINTS, the last kept), statuses
+    seconds) and, per run, program (overnight_v5.py or boxsplit.py), n, order, state, so_far (its passes' seconds of running), to_go ({median, lo, hi}, seconds of
+    running: the estimate's median and QUANTILES; null without one), etas (its record of ETAs, eta_records, as [time,
+    running seconds before it, median (mean before 2026-10-19), lo, hi], the time in whole seconds and the rest in seconds to a tenth, evenly thinned to at most ETA_POINTS, the last kept), statuses
     (SEA_STATUSES) and its sea (depth, keys, groups, counts)."""
     def etas(s):
         rs = eta_records(s)

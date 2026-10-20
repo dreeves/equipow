@@ -79,6 +79,10 @@ DREEVES_LINES += (STAN_HEADER,)
 # line Claude had put there at his request), byte for byte
 STONG_NOTE = '<p>Note: <i>m</i><sup>*</sup>(2<sup>51</sup>) ≥ 52 is due to Richard Stong.</p>'
 DREEVES_LINES += (STONG_NOTE,)
+# his wording of the m*(n) chart's legend label for the gold rings (2026-10-19, commit 9e46bb5 "Gold trim": his
+# rewording of the label Claude had put there at his request), byte for byte
+GOLD_LEGEND = '<li><span class="swatch exists record" aria-hidden="true"></span><span><span class="nw"><i>n</i> = <i>a</i>(<i>m</i> − 1)</span> of OEIS <a href="https://oeis.org/A323395">A323395</a>, the smallest <i>n</i> for a given <i>m</i></span></li>'
+DREEVES_LINES += (GOLD_LEGEND,)
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -872,7 +876,7 @@ def q_section_follows_table2():
     assert re.match(filler + r'<section class="pow2"', after[m.end():], re.S), after[m.end():m.end() + 400]
     parts = [r'<h2 id="mstar-title">', r'<ul class="legend">', r'<span class="swatch exists" aria-hidden="true">',
              r'<span class="swatch open" aria-hidden="true">', r'<span class="swatch impossible" aria-hidden="true">',
-             r'<span class="swatch exists record" aria-hidden="true"></span><span>Claude: "[^\n]*https://oeis\.org/A323395[^\n]*"</span></li>',
+             re.escape(GOLD_LEGEND),
              r'</ul>', r'<button type="button" id="mstar-reset" ',
              r'<canvas id="mstar-chart" height="0" tabindex="0" role="img" aria-label=',
              r'<p id="mstar-readout" aria-live="polite">']
@@ -1527,7 +1531,7 @@ def q_made_up_data_draws():
 STATUSES = ('settled', 'open', 'split', 'pending', 'running')
 # made-up data: one running run, three groups, every status, three recorded ETAs an hour apart
 PROGRESS_DATA = {'made': 1792200000, 'runs': [{
-    'program': 'overnight_v5.py', 'n': 64, 'order': 7, 'state': 'running', 'so_far': 7200.0, 'to_go': {'mean': 3600.0, 'lo': 1800.0, 'hi': 10800.0},
+    'program': 'overnight_v5.py', 'n': 64, 'order': 7, 'state': 'running', 'so_far': 7200.0, 'to_go': {'median': 3600.0, 'lo': 1800.0, 'hi': 10800.0},
     'etas': [[1792192800, 0.0, 10800.0, 7200.0, 14400.0], [1792196400, 3600.0, 7200.0, 3600.0, 10800.0],
              [1792200000, 7200.0, 3600.0, 1800.0, 10800.0]],
     'statuses': list(STATUSES), 'depth': 1, 'keys': ['3:[0,0,3]', '3:[1,1,1]', '3:[2,1,0]'],
@@ -1962,11 +1966,12 @@ def q_progress_redraws_in_place_and_reads_out_a_subtree():
 
 
 def q_progress_draws_time_to_scale():
-    # Replicata: progress_run's time bar: its parts' widths and the mean's mark, as the section sets them.
+    # Replicata: progress_run's time bar: its parts' widths and the median's mark, as the section sets them.
     # Expectata (dreeves, 2026-10-09: "lead with time so far and time to go, to scale"): out of so far + the band's
-    # top (2 h + 3 h), so far 40%, the band's bottom 10% after it, the rest of the band 50%, and the mean's mark at 60%.
+    # top (2 h + 3 h), so far 40%, the band's bottom 10% after it, the rest of the band 50%, and the median's mark at
+    # 60% (the mean's until 2026-10-19, when the boxsplit estimate's Lindy tail made means useless).
     R = progress_run()
-    assert {k: float(v.rstrip('%')) for k, v in R['bar'].items()} == {'so-far': 40.0, 'lo': 10.0, 'band': 50.0, 'mean': 60.0}, R['bar']
+    assert {k: float(v.rstrip('%')) for k, v in R['bar'].items()} == {'so-far': 40.0, 'lo': 10.0, 'band': 50.0, 'median': 60.0}, R['bar']
 
 
 def q_progress_lays_out_each_subtree_as_a_block():
