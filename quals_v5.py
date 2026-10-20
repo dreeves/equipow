@@ -178,11 +178,13 @@ def run_child(code, *flags, timeout=900):
 
 def q_settings_table():
     # Replicata: SETTINGS and EXAMPLES, against overnight_v4's SETTINGS.
-    # Expectata: the same configurations as v4's, each with v4's cascade, so (240, 11) has overnight_240_v3.py's; every
-    # entry has one budget per depth plus the bottom, each a positive whole number of LP solves; every entry has its
-    # control's examples: one of length N and order ORDER - 1, and at least one of order ORDER.
+    # Expectata: v4's configurations, each with v4's cascade, so (240, 11) has overnight_240_v3.py's, and one of v5's
+    # own, (384, 11) with the cascade 3, 5, 7, 4, 8, 9 and 240's budgets (dreeves, 2026-10-20: "can we just get it
+    # running"); every entry has one budget per depth plus the bottom, each a positive whole number of LP solves; every
+    # entry has its control's examples: one of length N and order ORDER - 1, and at least one of order ORDER.
     assert v5.SETTINGS[240, 11][0] == v3.CASCADE
-    assert set(v5.SETTINGS) == set(v4.SETTINGS) and all(v5.SETTINGS[k][0] == v4.SETTINGS[k][0] for k in v4.SETTINGS)
+    assert set(v5.SETTINGS) == set(v4.SETTINGS) | {(384, 11)} and all(v5.SETTINGS[k][0] == v4.SETTINGS[k][0] for k in v4.SETTINGS)
+    assert v5.SETTINGS[384, 11] == ((3, 5, 7, 4, 8, 9), (10000,) * 6 + (2000000,))
     for (n, order), (cascade, budget) in v5.SETTINGS.items():
         assert len(budget) == len(cascade) + 1 and all(type(b) is int and b >= 1 for b in budget), (n, order)
         assert (n, order - 1) in v5.EXAMPLES, (n, order)
@@ -210,9 +212,10 @@ def q_configure():
 
 
 def q_journal_and_log_names_differ_from_v4s():
-    # Replicata: every configuration in SETTINGS, configured in v5 and in overnight_v4.
+    # Replicata: every configuration in overnight_v4's SETTINGS (all of them in v5's, q_settings_table), configured in
+    # v5 and in v4; v5's own (384@11) has no v4 run whose files it could touch.
     # Expectata: v5's journal and log paths are never v4's, so a v5 run never touches a v4 run's files.
-    for n, order in v5.SETTINGS:
+    for n, order in v4.SETTINGS:
         v5.configure(n, order)
         v4.configure(n, order)
         assert {v5.JOURNAL, v5.LOG}.isdisjoint({v4.JOURNAL, v4.LOG}), (n, order)

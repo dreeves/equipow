@@ -901,20 +901,35 @@ def q_directions_cached_per_prefix():
     expect_assertion(lambda: width.directions(11, (3, 5, 7), A), 'directions')
 
 
-def q_lll_overflow_guards():
-    # Replicata: width.lll on the kernel basis of 240@11's bottom prefix, and on the basis ((2^61, 1), (3 * 2^60, 1)),
-    # whose first size reduction (q = 2 against a row of size 2^61) is bounded beyond 2^62.
-    # Expectata: the first reduces (Q = T^-1 R for the tracked T^-1 exactly, entries small) and the second trips the
-    # guard that keeps the int64 arithmetic exact (AssertionError in lll).
-    Q, K = width.kernel_basis(11, CASCADE_240, 240)
-    R, Tinv, gs = width.lll(Q)
-    dim = len(Q)
-    assert R.shape == Q.shape and len(Tinv) == dim and int(np.abs(R).max()) < 2 ** 30
-    Rl = [[int(t) for t in row] for row in R]
-    for j in (0, dim - 1):                    # Q = T^-1 R, Tinv[i] being column i of T^-1
-        assert [sum(Tinv[i][j] * Rl[i][p] for i in range(dim)) for p in range(240)] == [int(t) for t in Q[j]], j
-    big = np.array([[2 ** 61, 1], [3 * 2 ** 60, 1]], dtype=np.int64)
-    expect_assertion(lambda: width.lll(big), 'lll')
+def q_lll_is_exact_beyond_int64():
+    # Replicata: width.lll on the kernel basis of 240@11's bottom prefix; on the basis ((2^61, 1), (3 * 2^60, 1)),
+    # whose first size reduction (q = 2 against a row of size 2^61) goes beyond 2^62; and on the kernel basis of
+    # 384@11's bottom prefix (3, 5, 7, 4, 8, 9), whose reduction reaches entries near 10^23.
+    # Expectata (dreeves, 2026-10-20: "if that's what makes sense to do, sure", after 384@11's first node tripped the
+    # int64 guard this qual once required, q_lll_overflow_guards): each reduces exactly, Q = T^-1 R for the tracked
+    # T^-1 in integers (all of each basis's rows for the two small ones, the first and last for 384's); 240's entries
+    # stay small.
+    for Q, rows in ((width.kernel_basis(11, CASCADE_240, 240)[0], None),
+                    (np.array([[2 ** 61, 1], [3 * 2 ** 60, 1]], dtype=np.int64), None),
+                    (width.kernel_basis(11, (3, 5, 7, 4, 8, 9), 384)[0], 'ends')):
+        R, Tinv, gs = width.lll(Q)
+        dim, n = Q.shape
+        assert R.shape == Q.shape and len(Tinv) == dim
+        Rl = [[int(t) for t in row] for row in R]
+        for j in ((0, dim - 1) if rows == 'ends' else range(dim)):     # Q = T^-1 R, Tinv[i] being column i of T^-1
+            assert [sum(Tinv[i][j] * Rl[i][p] for i in range(dim)) for p in range(n)] == [int(t) for t in Q[j]], j
+    assert max(abs(t) for row in width.lll(width.kernel_basis(11, CASCADE_240, 240)[0])[0].tolist() for t in row) < 2 ** 30
+
+
+def q_lll_reductions_at_240_unchanged():
+    # Replicata (regression): width.lll on the kernel bases of 240@11's top prefix (no moduli) and bottom prefix.
+    # Expectata: the sha1 of repr((R as lists, T^-1's columns, the Gram-Schmidt norms as lists)) that the int64 lll
+    # gave on 2026-10-20 before it became exact: so the exact lll reduces every basis the int64 one could exactly as
+    # it did, and 240@11's journals keep their meaning under the new CODE (migrate_journals.py).
+    for moduli, digest in (((), 'a5b4e49e661a97f0a188fc341f1fb463cbd8a579'),
+                           (CASCADE_240, 'fbce815e6cb00df820cc5e2f551cc5b290cec260')):
+        R, Tinv, gs = width.lll(width.kernel_basis(11, moduli, 240)[0])
+        assert hashlib.sha1(repr((R.tolist(), Tinv, gs.tolist())).encode()).hexdigest() == digest, moduli
 
 
 def q_bareiss_exact():

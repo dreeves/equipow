@@ -688,15 +688,19 @@ LIVE = {}
 
 
 @contextlib.contextmanager
-def as_written(n, order):
-    """overnight_v5 configured for (n, order) with its CODE the one in that run's journal header, the code that wrote
-    it, so that a run's files stay fixtures as the code changes (304@9's header keeps the code its run had); CODE is
-    restored after."""
-    v5.configure(n, order)
+def as_code(journal):
+    """overnight_v5 with its CODE the one in the header of the journal at that path, the code that wrote it, so that a
+    run's files stay fixtures as the code changes; CODE is restored after."""
     saved = v5.CODE
-    v5.CODE = json.loads(open(v5.JOURNAL).readline())['code']
+    v5.CODE = json.loads(open(journal).readline())['code']
     try: yield
     finally: v5.CODE = saved
+
+
+def as_written(n, order):
+    """overnight_v5 configured for (n, order), as_code its run's journal (304@9's header keeps the code its run had)."""
+    v5.configure(n, order)
+    return as_code(v5.JOURNAL)
 
 
 def live(n, order):
@@ -1200,7 +1204,8 @@ def q_sea_marks_split_pending_and_running():
 def q_sea_of_240_at_11():
     # Replicata (regression): progress.sea of 240@11's journal as its run ended (2026-10-16 23:59, NOT FINISHED: 606
     # nodes left open), under its last pass's budgets, no cache, nothing running: its journal and log as committed in
-    # 8297bae (2026-10-17), before boxsplit.py's verdicts were handed back to it (2026-10-20).
+    # 8297bae (2026-10-17), before boxsplit.py's verdicts were handed back to it (2026-10-20), the journal read as_code
+    # (its header names the code of that day).
     # Expectata: frontier_sea of the journal at depth 5: 71494 settled dots (its 73185 INFEASIBLE records less the
     # 1691 below six sub-cases that a pass split and a later one re-solved INFEASIBLE, in 3 LP solves each, once the
     # width test came in on 2026-10-11) and 606 open (its open leaves), in 296 groups (its 291 sub-cases at depth 5
@@ -1212,7 +1217,7 @@ def q_sea_of_240_at_11():
         with open(path, 'w', encoding='utf-8') as f:
             f.write(subprocess.run(['git', '-C', HERE, 'show', f'8297bae:{os.path.relpath(live, HERE)}'],
                                    capture_output=True, text=True, check=True).stdout)
-    final = progress.read_journal(journal)
+    with as_code(journal): final = progress.read_journal(journal)
     budgets = progress.parse_log(log)[-1]['budgets']
     shutil.rmtree(d)                                    # 23 MB of journal
     sea = progress.sea(final, budgets, {}, set())

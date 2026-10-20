@@ -117,6 +117,12 @@ SETTINGS = {
     # leaves some 10^7 admissible vectors each (scaling v3's counts; the enumeration did not finish in 20 s) at
     # every split; 8 and 9 refine 4 and 3 instead.
     (304, 9): ((3, 5, 4, 7, 8, 9), (10000,) * 6 + (10000000,)),
+    # 384@11, whose answer decides a(10) of OEIS A323395, the least length of order 11: 432 if none, 384 if one (dreeves,
+    # 2026-10-20: "can we just get it running", no estimate first).  Admissible vectors at the top node (240@11's in
+    # parentheses): mod 3, 1 (1); mod 5, 4 (1); mod 7, 64 (4); mod 4, 49 (9); mod 8 given mod 4, 0 to 40; mod 9,
+    # 46786 (4626); mod 11, 340374 (12092); mod 13, 1773394 (9748).  So 11 and 13, whose every split would enumerate
+    # hundreds of thousands of vectors or more, are left to boxsplit.py's count boxes, as at 304@9; budgets as 240@11's.
+    (384, 11): ((3, 5, 7, 4, 8, 9), (10000,) * 6 + (2000000,)),
     # Small runs for the end-to-end quals in quals_v5.py, whose answers Table 2 gives (m*(48) = 6 has witnesses;
     # m*(40) = m*(56) = 5 and m*(64) = m*(104) = 6 close).  A budget of 1 above the bottom (3, POOL_BUDGET, for a
     # node of one vector) leaves the upper nodes UNKNOWN, so the tree gets split; at the bottom, the most any of these
@@ -141,6 +147,7 @@ EXAMPLES = {
     (240, 10): "C394E65AB989457A86B7D0D921636E",                              # the paper's Table 5
     (432, 11): "5A56B0EE234E8794ADE3D0C384F72A5C63A8BD65035EF015B78B46",      # Claude's p432 (index.html)
     (192, 9): "C1BE1E21CD63D295A7887A59",                                     # p192 (index.html)
+    (384, 10): "C1BE1E21CD63D295A7887A5965A1EE1A56B4394C7B87827C",            # p192 # tau_1: p192, then -p192
     (320, 9): "B24B649ED92CD2C36496CB2DB6295D974138BA41",                      # Claude's p320 (index.html)
     (336, 9): "9C5479E2669C97071E731A62EBC06F28E87B4961DF",                    # Claude's p336 (index.html)
     (48, 6): "C27D8C", (112, 7): "A5994DB29B45A0",                           # the paper's Table 5 (index.html)

@@ -1,0 +1,2 @@
+2026-10-20 12:21:31 Claude: "start: n = 384, order at least 11, 10 processes, budgets [10000, 10000, 10000, 10000, 10000, 10000, 2000000] (LP solves; a pool at least 3 per member), HiGHS 1.12.0 (4f96ee8), split moduli [3, 5, 7, 4, 8, 9], 0 earlier verdicts, siblings shuffled"
+2026-10-20 12:24:58 Claude: "startup control passed: the order-10 example of length 384 survived every split, and order 11 rejects it"

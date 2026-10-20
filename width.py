@@ -35,8 +35,6 @@ import numpy as np
 import sympy as sp
 
 DELTA = 0.99                 # LLL's reduction parameter: delta of the Lovasz condition
-LIMIT = 2 ** 62              # LLL's int64 guard: an exact bound on every entry a row operation makes stays under it
-                             # (asserted), so the int64 arithmetic is exact
 SWAPS = 10 ** 6              # LLL stops with an assertion after this many swaps (float Gram-Schmidt could cycle)
 Direction = namedtuple('Direction', 'j u num den w')
 
@@ -60,14 +58,13 @@ def kernel_basis(order, moduli, n):
 
 
 def lll(B):
-    """LLL on the rows of B (int64): the reduced basis R = T B, the columns of T^-1 as lists of Python ints (so that
-    T^-1 e_j is column j), and the Gram-Schmidt norms of R.  Gram-Schmidt in float64 steers the reduction; the row
-    operations on B are exact in int64 under the LIMIT guard: rowmax[i] bounds |B[i]|, and a pass over row k asserts,
-    before each operation B[k] -= q B[j], that its bound rowmax[k] + sum |q| rowmax[j] so far stays under LIMIT."""
-    B = B.copy()
+    """LLL on the rows of the integer matrix B: the reduced basis R = T B (an object array of Python ints), the columns
+    of T^-1 as lists of Python ints (so that T^-1 e_j is column j), and the Gram-Schmidt norms of R.  Gram-Schmidt in
+    float64 steers the reduction; the row operations on B are exact in Python integers, at any size.  Until
+    2026-10-20 they were int64 under a guard on their bound, which 384@11's bases outgrew (entries near 10^23); the
+    steps are the same, so wherever int64 sufficed the result is too (quals_width.py pins 240@11's)."""
+    B = np.array(B.tolist(), dtype=object)
     n = len(B)
-    rowmax = [int(np.abs(B[i]).max()) for i in range(n)]
-    assert max(rowmax) < LIMIT
     Bf = B.astype(float)
     Bs = np.zeros_like(Bf)
     mu = np.zeros((n, n))
@@ -87,17 +84,13 @@ def lll(B):
     k, swaps = 1, 0
     while k < n:
         gs_row(k)
-        acc = rowmax[k]
         for j in range(k - 1, -1, -1):
             q = round(mu[k, j])
             if q:
-                acc += abs(q) * rowmax[j]
-                assert acc < LIMIT, acc
                 B[k] -= q * B[j]
                 mu[k, :j + 1] -= q * mu[j, :j + 1]
                 cj, ck = Tinv[j], Tinv[k]
                 Tinv[j] = [a + q * b for a, b in zip(cj, ck)]          # row op on T  <=>  column op on T^-1
-        rowmax[k] = int(np.abs(B[k]).max())
         Bf[k] = B[k]
         gs_row(k)
         if nrm[k] >= (DELTA - mu[k, k - 1] ** 2) * nrm[k - 1]:
@@ -106,7 +99,6 @@ def lll(B):
             B[[k - 1, k]] = B[[k, k - 1]]
             Bf[[k - 1, k]] = Bf[[k, k - 1]]
             Tinv[k - 1], Tinv[k] = Tinv[k], Tinv[k - 1]
-            rowmax[k - 1], rowmax[k] = rowmax[k], rowmax[k - 1]
             gs_row(k - 1); gs_row(k)
             if k + 1 < n:
                 mu[k + 1:, k - 1] = (Bf[k + 1:] @ Bs[k - 1]) / nrm[k - 1]

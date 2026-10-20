@@ -139,7 +139,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 JS = os.path.join(HERE, 'progress.js')         # the data file of index.html's section "Search progress" (see the vocabulary)
 CACHE = os.path.join(HERE, '.progress_cache.json')
 EXTENDED = ((240, 11),)                # the runs whose boxsplit.py pass the section shows after the run (2026-10-17)
-RUNS = ((240, 11),)                    # the certified runs, (N, ORDER), in the section's order; 304@9 is settled (2026-10-10)
+RUNS = ((384, 11), (240, 11))          # the certified runs, (N, ORDER), in the section's order: the live one first
+                                       # (384@11 since 2026-10-20), then 240@11 beside its boxsplit.py pass; 304@9 is settled
 REFRESH = 60                           # seconds between rewrites under --watch (the section reloads the data file as often)
 NICE = 15                              # the niceness the process lowers itself to
 # The deepest level enumerated.  Splitting cost the runs themselves (their logs' split seconds, on loaded workers)

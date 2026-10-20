@@ -36,7 +36,10 @@ WATCHER = r'progress\.py --watch$'                     # the page watcher's comm
 # PLAN[journal name] = (program, N, ORDER, the module whose header() the journal must match, whether the run goes on)
 PLAN = {'overnight_v5_240_11_journal.jsonl': ('overnight_v5.py', 240, 11, v5, True),
         'overnight_v5_304_9_journal.jsonl': ('overnight_v5.py', 304, 9, v5, False),
-        'overnight_v5_304_9_boxsplit_journal.jsonl': ('boxsplit.py', 304, 9, bx, False)}
+        'overnight_v5_304_9_boxsplit_journal.jsonl': ('boxsplit.py', 304, 9, bx, False),
+        # 2026-10-20, width.lll made exact: 240@11's boxsplit pass (ended), and 384@11 (begun, its journal a header)
+        'overnight_v5_240_11_boxsplit_journal.jsonl': ('boxsplit.py', 240, 11, bx, False),
+        'overnight_v5_384_11_journal.jsonl': ('overnight_v5.py', 384, 11, v5, True)}
 
 
 def run_pattern(program, n, order):
