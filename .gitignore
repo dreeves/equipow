@@ -11,3 +11,5 @@ scratch/
 .progress_cache.json
 .progress_cache.json.*.tmp
 progress.js.*.tmp
+.lattice288_prepared.json
+.lattice288_work/

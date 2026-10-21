@@ -1084,6 +1084,7 @@ SClaude[11][800] = {
       <template class="progress-run">
         <div class="progress-run">
           <h3><span class="nw"><i>m</i><sup>*</sup>(<span data-n></span>) ≥ <span data-order></span>?</span> <code data-program></code></h3>
+          <div data-scope></div>
           <div class="progress-bar" aria-hidden="true"><span data-bar="so-far"></span><span data-bar="lo"></span><span data-bar="band"></span><i data-bar="median"></i></div>
           <canvas role="img" aria-label="One dot per sub-case, colored by its status, each subtree a block of its own"></canvas>
           <ul class="progress-key">
@@ -1126,6 +1127,12 @@ SClaude[11][800] = {
             <span data-state="ended">Ended after <span class="spent"><b data-so-far></b>&#8239;h</span> of running.</span>
           </p>
         </div>
+      </template>
+      <template data-scope=""></template>
+      <template data-scope="symmetric-witness">
+        <p>Astra: "This is a symmetric witness search; attempted cases do not exclude solutions; any ETA concerns the planned batch, not a proof"</p>
+        <p><span data-phase="preparation">Prepration.</span><span data-phase="calibration">Calibration against a known search.</span><span data-phase="search">Search.</span></p>
+        <p><span data-outcome="exhausted">Batch finished without a witness.</span><span data-outcome="witness">Witness found.</span><span data-outcome="failed">Run failed.</span></p>
       </template>
       <template class="progress-line">@<span data-when></span>&emsp;<span class="spent"><b data-so-far></b>&#8239;h so far</span> + <span class="togo"><b data-to-go></b>&#8239;h to go</span> = <span class="total"><b data-sum></b>&#8239;h (<b data-done></b>)</span></template>
     </details>
@@ -1753,6 +1760,9 @@ try {
       box.querySelector('[data-n]').textContent = run.n;
       box.querySelector('[data-order]').textContent = run.order;
       box.querySelector('[data-program]').textContent = run.program;
+      box.querySelector('[data-scope]').replaceChildren(section.querySelector(`template[data-scope="${run.scope || ''}"]`).content.cloneNode(true));
+      for (const e of box.querySelectorAll('[data-phase]')) e.hidden = e.dataset.phase !== run.phase;
+      for (const e of box.querySelectorAll('[data-outcome]')) e.hidden = e.dataset.outcome !== run.outcome;
       for (const e of box.querySelectorAll('[data-state]')) e.hidden = e.dataset.state !== run.state;
       for (const e of box.querySelectorAll('[data-tip], [data-state="running"]')) e.replaceChildren(line.content.cloneNode(true));
       snapshot(box.querySelector('.progress-status'), data.made, run.so_far, run.to_go);

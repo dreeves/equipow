@@ -138,6 +138,7 @@ import boxsplit as bx
 HERE = os.path.dirname(os.path.abspath(__file__))
 JS = os.path.join(HERE, 'progress.js')         # the data file of index.html's section "Search progress" (see the vocabulary)
 CACHE = os.path.join(HERE, '.progress_cache.json')
+LATTICE = os.path.join(HERE, 'lattice288_journal.jsonl')  # optional symmetric witness run; a separate journal contract
 EXTENDED = ((240, 11),)                # the runs whose boxsplit.py pass the section shows after the run (2026-10-17)
 RUNS = ((384, 11), (240, 11))          # the certified runs, (N, ORDER), in the section's order: the live one first
                                        # (384@11 since 2026-10-20), then 240@11 beside its boxsplit.py pass; 304@9 is settled
@@ -998,6 +999,71 @@ def write_atomic(path, text):
     os.replace(tmp, path)
 
 
+# ---------- the symmetric lattice witness run ----------
+
+def survey_lattice(path, procs, now=None):
+    """Read lattice288.py's version-1 event journal. Completed attempts stay open: pruning or a timeout proves
+    no exclusion. An interrupted attempt becomes pending on restart. Sessions separate launches, so time between
+    launches is excluded; a stopped or vanished process is timed only through its last written event. No ETA is
+    inferred from attempts. The journal's first header is installed atomically by its writer."""
+    records = list(map(json.loads, complete_lines(path)))
+    now = time.time() if now is None else now
+    assert records, path
+    header = records[0]
+    assert (header['event'], header['version'], header['n'], header['order'], header['total']) == \
+           ('header', 1, 288, 10, 2736), header
+    assert header['seconds'] > 0 and header['time'] <= now, header
+    state = dict(pid=None, phase='preparation', outcome=None)
+    spans, done, active = [], set(), set()
+
+    def session(r):
+        active.clear()
+        state.update(pid=r['pid'], phase='preparation', outcome=None)
+        spans.append([r['time'], r['time']])
+
+    def phase(r):
+        assert r['phase'] in ('preparation', 'calibration', 'search'), r
+        state['phase'] = r['phase']
+
+    def case_start(r):
+        assert state['phase'] == 'search' and not active, r
+        assert type(r['case']) is int and 0 <= r['case'] < header['total'] and r['case'] not in done, r
+        assert len(r['profile']) == 7 and len(r['pair']) == 2, r
+        active.add(r['case'])
+
+    def case_end(r):
+        assert active == {r['case']} and r['outcome'] in ('timeout', 'empty', 'witness') and r['elapsed'] >= 0, r
+        active.clear()
+        done.add(r['case'])
+
+    def finish(r):
+        assert r['outcome'] in ('exhausted', 'witness', 'failed'), r
+        state['outcome'] = r['outcome']
+        active.clear()
+
+    handlers = dict(session=session, phase=phase, case_start=case_start, case_end=case_end, finish=finish)
+    previous = header['time']
+    for r in records[1:]:
+        assert r['event'] in handlers and previous <= r['time'] <= now and type(r['pid']) is int, r
+        assert r['event'] == 'session' or (spans and r['pid'] == state['pid'] and state['outcome'] is None), r
+        handlers[r['event']](r)
+        spans[-1][1] = previous = r['time']
+    assert spans, path
+    main = [p for p in procs if p[0] == state['pid'] and re.search(r'(?:^|[\s/])lattice288\.py(?:\s|$)', p[3])]
+    assert len(main) <= 1, main
+    status = ('ended' if state['outcome'] is not None or not main else
+              'frozen' if main[0][2].startswith('T') else 'running')
+    spans[-1][1] = now if status == 'running' else spans[-1][1]
+    running = active if status == 'running' else set()
+    codes = ''.join(str(SEA_STATUSES.index('open' if i in done else 'running' if i in running else 'pending'))
+                    for i in range(header['total']))
+    counts = {name: codes.count(str(i)) for i, name in enumerate(SEA_STATUSES)}
+    return dict(program='lattice288.py', n=288, order=10, made=now,
+                display=dict(scope='symmetric-witness', phase=state['phase'], outcome=state['outcome']),
+                state=status, so_far=sum(b - a for a, b in spans), to_go=None,
+                passes=spans, etas={}, sea=dict(depth=0, keys=['288:10'], groups=[codes], counts=counts))
+
+
 # ---------- the data file ----------
 
 def clock(t): return '—' if t is None else time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(t))
@@ -1031,7 +1097,7 @@ def js_text(surveys, now):
         keep = sorted(set(range(0, len(rs), max(1, -(-len(rs) // ETA_POINTS)))) | {len(rs) - 1}) if rs else []
         return [[int(rs[i][0])] + [round(HOUR * v, 1) for v in rs[i][1:]] for i in keep]
     runs = [{'program': s['program'], 'n': s['n'], 'order': s['order'], 'state': s['state'], 'so_far': s['so_far'], 'to_go': s['to_go'],
-             'etas': etas(s), 'statuses': list(SEA_STATUSES)} | s['sea'] for s in surveys]
+             'etas': etas(s), 'statuses': list(SEA_STATUSES)} | s['sea'] | s.get('display', {}) for s in surveys]
     return 'progressData(' + json.dumps({'made': int(now), 'runs': runs}, separators=(',', ':'), ensure_ascii=False) + ');\n'
 
 
@@ -1049,6 +1115,10 @@ def main(argv):
                           cache.setdefault(f'{n}_{order}_{v5.CODE}_etas', {})) for n, order in RUNS]
         surveys += [survey_box(n, order, *box_files(n, order), procs, now,
                                cache.setdefault(f'{n}_{order}_boxsplit_{bx.CODE}_etas', {})) for n, order in EXTENDED]
+        if os.path.exists(LATTICE):
+            lattice = survey_lattice(LATTICE, processes())
+            surveys.insert(0, lattice)
+            now = lattice['made']
         write_atomic(JS, js_text(surveys, now))
         save_cache(CACHE, cache)
         if not argv: return
