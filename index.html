@@ -1148,7 +1148,7 @@ SClaude[11][800] = {
         <!-- Separate completed calibration attempts and recovered controls from completed target attempts, empty results, timeouts, and elapsed seconds. -->
         <p>Calibration attempts: <span data-work="control_attempted"></span> out of <span data-work="control_total"></span> controls; control witnesses: <span data-work="control_witnesses"></span>. Attempted: <span data-work="attempted"></span> out of <span data-work="total"></span>; empty: <span data-work="empty"></span>; timeouts: <span data-work="timeout"></span>. Elapsed time: <span data-work="elapsed"></span> s.</p>
         <!-- TODO: Distinguish an exactly verified witness from an unfinished search stopped by its budget, failed calibration, or another failure. -->
-        <p><span data-outcome="witness">Exactly verified witness.</span><span data-outcome="budget">Terminus conatuum attactus; quaestio aperta manet.</span><span data-outcome="control_failed">Exemplum notum non recuperatum; quaestio aperta manet.</span><span data-outcome="failed">Cursus interruptus; quaestio aperta manet.</span></p>
+        <p><span data-outcome="witness">Exactly verified witness.</span><span data-outcome="budget">Unfinished search; out of computational budget.</span><span data-outcome="control_failed">Unfinished search; control failed.</span><span data-outcome="failed">Unfinished search; some other failure.</span></p>
       </template>
       <template class="progress-line">@<span data-when></span>&emsp;<span class="spent"><b data-so-far></b>&#8239;h so far</span> + <span class="togo"><b data-to-go></b>&#8239;h to go</span> = <span class="total"><b data-sum></b>&#8239;h (<b data-done></b>)</span></template>
     </details>

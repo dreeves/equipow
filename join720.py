@@ -7,7 +7,7 @@ reflection sign (-1)^m; the whole joined sequence need not have symmetry.
 Empty, timed-out, and completed pruned attempts never exclude any solution.
 """
 from contextlib import contextmanager
-from math import comb
+from math import comb, gcd
 from pathlib import Path
 import fcntl
 import hashlib
@@ -29,7 +29,7 @@ from overnight_v5 import gbinom
 ROOT = Path(__file__).resolve().parent
 WORK = ROOT / 'scratch' / 'join720'
 JOURNAL = ROOT / 'join720_journal.jsonl'
-VERSION, TOTAL, CONTROL_TOTAL, SECONDS, SEED = 1, 16, 4, 45, 20261021
+VERSION, TOTAL, CONTROL_TOTAL, SECONDS, SEED = 1, 16, 14, 30, 20261021
 FIXED = {'calibration': (mstar.explicit()[192, 'index.html p192'], 336, 9),
          'search': (mstar.build(336), 384, 10)}
 CODE = hashlib.sha256(b''.join((ROOT / p).read_bytes() for p in
@@ -53,6 +53,50 @@ def join_model(p, q_n, m):
 def model(phase):
     p, q_n, m = FIXED[phase]
     return join_model(p, q_n, m)
+
+
+def residue_model(model):
+    """Add the unique necessary mod-2/3/5 profiles for this fixed prefix."""
+    out = dict(model)
+    for modulus in (2, 3, 5):
+        cases = residue_cases(out, modulus)
+        assert len(cases) == 1, (modulus, len(cases))
+        out = cases[0]
+    return out
+
+
+def residue_cases(model, modulus):
+    """Keep every compatible residue profile as an exact affine model."""
+    p, b, m = model['p'], model['q_n'], model['m']
+    a, h, sign = len(p), b // 2, (-1) ** m
+    fixed = [sum(v * int(i % modulus == r) for i, v in enumerate(p))
+             for r in range(modulus)]
+    W = [[int((a + i) % modulus == r)
+          + sign * int((a + b - 1 - i) % modulus == r)
+          for i in range(h)] for r in range(modulus)]
+    span = [sum(map(abs, row)) for row in W]
+    step = [max(1, 2 * gcd(*row)) for row in W]
+    # F=(x-1)^(m+1)G puts its residue vector in mstar's exact lattice.
+    # When n<2^(m+1), F(-1) is a multiple of 2^(m+1) of magnitude <=n,
+    # hence zero; mstar then also includes the forced factor x+1.
+    profiles = list(mstar.residue_vectors(a + b, modulus, m + 1, None,
+                    mstar.Budget(1000000), 'natural'))
+    # Any signed sum of a row is within its absolute sum and congruent
+    # to that sum modulo twice its gcd. A zero row forces a zero RHS.
+    kept = [list(model['c']) + [d - f for d, f in zip(D, fixed)] for D in profiles
+            if all(abs(d - f) <= S and (d - f - S) % g == 0
+                   for d, f, S, g in zip(D, fixed, span, step))]
+    A = [list(row) for row in model['A']] + W
+    keep = list(sp.Matrix(A).T.rref()[1])
+    rows = [A[i] for i in keep]
+    R = sp.Matrix(rows)
+    # T expresses every original row in the independent rows. A discarded
+    # RHS that violates these same relations has no solution even over Q.
+    T = sp.Matrix(A) * R.T * (R * R.T).inv()
+    cases = [dict(model, A=rows, c=[c[i] for i in keep]) for c in kept
+             if sp.Matrix(c) == T * sp.Matrix([c[i] for i in keep])]
+    assert cases, modulus
+    return cases
 
 
 def joined(model, half):
@@ -86,21 +130,63 @@ def recenter(B, target, perpendicular2):
 
 
 def prepare_model(model):
-    A, c = model['A'], model['c']
-    assert all((v + sum(row)) % 2 == 0 for row, v in zip(A, c))
+    return prepare_models([model])[0]
+
+
+def prepare_models(models):
+    """Prepare all affine cosets using one saturated kernel and one LLL basis."""
+    A = models[0]['A']
+    assert all(model['A'] == A for model in models)
     system = IntegerSystem(A)
-    b = [(v + sum(row)) // 2 for row, v in zip(A, c)]
-    target = [2 * a - 1 for a in system.particular(b)]
-    radius = system.radius2(c)
-    assert 0 < radius < model['q_n'] // 2
-    basis = [[2 * a for a in row] for row in system.kernel]
-    return dict(model=model, basis=basis, target=target, radius2=str(radius))
+    B = IntegerMatrix.from_matrix([[2 * a for a in row] for row in system.kernel])
+    LLL.reduction(B)
+    basis = [list(B[i]) for i in range(B.nrows)]
+    assert sp.Matrix(A) * sp.Matrix(basis).T == sp.zeros(len(A), len(basis))
+    cases = []
+    for model in models:
+        c, h = model['c'], model['q_n'] // 2
+        assert all((v + sum(row)) % 2 == 0 for row, v in zip(A, c))
+        b = [(v + sum(row)) // 2 for row, v in zip(A, c)]
+        target = [2 * a - 1 for a in system.particular(b)]
+        radius = system.radius2(c)
+        assert 0 < radius < h
+        _, target = recenter(B, target, h - radius)
+        assert sp.Matrix(A) * sp.Matrix(target) == sp.Matrix(c)
+        cases.append(dict(model=model, basis=basis, target=target, radius2=str(radius)))
+    return cases
 
 
 def prepare(phase):
-    prepared = prepare_model(model(phase))
-    atomic_json(WORK / (phase + '.json'), dict(code=CODE, **prepared))
+    prepared = prepare_models(residue_cases(residue_model(model(phase)), 7))
+    atomic_json(WORK / (phase + '.json'), dict(code=CODE, cases=prepared))
     return prepared
+
+
+def pruning_curve(M, tau, radius):
+    """Heuristically favor a nearest-plane tail, with aggressive bulk pruning.
+
+    Tail costs are measured from this affine target. The earlier power curve
+    could prune every point before reaching its first free coordinates.
+    This curve still discards possible solutions and proves no exclusion.
+    """
+    d, L = M.d, max(1, 4 * M.d // 5)
+    x, partial = [0] * d, [0.] * (d + 1)
+    for j in range(d - 1, L - 1, -1):
+        center = tau[j] - sum(x[k] * M.get_mu(k, j) for k in range(j + 1, d))
+        x[j] = round(center)
+        partial[j] = partial[j + 1] + (x[j] - center) ** 2 * M.get_r(j, j)
+    # Allow a neighboring integer at the split: with the higher nearest-plane
+    # coordinates fixed, its extra cost is at most twice this GSO squared length.
+    # The relative margin admits the computed tail despite float rounding;
+    # clipping keeps every pruning radius inside the original search sphere.
+    slack = 2 * M.get_r(L, L)
+    tail = min(1., (partial[L] + slack) / radius + 1e-9)
+    curve = [tail + (1 - tail) * (1 - i / L) ** 1.35 for i in range(L)]
+    curve += [min(1., (partial[i] + slack) / radius + 1e-9) for i in range(L, d)]
+    curve[0] = 1.
+    assert all(0 < a <= 1 for a in curve)
+    assert all(a >= b for a, b in zip(curve, curve[1:]))
+    return curve
 
 
 def enumerate_job(prepared, attempt):
@@ -128,11 +214,7 @@ def enumerate_job(prepared, attempt):
     # affine solution has the same nonzero perpendicular component, removed
     # exactly by radius2 = h - c^T (A A^T)^(-1) c.
     radius = float(radius2) + 0.5
-    floor = (0.3, 0.4, 0.5, 0.6)[attempt % 4]
-    pruning = [max(floor, min(1.0, 1.25 * (1 - i / d) ** 1.5)) for i in range(d)]
-    pruning[0] = 1.0
-    assert all(0 < a <= 1 for a in pruning)
-    assert all(a >= b for a, b in zip(pruning, pruning[1:]))
+    pruning = pruning_curve(M, tau, radius)
     # Every point inside this radius has odd coordinates and squared norm at
     # most h+1/2, hence consists entirely of signs. Stop at the first one.
     enum = Enumeration(M, nr_solutions=1, strategy=EvaluatorStrategy.FIRST_N_SOLUTIONS)
@@ -241,7 +323,9 @@ def worker():
     job = json.loads((WORK / 'job.json').read_text())
     assert job['code'] == CODE
     resource.setrlimit(resource.RLIMIT_CPU, (SECONDS + 5, SECONDS + 5))
-    print(json.dumps(enumerate_job(job['prepared'], job['attempt'])), flush=True)
+    case = job['attempt'] % len(job['prepared'])
+    result = enumerate_job(job['prepared'][case], job['attempt'])
+    print(json.dumps(dict(result, case=case)), flush=True)
 
 
 def run():
