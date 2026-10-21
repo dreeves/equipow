@@ -501,3 +501,5 @@
 {"event":"case_start","time":1792543923.515429,"pid":69214,"case":248,"profile":[14,31,10,24,24,10,31],"pair":[76,106]}
 {"event":"case_end","time":1792543935.232666,"pid":69214,"case":248,"outcome":"empty","nodes":453217598,"elapsed":11.71499374997802}
 {"event":"case_start","time":1792543935.234113,"pid":69214,"case":249,"profile":[28,10,31,17,17,31,10],"pair":[56,121]}
+{"event":"case_end","time":1792543965.256403,"pid":69214,"case":249,"outcome":"timeout","elapsed":30.018170207971707}
+{"event":"case_start","time":1792543965.257191,"pid":69214,"case":250,"profile":[28,17,10,31,31,10,17],"pair":[21,66]}
