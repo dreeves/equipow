@@ -18,17 +18,28 @@ def initial():
             event('session', 100), event('phase', 101, phase='preparation')]
 
 
-def survey(records, now=120, stat='S'):
+def survey(records, now=120, stat='S', etas=None):
     with tempfile.TemporaryDirectory() as d:
         path = os.path.join(d, 'journal.jsonl')
         with open(path, 'w') as f:
             f.writelines(json.dumps(r) + '\n' for r in records)
         procs = [(records[-1]['pid'], 1, stat, 'python3 -B lattice288.py')][:int(bool(stat))]
-        return progress.survey_lattice(path, procs, now)
+        return progress.survey_lattice(path, procs, now, etas=etas)
 
 
-def data(records, now=120, stat='S'):
-    return json.loads(progress.js_text([survey(records, now, stat)], now)[len('progressData('):-3])
+def data(records, now=120, stat='S', etas=None):
+    return json.loads(progress.js_text([survey(records, now, stat, etas)], now)[len('progressData('):-3])
+
+
+def completed(durations):
+    """A sequential search with given observed attempt durations, after preparation ends at t=105."""
+    records = initial() + [event('phase', 105, phase='search')]
+    t = 105
+    for i, duration in enumerate(durations):
+        records += [event('case_start', t, case=i, profile=[0] * 7, pair=[0, 1]),
+                    event('case_end', t + duration, case=i, outcome='empty', elapsed=duration)]
+        t += duration
+    return records
 
 
 class LatticeProgressQuals(unittest.TestCase):
@@ -87,18 +98,96 @@ class LatticeProgressQuals(unittest.TestCase):
             with self.assertRaises(AssertionError):
                 survey(initial() + [bad])
 
+    def test_eta_records_only_snapshots_actually_requested(self):
+        # Replicata: two completed attempts before the first survey, then another completion and survey.
+        # Expectata: no backfilled points; each actual snapshot uses only its then-available durations.
+        etas = {}
+        first = data(completed([10, 20]), now=135, etas=etas)['runs'][0]
+        self.assertEqual(first['to_go'], dict(median=2734 * 15, lo=0, hi=2734 * 30))
+        self.assertEqual([p[0] for p in first['etas']], [135])
+        second = data(completed([10, 20, 30]), now=165, etas=etas)['runs'][0]
+        self.assertEqual(second['to_go']['median'], 2733 * 20)
+        self.assertEqual(second['etas'][0], first['etas'][0])
+        self.assertEqual([p[0] for p in second['etas']], [135, 165])
+
+    def test_eta_band_is_a_cap_scenario_not_a_shrinking_confidence_interval(self):
+        # Replicata: identical 10-second durations, with two versus twenty observations; one cap overrun.
+        # Expectata: range stays 0..30 seconds per remaining attempt, and observed overruns extend it.
+        for durations in ([10] * 2, [10] * 20, [10, 31]):
+            run = data(completed(durations), now=105 + sum(durations))['runs'][0]
+            remaining = 2736 - len(durations)
+            self.assertEqual(run['to_go']['lo'], 0)
+            self.assertEqual(run['to_go']['hi'], remaining * max(30, *durations))
+
+    def test_running_attempt_uses_conditional_remaining_time(self):
+        # Replicata: previous attempts took 10 and 30 seconds; the current one has already taken 20.
+        # Expectata: its estimated remainder is 10, from the surviving 30-second observation, not zero.
+        records = completed([10, 30]) + [event('case_start', 145, case=2, profile=[0] * 7, pair=[0, 1])]
+        run = data(records, now=165)['runs'][0]
+        self.assertEqual(run['to_go'], dict(median=2733 * 20 + 10, lo=0, hi=2733 * 30 + 10))
+
+    def test_eta_history_survives_process_exit_and_resumption_without_time_reversal(self):
+        # Replicata: snapshot at 145, process gone at 200, resumed at 1000, then another snapshot.
+        # Expectata: exit does not invent extra running time; resume preserves the earlier curve's x coordinates.
+        records, etas = completed([10, 20]), {}
+        first = data(records, now=145, etas=etas)['runs'][0]
+        stopped = data(records, now=200, stat='', etas=etas)['runs'][0]
+        self.assertEqual(stopped['so_far'], first['so_far'])
+        self.assertEqual(stopped['etas'], first['etas'])
+        records += [dict(event='session', time=1000, pid=23456),
+                    dict(event='phase', time=1001, pid=23456, phase='preparation')]
+        resumed = data(records, now=1010, etas=etas)['runs'][0]
+        self.assertIsNone(resumed['to_go'])
+        self.assertEqual(resumed['etas'], first['etas'])
+        self.assertEqual(resumed['so_far'], first['so_far'] + 10)
+
+    def test_vanished_worker_requires_a_full_retry_of_its_unfinished_attempt(self):
+        # Replicata: an active attempt has run 20 seconds after completed durations 10 and 30, then disappears.
+        # Expectata: its next launch must repeat the whole attempt; the previous live estimate remains recorded.
+        records = completed([10, 30]) + [event('case_start', 145, case=2, profile=[0] * 7, pair=[0, 1])]
+        etas = {}
+        live = data(records, now=165, etas=etas)['runs'][0]
+        gone = data(records, now=200, stat='', etas=etas)['runs'][0]
+        self.assertEqual(gone['to_go'], dict(median=2734 * 20, lo=0, hi=2734 * 30))
+        self.assertEqual(gone['etas'], live['etas'])
+
+    def test_first_survey_of_stopped_run_does_not_backdate_an_eta(self):
+        # Replicata: mature journal first inspected after its process has stopped or disappeared.
+        # Expectata: remaining work can be estimated now, but no estimate is invented at a past runtime timestamp.
+        for stat in ('T', ''):
+            run = data(completed([10, 20]), now=200, stat=stat)['runs'][0]
+            self.assertIsNotNone(run['to_go'])
+            self.assertEqual(run['etas'], [])
+
+    def test_successful_finish_sets_eta_zero_but_failure_keeps_work_remaining(self):
+        # Replicata: a mature search ending by witness or failure; a fully exhausted batch.
+        # Expectata: witness/exhaustion have zero remaining time; a failure retains estimated unfinished work.
+        for outcome in ('witness', 'failed'):
+            run = data(completed([10, 20]) + [event('finish', 136, outcome=outcome)], now=140)['runs'][0]
+            expected = 0 if outcome == 'witness' else 2734 * 15
+            self.assertEqual(run['to_go']['median'], expected)
+        records = completed([1] * 2736)
+        run = data(records + [event('finish', 2842, outcome='exhausted')], now=2843)['runs'][0]
+        self.assertEqual(run['to_go'], dict(median=0, lo=0, hi=0))
+
 
 def browser():
     # Replicata: the real page receives preparation, calibration, running-case and attempted-case snapshots.
-    # Expectata: visible scope/phases and dot counts change, ETA remains absent, no JavaScript errors.
+    # Expectata: visible scope/phases and dot counts change; tiny history has no ETA, then observed snapshots
+    # produce the blue elapsed, red remaining and purple total curves, with no JavaScript errors.
     import quals_index as q
-    records = initial()
-    snapshots = [data(records, 102)]
+    records, etas = initial(), {}
+    snapshots = [data(records, 102, etas=etas)]
     for record in [event('phase', 103, phase='calibration'), event('phase', 104, phase='search'),
                    event('case_start', 105, case=0, profile=[0] * 7, pair=[0, 1]),
                    event('case_end', 106, case=0, outcome='timeout', elapsed=1)]:
         records.append(record)
-        snapshots.append(data(records, record['time']))
+        snapshots.append(data(records, record['time'], etas=etas))
+    for i, duration in enumerate((10, 20), 1):
+        start = records[-1]['time'] + 1
+        records += [event('case_start', start, case=i, profile=[0] * 7, pair=[0, 1]),
+                    event('case_end', start + duration, case=i, outcome='empty', elapsed=duration)]
+        snapshots.append(data(records, start + duration, etas=etas))
     harness = '''<script>
 const observations = [], failures = [];
 addEventListener('error', e => failures.push(e.message));
@@ -107,7 +196,9 @@ for (const snapshot of SNAPSHOTS) {
   const box = document.querySelector('.progress-runs .progress-run');
   observations.push({phase: [...box.querySelectorAll('[data-phase]')].filter(e => !e.hidden).map(e => e.textContent),
     scope: box.querySelector('[data-scope]').textContent, counts: Object.fromEntries([...box.querySelectorAll('[data-count]')].map(e => [e.dataset.count, e.textContent])),
-    eta: box.querySelector('.progress-eta').hidden});
+    eta: box.querySelector('.progress-eta').hidden,
+    curves: ['spent', 'togo', 'total'].map(name => { const e = box.querySelector('.progress-eta polyline.' + name);
+      return {name, points: e.getAttribute('points'), color: getComputedStyle(e).stroke}; })});
 }
 const out = document.createElement('pre'); out.id = 'lattice-qual'; out.textContent = JSON.stringify({observations, failures}); document.body.appendChild(out);
 </script>'''.replace('SNAPSHOTS', json.dumps(snapshots))
@@ -125,10 +216,15 @@ const out = document.createElement('pre'); out.id = 'lattice-qual'; out.textCont
     obs = got['observations']
     # The page's copy was translated during the live verification (2026-10-20).
     # Preserve those edits exactly, including "Prepration.".
-    assert [r['phase'] for r in obs] == [['Prepration.'], ['Calibration against a known search.'], ['Search.'], ['Search.'], ['Search.']], obs
-    assert all('symmetric witness search' in r['scope'] and 'do not exclude solutions' in r['scope'] and r['eta'] for r in obs), obs
-    assert obs[-2]['counts']['running'] == '1' and obs[-1]['counts']['running'] == '0', obs
-    assert obs[-1]['counts']['open'] == '1' and obs[-1]['counts']['settled'] == '0', obs
+    assert [r['phase'] for r in obs[:5]] == [['Prepration.'], ['Calibration against a known search.'], ['Search.'], ['Search.'], ['Search.']], obs
+    assert all('symmetric witness search' in r['scope'] and 'do not exclude solutions' in r['scope'] for r in obs), obs
+    assert all(r['eta'] for r in obs[:5]) and not any(r['eta'] for r in obs[5:]), obs
+    assert obs[3]['counts']['running'] == '1' and obs[4]['counts']['running'] == '0', obs
+    assert obs[4]['counts']['open'] == '1' and obs[4]['counts']['settled'] == '0', obs
+    curves = obs[-1]['curves']
+    assert [c['name'] for c in curves] == ['spent', 'togo', 'total'], curves
+    assert all(len(c['points'].split()) == 2 for c in curves), curves
+    assert [c['color'] for c in curves] == ['rgb(42, 120, 214)', 'rgb(227, 73, 72)', 'rgb(123, 31, 162)'], curves
     print('browser: OK')
 
 

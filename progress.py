@@ -139,9 +139,10 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 JS = os.path.join(HERE, 'progress.js')         # the data file of index.html's section "Search progress" (see the vocabulary)
 CACHE = os.path.join(HERE, '.progress_cache.json')
 LATTICE = os.path.join(HERE, 'lattice288_journal.jsonl')  # optional symmetric witness run; a separate journal contract
-EXTENDED = ((240, 11),)                # the runs whose boxsplit.py pass the section shows after the run (2026-10-17)
-RUNS = ((384, 11), (240, 11))          # the certified runs, (N, ORDER), in the section's order: the live one first
-                                       # (384@11 since 2026-10-20), then 240@11 beside its boxsplit.py pass; 304@9 is settled
+# The completed 240@11 proof and its boxsplit pass, and the 384@11 search
+# superseded by proof384.py, left the live display on 2026-10-20. Their journals remain.
+EXTENDED = ()                         # displayed boxsplit runs, (N, ORDER)
+RUNS = ()                             # displayed overnight_v5 runs, (N, ORDER)
 REFRESH = 60                           # seconds between rewrites under --watch (the section reloads the data file as often)
 NICE = 15                              # the niceness the process lowers itself to
 # The deepest level enumerated.  Splitting cost the runs themselves (their logs' split seconds, on loaded workers)
@@ -1001,24 +1002,49 @@ def write_atomic(path, text):
 
 # ---------- the symmetric lattice witness run ----------
 
-def survey_lattice(path, procs, now=None):
+def lattice_estimate(durations, total, done, age, cap, phase, outcome):
+    """Seconds to finish the planned batch, using only completed, wall-time-capped attempts. The point estimate
+    extrapolates their cumulative mean; the existing chart schema calls that field 'median', but it is not a
+    posterior median. The band is a scenario range: zero through every remaining attempt taking the greater of
+    the configured cap and the longest observed duration. It is neither a confidence interval nor a hard bound:
+    the search order can change the duration distribution, and pauses or overhead can exceed the cap scenario.
+    Two completions are required before extrapolating. A running attempt uses the mean remaining duration among
+    observations longer than its current age; beyond all observations, the cap scenario supplies its remainder.
+    A failed/stopped batch still has work left. A witness or exhaustion finishes this batch, not a general proof."""
+    if outcome in ('witness', 'exhausted'): return dict(median=0, lo=0, hi=0)
+    if len(durations) < 2 or (phase != 'search' and outcome != 'failed'): return None
+    bound = max(cap, *durations)
+    left = total - done - int(age is not None)
+    assert left >= 0 and all(d >= 0 for d in durations), (left, durations)
+    remainder = ceiling = 0
+    if age is not None:
+        assert age >= 0, age
+        longer = [d - age for d in durations if d > age]
+        ceiling = max(0, bound - age)
+        remainder = sum(longer) / len(longer) if longer else ceiling
+    return dict(median=left * sum(durations) / len(durations) + remainder, lo=0, hi=left * bound + ceiling)
+
+
+def survey_lattice(path, procs, now=None, etas=None):
     """Read lattice288.py's version-1 event journal. Completed attempts stay open: pruning or a timeout proves
     no exclusion. An interrupted attempt becomes pending on restart. Sessions separate launches, so time between
-    launches is excluded; a stopped or vanished process is timed only through its last written event. No ETA is
-    inferred from attempts. The journal's first header is installed atomically by its writer."""
+    launches is excluded; a stopped or vanished process is timed through its last event or observed running
+    snapshot. The caller's etas dict records actual snapshots only, never reconstructed estimates. The journal's
+    first header is installed atomically by its writer."""
     records = list(map(json.loads, complete_lines(path)))
     now = time.time() if now is None else now
+    etas = {} if etas is None else etas
     assert records, path
     header = records[0]
     assert (header['event'], header['version'], header['n'], header['order'], header['total']) == \
            ('header', 1, 288, 10, 2736), header
     assert header['seconds'] > 0 and header['time'] <= now, header
-    state = dict(pid=None, phase='preparation', outcome=None)
-    spans, done, active = [], set(), set()
+    state = dict(pid=None, phase='preparation', outcome=None, started=None)
+    spans, done, active, durations = [], set(), set(), []
 
     def session(r):
         active.clear()
-        state.update(pid=r['pid'], phase='preparation', outcome=None)
+        state.update(pid=r['pid'], phase='preparation', outcome=None, started=None)
         spans.append([r['time'], r['time']])
 
     def phase(r):
@@ -1030,11 +1056,13 @@ def survey_lattice(path, procs, now=None):
         assert type(r['case']) is int and 0 <= r['case'] < header['total'] and r['case'] not in done, r
         assert len(r['profile']) == 7 and len(r['pair']) == 2, r
         active.add(r['case'])
+        state['started'] = r['time']
 
     def case_end(r):
         assert active == {r['case']} and r['outcome'] in ('timeout', 'empty', 'witness') and r['elapsed'] >= 0, r
         active.clear()
         done.add(r['case'])
+        durations.append(r['elapsed'])
 
     def finish(r):
         assert r['outcome'] in ('exhausted', 'witness', 'failed'), r
@@ -1053,15 +1081,24 @@ def survey_lattice(path, procs, now=None):
     assert len(main) <= 1, main
     status = ('ended' if state['outcome'] is not None or not main else
               'frozen' if main[0][2].startswith('T') else 'running')
+    observed = list(map(float, etas))
+    assert all(spans[0][0] <= t <= now for t in observed), observed
+    for span, stop in zip(spans, [a for a, _ in spans[1:]] + [now + 1]):
+        span[1] = max([span[1]] + [t for t in observed if span[0] <= t < stop])
     spans[-1][1] = now if status == 'running' else spans[-1][1]
     running = active if status == 'running' else set()
     codes = ''.join(str(SEA_STATUSES.index('open' if i in done else 'running' if i in running else 'pending'))
                     for i in range(header['total']))
     counts = {name: codes.count(str(i)) for i, name in enumerate(SEA_STATUSES)}
+    end = spans[-1][1]
+    age = end - state['started'] if active and status != 'ended' else None
+    to_go = lattice_estimate(durations, header['total'], len(done), age, header['seconds'], state['phase'], state['outcome'])
+    if status == 'running':
+        etas.setdefault(str(float(end)), [to_go[k] / HOUR for k in ('median', 'lo', 'hi')] if to_go is not None else None)
     return dict(program='lattice288.py', n=288, order=10, made=now,
                 display=dict(scope='symmetric-witness', phase=state['phase'], outcome=state['outcome']),
-                state=status, so_far=sum(b - a for a, b in spans), to_go=None,
-                passes=spans, etas={}, sea=dict(depth=0, keys=['288:10'], groups=[codes], counts=counts))
+                state=status, so_far=sum(b - a for a, b in spans), to_go=to_go,
+                passes=spans, etas=etas, sea=dict(depth=0, keys=['288:10'], groups=[codes], counts=counts))
 
 
 # ---------- the data file ----------
@@ -1116,7 +1153,9 @@ def main(argv):
         surveys += [survey_box(n, order, *box_files(n, order), procs, now,
                                cache.setdefault(f'{n}_{order}_boxsplit_{bx.CODE}_etas', {})) for n, order in EXTENDED]
         if os.path.exists(LATTICE):
-            lattice = survey_lattice(LATTICE, processes())
+            with open(LATTICE, encoding='utf-8') as f: header = json.loads(f.readline())
+            key = f'lattice288_eta_v1_{header["code"]}_{header["time"]}'
+            lattice = survey_lattice(LATTICE, processes(), etas=cache.setdefault(key, {}))
             surveys.insert(0, lattice)
             now = lattice['made']
         write_atomic(JS, js_text(surveys, now))
