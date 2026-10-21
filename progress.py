@@ -130,7 +130,7 @@ gives the state, the hours of running so far and to go, the record of ETAs and t
 """
 import sys
 sys.dont_write_bytecode = True
-import os, re, json, time, bisect, hashlib, itertools, subprocess, collections
+import os, re, json, time, bisect, hashlib, itertools, subprocess, collections, glob
 import numpy as np
 import overnight_v5 as v5
 import boxsplit as bx
@@ -1103,6 +1103,73 @@ def survey_lattice(path, procs, now=None, etas=None):
 
 # ---------- the data file ----------
 
+def survey_focus(path, procs, now=None, observations=None):
+    """Focused proof journals: root-case coverage and actual cumulative node work.
+
+    A budget stop leaves cases open. Only a completed proof settles a root;
+    leaf counts do not estimate the fraction of the full search still needed.
+    Observation timestamps retain elapsed time if a process disappears.
+    """
+    records = [json.loads(line) for line in complete_lines(path)]
+    now = time.time() if now is None else now
+    observations = {} if observations is None else observations
+    header = records[0]
+    assert (header['event'], header['version']) == ('header', 1)
+    assert (header['n'], header['order']) in ((480, 14), (672, 13))
+    assert type(header['total']) is int and header['total'] > 0
+    total = header['total']
+    state = dict(pid=None, outcome=None, time=header['time'])
+    spans = []
+    snap = dict(lp=0, closed=0, split=0, pending=total, case=None, completed=[])
+
+    def session(r):
+        state.update(pid=r['pid'], outcome=None)
+        spans.append([r['time'], r['time']])
+
+    def update(r):
+        assert spans and r['pid'] == state['pid'] and state['outcome'] is None
+        assert all(type(r[k]) is int and r[k] >= snap[k] for k in ('lp', 'closed', 'split'))
+        assert type(r['pending']) is int and r['pending'] >= 0
+        assert len(r['completed']) == len(set(r['completed']))
+        assert set(snap['completed']) <= set(r['completed']) <= set(range(total))
+        assert r['case'] is None or (type(r['case']) is int and
+                                    0 <= r['case'] < total and r['case'] not in r['completed'])
+        outcome = r.get('outcome')
+        assert (r['event'] == 'finish') == (outcome in ('excluded', 'witness', 'budget'))
+        assert outcome != 'excluded' or (len(r['completed']) == total and r['pending'] == 0)
+        snap.update({k: r[k] for k in snap})
+        state['outcome'] = outcome
+
+    handlers = dict(session=session, update=update, finish=update)
+    for r in records[1:]:
+        assert r['event'] in handlers and type(r['pid']) is int
+        assert state['time'] <= r['time'] <= now
+        handlers[r['event']](r)
+        spans[-1][1] = state['time'] = r['time']
+    assert spans
+    main = [p for p in procs if p[0] == state['pid'] and
+            re.search(r'(?:^|[\s/])focus\.py(?:\s|$)', p[3])]
+    assert len(main) <= 1
+    status = ('ended' if state['outcome'] is not None or not main else
+              'frozen' if main[0][2].startswith('T') else 'running')
+    observed = list(map(float, observations))
+    assert all(spans[0][0] <= t <= now for t in observed)
+    for span, stop in zip(spans, [a for a, _ in spans[1:]] + [now + 1]):
+        span[1] = max([span[1]] + [t for t in observed if span[0] <= t < stop])
+    if status == 'running':
+        spans[-1][1] = now
+        observations[str(float(now))] = None
+    active = snap['case'] if status == 'running' else None
+    codes = ''.join('0' if i in snap['completed'] else '4' if i == active else
+                    '1' if state['outcome'] is not None or not main else '3' for i in range(total))
+    counts = {name: codes.count(str(i)) for i, name in enumerate(SEA_STATUSES)}
+    return dict(program='focus.py', n=header['n'], order=header['order'], made=now,
+                state=status, so_far=sum(b - a for a, b in spans), to_go=None, etas={}, passes=spans,
+                display=dict(scope='focused-proof', outcome=state['outcome'],
+                             work={k: snap[k] for k in ('lp', 'closed', 'split', 'pending')}),
+                sea=dict(depth=0, keys=[f'{header["n"]}:{header["order"]}'], groups=[codes], counts=counts))
+
+
 def clock(t): return '—' if t is None else time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(t))
 
 
@@ -1152,6 +1219,11 @@ def main(argv):
                           cache.setdefault(f'{n}_{order}_{v5.CODE}_etas', {})) for n, order in RUNS]
         surveys += [survey_box(n, order, *box_files(n, order), procs, now,
                                cache.setdefault(f'{n}_{order}_boxsplit_{bx.CODE}_etas', {})) for n, order in EXTENDED]
+        for path in sorted(glob.glob(os.path.join(HERE, 'focus_*_journal.jsonl'))):
+            with open(path, encoding='utf-8') as f: header = json.loads(f.readline())
+            key = f'focus_{header["n"]}_{header["code"]}_{header["time"]}_observations'
+            surveys.append(survey_focus(path, procs, observations=cache.setdefault(key, {})))
+        now = max([now] + [s['made'] for s in surveys if s.get('program') == 'focus.py'])
         if os.path.exists(LATTICE):
             with open(LATTICE, encoding='utf-8') as f: header = json.loads(f.readline())
             key = f'lattice288_eta_v1_{header["code"]}_{header["time"]}'
