@@ -1,0 +1,14 @@
+{"event":"header","version":1,"n":720,"order":11,"total":16,"control_total":4,"seconds":45,"code":"e35db2a5da15d1187346f4dfa50164271e32e75bc3aa09eb314b6f906d860450","libraries":{"fpylll":"0.6.4","sympy":"1.14.0"},"time":1792607069.709823,"pid":36180}
+{"event":"session","time":1792607069.709825,"pid":36180}
+{"event":"phase","phase":"preparation","time":1792607069.709826,"pid":36180}
+{"event":"phase","time":1792607082.9027042,"pid":36180,"phase":"calibration"}
+{"event":"attempt_start","time":1792607082.902881,"pid":36180,"phase":"calibration","attempt":0}
+{"event":"attempt_end","time":1792607085.853523,"pid":36180,"phase":"calibration","attempt":0,"outcome":"empty","nodes":136,"elapsed":2.9488349168095738}
+{"event":"attempt_start","time":1792607085.941462,"pid":36180,"phase":"calibration","attempt":1}
+{"event":"attempt_end","time":1792607088.814875,"pid":36180,"phase":"calibration","attempt":1,"outcome":"empty","nodes":5222819,"elapsed":2.870988375041634}
+{"event":"attempt_start","time":1792607088.9033978,"pid":36180,"phase":"calibration","attempt":2}
+{"event":"attempt_end","time":1792607133.9263911,"pid":36180,"phase":"calibration","attempt":2,"outcome":"timeout","elapsed":45.020546042127535}
+{"event":"attempt_start","time":1792607134.05871,"pid":36180,"phase":"calibration","attempt":3}
+{"event":"attempt_end","time":1792607179.0821261,"pid":36180,"phase":"calibration","attempt":3,"outcome":"timeout","elapsed":45.01971466699615}
+{"event":"phase","time":1792607179.172153,"pid":36180,"phase":"preparation"}
+{"event":"finish","time":1792607179.172778,"pid":36180,"outcome":"control_failed"}

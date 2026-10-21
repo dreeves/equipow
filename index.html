@@ -1141,6 +1141,15 @@ SClaude[11][800] = {
         <p><span data-phase="preparation">Prepration.</span><span data-phase="calibration">Calibration against a known search.</span><span data-phase="search">Search.</span></p>
         <p><span data-outcome="exhausted">Batch finished without a witness.</span><span data-outcome="witness">Witness found.</span><span data-outcome="failed">Run failed.</span></p>
       </template>
+      <template data-scope="joined-witness">
+        <p>Astra: "Astra's joined witness search: unsuccessful or timed-out attempts leave the question open; no completion estimate."</p>
+        <!-- Show preparation, calibration against a known witness, or target search; each dot represents a target attempt. -->
+        <p><span data-phase="preparation">Preparation.</span><span data-phase="calibration">Calibration against a known witness.</span><span data-phase="search">Search: 720.</span>Each dot represents a target attempt.</p>
+        <!-- Separate completed calibration attempts and recovered controls from completed target attempts, empty results, timeouts, and elapsed seconds. -->
+        <p>Calibration attempts: <span data-work="control_attempted"></span> out of <span data-work="control_total"></span> controls; control witnesses: <span data-work="control_witnesses"></span>. Attempted: <span data-work="attempted"></span> out of <span data-work="total"></span>; empty: <span data-work="empty"></span>; timeouts: <span data-work="timeout"></span>. Elapsed time: <span data-work="elapsed"></span> s.</p>
+        <!-- TODO: Distinguish an exactly verified witness from an unfinished search stopped by its budget, failed calibration, or another failure. -->
+        <p><span data-outcome="witness">Exactly verified witness.</span><span data-outcome="budget">Terminus conatuum attactus; quaestio aperta manet.</span><span data-outcome="control_failed">Exemplum notum non recuperatum; quaestio aperta manet.</span><span data-outcome="failed">Cursus interruptus; quaestio aperta manet.</span></p>
+      </template>
       <template class="progress-line">@<span data-when></span>&emsp;<span class="spent"><b data-so-far></b>&#8239;h so far</span> + <span class="togo"><b data-to-go></b>&#8239;h to go</span> = <span class="total"><b data-sum></b>&#8239;h (<b data-done></b>)</span></template>
     </details>
 </section>

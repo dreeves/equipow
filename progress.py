@@ -1170,6 +1170,94 @@ def survey_focus(path, procs, now=None, observations=None):
                 sea=dict(depth=0, keys=[f'{header["n"]}:{header["order"]}'], groups=[codes], counts=counts))
 
 
+def survey_join(path, procs, now=None, observations=None):
+    """Joined witness attempts, with calibration separate from target work.
+
+    Completed attempts remain open: neither pruning nor a wall-time limit
+    proves an exclusion. Observation timestamps preserve elapsed time across
+    disappearance and resumption, without extrapolating a completion time.
+    """
+    records = [json.loads(line) for line in complete_lines(path)]
+    now = time.time() if now is None else now
+    observations = {} if observations is None else observations
+    header = records[0]
+    assert (header['event'], header['version'], header['n'], header['order']) == ('header', 1, 720, 11)
+    assert all(type(header[k]) is int and header[k] > 0 for k in ('total', 'control_total'))
+    assert type(header['seconds']) in (int, float) and 0 < header['seconds'] < float('inf')
+    assert header['time'] <= now
+    limits = dict(calibration=header['control_total'], search=header['total'])
+    done = {phase: {} for phase in limits}
+    state = dict(pid=None, phase='preparation', outcome=None, active=None, time=header['time'])
+    spans = []
+
+    def session(r):
+        state.update(pid=r['pid'], phase='preparation', outcome=None, active=None)
+        spans.append([r['time'], r['time']])
+
+    def phase(r):
+        assert r['phase'] in ('preparation', 'calibration', 'search') and state['active'] is None
+        assert r['phase'] != 'search' or 'witness' in done['calibration'].values()
+        state['phase'] = r['phase']
+
+    def attempt_start(r):
+        p, i = r['phase'], r['attempt']
+        assert p in limits and p == state['phase'] and state['active'] is None
+        assert type(i) is int and 0 <= i < limits[p] and i not in done[p]
+        state['active'] = (p, i)
+
+    def attempt_end(r):
+        p, i = r['phase'], r['attempt']
+        assert state['active'] == (p, i)
+        assert r['outcome'] in ('empty', 'timeout', 'witness') and r['elapsed'] >= 0
+        done[p][i] = r['outcome']
+        state['active'] = None
+
+    def finish(r):
+        assert r['outcome'] in ('witness', 'budget', 'control_failed', 'failed')
+        assert r['outcome'] != 'witness' or 'witness' in done['search'].values()
+        assert r['outcome'] != 'budget' or ('witness' in done['calibration'].values() and
+                                           len(done['search']) == header['total'])
+        assert r['outcome'] != 'control_failed' or ('witness' not in done['calibration'].values() and
+                                                   len(done['calibration']) == header['control_total'])
+        state.update(outcome=r['outcome'], active=None)
+
+    handlers = dict(session=session, phase=phase, attempt_start=attempt_start,
+                    attempt_end=attempt_end, finish=finish)
+    for r in records[1:]:
+        assert r['event'] in handlers and type(r['pid']) is int
+        assert state['time'] <= r['time'] <= now
+        assert r['event'] == 'session' or (spans and r['pid'] == state['pid'] and state['outcome'] is None)
+        handlers[r['event']](r)
+        spans[-1][1] = state['time'] = r['time']
+    assert spans
+    main = [p for p in procs if p[0] == state['pid'] and
+            re.search(r'(?:^|[\s/])join720\.py(?:\s|$)', p[3])]
+    assert len(main) <= 1
+    status = ('ended' if state['outcome'] is not None or not main else
+              'frozen' if main[0][2].startswith('T') else 'running')
+    observed = list(map(float, observations))
+    assert all(spans[0][0] <= t <= now for t in observed)
+    for span, stop in zip(spans, [a for a, _ in spans[1:]] + [now + 1]):
+        span[1] = max([span[1]] + [t for t in observed if span[0] <= t < stop])
+    if status == 'running':
+        spans[-1][1] = now
+        observations[str(float(now))] = None
+    active = state['active'] if status == 'running' else None
+    codes = ''.join('1' if i in done['search'] else '4' if active == ('search', i) else '3'
+                    for i in range(header['total']))
+    counts = {name: codes.count(str(i)) for i, name in enumerate(SEA_STATUSES)}
+    elapsed = sum(b - a for a, b in spans)
+    work = dict(control_attempted=len(done['calibration']), control_total=header['control_total'],
+                control_witnesses=list(done['calibration'].values()).count('witness'),
+                attempted=len(done['search']), total=header['total'],
+                empty=list(done['search'].values()).count('empty'),
+                timeout=list(done['search'].values()).count('timeout'), elapsed=int(elapsed))
+    return dict(program='join720.py', n=720, order=11, made=now, state=status,
+                so_far=elapsed, to_go=None, etas={}, passes=spans,
+                display=dict(scope='joined-witness', phase=state['phase'], outcome=state['outcome'], work=work),
+                sea=dict(depth=0, keys=['720:11'], groups=[codes], counts=counts))
+
+
 def clock(t): return '—' if t is None else time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(t))
 
 
@@ -1223,7 +1311,11 @@ def main(argv):
             with open(path, encoding='utf-8') as f: header = json.loads(f.readline())
             key = f'focus_{header["n"]}_{header["code"]}_{header["time"]}_observations'
             surveys.append(survey_focus(path, procs, observations=cache.setdefault(key, {})))
-        now = max([now] + [s['made'] for s in surveys if s.get('program') == 'focus.py'])
+        for path in glob.glob(os.path.join(HERE, 'join720_journal.jsonl')):
+            with open(path, encoding='utf-8') as f: header = json.loads(f.readline())
+            key = f'join720_{header["code"]}_{header["time"]}_observations'
+            surveys.append(survey_join(path, procs, observations=cache.setdefault(key, {})))
+        now = max([now] + [s['made'] for s in surveys if s['program'] in ('focus.py', 'join720.py')])
         if os.path.exists(LATTICE):
             with open(LATTICE, encoding='utf-8') as f: header = json.loads(f.readline())
             key = f'lattice288_eta_v1_{header["code"]}_{header["time"]}'
