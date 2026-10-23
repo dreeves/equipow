@@ -1,0 +1,213 @@
+"""Quals for shepherd.py, which keeps the searches running by dreeves's principles of 2026-10-23."""
+import fcntl
+import json
+import os
+from pathlib import Path
+import tempfile
+import unittest
+from unittest.mock import patch
+
+import shepherd
+
+UNBOUNDED = ('--seconds', 'inf', '--lp-budget', '1000000000000000000')
+
+
+def search(directory, name='480:14', n='480', memory=64 << 20):
+    d = Path(directory)
+    return shepherd.Search(name, 'focus.py', (n,) + UNBOUNDED, str(d / f'focus_{n}_journal.jsonl'),
+                           str(d / f'focus_{n}.log'), str(d / f'run{n}.err'), memory)
+
+
+def proc(pid, command, stat='SN'):
+    return (pid, 1, stat, command)
+
+
+def write(path, *records):
+    Path(path).write_text(''.join(json.dumps(r) + '\n' for r in records))
+
+
+SESSION = dict(event='session', time=100, pid=7)
+UPDATE = dict(event='update', time=105, pid=7, lp=1, closed=0, split=1, pending=2, case=0, completed=[], outcome=None)
+
+
+def finish(outcome):
+    return dict(UPDATE, event='finish', time=110, outcome=outcome)
+
+
+class ShepherdQuals(unittest.TestCase):
+    def test_status_comes_from_the_process_list_and_the_journal(self):
+        # Replicata: one search's journal missing, then ending in each kind of record, with no process; then a process.
+        # Expectata: no journal or a budget finish: launchable; an excluded or witness finish: done; anything else (a
+        # session or an update last: a crash, a kill, a reboot or a stop): stopped; a process running it: running,
+        # with its pid, whatever its journal says; a zombie runs nothing.
+        with tempfile.TemporaryDirectory() as d:
+            s = search(d)
+            self.assertEqual(shepherd.status(s, []), ('launchable', None))
+            for last, want in ((finish('budget'), 'launchable'), (finish('excluded'), 'done'),
+                               (finish('witness'), 'done'), (UPDATE, 'stopped'), (SESSION, 'stopped')):
+                write(s.journal, dict(event='header', version=1), SESSION, last)
+                self.assertEqual(shepherd.status(s, []), (want, None), last)
+            running = proc(42, '/opt/homebrew/bin/python3 -B focus.py 480 --seconds inf --lp-budget 1000000000000000000')
+            self.assertEqual(shepherd.status(s, [running]), ('running', 42))
+            self.assertEqual(shepherd.status(s, [proc(43, 'python3 -B focus.py 480', 'Z')]), ('stopped', None))
+            self.assertEqual(shepherd.status(s, [proc(44, 'python3 -B focus.py 4800')]), ('stopped', None))
+
+    def test_a_partial_last_line_is_not_a_record(self):
+        # Replicata: a journal whose last line was cut off mid-write after a finish.
+        # Expectata: the complete lines decide: the finish before it.
+        with tempfile.TemporaryDirectory() as d:
+            s = search(d)
+            Path(s.journal).write_text(json.dumps(finish('excluded')) + '\n{"event":"upd')
+            self.assertEqual(shepherd.status(s, []), ('done', None))
+
+    def test_two_processes_for_one_search_fail_loudly(self):
+        # Replicata: two live processes both running focus.py 480.
+        # Expectata: AssertionError: one search, one process.
+        with tempfile.TemporaryDirectory() as d:
+            with self.assertRaises(AssertionError):
+                shepherd.status(search(d), [proc(1, 'python3 -B focus.py 480'), proc(2, 'python3 -B focus.py 480')])
+
+    def test_launches_above_the_floor_and_stops_below_it(self):
+        # Replicata: four searches, one in each status but done, above and then below the floor of free disk.
+        # Expectata (principle 4): above it, launch each launchable search and nothing else; below it, stop each
+        # running one, as stopping one frees no disk; never launch a stopped or done search (principle 2).
+        statuses = {'a': 'launchable', 'b': 'running', 'c': 'stopped', 'd': 'done'}
+        self.assertEqual(shepherd.decide(statuses, shepherd.FLOOR), [('launch', 'a')])
+        self.assertEqual(shepherd.decide(statuses, shepherd.FLOOR - 1), [('stop', 'b')])
+
+    def test_slots_and_memory_are_asserted_of_searches_not_done(self):
+        # Replicata: SLOTS + 1 searches, then the same with one done; then two whose memory exceeds MEMORY.
+        # Expectata: a search beyond the slots or the memory fails loudly (preemption, principle 3, is not built);
+        # a done search takes neither.
+        with tempfile.TemporaryDirectory() as d:
+            many = [search(d, f'{n}:1', str(n)) for n in range(shepherd.SLOTS + 1)]
+            with self.assertRaises(AssertionError):
+                shepherd.admit(many, {s.name: 'running' for s in many})
+            shepherd.admit(many, {s.name: 'done' if s is many[0] else 'running' for s in many})
+            big = [search(d, f'{n}:1', str(n), shepherd.MEMORY // 2 + 1) for n in range(2)]
+            with self.assertRaises(AssertionError):
+                shepherd.admit(big, {s.name: 'stopped' for s in big})
+
+    def test_a_launch_runs_unbounded_single_threaded_at_nice_15(self):
+        # Replicata: launch the 480:14 search with subprocess.Popen replaced by a recorder.
+        # Expectata: nice -n 15, then Homebrew's Python with -B, the script and its unbounded arguments; the
+        # repo as cwd; the pylib path and single-threaded BLAS in the environment; no stdin; output and errors appended
+        # to its files; a session of its own, so that it outlives the shepherd.
+        calls = []
+        class Recorder:
+            def __init__(self, argv, **kw):
+                calls.append((argv, kw))
+                self.pid = 99
+        with tempfile.TemporaryDirectory() as d, patch.object(shepherd.subprocess, 'Popen', Recorder):
+            s = search(d)
+            child = shepherd.launch(s)
+            [(argv, kw)] = calls
+            self.assertEqual(child.pid, 99)
+            self.assertEqual(argv, ['nice', '-n', '15', shepherd.PYTHON, '-B', 'focus.py', '480', *UNBOUNDED])
+            self.assertEqual(kw['cwd'], shepherd.HERE)
+            self.assertEqual(kw['env']['PYTHONPATH'], shepherd.PYLIB)
+            for k in ('OMP_NUM_THREADS', 'OPENBLAS_NUM_THREADS', 'MKL_NUM_THREADS', 'VECLIB_MAXIMUM_THREADS'):
+                self.assertEqual(kw['env'][k], '1')
+            self.assertIs(kw['stdin'], shepherd.subprocess.DEVNULL)
+            self.assertEqual((kw['stdout'].name, kw['stdout'].mode), (s.out, 'a'))
+            self.assertEqual((kw['stderr'].name, kw['stderr'].mode), (s.err, 'a'))
+            self.assertIs(kw['start_new_session'], True)
+
+    def test_registry_is_today_s_two_focus_searches(self):
+        # Replicata: shepherd.SEARCHES, and the command lines of the two searches running on 2026-10-23.
+        # Expectata: 480:14 and 672:13, each focus.py with no budget, its journal, log and error file, 64 MiB of
+        # memory (56 MB at most measured), each matching its own running command line only.
+        self.assertEqual([(s.name, s.script, s.args) for s in shepherd.SEARCHES],
+                         [('480:14', 'focus.py', ('480',) + UNBOUNDED), ('672:13', 'focus.py', ('672',) + UNBOUNDED)])
+        self.assertEqual([(s.journal, s.out, s.err, s.memory) for s in shepherd.SEARCHES],
+                         [('focus_480_journal.jsonl', 'focus_480.log', 'scratch/focus480/run.err', 64 << 20),
+                          ('focus_672_journal.jsonl', 'focus_672.log', 'scratch/focus672/run.err', 64 << 20)])
+        command = '/opt/homebrew/Cellar/python@3.13/3.13.6/Frameworks/Python.framework/Versions/3.13/Resources/Python.app/Contents/MacOS/Python -B focus.py {} --seconds inf --lp-budget 1000000000000000000'
+        procs = [proc(1, command.format(480)), proc(2, command.format(672))]
+        with patch.object(shepherd, 'last_record', return_value=None):
+            self.assertEqual([shepherd.status(s, procs) for s in shepherd.SEARCHES], [('running', 1), ('running', 2)])
+
+    def test_a_watch_logs_each_change_once_and_acts(self):
+        # Replicata: three loops of main over a launchable search and a running one: the launched one's process
+        # listed from the second, the running one gone in the third (its journal last an update, its error file a
+        # traceback), with Popen and the clock stubbed; free disk at the floor.
+        # Expectata: the log, one JSON object per line: a start; each search's status once when first seen and again
+        # only when it changes; the launch, with its pid; the launched search as running; the gone search as stopped,
+        # with its journal's last record and its error file's tail; and nothing relaunched.
+        with tempfile.TemporaryDirectory() as d:
+            a, b = search(d, '480:14', '480'), search(d, '672:13', '672')
+            write(b.journal, dict(event='header', version=1), SESSION, UPDATE)
+            Path(b.err).write_text('Traceback (most recent call last):\nAssertionError\n')
+            listings = iter([[proc(5, 'python3 -B focus.py 672')],
+                             [proc(5, 'python3 -B focus.py 672'), proc(77, 'python3 -B focus.py 480')],
+                             [proc(77, 'python3 -B focus.py 480')]])
+            class Stop(Exception): pass
+            sleeps = []
+            def sleep(s):
+                sleeps.append(s)
+                if len(sleeps) == 3: raise Stop
+            class Child:
+                def __init__(self, argv, **kw): self.pid = 77
+                def poll(self): return None
+            log = Path(d, 'shepherd.log')
+            with patch.multiple(shepherd, SEARCHES=(a, b), LOG=str(log), LOCK=str(Path(d, 'lock')), HERE=d), \
+                 patch.object(shepherd.subprocess, 'Popen', Child), \
+                 patch.object(shepherd, 'processes', lambda: next(listings)), \
+                 patch.object(shepherd, 'free_disk', lambda: shepherd.FLOOR), \
+                 patch.object(shepherd.os, 'nice', return_value=15), \
+                 patch.object(shepherd.time, 'sleep', sleep), self.assertRaises(Stop):
+                shepherd.main([])
+            events = [json.loads(line) for line in log.read_text().splitlines()]
+            self.assertEqual([(e['event'], e.get('search'), e.get('status')) for e in events],
+                             [('start', None, None), ('status', '480:14', 'launchable'), ('status', '672:13', 'running'),
+                              ('launch', '480:14', None), ('status', '480:14', 'running'), ('status', '672:13', 'stopped')])
+            self.assertEqual((events[3]['pid'], events[4]['pid']), (77, 77))
+            self.assertEqual(events[5]['last'], UPDATE)
+            self.assertIn('AssertionError', events[5]['err'])
+            self.assertEqual(sleeps, [shepherd.REFRESH] * 3)
+
+    def test_below_the_floor_main_stops_the_running_search_and_never_relaunches_it(self):
+        # Replicata: main over one running search (pid 5) with free disk a byte below the floor; then its process gone
+        # (its journal last an update) with the floor met again; os.kill recorded, Popen forbidden.
+        # Expectata: SIGTERM to pid 5, logged as a stop with the free disk; then the search stopped, and no launch:
+        # a stopped search waits for a human (principle 2), whatever the disk.
+        with tempfile.TemporaryDirectory() as d:
+            s = search(d)
+            write(s.journal, dict(event='header', version=1), SESSION, UPDATE)
+            listings = iter([[proc(5, 'python3 -B focus.py 480')], []])
+            frees = iter([shepherd.FLOOR - 1, shepherd.FLOOR])
+            kills = []
+            class Stop(Exception): pass
+            sleeps = []
+            def sleep(t):
+                sleeps.append(t)
+                if len(sleeps) == 2: raise Stop
+            def popen(*a, **kw): raise AssertionError('no launch')
+            log = Path(d, 'shepherd.log')
+            with patch.multiple(shepherd, SEARCHES=(s,), LOG=str(log), LOCK=str(Path(d, 'lock')), HERE=d), \
+                 patch.object(shepherd.subprocess, 'Popen', popen), \
+                 patch.object(shepherd.os, 'kill', lambda pid, sig: kills.append((pid, sig))), \
+                 patch.object(shepherd, 'processes', lambda: next(listings)), \
+                 patch.object(shepherd, 'free_disk', lambda: next(frees)), \
+                 patch.object(shepherd.os, 'nice', return_value=15), \
+                 patch.object(shepherd.time, 'sleep', sleep), self.assertRaises(Stop):
+                shepherd.main([])
+            self.assertEqual(kills, [(5, shepherd.signal.SIGTERM)])
+            events = [json.loads(line) for line in log.read_text().splitlines()]
+            self.assertEqual([(e['event'], e.get('status'), e.get('pid'), e.get('free')) for e in events],
+                             [('start', None, os.getpid(), None), ('status', 'running', 5, None),
+                              ('stop', None, 5, shepherd.FLOOR - 1), ('status', 'stopped', None, None)])
+
+    def test_a_second_shepherd_fails_loudly(self):
+        # Replicata: the shepherd's lock taken, then taken again from another open file, as a second process would.
+        # Expectata: the second fails (BlockingIOError), so that two shepherds never act at once.
+        with tempfile.TemporaryDirectory() as d:
+            path = str(Path(d, 'lock'))
+            first = shepherd.lock(path)
+            with self.assertRaises(BlockingIOError):
+                shepherd.lock(path)
+            first.close()
+
+
+if __name__ == '__main__':
+    unittest.main()
