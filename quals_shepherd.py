@@ -15,7 +15,7 @@ UNBOUNDED = ('--seconds', 'inf', '--lp-budget', '1000000000000000000')
 def search(directory, name='480:14', n='480', memory=64 << 20):
     d = Path(directory)
     return shepherd.Search(name, 'focus.py', (n,) + UNBOUNDED, str(d / f'focus_{n}_journal.jsonl'),
-                           str(d / f'focus_{n}.log'), str(d / f'run{n}.err'), memory)
+                           str(d / f'focus_{n}.log'), str(d / f'run{n}.err'), str(d / f'run{n}'), memory)
 
 
 def proc(pid, command, stat='SN'):
@@ -67,13 +67,39 @@ class ShepherdQuals(unittest.TestCase):
             with self.assertRaises(AssertionError):
                 shepherd.status(search(d), [proc(1, 'python3 -B focus.py 480'), proc(2, 'python3 -B focus.py 480')])
 
-    def test_launches_above_the_floor_and_stops_below_it(self):
-        # Replicata: four searches, one in each status but done, above and then below the floor of free disk.
-        # Expectata (principle 4): above it, launch each launchable search and nothing else; below it, stop each
-        # running one, as stopping one frees no disk; never launch a stopped or done search (principle 2).
-        statuses = {'a': 'launchable', 'b': 'running', 'c': 'stopped', 'd': 'done'}
-        self.assertEqual(shepherd.decide(statuses, shepherd.FLOOR), [('launch', 'a')])
-        self.assertEqual(shepherd.decide(statuses, shepherd.FLOOR - 1), [('stop', 'b')])
+    def test_two_floors(self):
+        # Replicata: five searches, launchable a, running b and c, stopped d and done e, holding 0, 5, 1, 3 and 9
+        # bytes of data, at free disk of the floor, a byte below it, and a byte below the hard floor; then b stopped,
+        # then c grown to 6 bytes.
+        # Expectata (dreeves, 2026-10-23: "fine, 2 floors if you're sure"): at the floor or above, launch each
+        # launchable search and nothing else; below it, launch nothing and stop the search with the most data of
+        # those not done, b, if it runs: once b is stopped, c runs on, until it holds more than b; below the hard
+        # floor, stop every running search.  A done search's data counts for nothing: it no longer grows.  A stopped
+        # or done search is never launched (principle 2).
+        statuses = {'a': 'launchable', 'b': 'running', 'c': 'running', 'd': 'stopped', 'e': 'done'}
+        data = {'a': 0, 'b': 5, 'c': 1, 'd': 3, 'e': 9}
+        self.assertEqual(shepherd.decide(statuses, data, shepherd.FLOOR), [('launch', 'a')])
+        self.assertEqual(shepherd.decide(statuses, data, shepherd.FLOOR - 1), [('stop', 'b')])
+        self.assertEqual(shepherd.decide(statuses, data, shepherd.HARD_FLOOR - 1), [('stop', 'b'), ('stop', 'c')])
+        stopped = dict(statuses, b='stopped')
+        self.assertEqual(shepherd.decide(stopped, data, shepherd.FLOOR - 1), [])
+        self.assertEqual(shepherd.decide(stopped, dict(data, c=6), shepherd.FLOOR - 1), [('stop', 'c')])
+        self.assertEqual(shepherd.decide({'e': 'done'}, {'e': 9}, shepherd.FLOOR - 1), [])
+        self.assertLess(shepherd.HARD_FLOOR, shepherd.FLOOR)
+
+    def test_a_search_s_data_is_its_directory_s_bytes(self):
+        # Replicata: a data directory holding files of 3 and 4 bytes, one in a subdirectory; no directory; and a
+        # listing naming a file that is gone.
+        # Expectata: 7 bytes; 0 bytes for none; 0 for the gone file.
+        with tempfile.TemporaryDirectory() as d:
+            Path(d, 'run', 'sub').mkdir(parents=True)
+            Path(d, 'run', 'a').write_bytes(b'abc')
+            Path(d, 'run', 'sub', 'b').write_bytes(b'abcd')
+            self.assertEqual(shepherd.used(str(Path(d, 'run'))), 7)
+            self.assertEqual(shepherd.used(str(Path(d, 'none'))), 0)
+            # a file listed, then renamed away before it is measured, as focus.py renames its checkpoints into place
+            with patch.object(shepherd.os, 'walk', return_value=[(d, [], ['gone.tmp'])]):
+                self.assertEqual(shepherd.used(d), 0)
 
     def test_slots_and_memory_are_asserted_of_searches_not_done(self):
         # Replicata: SLOTS + 1 searches, then the same with one done; then two whose memory exceeds MEMORY.
@@ -115,13 +141,13 @@ class ShepherdQuals(unittest.TestCase):
 
     def test_registry_is_today_s_two_focus_searches(self):
         # Replicata: shepherd.SEARCHES, and the command lines of the two searches running on 2026-10-23.
-        # Expectata: 480:14 and 672:13, each focus.py with no budget, its journal, log and error file, 64 MiB of
-        # memory (56 MB at most measured), each matching its own running command line only.
+        # Expectata: 480:14 and 672:13, each focus.py with no budget, its journal, log, error file and checkpoint
+        # directory, 64 MiB of memory (56 MB at most measured), each matching its own running command line only.
         self.assertEqual([(s.name, s.script, s.args) for s in shepherd.SEARCHES],
                          [('480:14', 'focus.py', ('480',) + UNBOUNDED), ('672:13', 'focus.py', ('672',) + UNBOUNDED)])
-        self.assertEqual([(s.journal, s.out, s.err, s.memory) for s in shepherd.SEARCHES],
-                         [('focus_480_journal.jsonl', 'focus_480.log', 'scratch/focus480/run.err', 64 << 20),
-                          ('focus_672_journal.jsonl', 'focus_672.log', 'scratch/focus672/run.err', 64 << 20)])
+        self.assertEqual([(s.journal, s.out, s.err, s.data, s.memory) for s in shepherd.SEARCHES],
+                         [('focus_480_journal.jsonl', 'focus_480.log', 'scratch/focus480/run.err', 'scratch/focus480/run', 64 << 20),
+                          ('focus_672_journal.jsonl', 'focus_672.log', 'scratch/focus672/run.err', 'scratch/focus672/run', 64 << 20)])
         command = '/opt/homebrew/Cellar/python@3.13/3.13.6/Frameworks/Python.framework/Versions/3.13/Resources/Python.app/Contents/MacOS/Python -B focus.py {} --seconds inf --lp-budget 1000000000000000000'
         procs = [proc(1, command.format(480)), proc(2, command.format(672))]
         with patch.object(shepherd, 'last_record', return_value=None):
