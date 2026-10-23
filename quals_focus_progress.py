@@ -41,36 +41,66 @@ class FocusProgressQuals(unittest.TestCase):
             progress.survey_focus('qual', [], observations={})
         self.assertEqual(calls, ['read', 'clock'])
 
-    def test_page_exposes_actual_work_without_a_fabricated_eta(self):
-        # Replicata: the page template for the new journal's scope.
-        # Expectata: cumulative node work has live fields, with each terminal
-        # outcome distinct and no conversion of node counts into an ETA.
+    def test_page_section_has_no_scope_prose(self):
+        # Replicata: the page's "Search progress" section (dreeves, 2026-10-23: "i don't want a bunch of prose and
+        # numbers, i want the blue/red/purple graphs").
+        # Expectata: no per-search prose templates or work counters remain, only the shared run template.
         page = Path(__file__).with_name('index.html').read_text()
-        body = page.split('<template data-scope="focused-proof">')[1].split('</template>')[0]
-        for name in ('lp', 'closed', 'split', 'pending'):
-            self.assertIn(f'data-work="{name}"', body)
-        for name in ('excluded', 'witness', 'budget'):
-            self.assertIn(f'data-outcome="{name}"', body)
-        self.assertIn("box.querySelectorAll('[data-work]')", page)
+        section = page.split('<section class="progress"')[1].split('</section>')[0]
+        for attribute in ('data-scope', 'data-work', 'data-phase', 'data-outcome'):
+            self.assertNotIn(attribute, section)
+        self.assertNotIn("[data-work]", page)
+        self.assertNotIn("[data-scope]", page)
 
     def test_running_counts_do_not_pretend_a_profile_is_closed(self):
         # Replicata: twenty LP solves and eight certified leaves, first root case active.
         # Expectata: two root cases still unresolved; actual node work is shown separately.
         run = survey(initial())
         self.assertEqual(run['sea']['groups'], ['43'])
-        self.assertEqual(run['display']['work'], dict(lp=20, closed=8, split=12, pending=5))
         self.assertEqual(run['sea']['counts']['settled'], 0)
-        self.assertIsNone(run['to_go'])
-        self.assertEqual(run['etas'], {})
+        self.assertNotIn('display', run)
+
+    def test_zero_progress_is_lindy(self):
+        # Replicata: one root case, running 10 s, then the same journal surveyed 10 s later (dreeves, 2026-10-23:
+        # "if a search starts and has made 0 progress, that should mean go with lindy, even though that means the
+        # ETA will steadily grow until progress is nonzero").
+        # Expectata: Gott's rule: the median to go is about the age, 10 s, and doubles exactly when the age doubles.
+        records = [dict(initial()[0], total=1)] + initial()[1:]
+        at10, at20 = survey(records, now=110), survey(records, now=120)
+        self.assertAlmostEqual(at10['to_go']['median'], 10, delta=1.5)
+        self.assertAlmostEqual(at20['to_go']['median'], 2 * at10['to_go']['median'], places=6)
+        self.assertLess(at10['to_go']['lo'], at10['to_go']['median'])
+        self.assertLess(at10['to_go']['median'], at10['to_go']['hi'])
+
+    def test_pending_roots_add_to_the_running_one(self):
+        # Replicata: the initial journal: root 0 running 10 s, root 1 pending.
+        # Expectata: more to go than for root 0 alone, as each pending root is drawn from the urn, Lindy tail above
+        # the longest time seen.
+        alone = survey([dict(initial()[0], total=1)] + initial()[1:])
+        both = survey(initial())
+        self.assertGreater(both['to_go']['median'], alone['to_go']['median'])
+
+    def test_etas_are_recorded_only_while_running(self):
+        # Replicata: a running snapshot with an observations dict, then the process gone.
+        # Expectata: the running snapshot records its ETA (hours: median, lo, hi); the ended one has no estimate
+        # and records nothing, keeping the history.
+        observations = {}
+        live = survey(initial(), observations=observations)
+        self.assertEqual(list(observations), ['110.0'])
+        for h, k in zip(observations['110.0'], ('median', 'lo', 'hi')):
+            self.assertAlmostEqual(h, live['to_go'][k] / progress.HOUR, places=9)
+        gone = survey(initial(), now=130, alive=False, observations=observations)
+        self.assertIsNone(gone['to_go'])
+        self.assertEqual(list(observations), ['110.0'])
 
     def test_budget_stop_and_resumption_preserve_completed_work(self):
         # Replicata: the first root closed, budget exhausted, then a resumed session.
-        # Expectata: only that root is settled, the other is open; no exclusion or ETA.
+        # Expectata: only that root is settled, the other is open; no exclusion.
         stop = dict(initial()[-1], event='finish', time=120, lp=100, closed=51,
                     split=49, pending=1, case=None, completed=[0], outcome='budget')
         records = initial() + [stop]
         run = survey(records, now=130)
-        self.assertEqual((run['state'], run['display']['outcome']), ('ended', 'budget'))
+        self.assertEqual((run['state'], run['outcome']), ('ended', 'budget'))
         self.assertEqual(run['sea']['groups'], ['01'])
         records += [dict(event='session', time=200, pid=123),
                     dict(stop, event='update', time=201, case=1, outcome=None)]

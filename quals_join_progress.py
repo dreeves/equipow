@@ -216,46 +216,21 @@ class JoinProgressQuals(unittest.TestCase):
             progress.survey_join('qual', [], observations={})
         self.assertEqual(calls, ['read', 'clock'])
 
-    def test_main_discovers_only_the_requested_directory(self):
-        # Replicata: a one-shot snapshot with only a temporary joined-search journal.
-        # Expectata: that run is serialized with its phase and counters; production
-        # journals are not discovered and no ETA history is manufactured.
+    def test_main_does_not_display_the_finished_joined_search(self):
+        # Replicata: a one-shot snapshot with only a joined-search journal in its directory (dreeves, 2026-10-23:
+        # clean up the search progress section; the 720 batch ended 2026-10-21).
+        # Expectata: the data file has no run: the joined search's adapter stays, but main no longer reads it.
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory, 'join720_journal.jsonl')
             path.write_text(''.join(json.dumps(r) + '\n' for r in initial()))
             dest, cache = Path(directory, 'p.js'), Path(directory, 'c.json')
-            with patch.multiple(progress, HERE=directory, RUNS=(), EXTENDED=(), JS=dest, CACHE=cache,
-                                LATTICE=Path(directory, 'absent.jsonl')), \
+            with patch.multiple(progress, HERE=directory, RUNS=(), EXTENDED=(), JS=dest, CACHE=cache), \
                  patch.object(progress.os, 'nice', return_value=15), \
                  patch.object(progress, 'processes', return_value=[]), \
                  patch.object(progress.time, 'time', return_value=120):
                 progress.main([])
             data = json.loads(dest.read_text().removeprefix('progressData(').removesuffix(');\n'))
-            self.assertEqual(len(data['runs']), 1)
-            run = data['runs'][0]
-            self.assertEqual((run['program'], run['scope'], run['phase']),
-                             ('join720.py', 'joined-witness', 'preparation'))
-            self.assertEqual(run['work']['attempted'], 0)
-            self.assertEqual(run['etas'], [])
-            self.assertIsNone(run['to_go'])
-
-    def test_page_has_latin_attributed_progress_and_terminal_states(self):
-        # Replicata: the joined-witness template and the existing generic renderer.
-        # Expectata: Astra attribution, all phases and unresolved outcomes, explicit
-        # attempt counters, and Latin copy documented by TODO comments.
-        page = Path(__file__).with_name('index.html').read_text()
-        body = page.split('<template data-scope="joined-witness">')[1].split('</template>')[0]
-        for name in ('preparation', 'calibration', 'search'):
-            self.assertIn(f'data-phase="{name}"', body)
-        for name in ('witness', 'budget', 'control_failed', 'failed'):
-            self.assertIn(f'data-outcome="{name}"', body)
-        for name in ('control_attempted', 'control_total', 'control_witnesses',
-                     'attempted', 'total', 'empty', 'timeout', 'elapsed'):
-            self.assertIn(f'data-work="{name}"', body)
-        self.assertIn('Astra:', body)
-        self.assertIn('TODO:', body)
-        self.assertIn('quaestionem apertam', body)
-        self.assertNotIn('data-work="closed"', body)
+            self.assertEqual(data['runs'], [])
 
 
 if __name__ == '__main__':

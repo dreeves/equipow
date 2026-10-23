@@ -173,7 +173,7 @@ class LatticeProgressQuals(unittest.TestCase):
 
 def browser():
     # Replicata: the real page receives preparation, calibration, running-case and attempted-case snapshots.
-    # Expectata: visible scope/phases and dot counts change; tiny history has no ETA, then observed snapshots
+    # Expectata: dot counts change (no scope or phase prose since 2026-10-23); tiny history has no ETA, then observed snapshots
     # produce the blue elapsed, red remaining and purple total curves, with no JavaScript errors.
     import quals_index as q
     records, etas = initial(), {}
@@ -194,8 +194,7 @@ addEventListener('error', e => failures.push(e.message));
 for (const snapshot of SNAPSHOTS) {
   progressData(snapshot);
   const box = document.querySelector('.progress-runs .progress-run');
-  observations.push({phase: [...box.querySelectorAll('[data-phase]')].filter(e => !e.hidden).map(e => e.textContent),
-    scope: box.querySelector('[data-scope]').textContent, counts: Object.fromEntries([...box.querySelectorAll('[data-count]')].map(e => [e.dataset.count, e.textContent])),
+  observations.push({counts: Object.fromEntries([...box.querySelectorAll('[data-count]')].map(e => [e.dataset.count, e.textContent])),
     eta: box.querySelector('.progress-eta').hidden,
     curves: ['spent', 'togo', 'total'].map(name => { const e = box.querySelector('.progress-eta polyline.' + name);
       return {name, points: e.getAttribute('points'), color: getComputedStyle(e).stroke}; })});
@@ -214,10 +213,6 @@ const out = document.createElement('pre'); out.id = 'lattice-qual'; out.textCont
         got = json.loads(html.unescape(match[1]))
     assert got['failures'] == [], got
     obs = got['observations']
-    # The page's copy was translated during the live verification (2026-10-20).
-    # Preserve those edits exactly, including "Prepration.".
-    assert [r['phase'] for r in obs[:5]] == [['Prepration.'], ['Calibration against a known search.'], ['Search.'], ['Search.'], ['Search.']], obs
-    assert all('symmetric witness search' in r['scope'] and 'do not exclude solutions' in r['scope'] for r in obs), obs
     assert all(r['eta'] for r in obs[:5]) and not any(r['eta'] for r in obs[5:]), obs
     assert obs[3]['counts']['running'] == '1' and obs[4]['counts']['running'] == '0', obs
     assert obs[4]['counts']['open'] == '1' and obs[4]['counts']['settled'] == '0', obs

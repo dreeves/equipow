@@ -130,7 +130,7 @@ gives the state, the hours of running so far and to go, the record of ETAs and t
 """
 import sys
 sys.dont_write_bytecode = True
-import os, re, json, time, bisect, hashlib, itertools, subprocess, collections, glob
+import os, re, json, time, bisect, itertools, subprocess, collections, glob
 import numpy as np
 import overnight_v5 as v5
 import boxsplit as bx
@@ -138,9 +138,9 @@ import boxsplit as bx
 HERE = os.path.dirname(os.path.abspath(__file__))
 JS = os.path.join(HERE, 'progress.js')         # the data file of index.html's section "Search progress" (see the vocabulary)
 CACHE = os.path.join(HERE, '.progress_cache.json')
-LATTICE = os.path.join(HERE, 'lattice288_journal.jsonl')  # optional symmetric witness run; a separate journal contract
 # The completed 240@11 proof and its boxsplit pass, and the 384@11 search
-# superseded by proof384.py, left the live display on 2026-10-20. Their journals remain.
+# superseded by proof384.py, left the live display on 2026-10-20. Their journals remain.  So did the finished 288:10
+# symmetric batch (lattice288.py) and 720:11 joined batch (join720.py) on 2026-10-23; their adapters remain.
 EXTENDED = ()                         # displayed boxsplit runs, (N, ORDER)
 RUNS = ()                             # displayed overnight_v5 runs, (N, ORDER)
 REFRESH = 60                           # seconds between rewrites under --watch (the section reloads the data file as often)
@@ -923,6 +923,30 @@ def driver_leaves(main):
     return [bx.parse_key(k) for k in sorted(keys, key=latest.get)]
 
 
+def lindy_urn(walls, ages, pending, workers):
+    """The urn estimate (dreeves, 2026-10-19, boxsplit's leaves; 2026-10-23, every search's jobs): the [median, lo, hi]
+    (QUANTILES) hours to go of a batch of jobs on its workers.  An urn (see the vocabulary) of walls, the seconds of the
+    jobs done, its new ball lindy_ball's Lindy tail above the longest time seen, done or running; each running job (ages,
+    its seconds so far, the longest-running first) drawn above its age, holding its worker for the rest; each of the
+    pending jobs a job for makespan.  With no job done, every draw is the new ball: Gott's rule, so that the estimate
+    grows in proportion to the age until a job is done."""
+    assert ages == sorted(ages, reverse=True) and len(ages) <= workers and pending >= 0
+    top = max([*walls, *ages], default=0.0)                          # the longest time seen
+    assert top > 0
+    rng = np.random.default_rng(SEED)
+    urn = Urn(rng, np.array(walls, dtype=float), lindy_ball(rng, top), len(ages) + pending)
+    loads = np.zeros((REPLICATES, workers))
+    for j, e in enumerate(ages):
+        loads[:, j] = urn.draw(e) - e
+    draws = makespan(loads, [('job', urn.draw()) for _ in range(pending)]) / HOUR
+    return [float(np.median(draws))] + [float(q) for q in np.quantile(draws, QUANTILES)]
+
+
+def to_go_of(eta):
+    """A recorded ETA ([median, lo, hi] hours, or None) as the data file's to_go ({median, lo, hi} seconds, or None)."""
+    return None if eta is None else dict(zip(('median', 'lo', 'hi'), (h * HOUR for h in eta)))
+
+
 def survey_box(n, order, log, main, procs, now, etas):
     """The boxsplit pass of the run (n, order) as the driver's log, the run's journal (main, whose open leaves the
     driver works), the process list and the time now show it, in survey's shape: program boxsplit.py, its state, its
@@ -967,22 +991,12 @@ def survey_box(n, order, log, main, procs, now, etas):
     tally = collections.Counter(c for g in groups.values() for c in g)
     sea = {'depth': SEA_DEPTH, 'keys': list(groups), 'groups': [''.join(g) for g in groups.values()],
            'counts': {s: tally[str(i)] for i, s in enumerate(SEA_STATUSES)}}
-    walls = np.array([t - p['starts'][i] for i, (t, _) in p['dones'].items()], dtype=float)   # the pass's done leaves
+    walls = [t - p['starts'][i] for i, (t, _) in p['dones'].items()]   # the pass's done leaves
     ages = sorted((now - t for t in running.values()), reverse=True)  # its running leaves', the longest-running first
-    top = max([*walls, *ages], default=0.0)                          # the longest time seen in the pass
-    draws = None
-    if state == 'running' and top > 0:
-        rng = np.random.default_rng(SEED)
-        todo = sorted((i for i in range(len(leaves)) if status(i) == 'pending'),
-                      key=lambda i: hashlib.sha1(leaves[i].encode()).hexdigest())
-        urn = Urn(rng, walls, lindy_ball(rng, top), len(running) + len(todo))
-        loads = np.zeros((REPLICATES, p['processes']))
-        for j, e in enumerate(ages):
-            loads[:, j] = urn.draw(e) - e
-        draws = makespan(loads, [('job', urn.draw()) for _ in todo]) / HOUR
-    etas.setdefault(str(int(end)), [float(np.median(draws))] + [float(q) for q in np.quantile(draws, QUANTILES)] if draws is not None else None)   # a record made stands
-    to_go = ({'median': float(np.median(draws)) * HOUR} | dict(zip(('lo', 'hi'), (float(q) * HOUR for q in np.quantile(draws, QUANTILES))))
-             if draws is not None else None)
+    pending = sum(status(i) == 'pending' for i in range(len(leaves)))
+    eta = lindy_urn(walls, ages, pending, p['processes']) if state == 'running' and max([*walls, *ages], default=0.0) > 0 else None
+    etas.setdefault(str(int(end)), eta)   # a record made stands
+    to_go = to_go_of(eta)
     return {'program': 'boxsplit.py', 'n': n, 'order': order, 'state': state, 'outcome': p['outcome'],
             'so_far': sum(b - a for a, b in spans), 'to_go': to_go, 'passes': spans, 'etas': etas, 'sea': sea}
 
@@ -1104,10 +1118,10 @@ def survey_lattice(path, procs, now=None, etas=None):
 # ---------- the data file ----------
 
 def survey_focus(path, procs, now=None, observations=None):
-    """Focused proof journals: root-case coverage and actual cumulative node work.
+    """Focused proof journals: root-case coverage, and while running an ETA, lindy_urn's on the root cases (one
+    worker), recorded in observations (dreeves, 2026-10-23: with no root done, Lindy).
 
-    A budget stop leaves cases open. Only a completed proof settles a root;
-    leaf counts do not estimate the fraction of the full search still needed.
+    A budget stop leaves cases open. Only a completed proof settles a root.
     Observation timestamps retain elapsed time if a process disappears.
     """
     records = [json.loads(line) for line in complete_lines(path)]
@@ -1121,6 +1135,8 @@ def survey_focus(path, procs, now=None, observations=None):
     state = dict(pid=None, outcome=None, time=header['time'])
     spans = []
     snap = dict(lp=0, closed=0, split=0, pending=total, case=None, completed=[])
+    seconds = collections.Counter()    # each root case's seconds of running: the time up to a record goes to the case
+                                       # running at the record before it, or else to the record's own
 
     def session(r):
         state.update(pid=r['pid'], outcome=None)
@@ -1137,6 +1153,7 @@ def survey_focus(path, procs, now=None, observations=None):
         outcome = r.get('outcome')
         assert (r['event'] == 'finish') == (outcome in ('excluded', 'witness', 'budget'))
         assert outcome != 'excluded' or (len(r['completed']) == total and r['pending'] == 0)
+        seconds[r['case'] if snap['case'] is None else snap['case']] += r['time'] - state['time']
         snap.update({k: r[k] for k in snap})
         state['outcome'] = outcome
 
@@ -1147,6 +1164,7 @@ def survey_focus(path, procs, now=None, observations=None):
         handlers[r['event']](r)
         spans[-1][1] = state['time'] = r['time']
     assert spans
+    last = state['time']
     main = [p for p in procs if p[0] == state['pid'] and
             re.search(r'(?:^|[\s/])focus\.py(?:\s|$)', p[3])]
     assert len(main) <= 1
@@ -1156,17 +1174,20 @@ def survey_focus(path, procs, now=None, observations=None):
     assert all(spans[0][0] <= t <= now for t in observed)
     for span, stop in zip(spans, [a for a, _ in spans[1:]] + [now + 1]):
         span[1] = max([span[1]] + [t for t in observed if span[0] <= t < stop])
+    active = snap['case'] if status == 'running' else None
+    walls = [seconds[i] for i in snap['completed']]
+    ages = [] if active is None else [seconds[active] + now - last]
+    eta = (lindy_urn(walls, ages, total - len(walls) - len(ages), 1)
+           if status == 'running' and max([*walls, *ages], default=0.0) > 0 else None)
     if status == 'running':
         spans[-1][1] = now
-        observations[str(float(now))] = None
-    active = snap['case'] if status == 'running' else None
+        observations[str(float(now))] = eta
     codes = ''.join('0' if i in snap['completed'] else '4' if i == active else
                     '1' if state['outcome'] is not None or not main else '3' for i in range(total))
     counts = {name: codes.count(str(i)) for i, name in enumerate(SEA_STATUSES)}
     return dict(program='focus.py', n=header['n'], order=header['order'], made=now,
-                state=status, so_far=sum(b - a for a, b in spans), to_go=None, etas={}, passes=spans,
-                display=dict(scope='focused-proof', outcome=state['outcome'],
-                             work={k: snap[k] for k in ('lp', 'closed', 'split', 'pending')}),
+                state=status, outcome=state['outcome'], so_far=sum(b - a for a, b in spans), to_go=to_go_of(eta),
+                etas=observations, passes=spans,
                 sea=dict(depth=0, keys=[f'{header["n"]}:{header["order"]}'], groups=[codes], counts=counts))
 
 
@@ -1311,17 +1332,7 @@ def main(argv):
             with open(path, encoding='utf-8') as f: header = json.loads(f.readline())
             key = f'focus_{header["n"]}_{header["code"]}_{header["time"]}_observations'
             surveys.append(survey_focus(path, procs, observations=cache.setdefault(key, {})))
-        for path in glob.glob(os.path.join(HERE, 'join720_journal.jsonl')):
-            with open(path, encoding='utf-8') as f: header = json.loads(f.readline())
-            key = f'join720_{header["code"]}_{header["time"]}_observations'
-            surveys.append(survey_join(path, procs, observations=cache.setdefault(key, {})))
-        now = max([now] + [s['made'] for s in surveys if s['program'] in ('focus.py', 'join720.py')])
-        if os.path.exists(LATTICE):
-            with open(LATTICE, encoding='utf-8') as f: header = json.loads(f.readline())
-            key = f'lattice288_eta_v1_{header["code"]}_{header["time"]}'
-            lattice = survey_lattice(LATTICE, processes(), etas=cache.setdefault(key, {}))
-            surveys.insert(0, lattice)
-            now = lattice['made']
+        now = max([now] + [s['made'] for s in surveys if s['program'] == 'focus.py'])
         write_atomic(JS, js_text(surveys, now))
         save_cache(CACHE, cache)
         if not argv: return

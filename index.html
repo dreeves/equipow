@@ -1084,7 +1084,6 @@ SClaude[11][800] = {
       <template class="progress-run">
         <div class="progress-run">
           <h3><span class="nw"><i>m</i><sup>*</sup>(<span data-n></span>) ≥ <span data-order></span>?</span> <code data-program></code></h3>
-          <div data-scope></div>
           <div class="progress-bar" aria-hidden="true"><span data-bar="so-far"></span><span data-bar="lo"></span><span data-bar="band"></span><i data-bar="median"></i></div>
           <canvas role="img" aria-label="One dot per sub-case, colored by its status, each subtree a block of its own"></canvas>
           <ul class="progress-key">
@@ -1127,28 +1126,6 @@ SClaude[11][800] = {
             <span data-state="ended">Ended after <span class="spent"><b data-so-far></b>&#8239;h</span> of running.</span>
           </p>
         </div>
-      </template>
-      <template data-scope=""></template>
-      <template data-scope="focused-proof">
-        <!-- Astra's copy: this certified search covers all sign assignments; dots are root residue cases, counters show actual LP solves, certified closed leaves, splits, and pending branches; no reliable completion estimate is available. -->
-        <p>LP solutions: <span data-work="lp"></span>; Closed leaves: <span data-work="closed"></span>; splits: <span data-work="split"></span>; pending branches: <span data-work="pending"></span>. No reliable completion estimate available.</p>
-        <!-- Distinguish a complete exclusion, a witness, and an unfinished pass that reached its computational budget. -->
-        <p><span data-outcome="excluded">Complete exclusion.</span><span data-outcome="witness">Witness.</span><span data-outcome="budget">Unfinished pass that reached its computational budget.</span></p>
-      </template>
-      <template data-scope="symmetric-witness">
-        <p>Astra: "This is a symmetric witness search; attempted cases do not exclude solutions; any ETA concerns the planned batch, not a proof"</p>
-        <p>Astra: "Extrapolated from observed attempt durations; the band runs from zero additional time to the full remaining attempt budget, allowing observed overhead. It is neither a confidence interval nor a guaranteed bound. History starts with the first estimate actually recorded."</p>
-        <p><span data-phase="preparation">Prepration.</span><span data-phase="calibration">Calibration against a known search.</span><span data-phase="search">Search.</span></p>
-        <p><span data-outcome="exhausted">Batch finished without a witness.</span><span data-outcome="witness">Witness found.</span><span data-outcome="failed">Run failed.</span></p>
-      </template>
-      <template data-scope="joined-witness">
-        <p>Astra: "Astra's joined witness search: unsuccessful or timed-out attempts leave the question open; no completion estimate."</p>
-        <!-- Show preparation, calibration against a known witness, or target search; each dot represents a target attempt. -->
-        <p><span data-phase="preparation">Preparation.</span><span data-phase="calibration">Calibration against a known witness.</span><span data-phase="search">Search: 720.</span>Each dot represents a target attempt.</p>
-        <!-- Separate completed calibration attempts and recovered controls from completed target attempts, empty results, timeouts, and elapsed seconds. -->
-        <p>Calibration attempts: <span data-work="control_attempted"></span> out of <span data-work="control_total"></span> controls; control witnesses: <span data-work="control_witnesses"></span>. Attempted: <span data-work="attempted"></span> out of <span data-work="total"></span>; empty: <span data-work="empty"></span>; timeouts: <span data-work="timeout"></span>. Elapsed time: <span data-work="elapsed"></span> s.</p>
-        <!-- TODO: Distinguish an exactly verified witness from an unfinished search stopped by its budget, failed calibration, or another failure. -->
-        <p><span data-outcome="witness">Exactly verified witness.</span><span data-outcome="budget">Unfinished search; out of computational budget.</span><span data-outcome="control_failed">Unfinished search; control failed.</span><span data-outcome="failed">Unfinished search; some other failure.</span></p>
       </template>
       <template class="progress-line">@<span data-when></span>&emsp;<span class="spent"><b data-so-far></b>&#8239;h so far</span> + <span class="togo"><b data-to-go></b>&#8239;h to go</span> = <span class="total"><b data-sum></b>&#8239;h (<b data-done></b>)</span></template>
     </details>
@@ -1776,14 +1753,10 @@ try {
       box.querySelector('[data-n]').textContent = run.n;
       box.querySelector('[data-order]').textContent = run.order;
       box.querySelector('[data-program]').textContent = run.program;
-      box.querySelector('[data-scope]').replaceChildren(section.querySelector(`template[data-scope="${run.scope || ''}"]`).content.cloneNode(true));
-      for (const e of box.querySelectorAll('[data-phase]')) e.hidden = e.dataset.phase !== run.phase;
-      for (const e of box.querySelectorAll('[data-outcome]')) e.hidden = e.dataset.outcome !== run.outcome;
       for (const e of box.querySelectorAll('[data-state]')) e.hidden = e.dataset.state !== run.state;
       for (const e of box.querySelectorAll('[data-tip], [data-state="running"]')) e.replaceChildren(line.content.cloneNode(true));
       snapshot(box.querySelector('.progress-status'), data.made, run.so_far, run.to_go);
       for (const e of box.querySelectorAll('[data-count]')) e.textContent = run.counts[e.dataset.count].toLocaleString('en-US');
-      for (const e of box.querySelectorAll('[data-work]')) e.textContent = run.work[e.dataset.work].toLocaleString('en-US');
       bar(box, run);
       const L = sea(box, run);
       L.etaXs = etaChart(box.querySelector('.progress-eta'), run);

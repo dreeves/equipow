@@ -1077,7 +1077,7 @@ def q_watch_rewrites_and_sleeps():
     # file holds the run's splits and its record of ETAs, and this process now runs at nice 15 or more; a bad
     # argument fails with AssertionError.
     d = tempfile.mkdtemp(prefix='progress-quals-')
-    saved = (progress.RUNS, progress.EXTENDED, progress.JS, progress.CACHE, progress.LATTICE, progress.HERE,
+    saved = (progress.RUNS, progress.EXTENDED, progress.JS, progress.CACHE, progress.HERE,
              progress.files, time.sleep)
     sleeps, writes = [], []
     class Stop(Exception): pass
@@ -1087,7 +1087,6 @@ def q_watch_rewrites_and_sleeps():
         if len(sleeps) == 2: raise Stop
     progress.RUNS, progress.EXTENDED = ((40, 6),), ()
     progress.JS, progress.CACHE = os.path.join(d, 'p.js'), os.path.join(d, 'c.json')
-    progress.LATTICE = os.path.join(d, 'absent-lattice.jsonl')
     progress.HERE = d
     progress.files = lambda n, order: tiny('closed')
     time.sleep = stub
@@ -1096,7 +1095,7 @@ def q_watch_rewrites_and_sleeps():
     except Stop:
         pass
     finally:
-        (progress.RUNS, progress.EXTENDED, progress.JS, progress.CACHE, progress.LATTICE, progress.HERE,
+        (progress.RUNS, progress.EXTENDED, progress.JS, progress.CACHE, progress.HERE,
          progress.files, time.sleep) = saved
     assert sleeps == [60, 60] and len(writes) == 2, (sleeps, writes)
     assert [r['n'] for r in progress_data(open(os.path.join(d, 'p.js')).read())['runs']] == [40]
