@@ -1616,6 +1616,16 @@ PROGRESS_ETA_DATA = {'made': 1792200000, 'runs': [dict(PROGRESS_DATA['runs'][0],
 # two runs, the second the first as boxsplit.py's pass with no ETA recorded yet (dreeves, 2026-10-17: a second block for
 # 240@11's boxsplit pass)
 PROGRESS_TWO = {'made': 1792200000, 'runs': [PROGRESS_DATA['runs'][0], dict(PROGRESS_DATA['runs'][0], program='boxsplit.py', to_go=None, etas=[])]}
+# two long runs (dreeves, 2026-10-23: "this would be more helpful as days or years when over like 48 or maybe 72h, and
+# the parenthetical needs disambiguation when >1week"): 480:14's of that day, 14.2 h so far and 3596.5–56401.4 h to go
+# (median 7500 h), its last two ETAs an hour apart; and a run 100 h along with 0.5–3.0 h to go
+HOURS = 3600.0
+PROGRESS_LONG = {'made': 1792200000, 'runs': [
+    dict(PROGRESS_DATA['runs'][0], so_far=14.2 * HOURS, to_go={'median': 7500 * HOURS, 'lo': 3596.5 * HOURS, 'hi': 56401.4 * HOURS},
+         etas=[[1792196400, 13.2 * HOURS, 7400 * HOURS, 3550 * HOURS, 55000 * HOURS],
+               [1792200000, 14.2 * HOURS, 7500 * HOURS, 3596.5 * HOURS, 56401.4 * HOURS]]),
+    dict(PROGRESS_DATA['runs'][0], so_far=100 * HOURS, to_go={'median': 1 * HOURS, 'lo': 0.5 * HOURS, 'hi': 3 * HOURS},
+         etas=[[1792196400, 99 * HOURS, 2 * HOURS, 1 * HOURS, 4 * HOURS], [1792200000, 100 * HOURS, 1 * HOURS, 0.5 * HOURS, 3 * HOURS]])]}
 PROGRESS_EARLY = '<script>window.PROGRESS_POLL_MS = 1000;</script>\n'      # a 1 s poll, for the quals
 # a browser that last left the section open (dreeves, 2026-10-17: "i keep having to re-expand the search progress
 # section", Live Server reloading the page as files change), set before the page's scripts run
@@ -1635,12 +1645,18 @@ def ampm(t):
     return f'{lt.tm_hour % 12 or 12}:{lt.tm_min:02d}{"am" if lt.tm_hour < 12 else "pm"}'
 
 
-def finish(t1, t2):
-    """The status line's finish times: the first's weekday, the first, a spaced en dash, the second's weekday only when
-    its date differs, the second."""
-    day = lambda t: time.strftime('%a', time.localtime(t))
-    same = time.strftime('%Y-%m-%d', time.localtime(t1)) == time.strftime('%Y-%m-%d', time.localtime(t2))
-    return f'{day(t1)} {ampm(t1)} – {"" if same else day(t2) + " "}{ampm(t2)}'
+WEEK = 7 * 86400                               # seconds; a finish time a week or more on is a date (dreeves, 2026-10-23)
+
+
+def finish(t, t1, t2):
+    """The status line's finish times, of a snapshot at t: the first's weekday, the first, a spaced en dash, the second's
+    weekday only when its date differs, the second; but an end a week or more after t as its local date, YYYY-MM-DD
+    (dreeves, 2026-10-23: "the parenthetical needs disambiguation when >1week")."""
+    day = lambda s: time.strftime('%a', time.localtime(s))
+    date = lambda s: time.strftime('%Y-%m-%d', time.localtime(s))
+    first = f'{day(t1)} {ampm(t1)}' if t1 - t < WEEK else date(t1)
+    second = f'{"" if date(t1) == date(t2) else day(t2) + " "}{ampm(t2)}' if t2 - t < WEEK else date(t2)
+    return f'{first} – {second}'
 # The harness: notes what has loaded, opens the section, waits 3.5 s, reads each dot's middle pixel, the key's counts,
 # the state line and the times, the time bar's parts, the subtrees' blocks and the ETA chart (its markup at rest), hovers over the third
 # group's first dot and over the ETA chart's second record, gives progressData a changed snapshot (one dot running ->
@@ -1736,10 +1752,11 @@ PROGRESS_RUNS = {}                             # progress_run's reports, by case
 
 def progress_run(case='main'):
     """The harness's report on index.html with the case's data (main: PROGRESS_DATA; eta: PROGRESS_ETA_DATA; two:
-    PROGRESS_TWO; remembered: PROGRESS_DATA, with PROGRESS_REMEMBERED's stored state) as progress.js beside it, made on
-    first use."""
+    PROGRESS_TWO; long: PROGRESS_LONG; remembered: PROGRESS_DATA, with PROGRESS_REMEMBERED's stored state) as progress.js
+    beside it, made on first use."""
     if case not in PROGRESS_RUNS:
-        data = {'main': PROGRESS_DATA, 'eta': PROGRESS_ETA_DATA, 'two': PROGRESS_TWO, 'remembered': PROGRESS_DATA}[case]
+        data = {'main': PROGRESS_DATA, 'eta': PROGRESS_ETA_DATA, 'two': PROGRESS_TWO, 'long': PROGRESS_LONG,
+                'remembered': PROGRESS_DATA}[case]
         early = PROGRESS_EARLY + (PROGRESS_REMEMBERED if case == 'remembered' else '')
         d = tempfile.mkdtemp(prefix='index-quals-')
         text = page()
@@ -2015,18 +2032,42 @@ def q_progress_states_times_and_hours():
     # page's ink before).
     R = progress_run()
     made, go, h = PROGRESS_DATA['made'], PROGRESS_DATA['runs'][0]['to_go'], NNBSP + 'h'
-    want = f'@{stamp(made)}{EMSP}2.0{h} so far + 0.5–3.0{h} to go = 2.5–5.0{h} ({finish(made + go["lo"], made + go["hi"])})'
+    want = f'@{stamp(made)}{EMSP}2.0{h} so far + 0.5–3.0{h} to go = 2.5–5.0{h} ({finish(made, made + go["lo"], made + go["hi"])})'
     assert R['state'] == [want], (R['state'], want)
     at = lambda d, hh, mm: time.mktime((2026, 10, d, hh, mm, 0, 0, 0, -1))        # local times; 2026-10-19 is a Monday
-    assert finish(at(19, 6, 27), at(19, 17, 38)) == 'Mon 6:27am – 5:38pm', finish(at(19, 6, 27), at(19, 17, 38))
-    assert finish(at(19, 6, 27), at(20, 0, 18)) == 'Mon 6:27am – Tue 12:18am', finish(at(19, 6, 27), at(20, 0, 18))
-    assert finish(at(19, 12, 5), at(26, 12, 5)) == 'Mon 12:05pm – Mon 12:05pm'
+    assert finish(at(19, 6, 0), at(19, 6, 27), at(19, 17, 38)) == 'Mon 6:27am – 5:38pm', finish(at(19, 6, 0), at(19, 6, 27), at(19, 17, 38))
+    assert finish(at(19, 6, 0), at(19, 6, 27), at(20, 0, 18)) == 'Mon 6:27am – Tue 12:18am', finish(at(19, 6, 0), at(19, 6, 27), at(20, 0, 18))
+    # a week on, a weekday is ambiguous: a date (dreeves, 2026-10-23; 'Mon 12:05pm – Mon 12:05pm' until then)
+    assert finish(at(19, 12, 5), at(19, 12, 5), at(26, 12, 5)) == 'Mon 12:05pm – 2026-10-26'
     want = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(PROGRESS_DATA['made']))
     assert R['made'] == want, (R['made'], want)
     assert re.fullmatch(r'(\d+ d )?\d+:\d\d:\d\d', R['age']), R['age']
     assert R['status']['afterChart'] is True, R['status']
     assert R['status']['colors'] == [['spent', 'rgb(42, 120, 214)'], ['togo', 'rgb(227, 73, 72)'], ['total', 'rgb(123, 31, 162)']], R['status']
     assert R['status']['ink'] == R['status']['when'] == 'rgb(27, 29, 34)', R['status']
+
+
+def q_progress_writes_days_and_years_past_72_h_and_dates_past_a_week():
+    # Replicata: progress_run('long'): PROGRESS_LONG's two running runs.
+    # Expectata (dreeves, 2026-10-23: "this would be more helpful as days or years when over like 48 or maybe 72h, and
+    # the parenthetical needs disambiguation when >1week"): each duration in hours below 72 h, in days below a year of
+    # 365.25 d, in years from there, as before a tenth so far and to go and in all a tenth below 10 and whole from 10,
+    # each with its own unit but a range's unit once when its ends share it: 14.2 h so far + 149.9 d–6.4 y to go =
+    # 150 d–6.4 y, then 4.2 d so far + 0.5–3.0 h to go = 4.2–4.3 d; each finish time a week or more after the snapshot
+    # as its local date, both of the first run's, YYYY-MM-DD; and the first run's ETA chart's axes each in the unit of
+    # its largest value, hours of running in days, 0 to 400 d, and hours in all in years, 0 to 8 y.
+    R = progress_run('long')
+    made, (a, b) = PROGRESS_LONG['made'], [r['to_go'] for r in PROGRESS_LONG['runs']]
+    h, d, y = NNBSP + 'h', NNBSP + 'd', NNBSP + 'y'
+    date = lambda s: time.strftime('%Y-%m-%d', time.localtime(s))
+    want = [f'@{stamp(made)}{EMSP}14.2{h} so far + 149.9{d}–6.4{y} to go = 150{d}–6.4{y} ({date(made + a["lo"])} – {date(made + a["hi"])})',
+            f'@{stamp(made)}{EMSP}4.2{d} so far + 0.5–3.0{h} to go = 4.2–4.3{d} ({finish(made, made + b["lo"], made + b["hi"])})']
+    assert R['state'] == want, (R['state'], want)
+    parts = SvgParts()
+    parts.feed(R['etaSvg'])
+    ticks = lambda k: [text for tag, at, text in parts.items if at.get('class') == k]
+    assert ticks('xtick') == ['0', '100', '200', '300', f'400{d}'], ticks('xtick')
+    assert ticks('ytick') == ['0', '2', '4', '6', f'8{y}'], ticks('ytick')
 
 
 def q_progress_names_each_run_s_program():
@@ -2099,7 +2140,7 @@ def q_progress_draws_the_eta_chart():
     parts.feed(R['etaSvg'])
     assert [text for tag, a, text in parts.items if a.get('class') == 'xtick'] == ['0', '1', '2', f'3{h}'], R['etaSvg']
     t = PROGRESS_DATA['runs'][0]['etas'][1][0]
-    assert E['tip'] == f'@{stamp(t)}{EMSP}1.0{h} so far + 1.0–3.0{h} to go = 2.0–4.0{h} ({finish(t + 3600, t + 10800)})', E['tip']
+    assert E['tip'] == f'@{stamp(t)}{EMSP}1.0{h} so far + 1.0–3.0{h} to go = 2.0–4.0{h} ({finish(t, t + 3600, t + 10800)})', E['tip']
     assert E['tipLast'] == R['state'][0] and E['sameMarkup'] is True, (E['tipLast'], R['state'], E['sameMarkup'])
     assert R['tipRest']['visibility'] == 'hidden' and R['tipRest']['height'] > 0 and R['jump'] == 0, (R['tipRest'], R['jump'])
 
@@ -2116,7 +2157,7 @@ def q_progress_tip_projects_past_the_last_record():
     R = progress_run()
     E, h = R['eta'], NNBSP + 'h'
     t = PROGRESS_DATA['made'] + 1800
-    want = f'@{stamp(t)}{EMSP}2.5{h} so far + 0.0–2.5{h} to go = 2.5–5.0{h} ({finish(t, t + 9000)})'
+    want = f'@{stamp(t)}{EMSP}2.5{h} so far + 0.0–2.5{h} to go = 2.5–5.0{h} ({finish(t, t, t + 9000)})'
     assert E['tipAhead'] == want, (E['tipAhead'], want)
     A = E['ahead']
     assert A['projected'] is True and A['style'] == 'italic' and abs(A['cross'] - A['want']) < 0.05, A

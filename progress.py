@@ -1123,9 +1123,14 @@ def survey_focus(path, procs, now=None, observations=None, launches=None):
 
     A budget stop leaves cases open. Only a completed proof settles a root.
     Observation timestamps retain elapsed time if a process disappears.
-    The run's process is the one focus.py process for its n.  launches holds each such process's first sighting,
-    by pid: it runs from then (dreeves, 2026-10-23: "always be clear about what's been running for how long"),
-    though it writes its session record only after replaying its certificates (20 minutes at 4 GB).
+    The run's process is the one focus.py process for its n.  launches holds each such process's first and last
+    sightings, [first, last] by pid: it runs from the first to the last (dreeves, 2026-10-23: "always be clear about
+    what's been running for how long"), though it writes its session record only after replaying its certificates
+    (an hour and more at 4 GB), and whether or not it lives to write it.  A session runs from its process's first
+    sighting, if that came before its record, to the later of its last record and its process's last sighting (the
+    latest session of that pid's).  A root case runs from the record before the first naming it to the record
+    completing it (or the record before that, if never named), its age the running time between, gaps between
+    launches excluded.
     """
     records = [json.loads(line) for line in complete_lines(path)]
     now = time.time() if now is None else now
@@ -1134,20 +1139,21 @@ def survey_focus(path, procs, now=None, observations=None, launches=None):
     header = records[0]
     assert (header['event'], header['version']) == ('header', 1)
     assert (header['n'], header['order']) in ((480, 14), (672, 13))
-    main = [p for p in procs if re.search(rf'(?:^|[\s/])focus\.py {header["n"]}(?:\s|$)', p[3])]
-    assert len(main) <= 1
-    for p in main: launches.setdefault(str(p[0]), now)
     assert type(header['total']) is int and header['total'] > 0
     total = header['total']
+    main = [p for p in procs if re.search(rf'(?:^|[\s/])focus\.py {header["n"]}(?:\s|$)', p[3])]
+    assert len(main) <= 1
+    for p in main: launches.setdefault(str(p[0]), [now, now])[1] = now
+    assert all(len(v) == 2 and v[0] <= v[1] <= now for v in launches.values()), launches
     state = dict(pid=None, outcome=None, time=header['time'])
-    spans = []
+    spans, pids = [], []                # the sessions' spans and pids, in journal order
     snap = dict(lp=0, closed=0, split=0, pending=total, case=None, completed=[])
-    seconds = collections.Counter()    # each root case's seconds of running: the time up to a record goes to the case
-                                       # running at the record before it, or else to the record's own
+    begun, ended = {}, {}               # each root case's start and completion times (see the docstring)
 
     def session(r, t):
         state.update(pid=r['pid'], outcome=None)
         spans.append([t, t])
+        pids.append(str(r['pid']))
 
     def update(r, t):
         assert spans and r['pid'] == state['pid'] and state['outcome'] is None
@@ -1160,36 +1166,41 @@ def survey_focus(path, procs, now=None, observations=None, launches=None):
         outcome = r.get('outcome')
         assert (r['event'] == 'finish') == (outcome in ('excluded', 'witness', 'budget'))
         assert outcome != 'excluded' or (len(r['completed']) == total and r['pending'] == 0)
-        seconds[r['case'] if snap['case'] is None else snap['case']] += r['time'] - state['time']
+        for c in [r['case'], *r['completed']]: begun.setdefault(c, state['time'])   # a root can begin and end between
+        for c in r['completed']: ended.setdefault(c, r['time'])                     # two records, never named running
         snap.update({k: r[k] for k in snap})
         state['outcome'] = outcome
 
     handlers = dict(session=session, update=update, finish=update)
     for r in records[1:]:
         assert r['event'] in handlers and type(r['pid']) is int
-        # a session starts at its process's launch, if seen before the record
-        t = min(r['time'], launches.get(str(r['pid']), r['time'])) if r['event'] == 'session' else r['time']
+        # a session starts at its process's first sighting, if that came before its record
+        t = min(r['time'], launches.get(str(r['pid']), [r['time']])[0]) if r['event'] == 'session' else r['time']
         assert state['time'] <= t <= r['time'] <= now
         handlers[r['event']](r, t)
         spans[-1][1] = r['time']
         state['time'] = t
     assert spans
-    last = state['time']
-    unjournaled = [p for p in main if p[0] != state['pid']]     # launched, its session not yet recorded
-    spans += [[launches[str(p[0])]] * 2 for p in unjournaled]
-    live = unjournaled or (main and state['outcome'] is None)
+    for pid, i in {pid: i for i, pid in enumerate(pids)}.items():      # each pid's latest session
+        spans[i][1] = max(spans[i][1], launches.get(pid, spans[i])[1])
+    spans += [list(v) for pid, v in launches.items() if pid not in pids]   # seen, never journaled
+    spans.sort()
+    assert all(a[1] <= b[0] for a, b in zip(spans, spans[1:])), spans
+    live = bool(main) and (str(main[0][0]) not in pids or state['outcome'] is None)
     status = 'ended' if not live else 'frozen' if main[0][2].startswith('T') else 'running'
     observed = list(map(float, observations))
     assert all(spans[0][0] <= t <= now for t in observed)
     for span, stop in zip(spans, [a for a, _ in spans[1:]] + [now + 1]):
         span[1] = max([span[1]] + [t for t in observed if span[0] <= t < stop])
+    spans[-1][1] = now if status == 'running' else spans[-1][1]
+    def running(t): return sum(max(0.0, min(t, b) - a) for a, b in spans)   # seconds of running before t
     active = snap['case'] if status == 'running' else None
-    walls = [seconds[i] for i in snap['completed']]
-    ages = [] if active is None else [seconds[active] + now - max(last, spans[-1][0])]
+    assert set(snap['completed']) <= set(begun) & set(ended)
+    walls = [running(ended[c]) - running(begun[c]) for c in snap['completed']]
+    ages = [] if active is None else [running(now) - running(begun[active])]
     eta = (lindy_urn(walls, ages, total - len(walls) - len(ages), 1)
            if status == 'running' and max([*walls, *ages], default=0.0) > 0 else None)
     if status == 'running':
-        spans[-1][1] = now
         observations[str(float(now))] = eta
     codes = ''.join('0' if i in snap['completed'] else '4' if i == active else
                     '1' if status == 'ended' else '3' for i in range(total))

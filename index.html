@@ -1075,7 +1075,7 @@ SClaude[11][800] = {
 </section>
 
 <section class="progress" aria-labelledby="progress-title">
-  <!-- TODO: Claude's copy, at dreeves's request (2026-10-17), on the certified searches' progress, in a section that starts closed: when the snapshot was made and how old it is; per run, its question and the program that runs it (overnight_v5.py, or boxsplit.py over a run's open sub-cases), whether it is running, frozen or ended, and its hours of running so far + to go = in all (dreeves's form, 2026-10-17; running: after an @ and the snapshot's time in place of "Running:" (dreeves, 2026-10-17), with the local times that range ends between, in parentheses), as a bar drawn to scale at the top and as the status line below the ETA chart, its parts in the chart's colors in place of a legend (dreeves, 2026-10-17); a sea of dots, one per sub-case, each subtree a block of its own, colored by status, with a key of the statuses and their counts and a readout of the subtree under the pointer; and progress.html's ETA chart (elapsed time, ETA and elapsed + ETA, in dreeves's words), with a tip above it: the status line's running form for the recorded ETA under the pointer, at its time (dreeves, 2026-10-17: "the same as the line below, just an earlier snapshot thereof"), and right of the last record that record's line carried on to the hour of running under the pointer, in italics, a projection (dreeves, 2026-10-18) -->
+  <!-- TODO: Claude's copy, at dreeves's request (2026-10-17), on the certified searches' progress, in a section that starts closed: when the snapshot was made and how old it is; per run, its question and the program that runs it (overnight_v5.py, or boxsplit.py over a run's open sub-cases), whether it is running, frozen or ended, and its hours of running so far + to go = in all (dreeves's form, 2026-10-17; running: after an @ and the snapshot's time in place of "Running:" (dreeves, 2026-10-17), with the local times that range ends between, in parentheses; durations in days from 72 h and years from 365.25 d, and finish times a week or more on as dates (dreeves, 2026-10-23)), as a bar drawn to scale at the top and as the status line below the ETA chart, its parts in the chart's colors in place of a legend (dreeves, 2026-10-17); a sea of dots, one per sub-case, each subtree a block of its own, colored by status, with a key of the statuses and their counts and a readout of the subtree under the pointer; and progress.html's ETA chart (elapsed time, ETA and elapsed + ETA, in dreeves's words), with a tip above it: the status line's running form for the recorded ETA under the pointer, at its time (dreeves, 2026-10-17: "the same as the line below, just an earlier snapshot thereof"), and right of the last record that record's line carried on to the hour of running under the pointer, in italics, a projection (dreeves, 2026-10-18) -->
     <details>
       <summary><h2 id="progress-title">Search progress</h2></summary>
       <p>As of <span data-made>—</span> (<span data-age>—</span> ago).</p>
@@ -1124,12 +1124,12 @@ SClaude[11][800] = {
           </div>
           <p class="progress-status">
             <span data-state="running"></span>
-            <span data-state="frozen">Frozen: <span class="spent"><b data-so-far></b>&#8239;h so far</span> + <span class="togo"><b data-to-go></b>&#8239;h to go</span> = <span class="total"><b data-sum></b>&#8239;h</span></span>
-            <span data-state="ended">Ended after <span class="spent"><b data-so-far></b>&#8239;h</span> of running.</span>
+            <span data-state="frozen">Frozen: <span class="spent"><b data-so-far></b> so far</span> + <span class="togo"><b data-to-go></b> to go</span> = <span class="total"><b data-sum></b></span></span>
+            <span data-state="ended">Ended after <span class="spent"><b data-so-far></b></span> of running.</span>
           </p>
         </div>
       </template>
-      <template class="progress-line">@<span data-when></span>&emsp;<span class="spent"><b data-so-far></b>&#8239;h so far</span> + <span class="togo"><b data-to-go></b>&#8239;h to go</span> = <span class="total"><b data-sum></b>&#8239;h (<b data-done></b>)</span></template>
+      <template class="progress-line">@<span data-when></span>&emsp;<span class="spent"><b data-so-far></b> so far</span> + <span class="togo"><b data-to-go></b> to go</span> = <span class="total"><b data-sum></b> (<b data-done></b>)</span></template>
     </details>
 </section>
 
@@ -1664,7 +1664,8 @@ try {
 // is hidden; the section draws only when the snapshot changed, in place, and loads nothing while closed.  This browser
 // keeps whether it last left the section open (localStorage, KEPT), and the section opens itself on load if so (dreeves,
 // 2026-10-17: reloads, as Live Server's when files change, kept closing it).  Every word
-// it shows is in the section's HTML (its templates); this script writes numbers, times and marks.
+// it shows is in the section's HTML (its templates); this script writes numbers, times and marks, durations with their
+// units, h, d or y (dreeves, 2026-10-23).
 // Per run: a bar of hours so far and to go, to scale (so far, then the band's bottom, then the rest of the band, the
 // median marked); the sea, one dot per sub-case of the data's groups, each group a block of cells (strips below), cells
 // of pitch px, chosen from 10 down to 2 px so that the sea is at most about 560 px tall, a dot a device px short of its
@@ -1695,25 +1696,38 @@ try {
   };
   const stamp = t => `${local(t)}:${pad(new Date(t * 1000).getSeconds())}`;
   const ampm = d => `${d.getHours() % 12 || 12}:${pad(d.getMinutes())}${d.getHours() < 12 ? 'am' : 'pm'}`;   // "6:27am"
-  const finish = (t1, t2) => {          // local, as "Mon 6:27am – 10:58pm": the second weekday only when its date differs
+  const WEEK = 7 * 86400;                // seconds
+  // The finish times of a snapshot at t, local, as "Mon 6:27am – 10:58pm": the second weekday only when its date
+  // differs; but an end a week or more after t as its date, as "2027-03-15" (dreeves, 2026-10-23: "the parenthetical
+  // needs disambiguation when >1week").
+  const finish = (t, t1, t2) => {
     const a = new Date(t1 * 1000), b = new Date(t2 * 1000), day = d => ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()];
-    return `${day(a)} ${ampm(a)} – ${a.toDateString() === b.toDateString() ? '' : day(b) + ' '}${ampm(b)}`;
+    const first = t1 - t < WEEK ? `${day(a)} ${ampm(a)}` : local(t1).slice(0, 10);
+    const second = t2 - t < WEEK ? `${a.toDateString() === b.toDateString() ? '' : day(b) + ' '}${ampm(b)}` : local(t2).slice(0, 10);
+    return `${first} – ${second}`;
   };
   const duration = sec => {
     const s = Math.max(0, Math.floor(sec)), d = Math.floor(s / 86400);
     return (d ? `${d} d ` : '') + `${Math.floor(s / 3600) % 24}:${pad(Math.floor(s / 60) % 60)}:${pad(s % 60)}`;
   };
-  const hours = sec => (sec / 3600).toFixed(1);
+  const tenth = v => v.toFixed(1);
   const hrs = h => h < 10 ? h.toFixed(1) : h.toFixed(0);             // progress.py's hrs: a tenth below 10, whole from 10
+  // A duration's unit (dreeves, 2026-10-23: "more helpful as days or years when over like 48 or maybe 72h"): hours below
+  // 72 h, days below a year of 365.25 d, years from there; each [seconds, symbol, the bound below which it serves].
+  const UNITS = [[3600, 'h', 72], [86400, 'd', 365.25], [31557600, 'y', Infinity]];
+  const unitOf = sec => UNITS.find(([s, , top]) => sec / s < top);
+  const dur = (sec, fmt) => `${fmt(sec / unitOf(sec)[0])}\u202f${unitOf(sec)[1]}`;   // fmt's number, a narrow no-break space, the unit
+  // a range of durations, its unit once when both ends share it: "0.5–3.0 h", "149.9 d–6.4 y"
+  const range = (lo, hi, fmt) => unitOf(lo) === unitOf(hi) ? `${fmt(lo / unitOf(lo)[0])}–${dur(hi, fmt)}` : `${dur(lo, fmt)}–${dur(hi, fmt)}`;
   // A snapshot's line (template.progress-line), into el's fields: the snapshot's time t, its seconds of running so far
   // x and its estimate g of the seconds to go ({lo, hi}; null: none), as the frozen and ended forms take them too.
   const snapshot = (el, t, x, g) => {
     const fill = (field, text) => { for (const e of el.querySelectorAll(`[data-${field}]`)) e.textContent = text; };
     fill('when', stamp(t));
-    fill('so-far', hours(x));
-    fill('to-go', g ? `${hours(g.lo)}–${hours(g.hi)}` : '—');
-    fill('sum', g ? `${hrs((x + g.lo) / 3600)}–${hrs((x + g.hi) / 3600)}` : '—');
-    fill('done', g ? finish(t + g.lo, t + g.hi) : '—');
+    fill('so-far', dur(x, tenth));
+    fill('to-go', g ? range(g.lo, g.hi, tenth) : '—');
+    fill('sum', g ? range(x + g.lo, x + g.hi, hrs) : '—');
+    fill('done', g ? finish(t, t + g.lo, t + g.hi) : '—');
   };
   const num = v => String(Number(v.toPrecision(12)));
   const pct = v => `${+(100 * v).toFixed(4)}%`;
@@ -1861,16 +1875,20 @@ try {
     const now = run.so_far / 3600, last = pts[pts.length - 1];
     const xmax = Math.max(now, 1 / 3600, ...pts.slice(-1).map(p => p[1] + p[2]));
     const ymax = Math.max(xmax, ...pts.map(p => p[1] + Math.max(p[2], p[4])));   // up to elapsed + ETA's top, or its line
-    const xs = tickStep(xmax), ys = tickStep(ymax);
-    const xticks = Array.from({length: Math.ceil(xmax / xs) + 1}, (_, i) => xs * i);
-    const yticks = Array.from({length: Math.ceil(ymax / ys) + 1}, (_, i) => ys * i);
+    // each axis's round ticks in the unit of its largest value (unitOf; dreeves, 2026-10-23), as hours, and their labels,
+    // the last with the unit
+    const axis = top => {
+      const [s, u] = unitOf(top * 3600), k = s / 3600, step = tickStep(top / k);
+      const ticks = Array.from({length: Math.ceil(top / k / step) + 1}, (_, i) => step * i);
+      return [ticks.map(v => v * k), ticks.map((v, i) => num(v) + (i === ticks.length - 1 ? '\u202f' + u : ''))];
+    };
+    const [xticks, xlabels] = axis(xmax), [yticks, ylabels] = axis(ymax);
     const X = x => L + (W - L - R) * x / xticks[xticks.length - 1];
     const Y = y => H - B - (H - T - B) * y / yticks[yticks.length - 1];
     const P = ps => ps.map(([x, y]) => `${X(x).toFixed(2)},${Y(y).toFixed(2)}`).join(' ');
     const set = (el, attrs) => { for (const k in attrs) el.setAttribute(k, typeof attrs[k] === 'number' ? attrs[k].toFixed(2) : attrs[k]); return el; };
     const make = (tag, attrs, text) => { const e = set(document.createElementNS(NS, tag), attrs); if (text !== undefined) e.textContent = text; return e; };
     const q = sel => fig.querySelector(sel);
-    const unit = ticks => ticks.map((v, i) => num(v) + (i === ticks.length - 1 ? '\u202fh' : ''));   // a narrow no-break space
     q('[data-grid]').replaceChildren(...yticks.slice(1).map(v => make('line', {class: 'grid', x1: L, y1: Y(v), x2: W - R, y2: Y(v)})),
                                      make('line', {class: 'axis', x1: L, y1: Y(0), x2: W - R, y2: Y(0)}));
     const band = up => P(pts.map(p => [p[1], up(p) + p[4]]).concat(pts.slice().reverse().map(p => [p[1], up(p) + p[3]])));   // raised by up(p)
@@ -1880,8 +1898,8 @@ try {
     set(q('[data-togo]'), {points: P(pts.map(p => [p[1], p[2]]))});
     set(q('[data-total]'), {points: P(pts.map(p => [p[1], p[1] + p[2]]))});
     q('[data-ticks]').replaceChildren(
-      ...yticks.map((v, i) => make('text', {class: 'ytick', x: L - 6, y: Y(v) + 4, 'text-anchor': 'end'}, unit(yticks)[i])),
-      ...xticks.map((v, i) => [v, unit(xticks)[i]])
+      ...yticks.map((v, i) => make('text', {class: 'ytick', x: L - 6, y: Y(v) + 4, 'text-anchor': 'end'}, ylabels[i])),
+      ...xticks.map((v, i) => [v, xlabels[i]])
                // .filter(([v]) => Math.abs(X(v) - X(now)) >= CROWD)      // room for the elapsed time's label, commented out with it
                .map(([v, label]) => make('text', {class: 'xtick', x: X(v), y: H - 8, 'text-anchor': 'middle'}, label)));
     // The chart always shows (dreeves, 2026-10-23: "the search progress section should always be clear about what's

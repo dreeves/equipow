@@ -1,4 +1,5 @@
 """Quals for live snapshots of the focused all-sign proof searches."""
+import copy
 import json
 import os
 from pathlib import Path
@@ -146,7 +147,8 @@ class FocusProgressQuals(unittest.TestCase):
     def test_session_after_a_reload_keeps_its_launch(self):
         # Replicata: as above, then pid 456's session record at 300 s and an update at 305 s, surveyed at 310 s, and
         # after the process is gone, at 400 s.
-        # Expectata: one span from the launch, 200 s, on: 20 s + 110 s, and still 130 s once it ended.
+        # Expectata: one span from the launch, 200 s, on: 20 s + 110 s, and still 130 s once it ended, as it was last
+        # seen at 310 s.
         stop = dict(initial()[-1], event='finish', time=120, outcome='budget')
         procs, launches = [(456, 1, 'SN', '/opt/homebrew/bin/python3 -B focus.py 480')], {}
         survey(initial() + [stop], now=200, procs=procs, launches=launches)
@@ -155,7 +157,30 @@ class FocusProgressQuals(unittest.TestCase):
         live = survey(records, now=310, procs=procs, launches=launches)
         self.assertEqual((live['state'], live['so_far']), ('running', 130))
         gone = survey(records, now=400, procs=[], launches=launches, observations={})
-        self.assertEqual((gone['state'], gone['so_far']), ('ended', 125))
+        self.assertEqual((gone['state'], gone['so_far']), ('ended', 130))
+
+    def test_a_process_gone_before_its_session_keeps_its_time(self):
+        # Replicata: the budget-stopped pass; pid 456 seen replaying at 200 and 260 s, gone by 300 s without a session
+        # record; pid 789 seen at 400 s, its session record at 500 s and an update at 505 s, surveyed at 510 s.
+        # Expectata: 456's 60 s stay, a span of their own: 20 + 60 s, ended, at 300 s; then 20 + 60 + 110 s, running,
+        # in three spans, root 0 190 s old.
+        stop = dict(initial()[-1], event='finish', time=120, outcome='budget')
+        launches = {}
+        p456 = [(456, 1, 'RN', '/opt/homebrew/bin/python3 -B focus.py 480')]
+        survey(initial() + [stop], now=200, procs=p456, launches=launches)
+        survey(initial() + [stop], now=260, procs=p456, launches=launches)
+        gone = survey(initial() + [stop], now=300, procs=[], launches=launches)
+        self.assertEqual((gone['state'], gone['so_far']), ('ended', 80))
+        p789 = [(789, 1, 'RN', '/opt/homebrew/bin/python3 -B focus.py 480')]
+        survey(initial() + [stop], now=400, procs=p789, launches=launches)
+        records = initial() + [stop, dict(event='session', time=500, pid=789),
+                               dict(initial()[-1], time=505, pid=789, lp=30)]
+        alone = survey([dict(initial()[0], total=1)] + records[1:], now=510, procs=p789,
+                       launches=copy.deepcopy(launches))
+        live = survey(records, now=510, procs=p789, launches=launches)
+        self.assertEqual((live['state'], live['so_far']), ('running', 190))
+        self.assertEqual(live['passes'], [[100, 120], [200, 260], [400, 510]])
+        self.assertAlmostEqual(alone['to_go']['median'], 190, delta=25)
 
     def test_regressing_work_is_rejected(self):
         # Replicata: a later snapshot reports fewer cumulative LP solves.
