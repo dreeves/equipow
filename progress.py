@@ -1117,19 +1117,26 @@ def survey_lattice(path, procs, now=None, etas=None):
 
 # ---------- the data file ----------
 
-def survey_focus(path, procs, now=None, observations=None):
+def survey_focus(path, procs, now=None, observations=None, launches=None):
     """Focused proof journals: root-case coverage, and while running an ETA, lindy_urn's on the root cases (one
     worker), recorded in observations (dreeves, 2026-10-23: with no root done, Lindy).
 
     A budget stop leaves cases open. Only a completed proof settles a root.
     Observation timestamps retain elapsed time if a process disappears.
+    The run's process is the one focus.py process for its n.  launches holds each such process's first sighting,
+    by pid: it runs from then (dreeves, 2026-10-23: "always be clear about what's been running for how long"),
+    though it writes its session record only after replaying its certificates (20 minutes at 4 GB).
     """
     records = [json.loads(line) for line in complete_lines(path)]
     now = time.time() if now is None else now
     observations = {} if observations is None else observations
+    launches = {} if launches is None else launches
     header = records[0]
     assert (header['event'], header['version']) == ('header', 1)
     assert (header['n'], header['order']) in ((480, 14), (672, 13))
+    main = [p for p in procs if re.search(rf'(?:^|[\s/])focus\.py {header["n"]}(?:\s|$)', p[3])]
+    assert len(main) <= 1
+    for p in main: launches.setdefault(str(p[0]), now)
     assert type(header['total']) is int and header['total'] > 0
     total = header['total']
     state = dict(pid=None, outcome=None, time=header['time'])
@@ -1138,11 +1145,11 @@ def survey_focus(path, procs, now=None, observations=None):
     seconds = collections.Counter()    # each root case's seconds of running: the time up to a record goes to the case
                                        # running at the record before it, or else to the record's own
 
-    def session(r):
+    def session(r, t):
         state.update(pid=r['pid'], outcome=None)
-        spans.append([r['time'], r['time']])
+        spans.append([t, t])
 
-    def update(r):
+    def update(r, t):
         assert spans and r['pid'] == state['pid'] and state['outcome'] is None
         assert all(type(r[k]) is int and r[k] >= snap[k] for k in ('lp', 'closed', 'split'))
         assert type(r['pending']) is int and r['pending'] >= 0
@@ -1160,30 +1167,32 @@ def survey_focus(path, procs, now=None, observations=None):
     handlers = dict(session=session, update=update, finish=update)
     for r in records[1:]:
         assert r['event'] in handlers and type(r['pid']) is int
-        assert state['time'] <= r['time'] <= now
-        handlers[r['event']](r)
-        spans[-1][1] = state['time'] = r['time']
+        # a session starts at its process's launch, if seen before the record
+        t = min(r['time'], launches.get(str(r['pid']), r['time'])) if r['event'] == 'session' else r['time']
+        assert state['time'] <= t <= r['time'] <= now
+        handlers[r['event']](r, t)
+        spans[-1][1] = r['time']
+        state['time'] = t
     assert spans
     last = state['time']
-    main = [p for p in procs if p[0] == state['pid'] and
-            re.search(r'(?:^|[\s/])focus\.py(?:\s|$)', p[3])]
-    assert len(main) <= 1
-    status = ('ended' if state['outcome'] is not None or not main else
-              'frozen' if main[0][2].startswith('T') else 'running')
+    unjournaled = [p for p in main if p[0] != state['pid']]     # launched, its session not yet recorded
+    spans += [[launches[str(p[0])]] * 2 for p in unjournaled]
+    live = unjournaled or (main and state['outcome'] is None)
+    status = 'ended' if not live else 'frozen' if main[0][2].startswith('T') else 'running'
     observed = list(map(float, observations))
     assert all(spans[0][0] <= t <= now for t in observed)
     for span, stop in zip(spans, [a for a, _ in spans[1:]] + [now + 1]):
         span[1] = max([span[1]] + [t for t in observed if span[0] <= t < stop])
     active = snap['case'] if status == 'running' else None
     walls = [seconds[i] for i in snap['completed']]
-    ages = [] if active is None else [seconds[active] + now - last]
+    ages = [] if active is None else [seconds[active] + now - max(last, spans[-1][0])]
     eta = (lindy_urn(walls, ages, total - len(walls) - len(ages), 1)
            if status == 'running' and max([*walls, *ages], default=0.0) > 0 else None)
     if status == 'running':
         spans[-1][1] = now
         observations[str(float(now))] = eta
     codes = ''.join('0' if i in snap['completed'] else '4' if i == active else
-                    '1' if state['outcome'] is not None or not main else '3' for i in range(total))
+                    '1' if status == 'ended' else '3' for i in range(total))
     counts = {name: codes.count(str(i)) for i, name in enumerate(SEA_STATUSES)}
     return dict(program='focus.py', n=header['n'], order=header['order'], made=now,
                 state=status, outcome=state['outcome'], so_far=sum(b - a for a, b in spans), to_go=to_go_of(eta),
@@ -1330,8 +1339,9 @@ def main(argv):
                                cache.setdefault(f'{n}_{order}_boxsplit_{bx.CODE}_etas', {})) for n, order in EXTENDED]
         for path in sorted(glob.glob(os.path.join(HERE, 'focus_*_journal.jsonl'))):
             with open(path, encoding='utf-8') as f: header = json.loads(f.readline())
-            key = f'focus_{header["n"]}_{header["code"]}_{header["time"]}_observations'
-            surveys.append(survey_focus(path, procs, observations=cache.setdefault(key, {})))
+            key = f'focus_{header["n"]}_{header["code"]}_{header["time"]}'
+            surveys.append(survey_focus(path, procs, observations=cache.setdefault(key + '_observations', {}),
+                                        launches=cache.setdefault(key + '_launches', {})))
         now = max([now] + [s['made'] for s in surveys if s['program'] == 'focus.py'])
         write_atomic(JS, js_text(surveys, now))
         save_cache(CACHE, cache)

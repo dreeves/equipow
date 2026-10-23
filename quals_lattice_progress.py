@@ -173,8 +173,8 @@ class LatticeProgressQuals(unittest.TestCase):
 
 def browser():
     # Replicata: the real page receives preparation, calibration, running-case and attempted-case snapshots.
-    # Expectata: dot counts change (no scope or phase prose since 2026-10-23); tiny history has no ETA, then observed snapshots
-    # produce the blue elapsed, red remaining and purple total curves, with no JavaScript errors.
+    # Expectata: dot counts change (no scope or phase prose since 2026-10-23); the chart always shows, its elapsed time even
+    # with no ETA yet, then observed snapshots produce the blue elapsed, red remaining and purple total curves, with no JavaScript errors.
     import quals_index as q
     records, etas = initial(), {}
     snapshots = [data(records, 102, etas=etas)]
@@ -213,7 +213,7 @@ const out = document.createElement('pre'); out.id = 'lattice-qual'; out.textCont
         got = json.loads(html.unescape(match[1]))
     assert got['failures'] == [], got
     obs = got['observations']
-    assert all(r['eta'] for r in obs[:5]) and not any(r['eta'] for r in obs[5:]), obs
+    assert not any(r['eta'] for r in obs), obs   # the chart always shows (dreeves, 2026-10-23)
     assert obs[3]['counts']['running'] == '1' and obs[4]['counts']['running'] == '0', obs
     assert obs[4]['counts']['open'] == '1' and obs[4]['counts']['settled'] == '0', obs
     curves = obs[-1]['curves']

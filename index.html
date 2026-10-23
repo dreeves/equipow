@@ -1094,23 +1094,25 @@ SClaude[11][800] = {
             <li><span class="progress-sw" data-status="running"></span>running <span data-count="running"></span></li>
           </ul>
           <p class="progress-readout" data-readout>Hover over the dots for a subtree's key and counts.</p>
-          <div class="progress-eta" hidden>
+          <div class="progress-eta">
             <p class="progress-tip" data-tip></p>
             <svg viewBox="0 0 640 240" role="img" aria-label="The recorded ETAs against the hours of running, with the elapsed time and elapsed + ETA">
               <g data-grid></g>
               <polygon class="band togo" data-band-togo></polygon>
               <polygon class="band total" data-band-total></polygon>
               <polyline class="spent" data-spent></polyline>
+              <polyline class="togo" data-togo></polyline>
+              <polyline class="total" data-total></polyline>
+              <g visibility="hidden" data-marks>
               <line class="ahead" data-ahead></line>
               <line class="ideal" data-ideal></line>
               <polyline class="guide" data-guide></polyline>
-              <polyline class="togo" data-togo></polyline>
-              <polyline class="total" data-total></polyline>
               <line class="range togo" data-range-togo></line>
               <line class="range total" data-range-total></line>
               <circle class="now spent" r="4" data-now-spent></circle>
               <circle class="now togo" r="4" data-now-togo></circle>
               <circle class="now total" r="4" data-now-total></circle>
+              </g>
               <!-- The labels at the latest record, commented out at dreeves's request (2026-10-17: "comment it out for now"):
               <text class="label togo" data-label-togo><tspan data-togo-range></tspan>&#8239;h</text>
               <text class="label total" data-label-total><tspan data-total-range></tspan>&#8239;h</text>
@@ -1855,11 +1857,9 @@ try {
 
   function etaChart(fig, run) {
     const pts = run.etas.map(([t, x, m, lo, hi]) => [t, x / 3600, m / 3600, lo / 3600, hi / 3600]);
-    fig.hidden = !pts.length;
-    if (!pts.length) return [];
     const NS = 'http://www.w3.org/2000/svg', W = 640, H = 240, L = 48, R = 72, T = 14, B = 30, CROWD = 44;
     const now = run.so_far / 3600, last = pts[pts.length - 1];
-    const xmax = Math.max(now, 1 / 3600, last[1] + last[2]);
+    const xmax = Math.max(now, 1 / 3600, ...pts.slice(-1).map(p => p[1] + p[2]));
     const ymax = Math.max(xmax, ...pts.map(p => p[1] + Math.max(p[2], p[4])));   // up to elapsed + ETA's top, or its line
     const xs = tickStep(xmax), ys = tickStep(ymax);
     const xticks = Array.from({length: Math.ceil(xmax / xs) + 1}, (_, i) => xs * i);
@@ -1877,12 +1877,21 @@ try {
     set(q('[data-band-togo]'), {points: band(p => 0)});
     set(q('[data-band-total]'), {points: band(p => p[1])});
     set(q('[data-spent]'), {points: P([[0, 0], [now, now]])});
+    set(q('[data-togo]'), {points: P(pts.map(p => [p[1], p[2]]))});
+    set(q('[data-total]'), {points: P(pts.map(p => [p[1], p[1] + p[2]]))});
+    q('[data-ticks]').replaceChildren(
+      ...yticks.map((v, i) => make('text', {class: 'ytick', x: L - 6, y: Y(v) + 4, 'text-anchor': 'end'}, unit(yticks)[i])),
+      ...xticks.map((v, i) => [v, unit(xticks)[i]])
+               // .filter(([v]) => Math.abs(X(v) - X(now)) >= CROWD)      // room for the elapsed time's label, commented out with it
+               .map(([v, label]) => make('text', {class: 'xtick', x: X(v), y: H - 8, 'text-anchor': 'middle'}, label)));
+    // The chart always shows (dreeves, 2026-10-23: "the search progress section should always be clear about what's
+    // been running for how long"): with no recorded ETA yet, its axes and the elapsed time alone, the marks at the last
+    // record hidden (data-marks), and no tip.
+    if (!pts.length) return [];
     const fin = last[1] + last[2];               // the projected finish: hours of running when elapsed time meets elapsed + ETA
     set(q('[data-ahead]'), {x1: X(last[1]), y1: Y(last[1]), x2: X(fin), y2: Y(fin)});
     set(q('[data-guide]'), {points: P([[last[1], fin], [fin, fin], [fin, 0]])});      // across from the purple marker, then down
     set(q('[data-ideal]'), {x1: X(last[1]), y1: Y(last[2]), x2: X(fin), y2: Y(0)});    // the ETA's ideal course: an hour less each hour
-    set(q('[data-togo]'), {points: P(pts.map(p => [p[1], p[2]]))});
-    set(q('[data-total]'), {points: P(pts.map(p => [p[1], p[1] + p[2]]))});
     set(q('[data-range-togo]'), {x1: X(last[1]), y1: Y(last[3]), x2: X(last[1]), y2: Y(last[4])});
     set(q('[data-range-total]'), {x1: X(last[1]), y1: Y(last[1] + last[3]), x2: X(last[1]), y2: Y(last[1] + last[4])});
     set(q('[data-now-spent]'), {cx: X(last[1]), cy: Y(last[1])});
@@ -1895,11 +1904,7 @@ try {
     // q('[data-total-range]').textContent = `${hrs(last[1] + last[3])}–${hrs(last[1] + last[4])}`;
     // set(q('[data-label-spent]'), {x: X(now), y: H - 8});
     // q('[data-spent-h]').textContent = hrs(now);
-    q('[data-ticks]').replaceChildren(
-      ...yticks.map((v, i) => make('text', {class: 'ytick', x: L - 6, y: Y(v) + 4, 'text-anchor': 'end'}, unit(yticks)[i])),
-      ...xticks.map((v, i) => [v, unit(xticks)[i]])
-               // .filter(([v]) => Math.abs(X(v) - X(now)) >= CROWD)      // room for the elapsed time's label, commented out with it
-               .map(([v, label]) => make('text', {class: 'xtick', x: X(v), y: H - 8, 'text-anchor': 'middle'}, label)));
+    q('[data-marks]').setAttribute('visibility', 'visible');
     const svg = fig.querySelector('svg'), cross = q('[data-cross]'), tip = q('[data-tip]');
     const xsvg = pts.map(p => X(p[1])), end = xsvg[xsvg.length - 1], hour = X(1) - X(0);   // viewBox units
     // record k's line carried on s seconds of running past it (0: the record's own): the clock and the hours so far

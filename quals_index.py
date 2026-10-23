@@ -2032,12 +2032,12 @@ def q_progress_states_times_and_hours():
 def q_progress_names_each_run_s_program():
     # Replicata: progress_run with two runs: PROGRESS_DATA's, then the same as boxsplit.py's pass (PROGRESS_TWO).
     # Expectata: two headings, in the data's order, each the run's question and its program, overnight_v5.py then
-    # boxsplit.py (dreeves, 2026-10-17: a second block for the boxsplit pass over 240@11's open cases); the first run's
-    # ETA chart shows and the second's, with no ETA recorded, does not (it showed an empty frame on 2026-10-17: the
-    # chart's CSS display overrode its hidden attribute).
+    # boxsplit.py (dreeves, 2026-10-17: a second block for the boxsplit pass over 240@11's open cases); both runs' ETA
+    # charts show, the second's with no ETA recorded too (dreeves, 2026-10-23: "the search progress section should
+    # always be clear about what's been running for how long"; hidden with no ETA from 2026-10-17 until then).
     R = progress_run('two')
     assert R['heads'] == ['m*(64) ≥ 7? overnight_v5.py', 'm*(64) ≥ 7? boxsplit.py'], R['heads']
-    assert R['etaDisplays'] == ['grid', 'none'], R['etaDisplays']
+    assert R['etaDisplays'] == ['grid', 'grid'], R['etaDisplays']
 
 
 def q_progress_redraws_in_place_and_reads_out_a_subtree():

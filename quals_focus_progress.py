@@ -16,13 +16,13 @@ def initial():
                  split=12, pending=5, case=0, completed=[])]
 
 
-def survey(records, now=110, alive=True, observations=None):
+def survey(records, now=110, alive=True, observations=None, procs=None, launches=None):
     with tempfile.TemporaryDirectory() as directory:
         path = os.path.join(directory, 'journal.jsonl')
         with open(path, 'w') as f:
             f.writelines(json.dumps(r) + '\n' for r in records)
-        procs = [(123, 1, 'S', '/opt/homebrew/bin/python3 -B focus.py 480')] * alive
-        return progress.survey_focus(path, procs, now, observations)
+        procs = [(123, 1, 'S', '/opt/homebrew/bin/python3 -B focus.py 480')] * alive if procs is None else procs
+        return progress.survey_focus(path, procs, now, observations, launches)
 
 
 class FocusProgressQuals(unittest.TestCase):
@@ -127,6 +127,35 @@ class FocusProgressQuals(unittest.TestCase):
         gone = survey(initial(), now=130, alive=False, observations=observations)
         self.assertEqual(live['so_far'], gone['so_far'])
         self.assertEqual(gone['sea']['counts']['running'], 0)
+
+    def test_reloading_process_runs_from_its_launch(self):
+        # Replicata: a pass stopped at its budget at 120 s; a new focus.py 480 (pid 456) first seen at 200 s, still
+        # replaying its certificates (no session record yet), surveyed at 200 and 260 s (dreeves, 2026-10-23: "the
+        # search progress section should always be clear about what's been running for how long").
+        # Expectata: running, its time from its first sighting on: 20 s + 0 s, then 20 s + 60 s; with an ETA, root 0
+        # being 80 s old.
+        stop = dict(initial()[-1], event='finish', time=120, outcome='budget')
+        procs, launches = [(456, 1, 'SN', '/opt/homebrew/bin/python3 -B focus.py 480 --seconds 43200')], {}
+        first = survey(initial() + [stop], now=200, procs=procs, launches=launches)
+        later = survey(initial() + [stop], now=260, procs=procs, launches=launches)
+        self.assertEqual((first['state'], first['so_far']), ('running', 20))
+        self.assertEqual((later['state'], later['so_far']), ('running', 80))
+        alone = survey([dict(initial()[0], total=1)] + initial()[1:] + [stop], now=260, procs=procs, launches=dict(launches))
+        self.assertAlmostEqual(alone['to_go']['median'], 80, delta=12)
+
+    def test_session_after_a_reload_keeps_its_launch(self):
+        # Replicata: as above, then pid 456's session record at 300 s and an update at 305 s, surveyed at 310 s, and
+        # after the process is gone, at 400 s.
+        # Expectata: one span from the launch, 200 s, on: 20 s + 110 s, and still 130 s once it ended.
+        stop = dict(initial()[-1], event='finish', time=120, outcome='budget')
+        procs, launches = [(456, 1, 'SN', '/opt/homebrew/bin/python3 -B focus.py 480')], {}
+        survey(initial() + [stop], now=200, procs=procs, launches=launches)
+        records = initial() + [stop, dict(event='session', time=300, pid=456),
+                               dict(initial()[-1], time=305, pid=456, lp=30)]
+        live = survey(records, now=310, procs=procs, launches=launches)
+        self.assertEqual((live['state'], live['so_far']), ('running', 130))
+        gone = survey(records, now=400, procs=[], launches=launches, observations={})
+        self.assertEqual((gone['state'], gone['so_far']), ('ended', 125))
 
     def test_regressing_work_is_rejected(self):
         # Replicata: a later snapshot reports fewer cumulative LP solves.
