@@ -1626,6 +1626,11 @@ PROGRESS_LONG = {'made': 1792200000, 'runs': [
                [1792200000, 14.2 * HOURS, 7500 * HOURS, 3596.5 * HOURS, 56401.4 * HOURS]]),
     dict(PROGRESS_DATA['runs'][0], so_far=100 * HOURS, to_go={'median': 1 * HOURS, 'lo': 0.5 * HOURS, 'hi': 3 * HOURS},
          etas=[[1792196400, 99 * HOURS, 2 * HOURS, 1 * HOURS, 4 * HOURS], [1792200000, 100 * HOURS, 1 * HOURS, 0.5 * HOURS, 3 * HOURS]])]}
+# a run whose band stays within the y axis's cap (2026-10-23): 10 h so far and 1.5–2.5 h to go (median 2 h), so the
+# projected finish is 12 h and the cap 13.2 h, above elapsed + ETA's band top, 12.5 h
+PROGRESS_NARROW = {'made': 1792200000, 'runs': [dict(PROGRESS_DATA['runs'][0], so_far=10 * HOURS,
+    to_go={'median': 2 * HOURS, 'lo': 1.5 * HOURS, 'hi': 2.5 * HOURS},
+    etas=[[1792196400, 9 * HOURS, 2 * HOURS, 1.5 * HOURS, 2.5 * HOURS], [1792200000, 10 * HOURS, 2 * HOURS, 1.5 * HOURS, 2.5 * HOURS]])]}
 PROGRESS_EARLY = '<script>window.PROGRESS_POLL_MS = 1000;</script>\n'      # a 1 s poll, for the quals
 # a browser that last left the section open (dreeves, 2026-10-17: "i keep having to re-expand the search progress
 # section", Live Server reloading the page as files change), set before the page's scripts run
@@ -1752,11 +1757,11 @@ PROGRESS_RUNS = {}                             # progress_run's reports, by case
 
 def progress_run(case='main'):
     """The harness's report on index.html with the case's data (main: PROGRESS_DATA; eta: PROGRESS_ETA_DATA; two:
-    PROGRESS_TWO; long: PROGRESS_LONG; remembered: PROGRESS_DATA, with PROGRESS_REMEMBERED's stored state) as progress.js
+    PROGRESS_TWO; long: PROGRESS_LONG; narrow: PROGRESS_NARROW; remembered: PROGRESS_DATA, with PROGRESS_REMEMBERED's stored state) as progress.js
     beside it, made on first use."""
     if case not in PROGRESS_RUNS:
         data = {'main': PROGRESS_DATA, 'eta': PROGRESS_ETA_DATA, 'two': PROGRESS_TWO, 'long': PROGRESS_LONG,
-                'remembered': PROGRESS_DATA}[case]
+                'narrow': PROGRESS_NARROW, 'remembered': PROGRESS_DATA}[case]
         early = PROGRESS_EARLY + (PROGRESS_REMEMBERED if case == 'remembered' else '')
         d = tempfile.mkdtemp(prefix='index-quals-')
         text = page()
@@ -2055,7 +2060,8 @@ def q_progress_writes_days_and_years_past_72_h_and_dates_past_a_week():
     # each with its own unit but a range's unit once when its ends share it: 14.2 h so far + 149.9 d–6.4 y to go =
     # 150 d–6.4 y, then 4.2 d so far + 0.5–3.0 h to go = 4.2–4.3 d; each finish time a week or more after the snapshot
     # as its local date, both of the first run's, YYYY-MM-DD; and the first run's ETA chart's axes each in the unit of
-    # its largest value, hours of running in days, 0 to 400 d, and hours in all in years, 0 to 8 y.
+    # its largest value, hours of running in days, 0 to 400 d, and hours in all in days too, 0 to 300 d, as the y axis
+    # stops a bit above the projected finish (dreeves, 2026-10-23; q_progress_caps_the_y_axis_above_the_projected_finish).
     R = progress_run('long')
     made, (a, b) = PROGRESS_LONG['made'], [r['to_go'] for r in PROGRESS_LONG['runs']]
     h, d, y = NNBSP + 'h', NNBSP + 'd', NNBSP + 'y'
@@ -2067,7 +2073,33 @@ def q_progress_writes_days_and_years_past_72_h_and_dates_past_a_week():
     parts.feed(R['etaSvg'])
     ticks = lambda k: [text for tag, at, text in parts.items if at.get('class') == k]
     assert ticks('xtick') == ['0', '100', '200', '300', f'400{d}'], ticks('xtick')
-    assert ticks('ytick') == ['0', '2', '4', '6', f'8{y}'], ticks('ytick')
+    assert ticks('ytick') == ['0', '100', '200', f'300{d}'], ticks('ytick')
+
+
+def q_progress_caps_the_y_axis_above_the_projected_finish():
+    # Replicata: the ETA charts of progress_run('long') (480:14's bands, thousands of hours above its projected
+    # finish), of progress_run('eta') (its purple band's top 0.6 h above the cap) and of progress_run('narrow') (bands
+    # within the cap), as markup.
+    # Expectata (dreeves, 2026-10-23: "truncate the y-axis a bit above the horizontal purple dashed line ... and
+    # indicate visually in some way (no words) when the confidence bands go above the y-axis cap"): the y axis stops
+    # at the cap, 10% above the projected finish, the purple guide's level (or above the elapsed time, if that is
+    # more), its round ticks up to it; the cap's gridline is a zigzag across the plot, the mark of a broken axis;
+    # anything taller, as long's and eta's purple bands, goes into the strip above the cap, compressed (the cap over the
+    # value), never above the strip's top, the chart's top margin, 14; and narrow's bands never enter the strip.
+    for case, spills in (('long', True), ('eta', True), ('narrow', False)):
+        parts = SvgParts()
+        parts.feed(progress_run(case)['etaSvg'])
+        pts = lambda a: [tuple(map(float, xy.split(','))) for xy in a['points'].split()]
+        [cap] = [pts(a) for tag, a, _ in parts.items if tag == 'polyline' and a.get('class') == 'cap']
+        [axis] = [float(a['y1']) for tag, a, _ in parts.items if tag == 'line' and a.get('class') == 'axis']
+        level = (max(y for _, y in cap) + min(y for _, y in cap)) / 2     # its center line
+        assert len(cap) > 50 and max(abs(y - level) for _, y in cap) <= 1.5 + 1e-6, (case, cap[:4])
+        assert abs(cap[0][0] - 48) < 0.05 and abs(cap[-1][0] - 568) < 0.05, (case, cap[0], cap[-1])
+        [guide] = [pts(a) for tag, a, _ in parts.items if tag == 'polyline' and a.get('class') == 'guide']
+        assert abs((axis - level) - 1.1 * (axis - guide[0][1])) < 0.05, (case, axis, level, guide[0])
+        bands = [y for tag, a, _ in parts.items if tag == 'polygon' for _, y in pts(a)]
+        assert min(bands) >= 14 - 1e-6, (case, min(bands))
+        assert (min(bands) < level) == spills, (case, min(bands), level)
 
 
 def q_progress_names_each_run_s_program():
@@ -2210,19 +2242,25 @@ def q_progress_eta_chart_keeps_progress_html_s_spec():
     # one's top until they did, 2026-10-17).  And the guide purple too, as it carries elapsed + ETA's level across to the
     # finish and down to it on the x axis (dreeves, 2026-10-18: "that looks black and should be purple"; the page's
     # muted gray before).  And no finish marker since 2026-10-18 (dreeves: "remove the hollow purple dot at the upper
-    # right; that might look cleaner"): the guide alone marks the projected finish.
+    # right; that might look cleaner"): the guide alone marks the projected finish.  And since 2026-10-23 (dreeves:
+    # "truncate the y-axis a bit above the horizontal purple dashed line ... and indicate visually in some way (no words)
+    # when the confidence bands go above the y-axis cap"), the y axis stops 10% above the projected finish, at 15.62 h,
+    # in place of 20 h: its gridlines at 5, 10 and 15 h, a zigzag at 15.62 h, and elapsed + ETA's band top (16.2 h) and
+    # range line's in the strip above it, compressed (q_progress_caps_the_y_axis_above_the_projected_finish).
     R = progress_run('eta')
     parts = SvgParts()
     parts.feed(R['etaSvg'])
     els = [(tag, a, re.sub(r'[ \t\n\r]+', ' ', text).strip()) for tag, a, text in parts.items]   # U+202F stays: it is text
     def pts(text): return [tuple(map(float, xy.split(','))) for xy in text.split()]
     polys = {a['class']: pts(a['points']) for tag, a, _ in els if tag == 'polyline'}
-    assert sorted(polys) == ['guide', 'spent', 'togo', 'total'], polys.keys()
+    assert sorted(polys) == ['cap', 'guide', 'spent', 'togo', 'total'], polys.keys()
     (x0, y0), (x1, y1) = polys['spent'][0], polys['spent'][-1]          # blue at 0 h and at 13.2 h
     def X(h): return x0 + (x1 - x0) * h / 13.2
     def Y(h): return y0 + (y1 - y0) * h / 13.2
     def near(p, q): return abs(p[0] - q[0]) < 0.05 and abs(p[1] - q[1]) < 0.05
-    def check(got, want, what): assert len(got) == len(want) and all(near(g, (X(a), Y(b))) for g, (a, b) in zip(got, want)), (what, got, [(X(a), Y(b)) for a, b in want])
+    cap = 1.1 * 14.2                                                     # the y axis's cap, h
+    def Ys(h): return Y(min(h, cap)) - 12 * (1 - cap / max(h, cap))     # to scale up to it, then the strip of 12 units
+    def check(got, want, what): assert len(got) == len(want) and all(near(g, (X(a), Ys(b))) for g, (a, b) in zip(got, want)), (what, got, [(X(a), Ys(b)) for a, b in want])
     for k, w in (('spent', [(0, 0), (13.2, 13.2)]), ('togo', [(0, 2), (13.2, 1)]), ('total', [(0, 2), (13.2, 14.2)]),
                  ('guide', [(13.2, 14.2), (14.2, 14.2), (14.2, 0)])): check(polys[k], w, k)
     bands = {a['class']: pts(a['points']) for tag, a, _ in els if tag == 'polygon'}
@@ -2230,7 +2268,7 @@ def q_progress_eta_chart_keeps_progress_html_s_spec():
     check(bands['band togo'], [(0, 4), (13.2, 3), (13.2, 0.5), (0, 1)], 'band togo')
     check(bands['band total'], [(0, 4), (13.2, 16.2), (13.2, 13.7), (0, 1)], 'band total')
     lines = [(a['class'], tuple(float(a[k]) for k in ('x1', 'y1', 'x2', 'y2')), a) for tag, a, _ in els if tag == 'line']
-    assert sorted(c for c, _, _ in lines) == sorted(['axis', 'ahead', 'ideal', 'range togo', 'range total', 'cross'] + ['grid'] * 4), [c for c, _, _ in lines]
+    assert sorted(c for c, _, _ in lines) == sorted(['axis', 'ahead', 'ideal', 'range togo', 'range total', 'cross'] + ['grid'] * 3), [c for c, _, _ in lines]
     seg = {c: s for c, s, _ in lines if c != 'grid'}
     check([seg['ahead'][:2], seg['ahead'][2:]], [(13.2, 13.2), (14.2, 14.2)], 'ahead')
     check([seg['ideal'][:2], seg['ideal'][2:]], [(13.2, 1), (14.2, 0)], 'ideal')
@@ -2238,11 +2276,14 @@ def q_progress_eta_chart_keeps_progress_html_s_spec():
     check([seg['range total'][:2], seg['range total'][2:]], [(13.2, 13.7), (13.2, 16.2)], 'range total')
     assert abs(seg['axis'][1] - Y(0)) < 0.05 and seg['axis'][1] == seg['axis'][3], seg['axis']
     grid = [s for c, s, _ in lines if c == 'grid']
-    assert sorted(round((y0 - g[1]) / (y0 - Y(1)), 3) for g in grid) == [5, 10, 15, 20] and all(g[1] == g[3] for g in grid), grid
+    hours = sorted((y0 - g[1]) / (y0 - Y(1)) for g in grid)              # to 0.01 h: positions are written to 0.01 units
+    assert len(hours) == 3 and all(abs(h - t) < 0.01 for h, t in zip(hours, (5, 10, 15))) and all(g[1] == g[3] for g in grid), grid
+    level = (max(y for _, y in polys['cap']) + min(y for _, y in polys['cap'])) / 2   # the top gridline, at 20 h, a zigzag since 2026-10-23
+    assert abs((y0 - level) / (y0 - Y(1)) - cap) < 0.01, level
     cross = next(a for c, _, a in lines if c == 'cross')
     assert cross.get('visibility') == 'hidden', cross
     yt = [(float(a['y']), text) for tag, a, text in els if tag == 'text' and a.get('class') == 'ytick']
-    assert [v for _, v in yt] == ['0', '5', '10', '15', '20\u202fh'] and all(abs(y - 4 - Y(int(v.split()[0]))) < 0.05 for y, v in yt), yt
+    assert [v for _, v in yt] == ['0', '5', '10', '15\u202fh'] and all(abs(y - 4 - Y(int(v.split()[0]))) < 0.05 for y, v in yt), yt   # up to the cap, 15.62 h, since 2026-10-23 (to 20 h before)
     xt = [(float(a['x']), text) for tag, a, text in els if tag == 'text' and a.get('class') == 'xtick']
     assert [v for _, v in xt] == ['0', '5', '10', '15\u202fh'] and all(abs(x - X(int(v.split()[0]))) < 0.05 for x, v in xt), xt
     now = {a['class'].split()[1]: (float(a['cx']), float(a['cy'])) for tag, a, _ in els if tag == 'circle'}

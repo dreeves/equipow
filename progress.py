@@ -923,23 +923,41 @@ def driver_leaves(main):
     return [bx.parse_key(k) for k in sorted(keys, key=latest.get)]
 
 
-def lindy_urn(walls, ages, pending, workers):
-    """The urn estimate (dreeves, 2026-10-19, boxsplit's leaves; 2026-10-23, every search's jobs): the [median, lo, hi]
-    (QUANTILES) hours to go of a batch of jobs on its workers.  An urn (see the vocabulary) of walls, the seconds of the
-    jobs done, its new ball lindy_ball's Lindy tail above the longest time seen, done or running; each running job (ages,
-    its seconds so far, the longest-running first) drawn above its age, holding its worker for the rest; each of the
-    pending jobs a job for makespan.  With no job done, every draw is the new ball: Gott's rule, so that the estimate
-    grows in proportion to the age until a job is done."""
-    assert ages == sorted(ages, reverse=True) and len(ages) <= workers and pending >= 0
-    top = max([*walls, *ages], default=0.0)                          # the longest time seen
+def lindy_draws(walls, ages, pending):
+    """The urn estimate's draws (dreeves, 2026-10-19, boxsplit's leaves; 2026-10-23, every search's jobs), in walls'
+    units: an urn (see the vocabulary) of walls, the jobs done, its new ball lindy_ball's Lindy tail above the longest
+    seen, done or running; REPLICATES draws of each running job's rest above its age (ages, the longest-running first)
+    and of each of the pending jobs' size.  With no job done, every draw is the new ball: Gott's rule, so that the
+    estimate grows in proportion to the age until a job is done."""
+    assert ages == sorted(ages, reverse=True) and pending >= 0
+    top = max([*walls, *ages], default=0.0)                          # the longest seen
     assert top > 0
     rng = np.random.default_rng(SEED)
     urn = Urn(rng, np.array(walls, dtype=float), lindy_ball(rng, top), len(ages) + pending)
+    return [urn.draw(e) - e for e in ages], [urn.draw() for _ in range(pending)]
+
+
+def quantiles(hours):
+    """REPLICATES draws of hours as a recorded ETA: [median, lo, hi] (QUANTILES)."""
+    return [float(np.median(hours))] + [float(q) for q in np.quantile(hours, QUANTILES)]
+
+
+def lindy_urn(walls, ages, pending, workers):
+    """The [median, lo, hi] hours to go of a batch of jobs on its workers (walls and ages in seconds): each running job
+    holding its worker for its rest, each pending one a job for makespan."""
+    assert len(ages) <= workers
+    rests, sizes = lindy_draws(walls, ages, pending)
     loads = np.zeros((REPLICATES, workers))
-    for j, e in enumerate(ages):
-        loads[:, j] = urn.draw(e) - e
-    draws = makespan(loads, [('job', urn.draw()) for _ in range(pending)]) / HOUR
-    return [float(np.median(draws))] + [float(q) for q in np.quantile(draws, QUANTILES)]
+    for j, rest in enumerate(rests):
+        loads[:, j] = rest
+    return quantiles(makespan(loads, [('job', size) for size in sizes]) / HOUR)
+
+
+def lindy_work(walls, ages, pending, rate):
+    """The [median, lo, hi] hours to go of work shared by a pool (fanout.py's cases, 2026-10-23): walls and ages in any
+    unit of work, the pool doing rate of it a second; the rests and sizes summed, as the pool works on every job at once."""
+    rests, sizes = lindy_draws(walls, ages, pending)
+    return quantiles(sum(rests + sizes) / rate / HOUR)
 
 
 def to_go_of(eta):
@@ -1117,6 +1135,38 @@ def survey_lattice(path, procs, now=None, etas=None):
 
 # ---------- the data file ----------
 
+def sight(main, launches, now):
+    """Records the sighting of a run's live process, main (at most one), in launches: [first, last] by pid."""
+    for p in main: launches.setdefault(str(p[0]), [now, now])[1] = now
+    assert all(len(v) == 2 and v[0] <= v[1] <= now for v in launches.values()), launches
+
+
+def started_at(r, launches):
+    """A journal record's time, but a session's: its process's first sighting, if that came before the record."""
+    return min(r['time'], launches.get(str(r['pid']), [r['time']])[0]) if r['event'] == 'session' else r['time']
+
+
+def spans_of(spans, pids, main, launches, observations, now, decided):
+    """A run's spans of running and state, from its sessions' spans and pids (in journal order), its live process main,
+    the sightings, the recorded observations and whether its journal says it is decided (survey_focus's docstring):
+    each pid's latest session runs to its last sighting, a sighted pid never journaled is a span of its own, the spans
+    are in order and disjoint (asserted), each runs on to the observations within it, and the last to now while
+    running."""
+    for pid, i in {pid: i for i, pid in enumerate(pids)}.items():      # each pid's latest session
+        spans[i][1] = max(spans[i][1], launches.get(pid, spans[i])[1])
+    spans += [list(v) for pid, v in launches.items() if pid not in pids]   # seen, never journaled
+    spans.sort()
+    assert all(a[1] <= b[0] for a, b in zip(spans, spans[1:])), spans
+    live = bool(main) and (str(main[0][0]) not in pids or not decided)
+    status = 'ended' if not live else 'frozen' if main[0][2].startswith('T') else 'running'
+    observed = list(map(float, observations))
+    assert all(spans[0][0] <= t <= now for t in observed)
+    for span, stop in zip(spans, [a for a, _ in spans[1:]] + [now + 1]):
+        span[1] = max([span[1]] + [t for t in observed if span[0] <= t < stop])
+    spans[-1][1] = now if status == 'running' else spans[-1][1]
+    return spans, status
+
+
 def survey_focus(path, procs, now=None, observations=None, launches=None):
     """Focused proof journals: root-case coverage, and while running an ETA, lindy_urn's on the root cases (one
     worker), recorded in observations (dreeves, 2026-10-23: with no root done, Lindy).
@@ -1143,8 +1193,7 @@ def survey_focus(path, procs, now=None, observations=None, launches=None):
     total = header['total']
     main = [p for p in procs if re.search(rf'(?:^|[\s/])focus\.py {header["n"]}(?:\s|$)', p[3])]
     assert len(main) <= 1
-    for p in main: launches.setdefault(str(p[0]), [now, now])[1] = now
-    assert all(len(v) == 2 and v[0] <= v[1] <= now for v in launches.values()), launches
+    sight(main, launches, now)
     state = dict(pid=None, outcome=None, time=header['time'])
     spans, pids = [], []                # the sessions' spans and pids, in journal order
     snap = dict(lp=0, closed=0, split=0, pending=total, case=None, completed=[])
@@ -1174,25 +1223,13 @@ def survey_focus(path, procs, now=None, observations=None, launches=None):
     handlers = dict(session=session, update=update, finish=update)
     for r in records[1:]:
         assert r['event'] in handlers and type(r['pid']) is int
-        # a session starts at its process's first sighting, if that came before its record
-        t = min(r['time'], launches.get(str(r['pid']), [r['time']])[0]) if r['event'] == 'session' else r['time']
+        t = started_at(r, launches)
         assert state['time'] <= t <= r['time'] <= now
         handlers[r['event']](r, t)
         spans[-1][1] = r['time']
         state['time'] = t
     assert spans
-    for pid, i in {pid: i for i, pid in enumerate(pids)}.items():      # each pid's latest session
-        spans[i][1] = max(spans[i][1], launches.get(pid, spans[i])[1])
-    spans += [list(v) for pid, v in launches.items() if pid not in pids]   # seen, never journaled
-    spans.sort()
-    assert all(a[1] <= b[0] for a, b in zip(spans, spans[1:])), spans
-    live = bool(main) and (str(main[0][0]) not in pids or state['outcome'] is None)
-    status = 'ended' if not live else 'frozen' if main[0][2].startswith('T') else 'running'
-    observed = list(map(float, observations))
-    assert all(spans[0][0] <= t <= now for t in observed)
-    for span, stop in zip(spans, [a for a, _ in spans[1:]] + [now + 1]):
-        span[1] = max([span[1]] + [t for t in observed if span[0] <= t < stop])
-    spans[-1][1] = now if status == 'running' else spans[-1][1]
+    spans, status = spans_of(spans, pids, main, launches, observations, now, state['outcome'] is not None)
     def running(t): return sum(max(0.0, min(t, b) - a) for a, b in spans)   # seconds of running before t
     active = snap['case'] if status == 'running' else None
     assert set(snap['completed']) <= set(begun) & set(ended)
@@ -1209,6 +1246,76 @@ def survey_focus(path, procs, now=None, observations=None, launches=None):
                 state=status, outcome=state['outcome'], so_far=sum(b - a for a, b in spans), to_go=to_go_of(eta),
                 etas=observations, passes=spans,
                 sea=dict(depth=0, keys=[f'{header["n"]}:{header["order"]}'], groups=[codes], counts=counts))
+
+
+def survey_fanout(path, procs, now=None, observations=None, launches=None):
+    """fanout.py's journal (see fanout.py's vocabulary): its spans of running as survey_focus's; a dot per job, grouped
+    by root (keyed case:depth): split (done, leaving boxes open), settled (done, none open), running, then pending (a
+    root not started, a box left open and not started, or a job whose driver is gone); and while running, an ETA:
+    lindy_work on the cases' work in LP solves (the run's own before fanout counted to its case then; a case done when
+    every dot of its roots is; with none done, Lindy), at the pool's rate, a worker's LP solves a second over the jobs
+    done times the workers; none before a job is done (dreeves, 2026-10-23: "Can we throw more compute at 672:13?")."""
+    records = [json.loads(line) for line in complete_lines(path)]
+    now = time.time() if now is None else now
+    observations = {} if observations is None else observations
+    launches = {} if launches is None else launches
+    header = records[0]
+    assert (header['event'], header['version']) == ('header', 1)
+    roots, cases_of = header['roots'], header['root_cases']
+    assert len(cases_of) == len(header['root_depths']) == roots and header['workers'] > 0
+    main = [p for p in procs if re.search(rf'(?:^|[\s/])fanout\.py {header["n"]}(?:\s|$)', p[3])]
+    assert len(main) <= 1
+    sight(main, launches, now)
+    spans, pids, starts, ends, finish = [], [], {}, {}, []
+
+    def session(r, t):
+        spans.append([t, t])
+        pids.append(str(r['pid']))
+
+    def job_start(r, t):
+        assert 0 <= r['root'] < roots and cases_of[r['root']] == r['case'], r
+        starts[r['job']] = r
+
+    def job_end(r, t):
+        assert starts.get(r['job'], {}).get('root') == r['root'] and r['lps'] >= 0 and r['open'] >= 0, r
+        ends[r['job']] = r
+
+    handlers = dict(session=session, job_start=job_start, job_end=job_end, finish=lambda r, t: finish.append(r))
+    previous = header['time']
+    for r in records[1:]:
+        assert r['event'] in handlers and not finish, r
+        t = started_at(r, launches)
+        assert previous <= t <= r['time'] <= now, r
+        handlers[r['event']](r, t)
+        spans[-1][1] = previous = r['time']
+    assert spans
+    spans, status = spans_of(spans, pids, main, launches, observations, now, bool(finish))
+    running = {j for j in starts if j not in ends} if status == 'running' else set()
+    groups = []
+    for root in range(roots):
+        done = [e for e in ends.values() if e['root'] == root]
+        split, live = sum(e['open'] > 0 for e in done), sum(starts[j]['root'] == root for j in running)
+        pending = 1 + sum(e['open'] for e in done) - len(done) - live
+        assert pending >= 0, (root, pending)
+        groups.append('2' * split + '0' * (len(done) - split) + '4' * live + '3' * pending)
+    counts = {name: sum(g.count(str(i)) for g in groups) for i, name in enumerate(SEA_STATUSES)}
+    cases = sorted(set(cases_of))
+    work = {c: header['prefix_lp'] * (c == header['prefix_case']) + sum(e['lps'] for e in ends.values() if e['case'] == c)
+            for c in cases}
+    complete = {c for c in cases if all(set(g) <= {'0', '2'} for g, k in zip(groups, cases_of) if k == c)}
+    walls = [work[c] for c in cases if c in complete]
+    ages = sorted((work[c] for c in cases if c not in complete and work[c] > 0), reverse=True)
+    pending = sum(c not in complete and work[c] == 0 for c in cases)
+    seconds = sum(e['seconds'] for e in ends.values())
+    eta = (lindy_work(walls, ages, pending, sum(e['lps'] for e in ends.values()) / seconds * header['workers'])
+           if status == 'running' and seconds > 0 and max([*walls, *ages], default=0) > 0 else None)
+    if status == 'running':
+        observations[str(float(now))] = eta
+    return dict(program='fanout.py', n=header['n'], order=header['order'], made=now, state=status,
+                outcome=finish[0]['outcome'] if finish else None, so_far=sum(b - a for a, b in spans),
+                to_go=to_go_of(eta), etas=observations, passes=spans,
+                sea=dict(depth=0, keys=[f'{c}:{d}' for c, d in zip(cases_of, header['root_depths'])], groups=groups,
+                         counts=counts))
 
 
 def survey_join(path, procs, now=None, observations=None):
@@ -1353,7 +1460,12 @@ def main(argv):
             key = f'focus_{header["n"]}_{header["code"]}_{header["time"]}'
             surveys.append(survey_focus(path, procs, observations=cache.setdefault(key + '_observations', {}),
                                         launches=cache.setdefault(key + '_launches', {})))
-        now = max([now] + [s['made'] for s in surveys if s['program'] == 'focus.py'])
+        for path in sorted(glob.glob(os.path.join(HERE, 'fanout_*_journal.jsonl'))):
+            with open(path, encoding='utf-8') as f: header = json.loads(f.readline())
+            key = f'fanout_{header["n"]}_{header["code"]}_{header["time"]}'
+            surveys.append(survey_fanout(path, procs, observations=cache.setdefault(key + '_observations', {}),
+                                         launches=cache.setdefault(key + '_launches', {})))
+        now = max([now] + [s['made'] for s in surveys if s['program'] in ('focus.py', 'fanout.py')])
         write_atomic(JS, js_text(surveys, now))
         save_cache(CACHE, cache)
         if not argv: return

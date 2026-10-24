@@ -4,3 +4,13 @@
 {"time":1792788465.449705,"event":"start","pid":21963,"searches":["480:14","672:13"]}
 {"time":1792788465.5200481,"event":"status","search":"480:14","status":"running","pid":7662,"last":{"event":"update","time":1792787538.584466,"pid":14500,"lp":12504113,"closed":6252040,"split":6252073,"pending":228,"case":0,"completed":[],"outcome":null},"err":""}
 {"time":1792788465.52036,"event":"status","search":"672:13","status":"running","pid":7663,"last":{"event":"update","time":1792787536.483306,"pid":14501,"lp":2245626,"closed":1122772,"split":1122854,"pending":84,"case":0,"completed":[],"outcome":null},"err":""}
+{"time":1792795146.603565,"event":"start","pid":28057,"searches":["480:14","672:13","672:13 fanout"]}
+{"time":1792795146.724824,"event":"status","search":"480:14","status":"running","pid":7662,"last":{"event":"update","time":1792795142.172906,"pid":7662,"lp":13036866,"closed":6518416,"split":6518450,"pending":229,"case":0,"completed":[],"outcome":null},"err":""}
+{"time":1792795146.725417,"event":"status","search":"672:13","status":"stopped","pid":null,"last":{"event":"update","time":1792795140.370244,"pid":7663,"lp":2362671,"closed":1181292,"split":1181379,"pending":89,"case":0,"completed":[],"outcome":null},"err":""}
+{"time":1792795146.725589,"event":"status","search":"672:13 fanout","status":"launchable","pid":null,"last":null,"err":""}
+{"time":1792795146.8671622,"event":"launch","search":"672:13 fanout","pid":28084,"free":166924558336}
+{"time":1792795206.9511108,"event":"status","search":"672:13 fanout","status":"running","pid":28084,"last":{"event":"job_start","time":1792795152.588177,"pid":28084,"job":"3ea651c4c8c991f8f92dcaec812036356068f0f2","case":0,"depth":4,"root":4},"err":""}
+{"time":1792795229.212329,"event":"start","pid":29561,"searches":["480:14","672:13","672:13 fanout"]}
+{"time":1792795229.284727,"event":"status","search":"480:14","status":"running","pid":7662,"last":{"event":"update","time":1792795228.4012082,"pid":7662,"lp":13060312,"closed":6530144,"split":6530168,"pending":219,"case":0,"completed":[],"outcome":null},"err":""}
+{"time":1792795229.285151,"event":"status","search":"672:13","status":"stopped","pid":null,"last":{"event":"update","time":1792795140.370244,"pid":7663,"lp":2362671,"closed":1181292,"split":1181379,"pending":89,"case":0,"completed":[],"outcome":null},"err":""}
+{"time":1792795229.285314,"event":"status","search":"672:13 fanout","status":"running","pid":28084,"last":{"event":"job_start","time":1792795152.588177,"pid":28084,"job":"3ea651c4c8c991f8f92dcaec812036356068f0f2","case":0,"depth":4,"root":4},"err":""}

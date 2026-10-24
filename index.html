@@ -280,6 +280,7 @@ code {
 .progress-eta .now.togo { fill: var(--progress-togo); stroke: none; }
 .progress-eta .now.total { fill: var(--progress-total); stroke: none; }
 .progress-eta .axis, .progress-eta .grid { stroke: var(--progress-hair); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.progress-eta .cap { stroke: var(--progress-hair); stroke-width: 1; vector-effect: non-scaling-stroke; }   /* the zigzag at the y axis's cap (2026-10-23) */
 .progress-eta text { font-size: 11px; fill: var(--muted); stroke: none; font-variant-numeric: tabular-nums lining-nums; }
 /* The labels at the latest record, commented out with them (dreeves, 2026-10-17: "comment it out for now"):
 .progress-eta text.label { font-size: 12px; font-weight: 600; stroke: var(--paper); stroke-width: 4px; stroke-linejoin: round; paint-order: stroke; }
@@ -1871,25 +1872,33 @@ try {
 
   function etaChart(fig, run) {
     const pts = run.etas.map(([t, x, m, lo, hi]) => [t, x / 3600, m / 3600, lo / 3600, hi / 3600]);
-    const NS = 'http://www.w3.org/2000/svg', W = 640, H = 240, L = 48, R = 72, T = 14, B = 30, CROWD = 44;
+    const NS = 'http://www.w3.org/2000/svg', W = 640, H = 240, L = 48, R = 72, T = 14, B = 30, CROWD = 44, HEAD = 1.1, OVER = 12;
     const now = run.so_far / 3600, last = pts[pts.length - 1];
     const xmax = Math.max(now, 1 / 3600, ...pts.slice(-1).map(p => p[1] + p[2]));
-    const ymax = Math.max(xmax, ...pts.map(p => p[1] + Math.max(p[2], p[4])));   // up to elapsed + ETA's top, or its line
+    // the y axis's cap: a bit above the projected finish, the guide's level, and the elapsed time (dreeves, 2026-10-23:
+    // "truncate the y-axis a bit above the horizontal purple dashed line"); anything taller goes into the strip above it
+    const ymax = HEAD * xmax;
     // each axis's round ticks in the unit of its largest value (unitOf; dreeves, 2026-10-23), as hours, and their labels,
-    // the last with the unit
-    const axis = top => {
+    // the last with the unit: the x axis's up past its top, the y axis's up to its cap
+    const axis = (top, round) => {
       const [s, u] = unitOf(top * 3600), k = s / 3600, step = tickStep(top / k);
-      const ticks = Array.from({length: Math.ceil(top / k / step) + 1}, (_, i) => step * i);
+      const ticks = Array.from({length: round(top / k / step) + 1}, (_, i) => step * i);
       return [ticks.map(v => v * k), ticks.map((v, i) => num(v) + (i === ticks.length - 1 ? '\u202f' + u : ''))];
     };
-    const [xticks, xlabels] = axis(xmax), [yticks, ylabels] = axis(ymax);
+    const [xticks, xlabels] = axis(xmax, Math.ceil), [yticks, ylabels] = axis(ymax, Math.floor);
     const X = x => L + (W - L - R) * x / xticks[xticks.length - 1];
-    const Y = y => H - B - (H - T - B) * y / yticks[yticks.length - 1];
+    const cap = ymax;
+    // to scale up to the cap; above it, into the strip of OVER units over it, compressed as the cap over the value, its
+    // top for none (dreeves, 2026-10-23: "indicate visually in some way (no words) when the confidence bands go above the
+    // y-axis cap")
+    const Y = y => H - B - (H - T - OVER - B) * Math.min(y, cap) / cap - OVER * (1 - cap / Math.max(y, cap));
     const P = ps => ps.map(([x, y]) => `${X(x).toFixed(2)},${Y(y).toFixed(2)}`).join(' ');
     const set = (el, attrs) => { for (const k in attrs) el.setAttribute(k, typeof attrs[k] === 'number' ? attrs[k].toFixed(2) : attrs[k]); return el; };
     const make = (tag, attrs, text) => { const e = set(document.createElementNS(NS, tag), attrs); if (text !== undefined) e.textContent = text; return e; };
     const q = sel => fig.querySelector(sel);
+    const zigzag = Array.from({length: (W - L - R) / 5 + 1}, (_, i) => `${L + 5 * i},${(Y(cap) + 1.5 * (2 * (i % 2) - 1)).toFixed(2)}`).join(' ');
     q('[data-grid]').replaceChildren(...yticks.slice(1).map(v => make('line', {class: 'grid', x1: L, y1: Y(v), x2: W - R, y2: Y(v)})),
+                                     make('polyline', {class: 'cap', points: zigzag}),   // the cap's gridline: a broken axis's mark
                                      make('line', {class: 'axis', x1: L, y1: Y(0), x2: W - R, y2: Y(0)}));
     const band = up => P(pts.map(p => [p[1], up(p) + p[4]]).concat(pts.slice().reverse().map(p => [p[1], up(p) + p[3]])));   // raised by up(p)
     set(q('[data-band-togo]'), {points: band(p => 0)});
@@ -1934,7 +1943,7 @@ try {
       tip.classList.toggle('projected', s > 0);
     };
     at(pts.length - 1, 0);                      // laid out at rest, invisible, as the latest record's line
-    set(cross, {x1: X(last[1]), y1: Y(yticks[yticks.length - 1]), x2: X(last[1]), y2: Y(0)});   // hidden at rest
+    set(cross, {x1: X(last[1]), y1: T, x2: X(last[1]), y2: Y(0)});   // hidden at rest; up through the strip
     svg.addEventListener('mousemove', ev => {
       const b = svg.getBoundingClientRect(), x = Math.min((ev.clientX - b.left) * W / b.width, W - R);   // not past the axis
       // left of the last record, the nearest record (the latest of equals); right of it, the last record carried on to
@@ -1943,7 +1952,7 @@ try {
       let k = 0;
       for (let i = 1; i < xsvg.length; i++) if (Math.abs(xsvg[i] - near) <= Math.abs(xsvg[k] - near)) k = i;
       const cx = xsvg[k] + hour * s / 3600;
-      set(cross, {x1: cx, y1: Y(yticks[yticks.length - 1]), x2: cx, y2: Y(0)}).setAttribute('visibility', 'visible');
+      set(cross, {x1: cx, y1: T, x2: cx, y2: Y(0)}).setAttribute('visibility', 'visible');
       at(k, s);
       tip.style.visibility = 'visible';           // laid out at rest (the CSS hides it), so showing it moves nothing
     });

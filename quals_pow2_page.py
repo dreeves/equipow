@@ -219,6 +219,7 @@ EDITS = quals_index.TABLE_UPDATE + (
           '.progress-eta .now.togo { fill: var(--progress-togo); stroke: none; }',
           '.progress-eta .now.total { fill: var(--progress-total); stroke: none; }',
           '.progress-eta .axis, .progress-eta .grid { stroke: var(--progress-hair); stroke-width: 1; vector-effect: non-scaling-stroke; }',
+          '.progress-eta .cap { stroke: var(--progress-hair); stroke-width: 1; vector-effect: non-scaling-stroke; }   /* the zigzag at the y axis\'s cap (2026-10-23) */',
           '.progress-eta text { font-size: 11px; fill: var(--muted); stroke: none; font-variant-numeric: tabular-nums lining-nums; }',
           '/* The labels at the latest record, commented out with them (dreeves, 2026-10-17: "comment it out for now"):',
           '.progress-eta text.label { font-size: 12px; font-weight: 600; stroke: var(--paper); stroke-width: 4px; stroke-linejoin: round; paint-order: stroke; }',

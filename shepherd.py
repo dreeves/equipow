@@ -12,7 +12,8 @@ and never launches a stopped search.
 Vocabulary:
   search      a registered search (SEARCHES): resumable, its every outcome exactly certified, with green quals and a
               positive control before it joins (principles 1 and 5); its script and arguments, with no budget
-              (principle 2), the files it writes and its memory, measured when it joined.
+              (principle 2), the files it writes, its memory, measured when it joined, and its processes (fanout.py's
+              workers, 2026-10-23).
   status      a search's, from the process list and its journal's last complete record: running (a live process runs
               it); done (a finish with outcome excluded or witness: a proof or a witness); launchable (no journal yet,
               or a finish with outcome budget, a pass that ended at its budget, as passes did before 2026-10-23);
@@ -25,7 +26,8 @@ Vocabulary:
               it; a done search's data, which no longer grows, counts for nothing.  Stopping a search frees no disk:
               the floor stays crossed until a human frees some.
   hard floor  HARD_FLOOR bytes of free disk, below FLOOR: below it every running search stops.
-  slots       SLOTS searches at once in MEMORY bytes in all (principle 4), asserted of the searches not done.  A search
+  slots       SLOTS processes at once in MEMORY bytes in all (principle 4), asserted of the searches running or
+              launchable: a done or stopped one runs no process, and the shepherd never launches a stopped one.  A search
               beyond them would need preemption by priority (principle 3), which is not built: with two searches it
               could not happen.  So the shepherd fails loudly instead.
   log         LOG, one JSON object per line: its start, each status as first seen and at each change (with the
@@ -63,7 +65,7 @@ KINDS = {('finish', 'budget'): 'launchable', ('finish', 'excluded'): 'done', ('f
 @dataclass(frozen=True)
 class Search:
     """A search (see the vocabulary): its name, n:order; its script and arguments; its journal, output and error
-    files and its data directory (relative to HERE, or absolute); and its memory in bytes."""
+    files and its data directory (relative to HERE, or absolute); its memory in bytes; and its processes."""
     name: str
     script: str
     args: tuple
@@ -72,6 +74,7 @@ class Search:
     err: str
     data: str
     memory: int
+    processes: int
 
     @property
     def pattern(self):
@@ -80,11 +83,15 @@ class Search:
 
 
 UNBOUNDED = ('--seconds', 'inf', '--lp-budget', str(10 ** 18))   # no budget (principle 2): focus.py's flags take a value
-SEARCHES = (                           # memory: 56 MB at most measured (2026-10-22 and 23), rounded up
+SEARCHES = (                           # focus.py's memory: 56 MB at most measured (2026-10-22 and 23), rounded up
     Search('480:14', 'focus.py', ('480',) + UNBOUNDED, 'focus_480_journal.jsonl', 'focus_480.log',
-           'scratch/focus480/run.err', 'scratch/focus480/run', 64 << 20),
+           'scratch/focus480/run.err', 'scratch/focus480/run', 64 << 20, 1),
     Search('672:13', 'focus.py', ('672',) + UNBOUNDED, 'focus_672_journal.jsonl', 'focus_672.log',
-           'scratch/focus672/run.err', 'scratch/focus672/run', 64 << 20),
+           'scratch/focus672/run.err', 'scratch/focus672/run', 64 << 20, 1),
+    # 672:13's run, stopped, finished in parallel (dreeves, 2026-10-23: "ok"): fanout.py's 5 workers, each focus.py's
+    # size and a job's tokens in transit
+    Search('672:13 fanout', 'fanout.py', ('672',), 'fanout_672_journal.jsonl', 'fanout_672.log',
+           'scratch/fanout672/run.err', 'scratch/fanout672', 1 << 30, 5),
 )
 
 
@@ -139,20 +146,22 @@ def decide(statuses, data, free):
 
 
 def admit(searches, statuses):
-    """Asserts that the searches not done fit the slots and the memory (see the vocabulary)."""
-    live = [s for s in searches if statuses[s.name] != 'done']
-    # TODO: error copy; says more searches wait than there are slots, which needs preemption, not yet built
-    assert len(live) <= SLOTS, f'Claude: "{len(live)} searches for {SLOTS} slots: preemption (principle 3) is not built"'
+    """Asserts that the searches running or launchable fit the slots and the memory (see the vocabulary)."""
+    live = [s for s in searches if statuses[s.name] in ('running', 'launchable')]
+    # TODO: error copy; says the searches waiting need more processes than there are slots, which needs preemption, not yet built
+    assert sum(s.processes for s in live) <= SLOTS, \
+        f'Claude: "{sum(s.processes for s in live)} processes for {SLOTS} slots: preemption (principle 3) is not built"'
     # TODO: error copy; says the searches' memory exceeds the limit, giving both in bytes
     assert sum(s.memory for s in live) <= MEMORY, f'Claude: "{sum(s.memory for s in live)} bytes of searches for {MEMORY}"'
 
 
 def launch(s):
-    """Starts the search: nice -n NICE, PYTHON -B, its script and arguments, in HERE with PYLIB and single-threaded
-    BLAS, no stdin, its output and errors appended to its files, in a session of its own (it outlives the shepherd)."""
+    """Starts the search: PYTHON -B, its script and arguments, at the shepherd's niceness, NICE, which it inherits, in
+    HERE with PYLIB and single-threaded BLAS, no stdin, its output and errors appended to its files, in a session of its
+    own (it outlives the shepherd)."""
     env = dict(os.environ, PYTHONPATH=PYLIB, **{k: '1' for k in THREADS})
     with open(os.path.join(HERE, s.out), 'a') as out, open(os.path.join(HERE, s.err), 'a') as err:
-        return subprocess.Popen(['nice', '-n', str(NICE), PYTHON, '-B', s.script, *s.args], cwd=HERE, env=env,
+        return subprocess.Popen([PYTHON, '-B', s.script, *s.args], cwd=HERE, env=env,
                                 stdin=subprocess.DEVNULL, stdout=out, stderr=err, start_new_session=True)
 
 

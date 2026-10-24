@@ -12,10 +12,10 @@ import shepherd
 UNBOUNDED = ('--seconds', 'inf', '--lp-budget', '1000000000000000000')
 
 
-def search(directory, name='480:14', n='480', memory=64 << 20):
+def search(directory, name='480:14', n='480', memory=64 << 20, processes=1):
     d = Path(directory)
     return shepherd.Search(name, 'focus.py', (n,) + UNBOUNDED, str(d / f'focus_{n}_journal.jsonl'),
-                           str(d / f'focus_{n}.log'), str(d / f'run{n}.err'), str(d / f'run{n}'), memory)
+                           str(d / f'focus_{n}.log'), str(d / f'run{n}.err'), str(d / f'run{n}'), memory, processes)
 
 
 def proc(pid, command, stat='SN'):
@@ -102,23 +102,31 @@ class ShepherdQuals(unittest.TestCase):
                 self.assertEqual(shepherd.used(d), 0)
 
     def test_slots_and_memory_are_asserted_of_searches_not_done(self):
-        # Replicata: SLOTS + 1 searches, then the same with one done; then two whose memory exceeds MEMORY.
+        # Replicata: SLOTS + 1 one-process searches, then the same with one done, and with one stopped; then two whose
+        # memory exceeds MEMORY; then two searches of SLOTS - 1 processes and 2 processes.
         # Expectata: a search beyond the slots or the memory fails loudly (preemption, principle 3, is not built);
-        # a done search takes neither.
+        # only running and launchable searches take them: a done or stopped one runs no process (2026-10-23: 672's
+        # focus.py run, stopped while fanout.py finishes it); slots count processes (fanout.py runs several).
         with tempfile.TemporaryDirectory() as d:
             many = [search(d, f'{n}:1', str(n)) for n in range(shepherd.SLOTS + 1)]
             with self.assertRaises(AssertionError):
                 shepherd.admit(many, {s.name: 'running' for s in many})
             shepherd.admit(many, {s.name: 'done' if s is many[0] else 'running' for s in many})
+            shepherd.admit(many, {s.name: 'stopped' if s is many[0] else 'launchable' for s in many})
             big = [search(d, f'{n}:1', str(n), shepherd.MEMORY // 2 + 1) for n in range(2)]
             with self.assertRaises(AssertionError):
-                shepherd.admit(big, {s.name: 'stopped' for s in big})
+                shepherd.admit(big, {s.name: 'launchable' for s in big})
+            wide = [search(d, 'a:1', '1', processes=shepherd.SLOTS - 1), search(d, 'b:1', '2', processes=2)]
+            with self.assertRaises(AssertionError):
+                shepherd.admit(wide, {s.name: 'running' for s in wide})
+            shepherd.admit(wide[:1] + [search(d, 'b:1', '2')], {'a:1': 'running', 'b:1': 'running'})
 
     def test_a_launch_runs_unbounded_single_threaded_at_nice_15(self):
         # Replicata: launch the 480:14 search with subprocess.Popen replaced by a recorder.
-        # Expectata: nice -n 15, then Homebrew's Python with -B, the script and its unbounded arguments; the
-        # repo as cwd; the pylib path and single-threaded BLAS in the environment; no stdin; output and errors appended
-        # to its files; a session of its own, so that it outlives the shepherd.
+        # Expectata: Homebrew's Python with -B, the script and its unbounded arguments, at the shepherd's own niceness,
+        # NICE, which it inherits (2026-10-23: a nice -n 15 on top made fanout.py's workers 20); the repo as cwd; the
+        # pylib path and single-threaded BLAS in the environment; no stdin; output and errors appended to its files; a
+        # session of its own, so that it outlives the shepherd.
         calls = []
         class Recorder:
             def __init__(self, argv, **kw):
@@ -129,7 +137,7 @@ class ShepherdQuals(unittest.TestCase):
             child = shepherd.launch(s)
             [(argv, kw)] = calls
             self.assertEqual(child.pid, 99)
-            self.assertEqual(argv, ['nice', '-n', '15', shepherd.PYTHON, '-B', 'focus.py', '480', *UNBOUNDED])
+            self.assertEqual(argv, [shepherd.PYTHON, '-B', 'focus.py', '480', *UNBOUNDED])
             self.assertEqual(kw['cwd'], shepherd.HERE)
             self.assertEqual(kw['env']['PYTHONPATH'], shepherd.PYLIB)
             for k in ('OMP_NUM_THREADS', 'OPENBLAS_NUM_THREADS', 'MKL_NUM_THREADS', 'VECLIB_MAXIMUM_THREADS'):
@@ -139,19 +147,24 @@ class ShepherdQuals(unittest.TestCase):
             self.assertEqual((kw['stderr'].name, kw['stderr'].mode), (s.err, 'a'))
             self.assertIs(kw['start_new_session'], True)
 
-    def test_registry_is_today_s_two_focus_searches(self):
-        # Replicata: shepherd.SEARCHES, and the command lines of the two searches running on 2026-10-23.
+    def test_registry_is_today_s_searches(self):
+        # Replicata: shepherd.SEARCHES, and the command lines of the two focus searches running on 2026-10-23.
         # Expectata: 480:14 and 672:13, each focus.py with no budget, its journal, log, error file and checkpoint
-        # directory, 64 MiB of memory (56 MB at most measured), each matching its own running command line only.
+        # directory, 64 MiB of memory (56 MB at most measured) and one process, each matching its own running command
+        # line only; and fanout.py 672 (dreeves, 2026-10-23: "ok" to finishing 672:13 in parallel), its 5 workers,
+        # 1 GiB in all.
         self.assertEqual([(s.name, s.script, s.args) for s in shepherd.SEARCHES],
-                         [('480:14', 'focus.py', ('480',) + UNBOUNDED), ('672:13', 'focus.py', ('672',) + UNBOUNDED)])
-        self.assertEqual([(s.journal, s.out, s.err, s.data, s.memory) for s in shepherd.SEARCHES],
-                         [('focus_480_journal.jsonl', 'focus_480.log', 'scratch/focus480/run.err', 'scratch/focus480/run', 64 << 20),
-                          ('focus_672_journal.jsonl', 'focus_672.log', 'scratch/focus672/run.err', 'scratch/focus672/run', 64 << 20)])
+                         [('480:14', 'focus.py', ('480',) + UNBOUNDED), ('672:13', 'focus.py', ('672',) + UNBOUNDED),
+                          ('672:13 fanout', 'fanout.py', ('672',))])
+        self.assertEqual([(s.journal, s.out, s.err, s.data, s.memory, s.processes) for s in shepherd.SEARCHES],
+                         [('focus_480_journal.jsonl', 'focus_480.log', 'scratch/focus480/run.err', 'scratch/focus480/run', 64 << 20, 1),
+                          ('focus_672_journal.jsonl', 'focus_672.log', 'scratch/focus672/run.err', 'scratch/focus672/run', 64 << 20, 1),
+                          ('fanout_672_journal.jsonl', 'fanout_672.log', 'scratch/fanout672/run.err', 'scratch/fanout672', 1 << 30, 5)])
         command = '/opt/homebrew/Cellar/python@3.13/3.13.6/Frameworks/Python.framework/Versions/3.13/Resources/Python.app/Contents/MacOS/Python -B focus.py {} --seconds inf --lp-budget 1000000000000000000'
         procs = [proc(1, command.format(480)), proc(2, command.format(672))]
         with patch.object(shepherd, 'last_record', return_value=None):
-            self.assertEqual([shepherd.status(s, procs) for s in shepherd.SEARCHES], [('running', 1), ('running', 2)])
+            self.assertEqual([shepherd.status(s, procs) for s in shepherd.SEARCHES[:2]], [('running', 1), ('running', 2)])
+            self.assertEqual(shepherd.status(shepherd.SEARCHES[2], procs), ('launchable', None))
 
     def test_a_watch_logs_each_change_once_and_acts(self):
         # Replicata: three loops of main over a launchable search and a running one: the launched one's process
