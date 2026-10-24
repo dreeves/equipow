@@ -223,6 +223,8 @@ EDITS = quals_index.TABLE_UPDATE + (
           '.progress-eta .axis, .progress-eta .grid { stroke: var(--progress-hair); stroke-width: 1; vector-effect: non-scaling-stroke; }',
           '.progress-eta .break { stroke: var(--muted); stroke-width: 1; vector-effect: non-scaling-stroke; }   /* the slashes at the y axis\'s break (2026-10-23) */',
           '.progress-eta .yaxis { stroke: var(--muted); stroke-width: 1; vector-effect: non-scaling-stroke; }   /* the y axis\'s line, broken at the gap (2026-10-23) */',
+          '.progress summary h3 { display: inline; }   /* a run\'s heading, its fold\'s summary (2026-10-23) */',
+          '.progress-run:not([data-run-state="running"]) summary { color: var(--muted); }   /* a run not running, grayed (2026-10-23) */',
           '.progress-eta text { font-size: 11px; fill: var(--muted); stroke: none; font-variant-numeric: tabular-nums lining-nums; }',
           '/* The labels at the latest record, commented out with them (dreeves, 2026-10-17: "comment it out for now"):',
           '.progress-eta text.label { font-size: 12px; font-weight: 600; stroke: var(--paper); stroke-width: 4px; stroke-linejoin: round; paint-order: stroke; }',

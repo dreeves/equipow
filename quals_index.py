@@ -214,7 +214,9 @@ TABLE_UPDATE += (("<td class=\"c\" title='Claude alone'>384</td>", "<td class=\"
                  ('.key.c { --hue: var(--claude); }', '.key.c { --hue: var(--claude); }\n.key.a { --hue: var(--astra); }', 1),
                  ('.remarks li.c .mk { color: var(--claude); }', '.remarks li.c .mk { color: var(--claude); }\n.remarks li.a .mk { color: var(--astra); }', 1),
                  ('    <li><span class="key c" aria-hidden="true">◆</span>Claude alone</li>',
-                  '    <li><span class="key c" aria-hidden="true">◆</span>Claude alone</li>\n    <!-- TODO: identifies Astra\'s contributions by the purple star. -->\n    <li><span class="key a" aria-hidden="true">✦</span>Astra alone</li>', 1))
+                  '    <li><span class="key c" aria-hidden="true">◆</span>Claude alone</li>\n    <li><span class="key a" aria-hidden="true">✦</span>Astra alone</li>', 1))
+# The legend line's TODO comment above (Astra's, 2026-10-20) never reached a commit: dreeves's page has the two entries
+# side by side (by his convention, a copy approved), so the edit records his version (2026-10-23).
 
 # Edits of the remarks' lines that are in the page before the chart (BASE) or in TABLE_UPDATE, kept apart from
 # TABLE_UPDATE because quals_pow2_page.py applies TABLE_UPDATE before its own edits of those remarks, and its own
@@ -1896,7 +1898,9 @@ def q_progress_section_is_closed_and_unattributed():
     # Expectata: a <section class="progress" aria-labelledby="progress-title"> after the sets' section and before the
     # footer: first its TODO comment (progress_lines' form), then a <details> without open, so it starts closed, whose
     # <summary> is the heading "Search progress" (dreeves's title for progress.html, 2026-10-09), with a key of the five
-    # statuses; its copy unattributed, no block quote and no "Claude:" (dreeves, 2026-10-17: he took the section out
+    # statuses; and in its run template one more <details>, also without open, each run's fold (dreeves, 2026-10-23:
+    # a run not running folds; the script opens a running one's); its copy unattributed, no block quote and no
+    # "Claude:" (dreeves, 2026-10-17: he took the section out
     # of the block quote it was made in, as progress.html's copy had none); no <script> on the page names
     # progress.js, which the section's script loads only once it is opened.
     text = page()
@@ -1905,7 +1909,9 @@ def q_progress_section_is_closed_and_unattributed():
     body = sec.group(1)
     lines = text.split('\n')
     section, todo = progress_lines(lines)
-    assert lines[todo + 1].strip() == '<details>' and '<details open' not in body and body.count('</details>') == 1
+    assert lines[todo + 1].strip() == '<details>' and '<details open' not in body and body.count('</details>') == 2
+    run = re.search(r'<template class="progress-run">(.*?)</template>', body, re.S).group(1)
+    assert run.count('<details>') == 1 and run.count('</details>') == 1, run[:300]
     assert '<blockquote' not in body and 'Claude:' not in body and 'attrib' not in body, body[:200]
     assert '<summary><h2 id="progress-title">Search progress</h2></summary>' in body
     assert [s for s in re.findall(r'data-count="(\w+)"', body)] == list(STATUSES)
@@ -2181,6 +2187,51 @@ def q_progress_reloads_on_returning_to_the_tab():
     assert m, dom[-2000:]
     got = json.loads(html.unescape(m.group(1)))
     assert got['before'] >= 1 and got['after'] == got['before'] + 1, got
+
+
+def q_progress_folds_runs_not_running():
+    # Replicata: index.html with two runs as progress.js, PROGRESS_DATA's running one and PROGRESS_ETA_DATA's ended
+    # one, the section open; then the ended run opened, as by a click, and a new snapshot of the same runs.
+    # Expectata (dreeves, 2026-10-23: "1. i don't want to see frozen graphs 2. i don't want graphs to magically
+    # disappear when the freeze or finish. can we get the best of both worlds?"): both runs listed; the running one's
+    # charts open; the ended one folded under its heading (a summary), grayed, its status line still shown; its dots
+    # sized to the section's width though folded; and opened by hand, it stays open across the new snapshot.
+    d = tempfile.mkdtemp(prefix='index-quals-')
+    data = {'made': PROGRESS_DATA['made'], 'runs': [PROGRESS_DATA['runs'][0], PROGRESS_ETA_DATA['runs'][0]]}
+    harness = """<script>
+(async () => {
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  await sleep(1500);
+  const runs = () => [...document.querySelectorAll('.progress-runs .progress-run')];
+  const look = () => runs().map(r => ({state: r.dataset.runState, open: r.querySelector('details').open,
+    summary: !!r.querySelector('summary h3'), color: getComputedStyle(r.querySelector('summary')).color,
+    status: getComputedStyle(r.querySelector('.progress-status')).display !== 'none' && r.querySelector('.progress-status').getBoundingClientRect().height > 0,
+    canvas: r.querySelector('canvas').width}));
+  const first = look();
+  runs()[1].querySelector('details').open = true;
+  await sleep(50);
+  const d2 = JSON.parse(JSON.stringify(window.progressView.data)); d2.made += 60; window.progressData(d2);
+  await sleep(50);
+  const pre = document.createElement('pre'); pre.id = 'harness-out';
+  pre.textContent = JSON.stringify({first, after: look(), ink: getComputedStyle(document.body).color}); document.body.appendChild(pre);
+})();
+</script>
+"""
+    text = page().replace('<head>\n', '<head>\n' + PROGRESS_REMEMBERED).replace('</body>', harness + '</body>')
+    open(os.path.join(d, 'index.html'), 'w', encoding='utf-8').write(text)
+    open(os.path.join(d, 'progress.js'), 'w', encoding='utf-8').write('progressData(' + json.dumps(data) + ');\n')
+    shutil.copy(DATA, os.path.join(d, 'mstar.js'))
+    shutil.copy(POW2, os.path.join(d, 'pow2.js'))
+    dom = chrome(d, ['--window-size=1000,1100', '--virtual-time-budget=5000', '--dump-dom', 'file://' + os.path.join(d, 'index.html')])
+    shutil.rmtree(d)
+    m = re.search(r'<pre id="harness-out">(.*?)</pre>', dom, re.S)
+    assert m, dom[-2000:]
+    got = json.loads(html.unescape(m.group(1)))
+    first, after = got['first'], got['after']
+    assert [(r['state'], r['open'], r['summary'], r['status']) for r in first] == [('running', True, True, True), ('ended', False, True, True)], first
+    assert first[1]['color'] != first[0]['color'], first                 # grayed: not the running heading's color
+    assert first[1]['canvas'] == first[0]['canvas'] > 100, first        # sized to the section, folded or not
+    assert [(r['state'], r['open']) for r in after] == [('running', True), ('ended', True)], after
 
 
 def q_progress_names_each_run_s_program():

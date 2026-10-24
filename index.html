@@ -284,6 +284,8 @@ code {
 .progress-eta .axis, .progress-eta .grid { stroke: var(--progress-hair); stroke-width: 1; vector-effect: non-scaling-stroke; }
 .progress-eta .break { stroke: var(--muted); stroke-width: 1; vector-effect: non-scaling-stroke; }   /* the slashes at the y axis's break (2026-10-23) */
 .progress-eta .yaxis { stroke: var(--muted); stroke-width: 1; vector-effect: non-scaling-stroke; }   /* the y axis's line, broken at the gap (2026-10-23) */
+.progress summary h3 { display: inline; }   /* a run's heading, its fold's summary (2026-10-23) */
+.progress-run:not([data-run-state="running"]) summary { color: var(--muted); }   /* a run not running, grayed (2026-10-23) */
 .progress-eta text { font-size: 11px; fill: var(--muted); stroke: none; font-variant-numeric: tabular-nums lining-nums; }
 /* The labels at the latest record, commented out with them (dreeves, 2026-10-17: "comment it out for now"):
 .progress-eta text.label { font-size: 12px; font-weight: 600; stroke: var(--paper); stroke-width: 4px; stroke-linejoin: round; paint-order: stroke; }
@@ -1087,7 +1089,8 @@ SClaude[11][800] = {
       <div class="progress-runs"></div>
       <template class="progress-run">
         <div class="progress-run">
-          <h3><span class="nw"><i>m</i><sup>*</sup>(<span data-n></span>) ≥ <span data-order></span>?</span> <code data-program></code></h3>
+          <details>
+          <summary><h3><span class="nw"><i>m</i><sup>*</sup>(<span data-n></span>) ≥ <span data-order></span>?</span> <code data-program></code></h3></summary>
           <div class="progress-bar" aria-hidden="true"><span data-bar="so-far"></span><span data-bar="lo"></span><span data-bar="band"></span><i data-bar="median"></i></div>
           <canvas role="img" aria-label="One dot per sub-case, colored by its status, each subtree a block of its own"></canvas>
           <ul class="progress-key">
@@ -1130,6 +1133,7 @@ SClaude[11][800] = {
               <line class="cross" visibility="hidden" data-cross></line>
             </svg>
           </div>
+          </details>
           <p class="progress-status">
             <span data-state="running"></span>
             <span data-state="frozen">Frozen: <span class="spent"><b data-so-far></b> so far</span> + <span class="togo"><b data-to-go></b> to go</span> = <span class="total"><b data-sum></b></span></span>
@@ -1696,6 +1700,7 @@ try {
   const KEPT = 'progress-open';                // localStorage: "1" while this browser last left the section open
   const view = window.progressView = {loads: 0, renders: 0, data: null, layouts: []};
   let poll = null, ticker = null, made = null, resizing = null, clips = 0;   // clips: the charts' clip paths made, for their ids
+  const folds = new Map();                     // a run's fold as opened or closed by hand, by its program, n and order
 
   const pad = x => String(x).padStart(2, '0');
   const local = t => {
@@ -1774,6 +1779,13 @@ try {
     view.layouts = data.runs.map(run => {
       const box = template.content.firstElementChild.cloneNode(true);
       runsBox.appendChild(box);
+      // a run not running is folded under its heading, grayed, its status line below (dreeves, 2026-10-23: "i don't
+      // want to see frozen graphs" and "i don't want graphs to magically disappear"); a fold opened or closed by hand
+      // stays so across snapshots (folds, by run)
+      const key = `${run.program} ${run.n} ${run.order}`, fold = box.querySelector('details'), usual = run.state === 'running';
+      box.dataset.runState = run.state;
+      fold.open = folds.get(key) ?? usual;
+      fold.addEventListener('toggle', () => fold.open === usual ? folds.delete(key) : folds.set(key, fold.open));
       box.querySelector('[data-n]').textContent = run.n;
       box.querySelector('[data-order]').textContent = run.order;
       box.querySelector('[data-program]').textContent = run.program;
@@ -1829,7 +1841,7 @@ try {
     const css = getComputedStyle(section);
     const colors = run.statuses.map(s => css.getPropertyValue('--progress-' + s).trim());
     const groups = run.groups, sizes = groups.map(g => g.length);
-    const Wpx = canvas.clientWidth, dpr = window.devicePixelRatio || 1;
+    const Wpx = runsBox.clientWidth, dpr = window.devicePixelRatio || 1;   // the section's: a folded canvas has none
     let L = null;
     for (let pitch = 10; pitch >= 2 && !L; pitch--) {
       const cols = Math.max(1, Math.floor(Wpx / pitch)), S = strips(sizes, cols);
