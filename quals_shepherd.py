@@ -52,6 +52,15 @@ class ShepherdQuals(unittest.TestCase):
             self.assertEqual(shepherd.status(s, [proc(43, 'python3 -B focus.py 480', 'Z')]), ('stopped', None))
             self.assertEqual(shepherd.status(s, [proc(44, 'python3 -B focus.py 4800')]), ('stopped', None))
 
+    def test_a_shell_mentioning_the_command_runs_nothing(self):
+        # Replicata: a live focus.py 480, and a shell whose command line launched it.
+        # Expectata (2026-10-23: such a shell crashed the shepherd, "2 processes run 672:13 fanout"): running, the
+        # Python process's pid.
+        with tempfile.TemporaryDirectory() as d:
+            procs = [proc(42, '/opt/homebrew/bin/python3 -B focus.py 480 --seconds inf'),
+                     proc(43, "/bin/bash -c 'nohup nice -n 15 /opt/homebrew/bin/python3 -B focus.py 480 >> focus_480.log &'")]
+            self.assertEqual(shepherd.status(search(d), procs), ('running', 42))
+
     def test_a_partial_last_line_is_not_a_record(self):
         # Replicata: a journal whose last line was cut off mid-write after a finish.
         # Expectata: the complete lines decide: the finish before it.

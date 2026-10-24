@@ -252,11 +252,20 @@ def processes():
     return [(int(a), int(b), c, d) for a, b, c, d in (line.split(None, 3) for line in out.stdout.splitlines())]
 
 
+def runs(procs, script, *args):
+    """The live processes of procs (not zombies) that run script, by name or path, with args as its first arguments: a
+    Python interpreter's, its options before the script (2026-10-23: a shell whose command line merely mentioned
+    "fanout.py 672" made the watcher and the shepherd each find two and stop)."""
+    tail = ''.join(r'\s+' + re.escape(str(a)) for a in args)
+    pattern = rf'^\S*[Pp]ython[\d.]*(?:\s+-\S+)*\s+(?:\S*/)?{re.escape(script)}{tail}(?:\s|$)'
+    return [p for p in procs if re.match(pattern, p[3]) and not p[2].startswith('Z')]
+
+
 def run_state(procs, program, n, order, outcome):
     """The state (see the vocabulary) of program's run (overnight_v5.py's or boxsplit.py's), from the process list and
     the current pass's outcome line (or None): frozen when its main process is stopped; a stopped worker only takes
     capacity away, and the run goes on (dreeves, 2026-10-20: two of 240@11's four boxsplit workers were paused)."""
-    main = [p for p in procs if re.search(rf'(?:^|[\s/]){re.escape(program)} {n} {order}\s*$', p[3])]
+    main = runs(procs, program, n, order)
     # TODO: error copy; says several processes run this search at once, giving how many, the length and the order
     assert len(main) <= 1, f'Claude: "{len(main)} processes run {program} {n} {order}"'
     return ('ended' if outcome is not None or not main else
@@ -1109,7 +1118,7 @@ def survey_lattice(path, procs, now=None, etas=None):
         handlers[r['event']](r)
         spans[-1][1] = previous = r['time']
     assert spans, path
-    main = [p for p in procs if p[0] == state['pid'] and re.search(r'(?:^|[\s/])lattice288\.py(?:\s|$)', p[3])]
+    main = [p for p in runs(procs, 'lattice288.py') if p[0] == state['pid']]
     assert len(main) <= 1, main
     status = ('ended' if state['outcome'] is not None or not main else
               'frozen' if main[0][2].startswith('T') else 'running')
@@ -1191,7 +1200,7 @@ def survey_focus(path, procs, now=None, observations=None, launches=None):
     assert (header['n'], header['order']) in ((480, 14), (672, 13))
     assert type(header['total']) is int and header['total'] > 0
     total = header['total']
-    main = [p for p in procs if re.search(rf'(?:^|[\s/])focus\.py {header["n"]}(?:\s|$)', p[3])]
+    main = runs(procs, 'focus.py', header['n'])
     assert len(main) <= 1
     sight(main, launches, now)
     state = dict(pid=None, outcome=None, time=header['time'])
@@ -1263,7 +1272,7 @@ def survey_fanout(path, procs, now=None, observations=None, launches=None):
     assert (header['event'], header['version']) == ('header', 1)
     roots, cases_of = header['roots'], header['root_cases']
     assert len(cases_of) == len(header['root_depths']) == roots and header['workers'] > 0
-    main = [p for p in procs if re.search(rf'(?:^|[\s/])fanout\.py {header["n"]}(?:\s|$)', p[3])]
+    main = runs(procs, 'fanout.py', header['n'])
     assert len(main) <= 1
     sight(main, launches, now)
     spans, pids, starts, ends, finish = [], [], {}, {}, []
@@ -1290,7 +1299,8 @@ def survey_fanout(path, procs, now=None, observations=None, launches=None):
         spans[-1][1] = previous = r['time']
     assert spans
     spans, status = spans_of(spans, pids, main, launches, observations, now, bool(finish))
-    running = {j for j in starts if j not in ends} if status == 'running' else set()
+    # only the latest session's driver runs jobs; one an earlier driver left unended is pending again
+    running = {j for j in starts if j not in ends and str(starts[j]['pid']) == pids[-1]} if status == 'running' else set()
     groups = []
     for root in range(roots):
         done = [e for e in ends.values() if e['root'] == root]
@@ -1378,8 +1388,7 @@ def survey_join(path, procs, now=None, observations=None):
         handlers[r['event']](r)
         spans[-1][1] = state['time'] = r['time']
     assert spans
-    main = [p for p in procs if p[0] == state['pid'] and
-            re.search(r'(?:^|[\s/])join720\.py(?:\s|$)', p[3])]
+    main = [p for p in runs(procs, 'join720.py') if p[0] == state['pid']]
     assert len(main) <= 1
     status = ('ended' if state['outcome'] is not None or not main else
               'frozen' if main[0][2].startswith('T') else 'running')

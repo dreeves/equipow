@@ -89,6 +89,30 @@ class FanoutProgressQuals(unittest.TestCase):
         self.assertEqual((run['state'], run['outcome']), ('ended', 'excluded'))
         self.assertEqual(run['sea']['groups'], ['0', '200'])
 
+    def test_a_shell_mentioning_the_command_is_not_the_driver(self):
+        # Replicata: started(), with the driver alive and a shell whose command line launched it: "/bin/bash -c ... nohup
+        # nice -n 15 /opt/homebrew/bin/python3 -B fanout.py 672 >> fanout_672.log".
+        # Expectata (2026-10-23: such a shell crashed the watcher, which found two drivers): one driver, running.
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, 'fanout_672_journal.jsonl')
+            Path(path).write_text(''.join(json.dumps(r) + '\n' for r in started()))
+            procs = [(PID, 1, 'SN', '/opt/homebrew/bin/python3 -B fanout.py 672'),
+                     (99, 1, 'S', "/bin/bash -c 'nohup nice -n 15 /opt/homebrew/bin/python3 -B fanout.py 672 >> fanout_672.log &'")]
+            run = progress.survey_fanout(path, procs, 200, {}, {})
+        self.assertEqual(run['state'], 'running')
+
+    def test_a_job_of_an_earlier_driver_is_pending_not_running(self):
+        # Replicata: a session of driver 41 starting job a (root 1), then a session of driver 42, alive, starting job b
+        # (root 0); a never ended.
+        # Expectata (2026-10-23: a snapshot showed 8 jobs running on 5 workers): b running; a pending, as fanout reruns it.
+        records = [head(), ev('session', 100), ev('job_start', 110, job='a', case=0, depth=1, root=1),
+                   dict(ev('session', 150), pid=42), dict(ev('job_start', 151, job='b', case=1, depth=0, root=0), pid=42)]
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, 'fanout_672_journal.jsonl')
+            Path(path).write_text(''.join(json.dumps(r) + '\n' for r in records))
+            run = progress.survey_fanout(path, [(42, 1, 'SN', 'python3 -B fanout.py 672')], 200, {}, {})
+        self.assertEqual(run['sea']['groups'], ['4', '3'])
+
     def test_main_surveys_fanout_journals(self):
         # Replicata: a one-shot snapshot of a directory holding a fanout journal only.
         # Expectata: the data file has its run, as fanout.py with n 672 and order 13.

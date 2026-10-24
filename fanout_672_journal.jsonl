@@ -252,3 +252,17 @@
 {"event":"job_start","time":1792802498.8750951,"pid":17455,"job":"5c70da9056fcc4f15b5e6f10997ab33a50a2096e","case":1,"depth":6,"root":0}
 {"event":"job_end","time":1792802504.598482,"pid":17455,"job":"f069a914257eb72427a1cb38f65e968f2a4ec815","case":1,"root":0,"lps":80000,"seconds":1419.6048735000659,"open":69}
 {"event":"job_start","time":1792802504.604939,"pid":17455,"job":"657d9565d7e7e0f223eab7cd7ed70a38aa61246e","case":0,"depth":6,"root":1}
+{"event":"job_end","time":1792803103.351464,"pid":17455,"job":"5c70da9056fcc4f15b5e6f10997ab33a50a2096e","case":1,"root":0,"lps":80000,"seconds":600.446063082898,"open":65}
+{"event":"job_start","time":1792803103.3610592,"pid":17455,"job":"dd0dad78a02d3cb2cb9b91aabcbcc2646c563fe4","case":0,"depth":6,"root":1}
+{"event":"job_end","time":1792803423.7454011,"pid":17455,"job":"dc7b2c046b4c60e3dd782af372b4c2ed7e9803a2","case":1,"root":0,"lps":80000,"seconds":1198.3589700839948,"open":91}
+{"event":"job_start","time":1792803423.748289,"pid":17455,"job":"e10e828ad0ec3f750f8547765b3d1ebc4c76ef64","case":0,"depth":6,"root":1}
+{"event":"job_end","time":1792803605.807217,"pid":17455,"job":"dd0dad78a02d3cb2cb9b91aabcbcc2646c563fe4","case":0,"root":1,"lps":80000,"seconds":498.7232614168897,"open":57}
+{"event":"job_start","time":1792803605.811018,"pid":17455,"job":"c3238c2c3222feec4825c4bd0a8613251d3eb0de","case":0,"depth":6,"root":1}
+{"event":"job_end","time":1792803610.574927,"pid":17455,"job":"657d9565d7e7e0f223eab7cd7ed70a38aa61246e","case":0,"root":1,"lps":80000,"seconds":1102.358513042098,"open":85}
+{"event":"job_start","time":1792803610.57818,"pid":17455,"job":"c9174c24d473cf065ef465553ea157baf587e066","case":0,"depth":6,"root":1}
+{"event":"job_end","time":1792803707.2906299,"pid":17455,"job":"3cb98efe17b7fcfd56f5943769481955d3f78068","case":1,"root":0,"lps":80000,"seconds":2621.2503225828987,"open":85}
+{"event":"job_start","time":1792803707.296285,"pid":17455,"job":"765c9b27072b473798e2c4d9960ef3af6748d019","case":0,"depth":6,"root":1}
+{"event":"job_end","time":1792804169.895904,"pid":17455,"job":"c9174c24d473cf065ef465553ea157baf587e066","case":0,"root":1,"lps":80000,"seconds":555.2215685830452,"open":99}
+{"event":"job_start","time":1792804169.9050372,"pid":17455,"job":"8f9ce46c29be977f2866e22c5fb86bd280c506d4","case":0,"depth":6,"root":1}
+{"event":"job_end","time":1792804240.401092,"pid":17455,"job":"c3238c2c3222feec4825c4bd0a8613251d3eb0de","case":0,"root":1,"lps":80000,"seconds":629.2740250411443,"open":69}
+{"event":"job_start","time":1792804240.405717,"pid":17455,"job":"53027b84f7051b9be089866569f77d2153fdaa51","case":0,"depth":6,"root":1}

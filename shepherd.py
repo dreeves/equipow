@@ -37,14 +37,13 @@ from dataclasses import dataclass
 import fcntl
 import json
 import os
-import re
 import shutil
 import signal
 import subprocess
 import sys
 import time
 
-from progress import processes
+from progress import processes, runs
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 LOG = os.path.join(HERE, 'shepherd.log')
@@ -75,11 +74,6 @@ class Search:
     data: str
     memory: int
     processes: int
-
-    @property
-    def pattern(self):
-        """A process command line running it: its script and first argument, as words."""
-        return rf'(?:^|[\s/]){re.escape(self.script)} {re.escape(self.args[0])}(?:\s|$)'
 
 
 UNBOUNDED = ('--seconds', 'inf', '--lp-budget', str(10 ** 18))   # no budget (principle 2): focus.py's flags take a value
@@ -115,7 +109,7 @@ def last_record(path):
 
 def status(s, procs):
     """The search's status (see the vocabulary) and the pid of its process, None unless running."""
-    pids = [p[0] for p in procs if re.search(s.pattern, p[3]) and not p[2].startswith('Z')]
+    pids = [p[0] for p in runs(procs, s.script, s.args[0])]       # a Python process running it, not a shell that names it
     # TODO: error copy; says several live processes run this search, naming it and the pids
     assert len(pids) <= 1, f'Claude: "{len(pids)} processes run {s.name}: {pids}"'
     last = last_record(s.journal)
