@@ -1275,9 +1275,17 @@ def survey_fanout(path, procs, now=None, observations=None, launches=None):
     main = runs(procs, 'fanout.py', header['n'])
     assert len(main) <= 1
     sight(main, launches, now)
-    spans, pids, starts, ends, finish = [], [], {}, {}, []
+    spans, pids, starts, ends, finish, reflections = [], [], {}, {}, [], {}
 
     def session(r, t):
+        # A legacy session has no reflected cases; each new session supplies its own mapping.
+        mapping = r.get('reflections', {})
+        assert type(mapping) is dict
+        assert all(target in {str(c) for c in cases_of} and type(source) is int and source in cases_of
+                   and source < int(target) for target, source in mapping.items())
+        reflections.clear()
+        reflections.update({int(target): source for target, source in mapping.items()})
+        assert not set(reflections) & set(reflections.values())
         spans.append([t, t])
         pids.append(str(r['pid']))
 
@@ -1300,16 +1308,20 @@ def survey_fanout(path, procs, now=None, observations=None, launches=None):
     assert spans
     spans, status = spans_of(spans, pids, main, launches, observations, now, bool(finish))
     # only the latest session's driver runs jobs; one an earlier driver left unended is pending again
-    running = {j for j in starts if j not in ends and str(starts[j]['pid']) == pids[-1]} if status == 'running' else set()
+    running = {j for j in starts if j not in ends and str(starts[j]['pid']) == pids[-1]
+               and starts[j]['case'] not in reflections} if status == 'running' else set()
     groups = []
     for root in range(roots):
         done = [e for e in ends.values() if e['root'] == root]
         split, live = sum(e['open'] > 0 for e in done), sum(starts[j]['root'] == root for j in running)
         pending = 1 + sum(e['open'] for e in done) - len(done) - live
         assert pending >= 0, (root, pending)
-        groups.append('2' * split + '0' * (len(done) - split) + '4' * live + '3' * pending)
+        # A reflected target remains open until the final checked exclusion, including during proof replay.
+        reflected = '0' if finish and finish[0]['outcome'] == 'excluded' else '1'
+        waiting = reflected if cases_of[root] in reflections else '3'
+        groups.append('2' * split + '0' * (len(done) - split) + '4' * live + waiting * pending)
     counts = {name: sum(g.count(str(i)) for g in groups) for i, name in enumerate(SEA_STATUSES)}
-    cases = sorted(set(cases_of))
+    cases = sorted(set(cases_of) - set(reflections))
     work = {c: header['prefix_lp'] * (c == header['prefix_case']) + sum(e['lps'] for e in ends.values() if e['case'] == c)
             for c in cases}
     complete = {c for c in cases if all(set(g) <= {'0', '2'} for g, k in zip(groups, cases_of) if k == c)}
@@ -1318,7 +1330,7 @@ def survey_fanout(path, procs, now=None, observations=None, launches=None):
     pending = sum(c not in complete and work[c] == 0 for c in cases)
     seconds = sum(e['seconds'] for e in ends.values())
     eta = (lindy_work(walls, ages, pending, sum(e['lps'] for e in ends.values()) / seconds * header['workers'])
-           if status == 'running' and seconds > 0 and max([*walls, *ages], default=0) > 0 else None)
+           if status == 'running' and seconds > 0 and (ages or pending) and max([*walls, *ages], default=0) > 0 else None)
     if status == 'running':
         observations[str(float(now))] = eta
     return dict(program='fanout.py', n=header['n'], order=header['order'], made=now, state=status,

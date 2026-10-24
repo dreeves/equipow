@@ -113,6 +113,57 @@ class FanoutProgressQuals(unittest.TestCase):
             run = progress.survey_fanout(path, [(42, 1, 'SN', 'python3 -B fanout.py 672')], 200, {}, {})
         self.assertEqual(run['sea']['groups'], ['4', '3'])
 
+    def test_reflection_leaves_the_target_open_without_independent_eta_work(self):
+        # Replicata: a restarted driver will reflect case 0's proof into case 1.
+        # Expectata: case 1 stays open, while only case 0's remaining LP work enters Lindy.
+        # Resultata before the fix: case 1 was pending independent work and inflated the estimate.
+        from unittest.mock import patch
+        records = [dict(r, pid=40) for r in started()] + [
+            ev('session', 150, reflections={'1': 0}),
+            ev('job_start', 151, job='c', case=0, depth=2, root=1)]
+        with patch.object(progress, 'lindy_work', return_value=[1, 0.5, 2]) as estimate:
+            run = survey(records)
+        estimate.assert_called_once_with([], [3610], 0, 4.0)
+        self.assertEqual(run['sea']['groups'], ['1', '243'])
+        self.assertEqual(run['sea']['counts'], dict(settled=0, open=1, split=1, pending=1, running=1))
+        self.assertEqual((run['state'], run['outcome']), ('running', None))
+
+    def test_reflection_waits_for_the_checked_finish_after_source_jobs_end(self):
+        # Replicata: case 0's jobs finish, but the reflected proof has not completed its final replay.
+        # Expectata: no independent LP work remains; case 1 is open and the run has no exclusion verdict.
+        # Resultata before the fix: the target was still estimated as an independent pending case.
+        from unittest.mock import patch
+        records = started() + [
+            ev('job_end', 130, job='c', case=0, root=1, lps=3, seconds=1.0, open=0),
+            ev('job_start', 130, job='d', case=0, depth=2, root=1),
+            ev('job_end', 140, job='d', case=0, root=1, lps=3, seconds=1.0, open=0),
+            ev('session', 150, reflections={'1': 0})]
+        with patch.object(progress, 'lindy_work') as estimate:
+            run = survey(records)
+        estimate.assert_not_called()
+        self.assertEqual((run['state'], run['outcome'], run['to_go']), ('running', None, None))
+        self.assertEqual(run['sea']['groups'], ['1', '200'])
+        records.append(ev('finish', 180, outcome='excluded', witness=None))
+        done = survey(records, alive=False)
+        self.assertEqual((done['state'], done['outcome'], done['to_go']), ('ended', 'excluded', None))
+        self.assertEqual(done['sea']['groups'], ['0', '200'])
+
+    def test_a_legacy_session_has_no_reflection_mapping(self):
+        # Replicata: a reflection session followed by a legacy session with no mapping field.
+        # Expectata: the latest session supplies the scheduling policy; legacy means independent cases.
+        # Resultata: retaining an older mapping would conceal work that the current driver schedules.
+        records = [head(), ev('session', 100, reflections={'1': 0}), ev('session', 150)]
+        run = survey(records)
+        self.assertEqual(run['sea']['groups'], ['3', '3'])
+
+    def test_invalid_reflection_mappings_fail_loudly(self):
+        # Replicata: a session names a nonexistent case, itself, a later source, or a noninteger source.
+        # Expectata: malformed scheduling evidence cannot alter the progress estimate.
+        # Resultata before the fix: all mappings were ignored.
+        for mapping in ({'2': 0}, {'1': 2}, {'1': 1}, {'0': 1}, {'1': False}, {'01': 0}):
+            with self.subTest(mapping=mapping), self.assertRaises(AssertionError):
+                survey([head(), ev('session', 100, reflections=mapping)])
+
     def test_main_surveys_fanout_journals(self):
         # Replicata: a one-shot snapshot of a directory holding a fanout journal only.
         # Expectata: the data file has its run, as fanout.py with n 672 and order 13.

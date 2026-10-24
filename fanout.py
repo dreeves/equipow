@@ -39,6 +39,7 @@ import time
 
 import certbb
 import focus
+import reflection
 
 WORKERS = 5                            # processes proving jobs (principle 4's slots: 480's run takes the sixth)
 BUDGET = 20000                         # LP solves a job takes before it may hand back what it left open: ~2 min at 672
@@ -148,11 +149,14 @@ def work(job):
     choice = cases[case]
     rows = certbb.node_rows(equations, choice)
     check = certbb.Check(equations, tuple((M, (v,)) for M, v in choice), *box(equations.N, path))
-    stack, tokens, start = [path], [], time.monotonic()
-    while stack and len(tokens) < HARD * budget and (len(tokens) < budget or len(stack[-1]) > len(path) + deep):
-        p = stack.pop()
+    lp = lp_for(case)
+    stack, tokens, start = [(path, None)], [], time.monotonic()
+    while stack and len(tokens) < HARD * budget and (len(tokens) < budget or len(stack[-1][0]) > len(path) + deep):
+        p, basis = stack.pop()
         lo, hi = box(equations.N, p)
-        token = focus.step(lp_for(case), equations, choice, lo, hi)
+        if basis is not None:
+            assert lp.H.setBasis(basis) == certbb.highs.HighsStatus.kOk
+        token = focus.step(lp, equations, choice, lo, hi)
         tokens.append(token)
         if token[0] == 'W':                # an exact solution, checked as focus.State checks one: the job's end
             x = token[1]
@@ -160,11 +164,28 @@ def work(job):
             assert certbb.point_certificate(rows, x) is None
             return dict(tokens=tokens, open=[], seconds=time.monotonic() - start, witness=x)
         check.feed(token)
-        stack += [p + ((token[1], 1),), p + ((token[1], 0),)] if token[0] == 'B' else []
-    return dict(tokens=tokens, open=stack, seconds=time.monotonic() - start, witness=None)
+        stack += [(p + ((token[1], 1),), lp.H.getBasis()), (p + ((token[1], 0),), None)] if token[0] == 'B' else []
+    return dict(tokens=tokens, open=[p for p, _ in stack], seconds=time.monotonic() - start, witness=None)
 
 
 # ---------- the driver ----------
+
+def reflections(prepared, all_roots):
+    """Untouched cases whose full proofs can be reflected from an earlier case.
+
+    A partially searched target is retained. The original roots, including every
+    target, remain the contract for the final exact replay.
+    """
+    equations, cases = prepared
+    reversed_cases = tuple(reflection.choice(equations, choice) for choice in cases)
+    pairs = [(target, source) for source in sorted({b[0] for b in all_roots})
+             for target in range(source + 1, len(cases))
+             if (target, ()) in all_roots and reversed_cases[source] == cases[target]]
+    assert len(dict(pairs)) == len(pairs)
+    assert not set(dict(pairs)) & set(dict(pairs).values())
+    for _, source in pairs: reflection.mapping(equations, cases[source])
+    return dict(pairs)
+
 
 def farm(prepared, all_roots, done, work_dir, journal):
     """Runs every job not done, WORKERS at once, shallowest first; the witness found (0/1 list), else None."""
@@ -176,7 +197,9 @@ def farm(prepared, all_roots, done, work_dir, journal):
             entry = done.get(jid(b))
             if entry is None: heapq.heappush(heap, (len(b[1]), next(order), b, root))
             else: todo += [key(b[0], p) for p in entry['open']]
-    for root, job in enumerate(all_roots): reach(job, root)
+    copies = reflections(prepared, all_roots)
+    for root, job in enumerate(all_roots):
+        if job[0] not in copies: reach(job, root)
     found = [e['witness'] for e in done.values() if e['witness'] is not None]
     if found: return found[0]
     with ProcessPoolExecutor(WORKERS, mp_context=multiprocessing.get_context('spawn'), initializer=init,
@@ -202,28 +225,68 @@ def farm(prepared, all_roots, done, work_dir, journal):
     return None
 
 
+def job_tokens(work_dir, done, jobs):
+    """Saved job tokens in depth-first order, including each unfinished child's job."""
+    todo = list(jobs)
+    while todo:
+        job = todo.pop()
+        data = read(work_dir / 'jobs' / f'{jid(job)}.json.gz')
+        assert key(data['case'], data['path']) == job
+        assert brief(data) == json.loads(json.dumps(done[jid(job)]))
+        yield from map(tuple, data['tokens'])
+        todo += [key(job[0], p) for p in data['open']]
+
+
+def continuation(work_dir, prepared, all_roots, done, prefix):
+    """Proof records after the original prefix, including full reflected proofs."""
+    equations, cases = prepared
+    copies = reflections(prepared, all_roots)
+    def remaining(case):
+        return job_tokens(work_dir, done, [b for b in all_roots if b[0] == case])
+    def original(case):
+        for path in prefix:
+            yield from (tuple(r['token']) for r in read(path)['records'] if r['case'] == case)
+    for case in sorted({b[0] for b in all_roots}):
+        if case in copies:
+            source = copies[case]
+            values = itertools.chain(original(source), remaining(source))
+            yield from (dict(case=case, token=reflection.token(equations, cases[source], t)) for t in values)
+        else:
+            yield from (dict(case=case, token=t) for t in remaining(case))
+
+
 def splice(run_dir, work_dir, prepared, code, all_roots, done):
     """The splice (see the vocabulary): every job's tokens, read from its file, fed through focus.State and committed
     as chunks."""
     state = focus.replay(run_dir, *prepared, code)
+    start = taken(run_dir, work_dir, code)
+    chunks = sorted(Path(run_dir).glob('chunk-*.json.gz'))
+    prefix = chunks[:start['chunks']]
+    initial = read(prefix[-1])['checkpoint']
     # TODO: error copy; says the run's open boxes are no longer the ones fanout set out to prove
-    assert [key(*b) for b in state.frontier] == all_roots, 'Claude: "the run moved since fanout took its roots"'
-    state.outcome, todo, records = None, list(all_roots), []
-    while todo:
-        job = todo.pop()
-        assert key(*state.frontier[-1]) == job, (state.frontier[-1], job)
-        entry = done[jid(job)]
-        for token in read(work_dir / 'jobs' / f'{jid(job)}.json.gz')['tokens']:
-            record = dict(case=job[0], token=token)
-            state.feed(record)
-            records.append(record)
-        todo += [key(job[0], p) for p in entry['open']]
+    assert [key(*b) for b in initial['frontier']] == all_roots, 'Claude: "the run moved since fanout took its roots"'
+    assert initial['lp'] == start['lp']
+    stream = continuation(work_dir, prepared, all_roots, done, prefix)
+    # A restart must reproduce the already committed splice, not merely skip
+    # the same number of records from a potentially different proof.
+    consumed = 0
+    for path in chunks[start['chunks']:]:
+        for saved in read(path)['records']:
+            expected = next(stream)
+            assert saved == dict(case=expected['case'], token=list(expected['token']))
+            consumed += 1
+    assert state.lp == start['lp'] + consumed
+    records = []
+    for record in stream:
+        state.feed(record)
+        records.append(record)
         if len(records) >= CHUNK:
             focus.commit(run_dir, state, records, code)
             records = []
     assert not state.frontier and state.witness is None
-    state.outcome = 'excluded'
-    focus.commit(run_dir, state, records, code)
+    if records or state.outcome != 'excluded':
+        state.outcome = 'excluded'
+        focus.commit(run_dir, state, records, code)
 
 
 def stop(signum, frame):
@@ -251,7 +314,7 @@ def run(run_dir, focus_journal, work_dir, journal, n, m):
         if not journal.exists(): note(journal, 'header', **head)
         assert {k: json.loads(journal.read_text().splitlines()[0])[k] for k in ('n', 'order', 'code')} == \
                {k: head[k] for k in ('n', 'order', 'code')}
-        note(journal, 'session')
+        note(journal, 'session', reflections=reflections(prepared, all_roots))
         done = {f.name.split('.')[0]: brief(read(f)) for f in (work_dir / 'jobs').glob('*.json.gz')}
         witness = farm(prepared, all_roots, done, work_dir, journal)
         if witness is None: splice(run_dir, work_dir, prepared, code, all_roots, done)
