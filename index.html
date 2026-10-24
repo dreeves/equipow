@@ -2016,6 +2016,9 @@ try {
   }
   try { details.open = localStorage.getItem(KEPT) === '1'; } catch (e) {}
   details.addEventListener('toggle', () => { keep(); sync(); });
+  // back to the tab, a fresh snapshot at once, not at the next minute's poll (dreeves, 2026-10-23: "did you break
+  // auto-refresh yet again?": a tab long hidden had polled nothing); sync loads nothing while the section is closed
+  document.addEventListener('visibilitychange', sync);
   sync();                                      // in case it is open already: its toggle may have fired before this ran
   window.addEventListener('resize', () => {
     clearTimeout(resizing);

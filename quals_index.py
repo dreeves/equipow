@@ -2152,6 +2152,37 @@ def q_progress_bands_overlap_visibly():
     assert got[0] >= 13 and got[1] >= 11 and got[2] >= 7, got
 
 
+def q_progress_reloads_on_returning_to_the_tab():
+    # Replicata: index.html with PROGRESS_DATA as progress.js, the section left open (PROGRESS_REMEMBERED) and the
+    # minute's poll; after its first load, a visibilitychange event, as when the tab comes back into view.
+    # Expectata (dreeves, 2026-10-23: "did you break auto-refresh yet again?", the page having polled nothing while its
+    # tab was hidden): a load at once, not up to a minute later.
+    d = tempfile.mkdtemp(prefix='index-quals-')
+    harness = """<script>
+(async () => {
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  await sleep(1500);
+  const before = window.progressView.loads;
+  document.dispatchEvent(new Event('visibilitychange'));
+  await sleep(50);
+  const pre = document.createElement('pre'); pre.id = 'harness-out';
+  pre.textContent = JSON.stringify({before, after: window.progressView.loads}); document.body.appendChild(pre);
+})();
+</script>
+"""
+    text = page().replace('<head>\n', '<head>\n' + PROGRESS_REMEMBERED).replace('</body>', harness + '</body>')
+    open(os.path.join(d, 'index.html'), 'w', encoding='utf-8').write(text)
+    open(os.path.join(d, 'progress.js'), 'w', encoding='utf-8').write('progressData(' + json.dumps(PROGRESS_DATA) + ');\n')
+    shutil.copy(DATA, os.path.join(d, 'mstar.js'))
+    shutil.copy(POW2, os.path.join(d, 'pow2.js'))
+    dom = chrome(d, ['--virtual-time-budget=5000', '--dump-dom', 'file://' + os.path.join(d, 'index.html')])
+    shutil.rmtree(d)
+    m = re.search(r'<pre id="harness-out">(.*?)</pre>', dom, re.S)
+    assert m, dom[-2000:]
+    got = json.loads(html.unescape(m.group(1)))
+    assert got['before'] >= 1 and got['after'] == got['before'] + 1, got
+
+
 def q_progress_names_each_run_s_program():
     # Replicata: progress_run with two runs: PROGRESS_DATA's, then the same as boxsplit.py's pass (PROGRESS_TWO).
     # Expectata: two headings, in the data's order, each the run's question and its program, overnight_v5.py then

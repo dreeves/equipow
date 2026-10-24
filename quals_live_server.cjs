@@ -24,7 +24,8 @@ const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
   const previous = settings.filter(p => p !== '.lattice288_work/**');
   const outputs = ['lattice288.log', 'lattice288_journal.jsonl',
     '.lattice288_prepared.json', '.lattice288_work/job.json',
-    '.lattice288_work/progress.log', 'progress.js', '.progress_cache.json'];
+    '.lattice288_work/progress.log', 'progress.js', '.progress_cache.json',
+    'AGENTS.md'];   // agents' notes, no part of the page (dreeves, 2026-10-23: "ignoring AGENTS.md specifically makes sense")
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'powersums-live-server-'));
   try {
     await fs.mkdir(path.join(root, '.lattice288_work'));
