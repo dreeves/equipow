@@ -1,0 +1,11 @@
+Traceback (most recent call last):
+  File "/Users/dreeves/lab/powersums/shepherd.py", line 228, in <module>
+    main(sys.argv[1:])
+    ~~~~^^^^^^^^^^^^^^
+  File "/Users/dreeves/lab/powersums/shepherd.py", line 215, in main
+    statuses = {s.name: status(s, procs) for s in SEARCHES}
+                        ~~~~~~^^^^^^^^^^
+  File "/Users/dreeves/lab/powersums/shepherd.py", line 120, in status
+    assert len(pids) <= 1, f'Claude: "{len(pids)} processes run {s.name}: {pids}"'
+           ^^^^^^^^^^^^^^
+AssertionError: Claude: "2 processes run 672:13 fanout: [16986, 17455]"

@@ -152,6 +152,34 @@ class FanoutQuals(unittest.TestCase):
             self.assertGreater(len(done), 2)
             self.assertTrue(all('tokens' not in e and {'open', 'witness', 'root'} <= set(e) for e in done.values()))
 
+    def test_a_job_finishes_its_deep_boxes_and_hands_back_only_shallow_ones(self):
+        # Replicata: fanout on (20, 5) with jobs of at most 4 LP solves and DEEP 1, after its 5-solve stop.
+        # Expectata (2026-10-23: at 672, 109 jobs had left 6,952 open, each handing back its whole depth-first path):
+        # past its budget a job goes on depth first while its next open box lies more than DEEP levels below its own,
+        # up to 4 budgets, so it hands back at most DEEP boxes unless it reached 4 budgets; and still excluded.
+        with tempfile.TemporaryDirectory() as tmp:
+            prepared = real(20, 5)
+            run, journal = stopped(tmp, prepared, 20, 5, 5)
+            with patch.object(fanout, 'DEEP', 1):
+                outcome, work, own = finish(tmp, run, journal, prepared, 20, 5)
+            self.assertEqual(outcome, 'excluded')
+            ends = [e for e in events(own) if e['event'] == 'job_end']
+            self.assertTrue(all(e['open'] <= 1 or e['lps'] >= 16 for e in ends), ends)
+            self.assertTrue(any(e['lps'] > 4 for e in ends), ends)
+
+    def test_a_stop_signal_takes_the_workers_down_too(self):
+        # Replicata: a child process of this one (a stand-in for a worker), then fanout's handler of SIGTERM called as
+        # the signal would call it.
+        # Expectata (2026-10-23: a SIGTERM to the driver left its five workers running, orphaned, and the shepherd stops
+        # searches below its floor with SIGTERM): the child terminated, and SystemExit raised, so the driver exits.
+        import multiprocessing, signal, time
+        child = multiprocessing.get_context('spawn').Process(target=time.sleep, args=(60,))
+        child.start()
+        with self.assertRaises(SystemExit):
+            fanout.stop(signal.SIGTERM, None)
+        child.join(10)
+        self.assertFalse(child.is_alive())
+
     def test_journal_has_a_header_sessions_jobs_and_a_finish(self):
         # Replicata: fanout on (16, 5) stopped after 2 LP solves.
         # Expectata: its journal, one JSON object per line: a header (version 1, n, order, workers, budget, the roots'

@@ -280,7 +280,8 @@ code {
 .progress-eta .now.togo { fill: var(--progress-togo); stroke: none; }
 .progress-eta .now.total { fill: var(--progress-total); stroke: none; }
 .progress-eta .axis, .progress-eta .grid { stroke: var(--progress-hair); stroke-width: 1; vector-effect: non-scaling-stroke; }
-.progress-eta .cap { stroke: var(--progress-hair); stroke-width: 1; vector-effect: non-scaling-stroke; }   /* the zigzag at the y axis's cap (2026-10-23) */
+.progress-eta .cap { stroke: var(--progress-hair); stroke-width: 1; vector-effect: non-scaling-stroke; }   /* the panels' edges at the y axis's break (2026-10-23) */
+.progress-eta .break { stroke: var(--muted); stroke-width: 1; vector-effect: non-scaling-stroke; }   /* the slashes at the y axis's break (2026-10-23) */
 .progress-eta text { font-size: 11px; fill: var(--muted); stroke: none; font-variant-numeric: tabular-nums lining-nums; }
 /* The labels at the latest record, commented out with them (dreeves, 2026-10-17: "comment it out for now"):
 .progress-eta text.label { font-size: 12px; font-weight: 600; stroke: var(--paper); stroke-width: 4px; stroke-linejoin: round; paint-order: stroke; }
@@ -1098,7 +1099,9 @@ SClaude[11][800] = {
           <div class="progress-eta">
             <p class="progress-tip" data-tip></p>
             <svg viewBox="0 0 640 240" role="img" aria-label="The recorded ETAs against the hours of running, with the elapsed time and elapsed + ETA">
+              <defs><clipPath data-clip><rect></rect><rect></rect></clipPath></defs>
               <g data-grid></g>
+              <g data-plot>
               <polygon class="band togo" data-band-togo></polygon>
               <polygon class="band total" data-band-total></polygon>
               <polyline class="spent" data-spent></polyline>
@@ -1114,6 +1117,8 @@ SClaude[11][800] = {
               <circle class="now togo" r="4" data-now-togo></circle>
               <circle class="now total" r="4" data-now-total></circle>
               </g>
+              </g>
+              <g data-breaks></g>
               <!-- The labels at the latest record, commented out at dreeves's request (2026-10-17: "comment it out for now"):
               <text class="label togo" data-label-togo><tspan data-togo-range></tspan>&#8239;h</text>
               <text class="label total" data-label-total><tspan data-total-range></tspan>&#8239;h</text>
@@ -1688,7 +1693,7 @@ try {
   const POLL = window.PROGRESS_POLL_MS || 60000;
   const KEPT = 'progress-open';                // localStorage: "1" while this browser last left the section open
   const view = window.progressView = {loads: 0, renders: 0, data: null, layouts: []};
-  let poll = null, ticker = null, made = null, resizing = null;
+  let poll = null, ticker = null, made = null, resizing = null, clips = 0;   // clips: the charts' clip paths made, for their ids
 
   const pad = x => String(x).padStart(2, '0');
   const local = t => {
@@ -1872,11 +1877,11 @@ try {
 
   function etaChart(fig, run) {
     const pts = run.etas.map(([t, x, m, lo, hi]) => [t, x / 3600, m / 3600, lo / 3600, hi / 3600]);
-    const NS = 'http://www.w3.org/2000/svg', W = 640, H = 240, L = 48, R = 72, T = 14, B = 30, CROWD = 44, HEAD = 1.1, OVER = 12;
+    const NS = 'http://www.w3.org/2000/svg', W = 640, H = 240, L = 48, R = 72, T = 14, B = 30, CROWD = 44, HEAD = 1.1, TOP = 40, GAP = 10;
     const now = run.so_far / 3600, last = pts[pts.length - 1];
     const xmax = Math.max(now, 1 / 3600, ...pts.slice(-1).map(p => p[1] + p[2]));
     // the y axis's cap: a bit above the projected finish, the guide's level, and the elapsed time (dreeves, 2026-10-23:
-    // "truncate the y-axis a bit above the horizontal purple dashed line"); anything taller goes into the strip above it
+    // "truncate the y-axis a bit above the horizontal purple dashed line"); anything taller goes to the top panel
     const ymax = HEAD * xmax;
     // each axis's round ticks in the unit of its largest value (unitOf; dreeves, 2026-10-23), as hours, and their labels,
     // the last with the unit: the x axis's up past its top, the y axis's up to its cap
@@ -1888,18 +1893,48 @@ try {
     const [xticks, xlabels] = axis(xmax, Math.ceil), [yticks, ylabels] = axis(ymax, Math.floor);
     const X = x => L + (W - L - R) * x / xticks[xticks.length - 1];
     const cap = ymax;
-    // to scale up to the cap; above it, into the strip of OVER units over it, compressed as the cap over the value, its
-    // top for none (dreeves, 2026-10-23: "indicate visually in some way (no words) when the confidence bands go above the
-    // y-axis cap")
-    const Y = y => H - B - (H - T - OVER - B) * Math.min(y, cap) / cap - OVER * (1 - cap / Math.max(y, cap));
-    const P = ps => ps.map(([x, y]) => `${X(x).toFixed(2)},${Y(y).toFixed(2)}`).join(' ');
+    // The y axis broken canonically, the span between its panels elided (dreeves, 2026-10-23: "can you do something
+    // more canonical for the y-axis break? maybe something like this?", a two-panel plot with slashes at the break; "i
+    // guess i shouldn't have said truncation when i meant elision"): the values above the cap, the bands' tops mostly,
+    // get a top panel TOP units tall, GAP above the main one, linear from lo2, the round tick of their unit at or below
+    // the least of them but no lower than the cap, to hi2, the round tick at or above the greatest; with none, the top
+    // panel and the gap have no height.
+    const tops = pts.flatMap(p => [p[2], p[4], p[1] + p[2], p[1] + p[4]]).filter(v => v > cap), over = tops.length > 0;
+    const greatest = Math.max(cap, ...tops), least = Math.min(greatest, ...tops);
+    const [s2, u2] = unitOf(greatest * 3600), k2 = s2 / 3600, step2 = tickStep(greatest / k2) * k2;
+    const lo2 = Math.max(cap, Math.floor(least / step2) * step2);
+    const hi2 = Math.max(Math.ceil(greatest / step2) * step2, (Math.floor(lo2 / step2) + 1) * step2);
+    const yt = T + TOP * over, yb = yt + GAP * over;     // the top panel's bottom edge, the main panel's top
+    const frac = v => Math.min(1, Math.max(0, v));
+    // the main panel to scale up to the cap, the gap from it to lo2, the top panel from lo2 to hi2
+    const Y = y => H - B - (H - B - yb) * Math.min(y, cap) / cap - (yb - yt) * frac((y - cap) / Math.max(lo2 - cap, 1e-9))
+                   - (yt - T) * frac((y - lo2) / (hi2 - lo2));
+    // the top panel's round ticks at its ends, as few labels as fit its TOP units (none without it), the last with its unit
+    const t2 = [...new Set([Math.ceil(lo2 / step2 - 1e-9), Math.floor(hi2 / step2 + 1e-9)])].slice(0, 2 * over).map(j => j * step2);
+    const l2 = t2.map((v, i) => num(v / k2) + (i === t2.length - 1 ? '\u202f' + u2 : ''));
+    // a polyline's or polygon's points through the break: where a segment crosses the cap or lo2, the crossing on that
+    // edge of the gap, so that each panel draws its part to its own scale and the gap clips the rest away
+    const edges = [[cap, yb], [lo2, yt]];
+    const trace = ps => ps.flatMap((p, i) => {
+      const q = ps[i - 1] || p, crossed = edges.filter(([v]) => (q[1] <= v) !== (p[1] <= v));
+      return (q[1] > p[1] ? crossed.reverse() : crossed)
+        .map(([v, y]) => [X(q[0] + (p[0] - q[0]) * (v - q[1]) / (p[1] - q[1])), y]).concat([[X(p[0]), Y(p[1])]]);
+    });
+    const P = ps => trace(ps).map(([x, y]) => `${x.toFixed(2)},${y.toFixed(2)}`).join(' ');
     const set = (el, attrs) => { for (const k in attrs) el.setAttribute(k, typeof attrs[k] === 'number' ? attrs[k].toFixed(2) : attrs[k]); return el; };
     const make = (tag, attrs, text) => { const e = set(document.createElementNS(NS, tag), attrs); if (text !== undefined) e.textContent = text; return e; };
     const q = sel => fig.querySelector(sel);
-    const zigzag = Array.from({length: (W - L - R) / 5 + 1}, (_, i) => `${L + 5 * i},${(Y(cap) + 1.5 * (2 * (i % 2) - 1)).toFixed(2)}`).join(' ');
-    q('[data-grid]').replaceChildren(...yticks.slice(1).map(v => make('line', {class: 'grid', x1: L, y1: Y(v), x2: W - R, y2: Y(v)})),
-                                     make('polyline', {class: 'cap', points: zigzag}),   // the cap's gridline: a broken axis's mark
+    q('[data-grid]').replaceChildren(...yticks.slice(1).concat(t2).map(v => make('line', {class: 'grid', x1: L, y1: Y(v), x2: W - R, y2: Y(v)})),
+                                     ...[yb, yt].map(y => make('line', {class: 'cap', x1: L, y1: y, x2: W - R, y2: y})),   // the panels' edges
                                      make('line', {class: 'axis', x1: L, y1: Y(0), x2: W - R, y2: Y(0)}));
+    // a pair of slashes at each end of the gap, on both its edges: the canonical mark of a broken axis
+    q('[data-breaks]').replaceChildren(...[L, W - R].flatMap(x => [yt, yb].map(y =>
+      make('line', {class: 'break', x1: x - 4, y1: y + 4, x2: x + 4, y2: y - 4, visibility: over ? 'visible' : 'hidden'}))));
+    const clip = q('[data-clip]');                        // the gap clipped away from every mark of the data
+    clip.id = `progress-clip-${++clips}`;
+    set(clip.children[0], {x: 0, y: 0, width: W, height: yt});
+    set(clip.children[1], {x: 0, y: yb, width: W, height: H - yb});
+    q('[data-plot]').setAttribute('clip-path', `url(#${clip.id})`);
     const band = up => P(pts.map(p => [p[1], up(p) + p[4]]).concat(pts.slice().reverse().map(p => [p[1], up(p) + p[3]])));   // raised by up(p)
     set(q('[data-band-togo]'), {points: band(p => 0)});
     set(q('[data-band-total]'), {points: band(p => p[1])});
@@ -1907,7 +1942,7 @@ try {
     set(q('[data-togo]'), {points: P(pts.map(p => [p[1], p[2]]))});
     set(q('[data-total]'), {points: P(pts.map(p => [p[1], p[1] + p[2]]))});
     q('[data-ticks]').replaceChildren(
-      ...yticks.map((v, i) => make('text', {class: 'ytick', x: L - 6, y: Y(v) + 4, 'text-anchor': 'end'}, ylabels[i])),
+      ...yticks.concat(t2).map((v, i) => make('text', {class: 'ytick', x: L - 6, y: Y(v) + 4, 'text-anchor': 'end'}, ylabels.concat(l2)[i])),
       ...xticks.map((v, i) => [v, xlabels[i]])
                // .filter(([v]) => Math.abs(X(v) - X(now)) >= CROWD)      // room for the elapsed time's label, commented out with it
                .map(([v, label]) => make('text', {class: 'xtick', x: X(v), y: H - 8, 'text-anchor': 'middle'}, label)));

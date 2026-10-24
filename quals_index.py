@@ -2073,33 +2073,44 @@ def q_progress_writes_days_and_years_past_72_h_and_dates_past_a_week():
     parts.feed(R['etaSvg'])
     ticks = lambda k: [text for tag, at, text in parts.items if at.get('class') == k]
     assert ticks('xtick') == ['0', '100', '200', '300', f'400{d}'], ticks('xtick')
-    assert ticks('ytick') == ['0', '100', '200', f'300{d}'], ticks('ytick')
+    assert ticks('ytick') == ['0', '100', '200', f'300{d}', '6', f'8{y}'], ticks('ytick')   # then the top panel's
 
 
-def q_progress_caps_the_y_axis_above_the_projected_finish():
+def q_progress_breaks_the_y_axis_above_the_projected_finish():
     # Replicata: the ETA charts of progress_run('long') (480:14's bands, thousands of hours above its projected
     # finish), of progress_run('eta') (its purple band's top 0.6 h above the cap) and of progress_run('narrow') (bands
     # within the cap), as markup.
     # Expectata (dreeves, 2026-10-23: "truncate the y-axis a bit above the horizontal purple dashed line ... and
-    # indicate visually in some way (no words) when the confidence bands go above the y-axis cap"): the y axis stops
-    # at the cap, 10% above the projected finish, the purple guide's level (or above the elapsed time, if that is
-    # more), its round ticks up to it; the cap's gridline is a zigzag across the plot, the mark of a broken axis;
-    # anything taller, as long's and eta's purple bands, goes into the strip above the cap, compressed (the cap over the
-    # value), never above the strip's top, the chart's top margin, 14; and narrow's bands never enter the strip.
-    for case, spills in (('long', True), ('eta', True), ('narrow', False)):
+    # indicate visually in some way (no words) when the confidence bands go above the y-axis cap", then "can you do
+    # something more canonical for the y-axis break? maybe something like this?", a two-panel plot with slashes at the
+    # break): the main panel stops at the cap, 10% above the projected finish, the purple guide's level, its top edge a
+    # cap line; anything above the cap, as long's and eta's band tops, gets a top panel 40 units tall, 10 above the
+    # main one, linear from the round tick of its unit at or below the least such value (but no lower than the cap) to
+    # the round tick at or above the greatest, labeled at the round ticks at its ends, the last with its unit (four
+    # labels crowded 480's 40 units); its bottom edge a cap
+    # line; the 10 units between clipped away, with a pair of slashes at each end, on both edges; every band vertex in
+    # one panel or on an edge of the gap; and narrow has one panel, its slashes hidden, nothing clipped.
+    for case, over, labels in (('long', True, ['6', '8\u202fy']), ('eta', True, ['20\u202fh']), ('narrow', False, [])):
         parts = SvgParts()
         parts.feed(progress_run(case)['etaSvg'])
         pts = lambda a: [tuple(map(float, xy.split(','))) for xy in a['points'].split()]
-        [cap] = [pts(a) for tag, a, _ in parts.items if tag == 'polyline' and a.get('class') == 'cap']
+        seg = lambda a: tuple(float(a[k]) for k in ('x1', 'y1', 'x2', 'y2'))
         [axis] = [float(a['y1']) for tag, a, _ in parts.items if tag == 'line' and a.get('class') == 'axis']
-        level = (max(y for _, y in cap) + min(y for _, y in cap)) / 2     # its center line
-        assert len(cap) > 50 and max(abs(y - level) for _, y in cap) <= 1.5 + 1e-6, (case, cap[:4])
-        assert abs(cap[0][0] - 48) < 0.05 and abs(cap[-1][0] - 568) < 0.05, (case, cap[0], cap[-1])
         [guide] = [pts(a) for tag, a, _ in parts.items if tag == 'polyline' and a.get('class') == 'guide']
-        assert abs((axis - level) - 1.1 * (axis - guide[0][1])) < 0.05, (case, axis, level, guide[0])
+        caps = sorted(seg(a)[1] for tag, a, _ in parts.items if tag == 'line' and a.get('class') == 'cap')
+        yt, yb = caps                                         # the top panel's bottom edge, the main panel's top
+        assert abs((axis - yb) - 1.1 * (axis - guide[0][1])) < 0.05, (case, axis, yb, guide[0])
+        assert (yt, yb) == ((54.0, 64.0) if over else (14.0, 14.0)), (case, yt, yb)
+        breaks = [(seg(a), a.get('visibility')) for tag, a, _ in parts.items if tag == 'line' and a.get('class') == 'break']
+        assert sorted(s for s, _ in breaks) == sorted((x - 4, y + 4, x + 4, y - 4) for x in (48, 568) for y in (yt, yb)), (case, breaks)
+        assert all(v == ('visible' if over else 'hidden') for _, v in breaks), (case, breaks)
+        top = [(float(a['y']) - 4, t) for tag, a, t in parts.items if tag == 'text' and a.get('class') == 'ytick' and float(a['y']) - 4 < yb - 0.05]
+        assert [t for _, t in top] == labels and all(14 - 0.05 <= y <= yt + 0.05 for y, _ in top), (case, top)
+        rects = [tuple(float(a[k]) for k in ('x', 'y', 'width', 'height')) for tag, a, _ in parts.items if tag == 'rect']
+        assert rects == [(0, 0, 640, yt), (0, yb, 640, 240 - yb)], (case, rects)
         bands = [y for tag, a, _ in parts.items if tag == 'polygon' for _, y in pts(a)]
-        assert min(bands) >= 14 - 1e-6, (case, min(bands))
-        assert (min(bands) < level) == spills, (case, min(bands), level)
+        assert all(14 - 0.05 <= y <= yt + 0.05 or yb - 0.05 <= y for y in bands), (case, sorted(bands))
+        assert any(y < yb - 0.05 for y in bands) == over, case
 
 
 def q_progress_names_each_run_s_program():
@@ -2244,46 +2255,52 @@ def q_progress_eta_chart_keeps_progress_html_s_spec():
     # muted gray before).  And no finish marker since 2026-10-18 (dreeves: "remove the hollow purple dot at the upper
     # right; that might look cleaner"): the guide alone marks the projected finish.  And since 2026-10-23 (dreeves:
     # "truncate the y-axis a bit above the horizontal purple dashed line ... and indicate visually in some way (no words)
-    # when the confidence bands go above the y-axis cap"), the y axis stops 10% above the projected finish, at 15.62 h,
-    # in place of 20 h: its gridlines at 5, 10 and 15 h, a zigzag at 15.62 h, and elapsed + ETA's band top (16.2 h) and
-    # range line's in the strip above it, compressed (q_progress_caps_the_y_axis_above_the_projected_finish).
+    # when the confidence bands go above the y-axis cap", then "can you do something more canonical for the y-axis
+    # break?"), the main panel stops 10% above the projected finish, at 15.62 h, in place of 20 h: its gridlines at 5, 10
+    # and 15 h and its top edge at 15.62 h; and elapsed + ETA's band top (16.2 h) and range line's go to a top panel,
+    # 15.62 to 20 h, labeled 20 h (q_progress_breaks_the_y_axis_above_the_projected_finish).
     R = progress_run('eta')
     parts = SvgParts()
     parts.feed(R['etaSvg'])
     els = [(tag, a, re.sub(r'[ \t\n\r]+', ' ', text).strip()) for tag, a, text in parts.items]   # U+202F stays: it is text
     def pts(text): return [tuple(map(float, xy.split(','))) for xy in text.split()]
     polys = {a['class']: pts(a['points']) for tag, a, _ in els if tag == 'polyline'}
-    assert sorted(polys) == ['cap', 'guide', 'spent', 'togo', 'total'], polys.keys()
+    assert sorted(polys) == ['guide', 'spent', 'togo', 'total'], polys.keys()
     (x0, y0), (x1, y1) = polys['spent'][0], polys['spent'][-1]          # blue at 0 h and at 13.2 h
     def X(h): return x0 + (x1 - x0) * h / 13.2
     def Y(h): return y0 + (y1 - y0) * h / 13.2
     def near(p, q): return abs(p[0] - q[0]) < 0.05 and abs(p[1] - q[1]) < 0.05
-    cap = 1.1 * 14.2                                                     # the y axis's cap, h
-    def Ys(h): return Y(min(h, cap)) - 12 * (1 - cap / max(h, cap))     # to scale up to it, then the strip of 12 units
+    cap, lo2, hi2 = 1.1 * 14.2, 1.1 * 14.2, 20                          # the main panel's cap; the top panel's ends, h
+    YB = Y(cap)                                                          # the main panel's top edge; the top panel's
+    YT = YB - 10                                                         # bottom edge, 10 units above, its top 40 above that
+    def Ys(h): return Y(min(h, cap)) - 10 * (h > cap) - 40 * min(1, max(0, (h - lo2) / (hi2 - lo2)))
     def check(got, want, what): assert len(got) == len(want) and all(near(g, (X(a), Ys(b))) for g, (a, b) in zip(got, want)), (what, got, [(X(a), Ys(b)) for a, b in want])
     for k, w in (('spent', [(0, 0), (13.2, 13.2)]), ('togo', [(0, 2), (13.2, 1)]), ('total', [(0, 2), (13.2, 14.2)]),
                  ('guide', [(13.2, 14.2), (14.2, 14.2), (14.2, 0)])): check(polys[k], w, k)
     bands = {a['class']: pts(a['points']) for tag, a, _ in els if tag == 'polygon'}
     assert sorted(bands) == ['band togo', 'band total'], bands.keys()
     check(bands['band togo'], [(0, 4), (13.2, 3), (13.2, 0.5), (0, 1)], 'band togo')
-    check(bands['band total'], [(0, 4), (13.2, 16.2), (13.2, 13.7), (0, 1)], 'band total')
+    # elapsed + ETA's band crosses the break twice, so it gets each crossing on both edges of the gap (2026-10-23)
+    xc = 13.2 * (cap - 4) / (16.2 - 4)
+    want = [(X(0), Ys(4)), (X(xc), YB), (X(xc), YT), (X(13.2), Ys(16.2)), (X(13.2), YT), (X(13.2), YB), (X(13.2), Ys(13.7)), (X(0), Ys(1))]
+    assert len(bands['band total']) == len(want) and all(near(g, w) for g, w in zip(bands['band total'], want)), (bands['band total'], want)
     lines = [(a['class'], tuple(float(a[k]) for k in ('x1', 'y1', 'x2', 'y2')), a) for tag, a, _ in els if tag == 'line']
-    assert sorted(c for c, _, _ in lines) == sorted(['axis', 'ahead', 'ideal', 'range togo', 'range total', 'cross'] + ['grid'] * 3), [c for c, _, _ in lines]
-    seg = {c: s for c, s, _ in lines if c != 'grid'}
+    assert sorted(c for c, _, _ in lines) == sorted(['axis', 'ahead', 'ideal', 'range togo', 'range total', 'cross'] + ['grid'] * 4 + ['cap'] * 2 + ['break'] * 4), [c for c, _, _ in lines]
+    seg = {c: s for c, s, _ in lines if c not in ('grid', 'cap', 'break')}
     check([seg['ahead'][:2], seg['ahead'][2:]], [(13.2, 13.2), (14.2, 14.2)], 'ahead')
     check([seg['ideal'][:2], seg['ideal'][2:]], [(13.2, 1), (14.2, 0)], 'ideal')
     check([seg['range togo'][:2], seg['range togo'][2:]], [(13.2, 0.5), (13.2, 3)], 'range togo')
     check([seg['range total'][:2], seg['range total'][2:]], [(13.2, 13.7), (13.2, 16.2)], 'range total')
     assert abs(seg['axis'][1] - Y(0)) < 0.05 and seg['axis'][1] == seg['axis'][3], seg['axis']
-    grid = [s for c, s, _ in lines if c == 'grid']
+    grid = [s for c, s, _ in lines if c == 'grid' and s[1] > YB]       # the main panel's
     hours = sorted((y0 - g[1]) / (y0 - Y(1)) for g in grid)              # to 0.01 h: positions are written to 0.01 units
     assert len(hours) == 3 and all(abs(h - t) < 0.01 for h, t in zip(hours, (5, 10, 15))) and all(g[1] == g[3] for g in grid), grid
-    level = (max(y for _, y in polys['cap']) + min(y for _, y in polys['cap'])) / 2   # the top gridline, at 20 h, a zigzag since 2026-10-23
-    assert abs((y0 - level) / (y0 - Y(1)) - cap) < 0.01, level
+    assert [s[1] for c, s, _ in lines if c == 'grid' and s[1] < YB] == [14], lines     # the top panel's, at 20 h, its top
+    assert sorted(round(s[1], 2) for c, s, _ in lines if c == 'cap') == [round(YT, 2), round(YB, 2)], lines
     cross = next(a for c, _, a in lines if c == 'cross')
     assert cross.get('visibility') == 'hidden', cross
     yt = [(float(a['y']), text) for tag, a, text in els if tag == 'text' and a.get('class') == 'ytick']
-    assert [v for _, v in yt] == ['0', '5', '10', '15\u202fh'] and all(abs(y - 4 - Y(int(v.split()[0]))) < 0.05 for y, v in yt), yt   # up to the cap, 15.62 h, since 2026-10-23 (to 20 h before)
+    assert [v for _, v in yt] == ['0', '5', '10', '15\u202fh', '20\u202fh'] and all(abs(y - 4 - Ys(int(v.split()[0]))) < 0.05 for y, v in yt), yt   # up to the cap, 15.62 h, then the top panel's (2026-10-23; to 20 h before)
     xt = [(float(a['x']), text) for tag, a, text in els if tag == 'text' and a.get('class') == 'xtick']
     assert [v for _, v in xt] == ['0', '5', '10', '15\u202fh'] and all(abs(x - X(int(v.split()[0]))) < 0.05 for x, v in xt), xt
     now = {a['class'].split()[1]: (float(a['cx']), float(a['cy'])) for tag, a, _ in els if tag == 'circle'}

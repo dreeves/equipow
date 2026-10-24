@@ -9,9 +9,11 @@ Vocabulary (with focus.py's):
   root      a box of the run's open frontier when fanout first starts, (case, path) as focus.State holds it: path, the
             positions fixed and their values.  roots.json keeps them, so a restart works on the same boxes.
   job       a box to prove: a root, or a box another job left open.  Its worker runs it depth first, as focus.search
-            would (focus.step, each token checked as made by certbb.Check on the job's box), for at most BUDGET LP
-            solves; the result is its tokens and the boxes still open, in the order focus.State would pop them, which
-            become jobs.  A job's file under jobs/ is the durable record that it is done; a restart reruns no job
+            would (focus.step, each token checked as made by certbb.Check on the job's box), for BUDGET LP solves, and
+            then on while its next open box lies more than DEEP levels below its own, up to HARD budgets in all: so it
+            hands back at most DEEP boxes, the shallow ones, unless it reached HARD budgets (2026-10-23: handing back
+            the whole depth-first path, 109 jobs at 672 had left 6,952 open, most of them tiny).  The result is its
+            tokens and the boxes still open, in the order focus.State would pop them, which become jobs.  A job's file under jobs/ is the durable record that it is done; a restart reruns no job
             with a file.  Jobs run shallowest first: the biggest boxes are split soonest.
   splice    the last step: focus.replay of the run (whose open boxes must still be the roots), then every job's tokens,
             fed through focus.State in the order a sequential search would have made them (a job's tokens, then its
@@ -31,6 +33,7 @@ import json
 import multiprocessing
 import os
 from pathlib import Path
+import signal
 import sys
 import time
 
@@ -38,7 +41,9 @@ import certbb
 import focus
 
 WORKERS = 5                            # processes proving jobs (principle 4's slots: 480's run takes the sixth)
-BUDGET = 20000                         # LP solves a job may take before it hands back what it left open: ~10 min at 672
+BUDGET = 20000                         # LP solves a job takes before it may hand back what it left open: ~2 min at 672
+DEEP = 8                               # levels below a job's box that it finishes itself past its budget
+HARD = 4                               # budgets a job may take in all
 CHUNK = 20000                          # records per focus.py chunk the splice commits
 
 
@@ -119,18 +124,18 @@ def note(journal, event, **fields):
 
 # ---------- the workers ----------
 
-WORK = None                            # a worker's (prepared equations and cases, budget), set by init
+WORK = None                            # a worker's (prepared equations and cases, budget, deep), set by init
 
 
-def init(prepared, budget):
+def init(prepared, budget, deep):
     global WORK
-    WORK = (prepared, budget)
+    WORK = (prepared, budget, deep)
 
 
 @functools.lru_cache(maxsize=None)
 def lp_for(case):
     """The worker's LP for a case, made once."""
-    (equations, cases), _ = WORK
+    (equations, cases), _, _ = WORK
     lp = certbb.Lp(equations, tuple(M for M, _ in cases[case]))
     lp.set_counts(cases[case])
     return lp
@@ -138,13 +143,13 @@ def lp_for(case):
 
 def work(job):
     """Runs the job (see the vocabulary): its tokens, its open boxes' paths, its seconds and any witness."""
-    (equations, cases), budget = WORK
+    (equations, cases), budget, deep = WORK
     case, path = job
     choice = cases[case]
     rows = certbb.node_rows(equations, choice)
     check = certbb.Check(equations, tuple((M, (v,)) for M, v in choice), *box(equations.N, path))
     stack, tokens, start = [path], [], time.monotonic()
-    while stack and len(tokens) < budget:
+    while stack and len(tokens) < HARD * budget and (len(tokens) < budget or len(stack[-1]) > len(path) + deep):
         p = stack.pop()
         lo, hi = box(equations.N, p)
         token = focus.step(lp_for(case), equations, choice, lo, hi)
@@ -175,7 +180,7 @@ def farm(prepared, all_roots, done, work_dir, journal):
     found = [e['witness'] for e in done.values() if e['witness'] is not None]
     if found: return found[0]
     with ProcessPoolExecutor(WORKERS, mp_context=multiprocessing.get_context('spawn'), initializer=init,
-                             initargs=(prepared, BUDGET)) as pool:
+                             initargs=(prepared, BUDGET, DEEP)) as pool:
         running = {}
         while heap or running:
             while heap and len(running) < WORKERS:
@@ -221,6 +226,15 @@ def splice(run_dir, work_dir, prepared, code, all_roots, done):
     focus.commit(run_dir, state, records, code)
 
 
+def stop(signum, frame):
+    """SIGTERM's handler: terminates the workers, then exits (2026-10-23: a SIGTERM to the driver alone left its
+    workers running, orphaned; the shepherd stops searches below its floor with SIGTERM).  Their jobs' files are not
+    written, so a restart reruns them."""
+    for child in multiprocessing.active_children(): child.terminate()
+    # TODO: error copy; says fanout was stopped by the signal, naming it
+    raise SystemExit(f'Claude: "fanout stopped by signal {signum}"')
+
+
 def run(run_dir, focus_journal, work_dir, journal, n, m):
     """Finishes focus.py's stopped run of (n, m) in run_dir: excluded or witness."""
     run_dir, work_dir, journal = Path(run_dir), Path(work_dir), Path(journal)
@@ -231,7 +245,7 @@ def run(run_dir, focus_journal, work_dir, journal, n, m):
         fcntl.flock(ours, fcntl.LOCK_EX | fcntl.LOCK_NB)
         start = taken(run_dir, work_dir, code)
         all_roots = [key(*b) for b in start['frontier']]
-        head = dict(version=1, n=n, order=m, workers=WORKERS, budget=BUDGET, roots=len(all_roots),
+        head = dict(version=1, n=n, order=m, workers=WORKERS, budget=BUDGET, deep=DEEP, roots=len(all_roots),
                     root_cases=[c for c, _ in all_roots], root_depths=[len(path) for _, path in all_roots],
                     prefix_lp=start['lp'], prefix_case=start['case'], code=code)
         if not journal.exists(): note(journal, 'header', **head)
@@ -254,6 +268,7 @@ def main():
     assert len(sys.argv) == 2 and sys.argv[1] in ('480', '672'), 'Claude: "usage: python3 -B fanout.py 480|672"'
     n = int(sys.argv[1])
     m = {480: 14, 672: 13}[n]
+    signal.signal(signal.SIGTERM, stop)
     outcome = run(Path(f'scratch/focus{n}/run'), Path(f'focus_{n}_journal.jsonl'), Path(f'scratch/fanout{n}'),
                   Path(f'fanout_{n}_journal.jsonl'), n, m)
     print(json.dumps(dict(n=n, order=m, outcome=outcome)), flush=True)
