@@ -2087,9 +2087,13 @@ def q_progress_breaks_the_y_axis_above_the_projected_finish():
     # cap line; anything above the cap, as long's and eta's band tops, gets a top panel 40 units tall, 10 above the
     # main one, linear from the round tick of its unit at or below the least such value (but no lower than the cap) to
     # the round tick at or above the greatest, labeled at the round ticks at its ends, the last with its unit (four
-    # labels crowded 480's 40 units); its bottom edge a cap
-    # line; the 10 units between clipped away, with a pair of slashes at each end, on both edges; every band vertex in
-    # one panel or on an edge of the gap; and narrow has one panel, its slashes hidden, nothing clipped.
+    # labels crowded 480's 40 units); no line at either panel's edge (dreeves, 2026-10-23: "why does this look so bad?
+    # the excess horizontal lines": the edges sat a few units from gridlines), so no two horizontal lines within 4
+    # units; the 10 units between clipped away; a y axis line at
+    # the plot's left (dreeves, 2026-10-23: "i think we need a visible y-axis line for that to look reasonable"), up
+    # from the x axis to the main panel's top and from the top panel's bottom to its top, broken at the gap, with a
+    # slash across each end of the break (none at the right, where no line is); every band vertex in one panel or on an
+    # edge of the gap; and narrow has one panel: its y axis whole, its slashes hidden, nothing clipped.
     for case, over, labels in (('long', True, ['6', '8\u202fy']), ('eta', True, ['20\u202fh']), ('narrow', False, [])):
         parts = SvgParts()
         parts.feed(progress_run(case)['etaSvg'])
@@ -2097,20 +2101,55 @@ def q_progress_breaks_the_y_axis_above_the_projected_finish():
         seg = lambda a: tuple(float(a[k]) for k in ('x1', 'y1', 'x2', 'y2'))
         [axis] = [float(a['y1']) for tag, a, _ in parts.items if tag == 'line' and a.get('class') == 'axis']
         [guide] = [pts(a) for tag, a, _ in parts.items if tag == 'polyline' and a.get('class') == 'guide']
-        caps = sorted(seg(a)[1] for tag, a, _ in parts.items if tag == 'line' and a.get('class') == 'cap')
-        yt, yb = caps                                         # the top panel's bottom edge, the main panel's top
+        rects = [tuple(float(a[k]) for k in ('x', 'y', 'width', 'height')) for tag, a, _ in parts.items if tag == 'rect']
+        yt, yb = rects[0][3], rects[1][1]                     # the top panel's bottom edge, the main panel's top
         assert abs((axis - yb) - 1.1 * (axis - guide[0][1])) < 0.05, (case, axis, yb, guide[0])
+        assert not [a for tag, a, _ in parts.items if a.get('class') == 'cap'], case
+        rows = sorted({round(seg(a)[1], 2) for tag, a, _ in parts.items if tag == 'line' and a.get('class') in ('grid', 'axis')})
+        assert all(b - a >= 4 for a, b in zip(rows, rows[1:])), (case, rows)
         assert (yt, yb) == ((54.0, 64.0) if over else (14.0, 14.0)), (case, yt, yb)
         breaks = [(seg(a), a.get('visibility')) for tag, a, _ in parts.items if tag == 'line' and a.get('class') == 'break']
-        assert sorted(s for s, _ in breaks) == sorted((x - 4, y + 4, x + 4, y - 4) for x in (48, 568) for y in (yt, yb)), (case, breaks)
+        assert sorted(s for s, _ in breaks) == sorted((48 - 4, y + 4, 48 + 4, y - 4) for y in (yt, yb)), (case, breaks)
+        spine = sorted(seg(a) for tag, a, _ in parts.items if tag == 'line' and a.get('class') == 'yaxis')
+        assert spine == sorted([(48, axis, 48, yb), (48, yt, 48, 14)]), (case, spine)
         assert all(v == ('visible' if over else 'hidden') for _, v in breaks), (case, breaks)
         top = [(float(a['y']) - 4, t) for tag, a, t in parts.items if tag == 'text' and a.get('class') == 'ytick' and float(a['y']) - 4 < yb - 0.05]
         assert [t for _, t in top] == labels and all(14 - 0.05 <= y <= yt + 0.05 for y, _ in top), (case, top)
-        rects = [tuple(float(a[k]) for k in ('x', 'y', 'width', 'height')) for tag, a, _ in parts.items if tag == 'rect']
         assert rects == [(0, 0, 640, yt), (0, yb, 640, 240 - yb)], (case, rects)
         bands = [y for tag, a, _ in parts.items if tag == 'polygon' for _, y in pts(a)]
         assert all(14 - 0.05 <= y <= yt + 0.05 or yb - 0.05 <= y for y in bands), (case, sorted(bands))
         assert any(y < yb - 0.05 for y in bands) == over, case
+
+
+def from_oklab(lab):
+    """An OKLab color as #rrggbb, its sRGB clipped: the inverse of oklab(linear(h))."""
+    L, a, b = lab
+    l, m, s = [(L + x * a + y * b) ** 3 for x, y in ((0.3963377774, 0.2158037573), (-0.1055613458, -0.0638541728), (-0.0894841775, -1.2914855480))]
+    lin = (4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s, -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
+           -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s)
+    enc = [12.92 * c if c <= 0.0031308 else 1.055 * c ** (1 / 2.4) - 0.055 for c in (min(1, max(0, c)) for c in lin)]
+    return '#' + ''.join(f'{round(255 * v):02x}' for v in enc)
+
+
+def q_progress_bands_overlap_visibly():
+    # Replicata: the page's CSS: the ETA's band and elapsed + ETA's, each color-mix(in oklab, its color N%, the paper),
+    # multiplied onto what is under them; so the three regions they make on the paper: the ETA's band alone, elapsed +
+    # ETA's alone, and both.
+    # Expectata (dreeves, 2026-10-23: "shouldn't we be able to visually distinguish between a region that both red and
+    # purple confidence bands cover vs just the purple confidence band covering it?"; at 16% and 16% that pair was ΔE
+    # 6.1, OKLab x 100): both at least ΔE 13 from purple alone and 11 from red alone, and red alone 7 from purple alone.
+    style = page()[page().index('<style>'):page().index('</style>')]
+    color = lambda name: re.search(rf'--{name}: (#[0-9a-f]{{6}});', style).group(1)
+    pct = lambda name: int(re.search(rf'\.progress-eta \.band\.{name} \{{ fill: color-mix\(in oklab, var\(--progress-{name}\) (\d+)%, var\(--paper\)\); \}}', style).group(1)) / 100
+    paper = oklab(linear(color('paper')))
+    def wash(name):
+        c = oklab(linear(color(f'progress-{name}')))
+        return from_oklab([pct(name) * x + (1 - pct(name)) * y for x, y in zip(c, paper)])
+    red, purple = wash('togo'), wash('total')
+    rgb = lambda h: [int(h[i:i + 2], 16) / 255 for i in (1, 3, 5)]
+    both = '#' + ''.join(f'{round(255 * x * y):02x}' for x, y in zip(rgb(red), rgb(purple)))   # multiply, as the blend does
+    got = (delta_e(purple, both), delta_e(red, both), delta_e(red, purple))
+    assert got[0] >= 13 and got[1] >= 11 and got[2] >= 7, got
 
 
 def q_progress_names_each_run_s_program():
@@ -2285,8 +2324,8 @@ def q_progress_eta_chart_keeps_progress_html_s_spec():
     want = [(X(0), Ys(4)), (X(xc), YB), (X(xc), YT), (X(13.2), Ys(16.2)), (X(13.2), YT), (X(13.2), YB), (X(13.2), Ys(13.7)), (X(0), Ys(1))]
     assert len(bands['band total']) == len(want) and all(near(g, w) for g, w in zip(bands['band total'], want)), (bands['band total'], want)
     lines = [(a['class'], tuple(float(a[k]) for k in ('x1', 'y1', 'x2', 'y2')), a) for tag, a, _ in els if tag == 'line']
-    assert sorted(c for c, _, _ in lines) == sorted(['axis', 'ahead', 'ideal', 'range togo', 'range total', 'cross'] + ['grid'] * 4 + ['cap'] * 2 + ['break'] * 4), [c for c, _, _ in lines]
-    seg = {c: s for c, s, _ in lines if c not in ('grid', 'cap', 'break')}
+    assert sorted(c for c, _, _ in lines) == sorted(['axis', 'ahead', 'ideal', 'range togo', 'range total', 'cross'] + ['grid'] * 4 + ['break'] * 2 + ['yaxis'] * 2), [c for c, _, _ in lines]
+    seg = {c: s for c, s, _ in lines if c not in ('grid', 'break', 'yaxis')}
     check([seg['ahead'][:2], seg['ahead'][2:]], [(13.2, 13.2), (14.2, 14.2)], 'ahead')
     check([seg['ideal'][:2], seg['ideal'][2:]], [(13.2, 1), (14.2, 0)], 'ideal')
     check([seg['range togo'][:2], seg['range togo'][2:]], [(13.2, 0.5), (13.2, 3)], 'range togo')
@@ -2296,7 +2335,7 @@ def q_progress_eta_chart_keeps_progress_html_s_spec():
     hours = sorted((y0 - g[1]) / (y0 - Y(1)) for g in grid)              # to 0.01 h: positions are written to 0.01 units
     assert len(hours) == 3 and all(abs(h - t) < 0.01 for h, t in zip(hours, (5, 10, 15))) and all(g[1] == g[3] for g in grid), grid
     assert [s[1] for c, s, _ in lines if c == 'grid' and s[1] < YB] == [14], lines     # the top panel's, at 20 h, its top
-    assert sorted(round(s[1], 2) for c, s, _ in lines if c == 'cap') == [round(YT, 2), round(YB, 2)], lines
+    assert sorted(round(y, 2) for c, s, _ in lines if c == 'yaxis' for y in (s[1], s[3])) == sorted([round(YT, 2), round(YB, 2), 14, round(Y(0), 2)]), lines   # its y axis's ends at the break
     cross = next(a for c, _, a in lines if c == 'cross')
     assert cross.get('visibility') == 'hidden', cross
     yt = [(float(a['y']), text) for tag, a, text in els if tag == 'text' and a.get('class') == 'ytick']
