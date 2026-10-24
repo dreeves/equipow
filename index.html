@@ -583,6 +583,15 @@ footer {
         <span><i>p</i><sub>320</sub>, a second example, found independently by Claude <span class="nw">(<i>m</i> = 9)</span>:</span>
         <code>B24B649ED92CD2C36496CB2DB6295D974138BA41</code>
       </p>
+      <div id="proof416" lang="en">
+        <p><strong><i>m</i><sup>*</sup>(416) = 9: construction and proof.</strong></p>
+        <p><a href="https://arxiv.org/html/1912.03491v1#S6.T5">BGPW Table 5</a> has the 208:8 code <code id="seed416">C5A2CB6B945B28BC43ADB6586C</code>.</p>
+        <p>Astra: "Its binary expansion gives the first 104 signs (1 → +1, 0 → −1); the remaining 104 are the same signs in reverse order. If <i>P</i>(<i>x</i>) is the polynomial of this sequence, then <span class="nw"><i>F</i>(<i>x</i>) = (1 − <i>x</i><sup>208</sup>)<i>P</i>(<i>x</i>)</span> has length 416 and order 9: append the same sequence with every sign negated."</p>
+        <p>Astra: "Code for the length-416 example, using the same convention: <code id="witness416">C5A2CB6B945B28BC43ADB6586C361A6DB5C23D14DA29D6D345A3</code>"</p>
+        <p>Astra: "To rule out order 10, let <i>D</i><sub>0</sub>, <i>D</i><sub>1</sub>, <i>D</i><sub>2</sub> be the sums of the signs in the residue classes modulo 3. The class sizes are <span id="sizes416">139, 139, 138</span>, so <i>D</i><sub>0</sub> and <i>D</i><sub>1</sub> are odd, and <i>D</i><sub>0</sub> + <i>D</i><sub>1</sub> + <i>D</i><sub>2</sub> = 0."</p>
+        <p>Astra: "Let ζ be a cube root of unity other than 1. Since <span class="nw">(ζ − 1)<sup>10</sup> = −243ζ<sup>2</sup></span>, order at least 10 implies <i>f</i>(ζ) = (<i>D</i><sub>0</sub> − <i>D</i><sub>2</sub>) + (<i>D</i><sub>1</sub> − <i>D</i><sub>2</sub>)ζ ∈ <span id="modulus416">243</span>ℤ[ζ]. Therefore all three sums are congruent modulo 243."</p>
+        <p>Astra: "The difference <span class="nw"><i>D</i><sub>0</sub> − <i>D</i><sub>1</sub></span> is even and divisible by 243, but its absolute value is at most 278. Therefore <span class="nw"><i>D</i><sub>0</sub> = <i>D</i><sub>1</sub> = <i>d</i></span>. Then <span class="nw"><i>D</i><sub>2</sub> = −2<i>d</i></span>, giving <span class="nw">|<i>d</i>| ≤ 69</span>; but <span class="nw">243 ∣ 3<i>d</i></span>, so <span class="nw">81 ∣ <i>d</i></span>. Only <span class="nw"><i>d</i> = 0</span> remains, contradicting its oddness. Thus <span class="nw"><i>m</i><sup>*</sup>(416) = 9</span>."</p>
+      </div>
     </li>
     <li class="j">
       <span class="mk" aria-hidden="true">◆●</span>
@@ -1152,7 +1161,6 @@ SClaude[11][800] = {
   <p>Definition (expanded product): 
     <span class="nw"><i>f</i> # <i>g</i> = <i>f</i>(<i>x</i>)·<i>g</i>(<i>x</i><sup><i>n<sub>f</sub></i></sup>)</span>, where <i>n<sub>f</sub></i> is the length of <i>f</i>. 
     And the symbol ∨ means the join.</p>
-  <!-- TODO: says BGPW's example at length 416, the only one of theirs whose code is not given here, was not re-checked -->
   <p><a href="https://github.com/dreeves/equipow">Source</a> &amp; <a href="https://equipow.dreev.es/sourcery.html">Sourcery</a></p>
 </footer>
 
@@ -1609,8 +1617,7 @@ try {
   plot.append(svg, outline);
   chart.append(es, plot, el('i', 'pow2-k', 'k'), ks);
 } catch (e) {
-  // TODO: error line, replacing the hint; says this chart could not be drawn, followed by the error
-  ro.textContent = `Claude: "Error drawing this chart:" ${e}`;
+  ro.textContent = `Error drawing this chart:" ${e};
   throw e;
 }
 })();
