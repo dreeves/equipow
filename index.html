@@ -252,6 +252,7 @@ code {
 .progress-bar [data-bar="band"] { background: color-mix(in oklab, var(--progress-togo) 16%, var(--paper)); }
 .progress-bar [data-bar="median"] { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--progress-togo); }
 .progress-key { display: flex; flex-wrap: wrap; gap: 0.3rem 1.2rem; margin: 0; padding: 0; list-style: none; }
+.progress-key[hidden] { display: none; }
 .progress-sw { display: inline-block; width: 0.7rem; height: 0.7rem; margin-right: 0.35rem; border-radius: 2px; vertical-align: -0.05rem; }
 .progress-sw[data-status="settled"] { background: var(--progress-settled); }
 .progress-sw[data-status="open"] { background: var(--progress-open); }
@@ -1154,6 +1155,23 @@ SClaude[11][800] = {
         </div>
       </template>
       <template class="progress-line">@<span data-when></span>&emsp;<span class="spent"><b data-so-far></b> so far</span> + <span class="togo"><b data-to-go></b> to go</span> = <span class="total"><b data-sum></b> (<b data-done></b>)</span></template>
+      <!-- TODO: distinguishes calibration attempts from target attempts, reports elapsed time and terminal outcomes, and says that empty or timed-out attempts give no exclusion or completion estimate. -->
+      <template class="progress-search288">
+        <span>Astra: "240:10 calibration (first dot block): <b data-attempt-count="control_attempted"></b>/<b data-attempt-count="control_total"></b> attempted; <b data-attempt-count="control_empty"></b> empty, <b data-attempt-count="control_timeout"></b> timed out, <b data-attempt-count="control_witnesses"></b> witnesses."</span><br>
+        <span>Astra: "288:10 search (second dot block): <b data-attempt-count="attempted"></b>/<b data-attempt-count="total"></b> attempted; <b data-attempt-count="empty"></b> empty, <b data-attempt-count="timeout"></b> timed out."</span><br>
+        <span>Astra: "<span data-search-state></span>; elapsed <b data-elapsed></b>; phase: <span data-attempt-phase="preparation">preparation</span><span data-attempt-phase="calibration">calibration</span><span data-attempt-phase="search">search</span>; outcome: <span data-attempt-outcome="null">pending</span><span data-attempt-outcome="control_failed">control not recovered; target not started</span><span data-attempt-outcome="budget">batch ended; unresolved</span><span data-attempt-outcome="witness">target witness verified</span><span data-attempt-outcome="failed">run failed; unresolved</span>. Empty pruned attempts and timeouts leave the question open; no completion estimate."</span>
+      </template>
+      <!-- TODO: explains that the two dot blocks count calibration and target attempts, with completed attempts still unresolved. -->
+      <template class="progress-attempt-hint">Astra: "One dot per attempt: 240:10 calibration first, 288:10 search second. <span class="progress-sw" data-status="open"></span> completed attempt; <span class="progress-sw" data-status="running"></span> running; <span class="progress-sw" data-status="pending"></span> pending."</template>
+      <!-- TODO: compares the baseline and wider pruning attempts, requires both control recoveries, and reports completed target attempt times without implying an exclusion or ETA. -->
+      <template class="progress-pruning288">
+        <span>Astra: "240:10 controls recovered: baseline <b data-attempt-count="baseline_control_witnesses"></b>/1; wider <b data-attempt-count="wider_control_witnesses"></b>/1. Both are required before the target search."</span><br>
+        <span>Astra: "288:10 baseline: <b data-attempt-count="baseline_attempted"></b>/<b data-attempt-count="variant_total"></b> attempted; <b data-attempt-count="baseline_empty"></b> empty, <b data-attempt-count="baseline_timeout"></b> timed out, <b data-attempt-count="baseline_witnesses"></b> witnesses; completed attempts took <b data-attempt-count="baseline_seconds"></b> s."</span><br>
+        <span>Astra: "288:10 wider: <b data-attempt-count="wider_attempted"></b>/<b data-attempt-count="variant_total"></b> attempted; <b data-attempt-count="wider_empty"></b> empty, <b data-attempt-count="wider_timeout"></b> timed out, <b data-attempt-count="wider_witnesses"></b> witnesses; completed attempts took <b data-attempt-count="wider_seconds"></b> s."</span><br>
+        <span>Astra: "<span data-search-state></span>; elapsed <b data-elapsed></b>; phase: <span data-attempt-phase="preparation">preparation</span><span data-attempt-phase="calibration">calibration</span><span data-attempt-phase="search">search</span>; outcome: <span data-attempt-outcome="null">pending</span><span data-attempt-outcome="control_failed">at least one control was not recovered; target not started</span><span data-attempt-outcome="budget">batch ended; unresolved</span><span data-attempt-outcome="witness">target witness verified</span><span data-attempt-outcome="failed">run failed; unresolved</span>. Empty pruned attempts and timeouts leave the question open; no completion estimate."</span>
+      </template>
+      <!-- TODO: identifies the four dot blocks and distinguishes completed, active and pending attempts. -->
+      <template class="progress-pruning-hint">Astra: "Dot blocks, in order: 240:10 baseline, 240:10 wider, 288:10 baseline, 288:10 wider. <span class="progress-sw" data-status="open"></span> completed attempt; <span class="progress-sw" data-status="running"></span> running; <span class="progress-sw" data-status="pending"></span> pending."</template>
     </details>
 </section>
 
@@ -1617,7 +1635,7 @@ try {
   plot.append(svg, outline);
   chart.append(es, plot, el('i', 'pow2-k', 'k'), ks);
 } catch (e) {
-  ro.textContent = `Error drawing this chart:" ${e};
+  ro.textContent = `Error drawing this chart: ${e}`;
   throw e;
 }
 })();
@@ -1802,10 +1820,35 @@ try {
       snapshot(box.querySelector('.progress-status'), data.made, run.so_far, run.to_go);
       for (const e of box.querySelectorAll('[data-count]')) e.textContent = run.counts[e.dataset.count].toLocaleString('en-US');
       bar(box, run);
+      if (run.program === 'search288.py') search288View(box, run);
+      if (run.program === 'pruning288.py') {
+        attemptView(box, run, 'progress-pruning288', 'progress-pruning-hint');
+        // TODO: attribute the generated baseline/wider labels in the hover readout.
+        run = {...run, keys: run.keys.map(k => `Astra: "${k}"`)};
+      }
       const L = sea(box, run);
       L.etaXs = etaChart(box.querySelector('.progress-eta'), run);
       return L;
     });
+  }
+
+  function search288View(box, run) {
+    attemptView(box, run, 'progress-search288', 'progress-attempt-hint');
+  }
+
+  function attemptView(box, run, templateName, hintName) {
+    const display = section.querySelector('template.' + templateName).content.cloneNode(true);
+    for (const e of display.querySelectorAll('[data-attempt-count]')) e.textContent = run.work[e.dataset.attemptCount].toLocaleString('en-US');
+    for (const e of display.querySelectorAll('[data-attempt-phase]')) e.hidden = e.dataset.attemptPhase !== run.phase;
+    for (const e of display.querySelectorAll('[data-attempt-outcome]')) e.hidden = e.dataset.attemptOutcome !== String(run.outcome);
+    display.querySelector('[data-elapsed]').textContent = duration(run.so_far);
+    display.querySelector('[data-search-state]').textContent = run.state;
+    box.querySelector('.progress-status').replaceChildren(display);
+    box.querySelector('.progress-key').hidden = true;
+    box.querySelector('.progress-eta').hidden = true;
+    const hint = section.querySelector('template.' + hintName).content;
+    box.querySelector('[data-readout]').replaceChildren(hint.cloneNode(true));
+    box.querySelector('canvas').setAttribute('aria-label', hint.textContent.trim());
   }
 
   function bar(box, run) {
