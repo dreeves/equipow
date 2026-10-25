@@ -1176,7 +1176,31 @@ def spans_of(spans, pids, main, launches, observations, now, decided):
     return spans, status
 
 
-def survey_focus(path, procs, now=None, observations=None, launches=None):
+def focus_pauses(records, now, n):
+    """Recorded STOP/CONT intervals; the guardian keeps each process's pid, start time and exact command."""
+    for i, r in enumerate(records):
+        assert set(r) == {'event', 'time', 'pid', 'start', 'command'}, r
+        assert r['event'] == ('pause', 'resume')[i % 2], r
+        assert type(r['time']) in (int, float) and 0 <= r['time'] <= now, r
+        assert type(r['pid']) is int and r['pid'] > 0, r
+        assert type(r['start']) is str and r['start'], r
+        assert type(r['command']) is str and runs([(r['pid'], 1, 'T', r['command'])], 'focus.py', n), r
+    assert all(a['time'] <= b['time'] for a, b in zip(records, records[1:])), records
+    assert all(all(a[k] == b[k] for k in ('pid', 'start', 'command'))
+               for a, b in zip(records[::2], records[1::2])), records
+    return [(a['time'], b) for a, b in zip(records[::2], [r['time'] for r in records[1::2]] + [now])]
+
+
+def without_pauses(spans, pauses):
+    """Subtract recorded pauses, retaining zero-length endpoints for observations sampled during a signal race."""
+    for c, d in pauses:
+        start, end = spans[0][0], spans[-1][1]
+        spans = [[start, start]] + [[x, y] for a, b in spans for x, y in ((a, min(b, c)), (max(a, d), b))
+                                    if x < y] + [[end, end]]
+    return spans
+
+
+def survey_focus(path, procs, now=None, observations=None, launches=None, pauses=()):
     """Focused proof journals: root-case coverage, and while running an ETA, lindy_urn's on the root cases (one
     worker), recorded in observations (dreeves, 2026-10-23: with no root done, Lindy).
 
@@ -1239,6 +1263,8 @@ def survey_focus(path, procs, now=None, observations=None, launches=None):
         state['time'] = t
     assert spans
     spans, status = spans_of(spans, pids, main, launches, observations, now, state['outcome'] is not None)
+    spans = without_pauses(spans, focus_pauses(pauses, now, header['n']))
+    status = 'paused' if status == 'frozen' else status
     def running(t): return sum(max(0.0, min(t, b) - a) for a, b in spans)   # seconds of running before t
     active = snap['case'] if status == 'running' else None
     assert set(snap['completed']) <= set(begun) & set(ended)
@@ -1275,9 +1301,13 @@ def survey_fanout(path, procs, now=None, observations=None, launches=None):
     main = runs(procs, 'fanout.py', header['n'])
     assert len(main) <= 1
     sight(main, launches, now)
-    spans, pids, starts, ends, finish, reflections = [], [], {}, {}, [], {}
+    spans, pids, starts, ends, finish, reflections, worker_counts = [], [], {}, {}, [], {}, []
 
     def session(r, t):
+        # Legacy sessions use the header count; every new session records its own allocation.
+        workers = r.get('workers', header['workers'])
+        assert type(workers) is int and workers > 0, workers
+        worker_counts.append(workers)
         # A legacy session has no reflected cases; each new session supplies its own mapping.
         mapping = r.get('reflections', {})
         assert type(mapping) is dict
@@ -1329,11 +1359,11 @@ def survey_fanout(path, procs, now=None, observations=None, launches=None):
     ages = sorted((work[c] for c in cases if c not in complete and work[c] > 0), reverse=True)
     pending = sum(c not in complete and work[c] == 0 for c in cases)
     seconds = sum(e['seconds'] for e in ends.values())
-    eta = (lindy_work(walls, ages, pending, sum(e['lps'] for e in ends.values()) / seconds * header['workers'])
+    eta = (lindy_work(walls, ages, pending, sum(e['lps'] for e in ends.values()) / seconds * worker_counts[-1])
            if status == 'running' and seconds > 0 and (ages or pending) and max([*walls, *ages], default=0) > 0 else None)
     if status == 'running':
         observations[str(float(now))] = eta
-    return dict(program='fanout.py', n=header['n'], order=header['order'], made=now, state=status,
+    return dict(program='fanout.py', n=header['n'], order=header['order'], made=now, state=status, workers=worker_counts[-1],
                 outcome=finish[0]['outcome'] if finish else None, so_far=sum(b - a for a, b in spans),
                 to_go=to_go_of(eta), etas=observations, passes=spans,
                 sea=dict(depth=0, keys=[f'{c}:{d}' for c, d in zip(cases_of, header['root_depths'])], groups=groups,
@@ -1506,7 +1536,8 @@ def js_text(surveys, now):
         keep = sorted(set(range(0, len(rs), max(1, -(-len(rs) // ETA_POINTS)))) | {len(rs) - 1}) if rs else []
         return [[int(rs[i][0])] + [round(HOUR * v, 1) for v in rs[i][1:]] for i in keep]
     runs = [{'program': s['program'], 'n': s['n'], 'order': s['order'], 'state': s['state'], 'so_far': s['so_far'], 'to_go': s['to_go'],
-             'etas': etas(s), 'statuses': list(SEA_STATUSES)} | s['sea'] | s.get('display', {}) for s in surveys]
+             'etas': etas(s), 'statuses': list(SEA_STATUSES)} | s['sea'] | s.get('display', {}) |
+            {k: s[k] for k in ('workers',) if k in s} for s in surveys]
     return 'progressData(' + json.dumps({'made': int(now), 'runs': runs}, separators=(',', ':'), ensure_ascii=False) + ');\n'
 
 
@@ -1527,8 +1558,10 @@ def main(argv):
         for path in sorted(glob.glob(os.path.join(HERE, 'focus_*_journal.jsonl'))):
             with open(path, encoding='utf-8') as f: header = json.loads(f.readline())
             key = f'focus_{header["n"]}_{header["code"]}_{header["time"]}'
+            pause_path = os.path.join(HERE, f'focus_{header["n"]}_pauses.jsonl')
+            pauses = [json.loads(line) for line in complete_lines(pause_path)] if os.path.exists(pause_path) else []
             surveys.append(survey_focus(path, procs, observations=cache.setdefault(key + '_observations', {}),
-                                        launches=cache.setdefault(key + '_launches', {})))
+                                        launches=cache.setdefault(key + '_launches', {}), pauses=pauses))
         for path in sorted(glob.glob(os.path.join(HERE, 'fanout_*_journal.jsonl'))):
             with open(path, encoding='utf-8') as f: header = json.loads(f.readline())
             key = f'fanout_{header["n"]}_{header["code"]}_{header["time"]}'

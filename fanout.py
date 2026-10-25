@@ -41,7 +41,8 @@ import certbb
 import focus
 import reflection
 
-WORKERS = 5                            # processes proving jobs (principle 4's slots: 480's run takes the sixth)
+# The inline note describes the original allocation; eight workers now run with 480 paused, as approved.
+WORKERS = 8                            # processes proving jobs (principle 4's slots: 480's run takes the sixth)
 BUDGET = 20000                         # LP solves a job takes before it may hand back what it left open: ~2 min at 672
 DEEP = 8                               # levels below a job's box that it finishes itself past its budget
 HARD = 4                               # budgets a job may take in all
@@ -314,7 +315,7 @@ def run(run_dir, focus_journal, work_dir, journal, n, m):
         if not journal.exists(): note(journal, 'header', **head)
         assert {k: json.loads(journal.read_text().splitlines()[0])[k] for k in ('n', 'order', 'code')} == \
                {k: head[k] for k in ('n', 'order', 'code')}
-        note(journal, 'session', reflections=reflections(prepared, all_roots))
+        note(journal, 'session', workers=WORKERS, reflections=reflections(prepared, all_roots))
         done = {f.name.split('.')[0]: brief(read(f)) for f in (work_dir / 'jobs').glob('*.json.gz')}
         witness = farm(prepared, all_roots, done, work_dir, journal)
         if witness is None: splice(run_dir, work_dir, prepared, code, all_roots, done)

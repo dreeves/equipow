@@ -2194,7 +2194,7 @@ def q_progress_folds_runs_not_running():
     # one, the section open; then the ended run opened, as by a click, and a new snapshot of the same runs.
     # Expectata (dreeves, 2026-10-23: "1. i don't want to see frozen graphs 2. i don't want graphs to magically
     # disappear when the freeze or finish. can we get the best of both worlds?"): both runs listed; the running one's
-    # charts open; the ended one folded under its heading (a summary), grayed, its status line still shown; its dots
+    # charts open; the ended one folded under its heading (a summary), grayed, its status line folded with the charts; its dots
     # sized to the section's width though folded; and opened by hand, it stays open across the new snapshot.
     d = tempfile.mkdtemp(prefix='index-quals-')
     data = {'made': PROGRESS_DATA['made'], 'runs': [PROGRESS_DATA['runs'][0], PROGRESS_ETA_DATA['runs'][0]]}
@@ -2228,10 +2228,10 @@ def q_progress_folds_runs_not_running():
     assert m, dom[-2000:]
     got = json.loads(html.unescape(m.group(1)))
     first, after = got['first'], got['after']
-    assert [(r['state'], r['open'], r['summary'], r['status']) for r in first] == [('running', True, True, True), ('ended', False, True, True)], first
+    assert [(r['state'], r['open'], r['summary'], r['status']) for r in first] == [('running', True, True, True), ('ended', False, True, False)], first
     assert first[1]['color'] != first[0]['color'], first                 # grayed: not the running heading's color
     assert first[1]['canvas'] == first[0]['canvas'] > 100, first        # sized to the section, folded or not
-    assert [(r['state'], r['open']) for r in after] == [('running', True), ('ended', True)], after
+    assert [(r['state'], r['open'], r['status']) for r in after] == [('running', True, True), ('ended', True, True)], after
 
 
 def q_progress_names_each_run_s_program():

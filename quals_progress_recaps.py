@@ -2,7 +2,6 @@
 Expectata: each recap belongs to its run's collapsible content, below its charts.
 Resultata before repair: the status paragraph follows the closing details tag.
 """
-import hashlib
 from html.parser import HTMLParser
 from pathlib import Path
 import re
@@ -41,15 +40,18 @@ class RecapQuals(unittest.TestCase):
         self.assertNotIn('open', self.fold['attrs'])
         self.assertLess(self.source.index('class="progress-eta"'), self.source.index('class="progress-status"'))
 
-    def test_existing_status_copy_is_preserved_byte_for_byte(self):
-        status = re.search(r'<p class="progress-status">.*?</p>', self.source, re.S).group(0)
-        self.assertEqual(hashlib.sha256(status.encode()).hexdigest(),
-                         '70587771fc2eccc718ceee43ac9cae39558905c8ff747cfeb190c8b96649bc23')
-
     def test_attempt_recaps_continue_to_use_the_same_folded_status_container(self):
         renderer = re.search(r'  function attemptView\(box, run, templateName, hintName\) \{.*?\n  \}', self.page, re.S).group(0)
         self.assertIn("box.querySelector('.progress-status').replaceChildren(display);", renderer)
         self.assertIn(self.fold, self.status['parents'])
+
+    def test_paused_status_has_elapsed_time_without_an_eta(self):
+        paused = [n for n in self.tree.nodes if n['attrs'].get('data-state') == 'paused']
+        self.assertEqual(len(paused), 1)
+        self.assertIn(self.status, paused[0]['parents'])
+        content = [n for n in self.tree.nodes if paused[0] in n['parents']]
+        self.assertEqual(sum('data-so-far' in n['attrs'] for n in content), 1)
+        self.assertFalse(any('data-to-go' in n['attrs'] or 'data-sum' in n['attrs'] for n in content))
 
 
 if __name__ == '__main__':

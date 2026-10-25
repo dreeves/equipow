@@ -61,6 +61,27 @@ class ShepherdQuals(unittest.TestCase):
                      proc(43, "/bin/bash -c 'nohup nice -n 15 /opt/homebrew/bin/python3 -B focus.py 480 >> focus_480.log &'")]
             self.assertEqual(shepherd.status(search(d), procs), ('running', 42))
 
+    def test_paused_interpreter_retains_identity_without_running_or_launching(self):
+        # Replicata: an in-memory pause, with and without an existing journal.
+        # Expectata: paused with the same pid; no launch or stop at either disk floor.
+        with tempfile.TemporaryDirectory() as d:
+            s = search(d)
+            paused = proc(42, 'python3 -B focus.py 480', 'TN')
+            for records in ((), (SESSION, UPDATE)):
+                write(s.journal, *records)
+                self.assertEqual(shepherd.status(s, [paused]), ('paused', 42))
+                for free in (shepherd.FLOOR, shepherd.FLOOR - 1, shepherd.HARD_FLOOR - 1):
+                    self.assertEqual(shepherd.decide({s.name: 'paused'}, {s.name: 9}, free), [])
+
+    def test_paused_data_does_not_hide_running_search_from_disk_floor(self):
+        # Replicata: paused 480 has more stored data than running 672.
+        # Expectata: both disk floors stop only 672; resumed 480 follows the ordinary policy.
+        statuses, data = {'480': 'paused', '672': 'running'}, {'480': 9, '672': 5}
+        for free in (shepherd.FLOOR - 1, shepherd.HARD_FLOOR - 1):
+            self.assertEqual(shepherd.decide(statuses, data, free), [('stop', '672')])
+        self.assertEqual(shepherd.decide({'480': 'running', '672': 'stopped'}, data,
+                                        shepherd.FLOOR - 1), [('stop', '480')])
+
     def test_a_partial_last_line_is_not_a_record(self):
         # Replicata: a journal whose last line was cut off mid-write after a finish.
         # Expectata: the complete lines decide: the finish before it.
@@ -156,19 +177,38 @@ class ShepherdQuals(unittest.TestCase):
             self.assertEqual((kw['stderr'].name, kw['stderr'].mode), (s.err, 'a'))
             self.assertIs(kw['start_new_session'], True)
 
+    def test_eight_workers_fit_with_paused_480_but_not_with_running_480(self):
+        # Replicata: the approved eight-worker allocation with 480 paused in memory.
+        # Expectata: eight slots admitted; resuming 480 while those workers live fails loudly.
+        self.assertEqual(shepherd.SLOTS, 8)
+        statuses = {'480:14': 'paused', '672:13': 'stopped', '672:13 fanout': 'running'}
+        shepherd.admit(shepherd.SEARCHES, statuses)
+        with self.assertRaises(AssertionError):
+            shepherd.admit(shepherd.SEARCHES, dict(statuses, **{'480:14': 'running'}))
+
+    def test_paused_memory_still_counts_toward_the_memory_limit(self):
+        # Replicata: a paused search retains the memory budget and an active search needs one byte more.
+        # Expectata: resident memory remains counted despite the zero compute-slot cost.
+        with tempfile.TemporaryDirectory() as d:
+            searches = [search(d, 'paused', memory=shepherd.MEMORY), search(d, 'active', memory=1)]
+            with self.assertRaises(AssertionError):
+                shepherd.admit(searches, {'paused': 'paused', 'active': 'running'})
+
     def test_registry_is_today_s_searches(self):
+        # Historical specification (2026-10-23):
         # Replicata: shepherd.SEARCHES, and the command lines of the two focus searches running on 2026-10-23.
         # Expectata: 480:14 and 672:13, each focus.py with no budget, its journal, log, error file and checkpoint
         # directory, 64 MiB of memory (56 MB at most measured) and one process, each matching its own running command
         # line only; and fanout.py 672 (dreeves, 2026-10-23: "ok" to finishing 672:13 in parallel), its 5 workers,
         # 1 GiB in all.
+        # The approved allocation now assigns eight workers and a 2 GiB reservation to fanout.
         self.assertEqual([(s.name, s.script, s.args) for s in shepherd.SEARCHES],
                          [('480:14', 'focus.py', ('480',) + UNBOUNDED), ('672:13', 'focus.py', ('672',) + UNBOUNDED),
                           ('672:13 fanout', 'fanout.py', ('672',))])
         self.assertEqual([(s.journal, s.out, s.err, s.data, s.memory, s.processes) for s in shepherd.SEARCHES],
                          [('focus_480_journal.jsonl', 'focus_480.log', 'scratch/focus480/run.err', 'scratch/focus480/run', 64 << 20, 1),
                           ('focus_672_journal.jsonl', 'focus_672.log', 'scratch/focus672/run.err', 'scratch/focus672/run', 64 << 20, 1),
-                          ('fanout_672_journal.jsonl', 'fanout_672.log', 'scratch/fanout672/run.err', 'scratch/fanout672', 1 << 30, 5)])
+                          ('fanout_672_journal.jsonl', 'fanout_672.log', 'scratch/fanout672/run.err', 'scratch/fanout672', 2 << 30, 8)])
         command = '/opt/homebrew/Cellar/python@3.13/3.13.6/Frameworks/Python.framework/Versions/3.13/Resources/Python.app/Contents/MacOS/Python -B focus.py {} --seconds inf --lp-budget 1000000000000000000'
         procs = [proc(1, command.format(480)), proc(2, command.format(672))]
         with patch.object(shepherd, 'last_record', return_value=None):
@@ -245,6 +285,38 @@ class ShepherdQuals(unittest.TestCase):
             self.assertEqual([(e['event'], e.get('status'), e.get('pid'), e.get('free')) for e in events],
                              [('start', None, os.getpid(), None), ('status', 'running', 5, None),
                               ('stop', None, 5, shepherd.FLOOR - 1), ('status', 'stopped', None, None)])
+
+    def test_floor_transition_preserves_paused_480_and_does_not_restart_the_fanout(self):
+        # Replicata: eight workers below the floor with 480 paused; then the guardian resumes 480 after they stop.
+        # Expectata: only the running search receives SIGTERM in each phase; restored disk launches neither search.
+        with tempfile.TemporaryDirectory() as d:
+            a = search(d)
+            b = shepherd.Search('672:13 fanout', 'fanout.py', ('672',), str(Path(d, 'fanout_journal.jsonl')),
+                                str(Path(d, 'fanout.log')), str(Path(d, 'fanout.err')),
+                                str(Path(d, 'fanout')), 2 << 30, 8)
+            for s in (a, b): write(s.journal, SESSION, UPDATE)
+            listings = iter([[proc(5, 'python3 -B focus.py 480', 'TN'), proc(6, 'python3 -B fanout.py 672')],
+                             [proc(5, 'python3 -B focus.py 480')], [], []])
+            frees = iter([shepherd.FLOOR - 1] * 3 + [shepherd.FLOOR])
+            kills = []
+            log = Path(d, 'shepherd.log')
+            with open(Path(d, 'lock'), 'a') as held, \
+                 patch.multiple(shepherd, SEARCHES=(a, b), LOG=str(log), HERE=d), \
+                 patch.object(shepherd, 'lock', return_value=held), \
+                 patch.object(shepherd, 'used', side_effect=lambda path: {a.data: 9, b.data: 5}[path]), \
+                 patch.object(shepherd.subprocess, 'Popen', side_effect=AssertionError('no launch')), \
+                 patch.object(shepherd.os, 'kill', side_effect=lambda pid, sig: kills.append((pid, sig))), \
+                 patch.object(shepherd, 'processes', side_effect=lambda: next(listings)), \
+                 patch.object(shepherd, 'free_disk', side_effect=lambda: next(frees)), \
+                 patch.object(shepherd.os, 'nice', return_value=15), \
+                 patch.object(shepherd.time, 'sleep', side_effect=[None, None, None, StopIteration]), \
+                 self.assertRaises(StopIteration):
+                shepherd.main([])
+            self.assertEqual(kills, [(6, shepherd.signal.SIGTERM), (5, shepherd.signal.SIGTERM)])
+            events = [json.loads(line) for line in log.read_text().splitlines()]
+            self.assertEqual([(e['search'], e['status'], e['pid']) for e in events if e['event'] == 'status'],
+                             [(a.name, 'paused', 5), (b.name, 'running', 6), (a.name, 'running', 5),
+                              (b.name, 'stopped', None), (a.name, 'stopped', None)])
 
     def test_a_second_shepherd_fails_loudly(self):
         # Replicata: the shepherd's lock taken, then taken again from another open file, as a second process would.

@@ -32,6 +32,10 @@ Vocabulary:
               could not happen.  So the shepherd fails loudly instead.
   log         LOG, one JSON object per line: its start, each status as first seen and at each change (with the
               journal's last record and the tail of the error file), and each launch and stop.
+
+In-memory pauses (2026-10-25): a process with state T is paused, with its pid retained.  It consumes no compute slot,
+but its memory remains reserved.  A paused search receives no launch or stop action, and its static data is omitted
+from the floor's largest-search comparison.  Its guardian owns resumption; the ordinary floors apply after it resumes.
 """
 from dataclasses import dataclass
 import fcntl
@@ -53,7 +57,9 @@ PYLIB = 'scratch/lower24-design/beyond1000/pylib'          # the searches' PYTHO
 THREADS = ('OMP_NUM_THREADS', 'OPENBLAS_NUM_THREADS', 'MKL_NUM_THREADS', 'VECLIB_MAXIMUM_THREADS')   # each set to 1
 NICE = 15                              # the searches' niceness, and the shepherd's
 REFRESH = 60                           # seconds between looks
-SLOTS = 6                              # searches at once: this Mac's 8 performance cores less 2 (principle 4)
+# Historical six-slot allocation:
+# searches at once: this Mac's 8 performance cores less 2 (principle 4)
+SLOTS = 8
 MEMORY = 12 << 30                      # bytes in all for the searches not done, of the Mac's 16 GiB (principle 4)
 FLOOR = 100 << 30                      # bytes of free disk, as df -h counts its Gi (principle 4)
 HARD_FLOOR = 50 << 30                  # bytes of free disk: the hard floor (dreeves, 2026-10-23)
@@ -82,10 +88,11 @@ SEARCHES = (                           # focus.py's memory: 56 MB at most measur
            'scratch/focus480/run.err', 'scratch/focus480/run', 64 << 20, 1),
     Search('672:13', 'focus.py', ('672',) + UNBOUNDED, 'focus_672_journal.jsonl', 'focus_672.log',
            'scratch/focus672/run.err', 'scratch/focus672/run', 64 << 20, 1),
+    # Historical registration:
     # 672:13's run, stopped, finished in parallel (dreeves, 2026-10-23: "ok"): fanout.py's 5 workers, each focus.py's
     # size and a job's tokens in transit
     Search('672:13 fanout', 'fanout.py', ('672',), 'fanout_672_journal.jsonl', 'fanout_672.log',
-           'scratch/fanout672/run.err', 'scratch/fanout672', 1 << 30, 5),
+           'scratch/fanout672/run.err', 'scratch/fanout672', 2 << 30, 8),
 )
 
 
@@ -109,12 +116,15 @@ def last_record(path):
 
 def status(s, procs):
     """The search's status (see the vocabulary) and the pid of its process, None unless running."""
-    pids = [p[0] for p in runs(procs, s.script, s.args[0])]       # a Python process running it, not a shell that names it
+    # A paused process also retains its pid under the in-memory pause contract above.
+    main = runs(procs, s.script, s.args[0])
+    pids = [p[0] for p in main]       # a Python process running it, not a shell that names it
     # TODO: error copy; says several live processes run this search, naming it and the pids
     assert len(pids) <= 1, f'Claude: "{len(pids)} processes run {s.name}: {pids}"'
     last = last_record(s.journal)
     kind = 'launchable' if last is None else KINDS.get((last['event'], last.get('outcome')), 'stopped')
-    return ('running' if pids else kind), (pids + [None])[0]
+    live = [('paused' if 'T' in p[2] else 'running', p[0]) for p in main]
+    return (live + [(kind, None)])[0]
 
 
 def size(path):
@@ -133,7 +143,9 @@ def used(path):
 def decide(statuses, data, free):
     """The actions, as (act, name), for the searches' statuses ({name: status}) and data ({name: bytes}) at free
     bytes of disk, by the floors (see the vocabulary)."""
-    biggest = max((name for name, st in statuses.items() if st != 'done'), key=lambda name: data[name], default=None)
+    # An intentional in-memory pause retains its data without growing it; its guardian owns resumption.
+    biggest = max((name for name, st in statuses.items() if st not in ('done', 'paused')),
+                  key=lambda name: data[name], default=None)
     return ([('launch', name) for name, st in statuses.items() if st == 'launchable' and free >= FLOOR] +
             [('stop', name) for name, st in statuses.items()
              if st == 'running' and (free < HARD_FLOOR or (free < FLOOR and name == biggest))])
@@ -141,10 +153,13 @@ def decide(statuses, data, free):
 
 def admit(searches, statuses):
     """Asserts that the searches running or launchable fit the slots and the memory (see the vocabulary)."""
-    live = [s for s in searches if statuses[s.name] in ('running', 'launchable')]
+    # The in-memory pause contract also reserves paused processes' memory.
+    live = [s for s in searches if statuses[s.name] in ('running', 'launchable', 'paused')]
+    # Paused processes retain their memory reservation but consume no compute slot.
+    slots = sum(s.processes for s in live if statuses[s.name] != 'paused')
     # TODO: error copy; says the searches waiting need more processes than there are slots, which needs preemption, not yet built
-    assert sum(s.processes for s in live) <= SLOTS, \
-        f'Claude: "{sum(s.processes for s in live)} processes for {SLOTS} slots: preemption (principle 3) is not built"'
+    assert slots <= SLOTS, \
+        f'Claude: "{slots} processes for {SLOTS} slots: preemption (principle 3) is not built"'
     # TODO: error copy; says the searches' memory exceeds the limit, giving both in bytes
     assert sum(s.memory for s in live) <= MEMORY, f'Claude: "{sum(s.memory for s in live)} bytes of searches for {MEMORY}"'
 

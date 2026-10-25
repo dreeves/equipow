@@ -1146,12 +1146,13 @@ SClaude[11][800] = {
               <line class="cross" visibility="hidden" data-cross></line>
             </svg>
           </div>
-          </details>
           <p class="progress-status">
             <span data-state="running"></span>
             <span data-state="frozen">Frozen: <span class="spent"><b data-so-far></b> so far</span> + <span class="togo"><b data-to-go></b> to go</span> = <span class="total"><b data-sum></b></span></span>
-            <span data-state="ended">Ended after <span class="spent"><b data-so-far></b></span> of running.</span>
+            <span data-state="ended">Ended after running for <span class="spent"><b data-so-far></b></span>.</span>
+            <span data-state="paused">Paused after running for <span class="spent"><b data-so-far></b></span>.</span>
           </p>
+          </details>
         </div>
       </template>
       <template class="progress-line">@<span data-when></span>&emsp;<span class="spent"><b data-so-far></b> so far</span> + <span class="togo"><b data-to-go></b> to go</span> = <span class="total"><b data-sum></b> (<b data-done></b>)</span></template>
