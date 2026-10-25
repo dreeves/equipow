@@ -1172,6 +1172,14 @@ SClaude[11][800] = {
       </template>
       <!-- TODO: identifies the four dot blocks and distinguishes completed, active and pending attempts. -->
       <template class="progress-pruning-hint">Astra: "Dot blocks, in order: 240:10 baseline, 240:10 wider, 288:10 baseline, 288:10 wider. <span class="progress-sw" data-status="open"></span> completed attempt; <span class="progress-sw" data-status="running"></span> running; <span class="progress-sw" data-status="pending"></span> pending."</template>
+      <!-- TODO: distinguishes the fresh 560 control from the 592 pilot, reports elapsed time and outcomes, and states that empty or timed-out attempts establish no exclusion or completion estimate. -->
+      <template class="progress-search592">
+        <span>Astra: "560:10 calibration (first dot block): <b data-attempt-count="control_attempted"></b>/<b data-attempt-count="control_total"></b> attempted; <b data-attempt-count="control_empty"></b> empty, <b data-attempt-count="control_timeout"></b> timed out, <b data-attempt-count="control_witnesses"></b> witnesses."</span><br>
+        <span>Astra: "592:10 search (second dot block): <b data-attempt-count="attempted"></b>/<b data-attempt-count="total"></b> attempted; <b data-attempt-count="empty"></b> empty, <b data-attempt-count="timeout"></b> timed out."</span><br>
+        <span>Astra: "<span data-search-state></span>; elapsed <b data-elapsed></b>; phase: <span data-attempt-phase="preparation">preparation</span><span data-attempt-phase="calibration">calibration</span><span data-attempt-phase="search">search</span>; outcome: <span data-attempt-outcome="null">pending</span><span data-attempt-outcome="control_failed">control not recovered; target not started</span><span data-attempt-outcome="budget">batch ended; unresolved</span><span data-attempt-outcome="witness">target witness verified</span><span data-attempt-outcome="failed">run failed; unresolved</span>. Empty pruned attempts and timeouts leave the question open; no completion estimate."</span>
+      </template>
+      <!-- TODO: identifies the 560 calibration and 592 target dot blocks, with completed, running and pending attempt colors. -->
+      <template class="progress-592-hint">Astra: "One dot per attempt: 560:10 calibration first, 592:10 search second. <span class="progress-sw" data-status="open"></span> completed attempt; <span class="progress-sw" data-status="running"></span> running; <span class="progress-sw" data-status="pending"></span> pending."</template>
     </details>
 </section>
 
@@ -1821,6 +1829,8 @@ try {
       for (const e of box.querySelectorAll('[data-count]')) e.textContent = run.counts[e.dataset.count].toLocaleString('en-US');
       bar(box, run);
       if (run.program === 'search288.py') search288View(box, run);
+      if (run.program === 'sweep288.py') search288View(box, run);
+      if (run.program === 'search592.py') attemptView(box, run, 'progress-search592', 'progress-592-hint');
       if (run.program === 'pruning288.py') {
         attemptView(box, run, 'progress-pruning288', 'progress-pruning-hint');
         // TODO: attribute the generated baseline/wider labels in the hover readout.
