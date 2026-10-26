@@ -3020,6 +3020,27 @@ def q_progress_summary_names_each_run_s_state():
         ('ended', False, ['completed']), ('ended', False, ['aborted'])], got
 
 
+def q_progress_status_line_names_an_ended_run_s_outcome():
+    # Replicata: index.html with the five runs of q_progress_summary_names_each_run_s_state as progress.js: running,
+    # paused, frozen, ended with an outcome (excluded) and ended with none.
+    # Expectata (dreeves, 2026-10-26: "for the ended/aborted searches, they say either "completed" or "aborted" in the
+    # collapsed version but the last line of the expanded version always just says "ended". can you change those
+    # instances of "ended" to "aborted" or "completed" as appropriate?"): each run's status line, under its charts,
+    # shows one part: the snapshot line for the running run, "Paused after running for", "Frozen:", and for the ended
+    # runs the word of their summaries, "Completed after running for" and "Aborted after running for"; none says Ended.
+    # Resultata before: both ended runs' status lines said "Ended after running for".
+    base = dict(PROGRESS_DATA['runs'][0], to_go=None)
+    runs = [dict(base, n=64 + 8 * i, state=state, outcome=outcome) for i, (state, outcome) in
+            enumerate([('running', None), ('paused', None), ('frozen', None), ('ended', 'excluded'), ('ended', None)])]
+    got = progress_harness({'made': PROGRESS_DATA['made'], 'runs': runs}, """
+  out(runs().map(r => [...r.querySelectorAll('.progress-status > [data-state]')].filter(e => !e.hidden)
+    .map(e => e.textContent.replace(/\\s+/g, ' ').trim())));""")
+    assert [len(r) for r in got] == [1] * 5, got
+    starts = ('@', 'Paused after running for ', 'Frozen: ', 'Completed after running for ', 'Aborted after running for ')
+    assert all(r[0].startswith(w) for r, w in zip(got, starts)), got
+    assert not any('Ended' in r[0] for r in got), got
+
+
 def q_progress_names_each_run_s_program():
     # Replicata: progress_run with two runs: PROGRESS_DATA's, then the same as boxsplit.py's pass (PROGRESS_TWO).
     # Expectata: two headings, in the data's order, each the run's question and its program, overnight_v5.py then

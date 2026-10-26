@@ -1754,7 +1754,7 @@ SClaude[11][832] = {
 </section>
 
 <section class="progress" aria-labelledby="progress-title">
-  <!-- TODO: Claude's copy, at dreeves's request (2026-10-17), on the certified searches' progress, in a section that starts closed: when the snapshot was made and how old it is; per run, its question and the program that runs it (overnight_v5.py, or boxsplit.py over a run's open sub-cases), then one word for its state, shown folded too (running, paused, frozen, completed or aborted: an ended run completed if it recorded an outcome, else aborted; dreeves, 2026-10-25), whether it is running, frozen or ended, and its hours of running so far + to go = in all (dreeves's form, 2026-10-17; running: after an @ and the snapshot's time in place of "Running:" (dreeves, 2026-10-17), with the local times that range ends between, in parentheses; durations in days from 72 h and years from 365.25 d, and finish times a week or more on as dates (dreeves, 2026-10-23)), as a bar drawn to scale at the top and as the status line below the ETA chart, its parts in the chart's colors in place of a legend (dreeves, 2026-10-17); a sea of dots, one per sub-case, each subtree a block of its own, colored by status, with a key of the statuses and their counts and a readout of the subtree under the pointer; and progress.html's ETA chart (elapsed time, ETA and elapsed + ETA, in dreeves's words), with a tip above it: the status line's running form for the recorded ETA under the pointer, at its time (dreeves, 2026-10-17: "the same as the line below, just an earlier snapshot thereof"), and right of the last record that record's line carried on to the hour of running under the pointer, in italics, a projection (dreeves, 2026-10-18) -->
+  <!-- TODO: Claude's copy, at dreeves's request (2026-10-17), on the certified searches' progress, in a section that starts closed: when the snapshot was made and how old it is; per run, its question and the program that runs it (overnight_v5.py, or boxsplit.py over a run's open sub-cases), then one word for its state, shown folded too (running, paused, frozen, completed or aborted: an ended run completed if it recorded an outcome, else aborted; dreeves, 2026-10-25), whether it is running, paused, frozen, completed or aborted (the status line naming the state as the summary does; dreeves, 2026-10-26), and its hours of running so far + to go = in all (dreeves's form, 2026-10-17; running: after an @ and the snapshot's time in place of "Running:" (dreeves, 2026-10-17), with the local times that range ends between, in parentheses; durations in days from 72 h and years from 365.25 d, and finish times a week or more on as dates (dreeves, 2026-10-23)), as a bar drawn to scale at the top and as the status line below the ETA chart, its parts in the chart's colors in place of a legend (dreeves, 2026-10-17); a sea of dots, one per sub-case, each subtree a block of its own, colored by status, with a key of the statuses and their counts and a readout of the subtree under the pointer; and progress.html's ETA chart (elapsed time, ETA and elapsed + ETA, in dreeves's words), with a tip above it: the status line's running form for the recorded ETA under the pointer, at its time (dreeves, 2026-10-17: "the same as the line below, just an earlier snapshot thereof"), and right of the last record that record's line carried on to the hour of running under the pointer, in italics, a projection (dreeves, 2026-10-18) -->
     <details>
       <summary><h2 id="progress-title">Search progress</h2></summary>
       <p>As of <span data-made>—</span> (<span data-age>—</span> ago).</p>
@@ -1809,7 +1809,8 @@ SClaude[11][832] = {
           <p class="progress-status">
             <span data-state="running"></span>
             <span data-state="frozen">Frozen: <span class="spent"><b data-so-far></b> so far</span> + <span class="togo"><b data-to-go></b> to go</span> = <span class="total"><b data-sum></b></span></span>
-            <span data-state="ended">Ended after running for <span class="spent"><b data-so-far></b></span>.</span>
+            <span data-state="completed">Completed after running for <span class="spent"><b data-so-far></b></span>.</span>
+            <span data-state="aborted">Aborted after running for <span class="spent"><b data-so-far></b></span>.</span>
             <span data-state="paused">Paused after running for <span class="spent"><b data-so-far></b></span>.</span>
           </p>
           </details>
@@ -2426,7 +2427,8 @@ try {
   // a range of durations, its unit once when both ends share it: "0.5–3.0 h", "149.9 d–6.4 y"
   const range = (lo, hi, fmt) => unitOf(lo) === unitOf(hi) ? `${fmt(lo / unitOf(lo)[0])}–${dur(hi, fmt)}` : `${dur(lo, fmt)}–${dur(hi, fmt)}`;
   // A snapshot's line (template.progress-line), into el's fields: the snapshot's time t, its seconds of running so far
-  // x and its estimate g of the seconds to go ({lo, hi}; null: none), as the frozen and ended forms take them too.
+  // x and its estimate g of the seconds to go ({lo, hi}; null: none), as the frozen, paused, completed and aborted forms
+  // take them too.
   const snapshot = (el, t, x, g) => {
     const fill = (field, text) => { for (const e of el.querySelectorAll(`[data-${field}]`)) e.textContent = text; };
     fill('when', stamp(t));
@@ -2486,7 +2488,9 @@ try {
       box.querySelector('[data-n]').textContent = run.n;
       box.querySelector('[data-order]').textContent = run.order;
       box.querySelector('[data-program]').textContent = run.program;
-      for (const e of box.querySelectorAll('[data-state]')) e.hidden = e.dataset.state !== run.state;
+      // the status line below the charts names the state as the summary does (dreeves, 2026-10-26: "can you change those
+      // instances of "ended" to "aborted" or "completed" as appropriate?")
+      for (const e of box.querySelectorAll('[data-state]')) e.hidden = e.dataset.state !== label;
       for (const e of box.querySelectorAll('[data-tip], [data-state="running"]')) e.replaceChildren(line.content.cloneNode(true));
       snapshot(box.querySelector('.progress-status'), data.made, run.so_far, run.to_go);
       for (const e of box.querySelectorAll('[data-count]')) e.textContent = run.counts[e.dataset.count].toLocaleString('en-US');
