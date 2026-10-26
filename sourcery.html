@@ -7637,9 +7637,18 @@ for 432:12, that sounds fine to store less</pre>
 <header><p class="speaker">dreev</p></header>
 <pre class="prompt">i meant "yes please" to updating the numbers in the theorem to reflect the latest results. did i misunderstand the question?</pre>
 <details>
-<summary><a class="anchor" href="#p381"><time datetime="2026-10-26T04:24:50.707000+00:00">04:24</time></a> <span class="chip"></span> <span class="agent">Claude Code</span> <span class="model">claude-opus-5-5</span> <span class="effort">(max)</span> <span class="elapsed">thought for 6s</span></summary>
+<summary><a class="anchor" href="#p381"><time datetime="2026-10-26T04:24:50.707000+00:00">04:24</time></a> <span class="chip"></span> <span class="agent">Claude Code</span> <span class="model">claude-opus-5-5</span> <span class="effort">(max)</span> <span class="elapsed">thought for 32m26s · 32m33s wall-clock time</span></summary>
 <div class="reply machine"><p>No, you read it right, and that&#x27;s exactly what&#x27;s happening: Theorem 1&#x27;s numbers will be updated to the latest results.</p>
-<p>&quot;The final rescan&quot; just means the powers-of-2 scan rerun with all ten new sequences. The first pass included only six, so the four newest might move a first or two more. The theorem gets whatever numbers that full rescan gives, and its wording stays as you and Stan wrote it.</p></div>
+<p>&quot;The final rescan&quot; just means the powers-of-2 scan rerun with all ten new sequences. The first pass included only six, so the four newest might move a first or two more. The theorem gets whatever numbers that full rescan gives, and its wording stays as you and Stan wrote it.</p>
+<p>The recording is done, and you&#x27;ve already committed it as 59ca530 &quot;New results&quot;. Before summarizing, a check that the tree is clean, plus a spot-check of the most surprising new claim, m*(2^20) ≥ 22.</p>
+<p>Everything is on the page in 59ca530 &quot;New results&quot;, with all ten suites green.</p>
+<p>The powers-of-2 rescan with all ten sequences moved more than the first pass:</p>
+<p>| excess | first power of 2 before | now |<br>|---|---|---|<br>| 2 | 2^27 | <strong>2^20</strong>: 848·992 + 240·432·2, order 22 |<br>| 3 | 2^34 | 2^30 |<br>| 4 | 2^38 | <strong>2^37</strong> |<br>| 6 | 2^52 | 2^49 |<br>| 8 | 2^66 | 2^65 |<br>| 9 | none | <strong>2^72</strong>, order 81 |</p>
+<p>Excess 10 has no power of 2 up to 2^72, by exhaustive search. Excess 1 stays at 2^17.</p>
+<p><strong>One change to your theorem goes beyond the numbers:</strong> a ninth inequality, m*(2^72) ≥ 81, plus &quot;i = 1, …, 9&quot; in the alternative form. That keeps it in step with the nine-row record-gaps table. Say if you&#x27;d rather drop it.</p>
+<p><strong>Three judgment calls worth a glance:</strong></p>
+<ul><li>The 288 note under Table 2 was cut to one sentence, because the longer one pushed the legend out of preview.png.</li><li>The preview&#x27;s zoom went from 0.6 to 0.56.</li><li>The powers-of-2 table now has 30 cells, so its two rows split after 2^38, with slightly tighter cell padding to fit at 945 px.</li></ul>
+<p><strong>Still running:</strong> the lemma explanation, and the 432:12 build, now in its review stage. Next come the lemma text in the 432 entry, the tree-only storage, and then launching 432.</p></div>
 </details>
 </article>
 </main>

@@ -26,17 +26,25 @@ Vocabulary (with focus.py's):
             solves while the page said 17 h to go): PROBE_PATHS random paths from the case's root down to a leaf (Knuth
             1975), at each B token the child a fair coin picks, each node solved by focus.step from its parent's
             post-solve LP state, each path from the root's.  A job gives a box's first child that state, and its second
-            the parent's basis, restored; paths taking that state at every node matched whole trees grown the job's way
-            node for node on 1,198 of 1,200 paths (four small trees, scratch/ideas-20261025/verify/v-floors).  A path's
-            leaf depth D, its B tokens, is the depth of the leaf holding a uniformly random point of the case's box, so
-            the tree has E[2^(D+1)] - 1 nodes, one LP solve each, and by Jensen's inequality at least 2^(E[D]+1) - 1.
+            the parent's basis, restored.  On certbb.Lp's quiet options, paths taking that state at every node matched
+            whole trees grown the job's way node for node on 1,198 of 1,200 paths (four small trees,
+            scratch/ideas-20261025/verify/v-floors).  On focus.case_lp's option (2026-10-25) that need not hold: HiGHS
+            then draws fresh cost perturbations at every solve from one random stream per LP, so a token can depend on
+            every solve its LP made before (a job's, on its worker's earlier jobs too), and each path follows a tree of
+            its own, grown the same way, not the run's.  At 432:12, 0 to 9 earlier solves gave the root's children 5
+            distinct token pairs, against 1 on quiet options, and the probe means moved by sd 0.14 (B) and 0.25 (A)
+            levels across HiGHS seeds 0 to 3, against se 0.23 to 0.25 (scratch/record-20261025/f432/review, history.py
+            and repro.jsonl).  A path's leaf depth D, its B tokens, is the depth of the leaf holding a uniformly random
+            point of the case's
+            box, so the tree has E[2^(D+1)] - 1 nodes (on case_lp's option, in expectation over HiGHS's draws), one LP
+            solve each, and by Jensen's inequality at least 2^(E[D]+1) - 1.
             Its record gives the paths, their depths' mean and standard error (se), least, and witnesses: the distinct
             exact solutions (W tokens) its paths ended at.  These do not end the fanout: the jobs' search, being
             complete, must find one too, if perhaps much later (ending it at a probe's would leave 16:4's eight-worker
             control, quals_fanout_eight, without a job).
   least     of a probe: floor(2^(mean - Z se + 1)) - 1, a lower bound, with one-sided 95% confidence, on its case's LP
-            solves in all (its tree's under these warm starts; the run's own tree was grown partly under
-            focus.search's).
+            solves in all (its tree's under these warm starts, on case_lp's option in expectation over HiGHS's draws;
+            the run's own tree was grown partly under focus.search's).
 """
 from concurrent.futures import FIRST_COMPLETED, ProcessPoolExecutor, wait
 import fcntl
@@ -388,11 +396,10 @@ def run(run_dir, focus_journal, work_dir, journal, n, m):
 
 
 def main():
-    # TODO: error copy; says how to run fanout: with the length of a stopped focus.py run, 432, 480 or 672
-    assert len(sys.argv) == 2 and sys.argv[1] in ('432', '480', '672'), \
-        'Claude: "usage: python3 -B fanout.py 432|480|672"'
+    # TODO: error copy; says how to run fanout: with the length of a stopped focus.py run, 480 or 672
+    assert len(sys.argv) == 2 and sys.argv[1] in ('480', '672'), 'Claude: "usage: python3 -B fanout.py 480|672"'
     n = int(sys.argv[1])
-    m = {432: 12, 480: 14, 672: 13}[n]
+    m = {480: 14, 672: 13}[n]
     signal.signal(signal.SIGTERM, stop)
     outcome = run(Path(f'scratch/focus{n}/run'), Path(f'focus_{n}_journal.jsonl'), Path(f'scratch/fanout{n}'),
                   Path(f'fanout_{n}_journal.jsonl'), n, m)

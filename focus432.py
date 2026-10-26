@@ -26,7 +26,8 @@ bound and the k.
 Derivative.  Stored certificates exclude k = +-3 and +-5 in both cases.  Negating every sign keeps the order, swaps B
 and A (each count becomes its class's size less it) and negates f'(-1).  So (B, -8192) and (A, -8192) are (A, 8192)
 and (B, 8192) negated, and the search covers f'(-1) = 8192 in both cases: one more row, sum p (-1)^(p-1) x_p =
-(8192 + 216)/2 = 4204 in the 0/1 variables x_p = (a_p + 1)/2, added as focus480.py adds its own.
+(8192 + 216)/2 = 4204 in the 0/1 variables x_p = (a_p + 1)/2, added as focus480.py adds its own.  _says checks
+that row, and each derivative certificate's, against f'(-1) by Horner's rule, for every sign vector at once.
 
 The certificates come from the 432:12 referee (scratch/ideas-20261025/verify/v432, rootlp432.py and deriv432.py) and
 are untrusted here: prepare checks each one.  The other functions take any length, order and factor, for the controls
@@ -63,6 +64,7 @@ def _bits(polynomial):
 
 def _divide(a, b):
     """Division of polynomials over F_2, as bits: the quotient and remainder."""
+    assert a >= 0 and b > 0
     quotient = 0
     while a.bit_length() >= b.bit_length():
         k = a.bit_length() - b.bit_length()
@@ -91,7 +93,7 @@ def _lemma(n, factor):
     f with F(-1) = 0, coefficients in increasing degree: x+1 divides F and S_n equally often mod 2, by exact division
     (asserted), so f/F is odd at -1.  Returns F'(-1), and the odd k with |F'(-1) k| <= sum |p - (n-1)/2|, one of
     which is f'(-1)/F'(-1)."""
-    assert factor[-1] == 1 and sum(c * (-1) ** i for i, c in enumerate(factor)) == 0
+    assert len(factor) <= n and factor[-1] == 1 and sum(c * (-1) ** i for i, c in enumerate(factor)) == 0
     assert _multiplicity(_bits(factor)) == _multiplicity((1 << n) - 1)
     slope = sum(d * c for d, c in zip(_derivative(n), factor))
     top = sum(abs(2 * p - n + 1) for p in range(n)) // (2 * abs(slope))      # the bound, doubled, over 2 |F'(-1)|
@@ -107,11 +109,33 @@ def _equations(base, v):
     return certbb.Moments(base.W, base.rhs, ((derivative,), ((v + base.N // 2) // 2,)))
 
 
+def _slope(signs):
+    """f'(-1) for f = sum a_p x^p, the a_p the signs, by Horner's rule on f's formal derivative sum p a_p x^(p-1): no
+    formula shared with _derivative."""
+    value = 0
+    for p in reversed(range(1, len(signs))):
+        value = p * signs[p] - value
+    return value
+
+
+def _says(equations, v):
+    """The equations, once asserted to say f'(-1) = v in their one row past the moments: 2 (row.x - rhs) is f'(-1) - v,
+    for the signs 2x - 1, by _slope, at x = 0 and at each unit vector.  Both sides are affine in x, so it holds at every
+    x: a 0/1 vector meets the row exactly when its signs have f'(-1) = v."""
+    n, row, beta = equations.N, equations.W[-1], equations.rhs[-1]
+    assert len(equations.W) == equations.order + 1
+    for x in [[0] * n] + [[int(p == q) for p in range(n)] for q in range(n)]:
+        assert 2 * (sum(c * t for c, t in zip(row, x, strict=True)) - beta) == _slope([2 * t - 1 for t in x]) - v
+    return equations
+
+
 def _profiles(n, m, M):
     """Every possible plus-count vector mod M at length n and order m: mstar's enumeration, finished (running out of
     its budget raises), no symmetry assumed."""
-    signed = mstar.residue_vectors(n, M, m, None, mstar.Budget(10 ** 6), 'natural')
-    return tuple(tuple((d + len(range(r, n, M))) // 2 for r, d in enumerate(D)) for D in signed)
+    signed = tuple(mstar.residue_vectors(n, M, m, None, mstar.Budget(10 ** 6), 'natural'))
+    sizes = tuple(len(range(r, n, M)) for r in range(M))
+    assert all(len(D) == M and all(abs(d) <= s and (d + s) % 2 == 0 for d, s in zip(D, sizes)) for D in signed)
+    return tuple(tuple((d + s) // 2 for d, s in zip(D, sizes)) for D in signed)
 
 
 def _choice(counts):
@@ -122,6 +146,7 @@ def _choice(counts):
 
 def _complement(n, choice):
     """The plus counts of the negated signs: each class's size less its count."""
+    assert all(len(v) == M and all(0 <= c <= len(range(r, n, M)) for r, c in enumerate(v)) for M, v in choice)
     return tuple((M, tuple(len(range(r, n, M)) - c for r, c in enumerate(v))) for M, v in choice)
 
 
@@ -165,7 +190,7 @@ def prepare():
     excluded = []
     for *counts, v, certificate in proof['derivatives']:
         choice = _choice(counts)
-        assert _retained(_equations(base, v), {choice}, [(choice, certificate)]) == set()
+        assert _retained(_says(_equations(base, v), v), {choice}, [(choice, certificate)]) == set()
         excluded.append((choice, v))
     assert sorted(excluded) == sorted((case, slope * k) for case in cases for k in ks if abs(k) > 1)
-    return _equations(base, slope), cases
+    return _says(_equations(base, slope), slope), cases

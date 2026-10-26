@@ -19,7 +19,7 @@ import sys
 import tempfile
 import traceback
 import unittest
-from contextlib import redirect_stderr, redirect_stdout
+from contextlib import redirect_stderr
 from unittest.mock import patch
 
 import numpy as np
@@ -166,13 +166,17 @@ class Focus432Quals(unittest.TestCase):
 
     def refused(self, proof, where):
         """prepare with this stored proof in place of the real one must fail loudly, and where says: in that function
-        of focus432, at a line holding that fragment, so for the reason the qual names and not at a later check."""
-        with patch.object(focus432, '_proof', return_value=proof), \
-                self.assertRaises((AssertionError, certbb.ProofError)) as raised:
-            focus432.prepare()
-        frame = traceback.extract_tb(raised.exception.__traceback__)[-1]
-        self.assertEqual((Path(frame.filename).name, frame.name), ('focus432.py', where[0]))
-        self.assertIn(where[1], frame.line)
+        of focus432, at a line holding that fragment, so for the reason the qual names and not at a later check.
+        (assertRaises keeps no traceback, hence the try.)"""
+        frames = []
+        with patch.object(focus432, '_proof', return_value=proof):
+            try:
+                focus432.prepare()
+            except (AssertionError, certbb.ProofError) as raised:
+                frames = traceback.extract_tb(raised.__traceback__)
+        self.assertTrue(frames)                                     # prepare refused it
+        self.assertEqual((Path(frames[-1].filename).name, frames[-1].name), ('focus432.py', where[0]))
+        self.assertIn(where[1], frames[-1].line)
 
     def derivative_record(self, proof, case, v):
         """proof's one derivative record of case at f'(-1) = v."""
@@ -267,46 +271,137 @@ class Focus432Quals(unittest.TestCase):
 
     def test_a_zero_root_certificate_is_refused(self):
         # Replicata: the first root certificate replaced by zeros.
-        # Expectata: AssertionError: its bound is 0, so it closes nothing.
+        # Expectata: AssertionError in _retained, at its bound: 0, so it closes nothing.
         proof = copy.deepcopy(self.proof)
         proof['roots'][0][-1] = [0] * len(proof['roots'][0][-1])
-        self.refused(proof)
+        self.refused(proof, ('_retained', 'certbb.lower_bound('))
 
     def test_a_duplicate_root_record_is_refused(self):
         # Replicata: the second root record replaced by the first.
-        # Expectata: AssertionError: one combination closed twice, so another left unaccounted.
+        # Expectata: AssertionError in _retained: one combination closed twice, so another left unaccounted.
         proof = copy.deepcopy(self.proof)
         proof['roots'][1] = proof['roots'][0]
-        self.refused(proof)
+        self.refused(proof, ('_retained', 'choice not in closed'))
 
     def test_a_missing_root_record_is_refused(self):
         # Replicata: the last root record dropped.
-        # Expectata: AssertionError: a third combination would stay open.
+        # Expectata: AssertionError in prepare, at the count of records: 1,197, not 1,198, so a third combination
+        # would stay open.
         proof = copy.deepcopy(self.proof)
         proof['roots'].pop()
-        self.refused(proof)
+        self.refused(proof, ('prepare', 'len(roots) == 1198'))
 
     def test_a_certificate_cannot_close_B(self):
         # Replicata: the first root record's counts replaced by B's, its certificate kept.
-        # Expectata: AssertionError: B is LP-feasible, so no multipliers close it.
+        # Expectata: AssertionError in _retained, at its bound: B is LP-feasible, so no multipliers close it.
         proof = copy.deepcopy(self.proof)
         proof['roots'][0][:-1] = [list(v) for _, v in focus432.B]
-        self.refused(proof)
+        self.refused(proof, ('_retained', 'certbb.lower_bound('))
 
     def test_a_derivative_certificate_moved_to_8192_is_refused(self):
         # Replicata: a derivative record's value changed from +24576 to +8192, its certificate kept.
-        # Expectata: AssertionError: f'(-1) = 8192 is LP-feasible in both cases, so nothing closes it.
+        # Expectata: AssertionError in _retained, at its bound: f'(-1) = 8192 is LP-feasible in both cases, so nothing
+        # closes it.
+        # Resultata, with that check deleted (scratch/record-20261025/f432/review/lax.py): AssertionError, but only at
+        # the later count of excluded values, so this qual passed without the check.
         proof = copy.deepcopy(self.proof)
         record = next(r for r in proof['derivatives'] if r[-2] == 24576)
         record[-2] = 8192
-        self.refused(proof)
+        self.refused(proof, ('_retained', 'certbb.lower_bound('))
 
     def test_a_missing_derivative_record_is_refused(self):
         # Replicata: one derivative record dropped.
-        # Expectata: AssertionError: one of the four excluded values would go unexcluded.
+        # Expectata: AssertionError in prepare, at the excluded values: one of the four would go unexcluded.
         proof = copy.deepcopy(self.proof)
         proof['derivatives'].pop()
-        self.refused(proof)
+        self.refused(proof, ('prepare', 'sorted(excluded)'))
+
+    def test_a_zero_derivative_certificate_is_refused(self):
+        # Replicata: B's derivative certificate at f'(-1) = +24576 replaced by zeros.
+        # Expectata: AssertionError in _retained, at its bound: 0, so it excludes nothing.
+        # Resultata, with that check deleted (lax.py, as above): prepare accepted it, and every qual stayed green.
+        proof = copy.deepcopy(self.proof)
+        record = self.derivative_record(proof, focus432.B, 24576)
+        record[-1] = [0] * len(record[-1])
+        self.refused(proof, ('_retained', 'certbb.lower_bound('))
+
+    def test_swapped_derivative_certificates_are_refused(self):
+        # Replicata: B's derivative certificates at f'(-1) = +24576 and -24576 swapped, the values kept.
+        # Expectata: AssertionError in _retained, at a bound: each certificate excludes its own value only.
+        # Resultata, with that check deleted (lax.py, as above): prepare accepted it, and every qual stayed green.
+        proof = copy.deepcopy(self.proof)
+        plus, minus = (self.derivative_record(proof, focus432.B, v) for v in (24576, -24576))
+        plus[-1], minus[-1] = minus[-1], plus[-1]
+        self.refused(proof, ('_retained', 'certbb.lower_bound('))
+
+    def test_a_derivative_row_off_by_two_or_negated_is_refused(self):
+        # Replicata: prepare with _equations's derivative row saying f'(-1) = v + 2, then -v, for each v it is asked
+        # for (the mutants of scratch/record-20261025/f432/review/mutants.py).
+        # Expectata: AssertionError in _says, at the first derivative record: the row disagrees with f'(-1) found by
+        # Horner's rule.
+        # Resultata before _says: at v + 2 prepare passed, the 8 certificates closing +-24578 and +-40962 too, and
+        # only the controls caught it; at -v it failed only at a certificate's bound.
+        real = focus432._equations
+        for name, wrong in (('v + 2', lambda v: v + 2), ('-v', lambda v: -v)):
+            with self.subTest(row=name), patch.object(focus432, '_equations', lambda base, v: real(base, wrong(v))):
+                self.refused(self.proof, ('_says', '_slope('))
+
+    def test_says_checks_the_whole_derivative_row(self):
+        # Replicata: _slope on every sign vector of each length 1 to 12; _says at length 8 on _equations's row for
+        # each possible v, and on that row with its right side off by one, with -v's right side, or with one
+        # coefficient off by one.
+        # Expectata: _slope is sum p (-1)^(p-1) a_p (this file's derivative) on every vector; _says returns the true
+        # equations and refuses each changed row.
+        # Resultata before: no _slope or _says, so nothing in prepare checked the row.
+        for n in range(1, 13):
+            for a in itertools.product((-1, 1), repeat=n):
+                self.assertEqual(focus432._slope(a), sum(d * t for d, t in zip(derivative(n), a)))
+        base = focus.moments(8, 1)
+        for v in range(-16, 17, 2):
+            true = focus432._equations(base, v)
+            self.assertIs(focus432._says(true, v), true)
+            row, beta = list(true.W[-1]), true.rhs[-1]
+            changed = [(row, beta + 1), (row, beta - 1), (row, focus432._equations(base, -v).rhs[-1])]
+            changed += [(row[:p] + [row[p] + 1] + row[p + 1:], beta) for p in range(8)]
+            for w, b in (c for c in changed if c != (row, beta)):      # -v's right side is v's at v = 0
+                with self.subTest(v=v, row=w, rhs=b), self.assertRaises(AssertionError):
+                    focus432._says(certbb.Moments(base.W, base.rhs, ((tuple(w),), (b,))), v)
+
+    def test_profiles_refuse_impossible_residue_sums(self):
+        # Replicata: _profiles at 8:1 mod 4 (classes of 2), mstar.residue_vectors replaced by a stand-in yielding a
+        # sum of the wrong parity, then one too large for its class, then a vector of 3 sums.
+        # Expectata: AssertionError for each.
+        # Resultata before: plus counts (1, 1, 1, 0), (3, 1, 1, -1) and (1, 1, 1): floored, negative and short.
+        for D in ((1, 0, 0, -1), (4, 0, 0, -4), (0, 0, 0)):
+            with self.subTest(D=D), patch.object(mstar, 'residue_vectors', return_value=iter([D])), \
+                    self.assertRaises(AssertionError):
+                focus432._profiles(8, 1, 4)
+
+    def test_lemma_refuses_a_factor_longer_than_the_signs(self):
+        # Replicata: _lemma at length 2 with F = Phi2 Phi3 = x^3 + 2x^2 + 2x + 1: monic, F(-1) = 0, and x+1 divides it
+        # once mod 2, as it does S_2 = 1 + x; but F has 4 coefficients, the signs 2.
+        # Expectata: AssertionError.
+        # Resultata before: (2, ()), F'(-1) read off F's first two coefficients only (it is 1).
+        with self.assertRaises(AssertionError):
+            focus432._lemma(2, pmul(PHI2, (1, 1, 1)))
+
+    def test_divide_refuses_a_zero_divisor_and_a_negative_dividend(self):
+        # Replicata: _divide(0b101, 0), x^2 + 1 by the zero polynomial over F_2; _divide(-0b101, 0b11).
+        # Expectata: AssertionError for each.
+        # Resultata before: an endless loop, each.
+        for a, b in ((0b101, 0), (-0b101, 0b11)):
+            with self.subTest(a=a, b=b), self.assertRaises(AssertionError):
+                focus432._divide(a, b)
+
+    def test_complement_refuses_impossible_counts(self):
+        # Replicata: _complement at length 8 mod 4 (classes of 2) of the counts (3, 0, 0, 0), (-1, 1, 1, 1) and
+        # (1, 1, 1).
+        # Expectata: AssertionError for each.
+        # Resultata before: (-1, 2, 2, 2), (3, 1, 1, 1) and (1, 1, 1), a count above its class's size or below 0
+        # passed on, and a short vector.
+        for c in ((3, 0, 0, 0), (-1, 1, 1, 1), (1, 1, 1)):
+            with self.subTest(c=c), self.assertRaises(AssertionError):
+                focus432._complement(8, ((4, c),))
 
     def test_fingerprint_covers_the_module_and_its_certificates(self):
         # Replicata: focus.fingerprint over copies of its sources, then with focus432.py, then its certificate file,
@@ -333,25 +428,21 @@ class Focus432Quals(unittest.TestCase):
             self.assertNotEqual(prints[1], before)
             self.assertEqual(prints[2], before)
 
-    def test_command_lines_take_432(self):
+    def test_command_lines_refuse_432_for_now(self):
         # Replicata: focus.py 432 and fanout.py 432, their searches replaced by stand-ins.
-        # Expectata: order 12, focus.py's run in scratch/focus432/run with focus_432_journal.jsonl, fanout's in
-        # scratch/fanout432 with fanout_432_journal.jsonl.
-        # Resultata before the change: both refuse 432.
-        out = io.StringIO()
-        with patch.object(focus, 'search', return_value='budget') as run, \
-                patch.object(sys, 'argv', ['focus.py', '432']), redirect_stdout(out):
+        # Expectata: both refuse 432 and start nothing.  progress.survey_focus asserts that each root
+        # focus_*_journal.jsonl is 480:14's or 672:13's, so a focus_432_journal.jsonl would stop the progress watcher;
+        # and the pending mstar.py edit changes focus.fingerprint, which every chunk must match to replay.  Change this
+        # qual, with the command lines, only once progress reads a 432:12 journal and mstar.py's edit has landed.
+        # Resultata in the first 2026-10-25 build: both took 432 and started their runs.
+        with patch.object(focus, 'search') as run, patch.object(sys, 'argv', ['focus.py', '432']), \
+                redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
             focus.main()
-        self.assertEqual(run.call_args.args[:4],
-                         (Path('scratch/focus432/run'), Path('focus_432_journal.jsonl'), 432, 12))
-        self.assertEqual(json.loads(out.getvalue()), dict(n=432, order=12, outcome='budget'))
-        out = io.StringIO()
-        with patch.object(fanout, 'run', return_value='excluded') as run, patch.object(fanout.signal, 'signal'), \
-                patch.object(sys, 'argv', ['fanout.py', '432']), redirect_stdout(out):
+        run.assert_not_called()
+        with patch.object(fanout, 'run') as run, patch.object(fanout.signal, 'signal'), \
+                patch.object(sys, 'argv', ['fanout.py', '432']), self.assertRaises(AssertionError):
             fanout.main()
-        self.assertEqual(run.call_args.args, (Path('scratch/focus432/run'), Path('focus_432_journal.jsonl'),
-                                              Path('scratch/fanout432'), Path('fanout_432_journal.jsonl'), 432, 12))
-        self.assertEqual(json.loads(out.getvalue()), dict(n=432, order=12, outcome='excluded'))
+        run.assert_not_called()
 
 
 # ---------- the saturation lemma on every small sequence ----------

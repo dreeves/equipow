@@ -276,11 +276,11 @@ def search(directory, journal, n, m, lp_budget=10 ** 6, seconds=3600):
 def main():
     # TODO: command help; bounded, resumable searches with exact proof checks.
     parser = argparse.ArgumentParser(description='Quaestiones finitae, resumendae, probationibus exactis.')
-    parser.add_argument('n', type=int, choices=(432, 480, 672))
+    parser.add_argument('n', type=int, choices=(480, 672))
     parser.add_argument('--lp-budget', type=int, default=10 ** 6)
     parser.add_argument('--seconds', type=float, default=3600)
     args = parser.parse_args()
-    m = {432: 12, 480: 14, 672: 13}[args.n]
+    m = {480: 14, 672: 13}[args.n]
     outcome = search(Path(f'scratch/focus{args.n}/run'), Path(f'focus_{args.n}_journal.jsonl'),
                      args.n, m, args.lp_budget, args.seconds)
     print(json.dumps(dict(n=args.n, order=m, outcome=outcome)), flush=True)

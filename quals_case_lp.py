@@ -4,12 +4,13 @@ bundles it, perturbs the costs of an all-zero objective only when output_flag is
 scratch/ideas-20261025/verify.txt, critic-6.  Run with PYTHONPATH=scratch/lower24-design/beyond1000/pylib
 /opt/homebrew/bin/python3 -B -m unittest quals_case_lp.
 
-The stall quals read the capture scratch/lp672/recent-stall.json (scratch/lp672/stall.py), its seal and model hashes
-checked."""
+The stall quals read quals_case_lp_stall.json, a byte-for-byte copy of the git-ignored capture
+scratch/lp672/recent-stall.json (made by scratch/lp672/stall.py), its seal and model hashes checked."""
 import hashlib
 import json
 import os
 from pathlib import Path
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -19,7 +20,7 @@ import certbb
 import fanout
 import focus
 
-CAPTURE = Path(__file__).resolve().parent / 'scratch' / 'lp672' / 'recent-stall.json'
+CAPTURE = Path(__file__).resolve().parent / 'quals_case_lp_stall.json'
 OK = certbb.highs.HighsStatus.kOk
 
 
@@ -80,6 +81,20 @@ class CaseLpQuals(unittest.TestCase):
         lp, status, _, iterations, *_ = stall(quiet)
         self.assertEqual((status, iterations), ('Iteration limit reached', certbb.ITERATIONS))
         self.assertEqual(options(lp)[0], (OK, False))
+
+    def test_the_capture_is_not_git_ignored(self):
+        # Replicata: git check-ignore on the stall quals' capture.
+        # Expectata: not ignored (exit status 1), so a checkout of the repository can hold it.
+        # Resultata before: ignored (status 0), under .gitignore's scratch/: on any other checkout the two stall quals,
+        # the canary among them, would error on a missing file.
+        status = subprocess.run(['git', 'check-ignore', '-q', str(CAPTURE)], cwd=CAPTURE.parent).returncode
+        self.assertEqual(status, 1)
+
+    def test_highs_is_the_build_the_option_was_verified_on(self):
+        # Replicata: certbb.HIGHS, the HiGHS build SciPy brings.
+        # Expectata: 1.12.0 (4f96ee8), on which case_lp's option and the stall and canary quals were verified
+        # (scratch/ideas-20261025/verify.txt, critic-6): any other build needs them verified again.
+        self.assertEqual(certbb.HIGHS, '1.12.0 (4f96ee8)')
 
     def test_case_lp_has_the_option_and_certbb_lp_does_not(self):
         # Replicata: focus.case_lp's LP and certbb.Lp's, for 20:5.
