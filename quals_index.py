@@ -17,7 +17,7 @@ reader sees.
 """
 import sys
 sys.dont_write_bytecode = True
-import os, re, json, html, html.parser, math, time, shutil, signal, difflib, datetime, tempfile, threading, traceback, subprocess
+import os, re, json, html, html.parser, math, time, shutil, signal, difflib, datetime, zoneinfo, tempfile, threading, traceback, subprocess
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 INDEX = os.path.join(HERE, 'index.html')
@@ -129,11 +129,14 @@ SYMBOLS_NOTE = ('<p>Finally, the symbols # and ∨ denote the expanded product a
                 'where <i>n<sub>f</sub></i> is the length of <i>f</i>.')
 DREEVES_LINES += CERTIFICATES_REFLOW + SYMBOLS_NOTE
 # The changelog atop the page (dreeves, 2026-10-26: "can you add a skeleton of a changelog at the top of the page,
-# modeled after doc.bmndr.co/freshat"): its summary, the word of his FreshAt spec's, and two entries in his words, each
-# the subject of his commit of index.html on its date, the first (bf90205) and the latest that added results (c496222)
+# modeled after doc.bmndr.co/freshat"): its summary, the word of his FreshAt spec's, and his entries as he wrote them
+# (5e3ada0 "Add changelog and BGPW paper", and in the working page at 14:12): the subject of his commit c496222 with
+# his " [which?]", and in place of the subject of the page's first commit his entries for the claude.ai chat's first
+# two days
 CHANGELOG = ('<summary><i>Changelog</i></summary>',
-             '<p>2026-10-26: More results, powers of 2</p>',
-             '<p>2026-10-07: Initial commit</p>')
+             '<p>2026-10-26: More results, powers of 2 [which?]</p>',
+             '<p>2026-10-04: Claude gets first new result: m*(2^38) >= 39</p>',
+             '<p>2026-10-03: Claude Opus 5.5 finds a new order-10 partition for n=240</p>')
 DREEVES_LINES += CHANGELOG
 
 
@@ -340,6 +343,10 @@ SOURCE_LINE = '<p><a href="https://github.com/dreeves/equipow">Source</a> &amp; 
 TABLE_UPDATE += ((FOOTER_DEFINITION + '  ' + SOURCE_LINE, SOURCE_LINE, 1),
                  ('  <p class="lede">Stan Wagon, Daniel Reeves, Claude, and Astra</p>\n',
                   '  <p class="lede"><i>by Stan Wagon, Daniel Reeves, Claude, and Astra</i></p>\n', 1))
+# and the header's paragraphs after his byline no longer of class lede, so in ink, not muted (2026-10-26, commit 5e3ada0
+# "Add changelog and BGPW paper")
+TABLE_UPDATE += (('  <p class="lede">\n', '  <p>\n', 6),
+                 ('  <p class="lede"><i>m</i><sup>*</sup>(<i>n</i>) \n', '  <p><i>m</i><sup>*</sup>(<i>n</i>) \n', 1))
 
 # Edits of the remarks' lines that are in the page before the chart (BASE) or in TABLE_UPDATE, kept apart from
 # TABLE_UPDATE because quals_pow2_page.py applies TABLE_UPDATE before its own edits of those remarks, and its own
@@ -436,23 +443,130 @@ def new_results():
 
 
 def entries(fragment):
-    """(n, low, high) for every entry with n <= NMAX of the tables of class block in fragment.  An exact value v gives
-    (v, v); 'a or b' and 'a–b' give (a, b); '≥ a' gives (a, inf)."""
+    """(n, low, high) for every entry with n <= NMAX of the tables of class block in fragment, as bounds() reads it."""
     out = []
     for table in re.findall(r'<table class="block">.*?</table>', fragment, re.S):
         ns = re.findall(r'<td[^>]*>(.*?)</td>', re.search(r'<tr class="ns">.*?</tr>', table, re.S).group(0))
         vs = re.findall(r'<td[^>]*>(.*?)</td>', re.search(r'<tr class="vals">.*?</tr>', table, re.S).group(0))
         assert len(ns) == len(vs) and ns, table
         for cell, v in zip(ns, vs):
-            m = re.fullmatch(r'(\d+)|2<sup>(\d+)</sup>', cell)
-            assert m, cell
-            n = int(m.group(1)) if m.group(1) else 2 ** int(m.group(2))
+            n = cell_n(cell)
             if n > NMAX: continue
-            forms = ((r'(\d+)', lambda a: (a, a)), (r'(\d+) or (\d+)', lambda a, b: (a, b)),
-                     (r'(\d+)–(\d+)', lambda a, b: (a, b)), (r'≥ (\d+)', lambda a: (a, math.inf)))
-            hits = [f(*map(int, m.groups())) for p, f in forms for m in [re.fullmatch(p, v)] if m]
-            assert len(hits) == 1, (n, v)
-            out.append((n, *hits[0]))
+            out.append((n, *bounds(v)))
+    return out
+
+
+def cell_n(cell):
+    """The n of a cell of an n row: its digits, or 2^k for 2<sup>k</sup>."""
+    m = re.fullmatch(r'(\d+)|2<sup>(\d+)</sup>', cell)
+    assert m, cell
+    return int(m.group(1)) if m.group(1) else 2 ** int(m.group(2))
+
+
+def bounds(v):
+    """(low, high) for a table's value v: an exact value v gives (v, v); 'a or b' and 'a–b' give (a, b); '≥ a' gives
+    (a, inf)."""
+    forms = ((r'(\d+)', lambda a: (a, a)), (r'(\d+) or (\d+)', lambda a, b: (a, b)),
+             (r'(\d+)–(\d+)', lambda a, b: (a, b)), (r'≥ (\d+)', lambda a: (a, math.inf)))
+    hits = [f(*map(int, m.groups())) for p, f in forms for m in [re.fullmatch(p, v)] if m]
+    assert len(hits) == 1, v
+    return hits[0]
+
+
+def new_cells(text):
+    """{n: (low, high)}, as bounds() reads them, for every entry of the block "New results since the paper" in text (a
+    version of index.html) that has a provenance class: the rest, 2^3 to 2^8, are the paper's, shown for context."""
+    block = text[text.index('<div class="new-block">'):text.index('</figure>')]
+    rows = re.findall(r'<tr class="ns">(.*?)</tr>\s*<tr class="vals">(.*?)</tr>', block, re.S)
+    assert rows and len(rows) == block.count('<tr class="ns">') == block.count('<tr class="vals">'), block[:300]
+    cells = []
+    for ns, vals in rows:
+        nn, vv = re.findall(r'<td[^>]*>(.*?)</td>', ns), re.findall(r'<td\b([^>]*)>(.*?)</td>', vals)
+        assert nn and len(nn) == len(vv), (nn, vv)
+        cells += [(cell_n(n), attrs, v) for n, (attrs, v) in zip(nn, vv)]
+    assert len(cells) == len({n for n, *_ in cells}), cells
+    return {n: bounds(v) for n, attrs, v in cells if re.search(r'class="\w+"', attrs)}
+
+
+# The backfill of the changelog (dreeves, 2026-10-26: "can you backfill all the results that are new since the BGPW
+# paper?") reaches this commit, the last of its day to change a result (2026-10-26 08:07, "More results, powers of 2").
+BACKFILL = 'c496222'
+
+
+def statement(b, a):
+    """How a changelog entry states the change of a new result's bounds from b (None for a new entry) to a: both sides
+    for a new entry, an exact one or one whose sides both moved; else the side that moved, None for the other; and an
+    unknown side, a low of 0 or a high of inf, as None."""
+    lo, hi = a
+    one = b is not None and lo != hi and (b[0] == lo) != (b[1] == hi)       # exactly one side moved, and not exact
+    return (None if (one and b[0] == lo) or lo == 0 else lo, None if (one and b[1] == hi) or hi == math.inf else hi)
+
+
+def fold(state, said):
+    """state ({n: (low, high)}, 0 and inf for unknown sides) with the statements said made: a side None keeps its bound."""
+    old = lambda n: state.get(n, (0, math.inf))
+    return state | {n: (old(n)[0] if lo is None else lo, old(n)[1] if hi is None else hi) for n, (lo, hi) in said.items()}
+
+
+# The new results that the page began with, and 448's upper bound, as the claude.ai chat before the page (2026-10-03 to
+# 06, in sourcery.html) first reported them (dreeves, 2026-10-26, dating the chat's first new result in his own entry:
+# "2026-10-04: Claude Opus 5.5 gets first new result: m*(2^38) >= 39"): (the PDT day of the exchange's prompt, the
+# exchange, words of its prompt or reply that report them, the statements they make).  Stan's list of blocks came in
+# a prompt; 576 ∈ L₁₀, which the chat noted (p43), only doubles the paper's 288 ∈ L₉, so it is not among them.
+CHAT = (('2026-10-04', 'p4', 'This shows 528 ∈ L₁₀', {528: (10, None)}),
+        ('2026-10-04', 'p5', '432 ∈ L₁₁', {432: (11, None)}),
+        ('2026-10-04', 'p5', '336 ∈ L₉ and 528 ∈ L₁₀', {336: (9, None)}),
+        ('2026-10-04', 'p7', '{320, 9}, {352, 9}, {368, 9}, {400, 9}, {416, 9}, {432, 9}, {464, 9} {496, 9}',
+         {n: (9, None) for n in (320, 352, 368, 400, 416, 464, 496)}),
+        ('2026-10-04', 'p7', '320 and 352 cannot be in L₁₀', {320: (None, 9), 352: (None, 9)}),
+        ('2026-10-04', 'p7', '2²⁴ ∈ L₂₅', {2 ** 24: (25, None)}),
+        ('2026-10-05', 'p13', 'No, the order of 2⁹ is not 10, so m*(512) = 9', {512: (9, 9)}),
+        ('2026-10-05', 'p15', 'If 3 ∤ n and n < 484, then n ∉ L₁₀; this covers 320, 352, 368, 400, 416, 448, 464',
+         {n: (None, 9) for n in (368, 400, 416, 448, 464)}),
+        ('2026-10-06', 'p23', 'I found one new positive result: 480 ∈ L₁₂', {480: (12, None)}),
+        ('2026-10-06', 'p36', '496 = 9', {496: (None, 9)}))
+FIRST = 'bf90205'      # the page's first commit (2026-10-07 11:08, "Initial commit")
+
+
+def chat_days():
+    """({date: {n: statement}}, the bounds after them all): CHAT's statements day by day, each day's as statement()
+    states its changes."""
+    out, state = {}, {}
+    for d in sorted({row[0] for row in CHAT}):
+        after = state
+        for said in (said for day, _, _, said in CHAT if day == d): after = fold(after, said)
+        out[d] = {n: statement(state.get(n), a) for n, a in after.items() if state.get(n) != a}
+        state = after
+    return out, state
+
+
+def exchanges():
+    """{id: (PDT date of its prompt, its prompt and reply as text)} for the claude.ai chat's exchanges in sourcery.html,
+    the text with its tags dropped, entities decoded and white space made single spaces."""
+    text = open(os.path.join(HERE, 'sourcery.html'), encoding='utf-8').read()
+    zone = zoneinfo.ZoneInfo('America/Los_Angeles')
+    flat = lambda s: re.sub(r'\s+', ' ', html.unescape(re.sub(r'<[^>]+>', ' ', s)))
+    out = {}
+    for pid, body in re.findall(r'<article class="exchange claudeai" id="(p\d+)"[^>]*>(.*?)</article>', text, re.S):
+        t = datetime.datetime.fromisoformat(re.search(r'<time datetime="(\d{4}-[^"]+)"', body).group(1))
+        out[pid] = (t.astimezone(zone).date().isoformat(), flat(body))
+    return out
+
+
+def day_changes(start, through=BACKFILL):
+    """{date: {n: statement}} for each day with commits of index.html up to and including through: the new results whose
+    bounds changed over the day, from the bounds before it (start, for the first day) to its last commit's, as
+    statement() states them.  No result ever leaves the block."""
+    log = subprocess.run(['git', '-C', HERE, 'log', '--reverse', '--format=%h %ad', '--date=format:%Y-%m-%d', through,
+                          '--', 'index.html'], capture_output=True, text=True, check=True).stdout
+    last = dict(reversed(line.split()) for line in log.split('\n') if line)     # date: the day's last commit
+    out, before = {}, start
+    for d, h in last.items():
+        now = new_cells(subprocess.run(['git', '-C', HERE, 'show', f'{h}:index.html'], capture_output=True, text=True,
+                                       check=True).stdout)
+        assert set(before) <= set(now), set(before) - set(now)
+        out[d] = {n: statement(before.get(n), a) for n, a in now.items() if before.get(n) != a}
+        before = now
     return out
 
 
@@ -1066,19 +1180,108 @@ def q_changelog_sits_under_the_authors_as_in_freshat():
     # FreshAt's, <i>Changelog</i>, and the rest entries, and TODO comments, for entries in Claude's words; each entry a
     # <p> on its own line, "YYYY-MM-DD: what changed" as in FreshAt, a real date, newest first.
     # Resultata before: no changelog.
+    dates = [d for d, _ in changelog()]
+    assert dates and all(datetime.date.fromisoformat(d).isoformat() == d for d in dates), dates
+    assert dates == sorted(dates, reverse=True), dates
+
+
+def changelog():
+    """The changelog's entries, newest first, as (date, the rest after "date: "), the changelog asserted to be of the
+    form q_changelog_sits_under_the_authors_as_in_freshat holds it to."""
     head = re.search(r'<header>\n(.*?)\n</header>', page(), re.S)
     assert head, 'no header'
     m = re.match(r'  <h1>[^\n]*</h1>\n  <p class="lede">[^\n]*</p>\n(?:  <!--[^\n]*-->\n)*'
                  r'  <details class="changelog">\n    <summary><i>Changelog</i></summary>\n(.*?)\n  </details>\n',
                  head.group(1) + '\n', re.S)
     assert m, head.group(1)[:800]
-    lines = [l.strip() for l in m.group(1).split('\n')]
-    entries = [re.fullmatch(r'<p>(\d{4}-\d{2}-\d{2}): \S.*</p>', l) for l in lines
-               if not (l.startswith('<!-- TODO:') and l.endswith('-->'))]
+    lines = [l.strip() for l in m.group(1).split('\n') if not re.fullmatch(r'\s*<!-- TODO:.*-->', l)]
+    entries = [re.fullmatch(r'<p>(\d{4}-\d{2}-\d{2}): (\S.*)</p>', l) for l in lines]
     assert entries and all(entries), lines
-    dates = [e.group(1) for e in entries]
-    assert all(datetime.date.fromisoformat(d).isoformat() == d for d in dates), dates
-    assert dates == sorted(dates, reverse=True), dates
+    return [e.groups() for e in entries]
+
+
+# A statement of a new result's bounds in a changelog entry (dreeves, 2026-10-26: "yes please", to an entry with each
+# update of the new results, and "can you backfill all the results that are new since the BGPW paper?"), in math, so
+# without a Claude: "…": m*(n) = v, m*(n) ≥ a, m*(n) ≤ b or a ≤ m*(n) ≤ b, n's digits or 2<sup>k</sup>
+STATEMENT = r'<span class="nw">(?:(\d+) ≤ )?<i>m</i><sup>\*</sup>\((\d+|2<sup>\d+</sup>)\) (=|≥|≤) (\d+)</span>'
+
+
+def statements(rest):
+    """{n: (low, high)} for an entry's rest: empty for an entry of his words; for one in math, its statements, joined by
+    ', ' (nothing else), as statement() makes them: m*(n) = v (v, v), m*(n) ≥ a (a, None), m*(n) ≤ b (None, b) and
+    a ≤ m*(n) ≤ b (a, b)."""
+    found = re.findall(STATEMENT, rest)
+    assert not found or re.fullmatch(f'{STATEMENT}(?:, {STATEMENT})*', rest), rest
+    assert all(op == '≤' for lo, _, op, _ in found if lo), rest
+    out = {cell_n(n): (int(lo), int(v)) if lo else {'=': (int(v), int(v)), '≥': (int(v), None), '≤': (None, int(v))}[op]
+           for lo, n, op, v in found}
+    assert len(out) == len(found), rest
+    return out
+
+
+def changelog_by_day():
+    """{date: {n: (low, high)}}: the statements of all the changelog's entries of each day, no n twice in a day."""
+    out = {}
+    for d, rest in changelog():
+        said = statements(rest)
+        assert not set(said) & set(out.get(d, {})), (d, set(said) & set(out[d]))
+        out[d] = out.get(d, {}) | said
+    return out
+
+
+def q_changelog_brings_every_new_result_up_to_date():
+    # Replicata: the changelog's statements, day by day, oldest first, starting from no bounds (0 and inf); and the
+    # block "New results since the paper".
+    # Expectata (dreeves, 2026-10-26: "yes please", to a changelog entry with each update of the new results; and
+    # "can you backfill all the results that are new since the BGPW paper?"): each statement tightens its result's
+    # bounds, raising the low, lowering the high, or both; and together they leave every entry of the block with a
+    # provenance class at its bounds there, and state no other n.
+    # Resultata before: the changelog had no statements, so no entry of the block was up to date.
+    state = {}
+    for d, said in sorted(changelog_by_day().items()):
+        after = fold(state, said)
+        moved = [(n, state.get(n, (0, math.inf)), after[n]) for n in said]
+        assert all(a != b and b[0] <= a[0] <= a[1] <= b[1] for _, b, a in moved), (d, moved)
+        state = after
+    cells = new_cells(page())
+    assert state == cells, sorted(set(state.items()) ^ set(cells.items()))
+
+
+def q_changelog_dates_the_page_s_first_results_by_the_chat():
+    # Replicata: CHAT; the claude.ai chat's exchanges in sourcery.html; the changelog's statements of the days before
+    # the page's first commit (FIRST); and that commit's new results.
+    # Expectata (dreeves, 2026-10-26: "can you backfill all the results that are new since the BGPW paper?", having
+    # dated the chat's first new result by the chat in his own entry): each row of CHAT has its words in its exchange,
+    # whose prompt is of its day; the changelog's days before FIRST's state exactly CHAT's statements, as chat_days()
+    # makes them; and those leave each new result of FIRST at its bounds there.
+    # Resultata before: the changelog had no statements.
+    chat = exchanges()
+    bad = [row[:3] for row in CHAT if row[1] not in chat or chat[row[1]][0] != row[0] or row[2] not in chat[row[1]][1]]
+    assert not bad, bad
+    git = lambda *a: subprocess.run(['git', '-C', HERE, *a], capture_output=True, text=True, check=True).stdout
+    begun = git('log', '-1', '--format=%ad', '--date=format:%Y-%m-%d', FIRST).strip()
+    said, (days, state) = changelog_by_day(), chat_days()
+    wrong = [(d, said.get(d, {}), days.get(d, {})) for d in sorted(set(said) | set(days))
+             if d < begun and said.get(d, {}) != days.get(d, {})]
+    assert not wrong, wrong
+    cells = new_cells(git('show', f'{FIRST}:index.html'))
+    assert {n: state.get(n) for n in cells} == cells, (state, cells)
+
+
+def q_changelog_backfill_matches_the_page_s_history():
+    # Replicata: the changelog's statements by day; and day_changes(): for each day of index.html's commits through
+    # BACKFILL, the new results whose bounds the day changed, the first day's from the bounds the chat had reported
+    # (chat_days).
+    # Expectata (dreeves, 2026-10-26: "can you backfill all the results that are new since the BGPW paper?"): each day
+    # from the page's first to the one before BACKFILL's states exactly its changes, as statement() makes them;
+    # BACKFILL's day states its changes through BACKFILL, and may state later ones of that day.
+    # Resultata before: the changelog had no statements.
+    said, days = changelog_by_day(), day_changes(chat_days()[1])
+    first, last = min(days), max(days)
+    wrong = [(d, said.get(d, {}), days.get(d, {})) for d in sorted(set(said) | set(days))
+             if first <= d < last and said.get(d, {}) != days.get(d, {})]
+    assert not wrong, wrong
+    assert days[last].items() <= said.get(last, {}).items(), (days[last], said.get(last))
 
 
 # The page in an iframe width px wide (Chrome's window is at least 500 px wide), with harness (a script, which may
