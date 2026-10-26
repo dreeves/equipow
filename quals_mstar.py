@@ -210,15 +210,17 @@ def q_norm_formula():
 def q_page_parse():
     # Replicata: mstar.page_sources on index.html as it is.
     # Expectata: Table 2 and the new-results block exactly as hand-copied into mstar.py (TABLE2, NEW, with each new
-    # cell's title), the codes and the sets with their orders; Table 2 has the paper's 39 entries and NEW 62 (17 until
+    # cell's title), the codes and the sets with their orders; Table 2 has the paper's 39 entries and NEW 68 (17 until
     # 2026-10-12, when 2^33, 2^49, 2^57 and 2^67 joined the powers of 2 and every multiple of 16 up to 992 the rest, and
     # then 2^18, 2^41, 2^48, 2^61 and 2^71, once 560 reached order 10; 55 until 2026-10-17, when 2^17, 2^27, 2^34, 2^38,
-    # 2^46, 2^52 and 2^66 joined them, once 800 reached order 11; 63 since 2026-10-20, when 240 joined them, settled
-    # at 10 by the search overnight_v5.py and boxsplit.py made).
+    # 2^46, 2^52 and 2^66 joined them, once 800 reached order 11; 63 from 2026-10-20, when 240 joined them, settled
+    # at 10 by the search overnight_v5.py and boxsplit.py made; 68 since 2026-10-25, when 2^20, 2^30, 2^37, 2^65 and
+    # 2^72 joined them, once 592, 608 and 656 reached order 10 and 848, 880, 896, 928, 944, 976 and 992 order 11).
     src = mstar.page_sources(open(os.path.join(HERE, 'index.html'), encoding='utf-8').read())
     assert src['table2'] == mstar.TABLE2 and len(mstar.TABLE2) == 39
-    assert src['new'] == mstar.NEW and len(mstar.NEW) == 63
-    assert set(who for _, _, who in mstar.NEW.values()) == {'BGPW', 'Claude alone', 'Claude and BGPW', 'Astra alone'}
+    assert src['new'] == mstar.NEW and len(mstar.NEW) == 68
+    assert set(who for _, _, who in mstar.NEW.values()) == {'BGPW', 'Claude alone', 'Claude and BGPW', 'Astra alone',
+                                                             'Claude and Astra'}
     assert [(m, h) for _, m, h in mstar.PAGE_CODES] == [(m, h) for m, h in src['codes']]
     assert sorted((m, n) for m, n, _ in src['sets']) == sorted(mstar.PAGE_SET_KEYS)
 
@@ -298,8 +300,8 @@ def q_schema():
             assert type(why) is list and why and why[0] in forms, (n, why)
             assert tuple(type(x) for x in why[1:]) == forms[why[0]], (n, why)
         assert (lw == ['none']) == (n % 2 == 1) == (hw == ['odd']), (n, c)
-        assert lw[0] != 'page' or lw[1] in ('BGPW', 'Claude alone', 'Claude and BGPW', 'Astra alone'), (n, lw)
-        assert hw[0] != 'page' or hw[1] in ('BGPW', 'Claude alone', 'Claude and BGPW', 'Astra alone'), (n, hw)
+        assert lw[0] != 'page' or lw[1] in ('BGPW', 'Claude alone', 'Claude and BGPW', 'Astra alone', 'Claude and Astra'), (n, lw)
+        assert hw[0] != 'page' or hw[1] in ('BGPW', 'Claude alone', 'Claude and BGPW', 'Astra alone', 'Claude and Astra'), (n, hw)
 
 
 def q_mstar_js_is_current():
@@ -434,14 +436,35 @@ def q_gray_columns():
     # bound mod 3), and less 800, settled at 11 on 2026-10-17 (lo 11 from the page's p800, found by a lattice search;
     # hi by the norm bound mod 3), and less 240, settled at 10 on 2026-10-20 (lo 10 from the paper's Table 5 example; hi
     # by the certified search, overnight_v5.py and then boxsplit.py by 17 and 19, the page's new result), and less
-    # 384, settled at 10 by Astra's exact modular certificate (2026-10-20, proof384.py).
+    # 384, settled at 10 by Astra's exact modular certificate (2026-10-20, proof384.py), and less 592, 608 and 656,
+    # settled at 10, and 848, 880, 896, 928, 944, 976 and 992, settled at 11, on 2026-10-25 (lo from the page's
+    # examples p592 to p992; hi by the norm bound mod 3, or the residue condition mod 3 at 608 and 656).
     _, got = disk()
     gray = tuple(n for n, c in enumerate(got['m']['cols'], 1) if c[0] < c[1])
-    assert gray == tuple(n for n in USER_GRAY if n not in (240, 384, 560, 640, 704, 736, 800)), gray
+    tens, elevens = (592, 608, 656), (848, 880, 896, 928, 944, 976, 992)
+    assert gray == tuple(n for n in USER_GRAY if n not in (240, 384, 560, 640, 704, 736, 800) + tens + elevens), gray
     assert [got['m']['cols'][n - 1][:2] for n in (240, 384, 560, 640, 704, 736, 800)] == [[10, 10]] * 6 + [[11, 11]]
+    assert [got['m']['cols'][n - 1][:3] for n in tens + elevens] == [[10, 10, ['example', f'index.html p{n}']] for n in tens] \
+        + [[11, 11, ['example', f'index.html p{n}']] for n in elevens]
     assert got['m']['cols'][240 - 1][2:] == [['example', 'BGPW Table 5'], ['page', 'Claude alone']]
     assert got['m']['cols'][560 - 1][2] == ['example', 'index.html p560']
     assert got['m']['cols'][800 - 1][2:] == [['example', 'index.html p800'], ['norm', 3]]
+
+
+def q_results_of_2026_10_25():
+    # Replicata (regression): mstar.NEW and mstar.js's columns at the n that 2026-10-25's results changed.
+    # Expectata: 592, 608 and 656 settled at 10 and credited to Claude and Astra; 848, 880, 896, 928, 944, 976 and 992
+    # settled at 11, Claude alone; each lo from its example on the page (["example", "index.html p" + n]); 752 at 9 to
+    # 10, Claude and Astra, its hi the page's (proof752.py), ["page", "Claude and Astra"]; 832's lo now the join 240 +
+    # 592, which ties the doubling 2 x 416 and comes first; 288 still Table 2's 9 to 10.
+    _, got = disk()
+    cs = got['m']['cols']
+    for n in (592, 608, 656): assert mstar.NEW[n] == (10, 10, 'Claude and Astra') and cs[n - 1][2] == ['example', f'index.html p{n}'], n
+    for n in (848, 880, 896, 928, 944, 976, 992):
+        assert mstar.NEW[n] == (11, 11, 'Claude alone') and cs[n - 1][2] == ['example', f'index.html p{n}'], n
+    assert mstar.NEW[752] == (9, 10, 'Claude and Astra') and cs[752 - 1] == [9, 10, ['join', 192, 560], ['page', 'Claude and Astra']]
+    assert cs[832 - 1][:3] == [10, 11, ['join', 240, 592]], cs[832 - 1]
+    assert 288 not in mstar.NEW and cs[288 - 1][:2] == [9, 10] and cs[288 - 1][3] == ['table2'], cs[288 - 1]
 
 
 # ---------- residue tests ----------

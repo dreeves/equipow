@@ -142,21 +142,24 @@ def q_lo_at_least_thue_morse_and_f_powers():
 
 def q_new_lower_bounds():
     # Replicata (regression): pow2.js's lo - k, the excess known at 2^k, for k = 1..72, and the kind of its loWhy.
-    # Expectata: 0 by Thue-Morse for k <= 16; 1 for 17..26 (joins from pow2.BASES[17] up to 23, then f # tau_j, which
-    # ties them and comes first); 2 by joins for 27..33 (BASES[27]); 3 for 34..37 (BASES[34]); 4 for 38..45
-    # (BASES[38]); 5 for 46..51 (BASES[46]); 6 for 52..56 (BASES[52]); 7 for 57..65 (BASES[57]); 8 for 66..72
-    # (BASES[66]).  The bases are at 2^17 order 18, 2^27 order 29, 2^34 order 37, 2^38 order 42, 2^46 order 51, 2^52
-    # order 58, 2^57 order 64 and 2^66 order 74, each lifted by tau_(k - K0) above.  (Before 2026-10-17's example of order 11 at 800: 0 below 18, 1 from 18, 2 from 33, 3 from
+    # Expectata: 0 by Thue-Morse for k <= 16; 1 for 17..19 (joins from pow2.BASES[17]); 2 for 20..29 (BASES[20], which
+    # beats f # tau_j at 24..26); 3 for 30..36 (BASES[30]); 4 for 37..45 (BASES[37]); 5 for 46..48 (BASES[46]); 6 for
+    # 49..56 (BASES[49]); 7 for 57..64 (BASES[57]); 8 for 65..71 (BASES[65]); 9 at 72 (BASES[72]); every lo above
+    # Thue-Morse's a join.  The bases are at 2^17 order 18, 2^20 order 22, 2^30 order 33, 2^37 order 41, 2^46 order 51,
+    # 2^49 order 55, 2^57 order 64, 2^65 order 73 and 2^72 order 81, each lifted by tau_(k - K0) above.  (Before
+    # 2026-10-25's examples of order 10 at 592, 608 and 656 and of order 11 at 848, 880, 896, 928, 944, 976 and 992: 1
+    # for 17..26, f # tau_j giving it at 24..26, 2 from 27, 3 from 34, 4 from 38, 6 from 52, 8 from 66 and no 9; before
+    # 2026-10-17's example of order 11 at 800: 0 below 18, 1 from 18, 2 from 33, 3 from
     # 41, 4 from 48, 5 from 61 and 6 from 71; before 2026-10-12's of order 10 at 560: 1 from 24 by f, 2 from 33, 3 from
     # 49, 4 from 57 and 5 from 67.)
-    want = {k: 0 if k < 17 else 1 if k < 27 else 2 if k < 34 else 3 if k < 38 else 4 if k < 46 else 5 if k < 52 else 6
-            if k < 57 else 7 if k < 66 else 8 for k in range(1, KMAX + 1)}
-    kind = {k: 'thue-morse' if k < 17 else 'power' if 24 <= k < 27 else 'joins' for k in range(1, KMAX + 1)}
+    want = {k: 0 if k < 17 else 1 if k < 20 else 2 if k < 30 else 3 if k < 37 else 4 if k < 46 else 5 if k < 49 else 6
+            if k < 57 else 7 if k < 65 else 8 if k < 72 else 9 for k in range(1, KMAX + 1)}
+    kind = {k: 'thue-morse' if k < 17 else 'joins' for k in range(1, KMAX + 1)}
     for k, (lo, hi, lw, hw) in enumerate(cols(), 1): assert (lo - k, lw[0]) == (want[k], kind[k]), (k, lo, lw[0])
     orders = {K0: pow2.join_lo(K0, ps) for K0, ps in pow2.BASES.items()}
-    assert orders == {17: 18, 27: 29, 34: 37, 38: 42, 46: 51, 52: 58, 57: 64, 66: 74}, orders
-    pairs = ((17, 17), (23, 17), (27, 27), (33, 27), (34, 34), (37, 34), (38, 38), (45, 38), (46, 46), (51, 46), (52, 52),
-             (56, 52), (57, 57), (65, 57), (66, 66), (72, 66))
+    assert orders == {17: 18, 20: 22, 30: 33, 37: 41, 46: 51, 49: 55, 57: 64, 65: 73, 72: 81}, orders
+    pairs = ((17, 17), (19, 17), (20, 20), (29, 20), (30, 30), (36, 30), (37, 37), (45, 37), (46, 46), (48, 46), (49, 49),
+             (56, 49), (57, 57), (64, 57), (65, 65), (71, 65), (72, 72))
     assert [cols()[k - 1][2][1] == pow2.lifted(pow2.BASES[K0], k - K0) for k, K0 in pairs] == [True] * len(pairs)
 
 

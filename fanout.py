@@ -158,9 +158,7 @@ def init(prepared, budget, deep):
 def lp_for(case):
     """The worker's LP for a case, made once."""
     (equations, cases), _, _ = WORK
-    lp = certbb.Lp(equations, tuple(M for M, _ in cases[case]))
-    lp.set_counts(cases[case])
-    return lp
+    return focus.case_lp(equations, cases[case])
 
 
 def work(job):
@@ -214,8 +212,7 @@ def probe(prepared, case, paths):
     assert type(paths) is int and paths >= 2
     equations, cases = prepared
     choice = cases[case]
-    lp = certbb.Lp(equations, tuple(M for M, _ in choice))
-    lp.set_counts(choice)
+    lp = focus.case_lp(equations, choice)
     focus.step(lp, equations, choice, *box(equations.N, ()))       # the root's solve, from a fresh LP, as focus.py's
     rng, root = random.Random(case), lp.H.getBasis()
     leaves = [dive(lp, equations, choice, root, rng) for _ in range(paths)]
@@ -391,10 +388,11 @@ def run(run_dir, focus_journal, work_dir, journal, n, m):
 
 
 def main():
-    # TODO: error copy; says how to run fanout: with the length of a stopped focus.py run, 480 or 672
-    assert len(sys.argv) == 2 and sys.argv[1] in ('480', '672'), 'Claude: "usage: python3 -B fanout.py 480|672"'
+    # TODO: error copy; says how to run fanout: with the length of a stopped focus.py run, 432, 480 or 672
+    assert len(sys.argv) == 2 and sys.argv[1] in ('432', '480', '672'), \
+        'Claude: "usage: python3 -B fanout.py 432|480|672"'
     n = int(sys.argv[1])
-    m = {480: 14, 672: 13}[n]
+    m = {432: 12, 480: 14, 672: 13}[n]
     signal.signal(signal.SIGTERM, stop)
     outcome = run(Path(f'scratch/focus{n}/run'), Path(f'focus_{n}_journal.jsonl'), Path(f'scratch/fanout{n}'),
                   Path(f'fanout_{n}_journal.jsonl'), n, m)

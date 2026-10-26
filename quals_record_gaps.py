@@ -21,7 +21,7 @@ WL = os.path.join(HERE, 'record_gaps.wl')
 WL_URL = 'https://raw.githubusercontent.com/dreeves/equipow/main/record_gaps.wl'
 POW2_JS = os.path.join(HERE, 'pow2.js')
 HEADER = list(qi.STAN_WORDS)                                   # Stan Wagon's, byte for byte
-THEOREM_KS = [17, 27, 34, 38, 46, 52, 57, 66]                  # Theorem 1's alternative form on index.html
+THEOREM_KS = [17, 20, 30, 37, 46, 49, 57, 65, 72]              # Theorem 1's alternative form on index.html
 # Stan Wagon's two rows (his table of 2026-10-18), one product per line (dreeves, 2026-10-18), as text: a superscript
 # a^b, SpanFromAbove where the first column's cell spans the lines below it
 STAN_ROWS = [['m^*(2^17) ≥ 18', '112·800', '7 + 11 = 18'],
@@ -112,7 +112,8 @@ def q_wl_records_are_pow2_s():
     # Replicata: the records list in record_gaps.wl, read as text; pow2.js's record gaps (records()).
     # Expectata: the same list, record for record and block for block: for each record gap g, its least k and the
     # join of products that pow2.py found there, the products and their blocks in pow2.js's order; and their k are
-    # Theorem 1's (17, 27, 34, 38, 46, 52, 57, 66).
+    # Theorem 1's (17, 20, 30, 37, 46, 49, 57, 65, 72; 17, 27, 34, 38, 46, 52, 57, 66 until it changed with them on
+    # 2026-10-25, dreeves, 2026-10-25: "yes please").
     src = open(WL, encoding='utf-8').read()
     m = re.search(r'^records = (\{.*?\});$', src, re.S | re.M)
     assert m, 'no records = {...}; line'
@@ -123,14 +124,16 @@ def q_wl_records_are_pow2_s():
 
 def q_wl_returns_the_table():
     # Replicata: Get["record_gaps.wl"] in wolframscript; its result's rows as text (TEXT) and its options.
-    # Expectata: a Grid whose first row is Stan Wagon's header (HEADER), then rows() exactly: Stan Wagon's two rows
-    # (STAN_ROWS) first, then the other six record gaps', one product per line; with Stan Wagon's options (BaseStyle
+    # Expectata: a Grid whose first row is Stan Wagon's header (HEADER), then rows() exactly: Stan Wagon's first row
+    # (STAN_ROWS' first two lines, 2^17's, a record gap still; his second, 2^27's, was one until 2^20 took it on
+    # 2026-10-25, dreeves, 2026-10-25: "yes please") first, then the other eight record gaps', one product per line;
+    # with Stan Wagon's options (BaseStyle
     # Times 14, Background RGBColor[1, 1, .8], Spacings {2, 1}), every vertical divider, and horizontal dividers only
     # above and below the header and below each record gap's last line; columns centered, left, left.
     out, _ = run(TABLE)
     assert out['head'] == 'Grid', out['head']
     assert out['rows'][0] == HEADER and out['rows'][1:] == rows(), (out['rows'][:3], rows()[:3])
-    assert out['rows'][1:6] == STAN_ROWS, out['rows'][1:6]
+    assert out['rows'][1:3] == STAN_ROWS[:2], out['rows'][1:3]
     ends = list(itertools.accumulate(len(ps) for _, ps in records()))
     want = {'Dividers': '{All, {' + ', '.join(f'{i} -> True' for i in [1, 2] + [2 + e for e in ends]) + '}}',
             'Alignment': '{{Center, Left, Left}, Baseline}',
@@ -140,15 +143,16 @@ def q_wl_returns_the_table():
 
 def q_wl_stops_on_a_wrong_row():
     # Replicata: copies of record_gaps.wl with one datum wrong: 2^17's first product 112·801 in place of 112·800 (its
-    # lengths no longer sum to 2^17), and 2^27's last block {480, 11} in place of {480, 12} (its least order 28 < 29).
+    # lengths no longer sum to 2^17), and 2^20's block {992, 10} in place of {992, 11} (its least order 21 < 22; until
+    # 2026-10-25, 2^27's last block {480, 11} for {480, 12}, when 2^20 took 2^27's record gap, dreeves, 2026-10-25: "yes please").
     # Expectata: each prints its error line naming the row and returns no table (it aborts).
     src = open(WL, encoding='utf-8').read()
     d = tempfile.mkdtemp(prefix='record-gaps-quals-')
     try:
         for old, new, says in (('{17, {{{112, 7}, {800, 11}}', '{17, {{{112, 7}, {801, 11}}',
                                 "the products' lengths in the row of 2^17 do not sum to 2^17"),
-                               ('{432, 11}, {480, 12}}}}', '{432, 11}, {480, 11}}}}',
-                                'the least order in the row of 2^27 is 28, not 29')):
+                               ('{{848, 11}, {992, 11}}', '{{848, 11}, {992, 10}}',
+                                'the least order in the row of 2^20 is 21, not 22')):
             assert src.count(old) == 1, old
             path = os.path.join(d, f'wrong{len(says)}.wl')
             open(path, 'w', encoding='utf-8').write(src.replace(old, new))

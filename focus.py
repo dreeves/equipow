@@ -70,19 +70,20 @@ def prime_prepare(n, m):
 
 def prepare(n, m):
     """Complete case reductions, checked before the first search node."""
+    from focus432 import prepare as prepare432
     from focus480 import prepare as prepare480
     from focus672 import prepare as prepare672
-    assert (n, m) in ((480, 14), (672, 13))
-    return {480: prepare480, 672: prepare672}[n]()
+    assert (n, m) in ((432, 12), (480, 14), (672, 13))
+    return {432: prepare432, 480: prepare480, 672: prepare672}[n]()
 
 
 def fingerprint():
     """Only proof-generation/checking sources enter the continuation identity."""
     root = Path(__file__).resolve().parent
     return hashlib.sha256(b''.join((root / name).read_bytes()
-                                  for name in ('focus.py', 'focus480.py', 'focus672.py',
-                                               'focus480_certificates.json.gz', 'certbb.py',
-                                               'mstar.py', 'overnight_v5.py'))).hexdigest()
+                                  for name in ('focus.py', 'focus432.py', 'focus480.py', 'focus672.py',
+                                               'focus432_certificates.json.gz', 'focus480_certificates.json.gz',
+                                               'certbb.py', 'mstar.py', 'overnight_v5.py'))).hexdigest()
 
 
 class State:
@@ -182,6 +183,19 @@ def commit(directory, state, records, code):
     state.chunks += 1
 
 
+def case_lp(equations, choice):
+    """The LP that proposes a case's tokens, focus.search's and fanout.py's: certbb.Lp with the case's counts, and
+    HiGHS's output flag on with its log going nowhere (the 'a2' variant, approved 2026-10-25 with the 432:12 run).
+    HiGHS 1.12.0, as SciPy 1.17.1 bundles it, perturbs the costs of an all-zero objective only when output_flag is on
+    (fixed upstream in PR #3226, unreleased), and unperturbed dual simplex can stall at its iteration limit
+    (scratch/ideas-20261025/verify.txt, critic-6).  Only the proposals change: every token is still checked exactly."""
+    lp = certbb.Lp(equations, tuple(M for M, _ in choice))
+    lp.set_counts(choice)
+    for option, value in (('log_to_console', False), ('output_flag', True)):
+        assert lp.H.setOptionValue(option, value) == certbb.highs.HighsStatus.kOk
+    return lp
+
+
 def step(lp, equations, choice, lo, hi):
     """One numerical solve proposes a token; exact arithmetic decides its meaning."""
     rows = certbb.node_rows(equations, choice)
@@ -244,8 +258,7 @@ def search(directory, journal, n, m, lp_budget=10 ** 6, seconds=3600):
             if state.case != current:
                 current = state.case
                 choice = cases[current]
-                lp = certbb.Lp(equations, tuple(M for M, _ in choice))
-                lp.set_counts(choice)
+                lp = case_lp(equations, choice)
             record = dict(case=current, token=step(lp, equations, choice, *state.box()))
             state.feed(record)
             records.append(record)
@@ -263,11 +276,11 @@ def search(directory, journal, n, m, lp_budget=10 ** 6, seconds=3600):
 def main():
     # TODO: command help; bounded, resumable searches with exact proof checks.
     parser = argparse.ArgumentParser(description='Quaestiones finitae, resumendae, probationibus exactis.')
-    parser.add_argument('n', type=int, choices=(480, 672))
+    parser.add_argument('n', type=int, choices=(432, 480, 672))
     parser.add_argument('--lp-budget', type=int, default=10 ** 6)
     parser.add_argument('--seconds', type=float, default=3600)
     args = parser.parse_args()
-    m = {480: 14, 672: 13}[args.n]
+    m = {432: 12, 480: 14, 672: 13}[args.n]
     outcome = search(Path(f'scratch/focus{args.n}/run'), Path(f'focus_{args.n}_journal.jsonl'),
                      args.n, m, args.lp_budget, args.seconds)
     print(json.dumps(dict(n=args.n, order=m, outcome=outcome)), flush=True)
