@@ -1,4 +1,5 @@
-"""Quals for reflection reuse, resumable splicing, and sibling LP warm starts."""
+"""Quals for reflection reuse, restartable assembly (resumable splicing before tree-only storage, 2026-10-25), and
+sibling LP warm starts."""
 import json
 from pathlib import Path
 import tempfile
@@ -9,6 +10,7 @@ import certbb
 import fanout
 import focus
 import reflection
+import reprove
 from quals_fanout import events, finish, stopped
 
 
@@ -18,45 +20,75 @@ def paired():
     return equations, (source, reflection.choice(equations, source))
 
 
+def whole(run, work, case):
+    """case's whole tree in depth-first order, as the splice once streamed its tokens: the run's chunks' tokens of case,
+    each L's certificate dropped, then the trees of its roots' jobs, last root first, a job's tree before its open
+    boxes' jobs, last first."""
+    records = [r for p in sorted(Path(run).glob('chunk-*.json.gz')) for r in fanout.read(p)['records']]
+    tree = [['B', r['token'][1]] if r['token'][0] == 'B' else ['L'] for r in records if r['case'] == case]
+    todo = [b for b in fanout.roots(run, work, focus.fingerprint()) if b[0] == case]
+    while todo:
+        data = fanout.read(Path(work, 'jobs', f'{fanout.jid(todo.pop())}.json.gz'))
+        tree += data['tree']
+        todo += [fanout.key(case, p) for p in data['open']]
+    return tree
+
+
 class FanoutSpeedQuals(unittest.TestCase):
-    def test_only_one_reflected_case_is_searched_and_both_are_checked(self):
-        # Replicata: two reflected impossible cases, stopped after one LP.
-        # Expectata: only case 0 uses workers; its proof reflected closes case 1.
-        # Resultata before the change: both equivalent cases use workers.
+    def test_only_one_reflected_case_is_searched_and_both_are_closed(self):
+        # Replicata: two reflected impossible cases, stopped after one LP; then case 0's whole tree, reflected (each
+        # B position p made 19 - p), reproven from scratch on case 1's own LP by reprove.walk.
+        # Expectata: only case 0 uses workers, and assembly walks only case 0's jobs, case 1 closing with case 0
+        # (reversal maps case 1's solutions onto case 0's, reflection.mapping checking the rows exactly); excluded;
+        # and the reflected tree a complete tree on case 1's box, every leaf of it proven by an exact certificate.
+        # Resultata before the change: both equivalent cases use workers.  Before tree-only storage (2026-10-25,
+        # this qual then named test_only_one_reflected_case_is_searched_and_both_are_checked): case 0's proof,
+        # reflected token by token, was spliced and replayed as case 1's.
         with tempfile.TemporaryDirectory() as tmp:
             prepared = paired()
             run, journal = stopped(tmp, prepared, 20, 5, 1)
-            with patch.object(fanout, 'CHUNK', 2):
-                outcome, work, own = finish(tmp, run, journal, prepared, 20, 5)
+            outcome, work, own = finish(tmp, run, journal, prepared, 20, 5)
             self.assertEqual(outcome, 'excluded')
             self.assertEqual({e['case'] for e in events(own) if e['event'] == 'job_start'}, {0})
-            records = [r for p in sorted(run.glob('chunk-*.json.gz')) for r in fanout.read(p)['records']]
-            proofs = [[tuple(r['token']) for r in records if r['case'] == c] for c in (0, 1)]
-            self.assertEqual(proofs[1], [reflection.token(prepared[0], prepared[1][0], t) for t in proofs[0]])
-            replayed = focus.replay(run, *prepared, focus.fingerprint())
-            self.assertEqual((replayed.completed, replayed.frontier), ([0, 1], []))
+            code = focus.fingerprint()
+            roots = fanout.roots(run, work, code)
+            self.assertIn((1, ()), roots)
+            walked = fanout.assemble(run, work, own, prepared, code, roots, fanout.finished(work))
+            self.assertEqual({case for case, _ in walked}, {0})
+            reflected = [['B', 19 - t[1]] if t[0] == 'B' else t for t in whole(run, work, 0)]
+            self.assertEqual(fanout.frontier(20, [], reflected), [])
+            reprove.init(prepared)
+            proof = reprove.walk((1, ()), reflected)
+            self.assertEqual((proof['nodes'], proof['leaves']), (len(reflected), reflected.count(['L'])))
 
-    def test_a_partial_splice_resumes_without_repeating_finished_jobs(self):
-        # Replicata: interruption immediately after a durable splice chunk.
-        # Expectata: resume checks that prefix, then appends its remaining proof.
-        # Resultata before the change: the original-frontier assertion fails.
+    def test_an_interrupted_assembly_starts_no_job_again(self):
+        # Replicata: fanout on two reflected impossible cases, stopped after one LP, interrupted inside its assembly
+        # (fanout.frontier raising on its third call), then run again.
+        # Expectata: excluded, the second session starting no job: assembly writes nothing, so a restart simply
+        # assembles again from the job files, all kept; one finish, after the second session.
+        # Resultata before tree-only storage (2026-10-25, this qual then named
+        # test_a_partial_splice_resumes_without_repeating_finished_jobs): the splice committed chunks, and a restart
+        # replayed and compared those before appending the rest.
         with tempfile.TemporaryDirectory() as tmp:
             prepared = paired()
             run, journal = stopped(tmp, prepared, 20, 5, 1)
-            real_commit = focus.commit
+            real_frontier, calls = fanout.frontier, []
             def interrupted(*args):
-                real_commit(*args)
-                raise KeyboardInterrupt
-            with patch.object(fanout, 'CHUNK', 2), patch.object(focus, 'commit', interrupted):
-                with self.assertRaises(KeyboardInterrupt):
-                    finish(tmp, run, journal, prepared, 20, 5)
+                calls.append(1)
+                if len(calls) == 3: raise KeyboardInterrupt
+                return real_frontier(*args)
+            with patch.object(fanout, 'frontier', interrupted), self.assertRaises(KeyboardInterrupt):
+                finish(tmp, run, journal, prepared, 20, 5)
             own = Path(tmp, 'fanout.jsonl')
             before = [e for e in events(own) if e['event'] == 'job_start']
-            with patch.object(fanout, 'CHUNK', 2):
-                outcome, _, own = finish(tmp, run, journal, prepared, 20, 5)
+            self.assertTrue(before)
+            self.assertNotIn('finish', [e['event'] for e in events(own)])
+            outcome, _, own = finish(tmp, run, journal, prepared, 20, 5)
             self.assertEqual(outcome, 'excluded')
-            self.assertEqual(before, [e for e in events(own) if e['event'] == 'job_start'])
-            self.assertEqual(focus.replay(run, *prepared, focus.fingerprint()).completed, [0, 1])
+            log = events(own)
+            self.assertEqual(before, [e for e in log if e['event'] == 'job_start'])
+            self.assertEqual([e['event'] for e in log].count('finish'), 1)
+            self.assertEqual([e['event'] for e in log][-1], 'finish')
 
     def test_partial_target_is_not_replaced(self):
         # Replicata: the reflected target has already been partly spliced.
@@ -82,33 +114,34 @@ class FanoutSpeedQuals(unittest.TestCase):
         with self.assertRaises(AssertionError):
             fanout.reflections((equations, cases + cases[:1]), [(2, ()), (1, ()), (0, ())])
 
-    def test_restart_inside_reflection_and_after_its_final_commit(self):
-        # Replicata: interruption after a reflected chunk, or its final excluded chunk.
-        # Expectata: exact replay completes; a finished splice appends no extra chunks.
-        for terminal in (False, True):
-            with self.subTest(terminal=terminal), tempfile.TemporaryDirectory() as tmp:
-                prepared = paired()
-                run, journal = stopped(tmp, prepared, 20, 5, 1)
-                real_commit = focus.commit
-                def interrupted(directory, state, records, code):
-                    real_commit(directory, state, records, code)
-                    during = state.case == 1 and any(r['case'] == 1 for r in records)
-                    if (state.outcome == 'excluded') if terminal else during:
-                        raise KeyboardInterrupt
-                with patch.object(fanout, 'CHUNK', 2), patch.object(focus, 'commit', interrupted):
-                    with self.assertRaises(KeyboardInterrupt):
-                        finish(tmp, run, journal, prepared, 20, 5)
-                before = len(list(run.glob('chunk-*.json.gz')))
-                with patch.object(fanout, 'CHUNK', 2):
-                    outcome, _, _ = finish(tmp, run, journal, prepared, 20, 5)
-                self.assertEqual(outcome, 'excluded')
-                self.assertEqual(focus.replay(run, *prepared, focus.fingerprint()).completed, [0, 1])
-                if terminal:
-                    self.assertEqual(len(list(run.glob('chunk-*.json.gz'))), before)
+    def test_fanout_writes_none_of_the_run_s_chunks(self):
+        # Replicata: two reflected impossible cases stopped after one LP, the bytes of the run's chunks recorded; fanout
+        # to its finish; then its assembly once more.
+        # Expectata: excluded; the run's chunks byte for byte as they were, none added, and their replay still ending
+        # at fanout's roots; assembly again walking the same jobs.
+        # Resultata before tree-only storage (2026-10-25, this qual then named
+        # test_restart_inside_reflection_and_after_its_final_commit): the splice appended chunks, and a restart inside
+        # its reflected part, or after its final commit, had to replay them exactly.
+        with tempfile.TemporaryDirectory() as tmp:
+            prepared = paired()
+            run, journal = stopped(tmp, prepared, 20, 5, 1)
+            chunks = {p.name: p.read_bytes() for p in run.glob('chunk-*.json.gz')}
+            outcome, work, own = finish(tmp, run, journal, prepared, 20, 5)
+            self.assertEqual(outcome, 'excluded')
+            self.assertEqual({p.name: p.read_bytes() for p in run.glob('chunk-*.json.gz')}, chunks)
+            code = focus.fingerprint()
+            roots = fanout.roots(run, work, code)
+            self.assertEqual([fanout.key(*b) for b in focus.replay(run, *prepared, code).frontier], roots)
+            walked = [fanout.assemble(run, work, own, prepared, code, roots, fanout.finished(work)) for _ in range(2)]
+            self.assertEqual(walked[0], walked[1])
+            self.assertEqual(sorted(map(fanout.jid, walked[0])),
+                             sorted(e['job'] for e in events(own) if e['event'] == 'job_end'))
 
     def test_workers_restore_a_parent_basis_and_still_prove_the_box(self):
         # Replicata: depth-first search of the impossible length-20 order-5 box.
-        # Expectata: returning to siblings restores saved parent LP bases.
+        # Expectata: returning to siblings restores saved parent LP bases; the job's tree a complete tree on the box,
+        # every leaf of it proven again from scratch by reprove.walk (before tree-only storage, 2026-10-25:
+        # certbb.verify of the job's tokens, which no longer leave the worker).
         # Resultata before the change: every sibling inherits its last descendant's basis.
         prepared = focus.moments(20, 5), ((),)
         fanout.lp_for.cache_clear()
@@ -119,7 +152,9 @@ class FanoutSpeedQuals(unittest.TestCase):
         result = fanout.work((0, ()))
         self.assertIsNone(result['witness'])
         self.assertEqual(result['open'], [])
-        certbb.verify(prepared[0], (), result['tokens'])
+        self.assertEqual(fanout.frontier(20, [], result['tree']), [])
+        reprove.init(prepared)
+        self.assertEqual(reprove.walk((0, ()), result['tree'])['leaves'], result['tree'].count(['L']))
         self.assertGreater(lp.H.setBasis.call_count, 0)
         fanout.lp_for.cache_clear()
 

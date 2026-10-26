@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""Claude's fanout (named 2026-10-23, dreeves: "ok"): finishes a stopped focus.py run with WORKERS processes, and
-splices the proof back into the run as focus.py's own chunks, so that focus.py, unchanged, replays and checks all of it.
+"""Claude's fanout (named 2026-10-23, dreeves: "ok"): finishes a stopped focus.py run with WORKERS processes, each
+checking every certificate exactly as it makes it, keeps only the proof's tree (2026-10-25, dreeves: "for 432:12, that
+sounds fine to store less"), and fits the jobs' trees together by assembly before its finish.
 Run from this directory, with focus.py's run of N stopped (its lock is taken here, so fanout refuses a live run):
 
     PYTHONPATH=scratch/lower24-design/beyond1000/pylib /opt/homebrew/bin/python3 -B fanout.py N
@@ -13,14 +14,30 @@ Vocabulary (with focus.py's):
             then on while its next open box lies more than DEEP levels below its own, up to HARD budgets in all: so it
             hands back at most DEEP boxes, the shallow ones, unless it reached HARD budgets (2026-10-23: handing back
             the whole depth-first path, 109 jobs at 672 had left 6,952 open, most of them tiny).  The result is its
-            tokens and the boxes still open, in the order focus.State would pop them, which become jobs.  A job's file under jobs/ is the durable record that it is done; a restart reruns no job
+            tree and the boxes still open, in the order focus.State would pop them, which become jobs.  A job's file under jobs/ is the durable record that it is done; a restart reruns no job
             with a file.  Jobs run shallowest first: the biggest boxes are split soonest.
-  splice    the last step: focus.replay of the run (whose open boxes must still be the roots), then every job's tokens,
-            fed through focus.State in the order a sequential search would have made them (a job's tokens, then its
-            open boxes' jobs, last first), committed with focus.commit.  Then focus.search itself, unchanged, replays
-            the whole run from disk, finds it excluded and writes its finish to focus.py's journal.
+  tree      a job's proof as its file keeps it (version 2, 2026-10-25): its tokens in depth-first order, each L token's
+            certificate dropped once certbb.Check has passed it, so ['B', p], ['L'] or ['W', x]; and tree_sha256, the
+            sha256 of the tree's compact JSON, made by the worker and kept in the job's file and its job_end.  At
+            432:12 a job's gzipped file took 0.74 bytes a node at 10,000 nodes and 0.93 at 4,000, against 292 to 295
+            with the certificates (quals_fanout_tree, scratch/record-20261025/launch432/treeonly).  A job file of
+            version 1, with them, as 672:13's are, is refused, not read.
+  assembly  the last step, once no job is left, in place of the splice of certificates into focus.py's chunks
+            before 2026-10-25: focus.replay of the run, whose chunks keep their certificates (checked again) and must
+            still end at the roots; then three checks of shape alone: (1) each job's tree, read on its box, splits
+            only positions free there and leaves open exactly the boxes the job handed back (frontier); (2) the walk
+            from each root through the jobs of the boxes left open reaches every job file, once, so the jobs' boxes
+            and the run's closed ones tile the box of each case but a reflected one exactly; (3) every job_end in the
+            journal has its job's file, with its tree_sha256 (a job's file may lack its job_end, its driver stopped
+            between the two).  Then the finish, in fanout's journal: focus.py's chunks and journal stay as the
+            stopped run left them.
+  trust     so an exclusion rests on focus.replay of the run's chunks, on certbb.Check passing each job's
+            certificates on the job's box as its worker made them (once: no file keeps them), and on assembly.  A
+            reflected case (see reflections) closes with its source: reversing positions maps its solutions onto its
+            source's, the rows checked exactly by reflection.mapping.  reprove.py rechecks a finished run's trees from
+            scratch, on demand, solving every leaf's LP again for a certificate; the run never calls it.
   witness   a job's W token: an exact 0/1 solution of its case's equations, so an example of the order.  It ends the
-            fanout at once; it needs no splice, being its own certificate.
+            fanout at once; it needs no assembly, being its own certificate.
   probe     of a case with LP work to do (a job not done), made by the driver at each session's start, before any job,
             and journaled for the progress section's ETA (2026-10-25: random dives put 672:13's tree at >= 1e13 LP
             solves while the page said 17 h to go): PROBE_PATHS random paths from the case's root down to a leaf (Knuth
@@ -35,9 +52,8 @@ Vocabulary (with focus.py's):
             distinct token pairs, against 1 on quiet options, and the probe means moved by sd 0.14 (B) and 0.25 (A)
             levels across HiGHS seeds 0 to 3, against se 0.23 to 0.25 (scratch/record-20261025/f432/review, history.py
             and repro.jsonl).  A path's leaf depth D, its B tokens, is the depth of the leaf holding a uniformly random
-            point of the case's
-            box, so the tree has E[2^(D+1)] - 1 nodes (on case_lp's option, in expectation over HiGHS's draws), one LP
-            solve each, and by Jensen's inequality at least 2^(E[D]+1) - 1.
+            point of the case's box, so the tree has E[2^(D+1)] - 1 nodes (on case_lp's option, in expectation over
+            HiGHS's draws), one LP solve each, and by Jensen's inequality at least 2^(E[D]+1) - 1.
             Its record gives the paths, their depths' mean and standard error (se), least, and witnesses: the distinct
             exact solutions (W tokens) its paths ended at.  These do not end the fanout: the jobs' search, being
             complete, must find one too, if perhaps much later (ending it at a probe's would leave 16:4's eight-worker
@@ -72,7 +88,7 @@ WORKERS = 8                            # processes proving jobs (principle 4's s
 BUDGET = 20000                         # LP solves a job takes before it may hand back what it left open: ~2 min at 672
 DEEP = 8                               # levels below a job's box that it finishes itself past its budget
 HARD = 4                               # budgets a job may take in all
-CHUNK = 20000                          # records per focus.py chunk the splice commits
+FIELDS = {'version', 'case', 'path', 'root', 'tree', 'tree_sha256', 'open', 'seconds', 'witness'}   # a job file's keys
 PROBE_PATHS = 300                      # paths per probe: at 672, 43 levels deep, 13,221 LP solves in 26 CPU s, per case
 Z = 1.645                              # the standard normal's 95th percentile: least's confidence, one-sided
 
@@ -133,16 +149,40 @@ def roots(run_dir, work_dir, code):
     return [key(*b) for b in taken(run_dir, work_dir, code)['frontier']]
 
 
+def digest(tree):
+    """A tree's tree_sha256 (see 'tree'): the sha256 of its compact JSON."""
+    return hashlib.sha256(json.dumps(tree, separators=(',', ':')).encode()).hexdigest()
+
+
 def save(work_dir, job, root, result):
-    """A done job's file: its box, its root's index, its tokens, its open boxes, its seconds and any witness."""
+    """A done job's file, version 2: its box, its root's index, its tree and tree_sha256, its open boxes, its seconds
+    and any witness."""
     write_atomic(work_dir / 'jobs' / f'{jid(job)}.json.gz',
-                 dict(version=1, case=job[0], path=[list(p) for p in job[1]], root=root, **result))
+                 dict(version=2, case=job[0], path=[list(p) for p in job[1]], root=root, **result))
+
+
+def load(path):
+    """A done job's file, read and checked: version 2 with FIELDS, named for its box, its tree its tree_sha256's."""
+    # TODO: error copy; says a job file that assembly needs is not there, naming it
+    assert path.exists(), f'Claude: "no job file {path.name}"'
+    data = read(path)
+    # TODO: error copy; says a job file is not a tree-only one (version 2), so fanout refuses to read it, naming it
+    assert data['version'] == 2 and set(data) == FIELDS, f'Claude: "{path.name} is not a tree-only job file"'
+    assert path.name == f'{jid(key(data["case"], data["path"]))}.json.gz', path
+    # TODO: error copy; says a job file's tree is not the one its own tree_sha256 names, naming the file
+    assert digest(data['tree']) == data['tree_sha256'], f'Claude: "the tree of {path.name} fails its sha256"'
+    return data
 
 
 def brief(entry):
-    """What the driver keeps of a done job: its open boxes, witness and root, not its tokens (tens of megabytes at
-    672; the splice reads them back from the job's file)."""
+    """What the driver keeps of a done job: its open boxes, witness and root, not its tree (its tokens, before
+    tree-only files, were tens of megabytes at 672; assembly reads each tree back from its job's file)."""
     return {k: entry[k] for k in ('open', 'witness', 'root')}
+
+
+def finished(work_dir):
+    """brief of each done job, by id, from the job files, each checked by load."""
+    return {f.name.split('.')[0]: brief(load(f)) for f in sorted((Path(work_dir) / 'jobs').glob('*.json.gz'))}
 
 
 def note(journal, event, **fields):
@@ -170,29 +210,31 @@ def lp_for(case):
 
 
 def work(job):
-    """Runs the job (see the vocabulary): its tokens, its open boxes' paths, its seconds and any witness."""
+    """Runs the job (see the vocabulary): its tree and tree_sha256, its open boxes' paths, its seconds and any
+    witness."""
     (equations, cases), budget, deep = WORK
     case, path = job
     choice = cases[case]
     rows = certbb.node_rows(equations, choice)
     check = certbb.Check(equations, tuple((M, (v,)) for M, v in choice), *box(equations.N, path))
     lp = lp_for(case)
-    stack, tokens, start = [(path, None)], [], time.monotonic()
-    while stack and len(tokens) < HARD * budget and (len(tokens) < budget or len(stack[-1][0]) > len(path) + deep):
+    stack, tree, start = [(path, None)], [], time.monotonic()
+    while stack and len(tree) < HARD * budget and (len(tree) < budget or len(stack[-1][0]) > len(path) + deep):
         p, basis = stack.pop()
         lo, hi = box(equations.N, p)
         if basis is not None:
             assert lp.H.setBasis(basis) == certbb.highs.HighsStatus.kOk
         token = focus.step(lp, equations, choice, lo, hi)
-        tokens.append(token)
+        tree.append(['L'] if token[0] == 'L' else list(token))       # an L's certificate: checked below, then dropped
         if token[0] == 'W':                # an exact solution, checked as focus.State checks one: the job's end
             x = token[1]
             assert all(type(t) is int and l <= t <= u for t, l, u in zip(x, lo, hi)) and len(x) == equations.N
             assert certbb.point_certificate(rows, x) is None
-            return dict(tokens=tokens, open=[], seconds=time.monotonic() - start, witness=x)
+            return dict(tree=tree, tree_sha256=digest(tree), open=[], seconds=time.monotonic() - start, witness=x)
         check.feed(token)
         stack += [(p + ((token[1], 1),), lp.H.getBasis()), (p + ((token[1], 0),), None)] if token[0] == 'B' else []
-    return dict(tokens=tokens, open=[p for p, _ in stack], seconds=time.monotonic() - start, witness=None)
+    return dict(tree=tree, tree_sha256=digest(tree), open=[p for p, _ in stack], seconds=time.monotonic() - start,
+                witness=None)
 
 
 # ---------- the probes ----------
@@ -253,6 +295,12 @@ def reflections(prepared, all_roots):
     return dict(pairs)
 
 
+def searched(prepared, all_roots):
+    """The roots that jobs prove, with their indices: all but reflected cases' (see reflections)."""
+    copies = reflections(prepared, all_roots)
+    return [(root, job) for root, job in enumerate(all_roots) if job[0] not in copies]
+
+
 def farm(prepared, all_roots, done, work_dir, journal):
     """Journals a probe of each case with a job not done, then runs every job not done, WORKERS at once, shallowest
     first; the witness found (0/1 list), else None."""
@@ -264,9 +312,7 @@ def farm(prepared, all_roots, done, work_dir, journal):
             entry = done.get(jid(b))
             if entry is None: heapq.heappush(heap, (len(b[1]), next(order), b, root))
             else: todo += [key(b[0], p) for p in entry['open']]
-    copies = reflections(prepared, all_roots)
-    for root, job in enumerate(all_roots):
-        if job[0] not in copies: reach(job, root)
+    for root, job in searched(prepared, all_roots): reach(job, root)
     found = [e['witness'] for e in done.values() if e['witness'] is not None]
     if found: return found[0]
     for case in sorted({b[0] for _, _, b, _ in heap}):
@@ -285,8 +331,8 @@ def farm(prepared, all_roots, done, work_dir, journal):
                 result = future.result()
                 save(work_dir, job, root, result)
                 done[jid(job)] = brief(dict(result, root=root))
-                note(journal, 'job_end', job=jid(job), case=job[0], root=root, lps=len(result['tokens']),
-                     seconds=result['seconds'], open=len(result['open']))
+                note(journal, 'job_end', job=jid(job), case=job[0], root=root, lps=len(result['tree']),
+                     seconds=result['seconds'], open=len(result['open']), tree_sha256=result['tree_sha256'])
                 if result['witness'] is not None:
                     pool.shutdown(cancel_futures=True)
                     return result['witness']
@@ -294,68 +340,50 @@ def farm(prepared, all_roots, done, work_dir, journal):
     return None
 
 
-def job_tokens(work_dir, done, jobs):
-    """Saved job tokens in depth-first order, including each unfinished child's job."""
-    todo = list(jobs)
-    while todo:
-        job = todo.pop()
-        data = read(work_dir / 'jobs' / f'{jid(job)}.json.gz')
-        assert key(data['case'], data['path']) == job
-        assert brief(data) == json.loads(json.dumps(done[jid(job)]))
-        yield from map(tuple, data['tokens'])
-        todo += [key(job[0], p) for p in data['open']]
+def frontier(N, path, tree):
+    """The boxes a job's tree leaves open on the box of path (see 'tree'), as work leaves them, the next to prove last,
+    each a list of [position, value] pairs as a job file keeps it.  Asserts that each token is an L, or a B splitting
+    a position free in its box, and that a box is left for it."""
+    stack = [[list(p) for p in path]]
+    for node in tree:
+        # TODO: error copy; says a tree has a token after its job's last box was closed
+        assert stack, 'Claude: "a tree token after the last box"'
+        p = stack.pop()
+        # TODO: error copy; says a tree token is neither an L nor a B splitting a position free in its box
+        assert node == ['L'] or (len(node) == 2 and node[0] == 'B' and type(node[1]) is int and 0 <= node[1] < N
+                                 and all(q != node[1] for q, _ in p)), 'Claude: "a tree token is not an L or a free B"'
+        stack += [p + [[node[1], 1]], p + [[node[1], 0]]] if node[0] == 'B' else []
+    return stack
 
 
-def continuation(work_dir, prepared, all_roots, done, prefix):
-    """Proof records after the original prefix, including full reflected proofs."""
-    equations, cases = prepared
-    copies = reflections(prepared, all_roots)
-    def remaining(case):
-        return job_tokens(work_dir, done, [b for b in all_roots if b[0] == case])
-    def original(case):
-        for path in prefix:
-            yield from (tuple(r['token']) for r in read(path)['records'] if r['case'] == case)
-    for case in sorted({b[0] for b in all_roots}):
-        if case in copies:
-            source = copies[case]
-            values = itertools.chain(original(source), remaining(source))
-            yield from (dict(case=case, token=reflection.token(equations, cases[source], t)) for t in values)
-        else:
-            yield from (dict(case=case, token=t) for t in remaining(case))
-
-
-def splice(run_dir, work_dir, prepared, code, all_roots, done):
-    """The splice (see the vocabulary): every job's tokens, read from its file, fed through focus.State and committed
-    as chunks."""
-    state = focus.replay(run_dir, *prepared, code)
-    start = taken(run_dir, work_dir, code)
-    chunks = sorted(Path(run_dir).glob('chunk-*.json.gz'))
-    prefix = chunks[:start['chunks']]
-    initial = read(prefix[-1])['checkpoint']
+def assemble(run_dir, work_dir, journal, prepared, code, all_roots, done):
+    """Assembly (see the vocabulary), with done as the driver keeps it: the jobs, (case, path) each, in the order its
+    walk reaches them."""
+    equations, _ = prepared
+    start, state = taken(run_dir, work_dir, code), focus.replay(run_dir, *prepared, code)
     # TODO: error copy; says the run's open boxes are no longer the ones fanout set out to prove
-    assert [key(*b) for b in initial['frontier']] == all_roots, 'Claude: "the run moved since fanout took its roots"'
-    assert initial['lp'] == start['lp']
-    stream = continuation(work_dir, prepared, all_roots, done, prefix)
-    # A restart must reproduce the already committed splice, not merely skip
-    # the same number of records from a potentially different proof.
-    consumed = 0
-    for path in chunks[start['chunks']:]:
-        for saved in read(path)['records']:
-            expected = next(stream)
-            assert saved == dict(case=expected['case'], token=list(expected['token']))
-            consumed += 1
-    assert state.lp == start['lp'] + consumed
-    records = []
-    for record in stream:
-        state.feed(record)
-        records.append(record)
-        if len(records) >= CHUNK:
-            focus.commit(run_dir, state, records, code)
-            records = []
-    assert not state.frontier and state.witness is None
-    if records or state.outcome != 'excluded':
-        state.outcome = 'excluded'
-        focus.commit(run_dir, state, records, code)
+    assert [key(*b) for b in state.frontier] == all_roots, 'Claude: "the run moved since fanout took its roots"'
+    assert (state.chunks, state.lp, state.witness) == (start['chunks'], start['lp'], None)
+    walked, jobs = {}, []                  # each job's tree_sha256 by id, and each job, as the walk reaches them
+    for root, job in searched(prepared, all_roots):
+        todo = [job]
+        while todo:
+            job = todo.pop()
+            name = jid(job)
+            data = load(Path(work_dir) / 'jobs' / f'{name}.json.gz')
+            assert name not in walked and data['root'] == root and data['witness'] is None, name
+            assert brief(data) == json.loads(json.dumps(done[name])), name
+            # TODO: error copy; says a job's tree does not leave open the boxes the job handed back, naming the job
+            assert frontier(equations.N, data['path'], data['tree']) == data['open'], f'Claude: "the tree of {name}"'
+            walked[name] = data['tree_sha256']
+            jobs.append(job)
+            todo += [key(job[0], p) for p in data['open']]
+    # TODO: error copy; says a job file lies outside the boxes that the walk from the roots reaches
+    assert set(walked) == set(done), f'Claude: "job files outside the tiling: {sorted(set(done) - set(walked))}"'
+    for r in (r for r in map(json.loads, Path(journal).read_text().splitlines()) if r['event'] == 'job_end'):
+        # TODO: error copy; says a job_end in fanout's journal has no job file, or one with another tree, naming it
+        assert walked.get(r['job']) == r['tree_sha256'], f'Claude: "the job_end of {r["job"]} is not its file\'s"'
+    return jobs
 
 
 def stop(signum, frame):
@@ -367,8 +395,8 @@ def stop(signum, frame):
     raise SystemExit(f'Claude: "fanout stopped by signal {signum}"')
 
 
-def run(run_dir, focus_journal, work_dir, journal, n, m):
-    """Finishes focus.py's stopped run of (n, m) in run_dir: excluded or witness."""
+def run(run_dir, work_dir, journal, n, m):
+    """Finishes focus.py's stopped run of (n, m) in run_dir: excluded, once assembled, or witness."""
     run_dir, work_dir, journal = Path(run_dir), Path(work_dir), Path(journal)
     prepared, code = focus.prepare(n, m), focus.fingerprint()
     (work_dir / 'jobs').mkdir(parents=True, exist_ok=True)
@@ -384,14 +412,11 @@ def run(run_dir, focus_journal, work_dir, journal, n, m):
         assert {k: json.loads(journal.read_text().splitlines()[0])[k] for k in ('n', 'order', 'code')} == \
                {k: head[k] for k in ('n', 'order', 'code')}
         note(journal, 'session', workers=WORKERS, reflections=reflections(prepared, all_roots))
-        done = {f.name.split('.')[0]: brief(read(f)) for f in (work_dir / 'jobs').glob('*.json.gz')}
+        done = finished(work_dir)
         witness = farm(prepared, all_roots, done, work_dir, journal)
-        if witness is None: splice(run_dir, work_dir, prepared, code, all_roots, done)
-    # focus.py itself, unchanged and with the run's lock free again, replays the whole run from disk
-    outcome = 'witness' if witness is not None else focus.search(run_dir, focus_journal, n, m, 1, 1)
-    # TODO: error copy; says focus.py's replay of the spliced run did not find it decided
-    assert outcome in ('excluded', 'witness'), f'Claude: "focus.py replays the spliced run as {outcome}"'
-    note(journal, 'finish', outcome=outcome, witness=witness)
+        if witness is None: assemble(run_dir, work_dir, journal, prepared, code, all_roots, done)
+        outcome = 'witness' if witness is not None else 'excluded'
+        note(journal, 'finish', outcome=outcome, witness=witness)
     return outcome
 
 
@@ -401,8 +426,7 @@ def main():
     n = int(sys.argv[1])
     m = {480: 14, 672: 13}[n]
     signal.signal(signal.SIGTERM, stop)
-    outcome = run(Path(f'scratch/focus{n}/run'), Path(f'focus_{n}_journal.jsonl'), Path(f'scratch/fanout{n}'),
-                  Path(f'fanout_{n}_journal.jsonl'), n, m)
+    outcome = run(Path(f'scratch/focus{n}/run'), Path(f'scratch/fanout{n}'), Path(f'fanout_{n}_journal.jsonl'), n, m)
     print(json.dumps(dict(n=n, order=m, outcome=outcome)), flush=True)
 
 

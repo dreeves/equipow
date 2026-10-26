@@ -1,8 +1,8 @@
-"""Quals for fanout.py: a stopped focus.py run finished by parallel workers, its proof spliced back as focus.py chunks
-that focus.py itself, unchanged, replays and checks.  Run with PYTHONPATH=scratch/lower24-design/beyond1000/pylib
+"""Quals for fanout.py: a stopped focus.py run finished by parallel workers, each checking its certificates exactly as
+it makes them, its job files keeping only the trees, which assembly fits together (2026-10-25, in place of splicing
+the proof back as focus.py chunks: quals_fanout_tree).  Run with PYTHONPATH=scratch/lower24-design/beyond1000/pylib
 /opt/homebrew/bin/python3 -B -m unittest quals_fanout."""
 import fcntl
-import gzip
 import hashlib
 import json
 import math
@@ -47,10 +47,10 @@ def tree_lps(prepared, case):
     return lps
 
 
-def proof(run):
-    """The sha256 of every chunk's records, in order: the run's proof."""
-    chunks = [fanout.read(p)['records'] for p in sorted(Path(run).glob('chunk-*.json.gz'))]
-    return hashlib.sha256(json.dumps(chunks).encode()).hexdigest()
+def proof(work):
+    """The sha256 of every job's tree_sha256, by job id: the run's tree, as its job files keep it."""
+    trees = {p.name: fanout.read(p)['tree_sha256'] for p in sorted(Path(work, 'jobs').glob('*.json.gz'))}
+    return hashlib.sha256(json.dumps(trees).encode()).hexdigest()
 
 
 def stopped(tmp, prepared, n, m, budget):
@@ -65,7 +65,7 @@ def finish(tmp, run, journal, prepared, n, m, budget=4):
     """fanout.run on the stopped run, with two workers and jobs of at most budget LP solves."""
     work, own = Path(tmp, 'fanout'), Path(tmp, 'fanout.jsonl')
     with patch.object(focus, 'prepare', return_value=prepared), patch.multiple(fanout, WORKERS=2, BUDGET=budget):
-        return fanout.run(run, journal, work, own, n, m), work, own
+        return fanout.run(run, work, own, n, m), work, own
 
 
 def events(path):
@@ -84,27 +84,33 @@ class FanoutQuals(unittest.TestCase):
             self.assertEqual(roots, [fanout.key(*b) for b in replayed.frontier])
             self.assertGreater(len(roots), 1)
 
-    def test_a_stopped_run_is_finished_as_chunks_focus_replays(self):
+    def test_a_stopped_run_is_finished_and_assembled(self):
         # Replicata: (20, 5), order 5 at length 20, impossible (m*(20) = 3), stopped after 5 LP solves, then fanout
         # with two workers and jobs of at most 4 LP solves.
-        # Expectata: excluded; jobs handed back open boxes (several jobs, some with open children); focus.replay of the
-        # run's chunks, the spliced ones with them, finds case 0 completed and nothing open; and fanout's last act was
-        # focus.search itself, which wrote its finish, excluded, to focus.py's journal.
+        # Expectata: excluded; jobs handed back open boxes (several jobs, some with open children); the run's chunks
+        # untouched, their replay still the 5 LP solves ending at fanout's roots; assembly's walk from the roots
+        # reaching every job fanout's journal ended; and the finish, excluded, in fanout's journal only, focus.py's
+        # still ending at its own budget finish.
+        # Resultata before tree-only storage (2026-10-25, this qual then named
+        # test_a_stopped_run_is_finished_as_chunks_focus_replays): the splice appended the jobs' proofs as chunks, and
+        # focus.search's replay of them wrote an excluded finish to focus.py's journal.
         with tempfile.TemporaryDirectory() as tmp:
             prepared = real(20, 5)
             run, journal = stopped(tmp, prepared, 20, 5, 5)
             outcome, work, own = finish(tmp, run, journal, prepared, 20, 5)
             self.assertEqual(outcome, 'excluded')
-            done = focus.replay(run, *prepared, focus.fingerprint())
-            self.assertEqual((done.completed, done.frontier, done.outcome), ([0], [], 'excluded'))
-            self.assertEqual(done.lp, done.split + done.closed)
+            code = focus.fingerprint()
+            done = focus.replay(run, *prepared, code)
+            roots = fanout.roots(run, work, code)
+            self.assertEqual((done.lp, done.outcome, [fanout.key(*b) for b in done.frontier]), (5, 'budget', roots))
             ends = [e for e in events(own) if e['event'] == 'job_end']
             self.assertGreater(len(ends), 2)
             self.assertTrue(all(e['lps'] <= 4 for e in ends))
             self.assertTrue(any(e['open'] for e in ends))
-            self.assertEqual(events(journal)[-1]['event'], 'finish')
-            self.assertEqual(events(journal)[-1]['outcome'], 'excluded')
-            self.assertEqual(events(own)[-1]['outcome'], 'excluded')
+            walked = fanout.assemble(run, work, own, prepared, code, roots, fanout.finished(work))
+            self.assertEqual(sorted(map(fanout.jid, walked)), sorted(e['job'] for e in ends))
+            self.assertEqual((events(journal)[-1]['event'], events(journal)[-1]['outcome']), ('finish', 'budget'))
+            self.assertEqual((events(own)[-1]['event'], events(own)[-1]['outcome']), ('finish', 'excluded'))
 
     def test_a_witness_stops_the_fanout_and_is_exact(self):
         # Replicata: (16, 4), Thue-Morse's order at 16, stopped after 3 LP solves, then fanout.
@@ -149,41 +155,47 @@ class FanoutQuals(unittest.TestCase):
                 with self.assertRaises(BlockingIOError):
                     finish(tmp, run, journal, prepared, 20, 5)
 
-    def test_a_forged_job_fails_the_splice(self):
-        # Replicata: fanout on (20, 5) with its splice stubbed out, one saved job's certificate zeroed, then fanout
-        # again.
-        # Expectata: certbb.ProofError: the splice feeds every token through focus.py's exact checker.
-        with tempfile.TemporaryDirectory() as tmp:
-            prepared = real(20, 5)
-            run, journal = stopped(tmp, prepared, 20, 5, 5)
-            with patch.object(fanout, 'splice', side_effect=KeyboardInterrupt), self.assertRaises(KeyboardInterrupt):
-                finish(tmp, run, journal, prepared, 20, 5)
-            for f in sorted(Path(tmp, 'fanout', 'jobs').glob('*.json.gz')):
-                with gzip.open(f, 'rt') as stream: job = json.load(stream)
-                leaves = [t for t in job['tokens'] if t[0] == 'L']
-                if leaves:
-                    leaves[0][1] = [0] * len(leaves[0][1])
-                    with gzip.open(f, 'wt') as stream: json.dump(job, stream)
-                    break
-            with self.assertRaises(certbb.ProofError):
-                finish(tmp, run, journal, prepared, 20, 5)
+    def test_a_forged_certificate_fails_at_its_worker(self):
+        # Replicata: fanout.work, in this process, on (20, 5)'s whole box, with focus.step wrapped so that the first L
+        # token it makes has its certificate zeroed.
+        # Expectata: certbb.ProofError: a worker checks every token exactly, by certbb.Check on its job's box, as it
+        # makes it, so a certificate that fails stops its job (in a pool, the driver too, at future.result()), before
+        # the job file that would keep only its tree.
+        # Resultata before tree-only storage (2026-10-25, this qual then named test_a_forged_job_fails_the_splice):
+        # a certificate zeroed in a saved job file failed the splice, which fed every saved token through focus.py's
+        # exact checker; no job file keeps a certificate now.
+        prepared, real_step, forged = real(20, 5), focus.step, []
+        def step(*args):
+            token = real_step(*args)
+            zeroed = ('L', [0] * len(token[1])) if token[0] == 'L' and not any(forged) else token
+            forged.append(zeroed is not token)
+            return zeroed
+        fanout.lp_for.cache_clear()
+        fanout.init(prepared, 10000, 8)
+        with patch.object(focus, 'step', step), self.assertRaises(certbb.ProofError):
+            fanout.work((0, ()))
+        fanout.lp_for.cache_clear()
+        self.assertEqual(forged.count(True), 1)
 
     def test_the_driver_keeps_no_tokens_in_memory(self):
-        # Replicata: fanout on (20, 5), its splice replaced by a recorder of what it is given.
-        # Expectata: the driver's record of done jobs holds each job's open boxes, witness and root, but no tokens:
-        # at 672 a job's tokens are tens of megabytes, and the splice reads them back from the job files one at a time.
+        # Replicata: fanout on (20, 5), its assembly replaced by a recorder of what it is given.
+        # Expectata: the driver's record of done jobs holds each job's open boxes, witness and root, but no tokens and
+        # no tree: at 672 a job's tokens were tens of megabytes, and assembly reads the trees back from the job files
+        # one at a time.
+        # Resultata before tree-only storage (2026-10-25): the same, with the splice in assembly's place.
         with tempfile.TemporaryDirectory() as tmp:
             prepared = real(20, 5)
             run, journal = stopped(tmp, prepared, 20, 5, 5)
             given = []
-            def splice(*args):
+            def assemble(*args):
                 given.append(args)
                 raise KeyboardInterrupt
-            with patch.object(fanout, 'splice', splice), self.assertRaises(KeyboardInterrupt):
+            with patch.object(fanout, 'assemble', assemble), self.assertRaises(KeyboardInterrupt):
                 finish(tmp, run, journal, prepared, 20, 5)
             done = next(a for a in given[0] if isinstance(a, dict))
             self.assertGreater(len(done), 2)
-            self.assertTrue(all('tokens' not in e and {'open', 'witness', 'root'} <= set(e) for e in done.values()))
+            self.assertTrue(all('tokens' not in e and 'tree' not in e and {'open', 'witness', 'root'} <= set(e)
+                                for e in done.values()))
 
     def test_a_job_finishes_its_deep_boxes_and_hands_back_only_shallow_ones(self):
         # Replicata: fanout on (20, 5) with jobs of at most 4 LP solves and DEEP 1, after its 5-solve stop.
@@ -269,7 +281,8 @@ class FanoutQuals(unittest.TestCase):
     def test_every_probe_s_least_is_at_most_its_case_s_lp_solves(self):
         # Replicata: fanout on (20, 5) stopped after 5 LP solves, and on (16, 4) stopped after 3; each has one case.
         # Expectata: the probe's least at most the case's LP solves in all, which it bounds below (95%, one-sided):
-        # (20, 5)'s, the run's own (focus.py's 5 and every job's) and its whole tree's under fanout's warm starts
+        # (20, 5)'s, the run's own (focus.py's 5, in its chunks, and every job's, in fanout's journal: 2026-10-25,
+        # tree-only storage left the jobs' out of the chunks) and its whole tree's under fanout's warm starts
         # (tree_lps); (16, 4)'s whole tree's, whose depth first search the witness cut short.
         for n, m, budget in ((20, 5, 5), (16, 4, 3)):
             with self.subTest(n=n, m=m), tempfile.TemporaryDirectory() as tmp:
@@ -280,7 +293,8 @@ class FanoutQuals(unittest.TestCase):
                 total = tree_lps(prepared, 0)
                 self.assertGreater(p['least'], 0)
                 self.assertLessEqual(p['least'], total)
-                spent = focus.replay(run, *prepared, focus.fingerprint()).lp
+                spent = focus.replay(run, *prepared, focus.fingerprint()).lp + sum(
+                    e['lps'] for e in events(own) if e['event'] == 'job_end')
                 self.assertTrue(outcome == 'witness' or p['least'] <= spent, (p, spent))
                 for x in p['witnesses']:              # a path's exact solution, journaled: as signs, of order m
                     self.assertEqual([sum((2 * t - 1) * i ** k for i, t in enumerate(x)) for k in range(m)], [0] * m)
@@ -290,18 +304,20 @@ class FanoutQuals(unittest.TestCase):
     def test_probes_do_not_change_the_proof(self):
         # Replicata: (20, 5) stopped after 5 LP solves, then fanout with one worker, twice: as it is, and with its probe
         # replaced by a stand-in that solves no LP.
-        # Expectata: the same proof, by the sha256 of every chunk's records: a probe solves its LPs in the driver, on an
-        # LP of its own, and no worker's LP state depends on it.  (With more workers two runs can differ, probes or
-        # not: which worker takes which job, and so the LP state a job's first solve starts from, depends on timing.)
+        # Expectata: the same proof, by the sha256 of every job's tree_sha256 (before tree-only storage, 2026-10-25:
+        # of every chunk's records): a probe solves its LPs in the driver, on an LP of its own, and no worker's LP
+        # state depends on it.  (With more workers two runs can differ, probes or not: which worker takes which job,
+        # and so the LP state a job's first solve starts from, depends on timing.)
         def once(probe):
             with tempfile.TemporaryDirectory() as tmp:
                 prepared = real(20, 5)
                 run, journal = stopped(tmp, prepared, 20, 5, 5)
                 with patch.object(focus, 'prepare', return_value=prepared), \
                         patch.multiple(fanout, WORKERS=1, BUDGET=4, probe=probe):
-                    outcome = fanout.run(run, journal, Path(tmp, 'fanout'), Path(tmp, 'fanout.jsonl'), 20, 5)
+                    outcome = fanout.run(run, Path(tmp, 'fanout'), Path(tmp, 'fanout.jsonl'), 20, 5)
                 self.assertEqual(outcome, 'excluded')
-                return proof(run), [e['least'] for e in events(Path(tmp, 'fanout.jsonl')) if e['event'] == 'probe']
+                return proof(Path(tmp, 'fanout')), [e['least'] for e in events(Path(tmp, 'fanout.jsonl'))
+                                                    if e['event'] == 'probe']
         stand_in = dict(paths=2, mean=0.0, se=0.0, least=1, witnesses=[])
         probed, (least,) = once(fanout.probe)
         unprobed, leasts = once(lambda prepared, case, paths: stand_in)

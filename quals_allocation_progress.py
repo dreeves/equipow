@@ -41,7 +41,7 @@ class AllocationProgressQuals(unittest.TestCase):
                  patch.object(fanout, 'farm', return_value=[1]):
                 for workers in (5, 8):
                     with patch.object(fanout, 'WORKERS', workers):
-                        fanout.run(run, Path(directory, 'focus.jsonl'), work, journal, 672, 13)
+                        fanout.run(run, work, journal, 672, 13)
             records = [json.loads(s) for s in journal.read_text().splitlines()]
         self.assertEqual(records[0]['workers'], 5)
         self.assertEqual([r['workers'] for r in records if r['event'] == 'session'], [5, 8])

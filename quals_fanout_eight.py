@@ -1,7 +1,8 @@
 """Actual eight-worker controls; run only after the old compute pool stops.
 
 Replicata: continue tiny stopped focus runs with WORKERS explicitly set to 8.
-Expectata: an exact 16:4 witness and a completely replayed 20:5 exclusion,
+Expectata: an exact 16:4 witness and a completely assembled 20:5 exclusion
+(before tree-only storage, 2026-10-25: completely replayed),
 with eight workers recorded in both the fanout header and session.
 Resultata to qualify: existing actual controls exercise a two-worker pool.
 """
@@ -22,7 +23,7 @@ def finish_eight(tmp, run, journal, prepared, n, order):
     work, own = Path(tmp, 'fanout'), Path(tmp, 'fanout.jsonl')
     with patch.object(focus, 'prepare', return_value=prepared), \
             patch.multiple(fanout, WORKERS=8, BUDGET=4):
-        outcome = fanout.run(run, journal, work, own, n, order)
+        outcome = fanout.run(run, work, own, n, order)
     return outcome, work, own
 
 
@@ -59,23 +60,32 @@ class EightWorkerQuals(unittest.TestCase):
         print(json.dumps(dict(n=16, order=4, workers=8, outcome=outcome,
                               witness=witness, fanout_sha256=source)), flush=True)
 
-    def test_eight_workers_complete_20_order5_with_exact_full_replay(self):
+    def test_eight_workers_complete_20_order5_with_exact_assembly(self):
+        # Before tree-only storage (2026-10-25) this qual was
+        # test_eight_workers_complete_20_order5_with_exact_full_replay: focus.replay of the spliced chunks found case 0
+        # completed, and focus.py's journal ended excluded.  Now the chunks stay the stopped run's 5 LP solves, and
+        # assembly walks every job fanout's journal ended.
         source = hashlib.sha256(Path(fanout.__file__).read_bytes()).hexdigest()
         with tempfile.TemporaryDirectory() as tmp:
             prepared = real(20, 5)
             run, journal = stopped(tmp, prepared, 20, 5, 5)
-            outcome, _, own = finish_eight(tmp, run, journal, prepared, 20, 5)
+            outcome, work, own = finish_eight(tmp, run, journal, prepared, 20, 5)
             self.assertEqual(outcome, 'excluded')
-            self.check_session(own, 20, 5, outcome)
-            done = focus.replay(run, *prepared, focus.fingerprint())
-            self.assertEqual((done.completed, done.frontier, done.outcome), ([0], [], 'excluded'))
-            self.assertEqual(done.lp, done.split + done.closed)
-            self.assertGreater(done.lp, 5)
-            self.assertEqual((events(journal)[-1]['event'], events(journal)[-1]['outcome']),
-                             ('finish', 'excluded'))
+            log = self.check_session(own, 20, 5, outcome)
+            code = focus.fingerprint()
+            prefix = focus.replay(run, *prepared, code)
+            roots = fanout.roots(run, work, code)
+            self.assertEqual((prefix.lp, prefix.outcome, [fanout.key(*b) for b in prefix.frontier]),
+                             (5, 'budget', roots))
+            walked = fanout.assemble(run, work, own, prepared, code, roots, fanout.finished(work))
+            ends = [e for e in log if e['event'] == 'job_end']
+            self.assertEqual(sorted(map(fanout.jid, walked)), sorted(e['job'] for e in ends))
+            lps = sum(e['lps'] for e in ends)
+            self.assertGreater(lps, 0)
+            self.assertEqual((events(journal)[-1]['event'], events(journal)[-1]['outcome']), ('finish', 'budget'))
         self.assertEqual(hashlib.sha256(Path(fanout.__file__).read_bytes()).hexdigest(), source)
         print(json.dumps(dict(n=20, order=5, workers=8, outcome=outcome,
-                              lp=done.lp, closed=done.closed, fanout_sha256=source)), flush=True)
+                              lp=prefix.lp + lps, jobs=len(walked), fanout_sha256=source)), flush=True)
 
 
 if __name__ == '__main__':
