@@ -562,9 +562,17 @@ footer {
   <!-- TODO: says the norm bound for a prime p not dividing n: with M = p and zeta a primitive pth root of unity, f(zeta) = sum D_r zeta^r is not 0 (else the D_r would all be equal, hence 0, as they sum to f(1) = 0, while some class has an odd size and so an odd D_r); it is a multiple of (zeta − 1)^m, whose norm is p^m, so its norm, a positive integer, is at least p^m; by the inequality of arithmetic and geometric means that norm is at most (p sum D_r^2 / (p − 1))^((p − 1)/2); and with s_r the size of class r and |D_r| ≤ s_r, order m needs p^(2m) (p − 1)^(p − 1) ≤ (p sum s_r^2)^(p − 1) -->
   <p>Claude: "The norm bound for a prime <i>p</i> that does not divide <i>n</i> uses the same sums with <span class="nw"><i>M</i> = <i>p</i></span>. Let ζ be a primitive <i>p</i>th root of unity. Then <span class="nw"><i>f</i>(ζ) = <i>D</i><sub>0</sub> + <i>D</i><sub>1</sub>ζ + ⋯ + <i>D</i><sub><i>p</i>−1</sub>ζ<sup><i>p</i>−1</sup></span> is not 0: if it were, the <i>D</i><sub><i>r</i></sub> would all be equal, hence all 0, as they sum to <span class="nw"><i>f</i>(1) = 0</span>; but since <i>p</i> does not divide <i>n</i>, some class has an odd size and so an odd <i>D</i><sub><i>r</i></sub>. It is a multiple of <span class="nw">(ζ − 1)<sup><i>m</i></sup></span>, whose norm is <i>p</i><sup><i>m</i></sup>, so the norm of <i>f</i>(ζ), a positive integer, is at least <i>p</i><sup><i>m</i></sup>. By the inequality of arithmetic and geometric means, that norm is also at most <span class="nw">(<i>p</i> Σ<i>D</i><sub><i>r</i></sub><sup>2</sup> / (<i>p</i> − 1))<sup>(<i>p</i>−1)/2</sup></span>. With <i>s</i><sub><i>r</i></sub> the size of class <i>r</i> and <span class="nw">|<i>D</i><sub><i>r</i></sub>| ≤ <i>s</i><sub><i>r</i></sub></span>, order <i>m</i> needs <span class="nw"><i>p</i><sup>2<i>m</i></sup> (<i>p</i> − 1)<sup><i>p</i>−1</sup> ≤ (<i>p</i> Σ<i>s</i><sub><i>r</i></sub><sup>2</sup>)<sup><i>p</i>−1</sup></span>."</p>
   <!-- TODO: says mstar.py and pow2.py (linked) repeat the search behind every residue claim each time they run, and that certificates that can be checked on their own, like proof512.wl for 512, are still to be done -->
-  <p>Claude: "<a href="https://github.com/dreeves/equipow/blob/main/mstar.py">mstar.py</a> and <a href="https://github.com/dreeves/equipow/blob/main/pow2.py">pow2.py</a> repeat the search behind every residue claim each time they run. Certificates that can be checked on their own, like proof512.wl for 512, are still to be done."</p>
+  <p>Claude: "<a href="https://github.com/dreeves/equipow/blob/main/mstar.py">mstar.py</a> and 
+    <a href="https://github.com/dreeves/equipow/blob/main/pow2.py">pow2.py</a> 
+    repeat the search behind every residue claim each time they run. 
+    Certificates that can be checked on their own, like proof512.wl for 512, are still to be done."</p>
   <p>The hex codes shown below follow Table 5 of BGPW: 
     the left half of the signs <span class="nw">(1 = +1, 0 = −1)</span>, then the rest by <span class="nw">(−1)<sup><i>m</i></sup></span> symmetry.</p>
+  <p>Finally, the symbols # and ∨ denote the expanded product and the join operation on Littlewood polynomials:<br>
+    <span class="nw"><i>f</i> # <i>g</i> = <i>f</i>(<i>x</i>)·<i>g</i>(<i>x</i><sup><i>n<sub>f</sub></i></sup>)</span><br>
+    <span class="nw"><i>f</i> ∨ <i>g</i> = <i>f</i>(<i>x</i>) + <i>x</i><sup><i>n<sub>f</sub></i></sup> <i>g</i>(x)</span>,<br>
+    where <i>n<sub>f</sub></i> is the length of <i>f</i>. 
+    </p>
 
   <ul>
     <li class="c">
@@ -1801,10 +1809,7 @@ SClaude[11][832] = {
 </section>
 
 <footer>
-  <p>Definition (expanded product): 
-    <span class="nw"><i>f</i> # <i>g</i> = <i>f</i>(<i>x</i>)·<i>g</i>(<i>x</i><sup><i>n<sub>f</sub></i></sup>)</span>, where <i>n<sub>f</sub></i> is the length of <i>f</i>. 
-    And the symbol ∨ means the join.</p>
-  <p><a href="https://github.com/dreeves/equipow">Source</a> &amp; <a href="https://equipow.dreev.es/sourcery.html">Sourcery</a></p>
+<p><a href="https://github.com/dreeves/equipow">Source</a> &amp; <a href="https://equipow.dreev.es/sourcery.html">Sourcery</a></p>
 </footer>
 
 </main>
