@@ -1,0 +1,4 @@
+{"event":"header","time":1793039181.5713038,"pid":36201,"version":1,"n":432,"order":12,"total":2,"code":"3c78078655cbbec45006d2f5cbfdaa04575b928561710f279e7128f9c4e32415"}
+{"event":"session","time":1793039181.571307,"pid":36201}
+{"event":"update","time":1793039181.5713122,"pid":36201,"lp":0,"closed":0,"split":0,"pending":2,"case":0,"completed":[],"outcome":null}
+{"event":"finish","time":1793039181.6640809,"pid":36201,"lp":40,"closed":12,"split":28,"pending":18,"case":0,"completed":[],"outcome":"budget"}

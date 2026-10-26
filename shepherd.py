@@ -93,6 +93,11 @@ SEARCHES = (                           # focus.py's memory: 56 MB at most measur
     # size and a job's tokens in transit
     Search('672:13 fanout', 'fanout.py', ('672',), 'fanout_672_journal.jsonl', 'fanout_672.log',
            'scratch/fanout672/run.err', 'scratch/fanout672', 2 << 30, 8),
+    # 432:12's run (dreeves, 2026-10-25: "sounds good on 432:12"), its focus.py prefix of 40 LP solves run by hand
+    # first and not registered (its budget finish would read as launchable): fanout.py's 8 workers, 131 MB each and
+    # the driver 139 MB at the start (2026-10-26 dry run), the driver then growing by its jobs' open boxes
+    Search('432:12 fanout', 'fanout.py', ('432',), 'fanout_432_journal.jsonl', 'fanout_432.log',
+           'scratch/fanout432/run.err', 'scratch/fanout432', 2 << 30, 8),
 )
 
 

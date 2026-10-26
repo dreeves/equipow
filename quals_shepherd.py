@@ -181,7 +181,7 @@ class ShepherdQuals(unittest.TestCase):
         # Replicata: the approved eight-worker allocation with 480 paused in memory.
         # Expectata: eight slots admitted; resuming 480 while those workers live fails loudly.
         self.assertEqual(shepherd.SLOTS, 8)
-        statuses = {'480:14': 'paused', '672:13': 'stopped', '672:13 fanout': 'running'}
+        statuses = {'480:14': 'paused', '672:13': 'stopped', '672:13 fanout': 'running', '432:12 fanout': 'stopped'}
         shepherd.admit(shepherd.SEARCHES, statuses)
         with self.assertRaises(AssertionError):
             shepherd.admit(shepherd.SEARCHES, dict(statuses, **{'480:14': 'running'}))
@@ -202,18 +202,65 @@ class ShepherdQuals(unittest.TestCase):
         # line only; and fanout.py 672 (dreeves, 2026-10-23: "ok" to finishing 672:13 in parallel), its 5 workers,
         # 1 GiB in all.
         # The approved allocation now assigns eight workers and a 2 GiB reservation to fanout.
+        # And fanout.py 432 (dreeves, 2026-10-25: "sounds good on 432:12"), finishing 432:12's focus.py prefix, which is
+        # not registered: 8 workers in 2 GiB, as 672's fanout (at its start 131 MB a worker and 139 MB for the driver,
+        # measured 2026-10-26); launchable with no journal.
         self.assertEqual([(s.name, s.script, s.args) for s in shepherd.SEARCHES],
                          [('480:14', 'focus.py', ('480',) + UNBOUNDED), ('672:13', 'focus.py', ('672',) + UNBOUNDED),
-                          ('672:13 fanout', 'fanout.py', ('672',))])
+                          ('672:13 fanout', 'fanout.py', ('672',)), ('432:12 fanout', 'fanout.py', ('432',))])
         self.assertEqual([(s.journal, s.out, s.err, s.data, s.memory, s.processes) for s in shepherd.SEARCHES],
                          [('focus_480_journal.jsonl', 'focus_480.log', 'scratch/focus480/run.err', 'scratch/focus480/run', 64 << 20, 1),
                           ('focus_672_journal.jsonl', 'focus_672.log', 'scratch/focus672/run.err', 'scratch/focus672/run', 64 << 20, 1),
-                          ('fanout_672_journal.jsonl', 'fanout_672.log', 'scratch/fanout672/run.err', 'scratch/fanout672', 2 << 30, 8)])
+                          ('fanout_672_journal.jsonl', 'fanout_672.log', 'scratch/fanout672/run.err', 'scratch/fanout672', 2 << 30, 8),
+                          ('fanout_432_journal.jsonl', 'fanout_432.log', 'scratch/fanout432/run.err', 'scratch/fanout432', 2 << 30, 8)])
         command = '/opt/homebrew/Cellar/python@3.13/3.13.6/Frameworks/Python.framework/Versions/3.13/Resources/Python.app/Contents/MacOS/Python -B focus.py {} --seconds inf --lp-budget 1000000000000000000'
         procs = [proc(1, command.format(480)), proc(2, command.format(672))]
         with patch.object(shepherd, 'last_record', return_value=None):
             self.assertEqual([shepherd.status(s, procs) for s in shepherd.SEARCHES[:2]], [('running', 1), ('running', 2)])
-            self.assertEqual(shepherd.status(shepherd.SEARCHES[2], procs), ('launchable', None))
+            self.assertEqual([shepherd.status(s, procs) for s in shepherd.SEARCHES[2:]], [('launchable', None)] * 2)
+
+    def test_the_432_fanout_takes_the_eight_slots_alone(self):
+        # Replicata: the registry at the statuses of the 432:12 launch: 480:14, 672:13 and 672:13's fanout stopped,
+        # 432:12's fanout launchable (no journal yet), free disk at the floor; then each other search running,
+        # launchable or paused in turn.
+        # Expectata: admitted, and decide launches the 432:12 fanout alone; a paused search, taking no slot, is
+        # admitted beside it; any other running or launchable one overflows the 8 slots and fails loudly (preemption,
+        # principle 3, is not built).
+        # Resultata before the entry: AssertionError, the registry having no 432:12 fanout.
+        statuses = {'480:14': 'stopped', '672:13': 'stopped', '672:13 fanout': 'stopped', '432:12 fanout': 'launchable'}
+        self.assertEqual(sorted(s.name for s in shepherd.SEARCHES), sorted(statuses))
+        shepherd.admit(shepherd.SEARCHES, statuses)
+        self.assertEqual(shepherd.decide(statuses, dict.fromkeys(statuses, 0), shepherd.FLOOR),
+                         [('launch', '432:12 fanout')])
+        for name in ('480:14', '672:13', '672:13 fanout'):
+            shepherd.admit(shepherd.SEARCHES, dict(statuses, **{name: 'paused'}))
+            for status in ('running', 'launchable'):
+                with self.subTest(name=name, status=status), self.assertRaises(AssertionError):
+                    shepherd.admit(shepherd.SEARCHES, dict(statuses, **{name: status}))
+
+    def test_the_432_fanout_is_its_driver_s_alone(self):
+        # Replicata: the 432:12 fanout's status with no journal, with each of these processes listed alone, their
+        # command lines as in the 2026-10-26 dry run (scratch/record-20261025/launch432/wire/dry): its driver as the
+        # shepherd launches it; one of its spawned workers; its resource tracker; its focus.py prefix; fanout.py 672;
+        # then the focus.py searches registered.
+        # Expectata: running, with its pid, for the driver alone, else launchable; and no registered search runs
+        # focus.py 432: the prefix's journal ends in a budget finish, which status reads as launchable, so a registered
+        # prefix would be relaunched with no budget whenever the fanout does not hold the run's lock, to search boxes
+        # the fanout owns (2026-10-25 build report: "Register only the fanout").
+        # Resultata before the entry: ValueError, the registry having no 432:12 fanout.
+        (s,) = [s for s in shepherd.SEARCHES if s.name == '432:12 fanout']
+        python = ('/opt/homebrew/Cellar/python@3.13/3.13.6/Frameworks/Python.framework/Versions/3.13/Resources/'
+                  'Python.app/Contents/MacOS/Python')
+        others = [f'{python} -B -c from multiprocessing.spawn import spawn_main; spawn_main(tracker_fd=11, '
+                  'pipe_handle=19) --multiprocessing-fork',
+                  f'{python} -B -c from multiprocessing.resource_tracker import main;main(10)',
+                  f'{python} -B focus.py 432 --lp-budget 40', f'{python} -B fanout.py 672']
+        with patch.object(shepherd, 'last_record', return_value=None):
+            self.assertEqual(shepherd.status(s, [proc(9, f'{python} -B fanout.py 432')]), ('running', 9))
+            for command in others:
+                with self.subTest(command=command):
+                    self.assertEqual(shepherd.status(s, [proc(9, command)]), ('launchable', None))
+        self.assertEqual([t.args[0] for t in shepherd.SEARCHES if t.script == 'focus.py'], ['480', '672'])
 
     def test_a_watch_logs_each_change_once_and_acts(self):
         # Replicata: three loops of main over a launchable search and a running one: the launched one's process
