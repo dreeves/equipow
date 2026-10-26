@@ -26,6 +26,7 @@ from concurrent.futures import ProcessPoolExecutor
 import contextlib
 import fcntl
 import functools
+import hashlib
 import json
 import multiprocessing
 from pathlib import Path
@@ -121,11 +122,21 @@ def task(work_dir, job, sha):
     return walk(job, data['tree'])
 
 
+def codes():
+    """The code a recheck runs, as its totals name it (2026-10-26 launch review: they named none, and reprove.py is
+    in neither fingerprint): code, focus.fingerprint, and fanout_code, fanout.fingerprint, both the run's, which
+    assembly checks against fanout's journal; and reprove_code, the sha256 of reprove.py's bytes."""
+    return dict(code=focus.fingerprint(), fanout_code=fanout.fingerprint(),
+                reprove_code=hashlib.sha256(Path(__file__).resolve().read_bytes()).hexdigest())
+
+
 def run(run_dir, work_dir, journal, n, m, workers):
     """Rechecks the finished fanout run of (n, m): fanout.assemble, then every job's reproof, workers at once.  Its
-    totals: jobs, nodes, leaves, leaves proven by each attempt, and the reproofs' seconds."""
+    totals: jobs, nodes, leaves, leaves proven by each attempt, the reproofs' seconds, and the code that ran (codes),
+    asserted the same after the reproofs as before assembly."""
     run_dir, work_dir, journal = Path(run_dir), Path(work_dir), Path(journal)
-    prepared, code = focus.prepare(n, m), focus.fingerprint()
+    prepared, named = focus.prepare(n, m), codes()
+    code = named['code']
     with open(run_dir / 'run.lock', 'a') as theirs, open(work_dir / 'lock', 'a') as ours:
         fcntl.flock(theirs, fcntl.LOCK_EX | fcntl.LOCK_NB)
         fcntl.flock(ours, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -138,9 +149,11 @@ def run(run_dir, work_dir, journal, n, m, workers):
                                    [done[fanout.jid(job)]['tree_sha256'] for job in jobs]))
         finally:
             pool.shutdown(cancel_futures=True)              # a failed reproof cancels the jobs not yet begun
+        # TODO: error copy; says the code changed while the recheck ran, so its totals cannot name the code that ran
+        assert codes() == named, 'Claude: "the code changed during the recheck"'
     return dict(jobs=len(proofs), nodes=sum(p['nodes'] for p in proofs), leaves=sum(p['leaves'] for p in proofs),
                 attempts={a: sum(p['attempts'][a] for p in proofs) for a in ATTEMPTS},
-                seconds=sum(p['seconds'] for p in proofs))
+                seconds=sum(p['seconds'] for p in proofs), **named)
 
 
 def main():

@@ -18,13 +18,13 @@ bound on m*(672) by itself.
 import itertools
 
 import certbb
-import mstar
+import residues
 from overnight_v5 import ExactSystem
 
 
 def profiles(M):
     """Every necessary plus-count vector moduloM for length672 and order13."""
-    signed = mstar.residue_vectors(672, M, 13, None, mstar.Budget(10 ** 6), 'natural')
+    signed = residues.residue_vectors(672, M, 13, None, residues.Budget(10 ** 6), 'natural')
     return tuple(tuple((d + len(range(r, 672, M))) // 2 for r, d in enumerate(D)) for D in signed)
 
 

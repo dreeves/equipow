@@ -3,12 +3,14 @@ file keeps its tree, each L token's certificate dropped once its worker has chec
 the trees fit together, in place of the splice's replay of certificates.  TrustQuals, from the review of that change
 (2026-10-25), qualify what else a verdict rests on.  Run with
 PYTHONPATH=scratch/lower24-design/beyond1000/pylib /opt/homebrew/bin/python3 -B -m unittest quals_fanout_tree."""
+import contextlib
 import gzip
 import hashlib
 import json
 import os
 from pathlib import Path
 import shutil
+import signal
 import tempfile
 import traceback
 import unittest
@@ -71,6 +73,21 @@ def assembled(run, work, own, prepared):
     """fanout.assemble on a run as fanout.run calls it: its jobs, in the order it walks them."""
     code = focus.fingerprint()
     return fanout.assemble(run, work, own, prepared, code, fanout.roots(run, work, code), fanout.finished(work))
+
+
+@contextlib.contextmanager
+def limited(seconds):
+    """The block run with seconds of wall time, past which SIGALRM raises TimeoutError in it: a walk that never ends
+    fails its qual instead of hanging the suite."""
+    def expire(signum, frame):
+        raise TimeoutError(f'past {seconds} s')
+    previous = signal.signal(signal.SIGALRM, expire)
+    signal.setitimer(signal.ITIMER_REAL, seconds)
+    try:
+        yield
+    finally:
+        signal.setitimer(signal.ITIMER_REAL, 0)
+        signal.signal(signal.SIGALRM, previous)
 
 
 class TreeOnlyQuals(unittest.TestCase):
@@ -534,6 +551,37 @@ class TrustQuals(unittest.TestCase):
             Path(tmp, 'fanout', 'jobs', f'{first}.json.gz').unlink()
             self.refused_at(lambda: finish(tmp, run, journal, prepared, 20, 5), ('run', "r['tree_sha256']"))
             self.assertEqual([e['event'] for e in events(Path(tmp, 'fanout.jsonl'))[len(before):]], ['session'])
+
+    def test_a_job_file_handing_back_a_box_not_strictly_within_its_own_is_refused_at_the_session_start(self):
+        # Replicata: (20, 5) stopped after 5 LP solves; fanout stopped by an error right after its third job_end, when a
+        # child job (one whose box another job, its parent, handed back) and its parent both have their files; then,
+        # in a copy of that state for each, the child's file given one more open box, its tree and tree_sha256 kept so
+        # that load's other checks pass: (a) the child's own box; (b) its parent's box; (c) a box outside its own, its
+        # path with its first value flipped and one more position fixed; then fanout again, allowed 20 s.
+        # Expectata (2026-10-26 launch review): AssertionError in load, at its check that a job file hands back only
+        # boxes strictly within its own, its path and at least one position more; after the first session's records,
+        # the second session's alone, before any probe or job.
+        # Resultata before: (a) and (b) kept the session start's walk going round its cycle past the 20 s
+        # (TimeoutError); (c) was proven as a job, and only assembly refused it, after the last job.
+        with tempfile.TemporaryDirectory() as first:
+            prepared = real(20, 5)
+            run, journal = stopped(first, prepared, 20, 5, 5)
+            self.interrupted(first, run, journal, prepared, 20, 5, 3)
+            jobs = files(Path(first, 'fanout'))
+            child, parent = next((d, e) for d in jobs.values() for e in jobs.values()
+                                 if d['case'] == e['case'] and d['path'] in e['open'])
+            (q, v), free = child['path'][0], min(set(range(20)) - {p for p, _ in child['path']})
+            outside = [[q, 1 - v]] + child['path'][1:] + [[free, 0]]
+            for label, extra in (('own', child['path']), ('parent', parent['path']), ('outside', outside)):
+                with self.subTest(box=label), tempfile.TemporaryDirectory() as tmp:
+                    shutil.copytree(first, tmp, dirs_exist_ok=True)
+                    write(Path(tmp, 'fanout'), dict(child, open=child['open'] + [extra]))
+                    before = events(Path(tmp, 'fanout.jsonl'))
+                    with limited(20):
+                        self.refused_at(lambda: finish(tmp, Path(tmp, 'run'), Path(tmp, 'focus.jsonl'), prepared,
+                                                       20, 5), ('load', "p[:len(data['path'])]"))
+                    self.assertEqual([e['event'] for e in events(Path(tmp, 'fanout.jsonl'))[len(before):]],
+                                     ['session'])
 
     def test_a_job_file_s_rename_is_made_durable(self):
         # Replicata: fanout.write_atomic of a small object to a file in a fresh directory, os.open, os.fsync and

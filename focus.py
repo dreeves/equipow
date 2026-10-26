@@ -54,7 +54,7 @@ import os
 import time
 from pathlib import Path
 
-import mstar
+import residues
 
 
 def prime_prepare(n, m):
@@ -62,7 +62,7 @@ def prime_prepare(n, m):
     assert n % 4 == 0 and n < 2 ** m
     profiles = []
     for M in (2, 3, 5, 7):
-        ds = tuple(mstar.residue_vectors(n, M, m, None, mstar.Budget(10 ** 6), 'natural'))
+        ds = tuple(residues.residue_vectors(n, M, m, None, residues.Budget(10 ** 6), 'natural'))
         profiles.append(tuple((M, tuple((d + len(range(r, n, M))) // 2 for r, d in enumerate(D))) for D in ds))
     assert profiles[0] == ((2, (n // 4, n // 4)),)
     return moments(n, m), tuple(itertools.product(*profiles))
@@ -83,7 +83,7 @@ def fingerprint():
     return hashlib.sha256(b''.join((root / name).read_bytes()
                                   for name in ('focus.py', 'focus432.py', 'focus480.py', 'focus672.py',
                                                'focus432_certificates.json.gz', 'focus480_certificates.json.gz',
-                                               'certbb.py', 'mstar.py', 'overnight_v5.py'))).hexdigest()
+                                               'certbb.py', 'residues.py', 'overnight_v5.py'))).hexdigest()
 
 
 class State:

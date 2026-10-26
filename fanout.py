@@ -74,6 +74,7 @@ Vocabulary (with focus.py's):
             solves in all (its tree's under these warm starts, on case_lp's option in expectation over HiGHS's draws;
             the run's own tree was grown partly under focus.search's).
 """
+import array
 from concurrent.futures import FIRST_COMPLETED, ProcessPoolExecutor, wait
 import fcntl
 import functools
@@ -113,6 +114,23 @@ def key(case, path):
 def jid(box):
     """A job's id: the sha1 of its box."""
     return hashlib.sha1(json.dumps([box[0], [list(p) for p in box[1]]]).encode()).hexdigest()
+
+
+def pack(path):
+    """A path as the driver holds it for a job not done (2026-10-26 launch review: as key's tuples, at 432:12's
+    production shapes, such a box took 632 to 702 bytes in session and 2,540 to 2,937 when a session's start rebuilt it
+    from its job file): 2 bytes a fixed position, in the path's order, the position times 2 plus the value as an
+    unsigned 16-bit int (array's 'H', in the machine's byte order).  Asserts that each pair fits, a position an int from
+    0 to 2^15 - 1 and a value 0 or 1, and that 2 bytes hold it."""
+    assert all(type(p) is int and type(t) is int and 0 <= p < 2 ** 15 and t in (0, 1) for p, t in path), path
+    packed = array.array('H', [2 * p + t for p, t in path]).tobytes()
+    assert len(packed) == 2 * len(path), len(packed)
+    return packed
+
+
+def unpack(packed):
+    """The path that pack packed, a tuple of (position, value) pairs, as key makes one."""
+    return tuple(divmod(u, 2) for u in memoryview(packed).cast('H'))
 
 
 def box(N, path):
@@ -184,7 +202,9 @@ def save(work_dir, job, root, result):
 
 
 def load(path):
-    """A done job's file, read and checked: version 2 with FIELDS, named for its box, its tree its tree_sha256's."""
+    """A done job's file, read and checked: version 2 with FIELDS, named for its box, its tree its tree_sha256's, and
+    each box it hands back strictly within its own, its path and at least one position more (2026-10-26 launch
+    review: a file handing back its own box or its parent job's made a session's start walk them round forever)."""
     # TODO: error copy; says a job file that assembly needs is not there, naming it
     assert path.exists(), f'Claude: "no job file {path.name}"'
     data = read(path)
@@ -193,13 +213,20 @@ def load(path):
     assert path.name == f'{jid(key(data["case"], data["path"]))}.json.gz', path
     # TODO: error copy; says a job file's tree is not the one its own tree_sha256 names, naming the file
     assert digest(data['tree']) == data['tree_sha256'], f'Claude: "the tree of {path.name} fails its sha256"'
+    # TODO: error copy; says a job file hands back a box that is not strictly within its own box, naming the file
+    assert all(len(p) > len(data['path']) and p[:len(data['path'])] == data['path'] for p in data['open']), \
+        f'Claude: "{path.name} hands back a box not strictly within its own"'
     return data
 
 
 def brief(entry):
-    """What the driver keeps of a done job: its open boxes, witness, root and tree_sha256, not its tree (its tokens,
-    before tree-only files, were tens of megabytes at 672; assembly reads each tree back from its job's file)."""
-    return {k: entry[k] for k in ('open', 'witness', 'root', 'tree_sha256')}
+    """What the driver keeps of a done job: how many boxes it left open, its witness, root and tree_sha256; not its
+    tree (its tokens, before tree-only files, were tens of megabytes at 672; assembly reads each tree back from its
+    job's file), nor its open boxes' paths, which farm reads back from the file at a session's start (2026-10-26
+    launch review: rebuilt so from the files, they took about 110 bytes a fixed position at 432:12, 1.4 to 1.6 GB
+    per 1e9 LP solves).  So every record but a witness's takes the same bytes, whatever its boxes' depths."""
+    return dict(open=len(entry['open']), witness=entry['witness'], root=entry['root'],
+                tree_sha256=entry['tree_sha256'])
 
 
 def finished(work_dir):
@@ -212,6 +239,14 @@ def note(journal, event, **fields):
         f.write(json.dumps(dict(event=event, time=time.time(), pid=os.getpid(), **fields), separators=(',', ':')) + '\n')
         f.flush()
         os.fsync(f.fileno())
+
+
+def records(journal):
+    """The journal's records, each parsed as its line is read and none kept (2026-10-26 pack review: assembly's list of
+    them all, kept through its walk, took 1,856 bytes a job at 432:12, or 0.70 GB at 3e10 LP solves, with the journal's
+    text and lines while it parsed them)."""
+    with open(journal, encoding='utf-8') as stream:
+        yield from map(json.loads, stream)
 
 
 # ---------- the workers ----------
@@ -341,26 +376,32 @@ def witnessed(prepared, work_dir, name):
 
 def farm(prepared, all_roots, done, work_dir, journal):
     """Journals a probe of each case with a job not done, then runs every job not done, WORKERS at once, shallowest
-    first; the witness found (0/1 list), read back from its job's file and checked by witnessed, else None."""
+    first; the witness found (0/1 list), read back from its job's file and checked by witnessed, else None.  A job not
+    done waits on the heap as (depth, order, case, its path packed, root), order counting the boxes put there before
+    it: so the shallowest goes first and, of equally deep ones, the first put there, as when the heap held key's
+    (case, path) before 2026-10-26.  reach's walk holds its paths packed too (see pack)."""
     heap, order = [], itertools.count()
-    def reach(job, root):                  # the jobs not done at or below job
-        todo = [job]
+    def push(case, path, root):            # a job not done, onto the heap
+        heapq.heappush(heap, (len(path), next(order), case, pack(path), root))
+    def reach(job, root):                  # the jobs not done at or below job, a done one's open boxes from its file
+        todo = [pack(job[1])]              # boxes of job's case, by their paths, packed
         while todo:
-            b = todo.pop()
+            b = job[0], unpack(todo.pop())
             entry = done.get(jid(b))
-            if entry is None: heapq.heappush(heap, (len(b[1]), next(order), b, root))
-            else: todo += [key(b[0], p) for p in entry['open']]
+            if entry is None: push(*b, root)
+            else: todo += [pack(p) for p in load(Path(work_dir) / 'jobs' / f'{jid(b)}.json.gz')['open']]
     for root, job in searched(prepared, all_roots): reach(job, root)
     found = [name for name, e in done.items() if e['witness'] is not None]
     if found: return witnessed(prepared, work_dir, found[0])
-    for case in sorted({b[0] for _, _, b, _ in heap}):
+    for case in sorted({case for _, _, case, _, _ in heap}):
         note(journal, 'probe', case=case, **probe(prepared, case, PROBE_PATHS))
     with ProcessPoolExecutor(WORKERS, mp_context=multiprocessing.get_context('spawn'), initializer=init,
                              initargs=(prepared, BUDGET, DEEP)) as pool:
         running = {}
         while heap or running:
             while heap and len(running) < WORKERS:
-                _, _, job, root = heapq.heappop(heap)
+                _, _, case, packed, root = heapq.heappop(heap)
+                job = case, unpack(packed)
                 running[pool.submit(work, job)] = (job, root)
                 note(journal, 'job_start', job=jid(job), case=job[0], depth=len(job[1]), root=root)
             ready, _ = wait(running, return_when=FIRST_COMPLETED)
@@ -374,7 +415,7 @@ def farm(prepared, all_roots, done, work_dir, journal):
                 if result['witness'] is not None:
                     pool.shutdown(cancel_futures=True)
                     return witnessed(prepared, work_dir, jid(job))
-                for p in result['open']: heapq.heappush(heap, (len(p), next(order), key(job[0], p), root))
+                for p in result['open']: push(job[0], p, root)
     return None
 
 
@@ -409,12 +450,13 @@ def assemble(run_dir, work_dir, journal, prepared, code, all_roots, done):
     walk reaches them."""
     equations, _ = prepared
     unmoved(run_dir, work_dir, prepared, code, all_roots)
-    records, current = [json.loads(line) for line in Path(journal).read_text().splitlines()], fingerprint()
+    current = fingerprint()                # each check below reads the journal anew, one record at a time (records)
     # TODO: error copy; says a session of fanout's run ran other fanout code than the code assembling it
-    assert all(r['fanout_code'] == current for r in records if r['event'] in ('header', 'session')), \
+    assert all(r['fanout_code'] == current for r in records(journal) if r['event'] in ('header', 'session')), \
         'Claude: "a session of the run ran other fanout code"'
     # TODO: error copy; says a probe of the run found an exact solution, so the run cannot end excluded
-    assert not [r for r in records if r['event'] == 'probe' and r['witnesses']], 'Claude: "a probe found a witness"'
+    assert not [r for r in records(journal) if r['event'] == 'probe' and r['witnesses']], \
+        'Claude: "a probe found a witness"'
     walked, jobs = {}, []                  # each job's tree_sha256 by id, and each job, as the walk reaches them
     for root, job in searched(prepared, all_roots):
         todo = [job]
@@ -433,7 +475,7 @@ def assemble(run_dir, work_dir, journal, prepared, code, all_roots, done):
             todo += [key(job[0], p) for p in data['open']]
     # TODO: error copy; says a job file lies outside the boxes that the walk from the roots reaches
     assert set(walked) == set(done), f'Claude: "job files outside the tiling: {sorted(set(done) - set(walked))}"'
-    for r in (r for r in records if r['event'] == 'job_end'):
+    for r in (r for r in records(journal) if r['event'] == 'job_end'):
         # TODO: error copy; says a job_end in fanout's journal has no job file, or one with another tree, naming it
         assert walked.get(r['job']) == r['tree_sha256'], f'Claude: "the job_end of {r["job"]} is not its file\'s"'
     return jobs

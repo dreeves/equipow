@@ -5,6 +5,7 @@ quals_reprove."""
 import hashlib
 import json
 from pathlib import Path
+import shutil
 import tempfile
 import unittest
 from unittest.mock import Mock, patch
@@ -12,9 +13,10 @@ from unittest.mock import Mock, patch
 import certbb
 import fanout
 import focus
+import reflection
 import reprove
 from quals_fanout import events, finish, real, stopped, unpaired
-from quals_fanout_tree import digest, files, write
+from quals_fanout_tree import digest, files, refusal, write
 
 THUE_MORSE = [p.bit_count() % 2 for p in range(16)]          # 0110100110010110, of order 4
 
@@ -133,6 +135,68 @@ class ReproveQuals(unittest.TestCase):
                     self.assertRaises(AssertionError) as raised:
                 reprove.run(run, work, own, 20, 5, 2)
             self.assertIn(name, str(raised.exception))
+
+    def test_the_totals_name_the_code_that_ran(self):
+        # Replicata: (20, 5) stopped after 5 LP solves and finished by fanout; then reprove.run with two workers.
+        # Expectata (2026-10-26 launch review: the recheck's output named no code, and reprove.py is in neither
+        # focus.fingerprint nor fanout_code): its totals name the code that ran: code, focus.fingerprint, and
+        # fanout_code, the sha256 of fanout.py's bytes followed by reflection.py's, both as fanout's journal names
+        # them, which assembly checks; and reprove_code, the sha256 of reprove.py's bytes.
+        # Resultata before: jobs, nodes, leaves, attempts and seconds alone.
+        def sha(*modules):
+            return hashlib.sha256(b''.join(Path(m.__file__).read_bytes() for m in modules)).hexdigest()
+        with tempfile.TemporaryDirectory() as tmp:
+            prepared = real(20, 5)
+            run, journal = stopped(tmp, prepared, 20, 5, 5)
+            outcome, work, own = finish(tmp, run, journal, prepared, 20, 5)
+            self.assertEqual(outcome, 'excluded')
+            with patch.object(focus, 'prepare', return_value=prepared):
+                total = reprove.run(run, work, own, 20, 5, 2)
+            head = events(own)[0]
+            self.assertEqual({k: total[k] for k in ('code', 'fanout_code', 'reprove_code')},
+                             dict(code=focus.fingerprint(), fanout_code=sha(fanout, reflection),
+                                  reprove_code=sha(reprove)))
+            self.assertEqual((head['code'], head['fanout_code']), (total['code'], total['fanout_code']))
+
+    def test_a_code_change_during_the_recheck_is_refused(self):
+        # Replicata: (20, 5) stopped after 5 LP solves and finished by fanout; copies of the sources that
+        # focus.fingerprint, fanout_code and reprove_code hash, with focus.__file__, fanout.__file__ and
+        # reprove.__file__ pointed at them (as quals_focus432 points focus.__file__ at copies); then reprove.run with
+        # two workers, fanout.assemble wrapped so that, once assembly has accepted the run, the copy of one source is
+        # changed by a byte, as by an edit in mid-recheck: certbb.py, fanout.py or reprove.py, each in turn, the
+        # others as they were.
+        # Expectata: AssertionError each time, in reprove.run, at its check after the reproofs that the code is still
+        # the code it started with: else its totals would name code other than the code that ran.
+        # Resultata before: accepted, its totals naming no code.
+        root = Path(focus.__file__).resolve().parent
+        names = ['focus.py', 'focus432.py', 'focus480.py', 'focus672.py', 'focus432_certificates.json.gz',
+                 'focus480_certificates.json.gz', 'certbb.py', 'residues.py', 'overnight_v5.py', 'fanout.py',
+                 'reflection.py', 'reprove.py']
+        with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as copies:
+            for name in names:
+                shutil.copyfile(root / name, Path(copies, name))
+            prepared = real(20, 5)
+            run, journal = stopped(tmp, prepared, 20, 5, 5)
+            outcome, work, own = finish(tmp, run, journal, prepared, 20, 5)
+            self.assertEqual(outcome, 'excluded')
+            real_assemble = fanout.assemble
+            for name in ('certbb.py', 'fanout.py', 'reprove.py'):
+                path = Path(copies, name)
+                original = path.read_bytes()
+                def assemble(*args):
+                    walked = real_assemble(*args)
+                    path.write_bytes(original + b'\n')
+                    return walked
+                with self.subTest(name=name), patch.object(focus, 'prepare', return_value=prepared), \
+                        patch.object(focus, '__file__', str(Path(copies, 'focus.py'))), \
+                        patch.object(fanout, '__file__', str(Path(copies, 'fanout.py'))), \
+                        patch.object(reprove, '__file__', str(Path(copies, 'reprove.py'))), \
+                        patch.object(fanout, 'assemble', assemble):
+                    frames = refusal(lambda: reprove.run(run, work, own, 20, 5, 2))
+                    self.assertTrue(frames)                                     # refused
+                    self.assertEqual((Path(frames[-1].filename).name, frames[-1].name), ('reprove.py', 'run'))
+                    self.assertIn('codes() == ', frames[-1].line)
+                path.write_bytes(original)
 
     def test_a_W_point_is_checked_exactly(self):
         # Replicata: reprove.walk on 16:4's whole box with the one-token tree ['W', x], x Thue-Morse's sequence; then

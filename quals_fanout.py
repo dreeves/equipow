@@ -2,12 +2,17 @@
 it makes them, its job files keeping only the trees, which assembly fits together (2026-10-25, in place of splicing
 the proof back as focus.py chunks: quals_fanout_tree).  Run with PYTHONPATH=scratch/lower24-design/beyond1000/pylib
 /opt/homebrew/bin/python3 -B -m unittest quals_fanout."""
+from concurrent.futures import Future
 import fcntl
 import hashlib
 import json
 import math
 from pathlib import Path
+import pickle
+import random
+import sys
 import tempfile
+import tracemalloc
 import unittest
 from unittest.mock import patch
 
@@ -15,6 +20,7 @@ import certbb
 import focus
 import mstar
 import fanout
+import reprove
 
 
 def real(n, m):
@@ -70,6 +76,56 @@ def finish(tmp, run, journal, prepared, n, m, budget=4):
 
 def events(path):
     return [json.loads(line) for line in Path(path).read_text().splitlines()]
+
+
+def held(x):
+    """The bytes of x and of the objects it refers to through dicts' keys and values and lists' and tuples' items, by
+    sys.getsizeof, an object counted at each reference (so a small int that two fields share, cached by Python,
+    counts twice, as two distinct ints would)."""
+    parts = [*x.keys(), *x.values()] if isinstance(x, dict) else x if isinstance(x, (list, tuple)) else []
+    return sys.getsizeof(x) + sum(map(held, parts))
+
+
+def spined(path, n, spines, length, seed):
+    """spines * length boxes strictly within the box of path, a tuple of (position, value) pairs at length n, as a job's
+    depth-first search leaves them open: down each of spines random paths from path, through length positions free
+    there, the sibling of each step; a spine's boxes sharing its prefixes' pairs, as work's paths share them."""
+    rng, boxes = random.Random(seed), []
+    free = sorted(set(range(n)) - {q for q, _ in path})
+    for _ in range(spines):
+        p = path
+        for q in rng.sample(free, length):
+            t = rng.randrange(2)
+            boxes.append(p + ((q, 1 - t),))
+            p += ((q, t),)
+    return boxes
+
+
+def sequences(own):
+    """A fanout journal's job_starts, [job, case, depth, root] each, and job_ends, [job, tree_sha256] each, in its
+    order: how many of each, and the sha256 of each list's JSON."""
+    log, sha = events(own), lambda x: hashlib.sha256(json.dumps(x).encode()).hexdigest()
+    starts = [[r['job'], r['case'], r['depth'], r['root']] for r in log if r['event'] == 'job_start']
+    ends = [[r['job'], r['tree_sha256']] for r in log if r['event'] == 'job_end']
+    return dict(starts=len(starts), starts_sha256=sha(starts), ends=len(ends), ends_sha256=sha(ends))
+
+
+class Inline:
+    """A stand-in for farm's ProcessPoolExecutor: each job submitted done at once, in this process, its result
+    hand(job)'s, or hand's error raised."""
+    def __init__(self, hand):
+        self.hand = hand
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *raised):
+        return False
+
+    def submit(self, fn, job):
+        future = Future()
+        future.set_result(self.hand(job))
+        return future
 
 
 class FanoutQuals(unittest.TestCase):
@@ -183,6 +239,8 @@ class FanoutQuals(unittest.TestCase):
         # no tree: at 672 a job's tokens were tens of megabytes, and assembly reads the trees back from the job files
         # one at a time.
         # Resultata before tree-only storage (2026-10-25): the same, with the splice in assembly's place.
+        # Since 2026-10-26 a record holds its open boxes' count, not the boxes, which farm reads back from the job's
+        # file (test_the_driver_keeps_a_bounded_record_of_each_done_job).
         with tempfile.TemporaryDirectory() as tmp:
             prepared = real(20, 5)
             run, journal = stopped(tmp, prepared, 20, 5, 5)
@@ -196,6 +254,43 @@ class FanoutQuals(unittest.TestCase):
             self.assertGreater(len(done), 2)
             self.assertTrue(all('tokens' not in e and 'tree' not in e and {'open', 'witness', 'root'} <= set(e)
                                 for e in done.values()))
+
+    def test_the_driver_keeps_a_bounded_record_of_each_done_job(self):
+        # Replicata: fanout on (20, 5) after its 5-solve stop, jobs of at most 4 LP solves, stopped by an error right
+        # after its third job's file is saved and run again, its assembly then replaced by a recorder of what it is
+        # given; the bytes of each done job's record there, over every object it holds (held), against the open boxes
+        # its job file hands back.
+        # Expectata (2026-10-26 launch review: rebuilt from their files at a session's start, the records of two
+        # 432:12 jobs of 80,000 LP solves took 124,155 and 111,839 bytes, about 110 bytes a fixed position of the boxes
+        # they handed back, or 1.4 to 1.6 GB per 1e9 LP solves, past the 2 GiB reservation within a run of 1e9 to
+        # 3e10): the same bytes for every record, under 1 KiB, whether its job handed back no box or deep ones, the
+        # records loaded at the restart and those of the second session alike; and every job has its record.
+        # Resultata before: each record held its job's open boxes' paths, its bytes growing with them.
+        with tempfile.TemporaryDirectory() as tmp:
+            prepared = real(20, 5)
+            run, journal = stopped(tmp, prepared, 20, 5, 5)
+            real_save, saves = fanout.save, []
+            def save(*args):
+                real_save(*args)
+                saves.append(1)
+                if len(saves) == 3: raise KeyboardInterrupt
+            with patch.object(fanout, 'save', save), self.assertRaises(KeyboardInterrupt):
+                finish(tmp, run, journal, prepared, 20, 5)
+            given = []
+            def assemble(*args):
+                given.append(args)
+                raise KeyboardInterrupt
+            with patch.object(fanout, 'assemble', assemble), self.assertRaises(KeyboardInterrupt):
+                finish(tmp, run, journal, prepared, 20, 5)
+            done = next(a for a in given[0] if isinstance(a, dict))
+            files = {f.name.split('.')[0]: fanout.load(f) for f in Path(tmp, 'fanout', 'jobs').glob('*.json.gz')}
+            self.assertEqual(set(done), set(files))
+            fixed = sorted(sum(map(len, d['open'])) for d in files.values())
+            self.assertEqual(fixed[0], 0)
+            self.assertGreaterEqual(fixed[-1], 10, fixed)
+            sizes = {name: held(e) for name, e in done.items()}
+            self.assertEqual(len(set(sizes.values())), 1, sizes)
+            self.assertLess(max(sizes.values()), 1024)
 
     def test_a_job_finishes_its_deep_boxes_and_hands_back_only_shallow_ones(self):
         # Replicata: fanout on (20, 5) with jobs of at most 4 LP solves and DEEP 1, after its 5-solve stop.
@@ -324,6 +419,165 @@ class FanoutQuals(unittest.TestCase):
         self.assertEqual(probed, unprobed)
         self.assertGreater(least, 1)
         self.assertEqual(leasts, [1])
+
+    def test_a_pending_box_takes_2_bytes_a_fixed_position_plus_a_constant(self):
+        # Replicata: 432:12's equations (real: one case, no residue counts) stopped after 1 LP solve, at two roots of
+        # depth 1; then fanout with one worker and probes that solve no LP, tracemalloc tracing, its pool a stand-in
+        # (Inline) under which the first job hands back 4,096 boxes strictly within its own, the siblings along 64
+        # random spines 64 positions deep (spined), its result pickled and unpickled as from a worker, and the next
+        # submit stops the session by an error; then fanout again, the start of its pool stopping it.  The bytes
+        # tracemalloc counts in session from that job's job_end to the next submit, the heap then holding the 4,096
+        # boxes; and after the restart from the session record to the pool's start, the heap then holding them and the
+        # other root, rebuilt from the job's file.
+        # Expectata (2026-10-26 launch review: at 432:12's production shapes a pending box took 632 to 702 bytes in
+        # session and 2,540 to 2,937 when a session's start rebuilt it from its job file, about 1 GB per 1e9 LP solves
+        # after a restart if every handed-back box stays pending): at most 2 bytes a fixed position plus 160 bytes a
+        # box, in session and after the restart alike.
+        # Resultata before (scratch/record-20261025/pack/heap/logs/red2.log): 466.7 bytes a box in session, without the
+        # pairs it shares with the worker's result, and 2,640.4 after the restart: a box was key's (case, path), its
+        # path a tuple of (position, value) tuples, rebuilt one tuple a pair from the job file at a restart.
+        with tempfile.TemporaryDirectory() as tmp:
+            prepared = real(432, 12)
+            run, journal = stopped(tmp, prepared, 432, 12, 1)
+            work, own = Path(tmp, 'fanout'), Path(tmp, 'fanout.jsonl')
+            roots = fanout.roots(run, work, focus.fingerprint())
+            self.assertEqual([len(path) for _, path in roots], [1, 1])
+            boxes = spined(roots[0][1], 432, 64, 64, 20261026)
+            result = pickle.loads(pickle.dumps(dict(tree=[['L']], tree_sha256=fanout.digest([['L']]), open=boxes,
+                                                    seconds=0.0, witness=None)))
+            real_note, marks, held = fanout.note, {}, []
+            def note(path, event, **fields):
+                real_note(path, event, **fields)
+                marks[event] = tracemalloc.get_traced_memory()[0]
+            def stop(since):               # the bytes traced since the last note of event since; then an error
+                held.append(tracemalloc.get_traced_memory()[0] - marks[since])
+                raise KeyboardInterrupt
+            hands = [lambda: result, lambda: stop('job_end')]
+            stand_in = dict(paths=2, mean=0.0, se=0.0, least=1, witnesses=[])
+            tracemalloc.start()
+            try:
+                with patch.object(focus, 'prepare', return_value=prepared), \
+                        patch.multiple(fanout, WORKERS=1, note=note, probe=lambda *args: stand_in):
+                    with patch.object(fanout, 'ProcessPoolExecutor', lambda *args, **kwargs: Inline(
+                            lambda job: hands.pop(0)())), self.assertRaises(KeyboardInterrupt):
+                        fanout.run(run, work, own, 432, 12)
+                    with patch.object(fanout, 'ProcessPoolExecutor', lambda *args, **kwargs: stop('session')), \
+                            self.assertRaises(KeyboardInterrupt):
+                        fanout.run(run, work, own, 432, 12)
+            finally:
+                tracemalloc.stop()
+            fixed = sum(map(len, boxes))
+            pending = {'in session': (len(boxes), fixed), 'after a restart': (len(boxes) + 1, fixed + 1)}
+            self.assertEqual(len(held), 2)
+            for (when, (count, positions)), size in zip(pending.items(), held):
+                print(json.dumps(dict(when=when, boxes=count, fixed=positions, bytes=size,
+                                      per_box=round(size / count, 1),
+                                      per_box_less_2_a_position=round((size - 2 * positions) / count, 1))), flush=True)
+            for (when, (count, positions)), size in zip(pending.items(), held):
+                self.assertLessEqual(size, 2 * positions + 160 * count, when)
+
+    def test_pack_takes_2_bytes_a_position_and_refuses_what_does_not_fit(self):
+        # Replicata: fanout.pack of a path as a worker's result holds it (tuples) and as a job file holds it (lists),
+        # positions up to 2^15 - 1; then of each path holding a pair that does not fit: position 2^15, position -1,
+        # value 2, value True, position 3.0, a pair of three.
+        # Expectata (2026-10-26, the driver's pending boxes packed): 2 bytes a fixed position, unpack giving back key's
+        # tuple of (int, int) pairs, so the same job id; each pair that does not fit refused with an error (the
+        # three-item pair's by its unpacking), none packed.
+        path = ((431, 1), (0, 0), (2 ** 15 - 1, 1), (256, 0))
+        for given in (path, [list(p) for p in path]):
+            packed = fanout.pack(given)
+            self.assertEqual((type(packed), len(packed)), (bytes, 2 * len(path)))
+            self.assertEqual(fanout.unpack(packed), fanout.key(7, given)[1])
+            self.assertTrue(all(type(t) is int for p in fanout.unpack(packed) for t in p))
+            self.assertEqual(fanout.jid((7, fanout.unpack(packed))), fanout.jid(fanout.key(7, given)))
+        self.assertEqual((fanout.pack(()), fanout.unpack(b'')), (b'', ()))
+        for pair in ((2 ** 15, 0), (-1, 0), (3, 2), (3, True), (3.0, 1), (3, 1, 0)):
+            with self.subTest(pair=pair), self.assertRaises((AssertionError, ValueError)):
+                fanout.pack(path + (pair,))
+
+    def resumed(self, tmp, prepared, n, m, budget, ends):
+        """focus.py's run on prepared stopped after budget LP solves, then fanout with one worker, so that its code
+        alone decides the order in which jobs end and each job's LP state (its worker's), and jobs of at most 4 LP
+        solves: stopped by an error right after its ends-th job_end, then run again to its finish.  The outcome, the
+        run's directory, and fanout's work directory and journal."""
+        run, journal = stopped(tmp, prepared, n, m, budget)
+        work, own, real_note = Path(tmp, 'fanout'), Path(tmp, 'fanout.jsonl'), fanout.note
+        def note(path, event, **fields):
+            real_note(path, event, **fields)
+            if [e['event'] for e in events(path)].count('job_end') == ends: raise KeyboardInterrupt
+        with patch.object(focus, 'prepare', return_value=prepared), patch.multiple(fanout, WORKERS=1, BUDGET=4):
+            with patch.object(fanout, 'note', note), self.assertRaises(KeyboardInterrupt):
+                fanout.run(run, work, own, n, m)
+            return fanout.run(run, work, own, n, m), run, work, own
+
+    def test_one_worker_s_job_starts_and_trees_are_the_ones_before_the_boxes_were_packed(self):
+        # Replicata: resumed on (20, 5), stopped after 5 LP solves, fanout stopped after its 3rd job_end, then
+        # reprove.run with one worker; and on (16, 4), stopped after 3 LP solves, fanout stopped after its 2nd job_end.
+        # Expectata (2026-10-26, the driver's pending boxes packed: fanout.pack): as the code before made them, recorded
+        # 2026-10-26 with HiGHS 1.12.0 as SciPy 1.17.1 bundles it (sequences): the job_starts' [job, case, depth, root]
+        # and the job_ends' [job, tree_sha256], each in the journal's order, both sessions'; (20, 5) excluded, so
+        # assembled, then reproven from scratch, with the counts below; (16, 4) a witness, Thue-Morse.
+        # Green before the change too, as recorded from it, and red under a farm whose ties go the other way, the last
+        # of equally deep boxes put on the heap going first (scratch/record-20261025/pack/heap/mutant.py).  With 2
+        # workers, timing decides which worker takes which job, so two runs of the same code can differ
+        # (scratch/record-20261025/pack/heap/logs/determinism.log).
+        with tempfile.TemporaryDirectory() as tmp:
+            prepared = real(20, 5)
+            outcome, run, work, own = self.resumed(tmp, prepared, 20, 5, 5, 3)
+            with patch.object(focus, 'prepare', return_value=prepared):
+                total = reprove.run(run, work, own, 20, 5, 1)
+            made = dict(outcome=outcome, **sequences(own),
+                        reproven={k: total[k] for k in ('jobs', 'nodes', 'leaves', 'attempts')})
+            print(json.dumps(dict(n=20, order=5, **made)), flush=True)
+            self.assertEqual(made, dict(
+                outcome='excluded', starts=19, ends=19,
+                starts_sha256='af560130d2c9970be74fd958642a948d53d93ba43def2371362b49964440504b',
+                ends_sha256='c27b80d7e541b115984be9fec16e1a383f51da5bd6a8391edbb695fc43b16e7c',
+                reproven=dict(jobs=19, nodes=46, leaves=24, attempts=dict(warm=24, cold=0, primal=0))))
+        with tempfile.TemporaryDirectory() as tmp:
+            outcome, run, work, own = self.resumed(tmp, real(16, 4), 16, 4, 3, 2)
+            made = dict(outcome=outcome, **sequences(own), witness=events(own)[-1]['witness'])
+            print(json.dumps(dict(n=16, order=4, **made)), flush=True)
+            self.assertEqual(made, dict(
+                outcome='witness', starts=10, ends=10,
+                starts_sha256='5792115425923a89eb2b1ab1c14ef2d07cc8c88bf0f2be4017732f936cdf1fcf',
+                ends_sha256='b8b30e7d2696922e8977c870290ebd2e0b7b375818a105af1c0c6cecb936f9fd',
+                witness=[p.bit_count() % 2 for p in range(16)]))      # Thue-Morse, 0110100110010110
+
+    def test_assembly_s_memory_does_not_grow_with_the_journal(self):
+        # Replicata: fanout on (20, 5) to its finish after its 5-solve stop; fanout.assemble on it, as fanout.run calls
+        # it, under tracemalloc; then its journal given 100 more copies of each of its job_start and job_end records,
+        # in its order (a long run's journal holds about two records a job), and assembly again.  The peak bytes that
+        # tracemalloc counts in each, from fanout.finished's read of the job files to assembly's return.
+        # Expectata (2026-10-26 pack review: assembly parsed the whole journal into a list of dicts and kept it through
+        # its walk, at 432:12 1,856 bytes a job, or 0.70 GB at 3e10 LP solves, with the journal's text and lines while
+        # it parsed them): the same jobs, in the same order, and the second peak at most 64 KiB above the first, the
+        # journal read one record at a time.
+        # Resultata before (scratch/record-20261025/pack/fix/logs/red.log): with 3,800 records more, the second peak
+        # 4,237,175 bytes above the first, 1,115.0 bytes a record: assembly kept a list of every record.
+        with tempfile.TemporaryDirectory() as tmp:
+            prepared = real(20, 5)
+            run, journal = stopped(tmp, prepared, 20, 5, 5)
+            outcome, work, own = finish(tmp, run, journal, prepared, 20, 5)
+            self.assertEqual(outcome, 'excluded')
+            code = focus.fingerprint()
+            roots = fanout.roots(run, work, code)
+            padding = [r for r in events(own) if r['event'] in ('job_start', 'job_end')] * 100
+            peaks, walks = [], []
+            for extra in ([], padding):
+                with open(own, 'a', encoding='utf-8') as f:
+                    f.write(''.join(json.dumps(r, separators=(',', ':')) + '\n' for r in extra))
+                tracemalloc.start()
+                try:
+                    walks.append(fanout.assemble(run, work, own, prepared, code, roots, fanout.finished(work)))
+                    peaks.append(tracemalloc.get_traced_memory()[1])
+                finally:
+                    tracemalloc.stop()
+            print(json.dumps(dict(records=len(padding), peaks=peaks, growth=peaks[1] - peaks[0],
+                                  per_record=round((peaks[1] - peaks[0]) / len(padding), 1))), flush=True)
+            self.assertGreater(len(padding), 2000)
+            self.assertEqual(walks[0], walks[1])
+            self.assertLessEqual(peaks[1] - peaks[0], 64 << 10)
 
 
 if __name__ == '__main__':

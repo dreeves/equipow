@@ -7,6 +7,7 @@ every token through certbb.Check.  Run with PYTHONPATH=scratch/lower24-design/be
 The exhaustive families and the controls are ported from the 432:12 referee's sat_quals.py, ctrl_pipeline.py and
 ctrl2.py (scratch/ideas-20261025/verify/v432).
 """
+import ast
 import copy
 from collections import Counter
 import io
@@ -15,6 +16,7 @@ import json
 from pathlib import Path
 import random
 import shutil
+import subprocess
 import sys
 import tempfile
 import traceback
@@ -29,6 +31,7 @@ import fanout
 import focus
 import focus432
 import mstar
+import residues
 
 X1, PHI2, PHI4 = (-1, 1), (1, 1), (1, 0, 1)
 KMAX = 9                                    # power sums computed per vector; no vector here has order above it
@@ -368,12 +371,13 @@ class Focus432Quals(unittest.TestCase):
                     focus432._says(certbb.Moments(base.W, base.rhs, ((tuple(w),), (b,))), v)
 
     def test_profiles_refuse_impossible_residue_sums(self):
-        # Replicata: _profiles at 8:1 mod 4 (classes of 2), mstar.residue_vectors replaced by a stand-in yielding a
-        # sum of the wrong parity, then one too large for its class, then a vector of 3 sums.
+        # Replicata: _profiles at 8:1 mod 4 (classes of 2), residues.residue_vectors (mstar's before 2026-10-26)
+        # replaced by a stand-in yielding a sum of the wrong parity, then one too large for its class, then a vector of
+        # 3 sums.
         # Expectata: AssertionError for each.
         # Resultata before: plus counts (1, 1, 1, 0), (3, 1, 1, -1) and (1, 1, 1): floored, negative and short.
         for D in ((1, 0, 0, -1), (4, 0, 0, -4), (0, 0, 0)):
-            with self.subTest(D=D), patch.object(mstar, 'residue_vectors', return_value=iter([D])), \
+            with self.subTest(D=D), patch.object(residues, 'residue_vectors', return_value=iter([D])), \
                     self.assertRaises(AssertionError):
                 focus432._profiles(8, 1, 4)
 
@@ -410,7 +414,7 @@ class Focus432Quals(unittest.TestCase):
         # Resultata before the change: focus432's files did not enter the continuation identity.
         root = Path(focus.__file__).resolve().parent
         names = ['focus.py', 'focus432.py', 'focus480.py', 'focus672.py', 'focus432_certificates.json.gz',
-                 'focus480_certificates.json.gz', 'certbb.py', 'mstar.py', 'overnight_v5.py', 'fanout.py']
+                 'focus480_certificates.json.gz', 'certbb.py', 'residues.py', 'overnight_v5.py', 'fanout.py']
         with tempfile.TemporaryDirectory() as tmp:
             for name in names:
                 shutil.copyfile(root / name, Path(tmp, name))
@@ -427,6 +431,84 @@ class Focus432Quals(unittest.TestCase):
             self.assertNotEqual(prints[0], before)
             self.assertNotEqual(prints[1], before)
             self.assertEqual(prints[2], before)
+
+    def edited_fingerprint(self, name, edits):
+        """focus.fingerprint with the bytes it reads of the file name beside focus.py edited: each (old, new) of
+        edits, old occurring there exactly once, made new."""
+        path, real = Path(focus.__file__).resolve().with_name(name), Path.read_bytes
+        data = real(path)
+        for old, new in edits:
+            self.assertEqual(data.count(old), 1, old)
+            data = data.replace(old, new)
+        with patch.object(Path, 'read_bytes', lambda p: data if p.resolve() == path else real(p)):
+            return focus.fingerprint()
+
+    def test_fingerprint_leaves_out_mstar_py_s_tables(self):
+        # Replicata: focus.fingerprint, then again with the bytes it reads of mstar.py edited as recording a result
+        # edits them: an entry added to each of NEW, PAGE_CODES and RESIDUE.
+        # Expectata: the same fingerprint, so that recording a result in mstar.py cannot stop the 432:12 run, whose
+        # continuation identity it is (2026-10-26, dreeves: "if that's what you recommend, sure", to moving mstar.py's
+        # residue enumeration into residues.py).
+        # Resultata before the move: another fingerprint, mstar.py being one of focus.fingerprint's sources.
+        edits = ((b'NEW = {', b"NEW = {1000: (0, 0, 'qual'), "),
+                 (b'PAGE_CODES = (', b"PAGE_CODES = (('qual', 1, '0'), "),
+                 (b'RESIDUE = {', b"RESIDUE = {1000: (1, (3,), 'digits'), "))
+        self.assertEqual(self.edited_fingerprint('mstar.py', edits), focus.fingerprint())
+
+    def test_fingerprint_covers_residues_py(self):
+        # Replicata: focus.fingerprint, then again with the bytes it reads of residues.py edited: residue_vectors's
+        # first assertion made M >= 3.
+        # Expectata: another fingerprint: the residue enumeration is the proof searches' code.
+        # Resultata before the move: FileNotFoundError, there being no residues.py.
+        edits = ((b'    assert m >= 1 and M >= 2\n', b'    assert m >= 1 and M >= 3\n'),)
+        self.assertNotEqual(self.edited_fingerprint('residues.py', edits), focus.fingerprint())
+
+    def test_the_run_s_code_imports_nothing_from_mstar(self):
+        # Replicata: the import statements, at any depth, of the Python sources the 432:12 run and its recheck execute:
+        # focus.fingerprint's, and fanout.py, reflection.py and reprove.py; then a fresh interpreter importing them all.
+        # Expectata: none names mstar, and the fresh interpreter holds residues but not mstar, so an edit of mstar.py
+        # cannot change what a proof runs.
+        # Resultata before the move: focus.py, focus432.py, focus480.py and focus672.py each imported mstar.
+        root = Path(focus.__file__).resolve().parent
+        names = ('focus', 'focus432', 'focus480', 'focus672', 'certbb', 'residues', 'overnight_v5', 'fanout',
+                 'reflection', 'reprove')
+        for name in names:
+            tree = ast.parse((root / f'{name}.py').read_text(encoding='utf-8'))
+            imported = {a.name for n in ast.walk(tree) if isinstance(n, ast.Import) for a in n.names}
+            imported |= {n.module for n in ast.walk(tree) if isinstance(n, ast.ImportFrom)}
+            with self.subTest(name=name):
+                self.assertNotIn('mstar', imported)
+        code = f'import sys, {", ".join(names)}; print(sorted({{"mstar", "residues"}} & set(sys.modules)))'
+        out = subprocess.run([sys.executable, '-B', '-c', code], cwd=root, capture_output=True, text=True, timeout=300)
+        self.assertEqual((out.returncode, out.stdout), (0, "['residues']\n"), out.stderr)
+
+    def test_residues_py_is_mstar_py_s_enumeration_moved_verbatim(self):
+        # Replicata: residues.py; mstar.py as committed in c496222, the last commit before the move (2026-10-26), by
+        # git show; mstar.py now; the modules mstar and residues.
+        # Expectata: residues.py from its first definition on is, byte for byte, c496222's mstar.py from def digits to
+        # the end of residue_vectors: digits, SWEEPS, lattice, basis, Capped, Budget and residue_vectors.  Before that
+        # come only a docstring and import lines of that mstar.py.  mstar.py defines none of the seven now, and mstar's
+        # seven are residues's own objects, so its other callers, its quals and its RESIDUE claims run the same code.
+        # Resultata before the move: ModuleNotFoundError, there being no residues.py.
+        import residues
+        root = Path(focus.__file__).resolve().parent
+        old = subprocess.run(['git', '-C', str(root), 'show', 'c496222:mstar.py'], capture_output=True, text=True,
+                             check=True, timeout=60).stdout
+        new = (root / 'residues.py').read_text(encoding='utf-8')
+        start = new.index('\ndef digits(M):\n') + 1
+        self.assertEqual(new[start:], old[old.index('\ndef digits(M):\n') + 1:old.index('\n\n\ndef chain_none(') + 1])
+        header = ast.parse(new[:start]).body
+        self.assertIsInstance(header[0].value.value, str)                      # the docstring
+        self.assertTrue(all(isinstance(n, (ast.Import, ast.ImportFrom)) for n in header[1:]), header)
+        self.assertLessEqual({ast.get_source_segment(new, n) for n in header[1:]}, set(old.splitlines()))
+        moved = ('digits', 'SWEEPS', 'lattice', 'basis', 'Capped', 'Budget', 'residue_vectors')
+        tree = ast.parse((root / 'mstar.py').read_text(encoding='utf-8'))
+        here = {n.name for n in tree.body if isinstance(n, (ast.FunctionDef, ast.ClassDef))}
+        here |= {t.id for n in tree.body if isinstance(n, ast.Assign) for t in n.targets if isinstance(t, ast.Name)}
+        self.assertFalse(here & set(moved), here & set(moved))
+        for name in moved:
+            with self.subTest(name=name):
+                self.assertIs(getattr(mstar, name), getattr(residues, name))
 
     def test_command_lines_take_432(self):
         # Replicata: focus.py 432 and fanout.py 432, their searches replaced by stand-ins.

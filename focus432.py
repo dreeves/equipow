@@ -6,9 +6,9 @@ reduces 432:12 to two cases under one exact derivative row, every step checked b
 
 Let a_p in {-1, 1}, p = 0, ..., 431, have order 12, so that (x-1)^12 divides f(x) = sum a_p x^p.
 
-Roots.  As 432 < 2^12, mstar's finished enumerations of L+(M, 12) give every possible vector of residue sums mod 3,
-4, 5 and 7: 1, 25, 2 and 24 of them, so 1,200 combinations of plus counts.  A stored integer certificate closes 1,198
-of them, certbb.lower_bound positive on the whole box; the other two are B, below, and its complement A.
+Roots.  As 432 < 2^12, residues.py's finished enumerations of L+(M, 12) give every possible vector of residue sums
+mod 3, 4, 5 and 7: 1, 25, 2 and 24 of them, so 1,200 combinations of plus counts.  A stored integer certificate closes
+1,198 of them, certbb.lower_bound positive on the whole box; the other two are B, below, and its complement A.
 
 Forced factors.  Both have 54 plus signs in each class mod 4 of 108, so every signed residue sum mod 4 is 0: f(-1) = 0
 and f(i) = 0.  The distinct monic irreducibles x-1, x+1 and x^2+1 thus give F = (x-1)^12 (x+1) (x^2+1) dividing f,
@@ -40,7 +40,7 @@ import json
 from pathlib import Path
 
 import certbb
-import mstar
+import residues
 
 N, ORDER = 432, 12
 MODULI = (3, 4, 5, 7)
@@ -130,9 +130,9 @@ def _says(equations, v):
 
 
 def _profiles(n, m, M):
-    """Every possible plus-count vector mod M at length n and order m: mstar's enumeration, finished (running out of
-    its budget raises), no symmetry assumed."""
-    signed = tuple(mstar.residue_vectors(n, M, m, None, mstar.Budget(10 ** 6), 'natural'))
+    """Every possible plus-count vector mod M at length n and order m: residues.py's enumeration, finished (running
+    out of its budget raises), no symmetry assumed."""
+    signed = tuple(residues.residue_vectors(n, M, m, None, residues.Budget(10 ** 6), 'natural'))
     sizes = tuple(len(range(r, n, M)) for r in range(M))
     assert all(len(D) == M and all(abs(d) <= s and (d + s) % 2 == 0 for d, s in zip(D, sizes)) for D in signed)
     return tuple(tuple((d + s) // 2 for d, s in zip(D, sizes)) for D in signed)

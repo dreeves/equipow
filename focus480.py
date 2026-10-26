@@ -43,7 +43,7 @@ from math import comb
 from pathlib import Path
 
 import certbb
-import mstar
+import residues
 import sympy as sp
 from sympy.matrices.normalforms import hermite_normal_form
 
@@ -125,9 +125,9 @@ def _counts7():
     assert (sum(coefficients[::4]) - sum(coefficients[2::4]),
             sum(coefficients[1::4]) - sum(coefficients[3::4])) == (0, 128)
     for modulus in (3, 5):
-        ds = tuple(mstar.residue_vectors(N, modulus, ORDER, None, mstar.Budget(100000), 'digits'))
+        ds = tuple(residues.residue_vectors(N, modulus, ORDER, None, residues.Budget(100000), 'digits'))
         assert ds == ((0,) * modulus,)
-    ds = tuple(mstar.residue_vectors(N, 7, ORDER, None, mstar.Budget(100000), 'digits'))
+    ds = tuple(residues.residue_vectors(N, 7, ORDER, None, residues.Budget(100000), 'digits'))
     assert len(ds) == 2
     out = tuple(tuple((d + len(range(r, N, 7))) // 2 for r, d in enumerate(vector)) for vector in ds)
     assert set(out) == {(10, 59, 59, 10, 34, 34, 34), (59, 10, 10, 59, 34, 34, 34)}
