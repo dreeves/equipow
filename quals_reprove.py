@@ -14,7 +14,7 @@ import fanout
 import focus
 import reprove
 from quals_fanout import events, finish, real, stopped, unpaired
-from quals_fanout_tree import digest, files
+from quals_fanout_tree import digest, files, write
 
 THUE_MORSE = [p.bit_count() % 2 for p in range(16)]          # 0110100110010110, of order 4
 
@@ -109,6 +109,30 @@ class ReproveQuals(unittest.TestCase):
                 reprove.run(run, work, own, 16, 4, 2)
             self.assertIn(fanout.jid(root), str(raised.exception))
             self.assertIn(json.dumps([list(b) for b in box]), str(raised.exception))
+
+    def test_a_job_file_changed_after_assembly_is_refused(self):
+        # Replicata: (20, 5) stopped after 5 LP solves and finished by fanout; then reprove.run with two workers,
+        # fanout.assemble wrapped so that, once assembly has accepted the run, a job that left no box open loses its
+        # last token, an L, and its file's tree_sha256 is made the new tree's, as a writer ignoring the locks could
+        # leave it.
+        # Expectata: AssertionError naming that job: each reproof walks only the tree that assembly checked.
+        # Resultata before (2026-10-25 review, probe A7): accepted, 45 nodes reproven against the journal's 46.
+        with tempfile.TemporaryDirectory() as tmp:
+            prepared = real(20, 5)
+            run, journal = stopped(tmp, prepared, 20, 5, 5)
+            outcome, work, own = finish(tmp, run, journal, prepared, 20, 5)
+            self.assertEqual(outcome, 'excluded')
+            name, data = next((n, d) for n, d in sorted(files(work).items()) if not d['open'] and len(d['tree']) > 1)
+            self.assertEqual(data['tree'][-1], ['L'])
+            real_assemble = fanout.assemble
+            def assemble(*args):
+                walked = real_assemble(*args)
+                write(work, dict(data, tree=data['tree'][:-1], tree_sha256=digest(data['tree'][:-1])))
+                return walked
+            with patch.object(focus, 'prepare', return_value=prepared), patch.object(fanout, 'assemble', assemble), \
+                    self.assertRaises(AssertionError) as raised:
+                reprove.run(run, work, own, 20, 5, 2)
+            self.assertIn(name, str(raised.exception))
 
     def test_a_W_point_is_checked_exactly(self):
         # Replicata: reprove.walk on 16:4's whole box with the one-token tree ['W', x], x Thue-Morse's sequence; then

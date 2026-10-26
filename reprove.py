@@ -12,7 +12,8 @@ Vocabulary (with fanout.py's):
             worker solved it; cold, after clearSolver; primal, after clearSolver again, by primal simplex
             (simplex_strategy 4) in place of certbb.Lp's dual (1), restored after.  A leaf that no attempt proves fails
             the recheck: an AssertionError naming its job and its box's path.
-  reproof   of a job: its tree walked on its box as fanout.work walked it, each node solved on focus.case_lp's LP for
+  reproof   of a job: its tree, the one assembly checked (by its tree_sha256, read again from the job's file), walked
+            on its box as fanout.work walked it, each node solved on focus.case_lp's LP for
             its case, a box's first child from its parent's post-solve state and its second from its parent's basis,
             restored; each L's box proven by an attempt; each W's point checked exactly, as focus.State checks one.
             A B's solve only warm-starts its children: its position is the tree's.  Each node is one LP solve (a leaf
@@ -110,9 +111,14 @@ def walk(job, tree):
                 seconds=time.monotonic() - start)
 
 
-def task(work_dir, job):
-    """A worker's task: the reproof of the job's tree, read from its file by fanout.load."""
-    return walk(job, fanout.load(Path(work_dir) / 'jobs' / f'{fanout.jid(job)}.json.gz')['tree'])
+def task(work_dir, job, sha):
+    """A worker's task: the reproof of the job's tree, read from its file by fanout.load, which must still hold the
+    tree that assembly checked, whose tree_sha256 is sha (2026-10-25 review: a file changed after assembly was
+    reproven as it then was)."""
+    data = fanout.load(Path(work_dir) / 'jobs' / f'{fanout.jid(job)}.json.gz')
+    # TODO: error copy; says a job's file changed after assembly checked it, naming the job
+    assert data['tree_sha256'] == sha, f'Claude: "the file of job {fanout.jid(job)} changed after assembly"'
+    return walk(job, data['tree'])
 
 
 def run(run_dir, work_dir, journal, n, m, workers):
@@ -123,12 +129,13 @@ def run(run_dir, work_dir, journal, n, m, workers):
     with open(run_dir / 'run.lock', 'a') as theirs, open(work_dir / 'lock', 'a') as ours:
         fcntl.flock(theirs, fcntl.LOCK_EX | fcntl.LOCK_NB)
         fcntl.flock(ours, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        jobs = fanout.assemble(run_dir, work_dir, journal, prepared, code, fanout.roots(run_dir, work_dir, code),
-                               fanout.finished(work_dir))
+        done = fanout.finished(work_dir)
+        jobs = fanout.assemble(run_dir, work_dir, journal, prepared, code, fanout.roots(run_dir, work_dir, code), done)
         pool = ProcessPoolExecutor(workers, mp_context=multiprocessing.get_context('spawn'), initializer=init,
                                    initargs=(prepared,))
         try:
-            proofs = list(pool.map(functools.partial(task, work_dir), jobs))
+            proofs = list(pool.map(functools.partial(task, work_dir), jobs,
+                                   [done[fanout.jid(job)]['tree_sha256'] for job in jobs]))
         finally:
             pool.shutdown(cancel_futures=True)              # a failed reproof cancels the jobs not yet begun
     return dict(jobs=len(proofs), nodes=sum(p['nodes'] for p in proofs), leaves=sum(p['leaves'] for p in proofs),

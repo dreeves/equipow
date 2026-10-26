@@ -130,8 +130,9 @@ table.block th {
 .new-block { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.45rem; }
 /* The new results' entries for 432, 480 and 528 became ranges (2026-10-11), which made that table 12 px wider than
    main; a little less side padding in its cells keeps it in one row, unscrolled, at 945 px (0.5rem since 2026-10-25,
-   when the powers of 2 reached 23, so that their two rows, split after 2^38, fit too). */
-.new-block table.block td { padding-inline: 0.5rem; }
+   when the powers of 2 reached 23, so that their two rows, split after 2^38, fit too; 0.4rem since 2026-10-26, when
+   they reached 25, split after 2^41). */
+.new-block table.block td { padding-inline: 0.4rem; }
 
 /* Provenance: tint on both cells of an entry, a bar under its value, and a
    glyph centered above its n (in every n cell of the new results a line for it, blank
@@ -479,20 +480,20 @@ footer {
           <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="c">12–14</td><td class="j">9</td><td class="j">10–12</td><td class="c">9–10</td><td class="c">10</td><td class="c">10–12</td><td class="ca">10</td><td class="ca">10</td><td class="c">10–12</td><td class="c">10</td><td class="ca">10</td></tr>
         </table>
         <table class="block">
-          <tr class="ns"><th scope="row"><i>n</i></th><td class="c" title='Claude alone'>672</td><td class="c" title='Claude alone'>688</td><td class="c" title='Claude alone'>704</td><td class="c" title='Claude alone'>720</td><td class="c" title='Claude alone'>736</td><td class="ca" title='Claude and Astra'>752</td><td class="c" title='Claude alone'>768</td><td class="c" title='Claude alone'>784</td><td class="c" title='Claude alone'>800</td><td class="c" title='Claude alone'>816</td><td class="c" title='Claude alone'>832</td></tr>
-          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="c">11–13</td><td class="c">9–10</td><td class="c">10</td><td class="c">10–14</td><td class="c">10</td><td class="ca">9–10</td><td class="c">11–13</td><td class="c">9–10</td><td class="c">11</td><td class="c">10–14</td><td class="c">10–11</td></tr>
+          <tr class="ns"><th scope="row"><i>n</i></th><td class="c" title='Claude alone'>672</td><td class="c" title='Claude alone'>688</td><td class="c" title='Claude alone'>704</td><td class="c" title='Claude alone'>720</td><td class="c" title='Claude alone'>736</td><td class="ca" title='Claude and Astra'>752</td><td class="c" title='Claude alone'>768</td><td class="ca" title='Claude and Astra'>784</td><td class="c" title='Claude alone'>800</td><td class="c" title='Claude alone'>816</td><td class="c" title='Claude alone'>832</td></tr>
+          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="c">11–13</td><td class="c">9–10</td><td class="c">10</td><td class="c">10–14</td><td class="c">10</td><td class="ca">10</td><td class="c">11–13</td><td class="ca">10</td><td class="c">11</td><td class="c">10–14</td><td class="c">11</td></tr>
         </table>
         <table class="block">
           <tr class="ns"><th scope="row"><i>n</i></th><td class="c" title='Claude alone'>848</td><td class="c" title='Claude alone'>864</td><td class="c" title='Claude alone'>880</td><td class="c" title='Claude alone'>896</td><td class="c" title='Claude alone'>912</td><td class="c" title='Claude alone'>928</td><td class="c" title='Claude alone'>944</td><td class="c" title='Claude alone'>960</td><td class="c" title='Claude alone'>976</td><td class="c" title='Claude alone'>992</td></tr>
           <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="c">11</td><td class="c">12–14</td><td class="c">11</td><td class="c">11</td><td class="c">11–13</td><td class="c">11</td><td class="c">11</td><td class="c">13–15</td><td class="c">11</td><td class="c">11</td></tr>
         </table>
         <table class="block">
-          <tr class="ns"><th scope="row"><i>n</i></th><td title='The published paper (2021)'>2<sup>3</sup></td><td title='The published paper (2021)'>2<sup>4</sup></td><td title='The published paper (2021)'>2<sup>5</sup></td><td title='The published paper (2021)'>2<sup>6</sup></td><td title='The published paper (2021)'>2<sup>7</sup></td><td title='The published paper (2021)'>2<sup>8</sup></td><td class="c" title='Claude alone'>2<sup>9</sup></td><td class="c" title='Claude alone'>2<sup>17</sup></td><td class="c" title='Claude alone'>2<sup>18</sup></td><td class="c" title='Claude alone'>2<sup>20</sup></td><td class="j" title='Claude and BGPW'>2<sup>24</sup></td><td class="c" title='Claude alone'>2<sup>27</sup></td><td class="c" title='Claude alone'>2<sup>30</sup></td><td class="c" title='Claude alone'>2<sup>33</sup></td><td class="c" title='Claude alone'>2<sup>34</sup></td><td class="c" title='Claude alone'>2<sup>37</sup></td><td class="c" title='Claude alone'>2<sup>38</sup></td></tr>
-          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td><td>8</td><td class="c">9</td><td class="c">18–20</td><td class="c">19–21</td><td class="c">22–23</td><td class="j">26–29</td><td class="c">29–33</td><td class="c">33–36</td><td class="c">36–40</td><td class="c">37–41</td><td class="c">41–45</td><td class="c">42–46</td></tr>
+          <tr class="ns"><th scope="row"><i>n</i></th><td title='The published paper (2021)'>2<sup>3</sup></td><td title='The published paper (2021)'>2<sup>4</sup></td><td title='The published paper (2021)'>2<sup>5</sup></td><td title='The published paper (2021)'>2<sup>6</sup></td><td title='The published paper (2021)'>2<sup>7</sup></td><td title='The published paper (2021)'>2<sup>8</sup></td><td class="c" title='Claude alone'>2<sup>9</sup></td><td class="c" title='Claude alone'>2<sup>17</sup></td><td class="c" title='Claude alone'>2<sup>18</sup></td><td class="c" title='Claude alone'>2<sup>20</sup></td><td class="j" title='Claude and BGPW'>2<sup>24</sup></td><td class="c" title='Claude alone'>2<sup>27</sup></td><td class="c" title='Claude alone'>2<sup>30</sup></td><td class="c" title='Claude alone'>2<sup>33</sup></td><td class="c" title='Claude alone'>2<sup>34</sup></td><td class="c" title='Claude alone'>2<sup>37</sup></td><td class="c" title='Claude alone'>2<sup>38</sup></td><td class="c" title='Claude alone'>2<sup>41</sup></td></tr>
+          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td><td>8</td><td class="c">9</td><td class="c">18–20</td><td class="c">19–21</td><td class="c">22–23</td><td class="j">26–29</td><td class="c">29–33</td><td class="c">33–36</td><td class="c">36–40</td><td class="c">37–41</td><td class="c">41–45</td><td class="c">42–46</td><td class="c">45–50</td></tr>
         </table>
         <table class="block">
-          <tr class="ns"><th scope="row"><i>n</i></th><td class="c" title='Claude alone'>2<sup>41</sup></td><td class="c" title='Claude alone'>2<sup>46</sup></td><td class="c" title='Claude alone'>2<sup>48</sup></td><td class="c" title='Claude alone'>2<sup>49</sup></td><td class="j" title='Claude and BGPW'>2<sup>51</sup></td><td class="c" title='Claude alone'>2<sup>52</sup></td><td class="c" title='Claude alone'>2<sup>57</sup></td><td class="c" title='Claude alone'>2<sup>61</sup></td><td class="c" title='Claude alone'>2<sup>65</sup></td><td class="c" title='Claude alone'>2<sup>66</sup></td><td class="c" title='Claude alone'>2<sup>67</sup></td><td class="c" title='Claude alone'>2<sup>71</sup></td><td class="c" title='Claude alone'>2<sup>72</sup></td></tr>
-          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="c">45–50</td><td class="c">51–57</td><td class="c">53–59</td><td class="c">55–60</td><td class="j">57–63</td><td class="c">58–64</td><td class="c">64–70</td><td class="c">68–75</td><td class="c">73–81</td><td class="c">74–82</td><td class="c">75–83</td><td class="c">79–88</td><td class="c">81–89</td></tr>
+          <tr class="ns"><th scope="row"><i>n</i></th><td class="c" title='Claude alone'>2<sup>43</sup></td><td class="c" title='Claude alone'>2<sup>46</sup></td><td class="c" title='Claude alone'>2<sup>48</sup></td><td class="c" title='Claude alone'>2<sup>49</sup></td><td class="j" title='Claude and BGPW'>2<sup>51</sup></td><td class="c" title='Claude alone'>2<sup>52</sup></td><td class="c" title='Claude alone'>2<sup>57</sup></td><td class="c" title='Claude alone'>2<sup>61</sup></td><td class="c" title='Claude alone'>2<sup>65</sup></td><td class="c" title='Claude alone'>2<sup>66</sup></td><td class="c" title='Claude alone'>2<sup>67</sup></td><td class="c" title='Claude alone'>2<sup>68</sup></td><td class="c" title='Claude alone'>2<sup>71</sup></td><td class="c" title='Claude alone'>2<sup>72</sup></td></tr>
+          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="c">48–53</td><td class="c">51–57</td><td class="c">54–59</td><td class="c">55–60</td><td class="j">57–63</td><td class="c">58–64</td><td class="c">64–70</td><td class="c">68–75</td><td class="c">73–81</td><td class="c">74–82</td><td class="c">75–83</td><td class="c">77–84</td><td class="c">80–88</td><td class="c">81–89</td></tr>
         </table>
       </div>
     </div>
@@ -534,8 +535,8 @@ footer {
 <!-- Claude's chart of what is known about m*(2^k) − k, the excess over Thue–Morse, for every k up to 72, drawn by the script at the end from pow2.js -->
 <section class="pow2" aria-labelledby="pow2-title">
   <h2 id="pow2-title">Bounds on <span class="nw"><i>m</i><sup>*</sup>(2<sup><i>k</i></sup>) − <i>k</i></span> for every <i>k</i> up to 72</h2>
-  <p><b>Theorem 1.</b> <span class="nw"><i>m</i><sup>*</sup>(2<sup>17</sup>) ≥ 18</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>20</sup>) ≥ 22</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>30</sup>) ≥ 33</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>37</sup>) ≥ 41</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>46</sup>) ≥ 51</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>49</sup>) ≥ 55</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>57</sup>) ≥ 64</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>65</sup>) ≥ 73</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>72</sup>) ≥ 81</span> and <span class="nw"><i>m</i><sup>*</sup>(2<sup>9</sup>) = 9</span>.</p>
-  <p>or <b>Theorem 1.</b> For <span class="nw"><i>i</i> = 1, 2, …, 9</span>, the known smallest values of <i>n</i> for which <span class="nw"><i>m</i><sup>*</sup>(2<sup><i>n</i></sup>) − <i>n</i> ≥ <i>i</i></span> are 17, 20, 30, 37, 46, 49, 57, 65, 72.</p>
+  <p><b>Theorem 1.</b> <span class="nw"><i>m</i><sup>*</sup>(2<sup>17</sup>) ≥ 18</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>20</sup>) ≥ 22</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>30</sup>) ≥ 33</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>37</sup>) ≥ 41</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>43</sup>) ≥ 48</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>48</sup>) ≥ 54</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>57</sup>) ≥ 64</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>65</sup>) ≥ 73</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>68</sup>) ≥ 77</span> and <span class="nw"><i>m</i><sup>*</sup>(2<sup>9</sup>) = 9</span>.</p>
+  <p>or <b>Theorem 1.</b> For <span class="nw"><i>i</i> = 1, 2, …, 9</span>, the known smallest values of <i>n</i> for which <span class="nw"><i>m</i><sup>*</sup>(2<sup><i>n</i></sup>) − <i>n</i> ≥ <i>i</i></span> are 17, 20, 30, 37, 43, 48, 57, 65, 68.</p>
   <!-- TODO: says the table below shows the construction behind each inequality of Theorem 1: 2^k as a join of products, one product per line, each with its order, the sum of its factors' orders, the bound being the least of those orders; and that the linked Mathematica script makes the same table and checks each row's arithmetic -->
   <p>Claude: "The table below shows the construction behind each inequality of Theorem 1: <span class="nw">2<sup><i>k</i></sup></span> as a join of products, one per line, each with its order, the sum of its factors' orders; the bound is the least of those orders. The Mathematica script <a href="https://raw.githubusercontent.com/dreeves/equipow/main/record_gaps.wl">record_gaps.wl</a> makes the same table and checks each row's arithmetic."</p>
   <div class="scroll">
@@ -747,6 +748,28 @@ footer {
         <code>C32DA6E924AED161B6D94216DB6CBE4A4932FD4996135826A94DF6CA6CB4DA1EB4D90D92134D82F8EE</code>
       </p>
     </li>
+    <li class="ca">
+      <span class="mk" aria-hidden="true">◆✦</span>
+      <p class="entry"><i>n</i> = 752: &nbsp;<span class="nw"><i>m</i><sup>*</sup> = 10</span></p>
+      <!-- TODO: says this is a symmetric example of order 10, found by Claude's lattice search with Astra's lattice code, in residue sums mod 27 that Claude chose by Astra's method for 592, and that order 11 at 752 is ruled out by an exact proof, proof752.py (linked), so m*(752) = 10 -->
+      <p>Claude: "A symmetric example of order 10. Claude's lattice search found it with Astra's lattice code, in residue sums mod 27 that Claude chose by Astra's method for 592. Order 11 is ruled out by an exact proof, <a href="https://github.com/dreeves/equipow/blob/main/proof752.py">proof752.py</a>."</p>
+      <!-- TODO: says how proof752.py rules out order 11 at 752: the residue sums mod 3 leave just four +1s in class 0 and four −1s in class 1, or the reverse; with the signs of class 2 relaxed to arbitrary integers the power sums then require ten congruences modulo powers of 3; a meet in the middle checks all 2·C(251, 4)^2 ≈ 5.2·10^16 placements of those eight signs, and none meets them; and that this is Astra's method for 384 (place the few exceptional signs, then test congruences), made feasible here by Claude's meet in the middle -->
+      <p>Claude: "For order 11, the residue sums mod 3 leave just four +1s in class 0 and four −1s in class 1, or the reverse. Even with the signs of class 2 relaxed to arbitrary integers, the power sums then require ten congruences modulo powers of 3. A meet in the middle checks all <span class="nw">2·C(251, 4)<sup>2</sup> ≈ 5.2·10<sup>16</sup></span> placements of those eight signs, and none meets them. This is Astra's method for 384, placing the few exceptional signs and testing congruences, made feasible here by Claude's meet in the middle."</p>
+      <p class="code">
+        <span><i>p</i><sub>752</sub> <span class="nw">(<i>m</i> = 10)</span>:</span>
+        <code>D1C7951270B6456FBEC039A7FA05A459E422DB6416E76D06DB2D90D32FD010FBB30A6DB6D80DBAC3059EDB5826CB4C</code>
+      </p>
+    </li>
+    <li class="ca">
+      <span class="mk" aria-hidden="true">◆✦</span>
+      <p class="entry"><i>n</i> = 784: &nbsp;<span class="nw"><i>m</i><sup>*</sup> = 10</span></p>
+      <!-- TODO: says this is a symmetric example of order 10, found by Claude's lattice search with Astra's lattice code, in residue sums mod 27 that Claude chose by Astra's method for 592, and that order 11 at 784 is ruled out by the residue condition mod 27, so m*(784) = 10 -->
+      <p>Claude: "A symmetric example of order 10. Claude's lattice search found it with Astra's lattice code, in residue sums mod 27 that Claude chose by Astra's method for 592. Order 11 is ruled out by the residue condition mod 27."</p>
+      <p class="code">
+        <span><i>p</i><sub>784</sub> <span class="nw">(<i>m</i> = 10)</span>:</span>
+        <code>B24F643A19DC1B49FC831C2FF25926F80B24FFC1B423C92E933B25304F60FA2B341F59FFB668379251243048E2BE6BA89F</code>
+      </p>
+    </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry"><i>n</i> = 800: &nbsp;<span class="nw"><i>m</i><sup>*</sup> = 11</span></p>
@@ -755,6 +778,16 @@ footer {
       <p class="code">
         <span><i>p</i><sub>800</sub> <span class="nw">(<i>m</i> = 11)</span>:</span>
         <code>966965968F2C965B25B44B25B3596D924B6D96496C964B65B2CB24B25B2C96CB6C97496CB2CD6E960B243A59A592DB2DB6D9</code>
+      </p>
+    </li>
+    <li class="c">
+      <span class="mk" aria-hidden="true">◆</span>
+      <p class="entry"><i>n</i> = 832: &nbsp;<span class="nw"><i>m</i><sup>*</sup> = 11</span></p>
+      <!-- TODO: says this is an antisymmetric example of order 11, and that order 12 at 832 is ruled out by the norm bound for the residue sums mod 3, so m*(832) = 11 -->
+      <p>Claude: "An antisymmetric example of order 11. Order 12 is ruled out by the norm bound for the residue sums mod 3."</p>
+      <p class="code">
+        <span><i>p</i><sub>832</sub> <span class="nw">(<i>m</i> = 11)</span>:</span>
+        <code>B49969329E6934CB4DB69B4D34924C359B4926DB69A4DB49369F69261A4D36D6499A926D2C9B68B4D369A4D2DDB6904936DA69B4</code>
       </p>
     </li>
     <li class="c">
@@ -837,15 +870,9 @@ footer {
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry"><i>n</i> = 832: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {10, 11}</span></p>
-      <!-- TODO: says how the m*(n) chart gets these: order 10 from examples above doubled or joined (each spelled out), order 12 ruled out by the residue conditions and norm bounds it names -->
-      <p>Claude: "Order 10 from examples above, joined (832 = 240 + 592); order 12 is ruled out by the norm bound for the residue sums mod 3."</p>
-    </li>
-    <li class="c">
-      <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry"><i>n</i> = 544, 688, 784: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {9, 10}</span></p>
+      <p class="entry"><i>n</i> = 544, 688: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {9, 10}</span></p>
       <!-- TODO: says how the m*(n) chart gets these: order 9 from examples above doubled or joined (each spelled out), order 11 ruled out by the residue conditions and norm bounds it names -->
-      <p>Claude: "Order 9 from examples above, joined (544 = 192 + 352, 688 = 192 + 496 and 784 = 192 + 592); order 11 is ruled out by the norm bound for the residue sums mod 3 at 544, the residue condition mod 3 at 688 and the residue condition mod 27 at 784."</p>
+      <p>Claude: "Order 9 from examples above, joined (544 = 192 + 352 and 688 = 192 + 496); order 11 is ruled out by the norm bound for the residue sums mod 3 at 544 and the residue condition mod 3 at 688."</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
@@ -870,14 +897,6 @@ footer {
       <p class="entry"><i>n</i> = 720, 816: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {10, …, 14}</span></p>
       <!-- TODO: says how the m*(n) chart gets these: order 10 from examples above doubled or joined (each spelled out), order 15 ruled out by the residue conditions and norm bounds it names -->
       <p>Claude: "Order 10 from examples above, joined (720 = 240 + 480 and 816 = 240 + 576); order 15 is ruled out by the residue condition mod 16 at 720 and the norm bound for the residue sums mod 5 at 816."</p>
-    </li>
-    <li class="ca">
-      <span class="mk" aria-hidden="true">◆✦</span>
-      <p class="entry"><i>n</i> = 752: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {9, 10}</span></p>
-      <!-- TODO: says how the m*(n) chart gets order 9 at 752, from examples above joined (752 = 192 + 560), and that order 11 is ruled out by an exact proof, proof752.py (linked) -->
-      <p>Claude: "Order 9 from examples above, joined (752 = 192 + 560); order 11 is ruled out by an exact proof, <a href="https://github.com/dreeves/equipow/blob/main/proof752.py">proof752.py</a>."</p>
-      <!-- TODO: says how proof752.py rules out order 11 at 752: the residue sums mod 3 leave just four +1s in class 0 and four −1s in class 1, or the reverse; with the signs of class 2 relaxed to arbitrary integers the power sums then require ten congruences modulo powers of 3; a meet in the middle checks all 2·C(251, 4)^2 ≈ 5.2·10^16 placements of those eight signs, and none meets them; and that this is Astra's method for 384 (place the few exceptional signs, then test congruences), made feasible here by Claude's meet in the middle -->
-      <p>Claude: "For order 11, the residue sums mod 3 leave just four +1s in class 0 and four −1s in class 1, or the reverse. Even with the signs of class 2 relaxed to arbitrary integers, the power sums then require ten congruences modulo powers of 3. A meet in the middle checks all <span class="nw">2·C(251, 4)<sup>2</sup> ≈ 5.2·10<sup>16</sup></span> placements of those eight signs, and none meets them. This is Astra's method for 384, placing the few exceptional signs and testing congruences, made feasible here by Claude's meet in the middle."</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
@@ -968,34 +987,40 @@ footer {
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry"><i>n</i> = 2<sup>46</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {51, …, 57}</span></p>
-      <!-- TODO: says order 51 at 2^46 comes from a join of seven products of the examples above and Thue–Morse, each of order at least 51, which beats Thue–Morse by 5; and that the upper bound is the norm bound for the residue sums mod 3 -->
-      <p>Claude: "A join of seven products of examples above and Thue–Morse, each of order at least 51; the powers-of-2 chart above lists them. That beats Thue–Morse by 5. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above."</p>
+      <p class="entry"><i>n</i> = 2<sup>43</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {48, …, 53}</span></p>
+      <!-- TODO: says order 48 at 2^43 comes from a join of six products of the examples above and Thue–Morse, each of order at least 48, which beats Thue–Morse by 5; and that the upper bound is the norm bound for the residue sums mod 3 -->
+      <p>Claude: "A join of six products of examples above and Thue–Morse, each of order at least 48; the powers-of-2 chart above lists them. That beats Thue–Morse by 5. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above."</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry"><i>n</i> = 2<sup>48</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {53, …, 59}</span></p>
-      <!-- TODO: says order 53 at 2^48 comes from the join of the 2^46 entry with each product times tau_2, which beats Thue–Morse by 5; and that the upper bound is the norm bound for the residue sums mod 3 -->
-      <p>Claude: "The join of the 2<sup>46</sup> entry, each product times τ<sub>2</sub>, has order 53. That beats Thue–Morse by 5. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above."</p>
+      <p class="entry"><i>n</i> = 2<sup>46</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {51, …, 57}</span></p>
+      <!-- TODO: says order 51 at 2^46 comes from the join of the 2^43 entry with each product times tau_3, which beats Thue–Morse by 5; and that the upper bound is the norm bound for the residue sums mod 3 -->
+      <p>Claude: "The join of the 2<sup>43</sup> entry, each product times τ<sub>3</sub>, has order 51. That beats Thue–Morse by 5. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above."</p>
+    </li>
+    <li class="c">
+      <span class="mk" aria-hidden="true">◆</span>
+      <p class="entry"><i>n</i> = 2<sup>48</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {54, …, 59}</span></p>
+      <!-- TODO: says order 54 at 2^48 comes from a join of six products of the examples above and Thue–Morse, each of order at least 54, which beats Thue–Morse by 6; and that the upper bound is the norm bound for the residue sums mod 3 -->
+      <p>Claude: "A join of six products of examples above and Thue–Morse, each of order at least 54; the powers-of-2 chart above lists them. That beats Thue–Morse by 6. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above."</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry"><i>n</i> = 2<sup>49</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {55, …, 60}</span></p>
-      <!-- TODO: says order 55 at 2^49 comes from a join of seven products of the examples above and Thue–Morse, each of order at least 55, which beats Thue–Morse by 6; and that the upper bound is the residue condition mod 3 -->
-      <p>Claude: "A join of seven products of examples above and Thue–Morse, each of order at least 55; the powers-of-2 chart above lists them. That beats Thue–Morse by 6. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above."</p>
+      <!-- TODO: says order 55 at 2^49 comes from the join of the 2^48 entry with each product times tau_1, which beats Thue–Morse by 6; and that the upper bound is the residue condition mod 3 -->
+      <p>Claude: "The join of the 2<sup>48</sup> entry, each product times τ<sub>1</sub>, has order 55. That beats Thue–Morse by 6. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above."</p>
     </li>
     <li class="j">
       <span class="mk" aria-hidden="true">◆●</span>
       <p class="entry"><i>n</i> = 2<sup>51</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {57, …, 63}</span></p>
       <p>With <i>f</i> the 2<sup>24</sup> construction above, <span class="nw"><i>f</i> # <i>f</i> # τ<sub>3</sub></span> has order <span class="nw">25 + 25 + 3 = 53</span>. The paper's 52 is Stong's.</p>
-      <!-- TODO: says the seven products of the 2^49 entry, each times tau_2, give order 57 at 2^51; and that the upper bound is the norm bound for the residue sums mod 3 -->
-      <p>Claude: "The seven products of the 2<sup>49</sup> entry, each times τ<sub>2</sub>, give order 57. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above."</p>
+      <!-- TODO: says the six products of the 2^48 entry, each times tau_3, give order 57 at 2^51; and that the upper bound is the norm bound for the residue sums mod 3 -->
+      <p>Claude: "The six products of the 2<sup>48</sup> entry, each times τ<sub>3</sub>, give order 57. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above."</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry"><i>n</i> = 2<sup>52</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {58, …, 64}</span></p>
-      <!-- TODO: says order 58 at 2^52 comes from the join of the 2^49 entry with each product times tau_3, which beats Thue–Morse by 6; and that the upper bound is the norm bound for the residue sums mod 3 -->
-      <p>Claude: "The join of the 2<sup>49</sup> entry, each product times τ<sub>3</sub>, has order 58. That beats Thue–Morse by 6. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above."</p>
+      <!-- TODO: says order 58 at 2^52 comes from the join of the 2^48 entry with each product times tau_4, which beats Thue–Morse by 6; and that the upper bound is the norm bound for the residue sums mod 3 -->
+      <p>Claude: "The join of the 2<sup>48</sup> entry, each product times τ<sub>4</sub>, has order 58. That beats Thue–Morse by 6. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above."</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
@@ -1029,15 +1054,21 @@ footer {
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry"><i>n</i> = 2<sup>71</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {79, …, 88}</span></p>
-      <!-- TODO: says order 79 at 2^71 comes from the join of the 2^65 entry with each product times tau_6, which beats Thue–Morse by 8; and that the upper bound is the norm bound for the residue sums mod 3 -->
-      <p>Claude: "The join of the 2<sup>65</sup> entry, each product times τ<sub>6</sub>, has order 79. That beats Thue–Morse by 8. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above."</p>
+      <p class="entry"><i>n</i> = 2<sup>68</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {77, …, 84}</span></p>
+      <!-- TODO: says order 77 at 2^68 comes from a join of thirteen products of the examples above and Thue–Morse, each of order at least 77, which beats Thue–Morse by 9; and that the upper bound is the residue condition mod 3 -->
+      <p>Claude: "A join of thirteen products of examples above and Thue–Morse, each of order at least 77; the powers-of-2 chart above lists them. That beats Thue–Morse by 9. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above."</p>
+    </li>
+    <li class="c">
+      <span class="mk" aria-hidden="true">◆</span>
+      <p class="entry"><i>n</i> = 2<sup>71</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {80, …, 88}</span></p>
+      <!-- TODO: says order 80 at 2^71 comes from the join of the 2^68 entry with each product times tau_3, which beats Thue–Morse by 9; and that the upper bound is the norm bound for the residue sums mod 3 -->
+      <p>Claude: "The join of the 2<sup>68</sup> entry, each product times τ<sub>3</sub>, has order 80. That beats Thue–Morse by 9. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above."</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry"><i>n</i> = 2<sup>72</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {81, …, 89}</span></p>
-      <!-- TODO: says order 81 at 2^72 comes from a join of eight products of the examples above and Thue–Morse, each of order at least 81, which beats Thue–Morse by 9; and that the upper bound is the residue condition mod 3 -->
-      <p>Claude: "A join of eight products of examples above and Thue–Morse, each of order at least 81; the powers-of-2 chart above lists them. That beats Thue–Morse by 9. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above."</p>
+      <!-- TODO: says order 81 at 2^72 comes from the join of the 2^68 entry with each product times tau_4, which beats Thue–Morse by 9; and that the upper bound is the residue condition mod 3 -->
+      <p>Claude: "The join of the 2<sup>68</sup> entry, each product times τ<sub>4</sub>, has order 81. That beats Thue–Morse by 9. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above."</p>
     </li>
   </ul>
 </section>
@@ -1583,7 +1614,99 @@ SClaude[11][992] = {
   906, 907, 909, 912, 914, 915, 918, 921, 924, 927, 929, 930, 932,
   933, 935, 936, 939, 942, 944, 948, 951, 953, 954, 956, 957, 959,
   960, 962, 963, 967, 970, 971, 972, 975, 977, 978, 980, 984, 985,
-  987, 989, 990};</code></pre>
+  987, 989, 990};
+SClaude[10][752] = {
+  0, 1, 3, 7, 8, 9, 13, 14, 15, 16, 19, 21, 23, 27, 30, 33, 34, 35,
+  40, 42, 43, 45, 46, 49, 53, 55, 57, 58, 60, 61, 62, 63, 64, 66, 67,
+  68, 69, 70, 72, 73, 82, 83, 84, 87, 88, 90, 93, 94, 95, 96, 97, 98,
+  99, 100, 102, 109, 111, 112, 114, 117, 121, 123, 124, 127, 128,
+  129, 130, 133, 138, 142, 144, 145, 147, 148, 150, 151, 153, 154,
+  157, 163, 165, 166, 168, 169, 170, 173, 174, 175, 177, 178, 180,
+  181, 183, 189, 190, 192, 193, 195, 196, 198, 199, 202, 204, 205,
+  207, 208, 211, 216, 217, 219, 222, 223, 226, 228, 229, 230, 231,
+  232, 233, 235, 243, 248, 249, 250, 251, 252, 254, 255, 256, 258,
+  259, 262, 263, 268, 270, 273, 274, 276, 277, 279, 280, 282, 283,
+  285, 286, 288, 289, 291, 292, 300, 301, 303, 304, 306, 307, 308,
+  310, 312, 313, 318, 319, 325, 327, 328, 331, 332, 333, 334, 336,
+  337, 339, 340, 342, 343, 345, 347, 348, 354, 357, 358, 360, 361,
+  364, 366, 367, 369, 372, 373, 378, 379, 382, 384, 385, 387, 390,
+  391, 393, 394, 397, 403, 404, 406, 408, 409, 411, 412, 414, 415,
+  417, 418, 419, 420, 423, 424, 426, 432, 433, 438, 439, 441, 443,
+  444, 445, 447, 448, 450, 451, 459, 460, 462, 463, 465, 466, 468,
+  469, 471, 472, 474, 475, 477, 478, 481, 483, 488, 489, 492, 493,
+  495, 496, 497, 499, 500, 501, 502, 503, 508, 516, 518, 519, 520,
+  521, 522, 523, 525, 528, 529, 532, 534, 535, 540, 543, 544, 546,
+  547, 549, 552, 553, 555, 556, 558, 559, 561, 562, 568, 570, 571,
+  573, 574, 576, 577, 578, 581, 582, 583, 585, 586, 588, 594, 597,
+  598, 600, 601, 603, 604, 606, 607, 609, 613, 618, 621, 622, 623,
+  624, 627, 628, 630, 634, 637, 639, 640, 642, 649, 651, 652, 653,
+  654, 655, 656, 657, 658, 661, 663, 664, 667, 668, 669, 678, 679,
+  681, 682, 683, 684, 685, 687, 688, 689, 690, 691, 693, 694, 696,
+  698, 702, 705, 706, 708, 709, 711, 716, 717, 718, 721, 724, 728,
+  730, 732, 735, 736, 737, 738, 742, 743, 744, 748, 750, 751};
+SClaude[10][784] = {
+  0, 2, 3, 6, 9, 12, 13, 14, 15, 17, 18, 21, 26, 27, 28, 30, 35, 36,
+  39, 40, 41, 43, 44, 45, 51, 52, 54, 55, 57, 60, 63, 64, 65, 66, 67,
+  68, 69, 72, 78, 79, 83, 84, 85, 90, 92, 93, 94, 95, 96, 97, 98, 99,
+  102, 105, 107, 108, 111, 114, 117, 118, 120, 121, 122, 123, 124,
+  132, 134, 135, 138, 141, 144, 145, 146, 147, 148, 149, 150, 151,
+  152, 153, 159, 160, 162, 163, 165, 170, 174, 175, 176, 177, 180,
+  183, 186, 188, 189, 190, 192, 195, 198, 199, 202, 203, 204, 206,
+  207, 210, 213, 215, 218, 219, 225, 228, 229, 230, 231, 233, 234,
+  240, 241, 242, 243, 244, 246, 250, 252, 254, 255, 258, 259, 261,
+  267, 268, 269, 270, 271, 273, 275, 276, 279, 280, 281, 282, 283,
+  284, 285, 286, 287, 288, 290, 291, 293, 294, 297, 298, 300, 306,
+  307, 309, 310, 311, 312, 315, 318, 321, 323, 327, 330, 333, 338,
+  339, 345, 348, 352, 353, 354, 358, 360, 362, 363, 364, 365, 366,
+  369, 370, 372, 374, 375, 376, 378, 380, 384, 387, 388, 389, 390,
+  391, 392, 393, 394, 395, 396, 399, 403, 405, 407, 408, 409, 411,
+  413, 414, 417, 418, 419, 420, 421, 423, 425, 429, 430, 431, 435,
+  438, 444, 445, 450, 453, 456, 460, 462, 465, 468, 471, 472, 473,
+  474, 476, 477, 483, 485, 486, 489, 490, 492, 493, 495, 496, 497,
+  498, 499, 500, 501, 502, 503, 504, 507, 508, 510, 512, 513, 514,
+  515, 516, 522, 524, 525, 528, 529, 531, 533, 537, 539, 540, 541,
+  542, 543, 549, 550, 552, 553, 554, 555, 558, 564, 565, 568, 570,
+  573, 576, 577, 579, 580, 581, 584, 585, 588, 591, 593, 594, 595,
+  597, 600, 603, 606, 607, 608, 609, 613, 618, 620, 621, 623, 624,
+  630, 631, 632, 633, 634, 635, 636, 637, 638, 639, 642, 645, 648,
+  649, 651, 659, 660, 661, 662, 663, 665, 666, 669, 672, 675, 676,
+  678, 681, 684, 685, 686, 687, 688, 689, 690, 691, 693, 698, 699,
+  700, 704, 705, 711, 714, 715, 716, 717, 718, 719, 720, 723, 726,
+  728, 729, 731, 732, 738, 739, 740, 742, 743, 744, 747, 748, 753,
+  755, 756, 757, 762, 765, 766, 768, 769, 770, 771, 774, 777, 780,
+  781, 783};
+SClaude[11][832] = {
+  0, 2, 3, 5, 8, 11, 12, 15, 17, 18, 20, 23, 26, 27, 30, 32, 35, 36,
+  37, 38, 41, 42, 44, 47, 50, 51, 53, 56, 57, 60, 62, 63, 65, 68, 69,
+  71, 72, 74, 75, 77, 78, 80, 83, 84, 86, 87, 89, 92, 93, 95, 98, 99,
+  101, 104, 107, 110, 113, 116, 117, 122, 123, 125, 127, 128, 131,
+  132, 134, 135, 137, 140, 143, 146, 149, 150, 152, 153, 155, 156,
+  158, 159, 161, 162, 164, 167, 168, 170, 173, 176, 177, 179, 180,
+  182, 183, 185, 188, 191, 194, 195, 197, 198, 200, 203, 204, 205,
+  206, 207, 209, 210, 212, 215, 218, 221, 222, 227, 228, 230, 233,
+  236, 237, 239, 242, 243, 245, 246, 248, 249, 251, 253, 254, 257,
+  260, 263, 264, 267, 268, 270, 272, 275, 278, 281, 282, 284, 285,
+  287, 290, 292, 293, 296, 299, 300, 302, 303, 305, 306, 308, 312,
+  314, 315, 317, 320, 321, 323, 326, 327, 329, 330, 332, 335, 336,
+  338, 341, 344, 345, 347, 350, 352, 353, 355, 356, 357, 359, 360,
+  362, 363, 365, 366, 368, 371, 377, 380, 383, 386, 387, 389, 390,
+  392, 393, 395, 396, 398, 401, 402, 404, 407, 408, 410, 411, 413,
+  416, 417, 419, 422, 425, 426, 428, 431, 432, 434, 437, 440, 443,
+  446, 447, 449, 450, 452, 453, 455, 456, 457, 458, 459, 461, 462,
+  464, 467, 470, 473, 477, 480, 482, 483, 485, 488, 489, 491, 492,
+  494, 497, 498, 500, 503, 506, 507, 509, 512, 513, 515, 518, 520,
+  521, 522, 524, 527, 530, 533, 534, 536, 537, 540, 542, 543, 545,
+  548, 551, 552, 554, 555, 557, 558, 560, 562, 565, 566, 569, 570,
+  572, 573, 575, 576, 579, 581, 584, 587, 590, 591, 593, 596, 597,
+  599, 600, 602, 605, 606, 607, 608, 611, 612, 614, 615, 617, 618,
+  620, 623, 629, 630, 632, 635, 638, 639, 641, 642, 644, 645, 647,
+  650, 653, 656, 657, 659, 660, 662, 665, 666, 668, 671, 674, 677,
+  680, 683, 684, 686, 687, 689, 690, 692, 693, 695, 698, 701, 702,
+  705, 707, 710, 711, 712, 713, 716, 717, 719, 720, 722, 723, 725,
+  726, 728, 729, 731, 734, 735, 737, 740, 741, 743, 746, 749, 750,
+  752, 755, 758, 761, 764, 765, 767, 770, 772, 773, 776, 777, 779,
+  782, 783, 785, 786, 788, 791, 792, 797, 798, 800, 802, 803, 806,
+  807, 809, 810, 812, 815, 817, 818, 821, 822, 824, 825, 827, 830};</code></pre>
 </section>
 
 <section class="progress" aria-labelledby="progress-title">

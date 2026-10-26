@@ -1256,7 +1256,7 @@ def survey_focus(path, procs, now=None, observations=None, launches=None, pauses
     launches = {} if launches is None else launches
     header = records[0]
     assert (header['event'], header['version']) == ('header', 1)
-    assert (header['n'], header['order']) in ((480, 14), (672, 13))
+    assert (header['n'], header['order']) in ((432, 12), (480, 14), (672, 13))
     assert type(header['total']) is int and header['total'] > 0
     total = header['total']
     main = runs(procs, 'focus.py', header['n'])

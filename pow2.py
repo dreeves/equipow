@@ -79,20 +79,22 @@ RESIDUE = {11: (13, (3,), 'digits'), 12: (14, (3,), 'digits'), 14: (17, (3,), 'd
            64: (80, (3,), 'digits'), 68: (85, (3,), 'digits'), 69: (86, (3,), 'digits'), 72: (90, (3,), 'digits')}
 # BASES[K0]: for each excess e = 1..9, a join of products at 2^K0, each product a list of blocks, of order K0 + e, at
 # the first K0 known to reach e: the docstring's search, over all of mstar.js's blocks (each with a sequence in hand),
-# finds that no K below K0 reaches e = 1..7, exhaustively (scratch/record-20261025/page/pow2/rescan_e*.out,
-# 2026-10-25).  Equal products in a join are written once per binary digit of their count, times tau of that digit
-# (two copies of P have the length of P # tau_1 and a lower order).  BASES[65], for e = 8, and BASES[72], for e = 9,
-# are joins that a constructive variant of the search (scratch/record-20261025/page/pow2/constructive.py) finds: no K
+# finds that no K below K0 reaches e = 1..7, exhaustively (scratch/record-20261025/page2/pow2/rescan_e*.out,
+# 2026-10-26).  Equal products in a join are written once per binary digit of their count, times tau of that digit
+# (two copies of P have the length of P # tau_1 and a lower order).  BASES[65], for e = 8, and BASES[68], for e = 9,
+# are joins that a constructive variant of the search (scratch/record-20261025/page2/pow2/constructive.py) finds: no K
 # <= 58 reaches e = 8, exhaustively, nor 60, and at 59 and 61..64 the search and its constructive variant are both
 # undecided; no K <= 66 reaches e = 9, exhaustively (at 58 and 62..66 because no coin there has a length prime to 3,
-# which a join summing to 2^K needs, 3 not dividing 2^K), and at 67..71 both are undecided.  No K <= 72 reaches e =
-# 10, exhaustively (at 61..72 because no coin there has a length prime to 3;
-# scratch/record-20261025/page/pow2/rescan_e10.out).  At every k >= K0 the same join, each product times tau_(k - K0),
-# is a candidate for lo (lifted); join_lo checks it on every run.  The examples of order 10 at 592, 608 and 656 and of
-# order 11 at 848, 880, 896, 928, 944, 976 and 992 (2026-10-25) moved the first K0 for e = 2 from 27 to 20 (BASES[20]
-# is 848 # 992 joined to 240 # 432 # tau_1), for e = 3 from 34 to 30, for e = 4 from 38 to 37, for e = 6 from 52 to 49
-# and for e = 8 from 66 to 65, and gave e = 9 at 72; the superseded bases, at 27, 34, 38, 52 and 66, are gone, the new
-# ones lifted matching them at every k.  (The example of order 11 at 800, 2026-10-17, had moved the first K0 for e = 1
+# which a join summing to 2^K needs, 3 not dividing 2^K), and at 67 both are undecided.  No K <= 72 reaches e = 10,
+# exhaustively (at 61..72 because no coin there has a length prime to 3;
+# scratch/record-20261025/page2/pow2/rescan_e10.out).  At every k >= K0 the same join, each product times
+# tau_(k - K0), is a candidate for lo (lifted); join_lo checks it on every run.  The examples of order 10 at 752 and
+# 784 and of order 11 at 832 (2026-10-26) moved the first K0 for e = 5 from 46 to 43, for e = 6 from 49 to 48 and for
+# e = 9 from 72 to 68, each new base with 832 among its blocks; the superseded bases, at 46, 49 and 72, are gone, the
+# new ones lifted matching them at every k.  (The examples of order 10 at 592, 608 and 656 and of order 11 at 848,
+# 880, 896, 928, 944, 976 and 992, 2026-10-25, had moved the first K0 for e = 2 from 27 to 20 (BASES[20] is 848 # 992
+# joined to 240 # 432 # tau_1), for e = 3 from 34 to 30, for e = 4 from 38 to 37, for e = 6 from 52 to 49 and for e =
+# 8 from 66 to 65, and given e = 9 at 72; the example of order 11 at 800, 2026-10-17, had moved the first K0 for e = 1
 # from 18 to 17, for e = 2 from 33 to 27, for e = 3 from 41 to 34, for e = 4 from 48 to 38, for e = 5 from 61 to 46
 # and for e = 6 from 71 to 52, and given e = 7 at 57 and e = 8 at 66; the example of order 10 at 560, 2026-10-12, had
 # moved e = 1 from 24, where f reaches it, to 18, e = 3 from 49 to 41, e = 4 from 57 to 48 and e = 5 from 67 to 61,
@@ -108,20 +110,18 @@ BASES = {17: [[[112, 7], [800, 11]],
          37: [[[208, 8], [800, 11], [800, 11], [848, 11]],
               [[192, 9], [192, 9], [432, 11], [432, 11], [2, 1]],
               [[48, 6], [480, 12], [480, 12], [976, 11]]],
-         46: [[[208, 8], [560, 10], [800, 11], [800, 11], [800, 11]],
-              [[192, 9], [336, 10], [432, 11], [432, 11], [528, 10]],
-              [[480, 12], [480, 12], [480, 12], [480, 12], [32, 5]],
-              [[480, 12], [480, 12], [480, 12], [480, 12], [16, 4]],
-              [[432, 11], [480, 12], [480, 12], [480, 12], [16, 4]],
-              [[12, 3], [480, 12], [480, 12], [480, 12], [480, 12]],
-              [[480, 12], [480, 12], [480, 12], [480, 12], [8, 3]]],
-         49: [[[800, 11], [800, 11], [800, 11], [800, 11], [848, 11]],
-              [[48, 6], [480, 12], [480, 12], [480, 12], [480, 12], [32, 5]],
-              [[320, 9], [480, 12], [480, 12], [944, 11], [976, 11]],
-              [[336, 10], [336, 10], [432, 11], [432, 11], [432, 11], [4, 2]],
-              [[240, 10], [336, 10], [432, 11], [432, 11], [480, 12], [2, 1]],
-              [[48, 6], [480, 12], [480, 12], [480, 12], [480, 12], [4, 2]],
-              [[48, 6], [480, 12], [480, 12], [480, 12], [480, 12], [2, 1]]],
+         43: [[[800, 11], [832, 11], [832, 11], [832, 11], [16, 4]],
+              [[48, 6], [192, 9], [432, 11], [432, 11], [432, 11]],
+              [[432, 11], [432, 11], [432, 11], [480, 12], [8, 3]],
+              [[480, 12], [480, 12], [480, 12], [480, 12], [4, 2]],
+              [[480, 12], [480, 12], [480, 12], [480, 12], [2, 1]],
+              [[480, 12], [480, 12], [480, 12], [480, 12]]],
+         48: [[[560, 10], [800, 11], [800, 11], [800, 11], [832, 11]],
+              [[336, 10], [336, 10], [432, 11], [432, 11], [432, 11], [2, 1]],
+              [[48, 6], [480, 12], [480, 12], [480, 12], [928, 11], [2, 1]],
+              [[240, 10], [336, 10], [432, 11], [432, 11], [480, 12]],
+              [[48, 6], [480, 12], [480, 12], [480, 12], [480, 12], [2, 1]],
+              [[48, 6], [480, 12], [480, 12], [480, 12], [480, 12]]],
          57: [[[352, 9], [800, 11], [800, 11], [800, 11], [800, 11], [800, 11]],
               [[480, 12], [480, 12], [480, 12], [480, 12], [480, 12], [512, 9]],
               [[432, 11], [432, 11], [432, 11], [432, 11], [432, 11], [496, 9]],
@@ -138,14 +138,19 @@ BASES = {17: [[[112, 7], [800, 11]],
               [[432, 11], [432, 11], [480, 12], [480, 12], [480, 12], [480, 12], [8, 3]],
               [[480, 12], [480, 12], [480, 12], [480, 12], [480, 12], [480, 12], [4, 2]],
               [[480, 12], [480, 12], [480, 12], [480, 12], [480, 12], [480, 12], [2, 1]]],
-         72: [[[800, 11], [800, 11], [800, 11], [800, 11], [800, 11], [800, 11], [976, 11], [16, 4]],
-              [[480, 12], [480, 12], [800, 11], [800, 11], [800, 11], [800, 11], [896, 11], [4, 2]],
-              [[192, 9], [192, 9], [192, 9], [432, 11], [432, 11], [432, 11], [432, 11], [592, 10]],
-              [[192, 9], [192, 9], [432, 11], [480, 12], [480, 12], [480, 12], [928, 11], [32, 5]],
-              [[480, 12], [480, 12], [480, 12], [480, 12], [480, 12], [480, 12], [4096, 12]],
-              [[480, 12], [480, 12], [480, 12], [480, 12], [480, 12], [896, 11], [1024, 10]],
+         68: [[[800, 11], [800, 11], [800, 11], [800, 11], [800, 11], [800, 11], [832, 11]],
+              [[480, 12], [480, 12], [480, 12], [480, 12], [480, 12], [480, 12], [2048, 11]],
               [[480, 12], [480, 12], [480, 12], [480, 12], [480, 12], [480, 12], [1024, 10]],
-              [[480, 12], [480, 12], [480, 12], [480, 12], [480, 12], [480, 12], [512, 9]]]}
+              [[208, 8], [480, 12], [480, 12], [480, 12], [800, 11], [800, 11], [832, 11]],
+              [[192, 9], [432, 11], [432, 11], [432, 11], [432, 11], [432, 11], [896, 11], [4, 2]],
+              [[192, 9], [192, 9], [432, 11], [432, 11], [432, 11], [432, 11], [480, 12], [8, 3]],
+              [[192, 9], [336, 10], [336, 10], [432, 11], [432, 11], [480, 12], [480, 12], [4, 2]],
+              [[480, 12], [480, 12], [480, 12], [480, 12], [480, 12], [480, 12], [256, 8]],
+              [[192, 9], [192, 9], [480, 12], [480, 12], [480, 12], [480, 12], [896, 11]],
+              [[480, 12], [480, 12], [480, 12], [480, 12], [480, 12], [480, 12], [128, 7]],
+              [[480, 12], [480, 12], [480, 12], [480, 12], [480, 12], [480, 12], [64, 6]],
+              [[12, 3], [480, 12], [480, 12], [480, 12], [480, 12], [480, 12], [480, 12], [4, 2]],
+              [[480, 12], [480, 12], [480, 12], [480, 12], [480, 12], [480, 12], [32, 5]]]}
 
 
 # ---------- mstar.js ----------

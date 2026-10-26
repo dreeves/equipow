@@ -1,10 +1,12 @@
 """Quals for fanout.py's tree-only job files (dreeves, 2026-10-25: "for 432:12, that sounds fine to store less"): a job
 file keeps its tree, each L token's certificate dropped once its worker has checked it exactly, and assembly checks that
-the trees fit together, in place of the splice's replay of certificates.  Run with
+the trees fit together, in place of the splice's replay of certificates.  TrustQuals, from the review of that change
+(2026-10-25), qualify what else a verdict rests on.  Run with
 PYTHONPATH=scratch/lower24-design/beyond1000/pylib /opt/homebrew/bin/python3 -B -m unittest quals_fanout_tree."""
 import gzip
 import hashlib
 import json
+import os
 from pathlib import Path
 import shutil
 import tempfile
@@ -15,6 +17,7 @@ from unittest.mock import patch
 import fanout
 import focus
 import mstar
+import reflection
 import reprove
 from quals_fanout import events, finish, real, stopped
 
@@ -24,6 +27,25 @@ FIELDS = {'version', 'case', 'path', 'root', 'tree', 'tree_sha256', 'open', 'sec
 def digest(tree):
     """The qual's own sha256 of a tree: of its compact JSON."""
     return hashlib.sha256(json.dumps(tree, separators=(',', ':')).encode()).hexdigest()
+
+
+def refusal(call):
+    """The frames of the AssertionError that call() raises, innermost last, or [] if it raises none."""
+    try:
+        call()
+    except AssertionError as raised:
+        return traceback.extract_tb(raised.__traceback__)
+    return []
+
+
+def forging(prepared, budget, deep):
+    """A worker's start standing in for an edited fanout.py whose work returns a witness it never checked: fanout.init,
+    then fanout.work replaced by one making each job's tree a single W token, at the low end of the job's box."""
+    fanout.init(prepared, budget, deep)
+    def work(job):
+        x = fanout.box(prepared[0].N, job[1])[0]
+        return dict(tree=[['W', x]], tree_sha256=digest([['W', x]]), open=[], seconds=0.0, witness=x)
+    fanout.work = work
 
 
 def files(work):
@@ -98,9 +120,9 @@ class TreeOnlyQuals(unittest.TestCase):
         # of at most 1,000 LP solves (DEEP as in production); its file as fanout.save writes it, and the same job's
         # file as fanout.save wrote it before tree-only storage (version 1, every token with its certificate), from
         # the tokens focus.step made.
-        # Expectata: 1,000 to 4,000 nodes; the tree-only file under 2 bytes per node (0.74 on 2026-10-25, 10,000
-        # nodes: scratch/record-20261025/launch432/treeonly/encodings.py), and at least 100 times smaller than the
-        # version-1 file (294.7 bytes per LP solve: scratch/record-20261025/f432/storage.py).
+        # Expectata: 1,000 to 4,000 nodes; the tree-only file under 2 bytes per node (0.93 on 2026-10-25, and 0.75 at
+        # 10,000 nodes: scratch/record-20261025/launch432/treeonly/reprove_cost.py), and at least 100 times smaller
+        # than the version-1 file (294.7 bytes per LP solve: scratch/record-20261025/f432/storage.py).
         prepared = focus.prepare(432, 12)
         made, real_step = [], focus.step
         def step(*args):
@@ -307,6 +329,237 @@ class AssemblyQuals(unittest.TestCase):
             old = {k: v for k, v in data.items() if k not in ('tree', 'tree_sha256')}
             write(work, dict(old, version=1, tokens=[t + [[1]] if t == ['L'] else t for t in data['tree']]))
         self.refused(forge, ('load', "data['version'] == 2"))
+
+    def test_a_file_of_another_box_under_a_job_s_name_is_refused(self):
+        # Replicata: fanout.jid made to give a box A the id of a box B, from here on, a stand-in for a sha1 collision:
+        # B a job's box that it closed with at least one B token, A inside it, B with its least free position fixed
+        # to 0; then B's file replaced by a file of A, its tree a single L and nothing open, written under B's name;
+        # B's job_end given that tree's sha256.
+        # Expectata: AssertionError in assemble, at its check that the file the walk reaches for B holds B's own
+        # box, not only one of B's sha1.
+        # Resultata before (2026-10-25 review, probe A2): assembly accepted every job, 20 there, the part of B outside A
+        # proven by no tree.
+        def forge(work, own, jobs):
+            name, data = self.closed(jobs)
+            b = fanout.key(data['case'], data['path'])
+            a = fanout.key(data['case'], b[1] + ((min(set(range(20)) - {p for p, _ in b[1]}), 0),))
+            real_jid = fanout.jid
+            self.enterContext(patch.object(fanout, 'jid', lambda box: real_jid(b if fanout.key(*box) == a else box)))
+            self.assertEqual(fanout.jid(a), name)
+            write(work, dict(data, path=[list(p) for p in a[1]], tree=[['L']], tree_sha256=digest([['L']]), open=[]))
+            rehash(own, name, digest([['L']]))
+        self.refused(forge, ('assemble', "key(data['case'], data['path']) == job"))
+
+    def test_a_session_of_other_fanout_code_is_refused(self):
+        # Replicata: the journal's session record given another fanout_code, as a session run under an edited
+        # fanout.py would have recorded it.
+        # Expectata: AssertionError in assemble, at its check that every session ran the fanout code assembling the
+        # run, the code beyond focus.fingerprint's sources that the run's exclusion rests on (see fanout.py's
+        # 'trust').
+        # Resultata before (2026-10-25 review, probe A11): no record named the fanout code, so assembly could not tell
+        # trees made under an edited fanout.py from genuine ones.
+        def forge(work, own, jobs):
+            Path(own).write_text(''.join(json.dumps(dict(r, fanout_code='0' * 64) if r['event'] == 'session' else r)
+                                         + '\n' for r in events(own)))
+        self.refused(forge, ('assemble', "r['fanout_code']"))
+
+
+class TrustQuals(unittest.TestCase):
+    """What a fanout verdict rests on beyond the trees' shape (from the 2026-10-25 review of tree-only storage,
+    scratch/record-20261025/launch432/treeonly-review): which fanout code ran, the witness a finish journals, a probe's
+    witness, and the checks each session makes at its start, before any job; each refused at the check the qual
+    names."""
+    def refused_at(self, call, where):
+        """call() must raise AssertionError in fanout's function where[0], at a line holding where[1]."""
+        frames = refusal(call)
+        self.assertTrue(frames)                                             # refused
+        self.assertEqual((Path(frames[-1].filename).name, frames[-1].name), ('fanout.py', where[0]))
+        self.assertIn(where[1], frames[-1].line)
+
+    def interrupted(self, tmp, run, journal, prepared, n, m, ends):
+        """fanout on the stopped run, as finish runs it, stopped by an error right after its ends-th job_end: the text
+        of its journal then."""
+        real_note = fanout.note
+        def note(path, event, **fields):
+            real_note(path, event, **fields)
+            if [e['event'] for e in events(path)].count('job_end') == ends: raise KeyboardInterrupt
+        with patch.object(fanout, 'note', note), self.assertRaises(KeyboardInterrupt):
+            finish(tmp, run, journal, prepared, n, m)
+        return Path(tmp, 'fanout.jsonl').read_text()
+
+    def test_the_journal_names_the_fanout_code_of_its_session(self):
+        # Replicata: (20, 5) stopped after 5 LP solves, then fanout to its finish.
+        # Expectata: excluded; fanout's header and its session record each with fanout_code, the sha256 of fanout.py's
+        # bytes followed by reflection.py's: the code its workers and its assembly ran, beyond focus.fingerprint's
+        # sources, which its exclusion rests on (see fanout.py's 'trust').
+        # Resultata before (2026-10-25 review, probe A11): no header or session field named that code, so a session
+        # under an edited fanout.py left no trace in the journal.
+        source = hashlib.sha256(Path(fanout.__file__).read_bytes() + Path(reflection.__file__).read_bytes()).hexdigest()
+        with tempfile.TemporaryDirectory() as tmp:
+            prepared = real(20, 5)
+            run, journal = stopped(tmp, prepared, 20, 5, 5)
+            outcome, work, own = finish(tmp, run, journal, prepared, 20, 5)
+            self.assertEqual(outcome, 'excluded')
+            self.assertEqual([(e['event'], e.get('fanout_code')) for e in events(own)
+                              if e['event'] in ('header', 'session')], [('header', source), ('session', source)])
+
+    def test_a_session_under_other_fanout_code_is_refused_at_its_start(self):
+        # Replicata: copies of fanout.py and reflection.py, fanout.__file__ pointed at the copy of fanout.py (as
+        # quals_focus432 points focus.__file__ at copies of its sources); (20, 5) stopped after 5 LP solves; fanout
+        # stopped by an error right after its second job_end; the copy of fanout.py changed by a byte, as by an edit
+        # in mid-run; then fanout again.
+        # Expectata: AssertionError in run, at its check of the journal's header, and fanout's journal as the first
+        # session left it: no session, probe, job or finish record added.
+        # Resultata before (2026-10-25 review, probe A11): nothing recorded or compared the fanout code, so the second
+        # session ran the jobs left under the changed code and finished excluded.
+        with tempfile.TemporaryDirectory() as tmp:
+            for module in (fanout, reflection):
+                shutil.copyfile(module.__file__, Path(tmp, Path(module.__file__).name))
+            prepared = real(20, 5)
+            run, journal = stopped(tmp, prepared, 20, 5, 5)
+            with patch.object(fanout, '__file__', str(Path(tmp, 'fanout.py'))):
+                before = self.interrupted(tmp, run, journal, prepared, 20, 5, 2)
+                copy = Path(tmp, 'fanout.py')
+                copy.write_bytes(copy.read_bytes() + b'\n')
+                self.refused_at(lambda: finish(tmp, run, journal, prepared, 20, 5), ('run', 'for k in same'))
+            self.assertEqual(Path(tmp, 'fanout.jsonl').read_text(), before)
+
+    def test_a_witness_file_is_checked_exactly_before_the_finish(self):
+        # Replicata: (20, 5), impossible (m*(20) = 3), stopped after 5 LP solves; a job file on its first root, as
+        # fanout.save writes one, of tree ['W', x], witness x and nothing open, x the low end of the root's box; then
+        # fanout.
+        # Expectata: AssertionError in exact, the witness read back from its file and checked exactly on its job's
+        # box, as fanout.work and focus.State check one; and no finish in fanout's journal: x breaks a row.
+        # Resultata before (2026-10-25 review, probe A1): fanout returned 'witness' and journaled finish witness x.
+        with tempfile.TemporaryDirectory() as tmp:
+            prepared = real(20, 5)
+            run, journal = stopped(tmp, prepared, 20, 5, 5)
+            work = Path(tmp, 'fanout')
+            (work / 'jobs').mkdir(parents=True)
+            root = fanout.roots(run, work, focus.fingerprint())[0]
+            x = fanout.box(20, root[1])[0]
+            fanout.save(work, root, 0, dict(tree=[['W', x]], tree_sha256=digest([['W', x]]), open=[], seconds=0.0,
+                                            witness=x))
+            self.refused_at(lambda: finish(tmp, run, journal, prepared, 20, 5), ('exact', 'point_certificate'))
+            self.assertNotIn('finish', [e['event'] for e in events(Path(tmp, 'fanout.jsonl'))])
+
+    def test_a_witness_unlike_its_tree_s_is_refused(self):
+        # Replicata: (16, 4) stopped after 3 LP solves and finished by fanout, with a witness x; then the job file that
+        # holds it given witness all 0s, its tree, which ends ['W', x], and its tree_sha256 kept; then fanout again.
+        # Expectata: AssertionError in witnessed, a witness being its tree's last token; one finish in fanout's
+        # journal, the first, of witness x.
+        # Resultata before (2026-10-25 review, probe A1b): the second session journaled finish witness all 0s.
+        with tempfile.TemporaryDirectory() as tmp:
+            prepared = real(16, 4)
+            run, journal = stopped(tmp, prepared, 16, 4, 3)
+            outcome, work, own = finish(tmp, run, journal, prepared, 16, 4)
+            self.assertEqual(outcome, 'witness')
+            x = events(own)[-1]['witness']
+            [data] = [d for d in files(work).values() if d['witness'] is not None]
+            write(work, dict(data, witness=[0] * 16))
+            self.refused_at(lambda: finish(tmp, run, journal, prepared, 16, 4), ('witnessed', "['W', data['witness']]"))
+            self.assertEqual([e['witness'] for e in events(own) if e['event'] == 'finish'], [x])
+
+    def test_a_witness_a_worker_returns_is_checked_again_by_the_driver(self):
+        # Replicata: (20, 5), impossible, stopped after 5 LP solves; then fanout with its workers started by forging,
+        # a stand-in for an edited fanout.py whose work returns, for each job, tree ['W', x] and witness x, x the low
+        # end of the job's box, unchecked.
+        # Expectata: AssertionError in exact, in the driver, which reads the witness back from its job's file and
+        # checks it exactly before any finish; no finish in fanout's journal.
+        # Resultata before: fanout returned 'witness' and journaled finish witness x, trusting the worker's check.
+        with tempfile.TemporaryDirectory() as tmp:
+            prepared = real(20, 5)
+            run, journal = stopped(tmp, prepared, 20, 5, 5)
+            with patch.object(fanout, 'init', forging):
+                self.refused_at(lambda: finish(tmp, run, journal, prepared, 20, 5), ('exact', 'point_certificate'))
+            self.assertNotIn('finish', [e['event'] for e in events(Path(tmp, 'fanout.jsonl'))])
+
+    def test_an_exact_probe_witness_stops_an_exclusion(self):
+        # Replicata: 16:4 with plus counts (0, 4, 4) mod 3, which only Thue-Morse meets (quals_reprove), its root split
+        # on position 0 by hand; the box with position 0 at 0, which holds Thue-Morse, given a forged complete job
+        # file and no job_end: a tree grown as fanout.work grows one, its W token closed as an L, as quals_reprove's
+        # forger grows one; the other box left to the workers; then fanout.
+        # Expectata: the session's probe journals Thue-Morse as a witness, checked exactly in probe; then
+        # AssertionError in assemble, at its check of the probes, and no finish: a case with a solution cannot be
+        # excluded.
+        # Resultata before (2026-10-25 review, probe A3): finish excluded, a false exclusion, which the probe's witness
+        # in the same journal contradicted.
+        from quals_reprove import THUE_MORSE, grown, split_once
+        with tempfile.TemporaryDirectory() as tmp:
+            prepared = focus.moments(16, 4), (((3, (0, 4, 4)),),)
+            run = split_once(tmp, prepared, 0)
+            work, own = Path(tmp, 'fanout'), Path(tmp, 'fanout.jsonl')
+            (work / 'jobs').mkdir(parents=True)
+            [(i, root)] = [(i, r) for i, r in enumerate(fanout.roots(run, work, focus.fingerprint()))
+                           if r[1] == ((0, 0),)]
+            tree, faked = grown(prepared, *root)
+            self.assertEqual(len(faked), 1)
+            fanout.save(work, root, i, dict(tree=tree, tree_sha256=digest(tree), open=[], seconds=0.0, witness=None))
+            self.refused_at(lambda: finish(tmp, run, None, prepared, 16, 4), ('assemble', "'probe'"))
+            log = events(own)
+            self.assertIn(THUE_MORSE, [x for e in log if e['event'] == 'probe' for x in e['witnesses']])
+            self.assertNotIn('finish', [e['event'] for e in log])
+
+    def test_a_moved_run_is_refused_at_the_session_start(self):
+        # Replicata: (20, 5) stopped after 5 LP solves; fanout stopped by an error right after its second job_end;
+        # focus.search then 3 more LP solves on the same run, as a relaunch of the budget-finished prefix (by the
+        # shepherd, say) would make; then fanout again.
+        # Expectata: AssertionError in unmoved, at its check that the run's replay still ends at the roots, before any
+        # record of the second session: fanout's journal as the first session left it.
+        # Resultata before (2026-10-25 review, probe A8): the second session ran 18 more jobs, its job_ends from 2 to
+        # 20, and only assembly refused, after the last.
+        with tempfile.TemporaryDirectory() as tmp:
+            prepared = real(20, 5)
+            run, journal = stopped(tmp, prepared, 20, 5, 5)
+            before = self.interrupted(tmp, run, journal, prepared, 20, 5, 2)
+            with patch.object(focus, 'prepare', return_value=prepared):
+                self.assertEqual(focus.search(run, journal, 20, 5, 3, 600), 'budget')
+            self.refused_at(lambda: finish(tmp, run, journal, prepared, 20, 5), ('unmoved', 'state.frontier'))
+            self.assertEqual(Path(tmp, 'fanout.jsonl').read_text(), before)
+
+    def test_a_lost_job_file_is_refused_at_the_session_start(self):
+        # Replicata: (20, 5) stopped after 5 LP solves; fanout stopped by an error right after its third job_end; the
+        # file of the job that ended first deleted, as by a disk fault; then fanout again.
+        # Expectata: AssertionError in run, at its check that every job_end in the journal has its job's file with its
+        # tree_sha256, made at the session's start; after the first session's records, the second session's alone.
+        # Resultata before (2026-10-25 review, probe A4): the second session ran that job again, journaling a second
+        # job_end of it, and finished excluded.  At 432:12, where a job's tree depends on its worker's LP history, the
+        # second job_end's tree_sha256 would differ, and assembly would refuse after the last job.
+        with tempfile.TemporaryDirectory() as tmp:
+            prepared = real(20, 5)
+            run, journal = stopped(tmp, prepared, 20, 5, 5)
+            self.interrupted(tmp, run, journal, prepared, 20, 5, 3)
+            before = events(Path(tmp, 'fanout.jsonl'))
+            first = next(e['job'] for e in before if e['event'] == 'job_end')
+            Path(tmp, 'fanout', 'jobs', f'{first}.json.gz').unlink()
+            self.refused_at(lambda: finish(tmp, run, journal, prepared, 20, 5), ('run', "r['tree_sha256']"))
+            self.assertEqual([e['event'] for e in events(Path(tmp, 'fanout.jsonl'))[len(before):]], ['session'])
+
+    def test_a_job_file_s_rename_is_made_durable(self):
+        # Replicata: fanout.write_atomic of a small object to a file in a fresh directory, os.open, os.fsync and
+        # os.replace recorded as they are called.
+        # Expectata: after the replace, an fsync of a descriptor that os.open opened on the file's directory: a job's
+        # file must survive a power loss once its job_end, which note fsyncs after it, is journaled.
+        # Resultata before (2026-10-25 review): the temporary file was fsynced and then replaced, and no directory was
+        # fsynced.
+        calls, real_open, real_fsync, real_replace = [], os.open, os.fsync, os.replace
+        def opened(path, flags, *args, **kwargs):
+            calls.append(('open', Path(path), real_open(path, flags, *args, **kwargs)))
+            return calls[-1][2]
+        def synced(fd):
+            calls.append(('fsync', None, fd))
+            return real_fsync(fd)
+        def replaced(source, target):
+            calls.append(('replace', Path(target), None))
+            return real_replace(source, target)
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch.object(os, 'open', opened), patch.object(os, 'fsync', synced), \
+                    patch.object(os, 'replace', replaced):
+                fanout.write_atomic(Path(tmp, 'job.json.gz'), dict(tree=[['L']]))
+            self.assertEqual(fanout.read(Path(tmp, 'job.json.gz')), dict(tree=[['L']]))
+        after = calls[[kind for kind, _, _ in calls].index('replace'):]
+        directories = {fd for kind, path, fd in after if kind == 'open' and path == Path(tmp)}
+        self.assertTrue(directories & {fd for kind, _, fd in after if kind == 'fsync'}, calls)
 
 
 if __name__ == '__main__':

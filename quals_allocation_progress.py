@@ -34,9 +34,11 @@ class AllocationProgressQuals(unittest.TestCase):
             run, work, journal = [Path(directory, n) for n in ('run', 'work', 'fanout.jsonl')]
             run.mkdir()
             prepared = object()
+            # unmoved (the run's replay at each session's start, 2026-10-25 review) stood in for, as taken is
             with patch.object(fanout.focus, 'prepare', return_value=prepared), \
                  patch.object(fanout.focus, 'fingerprint', return_value='qual'), \
                  patch.object(fanout, 'taken', return_value=dict(frontier=[[0, []]], lp=3, case=0)), \
+                 patch.object(fanout, 'unmoved'), \
                  patch.object(fanout, 'reflections', return_value={}), \
                  patch.object(fanout, 'farm', return_value=[1]):
                 for workers in (5, 8):

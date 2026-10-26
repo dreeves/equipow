@@ -19,7 +19,7 @@ import sys
 import tempfile
 import traceback
 import unittest
-from contextlib import redirect_stderr
+from contextlib import redirect_stdout
 from unittest.mock import patch
 
 import numpy as np
@@ -428,21 +428,27 @@ class Focus432Quals(unittest.TestCase):
             self.assertNotEqual(prints[1], before)
             self.assertEqual(prints[2], before)
 
-    def test_command_lines_refuse_432_for_now(self):
+    def test_command_lines_take_432(self):
         # Replicata: focus.py 432 and fanout.py 432, their searches replaced by stand-ins.
-        # Expectata: both refuse 432 and start nothing.  progress.survey_focus asserts that each root
-        # focus_*_journal.jsonl is 480:14's or 672:13's, so a focus_432_journal.jsonl would stop the progress watcher;
-        # and the pending mstar.py edit changes focus.fingerprint, which every chunk must match to replay.  Change this
-        # qual, with the command lines, only once progress reads a 432:12 journal and mstar.py's edit has landed.
-        # Resultata in the first 2026-10-25 build: both took 432 and started their runs.
-        with patch.object(focus, 'search') as run, patch.object(sys, 'argv', ['focus.py', '432']), \
-                redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+        # Expectata: order 12, focus.py's run in scratch/focus432/run with focus_432_journal.jsonl, fanout's in
+        # scratch/fanout432 with fanout_432_journal.jsonl (fanout.run takes no focus.py journal since tree-only files,
+        # 2026-10-25), and each command's line of output.
+        # Resultata before the change: both refused 432 (test_command_lines_refuse_432_for_now, from the 2026-10-25
+        # build until progress.survey_focus read a 432:12 journal, mstar.py's edit having landed in 59ca530).
+        out = io.StringIO()
+        with patch.object(focus, 'search', return_value='budget') as run, \
+                patch.object(sys, 'argv', ['focus.py', '432']), redirect_stdout(out):
             focus.main()
-        run.assert_not_called()
-        with patch.object(fanout, 'run') as run, patch.object(fanout.signal, 'signal'), \
-                patch.object(sys, 'argv', ['fanout.py', '432']), self.assertRaises(AssertionError):
+        self.assertEqual(run.call_args.args[:4],
+                         (Path('scratch/focus432/run'), Path('focus_432_journal.jsonl'), 432, 12))
+        self.assertEqual(json.loads(out.getvalue()), dict(n=432, order=12, outcome='budget'))
+        out = io.StringIO()
+        with patch.object(fanout, 'run', return_value='excluded') as run, patch.object(fanout.signal, 'signal'), \
+                patch.object(sys, 'argv', ['fanout.py', '432']), redirect_stdout(out):
             fanout.main()
-        run.assert_not_called()
+        self.assertEqual(run.call_args.args, (Path('scratch/focus432/run'), Path('scratch/fanout432'),
+                                              Path('fanout_432_journal.jsonl'), 432, 12))
+        self.assertEqual(json.loads(out.getvalue()), dict(n=432, order=12, outcome='excluded'))
 
 
 # ---------- the saturation lemma on every small sequence ----------

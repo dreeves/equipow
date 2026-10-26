@@ -74,6 +74,23 @@ class FocusProgressQuals(unittest.TestCase):
         self.assertEqual(run['sea']['counts']['settled'], 0)
         self.assertNotIn('display', run)
 
+    def test_a_432_12_journal_is_surveyed_like_a_480_14_one(self):
+        # Replicata: initial() with its header 432:12's, as focus.py 432 writes it, and a live focus.py 432 --lp-budget
+        # 40 (the 432:12 run's prefix, before fanout); then with its header 432:11's, 432:13's or 480:12's.
+        # Expectata: the 432:12 snapshot is initial()'s 480:14 one in every field but n, order and the sea's key,
+        # '432:12'; each other pair still fails loudly, as every pair but 480:14 and 672:13 did.
+        # Resultata before the change: AssertionError at survey_focus's assertion that the run is 480:14's or 672:13's,
+        # so that a focus_432_journal.jsonl would have stopped the progress watcher.
+        def at(n, order):
+            procs = [(123, 1, 'S', f'/opt/homebrew/bin/python3 -B focus.py {n} --lp-budget 40')]
+            return survey([dict(initial()[0], n=n, order=order)] + initial()[1:], procs=procs)
+        run, model = at(432, 12), survey(initial())
+        self.assertEqual((run['n'], run['order'], run['sea']['keys']), (432, 12, ['432:12']))
+        self.assertEqual(dict(run, n=480, order=14, sea=dict(run['sea'], keys=['480:14'])), model)
+        for n, order in ((432, 11), (432, 13), (480, 12)):
+            with self.subTest(n=n, order=order), self.assertRaises(AssertionError):
+                at(n, order)
+
     def test_zero_progress_is_lindy(self):
         # Replicata: one root case, running 10 s, then the same journal surveyed 10 s later (dreeves, 2026-10-23:
         # "if a search starts and has made 0 progress, that should mean go with lindy, even though that means the

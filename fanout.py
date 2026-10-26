@@ -19,25 +19,37 @@ Vocabulary (with focus.py's):
   tree      a job's proof as its file keeps it (version 2, 2026-10-25): its tokens in depth-first order, each L token's
             certificate dropped once certbb.Check has passed it, so ['B', p], ['L'] or ['W', x]; and tree_sha256, the
             sha256 of the tree's compact JSON, made by the worker and kept in the job's file and its job_end.  At
-            432:12 a job's gzipped file took 0.74 bytes a node at 10,000 nodes and 0.93 at 4,000, against 292 to 295
+            432:12 a job's gzipped file took 0.75 bytes a node at 10,000 nodes and 0.93 at 4,000, against 292 to 295
             with the certificates (quals_fanout_tree, scratch/record-20261025/launch432/treeonly).  A job file of
             version 1, with them, as 672:13's are, is refused, not read.
   assembly  the last step, once no job is left, in place of the splice of certificates into focus.py's chunks
             before 2026-10-25: focus.replay of the run, whose chunks keep their certificates (checked again) and must
-            still end at the roots; then three checks of shape alone: (1) each job's tree, read on its box, splits
-            only positions free there and leaves open exactly the boxes the job handed back (frontier); (2) the walk
-            from each root through the jobs of the boxes left open reaches every job file, once, so the jobs' boxes
-            and the run's closed ones tile the box of each case but a reflected one exactly; (3) every job_end in the
-            journal has its job's file, with its tree_sha256 (a job's file may lack its job_end, its driver stopped
-            between the two).  Then the finish, in fanout's journal: focus.py's chunks and journal stay as the
-            stopped run left them.
+            still end at the roots (unmoved); two checks of the journal: every session ran the fanout code that
+            assembles (fanout_code, see 'trust'), and no probe found a witness (a case with a solution cannot be
+            excluded); then three checks of shape alone: (1) each job's tree, read on its box from the file the walk
+            finds for the box, which must hold that box, splits only positions free there and leaves open exactly the
+            boxes the job handed back (frontier); (2) the walk from each root through the jobs of the boxes left open
+            reaches every job file, once, so the jobs' boxes and the run's closed ones tile the box of each case but a
+            reflected one exactly; (3) every job_end in the journal has its job's file, with its tree_sha256 (a job's
+            file may lack its job_end, its driver stopped between the two).  Each session's start makes the first
+            check and (3) too, before any probe or job, so that a run moved by another writer, or a job file lost
+            after its job_end, stops the fanout at once (2026-10-25 review: they were found after the last job).  Then
+            the finish, in fanout's journal: focus.py's chunks and journal stay as the stopped run left them.
   trust     so an exclusion rests on focus.replay of the run's chunks, on certbb.Check passing each job's
             certificates on the job's box as its worker made them (once: no file keeps them), and on assembly.  A
             reflected case (see reflections) closes with its source: reversing positions maps its solutions onto its
             source's, the rows checked exactly by reflection.mapping.  reprove.py rechecks a finished run's trees from
-            scratch, on demand, solving every leaf's LP again for a certificate; the run never calls it.
+            scratch, on demand, solving every leaf's LP again for a certificate; the run never calls it.  The workers'
+            and assembly's code is fanout.py, and the reflections' reflection.py, neither among focus.fingerprint's
+            sources: fanout_code, the sha256 of the two files' bytes (fingerprint), is in the journal's header and
+            each session's record, a session whose fanout_code is not the header's stops at its start, and assembly
+            refuses a run any session of which ran other code than its own (2026-10-25 review: nothing recorded
+            which fanout.py had made a tree).
   witness   a job's W token: an exact 0/1 solution of its case's equations, so an example of the order.  It ends the
-            fanout at once; it needs no assembly, being its own certificate.
+            fanout at once; it needs no assembly, being its own certificate.  Before the finish journals it, the
+            driver reads it back from its job's file, as the last token of the job's tree, and checks it exactly on
+            the job's box, as work checks one (witnessed): whether a worker of this session made it or an earlier
+            session's did (2026-10-25 review: a witness read back from a file was journaled unchecked).
   probe     of a case with LP work to do (a job not done), made by the driver at each session's start, before any job,
             and journaled for the progress section's ETA (2026-10-25: random dives put 672:13's tree at >= 1e13 LP
             solves while the page said 17 h to go): PROBE_PATHS random paths from the case's root down to a leaf (Knuth
@@ -119,6 +131,10 @@ def write_atomic(path, data):
         raw.flush()
         os.fsync(raw.fileno())
     os.replace(temporary, path)
+    # the rename made durable too, so that a job_end, which note fsyncs after it, never outlives its file (2026-10-25)
+    directory = os.open(path.parent, os.O_RDONLY)
+    os.fsync(directory)
+    os.close(directory)
 
 
 def read(path):
@@ -154,6 +170,12 @@ def digest(tree):
     return hashlib.sha256(json.dumps(tree, separators=(',', ':')).encode()).hexdigest()
 
 
+def fingerprint():
+    """fanout_code (see 'trust'): the sha256 of fanout.py's bytes followed by reflection.py's."""
+    root = Path(__file__).resolve().parent
+    return hashlib.sha256(b''.join((root / name).read_bytes() for name in ('fanout.py', 'reflection.py'))).hexdigest()
+
+
 def save(work_dir, job, root, result):
     """A done job's file, version 2: its box, its root's index, its tree and tree_sha256, its open boxes, its seconds
     and any witness."""
@@ -175,9 +197,9 @@ def load(path):
 
 
 def brief(entry):
-    """What the driver keeps of a done job: its open boxes, witness and root, not its tree (its tokens, before
-    tree-only files, were tens of megabytes at 672; assembly reads each tree back from its job's file)."""
-    return {k: entry[k] for k in ('open', 'witness', 'root')}
+    """What the driver keeps of a done job: its open boxes, witness, root and tree_sha256, not its tree (its tokens,
+    before tree-only files, were tens of megabytes at 672; assembly reads each tree back from its job's file)."""
+    return {k: entry[k] for k in ('open', 'witness', 'root', 'tree_sha256')}
 
 
 def finished(work_dir):
@@ -209,6 +231,14 @@ def lp_for(case):
     return focus.case_lp(equations, cases[case])
 
 
+def exact(rows, lo, hi, x):
+    """x, asserted an exact solution of rows in the 0/1 box from lo to hi, as focus.State checks one: an int for each
+    position, within the box, breaking no row."""
+    assert len(x) == len(lo) and all(type(t) is int and l <= t <= u for t, l, u in zip(x, lo, hi)), x
+    assert certbb.point_certificate(rows, x) is None, x
+    return x
+
+
 def work(job):
     """Runs the job (see the vocabulary): its tree and tree_sha256, its open boxes' paths, its seconds and any
     witness."""
@@ -227,10 +257,8 @@ def work(job):
         token = focus.step(lp, equations, choice, lo, hi)
         tree.append(['L'] if token[0] == 'L' else list(token))       # an L's certificate: checked below, then dropped
         if token[0] == 'W':                # an exact solution, checked as focus.State checks one: the job's end
-            x = token[1]
-            assert all(type(t) is int and l <= t <= u for t, l, u in zip(x, lo, hi)) and len(x) == equations.N
-            assert certbb.point_certificate(rows, x) is None
-            return dict(tree=tree, tree_sha256=digest(tree), open=[], seconds=time.monotonic() - start, witness=x)
+            return dict(tree=tree, tree_sha256=digest(tree), open=[], seconds=time.monotonic() - start,
+                        witness=exact(rows, lo, hi, token[1]))
         check.feed(token)
         stack += [(p + ((token[1], 1),), lp.H.getBasis()), (p + ((token[1], 0),), None)] if token[0] == 'B' else []
     return dict(tree=tree, tree_sha256=digest(tree), open=[p for p, _ in stack], seconds=time.monotonic() - start,
@@ -301,9 +329,19 @@ def searched(prepared, all_roots):
     return [(root, job) for root, job in enumerate(all_roots) if job[0] not in copies]
 
 
+def witnessed(prepared, work_dir, name):
+    """The witness of the job whose file is named name (see 'witness'): read back by load, its tree's last token, and
+    checked exactly on the job's box by exact."""
+    equations, cases = prepared
+    data = load(Path(work_dir) / 'jobs' / f'{name}.json.gz')
+    # TODO: error copy; says a job file's witness is not the point its tree ends at, naming the file
+    assert data['tree'][-1] == ['W', data['witness']], f'Claude: "the witness of {name} is not its tree\'s"'
+    return exact(certbb.node_rows(equations, cases[data['case']]), *box(equations.N, data['path']), data['witness'])
+
+
 def farm(prepared, all_roots, done, work_dir, journal):
     """Journals a probe of each case with a job not done, then runs every job not done, WORKERS at once, shallowest
-    first; the witness found (0/1 list), else None."""
+    first; the witness found (0/1 list), read back from its job's file and checked by witnessed, else None."""
     heap, order = [], itertools.count()
     def reach(job, root):                  # the jobs not done at or below job
         todo = [job]
@@ -313,8 +351,8 @@ def farm(prepared, all_roots, done, work_dir, journal):
             if entry is None: heapq.heappush(heap, (len(b[1]), next(order), b, root))
             else: todo += [key(b[0], p) for p in entry['open']]
     for root, job in searched(prepared, all_roots): reach(job, root)
-    found = [e['witness'] for e in done.values() if e['witness'] is not None]
-    if found: return found[0]
+    found = [name for name, e in done.items() if e['witness'] is not None]
+    if found: return witnessed(prepared, work_dir, found[0])
     for case in sorted({b[0] for _, _, b, _ in heap}):
         note(journal, 'probe', case=case, **probe(prepared, case, PROBE_PATHS))
     with ProcessPoolExecutor(WORKERS, mp_context=multiprocessing.get_context('spawn'), initializer=init,
@@ -335,7 +373,7 @@ def farm(prepared, all_roots, done, work_dir, journal):
                      seconds=result['seconds'], open=len(result['open']), tree_sha256=result['tree_sha256'])
                 if result['witness'] is not None:
                     pool.shutdown(cancel_futures=True)
-                    return result['witness']
+                    return witnessed(prepared, work_dir, jid(job))
                 for p in result['open']: heapq.heappush(heap, (len(p), next(order), key(job[0], p), root))
     return None
 
@@ -356,14 +394,27 @@ def frontier(N, path, tree):
     return stack
 
 
-def assemble(run_dir, work_dir, journal, prepared, code, all_roots, done):
-    """Assembly (see the vocabulary), with done as the driver keeps it: the jobs, (case, path) each, in the order its
-    walk reaches them."""
-    equations, _ = prepared
+def unmoved(run_dir, work_dir, prepared, code, all_roots):
+    """Asserts that focus.replay of the run's chunks, their certificates checked again, still ends where fanout took
+    its roots: at the roots, after the chunks and LP solves that roots.json records, with no witness.  Assembly's
+    first check, made at each session's start too."""
     start, state = taken(run_dir, work_dir, code), focus.replay(run_dir, *prepared, code)
     # TODO: error copy; says the run's open boxes are no longer the ones fanout set out to prove
     assert [key(*b) for b in state.frontier] == all_roots, 'Claude: "the run moved since fanout took its roots"'
     assert (state.chunks, state.lp, state.witness) == (start['chunks'], start['lp'], None)
+
+
+def assemble(run_dir, work_dir, journal, prepared, code, all_roots, done):
+    """Assembly (see the vocabulary), with done as the driver keeps it: the jobs, (case, path) each, in the order its
+    walk reaches them."""
+    equations, _ = prepared
+    unmoved(run_dir, work_dir, prepared, code, all_roots)
+    records, current = [json.loads(line) for line in Path(journal).read_text().splitlines()], fingerprint()
+    # TODO: error copy; says a session of fanout's run ran other fanout code than the code assembling it
+    assert all(r['fanout_code'] == current for r in records if r['event'] in ('header', 'session')), \
+        'Claude: "a session of the run ran other fanout code"'
+    # TODO: error copy; says a probe of the run found an exact solution, so the run cannot end excluded
+    assert not [r for r in records if r['event'] == 'probe' and r['witnesses']], 'Claude: "a probe found a witness"'
     walked, jobs = {}, []                  # each job's tree_sha256 by id, and each job, as the walk reaches them
     for root, job in searched(prepared, all_roots):
         todo = [job]
@@ -371,6 +422,8 @@ def assemble(run_dir, work_dir, journal, prepared, code, all_roots, done):
             job = todo.pop()
             name = jid(job)
             data = load(Path(work_dir) / 'jobs' / f'{name}.json.gz')
+            # TODO: error copy; says the file named for a job's box holds another box, naming the job
+            assert key(data['case'], data['path']) == job, f'Claude: "the file of {name} is another box\'s"'
             assert name not in walked and data['root'] == root and data['witness'] is None, name
             assert brief(data) == json.loads(json.dumps(done[name])), name
             # TODO: error copy; says a job's tree does not leave open the boxes the job handed back, naming the job
@@ -380,7 +433,7 @@ def assemble(run_dir, work_dir, journal, prepared, code, all_roots, done):
             todo += [key(job[0], p) for p in data['open']]
     # TODO: error copy; says a job file lies outside the boxes that the walk from the roots reaches
     assert set(walked) == set(done), f'Claude: "job files outside the tiling: {sorted(set(done) - set(walked))}"'
-    for r in (r for r in map(json.loads, Path(journal).read_text().splitlines()) if r['event'] == 'job_end'):
+    for r in (r for r in records if r['event'] == 'job_end'):
         # TODO: error copy; says a job_end in fanout's journal has no job file, or one with another tree, naming it
         assert walked.get(r['job']) == r['tree_sha256'], f'Claude: "the job_end of {r["job"]} is not its file\'s"'
     return jobs
@@ -396,7 +449,10 @@ def stop(signum, frame):
 
 
 def run(run_dir, work_dir, journal, n, m):
-    """Finishes focus.py's stopped run of (n, m) in run_dir: excluded, once assembled, or witness."""
+    """Finishes focus.py's stopped run of (n, m) in run_dir: excluded, once assembled, or witness.  Each session
+    starts, before any probe or job, with assembly's first check (unmoved), a check that the journal's header is
+    this session's run's and code's, and assembly's check (3) of the job files done (2026-10-25 review: a run moved,
+    a fanout.py edited or a job file lost was found only by assembly, after the last job, or not at all)."""
     run_dir, work_dir, journal = Path(run_dir), Path(work_dir), Path(journal)
     prepared, code = focus.prepare(n, m), focus.fingerprint()
     (work_dir / 'jobs').mkdir(parents=True, exist_ok=True)
@@ -405,14 +461,22 @@ def run(run_dir, work_dir, journal, n, m):
         fcntl.flock(ours, fcntl.LOCK_EX | fcntl.LOCK_NB)
         start = taken(run_dir, work_dir, code)
         all_roots = [key(*b) for b in start['frontier']]
+        unmoved(run_dir, work_dir, prepared, code, all_roots)
         head = dict(version=1, n=n, order=m, workers=WORKERS, budget=BUDGET, deep=DEEP, roots=len(all_roots),
                     root_cases=[c for c, _ in all_roots], root_depths=[len(path) for _, path in all_roots],
-                    prefix_lp=start['lp'], prefix_case=start['case'], code=code)
+                    prefix_lp=start['lp'], prefix_case=start['case'], code=code, fanout_code=fingerprint())
         if not journal.exists(): note(journal, 'header', **head)
-        assert {k: json.loads(journal.read_text().splitlines()[0])[k] for k in ('n', 'order', 'code')} == \
-               {k: head[k] for k in ('n', 'order', 'code')}
-        note(journal, 'session', workers=WORKERS, reflections=reflections(prepared, all_roots))
+        same = ('n', 'order', 'code', 'fanout_code')       # what each session shares with the journal's header
+        # TODO: error copy; says fanout's journal began with another run, or under other code, than this session's
+        assert {k: json.loads(journal.read_text().splitlines()[0])[k] for k in same} == {k: head[k] for k in same}, \
+            'Claude: "the journal began with another run or under other code"'
+        note(journal, 'session', workers=WORKERS, reflections=reflections(prepared, all_roots),
+             fanout_code=head['fanout_code'])
         done = finished(work_dir)
+        for r in (r for r in map(json.loads, journal.read_text().splitlines()) if r['event'] == 'job_end'):
+            # TODO: error copy; says a job_end in fanout's journal has no job file, or one with another tree, naming it
+            assert done.get(r['job'], {}).get('tree_sha256') == r['tree_sha256'], \
+                f'Claude: "the job_end of {r["job"]} is not its file\'s"'
         witness = farm(prepared, all_roots, done, work_dir, journal)
         if witness is None: assemble(run_dir, work_dir, journal, prepared, code, all_roots, done)
         outcome = 'witness' if witness is not None else 'excluded'
@@ -421,10 +485,11 @@ def run(run_dir, work_dir, journal, n, m):
 
 
 def main():
-    # TODO: error copy; says how to run fanout: with the length of a stopped focus.py run, 480 or 672
-    assert len(sys.argv) == 2 and sys.argv[1] in ('480', '672'), 'Claude: "usage: python3 -B fanout.py 480|672"'
+    # TODO: error copy; says how to run fanout: with the length of a stopped focus.py run, 432, 480 or 672
+    assert len(sys.argv) == 2 and sys.argv[1] in ('432', '480', '672'), \
+        'Claude: "usage: python3 -B fanout.py 432|480|672"'
     n = int(sys.argv[1])
-    m = {480: 14, 672: 13}[n]
+    m = {432: 12, 480: 14, 672: 13}[n]
     signal.signal(signal.SIGTERM, stop)
     outcome = run(Path(f'scratch/focus{n}/run'), Path(f'scratch/fanout{n}'), Path(f'fanout_{n}_journal.jsonl'), n, m)
     print(json.dumps(dict(n=n, order=m, outcome=outcome)), flush=True)
