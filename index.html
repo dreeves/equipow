@@ -398,7 +398,10 @@ footer {
 
 <header>
   <h1>Equipowerful Partitions</h1>
-  <p class="lede">Table 2 of the paper by Buhler, Golan, Pratt, and Wagon (<i>Math. Comp.</i> 90, 2021), extended with new results.</p>
+  <p class="lede">Stan Wagon, Daniel Reeves, Claude, and Astra</p>
+  <p class="lede">
+    We extend the results of 
+    Table 2 of the paper by Buhler, Golan, Pratt, and Wagon (<i>Math. Comp.</i> 90, 2021).</p>
   <p class="lede"><i>m</i><sup>*</sup>(<i>n</i>) 
     is the largest number <i>m</i> such that 
     {1, …, <i>n</i>} can be split into two parts whose power sums are equal for every exponent 
@@ -414,13 +417,25 @@ footer {
     Since the power sums are equal for <i>k</i> = 0 and <i>k</i> = 1 but not for <i>k</i> = 2, and since (exercise for the reader) no other partition of {1, 2, 3, 4} into two parts hits a bigger max <i>k</i>, we say that 
     <span class="nw"><i>m</i><sup>*</sup>(4) = 2.</span></p>
   <p class="lede">
+    For {1, ..., 8} it turns out there's a partition &mdash; {1, 4, 6, 7} and {2, 3, 5, 8} &mdash; that gets us up to <i>k</i> = 2, meaning <i>m</i><sup>*</sup>(8) = 3:
+  </p>
+  <p class="lede">
+    &nbsp; <i>k</i>=0: &nbsp; 1<sup>0</sup> + 4<sup>0</sup> + 6<sup>0</sup> + 7<sup>0</sup> &nbsp; = &nbsp; 2<sup>0</sup> + 3<sup>0</sup> + 5<sup>0</sup> + 8<sup>0</sup> &nbsp; = &nbsp; 4<br>
+    &nbsp; <i>k</i>=1: &nbsp; 1<sup>1</sup> + 4<sup>1</sup> + 6<sup>1</sup> + 7<sup>1</sup> &nbsp; = &nbsp; 2<sup>1</sup> + 3<sup>1</sup> + 5<sup>1</sup> + 8<sup>1</sup> &nbsp; = &nbsp; 18<br>
+    &nbsp; <i>k</i>=2: &nbsp; 1<sup>2</sup> + 4<sup>2</sup> + 6<sup>2</sup> + 7<sup>2</sup> &nbsp; = &nbsp; 2<sup>2</sup> + 3<sup>2</sup> + 5<sup>2</sup> + 8<sup>2</sup> &nbsp; = &nbsp; 102<br>
+    &nbsp; <i>k</i>=3: &nbsp; 1<sup>3</sup> + 4<sup>3</sup> + 6<sup>3</sup> + 7<sup>3</sup> &nbsp; = &nbsp; 624 &nbsp; &ne; &nbsp; 2<sup>3</sup> + 3<sup>3</sup> + 5<sup>3</sup> + 8<sup>3</sup> &nbsp; = &nbsp; 672.<br>
+  </p>
+
+    
+  </p>
+  <p class="lede">
     Fun fact, this property of having equal power sums for exponents from 0 up to some <i>k</i> is invariant under translating and scaling.
     In particular that means it doesn't matter if we use {1, …, <i>n</i>} or {0, …, <i>n</i> − 1} as the set to be partitioned.
     The <i>m</i><sup>*</sup>(<i>n</i>) values are the same.
     You can in fact start with any set of <i>n</i> equally spaced integers.
   </p>
   <p class="lede">
-    From now on we use the convention that the <i>n</i>-element set to be partitioned is {0, 1, …, <i>n</i> − 1}.
+    From here on we use the convention that the <i>n</i>-element set to be partitioned is {0, 1, …, <i>n</i> − 1}.
   </p>
 </header>
 
