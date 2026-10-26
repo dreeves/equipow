@@ -2555,6 +2555,31 @@ def q_progress_folds_are_remembered_across_loads():
     assert [(r['state'], r['open'], r['status']) for r in got] == [('running', False, False), ('ended', True, True)], got
 
 
+def q_progress_redraw_keeps_the_scroll_position():
+    # Replicata: index.html with three runs as progress.js (PROGRESS_FOLDS's two and a third at n 72), the section
+    # and every run's fold open, scroll anchoring off (overflow-anchor: none, as in a browser without it, like Safari),
+    # the page scrolled to its bottom, where the section sits; then a new snapshot of the same runs, which redraws them.
+    # Expectata (dreeves, 2026-10-26: "Every time the graph updates the page scrolls itself"): the redraw leaves the
+    # page where it was, the scroll position and the page's height the same before and after.
+    # Resultata before the fix: 715 px up. render emptied the runs and rebuilt them one by one, and each run's sea
+    # measured the runs' width (runsBox.clientWidth), a layout of the page with only the runs rebuilt so far, shorter,
+    # so the browser pulled the scroll position up to fit it, and there it stayed (Chrome's scroll anchoring put it
+    # back, when its anchor survived the rebuild).
+    data = {'made': PROGRESS_FOLDS['made'], 'runs': PROGRESS_FOLDS['runs'] + [dict(PROGRESS_FOLDS['runs'][0], n=72)]}
+    opened = ''.join(f'localStorage.setItem("progress-fold {r["program"]} {r["n"]} {r["order"]}", "1");' for r in data['runs'])
+    got = progress_harness(data, """
+  window.scrollTo(0, document.documentElement.scrollHeight);
+  await sleep(50);
+  const before = {y: window.scrollY, h: document.documentElement.scrollHeight, open: look().map(r => r.open)};
+  const d2 = JSON.parse(JSON.stringify(window.progressView.data)); d2.made += 60; window.progressData(d2);
+  await sleep(50);
+  out({before, after: {y: window.scrollY, h: document.documentElement.scrollHeight, renders: window.progressView.renders}});""",
+                           before=f'<script>{opened}</script>\n<style>* {{ overflow-anchor: none; }}</style>\n')
+    assert got['before']['open'] == [True, True, True], got
+    assert got['before']['y'] > 0 and got['after']['renders'] == 2, got
+    assert (got['after']['y'], got['after']['h']) == (got['before']['y'], got['before']['h']), got
+
+
 def q_progress_summary_names_each_run_s_state():
     # Replicata: index.html with five runs as progress.js, the section open, every fold folded: running, paused,
     # frozen, ended with an outcome (excluded) and ended with none (its process gone without a finish, as a stopped or

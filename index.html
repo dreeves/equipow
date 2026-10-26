@@ -2427,10 +2427,12 @@ try {
     view.renders += 1;
     section.querySelector('[data-made]').textContent = stamp(data.made);
     tick();
-    runsBox.replaceChildren();
-    view.layouts = data.runs.map(run => {
-      const box = template.content.firstElementChild.cloneNode(true);
-      runsBox.appendChild(box);
+    // the new runs are built beside the old ones, then swapped in at once, so no layout in between sees a shorter page
+    // (dreeves, 2026-10-26: "Every time the graph updates the page scrolls itself": sea's width read had laid out the
+    // page with only the runs rebuilt so far, and the browser pulled the scroll position up to fit it)
+    const boxes = data.runs.map(() => template.content.firstElementChild.cloneNode(true));
+    view.layouts = data.runs.map((run, i) => {
+      const box = boxes[i];
       // a run's charts and status line fold under its heading (dreeves, 2026-10-23: "i don't want to see frozen
       // graphs" and "i don't want graphs to magically disappear"), the fold as this browser last left it, whatever the
       // run's state (remember; dreeves, 2026-10-25); a run not running grayed; the summary names the state, an ended
@@ -2460,6 +2462,7 @@ try {
       L.etaXs = etaChart(box.querySelector('.progress-eta'), run);
       return L;
     });
+    runsBox.replaceChildren(...boxes);
   }
 
   function search288View(box, run) {
