@@ -17,7 +17,7 @@ reader sees.
 """
 import sys
 sys.dont_write_bytecode = True
-import os, re, json, html, html.parser, math, time, shutil, signal, difflib, tempfile, threading, traceback, subprocess
+import os, re, json, html, html.parser, math, time, shutil, signal, difflib, datetime, tempfile, threading, traceback, subprocess
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 INDEX = os.path.join(HERE, 'index.html')
@@ -117,6 +117,24 @@ DREEVES_LINES += PROOF416_ASTRA
 POW2_ERROR = 'Error drawing this chart: '
 POW2_ERROR_LINE = f'ro.textContent = `{POW2_ERROR}${{e}}`;'
 DREEVES_LINES += (POW2_ERROR_LINE,)
+# and his edits of 2026-10-26 (commit 5be96e4 "Human prose editing"), byte for byte: Claude's sentence on the
+# certificates still to be done, which he broke over four lines, its quotation now closing on the last, so that no line
+# holds a whole quotation; and his note on the symbols # and ∨, at the end of the remarks' opening, which replaced the
+# footer's definition of the expanded product (that edit is in TABLE_UPDATE)
+CERTIFICATES_REFLOW = ('<p>Claude: "<a href="https://github.com/dreeves/equipow/blob/main/mstar.py">mstar.py</a> and',
+                       '<a href="https://github.com/dreeves/equipow/blob/main/pow2.py">pow2.py</a>',
+                       'repeat the search behind every residue claim each time they run.',
+                       'Certificates that can be checked on their own, like proof512.wl for 512, are still to be done."</p>')
+SYMBOLS_NOTE = ('<p>Finally, the symbols # and ∨ denote the expanded product and the join operation on Littlewood polynomials:<br>',
+                'where <i>n<sub>f</sub></i> is the length of <i>f</i>.')
+DREEVES_LINES += CERTIFICATES_REFLOW + SYMBOLS_NOTE
+# The changelog atop the page (dreeves, 2026-10-26: "can you add a skeleton of a changelog at the top of the page,
+# modeled after doc.bmndr.co/freshat"): its summary, the word of his FreshAt spec's, and two entries in his words, each
+# the subject of his commit of index.html on its date, the first (bf90205) and the latest that added results (c496222)
+CHANGELOG = ('<summary><i>Changelog</i></summary>',
+             '<p>2026-10-26: More results, powers of 2</p>',
+             '<p>2026-10-07: Initial commit</p>')
+DREEVES_LINES += CHANGELOG
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -257,6 +275,9 @@ TABLE_UPDATE += (("<td class=\"c\" title='Claude alone'>384</td>", "<td class=\"
 # copy"); the footer's five lines became his definition of the expanded product (2026-10-24, commit 35dd836 "Edits"),
 # the sentence on the hex codes moving, reworded, to the top of the remarks (HEX_NOTE) and Claude's line on 416 going
 # (its TODO comment, an insertion, went in b475924 the same day).
+FOOTER_DEFINITION = ('  <p>Definition (expanded product): \n'
+                     '    <span class="nw"><i>f</i> # <i>g</i> = <i>f</i>(<i>x</i>)·<i>g</i>(<i>x</i><sup><i>n<sub>f</sub></i></sup>)</span>, where <i>n<sub>f</sub></i> is the length of <i>f</i>. \n'
+                     '    And the symbol ∨ means the join.</p>\n')
 TABLE_UPDATE += (('  <p class="lede">Table 2 of the paper by Buhler, Golan, Pratt, and Wagon (<i>Math. Comp.</i> 90, 2021), extended with new results.</p>\n',
                   '  <p class="lede">Stan Wagon, Daniel Reeves, Claude, and Astra</p>\n'
                   '  <p class="lede">\n'
@@ -268,9 +289,7 @@ TABLE_UPDATE += (('  <p class="lede">Table 2 of the paper by Buhler, Golan, Prat
                   '  <p>The sign # denotes the expanded product, <span class="nw"><i>f</i> # <i>g</i> = <i>f</i>(<i>x</i>)·<i>g</i>(<i>x</i><sup><i>n<sub>f</sub></i></sup>)</span>, where <i>n<sub>f</sub></i> is the length of <i>f</i>. The sign ∨ denotes the join.</p>\n'
                   '  <p>Every example whose code is given here was checked by Claude with exact integer power sums.</p>\n'
                   '  <p>Claude: "BGPW\'s example at length 416 was not re-checked here."</p>\n',
-                  '  <p>Definition (expanded product): \n'
-                  '    <span class="nw"><i>f</i> # <i>g</i> = <i>f</i>(<i>x</i>)·<i>g</i>(<i>x</i><sup><i>n<sub>f</sub></i></sup>)</span>, where <i>n<sub>f</sub></i> is the length of <i>f</i>. \n'
-                  '    And the symbol ∨ means the join.</p>\n', 1))
+                  FOOTER_DEFINITION, 1))
 
 # The results of 2026-10-25 (scratch/record-20261025/page/apply_record.py): the new results' cells (592, 608 and 656
 # settled at 10 and 848, 880, 896, 928, 944, 976 and 992 at 11 by examples, 752 bounded by 10 by proof752.py); a
@@ -312,6 +331,15 @@ TABLE_UPDATE += (('<td class="c" title=\'Claude alone\'>784</td>', '<td class="c
 # powers of 2 known to beat Thue-Morse by 5 and 9, and 2^48 and 2^71 raised, the rows split after 2^41 (2^38 until
 # then)
 TABLE_UPDATE += (('        <table class="block">\n          <tr class="ns"><th scope="row"><i>n</i></th><td title=\'The published paper (2021)\'>2<sup>3</sup></td><td title=\'The published paper (2021)\'>2<sup>4</sup></td><td title=\'The published paper (2021)\'>2<sup>5</sup></td><td title=\'The published paper (2021)\'>2<sup>6</sup></td><td title=\'The published paper (2021)\'>2<sup>7</sup></td><td title=\'The published paper (2021)\'>2<sup>8</sup></td><td class="c" title=\'Claude alone\'>2<sup>9</sup></td><td class="c" title=\'Claude alone\'>2<sup>17</sup></td><td class="c" title=\'Claude alone\'>2<sup>18</sup></td><td class="c" title=\'Claude alone\'>2<sup>20</sup></td><td class="j" title=\'Claude and BGPW\'>2<sup>24</sup></td><td class="c" title=\'Claude alone\'>2<sup>27</sup></td><td class="c" title=\'Claude alone\'>2<sup>30</sup></td><td class="c" title=\'Claude alone\'>2<sup>33</sup></td><td class="c" title=\'Claude alone\'>2<sup>34</sup></td><td class="c" title=\'Claude alone\'>2<sup>37</sup></td><td class="c" title=\'Claude alone\'>2<sup>38</sup></td></tr>\n          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td><td>8</td><td class="c">9</td><td class="c">18–20</td><td class="c">19–21</td><td class="c">22–23</td><td class="j">26–29</td><td class="c">29–33</td><td class="c">33–36</td><td class="c">36–40</td><td class="c">37–41</td><td class="c">41–45</td><td class="c">42–46</td></tr>\n        </table>\n        <table class="block">\n          <tr class="ns"><th scope="row"><i>n</i></th><td class="c" title=\'Claude alone\'>2<sup>41</sup></td><td class="c" title=\'Claude alone\'>2<sup>46</sup></td><td class="c" title=\'Claude alone\'>2<sup>48</sup></td><td class="c" title=\'Claude alone\'>2<sup>49</sup></td><td class="j" title=\'Claude and BGPW\'>2<sup>51</sup></td><td class="c" title=\'Claude alone\'>2<sup>52</sup></td><td class="c" title=\'Claude alone\'>2<sup>57</sup></td><td class="c" title=\'Claude alone\'>2<sup>61</sup></td><td class="c" title=\'Claude alone\'>2<sup>65</sup></td><td class="c" title=\'Claude alone\'>2<sup>66</sup></td><td class="c" title=\'Claude alone\'>2<sup>67</sup></td><td class="c" title=\'Claude alone\'>2<sup>71</sup></td><td class="c" title=\'Claude alone\'>2<sup>72</sup></td></tr>\n          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="c">45–50</td><td class="c">51–57</td><td class="c">53–59</td><td class="c">55–60</td><td class="j">57–63</td><td class="c">58–64</td><td class="c">64–70</td><td class="c">68–75</td><td class="c">73–81</td><td class="c">74–82</td><td class="c">75–83</td><td class="c">79–88</td><td class="c">81–89</td></tr>\n        </table>\n', '        <table class="block">\n          <tr class="ns"><th scope="row"><i>n</i></th><td title=\'The published paper (2021)\'>2<sup>3</sup></td><td title=\'The published paper (2021)\'>2<sup>4</sup></td><td title=\'The published paper (2021)\'>2<sup>5</sup></td><td title=\'The published paper (2021)\'>2<sup>6</sup></td><td title=\'The published paper (2021)\'>2<sup>7</sup></td><td title=\'The published paper (2021)\'>2<sup>8</sup></td><td class="c" title=\'Claude alone\'>2<sup>9</sup></td><td class="c" title=\'Claude alone\'>2<sup>17</sup></td><td class="c" title=\'Claude alone\'>2<sup>18</sup></td><td class="c" title=\'Claude alone\'>2<sup>20</sup></td><td class="j" title=\'Claude and BGPW\'>2<sup>24</sup></td><td class="c" title=\'Claude alone\'>2<sup>27</sup></td><td class="c" title=\'Claude alone\'>2<sup>30</sup></td><td class="c" title=\'Claude alone\'>2<sup>33</sup></td><td class="c" title=\'Claude alone\'>2<sup>34</sup></td><td class="c" title=\'Claude alone\'>2<sup>37</sup></td><td class="c" title=\'Claude alone\'>2<sup>38</sup></td><td class="c" title=\'Claude alone\'>2<sup>41</sup></td></tr>\n          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td><td>8</td><td class="c">9</td><td class="c">18–20</td><td class="c">19–21</td><td class="c">22–23</td><td class="j">26–29</td><td class="c">29–33</td><td class="c">33–36</td><td class="c">36–40</td><td class="c">37–41</td><td class="c">41–45</td><td class="c">42–46</td><td class="c">45–50</td></tr>\n        </table>\n        <table class="block">\n          <tr class="ns"><th scope="row"><i>n</i></th><td class="c" title=\'Claude alone\'>2<sup>43</sup></td><td class="c" title=\'Claude alone\'>2<sup>46</sup></td><td class="c" title=\'Claude alone\'>2<sup>48</sup></td><td class="c" title=\'Claude alone\'>2<sup>49</sup></td><td class="j" title=\'Claude and BGPW\'>2<sup>51</sup></td><td class="c" title=\'Claude alone\'>2<sup>52</sup></td><td class="c" title=\'Claude alone\'>2<sup>57</sup></td><td class="c" title=\'Claude alone\'>2<sup>61</sup></td><td class="c" title=\'Claude alone\'>2<sup>65</sup></td><td class="c" title=\'Claude alone\'>2<sup>66</sup></td><td class="c" title=\'Claude alone\'>2<sup>67</sup></td><td class="c" title=\'Claude alone\'>2<sup>68</sup></td><td class="c" title=\'Claude alone\'>2<sup>71</sup></td><td class="c" title=\'Claude alone\'>2<sup>72</sup></td></tr>\n          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="c">48–53</td><td class="c">51–57</td><td class="c">54–59</td><td class="c">55–60</td><td class="j">57–63</td><td class="c">58–64</td><td class="c">64–70</td><td class="c">68–75</td><td class="c">73–81</td><td class="c">74–82</td><td class="c">75–83</td><td class="c">77–84</td><td class="c">80–88</td><td class="c">81–89</td></tr>\n        </table>\n', 1),)
+
+# His edit of the footer of 2026-10-26 (commit 5be96e4 "Human prose editing"), byte for byte: its definition of the
+# expanded product gone, for his note on the symbols # and ∨ at the end of the remarks' opening (SYMBOLS_NOTE), and its
+# line of links no longer indented; and his byline of the same day, the authors' line made an italic "by …", as in his
+# spec FreshAt (in the working page, uncommitted, at 13:21).
+SOURCE_LINE = '<p><a href="https://github.com/dreeves/equipow">Source</a> &amp; <a href="https://equipow.dreev.es/sourcery.html">Sourcery</a></p>\n'
+TABLE_UPDATE += ((FOOTER_DEFINITION + '  ' + SOURCE_LINE, SOURCE_LINE, 1),
+                 ('  <p class="lede">Stan Wagon, Daniel Reeves, Claude, and Astra</p>\n',
+                  '  <p class="lede"><i>by Stan Wagon, Daniel Reeves, Claude, and Astra</i></p>\n', 1))
 
 # Edits of the remarks' lines that are in the page before the chart (BASE) or in TABLE_UPDATE, kept apart from
 # TABLE_UPDATE because quals_pow2_page.py applies TABLE_UPDATE before its own edits of those remarks, and its own
@@ -1029,6 +1057,89 @@ def q_section_follows_table2():
     assert re.search('.*?'.join(parts), section(), re.S), section()
 
 
+def q_changelog_sits_under_the_authors_as_in_freshat():
+    # Replicata: index.html's header.
+    # Expectata (dreeves, 2026-10-26: "can you add a skeleton of a changelog at the top of the page, modeled after
+    # doc.bmndr.co/freshat"): as FreshAt's changelog follows its byline, a <details class="changelog"> follows the
+    # authors' line, the title's next, whatever his words there (TABLE_UPDATE holds them), with only comments between,
+    # and has no open attribute, so it starts closed; its summary is
+    # FreshAt's, <i>Changelog</i>, and the rest entries, and TODO comments, for entries in Claude's words; each entry a
+    # <p> on its own line, "YYYY-MM-DD: what changed" as in FreshAt, a real date, newest first.
+    # Resultata before: no changelog.
+    head = re.search(r'<header>\n(.*?)\n</header>', page(), re.S)
+    assert head, 'no header'
+    m = re.match(r'  <h1>[^\n]*</h1>\n  <p class="lede">[^\n]*</p>\n(?:  <!--[^\n]*-->\n)*'
+                 r'  <details class="changelog">\n    <summary><i>Changelog</i></summary>\n(.*?)\n  </details>\n',
+                 head.group(1) + '\n', re.S)
+    assert m, head.group(1)[:800]
+    lines = [l.strip() for l in m.group(1).split('\n')]
+    entries = [re.fullmatch(r'<p>(\d{4}-\d{2}-\d{2}): \S.*</p>', l) for l in lines
+               if not (l.startswith('<!-- TODO:') and l.endswith('-->'))]
+    assert entries and all(entries), lines
+    dates = [e.group(1) for e in entries]
+    assert all(datetime.date.fromisoformat(d).isoformat() == d for d in dates), dates
+    assert dates == sorted(dates, reverse=True), dates
+
+
+# The page in an iframe width px wide (Chrome's window is at least 500 px wide), with harness (a script, which may
+# await sleep) run last in it, once the page has had half a second: what the harness posted to the host page, as JSON.
+def framed(width, harness):
+    d = tempfile.mkdtemp(prefix='index-quals-')
+    script = ('<script>\n(async () => {\n  const sleep = ms => new Promise(r => setTimeout(r, ms));\n  await sleep(500);\n'
+              + harness + '\n})();\n</script>\n')
+    text = page()
+    assert text.count('</body>') == 1
+    open(os.path.join(d, 'index.html'), 'w', encoding='utf-8').write(text.replace('</body>', script + '</body>'))
+    shutil.copy(DATA, os.path.join(d, 'mstar.js'))
+    shutil.copy(POW2, os.path.join(d, 'pow2.js'))
+    open(os.path.join(d, 'host.html'), 'w').write(HOST.replace('__WIDTH__', str(width)))
+    dom = chrome(d, [f'--window-size={max(width, 500) + 40},1100', '--virtual-time-budget=5000', '--dump-dom',
+                     'file://' + os.path.join(d, 'host.html')])
+    shutil.rmtree(d)
+    m = re.search(r'<pre id="harness-out">(.*?)</pre>', dom, re.S)
+    assert m, dom[-2000:]
+    return json.loads(html.unescape(m.group(1)))
+
+
+def q_changelog_starts_closed_and_fits_a_phone():
+    # Replicata: index.html 390 px wide (a phone) and 1000 px, as loaded; then its changelog's summary clicked; then a
+    # made-up entry too long for one line added to the changelog.
+    # Expectata (dreeves, 2026-10-26, as for q_changelog_sits_under_the_authors_as_in_freshat): as loaded, the
+    # changelog's summary shows and none of its entries; its cursor is a pointer, as on FreshAt's; clicked, it opens and
+    # every entry shows, in the page's monospace font (--mono), as FreshAt's entries are in a <pre>; the long entry's
+    # first line starts at the entry's left edge and each later line under the text after its date (the 13th
+    # character, after "YYYY-MM-DD: "); and at each step the page is no wider than the window.
+    # Resultata before: no changelog.
+    for width in (390, 1000):
+        got = framed(width, """
+  const box = document.querySelector('header > details.changelog'), summary = box.querySelector('summary');
+  const wider = () => document.documentElement.scrollWidth - innerWidth;
+  const look = () => ({open: box.open, summary: summary.checkVisibility(), wider: wider(),
+    entries: [...box.querySelectorAll('p')].map(p => p.checkVisibility())});
+  const closed = look();
+  summary.click();
+  await sleep(50);
+  const opened = look();
+  const p = document.createElement('p');
+  p.textContent = '2026-10-26: ' + 'made up '.repeat(40);
+  box.append(p);
+  await sleep(50);
+  const text = p.firstChild, at = i => { const r = document.createRange(); r.setStart(text, i); r.setEnd(text, i + 1); return r.getBoundingClientRect().left; };
+  const all = document.createRange(); all.selectNodeContents(p);
+  const long = {left: p.getBoundingClientRect().left, date: at(12), wider: wider(),
+    lines: [...all.getClientRects()].filter(r => r.width > 0).map(r => r.left)};
+  parent.postMessage(JSON.stringify({closed, opened, long, font: getComputedStyle(p).fontFamily,
+    mono: getComputedStyle(document.documentElement).getPropertyValue('--mono').trim(),
+    cursor: getComputedStyle(summary).cursor}), '*');""")
+        closed, opened, long = got['closed'], got['opened'], got['long']
+        assert (closed['open'], closed['summary']) == (False, True) and closed['entries'] and not any(closed['entries']), (width, got)
+        assert opened['open'] and opened['entries'] and all(opened['entries']), (width, got)
+        assert got['cursor'] == 'pointer' and got['font'] == got['mono'], (width, got)
+        assert len(long['lines']) > 1 and close(long['lines'][0], long['left'], 0.5), (width, long)
+        assert all(close(x, long['date'], 0.5) for x in long['lines'][1:]), (width, long)
+        assert max(closed['wider'], opened['wider'], long['wider']) <= 0, (width, got)
+
+
 def q_scripts_load_data_then_draw():
     # Replicata: index.html's script tags.
     # Expectata: exactly six, after </main> and before </body>: a classic <script src="mstar.js"> (no type, async or
@@ -1251,9 +1362,11 @@ def q_remarks_open_with_how_the_upper_bounds_are_proven():
     # Expectata (dreeves, 2026-10-12: define "the norm bound" and "the residue condition", which the remarks and charts
     # cite, "in nice understandable non-llmish prose", with a note that certificates for the residue claims are tbd):
     # between the heading and the list of remarks, Claude's paragraphs on the residue condition, then the norm bound,
-    # then the certificates still to be done.
+    # then the certificates still to be done.  A paragraph may run over several lines, as dreeves breaks them.
+    # Resultata before (2026-10-26, his commit 5be96e4 "Human prose editing", which broke the third over four lines):
+    # two paragraphs found, as each was read within one line.
     sec = re.search(r'<h2>Where the new results come from</h2>\n(.*?)\n  <ul>\n', page(), re.S).group(1)
-    said = re.findall(r'<p>Claude: "(.*?)"</p>', sec)
+    said = re.findall(r'<p>Claude: "(.*?)"</p>', sec, re.S)
     assert len(said) == 3, sec
     assert said[0].startswith('How the upper bounds are proven.') and 'The residue condition mod <i>M</i> rules out' in said[0]
     assert said[1].startswith('The norm bound for a prime <i>p</i> that does not divide <i>n</i>')
