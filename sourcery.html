@@ -7738,12 +7738,14 @@ b(11) = 432, b(12) &lt;= 480, b(13) &lt;= 960, b(14) &lt;= ?
 <header><p class="speaker">dreev</p></header>
 <pre class="prompt">if that's what you recommend, sure</pre>
 <details>
-<summary><a class="anchor" href="#p386"><time datetime="2026-10-26T15:04:29.829000+00:00">15:04</time></a> <span class="chip"></span> <span class="agent">Claude Code</span> <span class="model">claude-opus-5-5</span> <span class="effort">(max)</span> <span class="elapsed">thought for 55s · 1m wall-clock time</span></summary>
+<summary><a class="anchor" href="#p386"><time datetime="2026-10-26T15:04:29.829000+00:00">15:04</time></a> <span class="chip"></span> <span class="agent">Claude Code</span> <span class="model">claude-opus-5-5</span> <span class="effort">(max)</span> <span class="elapsed">thought for 1m50s · 1h40m39s wall-clock time</span></summary>
 <div class="reply machine"><p>Agreed: that&#x27;s the recommendation. Next comes one more build workflow before launch, then the launch itself. The workflow:</p>
 <ul><li>moves the enumeration into <code>residues.py</code> and points the 432 run&#x27;s fingerprint at it, so mstar.py&#x27;s bounds table can change freely;</li><li>compacts the fanout driver&#x27;s memory;</li><li>goes through adversarial review and fixes.</li></ul>
 <p>Then the launch: restart the watcher, run the 40-LP prefix, register the shepherd entry and start the run.</p>
 <p>The split and the driver-memory fix are being built now, with an adversarial review and fixes after. When they&#x27;re green, the launch is:</p>
-<ol><li>Restart the watcher.</li><li>Run the 40-LP prefix.</li><li>Add the 432 entry to the shepherd and run its quals.</li><li>Restart the shepherd, which starts the run on 8 workers.</li><li>Check the run&#x27;s first probes and its progress-page entry.</li></ol></div>
+<ol><li>Restart the watcher.</li><li>Run the 40-LP prefix.</li><li>Add the 432 entry to the shepherd and run its quals.</li><li>Restart the shepherd, which starts the run on 8 workers.</li><li>Check the run&#x27;s first probes and its progress-page entry.</li></ol>
+<p>This last pass packs the driver&#x27;s pending boxes to about 2 bytes per fixed position. It&#x27;s needed because fanout.py is frozen from launch until the run ends, so it can&#x27;t be fixed mid-run. It runs build, review, then fixes, with the same checks as before. The launch follows right after.</p>
+<p>When you next commit, include the new untracked <code>residues.py</code>. focus.py, focus432.py, focus480.py, focus672.py and mstar.py all import it now, so a commit without it breaks them in a fresh checkout.</p></div>
 </details>
 </article>
 </main>
