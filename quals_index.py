@@ -130,12 +130,10 @@ SYMBOLS_NOTE = ('<p>Finally, the symbols # and ∨ denote the expanded product a
 DREEVES_LINES += CERTIFICATES_REFLOW + SYMBOLS_NOTE
 # The changelog atop the page (dreeves, 2026-10-26: "can you add a skeleton of a changelog at the top of the page,
 # modeled after doc.bmndr.co/freshat"): its summary, the word of his FreshAt spec's, and his entries as he wrote them
-# (5e3ada0 "Add changelog and BGPW paper", and in the working page at 14:12): the subject of his commit c496222 with
-# his " [which?]", and in place of the subject of the page's first commit his entries for the claude.ai chat's first
-# two days
+# in the working page (by 14:56; his first, the subject of his commit c496222 with " [which?]", he since dropped): the
+# claude.ai chat's first two days
 CHANGELOG = ('<summary><i>Changelog</i></summary>',
-             '<p>2026-10-26: More results, powers of 2 [which?]</p>',
-             '<p>2026-10-04: Claude gets first new result: m*(2^38) >= 39</p>',
+             '<p>2026-10-04: Claude gets first wholly new result: m*(2^38) >= 39</p>',
              '<p>2026-10-03: Claude Opus 5.5 finds a new order-10 partition for n=240</p>')
 DREEVES_LINES += CHANGELOG
 
@@ -416,7 +414,11 @@ def theme_blocks():
 def mstar_data():
     """MSTAR as the browser sees it: node runs mstar.js and prints MSTAR as JSON."""
     assert os.path.exists(DATA), DATA
-    src = open(DATA, encoding='utf-8').read()
+    return mstar_of(open(DATA, encoding='utf-8').read())
+
+
+def mstar_of(src):
+    """MSTAR as the browser sees it from src, the text of a version of mstar.js."""
     p = subprocess.run(['node', '-e', src + '\nprocess.stdout.write(JSON.stringify(MSTAR))'], capture_output=True,
                        text=True, timeout=60)
     assert p.returncode == 0, p.stderr[-2000:]
@@ -528,14 +530,18 @@ CHAT = (('2026-10-04', 'p4', 'This shows 528 ∈ L₁₀', {528: (10, None)}),
 FIRST = 'bf90205'      # the page's first commit (2026-10-07 11:08, "Initial commit")
 
 
+def changes(before, after):
+    """{n: statement} for the new results whose bounds differ from before to after (each {n: (low, high)})."""
+    return {n: statement(before.get(n), a) for n, a in after.items() if before.get(n) != a}
+
+
 def chat_days():
-    """({date: {n: statement}}, the bounds after them all): CHAT's statements day by day, each day's as statement()
-    states its changes."""
+    """({date: (the bounds before the day, after it)}, the bounds after them all): CHAT's statements made day by day."""
     out, state = {}, {}
     for d in sorted({row[0] for row in CHAT}):
         after = state
         for said in (said for day, _, _, said in CHAT if day == d): after = fold(after, said)
-        out[d] = {n: statement(state.get(n), a) for n, a in after.items() if state.get(n) != a}
+        out[d] = (state, after)
         state = after
     return out, state
 
@@ -553,21 +559,86 @@ def exchanges():
     return out
 
 
-def day_changes(start, through=BACKFILL):
-    """{date: {n: statement}} for each day with commits of index.html up to and including through: the new results whose
-    bounds changed over the day, from the bounds before it (start, for the first day) to its last commit's, as
-    statement() states them.  No result ever leaves the block."""
-    log = subprocess.run(['git', '-C', HERE, 'log', '--reverse', '--format=%h %ad', '--date=format:%Y-%m-%d', through,
-                          '--', 'index.html'], capture_output=True, text=True, check=True).stdout
+def git(*args): return subprocess.run(['git', '-C', HERE, *args], capture_output=True, text=True, check=True).stdout
+
+
+def day_states(start, through=BACKFILL):
+    """{date: (its last commit, the block's bounds before the day, after it)} for each day with commits of index.html up
+    to and including through, the first day's before being start.  No result ever leaves the block."""
+    log = git('log', '--reverse', '--format=%h %ad', '--date=format:%Y-%m-%d', through, '--', 'index.html')
     last = dict(reversed(line.split()) for line in log.split('\n') if line)     # date: the day's last commit
     out, before = {}, start
     for d, h in last.items():
-        now = new_cells(subprocess.run(['git', '-C', HERE, 'show', f'{h}:index.html'], capture_output=True, text=True,
-                                       check=True).stdout)
+        now = new_cells(git('show', f'{h}:index.html'))
         assert set(before) <= set(now), set(before) - set(now)
-        out[d] = {n: statement(before.get(n), a) for n, a in now.items() if before.get(n) != a}
+        out[d] = (h, before, now)
         before = now
     return out
+
+
+# What the changelog lists (dreeves, 2026-10-26, of its first 112 statements: "if there's an excuse to trim it down, we
+# should. it's overwhelming currently"; then "we obviously want 2^17:18 and 2^24:25 in the changelog"): the bounds that
+# a new partition of that length, or a proof about that n, established; and each power of 2 whose low sets a threshold
+# of Theorem 1, a new smallest k known to beat Thue-Morse by e (firsts()), stated by its low alone, as Theorem 1 states
+# it.  Other bounds built from partitions of other lengths, by doubling, joining or multiplying them, are left to the
+# table and the charts: a lower bound whose reason in the m*(n) chart is BUILT, along with the upper bound stated with
+# it (that entry waits for a partition of its own), and every other power of 2 past NMAX.  The chat's statements (CHAT)
+# are its reports of partitions and proofs, made before the chart.
+BUILT = ('join', 'product')
+FIRST_CHART = '917fe7f'    # mstar.js's first commit (2026-10-11 16:24, "New chart etc"), whose reasons serve the days before
+
+
+def firsts(cells):
+    """{e: the smallest k with low(2^k) - k >= e}, for e from 1 up, over the powers of 2 among cells ({n: (low, high)}):
+    the thresholds of Theorem 1 as the block stood."""
+    pows = {n.bit_length() - 1: lo for n, (lo, _) in cells.items() if n & (n - 1) == 0}
+    top = max((lo - k for k, lo in pows.items()), default=0)
+    return {e: min(k for k, lo in pows.items() if lo - k >= e) for e in range(1, top + 1)}
+
+
+def records(before, after):
+    """{2^k: (low, None)}: the powers of 2 whose low in after sets a threshold of Theorem 1 that before's did not."""
+    b = firsts(before)
+    return {2 ** k: (after[2 ** k][0], None) for e, k in firsts(after).items() if b.get(e) != k}
+
+
+def listed(before, after, built):
+    """The statements of the changes from before to after that the changelog lists: those for n up to NMAX that state
+    no lower bound, or one that is not built (built(n) false), and the records() of the powers of 2."""
+    return {n: (lo, hi) for n, (lo, hi) in changes(before, after).items()
+            if n <= NMAX and (lo is None or not built(n))} | records(before, after)
+
+
+def chat_listed():
+    """{date: statements}: CHAT's days as the changelog lists them, none of their bounds built."""
+    return {d: listed(b, a, lambda n: False) for d, (b, a) in chat_days()[0].items()}
+
+
+def page_days(start, through=BACKFILL):
+    """{date: statements}: day_states(start, through) as the changelog lists them, each day's built bounds by the m*(n)
+    chart of its last commit, or of FIRST_CHART for the days before that."""
+    begun = git('log', '-1', '--format=%ad', '--date=format:%Y-%m-%d', FIRST_CHART).strip()
+    chart = lambda h: mstar_of(git('show', f'{h}:mstar.js'))['cols']
+    out = {}
+    for d, (h, before, after) in day_states(start, through).items():
+        cols = chart(h if d >= begun else FIRST_CHART)
+        out[d] = listed(before, after, lambda n: cols[n - 1][2][0] in BUILT)
+    return out
+
+
+# Noteworthy results, each an entry of its own though another entry shares its date (dreeves, 2026-10-26: "i think
+# m*(2^9)=9 and other noteworthy results should be their own changelog line even though that means duplicating the
+# date"), the newest first within a date: (date, n, its statement, why it is noteworthy)
+NOTEWORTHY = (('2026-10-04', 2 ** 24, (25, None), 'the first power of 2 known to beat Thue-Morse, down from 2^38'),
+              ('2026-10-04', 432, (11, None), 'the smallest length known with order 11, down from 480'),
+              ('2026-10-05', 512, (9, 9), '2^9, the first power of 2 past the paper, does not beat Thue-Morse'),
+              ('2026-10-06', 480, (12, None), 'the smallest length known with order 12, down from 960'),
+              ('2026-10-07', 2 ** 51, (53, None), "beats the paper's Table 2 entry, Stong's m*(2^51) >= 52"),
+              ('2026-10-10', 304, (8, 8), "settles the paper's Table 2 entry, 8 or 9"),
+              ('2026-10-12', 2 ** 18, (19, None), 'the first power of 2 known to beat Thue-Morse, down from 2^24'),
+              ('2026-10-17', 2 ** 17, (18, None), 'the first power of 2 known to beat Thue-Morse, down from 2^18'),
+              ('2026-10-20', 384, (10, 10), 'with 240, settles a(10) = 432 of OEIS A323395'),
+              ('2026-10-20', 240, (10, 10), "settles the paper's Table 2 entry, 10 or 11, and its open question"))
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -1230,21 +1301,34 @@ def changelog_by_day():
 
 
 def q_changelog_brings_every_new_result_up_to_date():
-    # Replicata: the changelog's statements, day by day, oldest first, starting from no bounds (0 and inf); and the
-    # block "New results since the paper".
-    # Expectata (dreeves, 2026-10-26: "yes please", to a changelog entry with each update of the new results; and
-    # "can you backfill all the results that are new since the BGPW paper?"): each statement tightens its result's
-    # bounds, raising the low, lowering the high, or both; and together they leave every entry of the block with a
-    # provenance class at its bounds there, and state no other n.
-    # Resultata before: the changelog had no statements, so no entry of the block was up to date.
+    # Replicata: the changelog's statements, day by day, oldest first, starting from no bounds (0 and inf); the block
+    # "New results since the paper"; and the m*(n) chart's reasons for its bounds.
+    # Expectata (dreeves, 2026-10-26: "yes please", to a changelog entry with each update of the new results; and, of
+    # its first 112 statements, "if there's an excuse to trim it down, we should"): each statement tightens its n's
+    # bounds, raising the low, lowering the high, or both, and is still true, the block's bounds for n lying within the
+    # statements'; every n stated is in the block; and every entry of the block up to NMAX whose lower bound is a
+    # partition of its own length (not BUILT) is up to date, its bounds exactly the statements', as is every upper
+    # bound proved on the page (reason 'page') and the low of each power of 2 that sets a threshold of Theorem 1
+    # (dreeves, 2026-10-26: "we obviously want 2^17:18 and 2^24:25 in the changelog").
+    # Resultata before the trim: the 112 statements also brought every entry built from other partitions up to date.
+    # Resultata after it, before the thresholds came back: no power of 2 past 512 had a statement.
     state = {}
     for d, said in sorted(changelog_by_day().items()):
         after = fold(state, said)
         moved = [(n, state.get(n, (0, math.inf)), after[n]) for n in said]
         assert all(a != b and b[0] <= a[0] <= a[1] <= b[1] for _, b, a in moved), (d, moved)
         state = after
-    cells = new_cells(page())
-    assert state == cells, sorted(set(state.items()) ^ set(cells.items()))
+    cells, cols = new_cells(page()), mstar_data()['cols']
+    assert set(state) <= set(cells), set(state) - set(cells)
+    false = {n: (state[n], cells[n]) for n in state if not state[n][0] <= cells[n][0] <= cells[n][1] <= state[n][1]}
+    assert not false, false
+    own = {n for n in cells if n <= NMAX and cols[n - 1][2][0] not in BUILT}
+    proved = {n for n in cells if n <= NMAX and cols[n - 1][3][0] == 'page'}
+    first = {2 ** k for k in firsts(cells).values()}
+    stale = sorted({n for n in own if state.get(n) != cells[n]} |
+                   {n for n in proved if state.get(n, (0, math.inf))[1] != cells[n][1]} |
+                   {n for n in first if state.get(n, (0, math.inf))[0] != cells[n][0]})
+    assert not stale, [(n, state.get(n), cells[n]) for n in stale]
 
 
 def q_changelog_dates_the_page_s_first_results_by_the_chat():
@@ -1252,15 +1336,14 @@ def q_changelog_dates_the_page_s_first_results_by_the_chat():
     # the page's first commit (FIRST); and that commit's new results.
     # Expectata (dreeves, 2026-10-26: "can you backfill all the results that are new since the BGPW paper?", having
     # dated the chat's first new result by the chat in his own entry): each row of CHAT has its words in its exchange,
-    # whose prompt is of its day; the changelog's days before FIRST's state exactly CHAT's statements, as chat_days()
-    # makes them; and those leave each new result of FIRST at its bounds there.
+    # whose prompt is of its day; the changelog's days before FIRST's state exactly CHAT's statements as the changelog
+    # lists them (chat_listed()); and CHAT's statements leave each new result of FIRST at its bounds there.
     # Resultata before: the changelog had no statements.
     chat = exchanges()
     bad = [row[:3] for row in CHAT if row[1] not in chat or chat[row[1]][0] != row[0] or row[2] not in chat[row[1]][1]]
     assert not bad, bad
-    git = lambda *a: subprocess.run(['git', '-C', HERE, *a], capture_output=True, text=True, check=True).stdout
     begun = git('log', '-1', '--format=%ad', '--date=format:%Y-%m-%d', FIRST).strip()
-    said, (days, state) = changelog_by_day(), chat_days()
+    said, days, state = changelog_by_day(), chat_listed(), chat_days()[1]
     wrong = [(d, said.get(d, {}), days.get(d, {})) for d in sorted(set(said) | set(days))
              if d < begun and said.get(d, {}) != days.get(d, {})]
     assert not wrong, wrong
@@ -1269,19 +1352,43 @@ def q_changelog_dates_the_page_s_first_results_by_the_chat():
 
 
 def q_changelog_backfill_matches_the_page_s_history():
-    # Replicata: the changelog's statements by day; and day_changes(): for each day of index.html's commits through
+    # Replicata: the changelog's statements by day; and page_days(): for each day of index.html's commits through
     # BACKFILL, the new results whose bounds the day changed, the first day's from the bounds the chat had reported
-    # (chat_days).
-    # Expectata (dreeves, 2026-10-26: "can you backfill all the results that are new since the BGPW paper?"): each day
-    # from the page's first to the one before BACKFILL's states exactly its changes, as statement() makes them;
-    # BACKFILL's day states its changes through BACKFILL, and may state later ones of that day.
-    # Resultata before: the changelog had no statements.
-    said, days = changelog_by_day(), day_changes(chat_days()[1])
+    # (chat_days), as the changelog lists them (listed(), by that day's m*(n) chart).
+    # Expectata (dreeves, 2026-10-26: "can you backfill all the results that are new since the BGPW paper?", and of
+    # its first 112 statements, "if there's an excuse to trim it down, we should"): each day from the page's first to
+    # the one before BACKFILL's states exactly its listed changes, as statement() makes them; BACKFILL's day states its
+    # listed changes through BACKFILL, and may state later ones of that day.
+    # Resultata before the trim: each day stated all its changes, those built from other partitions too.
+    said, days = changelog_by_day(), page_days(chat_days()[1])
     first, last = min(days), max(days)
     wrong = [(d, said.get(d, {}), days.get(d, {})) for d in sorted(set(said) | set(days))
              if first <= d < last and said.get(d, {}) != days.get(d, {})]
     assert not wrong, wrong
     assert days[last].items() <= said.get(last, {}).items(), (days[last], said.get(last))
+
+
+def q_changelog_gives_noteworthy_results_lines_of_their_own():
+    # Replicata: the changelog's entries, and NOTEWORTHY.
+    # Expectata (dreeves, 2026-10-26: "i think m*(2^9)=9 and other noteworthy results should be their own changelog
+    # line even though that means duplicating the date"): each result of NOTEWORTHY is an entry of its date with no
+    # other statement, and no other entry of that date states its n.
+    # Resultata before: m*(2^9) = 9 was one statement of six in the entry of 2026-10-05.
+    entries = [(d, statements(rest)) for d, rest in changelog()]
+    bad = [row[:3] for row in NOTEWORTHY if (row[0], {row[1]: row[2]}) not in entries or
+           sum(row[1] in said for d, said in entries if d == row[0]) != 1]
+    assert not bad, bad
+
+
+def q_changelog_keeps_powers_of_2_on_lines_of_their_own():
+    # Replicata: the changelog's entries.
+    # Expectata (dreeves, 2026-10-26: "how about also always separating the powers-of-2 results onto their own lines,
+    # just for readability/organization reasons?"): no entry states both a power of 2 from 512 up (written 2^k, as in
+    # the table's rows of powers of 2) and another n.
+    # Resultata before: the entry of 2026-10-17 stated m*(800) = 11 and seven powers of 2.
+    mixed = [(d, sorted(said)) for d, said in ((d, statements(rest)) for d, rest in changelog())
+             if len({n >= 512 and n & (n - 1) == 0 for n in said}) > 1]
+    assert not mixed, mixed
 
 
 # The page in an iframe width px wide (Chrome's window is at least 500 px wide), with harness (a script, which may
