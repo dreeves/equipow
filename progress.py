@@ -125,6 +125,18 @@ The estimate's model, its terms defined once here (overnight_v5.py's search() is
   no estimate an empty array: when a node of kind 'subtree' waits at a depth with no population yet (a fresh subtree
               needs a member's job and split), or no fresh leaf solve has been logged yet (no speed, so no gap).  The
               model then has nothing to draw from.
+  probe       a journal record of fanout.py's (see its vocabulary, 2026-10-25), or of focus.py's in the same form: one
+              case's random paths from its root to a leaf, their leaf depths' mean and standard error, least, and the
+              exact solutions they ended at.
+  least       a probe's lower bound on its case's LP solves in all (95%, one-sided; fanout.least), the latest probe's
+              for each case; -inf, no bound, for a case with none.  The Lindy estimates of fanout.py's and focus.py's
+              runs draw an open case's work from the urn above its censoring point: the larger of its work so far and
+              its least (focus.py's: the running root's only, its least turned into seconds at the run's seconds of
+              running per LP solve so far; a pending root counts its probe once it runs).  That is Gott's rule given
+              total >= least, P(T > t) = max(age, least) / t.  The work between the case's work so far and its censoring
+              point is certain, added to every draw; the censoring point counts as a time seen (lindy_draws's longest
+              seen).  A least below the work so far changes nothing.  (2026-10-25: with no case done, Gott's rule alone
+              put 672:13's median to go at its work so far, 17 h, when random paths put its tree at >= 1e13 LP solves.)
 The data file says when the snapshot was made, to the second, and the section keeps its age up to date.  Per run it
 gives the state, the hours of running so far and to go, the record of ETAs and the sea (see js_text).
 """
@@ -134,6 +146,7 @@ import os, re, json, time, bisect, itertools, subprocess, collections, glob
 import numpy as np
 import overnight_v5 as v5
 import boxsplit as bx
+import fanout
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 JS = os.path.join(HERE, 'progress.js')         # the data file of index.html's section "Search progress" (see the vocabulary)
@@ -974,6 +987,27 @@ def to_go_of(eta):
     return None if eta is None else dict(zip(('median', 'lo', 'hi'), (h * HOUR for h in eta)))
 
 
+def probe_least(r, cases, n):
+    """A probe record's least (see the vocabulary), its fields checked: its case one of cases, at least 2 paths, its
+    leaf depths' mean and standard error finite and not negative, least as fanout.least makes it from them, and each
+    witness a 0/1 list of length n."""
+    assert set(r) == {'event', 'time', 'pid', 'case', 'paths', 'mean', 'se', 'least', 'witnesses'}, r
+    assert type(r['case']) is int and r['case'] in cases, r
+    assert type(r['paths']) is int and r['paths'] >= 2, r
+    assert all(type(r[k]) in (int, float) and 0 <= r[k] < np.inf for k in ('mean', 'se')), r
+    assert type(r['least']) is int and r['least'] == fanout.least(r['mean'], r['se']), r
+    assert type(r['witnesses']) is list, r
+    assert all(type(x) is list and len(x) == n and all(type(t) is int and t in (0, 1) for t in x)
+               for x in r['witnesses']), r
+    return r['least']
+
+
+def censored(jobs):
+    """Open jobs, each (its work so far, its least), as their censoring points (see least in the vocabulary), the
+    largest first, and the work certain to come below those points, summed."""
+    return sorted((max(a, l) for a, l in jobs), reverse=True), sum(max(a, l) - a for a, l in jobs)
+
+
 def survey_box(n, order, log, main, procs, now, etas):
     """The boxsplit pass of the run (n, order) as the driver's log, the run's journal (main, whose open leaves the
     driver works), the process list and the time now show it, in survey's shape: program boxsplit.py, its state, its
@@ -1136,7 +1170,7 @@ def survey_lattice(path, procs, now=None, etas=None):
     to_go = lattice_estimate(durations, header['total'], len(done), age, header['seconds'], state['phase'], state['outcome'])
     if status == 'running':
         etas.setdefault(str(float(end)), [to_go[k] / HOUR for k in ('median', 'lo', 'hi')] if to_go is not None else None)
-    return dict(program='lattice288.py', n=288, order=10, made=now,
+    return dict(program='lattice288.py', n=288, order=10, made=now, outcome=state['outcome'],
                 display=dict(scope='symmetric-witness', phase=state['phase'], outcome=state['outcome']),
                 state=status, so_far=sum(b - a for a, b in spans), to_go=to_go,
                 passes=spans, etas=etas, sea=dict(depth=0, keys=['288:10'], groups=[codes], counts=counts))
@@ -1213,7 +1247,8 @@ def survey_focus(path, procs, now=None, observations=None, launches=None, pauses
     sighting, if that came before its record, to the later of its last record and its process's last sighting (the
     latest session of that pid's).  A root case runs from the record before the first naming it to the record
     completing it (or the record before that, if never named), its age the running time between, gaps between
-    launches excluded.
+    launches excluded.  The running root is drawn above its latest probe's least (see the vocabulary), turned into
+    seconds at the run's seconds of running per LP solve so far: a probe with no LP solve on record fails (asserted).
     """
     records = [json.loads(line) for line in complete_lines(path)]
     now = time.time() if now is None else now
@@ -1231,11 +1266,16 @@ def survey_focus(path, procs, now=None, observations=None, launches=None, pauses
     spans, pids = [], []                # the sessions' spans and pids, in journal order
     snap = dict(lp=0, closed=0, split=0, pending=total, case=None, completed=[])
     begun, ended = {}, {}               # each root case's start and completion times (see the docstring)
+    leasts = {}                         # each probed root case's latest least, LP solves
 
     def session(r, t):
         state.update(pid=r['pid'], outcome=None)
         spans.append([t, t])
         pids.append(str(r['pid']))
+
+    def probe(r, t):
+        assert spans and r['pid'] == state['pid'] and state['outcome'] is None, r
+        leasts[r['case']] = probe_least(r, range(total), header['n'])
 
     def update(r, t):
         assert spans and r['pid'] == state['pid'] and state['outcome'] is None
@@ -1253,7 +1293,7 @@ def survey_focus(path, procs, now=None, observations=None, launches=None, pauses
         snap.update({k: r[k] for k in snap})
         state['outcome'] = outcome
 
-    handlers = dict(session=session, update=update, finish=update)
+    handlers = dict(session=session, update=update, finish=update, probe=probe)
     for r in records[1:]:
         assert r['event'] in handlers and type(r['pid']) is int
         t = started_at(r, launches)
@@ -1270,7 +1310,12 @@ def survey_focus(path, procs, now=None, observations=None, launches=None, pauses
     assert set(snap['completed']) <= set(begun) & set(ended)
     walls = [running(ended[c]) - running(begun[c]) for c in snap['completed']]
     ages = [] if active is None else [running(now) - running(begun[active])]
-    eta = (lindy_urn(walls, ages, total - len(walls) - len(ages), 1)
+    def as_seconds(lps):                # LP solves as seconds of running, at the run's own rate so far
+        assert snap['lp'] > 0, snap
+        return lps * running(now) / snap['lp']
+    least = {c: -np.inf for c in range(total)} | {c: as_seconds(lps) for c, lps in leasts.items()}
+    points, certain = censored([(a, least[active]) for a in ages])
+    eta = ([h + certain / HOUR for h in lindy_urn(walls, points, total - len(walls) - len(ages), 1)]
            if status == 'running' and max([*walls, *ages], default=0.0) > 0 else None)
     if status == 'running':
         observations[str(float(now))] = eta
@@ -1289,7 +1334,8 @@ def survey_fanout(path, procs, now=None, observations=None, launches=None):
     root not started, a box left open and not started, or a job whose driver is gone); and while running, an ETA:
     lindy_work on the cases' work in LP solves (the run's own before fanout counted to its case then; a case done when
     every dot of its roots is; with none done, Lindy), at the pool's rate, a worker's LP solves a second over the jobs
-    done times the workers; none before a job is done (dreeves, 2026-10-23: "Can we throw more compute at 672:13?")."""
+    done times the workers; none before a job is done (dreeves, 2026-10-23: "Can we throw more compute at 672:13?").
+    Each open case is drawn above its latest probe's least (see the vocabulary)."""
     records = [json.loads(line) for line in complete_lines(path)]
     now = time.time() if now is None else now
     observations = {} if observations is None else observations
@@ -1302,6 +1348,7 @@ def survey_fanout(path, procs, now=None, observations=None, launches=None):
     assert len(main) <= 1
     sight(main, launches, now)
     spans, pids, starts, ends, finish, reflections, worker_counts = [], [], {}, {}, [], {}, []
+    leasts = {}                         # each probed case's latest least, LP solves
 
     def session(r, t):
         # Legacy sessions use the header count; every new session records its own allocation.
@@ -1327,7 +1374,12 @@ def survey_fanout(path, procs, now=None, observations=None, launches=None):
         assert starts.get(r['job'], {}).get('root') == r['root'] and r['lps'] >= 0 and r['open'] >= 0, r
         ends[r['job']] = r
 
-    handlers = dict(session=session, job_start=job_start, job_end=job_end, finish=lambda r, t: finish.append(r))
+    def probe(r, t):
+        assert str(r['pid']) == pids[-1], r                     # its session's driver's
+        leasts[r['case']] = probe_least(r, cases_of, header['n'])
+
+    handlers = dict(session=session, job_start=job_start, job_end=job_end, probe=probe,
+                    finish=lambda r, t: finish.append(r))
     previous = header['time']
     for r in records[1:]:
         assert r['event'] in handlers and not finish, r
@@ -1356,10 +1408,13 @@ def survey_fanout(path, procs, now=None, observations=None, launches=None):
             for c in cases}
     complete = {c for c in cases if all(set(g) <= {'0', '2'} for g, k in zip(groups, cases_of) if k == c)}
     walls = [work[c] for c in cases if c in complete]
-    ages = sorted((work[c] for c in cases if c not in complete and work[c] > 0), reverse=True)
-    pending = sum(c not in complete and work[c] == 0 for c in cases)
+    least = {c: -np.inf for c in cases} | leasts
+    points, certain = censored([(work[c], least[c]) for c in cases if c not in complete])
+    ages = [p for p in points if p > 0]                 # a case with work done or a least above 0: drawn censored
+    pending = len(points) - len(ages)
     seconds = sum(e['seconds'] for e in ends.values())
-    eta = (lindy_work(walls, ages, pending, sum(e['lps'] for e in ends.values()) / seconds * worker_counts[-1])
+    def estimate(rate): return [h + certain / rate / HOUR for h in lindy_work(walls, ages, pending, rate)]
+    eta = (estimate(sum(e['lps'] for e in ends.values()) / seconds * worker_counts[-1])
            if status == 'running' and seconds > 0 and (ages or pending) and max([*walls, *ages], default=0) > 0 else None)
     if status == 'running':
         observations[str(float(now))] = eta
@@ -1454,7 +1509,7 @@ def survey_attempts(path, procs, now, observations, program, n, order, scope, co
                 attempted=len(done['search']), total=header['total'],
                 empty=list(done['search'].values()).count('empty'),
                 timeout=list(done['search'].values()).count('timeout'), elapsed=int(elapsed))
-    run = dict(program=program, n=n, order=order, made=now, state=status,
+    run = dict(program=program, n=n, order=order, made=now, state=status, outcome=state['outcome'],
                 so_far=elapsed, to_go=None, etas={}, passes=spans,
                 display=dict(scope=scope, phase=state['phase'], outcome=state['outcome'], work=work),
                 sea=dict(depth=0, keys=[f'{n}:{order}'], groups=[codes], counts=counts))
@@ -1527,7 +1582,8 @@ def eta_records(s):
 
 def js_text(surveys, now):
     """The data file (see the vocabulary): one call, progressData(...);, of the snapshot's JSON: made (now, in whole
-    seconds) and, per run, program (overnight_v5.py or boxsplit.py), n, order, state, so_far (its passes' seconds of running), to_go ({median, lo, hi}, seconds of
+    seconds) and, per run, program (overnight_v5.py or boxsplit.py), n, order, state, outcome (its finish's, null without
+    one; dreeves, 2026-10-25: the section names a run's state, an ended one completed or aborted by it), so_far (its passes' seconds of running), to_go ({median, lo, hi}, seconds of
     running: the estimate's median and QUANTILES; null without one), etas (its record of ETAs, eta_records, as [time,
     running seconds before it, median (mean before 2026-10-19), lo, hi], the time in whole seconds and the rest in seconds to a tenth, evenly thinned to at most ETA_POINTS, the last kept), statuses
     (SEA_STATUSES) and its sea (depth, keys, groups, counts)."""
@@ -1535,7 +1591,8 @@ def js_text(surveys, now):
         rs = eta_records(s)
         keep = sorted(set(range(0, len(rs), max(1, -(-len(rs) // ETA_POINTS)))) | {len(rs) - 1}) if rs else []
         return [[int(rs[i][0])] + [round(HOUR * v, 1) for v in rs[i][1:]] for i in keep]
-    runs = [{'program': s['program'], 'n': s['n'], 'order': s['order'], 'state': s['state'], 'so_far': s['so_far'], 'to_go': s['to_go'],
+    runs = [{'program': s['program'], 'n': s['n'], 'order': s['order'], 'state': s['state'], 'outcome': s['outcome'],
+             'so_far': s['so_far'], 'to_go': s['to_go'],
              'etas': etas(s), 'statuses': list(SEA_STATUSES)} | s['sea'] | s.get('display', {}) |
             {k: s[k] for k in ('workers',) if k in s} for s in surveys]
     return 'progressData(' + json.dumps({'made': int(now), 'runs': runs}, separators=(',', ':'), ensure_ascii=False) + ');\n'

@@ -35,6 +35,7 @@ BASE = '5365370'
 HEADING = 'Bounds on <span class="nw"><i>m</i><sup>*</sup>(2<sup><i>k</i></sup>) − <i>k</i></span> for every <i>k</i> up to 72'
 LABEL = 'Chart of the bounds on m*(2^k) − k, the excess over Thue–Morse, for k from 1 to 72'   # the chart's aria-label
 HINT = 'Hover over a cell for details.'       # the readout until a cell is read out
+ERROR = quals_index.POW2_ERROR                # his readout when the chart cannot be drawn, before the error (2026-10-24, b475924)
 # The lines of the page that hold his words, stripped: the copy rules of q_new_copy_is_attributed pass over them.
 DREEVES_LINES = (f'<h2 id="pow2-title">{HEADING}</h2>',
                  f'<div id="pow2-chart" role="img" aria-label=\'{LABEL}\'></div>',
@@ -191,6 +192,7 @@ EDITS = quals_index.TABLE_UPDATE + (
           '.progress-bar [data-bar="band"] { background: color-mix(in oklab, var(--progress-togo) 16%, var(--paper)); }',
           '.progress-bar [data-bar="median"] { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--progress-togo); }',
           '.progress-key { display: flex; flex-wrap: wrap; gap: 0.3rem 1.2rem; margin: 0; padding: 0; list-style: none; }',
+          '.progress-key[hidden] { display: none; }',          # Astra's (2026-10-24, commit b70e1aa "Astra 288:10 search")
           '.progress-sw { display: inline-block; width: 0.7rem; height: 0.7rem; margin-right: 0.35rem; border-radius: 2px; vertical-align: -0.05rem; }',
           '.progress-sw[data-status="settled"] { background: var(--progress-settled); }',
           '.progress-sw[data-status="open"] { background: var(--progress-open); }',
@@ -225,6 +227,7 @@ EDITS = quals_index.TABLE_UPDATE + (
           '.progress-eta .yaxis { stroke: var(--muted); stroke-width: 1; vector-effect: non-scaling-stroke; }   /* the y axis\'s line, broken at the gap (2026-10-23) */',
           '.progress summary h3 { display: inline; }   /* a run\'s heading, its fold\'s summary (2026-10-23) */',
           '.progress-run:not([data-run-state="running"]) summary { color: var(--muted); }   /* a run not running, grayed (2026-10-23) */',
+          '.progress-run-state { margin-left: 0.6em; }   /* the word for a run\'s state, after its heading (2026-10-25) */',
           '.progress-eta text { font-size: 11px; fill: var(--muted); stroke: none; font-variant-numeric: tabular-nums lining-nums; }',
           '/* The labels at the latest record, commented out with them (dreeves, 2026-10-17: "comment it out for now"):',
           '.progress-eta text.label { font-size: 12px; font-weight: 600; stroke: var(--paper); stroke-width: 4px; stroke-linejoin: round; paint-order: stroke; }',
@@ -875,7 +878,9 @@ def q_inline_script_passes_node_check():
 def q_new_copy_is_attributed():
     # Replicata: the inserted lines (this chart's), by region (HTML, inline script, style).
     # Expectata: inserted lines exist, and each of DREEVES_LINES is one of them, exactly once: those lines hold his
-    # words, so the rules that follow pass over them (and so over STAN_LINES, Stan Wagon's header, since 2026-10-18).  In HTML, a line's visible text (comments and tags removed,
+    # words, so the rules that follow pass over them (and so over STAN_LINES, Stan Wagon's header, since 2026-10-18;
+    # and his new lines of 2026-10-24 and 25 that quals_index lists, EXAMPLE8 from commit 48710ae, HEX_NOTE from
+    # 35dd836, PROOF416_HEAD, PROOF416_ASTRA and POW2_ERROR_LINE from b475924).  In HTML, a line's visible text (comments and tags removed,
     # entities decoded) and its aria-label, title and alt values hold English (a run of two letters) only inside
     # Claude: "…" or Astra: "…", hold no stray double quote, and close every quotation they open; in script, every
     # quotation closes on its line.  Each line with a quotation has a TODO comment as the nearest non-blank line above (<!--
@@ -884,12 +889,16 @@ def q_new_copy_is_attributed():
     # lines of such a quote, with dreeves's lead-in (quals_index.claude_quotes, his second form for Claude's words),
     # hold Claude's English as a whole, or his, so the copy rules pass over them, and so over the section "Search
     # progress" (quals_index.progress_lines: dreeves took it out of its quote on 2026-10-17).
+    # Resultata before (2026-10-25): his new lines read as unattributed copy, and the 416 proof's Astra: "…"
+    # lines had no TODO comment above them.
     lines, region, ins = inserted()
     assert ins
     quoted, quote_todos = quals_index.claude_quotes(lines)
     section, section_todo = quals_index.progress_lines(lines)
     quoted, quote_todos = quoted | section, quote_todos | {section_todo}
     human = DREEVES_LINES + LEGEND_LINES + (THEOREM, THEOREM_ALT) + STAN_LINES + (quals_index.STONG_NOTE,)   # Stan Wagon's header and dreeves's note on Stong too
+    human += (quals_index.EXAMPLE8,) + quals_index.HEX_NOTE + quals_index.PROOF416_HEAD + (quals_index.POW2_ERROR_LINE,)   # and his lines of 2026-10-24 and 25
+    human += quals_index.PROOF416_ASTRA      # and Astra's lines of the 416 proof as he committed them, without TODO comments
     his = [j for j in ins if j not in quoted and lines[j].strip() in human]
     assert sorted(lines[j].strip() for j in his) == sorted(human), [lines[j] for j in his]
     bad = []
@@ -1165,10 +1174,12 @@ def q_made_up_data_reads_every_kind():
 
 def q_missing_data_fails_loudly():
     # Replicata: index.html with mstar.js but no pow2.js beside it.
-    # Expectata: #pow2-chart stays empty; the readout is one Claude: "…" followed by the error, which names POW2; the
-    # failed load of pow2.js and that uncaught error are logged, and nothing else; the m*(n) chart still draws.
+    # Expectata: #pow2-chart stays empty; the readout is dreeves's error line (ERROR; Claude's until he dropped its
+    # Claude: "…", 2026-10-24, commit b475924) followed by the error, which names POW2; the failed load of pow2.js and
+    # that uncaught error are logged, and nothing else; the m*(n) chart still draws.
+    # Resultata before (2026-10-25): the readout was his line, and the qual still asked for a Claude: "…".
     [R] = run('missing')
-    g = re.fullmatch(r'Claude: "[^"]*" (.*)', R['load']['readout'])
+    g = re.fullmatch(re.escape(ERROR) + r'(.*)', R['load']['readout'])
     assert R['load']['chartNodes'] == 0 and g and 'POW2' in g[1], R['load']
     assert len(R['errors']) == 2 and f'exception: Uncaught {g[1]}' in R['errors'], R['errors']
     assert [x for x in R['errors'] if x.startswith('log error network: ') and x.endswith('/pow2.js')], R['errors']
@@ -1183,12 +1194,14 @@ def q_contract_violations_fail_loudly():
     # "mstar" hiWhy above k = 9, of an unknown kind, or breaking its own rule; a norm bound for a composite p, for
     # p = 2, or not the bound; a residue chain whose moduli do not divide in turn, or with a modulus below 2; an etop
     # above max(hi - k) + 1; kmax not 72; 71 columns; a key beyond kmax, etop and cols.
-    # Expectata: in each case #pow2-chart stays empty, the readout is one Claude: "…" followed by "Error: " and the
+    # Expectata: in each case #pow2-chart stays empty, the readout is dreeves's error line (ERROR; Claude's until he
+    # dropped its Claude: "…", 2026-10-24, commit b475924) followed by "Error: " and the
     # quote (the column [k, [lo, hi, loWhy, hiWhy]] as JSON with ' for "; or [etop]; or [kmax, etop]; or the keys), and
     # the only thing logged is that error, uncaught.
+    # Resultata before (2026-10-25): the readout was his line, and the qual still asked for a Claude: "…".
     for v, R in zip(VIOLATIONS, run('violations')):
         q = VIOLATIONS[v][1]
-        g = re.fullmatch(r'Claude: "[^"]*" (.*)', R['load']['readout'])
+        g = re.fullmatch(re.escape(ERROR) + r'(.*)', R['load']['readout'])
         assert R['load']['chartNodes'] == 0 and g and g[1] == f'Error: {q}', (v, R['load']['readout'])
         assert R['errors'] == [f'exception: Uncaught Error: {q}'], (v, R['errors'])
 

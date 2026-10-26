@@ -1,6 +1,7 @@
 """Quals for live snapshots of the focused all-sign proof searches."""
 import copy
 import json
+import math
 import os
 from pathlib import Path
 import tempfile
@@ -15,6 +16,18 @@ def initial():
             dict(event='session', time=100, pid=123),
             dict(event='update', time=105, pid=123, lp=20, closed=8,
                  split=12, pending=5, case=0, completed=[])]
+
+
+def one():
+    """initial() with one root case only: root 0 running from 100 s, 20 LP solves on record at 105 s."""
+    return [dict(initial()[0], total=1)] + initial()[1:]
+
+
+def probe(case, mean, se, **kw):
+    """A probe record (see fanout.py's vocabulary) of root case case at 106 s, its least as defined from mean and se:
+    floor(2^(mean - 1.645 se + 1)) - 1."""
+    return dict(dict(event='probe', time=106, pid=123, case=case, paths=300, mean=mean, se=se,
+                     least=math.floor(2 ** (mean - 1.645 * se + 1)) - 1, witnesses=[]), **kw)
 
 
 def survey(records, now=110, alive=True, observations=None, procs=None, launches=None):
@@ -181,6 +194,63 @@ class FocusProgressQuals(unittest.TestCase):
         self.assertEqual((live['state'], live['so_far']), ('running', 190))
         self.assertEqual(live['passes'], [[100, 120], [200, 260], [400, 510]])
         self.assertAlmostEqual(alone['to_go']['median'], 190, delta=25)
+
+    def test_a_probe_far_above_gotts_band_moves_the_median_to_twice_its_least(self):
+        # Replicata: one() at 110 s, root 0 10 s old, its run's 20 LP solves in 10 s of running (0.5 s each), then the
+        # same with a probe of root 0 whose least is 1,214,318,730 LP solves (mean 30, standard error 0.5), or
+        # 607,159,365 s at the run's 0.5 s per LP solve, far above Gott's band (to go 9.4 s at the median, 174 s at the
+        # 95% point).
+        # Expectata: the running root is drawn above its least, Gott's rule given total >= least: the median to go
+        # within 10% of 2 x 607,159,365 s, every draw at least that least less the 10 s done, the 95% point within 10%
+        # of 20 x 607,159,365 s.
+        # Resultata before probes: an AssertionError, the probe record being of no known event.
+        least = 0.5 * probe(0, 30.0, 0.5)['least']
+        self.assertEqual(least, 607159365)
+        self.assertLess(survey(one())['to_go']['hi'], 200)
+        go = survey(one() + [probe(0, 30.0, 0.5)])['to_go']
+        self.assertAlmostEqual(go['median'] / (2 * least), 1, delta=0.1)
+        self.assertGreaterEqual(go['lo'], least - 10)
+        self.assertAlmostEqual(go['hi'] / (20 * least), 1, delta=0.1)
+
+    def test_with_no_probe_the_estimate_is_unchanged(self):
+        # Replicata: one() and initial() at 110 s, journals with no probe, as every journal before 2026-10-25.
+        # Expectata: to go exactly lindy_urn's on root 0's 10 s on one worker, initial()'s root 1 pending, and exactly
+        # what the code before probes gave (recorded 2026-10-25).
+        before = {0: dict(median=9.394155108210814, lo=0.5251321194851291, hi=173.906597671673),
+                  1: dict(median=35.234254010697285, lo=12.161240756887707, hi=374.9650206487719)}
+        for records, pending in ((one(), 0), (initial(), 1)):
+            go = survey(records)['to_go']
+            self.assertEqual(go, progress.to_go_of(progress.lindy_urn([], [10.0], pending, 1)))
+            self.assertEqual(go, before[pending])
+
+    def test_a_least_below_the_age_changes_nothing(self):
+        # Replicata: one() at 110 s with a probe of root 0 whose least, 3 LP solves (mean 2, standard error 0.5), is 1.5
+        # s at the run's 0.5 s per LP solve, below the root's 10 s of running.
+        # Expectata: the estimate exactly as with no probe.
+        self.assertEqual(probe(0, 2.0, 0.5)['least'], 3)
+        self.assertEqual(survey(one() + [probe(0, 2.0, 0.5)])['to_go'], survey(one())['to_go'])
+
+    def test_malformed_probes_fail_loudly(self):
+        # Replicata: one() with a probe record that lacks least, has an extra field, names no root case or a case that
+        # is not an int, has fewer than 2 paths or paths not an int, a negative, NaN or infinite mean or standard error,
+        # a least one more than its definition gives or a float, a witness not a 0/1 list of the run's length, or a pid
+        # other than its session's; then a well-formed probe while no LP solve is on record, so that its least has no
+        # seconds per LP solve to convert it.
+        # Expectata: AssertionError, each.
+        good = probe(0, 30.0, 0.5)
+        bad = [{k: v for k, v in good.items() if k != 'least'}, dict(good, extra=1), dict(good, case=1),
+               dict(good, case=True), dict(good, case='0'), probe(0, 30.0, 0.5, paths=1),
+               probe(0, 30.0, 0.5, paths=300.0), probe(0, -1.0, 0.5), dict(good, mean=float('nan')),
+               probe(0, 30.0, float('inf')), probe(0, 30.0, -0.5), dict(good, least=good['least'] + 1),
+               dict(good, least=float(good['least'])), dict(good, witnesses=[[0] * 479]),
+               dict(good, witnesses=[[2] * 480]), dict(good, witnesses=None), dict(good, witnesses=[[True] * 480]),
+               dict(good, pid=124)]
+        self.assertIsNotNone(survey(one() + [good])['to_go'])
+        for record in bad:
+            with self.subTest(record=record), self.assertRaises(AssertionError):
+                survey(one() + [record])
+        with self.assertRaises(AssertionError):
+            survey(one()[:2] + [dict(one()[2], lp=0), good])
 
     def test_regressing_work_is_rejected(self):
         # Replicata: a later snapshot reports fewer cumulative LP solves.

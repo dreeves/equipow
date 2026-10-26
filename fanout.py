@@ -21,6 +21,22 @@ Vocabulary (with focus.py's):
             the whole run from disk, finds it excluded and writes its finish to focus.py's journal.
   witness   a job's W token: an exact 0/1 solution of its case's equations, so an example of the order.  It ends the
             fanout at once; it needs no splice, being its own certificate.
+  probe     of a case with LP work to do (a job not done), made by the driver at each session's start, before any job,
+            and journaled for the progress section's ETA (2026-10-25: random dives put 672:13's tree at >= 1e13 LP
+            solves while the page said 17 h to go): PROBE_PATHS random paths from the case's root down to a leaf (Knuth
+            1975), at each B token the child a fair coin picks, each node solved by focus.step from its parent's
+            post-solve LP state, each path from the root's.  A job gives a box's first child that state, and its second
+            the parent's basis, restored; paths taking that state at every node matched whole trees grown the job's way
+            node for node on 1,198 of 1,200 paths (four small trees, scratch/ideas-20261025/verify/v-floors).  A path's
+            leaf depth D, its B tokens, is the depth of the leaf holding a uniformly random point of the case's box, so
+            the tree has E[2^(D+1)] - 1 nodes, one LP solve each, and by Jensen's inequality at least 2^(E[D]+1) - 1.
+            Its record gives the paths, their depths' mean and standard error (se), least, and witnesses: the distinct
+            exact solutions (W tokens) its paths ended at.  These do not end the fanout: the jobs' search, being
+            complete, must find one too, if perhaps much later (ending it at a probe's would leave 16:4's eight-worker
+            control, quals_fanout_eight, without a job).
+  least     of a probe: floor(2^(mean - Z se + 1)) - 1, a lower bound, with one-sided 95% confidence, on its case's LP
+            solves in all (its tree's under these warm starts; the run's own tree was grown partly under
+            focus.search's).
 """
 from concurrent.futures import FIRST_COMPLETED, ProcessPoolExecutor, wait
 import fcntl
@@ -30,9 +46,11 @@ import hashlib
 import heapq
 import itertools
 import json
+import math
 import multiprocessing
 import os
 from pathlib import Path
+import random
 import signal
 import sys
 import time
@@ -47,6 +65,8 @@ BUDGET = 20000                         # LP solves a job takes before it may han
 DEEP = 8                               # levels below a job's box that it finishes itself past its budget
 HARD = 4                               # budgets a job may take in all
 CHUNK = 20000                          # records per focus.py chunk the splice commits
+PROBE_PATHS = 300                      # paths per probe: at 672, 43 levels deep, 13,221 LP solves in 26 CPU s, per case
+Z = 1.645                              # the standard normal's 95th percentile: least's confidence, one-sided
 
 
 def key(case, path):
@@ -169,6 +189,46 @@ def work(job):
     return dict(tokens=tokens, open=[p for p, _ in stack], seconds=time.monotonic() - start, witness=None)
 
 
+# ---------- the probes ----------
+
+def least(mean, se):
+    """A probe's least (see the vocabulary), from its paths' leaf depths' mean and standard error."""
+    return math.floor(2 ** (mean - Z * se + 1)) - 1
+
+
+def dive(lp, equations, choice, root, rng):
+    """One path of a probe (see the vocabulary), from the case's root, whose post-solve basis root is: its leaf's path
+    and token."""
+    assert lp.H.setBasis(root) == certbb.highs.HighsStatus.kOk
+    path = ()
+    token = focus.step(lp, equations, choice, *box(equations.N, path))
+    while token[0] == 'B':
+        path += ((token[1], rng.randrange(2)),)
+        token = focus.step(lp, equations, choice, *box(equations.N, path))
+    return path, token
+
+
+def probe(prepared, case, paths):
+    """The probe of a case (see the vocabulary) on an LP of its own, its coin seeded by the case: the fields of its
+    journal record.  Each witness is checked as a job checks one."""
+    assert type(paths) is int and paths >= 2
+    equations, cases = prepared
+    choice = cases[case]
+    lp = certbb.Lp(equations, tuple(M for M, _ in choice))
+    lp.set_counts(choice)
+    focus.step(lp, equations, choice, *box(equations.N, ()))       # the root's solve, from a fresh LP, as focus.py's
+    rng, root = random.Random(case), lp.H.getBasis()
+    leaves = [dive(lp, equations, choice, root, rng) for _ in range(paths)]
+    depths = [len(path) for path, _ in leaves]
+    witnesses = sorted({tuple(token[1]) for _, token in leaves if token[0] == 'W'})
+    rows = certbb.node_rows(equations, choice)
+    assert all(len(x) == equations.N and set(x) <= {0, 1} and certbb.point_certificate(rows, list(x)) is None
+               for x in witnesses)
+    mean = sum(depths) / paths
+    se = math.sqrt(sum((d - mean) ** 2 for d in depths) / (paths - 1) / paths)
+    return dict(paths=paths, mean=mean, se=se, least=least(mean, se), witnesses=[list(x) for x in witnesses])
+
+
 # ---------- the driver ----------
 
 def reflections(prepared, all_roots):
@@ -189,7 +249,8 @@ def reflections(prepared, all_roots):
 
 
 def farm(prepared, all_roots, done, work_dir, journal):
-    """Runs every job not done, WORKERS at once, shallowest first; the witness found (0/1 list), else None."""
+    """Journals a probe of each case with a job not done, then runs every job not done, WORKERS at once, shallowest
+    first; the witness found (0/1 list), else None."""
     heap, order = [], itertools.count()
     def reach(job, root):                  # the jobs not done at or below job
         todo = [job]
@@ -203,6 +264,8 @@ def farm(prepared, all_roots, done, work_dir, journal):
         if job[0] not in copies: reach(job, root)
     found = [e['witness'] for e in done.values() if e['witness'] is not None]
     if found: return found[0]
+    for case in sorted({b[0] for _, _, b, _ in heap}):
+        note(journal, 'probe', case=case, **probe(prepared, case, PROBE_PATHS))
     with ProcessPoolExecutor(WORKERS, mp_context=multiprocessing.get_context('spawn'), initializer=init,
                              initargs=(prepared, BUDGET, DEEP)) as pool:
         running = {}

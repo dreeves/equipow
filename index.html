@@ -287,6 +287,7 @@ code {
 .progress-eta .yaxis { stroke: var(--muted); stroke-width: 1; vector-effect: non-scaling-stroke; }   /* the y axis's line, broken at the gap (2026-10-23) */
 .progress summary h3 { display: inline; }   /* a run's heading, its fold's summary (2026-10-23) */
 .progress-run:not([data-run-state="running"]) summary { color: var(--muted); }   /* a run not running, grayed (2026-10-23) */
+.progress-run-state { margin-left: 0.6em; }   /* the word for a run's state, after its heading (2026-10-25) */
 .progress-eta text { font-size: 11px; fill: var(--muted); stroke: none; font-variant-numeric: tabular-nums lining-nums; }
 /* The labels at the latest record, commented out with them (dreeves, 2026-10-17: "comment it out for now"):
 .progress-eta text.label { font-size: 12px; font-weight: 600; stroke: var(--paper); stroke-width: 4px; stroke-linejoin: round; paint-order: stroke; }
@@ -417,7 +418,7 @@ footer {
     Since the power sums are equal for <i>k</i> = 0 and <i>k</i> = 1 but not for <i>k</i> = 2, and since (exercise for the reader) no other partition of {1, 2, 3, 4} into two parts hits a bigger max <i>k</i>, we say that 
     <span class="nw"><i>m</i><sup>*</sup>(4) = 2.</span></p>
   <p class="lede">
-    For {1, ..., 8} it turns out there's a partition &mdash; {1, 4, 6, 7} and {2, 3, 5, 8} &mdash; that gets us up to <i>k</i> = 2, meaning <i>m</i><sup>*</sup>(8) = 3:
+    For {1, …, 8} it turns out there's a partition &mdash; {1, 4, 6, 7} and {2, 3, 5, 8} &mdash; that gets us up to <i>k</i> = 2, meaning <i>m</i><sup>*</sup>(8) = 3:
   </p>
   <p class="lede">
     &nbsp; <i>k</i>=0: &nbsp; 1<sup>0</sup> + 4<sup>0</sup> + 6<sup>0</sup> + 7<sup>0</sup> &nbsp; = &nbsp; 2<sup>0</sup> + 3<sup>0</sup> + 5<sup>0</sup> + 8<sup>0</sup> &nbsp; = &nbsp; 4<br>
@@ -1106,7 +1107,7 @@ SClaude[11][800] = {
 </section>
 
 <section class="progress" aria-labelledby="progress-title">
-  <!-- TODO: Claude's copy, at dreeves's request (2026-10-17), on the certified searches' progress, in a section that starts closed: when the snapshot was made and how old it is; per run, its question and the program that runs it (overnight_v5.py, or boxsplit.py over a run's open sub-cases), whether it is running, frozen or ended, and its hours of running so far + to go = in all (dreeves's form, 2026-10-17; running: after an @ and the snapshot's time in place of "Running:" (dreeves, 2026-10-17), with the local times that range ends between, in parentheses; durations in days from 72 h and years from 365.25 d, and finish times a week or more on as dates (dreeves, 2026-10-23)), as a bar drawn to scale at the top and as the status line below the ETA chart, its parts in the chart's colors in place of a legend (dreeves, 2026-10-17); a sea of dots, one per sub-case, each subtree a block of its own, colored by status, with a key of the statuses and their counts and a readout of the subtree under the pointer; and progress.html's ETA chart (elapsed time, ETA and elapsed + ETA, in dreeves's words), with a tip above it: the status line's running form for the recorded ETA under the pointer, at its time (dreeves, 2026-10-17: "the same as the line below, just an earlier snapshot thereof"), and right of the last record that record's line carried on to the hour of running under the pointer, in italics, a projection (dreeves, 2026-10-18) -->
+  <!-- TODO: Claude's copy, at dreeves's request (2026-10-17), on the certified searches' progress, in a section that starts closed: when the snapshot was made and how old it is; per run, its question and the program that runs it (overnight_v5.py, or boxsplit.py over a run's open sub-cases), then one word for its state, shown folded too (running, paused, frozen, completed or aborted: an ended run completed if it recorded an outcome, else aborted; dreeves, 2026-10-25), whether it is running, frozen or ended, and its hours of running so far + to go = in all (dreeves's form, 2026-10-17; running: after an @ and the snapshot's time in place of "Running:" (dreeves, 2026-10-17), with the local times that range ends between, in parentheses; durations in days from 72 h and years from 365.25 d, and finish times a week or more on as dates (dreeves, 2026-10-23)), as a bar drawn to scale at the top and as the status line below the ETA chart, its parts in the chart's colors in place of a legend (dreeves, 2026-10-17); a sea of dots, one per sub-case, each subtree a block of its own, colored by status, with a key of the statuses and their counts and a readout of the subtree under the pointer; and progress.html's ETA chart (elapsed time, ETA and elapsed + ETA, in dreeves's words), with a tip above it: the status line's running form for the recorded ETA under the pointer, at its time (dreeves, 2026-10-17: "the same as the line below, just an earlier snapshot thereof"), and right of the last record that record's line carried on to the hour of running under the pointer, in italics, a projection (dreeves, 2026-10-18) -->
     <details>
       <summary><h2 id="progress-title">Search progress</h2></summary>
       <p>As of <span data-made>—</span> (<span data-age>—</span> ago).</p>
@@ -1115,7 +1116,7 @@ SClaude[11][800] = {
       <template class="progress-run">
         <div class="progress-run">
           <details>
-          <summary><h3><span class="nw"><i>m</i><sup>*</sup>(<span data-n></span>) ≥ <span data-order></span>?</span> <code data-program></code></h3></summary>
+          <summary><h3><span class="nw"><i>m</i><sup>*</sup>(<span data-n></span>) ≥ <span data-order></span>?</span> <code data-program></code></h3><span class="progress-run-state"><span data-label="running">running</span><span data-label="paused">paused</span><span data-label="frozen">frozen</span><span data-label="completed">completed</span><span data-label="aborted">aborted</span></span></summary>
           <div class="progress-bar" aria-hidden="true"><span data-bar="so-far"></span><span data-bar="lo"></span><span data-bar="band"></span><i data-bar="median"></i></div>
           <canvas role="img" aria-label="One dot per sub-case, colored by its status, each subtree a block of its own"></canvas>
           <ul class="progress-key">
@@ -1722,7 +1723,8 @@ try {
 // progress.js, again every POLL ms (a minute, or window.PROGRESS_POLL_MS, which the quals set), skipped while the tab
 // is hidden; the section draws only when the snapshot changed, in place, and loads nothing while closed.  This browser
 // keeps whether it last left the section open (localStorage, KEPT), and the section opens itself on load if so (dreeves,
-// 2026-10-17: reloads, as Live Server's when files change, kept closing it).  Every word
+// 2026-10-17: reloads, as Live Server's when files change, kept closing it); likewise each run's fold (FOLD, 2026-10-25;
+// see remember).  Every word
 // it shows is in the section's HTML (its templates); this script writes numbers, times and marks, durations with their
 // units, h, d or y (dreeves, 2026-10-23).
 // Per run: a bar of hours so far and to go, to scale (so far, then the band's bottom, then the rest of the band, the
@@ -1745,9 +1747,9 @@ try {
   const missing = section.querySelector('.progress-missing');
   const POLL = window.PROGRESS_POLL_MS || 60000;
   const KEPT = 'progress-open';                // localStorage: "1" while this browser last left the section open
+  const FOLD = 'progress-fold ';               // localStorage: "1" under this, a run's program, n and order while its fold is open
   const view = window.progressView = {loads: 0, renders: 0, data: null, layouts: []};
   let poll = null, ticker = null, made = null, resizing = null, clips = 0;   // clips: the charts' clip paths made, for their ids
-  const folds = new Map();                     // a run's fold as opened or closed by hand, by its program, n and order
 
   const pad = x => String(x).padStart(2, '0');
   const local = t => {
@@ -1826,13 +1828,15 @@ try {
     view.layouts = data.runs.map(run => {
       const box = template.content.firstElementChild.cloneNode(true);
       runsBox.appendChild(box);
-      // a run not running is folded under its heading, grayed, its status line below (dreeves, 2026-10-23: "i don't
-      // want to see frozen graphs" and "i don't want graphs to magically disappear"); a fold opened or closed by hand
-      // stays so across snapshots (folds, by run)
-      const key = `${run.program} ${run.n} ${run.order}`, fold = box.querySelector('details'), usual = run.state === 'running';
+      // a run's charts and status line fold under its heading (dreeves, 2026-10-23: "i don't want to see frozen
+      // graphs" and "i don't want graphs to magically disappear"), the fold as this browser last left it, whatever the
+      // run's state (remember; dreeves, 2026-10-25); a run not running grayed; the summary names the state, an ended
+      // run completed if it recorded an outcome, else aborted (dreeves, 2026-10-25: "can these be clearer when
+      // collapsed about what's paused/completed/aborted/running?")
+      const label = run.state !== 'ended' ? run.state : run.outcome === null ? 'aborted' : 'completed';
       box.dataset.runState = run.state;
-      fold.open = folds.get(key) ?? usual;
-      fold.addEventListener('toggle', () => fold.open === usual ? folds.delete(key) : folds.set(key, fold.open));
+      remember(box.querySelector('details'), `${FOLD}${run.program} ${run.n} ${run.order}`);
+      for (const e of box.querySelectorAll('[data-label]')) e.hidden = e.dataset.label !== label;
       box.querySelector('[data-n]').textContent = run.n;
       box.querySelector('[data-order]').textContent = run.order;
       box.querySelector('[data-program]').textContent = run.program;
@@ -2095,13 +2099,18 @@ try {
     poll = setInterval(() => { if (!document.hidden) load(); }, POLL);
     ticker = setInterval(tick, 1000);
   }
-  // The stored state is a convenience: where storage is unavailable (a private window, blocked site data) the
-  // section works as without it, starting closed.
-  function keep() {
-    try { if (details.open) localStorage.setItem(KEPT, '1'); else localStorage.removeItem(KEPT); } catch (e) {}
+  // A fold, the section's or a run's, opens or stays closed as this browser last left it, "1" stored under its name
+  // while open, until clicked (dreeves, 2026-10-25: "remember in localstorage what their state is and just always stay
+  // that way until explicitly clicked").  The stored state is a convenience: where storage is unavailable (a private
+  // window, blocked site data) a fold works as without it, starting closed.
+  function remember(fold, name) {
+    try { fold.open = localStorage.getItem(name) === '1'; } catch (e) {}
+    fold.addEventListener('toggle', () => {
+      try { if (fold.open) localStorage.setItem(name, '1'); else localStorage.removeItem(name); } catch (e) {}
+    });
   }
-  try { details.open = localStorage.getItem(KEPT) === '1'; } catch (e) {}
-  details.addEventListener('toggle', () => { keep(); sync(); });
+  remember(details, KEPT);
+  details.addEventListener('toggle', sync);
   // back to the tab, a fresh snapshot at once, not at the next minute's poll (dreeves, 2026-10-23: "did you break
   // auto-refresh yet again?": a tab long hidden had polled nothing); sync loads nothing while the section is closed
   document.addEventListener('visibilitychange', sync);

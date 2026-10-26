@@ -3,7 +3,9 @@ that focus.py itself, unchanged, replays and checks.  Run with PYTHONPATH=scratc
 /opt/homebrew/bin/python3 -B -m unittest quals_fanout."""
 import fcntl
 import gzip
+import hashlib
 import json
+import math
 from pathlib import Path
 import tempfile
 import unittest
@@ -18,6 +20,37 @@ import fanout
 def real(n, m):
     """focus.py's own equations for length n and order m, one case with no residue counts."""
     return focus.moments(n, m), ((),)
+
+
+def unpaired():
+    """Two cases of length 20 and order 5, both impossible (m*(20) = 3), neither the other's reflection: plus counts
+    (2, 4, 4) and (3, 3, 4) modulo 3."""
+    return focus.moments(20, 5), (((3, (2, 4, 4)),), ((3, (3, 3, 4)),))
+
+
+def tree_lps(prepared, case):
+    """The LP solves of case's whole tree, depth first from a fresh LP under fanout.work's warm starts (a box's second
+    child restores its parent's basis), a W token a leaf, as an L token is."""
+    equations, cases = prepared
+    choice = cases[case]
+    lp = certbb.Lp(equations, tuple(M for M, _ in choice))
+    lp.set_counts(choice)
+    stack, lps = [((), None)], 0
+    while stack:
+        path, basis = stack.pop()
+        if basis is not None:
+            assert lp.H.setBasis(basis) == certbb.highs.HighsStatus.kOk
+        token = focus.step(lp, equations, choice, *fanout.box(equations.N, path))
+        lps += 1
+        children = [(path + ((token[1], 1),), lp.H.getBasis()), (path + ((token[1], 0),), None)]
+        stack += children if token[0] == 'B' else []
+    return lps
+
+
+def proof(run):
+    """The sha256 of every chunk's records, in order: the run's proof."""
+    chunks = [fanout.read(p)['records'] for p in sorted(Path(run).glob('chunk-*.json.gz'))]
+    return hashlib.sha256(json.dumps(chunks).encode()).hexdigest()
 
 
 def stopped(tmp, prepared, n, m, budget):
@@ -205,6 +238,76 @@ class FanoutQuals(unittest.TestCase):
             self.assertTrue(all({'case', 'depth', 'root'} <= set(e) for e in starts.values()))
             self.assertTrue(all({'lps', 'seconds', 'open', 'case', 'root'} <= set(e) for e in ends.values()))
             self.assertEqual((log[-1]['event'], log[-1]['outcome']), ('finish', 'excluded'))
+
+    def test_a_session_journals_one_probe_per_case_before_its_first_job(self):
+        # Replicata: unpaired()'s two cases, stopped after 1 LP solve, so that both have LP work to do, then fanout.
+        # Expectata (2026-10-25: random dives put 672:13 at >= 1e13 LP solves when the page's ETA said 17 h): between
+        # the session record and the first job_start, one probe record per case, 0 then 1, each with its event, time,
+        # the driver's pid, case, PROBE_PATHS paths, the mean and standard error of their leaf depths (a standard error
+        # above 0, the depths differing), least = floor(2^(mean - 1.645 se + 1)) - 1, and witnesses, none for these
+        # impossible cases; and still excluded.
+        # Resultata before probes: no probe record.
+        with tempfile.TemporaryDirectory() as tmp:
+            prepared = unpaired()
+            run, journal = stopped(tmp, prepared, 20, 5, 1)
+            self.assertEqual({c for c, _ in fanout.roots(run, Path(tmp, 'fanout'), focus.fingerprint())}, {0, 1})
+            outcome, work, own = finish(tmp, run, journal, prepared, 20, 5)
+            self.assertEqual(outcome, 'excluded')
+            log = events(own)
+            session = [e['event'] for e in log].index('session')
+            first = [e['event'] for e in log].index('job_start')
+            probes = log[session + 1:first]
+            self.assertEqual([p['case'] for p in probes], [0, 1])
+            for p in probes:
+                self.assertEqual(set(p), {'event', 'time', 'pid', 'case', 'paths', 'mean', 'se', 'least', 'witnesses'})
+                self.assertEqual((p['event'], p['pid'], p['paths'], p['witnesses']),
+                                 ('probe', log[session]['pid'], fanout.PROBE_PATHS, []))
+                self.assertTrue(0 <= p['mean'] <= 20 and 0 < p['se'] < p['mean'], p)
+                self.assertEqual(p['least'], math.floor(2 ** (p['mean'] - 1.645 * p['se'] + 1)) - 1)
+            self.assertEqual([e['event'] for e in log].count('probe'), 2)
+
+    def test_every_probe_s_least_is_at_most_its_case_s_lp_solves(self):
+        # Replicata: fanout on (20, 5) stopped after 5 LP solves, and on (16, 4) stopped after 3; each has one case.
+        # Expectata: the probe's least at most the case's LP solves in all, which it bounds below (95%, one-sided):
+        # (20, 5)'s, the run's own (focus.py's 5 and every job's) and its whole tree's under fanout's warm starts
+        # (tree_lps); (16, 4)'s whole tree's, whose depth first search the witness cut short.
+        for n, m, budget in ((20, 5, 5), (16, 4, 3)):
+            with self.subTest(n=n, m=m), tempfile.TemporaryDirectory() as tmp:
+                prepared = real(n, m)
+                run, journal = stopped(tmp, prepared, n, m, budget)
+                outcome, work, own = finish(tmp, run, journal, prepared, n, m)
+                [p] = [e for e in events(own) if e['event'] == 'probe']
+                total = tree_lps(prepared, 0)
+                self.assertGreater(p['least'], 0)
+                self.assertLessEqual(p['least'], total)
+                spent = focus.replay(run, *prepared, focus.fingerprint()).lp
+                self.assertTrue(outcome == 'witness' or p['least'] <= spent, (p, spent))
+                for x in p['witnesses']:              # a path's exact solution, journaled: as signs, of order m
+                    self.assertEqual([sum((2 * t - 1) * i ** k for i, t in enumerate(x)) for k in range(m)], [0] * m)
+                print(json.dumps(dict(n=n, order=m, outcome=outcome, mean=p['mean'], se=p['se'], least=p['least'],
+                                      tree_lps=total, run_lps=spent)), flush=True)
+
+    def test_probes_do_not_change_the_proof(self):
+        # Replicata: (20, 5) stopped after 5 LP solves, then fanout with one worker, twice: as it is, and with its probe
+        # replaced by a stand-in that solves no LP.
+        # Expectata: the same proof, by the sha256 of every chunk's records: a probe solves its LPs in the driver, on an
+        # LP of its own, and no worker's LP state depends on it.  (With more workers two runs can differ, probes or
+        # not: which worker takes which job, and so the LP state a job's first solve starts from, depends on timing.)
+        def once(probe):
+            with tempfile.TemporaryDirectory() as tmp:
+                prepared = real(20, 5)
+                run, journal = stopped(tmp, prepared, 20, 5, 5)
+                with patch.object(focus, 'prepare', return_value=prepared), \
+                        patch.multiple(fanout, WORKERS=1, BUDGET=4, probe=probe):
+                    outcome = fanout.run(run, journal, Path(tmp, 'fanout'), Path(tmp, 'fanout.jsonl'), 20, 5)
+                self.assertEqual(outcome, 'excluded')
+                return proof(run), [e['least'] for e in events(Path(tmp, 'fanout.jsonl')) if e['event'] == 'probe']
+        stand_in = dict(paths=2, mean=0.0, se=0.0, least=1, witnesses=[])
+        probed, (least,) = once(fanout.probe)
+        unprobed, leasts = once(lambda prepared, case, paths: stand_in)
+        self.assertEqual(probed, unprobed)
+        self.assertGreater(least, 1)
+        self.assertEqual(leasts, [1])
 
 
 if __name__ == '__main__':

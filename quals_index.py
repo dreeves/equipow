@@ -83,6 +83,33 @@ DREEVES_LINES += (STONG_NOTE,)
 # rewording of the label Claude had put there at his request), byte for byte
 GOLD_LEGEND = '<li><span class="swatch exists record" aria-hidden="true"></span><span><span class="nw"><i>n</i> = <i>a</i>(<i>m</i> − 1)</span> of OEIS <a href="https://oeis.org/A323395">A323395</a>, the smallest <i>n</i> for a given <i>m</i></span></li>'
 DREEVES_LINES += (GOLD_LEGEND,)
+# his copy of 2026-10-24 and 25 that came as new lines, byte for byte (his edits of lines already in the page before the
+# chart are in TABLE_UPDATE): the sentence of the {1, …, 8} example in the header (2026-10-25, commit 48710ae "Human
+# copy", its "..." made "…" by him the same evening); the sentence on the hex codes, moved from the footer to the top of the remarks and reworded (2026-10-24, commit
+# 35dd836 "Edits"); and the 416 proof's heading and its line on BGPW's 208:8 code, unattributed in the commit that added
+# the proof (2026-10-24, b475924 "Add proof for 416:9"), so his
+EXAMPLE8 = ("For {1, …, 8} it turns out there's a partition &mdash; {1, 4, 6, 7} and {2, 3, 5, 8} &mdash; that gets us up "
+            'to <i>k</i> = 2, meaning <i>m</i><sup>*</sup>(8) = 3:')
+HEX_NOTE = ('<p>The hex codes shown below follow Table 5 of BGPW:',
+            'the left half of the signs <span class="nw">(1 = +1, 0 = −1)</span>, then the rest by <span class="nw">(−1)<sup><i>m</i></sup></span> symmetry.</p>')
+PROOF416_HEAD = ('<p><strong><i>m</i><sup>*</sup>(416) = 9: construction and proof.</strong></p>',
+                 '<p><a href="https://arxiv.org/html/1912.03491v1#S6.T5">BGPW Table 5</a> has the 208:8 code <code id="seed416">C5A2CB6B945B28BC43ADB6586C</code>.</p>')
+DREEVES_LINES += (EXAMPLE8,) + HEX_NOTE + PROOF416_HEAD
+# and the 416 proof's five Astra: "…" lines as he committed them, without the TODO comment Astra had put above each
+# (2026-10-24, b475924; dreeves, 2026-10-25: "i changed those astra lines intentionally"), so the copy rules pass
+# over them as over his own
+PROOF416_ASTRA = ('<p>Astra: "Its binary expansion gives the first 104 signs (1 → +1, 0 → −1); the remaining 104 are the same signs in reverse order. If <i>P</i>(<i>x</i>) is the polynomial of this sequence, then <span class="nw"><i>F</i>(<i>x</i>) = (1 − <i>x</i><sup>208</sup>)<i>P</i>(<i>x</i>)</span> has length 416 and order 9: append the same sequence with every sign negated."</p>',
+                  '<p>Astra: "Code for the length-416 example, using the same convention: <code id="witness416">C5A2CB6B945B28BC43ADB6586C361A6DB5C23D14DA29D6D345A3</code>"</p>',
+                  '<p>Astra: "To rule out order 10, let <i>D</i><sub>0</sub>, <i>D</i><sub>1</sub>, <i>D</i><sub>2</sub> be the sums of the signs in the residue classes modulo 3. The class sizes are <span id="sizes416">139, 139, 138</span>, so <i>D</i><sub>0</sub> and <i>D</i><sub>1</sub> are odd, and <i>D</i><sub>0</sub> + <i>D</i><sub>1</sub> + <i>D</i><sub>2</sub> = 0."</p>',
+                  '<p>Astra: "Let ζ be a cube root of unity other than 1. Since <span class="nw">(ζ − 1)<sup>10</sup> = −243ζ<sup>2</sup></span>, order at least 10 implies <i>f</i>(ζ) = (<i>D</i><sub>0</sub> − <i>D</i><sub>2</sub>) + (<i>D</i><sub>1</sub> − <i>D</i><sub>2</sub>)ζ ∈ <span id="modulus416">243</span>ℤ[ζ]. Therefore all three sums are congruent modulo 243."</p>',
+                  '<p>Astra: "The difference <span class="nw"><i>D</i><sub>0</sub> − <i>D</i><sub>1</sub></span> is even and divisible by 243, but its absolute value is at most 278. Therefore <span class="nw"><i>D</i><sub>0</sub> = <i>D</i><sub>1</sub> = <i>d</i></span>. Then <span class="nw"><i>D</i><sub>2</sub> = −2<i>d</i></span>, giving <span class="nw">|<i>d</i>| ≤ 69</span>; but <span class="nw">243 ∣ 3<i>d</i></span>, so <span class="nw">81 ∣ <i>d</i></span>. Only <span class="nw"><i>d</i> = 0</span> remains, contradicting its oddness. Thus <span class="nw"><i>m</i><sup>*</sup>(416) = 9</span>."</p>')
+DREEVES_LINES += PROOF416_ASTRA
+# his error line in the powers-of-2 chart's script (2026-10-24, b475924: Claude's line without its Claude: "…" and its
+# TODO comment; its closing backtick restored the same day, b70e1aa): the readout when that chart cannot be drawn,
+# followed by the error, as ERROR is the m*(n) chart's
+POW2_ERROR = 'Error drawing this chart: '
+POW2_ERROR_LINE = f'ro.textContent = `{POW2_ERROR}${{e}}`;'
+DREEVES_LINES += (POW2_ERROR_LINE,)
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -217,6 +244,26 @@ TABLE_UPDATE += (("<td class=\"c\" title='Claude alone'>384</td>", "<td class=\"
                   '    <li><span class="key c" aria-hidden="true">◆</span>Claude alone</li>\n    <li><span class="key a" aria-hidden="true">✦</span>Astra alone</li>', 1))
 # The legend line's TODO comment above (Astra's, 2026-10-20) never reached a commit: dreeves's page has the two entries
 # side by side (by his convention, a copy approved), so the edit records his version (2026-10-23).
+# dreeves's own edits of lines in the page before the chart or made by the edits above, so in both rebuilt pages, this
+# file's and quals_pow2_page.py's, his words byte for byte, trailing spaces too: the header's lede became the authors'
+# line and "We extend the results of …", and "From now on" became "From here on" (2026-10-25, commit 48710ae "Human
+# copy"); the footer's five lines became his definition of the expanded product (2026-10-24, commit 35dd836 "Edits"),
+# the sentence on the hex codes moving, reworded, to the top of the remarks (HEX_NOTE) and Claude's line on 416 going
+# (its TODO comment, an insertion, went in b475924 the same day).
+TABLE_UPDATE += (('  <p class="lede">Table 2 of the paper by Buhler, Golan, Pratt, and Wagon (<i>Math. Comp.</i> 90, 2021), extended with new results.</p>\n',
+                  '  <p class="lede">Stan Wagon, Daniel Reeves, Claude, and Astra</p>\n'
+                  '  <p class="lede">\n'
+                  '    We extend the results of \n'
+                  '    Table 2 of the paper by Buhler, Golan, Pratt, and Wagon (<i>Math. Comp.</i> 90, 2021).</p>\n', 1),
+                 ('    From now on we use the convention', '    From here on we use the convention', 1),
+                 ('  <p>The first three blocks are copied from Table 2 of the published paper.</p>\n'
+                  '  <p>The hex codes follow the paper\'s Table 5 convention: the left half of the signs <span class="nw">(1 = +1, 0 = −1)</span>, then the rest by <span class="nw">(−1)<sup><i>m</i></sup></span> symmetry.</p>\n'
+                  '  <p>The sign # denotes the expanded product, <span class="nw"><i>f</i> # <i>g</i> = <i>f</i>(<i>x</i>)·<i>g</i>(<i>x</i><sup><i>n<sub>f</sub></i></sup>)</span>, where <i>n<sub>f</sub></i> is the length of <i>f</i>. The sign ∨ denotes the join.</p>\n'
+                  '  <p>Every example whose code is given here was checked by Claude with exact integer power sums.</p>\n'
+                  '  <p>Claude: "BGPW\'s example at length 416 was not re-checked here."</p>\n',
+                  '  <p>Definition (expanded product): \n'
+                  '    <span class="nw"><i>f</i> # <i>g</i> = <i>f</i>(<i>x</i>)·<i>g</i>(<i>x</i><sup><i>n<sub>f</sub></i></sup>)</span>, where <i>n<sub>f</sub></i> is the length of <i>f</i>. \n'
+                  '    And the symbol ∨ means the join.</p>\n', 1))
 
 # Edits of the remarks' lines that are in the page before the chart (BASE) or in TABLE_UPDATE, kept apart from
 # TABLE_UPDATE because quals_pow2_page.py applies TABLE_UPDATE before its own edits of those remarks, and its own
@@ -1070,19 +1117,21 @@ def q_remarks_name_the_chart_s_constructions():
 
 
 def q_claude_rewords_what_the_day_made_stale():
-    # Replicata: index.html: the 2^24 remark's paragraph, the footer's sentence on BGPW's examples, and the two labels of
-    # the order-9 example at 336.
+    # Replicata: index.html: the 2^24 remark's paragraph, the footer, and the two labels of the order-9 example at 336.
     # Expectata (dreeves, 2026-10-12: "for the "TODO for dreeves" lines, go ahead and change them back to Claude: "…"
     # with your own corrected wording"): the 2^24 paragraph is Claude's and ends "…for every k ≥ 24, and by the 2^17
-    # entry above for every k ≥ 17." (2^18 until 800's example of order 11, 2026-10-17); the footer's is Claude's and names only 416 as not re-checked; the order-9 example
+    # entry above for every k ≥ 17." (2^18 until 800's example of order 11, 2026-10-17); no sentence on examples not
+    # re-checked is left (the footer had Claude's, naming only 416, until dreeves dropped it, 2026-10-24, commit 35dd836
+    # "Edits"; its TODO comment went in b475924 the same day); the order-9 example
     # at 336 is q336 in both labels, the first Claude's (the powers-of-2 chart's p336 is the order-10 one); and no TODO
     # for dreeves is left.
+    # Resultata before (2026-10-25): the qual still asked for Claude's line on 416, which his edit had dropped.
     text = page()
     assert 'TODO for dreeves' not in text and '<i>p</i><sub>336</sub>' not in text and 'at lengths 352, 368' not in text
     assert '<p>Claude: "Joint construction: ' in text
     assert ('≥ 24</span>, and by the 2<sup>17</sup> entry above for every <span class="nw"><i>k</i> ≥ 17</span>."</p>'
             in text)
-    assert '<p>Claude: "BGPW\'s example at length 416 was not re-checked here."</p>' in text
+    assert 'not re-checked here' not in text, 'a sentence on examples not re-checked'
     assert ('<span>Claude: "<i>q</i><sub>336</sub>, an antisymmetric example found independently by Claude; it is the second '
             'part of the 528 example below" <span class="nw">(<i>m</i> = 9)</span>:</span>') in text
     assert '<span><i>f</i> = <i>p</i><sub>192</sub> ∨ <i>q</i><sub>336</sub>; &nbsp;' in text
@@ -1605,7 +1654,7 @@ def q_made_up_data_draws():
 STATUSES = ('settled', 'open', 'split', 'pending', 'running')
 # made-up data: one running run, three groups, every status, three recorded ETAs an hour apart
 PROGRESS_DATA = {'made': 1792200000, 'runs': [{
-    'program': 'overnight_v5.py', 'n': 64, 'order': 7, 'state': 'running', 'so_far': 7200.0, 'to_go': {'median': 3600.0, 'lo': 1800.0, 'hi': 10800.0},
+    'program': 'overnight_v5.py', 'n': 64, 'order': 7, 'state': 'running', 'outcome': None, 'so_far': 7200.0, 'to_go': {'median': 3600.0, 'lo': 1800.0, 'hi': 10800.0},
     'etas': [[1792192800, 0.0, 10800.0, 7200.0, 14400.0], [1792196400, 3600.0, 7200.0, 3600.0, 10800.0],
              [1792200000, 7200.0, 3600.0, 1800.0, 10800.0]],
     'statuses': list(STATUSES), 'depth': 1, 'keys': ['3:[0,0,3]', '3:[1,1,1]', '3:[2,1,0]'],
@@ -1898,8 +1947,8 @@ def q_progress_section_is_closed_and_unattributed():
     # Expectata: a <section class="progress" aria-labelledby="progress-title"> after the sets' section and before the
     # footer: first its TODO comment (progress_lines' form), then a <details> without open, so it starts closed, whose
     # <summary> is the heading "Search progress" (dreeves's title for progress.html, 2026-10-09), with a key of the five
-    # statuses; and in its run template one more <details>, also without open, each run's fold (dreeves, 2026-10-23:
-    # a run not running folds; the script opens a running one's); its copy unattributed, no block quote and no
+    # statuses; and in its run template one more <details>, also without open, each run's fold (dreeves, 2026-10-23;
+    # since 2026-10-25 each stays as this browser left it); its copy unattributed, no block quote and no
     # "Claude:" (dreeves, 2026-10-17: he took the section out
     # of the block quote it was made in, as progress.html's copy had none); no <script> on the page names
     # progress.js, which the section's script loads only once it is opened.
@@ -2189,35 +2238,28 @@ def q_progress_reloads_on_returning_to_the_tab():
     assert got['before'] >= 1 and got['after'] == got['before'] + 1, got
 
 
-def q_progress_folds_runs_not_running():
-    # Replicata: index.html with two runs as progress.js, PROGRESS_DATA's running one and PROGRESS_ETA_DATA's ended
-    # one, the section open; then the ended run opened, as by a click, and a new snapshot of the same runs.
-    # Expectata (dreeves, 2026-10-23: "1. i don't want to see frozen graphs 2. i don't want graphs to magically
-    # disappear when the freeze or finish. can we get the best of both worlds?"): both runs listed; the running one's
-    # charts open; the ended one folded under its heading (a summary), grayed, its status line folded with the charts; its dots
-    # sized to the section's width though folded; and opened by hand, it stays open across the new snapshot.
-    d = tempfile.mkdtemp(prefix='index-quals-')
-    data = {'made': PROGRESS_DATA['made'], 'runs': [PROGRESS_DATA['runs'][0], PROGRESS_ETA_DATA['runs'][0]]}
-    harness = """<script>
-(async () => {
+FOLD = 'progress-fold '         # localStorage: "1" under this prefix and a run's program, n and order while its fold is open
+# two runs whose folds have names of their own: PROGRESS_DATA's running one and PROGRESS_ETA_DATA's ended one as
+# boxsplit.py's, with no outcome
+PROGRESS_FOLDS = {'made': PROGRESS_DATA['made'],
+                  'runs': [PROGRESS_DATA['runs'][0], dict(PROGRESS_ETA_DATA['runs'][0], program='boxsplit.py')]}
+# The page with data as progress.js and harness (a script) run in it, the section open and before (a script) run before
+# the page's own: what the harness put in <pre id="harness-out">, as JSON.
+FOLD_LOOK = """
   const sleep = ms => new Promise(r => setTimeout(r, ms));
-  await sleep(1500);
   const runs = () => [...document.querySelectorAll('.progress-runs .progress-run')];
   const look = () => runs().map(r => ({state: r.dataset.runState, open: r.querySelector('details').open,
     summary: !!r.querySelector('summary h3'), color: getComputedStyle(r.querySelector('summary')).color,
-    status: getComputedStyle(r.querySelector('.progress-status')).display !== 'none' && r.querySelector('.progress-status').getBoundingClientRect().height > 0,
-    canvas: r.querySelector('canvas').width}));
-  const first = look();
-  runs()[1].querySelector('details').open = true;
-  await sleep(50);
-  const d2 = JSON.parse(JSON.stringify(window.progressView.data)); d2.made += 60; window.progressData(d2);
-  await sleep(50);
-  const pre = document.createElement('pre'); pre.id = 'harness-out';
-  pre.textContent = JSON.stringify({first, after: look(), ink: getComputedStyle(document.body).color}); document.body.appendChild(pre);
-})();
-</script>
+    status: r.querySelector('.progress-status').checkVisibility(), canvas: r.querySelector('canvas').width,
+    label: [...r.querySelectorAll('summary [data-label]')].filter(e => e.checkVisibility()).map(e => e.textContent)}));
+  const out = x => { const pre = document.createElement('pre'); pre.id = 'harness-out'; pre.textContent = JSON.stringify(x); document.body.appendChild(pre); };
 """
-    text = page().replace('<head>\n', '<head>\n' + PROGRESS_REMEMBERED).replace('</body>', harness + '</body>')
+
+
+def progress_harness(data, harness, before=''):
+    d = tempfile.mkdtemp(prefix='index-quals-')
+    script = '<script>\n(async () => {' + FOLD_LOOK + '  await sleep(1500);\n' + harness + '\n})();\n</script>\n'
+    text = page().replace('<head>\n', '<head>\n' + PROGRESS_REMEMBERED + before).replace('</body>', script + '</body>')
     open(os.path.join(d, 'index.html'), 'w', encoding='utf-8').write(text)
     open(os.path.join(d, 'progress.js'), 'w', encoding='utf-8').write('progressData(' + json.dumps(data) + ');\n')
     shutil.copy(DATA, os.path.join(d, 'mstar.js'))
@@ -2226,12 +2268,66 @@ def q_progress_folds_runs_not_running():
     shutil.rmtree(d)
     m = re.search(r'<pre id="harness-out">(.*?)</pre>', dom, re.S)
     assert m, dom[-2000:]
-    got = json.loads(html.unescape(m.group(1)))
+    return json.loads(html.unescape(m.group(1)))
+
+
+def q_progress_folds_stay_as_left():
+    # Replicata: index.html with PROGRESS_FOLDS as progress.js, the section open and no fold stored; then the running
+    # run opened by hand, as by a click; a snapshot in which it has ended; then it closed by hand.
+    # Expectata (dreeves, 2026-10-25: "i think there's some anti-magic violation with the collapsed/expanded state.
+    # probably they should just remember in localstorage what their state is and just always stay that way until
+    # explicitly clicked"): both runs listed, each folded under its heading (a summary) whatever its state, its status
+    # line folded with its charts, its dots sized to the section's width though folded, the run not running grayed;
+    # opened by hand, a run's fold is stored, "1" under FOLD and its program, n and order, and stays open across the
+    # snapshot that ends the run; closed by hand, its stored fold is gone.
+    # Resultata before (2026-10-23's design): the running run's fold opened by itself and the ended one's folded, and
+    # a fold opened or closed by hand was kept in memory only, so a reload forgot it.
+    got = progress_harness(PROGRESS_FOLDS, """
+  const name = 'progress-fold overnight_v5.py 64 7', first = look();
+  runs()[0].querySelector('details').open = true;
+  await sleep(50);
+  const stored = localStorage.getItem(name);
+  const d2 = JSON.parse(JSON.stringify(window.progressView.data)); d2.made += 60; d2.runs[0].state = 'ended'; d2.runs[0].to_go = null;
+  window.progressData(d2);
+  await sleep(50);
+  const after = look();
+  runs()[0].querySelector('details').open = false;
+  await sleep(50);
+  out({first, stored, after, cleared: localStorage.getItem(name)});""")
     first, after = got['first'], got['after']
-    assert [(r['state'], r['open'], r['summary'], r['status']) for r in first] == [('running', True, True, True), ('ended', False, True, False)], first
+    assert [(r['state'], r['open'], r['summary'], r['status']) for r in first] == [('running', False, True, False), ('ended', False, True, False)], first
     assert first[1]['color'] != first[0]['color'], first                 # grayed: not the running heading's color
     assert first[1]['canvas'] == first[0]['canvas'] > 100, first        # sized to the section, folded or not
-    assert [(r['state'], r['open'], r['status']) for r in after] == [('running', True, True), ('ended', True, True)], after
+    assert got['stored'] == '1', got
+    assert [(r['state'], r['open'], r['status']) for r in after] == [('ended', True, True), ('ended', False, False)], after
+    assert got['cleared'] is None, got
+
+
+def q_progress_folds_are_remembered_across_loads():
+    # Replicata: index.html with PROGRESS_FOLDS as progress.js, the section open, and this browser having left the
+    # ended run's fold open (stored before the page's scripts run) and the running run's never opened.
+    # Expectata (dreeves, 2026-10-25, as for q_progress_folds_stay_as_left): the ended run open and the running run
+    # folded, each as this browser left it, whatever its state.
+    got = progress_harness(PROGRESS_FOLDS, '  out(look());',
+                           before='<script>localStorage.setItem("progress-fold boxsplit.py 64 7", "1");</script>\n')
+    assert [(r['state'], r['open'], r['status']) for r in got] == [('running', False, False), ('ended', True, True)], got
+
+
+def q_progress_summary_names_each_run_s_state():
+    # Replicata: index.html with five runs as progress.js, the section open, every fold folded: running, paused,
+    # frozen, ended with an outcome (excluded) and ended with none (its process gone without a finish, as a stopped or
+    # crashed run).
+    # Expectata (dreeves, 2026-10-25: "can these be clearer when collapsed about what's paused/completed/aborted/
+    # running?"): each run's summary, folded, shows one word for its state, running, paused, frozen, completed or
+    # aborted, and no other.
+    # Resultata before: no word; a run not running was only grayed.
+    base = dict(PROGRESS_DATA['runs'][0], to_go=None)
+    runs = [dict(base, n=64 + 8 * i, state=state, outcome=outcome) for i, (state, outcome) in
+            enumerate([('running', None), ('paused', None), ('frozen', None), ('ended', 'excluded'), ('ended', None)])]
+    got = progress_harness({'made': PROGRESS_DATA['made'], 'runs': runs}, '  out(look());')
+    assert [(r['state'], r['open'], r['label']) for r in got] == [
+        ('running', False, ['running']), ('paused', False, ['paused']), ('frozen', False, ['frozen']),
+        ('ended', False, ['completed']), ('ended', False, ['aborted'])], got
 
 
 def q_progress_names_each_run_s_program():

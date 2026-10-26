@@ -74,20 +74,26 @@ class Quals(unittest.TestCase):
         self.assertIn('https://arxiv.org/html/1912.03491v1#S6.T5', proof)
         self.assertIn('BGPW', proof)
         self.assertIn('lang="en"', self.page[self.page.index('<div id="proof416"'):][:60])
-        self.assertIn('TODO:', proof)
+        # no TODO comment: dreeves removed Astra's when he committed the proof (2026-10-24, b475924; 2026-10-25: "i
+        # changed those astra lines intentionally")
 
     def test_english_prose_is_quoted_and_attributed_to_astra(self):
         # Replicata: read every paragraph in the 416 proof after translation.
         # Expectata (dreeves, 2026-10-24): model-written English is explicitly
-        # quoted with Astra: prepended; the earlier Latin is gone.
+        # quoted with Astra: prepended; the earlier Latin is gone.  His own two
+        # opening paragraphs, the heading and the line on BGPW's 208:8 code
+        # (b475924; 2026-10-25: "i changed those astra lines intentionally"),
+        # stand unquoted.
         proof, = re.findall(r'<div id="proof416"[^>]*>(.*?)</div>\s*</li>',
                             self.page, re.S)
         paragraphs = re.findall(r'<p>(.*?)</p>', proof, re.S)
         self.assertTrue(paragraphs)
-        for paragraph in paragraphs:
-            words = unescape(re.sub(r'<[^>]*>', '', paragraph)).strip()
-            self.assertTrue(words.startswith('Astra: "'), words)
-            self.assertTrue(words.endswith('"'), words)
+        words = [unescape(re.sub(r'<[^>]*>', '', p)).strip() for p in paragraphs]
+        self.assertEqual(words[:2], ['m*(416) = 9: construction and proof.',
+                                     'BGPW Table 5 has the 208:8 code C5A2CB6B945B28BC43ADB6586C.'])
+        for paragraph in words[2:]:
+            self.assertTrue(paragraph.startswith('Astra: "'), paragraph)
+            self.assertTrue(paragraph.endswith('"'), paragraph)
         for latin in ('Ad ordinem', 'Sit ζ radix', 'Differentia', 'Itaque'):
             self.assertNotIn(latin, proof)
 

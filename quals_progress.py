@@ -1232,17 +1232,19 @@ def q_sea_of_240_at_11():
 def q_js_is_one_progress_data_call():
     # Replicata: progress.js_text for the surveys of the tiny open and closed runs at a fixed time.
     # Expectata: one call, progressData(...);, of JSON with made (the time, in whole seconds) and runs, each with its
-    # program (overnight_v5.py), n, order, state, so_far (its passes' seconds of running), to_go (null: no estimate for
-    # an ended run), etas (none recorded here) and its sea (depth, keys, groups, counts, as progress.sea gives it) with
-    # the statuses' names, and nothing else.
+    # program (overnight_v5.py), n, order, state, outcome (its finish's, or null without one: dreeves, 2026-10-25,
+    # "can these be clearer when collapsed about what's paused/completed/aborted/running?"), so_far (its passes'
+    # seconds of running), to_go (null: no estimate for an ended run), etas (none recorded here) and its sea (depth,
+    # keys, groups, counts, as progress.sea gives it) with the statuses' names, and nothing else.
     now = 1792200000.25
     surveys = [progress.survey(n, order, *tiny(name), [], now, {}, {}) for n, order, name in ((64, 7, 'open'), (40, 6, 'closed'))]
     data = progress_data(progress.js_text(surveys, now))
     assert set(data) == {'made', 'runs'} and data['made'] == 1792200000, data.keys()
     for r, s in zip(data['runs'], surveys):
-        assert set(r) == {'program', 'n', 'order', 'state', 'so_far', 'to_go', 'etas', 'statuses', 'depth', 'keys', 'groups',
-                          'counts'}, set(r)
-        assert (r['program'], r['n'], r['order'], r['state'], r['to_go'], r['etas']) == ('overnight_v5.py', s['n'], s['order'], 'ended', None, []), r
+        assert set(r) == {'program', 'n', 'order', 'state', 'outcome', 'so_far', 'to_go', 'etas', 'statuses', 'depth', 'keys',
+                          'groups', 'counts'}, set(r)
+        assert (r['program'], r['n'], r['order'], r['state'], r['outcome'], r['to_go'], r['etas']) == (
+            'overnight_v5.py', s['n'], s['order'], 'ended', s['outcome'], None, []), r
         assert r['so_far'] == sum(b - a for a, b in s['passes']) > 0, (r['so_far'], s['passes'])
         assert r['statuses'] == list(progress.SEA_STATUSES)
         assert {k: r[k] for k in ('depth', 'keys', 'groups', 'counts')} == s['sea'], r
