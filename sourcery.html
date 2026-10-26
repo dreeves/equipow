@@ -7958,8 +7958,15 @@ i'm trying to figure out what to list as the very first changelog entry that kic
 <header><p class="speaker">dreev</p></header>
 <pre class="prompt">how about also always separating the powers-of-2 results onto their own lines, just for readability/organization reasons?</pre>
 <details>
-<summary><a class="anchor" href="#p398"><time datetime="2026-10-26T22:39:54.063000+00:00">22:39</time></a> <span class="chip"></span> <span class="agent">Claude Code</span> <span class="model">claude-opus-5-5</span> <span class="effort">(max)</span> <span class="elapsed">thought for 21s</span></summary>
-<div class="reply machine"><p>Yes: on each day, the powers-of-2 results go on their own line after the line for other n, the same order as the table&#x27;s rows. Noteworthy results keep their lines of their own. Qual first:</p></div>
+<summary><a class="anchor" href="#p398"><time datetime="2026-10-26T22:39:54.063000+00:00">22:39</time></a> <span class="chip"></span> <span class="agent">Claude Code</span> <span class="model">claude-opus-5-5</span> <span class="effort">(max)</span> <span class="elapsed">thought for 41s · 3m12s wall-clock time</span></summary>
+<div class="reply machine"><p>Yes: on each day, the powers-of-2 results go on their own line after the line for other n, the same order as the table&#x27;s rows. Noteworthy results keep their lines of their own. Qual first:</p>
+<p>The powers-of-2 results now sit on their own lines. Each day shows its noteworthy lines first, then a line for other n, then a line for powers of 2, matching the order of the table&#x27;s rows.</p>
+<p>It&#x27;s the same 67 statements on 23 dated lines, so 10-17 now reads:</p>
+<pre class="code"><code>2026-10-17: m*(2^17) ≥ 18
+2026-10-17: m*(800) = 11
+2026-10-17: m*(2^27) ≥ 29, m*(2^34) ≥ 37, m*(2^38) ≥ 42, m*(2^46) ≥ 51, m*(2^52) ≥ 58, m*(2^57) ≥ 64, m*(2^66) ≥ 74</code></pre>
+<p>A new qual fails any line that mixes a power of 2 from 512 up with another n. It was red against the old layout. The page quals pass 84 of 84 and the pow2 quals 24 of 24.</p>
+<p>To commit: index.html and quals_index.py.</p></div>
 </details>
 </article>
 </main>
