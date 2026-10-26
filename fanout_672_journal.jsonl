@@ -1249,3 +1249,5 @@
 {"event":"job_start","time":1792978627.635812,"pid":94848,"job":"9fe0ddd931b01e92338d2baab4497e390b688a70","case":0,"depth":9,"root":1}
 {"event":"job_end","time":1792979195.543294,"pid":94848,"job":"9fe0ddd931b01e92338d2baab4497e390b688a70","case":0,"root":1,"lps":80000,"seconds":562.7025816249661,"open":69}
 {"event":"job_start","time":1792979195.549772,"pid":94848,"job":"e4559145617b3221e13b26b651c9d714f226dfb2","case":0,"depth":9,"root":1}
+{"event":"job_end","time":1792980592.988754,"pid":94848,"job":"b81e8f277cf9acdfd135842ef90bfbe828aa2c37","case":0,"root":1,"lps":80000,"seconds":3503.7553251250647,"open":89}
+{"event":"job_start","time":1792980592.994596,"pid":94848,"job":"ed60474cc43a93b7b91324bf3615672227c12166","case":0,"depth":9,"root":1}
