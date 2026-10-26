@@ -121,6 +121,19 @@ class ReproveQuals(unittest.TestCase):
             with self.subTest(job=job, x=x), self.assertRaises(AssertionError):
                 reprove.walk(job, [['W', x]])
 
+    def test_a_split_on_a_fixed_position_is_refused(self):
+        # Replicata: reprove.walk on 20:5's box with position 0 fixed to 1, given the tree B 0, L, L: a split of the
+        # position its box fixes, whose second half would be a box with position 0 at 0, outside the job's.
+        # Expectata: AssertionError at the B, naming its box's path, before any LP solve: walk asserts what frontier
+        # asks of a B.
+        # Resultata without that assertion (scratch/record-20261025/launch432/treeonly/redcopy): the walk went on to
+        # solve the B's LP, the stand-in solve raising 'solved'.
+        reprove.init(real(20, 5))
+        lp = reprove.lp_for(0)
+        with patch.object(lp, 'solve', side_effect=AssertionError('solved')), \
+                self.assertRaisesRegex(AssertionError, r'^\(\(0, 1\),\)$'):
+            reprove.walk((0, ((0, 1),)), [['B', 0], ['L'], ['L']])
+
     def test_a_leaf_is_retried_cold_then_primal(self):
         # Replicata: the first leaf box of a complete 20:5 tree, its LP on reprove's own LP, solved with the first k
         # solves stubbed to end without a dual ray (as at HiGHS's iteration limit), k = 0, 1, 2 and 3; each solve's

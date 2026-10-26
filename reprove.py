@@ -91,7 +91,7 @@ def walk(job, tree):
     lp = lp_for(case)
     stack, proved, start = [(tuple(map(tuple, path)), None)], [0] * len(ATTEMPTS), time.monotonic()
     def split(p, lo, hi, position):
-        assert type(position) is int and lo[position] < hi[position], p           # a free position, as frontier asks
+        assert type(position) is int and 0 <= position < len(lo) and lo[position] < hi[position], p   # a free one
         lp.solve(lo, hi)
         stack.extend([(p + ((position, 1),), lp.H.getBasis()), (p + ((position, 0),), None)])
     def leaf(p, lo, hi):
