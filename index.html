@@ -506,8 +506,6 @@ footer {
       </table>
     </div>
     <p>Note: <i>m</i><sup>*</sup>(2<sup>51</sup>) ≥ 52 is due to Richard Stong.</p>
-    <!-- TODO: says the upper bound 10 at 288 in Table 2 no longer rests on a citation: proof288.py (linked) checks exactly that no sequence of length 288 has order 11 -->
-    <p>Claude: "No sequence of length 288 has order 11, so the 10 at 288 no longer rests on a citation: <a href="https://github.com/dreeves/equipow/blob/main/proof288.py">proof288.py</a> checks this exactly."</p>
 
     <div class="new-block">
       <p class="block-label">Extended results since the paper</p>
@@ -537,6 +535,11 @@ footer {
           <tr class="ns"><th scope="row"><i>n</i></th><td class="c" title='Claude alone'>848</td><td class="c" title='Claude alone'>864</td><td class="c" title='Claude alone'>880</td><td class="c" title='Claude alone'>896</td><td class="c" title='Claude alone'>912</td><td class="c" title='Claude alone'>928</td><td class="c" title='Claude alone'>944</td><td class="c" title='Claude alone'>960</td><td class="c" title='Claude alone'>976</td><td class="c" title='Claude alone'>992</td><td class="c" title='Claude alone'>1008</td><td class="c" title='Claude alone'>1024</td></tr>
           <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="c">11</td><td class="c">12–14</td><td class="c">11</td><td class="c">11</td><td class="c">11–13</td><td class="c">11</td><td class="c">11</td><td class="c">13–15</td><td class="c">11</td><td class="c">11</td><td class="c">10–13</td><td class="c">11</td></tr>
         </table>
+      </div>
+      <p>Following the original table, we list multiples of 8 up to 304.
+        Then we list multiples of 16 up to 1024 because the odd multiples of 8 always have order 7. 
+        (BGPW's <a href="https://arxiv.org/html/1912.03491v1#S4.Thmthm1">Theorem 4.1</a> (Divisibility) tells us that odd multiples of 8 have <span class="nw"><i>m</i><sup>*</sup>(<i>n</i>) ≤ 7</span> and every case we know of from 200 on, the order is exactly 7.)</p>
+      <div class="scroll">
         <table class="block">
           <tr class="ns"><th scope="row"><i>n</i></th><td title='The published paper (2021)'>2<sup>3</sup></td><td title='The published paper (2021)'>2<sup>4</sup></td><td title='The published paper (2021)'>2<sup>5</sup></td><td title='The published paper (2021)'>2<sup>6</sup></td><td title='The published paper (2021)'>2<sup>7</sup></td><td title='The published paper (2021)'>2<sup>8</sup></td><td class="c" title='Claude alone'>2<sup>9</sup></td><td class="c" title='Claude alone'>2<sup>10</sup></td><td class="c" title='Claude alone'>2<sup>11</sup></td><td class="c" title='Claude alone'>2<sup>12</sup></td><td class="c" title='Claude alone'>2<sup>17</sup></td><td class="c" title='Claude alone'>2<sup>18</sup></td><td class="c" title='Claude alone'>2<sup>20</sup></td><td class="j" title='Claude and BGPW'>2<sup>24</sup></td></tr>
           <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td><td>8</td><td class="c">9</td><td class="c">11</td><td class="c">12</td><td class="c">13</td><td class="c">18–20</td><td class="c">19–21</td><td class="c">22–23</td><td class="j">26–29</td></tr>
@@ -550,8 +553,6 @@ footer {
           <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="c">55–60</td><td class="j">57–63</td><td class="c">58–64</td><td class="c">64–70</td><td class="c">68–75</td><td class="c">73–81</td><td class="c">74–82</td><td class="c">75–83</td><td class="c">77–84</td><td class="c">80–88</td><td class="c">81–89</td></tr>
         </table>
       </div>
-      <!-- TODO: says which n the table lists above its powers of 2: every multiple of 8 up to 304, as Table 2 does, then every multiple of 16 up to 1024, because BGPW's Theorem 4.1 (Divisibility, linked) gives m*(n) ≤ 7 at every odd multiple of 8, and every one from 200 on has m*(n) = 7 -->
-      <p>Claude: "Above its powers of 2, this table lists every multiple of 8 up to 304, as Table 2 does, then every multiple of 16 up to 1024: an odd multiple of 8 has <span class="nw"><i>m</i><sup>*</sup>(<i>n</i>) ≤ 7</span> by BGPW's <a href="https://arxiv.org/html/1912.03491v1#S4.Thmthm1">Theorem 4.1</a> (Divisibility), and every one from 200 on has <span class="nw"><i>m</i><sup>*</sup>(<i>n</i>) = 7</span>."</p>
     </div>
   </div>
 
@@ -638,6 +639,12 @@ footer {
       <p>Claude: "Order 11 is ruled out by a computer search. It splits the question by how many +1's fall in each residue class mod 3, 5, 7, 4, 8, 11, 13 and 9, and closes every case with linear-programming certificates checked in exact integer arithmetic; the last 606 cases needed splitting further, mod 17, and 4 of those mod 19 as well."</p>
       <!-- TODO: names the code of the search, with links, and says its journals hold every verdict with the hash of its proof -->
       <p>Claude: "The code is <a href="https://github.com/dreeves/equipow/blob/main/overnight_v5.py">overnight_v5.py</a> with <a href="https://github.com/dreeves/equipow/blob/main/certbb.py">certbb.py</a>, and <a href="https://github.com/dreeves/equipow/blob/main/boxsplit.py">boxsplit.py</a> for the last 606 cases; their journals hold every verdict with the hash of its proof."</p>
+    </li>
+    <li>
+      <span class="mk" aria-hidden="true"></span>
+      <p class="entry"><i>n</i> = 288: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {9, 10}</span></p>
+      <!-- TODO: says this entry is not a new result: m*(288) ≤ 10, the upper value in Table 2's entry for 288, is rederived here; proof288.py (linked) checks exactly that no partition of {0, …, 287} into two parts has equal power sums for every exponent from 0 to 10, so the bound no longer has to be taken from the paper -->
+      <p>Claude: "Not a new result: <span class="nw"><i>m</i><sup>*</sup>(288) ≤ 10</span>, the upper value in Table 2's entry for 288, is rederived here. <a href="https://github.com/dreeves/equipow/blob/main/proof288.py">proof288.py</a> checks exactly that no partition of {0, …, 287} into two parts has equal power sums for every exponent from 0 to 10, so the bound no longer has to be taken from the paper."</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>

@@ -121,7 +121,7 @@ def bounds(v):
 
 
 def new_cells(text):
-    """{n: (low, high)}, as bounds() reads them, for every entry of the block "New results since the paper" in text (a
+    """{n: (low, high)}, as bounds() reads them, for every entry of the new results' block (div.new-block) in text (a
     version of index.html) that has a provenance class: the rest copy Table 2's entries (2^3 to 2^8 until 2026-10-27,
     and since then every entry of Table 2 that stands, the block subsuming it).  A length the block shows twice, in its
     upper rows and as a power of 2 (since 2026-10-27, 8 to 1024), must be the same cell both times."""
@@ -915,7 +915,7 @@ def changelog_by_day():
 
 def q_changelog_brings_every_new_result_up_to_date():
     # Replicata: the changelog's statements, day by day, oldest first, starting from no bounds (0 and inf); the block
-    # "New results since the paper"; and the m*(n) chart's reasons for its bounds.
+    # (div.new-block); and the m*(n) chart's reasons for its bounds.
     # Expectata (dreeves, 2026-10-26: "yes please", to a changelog entry with each update of the new results; and, of
     # its first 112 statements, "if there's an excuse to trim it down, we should"): each statement tightens its n's
     # bounds, raising the low, lowering the high, or both, and is still true, the block's bounds for n lying within the
@@ -1184,13 +1184,14 @@ def q_new_results_fit_unscrolled_at_945_px():
     # Expectata (the CSS comment on the new results' side padding: "keeps it in one row, unscrolled, at 945 px"; since
     # 2026-10-25, when the powers of 2 reached 23, their two rows too, and since 2026-10-26, when they reached 35 and
     # took three rows, those three; since 2026-10-27, when the block took in Table 2 and reached 1024, its six upper
-    # rows): no table is wider than the frame, so the frame does not scroll.
+    # rows, and since later that day the block's two frames, one for them and one for the powers of 2): no table is
+    # wider than its frame, so neither frame scrolls.
     d = tempfile.mkdtemp(prefix='index-quals-')
     try:
         for name in ('mstar.js', 'pow2.js', 'progress.js'): shutil.copy(os.path.join(HERE, name), d)
-        script = ("<script>addEventListener('load', () => setTimeout(() => { const f = document.querySelector('.new-block .scroll'); "
-                  "const p = document.createElement('pre'); p.id = 'fit'; p.textContent = JSON.stringify({frame: f.clientWidth, "
-                  "scroll: f.scrollWidth, tables: [...f.querySelectorAll('table.block')].map(t => t.getBoundingClientRect().width)}); "
+        script = ("<script>addEventListener('load', () => setTimeout(() => { const p = document.createElement('pre'); p.id = 'fit'; "
+                  "p.textContent = JSON.stringify([...document.querySelectorAll('.new-block .scroll')].map(f => ({frame: f.clientWidth, "
+                  "scroll: f.scrollWidth, tables: [...f.querySelectorAll('table.block')].map(t => t.getBoundingClientRect().width)}))); "
                   "document.body.append(p); }, 500));</script>\n")
         open(os.path.join(d, 'index.html'), 'w', encoding='utf-8').write(page().replace('</body>', script + '</body>'))
         dom = chrome(d, ['--window-size=945,1200', '--virtual-time-budget=4000', '--dump-dom', 'file://' + os.path.join(d, 'index.html')])
@@ -1199,19 +1200,28 @@ def q_new_results_fit_unscrolled_at_945_px():
     m = re.search(r'<pre id="fit">(.*?)</pre>', dom)
     assert m, dom[-500:]
     R = json.loads(m.group(1))
-    assert len(R['tables']) == 9 and R['scroll'] <= R['frame'] and max(R['tables']) <= R['frame'], R
+    assert [len(f['tables']) for f in R] == [6, 3], R
+    assert all(f['scroll'] <= f['frame'] and max(f['tables']) <= f['frame'] for f in R), R
+
+
+def new_frames(text):
+    """The HTML inside each sideways-scrolling frame (div.scroll) of the new results' block in text, in page order:
+    since 2026-10-27, one for the lengths other than powers of 2 and one for the powers of 2."""
+    block = text[text.index('<div class="new-block">'):text.index('</figure>')]
+    return re.findall(r'<div class="scroll">(.*?)</div>', block, re.S)
 
 
 def new_block_cells():
-    """The new results' tables, each as a list of (n, its n cell as the page writes it, the n cell's attributes, the
-    value cell's attributes, the value), in page order."""
-    frame = re.search(r'<div class="new-block">.*?<div class="scroll">(.*?)</div>', page(), re.S).group(1)
+    """The new results' tables, frame by frame (new_frames), each table as a list of (n, its n cell as the page writes
+    it, the n cell's attributes, the value cell's attributes, the value), in page order."""
     out = []
-    for t in re.findall(r'<table class="block">.*?</table>', frame, re.S):
-        ns = re.findall(r'<td([^>]*)>(.*?)</td>', re.search(r'<tr class="ns">.*?</tr>', t, re.S).group(0))
-        vs = re.findall(r'<td([^>]*)>(.*?)</td>', re.search(r'<tr class="vals">.*?</tr>', t, re.S).group(0))
-        assert len(ns) == len(vs) and ns, t
-        out.append([(cell_n(c), c, a, va, v) for (a, c), (va, v) in zip(ns, vs)])
+    for frame in new_frames(page()):
+        out.append([])
+        for t in re.findall(r'<table class="block">.*?</table>', frame, re.S):
+            ns = re.findall(r'<td([^>]*)>(.*?)</td>', re.search(r'<tr class="ns">.*?</tr>', t, re.S).group(0))
+            vs = re.findall(r'<td([^>]*)>(.*?)</td>', re.search(r'<tr class="vals">.*?</tr>', t, re.S).group(0))
+            assert len(ns) == len(vs) and ns, t
+            out[-1].append([(cell_n(c), c, a, va, v) for (a, c), (va, v) in zip(ns, vs)])
     return out
 
 
@@ -1221,16 +1231,20 @@ def q_new_results_subsume_table2():
     # color-coding makes it nice and clear which cells are repeated from that table"; Stan Wagon, by dreeves: the
     # upper part "should include 256, 512, and 1024 for completeness", and "could the table and the chart go up to
     # 1024 as the natural stopping point, instead of 1000?"; dreeves, on the lengths: "multiples of 16 with
-    # one-sentence explanation sounds good"): the upper rows, their n in digits, come first, then the rows of powers
-    # of 2, written 2^k, with k rising from 3; the upper rows' lengths are every multiple of 8 up to 304, as in Table 2,
+    # one-sentence explanation sounds good"; then "can we split the table into the non-powers-of-2 and the
+    # powers-of-2 and move the note about multiples of 8 or 16 under the non-power-of-2 table?"): the block has two
+    # frames, the first holding the upper rows, their n in digits, and the second the rows of powers of 2, written
+    # 2^k, with k rising from 3; the upper rows' lengths are every multiple of 8 up to 304, as in Table 2,
     # then every multiple of 16 up to NMAX; every entry of Table 2 is in the block, as a cell without a provenance
     # class, titled "The published paper (2021)", with exactly Table 2's bounds, or as a classed cell whose bounds lie
     # within Table 2's (240, 304 and 2^51, each improved since); every unclassed cell is such a copy; and a length the
     # block shows twice, in the upper rows and as a power of 2 (8 to 1024), is the same cell both times.
-    rows = new_block_cells()
-    upper = [r for r in rows if all(re.fullmatch(r'\d+', c) for _, c, *_ in r)]
-    pows = [r for r in rows if all(re.fullmatch(r'2<sup>\d+</sup>', c) for _, c, *_ in r)]
-    assert rows == upper + pows and upper and pows, [[c for _, c, *_ in r] for r in rows]
+    frames = new_block_cells()
+    assert len(frames) == 2, [[[c for _, c, *_ in r] for r in f] for f in frames]
+    upper, pows = frames
+    rows = upper + pows
+    assert all(re.fullmatch(r'\d+', c) for r in upper for _, c, *_ in r) and upper, [[c for _, c, *_ in r] for r in upper]
+    assert all(re.fullmatch(r'2<sup>\d+</sup>', c) for r in pows for _, c, *_ in r) and pows, [[c for _, c, *_ in r] for r in pows]
     assert [n for r in upper for n, *_ in r] == list(range(8, 305, 8)) + list(range(320, NMAX + 1, 16))
     ks = [n.bit_length() - 1 for r in pows for n, *_ in r]
     assert ks[0] == 3 and ks == sorted(set(ks)), ks
@@ -1255,18 +1269,21 @@ def q_new_results_subsume_table2():
 
 
 def q_new_results_say_which_lengths():
-    # Replicata: the paragraph right after the new results' frame (the sentence dreeves asked for on 2026-10-27:
-    # "multiples of 16 with one-sentence explanation sounds good"), its text with tags dropped; the upper rows'
-    # lengths; mstar.js's columns.
+    # Replicata: the paragraph between the new results' two frames, right under the table of lengths other than
+    # powers of 2 (the sentence dreeves asked for on 2026-10-27: "multiples of 16 with one-sentence explanation sounds
+    # good", and where he put it: "move the note about multiples of 8 or 16 under the non-power-of-2 table"), its text
+    # with tags dropped; the upper rows' lengths; mstar.js's columns.
     # Expectata: the paragraph names, as numbers, what the table and the chart give: 8 and 304, the step of the upper
     # rows up to their last length before the step doubles, 16, the step after, 7, which the two lemma (BGPW's
     # Theorem 4.1, linked) allows an odd multiple of 8 at most, and 200, the least n from which every odd multiple of
     # 8 up to NMAX has lo = hi = 7 in mstar.js (so that none of them, past 304, has anything to show); and it links
     # Theorem 4.1.
-    m = re.search(r'<div class="new-block">.*?<div class="scroll">.*?</div>\s*(?:<!--.*?-->\s*)*<p>(.*?)</p>', page(), re.S)
-    assert m, 'no paragraph after the new results\' frame'
+    block = page()[page().index('<div class="new-block">'):page().index('</figure>')]
+    m = re.search(r'<div class="scroll">(?:(?!</div>).)*</div>\s*(?:<!--(?:(?!-->).)*-->\s*)*<p>((?:(?!</p>).)*)</p>\s*'
+                  r'<div class="scroll">', block, re.S)
+    assert m, 'no paragraph between the new results\' frames'
     said = {int(t) for t in re.findall(r'(?<![\w.])\d+(?![\w.])', re.sub(r'<[^>]+>', '', m.group(1)))}
-    lengths = [n for r in new_block_cells() if re.fullmatch(r'\d+', r[0][1]) for n, *_ in r]
+    lengths = [n for r in new_block_cells()[0] for n, *_ in r]
     steps = [b - a for a, b in zip(lengths, lengths[1:])]
     turn = lengths[steps.index(16)]
     assert set(steps) == {8, 16} and steps == sorted(steps), steps
@@ -1341,13 +1358,16 @@ def q_chart_agrees_with_tables():
 
 
 def q_new_results_state_what_the_chart_proves():
-    # Replicata: the new results' tables on index.html (every n, the powers of 2 included, less the final row's copies of
-    # Table 2's powers of 2, which Table 2 accounts for) and the remarks' entries under
-    # "Where the new results come from" (each entry's n's and its "m* = v", "≥ v", "∈ {a, b, ...}" or "∈ {a, …, b}");
+    # Replicata: the new results' tables on index.html (every n, the powers of 2 included, with each cell's provenance
+    # class, none for the copies of Table 2's entries) and the remarks' entries under "Where the new results come from"
+    # (each entry's n's, its "m* = v", "≥ v", "∈ {a, b, ...}" or "∈ {a, …, b}", and its <li>'s class);
     # mstar.js's columns for n <= NMAX and pow2.js's for n = 2^k.
-    # Expectata: every one states exactly its chart's [lo, hi] at its n, so no "≥" stands where a chart proves an upper
-    # bound (dreeves's report of 2026-10-11: 432's entry said ≥ 11 beside the chart's 11–12; and 2^51's said ≥ 53
-    # beside the powers-of-2 chart's 54–63 until 2026-10-12).
+    # Expectata: every cell with a provenance class, and every remark, states exactly its chart's [lo, hi] at its n, so
+    # no "≥" stands where a chart proves an upper bound (dreeves's report of 2026-10-11: 432's entry said ≥ 11 beside the
+    # chart's 11–12; and 2^51's said ≥ 53 beside the powers-of-2 chart's 54–63 until 2026-10-12); the remarks are one
+    # each for exactly the classed cells' n, and for uncolored ones they rederive (since 2026-10-27, 288's: "just
+    # clarify that that one isn't technically new but is rederived here"); and each remark is marked like its cell,
+    # its <li> of the cell's class, or of none.
     cols, pow2 = mstar_data()['cols'], pow2_data()['cols']
     def chart(n):
         k = n.bit_length() - 1
@@ -1365,22 +1385,26 @@ def q_new_results_state_what_the_chart_proves():
         assert len(hits) == 1, v
         assert '…' in v or not v.startswith('∈') or [int(t) for t in re.findall(r'\d+', v)] == list(range(hits[0][0], hits[0][1] + 1)), v
         return hits[0]
-    frame = re.search(r'<div class="new-block">.*?<div class="scroll">(.*?)</div>', page(), re.S).group(1)
     table = []
-    for t in re.findall(r'<table class="block">.*?</table>', frame, re.S):
+    for t in re.findall(r'<table class="block">.*?</table>', ''.join(new_frames(page())), re.S):
         ns = re.findall(r'<td([^>]*)>(.*?)</td>', re.search(r'<tr class="ns">.*?</tr>', t, re.S).group(0))
         vs = re.findall(r'<td[^>]*>(.*?)</td>', re.search(r'<tr class="vals">.*?</tr>', t, re.S).group(0))
         assert len(ns) == len(vs) and ns, t
-        table += [(n_of(n), *value(v)) for (attr, n), v in zip(ns, vs)
-                  if 'class=' in attr]    # the cells without a provenance class copy Table 2's entries
+        table += [(n_of(n), *value(v), re.fullmatch(r'(?: class="(\w+)")? title=\'[^\']*\'', attr).group(1) or '')
+                  for (attr, n), v in zip(ns, vs)]    # the cells without a provenance class copy Table 2's entries
     remarks = []
-    for ns, v in re.findall(r'<p class="entry"><i>n</i> = ([^:]*): &nbsp;<span class="nw"><i>m</i><sup>\*</sup> ([^<]*)</span>',
-                            page()):
-        remarks += [(n_of(n), *value(v)) for n in ns.split(', ')]
-    # 512 and 1024 stand twice, in the upper rows and as powers of 2 (since 2026-10-27); each remark once
-    assert sorted({n for n, *_ in table}) == sorted(n for n, *_ in remarks), (table, remarks)
-    wrong = [(where, n, lo, hi, chart(n)) for where, got in (('table', table), ('remark', remarks))
-             for n, lo, hi in got if [lo, hi] != chart(n)]
+    entry = (r'<li(?: class="(\w+)")?(?: id="\w+")?>\s*<span class="mk" aria-hidden="true">[^<]*</span>\s*'
+             r'<p class="entry"><i>n</i> = ([^:]*): &nbsp;<span class="nw"><i>m</i><sup>\*</sup> ([^<]*)</span>')
+    for cls, ns, v in re.findall(entry, page()):
+        remarks += [(n_of(n), *value(v), cls) for n in ns.split(', ')]
+    assert len(re.findall(entry, page())) == page().count('<p class="entry">'), 'an entry outside the form'
+    # 512 and 1024 stand twice, in the upper rows and as powers of 2 (since 2026-10-27), as the same cell; each remark once
+    cells = {n: c for n, lo, hi, c in table}
+    assert len(remarks) == len({n for n, *_ in remarks}), remarks
+    assert sorted(n for n, c in cells.items() if c) == sorted(n for n, lo, hi, c in remarks if c), (cells, remarks)
+    assert all(cells[n] == c for n, lo, hi, c in remarks), [(n, c, cells.get(n)) for n, lo, hi, c in remarks]
+    wrong = [(where, n, lo, hi, chart(n)) for where, got in (('table', [t for t in table if t[3]]), ('remark', remarks))
+             for n, lo, hi, c in got if [lo, hi] != chart(n)]
     assert not wrong, wrong
 
 
@@ -1390,7 +1414,7 @@ def q_citations_match_the_page():
     # Expectata: a ["table2"] column is one of Table 2's n; a ["page", who] column is one of the new results' n.  As
     # hiWhy, who is its cell's title (whose proof).
     fig = re.search(r'<figure>.*?</figure>', page(), re.S).group(0)
-    new = re.search(r'<div class="new-block">.*?<div class="scroll">(.*?)</div>', fig, re.S).group(1)
+    new = ''.join(new_frames(page()))
     value = lambda cell: int(cell) if cell.isdigit() else 2 ** int(re.fullmatch(r'2<sup>(\d+)</sup>', cell).group(1))
     titled = {value(n): (cls, who) for cls, who, n in
               re.findall(r"<td(?: class=\"(a|c|ca|j|s)\")? title='([^']*)'>([^<]*(?:<sup>\d+</sup>)?)</td>", new)}
@@ -1436,7 +1460,7 @@ def q_claude_and_astra_is_a_category_like_claude_and_bgpw():
     text = page()
     assert re.search(r'<li><span class="key a" aria-hidden="true">✦</span>[^\n]*</li>\n'
                      r'    <li><span class="key ca" aria-hidden="true"><span>◆✦</span></span>[^\n]*</li>\n', text)
-    new = re.search(r'<div class="new-block">.*?<div class="scroll">(.*?)</div>', text, re.S).group(1)
+    new = ''.join(new_frames(text))
     ca = []
     for t in re.findall(r'<table class="block">.*?</table>', new, re.S):
         ns = re.findall(r'<td([^>]*)>(.*?)</td>', re.search(r'<tr class="ns">.*?</tr>', t, re.S).group(0))
@@ -1499,12 +1523,23 @@ def q_752_bound_cites_proof752():
 
 
 def q_288_bound_is_proved_here():
-    # Replicata: index.html's figure of Table 2, mstar.js's column 288, and the repository's files.
-    # Expectata (2026-10-25: proof288.py proves m*(288) <= 10, Table 2's upper value, so no cell changes): the figure
-    # of Table 2 links proof288.py at its GitHub address; mstar.js's column 288 cites Table 2, [9, 10, …, ["table2"]];
-    # and proof288.py is in the working directory.
-    fig = re.search(r'<figure>.*?</figure>', page(), re.S).group(0)
-    assert 'href="https://github.com/dreeves/equipow/blob/main/proof288.py"' in fig, fig[:600]
+    # Replicata: index.html's figure of Table 2 and its remarks under "Where the new results come from", mstar.js's
+    # column 288, and the repository's files.
+    # Expectata (2026-10-25: proof288.py proves m*(288) <= 10, Table 2's upper value, so no cell changes; 2026-10-27,
+    # dreeves, of the note under Table 2 that said so: "can you put that in the 'where the new results come from'
+    # section instead and just clarify that that one isn't technically new but is rederived here?"): the figure no
+    # longer mentions proof288.py; the remarks have an entry of 288 alone, "m* ∈ {9, 10}", right after 240's and right
+    # before 304's, in an <li> without a class and with an empty marker, as 288's cell in the new results has no
+    # provenance class (the paper's value), and it links proof288.py at its GitHub address; mstar.js's column 288
+    # cites Table 2, [9, 10, …, ["table2"]]; and proof288.py is in the working directory.
+    text = page()
+    fig = re.search(r'<figure>.*?</figure>', text, re.S).group(0)
+    assert 'proof288' not in fig, fig[:600]
+    li = re.search(r'<li>\n      <span class="mk" aria-hidden="true"></span>\n      <p class="entry"><i>n</i> = 288: &nbsp;'
+                   r'<span class="nw"><i>m</i><sup>\*</sup> ∈ \{9, 10\}</span></p>\n(.*?)\n    </li>', text, re.S)
+    assert li and 'href="https://github.com/dreeves/equipow/blob/main/proof288.py"' in li.group(1), li and li.group(1)
+    listed = re.findall(r'<p class="entry"><i>n</i> = ([^:]*): ', text)
+    assert listed[listed.index('288') - 1:listed.index('288') + 2] == ['240', '288', '304'], listed
     col = mstar_data()['cols'][288 - 1]
     assert col[:2] == [9, 10] and col[3] == ['table2'], col
     assert os.path.isfile(os.path.join(HERE, 'proof288.py'))
