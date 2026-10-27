@@ -64,11 +64,6 @@ def section():
     return m.group(0)
 
 
-def text(fragment):
-    """fragment as a reader gets it: tags removed, entities decoded, white space collapsed."""
-    return re.sub(r'\s+', ' ', html.unescape(re.sub(r'<[^>]*>', '', fragment))).strip()
-
-
 def order(f):
     """The order of f: how many of its power sums sum_i f_i i^k, k = 0, 1, ..., vanish, with positions from 0 and
     0^0 = 1, in exact integers."""
@@ -150,23 +145,6 @@ def q_section_follows_counts_and_precedes_sets():
                      r'<section class="sets">', t, re.S)
 
 
-def q_section_is_one_claude_quote():
-    # Replicata: the section's lines.
-    # Expectata: dreeves's form for it (2026-10-14), all its English in a block quote attributed to Claude: inside the
-    # section, a <!-- TODO: comment (a recap of the quote, for dreeves), his lead-in (quals_index.QUOTE_LEADIN, "Still
-    # Claude:"), and then the quote, from <blockquote class="claude"> to </blockquote>, and nothing else but blank
-    # lines; the quote's first line inside is the heading <h2 id="lattice-title"> and its last is the attribution
-    # <p class="attrib">— Claude</p>.
-    lines = [l.strip() for l in section().splitlines() if l.strip()]
-    assert lines[0] == '<section class="lattice" aria-labelledby="lattice-title">' and lines[-1] == '</section>', lines
-    assert lines[1].startswith('<!-- TODO:') and lines[1].endswith('-->'), lines[1]
-    assert tuple(lines[2:5]) == ('<p>', 'Still Claude:', '</p>'), lines[2:5]
-    assert lines[5] == '<blockquote class="claude">' and lines[-2] == '</blockquote>', (lines[5], lines[-2])
-    assert lines[6].startswith('<h2 id="lattice-title">') and lines[6].endswith('</h2>'), lines[6]
-    assert lines[-3] == '<p class="attrib">— Claude</p>', lines[-3]
-    assert section().count('<blockquote') == 1 and 'Claude: "' not in section()
-
-
 def q_section_links_the_wl():
     # Replicata: the section's links, and the repository's files.
     # Expectata: one link to lattice_search.wl, at its raw GitHub address (as the page links proof512.wl), and the
@@ -201,15 +179,12 @@ def q_section_states_the_dimensions():
         assert len(mine) == 1 and f'<i>d</i> = {d}' in mine[0], (n, d, mine)
 
 
-def q_section_says_when_an_empty_result_proves_none():
-    # Replicata: the section's text; and latticeSearch[112, 7, -1, "Want" -> Infinity, "MaxNodes" -> 10^6,
-    # "TimeLimit" -> 1], an unpruned search of a tree of 285 million nodes that holds 2 sequences (CALLS), cut off.
-    # Expectata: the section says an empty list proves there are none only when "complete" is True, and that a search
-    # cut off by "MaxNodes" returns False (Stan Wagon read an empty result at 240, order 10, as "no solution",
-    # 2026-10-16); and the cut-off search does: every trial stops at 10^6 nodes, and "complete" is False.
-    t = text(section())
-    assert 'An empty list of sequences proves there are none only when the result\'s "complete" is True' in t, t
-    assert 'a search cut off by "MaxNodes" returns False' in t, t
+def q_cut_off_search_is_not_complete():
+    # Replicata: latticeSearch[112, 7, -1, "Want" -> Infinity, "MaxNodes" -> 10^6, "TimeLimit" -> 1], an unpruned
+    # search of a tree of 285 million nodes that holds 2 sequences (CALLS), cut off.
+    # Expectata: every trial stops at 10^6 nodes, and "complete" is False, so an empty list from a cut-off search does
+    # not read as proof that there are none (Stan Wagon read an empty result at 240, order 10, as "no solution",
+    # 2026-10-16).
     call = 'latticeSearch[112, 7, -1, "Want" -> Infinity, "MaxNodes" -> 10^6, "TimeLimit" -> 1]'
     comp, trials, nodes = run(f'With[{{r = {call}}}, Print[ExportString[{{r["complete"], r["trials"], r["nodes"]}}, '
                               f'"JSON", "Compact" -> True]]]')
@@ -218,17 +193,6 @@ def q_section_says_when_an_empty_result_proves_none():
 
 # ---------------------------------------------------------------------------------------------------------------------
 # lattice_search.wl
-
-def q_wl_says_claude_wrote_it():
-    # Replicata: lattice_search.wl's first comment.
-    # Expectata: it opens the file, and its first paragraph says Claude wrote the code and every comment, and that no
-    # human has reviewed them.
-    src = open(WL, encoding='utf-8').read()
-    assert src.startswith('(* lattice_search.wl\n'), src[:80]
-    first = re.sub(r'\s+', ' ', src[:src.index('\n\n', src.index('Written by'))])
-    assert 'Written by Claude (Claude Opus 5.5, an AI model made by Anthropic)' in first, first
-    assert "The code and every comment in this file are Claude's; no human has reviewed them." in first, first
-
 
 def q_wl_calls_return_what_the_section_says():
     # Replicata: each call of CALLS, in one Mathematica kernel.

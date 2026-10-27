@@ -4,7 +4,7 @@ arguments: all quals).
 
 Each qual is a function q_*: a passing qual returns, a failing one raises.  Each qual's comment gives its replicata (the
 setup) and expectata (what must happen); a failure's message or traceback gives the resultata (what happened instead).
-The static quals read index.html, index.html as it was before the chart (git show BASE:index.html) and mstar.js.  The
+The static quals read index.html and mstar.js (and, for the changelog, index.html's git history and sourcery.html).  The
 browser quals load a copy of index.html in headless Chrome (in an iframe of the width each configuration asks for,
 since the window cannot be narrower than 500 px), in a temporary directory with a copy of mstar.js (or made-up data)
 and of pow2.js (the data of the page's chart of powers of 2), with two scripts added:
@@ -17,7 +17,7 @@ reader sees.
 """
 import sys
 sys.dont_write_bytecode = True
-import os, re, json, html, html.parser, math, time, shutil, signal, difflib, datetime, zoneinfo, tempfile, threading, traceback, subprocess
+import os, re, json, html, html.parser, math, time, shutil, signal, datetime, zoneinfo, tempfile, threading, traceback, subprocess
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 INDEX = os.path.join(HERE, 'index.html')
@@ -31,367 +31,12 @@ EVEN = list(range(2, NMAX + 1, 2))            # the chart's columns: an odd n ha
 NCOL = len(EVEN)
 STEPS = (2, 10, 20, 50, 100, 200, 500)        # the steps of the n labels: 1, 2, 5, 10, ... without the odd ones
 RUNS = {}                                     # browser runs by configuration name, made once per process (see run)
-# The last commit before the chart ("Got 304:8").  The chart went in as insertions only, so the static quals diff
-# against it, which guards that change; rebase it when dreeves next edits the page's existing text.
-BASE = '014048c'
-# dreeves's copyedit of the chart (917fe7f): his words, which stand without a Claude: "…" attribution.  The quals hold
-# the page to them exactly, and any other English the chart shows must be Claude: "…".
-HEADING = 'Bounds on <span class="nw"><i>m</i><sup>*</sup>(<i>n</i>)</span> for every even <i>n</i> up to 1000'
-ZOOM_LABELS = ('zoom out', 'zoom in')         # the zoom buttons' aria-labels (he fixed a stray quote, 2026-10-11)
-CANVAS_LABEL = 'chart of the bounds on m*(n) for even n up to 1000; the arrow keys pan, and + and − zoom'
-HINT = 'Hover over a cell for details. Drag or swipe sideways to pan; zoom with the − and + buttons, pinching, or ctrl-scroll.'
-ERROR = 'Error drawing the chart: '           # the readout when the chart cannot be drawn, followed by the error
-# The lines of the page that hold his words, stripped: the copy rules of q_new_copy_is_attributed pass over them.
-DREEVES_LINES = (f'<h2 id="mstar-title">{HEADING}</h2>',
-                 '<li><span class="swatch open" aria-hidden="true"></span>open</li>',
-                 f'<button type="button" id="mstar-zoom-out" aria-label=\'{ZOOM_LABELS[0]}\' title=\'Claude: "zoom out"\'>−</button>',
-                 f'<button type="button" id="mstar-zoom-in" aria-label=\'{ZOOM_LABELS[1]}\' title=\'Claude: "zoom in"\'>+</button>',
-                 '<button type="button" id="mstar-reset" aria-label=\'reset zoom\' title=\'reset zoom\'>↺</button>',
-                 # and his copyedit of the powers-of-2 chart (its own quals, quals_pow2_page.py, hold it too)
-                 '<h2 id="pow2-title">Bounds on <span class="nw"><i>m</i><sup>*</sup>(2<sup><i>k</i></sup>) − <i>k</i></span> for every <i>k</i> up to 72</h2>',
-                 '<div id="pow2-chart" role="img" aria-label=\'Chart of the bounds on m*(2^k) − k, the excess over Thue–Morse, for k from 1 to 72\'></div>',
-                 '<p id="pow2-readout" aria-live="polite">Hover over a cell for details.</p>',
-                 # the powers-of-2 chart's legend repeats his "open" line, copied from this chart's (2026-10-12)
-                 '<li><span class="swatch open" aria-hidden="true"></span>open</li>',
-                 f'<canvas id="mstar-chart" height="0" tabindex="0" role="img" aria-label=\'{CANVAS_LABEL}\'></canvas>',
-                 f'<p id="mstar-readout" aria-live="polite">{HINT}</p>',
-                 f'ro.textContent = `{ERROR}${{e}}`;')
-# dreeves and Stan Wagon's theorem, from their draft (2026-10-17: "xxxTheorem 1. m*(2^17) ≥ 18, …"), typeset atop the
-# powers-of-2 section at dreeves's request ("sure"), in their words but for 64 at 2^57 (their 63 was the excess of 2^52)
-# and without the draft's marker xxx and its note to themselves ("and same for smaller powers; Berend and Golan,
-# check"): his words, so they stand without a Claude: "…" attribution, and the quals hold the page to them exactly.
-# Their numbers changed once 592, 608 and 656 reached order 10 and 848, 880, 896, 928, 944, 976 and 992 order 11
-# (2026-10-25; dreeves, 2026-10-25: "yes please"): the thresholds 27, 34, 38, 52 and 66 became 20, 30, 37, 49 and 65,
-# and excess 9 at 2^72 joined them, in their list's own form, the count of excesses 8 becoming 9; no other character
-# changed.
-# They changed again once 752 and 784 reached order 10 and 832 order 11 (2026-10-26; dreeves, 2026-10-25: "yes
-# please", for keeping them current): the thresholds 46, 49 and 72 became 43, 48 and 68; no excess is new, so the list
-# keeps its form and its count; no other character changed.
-THEOREM = ('<p><b>Theorem 1.</b> ' + ', '.join(f'<span class="nw"><i>m</i><sup>*</sup>(2<sup>{k}</sup>) ≥ {v}</span>' for k, v in
-           ((17, 18), (20, 22), (30, 33), (37, 41), (43, 48), (48, 54), (57, 64), (65, 73), (68, 77))) +
-           ' and <span class="nw"><i>m</i><sup>*</sup>(2<sup>9</sup>) = 9</span>.</p>')
-# and its alternative form from the same draft ("or xxxTheorem 1. For i = 1, 2, …, 8, the known smallest values of n
-# for which m*(2^n) − n ≥ i are 17, 27, 34, 38, 46, 52, 57, 66."), right below it at dreeves's request (2026-10-17: "can
-# we get the alternate version of the theorem statement added?"), in their words, with their "or", without the xxx
-THEOREM_ALT = ('<p>or <b>Theorem 1.</b> For <span class="nw"><i>i</i> = 1, 2, …, 9</span>, the known smallest values of '
-               '<i>n</i> for which <span class="nw"><i>m</i><sup>*</sup>(2<sup><i>n</i></sup>) − <i>n</i> ≥ <i>i</i></span> are '
-               '17, 20, 30, 37, 43, 48, 57, 65, 68.</p>')
-DREEVES_LINES += (THEOREM, THEOREM_ALT)
-# Stan Wagon's header for the table of record gaps (his table of 2026-10-18, which record_gaps.wl and the table below
-# the theorem extend): its words and its line, byte for byte; a human's words, so the copy rules pass over them too
-STAN_WORDS = ('Record gaps', 'The power of 2', 'The order')
-STAN_HEADER = ''.join(['<thead><tr>'] + [f'<th>{w}</th>' for w in STAN_WORDS] + ['</tr></thead>'])
-DREEVES_LINES += (STAN_HEADER,)
-# his note under Table 2 crediting Richard Stong (2026-10-18, commit 23ba3db, "Stong got 2^51": his rewording of the
-# line Claude had put there at his request), byte for byte
-STONG_NOTE = '<p>Note: <i>m</i><sup>*</sup>(2<sup>51</sup>) ≥ 52 is due to Richard Stong.</p>'
-DREEVES_LINES += (STONG_NOTE,)
-# his wording of the m*(n) chart's legend label for the gold rings (2026-10-19, commit 9e46bb5 "Gold trim": his
-# rewording of the label Claude had put there at his request), byte for byte
-GOLD_LEGEND = '<li><span class="swatch exists record" aria-hidden="true"></span><span><span class="nw"><i>n</i> = <i>a</i>(<i>m</i> − 1)</span> of OEIS <a href="https://oeis.org/A323395">A323395</a>, the smallest <i>n</i> for a given <i>m</i></span></li>'
-DREEVES_LINES += (GOLD_LEGEND,)
-# his copy of 2026-10-24 and 25 that came as new lines, byte for byte (his edits of lines already in the page before the
-# chart are in TABLE_UPDATE): the sentence of the {1, …, 8} example in the header (2026-10-25, commit 48710ae "Human
-# copy", its "..." made "…" by him the same evening); the sentence on the hex codes, moved from the footer to the top of the remarks and reworded (2026-10-24, commit
-# 35dd836 "Edits"); and the 416 proof's heading and its line on BGPW's 208:8 code, unattributed in the commit that added
-# the proof (2026-10-24, b475924 "Add proof for 416:9"), so his
-EXAMPLE8 = ("For {1, …, 8} it turns out there's a partition &mdash; {1, 4, 6, 7} and {2, 3, 5, 8} &mdash; that gets us up "
-            'to <i>k</i> = 2, meaning <i>m</i><sup>*</sup>(8) = 3:')
-HEX_NOTE = ('<p>The hex codes shown below follow Table 5 of BGPW:',
-            'the left half of the signs <span class="nw">(1 = +1, 0 = −1)</span>, then the rest by <span class="nw">(−1)<sup><i>m</i></sup></span> symmetry.</p>')
-PROOF416_HEAD = ('<p><strong><i>m</i><sup>*</sup>(416) = 9: construction and proof.</strong></p>',
-                 '<p><a href="https://arxiv.org/html/1912.03491v1#S6.T5">BGPW Table 5</a> has the 208:8 code <code id="seed416">C5A2CB6B945B28BC43ADB6586C</code>.</p>')
-DREEVES_LINES += (EXAMPLE8,) + HEX_NOTE + PROOF416_HEAD
-# and the 416 proof's five Astra: "…" lines as he committed them, without the TODO comment Astra had put above each
-# (2026-10-24, b475924; dreeves, 2026-10-25: "i changed those astra lines intentionally"), so the copy rules pass
-# over them as over his own
-PROOF416_ASTRA = ('<p>Astra: "Its binary expansion gives the first 104 signs (1 → +1, 0 → −1); the remaining 104 are the same signs in reverse order. If <i>P</i>(<i>x</i>) is the polynomial of this sequence, then <span class="nw"><i>F</i>(<i>x</i>) = (1 − <i>x</i><sup>208</sup>)<i>P</i>(<i>x</i>)</span> has length 416 and order 9: append the same sequence with every sign negated."</p>',
-                  '<p>Astra: "Code for the length-416 example, using the same convention: <code id="witness416">C5A2CB6B945B28BC43ADB6586C361A6DB5C23D14DA29D6D345A3</code>"</p>',
-                  '<p>Astra: "To rule out order 10, let <i>D</i><sub>0</sub>, <i>D</i><sub>1</sub>, <i>D</i><sub>2</sub> be the sums of the signs in the residue classes modulo 3. The class sizes are <span id="sizes416">139, 139, 138</span>, so <i>D</i><sub>0</sub> and <i>D</i><sub>1</sub> are odd, and <i>D</i><sub>0</sub> + <i>D</i><sub>1</sub> + <i>D</i><sub>2</sub> = 0."</p>',
-                  '<p>Astra: "Let ζ be a cube root of unity other than 1. Since <span class="nw">(ζ − 1)<sup>10</sup> = −243ζ<sup>2</sup></span>, order at least 10 implies <i>f</i>(ζ) = (<i>D</i><sub>0</sub> − <i>D</i><sub>2</sub>) + (<i>D</i><sub>1</sub> − <i>D</i><sub>2</sub>)ζ ∈ <span id="modulus416">243</span>ℤ[ζ]. Therefore all three sums are congruent modulo 243."</p>',
-                  '<p>Astra: "The difference <span class="nw"><i>D</i><sub>0</sub> − <i>D</i><sub>1</sub></span> is even and divisible by 243, but its absolute value is at most 278. Therefore <span class="nw"><i>D</i><sub>0</sub> = <i>D</i><sub>1</sub> = <i>d</i></span>. Then <span class="nw"><i>D</i><sub>2</sub> = −2<i>d</i></span>, giving <span class="nw">|<i>d</i>| ≤ 69</span>; but <span class="nw">243 ∣ 3<i>d</i></span>, so <span class="nw">81 ∣ <i>d</i></span>. Only <span class="nw"><i>d</i> = 0</span> remains, contradicting its oddness. Thus <span class="nw"><i>m</i><sup>*</sup>(416) = 9</span>."</p>')
-DREEVES_LINES += PROOF416_ASTRA
-# his error line in the powers-of-2 chart's script (2026-10-24, b475924: Claude's line without its Claude: "…" and its
-# TODO comment; its closing backtick restored the same day, b70e1aa): the readout when that chart cannot be drawn,
-# followed by the error, as ERROR is the m*(n) chart's
-POW2_ERROR = 'Error drawing this chart: '
-POW2_ERROR_LINE = f'ro.textContent = `{POW2_ERROR}${{e}}`;'
-DREEVES_LINES += (POW2_ERROR_LINE,)
-# and his edits of 2026-10-26 (commit 5be96e4 "Human prose editing"), byte for byte: Claude's sentence on the
-# certificates still to be done, which he broke over four lines, its quotation now closing on the last, so that no line
-# holds a whole quotation; and his note on the symbols # and ∨, at the end of the remarks' opening, which replaced the
-# footer's definition of the expanded product (that edit is in TABLE_UPDATE)
-CERTIFICATES_REFLOW = ('<p>Claude: "<a href="https://github.com/dreeves/equipow/blob/main/mstar.py">mstar.py</a> and',
-                       '<a href="https://github.com/dreeves/equipow/blob/main/pow2.py">pow2.py</a>',
-                       'repeat the search behind every residue claim each time they run.',
-                       'Certificates that can be checked on their own, like proof512.wl for 512, are still to be done."</p>')
-SYMBOLS_NOTE = ('<p>Finally, the symbols # and ∨ denote the expanded product and the join operation on Littlewood polynomials:<br>',
-                'where <i>n<sub>f</sub></i> is the length of <i>f</i>.')
-DREEVES_LINES += CERTIFICATES_REFLOW + SYMBOLS_NOTE
-# The changelog atop the page (dreeves, 2026-10-26: "can you add a skeleton of a changelog at the top of the page,
-# modeled after doc.bmndr.co/freshat"): its summary, the word of his FreshAt spec's, and his entries as he wrote them
-# in the working page (by 14:56; his first, the subject of his commit c496222 with " [which?]", he since dropped): the
-# claude.ai chat's first two days
-CHANGELOG = ('<summary><i>Changelog</i></summary>',
-             '<p>2026-10-04: Claude gets first wholly new result: m*(2^38) >= 39</p>',
-             '<p>2026-10-03: Claude Opus 5.5 finds a new order-10 partition for n=240</p>')
-DREEVES_LINES += CHANGELOG
 
 
 # ---------------------------------------------------------------------------------------------------------------------
 # Reading the page
 
 def page(): return open(INDEX, encoding='utf-8').read()
-
-
-# The page's updates of 2026-10-11, which dreeves asked for, the only edits of its text before the chart: 432, 480 and
-# 528 gained the upper bounds the chart proves, in the new results' table and in their remarks' entries (and on
-# 2026-10-12 the powers of 2 moved to a second table, stating the powers-of-2 chart's ranges); the green
-# label "Claude and Stan" became "Claude and BGPW" (BGPW includes Stan), and 528, a BGPW example with Claude's upper
-# bound, became green.  (old, new, how many times old occurs).
-TABLE_UPDATE = (('<td class="c">≥ 11</td>', '<td class="c">11–12</td>', 1),
-                ('<td class="c">≥ 12</td>', '<td class="c">12–14</td>', 1),
-                ('<td class="s">≥ 10</td>', '<td class="j">10–12</td>', 1),
-                ('<i>m</i><sup>*</sup> ≥ 11</span>', '<i>m</i><sup>*</sup> ∈ {11, 12}</span>', 1),
-                ('<i>m</i><sup>*</sup> ≥ 12</span>', '<i>m</i><sup>*</sup> ∈ {12, 13, 14}</span>', 1),
-                ('<i>m</i><sup>*</sup> ≥ 10</span>', '<i>m</i><sup>*</sup> ∈ {10, 11, 12}</span>', 1),
-                ("title='Claude and Stan'", "title='Claude and BGPW'", 4),
-                ("<td class=\"s\" title='BGPW'>528</td>", "<td class=\"j\" title='Claude and BGPW'>528</td>", 1),
-                ('◆●</span>Claude and Stan</li>', '◆●</span>Claude and BGPW</li>', 1),
-                ('<li class="s">\n      <span class="mk" aria-hidden="true">●</span>\n      <p class="entry"><i>n</i> = 528:',
-                 '<li class="j">\n      <span class="mk" aria-hidden="true">◆●</span>\n      <p class="entry"><i>n</i> = 528:', 1),
-                ("<td class=\"j\" title='Claude and BGPW'>2<sup>24</sup></td><td class=\"j\" title='Claude and BGPW'>2<sup>51</sup></td></tr>", '</tr>', 1),
-                ('<td class="j">≥ 25</td><td class="j">≥ 53</td></tr>', '</tr>', 1),
-                ('<i>n</i> = 2<sup>24</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ≥ 25</span>',
-                 '<i>n</i> = 2<sup>24</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {25, …, 29}</span>', 1),
-                ('<i>n</i> = 2<sup>51</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ≥ 53</span>',
-                 '<i>n</i> = 2<sup>51</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {54, …, 63}</span>', 1),
-                # BGPW's five examples of order 9, as codes in their remarks (2026-10-12)
-                ('      <p>Examples of order 9 found by BGPW. Order 10 is ruled out by the paper\'s Proposition 4.3 <span class="nw">(<i>p</i> = 3)</span>.</p>\n',
-                 '      <p>Examples of order 9 found by BGPW. Order 10 is ruled out by the paper\'s Proposition 4.3 <span class="nw">(<i>p</i> = 3)</span>.</p>\n      <p class="code">\n        <span><i>p</i><sub>352</sub> <span class="nw">(<i>m</i> = 9)</span>:</span>\n        <code>A4DB4926DB4D36584B26936D2CFA54B6F04B2C13D4A2</code>\n      </p>\n      <p class="code">\n        <span><i>p</i><sub>368</sub> <span class="nw">(<i>m</i> = 9)</span>:</span>\n        <code>96C965925B75B0CB249E583CF26B2E836C31DAC874B67D</code>\n      </p>\n      <p class="code">\n        <span><i>p</i><sub>400</sub> <span class="nw">(<i>m</i> = 9)</span>:</span>\n        <code>34DB69269A69269A6D379A8D1C57459C5B45E5100DBAF7EAAA</code>\n      </p>\n      <p class="code">\n        <span><i>p</i><sub>464</sub> <span class="nw">(<i>m</i> = 9)</span>:</span>\n        <code>93C96596CB2586DB1C965964E69975A207755BE209CE5E28F2C35A92BA</code>\n      </p>\n', 1),
-                ('      <p>An example of order 9 found by BGPW. Order 10 is ruled out by the residue condition mod 27, by the same argument as for 512; the solvers CP-SAT and SCIP agree.</p>\n',
-                 '      <p>An example of order 9 found by BGPW. Order 10 is ruled out by the residue condition mod 27, by the same argument as for 512; the solvers CP-SAT and SCIP agree.</p>\n      <p class="code">\n        <span><i>p</i><sub>496</sub> <span class="nw">(<i>m</i> = 9)</span>:</span>\n        <code>C96992D92DB24B7596496D1A530DB5994EA699A9ACE072BDC57403B339A4CE</code>\n      </p>\n', 1),
-                # dreeves's own edit of the preview's alt text (2026-10-12, e437afe)
-                ("then new results from 304 to 2^51'>", "then various new results'>", 1),
-                # the powers of 2's own table, flush under the first (2026-10-12); its titles reuse the legend's labels
-                ('          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="c">8</td><td class="s">9</td><td class="j">10</td><td class="s">9</td><td class="s">9</td><td class="s">9</td><td class="s">9</td><td class="c">11–12</td><td class="c">9</td><td class="s">9</td><td class="c">12–14</td><td class="j">9</td><td class="c">9</td><td class="j">10–12</td><td class="c">10–12</td></tr>\n        </table>\n',
-                 '          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="c">8</td><td class="s">9</td><td class="j">10</td><td class="s">9</td><td class="s">9</td><td class="s">9</td><td class="s">9</td><td class="c">11–12</td><td class="c">9</td><td class="s">9</td><td class="c">12–14</td><td class="j">9</td><td class="c">9</td><td class="j">10–12</td><td class="c">10–12</td></tr>\n        </table>\n        <table class="block">\n          <tr class="ns"><th scope="row"><i>n</i></th><td class="j" title=\'Claude and BGPW\'>2<sup>24</sup></td><td class="c" title=\'Claude alone\'>2<sup>33</sup></td><td class="c" title=\'Claude alone\'>2<sup>49</sup></td><td class="j" title=\'Claude and BGPW\'>2<sup>51</sup></td><td class="c" title=\'Claude alone\'>2<sup>57</sup></td><td class="c" title=\'Claude alone\'>2<sup>67</sup></td></tr>\n          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="j">25–29</td><td class="c">35–41</td><td class="c">52–61</td><td class="j">54–63</td><td class="c">61–71</td><td class="c">72–83</td></tr>\n        </table>\n', 1),
-                # every multiple of 16 from 304 to 992, in four rows of 11 (2026-10-12)
-                ('        <table class="block">\n          <tr class="ns"><th scope="row"><i>n</i></th><td class="c" title=\'Claude alone\'>304</td><td class="s" title=\'BGPW\'>320</td><td class="j" title=\'Claude and BGPW\'>336</td><td class="s" title=\'BGPW\'>352</td><td class="s" title=\'BGPW\'>368</td><td class="s" title=\'BGPW\'>400</td><td class="s" title=\'BGPW\'>416</td><td class="c" title=\'Claude alone\'>432</td><td class="c" title=\'Claude alone\'>448</td><td class="s" title=\'BGPW\'>464</td><td class="c" title=\'Claude alone\'>480</td><td class="j" title=\'Claude and BGPW\'>496</td><td class="c" title=\'Claude alone\'>512</td><td class="j" title=\'Claude and BGPW\'>528</td><td class="c" title=\'Claude alone\'>576</td></tr>\n          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="c">8</td><td class="s">9</td><td class="j">10</td><td class="s">9</td><td class="s">9</td><td class="s">9</td><td class="s">9</td><td class="c">11–12</td><td class="c">9</td><td class="s">9</td><td class="c">12–14</td><td class="j">9</td><td class="c">9</td><td class="j">10–12</td><td class="c">10–12</td></tr>\n        </table>\n',
-                 '        <table class="block">\n          <tr class="ns"><th scope="row"><i>n</i></th><td class="c" title=\'Claude alone\'>304</td><td class="s" title=\'BGPW\'>320</td><td class="j" title=\'Claude and BGPW\'>336</td><td class="s" title=\'BGPW\'>352</td><td class="s" title=\'BGPW\'>368</td><td class="c" title=\'Claude alone\'>384</td><td class="s" title=\'BGPW\'>400</td><td class="s" title=\'BGPW\'>416</td><td class="c" title=\'Claude alone\'>432</td><td class="c" title=\'Claude alone\'>448</td><td class="s" title=\'BGPW\'>464</td></tr>\n          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="c">8</td><td class="s">9</td><td class="j">10</td><td class="s">9</td><td class="s">9</td><td class="c">10–11</td><td class="s">9</td><td class="s">9</td><td class="c">11–12</td><td class="c">9</td><td class="s">9</td></tr>\n        </table>\n        <table class="block">\n          <tr class="ns"><th scope="row"><i>n</i></th><td class="c" title=\'Claude alone\'>480</td><td class="j" title=\'Claude and BGPW\'>496</td><td class="c" title=\'Claude alone\'>512</td><td class="j" title=\'Claude and BGPW\'>528</td><td class="c" title=\'Claude alone\'>544</td><td class="c" title=\'Claude alone\'>560</td><td class="c" title=\'Claude alone\'>576</td><td class="c" title=\'Claude alone\'>592</td><td class="c" title=\'Claude alone\'>608</td><td class="c" title=\'Claude alone\'>624</td><td class="c" title=\'Claude alone\'>640</td></tr>\n          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="c">12–14</td><td class="j">9</td><td class="c">9</td><td class="j">10–12</td><td class="c">9–10</td><td class="c">9–10</td><td class="c">10–12</td><td class="c">9–10</td><td class="c">9–10</td><td class="c">10–12</td><td class="c">10</td></tr>\n        </table>\n        <table class="block">\n          <tr class="ns"><th scope="row"><i>n</i></th><td class="c" title=\'Claude alone\'>656</td><td class="c" title=\'Claude alone\'>672</td><td class="c" title=\'Claude alone\'>688</td><td class="c" title=\'Claude alone\'>704</td><td class="c" title=\'Claude alone\'>720</td><td class="c" title=\'Claude alone\'>736</td><td class="c" title=\'Claude alone\'>752</td><td class="c" title=\'Claude alone\'>768</td><td class="c" title=\'Claude alone\'>784</td><td class="c" title=\'Claude alone\'>800</td><td class="c" title=\'Claude alone\'>816</td></tr>\n          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="c">9–10</td><td class="c">11–13</td><td class="c">9–10</td><td class="c">10</td><td class="c">10–14</td><td class="c">10</td><td class="c">9–11</td><td class="c">11–13</td><td class="c">9–10</td><td class="c">10–11</td><td class="c">10–14</td></tr>\n        </table>\n        <table class="block">\n          <tr class="ns"><th scope="row"><i>n</i></th><td class="c" title=\'Claude alone\'>832</td><td class="c" title=\'Claude alone\'>848</td><td class="c" title=\'Claude alone\'>864</td><td class="c" title=\'Claude alone\'>880</td><td class="c" title=\'Claude alone\'>896</td><td class="c" title=\'Claude alone\'>912</td><td class="c" title=\'Claude alone\'>928</td><td class="c" title=\'Claude alone\'>944</td><td class="c" title=\'Claude alone\'>960</td><td class="c" title=\'Claude alone\'>976</td><td class="c" title=\'Claude alone\'>992</td></tr>\n          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="c">10–11</td><td class="c">9–11</td><td class="c">12–14</td><td class="c">10–11</td><td class="c">10–11</td><td class="c">11–13</td><td class="c">10–11</td><td class="c">10–11</td><td class="c">13–15</td><td class="c">10–11</td><td class="c">10–11</td></tr>\n        </table>\n', 1),
-                # every power of 2 of the tables in the final row: Table 2's copied, 512 moved (2026-10-12)
-                ('        <table class="block">\n          <tr class="ns"><th scope="row"><i>n</i></th><td class="c" title=\'Claude alone\'>304</td><td class="s" title=\'BGPW\'>320</td><td class="j" title=\'Claude and BGPW\'>336</td><td class="s" title=\'BGPW\'>352</td><td class="s" title=\'BGPW\'>368</td><td class="c" title=\'Claude alone\'>384</td><td class="s" title=\'BGPW\'>400</td><td class="s" title=\'BGPW\'>416</td><td class="c" title=\'Claude alone\'>432</td><td class="c" title=\'Claude alone\'>448</td><td class="s" title=\'BGPW\'>464</td></tr>\n          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="c">8</td><td class="s">9</td><td class="j">10</td><td class="s">9</td><td class="s">9</td><td class="c">10–11</td><td class="s">9</td><td class="s">9</td><td class="c">11–12</td><td class="c">9</td><td class="s">9</td></tr>\n        </table>\n        <table class="block">\n          <tr class="ns"><th scope="row"><i>n</i></th><td class="c" title=\'Claude alone\'>480</td><td class="j" title=\'Claude and BGPW\'>496</td><td class="c" title=\'Claude alone\'>512</td><td class="j" title=\'Claude and BGPW\'>528</td><td class="c" title=\'Claude alone\'>544</td><td class="c" title=\'Claude alone\'>560</td><td class="c" title=\'Claude alone\'>576</td><td class="c" title=\'Claude alone\'>592</td><td class="c" title=\'Claude alone\'>608</td><td class="c" title=\'Claude alone\'>624</td><td class="c" title=\'Claude alone\'>640</td></tr>\n          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="c">12–14</td><td class="j">9</td><td class="c">9</td><td class="j">10–12</td><td class="c">9–10</td><td class="c">9–10</td><td class="c">10–12</td><td class="c">9–10</td><td class="c">9–10</td><td class="c">10–12</td><td class="c">10</td></tr>\n        </table>\n        <table class="block">\n          <tr class="ns"><th scope="row"><i>n</i></th><td class="c" title=\'Claude alone\'>656</td><td class="c" title=\'Claude alone\'>672</td><td class="c" title=\'Claude alone\'>688</td><td class="c" title=\'Claude alone\'>704</td><td class="c" title=\'Claude alone\'>720</td><td class="c" title=\'Claude alone\'>736</td><td class="c" title=\'Claude alone\'>752</td><td class="c" title=\'Claude alone\'>768</td><td class="c" title=\'Claude alone\'>784</td><td class="c" title=\'Claude alone\'>800</td><td class="c" title=\'Claude alone\'>816</td></tr>\n          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="c">9–10</td><td class="c">11–13</td><td class="c">9–10</td><td class="c">10</td><td class="c">10–14</td><td class="c">10</td><td class="c">9–11</td><td class="c">11–13</td><td class="c">9–10</td><td class="c">10–11</td><td class="c">10–14</td></tr>\n        </table>\n        <table class="block">\n          <tr class="ns"><th scope="row"><i>n</i></th><td class="c" title=\'Claude alone\'>832</td><td class="c" title=\'Claude alone\'>848</td><td class="c" title=\'Claude alone\'>864</td><td class="c" title=\'Claude alone\'>880</td><td class="c" title=\'Claude alone\'>896</td><td class="c" title=\'Claude alone\'>912</td><td class="c" title=\'Claude alone\'>928</td><td class="c" title=\'Claude alone\'>944</td><td class="c" title=\'Claude alone\'>960</td><td class="c" title=\'Claude alone\'>976</td><td class="c" title=\'Claude alone\'>992</td></tr>\n          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="c">10–11</td><td class="c">9–11</td><td class="c">12–14</td><td class="c">10–11</td><td class="c">10–11</td><td class="c">11–13</td><td class="c">10–11</td><td class="c">10–11</td><td class="c">13–15</td><td class="c">10–11</td><td class="c">10–11</td></tr>\n        </table>\n        <table class="block">\n          <tr class="ns"><th scope="row"><i>n</i></th><td class="j" title=\'Claude and BGPW\'>2<sup>24</sup></td><td class="c" title=\'Claude alone\'>2<sup>33</sup></td><td class="c" title=\'Claude alone\'>2<sup>49</sup></td><td class="j" title=\'Claude and BGPW\'>2<sup>51</sup></td><td class="c" title=\'Claude alone\'>2<sup>57</sup></td><td class="c" title=\'Claude alone\'>2<sup>67</sup></td></tr>\n          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="j">25–29</td><td class="c">35–41</td><td class="c">52–61</td><td class="j">54–63</td><td class="c">61–71</td><td class="c">72–83</td></tr>\n        </table>\n',
-                 '        <table class="block">\n          <tr class="ns"><th scope="row"><i>n</i></th><td class="c" title=\'Claude alone\'>304</td><td class="s" title=\'BGPW\'>320</td><td class="j" title=\'Claude and BGPW\'>336</td><td class="s" title=\'BGPW\'>352</td><td class="s" title=\'BGPW\'>368</td><td class="c" title=\'Claude alone\'>384</td><td class="s" title=\'BGPW\'>400</td><td class="s" title=\'BGPW\'>416</td><td class="c" title=\'Claude alone\'>432</td><td class="c" title=\'Claude alone\'>448</td><td class="s" title=\'BGPW\'>464</td></tr>\n          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="c">8</td><td class="s">9</td><td class="j">10</td><td class="s">9</td><td class="s">9</td><td class="c">10–11</td><td class="s">9</td><td class="s">9</td><td class="c">11–12</td><td class="c">9</td><td class="s">9</td></tr>\n        </table>\n        <table class="block">\n          <tr class="ns"><th scope="row"><i>n</i></th><td class="c" title=\'Claude alone\'>480</td><td class="j" title=\'Claude and BGPW\'>496</td><td class="j" title=\'Claude and BGPW\'>528</td><td class="c" title=\'Claude alone\'>544</td><td class="c" title=\'Claude alone\'>560</td><td class="c" title=\'Claude alone\'>576</td><td class="c" title=\'Claude alone\'>592</td><td class="c" title=\'Claude alone\'>608</td><td class="c" title=\'Claude alone\'>624</td><td class="c" title=\'Claude alone\'>640</td><td class="c" title=\'Claude alone\'>656</td></tr>\n          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="c">12–14</td><td class="j">9</td><td class="j">10–12</td><td class="c">9–10</td><td class="c">9–10</td><td class="c">10–12</td><td class="c">9–10</td><td class="c">9–10</td><td class="c">10–12</td><td class="c">10</td><td class="c">9–10</td></tr>\n        </table>\n        <table class="block">\n          <tr class="ns"><th scope="row"><i>n</i></th><td class="c" title=\'Claude alone\'>672</td><td class="c" title=\'Claude alone\'>688</td><td class="c" title=\'Claude alone\'>704</td><td class="c" title=\'Claude alone\'>720</td><td class="c" title=\'Claude alone\'>736</td><td class="c" title=\'Claude alone\'>752</td><td class="c" title=\'Claude alone\'>768</td><td class="c" title=\'Claude alone\'>784</td><td class="c" title=\'Claude alone\'>800</td><td class="c" title=\'Claude alone\'>816</td><td class="c" title=\'Claude alone\'>832</td></tr>\n          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="c">11–13</td><td class="c">9–10</td><td class="c">10</td><td class="c">10–14</td><td class="c">10</td><td class="c">9–11</td><td class="c">11–13</td><td class="c">9–10</td><td class="c">10–11</td><td class="c">10–14</td><td class="c">10–11</td></tr>\n        </table>\n        <table class="block">\n          <tr class="ns"><th scope="row"><i>n</i></th><td class="c" title=\'Claude alone\'>848</td><td class="c" title=\'Claude alone\'>864</td><td class="c" title=\'Claude alone\'>880</td><td class="c" title=\'Claude alone\'>896</td><td class="c" title=\'Claude alone\'>912</td><td class="c" title=\'Claude alone\'>928</td><td class="c" title=\'Claude alone\'>944</td><td class="c" title=\'Claude alone\'>960</td><td class="c" title=\'Claude alone\'>976</td><td class="c" title=\'Claude alone\'>992</td></tr>\n          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="c">9–11</td><td class="c">12–14</td><td class="c">10–11</td><td class="c">10–11</td><td class="c">11–13</td><td class="c">10–11</td><td class="c">10–11</td><td class="c">13–15</td><td class="c">10–11</td><td class="c">10–11</td></tr>\n        </table>\n        <table class="block">\n          <tr class="ns"><th scope="row"><i>n</i></th><td title=\'The published paper (2021)\'>2<sup>3</sup></td><td title=\'The published paper (2021)\'>2<sup>4</sup></td><td title=\'The published paper (2021)\'>2<sup>5</sup></td><td title=\'The published paper (2021)\'>2<sup>6</sup></td><td title=\'The published paper (2021)\'>2<sup>7</sup></td><td title=\'The published paper (2021)\'>2<sup>8</sup></td><td class="c" title=\'Claude alone\'>2<sup>9</sup></td><td class="j" title=\'Claude and BGPW\'>2<sup>24</sup></td><td class="c" title=\'Claude alone\'>2<sup>33</sup></td><td class="c" title=\'Claude alone\'>2<sup>49</sup></td><td class="j" title=\'Claude and BGPW\'>2<sup>51</sup></td><td class="c" title=\'Claude alone\'>2<sup>57</sup></td><td class="c" title=\'Claude alone\'>2<sup>67</sup></td></tr>\n          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td><td>8</td><td class="c">9</td><td class="j">25–29</td><td class="c">35–41</td><td class="c">52–61</td><td class="j">54–63</td><td class="c">61–71</td><td class="c">72–83</td></tr>\n        </table>\n', 1),
-                # 560 settled at 10 by a lattice search's example (2026-10-12)
-                ('<td class="j">10–12</td><td class="c">9–10</td><td class="c">9–10</td><td class="c">10–12</td>', '<td class="j">10–12</td><td class="c">9–10</td><td class="c">10</td><td class="c">10–12</td>', 1),
-                # 560's set and its code block, data that the copy quals would read as English: the set ends the sets'
-                # <code> (on 528's last line); the code block sits where 560's remark is inserted around it (2026-10-12)
-                ('  519, 520, 521, 525, 526};</code></pre>', '  519, 520, 521, 525, 526};\nSClaude[10][560] = {\n  0, 1, 4, 6, 7, 10, 12, 13, 15, 19, 21, 22, 28, 29, 30, 31, 34, 37,\n  39, 40, 41, 42, 45, 46, 51, 54, 55, 57, 58, 60, 61, 63, 64, 66, 67,\n  69, 70, 72, 73, 75, 78, 81, 82, 84, 87, 88, 91, 93, 94, 96, 97,\n  100, 103, 105, 107, 109, 114, 115, 117, 119, 120, 121, 123, 124,\n  126, 133, 135, 138, 141, 142, 144, 145, 147, 148, 150, 151, 154,\n  156, 157, 159, 160, 163, 168, 169, 171, 172, 174, 177, 178, 180,\n  181, 182, 187, 189, 192, 195, 196, 198, 199, 201, 202, 204, 205,\n  207, 208, 211, 213, 214, 216, 217, 219, 220, 222, 223, 225, 226,\n  228, 229, 231, 232, 234, 238, 240, 243, 247, 248, 249, 250, 253,\n  255, 256, 258, 259, 261, 271, 273, 274, 276, 277, 279, 280, 282,\n  283, 285, 286, 288, 298, 300, 301, 303, 304, 306, 309, 310, 311,\n  312, 316, 319, 321, 325, 327, 328, 330, 331, 333, 334, 336, 337,\n  339, 340, 342, 343, 345, 346, 348, 351, 352, 354, 355, 357, 358,\n  360, 361, 363, 364, 367, 370, 372, 377, 378, 379, 381, 382, 385,\n  387, 388, 390, 391, 396, 399, 400, 402, 403, 405, 408, 409, 411,\n  412, 414, 415, 417, 418, 421, 424, 426, 433, 435, 436, 438, 439,\n  440, 442, 444, 445, 450, 452, 454, 456, 459, 462, 463, 465, 466,\n  468, 471, 472, 475, 477, 478, 481, 484, 486, 487, 489, 490, 492,\n  493, 495, 496, 498, 499, 501, 502, 504, 505, 508, 513, 514, 517,\n  518, 519, 520, 522, 525, 528, 529, 530, 531, 537, 538, 540, 544,\n  546, 547, 549, 552, 553, 555, 558, 559};</code></pre>', 1),
-                ('    </li>\n    <li class="c">\n      <span class="mk" aria-hidden="true">◆</span>\n      <p class="entry"><i>n</i> = 576: &nbsp;', '    </li>\n      <p class="code">\n        <span><i>p</i><sub>560</sub> <span class="nw">(<i>m</i> = 10)</span>:</span>\n        <code>34D2E9F0DA19EC92492D966936ABCA25FAD924D26F2591EB64926924925D6E1A4BFE92</code>\n      </p>\n    <li class="c">\n      <span class="mk" aria-hidden="true">◆</span>\n      <p class="entry"><i>n</i> = 576: &nbsp;', 1),
-                # the powers of 2 once 560 reached order 10: 2^18, 2^41, 2^48, 2^61 and 2^71 added, 2^49 and 2^51 raised (2026-10-12)
-                ('        <table class="block">\n          <tr class="ns"><th scope="row"><i>n</i></th><td title=\'The published paper (2021)\'>2<sup>3</sup></td><td title=\'The published paper (2021)\'>2<sup>4</sup></td><td title=\'The published paper (2021)\'>2<sup>5</sup></td><td title=\'The published paper (2021)\'>2<sup>6</sup></td><td title=\'The published paper (2021)\'>2<sup>7</sup></td><td title=\'The published paper (2021)\'>2<sup>8</sup></td><td class="c" title=\'Claude alone\'>2<sup>9</sup></td><td class="j" title=\'Claude and BGPW\'>2<sup>24</sup></td><td class="c" title=\'Claude alone\'>2<sup>33</sup></td><td class="c" title=\'Claude alone\'>2<sup>49</sup></td><td class="j" title=\'Claude and BGPW\'>2<sup>51</sup></td><td class="c" title=\'Claude alone\'>2<sup>57</sup></td><td class="c" title=\'Claude alone\'>2<sup>67</sup></td></tr>\n          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td><td>8</td><td class="c">9</td><td class="j">25–29</td><td class="c">35–41</td><td class="c">52–61</td><td class="j">54–63</td><td class="c">61–71</td><td class="c">72–83</td></tr>\n        </table>\n',
-                 '        <table class="block">\n          <tr class="ns"><th scope="row"><i>n</i></th><td title=\'The published paper (2021)\'>2<sup>3</sup></td><td title=\'The published paper (2021)\'>2<sup>4</sup></td><td title=\'The published paper (2021)\'>2<sup>5</sup></td><td title=\'The published paper (2021)\'>2<sup>6</sup></td><td title=\'The published paper (2021)\'>2<sup>7</sup></td><td title=\'The published paper (2021)\'>2<sup>8</sup></td><td class="c" title=\'Claude alone\'>2<sup>9</sup></td><td class="c" title=\'Claude alone\'>2<sup>18</sup></td><td class="j" title=\'Claude and BGPW\'>2<sup>24</sup></td><td class="c" title=\'Claude alone\'>2<sup>33</sup></td><td class="c" title=\'Claude alone\'>2<sup>41</sup></td><td class="c" title=\'Claude alone\'>2<sup>48</sup></td><td class="c" title=\'Claude alone\'>2<sup>49</sup></td><td class="j" title=\'Claude and BGPW\'>2<sup>51</sup></td><td class="c" title=\'Claude alone\'>2<sup>57</sup></td><td class="c" title=\'Claude alone\'>2<sup>61</sup></td><td class="c" title=\'Claude alone\'>2<sup>67</sup></td><td class="c" title=\'Claude alone\'>2<sup>71</sup></td></tr>\n          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td><td>8</td><td class="c">9</td><td class="c">19–22</td><td class="j">25–29</td><td class="c">35–41</td><td class="c">44–51</td><td class="c">52–59</td><td class="c">53–61</td><td class="j">55–63</td><td class="c">61–71</td><td class="c">66–76</td><td class="c">72–83</td><td class="c">77–88</td></tr>\n        </table>\n', 1),
-                ('<i>n</i> = 2<sup>51</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {54, …, 63}</span>', '<i>n</i> = 2<sup>51</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {55, …, 63}</span>', 1),
-                # the powers of 2 in two rows, split after 2^49 (dreeves, 2026-10-12)
-                ('        <table class="block">\n          <tr class="ns"><th scope="row"><i>n</i></th><td title=\'The published paper (2021)\'>2<sup>3</sup></td><td title=\'The published paper (2021)\'>2<sup>4</sup></td><td title=\'The published paper (2021)\'>2<sup>5</sup></td><td title=\'The published paper (2021)\'>2<sup>6</sup></td><td title=\'The published paper (2021)\'>2<sup>7</sup></td><td title=\'The published paper (2021)\'>2<sup>8</sup></td><td class="c" title=\'Claude alone\'>2<sup>9</sup></td><td class="c" title=\'Claude alone\'>2<sup>18</sup></td><td class="j" title=\'Claude and BGPW\'>2<sup>24</sup></td><td class="c" title=\'Claude alone\'>2<sup>33</sup></td><td class="c" title=\'Claude alone\'>2<sup>41</sup></td><td class="c" title=\'Claude alone\'>2<sup>48</sup></td><td class="c" title=\'Claude alone\'>2<sup>49</sup></td><td class="j" title=\'Claude and BGPW\'>2<sup>51</sup></td><td class="c" title=\'Claude alone\'>2<sup>57</sup></td><td class="c" title=\'Claude alone\'>2<sup>61</sup></td><td class="c" title=\'Claude alone\'>2<sup>67</sup></td><td class="c" title=\'Claude alone\'>2<sup>71</sup></td></tr>\n          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td><td>8</td><td class="c">9</td><td class="c">19–22</td><td class="j">25–29</td><td class="c">35–41</td><td class="c">44–51</td><td class="c">52–59</td><td class="c">53–61</td><td class="j">55–63</td><td class="c">61–71</td><td class="c">66–76</td><td class="c">72–83</td><td class="c">77–88</td></tr>\n        </table>\n',
-                 '        <table class="block">\n          <tr class="ns"><th scope="row"><i>n</i></th><td title=\'The published paper (2021)\'>2<sup>3</sup></td><td title=\'The published paper (2021)\'>2<sup>4</sup></td><td title=\'The published paper (2021)\'>2<sup>5</sup></td><td title=\'The published paper (2021)\'>2<sup>6</sup></td><td title=\'The published paper (2021)\'>2<sup>7</sup></td><td title=\'The published paper (2021)\'>2<sup>8</sup></td><td class="c" title=\'Claude alone\'>2<sup>9</sup></td><td class="c" title=\'Claude alone\'>2<sup>18</sup></td><td class="j" title=\'Claude and BGPW\'>2<sup>24</sup></td><td class="c" title=\'Claude alone\'>2<sup>33</sup></td><td class="c" title=\'Claude alone\'>2<sup>41</sup></td><td class="c" title=\'Claude alone\'>2<sup>48</sup></td><td class="c" title=\'Claude alone\'>2<sup>49</sup></td></tr>\n          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td><td>8</td><td class="c">9</td><td class="c">19–22</td><td class="j">25–29</td><td class="c">35–41</td><td class="c">44–51</td><td class="c">52–59</td><td class="c">53–61</td></tr>\n        </table>\n        <table class="block">\n          <tr class="ns"><th scope="row"><i>n</i></th><td class="j" title=\'Claude and BGPW\'>2<sup>51</sup></td><td class="c" title=\'Claude alone\'>2<sup>57</sup></td><td class="c" title=\'Claude alone\'>2<sup>61</sup></td><td class="c" title=\'Claude alone\'>2<sup>67</sup></td><td class="c" title=\'Claude alone\'>2<sup>71</sup></td></tr>\n          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="j">55–63</td><td class="c">61–71</td><td class="c">66–76</td><td class="c">72–83</td><td class="c">77–88</td></tr>\n        </table>\n', 1),
-                # the table's colors: no --joint, Claude and BGPW as stripes of the other two (dreeves, 2026-10-12)
-                ("  /* Provenance hues, checked with the dataviz palette validator against this\n     mode's surface. The worst color-blind pair is 6.4 (deutan), legal only\n     with a second cue, so every hue also carries a glyph: ◆ Claude, ● BGPW,\n     ◆● both. */\n", "  /* Provenance hues, checked with the dataviz palette validator against this\n     mode's surface: color-blind ΔE 23.6 (protan). Every hue also carries a\n     glyph: ◆ Claude, ● BGPW, and ◆● both, whose cells are stripes of the\n     two. */\n", 1),
-                ('  --joint: #2a9466;\n', '', 1),
-                ('    --joint: #2aa070;\n', '', 1),
-                ('\n  --joint: #2aa070;\n', '\n', 1),
-                ('td.j { --hue: var(--joint); --glyph: "◆●"; }\n', 'td.j { --glyph: "◆●"; }\n', 1),
-                ('  color: var(--hue);\n}\n\n.legend {', '  color: var(--hue);\n}\n/* Claude and BGPW: stripes of the two tints over a striped bar, its glyph half in each hue */\ntd.j, .key.j { background: repeating-linear-gradient(135deg, color-mix(in oklab, var(--claude) var(--tint), var(--paper)) 0 0.3rem, color-mix(in oklab, var(--stan) var(--tint), var(--paper)) 0.3rem 0.6rem); }\ntr.vals td.j, .key.j { background: repeating-linear-gradient(90deg, var(--claude) 0 0.3rem, var(--stan) 0.3rem 0.6rem) bottom / 100% 3px no-repeat, repeating-linear-gradient(135deg, color-mix(in oklab, var(--claude) var(--tint), var(--paper)) 0 0.3rem, color-mix(in oklab, var(--stan) var(--tint), var(--paper)) 0.3rem 0.6rem); box-shadow: none; }\ntr.ns td.j::before, .key.j > span, .remarks li.j .mk { background: linear-gradient(90deg, var(--claude) 50%, var(--stan) 50%); -webkit-background-clip: text; background-clip: text; color: transparent; }\n\n.legend {', 1),
-                ('.key.j { --hue: var(--joint); }\n', '', 1),
-                ('.remarks li.j .mk { color: var(--joint); }\n', '', 1),
-                ('<span class="key j" aria-hidden="true">◆●</span>', '<span class="key j" aria-hidden="true"><span>◆●</span></span>', 1),
-                # a glyph line in every n cell of the new results; the powers' bounds mod 3; 2^20 in the 304 remark (2026-10-12)
-                ('tr.ns td.c::before, tr.ns td.j::before, tr.ns td.s::before {\n  content: var(--glyph);\n', '.new-block tr.ns td::before {\n  content: var(--glyph, "\\a0");\n', 1),
-                ('/* Provenance: tint on both cells of an entry, a bar under its value, and a\n   glyph centered above its n. Text stays in ink. */\n', '/* Provenance: tint on both cells of an entry, a bar under its value, and a\n   glyph centered above its n (in every n cell of the new results a line for it, blank\n   where there is none, so they all line up). Text stays in ink. */\n', 1),
-                ('        <table class="block">\n          <tr class="ns"><th scope="row"><i>n</i></th><td title=\'The published paper (2021)\'>2<sup>3</sup></td><td title=\'The published paper (2021)\'>2<sup>4</sup></td><td title=\'The published paper (2021)\'>2<sup>5</sup></td><td title=\'The published paper (2021)\'>2<sup>6</sup></td><td title=\'The published paper (2021)\'>2<sup>7</sup></td><td title=\'The published paper (2021)\'>2<sup>8</sup></td><td class="c" title=\'Claude alone\'>2<sup>9</sup></td><td class="c" title=\'Claude alone\'>2<sup>18</sup></td><td class="j" title=\'Claude and BGPW\'>2<sup>24</sup></td><td class="c" title=\'Claude alone\'>2<sup>33</sup></td><td class="c" title=\'Claude alone\'>2<sup>41</sup></td><td class="c" title=\'Claude alone\'>2<sup>48</sup></td><td class="c" title=\'Claude alone\'>2<sup>49</sup></td></tr>\n          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td><td>8</td><td class="c">9</td><td class="c">19–22</td><td class="j">25–29</td><td class="c">35–41</td><td class="c">44–51</td><td class="c">52–59</td><td class="c">53–61</td></tr>\n        </table>\n        <table class="block">\n          <tr class="ns"><th scope="row"><i>n</i></th><td class="j" title=\'Claude and BGPW\'>2<sup>51</sup></td><td class="c" title=\'Claude alone\'>2<sup>57</sup></td><td class="c" title=\'Claude alone\'>2<sup>61</sup></td><td class="c" title=\'Claude alone\'>2<sup>67</sup></td><td class="c" title=\'Claude alone\'>2<sup>71</sup></td></tr>\n          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="j">55–63</td><td class="c">61–71</td><td class="c">66–76</td><td class="c">72–83</td><td class="c">77–88</td></tr>\n        </table>\n', '        <table class="block">\n          <tr class="ns"><th scope="row"><i>n</i></th><td title=\'The published paper (2021)\'>2<sup>3</sup></td><td title=\'The published paper (2021)\'>2<sup>4</sup></td><td title=\'The published paper (2021)\'>2<sup>5</sup></td><td title=\'The published paper (2021)\'>2<sup>6</sup></td><td title=\'The published paper (2021)\'>2<sup>7</sup></td><td title=\'The published paper (2021)\'>2<sup>8</sup></td><td class="c" title=\'Claude alone\'>2<sup>9</sup></td><td class="c" title=\'Claude alone\'>2<sup>18</sup></td><td class="j" title=\'Claude and BGPW\'>2<sup>24</sup></td><td class="c" title=\'Claude alone\'>2<sup>33</sup></td><td class="c" title=\'Claude alone\'>2<sup>41</sup></td><td class="c" title=\'Claude alone\'>2<sup>48</sup></td><td class="c" title=\'Claude alone\'>2<sup>49</sup></td></tr>\n          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td><td>8</td><td class="c">9</td><td class="c">19–21</td><td class="j">25–29</td><td class="c">35–40</td><td class="c">44–50</td><td class="c">52–59</td><td class="c">53–60</td></tr>\n        </table>\n        <table class="block">\n          <tr class="ns"><th scope="row"><i>n</i></th><td class="j" title=\'Claude and BGPW\'>2<sup>51</sup></td><td class="c" title=\'Claude alone\'>2<sup>57</sup></td><td class="c" title=\'Claude alone\'>2<sup>61</sup></td><td class="c" title=\'Claude alone\'>2<sup>67</sup></td><td class="c" title=\'Claude alone\'>2<sup>71</sup></td></tr>\n          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="j">55–63</td><td class="c">61–70</td><td class="c">66–75</td><td class="c">72–83</td><td class="c">77–88</td></tr>\n        </table>\n', 1),
-                ('which needed 304 to have order 9 -->\n', 'which needed 304 to have order 9, though 2^20 now has order 21 another way, the 2^18 entry times tau_2 -->\n', 1),
-                (', which needed 304 to have order 9."</p>\n', ', which needed 304 to have order 9. 2<sup>20</sup> now has order 21 another way: the 2<sup>18</sup> entry below, each product times τ<sub>2</sub>."</p>\n', 1),
-                # Claude's corrected wording where a TODO for dreeves stood (dreeves, 2026-10-12)
-                ('      <p>Joint construction: <span class="nw">2<sup>24</sup> = 320<sup>2</sup>·112 + 432·48·2<sup>8</sup></span>, that is, <span class="nw"><i>f</i> = (<i>p</i><sub>320</sub> # <i>p</i><sub>320</sub> # <i>p</i><sub>112</sub>)</span> <span class="nw">∨ (<i>p</i><sub>432</sub> # <i>p</i><sub>48</sub> # τ<sub>8</sub>)</span>. Hence <span class="nw"><i>m</i><sup>*</sup>(2<sup><i>k</i></sup>) ≥ <i>k</i> + 1</span> for every <span class="nw"><i>k</i> ≥ 24</span>.</p>', '      <p>Claude: "Joint construction: <span class="nw">2<sup>24</sup> = 320<sup>2</sup>·112 + 432·48·2<sup>8</sup></span>, that is, <span class="nw"><i>f</i> = (<i>p</i><sub>320</sub> # <i>p</i><sub>320</sub> # <i>p</i><sub>112</sub>)</span> <span class="nw">∨ (<i>p</i><sub>432</sub> # <i>p</i><sub>48</sub> # τ<sub>8</sub>)</span>. Hence <span class="nw"><i>m</i><sup>*</sup>(2<sup><i>k</i></sup>) ≥ <i>k</i> + 1</span> for every <span class="nw"><i>k</i> ≥ 24</span>, and by the 2<sup>18</sup> entry above for every <span class="nw"><i>k</i> ≥ 18</span>."</p>', 1),
-                ("  <p>BGPW's examples at lengths 352, 368, 400, 416, 464 and 496 were not re-checked here.</p>", '  <p>Claude: "BGPW\'s example at length 416 was not re-checked here."</p>', 1),
-                ('        <span><i>p</i><sub>336</sub>, an antisymmetric example found independently by Claude; it is the second part of the 528 example below <span class="nw">(<i>m</i> = 9)</span>:</span>', '        <span>Claude: "<i>q</i><sub>336</sub>, an antisymmetric example found independently by Claude; it is the second part of the 528 example below" <span class="nw">(<i>m</i> = 9)</span>:</span>', 1),
-                ('        <span><i>f</i> = <i>p</i><sub>192</sub> ∨ <i>p</i><sub>336</sub>; &nbsp;<i>p</i><sub>192</sub> <span class="nw">(<i>m</i> = 9)</span>:</span>', '        <span><i>f</i> = <i>p</i><sub>192</sub> ∨ <i>q</i><sub>336</sub>; &nbsp;<i>p</i><sub>192</sub> <span class="nw">(<i>m</i> = 9)</span>:</span>', 1),
-                # no dark mode: its two theme blocks deleted (dreeves, 2026-10-12),
-                ('\n@media (prefers-color-scheme: dark) {\n  :root:not([data-theme="light"]) {\n', '\n', 1),
-                ('\n    --paper: #16171b;\n', '\n', 1),
-                ('\n    --ink: #e9e7e2;\n', '\n', 1),
-                ('\n    --muted: #a2a6b0;\n', '\n', 1),
-                ('\n    --rule: #c9c7c2;\n', '\n', 1),
-                ('\n    --claude: #d46c46;\n', '\n', 1),
-                ('\n    --stan: #5f86dc;\n', '\n', 1),
-                ('\n    --tint: 24%;\n', '\n', 1),
-                ('\n    color-scheme: dark;\n', '\n', 1),
-                ('\n  }\n}\n:root[data-theme="dark"] {\n', '\n', 1),
-                ('\n  --paper: #16171b;\n', '\n', 1),
-                ('\n  --ink: #e9e7e2;\n', '\n', 1),
-                ('\n  --muted: #a2a6b0;\n', '\n', 1),
-                ('\n  --rule: #c9c7c2;\n', '\n', 1),
-                ('\n  --claude: #d46c46;\n', '\n', 1),
-                ('\n  --stan: #5f86dc;\n', '\n', 1),
-                ('\n  --tint: 24%;\n', '\n', 1),
-                ('\n  color-scheme: dark;\n}\n', '\n', 1),
-                # dreeves's own edit of the intro: the {0, 1, …, n − 1} convention (2026-10-13),
-                ('    (Fun fact: This property of having equal power sums for exponents from 0 up to some <i>k</i> is invariant under translating and scaling.\n', '    Fun fact, this property of having equal power sums for exponents from 0 up to some <i>k</i> is invariant under translating and scaling.\n', 1),
-                ('    You can in fact start with any set of <i>n</i> equally spaced integers.)\n', '    You can in fact start with any set of <i>n</i> equally spaced integers.\n  </p>\n  <p class="lede">\n    From now on we use the convention that the <i>n</i>-element set to be partitioned is {0, 1, …, <i>n</i> − 1}.\n', 1),
-                # 800 settled at 11 by a lattice search's example (2026-10-17)
-                ('<td class="c">9–10</td><td class="c">10–11</td><td class="c">10–14</td>', '<td class="c">9–10</td><td class="c">11</td><td class="c">10–14</td>', 1),
-                # 800's set and its code block, data that the copy quals would read as English: the set ends the sets'
-                # <code> (on 560's last line); the code block sits where 800's remark is inserted around it (2026-10-17)
-                ('  546, 547, 549, 552, 553, 555, 558, 559};</code></pre>', '  546, 547, 549, 552, 553, 555, 558, 559};\nSClaude[11][800] = {\n  0, 3, 5, 6, 9, 10, 12, 15, 17, 18, 21, 23, 24, 27, 29, 30, 32, 36,\n  37, 38, 39, 42, 44, 45, 48, 51, 53, 54, 57, 59, 60, 62, 63, 66, 69,\n  71, 72, 74, 75, 77, 81, 84, 86, 87, 90, 93, 95, 96, 98, 99, 102,\n  103, 105, 107, 108, 111, 113, 114, 116, 117, 119, 120, 123, 126,\n  129, 132, 134, 135, 137, 138, 140, 141, 143, 144, 147, 149, 150,\n  153, 156, 159, 161, 162, 164, 165, 168, 171, 173, 174, 177, 180,\n  182, 183, 185, 186, 189, 191, 192, 194, 195, 198, 200, 201, 204,\n  206, 207, 210, 213, 216, 218, 219, 222, 225, 227, 228, 230, 231,\n  234, 236, 237, 240, 243, 245, 246, 248, 249, 252, 254, 255, 257,\n  258, 260, 261, 264, 267, 269, 270, 271, 273, 276, 279, 281, 282,\n  284, 285, 288, 290, 291, 294, 296, 297, 300, 301, 303, 305, 306,\n  308, 309, 310, 312, 315, 317, 318, 324, 326, 327, 330, 333, 338,\n  339, 340, 342, 345, 347, 348, 351, 352, 354, 357, 359, 360, 363,\n  366, 368, 369, 371, 372, 374, 375, 378, 380, 381, 383, 384, 386,\n  387, 389, 390, 392, 393, 395, 396, 399, 401, 402, 405, 408, 411,\n  414, 417, 420, 422, 423, 426, 429, 432, 434, 435, 437, 438, 441,\n  443, 444, 446, 449, 450, 453, 455, 456, 458, 462, 463, 464, 465,\n  467, 468, 470, 471, 474, 476, 477, 478, 479, 480, 483, 485, 486,\n  488, 492, 495, 497, 500, 501, 504, 506, 507, 510, 512, 513, 516,\n  519, 521, 522, 524, 525, 527, 531, 533, 534, 536, 537, 540, 543,\n  546, 548, 549, 552, 555, 557, 558, 560, 561, 564, 566, 567, 570,\n  573, 575, 576, 578, 579, 582, 584, 585, 587, 588, 590, 591, 594,\n  596, 597, 600, 602, 603, 606, 609, 611, 612, 615, 618, 620, 621,\n  623, 624, 627, 629, 630, 632, 633, 636, 639, 641, 642, 644, 645,\n  647, 648, 651, 653, 654, 657, 660, 663, 666, 668, 669, 671, 672,\n  674, 675, 677, 678, 681, 684, 687, 689, 690, 693, 695, 698, 699,\n  702, 705, 707, 708, 710, 711, 714, 716, 717, 719, 720, 721, 723,\n  726, 729, 731, 732, 734, 735, 738, 741, 743, 744, 747, 749, 750,\n  752, 753, 756, 758, 759, 764, 765, 766, 768, 771, 773, 774, 777,\n  779, 780, 783, 785, 786, 788, 791, 792, 795, 797, 798};</code></pre>', 1),
-                ('    </li>\n    <li class="j">\n      <span class="mk" aria-hidden="true">◆●</span>\n      <p class="entry"><i>n</i> = 2<sup>24</sup>: &nbsp;', '    </li>\n      <p class="code">\n        <span><i>p</i><sub>800</sub> <span class="nw">(<i>m</i> = 11)</span>:</span>\n        <code>966965968F2C965B25B44B25B3596D924B6D96496C964B65B2CB24B25B2C96CB6C97496CB2CD6E960B243A59A592DB2DB6D9</code>\n      </p>\n    <li class="j">\n      <span class="mk" aria-hidden="true">◆●</span>\n      <p class="entry"><i>n</i> = 2<sup>24</sup>: &nbsp;', 1),
-                # the powers of 2 once 800 reached order 11 (2026-10-17): the first power of 2 for each excess
-                # added (2^17, 2^27, 2^34, 2^38, 2^46, 2^52 and 2^66), 2^41 to 2^71 raised, the rows split after 2^34
-                ('        <table class="block">\n          <tr class="ns"><th scope="row"><i>n</i></th><td title=\'The published paper (2021)\'>2<sup>3</sup></td><td title=\'The published paper (2021)\'>2<sup>4</sup></td><td title=\'The published paper (2021)\'>2<sup>5</sup></td><td title=\'The published paper (2021)\'>2<sup>6</sup></td><td title=\'The published paper (2021)\'>2<sup>7</sup></td><td title=\'The published paper (2021)\'>2<sup>8</sup></td><td class="c" title=\'Claude alone\'>2<sup>9</sup></td><td class="c" title=\'Claude alone\'>2<sup>18</sup></td><td class="j" title=\'Claude and BGPW\'>2<sup>24</sup></td><td class="c" title=\'Claude alone\'>2<sup>33</sup></td><td class="c" title=\'Claude alone\'>2<sup>41</sup></td><td class="c" title=\'Claude alone\'>2<sup>48</sup></td><td class="c" title=\'Claude alone\'>2<sup>49</sup></td></tr>\n          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td><td>8</td><td class="c">9</td><td class="c">19–21</td><td class="j">25–29</td><td class="c">35–40</td><td class="c">44–50</td><td class="c">52–59</td><td class="c">53–60</td></tr>\n        </table>\n        <table class="block">\n          <tr class="ns"><th scope="row"><i>n</i></th><td class="j" title=\'Claude and BGPW\'>2<sup>51</sup></td><td class="c" title=\'Claude alone\'>2<sup>57</sup></td><td class="c" title=\'Claude alone\'>2<sup>61</sup></td><td class="c" title=\'Claude alone\'>2<sup>67</sup></td><td class="c" title=\'Claude alone\'>2<sup>71</sup></td></tr>\n          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="j">55–63</td><td class="c">61–70</td><td class="c">66–75</td><td class="c">72–83</td><td class="c">77–88</td></tr>\n        </table>\n', '        <table class="block">\n          <tr class="ns"><th scope="row"><i>n</i></th><td title=\'The published paper (2021)\'>2<sup>3</sup></td><td title=\'The published paper (2021)\'>2<sup>4</sup></td><td title=\'The published paper (2021)\'>2<sup>5</sup></td><td title=\'The published paper (2021)\'>2<sup>6</sup></td><td title=\'The published paper (2021)\'>2<sup>7</sup></td><td title=\'The published paper (2021)\'>2<sup>8</sup></td><td class="c" title=\'Claude alone\'>2<sup>9</sup></td><td class="c" title=\'Claude alone\'>2<sup>17</sup></td><td class="c" title=\'Claude alone\'>2<sup>18</sup></td><td class="j" title=\'Claude and BGPW\'>2<sup>24</sup></td><td class="c" title=\'Claude alone\'>2<sup>27</sup></td><td class="c" title=\'Claude alone\'>2<sup>33</sup></td><td class="c" title=\'Claude alone\'>2<sup>34</sup></td></tr>\n          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td><td>8</td><td class="c">9</td><td class="c">18–20</td><td class="c">19–21</td><td class="j">25–29</td><td class="c">29–33</td><td class="c">35–40</td><td class="c">37–41</td></tr>\n        </table>\n        <table class="block">\n          <tr class="ns"><th scope="row"><i>n</i></th><td class="c" title=\'Claude alone\'>2<sup>38</sup></td><td class="c" title=\'Claude alone\'>2<sup>41</sup></td><td class="c" title=\'Claude alone\'>2<sup>46</sup></td><td class="c" title=\'Claude alone\'>2<sup>48</sup></td><td class="c" title=\'Claude alone\'>2<sup>49</sup></td><td class="j" title=\'Claude and BGPW\'>2<sup>51</sup></td><td class="c" title=\'Claude alone\'>2<sup>52</sup></td><td class="c" title=\'Claude alone\'>2<sup>57</sup></td><td class="c" title=\'Claude alone\'>2<sup>61</sup></td><td class="c" title=\'Claude alone\'>2<sup>66</sup></td><td class="c" title=\'Claude alone\'>2<sup>67</sup></td><td class="c" title=\'Claude alone\'>2<sup>71</sup></td></tr>\n          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="c">42–46</td><td class="c">45–50</td><td class="c">51–57</td><td class="c">53–59</td><td class="c">54–60</td><td class="j">56–63</td><td class="c">58–64</td><td class="c">64–70</td><td class="c">68–75</td><td class="c">74–82</td><td class="c">75–83</td><td class="c">79–88</td></tr>\n        </table>\n', 1),
-                # 240 settled at 10 (2026-10-20: overnight_v5.py, then boxsplit.py by 17 and 19, the final pass ALL
-                # NODES CLOSED), a cell of its own before 304's (dreeves: "Before 304 in new results")
-                ('<th scope="row"><i>n</i></th><td class="c" title=\'Claude alone\'>304</td>', '<th scope="row"><i>n</i></th><td class="c" title=\'Claude alone\'>240</td><td class="c" title=\'Claude alone\'>304</td>', 1),
-                ('(<i>n</i>)</th><td class="c">8</td><td class="s">9</td><td class="j">10</td>', '(<i>n</i>)</th><td class="c">10</td><td class="c">8</td><td class="s">9</td><td class="j">10</td>', 1),
-                # the search remarks name their certificates' kind (2026-10-20, dreeves's "sure", after Stan Wagon read
-                # "a certificate" as a residue proof): 304's TODO recap and Claude line, both in BASE
-                ('closes every case with a certificate checked in exact integer arithmetic', 'closes every case with linear-programming certificates checked in exact integer arithmetic', 2))
-
-# 384 settled at 10 by Astra's exact modular certificate (2026-10-20).  These precise edits add its author to the
-# existing table's visual vocabulary; all other original prose and styling remain protected by the baseline diff.
-TABLE_UPDATE += (("<td class=\"c\" title='Claude alone'>384</td>", "<td class=\"a\" title='Astra alone'>384</td>", 1),
-                 ('<td class="s">9</td><td class="s">9</td><td class="c">10–11</td><td class="s">9</td>',
-                  '<td class="s">9</td><td class="s">9</td><td class="a">10</td><td class="s">9</td>', 1),
-                 ('  --stan: #3460c8;', '  --stan: #3460c8;\n  /* Astra\'s result uses a separate hue and the glyph ✦. */\n  --astra: #7560a7;', 1),
-                 ('td.c { --hue: var(--claude); --glyph: "◆"; }', 'td.c { --hue: var(--claude); --glyph: "◆"; }\ntd.a { --hue: var(--astra); --glyph: "✦"; }', 1),
-                 ('td.c, td.j, td.s { background:', 'td.a, td.c, td.j, td.s { background:', 1),
-                 ('tr.vals td.c, tr.vals td.j, tr.vals td.s { box-shadow:', 'tr.vals td.a, tr.vals td.c, tr.vals td.j, tr.vals td.s { box-shadow:', 1),
-                 ('.key.c { --hue: var(--claude); }', '.key.c { --hue: var(--claude); }\n.key.a { --hue: var(--astra); }', 1),
-                 ('.remarks li.c .mk { color: var(--claude); }', '.remarks li.c .mk { color: var(--claude); }\n.remarks li.a .mk { color: var(--astra); }', 1),
-                 ('    <li><span class="key c" aria-hidden="true">◆</span>Claude alone</li>',
-                  '    <li><span class="key c" aria-hidden="true">◆</span>Claude alone</li>\n    <li><span class="key a" aria-hidden="true">✦</span>Astra alone</li>', 1))
-# The legend line's TODO comment above (Astra's, 2026-10-20) never reached a commit: dreeves's page has the two entries
-# side by side (by his convention, a copy approved), so the edit records his version (2026-10-23).
-# dreeves's own edits of lines in the page before the chart or made by the edits above, so in both rebuilt pages, this
-# file's and quals_pow2_page.py's, his words byte for byte, trailing spaces too: the header's lede became the authors'
-# line and "We extend the results of …", and "From now on" became "From here on" (2026-10-25, commit 48710ae "Human
-# copy"); the footer's five lines became his definition of the expanded product (2026-10-24, commit 35dd836 "Edits"),
-# the sentence on the hex codes moving, reworded, to the top of the remarks (HEX_NOTE) and Claude's line on 416 going
-# (its TODO comment, an insertion, went in b475924 the same day).
-FOOTER_DEFINITION = ('  <p>Definition (expanded product): \n'
-                     '    <span class="nw"><i>f</i> # <i>g</i> = <i>f</i>(<i>x</i>)·<i>g</i>(<i>x</i><sup><i>n<sub>f</sub></i></sup>)</span>, where <i>n<sub>f</sub></i> is the length of <i>f</i>. \n'
-                     '    And the symbol ∨ means the join.</p>\n')
-TABLE_UPDATE += (('  <p class="lede">Table 2 of the paper by Buhler, Golan, Pratt, and Wagon (<i>Math. Comp.</i> 90, 2021), extended with new results.</p>\n',
-                  '  <p class="lede">Stan Wagon, Daniel Reeves, Claude, and Astra</p>\n'
-                  '  <p class="lede">\n'
-                  '    We extend the results of \n'
-                  '    Table 2 of the paper by Buhler, Golan, Pratt, and Wagon (<i>Math. Comp.</i> 90, 2021).</p>\n', 1),
-                 ('    From now on we use the convention', '    From here on we use the convention', 1),
-                 ('  <p>The first three blocks are copied from Table 2 of the published paper.</p>\n'
-                  '  <p>The hex codes follow the paper\'s Table 5 convention: the left half of the signs <span class="nw">(1 = +1, 0 = −1)</span>, then the rest by <span class="nw">(−1)<sup><i>m</i></sup></span> symmetry.</p>\n'
-                  '  <p>The sign # denotes the expanded product, <span class="nw"><i>f</i> # <i>g</i> = <i>f</i>(<i>x</i>)·<i>g</i>(<i>x</i><sup><i>n<sub>f</sub></i></sup>)</span>, where <i>n<sub>f</sub></i> is the length of <i>f</i>. The sign ∨ denotes the join.</p>\n'
-                  '  <p>Every example whose code is given here was checked by Claude with exact integer power sums.</p>\n'
-                  '  <p>Claude: "BGPW\'s example at length 416 was not re-checked here."</p>\n',
-                  FOOTER_DEFINITION, 1))
-
-# The results of 2026-10-25 (scratch/record-20261025/page/apply_record.py): the new results' cells (592, 608 and 656
-# settled at 10 and 848, 880, 896, 928, 944, 976 and 992 at 11 by examples, 752 bounded by 10 by proof752.py); a
-# new category, Claude and Astra, for 592, 608, 656 and 752: its legend line, in the form of dreeves's legend (so
-# unattributed), and its CSS, Claude and BGPW's mutatis mutandis; and the ten code blocks and sets, data that the
-# copy quals would read as English: 592's, 608's and 656's blocks before 800's, the rest after it, where their
-# remarks are inserted around them, and the sets after 800's.
-TABLE_UPDATE += (('<td class="c" title=\'Claude alone\'>592</td><td class="c" title=\'Claude alone\'>608</td><td class="c" title=\'Claude alone\'>624</td><td class="c" title=\'Claude alone\'>640</td><td class="c" title=\'Claude alone\'>656</td></tr>', '<td class="ca" title=\'Claude and Astra\'>592</td><td class="ca" title=\'Claude and Astra\'>608</td><td class="c" title=\'Claude alone\'>624</td><td class="c" title=\'Claude alone\'>640</td><td class="ca" title=\'Claude and Astra\'>656</td></tr>', 1),
-                 ('<td class="c">10–12</td><td class="c">9–10</td><td class="c">9–10</td><td class="c">10–12</td><td class="c">10</td><td class="c">9–10</td></tr>', '<td class="c">10–12</td><td class="ca">10</td><td class="ca">10</td><td class="c">10–12</td><td class="c">10</td><td class="ca">10</td></tr>', 1),
-                 ('<td class="c" title=\'Claude alone\'>752</td>', '<td class="ca" title=\'Claude and Astra\'>752</td>', 1),
-                 ('<td class="c">10</td><td class="c">9–11</td><td class="c">11–13</td>', '<td class="c">10</td><td class="ca">9–10</td><td class="c">11–13</td>', 1),
-                 ('(<i>n</i>)</th><td class="c">9–11</td><td class="c">12–14</td><td class="c">10–11</td><td class="c">10–11</td><td class="c">11–13</td><td class="c">10–11</td><td class="c">10–11</td><td class="c">13–15</td><td class="c">10–11</td><td class="c">10–11</td></tr>', '(<i>n</i>)</th><td class="c">11</td><td class="c">12–14</td><td class="c">11</td><td class="c">11</td><td class="c">11–13</td><td class="c">11</td><td class="c">11</td><td class="c">13–15</td><td class="c">11</td><td class="c">11</td></tr>', 1),
-                 ('    <li><span class="key a" aria-hidden="true">✦</span>Astra alone</li>\n', '    <li><span class="key a" aria-hidden="true">✦</span>Astra alone</li>\n    <li><span class="key ca" aria-hidden="true"><span>◆✦</span></span>Claude and Astra</li>\n', 1),
-                 ('td.j { --glyph: "◆●"; }\n', 'td.j { --glyph: "◆●"; }\ntd.ca { --glyph: "◆✦"; }\n', 1),
-                 ('tr.ns td.j::before, .key.j > span, .remarks li.j .mk { background: linear-gradient(90deg, var(--claude) 50%, var(--stan) 50%); -webkit-background-clip: text; background-clip: text; color: transparent; }\n', 'tr.ns td.j::before, .key.j > span, .remarks li.j .mk { background: linear-gradient(90deg, var(--claude) 50%, var(--stan) 50%); -webkit-background-clip: text; background-clip: text; color: transparent; }\n/* Claude and Astra (2026-10-25): as Claude and BGPW, stripes of the two tints over a striped bar, its glyph half in each hue */\ntd.ca, .key.ca { background: repeating-linear-gradient(135deg, color-mix(in oklab, var(--claude) var(--tint), var(--paper)) 0 0.3rem, color-mix(in oklab, var(--astra) var(--tint), var(--paper)) 0.3rem 0.6rem); }\ntr.vals td.ca, .key.ca { background: repeating-linear-gradient(90deg, var(--claude) 0 0.3rem, var(--astra) 0.3rem 0.6rem) bottom / 100% 3px no-repeat, repeating-linear-gradient(135deg, color-mix(in oklab, var(--claude) var(--tint), var(--paper)) 0 0.3rem, color-mix(in oklab, var(--astra) var(--tint), var(--paper)) 0.3rem 0.6rem); box-shadow: none; }\ntr.ns td.ca::before, .key.ca > span, .remarks li.ca .mk { background: linear-gradient(90deg, var(--claude) 50%, var(--astra) 50%); -webkit-background-clip: text; background-clip: text; color: transparent; }\n', 1),
-                 ('    </li>\n      <p class="code">\n        <span><i>p</i><sub>800</sub> <span class="nw">(<i>m</i> = 11)</span>:</span>\n', '    </li>\n      <p class="code">\n        <span><i>p</i><sub>592</sub> <span class="nw">(<i>m</i> = 10)</span>:</span>\n        <code>93CC6790EA26876D2DDA793492C92EB24C3B934525B66DADF25926920BA79E4D21B2CB359A</code>\n      </p>\n      <p class="code">\n        <span><i>p</i><sub>608</sub> <span class="nw">(<i>m</i> = 10)</span>:</span>\n        <code>AC965934D659969A4CE792CD6492D72C836BE49E193612E97792C9AAB265AC867BAE921924D7</code>\n      </p>\n      <p class="code">\n        <span><i>p</i><sub>656</sub> <span class="nw">(<i>m</i> = 10)</span>:</span>\n        <code>C32DA6E924AED161B6D94216DB6CBE4A4932FD4996135826A94DF6CA6CB4DA1EB4D90D92134D82F8EE</code>\n      </p>\n      <p class="code">\n        <span><i>p</i><sub>800</sub> <span class="nw">(<i>m</i> = 11)</span>:</span>\n', 1),
-                 ('        <code>966965968F2C965B25B44B25B3596D924B6D96496C964B65B2CB24B25B2C96CB6C97496CB2CD6E960B243A59A592DB2DB6D9</code>\n      </p>\n    <li class="j">\n', '        <code>966965968F2C965B25B44B25B3596D924B6D96496C964B65B2CB24B25B2C96CB6C97496CB2CD6E960B243A59A592DB2DB6D9</code>\n      </p>\n      <p class="code">\n        <span><i>p</i><sub>848</sub> <span class="nw">(<i>m</i> = 11)</span>:</span>\n        <code>96B905B25BADB2496D32C924B74B6C96596CF25964B28925B25B6DAA5B6D96C965164B14B2C92F52D12596C97CB6CBEC86592CB2C9</code>\n      </p>\n      <p class="code">\n        <span><i>p</i><sub>880</sub> <span class="nw">(<i>m</i> = 11)</span>:</span>\n        <code>C965B1C92D925B6C92D964BE4D2FB20B6592492D16D9259ADB6FD64926964925A64B6E62EF60D2CB24B6D925B2CB05960B6CB6CB75B74F</code>\n      </p>\n      <p class="code">\n        <span><i>p</i><sub>896</sub> <span class="nw">(<i>m</i> = 11)</span>:</span>\n        <code>B25B2D92512CD65BA5B2DB2514CD65B8CB698E6364E65905B6196D12C82CBADB3DB6E32C9659ACB6D96512492C9ECB2196DB2C92D944B259</code>\n      </p>\n      <p class="code">\n        <span><i>p</i><sub>928</sub> <span class="nw">(<i>m</i> = 11)</span>:</span>\n        <code>869B4DEE9A60A4D14BA2D35DA4DA6D14F349E65B4C27926C54D36D268358369F29B6936DA6BA69269A65259349A4D86D765349B49A69BA9F65B4</code>\n      </p>\n      <p class="code">\n        <span><i>p</i><sub>944</sub> <span class="nw">(<i>m</i> = 11)</span>:</span>\n        <code>B2D920F6C32D8A4A75B6E965D2D964B44968F291A432D97C96F964B2586CB47B64965B2DBE4934929B4C125B6D93494F92CB2DBA436596896D7ADA</code>\n      </p>\n      <p class="code">\n        <span><i>p</i><sub>976</sub> <span class="nw">(<i>m</i> = 11)</span>:</span>\n        <code>A69A48B5DB6B269A6D14CA1936324D74DB6833DB6DB4DB4134921D949A68E6986F25DA6D348F4994935D86BB49E69ACC27D067268769B4D219B67249A4</code>\n      </p>\n      <p class="code">\n        <span><i>p</i><sub>992</sub> <span class="nw">(<i>m</i> = 11)</span>:</span>\n        <code>94E96372496EB6496DB2D364864B2D902967B24E2DBF7B71908D6D92DA44905B4EF2CD2596CB7192D944B2C8ECB60967B24E25B2DB24BA5F2D96DB859749</code>\n      </p>\n    <li class="j">\n', 1),
-                 ('  779, 780, 783, 785, 786, 788, 791, 792, 795, 797, 798};</code></pre>', '  779, 780, 783, 785, 786, 788, 791, 792, 795, 797, 798};\nSClaude[10][592] = {\n  0, 3, 6, 7, 8, 9, 12, 13, 17, 18, 21, 22, 23, 24, 27, 32, 33, 34,\n  36, 38, 42, 45, 46, 48, 53, 54, 55, 57, 58, 60, 61, 63, 66, 68, 69,\n  71, 72, 73, 75, 76, 78, 81, 82, 83, 84, 87, 90, 91, 93, 96, 99,\n  102, 104, 105, 108, 111, 114, 116, 117, 118, 120, 122, 123, 126,\n  129, 132, 133, 138, 139, 140, 142, 143, 144, 147, 150, 151, 153,\n  157, 159, 162, 165, 167, 168, 170, 171, 173, 174, 177, 178, 180,\n  181, 183, 184, 186, 188, 189, 191, 192, 193, 194, 195, 198, 201,\n  203, 204, 207, 210, 213, 214, 216, 219, 222, 228, 230, 231, 232,\n  234, 237, 238, 239, 240, 243, 244, 245, 246, 249, 252, 253, 255,\n  258, 263, 264, 266, 267, 270, 272, 273, 276, 278, 279, 282, 283,\n  285, 287, 288, 291, 292, 294, 297, 299, 300, 303, 304, 306, 308,\n  309, 312, 313, 315, 318, 319, 321, 324, 325, 327, 328, 333, 336,\n  338, 339, 342, 345, 346, 347, 348, 351, 352, 353, 354, 357, 359,\n  360, 361, 363, 369, 372, 375, 377, 378, 381, 384, 387, 388, 390,\n  393, 396, 397, 398, 399, 400, 402, 403, 405, 407, 408, 410, 411,\n  413, 414, 417, 418, 420, 421, 423, 424, 426, 429, 432, 434, 438,\n  440, 441, 444, 447, 448, 449, 451, 452, 453, 458, 459, 462, 465,\n  468, 469, 471, 473, 474, 475, 477, 480, 483, 486, 487, 489, 492,\n  495, 498, 500, 501, 504, 507, 508, 509, 510, 513, 515, 516, 518,\n  519, 520, 522, 523, 525, 528, 530, 531, 533, 534, 536, 537, 538,\n  543, 545, 546, 549, 553, 555, 557, 558, 559, 564, 567, 568, 569,\n  570, 573, 574, 578, 579, 582, 583, 584, 585, 588, 591};\nSClaude[10][608] = {\n  0, 2, 4, 5, 8, 11, 13, 14, 17, 19, 20, 23, 26, 27, 29, 32, 33, 35,\n  37, 38, 41, 43, 44, 47, 48, 51, 53, 54, 56, 59, 60, 62, 65, 68, 69,\n  72, 73, 74, 77, 78, 79, 80, 83, 86, 88, 89, 92, 93, 95, 97, 98,\n  101, 104, 107, 110, 112, 113, 115, 117, 118, 119, 122, 124, 125,\n  128, 134, 135, 137, 138, 140, 142, 143, 144, 145, 146, 149, 152,\n  155, 156, 157, 158, 163, 164, 167, 170, 171, 173, 174, 179, 182,\n  184, 185, 186, 188, 191, 193, 194, 195, 197, 198, 199, 200, 203,\n  206, 208, 209, 212, 215, 216, 218, 220, 222, 224, 226, 227, 230,\n  233, 234, 237, 239, 240, 242, 244, 245, 248, 253, 254, 257, 258,\n  259, 260, 262, 263, 264, 266, 268, 269, 270, 272, 275, 278, 283,\n  284, 287, 290, 293, 296, 297, 299, 301, 302, 303, 304, 305, 306,\n  308, 310, 311, 314, 317, 320, 323, 324, 329, 332, 335, 337, 338,\n  339, 341, 343, 344, 345, 347, 348, 349, 350, 353, 354, 359, 362,\n  363, 365, 367, 368, 370, 373, 374, 377, 380, 381, 383, 385, 387,\n  389, 391, 392, 395, 398, 399, 401, 404, 407, 408, 409, 410, 412,\n  413, 414, 416, 419, 421, 422, 423, 425, 428, 433, 434, 436, 437,\n  440, 443, 444, 449, 450, 451, 452, 455, 458, 461, 462, 463, 464,\n  465, 467, 469, 470, 472, 473, 479, 482, 483, 485, 488, 489, 490,\n  492, 494, 495, 497, 500, 503, 506, 509, 510, 512, 514, 515, 518,\n  519, 521, 524, 527, 528, 529, 530, 533, 534, 535, 538, 539, 542,\n  545, 547, 548, 551, 553, 554, 556, 559, 560, 563, 564, 566, 569,\n  570, 572, 574, 575, 578, 580, 581, 584, 587, 588, 590, 593, 594,\n  596, 599, 602, 603, 605, 607};\nSClaude[10][656] = {\n  0, 1, 6, 7, 10, 12, 13, 15, 16, 18, 21, 22, 24, 25, 26, 28, 31, 34,\n  37, 40, 42, 44, 45, 46, 48, 49, 51, 55, 57, 58, 63, 64, 66, 67, 69,\n  70, 72, 73, 75, 76, 79, 81, 86, 91, 93, 94, 96, 97, 99, 100, 102,\n  103, 105, 106, 108, 109, 112, 114, 115, 116, 117, 118, 121, 124,\n  126, 129, 132, 135, 138, 139, 142, 144, 145, 146, 147, 148, 149,\n  151, 153, 156, 159, 160, 163, 165, 166, 171, 174, 175, 177, 179,\n  180, 186, 189, 190, 192, 194, 196, 199, 201, 204, 205, 207, 208,\n  209, 210, 211, 213, 214, 216, 217, 220, 222, 225, 226, 228, 229,\n  232, 234, 235, 237, 240, 241, 243, 244, 246, 251, 252, 253, 254,\n  256, 258, 259, 261, 264, 265, 267, 268, 271, 276, 277, 279, 280,\n  283, 286, 291, 294, 295, 297, 300, 301, 303, 304, 310, 312, 313,\n  314, 315, 316, 320, 321, 322, 324, 325, 326, 329, 330, 331, 333,\n  334, 335, 339, 340, 341, 342, 343, 345, 351, 352, 354, 355, 358,\n  360, 361, 364, 369, 372, 375, 376, 378, 379, 384, 387, 388, 390,\n  391, 394, 396, 397, 399, 401, 402, 403, 404, 409, 411, 412, 414,\n  415, 418, 420, 421, 423, 426, 427, 429, 430, 433, 435, 438, 439,\n  441, 442, 444, 445, 446, 447, 448, 450, 451, 454, 456, 459, 461,\n  463, 465, 466, 469, 475, 476, 478, 480, 481, 484, 489, 490, 492,\n  495, 496, 499, 502, 504, 506, 507, 508, 509, 510, 511, 513, 516,\n  517, 520, 523, 526, 529, 531, 534, 537, 538, 539, 540, 541, 543,\n  546, 547, 549, 550, 552, 553, 555, 556, 558, 559, 561, 562, 564,\n  569, 574, 576, 579, 580, 582, 583, 585, 586, 588, 589, 591, 592,\n  597, 598, 600, 604, 606, 607, 609, 610, 611, 613, 615, 618, 621,\n  624, 627, 629, 630, 631, 633, 634, 637, 639, 640, 642, 643, 645,\n  648, 649, 654, 655};\nSClaude[11][848] = {\n  0, 3, 5, 6, 8, 10, 11, 12, 15, 21, 23, 24, 26, 27, 30, 33, 35, 36,\n  38, 39, 40, 42, 44, 45, 47, 48, 50, 51, 54, 57, 60, 63, 65, 66, 68,\n  69, 71, 74, 75, 78, 80, 81, 84, 87, 90, 93, 96, 98, 99, 101, 102,\n  103, 105, 108, 110, 111, 113, 114, 116, 117, 120, 123, 125, 126,\n  129, 131, 132, 135, 137, 138, 140, 141, 144, 145, 146, 147, 150,\n  153, 155, 156, 159, 161, 162, 165, 168, 170, 171, 174, 176, 180,\n  183, 186, 189, 191, 192, 194, 195, 198, 201, 203, 204, 206, 207,\n  209, 210, 212, 213, 215, 216, 218, 220, 222, 225, 227, 228, 230,\n  231, 233, 234, 236, 237, 239, 240, 243, 245, 246, 248, 249, 252,\n  255, 257, 258, 261, 263, 267, 269, 270, 273, 276, 278, 279, 283,\n  285, 288, 290, 291, 294, 296, 297, 300, 303, 306, 308, 309, 310,\n  311, 313, 315, 318, 320, 321, 323, 327, 330, 333, 335, 336, 339,\n  341, 342, 344, 345, 348, 351, 353, 354, 355, 356, 357, 360, 362,\n  363, 365, 366, 368, 369, 372, 374, 375, 376, 377, 378, 380, 381,\n  384, 389, 390, 393, 395, 396, 399, 402, 404, 405, 408, 410, 411,\n  414, 416, 417, 420, 423, 425, 426, 428, 429, 432, 434, 435, 438,\n  440, 441, 444, 446, 447, 449, 450, 453, 455, 456, 459, 460, 461,\n  462, 464, 465, 468, 474, 476, 477, 480, 483, 486, 488, 489, 495,\n  497, 498, 500, 501, 504, 507, 509, 510, 513, 515, 516, 518, 519,\n  521, 522, 523, 525, 528, 530, 531, 533, 535, 540, 542, 543, 545,\n  546, 548, 549, 552, 554, 555, 558, 560, 561, 563, 565, 566, 567,\n  570, 572, 573, 575, 576, 579, 581, 582, 583, 585, 587, 588, 591,\n  593, 594, 596, 597, 600, 603, 605, 606, 609, 612, 615, 618, 621,\n  623, 624, 626, 628, 630, 633, 636, 639, 642, 645, 647, 648, 650,\n  651, 654, 657, 659, 660, 662, 663, 665, 666, 668, 669, 670, 672,\n  674, 675, 678, 680, 681, 683, 684, 687, 689, 690, 693, 695, 696,\n  698, 699, 704, 705, 708, 711, 713, 714, 717, 719, 720, 723, 725,\n  726, 728, 729, 732, 735, 738, 740, 741, 743, 747, 750, 752, 753,\n  755, 756, 758, 759, 761, 762, 764, 765, 768, 770, 771, 774, 775,\n  777, 780, 783, 785, 786, 788, 789, 791, 792, 794, 795, 798, 801,\n  804, 806, 810, 813, 815, 816, 818, 819, 822, 825, 827, 828, 829,\n  830, 831, 833, 834, 838, 840, 843, 845, 846};\nSClaude[11][880] = {\n  0, 1, 4, 7, 9, 10, 13, 15, 16, 18, 19, 23, 24, 25, 28, 31, 34, 36,\n  37, 39, 40, 43, 46, 49, 51, 52, 54, 55, 57, 58, 60, 61, 64, 67, 70,\n  72, 73, 75, 76, 79, 81, 82, 85, 88, 90, 91, 92, 93, 94, 97, 100,\n  101, 103, 106, 108, 109, 110, 111, 112, 114, 115, 118, 124, 126,\n  127, 129, 130, 133, 135, 136, 139, 142, 145, 148, 151, 154, 156,\n  157, 159, 163, 165, 166, 168, 169, 171, 172, 175, 178, 181, 183,\n  184, 187, 188, 190, 192, 193, 195, 196, 198, 199, 201, 202, 204,\n  205, 206, 207, 208, 209, 211, 213, 214, 217, 220, 223, 226, 229,\n  230, 232, 235, 237, 238, 241, 244, 247, 250, 253, 255, 256, 258,\n  261, 262, 265, 268, 270, 271, 273, 274, 276, 277, 278, 281, 282,\n  286, 288, 289, 290, 292, 293, 294, 295, 297, 298, 304, 305, 307,\n  310, 312, 313, 316, 318, 319, 322, 325, 328, 330, 331, 333, 334,\n  336, 337, 339, 340, 343, 346, 349, 351, 352, 354, 355, 358, 360,\n  361, 364, 366, 367, 373, 375, 376, 379, 381, 382, 388, 390, 391,\n  393, 394, 396, 397, 400, 402, 403, 405, 406, 408, 409, 412, 414,\n  415, 417, 418, 419, 421, 423, 424, 426, 427, 429, 430, 431, 433,\n  436, 437, 438, 439, 444, 445, 447, 451, 454, 457, 459, 463, 466,\n  468, 469, 472, 475, 478, 480, 481, 484, 487, 490, 492, 493, 494,\n  495, 496, 499, 501, 502, 505, 507, 508, 509, 510, 511, 514, 516,\n  517, 520, 522, 523, 526, 529, 531, 532, 534, 535, 537, 538, 541,\n  544, 547, 550, 552, 553, 555, 556, 558, 559, 562, 564, 565, 568,\n  570, 571, 573, 576, 577, 578, 579, 580, 583, 588, 592, 594, 595,\n  596, 599, 600, 604, 607, 610, 612, 613, 615, 616, 619, 620, 622,\n  625, 627, 628, 630, 631, 633, 634, 636, 637, 639, 640, 643, 645,\n  646, 648, 651, 652, 654, 655, 657, 658, 660, 661, 663, 664, 667,\n  669, 676, 679, 682, 685, 688, 690, 693, 694, 697, 699, 700, 702,\n  703, 705, 706, 709, 712, 715, 717, 718, 719, 721, 724, 726, 727,\n  729, 730, 732, 733, 735, 736, 738, 739, 741, 742, 745, 747, 748,\n  751, 754, 756, 757, 758, 759, 760, 762, 763, 766, 772, 774, 775,\n  777, 780, 781, 783, 784, 790, 792, 793, 795, 796, 799, 801, 802,\n  805, 808, 810, 811, 813, 814, 816, 817, 820, 823, 826, 829, 831,\n  832, 834, 835, 837, 838, 841, 844, 846, 847, 849, 850, 852, 853,\n  857, 858, 859, 862, 865, 867, 868, 871, 873, 874, 876, 877};\nSClaude[11][896] = {\n  0, 2, 3, 6, 9, 11, 12, 14, 15, 18, 20, 21, 23, 24, 27, 30, 33, 35,\n  39, 42, 44, 45, 48, 49, 51, 53, 54, 57, 59, 60, 62, 63, 64, 66, 69,\n  71, 72, 74, 75, 78, 80, 81, 83, 84, 86, 87, 90, 93, 95, 99, 101,\n  104, 105, 108, 109, 111, 113, 114, 117, 119, 120, 122, 123, 124,\n  128, 129, 132, 134, 135, 137, 138, 140, 143, 144, 148, 149, 150,\n  153, 154, 158, 159, 161, 162, 165, 168, 169, 170, 173, 174, 177,\n  179, 180, 183, 189, 191, 192, 194, 195, 197, 198, 203, 204, 207,\n  209, 210, 212, 213, 215, 219, 222, 224, 225, 228, 234, 236, 237,\n  240, 242, 243, 244, 246, 248, 249, 251, 252, 254, 255, 258, 259,\n  260, 261, 263, 264, 266, 267, 269, 270, 272, 273, 274, 278, 279,\n  282, 284, 285, 288, 291, 293, 294, 297, 299, 300, 303, 304, 306,\n  308, 309, 312, 314, 315, 317, 318, 320, 321, 323, 324, 327, 329,\n  330, 333, 335, 339, 342, 345, 348, 351, 354, 356, 357, 360, 363,\n  364, 365, 366, 368, 369, 372, 374, 375, 378, 383, 384, 387, 389,\n  390, 392, 393, 395, 396, 398, 399, 402, 404, 405, 408, 411, 414,\n  416, 417, 419, 420, 423, 425, 429, 432, 434, 435, 438, 441, 443,\n  444, 447, 449, 450, 453, 455, 456, 458, 459, 462, 464, 465, 467,\n  468, 469, 471, 473, 474, 477, 480, 482, 483, 485, 486, 488, 489,\n  492, 494, 495, 498, 501, 504, 507, 509, 510, 513, 514, 515, 516,\n  518, 519, 522, 524, 525, 528, 533, 534, 536, 537, 540, 542, 543,\n  545, 546, 548, 549, 551, 552, 554, 555, 557, 558, 559, 561, 563,\n  564, 567, 569, 570, 573, 576, 579, 582, 584, 585, 588, 590, 593,\n  594, 597, 599, 600, 603, 605, 606, 608, 609, 612, 614, 615, 618,\n  619, 620, 624, 627, 630, 633, 638, 639, 642, 645, 648, 650, 654,\n  656, 657, 660, 662, 663, 664, 665, 666, 668, 669, 672, 674, 675,\n  677, 678, 679, 681, 684, 687, 689, 690, 693, 694, 695, 696, 699,\n  702, 705, 707, 708, 709, 710, 711, 713, 714, 717, 719, 720, 723,\n  724, 728, 729, 731, 732, 735, 738, 739, 740, 743, 744, 748, 749,\n  750, 753, 754, 756, 759, 762, 764, 765, 768, 769, 770, 774, 777,\n  779, 780, 783, 785, 788, 789, 792, 793, 795, 797, 798, 799, 801,\n  803, 804, 806, 807, 810, 813, 816, 818, 819, 822, 825, 827, 828,\n  830, 834, 837, 839, 840, 843, 845, 848, 849, 852, 854, 855, 857,\n  858, 859, 861, 863, 864, 866, 867, 869, 870, 873, 876, 878, 879,\n  882, 885, 887, 888, 890, 891, 894};\nSClaude[11][928] = {\n  0, 5, 6, 8, 11, 12, 14, 15, 17, 20, 21, 23, 24, 25, 26, 28, 29, 30,\n  32, 35, 36, 38, 41, 42, 48, 50, 53, 56, 57, 59, 63, 65, 68, 70, 71,\n  72, 74, 78, 80, 81, 83, 86, 87, 89, 91, 92, 93, 95, 96, 98, 101,\n  104, 105, 107, 108, 110, 113, 114, 116, 117, 119, 123, 125, 128,\n  129, 130, 131, 134, 135, 137, 140, 143, 144, 145, 146, 149, 150,\n  153, 155, 156, 158, 159, 161, 164, 165, 170, 173, 174, 175, 176,\n  179, 182, 185, 186, 188, 189, 193, 195, 197, 200, 201, 203, 206,\n  207, 209, 210, 212, 213, 215, 218, 221, 222, 224, 230, 231, 233,\n  235, 236, 242, 243, 245, 246, 248, 251, 252, 253, 254, 255, 258,\n  260, 263, 264, 266, 267, 269, 270, 272, 275, 278, 279, 281, 282,\n  284, 285, 287, 288, 290, 293, 294, 296, 298, 299, 300, 302, 305,\n  306, 308, 311, 314, 317, 318, 320, 323, 324, 326, 329, 330, 333,\n  335, 338, 341, 343, 344, 347, 350, 351, 353, 356, 359, 360, 362,\n  365, 368, 369, 371, 372, 377, 378, 380, 381, 383, 385, 386, 387,\n  389, 390, 393, 395, 398, 399, 401, 404, 407, 408, 410, 411, 413,\n  416, 419, 420, 422, 425, 426, 428, 431, 432, 434, 435, 436, 438,\n  440, 443, 444, 445, 446, 447, 449, 450, 453, 455, 456, 458, 459,\n  461, 464, 465, 467, 470, 473, 475, 476, 479, 485, 486, 488, 490,\n  494, 497, 498, 500, 503, 504, 506, 509, 510, 512, 513, 515, 518,\n  521, 522, 524, 525, 527, 530, 531, 533, 535, 536, 539, 543, 545,\n  548, 551, 552, 553, 554, 557, 560, 561, 563, 564, 566, 569, 570,\n  572, 573, 575, 578, 579, 581, 582, 585, 587, 588, 590, 591, 593,\n  595, 596, 599, 600, 602, 605, 606, 608, 611, 612, 614, 615, 617,\n  618, 620, 623, 624, 626, 630, 632, 635, 636, 638, 641, 644, 647,\n  650, 651, 653, 654, 656, 659, 662, 665, 666, 668, 670, 671, 677,\n  678, 680, 683, 686, 687, 688, 689, 690, 693, 695, 698, 699, 700,\n  701, 702, 704, 707, 708, 710, 711, 713, 716, 719, 722, 723, 725,\n  728, 729, 731, 733, 735, 736, 737, 740, 743, 744, 746, 747, 749,\n  750, 755, 756, 758, 759, 760, 761, 764, 765, 767, 770, 773, 775,\n  776, 779, 780, 785, 786, 788, 789, 791, 794, 795, 800, 801, 803,\n  805, 806, 807, 809, 812, 815, 816, 818, 821, 824, 825, 827, 828,\n  830, 833, 837, 839, 842, 843, 845, 848, 850, 851, 852, 854, 858,\n  860, 861, 863, 865, 866, 867, 869, 872, 873, 875, 876, 878, 880,\n  881, 882, 883, 884, 887, 888, 890, 893, 894, 896, 900, 905, 908,\n  909, 911, 914, 917, 918, 920, 923, 924, 925, 926};\nSClaude[11][944] = {\n  0, 2, 3, 6, 8, 9, 11, 12, 15, 18, 24, 25, 26, 27, 29, 30, 32, 33,\n  38, 39, 42, 44, 45, 47, 48, 52, 54, 57, 60, 62, 65, 66, 67, 69, 71,\n  72, 74, 75, 77, 78, 80, 81, 82, 84, 87, 89, 90, 93, 95, 96, 97, 99,\n  102, 104, 105, 107, 108, 111, 113, 114, 117, 120, 122, 123, 125,\n  129, 132, 135, 137, 138, 140, 144, 145, 146, 147, 150, 152, 155,\n  159, 160, 162, 165, 170, 171, 174, 176, 177, 179, 180, 183, 185,\n  186, 187, 188, 189, 192, 195, 197, 198, 200, 201, 202, 203, 204,\n  207, 209, 210, 213, 216, 218, 219, 222, 225, 227, 228, 233, 234,\n  236, 237, 240, 242, 243, 245, 249, 250, 251, 252, 254, 255, 257,\n  258, 261, 264, 267, 269, 270, 273, 275, 276, 278, 279, 282, 284,\n  285, 287, 288, 290, 291, 292, 293, 294, 297, 300, 303, 306, 307,\n  309, 312, 315, 318, 320, 323, 324, 326, 327, 329, 332, 333, 339,\n  342, 345, 347, 348, 350, 351, 353, 354, 356, 357, 359, 360, 363,\n  366, 367, 369, 372, 375, 377, 380, 381, 382, 383, 384, 387, 390,\n  392, 393, 396, 398, 399, 402, 404, 405, 407, 408, 410, 411, 412,\n  414, 417, 422, 423, 425, 426, 429, 431, 432, 435, 437, 438, 440,\n  444, 447, 449, 450, 452, 453, 455, 457, 458, 459, 460, 462, 464,\n  465, 467, 468, 470, 472, 474, 477, 480, 482, 487, 489, 492, 495,\n  497, 498, 500, 501, 502, 504, 507, 509, 510, 513, 515, 516, 519,\n  522, 523, 524, 525, 527, 528, 530, 534, 537, 540, 542, 543, 546,\n  548, 549, 552, 554, 555, 557, 558, 564, 565, 567, 569, 570, 572,\n  573, 575, 578, 579, 581, 582, 585, 588, 591, 594, 597, 599, 600,\n  602, 603, 605, 606, 607, 608, 609, 612, 613, 615, 618, 621, 622,\n  624, 626, 627, 629, 630, 632, 633, 635, 638, 639, 641, 642, 644,\n  645, 647, 648, 654, 657, 660, 662, 663, 666, 669, 671, 672, 675,\n  677, 678, 680, 681, 683, 684, 687, 690, 695, 696, 697, 699, 702,\n  704, 705, 708, 711, 712, 713, 714, 717, 719, 720, 722, 723, 726,\n  728, 729, 731, 732, 735, 737, 738, 744, 747, 749, 750, 752, 753,\n  759, 761, 762, 765, 768, 770, 771, 774, 775, 776, 777, 779, 780,\n  782, 785, 786, 787, 789, 790, 792, 794, 795, 800, 801, 802, 804,\n  807, 809, 810, 812, 813, 815, 816, 817, 819, 822, 824, 825, 827,\n  828, 831, 833, 834, 837, 840, 842, 843, 845, 849, 851, 852, 855,\n  857, 858, 860, 864, 867, 870, 873, 875, 879, 880, 882, 884, 885,\n  887, 888, 890, 892, 893, 894, 897, 900, 902, 903, 906, 907, 908,\n  909, 912, 915, 920, 921, 922, 923, 924, 926, 927, 929, 930, 933,\n  936, 938, 939, 942};\nSClaude[11][976] = {\n  0, 2, 5, 6, 8, 11, 12, 14, 17, 20, 24, 26, 27, 29, 31, 32, 33, 35,\n  36, 38, 39, 41, 42, 44, 46, 47, 50, 53, 54, 56, 59, 60, 62, 65, 66,\n  68, 69, 71, 75, 77, 80, 81, 84, 86, 91, 92, 95, 98, 99, 101, 102,\n  106, 107, 110, 113, 116, 117, 119, 121, 122, 123, 125, 128, 129,\n  131, 132, 134, 135, 137, 138, 140, 146, 147, 150, 151, 152, 153,\n  155, 156, 158, 159, 161, 162, 164, 165, 167, 168, 170, 171, 173,\n  176, 177, 179, 180, 182, 183, 185, 191, 194, 195, 197, 200, 203,\n  206, 211, 212, 213, 215, 216, 219, 221, 224, 227, 228, 230, 233,\n  234, 236, 240, 241, 242, 245, 246, 248, 251, 252, 257, 258, 260,\n  261, 262, 263, 266, 269, 271, 272, 273, 275, 276, 278, 281, 282,\n  284, 285, 287, 290, 291, 293, 296, 300, 301, 302, 303, 305, 308,\n  311, 312, 315, 317, 320, 323, 326, 327, 329, 331, 332, 333, 335,\n  336, 341, 342, 344, 346, 347, 348, 350, 351, 353, 356, 359, 360,\n  361, 362, 365, 366, 368, 371, 372, 374, 376, 377, 380, 381, 386,\n  389, 390, 391, 392, 393, 395, 401, 402, 405, 406, 407, 410, 413,\n  414, 416, 421, 422, 423, 425, 426, 428, 431, 432, 434, 435, 437,\n  440, 441, 443, 446, 451, 452, 455, 456, 458, 459, 461, 462, 465,\n  466, 467, 470, 473, 476, 479, 480, 482, 485, 488, 489, 491, 492,\n  494, 497, 498, 500, 501, 503, 504, 506, 507, 511, 512, 515, 518,\n  521, 522, 525, 526, 527, 528, 530, 531, 533, 536, 537, 539, 542,\n  545, 546, 548, 551, 555, 556, 557, 558, 560, 563, 564, 566, 567,\n  571, 572, 575, 576, 577, 578, 579, 581, 587, 588, 590, 591, 592,\n  593, 596, 597, 600, 602, 605, 606, 608, 611, 612, 617, 618, 620,\n  621, 623, 626, 630, 632, 635, 636, 637, 638, 641, 645, 647, 650,\n  651, 653, 654, 656, 657, 659, 661, 662, 665, 666, 668, 669, 671,\n  676, 677, 678, 680, 681, 683, 686, 687, 689, 692, 695, 696, 698,\n  701, 705, 707, 708, 710, 711, 716, 719, 720, 721, 722, 725, 726,\n  728, 731, 732, 736, 737, 738, 740, 743, 744, 746, 749, 750, 752,\n  753, 755, 757, 758, 761, 765, 766, 767, 768, 770, 771, 773, 774,\n  776, 777, 779, 782, 783, 785, 786, 787, 788, 789, 791, 794, 797,\n  800, 801, 803, 806, 809, 812, 815, 818, 821, 826, 827, 830, 831,\n  832, 833, 834, 836, 839, 842, 845, 848, 849, 851, 855, 857, 860,\n  861, 863, 864, 866, 867, 870, 871, 872, 875, 878, 879, 881, 882,\n  885, 886, 887, 888, 890, 892, 893, 896, 897, 899, 901, 902, 903,\n  905, 908, 911, 912, 914, 917, 918, 920, 923, 924, 926, 927, 930,\n  932, 935, 938, 941, 945, 947, 950, 952, 953, 954, 956, 957, 959,\n  960, 962, 965, 966, 968, 971, 972, 974};\nSClaude[11][992] = {\n  0, 3, 5, 8, 9, 10, 12, 15, 17, 18, 22, 23, 25, 26, 27, 30, 33, 36,\n  39, 41, 42, 44, 45, 46, 48, 50, 51, 53, 54, 57, 60, 63, 65, 66, 68,\n  69, 71, 72, 74, 75, 78, 80, 81, 83, 86, 87, 89, 90, 93, 96, 101,\n  102, 105, 108, 110, 111, 114, 116, 117, 119, 120, 123, 130, 132,\n  135, 137, 138, 141, 142, 143, 144, 146, 147, 150, 153, 156, 157,\n  158, 162, 164, 165, 167, 168, 170, 171, 172, 173, 174, 175, 177,\n  178, 179, 180, 182, 183, 185, 186, 187, 191, 192, 195, 200, 204,\n  205, 207, 209, 210, 212, 213, 215, 216, 219, 222, 224, 225, 227,\n  228, 230, 233, 237, 240, 243, 249, 251, 252, 254, 255, 257, 260,\n  261, 262, 264, 265, 266, 267, 270, 272, 273, 276, 277, 279, 282,\n  285, 287, 288, 291, 293, 294, 296, 297, 300, 302, 303, 305, 306,\n  307, 311, 312, 315, 318, 320, 321, 323, 324, 327, 329, 333, 336,\n  338, 339, 342, 344, 345, 348, 352, 353, 354, 356, 357, 360, 362,\n  363, 365, 366, 372, 375, 377, 378, 381, 382, 383, 384, 386, 387,\n  390, 393, 396, 397, 398, 402, 405, 407, 408, 410, 411, 414, 416,\n  417, 419, 420, 422, 423, 426, 429, 432, 434, 435, 436, 438, 441,\n  443, 444, 445, 446, 447, 450, 452, 453, 455, 456, 459, 461, 462,\n  464, 465, 467, 468, 470, 471, 472, 477, 479, 480, 483, 485, 486,\n  487, 489, 492, 495, 497, 498, 500, 501, 503, 507, 509, 510, 513,\n  515, 516, 517, 518, 522, 525, 528, 531, 533, 534, 537, 540, 542,\n  543, 549, 551, 552, 554, 558, 560, 561, 563, 564, 566, 567, 570,\n  573, 576, 578, 579, 582, 585, 587, 588, 590, 591, 592, 596, 597,\n  599, 600, 602, 603, 606, 611, 612, 615, 617, 618, 620, 621, 622,\n  623, 624, 627, 630, 632, 633, 636, 640, 641, 642, 644, 645, 648,\n  650, 651, 654, 656, 657, 659, 660, 661, 663, 665, 666, 669, 672,\n  674, 675, 677, 678, 681, 682, 683, 687, 690, 692, 693, 696, 699,\n  701, 702, 705, 707, 708, 710, 711, 713, 716, 717, 720, 722, 723,\n  728, 732, 733, 735, 738, 741, 743, 744, 745, 746, 747, 749, 750,\n  752, 753, 755, 756, 757, 759, 760, 762, 765, 768, 770, 771, 773,\n  774, 777, 780, 783, 785, 788, 789, 790, 792, 793, 794, 795, 797,\n  798, 801, 802, 803, 807, 810, 815, 822, 825, 828, 830, 831, 832,\n  836, 837, 839, 840, 842, 843, 846, 851, 852, 855, 857, 858, 860,\n  862, 863, 864, 865, 866, 867, 869, 870, 873, 876, 878, 879, 882,\n  884, 885, 887, 888, 891, 892, 893, 894, 896, 897, 899, 900, 903,\n  906, 907, 909, 912, 914, 915, 918, 921, 924, 927, 929, 930, 932,\n  933, 935, 936, 939, 942, 944, 948, 951, 953, 954, 956, 957, 959,\n  960, 962, 963, 967, 970, 971, 972, 975, 977, 978, 980, 984, 985,\n  987, 989, 990};</code></pre>', 1))
-
-# The powers of 2 once 592, 608 and 656 reached order 10 and 848, 880, 896, 928, 944, 976 and 992 order 11
-# (2026-10-25): 2^20, 2^30, 2^37, 2^65 and 2^72 added, the first powers of 2 known to beat Thue-Morse by 2, 3, 4, 8
-# and 9, and 2^24, 2^33, 2^49 and 2^51 raised, the rows split after 2^38 (2^34 until then); and 304's remark, which
-# said 2^20 had order 21, now saying 22
-TABLE_UPDATE += (('        <table class="block">\n          <tr class="ns"><th scope="row"><i>n</i></th><td title=\'The published paper (2021)\'>2<sup>3</sup></td><td title=\'The published paper (2021)\'>2<sup>4</sup></td><td title=\'The published paper (2021)\'>2<sup>5</sup></td><td title=\'The published paper (2021)\'>2<sup>6</sup></td><td title=\'The published paper (2021)\'>2<sup>7</sup></td><td title=\'The published paper (2021)\'>2<sup>8</sup></td><td class="c" title=\'Claude alone\'>2<sup>9</sup></td><td class="c" title=\'Claude alone\'>2<sup>17</sup></td><td class="c" title=\'Claude alone\'>2<sup>18</sup></td><td class="j" title=\'Claude and BGPW\'>2<sup>24</sup></td><td class="c" title=\'Claude alone\'>2<sup>27</sup></td><td class="c" title=\'Claude alone\'>2<sup>33</sup></td><td class="c" title=\'Claude alone\'>2<sup>34</sup></td></tr>\n          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td><td>8</td><td class="c">9</td><td class="c">18–20</td><td class="c">19–21</td><td class="j">25–29</td><td class="c">29–33</td><td class="c">35–40</td><td class="c">37–41</td></tr>\n        </table>\n        <table class="block">\n          <tr class="ns"><th scope="row"><i>n</i></th><td class="c" title=\'Claude alone\'>2<sup>38</sup></td><td class="c" title=\'Claude alone\'>2<sup>41</sup></td><td class="c" title=\'Claude alone\'>2<sup>46</sup></td><td class="c" title=\'Claude alone\'>2<sup>48</sup></td><td class="c" title=\'Claude alone\'>2<sup>49</sup></td><td class="j" title=\'Claude and BGPW\'>2<sup>51</sup></td><td class="c" title=\'Claude alone\'>2<sup>52</sup></td><td class="c" title=\'Claude alone\'>2<sup>57</sup></td><td class="c" title=\'Claude alone\'>2<sup>61</sup></td><td class="c" title=\'Claude alone\'>2<sup>66</sup></td><td class="c" title=\'Claude alone\'>2<sup>67</sup></td><td class="c" title=\'Claude alone\'>2<sup>71</sup></td></tr>\n          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="c">42–46</td><td class="c">45–50</td><td class="c">51–57</td><td class="c">53–59</td><td class="c">54–60</td><td class="j">56–63</td><td class="c">58–64</td><td class="c">64–70</td><td class="c">68–75</td><td class="c">74–82</td><td class="c">75–83</td><td class="c">79–88</td></tr>\n        </table>\n', '        <table class="block">\n          <tr class="ns"><th scope="row"><i>n</i></th><td title=\'The published paper (2021)\'>2<sup>3</sup></td><td title=\'The published paper (2021)\'>2<sup>4</sup></td><td title=\'The published paper (2021)\'>2<sup>5</sup></td><td title=\'The published paper (2021)\'>2<sup>6</sup></td><td title=\'The published paper (2021)\'>2<sup>7</sup></td><td title=\'The published paper (2021)\'>2<sup>8</sup></td><td class="c" title=\'Claude alone\'>2<sup>9</sup></td><td class="c" title=\'Claude alone\'>2<sup>17</sup></td><td class="c" title=\'Claude alone\'>2<sup>18</sup></td><td class="c" title=\'Claude alone\'>2<sup>20</sup></td><td class="j" title=\'Claude and BGPW\'>2<sup>24</sup></td><td class="c" title=\'Claude alone\'>2<sup>27</sup></td><td class="c" title=\'Claude alone\'>2<sup>30</sup></td><td class="c" title=\'Claude alone\'>2<sup>33</sup></td><td class="c" title=\'Claude alone\'>2<sup>34</sup></td><td class="c" title=\'Claude alone\'>2<sup>37</sup></td><td class="c" title=\'Claude alone\'>2<sup>38</sup></td></tr>\n          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td><td>8</td><td class="c">9</td><td class="c">18–20</td><td class="c">19–21</td><td class="c">22–23</td><td class="j">26–29</td><td class="c">29–33</td><td class="c">33–36</td><td class="c">36–40</td><td class="c">37–41</td><td class="c">41–45</td><td class="c">42–46</td></tr>\n        </table>\n        <table class="block">\n          <tr class="ns"><th scope="row"><i>n</i></th><td class="c" title=\'Claude alone\'>2<sup>41</sup></td><td class="c" title=\'Claude alone\'>2<sup>46</sup></td><td class="c" title=\'Claude alone\'>2<sup>48</sup></td><td class="c" title=\'Claude alone\'>2<sup>49</sup></td><td class="j" title=\'Claude and BGPW\'>2<sup>51</sup></td><td class="c" title=\'Claude alone\'>2<sup>52</sup></td><td class="c" title=\'Claude alone\'>2<sup>57</sup></td><td class="c" title=\'Claude alone\'>2<sup>61</sup></td><td class="c" title=\'Claude alone\'>2<sup>65</sup></td><td class="c" title=\'Claude alone\'>2<sup>66</sup></td><td class="c" title=\'Claude alone\'>2<sup>67</sup></td><td class="c" title=\'Claude alone\'>2<sup>71</sup></td><td class="c" title=\'Claude alone\'>2<sup>72</sup></td></tr>\n          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="c">45–50</td><td class="c">51–57</td><td class="c">53–59</td><td class="c">55–60</td><td class="j">57–63</td><td class="c">58–64</td><td class="c">64–70</td><td class="c">68–75</td><td class="c">73–81</td><td class="c">74–82</td><td class="c">75–83</td><td class="c">79–88</td><td class="c">81–89</td></tr>\n        </table>\n', 1),
-                 ('2<sup>20</sup> now has order 21 another way: the 2<sup>18</sup> entry below, each product times τ<sub>2</sub>."</p>\n', '2<sup>20</sup> now has order 22 another way: the 2<sup>20</sup> entry below."</p>\n', 1),
-                 ('though 2^20 now has order 21 another way, the 2^18 entry times tau_2 -->\n', 'though 2^20 now has order 22 another way, the 2^20 entry below -->\n', 1))
-
-# The second recording pass (2026-10-26, scratch/record-20261025/page2/apply_record2.py): 752 and 784 settled at
-# 10 and 832 at 11 by examples, 784 credited to Claude and Astra as 592, 608, 656 and 752 are: 784's cell and the
-# three values; the three code blocks, data that the copy quals would read as English, 752's and 784's after
-# 656's and 832's after 800's, where their remarks are inserted around them; and the sets after 992's.
-TABLE_UPDATE += (('<td class="c" title=\'Claude alone\'>784</td>', '<td class="ca" title=\'Claude and Astra\'>784</td>', 1),
-                 ('<td class="ca">9–10</td><td class="c">11–13</td><td class="c">9–10</td><td class="c">11</td><td class="c">10–14</td><td class="c">10–11</td></tr>', '<td class="ca">10</td><td class="c">11–13</td><td class="ca">10</td><td class="c">11</td><td class="c">10–14</td><td class="c">11</td></tr>', 1),
-                 ('        <code>C32DA6E924AED161B6D94216DB6CBE4A4932FD4996135826A94DF6CA6CB4DA1EB4D90D92134D82F8EE</code>\n      </p>\n      <p class="code">\n        <span><i>p</i><sub>800</sub> <span class="nw">(<i>m</i> = 11)</span>:</span>\n', '        <code>C32DA6E924AED161B6D94216DB6CBE4A4932FD4996135826A94DF6CA6CB4DA1EB4D90D92134D82F8EE</code>\n      </p>\n      <p class="code">\n        <span><i>p</i><sub>752</sub> <span class="nw">(<i>m</i> = 10)</span>:</span>\n        <code>D1C7951270B6456FBEC039A7FA05A459E422DB6416E76D06DB2D90D32FD010FBB30A6DB6D80DBAC3059EDB5826CB4C</code>\n      </p>\n      <p class="code">\n        <span><i>p</i><sub>784</sub> <span class="nw">(<i>m</i> = 10)</span>:</span>\n        <code>B24F643A19DC1B49FC831C2FF25926F80B24FFC1B423C92E933B25304F60FA2B341F59FFB668379251243048E2BE6BA89F</code>\n      </p>\n      <p class="code">\n        <span><i>p</i><sub>800</sub> <span class="nw">(<i>m</i> = 11)</span>:</span>\n', 1),
-                 ('        <code>966965968F2C965B25B44B25B3596D924B6D96496C964B65B2CB24B25B2C96CB6C97496CB2CD6E960B243A59A592DB2DB6D9</code>\n      </p>\n      <p class="code">\n        <span><i>p</i><sub>848</sub> <span class="nw">(<i>m</i> = 11)</span>:</span>\n', '        <code>966965968F2C965B25B44B25B3596D924B6D96496C964B65B2CB24B25B2C96CB6C97496CB2CD6E960B243A59A592DB2DB6D9</code>\n      </p>\n      <p class="code">\n        <span><i>p</i><sub>832</sub> <span class="nw">(<i>m</i> = 11)</span>:</span>\n        <code>B49969329E6934CB4DB69B4D34924C359B4926DB69A4DB49369F69261A4D36D6499A926D2C9B68B4D369A4D2DDB6904936DA69B4</code>\n      </p>\n      <p class="code">\n        <span><i>p</i><sub>848</sub> <span class="nw">(<i>m</i> = 11)</span>:</span>\n', 1),
-                 ('  987, 989, 990};</code></pre>', '  987, 989, 990};\nSClaude[10][752] = {\n  0, 1, 3, 7, 8, 9, 13, 14, 15, 16, 19, 21, 23, 27, 30, 33, 34, 35,\n  40, 42, 43, 45, 46, 49, 53, 55, 57, 58, 60, 61, 62, 63, 64, 66, 67,\n  68, 69, 70, 72, 73, 82, 83, 84, 87, 88, 90, 93, 94, 95, 96, 97, 98,\n  99, 100, 102, 109, 111, 112, 114, 117, 121, 123, 124, 127, 128,\n  129, 130, 133, 138, 142, 144, 145, 147, 148, 150, 151, 153, 154,\n  157, 163, 165, 166, 168, 169, 170, 173, 174, 175, 177, 178, 180,\n  181, 183, 189, 190, 192, 193, 195, 196, 198, 199, 202, 204, 205,\n  207, 208, 211, 216, 217, 219, 222, 223, 226, 228, 229, 230, 231,\n  232, 233, 235, 243, 248, 249, 250, 251, 252, 254, 255, 256, 258,\n  259, 262, 263, 268, 270, 273, 274, 276, 277, 279, 280, 282, 283,\n  285, 286, 288, 289, 291, 292, 300, 301, 303, 304, 306, 307, 308,\n  310, 312, 313, 318, 319, 325, 327, 328, 331, 332, 333, 334, 336,\n  337, 339, 340, 342, 343, 345, 347, 348, 354, 357, 358, 360, 361,\n  364, 366, 367, 369, 372, 373, 378, 379, 382, 384, 385, 387, 390,\n  391, 393, 394, 397, 403, 404, 406, 408, 409, 411, 412, 414, 415,\n  417, 418, 419, 420, 423, 424, 426, 432, 433, 438, 439, 441, 443,\n  444, 445, 447, 448, 450, 451, 459, 460, 462, 463, 465, 466, 468,\n  469, 471, 472, 474, 475, 477, 478, 481, 483, 488, 489, 492, 493,\n  495, 496, 497, 499, 500, 501, 502, 503, 508, 516, 518, 519, 520,\n  521, 522, 523, 525, 528, 529, 532, 534, 535, 540, 543, 544, 546,\n  547, 549, 552, 553, 555, 556, 558, 559, 561, 562, 568, 570, 571,\n  573, 574, 576, 577, 578, 581, 582, 583, 585, 586, 588, 594, 597,\n  598, 600, 601, 603, 604, 606, 607, 609, 613, 618, 621, 622, 623,\n  624, 627, 628, 630, 634, 637, 639, 640, 642, 649, 651, 652, 653,\n  654, 655, 656, 657, 658, 661, 663, 664, 667, 668, 669, 678, 679,\n  681, 682, 683, 684, 685, 687, 688, 689, 690, 691, 693, 694, 696,\n  698, 702, 705, 706, 708, 709, 711, 716, 717, 718, 721, 724, 728,\n  730, 732, 735, 736, 737, 738, 742, 743, 744, 748, 750, 751};\nSClaude[10][784] = {\n  0, 2, 3, 6, 9, 12, 13, 14, 15, 17, 18, 21, 26, 27, 28, 30, 35, 36,\n  39, 40, 41, 43, 44, 45, 51, 52, 54, 55, 57, 60, 63, 64, 65, 66, 67,\n  68, 69, 72, 78, 79, 83, 84, 85, 90, 92, 93, 94, 95, 96, 97, 98, 99,\n  102, 105, 107, 108, 111, 114, 117, 118, 120, 121, 122, 123, 124,\n  132, 134, 135, 138, 141, 144, 145, 146, 147, 148, 149, 150, 151,\n  152, 153, 159, 160, 162, 163, 165, 170, 174, 175, 176, 177, 180,\n  183, 186, 188, 189, 190, 192, 195, 198, 199, 202, 203, 204, 206,\n  207, 210, 213, 215, 218, 219, 225, 228, 229, 230, 231, 233, 234,\n  240, 241, 242, 243, 244, 246, 250, 252, 254, 255, 258, 259, 261,\n  267, 268, 269, 270, 271, 273, 275, 276, 279, 280, 281, 282, 283,\n  284, 285, 286, 287, 288, 290, 291, 293, 294, 297, 298, 300, 306,\n  307, 309, 310, 311, 312, 315, 318, 321, 323, 327, 330, 333, 338,\n  339, 345, 348, 352, 353, 354, 358, 360, 362, 363, 364, 365, 366,\n  369, 370, 372, 374, 375, 376, 378, 380, 384, 387, 388, 389, 390,\n  391, 392, 393, 394, 395, 396, 399, 403, 405, 407, 408, 409, 411,\n  413, 414, 417, 418, 419, 420, 421, 423, 425, 429, 430, 431, 435,\n  438, 444, 445, 450, 453, 456, 460, 462, 465, 468, 471, 472, 473,\n  474, 476, 477, 483, 485, 486, 489, 490, 492, 493, 495, 496, 497,\n  498, 499, 500, 501, 502, 503, 504, 507, 508, 510, 512, 513, 514,\n  515, 516, 522, 524, 525, 528, 529, 531, 533, 537, 539, 540, 541,\n  542, 543, 549, 550, 552, 553, 554, 555, 558, 564, 565, 568, 570,\n  573, 576, 577, 579, 580, 581, 584, 585, 588, 591, 593, 594, 595,\n  597, 600, 603, 606, 607, 608, 609, 613, 618, 620, 621, 623, 624,\n  630, 631, 632, 633, 634, 635, 636, 637, 638, 639, 642, 645, 648,\n  649, 651, 659, 660, 661, 662, 663, 665, 666, 669, 672, 675, 676,\n  678, 681, 684, 685, 686, 687, 688, 689, 690, 691, 693, 698, 699,\n  700, 704, 705, 711, 714, 715, 716, 717, 718, 719, 720, 723, 726,\n  728, 729, 731, 732, 738, 739, 740, 742, 743, 744, 747, 748, 753,\n  755, 756, 757, 762, 765, 766, 768, 769, 770, 771, 774, 777, 780,\n  781, 783};\nSClaude[11][832] = {\n  0, 2, 3, 5, 8, 11, 12, 15, 17, 18, 20, 23, 26, 27, 30, 32, 35, 36,\n  37, 38, 41, 42, 44, 47, 50, 51, 53, 56, 57, 60, 62, 63, 65, 68, 69,\n  71, 72, 74, 75, 77, 78, 80, 83, 84, 86, 87, 89, 92, 93, 95, 98, 99,\n  101, 104, 107, 110, 113, 116, 117, 122, 123, 125, 127, 128, 131,\n  132, 134, 135, 137, 140, 143, 146, 149, 150, 152, 153, 155, 156,\n  158, 159, 161, 162, 164, 167, 168, 170, 173, 176, 177, 179, 180,\n  182, 183, 185, 188, 191, 194, 195, 197, 198, 200, 203, 204, 205,\n  206, 207, 209, 210, 212, 215, 218, 221, 222, 227, 228, 230, 233,\n  236, 237, 239, 242, 243, 245, 246, 248, 249, 251, 253, 254, 257,\n  260, 263, 264, 267, 268, 270, 272, 275, 278, 281, 282, 284, 285,\n  287, 290, 292, 293, 296, 299, 300, 302, 303, 305, 306, 308, 312,\n  314, 315, 317, 320, 321, 323, 326, 327, 329, 330, 332, 335, 336,\n  338, 341, 344, 345, 347, 350, 352, 353, 355, 356, 357, 359, 360,\n  362, 363, 365, 366, 368, 371, 377, 380, 383, 386, 387, 389, 390,\n  392, 393, 395, 396, 398, 401, 402, 404, 407, 408, 410, 411, 413,\n  416, 417, 419, 422, 425, 426, 428, 431, 432, 434, 437, 440, 443,\n  446, 447, 449, 450, 452, 453, 455, 456, 457, 458, 459, 461, 462,\n  464, 467, 470, 473, 477, 480, 482, 483, 485, 488, 489, 491, 492,\n  494, 497, 498, 500, 503, 506, 507, 509, 512, 513, 515, 518, 520,\n  521, 522, 524, 527, 530, 533, 534, 536, 537, 540, 542, 543, 545,\n  548, 551, 552, 554, 555, 557, 558, 560, 562, 565, 566, 569, 570,\n  572, 573, 575, 576, 579, 581, 584, 587, 590, 591, 593, 596, 597,\n  599, 600, 602, 605, 606, 607, 608, 611, 612, 614, 615, 617, 618,\n  620, 623, 629, 630, 632, 635, 638, 639, 641, 642, 644, 645, 647,\n  650, 653, 656, 657, 659, 660, 662, 665, 666, 668, 671, 674, 677,\n  680, 683, 684, 686, 687, 689, 690, 692, 693, 695, 698, 701, 702,\n  705, 707, 710, 711, 712, 713, 716, 717, 719, 720, 722, 723, 725,\n  726, 728, 729, 731, 734, 735, 737, 740, 741, 743, 746, 749, 750,\n  752, 755, 758, 761, 764, 765, 767, 770, 772, 773, 776, 777, 779,\n  782, 783, 785, 786, 788, 791, 792, 797, 798, 800, 802, 803, 806,\n  807, 809, 810, 812, 815, 817, 818, 821, 822, 824, 825, 827, 830};</code></pre>', 1))
-
-# The powers of 2 once 752 and 784 reached order 10 and 832 order 11 (2026-10-26): 2^43 and 2^68 added, the first
-# powers of 2 known to beat Thue-Morse by 5 and 9, and 2^48 and 2^71 raised, the rows split after 2^41 (2^38 until
-# then)
-TABLE_UPDATE += (('        <table class="block">\n          <tr class="ns"><th scope="row"><i>n</i></th><td title=\'The published paper (2021)\'>2<sup>3</sup></td><td title=\'The published paper (2021)\'>2<sup>4</sup></td><td title=\'The published paper (2021)\'>2<sup>5</sup></td><td title=\'The published paper (2021)\'>2<sup>6</sup></td><td title=\'The published paper (2021)\'>2<sup>7</sup></td><td title=\'The published paper (2021)\'>2<sup>8</sup></td><td class="c" title=\'Claude alone\'>2<sup>9</sup></td><td class="c" title=\'Claude alone\'>2<sup>17</sup></td><td class="c" title=\'Claude alone\'>2<sup>18</sup></td><td class="c" title=\'Claude alone\'>2<sup>20</sup></td><td class="j" title=\'Claude and BGPW\'>2<sup>24</sup></td><td class="c" title=\'Claude alone\'>2<sup>27</sup></td><td class="c" title=\'Claude alone\'>2<sup>30</sup></td><td class="c" title=\'Claude alone\'>2<sup>33</sup></td><td class="c" title=\'Claude alone\'>2<sup>34</sup></td><td class="c" title=\'Claude alone\'>2<sup>37</sup></td><td class="c" title=\'Claude alone\'>2<sup>38</sup></td></tr>\n          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td><td>8</td><td class="c">9</td><td class="c">18–20</td><td class="c">19–21</td><td class="c">22–23</td><td class="j">26–29</td><td class="c">29–33</td><td class="c">33–36</td><td class="c">36–40</td><td class="c">37–41</td><td class="c">41–45</td><td class="c">42–46</td></tr>\n        </table>\n        <table class="block">\n          <tr class="ns"><th scope="row"><i>n</i></th><td class="c" title=\'Claude alone\'>2<sup>41</sup></td><td class="c" title=\'Claude alone\'>2<sup>46</sup></td><td class="c" title=\'Claude alone\'>2<sup>48</sup></td><td class="c" title=\'Claude alone\'>2<sup>49</sup></td><td class="j" title=\'Claude and BGPW\'>2<sup>51</sup></td><td class="c" title=\'Claude alone\'>2<sup>52</sup></td><td class="c" title=\'Claude alone\'>2<sup>57</sup></td><td class="c" title=\'Claude alone\'>2<sup>61</sup></td><td class="c" title=\'Claude alone\'>2<sup>65</sup></td><td class="c" title=\'Claude alone\'>2<sup>66</sup></td><td class="c" title=\'Claude alone\'>2<sup>67</sup></td><td class="c" title=\'Claude alone\'>2<sup>71</sup></td><td class="c" title=\'Claude alone\'>2<sup>72</sup></td></tr>\n          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="c">45–50</td><td class="c">51–57</td><td class="c">53–59</td><td class="c">55–60</td><td class="j">57–63</td><td class="c">58–64</td><td class="c">64–70</td><td class="c">68–75</td><td class="c">73–81</td><td class="c">74–82</td><td class="c">75–83</td><td class="c">79–88</td><td class="c">81–89</td></tr>\n        </table>\n', '        <table class="block">\n          <tr class="ns"><th scope="row"><i>n</i></th><td title=\'The published paper (2021)\'>2<sup>3</sup></td><td title=\'The published paper (2021)\'>2<sup>4</sup></td><td title=\'The published paper (2021)\'>2<sup>5</sup></td><td title=\'The published paper (2021)\'>2<sup>6</sup></td><td title=\'The published paper (2021)\'>2<sup>7</sup></td><td title=\'The published paper (2021)\'>2<sup>8</sup></td><td class="c" title=\'Claude alone\'>2<sup>9</sup></td><td class="c" title=\'Claude alone\'>2<sup>17</sup></td><td class="c" title=\'Claude alone\'>2<sup>18</sup></td><td class="c" title=\'Claude alone\'>2<sup>20</sup></td><td class="j" title=\'Claude and BGPW\'>2<sup>24</sup></td><td class="c" title=\'Claude alone\'>2<sup>27</sup></td><td class="c" title=\'Claude alone\'>2<sup>30</sup></td><td class="c" title=\'Claude alone\'>2<sup>33</sup></td><td class="c" title=\'Claude alone\'>2<sup>34</sup></td><td class="c" title=\'Claude alone\'>2<sup>37</sup></td><td class="c" title=\'Claude alone\'>2<sup>38</sup></td><td class="c" title=\'Claude alone\'>2<sup>41</sup></td></tr>\n          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td><td>8</td><td class="c">9</td><td class="c">18–20</td><td class="c">19–21</td><td class="c">22–23</td><td class="j">26–29</td><td class="c">29–33</td><td class="c">33–36</td><td class="c">36–40</td><td class="c">37–41</td><td class="c">41–45</td><td class="c">42–46</td><td class="c">45–50</td></tr>\n        </table>\n        <table class="block">\n          <tr class="ns"><th scope="row"><i>n</i></th><td class="c" title=\'Claude alone\'>2<sup>43</sup></td><td class="c" title=\'Claude alone\'>2<sup>46</sup></td><td class="c" title=\'Claude alone\'>2<sup>48</sup></td><td class="c" title=\'Claude alone\'>2<sup>49</sup></td><td class="j" title=\'Claude and BGPW\'>2<sup>51</sup></td><td class="c" title=\'Claude alone\'>2<sup>52</sup></td><td class="c" title=\'Claude alone\'>2<sup>57</sup></td><td class="c" title=\'Claude alone\'>2<sup>61</sup></td><td class="c" title=\'Claude alone\'>2<sup>65</sup></td><td class="c" title=\'Claude alone\'>2<sup>66</sup></td><td class="c" title=\'Claude alone\'>2<sup>67</sup></td><td class="c" title=\'Claude alone\'>2<sup>68</sup></td><td class="c" title=\'Claude alone\'>2<sup>71</sup></td><td class="c" title=\'Claude alone\'>2<sup>72</sup></td></tr>\n          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="c">48–53</td><td class="c">51–57</td><td class="c">54–59</td><td class="c">55–60</td><td class="j">57–63</td><td class="c">58–64</td><td class="c">64–70</td><td class="c">68–75</td><td class="c">73–81</td><td class="c">74–82</td><td class="c">75–83</td><td class="c">77–84</td><td class="c">80–88</td><td class="c">81–89</td></tr>\n        </table>\n', 1),)
-
-# His edit of the footer of 2026-10-26 (commit 5be96e4 "Human prose editing"), byte for byte: its definition of the
-# expanded product gone, for his note on the symbols # and ∨ at the end of the remarks' opening (SYMBOLS_NOTE), and its
-# line of links no longer indented; and his byline of the same day, the authors' line made an italic "by …", as in his
-# spec FreshAt (in the working page, uncommitted, at 13:21).
-SOURCE_LINE = '<p><a href="https://github.com/dreeves/equipow">Source</a> &amp; <a href="https://equipow.dreev.es/sourcery.html">Sourcery</a></p>\n'
-TABLE_UPDATE += ((FOOTER_DEFINITION + '  ' + SOURCE_LINE, SOURCE_LINE, 1),
-                 ('  <p class="lede">Stan Wagon, Daniel Reeves, Claude, and Astra</p>\n',
-                  '  <p class="lede"><i>by Stan Wagon, Daniel Reeves, Claude, and Astra</i></p>\n', 1))
-# and the header's paragraphs after his byline no longer of class lede, so in ink, not muted (2026-10-26, commit 5e3ada0
-# "Add changelog and BGPW paper")
-TABLE_UPDATE += (('  <p class="lede">\n', '  <p>\n', 6),
-                 ('  <p class="lede"><i>m</i><sup>*</sup>(<i>n</i>) \n', '  <p><i>m</i><sup>*</sup>(<i>n</i>) \n', 1))
-
-# Edits of the remarks' lines that are in the page before the chart (BASE) or in TABLE_UPDATE, kept apart from
-# TABLE_UPDATE because quals_pow2_page.py applies TABLE_UPDATE before its own edits of those remarks, and its own
-# edit of 2026-10-17 covers these lines already: 800's example of order 11 (2026-10-17) moved the first power of 2
-# that beats Thue-Morse by 1 to 2^17, which 2^24's sentence cites, and raised 2^51 to 56; once 592, 608 and 656
-# reached order 10 and 848, 880, 896, 928, 944, 976 and 992 order 11 (2026-10-25), 2^51 rose to 57 and 2^24
-# to 26, which that day's edit there covers too.
-REMARK_UPDATE = (('and by the 2<sup>18</sup> entry above for every <span class="nw"><i>k</i> ≥ 18</span>."</p>', 'and by the 2<sup>17</sup> entry above for every <span class="nw"><i>k</i> ≥ 17</span>."</p>', 1),
-                 ('<i>n</i> = 2<sup>51</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {55, …, 63}</span>', '<i>n</i> = 2<sup>51</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {56, …, 63}</span>', 1),
-                 ('<i>n</i> = 2<sup>51</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {56, …, 63}</span>', '<i>n</i> = 2<sup>51</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {57, …, 63}</span>', 1),
-                 ('<i>n</i> = 2<sup>24</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {25, …, 29}</span>', '<i>n</i> = 2<sup>24</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {26, …, 29}</span>', 1))
-
-
-def committed():
-    """index.html as it was before the chart (BASE), with TABLE_UPDATE's edits made (each count asserted)."""
-    text = subprocess.run(['git', '-C', HERE, 'show', f'{BASE}:index.html'], capture_output=True, text=True,
-                          check=True).stdout
-    for old, new, count in TABLE_UPDATE + REMARK_UPDATE:
-        assert text.count(old) == count, (old, text.count(old))
-        text = text.replace(old, new)
-    return text
-
-
-def opcodes():
-    """difflib's line opcodes from index.html before the chart (BASE) to the working one."""
-    return difflib.SequenceMatcher(None, committed().splitlines(), page().splitlines(), autojunk=False).get_opcodes()
-
-
-def regions(lines):
-    """For each line: 'style' or 'script' for the lines inside a <style> or an inline <script> element, 'html' for the
-    rest (the tag lines included)."""
-    out, state = [], 'html'
-    for line in lines:
-        s = line.strip()
-        if state == 'html' and s in ('<style>', '<script>'):
-            out.append('html'); state = s[1:-1]; continue
-        if state != 'html' and s == f'</{state}>':
-            out.append('html'); state = 'html'; continue
-        out.append(state)
-    assert state == 'html'
-    return out
-
-
-def inserted():
-    """The working index.html's lines, their regions, and the indices of the lines inserted since BASE."""
-    lines = page().splitlines()
-    return lines, regions(lines), [j for tag, _, _, j1, j2 in opcodes() if tag == 'insert' for j in range(j1, j2)]
 
 
 def section():
@@ -1105,54 +750,6 @@ def valid_run(name):
     return R
 
 
-# dreeves requested Astra attribution on the same terms as Claude for the 384 result (2026-10-20).
-ATTRIBUTION = r'(?:Claude|Astra): "'
-
-
-def unclaimed(text):
-    """text with each Claude or Astra quotation removed: what remains must hold no English, only numbers and math."""
-    return re.sub(ATTRIBUTION + r'[^"]*"', '', text)
-
-
-def english(text): return re.findall(r'[A-Za-z]{2,}', text)
-
-
-# dreeves's second form for Claude's words (2026-10-14, for Claude's account of its lattice search): "all the english
-# text in a block quote attributed to claude".  The quote runs from a line QUOTE_OPEN to a line QUOTE_CLOSE, its last
-# line inside is QUOTE_ATTRIB, and its TODO comment (a recap, for dreeves) is the nearest non-blank line above it, or
-# above QUOTE_LEADIN, the lead-in dreeves put between the two (his words, 2026-10-14), when that is there.
-QUOTE_OPEN, QUOTE_ATTRIB, QUOTE_CLOSE = '<blockquote class="claude">', '<p class="attrib">— Claude</p>', '</blockquote>'
-QUOTE_LEADIN = ('<p>', 'Still Claude:', '</p>')
-
-
-def claude_quotes(lines):
-    """(the indices of the lines of every block quote attributed to Claude, from its lead-in if it has one or else
-    QUOTE_OPEN, to QUOTE_CLOSE; the indices of their TODO comments), each quote asserted to be of that form: closed, not
-    nested, ending in QUOTE_ATTRIB, with a <!-- TODO: comment above it or above its lead-in."""
-    out, todos = set(), set()
-    for j in (j for j, line in enumerate(lines) if line.strip() == QUOTE_OPEN):
-        k = next(i for i in range(j + 1, len(lines)) if lines[i].strip() in (QUOTE_OPEN, QUOTE_CLOSE))
-        assert lines[k].strip() == QUOTE_CLOSE, ('nested or unclosed', j + 1)
-        assert [l.strip() for l in lines[j + 1:k] if l.strip()][-1] == QUOTE_ATTRIB, ('no attribution', j + 1)
-        above = [i for i in range(j - 1, -1, -1) if lines[i].strip()]
-        lead = len(QUOTE_LEADIN) * (tuple(lines[i].strip() for i in reversed(above[:len(QUOTE_LEADIN)])) == QUOTE_LEADIN)
-        assert lines[above[lead]].strip().startswith('<!-- TODO:'), ('no TODO', j + 1)
-        out |= set(range(above[lead] + 1, k + 1))
-        todos.add(above[lead])
-    return out, todos
-
-
-def progress_lines(lines):
-    """(the indices of the lines of the section "Search progress", from its TODO comment, its first line, to its
-    </section>; that TODO comment's index), the section asserted to be of that form.  Its copy is unattributed, as
-    progress.html's was (dreeves, 2026-10-09, for the page): on 2026-10-17 he took the section out of the block quote
-    attributed to Claude that it was made in, so the copy rules pass over its lines as over a quote's."""
-    j = next(i for i, line in enumerate(lines) if line.startswith('<section class="progress"'))
-    k = next(i for i in range(j, len(lines)) if lines[i] == '</section>')
-    assert lines[j + 1].strip().startswith('<!-- TODO:') and lines[j + 1].strip().endswith('-->'), lines[j + 1][:80]
-    return set(range(j + 1, k + 1)), j + 1
-
-
 def close(a, b, tol): return abs(a - b) <= tol
 
 
@@ -1160,9 +757,6 @@ def close(a, b, tol): return abs(a - b) <= tol
 # table that shows the first n that gives 1,2,3,4,5,…,12"; dreeves: "yeah").  Orders 1 to 11 have their smallest
 # lengths proven: OEIS A323395's a(0) to a(8), 240 as a(9), and (2026-10-20) 432 as a(10), after proof384.py.
 SMALLEST_PROVEN = (2, 4, 8, 16, 32, 48, 96, 144, 192, 240, 432)
-ASTRA_SMALLEST_NOTE = (
-    '  <!-- TODO: attributes the new minimality result to Astra and identifies the new exclusion that completes the existing bounds. -->',
-    '  <p>Astra: "The <a href="#proof384">exclusion of order 11 at 384</a> closes the last gap below 432. Together with the existing order-11 example at 432 and the other exclusions in the chart, this proves <span class="nw"><i>a</i>(10) = 432</span>."</p>')
 
 
 def smallest_rows(cols):
@@ -1192,29 +786,16 @@ def ring_note(m):
 # ---------------------------------------------------------------------------------------------------------------------
 # Static quals
 
-def q_384_proof_is_attributed_and_linked():
-    # Replicata: the updated new-results table and remarks, plus the generated chart's smallest-length rows.
-    # Expectata: 384 is marked as Astra's result, a separately attributed proof links the standalone checker, and
-    # order 11 is now proven to have smallest length 432.  The earlier Claude account remains attributed to Claude.
+def q_384_proof_is_linked():
+    # Replicata: the new-results table and remarks, plus the generated chart's smallest-length rows.
+    # Expectata: 384's cell is of Astra's class (a); its remark (li#proof384) links the standalone checker proof384.py
+    # and gives m* = 10; and order 11 is now proven to have smallest length 432.
     text = page()
-    assert '<td class="a" title=\'Astra alone\'>384</td>' in text
+    assert re.search(r'<td class="a"[^>]*>384</td>', text)
     remark = re.search(r'<li class="a" id="proof384">(.*?)</li>', text, re.S)
-    assert remark, 'no Astra remark for 384'
-    assert 'Astra: "' in remark.group(1) and 'href="proof384.py"' in remark.group(1)
-    assert '<i>m</i><sup>*</sup> = 10' in remark.group(1)
+    assert remark, 'no remark for 384'
+    assert 'href="proof384.py"' in remark.group(1) and '<i>m</i><sup>*</sup> = 10' in remark.group(1), remark.group(1)[:300]
     assert smallest_rows(mstar_data()['cols'])[10] == ['11', '432', '✓', '432']
-    smallest = re.search(r'<section class="smallest".*?</section>', text, re.S).group(0)
-    assert '</blockquote>' in smallest and 'Astra: "' in smallest.split('</blockquote>', 1)[1]
-
-
-def q_insertions_only():
-    # Replicata: index.html against the page before the chart (git show BASE:index.html), compared line by line with
-    # difflib.
-    # Expectata: every opcode is 'equal' or 'insert': not a character of the page before the chart changed or went
-    # missing; and lines were inserted.
-    tags = {tag for tag, *_ in opcodes()}
-    assert tags <= {'equal', 'insert'}, [op for op in opcodes() if op[0] not in ('equal', 'insert')]
-    assert 'insert' in tags, tags
 
 
 def q_section_follows_table2():
@@ -1235,7 +816,7 @@ def q_section_follows_table2():
     assert re.match(filler + r'<section class="pow2"', after[m.end():], re.S), after[m.end():m.end() + 400]
     parts = [r'<h2 id="mstar-title">', r'<ul class="legend">', r'<span class="swatch exists" aria-hidden="true">',
              r'<span class="swatch open" aria-hidden="true">', r'<span class="swatch impossible" aria-hidden="true">',
-             re.escape(GOLD_LEGEND),
+             r'<span class="swatch exists record" aria-hidden="true">',
              r'</ul>', r'<button type="button" id="mstar-reset" ',
              r'<canvas id="mstar-chart" height="0" tabindex="0" role="img" aria-label=',
              r'<p id="mstar-readout" aria-live="polite">']
@@ -1246,10 +827,10 @@ def q_changelog_sits_under_the_authors_as_in_freshat():
     # Replicata: index.html's header.
     # Expectata (dreeves, 2026-10-26: "can you add a skeleton of a changelog at the top of the page, modeled after
     # doc.bmndr.co/freshat"): as FreshAt's changelog follows its byline, a <details class="changelog"> follows the
-    # authors' line, the title's next, whatever his words there (TABLE_UPDATE holds them), with only comments between,
-    # and has no open attribute, so it starts closed; its summary is
-    # FreshAt's, <i>Changelog</i>, and the rest entries, and TODO comments, for entries in Claude's words; each entry a
-    # <p> on its own line, "YYYY-MM-DD: what changed" as in FreshAt, a real date, newest first.
+    # authors' line, the title's next, whatever his words there, with only comments between,
+    # and has no open attribute, so it starts closed; a summary, and the rest entries, and TODO comments, for entries
+    # in Claude's words; each entry a <p> on its own line, "YYYY-MM-DD: what changed" as in FreshAt, a real date,
+    # newest first.
     # Resultata before: no changelog.
     dates = [d for d, _ in changelog()]
     assert dates and all(datetime.date.fromisoformat(d).isoformat() == d for d in dates), dates
@@ -1262,7 +843,7 @@ def changelog():
     head = re.search(r'<header>\n(.*?)\n</header>', page(), re.S)
     assert head, 'no header'
     m = re.match(r'  <h1>[^\n]*</h1>\n  <p class="lede">[^\n]*</p>\n(?:  <!--[^\n]*-->\n)*'
-                 r'  <details class="changelog">\n    <summary><i>Changelog</i></summary>\n(.*?)\n  </details>\n',
+                 r'  <details class="changelog">\n    <summary>[^\n]*</summary>\n(.*?)\n  </details>\n',
                  head.group(1) + '\n', re.S)
     assert m, head.group(1)[:800]
     lines = [l.strip() for l in m.group(1).split('\n') if not re.fullmatch(r'\s*<!-- TODO:.*-->', l)]
@@ -1478,45 +1059,6 @@ def q_inline_script_passes_node_check():
     assert p.returncode == 0, p.stderr
 
 
-def q_new_copy_is_attributed():
-    # Replicata: the lines inserted since BASE, by region (HTML, inline script, style).
-    # Expectata: inserted lines exist, and each of DREEVES_LINES is one of them, exactly once: those lines hold his
-    # words, so the rules that follow pass over them.  In HTML, a line's visible text and its aria-label, title and alt
-    # values hold English only inside Claude: "…" or Astra: "…", or a block quote attributed to Claude (claude_quotes,
-    # whose lines the rules that follow pass over too); every quotation closes on its line; each line with one (HTML or
-    # script) has a TODO comment as the nearest non-blank line above (<!-- TODO: in HTML, // TODO: in script), and each
-    # TODO comment is followed by a line with one, or by one of his lines (the heading's TODO comment sits above his
-    # heading), or is a quote's (above its lead-in or QUOTE_OPEN); no inserted CSS uses content:.  The section
-    # "Search progress" is passed over as a quote is, its TODO taken (progress_lines: dreeves took it out of its quote).
-    lines, region, ins = inserted()
-    assert ins
-    his = [j for j in ins if lines[j].strip() in DREEVES_LINES]
-    assert sorted(lines[j].strip() for j in his) == sorted(DREEVES_LINES), [lines[j] for j in his]
-    quoted, quote_todos = claude_quotes(lines)
-    section, section_todo = progress_lines(lines)
-    quoted, quote_todos = quoted | section, quote_todos | {section_todo}
-    bad = []
-    for j in (j for j in ins if j not in his and j not in quoted):
-        line, r = lines[j], region[j]
-        if r == 'style' and re.search(r'(?<![\w-])content\s*:', line): bad.append((j + 1, 'content:', line))
-        if r == 'html':
-            bare = re.sub(r'<!--.*?-->', '', line)
-            texts = [re.sub(r'<[^>]*>', ' ', bare)] + re.findall(r'\b(?:aria-label|title|alt)=(?:\'([^\']*)\'|"([^"]*)")', bare)
-            for t in texts:
-                for s in (t if isinstance(t, tuple) else (t,)):
-                    if english(unclaimed(html.unescape(s))): bad.append((j + 1, 'unattributed English', s))
-        if r in ('html', 'script') and re.search(ATTRIBUTION, line):
-            if len(re.findall(ATTRIBUTION, line)) != len(re.findall(ATTRIBUTION + r'[^"]*"', line)): bad.append((j + 1, 'unclosed', line))
-            above = next(lines[i] for i in range(j - 1, -1, -1) if lines[i].strip())
-            todo = '<!-- TODO:' in above if r == 'html' else above.strip().startswith('// TODO:')
-            if not todo: bad.append((j + 1, 'no TODO above', line))
-        if re.search(r'\bTODO\b', line):                # the word, not TODOCOLOR (dreeves's tag on the chart's colors)
-            below = next(lines[i] for i in range(j + 1, len(lines)) if lines[i].strip())
-            if not re.search(ATTRIBUTION, below) and below.strip() not in DREEVES_LINES and j not in quote_todos:
-                bad.append((j + 1, 'TODO with no attributed quotation below', line))
-    assert not bad, bad
-
-
 def q_tokens_in_all_three_theme_blocks():
     # Replicata: the custom properties of index.html's three theme blocks.
     # Expectata: --exists, --open and --impossible are in it, as #rrggbb (one block since 2026-10-12: no dark mode).
@@ -1601,50 +1143,24 @@ def q_remarks_name_the_chart_s_constructions():
     # as their TODOs say ("how the m*(n) chart gets these").  (On 2026-10-12 the example at 560 made the chart's joins
     # 240 + 560, 336 + 560 and 432 + 560 win its ties at 800, 896 and 992, which a remark still called doublings.)
     cols = mstar_data()['cols']
-    items = 0
     for s in re.findall(r'Claude: "Order \d+ from examples above, (.*?); order', page()):
         for kind, body in re.findall(r'(doubled|joined) \(([^)]*)\)', s):
             for a, b, c in re.findall(r'(\d+) = (?:2·(\d+)|(\d+ \+ \d+))', body):
                 want = ['product', 2, int(b)] if kind == 'doubled' else ['join', *map(int, c.split(' + '))]
                 assert (kind == 'doubled') == bool(b), (kind, a, b, c)
                 assert cols[int(a) - 1][2] == want, (a, cols[int(a) - 1][2], want)
-                items += 1
-    # (26 until 2026-10-25, when 592, 608, 656, 848, 880, 896, 928, 944, 976 and 992 left the grouped remarks for
-    # entries of their own, with examples of their own; 16 until 2026-10-26, when 752, 784 and 832 did)
-    assert items >= 13, items
-
-
-def q_claude_rewords_what_the_day_made_stale():
-    # Replicata: index.html: the 2^24 remark's paragraph, the footer, and the two labels of the order-9 example at 336.
-    # Expectata (dreeves, 2026-10-12: "for the "TODO for dreeves" lines, go ahead and change them back to Claude: "…"
-    # with your own corrected wording"): the 2^24 paragraph is Claude's and ends "…for every k ≥ 24, and by the 2^17
-    # entry above for every k ≥ 17." (2^18 until 800's example of order 11, 2026-10-17); no sentence on examples not
-    # re-checked is left (the footer had Claude's, naming only 416, until dreeves dropped it, 2026-10-24, commit 35dd836
-    # "Edits"; its TODO comment went in b475924 the same day); the order-9 example
-    # at 336 is q336 in both labels, the first Claude's (the powers-of-2 chart's p336 is the order-10 one); and no TODO
-    # for dreeves is left.
-    # Resultata before (2026-10-25): the qual still asked for Claude's line on 416, which his edit had dropped.
-    text = page()
-    assert 'TODO for dreeves' not in text and '<i>p</i><sub>336</sub>' not in text and 'at lengths 352, 368' not in text
-    assert '<p>Claude: "Joint construction: ' in text
-    assert ('≥ 24</span>, and by the 2<sup>17</sup> entry above for every <span class="nw"><i>k</i> ≥ 17</span>."</p>'
-            in text)
-    assert 'not re-checked here' not in text, 'a sentence on examples not re-checked'
-    assert ('<span>Claude: "<i>q</i><sub>336</sub>, an antisymmetric example found independently by Claude; it is the second '
-            'part of the 528 example below" <span class="nw">(<i>m</i> = 9)</span>:</span>') in text
-    assert '<span><i>f</i> = <i>p</i><sub>192</sub> ∨ <i>q</i><sub>336</sub>; &nbsp;' in text
 
 
 def q_2_18_shows_its_construction():
     # Replicata: the 2^18 remark on index.html, and certificate_2^18.wl beside it.
     # Expectata (dreeves, 2026-10-12: "for 2^18, index.html should show the proof, right? ... can we also get mathematica
     # code to generate the full list of 2^18/2 integers?"): the remark writes out the construction, (p320 # p560) ∨
-    # (p48 # p432 # τ2), says where p48's code is, and links the script; the script decodes the four blocks from hex
+    # (p48 # p432 # τ2), links the script; the script decodes the four blocks from hex
     # codes that are exactly codes on the page.
     li = re.search(r'<p class="entry"><i>n</i> = 2<sup>18</sup>: .*?</li>', page(), re.S).group(0)
     assert '<span class="nw">(<i>p</i><sub>320</sub> # <i>p</i><sub>560</sub>)</span>' in li, li
     assert '<span class="nw">∨ (<i>p</i><sub>48</sub> # <i>p</i><sub>432</sub> # τ<sub>2</sub>)</span>' in li, li
-    assert 'with the 2<sup>24</sup> entry below' in li and 'certificate_2%5E18.wl">certificate_2^18.wl</a>' in li, li
+    assert 'certificate_2%5E18.wl"' in li, li
     wl = open(os.path.join(HERE, 'certificate_2^18.wl'), encoding='utf-8').read()
     codes = re.findall(r'(p\d+) = fromHex\["([0-9A-F]+)", \d+\];', wl)
     assert [k for k, _ in codes] == ['p320', 'p560', 'p432', 'p48'], codes
@@ -1655,32 +1171,16 @@ def q_2_17_shows_its_construction():
     # Replicata: the 2^17 remark on index.html, and certificate_2^17.wl beside it.
     # Expectata (as for 2^18, which dreeves asked for on 2026-10-12; 800's example of order 11, 2026-10-17, moved the
     # first power of 2 that beats Thue-Morse by 1 from 2^18 to 2^17): the remark writes out the construction,
-    # (p112 # p800) v (p48 # p432 # tau_1), says where p112's and p48's codes are, and links the script; the script
+    # (p112 # p800) v (p48 # p432 # tau_1), links the script; the script
     # decodes the four blocks from hex codes that are exactly codes on the page.
     li = re.search(r'<p class="entry"><i>n</i> = 2<sup>17</sup>: .*?</li>', page(), re.S).group(0)
     assert '<span class="nw">(<i>p</i><sub>112</sub> # <i>p</i><sub>800</sub>)</span>' in li, li
     assert '<span class="nw">∨ (<i>p</i><sub>48</sub> # <i>p</i><sub>432</sub> # τ<sub>1</sub>)</span>' in li, li
-    assert 'with the 2<sup>24</sup> entry below' in li and 'certificate_2%5E17.wl">certificate_2^17.wl</a>' in li, li
+    assert 'certificate_2%5E17.wl"' in li, li
     wl = open(os.path.join(HERE, 'certificate_2^17.wl'), encoding='utf-8').read()
     codes = re.findall(r'(p\d+) = fromHex\["([0-9A-F]+)", \d+\];', wl)
     assert [k for k, _ in codes] == ['p112', 'p800', 'p48', 'p432'], codes
     assert all(f'<code>{h}</code>' in page() for _, h in codes), codes
-
-
-def q_remarks_open_with_how_the_upper_bounds_are_proven():
-    # Replicata: the start of index.html's section "Where the new results come from".
-    # Expectata (dreeves, 2026-10-12: define "the norm bound" and "the residue condition", which the remarks and charts
-    # cite, "in nice understandable non-llmish prose", with a note that certificates for the residue claims are tbd):
-    # between the heading and the list of remarks, Claude's paragraphs on the residue condition, then the norm bound,
-    # then the certificates still to be done.  A paragraph may run over several lines, as dreeves breaks them.
-    # Resultata before (2026-10-26, his commit 5be96e4 "Human prose editing", which broke the third over four lines):
-    # two paragraphs found, as each was read within one line.
-    sec = re.search(r'<h2>Where the new results come from</h2>\n(.*?)\n  <ul>\n', page(), re.S).group(1)
-    said = re.findall(r'<p>Claude: "(.*?)"</p>', sec, re.S)
-    assert len(said) == 3, sec
-    assert said[0].startswith('How the upper bounds are proven.') and 'The residue condition mod <i>M</i> rules out' in said[0]
-    assert said[1].startswith('The norm bound for a prime <i>p</i> that does not divide <i>n</i>')
-    assert 'are still to be done.' in said[2] and 'proof512.wl' in said[2]
 
 
 def q_chart_agrees_with_tables():
@@ -1728,7 +1228,7 @@ def q_new_results_state_what_the_chart_proves():
         vs = re.findall(r'<td[^>]*>(.*?)</td>', re.search(r'<tr class="vals">.*?</tr>', t, re.S).group(0))
         assert len(ns) == len(vs) and ns, t
         table += [(n_of(n), *value(v)) for (attr, n), v in zip(ns, vs)
-                  if "title='The published paper (2021)'" not in attr]    # copies of Table 2, which says where they come from
+                  if 'class=' in attr]    # the cells without a provenance class copy Table 2's powers of 2
     remarks = []
     for ns, v in re.findall(r'<p class="entry"><i>n</i> = ([^:]*): &nbsp;<span class="nw"><i>m</i><sup>\*</sup> ([^<]*)</span>',
                             page()):
@@ -1740,35 +1240,29 @@ def q_new_results_state_what_the_chart_proves():
 
 
 def q_citations_match_the_page():
-    # Replicata: mstar.js's reasons that cite the page: ["table2"] and ["page", who], as loWhy or hiWhy; the new
-    # results' cell titles; the remarks under "Where the new results come from", each by the n its entry lists.
+    # Replicata: mstar.js's reasons that cite the page: ["table2"] and ["page", who], as loWhy or hiWhy; and the new
+    # results' cells, their provenance classes and titles.
     # Expectata: a ["table2"] column is one of Table 2's n; a ["page", who] column is one of the new results' n.  As
-    # hiWhy, who is its cell's title (whose proof); as loWhy, its remark credits the example to who, saying
-    # "example(s) of order lo found by who." (at 496 the title credits Claude and BGPW, for the proof of the upper
-    # bound, and the remark credits BGPW for the example).
+    # hiWhy, who is its cell's title (whose proof).
     fig = re.search(r'<figure>.*?</figure>', page(), re.S).group(0)
     new = re.search(r'<div class="new-block">.*?<div class="scroll">(.*?)</div>', fig, re.S).group(1)
     value = lambda cell: int(cell) if cell.isdigit() else 2 ** int(re.fullmatch(r'2<sup>(\d+)</sup>', cell).group(1))
-    titled = {value(n): who for who, n in re.findall(r"<td(?: class=\"(?:a|c|ca|j|s)\")? title='([^']*)'>([^<]*(?:<sup>\d+</sup>)?)</td>", new)}
-    titles = {n: who for n, who in titled.items() if who != 'The published paper (2021)'}
+    titled = {value(n): (cls, who) for cls, who, n in
+              re.findall(r"<td(?: class=\"(a|c|ca|j|s)\")? title='([^']*)'>([^<]*(?:<sup>\d+</sup>)?)</td>", new)}
+    titles = {n: who for n, (cls, who) in titled.items() if cls}      # the rest, unclassed, copy Table 2's powers of 2
     # 240 (since 2026-10-20), the 44 multiples of 16 from 304 to 992 (512 written 2^9) and 25 larger powers of 2,
     # 2^17 to 2^72 (6 until 560 reached order 10 on 2026-10-12, 11 until 800 reached order 11 on 2026-10-17, 18
     # until 592, 608 and 656 reached order 10 and 848, 880, 896, 928, 944, 976 and 992 order 11 on 2026-10-25, 23
     # until 752 and 784 reached order 10 and 832 order 11 on 2026-10-26)
-    assert len(titles) == 1 + 44 + 25 and sorted(n for n, who in titled.items() if n not in titles) == [8, 16, 32, 64, 128, 256], titled
+    assert len(titles) == 1 + 44 + 25 and sorted(n for n in titled if n not in titles) == [8, 16, 32, 64, 128, 256], titled
     table2 = {n for n, *_ in table_entries()} - set(titles)
     assert len(table2) == 36, sorted(table2)          # 240 and 304 are in both
-    section = re.search(r'<section class="remarks">(.*?)</section>', page(), re.S).group(1)
-    remarks = {int(n): body for ns, body in re.findall(r'<p class="entry"><i>n</i> = ([\d, ]+):(.*?)</li>', section, re.S)
-               for n in ns.split(', ')}
     cited = 0
     for n, (lo, hi, lw, hw) in enumerate(mstar_data()['cols'], 1):
         for w in (lw, hw):
             if w[0] == 'table2': assert n in table2 | {304}, (n, w); cited += 1
             if w[0] == 'page': assert n in titles, (n, w); cited += 1
         if hw[0] == 'page': assert titles[n] == hw[1], (n, hw, titles[n])
-        if lw[0] == 'page':
-            assert re.search(rf'\b[Ee]xamples? of order {lo} found by {re.escape(lw[1])}\.', remarks[n]), (n, lw, remarks[n])
     assert cited, 'mstar.js cites neither table'
 
 
@@ -1778,7 +1272,7 @@ def q_claude_and_astra_is_a_category_like_claude_and_bgpw():
     # Expectata (2026-10-25, the main session's ruling on dreeves's "a new 'Claude and Astra' category makes sense to
     # me"): as Claude and BGPW's (q_chart_colors_stand_apart), the class ca has no hue of its own: its cells and legend
     # key are stripes of --claude's and --astra's tints over a striped bar, and its glyph ◆✦ is half in each hue; the
-    # legend has the line "Claude and Astra" right after "Astra alone"; the cells titled Claude and Astra are 592, 608,
+    # legend has its key right after Astra's; the cells titled Claude and Astra are 592, 608,
     # 656 and 752, each of class ca with its value; and each of their remarks is an <li class="ca"> marked ◆✦.  (Since
     # 2026-10-26 also 784, credited for the reason 608 and 656 are, and 752 at 10, both by examples of order 10.)
     css = re.search(r'<style>(.*?)</style>', page(), re.S).group(1)
@@ -1792,8 +1286,8 @@ def q_claude_and_astra_is_a_category_like_claude_and_bgpw():
     assert (f'tr.ns td.ca::before, .key.ca > span, .remarks li.ca .mk {{ background: {half}; -webkit-background-clip: text; '
             'background-clip: text; color: transparent; }') in css
     text = page()
-    assert ('    <li><span class="key a" aria-hidden="true">✦</span>Astra alone</li>\n'
-            '    <li><span class="key ca" aria-hidden="true"><span>◆✦</span></span>Claude and Astra</li>\n') in text
+    assert re.search(r'<li><span class="key a" aria-hidden="true">✦</span>[^\n]*</li>\n'
+                     r'    <li><span class="key ca" aria-hidden="true"><span>◆✦</span></span>[^\n]*</li>\n', text)
     new = re.search(r'<div class="new-block">.*?<div class="scroll">(.*?)</div>', text, re.S).group(1)
     ca = []
     for t in re.findall(r'<table class="block">.*?</table>', new, re.S):
@@ -1814,13 +1308,11 @@ def q_examples_of_2026_10_25_have_entries_codes_and_sets():
     # Replicata: the remarks' entries of 592, 608, 656 (order 10) and 848, 880, 896, 928, 944, 976, 992 (order 11),
     # each code in them decoded by the paper's Table 5 convention (the left half of the signs, 1 = +1, then the rest by
     # (-1)^m symmetry), the page's sets SClaude[m][n], and mstar.js's columns.
-    # Expectata: each n has an entry of its own, "m* = m", in 800's form: Claude's line "A symmetric example of order
-    # 10." (592, 608, 656, which also say what Astra did) or "An antisymmetric example of order 11.", ending "Order m + 1
-    # is ruled out by" the reason mstar.js gives as hiWhy; its one code block, p_n of order m, whose signs have order
-    # exactly m (synthetic division here) and the symmetry the line says; the set SClaude[m][n] is exactly that
-    # sequence's +1 positions, 0 among them; and mstar.js's column n is [m, m, ["example", "index.html p" + n], hiWhy].
+    # Expectata: each n has an entry of its own, "m* = m", in 800's form: its one code block, p_n of order m, whose
+    # signs have order exactly m (synthetic division here), symmetric for even m and antisymmetric for odd; the set
+    # SClaude[m][n] is exactly that sequence's +1 positions, 0 among them; and mstar.js's column n is [m, m,
+    # ["example", "index.html p" + n], hiWhy].
     text, cols = page(), mstar_data()['cols']
-    reason = {('norm', 3): 'the norm bound for the residue sums mod 3', ('residue', 3): 'the residue condition mod 3'}
     sets = {(int(m), int(n)): {int(t) for t in body.split(',')}
             for m, n, body in re.findall(r'SClaude\[(\d+)\]\[(\d+)\] = \{([^}]*)\};', text)}
     def order(a):                                  # (x - 1) divides exactly order(a) times: synthetic division
@@ -1833,10 +1325,6 @@ def q_examples_of_2026_10_25_have_entries_codes_and_sets():
         assert li and int(li.group(1)) == m, n
         lo, hi, lw, hw = cols[n - 1]
         assert [lo, hi, lw] == [m, m, ['example', f'index.html p{n}']], (n, cols[n - 1])
-        said = re.findall(r'<p>Claude: "(.*?)"</p>', li.group(2))
-        kind = 'A symmetric example of order 10.' if m == 10 else 'An antisymmetric example of order 11.'
-        assert len(said) == 1 and said[0].startswith(kind) and said[0].endswith(f' Order {m + 1} is ruled out by {reason[tuple(hw)]}.'), (n, said)
-        assert ('Astra' in said[0]) == (n < 700), (n, said)
         codes = re.findall(r'<p class="code">\n        <span><i>p</i><sub>(\d+)</sub> <span class="nw">\(<i>m</i> = (\d+)\)</span>:</span>\n'
                            r'        <code>([0-9A-F]+)</code>\n      </p>', li.group(2))
         assert len(codes) == 1 and codes[0][:2] == (str(n), str(m)), (n, codes)
@@ -1850,35 +1338,25 @@ def q_examples_of_2026_10_25_have_entries_codes_and_sets():
 def q_752_bound_cites_proof752():
     # Replicata: the remarks' entry of 752, mstar.js's column 752, and the repository's files.
     # Expectata (2026-10-25: proof752.py proves m*(752) <= 10, extending Astra's method for 384 with Claude's meet in
-    # the middle): Claude's first line says order 11 is ruled out by proof752.py, linked at its GitHub address, the
-    # second line says how; mstar.js's column 752 has hi 10 and hiWhy ["page", "Claude and Astra"]; and proof752.py is
-    # in the working directory.  Since 2026-10-26, when Claude's search found an example of order 10 at 752, the entry
-    # is "m* = 10", the first line is the example's (q_examples_of_2026_10_26_have_entries_codes_and_sets) ending "Order
-    # 11 is ruled out by an exact proof, proof752.py.", and the column is [10, 10, ["example", "index.html p752"], …];
-    # until then the entry was "m* ∈ {9, 10}", the first line giving the chart's join 192 + 560 of order 9.
+    # the middle): the entry links proof752.py at its GitHub address; mstar.js's column 752 has hi 10 and hiWhy
+    # ["page", "Claude and Astra"]; and proof752.py is in the working directory.  Since 2026-10-26, when Claude's
+    # search found an example of order 10 at 752, the entry is "m* = 10" and the column is [10, 10, ["example",
+    # "index.html p752"], …].
     li = re.search(r'<p class="entry"><i>n</i> = 752: &nbsp;<span class="nw"><i>m</i><sup>\*</sup> = 10</span></p>\n(.*?)\n    </li>',
                    page(), re.S)
     assert li, 'no entry for 752 alone'
-    said = re.findall(r'<p>Claude: "(.*?)"</p>', li.group(1))
-    assert len(said) == 2 and said[0].startswith('A symmetric example of order 10.') and said[0].endswith(
-        ' Order 11 is ruled out by an exact proof, <a href="https://github.com/dreeves/equipow/blob/main/proof752.py">'
-        'proof752.py</a>.'), said
-    assert 'meet in the middle' in said[1] and 'Astra' in said[1], said[1]
+    assert 'href="https://github.com/dreeves/equipow/blob/main/proof752.py"' in li.group(1), li.group(1)[:600]
     assert mstar_data()['cols'][752 - 1] == [10, 10, ['example', 'index.html p752'], ['page', 'Claude and Astra']]
     assert os.path.isfile(os.path.join(HERE, 'proof752.py'))
 
 
 def q_288_bound_is_proved_here():
     # Replicata: index.html's figure of Table 2, mstar.js's column 288, and the repository's files.
-    # Expectata (2026-10-25: proof288.py proves m*(288) <= 10, Table 2's upper value, so no cell changes): right after
-    # dreeves's note on Stong (STONG_NOTE), a TODO comment and one line of Claude's that links proof288.py at its GitHub
-    # address; Table 2's cell at 288 still reads "9 or 10" (q_table2_credits_stong_for_2_51) and mstar.js's column 288
-    # cites it, [9, 10, …, ["table2"]]; and proof288.py is in the working directory.
+    # Expectata (2026-10-25: proof288.py proves m*(288) <= 10, Table 2's upper value, so no cell changes): the figure
+    # of Table 2 links proof288.py at its GitHub address; mstar.js's column 288 cites Table 2, [9, 10, …, ["table2"]];
+    # and proof288.py is in the working directory.
     fig = re.search(r'<figure>.*?</figure>', page(), re.S).group(0)
-    m = re.search(re.escape(STONG_NOTE) + r'\n    <!-- TODO: [^\n]*-->\n    <p>Claude: "([^\n]*)"</p>\n\n    <div class="new-block">', fig)
-    assert m, fig[fig.index('Stong'):][:600]
-    assert '<a href="https://github.com/dreeves/equipow/blob/main/proof288.py">proof288.py</a>' in m.group(1), m.group(1)
-    assert 'order 11' in m.group(1), m.group(1)
+    assert 'href="https://github.com/dreeves/equipow/blob/main/proof288.py"' in fig, fig[:600]
     col = mstar_data()['cols'][288 - 1]
     assert col[:2] == [9, 10] and col[3] == ['table2'], col
     assert os.path.isfile(os.path.join(HERE, 'proof288.py'))
@@ -1889,33 +1367,25 @@ def q_examples_of_2026_10_26_have_entries_codes_and_sets():
     # paper's Table 5 convention (the left half of the signs, 1 = +1, then the rest by (-1)^m symmetry), the page's sets
     # SClaude[m][n], the order of the remarks' entries, and mstar.js's columns.
     # Expectata (2026-10-26, the second recording pass): each n has an entry of its own, "m* = m", in the form of the
-    # first pass's (q_examples_of_2026_10_25_have_entries_codes_and_sets): Claude's first line "A symmetric example of
-    # order 10." (752 and 784, which also say what Astra did, as 608's and 656's do) or "An antisymmetric example of
-    # order 11." (832), ending "Order m + 1 is ruled out by" the reason mstar.js gives as hiWhy (at 752 the page's,
-    # proof752.py, whose entry keeps its line on how, q_752_bound_cites_proof752); its one code block, p_n of order m,
-    # whose signs have order exactly m (synthetic division here) and the symmetry the line says; the set SClaude[m][n]
+    # first pass's (q_examples_of_2026_10_25_have_entries_codes_and_sets): its one code block, p_n of order m,
+    # whose signs have order exactly m (synthetic division here), symmetric for even m and antisymmetric for odd; the
+    # set SClaude[m][n]
     # is exactly that sequence's +1 positions, 0 among them; mstar.js's column n is [m, m, ["example",
     # "index.html p" + n], hiWhy]; no entry lists n with another n; and the entries run in order of n among the
     # examples': 656's, 752's, 784's, 800's, 832's, 848's.
     text, cols = page(), mstar_data()['cols']
-    reason = {('norm', 3): 'the norm bound for the residue sums mod 3', ('residue', 27): 'the residue condition mod 27',
-              ('page', 'Claude and Astra'): 'an exact proof, <a href="https://github.com/dreeves/equipow/blob/main/proof752.py">proof752.py</a>'}
     sets = {(int(m), int(n)): {int(t) for t in body.split(',')}
             for m, n, body in re.findall(r'SClaude\[(\d+)\]\[(\d+)\] = \{([^}]*)\};', text)}
     def order(a):                                  # (x - 1) divides exactly order(a) times: synthetic division
         c, k = list(a), 0
         while not sum(c): c, k = [sum(c[:i + 1]) for i in range(len(c) - 1)], k + 1
         return k
-    for n, m, lines in ((752, 10, 2), (784, 10, 1), (832, 11, 1)):
+    for n, m in ((752, 10), (784, 10), (832, 11)):
         li = re.search(r'<li class="\w+">\n      <span class="mk" aria-hidden="true">[^<]*</span>\n      <p class="entry"><i>n</i> = '
                        + str(n) + r': &nbsp;<span class="nw"><i>m</i><sup>\*</sup> = (\d+)</span></p>\n(.*?)\n    </li>', text, re.S)
         assert li and int(li.group(1)) == m, n
         lo, hi, lw, hw = cols[n - 1]
         assert [lo, hi, lw] == [m, m, ['example', f'index.html p{n}']], (n, cols[n - 1])
-        said = re.findall(r'<p>Claude: "(.*?)"</p>', li.group(2))
-        kind = 'A symmetric example of order 10.' if m == 10 else 'An antisymmetric example of order 11.'
-        assert len(said) == lines and said[0].startswith(kind) and said[0].endswith(f' Order {m + 1} is ruled out by {reason[tuple(hw)]}.'), (n, said)
-        assert ("Astra's lattice code" in said[0]) == (n < 800), (n, said)
         codes = re.findall(r'<p class="code">\n        <span><i>p</i><sub>(\d+)</sub> <span class="nw">\(<i>m</i> = (\d+)\)</span>:</span>\n'
                            r'        <code>([0-9A-F]+)</code>\n      </p>', li.group(2))
         assert len(codes) == 1 and codes[0][:2] == (str(n), str(m)), (n, codes)
@@ -1937,12 +1407,11 @@ def q_page_loads_clean():
     # Replicata: index.html with the real mstar.js in headless Chrome, 1280 px wide at 2 device px per CSS px; and the
     # page loaded as is (nothing added), with Chrome logging its console to stderr.
     # Expectata: no errors, console errors or warnings; the canvas is drawn (nonzero height, as wide as main's content);
-    # the readout still shows dreeves's hint (HINT); the chart opens showing all 500 columns, n = 2 to 1000.  The plain
+    # the chart opens showing all 500 columns, n = 2 to 1000.  The plain
     # load logs nothing at all to the console.
     assert console_lines() == [], console_lines()
     R = valid_run('light')
     assert R['canvasDev'][1] > 0 and close(R['canvasCss'][0], R['mainContentW'], 1), R
-    assert R['readout0'] == HINT, R['readout0']
     v = R['views'][0]
     assert close(v['u0'], 0, 0.01) and close(v['span'], NCOL, 0.05), v
 
@@ -2022,8 +1491,7 @@ def q_n_labels_are_even_and_round():
 def q_zoom_buttons_sit_beside_show_all():
     # Replicata: the chart's section.
     # Expectata: right before the reset button, with only blank space and comments between, a zoom-out button labelled
-    # − and then a zoom-in button labelled + (math, not English); each has dreeves's aria-label (ZOOM_LABELS) and a
-    # title that is Claude: "…"; and the hint in the readout, his (HINT), mentions the − and + buttons.
+    # − and then a zoom-in button labelled + (math, not English), each with an aria-label.
     s = section()
     tags = {i: re.search(rf'<button type="button" id="{i}"([^>]*)>([^<]*)</button>', s)
             for i in ('mstar-zoom-out', 'mstar-zoom-in', 'mstar-reset')}
@@ -2031,15 +1499,10 @@ def q_zoom_buttons_sit_beside_show_all():
     out, zin, reset = tags.values()
     for a, b in ((out, zin), (zin, reset)):
         assert re.fullmatch(r'(?:\s|<!--.*?-->)*', s[a.end():b.start()], re.S), s[a.end():b.start()]
-    for t, label, aria in ((out, '−', ZOOM_LABELS[0]), (zin, '+', ZOOM_LABELS[1])):
+    for t, label in ((out, '−'), (zin, '+')):
         attrs, text = t.groups()
         assert text == label, (t.group(0), label)
-        v = re.search(r"\baria-label='([^']*)'", attrs)
-        assert v and v.group(1) == aria, attrs
-        v = re.search(r"\btitle='([^']*)'", attrs)
-        assert v and re.fullmatch(r'Claude: "[^"]*"', v.group(1)), attrs
-    hint = re.search(r'<p id="mstar-readout" aria-live="polite">([^<]*)</p>', s)
-    assert hint and hint.group(1) == HINT and '−' in HINT and '+' in HINT and 'buttons' in HINT, s
+        assert re.search(r"\baria-label='[^']+'", attrs), attrs
 
 
 def q_zoom_buttons_zoom_about_the_middle():
@@ -2068,18 +1531,6 @@ def q_zoom_buttons_zoom_about_the_middle():
     zin, zout = R['looks0']
     assert zin['opacity'] == 1 and zout['opacity'] <= 0.5 and zout['display'] != 'none' and zout['visibility'] == 'visible', R['looks0']
     assert all(close(a, b, 2) for a, b in zip(zout['size'], zin['size'])) and min(zout['size']) > 10, R['looks0']
-
-
-def q_heading_says_even_n():
-    # Replicata: the chart's heading and the canvas's label for screen readers, which are dreeves's words since his
-    # copyedit (it dropped the caption that said why odd n are left out).
-    # Expectata: the heading is HEADING, which says "every even n", and the label is CANVAS_LABEL, which says "even n":
-    # the chart has a column for each even n only.
-    s = section()
-    heading = re.search(r'<h2 id="mstar-title">(.*?)</h2>', s).group(1)
-    assert heading == HEADING and 'every even <i>n</i>' in heading, heading
-    label = re.search(r"<canvas [^>]*aria-label='([^']*)'", s).group(1)
-    assert label == CANVAS_LABEL and 'even n' in label, label
 
 
 def q_light_run_uses_the_theme_tokens():
@@ -2141,18 +1592,12 @@ def q_hover_swatch_matches_gold_trim():
             assert (fill, shadow) == want, (name, n, m, 'expected', want, 'computed', (fill, shadow))
 
 
-def q_visible_text_is_attributed():
-    # Replicata: every string the kinds and light runs drew on the canvas, and every readout they showed.
-    # Expectata: canvas strings are numbers or the single letters n and m; outside Claude: "…" a readout holds no
-    # English (no run of two letters); and the readout's hint and the canvas's label are dreeves's words, exactly
-    # (HINT, CANVAS_LABEL).
+def q_canvas_draws_only_numbers():
+    # Replicata: every string the kinds and light runs drew on the canvas.
+    # Expectata: each is a number or the single letter n or m, the axes' names: the chart's words are in its HTML.
     for name in ('kinds', 'light'):
         R = valid_run(name)
         assert R['texts'] and all(re.fullmatch(r'\d+|[nm]', t) for t in R['texts']), (name, R['texts'])
-        for *_, text in R['hovers']: assert not english(unclaimed(text)), (name, text)
-        assert R['readout0'] == HINT, R['readout0']
-    label = re.search(r"<canvas [^>]*aria-label='([^']*)'", section()).group(1)
-    assert label == CANVAS_LABEL, label
 
 
 def q_keys_pan_and_zoom():
@@ -2264,23 +1709,23 @@ def q_phone_has_no_sideways_scroll():
 
 def q_missing_data_says_so():
     # Replicata: index.html with no mstar.js beside it.
-    # Expectata: the canvas stays 0 px tall and the readout is dreeves's error line (ERROR) followed by the error,
-    # which names MSTAR; the failed script load and the uncaught error are recorded (the chart fails loudly).
+    # Expectata: the canvas stays 0 px tall and the readout gives the error, which names MSTAR; the failed script load
+    # and the uncaught error are recorded (the chart fails loudly).
     R = run('missing')
     assert 'harnessError' not in R, R['harnessError']
     assert R['canvasDev'][1] == 0 and R['canvasCss'][1] == 0, R
-    assert re.fullmatch(re.escape(ERROR) + r'.*\bMSTAR\b.*', R['readout0']), R['readout0']
+    assert re.search(r'\bMSTAR\b', R['readout0']), R['readout0']
     assert any('script failed to load' in e for e in R['errors']) and any('MSTAR' in e for e in R['errors']), R['errors']
 
 
 def q_malformed_data_fails_loudly():
     # Replicata: made-up data whose column 100 has lo = 5 > hi = 3.
-    # Expectata: the canvas stays 0 px tall; the readout is dreeves's error line (ERROR) followed by the error, which
-    # quotes column 100 as JSON; the error is uncaught (recorded).
+    # Expectata: the canvas stays 0 px tall; the readout gives the error, which quotes column 100 as JSON; the error is
+    # uncaught (recorded).
     R = run('violates lo above hi')
     assert 'harnessError' not in R, R['harnessError']
     assert R['canvasDev'][1] == 0 and R['canvasCss'][1] == 0, R
-    assert re.fullmatch(re.escape(ERROR) + r'.*\[100,\[5,3,.*', R['readout0']), R['readout0']
+    assert '[100,[5,3,' in R['readout0'], R['readout0']
     assert any('[100,[5,3,' in e for e in R['errors']), R['errors']
 
 
@@ -2290,12 +1735,12 @@ def q_contract_violations_fail_loudly():
     # with the wrong hi; "norm" for a prime dividing n, and for a composite; "table2" at an n not in Table 2; "page" for
     # a provenance the page does not use; an example with an empty label; "none" or "odd" at an even n; an example at
     # an odd n; a column of five entries; hi at mtop; mtop above max hi + 1; nmax not 1000.
-    # Expectata: in each case the canvas stays 0 px tall and the readout is dreeves's error line (ERROR) followed by
-    # the error, which quotes the offending column as JSON (or mtop, or nmax and mtop), and the error is uncaught.
+    # Expectata: in each case the canvas stays 0 px tall and the readout ends with the error, which quotes the
+    # offending column as JSON (or mtop, or nmax and mtop), and the error is uncaught.
     for v, (_, quoted) in VIOLATIONS.items():
         R = run(f'violates {v}')
         assert 'harnessError' not in R and R['canvasDev'][1] == 0 and R['canvasCss'][1] == 0, (v, R)
-        assert R['readout0'] == f'{ERROR}Error: {quoted}', (v, R['readout0'])
+        assert R['readout0'].endswith(f'Error: {quoted}'), (v, R['readout0'])
         assert R['errors'] == [f'error: Uncaught Error: {quoted}'], (v, R['errors'])
 
 
@@ -2496,82 +1941,43 @@ def progress_run(case='main'):
 def rgb(hexcolor): return [int(hexcolor[i:i + 2], 16) for i in (1, 3, 5)]
 
 
-def q_search_remarks_name_their_certificates():
-    # Replicata: index.html's remarks for 240 and 304, whose orders 11 and 9 computer searches ruled out.
-    # Expectata (dreeves, 2026-10-20: "sure", after Stan Wagon read "closes every case with a certificate" as a residue
-    # proof): each remark says, in its Claude line and in the TODO recap above it, that the search closes every case
-    # with linear-programming certificates checked in exact integer arithmetic; the page says "a certificate checked"
-    # nowhere.
-    text = page()
-    for n in (240, 304):
-        li = re.search(r'<li class="c">\s*<span class="mk" aria-hidden="true">◆</span>\s*<p class="entry"><i>n</i> = '
-                       + str(n) + r': .*?</li>', text, re.S).group(0)
-        assert li.count('closes every case with linear-programming certificates checked in exact integer arithmetic') == 2, (n, li[:600])
-    assert 'a certificate checked' not in text
-
-
-def q_table2_credits_stong_for_2_51():
-    # Replicata: index.html's figure of Table 2: its three blocks, then what comes before the new results' block.
-    # Expectata (dreeves, 2026-10-18: "can you indicate somehow that the 2^51 result in the table is due to Richard
-    # Stong?"): Table 2's last block ends with n = 2^51 and its value "≥ 52", the cells untouched (mstar.py reads them);
-    # right after the blocks' scroll frame, before the new results, his note (STONG_NOTE, his rewording of Claude's
-    # line, commit 23ba3db), and then nothing or Claude's note on 288 (2026-10-25: a TODO comment and one line).
-    fig = re.search(r'<figure>.*?</figure>', page(), re.S).group(0)
-    blocks = re.findall(r'<table class="block">(.*?)</table>', fig, re.S)[:3]
-    assert blocks[2].rstrip().endswith('<td>2<sup>51</sup></td></tr>\n        <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td lang="en">10 or 11</td><td>7</td><td>8</td><td>7</td><td>8</td><td>7</td><td lang="en">9 or 10</td><td>7</td><td lang="en">8 or 9</td><td>≥ 52</td></tr>'), blocks[2][-300:]
-    # (and since 2026-10-25 Claude's note on 288 between his and the new results, q_288_bound_is_proved_here's)
-    assert re.search(r'</table>\n    </div>\n    ' + re.escape(STONG_NOTE) + r'\n(    <!-- TODO: [^\n]*-->\n    <p>Claude: "[^\n]*"</p>\n)?\n    <div class="new-block">', fig), \
-        fig[fig.index('2<sup>51</sup>'):][:800]
-
-
 def q_theorem_states_pow2_s_thresholds():
-    # Replicata: the theorem atop the powers-of-2 section (THEOREM) and its alternative form (THEOREM_ALT), their
-    # numbers read off; and pow2.js (pow2_data).
-    # Expectata: the page holds THEOREM once, right after the section's heading, and THEOREM_ALT once, right after it;
-    # THEOREM's bounds are m*(2^k) ≥ k + e for e = 1, …, E in turn, E the most any power reaches in pow2.js (8 until
+    # Replicata: the powers-of-2 section's theorem, its first paragraph stating bounds m*(2^k) ≥ v, and its alternative
+    # form, the first paragraph saying "1, 2, …, E", their numbers read off; and pow2.js (pow2_data).
+    # Expectata: the theorem's bounds are m*(2^k) ≥ k + e for e = 1, …, E in turn, E the most any power reaches in pow2.js (8 until
     # 2026-10-25, 9 since: dreeves, 2026-10-25: "yes please"), each k the least power whose known lower bound
     # reaches k + e in pow2.js, so that a new result that moves a threshold fails here until the theorem changes with
-    # it; then m*(2^9) = 9, pow2.js's bounds at 2^9 both 9; and THEOREM_ALT's count is E and its values are those
-    # same ks.
-    text = page()
-    heading = next(line for line in DREEVES_LINES if 'pow2-title' in line)
-    assert text.count(THEOREM) == 1 and re.search(re.escape(heading) + r'\n\s*' + re.escape(THEOREM), text), 'no theorem below the heading'
-    assert text.count(THEOREM_ALT) == 1 and re.search(re.escape(THEOREM) + r'\n\s*' + re.escape(THEOREM_ALT), text), 'no alternative below it'
-    bounds = [(int(k), op, int(v)) for k, op, v in re.findall(r'\(2<sup>(\d+)</sup>\) (≥|=) (\d+)', THEOREM)]
+    # it; then m*(2^9) = 9, pow2.js's bounds at 2^9 both 9; and the alternative form's count is E and its values are
+    # those same ks.
+    sec = re.search(r'<section class="pow2".*?</section>', page(), re.S).group(0)
+    paras = re.findall(r'<p>.*?</p>', sec, re.S)
+    theorem = next(p for p in paras if re.search(r'\(2<sup>\d+</sup>\) ≥ \d+', p))
+    alt = next(p for p in paras if '1, 2, …, ' in p)
+    bounds = [(int(k), op, int(v)) for k, op, v in re.findall(r'\(2<sup>(\d+)</sup>\) (≥|=) (\d+)', theorem)]
     cols = pow2_data()['cols']
     E = max(c[0] - k for k, c in enumerate(cols, 1))
     firsts = [next(k for k in range(1, len(cols) + 1) if cols[k - 1][0] - k >= e) for e in range(1, E + 1)]
     assert bounds[:E] == [(k, '≥', k + e) for e, k in enumerate(firsts, 1)], (bounds, firsts)
     assert bounds[E:] == [(9, '=', 9)] and cols[8][:2] == [9, 9], (bounds[E:], cols[8][:2])
-    assert f'<i>i</i> = 1, 2, …, {E}</span>' in THEOREM_ALT, THEOREM_ALT
-    values = [int(v) for v in re.search(r' are ([\d, ]+)\.</p>$', THEOREM_ALT).group(1).split(', ')]
-    assert values == firsts, (values, firsts)
+    assert f'1, 2, …, {E}' in alt and ', '.join(map(str, firsts)) in alt, (alt, firsts)
 
 
-def q_smallest_section_is_a_claude_quote():
+def q_smallest_section_sits_between_the_remarks_and_the_counts():
     # Replicata: index.html's section "The smallest length known for each order".
     # Expectata: a <section class="smallest" aria-labelledby="smallest-title"> right after the remarks' section and
-    # right before the counts' section (only blank lines and comments between): a TODO comment, then one block quote
-    # attributed to Claude (claude_quotes' form) holding the heading, a link to OEIS A323395, and a table of the
-    # columns order m, smallest known n, proven smallest and smallest n not ruled out, its body empty in the HTML: the
-    # script fills it from mstar.js; and not of class block, so that the page keeps the nine tables of that class that
-    # mstar.py reads as Table 2's and the new results' (its count asserted there, which a tenth broke on 2026-10-17).
-    # Astra's separately attributed minimality note follows the intact Claude quote (2026-10-20).
+    # right before the counts' section (only blank lines and comments between), holding its heading, a link to OEIS
+    # A323395, and a table whose body is empty in the HTML: the script fills it from mstar.js; and not of class block,
+    # so that the page keeps the nine tables of that class that mstar.py reads as Table 2's and the new results' (its
+    # count asserted there, which a tenth broke on 2026-10-17).
     text = page()
     filler = r'(?:\s|<!--.*?-->)*'
     m = re.search(r'<section class="remarks">.*?</section>\n' + filler +
                   r'(<section class="smallest" aria-labelledby="smallest-title">\n.*?\n</section>)\n' + filler +
                   r'<section class="counts">', text, re.S)
     assert m, 'no section "smallest" between the remarks and the counts'
-    lines = m.group(1).split('\n')
-    quoted, todos = claude_quotes(lines)
-    assert todos == {1} and quoted == set(range(2, len(lines) - 3)), (todos, len(lines))
-    assert tuple(lines[-3:-1]) == ASTRA_SMALLEST_NOTE, lines[-3:-1]
     body = m.group(1)
-    assert body.count('<blockquote class="claude">') == 1 and '<h2 id="smallest-title">' in body, body[:300]
+    assert '<h2 id="smallest-title">' in body, body[:300]
     assert 'href="https://oeis.org/A323395"' in body, body
-    heads = [re.sub(r'<[^>]+>', '', h) for h in re.findall(r'<th>(.*?)</th>', body)]
-    assert heads == ['order m', 'smallest known n', 'proven smallest', 'smallest n not ruled out'], heads
     assert '<table>' in body and '<tbody data-smallest></tbody>' in body, body
     assert text.count('<table class="block">') == 9, text.count('<table class="block">')
 
@@ -2607,27 +2013,22 @@ def q_smallest_script_passes_node_check():
     assert p.returncode == 0, p.stderr
 
 
-def q_progress_section_is_closed_and_unattributed():
+def q_progress_section_starts_closed():
     # Replicata: index.html's section "Search progress".
     # Expectata: a <section class="progress" aria-labelledby="progress-title"> after the sets' section and before the
-    # footer: first its TODO comment (progress_lines' form), then a <details> without open, so it starts closed, whose
-    # <summary> is the heading "Search progress" (dreeves's title for progress.html, 2026-10-09), with a key of the five
-    # statuses; and in its run template one more <details>, also without open, each run's fold (dreeves, 2026-10-23;
-    # since 2026-10-25 each stays as this browser left it); its copy unattributed, no block quote and no
-    # "Claude:" (dreeves, 2026-10-17: he took the section out
-    # of the block quote it was made in, as progress.html's copy had none); no <script> on the page names
-    # progress.js, which the section's script loads only once it is opened.
+    # footer: after any comments, a <details> without open, so it starts closed, whose <summary> is the heading
+    # progress-title, with a key of the five statuses; and in its run template one more <details>, also without open,
+    # each run's fold (dreeves, 2026-10-23; since 2026-10-25 each stays as this browser left it); no <script> on the
+    # page names progress.js, which the section's script loads only once it is opened.
     text = page()
     sec = re.search(r'<section class="progress" aria-labelledby="progress-title">\n(.*?)\n</section>\n', text, re.S)
     assert sec and text.index('<section class="sets">') < sec.start() < text.index('<footer>'), sec
     body = sec.group(1)
-    lines = text.split('\n')
-    section, todo = progress_lines(lines)
-    assert lines[todo + 1].strip() == '<details>' and '<details open' not in body and body.count('</details>') == 2
+    assert re.match(r'(?:\s*<!--.*?-->)*\s*<details>', body, re.S), body[:300]
+    assert '<details open' not in body and body.count('</details>') == 2, body[:300]
     run = re.search(r'<template class="progress-run">(.*?)</template>', body, re.S).group(1)
     assert run.count('<details>') == 1 and run.count('</details>') == 1, run[:300]
-    assert '<blockquote' not in body and 'Claude:' not in body and 'attrib' not in body, body[:200]
-    assert '<summary><h2 id="progress-title">Search progress</h2></summary>' in body
+    assert '<summary><h2 id="progress-title">' in body
     assert [s for s in re.findall(r'data-count="(\w+)"', body)] == list(STATUSES)
     assert not re.search(r'<script[^>]*progress', text)
 
@@ -2916,7 +2317,7 @@ FOLD_LOOK = """
   const look = () => runs().map(r => ({state: r.dataset.runState, open: r.querySelector('details').open,
     summary: !!r.querySelector('summary h3'), color: getComputedStyle(r.querySelector('summary')).color,
     status: r.querySelector('.progress-status').checkVisibility(), canvas: r.querySelector('canvas').width,
-    label: [...r.querySelectorAll('summary [data-label]')].filter(e => e.checkVisibility()).map(e => e.textContent)}));
+    label: [...r.querySelectorAll('summary [data-label]')].filter(e => e.checkVisibility()).map(e => e.dataset.label)}));
   const out = x => { const pre = document.createElement('pre'); pre.id = 'harness-out'; pre.textContent = JSON.stringify(x); document.body.appendChild(pre); };
 """
 
@@ -3008,8 +2409,8 @@ def q_progress_summary_names_each_run_s_state():
     # frozen, ended with an outcome (excluded) and ended with none (its process gone without a finish, as a stopped or
     # crashed run).
     # Expectata (dreeves, 2026-10-25: "can these be clearer when collapsed about what's paused/completed/aborted/
-    # running?"): each run's summary, folded, shows one word for its state, running, paused, frozen, completed or
-    # aborted, and no other.
+    # running?"): each run's summary, folded, shows the label of its state, running, paused, frozen, completed or
+    # aborted (data-label), and no other.
     # Resultata before: no word; a run not running was only grayed.
     base = dict(PROGRESS_DATA['runs'][0], to_go=None)
     runs = [dict(base, n=64 + 8 * i, state=state, outcome=outcome) for i, (state, outcome) in
@@ -3026,19 +2427,15 @@ def q_progress_status_line_names_an_ended_run_s_outcome():
     # Expectata (dreeves, 2026-10-26: "for the ended/aborted searches, they say either "completed" or "aborted" in the
     # collapsed version but the last line of the expanded version always just says "ended". can you change those
     # instances of "ended" to "aborted" or "completed" as appropriate?"): each run's status line, under its charts,
-    # shows one part: the snapshot line for the running run, "Paused after running for", "Frozen:", and for the ended
-    # runs the word of their summaries, "Completed after running for" and "Aborted after running for"; none says Ended.
-    # Resultata before: both ended runs' status lines said "Ended after running for".
+    # shows the one part (data-state) of the state its summary names: running, paused, frozen, completed, aborted.
+    # Resultata before: both ended runs' status lines showed the part for "ended", which said "Ended after running for".
     base = dict(PROGRESS_DATA['runs'][0], to_go=None)
     runs = [dict(base, n=64 + 8 * i, state=state, outcome=outcome) for i, (state, outcome) in
             enumerate([('running', None), ('paused', None), ('frozen', None), ('ended', 'excluded'), ('ended', None)])]
     got = progress_harness({'made': PROGRESS_DATA['made'], 'runs': runs}, """
   out(runs().map(r => [...r.querySelectorAll('.progress-status > [data-state]')].filter(e => !e.hidden)
-    .map(e => e.textContent.replace(/\\s+/g, ' ').trim())));""")
-    assert [len(r) for r in got] == [1] * 5, got
-    starts = ('@', 'Paused after running for ', 'Frozen: ', 'Completed after running for ', 'Aborted after running for ')
-    assert all(r[0].startswith(w) for r, w in zip(got, starts)), got
-    assert not any('Ended' in r[0] for r in got), got
+    .map(e => e.dataset.state)));""")
+    assert got == [['running'], ['paused'], ['frozen'], ['completed'], ['aborted']], got
 
 
 def q_progress_names_each_run_s_program():

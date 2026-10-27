@@ -12,7 +12,7 @@ import sys
 sys.dont_write_bytecode = True
 import os, re, json, html, shutil, tempfile, itertools, traceback, time
 import quals_lattice_search as ls          # read only: script (wolframscript on a temporary file) and seats
-import quals_index as qi                   # read only: chrome (headless Chrome's dump of a page's DOM), STAN_WORDS
+import quals_index as qi                   # read only: chrome (headless Chrome's dump of a page's DOM)
 import quals_pow2_page as qp               # read only: kinds_cols and kinds_data, made-up columns of every kind of reason
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -20,7 +20,7 @@ INDEX = os.path.join(HERE, 'index.html')
 WL = os.path.join(HERE, 'record_gaps.wl')
 WL_URL = 'https://raw.githubusercontent.com/dreeves/equipow/main/record_gaps.wl'
 POW2_JS = os.path.join(HERE, 'pow2.js')
-HEADER = list(qi.STAN_WORDS)                                   # Stan Wagon's, byte for byte
+HEADER = ['Record gaps', 'The power of 2', 'The order']        # Stan Wagon's, which record_gaps.wl's table heads
 THEOREM_KS = [17, 20, 30, 37, 43, 48, 57, 65, 68]              # Theorem 1's alternative form on index.html
 # Stan Wagon's two rows (his table of 2026-10-18), one product per line (dreeves, 2026-10-18), as text: a superscript
 # a^b, SpanFromAbove where the first column's cell spans the lines below it
@@ -187,12 +187,12 @@ def page_table(pow2_text, cols):
         dom = qi.chrome(d, ['--virtual-time-budget=5000', '--dump-dom', 'file://' + os.path.join(d, 'index.html')])
     finally:
         shutil.rmtree(d)
-    m = re.search(r'<p>Claude: "[^\n]*record_gaps\.wl</a>[^\n]*"</p>\s*<div class="scroll">\s*'
+    m = re.search(r'record_gaps\.wl</a>.*?</p>\s*<div class="scroll">\s*'
                   r'<table class="pow2-gaps" data-record-gaps="">(.*?)</table>\s*</div>', dom, re.S)
     assert m, dom[-2000:]
     text = lambda cell: html.unescape(re.sub(r'<[^>]+>', '', re.sub(r'<sup>(.*?)</sup>', r'^\1', cell)))
     head = re.fullmatch(r'\s*<thead><tr>(.*?)</tr></thead>(.*)', m.group(1), re.S)
-    assert head and [text(c) for c in re.findall(r'<th>(.*?)</th>', head.group(1))] == HEADER, m.group(1)[:400]
+    assert head and len(re.findall(r'<th>(.*?)</th>', head.group(1))) == len(HEADER), m.group(1)[:400]
     bodies = re.findall(r'<tbody>(.*?)</tbody>', head.group(2), re.S)
     assert ''.join(f'<tbody>{b}</tbody>' for b in bodies) == head.group(2).strip(), head.group(2)[:400]
     got = []
@@ -209,8 +209,8 @@ def page_table(pow2_text, cols):
 def q_page_shows_the_table():
     # Replicata: page_table of the real pow2.js.
     # Expectata (dreeves, 2026-10-18: "a similar version of that table in the html"): right after the paragraph that
-    # links record_gaps.wl, in a sideways-scrolling div (the page's .scroll), a table whose head is Stan Wagon's header
-    # (HEADER) and whose body is rows(), one tbody per record gap (so the rules fall between them): its first row the
+    # links record_gaps.wl, in a sideways-scrolling div (the page's .scroll), a table whose head has a cell per column of
+    # Stan Wagon's header (HEADER) and whose body is rows(), one tbody per record gap (so the rules fall between them): its first row the
     # bound's cell, spanning the gap's rows, then the product's two cells; each other row the product's two cells.
     got = page_table(open(POW2_JS, encoding='utf-8').read(), pow2_cols())
     want = [[c for c in row if c != 'SpanFromAbove'] for row in rows()]

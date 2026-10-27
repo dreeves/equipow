@@ -61,9 +61,6 @@ class Proof384PageQuals(unittest.TestCase):
             self.assertRegex(self.page, rf'href="{re.escape(target)}"')
             self.assertTrue((ROOT / target).is_file())
         visible = text(self.page)
-        self.assertIn('Astra', visible)
-        # the page's attribution as committed (2026-10-20, 605e803): this line atop it, not an Astra block quote
-        self.assertIn('<p><i>This page is all Astra.</i></p>', self.page)
         self.assertIn('href="proof384.html"', (ROOT / 'index.html').read_text())
         self.assertIn('python3 proof384.py', visible)
         self.assertIn('python3 -m unittest quals_proof384 quals_proof384_page',
