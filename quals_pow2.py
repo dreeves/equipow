@@ -11,7 +11,7 @@ enumerated again.  Quals marked "regression" pin numbers found earlier rather th
 """
 import sys
 sys.dont_write_bytecode = True
-import os, json, math, time, subprocess, traceback, itertools
+import os, re, json, math, time, subprocess, traceback, itertools
 from functools import lru_cache
 import sympy as sp
 import mstar
@@ -73,12 +73,30 @@ def expect_assertion(f):
     raise AssertionError('Claude: "the expected assertion did not fire"')
 
 
+@lru_cache(maxsize=None)
+def long_examples():
+    """{(n, m)}: index.html's examples longer than 1000, each a code block of the remarks, p_n of order m alone,
+    decoded here by the paper's Table 5 convention (the left half of the signs, 1 = +1, then the rest by (-1)^m
+    symmetry), its length n and its exact order m asserted (synthetic division)."""
+    page = open(os.path.join(HERE, 'index.html'), encoding='utf-8').read()
+    codes = re.findall(r'<i>p</i><sub>(\d+)</sub> <span class="nw">\(<i>m</i> = (\d+)\)</span>:</span>\n\s*<code>([0-9A-F]+)</code>',
+                       page)
+    long = [(int(n), int(m), h) for n, m, h in codes if int(n) > 1000]
+    for n, m, h in long:
+        left = [2 * int(b) - 1 for b in bin(int(h, 16))[2:].zfill(4 * len(h))]
+        a = left + [(-1) ** m * s for s in reversed(left)]
+        assert len(a) == n and exact_order_div(a) == m, (n, m)
+    return {(n, m) for n, m, _ in long}
+
+
 def block_order(b):
     """The order a block [n, m] stands for, by the data contract, from mstar.js as node sees it: m must be mstar.js's
-    lo at n <= 1000, or b must be tau_j = [2^j, j] or f = [2^24, 25]; asserts that it is one of them."""
+    lo at n <= 1000, or b must be one of the page's long_examples(), tau_j = [2^j, j] or f = [2^24, 25]; asserts that
+    it is one of them."""
     n, m = b
     assert type(n) is int and type(m) is int and n >= 1, b
-    assert (n <= 1000 and mstar_disk()[n - 1][0] == m) or n == 2 ** m or (n, m) == (2 ** 24, 25), b
+    assert ((n <= 1000 and mstar_disk()[n - 1][0] == m) or (n, m) in long_examples() or n == 2 ** m
+            or (n, m) == (2 ** 24, 25)), b
     return m
 
 
@@ -142,41 +160,52 @@ def q_lo_at_least_thue_morse_and_f_powers():
 
 def q_new_lower_bounds():
     # Replicata (regression): pow2.js's lo - k, the excess known at 2^k, for k = 1..72, and the kind of its loWhy.
-    # Expectata: 0 by Thue-Morse for k <= 16; 1 for 17..19 (joins from pow2.BASES[17]); 2 for 20..29 (BASES[20], which
-    # beats f # tau_j at 24..26); 3 for 30..36 (BASES[30]); 4 for 37..42 (BASES[37]); 5 for 43..47 (BASES[43]); 6 for
-    # 48..56 (BASES[48]); 7 for 57..64 (BASES[57]); 8 for 65..67 (BASES[65]); 9 for 68..72 (BASES[68]); every lo above
-    # Thue-Morse's a join.  The bases are at 2^17 order 18, 2^20 order 22, 2^30 order 33, 2^37 order 41, 2^43 order 48,
-    # 2^48 order 54, 2^57 order 64, 2^65 order 73 and 2^68 order 77, each lifted by tau_(k - K0) above.  (Before
+    # Expectata: 0 by Thue-Morse for k <= 9; 1 for 10..19 (joins from pow2.BASES[10], the example of order 11 at 1024
+    # alone); 2 for 20..29 (BASES[20], which beats f # tau_j at 24..26); 3 for 30..36 (BASES[30]); 4 for 37..42
+    # (BASES[37]); 5 for 43..47 (BASES[43]); 6 for 48..56 (BASES[48]); 7 for 57..64 (BASES[57]); 8 for 65..67
+    # (BASES[65]); 9 for 68..72 (BASES[68]); every lo above Thue-Morse's a join.  The bases are at 2^10 order 11, 2^20
+    # order 22, 2^30 order 33, 2^37 order 41, 2^43 order 48, 2^48 order 54, 2^57 order 64, 2^65 order 73 and 2^68
+    # order 77, each lifted by tau_(k - K0) above.  And lo = hi exactly for k <= 12: m*(2^k) is k up to 9, then 11, 12
+    # and 13.  (Before the example of order 11 at 1024, later on 2026-10-26: lo = hi only for k <= 9, and 0
+    # for k <= 16, and 1 for 17..19 from BASES[17], (112 # 800) v (48 # 432 # tau_1).  Before
     # 2026-10-26's examples of order 10 at 752 and 784 and of order 11 at 832: 5 from 46, 6 from 49 and 9 at 72 alone;
     # before 2026-10-25's examples of order 10 at 592, 608 and 656 and of order 11 at 848, 880, 896, 928, 944, 976 and
     # 992: 1 for 17..26, f # tau_j giving it at 24..26, 2 from 27, 3 from 34, 4 from 38, 6 from 52, 8 from 66 and no 9;
     # before 2026-10-17's example of order 11 at 800: 0 below 18, 1 from 18, 2 from 33, 3 from
     # 41, 4 from 48, 5 from 61 and 6 from 71; before 2026-10-12's of order 10 at 560: 1 from 24 by f, 2 from 33, 3 from
     # 49, 4 from 57 and 5 from 67.)
-    want = {k: 0 if k < 17 else 1 if k < 20 else 2 if k < 30 else 3 if k < 37 else 4 if k < 43 else 5 if k < 48 else 6
+    want = {k: 0 if k < 10 else 1 if k < 20 else 2 if k < 30 else 3 if k < 37 else 4 if k < 43 else 5 if k < 48 else 6
             if k < 57 else 7 if k < 65 else 8 if k < 68 else 9 for k in range(1, KMAX + 1)}
-    kind = {k: 'thue-morse' if k < 17 else 'joins' for k in range(1, KMAX + 1)}
+    kind = {k: 'thue-morse' if k < 10 else 'joins' for k in range(1, KMAX + 1)}
     for k, (lo, hi, lw, hw) in enumerate(cols(), 1): assert (lo - k, lw[0]) == (want[k], kind[k]), (k, lo, lw[0])
     orders = {K0: pow2.join_lo(K0, ps) for K0, ps in pow2.BASES.items()}
-    assert orders == {17: 18, 20: 22, 30: 33, 37: 41, 43: 48, 48: 54, 57: 64, 65: 73, 68: 77}, orders
-    pairs = ((17, 17), (19, 17), (20, 20), (29, 20), (30, 30), (36, 30), (37, 37), (42, 37), (43, 43), (47, 43), (48, 48),
+    assert orders == {10: 11, 20: 22, 30: 33, 37: 41, 43: 48, 48: 54, 57: 64, 65: 73, 68: 77}, orders
+    assert pow2.BASES[10] == [[[1024, 11]]], pow2.BASES[10]
+    # lo = hi through k = 12 (the norm bound for 3 at 2^10, the residue condition mod 3 at 2^11 and 2^12), and not at 13
+    assert [k for k, (lo, hi, lw, hw) in enumerate(cols(), 1) if lo == hi] == list(range(1, 13)), cols()[9:13]
+    pairs = ((10, 10), (19, 10), (20, 20), (29, 20), (30, 30), (36, 30), (37, 37), (42, 37), (43, 43), (47, 43), (48, 48),
              (56, 48), (57, 57), (64, 57), (65, 65), (67, 65), (68, 68), (72, 68))
     assert [cols()[k - 1][2][1] == pow2.lifted(pow2.BASES[K0], k - K0) for k, K0 in pairs] == [True] * len(pairs)
 
 
 def q_base_blocks_and_their_sources():
-    # Replicata: every block of every product of pow2.BASES other than tau_j, n <= 1000: mstar.js's lo and loWhy at n,
-    # mstar's explicit lo (sequences in hand only, no citation), and the order of mstar.build(n), the sequence behind
-    # it, by synthetic division here.
-    # Expectata: mstar.js's lo is the block's order everywhere, and every block of every base has a sequence in hand of
-    # exactly that order (explicit lo and the built sequence's order equal it), so every base is built from sequences
-    # in hand by BGPW's Theorem 4.1.  (Until 2026-10-12, BASES[57]'s 352 and 464 and BASES[67]'s 400 were cited as
-    # BGPW's examples; mstar.FOUND now holds sequences for them.)
+    # Replicata: every block of every product of pow2.BASES other than tau_j: for n <= 1000, mstar.js's lo and loWhy at
+    # n, mstar's explicit lo (sequences in hand only, no citation), and the order of mstar.build(n), the sequence behind
+    # it, by synthetic division here; for n > 1000, the page's long_examples(); and pow2.blocks() beyond 1000.
+    # Expectata: mstar.js's lo is the block's order at every n <= 1000, and every longer block is one of the page's
+    # examples, decoded here at exactly its order (since 2026-10-26, 1024 at order 11, BASES[10]); so every block of
+    # every base has a sequence in hand of exactly its order (explicit lo and the built sequence's order equal it), and
+    # every base is built from sequences in hand by BGPW's Theorem 4.1; and pow2's blocks beyond 1000, other than tau_j
+    # and f, are exactly the page's long examples.  (Until 2026-10-12, BASES[57]'s 352 and 464 and BASES[67]'s 400 were
+    # cited as BGPW's examples; mstar.FOUND now holds sequences for them.)
     blocks = {K0: {(n, m) for p in ps for n, m in p if n != 2 ** m} for K0, ps in pow2.BASES.items()}
-    assert all(n <= 1000 and mstar_disk()[n - 1][0] == m for bs in blocks.values() for n, m in bs), blocks
-    cited = {K0: {(n, m) for n, m in bs if mstar_disk()[n - 1][2] == ['page', 'BGPW']} for K0, bs in blocks.items()}
+    short = {K0: {(n, m) for n, m in bs if n <= 1000} for K0, bs in blocks.items()}
+    assert all(mstar_disk()[n - 1][0] == m for bs in short.values() for n, m in bs), short
+    assert set().union(*blocks.values()) - set().union(*short.values()) <= long_examples() == {(1024, 11)}, blocks
+    assert {(n, m) for n, m in pow2.blocks() if n > 1000 and n != 2 ** m and [n, m] != pow2.F} == long_examples()
+    cited = {K0: {(n, m) for n, m in bs if mstar_disk()[n - 1][2] == ['page', 'BGPW']} for K0, bs in short.items()}
     assert cited == {K0: set() for K0 in pow2.BASES}, cited
-    for n, m in sorted(set().union(*blocks.values()) - set().union(*cited.values())):
+    for n, m in sorted(set().union(*short.values()) - set().union(*cited.values())):
         a = mstar.build(n)
         assert mstar.explicit_lo()[0][n] == m == exact_order_div(a) and len(a) == n, (n, m)
 
@@ -314,13 +343,14 @@ def q_schema():
 
 def q_assertions_fire():
     # Replicata: pow2.join_lo and pow2.lo_of on broken reasons: a join whose lengths sum to 2^k - 1 or 2^k + 1 at k =
-    # 10; a block at the wrong order ([480, 13], [256, 9], [2^24, 26]); an empty join and an empty product; power with
-    # 24L + j != k, with j = 24 and with L = 0; and pow2.hi_of on ["mstar", why] at k = 10, ["norm", 2] and ["norm",
-    # 9], and ["residue", chain] at a k with no claim.
+    # 10; a block at the wrong order ([480, 13], [256, 9], [2^24, 26], and [1024, 12] beside the page's [1024, 11]);
+    # an empty join and an empty product; power with 24L + j != k, with j = 24 and with L = 0; and pow2.hi_of on
+    # ["mstar", why] at k = 10, ["norm", 2] and ["norm", 9], and ["residue", chain] at a k with no claim.
     # Expectata: AssertionError for each; and the unbroken forms give their orders.
     assert pow2.join_lo(10, [[[1024, 10]]]) == 10 and pow2.join_lo(10, [[[512, 9]], [[512, 9]]]) == 9
+    assert pow2.join_lo(10, [[[1024, 11]]]) == 11 and pow2.join_lo(11, [[[1024, 11], [2, 1]]]) == 12
     for ps in ([[[512, 9]], [[511, 0]]], [[[512, 9]], [[513, 0]]], [[[480, 13], [2, 1]], [[64, 6]]], [[[256, 9], [4, 2]]],
-               [], [[]], [[[2 ** 24, 26]]]):
+               [], [[]], [[[2 ** 24, 26]]], [[[1024, 12]]]):
         expect_assertion(lambda: pow2.join_lo(10 if ps != [[[2 ** 24, 26]]] else 24, ps))
     assert pow2.lo_of(25, ['power', 1, 1]) == 26
     for w in (['power', 1, 2], ['power', 0, 25], ['power', 2, -23], ['power', 1, 24]):

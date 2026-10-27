@@ -17,7 +17,7 @@ reader sees.
 """
 import sys
 sys.dont_write_bytecode = True
-import os, re, json, html, html.parser, math, time, shutil, signal, datetime, zoneinfo, tempfile, threading, traceback, subprocess, contextlib
+import os, re, json, html, html.parser, math, time, shutil, signal, datetime, zoneinfo, tempfile, threading, traceback, subprocess, contextlib, itertools
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 INDEX = os.path.join(HERE, 'index.html')
@@ -283,7 +283,9 @@ NOTEWORTHY = (('2026-10-04', 2 ** 24, (25, None), 'the first power of 2 known to
               ('2026-10-12', 2 ** 18, (19, None), 'the first power of 2 known to beat Thue-Morse, down from 2^24'),
               ('2026-10-17', 2 ** 17, (18, None), 'the first power of 2 known to beat Thue-Morse, down from 2^18'),
               ('2026-10-20', 384, (10, 10), 'with 240, settles a(10) = 432 of OEIS A323395'),
-              ('2026-10-20', 240, (10, 10), "settles the paper's Table 2 entry, 10 or 11, and its open question"))
+              ('2026-10-20', 240, (10, 10), "settles the paper's Table 2 entry, 10 or 11, and its open question"),
+              ('2026-10-26', 2 ** 10, (11, 11), 'the first power of 2 known to beat Thue-Morse, down from 2^17, and the '
+               'first that can, since m*(2^9) = 9'))
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -915,10 +917,11 @@ def q_changelog_brings_every_new_result_up_to_date():
     # Expectata (dreeves, 2026-10-26: "yes please", to a changelog entry with each update of the new results; and, of
     # its first 112 statements, "if there's an excuse to trim it down, we should"): each statement tightens its n's
     # bounds, raising the low, lowering the high, or both, and is still true, the block's bounds for n lying within the
-    # statements'; every n stated is in the block; and every entry of the block up to NMAX whose lower bound is a
-    # partition of its own length (not BUILT) is up to date, its bounds exactly the statements', as is every upper
-    # bound proved on the page (reason 'page') and the low of each power of 2 that sets a threshold of Theorem 1
-    # (dreeves, 2026-10-26: "we obviously want 2^17:18 and 2^24:25 in the changelog").
+    # statements'; every n stated is in the block; and every entry of the block whose lower bound is a partition of its
+    # own length (up to NMAX, not BUILT; past it, a power of 2 whose pow2.js loWhy is the join of one block of length
+    # n, since 1024 got its example of order 11 on 2026-10-26) is up to date, its bounds exactly the statements', as
+    # is every upper bound proved on the page (reason 'page') and the low of each power of 2 that sets a threshold of
+    # Theorem 1 (dreeves, 2026-10-26: "we obviously want 2^17:18 and 2^24:25 in the changelog").
     # Resultata before the trim: the 112 statements also brought every entry built from other partitions up to date.
     # Resultata after it, before the thresholds came back: no power of 2 past 512 had a statement.
     state = {}
@@ -931,7 +934,9 @@ def q_changelog_brings_every_new_result_up_to_date():
     assert set(state) <= set(cells), set(state) - set(cells)
     false = {n: (state[n], cells[n]) for n in state if not state[n][0] <= cells[n][0] <= cells[n][1] <= state[n][1]}
     assert not false, false
-    own = {n for n in cells if n <= NMAX and cols[n - 1][2][0] not in BUILT}
+    pows = pow2_data()['cols']
+    own = ({n for n in cells if n <= NMAX and cols[n - 1][2][0] not in BUILT} |
+           {n for n in cells if n > NMAX and pows[n.bit_length() - 2][2] == ['joins', [[[n, cells[n][0]]]]]})
     proved = {n for n in cells if n <= NMAX and cols[n - 1][3][0] == 'page'}
     first = {2 ** k for k in firsts(cells).values()}
     stale = sorted({n for n in own if state.get(n) != cells[n]} |
@@ -1162,20 +1167,20 @@ def q_chart_colors_stand_apart():
 def q_new_results_n_cells_line_up():
     # Replicata: index.html in the browser (light, desktop): in each n row of the new results' tables, the bottom of the
     # first line of each cell's n (its digits, or the 2 of 2^k).
-    # Expectata (dreeves, 2026-10-12: "minor spacing issue (remember anti-magic)"): the six rows' cells line up within
-    # half a pixel, the uncolored copies of Table 2's powers of 2 among them: every n cell of the new results takes the
-    # same room above its n, glyph or no glyph.
+    # Expectata (dreeves, 2026-10-12: "minor spacing issue (remember anti-magic)"): the seven rows' cells (six until
+    # 2026-10-26, when the powers of 2 took a third row) line up within half a pixel, the uncolored copies of Table 2's
+    # powers of 2 among them: every n cell of the new results takes the same room above its n, glyph or no glyph.
     rows = valid_run('light')['nTextBottoms']
-    assert len(rows) == 6 and all(len(r) >= 5 for r in rows), rows
+    assert len(rows) == 7 and all(len(r) >= 5 for r in rows), rows
     assert all(max(r) - min(r) <= 0.5 for r in rows), rows
 
 
 def q_new_results_fit_unscrolled_at_945_px():
     # Replicata: index.html with mstar.js, pow2.js and progress.js beside it, in headless Chrome with a window 945 px
-    # wide: the widths of the new results' six tables and of their sideways-scrolling frame (.new-block .scroll).
+    # wide: the widths of the new results' seven tables and of their sideways-scrolling frame (.new-block .scroll).
     # Expectata (the CSS comment on the new results' side padding: "keeps it in one row, unscrolled, at 945 px"; since
-    # 2026-10-25, when the powers of 2 reached 23, their two rows too): no table is wider than the frame, so the frame
-    # does not scroll.
+    # 2026-10-25, when the powers of 2 reached 23, their two rows too, and since 2026-10-26, when they reached 35 and
+    # took three rows, those three): no table is wider than the frame, so the frame does not scroll.
     d = tempfile.mkdtemp(prefix='index-quals-')
     try:
         for name in ('mstar.js', 'pow2.js', 'progress.js'): shutil.copy(os.path.join(HERE, name), d)
@@ -1190,7 +1195,7 @@ def q_new_results_fit_unscrolled_at_945_px():
     m = re.search(r'<pre id="fit">(.*?)</pre>', dom)
     assert m, dom[-500:]
     R = json.loads(m.group(1))
-    assert len(R['tables']) == 6 and R['scroll'] <= R['frame'] and max(R['tables']) <= R['frame'], R
+    assert len(R['tables']) == 7 and R['scroll'] <= R['frame'] and max(R['tables']) <= R['frame'], R
 
 
 def q_remarks_name_the_chart_s_constructions():
@@ -1310,8 +1315,9 @@ def q_citations_match_the_page():
     # 240 (since 2026-10-20), the 44 multiples of 16 from 304 to 992 (512 written 2^9) and 25 larger powers of 2,
     # 2^17 to 2^72 (6 until 560 reached order 10 on 2026-10-12, 11 until 800 reached order 11 on 2026-10-17, 18
     # until 592, 608 and 656 reached order 10 and 848, 880, 896, 928, 944, 976 and 992 order 11 on 2026-10-25, 23
-    # until 752 and 784 reached order 10 and 832 order 11 on 2026-10-26)
-    assert len(titles) == 1 + 44 + 25 and sorted(n for n in titled if n not in titles) == [8, 16, 32, 64, 128, 256], titled
+    # until 752 and 784 reached order 10 and 832 order 11 on 2026-10-26); and since 1024 reached order 11, later that
+    # day, 2^10, 2^11 and 2^12
+    assert len(titles) == 1 + 44 + 28 and sorted(n for n in titled if n not in titles) == [8, 16, 32, 64, 128, 256], titled
     table2 = {n for n, *_ in table_entries()} - set(titles)
     assert len(table2) == 36, sorted(table2)          # 240 and 304 are in both
     cited = 0
@@ -1455,6 +1461,77 @@ def q_examples_of_2026_10_26_have_entries_codes_and_sets():
     assert [ns for ns in listed if {'752', '784', '832'} & set(ns)] == [['752'], ['784'], ['832']], listed
     run = [ns[0] for ns in listed if ns[0] in ('656', '752', '784', '800', '832', '848')]
     assert run == ['656', '752', '784', '800', '832', '848'], run
+
+
+def q_example_at_1024_has_its_entry_code_set_and_cell():
+    # Replicata: the remarks' entry of 1024, its code decoded by the paper's Table 5 convention (the left half of the
+    # signs, 1 = +1, then the rest by (-1)^m symmetry), the page's set SClaude[11][1024], the new results' cells of the
+    # powers of 2, and pow2.js's column 2^10.
+    # Expectata (2026-10-26: Claude's lattice search found an example of order 11 at 1024; with m*(2^9) = 9 it makes 2^10
+    # the first power of 2 to beat Thue-Morse, and the norm bound for 3 caps it at 11): an entry of its own, "m* = 11",
+    # an <li class="c"> marked ◆, in the form of the examples' entries (q_examples_of_2026_10_26_have_entries_codes_and_sets),
+    # right after 992's, the last of the examples'; its one code block, p1024 of order 11, whose signs have order
+    # exactly 11 (synthetic division here) and are antisymmetric; SClaude[11][1024] exactly their +1 positions, 0
+    # among them; the cell 2^10, of class c titled Claude alone, value 11, right after 2^9's; and pow2.js's column
+    # 2^10 is [11, 11, ["joins", [[[1024, 11]]]], ["norm", 3]].
+    text = page()
+    li = re.search(r'<li class="c">\n      <span class="mk" aria-hidden="true">◆</span>\n      <p class="entry"><i>n</i> = '
+                   r'1024: &nbsp;<span class="nw"><i>m</i><sup>\*</sup> = 11</span></p>\n(.*?)\n    </li>', text, re.S)
+    assert li, 'no entry of 1024 alone'
+    codes = re.findall(r'<p class="code">\n        <span><i>p</i><sub>(\d+)</sub> <span class="nw">\(<i>m</i> = (\d+)\)</span>:</span>\n'
+                       r'        <code>([0-9A-F]+)</code>\n      </p>', li.group(1))
+    assert len(codes) == 1 and codes[0][:2] == ('1024', '11'), codes
+    h = codes[0][2]
+    left = [1 if b == '1' else -1 for b in bin(int(h, 16))[2:].zfill(4 * len(h))]
+    a, k = left + [-s for s in reversed(left)], 0
+    c = a
+    while not sum(c): c, k = list(itertools.accumulate(c[:-1])), k + 1
+    assert len(a) == 1024 and k == 11 and all(a[1023 - i] == -a[i] for i in range(1024)), (len(a), k)
+    sets = {(int(m), int(n)): {int(t) for t in body.split(',')}
+            for m, n, body in re.findall(r'SClaude\[(\d+)\]\[(\d+)\] = \{([^}]*)\};', text)}
+    assert sets[11, 1024] == {i for i, s in enumerate(a) if s == 1} and 0 in sets[11, 1024]
+    listed = [ns.split(', ') for ns in re.findall(r'<p class="entry"><i>n</i> = ([^:]*): ', text)]
+    assert listed[listed.index(['992']) + 1] == ['1024'], listed
+    row = re.search(r'<td title=\'The published paper \(2021\)\'>2<sup>3</sup></td>.*?</tr>\s*<tr class="vals">.*?</tr>',
+                    text, re.S).group(0)
+    ns = re.findall(r'<td([^>]*)>2<sup>(\d+)</sup></td>', row)
+    vals = re.findall(r'<td([^>]*)>([^<]*)</td>', row.split('<tr class="vals">')[1])
+    i = [k for _, k in ns].index('10')
+    assert ns[i - 1][1] == '9' and ns[i][0] == ' class="c" title=\'Claude alone\'' and vals[i] == (' class="c"', '11'), (ns, vals)
+    assert pow2_data()['cols'][9] == [11, 11, ['joins', [[[1024, 11]]]], ['norm', 3]], pow2_data()['cols'][9]
+
+
+def q_1024_doubled_settles_2_11_and_2_12():
+    # Replicata: the new results' cells of the powers of 2, the remarks' entries of 2^11 and 2^12, the changelog's
+    # statements of 2026-10-26, and pow2.js's columns 2^11 and 2^12.
+    # Expectata (2026-10-26: the example of order 11 at 1024 times τ1 and τ2 has orders 12 and 13, which the residue
+    # condition mod 3 allows and no more): pow2.js's columns are [12, 12, ["joins", [[[1024, 11], [2, 1]]]],
+    # ["residue", [3]]] and [13, 13, ["joins", [[[1024, 11], [4, 2]]]], ["residue", [3]]]; the cells 2^11 and 2^12, of
+    # class c titled Claude alone, values 12 and 13, right after 2^10's; each has an entry of its own, "m* = 12" and
+    # "m* = 13", whose Claude: "…" names p1024 # τ1 (τ2) and the residue condition mod 3, right before 2^17's; and the
+    # changelog states m*(2^11) = 12 and m*(2^12) = 13 on 2026-10-26, together on a line of their own.
+    cols, text = pow2_data()['cols'], page()
+    assert cols[10] == [12, 12, ['joins', [[[1024, 11], [2, 1]]]], ['residue', [3]]], cols[10]
+    assert cols[11] == [13, 13, ['joins', [[[1024, 11], [4, 2]]]], ['residue', [3]]], cols[11]
+    row = re.search(r'<td title=\'The published paper \(2021\)\'>2<sup>3</sup></td>.*?</tr>\s*<tr class="vals">.*?</tr>',
+                    text, re.S).group(0)
+    ns = re.findall(r'<td([^>]*)>2<sup>(\d+)</sup></td>', row)
+    vals = re.findall(r'<td([^>]*)>([^<]*)</td>', row.split('<tr class="vals">')[1])
+    i = [k for _, k in ns].index('10')
+    assert [k for _, k in ns[i:i + 4]] == ['10', '11', '12', '17'], ns
+    assert all(a == ' class="c" title=\'Claude alone\'' for a, _ in ns[i + 1:i + 3]), ns
+    assert vals[i + 1:i + 3] == [(' class="c"', '12'), (' class="c"', '13')], vals
+    listed = re.findall(r'<p class="entry"><i>n</i> = ([^:]*): ', text)
+    j = listed.index('2<sup>11</sup>')
+    assert listed[j:j + 3] == ['2<sup>11</sup>', '2<sup>12</sup>', '2<sup>17</sup>'], listed
+    for k, m, j in ((11, 12, 1), (12, 13, 2)):
+        li = re.search(r'<li class="c">\n      <span class="mk" aria-hidden="true">◆</span>\n      <p class="entry"><i>n</i> = '
+                       rf'2<sup>{k}</sup>: &nbsp;<span class="nw"><i>m</i><sup>\*</sup> = {m}</span></p>\n(.*?)\n    </li>', text, re.S)
+        assert li, k
+        said = re.search(r'<p>Claude: "(.*?)"</p>', li.group(1)).group(1)
+        assert f'<i>p</i><sub>1024</sub> # τ<sub>{j}</sub>' in said and 'residue condition mod 3' in said, said
+    entries = [(d, statements(rest)) for d, rest in changelog()]
+    assert ('2026-10-26', {2 ** 11: (12, 12), 2 ** 12: (13, 13)}) in entries, entries[:4]
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -2024,8 +2101,9 @@ def q_smallest_section_sits_between_the_remarks_and_the_counts():
     # Expectata: a <section class="smallest" aria-labelledby="smallest-title"> right after the remarks' section and
     # right before the counts' section (only blank lines and comments between), holding its heading, a link to OEIS
     # A323395, and a table whose body is empty in the HTML: the script fills it from mstar.js; and not of class block,
-    # so that the page keeps the nine tables of that class that mstar.py reads as Table 2's and the new results' (its
-    # count asserted there, which a tenth broke on 2026-10-17).
+    # so that the page keeps the ten tables of that class that mstar.py reads as Table 2's and the new results' (its
+    # count asserted there, which a tenth broke on 2026-10-17; nine until 2026-10-26, when the powers of 2 took a
+    # third row).
     text = page()
     filler = r'(?:\s|<!--.*?-->)*'
     m = re.search(r'<section class="remarks">.*?</section>\n' + filler +
@@ -2036,7 +2114,7 @@ def q_smallest_section_sits_between_the_remarks_and_the_counts():
     assert '<h2 id="smallest-title">' in body, body[:300]
     assert 'href="https://oeis.org/A323395"' in body, body
     assert '<table>' in body and '<tbody data-smallest></tbody>' in body, body
-    assert text.count('<table class="block">') == 9, text.count('<table class="block">')
+    assert text.count('<table class="block">') == 10, text.count('<table class="block">')
 
 
 def q_smallest_table_matches_mstar():

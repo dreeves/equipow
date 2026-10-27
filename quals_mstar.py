@@ -216,10 +216,12 @@ def q_page_parse():
     # 2^46, 2^52 and 2^66 joined them, once 800 reached order 11; 63 from 2026-10-20, when 240 joined them, settled
     # at 10 by the search overnight_v5.py and boxsplit.py made; 68 from 2026-10-25, when 2^20, 2^30, 2^37, 2^65 and
     # 2^72 joined them, once 592, 608 and 656 reached order 10 and 848, 880, 896, 928, 944, 976 and 992 order 11;
-    # 70 since 2026-10-26, when 2^43 and 2^68 joined them, once 752 and 784 reached order 10 and 832 order 11).
+    # 70 from 2026-10-26, when 2^43 and 2^68 joined them, once 752 and 784 reached order 10 and 832 order 11; 73 since
+    # later that day, when 2^10, 2^11 and 2^12 joined them, settled at 11, 12 and 13 by Claude's example of order 11
+    # at 1024).
     src = mstar.page_sources(open(os.path.join(HERE, 'index.html'), encoding='utf-8').read())
     assert src['table2'] == mstar.TABLE2 and len(mstar.TABLE2) == 39
-    assert src['new'] == mstar.NEW and len(mstar.NEW) == 70
+    assert src['new'] == mstar.NEW and len(mstar.NEW) == 73
     assert set(who for _, _, who in mstar.NEW.values()) == {'BGPW', 'Claude alone', 'Claude and BGPW', 'Astra alone',
                                                              'Claude and Astra'}
     assert [(m, h) for _, m, h in mstar.PAGE_CODES] == [(m, h) for m, h in src['codes']]
@@ -483,6 +485,23 @@ def q_results_of_2026_10_26():
     assert mstar.NEW[784] == (10, 10, 'Claude and Astra') and cs[784 - 1] == [10, 10, ['example', 'index.html p784'], ['residue', 27]]
     assert mstar.NEW[832] == (11, 11, 'Claude alone') and cs[832 - 1] == [11, 11, ['example', 'index.html p832'], ['norm', 3]]
     assert [cs[n - 1][:3] for n in (544, 688)] == [[9, 10, ['join', 192, 352]], [9, 10, ['join', 192, 496]]]
+
+
+def q_example_at_1024_is_checked():
+    # Replicata: mstar.explicit()'s sequences of length 1024 (beyond NMAX, so in no column of mstar.js), and mstar.NEW's
+    # entry for 2^10.
+    # Expectata (2026-10-26: Claude's lattice search found an example of order 11 at 1024, which with m*(2^9) = 9 makes
+    # 2^10 the first power of 2 beyond Thue-Morse): explicit() has the page's code p1024 and its set SClaude[11][1024],
+    # the same sequence, antisymmetric, of order exactly 11 by synthetic division here, +1 at 0; and NEW[2^10] is
+    # (11, 11, 'Claude alone'), the norm bound for 3 capping it at 11; and doubled once and twice it settles 2^11 and
+    # 2^12, NEW[2^11] (12, 12, 'Claude alone') and NEW[2^12] (13, 13, 'Claude alone').
+    ex = {label: a for (n, label), a in mstar.explicit().items() if n == 1024}
+    assert sorted(ex) == ['index.html SClaude[11][1024]', 'index.html p1024'], sorted(ex)
+    a = ex['index.html p1024']
+    assert ex['index.html SClaude[11][1024]'] == a and exact_order_div(a) == 11 and a[0] == 1, a[:8]
+    assert all(a[1023 - i] == -a[i] for i in range(1024))
+    assert mstar.NEW[2 ** 10] == (11, 11, 'Claude alone') and mstar.norm(1024, 3) == 11, mstar.NEW.get(2 ** 10)
+    assert [mstar.NEW.get(2 ** k) for k in (11, 12)] == [(12, 12, 'Claude alone'), (13, 13, 'Claude alone')]
 
 
 # ---------- residue tests ----------

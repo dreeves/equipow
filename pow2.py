@@ -7,13 +7,15 @@ sweep and claim, and states the two lemmas; this file uses them in its sense, an
   excess   order - log2(length).  Thue-Morse tau_k (length 2^k, order k, Prouhet) has excess 0 at every k; a
            product's excess is the sum of its factors'.
   block    a length and an order known at that length, written [n, m]: a column n <= 1000 of mstar.js at its lo,
-           tau_j as [2^j, j], or f as [2^24, 25].
+           an explicit sequence of mstar.py longer than that at its order (since 2026-10-26, [1024, 11], index.html's
+           p1024), tau_j as [2^j, j], or f as [2^24, 25].
   f        (320 # 320 # 112) v (432 # 48 # tau_8) (index.html's remarks; its set is X_order25_2^24.txt.gz): length
            112 * 320^2 + 432 * 48 * 2^8 = 2^24, order min(7 + 9 + 9, 11 + 6 + 8) = 25 by BGPW's Theorem 4.1
            (Multiplication and Addition), the blocks' orders from mstar.js.  F_PRODUCTS below; f^{#L} is f # ... # f,
            L factors: length 2^(24L), order 25L.
   atom     a block (n, lo(n)), n <= 1000, that no single join or product of shorter columns' closure values reaches
-           (closure: the best orders that joins and products of the columns reach, length by length).
+           (closure: the best orders that joins and products of the columns reach, length by length), or a block of an
+           explicit sequence longer than 1000, which none reaches ([1024, 11]).
   search   scratch/pow2/verify/p2v_search.py (not run here; rerun as scratch/w560/rescan.py once 560 reached order
            10), which found BASES: for an excess e and a K, is 2^K a join of products of blocks, each of order >= K +
            e?  By distributivity (a # (b v c) and (b v c) # a have the lengths and orders of (a # b) v (a # c)), any
@@ -49,7 +51,8 @@ import os, json
 from functools import lru_cache
 from math import prod
 import sympy as sp
-import mstar                                 # read only: the residue enumeration (chain_none) and its lemmas
+import mstar                                 # read only: the residue enumeration (chain_none), its lemmas, and the
+                                             # explicit sequences longer than mstar.js's columns
 
 KMAX = 72
 NORM_PRIMES = tuple(sp.primerange(3, 32))    # the odd primes the norm lemma is tried with (weak_norm: no larger one
@@ -91,16 +94,18 @@ RESIDUE = {11: (13, (3,), 'digits'), 12: (14, (3,), 'digits'), 14: (17, (3,), 'd
 # tau_(k - K0), is a candidate for lo (lifted); join_lo checks it on every run.  The examples of order 10 at 752 and
 # 784 and of order 11 at 832 (2026-10-26) moved the first K0 for e = 5 from 46 to 43, for e = 6 from 49 to 48 and for
 # e = 9 from 72 to 68, each new base with 832 among its blocks; the superseded bases, at 46, 49 and 72, are gone, the
-# new ones lifted matching them at every k.  (The examples of order 10 at 592, 608 and 656 and of order 11 at 848,
-# 880, 896, 928, 944, 976 and 992, 2026-10-25, had moved the first K0 for e = 2 from 27 to 20 (BASES[20] is 848 # 992
-# joined to 240 # 432 # tau_1), for e = 3 from 34 to 30, for e = 4 from 38 to 37, for e = 6 from 52 to 49 and for e =
-# 8 from 66 to 65, and given e = 9 at 72; the example of order 11 at 800, 2026-10-17, had moved the first K0 for e = 1
-# from 18 to 17, for e = 2 from 33 to 27, for e = 3 from 41 to 34, for e = 4 from 48 to 38, for e = 5 from 61 to 46
-# and for e = 6 from 71 to 52, and given e = 7 at 57 and e = 8 at 66; the example of order 10 at 560, 2026-10-12, had
-# moved e = 1 from 24, where f reaches it, to 18, e = 3 from 49 to 41, e = 4 from 57 to 48 and e = 5 from 67 to 61,
-# and given e = 6 at 71.)
-BASES = {17: [[[112, 7], [800, 11]],
-              [[48, 6], [432, 11], [2, 1]]],
+# new ones lifted matching them at every k.  The example of order 11 at 1024 (later on 2026-10-26) moved the first K0
+# for e = 1 from 17 to 10: BASES[10] is that block alone, which lifted matches the superseded BASES[17], (112 # 800) v
+# (48 # 432 # tau_1), at every k >= 17; with that block among the others, the search
+# (scratch/wish2/results/base_e*.json) moves no other first K0, and leaves the same K undecided at e = 8 and 9.  (The
+# examples of order 10 at 592, 608 and 656 and of order 11 at 848, 880, 896, 928, 944, 976 and 992, 2026-10-25, had
+# moved the first K0 for e = 2 from 27 to 20 (BASES[20] is 848 # 992 joined to 240 # 432 # tau_1), for e = 3 from 34
+# to 30, for e = 4 from 38 to 37, for e = 6 from 52 to 49 and for e = 8 from 66 to 65, and given e = 9 at 72; the
+# example of order 11 at 800, 2026-10-17, had moved the first K0 for e = 1 from 18 to 17, for e = 2 from 33 to 27, for
+# e = 3 from 41 to 34, for e = 4 from 48 to 38, for e = 5 from 61 to 46 and for e = 6 from 71 to 52, and given e = 7
+# at 57 and e = 8 at 66; the example of order 10 at 560, 2026-10-12, had moved e = 1 from 24, where f reaches it, to
+# 18, e = 3 from 49 to 41, e = 4 from 57 to 48 and e = 5 from 67 to 61, and given e = 6 at 71.)
+BASES = {10: [[[1024, 11]]],
          20: [[[848, 11], [992, 11]],
               [[240, 10], [432, 11], [2, 1]]],
          30: [[[848, 11], [896, 11], [928, 11]],
@@ -172,9 +177,11 @@ def mstar_cols():
 
 @lru_cache(maxsize=None)
 def blocks():
-    """Every block as (n, m): mstar.js's columns at their lo, tau_j for j = 0..KMAX, and f."""
-    return frozenset([(n, c[0]) for n, c in enumerate(mstar_cols(), 1)] + [(2 ** j, j) for j in range(KMAX + 1)]
-                     + [tuple(F)])
+    """Every block as (n, m): mstar.js's columns at their lo, mstar.explicit()'s sequences longer than mstar.NMAX at
+    their orders (explicit() asserts each one's), tau_j for j = 0..KMAX, and f."""
+    return frozenset([(n, c[0]) for n, c in enumerate(mstar_cols(), 1)]
+                     + [(n, mstar.order(a)) for (n, _), a in mstar.explicit().items() if n > mstar.NMAX]
+                     + [(2 ** j, j) for j in range(KMAX + 1)] + [tuple(F)])
 
 
 # ---------- lower bounds ----------

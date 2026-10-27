@@ -3,9 +3,10 @@
    Written by Claude (Claude Opus 5.5, an AI model made by Anthropic) on 2026-10-18, for Stan Wagon, at Danny Reeves's
    request.  The code and every comment in this file are Claude's; no human has reviewed them.
 
-   The table's form, its header row and its first row are Stan Wagon's (his table of 2026-10-18, whose second row,
-   2^27's, stopped being a record gap on 2026-10-25, when 2^20 took it), but for one product per line, each with its
-   own order (Danny Reeves's choice), since in some rows a product's order exceeds the row's bound.
+   The table's form and its header row are Stan Wagon's (his table of 2026-10-18, whose two rows, 2^17's and 2^27's,
+   stopped being record gaps on 2026-10-26 and 2026-10-25, when 2^10 and 2^20 took them), but for one product per
+   line, each with its own order (Danny Reeves's choice), since in some rows a product's order exceeds the row's
+   bound.
 
    Get["record_gaps.wl"] (or a paste into a notebook) returns the table behind Theorem 1 on https://equipow.dreev.es
    (the section "Bounds on m*(2^k) - k for every k up to 72"): for each record gap g = 1, ..., 9, the least k known
@@ -13,14 +14,15 @@
    writes).
 
    A construction writes 2^k as a join of products of blocks {n, m}.  A block is a sequence of length n and order m:
-   Thue-Morse tau_j is {2^j, j}, and any other block is the sequence of length n whose order is the lower bound in
-   column n of the page's chart of m*(n).  A product's length is the product of its blocks' lengths, and its order is
-   at least the sum of theirs; a join's length is the sum of its products' lengths, and its order is at least the
-   least of theirs (BGPW, Theorem 4.1).  The script checks each row: its products' lengths sum to 2^k, and the least
-   of their orders is k + g.  A failed check stops it with a line saying which, and no table. *)
+   Thue-Morse tau_j is {2^j, j}; {1024, 11} is the page's example of order 11 at 1024, p_1024; and any other block is
+   the sequence of length n whose order is the lower bound in column n of the page's chart of m*(n).  A product's
+   length is the product of its blocks' lengths, and its order is at least the sum of theirs; a join's length is the
+   sum of its products' lengths, and its order is at least the least of theirs (BGPW, Theorem 4.1).  The script
+   checks each row: its products' lengths sum to 2^k, and the least of their orders is k + g.  A failed check stops
+   it with a line saying which, and no table. *)
 
 records = {
-  {17, {{{112, 7}, {800, 11}}, {{48, 6}, {432, 11}, {2, 1}}}},
+  {10, {{{1024, 11}}}},
   {20, {{{848, 11}, {992, 11}}, {{240, 10}, {432, 11}, {2, 1}}}},
   {30, {{{848, 11}, {896, 11}, {928, 11}}, {{192, 9}, {480, 12}, {480, 12}, {4, 2}},
     {{112, 7}, {480, 12}, {480, 12}, {4, 2}}, {{192, 9}, {480, 12}, {480, 12}, {2, 1}}}},

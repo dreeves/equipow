@@ -21,14 +21,7 @@ WL = os.path.join(HERE, 'record_gaps.wl')
 WL_URL = 'https://raw.githubusercontent.com/dreeves/equipow/main/record_gaps.wl'
 POW2_JS = os.path.join(HERE, 'pow2.js')
 HEADER = ['Record gaps', 'The power of 2', 'The order']        # Stan Wagon's, which record_gaps.wl's table heads
-THEOREM_KS = [17, 20, 30, 37, 43, 48, 57, 65, 68]              # Theorem 1's alternative form on index.html
-# Stan Wagon's two rows (his table of 2026-10-18), one product per line (dreeves, 2026-10-18), as text: a superscript
-# a^b, SpanFromAbove where the first column's cell spans the lines below it
-STAN_ROWS = [['m^*(2^17) ≥ 18', '112·800', '7 + 11 = 18'],
-             ['SpanFromAbove', '+ 2·48·432', '1 + 6 + 11 = 18'],
-             ['m^*(2^27) ≥ 29', '368^2·800', '2·9 + 11 = 29'],
-             ['SpanFromAbove', '+ 192^2·432', '2·9 + 11 = 29'],
-             ['SpanFromAbove', '+ 48·432·480', '6 + 11 + 12 = 29']]
+THEOREM_KS = [10, 20, 30, 37, 43, 48, 57, 65, 68]              # Theorem 1's alternative form on index.html
 # the table as text: each cell, superscripts as a^b and styles dropped, in OutputForm on one line
 TEXT = ('text[e_] := ToString[e //. {Superscript[a_, b_] :> Row[{a, "^", b}], Style[x_, ___] :> x}, OutputForm, '
         'PageWidth -> Infinity];')
@@ -112,8 +105,9 @@ def q_wl_records_are_pow2_s():
     # Replicata: the records list in record_gaps.wl, read as text; pow2.js's record gaps (records()).
     # Expectata: the same list, record for record and block for block: for each record gap g, its least k and the
     # join of products that pow2.py found there, the products and their blocks in pow2.js's order; and their k are
-    # Theorem 1's (17, 20, 30, 37, 43, 48, 57, 65, 68; 17, 20, 30, 37, 46, 49, 57, 65, 72 until it changed with them
-    # on 2026-10-26, and 17, 27, 34, 38, 46, 52, 57, 66 until 2026-10-25, dreeves, 2026-10-25: "yes please").
+    # Theorem 1's (10, 20, 30, 37, 43, 48, 57, 65, 68 since 1024's example of order 11, later on 2026-10-26; 17, 20,
+    # 30, 37, 43, 48, 57, 65, 68 before it; 17, 20, 30, 37, 46, 49, 57, 65, 72 until it changed with them on
+    # 2026-10-26, and 17, 27, 34, 38, 46, 52, 57, 66 until 2026-10-25, dreeves, 2026-10-25: "yes please").
     src = open(WL, encoding='utf-8').read()
     m = re.search(r'^records = (\{.*?\});$', src, re.S | re.M)
     assert m, 'no records = {...}; line'
@@ -124,16 +118,16 @@ def q_wl_records_are_pow2_s():
 
 def q_wl_returns_the_table():
     # Replicata: Get["record_gaps.wl"] in wolframscript; its result's rows as text (TEXT) and its options.
-    # Expectata: a Grid whose first row is Stan Wagon's header (HEADER), then rows() exactly: Stan Wagon's first row
-    # (STAN_ROWS' first two lines, 2^17's, a record gap still; his second, 2^27's, was one until 2^20 took it on
-    # 2026-10-25, dreeves, 2026-10-25: "yes please") first, then the other eight record gaps', one product per line;
-    # with Stan Wagon's options (BaseStyle
+    # Expectata: a Grid whose first row is Stan Wagon's header (HEADER), then rows() exactly, the nine record gaps', one
+    # product per line (Stan Wagon's two rows of 2026-10-18 were 2^17's and 2^27's: 2^20 took his second's record gap
+    # on 2026-10-25, dreeves, 2026-10-25: "yes please", and 2^10 his first's on 2026-10-26, by 1024's example of order
+    # 11); with Stan Wagon's options (BaseStyle
     # Times 14, Background RGBColor[1, 1, .8], Spacings {2, 1}), every vertical divider, and horizontal dividers only
     # above and below the header and below each record gap's last line; columns centered, left, left.
     out, _ = run(TABLE)
     assert out['head'] == 'Grid', out['head']
     assert out['rows'][0] == HEADER and out['rows'][1:] == rows(), (out['rows'][:3], rows()[:3])
-    assert out['rows'][1:3] == STAN_ROWS[:2], out['rows'][1:3]
+    assert out['rows'][1] == ['m^*(2^10) ≥ 11', '1024', '11 = 11'], out['rows'][1]
     ends = list(itertools.accumulate(len(ps) for _, ps in records()))
     want = {'Dividers': '{All, {' + ', '.join(f'{i} -> True' for i in [1, 2] + [2 + e for e in ends]) + '}}',
             'Alignment': '{{Center, Left, Left}, Baseline}',
@@ -142,15 +136,16 @@ def q_wl_returns_the_table():
 
 
 def q_wl_stops_on_a_wrong_row():
-    # Replicata: copies of record_gaps.wl with one datum wrong: 2^17's first product 112·801 in place of 112·800 (its
-    # lengths no longer sum to 2^17), and 2^20's block {992, 10} in place of {992, 11} (its least order 21 < 22; until
-    # 2026-10-25, 2^27's last block {480, 11} for {480, 12}, when 2^20 took 2^27's record gap, dreeves, 2026-10-25: "yes please").
+    # Replicata: copies of record_gaps.wl with one datum wrong: 2^10's one product 1025 in place of 1024 (its length no
+    # longer 2^10; until 2026-10-26, when 2^10 took 2^17's record gap, 2^17's first product 112·801 for 112·800), and
+    # 2^20's block {992, 10} in place of {992, 11} (its least order 21 < 22; until 2026-10-25, 2^27's last block
+    # {480, 11} for {480, 12}, when 2^20 took 2^27's record gap, dreeves, 2026-10-25: "yes please").
     # Expectata: each prints its error line naming the row and returns no table (it aborts).
     src = open(WL, encoding='utf-8').read()
     d = tempfile.mkdtemp(prefix='record-gaps-quals-')
     try:
-        for old, new, says in (('{17, {{{112, 7}, {800, 11}}', '{17, {{{112, 7}, {801, 11}}',
-                                "the products' lengths in the row of 2^17 do not sum to 2^17"),
+        for old, new, says in (('{10, {{{1024, 11}}}}', '{10, {{{1025, 11}}}}',
+                                "the products' lengths in the row of 2^10 do not sum to 2^10"),
                                ('{{848, 11}, {992, 11}}', '{{848, 11}, {992, 10}}',
                                 'the least order in the row of 2^20 is 21, not 22')):
             assert src.count(old) == 1, old

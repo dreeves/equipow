@@ -14,7 +14,7 @@ the bottom GAP px of each row page surface.
 """
 import sys
 sys.dont_write_bytecode = True
-import os, re, json, html, time, shutil, tempfile, traceback, subprocess
+import os, re, json, html, time, shutil, tempfile, traceback, subprocess, itertools
 from math import prod
 from PIL import Image
 
@@ -150,8 +150,8 @@ STONG = [[[144, 8]] * 2 + [[192, 9]] * 4, [[48, 6]] * 3 + [[112, 7]] + [[192, 9]
 def kinds_cols():
     """Made-up columns that follow the contract and use every kind of reason: k <= 9 from Thue-Morse, settled by each
     kind of the m*(n) chart's hiWhy; then lo = k + floor(k / 24) (Thue-Morse, then f^{#L} # τ_j) and hi the norm bound
-    for p = 3, but for a few columns with the other kinds: joins with f, τ_j (j above 9) and columns of mstar.js;
-    residue chains; the norm bound for p = 5 and 7."""
+    for p = 3, but for a few columns with the other kinds: joins with f, τ_j (j above 9), columns of mstar.js and the
+    page's example at 1024 (p_1024, order 11); residue chains; the norm bound for p = 5 and 7."""
     cols = []
     for k in range(1, K + 1):
         L, j = divmod(k, 24)
@@ -159,7 +159,7 @@ def kinds_cols():
     whys = {1: ['two'], 2: ['norm', 3], 3: ['table2'], 4: ['page', 'BGPW'], 5: ['residue', 9],
             6: ['page', 'Claude alone'], 7: ['residue', 3], 8: ['table2'], 9: ['page', 'Claude and BGPW']}
     for k, why in whys.items(): cols[k - 1] = [k, k, ['thue-morse'], ['mstar', why]]
-    joins = {24: JOIN24, 25: [[F, [2, 1]]], 34: [[[1024, 10], F]], 51: STONG}
+    joins = {24: JOIN24, 25: [[F, [2, 1]]], 34: [[[1024, 10], F]], 35: [[[1024, 11], [2 ** 25, 25]]], 51: STONG}
     for k, ps in joins.items():
         assert sum(prod(n for n, _ in p) for p in ps) == 2 ** k
         cols[k - 1] = [min(sum(m for _, m in p) for p in ps), norm(2 ** k, 3), ['joins', ps], ['norm', 3]]
@@ -196,6 +196,7 @@ VIOLATIONS = {   # name: (a change that breaks the contract, what the page's err
     'joins length': column(30, [31, 37, ['joins', [[F, [32, 5]]]], ['norm', 3]]),
     'joins lo': column(30, [32, 37, ['joins', [[F, [64, 6]]]], ['norm', 3]]),
     'joins block': column(30, [31, 37, ['joins', [[[2048, 12], [524288, 19]]]], ['norm', 3]]),
+    'joins long block': column(30, [32, 37, ['joins', [[[1024, 12], [2 ** 20, 20]]]], ['norm', 3]]),
     'joins empty': column(30, [31, 37, ['joins', []], ['norm', 3]]),
     'mstar above 9': column(10, [10, 10, ['thue-morse'], ['mstar', ['residue', 3]]]),
     'mstar kind': column(5, [5, 5, ['thue-morse'], ['mstar', ['guess']]]),
@@ -644,13 +645,43 @@ def q_new_css_is_scoped():
 
 def q_caption_defines_readout_symbols():
     # Replicata: the caption (the paragraph pow2-caption).
-    # Expectata: it names each symbol that the readout writes for a block of a construction: f, τ_j (Thue-Morse) and
-    # p_n (from a column of the m*(n) chart), each as the remarks write it: <i>f</i>, τ<sub><i>j</i></sub> and
-    # <i>p</i><sub><i>n</i></sub>.
+    # Expectata: it names each symbol that the readout writes for a block of a construction: f, τ_j (Thue-Morse), p_n
+    # (from a column of the m*(n) chart) and, since 2026-10-26, each of the page's examples longer than 1000 (LONG:
+    # p_1024), each as the remarks write it: <i>f</i>, τ<sub><i>j</i></sub>, <i>p</i><sub><i>n</i></sub> and
+    # <i>p</i><sub>1024</sub>.
     m = re.search(r'<p class="pow2-caption">(.*?)</p>', page(), re.S)
     assert m, 'pow2-caption'
-    missing = [s for s in ('<i>f</i>', 'τ<sub><i>j</i></sub>', '<i>p</i><sub><i>n</i></sub>') if s not in m[1]]
-    assert not missing, missing
+    symbols = ['<i>f</i>', 'τ<sub><i>j</i></sub>', '<i>p</i><sub><i>n</i></sub>'] + [f'<i>p</i><sub>{n}</sub>' for n, _ in long_blocks()]
+    missing = [s for s in symbols if s not in m[1]]
+    assert not missing and long_blocks(), (missing, long_blocks())
+
+
+def long_blocks():
+    """The chart script's LONG, the examples longer than 1000 that its blocks may use, as [[n, m], ...] (JSON)."""
+    m = re.search(r'\n  const LONG = (\[[^\n;]*\]);', scripts()[1])
+    assert m, 'no const LONG in the chart script'
+    return json.loads(m.group(1))
+
+
+def q_long_blocks_are_the_remarks_examples():
+    # Replicata: the chart script's LONG; the remarks' code blocks, each p_n of order m alone, decoded by the paper's
+    # Table 5 convention (the left half of the signs, 1 = +1, then the rest by (-1)^m symmetry); and pow2.js's blocks.
+    # Expectata (2026-10-26: Claude's example of order 11 at 1024, beyond the m*(n) chart's 1000): LONG is exactly the
+    # remarks' examples of length n > 1000, as [n, m], in page order, each decoding to length n and order exactly m
+    # (synthetic division); and every block of pow2.js's joins longer than 1000, other than f and τ_j, is in LONG.
+    codes = re.findall(r'<i>p</i><sub>(\d+)</sub> <span class="nw">\(<i>m</i> = (\d+)\)</span>:</span>\n\s*<code>([0-9A-F]+)</code>',
+                       page())
+    long = [(int(n), int(m), h) for n, m, h in codes if int(n) > 1000]
+    assert long_blocks() == [[n, m] for n, m, _ in long] == [[1024, 11]], (long_blocks(), long)
+    for n, m, h in long:
+        left = [2 * int(b) - 1 for b in bin(int(h, 16))[2:].zfill(4 * len(h))]
+        c, k = left + [(-1) ** m * s for s in reversed(left)], 0
+        assert len(c) == n, (n, len(c))
+        while not sum(c): c, k = list(itertools.accumulate(c[:-1])), k + 1
+        assert k == m, (n, m, k)
+    used = {tuple(b) for c in pow2_of(real())['cols'] if c[2][0] == 'joins' for p in c[2][1] for b in p
+            if b[0] > 1000 and b != F and b[0] != 2 ** b[1]}
+    assert used <= {tuple(b) for b in long_blocks()} and used, used
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -847,7 +878,8 @@ def q_contract_violations_fail_loudly():
     # Replicata: made-up data broken in one way each (VIOLATIONS): a lo below k or above hi; hi at etop; a column of
     # five entries; an unknown kind of loWhy or hiWhy, or one of the wrong arity; Thue-Morse not at lo = k; a power
     # whose 24 L + j is not k, or whose lo is not k + L; joins whose lengths do not add up to 2^k, whose lo is not the
-    # least product's order, with a block that is none of f, τ_j and a column n <= 1000, or with no product; an
+    # least product's order, with a block that is none of f, τ_j, a column n <= 1000 and the page's example of order
+    # 11 at 1024 ([2048, 12]; [1024, 12]), or with no product; an
     # "mstar" hiWhy above k = 9, of an unknown kind, or breaking its own rule; a norm bound for a composite p, for
     # p = 2, or not the bound; a residue chain whose moduli do not divide in turn, or with a modulus below 2; an etop
     # above max(hi - k) + 1; kmax not 72; 71 columns; a key beyond kmax, etop and cols.

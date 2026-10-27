@@ -138,7 +138,8 @@ table.block th {
 /* The new results' entries for 432, 480 and 528 became ranges (2026-10-11), which made that table 12 px wider than
    main; a little less side padding in its cells keeps it in one row, unscrolled, at 945 px (0.5rem since 2026-10-25,
    when the powers of 2 reached 23, so that their two rows, split after 2^38, fit too; 0.4rem since 2026-10-26, when
-   they reached 25, split after 2^41). */
+   they reached 25, split after 2^41; and since later that day, when they reached 35, three rows, from 2^3, 2^27 and
+   2^49). */
 .new-block table.block td { padding-inline: 0.4rem; }
 
 /* Provenance: tint on both cells of an entry, a bar under its value, and a
@@ -417,6 +418,8 @@ footer {
   <!-- The changelog, newest first, as in dreeves's spec FreshAt (doc.bmndr.co/freshat) -->
   <details class="changelog">
     <summary><i>Changelog</i></summary>
+    <p>2026-10-26: <span class="nw"><i>m</i><sup>*</sup>(2<sup>10</sup>) = 11</span></p>
+    <p>2026-10-26: <span class="nw"><i>m</i><sup>*</sup>(2<sup>11</sup>) = 12</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>12</sup>) = 13</span></p>
     <p>2026-10-26: <span class="nw"><i>m</i><sup>*</sup>(752) = 10</span>, <span class="nw"><i>m</i><sup>*</sup>(784) = 10</span>, <span class="nw"><i>m</i><sup>*</sup>(832) = 11</span></p>
     <p>2026-10-26: <span class="nw"><i>m</i><sup>*</sup>(2<sup>43</sup>) ≥ 48</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>48</sup>) ≥ 54</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>68</sup>) ≥ 77</span></p>
     <p>2026-10-25: <span class="nw"><i>m</i><sup>*</sup>(592) = 10</span>, <span class="nw"><i>m</i><sup>*</sup>(608) = 10</span>, <span class="nw"><i>m</i><sup>*</sup>(656) = 10</span>, <span class="nw"><i>m</i><sup>*</sup>(752) ≤ 10</span>, <span class="nw"><i>m</i><sup>*</sup>(848) = 11</span>, <span class="nw"><i>m</i><sup>*</sup>(880) = 11</span>, <span class="nw"><i>m</i><sup>*</sup>(896) = 11</span>, <span class="nw"><i>m</i><sup>*</sup>(928) = 11</span>, <span class="nw"><i>m</i><sup>*</sup>(944) = 11</span>, <span class="nw"><i>m</i><sup>*</sup>(976) = 11</span>, <span class="nw"><i>m</i><sup>*</sup>(992) = 11</span></p>
@@ -524,12 +527,16 @@ footer {
           <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="c">11</td><td class="c">12–14</td><td class="c">11</td><td class="c">11</td><td class="c">11–13</td><td class="c">11</td><td class="c">11</td><td class="c">13–15</td><td class="c">11</td><td class="c">11</td></tr>
         </table>
         <table class="block">
-          <tr class="ns"><th scope="row"><i>n</i></th><td title='The published paper (2021)'>2<sup>3</sup></td><td title='The published paper (2021)'>2<sup>4</sup></td><td title='The published paper (2021)'>2<sup>5</sup></td><td title='The published paper (2021)'>2<sup>6</sup></td><td title='The published paper (2021)'>2<sup>7</sup></td><td title='The published paper (2021)'>2<sup>8</sup></td><td class="c" title='Claude alone'>2<sup>9</sup></td><td class="c" title='Claude alone'>2<sup>17</sup></td><td class="c" title='Claude alone'>2<sup>18</sup></td><td class="c" title='Claude alone'>2<sup>20</sup></td><td class="j" title='Claude and BGPW'>2<sup>24</sup></td><td class="c" title='Claude alone'>2<sup>27</sup></td><td class="c" title='Claude alone'>2<sup>30</sup></td><td class="c" title='Claude alone'>2<sup>33</sup></td><td class="c" title='Claude alone'>2<sup>34</sup></td><td class="c" title='Claude alone'>2<sup>37</sup></td><td class="c" title='Claude alone'>2<sup>38</sup></td><td class="c" title='Claude alone'>2<sup>41</sup></td></tr>
-          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td><td>8</td><td class="c">9</td><td class="c">18–20</td><td class="c">19–21</td><td class="c">22–23</td><td class="j">26–29</td><td class="c">29–33</td><td class="c">33–36</td><td class="c">36–40</td><td class="c">37–41</td><td class="c">41–45</td><td class="c">42–46</td><td class="c">45–50</td></tr>
+          <tr class="ns"><th scope="row"><i>n</i></th><td title='The published paper (2021)'>2<sup>3</sup></td><td title='The published paper (2021)'>2<sup>4</sup></td><td title='The published paper (2021)'>2<sup>5</sup></td><td title='The published paper (2021)'>2<sup>6</sup></td><td title='The published paper (2021)'>2<sup>7</sup></td><td title='The published paper (2021)'>2<sup>8</sup></td><td class="c" title='Claude alone'>2<sup>9</sup></td><td class="c" title='Claude alone'>2<sup>10</sup></td><td class="c" title='Claude alone'>2<sup>11</sup></td><td class="c" title='Claude alone'>2<sup>12</sup></td><td class="c" title='Claude alone'>2<sup>17</sup></td><td class="c" title='Claude alone'>2<sup>18</sup></td><td class="c" title='Claude alone'>2<sup>20</sup></td><td class="j" title='Claude and BGPW'>2<sup>24</sup></td></tr>
+          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td><td>8</td><td class="c">9</td><td class="c">11</td><td class="c">12</td><td class="c">13</td><td class="c">18–20</td><td class="c">19–21</td><td class="c">22–23</td><td class="j">26–29</td></tr>
         </table>
         <table class="block">
-          <tr class="ns"><th scope="row"><i>n</i></th><td class="c" title='Claude alone'>2<sup>43</sup></td><td class="c" title='Claude alone'>2<sup>46</sup></td><td class="c" title='Claude alone'>2<sup>48</sup></td><td class="c" title='Claude alone'>2<sup>49</sup></td><td class="j" title='Claude and BGPW'>2<sup>51</sup></td><td class="c" title='Claude alone'>2<sup>52</sup></td><td class="c" title='Claude alone'>2<sup>57</sup></td><td class="c" title='Claude alone'>2<sup>61</sup></td><td class="c" title='Claude alone'>2<sup>65</sup></td><td class="c" title='Claude alone'>2<sup>66</sup></td><td class="c" title='Claude alone'>2<sup>67</sup></td><td class="c" title='Claude alone'>2<sup>68</sup></td><td class="c" title='Claude alone'>2<sup>71</sup></td><td class="c" title='Claude alone'>2<sup>72</sup></td></tr>
-          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="c">48–53</td><td class="c">51–57</td><td class="c">54–59</td><td class="c">55–60</td><td class="j">57–63</td><td class="c">58–64</td><td class="c">64–70</td><td class="c">68–75</td><td class="c">73–81</td><td class="c">74–82</td><td class="c">75–83</td><td class="c">77–84</td><td class="c">80–88</td><td class="c">81–89</td></tr>
+          <tr class="ns"><th scope="row"><i>n</i></th><td class="c" title='Claude alone'>2<sup>27</sup></td><td class="c" title='Claude alone'>2<sup>30</sup></td><td class="c" title='Claude alone'>2<sup>33</sup></td><td class="c" title='Claude alone'>2<sup>34</sup></td><td class="c" title='Claude alone'>2<sup>37</sup></td><td class="c" title='Claude alone'>2<sup>38</sup></td><td class="c" title='Claude alone'>2<sup>41</sup></td><td class="c" title='Claude alone'>2<sup>43</sup></td><td class="c" title='Claude alone'>2<sup>46</sup></td><td class="c" title='Claude alone'>2<sup>48</sup></td></tr>
+          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="c">29–33</td><td class="c">33–36</td><td class="c">36–40</td><td class="c">37–41</td><td class="c">41–45</td><td class="c">42–46</td><td class="c">45–50</td><td class="c">48–53</td><td class="c">51–57</td><td class="c">54–59</td></tr>
+        </table>
+        <table class="block">
+          <tr class="ns"><th scope="row"><i>n</i></th><td class="c" title='Claude alone'>2<sup>49</sup></td><td class="j" title='Claude and BGPW'>2<sup>51</sup></td><td class="c" title='Claude alone'>2<sup>52</sup></td><td class="c" title='Claude alone'>2<sup>57</sup></td><td class="c" title='Claude alone'>2<sup>61</sup></td><td class="c" title='Claude alone'>2<sup>65</sup></td><td class="c" title='Claude alone'>2<sup>66</sup></td><td class="c" title='Claude alone'>2<sup>67</sup></td><td class="c" title='Claude alone'>2<sup>68</sup></td><td class="c" title='Claude alone'>2<sup>71</sup></td><td class="c" title='Claude alone'>2<sup>72</sup></td></tr>
+          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="c">55–60</td><td class="j">57–63</td><td class="c">58–64</td><td class="c">64–70</td><td class="c">68–75</td><td class="c">73–81</td><td class="c">74–82</td><td class="c">75–83</td><td class="c">77–84</td><td class="c">80–88</td><td class="c">81–89</td></tr>
         </table>
       </div>
     </div>
@@ -571,8 +578,8 @@ footer {
 <!-- Claude's chart of what is known about m*(2^k) − k, the excess over Thue–Morse, for every k up to 72, drawn by the script at the end from pow2.js -->
 <section class="pow2" aria-labelledby="pow2-title">
   <h2 id="pow2-title">Bounds on <span class="nw"><i>m</i><sup>*</sup>(2<sup><i>k</i></sup>) − <i>k</i></span> for every <i>k</i> up to 72</h2>
-  <p><b>Theorem 1.</b> <span class="nw"><i>m</i><sup>*</sup>(2<sup>17</sup>) ≥ 18</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>20</sup>) ≥ 22</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>30</sup>) ≥ 33</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>37</sup>) ≥ 41</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>43</sup>) ≥ 48</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>48</sup>) ≥ 54</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>57</sup>) ≥ 64</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>65</sup>) ≥ 73</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>68</sup>) ≥ 77</span> and <span class="nw"><i>m</i><sup>*</sup>(2<sup>9</sup>) = 9</span>.</p>
-  <p>or <b>Theorem 1.</b> For <span class="nw"><i>i</i> = 1, 2, …, 9</span>, the known smallest values of <i>n</i> for which <span class="nw"><i>m</i><sup>*</sup>(2<sup><i>n</i></sup>) − <i>n</i> ≥ <i>i</i></span> are 17, 20, 30, 37, 43, 48, 57, 65, 68.</p>
+  <p><b>Theorem 1.</b> <span class="nw"><i>m</i><sup>*</sup>(2<sup>10</sup>) ≥ 11</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>20</sup>) ≥ 22</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>30</sup>) ≥ 33</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>37</sup>) ≥ 41</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>43</sup>) ≥ 48</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>48</sup>) ≥ 54</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>57</sup>) ≥ 64</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>65</sup>) ≥ 73</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>68</sup>) ≥ 77</span> and <span class="nw"><i>m</i><sup>*</sup>(2<sup>9</sup>) = 9</span>.</p>
+  <p>or <b>Theorem 1.</b> For <span class="nw"><i>i</i> = 1, 2, …, 9</span>, the known smallest values of <i>n</i> for which <span class="nw"><i>m</i><sup>*</sup>(2<sup><i>n</i></sup>) − <i>n</i> ≥ <i>i</i></span> are 10, 20, 30, 37, 43, 48, 57, 65, 68.</p>
   <!-- TODO: says the table below shows the construction behind each inequality of Theorem 1: 2^k as a join of products, one product per line, each with its order, the sum of its factors' orders, the bound being the least of those orders; and that the linked Mathematica script makes the same table and checks each row's arithmetic -->
   <p>Claude: "The table below shows the construction behind each inequality of Theorem 1: <span class="nw">2<sup><i>k</i></sup></span> as a join of products, one per line, each with its order, the sum of its factors' orders; the bound is the least of those orders. The Mathematica script <a href="https://raw.githubusercontent.com/dreeves/equipow/main/record_gaps.wl">record_gaps.wl</a> makes the same table and checks each row's arithmetic."</p>
   <div class="scroll">
@@ -580,8 +587,8 @@ footer {
       <thead><tr><th>Record gaps</th><th>The power of 2</th><th>The order</th></tr></thead>
     </table>
   </div>
-  <!-- TODO: caption; says column k is n = 2^k, where Thue–Morse has order k, an excess of 0, and row e is order k + e, an excess of e; that cell (k, e) is green when m*(2^k) ≥ k + e is known, red when m*(2^k) < k + e is proven, and black when neither is; and that in the readout f is the construction of length 2^24 and order 25 in the remarks below, τ_j is Thue–Morse of length 2^j, and p_n is a sequence of length n whose order is the lower bound in column n of the chart above -->
-  <p class="pow2-caption">Claude: "Column <i>k</i> is <span class="nw"><i>n</i> = 2<sup><i>k</i></sup></span>, where Thue–Morse has order <i>k</i>, an excess of 0; row <i>e</i> is order <span class="nw"><i>k</i> + <i>e</i></span>, an excess of <i>e</i>. Cell (<i>k</i>, <i>e</i>) is green when <span class="nw"><i>m</i><sup>*</sup>(2<sup><i>k</i></sup>) ≥ <i>k</i> + <i>e</i></span> is known, red when <span class="nw"><i>m</i><sup>*</sup>(2<sup><i>k</i></sup>) &lt; <i>k</i> + <i>e</i></span> is proven, and black when neither is. In the readout, <i>f</i> is the construction of length 2<sup>24</sup> and order 25 in the remarks below, τ<sub><i>j</i></sub> is Thue–Morse of length 2<sup><i>j</i></sup>, and <i>p</i><sub><i>n</i></sub> is a sequence of length <i>n</i> whose order is the lower bound in column <i>n</i> of the chart above."</p>
+  <!-- TODO: caption; says column k is n = 2^k, where Thue–Morse has order k, an excess of 0, and row e is order k + e, an excess of e; that cell (k, e) is green when m*(2^k) ≥ k + e is known, red when m*(2^k) < k + e is proven, and black when neither is; and that in the readout f is the construction of length 2^24 and order 25 in the remarks below, τ_j is Thue–Morse of length 2^j, p_n is a sequence of length n whose order is the lower bound in column n of the chart above, and p_1024, beyond that chart, is the example of order 11 in the remarks below -->
+  <p class="pow2-caption">Claude: "Column <i>k</i> is <span class="nw"><i>n</i> = 2<sup><i>k</i></sup></span>, where Thue–Morse has order <i>k</i>, an excess of 0; row <i>e</i> is order <span class="nw"><i>k</i> + <i>e</i></span>, an excess of <i>e</i>. Cell (<i>k</i>, <i>e</i>) is green when <span class="nw"><i>m</i><sup>*</sup>(2<sup><i>k</i></sup>) ≥ <i>k</i> + <i>e</i></span> is known, red when <span class="nw"><i>m</i><sup>*</sup>(2<sup><i>k</i></sup>) &lt; <i>k</i> + <i>e</i></span> is proven, and black when neither is. In the readout, <i>f</i> is the construction of length 2<sup>24</sup> and order 25 in the remarks below, τ<sub><i>j</i></sub> is Thue–Morse of length 2<sup><i>j</i></sup>, <i>p</i><sub><i>n</i></sub> is a sequence of length <i>n</i> whose order is the lower bound in column <i>n</i> of the chart above, and <i>p</i><sub>1024</sub>, beyond that chart, is the example of order 11 in the remarks below."</p>
   <ul class="legend">
     <li><span class="swatch exists" aria-hidden="true"></span><span class="nw"><i>k</i> + <i>e</i> ≤ <i>m</i><sup>*</sup>(2<sup><i>k</i></sup>)</span></li>
     <li><span class="swatch open" aria-hidden="true"></span>open</li>
@@ -904,6 +911,16 @@ footer {
         <code>94E96372496EB6496DB2D364864B2D902967B24E2DBF7B71908D6D92DA44905B4EF2CD2596CB7192D944B2C8ECB60967B24E25B2DB24BA5F2D96DB859749</code>
       </p>
     </li>
+    <li class="c">
+      <span class="mk" aria-hidden="true">◆</span>
+      <p class="entry"><i>n</i> = 1024: &nbsp;<span class="nw"><i>m</i><sup>*</sup> = 11</span></p>
+      <!-- TODO: says this is an antisymmetric example of order 11; that order 12 at 1024 is ruled out by the norm bound for the residue sums mod 3, so m*(1024) = 11; and that, since m*(2^9) = 9, 2^10 is the smallest power of 2 at which a partition beats Thue–Morse, whose order there is 10 -->
+      <p>Claude: "An antisymmetric example of order 11. Order 12 is ruled out by the norm bound for the residue sums mod 3. Since <span class="nw"><i>m</i><sup>*</sup>(2<sup>9</sup>) = 9</span>, 2<sup>10</sup> is the smallest power of 2 at which a partition beats Thue–Morse, whose order there is 10."</p>
+      <p class="code">
+        <span><i>p</i><sub>1024</sub> <span class="nw">(<i>m</i> = 11)</span>:</span>
+        <code>C8ECB0E96876C9A4A6C937B2556D97493CB06969965365B8D924B21B2D9ADA35854B2FD64B25B7C91892DD653A4979B0A96C16CB25B2CB6696196D1EC93C97CB</code>
+      </p>
+    </li>
     <li class="a" id="proof384">
       <span class="mk" aria-hidden="true">✦</span>
       <p class="entry"><i>n</i> = 384: &nbsp;<span class="nw"><i>m</i><sup>*</sup> = 10</span></p>
@@ -956,6 +973,18 @@ footer {
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
+      <p class="entry"><i>n</i> = 2<sup>11</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> = 12</span></p>
+      <!-- TODO: says p1024 # tau_1, the 1024 entry above times tau_1, has order 12, which beats Thue–Morse by 1, and that the upper bound is the residue condition mod 3 -->
+      <p>Claude: "<span class="nw"><i>p</i><sub>1024</sub> # τ<sub>1</sub></span>, the 1024 entry above times τ<sub>1</sub>, has order 12. That beats Thue–Morse by 1. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above."</p>
+    </li>
+    <li class="c">
+      <span class="mk" aria-hidden="true">◆</span>
+      <p class="entry"><i>n</i> = 2<sup>12</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> = 13</span></p>
+      <!-- TODO: says p1024 # tau_2, the 1024 entry above times tau_2, has order 13, which beats Thue–Morse by 1, and that the upper bound is the residue condition mod 3 -->
+      <p>Claude: "<span class="nw"><i>p</i><sub>1024</sub> # τ<sub>2</sub></span>, the 1024 entry above times τ<sub>2</sub>, has order 13. That beats Thue–Morse by 1. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above."</p>
+    </li>
+    <li class="c">
+      <span class="mk" aria-hidden="true">◆</span>
       <p class="entry"><i>n</i> = 2<sup>17</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {18, …, 20}</span></p>
       <!-- TODO: says 2^17 = 112·800 + 48·432·2, that is, (p112 # p800) ∨ (p48 # p432 # tau_1), a join of two products each of order 7 + 11 = 6 + 11 + 1 = 18, the codes of p112 and p48 (the paper's) being with the 2^24 entry below; that this beats Thue–Morse by 1 at a lower power of 2 than the 2^18 entry below; that a linked Mathematica script builds the half of the partition that contains 0, all 2^16 of its numbers, and checks its power sums exactly; and that the upper bound is the norm bound for the residue sums mod 3 -->
       <p>Claude: "<span class="nw">2<sup>17</sup> = 112·800 + 48·432·2</span>, that is, <span class="nw">(<i>p</i><sub>112</sub> # <i>p</i><sub>800</sub>)</span> <span class="nw">∨ (<i>p</i><sub>48</sub> # <i>p</i><sub>432</sub> # τ<sub>1</sub>)</span>, a join of two products each of order <span class="nw">7 + 11 = 6 + 11 + 1 = 18</span> (the codes of <i>p</i><sub>112</sub> and <i>p</i><sub>48</sub>, the paper's, are with the 2<sup>24</sup> entry below). That beats Thue–Morse by 1 at a lower power of 2 than the 2<sup>18</sup> entry below. The Mathematica script <a href="https://raw.githubusercontent.com/dreeves/equipow/main/certificate_2%5E17.wl">certificate_2^17.wl</a> builds the half of the partition that contains 0, all 2<sup>16</sup> of its numbers, and checks its power sums exactly. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above."</p>
@@ -975,8 +1004,8 @@ footer {
     <li class="j">
       <span class="mk" aria-hidden="true">◆●</span>
       <p class="entry"><i>n</i> = 2<sup>24</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {26, …, 29}</span></p>
-      <!-- TODO: says the joint construction 2^24 = 320^2·112 + 432·48·2^8, that is, f = (p320 # p320 # p112) ∨ (p432 # p48 # tau_8), gives m*(2^k) ≥ k + 1 for every k ≥ 24, and the 2^17 entry above gives it for every k ≥ 17 -->
-      <p>Claude: "Joint construction: <span class="nw">2<sup>24</sup> = 320<sup>2</sup>·112 + 432·48·2<sup>8</sup></span>, that is, <span class="nw"><i>f</i> = (<i>p</i><sub>320</sub> # <i>p</i><sub>320</sub> # <i>p</i><sub>112</sub>)</span> <span class="nw">∨ (<i>p</i><sub>432</sub> # <i>p</i><sub>48</sub> # τ<sub>8</sub>)</span>. Hence <span class="nw"><i>m</i><sup>*</sup>(2<sup><i>k</i></sup>) ≥ <i>k</i> + 1</span> for every <span class="nw"><i>k</i> ≥ 24</span>, and by the 2<sup>17</sup> entry above for every <span class="nw"><i>k</i> ≥ 17</span>."</p>
+      <!-- TODO: says the joint construction 2^24 = 320^2·112 + 432·48·2^8, that is, f = (p320 # p320 # p112) ∨ (p432 # p48 # tau_8), gives m*(2^k) ≥ k + 1 for every k ≥ 24, and the 1024 entry above, times tau_(k − 10), gives it for every k ≥ 10 -->
+      <p>Claude: "Joint construction: <span class="nw">2<sup>24</sup> = 320<sup>2</sup>·112 + 432·48·2<sup>8</sup></span>, that is, <span class="nw"><i>f</i> = (<i>p</i><sub>320</sub> # <i>p</i><sub>320</sub> # <i>p</i><sub>112</sub>)</span> <span class="nw">∨ (<i>p</i><sub>432</sub> # <i>p</i><sub>48</sub> # τ<sub>8</sub>)</span>. Hence <span class="nw"><i>m</i><sup>*</sup>(2<sup><i>k</i></sup>) ≥ <i>k</i> + 1</span> for every <span class="nw"><i>k</i> ≥ 24</span>, and by the 1024 entry above, times <span class="nw">τ<sub><i>k</i>−10</sub></span>, for every <span class="nw"><i>k</i> ≥ 10</span>."</p>
       <!-- TODO: says order 26 at 2^24 comes from the join of the 2^20 entry with each product times tau_4, which beats Thue–Morse by 2 -->
       <p>Claude: "The join of the 2<sup>20</sup> entry, each product times τ<sub>4</sub>, has order 26. That beats Thue–Morse by 2."</p>
       <!-- TODO: says the upper bound 29 at 2^24 is the norm bound for the residue sums mod 3 -->
@@ -1750,7 +1779,47 @@ SClaude[11][832] = {
   726, 728, 729, 731, 734, 735, 737, 740, 741, 743, 746, 749, 750,
   752, 755, 758, 761, 764, 765, 767, 770, 772, 773, 776, 777, 779,
   782, 783, 785, 786, 788, 791, 792, 797, 798, 800, 802, 803, 806,
-  807, 809, 810, 812, 815, 817, 818, 821, 822, 824, 825, 827, 830};</code></pre>
+  807, 809, 810, 812, 815, 817, 818, 821, 822, 824, 825, 827, 830};
+SClaude[11][1024] = {
+  0, 1, 4, 8, 9, 10, 12, 13, 16, 18, 19, 24, 25, 26, 28, 31, 33, 34,
+  36, 41, 42, 43, 45, 46, 48, 49, 52, 55, 56, 58, 61, 64, 66, 69, 70,
+  72, 73, 76, 79, 82, 83, 85, 86, 87, 88, 90, 91, 94, 97, 99, 101,
+  103, 105, 106, 108, 109, 111, 112, 115, 117, 118, 119, 121, 124,
+  127, 130, 131, 132, 133, 136, 138, 139, 145, 146, 148, 151, 153,
+  154, 156, 159, 160, 163, 165, 166, 169, 171, 174, 175, 177, 178,
+  181, 183, 184, 186, 187, 188, 192, 193, 195, 196, 199, 202, 205,
+  208, 210, 211, 214, 219, 220, 222, 223, 226, 228, 229, 231, 232,
+  235, 236, 238, 240, 241, 243, 244, 246, 250, 251, 253, 255, 256,
+  261, 263, 265, 268, 270, 271, 274, 276, 277, 278, 279, 280, 281,
+  283, 285, 286, 289, 292, 294, 295, 298, 301, 303, 304, 306, 307,
+  309, 310, 311, 312, 313, 316, 319, 323, 324, 328, 331, 334, 336,
+  337, 339, 340, 341, 343, 345, 346, 349, 351, 354, 355, 356, 358,
+  361, 364, 367, 369, 370, 371, 372, 375, 376, 378, 379, 384, 386,
+  388, 391, 393, 394, 396, 397, 403, 405, 406, 408, 409, 412, 414,
+  415, 418, 421, 423, 424, 426, 427, 430, 432, 433, 436, 438, 439,
+  441, 442, 445, 446, 448, 451, 453, 454, 459, 460, 463, 465, 466,
+  468, 469, 471, 475, 476, 477, 478, 480, 481, 484, 487, 490, 491,
+  492, 493, 496, 499, 501, 502, 503, 504, 505, 508, 510, 511, 514,
+  516, 517, 523, 525, 526, 528, 529, 534, 535, 537, 538, 540, 541,
+  544, 549, 550, 551, 553, 556, 559, 561, 562, 565, 566, 567, 568,
+  571, 573, 574, 576, 579, 580, 583, 586, 588, 589, 592, 594, 595,
+  598, 601, 603, 604, 606, 607, 610, 612, 613, 616, 619, 621, 622,
+  623, 624, 625, 628, 631, 633, 634, 636, 638, 640, 641, 642, 643,
+  646, 649, 650, 655, 657, 658, 660, 661, 663, 664, 666, 670, 671,
+  673, 675, 676, 679, 681, 685, 688, 690, 691, 693, 694, 696, 697,
+  698, 701, 702, 703, 705, 706, 708, 709, 715, 718, 721, 723, 724,
+  726, 727, 730, 732, 733, 735, 736, 739, 741, 748, 750, 751, 754,
+  756, 757, 759, 761, 763, 764, 765, 766, 769, 771, 774, 775, 776,
+  778, 781, 784, 786, 789, 790, 793, 796, 798, 799, 802, 805, 806,
+  807, 808, 810, 811, 814, 816, 817, 819, 820, 822, 823, 825, 826,
+  829, 832, 833, 834, 838, 841, 843, 844, 847, 850, 851, 853, 855,
+  856, 859, 861, 862, 865, 866, 868, 871, 873, 874, 876, 879, 880,
+  881, 882, 883, 886, 888, 889, 894, 895, 897, 898, 900, 901, 903,
+  907, 909, 910, 913, 916, 919, 921, 923, 925, 927, 928, 930, 931,
+  934, 939, 942, 943, 945, 946, 948, 949, 952, 955, 956, 958, 960,
+  961, 963, 964, 966, 969, 970, 972, 973, 976, 979, 983, 984, 985,
+  986, 988, 991, 993, 994, 996, 1000, 1001, 1002, 1003, 1006, 1008,
+  1009, 1012, 1016, 1017, 1018, 1020, 1021};</code></pre>
 </section>
 
 <section class="progress" aria-labelledby="progress-title">
@@ -2167,10 +2236,12 @@ try {
     return Number(m);
   };
   // A block [n, m] of a join's product: f, the construction of length 2^24 and order 25 (the remarks below); τ_j,
-  // Thue–Morse of length 2^j; or p_n, the sequence behind column n <= 1000 of the m*(n) chart.  name gives its symbol
-  // in the readout, and '' for anything else, which the contract rules out.
-  const name = ([n, m]) => n === 2 ** 24 && m === 25 ? 'f' : n === 2 ** m ? `τ${sub(m)}` : n <= 1000 ? `p${sub(n)}`
-    : '';
+  // Thue–Morse of length 2^j; or p_n, the sequence behind column n <= 1000 of the m*(n) chart, or one of LONG, the
+  // examples longer than 1000 in the remarks below, as [n, m].  name gives its symbol in the readout, and '' for
+  // anything else, which the contract rules out.
+  const LONG = [[1024, 11]];
+  const name = ([n, m]) => n === 2 ** 24 && m === 25 ? 'f' : n === 2 ** m ? `τ${sub(m)}`
+    : n <= 1000 || LONG.some(b => b[0] === n && b[1] === m) ? `p${sub(n)}` : '';
   const isBlock = b => Array.isArray(b) && b.length === 2 && b.every(Number.isInteger) && b[0] >= 1 && b[1] >= 0
     && name(b) !== '';
   const length = p => p.reduce((t, [n]) => t * BigInt(n), 1n), order = p => p.reduce((t, [, m]) => t + m, 0);

@@ -179,6 +179,7 @@ NEW = {240: (10, 10, 'Claude alone'),
        960: (13, 15, 'Claude alone'),
        976: (11, 11, 'Claude alone'),
        992: (11, 11, 'Claude alone'),
+       2 ** 10: (11, 11, 'Claude alone'), 2 ** 11: (12, 12, 'Claude alone'), 2 ** 12: (13, 13, 'Claude alone'),
        2 ** 17: (18, 20, 'Claude alone'), 2 ** 18: (19, 21, 'Claude alone'),
        2 ** 20: (22, 23, 'Claude alone'), 2 ** 24: (26, 29, 'Claude and BGPW'),
        2 ** 27: (29, 33, 'Claude alone'), 2 ** 30: (33, 36, 'Claude alone'),
@@ -231,6 +232,7 @@ PAGE_CODES = (('index.html BGPW 352', 9, 'A4DB4926DB4D36584B26936D2CFA54B6F04B2C
               ('index.html p944', 11, 'B2D920F6C32D8A4A75B6E965D2D964B44968F291A432D97C96F964B2586CB47B64965B2DBE4934929B4C125B6D93494F92CB2DBA436596896D7ADA'),
               ('index.html p976', 11, 'A69A48B5DB6B269A6D14CA1936324D74DB6833DB6DB4DB4134921D949A68E6986F25DA6D348F4994935D86BB49E69ACC27D067268769B4D219B67249A4'),
               ('index.html p992', 11, '94E96372496EB6496DB2D364864B2D902967B24E2DBF7B71908D6D92DA44905B4EF2CD2596CB7192D944B2C8ECB60967B24E25B2DB24BA5F2D96DB859749'),
+              ('index.html p1024', 11, 'C8ECB0E96876C9A4A6C937B2556D97493CB06969965365B8D924B21B2D9ADA35854B2FD64B25B7C91892DD653A4979B0A96C16CB25B2CB6696196D1EC93C97CB'),
               ('index.html p112', 7, 'A5994DB29B45A0'),
               ('index.html p48', 6, 'C27D8C'))
 # Claude's own examples of order 9 at the lengths where the page credits BGPW's (352, 368, 400, 464 and 496), found on
@@ -245,7 +247,7 @@ FOUND = ((352, 9, '969E4C06F693B61B683699E934D241A6DB4936D7CDA6'),
 # The sets of the page's section "Claude's examples as sets", as (m, n) for SClaude[m][n], in page order
 PAGE_SET_KEYS = ((9, 320), (9, 336), (11, 432), (9, 448), (12, 480), (10, 528), (10, 560), (11, 800),
                  (10, 592), (10, 608), (10, 656), (11, 848), (11, 880), (11, 896), (11, 928), (11, 944), (11, 976), (11, 992),
-                 (10, 752), (10, 784), (11, 832))
+                 (10, 752), (10, 784), (11, 832), (11, 1024))
 
 
 def page_n(s):
@@ -270,11 +272,11 @@ PAPER = 'The published paper (2021)'      # the legend's label, and the title, o
 def page_sources(html):
     """Table 2, the new results, the codes and the sets, parsed out of index.html and asserted equal to the hand
     copies above.  Returns {'table2': {n: (lo, hi)}, 'new': {n: (lo, hi, who)}, 'codes': [(m, hex)],
-    'sets': [(m, n, set)]}.  The page's tables of class "block" are Table 2's three, then the new results' six (every
+    'sets': [(m, n, set)]}.  The page's tables of class "block" are Table 2's three, then the new results' seven (every
     multiple of 16 from 304 to 992, after 240 (2026-10-20), in four rows, the first of 12 and the rest of 11, then
-    the powers of 2 in two rows)."""
+    the powers of 2 in three rows, since 2026-10-26, when they reached 35)."""
     tables = re.findall(r'<table class="block">(.*?)</table>', html, re.S)
-    assert len(tables) == 9, len(tables)
+    assert len(tables) == 10, len(tables)
     rows = []
     for t in tables:
         ns = re.findall(r'<td([^>]*)>(.*?)</td>', re.search(r'<tr class="ns">(.*?)</tr>', t, re.S)[1])
