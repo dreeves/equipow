@@ -31,3 +31,4 @@
 {"time":1793039332.007582,"event":"status","search":"432:12 fanout","status":"launchable","pid":null,"last":null,"err":""}
 {"time":1793039332.181655,"event":"launch","search":"432:12 fanout","pid":38350,"free":160502071296}
 {"time":1793039392.3193998,"event":"status","search":"432:12 fanout","status":"running","pid":38350,"last":{"event":"job_start","time":1793039347.725811,"pid":38350,"job":"ad385640cd95b618439048aed78a76374e5dc4f5","case":0,"depth":7,"root":7},"err":""}
+{"time":1793062311.0996249,"event":"status","search":"432:12 fanout","status":"paused","pid":38350,"last":{"event":"job_start","time":1793062285.84048,"pid":38350,"job":"b7f947b9487131a11122086ea8a4054f5e9882c7","case":0,"depth":11,"root":4},"err":""}
