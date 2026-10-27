@@ -101,14 +101,16 @@ RESIDUE = {11: (13, (3,), 'digits'), 12: (14, (3,), 'digits'), 14: (17, (3,), 'd
 # example of order 11 at 816 (at the end of 2026-10-26) moved the first K0 for e = 5 from 43 to 41: BASES[41] has 816
 # among its blocks, and lifted it matches the superseded BASES[43] at every k >= 43; with 816 and 1024 among the
 # blocks, the search (scratch/wish2/results/wish_n816_m11.json) finds no K <= 40 reaching e = 5, exhaustively, and
-# moves no other first K0.  (The examples of order 10 at 592, 608 and 656 and of order 11 at 848, 880, 896, 928, 944,
-# 976 and 992, 2026-10-25, had moved the first K0 for e = 2 from 27 to 20 (BASES[20] is 848 # 992 joined to
-# 240 # 432 # tau_1), for e = 3 from 34 to 30, for e = 4 from 38 to 37, for e = 6 from 52 to 49 and for e = 8 from 66
-# to 65, and given e = 9 at 72; the example of order 11 at 800, 2026-10-17, had moved the first K0 for e = 1 from 18
-# to 17, for e = 2 from 33 to 27, for e = 3 from 41 to 34, for e = 4 from 48 to 38, for e = 5 from 61 to 46 and for
-# e = 6 from 71 to 52, and given e = 7 at 57 and e = 8 at 66; the example of order 10 at 560, 2026-10-12, had moved
-# e = 1 from 24, where f reaches it, to 18, e = 3 from 49 to 41, e = 4 from 57 to 48 and e = 5 from 67 to 61, and
-# given e = 6 at 71.)
+# moves no other first K0.  Rerun as a baseline that night (scratch/wish3/results/base_e*.json), it finds every first
+# K0 for e <= 7 again with nothing undecided below, and at e = 8 it leaves 58 undecided as well (too big, with a coin
+# prime to 3), where the search over the blocks before 1024 and 816 had found no K; at e = 9 it leaves 67 and 68.
+# (The examples of order 10 at 592, 608 and 656 and of order 11 at 848, 880, 896, 928, 944, 976 and 992, 2026-10-25,
+# had moved the first K0 for e = 2 from 27 to 20 (BASES[20] is 848 # 992 joined to 240 # 432 # tau_1), for e = 3 from
+# 34 to 30, for e = 4 from 38 to 37, for e = 6 from 52 to 49 and for e = 8 from 66 to 65, and given e = 9 at 72; the
+# example of order 11 at 800, 2026-10-17, had moved the first K0 for e = 1 from 18 to 17, for e = 2 from 33 to 27, for
+# e = 3 from 41 to 34, for e = 4 from 48 to 38, for e = 5 from 61 to 46 and for e = 6 from 71 to 52, and given e = 7
+# at 57 and e = 8 at 66; the example of order 10 at 560, 2026-10-12, had moved e = 1 from 24, where f reaches it, to
+# 18, e = 3 from 49 to 41, e = 4 from 57 to 48 and e = 5 from 67 to 61, and given e = 6 at 71.)
 BASES = {10: [[[1024, 11]]],
          20: [[[848, 11], [992, 11]],
               [[240, 10], [432, 11], [2, 1]]],
