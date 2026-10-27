@@ -15,7 +15,20 @@ Vocabulary (with focus.py's):
             hands back at most DEEP boxes, the shallow ones, unless it reached HARD budgets (2026-10-23: handing back
             the whole depth-first path, 109 jobs at 672 had left 6,952 open, most of them tiny).  The result is its
             tree and the boxes still open, in the order focus.State would pop them, which become jobs.  A job's file under jobs/ is the durable record that it is done; a restart reruns no job
-            with a file.  Jobs run shallowest first: the biggest boxes are split soonest.
+            with a file.  Each next job is drawn uniformly at random from the boxes not done (the pool), so finished
+            jobs are a fair sample of the pool's (dreeves, 2026-10-26, as he had asked on 2026-10-13 of
+            overnight_v5's order; jobs ran shallowest first until then).
+  seed      a session's: its ordinal among the journal's sessions, 1 for the first, in its session record; the session
+            draws its jobs with random.Random(seed).
+  pool record  a session's, journaled right after its walk, before its probes: depths, [depth, count] pairs, ascending,
+            of the boxes the walk found not done (a box's depth the positions its path fixes); and each job_end's
+            open_depths, its open boxes' depths in its result's order (2026-10-26, for the progress section's pool
+            estimate: with the pool's random draws, they give the pool's composition and how each job adds to it).
+  switch    a journal record that the run's fanout code changed between sessions (dreeves, 2026-10-26, to put 432:12's
+            jobs in a random order without losing those done): from, the code in force before it, and to, the code
+            after.  The code in force is the header's fanout_code, or the last switch's to (in_force).  `fanout.py switch
+            N` writes one, under the work directory's lock, so while no session runs, and only if fanout.py's code is
+            not the code in force.
   tree      a job's proof as its file keeps it (version 2, 2026-10-25): its tokens in depth-first order, each L token's
             certificate dropped once certbb.Check has passed it, so ['B', p], ['L'] or ['W', x]; and tree_sha256, the
             sha256 of the tree's compact JSON, made by the worker and kept in the job's file and its job_end.  At
@@ -42,9 +55,10 @@ Vocabulary (with focus.py's):
             scratch, on demand, solving every leaf's LP again for a certificate; the run never calls it.  The workers'
             and assembly's code is fanout.py, and the reflections' reflection.py, neither among focus.fingerprint's
             sources: fanout_code, the sha256 of the two files' bytes (fingerprint), is in the journal's header and
-            each session's record, a session whose fanout_code is not the header's stops at its start, and assembly
-            refuses a run any session of which ran other code than its own (2026-10-25 review: nothing recorded
-            which fanout.py had made a tree).
+            each session's record, a session whose fanout_code is not the code in force (see 'switch') stops at its
+            start, and assembly refuses a run any session of which ran other code than the code in force where it
+            stands in the journal, or whose code in force is not assembly's own (2026-10-25 review: nothing recorded
+            which fanout.py had made a tree; switches since 2026-10-26).
   witness   a job's W token: an exact 0/1 solution of its case's equations, so an example of the order.  It ends the
             fanout at once; it needs no assembly, being its own certificate.  Before the finish journals it, the
             driver reads it back from its job's file, as the last token of the job's tree, and checks it exactly on
@@ -67,7 +81,8 @@ Vocabulary (with focus.py's):
             point of the case's box, so the tree has E[2^(D+1)] - 1 nodes (on case_lp's option, in expectation over
             HiGHS's draws), one LP solve each, and by Jensen's inequality at least 2^(E[D]+1) - 1.
             Its record gives the paths, their depths' mean and standard error (se), least, and witnesses: the distinct
-            exact solutions (W tokens) its paths ended at.  These do not end the fanout: the jobs' search, being
+            exact solutions (W tokens) its paths ended at; and since 2026-10-26 depths, each path's D in the order
+            dived, for Knuth's estimate of the tree's size, the mean of 2^(D+1) - 1.  These do not end the fanout: the jobs' search, being
             complete, must find one too, if perhaps much later (ending it at a probe's would leave 16:4's eight-worker
             control, quals_fanout_eight, without a job).
   least     of a probe: floor(2^(mean - Z se + 1)) - 1, a lower bound, with one-sided 95% confidence, on its case's LP
@@ -75,13 +90,12 @@ Vocabulary (with focus.py's):
             the run's own tree was grown partly under focus.search's).
 """
 import array
+import collections
 from concurrent.futures import FIRST_COMPLETED, ProcessPoolExecutor, wait
 import fcntl
 import functools
 import gzip
 import hashlib
-import heapq
-import itertools
 import json
 import math
 import multiprocessing
@@ -249,6 +263,25 @@ def records(journal):
         yield from map(json.loads, stream)
 
 
+def stands(journal):
+    """The journal's records, read one at a time, each with the fanout code in force where it stands (see 'switch'):
+    the header's fanout_code from the header on, a switch's to from the switch on; each switch's from asserted the code
+    in force before it."""
+    code = None
+    for r in records(journal):
+        # TODO: error copy; says a switch in fanout's journal is from other code than the code in force before it
+        assert r['event'] != 'switch' or r['from'] == code, 'Claude: "a switch from other code than the run\'s"'
+        code = dict(header=r.get('fanout_code'), switch=r.get('to')).get(r['event'], code)
+        yield r, code
+
+
+def in_force(journal):
+    """The fanout code in force after the journal's last record (see 'switch')."""
+    code = None
+    for _, code in stands(journal): pass
+    return code
+
+
 # ---------- the workers ----------
 
 WORK = None                            # a worker's (prepared equations and cases, budget, deep), set by init
@@ -336,7 +369,8 @@ def probe(prepared, case, paths):
                for x in witnesses)
     mean = sum(depths) / paths
     se = math.sqrt(sum((d - mean) ** 2 for d in depths) / (paths - 1) / paths)
-    return dict(paths=paths, mean=mean, se=se, least=least(mean, se), witnesses=[list(x) for x in witnesses])
+    return dict(paths=paths, mean=mean, se=se, least=least(mean, se), witnesses=[list(x) for x in witnesses],
+                depths=depths)
 
 
 # ---------- the driver ----------
@@ -374,15 +408,16 @@ def witnessed(prepared, work_dir, name):
     return exact(certbb.node_rows(equations, cases[data['case']]), *box(equations.N, data['path']), data['witness'])
 
 
-def farm(prepared, all_roots, done, work_dir, journal):
-    """Journals a probe of each case with a job not done, then runs every job not done, WORKERS at once, shallowest
-    first; the witness found (0/1 list), read back from its job's file and checked by witnessed, else None.  A job not
-    done waits on the heap as (depth, order, case, its path packed, root), order counting the boxes put there before
-    it: so the shallowest goes first and, of equally deep ones, the first put there, as when the heap held key's
-    (case, path) before 2026-10-26.  reach's walk holds its paths packed too (see pack)."""
-    heap, order = [], itertools.count()
-    def push(case, path, root):            # a job not done, onto the heap
-        heapq.heappush(heap, (len(path), next(order), case, pack(path), root))
+def farm(prepared, all_roots, done, work_dir, journal, seed):
+    """Journals a probe of each case with a job not done, then runs every job not done, WORKERS at once, each next one
+    drawn uniformly at random from the pool (see 'job') by random.Random(seed); the witness found (0/1 list), read back
+    from its job's file and checked by witnessed, else None.  A job not done waits in the pool as (case, its path
+    packed, root), the pool in the order its boxes came: reach's walk, then each job's open boxes in its result's order
+    as it ends; a draw takes the box at a random index, swapped with the pool's last.  reach's walk holds its paths
+    packed too (see pack).  (Until 2026-10-26 a heap of (depth, order, ...) ran the shallowest first.)"""
+    pool, rng = [], random.Random(seed)
+    def push(case, path, root):            # a job not done, into the pool
+        pool.append((case, pack(path), root))
     def reach(job, root):                  # the jobs not done at or below job, a done one's open boxes from its file
         todo = [pack(job[1])]              # boxes of job's case, by their paths, packed
         while todo:
@@ -393,16 +428,19 @@ def farm(prepared, all_roots, done, work_dir, journal):
     for root, job in searched(prepared, all_roots): reach(job, root)
     found = [name for name, e in done.items() if e['witness'] is not None]
     if found: return witnessed(prepared, work_dir, found[0])
-    for case in sorted({case for _, _, case, _, _ in heap}):
+    note(journal, 'pool', depths=[[d, c] for d, c in sorted(collections.Counter(len(p) // 2 for _, p, _ in pool).items())])
+    for case in sorted({case for case, _, _ in pool}):
         note(journal, 'probe', case=case, **probe(prepared, case, PROBE_PATHS))
     with ProcessPoolExecutor(WORKERS, mp_context=multiprocessing.get_context('spawn'), initializer=init,
-                             initargs=(prepared, BUDGET, DEEP)) as pool:
+                             initargs=(prepared, BUDGET, DEEP)) as workers:
         running = {}
-        while heap or running:
-            while heap and len(running) < WORKERS:
-                _, _, case, packed, root = heapq.heappop(heap)
+        while pool or running:
+            while pool and len(running) < WORKERS:
+                i = rng.randrange(len(pool))
+                pool[i], pool[-1] = pool[-1], pool[i]
+                case, packed, root = pool.pop()
                 job = case, unpack(packed)
-                running[pool.submit(work, job)] = (job, root)
+                running[workers.submit(work, job)] = (job, root)
                 note(journal, 'job_start', job=jid(job), case=job[0], depth=len(job[1]), root=root)
             ready, _ = wait(running, return_when=FIRST_COMPLETED)
             for future in ready:
@@ -411,9 +449,10 @@ def farm(prepared, all_roots, done, work_dir, journal):
                 save(work_dir, job, root, result)
                 done[jid(job)] = brief(dict(result, root=root))
                 note(journal, 'job_end', job=jid(job), case=job[0], root=root, lps=len(result['tree']),
-                     seconds=result['seconds'], open=len(result['open']), tree_sha256=result['tree_sha256'])
+                     seconds=result['seconds'], open=len(result['open']), tree_sha256=result['tree_sha256'],
+                     open_depths=[len(p) for p in result['open']])
                 if result['witness'] is not None:
-                    pool.shutdown(cancel_futures=True)
+                    workers.shutdown(cancel_futures=True)
                     return witnessed(prepared, work_dir, jid(job))
                 for p in result['open']: push(job[0], p, root)
     return None
@@ -451,9 +490,9 @@ def assemble(run_dir, work_dir, journal, prepared, code, all_roots, done):
     equations, _ = prepared
     unmoved(run_dir, work_dir, prepared, code, all_roots)
     current = fingerprint()                # each check below reads the journal anew, one record at a time (records)
-    # TODO: error copy; says a session of fanout's run ran other fanout code than the code assembling it
-    assert all(r['fanout_code'] == current for r in records(journal) if r['event'] in ('header', 'session')), \
-        'Claude: "a session of the run ran other fanout code"'
+    # TODO: error copy; says a session of fanout's run ran other fanout code than the code in force where it stands, or that the run's code in force is not the code assembling it
+    assert all(r['fanout_code'] == code for r, code in stands(journal) if r['event'] in ('header', 'session')) \
+        and in_force(journal) == current, 'Claude: "a session of the run ran other fanout code"'
     # TODO: error copy; says a probe of the run found an exact solution, so the run cannot end excluded
     assert not [r for r in records(journal) if r['event'] == 'probe' and r['witnesses']], \
         'Claude: "a probe found a witness"'
@@ -508,33 +547,54 @@ def run(run_dir, work_dir, journal, n, m):
                     root_cases=[c for c, _ in all_roots], root_depths=[len(path) for _, path in all_roots],
                     prefix_lp=start['lp'], prefix_case=start['case'], code=code, fanout_code=fingerprint())
         if not journal.exists(): note(journal, 'header', **head)
-        same = ('n', 'order', 'code', 'fanout_code')       # what each session shares with the journal's header
-        # TODO: error copy; says fanout's journal began with another run, or under other code, than this session's
-        assert {k: json.loads(journal.read_text().splitlines()[0])[k] for k in same} == {k: head[k] for k in same}, \
+        same = ('n', 'order', 'code', 'fanout_code')       # what each session shares with the journal's header, but
+        run_s = dict(json.loads(journal.read_text().splitlines()[0]), fanout_code=in_force(journal))   # the code in force
+        # TODO: error copy; says fanout's journal began with another run, or that the run's code in force is not this session's
+        assert {k: run_s[k] for k in same} == {k: head[k] for k in same}, \
             'Claude: "the journal began with another run or under other code"'
+        seed = 1 + sum(r['event'] == 'session' for r in records(journal))
         note(journal, 'session', workers=WORKERS, reflections=reflections(prepared, all_roots),
-             fanout_code=head['fanout_code'])
+             fanout_code=head['fanout_code'], seed=seed)
         done = finished(work_dir)
         for r in (r for r in map(json.loads, journal.read_text().splitlines()) if r['event'] == 'job_end'):
             # TODO: error copy; says a job_end in fanout's journal has no job file, or one with another tree, naming it
             assert done.get(r['job'], {}).get('tree_sha256') == r['tree_sha256'], \
                 f'Claude: "the job_end of {r["job"]} is not its file\'s"'
-        witness = farm(prepared, all_roots, done, work_dir, journal)
+        witness = farm(prepared, all_roots, done, work_dir, journal, seed)
         if witness is None: assemble(run_dir, work_dir, journal, prepared, code, all_roots, done)
         outcome = 'witness' if witness is not None else 'excluded'
         note(journal, 'finish', outcome=outcome, witness=witness)
     return outcome
 
 
-def main():
-    # TODO: error copy; says how to run fanout: with the length of a stopped focus.py run, 432, 480 or 672
-    assert len(sys.argv) == 2 and sys.argv[1] in ('432', '480', '672'), \
-        'Claude: "usage: python3 -B fanout.py 432|480|672"'
-    n = int(sys.argv[1])
+def switch(work_dir, journal):
+    """Writes a switch (see the vocabulary) to fanout's journal, from the code in force to fanout.py's, under the work
+    directory's lock, which a session holds while it runs; asserts that fanout.py's code is not the code in force."""
+    code = fingerprint()
+    with open(Path(work_dir) / 'lock', 'a') as ours:
+        fcntl.flock(ours, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        before = in_force(journal)
+        # TODO: error copy; says fanout.py's code is already the run's code in force, so no switch is written
+        assert before != code, 'Claude: "fanout.py is the code in force already"'
+        note(journal, 'switch', **{'from': before, 'to': code})
+
+
+def drive(run_dir, work_dir, journal, n):
+    """fanout.py N: run's finish of the stopped run of N, printed."""
     m = {432: 12, 480: 14, 672: 13}[n]
     signal.signal(signal.SIGTERM, stop)
-    outcome = run(Path(f'scratch/focus{n}/run'), Path(f'scratch/fanout{n}'), Path(f'fanout_{n}_journal.jsonl'), n, m)
+    outcome = run(run_dir, work_dir, journal, n, m)
     print(json.dumps(dict(n=n, order=m, outcome=outcome)), flush=True)
+
+
+def main():
+    # TODO: error copy; says how to run fanout: with the length of a stopped focus.py run, 432, 480 or 672, after the word switch to record a change of fanout's code
+    assert len(sys.argv) in (2, 3) and sys.argv[1:-1] in ([], ['switch']) and sys.argv[-1] in ('432', '480', '672'), \
+        'Claude: "usage: python3 -B fanout.py [switch] 432|480|672"'
+    n = int(sys.argv[-1])
+    run_dir, work_dir, journal = Path(f'scratch/focus{n}/run'), Path(f'scratch/fanout{n}'), Path(f'fanout_{n}_journal.jsonl')
+    {(): lambda: drive(run_dir, work_dir, journal, n),
+     ('switch',): lambda: switch(work_dir, journal)}[tuple(sys.argv[1:-1])]()
 
 
 if __name__ == '__main__':

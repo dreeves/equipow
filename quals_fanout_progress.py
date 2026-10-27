@@ -60,6 +60,40 @@ def probed(records, *probes):
     return records[:2] + list(probes) + records[2:]
 
 
+def drawing(pool, samples, running=(), n=672, probes=()):
+    """A journal of a session that drew at random (seed 1, 2 workers) at 100 s, its pool record at 101 s (pool, [depth,
+    count] pairs), then probes (records, given times from 102 s on); then each sample (depth, LP solves, its open boxes'
+    depths) a job started and done in turn, 1 s apart, taking lps / 2 seconds, so the pool's rate is 4 LP solves a
+    second; then each running depth a job started.  Each job is a root of its own (case 0), so the sea's dots stay
+    consistent whatever the samples, and one more root, of case 1, is pending: the run's prefix (3600 LP solves) is
+    case 0's work."""
+    jobs = [*samples, *((d, None, None) for d in running)]
+    records = [head(n=n, roots=len(jobs) + 1, root_cases=[0] * len(jobs) + [1],
+                    root_depths=[d for d, _, _ in jobs] + [0]),
+               ev('session', 100, seed=1, workers=2), ev('pool', 101, depths=[list(p) for p in pool])]
+    records += [dict(p, time=102 + i / 10) for i, p in enumerate(probes)]
+    for i, (d, lps, opened) in enumerate(samples):
+        records += [ev('job_start', 110 + 2 * i, job=f'j{i}', case=0, depth=d, root=i),
+                    ev('job_end', 111 + 2 * i, job=f'j{i}', case=0, root=i, lps=lps, seconds=lps / 2, open=len(opened),
+                       open_depths=opened)]
+    for i, d in enumerate(running, len(samples)):
+        records.append(ev('job_start', 110 + 2 * i, job=f'j{i}', case=0, depth=d, root=i))
+    return records
+
+
+def drawn():
+    """drawing: a pool record of 3 boxes at depth 1; job a (depth 1) done after 10 LP solves leaving 2 boxes at depth 5,
+    job b (depth 5) done after 5 leaving none; jobs c (depth 5) and d (depth 1) running.  So the pool now holds 2 boxes
+    at depth 1 and 1 at depth 5 (c and d among them), and E[T(5)] = 5, E[T(1)] = 10 + 2 x 5 = 20: 45 LP solves, 11.25 s
+    at 4 a second."""
+    return drawing([(1, 3)], [(1, 10, [5, 5]), (5, 5, [])], running=(5, 1))
+
+
+def to_go(records, now=300):
+    """survey's to_go of records, the driver alive."""
+    return survey(records, now=now)['to_go']
+
+
 class FanoutProgressQuals(unittest.TestCase):
     def test_sea_has_a_dot_per_job_grouped_by_root(self):
         # Replicata: started(), the driver alive at 200 s.
@@ -72,18 +106,65 @@ class FanoutProgressQuals(unittest.TestCase):
         self.assertEqual(run['sea']['counts'], dict(settled=0, open=0, split=1, pending=1, running=2))
         self.assertEqual((run['state'], run['so_far']), ('running', 100))
 
-    def test_eta_is_lindy_on_the_cases_work_at_the_pool_s_rate(self):
-        # Replicata: started() at 200 s, then again at 300 s.
-        # Expectata: the cases' work in LP solves: case 0 the run's 3600 before fanout plus 10, case 1 none yet, so
-        # pending; the pool's rate the jobs' 10 solves in 5 s per worker, times 2 workers, 4 a second; no case done, so
-        # Lindy: the median more than case 0's 3610 solves over 4 a second, about 0.25 h, and the estimate recorded
-        # while running.
+    def test_eta_is_the_pool_estimate_at_the_pool_s_rate(self):
+        # Replicata: drawn() surveyed at 200 s, the driver alive.
+        # Expectata (dreeves, 2026-10-26: "sure", to an ETA from the pool's random draws, replacing Gott's rule on the
+        # cases' LP solves, which knew nothing of the pool): the pool estimate (see progress.py's vocabulary), from the
+        # samples a and b, each the only one of its band, so every bootstrap replicate the same: E[T(5)] = 5 and E[T(1)]
+        # = 10 + 2 x 5 = 20 LP solves, the pool 2 boxes at depth 1 and 1 at depth 5, 45 LP solves; at the pool's rate, 4
+        # a second, 11.25 s to go at the median, low and high; and the estimate recorded while running.
+        # Resultata before: Gott's rule on case 0's 3615 LP solves, above 900 s at the median.
         observations = {}
-        run = survey(started(), observations=observations)
-        self.assertIsNotNone(run['to_go'])
-        self.assertGreater(run['to_go']['median'], 3610 / 4)
-        self.assertLess(run['to_go']['lo'], run['to_go']['median'])
+        run = survey(drawn(), observations=observations)
+        for k in ('median', 'lo', 'hi'): self.assertAlmostEqual(run['to_go'][k], 11.25, places=9)
         self.assertEqual(list(observations), ['200.0'])
+
+    def test_a_depth_with_no_sample_takes_the_nearest_band_s_the_deeper_on_a_tie(self):
+        # Replicata: drawing with samples at depth 1 (10 LP solves, none open) and depth 9 (7 LP solves, none open), and
+        # a pool record of 1 box at depth 1, 1 at 5 and 1 at 9, besides the two sampled: the bands are 4 levels (0-3,
+        # 4-7, 8-11), and depth 5's band, 1, has no sample, at distance 1 from bands 0 and 2.
+        # Expectata: depth 5 takes the deeper band's samples, depth 9's: E[T(5)] = 7; so 10 + 7 + 7 = 24 LP solves, 6 s.
+        records = drawing([(1, 2), (5, 1), (9, 2)], [(1, 10, []), (9, 7, [])])
+        for k in ('median', 'lo', 'hi'): self.assertAlmostEqual(to_go(records)[k], 6.0, places=9)
+
+    def test_the_band_comes_from_resampling_each_band_s_samples(self):
+        # Replicata: drawing with 20 samples at depth 1, half of 1 LP solve and half of 9, none open, and a pool record
+        # of 1,000 boxes at depth 1 besides them.
+        # Expectata: the median near the samples' mean, 5 LP solves a box, 5,000 in all, 1,250 s; the band from BOOT
+        # bootstrap replicates of the band's mean, so its low end below the median and its high end above, each within
+        # 3 standard errors of the mean (a standard error of 0.92 LP solves a box, 229 s for the 1,000 boxes).
+        records = drawing([(1, 1020)], [(1, 1, [])] * 10 + [(1, 9, [])] * 10)
+        go = to_go(records)
+        self.assertAlmostEqual(go['median'] / 1250, 1, delta=0.15)
+        self.assertTrue(1250 - 3 * 229 < go['lo'] < go['median'] < go['hi'] < 1250 + 3 * 229, go)
+
+    def test_no_estimate_without_a_pool_record_or_a_sample(self):
+        # Replicata: started(), a session that recorded no pool and jobs that recorded no open boxes' depths, as before
+        # 2026-10-26; and drawing with a pool record but no job done yet.
+        # Expectata: no estimate either way: without the pool's depths or a random draw the pool estimate has nothing
+        # to stand on, and Gott's rule on the cases' work, the estimate before, is no longer made.
+        self.assertIsNone(survey(started())['to_go'])
+        self.assertIsNone(to_go(drawing([(1, 3)], [], running=(1,))))
+
+    def test_malformed_pool_records_and_open_depths_fail_loudly(self):
+        # Replicata: drawn() with its pool record's depths not [depth, count] pairs of ints, ascending, counts from 1;
+        # a second pool record in the session; a job_end's open_depths of another length than its open count, or with a
+        # box no deeper than its job's; open_depths in a session with no seed (no random draws); and a pool count gone
+        # below 0 (a box done at a depth the pool never held).
+        # Expectata: AssertionError, each: a malformed record cannot move the estimate.
+        good = drawn()
+        def pooled(depths): return good[:2] + [ev('pool', 101, depths=depths)] + good[3:]
+        bad = [pooled([[1, 0]]), pooled([[1, 3.0]]), pooled([[5, 1], [1, 3]]), pooled([[1, 3], [1, 1]]), pooled([1, 3]),
+               good[:3] + [ev('pool', 102, depths=[[1, 3]])] + good[3:],
+               [dict(r, open_depths=[5]) if r.get('job') == 'j0' and r['event'] == 'job_end' else r for r in good],
+               [dict(r, open_depths=[5, 1]) if r.get('job') == 'j0' and r['event'] == 'job_end' else r for r in good],
+               [dict(r, seed=None) if r['event'] == 'session' else r for r in good],
+               pooled([[5, 1]])]
+        self.assertAlmostEqual(to_go(good)['median'], 11.25, places=9)
+        for records in bad:
+            with self.subTest(records=[r for r in records if r['event'] in ('pool', 'session')]), \
+                    self.assertRaises(AssertionError):
+                to_go(records)
 
     def test_no_eta_before_a_job_ends(self):
         # Replicata: a header and a session only, the driver alive.
@@ -136,18 +217,24 @@ class FanoutProgressQuals(unittest.TestCase):
         self.assertEqual(run['sea']['groups'], ['4', '3'])
 
     def test_reflection_leaves_the_target_open_without_independent_eta_work(self):
-        # Replicata: a restarted driver will reflect case 0's proof into case 1.
-        # Expectata: case 1 stays open, while only case 0's remaining LP work enters Lindy.
+        # Replicata: a restarted driver will reflect case 0's proof into case 1: its session (seed 1) and pool record,
+        # which holds case 0's box at depth 2 only (fanout's walk does not walk a reflected case's root), then job c
+        # (depth 2) done after 4 LP solves in 2 s leaving a box at depth 3, which job e has started.
+        # Expectata: case 1 stays open, and only the pool record's boxes enter the pool estimate (since 2026-10-26; Lindy
+        # on the cases' work before): pool_estimate called once, with c's sample, the pool's box at depth 3, n 672, the
+        # rate (10 + 4) LP solves in (5 + 2) s times 2 workers, 4 a second, and no probe's floor.
         # Resultata before the fix: case 1 was pending independent work and inflated the estimate.
         from unittest.mock import patch
         records = [dict(r, pid=40) for r in started()] + [
-            ev('session', 150, reflections={'1': 0}),
-            ev('job_start', 151, job='c', case=0, depth=2, root=1)]
-        with patch.object(progress, 'lindy_work', return_value=[1, 0.5, 2]) as estimate:
+            ev('session', 150, reflections={'1': 0}, seed=1), ev('pool', 150.5, depths=[[2, 1]]),
+            ev('job_start', 151, job='c', case=0, depth=2, root=1),
+            ev('job_end', 155, job='c', case=0, root=1, lps=4, seconds=2.0, open=1, open_depths=[3]),
+            ev('job_start', 155, job='e', case=0, depth=3, root=1)]
+        with patch.object(progress, 'pool_estimate', return_value=[1, 0.5, 2]) as estimate:
             run = survey(records)
-        estimate.assert_called_once_with([], [3610], 0, 4.0)
-        self.assertEqual(run['sea']['groups'], ['1', '243'])
-        self.assertEqual(run['sea']['counts'], dict(settled=0, open=1, split=1, pending=1, running=1))
+        estimate.assert_called_once_with([(2, 4, [3])], {3: 1}, 672, 4.0, 0)
+        self.assertEqual(run['sea']['groups'], ['1', '2243'])
+        self.assertEqual(run['sea']['counts'], dict(settled=0, open=1, split=2, pending=1, running=1))
         self.assertEqual((run['state'], run['outcome']), ('running', None))
 
     def test_reflection_waits_for_the_checked_finish_after_source_jobs_end(self):
@@ -160,7 +247,7 @@ class FanoutProgressQuals(unittest.TestCase):
             ev('job_start', 130, job='d', case=0, depth=2, root=1),
             ev('job_end', 140, job='d', case=0, root=1, lps=3, seconds=1.0, open=0),
             ev('session', 150, reflections={'1': 0})]
-        with patch.object(progress, 'lindy_work') as estimate:
+        with patch.object(progress, 'pool_estimate') as estimate:
             run = survey(records)
         estimate.assert_not_called()
         self.assertEqual((run['state'], run['outcome'], run['to_go']), ('running', None, None))
@@ -186,67 +273,43 @@ class FanoutProgressQuals(unittest.TestCase):
             with self.subTest(mapping=mapping), self.assertRaises(AssertionError):
                 survey([head(), ev('session', 100, reflections=mapping)])
 
-    def test_a_probe_far_above_gotts_band_moves_the_median_to_twice_its_least(self):
-        # Replicata: alone() at 200 s, case 0's work 3610 LP solves at the pool's 4 a second, and then the same with a
-        # probe of case 0 whose paths' depths have mean 30 and standard error 0.5, so least = 1,214,318,730 LP solves,
-        # far above Gott's band on the work so far (to go 848 s at the median, 15,695 s at the 95% point).
-        # Expectata (2026-10-25: random dives put 672:13 at >= 1e13 LP solves when the page said 17 h to go): the case
-        # is drawn above its least, Gott's rule given total >= least: P(T > t) = least / t.  So the median to go is
-        # within 10% of 2 least / 4 seconds; every draw is at least the least less the work done; the 95% point within
-        # 10% of 20 least / 4.  Without the probe: within Gott's band.
-        # Resultata before probes: an AssertionError, the probe record being of no known event.
+    def test_a_probe_s_least_above_the_pool_estimate_is_its_floor(self):
+        # Replicata: drawn(), case 0's work 3615 LP solves (the prefix's 3600 and its jobs' 15), with a probe of case 0
+        # whose paths' depths have mean 30 and standard error 0.5, so least = 1,214,318,730 LP solves, far above the pool
+        # estimate's 45.
+        # Expectata (2026-10-25: random dives put 672:13 at >= 1e13 LP solves when the page said 17 h to go; since
+        # 2026-10-26 the floor of the pool estimate, as of Lindy's before): every draw at least the least less the case's
+        # work so far, so median, low and high all (least - 3615) / 4 seconds.
         least = probe(0, 30.0, 0.5)['least']
         self.assertEqual(least, 1214318730)
-        self.assertLess(survey(alone())['to_go']['hi'], 20000)
-        go = survey(probed(alone(), probe(0, 30.0, 0.5)))['to_go']
-        self.assertAlmostEqual(go['median'] / (2 * least / 4), 1, delta=0.1)
-        self.assertGreaterEqual(go['lo'], (least - 3610) / 4)
-        self.assertAlmostEqual(go['hi'] / (20 * least / 4), 1, delta=0.1)
-
-    def test_with_no_probe_the_estimate_is_unchanged(self):
-        # Replicata: alone() and started() at 200 s, journals with no probe, as every journal before 2026-10-25.
-        # Expectata: to go exactly lindy_work's on the cases' work, case 0's 3610 LP solves running and started()'s case
-        # 1 pending, at 4 a second, and exactly what the code before probes gave (recorded 2026-10-25).
-        before = {0: dict(median=847.822498516026, lo=47.39317378353282, hi=15695.07043986849),
-                  1: dict(median=3179.89142446543, lo=1097.5519783091158, hi=33840.593113551666)}
-        for records, pending in ((alone(), 0), (started(), 1)):
-            go = survey(records)['to_go']
-            self.assertEqual(go, progress.to_go_of(progress.lindy_work([], [3610], pending, 4.0)))
-            self.assertEqual(go, before[pending])
+        go = to_go(drawing([(1, 3)], [(1, 10, [5, 5]), (5, 5, [])], running=(5, 1), probes=[probe(0, 30.0, 0.5)]))
+        for k in ('median', 'lo', 'hi'): self.assertAlmostEqual(go[k], (least - 3615) / 4, delta=1e-3)
 
     def test_a_least_below_the_work_done_changes_nothing(self):
-        # Replicata: alone() at 200 s with a probe of case 0 whose least, 35 LP solves (mean 5, standard error 0.5), is
-        # below the case's work so far, 3610.
-        # Expectata: the estimate exactly as with no probe: Gott's rule given total >= 3610 already implies >= 35.
+        # Replicata: drawn() with a probe of case 0 whose least, 35 LP solves (mean 5, standard error 0.5), is below the
+        # case's work so far, 3615.
+        # Expectata: the estimate exactly as with no probe: the work done already exceeds the least.
         self.assertEqual(probe(0, 5.0, 0.5)['least'], 35)
-        self.assertEqual(survey(probed(alone(), probe(0, 5.0, 0.5)))['to_go'], survey(alone())['to_go'])
+        with_probe = drawing([(1, 3)], [(1, 10, [5, 5]), (5, 5, [])], running=(5, 1), probes=[probe(0, 5.0, 0.5)])
+        self.assertEqual(to_go(with_probe), to_go(drawn()))
 
     def test_a_pending_case_is_drawn_above_its_least(self):
-        # Replicata: started() at 200 s (case 1 pending, no LP solves of its own done), with a probe of case 1 whose
-        # least is 1,214,318,730 LP solves.
-        # Expectata: case 1's size is drawn above its least, so every draw of the cases' work exceeds it: the 5% point
-        # to go at least least / 4 seconds.  Without the probe the 95% point is under 40,000 s.
+        # Replicata: drawn(), case 1 pending (no LP solves of its own done), with a probe of case 1 whose least is
+        # 1,214,318,730 LP solves.
+        # Expectata: every draw at least case 1's least, so the low end at least least / 4 seconds; without the probe,
+        # 11.25 s.
         least = probe(1, 30.0, 0.5)['least']
-        self.assertLess(survey(started())['to_go']['hi'], 40000)
-        self.assertGreaterEqual(survey(probed(started(), probe(1, 30.0, 0.5)))['to_go']['lo'], least / 4)
+        go = to_go(drawing([(1, 3)], [(1, 10, [5, 5]), (5, 5, [])], running=(5, 1), probes=[probe(1, 30.0, 0.5)]))
+        self.assertGreaterEqual(go['lo'], least / 4)
+        self.assertAlmostEqual(to_go(drawn())['median'], 11.25, places=9)
 
     def test_the_latest_probe_of_a_case_counts(self):
-        # Replicata: alone() with a probe of case 0 of least 35, then a second driver's session (pid 42, alive) at 150 s
-        # and its probe of case 0 at 151 s of least 1,214,318,730; then the same with the two probes swapped; both
-        # surveyed at 200 s.
-        # Expectata: the latest probe counts: the first journal's median to go over 1e8 s, the second's exactly as with
-        # no probe.
+        # Replicata: drawn() with two probes of case 0, of least 1,214,318,730 then of least 35; then the two swapped.
+        # Expectata: the latest counts: the first journal's estimate exactly drawn()'s, the second's median over 1e8 s.
         far, near = probe(0, 30.0, 0.5), probe(0, 5.0, 0.5)
-        def run(records):
-            with tempfile.TemporaryDirectory() as d:
-                path = os.path.join(d, 'fanout_672_journal.jsonl')
-                Path(path).write_text(''.join(json.dumps(r) + '\n' for r in records))
-                return progress.survey_fanout(path, [(42, 1, 'SN', 'python3 -B fanout.py 672')], 200, {}, {})['to_go']
-        second = [dict(ev('session', 150), pid=42)]
-        first = run(probed(alone(), near) + second + [dict(far, time=151, pid=42)])
-        swapped = run(probed(alone(), far) + second + [dict(near, time=151, pid=42)])
-        self.assertGreater(first['median'], 1e8)
-        self.assertEqual(swapped, run(alone() + second))
+        records = lambda probes: drawing([(1, 3)], [(1, 10, [5, 5]), (5, 5, [])], running=(5, 1), probes=probes)
+        self.assertEqual(to_go(records([far, near])), to_go(drawn()))
+        self.assertGreater(to_go(records([near, far]))['median'], 1e8)
 
     def test_malformed_probes_fail_loudly(self):
         # Replicata: alone() with a probe record that lacks least, has an extra field, names no root's case or a case
@@ -262,10 +325,47 @@ class FanoutProgressQuals(unittest.TestCase):
                dict(good, least=float(good['least'])), dict(good, witnesses=[[0] * 671]),
                dict(good, witnesses=[[2] * 672]), dict(good, witnesses=None), dict(good, witnesses=[[True] * 672]),
                dict(good, pid=PID + 1)]
-        self.assertIsNotNone(survey(probed(alone(), good))['to_go'])
+        records = lambda p: drawing([(1, 3)], [(1, 10, [5, 5]), (5, 5, [])], running=(5, 1), probes=[p])
+        self.assertIsNotNone(to_go(records(good)))           # a pool estimate, the probe well formed (since 2026-10-26)
         for record in bad:
             with self.subTest(record=record), self.assertRaises(AssertionError):
-                survey(probed(alone(), record))
+                to_go(records(record))
+
+    def test_a_switch_is_a_moment_between_sessions(self):
+        # Replicata: alone() (pid 41's session from 100 s to its last record at 120 s), then a switch record at 130 s
+        # by pid 43, then a session of pid 42 at 150 s, alive, surveyed at 200 s; and the same journal without the
+        # switch record.
+        # Expectata (2026-10-26: fanout.py's switch, written between sessions, dreeves: "ok, good, yeah"): the switch a
+        # span of no length, so passes [[100, 120], [130, 130], [150, 200]] and 70 s so far; running; and the estimate
+        # exactly the journal's without the switch, whose passes are [[100, 120], [150, 200]].
+        # Resultata before: AssertionError, a switch being of no known event.
+        def run(records):
+            with tempfile.TemporaryDirectory() as d:
+                path = os.path.join(d, 'fanout_672_journal.jsonl')
+                Path(path).write_text(''.join(json.dumps(r) + '\n' for r in records))
+                return progress.survey_fanout(path, [(42, 1, 'SN', 'python3 -B fanout.py 672')], 200, {}, {})
+        second = [dict(ev('session', 150), pid=42)]
+        switch = [dict(ev('switch', 130, **{'from': 'a' * 64, 'to': 'b' * 64}), pid=43)]
+        got, plain = run(alone() + switch + second), run(alone() + second)
+        self.assertEqual((got['passes'], got['so_far'], got['state']), ([[100, 120], [130, 130], [150, 200]], 70, 'running'))
+        self.assertEqual((plain['passes'], plain['so_far']), ([[100, 120], [150, 200]], 70))
+        self.assertEqual(got['to_go'], plain['to_go'])
+
+    def test_a_probe_s_depths_give_its_mean_and_se(self):
+        # Replicata: alone() with a probe of case 0 whose depths are 150 29s and 150 31s, its mean and standard error
+        # theirs; then the same probe with 299 depths, a float depth, a negative one, or depths whose standard error is
+        # not the record's (150 28s and 150 32s).
+        # Expectata (2026-10-26: probes record each dive's depth, for Knuth's estimate): the first read exactly as the
+        # same probe without depths; each other AssertionError.
+        depths = [29] * 150 + [31] * 150
+        mean = sum(depths) / 300
+        se = math.sqrt(sum((x - mean) ** 2 for x in depths) / 299 / 300)
+        good = probe(0, mean, se, depths=depths)
+        self.assertEqual(survey(probed(alone(), good))['to_go'], survey(probed(alone(), probe(0, mean, se)))['to_go'])
+        for bad in (dict(good, depths=depths[:-1]), dict(good, depths=[29.0] + depths[1:]),
+                    dict(good, depths=[-1] + depths[1:]), dict(good, depths=[28] * 150 + [32] * 150)):
+            with self.subTest(depths=bad['depths'][:2]), self.assertRaises(AssertionError):
+                survey(probed(alone(), bad))
 
     def test_main_surveys_fanout_journals(self):
         # Replicata: a one-shot snapshot of a directory holding a fanout journal only.

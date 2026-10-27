@@ -207,3 +207,32 @@ FROZEN while the run lives, and until `reprove.py 432` finishes after an exclude
 - in fanout_code: fanout.py, reflection.py.
 mstar.py, index.html, progress.py, shepherd.py and the quals are free. Stop the driver only with SIGTERM; the shepherd never relaunches a stopped run. Relaunch by hand with proposal.md's step-7 command. Record a(11) only after reprove.
 The page's ETA starts at minutes and grows: 432's probe floors (about 5e5 LP solves in all) are far below the expected 1e9-3e10, so Gott's rule on the work done dominates for now.
+
+432:12 switched to a random job order (Claude, 2026-10-26 22:20 PDT; dreeves: "ok, good, yeah"). Since then:
+- **Job order:** fanout.py draws each job uniformly at random from the pool of boxes not done, with random.Random(seed). The seed is the session's ordinal and is in its session record.
+- **Probes:** each records every dive's depth (depths).
+- **The switch record:** written by `fanout.py switch N` under the work directory's lock, so only while no session runs. It lets a run continue under changed fanout code: a session's and assembly's code must be the code in force, the header's fanout_code or the last switch's to.
+- **The 432 run:** its journal switched from 79f1038e…309f to 07d16e94…7a6d at 22:19:47. Session 2 (driver PID 33227, seed 2) has run since 22:19:57, with session 1's ~2,900 job files kept. The shepherd adopted the driver.
+- **The watcher:** restarted first, as PID 31885, because the old process held a progress.py that knows neither switch records nor probe depths.
+- **Frozen again:** fanout.py and reflection.py, at the new code. An unrecorded edit still stops the next session; a deliberate one needs the driver stopped with SIGTERM, `fanout.py switch 432`, then the step-7 relaunch.
+- **Quals:**
+  - quals_fanout: an independent replay of the draws; the one-worker sequences re-recorded, since the order changes LP states and so some trees;
+  - quals_fanout_tree: five switch quals, with the 20:5 exclusion and 16:4 witness controls;
+  - quals_fanout_progress: two;
+  - quals_reprove: its forged journal now has a header.
+- **Probe depths:** 300 dives per case never went deeper than 34 levels, while the pool holds boxes 139 levels deep. So Knuth's estimate from them (about 2.5e8 nodes) is unreliable.
+
+Pool estimate for fanout runs (Claude, 2026-10-26 22:53 PDT; dreeves: "sure", to building it). progress.py now estimates fanout's ETA from the pool's random draws, replacing Gott's rule on the cases' work.
+- **The model:** a branching recursion by depth over the sampled jobs, in 4-level bands. A band with no sample borrows its nearest band's, the deeper on a tie.
+- **The total and band:** summed over the latest session's pool, with a 200-replicate bootstrap within bands. The probes' leasts are a floor.
+- **No estimate** without a pool record and a sample, so old-format journals get none.
+- **New journal fields:** fanout.py journals a pool record after each session's walk, and open_depths on each job_end.
+- **432's second switch:** from 07d16e94… to f29b4e7d…b41b at 22:49:32. Session 3 (driver PID 68450, seed 3) has run since 22:49:42. Watcher PID 67917.
+- **The estimate's limits:**
+  - Session 2's 226 draws didn't journal open_depths, so the estimate starts from session 3's.
+  - A preview from session 2's draws, with depths read from its job files (scratch/random432/preview_eta.py), gave a median of 111 days, 90% band 35 to 331.
+  - The bootstrap band covers sampling within bands, not borrowing between them, so early estimates are too narrow.
+- **Quals:**
+  - quals_fanout_progress: eight fanout ETA quals rewritten from Gott's rule to the pool estimate, five added;
+  - quals_allocation_progress: two rewritten (rates through pool_estimate);
+  - quals_fanout: one added (the pool record and open_depths), one updated (the pool record precedes the probes).

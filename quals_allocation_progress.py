@@ -24,6 +24,13 @@ def focus(records, pauses, now=200, state='TN', observations=None, launches=None
         return progress.survey_focus(path, procs, now, observations, launches, pauses=pauses)
 
 
+def drawn_started():
+    """started() as a session drawing at random journals it (fanout.py's since 2026-10-26): its session record's seed 1
+    and job a's open boxes' depths, 2 and 2."""
+    return [dict(r, seed=1) if r['event'] == 'session' else dict(r, open_depths=[2, 2]) if r['event'] == 'job_end' else r
+            for r in started()]
+
+
 class AllocationProgressQuals(unittest.TestCase):
     def test_default_workers_and_each_session_record_the_approved_count(self):
         # Replicata: two mocked runner invocations, first with five workers and then eight.
@@ -49,14 +56,17 @@ class AllocationProgressQuals(unittest.TestCase):
         self.assertEqual([r['workers'] for r in records if r['event'] == 'session'], [5, 8])
 
     def test_five_to_eight_migration_uses_latest_count_and_keeps_rate_history(self):
-        # Replicata: a five-worker header, completed work, then an eight-worker session with no completed new job.
-        # Expectata: the accumulated two LP/s per worker becomes sixteen LP/s; the public snapshot includes eight.
+        # Replicata: a five-worker header, completed work, then an eight-worker session with no completed new job; the
+        # sessions drawing at random and journaling their pools and open boxes' depths (drawn_started), as fanout.py's
+        # have since 2026-10-26.
+        # Expectata: the accumulated two LP/s per worker becomes sixteen LP/s, the rate the pool estimate gets (Lindy's
+        # until 2026-10-26); the public snapshot includes eight.
         # Resultata before the fix: the header's five workers kept the estimate at ten LP/s.
-        records = [dict(r, workers=5) if r['event'] == 'header' else r for r in started()]
-        records += [ev('session', 150, workers=8)]
-        with patch.object(progress, 'lindy_work', return_value=[1, 0.5, 2]) as estimate:
+        records = [dict(r, workers=5) if r['event'] == 'header' else r for r in drawn_started()]
+        records += [ev('session', 150, workers=8, seed=2), ev('pool', 150.5, depths=[[0, 1], [2, 2]])]
+        with patch.object(progress, 'pool_estimate', return_value=[1, 0.5, 2]) as estimate:
             run = survey(records)
-        estimate.assert_called_once_with([], [3610], 1, 16.0)
+        estimate.assert_called_once_with([(1, 10, [2, 2])], {0: 1, 2: 2}, 672, 16.0, 0)
         self.assertEqual(run['workers'], 8)
         data = json.loads(progress.js_text([run], 200).removeprefix('progressData(').removesuffix(');\n'))
         self.assertEqual(data['runs'][0]['workers'], 8)
@@ -65,10 +75,11 @@ class AllocationProgressQuals(unittest.TestCase):
         # Replicata: a modern count followed by an old-format session without that field.
         # Expectata: the explicit legacy format uses the immutable header, rather than retaining a previous session.
         # Resultata before the fix: no session count was exposed.
-        records = started() + [ev('session', 140, workers=8), ev('session', 150)]
-        with patch.object(progress, 'lindy_work', return_value=[1, 0.5, 2]) as estimate:
+        records = drawn_started() + [ev('session', 140, workers=8), ev('session', 150),
+                                     ev('pool', 150.5, depths=[[0, 1], [2, 2]])]
+        with patch.object(progress, 'pool_estimate', return_value=[1, 0.5, 2]) as estimate:
             run = survey(records)
-        estimate.assert_called_once_with([], [3610], 1, 4.0)
+        estimate.assert_called_once_with([(1, 10, [2, 2])], {0: 1, 2: 2}, 672, 4.0, 0)
         self.assertEqual(run['workers'], 2)
 
     def test_invalid_worker_counts_fail_loudly(self):

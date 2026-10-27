@@ -85,7 +85,9 @@ class ReproveQuals(unittest.TestCase):
         # Thue-Morse's meets (brute force, scratch/record-20261025/launch432/treeonly/unique.py), its root split on
         # position 0 by hand (focus.search's first LP solve lands on Thue-Morse itself, a witness); then each root's
         # box given a forged job file, journaled with a job_end of its tree's sha256: a complete tree grown as
-        # fanout.work grows one, but with its W token closed as an L.
+        # fanout.work grows one, but with its W token closed as an L.  The journal begins with a header naming the
+        # fanout code, which assembly requires since 2026-10-26 (the code in force, fanout.py's 'switch'); before,
+        # with no session record, a journal of job_ends alone passed its check of the code.
         # Expectata: assembly accepts the forgery, as it checks only the trees' shape, trusting the workers' exact
         # checks; exactly one forged L box holds a solution, Thue-Morse's; and reprove.run refuses it with an
         # AssertionError naming that box's job and path, no attempt having found a certificate for it.
@@ -94,6 +96,7 @@ class ReproveQuals(unittest.TestCase):
             run = split_once(tmp, prepared, 0)
             work, own, code = Path(tmp, 'fanout'), Path(tmp, 'fanout.jsonl'), focus.fingerprint()
             (work / 'jobs').mkdir(parents=True)
+            fanout.note(own, 'header', fanout_code=fanout.fingerprint())    # the code in force (fanout.py's 'switch')
             roots = fanout.roots(run, work, code)
             fakes = []
             for i, root in enumerate(roots):

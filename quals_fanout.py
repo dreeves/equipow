@@ -2,8 +2,10 @@
 it makes them, its job files keeping only the trees, which assembly fits together (2026-10-25, in place of splicing
 the proof back as focus.py chunks: quals_fanout_tree).  Run with PYTHONPATH=scratch/lower24-design/beyond1000/pylib
 /opt/homebrew/bin/python3 -B -m unittest quals_fanout."""
+import collections
 from concurrent.futures import Future
 import fcntl
+import gzip
 import hashlib
 import json
 import math
@@ -307,6 +309,73 @@ class FanoutQuals(unittest.TestCase):
             self.assertTrue(all(e['open'] <= 1 or e['lps'] >= 16 for e in ends), ends)
             self.assertTrue(any(e['lps'] > 4 for e in ends), ends)
 
+    def test_jobs_are_drawn_uniformly_at_random_from_the_pool(self):
+        # Replicata: (20, 5) stopped after 5 LP solves, then fanout with one worker and jobs of at most 4 LP solves; its
+        # journal and job files.
+        # Expectata (dreeves, 2026-10-26: "are we not picking randomly from the gray cells each time to decide which
+        # should be run? (i asked for that a long time ago.) if we did we'd have at least an unbiased estimate", then
+        # "ok, good, yeah" to the change): excluded; the session record's seed 1, its ordinal among the journal's
+        # sessions; and the job_starts in the order of a replay here: a pool of the roots' boxes in the run's order,
+        # each next job at index random.Random(1).randrange(the pool's size), swapped with the pool's last box and taken
+        # from the end, each finished job's open boxes then added at the end in its file's order.  With one worker a
+        # job ends before the next is drawn.  So finished jobs are a uniform sample of the pool's.
+        # Resultata before: jobs ran shallowest first (by the fixed positions of their boxes), ties first come; and
+        # the session record had no seed.
+        with tempfile.TemporaryDirectory() as tmp:
+            prepared = real(20, 5)
+            run, journal = stopped(tmp, prepared, 20, 5, 5)
+            with patch.object(focus, 'prepare', return_value=prepared), patch.multiple(fanout, WORKERS=1, BUDGET=4):
+                outcome = fanout.run(run, Path(tmp, 'fanout'), Path(tmp, 'fanout.jsonl'), 20, 5)
+            self.assertEqual(outcome, 'excluded')
+            log = events(Path(tmp, 'fanout.jsonl'))
+            self.assertEqual([e['seed'] for e in log if e['event'] == 'session'], [1])
+            jobs = {f.name.split('.')[0]: json.loads(gzip.decompress(f.read_bytes()))
+                    for f in Path(tmp, 'fanout', 'jobs').glob('*.json.gz')}
+            pool, rng, order = [fanout.jid(b) for b in fanout.roots(run, Path(tmp, 'fanout'), focus.fingerprint())], \
+                random.Random(1), []
+            while pool:
+                i = rng.randrange(len(pool))
+                pool[i], pool[-1] = pool[-1], pool[i]
+                order.append(pool.pop())
+                pool += [fanout.jid(fanout.key(jobs[order[-1]]['case'], p)) for p in jobs[order[-1]]['open']]
+            self.assertGreater(len(order), 5)
+            self.assertEqual([e['job'] for e in log if e['event'] == 'job_start'], order)
+
+    def test_the_journal_records_the_pool_s_depths_and_each_job_s_open_boxes_depths(self):
+        # Replicata: (20, 5) stopped after 5 LP solves, then fanout with two workers and jobs of at most 4 LP solves,
+        # stopped by an error right after its third job_end, then run again to its finish; its journal and job files.
+        # Expectata (dreeves, 2026-10-26: "sure", to an ETA from the pool's random draws, which needs the depths of the
+        # pool and of the boxes each job hands back): excluded; each session's record followed at once by a pool record
+        # whose depths list [depth, count] pairs, ascending, of the boxes the session's walk found not done: the roots'
+        # depths in the first session, and in the second those of the roots and of the boxes the first session's job
+        # files hand back, less the boxes with files; and each job_end's open_depths the depths of its job file's open
+        # boxes, in their order.
+        # Resultata before: no pool record, and no open_depths.
+        with tempfile.TemporaryDirectory() as tmp:
+            prepared = real(20, 5)
+            run, journal = stopped(tmp, prepared, 20, 5, 5)
+            work, own, real_note = Path(tmp, 'fanout'), Path(tmp, 'fanout.jsonl'), fanout.note
+            def note(path, event, **fields):
+                real_note(path, event, **fields)
+                if [e['event'] for e in events(path)].count('job_end') == 3: raise KeyboardInterrupt
+            with patch.object(focus, 'prepare', return_value=prepared), patch.multiple(fanout, WORKERS=2, BUDGET=4):
+                with patch.object(fanout, 'note', note), self.assertRaises(KeyboardInterrupt):
+                    fanout.run(run, work, own, 20, 5)
+                first = {f.name.split('.')[0]: json.loads(gzip.decompress(f.read_bytes())) for f in Path(work, 'jobs').glob('*.json.gz')}
+                self.assertEqual(fanout.run(run, work, own, 20, 5), 'excluded')
+            log = events(own)
+            roots = fanout.roots(run, work, focus.fingerprint())
+            done = {fanout.key(d['case'], d['path']) for d in first.values()}
+            waiting = [b for b in roots if b not in done] + [fanout.key(d['case'], p) for d in first.values()
+                                                              for p in d['open'] if fanout.key(d['case'], p) not in done]
+            histogram = lambda boxes: [[d, c] for d, c in sorted(collections.Counter(len(b[1]) for b in boxes).items())]
+            sessions = [i for i, e in enumerate(log) if e['event'] == 'session']
+            self.assertEqual([log[i + 1]['event'] for i in sessions], ['pool', 'pool'])
+            self.assertEqual([log[i + 1]['depths'] for i in sessions], [histogram(roots), histogram(waiting)])
+            jobs = {f.name.split('.')[0]: json.loads(gzip.decompress(f.read_bytes())) for f in Path(work, 'jobs').glob('*.json.gz')}
+            ends = [e for e in log if e['event'] == 'job_end']
+            self.assertTrue(ends and all(e['open_depths'] == [len(p) for p in jobs[e['job']]['open']] for e in ends))
+
     def test_a_stop_signal_takes_the_workers_down_too(self):
         # Replicata: a child process of this one (a stand-in for a worker), then fanout's handler of SIGTERM called as
         # the signal would call it.
@@ -349,11 +418,14 @@ class FanoutQuals(unittest.TestCase):
     def test_a_session_journals_one_probe_per_case_before_its_first_job(self):
         # Replicata: unpaired()'s two cases, stopped after 1 LP solve, so that both have LP work to do, then fanout.
         # Expectata (2026-10-25: random dives put 672:13 at >= 1e13 LP solves when the page's ETA said 17 h): between
-        # the session record and the first job_start, one probe record per case, 0 then 1, each with its event, time,
+        # the session record and the first job_start, the session's pool record (since 2026-10-26) and then one probe
+        # record per case, 0 then 1, each with its event, time,
         # the driver's pid, case, PROBE_PATHS paths, the mean and standard error of their leaf depths (a standard error
         # above 0, the depths differing), least = floor(2^(mean - 1.645 se + 1)) - 1, and witnesses, none for these
-        # impossible cases; and still excluded.
-        # Resultata before probes: no probe record.
+        # impossible cases; and still excluded.  Since 2026-10-26 (dreeves: "ok, good, yeah", to probes that record
+        # each dive's depth, for Knuth's estimate of a tree's size) also depths: each path's leaf depth, an int, in the
+        # order dived, whose mean and standard error are the record's.
+        # Resultata before probes: no probe record.  Before depths: no depths field.
         with tempfile.TemporaryDirectory() as tmp:
             prepared = unpaired()
             run, journal = stopped(tmp, prepared, 20, 5, 1)
@@ -363,14 +435,21 @@ class FanoutQuals(unittest.TestCase):
             log = events(own)
             session = [e['event'] for e in log].index('session')
             first = [e['event'] for e in log].index('job_start')
-            probes = log[session + 1:first]
+            self.assertEqual([e['event'] for e in log[session + 1:first]], ['pool', 'probe', 'probe'])   # pool: 2026-10-26
+            probes = log[session + 2:first]
             self.assertEqual([p['case'] for p in probes], [0, 1])
             for p in probes:
-                self.assertEqual(set(p), {'event', 'time', 'pid', 'case', 'paths', 'mean', 'se', 'least', 'witnesses'})
+                self.assertEqual(set(p), {'event', 'time', 'pid', 'case', 'paths', 'mean', 'se', 'least', 'witnesses',
+                                          'depths'})
                 self.assertEqual((p['event'], p['pid'], p['paths'], p['witnesses']),
                                  ('probe', log[session]['pid'], fanout.PROBE_PATHS, []))
                 self.assertTrue(0 <= p['mean'] <= 20 and 0 < p['se'] < p['mean'], p)
                 self.assertEqual(p['least'], math.floor(2 ** (p['mean'] - 1.645 * p['se'] + 1)) - 1)
+                d = p['depths']
+                self.assertTrue(len(d) == p['paths'] and all(type(x) is int and 0 <= x <= 20 for x in d), d)
+                mean = sum(d) / len(d)
+                self.assertEqual(p['mean'], mean)
+                self.assertEqual(p['se'], math.sqrt(sum((x - mean) ** 2 for x in d) / (len(d) - 1) / len(d)))
             self.assertEqual([e['event'] for e in log].count('probe'), 2)
 
     def test_every_probe_s_least_is_at_most_its_case_s_lp_solves(self):
@@ -520,7 +599,11 @@ class FanoutQuals(unittest.TestCase):
         # Green before the change too, as recorded from it, and red under a farm whose ties go the other way, the last
         # of equally deep boxes put on the heap going first (scratch/record-20261025/pack/heap/mutant.py).  With 2
         # workers, timing decides which worker takes which job, so two runs of the same code can differ
-        # (scratch/record-20261025/pack/heap/logs/determinism.log).
+        # (scratch/record-20261025/pack/heap/logs/determinism.log).  Re-recorded the same night under the random job
+        # order (dreeves: "ok, good, yeah"), the same in two runs (scratch/random432/pinned.py): the order changes each
+        # worker's LP state and so some trees, (20, 5) reproven at 42 nodes and 22 leaves where it had 46 and 24, and
+        # (16, 4) ends at Thue-Morse's negation, the same partition; the draws themselves are pinned by
+        # test_jobs_are_drawn_uniformly_at_random_from_the_pool.
         with tempfile.TemporaryDirectory() as tmp:
             prepared = real(20, 5)
             outcome, run, work, own = self.resumed(tmp, prepared, 20, 5, 5, 3)
@@ -531,18 +614,18 @@ class FanoutQuals(unittest.TestCase):
             print(json.dumps(dict(n=20, order=5, **made)), flush=True)
             self.assertEqual(made, dict(
                 outcome='excluded', starts=19, ends=19,
-                starts_sha256='af560130d2c9970be74fd958642a948d53d93ba43def2371362b49964440504b',
-                ends_sha256='c27b80d7e541b115984be9fec16e1a383f51da5bd6a8391edbb695fc43b16e7c',
-                reproven=dict(jobs=19, nodes=46, leaves=24, attempts=dict(warm=24, cold=0, primal=0))))
+                starts_sha256='e555cb6195ba73d6c2084395c56f1a9149de83590042e3c43a067f857903a085',
+                ends_sha256='bfc03c802174cfc9b11e8583a4dd9481135ae93ac6687e593dadf1893d484725',
+                reproven=dict(jobs=19, nodes=42, leaves=22, attempts=dict(warm=22, cold=0, primal=0))))
         with tempfile.TemporaryDirectory() as tmp:
             outcome, run, work, own = self.resumed(tmp, real(16, 4), 16, 4, 3, 2)
             made = dict(outcome=outcome, **sequences(own), witness=events(own)[-1]['witness'])
             print(json.dumps(dict(n=16, order=4, **made)), flush=True)
             self.assertEqual(made, dict(
-                outcome='witness', starts=10, ends=10,
-                starts_sha256='5792115425923a89eb2b1ab1c14ef2d07cc8c88bf0f2be4017732f936cdf1fcf',
-                ends_sha256='b8b30e7d2696922e8977c870290ebd2e0b7b375818a105af1c0c6cecb936f9fd',
-                witness=[p.bit_count() % 2 for p in range(16)]))      # Thue-Morse, 0110100110010110
+                outcome='witness', starts=9, ends=9,
+                starts_sha256='f9a5e381793b018b5b4147d6d6439b8da203970272673a65d59487828a737fec',
+                ends_sha256='ebbe8d7abf6fd097eeba9cf857930eecaa01e549878b55632194fe8304eb3576',
+                witness=[1 - p.bit_count() % 2 for p in range(16)]))  # Thue-Morse negated, 1001011001101001
 
     def test_assembly_s_memory_does_not_grow_with_the_journal(self):
         # Replicata: fanout on (20, 5) to its finish after its 5-solve stop; fanout.assemble on it, as fanout.run calls

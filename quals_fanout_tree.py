@@ -4,6 +4,7 @@ the trees fit together, in place of the splice's replay of certificates.  TrustQ
 (2026-10-25), qualify what else a verdict rests on.  Run with
 PYTHONPATH=scratch/lower24-design/beyond1000/pylib /opt/homebrew/bin/python3 -B -m unittest quals_fanout_tree."""
 import contextlib
+import fcntl
 import gzip
 import hashlib
 import json
@@ -440,6 +441,125 @@ class TrustQuals(unittest.TestCase):
                 copy.write_bytes(copy.read_bytes() + b'\n')
                 self.refused_at(lambda: finish(tmp, run, journal, prepared, 20, 5), ('run', 'for k in same'))
             self.assertEqual(Path(tmp, 'fanout.jsonl').read_text(), before)
+
+    @contextlib.contextmanager
+    def copied(self, tmp):
+        """Copies of fanout.py and reflection.py in tmp, fanout.__file__ pointed at the copy of fanout.py (as
+        test_a_session_under_other_fanout_code_is_refused_at_its_start does): the copy's path."""
+        for module in (fanout, reflection):
+            shutil.copyfile(module.__file__, Path(tmp, Path(module.__file__).name))
+        with patch.object(fanout, '__file__', str(Path(tmp, 'fanout.py'))):
+            yield Path(tmp, 'fanout.py')
+
+    def switched(self, tmp, n, m, stop, ends):
+        """Under copied: focus.py's run of (n, m) stopped after stop LP solves; fanout stopped by an error right after
+        its ends-th job_end; the copy of fanout.py changed by a byte; fanout.switch on the run; then fanout to its
+        finish.  Its outcome, journal path and the fanout code before and after the change."""
+        prepared = real(n, m)
+        run, journal = stopped(tmp, prepared, n, m, stop)
+        with self.copied(tmp) as copy:
+            before = fanout.fingerprint()
+            self.interrupted(tmp, run, journal, prepared, n, m, ends)
+            copy.write_bytes(copy.read_bytes() + b'\n')
+            fanout.switch(Path(tmp, 'fanout'), Path(tmp, 'fanout.jsonl'))
+            outcome = finish(tmp, run, journal, prepared, n, m)[0]
+            return outcome, Path(tmp, 'fanout.jsonl'), before, fanout.fingerprint()
+
+    def test_a_recorded_switch_lets_the_run_go_on_under_the_new_code(self):
+        # Replicata: switched on (20, 5), stopped after 5 LP solves and after fanout's second job_end; and on (16, 4),
+        # stopped after 3 LP solves and after its first job_end (its witness may end a job as early as its second).
+        # Expectata (dreeves, 2026-10-26: "ok, good, yeah", to switching 432:12 to a random job order without losing the
+        # jobs done): (20, 5) excluded, and assembled under the code after; (16, 4) a witness, Thue-Morse or its
+        # negation (Thue-Morse is the only partition of order 4 at 16, BGPW); each journal
+        # with its header and first session under the code before, then one switch record from it to the code after
+        # (from, to), then a session under the code after, which starts none of the jobs the first session finished.
+        # Resultata before: no switch existed, so the second session was refused at its start, as an edit with no switch
+        # still is (test_a_session_under_other_fanout_code_is_refused_at_its_start).
+        for n, m, stop, ends, want in ((20, 5, 5, 2, 'excluded'), (16, 4, 3, 1, 'witness')):
+            with self.subTest(n=n), tempfile.TemporaryDirectory() as tmp:
+                outcome, own, before, after = self.switched(tmp, n, m, stop, ends)
+                self.assertEqual(outcome, want)
+                self.assertNotEqual(before, after)
+                log = events(own)
+                marks = [(e['event'], e.get('fanout_code'), e.get('from'), e.get('to')) for e in log
+                         if e['event'] in ('header', 'session', 'switch')]
+                self.assertEqual(marks, [('header', before, None, None), ('session', before, None, None),
+                                         ('switch', None, before, after), ('session', after, None, None)])
+                cut = [e['event'] for e in log].index('switch')
+                done = {e['job'] for e in log[:cut] if e['event'] == 'job_end'}
+                self.assertEqual(len(done), ends)
+                self.assertFalse(done & {e['job'] for e in log[cut:] if e['event'] == 'job_start'})
+                self.assertEqual(log[-1]['event'], 'finish')
+                tm = [p.bit_count() % 2 for p in range(16)]          # order 4 at 16: Thue-Morse or its negation only
+                if want == 'witness': self.assertIn(log[-1]['witness'], (tm, [1 - t for t in tm]))
+
+    def test_a_switch_from_other_code_than_the_run_s_is_refused_at_the_next_start(self):
+        # Replicata: as switched on (20, 5), but the switch record's from made another code's before fanout runs again
+        # (a forged switch, or one made for another run).
+        # Expectata: AssertionError in stands, at its check of each switch's from, and no record added.
+        with tempfile.TemporaryDirectory() as tmp:
+            prepared = real(20, 5)
+            run, journal = stopped(tmp, prepared, 20, 5, 5)
+            with self.copied(tmp) as copy:
+                self.interrupted(tmp, run, journal, prepared, 20, 5, 2)
+                copy.write_bytes(copy.read_bytes() + b'\n')
+                own = Path(tmp, 'fanout.jsonl')
+                fanout.switch(Path(tmp, 'fanout'), own)
+                own.write_text(''.join(json.dumps(dict(r, **{'from': '0' * 64}) if r['event'] == 'switch' else r) + '\n'
+                                       for r in events(own)))
+                before = own.read_text()
+                self.refused_at(lambda: finish(tmp, run, journal, prepared, 20, 5), ('stands', "r['from'] == code"))
+            self.assertEqual(own.read_text(), before)
+
+    def test_a_switch_to_the_code_in_force_is_refused(self):
+        # Replicata: (20, 5) stopped after 5 LP solves, fanout stopped after its second job_end; then fanout.switch with
+        # fanout.py unchanged.
+        # Expectata: AssertionError in switch (a switch to the code in force would record no change), and the journal
+        # unchanged.
+        with tempfile.TemporaryDirectory() as tmp:
+            prepared = real(20, 5)
+            run, journal = stopped(tmp, prepared, 20, 5, 5)
+            self.interrupted(tmp, run, journal, prepared, 20, 5, 2)
+            own = Path(tmp, 'fanout.jsonl')
+            before = own.read_text()
+            self.refused_at(lambda: fanout.switch(Path(tmp, 'fanout'), own), ('switch', 'before != code'))
+            self.assertEqual(own.read_text(), before)
+
+    def test_a_switch_waits_for_no_session(self):
+        # Replicata: (20, 5) stopped after 5 LP solves, fanout stopped after its second job_end, the copy of fanout.py
+        # changed by a byte; then fanout.switch while this process holds the work directory's lock, as a session does.
+        # Expectata: BlockingIOError (the lock refused: no switch under a running session), and the journal unchanged.
+        with tempfile.TemporaryDirectory() as tmp:
+            prepared = real(20, 5)
+            run, journal = stopped(tmp, prepared, 20, 5, 5)
+            with self.copied(tmp) as copy:
+                self.interrupted(tmp, run, journal, prepared, 20, 5, 2)
+                copy.write_bytes(copy.read_bytes() + b'\n')
+                own = Path(tmp, 'fanout.jsonl')
+                before = own.read_text()
+                with open(Path(tmp, 'fanout', 'lock'), 'a') as held:
+                    fcntl.flock(held, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    with self.assertRaises(BlockingIOError):
+                        fanout.switch(Path(tmp, 'fanout'), own)
+            self.assertEqual(own.read_text(), before)
+
+    def test_a_session_claiming_the_code_after_a_switch_before_it_is_refused_by_assembly(self):
+        # Replicata: switched on (20, 5), excluded; then its first session's record given the code after the switch, as
+        # if the first session had run it.
+        # Expectata: AssertionError in assemble, at its check that each session ran the code in force at its place in
+        # the journal ("r['fanout_code']"): a session before a switch ran the code the switch is from.
+        with tempfile.TemporaryDirectory() as tmp:
+            outcome, own, before, after = self.switched(tmp, 20, 5, 5, 2)
+            self.assertEqual(outcome, 'excluded')
+            log = events(own)
+            first = [e['event'] for e in log].index('session')
+            own.write_text(''.join(json.dumps(dict(r, fanout_code=after) if i == first else r) + '\n'
+                                   for i, r in enumerate(log)))
+            with self.copied(tmp):
+                Path(tmp, 'fanout.py').write_bytes(Path(tmp, 'fanout.py').read_bytes() + b'\n')
+                self.assertEqual(fanout.fingerprint(), after)
+                self.refused_at(lambda: assembled(Path(tmp, 'run'), Path(tmp, 'fanout'), own, real(20, 5)),
+                                ('assemble', "r['fanout_code']"))
 
     def test_a_witness_file_is_checked_exactly_before_the_finish(self):
         # Replicata: (20, 5), impossible (m*(20) = 3), stopped after 5 LP solves; a job file on its first root, as

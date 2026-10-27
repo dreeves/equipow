@@ -137,12 +137,25 @@ The estimate's model, its terms defined once here (overnight_v5.py's search() is
               point is certain, added to every draw; the censoring point counts as a time seen (lindy_draws's longest
               seen).  A least below the work so far changes nothing.  (2026-10-25: with no case done, Gott's rule alone
               put 672:13's median to go at its work so far, 17 h, when random paths put its tree at >= 1e13 LP solves.)
+  pool estimate  the ETA of fanout.py's runs since 2026-10-26 (dreeves: "sure", to an ETA from the pool's random draws,
+              in place of Lindy on the cases' work, which knew nothing of the pool).  Its samples: the jobs that recorded
+              their open boxes' depths (open_depths), each a uniform random draw from the pool (fanout.py's 'job'):
+              (depth, LP solves, open boxes' depths).  The pool now: the latest session's pool record, less the depths
+              of its jobs done, plus their open boxes' (its running jobs among the boxes left).  E[T(d)], the expected LP
+              solves of a box at depth d and of every box it leaves open, solves E[T(d)] = mean over the samples s of
+              d's band (BAND levels) of (s's LP solves + the sum over s's open boxes of E[T(d + their depth - s's)]),
+              from depth n down, 0 past n; a band with no sample takes the nearest band's that has one, the deeper on a
+              tie.  The estimate: the sum over the pool of E[T(d)], at least the probes' floor (each open case's least
+              less its work so far, summed), over the pool's rate; its median and band the median and QUANTILES of BOOT
+              replicates, each band's samples resampled (a bootstrap: the uncertainty of the bands' means, not of the
+              process itself, whose sum over thousands of boxes varies less).  None until the session has a pool record,
+              a sample and a box.
 The data file says when the snapshot was made, to the second, and the section keeps its age up to date.  Per run it
 gives the state, the hours of running so far and to go, the record of ETAs and the sea (see js_text).
 """
 import sys
 sys.dont_write_bytecode = True
-import os, re, json, time, bisect, itertools, subprocess, collections, glob
+import os, re, json, math, time, bisect, itertools, subprocess, collections, glob
 import numpy as np
 import overnight_v5 as v5
 import boxsplit as bx
@@ -982,16 +995,59 @@ def lindy_work(walls, ages, pending, rate):
     return quantiles(sum(rests + sizes) / rate / HOUR)
 
 
+BAND = 4                               # depth levels in a band of the pool estimate's samples (see the vocabulary)
+BOOT = 200                             # its bootstrap replicates
+
+
+def pool_estimate(samples, pool, n, rate, floor):
+    """The pool estimate (see the vocabulary) as [median, lo, hi] hours to go: samples [(depth, LP solves, open boxes'
+    depths)], pool {depth: boxes}, n the deepest a box can be, rate the pool's LP solves a second, floor the LP solves
+    every draw is at least."""
+    assert samples and pool and max(pool) <= n and rate > 0
+    rng = np.random.default_rng(SEED)
+    bands = sorted({d // BAND for d, _, _ in samples})
+    near = [min(bands, key=lambda b: (abs(b - d // BAND), -b)) for d in range(n + 1)]   # the deeper on a tie
+    width = 1 + max([o - d for d, _, opened in samples for o in opened], default=0)
+    means = {}                          # each band's BOOT replicates of its mean LP solves and open boxes per depth below
+    for b in bands:
+        own = [(d, c, opened) for d, c, opened in samples if d // BAND == b]
+        below = np.zeros((len(own), width))
+        for i, (d, _, opened) in enumerate(own):
+            np.add.at(below[i], [o - d for o in opened], 1)
+        weights = rng.multinomial(len(own), np.full(len(own), 1 / len(own)), size=BOOT) / len(own)
+        means[b] = (weights @ np.array([c for _, c, _ in own], dtype=float), weights @ below)
+    T = np.zeros((BOOT, n + 1 + width))                 # T[:, d]: E[T(d)] in each replicate; 0 past n
+    for d in range(n, -1, -1):
+        cost, below = means[near[d]]
+        T[:, d] = cost + (below * T[:, d:d + width]).sum(axis=1)
+    total = sum(count * T[:, d] for d, count in pool.items())
+    return quantiles(np.maximum(total, floor) / rate / HOUR)
+
+
 def to_go_of(eta):
     """A recorded ETA ([median, lo, hi] hours, or None) as the data file's to_go ({median, lo, hi} seconds, or None)."""
     return None if eta is None else dict(zip(('median', 'lo', 'hi'), (h * HOUR for h in eta)))
 
 
+PROBE = {'event', 'time', 'pid', 'case', 'paths', 'mean', 'se', 'least', 'witnesses'}   # a probe record's fields
+
+
+def depths_fit(r):
+    """Whether a probe record's depths (fanout.py's since 2026-10-26) are an int from 0 up for each of its paths, whose
+    mean and standard error, computed as fanout.probe computes them, are the record's."""
+    d = r['depths']
+    shaped = type(d) is list and len(d) == r['paths'] and all(type(x) is int and x >= 0 for x in d)
+    return shaped and r['mean'] == sum(d) / len(d) and r['se'] == math.sqrt(
+        sum((x - sum(d) / len(d)) ** 2 for x in d) / (len(d) - 1) / len(d))
+
+
 def probe_least(r, cases, n):
     """A probe record's least (see the vocabulary), its fields checked: its case one of cases, at least 2 paths, its
     leaf depths' mean and standard error finite and not negative, least as fanout.least makes it from them, and each
-    witness a 0/1 list of length n."""
-    assert set(r) == {'event', 'time', 'pid', 'case', 'paths', 'mean', 'se', 'least', 'witnesses'}, r
+    witness a 0/1 list of length n; and since 2026-10-26 its depths, if it has them (fanout.py's probes record each
+    path's), one int from 0 up for each path, whose mean and standard error, computed as fanout.probe computes them, are
+    the record's."""
+    assert set(r) in (PROBE, PROBE | {'depths'}), r
     assert type(r['case']) is int and r['case'] in cases, r
     assert type(r['paths']) is int and r['paths'] >= 2, r
     assert all(type(r[k]) in (int, float) and 0 <= r[k] < np.inf for k in ('mean', 'se')), r
@@ -999,6 +1055,7 @@ def probe_least(r, cases, n):
     assert type(r['witnesses']) is list, r
     assert all(type(x) is list and len(x) == n and all(type(t) is int and t in (0, 1) for t in x)
                for x in r['witnesses']), r
+    assert 'depths' not in r or depths_fit(r), r
     return r['least']
 
 
@@ -1331,11 +1388,11 @@ def survey_focus(path, procs, now=None, observations=None, launches=None, pauses
 def survey_fanout(path, procs, now=None, observations=None, launches=None):
     """fanout.py's journal (see fanout.py's vocabulary): its spans of running as survey_focus's; a dot per job, grouped
     by root (keyed case:depth): split (done, leaving boxes open), settled (done, none open), running, then pending (a
-    root not started, a box left open and not started, or a job whose driver is gone); and while running, an ETA:
-    lindy_work on the cases' work in LP solves (the run's own before fanout counted to its case then; a case done when
-    every dot of its roots is; with none done, Lindy), at the pool's rate, a worker's LP solves a second over the jobs
-    done times the workers; none before a job is done (dreeves, 2026-10-23: "Can we throw more compute at 672:13?").
-    Each open case is drawn above its latest probe's least (see the vocabulary)."""
+    root not started, a box left open and not started, or a job whose driver is gone); and while running, an ETA: the
+    pool estimate (see the vocabulary), at the pool's rate, a worker's LP solves a second over the jobs done times the
+    workers (dreeves, 2026-10-23: "Can we throw more compute at 672:13?"); its floor each open case's latest probe's
+    least less the case's work so far (the run's own before fanout counted to its case; a case done when every dot of
+    its roots is)."""
     records = [json.loads(line) for line in complete_lines(path)]
     now = time.time() if now is None else now
     observations = {} if observations is None else observations
@@ -1349,6 +1406,7 @@ def survey_fanout(path, procs, now=None, observations=None, launches=None):
     sight(main, launches, now)
     spans, pids, starts, ends, finish, reflections, worker_counts = [], [], {}, {}, [], {}, []
     leasts = {}                         # each probed case's latest least, LP solves
+    sessions = []                       # each session's seed, pool record (depths, by depth) and jobs done, in order
 
     def session(r, t):
         # Legacy sessions use the header count; every new session records its own allocation.
@@ -1365,6 +1423,7 @@ def survey_fanout(path, procs, now=None, observations=None, launches=None):
         assert not set(reflections) & set(reflections.values())
         spans.append([t, t])
         pids.append(str(r['pid']))
+        sessions.append(dict(seed=r.get('seed'), pool=None, ends=[]))
 
     def job_start(r, t):
         assert 0 <= r['root'] < roots and cases_of[r['root']] == r['case'], r
@@ -1372,13 +1431,30 @@ def survey_fanout(path, procs, now=None, observations=None, launches=None):
 
     def job_end(r, t):
         assert starts.get(r['job'], {}).get('root') == r['root'] and r['lps'] >= 0 and r['open'] >= 0, r
+        # open_depths (fanout.py's since 2026-10-26) only in a session that drew at random, each box deeper than its job's
+        assert 'open_depths' not in r or (type(sessions[-1]['seed']) is int and type(r['open_depths']) is list
+                                          and len(r['open_depths']) == r['open'] and all(
+                                              type(o) is int and o > starts[r['job']]['depth'] for o in r['open_depths'])), r
         ends[r['job']] = r
+        sessions[-1]['ends'].append(r)
 
     def probe(r, t):
         assert str(r['pid']) == pids[-1], r                     # its session's driver's
         leasts[r['case']] = probe_least(r, cases_of, header['n'])
 
-    handlers = dict(session=session, job_start=job_start, job_end=job_end, probe=probe,
+    def pool(r, t):                        # fanout.py's pool record (since 2026-10-26): its session's, once
+        assert str(r['pid']) == pids[-1] and sessions[-1]['pool'] is None and set(r) == {'event', 'time', 'pid', 'depths'}, r
+        d = r['depths']
+        assert type(d) is list and all(type(x) is list and len(x) == 2 and all(type(v) is int for v in x) and x[0] >= 0
+                                       and x[1] >= 1 for x in d) and [x[0] for x in d] == sorted({x[0] for x in d}), r
+        sessions[-1]['pool'] = collections.Counter(dict(map(tuple, d)))
+
+    def switch(r, t):                      # fanout.py's switch, between sessions: a span of no length, its writer's
+        assert set(r) == {'event', 'time', 'pid', 'from', 'to'}, r
+        spans.append([t, t])
+        pids.append(str(r['pid']))
+
+    handlers = dict(session=session, job_start=job_start, job_end=job_end, probe=probe, switch=switch, pool=pool,
                     finish=lambda r, t: finish.append(r))
     previous = header['time']
     for r in records[1:]:
@@ -1407,15 +1483,20 @@ def survey_fanout(path, procs, now=None, observations=None, launches=None):
     work = {c: header['prefix_lp'] * (c == header['prefix_case']) + sum(e['lps'] for e in ends.values() if e['case'] == c)
             for c in cases}
     complete = {c for c in cases if all(set(g) <= {'0', '2'} for g, k in zip(groups, cases_of) if k == c)}
-    walls = [work[c] for c in cases if c in complete]
-    least = {c: -np.inf for c in cases} | leasts
-    points, certain = censored([(work[c], least[c]) for c in cases if c not in complete])
-    ages = [p for p in points if p > 0]                 # a case with work done or a least above 0: drawn censored
-    pending = len(points) - len(ages)
+    floor = sum(max(0, leasts.get(c, 0) - work[c]) for c in cases if c not in complete)
+    samples = [(starts[e['job']]['depth'], e['lps'], e['open_depths']) for e in ends.values() if 'open_depths' in e]
+    latest = sessions[-1] if sessions else dict(pool=None, ends=[])
+    held = collections.Counter(latest['pool'] or {})
+    for e in latest['ends']:                # the latest session's jobs done: each its box out, its open boxes in
+        held[starts[e['job']]['depth']] -= 1
+        held.update(e.get('open_depths', []))
+    # TODO: error copy; says the pool of fanout's run would hold fewer than no boxes at some depth, giving the counts
+    assert latest['pool'] is None or min(held.values(), default=0) >= 0, f'Claude: "a pool count below 0: {dict(held)}"'
+    held = {d: c for d, c in sorted(held.items()) if c}
     seconds = sum(e['seconds'] for e in ends.values())
-    def estimate(rate): return [h + certain / rate / HOUR for h in lindy_work(walls, ages, pending, rate)]
-    eta = (estimate(sum(e['lps'] for e in ends.values()) / seconds * worker_counts[-1])
-           if status == 'running' and seconds > 0 and (ages or pending) and max([*walls, *ages], default=0) > 0 else None)
+    eta = (pool_estimate(samples, held, header['n'], sum(e['lps'] for e in ends.values()) / seconds * worker_counts[-1],
+                         floor)
+           if status == 'running' and latest['pool'] is not None and samples and held and seconds > 0 else None)
     if status == 'running':
         observations[str(float(now))] = eta
     return dict(program='fanout.py', n=header['n'], order=header['order'], made=now, state=status, workers=worker_counts[-1],
