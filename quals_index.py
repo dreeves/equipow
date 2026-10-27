@@ -17,7 +17,7 @@ reader sees.
 """
 import sys
 sys.dont_write_bytecode = True
-import os, re, json, html, html.parser, math, time, shutil, signal, datetime, zoneinfo, tempfile, threading, traceback, subprocess
+import os, re, json, html, html.parser, math, time, shutil, signal, datetime, zoneinfo, tempfile, threading, traceback, subprocess, contextlib
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 INDEX = os.path.join(HERE, 'index.html')
@@ -710,8 +710,9 @@ def run(name):
 
 def chrome(d, args, stderr=subprocess.DEVNULL):
     """Headless Chrome with its own profile in directory d: the DOM it dumps.  This Chrome prints the dump and then
-    does not exit, so the dump is read up to </html> and then Chrome's own process group is sent SIGTERM (a watchdog
-    does the same after 600 s, and the dump is then incomplete, which the caller's assert reports)."""
+    does not exit, so the dump is read up to </html> and then Chrome's own process group is ended (end_group), all of
+    it, before d may go (a watchdog sends it SIGTERM after 600 s, and the dump is then incomplete, which the caller's
+    assert reports)."""
     p = subprocess.Popen([CHROME, '--headless=new', f'--user-data-dir={d}/profile', '--no-first-run',
                           '--no-default-browser-check', '--disable-extensions', *args],
                          stdout=subprocess.PIPE, stderr=stderr, text=True, start_new_session=True)
@@ -723,9 +724,36 @@ def chrome(d, args, stderr=subprocess.DEVNULL):
         out.append(line)
         if '</html>' in line: break
     watchdog.cancel()
-    if p.poll() is None: stop()
-    p.wait(timeout=60)
+    end_group(p)
     return ''.join(out)
+
+
+def alive(pgid):
+    """Whether any process of the process group pgid remains: EPERM says some do, though none may be signalled, as a
+    zombie not yet reaped (macOS)."""
+    try: os.killpg(pgid, 0)
+    except ProcessLookupError: return False
+    except PermissionError: pass
+    return True
+
+
+def gone(pgid, seconds):
+    """Whether the process group pgid is gone, waiting up to seconds for it to be."""
+    end = time.monotonic() + seconds
+    while alive(pgid) and time.monotonic() < end: time.sleep(0.1)
+    return not alive(pgid)
+
+
+def end_group(p, term=10, kill=5):
+    """End the process group that p leads, p started in a session of its own: SIGTERM to the whole group, whether or
+    not p has exited, since Chrome's helpers can outlive its main process for a moment, writing into the profile the
+    caller deletes next (2026-10-26: "Directory not empty", twice); p reaped; then wait until no process of the group
+    remains, SIGKILL after term seconds, and fail loudly if any of it outlives that by kill seconds."""
+    for sig, seconds in ((signal.SIGTERM, term), (signal.SIGKILL, kill)):
+        with contextlib.suppress(ProcessLookupError, PermissionError): os.killpg(p.pid, sig)   # none left, or none signallable
+        with contextlib.suppress(subprocess.TimeoutExpired): p.wait(timeout=seconds)
+        if gone(p.pid, seconds): return
+    raise AssertionError(f'process group {p.pid} outlived SIGKILL')
 
 
 def console_lines():
@@ -1029,6 +1057,35 @@ def q_changelog_starts_closed_and_fits_a_phone():
         assert len(long['lines']) > 1 and close(long['lines'][0], long['left'], 0.5), (width, long)
         assert all(close(x, long['date'], 0.5) for x in long['lines'][1:]), (width, long)
         assert max(closed['wider'], opened['wider'], long['wider']) <= 0, (width, got)
+
+
+def q_chrome_s_whole_process_group_ends_before_its_folder_goes():
+    # Replicata: two process groups in sessions of their own, as chrome() starts Chrome's: one whose leader exits at
+    # once while a member lives on for a second, as Chrome's helpers outlive its main process for a moment; and one
+    # whose members all ignore SIGTERM; each ended by end_group, the first with chrome()'s deadlines, the second with
+    # short ones; and a group whose only member is its leader, exited but not yet reaped, a zombie.
+    # Expectata: each of the first two still has a member once its leader is gone, the race itself; and end_group
+    # returns only when no process of the group remains, the second only after its SIGTERM deadline, by SIGKILL.  The
+    # zombie, which macOS lets no one signal (EPERM), counts as a member until reaped, and end_group ends it too.
+    # Resultata before the zombie's case (2026-10-26, two suites at once): end_group's first version took EPERM, all
+    # that remained of a Chrome being some such member, for an error, "Operation not permitted".
+    # Resultata before (2026-10-26, quals_pow2_page, twice): "Directory not empty" from rmtree, the temporary folder
+    # deleted once Chrome's main process had exited while a helper still wrote into its profile.
+    lingers = subprocess.Popen(['sh', '-c', 'sleep 1 & exit 0'], start_new_session=True)
+    lingers.wait(timeout=10)
+    assert alive(lingers.pid), 'the member did not outlive its leader'
+    end_group(lingers)
+    assert not alive(lingers.pid)
+    stubborn = subprocess.Popen(['sh', '-c', 'trap "" TERM; sleep 30 & wait'], start_new_session=True)
+    time.sleep(0.2)
+    t0 = time.monotonic()
+    end_group(stubborn, term=0.5, kill=5)
+    assert not alive(stubborn.pid) and time.monotonic() - t0 >= 0.5, time.monotonic() - t0
+    zombie = subprocess.Popen(['sh', '-c', 'exit 0'], start_new_session=True)
+    time.sleep(0.3)
+    assert alive(zombie.pid), 'a zombie is no member'
+    end_group(zombie)
+    assert not alive(zombie.pid)
 
 
 def q_scripts_load_data_then_draw():

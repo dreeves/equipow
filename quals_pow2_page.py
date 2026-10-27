@@ -227,15 +227,35 @@ SOURCES = {'real': real, 'kinds': kinds_data} | {v: (lambda v=v: kinds_data(v)) 
 # ---------------------------------------------------------------------------------------------------------------------
 # The browser runs
 
+# Ending a process group by its leader's pid, as DRIVER ends Chrome's: Chrome's helpers stay in its group and can
+# outlive its main process for a moment, writing into the profile that run deletes next (2026-10-26: "Directory not
+# empty", twice).  endGroup sends SIGTERM to the whole group, whether or not its leader has exited, waits until no
+# process of it remains, sends SIGKILL after term ms, and fails loudly if any of it outlives that by kill ms.  ESRCH
+# says none remain; EPERM that some do, though none may be signalled, as a zombie not yet reaped (macOS).
+GROUP_JS = r"""
+const groupSignal = (pid, sig) => { try { process.kill(-pid, sig); } catch (e) { if (e.code !== 'ESRCH' && e.code !== 'EPERM') throw e; } };
+const groupAlive = pid => {
+  try { process.kill(-pid, 0); return true; } catch (e) { if (e.code !== 'ESRCH' && e.code !== 'EPERM') throw e; return e.code === 'EPERM'; }
+};
+const groupGone = async (pid, ms) => {
+  for (const end = Date.now() + ms; groupAlive(pid) && Date.now() < end;) await new Promise(r => setTimeout(r, 100));
+  return !groupAlive(pid);
+};
+const endGroup = async (pid, term = 10000, kill = 5000) => {
+  for (const [sig, ms] of [['SIGTERM', term], ['SIGKILL', kill]]) { groupSignal(pid, sig); if (await groupGone(pid, ms)) return; }
+  throw new Error(`process group ${pid} outlived SIGKILL`);
+};
+"""
+
 DRIVER = r"""
 import { spawn } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+""" + GROUP_JS + r"""
 const C = JSON.parse(readFileSync(0, 'utf8'));
 const chrome = spawn(C.chrome, ['--headless=new', '--remote-debugging-port=0', `--user-data-dir=${C.dir}/profile`,
   '--no-first-run', '--no-default-browser-check', '--disable-extensions', '--hide-scrollbars', 'about:blank'],
   {stdio: 'ignore', detached: true});
-const stop = () => { if (chrome.exitCode === null) process.kill(-chrome.pid, 'SIGTERM'); };
-const watchdog = setTimeout(() => { stop(); process.exit(3); }, 400000);
+const watchdog = setTimeout(() => { groupSignal(chrome.pid, 'SIGTERM'); process.exit(3); }, 400000);
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 // In the page.  TEXT: an element's text, each <sup> written ^(…) and each <sub> _(…).
@@ -415,13 +435,13 @@ async function main() {
   return out;
 }
 
-// The report goes to a file, which a pipe's asynchronous writes could cut short at process.exit.  Chrome is stopped and
-// waited for (up to 10 s), so its profile can be removed.
+// The report goes to a file, which a pipe's asynchronous writes could cut short at process.exit.  Chrome's whole process
+// group is ended (endGroup) before exit, so that run can remove its profile.
 let code = 0;
 try { writeFileSync(`${C.dir}/report.json`, JSON.stringify({pages: await main()})); }
 catch (e) { writeFileSync(`${C.dir}/report.json`, JSON.stringify({error: String(e && e.stack || e)})); code = 1; }
-finally { clearTimeout(watchdog); if (ws) ws.close(); stop(); }
-await Promise.race([new Promise(r => chrome.exitCode === null ? chrome.once('exit', r) : r()), sleep(10000)]);
+finally { clearTimeout(watchdog); if (ws) ws.close(); }
+await endGroup(chrome.pid);
 process.exit(code);
 """
 
@@ -554,6 +574,47 @@ def q_scripts_load_pow2_after_mstar():
     assert text.index('</main>') < text.index('<script src="mstar.js"></script>')
     assert text.count('</script>\n<script src="pow2.js"></script>\n<script>\n') == 1
     assert text.endswith('</script>\n</body>\n</html>\n')
+
+
+def q_driver_ends_chrome_s_whole_process_group():
+    # Replicata: DRIVER's endGroup (GROUP_JS) in node, on two detached process groups: one whose leader exits at once
+    # while a member lives on for a second, as Chrome's helpers outlive its main process for a moment; and one whose
+    # members all ignore SIGTERM, with short deadlines; and a group whose only member is a zombie that its parent, this
+    # qual, does not reap until node is done, with short deadlines.
+    # Expectata: each of the first two still has a member once its leader is gone, the race itself; and endGroup
+    # resolves only when no process of the group remains, the second only after its SIGTERM deadline, by SIGKILL.  The
+    # zombie, which macOS lets no one signal (EPERM), counts as a member: endGroup fails loudly at its deadline, "process
+    # group … outlived SIGKILL", rather than taking EPERM for an error.
+    # Resultata before the zombie's case (2026-10-26, two suites at once): DRIVER exited 1 after writing its report,
+    # endGroup's first version having thrown EPERM when all that remained of a Chrome was some such member.
+    # Resultata before (2026-10-26, twice): "Directory not empty" from run's rmtree, DRIVER having waited only for
+    # Chrome's main process, at most 10 s, while a helper still wrote into its profile.
+    js = ("import { spawn } from 'node:child_process';\n" + GROUP_JS + """
+const start = cmd => spawn('sh', ['-c', cmd], {stdio: 'ignore', detached: true});
+const exited = c => new Promise(r => c.exitCode === null ? c.once('exit', r) : r());
+const lingers = start('sleep 1 & exit 0');
+await exited(lingers);
+const raced = groupAlive(lingers.pid);
+await endGroup(lingers.pid);
+const stubborn = start('trap "" TERM; sleep 30 & wait');
+await new Promise(r => setTimeout(r, 200));
+const t0 = Date.now();
+await endGroup(stubborn.pid, 500, 5000);
+console.log(JSON.stringify({raced, lingers: groupAlive(lingers.pid), stubborn: groupAlive(stubborn.pid), ms: Date.now() - t0}));
+""")
+    p = subprocess.run(['node', '--input-type=module', '-e', js], capture_output=True, text=True, timeout=60)
+    assert p.returncode == 0, p.stderr[-2000:]
+    got = json.loads(p.stdout)
+    assert got['raced'] and not got['lingers'] and not got['stubborn'] and got['ms'] >= 500, got
+    zombie = subprocess.Popen(['sh', '-c', 'exit 0'], start_new_session=True)
+    time.sleep(0.3)
+    js = GROUP_JS + f"""
+console.log(groupAlive({zombie.pid}));
+try {{ await endGroup({zombie.pid}, 300, 300); console.log('ended'); }} catch (e) {{ console.log(e.message); }}
+"""
+    p = subprocess.run(['node', '--input-type=module', '-e', js], capture_output=True, text=True, timeout=60)
+    zombie.wait(timeout=10)
+    assert p.returncode == 0 and p.stdout.split('\n')[:2] == ['true', f'process group {zombie.pid} outlived SIGKILL'], (p.stdout, p.stderr[-500:])
 
 
 def q_inline_script_passes_node_check():
