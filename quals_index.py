@@ -1642,6 +1642,13 @@ def q_symmetric_example_at_528():
     c = a
     while not sum(c): c, k = list(itertools.accumulate(c[:-1])), k + 1
     assert len(a) == 528 and k == 10 and a == a[::-1] and a[0] == 1, (len(a), k)
+    # and its set, under its own name beside the join's SClaude[10][528] (dreeves: "sure to the additional 528
+    # bipartition"): exactly p528's +1 positions, 0 among them, right after SClaude[10][528]
+    sets = re.findall(r'\n(SClaude\w*)\[(\d+)\]\[(\d+)\] = \{([^}]*)\};', page())
+    names = [(name, int(m), int(n)) for name, m, n, _ in sets]
+    i = names.index(('SClaudeSym', 10, 528))
+    assert names[i - 1] == ('SClaude', 10, 528), names
+    assert {int(t) for t in sets[i][3].split(',')} == {p for p, t in enumerate(a) if t == 1}
 
 
 def q_1024_doubled_settles_2_11_and_2_12():

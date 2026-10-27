@@ -248,10 +248,15 @@ FOUND = ((352, 9, '969E4C06F693B61B683699E934D241A6DB4936D7CDA6'),
          (400, 9, 'A70B2F45D60B4BE22CD2DE51B49B4924DB6D26D349A6926DB4'),
          (464, 9, '8EA4DC62B3DF10709957C395683E3A4D369A6F30DA6984D36D86934C26'),
          (496, 9, 'C2BAD83D5017FA285E3D82ED96135DA2394EB48A6D349E6994D349B6D34DA7'))
-# The sets of the page's section "Claude's examples as sets", as (m, n) for SClaude[m][n], in page order
-PAGE_SET_KEYS = ((9, 320), (9, 336), (11, 432), (9, 448), (12, 480), (10, 528), (10, 560), (11, 800),
-                 (10, 592), (10, 608), (10, 656), (11, 848), (11, 880), (11, 896), (11, 928), (11, 944), (11, 976), (11, 992),
-                 (10, 752), (10, 784), (11, 832), (11, 1024), (11, 816))
+# The sets of the page's section "Claude's examples as sets", as (name, m, n) for name[m][n], in page order: SClaude, and
+# since 2026-10-27 SClaudeSym for a second, symmetric example at a length and order SClaude already has (dreeves: "sure to
+# the additional 528 bipartition")
+PAGE_SET_KEYS = (('SClaude', 9, 320), ('SClaude', 9, 336), ('SClaude', 11, 432), ('SClaude', 9, 448),
+                 ('SClaude', 12, 480), ('SClaude', 10, 528), ('SClaudeSym', 10, 528), ('SClaude', 10, 560),
+                 ('SClaude', 11, 800), ('SClaude', 10, 592), ('SClaude', 10, 608), ('SClaude', 10, 656),
+                 ('SClaude', 11, 848), ('SClaude', 11, 880), ('SClaude', 11, 896), ('SClaude', 11, 928),
+                 ('SClaude', 11, 944), ('SClaude', 11, 976), ('SClaude', 11, 992), ('SClaude', 10, 752),
+                 ('SClaude', 10, 784), ('SClaude', 11, 832), ('SClaude', 11, 1024), ('SClaude', 11, 816))
 
 
 def page_n(s):
@@ -282,7 +287,7 @@ UPPER = tuple(range(8, 305, 8)) + tuple(range(320, NMAX + 1, 16))
 def page_sources(html):
     """Table 2, the new results, the codes and the sets, parsed out of index.html and asserted equal to the hand
     copies above.  Returns {'table2': {n: (lo, hi)}, 'new': {n: (lo, hi, who)}, 'codes': [(m, hex)],
-    'sets': [(m, n, set)]}.  The page's tables of class "block" are Table 2's three, then the new results', which since
+    'sets': [(name, m, n, set)]}.  The page's tables of class "block" are Table 2's three, then the new results', which since
     2026-10-27 subsume Table 2: their upper rows, of the lengths UPPER in order, written in digits, then their powers
     of 2, written 2^k, k rising from 3.  Every cell of the new results has a title; a cell titled as the legend's "The
     published paper (2021)" has no provenance class and copies Table 2's entry at its n, and every entry of Table 2
@@ -320,12 +325,14 @@ def page_sources(html):
         hs = re.findall(r'<code>([0-9A-F]+)</code>', block)
         assert len(ms) == len(hs) >= 1, block
         codes += list(zip(ms, hs))
-    sets = [(int(m), int(n), {int(t) for t in body.split(',')})
-            for m, n, body in re.findall(r'SClaude\[(\d+)\]\[(\d+)\] = \{([^}]*)\};', html)]
+    section = re.search(r'<section class="sets">(.*?)</section>', html, re.S)[1]
+    sets = [(name, int(m), int(n), {int(t) for t in body.split(',')})
+            for name, m, n, body in re.findall(r'(\w+)\[(\d+)\]\[(\d+)\] = \{([^}]*)\};', section)]
+    assert section.count(' = {') == len(sets) and {name for name, *_ in sets} <= {'SClaude', 'SClaudeSym'}, sets
     assert table2 == TABLE2, table2
     assert new == NEW, new
     assert codes == [(m, h) for _, m, h in PAGE_CODES], codes
-    assert [(m, n) for m, n, _ in sets] == list(PAGE_SET_KEYS), sets
+    assert [(name, m, n) for name, m, n, _ in sets] == list(PAGE_SET_KEYS), sets
     return {'table2': table2, 'new': new, 'codes': codes, 'sets': sets}
 
 
@@ -405,7 +412,7 @@ def explicit():
                + [('BGPW Table 5', m, from_rp(h, m, n)) for m, n, h in BGPW_T5]
                + [('BGPW Table 5', m, v5.from_hex(h, m)) for (n, m), h in v5_bgpw]
                + [(label, m, v5.from_hex(h, m)) for label, m, h in PAGE_CODES]
-               + [(f'index.html SClaude[{m}][{n}]', m, from_set(S, n)) for m, n, S in src['sets']]
+               + [(f'index.html {name}[{m}][{n}]', m, from_set(S, n)) for name, m, n, S in src['sets']]
                + [(EXAMPLE_LABELS[n, m], m, v5.from_hex(h, m)) for (n, m), h in v5_rest]
                + [('found here', *brute(n)) for n in range(1, BRUTE_MAX + 1) if brute(n)[0] >= 1]
                + [('found here', m, v5.from_hex(h, m)) for n, m, h in FOUND])

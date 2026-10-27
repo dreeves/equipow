@@ -226,7 +226,11 @@ def q_page_parse():
     assert set(who for _, _, who in mstar.NEW.values()) == {'BGPW', 'Claude alone', 'Claude and BGPW', 'Astra alone',
                                                              'Claude and Astra'}
     assert [(m, h) for _, m, h in mstar.PAGE_CODES] == [(m, h) for m, h in src['codes']]
-    assert sorted((m, n) for m, n, _ in src['sets']) == sorted(mstar.PAGE_SET_KEYS)
+    assert sorted((name, m, n) for name, m, n, _ in src['sets']) == sorted(mstar.PAGE_SET_KEYS)
+    # since 2026-10-27 a second order-10 set at 528, the symmetric one (dreeves: "sure to the additional 528 bipartition")
+    assert ('SClaudeSym', 10, 528) in mstar.PAGE_SET_KEYS and ('SClaude', 10, 528) in mstar.PAGE_SET_KEYS
+    sym = mstar.explicit()[528, 'index.html SClaudeSym[10][528]']
+    assert sym == sym[::-1] and exact_order_div(sym) == 10 and sym == mstar.explicit()[528, 'index.html p528']
 
 
 def q_384_settled_by_astra():
@@ -273,6 +277,10 @@ def q_page_parse_is_strict():
         edited = edit_cells(html, n, f)
         expect_assertion(lambda: mstar.page_sources(edited))
     assert mstar.page_sources(html)
+    # and a set the parser does not know by name (since 2026-10-27, when SClaudeSym joined SClaude)
+    i = html.index('SClaudeSym[10][528] = {')
+    renamed = html[:i] + 'SClaudeX' + html[i + len('SClaudeSym'):]
+    expect_assertion(lambda: mstar.page_sources(renamed))
 
 
 def edit_cells(html, n, f):
