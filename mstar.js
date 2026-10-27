@@ -527,7 +527,7 @@ const MSTAR = {"nmax": 1024, "mtop": 16, "cols": [
 [0, 0, ["none"], ["odd"]],
 [1, 1, ["join", 2, 524], ["two"]],
 [0, 0, ["none"], ["odd"]],
-[10, 12, ["example", "index.html SClaude[10][528]"], ["residue", 5]],
+[10, 12, ["example", "index.html p528"], ["residue", 5]],
 [0, 0, ["none"], ["odd"]],
 [1, 1, ["join", 2, 528], ["two"]],
 [0, 0, ["none"], ["odd"]],

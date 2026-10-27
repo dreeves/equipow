@@ -835,7 +835,8 @@ def q_section_follows_table2():
     # Expectata: the page's one <figure> (Table 2) is followed, with only blank lines and comments between, by
     # <section class="mstar" aria-labelledby="mstar-title">, and that by <section class="pow2" (the chart of powers of
     # 2; quals_pow2_page.py holds it to being followed by <section class="remarks">).  In order, the
-    # section holds: the h2 mstar-title; a legend whose swatches are exists, open and impossible, then (since
+    # section holds: a paragraph introducing the chart (dreeves's, which replaced the h2 mstar-title by 2026-10-27);
+    # a legend whose swatches are exists, open and impossible, then (since
     # 2026-10-19) exists ringed in gold for a(m − 1) of OEIS A323395; the reset
     # button; the canvas mstar-chart (height 0 until drawn, focusable, an image with a label); and the readout
     # paragraph mstar-readout, polite live region.  (dreeves's copyedit dropped the caption paragraph.)
@@ -846,7 +847,7 @@ def q_section_follows_table2():
     m = re.match(filler + r'<section class="mstar" aria-labelledby="mstar-title">.*?</section>', after, re.S)
     assert m, after[:400]
     assert re.match(filler + r'<section class="pow2"', after[m.end():], re.S), after[m.end():m.end() + 400]
-    parts = [r'<h2 id="mstar-title">', r'<ul class="legend">', r'<span class="swatch exists" aria-hidden="true">',
+    parts = [r'<p>', r'<ul class="legend">', r'<span class="swatch exists" aria-hidden="true">',
              r'<span class="swatch open" aria-hidden="true">', r'<span class="swatch impossible" aria-hidden="true">',
              r'<span class="swatch exists record" aria-hidden="true">',
              r'</ul>', r'<button type="button" id="mstar-reset" ',
@@ -1282,7 +1283,9 @@ def q_new_results_say_which_lengths():
     m = re.search(r'<div class="scroll">(?:(?!</div>).)*</div>\s*(?:<!--(?:(?!-->).)*-->\s*)*<p>((?:(?!</p>).)*)</p>\s*'
                   r'<div class="scroll">', block, re.S)
     assert m, 'no paragraph between the new results\' frames'
-    said = {int(t) for t in re.findall(r'(?<![\w.])\d+(?![\w.])', re.sub(r'<[^>]+>', '', m.group(1)))}
+    # numbers as words: not part of another word or of a decimal like the 4.1 of Theorem 4.1, but a sentence's final
+    # period may follow one (dreeves's rewording of 2026-10-27 ends a sentence with "304.")
+    said = {int(t) for t in re.findall(r'(?<![\w.])\d+(?!\w)(?!\.\d)', re.sub(r'<[^>]+>', '', m.group(1)))}
     lengths = [n for r in new_block_cells()[0] for n, *_ in r]
     steps = [b - a for a, b in zip(lengths, lengths[1:])]
     turn = lengths[steps.index(16)]
@@ -1620,6 +1623,25 @@ def q_example_at_1024_has_its_entry_code_set_and_cell():
     i = [k for _, k in ns].index('10')
     assert ns[i - 1][1] == '9' and ns[i][0] == ' class="c" title=\'Claude alone\'' and vals[i] == (' class="c"', '11'), (ns, vals)
     assert pow2_data()['cols'][9] == [11, 11, ['joins', [[[1024, 11]]]], ['mstar', ['norm', 3]]], pow2_data()['cols'][9]
+
+
+def q_symmetric_example_at_528():
+    # Replicata: the remarks' entry of 528 and its code blocks, each decoded by the paper's Table 5 convention (the left
+    # half of the signs, 1 = +1, then the rest by (-1)^m symmetry), and synthetic division by x - 1.
+    # Expectata (2026-10-27, dreeves: "sure", to putting a symmetric 528 example on the page; four were found that day
+    # by a lattice search, scratch/sym528): the entry keeps the join's code p192 and adds p528 (m = 10), which decodes
+    # to a symmetric sequence of length 528, exact order 10, +1 at 0.
+    li = re.search(r'<p class="entry"><i>n</i> = 528: .*?</li>', page(), re.S)
+    assert li, 'no entry of 528'
+    codes = re.findall(r'<i>p</i><sub>(\d+)</sub> <span class="nw">\(<i>m</i> = (\d+)\)</span>:</span>\n\s*<code>([0-9A-F]+)</code>',
+                       li.group(0))
+    assert [c[:2] for c in codes] == [('192', '9'), ('528', '10')], codes
+    h = codes[1][2]
+    left = [1 if b == '1' else -1 for b in bin(int(h, 16))[2:].zfill(4 * len(h))]
+    a, k = left + left[::-1], 0
+    c = a
+    while not sum(c): c, k = list(itertools.accumulate(c[:-1])), k + 1
+    assert len(a) == 528 and k == 10 and a == a[::-1] and a[0] == 1, (len(a), k)
 
 
 def q_1024_doubled_settles_2_11_and_2_12():
