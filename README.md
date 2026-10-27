@@ -3,7 +3,9 @@ EquipowerfulPackage.m is a Mathematica package by Stan Wagon.
 Up next: 
 * Interactive
 * Change "excess e" to delta unless e is following precedent from BGPW
-
+* Gold trim for the powers-of-2 chart to highlight the values in the theorem
+* Put the powers-of-2 chart between the normal chart and the theorem statement
+* Would these charts look better with a full grid instead of just horizontal lines separating the rows?
 
 Stan notes:
 
