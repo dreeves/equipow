@@ -58,7 +58,7 @@ The two lemmas behind hi (each checked against brute force by quals_mstar.py):
         <= p sum_r size(p, r)^2 (f(1) = 0 for m >= 1), and by AM-GM, N^2 <= (p sum_r size(p, r)^2 / (p-1))^(p-1).
 
 The data contract.  mstar.js is a classic script (no modules, so the page also works from file://) defining one global:
-    const MSTAR = {"nmax": 1000, "mtop": T, "cols": [[lo, hi, loWhy, hiWhy], ...]};
+    const MSTAR = {"nmax": 1024, "mtop": T, "cols": [[lo, hi, loWhy, hiWhy], ...]};
 cols[n-1] is column n.  0 <= lo <= hi < T = max hi + 1.  Cell (n, m), m = 1..T, is green when m <= lo, gray when
 lo < m <= hi, and red when m > hi; row T is red in every column.
   loWhy  ["none"] (lo = 0, n odd); ["example", label] (an explicit sequence of length n, label saying where it is
@@ -88,10 +88,11 @@ import overnight_v5 as v5                    # read only: EXAMPLES and from_hex
 # below and for the other callers of mstar.residue_vectors.
 from residues import digits, SWEEPS, lattice, basis, Capped, Budget, residue_vectors
 
-NMAX = 1000
+NMAX = 1024                                  # 1000 until 2026-10-27 (dreeves, relaying Stan Wagon: "could the table and
+                                             # the chart go up to 1024 as the natural stopping point, instead of 1000?")
 BRUTE_MAX = 32                               # brute force decides m*(n) for n up to this
-PRIMES = tuple(sp.primerange(2, 32))         # the norm lemma's primes (the least prime not dividing a given n <= 1000
-                                             # is at most 11)
+PRIMES = tuple(sp.primerange(2, 32))         # the norm lemma's primes (the least prime not dividing a given n <= NMAX
+                                             # is at most 11, since 2 * 3 * 5 * 7 * 11 = 2310)
 RESIDUE_CAP = 10 ** 7                        # nodes allowed to the enumeration of one claim (the largest, 624 mod 25,
                                              # takes about 670000)
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -179,6 +180,7 @@ NEW = {240: (10, 10, 'Claude alone'),
        960: (13, 15, 'Claude alone'),
        976: (11, 11, 'Claude alone'),
        992: (11, 11, 'Claude alone'),
+       1008: (10, 13, 'Claude alone'),
        2 ** 10: (11, 11, 'Claude alone'), 2 ** 11: (12, 12, 'Claude alone'), 2 ** 12: (13, 13, 'Claude alone'),
        2 ** 17: (18, 20, 'Claude alone'), 2 ** 18: (19, 21, 'Claude alone'),
        2 ** 20: (22, 23, 'Claude alone'), 2 ** 24: (26, 29, 'Claude and BGPW'),
@@ -268,31 +270,49 @@ def page_value(s):
 
 
 PAPER = 'The published paper (2021)'      # the legend's label, and the title, of the paper's values
+# The lengths of the new results' upper rows, in order, since 2026-10-27, when the block came to subsume Table 2
+# (dreeves: "how about making our color-coded table totally subsume the BGPW table?"; Stan Wagon, by dreeves: the upper
+# part "should include 256, 512, and 1024 for completeness"; dreeves: "multiples of 16 with one-sentence explanation
+# sounds good"): Table 2's, every multiple of 8 up to 304, then every multiple of 16 up to NMAX.  An odd multiple of 8
+# has order at most 7 (the two lemma), and from 200 on every one has 7, so past 304 none has anything to show.
+UPPER = tuple(range(8, 305, 8)) + tuple(range(320, NMAX + 1, 16))
 
 
 def page_sources(html):
     """Table 2, the new results, the codes and the sets, parsed out of index.html and asserted equal to the hand
     copies above.  Returns {'table2': {n: (lo, hi)}, 'new': {n: (lo, hi, who)}, 'codes': [(m, hex)],
-    'sets': [(m, n, set)]}.  The page's tables of class "block" are Table 2's three, then the new results' seven (every
-    multiple of 16 from 304 to 992, after 240 (2026-10-20), in four rows, the first of 12 and the rest of 11, then
-    the powers of 2 in three rows, since 2026-10-26, when they reached 35)."""
+    'sets': [(m, n, set)]}.  The page's tables of class "block" are Table 2's three, then the new results', which since
+    2026-10-27 subsume Table 2: their upper rows, of the lengths UPPER in order, written in digits, then their powers
+    of 2, written 2^k, k rising from 3.  Every cell of the new results has a title; a cell titled as the legend's "The
+    published paper (2021)" has no provenance class and copies Table 2's entry at its n, and every entry of Table 2
+    that is not a new result is so copied; every other cell has a class, its value cell the same class, and is a new
+    result.  A length shown twice, in the upper rows and as a power of 2 (8 to 1024), is the same cell both times."""
     tables = re.findall(r'<table class="block">(.*?)</table>', html, re.S)
-    assert len(tables) == 10, len(tables)
     rows = []
     for t in tables:
         ns = re.findall(r'<td([^>]*)>(.*?)</td>', re.search(r'<tr class="ns">(.*?)</tr>', t, re.S)[1])
-        vals = re.findall(r'<td[^>]*>(.*?)</td>', re.search(r'<tr class="vals">(.*?)</tr>', t, re.S)[1])
-        assert len(ns) == len(vals), (ns, vals)
-        rows.append([(page_n(c), re.search(r"title='([^']*)'", attr), page_value(v)) for (attr, c), v in zip(ns, vals)])
-    table2 = {n: v for row in rows[:3] for n, title, v in row}
-    assert all(title is None for row in rows[:3] for _, title, _ in row)
+        vals = re.findall(r'<td([^>]*)>(.*?)</td>', re.search(r'<tr class="vals">(.*?)</tr>', t, re.S)[1])
+        assert len(ns) == len(vals) >= 1, (ns, vals)
+        rows.append([(c, page_n(c), attr, va, v) for (attr, c), (va, v) in zip(ns, vals)])
+    table2 = {n: page_value(v) for row in rows[:3] for c, n, attr, va, v in row}
+    assert all(attr == '' and va == ' lang="en"' * (' or ' in v) for row in rows[:3] for c, n, attr, va, v in row)
     assert len(table2) == sum(map(len, rows[:3])) == 39
-    # The final row copies Table 2's powers of 2, uncolored and titled as the legend's "The published paper (2021)":
-    # each must equal Table 2's entry, and they are no new results.
-    copies = [(n, v) for row in rows[3:] for n, title, v in row if title[1] == PAPER]
-    assert copies and all(table2[n] == v for n, v in copies), copies
-    new = {n: v + (title[1],) for row in rows[3:] for n, title, v in row if title[1] != PAPER}
-    assert len(new) + len(copies) == sum(map(len, rows[3:]))
+    upper = [row for row in rows[3:] if all(re.fullmatch(r'\d+', c) for c, *_ in row)]
+    pows = rows[3 + len(upper):]
+    assert rows[3:3 + len(upper)] == upper and all(re.fullmatch(r'2<sup>\d+</sup>', c) for row in pows for c, *_ in row)
+    assert tuple(n for row in upper for c, n, *_ in row) == UPPER
+    ks = [n.bit_length() - 1 for row in pows for c, n, *_ in row]
+    assert ks and ks[0] == 3 and ks == sorted(set(ks)), ks
+    cells = [cell for row in rows[3:] for cell in row]
+    for n in {n for c, n, *_ in cells}:
+        assert len({(attr, va, v) for c, m, attr, va, v in cells if m == n}) == 1, n
+    paper = f" title='{PAPER}'"
+    assert all(attr == paper and va == '' or re.fullmatch(r' class="(\w+)" title=\'[^\']+\'', attr) and attr.startswith(va + ' ')
+               and attr != va + paper for c, n, attr, va, v in cells), [cell for cell in cells if not cell[3] and cell[2] != paper]
+    copies = {n: page_value(v) for c, n, attr, va, v in cells if attr == paper}
+    assert set(copies) <= set(table2) and all(table2[n] == v for n, v in copies.items()), copies
+    new = {n: page_value(v) + (re.search(r"title='([^']*)'", attr)[1],) for c, n, attr, va, v in cells if attr != paper}
+    assert set(table2) - set(new) == set(copies), set(table2) - set(new) - set(copies)
     codes = []
     for block in re.findall(r'<p class="code">(.*?)</p>', html, re.S):
         ms = [int(m) for m in re.findall(r'\(<i>m</i> = (\d+)\)', block)]
@@ -434,7 +454,10 @@ def chain_none(n, m, chain, sweep, cap):
 # proof by residues: 120 and 136 mod 8, 624 at order 13 mod 25, 512 mod 27.  720's, at order 15 mod 16, is BGPW's
 # Prop. 4.4 (q = 4) in residue form, from the check of mstar.js; it settles at once in L+(16, 15).  Each claim's sweep
 # is 'digits' (the same as 'natural' for a prime) but 624's, which takes 670000 nodes in 'natural' and 3.1 million in
-# 'digits'.  Claims that do not set hi (where a citation is lower: 96, 240, 288) are left out.
+# 'digits'.  Claims that do not set hi (where a citation is lower: 96, 240, 288) are left out.  1008's, at order 14 mod
+# 5, by scratch/upto1024/residue1008.py when the chart reached 1024 (2026-10-27), in both sweeps; at order 13 the
+# chains (5, 25), (7, 49) and (4, 8, 16, 32) capped there at 300000 nodes, and at 10^7 too in both sweeps
+# (scratch/upto1024/order13.py), and every other chain found an admissible vector.
 RESIDUE = {24: (5, (5, 25), 'digits'), 40: (6, (3,), 'digits'), 48: (7, (5, 25), 'digits'),
            72: (7, (4, 8), 'digits'), 80: (7, (3, 9), 'digits'), 88: (7, (3, 9), 'digits'), 104: (7, (4, 8), 'digits'),
            120: (7, (4, 8), 'digits'), 128: (8, (3,), 'digits'), 136: (7, (4, 8), 'digits'),
@@ -447,7 +470,7 @@ RESIDUE = {24: (5, (5, 25), 'digits'), 40: (6, (3,), 'digits'), 48: (7, (5, 25),
            640: (11, (3,), 'digits'), 656: (11, (3,), 'digits'), 672: (14, (5,), 'digits'), 688: (11, (3,), 'digits'),
            704: (11, (3,), 'digits'), 720: (15, (16,), 'digits'), 736: (11, (3, 9), 'digits'),
            768: (14, (5,), 'digits'), 784: (11, (3, 9, 27), 'digits'), 864: (15, (5,), 'digits'),
-           912: (14, (5,), 'digits'), 960: (16, (7,), 'digits')}
+           912: (14, (5,), 'digits'), 960: (16, (7,), 'digits'), 1008: (14, (5,), 'digits')}
 
 
 # ---------- the columns ----------

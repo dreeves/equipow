@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Quals for index.html's chart of m*(n) for the even n up to 1000.  Run: python3 -B quals_index.py [name ...]   (no
+"""Quals for index.html's chart of m*(n) for the even n up to 1024.  Run: python3 -B quals_index.py [name ...]   (no
 arguments: all quals).
 
 Each qual is a function q_*: a passing qual returns, a failing one raises.  Each qual's comment gives its replicata (the
@@ -26,7 +26,7 @@ POW2 = os.path.join(HERE, 'pow2.js')          # made by pow2.py; the data of the
 CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
 TOKENS = ('--exists', '--open', '--impossible')                    # the chart's three colors, in the order of kind
 PROVENANCE = ('--claude', '--stan')
-NMAX, MIN_SPAN = 1000, 12
+NMAX, MIN_SPAN = 1024, 12                     # 1000 until 2026-10-27, when the chart reached 1024
 EVEN = list(range(2, NMAX + 1, 2))            # the chart's columns: an odd n has no partition at any m, so is left out
 NCOL = len(EVEN)
 STEPS = (2, 10, 20, 50, 100, 200, 500)        # the steps of the n labels: 1, 2, 5, 10, ... without the odd ones
@@ -122,7 +122,9 @@ def bounds(v):
 
 def new_cells(text):
     """{n: (low, high)}, as bounds() reads them, for every entry of the block "New results since the paper" in text (a
-    version of index.html) that has a provenance class: the rest, 2^3 to 2^8, are the paper's, shown for context."""
+    version of index.html) that has a provenance class: the rest copy Table 2's entries (2^3 to 2^8 until 2026-10-27,
+    and since then every entry of Table 2 that stands, the block subsuming it).  A length the block shows twice, in its
+    upper rows and as a power of 2 (since 2026-10-27, 8 to 1024), must be the same cell both times."""
     block = text[text.index('<div class="new-block">'):text.index('</figure>')]
     rows = re.findall(r'<tr class="ns">(.*?)</tr>\s*<tr class="vals">(.*?)</tr>', block, re.S)
     assert rows and len(rows) == block.count('<tr class="ns">') == block.count('<tr class="vals">'), block[:300]
@@ -131,7 +133,7 @@ def new_cells(text):
         nn, vv = re.findall(r'<td[^>]*>(.*?)</td>', ns), re.findall(r'<td\b([^>]*)>(.*?)</td>', vals)
         assert nn and len(nn) == len(vv), (nn, vv)
         cells += [(cell_n(n), attrs, v) for n, (attrs, v) in zip(nn, vv)]
-    assert len(cells) == len({n for n, *_ in cells}), cells
+    assert all(len({(a, v) for m, a, v in cells if m == n}) == 1 for n, *_ in cells), cells
     return {n: bounds(v) for n, attrs, v in cells if re.search(r'class="\w+"', attrs)}
 
 
@@ -606,7 +608,7 @@ const go = () => {
   R.texts = [...new Set(window.__texts)];
   parent.postMessage(JSON.stringify(R), '*');
 };
-const NCOL = 500;                                                  // the columns: n = 2, 4, ..., 1000
+const NCOL = __NCOL__;                                             // the columns: n = 2, 4, ..., NMAX
 addEventListener('load', () => document.fonts.ready.then(() => setTimeout(go, 50)));
 })();
 </script>
@@ -695,7 +697,7 @@ def run(name):
         text = page()
         assert text.count('<head>\n') == 1 and text.count('</body>') == 1 and text.count('<html lang="en">') == 1
         text = text.replace('<head>\n', '<head>\n' + EARLY).replace('</body>', HARNESS.replace(
-            '__OPTS__', json.dumps({'hoverEvery': every})) + '</body>')
+            '__OPTS__', json.dumps({'hoverEvery': every})).replace('__NCOL__', str(NCOL)) + '</body>')
         if theme: text = text.replace('<html lang="en">', f'<html lang="en" data-theme="{theme}">')
         open(os.path.join(d, 'index.html'), 'w', encoding='utf-8').write(text)
         if data is not None: open(os.path.join(d, 'mstar.js'), 'w', encoding='utf-8').write(SOURCES[data]())
@@ -1167,11 +1169,12 @@ def q_chart_colors_stand_apart():
 def q_new_results_n_cells_line_up():
     # Replicata: index.html in the browser (light, desktop): in each n row of the new results' tables, the bottom of the
     # first line of each cell's n (its digits, or the 2 of 2^k).
-    # Expectata (dreeves, 2026-10-12: "minor spacing issue (remember anti-magic)"): the seven rows' cells (six until
-    # 2026-10-26, when the powers of 2 took a third row) line up within half a pixel, the uncolored copies of Table 2's
-    # powers of 2 among them: every n cell of the new results takes the same room above its n, glyph or no glyph.
+    # Expectata (dreeves, 2026-10-12: "minor spacing issue (remember anti-magic)"): the nine rows' cells (six until
+    # 2026-10-26, when the powers of 2 took a third row; seven until 2026-10-27, when the block took in Table 2 and
+    # reached 1024 in six upper rows) line up within half a pixel, the uncolored copies of Table 2's entries among
+    # them: every n cell of the new results takes the same room above its n, glyph or no glyph.
     rows = valid_run('light')['nTextBottoms']
-    assert len(rows) == 7 and all(len(r) >= 5 for r in rows), rows
+    assert len(rows) == 9 and all(len(r) >= 5 for r in rows), rows
     assert all(max(r) - min(r) <= 0.5 for r in rows), rows
 
 
@@ -1180,7 +1183,8 @@ def q_new_results_fit_unscrolled_at_945_px():
     # wide: the widths of the new results' seven tables and of their sideways-scrolling frame (.new-block .scroll).
     # Expectata (the CSS comment on the new results' side padding: "keeps it in one row, unscrolled, at 945 px"; since
     # 2026-10-25, when the powers of 2 reached 23, their two rows too, and since 2026-10-26, when they reached 35 and
-    # took three rows, those three): no table is wider than the frame, so the frame does not scroll.
+    # took three rows, those three; since 2026-10-27, when the block took in Table 2 and reached 1024, its six upper
+    # rows): no table is wider than the frame, so the frame does not scroll.
     d = tempfile.mkdtemp(prefix='index-quals-')
     try:
         for name in ('mstar.js', 'pow2.js', 'progress.js'): shutil.copy(os.path.join(HERE, name), d)
@@ -1195,7 +1199,83 @@ def q_new_results_fit_unscrolled_at_945_px():
     m = re.search(r'<pre id="fit">(.*?)</pre>', dom)
     assert m, dom[-500:]
     R = json.loads(m.group(1))
-    assert len(R['tables']) == 7 and R['scroll'] <= R['frame'] and max(R['tables']) <= R['frame'], R
+    assert len(R['tables']) == 9 and R['scroll'] <= R['frame'] and max(R['tables']) <= R['frame'], R
+
+
+def new_block_cells():
+    """The new results' tables, each as a list of (n, its n cell as the page writes it, the n cell's attributes, the
+    value cell's attributes, the value), in page order."""
+    frame = re.search(r'<div class="new-block">.*?<div class="scroll">(.*?)</div>', page(), re.S).group(1)
+    out = []
+    for t in re.findall(r'<table class="block">.*?</table>', frame, re.S):
+        ns = re.findall(r'<td([^>]*)>(.*?)</td>', re.search(r'<tr class="ns">.*?</tr>', t, re.S).group(0))
+        vs = re.findall(r'<td([^>]*)>(.*?)</td>', re.search(r'<tr class="vals">.*?</tr>', t, re.S).group(0))
+        assert len(ns) == len(vs) and ns, t
+        out.append([(cell_n(c), c, a, va, v) for (a, c), (va, v) in zip(ns, vs)])
+    return out
+
+
+def q_new_results_subsume_table2():
+    # Replicata: the new results' tables on index.html (each cell's n, attributes and value) and Table 2's entries.
+    # Expectata (2026-10-27; dreeves: "how about making our color-coded table totally subsume the BGPW table? The
+    # color-coding makes it nice and clear which cells are repeated from that table"; Stan Wagon, by dreeves: the
+    # upper part "should include 256, 512, and 1024 for completeness", and "could the table and the chart go up to
+    # 1024 as the natural stopping point, instead of 1000?"; dreeves, on the lengths: "multiples of 16 with
+    # one-sentence explanation sounds good"): the upper rows, their n in digits, come first, then the rows of powers
+    # of 2, written 2^k, with k rising from 3; the upper rows' lengths are every multiple of 8 up to 304, as in Table 2,
+    # then every multiple of 16 up to NMAX; every entry of Table 2 is in the block, as a cell without a provenance
+    # class, titled "The published paper (2021)", with exactly Table 2's bounds, or as a classed cell whose bounds lie
+    # within Table 2's (240, 304 and 2^51, each improved since); every unclassed cell is such a copy; and a length the
+    # block shows twice, in the upper rows and as a power of 2 (8 to 1024), is the same cell both times.
+    rows = new_block_cells()
+    upper = [r for r in rows if all(re.fullmatch(r'\d+', c) for _, c, *_ in r)]
+    pows = [r for r in rows if all(re.fullmatch(r'2<sup>\d+</sup>', c) for _, c, *_ in r)]
+    assert rows == upper + pows and upper and pows, [[c for _, c, *_ in r] for r in rows]
+    assert [n for r in upper for n, *_ in r] == list(range(8, 305, 8)) + list(range(320, NMAX + 1, 16))
+    ks = [n.bit_length() - 1 for r in pows for n, *_ in r]
+    assert ks[0] == 3 and ks == sorted(set(ks)), ks
+    t2 = {}                                       # Table 2's entries, 2^51 among them
+    for t in re.findall(r'<table class="block">.*?</table>', page()[:page().index('<div class="new-block">')], re.S):
+        ns = re.findall(r'<td[^>]*>(.*?)</td>', re.search(r'<tr class="ns">.*?</tr>', t, re.S).group(0))
+        vs = re.findall(r'<td[^>]*>(.*?)</td>', re.search(r'<tr class="vals">.*?</tr>', t, re.S).group(0))
+        t2 |= {cell_n(c): bounds(v) for c, v in zip(ns, vs)}
+    assert len(t2) == 39 and 2 ** 51 in t2, sorted(t2)
+    cells = [cell for r in rows for cell in r]
+    paper = " title='The published paper (2021)'"
+    copies = {n: bounds(v) for n, c, a, va, v in cells if a == paper}
+    assert all(a == paper and va == '' or re.fullmatch(r' class="(\w+)" title=\'[^\']+\'', a) and va == a.split(' title')[0]
+               for n, c, a, va, v in cells), [cell for cell in cells if cell[2] != paper and not cell[3]]
+    assert set(copies) <= set(t2) and all(copies[n] == t2[n] for n in copies), {n: (copies[n], t2.get(n)) for n in copies}
+    classed = {n: bounds(v) for n, c, a, va, v in cells if a != paper}
+    assert set(t2) <= set(copies) | set(classed) and set(t2) - set(copies) == {240, 304, 2 ** 51}, set(t2) - set(copies)
+    assert all(t2[n][0] <= classed[n][0] <= classed[n][1] <= t2[n][1] for n in (240, 304, 2 ** 51)), classed
+    twice = {n for n, *_ in cells if sum(m == n for m, *_ in cells) > 1}
+    assert twice == {2 ** k for k in range(3, 11)}, sorted(twice)
+    assert all(len({(a, va, v) for m, c, a, va, v in cells if m == n}) == 1 for n in twice), sorted(twice)
+
+
+def q_new_results_say_which_lengths():
+    # Replicata: the paragraph right after the new results' frame (the sentence dreeves asked for on 2026-10-27:
+    # "multiples of 16 with one-sentence explanation sounds good"), its text with tags dropped; the upper rows'
+    # lengths; mstar.js's columns.
+    # Expectata: the paragraph names, as numbers, what the table and the chart give: 8 and 304, the step of the upper
+    # rows up to their last length before the step doubles, 16, the step after, 7, which the two lemma (BGPW's
+    # Theorem 4.1, linked) allows an odd multiple of 8 at most, and 200, the least n from which every odd multiple of
+    # 8 up to NMAX has lo = hi = 7 in mstar.js (so that none of them, past 304, has anything to show); and it links
+    # Theorem 4.1.
+    m = re.search(r'<div class="new-block">.*?<div class="scroll">.*?</div>\s*(?:<!--.*?-->\s*)*<p>(.*?)</p>', page(), re.S)
+    assert m, 'no paragraph after the new results\' frame'
+    said = {int(t) for t in re.findall(r'(?<![\w.])\d+(?![\w.])', re.sub(r'<[^>]+>', '', m.group(1)))}
+    lengths = [n for r in new_block_cells() if re.fullmatch(r'\d+', r[0][1]) for n, *_ in r]
+    steps = [b - a for a, b in zip(lengths, lengths[1:])]
+    turn = lengths[steps.index(16)]
+    assert set(steps) == {8, 16} and steps == sorted(steps), steps
+    cols = mstar_data()['cols']
+    sevens = [n for n in range(8, NMAX + 1, 16) if cols[n - 1][:2] != [7, 7]]
+    least = max(sevens) + 16
+    assert (turn, least, (8 & -8) - 1) == (304, 200, 7) and all(cols[n - 1][1] <= 7 for n in range(8, NMAX + 1, 16)), sevens
+    assert {8, turn, 16, (8 & -8) - 1, least} <= said, (said, m.group(1))
+    assert 'https://arxiv.org/html/1912.03491v1#S4.Thmthm1' in m.group(1), m.group(1)
 
 
 def q_remarks_name_the_chart_s_constructions():
@@ -1246,13 +1326,15 @@ def q_2_17_shows_its_construction():
 
 
 def q_chart_agrees_with_tables():
-    # Replicata: mstar.js (the chart's data) and the entries of the page's tables with n up to 1000.
+    # Replicata: mstar.js (the chart's data) and the entries of the page's tables with n up to NMAX.
     # Expectata: for each entry (n, low, high): the column's [lo, hi] lies inside [low, high], and an exact entry
     # (low = high) is lo = hi.  304's two entries (8 or 9 in Table 2, 8 since) both hold, and 240's (10 or 11 in
     # Table 2, 10 since 2026-10-20).
     cols = mstar_data()['cols']
     entries = table_entries()
-    assert len(entries) == 38 + 1 + 43 + 7, len(entries)   # Table 2's; 240 (2026-10-20); the 43 multiples of 16; 2^3 to 2^9
+    # Table 2's 38; since 2026-10-27 the new results' 83 upper cells (every multiple of 8 up to 304, then of 16 up to
+    # 1024) and their powers of 2 up to 1024, 2^3 to 2^10
+    assert len(entries) == 38 + 83 + 8, len(entries)
     for n, low, high in entries:
         lo, hi = cols[n - 1][:2]
         assert low <= lo <= hi <= high, (n, low, high, lo, hi)
@@ -1290,12 +1372,13 @@ def q_new_results_state_what_the_chart_proves():
         vs = re.findall(r'<td[^>]*>(.*?)</td>', re.search(r'<tr class="vals">.*?</tr>', t, re.S).group(0))
         assert len(ns) == len(vs) and ns, t
         table += [(n_of(n), *value(v)) for (attr, n), v in zip(ns, vs)
-                  if 'class=' in attr]    # the cells without a provenance class copy Table 2's powers of 2
+                  if 'class=' in attr]    # the cells without a provenance class copy Table 2's entries
     remarks = []
     for ns, v in re.findall(r'<p class="entry"><i>n</i> = ([^:]*): &nbsp;<span class="nw"><i>m</i><sup>\*</sup> ([^<]*)</span>',
                             page()):
         remarks += [(n_of(n), *value(v)) for n in ns.split(', ')]
-    assert sorted(n for n, *_ in table) == sorted(n for n, *_ in remarks), (table, remarks)
+    # 512 and 1024 stand twice, in the upper rows and as powers of 2 (since 2026-10-27); each remark once
+    assert sorted({n for n, *_ in table}) == sorted(n for n, *_ in remarks), (table, remarks)
     wrong = [(where, n, lo, hi, chart(n)) for where, got in (('table', table), ('remark', remarks))
              for n, lo, hi in got if [lo, hi] != chart(n)]
     assert not wrong, wrong
@@ -1316,8 +1399,10 @@ def q_citations_match_the_page():
     # 2^17 to 2^72 (6 until 560 reached order 10 on 2026-10-12, 11 until 800 reached order 11 on 2026-10-17, 18
     # until 592, 608 and 656 reached order 10 and 848, 880, 896, 928, 944, 976 and 992 order 11 on 2026-10-25, 23
     # until 752 and 784 reached order 10 and 832 order 11 on 2026-10-26); and since 1024 reached order 11, later that
-    # day, 2^10, 2^11 and 2^12
-    assert len(titles) == 1 + 44 + 28 and sorted(n for n in titled if n not in titles) == [8, 16, 32, 64, 128, 256], titled
+    # day, 2^10, 2^11 and 2^12; and since 2026-10-27, when the block reached 1024, 1008.  The unclassed cells, Table
+    # 2's powers of 2 (2^3 to 2^8) until then, copy every entry of Table 2 that stands: up to 304 but 240 and 304.
+    assert len(titles) == 1 + 44 + 28 + 1, len(titles)
+    assert sorted(n for n in titled if n not in titles) == [n for n in range(8, 305, 8) if n not in (240, 304)], titled
     table2 = {n for n, *_ in table_entries()} - set(titles)
     assert len(table2) == 36, sorted(table2)          # 240 and 304 are in both
     cited = 0
@@ -1473,7 +1558,8 @@ def q_example_at_1024_has_its_entry_code_set_and_cell():
     # right after 992's, the last of the examples'; its one code block, p1024 of order 11, whose signs have order
     # exactly 11 (synthetic division here) and are antisymmetric; SClaude[11][1024] exactly their +1 positions, 0
     # among them; the cell 2^10, of class c titled Claude alone, value 11, right after 2^9's; and pow2.js's column
-    # 2^10 is [11, 11, ["joins", [[[1024, 11]]]], ["norm", 3]].
+    # 2^10 is [11, 11, ["joins", [[[1024, 11]]]], ["mstar", ["norm", 3]]]: since 2026-10-27, when the m*(n) chart
+    # reached 1024, its hi is that chart's column 1024 (before, ["norm", 3] by pow2.py's own norm bound, the same one).
     text = page()
     li = re.search(r'<li class="c">\n      <span class="mk" aria-hidden="true">◆</span>\n      <p class="entry"><i>n</i> = '
                    r'1024: &nbsp;<span class="nw"><i>m</i><sup>\*</sup> = 11</span></p>\n(.*?)\n    </li>', text, re.S)
@@ -1498,7 +1584,7 @@ def q_example_at_1024_has_its_entry_code_set_and_cell():
     vals = re.findall(r'<td([^>]*)>([^<]*)</td>', row.split('<tr class="vals">')[1])
     i = [k for _, k in ns].index('10')
     assert ns[i - 1][1] == '9' and ns[i][0] == ' class="c" title=\'Claude alone\'' and vals[i] == (' class="c"', '11'), (ns, vals)
-    assert pow2_data()['cols'][9] == [11, 11, ['joins', [[[1024, 11]]]], ['norm', 3]], pow2_data()['cols'][9]
+    assert pow2_data()['cols'][9] == [11, 11, ['joins', [[[1024, 11]]]], ['mstar', ['norm', 3]]], pow2_data()['cols'][9]
 
 
 def q_1024_doubled_settles_2_11_and_2_12():
@@ -1602,7 +1688,7 @@ def q_page_loads_clean():
     # Replicata: index.html with the real mstar.js in headless Chrome, 1280 px wide at 2 device px per CSS px; and the
     # page loaded as is (nothing added), with Chrome logging its console to stderr.
     # Expectata: no errors, console errors or warnings; the canvas is drawn (nonzero height, as wide as main's content);
-    # the chart opens showing all 500 columns, n = 2 to 1000.  The plain
+    # the chart opens showing all NCOL = 512 columns, n = 2 to 1024.  The plain
     # load logs nothing at all to the console.
     assert console_lines() == [], console_lines()
     R = valid_run('light')
@@ -1612,7 +1698,7 @@ def q_page_loads_clean():
 
 
 def q_drawn_cells_match_data():
-    # Replicata: the light and phone runs: the full view, and a sweep of the 500 columns n = 2, 4, …, 1000
+    # Replicata: the light and phone runs: the full view, and a sweep of the 512 columns n = 2, 4, …, 1024
     # zoomed in, so every column is at least 3 device px wide.
     # Expectata: every even column is checked, in every row: its middle pixel has its color from mstar.js (exists up
     # to lo, open up to hi, impossible above) as the page's tokens give it, and the pixel below each row is paper.  In
@@ -1656,7 +1742,7 @@ def q_readout_reports_even_n_only():
     # Replicata: the light and phone runs: every hover of the harness (the full view, every view of the sweep, the
     # searches for column edges, which probe within a millionth of a px of them, and the interactions), and a hover at
     # the middle of every device px across row 1 of the full view.
-    # Expectata: no readout reports an odd n; across the full view the readout goes through n = 2, 4, …, 1000, each
+    # Expectata: no readout reports an odd n; across the full view the readout goes through n = 2, 4, …, 1024, each
     # once, in order from left to right.
     for name in ('light', 'phone'):
         R = valid_run(name)
@@ -1705,8 +1791,8 @@ def q_zoom_buttons_zoom_about_the_middle():
     # full view, clicks of + until it is disabled and then of − until it is disabled, the view measured after each; and
     # the buttons after every interaction step (keys, wheels, drags, pinches, gestures, reset).
     # Expectata: + zooms in by 1.5 and − out by 1.5 about the middle (the u at the middle stays), as the + and − keys do,
-    # stopping at 12 and 500 columns: 10 clicks each way.  + is disabled exactly when the view is 12 columns and −
-    # exactly when it is all 500: at load (− only), after every click and after every step (so − after the reset
+    # stopping at 12 and 512 columns: 10 clicks each way.  + is disabled exactly when the view is 12 columns and −
+    # exactly when it is all 512: at load (− only), after every click and after every step (so − after the reset
     # button).  A disabled button is grayed out, not hidden: opacity at most 0.5 but displayed, visible and as big as
     # the other, whose opacity is 1.
     R = valid_run('light')
@@ -1744,7 +1830,7 @@ def q_hover_reads_out_cells():
     # when lo = hi and "lo ≤ m*(N) ≤ hi" otherwise; REASONS are Claude: "…" strings: for a green cell (m ≤ lo) one
     # that starts "order lo ", for a red cell (m > hi) one that starts "order hi+1 ", for a gray cell both, joined by
     # " · "; and for a cell ringed in gold (a323395_cells, since 2026-10-19) one more, ring_note.  Every column, n = 2,
-    # 4, …, 1000, is read out in both runs.
+    # 4, …, 1024, is read out in both runs.
     for name in ('light', 'kinds'):
         R = valid_run(name)
         cols = json.loads(kinds_data()[len('const MSTAR = '):-2])['cols'] if name == 'kinds' else mstar_data()['cols']
@@ -1868,8 +1954,8 @@ def q_safari_gestures_zoom_unless_touching():
 def q_view_stays_within_limits():
     # Replicata: from a view zoomed in 3 steps: 40 presses of +; of -; 300 of ArrowRight; ctrl + wheel down 5000 px;
     # and (separately) ArrowRight, +, then the reset button.
-    # Expectata: zooming in stops at 12 columns and out at all 500; panning stops with n = 1000 at the right edge; the
-    # reset button shows all 500 columns, n = 2 to 1000.
+    # Expectata: zooming in stops at 12 columns and out at all 512; panning stops with n = 1024 at the right edge; the
+    # reset button shows all 512 columns, n = 2 to 1024.
     S = valid_run('light')['steps']
     assert close(S['zoomInFar']['b']['span'], MIN_SPAN, 0.01), S['zoomInFar']
     for name in ('zoomOutFar', 'wheelOutFar', 'reset'):
@@ -1929,7 +2015,7 @@ def q_contract_violations_fail_loudly():
     # arguments; a join of lengths that do not add up to n; a join or product claiming more than its parts give; "two"
     # with the wrong hi; "norm" for a prime dividing n, and for a composite; "table2" at an n not in Table 2; "page" for
     # a provenance the page does not use; an example with an empty label; "none" or "odd" at an even n; an example at
-    # an odd n; a column of five entries; hi at mtop; mtop above max hi + 1; nmax not 1000.
+    # an odd n; a column of five entries; hi at mtop; mtop above max hi + 1; nmax not 1024.
     # Expectata: in each case the canvas stays 0 px tall and the readout ends with the error, which quotes the
     # offending column as JSON (or mtop, or nmax and mtop), and the error is uncaught.
     for v, (_, quoted) in VIOLATIONS.items():
@@ -2162,9 +2248,10 @@ def q_smallest_section_sits_between_the_remarks_and_the_counts():
     # Expectata: a <section class="smallest" aria-labelledby="smallest-title"> right after the remarks' section and
     # right before the counts' section (only blank lines and comments between), holding its heading, a link to OEIS
     # A323395, and a table whose body is empty in the HTML: the script fills it from mstar.js; and not of class block,
-    # so that the page keeps the ten tables of that class that mstar.py reads as Table 2's and the new results' (its
-    # count asserted there, which a tenth broke on 2026-10-17; nine until 2026-10-26, when the powers of 2 took a
-    # third row).
+    # so that the page keeps the twelve tables of that class that mstar.py reads as Table 2's and the new results'
+    # (their count asserted there until 2026-10-27, which a tenth broke on 2026-10-17; nine until 2026-10-26, when the
+    # powers of 2 took a third row, and ten until 2026-10-27, when the new results took in Table 2 and reached 1024 in
+    # six upper rows).
     text = page()
     filler = r'(?:\s|<!--.*?-->)*'
     m = re.search(r'<section class="remarks">.*?</section>\n' + filler +
@@ -2175,7 +2262,7 @@ def q_smallest_section_sits_between_the_remarks_and_the_counts():
     assert '<h2 id="smallest-title">' in body, body[:300]
     assert 'href="https://oeis.org/A323395"' in body, body
     assert '<table>' in body and '<tbody data-smallest></tbody>' in body, body
-    assert text.count('<table class="block">') == 10, text.count('<table class="block">')
+    assert text.count('<table class="block">') == 12, text.count('<table class="block">')
 
 
 def q_smallest_table_matches_mstar():

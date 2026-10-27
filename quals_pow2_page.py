@@ -31,6 +31,7 @@ KLABELS = list(range(10, K + 1, 10))          # the k labels below the plot
 OUTLINE = (36, 5)                             # the cell whose outline the screenshots check
 SWIPE = (29, 8)                               # the cell a phone's swipe starts on, after the outline's tap
 MSTAR_LAYOUT = (44, 16, 2, 14)                # the m*(n) chart's plot: left and right gutters, top, row pitch (CSS px)
+NMAX = int(re.search(r'"nmax": (\d+)', open(MSTAR, encoding='utf-8').read()).group(1))   # the m*(n) chart's last n (1024)
 WHO = ('BGPW', 'Claude alone', 'Claude and BGPW', 'Astra alone', 'Claude and Astra')   # provenance labels of the page's new results
 RUNS = {}                                     # DRIVER's reports by configuration name, made once per process (see run)
 
@@ -150,8 +151,8 @@ STONG = [[[144, 8]] * 2 + [[192, 9]] * 4, [[48, 6]] * 3 + [[112, 7]] + [[192, 9]
 def kinds_cols():
     """Made-up columns that follow the contract and use every kind of reason: k <= 9 from Thue-Morse, settled by each
     kind of the m*(n) chart's hiWhy; then lo = k + floor(k / 24) (Thue-Morse, then f^{#L} # τ_j) and hi the norm bound
-    for p = 3, but for a few columns with the other kinds: joins with f, τ_j (j above 9), columns of mstar.js and the
-    page's example at 1024 (p_1024, order 11); residue chains; the norm bound for p = 5 and 7."""
+    for p = 3, but for a few columns with the other kinds: joins with f, τ_j (j above 9) and columns of mstar.js (the
+    last, 1024, at order 11, the page's example p_1024); residue chains; the norm bound for p = 5 and 7."""
     cols = []
     for k in range(1, K + 1):
         L, j = divmod(k, 24)
@@ -196,9 +197,8 @@ VIOLATIONS = {   # name: (a change that breaks the contract, what the page's err
     'joins length': column(30, [31, 37, ['joins', [[F, [32, 5]]]], ['norm', 3]]),
     'joins lo': column(30, [32, 37, ['joins', [[F, [64, 6]]]], ['norm', 3]]),
     'joins block': column(30, [31, 37, ['joins', [[[2048, 12], [524288, 19]]]], ['norm', 3]]),
-    'joins long block': column(30, [32, 37, ['joins', [[[1024, 12], [2 ** 20, 20]]]], ['norm', 3]]),
     'joins empty': column(30, [31, 37, ['joins', []], ['norm', 3]]),
-    'mstar above 9': column(10, [10, 10, ['thue-morse'], ['mstar', ['residue', 3]]]),
+    'mstar above 10': column(11, [11, 11, ['thue-morse'], ['mstar', ['residue', 3]]]),
     'mstar kind': column(5, [5, 5, ['thue-morse'], ['mstar', ['guess']]]),
     'mstar two': column(2, [2, 2, ['thue-morse'], ['mstar', ['two']]]),
     'norm composite': column(30, [31, 37, ['power', 1, 6], ['norm', 9]]),
@@ -428,8 +428,8 @@ async function main() {
     await ev(() => document.getElementById('mstar-chart').scrollIntoView({block: 'center'}));
     await ev(FRAMES);
     const [cl, ct, cw] = (await ev(GEOMETRY)).canvas, T2 = await ev(() => MSTAR.mtop), [ML, MR, MT, MP] = C.mstarLayout;
-    for (const [k, m] of C.mstarCells) {        // cell (2^k, m) of the m*(n) chart in its full view of the 500 even n
-      await input.mouse(cl + ML + (2 ** k / 2 - 0.5) * (cw - ML - MR) / 500, ct + MT + (T2 - m) * MP + (MP - 2) / 2);
+    for (const [k, m] of C.mstarCells) {        // cell (2^k, m) of the m*(n) chart in its full view of the C.mstarCols even n
+      await input.mouse(cl + ML + (2 ** k / 2 - 0.5) * (cw - ML - MR) / C.mstarCols, ct + MT + (T2 - m) * MP + (MP - 2) / 2);
       R.mstar.push([k, m, await ev(() => document.getElementById('mstar-readout').textContent)]);
     }
   }
@@ -483,12 +483,12 @@ def run(name):
             datas.append(pow2_of(js) if c['drawn'] else None)
         data = datas[0]
         # the cells (2^k, hi + 1) of the m*(n) chart to read out, for the k whose hiWhy is ["mstar", why]
-        mstar = [[k, data['cols'][k - 1][1] + 1] for k in range(1, 10)
-                 if c['mstar'] and data['cols'][k - 1][3][0] == 'mstar']
+        mstar = [[k, data['cols'][k - 1][1] + 1] for k in range(1, K + 1)
+                 if 2 ** k <= NMAX and c['mstar'] and data['cols'][k - 1][3][0] == 'mstar']
         shots = [os.path.join(d, 'load.png'), os.path.join(d, 'outline.png')]
         cfg = {k: c[k] for k in ('width', 'height', 'dpr', 'mobile', 'theme', 'drawn', 'hover', 'tap', 'swipe')} | dict(
             chrome=CHROME, dir=d, urls=urls, K=K, E=data['etop'] if data else 0, ROW=ROW, GAP=GAP, outline=OUTLINE,
-            swipeFrom=SWIPE, shots=shots, mstarCells=mstar, mstarLayout=MSTAR_LAYOUT)
+            swipeFrom=SWIPE, shots=shots, mstarCells=mstar, mstarLayout=MSTAR_LAYOUT, mstarCols=NMAX // 2)
         try:
             p = subprocess.run(['node', '--input-type=module', '-e', DRIVER], input=json.dumps(cfg),
                                capture_output=True, text=True, timeout=600)
@@ -646,18 +646,20 @@ def q_new_css_is_scoped():
 def q_caption_defines_readout_symbols():
     # Replicata: the caption (the paragraph pow2-caption).
     # Expectata: it names each symbol that the readout writes for a block of a construction: f, τ_j (Thue-Morse), p_n
-    # (from a column of the m*(n) chart) and, since 2026-10-26, each of the page's examples longer than 1000 (LONG:
-    # p_1024), each as the remarks write it: <i>f</i>, τ<sub><i>j</i></sub>, <i>p</i><sub><i>n</i></sub> and
-    # <i>p</i><sub>1024</sub>.
+    # (from a column of the m*(n) chart) and each of the page's examples longer than the m*(n) chart's NMAX (LONG), each
+    # as the remarks write it: <i>f</i>, τ<sub><i>j</i></sub>, <i>p</i><sub><i>n</i></sub> and <i>p</i><sub>N</sub> for
+    # each N of LONG; and it names no other <i>p</i><sub>N</sub> (from 2026-10-26 it named p_1024, beyond that chart's
+    # 1000; since 2026-10-27, when that chart reached 1024, LONG is empty).
     m = re.search(r'<p class="pow2-caption">(.*?)</p>', page(), re.S)
     assert m, 'pow2-caption'
     symbols = ['<i>f</i>', 'τ<sub><i>j</i></sub>', '<i>p</i><sub><i>n</i></sub>'] + [f'<i>p</i><sub>{n}</sub>' for n, _ in long_blocks()]
     missing = [s for s in symbols if s not in m[1]]
-    assert not missing and long_blocks(), (missing, long_blocks())
+    named = [int(n) for n in re.findall(r'<i>p</i><sub>(\d+)</sub>', m[1])]
+    assert not missing and sorted(set(named)) == sorted(n for n, _ in long_blocks()), (missing, named, long_blocks())
 
 
 def long_blocks():
-    """The chart script's LONG, the examples longer than 1000 that its blocks may use, as [[n, m], ...] (JSON)."""
+    """The chart script's LONG, the examples longer than NMAX that its blocks may use, as [[n, m], ...] (JSON)."""
     m = re.search(r'\n  const LONG = (\[[^\n;]*\]);', scripts()[1])
     assert m, 'no const LONG in the chart script'
     return json.loads(m.group(1))
@@ -667,12 +669,14 @@ def q_long_blocks_are_the_remarks_examples():
     # Replicata: the chart script's LONG; the remarks' code blocks, each p_n of order m alone, decoded by the paper's
     # Table 5 convention (the left half of the signs, 1 = +1, then the rest by (-1)^m symmetry); and pow2.js's blocks.
     # Expectata (2026-10-26: Claude's example of order 11 at 1024, beyond the m*(n) chart's 1000): LONG is exactly the
-    # remarks' examples of length n > 1000, as [n, m], in page order, each decoding to length n and order exactly m
-    # (synthetic division); and every block of pow2.js's joins longer than 1000, other than f and τ_j, is in LONG.
+    # remarks' examples of length n > NMAX, as [n, m], in page order, each decoding to length n and order exactly m
+    # (synthetic division); and every block of pow2.js's joins longer than NMAX, other than f and τ_j, is in LONG.
+    # Since 2026-10-27, when the m*(n) chart reached 1024, there are none: LONG is [].
     codes = re.findall(r'<i>p</i><sub>(\d+)</sub> <span class="nw">\(<i>m</i> = (\d+)\)</span>:</span>\n\s*<code>([0-9A-F]+)</code>',
                        page())
-    long = [(int(n), int(m), h) for n, m, h in codes if int(n) > 1000]
-    assert long_blocks() == [[n, m] for n, m, _ in long] == [[1024, 11]], (long_blocks(), long)
+    long = [(int(n), int(m), h) for n, m, h in codes if int(n) > NMAX]
+    assert long_blocks() == [[n, m] for n, m, _ in long] == [], (long_blocks(), long)
+    assert NMAX == 1024 and [n for n, *_ in codes].count('1024') == 1, (NMAX, [n for n, *_ in codes])
     for n, m, h in long:
         left = [2 * int(b) - 1 for b in bin(int(h, 16))[2:].zfill(4 * len(h))]
         c, k = left + [(-1) ** m * s for s in reversed(left)], 0
@@ -680,8 +684,8 @@ def q_long_blocks_are_the_remarks_examples():
         while not sum(c): c, k = list(itertools.accumulate(c[:-1])), k + 1
         assert k == m, (n, m, k)
     used = {tuple(b) for c in pow2_of(real())['cols'] if c[2][0] == 'joins' for p in c[2][1] for b in p
-            if b[0] > 1000 and b != F and b[0] != 2 ** b[1]}
-    assert used <= {tuple(b) for b in long_blocks()} and used, used
+            if b[0] > NMAX and b != F and b[0] != 2 ** b[1]}
+    assert used <= {tuple(b) for b in long_blocks()}, used
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -878,9 +882,10 @@ def q_contract_violations_fail_loudly():
     # Replicata: made-up data broken in one way each (VIOLATIONS): a lo below k or above hi; hi at etop; a column of
     # five entries; an unknown kind of loWhy or hiWhy, or one of the wrong arity; Thue-Morse not at lo = k; a power
     # whose 24 L + j is not k, or whose lo is not k + L; joins whose lengths do not add up to 2^k, whose lo is not the
-    # least product's order, with a block that is none of f, τ_j, a column n <= 1000 and the page's example of order
-    # 11 at 1024 ([2048, 12]; [1024, 12]), or with no product; an
-    # "mstar" hiWhy above k = 9, of an unknown kind, or breaking its own rule; a norm bound for a composite p, for
+    # least product's order, with a block that is none of f, τ_j and a column n <= NMAX ([2048, 12]; until 2026-10-27,
+    # when the m*(n) chart reached 1024, also [1024, 12], beside the page's example of order 11 at 1024), or with no
+    # product; an "mstar" hiWhy above k = 10 (k = 9 until then), of an unknown kind, or breaking its own rule; a norm
+    # bound for a composite p, for
     # p = 2, or not the bound; a residue chain whose moduli do not divide in turn, or with a modulus below 2; an etop
     # above max(hi - k) + 1; kmax not 72; 71 columns; a key beyond kmax, etop and cols.
     # Expectata: in each case #pow2-chart stays empty, the readout ends with "Error: " and the quote (the column [k,

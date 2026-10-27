@@ -6,16 +6,17 @@ mstar.py's docstring defines sequence, order, m*(n), lo, hi, column, join, produ
 sweep and claim, and states the two lemmas; this file uses them in its sense, and these besides:
   excess   order - log2(length).  Thue-Morse tau_k (length 2^k, order k, Prouhet) has excess 0 at every k; a
            product's excess is the sum of its factors'.
-  block    a length and an order known at that length, written [n, m]: a column n <= 1000 of mstar.js at its lo,
-           an explicit sequence of mstar.py longer than that at its order (since 2026-10-26, [1024, 11], index.html's
-           p1024), tau_j as [2^j, j], or f as [2^24, 25].
+  block    a length and an order known at that length, written [n, m]: a column n <= mstar.NMAX of mstar.js at its
+           lo, an explicit sequence of mstar.py longer than that at its order (none since 2026-10-27, when NMAX
+           reached 1024: from 2026-10-26, [1024, 11], index.html's p1024, was one), tau_j as [2^j, j], or f as
+           [2^24, 25].
   f        (320 # 320 # 112) v (432 # 48 # tau_8) (index.html's remarks; its set is X_order25_2^24.txt.gz): length
            112 * 320^2 + 432 * 48 * 2^8 = 2^24, order min(7 + 9 + 9, 11 + 6 + 8) = 25 by BGPW's Theorem 4.1
            (Multiplication and Addition), the blocks' orders from mstar.js.  F_PRODUCTS below; f^{#L} is f # ... # f,
            L factors: length 2^(24L), order 25L.
-  atom     a block (n, lo(n)), n <= 1000, that no single join or product of shorter columns' closure values reaches
-           (closure: the best orders that joins and products of the columns reach, length by length), or a block of an
-           explicit sequence longer than 1000, which none reaches ([1024, 11]).
+  atom     a block (n, lo(n)), n <= mstar.NMAX, that no single join or product of shorter columns' closure values
+           reaches (closure: the best orders that joins and products of the columns reach, length by length), or a
+           block of an explicit sequence longer than NMAX, which none reaches ([1024, 11] while NMAX was 1000).
   search   scratch/pow2/verify/p2v_search.py (not run here; rerun as scratch/w560/rescan.py once 560 reached order
            10), which found BASES: for an excess e and a K, is 2^K a join of products of blocks, each of order >= K +
            e?  By distributivity (a # (b v c) and (b v c) # a have the lengths and orders of (a # b) v (a # c)), any
@@ -35,7 +36,8 @@ lo < k + e <= hi, and red when k + e > hi; E = max over k of (hi - k) + 1, so ro
   loWhy  ["thue-morse"] (lo = k, tau_k); ["power", L, j] (lo = k + L from f^{#L} # tau_j, k = 24L + j, 0 <= j < 24);
          ["joins", [[[n, m], ...], ...]] (a join of products, each product a list of blocks: 2^k is the sum of the
          products' lengths, and lo the least product order).
-  hiWhy  ["mstar", why] (k <= 9: mstar.js's hiWhy for n = 2^k, verbatim); ["norm", p] (the norm lemma for the odd
+  hiWhy  ["mstar", why] (2^k <= mstar.NMAX, so k <= 10 since 2026-10-27, k <= 9 before: mstar.js's hiWhy for n = 2^k,
+         verbatim); ["norm", p] (the norm lemma for the odd
          prime p); ["residue", chain] (the claim RESIDUE[k]: mstar.py's exhaustive enumeration through the chain of
          moduli finds no admissible vector at order hi + 1).
   When reasons tie, the first of each list wins.
@@ -171,11 +173,11 @@ def mstar_text():
 
 
 def mstar_cols():
-    """mstar.js's columns, cols[n-1] for n = 1..1000, parsed from its text."""
+    """mstar.js's columns, cols[n-1] for n = 1..mstar.NMAX, parsed from its text."""
     head, body = mstar_text().split('const MSTAR = ')
     assert head.startswith('//') and head.count('\n') == 1 and body.endswith('};\n') and body.count(';') == 1, head
     M = json.loads(body[:-2])
-    assert M['nmax'] == 1000 == len(M['cols']), M['nmax']
+    assert M['nmax'] == mstar.NMAX == len(M['cols']), M['nmax']
     return M['cols']
 
 
@@ -247,8 +249,8 @@ def weak_norm(k):
 
 
 def mstar_hi(k, why):
-    """mstar.js's hi at 2^k <= 1000, whose hiWhy must be why."""
-    assert 2 ** k <= 1000 and mstar_cols()[2 ** k - 1][3] == why, (k, why)
+    """mstar.js's hi at 2^k <= mstar.NMAX, whose hiWhy must be why."""
+    assert 2 ** k <= mstar.NMAX and mstar_cols()[2 ** k - 1][3] == why, (k, why)
     return mstar_cols()[2 ** k - 1][1]
 
 
@@ -273,9 +275,9 @@ def hi_of(k, why): return HI_RULES[why[0]](k, *why[1:])
 @lru_cache(maxsize=None)
 def columns():
     """[lo, hi, loWhy, hiWhy] for k = 1..KMAX (index k-1): lo the best of Thue-Morse, f^{#L} # tau_j and BASES lifted; hi
-    the least of mstar.js's column 2^k (k <= 9), the norm lemma for each of NORM_PRIMES and the claim RESIDUE[k].
-    Asserts k + floor(k/24) <= lo <= hi, that no prime beyond NORM_PRIMES gives a lower norm bound, and lo = hi = k
-    = mstar.js's lo and hi for k <= 9."""
+    the least of mstar.js's column 2^k (2^k <= mstar.NMAX), the norm lemma for each of NORM_PRIMES and the claim
+    RESIDUE[k].  Asserts k + floor(k/24) <= lo <= hi, that no prime beyond NORM_PRIMES gives a lower norm bound, lo =
+    hi = k for k <= 9, and lo and hi equal to mstar.js's wherever 2^k is one of its columns."""
     out = []
     for k in range(1, KMAX + 1):
         L, j = divmod(k, 24)
@@ -287,7 +289,8 @@ def columns():
         lo, hi = lo_of(k, lw), hi_of(k, hw)
         assert k + L <= lo <= hi < weak_norm(k), (k, lo, hi, lw, hw)
         out.append([lo, hi, lw, hw])
-    for k in range(1, 10): assert out[k - 1][:2] == [k, k] == mstar_cols()[2 ** k - 1][:2], k
+    for k in range(1, 10): assert out[k - 1][:2] == [k, k], k
+    for k in range(1, mstar.NMAX.bit_length()): assert out[k - 1][:2] == mstar_cols()[2 ** k - 1][:2], k   # 2^k <= NMAX
     return out
 
 

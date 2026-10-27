@@ -9,7 +9,7 @@ const POW2 = {"kmax": 72, "etop": 18, "cols": [
 [7, 7, ["thue-morse"], ["mstar", ["residue", 3]]],
 [8, 8, ["thue-morse"], ["mstar", ["residue", 9]]],
 [9, 9, ["thue-morse"], ["mstar", ["residue", 27]]],
-[11, 11, ["joins", [[[1024, 11]]]], ["norm", 3]],
+[11, 11, ["joins", [[[1024, 11]]]], ["mstar", ["norm", 3]]],
 [12, 12, ["joins", [[[1024, 11], [2, 1]]]], ["residue", [3]]],
 [13, 13, ["joins", [[[1024, 11], [4, 2]]]], ["residue", [3]]],
 [14, 15, ["joins", [[[1024, 11], [8, 3]]]], ["norm", 3]],

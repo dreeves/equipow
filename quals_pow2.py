@@ -38,7 +38,7 @@ def node_global(path, name):
 
 @lru_cache(maxsize=None)
 def mstar_disk():
-    """mstar.js's columns as node sees them, cols[n-1] for n = 1..1000."""
+    """mstar.js's columns as node sees them, cols[n-1] for n = 1..mstar.NMAX."""
     return node_global(os.path.join(HERE, 'mstar.js'), 'MSTAR')[2]['cols']
 
 
@@ -75,13 +75,14 @@ def expect_assertion(f):
 
 @lru_cache(maxsize=None)
 def long_examples():
-    """{(n, m)}: index.html's examples longer than 1000, each a code block of the remarks, p_n of order m alone,
+    """{(n, m)}: index.html's examples longer than mstar.NMAX (none since 2026-10-27, when the m*(n) chart reached the
+    one there was, at 1024), each a code block of the remarks, p_n of order m alone,
     decoded here by the paper's Table 5 convention (the left half of the signs, 1 = +1, then the rest by (-1)^m
     symmetry), its length n and its exact order m asserted (synthetic division)."""
     page = open(os.path.join(HERE, 'index.html'), encoding='utf-8').read()
     codes = re.findall(r'<i>p</i><sub>(\d+)</sub> <span class="nw">\(<i>m</i> = (\d+)\)</span>:</span>\n\s*<code>([0-9A-F]+)</code>',
                        page)
-    long = [(int(n), int(m), h) for n, m, h in codes if int(n) > 1000]
+    long = [(int(n), int(m), h) for n, m, h in codes if int(n) > mstar.NMAX]
     for n, m, h in long:
         left = [2 * int(b) - 1 for b in bin(int(h, 16))[2:].zfill(4 * len(h))]
         a = left + [(-1) ** m * s for s in reversed(left)]
@@ -91,11 +92,11 @@ def long_examples():
 
 def block_order(b):
     """The order a block [n, m] stands for, by the data contract, from mstar.js as node sees it: m must be mstar.js's
-    lo at n <= 1000, or b must be one of the page's long_examples(), tau_j = [2^j, j] or f = [2^24, 25]; asserts that
+    lo at n <= mstar.NMAX, or b must be one of the page's long_examples(), tau_j = [2^j, j] or f = [2^24, 25]; asserts that
     it is one of them."""
     n, m = b
     assert type(n) is int and type(m) is int and n >= 1, b
-    assert ((n <= 1000 and mstar_disk()[n - 1][0] == m) or (n, m) in long_examples() or n == 2 ** m
+    assert ((n <= mstar.NMAX and mstar_disk()[n - 1][0] == m) or (n, m) in long_examples() or n == 2 ** m
             or (n, m) == (2 ** 24, 25)), b
     return m
 
@@ -192,20 +193,23 @@ def q_new_lower_bounds():
 
 
 def q_base_blocks_and_their_sources():
-    # Replicata: every block of every product of pow2.BASES other than tau_j: for n <= 1000, mstar.js's lo and loWhy at
-    # n, mstar's explicit lo (sequences in hand only, no citation), and the order of mstar.build(n), the sequence behind
-    # it, by synthetic division here; for n > 1000, the page's long_examples(); and pow2.blocks() beyond 1000.
-    # Expectata: mstar.js's lo is the block's order at every n <= 1000, and every longer block is one of the page's
-    # examples, decoded here at exactly its order (since 2026-10-26, 1024 at order 11, BASES[10]); so every block of
-    # every base has a sequence in hand of exactly its order (explicit lo and the built sequence's order equal it), and
-    # every base is built from sequences in hand by BGPW's Theorem 4.1; and pow2's blocks beyond 1000, other than tau_j
-    # and f, are exactly the page's long examples.  (Until 2026-10-12, BASES[57]'s 352 and 464 and BASES[67]'s 400 were
+    # Replicata: every block of every product of pow2.BASES other than tau_j: for n <= mstar.NMAX, mstar.js's lo and
+    # loWhy at n, mstar's explicit lo (sequences in hand only, no citation), and the order of mstar.build(n), the
+    # sequence behind it, by synthetic division here; for longer n, the page's long_examples(); and pow2.blocks()
+    # beyond NMAX.
+    # Expectata: mstar.js's lo is the block's order at every n <= NMAX, and every longer block is one of the page's
+    # examples, decoded here at exactly its order (there are none since 2026-10-27, when NMAX reached 1024: from
+    # 2026-10-26, 1024 at order 11, BASES[10], was one); so every block of every base has a sequence in hand of
+    # exactly its order (explicit lo and the built sequence's order equal it), and every base is built from sequences
+    # in hand by BGPW's Theorem 4.1; and pow2's blocks beyond NMAX, other than tau_j and f, are exactly the page's long
+    # examples.  (Until 2026-10-12, BASES[57]'s 352 and 464 and BASES[67]'s 400 were
     # cited as BGPW's examples; mstar.FOUND now holds sequences for them.)
     blocks = {K0: {(n, m) for p in ps for n, m in p if n != 2 ** m} for K0, ps in pow2.BASES.items()}
-    short = {K0: {(n, m) for n, m in bs if n <= 1000} for K0, bs in blocks.items()}
+    short = {K0: {(n, m) for n, m in bs if n <= mstar.NMAX} for K0, bs in blocks.items()}
     assert all(mstar_disk()[n - 1][0] == m for bs in short.values() for n, m in bs), short
-    assert set().union(*blocks.values()) - set().union(*short.values()) <= long_examples() == {(1024, 11)}, blocks
-    assert {(n, m) for n, m in pow2.blocks() if n > 1000 and n != 2 ** m and [n, m] != pow2.F} == long_examples()
+    assert set().union(*blocks.values()) - set().union(*short.values()) <= long_examples() == set(), blocks
+    assert (1024, 11) in short[10] and mstar.NMAX == 1024
+    assert {(n, m) for n, m in pow2.blocks() if n > mstar.NMAX and n != 2 ** m and [n, m] != pow2.F} == long_examples()
     cited = {K0: {(n, m) for n, m in bs if mstar_disk()[n - 1][2] == ['page', 'BGPW']} for K0, bs in short.items()}
     assert cited == {K0: set() for K0 in pow2.BASES}, cited
     for n, m in sorted(set().union(*short.values()) - set().union(*cited.values())):
@@ -214,12 +218,18 @@ def q_base_blocks_and_their_sources():
 
 
 def q_small_k_agree_with_mstar():
-    # Replicata: pow2.js's columns k = 1..9 against mstar.js's columns n = 2^k (both as node sees them).
-    # Expectata: lo = hi = k in both; loWhy ["thue-morse"]; hiWhy ["mstar", mstar.js's hiWhy for 2^k, verbatim].
-    for k in range(1, 10):
+    # Replicata: pow2.js's columns k with 2^k <= mstar.NMAX (k = 1..10 since 2026-10-27, when the m*(n) chart reached
+    # 1024; 1..9 before) against mstar.js's columns n = 2^k (both as node sees them).
+    # Expectata: the same lo and hi in both, and hiWhy ["mstar", mstar.js's hiWhy for 2^k, verbatim]; lo = hi = k and
+    # loWhy ["thue-morse"] for k <= 9; and at 2^10, lo = hi = 11, loWhy the join of one product, the page's example of
+    # order 11 at 1024 (["joins", [[[1024, 11]]]]), and mstar.js's hiWhy the norm bound for 3.
+    ks = [k for k in range(1, KMAX + 1) if 2 ** k <= mstar.NMAX]
+    assert ks == list(range(1, 11)), ks
+    for k in ks:
         lo, hi, lw, hw = mstar_disk()[2 ** k - 1]
-        assert lo == hi == k, (k, lo, hi)
-        assert cols()[k - 1] == [k, k, ['thue-morse'], ['mstar', hw]], (k, cols()[k - 1])
+        assert cols()[k - 1][:2] == [lo, hi] and cols()[k - 1][3] == ['mstar', hw], (k, cols()[k - 1], mstar_disk()[2 ** k - 1])
+        assert k == 10 or (lo == hi == k and cols()[k - 1][2] == ['thue-morse']), (k, lo, hi)
+    assert cols()[9] == [11, 11, ['joins', [[[1024, 11]]]], ['mstar', ['norm', 3]]], cols()[9]
 
 
 # ---------- the upper bounds ----------
@@ -240,19 +250,21 @@ def q_norm_matches_mstar_norm():
 
 def q_every_hi_recomputes():
     # Replicata: every column of pow2.js and its hiWhy, recomputed here.
-    # Expectata: ["mstar", why] only for k <= 9, with mstar.js's hi and hiWhy at 2^k; ["norm", p]: p an odd prime <= 31
+    # Expectata: ["mstar", why] exactly for 2^k <= mstar.NMAX (k <= 10 since 2026-10-27, when the m*(n) chart reached
+    # 1024; k <= 9 before), with mstar.js's hi and hiWhy at 2^k; ["norm", p]: p an odd prime <= 31
     # and hi = norm_here(2^k, p), the least over those primes (ties to the least p); ["residue", chain]: the claim
     # pow2.RESIDUE[k] = (hi + 1, chain, sweep), its order below every norm bound (it lowers hi), and its chain run by
     # q_residue_claims.
     for k, (lo, hi, lw, hw) in enumerate(cols(), 1):
         norms = [(norm_here(2 ** k, p), p) for p in pow2.NORM_PRIMES]
+        assert (hw[0] == 'mstar') == (2 ** k <= mstar.NMAX), (k, hw)
         if hw[0] == 'mstar':
-            assert k <= 9 and [hi, hw[1]] == [mstar_disk()[2 ** k - 1][1], mstar_disk()[2 ** k - 1][3]], (k, hw)
+            assert [hi, hw[1]] == [mstar_disk()[2 ** k - 1][1], mstar_disk()[2 ** k - 1][3]], (k, hw)
         elif hw[0] == 'norm':
-            assert k >= 10 and len(hw) == 2 and (hi, hw[1]) == min(norms), (k, hw, min(norms))
+            assert len(hw) == 2 and (hi, hw[1]) == min(norms), (k, hw, min(norms))
             assert k not in pow2.RESIDUE, k
         else:
-            assert hw[0] == 'residue' and k >= 10 and len(hw) == 2, (k, hw)
+            assert hw[0] == 'residue' and len(hw) == 2, (k, hw)
             m, chain, sweep = pow2.RESIDUE[k]
             assert m == hi + 1 and list(chain) == hw[1] and hi < min(norms)[0], (k, hw, pow2.RESIDUE[k])
 
@@ -284,13 +296,14 @@ def q_mod3_residue_lowers_hi_at_32_columns():
     # Replicata (regression): pow2.RESIDUE and pow2.js's hiWhy and hi.
     # Expectata: the residue condition mod 3 at the order the norm bound for 3 allows, pow2.norm(2^k, 3), leaves no
     # admissible vector at exactly these 32 k (found by the verification of the 2026-10-12 update; q_residue_claims
-    # enumerates each), so there hi is one less, with hiWhy ["residue", [3]]; elsewhere it stays the norm bound.
+    # enumerates each), so there hi is one less, with hiWhy ["residue", [3]]; elsewhere past the m*(n) chart's columns
+    # (2^k > mstar.NMAX) it stays the norm bound.
     K = (11, 12, 14, 15, 18, 19, 20, 22, 23, 26, 30, 31, 33, 34, 37, 38, 39, 41, 42, 45, 49, 50, 53, 56, 57, 58, 60, 61,
          64, 68, 69, 72)
     assert sorted(pow2.RESIDUE) == list(K), sorted(pow2.RESIDUE)
     assert all(pow2.RESIDUE[k] == (pow2.norm(2 ** k, 3), (3,), 'digits') for k in K)
     for k, (lo, hi, lw, hw) in enumerate(cols(), 1):
-        if k <= 9: continue
+        if 2 ** k <= mstar.NMAX: continue
         assert (hw, hi) == ((['residue', [3]], pow2.norm(2 ** k, 3) - 1) if k in K else (['norm', 3], pow2.norm(2 ** k, 3))), (k, hw, hi)
 
 
@@ -348,8 +361,10 @@ def q_assertions_fire():
     # Replicata: pow2.join_lo and pow2.lo_of on broken reasons: a join whose lengths sum to 2^k - 1 or 2^k + 1 at k =
     # 10; a block at the wrong order ([480, 13], [256, 9], [2^24, 26], and [1024, 12] beside the page's [1024, 11]);
     # an empty join and an empty product; power with 24L + j != k, with j = 24 and with L = 0; and pow2.hi_of on
-    # ["mstar", why] at k = 10, ["norm", 2] and ["norm", 9], and ["residue", chain] at a k with no claim.
-    # Expectata: AssertionError for each; and the unbroken forms give their orders.
+    # ["mstar", why] at k = 11, past the m*(n) chart's columns (at k = 10 until 2026-10-27, when that chart reached
+    # 1024), ["norm", 2] and ["norm", 9], and ["residue", chain] at a k with no claim.
+    # Expectata: AssertionError for each; and the unbroken forms give their orders, ["mstar", ["norm", 3]] at k = 10
+    # among them.
     assert pow2.join_lo(10, [[[1024, 10]]]) == 10 and pow2.join_lo(10, [[[512, 9]], [[512, 9]]]) == 9
     assert pow2.join_lo(10, [[[1024, 11]]]) == 11 and pow2.join_lo(11, [[[1024, 11], [2, 1]]]) == 12
     for ps in ([[[512, 9]], [[511, 0]]], [[[512, 9]], [[513, 0]]], [[[480, 13], [2, 1]], [[64, 6]]], [[[256, 9], [4, 2]]],
@@ -358,7 +373,8 @@ def q_assertions_fire():
     assert pow2.lo_of(25, ['power', 1, 1]) == 26
     for w in (['power', 1, 2], ['power', 0, 25], ['power', 2, -23], ['power', 1, 24]):
         expect_assertion(lambda: pow2.lo_of(25 if w[1:] != [1, 24] else 48, w))
-    expect_assertion(lambda: pow2.hi_of(10, ['mstar', ['norm', 3]]))
+    assert pow2.hi_of(10, ['mstar', ['norm', 3]]) == 11
+    expect_assertion(lambda: pow2.hi_of(11, ['mstar', ['norm', 3]]))
     expect_assertion(lambda: pow2.hi_of(10, ['norm', 2]))
     expect_assertion(lambda: pow2.hi_of(10, ['norm', 9]))
     k = min(set(range(10, KMAX + 1)) - set(pow2.RESIDUE))

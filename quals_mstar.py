@@ -20,8 +20,9 @@ import overnight_v5 as v5
 HERE = os.path.dirname(os.path.abspath(__file__))
 EXPLICIT = ('example', 'join', 'product', 'none')        # loWhy kinds backed by a sequence built here
 CHECKED_HI = ('odd', 'two', 'norm', 'residue')            # hiWhy kinds proved here
-# The gray columns of the user's count (multiples of 16 whose m* the sources here leave open)
-USER_GRAY = (240, 288, 384, 432, 480) + tuple(range(528, 993, 16))
+# The gray columns of the user's count (multiples of 16 whose m* the sources here leave open), and 1008, the one gray
+# column of the lengths the chart gained on 2026-10-27, when it reached 1024
+USER_GRAY = (240, 288, 384, 432, 480) + tuple(range(528, 993, 16)) + (1008,)
 
 
 @lru_cache(maxsize=None)
@@ -216,12 +217,12 @@ def q_page_parse():
     # 2^46, 2^52 and 2^66 joined them, once 800 reached order 11; 63 from 2026-10-20, when 240 joined them, settled
     # at 10 by the search overnight_v5.py and boxsplit.py made; 68 from 2026-10-25, when 2^20, 2^30, 2^37, 2^65 and
     # 2^72 joined them, once 592, 608 and 656 reached order 10 and 848, 880, 896, 928, 944, 976 and 992 order 11;
-    # 70 from 2026-10-26, when 2^43 and 2^68 joined them, once 752 and 784 reached order 10 and 832 order 11; 73 since
+    # 70 from 2026-10-26, when 2^43 and 2^68 joined them, once 752 and 784 reached order 10 and 832 order 11; 73 from
     # later that day, when 2^10, 2^11 and 2^12 joined them, settled at 11, 12 and 13 by Claude's example of order 11
-    # at 1024).
+    # at 1024; 74 since 2026-10-27, when 1008 joined them, as the chart and the table reached 1024).
     src = mstar.page_sources(open(os.path.join(HERE, 'index.html'), encoding='utf-8').read())
     assert src['table2'] == mstar.TABLE2 and len(mstar.TABLE2) == 39
-    assert src['new'] == mstar.NEW and len(mstar.NEW) == 73
+    assert src['new'] == mstar.NEW and len(mstar.NEW) == 74
     assert set(who for _, _, who in mstar.NEW.values()) == {'BGPW', 'Claude alone', 'Claude and BGPW', 'Astra alone',
                                                              'Claude and Astra'}
     assert [(m, h) for _, m, h in mstar.PAGE_CODES] == [(m, h) for m, h in src['codes']]
@@ -256,6 +257,43 @@ def q_page_parse_is_strict():
     expect_assertion(lambda: mstar.page_sources(html[:i] + html[i:j].replace('<td>6</td>', '<td>7</td>', 1) + html[j:]))
     k = html.index('<table class="block">')
     expect_assertion(lambda: mstar.page_sources(html[:k] + html[html.index('</table>', k) + len('</table>'):]))
+    # And in the new results' table, which subsumes Table 2 since 2026-10-27 (dreeves: "how about making our
+    # color-coded table totally subsume the BGPW table?"): Table 2's copy of 136 -> 7; 256 dropped; 512's value -> 10,
+    # 2^9's left at 9; 312 inserted after 304; 1008 dropped; the copy of 288 colored c and titled Claude alone; 2^3
+    # moved after 2^4.
+    paper = "<td title='The published paper (2021)'>"
+    for n, f in (('136', lambda ps, i: ps[:i] + [(ps[i][0], '<td>7</td>')] + ps[i + 1:]),
+                 ('256', lambda ps, i: ps[:i] + ps[i + 1:]),
+                 ('512', lambda ps, i: ps[:i] + [(ps[i][0], '<td class="c">10</td>')] + ps[i + 1:]),
+                 ('304', lambda ps, i: ps[:i + 1] + [(f'{paper}312</td>', '<td>7</td>')] + ps[i + 1:]),
+                 ('1008', lambda ps, i: ps[:i] + ps[i + 1:]),
+                 ('288', lambda ps, i: ps[:i] + [("<td class=\"c\" title='Claude alone'>288</td>", '<td class="c">9–10</td>')]
+                  + ps[i + 1:]),
+                 ('2<sup>3</sup>', lambda ps, i: ps[:i] + [ps[i + 1], ps[i]] + ps[i + 2:])):
+        edited = edit_cells(html, n, f)
+        expect_assertion(lambda: mstar.page_sources(edited))
+    assert mstar.page_sources(html)
+
+
+def edit_cells(html, n, f):
+    """html with the row of the new results' cell n (as the page writes it: digits, or 2<sup>k</sup>) rewritten from
+    f(pairs, i): the row's (n cell, value cell) pairs, i the index of n's."""
+    a = html.index('<div class="new-block">')
+    for m in re.finditer(r'<table class="block">.*?</table>', html[a:], re.S):
+        t = m.group(0)
+        ns = re.findall(r'<td[^>]*>.*?</td>', re.search(r'<tr class="ns">(.*?)</tr>', t, re.S)[1])
+        vs = re.findall(r'<td[^>]*>.*?</td>', re.search(r'<tr class="vals">(.*?)</tr>', t, re.S)[1])
+        hits = [i for i, c in enumerate(ns) if re.fullmatch(rf'<td[^>]*>{re.escape(n)}</td>', c)]
+        if not hits: continue
+        i, = hits
+        pairs = f(list(zip(ns, vs)), i)
+        rows = re.sub(r'(<tr class="ns"><th[^>]*>.*?</th>).*?</tr>', lambda r: r[1] + ''.join(c for c, _ in pairs) + '</tr>',
+                      t, count=1, flags=re.S)
+        rows = re.sub(r'(<tr class="vals"><th[^>]*>.*?</th>).*?</tr>', lambda r: r[1] + ''.join(v for _, v in pairs) + '</tr>',
+                      rows, count=1, flags=re.S)
+        assert rows != t, n
+        return html[:a + m.start()] + rows + html[a + m.end():]
+    raise AssertionError(f'no cell {n} in the new results')
 
 
 def q_explicit_sources_exact():
@@ -281,7 +319,8 @@ def q_explicit_sources_exact():
 def q_schema():
     # Replicata: mstar.js on disk: its text, and the file run as a classic script by node.
     # Expectata: comment lines, then the single statement "const MSTAR = {...};" whose object is JSON, so the file
-    # defines exactly one global (node sees no other); keys nmax, mtop, cols; nmax = 1000; 1000 columns, each
+    # defines exactly one global (node sees no other); keys nmax, mtop, cols; nmax = 1024 (1000 until 2026-10-27, when
+    # the chart reached 1024 at dreeves's and Stan Wagon's request); 1024 columns, each
     # [lo, hi, loWhy, hiWhy] with integers 0 <= lo <= hi < mtop = max hi + 1 (so row mtop is red in every column);
     # every reason has its contract form; ["none"] and ["odd"] exactly at odd n.
     js, got = disk()
@@ -289,7 +328,7 @@ def q_schema():
     assert body.startswith('const MSTAR = ') and body.endswith('};\n') and body.count(';') == 1, body[:80]
     assert json.loads(body[len('const MSTAR = '):-2]) == got['m'] and got['keys'] == [], got['keys']
     M = got['m']
-    assert list(M) == ['nmax', 'mtop', 'cols'] and M['nmax'] == 1000 == mstar.NMAX and len(M['cols']) == 1000
+    assert list(M) == ['nmax', 'mtop', 'cols'] and M['nmax'] == 1024 == mstar.NMAX and len(M['cols']) == 1024
     T = M['mtop']
     assert type(T) is int and T == max(c[1] for c in M['cols']) + 1
     forms_lo = {'none': (), 'example': (str,), 'join': (int, int), 'product': (int, int), 'table2': (),
@@ -323,7 +362,7 @@ def q_columns_rebuilt():
     # (product) of the parts' lo; an example's label is in mstar.explicit() at length n.
     _, got = disk()
     cs, ex = got['m']['cols'], mstar.explicit()
-    for n in range(1, 1001):
+    for n in range(1, mstar.NMAX + 1):
         lo, hi, why, _ = cs[n - 1]
         if why[0] not in EXPLICIT: continue
         a = rebuild(n, cs, ex)
@@ -397,13 +436,13 @@ def q_hi_reasons():
 
 
 def q_page_agrees():
-    # Replicata: every entry of Table 2 and of the new-results block with n <= 1000, against mstar.js.
+    # Replicata: every entry of Table 2 and of the new-results block with n <= NMAX, against mstar.js.
     # Expectata: an exact value v gives lo = hi = v; a range a..b (b open for "≥") contains [lo, hi].
     _, got = disk()
     cs = got['m']['cols']
     for table in (mstar.TABLE2, {n: v[:2] for n, v in mstar.NEW.items()}):
         for n, (a, b) in table.items():
-            if n > 1000: continue
+            if n > mstar.NMAX: continue
             lo, hi = cs[n - 1][:2]
             assert a <= lo <= hi <= (b if b is not None else hi), (n, a, b, lo, hi)
             assert a != b or lo == hi == a, n
@@ -420,7 +459,8 @@ def q_brute_force_in_bounds():
 def q_known_shape():
     # Replicata: mstar.js's columns, by n mod 16.
     # Expectata: odd n: lo = hi = 0; n = 2 mod 4: 1; n = 4: 2; n = 4 mod 8 from 12: 3; n = 8 mod 16: lo = hi, and 7 from
-    # 200 on; every gray column (lo < hi) is among the user's 35 multiples of 16.
+    # 200 on; every gray column (lo < hi) is among the user's 35 multiples of 16, or is 1008 (since 2026-10-27, when the
+    # chart reached 1024).
     _, got = disk()
     cs = got['m']['cols']
     for n, (lo, hi, _, _) in enumerate(cs, 1):
@@ -443,7 +483,9 @@ def q_gray_columns():
     # settled at 10, and 848, 880, 896, 928, 944, 976 and 992, settled at 11, on 2026-10-25 (lo from the page's
     # examples p592 to p992; hi by the norm bound mod 3, or the residue condition mod 3 at 608 and 656), and less 752
     # and 784, settled at 10, and 832, settled at 11, on 2026-10-26 (lo from the page's examples p752, p784 and p832;
-    # hi by proof752.py at 752, the page's, the residue condition mod 27 at 784 and the norm bound mod 3 at 832).
+    # hi by proof752.py at 752, the page's, the residue condition mod 27 at 784 and the norm bound mod 3 at 832); and
+    # since 2026-10-27, when the chart reached 1024, 1008 last, at 10 to 13 (lo from 240 + 768, a join; hi by the
+    # residue condition mod 5 at order 14).
     _, got = disk()
     gray = tuple(n for n, c in enumerate(got['m']['cols'], 1) if c[0] < c[1])
     tens, elevens = (592, 608, 656, 752, 784), (832, 848, 880, 896, 928, 944, 976, 992)
@@ -454,6 +496,7 @@ def q_gray_columns():
     assert got['m']['cols'][240 - 1][2:] == [['example', 'BGPW Table 5'], ['page', 'Claude alone']]
     assert got['m']['cols'][560 - 1][2] == ['example', 'index.html p560']
     assert got['m']['cols'][800 - 1][2:] == [['example', 'index.html p800'], ['norm', 3]]
+    assert gray[-1] == 1008 and got['m']['cols'][1008 - 1] == [10, 13, ['join', 240, 768], ['residue', 5]]
 
 
 def q_results_of_2026_10_25():
@@ -488,20 +531,42 @@ def q_results_of_2026_10_26():
 
 
 def q_example_at_1024_is_checked():
-    # Replicata: mstar.explicit()'s sequences of length 1024 (beyond NMAX, so in no column of mstar.js), and mstar.NEW's
-    # entry for 2^10.
+    # Replicata: mstar.explicit()'s sequences of length 1024, mstar.NEW's entry for 2^10, and mstar.js's column 1024
+    # (beyond NMAX until 2026-10-27, when the chart reached 1024).
     # Expectata (2026-10-26: Claude's lattice search found an example of order 11 at 1024, which with m*(2^9) = 9 makes
     # 2^10 the first power of 2 beyond Thue-Morse): explicit() has the page's code p1024 and its set SClaude[11][1024],
-    # the same sequence, antisymmetric, of order exactly 11 by synthetic division here, +1 at 0; and NEW[2^10] is
-    # (11, 11, 'Claude alone'), the norm bound for 3 capping it at 11; and doubled once and twice it settles 2^11 and
-    # 2^12, NEW[2^11] (12, 12, 'Claude alone') and NEW[2^12] (13, 13, 'Claude alone').
+    # the same sequence, antisymmetric, of order exactly 11 by synthetic division here, +1 at 0, and Thue-Morse tau_10;
+    # NEW[2^10] is (11, 11, 'Claude alone'), the norm bound for 3 capping it at 11, and so is mstar.js's column 1024,
+    # [11, 11, ["example", "index.html p1024"], ["norm", 3]]; and doubled once and twice it settles 2^11 and 2^12,
+    # NEW[2^11] (12, 12, 'Claude alone') and NEW[2^12] (13, 13, 'Claude alone').
     ex = {label: a for (n, label), a in mstar.explicit().items() if n == 1024}
-    assert sorted(ex) == ['index.html SClaude[11][1024]', 'index.html p1024'], sorted(ex)
+    assert set(ex) == {'index.html SClaude[11][1024]', 'index.html p1024', 'Thue–Morse'}, sorted(ex)
+    assert ex['Thue–Morse'] == mstar.thue_morse(10) and exact_order_div(ex['Thue–Morse']) == 10
+    assert disk()[1]['m']['cols'][1024 - 1] == [11, 11, ['example', 'index.html p1024'], ['norm', 3]]
     a = ex['index.html p1024']
     assert ex['index.html SClaude[11][1024]'] == a and exact_order_div(a) == 11 and a[0] == 1, a[:8]
     assert all(a[1023 - i] == -a[i] for i in range(1024))
     assert mstar.NEW[2 ** 10] == (11, 11, 'Claude alone') and mstar.norm(1024, 3) == 11, mstar.NEW.get(2 ** 10)
     assert [mstar.NEW.get(2 ** k) for k in (11, 12)] == [(12, 12, 'Claude alone'), (13, 13, 'Claude alone')]
+
+
+def q_lengths_from_1002_to_1024():
+    # Replicata (regression): mstar.js's columns 1002 to 1024, which the chart gained on 2026-10-27 (dreeves, relaying
+    # Stan Wagon: "could the table and the chart go up to 1024 as the natural stopping point, instead of 1000?"), and
+    # mstar.RESIDUE's claim at 1008.
+    # Expectata: n = 2 mod 4 is 1 and n = 4 mod 8 is 3, by joins and the two lemma; 1016 is 7, the most the two lemma
+    # allows an odd multiple of 8; 1024 is 11, its example and the norm bound for 3; and 1008 is 10 to 13: 10 from the
+    # join 240 + 768 (the least of its two parts, 10 and 11), and order 14 ruled out by the residue condition mod 5 (the
+    # claim (14, (5,), 'digits'), found by scratch/upto1024/residue1008.py in both sweeps, where orders 15 and 14 die
+    # mod 5 at once), as at 672, 768 and 912; the two lemma and the norm bound for 5 allow 15.
+    cs = disk()[1]['m']['cols']
+    want = {n: [1, 1] if n % 4 == 2 else [3, 3] if n % 8 == 4 else None for n in range(1002, 1025, 2)}
+    assert all(cs[n - 1][:2] == v for n, v in want.items() if v), [(n, cs[n - 1]) for n in want]
+    assert cs[1016 - 1][:2] == [7, 7] and cs[1016 - 1][3] == ['two'], cs[1016 - 1]
+    assert cs[1024 - 1][:2] == [11, 11] and cs[1008 - 1] == [10, 13, ['join', 240, 768], ['residue', 5]], cs[1008 - 1]
+    assert [cs[n - 1][0] for n in (240, 768)] == [10, 11]
+    assert mstar.RESIDUE[1008] == (14, (5,), 'digits') and mstar.two(1008) == mstar.norm(1008, 5) == 15
+    assert mstar.NEW[1008] == (10, 13, 'Claude alone'), mstar.NEW.get(1008)
 
 
 def q_example_at_816_raises_its_lo():

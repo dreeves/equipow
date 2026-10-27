@@ -139,7 +139,8 @@ table.block th {
    main; a little less side padding in its cells keeps it in one row, unscrolled, at 945 px (0.5rem since 2026-10-25,
    when the powers of 2 reached 23, so that their two rows, split after 2^38, fit too; 0.4rem since 2026-10-26, when
    they reached 25, split after 2^41; and since later that day, when they reached 35, three rows, from 2^3, 2^27 and
-   2^49). */
+   2^49; and since 2026-10-27, when the block took in Table 2 and reached 1024, six upper rows, from 8, 136, 240, 480,
+   672 and 848, the first two as Table 2's). */
 .new-block table.block td { padding-inline: 0.4rem; }
 
 /* Provenance: tint on both cells of an entry, a bar under its value, and a
@@ -328,7 +329,7 @@ code {
 .smallest th { font-weight: 400; }
 .smallest .attrib { color: var(--muted); }
 
-/* Claude's chart of m*(n) for n up to 1000: one canvas, drawn by the script at the end from mstar.js. Pan and zoom
+/* Claude's chart of m*(n) for n up to 1024: one canvas, drawn by the script at the end from mstar.js. Pan and zoom
    act on n only, and vertical swipes still scroll the page. */
 .mstar { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; }
 .mstar-bar {
@@ -451,7 +452,7 @@ footer {
   <p>
     We extend the results of 
     Table 2 of the paper by Buhler, Golan, Pratt, and Wagon (<i>Math. Comp.</i> 90, 2021).</p>
-  <p><i>m</i><sup>*</sup>(<i>n</i>) 
+  <p>Background: <i>m</i><sup>*</sup>(<i>n</i>) 
     is the largest number <i>m</i> such that 
     {1, …, <i>n</i>} can be split into two parts whose power sums are equal for every exponent 
     <span class="nw"><i>k</i> = 0, …, <i>m</i> − 1</span>.</p>
@@ -463,10 +464,10 @@ footer {
     &nbsp; <i>k</i>=2: &nbsp; 1<sup>2</sup> + 4<sup>2</sup> &nbsp; = 17 &nbsp; &ne; &nbsp; 2<sup>2</sup> + 3<sup>2</sup> &nbsp; = &nbsp; 13.<br>
   </p>
   <p>
-    Since the power sums are equal for <i>k</i> = 0 and <i>k</i> = 1 but not for <i>k</i> = 2, and since (exercise for the reader) no other partition of {1, 2, 3, 4} into two parts hits a bigger max <i>k</i>, we say that 
+    Since the power sums are equal for <i>k</i> = 0 and <i>k</i> = 1 but not for <i>k</i> = 2, and since (exercise for the reader) no other bipartition of {1, 2, 3, 4} hits a bigger max <i>k</i>, we say that 
     <span class="nw"><i>m</i><sup>*</sup>(4) = 2.</span></p>
   <p>
-    For {1, …, 8} it turns out there's a partition &mdash; {1, 4, 6, 7} and {2, 3, 5, 8} &mdash; that gets us up to <i>k</i> = 2, meaning <i>m</i><sup>*</sup>(8) = 3:
+    For {1, …, 8} it turns out there's a bipartition &mdash; {1, 4, 6, 7} and {2, 3, 5, 8} &mdash; that gets us up to <i>k</i> = 2, meaning <i>m</i><sup>*</sup>(8) = 3:
   </p>
   <p>
     &nbsp; <i>k</i>=0: &nbsp; 1<sup>0</sup> + 4<sup>0</sup> + 6<sup>0</sup> + 7<sup>0</sup> &nbsp; = &nbsp; 2<sup>0</sup> + 3<sup>0</sup> + 5<sup>0</sup> + 8<sup>0</sup> &nbsp; = &nbsp; 4<br>
@@ -509,24 +510,32 @@ footer {
     <p>Claude: "No sequence of length 288 has order 11, so the 10 at 288 no longer rests on a citation: <a href="https://github.com/dreeves/equipow/blob/main/proof288.py">proof288.py</a> checks this exactly."</p>
 
     <div class="new-block">
-      <p class="block-label">New results since the paper</p>
+      <p class="block-label">Extended results since the paper</p>
       <div class="scroll">
         <!-- Cell titles reuse the legend's labels below -->
         <table class="block">
-          <tr class="ns"><th scope="row"><i>n</i></th><td class="c" title='Claude alone'>240</td><td class="c" title='Claude alone'>304</td><td class="s" title='BGPW'>320</td><td class="j" title='Claude and BGPW'>336</td><td class="s" title='BGPW'>352</td><td class="s" title='BGPW'>368</td><td class="a" title='Astra alone'>384</td><td class="s" title='BGPW'>400</td><td class="s" title='BGPW'>416</td><td class="c" title='Claude alone'>432</td><td class="c" title='Claude alone'>448</td><td class="s" title='BGPW'>464</td></tr>
-          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="c">10</td><td class="c">8</td><td class="s">9</td><td class="j">10</td><td class="s">9</td><td class="s">9</td><td class="a">10</td><td class="s">9</td><td class="s">9</td><td class="c">11–12</td><td class="c">9</td><td class="s">9</td></tr>
+          <tr class="ns"><th scope="row"><i>n</i></th><td title='The published paper (2021)'>8</td><td title='The published paper (2021)'>16</td><td title='The published paper (2021)'>24</td><td title='The published paper (2021)'>32</td><td title='The published paper (2021)'>40</td><td title='The published paper (2021)'>48</td><td title='The published paper (2021)'>56</td><td title='The published paper (2021)'>64</td><td title='The published paper (2021)'>72</td><td title='The published paper (2021)'>80</td><td title='The published paper (2021)'>88</td><td title='The published paper (2021)'>96</td><td title='The published paper (2021)'>104</td><td title='The published paper (2021)'>112</td><td title='The published paper (2021)'>120</td><td title='The published paper (2021)'>128</td></tr>
+          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td>3</td><td>4</td><td>4</td><td>5</td><td>5</td><td>6</td><td>5</td><td>6</td><td>6</td><td>6</td><td>6</td><td>7</td><td>6</td><td>7</td><td>6</td><td>7</td></tr>
         </table>
         <table class="block">
-          <tr class="ns"><th scope="row"><i>n</i></th><td class="c" title='Claude alone'>480</td><td class="j" title='Claude and BGPW'>496</td><td class="j" title='Claude and BGPW'>528</td><td class="c" title='Claude alone'>544</td><td class="c" title='Claude alone'>560</td><td class="c" title='Claude alone'>576</td><td class="ca" title='Claude and Astra'>592</td><td class="ca" title='Claude and Astra'>608</td><td class="c" title='Claude alone'>624</td><td class="c" title='Claude alone'>640</td><td class="ca" title='Claude and Astra'>656</td></tr>
-          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="c">12–14</td><td class="j">9</td><td class="j">10–12</td><td class="c">9–10</td><td class="c">10</td><td class="c">10–12</td><td class="ca">10</td><td class="ca">10</td><td class="c">10–12</td><td class="c">10</td><td class="ca">10</td></tr>
+          <tr class="ns"><th scope="row"><i>n</i></th><td title='The published paper (2021)'>136</td><td title='The published paper (2021)'>144</td><td title='The published paper (2021)'>152</td><td title='The published paper (2021)'>160</td><td title='The published paper (2021)'>168</td><td title='The published paper (2021)'>176</td><td title='The published paper (2021)'>184</td><td title='The published paper (2021)'>192</td><td title='The published paper (2021)'>200</td><td title='The published paper (2021)'>208</td><td title='The published paper (2021)'>216</td><td title='The published paper (2021)'>224</td><td title='The published paper (2021)'>232</td></tr>
+          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td>6</td><td>8</td><td>6</td><td>7</td><td>6</td><td>7</td><td>6</td><td>9</td><td>7</td><td>8</td><td>7</td><td>8</td><td>7</td></tr>
+        </table>
+        <table class="block">
+          <tr class="ns"><th scope="row"><i>n</i></th><td class="c" title='Claude alone'>240</td><td title='The published paper (2021)'>248</td><td title='The published paper (2021)'>256</td><td title='The published paper (2021)'>264</td><td title='The published paper (2021)'>272</td><td title='The published paper (2021)'>280</td><td title='The published paper (2021)'>288</td><td title='The published paper (2021)'>296</td><td class="c" title='Claude alone'>304</td><td class="s" title='BGPW'>320</td><td class="j" title='Claude and BGPW'>336</td><td class="s" title='BGPW'>352</td><td class="s" title='BGPW'>368</td><td class="a" title='Astra alone'>384</td><td class="s" title='BGPW'>400</td><td class="s" title='BGPW'>416</td><td class="c" title='Claude alone'>432</td><td class="c" title='Claude alone'>448</td><td class="s" title='BGPW'>464</td></tr>
+          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="c">10</td><td>7</td><td>8</td><td>7</td><td>8</td><td>7</td><td>9–10</td><td>7</td><td class="c">8</td><td class="s">9</td><td class="j">10</td><td class="s">9</td><td class="s">9</td><td class="a">10</td><td class="s">9</td><td class="s">9</td><td class="c">11–12</td><td class="c">9</td><td class="s">9</td></tr>
+        </table>
+        <table class="block">
+          <tr class="ns"><th scope="row"><i>n</i></th><td class="c" title='Claude alone'>480</td><td class="j" title='Claude and BGPW'>496</td><td class="c" title='Claude alone'>512</td><td class="j" title='Claude and BGPW'>528</td><td class="c" title='Claude alone'>544</td><td class="c" title='Claude alone'>560</td><td class="c" title='Claude alone'>576</td><td class="ca" title='Claude and Astra'>592</td><td class="ca" title='Claude and Astra'>608</td><td class="c" title='Claude alone'>624</td><td class="c" title='Claude alone'>640</td><td class="ca" title='Claude and Astra'>656</td></tr>
+          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="c">12–14</td><td class="j">9</td><td class="c">9</td><td class="j">10–12</td><td class="c">9–10</td><td class="c">10</td><td class="c">10–12</td><td class="ca">10</td><td class="ca">10</td><td class="c">10–12</td><td class="c">10</td><td class="ca">10</td></tr>
         </table>
         <table class="block">
           <tr class="ns"><th scope="row"><i>n</i></th><td class="c" title='Claude alone'>672</td><td class="c" title='Claude alone'>688</td><td class="c" title='Claude alone'>704</td><td class="c" title='Claude alone'>720</td><td class="c" title='Claude alone'>736</td><td class="ca" title='Claude and Astra'>752</td><td class="c" title='Claude alone'>768</td><td class="ca" title='Claude and Astra'>784</td><td class="c" title='Claude alone'>800</td><td class="c" title='Claude alone'>816</td><td class="c" title='Claude alone'>832</td></tr>
           <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="c">11–13</td><td class="c">9–10</td><td class="c">10</td><td class="c">10–14</td><td class="c">10</td><td class="ca">10</td><td class="c">11–13</td><td class="ca">10</td><td class="c">11</td><td class="c">11–14</td><td class="c">11</td></tr>
         </table>
         <table class="block">
-          <tr class="ns"><th scope="row"><i>n</i></th><td class="c" title='Claude alone'>848</td><td class="c" title='Claude alone'>864</td><td class="c" title='Claude alone'>880</td><td class="c" title='Claude alone'>896</td><td class="c" title='Claude alone'>912</td><td class="c" title='Claude alone'>928</td><td class="c" title='Claude alone'>944</td><td class="c" title='Claude alone'>960</td><td class="c" title='Claude alone'>976</td><td class="c" title='Claude alone'>992</td></tr>
-          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="c">11</td><td class="c">12–14</td><td class="c">11</td><td class="c">11</td><td class="c">11–13</td><td class="c">11</td><td class="c">11</td><td class="c">13–15</td><td class="c">11</td><td class="c">11</td></tr>
+          <tr class="ns"><th scope="row"><i>n</i></th><td class="c" title='Claude alone'>848</td><td class="c" title='Claude alone'>864</td><td class="c" title='Claude alone'>880</td><td class="c" title='Claude alone'>896</td><td class="c" title='Claude alone'>912</td><td class="c" title='Claude alone'>928</td><td class="c" title='Claude alone'>944</td><td class="c" title='Claude alone'>960</td><td class="c" title='Claude alone'>976</td><td class="c" title='Claude alone'>992</td><td class="c" title='Claude alone'>1008</td><td class="c" title='Claude alone'>1024</td></tr>
+          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="c">11</td><td class="c">12–14</td><td class="c">11</td><td class="c">11</td><td class="c">11–13</td><td class="c">11</td><td class="c">11</td><td class="c">13–15</td><td class="c">11</td><td class="c">11</td><td class="c">10–13</td><td class="c">11</td></tr>
         </table>
         <table class="block">
           <tr class="ns"><th scope="row"><i>n</i></th><td title='The published paper (2021)'>2<sup>3</sup></td><td title='The published paper (2021)'>2<sup>4</sup></td><td title='The published paper (2021)'>2<sup>5</sup></td><td title='The published paper (2021)'>2<sup>6</sup></td><td title='The published paper (2021)'>2<sup>7</sup></td><td title='The published paper (2021)'>2<sup>8</sup></td><td class="c" title='Claude alone'>2<sup>9</sup></td><td class="c" title='Claude alone'>2<sup>10</sup></td><td class="c" title='Claude alone'>2<sup>11</sup></td><td class="c" title='Claude alone'>2<sup>12</sup></td><td class="c" title='Claude alone'>2<sup>17</sup></td><td class="c" title='Claude alone'>2<sup>18</sup></td><td class="c" title='Claude alone'>2<sup>20</sup></td><td class="j" title='Claude and BGPW'>2<sup>24</sup></td></tr>
@@ -541,6 +550,8 @@ footer {
           <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="c">55–60</td><td class="j">57–63</td><td class="c">58–64</td><td class="c">64–70</td><td class="c">68–75</td><td class="c">73–81</td><td class="c">74–82</td><td class="c">75–83</td><td class="c">77–84</td><td class="c">80–88</td><td class="c">81–89</td></tr>
         </table>
       </div>
+      <!-- TODO: says which n the table lists above its powers of 2: every multiple of 8 up to 304, as Table 2 does, then every multiple of 16 up to 1024, because BGPW's Theorem 4.1 (Divisibility, linked) gives m*(n) ≤ 7 at every odd multiple of 8, and every one from 200 on has m*(n) = 7 -->
+      <p>Claude: "Above its powers of 2, this table lists every multiple of 8 up to 304, as Table 2 does, then every multiple of 16 up to 1024: an odd multiple of 8 has <span class="nw"><i>m</i><sup>*</sup>(<i>n</i>) ≤ 7</span> by BGPW's <a href="https://arxiv.org/html/1912.03491v1#S4.Thmthm1">Theorem 4.1</a> (Divisibility), and every one from 200 on has <span class="nw"><i>m</i><sup>*</sup>(<i>n</i>) = 7</span>."</p>
     </div>
   </div>
 
@@ -554,10 +565,10 @@ footer {
   </ul>
 </figure>
 
-<!-- Claude's chart of what is known about m*(n) for every n up to 1000, drawn by the script at the end from mstar.js -->
+<!-- Claude's chart of what is known about m*(n) for every n up to 1024, drawn by the script at the end from mstar.js -->
 <section class="mstar" aria-labelledby="mstar-title">
-  <!-- the chart shows the bounds on m*(n) for every even n up to 1000 -->
-  <h2 id="mstar-title">Bounds on <span class="nw"><i>m</i><sup>*</sup>(<i>n</i>)</span> for every even <i>n</i> up to 1000</h2>
+  <!-- the chart shows the bounds on m*(n) for every even n up to 1024 -->
+  <h2 id="mstar-title">Bounds on <span class="nw"><i>m</i><sup>*</sup>(<i>n</i>)</span> for every even <i>n</i> up to 1024</h2>
   <!-- cell (n, m) is green when m*(n) ≥ m is known, red when m*(n) < m is proven, and gray when neither is; and that odd n are left out, because an odd number of integers can't be split into two halves of equal size, so no partition exists for any m -->
   <div class="mstar-bar">
     <ul class="legend">
@@ -569,11 +580,11 @@ footer {
     <div class="mstar-zoom">
       <button type="button" id="mstar-zoom-out" aria-label='zoom out' title='Claude: "zoom out"'>−</button>
       <button type="button" id="mstar-zoom-in" aria-label='zoom in' title='Claude: "zoom in"'>+</button>
-      <!-- zooms back out to every column, n = 2 to 1000 -->
+      <!-- zooms back out to every column, n = 2 to 1024 -->
       <button type="button" id="mstar-reset" aria-label='reset zoom' title='reset zoom'>↺</button>
     </div>
   </div>
-  <canvas id="mstar-chart" height="0" tabindex="0" role="img" aria-label='chart of the bounds on m*(n) for even n up to 1000; the arrow keys pan, and + and − zoom'></canvas>
+  <canvas id="mstar-chart" height="0" tabindex="0" role="img" aria-label='chart of the bounds on m*(n) for even n up to 1024; the arrow keys pan, and + and − zoom'></canvas>
   <p id="mstar-readout" aria-live="polite">Hover over a cell for details. Drag or swipe sideways to pan; zoom with the − and + buttons, pinching, or ctrl-scroll.</p>
 </section>
 
@@ -589,8 +600,8 @@ footer {
       <thead><tr><th>Record gaps</th><th>The power of 2</th><th>The order</th></tr></thead>
     </table>
   </div>
-  <!-- TODO: caption; says column k is n = 2^k, where Thue–Morse has order k, an excess of 0, and row e is order k + e, an excess of e; that cell (k, e) is green when m*(2^k) ≥ k + e is known, red when m*(2^k) < k + e is proven, and black when neither is; and that in the readout f is the construction of length 2^24 and order 25 in the remarks below, τ_j is Thue–Morse of length 2^j, p_n is a sequence of length n whose order is the lower bound in column n of the chart above, and p_1024, beyond that chart, is the example of order 11 in the remarks below -->
-  <p class="pow2-caption">Claude: "Column <i>k</i> is <span class="nw"><i>n</i> = 2<sup><i>k</i></sup></span>, where Thue–Morse has order <i>k</i>, an excess of 0; row <i>e</i> is order <span class="nw"><i>k</i> + <i>e</i></span>, an excess of <i>e</i>. Cell (<i>k</i>, <i>e</i>) is green when <span class="nw"><i>m</i><sup>*</sup>(2<sup><i>k</i></sup>) ≥ <i>k</i> + <i>e</i></span> is known, red when <span class="nw"><i>m</i><sup>*</sup>(2<sup><i>k</i></sup>) &lt; <i>k</i> + <i>e</i></span> is proven, and black when neither is. In the readout, <i>f</i> is the construction of length 2<sup>24</sup> and order 25 in the remarks below, τ<sub><i>j</i></sub> is Thue–Morse of length 2<sup><i>j</i></sup>, <i>p</i><sub><i>n</i></sub> is a sequence of length <i>n</i> whose order is the lower bound in column <i>n</i> of the chart above, and <i>p</i><sub>1024</sub>, beyond that chart, is the example of order 11 in the remarks below."</p>
+  <!-- TODO: caption; says column k is n = 2^k, where Thue–Morse has order k, an excess of 0, and row e is order k + e, an excess of e; that cell (k, e) is green when m*(2^k) ≥ k + e is known, red when m*(2^k) < k + e is proven, and black when neither is; and that in the readout f is the construction of length 2^24 and order 25 in the remarks below, τ_j is Thue–Morse of length 2^j, and p_n is a sequence of length n whose order is the lower bound in column n of the chart above -->
+  <p class="pow2-caption">Claude: "Column <i>k</i> is <span class="nw"><i>n</i> = 2<sup><i>k</i></sup></span>, where Thue–Morse has order <i>k</i>, an excess of 0; row <i>e</i> is order <span class="nw"><i>k</i> + <i>e</i></span>, an excess of <i>e</i>. Cell (<i>k</i>, <i>e</i>) is green when <span class="nw"><i>m</i><sup>*</sup>(2<sup><i>k</i></sup>) ≥ <i>k</i> + <i>e</i></span> is known, red when <span class="nw"><i>m</i><sup>*</sup>(2<sup><i>k</i></sup>) &lt; <i>k</i> + <i>e</i></span> is proven, and black when neither is. In the readout, <i>f</i> is the construction of length 2<sup>24</sup> and order 25 in the remarks below, τ<sub><i>j</i></sub> is Thue–Morse of length 2<sup><i>j</i></sup>, and <i>p</i><sub><i>n</i></sub> is a sequence of length <i>n</i> whose order is the lower bound in column <i>n</i> of the chart above."</p>
   <ul class="legend">
     <li><span class="swatch exists" aria-hidden="true"></span><span class="nw"><i>k</i> + <i>e</i> ≤ <i>m</i><sup>*</sup>(2<sup><i>k</i></sup>)</span></li>
     <li><span class="swatch open" aria-hidden="true"></span>open</li>
@@ -985,6 +996,12 @@ footer {
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
+      <p class="entry"><i>n</i> = 1008: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {10, …, 13}</span></p>
+      <!-- TODO: says how the m*(n) chart gets these: order 10 from examples above doubled or joined (each spelled out), order 14 ruled out by the residue conditions and norm bounds it names -->
+      <p>Claude: "Order 10 from examples above, joined (1008 = 240 + 768); order 14 is ruled out by the residue condition mod 5."</p>
+    </li>
+    <li class="c">
+      <span class="mk" aria-hidden="true">◆</span>
       <p class="entry"><i>n</i> = 2<sup>11</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> = 12</span></p>
       <!-- TODO: says p1024 # tau_1, the 1024 entry above times tau_1, has order 12, which beats Thue–Morse by 1, and that the upper bound is the residue condition mod 3 -->
       <p>Claude: "<span class="nw"><i>p</i><sub>1024</sub> # τ<sub>1</sub></span>, the 1024 entry above times τ<sub>1</sub>, has order 12. That beats Thue–Morse by 1. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above."</p>
@@ -1159,10 +1176,10 @@ footer {
 </section>
 
 <section class="smallest" aria-labelledby="smallest-title">
-  <!-- TODO: a block quote by Claude, at Stan Wagon's suggestion (2026-10-17): a table that keeps, for each order m, the smallest n up to 1000 for which a sequence of length n and order m is known (from the chart's data, mstar.js, so that it follows every new result), a check mark where that n is proven smallest, and the smallest n whose upper bound doesn't rule order m out; the proven ones are the terms a(m − 1) of OEIS A323395 -->
+  <!-- TODO: a block quote by Claude, at Stan Wagon's suggestion (2026-10-17): a table that keeps, for each order m, the smallest n up to 1024 for which a sequence of length n and order m is known (from the chart's data, mstar.js, so that it follows every new result), a check mark where that n is proven smallest, and the smallest n whose upper bound doesn't rule order m out; the proven ones are the terms a(m − 1) of OEIS A323395 -->
   <blockquote class="claude">
     <h2 id="smallest-title">The smallest length known for each order</h2>
-    <p>For each order <i>m</i>, the smallest <i>n</i> up to 1000 for which a sequence of length <i>n</i> and order <i>m</i> is known, from the chart above, and the smallest <i>n</i> whose upper bound doesn't rule order <i>m</i> out. Where the two agree, <i>n</i> is proven smallest (✓): the term <span class="nw"><i>a</i>(<i>m</i> − 1)</span> of OEIS <a href="https://oeis.org/A323395">A323395</a>.</p>
+    <p>For each order <i>m</i>, the smallest <i>n</i> up to 1024 for which a sequence of length <i>n</i> and order <i>m</i> is known, from the chart above, and the smallest <i>n</i> whose upper bound doesn't rule order <i>m</i> out. Where the two agree, <i>n</i> is proven smallest (✓): the term <span class="nw"><i>a</i>(<i>m</i> − 1)</span> of OEIS <a href="https://oeis.org/A323395">A323395</a>.</p>
     <table>
       <thead><tr><th>order <i>m</i></th><th>smallest known <i>n</i></th><th>proven smallest</th><th>smallest <i>n</i> not ruled out</th></tr></thead>
       <tbody data-smallest></tbody>
@@ -1965,16 +1982,16 @@ SClaude[11][816] = {
 </main>
 <script src="mstar.js"></script>
 <script>
-// Claude's chart of m*(n) for the even n up to 1000, drawn from MSTAR, which mstar.js defines (mstar.py makes it and
+// Claude's chart of m*(n) for the even n up to 1024, drawn from MSTAR, which mstar.js defines (mstar.py makes it and
 // states its contract).  Column n is green (exists) in rows m = 1 to lo, gray (open) up to hi and red (impossible) above,
 // up to row MSTAR.mtop.  Odd n get no column: an odd n has no partition at any m.  Pan and zoom act
 // on n only: the view is the interval [u0, u0 + span) of u, column n spanning u from n / 2 - 1 to n / 2.  Each device
-// pixel of the plot mixes the colors of the cells it covers, weighted by how much of it each covers, so all NCOL = 500
+// pixel of the plot mixes the colors of the cells it covers, weighted by how much of it each covers, so all NCOL = 512
 // columns can show at once even where they are narrower than a pixel.
 (() => {
 const cv = document.getElementById('mstar-chart'), ro = document.getElementById('mstar-readout');
 try {
-  const D = MSTAR, NMAX = 1000, NCOL = NMAX / 2, MIN_SPAN = 12, TAP = 6;
+  const D = MSTAR, NMAX = 1024, NCOL = NMAX / 2, MIN_SPAN = 12, TAP = 6;
   // Layout in CSS px: the m labels left of the plot, room right of it for the last n label, rows ROW tall whose bottom
   // GAP is page surface, and the n axis below.
   const LEFT = 44, RIGHT = 16, TOP = 2, ROW = 14, GAP = 2, AXIS = 30;
@@ -2280,12 +2297,14 @@ try {
     return Number(m);
   };
   // A block [n, m] of a join's product: f, the construction of length 2^24 and order 25 (the remarks below); τ_j,
-  // Thue–Morse of length 2^j; or p_n, the sequence behind column n <= 1000 of the m*(n) chart, or one of LONG, the
-  // examples longer than 1000 in the remarks below, as [n, m].  name gives its symbol in the readout, and '' for
-  // anything else, which the contract rules out.
-  const LONG = [[1024, 11]];
+  // Thue–Morse of length 2^j; or p_n, the sequence behind column n <= NMAX of the m*(n) chart, or one of LONG, the
+  // examples longer than NMAX in the remarks below, as [n, m] (none since 2026-10-27, when the m*(n) chart reached
+  // the one there was, at 1024).  name gives its symbol in the readout, and '' for anything else, which the contract
+  // rules out.
+  const NMAX = 1024;                                                // the m*(n) chart's last n, as its script has it
+  const LONG = [];
   const name = ([n, m]) => n === 2 ** 24 && m === 25 ? 'f' : n === 2 ** m ? `τ${sub(m)}`
-    : n <= 1000 || LONG.some(b => b[0] === n && b[1] === m) ? `p${sub(n)}` : '';
+    : n <= NMAX || LONG.some(b => b[0] === n && b[1] === m) ? `p${sub(n)}` : '';
   const isBlock = b => Array.isArray(b) && b.length === 2 && b.every(Number.isInteger) && b[0] >= 1 && b[1] >= 0
     && name(b) !== '';
   const length = p => p.reduce((t, [n]) => t * BigInt(n), 1n), order = p => p.reduce((t, [, m]) => t + m, 0);
@@ -2312,7 +2331,7 @@ try {
     },
   };
   // The m*(n) chart's reasons of an upper bound at an even n, copied line for line from its script: the reasons of
-  // ["mstar", why], k <= 9.
+  // ["mstar", why], 2^k <= NMAX.
   const MSTAR_HI = {
     two: {
       ok: (n, hi) => n % 2 === 0 && hi === (n & -n) - 1,
@@ -2342,7 +2361,7 @@ try {
   };
   const HI = {
     mstar: {
-      ok: (k, hi, why) => k <= 9 && Array.isArray(why) && Object.hasOwn(MSTAR_HI, why[0])
+      ok: (k, hi, why) => 2 ** k <= NMAX && Array.isArray(why) && Object.hasOwn(MSTAR_HI, why[0])
         && MSTAR_HI[why[0]].ok.length === why.length + 1 && MSTAR_HI[why[0]].ok(2 ** k, hi, ...why.slice(1)),
       text: (k, hi, why) => MSTAR_HI[why[0]].text(2 ** k, hi, ...why.slice(1)),
     },
