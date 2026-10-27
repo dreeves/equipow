@@ -97,14 +97,18 @@ RESIDUE = {11: (13, (3,), 'digits'), 12: (14, (3,), 'digits'), 14: (17, (3,), 'd
 # new ones lifted matching them at every k.  The example of order 11 at 1024 (later on 2026-10-26) moved the first K0
 # for e = 1 from 17 to 10: BASES[10] is that block alone, which lifted matches the superseded BASES[17], (112 # 800) v
 # (48 # 432 # tau_1), at every k >= 17; with that block among the others, the search
-# (scratch/wish2/results/base_e*.json) moves no other first K0, and leaves the same K undecided at e = 8 and 9.  (The
-# examples of order 10 at 592, 608 and 656 and of order 11 at 848, 880, 896, 928, 944, 976 and 992, 2026-10-25, had
-# moved the first K0 for e = 2 from 27 to 20 (BASES[20] is 848 # 992 joined to 240 # 432 # tau_1), for e = 3 from 34
-# to 30, for e = 4 from 38 to 37, for e = 6 from 52 to 49 and for e = 8 from 66 to 65, and given e = 9 at 72; the
-# example of order 11 at 800, 2026-10-17, had moved the first K0 for e = 1 from 18 to 17, for e = 2 from 33 to 27, for
-# e = 3 from 41 to 34, for e = 4 from 48 to 38, for e = 5 from 61 to 46 and for e = 6 from 71 to 52, and given e = 7
-# at 57 and e = 8 at 66; the example of order 10 at 560, 2026-10-12, had moved e = 1 from 24, where f reaches it, to
-# 18, e = 3 from 49 to 41, e = 4 from 57 to 48 and e = 5 from 67 to 61, and given e = 6 at 71.)
+# (scratch/wish2/results/base_e*.json) moves no other first K0, and leaves the same K undecided at e = 8 and 9.  The
+# example of order 11 at 816 (at the end of 2026-10-26) moved the first K0 for e = 5 from 43 to 41: BASES[41] has 816
+# among its blocks, and lifted it matches the superseded BASES[43] at every k >= 43; with 816 and 1024 among the
+# blocks, the search (scratch/wish2/results/wish_n816_m11.json) finds no K <= 40 reaching e = 5, exhaustively, and
+# moves no other first K0.  (The examples of order 10 at 592, 608 and 656 and of order 11 at 848, 880, 896, 928, 944,
+# 976 and 992, 2026-10-25, had moved the first K0 for e = 2 from 27 to 20 (BASES[20] is 848 # 992 joined to
+# 240 # 432 # tau_1), for e = 3 from 34 to 30, for e = 4 from 38 to 37, for e = 6 from 52 to 49 and for e = 8 from 66
+# to 65, and given e = 9 at 72; the example of order 11 at 800, 2026-10-17, had moved the first K0 for e = 1 from 18
+# to 17, for e = 2 from 33 to 27, for e = 3 from 41 to 34, for e = 4 from 48 to 38, for e = 5 from 61 to 46 and for
+# e = 6 from 71 to 52, and given e = 7 at 57 and e = 8 at 66; the example of order 10 at 560, 2026-10-12, had moved
+# e = 1 from 24, where f reaches it, to 18, e = 3 from 49 to 41, e = 4 from 57 to 48 and e = 5 from 67 to 61, and
+# given e = 6 at 71.)
 BASES = {10: [[[1024, 11]]],
          20: [[[848, 11], [992, 11]],
               [[240, 10], [432, 11], [2, 1]]],
@@ -115,12 +119,10 @@ BASES = {10: [[[1024, 11]]],
          37: [[[208, 8], [800, 11], [800, 11], [848, 11]],
               [[192, 9], [192, 9], [432, 11], [432, 11], [2, 1]],
               [[48, 6], [480, 12], [480, 12], [976, 11]]],
-         43: [[[800, 11], [832, 11], [832, 11], [832, 11], [16, 4]],
-              [[48, 6], [192, 9], [432, 11], [432, 11], [432, 11]],
-              [[432, 11], [432, 11], [432, 11], [480, 12], [8, 3]],
-              [[480, 12], [480, 12], [480, 12], [480, 12], [4, 2]],
-              [[480, 12], [480, 12], [480, 12], [480, 12], [2, 1]],
-              [[480, 12], [480, 12], [480, 12], [480, 12]]],
+         41: [[[800, 11], [800, 11], [832, 11], [848, 11], [4, 2]],
+              [[432, 11], [432, 11], [432, 11], [816, 11], [4, 2]],
+              [[480, 12], [480, 12], [480, 12], [784, 10]],
+              [[432, 11], [432, 11], [480, 12], [480, 12]]],
          48: [[[560, 10], [800, 11], [800, 11], [800, 11], [832, 11]],
               [[336, 10], [336, 10], [432, 11], [432, 11], [432, 11], [2, 1]],
               [[48, 6], [480, 12], [480, 12], [480, 12], [928, 11], [2, 1]],

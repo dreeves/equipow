@@ -1534,6 +1534,67 @@ def q_1024_doubled_settles_2_11_and_2_12():
     assert ('2026-10-26', {2 ** 11: (12, 12), 2 ** 12: (13, 13)}) in entries, entries[:4]
 
 
+def q_example_at_816_has_its_entry_code_and_set():
+    # Replicata: the remarks' entries of 720 and 816, 816's code decoded by the paper's Table 5 convention (the left
+    # half of the signs, 1 = +1, then the rest by (-1)^m symmetry), the page's set SClaude[11][816], the new results'
+    # cells, and mstar.js's columns 720 and 816.
+    # Expectata (2026-10-26: Claude's lattice search found an antisymmetric example of order 11 at 816, which the
+    # norm bound for the residue sums mod 5 leaves at 11 to 14): 816 has an entry of its own, "m* ∈ {11, …, 14}", an
+    # <li class="c"> marked ◆, right after 800's and before 832's, whose Claude: "…" names the norm bound mod 5; its
+    # one code block, p816 of order 11, whose signs have order exactly 11 (synthetic division here) and are
+    # antisymmetric; SClaude[11][816] exactly their +1 positions, 0 among them; 720's entry alone, "m* ∈ {10, …, 14}"
+    # (it shared one with 816 before); the cell 816 of value 11–14; and mstar.js's column 816 is [11, 14, ["example",
+    # "index.html p816"], ["norm", 5]].
+    text = page()
+    li = re.search(r'<li class="c">\n      <span class="mk" aria-hidden="true">◆</span>\n      <p class="entry"><i>n</i> = '
+                   r'816: &nbsp;<span class="nw"><i>m</i><sup>\*</sup> ∈ \{11, …, 14\}</span></p>\n(.*?)\n    </li>', text, re.S)
+    assert li, 'no entry of 816 alone'
+    assert 'norm bound for the residue sums mod 5' in re.search(r'<p>Claude: "(.*?)"</p>', li.group(1)).group(1), li.group(1)[:300]
+    codes = re.findall(r'<p class="code">\n        <span><i>p</i><sub>(\d+)</sub> <span class="nw">\(<i>m</i> = (\d+)\)</span>:</span>\n'
+                       r'        <code>([0-9A-F]+)</code>\n      </p>', li.group(1))
+    assert len(codes) == 1 and codes[0][:2] == ('816', '11'), codes
+    h = codes[0][2]
+    left = [1 if b == '1' else -1 for b in bin(int(h, 16))[2:].zfill(4 * len(h))]
+    a, k = left + [-s for s in reversed(left)], 0
+    c = a
+    while not sum(c): c, k = list(itertools.accumulate(c[:-1])), k + 1
+    assert len(a) == 816 and k == 11 and all(a[815 - i] == -a[i] for i in range(816)), (len(a), k)
+    sets = {(int(m), int(n)): {int(t) for t in body.split(',')}
+            for m, n, body in re.findall(r'SClaude\[(\d+)\]\[(\d+)\] = \{([^}]*)\};', text)}
+    assert sets[11, 816] == {i for i, s in enumerate(a) if s == 1} and 0 in sets[11, 816]
+    listed = [ns.split(', ') for ns in re.findall(r'<p class="entry"><i>n</i> = ([^:]*): ', text)]
+    i = listed.index(['816'])
+    assert listed[i - 1:i + 2] == [['800'], ['816'], ['832']] and ['720'] in listed, listed
+    assert re.search(r'<p class="entry"><i>n</i> = 720: &nbsp;<span class="nw"><i>m</i><sup>\*</sup> ∈ \{10, …, 14\}</span></p>', text)
+    assert new_cells(text)[816] == (11, 14), new_cells(text)[816]
+    assert mstar_data()['cols'][816 - 1] == [11, 14, ['example', 'index.html p816'], ['norm', 5]], mstar_data()['cols'][816 - 1]
+
+
+def q_816_moves_excess_5_to_2_41():
+    # Replicata: pow2.js's columns 2^40 to 2^47, the new results' cells of 2^41, 2^43 and 2^46 and their remarks'
+    # entries.
+    # Expectata (2026-10-26: with 816 at order 11 among the blocks, the exhaustive search of scratch/wish2/ finds 2^41
+    # = (800^2 # 832 # 848 # τ2) ∨ (432^3 # 816 # τ2) ∨ (480^3 # 784) ∨ (432^2 # 480^2), each product of order 46, and no
+    # K <= 40 beating Thue-Morse by 5): pow2.js's lo is k + 4 at 2^40 and k + 5 from 2^41 to 2^47, every column from 41
+    # to 47 that join, each product times τ_(k−41); the cells read 2^41 46–50, 2^43 48–53 and 2^46 51–57; 2^41's entry
+    # says a join of four products of examples above and Thue–Morse, each of order 46, beats Thue–Morse by 5; and 2^43's
+    # and 2^46's each name the 2^41 entry, each product times τ2 and τ5, of orders 48 and 51.
+    cols, text = pow2_data()['cols'], page()
+    base = cols[40][2]
+    assert cols[39][0] == 44 and [c[0] - k for k, c in enumerate(cols[40:47], 41)] == [5] * 7, [c[:2] for c in cols[39:47]]
+    assert base[0] == 'joins' and sorted(map(sorted, base[1])) == sorted(map(sorted, [
+        [[800, 11], [800, 11], [832, 11], [848, 11], [4, 2]], [[432, 11], [432, 11], [432, 11], [816, 11], [4, 2]],
+        [[480, 12], [480, 12], [480, 12], [784, 10]], [[432, 11], [432, 11], [480, 12], [480, 12]]])), base
+    cells = new_cells(text)
+    assert [cells[2 ** k] for k in (41, 43, 46)] == [(46, 50), (48, 53), (51, 57)], [cells[2 ** k] for k in (41, 43, 46)]
+    said = {int(k): re.search(r'<p>Claude: "(.*?)"</p>', body).group(1) for k, body in
+            re.findall(r'<p class="entry"><i>n</i> = 2<sup>(\d+)</sup>: [^\n]*\n(.*?)\n    </li>', text, re.S)}
+    assert 'A join of four products of examples above and Thue–Morse, each of order 46' in said[41], said[41]
+    assert 'That beats Thue–Morse by 5' in said[41], said[41]
+    for k, j, m in ((43, 2, 48), (46, 5, 51)):
+        assert f'The join of the 2<sup>41</sup> entry, each product times τ<sub>{j}</sub>, has order {m}.' in said[k], said[k]
+
+
 # ---------------------------------------------------------------------------------------------------------------------
 # Browser quals
 

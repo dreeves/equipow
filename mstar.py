@@ -167,7 +167,7 @@ NEW = {240: (10, 10, 'Claude alone'),
        768: (11, 13, 'Claude alone'),
        784: (10, 10, 'Claude and Astra'),
        800: (11, 11, 'Claude alone'),
-       816: (10, 14, 'Claude alone'),
+       816: (11, 14, 'Claude alone'),
        832: (11, 11, 'Claude alone'),
        848: (11, 11, 'Claude alone'),
        864: (12, 14, 'Claude alone'),
@@ -185,7 +185,7 @@ NEW = {240: (10, 10, 'Claude alone'),
        2 ** 27: (29, 33, 'Claude alone'), 2 ** 30: (33, 36, 'Claude alone'),
        2 ** 33: (36, 40, 'Claude alone'), 2 ** 34: (37, 41, 'Claude alone'),
        2 ** 37: (41, 45, 'Claude alone'), 2 ** 38: (42, 46, 'Claude alone'),
-       2 ** 41: (45, 50, 'Claude alone'), 2 ** 43: (48, 53, 'Claude alone'),
+       2 ** 41: (46, 50, 'Claude alone'), 2 ** 43: (48, 53, 'Claude alone'),
        2 ** 46: (51, 57, 'Claude alone'), 2 ** 48: (54, 59, 'Claude alone'),
        2 ** 49: (55, 60, 'Claude alone'), 2 ** 51: (57, 63, 'Claude and BGPW'),
        2 ** 52: (58, 64, 'Claude alone'), 2 ** 57: (64, 70, 'Claude alone'),
@@ -224,6 +224,7 @@ PAGE_CODES = (('index.html BGPW 352', 9, 'A4DB4926DB4D36584B26936D2CFA54B6F04B2C
               ('index.html p752', 10, 'D1C7951270B6456FBEC039A7FA05A459E422DB6416E76D06DB2D90D32FD010FBB30A6DB6D80DBAC3059EDB5826CB4C'),
               ('index.html p784', 10, 'B24F643A19DC1B49FC831C2FF25926F80B24FFC1B423C92E933B25304F60FA2B341F59FFB668379251243048E2BE6BA89F'),
               ('index.html p800', 11, '966965968F2C965B25B44B25B3596D924B6D96496C964B65B2CB24B25B2C96CB6C97496CB2CD6E960B243A59A592DB2DB6D9'),
+              ('index.html p816', 11, 'FC11502F59D43C8DCB79FA15B0C7A8D082BB835E52A495A1C3D47FE9C9391EEC73316A8A9F2128305CE5F5CADA5B8023E97A56'),
               ('index.html p832', 11, 'B49969329E6934CB4DB69B4D34924C359B4926DB69A4DB49369F69261A4D36D6499A926D2C9B68B4D369A4D2DDB6904936DA69B4'),
               ('index.html p848', 11, '96B905B25BADB2496D32C924B74B6C96596CF25964B28925B25B6DAA5B6D96C965164B14B2C92F52D12596C97CB6CBEC86592CB2C9'),
               ('index.html p880', 11, 'C965B1C92D925B6C92D964BE4D2FB20B6592492D16D9259ADB6FD64926964925A64B6E62EF60D2CB24B6D925B2CB05960B6CB6CB75B74F'),
@@ -247,7 +248,7 @@ FOUND = ((352, 9, '969E4C06F693B61B683699E934D241A6DB4936D7CDA6'),
 # The sets of the page's section "Claude's examples as sets", as (m, n) for SClaude[m][n], in page order
 PAGE_SET_KEYS = ((9, 320), (9, 336), (11, 432), (9, 448), (12, 480), (10, 528), (10, 560), (11, 800),
                  (10, 592), (10, 608), (10, 656), (11, 848), (11, 880), (11, 896), (11, 928), (11, 944), (11, 976), (11, 992),
-                 (10, 752), (10, 784), (11, 832), (11, 1024))
+                 (10, 752), (10, 784), (11, 832), (11, 1024), (11, 816))
 
 
 def page_n(s):

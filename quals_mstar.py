@@ -504,6 +504,18 @@ def q_example_at_1024_is_checked():
     assert [mstar.NEW.get(2 ** k) for k in (11, 12)] == [(12, 12, 'Claude alone'), (13, 13, 'Claude alone')]
 
 
+def q_example_at_816_raises_its_lo():
+    # Replicata: mstar.NEW and mstar.js's column at 816, and mstar.NEW at 2^41.
+    # Expectata (2026-10-26: Claude's lattice search, w11.py at 816 without go800f's last-orbit table, found an
+    # antisymmetric example of order 11 there): 816 is 11 to 14, Claude alone, its lo the page's example
+    # (["example", "index.html p816"]) and its hi still the norm bound for the residue sums mod 5; and 2^41 is 46 to 50
+    # (45 to 50 before), 816 being among the blocks of the first power of 2 known to beat Thue-Morse by 5.
+    _, got = disk()
+    cs = got['m']['cols']
+    assert mstar.NEW[816] == (11, 14, 'Claude alone') and cs[816 - 1] == [11, 14, ['example', 'index.html p816'], ['norm', 5]], cs[816 - 1]
+    assert mstar.NEW[2 ** 41] == (46, 50, 'Claude alone'), mstar.NEW[2 ** 41]
+
+
 # ---------- residue tests ----------
 
 def counts(n, P, W): return tuple((W[r] + len(range(r, n, P))) // 2 for r in range(P))     # +1's per class mod P

@@ -161,12 +161,14 @@ def q_lo_at_least_thue_morse_and_f_powers():
 def q_new_lower_bounds():
     # Replicata (regression): pow2.js's lo - k, the excess known at 2^k, for k = 1..72, and the kind of its loWhy.
     # Expectata: 0 by Thue-Morse for k <= 9; 1 for 10..19 (joins from pow2.BASES[10], the example of order 11 at 1024
-    # alone); 2 for 20..29 (BASES[20], which beats f # tau_j at 24..26); 3 for 30..36 (BASES[30]); 4 for 37..42
-    # (BASES[37]); 5 for 43..47 (BASES[43]); 6 for 48..56 (BASES[48]); 7 for 57..64 (BASES[57]); 8 for 65..67
-    # (BASES[65]); 9 for 68..72 (BASES[68]); every lo above Thue-Morse's a join.  The bases are at 2^10 order 11, 2^20
-    # order 22, 2^30 order 33, 2^37 order 41, 2^43 order 48, 2^48 order 54, 2^57 order 64, 2^65 order 73 and 2^68
-    # order 77, each lifted by tau_(k - K0) above.  And lo = hi exactly for k <= 12: m*(2^k) is k up to 9, then 11, 12
-    # and 13.  (Before the example of order 11 at 1024, later on 2026-10-26: lo = hi only for k <= 9, and 0
+    # alone); 2 for 20..29 (BASES[20], which beats f # tau_j at 24..26); 3 for 30..36 (BASES[30]); 4 for 37..40
+    # (BASES[37]); 5 for 41..47 (BASES[41], with the example of order 11 at 816); 6 for 48..56 (BASES[48]); 7 for
+    # 57..64 (BASES[57]); 8 for 65..67 (BASES[65]); 9 for 68..72 (BASES[68]); every lo above Thue-Morse's a join.  The
+    # bases are at 2^10 order 11, 2^20 order 22, 2^30 order 33, 2^37 order 41, 2^41 order 46, 2^48 order 54, 2^57
+    # order 64, 2^65 order 73 and 2^68 order 77, each lifted by tau_(k - K0) above.  And lo = hi exactly for k <= 12:
+    # m*(2^k) is k up to 9, then 11, 12 and 13.  (Before 816's example of order 11, at the end of 2026-10-26: 4 for
+    # 37..42 and 5 from 43, BASES[43].  Before the example of order 11 at 1024, later on 2026-10-26: lo = hi only for
+    # k <= 9, and 0
     # for k <= 16, and 1 for 17..19 from BASES[17], (112 # 800) v (48 # 432 # tau_1).  Before
     # 2026-10-26's examples of order 10 at 752 and 784 and of order 11 at 832: 5 from 46, 6 from 49 and 9 at 72 alone;
     # before 2026-10-25's examples of order 10 at 592, 608 and 656 and of order 11 at 848, 880, 896, 928, 944, 976 and
@@ -174,16 +176,17 @@ def q_new_lower_bounds():
     # before 2026-10-17's example of order 11 at 800: 0 below 18, 1 from 18, 2 from 33, 3 from
     # 41, 4 from 48, 5 from 61 and 6 from 71; before 2026-10-12's of order 10 at 560: 1 from 24 by f, 2 from 33, 3 from
     # 49, 4 from 57 and 5 from 67.)
-    want = {k: 0 if k < 10 else 1 if k < 20 else 2 if k < 30 else 3 if k < 37 else 4 if k < 43 else 5 if k < 48 else 6
+    want = {k: 0 if k < 10 else 1 if k < 20 else 2 if k < 30 else 3 if k < 37 else 4 if k < 41 else 5 if k < 48 else 6
             if k < 57 else 7 if k < 65 else 8 if k < 68 else 9 for k in range(1, KMAX + 1)}
     kind = {k: 'thue-morse' if k < 10 else 'joins' for k in range(1, KMAX + 1)}
     for k, (lo, hi, lw, hw) in enumerate(cols(), 1): assert (lo - k, lw[0]) == (want[k], kind[k]), (k, lo, lw[0])
     orders = {K0: pow2.join_lo(K0, ps) for K0, ps in pow2.BASES.items()}
-    assert orders == {10: 11, 20: 22, 30: 33, 37: 41, 43: 48, 48: 54, 57: 64, 65: 73, 68: 77}, orders
+    assert orders == {10: 11, 20: 22, 30: 33, 37: 41, 41: 46, 48: 54, 57: 64, 65: 73, 68: 77}, orders
+    assert [816, 11] in (b for p in pow2.BASES[41] for b in p), pow2.BASES[41]
     assert pow2.BASES[10] == [[[1024, 11]]], pow2.BASES[10]
     # lo = hi through k = 12 (the norm bound for 3 at 2^10, the residue condition mod 3 at 2^11 and 2^12), and not at 13
     assert [k for k, (lo, hi, lw, hw) in enumerate(cols(), 1) if lo == hi] == list(range(1, 13)), cols()[9:13]
-    pairs = ((10, 10), (19, 10), (20, 20), (29, 20), (30, 30), (36, 30), (37, 37), (42, 37), (43, 43), (47, 43), (48, 48),
+    pairs = ((10, 10), (19, 10), (20, 20), (29, 20), (30, 30), (36, 30), (37, 37), (40, 37), (41, 41), (47, 41), (48, 48),
              (56, 48), (57, 57), (64, 57), (65, 65), (67, 65), (68, 68), (72, 68))
     assert [cols()[k - 1][2][1] == pow2.lifted(pow2.BASES[K0], k - K0) for k, K0 in pairs] == [True] * len(pairs)
 
