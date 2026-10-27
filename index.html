@@ -566,10 +566,9 @@ footer {
   </ul>
 </figure>
 
-<!-- Claude's chart of what is known about m*(n) for every n up to 1024, drawn by the script at the end from mstar.js -->
+<!-- Chart of what is known about m*(n) for every n up to 1024, drawn by the script at the end from mstar.js -->
 <section class="mstar" aria-labelledby="mstar-title">
-  <!-- the chart shows the bounds on m*(n) for every even n up to 1024 -->
-  <h2 id="mstar-title">Bounds on <span class="nw"><i>m</i><sup>*</sup>(<i>n</i>)</span> for every even <i>n</i> up to 1024</h2>
+  <p>Following is a chart with everything above and more, presented more graphically, showing the bounds on <span class="nw"><i>m</i><sup>*</sup>(<i>n</i>)</span> for every even <i>n</i> up to 1024.</p>
   <!-- cell (n, m) is green when m*(n) ≥ m is known, red when m*(n) < m is proven, and gray when neither is; and that odd n are left out, because an odd number of integers can't be split into two halves of equal size, so no partition exists for any m -->
   <div class="mstar-bar">
     <ul class="legend">
@@ -592,10 +591,13 @@ footer {
 <!-- Claude's chart of what is known about m*(2^k) − k, the excess over Thue–Morse, for every k up to 72, drawn by the script at the end from pow2.js -->
 <section class="pow2" aria-labelledby="pow2-title">
   <h2 id="pow2-title">Bounds on <span class="nw"><i>m</i><sup>*</sup>(2<sup><i>k</i></sup>) − <i>k</i></span> for every <i>k</i> up to 72</h2>
-  <p><b>Theorem 1.</b> <span class="nw"><i>m</i><sup>*</sup>(2<sup>10</sup>) ≥ 11</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>20</sup>) ≥ 22</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>30</sup>) ≥ 33</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>37</sup>) ≥ 41</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>41</sup>) ≥ 46</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>48</sup>) ≥ 54</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>57</sup>) ≥ 64</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>65</sup>) ≥ 73</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>68</sup>) ≥ 77</span> and <span class="nw"><i>m</i><sup>*</sup>(2<sup>9</sup>) = 9</span>.</p>
-  <p>or <b>Theorem 1.</b> For <span class="nw"><i>i</i> = 1, 2, …, 9</span>, the known smallest values of <i>n</i> for which <span class="nw"><i>m</i><sup>*</sup>(2<sup><i>n</i></sup>) − <i>n</i> ≥ <i>i</i></span> are 10, 20, 30, 37, 41, 48, 57, 65, 68.</p>
-  <!-- TODO: says the table below shows the construction behind each inequality of Theorem 1: 2^k as a join of products, one product per line, each with its order, the sum of its factors' orders, the bound being the least of those orders; and that the linked Mathematica script makes the same table and checks each row's arithmetic -->
-  <p>Claude: "The table below shows the construction behind each inequality of Theorem 1: <span class="nw">2<sup><i>k</i></sup></span> as a join of products, one per line, each with its order, the sum of its factors' orders; the bound is the least of those orders. The Mathematica script <a href="https://raw.githubusercontent.com/dreeves/equipow/main/record_gaps.wl">record_gaps.wl</a> makes the same table and checks each row's arithmetic."</p>
+  <p><b>Theorem.</b> <span class="nw"><i>m</i><sup>*</sup>(2<sup>10</sup>) ≥ 11</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>20</sup>) ≥ 22</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>30</sup>) ≥ 33</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>37</sup>) ≥ 41</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>41</sup>) ≥ 46</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>48</sup>) ≥ 54</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>57</sup>) ≥ 64</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>65</sup>) ≥ 73</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>68</sup>) ≥ 77</span> and <span class="nw"><i>m</i><sup>*</sup>(2<sup>9</sup>) = 9</span>.</p>
+  <p>More concisely: For <span class="nw"><i>i</i> = 1, 2, …, 9</span>, the known smallest values of <i>k</i> for which <span class="nw"><i>m</i><sup>*</sup>(2<sup><i>k</i></sup>) − <i>k</i> ≥ <i>i</i></span> are 10, 20, 30, 37, 41, 48, 57, 65, 68.</p>
+  <p>The following table shows the construction for each inequality in the above theorem: 
+    <span class="nw">2<sup><i>k</i></sup></span> as a join of products, one per line, each with its order and the sum of its factors' orders.
+    The bound is the least of those orders. 
+    The Mathematica script <a href="https://raw.githubusercontent.com/dreeves/equipow/main/record_gaps.wl">record_gaps.wl</a> 
+    generates this table and checks all the arithmetic.</p>
   <div class="scroll">
     <table class="pow2-gaps" data-record-gaps>
       <thead><tr><th>Record gaps</th><th>The power of 2</th><th>The order</th></tr></thead>
