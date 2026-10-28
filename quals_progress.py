@@ -1068,6 +1068,36 @@ def q_write_atomic():
     assert os.listdir(d) == ['page.html'], os.listdir(d)
 
 
+def q_files_reads_a_run_from_its_own_directory():
+    # Replicata: progress.files for 288@10, whose run is scratch/x288's copy of overnight_v5.py (DIRS; 2026-10-27, dreeves:
+    # "why don't i see it in the search progress section?"); for 304@9, a run of the repository's own; and for 288@10
+    # with DIRS pointing at a temporary copy whose split() differs by one comment line.
+    # Expectata: 288@10's journal and log are scratch/x288's, and overnight_v5's settings for it are the copy's; 304@9's
+    # are the repository's own; the altered copy, whose CODE differs from overnight_v5's, is refused (AssertionError).
+    here = progress.HERE
+    assert progress.DIRS[288, 10] == os.path.join('scratch', 'x288') and (288, 10) in progress.RUNS
+    j, l = progress.files(288, 10)
+    assert (j, l) == tuple(os.path.join(here, 'scratch', 'x288', f'overnight_v5_288_10{x}') for x in ('_journal.jsonl', '.log'))
+    copy = progress.run_module(os.path.join(here, 'scratch', 'x288'))
+    assert copy.CODE == v5.CODE and v5.SETTINGS[288, 10] == copy.SETTINGS[288, 10] == ((3, 5, 7, 4, 8, 9), (10000,) * 6 + (2000000,))
+    assert progress.files(304, 9) == tuple(os.path.join(here, f'overnight_v5_304_9{x}') for x in ('_journal.jsonl', '.log'))
+    d = tempfile.mkdtemp(prefix='progress-quals-')
+    try:
+        src = open(os.path.join(here, 'scratch', 'x288', 'overnight_v5.py'), encoding='utf-8').read()
+        i = src.index('\ndef split(')
+        j = src.index(':\n', i) + 2                    # the end of split's def line: a comment as its first body line
+        open(os.path.join(d, 'overnight_v5.py'), 'w', encoding='utf-8').write(src[:j] + '    # altered\n' + src[j:])
+        saved = dict(progress.DIRS)
+        progress.DIRS[288, 10] = d
+        try:
+            expect_assertion(progress.files, 288, 10)
+        finally:
+            progress.DIRS.clear()
+            progress.DIRS.update(saved)
+    finally:
+        shutil.rmtree(d)
+
+
 def q_watch_rewrites_and_sleeps():
     # Replicata: progress.main(['--watch']) with the tiny closed run as its only run, its data file (progress.js) and
     # cache in a temporary directory, and time.sleep replaced by a stub that stops the loop at its second call; then
@@ -1202,6 +1232,27 @@ def q_sea_marks_split_pending_and_running():
     assert sea['depth'] == 1 and sea['keys'] == [E, C, A, B, D], sea
     assert sea['groups'] == [i('pending'), i('split'), i('settled'), i('pending', 'open'), i('running')], sea['groups']
     assert sea['counts'] == {'settled': 1, 'open': 1, 'split': 1, 'pending': 2, 'running': 1}, sea['counts']
+
+
+def q_sea_places_running_nodes_without_keys():
+    # Replicata: q_sea_marks_split_pending_and_running's made-up journal, with D running as before, and three running
+    # nodes whose own keys are unknown (their parents' splits are not cached): two children of C and one of B2's parent B
+    # given as their parents' keys (2026-10-27, dreeves: "why are there zero orange (running) cells?", then "is there a
+    # cheaper way to have the page not lie?": the 288@10 page showed none of its 9 running nodes).
+    # Expectata: each is a running dot in its parent's group, after that group's other dots: C's group split, running,
+    # running; B's pending, open, running; the other groups as before; counts 4 running.
+    A, B, C, D, E = '3:[1,1,1]', '3:[2,1,0]', '3:[0,1,2]', '3:[3,0,0]', '3:[0,0,3]'
+    B1, B2 = B + ' 5:[1,0,0,0,0]', B + ' 5:[0,1,0,0,0]'
+    rec = lambda verdict, budget: {'verdict': verdict, 'budget': budget}
+    final = {'': rec('UNKNOWN', 10), A: rec('INFEASIBLE', 10), B: rec('UNKNOWN', 10), B1: rec('UNKNOWN', 10),
+             C: rec('UNKNOWN', 10), E: rec('UNKNOWN', 5)}
+    cache = {'': [A, B, C, D, E], B: [B1, B2]}
+    sea = progress.sea(final, [10, 10, 10], cache, {D}, [C, B, C])
+    i = lambda *names: ''.join(str(progress.SEA_STATUSES.index(n)) for n in names)
+    assert sea['depth'] == 1 and sea['keys'] == [E, C, A, B, D], sea
+    assert sea['groups'] == [i('pending'), i('split', 'running', 'running'), i('settled'), i('pending', 'open', 'running'),
+                             i('running')], sea['groups']
+    assert sea['counts'] == {'settled': 1, 'open': 1, 'split': 1, 'pending': 2, 'running': 4}, sea['counts']
 
 
 def q_sea_of_240_at_11():

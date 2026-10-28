@@ -7,7 +7,8 @@ Run:   python3 -B progress.py            writes progress.js once
 Either way the process first lowers its priority to nice NICE.  progress.js, next to this file and index.html, is
 replaced atomically (see write_atomic), so a reader never sees half of it.  Quals: python3 -B quals_progress.py
 
-For each run (N, ORDER) in RUNS it reads overnight_v5_N_ORDER_journal.jsonl and overnight_v5_N_ORDER.log (see
+For each run (N, ORDER) in RUNS it reads overnight_v5_N_ORDER_journal.jsonl and overnight_v5_N_ORDER.log in the run's
+directory (DIRS; see
 overnight_v5.py's docstring for their formats and for node, split, pool, budget, verdict and cascade) and the process
 list.  The tree's levels are enumerated with overnight_v5.split itself, each node split at most once: the children's
 keys are kept in CACHE, a file git ignores, by run and by overnight_v5.CODE.  Vocabulary, each term defined once here:
@@ -155,7 +156,7 @@ gives the state, the hours of running so far and to go, the record of ETAs and t
 """
 import sys
 sys.dont_write_bytecode = True
-import os, re, json, math, time, bisect, itertools, subprocess, collections, glob
+import os, re, json, math, time, bisect, itertools, subprocess, collections, glob, functools, importlib.util
 import numpy as np
 import overnight_v5 as v5
 import boxsplit as bx
@@ -168,7 +169,10 @@ CACHE = os.path.join(HERE, '.progress_cache.json')
 # superseded by proof384.py, left the live display on 2026-10-20. Their journals remain.  So did the finished 288:10
 # symmetric batch (lattice288.py) and 720:11 joined batch (join720.py) on 2026-10-23; their adapters remain.
 EXTENDED = ()                         # displayed boxsplit runs, (N, ORDER)
-RUNS = ()                             # displayed overnight_v5 runs, (N, ORDER)
+RUNS = ((288, 10),)                   # displayed overnight_v5 runs, (N, ORDER)
+# The directory of a run that a copy of overnight_v5.py makes, relative to HERE; the rest are the repository's own.  288@10
+# runs from scratch/x288 (2026-10-27) while the original is frozen for 432:12; the copy adds only its settings.
+DIRS = {(288, 10): os.path.join('scratch', 'x288')}
 REFRESH = 60                           # seconds between rewrites under --watch (the section reloads the data file as often)
 NICE = 15                              # the niceness the process lowers itself to
 # The deepest level enumerated.  Splitting cost the runs themselves (their logs' split seconds, on loaded workers)
@@ -188,10 +192,30 @@ ETA_POINTS = 400                       # the most recorded ETAs the data file ca
 
 # ---------- reading the runs' files ----------
 
+@functools.lru_cache(maxsize=None)
+def run_module(d):
+    """The overnight_v5.py of the directory d as a module of its own, loaded once (registered in sys.modules, where
+    inspect looks up its classes' source for CODE)."""
+    name = 'overnight_v5_in_' + re.sub(r'\W', '_', os.path.relpath(d, HERE))
+    spec = importlib.util.spec_from_file_location(name, os.path.join(d, 'overnight_v5.py'))
+    module = sys.modules[name] = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 def files(n, order):
-    """The journal and log of the run (n, order), named as overnight_v5.configure names them."""
+    """The journal and log of the run (n, order), named as overnight_v5.configure names them, in the run's directory
+    (DIRS, or the repository's own).  That directory's overnight_v5.py must have overnight_v5's CODE, so that the
+    functions used here are the run's; its settings for the run become overnight_v5's (they must agree where both
+    have them)."""
+    d = os.path.join(HERE, DIRS.get((n, order), ''))
+    copy = run_module(d)
+    # TODO: error copy; says the run's directory holds an overnight_v5.py whose code or settings differ from overnight_v5's
+    assert copy.CODE == v5.CODE and v5.SETTINGS.get((n, order), copy.SETTINGS[n, order]) == copy.SETTINGS[n, order], \
+        f'Claude: "{d} holds another overnight_v5.py"'
+    v5.SETTINGS[n, order] = copy.SETTINGS[n, order]
     v5.configure(n, order)
-    return v5.JOURNAL, v5.LOG
+    return tuple(os.path.join(d, os.path.basename(f)) for f in (v5.JOURNAL, v5.LOG))
 
 
 def complete_lines(path):
