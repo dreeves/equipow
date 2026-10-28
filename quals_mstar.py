@@ -219,10 +219,11 @@ def q_page_parse():
     # 2^72 joined them, once 592, 608 and 656 reached order 10 and 848, 880, 896, 928, 944, 976 and 992 order 11;
     # 70 from 2026-10-26, when 2^43 and 2^68 joined them, once 752 and 784 reached order 10 and 832 order 11; 73 from
     # later that day, when 2^10, 2^11 and 2^12 joined them, settled at 11, 12 and 13 by Claude's example of order 11
-    # at 1024; 74 since 2026-10-27, when 1008 joined them, as the chart and the table reached 1024).
+    # at 1024; 74 from 2026-10-27, when 1008 joined them, as the chart and the table reached 1024; 75 since 2026-10-28,
+    # when 2^29 joined them, once 912 reached order 12).
     src = mstar.page_sources(open(os.path.join(HERE, 'index.html'), encoding='utf-8').read())
     assert src['table2'] == mstar.TABLE2 and len(mstar.TABLE2) == 39
-    assert src['new'] == mstar.NEW and len(mstar.NEW) == 74
+    assert src['new'] == mstar.NEW and len(mstar.NEW) == 75
     assert set(who for _, _, who in mstar.NEW.values()) == {'BGPW', 'Claude alone', 'Claude and BGPW', 'Astra alone',
                                                              'Claude and Astra'}
     assert [(m, h) for _, m, h in mstar.PAGE_CODES] == [(m, h) for m, h in src['codes']]
@@ -601,6 +602,16 @@ def q_examples_at_720_and_1008_raise_their_lo():
     cs = got['m']['cols']
     assert mstar.NEW[720] == (11, 14, 'Claude alone') and cs[720 - 1] == [11, 14, ['example', 'index.html p720'], ['residue', 16]], cs[720 - 1]
     assert mstar.NEW[1008] == (11, 13, 'Claude alone') and cs[1008 - 1] == [11, 13, ['example', 'index.html p1008'], ['residue', 5]], cs[1008 - 1]
+
+
+def q_example_at_912_raises_its_lo():
+    # Replicata: mstar.NEW and mstar.js's column at 912.
+    # Expectata (2026-10-28: Claude's lattice search w12.py, the symmetric order-12 port of w11.py, found a symmetric
+    # example of order 12 at 912): 912 is 12 to 13, Claude alone, its lo the page's example (["example", "index.html
+    # p912"]) and its hi still the residue condition mod 5 at order 14.
+    _, got = disk()
+    cs = got['m']['cols']
+    assert mstar.NEW[912] == (12, 13, 'Claude alone') and cs[912 - 1] == [12, 13, ['example', 'index.html p912'], ['residue', 5]], cs[912 - 1]
 
 
 # ---------- residue tests ----------

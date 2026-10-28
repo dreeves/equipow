@@ -1422,13 +1422,14 @@ def q_citations_match_the_page():
     titled = {value(n): (cls, who) for cls, who, n in
               re.findall(r"<td(?: class=\"(a|c|ca|j|s)\")? title='([^']*)'>([^<]*(?:<sup>\d+</sup>)?)</td>", new)}
     titles = {n: who for n, (cls, who) in titled.items() if cls}      # the rest, unclassed, copy Table 2's powers of 2
-    # 240 (since 2026-10-20), the 44 multiples of 16 from 304 to 992 (512 written 2^9) and 25 larger powers of 2,
+    # 240 (since 2026-10-20), the 44 multiples of 16 from 304 to 992 (512 written 2^9) and 26 larger powers of 2,
     # 2^17 to 2^72 (6 until 560 reached order 10 on 2026-10-12, 11 until 800 reached order 11 on 2026-10-17, 18
     # until 592, 608 and 656 reached order 10 and 848, 880, 896, 928, 944, 976 and 992 order 11 on 2026-10-25, 23
-    # until 752 and 784 reached order 10 and 832 order 11 on 2026-10-26); and since 1024 reached order 11, later that
+    # until 752 and 784 reached order 10 and 832 order 11 on 2026-10-26, 25 until 912 reached order 12 on 2026-10-28,
+    # when 2^29 joined them); and since 1024 reached order 11, later that
     # day, 2^10, 2^11 and 2^12; and since 2026-10-27, when the block reached 1024, 1008.  The unclassed cells, Table
     # 2's powers of 2 (2^3 to 2^8) until then, copy every entry of Table 2 that stands: up to 304 but 240 and 304.
-    assert len(titles) == 1 + 44 + 28 + 1, len(titles)
+    assert len(titles) == 1 + 44 + 29 + 1, len(titles)
     assert sorted(n for n in titled if n not in titles) == [n for n in range(8, 305, 8) if n not in (240, 304)], titled
     table2 = {n for n, *_ in table_entries()} - set(titles)
     assert len(table2) == 36, sorted(table2)          # 240 and 304 are in both
@@ -1759,6 +1760,69 @@ def q_examples_at_720_and_1008_have_their_entries_codes_and_sets():
     cols = mstar_data()['cols']
     assert cols[720 - 1] == [11, 14, ['example', 'index.html p720'], ['residue', 16]], cols[720 - 1]
     assert cols[1008 - 1] == [11, 13, ['example', 'index.html p1008'], ['residue', 5]], cols[1008 - 1]
+
+
+def q_example_at_912_has_its_entry_code_and_set():
+    # Replicata: the remarks' entries naming 912, its code decoded by the paper's Table 5 convention (the left half of
+    # the signs, 1 = +1, then the rest by (-1)^m symmetry), the page's set SClaude[12][912], the new results' cell, and
+    # mstar.js's column 912.
+    # Expectata (2026-10-28: Claude's lattice search w12.py found a symmetric example of order 12 at 912): an entry of
+    # its own, an <li class="c"> marked ◆, "m* ∈ {12, 13}", between 896's and 928's, whose Claude: "…" names the
+    # residue condition mod 5; its one code block, p912 of order 12, whose signs have order exactly 12 (synthetic
+    # division here) and are symmetric; SClaude[12][912] exactly their +1 positions, 0 among them; the built entry of
+    # 672 and 768 no longer names 912; the cell 12–13; mstar.js's column [12, 13, ["example", "index.html p912"],
+    # ["residue", 5]].
+    text = page()
+    li = re.search(r'<li class="c">\n      <span class="mk" aria-hidden="true">◆</span>\n      <p class="entry"><i>n</i> = '
+                   r'912: &nbsp;<span class="nw"><i>m</i><sup>\*</sup> ∈ \{12, 13\}</span></p>\n(.*?)\n    </li>', text, re.S)
+    assert li, 'no entry of 912 alone'
+    assert 'residue condition mod 5' in re.search(r'<p>Claude: "(.*?)"</p>', li.group(1)).group(1), li.group(1)[:300]
+    codes = re.findall(r'<p class="code">\n        <span><i>p</i><sub>(\d+)</sub> <span class="nw">\(<i>m</i> = (\d+)\)</span>:</span>\n'
+                       r'        <code>([0-9A-F]+)</code>\n      </p>', li.group(1))
+    assert len(codes) == 1 and codes[0][:2] == ('912', '12'), codes
+    h = codes[0][2]
+    left = [1 if b == '1' else -1 for b in bin(int(h, 16))[2:].zfill(4 * len(h))]
+    a, k = left + list(reversed(left)), 0
+    c = a
+    while not sum(c): c, k = list(itertools.accumulate(c[:-1])), k + 1
+    assert len(a) == 912 and k == 12 and all(a[911 - i] == a[i] for i in range(912)), (len(a), k)
+    sets = {(int(m), int(n)): {int(t) for t in body.split(',')}
+            for m, n, body in re.findall(r'SClaude\[(\d+)\]\[(\d+)\] = \{([^}]*)\};', text)}
+    assert sets[12, 912] == {i for i, s in enumerate(a) if s == 1} and 0 in sets[12, 912]
+    listed = [ns.split(', ') for ns in re.findall(r'<p class="entry"><i>n</i> = ([^:]*): ', text)]
+    i = listed.index(['912'])
+    assert listed[i - 1:i + 2] == [['896'], ['912'], ['928']], listed[i - 1:i + 2]
+    assert sum('912' in ns for ns in listed) == 1 and ['672', '768'] in listed, [ns for ns in listed if '672' in ns]
+    assert new_cells(text)[912] == (12, 13), new_cells(text)[912]
+    assert mstar_data()['cols'][912 - 1] == [12, 13, ['example', 'index.html p912'], ['residue', 5]], mstar_data()['cols'][912 - 1]
+
+
+def q_912_moves_excess_3_to_2_29():
+    # Replicata: pow2.js's columns 2^28 to 2^35, the new results' cells of 2^29, 2^30, 2^33 and 2^34 and their remarks'
+    # entries, and Theorem 1's statement and its list of firsts.
+    # Expectata (2026-10-28: with 912 at order 12 among the blocks, the exhaustive search of scratch/wish4 finds 2^29 =
+    # (608 # 800^2) ∨ (336^2 # 912) ∨ (240 # 432^2), each product of order 32, and no K <= 28 beating Thue-Morse by 3):
+    # pow2.js's lo is k + 2 at 2^28 and k + 3 from 2^29 to 2^35, column 29 that join; the cells read 2^29 32–35, 2^30
+    # 33–36, 2^33 36–40 and 2^34 37–41; 2^29's entry gives 2^29 = 608·800² + 336²·912 + 240·432², a join of three
+    # products of examples above, each of order 32, that beats Thue–Morse by 3; 2^30's, 2^33's and 2^34's each name the
+    # 2^29 entry, each product times τ1, τ4 and τ5, of orders 33, 36 and 37; Theorem 1 states m*(2^29) ≥ 32 in place
+    # of m*(2^30) ≥ 33, and its list of firsts is 10, 20, 29, 37, 41, 48, 57, 65, 68.
+    cols, text = pow2_data()['cols'], page()
+    base = cols[28][2]
+    assert cols[27][0] == 30 and [c[0] - k for k, c in enumerate(cols[28:35], 29)] == [3] * 7, [c[:2] for c in cols[27:35]]
+    assert base[0] == 'joins' and sorted(map(sorted, base[1])) == sorted(map(sorted, [
+        [[608, 10], [800, 11], [800, 11]], [[336, 10], [336, 10], [912, 12]], [[240, 10], [432, 11], [432, 11]]])), base
+    cells = new_cells(text)
+    assert [cells[2 ** k] for k in (29, 30, 33, 34)] == [(32, 35), (33, 36), (36, 40), (37, 41)], [cells.get(2 ** k) for k in (29, 30, 33, 34)]
+    said = {int(k): re.search(r'<p>Claude: "(.*?)"</p>', body).group(1) for k, body in
+            re.findall(r'<p class="entry"><i>n</i> = 2<sup>(\d+)</sup>: [^\n]*\n(.*?)\n    </li>', text, re.S)}
+    assert '2<sup>29</sup> = 608·800<sup>2</sup> + 336<sup>2</sup>·912 + 240·432<sup>2</sup>' in said[29], said[29]
+    assert 'each of order 32' in said[29] and 'That beats Thue–Morse by 3' in said[29], said[29]
+    for k, j, m in ((30, 1, 33), (33, 4, 36), (34, 5, 37)):
+        assert f'The join of the 2<sup>29</sup> entry, each product times τ<sub>{j}</sub>, has order {m}.' in said[k], said[k]
+    theorem = re.search(r'<p><b>Theorem.</b>(.*?)</p>', text).group(1)
+    assert '(2<sup>29</sup>) ≥ 32' in theorem and '(2<sup>30</sup>)' not in theorem, theorem
+    assert ' are 10, 20, 29, 37, 41, 48, 57, 65, 68.</p>' in text
 
 
 def q_816_moves_excess_5_to_2_41():

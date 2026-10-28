@@ -21,7 +21,7 @@ WL = os.path.join(HERE, 'record_gaps.wl')
 WL_URL = 'https://raw.githubusercontent.com/dreeves/equipow/main/record_gaps.wl'
 POW2_JS = os.path.join(HERE, 'pow2.js')
 HEADER = ['Record gaps', 'The power of 2', 'The order']        # Stan Wagon's, which record_gaps.wl's table heads
-THEOREM_KS = [10, 20, 30, 37, 41, 48, 57, 65, 68]              # Theorem 1's alternative form on index.html
+THEOREM_KS = [10, 20, 29, 37, 41, 48, 57, 65, 68]              # Theorem 1's alternative form on index.html
 # the table as text: each cell, superscripts as a^b and styles dropped, in OutputForm on one line
 TEXT = ('text[e_] := ToString[e //. {Superscript[a_, b_] :> Row[{a, "^", b}], Style[x_, ___] :> x}, OutputForm, '
         'PageWidth -> Infinity];')
@@ -105,7 +105,8 @@ def q_wl_records_are_pow2_s():
     # Replicata: the records list in record_gaps.wl, read as text; pow2.js's record gaps (records()).
     # Expectata: the same list, record for record and block for block: for each record gap g, its least k and the
     # join of products that pow2.py found there, the products and their blocks in pow2.js's order; and their k are
-    # Theorem 1's (10, 20, 30, 37, 41, 48, 57, 65, 68 since 816's example of order 11, at the end of 2026-10-26; 10, 20,
+    # Theorem 1's (10, 20, 29, 37, 41, 48, 57, 65, 68 since 912's example of order 12, on 2026-10-28; 10, 20, 30, 37, 41,
+    # 48, 57, 65, 68 since 816's example of order 11, at the end of 2026-10-26; 10, 20,
     # 30, 37, 43, 48, 57, 65, 68 since 1024's example of order 11, earlier that evening; 17, 20,
     # 30, 37, 43, 48, 57, 65, 68 before it; 17, 20, 30, 37, 46, 49, 57, 65, 72 until it changed with them on
     # 2026-10-26, and 17, 27, 34, 38, 46, 52, 57, 66 until 2026-10-25, dreeves, 2026-10-25: "yes please").

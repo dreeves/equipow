@@ -106,6 +106,11 @@ RESIDUE = {11: (13, (3,), 'digits'), 12: (14, (3,), 'digits'), 14: (17, (3,), 'd
 # moves no other first K0.  Rerun as a baseline that night (scratch/wish3/results/base_e*.json), it finds every first
 # K0 for e <= 7 again with nothing undecided below, and at e = 8 it leaves 58 undecided as well (too big, with a coin
 # prime to 3), where the search over the blocks before 1024 and 816 had found no K; at e = 9 it leaves 67 and 68.
+# The example of order 12 at 912 (2026-10-28) moved the first K0 for e = 3 from 30 to 29: BASES[29] has 912 among its
+# blocks, and lifted it matches the superseded BASES[30], (848 # 896 # 928) v (192 # 480^2 # tau_2) v
+# (112 # 480^2 # tau_2) v (192 # 480^2 # tau_1), at every k >= 30; with 912 among the blocks, the search
+# (scratch/wish4/results/wish_n912_m12.json) finds no K <= 28 reaching e = 3, exhaustively, and moves no other first
+# K0; at e = 8 it leaves 58 to 64 undecided, 60 among them, and at e = 9, 67.
 # (The examples of order 10 at 592, 608 and 656 and of order 11 at 848, 880, 896, 928, 944, 976 and 992, 2026-10-25,
 # had moved the first K0 for e = 2 from 27 to 20 (BASES[20] is 848 # 992 joined to 240 # 432 # tau_1), for e = 3 from
 # 34 to 30, for e = 4 from 38 to 37, for e = 6 from 52 to 49 and for e = 8 from 66 to 65, and given e = 9 at 72; the
@@ -116,10 +121,9 @@ RESIDUE = {11: (13, (3,), 'digits'), 12: (14, (3,), 'digits'), 14: (17, (3,), 'd
 BASES = {10: [[[1024, 11]]],
          20: [[[848, 11], [992, 11]],
               [[240, 10], [432, 11], [2, 1]]],
-         30: [[[848, 11], [896, 11], [928, 11]],
-              [[192, 9], [480, 12], [480, 12], [4, 2]],
-              [[112, 7], [480, 12], [480, 12], [4, 2]],
-              [[192, 9], [480, 12], [480, 12], [2, 1]]],
+         29: [[[608, 10], [800, 11], [800, 11]],
+              [[336, 10], [336, 10], [912, 12]],
+              [[240, 10], [432, 11], [432, 11]]],
          37: [[[208, 8], [800, 11], [800, 11], [848, 11]],
               [[192, 9], [192, 9], [432, 11], [432, 11], [2, 1]],
               [[48, 6], [480, 12], [480, 12], [976, 11]]],
