@@ -168,7 +168,9 @@ CACHE = os.path.join(HERE, '.progress_cache.json')
 # The completed 240@11 proof and its boxsplit pass, and the 384@11 search
 # superseded by proof384.py, left the live display on 2026-10-20. Their journals remain.  So did the finished 288:10
 # symmetric batch (lattice288.py) and 720:11 joined batch (join720.py) on 2026-10-23; their adapters remain.
-EXTENDED = ()                         # displayed boxsplit runs, (N, ORDER)
+# 288@10's boxsplit pass (dreeves, 2026-10-27: "ok") is scratch/x288's copy of boxsplit.py, after the search's first pass in
+# the same lease; it shows once its driver's log exists.
+EXTENDED = ((288, 10),)               # displayed boxsplit runs, (N, ORDER), each shown once its driver's log exists
 RUNS = ((288, 10),)                   # displayed overnight_v5 runs, (N, ORDER)
 # The directory of a run that a copy of overnight_v5.py makes, relative to HERE; the rest are the repository's own.  288@10
 # runs from scratch/x288 (2026-10-27) while the original is frozen for 432:12; the copy adds only its settings.
@@ -928,9 +930,10 @@ def survey(n, order, journal, log, procs, now, cache, etas):
 # ---------- a run's boxsplit pass (boxsplit.py over its open leaves; dreeves, 2026-10-17) ----------
 
 def box_files(n, order):
-    """The driver's log of the run (n, order) and the run's journal, named as boxsplit.configure names them."""
-    bx.configure(n, order)
-    return bx.LOG, v5.JOURNAL
+    """The driver's log of the run (n, order) and the run's journal, named as boxsplit.configure names them, in the run's
+    directory (files: a run made by a copy of overnight_v5.py has its copy of boxsplit.py next to it)."""
+    journal, _ = files(n, order)
+    return os.path.join(os.path.dirname(journal), f'overnight_v5_{n}_{order}_boxsplit.log'), journal
 
 
 BOX_FORMS = {                          # the driver's log line forms, as boxsplit's run, drive and say_* write them
@@ -1115,7 +1118,7 @@ def survey_box(n, order, log, main, procs, now, etas):
     holding its worker for the rest; each pending leaf a job in the driver's order (its key's sha1); makespan on the
     pass's workers.  With no leaf of the pass done, every draw is the new ball: Gott's rule.  None when the driver is not
     running or no leaf of the pass has begun."""
-    bx.configure(n, order)
+    files(n, order)                     # overnight_v5 configured for the run, with its copy's settings if it has one
     saved = v5.JOURNAL
     v5.JOURNAL = main
     try:
@@ -1725,8 +1728,8 @@ def main(argv):
         cache, procs, now = load_cache(CACHE), processes(), time.time()
         surveys = [survey(n, order, *files(n, order), procs, now, cache.setdefault(f'{n}_{order}_{v5.CODE}', {}),
                           cache.setdefault(f'{n}_{order}_{v5.CODE}_etas', {})) for n, order in RUNS]
-        surveys += [survey_box(n, order, *box_files(n, order), procs, now,
-                               cache.setdefault(f'{n}_{order}_boxsplit_{bx.CODE}_etas', {})) for n, order in EXTENDED]
+        surveys += [survey_box(n, order, log, main, procs, now, cache.setdefault(f'{n}_{order}_boxsplit_{bx.CODE}_etas', {}))
+                    for n, order in EXTENDED for log, main in [box_files(n, order)] if os.path.exists(log)]
         for path in sorted(glob.glob(os.path.join(HERE, 'focus_*_journal.jsonl'))):
             with open(path, encoding='utf-8') as f: header = json.loads(f.readline())
             key = f'focus_{header["n"]}_{header["code"]}_{header["time"]}'

@@ -1072,14 +1072,17 @@ def q_files_reads_a_run_from_its_own_directory():
     # Replicata: progress.files for 288@10, whose run is scratch/x288's copy of overnight_v5.py (DIRS; 2026-10-27, dreeves:
     # "why don't i see it in the search progress section?"); for 304@9, a run of the repository's own; and for 288@10
     # with DIRS pointing at a temporary copy whose split() differs by one comment line.
-    # Expectata: 288@10's journal and log are scratch/x288's, and overnight_v5's settings for it are the copy's; 304@9's
-    # are the repository's own; the altered copy, whose CODE differs from overnight_v5's, is refused (AssertionError).
+    # Expectata: 288@10's journal and log are scratch/x288's, and overnight_v5's settings for it are the copy's, with
+    # a bottom budget of 1000 (2026-10-27 22:55: scratch/x288/trial/plan10k.py's model gave 12.7 s per bottom case at
+    # 1000 against 24.7 s at 10000; 10000 from 21:44, after boxsplit closed in seconds bottom cases the search had
+    # spent up to an hour on; 2000000 before); 304@9's are the repository's own; the altered copy, whose CODE differs
+    # from overnight_v5's, is refused (AssertionError).
     here = progress.HERE
     assert progress.DIRS[288, 10] == os.path.join('scratch', 'x288') and (288, 10) in progress.RUNS
     j, l = progress.files(288, 10)
     assert (j, l) == tuple(os.path.join(here, 'scratch', 'x288', f'overnight_v5_288_10{x}') for x in ('_journal.jsonl', '.log'))
     copy = progress.run_module(os.path.join(here, 'scratch', 'x288'))
-    assert copy.CODE == v5.CODE and v5.SETTINGS[288, 10] == copy.SETTINGS[288, 10] == ((3, 5, 7, 4, 8, 9), (10000,) * 6 + (2000000,))
+    assert copy.CODE == v5.CODE and v5.SETTINGS[288, 10] == copy.SETTINGS[288, 10] == ((3, 5, 7, 4, 8, 9), (10000,) * 6 + (1000,))
     assert progress.files(304, 9) == tuple(os.path.join(here, f'overnight_v5_304_9{x}') for x in ('_journal.jsonl', '.log'))
     d = tempfile.mkdtemp(prefix='progress-quals-')
     try:
@@ -1427,6 +1430,105 @@ def q_box_log_with_an_unknown_line_fails():
     # Expectata: AssertionError: every line of a boxsplit log must have one known form.
     lines = progress.complete_lines(tiny_box()[1]) + ['2026-10-17 09:00:00 Claude: "nothing boxsplit writes"']
     expect_assertion(progress.parse_box_lines, lines)
+
+
+def made_up_box288(d, done):
+    """A made-up boxsplit pass of 288@10 in directory d, its log next to its run's journal as scratch/x288's copies of
+    overnight_v5.py and boxsplit.py name them: the journal's header and two bottom keys of the 288 search, each UNKNOWN
+    at the bottom budget; the log's start line, the control's and leaf 0's start line, and, if done, leaf 0's line
+    saying its tree closed.  Returns (the log, the journal, the two keys)."""
+    progress.files(288, 10)                      # overnight_v5 configured for 288@10, with the copy's settings
+    keys = []
+    for line in open(os.path.join(progress.HERE, 'scratch', 'x288', 'overnight_v5_288_10_journal.jsonl')).read().splitlines()[1:]:
+        key = json.loads(line)['key']
+        keys += [key] * (len(key.split()) == len(v5.CASCADE) and '#' not in key and key not in keys)
+    keys = keys[:2]
+    log, main = (os.path.join(d, f'overnight_v5_288_10{x}') for x in ('_boxsplit.log', '_journal.jsonl'))
+    with open(main, 'w') as fh:
+        fh.write(json.dumps(v5.header()) + '\n')
+        for k in keys:
+            fh.write(json.dumps({'key': k, 'verdict': 'UNKNOWN', 'budget': 10000, 'lps': 10000, 'leaves': 0,
+                                 'proof': '0' * 40}) + '\n')
+    lines = [f'2026-10-28 09:00:00 Claude: "start: n = 288, order at least 10, open leaves 2 of {main} (0 closed on record), '
+             'extension moduli [11, 13] with budgets [10000, 2000000] (LP solves; a pool or an outside node 3 per '
+             'member), 10 processes, HiGHS 1.12.0 (4f96ee8), 0 earlier verdicts"',
+             '2026-10-28 09:00:05 Claude: "startup control passed: the order-9 example of length 288 lands in an own '
+             'child at each of [11, 13], and order 10 rejects it"',
+             f'2026-10-28 09:00:05 Claude: "leaf 0: {{{keys[0]}}}"']
+    lines += [f'2026-10-28 09:00:30 Claude: "leaf 0 {{{keys[0]}}}: extension tree closed: 1 box splits, 6 own children, '
+              '1415 pool members (1415 carried), 95 outside nodes, 6211 certbb LP solves, 29 GLOP solves, 20 CPU s"'] * done
+    open(log, 'w').write(''.join(line + '\n' for line in lines))
+    return log, main, keys
+
+
+def q_box_files_names_each_run_s_own_directory():
+    # Replicata: progress.box_files for 288@10, whose boxsplit pass is scratch/x288's copy of boxsplit.py, next to the
+    # search's copy of overnight_v5.py (2026-10-27, dreeves: "ok" to closing the search's open leaves with it); and for
+    # 240@11 and 304@9, passes of the repository's own boxsplit.py.
+    # Expectata: 288@10's driver log and run journal are scratch/x288's, named as boxsplit.configure names them;
+    # 240@11's and 304@9's are what boxsplit.configure itself names (its LOG and overnight_v5's JOURNAL).
+    import boxsplit as bx
+    here = progress.HERE
+    assert progress.box_files(288, 10) == tuple(os.path.join(here, 'scratch', 'x288', f'overnight_v5_288_10{x}')
+                                                for x in ('_boxsplit.log', '_journal.jsonl'))
+    for n, order in ((240, 11), (304, 9)):
+        got = progress.box_files(n, order)
+        bx.configure(n, order)
+        assert got == (bx.LOG, v5.JOURNAL), (got, bx.LOG, v5.JOURNAL)
+
+
+def q_box_survey_of_a_copy_s_pass():
+    # Replicata: progress.survey_box for 288@10 (which the repository's boxsplit.py has no extension for) on a made-up
+    # pass in a temporary directory: leaf 0 of its two open leaves done, its tree closed; no process running.
+    # Expectata: program boxsplit.py, n 288, order 10, state ended, no estimate; a sea of the two leaves, one settled
+    # and one pending.
+    d = tempfile.mkdtemp(prefix='progress-quals-')
+    try:
+        log, main, keys = made_up_box288(d, True)
+        s = progress.survey_box(288, 10, log, main, [], time.time(), {})
+    finally:
+        shutil.rmtree(d)
+    assert (s['program'], s['n'], s['order'], s['state'], s['to_go']) == ('boxsplit.py', 288, 10, 'ended', None), s
+    assert s['sea']['counts'] == {'settled': 1, 'open': 0, 'split': 0, 'pending': 1, 'running': 0}, s['sea']['counts']
+
+
+def q_watch_shows_a_boxsplit_pass_once_its_log_exists():
+    # Replicata: progress.main(['--watch']) with no overnight_v5 run, 288@10 as its one boxsplit run (EXTENDED), its
+    # driver log and run journal made up in a temporary directory (files and box_files pointed there), its data file
+    # and cache there too, and time.sleep replaced by a stub that stops the loop at its first call: once before the driver's log
+    # exists (the search's first pass still running), once after.
+    # Expectata: the first data file holds no run (no boxsplit pass to show yet, and no crash); the second holds the
+    # boxsplit pass of 288@10, program boxsplit.py.
+    d = tempfile.mkdtemp(prefix='progress-quals-')
+    saved = (progress.RUNS, progress.EXTENDED, progress.JS, progress.CACHE, progress.HERE, progress.files,
+             progress.box_files, time.sleep)
+    class Stop(Exception): pass
+    def stub(s): raise Stop
+    runs = []
+    try:
+        log, main, _ = made_up_box288(d, False)
+        os.rename(log, log + '.later')
+        progress.RUNS, progress.EXTENDED = (), ((288, 10),)
+        progress.JS, progress.CACHE = os.path.join(d, 'p.js'), os.path.join(d, 'c.json')
+        progress.HERE = d
+        progress.files = lambda n, order: (main, os.path.join(d, 'overnight_v5_288_10.log'))
+        progress.box_files = lambda n, order: (log, main)
+        time.sleep = stub
+
+        def once():
+            try:
+                progress.main(['--watch'])
+            except Stop:
+                pass
+            runs.append([(r['program'], r['n'], r['order']) for r in progress_data(open(progress.JS).read())['runs']])
+        once()
+        os.rename(log + '.later', log)
+        once()
+    finally:
+        (progress.RUNS, progress.EXTENDED, progress.JS, progress.CACHE, progress.HERE, progress.files,
+         progress.box_files, time.sleep) = saved
+        shutil.rmtree(d)
+    assert runs == [[], [('boxsplit.py', 288, 10)]], runs
 
 
 def q_box_survey_of_a_closed_pass():

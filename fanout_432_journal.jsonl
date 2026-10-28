@@ -44041,3 +44041,7 @@
 {"event":"job_start","time":1793143362.6920362,"pid":68450,"job":"9f82f4295714d411503dfca8f7e8c898c9dc8818","case":1,"depth":13,"root":0}
 {"event":"job_end","time":1793143368.829392,"pid":68450,"job":"1912bc0483340c52155d172400a986e1e26839b3","case":0,"root":2,"lps":3987,"seconds":9.55714474990964,"open":0,"tree_sha256":"97124971277d0bc0f989cb4db112041d11fd987dcf2d2bbfd9f2a22ddd621e0f","open_depths":[]}
 {"event":"job_start","time":1793143368.836135,"pid":68450,"job":"58e283629f92f6d285b5904ba817f3087fc6ea05","case":0,"depth":13,"root":1}
+{"event":"job_end","time":1793162671.0924768,"pid":68450,"job":"5a64d48320d583e6bbf1cb13c9560dbf48063309","case":1,"root":0,"lps":20020,"seconds":19328.414807375055,"open":5,"tree_sha256":"bbdd784e850e8e5a461bb6bfc3e661e65f02028089d1f1379feb1c1daff2898a","open_depths":[33,35,36,37,38]}
+{"event":"job_start","time":1793162671.101611,"pid":68450,"job":"3f91be1c9feb61362e443716404e41071648ccb1","case":1,"depth":14,"root":0}
+{"event":"job_end","time":1793162671.133016,"pid":68450,"job":"3f91be1c9feb61362e443716404e41071648ccb1","case":1,"root":0,"lps":1,"seconds":0.00922312494367361,"open":0,"tree_sha256":"065ddc25aef1028879aec0aa03706dd9f26bf3d5b2d181251fc426506a368553","open_depths":[]}
+{"event":"job_start","time":1793162671.1339679,"pid":68450,"job":"b63c2cc89601803cc7e5f62059e526811f56bec6","case":1,"depth":20,"root":0}

@@ -1593,7 +1593,8 @@ def q_example_at_1024_has_its_entry_code_set_and_cell():
     # Expectata (2026-10-26: Claude's lattice search found an example of order 11 at 1024; with m*(2^9) = 9 it makes 2^10
     # the first power of 2 to beat Thue-Morse, and the norm bound for 3 caps it at 11): an entry of its own, "m* = 11",
     # an <li class="c"> marked ◆, in the form of the examples' entries (q_examples_of_2026_10_26_have_entries_codes_and_sets),
-    # right after 992's, the last of the examples'; its one code block, p1024 of order 11, whose signs have order
+    # right after 992's, the last of the examples' until 1008's came between them (2026-10-27 night,
+    # q_examples_at_720_and_1008_have_their_entries_codes_and_sets); its one code block, p1024 of order 11, whose signs have order
     # exactly 11 (synthetic division here) and are antisymmetric; SClaude[11][1024] exactly their +1 positions, 0
     # among them; the cell 2^10, of class c titled Claude alone, value 11, right after 2^9's; and pow2.js's column
     # 2^10 is [11, 11, ["joins", [[[1024, 11]]]], ["mstar", ["norm", 3]]]: since 2026-10-27, when the m*(n) chart
@@ -1615,7 +1616,7 @@ def q_example_at_1024_has_its_entry_code_set_and_cell():
             for m, n, body in re.findall(r'SClaude\[(\d+)\]\[(\d+)\] = \{([^}]*)\};', text)}
     assert sets[11, 1024] == {i for i, s in enumerate(a) if s == 1} and 0 in sets[11, 1024]
     listed = [ns.split(', ') for ns in re.findall(r'<p class="entry"><i>n</i> = ([^:]*): ', text)]
-    assert listed[listed.index(['992']) + 1] == ['1024'], listed
+    assert listed[listed.index(['992']) + 1:listed.index(['992']) + 3] == [['1008'], ['1024']], listed
     row = re.search(r'<td title=\'The published paper \(2021\)\'>2<sup>3</sup></td>.*?</tr>\s*<tr class="vals">.*?</tr>',
                     text, re.S).group(0)
     ns = re.findall(r'<td([^>]*)>2<sup>(\d+)</sup></td>', row)
@@ -1692,9 +1693,9 @@ def q_example_at_816_has_its_entry_code_and_set():
     # norm bound for the residue sums mod 5 leaves at 11 to 14): 816 has an entry of its own, "m* ∈ {11, …, 14}", an
     # <li class="c"> marked ◆, right after 800's and before 832's, whose Claude: "…" names the norm bound mod 5; its
     # one code block, p816 of order 11, whose signs have order exactly 11 (synthetic division here) and are
-    # antisymmetric; SClaude[11][816] exactly their +1 positions, 0 among them; 720's entry alone, "m* ∈ {10, …, 14}"
-    # (it shared one with 816 before); the cell 816 of value 11–14; and mstar.js's column 816 is [11, 14, ["example",
-    # "index.html p816"], ["norm", 5]].
+    # antisymmetric; SClaude[11][816] exactly their +1 positions, 0 among them; 720's entry alone (it shared one with
+    # 816 before; its own example since 2026-10-27, q_examples_at_720_and_1008_have_their_entries_codes_and_sets); the
+    # cell 816 of value 11–14; and mstar.js's column 816 is [11, 14, ["example", "index.html p816"], ["norm", 5]].
     text = page()
     li = re.search(r'<li class="c">\n      <span class="mk" aria-hidden="true">◆</span>\n      <p class="entry"><i>n</i> = '
                    r'816: &nbsp;<span class="nw"><i>m</i><sup>\*</sup> ∈ \{11, …, 14\}</span></p>\n(.*?)\n    </li>', text, re.S)
@@ -1715,9 +1716,49 @@ def q_example_at_816_has_its_entry_code_and_set():
     listed = [ns.split(', ') for ns in re.findall(r'<p class="entry"><i>n</i> = ([^:]*): ', text)]
     i = listed.index(['816'])
     assert listed[i - 1:i + 2] == [['800'], ['816'], ['832']] and ['720'] in listed, listed
-    assert re.search(r'<p class="entry"><i>n</i> = 720: &nbsp;<span class="nw"><i>m</i><sup>\*</sup> ∈ \{10, …, 14\}</span></p>', text)
     assert new_cells(text)[816] == (11, 14), new_cells(text)[816]
     assert mstar_data()['cols'][816 - 1] == [11, 14, ['example', 'index.html p816'], ['norm', 5]], mstar_data()['cols'][816 - 1]
+
+
+def q_examples_at_720_and_1008_have_their_entries_codes_and_sets():
+    # Replicata: the remarks' entries of 720 and 1008, their codes decoded by the paper's Table 5 convention (the left
+    # half of the signs, 1 = +1, then the rest by (-1)^m symmetry), the page's sets SClaude[11][720] and
+    # SClaude[11][1008], the new results' cells, and mstar.js's columns 720 and 1008.
+    # Expectata (2026-10-27: Claude's lattice search, w11.py at 720 and at 1008, found antisymmetric examples of order
+    # 11 there): each has an entry of its own, an <li class="c"> marked ◆ among the examples in order of n, 720's
+    # "m* ∈ {11, …, 14}" between 656's and 752's, whose Claude: "…" names the residue condition mod 16, and 1008's
+    # "m* ∈ {11, 12, 13}" between 992's and 1024's, naming the residue condition mod 5; each its one code block, of
+    # order 11, whose signs have order exactly 11 (synthetic division here) and are antisymmetric; SClaude[11][n]
+    # exactly their +1 positions, 0 among them; no other entry names 720 or 1008 (their joins' entries are gone); the
+    # cells 11–14 and 11–13; and mstar.js's columns [11, 14, ["example", "index.html p720"], ["residue", 16]] and [11,
+    # 13, ["example", "index.html p1008"], ["residue", 5]].
+    text = page()
+    sets = {(int(m), int(n)): {int(t) for t in body.split(',')}
+            for m, n, body in re.findall(r'SClaude\[(\d+)\]\[(\d+)\] = \{([^}]*)\};', text)}
+    listed = [ns.split(', ') for ns in re.findall(r'<p class="entry"><i>n</i> = ([^:]*): ', text)]
+    for n, values, before, after, says, hi in ((720, '\\{11, …, 14\\}', '656', '752', 'residue condition mod 16', 14),
+                                               (1008, '\\{11, 12, 13\\}', '992', '1024', 'residue condition mod 5', 13)):
+        li = re.search(r'<li class="c">\n      <span class="mk" aria-hidden="true">◆</span>\n      <p class="entry"><i>n</i> = '
+                       rf'{n}: &nbsp;<span class="nw"><i>m</i><sup>\*</sup> ∈ {values}</span></p>\n(.*?)\n    </li>', text, re.S)
+        assert li, f'no entry of {n} alone'
+        assert says in re.search(r'<p>Claude: "(.*?)"</p>', li.group(1)).group(1), li.group(1)[:300]
+        codes = re.findall(r'<p class="code">\n        <span><i>p</i><sub>(\d+)</sub> <span class="nw">\(<i>m</i> = (\d+)\)</span>:</span>\n'
+                           r'        <code>([0-9A-F]+)</code>\n      </p>', li.group(1))
+        assert len(codes) == 1 and codes[0][:2] == (str(n), '11'), codes
+        h = codes[0][2]
+        left = [1 if b == '1' else -1 for b in bin(int(h, 16))[2:].zfill(4 * len(h))]
+        a, k = left + [-s for s in reversed(left)], 0
+        c = a
+        while not sum(c): c, k = list(itertools.accumulate(c[:-1])), k + 1
+        assert len(a) == n and k == 11 and all(a[n - 1 - i] == -a[i] for i in range(n)), (n, len(a), k)
+        assert sets[11, n] == {i for i, s in enumerate(a) if s == 1} and 0 in sets[11, n], n
+        i = listed.index([str(n)])
+        assert listed[i - 1:i + 2] == [[before], [str(n)], [after]], listed[i - 1:i + 2]
+        assert sum(str(n) in ns for ns in listed) == 1, (n, [ns for ns in listed if str(n) in ns])
+        assert new_cells(text)[n] == (11, hi), new_cells(text)[n]
+    cols = mstar_data()['cols']
+    assert cols[720 - 1] == [11, 14, ['example', 'index.html p720'], ['residue', 16]], cols[720 - 1]
+    assert cols[1008 - 1] == [11, 13, ['example', 'index.html p1008'], ['residue', 5]], cols[1008 - 1]
 
 
 def q_816_moves_excess_5_to_2_41():
