@@ -1234,25 +1234,29 @@ def q_sea_marks_split_pending_and_running():
     assert sea['counts'] == {'settled': 1, 'open': 1, 'split': 1, 'pending': 2, 'running': 1}, sea['counts']
 
 
-def q_sea_places_running_nodes_without_keys():
-    # Replicata: q_sea_marks_split_pending_and_running's made-up journal, with D running as before, and three running
-    # nodes whose own keys are unknown (their parents' splits are not cached): two children of C and one of B2's parent B
-    # given as their parents' keys (2026-10-27, dreeves: "why are there zero orange (running) cells?", then "is there a
-    # cheaper way to have the page not lie?": the 288@10 page showed none of its 9 running nodes).
-    # Expectata: each is a running dot in its parent's group, after that group's other dots: C's group split, running,
-    # running; B's pending, open, running; the other groups as before; counts 4 running.
+def q_sea_places_nodes_without_keys():
+    # Replicata: q_sea_marks_split_pending_and_running's made-up journal, with D running as before, and nodes whose own
+    # keys are unknown (their parents' splits are not cached), given as (their parent's key, their status): two running
+    # children of C and one of B, and three queued children of C (2026-10-27, dreeves: "why are there zero orange
+    # (running) cells?", "is there a cheaper way to have the page not lie?", then of the sea looking mostly settled
+    # beside an ETA of months: "what's the objectively correct thing to do?" -- the 288@10 page drew none of its 9
+    # running and 3106 of its 3113 queued nodes).
+    # Expectata: each is a dot of its status in its parent's group, after that group's other dots, in the order given:
+    # C's group split, running, running, pending x3; B's pending, open, running; the other groups as before; counts
+    # 4 running and 5 pending.
     A, B, C, D, E = '3:[1,1,1]', '3:[2,1,0]', '3:[0,1,2]', '3:[3,0,0]', '3:[0,0,3]'
     B1, B2 = B + ' 5:[1,0,0,0,0]', B + ' 5:[0,1,0,0,0]'
     rec = lambda verdict, budget: {'verdict': verdict, 'budget': budget}
     final = {'': rec('UNKNOWN', 10), A: rec('INFEASIBLE', 10), B: rec('UNKNOWN', 10), B1: rec('UNKNOWN', 10),
              C: rec('UNKNOWN', 10), E: rec('UNKNOWN', 5)}
     cache = {'': [A, B, C, D, E], B: [B1, B2]}
-    sea = progress.sea(final, [10, 10, 10], cache, {D}, [C, B, C])
+    unnamed = [(C, 'running'), (B, 'running'), (C, 'running')] + [(C, 'pending')] * 3
+    sea = progress.sea(final, [10, 10, 10], cache, {D}, unnamed)
     i = lambda *names: ''.join(str(progress.SEA_STATUSES.index(n)) for n in names)
     assert sea['depth'] == 1 and sea['keys'] == [E, C, A, B, D], sea
-    assert sea['groups'] == [i('pending'), i('split', 'running', 'running'), i('settled'), i('pending', 'open', 'running'),
-                             i('running')], sea['groups']
-    assert sea['counts'] == {'settled': 1, 'open': 1, 'split': 1, 'pending': 2, 'running': 4}, sea['counts']
+    assert sea['groups'] == [i('pending'), i('split', 'running', 'running', 'pending', 'pending', 'pending'), i('settled'),
+                             i('pending', 'open', 'running'), i('running')], sea['groups']
+    assert sea['counts'] == {'settled': 1, 'open': 1, 'split': 1, 'pending': 5, 'running': 4}, sea['counts']
 
 
 def q_sea_of_240_at_11():

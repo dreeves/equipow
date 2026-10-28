@@ -476,10 +476,14 @@ def live_keys(final):
     return keys
 
 
-def sea(final, budgets, cache, running):
+def sea(final, budgets, cache, running, unnamed=()):
     """The sea (see the vocabulary) of the journal's last records final under these budgets, with the splits cached so
     far and the keys running now: {'depth', 'keys' (its groups' sub-cases), 'groups' (each a string of its dots'
-    statuses, as indices into SEA_STATUSES), 'counts' (by status)}."""
+    statuses, as indices into SEA_STATUSES), 'counts' (by status)}.  unnamed holds (its parent's key, its status) for each
+    running or queued node whose own key is not known here (its parent's split is not cached, and a progress line names a
+    node only when it is done): each is a dot of that status in its parent's group, after that group's other dots, in
+    unnamed's order (2026-10-27: before, the 288@10 page drew none of its 9 running nodes and 3106 of its 3113 queued
+    ones, so that it looked mostly settled beside an ETA of months)."""
     bottom = len(budgets) - 1
     depth = min(SEA_DEPTH, bottom - 1)
     assert depth >= 0, budgets
@@ -493,6 +497,8 @@ def sea(final, budgets, cache, running):
     for k in front:
         s = 'running' if k in running else status(k, final, budgets)
         groups.setdefault(' '.join(k.split()[:depth]), []).append(str(SEA_STATUSES.index(s)))
+    for k, s in unnamed: groups.setdefault(' '.join(k.split()[:depth]), []).append(str(SEA_STATUSES.index(s)))
+    groups = dict(sorted(groups.items(), key=lambda g: tree_order(g[0])))     # a new group in its place
     tally = collections.Counter(c for g in groups.values() for c in g)
     return {'depth': depth, 'keys': list(groups), 'groups': [''.join(g) for g in groups.values()],
             'counts': {s: tally[str(i)] for i, s in enumerate(SEA_STATUSES)}}
@@ -900,11 +906,15 @@ def survey(n, order, journal, log, procs, now, cache, etas):
     parts = {}
     draws = estimate(state_at(R, end, resplits(R, order, cache), f'{n}@{order} at {clock(end)}'), parts) if state != 'ended' else None
     etas.setdefault(str(int(end)), [float(np.median(draws))] + [float(q) for q in np.quantile(draws, QUANTILES)] if draws is not None and len(draws) else None)   # a record made stands
-    running = {nd.key for nd in parts.get('nodes', []) if nd.state == 'running' and nd.key is not None}
+    moving = [nd for nd in parts.get('nodes', []) if nd.state == 'running']
+    running = {nd.key for nd in moving if nd.key is not None}
+    unnamed = ([(nd.parent.key, 'running') for nd in moving if nd.key is None]
+               + [(nd.parent.key, 'pending') for nd in parts.get('stack', []) if nd.key is None])
+    assert all(k is not None for k, _ in unnamed), unnamed      # a node's parent is done, so its line named it
     to_go = ({'median': float(np.median(draws)) * HOUR} | dict(zip(('lo', 'hi'), (float(q) * HOUR for q in np.quantile(draws, QUANTILES))))
              if draws is not None and len(draws) else None)
     return {'program': 'overnight_v5.py', 'n': n, 'order': order, 'state': state, 'outcome': p['outcome'], 'budgets': budgets,
-            'sea': sea(final, budgets, cache, running), 'so_far': sum(b - a for a, b in spans), 'to_go': to_go,
+            'sea': sea(final, budgets, cache, running, unnamed), 'so_far': sum(b - a for a, b in spans), 'to_go': to_go,
             'passes': spans,
             'elapsed': end - p['start'], 'last': p['last'],
             'settled': sum(final[k]['verdict'] == 'INFEASIBLE' for k in live), 'open': tally['open'],
