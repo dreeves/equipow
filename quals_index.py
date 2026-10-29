@@ -227,7 +227,7 @@ def day_states(start, through=BACKFILL):
 # What the changelog lists (dreeves, 2026-10-26, of its first 112 statements: "if there's an excuse to trim it down, we
 # should. it's overwhelming currently"; then "we obviously want 2^17:18 and 2^24:25 in the changelog"): the bounds that
 # a new partition of that length, or a proof about that n, established; and each power of 2 whose low sets a threshold
-# of Theorem 1, a new smallest k known to beat Thue-Morse by e (firsts()), stated by its low alone, as Theorem 1 states
+# of the theorem, a new smallest k known to beat Thue-Morse by e (firsts()), stated by its low alone, as the theorem states
 # it.  Other bounds built from partitions of other lengths, by doubling, joining or multiplying them, are left to the
 # table and the charts: a lower bound whose reason in the m*(n) chart is BUILT, along with the upper bound stated with
 # it (that entry waits for a partition of its own), and every other power of 2 past NMAX.  The chat's statements (CHAT)
@@ -238,14 +238,14 @@ FIRST_CHART = '917fe7f'    # mstar.js's first commit (2026-10-11 16:24, "New cha
 
 def firsts(cells):
     """{e: the smallest k with low(2^k) - k >= e}, for e from 1 up, over the powers of 2 among cells ({n: (low, high)}):
-    the thresholds of Theorem 1 as the block stood."""
+    the thresholds of the theorem as the block stood."""
     pows = {n.bit_length() - 1: lo for n, (lo, _) in cells.items() if n & (n - 1) == 0}
     top = max((lo - k for k, lo in pows.items()), default=0)
     return {e: min(k for k, lo in pows.items() if lo - k >= e) for e in range(1, top + 1)}
 
 
 def records(before, after):
-    """{2^k: (low, None)}: the powers of 2 whose low in after sets a threshold of Theorem 1 that before's did not."""
+    """{2^k: (low, None)}: the powers of 2 whose low in after sets a threshold of the theorem that before's did not."""
     b = firsts(before)
     return {2 ** k: (after[2 ** k][0], None) for e, k in firsts(after).items() if b.get(e) != k}
 
@@ -362,6 +362,11 @@ function battery(R) {
   R.dpr = devicePixelRatio; R.innerW = innerWidth; R.scrollW = document.documentElement.scrollWidth;
   const main = document.querySelector('main'), ms = getComputedStyle(main);
   R.mainContentW = main.clientWidth - parseFloat(ms.paddingLeft) - parseFloat(ms.paddingRight);
+  // The running text's right edges (2026-10-29): each p and li of main outside the legends, as [its id, its
+  // text-align, its right edge in CSS px from the left of main's content box].
+  const mainLeft = main.getBoundingClientRect().left + parseFloat(ms.paddingLeft);
+  R.prose = [...main.querySelectorAll('p, li')].filter(e => !e.closest('.legend')).map(e =>
+    [e.id, getComputedStyle(e).textAlign, e.getBoundingClientRect().right - mainLeft]);
   R.touchAction = getComputedStyle(cv).touchAction;
   // each n's first drawn text: its digits, or the 2 of 2^k, which KaTeX draws (since 2026-10-28) in its HTML beside
   // a hidden MathML copy that is skipped
@@ -900,7 +905,8 @@ def q_changelog_sits_under_the_authors_as_in_freshat():
     # Replicata: index.html's header.
     # Expectata (dreeves, 2026-10-26: "can you add a skeleton of a changelog at the top of the page, modeled after
     # doc.bmndr.co/freshat"): as FreshAt's changelog follows its byline, a <details class="changelog"> follows the
-    # authors' line, the title's next, whatever his words there, with only comments between,
+    # byline, the lede lines next after the title, whatever his words there (one or more since 2026-10-29, dreeves:
+    # "yes to allowing 2 lines for the byline"), with only comments between,
     # and has no open attribute, so it starts closed; a summary, and the rest entries, and TODO comments, for entries
     # in Claude's words; each entry a <p> on its own line, "YYYY-MM-DD: what changed" as in FreshAt, a real date,
     # newest first.
@@ -915,7 +921,7 @@ def changelog():
     form q_changelog_sits_under_the_authors_as_in_freshat holds it to."""
     head = re.search(r'<header>\n(.*?)\n</header>', page(), re.S)
     assert head, 'no header'
-    m = re.match(r'  <h1>[^\n]*</h1>\n  <p class="lede">[^\n]*</p>\n(?:  <!--[^\n]*-->\n)*'
+    m = re.match(r'  <h1>[^\n]*</h1>\n(?:  <p class="lede">[^\n]*</p>\n)+(?:  <!--[^\n]*-->\n)*'
                  r'  <details class="changelog">\n    <summary>[^\n]*</summary>\n(.*?)\n  </details>\n',
                  head.group(1) + '\n', re.S)
     assert m, head.group(1)[:800]
@@ -965,7 +971,7 @@ def q_changelog_brings_every_new_result_up_to_date():
     # own length (up to NMAX, not BUILT; past it, a power of 2 whose pow2.js loWhy is the join of one block of length
     # n, since 1024 got its example of order 11 on 2026-10-26) is up to date, its bounds exactly the statements', as
     # is every upper bound proved on the page (reason 'page') and the low of each power of 2 that sets a threshold of
-    # Theorem 1 (dreeves, 2026-10-26: "we obviously want 2^17:18 and 2^24:25 in the changelog").
+    # the theorem (dreeves, 2026-10-26: "we obviously want 2^17:18 and 2^24:25 in the changelog").
     # Resultata before the trim: the 112 statements also brought every entry built from other partitions up to date.
     # Resultata after it, before the thresholds came back: no power of 2 past 512 had a statement.
     state = {}
@@ -1949,15 +1955,56 @@ def q_oeis_notes_hold_on_the_chart():
     assert lo(112) == hi(112) == 7 and all(w in notes['A323629'] for w in ('112', '56')), notes['A323629']
 
 
+# A323629's generating function as OEIS gives it (Alois P. Heinz's, fetched 2026-10-28), and as it is with 112, each
+# with the coefficients of its numerator over (1 - x)^2: -8x(x^6 + 2x^2 + 8x - 12) = 96x - 64x^2 - 16x^3 - 8x^7, and
+# 8x(12 - 10x - x^7) = 96x - 80x^2 - 8x^8.
+L7_GF_OEIS = (r'\(-8x(x^6 + 2x^2 + 8x - 12)/(x - 1)^2\)', {1: 96, 2: -64, 3: -16, 7: -8})
+L7_GF = (r'\(8x(12 - 10x - x^7)/(1 - x)^2\)', {1: 96, 2: -80, 8: -8})
+
+
+def gf_terms(numerator, nmax):
+    """The coefficients of x, x^2, ... in numerator/(1 - x)^2 up to the last that is at most nmax, numerator as {power:
+    coefficient} with no constant term, its series rising: 1/(1 - x)^2 is the sum of (i + 1) x^i."""
+    terms = []
+    for n in itertools.count(1):
+        c = sum(a * (n - j + 1) for j, a in numerator.items() if j <= n)
+        if c > nmax: return terms
+        terms.append(c)
+
+
+def q_oeis_errors_say_how_to_fix_them():
+    # Replicata: the OEIS section's first list, and mstar.js.
+    # Expectata (dreeves, 2026-10-29: "can you make sure the errors in OEIS are made clear on the page? then we don't
+    # need suggested_edits.txt"): the notes on the two entries with an error, A323395 and A323629, and no others, mark
+    # it with a bold "Error:" and give the fix.  A323395's comment has a(12) ≤ 864 and a(13) ≤ 960, which should read
+    # a(12) ≤ 960 and a(13) ≤ 1920: 960 is the least n known to reach order 13 (12-powerful), and doubling it reaches
+    # order 14 at 1920.  A323629's generating function, L7_GF_OEIS, should be L7_GF: through 1024, L7_GF's series is
+    # the chart's L7 (every n with m*(n) ≥ 7) and L7_GF_OEIS's is L7 without 112.
+    # Resultata before: the A323395 note said its bounds "look one order too high", and the A323629 note gave no
+    # generating function; scratch/oeis/suggested_edits.txt held the fixes.
+    body = re.search(r'<section class="oeis" aria-labelledby="oeis-title">.*?</section>', page(), re.S).group(0)
+    notes = dict(zip(OEIS, re.findall(r'<li>(.*?)</li>', re.search(r'<ul>(.*?)</ul>', body, re.S).group(1), re.S)))
+    assert [a for a in OEIS if '<b>Error:</b>' in notes[a]] == ['A323395', 'A323629'], notes
+    assert all(notes[a].count('<b>Error:</b>') == 1 for a in ('A323395', 'A323629')), notes
+    lo = lambda n: mstar_data()['cols'][n - 1][0]
+    assert next(n for n in range(2, NMAX + 1, 2) if lo(n) >= 13) == 960 and lo(960) + 1 == 14
+    wrong, right = (r'\(a(12) \le 864\)', r'\(a(13) \le 960\)'), (r'\(a(12) \le 960\)', r'\(a(13) \le 1920\)')
+    assert all(t in notes['A323395'].split('<b>Error:</b>')[1] for t in wrong + right), notes['A323395']
+    L7 = [n for n in range(2, NMAX + 1, 2) if lo(n) >= 7]
+    assert gf_terms(L7_GF[1], NMAX) == L7 and gf_terms(L7_GF_OEIS[1], NMAX) == [n for n in L7 if n != 112]
+    after = notes['A323629'].split('<b>Error:</b>')[1]
+    assert L7_GF_OEIS[0] in after and L7_GF[0] in after and after.index(L7_GF_OEIS[0]) < after.index(L7_GF[0]), after
+
+
 def q_912_moves_excess_3_to_2_29():
     # Replicata: pow2.js's columns 2^28 to 2^35, the new results' cells of 2^29, 2^30, 2^33 and 2^34 and their remarks'
-    # entries, and Theorem 1's statement and its list of firsts.
+    # entries, and the theorem's statement and its list of firsts.
     # Expectata (2026-10-28: with 912 at order 12 among the blocks, the exhaustive search of scratch/wish4 finds 2^29 =
     # (608 # 800^2) ∨ (336^2 # 912) ∨ (240 # 432^2), each product of order 32, and no K <= 28 beating Thue-Morse by 3):
     # pow2.js's lo is k + 2 at 2^28 and k + 3 from 2^29 to 2^35, column 29 that join; the cells read 2^29 32–35, 2^30
     # 33–36, 2^33 36–40 and 2^34 37–41; 2^29's entry gives 2^29 = 608·800² + 336²·912 + 240·432², a join of three
     # products of examples above, each of order 32, that beats Thue–Morse by 3; 2^30's, 2^33's and 2^34's each name the
-    # 2^29 entry, each product times τ1, τ4 and τ5, of orders 33, 36 and 37; Theorem 1 states m*(2^29) ≥ 32 in place
+    # 2^29 entry, each product times τ1, τ4 and τ5, of orders 33, 36 and 37; the theorem states m*(2^29) ≥ 32 in place
     # of m*(2^30) ≥ 33, and its list of firsts is 10, 20, 29, 37, 41, 48, 57, 65, 68.
     cols, text = pow2_data()['cols'], page()
     base = cols[28][2]
@@ -1979,13 +2026,13 @@ def q_912_moves_excess_3_to_2_29():
 
 def q_768_moves_excess_5_to_2_39():
     # Replicata: pow2.js's columns 2^38 to 2^47, the new results' cells of 2^39, 2^41, 2^43 and 2^46 and their remarks'
-    # entries, and Theorem 1's statement and its list of firsts.
+    # entries, and the theorem's statement and its list of firsts.
     # Expectata (2026-10-28 evening: with 768 at order 12 among the blocks, the exhaustive search of scratch/wish5 finds
     # 2^39 = (800 # 832^3) ∨ (192 # 432^2 # 768 # τ1) ∨ (48 # 480^2 # 768 # τ2), each product of order 44, and no K <=
     # 38 beating Thue-Morse by 5): pow2.js's lo is k + 4 at 2^38 and k + 5 from 2^39 to 2^47, column 39 that join; the
     # cells read 2^39 44–47, 2^41 46–50, 2^43 48–53 and 2^46 51–57; 2^39's entry says a join of three products of
     # examples above and Thue–Morse, each of order 44, beats Thue–Morse by 5; 2^41's, 2^43's and 2^46's each name the
-    # 2^39 entry, each product times τ2, τ4 and τ7, of orders 46, 48 and 51; Theorem 1 states m*(2^39) ≥ 44 in place
+    # 2^39 entry, each product times τ2, τ4 and τ7, of orders 46, 48 and 51; the theorem states m*(2^39) ≥ 44 in place
     # of m*(2^41) ≥ 46.  (From 2026-10-26, when 816's example of order 11 moved it from 2^43, until then, excess 5's
     # first was 2^41 = (800^2 # 832 # 848 # τ2) ∨ (432^3 # 816 # τ2) ∨ (480^3 # 784) ∨ (432^2 # 480^2), each product
     # of order 46, 816's of order 47 after 816's example of order 12 that afternoon: q_816_moves_excess_5_to_2_41.)
@@ -2021,6 +2068,22 @@ def q_page_loads_clean():
     assert R['canvasDev'][1] > 0 and close(R['canvasCss'][0], R['mainContentW'], 1), R
     v = R['views'][0]
     assert close(v['u0'], 0, 0.01) and close(v['span'], NCOL, 0.05), v
+
+
+def q_prose_has_one_measure():
+    # Replicata: the light run (1280 px wide, main's content box 960 px): every p and li of main outside the legends.
+    # Expectata (dreeves, 2026-10-29, of the paragraph above the m*(n) chart, which ran the column's full width, and the
+    # powers-of-2 chart's caption, 46rem: "the right margin seems to be inconsistent here"): the running text has one
+    # measure, the 46rem of the text sections, so each justified p or li ends 736 px from the left of main's content
+    # box (within 0.5 px), while tables and charts may span the column.  The charts' readouts are their charts': as
+    # wide as the column, and ragged (text-align start), as their text changes under the pointer.
+    # Resultata before: justified text ended 672 px (the header's 42rem), 736 and 960 px from it.
+    R = valid_run('light')
+    assert close(R['mainContentW'], 960, 0.5), R['mainContentW']
+    ends = sorted({round(right, 1) for _, align, right in R['prose'] if align == 'justify'})
+    assert len(ends) == 1 and close(ends[0], 736, 0.5), ends
+    readouts = {i: (align, round(right, 1)) for i, align, right in R['prose'] if i in ('mstar-readout', 'pow2-readout')}
+    assert readouts == {'mstar-readout': ('start', 960.0), 'pow2-readout': ('start', 960.0)}, readouts
 
 
 def q_drawn_cells_match_data():

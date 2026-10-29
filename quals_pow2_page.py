@@ -556,7 +556,7 @@ def cell_box(R, geo, k, e):
 
 
 def theorem_cells():
-    """The cells (k, e) of the chart whose bounds Theorem 1 on the page states, from its text: m*(2^k) >= v as
+    """The cells (k, e) of the chart whose bounds the theorem on the page states, from its text: m*(2^k) >= v as
     (k, v - k).  Its m*(2^9) = 9 has no cell of its own: the chart has no row 0."""
     t = re.search(r'<p><b>Theorem\.</b>(.*?)</p>', page(), re.S)
     assert t, 'no Theorem paragraph'
@@ -584,8 +584,8 @@ def q_section_follows_mstar_chart():
     # class="remarks">.  The new section holds, in order: the heading, the h2 pow2-title; a paragraph of class
     # pow2-caption; the legend, its swatches exists, open and impossible, as the m*(n) chart's, then exists ringed in
     # gold (record) for the theorem's cells; the div pow2-chart, an image with a label; the readout paragraph
-    # pow2-readout, a polite live region; then Theorem 1; a link to record_gaps.wl, the script of the table behind
-    # Theorem 1 (Stan Wagon's request, 2026-10-18; quals_record_gaps checks it), and that table (dreeves, 2026-10-18),
+    # pow2-readout, a polite live region; then the theorem; a link to record_gaps.wl, the script of the table behind
+    # the theorem (Stan Wagon's request, 2026-10-18; quals_record_gaps checks it), and that table (dreeves, 2026-10-18),
     # its body filled from pow2.js, in a sideways-scrolling div.  (Since 2026-10-28, dreeves's README: "[CHR] Put the
     # powers-of-2 chart between the normal chart and the theorem statement"; before, the theorem and the table came
     # first.)
@@ -897,7 +897,7 @@ def q_labels_mark_every_delta_and_round_k():
 
 def q_gold_trim_rings_the_theorem_s_cells():
     # Replicata: the drawn configurations: the elements of class pow2-trim in #pow2-chart (their boxes, computed border
-    # colors and widths and pointer-events), the cells Theorem 1 states (theorem_cells), and the data's kinds there.
+    # colors and widths and pointer-events), the cells the theorem states (theorem_cells), and the data's kinds there.
     # Expectata (dreeves's README, 2026-10-28: "[GTR] Gold trim for the powers-of-2 chart to highlight the values in the
     # theorem"): one ring per bound the theorem states and no other, in the theorem's order of k: each a border in the
     # record token's gold (the gold ring of the m*(n) chart) just outside its cell, 2 px above and below it (the gaps

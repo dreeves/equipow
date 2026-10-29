@@ -56,6 +56,10 @@
   --tint: 16%;
   --serif: "Latin Modern", "STIX Two Text", "Times New Roman", Times, serif;
   --mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  /* The running text's one width, the text sections' 46rem, while tables and charts may span the column (dreeves,
+     2026-10-29: "the right margin seems to be inconsistent here", of a paragraph across the column above a
+     caption 46rem wide; the header's text was 42rem wide) */
+  --measure: 46rem;
   color-scheme: light;
 }
 
@@ -72,12 +76,13 @@ body {
 /* Latin Modern's lowercase runs small: at 19px (expost's size) it is as tall as STIX Two Text's was at 17px. The
    tables keep their 17px, so that their rows still fit as measured.  Prose is set as LaTeX sets it, justified and
    hyphenated (hyphens follow html lang), as tauction's help is, where lines are long enough (40rem and up: a
-   phone's short lines justified open wide gaps around the formulas); the changelog, the progress section and
-   the code lines stay ragged.  The title and byline are centered, as \maketitle sets them, the title in regular weight. */
+   phone's short lines justified open wide gaps around the formulas); the changelog, the progress section, the
+   code lines and the charts' readouts, which change under the pointer, stay ragged.  The title and byline are centered, as \maketitle sets them, the title in regular weight. */
 table { font-size: 1.0625rem; }
 main p, main li { hyphens: auto; -webkit-hyphens: auto; }
+main p { max-width: var(--measure); }
 @media (min-width: 40rem) { main p, main li { text-align: justify; } }
-.changelog p, .progress p, .progress li, p.code { text-align: start; hyphens: manual; -webkit-hyphens: manual; }
+.changelog p, .progress p, .progress li, p.code, #mstar-readout, #pow2-readout { text-align: start; hyphens: manual; -webkit-hyphens: manual; }
 header h1 { text-align: center; font-weight: 400; font-size: 2.1rem; }
 header .lede { text-align: center; }
 main {
@@ -89,7 +94,7 @@ main {
   grid-template-columns: minmax(0, 1fr);
   gap: 2.25rem;
 }
-header { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.5rem; max-width: 42rem; }
+header { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.5rem; max-width: var(--measure); }
 h1 {
   margin: 0;
   font-size: 2rem;
@@ -224,7 +229,7 @@ tr.ns td.ca::before, .key.ca > span, .remarks li.ca .mk { background: linear-gra
 .key.s { --hue: var(--stan); }
 
 /* Remarks: one per new entry or group, marked like its cells */
-.remarks { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; max-width: 46rem; }
+.remarks { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; max-width: var(--measure); }
 .remarks ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 1.15rem; }
 .remarks li {
   display: grid;
@@ -259,12 +264,12 @@ code {
 }
 
 /* Claude's examples written out as sets, to paste into Mathematica */
-.sets, .counts { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; max-width: 46rem; }
+.sets, .counts { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; max-width: var(--measure); }
 .sets pre { margin: 0; overflow-x: auto; }
 .sets pre code { display: block; }
 
 /* Claude's account of its lattice search, at Stan Wagon's request (2026-10-14): one block quote, ruled in Claude's hue */
-.lattice { display: grid; grid-template-columns: minmax(0, 1fr); max-width: 46rem; }
+.lattice { display: grid; grid-template-columns: minmax(0, 1fr); max-width: var(--measure); }
 .lattice blockquote { margin: 0; padding-left: 1.1rem; border-left: 3px solid var(--claude); display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; }
 .lattice ul { margin: 0; padding-left: 1.2rem; display: grid; gap: 0.6rem; }
 .lattice .attrib { color: var(--muted); }
@@ -280,7 +285,7 @@ code {
    their range lines, so all four multiply onto what lies under them; the bands at 40% and 26% since 2026-10-23 (dreeves: "shouldn't
    we be able to visually distinguish between a region that both red and purple confidence bands cover vs just the purple"), so
    the three regions they make sit ΔE 14.0, 11.9 and 7.8 apart (OKLab x 100; 6.0, 8.5 and 4.6 at 16% and 16%). */
-.progress { display: grid; grid-template-columns: minmax(0, 1fr); max-width: 46rem; --progress-settled: #3a9f7a; --progress-open: #a8283f; --progress-split: #4a73d0; --progress-pending: #bfc3c8; --progress-running: #e09a1c; --progress-spent: #2a78d6; --progress-togo: #e34948; --progress-total: #7b1fa2; --progress-hair: #e1e0d9; }
+.progress { display: grid; grid-template-columns: minmax(0, 1fr); max-width: var(--measure); --progress-settled: #3a9f7a; --progress-open: #a8283f; --progress-split: #4a73d0; --progress-pending: #bfc3c8; --progress-running: #e09a1c; --progress-spent: #2a78d6; --progress-togo: #e34948; --progress-total: #7b1fa2; --progress-hair: #e1e0d9; }
 .progress summary { cursor: pointer; }
 .progress summary h2 { display: inline; }
 .progress details > * + * { margin-top: 0.8rem; }
@@ -349,7 +354,7 @@ code {
 /* Claude's table of the smallest length known for each order (Stan Wagon's suggestion, 2026-10-17): a block quote in
    Claude's hue like the lattice section's, its table drawn as the paper's (table.block) but not of that class, which
    mstar.py reads as Table 2's and the new results'; its body filled from mstar.js. */
-.smallest, .oeis { display: grid; grid-template-columns: minmax(0, 1fr); max-width: 46rem; }
+.smallest, .oeis { display: grid; grid-template-columns: minmax(0, 1fr); max-width: var(--measure); }
 .smallest blockquote, .oeis blockquote { margin: 0; padding-left: 1.1rem; border-left: 3px solid var(--claude); display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; }
 .smallest table { justify-self: start; border-collapse: collapse; font-variant-numeric: tabular-nums lining-nums; }
 .smallest th, .smallest td { border: 1px solid var(--rule); padding: 0.3rem 0.7rem; text-align: center; }
@@ -386,7 +391,7 @@ code {
 #mstar-chart { display: block; width: 100%; touch-action: pan-y; cursor: grab; }
 #mstar-chart:active { cursor: grabbing; }
 #mstar-chart:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
-#mstar-readout { min-height: 3lh; font-size: 0.9375rem; font-variant-numeric: tabular-nums lining-nums; }
+#mstar-readout { min-height: 3lh; max-width: none; font-size: 0.9375rem; font-variant-numeric: tabular-nums lining-nums; }
 #mstar-readout .swatch { margin-right: 0.5rem; vertical-align: -0.1em; }
 
 /* Claude's chart of the bounds on m*(2^k) − k for k up to 72: one svg of 72 columns stretched to the plot's width,
@@ -395,8 +400,7 @@ code {
    columns (a hairline grid, 2026-10-29), and the plot has 44 px of gutter on its left and 16 px on its right, so the
    two plots line up. */
 .pow2 { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; }
-.pow2-caption { max-width: 46rem; }
-/* Claude's table of the construction behind each inequality of Theorem 1, ruled as the table of smallest lengths: a record
+/* Claude's table of the construction behind each inequality of the theorem, ruled as the table of smallest lengths: a record
    gap's products one per row, its bound's cell spanning them, each gap a tbody of its own so that the rules fall
    between gaps and between columns but not between a gap's products; in a .scroll div, so a phone scrolls it. */
 .pow2-gaps { border-collapse: collapse; border: 1px solid var(--rule); font-variant-numeric: tabular-nums lining-nums; }
@@ -427,13 +431,13 @@ code {
 .pow2-ks span { position: absolute; transform: translateX(-50%); }
 .pow2-tick { top: 0; width: 1px; height: 4px; background: var(--muted); }
 .pow2-klabel { top: 7px; }
-#pow2-readout { min-height: 3lh; font-size: 0.9375rem; font-variant-numeric: tabular-nums lining-nums; }
+#pow2-readout { min-height: 3lh; max-width: none; font-size: 0.9375rem; font-variant-numeric: tabular-nums lining-nums; }
 #pow2-readout .swatch { margin-right: 0.5rem; vertical-align: -0.1em; }
 
 footer {
   display: grid;
   gap: 0.5rem;
-  max-width: 46rem;
+  max-width: var(--measure);
   padding-top: 1.25rem;
   border-top: 1px solid color-mix(in oklab, var(--rule) 30%, var(--paper));
   font-size: 0.9375rem;
@@ -584,7 +588,8 @@ footer {
         Then we list multiples of 16 up to 1024 because the odd multiples of 8 always have order 7. 
         BGPW's <a href="https://arxiv.org/html/1912.03491v1#S4.Thmthm1">Theorem 4.1</a> (Divisibility) tells us that 
         odd multiples of 8 have \(m^*(n) \le 7\) and 
-        for all \(n\ge 200\) it turns out the order is exactly 7.</p>
+        for all \(n\ge 200\) it turns out the order is exactly 7.
+        (There's a short proof of this; not sure if it's interesting.)</p>
       <div class="scroll">
         <table class="block">
           <tr class="ns"><th scope="row">\(n\)</th><td title='The published paper (2021)'>\(2^3\)</td><td title='The published paper (2021)'>\(2^4\)</td><td title='The published paper (2021)'>\(2^5\)</td><td title='The published paper (2021)'>\(2^6\)</td><td title='The published paper (2021)'>\(2^7\)</td><td title='The published paper (2021)'>\(2^8\)</td><td class="c" title='Claude alone'>\(2^9\)</td><td class="c" title='Claude alone'>\(2^{10}\)</td><td class="c" title='Claude alone'>\(2^{11}\)</td><td class="c" title='Claude alone'>\(2^{12}\)</td><td class="c" title='Claude alone'>\(2^{17}\)</td><td class="c" title='Claude alone'>\(2^{18}\)</td><td class="c" title='Claude alone'>\(2^{20}\)</td><td class="j" title='Claude and BGPW'>\(2^{24}\)</td></tr>
@@ -640,11 +645,10 @@ footer {
   <!-- TODO: caption; says column k is n = 2^k, where Thue–Morse has order k, an excess of 0, and row δ is order k + δ, an excess of δ; that cell (k, δ) is green when m*(2^k) ≥ k + δ is known, red when m*(2^k) < k + δ is proven, and black when neither is; and that in the readout f is the construction of length 2^24 and order 25 in the remarks below, τ_j is Thue–Morse of length 2^j, and p_n is a sequence of length n whose order is the lower bound in column n of the chart above -->
   <p class="pow2-caption">
     By Theorem 4.1 of BGPW (Thue-Morse) we know that \(m^*(2^k) \ge k\) for all \(k\).
-    Here we show a cell \((k, \delta)\) as green when \(m^*(2^k) \ge k + \delta\).
-    I.e., \(\delta\) is the excess over Thue-Morse.
-    TODO
-    Claude: "Column \(k\) is \(n = 2^k\), where Thue–Morse has order \(k\), an excess of 0; row \(\delta\) is order \(k + \delta\), an excess of \(\delta\). 
-    Cell \((k, \delta)\) is green when \(m^*(2^k) \ge k + \delta\) is known, red when <span class="nw">\(m^*(2^k) < k + \delta\)</span> is proven, and black when neither is. In the readout, \(f\) is the construction of length \(2^{24}\) and order 25 in the remarks below, \(\tau_j\) is Thue–Morse of length \(2^j\), and \(p_n\) is a sequence of length \(n\) whose order is the lower bound in column \(n\) of the chart above."</p>
+    Here we show a cell \((k, \delta)\) as green when we have a bipartition of \({0,...,2^k-1}\) of order \(k + \delta\).
+    So \(\delta\) is the excess over Thue-Morse.
+    If we have a proof that \(m^*(2^k) < k + \delta\), the cell is red.
+    Claude: "In the readout, \(f\) is the construction of length \(2^{24}\) and order 25 in the remarks below, \(\tau_j\) is Thue–Morse of length \(2^j\), and \(p_n\) is a sequence of length \(n\) whose order is the lower bound in column \(n\) of the chart above."</p>
   <ul class="legend">
     <li><span class="swatch exists" aria-hidden="true"></span>\(k + \delta \le m^*(2^k)\)</li>
     <li><span class="swatch open" aria-hidden="true"></span>open</li>
@@ -1300,15 +1304,15 @@ footer {
 </section>
 
 <section class="oeis" aria-labelledby="oeis-title">
-  <!-- TODO: a block quote by Claude, at dreeves's request (2026-10-28: "can you make a section that links to all the relevant OEIS entries and notes any discrepancies?"): the OEIS entries on this problem, each linked, with how it compares with this page on 2026-10-28, OEIS's k-powerful being order k + 1 here. A323395, the smallest length of each order (a(m − 1) for order m): its terms through a(9) = 240 agree; of its comment's bounds, a(10) ≤ 432 and a(11) ≤ 480 hold, this page proving a(10) = 432 and that a(11) is 432 or 480 (order 12 open at 432, ruled out at 448 and 464), while a(12) ≤ 864 and a(13) ≤ 960 look one order too high (order 12 is known at 864 and order 13 at 960, each by doubling, so a(12) ≤ 960, and doubling 960 gives a(13) ≤ 1920). A306248, m*(2n): its 95 terms agree, and this page settles 48 more, through n = 143, with m*(288) open. A323610 (L6, the lengths n with m*(n) ≥ 6) and A323614 (L8): their terms agree, and so do their comments' descriptions through 1024. A323629 (L7) omits 112 from its terms, comment and generating function, though the paper's Theorem 3.1 and Tables 1 to 3 and A306248's a(56) = 7 have it; with 112 added it agrees through 1024. Then the related entries: A382832, the same question for two distinct subsets that need not form a partition, at most A323395; A382833, the number of distinct power-sum vectors of the subsets; A362039, the least common sum of two sets of primes of order m; A010060 and A106400, Thue–Morse as 0s and 1s and as signs, its partition of {0, …, 2^k − 1} having order k; A001969 and A000069, the evil and odious numbers, the two parts of that partition; A140047, the power sums of each part of an order-k partition of {0, …, 2^k − 1}, half those of the whole set -->
+  <!-- TODO: a block quote by Claude, at dreeves's request (2026-10-28: "can you make a section that links to all the relevant OEIS entries and notes any discrepancies?"): the OEIS entries on this problem, each linked, with how it compares with this page on 2026-10-28, OEIS's k-powerful being order k + 1 here, and that two have errors, each marked as one with its fix: a comment of A323395, and A323629, which omits 112. A323395, the smallest length of each order (a(m − 1) for order m): its terms through a(9) = 240 agree, and this page proves the next, a(10) = 432; the error: its comment's a(12) ≤ 864 and a(13) ≤ 960 are each one order too high and should read a(12) ≤ 960 and a(13) ≤ 1920 (doubling gives order 12 at 864 and order 13 at 960, no length below 960 is known to reach order 13, and doubling 960 reaches order 14 at 1920); the comment's a(10) ≤ 432 and a(11) ≤ 480 hold, a(11) being 432 or 480 (order 12 open at 432, ruled out at 448 and 464). A306248, m*(2n): its 95 terms agree, and this page settles 48 more, through n = 143, with m*(288) open. A323610 (L6, the lengths n with m*(n) ≥ 6) and A323614 (L8): their terms agree, and so do their comments' descriptions through 1024. A323629 (L7), the error: it omits 112 from its terms, its comment (quoted) and its generating function −8x(x^6 + 2x^2 + 8x − 12)/(x − 1)^2, which should be 8x(12 − 10x − x^7)/(1 − x)^2, though the paper's Theorem 3.1 and Tables 1 to 3, A306248's a(56) = 7 and the published paper's Table 5 have it; with 112 added it agrees through 1024. Then the related entries: A382832, the same question for two distinct subsets that need not form a partition, at most A323395; A382833, the number of distinct power-sum vectors of the subsets; A362039, the least common sum of two sets of primes of order m; A010060 and A106400, Thue–Morse as 0s and 1s and as signs, its partition of {0, …, 2^k − 1} having order k; A001969 and A000069, the evil and odious numbers, the two parts of that partition; A140047, the power sums of each part of an order-k partition of {0, …, 2^k − 1}, half those of the whole set -->
   <blockquote class="claude">
     <h2 id="oeis-title">OEIS entries</h2>
-    <p>The entries of the OEIS on this problem, compared with this page on 2026-10-28. The OEIS's <span class="nw">\(k\)-powerful</span> is order \(k + 1\) here.</p>
+    <p>The entries of the OEIS on this problem, compared with this page on 2026-10-28. The OEIS's <span class="nw">\(k\)-powerful</span> is order \(k + 1\) here. Two of them have errors, each marked below with its fix: a comment of A323395, and A323629, which omits 112.</p>
     <ul>
-      <li><a href="https://oeis.org/A323395">A323395</a>, the smallest \(n\) of each order (\(a(m - 1)\) for order \(m\)): its terms, through \(a(9) = 240\), agree. Of the bounds in its comment, \(a(10) \le 432\) and \(a(11) \le 480\) hold: this page proves \(a(10) = 432\) (above), and \(a(11)\) is 432 or 480, order 12 being open at 432 and ruled out at 448 and 464. Its \(a(12) \le 864\) and \(a(13) \le 960\) look one order too high: order 12 is known at 864 and order 13 at 960, each by doubling, so \(a(12) \le 960\), and doubling 960 gives \(a(13) \le 1920\).</li>
+      <li><a href="https://oeis.org/A323395">A323395</a>, the smallest \(n\) of each order (\(a(m - 1)\) for order \(m\)): its terms, through \(a(9) = 240\), agree, and this page proves the next, \(a(10) = 432\) (above). <b>Error:</b> its comment's \(a(12) \le 864\) and \(a(13) \le 960\) are each one order too high, and should read \(a(12) \le 960\) and \(a(13) \le 1920\): doubling gives order 12 at 864 and order 13 at 960, no length below 960 is known to reach order 13, and doubling 960 reaches order 14 at 1920. The comment's \(a(10) \le 432\) and \(a(11) \le 480\) hold, and \(a(11)\) is 432 or 480: order 12 is open at 432 and ruled out at 448 and 464.</li>
       <li><a href="https://oeis.org/A306248">A306248</a>, \(m^*(2n)\): its 95 terms agree, and this page settles 48 more, through \(n = 143\) (\(2n = 286\)); \(m^*(288)\) is open.</li>
       <li><a href="https://oeis.org/A323610">A323610</a>, the lengths \(n\) with \(m^*(n) \ge 6\) \((L_6)\): its terms agree, and so does its comment's description through 1024.</li>
-      <li><a href="https://oeis.org/A323629">A323629</a>, \(L_7\): omits 112 from its terms, its comment and its generating function. The paper's <a href="https://arxiv.org/html/1912.03491v1#S3.Thmthm1">Theorem 3.1</a> and Tables 1 to 3 have 112 in \(L_7\), as does A306248, whose \(a(56)\) is 7. With 112 added, it agrees through 1024.</li>
+      <li><a href="https://oeis.org/A323629">A323629</a>, \(L_7\): <b>Error:</b> it omits 112 from its terms, from its comment (“The set consists of 96, 128, 144, 160, 176, and all multiples of 8 that are greater than or equal to 192”) and from its generating function, \(-8x(x^6 + 2x^2 + 8x - 12)/(x - 1)^2\), which should be \(8x(12 - 10x - x^7)/(1 - x)^2\). The paper's <a href="https://arxiv.org/html/1912.03491v1#S3.Thmthm1">Theorem 3.1</a> and Tables 1 to 3 have 112 in \(L_7\), as does A306248, whose \(a(56)\) is 7, and the published paper's Table 5 gives a partition of 112 of order 7. With 112 added, it agrees through 1024.</li>
       <li><a href="https://oeis.org/A323614">A323614</a>, \(L_8\): its terms agree, and so does its comment's description through 1024.</li>
     </ul>
     <p>Related entries:</p>
@@ -2769,7 +2773,7 @@ try {
   throw e;
 }
 })();
-// Claude's table of the construction behind each inequality of Theorem 1 (Stan Wagon's table, extended, 2026-10-18;
+// Claude's table of the construction behind each inequality of the theorem (Stan Wagon's table, extended, 2026-10-18;
 // record_gaps.wl makes the same one in Mathematica), from POW2: for each record gap g = 1, 2, ..., the least k whose lo
 // is at least k + g, and its reason as a join of products of blocks (JOIN), each record gap a tbody of its own.  A
 // product is a row: its blocks ascending by length, a repeated one written once, as a power (368²) in the power of 2

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Quals for record_gaps.wl, the Mathematica script that makes the table of Theorem 1's constructions (Stan Wagon asked
+"""Quals for record_gaps.wl, the Mathematica script that makes the table of the theorem's constructions (Stan Wagon asked
 for it, extending his table of the first two rows, 2026-10-18), and for its link and the same table on index.html.
 Run: python3 -B quals_record_gaps.py [name ...] (no arguments: all quals).
 
@@ -21,7 +21,7 @@ WL = os.path.join(HERE, 'record_gaps.wl')
 WL_URL = 'https://raw.githubusercontent.com/dreeves/equipow/main/record_gaps.wl'
 POW2_JS = os.path.join(HERE, 'pow2.js')
 HEADER = ['Record gaps', 'The power of 2', 'The order']        # Stan Wagon's, which record_gaps.wl's table heads
-THEOREM_KS = [10, 20, 29, 37, 39, 48, 57, 65, 68]              # Theorem 1's alternative form on index.html
+THEOREM_KS = [10, 20, 29, 37, 39, 48, 57, 65, 68]              # the theorem's alternative form on index.html
 # the table as text: each cell, superscripts as a^b and styles dropped, in OutputForm on one line
 TEXT = ('text[e_] := ToString[e //. {Superscript[a_, b_] :> Row[{a, "^", b}], Style[x_, ___] :> x}, OutputForm, '
         'PageWidth -> Infinity];')
@@ -105,7 +105,7 @@ def q_wl_records_are_pow2_s():
     # Replicata: the records list in record_gaps.wl, read as text; pow2.js's record gaps (records()).
     # Expectata: the same list, record for record and block for block: for each record gap g, its least k and the
     # join of products that pow2.py found there, the products and their blocks in pow2.js's order; and their k are
-    # Theorem 1's (10, 20, 29, 37, 39, 48, 57, 65, 68 since 768's example of order 12, on the evening of 2026-10-28;
+    # the theorem's (10, 20, 29, 37, 39, 48, 57, 65, 68 since 768's example of order 12, on the evening of 2026-10-28;
     # 10, 20, 29, 37, 41, 48, 57, 65, 68 since 912's example of order 12, that morning; 10, 20, 30, 37, 41,
     # 48, 57, 65, 68 since 816's example of order 11, at the end of 2026-10-26; 10, 20,
     # 30, 37, 43, 48, 57, 65, 68 since 1024's example of order 11, earlier that evening; 17, 20,
@@ -164,12 +164,15 @@ def q_wl_stops_on_a_wrong_row():
 # Its link on index.html
 def q_page_links_the_wl():
     # Replicata: index.html's section "Bounds on m*(2^k) − k" (pow2), and the repository's files.
-    # Expectata: right after Theorem 1's two paragraphs, a TODO comment, then one paragraph of Claude's copy
-    # (Claude: "…") holding the section's only link to record_gaps.wl, at its raw GitHub address (as the page links
-    # proof512.wl and lattice_search.wl); the file is in the repository's working directory.
+    # Expectata (dreeves, 2026-10-29: "yes to updating the qual in light of my edit of theorem 1", whose rewrite in
+    # 699517e moved the link out of Claude's sentence after the theorem into dreeves's paragraph on the table): the
+    # section links record_gaps.wl once, at its raw GitHub address (as the page links proof512.wl and lattice_search.wl),
+    # in the paragraph right before the frame of the record-gaps table; the file is in the repository's working
+    # directory.
+    # Resultata before (699517e to 2026-10-29): this qual still wanted Claude's sentence after the theorem.
     sec = re.search(r'<section class="pow2".*?</section>', page(), re.S).group(0)
-    m = re.search(r'</p>\n  <p>or <b>Theorem 1\.</b>.*?</p>\n  <!-- TODO: [^\n]*-->\n  <p>Claude: "([^\n]*)"</p>\n', sec)
-    assert m, sec[:1500]
+    m = re.search(r'<p>((?:(?!<p>).)*?)</p>\n  <div class="scroll">\n    <table class="pow2-gaps" data-record-gaps>', sec, re.S)
+    assert m, sec[-1500:]
     assert re.findall(r'href="([^"]*record_gaps[^"]*)"', sec) == [WL_URL] and WL_URL in m.group(1), m.group(1)
     assert os.path.isfile(WL)
 
