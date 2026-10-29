@@ -600,12 +600,13 @@ def q_examples_at_720_and_1008_raise_their_lo():
     # Replicata: mstar.NEW and mstar.js's columns at 720 and 1008.
     # Expectata (2026-10-27: Claude's lattice search, w11.py at 720 and at 1008 (scratch/w1008), found antisymmetric
     # examples of order 11 there; 2026-10-28: w12.py found a symmetric example of order 12 at 1008, which replaced its
-    # order-11 one as p1008): 720 is 11 to 14 and 1008 is 12 to 13, Claude alone, each lo the page's example
+    # order-11 one as p1008; that evening Astra's faster w12 found one at 720, which replaced its order-11 one as p720):
+    # 720 is 12 to 14 and 1008 is 12 to 13, Claude alone, each lo the page's example
     # (["example", "index.html p720"], ["example", "index.html p1008"]) and each hi still its residue claim (order 15
     # mod 16 at 720, order 14 mod 5 at 1008).
     _, got = disk()
     cs = got['m']['cols']
-    assert mstar.NEW[720] == (11, 14, 'Claude alone') and cs[720 - 1] == [11, 14, ['example', 'index.html p720'], ['residue', 16]], cs[720 - 1]
+    assert mstar.NEW[720] == (12, 14, 'Claude alone') and cs[720 - 1] == [12, 14, ['example', 'index.html p720'], ['residue', 16]], cs[720 - 1]
     assert mstar.NEW[1008] == (12, 13, 'Claude alone') and cs[1008 - 1] == [12, 13, ['example', 'index.html p1008'], ['residue', 5]], cs[1008 - 1]
 
 

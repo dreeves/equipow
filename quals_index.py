@@ -1730,8 +1730,9 @@ def q_examples_at_720_and_1008_have_their_entries_codes_and_sets():
     # SClaude[12][1008], the new results' cells, and mstar.js's columns 720 and 1008.
     # Expectata (2026-10-27: Claude's lattice search, w11.py at 720 and at 1008, found antisymmetric examples of order
     # 11 there; 2026-10-28: w12.py found a symmetric example of order 12 at 1008, which replaced its order-11 example,
-    # code and set): each has an entry of its own, an <li class="c"> marked ◆ among the examples in order of n, 720's
-    # "m* ∈ {11, …, 14}" between 656's and 752's, whose Claude: "…" names the residue condition mod 16, and 1008's
+    # code and set, and that evening Astra's faster w12 found one at 720, which did the same): each has an entry of its
+    # own, an <li class="c"> marked ◆ among the examples in order of n, 720's "m* ∈ {12, 13, 14}" between 656's and
+    # 752's, whose Claude: "…" names the residue condition mod 16, and 1008's
     # "m* ∈ {12, 13}" between 992's and 1024's, naming the residue condition mod 5; each its one code block, of its
     # order m (11 at 720, 12 at 1008), whose signs have order exactly m (synthetic division here) and are
     # antisymmetric at 720 and symmetric at 1008; SClaude[m][n] exactly their +1 positions, 0 among them, and no
@@ -1742,8 +1743,8 @@ def q_examples_at_720_and_1008_have_their_entries_codes_and_sets():
     sets = {(int(m), int(n)): {int(t) for t in body.split(',')}
             for m, n, body in re.findall(r'SClaude\[(\d+)\]\[(\d+)\] = \{([^}]*)\};', text)}
     listed = [ns.split(', ') for ns in re.findall(r'<p class="entry"><i>n</i> = ([^:]*): ', text)]
-    assert (11, 1008) not in sets, 'the superseded SClaude[11][1008] is still on the page'
-    for n, m, values, before, after, says, hi in ((720, 11, '\\{11, …, 14\\}', '656', '752', 'residue condition mod 16', 14),
+    assert (11, 1008) not in sets and (11, 720) not in sets, 'a superseded SClaude[11][1008] or SClaude[11][720] is still on the page'
+    for n, m, values, before, after, says, hi in ((720, 12, '\\{12, 13, 14\\}', '656', '752', 'residue condition mod 16', 14),
                                                   (1008, 12, '\\{12, 13\\}', '992', '1024', 'residue condition mod 5', 13)):
         li = re.search(r'<li class="c">\n      <span class="mk" aria-hidden="true">◆</span>\n      <p class="entry"><i>n</i> = '
                        rf'{n}: &nbsp;<span class="nw"><i>m</i><sup>\*</sup> ∈ {values}</span></p>\n(.*?)\n    </li>', text, re.S)
@@ -1764,7 +1765,7 @@ def q_examples_at_720_and_1008_have_their_entries_codes_and_sets():
         assert sum(str(n) in ns for ns in listed) == 1, (n, [ns for ns in listed if str(n) in ns])
         assert new_cells(text)[n] == (m, hi), new_cells(text)[n]
     cols = mstar_data()['cols']
-    assert cols[720 - 1] == [11, 14, ['example', 'index.html p720'], ['residue', 16]], cols[720 - 1]
+    assert cols[720 - 1] == [12, 14, ['example', 'index.html p720'], ['residue', 16]], cols[720 - 1]
     assert cols[1008 - 1] == [12, 13, ['example', 'index.html p1008'], ['residue', 5]], cols[1008 - 1]
 
 

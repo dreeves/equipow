@@ -162,7 +162,7 @@ NEW = {240: (10, 10, 'Claude alone'),
        672: (11, 13, 'Claude alone'),
        688: (9, 10, 'Claude alone'),
        704: (10, 10, 'Claude alone'),
-       720: (11, 14, 'Claude alone'),
+       720: (12, 14, 'Claude alone'),
        736: (10, 10, 'Claude alone'),
        752: (10, 10, 'Claude and Astra'),
        768: (12, 13, 'Claude alone'),
@@ -226,7 +226,7 @@ PAGE_CODES = (('index.html BGPW 352', 9, 'A4DB4926DB4D36584B26936D2CFA54B6F04B2C
               ('index.html p592', 10, '93CC6790EA26876D2DDA793492C92EB24C3B934525B66DADF25926920BA79E4D21B2CB359A'),
               ('index.html p608', 10, 'AC965934D659969A4CE792CD6492D72C836BE49E193612E97792C9AAB265AC867BAE921924D7'),
               ('index.html p656', 10, 'C32DA6E924AED161B6D94216DB6CBE4A4932FD4996135826A94DF6CA6CB4DA1EB4D90D92134D82F8EE'),
-              ('index.html p720', 11, 'E4B0C331FF09DC3C195DC2611BD5698676A3E9E4168EE433AAE1190F48BD76D5679A2E98B911AD88099F3F5860'),
+              ('index.html p720', 12, 'D508EE7A682A54DC2FCCC5DEAEC42DD200500E3FD2F9BBA0E66FEE28F1A983831A12C69D5181FC6CBDA6B9703C'),
               ('index.html p752', 10, 'D1C7951270B6456FBEC039A7FA05A459E422DB6416E76D06DB2D90D32FD010FBB30A6DB6D80DBAC3059EDB5826CB4C'),
               ('index.html p768', 12, 'AB5186723E74399FC150E3179F7008E728787ABA4678EAF3C4C73E033113ADA98C721D7131CE439DA5FECD734DE50904'),
               ('index.html p784', 10, 'B24F643A19DC1B49FC831C2FF25926F80B24FFC1B423C92E933B25304F60FA2B341F59FFB668379251243048E2BE6BA89F'),
@@ -263,7 +263,7 @@ PAGE_SET_KEYS = (('SClaude', 9, 320), ('SClaude', 9, 336), ('SClaude', 11, 432),
                  ('SClaude', 11, 848), ('SClaude', 11, 880), ('SClaude', 11, 896), ('SClaude', 11, 928),
                  ('SClaude', 11, 944), ('SClaude', 11, 976), ('SClaude', 11, 992), ('SClaude', 10, 752),
                  ('SClaude', 10, 784), ('SClaude', 11, 832), ('SClaude', 11, 1024), ('SClaude', 12, 816),
-                 ('SClaude', 11, 720), ('SClaude', 12, 1008), ('SClaude', 12, 912), ('SClaude', 12, 768))
+                 ('SClaude', 12, 720), ('SClaude', 12, 1008), ('SClaude', 12, 912), ('SClaude', 12, 768))
 
 
 def page_n(s):

@@ -269,7 +269,7 @@ const TEXT = el => {
 const PROBE = text => {
   const sec = document.querySelector('section.pow2'), chart = document.getElementById('pow2-chart');
   const ro = document.getElementById('pow2-readout'), css = getComputedStyle(document.documentElement);
-  const tokens = ['exists', 'open', 'impossible', 'paper', 'ink'].map(t => [t, css.getPropertyValue('--' + t).trim()]);
+  const tokens = ['exists', 'open', 'impossible', 'paper', 'ink', 'record'].map(t => [t, css.getPropertyValue('--' + t).trim()]);
   const page = document.documentElement;
   const attrs = el => ['aria-label', 'title', 'alt'].filter(a => el.hasAttribute(a)).map(a => el.getAttribute(a));
   return {innerWidth, dpr: devicePixelRatio, dark: matchMedia('(prefers-color-scheme: dark)').matches,
@@ -287,8 +287,10 @@ const GEOMETRY = () => {
     r.selectNodeContents(t);
     texts.push([t.textContent, box(r.getBoundingClientRect())]);
   }
+  const trims = [...chart.querySelectorAll('.pow2-trim')].map(el => { const s = getComputedStyle(el);
+    return [box(el.getBoundingClientRect()), s.borderTopColor, s.borderTopWidth, s.borderLeftWidth, s.pointerEvents]; });
   return {plot: box(svg.getBoundingClientRect()), svgs: chart.querySelectorAll('svg').length,
-    rects: svg.querySelectorAll('rect').length, texts, innerWidth, scrollW: document.documentElement.scrollWidth,
+    rects: svg.querySelectorAll('rect').length, texts, trims, innerWidth, scrollW: document.documentElement.scrollWidth,
     canvas: box(document.getElementById('mstar-chart').getBoundingClientRect())};
 };
 const DOM = cells => cells.map(([k, e, x, y]) => {
@@ -536,6 +538,25 @@ def cell_box(R, geo, k, e):
     return L + (k - 1) * W / K, T + (E - e) * ROW, L + k * W / K, T + (E - e) * ROW + ROW - GAP
 
 
+def theorem_cells():
+    """The cells (k, e) of the chart whose bounds Theorem 1 on the page states, from its text: m*(2^k) >= v as
+    (k, v - k).  Its m*(2^9) = 9 has no cell of its own: the chart has no row 0."""
+    t = re.search(r'<p><b>Theorem\.</b>(.*?)</p>', page(), re.S)
+    assert t, 'no Theorem paragraph'
+    pairs = re.findall(r'\(2<sup>(\d+)</sup>\) ≥ (\d+)', t.group(1))
+    assert pairs, t.group(1)
+    return sorted((int(k), int(v) - int(k)) for k, v in pairs)
+
+
+def ringed(R, x, y):
+    """Whether CSS point (x, y) lies on the ring of a cell the theorem states: within 1 px outside it at its sides,
+    within 2 px above or below it (the gaps between rows)."""
+    def on(k, e):
+        x0, y0, x1, y1 = cell_box(R, 'geo', k, e)
+        return x0 - 1 <= x <= x1 + 1 and y0 - 2 <= y <= y1 + 2 and not (x0 <= x <= x1 and y0 <= y <= y1)
+    return any(on(k, e) for k, e in theorem_cells())
+
+
 # ---------------------------------------------------------------------------------------------------------------------
 # Static quals
 
@@ -543,11 +564,14 @@ def q_section_follows_mstar_chart():
     # Replicata: index.html.
     # Expectata: the m*(n) chart's <section class="mstar" aria-labelledby="mstar-title"> is followed, with only blank
     # lines and comments between, by <section class="pow2" aria-labelledby="pow2-title">, and that by <section
-    # class="remarks">.  The new section holds, in order: the heading, the h2 pow2-title; a link to record_gaps.wl,
-    # the script of the table behind Theorem 1 (Stan Wagon's request, 2026-10-18; quals_record_gaps checks it), and
-    # that table (dreeves, 2026-10-18), its body filled from pow2.js, in a sideways-scrolling div; a paragraph of class
-    # pow2-caption; the legend, its swatches exists, open and impossible, as the m*(n) chart's; the div pow2-chart, an
-    # image with a label; and the readout paragraph pow2-readout, a polite live region.
+    # class="remarks">.  The new section holds, in order: the heading, the h2 pow2-title; a paragraph of class
+    # pow2-caption; the legend, its swatches exists, open and impossible, as the m*(n) chart's, then exists ringed in
+    # gold (record) for the theorem's cells; the div pow2-chart, an image with a label; the readout paragraph
+    # pow2-readout, a polite live region; then Theorem 1; a link to record_gaps.wl, the script of the table behind
+    # Theorem 1 (Stan Wagon's request, 2026-10-18; quals_record_gaps checks it), and that table (dreeves, 2026-10-18),
+    # its body filled from pow2.js, in a sideways-scrolling div.  (Since 2026-10-28, dreeves's README: "[CHR] Put the
+    # powers-of-2 chart between the normal chart and the theorem statement"; before, the theorem and the table came
+    # first.)
     text, filler = page(), r'(?:\s|<!--.*?-->)*'
     m = re.search(r'<section class="mstar" aria-labelledby="mstar-title">.*?</section>', text, re.S)
     assert m
@@ -555,11 +579,13 @@ def q_section_follows_mstar_chart():
     assert s, text[m.end():m.end() + 400]
     rest = text[m.end() + s.end():]
     assert re.match(filler + r'<section class="remarks">', rest, re.S), rest[:400]
-    parts = [r'<h2 id="pow2-title">', r'href="https://raw\.githubusercontent\.com/dreeves/equipow/main/record_gaps\.wl"',
-             r'<div class="scroll">', r'<table class="pow2-gaps" data-record-gaps>', r'<p class="pow2-caption">',
+    parts = [r'<h2 id="pow2-title">', r'<p class="pow2-caption">',
              r'<ul class="legend">', r'<span class="swatch exists" aria-hidden="true">',
-             r'<span class="swatch open" aria-hidden="true">', r'<span class="swatch impossible" aria-hidden="true">', r'</ul>',
-             r"<div id=\"pow2-chart\" role=\"img\" aria-label='[^']+'></div>", r'<p id="pow2-readout" aria-live="polite">']
+             r'<span class="swatch open" aria-hidden="true">', r'<span class="swatch impossible" aria-hidden="true">',
+             r'<span class="swatch exists record" aria-hidden="true">', r'</ul>',
+             r"<div id=\"pow2-chart\" role=\"img\" aria-label='[^']+'></div>", r'<p id="pow2-readout" aria-live="polite">',
+             r'<p><b>Theorem\.</b>', r'href="https://raw\.githubusercontent\.com/dreeves/equipow/main/record_gaps\.wl"',
+             r'<div class="scroll">', r'<table class="pow2-gaps" data-record-gaps>']
     assert re.search('.*?'.join(parts), s.group(1), re.S), s.group(1)
 
 
@@ -709,7 +735,9 @@ def q_drawn_cells_match_data():
     # view, and document.elementFromPoint at the middle of each cell (k, e), k = 1..K, e = 1..E.
     # Expectata: the pixel at each cell's middle has the color of its kind as the page's tokens give it in that theme
     # (exists when k + e <= lo, open when lo < k + e <= hi, impossible above); the pixel in the middle of the gap below
-    # each cell is paper; the element at each cell's middle is an svg rect whose computed fill is that color.
+    # each cell is paper; the element at each cell's middle is an svg rect whose computed fill is that color.  Either
+    # pixel is instead the record token's gold where it lies on the ring of a cell the theorem states (ringed: within
+    # 2 px outside that cell; since 2026-10-28, q_gold_trim_rings_the_theorem_s_cells).
     for name in DRAWN:
         R = valid(name)
         cols, tok = R['data']['cols'], R['load']['tokens']
@@ -717,8 +745,10 @@ def q_drawn_cells_match_data():
         for k, e, tag, f in R['dom']:
             want = tok[KINDS[kind_of(cols[k - 1], k, e)]]
             x0, y0, x1, y1 = cell_box(R, 'geo', k, e)
-            got = (pixel(R, 0, (x0 + x1) / 2, (y0 + y1) / 2), pixel(R, 0, (x0 + x1) / 2, y1 + GAP / 2), tag, fill(f))
-            if got != (want, tok['paper'], 'rect', want): bad.append((k, e, want, got))
+            spots = (((x0 + x1) / 2, (y0 + y1) / 2, want), ((x0 + x1) / 2, y1 + GAP / 2, tok['paper']))
+            got = tuple(pixel(R, 0, x, y) for x, y, _ in spots) + (tag, fill(f))
+            if got != tuple(tok['record'] if ringed(R, x, y) else c for x, y, c in spots) + ('rect', want):
+                bad.append((k, e, want, got))
         assert len(R['dom']) == K * R['data']['etop'] and not bad, (name, len(bad), bad[:10])
 
 
@@ -794,12 +824,13 @@ def q_outline_marks_the_cell():
         assert hits == [('rect', want[4]), ('rect', tok[KINDS[kind_of(cols[k - 2], k - 1, e)]])], (name, hits)
 
 
-def q_labels_mark_every_e_and_round_k():
+def q_labels_mark_every_delta_and_round_k():
     # Replicata: the text nodes in #pow2-chart and their boxes, in the 1280 px and 390 px light configurations.
     # Expectata: they are exactly: the numbers 1..E left of the plot, number e's box centered on row e's colored part
     # (within 1 px), all with one right edge (within 0.5 px) at most 10 px left of the plot; the numbers 10, 20, ..., 70
-    # below the plot, each centered on its column's middle (within 1 px); the letter e left of the plot, within its
-    # height; and the letter k below the plot, left of it.
+    # below the plot, each centered on its column's middle (within 1 px); the letter δ left of the plot, within its
+    # height (the letter e until 2026-10-28, dreeves's README: "[DLT] Change "excess e" to delta unless e is following
+    # precedent from BGPW", and BGPW name no excess); and the letter k below the plot, left of it.
     for name in ('light', 'phone'):
         R = valid(name)
         L, T, W, H = R['geo']['plot']
@@ -813,13 +844,35 @@ def q_labels_mark_every_e_and_round_k():
             assert abs(y + h / 2 - (T + (E - e) * ROW + (ROW - GAP) / 2)) <= 1, (name, e, y, h)
         rights = [x + w for x, y, w, h in es.values()]
         assert max(rights) - min(rights) <= 0.5 and 0 <= L - max(rights) <= 10, (name, rights, L)
-        letters = [b for t, b in left if t == 'e']
+        letters = [b for t, b in left if t == 'δ']
         assert len(letters) == 1 and T <= letters[0][1] + letters[0][3] / 2 <= T + H, (name, left)
         ks = {int(t): b for t, b in below if t.isdigit()}
         assert sorted(ks) == KLABELS and len(below) == len(KLABELS) + 1, (name, below)
         for k, (x, y, w, h) in ks.items(): assert abs(x + w / 2 - (L + (k - 0.5) * W / K)) <= 1, (name, k, x, w)
         letters = [b for t, b in below if t == 'k']
         assert len(letters) == 1 and letters[0][0] + letters[0][2] <= L, (name, below)
+
+
+def q_gold_trim_rings_the_theorem_s_cells():
+    # Replicata: the drawn configurations: the elements of class pow2-trim in #pow2-chart (their boxes, computed border
+    # colors and widths and pointer-events), the cells Theorem 1 states (theorem_cells), and the data's kinds there.
+    # Expectata (dreeves's README, 2026-10-28: "[GTR] Gold trim for the powers-of-2 chart to highlight the values in the
+    # theorem"): one ring per bound the theorem states and no other, in the theorem's order of k: each a border in the
+    # record token's gold (the gold ring of the m*(n) chart) just outside its cell, 2 px above and below it (the gaps
+    # between rows) and 1 px at its sides (a phone's columns are about 4 px wide, and its neighbors' middles stay
+    # theirs), its box the cell's grown accordingly (within 0.5 px), taking no pointer (the cell under it still reads
+    # out); each of its cells green.
+    cells = theorem_cells()
+    for name in DRAWN:
+        R = valid(name)
+        cols, tok, trims = R['data']['cols'], R['load']['tokens'], R['geo']['trims']
+        assert len(trims) == len(cells), (name, len(trims), cells)
+        for (k, e), (box, color, top, side, pointer) in zip(cells, trims):
+            x0, y0, x1, y1 = cell_box(R, 'geo', k, e)
+            want = (x0 - 1, y0 - 2, x1 - x0 + 2, y1 - y0 + 4)
+            assert all(abs(a - b) <= 0.5 for a, b in zip(box, want)), (name, k, e, box, want)
+            assert (fill(color), top, side, pointer) == (tok['record'], '2px', '1px', 'none'), (name, k, e, color, top, side, pointer)
+        assert [kind_of(cols[k - 1], k, e) for k, e in cells] == [0] * len(cells), (name, cells)
 
 
 def q_phone_has_no_sideways_scroll():
@@ -850,7 +903,7 @@ def q_drawn_runs_use_the_theme_tokens():
     light, = theme_blocks()
     for name in DRAWN:
         R = valid(name)
-        assert all(R['load']['tokens'][t] == light[f'--{t}'].lower() for t in KINDS + ('paper', 'ink')), (name, R['load']['tokens'])
+        assert all(R['load']['tokens'][t] == light[f'--{t}'].lower() for t in KINDS + ('paper', 'ink', 'record')), (name, R['load']['tokens'])
 
 
 def q_made_up_data_reads_every_kind():
