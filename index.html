@@ -22,10 +22,19 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono&family=STIX+Two+Text:ital,wght@0,400;0,600;1,400&display=swap">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.47/dist/katex.min.css" integrity="sha256-AomgLPRRpE3XOt1oOglkQlI2OHGsEXE6ZHtzLO6LHuM=" crossorigin="anonymous">
 <style>
 /* Layout: one journal-page column. The paper's ruled two-row blocks come
    first, stacked flush as printed, then a fourth block for results since the
    paper, then remarks keyed to that block by the same provenance marks. */
+/* The text in Latin Modern, the OpenType Computer Modern of LaTeX, from LaTeX.css 1.14.0 (2026-05-13) as bsoule's
+   expost uses it (dreeves, 2026-10-29: "in some of our other projects -- maybe github.com/bsoule/expost and more
+   recently the help popup of github.com/dreeves/tauction -- we've used some css to make a webpage have a LaTeX
+   feel. can you do something like that for this?"); STIX Two Text after it draws what Latin Modern lacks (◆ ● ✦ ≥ ↺) */
+@font-face { font-family: "Latin Modern"; font-style: normal; font-weight: 400; font-display: swap; src: url(https://cdn.jsdelivr.net/npm/latex.css@1.14.0/fonts/LM-regular.woff2) format("woff2"); }
+@font-face { font-family: "Latin Modern"; font-style: italic; font-weight: 400; font-display: swap; src: url(https://cdn.jsdelivr.net/npm/latex.css@1.14.0/fonts/LM-italic.woff2) format("woff2"); }
+@font-face { font-family: "Latin Modern"; font-style: normal; font-weight: 700; font-display: swap; src: url(https://cdn.jsdelivr.net/npm/latex.css@1.14.0/fonts/LM-bold.woff2) format("woff2"); }
+@font-face { font-family: "Latin Modern"; font-style: italic; font-weight: 700; font-display: swap; src: url(https://cdn.jsdelivr.net/npm/latex.css@1.14.0/fonts/LM-bold-italic.woff2) format("woff2"); }
 :root {
   --paper: #ffffff;
   --ink: #1b1d22;
@@ -45,7 +54,7 @@
   --impossible: #EBC1C5; /* CHART COLOR RED */
   --record: #FFB300;   /* the gold ring of a(m − 1), OEIS A323395, in the m*(n) chart (dreeves, 2026-10-19); the dataviz validator against its three colors and the paper: worst color-blind ΔE 12.8 (protan, the green), normal-vision 16.0 (the red) */
   --tint: 16%;
-  --serif: "STIX Two Text", "Times New Roman", Times, serif;
+  --serif: "Latin Modern", "STIX Two Text", "Times New Roman", Times, serif;
   --mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
   color-scheme: light;
 }
@@ -57,9 +66,20 @@ body {
   background: var(--paper);
   color: var(--ink);
   font-family: var(--serif);
-  font-size: 1.0625rem;
+  font-size: 1.1875rem;
   line-height: 1.5;
 }
+/* Latin Modern's lowercase runs small: at 19px (expost's size) it is as tall as STIX Two Text's was at 17px. The
+   tables keep their 17px, so that their rows still fit as measured.  Prose is set as LaTeX sets it, justified and
+   hyphenated (hyphens follow html lang), as tauction's help is, where lines are long enough (40rem and up: a
+   phone's short lines justified open wide gaps around the formulas); the changelog, the progress section and
+   the code lines stay ragged.  The title and byline are centered, as \maketitle sets them, the title in regular weight. */
+table { font-size: 1.0625rem; }
+main p, main li { hyphens: auto; -webkit-hyphens: auto; }
+@media (min-width: 40rem) { main p, main li { text-align: justify; } }
+.changelog p, .progress p, .progress li, p.code { text-align: start; hyphens: manual; -webkit-hyphens: manual; }
+header h1 { text-align: center; font-weight: 400; font-size: 2.1rem; }
+header .lede { text-align: center; }
 main {
   max-width: 62rem;
   margin: 0 auto;
@@ -94,9 +114,13 @@ p { margin: 0; }
 .changelog summary + p { margin-top: 0.3rem; }
 sup, sub { line-height: 0; }
 .nw { white-space: nowrap; }
-/* KaTeX's math (2026-10-28) a little larger than the text, as its glyphs run small beside STIX Two; a line
-   breaks in it only after a relation or operator, as in TeX */
-.katex { font-size: 1.1em; }
+/* KaTeX's math at the text's own size (2026-10-29): KaTeX's fonts are Computer Modern, the design of the text's
+   Latin Modern, so at 1em their letters and digits are the text's exactly.  KaTeX's stylesheet loads before this
+   one, so this wins over its default 1.21em (before 2026-10-29 that default overrode 1.1em here).  A line breaks
+   in math only after a relation or operator, as in TeX, and never between a formula and the text glued to it
+   ("13.", "+1s"): auto-render's onload wraps the two in an nw span, whose formula may still break inside. */
+.katex { font-size: 1em; }
+.nw > .katex { white-space: normal; }
 
 /* The figure shrinks to its widest block so the caption centers over the
    table, as printed; the caption keeps the paper's small caps label. */
@@ -367,8 +391,9 @@ code {
 
 /* Claude's chart of the bounds on m*(2^k) − k for k up to 72: one svg of 72 columns stretched to the plot's width,
    drawn by the script at the end from pow2.js, with the e labels left of it and the k labels below.  As in the m*(n)
-   chart, rows are 14 px tall, the bottom 2 px of each page surface, and the plot has 44 px of gutter on its left and
-   16 px on its right, so the two plots line up. */
+   chart, rows are 14 px tall, the bottom device pixel of each page surface, as is a line one device pixel wide between
+   columns (a hairline grid, 2026-10-29), and the plot has 44 px of gutter on its left and 16 px on its right, so the
+   two plots line up. */
 .pow2 { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; }
 .pow2-caption { max-width: 46rem; }
 /* Claude's table of the construction behind each inequality of Theorem 1, ruled as the table of smallest lengths: a record
@@ -390,6 +415,7 @@ code {
 #pow2-chart rect.exists { fill: var(--exists); }
 #pow2-chart rect.open { fill: var(--open); }
 #pow2-chart rect.impossible { fill: var(--impossible); }
+#pow2-chart line { stroke: var(--paper); vector-effect: non-scaling-stroke; pointer-events: none; }  /* between columns */
 .pow2-es { grid-area: 1 / 1; position: relative; }
 .pow2-es span { position: absolute; right: 7px; }
 .pow2-es i { position: absolute; left: 2px; top: 50%; transform: translateY(-50%); font-size: 15px; color: var(--ink); }
@@ -415,9 +441,8 @@ footer {
 }
 </style>
 <!-- KaTeX draws the page's math, written \( ... \) (2026-10-28, dreeves: "could you convert all the math on the page to latex"): version 0.16.47 of 2026-05-16, each file checked against its SHA-256 from jsDelivr; auto-render runs once the page is parsed, after the scripts in the body have made their tables -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.47/dist/katex.min.css" integrity="sha256-AomgLPRRpE3XOt1oOglkQlI2OHGsEXE6ZHtzLO6LHuM=" crossorigin="anonymous">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.47/dist/katex.min.js" integrity="sha256-op0pYdMUbeWUnXisfBqdk65UlVutIqbbT76Dbojov0g=" crossorigin="anonymous"></script>
-<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.47/dist/contrib/auto-render.min.js" integrity="sha256-5TctGZvNrotN5x0PfOunKkuhJ3SifGCm8fd9A7MijuQ=" crossorigin="anonymous" onload="renderMathInElement(document.body, {delimiters: [{left: '\\(', right: '\\)', display: false}], throwOnError: false})"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.47/dist/contrib/auto-render.min.js" integrity="sha256-5TctGZvNrotN5x0PfOunKkuhJ3SifGCm8fd9A7MijuQ=" crossorigin="anonymous" onload="renderMathInElement(document.body, {delimiters: [{left: '\\(', right: '\\)', display: false}], throwOnError: false}); for (const k of document.querySelectorAll('.katex')) { const t = k.nextSibling, glued = t &amp;&amp; t.nodeType === 3 &amp;&amp; /^\S+/.exec(t.data); if (glued) { const w = document.createElement('span'); w.className = 'nw'; k.before(w); t.data = t.data.slice(glued[0].length); w.append(k, glued[0]); } }"></script>
 </head>
 <body>
 <main>
@@ -425,6 +450,7 @@ footer {
 <header>
   <h1>Equipowerful Partitions</h1>
   <p class="lede"><i>by Stan Wagon, Daniel Reeves, Claude, and Astra</i></p>
+  <p class="lede"><i>(All text is human unless explicitly attributed to AI)</i></p>
   <!-- The changelog, newest first, as in dreeves's spec FreshAt (doc.bmndr.co/freshat) -->
   <details class="changelog">
     <summary><i>Changelog</i></summary>
@@ -469,8 +495,7 @@ footer {
     <p>2026-10-03: Claude Opus 5.5 finds a new order-10 partition for n=240</p>
   </details>
   <p>
-    We extend the results of 
-    Table 2 of the paper by Buhler, Golan, Pratt, and Wagon (<i>Math. Comp.</i> 90, 2021).</p>
+    We extend the results of Table 2 of the paper by Buhler, Golan, Pratt, and Wagon (<i>Math. Comp.</i> 90, 2021) aka BGPW.</p>
   <p>Background: \(m^*(n)\) 
     is the largest number \(m\) such that 
     \(\{1, \ldots, n\}\) can be split into two parts whose power sums are equal for every exponent 
@@ -557,7 +582,9 @@ footer {
       </div>
       <p>Following the original table, we list multiples of 8 up to 304.
         Then we list multiples of 16 up to 1024 because the odd multiples of 8 always have order 7. 
-        BGPW's <a href="https://arxiv.org/html/1912.03491v1#S4.Thmthm1">Theorem 4.1</a> (Divisibility) tells us that odd multiples of 8 have \(m^*(n) \le 7\) and for every case we know of from 200 on, the order is exactly 7.</p>
+        BGPW's <a href="https://arxiv.org/html/1912.03491v1#S4.Thmthm1">Theorem 4.1</a> (Divisibility) tells us that 
+        odd multiples of 8 have \(m^*(n) \le 7\) and 
+        for all \(n\ge 200\) it turns out the order is exactly 7.</p>
       <div class="scroll">
         <table class="block">
           <tr class="ns"><th scope="row">\(n\)</th><td title='The published paper (2021)'>\(2^3\)</td><td title='The published paper (2021)'>\(2^4\)</td><td title='The published paper (2021)'>\(2^5\)</td><td title='The published paper (2021)'>\(2^6\)</td><td title='The published paper (2021)'>\(2^7\)</td><td title='The published paper (2021)'>\(2^8\)</td><td class="c" title='Claude alone'>\(2^9\)</td><td class="c" title='Claude alone'>\(2^{10}\)</td><td class="c" title='Claude alone'>\(2^{11}\)</td><td class="c" title='Claude alone'>\(2^{12}\)</td><td class="c" title='Claude alone'>\(2^{17}\)</td><td class="c" title='Claude alone'>\(2^{18}\)</td><td class="c" title='Claude alone'>\(2^{20}\)</td><td class="j" title='Claude and BGPW'>\(2^{24}\)</td></tr>
@@ -611,7 +638,13 @@ footer {
 <section class="pow2" aria-labelledby="pow2-title">
   <h2 id="pow2-title">Bounds on \(m^*(2^k) - k\) for every \(k\) up to 72</h2>
   <!-- TODO: caption; says column k is n = 2^k, where Thue–Morse has order k, an excess of 0, and row δ is order k + δ, an excess of δ; that cell (k, δ) is green when m*(2^k) ≥ k + δ is known, red when m*(2^k) < k + δ is proven, and black when neither is; and that in the readout f is the construction of length 2^24 and order 25 in the remarks below, τ_j is Thue–Morse of length 2^j, and p_n is a sequence of length n whose order is the lower bound in column n of the chart above -->
-  <p class="pow2-caption">Claude: "Column \(k\) is \(n = 2^k\), where Thue–Morse has order \(k\), an excess of 0; row \(\delta\) is order \(k + \delta\), an excess of \(\delta\). Cell \((k, \delta)\) is green when \(m^*(2^k) \ge k + \delta\) is known, red when <span class="nw">\(m^*(2^k) < k + \delta\)</span> is proven, and black when neither is. In the readout, \(f\) is the construction of length \(2^{24}\) and order 25 in the remarks below, \(\tau_j\) is Thue–Morse of length \(2^j\), and \(p_n\) is a sequence of length \(n\) whose order is the lower bound in column \(n\) of the chart above."</p>
+  <p class="pow2-caption">
+    By Theorem 4.1 of BGPW (Thue-Morse) we know that \(m^*(2^k) \ge k\) for all \(k\).
+    Here we show a cell \((k, \delta)\) as green when \(m^*(2^k) \ge k + \delta\).
+    I.e., \(\delta\) is the excess over Thue-Morse.
+    TODO
+    Claude: "Column \(k\) is \(n = 2^k\), where Thue–Morse has order \(k\), an excess of 0; row \(\delta\) is order \(k + \delta\), an excess of \(\delta\). 
+    Cell \((k, \delta)\) is green when \(m^*(2^k) \ge k + \delta\) is known, red when <span class="nw">\(m^*(2^k) < k + \delta\)</span> is proven, and black when neither is. In the readout, \(f\) is the construction of length \(2^{24}\) and order 25 in the remarks below, \(\tau_j\) is Thue–Morse of length \(2^j\), and \(p_n\) is a sequence of length \(n\) whose order is the lower bound in column \(n\) of the chart above."</p>
   <ul class="legend">
     <li><span class="swatch exists" aria-hidden="true"></span>\(k + \delta \le m^*(2^k)\)</li>
     <li><span class="swatch open" aria-hidden="true"></span>open</li>
@@ -2255,9 +2288,9 @@ SClaude[12][768] = {
 const cv = document.getElementById('mstar-chart'), ro = document.getElementById('mstar-readout');
 try {
   const D = MSTAR, NMAX = 1024, NCOL = NMAX / 2, MIN_SPAN = 12, TAP = 6;
-  // Layout in CSS px: the m labels left of the plot, room right of it for the last n label, rows ROW tall whose bottom
-  // GAP is page surface, and the n axis below.
-  const LEFT = 44, RIGHT = 16, TOP = 2, ROW = 14, GAP = 2, AXIS = 30;
+  // Layout in CSS px: the m labels left of the plot, room right of it for the last n label, rows ROW tall, and the n
+  // axis below.
+  const LEFT = 44, RIGHT = 16, TOP = 2, ROW = 14, AXIS = 30;
   const assert = (ok, ...what) => { if (!ok) throw new Error(JSON.stringify(what).replace(/"/g, "'")); };
   const WHO = ['BGPW', 'Claude alone', 'Claude and BGPW', 'Astra alone', 'Claude and Astra'];         // the provenance labels of the new results above
   const prime = p => { for (let d = 2; d * d <= p; d++) if (p % d === 0) return false; return p >= 2; };
@@ -2356,7 +2389,7 @@ try {
     zoomIn.disabled = span === MIN_SPAN;                           // each zoom button grays out at its limit
     zoomOut.disabled = span === NCOL;
     const dpr = devicePixelRatio, L = Math.round(LEFT * dpr), R = Math.round(RIGHT * dpr), top = Math.round(TOP * dpr);
-    const pitch = Math.round(ROW * dpr), gap = Math.round(GAP * dpr);
+    const pitch = Math.round(ROW * dpr), gap = 1;                  // a row's bottom device px is page surface
     const W = Math.round(cv.getBoundingClientRect().width * dpr) - L - R;   // the plot's width in device px
     assert(W > 0, W);
     cv.width = L + W + R;
@@ -2390,6 +2423,13 @@ try {
     ctx.imageSmoothingEnabled = false;
     ctx.drawImage(strip, 0, 0, W, T, L, top, W, T * pitch);
     for (let r = 1; r <= T; r++) ctx.fillRect(L, top + r * pitch - gap, W, gap);
+    // A hairline grid (dreeves, 2026-10-29: "maybe when zoomed in enough the full grid could become visible", then of
+    // the powers-of-2 chart's: "this with hairline grid looks great to me"): with the rows' gaps, a line of page
+    // surface one device px wide at each boundary of whole columns, fading in as columns widen from 4 CSS px to 8, so
+    // none shows at the full view.
+    ctx.globalAlpha = Math.min(Math.max((1 / k / dpr - 4) / 4, 0), 1);
+    for (let c = Math.floor(u0) + 1; c < u0 + span; c++) ctx.fillRect(L + Math.floor((c - u0) / k), top, 1, T * pitch);
+    ctx.globalAlpha = 1;
     // Axes: every m on the left; below, n under the middle of its column, at the first of 2, 10, 20, 50, ... (1, 2, 5,
     // 10, ... without the odd steps, so every label is even) that leaves room for each label.
     const serif = token('--serif'), base = top + T * pitch;
@@ -2541,11 +2581,13 @@ try {
 // Cell (k, e) is green (exists) when k + e <= lo, gray (open) when lo < k + e <= hi, and red (impossible) above, up to
 // row E = POW2.etop.  The plot is one svg with a rect per cell, its viewBox K columns wide and E * ROW px tall,
 // stretched to the plot's width; a cell reads itself out when the mouse enters it: a mouse hovering, or a finger
-// tapping (a tap sends the mouse events, a swipe that scrolls the page sends none).
+// tapping (a tap sends the mouse events, a swipe that scrolls the page sends none).  Its grid is hairlines of page
+// surface (dreeves, 2026-10-29: "this with hairline grid looks great to me"): the bottom GAP of each row, one device
+// pixel, and a line one device pixel wide between every two columns.
 (() => {
 const chart = document.getElementById('pow2-chart'), ro = document.getElementById('pow2-readout');
 try {
-  const D = POW2, K = 72, ROW = 14, GAP = 2, NS = 'http://www.w3.org/2000/svg';
+  const D = POW2, K = 72, ROW = 14, GAP = 1 / devicePixelRatio, NS = 'http://www.w3.org/2000/svg';
   const assert = (ok, ...what) => { if (!ok) throw new Error(JSON.stringify(what).replace(/"/g, "'")); };
   const WHO = ['BGPW', 'Claude alone', 'Claude and BGPW', 'Astra alone', 'Claude and Astra'];         // the provenance labels of the new results above
   const prime = p => { for (let d = 2; d * d <= p; d++) if (p % d === 0) return false; return p >= 2; };
@@ -2670,8 +2712,9 @@ try {
   // The bounds the theorem states, their cells ringed in gold just outside them as the m*(n) chart rings its records
   // (dreeves's README, 2026-10-28: "[GTR] Gold trim for the powers-of-2 chart to highlight the values in the
   // theorem"): for each record gap g, cell (k, g) of the least k with lo >= k + g (the table below has the same).  The
-  // ring fills the gaps above and below the cell and is 1 px at its sides, where a phone's columns are about 4 px wide;
-  // it lies under the outline of the cell read out, whose swatch it rings too, with a note (dreeves, 2026-10-28: "don't
+  // ring is 2 px above and below the cell, over the hairlines there and the neighbors' edges, and 1 px at its sides,
+  // where a phone's columns are about 4 px wide; it lies over the grid and under the outline of the cell read out,
+  // whose swatch it rings too, with a note (dreeves, 2026-10-28: "don't
   // forget the gold trim on the hover version"), as the m*(n) chart's readout does for its records.
   const least = g => D.cols.findIndex((c, i) => c[0] >= i + 1 + g) + 1;       // 0 if none
   const trims = Array.from({length: E}, (_, i) => i + 1).filter(g => least(g) > 0).map(g => [least(g), g]);
@@ -2700,11 +2743,18 @@ try {
     r.addEventListener('mouseenter', () => select(k, e));
     svg.append(r);
   }
+  for (let k = 1; k < K; k++) {                                    // the lines between columns, over the cells
+    const l = document.createElementNS(NS, 'line');
+    for (const [a, v] of Object.entries({x1: k, y1: 0, x2: k, y2: E * ROW, 'stroke-width': GAP})) l.setAttribute(a, v);
+    svg.append(l);
+  }
   // The axes: every e left of the plot, beside the letter δ (dreeves's README, 2026-10-28: "[DLT] Change "excess e" to
   // delta unless e is following precedent from BGPW", and BGPW name no excess); below it, the letter k and every tenth
   // k under its column
   const es = el('div', 'pow2-es', ''), plot = el('div', 'pow2-plot', ''), ks = el('div', 'pow2-ks', '');
-  for (let e = 1; e <= E; e++) es.append(at(el('span', '', String(e)), {top: `${(E - e) * ROW}px`}));
+  for (let e = 1; e <= E; e++) {                                   // centered on its row's colored part
+    es.append(at(el('span', '', String(e)), {top: `${(E - e) * ROW}px`, lineHeight: `${ROW - GAP}px`}));
+  }
   es.append(el('i', '', 'δ'));
   for (let k = 10; k <= K; k += 10) {
     const left = `${(k - 0.5) / K * 100}%`;

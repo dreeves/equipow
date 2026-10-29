@@ -10,12 +10,13 @@ one, made-up data, or none), in headless Chrome driven through the DevTools prot
 viewport of each configuration's width and pixel ratio, its theme by prefers-color-scheme, real mouse moves, touch taps
 and swipes, and screenshots whose pixels are checked against the data.  DRIVER finds the cells by geometry alone: the
 plot is the svg in #pow2-chart, K columns of equal width, and rows ROW CSS px apart from the top (row E) down to row 1,
-the bottom GAP px of each row page surface.
+the bottom device pixel of each row and one between every two columns page surface: a hairline grid (since 2026-10-29;
+the bottom 2 CSS px before).
 """
 import sys
 sys.dont_write_bytecode = True
 import os, re, json, html, time, shutil, tempfile, traceback, subprocess, itertools
-from math import prod
+from math import prod, floor
 from PIL import Image
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -24,7 +25,13 @@ DATA = os.path.join(HERE, 'pow2.js')          # made by pow2.py; the chart's dat
 MSTAR = os.path.join(HERE, 'mstar.js')        # made by mstar.py; the m*(n) chart's data, which the page also loads
 ICONS = ('favicon.ico', 'favicon.svg', 'apple-touch-icon.png')   # the page's icons, which it also loads
 CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
-K, ROW, GAP = 72, 14, 2                       # columns k = 1..K; rows ROW CSS px apart, the bottom GAP of each surface
+K, ROW = 72, 14                               # columns k = 1..K; rows ROW CSS px apart, the bottom gap() of each surface
+
+
+def gap(dpr):
+    """The hairline between rows and between columns, in CSS px: one device pixel (dreeves, 2026-10-29: "this with
+    hairline grid looks great to me")."""
+    return 1 / dpr
 KINDS = ('exists', 'open', 'impossible')      # the kinds of cell, as the tokens of their colors name them
 F = [2 ** 24, 25]                             # f, the construction of length 2^24 and order 25, as a block [n, m]
 KLABELS = list(range(10, K + 1, 10))          # the k labels below the plot
@@ -355,11 +362,19 @@ const subFonts = async () => {
   for (const nodeId of nodeIds) {
     subs.push((await send('CSS.getPlatformFontsForNode', {nodeId})).fonts.map(f => f.familyName));
   }
+  // the platform font of the readout's first family, as DevTools names it (a family's CSS name and its font's own may
+  // differ: "Latin Modern" is LMRoman10): what draws digits in a probe of that family alone
+  await ev(() => { const s = document.createElement('span'); s.id = 'subfonts-probe'; s.textContent = '0123456789';
+                   s.style.fontFamily = getComputedStyle(document.getElementById('pow2-readout')).fontFamily.split(',')[0];
+                   document.body.append(s); s.getBoundingClientRect(); });   // laid out before DevTools reads it
+  const probe = (await send('DOM.querySelectorAll', {nodeId: root.nodeId, selector: '#subfonts-probe'})).nodeIds;
+  const first = (await send('CSS.getPlatformFontsForNode', {nodeId: probe[0]})).fonts.map(f => f.familyName);
+  await ev(() => document.getElementById('subfonts-probe').remove());
   await send('CSS.disable');
   await send('DOM.disable');
   const log = current.errors;
   current = page;
-  return {subs, log, family: await ev(() => getComputedStyle(document.getElementById('pow2-readout')).fontFamily)};
+  return {subs, log, first, family: await ev(() => getComputedStyle(document.getElementById('pow2-readout')).fontFamily)};
 };
 const input = {
   mouse: (x, y) => send('Input.dispatchMouseEvent', {type: 'mouseMoved', x, y}),
@@ -491,7 +506,7 @@ def run(name):
                  if 2 ** k <= NMAX and c['mstar'] and data['cols'][k - 1][3][0] == 'mstar']
         shots = [os.path.join(d, 'load.png'), os.path.join(d, 'outline.png')]
         cfg = {k: c[k] for k in ('width', 'height', 'dpr', 'mobile', 'theme', 'drawn', 'hover', 'tap', 'swipe')} | dict(
-            chrome=CHROME, dir=d, urls=urls, K=K, E=data['etop'] if data else 0, ROW=ROW, GAP=GAP, outline=OUTLINE,
+            chrome=CHROME, dir=d, urls=urls, K=K, E=data['etop'] if data else 0, ROW=ROW, GAP=gap(c['dpr']), outline=OUTLINE,
             swipeFrom=SWIPE, shots=shots, mstarCells=mstar, mstarLayout=MSTAR_LAYOUT, mstarCols=NMAX // 2)
         try:
             p = subprocess.run(['node', '--input-type=module', '-e', DRIVER], input=json.dumps(cfg),
@@ -537,7 +552,7 @@ def cell_box(R, geo, k, e):
     """Cell (k, e)'s colored part in CSS px of the viewport, as (x0, y0, x1, y1), by the plot's geometry."""
     L, T, W, _ = R[geo]['plot']
     E = R['data']['etop']
-    return L + (k - 1) * W / K, T + (E - e) * ROW, L + k * W / K, T + (E - e) * ROW + ROW - GAP
+    return L + (k - 1) * W / K, T + (E - e) * ROW, L + k * W / K, T + (E - e) * ROW + ROW - gap(R['load']['dpr'])
 
 
 def theorem_cells():
@@ -552,7 +567,7 @@ def theorem_cells():
 
 def ringed(R, x, y):
     """Whether CSS point (x, y) lies on the ring of a cell the theorem states: within 1 px outside it at its sides,
-    within 2 px above or below it (the gaps between rows)."""
+    within 2 px above or below it (over the hairline gaps there and the edges of the cells above and below)."""
     def on(k, e):
         x0, y0, x1, y1 = cell_box(R, 'geo', k, e)
         return x0 - 1 <= x <= x1 + 1 and y0 - 2 <= y <= y1 + 2 and not (x0 <= x <= x1 and y0 <= y <= y1)
@@ -737,21 +752,39 @@ def q_drawn_cells_match_data():
     # Replicata: the four drawn configurations, before any hover or tap: a screenshot of the viewport with the chart in
     # view, and document.elementFromPoint at the middle of each cell (k, e), k = 1..K, e = 1..E.
     # Expectata: the pixel at each cell's middle has the color of its kind as the page's tokens give it in that theme
-    # (exists when k + e <= lo, open when lo < k + e <= hi, impossible above); the pixel in the middle of the gap below
-    # each cell is paper; the element at each cell's middle is an svg rect whose computed fill is that color.  Either
-    # pixel is instead the record token's gold where it lies on the ring of a cell the theorem states (ringed: within
-    # 2 px outside that cell; since 2026-10-28, q_gold_trim_rings_the_theorem_s_cells).
+    # (exists when k + e <= lo, open when lo < k + e <= hi, impossible above), or the record token's gold where it
+    # lies on the ring of a cell the theorem states (ringed: within 2 px outside that cell; since 2026-10-28,
+    # q_gold_trim_rings_the_theorem_s_cells); the element at each cell's middle is an svg rect whose computed fill is
+    # that color.  The grid is hairlines of paper (dreeves, 2026-10-29: "this with hairline grid looks great to me"),
+    # each found within 2 device px of where the plot's box puts it, since the browser snaps the svg to device pixels:
+    # down a column of device pixels through the middle of a cell above row 1, of the 5 nearest the cell's bottom edge
+    # exactly one is paper and the others have the color of the cell or of the one below it; across a row of device
+    # pixels through the middle of a cell left of one of its own kind, the 5 nearest their boundary blend paper over
+    # that color by fractions summing to one device pixel, within 0.1 (the svg antialiases these lines, as in the grid
+    # dreeves saw).  A hairline's 5 pixels are passed over where one of them lies on a ring.
     for name in DRAWN:
         R = valid(name)
-        cols, tok = R['data']['cols'], R['load']['tokens']
+        cols, tok, dpr = R['data']['cols'], R['load']['tokens'], R['load']['dpr']
+        rgb = lambda h: [int(h[i:i + 2], 16) for i in (1, 3, 5)]
+        near = lambda d: [(floor(d) + j + 0.5) / dpr for j in range(-2, 3)]   # CSS middles of 5 device px about d
         bad = []
         for k, e, tag, f in R['dom']:
             want = tok[KINDS[kind_of(cols[k - 1], k, e)]]
             x0, y0, x1, y1 = cell_box(R, 'geo', k, e)
-            spots = (((x0 + x1) / 2, (y0 + y1) / 2, want), ((x0 + x1) / 2, y1 + GAP / 2, tok['paper']))
-            got = tuple(pixel(R, 0, x, y) for x, y, _ in spots) + (tag, fill(f))
-            if got != tuple(tok['record'] if ringed(R, x, y) else c for x, y, c in spots) + ('rect', want):
-                bad.append((k, e, want, got))
+            xm, ym = (x0 + x1) / 2, (y0 + y1) / 2
+            if (pixel(R, 0, xm, ym), tag, fill(f)) != (tok['record'] if ringed(R, xm, ym) else want, 'rect', want):
+                bad.append((k, e, want, (pixel(R, 0, xm, ym), tag, fill(f))))
+            column = [(xm, y) for y in near(y1 * dpr)]
+            if e > 1 and not any(ringed(R, x, y) for x, y in column):
+                below, px = tok[KINDS[kind_of(cols[k - 1], k, e - 1)]], [pixel(R, 0, x, y) for x, y in column]
+                if px.count(tok['paper']) != 1 or not set(px) <= {want, below, tok['paper']}:
+                    bad.append((k, e, 'row line', px))
+            row = [(x, ym) for x in near(x1 * dpr)]
+            if k < K and kind_of(cols[k], k + 1, e) == kind_of(cols[k - 1], k, e) and not any(ringed(R, x, y) for x, y in row):
+                c, p = rgb(want), rgb(tok['paper'])
+                cover = [sum(v - a for v, a in zip(rgb(pixel(R, 0, x, y)), c)) / sum(b - a for a, b in zip(c, p)) for x, y in row]
+                if abs(sum(cover) - 1) > 0.1 or min(cover) < -0.02 or max(cover) > 1.02:
+                    bad.append((k, e, 'column line', [round(v, 3) for v in cover]))
         assert len(R['dom']) == K * R['data']['etop'] and not bad, (name, len(bad), bad[:10])
 
 
@@ -796,16 +829,19 @@ def q_readout_subscripts_in_page_font():
     # Expectata: the readout holds no Unicode subscript digit (U+2080-2089: the page's fonts have none, so fallback
     # fonts drew them, two different ones side by side); each subscript it writes is a <sub> (as many <sub>s as TEXT
     # writes _(…), at least one per block of the join); and each <sub> is drawn in one font, the first of the
-    # readout's font-family.  (While DevTools reads the fonts it logs only that a file: page may not load itself.)
+    # readout's font-family, as DevTools names it: the one font that draws digits in a probe of that family alone
+    # (since 2026-10-29 that family is "Latin Modern", whose font calls itself LMRoman10).  (While DevTools reads the
+    # fonts it logs only that a file: page may not load itself.)
     k, e = OUTLINE
     for name in DRAWN:
         R = valid(name)
         text, fonts, (lo, hi, lw, hw) = R['outline']['text'], R['subFonts'], R['data']['cols'][k - 1]
-        family = fonts['family'].split(',')[0].strip().strip('"')
+        first = fonts['first']
+        assert len(first) == 1, (name, fonts['family'], first)
         assert all(x.startswith('log error security: Unsafe attempt to load URL file:') for x in fonts['log']), fonts
         assert lw[0] == 'joins' and not re.search('[₀-₉]', text), (name, lw[0], text)
         assert len(fonts['subs']) == text.count('_(') >= sum(map(len, lw[1])), (name, text, fonts)
-        assert all(f == [family] for f in fonts['subs']), (name, family, fonts['subs'])
+        assert all(f == first for f in fonts['subs']), (name, first, fonts['subs'])
 
 
 def q_outline_marks_the_cell():
@@ -847,7 +883,7 @@ def q_labels_mark_every_delta_and_round_k():
         es = {int(t): b for t, b in left if t.isdigit()}
         assert sorted(es) == list(range(1, E + 1)) and len(left) == E + 1, (name, left)
         for e, (x, y, w, h) in es.items():
-            assert abs(y + h / 2 - (T + (E - e) * ROW + (ROW - GAP) / 2)) <= 1, (name, e, y, h)
+            assert abs(y + h / 2 - (T + (E - e) * ROW + (ROW - gap(R['load']['dpr'])) / 2)) <= 1, (name, e, y, h)
         rights = [x + w for x, y, w, h in es.values()]
         assert max(rights) - min(rights) <= 0.5 and 0 <= L - max(rights) <= 10, (name, rights, L)
         letters = [b for t, b in left if t == 'δ']

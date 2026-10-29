@@ -461,18 +461,44 @@ function battery(R) {
   }
   // Row 1 is exists in every even column and impossible in every odd one, so with no odd column drawn, even mixed into a
   // pixel, every pixel of row 1 is exists.  The outline of the cell read out goes to row T first.
-  function checkRowOne(v, i) {     // but where a ring of row 1 runs, a device px either side (rowOneSkips)
-    hover(middleX(v, first(v)), rowY(T) / dpr);
+  const ringBands = v => { const k = v.span / (PR - PL); return RECS.filter(([, r]) => r === 1).flatMap(([n]) => {
+    const x0 = PL + (n / 2 - 1 - v.u0) / k, x1 = PL + (n / 2 - v.u0) / k;
+    return [[x0 - 2 * dpr - 1, x0 + 1], [x1 - 1, x1 + 2 * dpr + 1]];
+  }); };
+  // The column lines of view v (the hairline grid, 2026-10-29): once columns are wider than 4 CSS px, a device px of
+  // paper at each boundary of whole columns, over the cells at opacity (w - 4) / 4 up to 1, w a column's CSS px; each
+  // as its zone, a device px either side of where it falls, with that opacity.
+  const lineZones = v => {
+    const k = v.span / (PR - PL), alpha = Math.min(Math.max((1 / (k * dpr) - 4) / 4, 0), 1), zones = [];
+    for (let c = Math.floor(v.u0) + 1; alpha > 0 && c < v.u0 + v.span; c++) {
+      const X = PL + Math.floor((c - v.u0) / k);
+      zones.push([X - 1, X + 1, alpha]);
+    }
+    return zones;
+  };
+  const rgbOf = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+  // Each zone in row 1 (exists on both sides) inside the plot and away from a ring: exactly one pixel off exists,
+  // paper over exists at the zone's opacity, within 3 per channel.
+  function checkZones(zones, bands, tag) {
+    const Y = Math.floor(rowY(1)), e = rgbOf(C.exists), p = rgbOf(C.paper);
+    for (const [a, b, alpha] of zones.filter(([a, b]) => PL <= a && b < PR && !bands.some(([x, y]) => x <= b && a <= y))) {
+      const px = []; for (let X = a; X <= b; X++) px.push(pix(X, Y));
+      const off = px.filter(c => c !== C.exists), want = e.map((v, j) => v + alpha * (p[j] - v));
+      R.lineZones++;
+      if (off.length !== 1 || rgbOf(off[0]).some((v, j) => Math.abs(v - want[j]) > 3)) R.lineBad.push([tag, a, px, want]);
+    }
+  }
+  function checkRowOne(v, i) {     // but where a ring of row 1 runs, a device px either side (rowOneSkips), and the
+    hover(middleX(v, first(v)), rowY(T) / dpr);   // zones of the column lines (rowOneLines), which checkZones checks
     snap();
-    const k = v.span / (PR - PL), bands = RECS.filter(([, r]) => r === 1).flatMap(([n]) => {
-      const x0 = PL + (n / 2 - 1 - v.u0) / k, x1 = PL + (n / 2 - v.u0) / k;
-      return [[x0 - 2 * dpr - 1, x0 + 1], [x1 - 1, x1 + 2 * dpr + 1]];
-    });
+    const bands = ringBands(v), zones = lineZones(v);
     for (let X = PL, Y = Math.floor(rowY(1)); X < PR; X++) {
       if (bands.some(([a, b]) => a <= X && X <= b)) { R.rowOneSkips++; continue; }
+      if (zones.some(([a, b]) => a <= X && X <= b)) { R.rowOneLines++; continue; }
       R.rowOneChecks++;
       if (pix(X, Y) !== C.exists) R.rowOneBad.push([i, X, pix(X, Y)]);
     }
+    checkZones(zones, bands, i);
   }
   // The n labels of one draw (the one a change of the cell read out makes): the strings drawn below the rows and right
   // of the plot's left edge, as [string, x in device px].
@@ -515,6 +541,7 @@ function battery(R) {
   R.readouts = 0; R.oddReadouts = [];
   R.views = [view()];
   R.hovers = []; R.swatches = []; R.pixelChecks = 0; R.pixelBad = []; R.pixelColumns = {}; R.steps = {}; R.rowOneChecks = 0; R.rowOneBad = [];
+  R.rowOneLines = 0; R.lineZones = 0; R.lineBad = [];
   R.labelDraws = [labels(R.views[0])];
   checkRowOne(R.views[0], 0);
   // A hover at the middle of every device px across row 1 of the full view: the n read out, left to right, each once.
@@ -537,6 +564,14 @@ function battery(R) {
     for (let i = 0; i < 6; i++) key('ArrowRight');
   }
   R.pixelColumns = Object.keys(R.pixelColumns).map(Number).sort((a, b) => a - b);
+  // Zoomed in step by step until columns are wider than 4 CSS px (3 steps at 1280 px, about 6 px wide): the column
+  // lines part drawn
+  reset.click();
+  let mid = view();
+  for (let i = 0; i < 12 && (PR - PL) / mid.span / dpr <= 4; i++) { key('+'); mid = view(); }
+  { const v = mid, zones = lineZones(v);
+    R.midWidth = (PR - PL) / v.span / dpr; R.midZones = zones.length;
+    hover(middleX(v, first(v)), rowY(T) / dpr); snap(); checkZones(zones, ringBands(v), 'mid'); }
   // The cell read out is outlined in ink, just outside it.
   reset.click();
   for (let i = 0; i < 5; i++) key('+');
@@ -1106,7 +1141,8 @@ def q_scripts_load_data_then_draw():
     # Replicata: index.html's script tags.
     # Expectata: in the head, KaTeX's two (since 2026-10-28; dreeves: "could you convert all the math on the page to
     # latex"), deferred, from jsDelivr at version 0.16.47, each with its SHA-256 integrity, auto-render's onload drawing
-    # the page's \( ... \) once the page is parsed; then exactly six, after </main> and before </body>: a classic
+    # the page's \( ... \) once the page is parsed, and then (2026-10-29) wrapping each formula and the text glued to it,
+    # no space between, in an nw span; then exactly six, after </main> and before </body>: a classic
     # <script src="mstar.js"> (no type, async or defer, so it also loads from file://) and then one inline script; then
     # the chart of powers of 2's, likewise (quals_pow2_page.py holds those two); then the inline script of the table of
     # smallest lengths, which reads MSTAR (2026-10-17); then the inline script of the section "Search progress", which
@@ -1115,7 +1151,10 @@ def q_scripts_load_data_then_draw():
     head, body = text[:text.index('</head>')], text[text.index('</head>'):]
     katex = re.findall(r'<script defer src="https://cdn\.jsdelivr\.net/npm/katex@0\.16\.47/dist/([\w/.-]+)" '
                        r'integrity="sha256-[A-Za-z0-9+/]{43}=" crossorigin="anonymous"( onload="renderMathInElement\(document\.body, '
-                       r'\{delimiters: \[\{left: \'\\\\\(\', right: \'\\\\\)\', display: false\}\], throwOnError: false\}\)")?></script>', head)
+                       r'\{delimiters: \[\{left: \'\\\\\(\', right: \'\\\\\)\', display: false\}\], throwOnError: false\}\); '
+                       r'for \(const k of document\.querySelectorAll\(\'\.katex\'\)\) \{ const t = k\.nextSibling, glued = t &amp;&amp; '
+                       r't\.nodeType === 3 &amp;&amp; /\^\\S\+/\.exec\(t\.data\); if \(glued\) \{ const w = document\.createElement\(\'span\'\); '
+                       r'w\.className = \'nw\'; k\.before\(w\); t\.data = t\.data\.slice\(glued\[0\]\.length\); w\.append\(k, glued\[0\]\); \} \}")?></script>', head)
     assert katex == [('katex.min.js', ''), ('contrib/auto-render.min.js', katex[-1][1])] and katex[-1][1] \
         and len(re.findall(r'<script\b', head)) == 2, (katex, re.findall(r'<script\b[^>]*>', head))
     assert re.findall(r'<script\b[^>]*>', body) == ['<script src="mstar.js">', '<script>', '<script src="pow2.js">', '<script>',
@@ -1992,7 +2031,8 @@ def q_drawn_cells_match_data():
     # the full view and every view of the sweep, every pixel of row 1 is exists, from the plot's left edge to its
     # right: no odd column (impossible in every row, since lo = hi = 0) is drawn, not even mixed into a pixel; but for
     # the ring of a cell of row 1 (q_chart_rings_a323395_terms_in_gold), passed over a device px either side
-    # (rowOneSkips), and the cells next to a ring in its row and the row above, which that qual checks instead.
+    # (rowOneSkips), the cells next to a ring in its row and the row above, which that qual checks instead, and the
+    # column lines of the zoomed views (rowOneLines), which q_mstar_grid_lines_come_with_zoom checks.
     data = mstar_data()
     assert all(data['cols'][n - 1][0] >= 1 for n in EVEN), 'some even column has no exists cell in row 1'
     for name in ('light', 'phone'):
@@ -2002,8 +2042,28 @@ def q_drawn_cells_match_data():
         assert R['pixelChecks'] >= NCOL * len(R['rows']), (name, R['pixelChecks'])
         assert len(R['rows']) == data['mtop'], (name, len(R['rows']))
         assert R['rowOneBad'] == [], (name, len(R['rowOneBad']), R['rowOneBad'][:10])
-        assert R['rowOneChecks'] + R['rowOneSkips'] == len(R['views']) * (R['plot'][1] - R['plot'][0]), (name, R['rowOneChecks'])
+        assert R['rowOneChecks'] + R['rowOneSkips'] + R['rowOneLines'] == len(R['views']) * (R['plot'][1] - R['plot'][0]), (name, R['rowOneChecks'])
         assert R['rowOneSkips'] <= len(R['views']) * (4 * R['dpr'] + 6), (name, R['rowOneSkips'])
+
+
+def q_mstar_grid_lines_come_with_zoom():
+    # Replicata: the light and phone runs: row 1 (exists in every even column) of the full view, of every view of the
+    # sweep (columns about 30 CSS px wide at 1280 px) and of the first view, zooming in from the full view step by
+    # step, whose columns are wider than 4 CSS px (3 steps in at 1280 px, about 6).
+    # Expectata (dreeves, 2026-10-29, of a full grid on this chart: "maybe when zoomed in enough the full grid could
+    # become visible", then of the powers-of-2 chart's: "this with hairline grid looks great to me"): a line of paper one
+    # device px wide at each boundary of whole columns, over the cells at opacity (w - 4) / 4 from 0 up to 1, w a
+    # column's width in CSS px: none at the full view (columns under 2 px wide), part at 3 steps in, solid in the sweep.
+    # Each line's zone, a device px either side, holds exactly one pixel off exists, that blend of paper over exists
+    # within 3 per channel; zones under a ring are the ring's (q_chart_rings_a323395_terms_in_gold), and zones
+    # crossing the plot's left or right edge reach into its margins, so they are passed over.
+    for name in ('light', 'phone'):
+        R = valid_run(name)
+        assert R['lineBad'] == [], (name, len(R['lineBad']), R['lineBad'][:5])
+        assert 4 < R['midWidth'] < 8 and R['midZones'] > 0, (name, R['midWidth'], R['midZones'])
+        sweep = sum(len(range(math.floor(v['u0']) + 1, math.ceil(v['u0'] + v['span']))) for v in R['views'][1:])
+        assert R['lineZones'] >= sweep + R['midZones'] - 4 * len(R['views']), (name, R['lineZones'], sweep, R['midZones'])
+        assert R['rowOneLines'] >= 3 * (sweep - 4 * len(R['views'])), (name, R['rowOneLines'], sweep)
 
 
 def q_chart_rings_a323395_terms_in_gold():
