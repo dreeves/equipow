@@ -151,6 +151,11 @@ The estimate's model, its terms defined once here (overnight_v5.py's search() is
               replicates, each band's samples resampled (a bootstrap: the uncertainty of the bands' means, not of the
               process itself, whose sum over thousands of boxes varies less).  None until the session has a pool record,
               a sample and a box.
+  tracked     a search run under track.py (dreeves, 2026-10-28: "can we rearchitect things so that always happens easily
+              and automatically?"): its runs' records, runs/NAME.jsonl (see track.py), are the watcher's only source,
+              read whatever program the runs run, the runs of one target N:M one search.  A run is ended with its end
+              line; else frozen while its process is stopped (state T), running while it lives, and aborted once it is
+              gone (its tracker died before writing the end).  The search shows one dot per run (survey_track).
 The data file says when the snapshot was made, to the second, and the section keeps its age up to date.  Per run it
 gives the state, the hours of running so far and to go, the record of ETAs and the sea (see js_text).
 """
@@ -1682,6 +1687,34 @@ def survey_pruning288(path, procs, now=None, observations=None):
     return run
 
 
+def survey_track(target, records, procs, now):
+    """The tracked search (see the vocabulary) of target N:M whose runs' records are records (each its lines, as JSON),
+    as the process list procs shows it at time now (epoch seconds): what the data file needs of it.  Its state is
+    running while a run runs, frozen while none runs and one is frozen, and ended once none is either; its outcome,
+    once all its runs ended with end lines, 'found' if the found files of their starts hold a line in all and 'none' if
+    not, else null (the page shows an ended search with no outcome as aborted).  Its time so far runs from its first
+    start to now, or to its last line once it ended.  One dot per run in record order: open ended, running running,
+    pending frozen, split aborted.  work counts the runs by state and the found files' lines (a missing file holds
+    none), each file once."""
+    n, order = map(int, target.split(':'))
+    live = {pid: stat for pid, _, stat, _ in procs if not stat.startswith('Z')}
+    states = [('ended' if r[-1]['event'] == 'end' else 'aborted' if r[0]['pid'] not in live else
+               'frozen' if live[r[0]['pid']].startswith('T') else 'running') for r in records]
+    files = sorted({r[0]['found'] for r in records} - {None})
+    found = sum(len(complete_lines(f)) if os.path.exists(f) else 0 for f in files)
+    state = 'running' if 'running' in states else 'frozen' if 'frozen' in states else 'ended'
+    outcome = ('found' if found else 'none') if set(states) == {'ended'} else None
+    t0 = min(r[0]['time'] for r in records)
+    t1 = now if state != 'ended' else max(r[-1]['time'] for r in records)
+    dots = {'ended': 'open', 'running': 'running', 'frozen': 'pending', 'aborted': 'split'}
+    codes = ''.join(str(SEA_STATUSES.index(dots[st])) for st in states)
+    work = dict(runs=len(states), **{st: states.count(st) for st in ('running', 'frozen', 'ended', 'aborted')}, found=found)
+    return dict(program=records[0][0]['program'], n=n, order=order, made=now, state=state, outcome=outcome,
+                so_far=t1 - t0, to_go=None, etas={}, passes=[[t0, t1]], display=dict(tracked=True, work=work),
+                sea=dict(depth=0, keys=[target], groups=[codes],
+                         counts={name: codes.count(str(i)) for i, name in enumerate(SEA_STATUSES)}))
+
+
 def clock(t): return '—' if t is None else time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(t))
 
 
@@ -1754,6 +1787,11 @@ def main(argv):
             with open(path, encoding='utf-8') as f: header = json.loads(f.readline())
             key = f'pruning288_{header["code"]}_{header["time"]}'
             surveys.append(survey_pruning288(path, procs, observations=cache.setdefault(key + '_observations', {})))
+        tracked = collections.defaultdict(list)
+        for path in sorted(glob.glob(os.path.join(HERE, 'runs', '*.jsonl'))):
+            lines = [json.loads(line) for line in complete_lines(path)]
+            tracked[lines[0]['target']].append(lines)
+        surveys += [survey_track(target, records, procs, now) for target, records in sorted(tracked.items())]
         now = max([now] + [s['made'] for s in surveys if s['program'] in ('focus.py', 'fanout.py', 'search288.py', 'pruning288.py')])
         write_atomic(JS, js_text(surveys, now))
         save_cache(CACHE, cache)

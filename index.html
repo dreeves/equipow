@@ -419,6 +419,7 @@ footer {
   <!-- The changelog, newest first, as in dreeves's spec FreshAt (doc.bmndr.co/freshat) -->
   <details class="changelog">
     <summary><i>Changelog</i></summary>
+    <p>2026-10-28: <span class="nw">12 ≤ <i>m</i><sup>*</sup>(768) ≤ 13</span></p>
     <p>2026-10-28: <span class="nw"><i>m</i><sup>*</sup>(816) ≥ 12</span></p>
     <p>2026-10-28: <span class="nw"><i>m</i><sup>*</sup>(1008) ≥ 12</span></p>
     <p>2026-10-28: <span class="nw">12 ≤ <i>m</i><sup>*</sup>(912) ≤ 13</span></p>
@@ -535,7 +536,7 @@ footer {
         </table>
         <table class="block">
           <tr class="ns"><th scope="row"><i>n</i></th><td class="c" title='Claude alone'>672</td><td class="c" title='Claude alone'>688</td><td class="c" title='Claude alone'>704</td><td class="c" title='Claude alone'>720</td><td class="c" title='Claude alone'>736</td><td class="ca" title='Claude and Astra'>752</td><td class="c" title='Claude alone'>768</td><td class="ca" title='Claude and Astra'>784</td><td class="c" title='Claude alone'>800</td><td class="c" title='Claude alone'>816</td><td class="c" title='Claude alone'>832</td></tr>
-          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="c">11–13</td><td class="c">9–10</td><td class="c">10</td><td class="c">11–14</td><td class="c">10</td><td class="ca">10</td><td class="c">11–13</td><td class="ca">10</td><td class="c">11</td><td class="c">12–14</td><td class="c">11</td></tr>
+          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="c">11–13</td><td class="c">9–10</td><td class="c">10</td><td class="c">11–14</td><td class="c">10</td><td class="ca">10</td><td class="c">12–13</td><td class="ca">10</td><td class="c">11</td><td class="c">12–14</td><td class="c">11</td></tr>
         </table>
         <table class="block">
           <tr class="ns"><th scope="row"><i>n</i></th><td class="c" title='Claude alone'>848</td><td class="c" title='Claude alone'>864</td><td class="c" title='Claude alone'>880</td><td class="c" title='Claude alone'>896</td><td class="c" title='Claude alone'>912</td><td class="c" title='Claude alone'>928</td><td class="c" title='Claude alone'>944</td><td class="c" title='Claude alone'>960</td><td class="c" title='Claude alone'>976</td><td class="c" title='Claude alone'>992</td><td class="c" title='Claude alone'>1008</td><td class="c" title='Claude alone'>1024</td></tr>
@@ -855,6 +856,16 @@ footer {
         <code>D1C7951270B6456FBEC039A7FA05A459E422DB6416E76D06DB2D90D32FD010FBB30A6DB6D80DBAC3059EDB5826CB4C</code>
       </p>
     </li>
+    <li class="c">
+      <span class="mk" aria-hidden="true">◆</span>
+      <p class="entry"><i>n</i> = 768: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {12, 13}</span></p>
+      <!-- TODO: says this is a symmetric example of order 12, and that order 14 at 768 is ruled out by the residue condition mod 5, so m*(768) is 12 or 13 -->
+      <p>Claude: "A symmetric example of order 12. Order 14 is ruled out by the residue condition mod 5."</p>
+      <p class="code">
+        <span><i>p</i><sub>768</sub> <span class="nw">(<i>m</i> = 12)</span>:</span>
+        <code>AB5186723E74399FC150E3179F7008E728787ABA4678EAF3C4C73E033113ADA98C721D7131CE439DA5FECD734DE50904</code>
+      </p>
+    </li>
     <li class="ca">
       <span class="mk" aria-hidden="true">◆✦</span>
       <p class="entry"><i>n</i> = 784: &nbsp;<span class="nw"><i>m</i><sup>*</sup> = 10</span></p>
@@ -1023,9 +1034,9 @@ footer {
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry"><i>n</i> = 672, 768: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {11, 12, 13}</span></p>
-      <!-- TODO: says how the m*(n) chart gets these: order 11 from examples above doubled or joined (each spelled out), order 14 ruled out by the residue conditions and norm bounds it names -->
-      <p>Claude: "Order 11 from examples above, doubled (672 = 2·336 and 768 = 2·384); order 14 is ruled out by the residue condition mod 5."</p>
+      <p class="entry"><i>n</i> = 672: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {11, 12, 13}</span></p>
+      <!-- TODO: says how the m*(n) chart gets 672: order 11 from an example above doubled (spelled out), order 14 ruled out by the residue condition mod 5 -->
+      <p>Claude: "Order 11 from an example above, doubled (672 = 2·336); order 14 is ruled out by the residue condition mod 5."</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
@@ -2049,7 +2060,37 @@ SClaude[12][912] = {
   828, 831, 834, 835, 836, 839, 840, 841, 845, 850, 854, 856, 857,
   859, 860, 861, 866, 869, 870, 871, 874, 875, 876, 877, 879, 880,
   881, 884, 885, 886, 887, 890, 893, 895, 896, 899, 903, 906, 907,
-  910, 911};</code></pre>
+  910, 911};
+SClaude[12][768] = {
+  0, 2, 4, 6, 7, 9, 11, 15, 16, 21, 22, 25, 26, 27, 30, 34, 35, 36,
+  37, 38, 41, 42, 43, 45, 50, 51, 52, 55, 56, 59, 60, 61, 62, 63, 64,
+  65, 71, 73, 75, 80, 81, 82, 86, 87, 91, 93, 94, 95, 96, 99, 100,
+  101, 102, 103, 105, 106, 107, 116, 120, 121, 122, 125, 126, 127,
+  130, 132, 137, 138, 139, 140, 145, 146, 147, 148, 150, 152, 154,
+  155, 156, 158, 161, 165, 166, 169, 170, 171, 172, 176, 177, 178,
+  180, 182, 184, 185, 186, 187, 190, 191, 192, 193, 197, 200, 201,
+  205, 206, 207, 210, 211, 212, 213, 214, 222, 223, 226, 227, 231,
+  235, 238, 239, 240, 242, 244, 245, 247, 248, 250, 252, 255, 256,
+  260, 261, 265, 266, 267, 270, 275, 276, 277, 279, 281, 282, 283,
+  287, 290, 291, 295, 296, 297, 300, 301, 302, 305, 310, 311, 312,
+  315, 316, 317, 319, 320, 322, 325, 327, 328, 329, 330, 331, 332,
+  333, 334, 336, 337, 340, 341, 343, 345, 346, 347, 350, 351, 353,
+  356, 357, 359, 360, 361, 362, 365, 367, 372, 375, 381, 386, 392,
+  395, 400, 402, 405, 406, 407, 408, 410, 411, 414, 416, 417, 420,
+  421, 422, 424, 426, 427, 430, 431, 433, 434, 435, 436, 437, 438,
+  439, 440, 442, 445, 447, 448, 450, 451, 452, 455, 456, 457, 462,
+  465, 466, 467, 470, 471, 472, 476, 477, 480, 484, 485, 486, 488,
+  490, 491, 492, 497, 500, 501, 502, 506, 507, 511, 512, 515, 517,
+  519, 520, 522, 523, 525, 527, 528, 529, 532, 536, 540, 541, 544,
+  545, 553, 554, 555, 556, 557, 560, 561, 562, 566, 567, 570, 574,
+  575, 576, 577, 580, 581, 582, 583, 585, 587, 589, 590, 591, 595,
+  596, 597, 598, 601, 602, 606, 609, 611, 612, 613, 615, 617, 619,
+  620, 621, 622, 627, 628, 629, 630, 635, 637, 640, 641, 642, 645,
+  646, 647, 651, 660, 661, 662, 664, 665, 666, 667, 668, 671, 672,
+  673, 674, 676, 680, 681, 685, 686, 687, 692, 694, 696, 702, 703,
+  704, 705, 706, 707, 708, 711, 712, 715, 716, 717, 722, 724, 725,
+  726, 729, 730, 731, 732, 733, 737, 740, 741, 742, 745, 746, 751,
+  752, 756, 758, 760, 761, 763, 765, 767};</code></pre>
 </section>
 
 <section class="progress" aria-labelledby="progress-title">
@@ -2141,6 +2182,12 @@ SClaude[12][912] = {
       </template>
       <!-- TODO: identifies the 560 calibration and 592 target dot blocks, with completed, running and pending attempt colors. -->
       <template class="progress-592-hint">Astra: "One dot per attempt: 560:10 calibration first, 592:10 search second. <span class="progress-sw" data-status="open"></span> completed attempt; <span class="progress-sw" data-status="running"></span> running; <span class="progress-sw" data-status="pending"></span> pending."</template>
+      <!-- TODO: says how many runs the tracked search has, how many are running, frozen, ended and aborted, how many results its runs have found, how long it has been going, and its state -->
+      <template class="progress-track">
+        <span>Claude: "<b data-attempt-count="runs"></b> runs: <b data-attempt-count="running"></b> running, <b data-attempt-count="frozen"></b> frozen, <b data-attempt-count="ended"></b> ended, <b data-attempt-count="aborted"></b> aborted; <b data-attempt-count="found"></b> found; elapsed <b data-elapsed></b>; <span data-search-state></span>."</span>
+      </template>
+      <!-- TODO: says each dot is one run of the search, with the colors of ended, running, frozen and aborted runs -->
+      <template class="progress-track-hint">Claude: "One dot per run: <span class="progress-sw" data-status="open"></span> ended; <span class="progress-sw" data-status="running"></span> running; <span class="progress-sw" data-status="pending"></span> frozen; <span class="progress-sw" data-status="split"></span> aborted."</template>
     </details>
 </section>
 
@@ -2806,6 +2853,9 @@ try {
         // TODO: attribute the generated baseline/wider labels in the hover readout.
         run = {...run, keys: run.keys.map(k => `Astra: "${k}"`)};
       }
+      // a search run under track.py, whatever its program: one dot per run, its runs counted by state (dreeves,
+      // 2026-10-28: "can we rearchitect things so that always happens easily and automatically?")
+      if (run.tracked) attemptView(box, run, 'progress-track', 'progress-track-hint');
       const L = sea(box, run);
       L.etaXs = etaChart(box.querySelector('.progress-eta'), run);
       return L;

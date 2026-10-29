@@ -1797,9 +1797,44 @@ def q_example_at_912_has_its_entry_code_and_set():
     listed = [ns.split(', ') for ns in re.findall(r'<p class="entry"><i>n</i> = ([^:]*): ', text)]
     i = listed.index(['912'])
     assert listed[i - 1:i + 2] == [['896'], ['912'], ['928']], listed[i - 1:i + 2]
-    assert sum('912' in ns for ns in listed) == 1 and ['672', '768'] in listed, [ns for ns in listed if '672' in ns]
+    assert sum('912' in ns for ns in listed) == 1 and ['672'] in listed, [ns for ns in listed if '672' in ns]   # 672 and 768 until 768's example
     assert new_cells(text)[912] == (12, 13), new_cells(text)[912]
     assert mstar_data()['cols'][912 - 1] == [12, 13, ['example', 'index.html p912'], ['residue', 5]], mstar_data()['cols'][912 - 1]
+
+
+def q_example_at_768_has_its_entry_code_and_set():
+    # Replicata: the remarks' entries naming 768, its code decoded by the paper's Table 5 convention (the left half of
+    # the signs, 1 = +1, then the rest by (-1)^m symmetry), the page's set SClaude[12][768], the new results' cell, and
+    # mstar.js's column 768.
+    # Expectata (2026-10-28 evening: Claude's lattice search w12.py found symmetric examples of order 12 at 768): an
+    # entry of its own, an <li class="c"> marked ◆, "m* ∈ {12, 13}", between 752's and 784's, whose Claude: "…" names
+    # the residue condition mod 5; its one code block, p768 of order 12, whose signs have order exactly 12 (synthetic
+    # division here) and are symmetric; SClaude[12][768] exactly their +1 positions, 0 among them; the built entry it
+    # shared with 672 now names 672 alone; the cell 12–13; mstar.js's column [12, 13, ["example", "index.html p768"],
+    # ["residue", 5]].
+    text = page()
+    li = re.search(r'<li class="c">\n      <span class="mk" aria-hidden="true">◆</span>\n      <p class="entry"><i>n</i> = '
+                   r'768: &nbsp;<span class="nw"><i>m</i><sup>\*</sup> ∈ \{12, 13\}</span></p>\n(.*?)\n    </li>', text, re.S)
+    assert li, 'no entry of 768 alone'
+    assert 'residue condition mod 5' in re.search(r'<p>Claude: "(.*?)"</p>', li.group(1)).group(1), li.group(1)[:300]
+    codes = re.findall(r'<p class="code">\n        <span><i>p</i><sub>(\d+)</sub> <span class="nw">\(<i>m</i> = (\d+)\)</span>:</span>\n'
+                       r'        <code>([0-9A-F]+)</code>\n      </p>', li.group(1))
+    assert len(codes) == 1 and codes[0][:2] == ('768', '12'), codes
+    h = codes[0][2]
+    left = [1 if b == '1' else -1 for b in bin(int(h, 16))[2:].zfill(4 * len(h))]
+    a, k = left + list(reversed(left)), 0
+    c = a
+    while not sum(c): c, k = list(itertools.accumulate(c[:-1])), k + 1
+    assert len(a) == 768 and k == 12 and all(a[767 - i] == a[i] for i in range(768)), (len(a), k)
+    sets = {(int(m), int(n)): {int(t) for t in body.split(',')}
+            for m, n, body in re.findall(r'SClaude\[(\d+)\]\[(\d+)\] = \{([^}]*)\};', text)}
+    assert sets[12, 768] == {i for i, s in enumerate(a) if s == 1} and 0 in sets[12, 768]
+    listed = [ns.split(', ') for ns in re.findall(r'<p class="entry"><i>n</i> = ([^:]*): ', text)]
+    i = listed.index(['768'])
+    assert listed[i - 1:i + 2] == [['752'], ['768'], ['784']], listed[i - 1:i + 2]
+    assert sum('768' in ns for ns in listed) == 1 and ['672'] in listed, [ns for ns in listed if '672' in ns or '768' in ns]
+    assert new_cells(text)[768] == (12, 13), new_cells(text)[768]
+    assert mstar_data()['cols'][768 - 1] == [12, 13, ['example', 'index.html p768'], ['residue', 5]], mstar_data()['cols'][768 - 1]
 
 
 def q_912_moves_excess_3_to_2_29():
@@ -2877,6 +2912,36 @@ def q_progress_summary_names_each_run_s_state():
     assert [(r['state'], r['open'], r['label']) for r in got] == [
         ('running', False, ['running']), ('paused', False, ['paused']), ('frozen', False, ['frozen']),
         ('ended', False, ['completed']), ('ended', False, ['aborted'])], got
+
+
+def q_progress_shows_a_tracked_search():
+    # Replicata: index.html with one tracked search as progress.js, in the form progress.js_text gives survey_track's
+    # survey: 768:12 by w12.py, running, four runs (three running, one ended: dots running, running, running, open),
+    # none found, 600 s so far.
+    # Expectata (dreeves, 2026-10-28: "can we rearchitect things so that always happens easily and automatically?"): its
+    # heading asks m*(768) ≥ 12? and names w12.py, its summary says running; its status line is the tracked view
+    # (template progress-track), whose counts are the run's work (4 runs, 3 running, 0 frozen, 1 ended, 0 aborted, 0
+    # found) and whose elapsed time is filled in; its readout is the tracked hint (template progress-track-hint); its
+    # ETA chart and its key are hidden.
+    base = PROGRESS_DATA['runs'][0]
+    run = dict(program='w12.py', n=768, order=12, state='running', outcome=None, so_far=600, to_go=None, etas=[],
+               statuses=base['statuses'], depth=0, keys=['768:12'], groups=['4441'],
+               counts=dict(settled=0, open=1, split=0, pending=0, running=3),
+               tracked=True, work=dict(runs=4, running=3, frozen=0, ended=1, aborted=0, found=0))
+    got = progress_harness({'made': PROGRESS_DATA['made'], 'runs': [run]}, """
+  const r = runs()[0];
+  const tpl = name => document.querySelector('template.' + name);
+  out({head: r.querySelector('h3').textContent,
+       label: [...r.querySelectorAll('[data-label]')].filter(e => !e.hidden).map(e => e.dataset.label),
+       counts: Object.fromEntries([...r.querySelectorAll('.progress-status [data-attempt-count]')].map(e => [e.dataset.attemptCount, e.textContent])),
+       elapsed: (r.querySelector('.progress-status [data-elapsed]') || {}).textContent || '',
+       readout: r.querySelector('[data-readout]').textContent.trim(),
+       hint: tpl('progress-track-hint') ? tpl('progress-track-hint').content.textContent.trim() : null,
+       eta: r.querySelector('.progress-eta').hidden, key: r.querySelector('.progress-key').hidden});""")
+    assert got['head'] == 'm*(768) ≥ 12? w12.py' and got['label'] == ['running'], got
+    assert got['counts'] == dict(runs='4', running='3', frozen='0', ended='1', aborted='0', found='0'), got
+    assert got['elapsed'] != '' and got['hint'] is not None and got['readout'] == got['hint'], got
+    assert got['eta'] is True and got['key'] is True, got
 
 
 def q_progress_status_line_names_an_ended_run_s_outcome():

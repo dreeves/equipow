@@ -1719,6 +1719,76 @@ def q_js_names_each_run_s_program():
 
 # ---------- runner ----------
 
+def track_record(name, pid, end, found, t):
+    """A record's lines as track.py writes them: a start at time t, and an end with status end at t + 1000 unless end
+    is None (no end line)."""
+    start = dict(event='start', name=name, target='768:12', program='w12.py', command=f'python3 -B w12.py 768 {pid} search',
+                 cwd='/tmp', found=found, adopted=False, pid=pid, tracker=pid + 1, time=t)
+    return [start] + ([] if end is None else [dict(event='end', time=t + 1000, status=end)])
+
+
+def q_survey_track_reads_each_run_s_state():
+    # Replicata: progress.survey_track of target 768:12 over five made-up records (as track.py writes them, started at
+    # times 1000 to 1004), naming one found file of 2 lines: one with an end line (status 0); one whose pid runs (stat
+    # R); one whose pid is stopped (T); one whose pid is gone; one whose pid is a zombie (Z); the last four with no end
+    # line; at time 5000.
+    # Expectata (dreeves, 2026-10-28: "can we rearchitect things so that always happens easily and automatically?"):
+    # the runs' dots in record order are open, running, pending, split, split (SEA_STATUSES: ended, running, frozen,
+    # aborted, aborted; a zombie is gone); the search is running, its outcome null; work counts 5 runs, 1 running, 1
+    # frozen, 1 ended, 2 aborted and 2 found; so_far 4000 (from the first start to the time); no ETA; n 768, order 12,
+    # program w12.py, tracked.
+    d = tempfile.mkdtemp(prefix='progress-quals-')
+    try:
+        found = os.path.join(d, 'witnesses.jsonl')
+        open(found, 'w').write('{}\n{}\n')
+        records = [track_record(f'r{i}', 100 + i, end, found, 1000 + i) for i, end in enumerate([0, None, None, None, None])]
+        procs = [(101, 1, 'RN', 'python3 -B w12.py'), (102, 1, 'TN', 'python3 -B w12.py'), (104, 1, 'Z', '(Python)')]
+        s = progress.survey_track('768:12', records, procs, 5000.0)
+        pick = lambda st: str(progress.SEA_STATUSES.index(st))
+        assert s['sea']['groups'] == [''.join(map(pick, ['open', 'running', 'pending', 'split', 'split']))], s['sea']
+        assert s['sea']['keys'] == ['768:12'] and s['sea']['depth'] == 0, s['sea']
+        assert (s['state'], s['outcome'], s['so_far'], s['to_go'], s['etas']) == ('running', None, 4000.0, None, {}), s
+        assert s['display']['work'] == dict(runs=5, running=1, frozen=1, ended=1, aborted=2, found=2), s['display']
+        assert (s['program'], s['n'], s['order'], s['display']['tracked']) == ('w12.py', 768, 12, True), s
+    finally:
+        shutil.rmtree(d)
+
+
+def q_survey_track_ends_with_its_runs():
+    # Replicata: progress.survey_track of two made-up records of 768:12, both with end lines (statuses 0 and 1, the
+    # starts at 1000 and 1001, the ends 1000 s later), at time 5000, their found file first missing, then holding a
+    # line; then the same with the second record's end line gone and its pid not running.
+    # Expectata: the search ended; its outcome none while nothing is found (a missing file holds no line), found
+    # with a line; its so_far from the first start to the last end, 1001 s; with a run aborted, its outcome null (so
+    # that the page shows it aborted, as an ended run with no outcome).
+    d = tempfile.mkdtemp(prefix='progress-quals-')
+    try:
+        found = os.path.join(d, 'witnesses.jsonl')
+        records = [track_record(f'r{i}', 200 + i, i, found, 1000 + i) for i in range(2)]
+        s = progress.survey_track('768:12', records, [], 5000.0)
+        assert (s['state'], s['outcome'], s['so_far']) == ('ended', 'none', 1001.0), s
+        open(found, 'w').write('{}\n')
+        assert progress.survey_track('768:12', records, [], 5000.0)['outcome'] == 'found'
+        records[1] = records[1][:1]
+        s = progress.survey_track('768:12', records, [], 5000.0)
+        assert (s['state'], s['outcome']) == ('ended', None), s
+    finally:
+        shutil.rmtree(d)
+
+
+def q_js_text_carries_a_tracked_search():
+    # Replicata: progress.js_text of survey_track's survey of two made-up records of 768:12 (one running, one ended), at
+    # time 5000.
+    # Expectata: the run carries js_text's keys for every run, its sea's, and tracked (true) and work (survey_track's
+    # counts), for the page's tracked view.
+    records = [track_record('r0', 300, None, None, 1000), track_record('r1', 301, 0, None, 1001)]
+    s = progress.survey_track('768:12', records, [(300, 1, 'S', 'python3 -B w12.py')], 5000.0)
+    r = progress_data(progress.js_text([s], 5000.0))['runs'][0]
+    assert set(r) == {'program', 'n', 'order', 'state', 'outcome', 'so_far', 'to_go', 'etas', 'statuses', 'depth', 'keys',
+                      'groups', 'counts', 'tracked', 'work'}, set(r)
+    assert r['tracked'] is True and r['work'] == dict(runs=2, running=1, frozen=0, ended=1, aborted=0, found=0), r
+
+
 def main():
     names = sys.argv[1:] or [n for n in globals() if n.startswith('q_')]
     failed = 0

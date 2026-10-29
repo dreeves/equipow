@@ -13,3 +13,4 @@ scratch/
 progress.js.*.tmp
 .lattice288_prepared.json
 .lattice288_work/
+runs/

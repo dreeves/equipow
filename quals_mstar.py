@@ -577,7 +577,7 @@ def q_lengths_from_1002_to_1024():
     assert all(cs[n - 1][:2] == v for n, v in want.items() if v), [(n, cs[n - 1]) for n in want]
     assert cs[1016 - 1][:2] == [7, 7] and cs[1016 - 1][3] == ['two'], cs[1016 - 1]
     assert cs[1024 - 1][:2] == [11, 11] and cs[1008 - 1] == [12, 13, ['example', 'index.html p1008'], ['residue', 5]], cs[1008 - 1]
-    assert [cs[n - 1][0] for n in (240, 768)] == [10, 11]
+    assert [cs[n - 1][0] for n in (240, 768)] == [10, 12]          # 768's lo 11, the join's other part, until 2026-10-28
     assert mstar.RESIDUE[1008] == (14, (5,), 'digits') and mstar.two(1008) == mstar.norm(1008, 5) == 15
     assert mstar.NEW[1008] == (12, 13, 'Claude alone'), mstar.NEW.get(1008)
 
@@ -606,6 +606,16 @@ def q_examples_at_720_and_1008_raise_their_lo():
     cs = got['m']['cols']
     assert mstar.NEW[720] == (11, 14, 'Claude alone') and cs[720 - 1] == [11, 14, ['example', 'index.html p720'], ['residue', 16]], cs[720 - 1]
     assert mstar.NEW[1008] == (12, 13, 'Claude alone') and cs[1008 - 1] == [12, 13, ['example', 'index.html p1008'], ['residue', 5]], cs[1008 - 1]
+
+
+def q_example_at_768_raises_its_lo():
+    # Replicata: mstar.NEW and mstar.js's column at 768.
+    # Expectata (2026-10-28 evening: Claude's lattice search w12.py found symmetric examples of order 12 at 768, seeds 1
+    # and 3): 768 is 12 to 13, Claude alone, its lo the page's example (["example", "index.html p768"]; 11 before, by
+    # doubling 384) and its hi still the residue condition mod 5 at order 14.
+    _, got = disk()
+    cs = got['m']['cols']
+    assert mstar.NEW[768] == (12, 13, 'Claude alone') and cs[768 - 1] == [12, 13, ['example', 'index.html p768'], ['residue', 5]], cs[768 - 1]
 
 
 def q_example_at_912_raises_its_lo():
