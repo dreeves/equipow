@@ -8,12 +8,9 @@ sweep and claim, and states the two lemmas; this file uses them in its sense, an
            product's excess is the sum of its factors'.
   block    a length and an order known at that length, written [n, m]: a column n <= mstar.NMAX of mstar.js at its
            lo, an explicit sequence of mstar.py longer than that at its order (none since 2026-10-27, when NMAX
-           reached 1024: from 2026-10-26, [1024, 11], index.html's p1024, was one), tau_j as [2^j, j], or f as
-           [2^24, 25].
-  f        (320 # 320 # 112) v (432 # 48 # tau_8) (index.html's remarks; its set is X_order25_2^24.txt.gz): length
-           112 * 320^2 + 432 * 48 * 2^8 = 2^24, order min(7 + 9 + 9, 11 + 6 + 8) = 25 by BGPW's Theorem 4.1
-           (Multiplication and Addition), the blocks' orders from mstar.js.  F_PRODUCTS below; f^{#L} is f # ... # f,
-           L factors: length 2^(24L), order 25L.
+           reached 1024: from 2026-10-26, [1024, 11], index.html's p1024, was one), or tau_j as [2^j, j].  (Until
+           2026-10-29 f, the 2^24 construction (320 # 320 # 112) v (432 # 48 # tau_8) of index.html's remarks, of
+           order 25, was one too, with the reason f^{#L} # tau_j; no lower bound had used f since 2026-10-25.)
   atom     a block (n, lo(n)), n <= mstar.NMAX, that no single join or product of shorter columns' closure values
            reaches (closure: the best orders that joins and products of the columns reach, length by length), or a
            block of an explicit sequence longer than NMAX, which none reaches ([1024, 11] while NMAX was 1000).
@@ -21,7 +18,7 @@ sweep and claim, and states the two lemmas; this file uses them in its sense, an
            10), which found BASES: for an excess e and a K, is 2^K a join of products of blocks, each of order >= K +
            e?  By distributivity (a # (b v c) and (b v c) # a have the lengths and orders of (a # b) v (a # c)), any
            expression in joins and products of blocks is matched, length for length and with orders at least as high,
-           by a join of products of atoms (f too).  Such a product is a core (its atoms other than tau_1) times
+           by a join of products of atoms.  Such a product is a core (its atoms other than tau_1) times
            tau_1^j; its order >= K + e and length <= 2^K make the core's excess >= e; the shortest such product with a
            given core has length L 2^max(0, K + e - O) (its coin; L and O the core's length and order), and any longer
            one is 2^i times as long, the length of 2^i coins.  So 2^K is such a join exactly when it is a sum of coins
@@ -33,8 +30,7 @@ The data contract.  pow2.js is a classic script (no modules, so the page also wo
 cols[k-1] is n = 2^k, k = 1..72.  lo and hi are orders (not excesses), integers with k <= lo <= hi < k + E: lo the
 best known order at 2^k, hi the best proven upper bound.  Cell (k, e), e = 1..E, is green when k + e <= lo, gray when
 lo < k + e <= hi, and red when k + e > hi; E = max over k of (hi - k) + 1, so row E is red in every column.
-  loWhy  ["thue-morse"] (lo = k, tau_k); ["power", L, j] (lo = k + L from f^{#L} # tau_j, k = 24L + j, 0 <= j < 24);
-         ["joins", [[[n, m], ...], ...]] (a join of products, each product a list of blocks: 2^k is the sum of the
+  loWhy  ["thue-morse"] (lo = k, tau_k); ["joins", [[[n, m], ...], ...]] (a join of products, each product a list of blocks: 2^k is the sum of the
          products' lengths, and lo the least product order).
   hiWhy  ["mstar", why] (2^k <= mstar.NMAX, so k <= 10 since 2026-10-27, k <= 9 before: mstar.js's hiWhy for n = 2^k,
          verbatim); ["norm", p] (the norm lemma for the odd
@@ -62,8 +58,6 @@ NORM_PRIMES = tuple(sp.primerange(3, 32))    # the odd primes the norm lemma is 
 HERE = os.path.dirname(os.path.abspath(__file__))
 MSTAR_JS = os.path.join(HERE, 'mstar.js')
 JS = os.path.join(HERE, 'pow2.js')
-F = [2 ** 24, 25]
-F_PRODUCTS = [[[112, 7], [320, 9], [320, 9]], [[432, 11], [48, 6], [256, 8]]]
 RESIDUE_CAP = 10 ** 8                        # nodes allowed to the enumeration of one claim
 # RESIDUE[k] = (m, chain, sweep): the claims at n = 2^k, each checked by mstar.chain_none on every run.  Since
 # 2026-10-12 (found by the verification of that day's update, scratch/w560/verify/upper/): at these 32 k the residue
@@ -195,10 +189,10 @@ def mstar_cols():
 @lru_cache(maxsize=None)
 def blocks():
     """Every block as (n, m): mstar.js's columns at their lo, mstar.explicit()'s sequences longer than mstar.NMAX at
-    their orders (explicit() asserts each one's), tau_j for j = 0..KMAX, and f."""
+    their orders (explicit() asserts each one's), and tau_j for j = 0..KMAX."""
     return frozenset([(n, c[0]) for n, c in enumerate(mstar_cols(), 1)]
                      + [(n, mstar.order(a)) for (n, _), a in mstar.explicit().items() if n > mstar.NMAX]
-                     + [(2 ** j, j) for j in range(KMAX + 1)] + [tuple(F)])
+                     + [(2 ** j, j) for j in range(KMAX + 1)])
 
 
 # ---------- lower bounds ----------
@@ -212,13 +206,6 @@ def join_lo(k, products):
     return min(sum(m for _, m in p) for p in products)
 
 
-def power_products(k, L, j):
-    """f^{#L} # tau_j as a join of one product, for k = 24L + j."""
-    assert L >= 1 and 0 <= j < 24 and 24 * L + j == k, (k, L, j)
-    assert join_lo(24, F_PRODUCTS) == F[1]
-    return [[F] * L + [[2 ** j, j]]]
-
-
 def lifted(products, j):
     """A join of products with each product times tau_j, the tau factors of each merged into one (tau_a # tau_b =
     tau_(a+b): lengths 2^a 2^b, orders a + b) and tau_0, of length 1, left out."""
@@ -229,10 +216,12 @@ def lifted(products, j):
     return out
 
 
-LO_RULES = {'thue-morse': lambda k: [[[2 ** k, k]]], 'power': power_products, 'joins': lambda k, ps: ps}
+LO_RULES = {'thue-morse': lambda k: [[[2 ** k, k]]], 'joins': lambda k, ps: ps}
 
 
-def lo_of(k, why): return join_lo(k, LO_RULES[why[0]](k, *why[1:]))
+def lo_of(k, why):
+    assert why[0] in LO_RULES, why
+    return join_lo(k, LO_RULES[why[0]](k, *why[1:]))
 
 
 # ---------- upper bounds ----------
@@ -285,20 +274,18 @@ def hi_of(k, why): return HI_RULES[why[0]](k, *why[1:])
 
 @lru_cache(maxsize=None)
 def columns():
-    """[lo, hi, loWhy, hiWhy] for k = 1..KMAX (index k-1): lo the best of Thue-Morse, f^{#L} # tau_j and BASES lifted; hi
-    the least of mstar.js's column 2^k (2^k <= mstar.NMAX), the norm lemma for each of NORM_PRIMES and the claim
-    RESIDUE[k].  Asserts k + floor(k/24) <= lo <= hi, that no prime beyond NORM_PRIMES gives a lower norm bound, lo =
+    """[lo, hi, loWhy, hiWhy] for k = 1..KMAX (index k-1): lo the best of Thue-Morse and BASES lifted; hi the least of
+    mstar.js's column 2^k (2^k <= mstar.NMAX), the norm lemma for each of NORM_PRIMES and the claim RESIDUE[k].
+    Asserts k <= lo <= hi, that no prime beyond NORM_PRIMES gives a lower norm bound, lo =
     hi = k for k <= 9, and lo and hi equal to mstar.js's wherever 2^k is one of its columns."""
     out = []
     for k in range(1, KMAX + 1):
-        L, j = divmod(k, 24)
-        los = ([['thue-morse']] + [['power', L, j]] * (L >= 1)
-               + [['joins', lifted(ps, k - K0)] for K0, ps in BASES.items() if K0 <= k])
+        los = [['thue-morse']] + [['joins', lifted(ps, k - K0)] for K0, ps in BASES.items() if K0 <= k]
         his = ([['mstar', c[3]] for n, c in enumerate(mstar_cols(), 1) if n == 2 ** k] + [['norm', p] for p in NORM_PRIMES]
                + [['residue', list(ch)] for q, (_, ch, _) in RESIDUE.items() if q == k])
         lw, hw = max(los, key=lambda w: lo_of(k, w)), min(his, key=lambda w: hi_of(k, w))
         lo, hi = lo_of(k, lw), hi_of(k, hw)
-        assert k + L <= lo <= hi < weak_norm(k), (k, lo, hi, lw, hw)
+        assert k <= lo <= hi < weak_norm(k), (k, lo, hi, lw, hw)
         out.append([lo, hi, lw, hw])
     for k in range(1, 10): assert out[k - 1][:2] == [k, k], k
     for k in range(1, mstar.NMAX.bit_length()): assert out[k - 1][:2] == mstar_cols()[2 ** k - 1][:2], k   # 2^k <= NMAX

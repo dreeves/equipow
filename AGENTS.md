@@ -396,3 +396,12 @@ OEIS errors on the page (Claude, 2026-10-29; dreeves: "for OEIS, can you make su
 - **The draft:** scratch/oeis/suggested_edits.txt is deleted. Its A306248 terms a(96) to a(143) are the chart's m*(192) to m*(286). Nothing was sent to OEIS.
 
 The theorem's link (same day; dreeves: "yes to updating the qual in light of my edit of theorem 1 (we don't call it theorem 1 currently, do we?)"): quals_record_gaps q_page_links_the_wl now checks that the powers-of-2 section links record_gaps.wl once, at its raw GitHub address, in the paragraph right before the record-gaps table (dreeves's paragraph since 699517e), and that the file exists; a dropped link, a doubled one and another address each fail it. The page says "Theorem." with no number, so the comments in index.html and the quals now say "the theorem"; the older notes here keep "Theorem 1".
+
+f leaves the powers-of-2 chart (Claude, 2026-10-29; dreeves: "i don't see any f's in those blurbs", then "ok" to dropping f from the caption and its reasons from the code): no lower bound had used f, the 2^24 construction, since 59ca530 (2026-10-25), when joins of products of examples beat every f^{#L} # tau_j.
+- **pow2.py:** f is no block and power no reason kind; F, F_PRODUCTS and power_products are gone, lo_of asserts its reason's kind, and columns() asserts k <= lo (it was k + floor(k/24)). Rerunning it wrote pow2.js byte for byte as before.
+- **The page:** the chart's name() and LO lose f and power, the record-gaps script's JOIN loses power, and the caption's last sentence (Claude's) names only τ_j and p_n, "In the details shown when you hover over a cell" in place of "In the readout". The remarks still describe f as the 2^24 construction.
+- **Quals:**
+  - quals_pow2: q_f_arithmetic checks the remarks' f without pow2 having one; q_lo_at_least_thue_morse replaces q_lo_at_least_thue_morse_and_f_powers; q_assertions_fire expects f and power to fail.
+  - quals_pow2_page: the made-up columns write f^{#L} # τ_j out as joins (f_power), so every made-up bound is unchanged; the violations "power kind" and "joins f" are new; q_caption_defines_readout_symbols now derives the caption's symbols from the real data's reasons, so a symbol no reason uses fails it.
+  - quals_record_gaps: q_page_table_writes_out_made_up_joins replaces q_page_table_writes_out_powers_of_f.
+- **Suites afterwards:** quals_pow2 16/16, quals_pow2_page 22/22, quals_record_gaps 7/7, quals_index 96/96, quals_mstar 35/35.

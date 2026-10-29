@@ -36,10 +36,9 @@ def pow2_cols():
     return json.loads(src[src.index('{'):src.rindex('}') + 1])['cols']
 
 
-F = [2 ** 24, 25]                             # f as a block (pow2.py's vocabulary): length 2^24, order 25
-# a lower bound's reason (pow2.py's loWhy) as a join of products of blocks: a join as it is; f^{#L} # tau_j as the one
-# product of L blocks f and tau_j, [2^j, j] (tau_0, [1, 0], when j is 0)
-JOIN = {'joins': lambda why: why[1], 'power': lambda why: [[F] * why[1] + [[2 ** why[2], why[2]]]]}
+# a lower bound's reason (pow2.py's loWhy) as a join of products of blocks: a join as it is (and until 2026-10-29, when
+# that kind left pow2.py, f^{#L} # tau_j as the one product of L blocks f, [2^24, 25], and tau_j)
+JOIN = {'joins': lambda why: why[1]}
 
 
 def records(cols=None):
@@ -230,16 +229,23 @@ def q_page_shows_the_table():
     assert got == want, (got[:6], want[:6])
 
 
-def q_page_table_writes_out_powers_of_f():
+def q_page_table_writes_out_made_up_joins():
     # Replicata: page_table of quals_pow2_page's made-up columns, which use every kind of reason (kinds_data): there
-    # record gap 1 is first a join at 2^24, record gap 2 first f^{#2} # tau_0 at 2^48, a reason of kind power.
-    # Expectata: the table writes a power of f as one product of L blocks f, [2^24, 25], and tau_j, [2^j, j]: at 2^48,
-    # one line, 1·16777216^2 of order 0 + 2·25 = 50; every row as rows() gives them for those columns (JOIN).
+    # record gap 1 is first at 2^24, record gap 2 at 2^48 and record gap 3 at 2^72, each the 2^24 construction's join
+    # to the power L = 1, 2, 3 written out (quals_pow2_page.f_power), of 2, 4 and 8 products.
+    # Expectata: every row as rows() gives them for those columns (JOIN); 2^48's rows are exactly four, the bound's
+    # and three more, of 112^2·320^4 (2·7 + 4·9), 48·112·256·320^2·432 twice (6 + 7 + 8 + 2·9 + 11) and
+    # 48^2·256^2·432^2 (2·6 + 2·8 + 2·11), each of order 50.  (Until 2026-10-29 the made-up 2^48 was the kind power,
+    # f # f # tau_0, which the table wrote as one line, 1·16777216^2 of order 0 + 2·25 = 50.)
     cols = qp.kinds_cols()
     got = page_table(qp.kinds_data(), cols)
     want = [[c for c in row if c != 'SpanFromAbove'] for row in rows(cols)]
     assert got == want, (got, want)
-    assert ['m^*(2^48) ≥ 50', '1·16777216^2', '0 + 2·25 = 50'] in got, got
+    i = [row[0] for row in got].index('m^*(2^48) ≥ 50')
+    mid = ['+ 48·112·256·320^2·432', '6 + 7 + 8 + 2·9 + 11 = 50']
+    assert got[i:i + 4] == [['m^*(2^48) ≥ 50', '112^2·320^4', '2·7 + 4·9 = 50'], mid, mid,
+                            ['+ 48^2·256^2·432^2', '2·6 + 2·8 + 2·11 = 50']], got[i:i + 5]
+    assert got[i + 4][0] == 'm^*(2^72) ≥ 75', got[i + 4]
 
 
 def main():

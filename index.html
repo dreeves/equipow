@@ -642,13 +642,13 @@ footer {
 <!-- Claude's chart of what is known about m*(2^k) − k, the excess over Thue–Morse, for every k up to 72, drawn by the script at the end from pow2.js -->
 <section class="pow2" aria-labelledby="pow2-title">
   <h2 id="pow2-title">Bounds on \(m^*(2^k) - k\) for every \(k\) up to 72</h2>
-  <!-- TODO: caption; says column k is n = 2^k, where Thue–Morse has order k, an excess of 0, and row δ is order k + δ, an excess of δ; that cell (k, δ) is green when m*(2^k) ≥ k + δ is known, red when m*(2^k) < k + δ is proven, and black when neither is; and that in the readout f is the construction of length 2^24 and order 25 in the remarks below, τ_j is Thue–Morse of length 2^j, and p_n is a sequence of length n whose order is the lower bound in column n of the chart above -->
+  <!-- TODO: caption; says column k is n = 2^k, where Thue–Morse has order k, an excess of 0, and row δ is order k + δ, an excess of δ; that cell (k, δ) is green when m*(2^k) ≥ k + δ is known, red when m*(2^k) < k + δ is proven, and black when neither is; and that in the details shown when you hover over a cell, τ_j is Thue–Morse of length 2^j and p_n is a sequence of length n whose order is the lower bound in column n of the chart above -->
   <p class="pow2-caption">
     By Theorem 4.1 of BGPW (Thue-Morse) we know that \(m^*(2^k) \ge k\) for all \(k\).
-    Here we show a cell \((k, \delta)\) as green when we have a bipartition of \({0,...,2^k-1}\) of order \(k + \delta\).
+    Here we show a cell \((k, \delta)\) as green when we have a bipartition of \(\{0,...,2^k-1\}\) of order \(k + \delta\).
     So \(\delta\) is the excess over Thue-Morse.
     If we have a proof that \(m^*(2^k) < k + \delta\), the cell is red.
-    Claude: "In the readout, \(f\) is the construction of length \(2^{24}\) and order 25 in the remarks below, \(\tau_j\) is Thue–Morse of length \(2^j\), and \(p_n\) is a sequence of length \(n\) whose order is the lower bound in column \(n\) of the chart above."</p>
+    Claude: "In the details shown when you hover over a cell, \(\tau_j\) is Thue–Morse of length \(2^j\), and \(p_n\) is a sequence of length \(n\) whose order is the lower bound in column \(n\) of the chart above."</p>
   <ul class="legend">
     <li><span class="swatch exists" aria-hidden="true"></span>\(k + \delta \le m^*(2^k)\)</li>
     <li><span class="swatch open" aria-hidden="true"></span>open</li>
@@ -2605,14 +2605,14 @@ try {
     while (P ** (2n * m + 2n) * (P - 1n) ** (P - 1n) <= rhs) m++;
     return Number(m);
   };
-  // A block [n, m] of a join's product: f, the construction of length 2^24 and order 25 (the remarks below); τ_j,
-  // Thue–Morse of length 2^j; or p_n, the sequence behind column n <= NMAX of the m*(n) chart, or one of LONG, the
-  // examples longer than NMAX in the remarks below, as [n, m] (none since 2026-10-27, when the m*(n) chart reached
-  // the one there was, at 1024).  name gives its symbol in the readout, and '' for anything else, which the contract
-  // rules out.
+  // A block [n, m] of a join's product: τ_j, Thue–Morse of length 2^j; or p_n, the sequence behind column n <= NMAX of
+  // the m*(n) chart, or one of LONG, the examples longer than NMAX in the remarks below, as [n, m] (none since
+  // 2026-10-27, when the m*(n) chart reached the one there was, at 1024).  name gives its symbol in the readout, and ''
+  // for anything else, which the contract rules out: f, the 2^24 construction of the remarks below, among them since
+  // 2026-10-29 (dreeves: "ok", to dropping f, which no reason had used since 2026-10-25).
   const NMAX = 1024;                                                // the m*(n) chart's last n, as its script has it
   const LONG = [];
-  const name = ([n, m]) => n === 2 ** 24 && m === 25 ? 'f' : n === 2 ** m ? `τ${sub(m)}`
+  const name = ([n, m]) => n === 2 ** m ? `τ${sub(m)}`
     : n <= NMAX || LONG.some(b => b[0] === n && b[1] === m) ? `p${sub(n)}` : '';
   const isBlock = b => Array.isArray(b) && b.length === 2 && b.every(Number.isInteger) && b[0] >= 1 && b[1] >= 0
     && name(b) !== '';
@@ -2625,11 +2625,6 @@ try {
       ok: (k, lo) => lo === k,
       // TODO: readout reason; says order lo, which is k, is known from Thue–Morse, τ_k
       text: (k, lo) => `Claude: "order ${lo} from Thue–Morse, τ${sub(k)}"`,
-    },
-    power: {
-      ok: (k, lo, L, j) => [L, j].every(Number.isInteger) && L >= 1 && j >= 0 && 24 * L + j === k && lo === k + L,
-      // TODO: readout reason; says order lo is known from the expanded product of L copies of f and τ_j
-      text: (k, lo, L, j) => `Claude: "order ${lo} from ${'f # '.repeat(L)}τ${sub(j)}"`,
     },
     joins: {
       ok: (k, lo, ps) => Array.isArray(ps) && ps.length >= 1 && ps.every(p => Array.isArray(p) && p.length >= 1
@@ -2788,10 +2783,9 @@ try {
     return [...new Set(b.map(String))].map(s => [...s.split(',').map(Number), b.filter(x => String(x) === s).length]);
   };
   const sum = p => p.reduce((s, [, m]) => s + m, 0);
-  const F = [2 ** 24, 25];                           // f, the construction of length 2^24 and order 25 (the remarks below)
-  // a lower bound's reason as a join of products of blocks: a join as it is; f^{#L} # τ_j as the one product of L
-  // blocks f and τ_j, [2^j, j] (τ_0, [1, 0], when j is 0); any other kind has no entry, and its record gap throws
-  const JOIN = {joins: ([, ps]) => ps, power: ([, L, j]) => [[...Array(L).fill(F), [2 ** j, j]]]};
+  // a lower bound's reason as a join of products of blocks: a join as it is; any other kind has no entry, and its
+  // record gap throws (f^{#L} # τ_j, f the 2^24 construction, was a kind until 2026-10-29)
+  const JOIN = {joins: ([, ps]) => ps};
   // a product's power of 2 and order in LaTeX, which KaTeX draws once the page is parsed (2026-10-28)
   const length = p => factors(p).map(([n, , c]) => c > 1 ? `${n}^{${c}}` : `${n}`).join(' \\cdot ');
   const order = p => factors(p).map(([, m, c]) => c > 1 ? `${c} \\cdot ${m}` : `${m}`).join(' + ') + ` = ${sum(p)}`;

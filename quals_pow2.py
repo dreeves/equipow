@@ -20,6 +20,7 @@ import pow2
 HERE = os.path.dirname(os.path.abspath(__file__))
 KMAX = 72
 F_PARTS = (((112, 7), (320, 9), (320, 9)), ((432, 11), (48, 6), (256, 8)))   # f, as the remarks on index.html give it
+F = (2 ** 24, 25)       # f's length and order: a block of pow2.py until 2026-10-29, when it left pow2.py with its reasons
 
 
 def node_global(path, name):
@@ -92,12 +93,11 @@ def long_examples():
 
 def block_order(b):
     """The order a block [n, m] stands for, by the data contract, from mstar.js as node sees it: m must be mstar.js's
-    lo at n <= mstar.NMAX, or b must be one of the page's long_examples(), tau_j = [2^j, j] or f = [2^24, 25]; asserts that
-    it is one of them."""
+    lo at n <= mstar.NMAX, or b must be one of the page's long_examples() or tau_j = [2^j, j] (or f = [2^24, 25] until
+    2026-10-29); asserts that it is one of them."""
     n, m = b
     assert type(n) is int and type(m) is int and n >= 1, b
-    assert ((n <= mstar.NMAX and mstar_disk()[n - 1][0] == m) or (n, m) in long_examples() or n == 2 ** m
-            or (n, m) == (2 ** 24, 25)), b
+    assert (n <= mstar.NMAX and mstar_disk()[n - 1][0] == m) or (n, m) in long_examples() or n == 2 ** m, b
     return m
 
 
@@ -119,29 +119,27 @@ def length(p):
 # ---------- f and the lower bounds ----------
 
 def q_f_arithmetic():
-    # Replicata: f = (112 # 320 # 320) v (432 # 48 # tau_8), its blocks' orders from mstar.js's columns 112, 320, 432,
-    # 48 (as node sees mstar.js) and tau_8; pow2.F and pow2.F_PRODUCTS.
+    # Replicata: f = (112 # 320 # 320) v (432 # 48 # tau_8), the 2^24 construction of the remarks on index.html, its
+    # blocks' orders from mstar.js's columns 112, 320, 432, 48 (as node sees mstar.js) and tau_8; and pow2.
     # Expectata: 112 * 320^2 + 432 * 48 * 2^8 = 2^24 exactly; the products' orders are 7 + 9 + 9 = 25 and 11 + 6 + 8 =
-    # 25, so f has length 2^24 and order 25 (BGPW Theorem 4.1); pow2 states the same f.
+    # 25, so f has length 2^24 and order 25 (BGPW Theorem 4.1).  pow2 has no f since 2026-10-29 (dreeves: "ok", to
+    # dropping f from the chart, whose readouts had shown none since the joins of 2026-10-25 beat f^{#L} # tau_j): no
+    # F or F_PRODUCTS, and (2^24, 25) is none of its blocks.
     assert 112 * 320 ** 2 + 432 * 48 * 2 ** 8 == 2 ** 24
     assert [sum(block_order(b) for b in p) for p in F_PARTS] == [25, 25]
     assert [mstar_disk()[n - 1][0] for n in (112, 320, 432, 48)] == [7, 9, 11, 6]
-    assert pow2.F == [2 ** 24, 25] and pow2.F_PRODUCTS == [[list(b) for b in p] for p in F_PARTS]
+    assert not hasattr(pow2, 'F') and not hasattr(pow2, 'F_PRODUCTS') and F not in pow2.blocks()
 
 
 def q_every_lo_recomputes():
     # Replicata: every column of pow2.js (as node sees it) and its loWhy, recomputed here from the contract alone.
-    # Expectata: ["thue-morse"]: lo = k.  ["power", L, j]: L >= 1, 0 <= j < 24, k = 24L + j, lo = 25L + j (f^{#L} # tau_j
-    # has length 2^(24L) 2^j and order 25L + j).  ["joins", products]: every factor is a block (block_order), the
-    # products' lengths, multiplied out here, sum to 2^k exactly, and lo is the least product order.
+    # Expectata: ["thue-morse"]: lo = k.  ["joins", products]: every factor is a block (block_order), the products'
+    # lengths, multiplied out here, sum to 2^k exactly, and lo is the least product order.  (["power", L, j], lo = 25L + j
+    # from f^{#L} # tau_j, was a third kind until 2026-10-29.)
     for k, (lo, hi, lw, hw) in enumerate(cols(), 1):
         kind, args = lw[0], lw[1:]
         if kind == 'thue-morse':
             assert args == [] and lo == k, (k, lw)
-        elif kind == 'power':
-            L, j = args
-            assert L >= 1 and 0 <= j < 24 and 24 * L + j == k and lo == 25 * L + j, (k, lw)
-            assert length([[2 ** 24, 25]] * L + [[2 ** j, j]]) == 2 ** k
         else:
             assert kind == 'joins' and len(args) == 1 and len(args[0]) >= 1, (k, lw)
             ps = args[0]
@@ -149,14 +147,15 @@ def q_every_lo_recomputes():
             assert lo == min(sum(block_order(b) for b in p) for p in ps), (k, lw)
 
 
-def q_lo_at_least_thue_morse_and_f_powers():
+def q_lo_at_least_thue_morse():
     # Replicata: every column of pow2.js.
-    # Expectata: lo >= k + floor(k/24) (f^{#L} # tau_j at k = 24L + j, and Thue-Morse below 24); where loWhy is
-    # "thue-morse" or "power", lo is exactly that (a join wins only when it is strictly better).
+    # Expectata: lo >= k (Thue-Morse); where loWhy is "thue-morse", lo is exactly k, and a join wins only when it is
+    # strictly better.  (Until 2026-10-29 the floor was k + floor(k/24), from f^{#L} # tau_j at k = 24L + j, and a
+    # join had to beat that.)
     for k, (lo, hi, lw, hw) in enumerate(cols(), 1):
-        assert lo >= k + k // 24, (k, lo)
-        assert lw[0] == 'joins' or lo == k + k // 24, (k, lo, lw)
-        assert lw[0] != 'joins' or lo > k + k // 24, (k, lo, lw)
+        assert lo >= k, (k, lo)
+        assert lw[0] == 'joins' or lo == k, (k, lo, lw)
+        assert lw[0] != 'joins' or lo > k, (k, lo, lw)
 
 
 def q_new_lower_bounds():
@@ -205,7 +204,7 @@ def q_base_blocks_and_their_sources():
     # examples, decoded here at exactly its order (there are none since 2026-10-27, when NMAX reached 1024: from
     # 2026-10-26, 1024 at order 11, BASES[10], was one); so every block of every base has a sequence in hand of
     # exactly its order (explicit lo and the built sequence's order equal it), and every base is built from sequences
-    # in hand by BGPW's Theorem 4.1; and pow2's blocks beyond NMAX, other than tau_j and f, are exactly the page's long
+    # in hand by BGPW's Theorem 4.1; and pow2's blocks beyond NMAX, other than tau_j, are exactly the page's long
     # examples.  (Until 2026-10-12, BASES[57]'s 352 and 464 and BASES[67]'s 400 were
     # cited as BGPW's examples; mstar.FOUND now holds sequences for them.)
     blocks = {K0: {(n, m) for p in ps for n, m in p if n != 2 ** m} for K0, ps in pow2.BASES.items()}
@@ -213,7 +212,7 @@ def q_base_blocks_and_their_sources():
     assert all(mstar_disk()[n - 1][0] == m for bs in short.values() for n, m in bs), short
     assert set().union(*blocks.values()) - set().union(*short.values()) <= long_examples() == set(), blocks
     assert (1024, 11) in short[10] and mstar.NMAX == 1024
-    assert {(n, m) for n, m in pow2.blocks() if n > mstar.NMAX and n != 2 ** m and [n, m] != pow2.F} == long_examples()
+    assert {(n, m) for n, m in pow2.blocks() if n > mstar.NMAX and n != 2 ** m} == long_examples()
     cited = {K0: {(n, m) for n, m in bs if mstar_disk()[n - 1][2] == ['page', 'BGPW']} for K0, bs in short.items()}
     assert cited == {K0: set() for K0 in pow2.BASES}, cited
     for n, m in sorted(set().union(*short.values()) - set().union(*cited.values())):
@@ -345,7 +344,7 @@ def q_schema():
     assert list(P) == ['kmax', 'etop', 'cols'] and P['kmax'] == KMAX and len(P['cols']) == KMAX
     E = P['etop']
     assert type(E) is int and E == max(c[1] - k for k, c in enumerate(P['cols'], 1)) + 1, E
-    forms_lo = {'thue-morse': (), 'power': (int, int), 'joins': (list,)}
+    forms_lo = {'thue-morse': (), 'joins': (list,)}
     forms_hi = {'mstar': (list,), 'norm': (int,), 'residue': (list,)}
     for k, c in enumerate(P['cols'], 1):
         assert len(c) == 4, k
@@ -364,7 +363,8 @@ def q_schema():
 def q_assertions_fire():
     # Replicata: pow2.join_lo and pow2.lo_of on broken reasons: a join whose lengths sum to 2^k - 1 or 2^k + 1 at k =
     # 10; a block at the wrong order ([480, 13], [256, 9], [2^24, 26], and [1024, 12] beside the page's [1024, 11]);
-    # an empty join and an empty product; power with 24L + j != k, with j = 24 and with L = 0; and pow2.hi_of on
+    # f, [2^24, 25], a block no more; an empty join and an empty product; the kind power, gone since 2026-10-29, even
+    # where it held (["power", 1, 1] at k = 25), and a made-up kind; and pow2.hi_of on
     # ["mstar", why] at k = 11, past the m*(n) chart's columns (at k = 10 until 2026-10-27, when that chart reached
     # 1024), ["norm", 2] and ["norm", 9], and ["residue", chain] at a k with no claim.
     # Expectata: AssertionError for each; and the unbroken forms give their orders, ["mstar", ["norm", 3]] at k = 10
@@ -374,9 +374,9 @@ def q_assertions_fire():
     for ps in ([[[512, 9]], [[511, 0]]], [[[512, 9]], [[513, 0]]], [[[480, 13], [2, 1]], [[64, 6]]], [[[256, 9], [4, 2]]],
                [], [[]], [[[2 ** 24, 26]]], [[[1024, 12]]]):
         expect_assertion(lambda: pow2.join_lo(10 if ps != [[[2 ** 24, 26]]] else 24, ps))
-    assert pow2.lo_of(25, ['power', 1, 1]) == 26
-    for w in (['power', 1, 2], ['power', 0, 25], ['power', 2, -23], ['power', 1, 24]):
-        expect_assertion(lambda: pow2.lo_of(25 if w[1:] != [1, 24] else 48, w))
+    expect_assertion(lambda: pow2.join_lo(24, [[list(F)]]))
+    for w in (['power', 1, 1], ['guess']):
+        expect_assertion(lambda: pow2.lo_of(25, w))
     assert pow2.hi_of(10, ['mstar', ['norm', 3]]) == 11
     expect_assertion(lambda: pow2.hi_of(11, ['mstar', ['norm', 3]]))
     expect_assertion(lambda: pow2.hi_of(10, ['norm', 2]))

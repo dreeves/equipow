@@ -1,7 +1,7 @@
-Hosted at https://equipow.dreev.es
+Hosted at https://equipow.dreev.es  
 
-EquipowerfulPackage.m is a Mathematica package by Stan Wagon.
-LittlewoodPolynomialsReprint.pdf is the published version of the paper this is extending.
+EquipowerfulPackage.m is a Mathematica package by Stan Wagon.  
+LittlewoodPolynomialsReprint.pdf is the published version of the paper this is extending.  
 
 ---
 

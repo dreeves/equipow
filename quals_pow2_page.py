@@ -33,7 +33,7 @@ def gap(dpr):
     hairline grid looks great to me")."""
     return 1 / dpr
 KINDS = ('exists', 'open', 'impossible')      # the kinds of cell, as the tokens of their colors name them
-F = [2 ** 24, 25]                             # f, the construction of length 2^24 and order 25, as a block [n, m]
+F = [2 ** 24, 25]                             # f, the 2^24 construction, as [n, m]: a block until 2026-10-29, now none
 KLABELS = list(range(10, K + 1, 10))          # the k labels below the plot
 OUTLINE = (36, 5)                             # the cell whose outline the screenshots check
 SWIPE = (29, 8)                               # the cell a phone's swipe starts on, after the outline's tap
@@ -85,9 +85,10 @@ def sub(k): return f'_({k})'                  # a subscript, as DRIVER's TEXT wr
 
 
 def block(b):
-    """A block of a join's product, as the readout names it: f, τ_j for Thue-Morse [2^j, j], else p_n."""
+    """A block of a join's product, as the readout names it: τ_j for Thue-Morse [2^j, j], else p_n (and f for the
+    2^24 construction until 2026-10-29)."""
     n, m = b
-    return 'f' if b == F else f'τ{sub(m)}' if n == 2 ** m else f'p{sub(n)}'
+    return f'τ{sub(m)}' if n == 2 ** m else f'p{sub(n)}'
 
 
 def join_text(products): return ' ∨ '.join('(' + ' # '.join(map(block, p)) + ')' for p in products)
@@ -98,8 +99,7 @@ def reason_math(k, why):
     kind, *args = why
     mstar = {'two': lambda: str(2 ** k), 'norm': lambda p: f'p\xa0=\xa0{p}', 'residue': lambda M: f'mod {M}',
              'table2': lambda: 'Table 2', 'page': lambda who: f'({who})'}
-    return {'thue-morse': lambda: f'τ{sub(k)}', 'power': lambda L, j: 'f # ' * L + f'τ{sub(j)}',
-            'joins': join_text, 'mstar': lambda w: mstar[w[0]](*w[1:]), 'norm': lambda p: f'p\xa0=\xa0{p}',
+    return {'thue-morse': lambda: f'τ{sub(k)}', 'joins': join_text, 'mstar': lambda w: mstar[w[0]](*w[1:]), 'norm': lambda p: f'p\xa0=\xa0{p}',
             'residue': lambda chain: 'mod ' + ', '.join(map(str, chain))}[kind](*args)
 
 
@@ -157,19 +157,28 @@ STONG = [[[144, 8]] * 2 + [[192, 9]] * 4, [[48, 6]] * 3 + [[112, 7]] + [[192, 9]
          [[112, 7]] + [[208, 8]] * 4 + [[8192, 13]]]
 
 
+def f_power(L, j):
+    """f^{#L} # τ_j written out as a join of products of blocks, f the 2^24 construction JOIN24: by distributivity, one
+    product per choice of one of JOIN24's two products for each of the L factors f, times τ_j ([2^j, j]) when j > 0.
+    Its lengths sum to 2^(24L + j) and its order is 25L + j."""
+    return [sum(choice, []) + [[2 ** j, j]] * (j > 0) for choice in itertools.product(JOIN24, repeat=L)]
+
+
 def kinds_cols():
     """Made-up columns that follow the contract and use every kind of reason: k <= 9 from Thue-Morse, settled by each
-    kind of the m*(n) chart's hiWhy; then lo = k + floor(k / 24) (Thue-Morse, then f^{#L} # τ_j) and hi the norm bound
-    for p = 3, but for a few columns with the other kinds: joins with f, τ_j (j above 9) and columns of mstar.js (the
-    last, 1024, at order 11, the page's example p_1024); residue chains; the norm bound for p = 5 and 7."""
+    kind of the m*(n) chart's hiWhy; then lo = k + floor(k / 24) (Thue-Morse, then f^{#L} # τ_j written out as a join,
+    f_power) and hi the norm bound for p = 3, but for a few columns with other joins, of τ_j (j above 9) and columns of
+    mstar.js (the last, 1024, at order 11, the page's example p_1024), Stong's among them; residue chains; the norm
+    bound for p = 5 and 7.  (Until 2026-10-29 those joins of f were the kind power, f^{#L} # τ_j, and two joins had f
+    as a block.)"""
     cols = []
     for k in range(1, K + 1):
         L, j = divmod(k, 24)
-        cols.append([k + L, norm(2 ** k, 3), ['power', L, j] if L else ['thue-morse'], ['norm', 3]])
+        cols.append([k + L, norm(2 ** k, 3), ['joins', f_power(L, j)] if L else ['thue-morse'], ['norm', 3]])
     whys = {1: ['two'], 2: ['norm', 3], 3: ['table2'], 4: ['page', 'BGPW'], 5: ['residue', 9],
             6: ['page', 'Claude alone'], 7: ['residue', 3], 8: ['table2'], 9: ['page', 'Claude and BGPW']}
     for k, why in whys.items(): cols[k - 1] = [k, k, ['thue-morse'], ['mstar', why]]
-    joins = {24: JOIN24, 25: [[F, [2, 1]]], 34: [[[1024, 10], F]], 35: [[[1024, 11], [2 ** 25, 25]]], 51: STONG}
+    joins = {34: [p + [[1024, 10]] for p in JOIN24], 35: [[[1024, 11], [2 ** 25, 25]]], 51: STONG}
     for k, ps in joins.items():
         assert sum(prod(n for n, _ in p) for p in ps) == 2 ** k
         cols[k - 1] = [min(sum(m for _, m in p) for p in ps), norm(2 ** k, 3), ['joins', ps], ['norm', 3]]
@@ -191,30 +200,30 @@ def column(k, entry):
     return change, quoted(k, entry)
 
 
-C30 = kinds_cols()[29]                        # [31, 37, ['power', 1, 6], ['norm', 3]]
+C30 = kinds_cols()[29]                        # [31, 37, ['joins', f_power(1, 6)], ['norm', 3]]
 VIOLATIONS = {   # name: (a change that breaks the contract, what the page's error line must quote)
     'lo below k': column(30, [29, 37, ['thue-morse'], ['norm', 3]]),
-    'lo above hi': column(30, [38, 37, ['power', 1, 6], ['norm', 3]]),
-    'hi at etop': column(30, [31, 49, ['power', 1, 6], ['norm', 3]]),
+    'lo above hi': column(30, [38, 37, C30[2], ['norm', 3]]),
+    'hi at etop': column(30, [31, 49, C30[2], ['norm', 3]]),
     'five entries': column(30, C30 + [0]),
     'unknown lo kind': column(30, [31, 37, ['guess'], ['norm', 3]]),
-    'unknown hi kind': column(30, [31, 37, ['power', 1, 6], ['guess']]),
-    'arity': column(30, [31, 37, ['power', 1], ['norm', 3]]),
+    'unknown hi kind': column(30, [31, 37, C30[2], ['guess']]),
+    'arity': column(30, [30, 37, ['thue-morse', 1], ['norm', 3]]),
     'thue-morse lo': column(30, [31, 37, ['thue-morse'], ['norm', 3]]),
-    'power sum': column(30, [31, 37, ['power', 1, 5], ['norm', 3]]),
-    'power lo': column(30, [32, 37, ['power', 1, 6], ['norm', 3]]),
-    'joins length': column(30, [31, 37, ['joins', [[F, [32, 5]]]], ['norm', 3]]),
-    'joins lo': column(30, [32, 37, ['joins', [[F, [64, 6]]]], ['norm', 3]]),
+    'power kind': column(30, [31, 37, ['power', 1, 6], ['norm', 3]]),     # f^{#1} # τ_6, a kind until 2026-10-29
+    'joins length': column(30, [31, 37, ['joins', [[[2 ** 24, 24], [32, 5]]]], ['norm', 3]]),
+    'joins lo': column(30, [32, 37, ['joins', [[[2 ** 24, 24], [64, 6]]]], ['norm', 3]]),
+    'joins f': column(30, [31, 37, ['joins', [[F, [64, 6]]]], ['norm', 3]]),       # f, a block until 2026-10-29
     'joins block': column(30, [31, 37, ['joins', [[[2048, 12], [524288, 19]]]], ['norm', 3]]),
     'joins empty': column(30, [31, 37, ['joins', []], ['norm', 3]]),
     'mstar above 10': column(11, [11, 11, ['thue-morse'], ['mstar', ['residue', 3]]]),
     'mstar kind': column(5, [5, 5, ['thue-morse'], ['mstar', ['guess']]]),
     'mstar two': column(2, [2, 2, ['thue-morse'], ['mstar', ['two']]]),
-    'norm composite': column(30, [31, 37, ['power', 1, 6], ['norm', 9]]),
-    'norm two': column(30, [31, 37, ['power', 1, 6], ['norm', 2]]),
-    'norm bound': column(30, [31, 38, ['power', 1, 6], ['norm', 3]]),
-    'residue chain': column(30, [31, 37, ['power', 1, 6], ['residue', [9, 3]]]),
-    'residue one': column(30, [31, 37, ['power', 1, 6], ['residue', [1]]]),
+    'norm composite': column(30, [31, 37, C30[2], ['norm', 9]]),
+    'norm two': column(30, [31, 37, C30[2], ['norm', 2]]),
+    'norm bound': column(30, [31, 38, C30[2], ['norm', 3]]),
+    'residue chain': column(30, [31, 37, C30[2], ['residue', [9, 3]]]),
+    'residue one': column(30, [31, 37, C30[2], ['residue', [1]]]),
     'etop': (lambda data: data.update(etop=data['etop'] + 1), '[20]'),
     'kmax': (lambda data: data.update(kmax=71), '[71,19]'),
     'cols': (lambda data: data.update(cols=data['cols'][:-1]), '[72,19]'),
@@ -688,18 +697,24 @@ def q_new_css_is_scoped():
 
 
 def q_caption_defines_readout_symbols():
-    # Replicata: the caption (the paragraph pow2-caption).
-    # Expectata: it names each symbol that the readout writes for a block of a construction: f, τ_j (Thue-Morse), p_n
-    # (from a column of the m*(n) chart) and each of the page's examples longer than the m*(n) chart's NMAX (LONG), each
-    # as the remarks write it (in LaTeX since 2026-10-28): \(f\), \(\tau_j\), \(p_n\) and \(p_{N}\) for each N of LONG;
-    # and it names no other \(p_{N}\) (from 2026-10-26 it named p_1024, beyond that chart's 1000; since 2026-10-27, when
-    # that chart reached 1024, LONG is empty).
+    # Replicata: the caption (the paragraph pow2-caption), and the reasons of the real pow2.js (as node sees it).
+    # Expectata: it names exactly the symbols that the readouts of the real data write for the blocks of their
+    # constructions, as the remarks write them (in LaTeX since 2026-10-28): \(\tau_j\) where some block is Thue-Morse
+    # (a reason "thue-morse", or a block [2^j, j]), \(p_n\) where some block is a column of the m*(n) chart, and
+    # \(p_{N}\) for each N of LONG; and no other: no \(f\) (dreeves, 2026-10-29: "i don't see any f's in those
+    # blurbs"; no reason had used f since 2026-10-25), and no other \(p_{N}\) (from 2026-10-26 it named p_1024, beyond
+    # that chart's 1000; since 2026-10-27, when that chart reached 1024, LONG is empty).
     m = re.search(r'<p class="pow2-caption">(.*?)</p>', page(), re.S)
     assert m, 'pow2-caption'
-    symbols = ['\\(f\\)', '\\(\\tau_j\\)', '\\(p_n\\)'] + [f'\\(p_{{{n}}}\\)' for n, _ in long_blocks()]
+    whys = [c[2] for c in pow2_of(real())['cols']]
+    blocks = [tuple(b) for w in whys if w[0] == 'joins' for p in w[1] for b in p]
+    tau = any(w[0] == 'thue-morse' for w in whys) or any(n == 2 ** k for n, k in blocks)
+    columns = any(n <= NMAX and n != 2 ** k for n, k in blocks)
+    symbols = ['\\(\\tau_j\\)'] * tau + ['\\(p_n\\)'] * columns + [f'\\(p_{{{n}}}\\)' for n, _ in long_blocks()]
     missing = [s for s in symbols if s not in m[1]]
     named = [int(n) for n in re.findall(r'\\\(p_\{(\d+)\}\\\)', m[1])]
-    assert not missing and sorted(set(named)) == sorted(n for n, _ in long_blocks()), (missing, named, long_blocks())
+    assert tau and columns and not missing and '\\(f\\)' not in m[1], (missing, m[1])
+    assert sorted(set(named)) == sorted(n for n, _ in long_blocks()), (named, long_blocks())
 
 
 def long_blocks():
@@ -728,7 +743,7 @@ def q_long_blocks_are_the_remarks_examples():
         while not sum(c): c, k = list(itertools.accumulate(c[:-1])), k + 1
         assert k == m, (n, m, k)
     used = {tuple(b) for c in pow2_of(real())['cols'] if c[2][0] == 'joins' for p in c[2][1] for b in p
-            if b[0] > NMAX and b != F and b[0] != 2 ** b[1]}
+            if b[0] > NMAX and b[0] != 2 ** b[1]}
     assert used <= {tuple(b) for b in long_blocks()}, used
 
 
@@ -955,7 +970,7 @@ def q_made_up_data_reads_every_kind():
     # readout as in q_hover_reads_out_every_cell.
     R = valid('kinds')
     cols = R['data']['cols']
-    assert {c[2][0] for c in cols} == {'thue-morse', 'power', 'joins'}
+    assert {c[2][0] for c in cols} == {'thue-morse', 'joins'}
     assert {c[3][0] for c in cols} == {'mstar', 'norm', 'residue'}
     assert {c[3][1][0] for c in cols if c[3][0] == 'mstar'} == {'two', 'norm', 'residue', 'table2', 'page'}
     check_readouts(R['data'], R['hovers'])
