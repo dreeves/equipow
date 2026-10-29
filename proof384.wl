@@ -37,8 +37,7 @@ Module[{n = 384, sizes, certificates, code, require, residueConditions, z, gener
         coefficients, values, constant, result},
 
   require[condition_] := If[!TrueQ[condition],
-    (* TODO: report that a certificate verification failed. *)
-    Print["Astra: \"Probatio deficit.\""];
+    Print["Certificate verification failed"];
     Abort[]];
 
   (* Keys are the two fixed residue classes, sorted. Coefficients are the eleven
@@ -128,9 +127,9 @@ Module[{n = 384, sizes, certificates, code, require, residueConditions, z, gener
   result = <|"vectors" -> Length[vectors], "countVectors" -> vectors, "cases" -> checked,
              "survivors" -> 0, "order10Control" -> True, "levels" -> counts,
              "moments" -> moments, "witness" -> witness|>;
-  (* TODO: report the proved value, number of count vectors and position cases,
+  (* Report the proved value, number of count vectors and position cases,
      and absence of any surviving order-11 case. *)
-  Print["Astra: \"m*(384) = 10; ", result["vectors"], " vectores, ",
-        result["cases"], " casus, ", result["survivors"], " superstites.\""];
+  Print["m*(384) = 10; ", result["vectors"], " count vectors, ",
+        result["cases"], " position cases, ", result["survivors"], " order-11 survivors."];
   result
 ]

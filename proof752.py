@@ -64,8 +64,7 @@ SAMPLE = 4096
 def require(condition):
     """A proof obligation that remains active under python -O."""
     if not condition:
-        # TODO: report that one of the proof's checks failed.
-        raise ValueError('Claude: "A check of the proof failed."')
+        raise ValueError('A check of the proof failed.')
 
 
 def dot(a, b):
@@ -354,7 +353,7 @@ def verify_all():
 
 if __name__ == '__main__':
     result = verify_all()
-    # TODO: state the proved bound, with the number of count vectors, placements tried, and
+    # State the proved bound, with the number of count vectors, placements tried, and
     # placements surviving behind it.
-    print(f'Claude: "m*(752) <= 10: {len(result["vectors"])} count vectors, '
-          f'{result["placements"]:,} placements, {result["survivors"]} survivors."')
+    print(f'm*(752) <= 10: {len(result["vectors"])} count vectors, '
+          f'{result["placements"]:,} placements, {result["survivors"]} survivors.')

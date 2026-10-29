@@ -69,8 +69,7 @@ CERTIFICATES = {
 def require(condition):
     """A proof obligation that remains active under python -O."""
     if not condition:
-        # TODO: report that a certificate verification failed.
-        raise ValueError('Astra: "Probatio deficit."')
+        raise ValueError('Certificate verification failed')
 
 
 def dot(a, b):
@@ -175,7 +174,7 @@ def verify_all(certificates=CERTIFICATES):
 
 if __name__ == '__main__':
     result = verify_all()
-    # TODO: report the proved value, number of count vectors and position cases,
+    # Report the proved value, number of count vectors and position cases,
     # and absence of any surviving order-11 case.
-    print(f'Astra: "m*(384) = 10; {result["vectors"]} vectores, '
-          f'{result["cases"]} casus, {result["survivors"]} superstites."')
+    print(f'm*(384) = 10; {result["vectors"]} count vectors, '
+          f'{result["cases"]} position cases, {result["survivors"]} order-11 survivors.')

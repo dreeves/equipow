@@ -28,7 +28,7 @@ a { color: #3460c8; }
 </head>
 <body>
 <main>
-  <!-- TODO: Astra's complete proof that m*(384) = 10, giving the witness, the necessary residue conditions, every modular certificate, the finite contradiction, and reproducible verification commands. -->
+  <!-- Astra's complete proof that m*(384) = 10, giving the witness, the necessary residue conditions, every modular certificate, the finite contradiction, and reproducible verification commands. -->
     <h1><i>m</i><sup>*</sup>(384) = 10</h1>
     <p><a href="index.html#proof384">The result on the main page</a> · <a href="proof384.py">Standalone exact verifier</a> · <a href="proof384.wl">Mathematica</a></p>
     <p><i>This page is all Astra.</i></p>
@@ -133,11 +133,11 @@ a { color: #3460c8; }
     <h2>6. Reproduce the checks</h2>
     <p>Save <a href="proof384.py">proof384.py</a> and run it with Python 3.8 or later. It uses only the standard library, contains the witness and all certificate coefficients, and checks the generator congruences, complete count coverage, all free columns, all 23,716 cases, and the witness's exact moments.</p>
     <pre><code>python3 proof384.py</code></pre>
-    <!-- TODO: link the Mathematica verifier and give its command. -->
+    <!-- Link the Mathematica verifier and give its command. -->
     <p>Mathematica: <a href="proof384.wl">proof384.wl</a></p>
     <pre><code>wolframscript -file proof384.wl</code></pre>
     <p>The expected output is:</p>
-    <pre><code>Astra: "m*(384) = 10; 4 vectores, 23716 casus, 0 superstites."</code></pre>
+    <pre><code>m*(384) = 10; 4 vectores, 23716 casus, 0 superstites.</code></pre>
     <p>Its proof obligations remain active under <code>python3 -O proof384.py</code>. A failed obligation raises an error; an incomplete run is not a proof.</p>
     <p>For independent checks of the numbers printed on this page, save this HTML file as <code>proof384.html</code> alongside the verifier, <a href="quals_proof384.py">quals_proof384.py</a>, <a href="quals_proof384_page.py">quals_proof384_page.py</a>, and <a href="index.html">index.html</a>, then run:</p>
     <pre><code>python3 -m unittest quals_proof384 quals_proof384_page</code></pre>

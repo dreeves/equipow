@@ -122,8 +122,8 @@ def configure(n, order):
     is its JOURNAL), EXTENSION[(n, order)], and the driver's own journal and log paths."""
     global MODULI, BUDGETS, JOURNAL, LOG
     v5.configure(n, order)
-    # TODO: error copy; says EXTENSION has no entry for this length and order
-    assert (n, order) in EXTENSION, f'Claude: "no extension for N = {n}, order {order}"'
+    # error copy; says EXTENSION has no entry for this length and order
+    assert (n, order) in EXTENSION, f'No extension for N = {n}, order {order}'
     MODULI, BUDGETS = EXTENSION[n, order]
     JOURNAL = os.path.join(HERE, f'overnight_v5_{n}_{order}_boxsplit_journal.jsonl')
     LOG = os.path.join(HERE, f'overnight_v5_{n}_{order}_boxsplit.log')
@@ -149,62 +149,62 @@ def log_to_file(msg): write_line(stamped(msg))
 # ---------- messages (copy; kept out of CODE so that rewriting them never invalidates a journal) ----------
 
 def say_split(key, M, box, own, pool, given, outside, failures, secs):
-    # TODO: box-split line; says: {node} by M: the count box's widths per class, how many vectors inside it passed the filter and the orbit reduction, how many of them are own children, the pool's size and how many of its members carry gave a certificate, the number of outside nodes, the LP failures (GLOP solves whose status was neither OPTIMAL nor INFEASIBLE), and the seconds
+    # Box-split line; says: {node} by M: the count box's widths per class, how many vectors inside it passed the filter and the orbit reduction, how many of them are own children, the pool's size and how many of its members carry gave a certificate, the number of outside nodes, the LP failures (GLOP solves whose status was neither OPTIMAL nor INFEASIBLE), and the seconds
     lo, hi = box
-    return (f'{{{key}}} by {M}: Claude: "box widths {[h - l + 1 for l, h in zip(lo, hi)]}, {len(own) + len(pool)} vectors inside, '
+    return (f'{{{key}}} by {M}: Box widths {[h - l + 1 for l, h in zip(lo, hi)]}, {len(own) + len(pool)} vectors inside, '
             f'{len(own)} own children, pool {len(pool)} ({len(given)} carried), {len(outside)} outside nodes, '
-            f'LP failures {failures} ({secs:.1f} s)"')
+            f'LP failures {failures} ({secs:.1f} s)')
 
 
 def say_outside(key, M, n, lps, secs):
-    # TODO: says: {node} by M: all its outside nodes are INFEASIBLE, with their LP solves in all and the seconds
-    return f'{{{key}}} by {M}: Claude: "{n} outside nodes INFEASIBLE ({lps} LP solves, {secs:.1f} s)"'
+    # {node} by M: all its outside nodes are INFEASIBLE, with their LP solves in all and the seconds
+    return f'{{{key}}} by {M}: {n} outside nodes INFEASIBLE ({lps} LP solves, {secs:.1f} s)'
 
 
 def say_piece(rec, secs):
-    # TODO: per-piece line; says: {piece}: certbb's verdict (its own status word), its LP solves, and the seconds (none when the record was reused)
-    return f'{{{rec["key"]}}}: {rec["verdict"]}; Claude: "{rec["lps"]} LP solves ({secs:.1f} s)"'
+    # per-piece line; says: {piece}: certbb's verdict (its own status word), its LP solves, and the seconds (none when the record was reused)
+    return f'{{{rec["key"]}}}: {rec["verdict"]}; {rec["lps"]} LP solves ({secs:.1f} s)'
 
 
 def say_not_closed(rec):
-    # TODO: error copy; says a pool or an outside node, which the design expects to close, came back with another verdict
-    return f'Claude: "{{{rec["key"]}}}: {rec["verdict"]}, not closed"'
+    # error copy; says a pool or an outside node, which the design expects to close, came back with another verdict
+    return f'{{{rec["key"]}}}: {rec["verdict"]}, not closed'
 
 
 def say_leaf(i, key):
-    # TODO: says which open leaf (its number and node) the driver starts on
-    return f'Claude: "leaf {i}: {{{key}}}"'
+    # says which open leaf (its number and node) the driver starts on
+    return f'Leaf {i}: {{{key}}}'
 
 
 def say_open(key):
-    # TODO: says this node is left open: UNKNOWN past the last extension modulus, with no modulus left to split it by
-    return f'Claude: "open: {{{key}}}"'
+    # says this node is left open: UNKNOWN past the last extension modulus, with no modulus left to split it by
+    return f'Open: {{{key}}}'
 
 
 def say_counts(tally):
-    # TODO: the counts of a leaf's tree, for the two summary lines below: box splits, own children, pool members and how many of them carried, outside nodes, certbb's LP solves, GLOP's solves and CPU seconds
+    # the counts of a leaf's tree, for the two summary lines below: box splits, own children, pool members and how many of them carried, outside nodes, certbb's LP solves, GLOP's solves and CPU seconds
     return (f'{tally["splits"]} box splits, {tally["own"]} own children, {tally["pool"]} pool members '
             f'({tally["carried"]} carried), {tally["outside"]} outside nodes, {tally["lps"]} certbb LP solves, '
             f'{tally["glop"]} GLOP solves, {tally["cpu"]:.0f} CPU s')
 
 
 def say_leaf_closed(i, key, tally):
-    # TODO: per-leaf summary line; says: leaf number and node: its extension tree closed, with its counts
-    return f'Claude: "leaf {i} {{{key}}}: extension tree closed: {say_counts(tally)}"'
+    # per-leaf summary line; says: leaf number and node: its extension tree closed, with its counts
+    return f'Leaf {i} {{{key}}}: extension tree closed: {say_counts(tally)}'
 
 
 def say_leaf_open(i, key, tally):
-    # TODO: per-leaf summary line; says: leaf number and node: its extension tree is not closed, how many nodes were left open, then its counts
-    return f'Claude: "leaf {i} {{{key}}}: extension tree not closed, {tally["open"]} nodes left open: {say_counts(tally)}"'
+    # per-leaf summary line; says: leaf number and node: its extension tree is not closed, how many nodes were left open, then its counts
+    return f'Leaf {i} {{{key}}}: extension tree not closed, {tally["open"]} nodes left open: {say_counts(tally)}'
 
 
 def say_start(leaves, journal):
-    # TODO: start line; says: start: n, order at least, how many open leaves the run's journal holds and how many of them the driver's journal already records closed, the extension moduli and certbb's budgets for their own children in LP solves (a pool or an outside node getting so many per member), the processes, the HiGHS build, and how many verdicts the driver's journal already holds
+    # start line; says: start: n, order at least, how many open leaves the run's journal holds and how many of them the driver's journal already records closed, the extension moduli and certbb's budgets for their own children in LP solves (a pool or an outside node getting so many per member), the processes, the HiGHS build, and how many verdicts the driver's journal already holds
     done = sum(journal.records.get(v5.node_key(nd), {}).get('verdict') == 'CLOSED' for nd in leaves)
-    return (f'Claude: "start: n = {v5.N}, order at least {v5.ORDER}, open leaves {len(leaves)} of {v5.JOURNAL} '
+    return (f'Start: n = {v5.N}, order at least {v5.ORDER}, open leaves {len(leaves)} of {v5.JOURNAL} '
             f'({done} closed on record), extension moduli {list(MODULI)} with budgets {list(BUDGETS)} (LP solves; a '
             f'pool or an outside node {v5.POOL_BUDGET} per member), {v5.PROCESSES} processes, HiGHS {certbb.HIGHS}, '
-            f'{len(journal.records)} earlier verdicts"')
+            f'{len(journal.records)} earlier verdicts')
 
 
 # ---------- the run's journal: its open leaves ----------
@@ -237,8 +237,8 @@ class Journal(v5.Journal):
         if not os.path.exists(path):                                 # a fresh run starts the journal
             with open(path, 'w') as fh: fh.write(json.dumps(header()) + '\n')
         lines = open(path).read().splitlines()
-        # TODO: error copy; says this journal file was written by a run with a different configuration or code
-        assert json.loads(lines[0]) == header(), f'Claude: "the journal {path} belongs to another configuration"'
+        # error copy; says this journal file was written by a run with a different configuration or code
+        assert json.loads(lines[0]) == header(), f'The journal {path} belongs to another configuration'
         self.records = {}
         for rec in map(json.loads, lines[1:]): self.admit(rec)
 
@@ -297,12 +297,12 @@ def count_box(rel):
     and every bound solve must be OPTIMAL (asserted): an LP failure would leave a class its full range, sound but
     not this design, and an infeasible relaxation belongs to a node certbb closes at its root."""
     M = rel.M
-    # TODO: error copy; says GLOP did not solve the node's own relaxation to optimality, so there is no count box
-    assert rel.solve({}) == pywraplp.Solver.OPTIMAL, 'Claude: "the relaxation of the node is not OPTIMAL"'
+    # Error copy; says GLOP did not solve the node's own relaxation to optimality, so there is no count box
+    assert rel.solve({}) == pywraplp.Solver.OPTIMAL, 'The relaxation of the node is not OPTIMAL'
     lo = [rel.bound(r, 1) for r in range(M)]
     hi = [rel.bound(r, -1) for r in range(M)]
-    # TODO: error copy; says a bound solve of the relaxation failed, so some class has no count bound
-    assert all(math.isfinite(t) for t in lo + hi), 'Claude: "a count bound of the relaxation is missing"'
+    # Error copy; says a bound solve of the relaxation failed, so some class has no count bound
+    assert all(math.isfinite(t) for t in lo + hi), 'A count bound of the relaxation is missing'
     return (tuple(max(0, math.ceil(t - v5.TOL)) for t in lo),
             tuple(min(v5.size(M, r), math.floor(t + v5.TOL)) for r, t in enumerate(hi)))
 
@@ -411,8 +411,8 @@ def settle(moments, node, key, budget, journal, log, certificates=MappingProxyTy
             raise SystemExit(1)
         journal.put(key, verdict, budget, found)
     rec = journal.records[key]
-    # TODO: error copy; says the journal's record of this piece carries a verdict the driver never writes, so it is no verdict of certbb's on the piece
-    assert rec['verdict'] in ('INFEASIBLE', 'UNKNOWN'), f'Claude: "{{{key}}}: {rec["verdict"]} on record, which is no verdict of certbb\'s"'
+    # Error copy; says the journal's record of this piece carries a verdict the driver never writes, so it is no verdict of certbb's on the piece
+    assert rec['verdict'] in ('INFEASIBLE', 'UNKNOWN'), f'{{{key}}}: {rec["verdict"]} on record, which is no verdict of certbb\'s'
     return rec
 
 
@@ -497,8 +497,8 @@ def control():
         assert all(span.solvable(g) for g in gens)
         assert all(span.solvable([sum(b[p] for p in range(r, len(b), M)) for r in range(M)]) for b in bs)
     m = v5.ORDER - 1
-    # TODO: error copy; says EXAMPLES has no example of length N and order ORDER-1, which the control needs
-    assert (v5.N, m) in v5.EXAMPLES, f'Claude: "EXAMPLES has no example of length {v5.N} and order {m}"'
+    # Error copy; says EXAMPLES has no example of length N and order ORDER-1, which the control needs
+    assert (v5.N, m) in v5.EXAMPLES, f'EXAMPLES has no example of length {v5.N} and order {m}'
     a, node = v5.from_hex(v5.EXAMPLES[v5.N, m], m), ()
     assert len(a) == v5.N and v5.exact_order(a) == m
     for M in v5.CASCADE: node, a = follow(node, a, M)
@@ -588,33 +588,33 @@ def run():
     """The run that configure() set up: the run's open leaves, the control, each leaf's extension tree (drive, with
     make_executor's workers), and the outcome, all in the log."""
     t0 = time.time()
-    # TODO: error copy; says the run's journal, which the driver takes its open leaves from, is not there
-    assert os.path.exists(v5.JOURNAL), f'Claude: "no journal {v5.JOURNAL} to take the open leaves from"'
+    # Error copy; says the run's journal, which the driver takes its open leaves from, is not there
+    assert os.path.exists(v5.JOURNAL), f'No journal {v5.JOURNAL} to take the open leaves from'
     leaves = open_leaves(v5.Journal(v5.JOURNAL))                     # read, never written
     journal = Journal(JOURNAL)
     log_to_file(say_start(leaves, journal))
     control()
-    # TODO: says the startup control passed: the example of order ORDER-1 and length N lands in an own child at every extension modulus, and order ORDER rejects it
-    log_to_file(f'Claude: "startup control passed: the order-{v5.ORDER - 1} example of length {v5.N} lands in an own '
-                f'child at each of {list(MODULI)}, and order {v5.ORDER} rejects it"')
+    # Says the startup control passed: the example of order ORDER-1 and length N lands in an own child at every extension modulus, and order ORDER rejects it
+    log_to_file(f'Startup control passed: the order-{v5.ORDER - 1} example of length {v5.N} "lands" in an own '
+                f'child at each of {list(MODULI)}, and order {v5.ORDER} rejects it')
     with make_executor() as executor:
         tallies = drive(leaves, journal, write_line, executor)
     hours = (time.time() - t0) / 3600
     left = sorted(i for i, t in tallies.items() if t['open'])
     if left:
-        # TODO: final line when some leaf's tree did not close; says the driver is not finished: how many leaves have nodes left open and how many nodes, how many leaves closed, and the hours taken
-        log_to_file(f'Claude: "NOT FINISHED: {len(left)} leaves with {sum(tallies[i]["open"] for i in left)} nodes left '
-                    f'open, {len(leaves) - len(left)} leaves closed ({hours:.2f} h)"')
+        # Final line when some leaf's tree did not close; says the driver is not finished: how many leaves have nodes left open and how many nodes, how many leaves closed, and the hours taken
+        log_to_file(f'NOT FINISHED: {len(left)} leaves with {sum(tallies[i]["open"] for i in left)} nodes left '
+                    f'open, {len(leaves) - len(left)} leaves closed ({hours:.2f} h)')
         return
-    # TODO: final line; says every open leaf's extension tree closed, with their count and the hours taken: every piece is INFEASIBLE on a certificate checked in exact integer arithmetic, so no sequence of order at least ORDER lies in any of them
-    log_to_file(f'Claude: "ALL {len(leaves)} LEAVES CLOSED ({hours:.2f} h): every piece of every extension tree is '
+    # Final line; says every open leaf's extension tree closed, with their count and the hours taken: every piece is INFEASIBLE on a certificate checked in exact integer arithmetic, so no sequence of order at least ORDER lies in any of them
+    log_to_file(f'ALL {len(leaves)} LEAVES CLOSED ({hours:.2f} h): every piece of every extension tree is '
                 f'INFEASIBLE on a certificate checked in exact integer arithmetic, so no ±1 sequence of length {v5.N} '
-                f'and order at least {v5.ORDER} lies in any open leaf of the run."')
+                f'and order at least {v5.ORDER} lies in any open leaf of the run.')
 
 
 def main():
-    # TODO: error copy; says how to run the driver: with the length N and the order as its two arguments
-    assert len(sys.argv) == 3, 'Claude: "usage: python3 boxsplit.py N ORDER"'
+    # Error copy; says how to run the driver: with the length N and the order as its two arguments
+    assert len(sys.argv) == 3, 'Usage: python3 boxsplit.py N ORDER'
     configure(int(sys.argv[1]), int(sys.argv[2]))
     run()
 
