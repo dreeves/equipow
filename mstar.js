@@ -1007,7 +1007,7 @@ const MSTAR = {"nmax": 1024, "mtop": 16, "cols": [
 [0, 0, ["none"], ["odd"]],
 [1, 1, ["join", 2, 1004], ["two"]],
 [0, 0, ["none"], ["odd"]],
-[11, 13, ["example", "index.html p1008"], ["residue", 5]],
+[12, 13, ["example", "index.html p1008"], ["residue", 5]],
 [0, 0, ["none"], ["odd"]],
 [1, 1, ["join", 2, 1008], ["two"]],
 [0, 0, ["none"], ["odd"]],

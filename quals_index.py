@@ -1724,42 +1724,45 @@ def q_example_at_816_has_its_entry_code_and_set():
 def q_examples_at_720_and_1008_have_their_entries_codes_and_sets():
     # Replicata: the remarks' entries of 720 and 1008, their codes decoded by the paper's Table 5 convention (the left
     # half of the signs, 1 = +1, then the rest by (-1)^m symmetry), the page's sets SClaude[11][720] and
-    # SClaude[11][1008], the new results' cells, and mstar.js's columns 720 and 1008.
+    # SClaude[12][1008], the new results' cells, and mstar.js's columns 720 and 1008.
     # Expectata (2026-10-27: Claude's lattice search, w11.py at 720 and at 1008, found antisymmetric examples of order
-    # 11 there): each has an entry of its own, an <li class="c"> marked ◆ among the examples in order of n, 720's
+    # 11 there; 2026-10-28: w12.py found a symmetric example of order 12 at 1008, which replaced its order-11 example,
+    # code and set): each has an entry of its own, an <li class="c"> marked ◆ among the examples in order of n, 720's
     # "m* ∈ {11, …, 14}" between 656's and 752's, whose Claude: "…" names the residue condition mod 16, and 1008's
-    # "m* ∈ {11, 12, 13}" between 992's and 1024's, naming the residue condition mod 5; each its one code block, of
-    # order 11, whose signs have order exactly 11 (synthetic division here) and are antisymmetric; SClaude[11][n]
-    # exactly their +1 positions, 0 among them; no other entry names 720 or 1008 (their joins' entries are gone); the
-    # cells 11–14 and 11–13; and mstar.js's columns [11, 14, ["example", "index.html p720"], ["residue", 16]] and [11,
-    # 13, ["example", "index.html p1008"], ["residue", 5]].
+    # "m* ∈ {12, 13}" between 992's and 1024's, naming the residue condition mod 5; each its one code block, of its
+    # order m (11 at 720, 12 at 1008), whose signs have order exactly m (synthetic division here) and are
+    # antisymmetric at 720 and symmetric at 1008; SClaude[m][n] exactly their +1 positions, 0 among them, and no
+    # SClaude[11][1008]; no other entry names 720 or 1008 (their joins' entries are gone); the cells 11–14 and 12–13;
+    # and mstar.js's columns [11, 14, ["example", "index.html p720"], ["residue", 16]] and [12, 13, ["example",
+    # "index.html p1008"], ["residue", 5]].
     text = page()
     sets = {(int(m), int(n)): {int(t) for t in body.split(',')}
             for m, n, body in re.findall(r'SClaude\[(\d+)\]\[(\d+)\] = \{([^}]*)\};', text)}
     listed = [ns.split(', ') for ns in re.findall(r'<p class="entry"><i>n</i> = ([^:]*): ', text)]
-    for n, values, before, after, says, hi in ((720, '\\{11, …, 14\\}', '656', '752', 'residue condition mod 16', 14),
-                                               (1008, '\\{11, 12, 13\\}', '992', '1024', 'residue condition mod 5', 13)):
+    assert (11, 1008) not in sets, 'the superseded SClaude[11][1008] is still on the page'
+    for n, m, values, before, after, says, hi in ((720, 11, '\\{11, …, 14\\}', '656', '752', 'residue condition mod 16', 14),
+                                                  (1008, 12, '\\{12, 13\\}', '992', '1024', 'residue condition mod 5', 13)):
         li = re.search(r'<li class="c">\n      <span class="mk" aria-hidden="true">◆</span>\n      <p class="entry"><i>n</i> = '
                        rf'{n}: &nbsp;<span class="nw"><i>m</i><sup>\*</sup> ∈ {values}</span></p>\n(.*?)\n    </li>', text, re.S)
         assert li, f'no entry of {n} alone'
         assert says in re.search(r'<p>Claude: "(.*?)"</p>', li.group(1)).group(1), li.group(1)[:300]
         codes = re.findall(r'<p class="code">\n        <span><i>p</i><sub>(\d+)</sub> <span class="nw">\(<i>m</i> = (\d+)\)</span>:</span>\n'
                            r'        <code>([0-9A-F]+)</code>\n      </p>', li.group(1))
-        assert len(codes) == 1 and codes[0][:2] == (str(n), '11'), codes
+        assert len(codes) == 1 and codes[0][:2] == (str(n), str(m)), codes
         h = codes[0][2]
         left = [1 if b == '1' else -1 for b in bin(int(h, 16))[2:].zfill(4 * len(h))]
-        a, k = left + [-s for s in reversed(left)], 0
+        a, k = left + [(-1) ** m * s for s in reversed(left)], 0
         c = a
         while not sum(c): c, k = list(itertools.accumulate(c[:-1])), k + 1
-        assert len(a) == n and k == 11 and all(a[n - 1 - i] == -a[i] for i in range(n)), (n, len(a), k)
-        assert sets[11, n] == {i for i, s in enumerate(a) if s == 1} and 0 in sets[11, n], n
+        assert len(a) == n and k == m and all(a[n - 1 - i] == (-1) ** m * a[i] for i in range(n)), (n, len(a), k)
+        assert sets[m, n] == {i for i, s in enumerate(a) if s == 1} and 0 in sets[m, n], n
         i = listed.index([str(n)])
         assert listed[i - 1:i + 2] == [[before], [str(n)], [after]], listed[i - 1:i + 2]
         assert sum(str(n) in ns for ns in listed) == 1, (n, [ns for ns in listed if str(n) in ns])
-        assert new_cells(text)[n] == (11, hi), new_cells(text)[n]
+        assert new_cells(text)[n] == (m, hi), new_cells(text)[n]
     cols = mstar_data()['cols']
     assert cols[720 - 1] == [11, 14, ['example', 'index.html p720'], ['residue', 16]], cols[720 - 1]
-    assert cols[1008 - 1] == [11, 13, ['example', 'index.html p1008'], ['residue', 5]], cols[1008 - 1]
+    assert cols[1008 - 1] == [12, 13, ['example', 'index.html p1008'], ['residue', 5]], cols[1008 - 1]
 
 
 def q_example_at_912_has_its_entry_code_and_set():

@@ -253,6 +253,7 @@ FORMS = {                              # the log's line forms, as overnight_v5's
 
 
 def ints(text): return [int(t) for t in text.split(', ')]
+@functools.lru_cache(maxsize=None)                 # a log's lines share their seconds (288@10's, 2026-10-28: 287,379 lines, 57,602 seconds)
 def stamp(text): return time.mktime(time.strptime(text, '%Y-%m-%d %H:%M:%S'))
 
 
@@ -448,10 +449,13 @@ def status(key, final, budgets):
     return 'open' if leaf(key, len(budgets) - 1) else 'split'
 
 
+@functools.lru_cache(maxsize=None)
 def tree_order(key):
     """The key's place in tree order (see the vocabulary): its constraints compared one by one, a count vector
     M:[a,b,...] as (M, 0, (a, b, ...), '') and a pool M:#c:sha1 as (M, 1, (c,), sha1), so that a node sorts just
-    before its descendants."""
+    before its descendants.  Cached for one snapshot, whose surveys sort the same keys several times (main clears it
+    after each snapshot, so that it holds one snapshot's keys at most: 288@10's survey sorted 1,151,718 keys, about
+    300,000 of them distinct, on 2026-10-28)."""
     out = []
     for part in key.split():
         M, v = part.split(':', 1)
@@ -1753,6 +1757,7 @@ def main(argv):
         now = max([now] + [s['made'] for s in surveys if s['program'] in ('focus.py', 'fanout.py', 'search288.py', 'pruning288.py')])
         write_atomic(JS, js_text(surveys, now))
         save_cache(CACHE, cache)
+        tree_order.cache_clear()
         if not argv: return
         time.sleep(REFRESH)
 

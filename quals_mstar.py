@@ -494,8 +494,9 @@ def q_gray_columns():
     # and 784, settled at 10, and 832, settled at 11, on 2026-10-26 (lo from the page's examples p752, p784 and p832;
     # hi by proof752.py at 752, the page's, the residue condition mod 27 at 784 and the norm bound mod 3 at 832); and
     # since 2026-10-27, when the chart reached 1024, 1008 last, at 10 to 13 (lo from 240 + 768, a join; hi by the
-    # residue condition mod 5 at order 14), and at 11 to 13 since that night (lo from the page's example p1008, found by
-    # w11.py: q_examples_at_720_and_1008_raise_their_lo).
+    # residue condition mod 5 at order 14), at 11 to 13 from that night (lo from the page's example p1008 of order 11,
+    # found by w11.py: q_examples_at_720_and_1008_raise_their_lo), and at 12 to 13 since 2026-10-28 (lo from the
+    # symmetric example of order 12 that replaced it as p1008, found by w12.py).
     _, got = disk()
     gray = tuple(n for n, c in enumerate(got['m']['cols'], 1) if c[0] < c[1])
     tens, elevens = (592, 608, 656, 752, 784), (832, 848, 880, 896, 928, 944, 976, 992)
@@ -506,7 +507,7 @@ def q_gray_columns():
     assert got['m']['cols'][240 - 1][2:] == [['example', 'BGPW Table 5'], ['page', 'Claude alone']]
     assert got['m']['cols'][560 - 1][2] == ['example', 'index.html p560']
     assert got['m']['cols'][800 - 1][2:] == [['example', 'index.html p800'], ['norm', 3]]
-    assert gray[-1] == 1008 and got['m']['cols'][1008 - 1] == [11, 13, ['example', 'index.html p1008'], ['residue', 5]]
+    assert gray[-1] == 1008 and got['m']['cols'][1008 - 1] == [12, 13, ['example', 'index.html p1008'], ['residue', 5]]
 
 
 def q_results_of_2026_10_25():
@@ -565,19 +566,20 @@ def q_lengths_from_1002_to_1024():
     # Stan Wagon: "could the table and the chart go up to 1024 as the natural stopping point, instead of 1000?"), and
     # mstar.RESIDUE's claim at 1008.
     # Expectata: n = 2 mod 4 is 1 and n = 4 mod 8 is 3, by joins and the two lemma; 1016 is 7, the most the two lemma
-    # allows an odd multiple of 8; 1024 is 11, its example and the norm bound for 3; and 1008 is 11 to 13: 11 from the
-    # page's example p1008 (2026-10-27 night; 10 before, from the join 240 + 768, the least of its two parts, 10 and
-    # 11), and order 14 ruled out by the residue condition mod 5 (the
+    # allows an odd multiple of 8; 1024 is 11, its example and the norm bound for 3; and 1008 is 12 to 13: 12 from the
+    # page's example p1008 (2026-10-28, w12.py's symmetric example of order 12; 11 from 2026-10-27 night, w11.py's
+    # antisymmetric one, and 10 before, from the join 240 + 768, the least of its two parts, 10 and 11), and order 14
+    # ruled out by the residue condition mod 5 (the
     # claim (14, (5,), 'digits'), found by scratch/upto1024/residue1008.py in both sweeps, where orders 15 and 14 die
     # mod 5 at once), as at 672, 768 and 912; the two lemma and the norm bound for 5 allow 15.
     cs = disk()[1]['m']['cols']
     want = {n: [1, 1] if n % 4 == 2 else [3, 3] if n % 8 == 4 else None for n in range(1002, 1025, 2)}
     assert all(cs[n - 1][:2] == v for n, v in want.items() if v), [(n, cs[n - 1]) for n in want]
     assert cs[1016 - 1][:2] == [7, 7] and cs[1016 - 1][3] == ['two'], cs[1016 - 1]
-    assert cs[1024 - 1][:2] == [11, 11] and cs[1008 - 1] == [11, 13, ['example', 'index.html p1008'], ['residue', 5]], cs[1008 - 1]
+    assert cs[1024 - 1][:2] == [11, 11] and cs[1008 - 1] == [12, 13, ['example', 'index.html p1008'], ['residue', 5]], cs[1008 - 1]
     assert [cs[n - 1][0] for n in (240, 768)] == [10, 11]
     assert mstar.RESIDUE[1008] == (14, (5,), 'digits') and mstar.two(1008) == mstar.norm(1008, 5) == 15
-    assert mstar.NEW[1008] == (11, 13, 'Claude alone'), mstar.NEW.get(1008)
+    assert mstar.NEW[1008] == (12, 13, 'Claude alone'), mstar.NEW.get(1008)
 
 
 def q_example_at_816_raises_its_lo():
@@ -595,13 +597,14 @@ def q_example_at_816_raises_its_lo():
 def q_examples_at_720_and_1008_raise_their_lo():
     # Replicata: mstar.NEW and mstar.js's columns at 720 and 1008.
     # Expectata (2026-10-27: Claude's lattice search, w11.py at 720 and at 1008 (scratch/w1008), found antisymmetric
-    # examples of order 11 there): 720 is 11 to 14 and 1008 is 11 to 13, Claude alone, each lo the page's example
+    # examples of order 11 there; 2026-10-28: w12.py found a symmetric example of order 12 at 1008, which replaced its
+    # order-11 one as p1008): 720 is 11 to 14 and 1008 is 12 to 13, Claude alone, each lo the page's example
     # (["example", "index.html p720"], ["example", "index.html p1008"]) and each hi still its residue claim (order 15
     # mod 16 at 720, order 14 mod 5 at 1008).
     _, got = disk()
     cs = got['m']['cols']
     assert mstar.NEW[720] == (11, 14, 'Claude alone') and cs[720 - 1] == [11, 14, ['example', 'index.html p720'], ['residue', 16]], cs[720 - 1]
-    assert mstar.NEW[1008] == (11, 13, 'Claude alone') and cs[1008 - 1] == [11, 13, ['example', 'index.html p1008'], ['residue', 5]], cs[1008 - 1]
+    assert mstar.NEW[1008] == (12, 13, 'Claude alone') and cs[1008 - 1] == [12, 13, ['example', 'index.html p1008'], ['residue', 5]], cs[1008 - 1]
 
 
 def q_example_at_912_raises_its_lo():
