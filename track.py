@@ -10,11 +10,12 @@ which progress.py's watcher reads (survey_track); the search itself is not chang
            write it; found the absolute path of a file whose lines count the search's results (a witness file), or
            null; pid the run's process and tracker track.py's own; time when the run's process began (epoch seconds;
            for an adopted one, its start time as ps prints it, to the second).  It appears whole (written aside, then
-           linked into place).  The last, once the run's process ends: {"event": "end", "time", "status"}, its exit status (a
+            linked into place).  A command that could not start has pid null.  The last, once the run's process ends: {"event": "end", "time", "status"}, its exit status (a
            negative one a signal's), or null for an adopted process, whose status track.py cannot read.
   run      python3 -B track.py run NAME N:M [--found FILE] -- COMMAND ...: starts COMMAND, writes the start, waits,
-           writes the end and exits with COMMAND's status.  SIGTERM, SIGINT and SIGHUP to track.py are passed on to
-           COMMAND, whose end is then written as usual.
+            writes the end and exits with COMMAND's status.  A hidden exclusive reservation precedes the launch.
+            The command owns a new process group, cleaned even after a normal exit. SIGTERM, SIGINT and SIGHUP
+            cancel that group and are recorded as negative statuses; other launcher failures record status 1.
   adopt    python3 -B track.py adopt NAME N:M PID [--found FILE]: for a process started without track.py: writes the
            start (its command as ps prints it, and "started", its start time as ps prints it, which with its pid
            identifies it), polls it every POLL seconds and writes the end once no live process has that pid and
@@ -32,6 +33,8 @@ import os, re, json, time, shlex, signal, subprocess
 HERE = os.path.dirname(os.path.abspath(__file__))
 RUNS = os.path.join(HERE, 'runs')
 POLL = 10                                              # seconds between an adopted process's checks
+GRACE = 2                                             # seconds before killing remaining owned processes
+CANCEL = (signal.SIGTERM, signal.SIGINT, signal.SIGHUP)
 
 
 def program(cmd):
@@ -47,13 +50,26 @@ def identity(pid):
     return None if m is None or m[1].startswith('Z') else (m[1], m[2], m[3])
 
 
-def start(name, target, found, fields):
-    """Writes the record's start, whole: aside, then linked into place, which fails if a record of that name exists."""
+def reserve(name, target):
+    """Validate and exclusively reserve a name before any command starts. A crash leaves its reservation for review."""
     # TODO: error copy; says the run's name may hold only letters, digits, dots, underscores and hyphens
     assert re.fullmatch(r'[\w.-]+', name), f'Claude: "a run name of letters, digits, ., _ and - only, not {name!r}"'
     # TODO: error copy; says the target must be N:M, the question m*(N) >= M?
     assert re.fullmatch(r'\d+:\d+', target), f'Claude: "a target of the form N:M, not {target!r}"'
     os.makedirs(RUNS, exist_ok=True)
+    path, reservation = os.path.join(RUNS, name + '.jsonl'), os.path.join(RUNS, '.' + name + '.reserved')
+    with open(reservation, 'x', encoding='utf-8'): pass
+    try:
+        # TODO: error copy; the reserved run name already has a record and cannot launch another command
+        assert not os.path.exists(path), f'Nomen cursus iam adhibitum: {name}'
+    except BaseException:
+        os.unlink(reservation)
+        raise
+    return reservation
+
+
+def start(name, target, found, fields):
+    """Writes the record's start, whole: aside, then linked into place, which fails if a record of that name exists."""
     path, aside = os.path.join(RUNS, name + '.jsonl'), os.path.join(RUNS, f'.{name}.{os.getpid()}.tmp')
     rec = dict(event='start', name=name, target=target, found=None if found is None else os.path.abspath(found),
                **fields, tracker=os.getpid())
@@ -71,13 +87,64 @@ def end(path, status):
     with open(path, 'a', encoding='utf-8') as f: f.write(json.dumps(dict(event='end', time=time.time(), status=status)) + '\n')
 
 
+def group_signal(pid, signum):
+    """Signal an owned process group; an already absent group needs no cleanup."""
+    try:
+        os.killpg(pid, signum)
+    except ProcessLookupError:
+        pass
+
+
+def cleanup(child, signum=signal.SIGTERM):
+    """Forward cancellation, unconditionally kill remaining descendants, and reap the direct child."""
+    group_signal(child.pid, signum)
+    try:
+        child.wait(timeout=GRACE)
+    except subprocess.TimeoutExpired:
+        pass
+    finally:
+        group_signal(child.pid, signal.SIGKILL)
+        child.wait()
+
+
+class Cancelled(BaseException):
+    """A cancellation signal, handled after the owned group has been cleaned."""
+
+
+def cancel(signum, frame):
+    raise Cancelled(signum)
+
+
 def run(name, target, found, cmd):
-    child = subprocess.Popen(cmd)
-    for s in (signal.SIGTERM, signal.SIGINT, signal.SIGHUP): signal.signal(s, lambda signum, frame: child.send_signal(signum))
-    path = start(name, target, found, dict(program=program(cmd), command=shlex.join(cmd), cwd=os.getcwd(),
-                                           adopted=False, pid=child.pid, time=time.time()))
-    status = child.wait()
-    end(path, status)
+    reservation = reserve(name, target)
+    fields = dict(program=program(cmd), command=shlex.join(cmd), cwd=os.getcwd(), adopted=False, pid=None, time=time.time())
+    child, path, status, signum = None, None, 1, signal.SIGTERM
+    handlers = {s: signal.getsignal(s) for s in CANCEL}
+    mask = signal.pthread_sigmask(signal.SIG_BLOCK, CANCEL)
+    try:
+        for s in CANCEL: signal.signal(s, cancel)
+        # Restore the inherited mask in the child before exec; cancellation stays blocked until the parent owns it.
+        wrapper = ('import os,signal,sys;signal.pthread_sigmask(signal.SIG_SETMASK,'
+                   + repr([int(s) for s in mask]) + ');os.execvp(sys.argv[1],sys.argv[1:])')
+        child = subprocess.Popen([sys.executable, '-c', wrapper, *cmd], start_new_session=True)
+        fields['pid'] = child.pid
+        path = start(name, target, found, fields)
+        signal.pthread_sigmask(signal.SIG_SETMASK, mask)
+        status = child.wait()
+    except Cancelled as exc:
+        signum = exc.args[0]
+        status = -signum
+    finally:
+        # Repeated cancellation must not interrupt cleanup, recording, or releasing the reservation.
+        for s in CANCEL: signal.signal(s, signal.SIG_IGN)
+        try:
+            if child is not None: cleanup(child, signum)
+            if path is None: path = start(name, target, found, fields)
+            end(path, status)
+            os.unlink(reservation)
+        finally:
+            signal.pthread_sigmask(signal.SIG_SETMASK, mask)
+            for s, handler in handlers.items(): signal.signal(s, handler)
     raise SystemExit(status)
 
 
@@ -85,10 +152,12 @@ def adopt(name, target, found, pid):
     me = identity(pid)
     # TODO: error copy; says no live process has this pid, so nothing was written
     assert me is not None, f'Claude: "no live process {pid}"'
+    reservation = reserve(name, target)
     cmd = me[2]
     began = time.mktime(time.strptime(me[1], '%a %b %d %H:%M:%S %Y'))
     path = start(name, target, found, dict(program=program(shlex.split(cmd)), command=cmd, cwd=os.getcwd(),
                                            adopted=True, pid=pid, started=me[1], time=began))
+    os.unlink(reservation)
     while (identity(pid) or (None, None))[1] == me[1]: time.sleep(POLL)
     end(path, None)
 

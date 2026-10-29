@@ -1691,19 +1691,20 @@ def survey_track(target, records, procs, now):
     """The tracked search (see the vocabulary) of target N:M whose runs' records are records (each its lines, as JSON),
     as the process list procs shows it at time now (epoch seconds): what the data file needs of it.  Its state is
     running while a run runs, frozen while none runs and one is frozen, and ended once none is either; its outcome,
-    once all its runs ended with end lines, 'found' if the found files of their starts hold a line in all and 'none' if
-    not, else null (the page shows an ended search with no outcome as aborted).  Its time so far runs from its first
+    once none is active, 'found' if the found files of their starts hold a line in all, 'none' if no result and every
+    run ended with status 0 or null, else null (the page shows an ended search with no outcome as aborted).  Its time so far runs from its first
     start to now, or to its last line once it ended.  One dot per run in record order, in the colors of settled for
     ended, running for running, pending for frozen and open for aborted.  work counts the runs by state and the found
     files' lines (a missing file holds none), each file once."""
     n, order = map(int, target.split(':'))
     live = {pid: stat for pid, _, stat, _ in procs if not stat.startswith('Z')}
-    states = [('ended' if r[-1]['event'] == 'end' else 'aborted' if r[0]['pid'] not in live else
+    states = [(('ended' if r[-1]['status'] in (0, None) else 'aborted') if r[-1]['event'] == 'end' else
+               'aborted' if r[0]['pid'] not in live else
                'frozen' if live[r[0]['pid']].startswith('T') else 'running') for r in records]
     files = sorted({r[0]['found'] for r in records} - {None})
     found = sum(len(complete_lines(f)) if os.path.exists(f) else 0 for f in files)
     state = 'running' if 'running' in states else 'frozen' if 'frozen' in states else 'ended'
-    outcome = ('found' if found else 'none') if set(states) == {'ended'} else None
+    outcome = ('found' if found else 'none') if state == 'ended' and (found or set(states) == {'ended'}) else None
     t0 = min(r[0]['time'] for r in records)
     t1 = now if state != 'ended' else max(r[-1]['time'] for r in records)
     dots = {'ended': 'settled', 'running': 'running', 'frozen': 'pending', 'aborted': 'open'}

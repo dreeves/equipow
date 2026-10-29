@@ -1432,6 +1432,46 @@ def q_box_log_with_an_unknown_line_fails():
     expect_assertion(progress.parse_box_lines, lines)
 
 
+def q_box288_fixture_reads_only_its_first_two_distinct_bottom_keys():
+    # Replicata: a synthetic journal with non-bottom and pooled keys, a duplicate first bottom key, then a second
+    # bottom key; its reader refuses whole-file reads and any read after that second key. Expectata: the fixture
+    # preserves exactly those first two distinct qualifying keys, in order, without reading the journal's tail.
+    import builtins, io
+    from unittest.mock import patch
+    progress.files(288, 10)
+    first = ' '.join(f'{m}:[1]' for m in v5.CASCADE)
+    second = ' '.join(f'{m}:[2]' for m in v5.CASCADE)
+    prefix = [json.dumps({}), *[json.dumps(dict(key=k)) for k in
+              ('short', first.replace('[1]', '#pool', 1), first, first, 'short again', second)]]
+
+    class BoundedJournal(io.StringIO):
+        consumed = 0
+
+        def read(self, *args):
+            raise AssertionError('the fixture read the whole journal')
+
+        def __next__(self):
+            assert self.consumed < len(prefix), 'the fixture read past its second distinct bottom key'
+            self.consumed += 1
+            return super().__next__()
+
+    source = os.path.join(progress.HERE, 'scratch', 'x288', 'overnight_v5_288_10_journal.jsonl')
+    journal = BoundedJournal('\n'.join(prefix) + '\n')
+
+    def opened(path, *args, **kwargs):
+        return journal if path == source else builtins.open(path, *args, **kwargs)
+
+    with tempfile.TemporaryDirectory(prefix='progress-fixture-quals-') as directory:
+        try:
+            with patch(__name__ + '.open', opened, create=True):
+                _, main, keys = made_up_box288(directory, False)
+            assert keys == [first, second], keys
+            assert [json.loads(line)['key'] for line in builtins.open(main).read().splitlines()[1:]] == keys
+            assert journal.consumed == len(prefix), journal.consumed
+        finally:
+            journal.close()
+
+
 def made_up_box288(d, done):
     """A made-up boxsplit pass of 288@10 in directory d, its log next to its run's journal as scratch/x288's copies of
     overnight_v5.py and boxsplit.py name them: the journal's header and two bottom keys of the 288 search, each UNKNOWN
@@ -1439,10 +1479,12 @@ def made_up_box288(d, done):
     saying its tree closed.  Returns (the log, the journal, the two keys)."""
     progress.files(288, 10)                      # overnight_v5 configured for 288@10, with the copy's settings
     keys = []
-    for line in open(os.path.join(progress.HERE, 'scratch', 'x288', 'overnight_v5_288_10_journal.jsonl')).read().splitlines()[1:]:
-        key = json.loads(line)['key']
-        keys += [key] * (len(key.split()) == len(v5.CASCADE) and '#' not in key and key not in keys)
-    keys = keys[:2]
+    with open(os.path.join(progress.HERE, 'scratch', 'x288', 'overnight_v5_288_10_journal.jsonl')) as journal:
+        next(journal)                           # header
+        for line in journal:
+            key = json.loads(line)['key']
+            keys += [key] * (len(key.split()) == len(v5.CASCADE) and '#' not in key and key not in keys)
+            if len(keys) == 2: break
     log, main = (os.path.join(d, f'overnight_v5_288_10{x}') for x in ('_boxsplit.log', '_journal.jsonl'))
     with open(main, 'w') as fh:
         fh.write(json.dumps(v5.header()) + '\n')
@@ -1756,25 +1798,82 @@ def q_survey_track_reads_each_run_s_state():
 
 
 def q_survey_track_ends_with_its_runs():
-    # Replicata: progress.survey_track of two made-up records of 768:12, both with end lines (statuses 0 and 1, the
+    # Replicata: progress.survey_track of two made-up records of 768:12, both with end lines (both status 0, the
     # starts at 1000 and 1001, the ends 1000 s later), at time 5000, their found file first missing, then holding a
-    # line; then the same with the second record's end line gone and its pid not running.
+    # line; then the same with the second record's end line gone and its pid not running; then its found file emptied.
     # Expectata: the search ended; its outcome none while nothing is found (a missing file holds no line), found
-    # with a line; its so_far from the first start to the last end, 1001 s; with a run aborted, its outcome null (so
-    # that the page shows it aborted, as an ended run with no outcome).
+    # with a line; its so_far from the first start to the last end, 1001 s; with a run aborted, found still reports
+    # the witness.  Without a result its outcome is null (so the page shows it aborted).  The witness expectation
+    # was revised with the 2026-10-28 failure-reporting fix: a failed peer does not undo a successful search result.
     d = tempfile.mkdtemp(prefix='progress-quals-')
     try:
         found = os.path.join(d, 'witnesses.jsonl')
-        records = [track_record(f'r{i}', 200 + i, i, found, 1000 + i) for i in range(2)]
+        records = [track_record(f'r{i}', 200 + i, 0, found, 1000 + i) for i in range(2)]
         s = progress.survey_track('768:12', records, [], 5000.0)
         assert (s['state'], s['outcome'], s['so_far']) == ('ended', 'none', 1001.0), s
         open(found, 'w').write('{}\n')
         assert progress.survey_track('768:12', records, [], 5000.0)['outcome'] == 'found'
         records[1] = records[1][:1]
         s = progress.survey_track('768:12', records, [], 5000.0)
+        assert (s['state'], s['outcome'], s['display']['work']['aborted']) == ('ended', 'found', 1), s
+        open(found, 'w').write('')
+        s = progress.survey_track('768:12', records, [], 5000.0)
         assert (s['state'], s['outcome']) == ('ended', None), s
     finally:
         shutil.rmtree(d)
+
+
+def q_survey_track_nonzero_exit_is_aborted():
+    # Replicata: one successful tracked run and one ending with status 1, -15, or 137, first without a found file,
+    # then with one witness line.  Both end records are present, even while a process still has the failed run's PID.
+    # Expectata (dreeves, 2026-10-28: approved failure reporting): the failed run is open/aborted, the successful run
+    # settled/ended; the search ended with outcome null without a result, or found with a witness, and no ETA.
+    # Witness lines remain counted, without turning the failed run green or treating its search as an exclusion.
+    d = tempfile.mkdtemp(prefix='progress-quals-')
+    try:
+        found = os.path.join(d, 'witnesses.jsonl')
+        for status in (1, -15, 137):
+            records = [track_record('ok', 210, 0, found, 1000), track_record('failed', 211, status, found, 1001)]
+            for lines, outcome in (('', None), ('{}\n', 'found')):
+                open(found, 'w').write(lines)
+                s = progress.survey_track('768:12', records, [(211, 1, 'R', 'python3 -B w12.py')], 5000.0)
+                assert (s['state'], s['outcome'], s['so_far'], s['to_go']) == ('ended', outcome, 1001.0, None), s
+                assert s['display']['work'] == dict(runs=2, running=0, frozen=0, ended=1, aborted=1,
+                                                   found=len(lines.splitlines())), s['display']
+                assert s['sea']['groups'] == [''.join(str(progress.SEA_STATUSES.index(st))
+                                                       for st in ('settled', 'open'))], s['sea']
+    finally:
+        shutil.rmtree(d)
+
+
+def q_survey_track_witness_survives_failed_and_canceled_peers():
+    # Replicata: an earlier seed failed, a second found a witness, and the driver canceled its remaining peer.
+    # Expectata: the completed search reports found; the failed and canceled seeds retain their aborted counts
+    # and open dots, while the witness-producing seed stays settled.
+    d = tempfile.mkdtemp(prefix='progress-quals-')
+    try:
+        found = os.path.join(d, 'witnesses.jsonl')
+        open(found, 'w').write('{"order12_witness":true}\n')
+        records = [track_record('failed', 230, 1, found, 1000), track_record('found', 231, 0, found, 1001),
+                   track_record('canceled', 232, -15, found, 1002)]
+        s = progress.survey_track('768:12', records, [], 5000.0)
+        assert (s['state'], s['outcome']) == ('ended', 'found'), s
+        assert s['display']['work'] == dict(runs=3, running=0, frozen=0, ended=1, aborted=2, found=1), s['display']
+        assert s['sea']['groups'] == [''.join(str(progress.SEA_STATUSES.index(st))
+                                               for st in ('open', 'settled', 'open'))], s['sea']
+    finally:
+        shutil.rmtree(d)
+
+
+def q_survey_track_adopted_unknown_exit_stays_ended():
+    # Replicata: an adopted run whose tracker wrote an end record with status null, because it cannot read that
+    # process's exit status.  Expectata: its existing completed display is retained, with no claimed exclusion.
+    records = [track_record('adopted', 220, None, None, 1000)]
+    records[0][0]['adopted'] = True
+    records[0].append(dict(event='end', time=2000, status=None))
+    s = progress.survey_track('768:12', records, [], 5000.0)
+    assert (s['state'], s['outcome'], s['so_far'], s['to_go']) == ('ended', 'none', 1000.0, None), s
+    assert s['display']['work'] == dict(runs=1, running=0, frozen=0, ended=1, aborted=0, found=0), s['display']
 
 
 def q_js_text_carries_a_tracked_search():
