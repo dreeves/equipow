@@ -1839,6 +1839,65 @@ def q_example_at_768_has_its_entry_code_and_set():
     assert mstar_data()['cols'][768 - 1] == [12, 13, ['example', 'index.html p768'], ['residue', 5]], mstar_data()['cols'][768 - 1]
 
 
+OEIS = ('A323395', 'A306248', 'A323610', 'A323629', 'A323614')                # the OEIS section's entries on this problem
+RELATED = ('A382832', 'A382833', 'A362039', 'A010060', 'A106400', 'A001969', 'A000069', 'A140047')   # and related ones
+
+
+def q_oeis_section_links_the_family():
+    # Replicata: index.html: the section after the table of smallest lengths.
+    # Expectata (dreeves, 2026-10-28: "can you make a section that links to all the relevant OEIS entries and notes any
+    # discrepancies?"): <section class="oeis" aria-labelledby="oeis-title"> follows <section class="smallest">, with
+    # only blank lines and comments between; a TODO comment, then a block quote by Claude (blockquote class="claude",
+    # its h2 oeis-title, its attribution "— Claude"), with two lists: one item per entry on this problem (OEIS:
+    # A323395, A306248, A323610, A323629, A323614), then one per related entry (RELATED: A382832, A382833, A362039,
+    # A010060, A106400, A001969, A000069, A140047), each in that order and each linking https://oeis.org/ and its
+    # number, once, and no other entry.
+    text, filler = page(), r'(?:\s|<!--.*?-->)*'
+    m = re.search(r'<section class="smallest" aria-labelledby="smallest-title">.*?</section>', text, re.S)
+    assert m
+    sec = re.match(filler + r'(<section class="oeis" aria-labelledby="oeis-title">.*?</section>)', text[m.end():], re.S)
+    assert sec, text[m.end():m.end() + 300]
+    body = sec.group(1)
+    assert re.search(r'<!-- TODO: [^\n]*-->\s*<blockquote class="claude">\s*<h2 id="oeis-title">', body), body[:400]
+    assert '<p class="attrib">— Claude</p>' in body
+    lists = [re.findall(r'<li>(.*?)</li>', ul, re.S) for ul in re.findall(r'<ul>(.*?)</ul>', body, re.S)]
+    links = [[re.findall(r'href="https://oeis\.org/(A\d{6})"', li) for li in items] for items in lists]
+    assert links == [[[a] for a in OEIS], [[a] for a in RELATED]], links
+
+
+def q_oeis_notes_hold_on_the_chart():
+    # Replicata: the OEIS section's first list, and mstar.js.
+    # Expectata: what each note says of this page holds in the chart's data (OEIS's k-powerful is order k + 1 here):
+    # A323395's: a(10) = 432 proven (the least n known to reach order 11 is the least n allowed it); a(11) 432 or 480
+    # (order 12 open at 432, ruled out at 448 and 464, known at 480); order 12 known at 864 and order 13 at 960 (lo),
+    # 960 the least n known to reach order 13 (so a(12) <= 960), doubling 960 giving 1920; A306248's: m*(2n) settled
+    # (lo = hi) for every n up to 143 and open at 288, 48 more terms than OEIS's 95; A323610's and A323614's: their
+    # comments' descriptions of L6 (48 and the multiples of 8 from 64) and L8 (144 and the multiples of 16 from 192)
+    # are exactly the chart's lengths of order 6 and 8 through 1024, every other length ruled out; A323629's: 112 in
+    # L7 (m*(112) = 7, A306248's a(56)), and its comment's description with 112 added (96, 112, 128, 144, 160, 176
+    # and the multiples of 8 from 192) the chart's L7 through 1024.  Each note states its numbers.  (OEIS's side,
+    # fetched on 2026-10-28, is in scratch/oeis/: its JSON, b-files and compare.py.)
+    text = page()
+    body = re.search(r'<section class="oeis" aria-labelledby="oeis-title">.*?</section>', text, re.S).group(0)
+    notes = dict(zip(OEIS, re.findall(r'<li>(.*?)</li>', re.search(r'<ul>(.*?)</ul>', body, re.S).group(1), re.S)))
+    cols = mstar_data()['cols']
+    lo, hi = (lambda n: cols[n - 1][0]), (lambda n: cols[n - 1][1])
+    known = lambda m: next(n for n in range(2, NMAX + 1, 2) if lo(n) >= m)
+    allowed = lambda m: next(n for n in range(2, NMAX + 1, 2) if hi(n) >= m)
+    assert known(11) == allowed(11) == 432 and (lo(864), lo(960)) == (12, 13) and known(13) == 960
+    assert lo(432) < 12 <= hi(432) and max(hi(448), hi(464)) < 12 <= lo(480) and known(12) == 480
+    assert all(w in notes['A323395'] for w in ('432', '448', '464', '480', '864', '960', '1920')), notes['A323395']
+    assert all(lo(2 * n) == hi(2 * n) for n in range(1, 144)) and lo(288) < hi(288)
+    assert all(w in notes['A306248'] for w in ('95', '48', '143', '286', '288')), notes['A306248']
+    rules = {'A323610': (6, lambda n: n == 48 or (n % 8 == 0 and n >= 64)),
+             'A323629': (7, lambda n: n in (96, 112, 128, 144, 160, 176) or (n % 8 == 0 and n >= 192)),
+             'A323614': (8, lambda n: n == 144 or (n % 16 == 0 and n >= 192))}
+    for a, (m, rule) in rules.items():
+        assert all((lo(n) >= m) == rule(n) and (hi(n) >= m) == rule(n) for n in range(2, NMAX + 1, 2)), a
+        assert NMAX == 1024 and '1024' in notes[a], notes[a]
+    assert lo(112) == hi(112) == 7 and all(w in notes['A323629'] for w in ('112', '56')), notes['A323629']
+
+
 def q_912_moves_excess_3_to_2_29():
     # Replicata: pow2.js's columns 2^28 to 2^35, the new results' cells of 2^29, 2^30, 2^33 and 2^34 and their remarks'
     # entries, and Theorem 1's statement and its list of firsts.

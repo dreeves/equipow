@@ -111,20 +111,22 @@ def check_readouts(data, reads):
     q_hover_reads_out_every_cell)."""
     E, cols, meaning = data['etop'], data['cols'], {}
     assert sorted((k, e) for k, e, _ in reads) == [(k, e) for k in range(1, K + 1) for e in range(1, E + 1)]
+    least = lambda g: next((i + 1 for i, c in enumerate(cols) if c[0] >= i + 1 + g), 0)
+    gold = {(least(g), g) for g in range(1, E + 1) if least(g)}     # the record gaps' cells, ringed in gold
     for k, e, r in reads:
         lo, hi, lw, hw = cols[k - 1]
         kind = kind_of(cols[k - 1], k, e)
         g = READOUT.fullmatch(r['text'])
         assert g and [int(g[i]) for i in (1, 2, 3, 4, 5, 7, 8, 9)] == [k, k, k, e, k + e, lo, k, hi], (k, e, r)
-        assert r['children'][:1] == [f'swatch {KINDS[kind]}'], (k, e, r)
+        assert r['children'][:1] == [f'swatch {KINDS[kind]}' + ' record' * ((k, e) in gold)], (k, e, r)
         assert g[6] == MEANINGS[kind], (k, e, r)
         meaning.setdefault(kind, set()).add(g[6])
         parts = re.findall(r'Claude: "[^"]*"', g[10])
         assert ' · '.join(parts) == g[10], (k, e, r)
         want = [(f'Claude: "order {lo} ', reason_math(k, lw)), (f'Claude: "order {hi + 1} ', reason_math(k, hw))]
         want = [want[:1], want, want[1:]][kind]
-        assert len(parts) == len(want) and all(p.startswith(a) and b in p for p, (a, b) in zip(parts, want)), \
-            (k, e, r, want)
+        assert len(parts) == len(want) + ((k, e) in gold), (k, e, r, want)     # a gold cell's note after its reasons
+        assert all(p.startswith(a) and b in p for p, (a, b) in zip(parts, want)), (k, e, r, want)
     assert all(len(v) == 1 for v in meaning.values()) and len(set.union(*meaning.values())) == len(meaning), meaning
 
 
@@ -758,7 +760,10 @@ def q_hover_reads_out_every_cell():
     # (each <sup> written ^(…)) is "k = K, n = 2^(K), m = K + E = M · MEANING · lo ≤ m^(*)(2^(K)) ≤ hi · REASONS":
     # MEANING dreeves's word for the cell's kind (MEANINGS: known, open, impossible); REASONS the
     # Claude: "…" of lo's reason for a green cell, of hi's for a red one and both for a gray one, joined by " · ", lo's
-    # starting "order lo " and hi's "order hi + 1 ", each holding its reason's math (reason_math).
+    # starting "order lo " and hi's "order hi + 1 ", each holding its reason's math (reason_math).  A cell ringed in
+    # gold, a bound the theorem states (q_gold_trim_rings_the_theorem_s_cells), has its swatch ringed too (swatch
+    # exists record) and one Claude: "…" note after its reasons, as the m*(n) chart's readout does for its records
+    # (dreeves, 2026-10-28: "don't forget the gold trim on the hover version").
     R = valid('light')
     check_readouts(R['data'], R['hovers'])
 

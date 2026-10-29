@@ -322,12 +322,13 @@ code {
 /* Claude's table of the smallest length known for each order (Stan Wagon's suggestion, 2026-10-17): a block quote in
    Claude's hue like the lattice section's, its table drawn as the paper's (table.block) but not of that class, which
    mstar.py reads as Table 2's and the new results'; its body filled from mstar.js. */
-.smallest { display: grid; grid-template-columns: minmax(0, 1fr); max-width: 46rem; }
-.smallest blockquote { margin: 0; padding-left: 1.1rem; border-left: 3px solid var(--claude); display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; }
+.smallest, .oeis { display: grid; grid-template-columns: minmax(0, 1fr); max-width: 46rem; }
+.smallest blockquote, .oeis blockquote { margin: 0; padding-left: 1.1rem; border-left: 3px solid var(--claude); display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; }
 .smallest table { justify-self: start; border-collapse: collapse; font-variant-numeric: tabular-nums lining-nums; }
 .smallest th, .smallest td { border: 1px solid var(--rule); padding: 0.3rem 0.7rem; text-align: center; }
 .smallest th { font-weight: 400; }
-.smallest .attrib { color: var(--muted); }
+.smallest .attrib, .oeis .attrib { color: var(--muted); }
+.oeis ul { margin: 0; padding-left: 1.25rem; display: grid; gap: 0.35rem; }
 
 /* Claude's chart of m*(n) for n up to 1024: one canvas, drawn by the script at the end from mstar.js. Pan and zoom
    act on n only, and vertical swipes still scroll the page. */
@@ -420,6 +421,7 @@ footer {
   <!-- The changelog, newest first, as in dreeves's spec FreshAt (doc.bmndr.co/freshat) -->
   <details class="changelog">
     <summary><i>Changelog</i></summary>
+    <p>2026-10-28: <span class="nw">OEIS section</span></p>
     <p>2026-10-28: <span class="nw"><i>m</i><sup>*</sup>(720) ≥ 12</span></p>
     <p>2026-10-28: <span class="nw">12 ≤ <i>m</i><sup>*</sup>(768) ≤ 13</span></p>
     <p>2026-10-28: <span class="nw"><i>m</i><sup>*</sup>(2<sup>39</sup>) ≥ 44</span></p>
@@ -1255,6 +1257,33 @@ footer {
   </blockquote>
   <!-- TODO: attributes the new minimality result to Astra and identifies the new exclusion that completes the existing bounds. -->
   <p>Astra: "The <a href="#proof384">exclusion of order 11 at 384</a> closes the last gap below 432. Together with the existing order-11 example at 432 and the other exclusions in the chart, this proves <span class="nw"><i>a</i>(10) = 432</span>."</p>
+</section>
+
+<section class="oeis" aria-labelledby="oeis-title">
+  <!-- TODO: a block quote by Claude, at dreeves's request (2026-10-28: "can you make a section that links to all the relevant OEIS entries and notes any discrepancies?"): the OEIS entries on this problem, each linked, with how it compares with this page on 2026-10-28, OEIS's k-powerful being order k + 1 here. A323395, the smallest length of each order (a(m − 1) for order m): its terms through a(9) = 240 agree; of its comment's bounds, a(10) ≤ 432 and a(11) ≤ 480 hold, this page proving a(10) = 432 and that a(11) is 432 or 480 (order 12 open at 432, ruled out at 448 and 464), while a(12) ≤ 864 and a(13) ≤ 960 look one order too high (order 12 is known at 864 and order 13 at 960, each by doubling, so a(12) ≤ 960, and doubling 960 gives a(13) ≤ 1920). A306248, m*(2n): its 95 terms agree, and this page settles 48 more, through n = 143, with m*(288) open. A323610 (L6, the lengths n with m*(n) ≥ 6) and A323614 (L8): their terms agree, and so do their comments' descriptions through 1024. A323629 (L7) omits 112 from its terms, comment and generating function, though the paper's Theorem 3.1 and Tables 1 to 3 and A306248's a(56) = 7 have it; with 112 added it agrees through 1024. Then the related entries: A382832, the same question for two distinct subsets that need not form a partition, at most A323395; A382833, the number of distinct power-sum vectors of the subsets; A362039, the least common sum of two sets of primes of order m; A010060 and A106400, Thue–Morse as 0s and 1s and as signs, its partition of {0, …, 2^k − 1} having order k; A001969 and A000069, the evil and odious numbers, the two parts of that partition; A140047, the power sums of each part of an order-k partition of {0, …, 2^k − 1}, half those of the whole set -->
+  <blockquote class="claude">
+    <h2 id="oeis-title">OEIS entries</h2>
+    <p>The entries of the OEIS on this problem, compared with this page on 2026-10-28. The OEIS's <span class="nw"><i>k</i>-powerful</span> is order <span class="nw"><i>k</i> + 1</span> here.</p>
+    <ul>
+      <li><a href="https://oeis.org/A323395">A323395</a>, the smallest <i>n</i> of each order (<span class="nw"><i>a</i>(<i>m</i> − 1)</span> for order <i>m</i>): its terms, through <span class="nw"><i>a</i>(9) = 240</span>, agree. Of the bounds in its comment, <span class="nw"><i>a</i>(10) ≤ 432</span> and <span class="nw"><i>a</i>(11) ≤ 480</span> hold: this page proves <span class="nw"><i>a</i>(10) = 432</span> (above), and <i>a</i>(11) is 432 or 480, order 12 being open at 432 and ruled out at 448 and 464. Its <span class="nw"><i>a</i>(12) ≤ 864</span> and <span class="nw"><i>a</i>(13) ≤ 960</span> look one order too high: order 12 is known at 864 and order 13 at 960, each by doubling, so <span class="nw"><i>a</i>(12) ≤ 960</span>, and doubling 960 gives <span class="nw"><i>a</i>(13) ≤ 1920</span>.</li>
+      <li><a href="https://oeis.org/A306248">A306248</a>, <span class="nw"><i>m</i><sup>*</sup>(2<i>n</i>)</span>: its 95 terms agree, and this page settles 48 more, through <span class="nw"><i>n</i> = 143</span> (<span class="nw">2<i>n</i> = 286</span>); <span class="nw"><i>m</i><sup>*</sup>(288)</span> is open.</li>
+      <li><a href="https://oeis.org/A323610">A323610</a>, the lengths <i>n</i> with <span class="nw"><i>m</i><sup>*</sup>(<i>n</i>) ≥ 6</span> (<i>L</i><sub>6</sub>): its terms agree, and so does its comment's description through 1024.</li>
+      <li><a href="https://oeis.org/A323629">A323629</a>, <i>L</i><sub>7</sub>: omits 112 from its terms, its comment and its generating function. The paper's <a href="https://arxiv.org/html/1912.03491v1#S3.Thmthm1">Theorem 3.1</a> and Tables 1 to 3 have 112 in <i>L</i><sub>7</sub>, as does A306248, whose <i>a</i>(56) is 7. With 112 added, it agrees through 1024.</li>
+      <li><a href="https://oeis.org/A323614">A323614</a>, <i>L</i><sub>8</sub>: its terms agree, and so does its comment's description through 1024.</li>
+    </ul>
+    <p>Related entries:</p>
+    <ul>
+      <li><a href="https://oeis.org/A382832">A382832</a>: the question of A323395 for two distinct subsets of {0, …, <span class="nw"><i>k</i> − 1</span>}, which need not form a partition; its <span class="nw"><i>a</i>(<i>m</i> − 1)</span>, the least such <i>k</i> for order <i>m</i>, is at most A323395's.</li>
+      <li><a href="https://oeis.org/A382833">A382833</a>: the number of distinct vectors of power sums, for exponents 0 through <span class="nw"><i>m</i> − 1</span>, among the subsets of {0, …, <span class="nw"><i>n</i> − 1</span>}.</li>
+      <li><a href="https://oeis.org/A362039">A362039</a>: the least common sum of two different sets of <i>m</i> primes each whose power sums agree for exponents 0 through <span class="nw"><i>m</i> − 1</span>.</li>
+      <li><a href="https://oeis.org/A010060">A010060</a>: the Thue–Morse sequence, whose partition of {0, …, <span class="nw">2<sup><i>k</i></sup> − 1</span>} has order <i>k</i>.</li>
+      <li><a href="https://oeis.org/A106400">A106400</a>: the Thue–Morse sequence as signs, starting with +1.</li>
+      <li><a href="https://oeis.org/A001969">A001969</a>: the evil numbers, the part of the Thue–Morse partition that holds 0.</li>
+      <li><a href="https://oeis.org/A000069">A000069</a>: the odious numbers, its other part.</li>
+      <li><a href="https://oeis.org/A140047">A140047</a>: the power sums, for exponents 0 through <span class="nw"><i>k</i> − 1</span>, of each part of a partition of {0, …, <span class="nw">2<sup><i>k</i></sup> − 1</span>} of order <i>k</i>, such as Thue–Morse's, which are half those of the whole set.</li>
+    </ul>
+    <p class="attrib">— Claude</p>
+  </blockquote>
 </section>
 
 <section class="counts">
@@ -2631,16 +2660,28 @@ try {
   svg.setAttribute('preserveAspectRatio', 'none');
   svg.style.height = `${E * ROW}px`;
   outline.hidden = true;
+  // The bounds the theorem states, their cells ringed in gold just outside them as the m*(n) chart rings its records
+  // (dreeves's README, 2026-10-28: "[GTR] Gold trim for the powers-of-2 chart to highlight the values in the
+  // theorem"): for each record gap g, cell (k, g) of the least k with lo >= k + g (the table below has the same).  The
+  // ring fills the gaps above and below the cell and is 1 px at its sides, where a phone's columns are about 4 px wide;
+  // it lies under the outline of the cell read out, whose swatch it rings too, with a note (dreeves, 2026-10-28: "don't
+  // forget the gold trim on the hover version"), as the m*(n) chart's readout does for its records.
+  const least = g => D.cols.findIndex((c, i) => c[0] >= i + 1 + g) + 1;       // 0 if none
+  const trims = Array.from({length: E}, (_, i) => i + 1).filter(g => least(g) > 0).map(g => [least(g), g]);
   function select(k, e) {                                          // read out cell (k, e) and outline it
     const [lo, hi, lw, hw] = D.cols[k - 1], kind = kindOf(k, e);
+    const gold = trims.filter(([tk, te]) => tk === k && te === e);
     const why = [() => LO[lw[0]].text(k, lo, ...lw.slice(1)), () => HI[hw[0]].text(k, hi, ...hw.slice(1))];
     const two = () => ['2', el('sup', '', String(k))];           // 2^k
     swatch.className = `swatch ${KIND[kind]}`;
+    swatch.classList.toggle('record', gold.length > 0);
     ro.replaceChildren(swatch,
       nw(el('i', '', 'k'), ` = ${k}, `, el('i', '', 'n'), ' = ', ...two(), ', ', el('i', '', 'm'),
          ` = ${k} + ${e} = ${k + e}`),
       ' · ', MEANING[kind], ' · ', nw(`${lo} ≤ `, el('i', '', 'm'), el('sup', '', '*'), '(', ...two(), `) ≤ ${hi}`),
       ' · ', ...subbed([[why[0]], why, [why[1]]][kind].map(f => f()).join(' · ')));
+    // TODO: readout note on a cell ringed in gold; says 2^k is the least power of 2 known to beat Thue–Morse by δ, a bound the theorem below states
+    ro.append(...gold.map(() => ` · Claude: "the least k known to beat Thue–Morse by ${e}, a bound the theorem below states"`));
     at(outline, {left: `calc(${(k - 1) / K * 100}% - 2px)`, width: `calc(${100 / K}% + 4px)`,
                  top: `${(E - e) * ROW - 2}px`, height: `${ROW - GAP + 4}px`});
     outline.hidden = false;
@@ -2662,13 +2703,6 @@ try {
     const left = `${(k - 0.5) / K * 100}%`;
     ks.append(at(el('span', 'pow2-tick', ''), {left}), at(el('span', 'pow2-klabel', String(k)), {left}));
   }
-  // The bounds the theorem states, their cells ringed in gold just outside them as the m*(n) chart rings its records
-  // (dreeves's README, 2026-10-28: "[GTR] Gold trim for the powers-of-2 chart to highlight the values in the
-  // theorem"): for each record gap g, cell (k, g) of the least k with lo >= k + g (the table below has the same).  The
-  // ring fills the gaps above and below the cell and is 1 px at its sides, where a phone's columns are about 4 px wide.
-  // Under the outline of the cell read out.
-  const least = g => D.cols.findIndex((c, i) => c[0] >= i + 1 + g) + 1;       // 0 if none
-  const trims = Array.from({length: E}, (_, i) => i + 1).filter(g => least(g) > 0).map(g => [least(g), g]);
   plot.append(svg, ...trims.map(([k, e]) => at(el('div', 'pow2-trim', ''), {
     left: `calc(${(k - 1) / K * 100}% - 1px)`, width: `calc(${100 / K}% + 2px)`,
     top: `${(E - e) * ROW - 2}px`, height: `${ROW - GAP + 4}px`})), outline);
