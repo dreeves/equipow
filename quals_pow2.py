@@ -163,7 +163,7 @@ def q_new_lower_bounds():
     # Replicata (regression): pow2.js's lo - k, the excess known at 2^k, for k = 1..72, and the kind of its loWhy.
     # Expectata: 0 by Thue-Morse for k <= 9; 1 for 10..19 (joins from pow2.BASES[10], the example of order 11 at 1024
     # alone); 2 for 20..28 (BASES[20], which beats f # tau_j at 24..26); 3 for 29..36 (BASES[29], with the example of
-    # order 12 at 912); 4 for 37..40 (BASES[37]); 5 for 41..47 (BASES[41], with the example of order 11 at 816); 6 for
+    # order 12 at 912); 4 for 37..40 (BASES[37]); 5 for 41..47 (BASES[41], with the example at 816, of order 11 and since 2026-10-28 12); 6 for
     # 48..56 (BASES[48]); 7 for 57..64 (BASES[57]); 8 for 65..67 (BASES[65]); 9 for 68..72 (BASES[68]); every lo above
     # Thue-Morse's a join.  The bases are at 2^10 order 11, 2^20 order 22, 2^29 order 32, 2^37 order 41, 2^41 order 46,
     # 2^48 order 54, 2^57 order 64, 2^65 order 73 and 2^68 order 77, each lifted by tau_(k - K0) above.  And lo = hi
@@ -184,7 +184,7 @@ def q_new_lower_bounds():
     for k, (lo, hi, lw, hw) in enumerate(cols(), 1): assert (lo - k, lw[0]) == (want[k], kind[k]), (k, lo, lw[0])
     orders = {K0: pow2.join_lo(K0, ps) for K0, ps in pow2.BASES.items()}
     assert orders == {10: 11, 20: 22, 29: 32, 37: 41, 41: 46, 48: 54, 57: 64, 65: 73, 68: 77}, orders
-    assert [816, 11] in (b for p in pow2.BASES[41] for b in p), pow2.BASES[41]
+    assert [816, 12] in (b for p in pow2.BASES[41] for b in p), pow2.BASES[41]
     assert [912, 12] in (b for p in pow2.BASES[29] for b in p), pow2.BASES[29]
     assert pow2.BASES[10] == [[[1024, 11]]], pow2.BASES[10]
     # lo = hi through k = 12 (the norm bound for 3 at 2^10, the residue condition mod 3 at 2^11 and 2^12), and not at 13

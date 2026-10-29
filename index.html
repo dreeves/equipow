@@ -419,6 +419,7 @@ footer {
   <!-- The changelog, newest first, as in dreeves's spec FreshAt (doc.bmndr.co/freshat) -->
   <details class="changelog">
     <summary><i>Changelog</i></summary>
+    <p>2026-10-28: <span class="nw"><i>m</i><sup>*</sup>(816) ≥ 12</span></p>
     <p>2026-10-28: <span class="nw"><i>m</i><sup>*</sup>(1008) ≥ 12</span></p>
     <p>2026-10-28: <span class="nw">12 ≤ <i>m</i><sup>*</sup>(912) ≤ 13</span></p>
     <p>2026-10-28: <span class="nw"><i>m</i><sup>*</sup>(2<sup>29</sup>) ≥ 32</span></p>
@@ -534,7 +535,7 @@ footer {
         </table>
         <table class="block">
           <tr class="ns"><th scope="row"><i>n</i></th><td class="c" title='Claude alone'>672</td><td class="c" title='Claude alone'>688</td><td class="c" title='Claude alone'>704</td><td class="c" title='Claude alone'>720</td><td class="c" title='Claude alone'>736</td><td class="ca" title='Claude and Astra'>752</td><td class="c" title='Claude alone'>768</td><td class="ca" title='Claude and Astra'>784</td><td class="c" title='Claude alone'>800</td><td class="c" title='Claude alone'>816</td><td class="c" title='Claude alone'>832</td></tr>
-          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="c">11–13</td><td class="c">9–10</td><td class="c">10</td><td class="c">11–14</td><td class="c">10</td><td class="ca">10</td><td class="c">11–13</td><td class="ca">10</td><td class="c">11</td><td class="c">11–14</td><td class="c">11</td></tr>
+          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="c">11–13</td><td class="c">9–10</td><td class="c">10</td><td class="c">11–14</td><td class="c">10</td><td class="ca">10</td><td class="c">11–13</td><td class="ca">10</td><td class="c">11</td><td class="c">12–14</td><td class="c">11</td></tr>
         </table>
         <table class="block">
           <tr class="ns"><th scope="row"><i>n</i></th><td class="c" title='Claude alone'>848</td><td class="c" title='Claude alone'>864</td><td class="c" title='Claude alone'>880</td><td class="c" title='Claude alone'>896</td><td class="c" title='Claude alone'>912</td><td class="c" title='Claude alone'>928</td><td class="c" title='Claude alone'>944</td><td class="c" title='Claude alone'>960</td><td class="c" title='Claude alone'>976</td><td class="c" title='Claude alone'>992</td><td class="c" title='Claude alone'>1008</td><td class="c" title='Claude alone'>1024</td></tr>
@@ -876,12 +877,12 @@ footer {
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry"><i>n</i> = 816: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {11, …, 14}</span></p>
-      <!-- TODO: says this is an antisymmetric example of order 11, and that order 15 at 816 is ruled out by the norm bound for the residue sums mod 5, so m*(816) is 11, 12, 13 or 14 -->
-      <p>Claude: "An antisymmetric example of order 11. Order 15 is ruled out by the norm bound for the residue sums mod 5."</p>
+      <p class="entry"><i>n</i> = 816: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {12, 13, 14}</span></p>
+      <!-- TODO: says this is a symmetric example of order 12, and that order 15 at 816 is ruled out by the norm bound for the residue sums mod 5, so m*(816) is 12, 13 or 14 -->
+      <p>Claude: "A symmetric example of order 12. Order 15 is ruled out by the norm bound for the residue sums mod 5."</p>
       <p class="code">
-        <span><i>p</i><sub>816</sub> <span class="nw">(<i>m</i> = 11)</span>:</span>
-        <code>FC11502F59D43C8DCB79FA15B0C7A8D082BB835E52A495A1C3D47FE9C9391EEC73316A8A9F2128305CE5F5CADA5B8023E97A56</code>
+        <span><i>p</i><sub>816</sub> <span class="nw">(<i>m</i> = 12)</span>:</span>
+        <code>9DA92A11F804FDEB7EBC4021CB6722C67D282BD35624BCF238A1E1DD66DC9D496BC238EF6CB84018A2D7854A72C535DDF61A9C</code>
       </p>
     </li>
     <li class="c">
@@ -1128,8 +1129,8 @@ footer {
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry"><i>n</i> = 2<sup>41</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {46, …, 50}</span></p>
-      <!-- TODO: says order 46 at 2^41 comes from a join of four products of the examples above and Thue–Morse, each of order 46, which beats Thue–Morse by 5; and that the upper bound is the residue condition mod 3 -->
-      <p>Claude: "A join of four products of examples above and Thue–Morse, each of order 46; the powers-of-2 chart above lists them. That beats Thue–Morse by 5. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above."</p>
+      <!-- TODO: says order 46 at 2^41 comes from a join of four products of the examples above and Thue–Morse, each of order at least 46, which beats Thue–Morse by 5; and that the upper bound is the residue condition mod 3 -->
+      <p>Claude: "A join of four products of examples above and Thue–Morse, each of order at least 46; the powers-of-2 chart above lists them. That beats Thue–Morse by 5. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above."</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
@@ -1914,38 +1915,38 @@ SClaude[11][1024] = {
   961, 963, 964, 966, 969, 970, 972, 973, 976, 979, 983, 984, 985,
   986, 988, 991, 993, 994, 996, 1000, 1001, 1002, 1003, 1006, 1008,
   1009, 1012, 1016, 1017, 1018, 1020, 1021};
-SClaude[11][816] = {
-  0, 1, 2, 3, 4, 5, 11, 15, 17, 19, 26, 28, 29, 30, 31, 33, 35, 36,
-  39, 40, 41, 43, 45, 50, 51, 52, 53, 56, 60, 61, 63, 64, 65, 68, 70,
-  71, 73, 74, 75, 76, 79, 80, 81, 82, 83, 84, 86, 91, 93, 95, 96, 98,
-  99, 104, 105, 109, 110, 111, 112, 114, 116, 120, 121, 123, 128,
-  134, 136, 138, 139, 140, 142, 143, 144, 150, 151, 153, 155, 156,
-  157, 158, 161, 163, 166, 168, 170, 173, 176, 179, 181, 183, 184,
-  186, 191, 192, 193, 198, 199, 200, 201, 203, 205, 209, 210, 211,
-  212, 213, 214, 215, 216, 217, 218, 220, 223, 224, 225, 228, 231,
-  234, 235, 236, 239, 243, 244, 245, 246, 248, 249, 250, 252, 253,
-  257, 258, 259, 262, 263, 266, 267, 271, 273, 274, 276, 278, 280,
-  284, 286, 288, 291, 292, 293, 294, 295, 298, 303, 306, 308, 314,
-  315, 321, 323, 324, 325, 328, 329, 330, 333, 335, 336, 337, 338,
-  339, 341, 343, 344, 345, 348, 350, 352, 353, 355, 356, 358, 361,
-  363, 364, 366, 367, 368, 378, 382, 383, 384, 385, 386, 388, 391,
-  393, 394, 395, 396, 398, 401, 403, 405, 406, 408, 411, 413, 415,
-  416, 418, 423, 425, 426, 428, 434, 435, 436, 438, 439, 440, 441,
-  442, 443, 444, 445, 446, 450, 453, 455, 456, 458, 461, 464, 466,
-  468, 469, 473, 475, 481, 483, 484, 488, 489, 493, 495, 496, 497,
-  498, 499, 502, 503, 504, 505, 506, 508, 510, 511, 513, 514, 515,
-  516, 518, 519, 525, 526, 528, 530, 532, 533, 534, 536, 538, 540,
-  543, 545, 546, 547, 550, 551, 554, 555, 559, 560, 561, 564, 568,
-  573, 574, 575, 577, 578, 582, 583, 585, 586, 588, 589, 593, 594,
-  596, 607, 608, 609, 611, 613, 618, 619, 620, 621, 625, 626, 627,
-  628, 630, 633, 635, 637, 638, 640, 641, 643, 644, 646, 648, 650,
-  651, 653, 655, 656, 661, 663, 666, 667, 668, 669, 670, 674, 678,
-  680, 682, 683, 684, 685, 686, 688, 689, 690, 691, 693, 696, 697,
-  698, 700, 702, 707, 708, 709, 712, 713, 714, 715, 718, 721, 723,
-  725, 726, 727, 728, 730, 737, 738, 743, 746, 748, 749, 753, 756,
-  757, 758, 760, 761, 766, 767, 768, 769, 771, 773, 777, 778, 781,
-  783, 788, 790, 791, 792, 793, 794, 795, 797, 799, 801, 802, 803,
-  805, 806, 807, 808, 809};
+SClaude[12][816] = {
+  0, 3, 4, 5, 7, 8, 10, 12, 15, 18, 20, 22, 27, 31, 32, 33, 34, 35,
+  36, 45, 48, 49, 50, 51, 52, 53, 55, 56, 57, 58, 60, 62, 63, 65, 66,
+  67, 68, 69, 70, 72, 74, 75, 76, 77, 81, 90, 95, 96, 97, 100, 102,
+  103, 105, 106, 109, 110, 111, 114, 118, 120, 121, 125, 126, 129,
+  130, 131, 132, 133, 135, 138, 140, 146, 148, 150, 151, 152, 153,
+  155, 158, 159, 161, 163, 165, 166, 170, 173, 176, 178, 179, 180,
+  181, 184, 185, 186, 187, 190, 194, 195, 196, 200, 202, 207, 208,
+  209, 210, 215, 216, 217, 219, 220, 221, 223, 225, 226, 229, 230,
+  232, 233, 235, 236, 237, 240, 243, 244, 245, 247, 249, 252, 255,
+  257, 258, 260, 262, 263, 264, 265, 270, 274, 275, 276, 280, 281,
+  282, 284, 285, 286, 287, 289, 290, 292, 293, 296, 298, 299, 300,
+  305, 315, 316, 320, 322, 326, 328, 329, 331, 333, 334, 335, 336,
+  341, 343, 345, 348, 350, 353, 354, 355, 358, 360, 361, 365, 367,
+  370, 371, 373, 375, 376, 377, 379, 380, 381, 383, 384, 385, 386,
+  387, 389, 390, 395, 396, 398, 400, 403, 404, 405, 410, 411, 412,
+  415, 417, 419, 420, 425, 426, 428, 429, 430, 431, 432, 434, 435,
+  436, 438, 439, 440, 442, 444, 445, 448, 450, 454, 455, 457, 460,
+  461, 462, 465, 467, 470, 472, 474, 479, 480, 481, 482, 484, 486,
+  487, 489, 493, 495, 499, 500, 510, 515, 516, 517, 519, 522, 523,
+  525, 526, 528, 529, 530, 531, 533, 534, 535, 539, 540, 541, 545,
+  550, 551, 552, 553, 555, 557, 558, 560, 563, 566, 568, 570, 571,
+  572, 575, 578, 579, 580, 582, 583, 585, 586, 589, 590, 592, 594,
+  595, 596, 598, 599, 600, 605, 606, 607, 608, 613, 615, 619, 620,
+  621, 625, 628, 629, 630, 631, 634, 635, 636, 637, 639, 642, 645,
+  649, 650, 652, 654, 656, 657, 660, 662, 663, 664, 665, 667, 669,
+  675, 677, 680, 682, 683, 684, 685, 686, 689, 690, 694, 695, 697,
+  701, 704, 705, 706, 709, 710, 712, 713, 715, 718, 719, 720, 725,
+  734, 738, 739, 740, 741, 743, 745, 746, 747, 748, 749, 750, 752,
+  753, 755, 757, 758, 759, 760, 762, 763, 764, 765, 766, 767, 770,
+  779, 780, 781, 782, 783, 784, 788, 793, 795, 797, 800, 803, 805,
+  807, 808, 810, 811, 812, 815};
 SClaude[11][720] = {
   0, 1, 2, 5, 8, 10, 11, 16, 17, 22, 23, 26, 27, 31, 32, 33, 34, 35,
   36, 37, 38, 39, 44, 47, 48, 49, 51, 52, 53, 58, 59, 60, 61, 67, 68,
