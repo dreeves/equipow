@@ -174,6 +174,18 @@ def q_page_links_the_wl():
     assert os.path.isfile(WL)
 
 
+def cell_text(cell):
+    r"""A record-gaps cell of the dumped DOM as text, a superscript as ^: since 2026-10-28 the page writes its math in
+    LaTeX and KaTeX draws it, so each KaTeX element is read from its TeX annotation, ^{x} as ^x, \cdot as · and \ge as
+    ≥; the text around it (a product's "+ ") as it is.  Any other TeX, or a cell KaTeX did not draw, fails."""
+    tex = re.findall(r'<annotation encoding="application/x-tex">(.*?)</annotation>', cell, re.S)
+    assert len(tex) == 1 and cell.count('class="katex"') == 1, cell[:300]
+    before = html.unescape(re.sub(r'<[^>]+>', '', cell[:cell.index('<span class="katex">')]))
+    t = re.sub(r'\^\{(\w+)\}', r'^\1', html.unescape(tex[0])).replace(' \\cdot ', '·').replace(' \\ge ', ' ≥ ')
+    assert '\\' not in t and '{' not in t, t
+    return before + t
+
+
 def page_table(pow2_text, cols):
     """index.html in headless Chrome beside mstar.js and pow2_text as pow2.js (cols its columns), its DOM dumped once
     its scripts ran (quals_index.chrome): the table of record gaps in it, asserted to be of q_page_shows_the_table's
@@ -188,7 +200,7 @@ def page_table(pow2_text, cols):
     m = re.search(r'record_gaps\.wl</a>.*?</p>\s*<div class="scroll">\s*'
                   r'<table class="pow2-gaps" data-record-gaps="">(.*?)</table>\s*</div>', dom, re.S)
     assert m, dom[-2000:]
-    text = lambda cell: html.unescape(re.sub(r'<[^>]+>', '', re.sub(r'<sup>(.*?)</sup>', r'^\1', cell)))
+    text = lambda cell: cell_text(cell)
     head = re.fullmatch(r'\s*<thead><tr>(.*?)</tr></thead>(.*)', m.group(1), re.S)
     assert head and len(re.findall(r'<th>(.*?)</th>', head.group(1))) == len(HEADER), m.group(1)[:400]
     bodies = re.findall(r'<tbody>(.*?)</tbody>', head.group(2), re.S)

@@ -779,6 +779,36 @@ def q_no_estimate_exactly_where_nothing_is_known():
     assert empty == ['304@9 p1 +0.0h', '240@11 p1 +0.0h'], empty
 
 
+def q_split_again_nodes_stand_in_where_no_fresh_node_is_done():
+    # Replicata: 304@9 pass 2's state at +2.0 h, whose depth 5 has nodes done in that pass but none fresh (every one
+    # split again), with the record of one of its pending depth-5 nodes taken out of the records at the pass's start,
+    # so that the estimate must draw that node's subtree as a fresh one; and every state of states().
+    # Expectata (2026-10-29: 288@10's pass at budget 1,000 had no estimate, its depths 3 and 4 having only nodes split
+    # again done; dreeves: "sounds like a can-opener question", of borrowing): an estimate, its depth-5 urn holding
+    # that depth's nodes done in the pass, each at its eventual cost; in every state with an estimate, each depth's
+    # urn above the bottom holds its fresh nodes done in the pass if it has any, else all its nodes done in the pass,
+    # so the stand-ins change no estimate that had a population of its own.
+    s = next(x for x in states() if x['label'] == '304@9 p2 +2.0h')
+    parts = {}
+    progress.estimate(s, parts)
+    bottom = len(s['budgets']) - 1
+    pending = [n for n in parts['nodes'] if n.depth == bottom - 1 and parts['kinds'].get(n) == 'resplit' and n.state == 'pending']
+    done = [n for n in parts['nodes'] if n.depth == bottom - 1 and n.state == 'done']
+    assert pending and done and not any(n.fresh for n in done), (len(pending), len(done))
+    made = dict(s, final_at_start={k: r for k, r in s['final_at_start'].items() if k != pending[0].key})
+    parts = {}
+    x = progress.estimate(made, parts)
+    assert len(x) == progress.REPLICATES and parts['kinds'][next(n for n in parts['nodes'] if n.key == pending[0].key)] == 'subtree'
+    assert parts['urns'][bottom - 1].m == len(done), (parts['urns'][bottom - 1].m, len(done))
+    for s in states():
+        parts = {}
+        if not len(progress.estimate(s, parts)): continue
+        for d, urn in parts['urns'].items():
+            if d == len(s['budgets']) - 1: continue
+            at = [n for n in parts['nodes'] if n.depth == d and n.state == 'done']
+            assert urn.m == (sum(n.fresh for n in at) or len(at)), (s['label'], d, urn.m)
+
+
 def q_parts_add_up():
     # Replicata: estimate() with parts on every state that has an estimate.
     # Expectata: the loads and items sum to the top node's remaining work (also asserted inside); the makespan is at

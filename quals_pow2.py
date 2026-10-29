@@ -80,7 +80,7 @@ def long_examples():
     decoded here by the paper's Table 5 convention (the left half of the signs, 1 = +1, then the rest by (-1)^m
     symmetry), its length n and its exact order m asserted (synthetic division)."""
     page = open(os.path.join(HERE, 'index.html'), encoding='utf-8').read()
-    codes = re.findall(r'<i>p</i><sub>(\d+)</sub> <span class="nw">\(<i>m</i> = (\d+)\)</span>:</span>\n\s*<code>([0-9A-F]+)</code>',
+    codes = re.findall(r'\\\(p_\{(\d+)\}\\\) \\\(\(m = (\d+)\)\\\):</span>\n\s*<code>([0-9A-F]+)</code>',
                        page)
     long = [(int(n), int(m), h) for n, m, h in codes if int(n) > mstar.NMAX]
     for n, m, h in long:

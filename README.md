@@ -5,7 +5,6 @@ Potential tasks:
 * [GRD] Would these charts look better with a full grid instead of just horizontal lines separating the rows?
 * [OE6] OEIS A323629 omits 112 from L_7. Berend and Golan (2006) and Theorem 3.1 of BGPW both have it.
 * [OEA] Double-check all the OEIS entries.
-* [KAT] Use KaTeX or Mathjax instead of this hideous html
 
 
 Stan notes:

@@ -94,6 +94,9 @@ p { margin: 0; }
 .changelog summary + p { margin-top: 0.3rem; }
 sup, sub { line-height: 0; }
 .nw { white-space: nowrap; }
+/* KaTeX's math (2026-10-28) a little larger than the text, as its glyphs run small beside STIX Two; a line
+   breaks in it only after a relation or operator, as in TeX */
+.katex { font-size: 1.1em; }
 
 /* The figure shrinks to its widest block so the caption centers over the
    table, as printed; the caption keeps the paper's small caps label. */
@@ -411,6 +414,10 @@ footer {
   color: var(--muted);
 }
 </style>
+<!-- KaTeX draws the page's math, written \( ... \) (2026-10-28, dreeves: "could you convert all the math on the page to latex"): version 0.16.47 of 2026-05-16, each file checked against its SHA-256 from jsDelivr; auto-render runs once the page is parsed, after the scripts in the body have made their tables -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.47/dist/katex.min.css" integrity="sha256-AomgLPRRpE3XOt1oOglkQlI2OHGsEXE6ZHtzLO6LHuM=" crossorigin="anonymous">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.47/dist/katex.min.js" integrity="sha256-op0pYdMUbeWUnXisfBqdk65UlVutIqbbT76Dbojov0g=" crossorigin="anonymous"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.47/dist/contrib/auto-render.min.js" integrity="sha256-5TctGZvNrotN5x0PfOunKkuhJ3SifGCm8fd9A7MijuQ=" crossorigin="anonymous" onload="renderMathInElement(document.body, {delimiters: [{left: '\\(', right: '\\)', display: false}], throwOnError: false})"></script>
 </head>
 <body>
 <main>
@@ -422,147 +429,147 @@ footer {
   <details class="changelog">
     <summary><i>Changelog</i></summary>
     <p>2026-10-28: <span class="nw">OEIS section</span></p>
-    <p>2026-10-28: <span class="nw"><i>m</i><sup>*</sup>(720) ≥ 12</span></p>
-    <p>2026-10-28: <span class="nw">12 ≤ <i>m</i><sup>*</sup>(768) ≤ 13</span></p>
-    <p>2026-10-28: <span class="nw"><i>m</i><sup>*</sup>(2<sup>39</sup>) ≥ 44</span></p>
-    <p>2026-10-28: <span class="nw"><i>m</i><sup>*</sup>(816) ≥ 12</span></p>
-    <p>2026-10-28: <span class="nw"><i>m</i><sup>*</sup>(1008) ≥ 12</span></p>
-    <p>2026-10-28: <span class="nw">12 ≤ <i>m</i><sup>*</sup>(912) ≤ 13</span></p>
-    <p>2026-10-28: <span class="nw"><i>m</i><sup>*</sup>(2<sup>29</sup>) ≥ 32</span></p>
-    <p>2026-10-27: <span class="nw">11 ≤ <i>m</i><sup>*</sup>(720) ≤ 14</span>, <span class="nw">11 ≤ <i>m</i><sup>*</sup>(1008) ≤ 13</span></p>
+    <p>2026-10-28: \(m^*(720) \ge 12\)</p>
+    <p>2026-10-28: \(12 \le m^*(768) \le 13\)</p>
+    <p>2026-10-28: \(m^*(2^{39}) \ge 44\)</p>
+    <p>2026-10-28: \(m^*(816) \ge 12\)</p>
+    <p>2026-10-28: \(m^*(1008) \ge 12\)</p>
+    <p>2026-10-28: \(12 \le m^*(912) \le 13\)</p>
+    <p>2026-10-28: \(m^*(2^{29}) \ge 32\)</p>
+    <p>2026-10-27: \(11 \le m^*(720) \le 14\), \(11 \le m^*(1008) \le 13\)</p>
     <p>2026-10-27: <span class="nw">Extend table through 1024</span></p>
-    <p>2026-10-26: <span class="nw">11 ≤ <i>m</i><sup>*</sup>(816) ≤ 14</span></p>
-    <p>2026-10-26: <span class="nw"><i>m</i><sup>*</sup>(2<sup>41</sup>) ≥ 46</span></p>
-    <p>2026-10-26: <span class="nw"><i>m</i><sup>*</sup>(2<sup>10</sup>) = 11</span></p>
-    <p>2026-10-26: <span class="nw"><i>m</i><sup>*</sup>(2<sup>11</sup>) = 12</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>12</sup>) = 13</span></p>
-    <p>2026-10-26: <span class="nw"><i>m</i><sup>*</sup>(752) = 10</span>, <span class="nw"><i>m</i><sup>*</sup>(784) = 10</span>, <span class="nw"><i>m</i><sup>*</sup>(832) = 11</span></p>
-    <p>2026-10-26: <span class="nw"><i>m</i><sup>*</sup>(2<sup>43</sup>) ≥ 48</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>48</sup>) ≥ 54</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>68</sup>) ≥ 77</span></p>
-    <p>2026-10-25: <span class="nw"><i>m</i><sup>*</sup>(592) = 10</span>, <span class="nw"><i>m</i><sup>*</sup>(608) = 10</span>, <span class="nw"><i>m</i><sup>*</sup>(656) = 10</span>, <span class="nw"><i>m</i><sup>*</sup>(752) ≤ 10</span>, <span class="nw"><i>m</i><sup>*</sup>(848) = 11</span>, <span class="nw"><i>m</i><sup>*</sup>(880) = 11</span>, <span class="nw"><i>m</i><sup>*</sup>(896) = 11</span>, <span class="nw"><i>m</i><sup>*</sup>(928) = 11</span>, <span class="nw"><i>m</i><sup>*</sup>(944) = 11</span>, <span class="nw"><i>m</i><sup>*</sup>(976) = 11</span>, <span class="nw"><i>m</i><sup>*</sup>(992) = 11</span></p>
-    <p>2026-10-25: <span class="nw"><i>m</i><sup>*</sup>(2<sup>20</sup>) ≥ 22</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>30</sup>) ≥ 33</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>37</sup>) ≥ 41</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>49</sup>) ≥ 55</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>65</sup>) ≥ 73</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>72</sup>) ≥ 81</span></p>
-    <p>2026-10-20: <span class="nw"><i>m</i><sup>*</sup>(384) = 10</span></p>
-    <p>2026-10-20: <span class="nw"><i>m</i><sup>*</sup>(240) = 10</span></p>
-    <p>2026-10-17: <span class="nw"><i>m</i><sup>*</sup>(2<sup>17</sup>) ≥ 18</span></p>
-    <p>2026-10-17: <span class="nw"><i>m</i><sup>*</sup>(800) = 11</span></p>
-    <p>2026-10-17: <span class="nw"><i>m</i><sup>*</sup>(2<sup>27</sup>) ≥ 29</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>34</sup>) ≥ 37</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>38</sup>) ≥ 42</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>46</sup>) ≥ 51</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>52</sup>) ≥ 58</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>57</sup>) ≥ 64</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>66</sup>) ≥ 74</span></p>
-    <p>2026-10-12: <span class="nw"><i>m</i><sup>*</sup>(2<sup>18</sup>) ≥ 19</span></p>
-    <p>2026-10-12: <span class="nw"><i>m</i><sup>*</sup>(560) = 10</span></p>
-    <p>2026-10-12: <span class="nw"><i>m</i><sup>*</sup>(2<sup>33</sup>) ≥ 35</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>41</sup>) ≥ 44</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>48</sup>) ≥ 52</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>61</sup>) ≥ 66</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>71</sup>) ≥ 77</span></p>
-    <p>2026-10-11: <span class="nw"><i>m</i><sup>*</sup>(432) ≤ 12</span>, <span class="nw"><i>m</i><sup>*</sup>(480) ≤ 14</span>, <span class="nw"><i>m</i><sup>*</sup>(528) ≤ 12</span></p>
-    <p>2026-10-10: <span class="nw"><i>m</i><sup>*</sup>(304) = 8</span></p>
-    <p>2026-10-07: <span class="nw"><i>m</i><sup>*</sup>(2<sup>51</sup>) ≥ 53</span></p>
-    <p>2026-10-07: <span class="nw"><i>m</i><sup>*</sup>(336) = 10</span>, <span class="nw"><i>m</i><sup>*</sup>(448) = 9</span></p>
-    <p>2026-10-06: <span class="nw"><i>m</i><sup>*</sup>(480) ≥ 12</span></p>
-    <p>2026-10-06: <span class="nw"><i>m</i><sup>*</sup>(496) = 9</span></p>
-    <p>2026-10-05: <span class="nw"><i>m</i><sup>*</sup>(2<sup>9</sup>) = 9</span></p>
-    <p>2026-10-05: <span class="nw"><i>m</i><sup>*</sup>(368) = 9</span>, <span class="nw"><i>m</i><sup>*</sup>(400) = 9</span>, <span class="nw"><i>m</i><sup>*</sup>(416) = 9</span>, <span class="nw"><i>m</i><sup>*</sup>(448) ≤ 9</span>, <span class="nw"><i>m</i><sup>*</sup>(464) = 9</span></p>
-    <p>2026-10-04: <span class="nw"><i>m</i><sup>*</sup>(2<sup>24</sup>) ≥ 25</span></p>
-    <p>2026-10-04: <span class="nw"><i>m</i><sup>*</sup>(432) ≥ 11</span></p>
-    <p>2026-10-04: <span class="nw"><i>m</i><sup>*</sup>(320) = 9</span>, <span class="nw"><i>m</i><sup>*</sup>(336) ≥ 9</span>, <span class="nw"><i>m</i><sup>*</sup>(352) = 9</span>, <span class="nw"><i>m</i><sup>*</sup>(368) ≥ 9</span>, <span class="nw"><i>m</i><sup>*</sup>(400) ≥ 9</span>, <span class="nw"><i>m</i><sup>*</sup>(416) ≥ 9</span>, <span class="nw"><i>m</i><sup>*</sup>(464) ≥ 9</span>, <span class="nw"><i>m</i><sup>*</sup>(496) ≥ 9</span>, <span class="nw"><i>m</i><sup>*</sup>(528) ≥ 10</span></p>
+    <p>2026-10-26: \(11 \le m^*(816) \le 14\)</p>
+    <p>2026-10-26: \(m^*(2^{41}) \ge 46\)</p>
+    <p>2026-10-26: \(m^*(2^{10}) = 11\)</p>
+    <p>2026-10-26: \(m^*(2^{11}) = 12\), \(m^*(2^{12}) = 13\)</p>
+    <p>2026-10-26: \(m^*(752) = 10\), \(m^*(784) = 10\), \(m^*(832) = 11\)</p>
+    <p>2026-10-26: \(m^*(2^{43}) \ge 48\), \(m^*(2^{48}) \ge 54\), \(m^*(2^{68}) \ge 77\)</p>
+    <p>2026-10-25: \(m^*(592) = 10\), \(m^*(608) = 10\), \(m^*(656) = 10\), \(m^*(752) \le 10\), \(m^*(848) = 11\), \(m^*(880) = 11\), \(m^*(896) = 11\), \(m^*(928) = 11\), \(m^*(944) = 11\), \(m^*(976) = 11\), \(m^*(992) = 11\)</p>
+    <p>2026-10-25: \(m^*(2^{20}) \ge 22\), \(m^*(2^{30}) \ge 33\), \(m^*(2^{37}) \ge 41\), \(m^*(2^{49}) \ge 55\), \(m^*(2^{65}) \ge 73\), \(m^*(2^{72}) \ge 81\)</p>
+    <p>2026-10-20: \(m^*(384) = 10\)</p>
+    <p>2026-10-20: \(m^*(240) = 10\)</p>
+    <p>2026-10-17: \(m^*(2^{17}) \ge 18\)</p>
+    <p>2026-10-17: \(m^*(800) = 11\)</p>
+    <p>2026-10-17: \(m^*(2^{27}) \ge 29\), \(m^*(2^{34}) \ge 37\), \(m^*(2^{38}) \ge 42\), \(m^*(2^{46}) \ge 51\), \(m^*(2^{52}) \ge 58\), \(m^*(2^{57}) \ge 64\), \(m^*(2^{66}) \ge 74\)</p>
+    <p>2026-10-12: \(m^*(2^{18}) \ge 19\)</p>
+    <p>2026-10-12: \(m^*(560) = 10\)</p>
+    <p>2026-10-12: \(m^*(2^{33}) \ge 35\), \(m^*(2^{41}) \ge 44\), \(m^*(2^{48}) \ge 52\), \(m^*(2^{61}) \ge 66\), \(m^*(2^{71}) \ge 77\)</p>
+    <p>2026-10-11: \(m^*(432) \le 12\), \(m^*(480) \le 14\), \(m^*(528) \le 12\)</p>
+    <p>2026-10-10: \(m^*(304) = 8\)</p>
+    <p>2026-10-07: \(m^*(2^{51}) \ge 53\)</p>
+    <p>2026-10-07: \(m^*(336) = 10\), \(m^*(448) = 9\)</p>
+    <p>2026-10-06: \(m^*(480) \ge 12\)</p>
+    <p>2026-10-06: \(m^*(496) = 9\)</p>
+    <p>2026-10-05: \(m^*(2^9) = 9\)</p>
+    <p>2026-10-05: \(m^*(368) = 9\), \(m^*(400) = 9\), \(m^*(416) = 9\), \(m^*(448) \le 9\), \(m^*(464) = 9\)</p>
+    <p>2026-10-04: \(m^*(2^{24}) \ge 25\)</p>
+    <p>2026-10-04: \(m^*(432) \ge 11\)</p>
+    <p>2026-10-04: \(m^*(320) = 9\), \(m^*(336) \ge 9\), \(m^*(352) = 9\), \(m^*(368) \ge 9\), \(m^*(400) \ge 9\), \(m^*(416) \ge 9\), \(m^*(464) \ge 9\), \(m^*(496) \ge 9\), \(m^*(528) \ge 10\)</p>
     <p>2026-10-04: Claude gets first wholly new result: m*(2^38) >= 39</p>
     <p>2026-10-03: Claude Opus 5.5 finds a new order-10 partition for n=240</p>
   </details>
   <p>
     We extend the results of 
     Table 2 of the paper by Buhler, Golan, Pratt, and Wagon (<i>Math. Comp.</i> 90, 2021).</p>
-  <p>Background: <i>m</i><sup>*</sup>(<i>n</i>) 
-    is the largest number <i>m</i> such that 
-    {1, …, <i>n</i>} can be split into two parts whose power sums are equal for every exponent 
-    <span class="nw"><i>k</i> = 0, …, <i>m</i> − 1</span>.</p>
+  <p>Background: \(m^*(n)\) 
+    is the largest number \(m\) such that 
+    \(\{1, \ldots, n\}\) can be split into two parts whose power sums are equal for every exponent 
+    \(k = 0, \ldots, m - 1\).</p>
   <p>
-  For example, if {1, 2, 3, 4} is partitioned into {1, 4} and {2, 3} then we have these power sums:</p>
+  For example, if \(\{1, 2, 3, 4\}\) is partitioned into \(\{1, 4\}\) and \(\{2, 3\}\) then we have these power sums:</p>
   <p>
-    &nbsp; <i>k</i>=0: &nbsp; 1<sup>0</sup> + 4<sup>0</sup> &nbsp; = &nbsp; 2<sup>0</sup> + 3<sup>0</sup> &nbsp; = &nbsp; 2<br>
-    &nbsp; <i>k</i>=1: &nbsp; 1<sup>1</sup> + 4<sup>1</sup> &nbsp; = &nbsp; 2<sup>1</sup> + 3<sup>1</sup> &nbsp; = &nbsp; 5<br>
-    &nbsp; <i>k</i>=2: &nbsp; 1<sup>2</sup> + 4<sup>2</sup> &nbsp; = 17 &nbsp; &ne; &nbsp; 2<sup>2</sup> + 3<sup>2</sup> &nbsp; = &nbsp; 13.<br>
+    &nbsp; \(k=0\): &nbsp; \(1^0 + 4^0~=~2^0 + 3^0~=~2\)<br>
+    &nbsp; \(k=1\): &nbsp; \(1^1 + 4^1~=~2^1 + 3^1~=~5\)<br>
+    &nbsp; \(k=2\): &nbsp; \(1^2 + 4^2~= 17~\ne~2^2 + 3^2~=~13\).<br>
   </p>
   <p>
-    Since the power sums are equal for <i>k</i> = 0 and <i>k</i> = 1 but not for <i>k</i> = 2, and since (exercise for the reader) no other bipartition of {1, 2, 3, 4} hits a bigger max <i>k</i>, we say that 
-    <span class="nw"><i>m</i><sup>*</sup>(4) = 2.</span></p>
+    Since the power sums are equal for \(k = 0\) and \(k = 1\) but not for \(k = 2\), and since (exercise for the reader) no other bipartition of \(\{1, 2, 3, 4\}\) hits a bigger max \(k\), we say that 
+    \(m^*(4) = 2.\)</p>
   <p>
-    For {1, …, 8} it turns out there's a bipartition &mdash; {1, 4, 6, 7} and {2, 3, 5, 8} &mdash; that gets us up to <i>k</i> = 2, meaning <i>m</i><sup>*</sup>(8) = 3:
+    For \(\{1, \ldots, 8\}\) it turns out there's a bipartition &mdash; \(\{1, 4, 6, 7\}\) and \(\{2, 3, 5, 8\}\) &mdash; that gets us up to \(k = 2\), meaning \(m^*(8) = 3\):
   </p>
   <p>
-    &nbsp; <i>k</i>=0: &nbsp; 1<sup>0</sup> + 4<sup>0</sup> + 6<sup>0</sup> + 7<sup>0</sup> &nbsp; = &nbsp; 2<sup>0</sup> + 3<sup>0</sup> + 5<sup>0</sup> + 8<sup>0</sup> &nbsp; = &nbsp; 4<br>
-    &nbsp; <i>k</i>=1: &nbsp; 1<sup>1</sup> + 4<sup>1</sup> + 6<sup>1</sup> + 7<sup>1</sup> &nbsp; = &nbsp; 2<sup>1</sup> + 3<sup>1</sup> + 5<sup>1</sup> + 8<sup>1</sup> &nbsp; = &nbsp; 18<br>
-    &nbsp; <i>k</i>=2: &nbsp; 1<sup>2</sup> + 4<sup>2</sup> + 6<sup>2</sup> + 7<sup>2</sup> &nbsp; = &nbsp; 2<sup>2</sup> + 3<sup>2</sup> + 5<sup>2</sup> + 8<sup>2</sup> &nbsp; = &nbsp; 102<br>
-    &nbsp; <i>k</i>=3: &nbsp; 1<sup>3</sup> + 4<sup>3</sup> + 6<sup>3</sup> + 7<sup>3</sup> &nbsp; = &nbsp; 624 &nbsp; &ne; &nbsp; 2<sup>3</sup> + 3<sup>3</sup> + 5<sup>3</sup> + 8<sup>3</sup> &nbsp; = &nbsp; 672.<br>
+    &nbsp; \(k=0\): &nbsp; \(1^0 + 4^0 + 6^0 + 7^0~=~2^0 + 3^0 + 5^0 + 8^0~=~4\)<br>
+    &nbsp; \(k=1\): &nbsp; \(1^1 + 4^1 + 6^1 + 7^1~=~2^1 + 3^1 + 5^1 + 8^1~=~18\)<br>
+    &nbsp; \(k=2\): &nbsp; \(1^2 + 4^2 + 6^2 + 7^2~=~2^2 + 3^2 + 5^2 + 8^2~=~102\)<br>
+    &nbsp; \(k=3\): &nbsp; \(1^3 + 4^3 + 6^3 + 7^3~=~624~\ne~2^3 + 3^3 + 5^3 + 8^3~=~672\).<br>
   </p>    
   <p>
-    Fun fact, this property of having equal power sums for exponents from 0 up to some <i>k</i> is invariant under translating and scaling.
-    In particular that means it doesn't matter if we use {1, …, <i>n</i>} or {0, …, <i>n</i> − 1} as the set to be partitioned.
-    The <i>m</i><sup>*</sup>(<i>n</i>) values are the same.
-    You can in fact start with any set of <i>n</i> equally spaced integers.
+    Fun fact, this property of having equal power sums for exponents from 0 up to some \(k\) is invariant under translating and scaling.
+    In particular that means it doesn't matter if we use \(\{1, \ldots, n\}\) or \(\{0, \ldots, n - 1\}\) as the set to be partitioned.
+    The \(m^*(n)\) values are the same.
+    You can in fact start with any set of \(n\) equally spaced integers.
   </p>
   <p>
-    From here on we use the convention that the <i>n</i>-element set to be partitioned is {0, 1, …, <i>n</i> − 1}.
+    From here on we use the convention that the \(n\)-element set to be partitioned is \(\{0, 1, \ldots, n - 1\}\).
   </p>
 </header>
 
 <figure>
   <!-- The paper's own caption, verbatim; amsart sets an en space after the label -->
-  <figcaption lang="en"><span class="sc">Table 2.</span>&ensp;Values of <i>m</i><sup>*</sup>(<i>n</i>).</figcaption>
+  <figcaption lang="en"><span class="sc">Table 2.</span>&ensp;Values of \(m^*(n)\).</figcaption>
 
   <div class="blocks">
     <div class="scroll">
       <table class="block">
-        <tr class="ns"><th scope="row"><i>n</i></th><td>8</td><td>16</td><td>24</td><td>32</td><td>40</td><td>48</td><td>56</td><td>64</td><td>72</td><td>80</td><td>88</td><td>96</td><td>104</td><td>112</td><td>120</td><td>128</td></tr>
-        <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td>3</td><td>4</td><td>4</td><td>5</td><td>5</td><td>6</td><td>5</td><td>6</td><td>6</td><td>6</td><td>6</td><td>7</td><td>6</td><td>7</td><td>6</td><td>7</td></tr>
+        <tr class="ns"><th scope="row">\(n\)</th><td>8</td><td>16</td><td>24</td><td>32</td><td>40</td><td>48</td><td>56</td><td>64</td><td>72</td><td>80</td><td>88</td><td>96</td><td>104</td><td>112</td><td>120</td><td>128</td></tr>
+        <tr class="vals"><th scope="row">\(m^*(n)\)</th><td>3</td><td>4</td><td>4</td><td>5</td><td>5</td><td>6</td><td>5</td><td>6</td><td>6</td><td>6</td><td>6</td><td>7</td><td>6</td><td>7</td><td>6</td><td>7</td></tr>
       </table>
       <table class="block">
-        <tr class="ns"><th scope="row"><i>n</i></th><td>136</td><td>144</td><td>152</td><td>160</td><td>168</td><td>176</td><td>184</td><td>192</td><td>200</td><td>208</td><td>216</td><td>224</td><td>232</td></tr>
-        <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td>6</td><td>8</td><td>6</td><td>7</td><td>6</td><td>7</td><td>6</td><td>9</td><td>7</td><td>8</td><td>7</td><td>8</td><td>7</td></tr>
+        <tr class="ns"><th scope="row">\(n\)</th><td>136</td><td>144</td><td>152</td><td>160</td><td>168</td><td>176</td><td>184</td><td>192</td><td>200</td><td>208</td><td>216</td><td>224</td><td>232</td></tr>
+        <tr class="vals"><th scope="row">\(m^*(n)\)</th><td>6</td><td>8</td><td>6</td><td>7</td><td>6</td><td>7</td><td>6</td><td>9</td><td>7</td><td>8</td><td>7</td><td>8</td><td>7</td></tr>
       </table>
       <table class="block">
-        <tr class="ns"><th scope="row"><i>n</i></th><td>240</td><td>248</td><td>256</td><td>264</td><td>272</td><td>280</td><td>288</td><td>296</td><td>304</td><td>2<sup>51</sup></td></tr>
-        <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td lang="en">10 or 11</td><td>7</td><td>8</td><td>7</td><td>8</td><td>7</td><td lang="en">9 or 10</td><td>7</td><td lang="en">8 or 9</td><td>≥ 52</td></tr>
+        <tr class="ns"><th scope="row">\(n\)</th><td>240</td><td>248</td><td>256</td><td>264</td><td>272</td><td>280</td><td>288</td><td>296</td><td>304</td><td>\(2^{51}\)</td></tr>
+        <tr class="vals"><th scope="row">\(m^*(n)\)</th><td lang="en">10 or 11</td><td>7</td><td>8</td><td>7</td><td>8</td><td>7</td><td lang="en">9 or 10</td><td>7</td><td lang="en">8 or 9</td><td>\(\ge 52\)</td></tr>
       </table>
     </div>
-    <p>Note: <i>m</i><sup>*</sup>(2<sup>51</sup>) ≥ 52 is due to Richard Stong.</p>
+    <p>Note: \(m^*(2^{51}) \ge 52\) is due to Richard Stong.</p>
 
     <div class="new-block">
       <p class="block-label">Extended results since the paper</p>
       <div class="scroll">
         <!-- Cell titles reuse the legend's labels below -->
         <table class="block">
-          <tr class="ns"><th scope="row"><i>n</i></th><td title='The published paper (2021)'>8</td><td title='The published paper (2021)'>16</td><td title='The published paper (2021)'>24</td><td title='The published paper (2021)'>32</td><td title='The published paper (2021)'>40</td><td title='The published paper (2021)'>48</td><td title='The published paper (2021)'>56</td><td title='The published paper (2021)'>64</td><td title='The published paper (2021)'>72</td><td title='The published paper (2021)'>80</td><td title='The published paper (2021)'>88</td><td title='The published paper (2021)'>96</td><td title='The published paper (2021)'>104</td><td title='The published paper (2021)'>112</td><td title='The published paper (2021)'>120</td><td title='The published paper (2021)'>128</td></tr>
-          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td>3</td><td>4</td><td>4</td><td>5</td><td>5</td><td>6</td><td>5</td><td>6</td><td>6</td><td>6</td><td>6</td><td>7</td><td>6</td><td>7</td><td>6</td><td>7</td></tr>
+          <tr class="ns"><th scope="row">\(n\)</th><td title='The published paper (2021)'>8</td><td title='The published paper (2021)'>16</td><td title='The published paper (2021)'>24</td><td title='The published paper (2021)'>32</td><td title='The published paper (2021)'>40</td><td title='The published paper (2021)'>48</td><td title='The published paper (2021)'>56</td><td title='The published paper (2021)'>64</td><td title='The published paper (2021)'>72</td><td title='The published paper (2021)'>80</td><td title='The published paper (2021)'>88</td><td title='The published paper (2021)'>96</td><td title='The published paper (2021)'>104</td><td title='The published paper (2021)'>112</td><td title='The published paper (2021)'>120</td><td title='The published paper (2021)'>128</td></tr>
+          <tr class="vals"><th scope="row">\(m^*(n)\)</th><td>3</td><td>4</td><td>4</td><td>5</td><td>5</td><td>6</td><td>5</td><td>6</td><td>6</td><td>6</td><td>6</td><td>7</td><td>6</td><td>7</td><td>6</td><td>7</td></tr>
         </table>
         <table class="block">
-          <tr class="ns"><th scope="row"><i>n</i></th><td title='The published paper (2021)'>136</td><td title='The published paper (2021)'>144</td><td title='The published paper (2021)'>152</td><td title='The published paper (2021)'>160</td><td title='The published paper (2021)'>168</td><td title='The published paper (2021)'>176</td><td title='The published paper (2021)'>184</td><td title='The published paper (2021)'>192</td><td title='The published paper (2021)'>200</td><td title='The published paper (2021)'>208</td><td title='The published paper (2021)'>216</td><td title='The published paper (2021)'>224</td><td title='The published paper (2021)'>232</td></tr>
-          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td>6</td><td>8</td><td>6</td><td>7</td><td>6</td><td>7</td><td>6</td><td>9</td><td>7</td><td>8</td><td>7</td><td>8</td><td>7</td></tr>
+          <tr class="ns"><th scope="row">\(n\)</th><td title='The published paper (2021)'>136</td><td title='The published paper (2021)'>144</td><td title='The published paper (2021)'>152</td><td title='The published paper (2021)'>160</td><td title='The published paper (2021)'>168</td><td title='The published paper (2021)'>176</td><td title='The published paper (2021)'>184</td><td title='The published paper (2021)'>192</td><td title='The published paper (2021)'>200</td><td title='The published paper (2021)'>208</td><td title='The published paper (2021)'>216</td><td title='The published paper (2021)'>224</td><td title='The published paper (2021)'>232</td></tr>
+          <tr class="vals"><th scope="row">\(m^*(n)\)</th><td>6</td><td>8</td><td>6</td><td>7</td><td>6</td><td>7</td><td>6</td><td>9</td><td>7</td><td>8</td><td>7</td><td>8</td><td>7</td></tr>
         </table>
         <table class="block">
-          <tr class="ns"><th scope="row"><i>n</i></th><td class="c" title='Claude alone'>240</td><td title='The published paper (2021)'>248</td><td title='The published paper (2021)'>256</td><td title='The published paper (2021)'>264</td><td title='The published paper (2021)'>272</td><td title='The published paper (2021)'>280</td><td title='The published paper (2021)'>288</td><td title='The published paper (2021)'>296</td><td class="c" title='Claude alone'>304</td><td class="s" title='BGPW'>320</td><td class="j" title='Claude and BGPW'>336</td><td class="s" title='BGPW'>352</td><td class="s" title='BGPW'>368</td><td class="a" title='Astra alone'>384</td><td class="s" title='BGPW'>400</td><td class="s" title='BGPW'>416</td><td class="c" title='Claude alone'>432</td><td class="c" title='Claude alone'>448</td><td class="s" title='BGPW'>464</td></tr>
-          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="c">10</td><td>7</td><td>8</td><td>7</td><td>8</td><td>7</td><td>9–10</td><td>7</td><td class="c">8</td><td class="s">9</td><td class="j">10</td><td class="s">9</td><td class="s">9</td><td class="a">10</td><td class="s">9</td><td class="s">9</td><td class="c">11–12</td><td class="c">9</td><td class="s">9</td></tr>
+          <tr class="ns"><th scope="row">\(n\)</th><td class="c" title='Claude alone'>240</td><td title='The published paper (2021)'>248</td><td title='The published paper (2021)'>256</td><td title='The published paper (2021)'>264</td><td title='The published paper (2021)'>272</td><td title='The published paper (2021)'>280</td><td title='The published paper (2021)'>288</td><td title='The published paper (2021)'>296</td><td class="c" title='Claude alone'>304</td><td class="s" title='BGPW'>320</td><td class="j" title='Claude and BGPW'>336</td><td class="s" title='BGPW'>352</td><td class="s" title='BGPW'>368</td><td class="a" title='Astra alone'>384</td><td class="s" title='BGPW'>400</td><td class="s" title='BGPW'>416</td><td class="c" title='Claude alone'>432</td><td class="c" title='Claude alone'>448</td><td class="s" title='BGPW'>464</td></tr>
+          <tr class="vals"><th scope="row">\(m^*(n)\)</th><td class="c">10</td><td>7</td><td>8</td><td>7</td><td>8</td><td>7</td><td>9–10</td><td>7</td><td class="c">8</td><td class="s">9</td><td class="j">10</td><td class="s">9</td><td class="s">9</td><td class="a">10</td><td class="s">9</td><td class="s">9</td><td class="c">11–12</td><td class="c">9</td><td class="s">9</td></tr>
         </table>
         <table class="block">
-          <tr class="ns"><th scope="row"><i>n</i></th><td class="c" title='Claude alone'>480</td><td class="j" title='Claude and BGPW'>496</td><td class="c" title='Claude alone'>512</td><td class="j" title='Claude and BGPW'>528</td><td class="c" title='Claude alone'>544</td><td class="c" title='Claude alone'>560</td><td class="c" title='Claude alone'>576</td><td class="ca" title='Claude and Astra'>592</td><td class="ca" title='Claude and Astra'>608</td><td class="c" title='Claude alone'>624</td><td class="c" title='Claude alone'>640</td><td class="ca" title='Claude and Astra'>656</td></tr>
-          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="c">12–14</td><td class="j">9</td><td class="c">9</td><td class="j">10–12</td><td class="c">9–10</td><td class="c">10</td><td class="c">10–12</td><td class="ca">10</td><td class="ca">10</td><td class="c">10–12</td><td class="c">10</td><td class="ca">10</td></tr>
+          <tr class="ns"><th scope="row">\(n\)</th><td class="c" title='Claude alone'>480</td><td class="j" title='Claude and BGPW'>496</td><td class="c" title='Claude alone'>512</td><td class="j" title='Claude and BGPW'>528</td><td class="c" title='Claude alone'>544</td><td class="c" title='Claude alone'>560</td><td class="c" title='Claude alone'>576</td><td class="ca" title='Claude and Astra'>592</td><td class="ca" title='Claude and Astra'>608</td><td class="c" title='Claude alone'>624</td><td class="c" title='Claude alone'>640</td><td class="ca" title='Claude and Astra'>656</td></tr>
+          <tr class="vals"><th scope="row">\(m^*(n)\)</th><td class="c">12–14</td><td class="j">9</td><td class="c">9</td><td class="j">10–12</td><td class="c">9–10</td><td class="c">10</td><td class="c">10–12</td><td class="ca">10</td><td class="ca">10</td><td class="c">10–12</td><td class="c">10</td><td class="ca">10</td></tr>
         </table>
         <table class="block">
-          <tr class="ns"><th scope="row"><i>n</i></th><td class="c" title='Claude alone'>672</td><td class="c" title='Claude alone'>688</td><td class="c" title='Claude alone'>704</td><td class="c" title='Claude alone'>720</td><td class="c" title='Claude alone'>736</td><td class="ca" title='Claude and Astra'>752</td><td class="c" title='Claude alone'>768</td><td class="ca" title='Claude and Astra'>784</td><td class="c" title='Claude alone'>800</td><td class="c" title='Claude alone'>816</td><td class="c" title='Claude alone'>832</td></tr>
-          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="c">11–13</td><td class="c">9–10</td><td class="c">10</td><td class="c">12–14</td><td class="c">10</td><td class="ca">10</td><td class="c">12–13</td><td class="ca">10</td><td class="c">11</td><td class="c">12–14</td><td class="c">11</td></tr>
+          <tr class="ns"><th scope="row">\(n\)</th><td class="c" title='Claude alone'>672</td><td class="c" title='Claude alone'>688</td><td class="c" title='Claude alone'>704</td><td class="c" title='Claude alone'>720</td><td class="c" title='Claude alone'>736</td><td class="ca" title='Claude and Astra'>752</td><td class="c" title='Claude alone'>768</td><td class="ca" title='Claude and Astra'>784</td><td class="c" title='Claude alone'>800</td><td class="c" title='Claude alone'>816</td><td class="c" title='Claude alone'>832</td></tr>
+          <tr class="vals"><th scope="row">\(m^*(n)\)</th><td class="c">11–13</td><td class="c">9–10</td><td class="c">10</td><td class="c">12–14</td><td class="c">10</td><td class="ca">10</td><td class="c">12–13</td><td class="ca">10</td><td class="c">11</td><td class="c">12–14</td><td class="c">11</td></tr>
         </table>
         <table class="block">
-          <tr class="ns"><th scope="row"><i>n</i></th><td class="c" title='Claude alone'>848</td><td class="c" title='Claude alone'>864</td><td class="c" title='Claude alone'>880</td><td class="c" title='Claude alone'>896</td><td class="c" title='Claude alone'>912</td><td class="c" title='Claude alone'>928</td><td class="c" title='Claude alone'>944</td><td class="c" title='Claude alone'>960</td><td class="c" title='Claude alone'>976</td><td class="c" title='Claude alone'>992</td><td class="c" title='Claude alone'>1008</td><td class="c" title='Claude alone'>1024</td></tr>
-          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="c">11</td><td class="c">12–14</td><td class="c">11</td><td class="c">11</td><td class="c">12–13</td><td class="c">11</td><td class="c">11</td><td class="c">13–15</td><td class="c">11</td><td class="c">11</td><td class="c">12–13</td><td class="c">11</td></tr>
+          <tr class="ns"><th scope="row">\(n\)</th><td class="c" title='Claude alone'>848</td><td class="c" title='Claude alone'>864</td><td class="c" title='Claude alone'>880</td><td class="c" title='Claude alone'>896</td><td class="c" title='Claude alone'>912</td><td class="c" title='Claude alone'>928</td><td class="c" title='Claude alone'>944</td><td class="c" title='Claude alone'>960</td><td class="c" title='Claude alone'>976</td><td class="c" title='Claude alone'>992</td><td class="c" title='Claude alone'>1008</td><td class="c" title='Claude alone'>1024</td></tr>
+          <tr class="vals"><th scope="row">\(m^*(n)\)</th><td class="c">11</td><td class="c">12–14</td><td class="c">11</td><td class="c">11</td><td class="c">12–13</td><td class="c">11</td><td class="c">11</td><td class="c">13–15</td><td class="c">11</td><td class="c">11</td><td class="c">12–13</td><td class="c">11</td></tr>
         </table>
       </div>
       <p>Following the original table, we list multiples of 8 up to 304.
         Then we list multiples of 16 up to 1024 because the odd multiples of 8 always have order 7. 
-        BGPW's <a href="https://arxiv.org/html/1912.03491v1#S4.Thmthm1">Theorem 4.1</a> (Divisibility) tells us that odd multiples of 8 have <span class="nw"><i>m</i><sup>*</sup>(<i>n</i>) ≤ 7</span> and for every case we know of from 200 on, the order is exactly 7.</p>
+        BGPW's <a href="https://arxiv.org/html/1912.03491v1#S4.Thmthm1">Theorem 4.1</a> (Divisibility) tells us that odd multiples of 8 have \(m^*(n) \le 7\) and for every case we know of from 200 on, the order is exactly 7.</p>
       <div class="scroll">
         <table class="block">
-          <tr class="ns"><th scope="row"><i>n</i></th><td title='The published paper (2021)'>2<sup>3</sup></td><td title='The published paper (2021)'>2<sup>4</sup></td><td title='The published paper (2021)'>2<sup>5</sup></td><td title='The published paper (2021)'>2<sup>6</sup></td><td title='The published paper (2021)'>2<sup>7</sup></td><td title='The published paper (2021)'>2<sup>8</sup></td><td class="c" title='Claude alone'>2<sup>9</sup></td><td class="c" title='Claude alone'>2<sup>10</sup></td><td class="c" title='Claude alone'>2<sup>11</sup></td><td class="c" title='Claude alone'>2<sup>12</sup></td><td class="c" title='Claude alone'>2<sup>17</sup></td><td class="c" title='Claude alone'>2<sup>18</sup></td><td class="c" title='Claude alone'>2<sup>20</sup></td><td class="j" title='Claude and BGPW'>2<sup>24</sup></td></tr>
-          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td><td>8</td><td class="c">9</td><td class="c">11</td><td class="c">12</td><td class="c">13</td><td class="c">18–20</td><td class="c">19–21</td><td class="c">22–23</td><td class="j">26–29</td></tr>
+          <tr class="ns"><th scope="row">\(n\)</th><td title='The published paper (2021)'>\(2^3\)</td><td title='The published paper (2021)'>\(2^4\)</td><td title='The published paper (2021)'>\(2^5\)</td><td title='The published paper (2021)'>\(2^6\)</td><td title='The published paper (2021)'>\(2^7\)</td><td title='The published paper (2021)'>\(2^8\)</td><td class="c" title='Claude alone'>\(2^9\)</td><td class="c" title='Claude alone'>\(2^{10}\)</td><td class="c" title='Claude alone'>\(2^{11}\)</td><td class="c" title='Claude alone'>\(2^{12}\)</td><td class="c" title='Claude alone'>\(2^{17}\)</td><td class="c" title='Claude alone'>\(2^{18}\)</td><td class="c" title='Claude alone'>\(2^{20}\)</td><td class="j" title='Claude and BGPW'>\(2^{24}\)</td></tr>
+          <tr class="vals"><th scope="row">\(m^*(n)\)</th><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td><td>8</td><td class="c">9</td><td class="c">11</td><td class="c">12</td><td class="c">13</td><td class="c">18–20</td><td class="c">19–21</td><td class="c">22–23</td><td class="j">26–29</td></tr>
         </table>
         <table class="block">
-          <tr class="ns"><th scope="row"><i>n</i></th><td class="c" title='Claude alone'>2<sup>27</sup></td><td class="c" title='Claude alone'>2<sup>29</sup></td><td class="c" title='Claude alone'>2<sup>30</sup></td><td class="c" title='Claude alone'>2<sup>33</sup></td><td class="c" title='Claude alone'>2<sup>34</sup></td><td class="c" title='Claude alone'>2<sup>37</sup></td><td class="c" title='Claude alone'>2<sup>38</sup></td><td class="c" title='Claude alone'>2<sup>39</sup></td><td class="c" title='Claude alone'>2<sup>41</sup></td><td class="c" title='Claude alone'>2<sup>43</sup></td><td class="c" title='Claude alone'>2<sup>46</sup></td><td class="c" title='Claude alone'>2<sup>48</sup></td></tr>
-          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="c">29–33</td><td class="c">32–35</td><td class="c">33–36</td><td class="c">36–40</td><td class="c">37–41</td><td class="c">41–45</td><td class="c">42–46</td><td class="c">44–47</td><td class="c">46–50</td><td class="c">48–53</td><td class="c">51–57</td><td class="c">54–59</td></tr>
+          <tr class="ns"><th scope="row">\(n\)</th><td class="c" title='Claude alone'>\(2^{27}\)</td><td class="c" title='Claude alone'>\(2^{29}\)</td><td class="c" title='Claude alone'>\(2^{30}\)</td><td class="c" title='Claude alone'>\(2^{33}\)</td><td class="c" title='Claude alone'>\(2^{34}\)</td><td class="c" title='Claude alone'>\(2^{37}\)</td><td class="c" title='Claude alone'>\(2^{38}\)</td><td class="c" title='Claude alone'>\(2^{39}\)</td><td class="c" title='Claude alone'>\(2^{41}\)</td><td class="c" title='Claude alone'>\(2^{43}\)</td><td class="c" title='Claude alone'>\(2^{46}\)</td><td class="c" title='Claude alone'>\(2^{48}\)</td></tr>
+          <tr class="vals"><th scope="row">\(m^*(n)\)</th><td class="c">29–33</td><td class="c">32–35</td><td class="c">33–36</td><td class="c">36–40</td><td class="c">37–41</td><td class="c">41–45</td><td class="c">42–46</td><td class="c">44–47</td><td class="c">46–50</td><td class="c">48–53</td><td class="c">51–57</td><td class="c">54–59</td></tr>
         </table>
         <table class="block">
-          <tr class="ns"><th scope="row"><i>n</i></th><td class="c" title='Claude alone'>2<sup>49</sup></td><td class="j" title='Claude and BGPW'>2<sup>51</sup></td><td class="c" title='Claude alone'>2<sup>52</sup></td><td class="c" title='Claude alone'>2<sup>57</sup></td><td class="c" title='Claude alone'>2<sup>61</sup></td><td class="c" title='Claude alone'>2<sup>65</sup></td><td class="c" title='Claude alone'>2<sup>66</sup></td><td class="c" title='Claude alone'>2<sup>67</sup></td><td class="c" title='Claude alone'>2<sup>68</sup></td><td class="c" title='Claude alone'>2<sup>71</sup></td><td class="c" title='Claude alone'>2<sup>72</sup></td></tr>
-          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="c">55–60</td><td class="j">57–63</td><td class="c">58–64</td><td class="c">64–70</td><td class="c">68–75</td><td class="c">73–81</td><td class="c">74–82</td><td class="c">75–83</td><td class="c">77–84</td><td class="c">80–88</td><td class="c">81–89</td></tr>
+          <tr class="ns"><th scope="row">\(n\)</th><td class="c" title='Claude alone'>\(2^{49}\)</td><td class="j" title='Claude and BGPW'>\(2^{51}\)</td><td class="c" title='Claude alone'>\(2^{52}\)</td><td class="c" title='Claude alone'>\(2^{57}\)</td><td class="c" title='Claude alone'>\(2^{61}\)</td><td class="c" title='Claude alone'>\(2^{65}\)</td><td class="c" title='Claude alone'>\(2^{66}\)</td><td class="c" title='Claude alone'>\(2^{67}\)</td><td class="c" title='Claude alone'>\(2^{68}\)</td><td class="c" title='Claude alone'>\(2^{71}\)</td><td class="c" title='Claude alone'>\(2^{72}\)</td></tr>
+          <tr class="vals"><th scope="row">\(m^*(n)\)</th><td class="c">55–60</td><td class="j">57–63</td><td class="c">58–64</td><td class="c">64–70</td><td class="c">68–75</td><td class="c">73–81</td><td class="c">74–82</td><td class="c">75–83</td><td class="c">77–84</td><td class="c">80–88</td><td class="c">81–89</td></tr>
         </table>
       </div>
     </div>
@@ -580,14 +587,14 @@ footer {
 
 <!-- Chart of what is known about m*(n) for every n up to 1024, drawn by the script at the end from mstar.js -->
 <section class="mstar" aria-labelledby="mstar-title">
-  <p>Following is a chart with everything above and more, presented graphically, showing the bounds on <span class="nw"><i>m</i><sup>*</sup>(<i>n</i>)</span> for every even <i>n</i> up to 1024.</p>
+  <p>Following is a chart with everything above and more, presented graphically, showing the bounds on \(m^*(n)\) for every even \(n\) up to 1024.</p>
   <!-- cell (n, m) is green when m*(n) ≥ m is known, red when m*(n) < m is proven, and gray when neither is; and that odd n are left out, because an odd number of integers can't be split into two halves of equal size, so no partition exists for any m -->
   <div class="mstar-bar">
     <ul class="legend">
-      <li><span class="swatch exists" aria-hidden="true"></span><span class="nw"><i>m</i> ≤ <i>m</i><sup>*</sup>(<i>n</i>)</span></li>
+      <li><span class="swatch exists" aria-hidden="true"></span>\(m \le m^*(n)\)</li>
       <li><span class="swatch open" aria-hidden="true"></span>open</li>
-      <li><span class="swatch impossible" aria-hidden="true"></span><span class="nw"><i>m</i> &gt; <i>m</i><sup>*</sup>(<i>n</i>)</span></li>
-      <li><span class="swatch exists record" aria-hidden="true"></span><span><span class="nw"><i>n</i> = <i>a</i>(<i>m</i> − 1)</span> of OEIS <a href="https://oeis.org/A323395">A323395</a>, the smallest <i>n</i> for a given <i>m</i></span></li>
+      <li><span class="swatch impossible" aria-hidden="true"></span><span class="nw">\(m > m^*(n)\)</span></li>
+      <li><span class="swatch exists record" aria-hidden="true"></span><span>\(n = a(m - 1)\) of OEIS <a href="https://oeis.org/A323395">A323395</a>, the smallest \(n\) for a given \(m\)</span></li>
     </ul>
     <div class="mstar-zoom">
       <button type="button" id="mstar-zoom-out" aria-label='zoom out' title='Claude: "zoom out"'>−</button>
@@ -602,22 +609,22 @@ footer {
 
 <!-- Claude's chart of what is known about m*(2^k) − k, the excess over Thue–Morse, for every k up to 72, drawn by the script at the end from pow2.js -->
 <section class="pow2" aria-labelledby="pow2-title">
-  <h2 id="pow2-title">Bounds on <span class="nw"><i>m</i><sup>*</sup>(2<sup><i>k</i></sup>) − <i>k</i></span> for every <i>k</i> up to 72</h2>
+  <h2 id="pow2-title">Bounds on \(m^*(2^k) - k\) for every \(k\) up to 72</h2>
   <!-- TODO: caption; says column k is n = 2^k, where Thue–Morse has order k, an excess of 0, and row δ is order k + δ, an excess of δ; that cell (k, δ) is green when m*(2^k) ≥ k + δ is known, red when m*(2^k) < k + δ is proven, and black when neither is; and that in the readout f is the construction of length 2^24 and order 25 in the remarks below, τ_j is Thue–Morse of length 2^j, and p_n is a sequence of length n whose order is the lower bound in column n of the chart above -->
-  <p class="pow2-caption">Claude: "Column <i>k</i> is <span class="nw"><i>n</i> = 2<sup><i>k</i></sup></span>, where Thue–Morse has order <i>k</i>, an excess of 0; row δ is order <span class="nw"><i>k</i> + δ</span>, an excess of δ. Cell (<i>k</i>, δ) is green when <span class="nw"><i>m</i><sup>*</sup>(2<sup><i>k</i></sup>) ≥ <i>k</i> + δ</span> is known, red when <span class="nw"><i>m</i><sup>*</sup>(2<sup><i>k</i></sup>) &lt; <i>k</i> + δ</span> is proven, and black when neither is. In the readout, <i>f</i> is the construction of length 2<sup>24</sup> and order 25 in the remarks below, τ<sub><i>j</i></sub> is Thue–Morse of length 2<sup><i>j</i></sup>, and <i>p</i><sub><i>n</i></sub> is a sequence of length <i>n</i> whose order is the lower bound in column <i>n</i> of the chart above."</p>
+  <p class="pow2-caption">Claude: "Column \(k\) is \(n = 2^k\), where Thue–Morse has order \(k\), an excess of 0; row \(\delta\) is order \(k + \delta\), an excess of \(\delta\). Cell \((k, \delta)\) is green when \(m^*(2^k) \ge k + \delta\) is known, red when <span class="nw">\(m^*(2^k) < k + \delta\)</span> is proven, and black when neither is. In the readout, \(f\) is the construction of length \(2^{24}\) and order 25 in the remarks below, \(\tau_j\) is Thue–Morse of length \(2^j\), and \(p_n\) is a sequence of length \(n\) whose order is the lower bound in column \(n\) of the chart above."</p>
   <ul class="legend">
-    <li><span class="swatch exists" aria-hidden="true"></span><span class="nw"><i>k</i> + δ ≤ <i>m</i><sup>*</sup>(2<sup><i>k</i></sup>)</span></li>
+    <li><span class="swatch exists" aria-hidden="true"></span>\(k + \delta \le m^*(2^k)\)</li>
     <li><span class="swatch open" aria-hidden="true"></span>open</li>
-    <li><span class="swatch impossible" aria-hidden="true"></span><span class="nw"><i>k</i> + δ &gt; <i>m</i><sup>*</sup>(2<sup><i>k</i></sup>)</span></li>
+    <li><span class="swatch impossible" aria-hidden="true"></span><span class="nw">\(k + \delta > m^*(2^k)\)</span></li>
     <!-- TODO: legend; says a cell ringed in gold is one of the bounds the theorem below states -->
     <li><span class="swatch exists record" aria-hidden="true"></span><span>Claude: "a bound the theorem below states"</span></li>
   </ul>
   <div id="pow2-chart" role="img" aria-label='Chart of the bounds on m*(2^k) − k, the excess over Thue–Morse, for k from 1 to 72'></div>
   <p id="pow2-readout" aria-live="polite">Hover over a cell for details.</p>
-  <p><b>Theorem.</b> <span class="nw"><i>m</i><sup>*</sup>(2<sup>10</sup>) ≥ 11</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>20</sup>) ≥ 22</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>29</sup>) ≥ 32</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>37</sup>) ≥ 41</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>39</sup>) ≥ 44</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>48</sup>) ≥ 54</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>57</sup>) ≥ 64</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>65</sup>) ≥ 73</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>68</sup>) ≥ 77</span> and <span class="nw"><i>m</i><sup>*</sup>(2<sup>9</sup>) = 9</span>.</p>
-  <p>More concisely: For <span class="nw"><i>i</i> = 1, 2, …, 9</span>, the known smallest values of <i>k</i> for which <span class="nw"><i>m</i><sup>*</sup>(2<sup><i>k</i></sup>) − <i>k</i> ≥ <i>i</i></span> are 10, 20, 29, 37, 39, 48, 57, 65, 68.</p>
+  <p><b>Theorem.</b> \(m^*(2^{10}) \ge 11\), \(m^*(2^{20}) \ge 22\), \(m^*(2^{29}) \ge 32\), \(m^*(2^{37}) \ge 41\), \(m^*(2^{39}) \ge 44\), \(m^*(2^{48}) \ge 54\), \(m^*(2^{57}) \ge 64\), \(m^*(2^{65}) \ge 73\), \(m^*(2^{68}) \ge 77\) and \(m^*(2^9) = 9\).</p>
+  <p>More concisely: For \(i = 1, 2, \ldots, 9\), the known smallest values of \(k\) for which \(m^*(2^k) - k \ge i\) are 10, 20, 29, 37, 39, 48, 57, 65, 68.</p>
   <p>The following table shows the construction for each inequality in the above theorem: 
-    <span class="nw">2<sup><i>k</i></sup></span> as a join of products, one per line, each with its order and the sum of its factors' orders.
+    \(2^k\) as a join of products, one per line, each with its order and the sum of its factors' orders.
     The bound is the least of those orders. 
     The Mathematica script <a href="https://raw.githubusercontent.com/dreeves/equipow/main/record_gaps.wl">record_gaps.wl</a> 
     generates this table and checks all the arithmetic.</p>
@@ -631,615 +638,615 @@ footer {
 <section class="remarks">
   <h2>Where the new results come from</h2>
   <!-- TODO: says how the upper bounds are proven: a partition written as signs f_0, ..., f_(n−1) and f(x) = sum f_i x^i has order m when (x − 1)^m divides f(x); for a modulus M the residue sum D_r is the number of +1s minus the number of −1s at the positions i ≡ r (mod M); f(x) reduced modulo x^M − 1 is sum D_r x^r and must still be a multiple of (x − 1)^m modulo x^M − 1, each D_r having its class size's parity and being at most that size in absolute value; and the residue condition mod M rules out order m when an exhaustive search finds no residue sums meeting all that -->
-  <p>Claude: "How the upper bounds are proven. Write a partition of 0, 1, …, <span class="nw"><i>n</i> − 1</span> as signs <span class="nw"><i>f</i><sub>0</sub>, …, <i>f</i><sub><i>n</i>−1</sub></span>, +1 on one half and −1 on the other, and let <span class="nw"><i>f</i>(<i>x</i>) = <i>f</i><sub>0</sub> + <i>f</i><sub>1</sub><i>x</i> + ⋯ + <i>f</i><sub><i>n</i>−1</sub><i>x</i><sup><i>n</i>−1</sup></span>. Order <i>m</i> means that <span class="nw">(<i>x</i> − 1)<sup><i>m</i></sup></span> divides <i>f</i>(<i>x</i>). For a modulus <i>M</i>, the residue sum <i>D</i><sub><i>r</i></sub> is the number of +1s minus the number of −1s at the positions <span class="nw"><i>i</i> ≡ <i>r</i> (mod <i>M</i>)</span>. Reducing <i>f</i>(<i>x</i>) modulo <span class="nw"><i>x</i><sup><i>M</i></sup> − 1</span> leaves <span class="nw"><i>D</i><sub>0</sub> + <i>D</i><sub>1</sub><i>x</i> + ⋯ + <i>D</i><sub><i>M</i>−1</sub><i>x</i><sup><i>M</i>−1</sup></span>, which must still be a multiple of <span class="nw">(<i>x</i> − 1)<sup><i>m</i></sup></span> modulo <span class="nw"><i>x</i><sup><i>M</i></sup> − 1</span>. Each <i>D</i><sub><i>r</i></sub> also has the parity of its class's size and is at most that size in absolute value. The residue condition mod <i>M</i> rules out order <i>m</i> when an exhaustive search finds no residue sums that meet all of this."</p>
+  <p>Claude: "How the upper bounds are proven. Write a partition of \(0, 1, \ldots, n - 1\) as signs \(f_0, \ldots, f_{n-1}\), \(+1\) on one half and \(-1\) on the other, and let \(f(x) = f_0 + f_1x + \cdots + f_{n-1}x^{n-1}\). Order \(m\) means that \((x - 1)^m\) divides \(f(x)\). For a modulus \(M\), the residue sum \(D_r\) is the number of \(+1\)s minus the number of \(-1\)s at the positions \(i \equiv r \pmod{M}\). Reducing \(f(x)\) modulo \(x^M - 1\) leaves \(D_0 + D_1x + \cdots + D_{M-1}x^{M-1}\), which must still be a multiple of \((x - 1)^m\) modulo \(x^M - 1\). Each \(D_r\) also has the parity of its class's size and is at most that size in absolute value. The residue condition mod \(M\) rules out order \(m\) when an exhaustive search finds no residue sums that meet all of this."</p>
   <!-- TODO: says the norm bound for a prime p not dividing n: with M = p and zeta a primitive pth root of unity, f(zeta) = sum D_r zeta^r is not 0 (else the D_r would all be equal, hence 0, as they sum to f(1) = 0, while some class has an odd size and so an odd D_r); it is a multiple of (zeta − 1)^m, whose norm is p^m, so its norm, a positive integer, is at least p^m; by the inequality of arithmetic and geometric means that norm is at most (p sum D_r^2 / (p − 1))^((p − 1)/2); and with s_r the size of class r and |D_r| ≤ s_r, order m needs p^(2m) (p − 1)^(p − 1) ≤ (p sum s_r^2)^(p − 1) -->
-  <p>Claude: "The norm bound for a prime <i>p</i> that does not divide <i>n</i> uses the same sums with <span class="nw"><i>M</i> = <i>p</i></span>. Let ζ be a primitive <i>p</i>th root of unity. Then <span class="nw"><i>f</i>(ζ) = <i>D</i><sub>0</sub> + <i>D</i><sub>1</sub>ζ + ⋯ + <i>D</i><sub><i>p</i>−1</sub>ζ<sup><i>p</i>−1</sup></span> is not 0: if it were, the <i>D</i><sub><i>r</i></sub> would all be equal, hence all 0, as they sum to <span class="nw"><i>f</i>(1) = 0</span>; but since <i>p</i> does not divide <i>n</i>, some class has an odd size and so an odd <i>D</i><sub><i>r</i></sub>. It is a multiple of <span class="nw">(ζ − 1)<sup><i>m</i></sup></span>, whose norm is <i>p</i><sup><i>m</i></sup>, so the norm of <i>f</i>(ζ), a positive integer, is at least <i>p</i><sup><i>m</i></sup>. By the inequality of arithmetic and geometric means, that norm is also at most <span class="nw">(<i>p</i> Σ<i>D</i><sub><i>r</i></sub><sup>2</sup> / (<i>p</i> − 1))<sup>(<i>p</i>−1)/2</sup></span>. With <i>s</i><sub><i>r</i></sub> the size of class <i>r</i> and <span class="nw">|<i>D</i><sub><i>r</i></sub>| ≤ <i>s</i><sub><i>r</i></sub></span>, order <i>m</i> needs <span class="nw"><i>p</i><sup>2<i>m</i></sup> (<i>p</i> − 1)<sup><i>p</i>−1</sup> ≤ (<i>p</i> Σ<i>s</i><sub><i>r</i></sub><sup>2</sup>)<sup><i>p</i>−1</sup></span>."</p>
+  <p>Claude: "The norm bound for a prime \(p\) that does not divide \(n\) uses the same sums with \(M = p\). Let \(\zeta\) be a primitive \(p\)th root of unity. Then \(f(\zeta) = D_0 + D_1\zeta + \cdots + D_{p-1}\zeta^{p-1}\) is not 0: if it were, the \(D_r\) would all be equal, hence all 0, as they sum to \(f(1) = 0\); but since \(p\) does not divide \(n\), some class has an odd size and so an odd \(D_r\). It is a multiple of \((\zeta - 1)^m\), whose norm is \(p^m\), so the norm of \(f(\zeta)\), a positive integer, is at least \(p^m\). By the inequality of arithmetic and geometric means, that norm is also at most \((p \sum D_r^2 / (p - 1))^{(p-1)/2}\). With \(s_r\) the size of class \(r\) and \(|D_r| \le s_r\), order \(m\) needs \(p^{2m} (p - 1)^{p-1} \le (p \sum s_r^2)^{p-1}\)."</p>
   <!-- TODO: says mstar.py and pow2.py (linked) repeat the search behind every residue claim each time they run, and that certificates that can be checked on their own, like proof512.wl for 512, are still to be done -->
   <p>Claude: "<a href="https://github.com/dreeves/equipow/blob/main/mstar.py">mstar.py</a> and 
     <a href="https://github.com/dreeves/equipow/blob/main/pow2.py">pow2.py</a> 
     repeat the search behind every residue claim each time they run. 
     Certificates that can be checked on their own, like proof512.wl for 512, are still to be done."</p>
   <p>The hex codes shown below follow Table 5 of BGPW: 
-    the left half of the signs <span class="nw">(1 = +1, 0 = −1)</span>, then the rest by <span class="nw">(−1)<sup><i>m</i></sup></span> symmetry.</p>
-  <p>Finally, the symbols # and ∨ denote the expanded product and the join operation on Littlewood polynomials:<br>
-    <span class="nw"><i>f</i> # <i>g</i> = <i>f</i>(<i>x</i>)·<i>g</i>(<i>x</i><sup><i>n<sub>f</sub></i></sup>)</span><br>
-    <span class="nw"><i>f</i> ∨ <i>g</i> = <i>f</i>(<i>x</i>) + <i>x</i><sup><i>n<sub>f</sub></i></sup> <i>g</i>(<i>x</i>)</span>,<br>
-    where <i>n<sub>f</sub></i> is the length of <i>f</i>. 
+    the left half of the signs \((1 = +1, 0 = -1)\), then the rest by \((-1)^m\) symmetry.</p>
+  <p>Finally, the symbols \(\mathbin{\#}\) and \(\vee\) denote the expanded product and the join operation on Littlewood polynomials:<br>
+    \(f \mathbin{\#} g = f(x)\cdot g(x^{n_f})\)<br>
+    \(f \vee g = f(x) + x^{n_f} g(x)\),<br>
+    where \(n_f\) is the length of \(f\). 
     </p>
 
   <ul>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry"><i>n</i> = 240: &nbsp;<span class="nw"><i>m</i><sup>*</sup> = 10</span></p>
+      <p class="entry">\(n = 240\): &nbsp;\(m^* = 10\)</p>
       <!-- TODO: says a computer search rules out order 11: it splits the question by how many +1's fall in each residue class mod 3, 5, 7, 4, 8, 11, 13 and 9, closes every case with linear-programming certificates checked in exact integer arithmetic, and needed splitting further mod 17 for the last 606 cases and mod 19 for 4 of those -->
-      <p>Claude: "Order 11 is ruled out by a computer search. It splits the question by how many +1's fall in each residue class mod 3, 5, 7, 4, 8, 11, 13 and 9, and closes every case with linear-programming certificates checked in exact integer arithmetic; the last 606 cases needed splitting further, mod 17, and 4 of those mod 19 as well."</p>
+      <p>Claude: "Order 11 is ruled out by a computer search. It splits the question by how many \(+1\)'s fall in each residue class mod 3, 5, 7, 4, 8, 11, 13 and 9, and closes every case with linear-programming certificates checked in exact integer arithmetic; the last 606 cases needed splitting further, mod 17, and 4 of those mod 19 as well."</p>
       <!-- TODO: names the code of the search, with links, and says its journals hold every verdict with the hash of its proof -->
       <p>Claude: "The code is <a href="https://github.com/dreeves/equipow/blob/main/overnight_v5.py">overnight_v5.py</a> with <a href="https://github.com/dreeves/equipow/blob/main/certbb.py">certbb.py</a>, and <a href="https://github.com/dreeves/equipow/blob/main/boxsplit.py">boxsplit.py</a> for the last 606 cases; their journals hold every verdict with the hash of its proof."</p>
     </li>
     <li>
       <span class="mk" aria-hidden="true"></span>
-      <p class="entry"><i>n</i> = 288: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {9, 10}</span></p>
+      <p class="entry">\(n = 288\): &nbsp;\(m^* \in \{9, 10\}\)</p>
       <!-- TODO: says this entry is not a new result: m*(288) ≤ 10, the upper value in Table 2's entry for 288, is rederived here; proof288.py (linked) checks exactly that no partition of {0, …, 287} into two parts has equal power sums for every exponent from 0 to 10, so the bound no longer has to be taken from the paper -->
-      <p>Claude: "Not a new result: <span class="nw"><i>m</i><sup>*</sup>(288) ≤ 10</span>, the upper value in Table 2's entry for 288, is rederived here. <a href="https://github.com/dreeves/equipow/blob/main/proof288.py">proof288.py</a> checks exactly that no partition of {0, …, 287} into two parts has equal power sums for every exponent from 0 to 10, so the bound no longer has to be taken from the paper."</p>
+      <p>Claude: "Not a new result: \(m^*(288) \le 10\), the upper value in Table 2's entry for 288, is rederived here. <a href="https://github.com/dreeves/equipow/blob/main/proof288.py">proof288.py</a> checks exactly that no partition of \(\{0, \ldots, 287\}\) into two parts has equal power sums for every exponent from 0 to 10, so the bound no longer has to be taken from the paper."</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry"><i>n</i> = 304: &nbsp;<span class="nw"><i>m</i><sup>*</sup> = 8</span></p>
+      <p class="entry">\(n = 304\): &nbsp;\(m^* = 8\)</p>
       <!-- TODO: says a computer search rules out order 9: it splits the question by how many +1's fall in each residue class mod 3, 5, 4, 7, 8 and 9, closes every case with linear-programming certificates checked in exact integer arithmetic, and needed splitting further mod 11 and 13 for the last 8 cases; and that this closes the route to order 21 for 2^20 through 8·304·368 + 320·480, which needed 304 to have order 9, though 2^20 now has order 22 another way, the 2^20 entry below -->
-      <p>Claude: "Order 9 is ruled out by a computer search. It splits the question by how many +1's fall in each residue class mod 3, 5, 4, 7, 8 and 9, and closes every case with linear-programming certificates checked in exact integer arithmetic; the last 8 cases needed splitting further, mod 11 and then mod 13. That closes the route to order 21 for 2<sup>20</sup> through <span class="nw">8·304·368 + 320·480 = 2<sup>20</sup></span>, which needed 304 to have order 9. 2<sup>20</sup> now has order 22 another way: the 2<sup>20</sup> entry below."</p>
+      <p>Claude: "Order 9 is ruled out by a computer search. It splits the question by how many \(+1\)'s fall in each residue class mod 3, 5, 4, 7, 8 and 9, and closes every case with linear-programming certificates checked in exact integer arithmetic; the last 8 cases needed splitting further, mod 11 and then mod 13. That closes the route to order 21 for \(2^{20}\) through \(8\cdot 304\cdot 368 + 320\cdot 480 = 2^{20}\), which needed 304 to have order 9. \(2^{20}\) now has order 22 another way: the \(2^{20}\) entry below."</p>
       <!-- TODO: names the code of the search, with links, and says its journals hold every verdict with the hash of its proof -->
       <p>Claude: "The code is <a href="https://github.com/dreeves/equipow/blob/main/overnight_v5.py">overnight_v5.py</a> with <a href="https://github.com/dreeves/equipow/blob/main/certbb.py">certbb.py</a>, and <a href="https://github.com/dreeves/equipow/blob/main/boxsplit.py">boxsplit.py</a> for the last 8 cases; their journals hold every verdict with the hash of its proof."</p>
     </li>
     <li class="s">
       <span class="mk" aria-hidden="true">●</span>
-      <p class="entry"><i>n</i> = 320, 352, 368, 400, 416, 464: &nbsp;<span class="nw"><i>m</i><sup>*</sup> = 9</span></p>
-      <p>Examples of order 9 found by BGPW. Order 10 is ruled out by the paper's Proposition 4.3 <span class="nw">(<i>p</i> = 3)</span>.</p>
+      <p class="entry">\(n = 320, 352, 368, 400, 416, 464\): &nbsp;\(m^* = 9\)</p>
+      <p>Examples of order 9 found by BGPW. Order 10 is ruled out by the paper's Proposition 4.3 \((p = 3)\).</p>
       <p class="code">
-        <span><i>p</i><sub>352</sub> <span class="nw">(<i>m</i> = 9)</span>:</span>
+        <span>\(p_{352}\) \((m = 9)\):</span>
         <code>A4DB4926DB4D36584B26936D2CFA54B6F04B2C13D4A2</code>
       </p>
       <p class="code">
-        <span><i>p</i><sub>368</sub> <span class="nw">(<i>m</i> = 9)</span>:</span>
+        <span>\(p_{368}\) \((m = 9)\):</span>
         <code>96C965925B75B0CB249E583CF26B2E836C31DAC874B67D</code>
       </p>
       <p class="code">
-        <span><i>p</i><sub>400</sub> <span class="nw">(<i>m</i> = 9)</span>:</span>
+        <span>\(p_{400}\) \((m = 9)\):</span>
         <code>34DB69269A69269A6D379A8D1C57459C5B45E5100DBAF7EAAA</code>
       </p>
       <p class="code">
-        <span><i>p</i><sub>464</sub> <span class="nw">(<i>m</i> = 9)</span>:</span>
+        <span>\(p_{464}\) \((m = 9)\):</span>
         <code>93C96596CB2586DB1C965964E69975A207755BE209CE5E28F2C35A92BA</code>
       </p>
       <p class="code">
-        <span><i>p</i><sub>320</sub>, a second example, found independently by Claude <span class="nw">(<i>m</i> = 9)</span>:</span>
+        <span>\(p_{320}\), a second example, found independently by Claude \((m = 9)\):</span>
         <code>B24B649ED92CD2C36496CB2DB6295D974138BA41</code>
       </p>
       <div id="proof416" lang="en">
-        <p><strong><i>m</i><sup>*</sup>(416) = 9: construction and proof.</strong></p>
+        <p><strong>\(m^*(416) = 9\): construction and proof.</strong></p>
         <p><a href="https://arxiv.org/html/1912.03491v1#S6.T5">BGPW Table 5</a> has the 208:8 code <code id="seed416">C5A2CB6B945B28BC43ADB6586C</code>.</p>
-        <p>Astra: "Its binary expansion gives the first 104 signs (1 → +1, 0 → −1); the remaining 104 are the same signs in reverse order. If <i>P</i>(<i>x</i>) is the polynomial of this sequence, then <span class="nw"><i>F</i>(<i>x</i>) = (1 − <i>x</i><sup>208</sup>)<i>P</i>(<i>x</i>)</span> has length 416 and order 9: append the same sequence with every sign negated."</p>
+        <p>Astra: "Its binary expansion gives the first 104 signs (\(1 \to +1\), \(0 \to -1\)); the remaining 104 are the same signs in reverse order. If \(P(x)\) is the polynomial of this sequence, then \(F(x) = (1 - x^{208})P(x)\) has length 416 and order 9: append the same sequence with every sign negated."</p>
         <p>Astra: "Code for the length-416 example, using the same convention: <code id="witness416">C5A2CB6B945B28BC43ADB6586C361A6DB5C23D14DA29D6D345A3</code>"</p>
-        <p>Astra: "To rule out order 10, let <i>D</i><sub>0</sub>, <i>D</i><sub>1</sub>, <i>D</i><sub>2</sub> be the sums of the signs in the residue classes modulo 3. The class sizes are <span id="sizes416">139, 139, 138</span>, so <i>D</i><sub>0</sub> and <i>D</i><sub>1</sub> are odd, and <i>D</i><sub>0</sub> + <i>D</i><sub>1</sub> + <i>D</i><sub>2</sub> = 0."</p>
-        <p>Astra: "Let ζ be a cube root of unity other than 1. Since <span class="nw">(ζ − 1)<sup>10</sup> = −243ζ<sup>2</sup></span>, order at least 10 implies <i>f</i>(ζ) = (<i>D</i><sub>0</sub> − <i>D</i><sub>2</sub>) + (<i>D</i><sub>1</sub> − <i>D</i><sub>2</sub>)ζ ∈ <span id="modulus416">243</span>ℤ[ζ]. Therefore all three sums are congruent modulo 243."</p>
-        <p>Astra: "The difference <span class="nw"><i>D</i><sub>0</sub> − <i>D</i><sub>1</sub></span> is even and divisible by 243, but its absolute value is at most 278. Therefore <span class="nw"><i>D</i><sub>0</sub> = <i>D</i><sub>1</sub> = <i>d</i></span>. Then <span class="nw"><i>D</i><sub>2</sub> = −2<i>d</i></span>, giving <span class="nw">|<i>d</i>| ≤ 69</span>; but <span class="nw">243 ∣ 3<i>d</i></span>, so <span class="nw">81 ∣ <i>d</i></span>. Only <span class="nw"><i>d</i> = 0</span> remains, contradicting its oddness. Thus <span class="nw"><i>m</i><sup>*</sup>(416) = 9</span>."</p>
+        <p>Astra: "To rule out order 10, let \(D_0\), \(D_1\), \(D_2\) be the sums of the signs in the residue classes modulo 3. The class sizes are <span id="sizes416">139, 139, 138</span>, so \(D_0\) and \(D_1\) are odd, and \(D_0 + D_1 + D_2 = 0\)."</p>
+        <p>Astra: "Let \(\zeta\) be a cube root of unity other than 1. Since \((\zeta - 1)^{10} = -243\zeta^2\), order at least 10 implies \(f(\zeta) = (D_0 - D_2) + (D_1 - D_2)\zeta \in\) <span id="modulus416">243</span>\(\mathbb{Z}[\zeta]\). Therefore all three sums are congruent modulo 243."</p>
+        <p>Astra: "The difference \(D_0 - D_1\) is even and divisible by 243, but its absolute value is at most 278. Therefore \(D_0 = D_1 = d\). Then \(D_2 = -2d\), giving \(|d| \le 69\); but \(243 \mid 3d\), so \(81 \mid d\). Only \(d = 0\) remains, contradicting its oddness. Thus \(m^*(416) = 9\)."</p>
       </div>
     </li>
     <li class="j">
       <span class="mk" aria-hidden="true">◆●</span>
-      <p class="entry"><i>n</i> = 336: &nbsp;<span class="nw"><i>m</i><sup>*</sup> = 10</span></p>
+      <p class="entry">\(n = 336\): &nbsp;\(m^* = 10\)</p>
       <p>An example of order 10 that BGPW had before Claude's work; it is not in the paper.</p>
       <p>Order 11 is ruled out by the residue condition mod 5 (Claude's proof).</p>
       <p class="code">
-        <span>BGPW's example <span class="nw">(<i>m</i> = 10)</span>:</span>
+        <span>BGPW's example \((m = 10)\):</span>
         <code>C87695B43E0ED258AB29C7793D8521DB227C0B746D</code>
       </p>
       <p class="code">
         <!-- TODO: labels this code q336 (not p336, which the powers-of-2 chart uses for the order-10 example above): an antisymmetric example found independently by Claude, the second part of the 528 example below, of order 9 -->
-        <span>Claude: "<i>q</i><sub>336</sub>, an antisymmetric example found independently by Claude; it is the second part of the 528 example below" <span class="nw">(<i>m</i> = 9)</span>:</span>
+        <span>Claude: "\(q_{336}\), an antisymmetric example found independently by Claude; it is the second part of the 528 example below" \((m = 9)\):</span>
         <code>9C5479E2669C97071E731A62EBC06F28E87B4961DF</code>
       </p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry"><i>n</i> = 432: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {11, 12}</span></p>
+      <p class="entry">\(n = 432\): &nbsp;\(m^* \in \{11, 12\}\)</p>
       <p>An antisymmetric example of order 11 found by Claude. BGPW also showed order 10.</p>
       <!-- TODO: says order 13 at 432 is ruled out by the residue condition mod 5, so m*(432) is 11 or 12 -->
       <p>Claude: "Order 13 is ruled out by the residue condition mod 5."</p>
       <p class="code">
-        <span><i>p</i><sub>432</sub> <span class="nw">(<i>m</i> = 11)</span>:</span>
+        <span>\(p_{432}\) \((m = 11)\):</span>
         <code>5A56B0EE234E8794ADE3D0C384F72A5C63A8BD65035EF015B78B46</code>
       </p>
       <div id="lemma432">
         <!-- TODO: says that whether order 12 is possible at 432 decides a(11) of OEIS A323395, the smallest n allowing order 12 (432 if so, 480 if not); that the residue condition allows 1200 combinations of residue sums mod 3, 4, 5 and 7, and linear-programming certificates checked in exact integer arithmetic rule out all but two; that a search can split each by the value of f'(-1) = sum of (-1)^(i-1) i f_i, a linear function of the signs like the power sums; that this value is an odd multiple of 8192, so never 0; and the idea in one sentence: mod 2, where every sign is 1, every sequence of length 432 is the same polynomial, with exactly 15 factors x + 1, and the factors forced on f use all 15, so the rest of f is odd at -1 -->
-        <p>Claude: "Whether order 12 is possible at 432 decides <span class="nw"><i>a</i>(11)</span> of OEIS <a href="https://oeis.org/A323395">A323395</a>, the smallest <i>n</i> allowing order 12: 432 if so, 480 if not. The residue condition allows 1200 combinations of residue sums mod 3, 4, 5 and 7, and linear-programming certificates checked in exact integer arithmetic rule out all but two. A search can split each by the value of <span class="nw"><i>f</i>′(−1) = Σ (−1)<sup><i>i</i>−1</sup> <i>i</i> <i>f</i><sub><i>i</i></sub></span>, a linear function of the signs like the power sums. That value is an odd multiple of 8192, so never 0. The idea: mod 2, where every sign is 1, every sequence of length 432 is the same polynomial, with exactly 15 factors <span class="nw"><i>x</i> + 1</span>; the factors forced on <i>f</i> use all 15, so the rest of <i>f</i> is odd at −1."</p>
+        <p>Claude: "Whether order 12 is possible at 432 decides \(a(11)\) of OEIS <a href="https://oeis.org/A323395">A323395</a>, the smallest \(n\) allowing order 12: 432 if so, 480 if not. The residue condition allows 1200 combinations of residue sums mod 3, 4, 5 and 7, and linear-programming certificates checked in exact integer arithmetic rule out all but two. A search can split each by the value of \(f'(-1) = \sum (-1)^{i-1} i f_i\), a linear function of the signs like the power sums. That value is an odd multiple of 8192, so never 0. The idea: mod 2, where every sign is 1, every sequence of length 432 is the same polynomial, with exactly 15 factors \(x + 1\); the factors forced on \(f\) use all 15, so the rest of \(f\) is odd at \(-1\)."</p>
         <!-- TODO: says why 8192 divides f'(-1): in both combinations the residue sums mod 4 are all 0, so reducing f(x) modulo x^4 - 1 leaves 0 and x^4 - 1 = (x - 1)(x + 1)(x^2 + 1) divides f(x); so does (x - 1)^12, by order 12, and as x + 1 and x^2 + 1 share no root with x - 1, f = Fh for F = (x - 1)^12 (x + 1)(x^2 + 1) and h with integer coefficients, F having leading coefficient 1; then f = (x + 1)g with g = (x - 1)^12 (x^2 + 1)h, and the product rule f' = g + (x + 1)g' gives f'(-1) = g(-1) = (-2)^12 * 2 * h(-1) = 8192 h(-1) -->
-        <p>Claude: "In both combinations the residue sums mod 4 are all 0, so reducing <i>f</i>(<i>x</i>) modulo <span class="nw"><i>x</i><sup>4</sup> − 1</span> leaves 0: <span class="nw"><i>x</i><sup>4</sup> − 1</span> <span class="nw">= (<i>x</i> − 1)(<i>x</i> + 1)(<i>x</i><sup>2</sup> + 1)</span> divides <i>f</i>(<i>x</i>). So does <span class="nw">(<i>x</i> − 1)<sup>12</sup></span>, by order 12, and as <span class="nw"><i>x</i> + 1</span> and <span class="nw"><i>x</i><sup>2</sup> + 1</span> share no root with <span class="nw"><i>x</i> − 1</span>, <span class="nw"><i>f</i> = <i>F</i><i>h</i></span> with <span class="nw"><i>F</i> = (<i>x</i> − 1)<sup>12</sup>(<i>x</i> + 1)(<i>x</i><sup>2</sup> + 1)</span>, where <i>h</i> has integer coefficients because <i>F</i> has leading coefficient 1. Then <span class="nw"><i>f</i> = (<i>x</i> + 1)<i>g</i></span> with <span class="nw"><i>g</i> = (<i>x</i> − 1)<sup>12</sup>(<i>x</i><sup>2</sup> + 1)<i>h</i></span>, and <span class="nw"><i>f</i>′ = <i>g</i> + (<i>x</i> + 1)<i>g</i>′</span> gives <span class="nw"><i>f</i>′(−1) = <i>g</i>(−1)</span> <span class="nw">= (−2)<sup>12</sup> · 2 · <i>h</i>(−1)</span> <span class="nw">= 8192 <i>h</i>(−1)</span>."</p>
+        <p>Claude: "In both combinations the residue sums mod 4 are all 0, so reducing \(f(x)\) modulo \(x^4 - 1\) leaves 0: \(x^4 - 1 = (x - 1)(x + 1)(x^2 + 1)\) divides \(f(x)\). So does \((x - 1)^{12}\), by order 12, and as \(x + 1\) and \(x^2 + 1\) share no root with \(x - 1\), \(f = Fh\) with \(F = (x - 1)^{12}(x + 1)(x^2 + 1)\), where \(h\) has integer coefficients because \(F\) has leading coefficient 1. Then \(f = (x + 1)g\) with \(g = (x - 1)^{12}(x^2 + 1)h\), and \(f' = g + (x + 1)g'\) gives \(f'(-1) = g(-1) = (-2)^{12} \cdot 2 \cdot h(-1) = 8192 h(-1)\)."</p>
         <!-- TODO: says why h(-1) is odd: mod 2, keeping only the parity of each coefficient, every sign is 1, so (x + 1)f = (x + 1)(1 + x + ... + x^431) = x^432 + 1, which is (x^27 + 1)^16 = (x + 1)^16 S^16 with S = 1 + x + ... + x^26, since (a + b)^2 = a^2 + b^2 mod 2; so f = (x + 1)^15 S^16 mod 2; F is (x + 1)^(12+1+2) mod 2 too, as x - 1 = x + 1 and x^2 + 1 = (x + 1)^2 there, so cancelling (x + 1)^15 leaves h = S^16 mod 2; so h(1) has the parity of 27^16, odd, and so does h(-1), which differs from h(1) by an even number -->
-        <p>Claude: "And <i>h</i>(−1) is odd. Mod 2, keeping only the parity of each coefficient, every sign is 1, so <span class="nw">(<i>x</i> + 1)<i>f</i></span> <span class="nw">= (<i>x</i> + 1)(1 + <i>x</i> + ⋯ + <i>x</i><sup>431</sup>)</span> <span class="nw">= <i>x</i><sup>432</sup> + 1</span>. As <span class="nw">(<i>a</i> + <i>b</i>)<sup>2</sup> = <i>a</i><sup>2</sup> + <i>b</i><sup>2</sup></span>, <span class="nw"><i>x</i><sup>432</sup> + 1</span> <span class="nw">= (<i>x</i><sup>27</sup> + 1)<sup>16</sup></span> <span class="nw">= (<i>x</i> + 1)<sup>16</sup><i>S</i><sup>16</sup></span>, with <span class="nw"><i>S</i> = 1 + <i>x</i> + ⋯ + <i>x</i><sup>26</sup></span>, so <span class="nw"><i>f</i> = (<i>x</i> + 1)<sup>15</sup><i>S</i><sup>16</sup></span>. And as <span class="nw"><i>x</i> − 1 = <i>x</i> + 1</span> and <span class="nw"><i>x</i><sup>2</sup> + 1 = (<i>x</i> + 1)<sup>2</sup></span>, <span class="nw"><i>F</i> = (<i>x</i> + 1)<sup>12+1+2</sup></span> too, so cancelling <span class="nw">(<i>x</i> + 1)<sup>15</sup></span> from <span class="nw"><i>F</i><i>h</i> = <i>f</i></span> leaves <span class="nw"><i>h</i> = <i>S</i><sup>16</sup></span>. Then <i>h</i>(1) has the parity of <span class="nw"><i>S</i>(1)<sup>16</sup> = 27<sup>16</sup></span>: odd, and so does <i>h</i>(−1), which differs from <i>h</i>(1) by an even number."</p>
+        <p>Claude: "And \(h(-1)\) is odd. Mod 2, keeping only the parity of each coefficient, every sign is 1, so \((x + 1)f = (x + 1)(1 + x + \cdots + x^{431}) = x^{432} + 1\). As \((a + b)^2 = a^2 + b^2\), \(x^{432} + 1 = (x^{27} + 1)^{16} = (x + 1)^{16}S^{16}\), with \(S = 1 + x + \cdots + x^{26}\), so \(f = (x + 1)^{15}S^{16}\). And as \(x - 1 = x + 1\) and \(x^2 + 1 = (x + 1)^2\), \(F = (x + 1)^{12+1+2}\) too, so cancelling \((x + 1)^{15}\) from \(Fh = f\) leaves \(h = S^{16}\). Then \(h(1)\) has the parity of \(S(1)^{16} = 27^{16}\): odd, and so does \(h(-1)\), which differs from \(h(1)\) by an even number."</p>
         <!-- TODO: says what follows: x + 1 divides f, so f(-1) = 0 and the numbers (-1)^(i-1) f_i are half +1 and half -1, which bounds |f'(-1)| by (216 + ... + 431) - (0 + ... + 215) = 216^2 = 46,656 and leaves +-8192, +-24,576 and +-40,960; further certificates rule out all but +-8192 in both combinations; flipping every sign swaps the two combinations and negates f'(-1), so the search needs only f'(-1) = 8192, in both; and without the oddness of h(-1) it would also have to search f'(-1) = 0, where random root-to-leaf paths estimate a lower bound on the search tree's size about 12 times those for +-8192 combined -->
-        <p>Claude: "As <span class="nw"><i>x</i> + 1</span> divides <i>f</i>, <span class="nw"><i>f</i>(−1) = 0</span>: the numbers <span class="nw">(−1)<sup><i>i</i>−1</sup><i>f</i><sub><i>i</i></sub></span> are half +1 and half −1, so <span class="nw">|<i>f</i>′(−1)| ≤ (216 + ⋯ + 431)</span> <span class="nw">− (0 + ⋯ + 215)</span> <span class="nw">= 216<sup>2</sup> = 46,656</span>. That leaves ±8192, ±24,576 and ±40,960, and further certificates rule out all but ±8192 in both combinations. Flipping every sign swaps the two combinations and negates <i>f</i>′(−1), so the search needs only <span class="nw"><i>f</i>′(−1) = 8192</span>, in both. Without the oddness of <i>h</i>(−1), it would also have to search <span class="nw"><i>f</i>′(−1) = 0</span>, where random root-to-leaf paths estimate a lower bound on the search tree's size about 12 times those for ±8192 combined."</p>
+        <p>Claude: "As \(x + 1\) divides \(f\), \(f(-1) = 0\): the numbers \((-1)^{i-1}f_i\) are half \(+1\) and half \(-1\), so \(|f'(-1)| \le (216 + \cdots + 431) - (0 + \cdots + 215) = 216^2 = 46{,}656\). That leaves \(\pm 8192\), \(\pm 24{,}576\) and \(\pm 40{,}960\), and further certificates rule out all but \(\pm 8192\) in both combinations. Flipping every sign swaps the two combinations and negates \(f'(-1)\), so the search needs only \(f'(-1) = 8192\), in both. Without the oddness of \(h(-1)\), it would also have to search \(f'(-1) = 0\), where random root-to-leaf paths estimate a lower bound on the search tree's size about 12 times those for \(\pm 8192\) combined."</p>
         <!-- TODO: says the general form: at length n = t u, with t a power of 2 and u odd, the same steps give f = (x + 1)^(t-1) S^t mod 2 with S = 1 + x + ... + x^(u-1), which is u at 1, odd, while multiples of x + 1 are even at 1, so f has exactly t - 1 factors x + 1 mod 2, a fixed budget; that BGPW's Theorem 4.1 (Divisibility) and their Proposition 4.6, due to Berend and Golan, both linked, bound the order by it (m < t, and m < t - 1 if x + 1 divides f); and states the lemma: a divisor of f with leading coefficient 1 that uses the whole budget, as F does at 432, leaves a quotient odd at 1 and -1 -->
-        <p>Claude: "At any length <span class="nw"><i>n</i> = <i>t</i>·<i>u</i></span>, with <i>t</i> a power of 2 and <i>u</i> odd, the same steps give <span class="nw"><i>f</i> = (<i>x</i> + 1)<sup><i>t</i>−1</sup><i>S</i><sup><i>t</i></sup></span> mod 2, where now <span class="nw"><i>S</i> = 1 + <i>x</i> + ⋯ + <i>x</i><sup><i>u</i>−1</sup></span> is <i>u</i> at 1, odd; as multiples of <span class="nw"><i>x</i> + 1</span> are even at 1, <i>f</i> has exactly <span class="nw"><i>t</i> − 1</span> factors <span class="nw"><i>x</i> + 1</span> mod 2: a fixed budget. BGPW's <a href="https://arxiv.org/html/1912.03491v1#S4.Thmthm1">Theorem 4.1</a> (Divisibility) and their <a href="https://arxiv.org/html/1912.03491v1#S4.Thmthm6">Proposition 4.6</a>, due to Berend and Golan, bound the order by it: <span class="nw"><i>m</i> &lt; <i>t</i></span>, and <span class="nw"><i>m</i> &lt; <i>t</i> − 1</span> if <span class="nw"><i>x</i> + 1</span> divides <i>f</i>. The lemma: a divisor of <i>f</i> with leading coefficient 1 that uses the whole budget, as <i>F</i> does at 432, leaves a quotient odd at 1 and −1."</p>
+        <p>Claude: "At any length \(n = t\cdot u\), with \(t\) a power of 2 and \(u\) odd, the same steps give \(f = (x + 1)^{t-1}S^t\) mod 2, where now \(S = 1 + x + \cdots + x^{u-1}\) is \(u\) at 1, odd; as multiples of \(x + 1\) are even at 1, \(f\) has exactly \(t - 1\) factors \(x + 1\) mod 2: a fixed budget. BGPW's <a href="https://arxiv.org/html/1912.03491v1#S4.Thmthm1">Theorem 4.1</a> (Divisibility) and their <a href="https://arxiv.org/html/1912.03491v1#S4.Thmthm6">Proposition 4.6</a>, due to Berend and Golan, bound the order by it: <span class="nw">\(m < t\)</span>, and <span class="nw">\(m < t - 1\)</span> if \(x + 1\) divides \(f\). The lemma: a divisor of \(f\) with leading coefficient 1 that uses the whole budget, as \(F\) does at 432, leaves a quotient odd at 1 and \(-1\)."</p>
       </div>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry"><i>n</i> = 448: &nbsp;<span class="nw"><i>m</i><sup>*</sup> = 9</span></p>
-      <p>Claude: "The paper's order-7 example of length 112, doubled twice, <span class="nw"><i>p</i><sub>112</sub> # τ<sub>2</sub></span>, has order 9. Order 10 is ruled out by the residue condition mod 3."</p>
+      <p class="entry">\(n = 448\): &nbsp;\(m^* = 9\)</p>
+      <p>Claude: "The paper's order-7 example of length 112, doubled twice, \(p_{112} \mathbin{\#} \tau_2\), has order 9. Order 10 is ruled out by the residue condition mod 3."</p>
       <p class="code">
-        <span><i>p</i><sub>448</sub> = <i>p</i><sub>112</sub> # τ<sub>2</sub> <span class="nw">(<i>m</i> = 9)</span>:</span>
+        <span>\(p_{448} = p_{112} \mathbin{\#} \tau_2\) \((m = 9)\):</span>
         <code>A5994DB29B45A0FA5D26B24D665A5A66B24D64BA5F05A2D94DB299A5</code>
       </p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry"><i>n</i> = 480: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {12, 13, 14}</span></p>
+      <p class="entry">\(n = 480\): &nbsp;\(m^* \in \{12, 13, 14\}\)</p>
       <p>A symmetric example of order 12 found by Claude.</p>
       <!-- TODO: says order 15 at 480 is ruled out by the residue condition mod 7, so m*(480) is 12, 13 or 14 -->
       <p>Claude: "Order 15 is ruled out by the residue condition mod 7."</p>
       <p class="code">
-        <span><i>p</i><sub>480</sub> <span class="nw">(<i>m</i> = 12)</span>:</span>
+        <span>\(p_{480}\) \((m = 12)\):</span>
         <code>B0CBC94F1E2C68D1E3A6371C357C4B1347952BB968236CF6C82CD9CE01F3</code>
       </p>
     </li>
     <li class="j">
       <span class="mk" aria-hidden="true">◆●</span>
-      <p class="entry"><i>n</i> = 496: &nbsp;<span class="nw"><i>m</i><sup>*</sup> = 9</span></p>
+      <p class="entry">\(n = 496\): &nbsp;\(m^* = 9\)</p>
       <p>An example of order 9 found by BGPW. Order 10 is ruled out by the residue condition mod 27, by the same argument as for 512; the solvers CP-SAT and SCIP agree.</p>
       <p class="code">
-        <span><i>p</i><sub>496</sub> <span class="nw">(<i>m</i> = 9)</span>:</span>
+        <span>\(p_{496}\) \((m = 9)\):</span>
         <code>C96992D92DB24B7596496D1A530DB5994EA699A9ACE072BDC57403B339A4CE</code>
       </p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry"><i>n</i> = 512: &nbsp;<span class="nw"><i>m</i><sup>*</sup> = 9</span></p>
-      <p>The Thue–Morse polynomial τ<sub>9</sub> has order 9. Order 10 is ruled out by the residue conditions mod 3, 9 and 27.</p>
+      <p class="entry">\(n = 512\): &nbsp;\(m^* = 9\)</p>
+      <p>The Thue–Morse polynomial \(\tau_9\) has order 9. Order 10 is ruled out by the residue conditions mod 3, 9 and 27.</p>
       <p>A short proof by Claude, which also covers 496: <a href="proof512.txt">proof512.txt</a>. 
         The Mathematica script <a href="https://raw.githubusercontent.com/dreeves/equipow/main/proof512.wl">proof512.wl</a> checks its computations.</p>
       <p>Claude: "A shorter proof that needs no computer, also covering 496: <a href="proof512_short.txt">proof512_short.txt</a>."</p>
     </li>
     <li class="j">
       <span class="mk" aria-hidden="true">◆●</span>
-      <p class="entry"><i>n</i> = 528: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {10, 11, 12}</span></p>
+      <p class="entry">\(n = 528\): &nbsp;\(m^* \in \{10, 11, 12\}\)</p>
       <p>BGPW had an example of order 10 before Claude's work. Claude found another independently, by joining an example of length 192 and order 9 to an antisymmetric piece of length 336 and order 9, chosen so that their 9th power sums cancel.</p>
       <!-- TODO: says order 13 at 528 is ruled out by the residue condition mod 5 (Claude's proof), so m*(528) is 10, 11 or 12 -->
       <p>Claude: "Order 13 is ruled out by the residue condition mod 5."</p>
       <p class="code">
-        <span><i>f</i> = <i>p</i><sub>192</sub> ∨ <i>q</i><sub>336</sub>; &nbsp;<i>p</i><sub>192</sub> <span class="nw">(<i>m</i> = 9)</span>:</span>
+        <span>\(f = p_{192} \vee q_{336}\); &nbsp;\(p_{192}\) \((m = 9)\):</span>
         <code>C1BE1E21CD63D295A7887A59</code>
       </p>
       <!-- TODO: says this is a symmetric example of order 10, found by a lattice search on 2026-10-27 -->
       <p>Claude: "A symmetric example of order 10, found by a lattice search on 2026-10-27."</p>
       <p class="code">
-        <span><i>p</i><sub>528</sub> <span class="nw">(<i>m</i> = 10)</span>:</span>
+        <span>\(p_{528}\) \((m = 10)\):</span>
         <code>D920BDA31A6FDC8423BEC528AE51365BB4A6C36E419CCEF94C45BB00D13EE1EAA5</code>
       </p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry"><i>n</i> = 560: &nbsp;<span class="nw"><i>m</i><sup>*</sup> = 10</span></p>
+      <p class="entry">\(n = 560\): &nbsp;\(m^* = 10\)</p>
       <!-- TODO: says this is a symmetric example of order 10, and that order 11 at 560 is ruled out by the norm bound for the residue sums mod 3, so m*(560) = 10 -->
       <p>Claude: "A symmetric example of order 10. Order 11 is ruled out by the norm bound for the residue sums mod 3."</p>
       <p class="code">
-        <span><i>p</i><sub>560</sub> <span class="nw">(<i>m</i> = 10)</span>:</span>
+        <span>\(p_{560}\) \((m = 10)\):</span>
         <code>34D2E9F0DA19EC92492D966936ABCA25FAD924D26F2591EB64926924925D6E1A4BFE92</code>
       </p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry"><i>n</i> = 576: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {10, 11, 12}</span></p>
+      <p class="entry">\(n = 576\): &nbsp;\(m^* \in \{10, 11, 12\}\)</p>
       <p>The paper's example of length 288 and order 9, doubled, has order 10. Order 13 is ruled out by the residue condition mod 5.</p>
     </li>
     <li class="ca">
       <span class="mk" aria-hidden="true">◆✦</span>
-      <p class="entry"><i>n</i> = 592: &nbsp;<span class="nw"><i>m</i><sup>*</sup> = 10</span></p>
+      <p class="entry">\(n = 592\): &nbsp;\(m^* = 10\)</p>
       <!-- TODO: says this is a symmetric example of order 10, found by Claude's lattice search, which used Astra's residue sums mod 27 for 592 and Astra's lattice code, and that order 11 at 592 is ruled out by the norm bound for the residue sums mod 3, so m*(592) = 10 -->
       <p>Claude: "A symmetric example of order 10. Claude's lattice search found it in the residue sums mod 27 that Astra chose for 592, with Astra's lattice code. Order 11 is ruled out by the norm bound for the residue sums mod 3."</p>
       <p class="code">
-        <span><i>p</i><sub>592</sub> <span class="nw">(<i>m</i> = 10)</span>:</span>
+        <span>\(p_{592}\) \((m = 10)\):</span>
         <code>93CC6790EA26876D2DDA793492C92EB24C3B934525B66DADF25926920BA79E4D21B2CB359A</code>
       </p>
     </li>
     <li class="ca">
       <span class="mk" aria-hidden="true">◆✦</span>
-      <p class="entry"><i>n</i> = 608: &nbsp;<span class="nw"><i>m</i><sup>*</sup> = 10</span></p>
+      <p class="entry">\(n = 608\): &nbsp;\(m^* = 10\)</p>
       <!-- TODO: says this is a symmetric example of order 10, found by Claude's lattice search with Astra's lattice code, in residue sums mod 27 that Claude chose by Astra's method for 592, and that order 11 at 608 is ruled out by the residue condition mod 3, so m*(608) = 10 -->
       <p>Claude: "A symmetric example of order 10. Claude's lattice search found it with Astra's lattice code, in residue sums mod 27 that Claude chose by Astra's method for 592. Order 11 is ruled out by the residue condition mod 3."</p>
       <p class="code">
-        <span><i>p</i><sub>608</sub> <span class="nw">(<i>m</i> = 10)</span>:</span>
+        <span>\(p_{608}\) \((m = 10)\):</span>
         <code>AC965934D659969A4CE792CD6492D72C836BE49E193612E97792C9AAB265AC867BAE921924D7</code>
       </p>
     </li>
     <li class="ca">
       <span class="mk" aria-hidden="true">◆✦</span>
-      <p class="entry"><i>n</i> = 656: &nbsp;<span class="nw"><i>m</i><sup>*</sup> = 10</span></p>
+      <p class="entry">\(n = 656\): &nbsp;\(m^* = 10\)</p>
       <!-- TODO: says this is a symmetric example of order 10, found by Claude's lattice search with Astra's lattice code, in residue sums mod 27 that Claude chose by Astra's method for 592, and that order 11 at 656 is ruled out by the residue condition mod 3, so m*(656) = 10 -->
       <p>Claude: "A symmetric example of order 10. Claude's lattice search found it with Astra's lattice code, in residue sums mod 27 that Claude chose by Astra's method for 592. Order 11 is ruled out by the residue condition mod 3."</p>
       <p class="code">
-        <span><i>p</i><sub>656</sub> <span class="nw">(<i>m</i> = 10)</span>:</span>
+        <span>\(p_{656}\) \((m = 10)\):</span>
         <code>C32DA6E924AED161B6D94216DB6CBE4A4932FD4996135826A94DF6CA6CB4DA1EB4D90D92134D82F8EE</code>
       </p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry"><i>n</i> = 720: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {12, 13, 14}</span></p>
+      <p class="entry">\(n = 720\): &nbsp;\(m^* \in \{12, 13, 14\}\)</p>
       <!-- TODO: says this is a symmetric example of order 12, and that order 15 at 720 is ruled out by the residue condition mod 16, so m*(720) is 12, 13 or 14 -->
       <p>Claude: "A symmetric example of order 12. Order 15 is ruled out by the residue condition mod 16."</p>
       <p class="code">
-        <span><i>p</i><sub>720</sub> <span class="nw">(<i>m</i> = 12)</span>:</span>
+        <span>\(p_{720}\) \((m = 12)\):</span>
         <code>D508EE7A682A54DC2FCCC5DEAEC42DD200500E3FD2F9BBA0E66FEE28F1A983831A12C69D5181FC6CBDA6B9703C</code>
       </p>
     </li>
     <li class="ca">
       <span class="mk" aria-hidden="true">◆✦</span>
-      <p class="entry"><i>n</i> = 752: &nbsp;<span class="nw"><i>m</i><sup>*</sup> = 10</span></p>
+      <p class="entry">\(n = 752\): &nbsp;\(m^* = 10\)</p>
       <!-- TODO: says this is a symmetric example of order 10, found by Claude's lattice search with Astra's lattice code, in residue sums mod 27 that Claude chose by Astra's method for 592, and that order 11 at 752 is ruled out by an exact proof, proof752.py (linked), so m*(752) = 10 -->
       <p>Claude: "A symmetric example of order 10. Claude's lattice search found it with Astra's lattice code, in residue sums mod 27 that Claude chose by Astra's method for 592. Order 11 is ruled out by an exact proof, <a href="https://github.com/dreeves/equipow/blob/main/proof752.py">proof752.py</a>."</p>
       <!-- TODO: says how proof752.py rules out order 11 at 752: the residue sums mod 3 leave just four +1s in class 0 and four −1s in class 1, or the reverse; with the signs of class 2 relaxed to arbitrary integers the power sums then require ten congruences modulo powers of 3; a meet in the middle checks all 2·C(251, 4)^2 ≈ 5.2·10^16 placements of those eight signs, and none meets them; and that this is Astra's method for 384 (place the few exceptional signs, then test congruences), made feasible here by Claude's meet in the middle -->
-      <p>Claude: "For order 11, the residue sums mod 3 leave just four +1s in class 0 and four −1s in class 1, or the reverse. Even with the signs of class 2 relaxed to arbitrary integers, the power sums then require ten congruences modulo powers of 3. A meet in the middle checks all <span class="nw">2·C(251, 4)<sup>2</sup> ≈ 5.2·10<sup>16</sup></span> placements of those eight signs, and none meets them. This is Astra's method for 384, placing the few exceptional signs and testing congruences, made feasible here by Claude's meet in the middle."</p>
+      <p>Claude: "For order 11, the residue sums mod 3 leave just four \(+1\)s in class 0 and four \(-1\)s in class 1, or the reverse. Even with the signs of class 2 relaxed to arbitrary integers, the power sums then require ten congruences modulo powers of 3. A meet in the middle checks all \(2\cdot \mathrm{C}(251, 4)^2 \approx 5.2\cdot 10^{16}\) placements of those eight signs, and none meets them. This is Astra's method for 384, placing the few exceptional signs and testing congruences, made feasible here by Claude's meet in the middle."</p>
       <p class="code">
-        <span><i>p</i><sub>752</sub> <span class="nw">(<i>m</i> = 10)</span>:</span>
+        <span>\(p_{752}\) \((m = 10)\):</span>
         <code>D1C7951270B6456FBEC039A7FA05A459E422DB6416E76D06DB2D90D32FD010FBB30A6DB6D80DBAC3059EDB5826CB4C</code>
       </p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry"><i>n</i> = 768: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {12, 13}</span></p>
+      <p class="entry">\(n = 768\): &nbsp;\(m^* \in \{12, 13\}\)</p>
       <!-- TODO: says this is a symmetric example of order 12, and that order 14 at 768 is ruled out by the residue condition mod 5, so m*(768) is 12 or 13 -->
       <p>Claude: "A symmetric example of order 12. Order 14 is ruled out by the residue condition mod 5."</p>
       <p class="code">
-        <span><i>p</i><sub>768</sub> <span class="nw">(<i>m</i> = 12)</span>:</span>
+        <span>\(p_{768}\) \((m = 12)\):</span>
         <code>AB5186723E74399FC150E3179F7008E728787ABA4678EAF3C4C73E033113ADA98C721D7131CE439DA5FECD734DE50904</code>
       </p>
     </li>
     <li class="ca">
       <span class="mk" aria-hidden="true">◆✦</span>
-      <p class="entry"><i>n</i> = 784: &nbsp;<span class="nw"><i>m</i><sup>*</sup> = 10</span></p>
+      <p class="entry">\(n = 784\): &nbsp;\(m^* = 10\)</p>
       <!-- TODO: says this is a symmetric example of order 10, found by Claude's lattice search with Astra's lattice code, in residue sums mod 27 that Claude chose by Astra's method for 592, and that order 11 at 784 is ruled out by the residue condition mod 27, so m*(784) = 10 -->
       <p>Claude: "A symmetric example of order 10. Claude's lattice search found it with Astra's lattice code, in residue sums mod 27 that Claude chose by Astra's method for 592. Order 11 is ruled out by the residue condition mod 27."</p>
       <p class="code">
-        <span><i>p</i><sub>784</sub> <span class="nw">(<i>m</i> = 10)</span>:</span>
+        <span>\(p_{784}\) \((m = 10)\):</span>
         <code>B24F643A19DC1B49FC831C2FF25926F80B24FFC1B423C92E933B25304F60FA2B341F59FFB668379251243048E2BE6BA89F</code>
       </p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry"><i>n</i> = 800: &nbsp;<span class="nw"><i>m</i><sup>*</sup> = 11</span></p>
+      <p class="entry">\(n = 800\): &nbsp;\(m^* = 11\)</p>
       <!-- TODO: says this is an antisymmetric example of order 11, and that order 12 at 800 is ruled out by the norm bound for the residue sums mod 3, so m*(800) = 11 -->
       <p>Claude: "An antisymmetric example of order 11. Order 12 is ruled out by the norm bound for the residue sums mod 3."</p>
       <p class="code">
-        <span><i>p</i><sub>800</sub> <span class="nw">(<i>m</i> = 11)</span>:</span>
+        <span>\(p_{800}\) \((m = 11)\):</span>
         <code>966965968F2C965B25B44B25B3596D924B6D96496C964B65B2CB24B25B2C96CB6C97496CB2CD6E960B243A59A592DB2DB6D9</code>
       </p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry"><i>n</i> = 816: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {12, 13, 14}</span></p>
+      <p class="entry">\(n = 816\): &nbsp;\(m^* \in \{12, 13, 14\}\)</p>
       <!-- TODO: says this is a symmetric example of order 12, and that order 15 at 816 is ruled out by the norm bound for the residue sums mod 5, so m*(816) is 12, 13 or 14 -->
       <p>Claude: "A symmetric example of order 12. Order 15 is ruled out by the norm bound for the residue sums mod 5."</p>
       <p class="code">
-        <span><i>p</i><sub>816</sub> <span class="nw">(<i>m</i> = 12)</span>:</span>
+        <span>\(p_{816}\) \((m = 12)\):</span>
         <code>9DA92A11F804FDEB7EBC4021CB6722C67D282BD35624BCF238A1E1DD66DC9D496BC238EF6CB84018A2D7854A72C535DDF61A9C</code>
       </p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry"><i>n</i> = 832: &nbsp;<span class="nw"><i>m</i><sup>*</sup> = 11</span></p>
+      <p class="entry">\(n = 832\): &nbsp;\(m^* = 11\)</p>
       <!-- TODO: says this is an antisymmetric example of order 11, and that order 12 at 832 is ruled out by the norm bound for the residue sums mod 3, so m*(832) = 11 -->
       <p>Claude: "An antisymmetric example of order 11. Order 12 is ruled out by the norm bound for the residue sums mod 3."</p>
       <p class="code">
-        <span><i>p</i><sub>832</sub> <span class="nw">(<i>m</i> = 11)</span>:</span>
+        <span>\(p_{832}\) \((m = 11)\):</span>
         <code>B49969329E6934CB4DB69B4D34924C359B4926DB69A4DB49369F69261A4D36D6499A926D2C9B68B4D369A4D2DDB6904936DA69B4</code>
       </p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry"><i>n</i> = 848: &nbsp;<span class="nw"><i>m</i><sup>*</sup> = 11</span></p>
+      <p class="entry">\(n = 848\): &nbsp;\(m^* = 11\)</p>
       <!-- TODO: says this is an antisymmetric example of order 11, and that order 12 at 848 is ruled out by the norm bound for the residue sums mod 3, so m*(848) = 11 -->
       <p>Claude: "An antisymmetric example of order 11. Order 12 is ruled out by the norm bound for the residue sums mod 3."</p>
       <p class="code">
-        <span><i>p</i><sub>848</sub> <span class="nw">(<i>m</i> = 11)</span>:</span>
+        <span>\(p_{848}\) \((m = 11)\):</span>
         <code>96B905B25BADB2496D32C924B74B6C96596CF25964B28925B25B6DAA5B6D96C965164B14B2C92F52D12596C97CB6CBEC86592CB2C9</code>
       </p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry"><i>n</i> = 880: &nbsp;<span class="nw"><i>m</i><sup>*</sup> = 11</span></p>
+      <p class="entry">\(n = 880\): &nbsp;\(m^* = 11\)</p>
       <!-- TODO: says this is an antisymmetric example of order 11, and that order 12 at 880 is ruled out by the norm bound for the residue sums mod 3, so m*(880) = 11 -->
       <p>Claude: "An antisymmetric example of order 11. Order 12 is ruled out by the norm bound for the residue sums mod 3."</p>
       <p class="code">
-        <span><i>p</i><sub>880</sub> <span class="nw">(<i>m</i> = 11)</span>:</span>
+        <span>\(p_{880}\) \((m = 11)\):</span>
         <code>C965B1C92D925B6C92D964BE4D2FB20B6592492D16D9259ADB6FD64926964925A64B6E62EF60D2CB24B6D925B2CB05960B6CB6CB75B74F</code>
       </p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry"><i>n</i> = 896: &nbsp;<span class="nw"><i>m</i><sup>*</sup> = 11</span></p>
+      <p class="entry">\(n = 896\): &nbsp;\(m^* = 11\)</p>
       <!-- TODO: says this is an antisymmetric example of order 11, and that order 12 at 896 is ruled out by the norm bound for the residue sums mod 3, so m*(896) = 11 -->
       <p>Claude: "An antisymmetric example of order 11. Order 12 is ruled out by the norm bound for the residue sums mod 3."</p>
       <p class="code">
-        <span><i>p</i><sub>896</sub> <span class="nw">(<i>m</i> = 11)</span>:</span>
+        <span>\(p_{896}\) \((m = 11)\):</span>
         <code>B25B2D92512CD65BA5B2DB2514CD65B8CB698E6364E65905B6196D12C82CBADB3DB6E32C9659ACB6D96512492C9ECB2196DB2C92D944B259</code>
       </p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry"><i>n</i> = 912: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {12, 13}</span></p>
+      <p class="entry">\(n = 912\): &nbsp;\(m^* \in \{12, 13\}\)</p>
       <!-- TODO: says this is a symmetric example of order 12, and that order 14 at 912 is ruled out by the residue condition mod 5, so m*(912) is 12 or 13 -->
       <p>Claude: "A symmetric example of order 12. Order 14 is ruled out by the residue condition mod 5."</p>
       <p class="code">
-        <span><i>p</i><sub>912</sub> <span class="nw">(<i>m</i> = 12)</span>:</span>
+        <span>\(p_{912}\) \((m = 12)\):</span>
         <code>CC89A4F3BCE43B44239C97C2E14F0BA7BB0F72385611B5C017EDB6E00B8BE67C9C6A7D4932882758827785E78ECF3D0CE8FC8777896911C683</code>
       </p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry"><i>n</i> = 928: &nbsp;<span class="nw"><i>m</i><sup>*</sup> = 11</span></p>
+      <p class="entry">\(n = 928\): &nbsp;\(m^* = 11\)</p>
       <!-- TODO: says this is an antisymmetric example of order 11, and that order 12 at 928 is ruled out by the norm bound for the residue sums mod 3, so m*(928) = 11 -->
       <p>Claude: "An antisymmetric example of order 11. Order 12 is ruled out by the norm bound for the residue sums mod 3."</p>
       <p class="code">
-        <span><i>p</i><sub>928</sub> <span class="nw">(<i>m</i> = 11)</span>:</span>
+        <span>\(p_{928}\) \((m = 11)\):</span>
         <code>869B4DEE9A60A4D14BA2D35DA4DA6D14F349E65B4C27926C54D36D268358369F29B6936DA6BA69269A65259349A4D86D765349B49A69BA9F65B4</code>
       </p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry"><i>n</i> = 944: &nbsp;<span class="nw"><i>m</i><sup>*</sup> = 11</span></p>
+      <p class="entry">\(n = 944\): &nbsp;\(m^* = 11\)</p>
       <!-- TODO: says this is an antisymmetric example of order 11, and that order 12 at 944 is ruled out by the norm bound for the residue sums mod 3, so m*(944) = 11 -->
       <p>Claude: "An antisymmetric example of order 11. Order 12 is ruled out by the norm bound for the residue sums mod 3."</p>
       <p class="code">
-        <span><i>p</i><sub>944</sub> <span class="nw">(<i>m</i> = 11)</span>:</span>
+        <span>\(p_{944}\) \((m = 11)\):</span>
         <code>B2D920F6C32D8A4A75B6E965D2D964B44968F291A432D97C96F964B2586CB47B64965B2DBE4934929B4C125B6D93494F92CB2DBA436596896D7ADA</code>
       </p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry"><i>n</i> = 976: &nbsp;<span class="nw"><i>m</i><sup>*</sup> = 11</span></p>
+      <p class="entry">\(n = 976\): &nbsp;\(m^* = 11\)</p>
       <!-- TODO: says this is an antisymmetric example of order 11, and that order 12 at 976 is ruled out by the norm bound for the residue sums mod 3, so m*(976) = 11 -->
       <p>Claude: "An antisymmetric example of order 11. Order 12 is ruled out by the norm bound for the residue sums mod 3."</p>
       <p class="code">
-        <span><i>p</i><sub>976</sub> <span class="nw">(<i>m</i> = 11)</span>:</span>
+        <span>\(p_{976}\) \((m = 11)\):</span>
         <code>A69A48B5DB6B269A6D14CA1936324D74DB6833DB6DB4DB4134921D949A68E6986F25DA6D348F4994935D86BB49E69ACC27D067268769B4D219B67249A4</code>
       </p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry"><i>n</i> = 992: &nbsp;<span class="nw"><i>m</i><sup>*</sup> = 11</span></p>
+      <p class="entry">\(n = 992\): &nbsp;\(m^* = 11\)</p>
       <!-- TODO: says this is an antisymmetric example of order 11, and that order 12 at 992 is ruled out by the norm bound for the residue sums mod 3, so m*(992) = 11 -->
       <p>Claude: "An antisymmetric example of order 11. Order 12 is ruled out by the norm bound for the residue sums mod 3."</p>
       <p class="code">
-        <span><i>p</i><sub>992</sub> <span class="nw">(<i>m</i> = 11)</span>:</span>
+        <span>\(p_{992}\) \((m = 11)\):</span>
         <code>94E96372496EB6496DB2D364864B2D902967B24E2DBF7B71908D6D92DA44905B4EF2CD2596CB7192D944B2C8ECB60967B24E25B2DB24BA5F2D96DB859749</code>
       </p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry"><i>n</i> = 1008: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {12, 13}</span></p>
+      <p class="entry">\(n = 1008\): &nbsp;\(m^* \in \{12, 13\}\)</p>
       <!-- TODO: says this is a symmetric example of order 12, and that order 14 at 1008 is ruled out by the residue condition mod 5, so m*(1008) is 12 or 13 -->
       <p>Claude: "A symmetric example of order 12. Order 14 is ruled out by the residue condition mod 5."</p>
       <p class="code">
-        <span><i>p</i><sub>1008</sub> <span class="nw">(<i>m</i> = 12)</span>:</span>
+        <span>\(p_{1008}\) \((m = 12)\):</span>
         <code>E5154C71ABE24D5C4FB0A2B9CB519E2C7CA61813D6DCC264974FBB8DB408B511DE62BC3738CE671CE23696059CE54D0CD2B085F5EFABC2A3B1AE172FF12850</code>
       </p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry"><i>n</i> = 1024: &nbsp;<span class="nw"><i>m</i><sup>*</sup> = 11</span></p>
+      <p class="entry">\(n = 1024\): &nbsp;\(m^* = 11\)</p>
       <!-- TODO: says this is an antisymmetric example of order 11; that order 12 at 1024 is ruled out by the norm bound for the residue sums mod 3, so m*(1024) = 11; and that, since m*(2^9) = 9, 2^10 is the smallest power of 2 at which a partition beats Thue–Morse, whose order there is 10 -->
-      <p>Claude: "An antisymmetric example of order 11. Order 12 is ruled out by the norm bound for the residue sums mod 3. Since <span class="nw"><i>m</i><sup>*</sup>(2<sup>9</sup>) = 9</span>, 2<sup>10</sup> is the smallest power of 2 at which a partition beats Thue–Morse, whose order there is 10."</p>
+      <p>Claude: "An antisymmetric example of order 11. Order 12 is ruled out by the norm bound for the residue sums mod 3. Since \(m^*(2^9) = 9\), \(2^{10}\) is the smallest power of 2 at which a partition beats Thue–Morse, whose order there is 10."</p>
       <p class="code">
-        <span><i>p</i><sub>1024</sub> <span class="nw">(<i>m</i> = 11)</span>:</span>
+        <span>\(p_{1024}\) \((m = 11)\):</span>
         <code>C8ECB0E96876C9A4A6C937B2556D97493CB06969965365B8D924B21B2D9ADA35854B2FD64B25B7C91892DD653A4979B0A96C16CB25B2CB6696196D1EC93C97CB</code>
       </p>
     </li>
     <li class="a" id="proof384">
       <span class="mk" aria-hidden="true">✦</span>
-      <p class="entry"><i>n</i> = 384: &nbsp;<span class="nw"><i>m</i><sup>*</sup> = 10</span></p>
+      <p class="entry">\(n = 384\): &nbsp;\(m^* = 10\)</p>
       <!-- TODO: credits the existing doubled construction for order 10 and explains the four residue-count patterns forced by order 11. -->
-      <p>Astra: "Order 10 comes from doubling the order-9 example at 192. For order 11, congruences on the signed sums mod 5 leave only four possible vectors of +1 counts in residue classes 0, …, 4: (1, 26, 51, 76, 38), (26, 76, 1, 51, 38), (51, 1, 76, 26, 38), and (76, 51, 26, 1, 38)."</p>
+      <p>Astra: "Order 10 comes from doubling the order-9 example at 192. For order 11, congruences on the signed sums mod 5 leave only four possible vectors of \(+1\) counts in residue classes \(0, \ldots, 4\): \((1, 26, 51, 76, 38)\), \((26, 76, 1, 51, 38)\), \((51, 1, 76, 26, 38)\), and \((76, 51, 26, 1, 38)\)."</p>
       <!-- TODO: explains the exhaustive finite exclusion, without any assumption of symmetry, and links the standalone exact verifier. -->
-      <p>Astra: "Each vector has a class with just one +1 and a class with just one −1. Choosing their positions leaves <span class="nw">4·77² = 23,716</span> cases. Every case contradicts at least one exact integer congruence mod 25, 125, or 625. This rules out order 11 without assuming symmetry. The <a href="proof384.html">complete proof</a> gives the witness, every certificate coefficient, the remaining cases, and reproduction commands. The standalone verifier <a href="proof384.py">proof384.py</a> checks every congruence and case, and checks an order-10 example; it uses only Python's standard library. Mathematica: <a href="proof384.wl">proof384.wl</a>."</p>
+      <p>Astra: "Each vector has a class with just one \(+1\) and a class with just one \(-1\). Choosing their positions leaves \(4\cdot 77^2 = 23{,}716\) cases. Every case contradicts at least one exact integer congruence mod 25, 125, or 625. This rules out order 11 without assuming symmetry. The <a href="proof384.html">complete proof</a> gives the witness, every certificate coefficient, the remaining cases, and reproduction commands. The standalone verifier <a href="proof384.py">proof384.py</a> checks every congruence and case, and checks an order-10 example; it uses only Python's standard library. Mathematica: <a href="proof384.wl">proof384.wl</a>."</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry"><i>n</i> = 544, 688: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {9, 10}</span></p>
+      <p class="entry">\(n = 544, 688\): &nbsp;\(m^* \in \{9, 10\}\)</p>
       <!-- TODO: says how the m*(n) chart gets these: order 9 from examples above doubled or joined (each spelled out), order 11 ruled out by the residue conditions and norm bounds it names -->
-      <p>Claude: "Order 9 from examples above, joined (544 = 192 + 352 and 688 = 192 + 496); order 11 is ruled out by the norm bound for the residue sums mod 3 at 544 and the residue condition mod 3 at 688."</p>
+      <p>Claude: "Order 9 from examples above, joined (\(544 = 192 + 352\) and \(688 = 192 + 496\)); order 11 is ruled out by the norm bound for the residue sums mod 3 at 544 and the residue condition mod 3 at 688."</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry"><i>n</i> = 624: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {10, 11, 12}</span></p>
+      <p class="entry">\(n = 624\): &nbsp;\(m^* \in \{10, 11, 12\}\)</p>
       <!-- TODO: says how the m*(n) chart gets these: order 10 from examples above doubled or joined (each spelled out), order 13 ruled out by the residue conditions and norm bounds it names -->
-      <p>Claude: "Order 10 from examples above, joined (624 = 240 + 384); order 13 is ruled out by the residue condition mod 25."</p>
+      <p>Claude: "Order 10 from examples above, joined (\(624 = 240 + 384\)); order 13 is ruled out by the residue condition mod 25."</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry"><i>n</i> = 640, 704, 736: &nbsp;<span class="nw"><i>m</i><sup>*</sup> = 10</span></p>
+      <p class="entry">\(n = 640, 704, 736\): &nbsp;\(m^* = 10\)</p>
       <!-- TODO: says how the m*(n) chart gets these: order 10 from examples above doubled or joined (each spelled out), order 11 ruled out by the residue conditions and norm bounds it names -->
-      <p>Claude: "Order 10 from examples above, doubled (640 = 2·320, 704 = 2·352 and 736 = 2·368); order 11 is ruled out by the residue condition mod 3 at 640 and 704 and the residue condition mod 9 at 736."</p>
+      <p>Claude: "Order 10 from examples above, doubled (\(640 = 2\cdot 320\), \(704 = 2\cdot 352\) and \(736 = 2\cdot 368\)); order 11 is ruled out by the residue condition mod 3 at 640 and 704 and the residue condition mod 9 at 736."</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry"><i>n</i> = 672: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {11, 12, 13}</span></p>
+      <p class="entry">\(n = 672\): &nbsp;\(m^* \in \{11, 12, 13\}\)</p>
       <!-- TODO: says how the m*(n) chart gets 672: order 11 from an example above doubled (spelled out), order 14 ruled out by the residue condition mod 5 -->
-      <p>Claude: "Order 11 from an example above, doubled (672 = 2·336); order 14 is ruled out by the residue condition mod 5."</p>
+      <p>Claude: "Order 11 from an example above, doubled (\(672 = 2\cdot 336\)); order 14 is ruled out by the residue condition mod 5."</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry"><i>n</i> = 864: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {12, 13, 14}</span></p>
+      <p class="entry">\(n = 864\): &nbsp;\(m^* \in \{12, 13, 14\}\)</p>
       <!-- TODO: says how the m*(n) chart gets these: order 12 from examples above doubled or joined (each spelled out), order 15 ruled out by the residue conditions and norm bounds it names -->
-      <p>Claude: "Order 12 from examples above, doubled (864 = 2·432); order 15 is ruled out by the residue condition mod 5."</p>
+      <p>Claude: "Order 12 from examples above, doubled (\(864 = 2\cdot 432\)); order 15 is ruled out by the residue condition mod 5."</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry"><i>n</i> = 960: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {13, 14, 15}</span></p>
+      <p class="entry">\(n = 960\): &nbsp;\(m^* \in \{13, 14, 15\}\)</p>
       <!-- TODO: says how the m*(n) chart gets these: order 13 from examples above doubled or joined (each spelled out), order 16 ruled out by the residue conditions and norm bounds it names -->
-      <p>Claude: "Order 13 from examples above, doubled (960 = 2·480); order 16 is ruled out by the residue condition mod 7."</p>
+      <p>Claude: "Order 13 from examples above, doubled (\(960 = 2\cdot 480\)); order 16 is ruled out by the residue condition mod 7."</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry"><i>n</i> = 2<sup>11</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> = 12</span></p>
+      <p class="entry">\(n = 2^{11}\): &nbsp;\(m^* = 12\)</p>
       <!-- TODO: says p1024 # tau_1, the 1024 entry above times tau_1, has order 12, which beats Thue–Morse by 1, and that the upper bound is the residue condition mod 3 -->
-      <p>Claude: "<span class="nw"><i>p</i><sub>1024</sub> # τ<sub>1</sub></span>, the 1024 entry above times τ<sub>1</sub>, has order 12. That beats Thue–Morse by 1. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above."</p>
+      <p>Claude: "\(p_{1024} \mathbin{\#} \tau_1\), the 1024 entry above times \(\tau_1\), has order 12. That beats Thue–Morse by 1. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above."</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry"><i>n</i> = 2<sup>12</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> = 13</span></p>
+      <p class="entry">\(n = 2^{12}\): &nbsp;\(m^* = 13\)</p>
       <!-- TODO: says p1024 # tau_2, the 1024 entry above times tau_2, has order 13, which beats Thue–Morse by 1, and that the upper bound is the residue condition mod 3 -->
-      <p>Claude: "<span class="nw"><i>p</i><sub>1024</sub> # τ<sub>2</sub></span>, the 1024 entry above times τ<sub>2</sub>, has order 13. That beats Thue–Morse by 1. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above."</p>
+      <p>Claude: "\(p_{1024} \mathbin{\#} \tau_2\), the 1024 entry above times \(\tau_2\), has order 13. That beats Thue–Morse by 1. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above."</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry"><i>n</i> = 2<sup>17</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {18, …, 20}</span></p>
+      <p class="entry">\(n = 2^{17}\): &nbsp;\(m^* \in \{18, \ldots, 20\}\)</p>
       <!-- TODO: says 2^17 = 112·800 + 48·432·2, that is, (p112 # p800) ∨ (p48 # p432 # tau_1), a join of two products each of order 7 + 11 = 6 + 11 + 1 = 18, the codes of p112 and p48 (the paper's) being with the 2^24 entry below; that this beats Thue–Morse by 1 at a lower power of 2 than the 2^18 entry below; that a linked Mathematica script builds the half of the partition that contains 0, all 2^16 of its numbers, and checks its power sums exactly; and that the upper bound is the norm bound for the residue sums mod 3 -->
-      <p>Claude: "<span class="nw">2<sup>17</sup> = 112·800 + 48·432·2</span>, that is, <span class="nw">(<i>p</i><sub>112</sub> # <i>p</i><sub>800</sub>)</span> <span class="nw">∨ (<i>p</i><sub>48</sub> # <i>p</i><sub>432</sub> # τ<sub>1</sub>)</span>, a join of two products each of order <span class="nw">7 + 11 = 6 + 11 + 1 = 18</span> (the codes of <i>p</i><sub>112</sub> and <i>p</i><sub>48</sub>, the paper's, are with the 2<sup>24</sup> entry below). That beats Thue–Morse by 1 at a lower power of 2 than the 2<sup>18</sup> entry below. The Mathematica script <a href="https://raw.githubusercontent.com/dreeves/equipow/main/certificate_2%5E17.wl">certificate_2^17.wl</a> builds the half of the partition that contains 0, all 2<sup>16</sup> of its numbers, and checks its power sums exactly. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above."</p>
+      <p>Claude: "\(2^{17} = 112\cdot 800 + 48\cdot 432\cdot 2\), that is, \((p_{112} \mathbin{\#} p_{800}) \vee (p_{48} \mathbin{\#} p_{432} \mathbin{\#} \tau_1)\), a join of two products each of order \(7 + 11 = 6 + 11 + 1 = 18\) (the codes of \(p_{112}\) and \(p_{48}\), the paper's, are with the \(2^{24}\) entry below). That beats Thue–Morse by 1 at a lower power of 2 than the \(2^{18}\) entry below. The Mathematica script <a href="https://raw.githubusercontent.com/dreeves/equipow/main/certificate_2%5E17.wl">certificate_2^17.wl</a> builds the half of the partition that contains 0, all \(2^{16}\) of its numbers, and checks its power sums exactly. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above."</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry"><i>n</i> = 2<sup>18</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {19, …, 21}</span></p>
+      <p class="entry">\(n = 2^{18}\): &nbsp;\(m^* \in \{19, \ldots, 21\}\)</p>
       <!-- TODO: says 2^18 = 320·560 + 48·432·2^2, that is, (p320 # p560) ∨ (p48 # p432 # tau_2), a join of two products each of order 9 + 10 = 6 + 11 + 2 = 19, the code of p48 (the paper's) being with the 2^24 entry below; that this beats Thue–Morse by 1 at a lower power of 2 than f does at 2^24; that a linked Mathematica script builds the half of the partition that contains 0, all 2^17 of its numbers, and checks its power sums exactly; and that the upper bound is the residue condition mod 3 -->
-      <p>Claude: "<span class="nw">2<sup>18</sup> = 320·560 + 48·432·2<sup>2</sup></span>, that is, <span class="nw">(<i>p</i><sub>320</sub> # <i>p</i><sub>560</sub>)</span> <span class="nw">∨ (<i>p</i><sub>48</sub> # <i>p</i><sub>432</sub> # τ<sub>2</sub>)</span>, a join of two products each of order <span class="nw">9 + 10 = 6 + 11 + 2 = 19</span> (the code of <i>p</i><sub>48</sub>, the paper's, is with the 2<sup>24</sup> entry below). That beats Thue–Morse by 1 at a lower power of 2 than <i>f</i> does at 2<sup>24</sup>. The Mathematica script <a href="https://raw.githubusercontent.com/dreeves/equipow/main/certificate_2%5E18.wl">certificate_2^18.wl</a> builds the half of the partition that contains 0, all 2<sup>17</sup> of its numbers, and checks its power sums exactly. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above."</p>
+      <p>Claude: "\(2^{18} = 320\cdot 560 + 48\cdot 432\cdot 2^2\), that is, \((p_{320} \mathbin{\#} p_{560}) \vee (p_{48} \mathbin{\#} p_{432} \mathbin{\#} \tau_2)\), a join of two products each of order \(9 + 10 = 6 + 11 + 2 = 19\) (the code of \(p_{48}\), the paper's, is with the \(2^{24}\) entry below). That beats Thue–Morse by 1 at a lower power of 2 than \(f\) does at \(2^{24}\). The Mathematica script <a href="https://raw.githubusercontent.com/dreeves/equipow/main/certificate_2%5E18.wl">certificate_2^18.wl</a> builds the half of the partition that contains 0, all \(2^{17}\) of its numbers, and checks its power sums exactly. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above."</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry"><i>n</i> = 2<sup>20</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {22, 23}</span></p>
+      <p class="entry">\(n = 2^{20}\): &nbsp;\(m^* \in \{22, 23\}\)</p>
       <!-- TODO: says 2^20 = 848·992 + 240·432·2, that is, (p848 # p992) ∨ (p240 # p432 # tau_1), a join of two products each of order 11 + 11 = 10 + 11 + 1 = 22, which beats Thue–Morse by 2 at a lower power of 2 than the 2^27 entry below; and that the upper bound is the residue condition mod 3 -->
-      <p>Claude: "<span class="nw">2<sup>20</sup> = 848·992 + 240·432·2</span>, that is, <span class="nw">(<i>p</i><sub>848</sub> # <i>p</i><sub>992</sub>)</span> <span class="nw">∨ (<i>p</i><sub>240</sub> # <i>p</i><sub>432</sub> # τ<sub>1</sub>)</span>, a join of two products each of order <span class="nw">11 + 11 = 10 + 11 + 1 = 22</span>. That beats Thue–Morse by 2 at a lower power of 2 than the 2<sup>27</sup> entry below. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above."</p>
+      <p>Claude: "\(2^{20} = 848\cdot 992 + 240\cdot 432\cdot 2\), that is, \((p_{848} \mathbin{\#} p_{992}) \vee (p_{240} \mathbin{\#} p_{432} \mathbin{\#} \tau_1)\), a join of two products each of order \(11 + 11 = 10 + 11 + 1 = 22\). That beats Thue–Morse by 2 at a lower power of 2 than the \(2^{27}\) entry below. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above."</p>
     </li>
     <li class="j">
       <span class="mk" aria-hidden="true">◆●</span>
-      <p class="entry"><i>n</i> = 2<sup>24</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {26, …, 29}</span></p>
+      <p class="entry">\(n = 2^{24}\): &nbsp;\(m^* \in \{26, \ldots, 29\}\)</p>
       <!-- TODO: says the joint construction 2^24 = 320^2·112 + 432·48·2^8, that is, f = (p320 # p320 # p112) ∨ (p432 # p48 # tau_8), gives m*(2^k) ≥ k + 1 for every k ≥ 24, and the 1024 entry above, times tau_(k − 10), gives it for every k ≥ 10 -->
-      <p>Claude: "Joint construction: <span class="nw">2<sup>24</sup> = 320<sup>2</sup>·112 + 432·48·2<sup>8</sup></span>, that is, <span class="nw"><i>f</i> = (<i>p</i><sub>320</sub> # <i>p</i><sub>320</sub> # <i>p</i><sub>112</sub>)</span> <span class="nw">∨ (<i>p</i><sub>432</sub> # <i>p</i><sub>48</sub> # τ<sub>8</sub>)</span>. Hence <span class="nw"><i>m</i><sup>*</sup>(2<sup><i>k</i></sup>) ≥ <i>k</i> + 1</span> for every <span class="nw"><i>k</i> ≥ 24</span>, and by the 1024 entry above, times <span class="nw">τ<sub><i>k</i>−10</sub></span>, for every <span class="nw"><i>k</i> ≥ 10</span>."</p>
+      <p>Claude: "Joint construction: \(2^{24} = 320^2\cdot 112 + 432\cdot 48\cdot 2^8\), that is, \(f = (p_{320} \mathbin{\#} p_{320} \mathbin{\#} p_{112}) \vee (p_{432} \mathbin{\#} p_{48} \mathbin{\#} \tau_8)\). Hence \(m^*(2^k) \ge k + 1\) for every \(k \ge 24\), and by the 1024 entry above, times \(\tau_{k-10}\), for every \(k \ge 10\)."</p>
       <!-- TODO: says order 26 at 2^24 comes from the join of the 2^20 entry with each product times tau_4, which beats Thue–Morse by 2 -->
-      <p>Claude: "The join of the 2<sup>20</sup> entry, each product times τ<sub>4</sub>, has order 26. That beats Thue–Morse by 2."</p>
+      <p>Claude: "The join of the \(2^{20}\) entry, each product times \(\tau_4\), has order 26. That beats Thue–Morse by 2."</p>
       <!-- TODO: says the upper bound 29 at 2^24 is the norm bound for the residue sums mod 3 -->
       <p>Claude: "The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above."</p>
       <p class="code">
-        <span><i>p</i><sub>112</sub> <span class="nw">(<i>m</i> = 7)</span> and <i>p</i><sub>48</sub> <span class="nw">(<i>m</i> = 6)</span>, from the paper's Table 5:</span>
+        <span>\(p_{112}\) \((m = 7)\) and \(p_{48}\) \((m = 6)\), from the paper's Table 5:</span>
         <code>A5994DB29B45A0</code>
         <code>C27D8C</code>
       </p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry"><i>n</i> = 2<sup>27</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {29, …, 33}</span></p>
+      <p class="entry">\(n = 2^{27}\): &nbsp;\(m^* \in \{29, \ldots, 33\}\)</p>
       <!-- TODO: says 2^27 = 368^2·800 + 192^2·432 + 48·432·480, a join of three products of the examples above (their orders listed), each of order 29, which beats Thue–Morse by 2 at a lower power of 2 than f # f does at 2^48; and that the upper bound is the norm bound for the residue sums mod 3 -->
-      <p>Claude: "<span class="nw">2<sup>27</sup> = 368<sup>2</sup>·800 + 192<sup>2</sup>·432 + 48·432·480</span>: a join of three products of examples above (of orders 9, 11, 9, 11, 6 and 12), each of order 29. That beats Thue–Morse by 2 at a lower power of 2 than <span class="nw"><i>f</i> # <i>f</i></span> does at 2<sup>48</sup>. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above."</p>
+      <p>Claude: "\(2^{27} = 368^2\cdot 800 + 192^2\cdot 432 + 48\cdot 432\cdot 480\): a join of three products of examples above (of orders 9, 11, 9, 11, 6 and 12), each of order 29. That beats Thue–Morse by 2 at a lower power of 2 than \(f \mathbin{\#} f\) does at \(2^{48}\). The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above."</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry"><i>n</i> = 2<sup>29</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {32, …, 35}</span></p>
+      <p class="entry">\(n = 2^{29}\): &nbsp;\(m^* \in \{32, \ldots, 35\}\)</p>
       <!-- TODO: says 2^29 = 608·800^2 + 336^2·912 + 240·432^2, a join of three products of the examples above (their orders listed), each of order 32, which beats Thue–Morse by 3; and that the upper bound is the norm bound for the residue sums mod 3 -->
-      <p>Claude: "<span class="nw">2<sup>29</sup> = 608·800<sup>2</sup> + 336<sup>2</sup>·912 + 240·432<sup>2</sup></span>: a join of three products of examples above (of orders 10, 11, 10, 12, 10 and 11), each of order 32. That beats Thue–Morse by 3. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above."</p>
+      <p>Claude: "\(2^{29} = 608\cdot 800^2 + 336^2\cdot 912 + 240\cdot 432^2\): a join of three products of examples above (of orders 10, 11, 10, 12, 10 and 11), each of order 32. That beats Thue–Morse by 3. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above."</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry"><i>n</i> = 2<sup>30</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {33, …, 36}</span></p>
+      <p class="entry">\(n = 2^{30}\): &nbsp;\(m^* \in \{33, \ldots, 36\}\)</p>
       <!-- TODO: says order 33 at 2^30 comes from the join of the 2^29 entry with each product times tau_1, which beats Thue–Morse by 3; and that the upper bound is the residue condition mod 3 -->
-      <p>Claude: "The join of the 2<sup>29</sup> entry, each product times τ<sub>1</sub>, has order 33. That beats Thue–Morse by 3. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above."</p>
+      <p>Claude: "The join of the \(2^{29}\) entry, each product times \(\tau_1\), has order 33. That beats Thue–Morse by 3. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above."</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry"><i>n</i> = 2<sup>33</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {36, …, 40}</span></p>
+      <p class="entry">\(n = 2^{33}\): &nbsp;\(m^* \in \{36, \ldots, 40\}\)</p>
       <!-- TODO: says order 36 at 2^33 comes from the join of the 2^29 entry with each product times tau_4, which beats Thue–Morse by 3; and that the upper bound is the residue condition mod 3 -->
-      <p>Claude: "The join of the 2<sup>29</sup> entry, each product times τ<sub>4</sub>, has order 36. That beats Thue–Morse by 3. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above."</p>
+      <p>Claude: "The join of the \(2^{29}\) entry, each product times \(\tau_4\), has order 36. That beats Thue–Morse by 3. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above."</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry"><i>n</i> = 2<sup>34</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {37, …, 41}</span></p>
+      <p class="entry">\(n = 2^{34}\): &nbsp;\(m^* \in \{37, \ldots, 41\}\)</p>
       <!-- TODO: says order 37 at 2^34 comes from the join of the 2^29 entry with each product times tau_5, which beats Thue–Morse by 3; and that the upper bound is the residue condition mod 3 -->
-      <p>Claude: "The join of the 2<sup>29</sup> entry, each product times τ<sub>5</sub>, has order 37. That beats Thue–Morse by 3. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above."</p>
+      <p>Claude: "The join of the \(2^{29}\) entry, each product times \(\tau_5\), has order 37. That beats Thue–Morse by 3. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above."</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry"><i>n</i> = 2<sup>37</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {41, …, 45}</span></p>
+      <p class="entry">\(n = 2^{37}\): &nbsp;\(m^* \in \{41, \ldots, 45\}\)</p>
       <!-- TODO: says order 41 at 2^37 comes from a join of three products of the examples above and Thue–Morse, each of order 41, which beats Thue–Morse by 4; and that the upper bound is the residue condition mod 3 -->
       <p>Claude: "A join of three products of examples above and Thue–Morse, each of order 41; the powers-of-2 chart above lists them. That beats Thue–Morse by 4. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above."</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry"><i>n</i> = 2<sup>38</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {42, …, 46}</span></p>
+      <p class="entry">\(n = 2^{38}\): &nbsp;\(m^* \in \{42, \ldots, 46\}\)</p>
       <!-- TODO: says order 42 at 2^38 comes from the join of the 2^37 entry with each product times tau_1, which beats Thue–Morse by 4; and that the upper bound is the residue condition mod 3 -->
-      <p>Claude: "The join of the 2<sup>37</sup> entry, each product times τ<sub>1</sub>, has order 42. That beats Thue–Morse by 4. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above."</p>
+      <p>Claude: "The join of the \(2^{37}\) entry, each product times \(\tau_1\), has order 42. That beats Thue–Morse by 4. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above."</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry"><i>n</i> = 2<sup>39</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {44, …, 47}</span></p>
+      <p class="entry">\(n = 2^{39}\): &nbsp;\(m^* \in \{44, \ldots, 47\}\)</p>
       <!-- TODO: says order 44 at 2^39 comes from a join of three products of the examples above and Thue–Morse, each of order 44, which beats Thue–Morse by 5; and that the upper bound is the residue condition mod 3 -->
       <p>Claude: "A join of three products of examples above and Thue–Morse, each of order 44; the powers-of-2 chart above lists them. That beats Thue–Morse by 5. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above."</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry"><i>n</i> = 2<sup>41</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {46, …, 50}</span></p>
+      <p class="entry">\(n = 2^{41}\): &nbsp;\(m^* \in \{46, \ldots, 50\}\)</p>
       <!-- TODO: says order 46 at 2^41 comes from the join of the 2^39 entry with each product times tau_2, which beats Thue–Morse by 5; and that the upper bound is the residue condition mod 3 -->
-      <p>Claude: "The join of the 2<sup>39</sup> entry, each product times τ<sub>2</sub>, has order 46. That beats Thue–Morse by 5. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above."</p>
+      <p>Claude: "The join of the \(2^{39}\) entry, each product times \(\tau_2\), has order 46. That beats Thue–Morse by 5. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above."</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry"><i>n</i> = 2<sup>43</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {48, …, 53}</span></p>
+      <p class="entry">\(n = 2^{43}\): &nbsp;\(m^* \in \{48, \ldots, 53\}\)</p>
       <!-- TODO: says order 48 at 2^43 comes from the join of the 2^39 entry with each product times tau_4, which beats Thue–Morse by 5; and that the upper bound is the norm bound for the residue sums mod 3 -->
-      <p>Claude: "The join of the 2<sup>39</sup> entry, each product times τ<sub>4</sub>, has order 48. That beats Thue–Morse by 5. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above."</p>
+      <p>Claude: "The join of the \(2^{39}\) entry, each product times \(\tau_4\), has order 48. That beats Thue–Morse by 5. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above."</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry"><i>n</i> = 2<sup>46</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {51, …, 57}</span></p>
+      <p class="entry">\(n = 2^{46}\): &nbsp;\(m^* \in \{51, \ldots, 57\}\)</p>
       <!-- TODO: says order 51 at 2^46 comes from the join of the 2^39 entry with each product times tau_7, which beats Thue–Morse by 5; and that the upper bound is the norm bound for the residue sums mod 3 -->
-      <p>Claude: "The join of the 2<sup>39</sup> entry, each product times τ<sub>7</sub>, has order 51. That beats Thue–Morse by 5. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above."</p>
+      <p>Claude: "The join of the \(2^{39}\) entry, each product times \(\tau_7\), has order 51. That beats Thue–Morse by 5. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above."</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry"><i>n</i> = 2<sup>48</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {54, …, 59}</span></p>
+      <p class="entry">\(n = 2^{48}\): &nbsp;\(m^* \in \{54, \ldots, 59\}\)</p>
       <!-- TODO: says order 54 at 2^48 comes from a join of six products of the examples above and Thue–Morse, each of order at least 54, which beats Thue–Morse by 6; and that the upper bound is the norm bound for the residue sums mod 3 -->
       <p>Claude: "A join of six products of examples above and Thue–Morse, each of order at least 54; the powers-of-2 chart above lists them. That beats Thue–Morse by 6. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above."</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry"><i>n</i> = 2<sup>49</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {55, …, 60}</span></p>
+      <p class="entry">\(n = 2^{49}\): &nbsp;\(m^* \in \{55, \ldots, 60\}\)</p>
       <!-- TODO: says order 55 at 2^49 comes from the join of the 2^48 entry with each product times tau_1, which beats Thue–Morse by 6; and that the upper bound is the residue condition mod 3 -->
-      <p>Claude: "The join of the 2<sup>48</sup> entry, each product times τ<sub>1</sub>, has order 55. That beats Thue–Morse by 6. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above."</p>
+      <p>Claude: "The join of the \(2^{48}\) entry, each product times \(\tau_1\), has order 55. That beats Thue–Morse by 6. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above."</p>
     </li>
     <li class="j">
       <span class="mk" aria-hidden="true">◆●</span>
-      <p class="entry"><i>n</i> = 2<sup>51</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {57, …, 63}</span></p>
-      <p>With <i>f</i> the 2<sup>24</sup> construction above, <span class="nw"><i>f</i> # <i>f</i> # τ<sub>3</sub></span> has order <span class="nw">25 + 25 + 3 = 53</span>. The paper's 52 is Stong's.</p>
+      <p class="entry">\(n = 2^{51}\): &nbsp;\(m^* \in \{57, \ldots, 63\}\)</p>
+      <p>With \(f\) the \(2^{24}\) construction above, \(f \mathbin{\#} f \mathbin{\#} \tau_3\) has order \(25 + 25 + 3 = 53\). The paper's 52 is Stong's.</p>
       <!-- TODO: says the six products of the 2^48 entry, each times tau_3, give order 57 at 2^51; and that the upper bound is the norm bound for the residue sums mod 3 -->
-      <p>Claude: "The six products of the 2<sup>48</sup> entry, each times τ<sub>3</sub>, give order 57. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above."</p>
+      <p>Claude: "The six products of the \(2^{48}\) entry, each times \(\tau_3\), give order 57. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above."</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry"><i>n</i> = 2<sup>52</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {58, …, 64}</span></p>
+      <p class="entry">\(n = 2^{52}\): &nbsp;\(m^* \in \{58, \ldots, 64\}\)</p>
       <!-- TODO: says order 58 at 2^52 comes from the join of the 2^48 entry with each product times tau_4, which beats Thue–Morse by 6; and that the upper bound is the norm bound for the residue sums mod 3 -->
-      <p>Claude: "The join of the 2<sup>48</sup> entry, each product times τ<sub>4</sub>, has order 58. That beats Thue–Morse by 6. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above."</p>
+      <p>Claude: "The join of the \(2^{48}\) entry, each product times \(\tau_4\), has order 58. That beats Thue–Morse by 6. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above."</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry"><i>n</i> = 2<sup>57</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {64, …, 70}</span></p>
+      <p class="entry">\(n = 2^{57}\): &nbsp;\(m^* \in \{64, \ldots, 70\}\)</p>
       <!-- TODO: says order 64 at 2^57 comes from a join of eight products of the examples above and Thue–Morse, each of order at least 64, which beats Thue–Morse by 7; and that the upper bound is the residue condition mod 3 -->
       <p>Claude: "A join of eight products of examples above and Thue–Morse, each of order at least 64; the powers-of-2 chart above lists them. That beats Thue–Morse by 7. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above."</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry"><i>n</i> = 2<sup>61</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {68, …, 75}</span></p>
+      <p class="entry">\(n = 2^{61}\): &nbsp;\(m^* \in \{68, \ldots, 75\}\)</p>
       <!-- TODO: says order 68 at 2^61 comes from the join of the 2^57 entry with each product times tau_4, which beats Thue–Morse by 7; and that the upper bound is the residue condition mod 3 -->
-      <p>Claude: "The join of the 2<sup>57</sup> entry, each product times τ<sub>4</sub>, has order 68. That beats Thue–Morse by 7. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above."</p>
+      <p>Claude: "The join of the \(2^{57}\) entry, each product times \(\tau_4\), has order 68. That beats Thue–Morse by 7. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above."</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry"><i>n</i> = 2<sup>65</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {73, …, 81}</span></p>
+      <p class="entry">\(n = 2^{65}\): &nbsp;\(m^* \in \{73, \ldots, 81\}\)</p>
       <!-- TODO: says order 73 at 2^65 comes from a join of eight products of the examples above and Thue–Morse, each of order at least 73, which beats Thue–Morse by 8; and that the upper bound is the norm bound for the residue sums mod 3 -->
       <p>Claude: "A join of eight products of examples above and Thue–Morse, each of order at least 73; the powers-of-2 chart above lists them. That beats Thue–Morse by 8. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above."</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry"><i>n</i> = 2<sup>66</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {74, …, 82}</span></p>
+      <p class="entry">\(n = 2^{66}\): &nbsp;\(m^* \in \{74, \ldots, 82\}\)</p>
       <!-- TODO: says order 74 at 2^66 comes from the join of the 2^65 entry with each product times tau_1, which beats Thue–Morse by 8; and that the upper bound is the norm bound for the residue sums mod 3 -->
-      <p>Claude: "The join of the 2<sup>65</sup> entry, each product times τ<sub>1</sub>, has order 74. That beats Thue–Morse by 8. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above."</p>
+      <p>Claude: "The join of the \(2^{65}\) entry, each product times \(\tau_1\), has order 74. That beats Thue–Morse by 8. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above."</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry"><i>n</i> = 2<sup>67</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {75, …, 83}</span></p>
+      <p class="entry">\(n = 2^{67}\): &nbsp;\(m^* \in \{75, \ldots, 83\}\)</p>
       <!-- TODO: says order 75 at 2^67 comes from the join of the 2^65 entry with each product times tau_2, which beats Thue–Morse by 8; and that the upper bound is the norm bound for the residue sums mod 3 -->
-      <p>Claude: "The join of the 2<sup>65</sup> entry, each product times τ<sub>2</sub>, has order 75. That beats Thue–Morse by 8. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above."</p>
+      <p>Claude: "The join of the \(2^{65}\) entry, each product times \(\tau_2\), has order 75. That beats Thue–Morse by 8. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above."</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry"><i>n</i> = 2<sup>68</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {77, …, 84}</span></p>
+      <p class="entry">\(n = 2^{68}\): &nbsp;\(m^* \in \{77, \ldots, 84\}\)</p>
       <!-- TODO: says order 77 at 2^68 comes from a join of thirteen products of the examples above and Thue–Morse, each of order at least 77, which beats Thue–Morse by 9; and that the upper bound is the residue condition mod 3 -->
       <p>Claude: "A join of thirteen products of examples above and Thue–Morse, each of order at least 77; the powers-of-2 chart above lists them. That beats Thue–Morse by 9. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above."</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry"><i>n</i> = 2<sup>71</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {80, …, 88}</span></p>
+      <p class="entry">\(n = 2^{71}\): &nbsp;\(m^* \in \{80, \ldots, 88\}\)</p>
       <!-- TODO: says order 80 at 2^71 comes from the join of the 2^68 entry with each product times tau_3, which beats Thue–Morse by 9; and that the upper bound is the norm bound for the residue sums mod 3 -->
-      <p>Claude: "The join of the 2<sup>68</sup> entry, each product times τ<sub>3</sub>, has order 80. That beats Thue–Morse by 9. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above."</p>
+      <p>Claude: "The join of the \(2^{68}\) entry, each product times \(\tau_3\), has order 80. That beats Thue–Morse by 9. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above."</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry"><i>n</i> = 2<sup>72</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {81, …, 89}</span></p>
+      <p class="entry">\(n = 2^{72}\): &nbsp;\(m^* \in \{81, \ldots, 89\}\)</p>
       <!-- TODO: says order 81 at 2^72 comes from the join of the 2^68 entry with each product times tau_4, which beats Thue–Morse by 9; and that the upper bound is the residue condition mod 3 -->
-      <p>Claude: "The join of the 2<sup>68</sup> entry, each product times τ<sub>4</sub>, has order 81. That beats Thue–Morse by 9. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above."</p>
+      <p>Claude: "The join of the \(2^{68}\) entry, each product times \(\tau_4\), has order 81. That beats Thue–Morse by 9. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above."</p>
     </li>
   </ul>
 </section>
@@ -1248,39 +1255,39 @@ footer {
   <!-- TODO: a block quote by Claude, at Stan Wagon's suggestion (2026-10-17): a table that keeps, for each order m, the smallest n up to 1024 for which a sequence of length n and order m is known (from the chart's data, mstar.js, so that it follows every new result), a check mark where that n is proven smallest, and the smallest n whose upper bound doesn't rule order m out; the proven ones are the terms a(m − 1) of OEIS A323395 -->
   <blockquote class="claude">
     <h2 id="smallest-title">The smallest length known for each order</h2>
-    <p>For each order <i>m</i>, the smallest <i>n</i> up to 1024 for which a sequence of length <i>n</i> and order <i>m</i> is known, from the chart above, and the smallest <i>n</i> whose upper bound doesn't rule order <i>m</i> out. Where the two agree, <i>n</i> is proven smallest (✓): the term <span class="nw"><i>a</i>(<i>m</i> − 1)</span> of OEIS <a href="https://oeis.org/A323395">A323395</a>.</p>
+    <p>For each order \(m\), the smallest \(n\) up to 1024 for which a sequence of length \(n\) and order \(m\) is known, from the chart above, and the smallest \(n\) whose upper bound doesn't rule order \(m\) out. Where the two agree, \(n\) is proven smallest (✓): the term \(a(m - 1)\) of OEIS <a href="https://oeis.org/A323395">A323395</a>.</p>
     <table>
-      <thead><tr><th>order <i>m</i></th><th>smallest known <i>n</i></th><th>proven smallest</th><th>smallest <i>n</i> not ruled out</th></tr></thead>
+      <thead><tr><th>order \(m\)</th><th>smallest known \(n\)</th><th>proven smallest</th><th>smallest \(n\) not ruled out</th></tr></thead>
       <tbody data-smallest></tbody>
     </table>
     <p class="attrib">— Claude</p>
   </blockquote>
   <!-- TODO: attributes the new minimality result to Astra and identifies the new exclusion that completes the existing bounds. -->
-  <p>Astra: "The <a href="#proof384">exclusion of order 11 at 384</a> closes the last gap below 432. Together with the existing order-11 example at 432 and the other exclusions in the chart, this proves <span class="nw"><i>a</i>(10) = 432</span>."</p>
+  <p>Astra: "The <a href="#proof384">exclusion of order 11 at 384</a> closes the last gap below 432. Together with the existing order-11 example at 432 and the other exclusions in the chart, this proves \(a(10) = 432\)."</p>
 </section>
 
 <section class="oeis" aria-labelledby="oeis-title">
   <!-- TODO: a block quote by Claude, at dreeves's request (2026-10-28: "can you make a section that links to all the relevant OEIS entries and notes any discrepancies?"): the OEIS entries on this problem, each linked, with how it compares with this page on 2026-10-28, OEIS's k-powerful being order k + 1 here. A323395, the smallest length of each order (a(m − 1) for order m): its terms through a(9) = 240 agree; of its comment's bounds, a(10) ≤ 432 and a(11) ≤ 480 hold, this page proving a(10) = 432 and that a(11) is 432 or 480 (order 12 open at 432, ruled out at 448 and 464), while a(12) ≤ 864 and a(13) ≤ 960 look one order too high (order 12 is known at 864 and order 13 at 960, each by doubling, so a(12) ≤ 960, and doubling 960 gives a(13) ≤ 1920). A306248, m*(2n): its 95 terms agree, and this page settles 48 more, through n = 143, with m*(288) open. A323610 (L6, the lengths n with m*(n) ≥ 6) and A323614 (L8): their terms agree, and so do their comments' descriptions through 1024. A323629 (L7) omits 112 from its terms, comment and generating function, though the paper's Theorem 3.1 and Tables 1 to 3 and A306248's a(56) = 7 have it; with 112 added it agrees through 1024. Then the related entries: A382832, the same question for two distinct subsets that need not form a partition, at most A323395; A382833, the number of distinct power-sum vectors of the subsets; A362039, the least common sum of two sets of primes of order m; A010060 and A106400, Thue–Morse as 0s and 1s and as signs, its partition of {0, …, 2^k − 1} having order k; A001969 and A000069, the evil and odious numbers, the two parts of that partition; A140047, the power sums of each part of an order-k partition of {0, …, 2^k − 1}, half those of the whole set -->
   <blockquote class="claude">
     <h2 id="oeis-title">OEIS entries</h2>
-    <p>The entries of the OEIS on this problem, compared with this page on 2026-10-28. The OEIS's <span class="nw"><i>k</i>-powerful</span> is order <span class="nw"><i>k</i> + 1</span> here.</p>
+    <p>The entries of the OEIS on this problem, compared with this page on 2026-10-28. The OEIS's <span class="nw">\(k\)-powerful</span> is order \(k + 1\) here.</p>
     <ul>
-      <li><a href="https://oeis.org/A323395">A323395</a>, the smallest <i>n</i> of each order (<span class="nw"><i>a</i>(<i>m</i> − 1)</span> for order <i>m</i>): its terms, through <span class="nw"><i>a</i>(9) = 240</span>, agree. Of the bounds in its comment, <span class="nw"><i>a</i>(10) ≤ 432</span> and <span class="nw"><i>a</i>(11) ≤ 480</span> hold: this page proves <span class="nw"><i>a</i>(10) = 432</span> (above), and <i>a</i>(11) is 432 or 480, order 12 being open at 432 and ruled out at 448 and 464. Its <span class="nw"><i>a</i>(12) ≤ 864</span> and <span class="nw"><i>a</i>(13) ≤ 960</span> look one order too high: order 12 is known at 864 and order 13 at 960, each by doubling, so <span class="nw"><i>a</i>(12) ≤ 960</span>, and doubling 960 gives <span class="nw"><i>a</i>(13) ≤ 1920</span>.</li>
-      <li><a href="https://oeis.org/A306248">A306248</a>, <span class="nw"><i>m</i><sup>*</sup>(2<i>n</i>)</span>: its 95 terms agree, and this page settles 48 more, through <span class="nw"><i>n</i> = 143</span> (<span class="nw">2<i>n</i> = 286</span>); <span class="nw"><i>m</i><sup>*</sup>(288)</span> is open.</li>
-      <li><a href="https://oeis.org/A323610">A323610</a>, the lengths <i>n</i> with <span class="nw"><i>m</i><sup>*</sup>(<i>n</i>) ≥ 6</span> (<i>L</i><sub>6</sub>): its terms agree, and so does its comment's description through 1024.</li>
-      <li><a href="https://oeis.org/A323629">A323629</a>, <i>L</i><sub>7</sub>: omits 112 from its terms, its comment and its generating function. The paper's <a href="https://arxiv.org/html/1912.03491v1#S3.Thmthm1">Theorem 3.1</a> and Tables 1 to 3 have 112 in <i>L</i><sub>7</sub>, as does A306248, whose <i>a</i>(56) is 7. With 112 added, it agrees through 1024.</li>
-      <li><a href="https://oeis.org/A323614">A323614</a>, <i>L</i><sub>8</sub>: its terms agree, and so does its comment's description through 1024.</li>
+      <li><a href="https://oeis.org/A323395">A323395</a>, the smallest \(n\) of each order (\(a(m - 1)\) for order \(m\)): its terms, through \(a(9) = 240\), agree. Of the bounds in its comment, \(a(10) \le 432\) and \(a(11) \le 480\) hold: this page proves \(a(10) = 432\) (above), and \(a(11)\) is 432 or 480, order 12 being open at 432 and ruled out at 448 and 464. Its \(a(12) \le 864\) and \(a(13) \le 960\) look one order too high: order 12 is known at 864 and order 13 at 960, each by doubling, so \(a(12) \le 960\), and doubling 960 gives \(a(13) \le 1920\).</li>
+      <li><a href="https://oeis.org/A306248">A306248</a>, \(m^*(2n)\): its 95 terms agree, and this page settles 48 more, through \(n = 143\) (\(2n = 286\)); \(m^*(288)\) is open.</li>
+      <li><a href="https://oeis.org/A323610">A323610</a>, the lengths \(n\) with \(m^*(n) \ge 6\) \((L_6)\): its terms agree, and so does its comment's description through 1024.</li>
+      <li><a href="https://oeis.org/A323629">A323629</a>, \(L_7\): omits 112 from its terms, its comment and its generating function. The paper's <a href="https://arxiv.org/html/1912.03491v1#S3.Thmthm1">Theorem 3.1</a> and Tables 1 to 3 have 112 in \(L_7\), as does A306248, whose \(a(56)\) is 7. With 112 added, it agrees through 1024.</li>
+      <li><a href="https://oeis.org/A323614">A323614</a>, \(L_8\): its terms agree, and so does its comment's description through 1024.</li>
     </ul>
     <p>Related entries:</p>
     <ul>
-      <li><a href="https://oeis.org/A382832">A382832</a>: the question of A323395 for two distinct subsets of {0, …, <span class="nw"><i>k</i> − 1</span>}, which need not form a partition; its <span class="nw"><i>a</i>(<i>m</i> − 1)</span>, the least such <i>k</i> for order <i>m</i>, is at most A323395's.</li>
-      <li><a href="https://oeis.org/A382833">A382833</a>: the number of distinct vectors of power sums, for exponents 0 through <span class="nw"><i>m</i> − 1</span>, among the subsets of {0, …, <span class="nw"><i>n</i> − 1</span>}.</li>
-      <li><a href="https://oeis.org/A362039">A362039</a>: the least common sum of two different sets of <i>m</i> primes each whose power sums agree for exponents 0 through <span class="nw"><i>m</i> − 1</span>.</li>
-      <li><a href="https://oeis.org/A010060">A010060</a>: the Thue–Morse sequence, whose partition of {0, …, <span class="nw">2<sup><i>k</i></sup> − 1</span>} has order <i>k</i>.</li>
-      <li><a href="https://oeis.org/A106400">A106400</a>: the Thue–Morse sequence as signs, starting with +1.</li>
+      <li><a href="https://oeis.org/A382832">A382832</a>: the question of A323395 for two distinct subsets of \(\{0, \ldots, k - 1\}\), which need not form a partition; its \(a(m - 1)\), the least such \(k\) for order \(m\), is at most A323395's.</li>
+      <li><a href="https://oeis.org/A382833">A382833</a>: the number of distinct vectors of power sums, for exponents 0 through \(m - 1\), among the subsets of \(\{0, \ldots, n - 1\}\).</li>
+      <li><a href="https://oeis.org/A362039">A362039</a>: the least common sum of two different sets of \(m\) primes each whose power sums agree for exponents 0 through \(m - 1\).</li>
+      <li><a href="https://oeis.org/A010060">A010060</a>: the Thue–Morse sequence, whose partition of \(\{0, \ldots, 2^k - 1\}\) has order \(k\).</li>
+      <li><a href="https://oeis.org/A106400">A106400</a>: the Thue–Morse sequence as signs, starting with \(+1\).</li>
       <li><a href="https://oeis.org/A001969">A001969</a>: the evil numbers, the part of the Thue–Morse partition that holds 0.</li>
       <li><a href="https://oeis.org/A000069">A000069</a>: the odious numbers, its other part.</li>
-      <li><a href="https://oeis.org/A140047">A140047</a>: the power sums, for exponents 0 through <span class="nw"><i>k</i> − 1</span>, of each part of a partition of {0, …, <span class="nw">2<sup><i>k</i></sup> − 1</span>} of order <i>k</i>, such as Thue–Morse's, which are half those of the whole set.</li>
+      <li><a href="https://oeis.org/A140047">A140047</a>: the power sums, for exponents 0 through \(k - 1\), of each part of a partition of \(\{0, \ldots, 2^k - 1\}\) of order \(k\), such as Thue–Morse's, which are half those of the whole set.</li>
     </ul>
     <p class="attrib">— Claude</p>
   </blockquote>
@@ -1288,8 +1295,8 @@ footer {
 
 <section class="counts">
   <h2>Partitions at powers of 2</h2>
-  <p>Claude: "The partitions of {0, …, <span class="nw">2<sup><i>k</i></sup> − 1</span>} into two parts with equal power sums for exponents 0, …, <span class="nw"><i>k</i> − 1</span>: Thue–Morse is the only one for <span class="nw"><i>k</i> ≤ 5</span> (<a href="https://doi.org/10.1109/18.340458">Roth, Siegel and Vardy 1994</a>; <a href="https://doi.org/10.1090/S0025-5718-97-00892-2">Boyd 1997</a>), there are 3 for <span class="nw"><i>k</i> = 6</span> (<a href="https://doi.org/10.1090/S0025-5718-01-01360-6">Boyd 2002</a>), and there are 431 for <span class="nw"><i>k</i> = 7</span>, or 367 counting a partition and its reversal once."</p>
-  <p>Claude: "The count for <span class="nw"><i>k</i> = 7</span> is new, from an exhaustive search by Claude (<a href="https://github.com/dreeves/equipow/tree/main/count128">code and the 431 sets</a>). Of the 431, 303 are antisymmetric, Thue–Morse among them, and the other 128 come in reversed pairs. The same search method shows that the order-7 partition of {0, …, 111} is unique."</p>
+  <p>Claude: "The partitions of \(\{0, \ldots, 2^k - 1\}\) into two parts with equal power sums for exponents \(0, \ldots, k - 1\): Thue–Morse is the only one for \(k \le 5\) (<a href="https://doi.org/10.1109/18.340458">Roth, Siegel and Vardy 1994</a>; <a href="https://doi.org/10.1090/S0025-5718-97-00892-2">Boyd 1997</a>), there are 3 for \(k = 6\) (<a href="https://doi.org/10.1090/S0025-5718-01-01360-6">Boyd 2002</a>), and there are 431 for \(k = 7\), or 367 counting a partition and its reversal once."</p>
+  <p>Claude: "The count for \(k = 7\) is new, from an exhaustive search by Claude (<a href="https://github.com/dreeves/equipow/tree/main/count128">code and the 431 sets</a>). Of the 431, 303 are antisymmetric, Thue–Morse among them, and the other 128 come in reversed pairs. The same search method shows that the order-7 partition of \(\{0, \ldots, 111\}\) is unique."</p>
 </section>
 
 <section class="lattice" aria-labelledby="lattice-title">
@@ -1299,30 +1306,30 @@ footer {
 </p>
   <blockquote class="claude">
     <h2 id="lattice-title">How Claude found its examples</h2>
-    <p>The examples Claude found by searching, in the remarks above (<i>p</i><sub>320</sub>, <i>q</i><sub>336</sub>, <i>p</i><sub>432</sub>, <i>p</i><sub>560</sub> and <i>p</i><sub>800</sub>) and in early runs at 144 and 240, came from one method: a search for the shortest vectors of a lattice, run with the C++ library <a href="https://github.com/fplll/fplll">fplll</a>.</p>
-    <p>Write a sequence as signs <span class="nw"><i>f</i><sub>0</sub>, …, <i>f</i><sub><i>n</i>−1</sub></span> and let <span class="nw"><i>x</i><sub><i>i</i></sub> = 2<i>i</i> − <i>n</i> + 1</span>, the positions centered on 0 and doubled. Order <i>m</i> means <span class="nw">Σ <i>f</i><sub><i>i</i></sub> <i>x</i><sub><i>i</i></sub><sup><i>k</i></sup> = 0</span> for <span class="nw"><i>k</i> = 0, …, <i>m</i> − 1</span>: by the fun fact above, these positions give the same order as 0, …, <span class="nw"><i>n</i> − 1</span>, with smaller numbers. These are <i>m</i> linear equations in the signs. Claude looked only at symmetric sequences <span class="nw">(<i>f</i><sub><i>n</i>−1−<i>i</i></sub> = <i>f</i><sub><i>i</i></sub>)</span> for even <i>m</i> and antisymmetric ones <span class="nw">(<i>f</i><sub><i>n</i>−1−<i>i</i></sub> = −<i>f</i><sub><i>i</i></sub>)</span> for odd <i>m</i>, the paper's (−1)<sup><i>m</i></sup> convention. Since <span class="nw"><i>x</i><sub><i>n</i>−1−<i>i</i></sub> = −<i>x</i><sub><i>i</i></sub></span>, that leaves <span class="nw"><i>h</i> = <i>n</i>/2</span> unknown signs <span class="nw"><i>a</i><sub><i>i</i></sub> = <i>f</i><sub><i>i</i></sub></span> <span class="nw">(<i>i</i> &lt; <i>h</i>)</span> and ⌊<i>m</i>/2⌋ equations, those with <i>k</i> of the same parity as <i>m</i>; the others hold for every such sequence.</p>
-    <p>Put <span class="nw"><i>a</i> = 2<i>y</i> − 1</span>. The integer vectors <i>y</i> for which <i>a</i> solves the equations form a translate <span class="nw"><i>y</i><sub>0</sub> + <i>K</i></span> of the lattice <i>K</i> of integer solutions of the equations themselves, whose dimension is <span class="nw"><i>d</i> = <i>h</i> − ⌊<i>m</i>/2⌋</span>. (If there is no such <i>y</i>, there is no such sequence.) So <i>a</i> ranges over the translate <span class="nw"><i>t</i> + 2<i>K</i></span>, where <span class="nw"><i>t</i> = 2<i>y</i><sub>0</sub> − 1</span>. Every vector in it has odd entries, so its squared length is at least <i>h</i>, with equality exactly when every entry is ±1; any other vector in it has an entry of absolute value at least 3, so its squared length is at least <span class="nw"><i>h</i> + 8</span>. So the sequences sought are exactly the shortest vectors of <span class="nw"><i>t</i> + 2<i>K</i></span>, and finding them is a closest-vector problem: find the vectors of the lattice 2<i>K</i> at distance √<i>h</i> from −<i>t</i>.</p>
-    <p>To search it, Claude reduced a basis <span class="nw"><i>b</i><sub>1</sub>, …, <i>b</i><sub><i>d</i></sub></span> of 2<i>K</i> (LLL, then BKZ with block size 20) and enumerated. With <span class="nw"><i>b</i><sub>1</sub><sup>*</sup>, …, <i>b</i><sub><i>d</i></sub><sup>*</sup></span> its Gram–Schmidt vectors, the squared length of <span class="nw"><i>t</i> + <i>c</i><sub>1</sub><i>b</i><sub>1</sub> + ⋯ + <i>c</i><sub><i>d</i></sub><i>b</i><sub><i>d</i></sub></span> is a sum of <i>d</i> terms, one along each <i>b</i><sub><i>i</i></sub><sup>*</sup>, and the term along <i>b</i><sub><i>i</i></sub><sup>*</sup> depends only on <span class="nw"><i>c</i><sub><i>i</i></sub>, …, <i>c</i><sub><i>d</i></sub></span>. So the enumeration chooses <i>c</i><sub><i>d</i></sub>, then <i>c</i><sub><i>d</i>−1</sub>, and so on, trying the integers at each step in order of the term they add (Schnorr–Euchner), and backs up as soon as the sum so far passes <i>h</i>. That tree holds every solution: run to the end, it is an exhaustive search over the sequences of that symmetry, and when it ends empty it proves there are none.</p>
-    <p>The tree grows about exponentially with <i>d</i>, so Claude pruned it: once <i>j</i> of the <i>d</i> coefficients are chosen, the sum so far must be at most a fraction <i>p</i><sub><i>j</i></sub> of <i>h</i>, with the fractions rising to <span class="nw"><i>p</i><sub><i>d</i></sub> = 1</span> (extreme pruning: Gama, Nguyen and Regev, Eurocrypt 2010). A pruned run visits a small part of the tree and finds a given solution with some probability. Randomizing the basis and reducing it again gives another, nearly independent try. In the early runs fplll's Pruner chose the fractions. Every example found was then checked with exact integer power sums.</p>
-    <p>The searches, with <i>d</i> for the direct search and the times of the runs that found the examples (on one CPU in the claude.ai chat's sandbox, except 560 and 800):</p>
+    <p>The examples Claude found by searching, in the remarks above (\(p_{320}\), \(q_{336}\), \(p_{432}\), \(p_{560}\) and \(p_{800}\)) and in early runs at 144 and 240, came from one method: a search for the shortest vectors of a lattice, run with the C++ library <a href="https://github.com/fplll/fplll">fplll</a>.</p>
+    <p>Write a sequence as signs \(f_0, \ldots, f_{n-1}\) and let \(x_i = 2i - n + 1\), the positions centered on 0 and doubled. Order \(m\) means \(\sum f_i x_i^k = 0\) for \(k = 0, \ldots, m - 1\): by the fun fact above, these positions give the same order as \(0, \ldots, n - 1\), with smaller numbers. These are \(m\) linear equations in the signs. Claude looked only at symmetric sequences \((f_{n-1-i} = f_i)\) for even \(m\) and antisymmetric ones \((f_{n-1-i} = -f_i)\) for odd \(m\), the paper's \((-1)^m\) convention. Since \(x_{n-1-i} = -x_i\), that leaves \(h = n/2\) unknown signs \(a_i = f_i\) <span class="nw">\((i < h)\)</span> and \(\lfloor m/2\rfloor\) equations, those with \(k\) of the same parity as \(m\); the others hold for every such sequence.</p>
+    <p>Put \(a = 2y - 1\). The integer vectors \(y\) for which \(a\) solves the equations form a translate \(y_0 + K\) of the lattice \(K\) of integer solutions of the equations themselves, whose dimension is \(d = h - \lfloor m/2\rfloor\). (If there is no such \(y\), there is no such sequence.) So \(a\) ranges over the translate \(t + 2K\), where \(t = 2y_0 - 1\). Every vector in it has odd entries, so its squared length is at least \(h\), with equality exactly when every entry is \(\pm 1\); any other vector in it has an entry of absolute value at least 3, so its squared length is at least \(h + 8\). So the sequences sought are exactly the shortest vectors of \(t + 2K\), and finding them is a closest-vector problem: find the vectors of the lattice \(2K\) at distance \(\sqrt{h}\) from \(-t\).</p>
+    <p>To search it, Claude reduced a basis \(b_1, \ldots, b_d\) of \(2K\) (LLL, then BKZ with block size 20) and enumerated. With \(b_1^*, \ldots, b_d^*\) its Gram–Schmidt vectors, the squared length of \(t + c_1b_1 + \cdots + c_db_d\) is a sum of \(d\) terms, one along each \(b_i^*\), and the term along \(b_i^*\) depends only on \(c_i, \ldots, c_d\). So the enumeration chooses \(c_d\), then \(c_{d-1}\), and so on, trying the integers at each step in order of the term they add (Schnorr–Euchner), and backs up as soon as the sum so far passes \(h\). That tree holds every solution: run to the end, it is an exhaustive search over the sequences of that symmetry, and when it ends empty it proves there are none.</p>
+    <p>The tree grows about exponentially with \(d\), so Claude pruned it: once \(j\) of the \(d\) coefficients are chosen, the sum so far must be at most a fraction \(p_j\) of \(h\), with the fractions rising to \(p_d = 1\) (extreme pruning: Gama, Nguyen and Regev, Eurocrypt 2010). A pruned run visits a small part of the tree and finds a given solution with some probability. Randomizing the basis and reducing it again gives another, nearly independent try. In the early runs fplll's Pruner chose the fractions. Every example found was then checked with exact integer power sums.</p>
+    <p>The searches, with \(d\) for the direct search and the times of the runs that found the examples (on one CPU in the claude.ai chat's sandbox, except 560 and 800):</p>
     <ul class="searches">
-      <li><b>144</b>, order 8, symmetric, <span class="nw"><i>d</i> = 68</span>: a new example in 2.4 seconds. The constraint solver CP-SAT, with exact residue-class constraints, didn't recover the paper's example in 250 seconds.</li>
-      <li><b>240</b>, order 10, symmetric, <span class="nw"><i>d</i> = 115</span>: one pruned enumeration of 57 seconds returned 8 different examples, and with retuned pruning 3 more came in 7 seconds.</li>
-      <li><b>320</b>, order 9, antisymmetric, <span class="nw"><i>d</i> = 156</span>: <i>p</i><sub>320</sub> in 0.7 seconds.</li>
-      <li><b>336</b>, order 9, antisymmetric, the piece <i>q</i><sub>336</sub> of 528. Claude kept the paper's <i>p</i><sub>192</sub>, of order 9, and looked for an antisymmetric <i>q</i> of length 336 and order 9 whose 9th power sum is the negative of <i>p</i><sub>192</sub>'s. Then <span class="nw"><i>p</i><sub>192</sub> ∨ <i>q</i></span> has order 10, because shifting <i>q</i> by 192 doesn't change its 9th power sum, its lower ones being 0. That is one more linear equation, whose right side is not 0, so <span class="nw"><i>d</i> = 163</span>, and <i>t</i> has a part outside the span of 2<i>K</i>, whose squared length comes off the <i>h</i> in the search. The first enumeration found <i>q</i><sub>336</sub> in 0.6 seconds.</li>
-      <li><b>432</b>, order 11, antisymmetric, <span class="nw"><i>d</i> = 211</span>: the chat's replies say only that <i>p</i><sub>432</sub> came from this lattice search, not its parameters or time.</li>
-      <li><b>480</b>, order 12, symmetric, <span class="nw"><i>d</i> = 234</span>: the chat's reply that reported <i>p</i><sub>480</sub> doesn't say how it was found.</li>
-      <li><b>560</b>, order 10, symmetric. A direct search would have <span class="nw"><i>d</i> = 275</span>, above fplll's limit of 256 for enumeration and far too slow, so Claude fixed more. The residue sums mod 27 (the <i>D</i><sub><i>r</i></sub> of the remarks above) were fixed to one pattern that the residue condition allows for order 10, the one that looked most likely, and the residue sums mod 5 and mod 7 to 0. Mod 27, the 280 pairs of positions <i>i</i> and <span class="nw">559 − <i>i</i></span> fall into 14 groups, by residue class together with its mirror image. In 7 groups, holding 135 of the pairs, every placement of the +1s with the count the pattern sets became a separate case. That left 145 free signs under 16 independent equations, so <span class="nw"><i>d</i> = 129</span>, and the same lattice for every case, with only <i>t</i> changing. The pruning fractions were a fixed shape, none below 0.3, picked by timing trial runs. Ten single-threaded processes on Danny Reeves's Mac, each reducing its own randomized basis once, found <i>p</i><sub>560</sub> after 97 seconds and 23 examples in 5 minutes 22 seconds.</li>
-      <li><b>800</b>, order 11, antisymmetric. A direct search would have <span class="nw"><i>d</i> = 395</span>, so Claude fixed more, as at 560. The residue sums mod 27 were fixed to the most likely pattern that the residue condition allows for order 11, refining the most likely one mod 9, the residue sums mod 5 to 0, and those mod 7 to their most likely pattern. Mod 27, the 400 pairs of positions <i>i</i> and <span class="nw">799 − <i>i</i></span> fall into 14 groups. In the 9 groups that make up the classes 0 and 1 mod 3, holding 267 of the pairs, every placement of the +1s with the count the pattern sets became a separate case. Only about 1 case in 3<sup>20</sup> is consistent with the fixed residue sums, so a meet-in-the-middle search listed the consistent ones. That left 133 free signs under 14 independent equations, so <span class="nw"><i>d</i> = 119</span>. The pruning fractions were a fixed shape, none below 0.4. One single-threaded process on Danny Reeves's Mac, at low priority beside another search, reduced its basis once and found <i>p</i><sub>800</sub> and 2 more examples in 224 cases, at about a quarter of a CPU-second each; a second run, with another random basis, found 30 more in 2623 cases.</li>
+      <li><b>144</b>, order 8, symmetric, \(d = 68\): a new example in 2.4 seconds. The constraint solver CP-SAT, with exact residue-class constraints, didn't recover the paper's example in 250 seconds.</li>
+      <li><b>240</b>, order 10, symmetric, \(d = 115\): one pruned enumeration of 57 seconds returned 8 different examples, and with retuned pruning 3 more came in 7 seconds.</li>
+      <li><b>320</b>, order 9, antisymmetric, \(d = 156\): \(p_{320}\) in 0.7 seconds.</li>
+      <li><b>336</b>, order 9, antisymmetric, the piece \(q_{336}\) of 528. Claude kept the paper's \(p_{192}\), of order 9, and looked for an antisymmetric \(q\) of length 336 and order 9 whose 9th power sum is the negative of \(p_{192}\)'s. Then \(p_{192} \vee q\) has order 10, because shifting \(q\) by 192 doesn't change its 9th power sum, its lower ones being 0. That is one more linear equation, whose right side is not 0, so \(d = 163\), and \(t\) has a part outside the span of \(2K\), whose squared length comes off the \(h\) in the search. The first enumeration found \(q_{336}\) in 0.6 seconds.</li>
+      <li><b>432</b>, order 11, antisymmetric, \(d = 211\): the chat's replies say only that \(p_{432}\) came from this lattice search, not its parameters or time.</li>
+      <li><b>480</b>, order 12, symmetric, \(d = 234\): the chat's reply that reported \(p_{480}\) doesn't say how it was found.</li>
+      <li><b>560</b>, order 10, symmetric. A direct search would have \(d = 275\), above fplll's limit of 256 for enumeration and far too slow, so Claude fixed more. The residue sums mod 27 (the \(D_r\) of the remarks above) were fixed to one pattern that the residue condition allows for order 10, the one that looked most likely, and the residue sums mod 5 and mod 7 to 0. Mod 27, the 280 pairs of positions \(i\) and \(559 - i\) fall into 14 groups, by residue class together with its mirror image. In 7 groups, holding 135 of the pairs, every placement of the \(+1\)s with the count the pattern sets became a separate case. That left 145 free signs under 16 independent equations, so \(d = 129\), and the same lattice for every case, with only \(t\) changing. The pruning fractions were a fixed shape, none below 0.3, picked by timing trial runs. Ten single-threaded processes on Danny Reeves's Mac, each reducing its own randomized basis once, found \(p_{560}\) after 97 seconds and 23 examples in 5 minutes 22 seconds.</li>
+      <li><b>800</b>, order 11, antisymmetric. A direct search would have \(d = 395\), so Claude fixed more, as at 560. The residue sums mod 27 were fixed to the most likely pattern that the residue condition allows for order 11, refining the most likely one mod 9, the residue sums mod 5 to 0, and those mod 7 to their most likely pattern. Mod 27, the 400 pairs of positions \(i\) and \(799 - i\) fall into 14 groups. In the 9 groups that make up the classes 0 and 1 mod 3, holding 267 of the pairs, every placement of the \(+1\)s with the count the pattern sets became a separate case. Only about 1 case in \(3^{20}\) is consistent with the fixed residue sums, so a meet-in-the-middle search listed the consistent ones. That left 133 free signs under 14 independent equations, so \(d = 119\). The pruning fractions were a fixed shape, none below 0.4. One single-threaded process on Danny Reeves's Mac, at low priority beside another search, reduced its basis once and found \(p_{800}\) and 2 more examples in 224 cases, at about a quarter of a CPU-second each; a second run, with another random basis, found 30 more in 2623 cases.</li>
     </ul>
-    <p><a href="https://raw.githubusercontent.com/dreeves/equipow/main/lattice_search.wl">lattice_search.wl</a> is a plain Mathematica version of the direct search, without the matching or the fixed residue sums, to time against other search code. In place of fplll it uses LatticeReduce, which does LLL but not BKZ, and its own compiled enumeration, pruned by a simpler rule: the sum so far may be at most <span class="nw">min(1, δ + <i>j</i>/<i>d</i>)</span> times <i>h</i>, with δ the option "Pruning". δ = 1, the default, prunes nothing. δ = 0 is the linear pruning of Gama, Nguyen and Regev, too tight here: the solutions' sums run above <span class="nw"><i>j</i>/<i>d</i></span> times <i>h</i>, most of all over the first coefficients chosen. An empty list of sequences proves there are none only when the result's "complete" is True, which takes an unpruned search that ran to its end; a search cut off by "MaxNodes" returns False, and its empty list shows only that none turned up in the part of the tree it searched. These calls have known results, in which each sequence's negation counts too:</p>
+    <p><a href="https://raw.githubusercontent.com/dreeves/equipow/main/lattice_search.wl">lattice_search.wl</a> is a plain Mathematica version of the direct search, without the matching or the fixed residue sums, to time against other search code. In place of fplll it uses LatticeReduce, which does LLL but not BKZ, and its own compiled enumeration, pruned by a simpler rule: the sum so far may be at most \(\min(1, \delta + j/d)\) times \(h\), with \(\delta\) the option "Pruning". \(\delta = 1\), the default, prunes nothing. \(\delta = 0\) is the linear pruning of Gama, Nguyen and Regev, too tight here: the solutions' sums run above \(j/d\) times \(h\), most of all over the first coefficients chosen. An empty list of sequences proves there are none only when the result's "complete" is True, which takes an unpruned search that ran to its end; a search cut off by "MaxNodes" returns False, and its empty list shows only that none turned up in the part of the tree it searched. These calls have known results, in which each sequence's negation counts too:</p>
     <ul class="calls">
       <li><code>latticeSearch[6, 2, 0]</code>: complete, no sequences: the equations have no integer solution.</li>
       <li><code>latticeSearch[32, 5, 0, "Want" -&gt; Infinity]</code>: complete, 2 sequences: Thue–Morse and its negation.</li>
-      <li><code>latticeSearch[48, 6, 1, "Want" -&gt; Infinity]</code>: complete, 2 sequences: the paper's <i>p</i><sub>48</sub> and its negation, as a brute-force check of all 2<sup>24</sup> symmetric sequences confirms.</li>
+      <li><code>latticeSearch[48, 6, 1, "Want" -&gt; Infinity]</code>: complete, 2 sequences: the paper's \(p_{48}\) and its negation, as a brute-force check of all \(2^{24}\) symmetric sequences confirms.</li>
       <li><code>latticeSearch[64, 6, 0, "Want" -&gt; Infinity]</code>: complete, 6 sequences: Boyd's 3 partitions.</li>
-      <li><code>latticeSearch[112, 7, -1, "Want" -&gt; Infinity, "MaxNodes" -&gt; 10^9]</code>: complete, 2 sequences: the paper's <i>p</i><sub>112</sub> and its negation, after 285 million nodes, about 6 minutes on Danny Reeves's Mac. The tree's size depends on the random basis: with <code>"Seed" -&gt; 2</code> and <code>3</code> it took 224 and 966 million nodes.</li>
-      <li><code>latticeSearch[320, 11, -1, "Want" -&gt; Infinity]</code>: complete, no sequences, after a few nodes: the equations have integer solutions, but none with entries ±1.</li>
+      <li><code>latticeSearch[112, 7, -1, "Want" -&gt; Infinity, "MaxNodes" -&gt; 10^9]</code>: complete, 2 sequences: the paper's \(p_{112}\) and its negation, after 285 million nodes, about 6 minutes on Danny Reeves's Mac. The tree's size depends on the random basis: with <code>"Seed" -&gt; 2</code> and <code>3</code> it took 224 and 966 million nodes.</li>
+      <li><code>latticeSearch[320, 11, -1, "Want" -&gt; Infinity]</code>: complete, no sequences, after a few nodes: the equations have integer solutions, but none with entries \(\pm 1\).</li>
       <li><code>latticeSearch[96, 7, -1]</code>: 1 sequence.</li>
       <li><code>latticeSearch[144, 8, 1, "Pruning" -&gt; 0.1]</code>: 1 sequence.</li>
     </ul>
@@ -2731,16 +2738,17 @@ try {
   // a lower bound's reason as a join of products of blocks: a join as it is; f^{#L} # τ_j as the one product of L
   // blocks f and τ_j, [2^j, j] (τ_0, [1, 0], when j is 0); any other kind has no entry, and its record gap throws
   const JOIN = {joins: ([, ps]) => ps, power: ([, L, j]) => [[...Array(L).fill(F), [2 ** j, j]]]};
-  const length = p => factors(p).map(([n, , c]) => c > 1 ? `${n}<sup>${c}</sup>` : `${n}`).join('·');
-  const order = p => factors(p).map(([, m, c]) => c > 1 ? `${c}·${m}` : `${m}`).join(' + ') + ` = ${sum(p)}`;
+  // a product's power of 2 and order in LaTeX, which KaTeX draws once the page is parsed (2026-10-28)
+  const length = p => factors(p).map(([n, , c]) => c > 1 ? `${n}^{${c}}` : `${n}`).join(' \\cdot ');
+  const order = p => factors(p).map(([, m, c]) => c > 1 ? `${c} \\cdot ${m}` : `${m}`).join(' + ') + ` = ${sum(p)}`;
   for (let g = 1; at(g); g++) {
     const k = at(g), [lo, , why] = POW2.cols[k - 1], join = JOIN[why[0]](why);
     assert(lo === k + g && Math.min(...join.map(sum)) === lo, k, lo);
     assert(join.reduce((s, p) => s + p.reduce((t, [n]) => t * BigInt(n), 1n), 0n) === 2n ** BigInt(k), k);
     const plus = ['', ...join.slice(1).map(() => '+ ')];
     const body = document.createElement('tbody');
-    body.innerHTML = join.map((p, i) => `<tr><td>${plus[i]}${length(p)}</td><td>${order(p)}</td></tr>`).join('');
-    body.rows[0].insertAdjacentHTML('afterbegin', `<td rowspan="${join.length}"><i>m</i><sup>*</sup>(2<sup>${k}</sup>) ≥ ${lo}</td>`);
+    body.innerHTML = join.map((p, i) => `<tr><td>${plus[i]}\\(${length(p)}\\)</td><td>\\(${order(p)}\\)</td></tr>`).join('');
+    body.rows[0].insertAdjacentHTML('afterbegin', `<td rowspan="${join.length}">\\(m^*(2^{${k}}) \\ge ${lo}\\)</td>`);
     table.append(body);
   }
 } catch (e) {

@@ -170,13 +170,13 @@ def q_section_lists_the_calls_and_their_results():
 def q_section_states_the_dimensions():
     # Replicata: the items of the section's list of searches (<ul class="searches">), each starting with its length in
     # <b>.
-    # Expectata: for each (length, d) of DIMS, an item starting with <b>length</b> says <i>d</i> = d, and each d is the
+    # Expectata: for each (length, d) of DIMS, an item starting with <b>length</b> says \(d = d\), and each d is the
     # count DIMS gives for it.
     items = re.findall(r'<li>(.*?)</li>', re.search(r'<ul class="searches">(.*?)</ul>', section(), re.S).group(1), re.S)
     for n, d, count in DIMS:
         assert d == count, (n, d, count)
         mine = [it for it in items if it.startswith(f'<b>{n}</b>')]
-        assert len(mine) == 1 and f'<i>d</i> = {d}' in mine[0], (n, d, mine)
+        assert len(mine) == 1 and f'\\(d = {d}\\)' in mine[0], (n, d, mine)
 
 
 def q_cut_off_search_is_not_complete():

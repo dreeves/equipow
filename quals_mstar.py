@@ -275,7 +275,7 @@ def q_page_parse_is_strict():
                  ('1008', lambda ps, i: ps[:i] + ps[i + 1:]),
                  ('288', lambda ps, i: ps[:i] + [("<td class=\"c\" title='Claude alone'>288</td>", '<td class="c">9–10</td>')]
                   + ps[i + 1:]),
-                 ('2<sup>3</sup>', lambda ps, i: ps[:i] + [ps[i + 1], ps[i]] + ps[i + 2:])):
+                 ('\\(2^3\\)', lambda ps, i: ps[:i] + [ps[i + 1], ps[i]] + ps[i + 2:])):
         edited = edit_cells(html, n, f)
         expect_assertion(lambda: mstar.page_sources(edited))
     assert mstar.page_sources(html)
@@ -286,7 +286,7 @@ def q_page_parse_is_strict():
 
 
 def edit_cells(html, n, f):
-    """html with the row of the new results' cell n (as the page writes it: digits, or 2<sup>k</sup>) rewritten from
+    """html with the row of the new results' cell n (as the page writes it: digits, or \\(2^{k}\\)) rewritten from
     f(pairs, i): the row's (n cell, value cell) pairs, i the index of n's."""
     a = html.index('<div class="new-block">')
     for m in re.finditer(r'<table class="block">.*?</table>', html[a:], re.S):
@@ -404,7 +404,7 @@ def page_remarks():
     html = open(os.path.join(HERE, 'index.html'), encoding='utf-8').read()
     section = re.search(r'<section class="remarks">(.*?)</section>', html, re.S)[1]
     out = {}
-    for ns, body in re.findall(r'<p class="entry"><i>n</i> = ([\d, ]+):(.*?)</li>', section, re.S):
+    for ns, body in re.findall(r'<p class="entry">\\\(n = ([\d, ]+)\\\):(.*?)</li>', section, re.S):
         for n in ns.split(', '): out[int(n)] = body
     return out
 

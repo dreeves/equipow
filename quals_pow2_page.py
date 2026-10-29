@@ -545,7 +545,7 @@ def theorem_cells():
     (k, v - k).  Its m*(2^9) = 9 has no cell of its own: the chart has no row 0."""
     t = re.search(r'<p><b>Theorem\.</b>(.*?)</p>', page(), re.S)
     assert t, 'no Theorem paragraph'
-    pairs = re.findall(r'\(2<sup>(\d+)</sup>\) ≥ (\d+)', t.group(1))
+    pairs = re.findall(r'\(2\^\{?(\d+)\}?\) \\ge (\d+)', t.group(1))
     assert pairs, t.group(1)
     return sorted((int(k), int(v) - int(k)) for k, v in pairs)
 
@@ -592,13 +592,14 @@ def q_section_follows_mstar_chart():
 
 
 def q_scripts_load_pow2_after_mstar():
-    # Replicata: index.html's script tags.
+    # Replicata: index.html's script tags after its head (KaTeX's two in the head, since 2026-10-28, are
+    # quals_index's q_scripts_load_data_then_draw's).
     # Expectata: exactly six, after </main>: the m*(n) chart's <script src="mstar.js"> and its inline script, then a
     # classic <script src="pow2.js"> (no type, async or defer, so it also loads from file://) right after them and one
     # inline script; then the inline script of the table of smallest lengths (2026-10-17); then the inline script of
     # the section "Search progress" (2026-10-17), the last thing before </body>.
     text = page()
-    tags = re.findall(r'<script\b[^>]*>', text)
+    tags = re.findall(r'<script\b[^>]*>', text[text.index('</head>'):])
     assert tags == ['<script src="mstar.js">', '<script>', '<script src="pow2.js">', '<script>', '<script>', '<script>'], tags
     assert text.index('</main>') < text.index('<script src="mstar.js"></script>')
     assert text.count('</script>\n<script src="pow2.js"></script>\n<script>\n') == 1
@@ -675,14 +676,14 @@ def q_caption_defines_readout_symbols():
     # Replicata: the caption (the paragraph pow2-caption).
     # Expectata: it names each symbol that the readout writes for a block of a construction: f, τ_j (Thue-Morse), p_n
     # (from a column of the m*(n) chart) and each of the page's examples longer than the m*(n) chart's NMAX (LONG), each
-    # as the remarks write it: <i>f</i>, τ<sub><i>j</i></sub>, <i>p</i><sub><i>n</i></sub> and <i>p</i><sub>N</sub> for
-    # each N of LONG; and it names no other <i>p</i><sub>N</sub> (from 2026-10-26 it named p_1024, beyond that chart's
-    # 1000; since 2026-10-27, when that chart reached 1024, LONG is empty).
+    # as the remarks write it (in LaTeX since 2026-10-28): \(f\), \(\tau_j\), \(p_n\) and \(p_{N}\) for each N of LONG;
+    # and it names no other \(p_{N}\) (from 2026-10-26 it named p_1024, beyond that chart's 1000; since 2026-10-27, when
+    # that chart reached 1024, LONG is empty).
     m = re.search(r'<p class="pow2-caption">(.*?)</p>', page(), re.S)
     assert m, 'pow2-caption'
-    symbols = ['<i>f</i>', 'τ<sub><i>j</i></sub>', '<i>p</i><sub><i>n</i></sub>'] + [f'<i>p</i><sub>{n}</sub>' for n, _ in long_blocks()]
+    symbols = ['\\(f\\)', '\\(\\tau_j\\)', '\\(p_n\\)'] + [f'\\(p_{{{n}}}\\)' for n, _ in long_blocks()]
     missing = [s for s in symbols if s not in m[1]]
-    named = [int(n) for n in re.findall(r'<i>p</i><sub>(\d+)</sub>', m[1])]
+    named = [int(n) for n in re.findall(r'\\\(p_\{(\d+)\}\\\)', m[1])]
     assert not missing and sorted(set(named)) == sorted(n for n, _ in long_blocks()), (missing, named, long_blocks())
 
 
@@ -700,7 +701,7 @@ def q_long_blocks_are_the_remarks_examples():
     # remarks' examples of length n > NMAX, as [n, m], in page order, each decoding to length n and order exactly m
     # (synthetic division); and every block of pow2.js's joins longer than NMAX, other than f and τ_j, is in LONG.
     # Since 2026-10-27, when the m*(n) chart reached 1024, there are none: LONG is [].
-    codes = re.findall(r'<i>p</i><sub>(\d+)</sub> <span class="nw">\(<i>m</i> = (\d+)\)</span>:</span>\n\s*<code>([0-9A-F]+)</code>',
+    codes = re.findall(r'\\\(p_\{(\d+)\}\\\) \\\(\(m = (\d+)\)\\\):</span>\n\s*<code>([0-9A-F]+)</code>',
                        page())
     long = [(int(n), int(m), h) for n, m, h in codes if int(n) > NMAX]
     assert long_blocks() == [[n, m] for n, m, _ in long] == [], (long_blocks(), long)

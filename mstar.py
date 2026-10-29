@@ -267,16 +267,16 @@ PAGE_SET_KEYS = (('SClaude', 9, 320), ('SClaude', 9, 336), ('SClaude', 11, 432),
 
 
 def page_n(s):
-    """An n cell of the page's tables: digits, or 2<sup>k</sup>."""
-    m = re.fullmatch(r'(\d+)|2<sup>(\d+)</sup>', s)
+    """An n cell of the page's tables: digits, or \\(2^{k}\\) (LaTeX since 2026-10-28; a one-digit k unbraced)."""
+    m = re.fullmatch(r'(\d+)|\\\(2\^\{?(\d+)\}?\\\)', s)
     assert m, s
     return int(m[1]) if m[1] else 2 ** int(m[2])
 
 
 def page_value(s):
-    """A value cell: v, "a or b", "≥ a" or "a–b", as (lo, hi), hi None when open."""
+    """A value cell: v, "a or b", "\\(\\ge a\\)" or "a–b", as (lo, hi), hi None when open."""
     for pat, f in ((r'(\d+)', lambda g: (int(g[0]), int(g[0]))), (r'(\d+) or (\d+)', lambda g: (int(g[0]), int(g[1]))),
-                   (r'≥ (\d+)', lambda g: (int(g[0]), None)), (r'(\d+)–(\d+)', lambda g: (int(g[0]), int(g[1])))):
+                   (r'\\\(\\ge (\d+)\\\)', lambda g: (int(g[0]), None)), (r'(\d+)–(\d+)', lambda g: (int(g[0]), int(g[1])))):
         m = re.fullmatch(pat, s)
         if m: return f(m.groups())
     raise AssertionError(s)
@@ -296,7 +296,7 @@ def page_sources(html):
     copies above.  Returns {'table2': {n: (lo, hi)}, 'new': {n: (lo, hi, who)}, 'codes': [(m, hex)],
     'sets': [(name, m, n, set)]}.  The page's tables of class "block" are Table 2's three, then the new results', which since
     2026-10-27 subsume Table 2: their upper rows, of the lengths UPPER in order, written in digits, then their powers
-    of 2, written 2^k, k rising from 3.  Every cell of the new results has a title; a cell titled as the legend's "The
+    of 2, written \\(2^{k}\\), k rising from 3.  Every cell of the new results has a title; a cell titled as the legend's "The
     published paper (2021)" has no provenance class and copies Table 2's entry at its n, and every entry of Table 2
     that is not a new result is so copied; every other cell has a class, its value cell the same class, and is a new
     result.  A length shown twice, in the upper rows and as a power of 2 (8 to 1024), is the same cell both times."""
@@ -312,7 +312,7 @@ def page_sources(html):
     assert len(table2) == sum(map(len, rows[:3])) == 39
     upper = [row for row in rows[3:] if all(re.fullmatch(r'\d+', c) for c, *_ in row)]
     pows = rows[3 + len(upper):]
-    assert rows[3:3 + len(upper)] == upper and all(re.fullmatch(r'2<sup>\d+</sup>', c) for row in pows for c, *_ in row)
+    assert rows[3:3 + len(upper)] == upper and all(re.fullmatch(r'\\\(2\^\{?\d+\}?\\\)', c) for row in pows for c, *_ in row)
     assert tuple(n for row in upper for c, n, *_ in row) == UPPER
     ks = [n.bit_length() - 1 for row in pows for c, n, *_ in row]
     assert ks and ks[0] == 3 and ks == sorted(set(ks)), ks
@@ -328,7 +328,7 @@ def page_sources(html):
     assert set(table2) - set(new) == set(copies), set(table2) - set(new) - set(copies)
     codes = []
     for block in re.findall(r'<p class="code">(.*?)</p>', html, re.S):
-        ms = [int(m) for m in re.findall(r'\(<i>m</i> = (\d+)\)', block)]
+        ms = [int(m) for m in re.findall(r'\\\(\(m = (\d+)\)\\\)', block)]
         hs = re.findall(r'<code>([0-9A-F]+)</code>', block)
         assert len(ms) == len(hs) >= 1, block
         codes += list(zip(ms, hs))

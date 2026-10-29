@@ -113,7 +113,10 @@ The estimate's model, its terms defined once here (overnight_v5.py's search() is
               far is its subtree's logged seconds plus its running leaves' elapsed seconds; its eventual cost is that
               plus its remaining work, which the draws below it give.
   population  at each depth above the bottom, this pass's fresh nodes that have finished their job there: finished
-              subtrees, at their logged cost, and partway ones, at their eventual cost.  Their urn gives the subtree
+              subtrees, at their logged cost, and partway ones, at their eventual cost.  At a depth with none yet,
+              its nodes the pass has split again stand in for them, at their eventual cost (2026-10-29: 288@10's pass
+              at budget 1,000 reached its depths 3 and 4 only through such nodes): each lacks only a fresh node's own
+              job, seconds against a subtree's hours, and its chance of closing at once.  Their urn gives the subtree
               cost of each node of kind 'subtree' at that depth, pending or running (a running one's elapsed time, a
               few seconds of solve and split, is ignored).  Depths go from the bottom up, so a partway member's
               eventual cost is drawn before its depth's draws are made.
@@ -123,8 +126,9 @@ The estimate's model, its terms defined once here (overnight_v5.py's search() is
   makespan    list scheduling on the pass's workers: each running leaf's remaining seconds hold its worker; a leaf
               job goes to the worker free first; fluid work fills the earliest-free workers to a common level (water
               filling).  The makespan is when the last worker is free: the remaining time.
-  no estimate an empty array: when a node of kind 'subtree' waits at a depth with no population yet (a fresh subtree
-              needs a member's job and split), or no fresh leaf solve has been logged yet (no speed, so no gap).  The
+  no estimate an empty array: when a node of kind 'subtree' waits at a depth with no population yet, no node of
+              the pass done there (a fresh subtree needs a member's job and split), or no fresh leaf solve has been
+              logged yet (no speed, so no gap).  The
               model then has nothing to draw from.
   probe       a journal record of fanout.py's (see its vocabulary, 2026-10-25), or of focus.py's in the same form: one
               case's random paths from its root to a leaf, their leaf depths' mean and standard error, least, and the
@@ -854,7 +858,8 @@ def estimate(state, parts=None):
                 below = [rem[c] for c in n.kids if c in rem]
                 if below: rem[n] = sum(below, zero)
         if d == bottom: continue
-        pop = [n for n in by_depth[d] if n.state == 'done' and n.fresh]
+        # the population: the depth's fresh nodes done in this pass, or with none its nodes split again
+        pop = [n for n in by_depth[d] if n.state == 'done' and n.fresh] or [n for n in by_depth[d] if n.state == 'done']
         draws = [n for n in by_depth[d] if kinds.get(n) == 'subtree']
         if draws and not pop: return np.array([])
         if pop:

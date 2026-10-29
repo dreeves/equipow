@@ -104,17 +104,18 @@ def entries(fragment):
 
 
 def cell_n(cell):
-    """The n of a cell of an n row: its digits, or 2^k for 2<sup>k</sup>."""
-    m = re.fullmatch(r'(\d+)|2<sup>(\d+)</sup>', cell)
+    """The n of a cell of an n row: its digits, or 2^k for \\(2^{k}\\) (LaTeX since 2026-10-28; one digit unbraced) or,
+    in the page's versions before that, for 2<sup>k</sup>."""
+    m = re.fullmatch(r'(\d+)|\\\(2\^\{?(\d+)\}?\\\)|2<sup>(\d+)</sup>', cell)
     assert m, cell
-    return int(m.group(1)) if m.group(1) else 2 ** int(m.group(2))
+    return int(m.group(1)) if m.group(1) else 2 ** int(m.group(2) or m.group(3))
 
 
 def bounds(v):
-    """(low, high) for a table's value v: an exact value v gives (v, v); 'a or b' and 'a–b' give (a, b); '≥ a' gives
-    (a, inf)."""
-    forms = ((r'(\d+)', lambda a: (a, a)), (r'(\d+) or (\d+)', lambda a, b: (a, b)),
-             (r'(\d+)–(\d+)', lambda a, b: (a, b)), (r'≥ (\d+)', lambda a: (a, math.inf)))
+    """(low, high) for a table's value v: an exact value v gives (v, v); 'a or b' and 'a–b' give (a, b); '\\(\\ge a\\)'
+    (LaTeX since 2026-10-28) or, in the page's versions before that, '≥ a' gives (a, inf)."""
+    forms = ((r'(\d+)', lambda a: (a, a)), (r'(\d+) or (\d+)', lambda a, b: (a, b)), (r'(\d+)–(\d+)', lambda a, b: (a, b)),
+             (r'\\\(\\ge (\d+)\\\)', lambda a: (a, math.inf)), (r'≥ (\d+)', lambda a: (a, math.inf)))
     hits = [f(*map(int, m.groups())) for p, f in forms for m in [re.fullmatch(p, v)] if m]
     assert len(hits) == 1, v
     return hits[0]
@@ -362,8 +363,12 @@ function battery(R) {
   const main = document.querySelector('main'), ms = getComputedStyle(main);
   R.mainContentW = main.clientWidth - parseFloat(ms.paddingLeft) - parseFloat(ms.paddingRight);
   R.touchAction = getComputedStyle(cv).touchAction;
+  // each n's first drawn text: its digits, or the 2 of 2^k, which KaTeX draws (since 2026-10-28) in its HTML beside
+  // a hidden MathML copy that is skipped
   R.nTextBottoms = [...document.querySelectorAll('.new-block tr.ns')].map(tr => [...tr.querySelectorAll('td')].map(td => {
-    const t = [...td.childNodes].find(x => x.nodeType === 3 && x.textContent.trim()), r = document.createRange();
+    const drawn = x => x.textContent.trim() && !x.parentElement.closest('.katex-mathml');
+    const t = document.createTreeWalker(td, NodeFilter.SHOW_TEXT,
+      {acceptNode: x => drawn(x) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP}).nextNode(), r = document.createRange();
     r.selectNodeContents(t); return r.getBoundingClientRect().bottom; }));
   if (cv.height === 0) return;
   const tok = name => getComputedStyle(cv).getPropertyValue(name).trim().toLowerCase();
@@ -826,7 +831,7 @@ def q_384_proof_is_linked():
     assert re.search(r'<td class="a"[^>]*>384</td>', text)
     remark = re.search(r'<li class="a" id="proof384">(.*?)</li>', text, re.S)
     assert remark, 'no remark for 384'
-    assert 'href="proof384.py"' in remark.group(1) and '<i>m</i><sup>*</sup> = 10' in remark.group(1), remark.group(1)[:300]
+    assert 'href="proof384.py"' in remark.group(1) and '\\(m^* = 10\\)' in remark.group(1), remark.group(1)[:300]
     assert smallest_rows(mstar_data()['cols'])[10] == ['11', '432', '✓', '432']
 
 
@@ -887,8 +892,8 @@ def changelog():
 
 # A statement of a new result's bounds in a changelog entry (dreeves, 2026-10-26: "yes please", to an entry with each
 # update of the new results, and "can you backfill all the results that are new since the BGPW paper?"), in math, so
-# without a Claude: "…": m*(n) = v, m*(n) ≥ a, m*(n) ≤ b or a ≤ m*(n) ≤ b, n's digits or 2<sup>k</sup>
-STATEMENT = r'<span class="nw">(?:(\d+) ≤ )?<i>m</i><sup>\*</sup>\((\d+|2<sup>\d+</sup>)\) (=|≥|≤) (\d+)</span>'
+# without a Claude: "…": m*(n) = v, m*(n) ≥ a, m*(n) ≤ b or a ≤ m*(n) ≤ b, n's digits or 2^{k}, in LaTeX since 2026-10-28
+STATEMENT = r'\\\((?:(\d+) \\le )?m\^\*\((\d+|2\^\{?\d+\}?)\) (=|\\ge|\\le) (\d+)\\\)'
 
 
 def statements(rest):
@@ -897,8 +902,9 @@ def statements(rest):
     a ≤ m*(n) ≤ b (a, b)."""
     found = re.findall(STATEMENT, rest)
     assert not found or re.fullmatch(f'{STATEMENT}(?:, {STATEMENT})*', rest), rest
-    assert all(op == '≤' for lo, _, op, _ in found if lo), rest
-    out = {cell_n(n): (int(lo), int(v)) if lo else {'=': (int(v), int(v)), '≥': (int(v), None), '≤': (None, int(v))}[op]
+    assert all(op == '\\le' for lo, _, op, _ in found if lo), rest
+    out = {cell_n(n if n.isdigit() else f'\\({n}\\)'): (int(lo), int(v)) if lo else
+           {'=': (int(v), int(v)), '\\ge': (int(v), None), '\\le': (None, int(v))}[op]
            for lo, n, op, v in found}
     assert len(out) == len(found), rest
     return out
@@ -1098,14 +1104,22 @@ def q_chrome_s_whole_process_group_ends_before_its_folder_goes():
 
 def q_scripts_load_data_then_draw():
     # Replicata: index.html's script tags.
-    # Expectata: exactly six, after </main> and before </body>: a classic <script src="mstar.js"> (no type, async or
-    # defer, so it also loads from file://) and then one inline script; then the chart of powers of 2's, likewise
-    # (quals_pow2_page.py holds those two); then the inline script of the table of smallest lengths, which reads MSTAR
-    # (2026-10-17); then the inline script of the section "Search progress", which loads progress.js itself
-    # (2026-10-17).
+    # Expectata: in the head, KaTeX's two (since 2026-10-28; dreeves: "could you convert all the math on the page to
+    # latex"), deferred, from jsDelivr at version 0.16.47, each with its SHA-256 integrity, auto-render's onload drawing
+    # the page's \( ... \) once the page is parsed; then exactly six, after </main> and before </body>: a classic
+    # <script src="mstar.js"> (no type, async or defer, so it also loads from file://) and then one inline script; then
+    # the chart of powers of 2's, likewise (quals_pow2_page.py holds those two); then the inline script of the table of
+    # smallest lengths, which reads MSTAR (2026-10-17); then the inline script of the section "Search progress", which
+    # loads progress.js itself (2026-10-17).
     text = page()
-    assert re.findall(r'<script\b[^>]*>', text) == ['<script src="mstar.js">', '<script>', '<script src="pow2.js">', '<script>',
-                                                    '<script>', '<script>'], re.findall(r'<script\b[^>]*>', text)
+    head, body = text[:text.index('</head>')], text[text.index('</head>'):]
+    katex = re.findall(r'<script defer src="https://cdn\.jsdelivr\.net/npm/katex@0\.16\.47/dist/([\w/.-]+)" '
+                       r'integrity="sha256-[A-Za-z0-9+/]{43}=" crossorigin="anonymous"( onload="renderMathInElement\(document\.body, '
+                       r'\{delimiters: \[\{left: \'\\\\\(\', right: \'\\\\\)\', display: false\}\], throwOnError: false\}\)")?></script>', head)
+    assert katex == [('katex.min.js', ''), ('contrib/auto-render.min.js', katex[-1][1])] and katex[-1][1] \
+        and len(re.findall(r'<script\b', head)) == 2, (katex, re.findall(r'<script\b[^>]*>', head))
+    assert re.findall(r'<script\b[^>]*>', body) == ['<script src="mstar.js">', '<script>', '<script src="pow2.js">', '<script>',
+                                                    '<script>', '<script>'], re.findall(r'<script\b[^>]*>', body)
     inline = re.findall(r'<script>\n(.*?)</script>', text, re.S)
     assert '[data-smallest]' in inline[2] and 'progressData' in inline[3], [js[:60] for js in inline]
     assert text.index('</main>') < text.index('<script src="mstar.js"></script>') < text.index('<script>\n') < \
@@ -1245,7 +1259,7 @@ def q_new_results_subsume_table2():
     upper, pows = frames
     rows = upper + pows
     assert all(re.fullmatch(r'\d+', c) for r in upper for _, c, *_ in r) and upper, [[c for _, c, *_ in r] for r in upper]
-    assert all(re.fullmatch(r'2<sup>\d+</sup>', c) for r in pows for _, c, *_ in r) and pows, [[c for _, c, *_ in r] for r in pows]
+    assert all(re.fullmatch(r'\\\(2\^\{?\d+\}?\\\)', c) for r in pows for _, c, *_ in r) and pows, [[c for _, c, *_ in r] for r in pows]
     assert [n for r in upper for n, *_ in r] == list(range(8, 305, 8)) + list(range(320, NMAX + 1, 16))
     ks = [n.bit_length() - 1 for r in pows for n, *_ in r]
     assert ks[0] == 3 and ks == sorted(set(ks)), ks
@@ -1319,9 +1333,8 @@ def q_2_18_shows_its_construction():
     # code to generate the full list of 2^18/2 integers?"): the remark writes out the construction, (p320 # p560) ∨
     # (p48 # p432 # τ2), links the script; the script decodes the four blocks from hex
     # codes that are exactly codes on the page.
-    li = re.search(r'<p class="entry"><i>n</i> = 2<sup>18</sup>: .*?</li>', page(), re.S).group(0)
-    assert '<span class="nw">(<i>p</i><sub>320</sub> # <i>p</i><sub>560</sub>)</span>' in li, li
-    assert '<span class="nw">∨ (<i>p</i><sub>48</sub> # <i>p</i><sub>432</sub> # τ<sub>2</sub>)</span>' in li, li
+    li = re.search(r'<p class="entry">\\\(n = 2\^\{18\}\\\): .*?</li>', page(), re.S).group(0)
+    assert '\\((p_{320} \\mathbin{\\#} p_{560}) \\vee (p_{48} \\mathbin{\\#} p_{432} \\mathbin{\\#} \\tau_2)\\)' in li, li
     assert 'certificate_2%5E18.wl"' in li, li
     wl = open(os.path.join(HERE, 'certificate_2^18.wl'), encoding='utf-8').read()
     codes = re.findall(r'(p\d+) = fromHex\["([0-9A-F]+)", \d+\];', wl)
@@ -1335,9 +1348,8 @@ def q_2_17_shows_its_construction():
     # first power of 2 that beats Thue-Morse by 1 from 2^18 to 2^17): the remark writes out the construction,
     # (p112 # p800) v (p48 # p432 # tau_1), links the script; the script
     # decodes the four blocks from hex codes that are exactly codes on the page.
-    li = re.search(r'<p class="entry"><i>n</i> = 2<sup>17</sup>: .*?</li>', page(), re.S).group(0)
-    assert '<span class="nw">(<i>p</i><sub>112</sub> # <i>p</i><sub>800</sub>)</span>' in li, li
-    assert '<span class="nw">∨ (<i>p</i><sub>48</sub> # <i>p</i><sub>432</sub> # τ<sub>1</sub>)</span>' in li, li
+    li = re.search(r'<p class="entry">\\\(n = 2\^\{17\}\\\): .*?</li>', page(), re.S).group(0)
+    assert '\\((p_{112} \\mathbin{\\#} p_{800}) \\vee (p_{48} \\mathbin{\\#} p_{432} \\mathbin{\\#} \\tau_1)\\)' in li, li
     assert 'certificate_2%5E17.wl"' in li, li
     wl = open(os.path.join(HERE, 'certificate_2^17.wl'), encoding='utf-8').read()
     codes = re.findall(r'(p\d+) = fromHex\["([0-9A-F]+)", \d+\];', wl)
@@ -1377,16 +1389,16 @@ def q_new_results_state_what_the_chart_proves():
         assert n <= NMAX or n == 2 ** k <= 2 ** pow2_data()['kmax'], n
         return cols[n - 1][:2] if n <= NMAX else pow2[k - 1][:2]
     def n_of(cell):
-        m = re.fullmatch(r'(\d+)|2<sup>(\d+)</sup>', cell)
+        m = re.fullmatch(r'(\d+)|\\\(2\^\{?(\d+)\}?\\\)', cell)
         assert m, cell
         return int(m.group(1)) if m.group(1) else 2 ** int(m.group(2))
     forms = ((r'(\d+)', lambda a: (a, a)), (r'(\d+) or (\d+)', lambda a, b: (a, b)), (r'(\d+)–(\d+)', lambda a, b: (a, b)),
-             (r'≥ (\d+)', lambda a: (a, math.inf)), (r'= (\d+)', lambda a: (a, a)),
-             (r'∈ \{(\d+)(?:, \d+)*, (\d+)\}', lambda a, b: (a, b)), (r'∈ \{(\d+), …, (\d+)\}', lambda a, b: (a, b)))
+             (r'(?:\\\()?\\ge (\d+)(?:\\\))?', lambda a: (a, math.inf)), (r'= (\d+)', lambda a: (a, a)),
+             (r'\\in \\\{(\d+)(?:, \d+)*, (\d+)\\\}', lambda a, b: (a, b)), (r'\\in \\\{(\d+), \\ldots, (\d+)\\\}', lambda a, b: (a, b)))
     def value(v):
         hits = [f(*map(int, m.groups())) for p, f in forms for m in [re.fullmatch(p, v)] if m]
         assert len(hits) == 1, v
-        assert '…' in v or not v.startswith('∈') or [int(t) for t in re.findall(r'\d+', v)] == list(range(hits[0][0], hits[0][1] + 1)), v
+        assert '\\ldots' in v or not v.startswith('\\in') or [int(t) for t in re.findall(r'\d+', v)] == list(range(hits[0][0], hits[0][1] + 1)), v
         return hits[0]
     table = []
     for t in re.findall(r'<table class="block">.*?</table>', ''.join(new_frames(page())), re.S):
@@ -1397,9 +1409,9 @@ def q_new_results_state_what_the_chart_proves():
                   for (attr, n), v in zip(ns, vs)]    # the cells without a provenance class copy Table 2's entries
     remarks = []
     entry = (r'<li(?: class="(\w+)")?(?: id="\w+")?>\s*<span class="mk" aria-hidden="true">[^<]*</span>\s*'
-             r'<p class="entry"><i>n</i> = ([^:]*): &nbsp;<span class="nw"><i>m</i><sup>\*</sup> ([^<]*)</span>')
+             r'<p class="entry">\\\(n = ([^:]*?)\\\): &nbsp;\\\(m\^\* (.*?)\\\)</p>')
     for cls, ns, v in re.findall(entry, page()):
-        remarks += [(n_of(n), *value(v), cls) for n in ns.split(', ')]
+        remarks += [(n_of(n if n.isdigit() else f'\\({n}\\)'), *value(v), cls) for n in ns.split(', ')]
     assert len(re.findall(entry, page())) == page().count('<p class="entry">'), 'an entry outside the form'
     # 512 and 1024 stand twice, in the upper rows and as powers of 2 (since 2026-10-27), as the same cell; each remark once
     cells = {n: c for n, lo, hi, c in table}
@@ -1418,9 +1430,9 @@ def q_citations_match_the_page():
     # hiWhy, who is its cell's title (whose proof).
     fig = re.search(r'<figure>.*?</figure>', page(), re.S).group(0)
     new = ''.join(new_frames(page()))
-    value = lambda cell: int(cell) if cell.isdigit() else 2 ** int(re.fullmatch(r'2<sup>(\d+)</sup>', cell).group(1))
+    value = lambda cell: int(cell) if cell.isdigit() else 2 ** int(re.fullmatch(r'\\\(2\^\{?(\d+)\}?\\\)', cell).group(1))
     titled = {value(n): (cls, who) for cls, who, n in
-              re.findall(r"<td(?: class=\"(a|c|ca|j|s)\")? title='([^']*)'>([^<]*(?:<sup>\d+</sup>)?)</td>", new)}
+              re.findall(r"<td(?: class=\"(a|c|ca|j|s)\")? title='([^']*)'>([^<]*)</td>", new)}
     titles = {n: who for n, (cls, who) in titled.items() if cls}      # the rest, unclassed, copy Table 2's powers of 2
     # 240 (since 2026-10-20), the 44 multiples of 16 from 304 to 992 (512 written 2^9) and 27 larger powers of 2,
     # 2^17 to 2^72 (6 until 560 reached order 10 on 2026-10-12, 11 until 800 reached order 11 on 2026-10-17, 18
@@ -1476,8 +1488,8 @@ def q_claude_and_astra_is_a_category_like_claude_and_bgpw():
             if b == ' class="ca"': ca.append((n, v))
     assert ca == [('592', '10'), ('608', '10'), ('656', '10'), ('752', '10'), ('784', '10')], ca
     for n in (592, 608, 656, 752, 784):
-        li = re.search(r'<li class="(\w+)">\n      <span class="mk" aria-hidden="true">([^<]*)</span>\n      <p class="entry"><i>n</i> = '
-                       + str(n) + r': ', text)
+        li = re.search(r'<li class="(\w+)">\n      <span class="mk" aria-hidden="true">([^<]*)</span>\n      <p class="entry">\\\(n = '
+                       + str(n) + r'\\\): ', text)
         assert li and li.groups() == ('ca', '◆✦'), (n, li and li.groups())
 
 
@@ -1497,12 +1509,12 @@ def q_examples_of_2026_10_25_have_entries_codes_and_sets():
         while not sum(c): c, k = [sum(c[:i + 1]) for i in range(len(c) - 1)], k + 1
         return k
     for n, m in [(592, 10), (608, 10), (656, 10)] + [(n, 11) for n in (848, 880, 896, 928, 944, 976, 992)]:
-        li = re.search(r'<li class="\w+">\n      <span class="mk" aria-hidden="true">[^<]*</span>\n      <p class="entry"><i>n</i> = '
-                       + str(n) + r': &nbsp;<span class="nw"><i>m</i><sup>\*</sup> = (\d+)</span></p>\n(.*?)\n    </li>', text, re.S)
+        li = re.search(r'<li class="\w+">\n      <span class="mk" aria-hidden="true">[^<]*</span>\n      <p class="entry">\\\(n = '
+                       + str(n) + r'\\\): &nbsp;\\\(m\^\* = (\d+)\\\)</p>\n(.*?)\n    </li>', text, re.S)
         assert li and int(li.group(1)) == m, n
         lo, hi, lw, hw = cols[n - 1]
         assert [lo, hi, lw] == [m, m, ['example', f'index.html p{n}']], (n, cols[n - 1])
-        codes = re.findall(r'<p class="code">\n        <span><i>p</i><sub>(\d+)</sub> <span class="nw">\(<i>m</i> = (\d+)\)</span>:</span>\n'
+        codes = re.findall(r'<p class="code">\n        <span>\\\(p_\{(\d+)\}\\\) \\\(\(m = (\d+)\)\\\):</span>\n'
                            r'        <code>([0-9A-F]+)</code>\n      </p>', li.group(2))
         assert len(codes) == 1 and codes[0][:2] == (str(n), str(m)), (n, codes)
         h = codes[0][2]
@@ -1519,7 +1531,7 @@ def q_752_bound_cites_proof752():
     # ["page", "Claude and Astra"]; and proof752.py is in the working directory.  Since 2026-10-26, when Claude's
     # search found an example of order 10 at 752, the entry is "m* = 10" and the column is [10, 10, ["example",
     # "index.html p752"], …].
-    li = re.search(r'<p class="entry"><i>n</i> = 752: &nbsp;<span class="nw"><i>m</i><sup>\*</sup> = 10</span></p>\n(.*?)\n    </li>',
+    li = re.search(r'<p class="entry">\\\(n = 752\\\): &nbsp;\\\(m\^\* = 10\\\)</p>\n(.*?)\n    </li>',
                    page(), re.S)
     assert li, 'no entry for 752 alone'
     assert 'href="https://github.com/dreeves/equipow/blob/main/proof752.py"' in li.group(1), li.group(1)[:600]
@@ -1540,10 +1552,10 @@ def q_288_bound_is_proved_here():
     text = page()
     fig = re.search(r'<figure>.*?</figure>', text, re.S).group(0)
     assert 'proof288' not in fig, fig[:600]
-    li = re.search(r'<li>\n      <span class="mk" aria-hidden="true"></span>\n      <p class="entry"><i>n</i> = 288: &nbsp;'
-                   r'<span class="nw"><i>m</i><sup>\*</sup> ∈ \{9, 10\}</span></p>\n(.*?)\n    </li>', text, re.S)
+    li = re.search(r'<li>\n      <span class="mk" aria-hidden="true"></span>\n      <p class="entry">\\\(n = 288\\\): &nbsp;'
+                   r'\\\(m\^\* \\in \\\{9, 10\\\}\\\)</p>\n(.*?)\n    </li>', text, re.S)
     assert li and 'href="https://github.com/dreeves/equipow/blob/main/proof288.py"' in li.group(1), li and li.group(1)
-    listed = re.findall(r'<p class="entry"><i>n</i> = ([^:]*): ', text)
+    listed = re.findall(r'<p class="entry">\\\(n = (.*?)\\\): ', text)
     assert listed[listed.index('288') - 1:listed.index('288') + 2] == ['240', '288', '304'], listed
     col = mstar_data()['cols'][288 - 1]
     assert col[:2] == [9, 10] and col[3] == ['table2'], col
@@ -1569,12 +1581,12 @@ def q_examples_of_2026_10_26_have_entries_codes_and_sets():
         while not sum(c): c, k = [sum(c[:i + 1]) for i in range(len(c) - 1)], k + 1
         return k
     for n, m in ((752, 10), (784, 10), (832, 11)):
-        li = re.search(r'<li class="\w+">\n      <span class="mk" aria-hidden="true">[^<]*</span>\n      <p class="entry"><i>n</i> = '
-                       + str(n) + r': &nbsp;<span class="nw"><i>m</i><sup>\*</sup> = (\d+)</span></p>\n(.*?)\n    </li>', text, re.S)
+        li = re.search(r'<li class="\w+">\n      <span class="mk" aria-hidden="true">[^<]*</span>\n      <p class="entry">\\\(n = '
+                       + str(n) + r'\\\): &nbsp;\\\(m\^\* = (\d+)\\\)</p>\n(.*?)\n    </li>', text, re.S)
         assert li and int(li.group(1)) == m, n
         lo, hi, lw, hw = cols[n - 1]
         assert [lo, hi, lw] == [m, m, ['example', f'index.html p{n}']], (n, cols[n - 1])
-        codes = re.findall(r'<p class="code">\n        <span><i>p</i><sub>(\d+)</sub> <span class="nw">\(<i>m</i> = (\d+)\)</span>:</span>\n'
+        codes = re.findall(r'<p class="code">\n        <span>\\\(p_\{(\d+)\}\\\) \\\(\(m = (\d+)\)\\\):</span>\n'
                            r'        <code>([0-9A-F]+)</code>\n      </p>', li.group(2))
         assert len(codes) == 1 and codes[0][:2] == (str(n), str(m)), (n, codes)
         h = codes[0][2]
@@ -1582,7 +1594,7 @@ def q_examples_of_2026_10_26_have_entries_codes_and_sets():
         a = left + [(-1) ** m * s for s in reversed(left)]
         assert len(a) == n and order(a) == m, (n, len(a), order(a))
         assert sets[m, n] == {i for i, s in enumerate(a) if s == 1} and 0 in sets[m, n], n
-    listed = [ns.split(', ') for ns in re.findall(r'<p class="entry"><i>n</i> = ([^:]*): ', text)]
+    listed = [ns.split(', ') for ns in re.findall(r'<p class="entry">\\\(n = (.*?)\\\): ', text)]
     assert [ns for ns in listed if {'752', '784', '832'} & set(ns)] == [['752'], ['784'], ['832']], listed
     run = [ns[0] for ns in listed if ns[0] in ('656', '752', '784', '800', '832', '848')]
     assert run == ['656', '752', '784', '800', '832', '848'], run
@@ -1602,10 +1614,10 @@ def q_example_at_1024_has_its_entry_code_set_and_cell():
     # 2^10 is [11, 11, ["joins", [[[1024, 11]]]], ["mstar", ["norm", 3]]]: since 2026-10-27, when the m*(n) chart
     # reached 1024, its hi is that chart's column 1024 (before, ["norm", 3] by pow2.py's own norm bound, the same one).
     text = page()
-    li = re.search(r'<li class="c">\n      <span class="mk" aria-hidden="true">◆</span>\n      <p class="entry"><i>n</i> = '
-                   r'1024: &nbsp;<span class="nw"><i>m</i><sup>\*</sup> = 11</span></p>\n(.*?)\n    </li>', text, re.S)
+    li = re.search(r'<li class="c">\n      <span class="mk" aria-hidden="true">◆</span>\n      <p class="entry">\\\(n = '
+                   r'1024\\\): &nbsp;\\\(m\^\* = 11\\\)</p>\n(.*?)\n    </li>', text, re.S)
     assert li, 'no entry of 1024 alone'
-    codes = re.findall(r'<p class="code">\n        <span><i>p</i><sub>(\d+)</sub> <span class="nw">\(<i>m</i> = (\d+)\)</span>:</span>\n'
+    codes = re.findall(r'<p class="code">\n        <span>\\\(p_\{(\d+)\}\\\) \\\(\(m = (\d+)\)\\\):</span>\n'
                        r'        <code>([0-9A-F]+)</code>\n      </p>', li.group(1))
     assert len(codes) == 1 and codes[0][:2] == ('1024', '11'), codes
     h = codes[0][2]
@@ -1617,11 +1629,11 @@ def q_example_at_1024_has_its_entry_code_set_and_cell():
     sets = {(int(m), int(n)): {int(t) for t in body.split(',')}
             for m, n, body in re.findall(r'SClaude\[(\d+)\]\[(\d+)\] = \{([^}]*)\};', text)}
     assert sets[11, 1024] == {i for i, s in enumerate(a) if s == 1} and 0 in sets[11, 1024]
-    listed = [ns.split(', ') for ns in re.findall(r'<p class="entry"><i>n</i> = ([^:]*): ', text)]
+    listed = [ns.split(', ') for ns in re.findall(r'<p class="entry">\\\(n = (.*?)\\\): ', text)]
     assert listed[listed.index(['992']) + 1:listed.index(['992']) + 3] == [['1008'], ['1024']], listed
-    row = re.search(r'<td title=\'The published paper \(2021\)\'>2<sup>3</sup></td>.*?</tr>\s*<tr class="vals">.*?</tr>',
+    row = re.search(r'<td title=\'The published paper \(2021\)\'>\\\(2\^3\\\)</td>.*?</tr>\s*<tr class="vals">.*?</tr>',
                     text, re.S).group(0)
-    ns = re.findall(r'<td([^>]*)>2<sup>(\d+)</sup></td>', row)
+    ns = re.findall(r'<td([^>]*)>\\\(2\^\{?(\d+)\}?\\\)</td>', row)
     vals = re.findall(r'<td([^>]*)>([^<]*)</td>', row.split('<tr class="vals">')[1])
     i = [k for _, k in ns].index('10')
     assert ns[i - 1][1] == '9' and ns[i][0] == ' class="c" title=\'Claude alone\'' and vals[i] == (' class="c"', '11'), (ns, vals)
@@ -1634,9 +1646,9 @@ def q_symmetric_example_at_528():
     # Expectata (2026-10-27, dreeves: "sure", to putting a symmetric 528 example on the page; four were found that day
     # by a lattice search, scratch/sym528): the entry keeps the join's code p192 and adds p528 (m = 10), which decodes
     # to a symmetric sequence of length 528, exact order 10, +1 at 0.
-    li = re.search(r'<p class="entry"><i>n</i> = 528: .*?</li>', page(), re.S)
+    li = re.search(r'<p class="entry">\\\(n = 528\\\): .*?</li>', page(), re.S)
     assert li, 'no entry of 528'
-    codes = re.findall(r'<i>p</i><sub>(\d+)</sub> <span class="nw">\(<i>m</i> = (\d+)\)</span>:</span>\n\s*<code>([0-9A-F]+)</code>',
+    codes = re.findall(r'\\\(p_\{(\d+)\}\\\) \\\(\(m = (\d+)\)\\\):</span>\n\s*<code>([0-9A-F]+)</code>',
                        li.group(0))
     assert [c[:2] for c in codes] == [('192', '9'), ('528', '10')], codes
     h = codes[1][2]
@@ -1666,23 +1678,23 @@ def q_1024_doubled_settles_2_11_and_2_12():
     cols, text = pow2_data()['cols'], page()
     assert cols[10] == [12, 12, ['joins', [[[1024, 11], [2, 1]]]], ['residue', [3]]], cols[10]
     assert cols[11] == [13, 13, ['joins', [[[1024, 11], [4, 2]]]], ['residue', [3]]], cols[11]
-    row = re.search(r'<td title=\'The published paper \(2021\)\'>2<sup>3</sup></td>.*?</tr>\s*<tr class="vals">.*?</tr>',
+    row = re.search(r'<td title=\'The published paper \(2021\)\'>\\\(2\^3\\\)</td>.*?</tr>\s*<tr class="vals">.*?</tr>',
                     text, re.S).group(0)
-    ns = re.findall(r'<td([^>]*)>2<sup>(\d+)</sup></td>', row)
+    ns = re.findall(r'<td([^>]*)>\\\(2\^\{?(\d+)\}?\\\)</td>', row)
     vals = re.findall(r'<td([^>]*)>([^<]*)</td>', row.split('<tr class="vals">')[1])
     i = [k for _, k in ns].index('10')
     assert [k for _, k in ns[i:i + 4]] == ['10', '11', '12', '17'], ns
     assert all(a == ' class="c" title=\'Claude alone\'' for a, _ in ns[i + 1:i + 3]), ns
     assert vals[i + 1:i + 3] == [(' class="c"', '12'), (' class="c"', '13')], vals
-    listed = re.findall(r'<p class="entry"><i>n</i> = ([^:]*): ', text)
-    j = listed.index('2<sup>11</sup>')
-    assert listed[j:j + 3] == ['2<sup>11</sup>', '2<sup>12</sup>', '2<sup>17</sup>'], listed
+    listed = re.findall(r'<p class="entry">\\\(n = (.*?)\\\): ', text)
+    j = listed.index('2^{11}')
+    assert listed[j:j + 3] == ['2^{11}', '2^{12}', '2^{17}'], listed
     for k, m, j in ((11, 12, 1), (12, 13, 2)):
-        li = re.search(r'<li class="c">\n      <span class="mk" aria-hidden="true">◆</span>\n      <p class="entry"><i>n</i> = '
-                       rf'2<sup>{k}</sup>: &nbsp;<span class="nw"><i>m</i><sup>\*</sup> = {m}</span></p>\n(.*?)\n    </li>', text, re.S)
+        li = re.search(r'<li class="c">\n      <span class="mk" aria-hidden="true">◆</span>\n      <p class="entry">\\\(n = '
+                       rf'2\^\{{{k}\}}\\\): &nbsp;\\\(m\^\* = {m}\\\)</p>\n(.*?)\n    </li>', text, re.S)
         assert li, k
         said = re.search(r'<p>Claude: "(.*?)"</p>', li.group(1)).group(1)
-        assert f'<i>p</i><sub>1024</sub> # τ<sub>{j}</sub>' in said and 'residue condition mod 3' in said, said
+        assert f'\\(p_{{1024}} \\mathbin{{\\#}} \\tau_{j}\\)' in said and 'residue condition mod 3' in said, said
     entries = [(d, statements(rest)) for d, rest in changelog()]
     assert ('2026-10-26', {2 ** 11: (12, 12), 2 ** 12: (13, 13)}) in entries, entries[:4]
 
@@ -1701,11 +1713,11 @@ def q_example_at_816_has_its_entry_code_and_set():
     # q_examples_at_720_and_1008_have_their_entries_codes_and_sets); the cell 816 of value 12–14; and mstar.js's
     # column 816 is [12, 14, ["example", "index.html p816"], ["norm", 5]].
     text = page()
-    li = re.search(r'<li class="c">\n      <span class="mk" aria-hidden="true">◆</span>\n      <p class="entry"><i>n</i> = '
-                   r'816: &nbsp;<span class="nw"><i>m</i><sup>\*</sup> ∈ \{12, 13, 14\}</span></p>\n(.*?)\n    </li>', text, re.S)
+    li = re.search(r'<li class="c">\n      <span class="mk" aria-hidden="true">◆</span>\n      <p class="entry">\\\(n = '
+                   r'816\\\): &nbsp;\\\(m\^\* \\in \\\{12, 13, 14\\\}\\\)</p>\n(.*?)\n    </li>', text, re.S)
     assert li, 'no entry of 816 alone'
     assert 'norm bound for the residue sums mod 5' in re.search(r'<p>Claude: "(.*?)"</p>', li.group(1)).group(1), li.group(1)[:300]
-    codes = re.findall(r'<p class="code">\n        <span><i>p</i><sub>(\d+)</sub> <span class="nw">\(<i>m</i> = (\d+)\)</span>:</span>\n'
+    codes = re.findall(r'<p class="code">\n        <span>\\\(p_\{(\d+)\}\\\) \\\(\(m = (\d+)\)\\\):</span>\n'
                        r'        <code>([0-9A-F]+)</code>\n      </p>', li.group(1))
     assert len(codes) == 1 and codes[0][:2] == ('816', '12'), codes
     h = codes[0][2]
@@ -1717,7 +1729,7 @@ def q_example_at_816_has_its_entry_code_and_set():
     sets = {(int(m), int(n)): {int(t) for t in body.split(',')}
             for m, n, body in re.findall(r'SClaude\[(\d+)\]\[(\d+)\] = \{([^}]*)\};', text)}
     assert sets[12, 816] == {i for i, s in enumerate(a) if s == 1} and 0 in sets[12, 816] and (11, 816) not in sets
-    listed = [ns.split(', ') for ns in re.findall(r'<p class="entry"><i>n</i> = ([^:]*): ', text)]
+    listed = [ns.split(', ') for ns in re.findall(r'<p class="entry">\\\(n = (.*?)\\\): ', text)]
     i = listed.index(['816'])
     assert listed[i - 1:i + 2] == [['800'], ['816'], ['832']] and ['720'] in listed, listed
     assert new_cells(text)[816] == (12, 14), new_cells(text)[816]
@@ -1742,15 +1754,15 @@ def q_examples_at_720_and_1008_have_their_entries_codes_and_sets():
     text = page()
     sets = {(int(m), int(n)): {int(t) for t in body.split(',')}
             for m, n, body in re.findall(r'SClaude\[(\d+)\]\[(\d+)\] = \{([^}]*)\};', text)}
-    listed = [ns.split(', ') for ns in re.findall(r'<p class="entry"><i>n</i> = ([^:]*): ', text)]
+    listed = [ns.split(', ') for ns in re.findall(r'<p class="entry">\\\(n = (.*?)\\\): ', text)]
     assert (11, 1008) not in sets and (11, 720) not in sets, 'a superseded SClaude[11][1008] or SClaude[11][720] is still on the page'
-    for n, m, values, before, after, says, hi in ((720, 12, '\\{12, 13, 14\\}', '656', '752', 'residue condition mod 16', 14),
-                                                  (1008, 12, '\\{12, 13\\}', '992', '1024', 'residue condition mod 5', 13)):
-        li = re.search(r'<li class="c">\n      <span class="mk" aria-hidden="true">◆</span>\n      <p class="entry"><i>n</i> = '
-                       rf'{n}: &nbsp;<span class="nw"><i>m</i><sup>\*</sup> ∈ {values}</span></p>\n(.*?)\n    </li>', text, re.S)
+    for n, m, values, before, after, says, hi in ((720, 12, '\\\\\\{12, 13, 14\\\\\\}', '656', '752', 'residue condition mod 16', 14),
+                                                  (1008, 12, '\\\\\\{12, 13\\\\\\}', '992', '1024', 'residue condition mod 5', 13)):
+        li = re.search(r'<li class="c">\n      <span class="mk" aria-hidden="true">◆</span>\n      <p class="entry">\\\(n = '
+                       rf'{n}\\\): &nbsp;\\\(m\^\* \\in {values}\\\)</p>\n(.*?)\n    </li>', text, re.S)
         assert li, f'no entry of {n} alone'
         assert says in re.search(r'<p>Claude: "(.*?)"</p>', li.group(1)).group(1), li.group(1)[:300]
-        codes = re.findall(r'<p class="code">\n        <span><i>p</i><sub>(\d+)</sub> <span class="nw">\(<i>m</i> = (\d+)\)</span>:</span>\n'
+        codes = re.findall(r'<p class="code">\n        <span>\\\(p_\{(\d+)\}\\\) \\\(\(m = (\d+)\)\\\):</span>\n'
                            r'        <code>([0-9A-F]+)</code>\n      </p>', li.group(1))
         assert len(codes) == 1 and codes[0][:2] == (str(n), str(m)), codes
         h = codes[0][2]
@@ -1780,11 +1792,11 @@ def q_example_at_912_has_its_entry_code_and_set():
     # 672 and 768 no longer names 912; the cell 12–13; mstar.js's column [12, 13, ["example", "index.html p912"],
     # ["residue", 5]].
     text = page()
-    li = re.search(r'<li class="c">\n      <span class="mk" aria-hidden="true">◆</span>\n      <p class="entry"><i>n</i> = '
-                   r'912: &nbsp;<span class="nw"><i>m</i><sup>\*</sup> ∈ \{12, 13\}</span></p>\n(.*?)\n    </li>', text, re.S)
+    li = re.search(r'<li class="c">\n      <span class="mk" aria-hidden="true">◆</span>\n      <p class="entry">\\\(n = '
+                   r'912\\\): &nbsp;\\\(m\^\* \\in \\\{12, 13\\\}\\\)</p>\n(.*?)\n    </li>', text, re.S)
     assert li, 'no entry of 912 alone'
     assert 'residue condition mod 5' in re.search(r'<p>Claude: "(.*?)"</p>', li.group(1)).group(1), li.group(1)[:300]
-    codes = re.findall(r'<p class="code">\n        <span><i>p</i><sub>(\d+)</sub> <span class="nw">\(<i>m</i> = (\d+)\)</span>:</span>\n'
+    codes = re.findall(r'<p class="code">\n        <span>\\\(p_\{(\d+)\}\\\) \\\(\(m = (\d+)\)\\\):</span>\n'
                        r'        <code>([0-9A-F]+)</code>\n      </p>', li.group(1))
     assert len(codes) == 1 and codes[0][:2] == ('912', '12'), codes
     h = codes[0][2]
@@ -1796,7 +1808,7 @@ def q_example_at_912_has_its_entry_code_and_set():
     sets = {(int(m), int(n)): {int(t) for t in body.split(',')}
             for m, n, body in re.findall(r'SClaude\[(\d+)\]\[(\d+)\] = \{([^}]*)\};', text)}
     assert sets[12, 912] == {i for i, s in enumerate(a) if s == 1} and 0 in sets[12, 912]
-    listed = [ns.split(', ') for ns in re.findall(r'<p class="entry"><i>n</i> = ([^:]*): ', text)]
+    listed = [ns.split(', ') for ns in re.findall(r'<p class="entry">\\\(n = (.*?)\\\): ', text)]
     i = listed.index(['912'])
     assert listed[i - 1:i + 2] == [['896'], ['912'], ['928']], listed[i - 1:i + 2]
     assert sum('912' in ns for ns in listed) == 1 and ['672'] in listed, [ns for ns in listed if '672' in ns]   # 672 and 768 until 768's example
@@ -1815,11 +1827,11 @@ def q_example_at_768_has_its_entry_code_and_set():
     # shared with 672 now names 672 alone; the cell 12–13; mstar.js's column [12, 13, ["example", "index.html p768"],
     # ["residue", 5]].
     text = page()
-    li = re.search(r'<li class="c">\n      <span class="mk" aria-hidden="true">◆</span>\n      <p class="entry"><i>n</i> = '
-                   r'768: &nbsp;<span class="nw"><i>m</i><sup>\*</sup> ∈ \{12, 13\}</span></p>\n(.*?)\n    </li>', text, re.S)
+    li = re.search(r'<li class="c">\n      <span class="mk" aria-hidden="true">◆</span>\n      <p class="entry">\\\(n = '
+                   r'768\\\): &nbsp;\\\(m\^\* \\in \\\{12, 13\\\}\\\)</p>\n(.*?)\n    </li>', text, re.S)
     assert li, 'no entry of 768 alone'
     assert 'residue condition mod 5' in re.search(r'<p>Claude: "(.*?)"</p>', li.group(1)).group(1), li.group(1)[:300]
-    codes = re.findall(r'<p class="code">\n        <span><i>p</i><sub>(\d+)</sub> <span class="nw">\(<i>m</i> = (\d+)\)</span>:</span>\n'
+    codes = re.findall(r'<p class="code">\n        <span>\\\(p_\{(\d+)\}\\\) \\\(\(m = (\d+)\)\\\):</span>\n'
                        r'        <code>([0-9A-F]+)</code>\n      </p>', li.group(1))
     assert len(codes) == 1 and codes[0][:2] == ('768', '12'), codes
     h = codes[0][2]
@@ -1831,7 +1843,7 @@ def q_example_at_768_has_its_entry_code_and_set():
     sets = {(int(m), int(n)): {int(t) for t in body.split(',')}
             for m, n, body in re.findall(r'SClaude\[(\d+)\]\[(\d+)\] = \{([^}]*)\};', text)}
     assert sets[12, 768] == {i for i, s in enumerate(a) if s == 1} and 0 in sets[12, 768]
-    listed = [ns.split(', ') for ns in re.findall(r'<p class="entry"><i>n</i> = ([^:]*): ', text)]
+    listed = [ns.split(', ') for ns in re.findall(r'<p class="entry">\\\(n = (.*?)\\\): ', text)]
     i = listed.index(['768'])
     assert listed[i - 1:i + 2] == [['752'], ['768'], ['784']], listed[i - 1:i + 2]
     assert sum('768' in ns for ns in listed) == 1 and ['672'] in listed, [ns for ns in listed if '672' in ns or '768' in ns]
@@ -1916,13 +1928,13 @@ def q_912_moves_excess_3_to_2_29():
     cells = new_cells(text)
     assert [cells[2 ** k] for k in (29, 30, 33, 34)] == [(32, 35), (33, 36), (36, 40), (37, 41)], [cells.get(2 ** k) for k in (29, 30, 33, 34)]
     said = {int(k): re.search(r'<p>Claude: "(.*?)"</p>', body).group(1) for k, body in
-            re.findall(r'<p class="entry"><i>n</i> = 2<sup>(\d+)</sup>: [^\n]*\n(.*?)\n    </li>', text, re.S)}
-    assert '2<sup>29</sup> = 608·800<sup>2</sup> + 336<sup>2</sup>·912 + 240·432<sup>2</sup>' in said[29], said[29]
+            re.findall(r'<p class="entry">\\\(n = 2\^\{?(\d+)\}?\\\): [^\n]*\n(.*?)\n    </li>', text, re.S)}
+    assert '\\(2^{29} = 608\\cdot 800^2 + 336^2\\cdot 912 + 240\\cdot 432^2\\)' in said[29], said[29]
     assert 'each of order 32' in said[29] and 'That beats Thue–Morse by 3' in said[29], said[29]
     for k, j, m in ((30, 1, 33), (33, 4, 36), (34, 5, 37)):
-        assert f'The join of the 2<sup>29</sup> entry, each product times τ<sub>{j}</sub>, has order {m}.' in said[k], said[k]
+        assert f'The join of the \\(2^{{29}}\\) entry, each product times \\(\\tau_{j}\\), has order {m}.' in said[k], said[k]
     theorem = re.search(r'<p><b>Theorem.</b>(.*?)</p>', text).group(1)
-    assert '(2<sup>29</sup>) ≥ 32' in theorem and '(2<sup>30</sup>)' not in theorem, theorem
+    assert '(2^{29}) \\ge 32' in theorem and '(2^{30})' not in theorem, theorem
     assert ' are 10, 20, 29, 37, 39, 48, 57, 65, 68.</p>' in text           # 41 for excess 5 until 768's example of order 12
 
 
@@ -1947,13 +1959,13 @@ def q_768_moves_excess_5_to_2_39():
     cells = new_cells(text)
     assert [cells[2 ** k] for k in (39, 41, 43, 46)] == [(44, 47), (46, 50), (48, 53), (51, 57)], [cells.get(2 ** k) for k in (39, 41, 43, 46)]
     said = {int(k): re.search(r'<p>Claude: "(.*?)"</p>', body).group(1) for k, body in
-            re.findall(r'<p class="entry"><i>n</i> = 2<sup>(\d+)</sup>: [^\n]*\n(.*?)\n    </li>', text, re.S)}
+            re.findall(r'<p class="entry">\\\(n = 2\^\{?(\d+)\}?\\\): [^\n]*\n(.*?)\n    </li>', text, re.S)}
     assert 'A join of three products of examples above and Thue–Morse, each of order 44' in said[39], said[39]
     assert 'That beats Thue–Morse by 5' in said[39], said[39]
     for k, j, m in ((41, 2, 46), (43, 4, 48), (46, 7, 51)):
-        assert f'The join of the 2<sup>39</sup> entry, each product times τ<sub>{j}</sub>, has order {m}.' in said[k], said[k]
+        assert f'The join of the \\(2^{{39}}\\) entry, each product times \\(\\tau_{j}\\), has order {m}.' in said[k], said[k]
     theorem = re.search(r'<p><b>Theorem.</b>(.*?)</p>', text).group(1)
-    assert '(2<sup>39</sup>) ≥ 44' in theorem and '(2<sup>41</sup>)' not in theorem, theorem
+    assert '(2^{39}) \\ge 44' in theorem and '(2^{41})' not in theorem, theorem
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -2507,15 +2519,15 @@ def q_theorem_states_pow2_s_thresholds():
     # those same ks.
     sec = re.search(r'<section class="pow2".*?</section>', page(), re.S).group(0)
     paras = re.findall(r'<p>.*?</p>', sec, re.S)
-    theorem = next(p for p in paras if re.search(r'\(2<sup>\d+</sup>\) ≥ \d+', p))
-    alt = next(p for p in paras if '1, 2, …, ' in p)
-    bounds = [(int(k), op, int(v)) for k, op, v in re.findall(r'\(2<sup>(\d+)</sup>\) (≥|=) (\d+)', theorem)]
+    theorem = next(p for p in paras if re.search(r'\(2\^\{?\d+\}?\) \\ge \d+', p))
+    alt = next(p for p in paras if '1, 2, \\ldots, ' in p)
+    bounds = [(int(k), op, int(v)) for k, op, v in re.findall(r'\(2\^\{?(\d+)\}?\) (\\ge|=) (\d+)', theorem)]
     cols = pow2_data()['cols']
     E = max(c[0] - k for k, c in enumerate(cols, 1))
     firsts = [next(k for k in range(1, len(cols) + 1) if cols[k - 1][0] - k >= e) for e in range(1, E + 1)]
-    assert bounds[:E] == [(k, '≥', k + e) for e, k in enumerate(firsts, 1)], (bounds, firsts)
+    assert bounds[:E] == [(k, '\\ge', k + e) for e, k in enumerate(firsts, 1)], (bounds, firsts)
     assert bounds[E:] == [(9, '=', 9)] and cols[8][:2] == [9, 9], (bounds[E:], cols[8][:2])
-    assert f'1, 2, …, {E}' in alt and ', '.join(map(str, firsts)) in alt, (alt, firsts)
+    assert f'1, 2, \\ldots, {E}' in alt and ', '.join(map(str, firsts)) in alt, (alt, firsts)
 
 
 def q_smallest_section_sits_between_the_remarks_and_the_counts():
