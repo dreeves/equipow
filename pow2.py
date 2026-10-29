@@ -112,7 +112,13 @@ RESIDUE = {11: (13, (3,), 'digits'), 12: (14, (3,), 'digits'), 14: (17, (3,), 'd
 # (scratch/wish4/results/wish_n912_m12.json) finds no K <= 28 reaching e = 3, exhaustively, and moves no other first
 # K0; at e = 8 it leaves 58 to 64 undecided, 60 among them, and at e = 9, 67.  The example of order 12 at 816
 # (2026-10-28) raised BASES[41]'s product 432^3 # 816 # tau_2 from order 46 to 47; the join's order stays 46.
-# With 816 at order 12 among the blocks, the search (scratch/wish5/results/wish_n816_m12.json) moves no first K0; at e = 8 it leaves 58 to 64 undecided, and at e = 9, 67.
+# With 816 at order 12 among the blocks, the search (scratch/wish5/results/wish_n816_m12.json) moves no first K0; at
+# e = 8 it leaves 58 to 64 undecided, and at e = 9, 67.  The example of order 12 at 768 (that evening) moved the
+# first K0 for e = 5 from 41 to 39: BASES[39] has 768 among its blocks, and lifted it matches the superseded
+# BASES[41], (800^2 # 832 # 848 # tau_2) v (432^3 # 816 # tau_2) v (480^3 # 784) v (432^2 # 480^2), at every
+# k >= 41; with 768 at order 12 among the blocks, the search (scratch/wish5/results/wish_n768_m12.json) finds no
+# K <= 38 reaching e = 5, exhaustively, and moves no other first K0; at e = 8 it leaves 58 to 64 undecided, and at
+# e = 9, 67.
 # (The examples of order 10 at 592, 608 and 656 and of order 11 at 848, 880, 896, 928, 944, 976 and 992, 2026-10-25,
 # had moved the first K0 for e = 2 from 27 to 20 (BASES[20] is 848 # 992 joined to 240 # 432 # tau_1), for e = 3 from
 # 34 to 30, for e = 4 from 38 to 37, for e = 6 from 52 to 49 and for e = 8 from 66 to 65, and given e = 9 at 72; the
@@ -129,10 +135,9 @@ BASES = {10: [[[1024, 11]]],
          37: [[[208, 8], [800, 11], [800, 11], [848, 11]],
               [[192, 9], [192, 9], [432, 11], [432, 11], [2, 1]],
               [[48, 6], [480, 12], [480, 12], [976, 11]]],
-         41: [[[800, 11], [800, 11], [832, 11], [848, 11], [4, 2]],
-              [[432, 11], [432, 11], [432, 11], [816, 12], [4, 2]],
-              [[480, 12], [480, 12], [480, 12], [784, 10]],
-              [[432, 11], [432, 11], [480, 12], [480, 12]]],
+         39: [[[800, 11], [832, 11], [832, 11], [832, 11]],
+              [[192, 9], [432, 11], [432, 11], [768, 12], [2, 1]],
+              [[48, 6], [480, 12], [480, 12], [768, 12], [4, 2]]],
          48: [[[560, 10], [800, 11], [800, 11], [800, 11], [832, 11]],
               [[336, 10], [336, 10], [432, 11], [432, 11], [432, 11], [2, 1]],
               [[48, 6], [480, 12], [480, 12], [480, 12], [928, 11], [2, 1]],

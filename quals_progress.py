@@ -1733,8 +1733,9 @@ def q_survey_track_reads_each_run_s_state():
     # R); one whose pid is stopped (T); one whose pid is gone; one whose pid is a zombie (Z); the last four with no end
     # line; at time 5000.
     # Expectata (dreeves, 2026-10-28: "can we rearchitect things so that always happens easily and automatically?"):
-    # the runs' dots in record order are open, running, pending, split, split (SEA_STATUSES: ended, running, frozen,
-    # aborted, aborted; a zombie is gone); the search is running, its outcome null; work counts 5 runs, 1 running, 1
+    # the runs' dots in record order are settled, running, pending, open, open (SEA_STATUSES' colors: green ended,
+    # orange running, gray frozen, crimson aborted; a zombie is gone); the search is running, its outcome null; work
+    # counts 5 runs, 1 running, 1
     # frozen, 1 ended, 2 aborted and 2 found; so_far 4000 (from the first start to the time); no ETA; n 768, order 12,
     # program w12.py, tracked.
     d = tempfile.mkdtemp(prefix='progress-quals-')
@@ -1745,7 +1746,7 @@ def q_survey_track_reads_each_run_s_state():
         procs = [(101, 1, 'RN', 'python3 -B w12.py'), (102, 1, 'TN', 'python3 -B w12.py'), (104, 1, 'Z', '(Python)')]
         s = progress.survey_track('768:12', records, procs, 5000.0)
         pick = lambda st: str(progress.SEA_STATUSES.index(st))
-        assert s['sea']['groups'] == [''.join(map(pick, ['open', 'running', 'pending', 'split', 'split']))], s['sea']
+        assert s['sea']['groups'] == [''.join(map(pick, ['settled', 'running', 'pending', 'open', 'open']))], s['sea']
         assert s['sea']['keys'] == ['768:12'] and s['sea']['depth'] == 0, s['sea']
         assert (s['state'], s['outcome'], s['so_far'], s['to_go'], s['etas']) == ('running', None, 4000.0, None, {}), s
         assert s['display']['work'] == dict(runs=5, running=1, frozen=1, ended=1, aborted=2, found=2), s['display']

@@ -219,11 +219,12 @@ def q_page_parse():
     # 2^72 joined them, once 592, 608 and 656 reached order 10 and 848, 880, 896, 928, 944, 976 and 992 order 11;
     # 70 from 2026-10-26, when 2^43 and 2^68 joined them, once 752 and 784 reached order 10 and 832 order 11; 73 from
     # later that day, when 2^10, 2^11 and 2^12 joined them, settled at 11, 12 and 13 by Claude's example of order 11
-    # at 1024; 74 from 2026-10-27, when 1008 joined them, as the chart and the table reached 1024; 75 since 2026-10-28,
-    # when 2^29 joined them, once 912 reached order 12).
+    # at 1024; 74 from 2026-10-27, when 1008 joined them, as the chart and the table reached 1024; 75 from 2026-10-28,
+    # when 2^29 joined them, once 912 reached order 12; 76 since that evening, when 2^39 joined them, once 768 reached
+    # order 12).
     src = mstar.page_sources(open(os.path.join(HERE, 'index.html'), encoding='utf-8').read())
     assert src['table2'] == mstar.TABLE2 and len(mstar.TABLE2) == 39
-    assert src['new'] == mstar.NEW and len(mstar.NEW) == 75
+    assert src['new'] == mstar.NEW and len(mstar.NEW) == 76
     assert set(who for _, _, who in mstar.NEW.values()) == {'BGPW', 'Claude alone', 'Claude and BGPW', 'Astra alone',
                                                              'Claude and Astra'}
     assert [(m, h) for _, m, h in mstar.PAGE_CODES] == [(m, h) for m, h in src['codes']]

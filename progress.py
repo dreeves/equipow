@@ -1693,9 +1693,9 @@ def survey_track(target, records, procs, now):
     running while a run runs, frozen while none runs and one is frozen, and ended once none is either; its outcome,
     once all its runs ended with end lines, 'found' if the found files of their starts hold a line in all and 'none' if
     not, else null (the page shows an ended search with no outcome as aborted).  Its time so far runs from its first
-    start to now, or to its last line once it ended.  One dot per run in record order: open ended, running running,
-    pending frozen, split aborted.  work counts the runs by state and the found files' lines (a missing file holds
-    none), each file once."""
+    start to now, or to its last line once it ended.  One dot per run in record order, in the colors of settled for
+    ended, running for running, pending for frozen and open for aborted.  work counts the runs by state and the found
+    files' lines (a missing file holds none), each file once."""
     n, order = map(int, target.split(':'))
     live = {pid: stat for pid, _, stat, _ in procs if not stat.startswith('Z')}
     states = [('ended' if r[-1]['event'] == 'end' else 'aborted' if r[0]['pid'] not in live else
@@ -1706,7 +1706,7 @@ def survey_track(target, records, procs, now):
     outcome = ('found' if found else 'none') if set(states) == {'ended'} else None
     t0 = min(r[0]['time'] for r in records)
     t1 = now if state != 'ended' else max(r[-1]['time'] for r in records)
-    dots = {'ended': 'open', 'running': 'running', 'frozen': 'pending', 'aborted': 'split'}
+    dots = {'ended': 'settled', 'running': 'running', 'frozen': 'pending', 'aborted': 'open'}
     codes = ''.join(str(SEA_STATUSES.index(dots[st])) for st in states)
     work = dict(runs=len(states), **{st: states.count(st) for st in ('running', 'frozen', 'ended', 'aborted')}, found=found)
     return dict(program=records[0][0]['program'], n=n, order=order, made=now, state=state, outcome=outcome,

@@ -420,6 +420,7 @@ footer {
   <details class="changelog">
     <summary><i>Changelog</i></summary>
     <p>2026-10-28: <span class="nw">12 ≤ <i>m</i><sup>*</sup>(768) ≤ 13</span></p>
+    <p>2026-10-28: <span class="nw"><i>m</i><sup>*</sup>(2<sup>39</sup>) ≥ 44</span></p>
     <p>2026-10-28: <span class="nw"><i>m</i><sup>*</sup>(816) ≥ 12</span></p>
     <p>2026-10-28: <span class="nw"><i>m</i><sup>*</sup>(1008) ≥ 12</span></p>
     <p>2026-10-28: <span class="nw">12 ≤ <i>m</i><sup>*</sup>(912) ≤ 13</span></p>
@@ -552,8 +553,8 @@ footer {
           <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td><td>8</td><td class="c">9</td><td class="c">11</td><td class="c">12</td><td class="c">13</td><td class="c">18–20</td><td class="c">19–21</td><td class="c">22–23</td><td class="j">26–29</td></tr>
         </table>
         <table class="block">
-          <tr class="ns"><th scope="row"><i>n</i></th><td class="c" title='Claude alone'>2<sup>27</sup></td><td class="c" title='Claude alone'>2<sup>29</sup></td><td class="c" title='Claude alone'>2<sup>30</sup></td><td class="c" title='Claude alone'>2<sup>33</sup></td><td class="c" title='Claude alone'>2<sup>34</sup></td><td class="c" title='Claude alone'>2<sup>37</sup></td><td class="c" title='Claude alone'>2<sup>38</sup></td><td class="c" title='Claude alone'>2<sup>41</sup></td><td class="c" title='Claude alone'>2<sup>43</sup></td><td class="c" title='Claude alone'>2<sup>46</sup></td><td class="c" title='Claude alone'>2<sup>48</sup></td></tr>
-          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="c">29–33</td><td class="c">32–35</td><td class="c">33–36</td><td class="c">36–40</td><td class="c">37–41</td><td class="c">41–45</td><td class="c">42–46</td><td class="c">46–50</td><td class="c">48–53</td><td class="c">51–57</td><td class="c">54–59</td></tr>
+          <tr class="ns"><th scope="row"><i>n</i></th><td class="c" title='Claude alone'>2<sup>27</sup></td><td class="c" title='Claude alone'>2<sup>29</sup></td><td class="c" title='Claude alone'>2<sup>30</sup></td><td class="c" title='Claude alone'>2<sup>33</sup></td><td class="c" title='Claude alone'>2<sup>34</sup></td><td class="c" title='Claude alone'>2<sup>37</sup></td><td class="c" title='Claude alone'>2<sup>38</sup></td><td class="c" title='Claude alone'>2<sup>39</sup></td><td class="c" title='Claude alone'>2<sup>41</sup></td><td class="c" title='Claude alone'>2<sup>43</sup></td><td class="c" title='Claude alone'>2<sup>46</sup></td><td class="c" title='Claude alone'>2<sup>48</sup></td></tr>
+          <tr class="vals"><th scope="row"><i>m</i><sup>*</sup>(<i>n</i>)</th><td class="c">29–33</td><td class="c">32–35</td><td class="c">33–36</td><td class="c">36–40</td><td class="c">37–41</td><td class="c">41–45</td><td class="c">42–46</td><td class="c">44–47</td><td class="c">46–50</td><td class="c">48–53</td><td class="c">51–57</td><td class="c">54–59</td></tr>
         </table>
         <table class="block">
           <tr class="ns"><th scope="row"><i>n</i></th><td class="c" title='Claude alone'>2<sup>49</sup></td><td class="j" title='Claude and BGPW'>2<sup>51</sup></td><td class="c" title='Claude alone'>2<sup>52</sup></td><td class="c" title='Claude alone'>2<sup>57</sup></td><td class="c" title='Claude alone'>2<sup>61</sup></td><td class="c" title='Claude alone'>2<sup>65</sup></td><td class="c" title='Claude alone'>2<sup>66</sup></td><td class="c" title='Claude alone'>2<sup>67</sup></td><td class="c" title='Claude alone'>2<sup>68</sup></td><td class="c" title='Claude alone'>2<sup>71</sup></td><td class="c" title='Claude alone'>2<sup>72</sup></td></tr>
@@ -598,8 +599,8 @@ footer {
 <!-- Claude's chart of what is known about m*(2^k) − k, the excess over Thue–Morse, for every k up to 72, drawn by the script at the end from pow2.js -->
 <section class="pow2" aria-labelledby="pow2-title">
   <h2 id="pow2-title">Bounds on <span class="nw"><i>m</i><sup>*</sup>(2<sup><i>k</i></sup>) − <i>k</i></span> for every <i>k</i> up to 72</h2>
-  <p><b>Theorem.</b> <span class="nw"><i>m</i><sup>*</sup>(2<sup>10</sup>) ≥ 11</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>20</sup>) ≥ 22</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>29</sup>) ≥ 32</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>37</sup>) ≥ 41</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>41</sup>) ≥ 46</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>48</sup>) ≥ 54</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>57</sup>) ≥ 64</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>65</sup>) ≥ 73</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>68</sup>) ≥ 77</span> and <span class="nw"><i>m</i><sup>*</sup>(2<sup>9</sup>) = 9</span>.</p>
-  <p>More concisely: For <span class="nw"><i>i</i> = 1, 2, …, 9</span>, the known smallest values of <i>k</i> for which <span class="nw"><i>m</i><sup>*</sup>(2<sup><i>k</i></sup>) − <i>k</i> ≥ <i>i</i></span> are 10, 20, 29, 37, 41, 48, 57, 65, 68.</p>
+  <p><b>Theorem.</b> <span class="nw"><i>m</i><sup>*</sup>(2<sup>10</sup>) ≥ 11</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>20</sup>) ≥ 22</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>29</sup>) ≥ 32</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>37</sup>) ≥ 41</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>39</sup>) ≥ 44</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>48</sup>) ≥ 54</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>57</sup>) ≥ 64</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>65</sup>) ≥ 73</span>, <span class="nw"><i>m</i><sup>*</sup>(2<sup>68</sup>) ≥ 77</span> and <span class="nw"><i>m</i><sup>*</sup>(2<sup>9</sup>) = 9</span>.</p>
+  <p>More concisely: For <span class="nw"><i>i</i> = 1, 2, …, 9</span>, the known smallest values of <i>k</i> for which <span class="nw"><i>m</i><sup>*</sup>(2<sup><i>k</i></sup>) − <i>k</i> ≥ <i>i</i></span> are 10, 20, 29, 37, 39, 48, 57, 65, 68.</p>
   <p>The following table shows the construction for each inequality in the above theorem: 
     <span class="nw">2<sup><i>k</i></sup></span> as a join of products, one per line, each with its order and the sum of its factors' orders.
     The bound is the least of those orders. 
@@ -1139,21 +1140,27 @@ footer {
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
+      <p class="entry"><i>n</i> = 2<sup>39</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {44, …, 47}</span></p>
+      <!-- TODO: says order 44 at 2^39 comes from a join of three products of the examples above and Thue–Morse, each of order 44, which beats Thue–Morse by 5; and that the upper bound is the residue condition mod 3 -->
+      <p>Claude: "A join of three products of examples above and Thue–Morse, each of order 44; the powers-of-2 chart above lists them. That beats Thue–Morse by 5. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above."</p>
+    </li>
+    <li class="c">
+      <span class="mk" aria-hidden="true">◆</span>
       <p class="entry"><i>n</i> = 2<sup>41</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {46, …, 50}</span></p>
-      <!-- TODO: says order 46 at 2^41 comes from a join of four products of the examples above and Thue–Morse, each of order at least 46, which beats Thue–Morse by 5; and that the upper bound is the residue condition mod 3 -->
-      <p>Claude: "A join of four products of examples above and Thue–Morse, each of order at least 46; the powers-of-2 chart above lists them. That beats Thue–Morse by 5. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above."</p>
+      <!-- TODO: says order 46 at 2^41 comes from the join of the 2^39 entry with each product times tau_2, which beats Thue–Morse by 5; and that the upper bound is the residue condition mod 3 -->
+      <p>Claude: "The join of the 2<sup>39</sup> entry, each product times τ<sub>2</sub>, has order 46. That beats Thue–Morse by 5. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above."</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry"><i>n</i> = 2<sup>43</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {48, …, 53}</span></p>
-      <!-- TODO: says order 48 at 2^43 comes from the join of the 2^41 entry with each product times tau_2, which beats Thue–Morse by 5; and that the upper bound is the norm bound for the residue sums mod 3 -->
-      <p>Claude: "The join of the 2<sup>41</sup> entry, each product times τ<sub>2</sub>, has order 48. That beats Thue–Morse by 5. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above."</p>
+      <!-- TODO: says order 48 at 2^43 comes from the join of the 2^39 entry with each product times tau_4, which beats Thue–Morse by 5; and that the upper bound is the norm bound for the residue sums mod 3 -->
+      <p>Claude: "The join of the 2<sup>39</sup> entry, each product times τ<sub>4</sub>, has order 48. That beats Thue–Morse by 5. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above."</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry"><i>n</i> = 2<sup>46</sup>: &nbsp;<span class="nw"><i>m</i><sup>*</sup> ∈ {51, …, 57}</span></p>
-      <!-- TODO: says order 51 at 2^46 comes from the join of the 2^41 entry with each product times tau_5, which beats Thue–Morse by 5; and that the upper bound is the norm bound for the residue sums mod 3 -->
-      <p>Claude: "The join of the 2<sup>41</sup> entry, each product times τ<sub>5</sub>, has order 51. That beats Thue–Morse by 5. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above."</p>
+      <!-- TODO: says order 51 at 2^46 comes from the join of the 2^39 entry with each product times tau_7, which beats Thue–Morse by 5; and that the upper bound is the norm bound for the residue sums mod 3 -->
+      <p>Claude: "The join of the 2<sup>39</sup> entry, each product times τ<sub>7</sub>, has order 51. That beats Thue–Morse by 5. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above."</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
@@ -2187,7 +2194,7 @@ SClaude[12][768] = {
         <span>Claude: "<b data-attempt-count="runs"></b> runs: <b data-attempt-count="running"></b> running, <b data-attempt-count="frozen"></b> frozen, <b data-attempt-count="ended"></b> ended, <b data-attempt-count="aborted"></b> aborted; <b data-attempt-count="found"></b> found; elapsed <b data-elapsed></b>; <span data-search-state></span>."</span>
       </template>
       <!-- TODO: says each dot is one run of the search, with the colors of ended, running, frozen and aborted runs -->
-      <template class="progress-track-hint">Claude: "One dot per run: <span class="progress-sw" data-status="open"></span> ended; <span class="progress-sw" data-status="running"></span> running; <span class="progress-sw" data-status="pending"></span> frozen; <span class="progress-sw" data-status="split"></span> aborted."</template>
+      <template class="progress-track-hint">Claude: "One dot per run: <span class="progress-sw" data-status="settled"></span> ended; <span class="progress-sw" data-status="running"></span> running; <span class="progress-sw" data-status="pending"></span> frozen; <span class="progress-sw" data-status="open"></span> aborted."</template>
     </details>
 </section>
 

@@ -1422,14 +1422,15 @@ def q_citations_match_the_page():
     titled = {value(n): (cls, who) for cls, who, n in
               re.findall(r"<td(?: class=\"(a|c|ca|j|s)\")? title='([^']*)'>([^<]*(?:<sup>\d+</sup>)?)</td>", new)}
     titles = {n: who for n, (cls, who) in titled.items() if cls}      # the rest, unclassed, copy Table 2's powers of 2
-    # 240 (since 2026-10-20), the 44 multiples of 16 from 304 to 992 (512 written 2^9) and 26 larger powers of 2,
+    # 240 (since 2026-10-20), the 44 multiples of 16 from 304 to 992 (512 written 2^9) and 27 larger powers of 2,
     # 2^17 to 2^72 (6 until 560 reached order 10 on 2026-10-12, 11 until 800 reached order 11 on 2026-10-17, 18
     # until 592, 608 and 656 reached order 10 and 848, 880, 896, 928, 944, 976 and 992 order 11 on 2026-10-25, 23
     # until 752 and 784 reached order 10 and 832 order 11 on 2026-10-26, 25 until 912 reached order 12 on 2026-10-28,
-    # when 2^29 joined them); and since 1024 reached order 11, later that
+    # when 2^29 joined them, 26 until 768 reached order 12 that evening, when 2^39 joined them); and since 1024 reached
+    # order 11, later that
     # day, 2^10, 2^11 and 2^12; and since 2026-10-27, when the block reached 1024, 1008.  The unclassed cells, Table
     # 2's powers of 2 (2^3 to 2^8) until then, copy every entry of Table 2 that stands: up to 304 but 240 and 304.
-    assert len(titles) == 1 + 44 + 29 + 1, len(titles)
+    assert len(titles) == 1 + 44 + 30 + 1, len(titles)
     assert sorted(n for n in titled if n not in titles) == [n for n in range(8, 305, 8) if n not in (240, 304)], titled
     table2 = {n for n, *_ in table_entries()} - set(titles)
     assert len(table2) == 36, sorted(table2)          # 240 and 304 are in both
@@ -1862,33 +1863,37 @@ def q_912_moves_excess_3_to_2_29():
         assert f'The join of the 2<sup>29</sup> entry, each product times τ<sub>{j}</sub>, has order {m}.' in said[k], said[k]
     theorem = re.search(r'<p><b>Theorem.</b>(.*?)</p>', text).group(1)
     assert '(2<sup>29</sup>) ≥ 32' in theorem and '(2<sup>30</sup>)' not in theorem, theorem
-    assert ' are 10, 20, 29, 37, 41, 48, 57, 65, 68.</p>' in text
+    assert ' are 10, 20, 29, 37, 39, 48, 57, 65, 68.</p>' in text           # 41 for excess 5 until 768's example of order 12
 
 
-def q_816_moves_excess_5_to_2_41():
-    # Replicata: pow2.js's columns 2^40 to 2^47, the new results' cells of 2^41, 2^43 and 2^46 and their remarks'
-    # entries.
-    # Expectata (2026-10-26: with 816 at order 11 among the blocks, the exhaustive search of scratch/wish2/ finds 2^41
-    # = (800^2 # 832 # 848 # τ2) ∨ (432^3 # 816 # τ2) ∨ (480^3 # 784) ∨ (432^2 # 480^2), each product of order 46, and no
-    # K <= 40 beating Thue-Morse by 5): pow2.js's lo is k + 4 at 2^40 and k + 5 from 2^41 to 2^47, every column from 41
-    # to 47 that join, each product times τ_(k−41); the cells read 2^41 46–50, 2^43 48–53 and 2^46 51–57; 2^41's entry
-    # says a join of four products of examples above and Thue–Morse, each of order at least 46, beats Thue–Morse by 5
-    # (each of order 46 until 2026-10-28, when 816's example of order 12 made 432^3 # 816 # τ2 of order 47); and 2^43's
-    # and 2^46's each name the 2^41 entry, each product times τ2 and τ5, of orders 48 and 51.
+def q_768_moves_excess_5_to_2_39():
+    # Replicata: pow2.js's columns 2^38 to 2^47, the new results' cells of 2^39, 2^41, 2^43 and 2^46 and their remarks'
+    # entries, and Theorem 1's statement and its list of firsts.
+    # Expectata (2026-10-28 evening: with 768 at order 12 among the blocks, the exhaustive search of scratch/wish5 finds
+    # 2^39 = (800 # 832^3) ∨ (192 # 432^2 # 768 # τ1) ∨ (48 # 480^2 # 768 # τ2), each product of order 44, and no K <=
+    # 38 beating Thue-Morse by 5): pow2.js's lo is k + 4 at 2^38 and k + 5 from 2^39 to 2^47, column 39 that join; the
+    # cells read 2^39 44–47, 2^41 46–50, 2^43 48–53 and 2^46 51–57; 2^39's entry says a join of three products of
+    # examples above and Thue–Morse, each of order 44, beats Thue–Morse by 5; 2^41's, 2^43's and 2^46's each name the
+    # 2^39 entry, each product times τ2, τ4 and τ7, of orders 46, 48 and 51; Theorem 1 states m*(2^39) ≥ 44 in place
+    # of m*(2^41) ≥ 46.  (From 2026-10-26, when 816's example of order 11 moved it from 2^43, until then, excess 5's
+    # first was 2^41 = (800^2 # 832 # 848 # τ2) ∨ (432^3 # 816 # τ2) ∨ (480^3 # 784) ∨ (432^2 # 480^2), each product
+    # of order 46, 816's of order 47 after 816's example of order 12 that afternoon: q_816_moves_excess_5_to_2_41.)
     cols, text = pow2_data()['cols'], page()
-    base = cols[40][2]
-    assert cols[39][0] == 44 and [c[0] - k for k, c in enumerate(cols[40:47], 41)] == [5] * 7, [c[:2] for c in cols[39:47]]
+    base = cols[38][2]
+    assert cols[37][0] == 42 and [c[0] - k for k, c in enumerate(cols[38:47], 39)] == [5] * 9, [c[:2] for c in cols[37:47]]
     assert base[0] == 'joins' and sorted(map(sorted, base[1])) == sorted(map(sorted, [
-        [[800, 11], [800, 11], [832, 11], [848, 11], [4, 2]], [[432, 11], [432, 11], [432, 11], [816, 12], [4, 2]],
-        [[480, 12], [480, 12], [480, 12], [784, 10]], [[432, 11], [432, 11], [480, 12], [480, 12]]])), base
+        [[800, 11], [832, 11], [832, 11], [832, 11]], [[192, 9], [432, 11], [432, 11], [768, 12], [2, 1]],
+        [[48, 6], [480, 12], [480, 12], [768, 12], [4, 2]]])), base
     cells = new_cells(text)
-    assert [cells[2 ** k] for k in (41, 43, 46)] == [(46, 50), (48, 53), (51, 57)], [cells[2 ** k] for k in (41, 43, 46)]
+    assert [cells[2 ** k] for k in (39, 41, 43, 46)] == [(44, 47), (46, 50), (48, 53), (51, 57)], [cells.get(2 ** k) for k in (39, 41, 43, 46)]
     said = {int(k): re.search(r'<p>Claude: "(.*?)"</p>', body).group(1) for k, body in
             re.findall(r'<p class="entry"><i>n</i> = 2<sup>(\d+)</sup>: [^\n]*\n(.*?)\n    </li>', text, re.S)}
-    assert 'A join of four products of examples above and Thue–Morse, each of order at least 46' in said[41], said[41]
-    assert 'That beats Thue–Morse by 5' in said[41], said[41]
-    for k, j, m in ((43, 2, 48), (46, 5, 51)):
-        assert f'The join of the 2<sup>41</sup> entry, each product times τ<sub>{j}</sub>, has order {m}.' in said[k], said[k]
+    assert 'A join of three products of examples above and Thue–Morse, each of order 44' in said[39], said[39]
+    assert 'That beats Thue–Morse by 5' in said[39], said[39]
+    for k, j, m in ((41, 2, 46), (43, 4, 48), (46, 7, 51)):
+        assert f'The join of the 2<sup>39</sup> entry, each product times τ<sub>{j}</sub>, has order {m}.' in said[k], said[k]
+    theorem = re.search(r'<p><b>Theorem.</b>(.*?)</p>', text).group(1)
+    assert '(2<sup>39</sup>) ≥ 44' in theorem and '(2<sup>41</sup>)' not in theorem, theorem
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -2916,7 +2921,7 @@ def q_progress_summary_names_each_run_s_state():
 
 def q_progress_shows_a_tracked_search():
     # Replicata: index.html with one tracked search as progress.js, in the form progress.js_text gives survey_track's
-    # survey: 768:12 by w12.py, running, four runs (three running, one ended: dots running, running, running, open),
+    # survey: 768:12 by w12.py, running, four runs (three running, one ended: dots running, running, running, settled),
     # none found, 600 s so far.
     # Expectata (dreeves, 2026-10-28: "can we rearchitect things so that always happens easily and automatically?"): its
     # heading asks m*(768) ≥ 12? and names w12.py, its summary says running; its status line is the tracked view
@@ -2925,8 +2930,8 @@ def q_progress_shows_a_tracked_search():
     # ETA chart and its key are hidden.
     base = PROGRESS_DATA['runs'][0]
     run = dict(program='w12.py', n=768, order=12, state='running', outcome=None, so_far=600, to_go=None, etas=[],
-               statuses=base['statuses'], depth=0, keys=['768:12'], groups=['4441'],
-               counts=dict(settled=0, open=1, split=0, pending=0, running=3),
+               statuses=base['statuses'], depth=0, keys=['768:12'], groups=['4440'],
+               counts=dict(settled=1, open=0, split=0, pending=0, running=3),
                tracked=True, work=dict(runs=4, running=3, frozen=0, ended=1, aborted=0, found=0))
     got = progress_harness({'made': PROGRESS_DATA['made'], 'runs': [run]}, """
   const r = runs()[0];

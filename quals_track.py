@@ -95,12 +95,16 @@ def q_adopt_writes_the_end_when_the_process_is_gone():
     # Replicata: a process sleeping 2 s, started here; track.py adopt q4 16:4 PID --found W; the sleeper reaped here
     # once it exits.
     # Expectata: the start names the sleeper's pid, track.py's own as tracker, adopted true, found W's absolute path and
-    # the sleeper's command as ps prints it; track.py exits 0 after the sleeper is gone, its end's status null (an
-    # adopted process's status is not track.py's to read).
+    # the sleeper's command as ps prints it, and as its time the sleeper's own start (ps's start time, to the second:
+    # the run began then, not when track.py adopted it); track.py exits 0 after the sleeper is gone, its end's status
+    # null (an adopted process's status is not track.py's to read).
     d = sandbox()
     try:
-        s = subprocess.Popen([PY, '-c', 'import time; time.sleep(2)'])
+        s = subprocess.Popen([PY, '-c', 'import time; time.sleep(3)'])
         ps = subprocess.run(['ps', '-o', 'command=', '-p', str(s.pid)], capture_output=True, text=True).stdout.strip()
+        began = time.mktime(time.strptime(subprocess.run(['ps', '-o', 'lstart=', '-p', str(s.pid)], capture_output=True,
+                                                         text=True).stdout.strip(), '%a %b %d %H:%M:%S %Y'))
+        time.sleep(1.5)
         tr = subprocess.Popen([PY, '-B', 'track.py', 'adopt', 'q4', '16:4', str(s.pid), '--found', 'W'], cwd=d)
         s.wait()
         assert tr.wait(timeout=60) == 0
@@ -108,6 +112,7 @@ def q_adopt_writes_the_end_when_the_process_is_gone():
         assert (start['pid'], start['tracker'], start['adopted'], start['found'], start['command']) == (
             s.pid, tr.pid, True, os.path.join(os.path.realpath(d), 'W'), ps), start
         assert end['event'] == 'end' and end['status'] is None and end['time'] >= start['time'], end
+        assert start['time'] == began, (start['time'], began)
     finally:
         shutil.rmtree(d)
 

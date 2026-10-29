@@ -8,8 +8,9 @@ which progress.py's watcher reads (survey_track); the search itself is not chang
            "found", "adopted", "pid", "tracker", "time"}: target "N:M", the question m*(N) >= M?; program the
            command's script (its first argument ending in .py, else its first word's name); command as a shell would
            write it; found the absolute path of a file whose lines count the search's results (a witness file), or
-           null; pid the run's process and tracker track.py's own.  It appears whole (written aside, then linked into
-           place).  The last, once the run's process ends: {"event": "end", "time", "status"}, its exit status (a
+           null; pid the run's process and tracker track.py's own; time when the run's process began (epoch seconds;
+           for an adopted one, its start time as ps prints it, to the second).  It appears whole (written aside, then
+           linked into place).  The last, once the run's process ends: {"event": "end", "time", "status"}, its exit status (a
            negative one a signal's), or null for an adopted process, whose status track.py cannot read.
   run      python3 -B track.py run NAME N:M [--found FILE] -- COMMAND ...: starts COMMAND, writes the start, waits,
            writes the end and exits with COMMAND's status.  SIGTERM, SIGINT and SIGHUP to track.py are passed on to
@@ -55,7 +56,7 @@ def start(name, target, found, fields):
     os.makedirs(RUNS, exist_ok=True)
     path, aside = os.path.join(RUNS, name + '.jsonl'), os.path.join(RUNS, f'.{name}.{os.getpid()}.tmp')
     rec = dict(event='start', name=name, target=target, found=None if found is None else os.path.abspath(found),
-               **fields, tracker=os.getpid(), time=time.time())
+               **fields, tracker=os.getpid())
     with open(aside, 'x', encoding='utf-8') as f: f.write(json.dumps(rec) + '\n')
     try:
         # TODO: error copy; says a run of this name has a record already, so nothing was written
@@ -74,7 +75,7 @@ def run(name, target, found, cmd):
     child = subprocess.Popen(cmd)
     for s in (signal.SIGTERM, signal.SIGINT, signal.SIGHUP): signal.signal(s, lambda signum, frame: child.send_signal(signum))
     path = start(name, target, found, dict(program=program(cmd), command=shlex.join(cmd), cwd=os.getcwd(),
-                                           adopted=False, pid=child.pid))
+                                           adopted=False, pid=child.pid, time=time.time()))
     status = child.wait()
     end(path, status)
     raise SystemExit(status)
@@ -85,8 +86,9 @@ def adopt(name, target, found, pid):
     # TODO: error copy; says no live process has this pid, so nothing was written
     assert me is not None, f'Claude: "no live process {pid}"'
     cmd = me[2]
+    began = time.mktime(time.strptime(me[1], '%a %b %d %H:%M:%S %Y'))
     path = start(name, target, found, dict(program=program(shlex.split(cmd)), command=cmd, cwd=os.getcwd(),
-                                           adopted=True, pid=pid, started=me[1]))
+                                           adopted=True, pid=pid, started=me[1], time=began))
     while (identity(pid) or (None, None))[1] == me[1]: time.sleep(POLL)
     end(path, None)
 
