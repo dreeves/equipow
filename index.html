@@ -80,7 +80,7 @@ body {
    code lines and the charts' readouts, which change under the pointer, stay ragged.  The title and byline are centered, as \maketitle sets them, the title in regular weight. */
 table { font-size: 1.0625rem; }
 main p, main li { hyphens: auto; -webkit-hyphens: auto; }
-main p { max-width: var(--measure); }
+main p, main ul:not(.legend) { max-width: var(--measure); }
 @media (min-width: 40rem) { main p, main li { text-align: justify; } }
 .changelog p, .progress p, .progress li, p.code, #mstar-readout, #pow2-readout { text-align: start; hyphens: manual; -webkit-hyphens: manual; }
 header h1 { text-align: center; font-weight: 400; font-size: 2.1rem; }
@@ -360,7 +360,7 @@ code {
 .smallest th, .smallest td { border: 1px solid var(--rule); padding: 0.3rem 0.7rem; text-align: center; }
 .smallest th { font-weight: 400; }
 .smallest .attrib, .oeis .attrib { color: var(--muted); }
-.oeis ul { margin: 0; padding-left: 1.25rem; display: grid; gap: 0.35rem; }
+.oeis ul, .mstar > ul { margin: 0; padding-left: 1.25rem; display: grid; gap: 0.35rem; }   /* lists of text */
 
 /* Claude's chart of m*(n) for n up to 1024: one canvas, drawn by the script at the end from mstar.js. Pan and zoom
    act on n only, and vertical swipes still scroll the page. */
@@ -625,15 +625,28 @@ footer {
 
 <!-- Chart of what is known about m*(n) for every n up to 1024, drawn by the script at the end from mstar.js -->
 <section class="mstar" aria-labelledby="mstar-title">
-  <h2 id="pow-title">Bounds on \(m^*(n)\) for every even \(n\) up to 1024</h2>
-  <p>The following chart has the known bounds for every \(n\) up to 1024, leaving out odd \(n\) since </p>
+  <h2 id="mstar-title">Bounds on \(m^*(n)\) for every \(n\) up to 1024</h2>
+  <p>
+    The following chart shows \(m^*(n)\) for every \(n\) up to 1024, with the following exceptions:</p>
+    <ul>
+      <li>Odd \(n\) are left out; for odd \(n\), \(m^*(n) = 0\) (see the introduction)</li>
+      <li>Odd multiples of 2 except 2 itself are left out; for all \(n=2(2k+1)\) for some \(k \ge 0\), \(m^*(n) = 1\)</li>
+    </ul>
+  <p>
+    Proof: Consider the sum of \(\{0, 1, \ldots, 4k+1\}\), namely \((4k+1)(4k+2)/2 = (4k+1)(2k+1)\).
+    That's an odd times an odd, which is odd.
+    So there's no bipartition that splits the sum in half, which means there's no equi-power-sum for exponent 1.
+  </p>
+  <p>
+    The highlighted cells indicate \(n = a(m - 1)\) of OEIS <a href="https://oeis.org/A323395">A323395</a> &mdash; the smallest \(n\) for each order \(m\).
+  </p>
   <!-- cell (n, m) is green when m*(n) ≥ m is known, red when m*(n) < m is proven, and gray when neither is; and that odd n are left out, because an odd number of integers can't be split into two halves of equal size, so no partition exists for any m -->
   <div class="mstar-bar">
     <ul class="legend">
       <li><span class="swatch exists" aria-hidden="true"></span>\(m \le m^*(n)\)</li>
       <li><span class="swatch open" aria-hidden="true"></span>open</li>
       <li><span class="swatch impossible" aria-hidden="true"></span><span class="nw">\(m > m^*(n)\)</span></li>
-      <li><span class="swatch exists record" aria-hidden="true"></span><span>\(n = a(m - 1)\) of OEIS <a href="https://oeis.org/A323395">A323395</a>, the smallest \(n\) for a given \(m\)</span></li>
+      <li><span class="swatch exists record" aria-hidden="true"></span><span>the smallest \(n\) for a given \(m\)</span></li>
     </ul>
     <div class="mstar-zoom">
       <button type="button" id="mstar-zoom-out" aria-label='zoom out' title='Claude: "zoom out"'>−</button>
@@ -658,9 +671,9 @@ footer {
     In the details for a cell (hover or click to see them), 
     \(\tau_j\) is Thue–Morse of length \(2^j\), and \(p_n\) is the best known sequence of length \(n\).</p>
   <ul class="legend">
-    <li><span class="swatch exists" aria-hidden="true"></span>\(k + \delta \le m^*(2^k)\)</li>
+    <li><span class="swatch exists" aria-hidden="true"></span>\(m^*(2^k) \ge k+\delta\)</li>
     <li><span class="swatch open" aria-hidden="true"></span>open</li>
-    <li><span class="swatch impossible" aria-hidden="true"></span><span class="nw">\(k + \delta > m^*(2^k)\)</span></li>
+    <li><span class="swatch impossible" aria-hidden="true"></span><span class="nw">\(m^*(2^k) < k + \delta\)</span></li>
     <!-- A cell ringed in gold is one of the bounds the theorem below states -->
     <li><span class="swatch exists record" aria-hidden="true"></span><span>smallest known \(2^k\) that beats Thue-Morse by \(\delta\)</span></li>
   </ul>
@@ -2290,16 +2303,19 @@ SClaude[12][768] = {
 </main>
 <script src="mstar.js"></script>
 <script>
-// Claude's chart of m*(n) for the even n up to 1024, drawn from MSTAR, which mstar.js defines (mstar.py makes it and
-// states its contract).  Column n is green (exists) in rows m = 1 to lo, gray (open) up to hi and red (impossible) above,
-// up to row MSTAR.mtop.  Odd n get no column: an odd n has no partition at any m.  Pan and zoom act
-// on n only: the view is the interval [u0, u0 + span) of u, column n spanning u from n / 2 - 1 to n / 2.  Each device
-// pixel of the plot mixes the colors of the cells it covers, weighted by how much of it each covers, so all NCOL = 512
-// columns can show at once even where they are narrower than a pixel.
+// Claude's chart of m*(n) for n up to 1024, drawn from MSTAR, which mstar.js defines (mstar.py makes it and states its
+// contract).  Column n is green (exists) in rows m = 1 to lo, gray (open) up to hi and red (impossible) above, up to row
+// MSTAR.mtop.  The columns are NS, n = 2 and the multiples of 4 (dreeves, 2026-10-29: "can we make my "odd multiple of
+// 2" bullet point be true?"; every even n before): an odd n has no partition at any m, and every other n = 2 mod 4 has
+// m*(n) = 1, as the data contract asserts.  Pan and zoom act on n only: the view is the interval [u0, u0 + span) of u,
+// column c (from 0), n = NS[c], spanning u from c to c + 1.  Each device pixel of the plot mixes the colors of the
+// cells it covers, weighted by how much of it each covers, so all NCOL = 257 columns can show at once even where they
+// are narrower than a pixel.
 (() => {
 const cv = document.getElementById('mstar-chart'), ro = document.getElementById('mstar-readout');
 try {
-  const D = MSTAR, NMAX = 1024, NCOL = NMAX / 2, MIN_SPAN = 12, TAP = 6;
+  const D = MSTAR, NMAX = 1024, MIN_SPAN = 12, TAP = 6;
+  const NS = [2, ...Array.from({length: NMAX / 4}, (_, i) => 4 * i + 4)], NCOL = NS.length;
   // Layout in CSS px: the m labels left of the plot, room right of it for the last n label, rows ROW tall, and the n
   // axis below.
   const LEFT = 44, RIGHT = 16, TOP = 2, ROW = 14, AXIS = 30;
@@ -2374,6 +2390,7 @@ try {
       assert(Object.hasOwn(K, w[0]) && K[w[0]].ok.length === w.length + 1 && K[w[0]].ok(n, v, ...w.slice(1)), n, c);
     }
     assert((lw[0] === 'none') === (n % 2 === 1) && (hw[0] === 'odd') === (n % 2 === 1), n, c);
+    assert(n % 4 !== 2 || (lo === 1 && hi === 1), n, c);           // why such n, but 2, need no column
   });
   assert(D.mtop === Math.max(...D.cols.map(c => c[1])) + 1, D.mtop);
 
@@ -2392,6 +2409,7 @@ try {
   const least = test => D.cols.findIndex(test) + 1;                // the least n whose column passes test; 0 if none
   const RECORDS = Array.from({length: T}, (_, i) => i + 1).map(m => ({n: least(c => c[0] >= m), m}))
     .filter(({n, m}) => n > 0 && n === least(c => c[1] >= m));
+  assert(RECORDS.every(({n}) => NS.includes(n)), RECORDS);
   cv.style.height = `${cssH}px`;
   const ctx = cv.getContext('2d'), strip = document.createElement('canvas'), sctx = strip.getContext('2d');
   const zoomIn = document.getElementById('mstar-zoom-in'), zoomOut = document.getElementById('mstar-zoom-out');
@@ -2414,10 +2432,10 @@ try {
     for (let x = 0; x < W; x++) {
       const a = u0 + x * k, b = Math.min(a + k, NCOL);
       mix.fill(0);
-      for (let c = Math.floor(a); c < b; c++) {                   // u from c to c + 1: column n = 2c + 2
+      for (let c = Math.floor(a); c < b; c++) {                   // u from c to c + 1: column n = NS[c]
         const w = (Math.min(b, c + 1) - Math.max(a, c)) / k;
         for (let m = 1; m <= T; m++) {
-          const col = colors[kindOf(2 * c + 2, m)];
+          const col = colors[kindOf(NS[c], m)];
           for (let j = 0; j < 3; j++) mix[3 * (m - 1) + j] += w * col[j];
         }
       }
@@ -2442,20 +2460,20 @@ try {
     ctx.globalAlpha = Math.min(Math.max((1 / k / dpr - 4) / 4, 0), 1);
     for (let c = Math.floor(u0) + 1; c < u0 + span; c++) ctx.fillRect(L + Math.floor((c - u0) / k), top, 1, T * pitch);
     ctx.globalAlpha = 1;
-    // Axes: every m on the left; below, n under the middle of its column, at the first of 2, 10, 20, 50, ... (1, 2, 5,
-    // 10, ... without the odd steps, so every label is even) that leaves room for each label.
+    // Axes: every m on the left; below, n under the middle of its column, at the first of 4, 20, 40, 100, 200, 500 (the
+    // round multiples of 4, so every label has a column, n / 4) that leaves room for each label.
     const serif = token('--serif'), base = top + T * pitch;
     ctx.fillStyle = token('--muted');
     ctx.font = `${12 * dpr}px ${serif}`;
     ctx.textAlign = 'right';
     ctx.textBaseline = 'middle';
     for (let m = 1; m <= T; m++) ctx.fillText(String(m), L - 7 * dpr, top + (T - m) * pitch + (pitch - gap) / 2);
-    const step = [2, 10, 20, 50, 100, 200, 500].find(s => s / 2 / k >= 48 * dpr);
+    const step = [4, 20, 40, 100, 200, 500].find(s => s / 4 / k >= 48 * dpr);
     assert(step, W, span);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
-    for (let n = Math.ceil((2 * u0 + 1) / step) * step; n / 2 - 0.5 <= u0 + span; n += step) {
-      const x = L + (n / 2 - 0.5 - u0) / k;
+    for (let n = Math.max(step, Math.ceil((4 * u0 - 2) / step) * step); n / 4 + 0.5 <= u0 + span; n += step) {
+      const x = L + (n / 4 + 0.5 - u0) / k;
       ctx.fillRect(Math.round(x - dpr / 2), base, dpr, 4 * dpr);
       ctx.fillText(String(n), x, base + 7 * dpr);
     }
@@ -2467,7 +2485,7 @@ try {
     ctx.fillText('m', 2 * dpr, top + T * pitch / 2);
     // Rings just outside cells, 2 device px wide: each of RECORDS in gold, then the cell read out in ink.
     const ring = ({n, m}) => {
-      const x0 = L + (n / 2 - 1 - u0) / k, x1 = L + (n / 2 - u0) / k, y0 = top + (T - m) * pitch;
+      const x0 = L + (NS.indexOf(n) - u0) / k, x1 = x0 + 1 / k, y0 = top + (T - m) * pitch;
       ctx.strokeRect(x0 - dpr, y0 - dpr, x1 - x0 + 2 * dpr, pitch - gap + 2 * dpr);
     };
     ctx.save();
@@ -2485,7 +2503,7 @@ try {
   const at = e => { const r = cv.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };   // CSS px
   const uAt = x => u0 + (x * geo.dpr - geo.L) * span / geo.W;
   function cellAt([x, y]) {                                        // the cell at CSS x, y, or null outside the plot
-    const X = x * geo.dpr - geo.L, n = 2 * Math.floor(u0 + X * span / geo.W) + 2, m = T - Math.floor((y * geo.dpr - geo.top) / geo.pitch);
+    const X = x * geo.dpr - geo.L, n = NS[Math.floor(u0 + X * span / geo.W)], m = T - Math.floor((y * geo.dpr - geo.top) / geo.pitch);
     return X >= 0 && X < geo.W && m >= 1 && m <= T ? {n, m} : null;
   }
   const el = (tag, text) => Object.assign(document.createElement(tag), {textContent: text});

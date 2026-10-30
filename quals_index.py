@@ -27,9 +27,12 @@ CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
 TOKENS = ('--exists', '--open', '--impossible')                    # the chart's three colors, in the order of kind
 PROVENANCE = ('--claude', '--stan')
 NMAX, MIN_SPAN = 1024, 12                     # 1000 until 2026-10-27, when the chart reached 1024
-EVEN = list(range(2, NMAX + 1, 2))            # the chart's columns: an odd n has no partition at any m, so is left out
-NCOL = len(EVEN)
-STEPS = (2, 10, 20, 50, 100, 200, 500)        # the steps of the n labels: 1, 2, 5, 10, ... without the odd ones
+# The chart's columns (dreeves, 2026-10-29: "can we make my "odd multiple of 2" bullet point be true?"): n = 2 and the
+# multiples of 4.  An odd n has no partition at any m, and every other n = 2 mod 4 has m*(n) = 1 (the two lemma), so
+# those are left out.  (Every even n until 2026-10-29.)
+COLUMNS = [2] + list(range(4, NMAX + 1, 4))
+NCOL = len(COLUMNS)
+STEPS = (4, 20, 40, 100, 200, 500)            # the steps of the n labels: round multiples of 4 (2, 10, 20, 50, ... before)
 RUNS = {}                                     # browser runs by configuration name, made once per process (see run)
 
 
@@ -389,7 +392,8 @@ function battery(R) {
   const RECS = [];
   for (let m = 1; m <= T; m++) { const n = least(c => c[0] >= m); if (n && n === least(c => c[1] >= m)) RECS.push([n, m]); }
   R.records = RECS; R.ringChecks = 0; R.ringBad = []; R.ringed = {}; R.rowOneSkips = 0;
-  const nearRing = (j, m) => RECS.some(([n, r]) => Math.abs(j - n / 2) <= 1 && (m === r || m === r + 1));
+  const colOf = new Map(COLS.map((n, i) => [n, i + 1]));          // the column j of each n with one, from 1
+  const nearRing = (j, m) => RECS.some(([n, r]) => Math.abs(j - colOf.get(n)) <= 1 && (m === r || m === r + 1));
   let img = null;
   const snap = () => { img = ctx.getImageData(0, 0, cv.width, cv.height); };
   const pix = (X, Y) => { const i = (Y * img.width + X) * 4, d = img.data;
@@ -416,11 +420,12 @@ function battery(R) {
   const ptr = (type, x, y, o) => { const r = rect(), e = new PointerEvent(type, {clientX: r.left + x, clientY: r.top + y,
     pointerId: 1, pointerType: 'mouse', buttons: 0, bubbles: true, cancelable: true, ...o}); cv.dispatchEvent(e); return e; };
   const cellOf = t => { const m = t.match(/^n = (\d+), m = (\d+) · /); return m ? [+m[1], +m[2]] : null; };
-  // Every hover's readout is counted, and kept if it reports an odd n (no column is an odd n).
+  // Every hover's readout is counted, and kept if it reports an n that has no column (odd, or 2 mod 4 but 2).
   const hover = (x, y) => { ptr('pointermove', x, y, {}); const t = ro.textContent, c = cellOf(t);
-    R.readouts++; if (c && c[0] % 2) R.oddReadouts.push(t); return t; };
-  // Column j is n = 2j: jAt is the column read out at CSS x in row 1.
-  const jAt = x => { const c = cellOf(hover(x, yProbe)); if (!c) throw new Error('no cell read out at ' + x); return c[0] / 2; };
+    R.readouts++; if (c && !colOf.has(c[0])) R.hiddenReadouts.push(t); return t; };
+  // Column j is n = COLS[j - 1]: jAt is the column read out at CSS x in row 1.
+  const jAt = x => { const c = cellOf(hover(x, yProbe)); if (!c || !colOf.has(c[0])) throw new Error('no column read out at ' + x);
+    return colOf.get(c[0]); };
   function view() {        // the visible u-interval [u0, u0 + span), column j spanning u from j - 1 to j
     let a = L + 0.25, b = Math.min(L + 160, L + W - 0.25);
     const j1 = jAt(a);
@@ -448,14 +453,14 @@ function battery(R) {
         const X = PL + Math.floor((j - 0.5 - v.u0) / k);
         for (let m = 1; m <= T; m++) {
           if (nearRing(j, m)) continue;
-          const want = colorOf(2 * j, m), got = pix(X, Math.floor(rowY(m))), gap = pix(X, rows[T - m][1]);
+          const want = colorOf(COLS[j - 1], m), got = pix(X, Math.floor(rowY(m))), gap = pix(X, rows[T - m][1]);
           R.pixelChecks++;
-          if (got !== want || gap !== C.paper) R.pixelBad.push([2 * j, m, want, got, gap]);
+          if (got !== want || gap !== C.paper) R.pixelBad.push([COLS[j - 1], m, want, got, gap]);
         }
-        R.pixelColumns[2 * j] = 1;
+        R.pixelColumns[COLS[j - 1]] = 1;
       }
       for (const [n, r] of RECS) {    // a ringed cell in this pass: gold just outside its left and right, and below it
-        const j = n / 2;
+        const j = colOf.get(n);
         if (j < from || j > to) continue;
         const Y = Math.floor(rowY(r)), x0 = PL + (j - 1 - v.u0) / k, x1 = PL + (j - v.u0) / k;
         const got = [pix(Math.floor(x0 - dpr), Y), pix(Math.floor(x1 + dpr), Y), pix(PL + Math.floor((j - 0.5 - v.u0) / k), rows[T - r][1])];
@@ -464,10 +469,11 @@ function battery(R) {
       }
     }
   }
-  // Row 1 is exists in every even column and impossible in every odd one, so with no odd column drawn, even mixed into a
-  // pixel, every pixel of row 1 is exists.  The outline of the cell read out goes to row T first.
-  const ringBands = v => { const k = v.span / (PR - PL); return RECS.filter(([, r]) => r === 1).flatMap(([n]) => {
-    const x0 = PL + (n / 2 - 1 - v.u0) / k, x1 = PL + (n / 2 - v.u0) / k;
+  // Row 1 is exists in every column and impossible at every odd n, so with no odd n drawn, even mixed into a pixel,
+  // every pixel of row 1 is exists.  The outline of the cell read out goes to row T first.  ringBands(v, m): where
+  // the rings of row m run in view v, a device px either side.
+  const ringBands = (v, m) => { const k = v.span / (PR - PL); return RECS.filter(([, r]) => r === m).flatMap(([n]) => {
+    const x0 = PL + (colOf.get(n) - 1 - v.u0) / k, x1 = PL + (colOf.get(n) - v.u0) / k;
     return [[x0 - 2 * dpr - 1, x0 + 1], [x1 - 1, x1 + 2 * dpr + 1]];
   }); };
   // The column lines of view v (the hairline grid, 2026-10-29): once columns are wider than 4 CSS px, a device px of
@@ -496,7 +502,7 @@ function battery(R) {
   function checkRowOne(v, i) {     // but where a ring of row 1 runs, a device px either side (rowOneSkips), and the
     hover(middleX(v, first(v)), rowY(T) / dpr);   // zones of the column lines (rowOneLines), which checkZones checks
     snap();
-    const bands = ringBands(v), zones = lineZones(v);
+    const bands = ringBands(v, 1), zones = lineZones(v);
     for (let X = PL, Y = Math.floor(rowY(1)); X < PR; X++) {
       if (bands.some(([a, b]) => a <= X && X <= b)) { R.rowOneSkips++; continue; }
       if (zones.some(([a, b]) => a <= X && X <= b)) { R.rowOneLines++; continue; }
@@ -504,6 +510,19 @@ function battery(R) {
       if (pix(X, Y) !== C.exists) R.rowOneBad.push([i, X, pix(X, Y)]);
     }
     checkZones(zones, bands, i);
+  }
+  // Row 2 is exists in every column but n = 2's and impossible at every n = 2 mod 4, so with no other such n drawn,
+  // even mixed into a pixel, every pixel of row 2 right of n = 2's column is exists; but n = 2's column and a device
+  // px past it, the ring of row 2 and the zones of the column lines (rowTwoSkips).
+  function checkRowTwo(v, i) {
+    hover(middleX(v, first(v)), rowY(T) / dpr);
+    snap();
+    const k = v.span / (PR - PL), bands = ringBands(v, 2), zones = lineZones(v), start = PL + (1 - v.u0) / k + 1;
+    for (let X = PL, Y = Math.floor(rowY(2)); X < PR; X++) {
+      if (X <= start || [...bands, ...zones].some(([a, b]) => a <= X && X <= b)) { R.rowTwoSkips++; continue; }
+      R.rowTwoChecks++;
+      if (pix(X, Y) !== C.exists) R.rowTwoBad.push([i, X, pix(X, Y)]);
+    }
   }
   // The n labels of one draw (the one a change of the cell read out makes): the strings drawn below the rows and right
   // of the plot's left edge, as [string, x in device px].
@@ -515,7 +534,7 @@ function battery(R) {
   }
   function sampleHovers(v, every) {    // hover the middle of cells lo, lo + 1 and hi + 1 of every every-th column
     for (let j = first(v); j <= final(v); j += every) {
-      const n = 2 * j, [lo, hi] = cols[n - 1];
+      const n = COLS[j - 1], [lo, hi] = cols[n - 1];
       for (const m of new Set([lo, lo + 1, hi + 1])) {
         if (m < 1 || m > T) continue;
         R.hovers.push([n, m, hover(middleX(v, j), rowY(m) / dpr)]);
@@ -543,12 +562,13 @@ function battery(R) {
     size: [b.getBoundingClientRect().width, b.getBoundingClientRect().height]}))(getComputedStyle(b));
   R.disabled0 = disabled();
   R.looks0 = [zin, zout].map(look);
-  R.readouts = 0; R.oddReadouts = [];
+  R.readouts = 0; R.hiddenReadouts = [];
   R.views = [view()];
   R.hovers = []; R.swatches = []; R.pixelChecks = 0; R.pixelBad = []; R.pixelColumns = {}; R.steps = {}; R.rowOneChecks = 0; R.rowOneBad = [];
-  R.rowOneLines = 0; R.lineZones = 0; R.lineBad = [];
+  R.rowOneLines = 0; R.lineZones = 0; R.lineBad = []; R.rowTwoChecks = 0; R.rowTwoSkips = 0; R.rowTwoBad = [];
   R.labelDraws = [labels(R.views[0])];
   checkRowOne(R.views[0], 0);
+  checkRowTwo(R.views[0], 0);
   // A hover at the middle of every device px across row 1 of the full view: the n read out, left to right, each once.
   R.across = [];
   for (let X = PL; X < PR; X++) { const c = cellOf(hover((X + 0.5) / dpr, yProbe)); R.across.push(c && c[0]); }
@@ -564,6 +584,7 @@ function battery(R) {
     sampleHovers(v, OPTS.hoverEvery);
     checkPixels(v);
     checkRowOne(v, R.views.length - 1);
+    checkRowTwo(v, R.views.length - 1);
     R.labelDraws.push(labels(v));
     if (v.u0 + v.span > NCOL - 1e-6) break;
     for (let i = 0; i < 6; i++) key('ArrowRight');
@@ -576,12 +597,12 @@ function battery(R) {
   for (let i = 0; i < 12 && (PR - PL) / mid.span / dpr <= 4; i++) { key('+'); mid = view(); }
   { const v = mid, zones = lineZones(v);
     R.midWidth = (PR - PL) / v.span / dpr; R.midZones = zones.length;
-    hover(middleX(v, first(v)), rowY(T) / dpr); snap(); checkZones(zones, ringBands(v), 'mid'); }
+    hover(middleX(v, first(v)), rowY(T) / dpr); snap(); checkZones(zones, ringBands(v, 1), 'mid'); }
   // The cell read out is outlined in ink, just outside it.
   reset.click();
   for (let i = 0; i < 5; i++) key('+');
   {
-    const v = view(), k = v.span / (PR - PL), j = Math.round(v.u0 + v.span / 2), n = 2 * j, m = 2;
+    const v = view(), k = v.span / (PR - PL), j = Math.round(v.u0 + v.span / 2), n = COLS[j - 1], m = 2;
     R.outlineText = hover((PL + (j - 0.5 - v.u0) / k) / dpr, rowY(m) / dpr);
     snap();
     R.outline = {n, m, want: colorOf(n, m), ink: C.ink, middle: pix(PL + Math.floor((j - 0.5 - v.u0) / k), Math.floor(rowY(m))),
@@ -627,13 +648,13 @@ function battery(R) {
     const v = view(), x = L + 0.37 * W, k = v.span / W;
     hover(L + 0.8 * W, rowY(5) / dpr);
     touch('pointerdown', 14, x); touch('pointerup', 14, x);
-    R.tap = {want: [2 * (Math.floor(v.u0 + (x - L) * k) + 1), 1], text: ro.textContent};
+    R.tap = {want: [COLS[Math.floor(v.u0 + (x - L) * k)], 1], text: ro.textContent};
     ptr('pointerup', L + 0.2 * W, yProbe, {pointerId: 99});        // an up with no down: nothing happens
     R.tap.after = ro.textContent;
     const x2 = L + 0.63 * W;
     hover(L + 0.8 * W, rowY(5) / dpr);
     ptr('pointerdown', x2, yProbe, {buttons: 1}); ptr('pointerup', x2, yProbe, {});
-    R.click = {want: [2 * (Math.floor(v.u0 + (x2 - L) * k) + 1), 1], text: ro.textContent};
+    R.click = {want: [COLS[Math.floor(v.u0 + (x2 - L) * k)], 1], text: ro.textContent};
   }
   // The zoom buttons: a click of each from a view zoomed in 3 steps; then, from the full view, clicks of + until it is
   // disabled and then of − until it is disabled, the view measured after each.
@@ -653,7 +674,7 @@ const go = () => {
   R.texts = [...new Set(window.__texts)];
   parent.postMessage(JSON.stringify(R), '*');
 };
-const NCOL = __NCOL__;                                             // the columns: n = 2, 4, ..., NMAX
+const NCOL = __NCOL__, COLS = __COLUMNS__;                         // the columns' n: 2, then the multiples of 4 to NMAX
 addEventListener('load', () => document.fonts.ready.then(() => setTimeout(go, 50)));
 })();
 </script>
@@ -742,7 +763,7 @@ def run(name):
         text = page()
         assert text.count('<head>\n') == 1 and text.count('</body>') == 1 and text.count('<html lang="en">') == 1
         text = text.replace('<head>\n', '<head>\n' + EARLY).replace('</body>', HARNESS.replace(
-            '__OPTS__', json.dumps({'hoverEvery': every})).replace('__NCOL__', str(NCOL)) + '</body>')
+            '__OPTS__', json.dumps({'hoverEvery': every})).replace('__NCOL__', str(NCOL)).replace('__COLUMNS__', json.dumps(COLUMNS)) + '</body>')
         if theme: text = text.replace('<html lang="en">', f'<html lang="en" data-theme="{theme}">')
         open(os.path.join(d, 'index.html'), 'w', encoding='utf-8').write(text)
         if data is not None: open(os.path.join(d, 'mstar.js'), 'w', encoding='utf-8').write(SOURCES[data]())
@@ -880,7 +901,8 @@ def q_section_follows_table2():
     # Expectata: the page's one <figure> (Table 2) is followed, with only blank lines and comments between, by
     # <section class="mstar" aria-labelledby="mstar-title">, and that by <section class="pow2" (the chart of powers of
     # 2; quals_pow2_page.py holds it to being followed by <section class="remarks">).  In order, the
-    # section holds: a paragraph introducing the chart (dreeves's, which replaced the h2 mstar-title by 2026-10-27);
+    # section holds: a paragraph introducing the chart (dreeves's, which replaced the h2 mstar-title by 2026-10-27,
+    # and since 2026-10-29 follows his h2 of that id and leads his list of the n left out);
     # a legend whose swatches are exists, open and impossible, then (since
     # 2026-10-19) exists ringed in gold for a(m − 1) of OEIS A323395; the reset
     # button; the canvas mstar-chart (height 0 until drawn, focusable, an image with a label); and the readout
@@ -2061,7 +2083,7 @@ def q_page_loads_clean():
     # Replicata: index.html with the real mstar.js in headless Chrome, 1280 px wide at 2 device px per CSS px; and the
     # page loaded as is (nothing added), with Chrome logging its console to stderr.
     # Expectata: no errors, console errors or warnings; the canvas is drawn (nonzero height, as wide as main's content);
-    # the chart opens showing all NCOL = 512 columns, n = 2 to 1024.  The plain
+    # the chart opens showing all NCOL = 257 columns, n = 2 and the multiples of 4 up to 1024.  The plain
     # load logs nothing at all to the console.
     assert console_lines() == [], console_lines()
     R = valid_run('light')
@@ -2087,9 +2109,9 @@ def q_prose_has_one_measure():
 
 
 def q_drawn_cells_match_data():
-    # Replicata: the light and phone runs: the full view, and a sweep of the 512 columns n = 2, 4, …, 1024
+    # Replicata: the light and phone runs: the full view, and a sweep of the 257 columns, n = 2, 4, 8, 12, …, 1024,
     # zoomed in, so every column is at least 3 device px wide.
-    # Expectata: every even column is checked, in every row: its middle pixel has its color from mstar.js (exists up
+    # Expectata: every column is checked, in every row: its middle pixel has its color from mstar.js (exists up
     # to lo, open up to hi, impossible above) as the page's tokens give it, and the pixel below each row is paper.  In
     # the full view and every view of the sweep, every pixel of row 1 is exists, from the plot's left edge to its
     # right: no odd column (impossible in every row, since lo = hi = 0) is drawn, not even mixed into a pixel; but for
@@ -2097,11 +2119,11 @@ def q_drawn_cells_match_data():
     # (rowOneSkips), the cells next to a ring in its row and the row above, which that qual checks instead, and the
     # column lines of the zoomed views (rowOneLines), which q_mstar_grid_lines_come_with_zoom checks.
     data = mstar_data()
-    assert all(data['cols'][n - 1][0] >= 1 for n in EVEN), 'some even column has no exists cell in row 1'
+    assert all(data['cols'][n - 1][0] >= 1 for n in COLUMNS), 'some column has no exists cell in row 1'
     for name in ('light', 'phone'):
         R = valid_run(name)
         assert R['pixelBad'] == [], (name, R['pixelBad'][:10])
-        assert R['pixelColumns'] == EVEN, (name, sorted(set(EVEN) ^ set(R['pixelColumns']))[:20])
+        assert R['pixelColumns'] == COLUMNS, (name, sorted(set(COLUMNS) ^ set(R['pixelColumns']))[:20])
         assert R['pixelChecks'] >= NCOL * len(R['rows']), (name, R['pixelChecks'])
         assert len(R['rows']) == data['mtop'], (name, len(R['rows']))
         assert R['rowOneBad'] == [], (name, len(R['rowOneBad']), R['rowOneBad'][:10])
@@ -2109,8 +2131,61 @@ def q_drawn_cells_match_data():
         assert R['rowOneSkips'] <= len(R['views']) * (4 * R['dpr'] + 6), (name, R['rowOneSkips'])
 
 
+def q_aria_labelledby_names_an_element():
+    # Replicata: index.html: each aria-labelledby attribute and each id.
+    # Expectata: each id an aria-labelledby names is an element's, so a screen reader announces each section by its
+    # heading.
+    # Resultata before (2026-10-29): the m*(n) chart's section named mstar-title, which no element had had since
+    # dreeves's paragraph replaced its h2 on 2026-10-27; his new h2 had the id pow-title.
+    text = page()
+    ids = set(re.findall(r'\bid="([^"]+)"', text))
+    names = [i for n in re.findall(r'\baria-labelledby="([^"]+)"', text) for i in n.split()]
+    assert names and [i for i in names if i not in ids] == [], [i for i in names if i not in ids]
+
+
+def q_no_block_opens_inside_a_paragraph():
+    # Replicata: index.html, its tags in order (html.parser), with the <p> elements open at each.
+    # Expectata (dreeves, 2026-10-29: "what's up with the spacing of my <ul> list there?", a list written inside a <p>):
+    # no block element (p, ul, ol, li outside a list, table, div, blockquote, figure, section, details, pre, h1-h6)
+    # starts while a <p> is open.  An HTML parser closes the <p> there instead, and its </p> then makes an empty
+    # paragraph, which the section's grid spaces like any other.
+    # Resultata before: the list of exceptions above the m*(n) chart started inside its paragraph, after a <br>.
+    BLOCK = {'p', 'ul', 'ol', 'table', 'div', 'blockquote', 'figure', 'section', 'details', 'pre',
+             'h1', 'h2', 'h3', 'h4', 'h5', 'h6'}
+    class Paragraphs(html.parser.HTMLParser):
+        def __init__(self):
+            super().__init__(convert_charrefs=True)
+            self.open, self.bad = 0, []
+        def handle_starttag(self, tag, attrs):
+            if tag in BLOCK and self.open: self.bad.append((self.getpos(), tag))
+            self.open += tag == 'p'
+        def handle_endtag(self, tag):
+            self.open -= tag == 'p' and self.open > 0
+    parser = Paragraphs()
+    parser.feed(page())
+    assert parser.bad == [], parser.bad
+
+
+def q_mstar_leaves_out_odd_multiples_of_2():
+    # Replicata: mstar.js; the light and phone runs: row 2 of the full view and of every view of the sweep.
+    # Expectata (dreeves, 2026-10-29: "can we make my "odd multiple of 2" bullet point be true?", of his "Odd multiples
+    # of 2 except 2 itself are left out; for all n=4k+2 for some k ≥ 0, m*(4k+2) = 1"): every n = 2 mod 4 has lo = hi =
+    # 1 in mstar.js and every multiple of 4 lo >= 2; the chart's columns are n = 2 and the multiples of 4, NCOL = 257
+    # (q_page_loads_clean measures the full view's); and row 2, impossible at every n = 2 mod 4, is exists in every pixel
+    # right of n = 2's column, so no other n = 2 mod 4 is drawn, not even mixed into a pixel: but for a device px past
+    # n = 2's column, the ring of row 2 and the zones of the column lines (rowTwoSkips), at most a fifth of the pixels.
+    cols = mstar_data()['cols']
+    assert all(cols[n - 1][:2] == [1, 1] for n in range(2, NMAX + 1, 4)) and all(cols[n - 1][0] >= 2 for n in COLUMNS[1:])
+    assert COLUMNS[:4] == [2, 4, 8, 12] and NCOL == 257
+    for name in ('light', 'phone'):
+        R = valid_run(name)
+        assert R['rowTwoBad'] == [], (name, len(R['rowTwoBad']), R['rowTwoBad'][:10])
+        total = len(R['views']) * (R['plot'][1] - R['plot'][0])
+        assert R['rowTwoChecks'] + R['rowTwoSkips'] == total and R['rowTwoSkips'] <= total / 5, (name, R['rowTwoSkips'], total)
+
+
 def q_mstar_grid_lines_come_with_zoom():
-    # Replicata: the light and phone runs: row 1 (exists in every even column) of the full view, of every view of the
+    # Replicata: the light and phone runs: row 1 (exists in every column) of the full view, of every view of the
     # sweep (columns about 30 CSS px wide at 1280 px) and of the first view, zooming in from the full view step by
     # step, whose columns are wider than 4 CSS px (3 steps in at 1280 px, about 6).
     # Expectata (dreeves, 2026-10-29, of a full grid on this chart: "maybe when zoomed in enough the full grid could
@@ -2148,35 +2223,36 @@ def q_chart_rings_a323395_terms_in_gold():
         assert sorted(map(int, R['ringed'])) == [n for n, _ in want], (name, R['ringed'])
 
 
-def q_readout_reports_even_n_only():
+def q_readout_reports_columns_only():
     # Replicata: the light and phone runs: every hover of the harness (the full view, every view of the sweep, the
     # searches for column edges, which probe within a millionth of a px of them, and the interactions), and a hover at
     # the middle of every device px across row 1 of the full view.
-    # Expectata: no readout reports an odd n; across the full view the readout goes through n = 2, 4, …, 1024, each
-    # once, in order from left to right.
+    # Expectata: no readout reports an n without a column (odd, or 2 mod 4 but 2; only odd before 2026-10-29); across
+    # the full view the readout goes through n = 2, 4, 8, 12, …, 1024, each once, in order from left to right.
     for name in ('light', 'phone'):
         R = valid_run(name)
-        assert R['oddReadouts'] == [] and R['readouts'] > 2 * NCOL, (name, R['readouts'], R['oddReadouts'][:5])
-        assert R['across'] == EVEN, (name, R['across'][:20])
+        assert R['hiddenReadouts'] == [] and R['readouts'] > 2 * NCOL, (name, R['readouts'], R['hiddenReadouts'][:5])
+        assert R['across'] == COLUMNS, (name, R['across'][:20])
 
 
-def q_n_labels_are_even_and_round():
+def q_n_labels_are_round_multiples_of_4():
     # Replicata: the n labels (the strings drawn below the rows, right of the plot's left edge) of one draw in each of
     # the full view, every view of the sweep, and the view zoomed in as far as it goes; in the light and phone runs.
-    # Expectata: they are the multiples of one step s, from 2, 10, 20, 50, 100, 200, 500 (so every label is an even n),
-    # whose columns' middles are in view, in order, each centered on its column's middle to within a device px; s is
-    # the first of those steps that puts the labels at least 48 CSS px apart.
+    # Expectata: they are the multiples of one step s, from 4, 20, 40, 100, 200, 500 (so every label is an n with a
+    # column, n / 4 from 1 on; until 2026-10-29 the steps were 2, 10, 20, 50, ... and every even n had a column), whose
+    # columns' middles are in view, in order, each centered on its column's middle to within a device px; s is the
+    # first of those steps that puts the labels at least 48 CSS px apart.
     for name in ('light', 'phone'):
         R = valid_run(name)
         (PL, PR), dpr = R['plot'], R['dpr']
         assert len(R['labelDraws']) == len(R['views']) + 1, (name, len(R['labelDraws']))
         for d in R['labelDraws']:
             v, got = d['v'], d['labels']
-            s = next(s for s in STEPS if s / 2 * (PR - PL) / dpr / v['span'] >= 48)
-            want = [n for n in range(s, NMAX + 1, s) if v['u0'] - 1e-6 <= n / 2 - 0.5 <= v['u0'] + v['span'] + 1e-6]
+            s = next(s for s in STEPS if s / 4 * (PR - PL) / dpr / v['span'] >= 48)
+            want = [n for n in range(s, NMAX + 1, s) if v['u0'] - 1e-6 <= n / 4 + 0.5 <= v['u0'] + v['span'] + 1e-6]
             assert [t for t, _ in got] == [str(n) for n in want], (name, v, s, got)
             for t, x in got:
-                assert close(x, PL + (int(t) / 2 - 0.5 - v['u0']) * (PR - PL) / v['span'], 1), (name, v, t, x)
+                assert close(x, PL + (int(t) / 4 + 0.5 - v['u0']) * (PR - PL) / v['span'], 1), (name, v, t, x)
 
 
 def q_zoom_buttons_sit_beside_show_all():
@@ -2201,8 +2277,8 @@ def q_zoom_buttons_zoom_about_the_middle():
     # full view, clicks of + until it is disabled and then of − until it is disabled, the view measured after each; and
     # the buttons after every interaction step (keys, wheels, drags, pinches, gestures, reset).
     # Expectata: + zooms in by 1.5 and − out by 1.5 about the middle (the u at the middle stays), as the + and − keys do,
-    # stopping at 12 and 512 columns: 10 clicks each way.  + is disabled exactly when the view is 12 columns and −
-    # exactly when it is all 512: at load (− only), after every click and after every step (so − after the reset
+    # stopping at 12 and 257 columns: 8 clicks each way (10 with 512 columns, before 2026-10-29).  + is disabled
+    # exactly when the view is 12 columns and − exactly when it is all 257: at load (− only), after every click and after every step (so − after the reset
     # button).  A disabled button is grayed out, not hidden: opacity at most 0.5 but displayed, visible and as big as
     # the other, whose opacity is 1.
     R = valid_run('light')
@@ -2212,7 +2288,7 @@ def q_zoom_buttons_zoom_about_the_middle():
         a, b = S[name]['a'], S[name]['b']
         assert close(b['span'], a['span'] * f, 1e-3) and close(b['u0'] + b['span'] / 2, a['u0'] + a['span'] / 2, 1e-3), (name, S[name])
     clicks = R['clicks']
-    assert [k for k, *_ in clicks] == ['start'] + ['in'] * 10 + ['out'] * 10, [k for k, *_ in clicks]
+    assert [k for k, *_ in clicks] == ['start'] + ['in'] * 8 + ['out'] * 8, [k for k, *_ in clicks]
     for (_, a, _), (kind, b, _) in zip(clicks, clicks[1:]):
         want = min(max(a['span'] * (1 / 1.5 if kind == 'in' else 1.5), MIN_SPAN), NCOL)
         assert close(b['span'], want, 1e-3) and close(b['u0'] + b['span'] / 2, a['u0'] + a['span'] / 2, 1e-3), (a, kind, b)
@@ -2240,11 +2316,11 @@ def q_hover_reads_out_cells():
     # when lo = hi and "lo ≤ m*(N) ≤ hi" otherwise; REASONS are Claude: "…" strings: for a green cell (m ≤ lo) one
     # that starts "order lo ", for a red cell (m > hi) one that starts "order hi+1 ", for a gray cell both, joined by
     # " · "; and for a cell ringed in gold (a323395_cells, since 2026-10-19) one more, ring_note.  Every column, n = 2,
-    # 4, …, 1024, is read out in both runs.
+    # 4, 8, 12, …, 1024, is read out in both runs.
     for name in ('light', 'kinds'):
         R = valid_run(name)
         cols = json.loads(kinds_data()[len('const MSTAR = '):-2])['cols'] if name == 'kinds' else mstar_data()['cols']
-        assert {n for n, _, _ in R['hovers']} == set(EVEN), name
+        assert {n for n, _, _ in R['hovers']} == set(COLUMNS), name
         rings = a323395_cells(cols)
         for n, m, text in R['hovers']:
             lo, hi = cols[n - 1][:2]
@@ -2364,8 +2440,8 @@ def q_safari_gestures_zoom_unless_touching():
 def q_view_stays_within_limits():
     # Replicata: from a view zoomed in 3 steps: 40 presses of +; of -; 300 of ArrowRight; ctrl + wheel down 5000 px;
     # and (separately) ArrowRight, +, then the reset button.
-    # Expectata: zooming in stops at 12 columns and out at all 512; panning stops with n = 1024 at the right edge; the
-    # reset button shows all 512 columns, n = 2 to 1024.
+    # Expectata: zooming in stops at 12 columns and out at all 257; panning stops with n = 1024 at the right edge; the
+    # reset button shows all 257 columns, n = 2 to 1024.
     S = valid_run('light')['steps']
     assert close(S['zoomInFar']['b']['span'], MIN_SPAN, 0.01), S['zoomInFar']
     for name in ('zoomOutFar', 'wheelOutFar', 'reset'):

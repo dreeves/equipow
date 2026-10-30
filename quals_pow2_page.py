@@ -39,6 +39,7 @@ OUTLINE = (36, 5)                             # the cell whose outline the scree
 SWIPE = (29, 8)                               # the cell a phone's swipe starts on, after the outline's tap
 MSTAR_LAYOUT = (44, 16, 2, 14)                # the m*(n) chart's plot: left and right gutters, top, row pitch (CSS px)
 NMAX = int(re.search(r'"nmax": (\d+)', open(MSTAR, encoding='utf-8').read()).group(1))   # the m*(n) chart's last n (1024)
+MSTAR_COLUMNS = [2] + list(range(4, NMAX + 1, 4))   # the m*(n) chart's columns' n since 2026-10-29 (every even n before)
 WHO = ('BGPW', 'Claude alone', 'Claude and BGPW', 'Astra alone', 'Claude and Astra')   # provenance labels of the page's new results
 RUNS = {}                                     # DRIVER's reports by configuration name, made once per process (see run)
 
@@ -456,8 +457,9 @@ async function main() {
     await ev(() => document.getElementById('mstar-chart').scrollIntoView({block: 'center'}));
     await ev(FRAMES);
     const [cl, ct, cw] = (await ev(GEOMETRY)).canvas, T2 = await ev(() => MSTAR.mtop), [ML, MR, MT, MP] = C.mstarLayout;
-    for (const [k, m] of C.mstarCells) {        // cell (2^k, m) of the m*(n) chart in its full view of the C.mstarCols even n
-      await input.mouse(cl + ML + (2 ** k / 2 - 0.5) * (cw - ML - MR) / C.mstarCols, ct + MT + (T2 - m) * MP + (MP - 2) / 2);
+    for (const [k, m] of C.mstarCells) {        // cell (2^k, m) of the m*(n) chart in its full view of the columns C.mstarCols
+      await input.mouse(cl + ML + (C.mstarCols.indexOf(2 ** k) + 0.5) * (cw - ML - MR) / C.mstarCols.length,
+                        ct + MT + (T2 - m) * MP + (MP - 2) / 2);
       R.mstar.push([k, m, await ev(() => document.getElementById('mstar-readout').textContent)]);
     }
   }
@@ -516,7 +518,7 @@ def run(name):
         shots = [os.path.join(d, 'load.png'), os.path.join(d, 'outline.png')]
         cfg = {k: c[k] for k in ('width', 'height', 'dpr', 'mobile', 'theme', 'drawn', 'hover', 'tap', 'swipe')} | dict(
             chrome=CHROME, dir=d, urls=urls, K=K, E=data['etop'] if data else 0, ROW=ROW, GAP=gap(c['dpr']), outline=OUTLINE,
-            swipeFrom=SWIPE, shots=shots, mstarCells=mstar, mstarLayout=MSTAR_LAYOUT, mstarCols=NMAX // 2)
+            swipeFrom=SWIPE, shots=shots, mstarCells=mstar, mstarLayout=MSTAR_LAYOUT, mstarCols=MSTAR_COLUMNS)
         try:
             p = subprocess.run(['node', '--input-type=module', '-e', DRIVER], input=json.dumps(cfg),
                                capture_output=True, text=True, timeout=600)
