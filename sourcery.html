@@ -9814,7 +9814,7 @@ for OEIS, can you make sure the errors in OEIS are made clear on the page? then 
 <pre class="prompt">can you just keep working and spawning sub-agents until you get 288:10 running faster?
 </pre>
 <details>
-<summary><a class="anchor" href="#p487"><time datetime="2026-10-30T06:11:21.173000+00:00">06:11</time></a> <span class="chip"></span> <span class="agent">Codex</span> <span class="model">gpt-6-astra</span> <span class="effort">(ultra)</span> <span class="elapsed">thought for 48m58s · 55m56s wall-clock time</span></summary>
+<summary><a class="anchor" href="#p487"><time datetime="2026-10-30T06:11:21.173000+00:00">06:11</time></a> <span class="chip"></span> <span class="agent">Codex</span> <span class="model">gpt-6-astra</span> <span class="effort">(ultra)</span> <span class="elapsed">thought for 53m17s · 1h1m16s wall-clock time</span></summary>
 <div class="reply machine"><p>Work will continue through a measured speedup deployed to the live 288:10 search. The first candidate is skipping LP construction when a checked certificate already closes the case; separate agents will review correctness, timing, and the live restart requirements.</p>
 <p>The live search is still in its first pass, so the certificate-reuse change would only help a later phase. A separate agent is targeting the first pass’s repeated LP work. The restart audit also found that changing the shared solver would disrupt the paused 432 search; any solver change will be isolated to 288 and preserve the old journal’s provenance.</p>
 <p>The deferred-LP prototype now passes quals for certificate-only cases, mixed cases, witnesses, and malformed certificates, without changing the independent checker. For the current pass, profiling points to exact integer arithmetic as a major cost. That is being compared alongside the previously identified HiGHS option fix, using matched cases and checked proofs.</p>
@@ -9828,7 +9828,12 @@ for OEIS, can you make sure the errors in OEIS are made clear on the page? then 
 <p>The broad progress check found an existing log-format mismatch in the root boxsplit code. The 288 copy still emits the format its reader expects. That distinction is being verified before the restart.</p>
 <p>The restart checks are complete: all 18 new progress quals and eight migration quals pass. The old runner is now being stopped through its guardian so that worker cleanup and the 432 lease remain coordinated.</p>
 <p>All 742,573 saved records survived the migration byte-for-byte, confirmed by an independent audit. The optimized runner is being launched with ten workers at niceness 15, followed by the single progress watcher.</p>
-<p>The startup control passed, and all ten workers are active. They are currently replaying saved branches under the new runner. The first refreshed progress snapshot is still being checked.</p></div>
+<p>The startup control passed, and all ten workers are active. They are currently replaying saved branches under the new runner. The first refreshed progress snapshot is still being checked.</p>
+<p>The optimized search has now recorded a new exactly checked case exclusion. Live progress also passed verification: one watcher, a fresh snapshot served over HTTP, and no duplicate 288 row.</p>
+<p>288:10 is now running the optimized solver with ten workers.</p>
+<ul><li><strong>10.7% less CPU</strong> across 24 matched cases; all verdicts unchanged.</li><li>All <strong>742,573 saved records</strong> preserved.</li><li>Startup control passed; a new exactly checked case exclusion recorded.</li><li>Live progress verified.</li></ul>
+<p>Restart replay is still underway; the benchmark gain is not a completion forecast.</p>
+<p>[Benchmark](/Users/dreeves/lab/powersums/scratch/speed288-deploy/staged/benchmark-summary.json) · [Deployment notes](/Users/dreeves/lab/powersums/AGENTS.md:422)</p></div>
 </details>
 </article>
 </main>
