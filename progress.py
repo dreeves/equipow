@@ -120,6 +120,9 @@ The estimate's model, its terms defined once here (overnight_v5.py's search() is
               cost of each node of kind 'subtree' at that depth, pending or running (a running one's elapsed time, a
               few seconds of solve and split, is ignored).  Depths go from the bottom up, so a partway member's
               eventual cost is drawn before its depth's draws are made.
+  history     for a donor subtree's prediction, each job's first logged cost in the contiguous preceding passes
+              with the same target, budgets, cascade and pool budget. Historical costs replace repeated-job charges
+              in the donor observation only; they never add completed work to the current pass's remaining work.
   items       the remaining work in search()'s order: the running jobs that are not leaves first (their children go
               on top of the stack), then the stack from its top, a resplit node replaced by its children in the order
               search() pops them.  A leaf is a job of one worker; a subtree is fluid, spread over the free workers.
@@ -543,14 +546,58 @@ def children(key, order, cache):
     return cache[key]
 
 
+def recover_splits(R, wanted, cache):
+    """Use one pass's complete children, with an explicit closed pool, in split's original order."""
+    latest = R['passes'][-1]
+    identity = lambda p: (p['n'], p['order'], p['moduli'], p['pool_budget'])
+    counts, found = {}, {}
+    seen = collections.defaultdict(set)
+    for p in R['passes']:
+        if identity(p) != identity(latest): continue
+        sizes, observed = {}, collections.defaultdict(dict)
+        w, r, c = 1, 0, 0
+        for nd in p['nodes']:
+            key = nd['key']
+            submit = nd['running'] + 1 - r
+            skip = nd['closed'] - c - (nd['verdict'] == 'INFEASIBLE')
+            K = nd['waiting'] - w + submit + skip
+            if key in wanted:
+                assert nd['verdict'] == 'UNKNOWN' and '#' not in key
+                assert submit >= 0 and skip >= 0 and K >= 0
+                assert sizes.get(key, K) == K and counts.get(key, K) == K
+                sizes[key] = counts[key] = K
+            up = parent_key(key)
+            if key and up in wanted:
+                assert observed[up].get(key, nd['verdict']) == nd['verdict']
+                observed[up][key] = nd['verdict']
+                seen[up].add(key)
+            w, r, c = nd['waiting'], nd['running'], nd['closed']
+        for key, K in sizes.items():
+            kids = observed[key]
+            pools = [k for k in kids if '#' in k.split()[-1]]
+            if len(kids) == K and len(pools) == 1 and kids[pools[0]] == 'INFEASIBLE':
+                ordered = sorted((k for k in kids if k != pools[0]),
+                                 key=lambda k: json.loads(k.split()[-1].split(':', 1)[1])) + pools
+                assert found.get(key, ordered) == ordered
+                found[key] = ordered
+    for key, kids in found.items():
+        assert seen[key] <= set(kids) and counts[key] == len(kids)
+        assert cache.get(key, kids) == kids
+    cache.update(found)
+    return cache
+
+
+
 def resplits(R, order, cache):
     """cache, holding the splits of the nodes the run's current pass splits again: UNKNOWN within their budget above
     the bottom when it began.  The replay needs their children (see kind in the vocabulary), which an estimate alone
     asks for: splitting them for an ended run would be work for nothing (240@11's last 88 took 626 s)."""
     budgets = R['passes'][-1]['budgets']
     start = {r['key']: r for r in R['records'][:R['bounds'][-1]]}
-    for k in [k for k, r in start.items() if r['verdict'] == 'UNKNOWN' and len(k.split()) < len(budgets) - 1 and r['budget'] >= budget_of(k, budgets)]:
-        children(k, order, cache)
+    wanted = {k for k, r in start.items() if r['verdict'] == 'UNKNOWN'
+              and len(k.split()) < len(budgets) - 1 and r['budget'] >= budget_of(k, budgets)}
+    recover_splits(R, wanted, cache)
+    for k in sorted(wanted): children(k, order, cache)
     return cache
 
 
@@ -811,6 +858,49 @@ def makespan(loads, items):
 # A likely cause, found 2026-10-13: search() takes siblings in an order whose cost grows (240@11's first 25 depth-5
 # subtrees took about 0.2 worker-hours each, later ones 169 and 282+), so finished subtrees are no fair sample of the
 # waiting ones.  The planned fix, before the next search: shuffled sibling order (the note above overnight_v5.search).
+def history_costs(state):
+    """Historical own costs and credits from preceding contiguous compatible passes.
+
+    Maps retain only above-bottom donor keys. Historical leaf costs aggregate into
+    their ancestors; a set of keys prevents repeat resplits becoming observations.
+    Credits subtract this pass's repeated-job charges, already present in sofar,
+    so a donor represents each job's first observation once, even after restarts.
+    These values belong only in donor populations, never in remaining work.
+    Geometry compatibility across source revisions is checked by run_modules.
+    """
+    def signature(p):
+        return (p['n'], p['order'], tuple(p['budgets']), tuple(p['moduli']), p['pool_budget'])
+
+    current = signature(state['passes'][-1])
+    prior = []
+    for p in reversed(state['passes'][:-1]):
+        if signature(p) != current: break
+        prior.append(p)
+    own, totals, seen = {}, collections.defaultdict(float), set()
+    bottom = len(state['budgets']) - 1
+    for p in reversed(prior):
+        for nd in p['nodes']:
+            key = nd['key']
+            if key in seen: continue
+            seen.add(key)
+            parts = key.split()
+            cost = nd['solve'] + nd['split']
+            if len(parts) < bottom: own[key] = cost
+            for depth in range(min(len(parts) + 1, bottom)):
+                totals[' '.join(parts[:depth])] += cost
+    for nd in state['passes'][-1]['nodes']:
+        key = nd['key']
+        if key not in seen: continue
+        seen.remove(key)
+        parts = key.split()
+        cost = nd['solve'] + nd['split']
+        for depth in range(min(len(parts) + 1, bottom)):
+            ancestor = ' '.join(parts[:depth])
+            totals[ancestor] = math.fsum((totals[ancestor], -cost))
+    return own, dict(totals)
+
+
+
 def estimate(state, parts=None):
     """REPLICATES samples of the current pass's remaining hours of running (see the vocabulary), or an empty array (no
     estimate).  parts, if a dict, receives the pieces: the tree, the kinds, the draws, the items, the work, the speed."""
@@ -856,6 +946,7 @@ def estimate(state, parts=None):
         sofar[node] = own + sum(total(c) for c in node.kids)
         return sofar[node]
     total(root)
+    historical_own, historical_total = history_costs(state)
     by_depth = collections.defaultdict(list)
     for n in nodes: by_depth[n.depth].append(n)
     zero = np.zeros(REPLICATES)
@@ -870,10 +961,10 @@ def estimate(state, parts=None):
         draws = [n for n in by_depth[d] if kinds.get(n) == 'subtree']
         if draws and not pop: return np.array([])
         if pop:
-            eventual = np.tile(np.array([sofar[n] for n in pop]), (REPLICATES, 1))
+            eventual = np.tile(np.array([math.fsum((sofar[n], historical_total.get(n.key, 0.0))) for n in pop]), (REPLICATES, 1))
             for j, n in enumerate(pop):
                 if n in rem: eventual[:, j] += rem[n]
-            own, kids = np.array([n.cost for n in pop]), np.array([len(n.kids) for n in pop])
+            own, kids = np.array([historical_own.get(n.key, n.cost) for n in pop]), np.array([len(n.kids) for n in pop])
             urns[d] = Urn(rng, eventual, fresh_ball(rng, own, kids, urns.get(d + 1)), len(draws))
         for n in draws: rem[n] = urns[d].draw()
     items = []

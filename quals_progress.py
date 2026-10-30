@@ -907,7 +907,7 @@ def q_survey_of_an_ended_run_splits_nothing_for_the_replay():
     # its pass 2's last line.
     # Expectata: ended, no estimate, and not one split: the splits of the nodes a pass splits again are the replay's,
     # and an ended run's survey makes none (2026-10-20: the watcher would have spent 626 s of CPU splitting the 88 such
-    # nodes of 240@11's last pass after it ended); running, an estimate, and those nodes split.
+    # nodes of 240@11's last pass after it ended); running, an estimate, and those nodes' children cached.
     journal, log = tiny('handed')
     lines = progress.complete_lines(log)
     assert progress.FORMS['outcome'].match(lines[-1]), lines[-1]
@@ -921,11 +921,13 @@ def q_survey_of_an_ended_run_splits_nothing_for_the_replay():
     try:
         s = progress.survey(64, 7, journal, log, [], time.time(), {}, {})
         ended = list(calls)
-        r = progress.survey(64, 7, journal, cut, [(1, 0, 'S', 'python3 overnight_v5.py 64 7')], progress.stamp(lines[-2][:19]), {}, {})
+        cache = {}
+        r = progress.survey(64, 7, journal, cut, [(1, 0, 'S', 'python3 overnight_v5.py 64 7')], progress.stamp(lines[-2][:19]), cache, {})
     finally:
         v5.split, progress.DEEPEST = real, saved
     assert s['state'] == 'ended' and s['draws'] is None and ended == [], ended
-    assert r['state'] == 'running' and r['draws'] is not None and calls, (r['state'], calls)
+    assert r['state'] == 'running' and r['draws'] is not None and cache, (r['state'], cache)
+    assert all(kids == [v5.node_key(c) for c in real(7, progress.parse_key(key))] for key, kids in cache.items())
 
 
 def q_survey_of_a_resolving_run():
