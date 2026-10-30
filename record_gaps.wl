@@ -1,7 +1,5 @@
 (* record_gaps.wl
-
-   Written by Claude (Claude Opus 5.5, an AI model made by Anthropic) on 2026-10-18, for Stan Wagon, at Danny Reeves's
-   request.  The code and every comment in this file are Claude's; no human has reviewed them.
+   Written by Claude.
 
    The table's form and its header row are Stan Wagon's (his table of 2026-10-18, whose two rows, 2^17's and 2^27's,
    stopped being record gaps on 2026-10-26 and 2026-10-25, when 2^10 and 2^20 took them), but for one product per
@@ -66,8 +64,8 @@ records = {
     {{480, 12}, {480, 12}, {480, 12}, {480, 12}, {480, 12}, {480, 12}, {32, 5}}}}
 };
 
-(* TODO: error copy; says the script stopped, and which check failed *)
-check[test_, what_String] := If[! TrueQ[test], Print["Claude: \"record_gaps.wl stopped: " <> what <> "\""]; Abort[]];
+(* error copy; says the script stopped, and which check failed *)
+check[test_, what_String] := If[! TrueQ[test], Print["record_gaps.wl stopped: " <> what <> ""]; Abort[]];
 
 (* a product's blocks, ascending by length, each with its count: {n, m, c} *)
 factors[p_] := {#[[1, 1]], #[[1, 2]], Length[#]} & /@ Split[SortBy[p, First]];
@@ -82,10 +80,10 @@ times[{_, m_, c_}] := Row[{c, m}, "\[CenterDot]"];
 (* the table's lines for record gap g, its record {k, products}: the bound on the first line, then a line per product,
    its length and its order *)
 lines[g_, {k_, ps_}] := (
-  (* TODO: error copy; says the products' lengths in the row of 2^k do not sum to 2^k *)
+  (* error copy; says the products' lengths in the row of 2^k do not sum to 2^k *)
   check[Total[Times @@@ ps[[All, All, 1]]] == 2^k,
     "the products' lengths in the row of 2^" <> ToString[k] <> " do not sum to 2^" <> ToString[k]];
-  (* TODO: error copy; says the least order of the products in the row of 2^k is not k + g, and what it is *)
+  (* error copy; says the least order of the products in the row of 2^k is not k + g, and what it is *)
   check[Min[Total /@ ps[[All, All, 2]]] == k + g,
     "the least order in the row of 2^" <> ToString[k] <> " is " <> ToString[Min[Total /@ ps[[All, All, 2]]]] <>
       ", not " <> ToString[k + g]];

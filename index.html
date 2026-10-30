@@ -591,7 +591,7 @@ footer {
         </table>
       </div>
       <p>As in the original table, we list multiples of 8 up to 304.
-        Then we list multiples of 16 up to 1024 because the odd multiples of 8 always have order 7. 
+        Then we list multiples of 16 up to 1024 because the odd multiples of 8 from 200 on all have order 7. 
         BGPW's <a href="https://arxiv.org/html/1912.03491v1#S4.Thmthm1">Theorem 4.1</a> (Divisibility) tells us that 
         odd multiples of 8 have \(m^*(n) \le 7\) and 
         for all \(n\ge 200\) it turns out the order is exactly 7.
@@ -644,7 +644,8 @@ footer {
     So there's no bipartition that splits the sum in half, which means there's no equipowerful partition for exponent 1.
   </p>
   <p>
-    The highlighted cells indicate \(n = a(m - 1)\) of OEIS <a href="https://oeis.org/A323395">A323395</a> &mdash; the smallest \(n\) for each order \(m\).
+    The highlighted cells in this chart indicate \(n = a(m - 1)\) of OEIS <a href="https://oeis.org/A323395">A323395</a>: the smallest \(n\) for each order \(m\).
+    Hover or click on a cell for details.
   </p>
   <!-- cell (n, m) is green when m*(n) ≥ m is known, red when m*(n) < m is proven, and gray when neither is; and that odd n are left out, because an odd number of integers can't be split into two halves of equal size, so no partition exists for any m -->
   <div class="mstar-bar">
@@ -663,6 +664,18 @@ footer {
   </div>
   <canvas id="mstar-chart" height="0" tabindex="0" role="img" aria-label='chart of the bounds on m*(n) for even n up to 1024; the arrow keys pan, and + and − zoom'></canvas>
   <p id="mstar-readout" aria-live="polite">Hover over a cell for details. Drag or swipe sideways to pan; zoom with the − and + buttons, pinching, or ctrl-scroll.</p>
+</section>
+
+<section class="smallest" aria-labelledby="smallest-title">
+  <h2 id="smallest-title">The smallest length known for each order</h2>
+  <p>
+    Here's an alternate presentation of the highlighted cells in the above chart.
+    (See again OEIS <a href="https://oeis.org/A323395">A323395</a>.)
+  </p>
+  <table>
+  <thead><tr><th>order \(m\)</th><th>smallest known \(n\)</th><th>proven smallest</th><th>smallest \(n\) not ruled out</th></tr></thead>
+  <tbody data-smallest></tbody>
+  </table>
 </section>
 
 <!-- Claude's chart of what is known about m*(2^k) − k, the excess over Thue–Morse, for every k up to 72, drawn by the script at the end from pow2.js -->
@@ -1248,86 +1261,71 @@ footer {
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 2^{49}\): &nbsp;\(m^* \in \{55, \ldots, 60\}\)</p>
-      <!-- TODO: says order 55 at 2^49 comes from the join of the 2^48 entry with each product times tau_1, which beats Thue–Morse by 6; and that the upper bound is the residue condition mod 3 -->
-      <p>Claude: "The join of the \(2^{48}\) entry, each product times \(\tau_1\), has order 55. That beats Thue–Morse by 6. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above."</p>
+      <!-- Says order 55 at 2^49 comes from the join of the 2^48 entry with each product times tau_1, which beats Thue–Morse by 6; and that the upper bound is the residue condition mod 3 -->
+      <p>The join of the \(2^{48}\) entry, each product times \(\tau_1\), has order 55. That beats Thue–Morse by 6. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above.</p>
     </li>
     <li class="j">
       <span class="mk" aria-hidden="true">◆●</span>
       <p class="entry">\(n = 2^{51}\): &nbsp;\(m^* \in \{57, \ldots, 63\}\)</p>
       <p>With \(f\) the \(2^{24}\) construction above, \(f \mathbin{\#} f \mathbin{\#} \tau_3\) has order \(25 + 25 + 3 = 53\). BGPW's 52 is Stong's.</p>
-      <!-- TODO: says the six products of the 2^48 entry, each times tau_3, give order 57 at 2^51; and that the upper bound is the norm bound for the residue sums mod 3 -->
-      <p>Claude: "The six products of the \(2^{48}\) entry, each times \(\tau_3\), give order 57. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above."</p>
+      <!-- Says the six products of the 2^48 entry, each times tau_3, give order 57 at 2^51; and that the upper bound is the norm bound for the residue sums mod 3 -->
+      <p>The six products of the \(2^{48}\) entry, each times \(\tau_3\), give order 57. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above.</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 2^{52}\): &nbsp;\(m^* \in \{58, \ldots, 64\}\)</p>
-      <!-- TODO: says order 58 at 2^52 comes from the join of the 2^48 entry with each product times tau_4, which beats Thue–Morse by 6; and that the upper bound is the norm bound for the residue sums mod 3 -->
-      <p>Claude: "The join of the \(2^{48}\) entry, each product times \(\tau_4\), has order 58. That beats Thue–Morse by 6. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above."</p>
+      <!-- Says order 58 at 2^52 comes from the join of the 2^48 entry with each product times tau_4, which beats Thue–Morse by 6; and that the upper bound is the norm bound for the residue sums mod 3 -->
+      <p>The join of the \(2^{48}\) entry, each product times \(\tau_4\), has order 58. That beats Thue–Morse by 6. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above.</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 2^{57}\): &nbsp;\(m^* \in \{64, \ldots, 70\}\)</p>
-      <!-- TODO: says order 64 at 2^57 comes from a join of eight products of the examples above and Thue–Morse, each of order at least 64, which beats Thue–Morse by 7; and that the upper bound is the residue condition mod 3 -->
-      <p>Claude: "A join of eight products of examples above and Thue–Morse, each of order at least 64; the powers-of-2 chart above lists them. That beats Thue–Morse by 7. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above."</p>
+      <!-- Says order 64 at 2^57 comes from a join of eight products of the examples above and Thue–Morse, each of order at least 64, which beats Thue–Morse by 7; and that the upper bound is the residue condition mod 3 -->
+      <p>A join of eight products of examples above and Thue–Morse, each of order at least 64; the powers-of-2 chart above lists them. That beats Thue–Morse by 7. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above.</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 2^{61}\): &nbsp;\(m^* \in \{68, \ldots, 75\}\)</p>
-      <!-- TODO: says order 68 at 2^61 comes from the join of the 2^57 entry with each product times tau_4, which beats Thue–Morse by 7; and that the upper bound is the residue condition mod 3 -->
-      <p>Claude: "The join of the \(2^{57}\) entry, each product times \(\tau_4\), has order 68. That beats Thue–Morse by 7. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above."</p>
+      <!-- Says order 68 at 2^61 comes from the join of the 2^57 entry with each product times tau_4, which beats Thue–Morse by 7; and that the upper bound is the residue condition mod 3 -->
+      <p>The join of the \(2^{57}\) entry, each product times \(\tau_4\), has order 68. That beats Thue–Morse by 7. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above.</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 2^{65}\): &nbsp;\(m^* \in \{73, \ldots, 81\}\)</p>
-      <!-- TODO: says order 73 at 2^65 comes from a join of eight products of the examples above and Thue–Morse, each of order at least 73, which beats Thue–Morse by 8; and that the upper bound is the norm bound for the residue sums mod 3 -->
-      <p>Claude: "A join of eight products of examples above and Thue–Morse, each of order at least 73; the powers-of-2 chart above lists them. That beats Thue–Morse by 8. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above."</p>
+      <!-- Says order 73 at 2^65 comes from a join of eight products of the examples above and Thue–Morse, each of order at least 73, which beats Thue–Morse by 8; and that the upper bound is the norm bound for the residue sums mod 3 -->
+      <p>A join of eight products of examples above and Thue–Morse, each of order at least 73; the powers-of-2 chart above lists them. That beats Thue–Morse by 8. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above.</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 2^{66}\): &nbsp;\(m^* \in \{74, \ldots, 82\}\)</p>
-      <!-- TODO: says order 74 at 2^66 comes from the join of the 2^65 entry with each product times tau_1, which beats Thue–Morse by 8; and that the upper bound is the norm bound for the residue sums mod 3 -->
-      <p>Claude: "The join of the \(2^{65}\) entry, each product times \(\tau_1\), has order 74. That beats Thue–Morse by 8. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above."</p>
+      <!-- Says order 74 at 2^66 comes from the join of the 2^65 entry with each product times tau_1, which beats Thue–Morse by 8; and that the upper bound is the norm bound for the residue sums mod 3 -->
+      <p>The join of the \(2^{65}\) entry, each product times \(\tau_1\), has order 74. That beats Thue–Morse by 8. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above.</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 2^{67}\): &nbsp;\(m^* \in \{75, \ldots, 83\}\)</p>
-      <!-- TODO: says order 75 at 2^67 comes from the join of the 2^65 entry with each product times tau_2, which beats Thue–Morse by 8; and that the upper bound is the norm bound for the residue sums mod 3 -->
-      <p>Claude: "The join of the \(2^{65}\) entry, each product times \(\tau_2\), has order 75. That beats Thue–Morse by 8. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above."</p>
+      <!-- Says order 75 at 2^67 comes from the join of the 2^65 entry with each product times tau_2, which beats Thue–Morse by 8; and that the upper bound is the norm bound for the residue sums mod 3 -->
+      <p>The join of the \(2^{65}\) entry, each product times \(\tau_2\), has order 75. That beats Thue–Morse by 8. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above.</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 2^{68}\): &nbsp;\(m^* \in \{77, \ldots, 84\}\)</p>
-      <!-- TODO: says order 77 at 2^68 comes from a join of thirteen products of the examples above and Thue–Morse, each of order at least 77, which beats Thue–Morse by 9; and that the upper bound is the residue condition mod 3 -->
-      <p>Claude: "A join of thirteen products of examples above and Thue–Morse, each of order at least 77; the powers-of-2 chart above lists them. That beats Thue–Morse by 9. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above."</p>
+      <!-- Says order 77 at 2^68 comes from a join of thirteen products of the examples above and Thue–Morse, each of order at least 77, which beats Thue–Morse by 9; and that the upper bound is the residue condition mod 3 -->
+      <p>A join of thirteen products of examples above and Thue–Morse, each of order at least 77; the powers-of-2 chart above lists them. That beats Thue–Morse by 9. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above.</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 2^{71}\): &nbsp;\(m^* \in \{80, \ldots, 88\}\)</p>
-      <!-- TODO: says order 80 at 2^71 comes from the join of the 2^68 entry with each product times tau_3, which beats Thue–Morse by 9; and that the upper bound is the norm bound for the residue sums mod 3 -->
-      <p>Claude: "The join of the \(2^{68}\) entry, each product times \(\tau_3\), has order 80. That beats Thue–Morse by 9. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above."</p>
+      <!-- Says order 80 at 2^71 comes from the join of the 2^68 entry with each product times tau_3, which beats Thue–Morse by 9; and that the upper bound is the norm bound for the residue sums mod 3 -->
+      <p>The join of the \(2^{68}\) entry, each product times \(\tau_3\), has order 80. That beats Thue–Morse by 9. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above.</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 2^{72}\): &nbsp;\(m^* \in \{81, \ldots, 89\}\)</p>
-      <!-- TODO: says order 81 at 2^72 comes from the join of the 2^68 entry with each product times tau_4, which beats Thue–Morse by 9; and that the upper bound is the residue condition mod 3 -->
-      <p>Claude: "The join of the \(2^{68}\) entry, each product times \(\tau_4\), has order 81. That beats Thue–Morse by 9. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above."</p>
+      <!-- Says order 81 at 2^72 comes from the join of the 2^68 entry with each product times tau_4, which beats Thue–Morse by 9; and that the upper bound is the residue condition mod 3 -->
+      <p>The join of the \(2^{68}\) entry, each product times \(\tau_4\), has order 81. That beats Thue–Morse by 9. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above.</p>
     </li>
   </ul>
-</section>
-
-<section class="smallest" aria-labelledby="smallest-title">
-  <!-- TODO: a block quote by Claude, at Stan Wagon's suggestion (2026-10-17): a table that keeps, for each order m, the smallest n up to 1024 for which a sequence of length n and order m is known (from the chart's data, mstar.js, so that it follows every new result), a check mark where that n is proven smallest, and the smallest n whose upper bound doesn't rule order m out; the proven ones are the terms a(m − 1) of OEIS A323395 -->
-  <blockquote class="claude">
-    <h2 id="smallest-title">The smallest length known for each order</h2>
-    <p>For each order \(m\), the smallest \(n\) up to 1024 for which a sequence of length \(n\) and order \(m\) is known, from the chart above, and the smallest \(n\) whose upper bound doesn't rule order \(m\) out. Where the two agree, \(n\) is proven smallest (✓): the term \(a(m - 1)\) of OEIS <a href="https://oeis.org/A323395">A323395</a>.</p>
-    <table>
-      <thead><tr><th>order \(m\)</th><th>smallest known \(n\)</th><th>proven smallest</th><th>smallest \(n\) not ruled out</th></tr></thead>
-      <tbody data-smallest></tbody>
-    </table>
-    <p class="attrib">— Claude</p>
-  </blockquote>
-  <!-- TODO: attributes the new minimality result to Astra and identifies the new exclusion that completes the existing bounds. -->
-  <p>Astra: "The <a href="#proof384">exclusion of order 11 at 384</a> closes the last gap below 432. Together with the existing order-11 example at 432 and the other exclusions in the chart, this proves \(a(10) = 432\)."</p>
 </section>
 
 <section class="oeis" aria-labelledby="oeis-title">

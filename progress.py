@@ -165,11 +165,14 @@ gives the state, the hours of running so far and to go, the record of ETAs and t
 """
 import sys
 sys.dont_write_bytecode = True
-import os, re, json, math, time, bisect, itertools, subprocess, collections, glob, functools, importlib.util
+import os, re, json, math, time, bisect, itertools, subprocess, collections, glob, functools, shlex
 import numpy as np
 import overnight_v5 as v5
 import boxsplit as bx
 import fanout
+import run_modules
+
+ROOT_V5, ROOT_BX = v5, bx
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 JS = os.path.join(HERE, 'progress.js')         # the data file of index.html's section "Search progress" (see the vocabulary)
@@ -182,7 +185,8 @@ CACHE = os.path.join(HERE, '.progress_cache.json')
 EXTENDED = ((288, 10),)               # displayed boxsplit runs, (N, ORDER), each shown once its driver's log exists
 RUNS = ((288, 10),)                   # displayed overnight_v5 runs, (N, ORDER)
 # The directory of a run that a copy of overnight_v5.py makes, relative to HERE; the rest are the repository's own.  288@10
-# runs from scratch/x288 (2026-10-27) while the original is frozen for 432:12; the copy adds only its settings.
+# runs from scratch/x288 (2026-10-27) while the original is frozen for 432:12; its solver may differ only with identical
+# geometry, replay functions and exact proof checker (run_modules).
 DIRS = {(288, 10): os.path.join('scratch', 'x288')}
 REFRESH = 60                           # seconds between rewrites under --watch (the section reloads the data file as often)
 NICE = 15                              # the niceness the process lowers itself to
@@ -203,26 +207,27 @@ ETA_POINTS = 400                       # the most recorded ETAs the data file ca
 
 # ---------- reading the runs' files ----------
 
-@functools.lru_cache(maxsize=None)
 def run_module(d):
     """The overnight_v5.py of the directory d as a module of its own, loaded once (registered in sys.modules, where
     inspect looks up its classes' source for CODE)."""
-    name = 'overnight_v5_in_' + re.sub(r'\W', '_', os.path.relpath(d, HERE))
-    spec = importlib.util.spec_from_file_location(name, os.path.join(d, 'overnight_v5.py'))
-    module = sys.modules[name] = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+    return run_modules.load(d, ROOT_V5, ROOT_BX).v5
+
+
+def run_context(n, order):
+    """Use this run's actual solver and replay modules throughout file resolution and one complete survey."""
+    d = os.path.join(HERE, DIRS.get((n, order), ''))
+    return run_modules.context(sys.modules[__name__], run_modules.load(d, ROOT_V5, ROOT_BX))
 
 
 def files(n, order):
     """The journal and log of the run (n, order), named as overnight_v5.configure names them, in the run's directory
-    (DIRS, or the repository's own).  That directory's overnight_v5.py must have overnight_v5's CODE, so that the
-    functions used here are the run's; its settings for the run become overnight_v5's (they must agree where both
-    have them)."""
+    (DIRS, or the repository's own).  run_module checks identical geometry, replay and exact verification before
+    accepting a different local solver CODE. Its settings for the run become overnight_v5's (they must agree where
+    both have them). Standalone callers retain their root module; run_context binds complete surveys to the copy."""
     d = os.path.join(HERE, DIRS.get((n, order), ''))
     copy = run_module(d)
     # TODO: error copy; says the run's directory holds an overnight_v5.py whose code or settings differ from overnight_v5's
-    assert copy.CODE == v5.CODE and v5.SETTINGS.get((n, order), copy.SETTINGS[n, order]) == copy.SETTINGS[n, order], \
+    assert v5.SETTINGS.get((n, order), copy.SETTINGS[n, order]) == copy.SETTINGS[n, order], \
         f'Claude: "{d} holds another overnight_v5.py"'
     v5.SETTINGS[n, order] = copy.SETTINGS[n, order]
     v5.configure(n, order)
@@ -241,6 +246,7 @@ def read_journal(path):
     lines = complete_lines(path)
     # TODO: error copy; says the journal at this path was written by another configuration or another version of the code
     assert json.loads(lines[0]) == v5.header(), f'Claude: "the journal {path} belongs to another configuration"'
+    run_modules.validate_header(v5, json.loads(lines[0]))
     journal = object.__new__(v5.Journal)
     journal.records = {}
     for r in map(json.loads, lines[1:]): journal.admit(r)
@@ -356,6 +362,7 @@ def read_run(journal, log):
     texts = complete_lines(journal)
     # TODO: error copy; says the journal at this path was written by another configuration or another version of the code
     assert json.loads(texts[0]) == v5.header(), f'Claude: "the journal {journal} belongs to another configuration"'
+    run_modules.validate_header(v5, json.loads(texts[0]))
     stamps = [stamp(line[:19]) for line in lines]
     # TODO: error copy; says a line of the log at this path is stamped earlier than the line before it
     assert all(a <= b for a, b in zip(stamps, stamps[1:])), f'Claude: "the log {log} goes back in time"'
@@ -1002,6 +1009,8 @@ def driver_leaves(main):
     bottom: its CLOSED records are for nodes with children), in the order of their latest records, which a handoff
     keeps (scratch/boxsplit-240/handoff.py appends them in the open leaves' order).  dreeves, 2026-10-20: 240@11's
     handoff closed its 606 leaves, and the watcher, taking the open ones alone, found none for the driver's log."""
+    with open(main, encoding='utf-8') as fh:
+        run_modules.validate_header(v5, json.loads(fh.readline()))
     journal = v5.Journal(main)
     latest = {json.loads(line)['key']: i for i, line in enumerate(open(main).read().splitlines()[1:])}
     keys = [k for k, rec in journal.records.items()
@@ -1763,16 +1772,48 @@ def load_cache(path): return json.load(open(path)) if os.path.exists(path) else 
 def save_cache(path, cache): write_atomic(path, json.dumps(cache, sort_keys=True))
 
 
+def native288(start):
+    """The exact tracked x288 chain already represented by its native overnight and box surveys.
+
+    Compare the durable start record, including its directory and complete shell program, so ended runs remain
+    recognized while unrelated heuristics for the same target keep their separate tracker records.
+    """
+    if not (start['target'] == '288:10' and (288, 10) in RUNS and start['adopted'] is False
+            and os.path.realpath(start['cwd']) == os.path.realpath(os.path.join(HERE, DIRS[288, 10]))):
+        return False
+    command = shlex.split(start['command'])
+    match = (len(command) == 3 and command[:2] == ['/bin/sh', '-c']
+             and re.match(r'(\S+) -B ', command[2]))
+    steps = (('overnight_v5.py', '288', '10'), ('boxsplit.py', '288', '10'),
+             ('handoff288.py',), ('overnight_v5.py', '288', '10'))
+    return bool(match and re.fullmatch(r'Python|python[\d.]*', os.path.basename(match[1]))
+                and command[2] == ' && '.join(shlex.join([match[1], '-B', *step]) for step in steps))
+
+
+def survey_runs(procs, now, cache):
+    """Survey overnight and box passes with each run's actual modules, headers and cache fingerprints."""
+    surveys = []
+    for n, order in RUNS:
+        with run_context(n, order):
+            surveys.append(survey(n, order, *files(n, order), procs, now,
+                                  cache.setdefault(f'{n}_{order}_{v5.CODE}', {}),
+                                  cache.setdefault(f'{n}_{order}_{v5.CODE}_etas', {})))
+    for n, order in EXTENDED:
+        with run_context(n, order):
+            log, main = box_files(n, order)
+            if os.path.exists(log):
+                surveys.append(survey_box(n, order, log, main, procs, now,
+                                         cache.setdefault(f'{n}_{order}_boxsplit_{bx.CODE}_etas', {})))
+    return surveys
+
+
 def main(argv):
     # TODO: error copy; says how to run the script: with no argument to write the data file once, or with --watch to keep rewriting it
     assert argv in ([], ['--watch']), 'Claude: "usage: python3 -B progress.py [--watch]"'
     os.nice(max(0, NICE - os.nice(0)))
     while True:
         cache, procs, now = load_cache(CACHE), processes(), time.time()
-        surveys = [survey(n, order, *files(n, order), procs, now, cache.setdefault(f'{n}_{order}_{v5.CODE}', {}),
-                          cache.setdefault(f'{n}_{order}_{v5.CODE}_etas', {})) for n, order in RUNS]
-        surveys += [survey_box(n, order, log, main, procs, now, cache.setdefault(f'{n}_{order}_boxsplit_{bx.CODE}_etas', {}))
-                    for n, order in EXTENDED for log, main in [box_files(n, order)] if os.path.exists(log)]
+        surveys = survey_runs(procs, now, cache)
         for path in sorted(glob.glob(os.path.join(HERE, 'focus_*_journal.jsonl'))):
             with open(path, encoding='utf-8') as f: header = json.loads(f.readline())
             key = f'focus_{header["n"]}_{header["code"]}_{header["time"]}'
@@ -1796,7 +1837,8 @@ def main(argv):
         tracked = collections.defaultdict(list)
         for path in sorted(glob.glob(os.path.join(HERE, 'runs', '*.jsonl'))):
             lines = [json.loads(line) for line in complete_lines(path)]
-            tracked[lines[0]['target']].append(lines)
+            if not native288(lines[0]):
+                tracked[lines[0]['target']].append(lines)
         surveys += [survey_track(target, records, procs, now) for target, records in sorted(tracked.items())]
         now = max([now] + [s['made'] for s in surveys if s['program'] in ('focus.py', 'fanout.py', 'search288.py', 'pruning288.py')])
         write_atomic(JS, js_text(surveys, now))

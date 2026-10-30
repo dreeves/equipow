@@ -9,7 +9,7 @@ split of 40@6 and 64@7 supply trees whose level counts are known.
 """
 import sys
 sys.dont_write_bytecode = True
-import os, re, json, time, bisect, shutil, tempfile, threading, traceback, subprocess, contextlib, collections
+import os, re, json, time, bisect, shutil, tempfile, threading, traceback, subprocess, contextlib, collections, glob
 import numpy as np
 import overnight_v5 as v5
 import progress
@@ -1105,18 +1105,23 @@ def q_files_reads_a_run_from_its_own_directory():
     # Expectata: 288@10's journal and log are scratch/x288's, and overnight_v5's settings for it are the copy's, with
     # a bottom budget of 1000 (2026-10-27 22:55: scratch/x288/trial/plan10k.py's model gave 12.7 s per bottom case at
     # 1000 against 24.7 s at 10000; 10000 from 21:44, after boxsplit closed in seconds bottom cases the search had
-    # spent up to an hour on; 2000000 before); 304@9's are the repository's own; the altered copy, whose CODE differs
-    # from overnight_v5's, is refused (AssertionError).
+    # spent up to an hour on; 2000000 before); 304@9's are the repository's own; the altered copy, whose geometry differs
+    # from overnight_v5's, is refused (AssertionError). A local solver CODE may differ with identical
+    # geometry, replay and exact checker; run_module verifies those source identities before accepting it.
     here = progress.HERE
     assert progress.DIRS[288, 10] == os.path.join('scratch', 'x288') and (288, 10) in progress.RUNS
     j, l = progress.files(288, 10)
     assert (j, l) == tuple(os.path.join(here, 'scratch', 'x288', f'overnight_v5_288_10{x}') for x in ('_journal.jsonl', '.log'))
     copy = progress.run_module(os.path.join(here, 'scratch', 'x288'))
-    assert copy.CODE == v5.CODE and v5.SETTINGS[288, 10] == copy.SETTINGS[288, 10] == ((3, 5, 7, 4, 8, 9), (10000,) * 6 + (1000,))
+    assert v5.SETTINGS[288, 10] == copy.SETTINGS[288, 10] == ((3, 5, 7, 4, 8, 9), (10000,) * 6 + (1000,))
+    progress.run_modules.equivalent(copy, v5, progress.run_modules.GEOMETRY)
+    progress.run_modules.equivalent(copy.certbb, v5.certbb, progress.run_modules.CHECKER)
     assert progress.files(304, 9) == tuple(os.path.join(here, f'overnight_v5_304_9{x}') for x in ('_journal.jsonl', '.log'))
     d = tempfile.mkdtemp(prefix='progress-quals-')
     try:
         src = open(os.path.join(here, 'scratch', 'x288', 'overnight_v5.py'), encoding='utf-8').read()
+        for metadata in glob.glob(os.path.join(here, 'scratch', 'x288', 'legacy.json')):
+            shutil.copyfile(metadata, os.path.join(d, os.path.basename(metadata)))
         i = src.index('\ndef split(')
         j = src.index(':\n', i) + 2                    # the end of split's def line: a comment as its first body line
         open(os.path.join(d, 'overnight_v5.py'), 'w', encoding='utf-8').write(src[:j] + '    # altered\n' + src[j:])
@@ -1141,7 +1146,7 @@ def q_watch_rewrites_and_sleeps():
     # argument fails with AssertionError.
     d = tempfile.mkdtemp(prefix='progress-quals-')
     saved = (progress.RUNS, progress.EXTENDED, progress.JS, progress.CACHE, progress.HERE,
-             progress.files, time.sleep)
+             progress.files, progress.run_context, time.sleep)
     sleeps, writes = [], []
     class Stop(Exception): pass
     def stub(s):
@@ -1152,6 +1157,9 @@ def q_watch_rewrites_and_sleeps():
     progress.JS, progress.CACHE = os.path.join(d, 'p.js'), os.path.join(d, 'c.json')
     progress.HERE = d
     progress.files = lambda n, order: tiny('closed')
+    # The data-only fixture uses the root producer, with no copied source directory.
+    progress.run_context = lambda n, order: progress.run_modules.context(progress,
+        progress.run_modules.load(HERE, progress.ROOT_V5, progress.ROOT_BX))
     time.sleep = stub
     try:
         progress.main(['--watch'])
@@ -1159,7 +1167,7 @@ def q_watch_rewrites_and_sleeps():
         pass
     finally:
         (progress.RUNS, progress.EXTENDED, progress.JS, progress.CACHE, progress.HERE,
-         progress.files, time.sleep) = saved
+         progress.files, progress.run_context, time.sleep) = saved
     assert sleeps == [60, 60] and len(writes) == 2, (sleeps, writes)
     assert [r['n'] for r in progress_data(open(os.path.join(d, 'p.js')).read())['runs']] == [40]
     assert sorted(os.listdir(d)) == ['c.json', 'p.js'], os.listdir(d)
@@ -1573,7 +1581,7 @@ def q_watch_shows_a_boxsplit_pass_once_its_log_exists():
     # boxsplit pass of 288@10, program boxsplit.py.
     d = tempfile.mkdtemp(prefix='progress-quals-')
     saved = (progress.RUNS, progress.EXTENDED, progress.JS, progress.CACHE, progress.HERE, progress.files,
-             progress.box_files, time.sleep)
+             progress.box_files, progress.run_context, time.sleep)
     class Stop(Exception): pass
     def stub(s): raise Stop
     runs = []
@@ -1585,6 +1593,9 @@ def q_watch_shows_a_boxsplit_pass_once_its_log_exists():
         progress.HERE = d
         progress.files = lambda n, order: (main, os.path.join(d, 'overnight_v5_288_10.log'))
         progress.box_files = lambda n, order: (log, main)
+        # The data-only fixture uses the root producer, with no copied source directory.
+        progress.run_context = lambda n, order: progress.run_modules.context(progress,
+            progress.run_modules.load(HERE, progress.ROOT_V5, progress.ROOT_BX))
         time.sleep = stub
 
         def once():
@@ -1598,7 +1609,7 @@ def q_watch_shows_a_boxsplit_pass_once_its_log_exists():
         once()
     finally:
         (progress.RUNS, progress.EXTENDED, progress.JS, progress.CACHE, progress.HERE, progress.files,
-         progress.box_files, time.sleep) = saved
+         progress.box_files, progress.run_context, time.sleep) = saved
         shutil.rmtree(d)
     assert runs == [[], [('boxsplit.py', 288, 10)]], runs
 
