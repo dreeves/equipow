@@ -16,7 +16,7 @@
 <meta property="og:image" content="https://equipow.dreev.es/preview.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content='The paper&apos;s table of m*(n) up to n = 304 and 2^51, then various new results'>
+<meta property="og:image:alt" content='BGPW&apos;s table of m*(n) up to n = 304 and 2^51, then various new results'>
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:site" content="@dreev">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -24,7 +24,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono&family=STIX+Two+Text:ital,wght@0,400;0,600;1,400&display=swap">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.47/dist/katex.min.css" integrity="sha256-AomgLPRRpE3XOt1oOglkQlI2OHGsEXE6ZHtzLO6LHuM=" crossorigin="anonymous">
 <style>
-/* Layout: one journal-page column. The paper's ruled two-row blocks come
+/* Layout: one journal-page column. BGPW's ruled two-row blocks come
    first, stacked flush as printed, then a fourth block for results since the
    paper, then remarks keyed to that block by the same provenance marks. */
 /* The text in Latin Modern, the OpenType Computer Modern of LaTeX, from LaTeX.css 1.14.0 (2026-05-13) as bsoule's
@@ -52,7 +52,7 @@
   --exists: #00A86B; /* CHART COLOR GREEN */
   --open: #243447; /* CHART COLOR BLACK */
   --impossible: #EBC1C5; /* CHART COLOR RED */
-  --record: #FFB300;   /* the gold ring of a(m − 1), OEIS A323395, in the m*(n) chart (dreeves, 2026-10-19); the dataviz validator against its three colors and the paper: worst color-blind ΔE 12.8 (protan, the green), normal-vision 16.0 (the red) */
+  --record: #FFB300;   /* the gold ring of a(m − 1), OEIS A323395, in the m*(n) chart; the dataviz validator against its three colors and the paper: worst color-blind ΔE 12.8 (protan, the green), normal-vision 16.0 (the red) */
   --tint: 16%;
   --serif: "Latin Modern", "STIX Two Text", "Times New Roman", Times, serif;
   --mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
@@ -128,7 +128,7 @@ sup, sub { line-height: 0; }
 .nw > .katex { white-space: normal; }
 
 /* The figure shrinks to its widest block so the caption centers over the
-   table, as printed; the caption keeps the paper's small caps label. */
+   table, as printed; the caption keeps BGPW's small caps label. */
 figure {
   margin: 0;
   justify-self: start;
@@ -147,7 +147,7 @@ figcaption { text-align: center; }
   color: var(--muted);
 }
 
-/* The paper's three blocks share one scroll frame so they stay aligned on
+/* BGPW's three blocks share one scroll frame so they stay aligned on
    narrow screens; flush tables give the doubled rule seen in the print. */
 .blocks { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1.4rem; }
 .scroll { overflow-x: auto; min-width: 0; }
@@ -352,7 +352,7 @@ code {
 .progress-tip .total, .progress-status .total { color: var(--progress-total); stroke: none; }
 
 /* Claude's table of the smallest length known for each order (Stan Wagon's suggestion, 2026-10-17): a block quote in
-   Claude's hue like the lattice section's, its table drawn as the paper's (table.block) but not of that class, which
+   Claude's hue like the lattice section's, its table drawn as BGPW's (table.block) but not of that class, which
    mstar.py reads as Table 2's and the new results'; its body filled from mstar.js. */
 .smallest, .oeis { display: grid; grid-template-columns: minmax(0, 1fr); max-width: var(--measure); }
 .smallest blockquote, .oeis blockquote { margin: 0; padding-left: 1.1rem; border-left: 3px solid var(--claude); display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; }
@@ -541,8 +541,8 @@ footer {
 </header>
 
 <figure>
-  <!-- The paper's own caption, verbatim; amsart sets an en space after the label -->
-  <figcaption lang="en"><span class="sc">Table 2.</span>&ensp;Values of \(m^*(n)\).</figcaption>
+  <!-- BGPW's own caption, verbatim; amsart sets an en space after the label -->
+  <figcaption lang="en"><span class="sc">BGPW's Table 2.</span>&ensp;Values of \(m^*(n)\).</figcaption>
 
   <div class="blocks">
     <div class="scroll">
@@ -562,7 +562,7 @@ footer {
     <p>Note: \(m^*(2^{51}) \ge 52\) is due to Richard Stong.</p>
 
     <div class="new-block">
-      <p class="block-label">Extended results since the paper</p>
+      <p class="block-label">Extended results since BGPW</p>
       <div class="scroll">
         <!-- Cell titles reuse the legend's labels below -->
         <table class="block">
@@ -629,13 +629,19 @@ footer {
   <p>
     The following chart shows \(m^*(n)\) for every \(n\) up to 1024, with the following exceptions:</p>
     <ul>
-      <li>Odd \(n\) are left out; for odd \(n\), \(m^*(n) = 0\) (see the introduction)</li>
-      <li>Odd multiples of 2 except 2 itself are left out; for all \(n=2(2k+1)\) for some \(k \ge 0\), \(m^*(n) = 1\)</li>
+      <li>Odd \(n\) are left out; for odd \(n\), \(m^*(n) = 0\)</li>
+      <li>Odd multiples of 2 except 2 itself (6, 10, 14, ...) are left out; for all such \(n\), \(m^*(n) = 1\)</li>
     </ul>
   <p>
-    Proof: Consider the sum of \(\{0, 1, \ldots, 4k+1\}\), namely \((4k+1)(4k+2)/2 = (4k+1)(2k+1)\).
+    See the introduction for why odd numbers have order 0.
+    A short proof for why odd multiples of 2 have order 1 is as follows.
+    For \(n\) to be an odd multiple of 2 means it's even but not divisible by 4, so twice an odd number.
+    I.e., \(n = 2(2k+1)=4k+2\) for some \(k \ge 0\).
+    As usual, we take our set of \(n\) numbers to be \(\{0, 1, \ldots, n-1\}\).
+    In this case that's \(\{0, 1, \ldots, 4k+1\}\).
+    The sum of that set, by the standard formula for the sum of consecutive numbers, is \((4k+1)(4k+2)/2 = (4k+1)(2k+1)\).
     That's an odd times an odd, which is odd.
-    So there's no bipartition that splits the sum in half, which means there's no equi-power-sum for exponent 1.
+    So there's no bipartition that splits the sum in half, which means there's no equipowerful partition for exponent 1.
   </p>
   <p>
     The highlighted cells indicate \(n = a(m - 1)\) of OEIS <a href="https://oeis.org/A323395">A323395</a> &mdash; the smallest \(n\) for each order \(m\).
@@ -724,8 +730,8 @@ footer {
     <li>
       <span class="mk" aria-hidden="true"></span>
       <p class="entry">\(n = 288\): &nbsp;\(m^* \in \{9, 10\}\)</p>
-      <!-- TODO: says this entry is not a new result: m*(288) ≤ 10, the upper value in Table 2's entry for 288, is rederived here; proof288.py (linked) checks exactly that no partition of {0, …, 287} into two parts has equal power sums for every exponent from 0 to 10, so the bound no longer has to be taken from the paper -->
-      <p>Claude: "Not a new result: \(m^*(288) \le 10\), the upper value in Table 2's entry for 288, is rederived here. <a href="https://github.com/dreeves/equipow/blob/main/proof288.py">proof288.py</a> checks exactly that no partition of \(\{0, \ldots, 287\}\) into two parts has equal power sums for every exponent from 0 to 10, so the bound no longer has to be taken from the paper."</p>
+      <!-- TODO: says this entry is not a new result: m*(288) ≤ 10, the upper value in Table 2's entry for 288, is rederived here; proof288.py (linked) checks exactly that no partition of {0, …, 287} into two parts has equal power sums for every exponent from 0 to 10, so the bound no longer has to be taken from BGPW -->
+      <p>Claude: "Not a new result: \(m^*(288) \le 10\), the upper value in Table 2's entry for 288, is rederived here. <a href="https://github.com/dreeves/equipow/blob/main/proof288.py">proof288.py</a> checks exactly that no partition of \(\{0, \ldots, 287\}\) into two parts has equal power sums for every exponent from 0 to 10, so the bound no longer has to be taken from BGPW."</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
@@ -738,7 +744,7 @@ footer {
     <li class="s">
       <span class="mk" aria-hidden="true">●</span>
       <p class="entry">\(n = 320, 352, 368, 400, 416, 464\): &nbsp;\(m^* = 9\)</p>
-      <p>Examples of order 9 found by BGPW. Order 10 is ruled out by the paper's Proposition 4.3 \((p = 3)\).</p>
+      <p>Examples of order 9 found by BGPW. Order 10 is ruled out by BGPW's Proposition 4.3 \((p = 3)\).</p>
       <p class="code">
         <span>\(p_{352}\) \((m = 9)\):</span>
         <code>A4DB4926DB4D36584B26936D2CFA54B6F04B2C13D4A2</code>
@@ -772,15 +778,15 @@ footer {
     <li class="j">
       <span class="mk" aria-hidden="true">◆●</span>
       <p class="entry">\(n = 336\): &nbsp;\(m^* = 10\)</p>
-      <p>An example of order 10 that BGPW had before Claude's work; it is not in the paper.</p>
+      <p>An example of order 10 that the BGPW authors had before Claude's work; it is not in BGPW.</p>
       <p>Order 11 is ruled out by the residue condition mod 5 (Claude's proof).</p>
       <p class="code">
         <span>BGPW's example \((m = 10)\):</span>
         <code>C87695B43E0ED258AB29C7793D8521DB227C0B746D</code>
       </p>
       <p class="code">
-        <!-- TODO: labels this code q336 (not p336, which the powers-of-2 chart uses for the order-10 example above): an antisymmetric example found independently by Claude, the second part of the 528 example below, of order 9 -->
-        <span>Claude: "\(q_{336}\), an antisymmetric example found independently by Claude; it is the second part of the 528 example below" \((m = 9)\):</span>
+        <!-- Labels this code q336 (not p336, which the powers-of-2 chart uses for the order-10 example above): an antisymmetric example found independently by Claude, the second part of the 528 example below, of order 9 -->
+        <span>\(q_{336}\), an antisymmetric example found independently by Claude; it is the second part of the 528 example below \((m = 9)\):</span>
         <code>9C5479E2669C97071E731A62EBC06F28E87B4961DF</code>
       </p>
     </li>
@@ -788,8 +794,8 @@ footer {
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 432\): &nbsp;\(m^* \in \{11, 12\}\)</p>
       <p>An antisymmetric example of order 11 found by Claude. BGPW also showed order 10.</p>
-      <!-- TODO: says order 13 at 432 is ruled out by the residue condition mod 5, so m*(432) is 11 or 12 -->
-      <p>Claude: "Order 13 is ruled out by the residue condition mod 5."</p>
+      <!-- Says order 13 at 432 is ruled out by the residue condition mod 5, so m*(432) is 11 or 12 -->
+      <p>Order 13 is ruled out by the residue condition mod 5.</p>
       <p class="code">
         <span>\(p_{432}\) \((m = 11)\):</span>
         <code>5A56B0EE234E8794ADE3D0C384F72A5C63A8BD65035EF015B78B46</code>
@@ -810,7 +816,7 @@ footer {
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 448\): &nbsp;\(m^* = 9\)</p>
-      <p>Claude: "The paper's order-7 example of length 112, doubled twice, \(p_{112} \mathbin{\#} \tau_2\), has order 9. Order 10 is ruled out by the residue condition mod 3."</p>
+      <p>BGPW's order-7 example of length 112, doubled twice, \(p_{112} \mathbin{\#} \tau_2\), has order 9. Order 10 is ruled out by the residue condition mod 3.</p>
       <p class="code">
         <span>\(p_{448} = p_{112} \mathbin{\#} \tau_2\) \((m = 9)\):</span>
         <code>A5994DB29B45A0FA5D26B24D665A5A66B24D64BA5F05A2D94DB299A5</code>
@@ -820,8 +826,8 @@ footer {
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 480\): &nbsp;\(m^* \in \{12, 13, 14\}\)</p>
       <p>A symmetric example of order 12 found by Claude.</p>
-      <!-- TODO: says order 15 at 480 is ruled out by the residue condition mod 7, so m*(480) is 12, 13 or 14 -->
-      <p>Claude: "Order 15 is ruled out by the residue condition mod 7."</p>
+      <!-- Says order 15 at 480 is ruled out by the residue condition mod 7, so m*(480) is 12, 13 or 14 -->
+      <p>Order 15 is ruled out by the residue condition mod 7.</p>
       <p class="code">
         <span>\(p_{480}\) \((m = 12)\):</span>
         <code>B0CBC94F1E2C68D1E3A6371C357C4B1347952BB968236CF6C82CD9CE01F3</code>
@@ -848,14 +854,14 @@ footer {
       <span class="mk" aria-hidden="true">◆●</span>
       <p class="entry">\(n = 528\): &nbsp;\(m^* \in \{10, 11, 12\}\)</p>
       <p>BGPW had an example of order 10 before Claude's work. Claude found another independently, by joining an example of length 192 and order 9 to an antisymmetric piece of length 336 and order 9, chosen so that their 9th power sums cancel.</p>
-      <!-- TODO: says order 13 at 528 is ruled out by the residue condition mod 5 (Claude's proof), so m*(528) is 10, 11 or 12 -->
-      <p>Claude: "Order 13 is ruled out by the residue condition mod 5."</p>
+      <!-- Says order 13 at 528 is ruled out by the residue condition mod 5 (Claude's proof), so m*(528) is 10, 11 or 12 -->
+      <p>Order 13 is ruled out by the residue condition mod 5.</p>
       <p class="code">
         <span>\(f = p_{192} \vee q_{336}\); &nbsp;\(p_{192}\) \((m = 9)\):</span>
         <code>C1BE1E21CD63D295A7887A59</code>
       </p>
-      <!-- TODO: says this is a symmetric example of order 10, found by a lattice search on 2026-10-27 -->
-      <p>Claude: "A symmetric example of order 10, found by a lattice search on 2026-10-27."</p>
+      <!-- Says this is a symmetric example of order 10, found by a lattice search on 2026-10-27 -->
+      <p>A symmetric example of order 10, found by a lattice search.</p>
       <p class="code">
         <span>\(p_{528}\) \((m = 10)\):</span>
         <code>D920BDA31A6FDC8423BEC528AE51365BB4A6C36E419CCEF94C45BB00D13EE1EAA5</code>
@@ -864,8 +870,8 @@ footer {
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 560\): &nbsp;\(m^* = 10\)</p>
-      <!-- TODO: says this is a symmetric example of order 10, and that order 11 at 560 is ruled out by the norm bound for the residue sums mod 3, so m*(560) = 10 -->
-      <p>Claude: "A symmetric example of order 10. Order 11 is ruled out by the norm bound for the residue sums mod 3."</p>
+      <!-- Says this is a symmetric example of order 10, and that order 11 at 560 is ruled out by the norm bound for the residue sums mod 3, so m*(560) = 10 -->
+      <p>A symmetric example of order 10. Order 11 is ruled out by the norm bound for the residue sums mod 3.</p>
       <p class="code">
         <span>\(p_{560}\) \((m = 10)\):</span>
         <code>34D2E9F0DA19EC92492D966936ABCA25FAD924D26F2591EB64926924925D6E1A4BFE92</code>
@@ -874,13 +880,13 @@ footer {
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 576\): &nbsp;\(m^* \in \{10, 11, 12\}\)</p>
-      <p>The paper's example of length 288 and order 9, doubled, has order 10. Order 13 is ruled out by the residue condition mod 5.</p>
+      <p>BGPW's example of length 288 and order 9, doubled, has order 10. Order 13 is ruled out by the residue condition mod 5.</p>
     </li>
     <li class="ca">
       <span class="mk" aria-hidden="true">◆✦</span>
       <p class="entry">\(n = 592\): &nbsp;\(m^* = 10\)</p>
-      <!-- TODO: says this is a symmetric example of order 10, found by Claude's lattice search, which used Astra's residue sums mod 27 for 592 and Astra's lattice code, and that order 11 at 592 is ruled out by the norm bound for the residue sums mod 3, so m*(592) = 10 -->
-      <p>Claude: "A symmetric example of order 10. Claude's lattice search found it in the residue sums mod 27 that Astra chose for 592, with Astra's lattice code. Order 11 is ruled out by the norm bound for the residue sums mod 3."</p>
+      <!-- Says this is a symmetric example of order 10, found by Claude's lattice search, which used Astra's residue sums mod 27 for 592 and Astra's lattice code, and that order 11 at 592 is ruled out by the norm bound for the residue sums mod 3, so m*(592) = 10 -->
+      <p>A symmetric example of order 10. Claude's lattice search found it in the residue sums mod 27 that Astra chose for 592, with Astra's lattice code. Order 11 is ruled out by the norm bound for the residue sums mod 3.</p>
       <p class="code">
         <span>\(p_{592}\) \((m = 10)\):</span>
         <code>93CC6790EA26876D2DDA793492C92EB24C3B934525B66DADF25926920BA79E4D21B2CB359A</code>
@@ -889,8 +895,8 @@ footer {
     <li class="ca">
       <span class="mk" aria-hidden="true">◆✦</span>
       <p class="entry">\(n = 608\): &nbsp;\(m^* = 10\)</p>
-      <!-- TODO: says this is a symmetric example of order 10, found by Claude's lattice search with Astra's lattice code, in residue sums mod 27 that Claude chose by Astra's method for 592, and that order 11 at 608 is ruled out by the residue condition mod 3, so m*(608) = 10 -->
-      <p>Claude: "A symmetric example of order 10. Claude's lattice search found it with Astra's lattice code, in residue sums mod 27 that Claude chose by Astra's method for 592. Order 11 is ruled out by the residue condition mod 3."</p>
+      <!-- Says this is a symmetric example of order 10, found by Claude's lattice search with Astra's lattice code, in residue sums mod 27 that Claude chose by Astra's method for 592, and that order 11 at 608 is ruled out by the residue condition mod 3, so m*(608) = 10 -->
+      <p>A symmetric example of order 10. Claude's lattice search found it with Astra's lattice code, in residue sums mod 27 that Claude chose by Astra's method for 592. Order 11 is ruled out by the residue condition mod 3.</p>
       <p class="code">
         <span>\(p_{608}\) \((m = 10)\):</span>
         <code>AC965934D659969A4CE792CD6492D72C836BE49E193612E97792C9AAB265AC867BAE921924D7</code>
@@ -899,8 +905,8 @@ footer {
     <li class="ca">
       <span class="mk" aria-hidden="true">◆✦</span>
       <p class="entry">\(n = 656\): &nbsp;\(m^* = 10\)</p>
-      <!-- TODO: says this is a symmetric example of order 10, found by Claude's lattice search with Astra's lattice code, in residue sums mod 27 that Claude chose by Astra's method for 592, and that order 11 at 656 is ruled out by the residue condition mod 3, so m*(656) = 10 -->
-      <p>Claude: "A symmetric example of order 10. Claude's lattice search found it with Astra's lattice code, in residue sums mod 27 that Claude chose by Astra's method for 592. Order 11 is ruled out by the residue condition mod 3."</p>
+      <!-- Says this is a symmetric example of order 10, found by Claude's lattice search with Astra's lattice code, in residue sums mod 27 that Claude chose by Astra's method for 592, and that order 11 at 656 is ruled out by the residue condition mod 3, so m*(656) = 10 -->
+      <p>A symmetric example of order 10. Claude's lattice search found it with Astra's lattice code, in residue sums mod 27 that Claude chose by Astra's method for 592. Order 11 is ruled out by the residue condition mod 3.</p>
       <p class="code">
         <span>\(p_{656}\) \((m = 10)\):</span>
         <code>C32DA6E924AED161B6D94216DB6CBE4A4932FD4996135826A94DF6CA6CB4DA1EB4D90D92134D82F8EE</code>
@@ -909,8 +915,8 @@ footer {
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 720\): &nbsp;\(m^* \in \{12, 13, 14\}\)</p>
-      <!-- TODO: says this is a symmetric example of order 12, and that order 15 at 720 is ruled out by the residue condition mod 16, so m*(720) is 12, 13 or 14 -->
-      <p>Claude: "A symmetric example of order 12. Order 15 is ruled out by the residue condition mod 16."</p>
+      <!-- Says this is a symmetric example of order 12, and that order 15 at 720 is ruled out by the residue condition mod 16, so m*(720) is 12, 13 or 14 -->
+      <p>A symmetric example of order 12. Order 15 is ruled out by the residue condition mod 16.</p>
       <p class="code">
         <span>\(p_{720}\) \((m = 12)\):</span>
         <code>D508EE7A682A54DC2FCCC5DEAEC42DD200500E3FD2F9BBA0E66FEE28F1A983831A12C69D5181FC6CBDA6B9703C</code>
@@ -919,8 +925,8 @@ footer {
     <li class="ca">
       <span class="mk" aria-hidden="true">◆✦</span>
       <p class="entry">\(n = 752\): &nbsp;\(m^* = 10\)</p>
-      <!-- TODO: says this is a symmetric example of order 10, found by Claude's lattice search with Astra's lattice code, in residue sums mod 27 that Claude chose by Astra's method for 592, and that order 11 at 752 is ruled out by an exact proof, proof752.py (linked), so m*(752) = 10 -->
-      <p>Claude: "A symmetric example of order 10. Claude's lattice search found it with Astra's lattice code, in residue sums mod 27 that Claude chose by Astra's method for 592. Order 11 is ruled out by an exact proof, <a href="https://github.com/dreeves/equipow/blob/main/proof752.py">proof752.py</a>."</p>
+      <!-- Says this is a symmetric example of order 10, found by Claude's lattice search with Astra's lattice code, in residue sums mod 27 that Claude chose by Astra's method for 592, and that order 11 at 752 is ruled out by an exact proof, proof752.py (linked), so m*(752) = 10 -->
+      <p>A symmetric example of order 10. Claude's lattice search found it with Astra's lattice code, in residue sums mod 27 that Claude chose by Astra's method for 592. Order 11 is ruled out by an exact proof, <a href="https://github.com/dreeves/equipow/blob/main/proof752.py">proof752.py</a>.</p>
       <!-- TODO: says how proof752.py rules out order 11 at 752: the residue sums mod 3 leave just four +1s in class 0 and four −1s in class 1, or the reverse; with the signs of class 2 relaxed to arbitrary integers the power sums then require ten congruences modulo powers of 3; a meet in the middle checks all 2·C(251, 4)^2 ≈ 5.2·10^16 placements of those eight signs, and none meets them; and that this is Astra's method for 384 (place the few exceptional signs, then test congruences), made feasible here by Claude's meet in the middle -->
       <p>Claude: "For order 11, the residue sums mod 3 leave just four \(+1\)s in class 0 and four \(-1\)s in class 1, or the reverse. Even with the signs of class 2 relaxed to arbitrary integers, the power sums then require ten congruences modulo powers of 3. A meet in the middle checks all \(2\cdot \mathrm{C}(251, 4)^2 \approx 5.2\cdot 10^{16}\) placements of those eight signs, and none meets them. This is Astra's method for 384, placing the few exceptional signs and testing congruences, made feasible here by Claude's meet in the middle."</p>
       <p class="code">
@@ -931,8 +937,8 @@ footer {
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 768\): &nbsp;\(m^* \in \{12, 13\}\)</p>
-      <!-- TODO: says this is a symmetric example of order 12, and that order 14 at 768 is ruled out by the residue condition mod 5, so m*(768) is 12 or 13 -->
-      <p>Claude: "A symmetric example of order 12. Order 14 is ruled out by the residue condition mod 5."</p>
+      <!-- Says this is a symmetric example of order 12, and that order 14 at 768 is ruled out by the residue condition mod 5, so m*(768) is 12 or 13 -->
+      <p>A symmetric example of order 12. Order 14 is ruled out by the residue condition mod 5.</p>
       <p class="code">
         <span>\(p_{768}\) \((m = 12)\):</span>
         <code>AB5186723E74399FC150E3179F7008E728787ABA4678EAF3C4C73E033113ADA98C721D7131CE439DA5FECD734DE50904</code>
@@ -941,8 +947,8 @@ footer {
     <li class="ca">
       <span class="mk" aria-hidden="true">◆✦</span>
       <p class="entry">\(n = 784\): &nbsp;\(m^* = 10\)</p>
-      <!-- TODO: says this is a symmetric example of order 10, found by Claude's lattice search with Astra's lattice code, in residue sums mod 27 that Claude chose by Astra's method for 592, and that order 11 at 784 is ruled out by the residue condition mod 27, so m*(784) = 10 -->
-      <p>Claude: "A symmetric example of order 10. Claude's lattice search found it with Astra's lattice code, in residue sums mod 27 that Claude chose by Astra's method for 592. Order 11 is ruled out by the residue condition mod 27."</p>
+      <!-- Says this is a symmetric example of order 10, found by Claude's lattice search with Astra's lattice code, in residue sums mod 27 that Claude chose by Astra's method for 592, and that order 11 at 784 is ruled out by the residue condition mod 27, so m*(784) = 10 -->
+      <p>A symmetric example of order 10. Claude's lattice search found it with Astra's lattice code, in residue sums mod 27 that Claude chose by Astra's method for 592. Order 11 is ruled out by the residue condition mod 27.</p>
       <p class="code">
         <span>\(p_{784}\) \((m = 10)\):</span>
         <code>B24F643A19DC1B49FC831C2FF25926F80B24FFC1B423C92E933B25304F60FA2B341F59FFB668379251243048E2BE6BA89F</code>
@@ -951,8 +957,8 @@ footer {
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 800\): &nbsp;\(m^* = 11\)</p>
-      <!-- TODO: says this is an antisymmetric example of order 11, and that order 12 at 800 is ruled out by the norm bound for the residue sums mod 3, so m*(800) = 11 -->
-      <p>Claude: "An antisymmetric example of order 11. Order 12 is ruled out by the norm bound for the residue sums mod 3."</p>
+      <!-- Says this is an antisymmetric example of order 11, and that order 12 at 800 is ruled out by the norm bound for the residue sums mod 3, so m*(800) = 11 -->
+      <p>An antisymmetric example of order 11. Order 12 is ruled out by the norm bound for the residue sums mod 3.</p>
       <p class="code">
         <span>\(p_{800}\) \((m = 11)\):</span>
         <code>966965968F2C965B25B44B25B3596D924B6D96496C964B65B2CB24B25B2C96CB6C97496CB2CD6E960B243A59A592DB2DB6D9</code>
@@ -961,8 +967,8 @@ footer {
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 816\): &nbsp;\(m^* \in \{12, 13, 14\}\)</p>
-      <!-- TODO: says this is a symmetric example of order 12, and that order 15 at 816 is ruled out by the norm bound for the residue sums mod 5, so m*(816) is 12, 13 or 14 -->
-      <p>Claude: "A symmetric example of order 12. Order 15 is ruled out by the norm bound for the residue sums mod 5."</p>
+      <!-- Says this is a symmetric example of order 12, and that order 15 at 816 is ruled out by the norm bound for the residue sums mod 5, so m*(816) is 12, 13 or 14 -->
+      <p>A symmetric example of order 12. Order 15 is ruled out by the norm bound for the residue sums mod 5.</p>
       <p class="code">
         <span>\(p_{816}\) \((m = 12)\):</span>
         <code>9DA92A11F804FDEB7EBC4021CB6722C67D282BD35624BCF238A1E1DD66DC9D496BC238EF6CB84018A2D7854A72C535DDF61A9C</code>
@@ -971,8 +977,8 @@ footer {
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 832\): &nbsp;\(m^* = 11\)</p>
-      <!-- TODO: says this is an antisymmetric example of order 11, and that order 12 at 832 is ruled out by the norm bound for the residue sums mod 3, so m*(832) = 11 -->
-      <p>Claude: "An antisymmetric example of order 11. Order 12 is ruled out by the norm bound for the residue sums mod 3."</p>
+      <!-- Says this is an antisymmetric example of order 11, and that order 12 at 832 is ruled out by the norm bound for the residue sums mod 3, so m*(832) = 11 -->
+      <p>An antisymmetric example of order 11. Order 12 is ruled out by the norm bound for the residue sums mod 3.</p>
       <p class="code">
         <span>\(p_{832}\) \((m = 11)\):</span>
         <code>B49969329E6934CB4DB69B4D34924C359B4926DB69A4DB49369F69261A4D36D6499A926D2C9B68B4D369A4D2DDB6904936DA69B4</code>
@@ -981,8 +987,8 @@ footer {
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 848\): &nbsp;\(m^* = 11\)</p>
-      <!-- TODO: says this is an antisymmetric example of order 11, and that order 12 at 848 is ruled out by the norm bound for the residue sums mod 3, so m*(848) = 11 -->
-      <p>Claude: "An antisymmetric example of order 11. Order 12 is ruled out by the norm bound for the residue sums mod 3."</p>
+      <!-- Says this is an antisymmetric example of order 11, and that order 12 at 848 is ruled out by the norm bound for the residue sums mod 3, so m*(848) = 11 -->
+      <p>An antisymmetric example of order 11. Order 12 is ruled out by the norm bound for the residue sums mod 3.</p>
       <p class="code">
         <span>\(p_{848}\) \((m = 11)\):</span>
         <code>96B905B25BADB2496D32C924B74B6C96596CF25964B28925B25B6DAA5B6D96C965164B14B2C92F52D12596C97CB6CBEC86592CB2C9</code>
@@ -991,8 +997,8 @@ footer {
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 880\): &nbsp;\(m^* = 11\)</p>
-      <!-- TODO: says this is an antisymmetric example of order 11, and that order 12 at 880 is ruled out by the norm bound for the residue sums mod 3, so m*(880) = 11 -->
-      <p>Claude: "An antisymmetric example of order 11. Order 12 is ruled out by the norm bound for the residue sums mod 3."</p>
+      <!-- Says this is an antisymmetric example of order 11, and that order 12 at 880 is ruled out by the norm bound for the residue sums mod 3, so m*(880) = 11 -->
+      <p>An antisymmetric example of order 11. Order 12 is ruled out by the norm bound for the residue sums mod 3.</p>
       <p class="code">
         <span>\(p_{880}\) \((m = 11)\):</span>
         <code>C965B1C92D925B6C92D964BE4D2FB20B6592492D16D9259ADB6FD64926964925A64B6E62EF60D2CB24B6D925B2CB05960B6CB6CB75B74F</code>
@@ -1001,8 +1007,8 @@ footer {
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 896\): &nbsp;\(m^* = 11\)</p>
-      <!-- TODO: says this is an antisymmetric example of order 11, and that order 12 at 896 is ruled out by the norm bound for the residue sums mod 3, so m*(896) = 11 -->
-      <p>Claude: "An antisymmetric example of order 11. Order 12 is ruled out by the norm bound for the residue sums mod 3."</p>
+      <!-- Says this is an antisymmetric example of order 11, and that order 12 at 896 is ruled out by the norm bound for the residue sums mod 3, so m*(896) = 11 -->
+      <p>An antisymmetric example of order 11. Order 12 is ruled out by the norm bound for the residue sums mod 3.</p>
       <p class="code">
         <span>\(p_{896}\) \((m = 11)\):</span>
         <code>B25B2D92512CD65BA5B2DB2514CD65B8CB698E6364E65905B6196D12C82CBADB3DB6E32C9659ACB6D96512492C9ECB2196DB2C92D944B259</code>
@@ -1011,8 +1017,8 @@ footer {
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 912\): &nbsp;\(m^* \in \{12, 13\}\)</p>
-      <!-- TODO: says this is a symmetric example of order 12, and that order 14 at 912 is ruled out by the residue condition mod 5, so m*(912) is 12 or 13 -->
-      <p>Claude: "A symmetric example of order 12. Order 14 is ruled out by the residue condition mod 5."</p>
+      <!-- Says this is a symmetric example of order 12, and that order 14 at 912 is ruled out by the residue condition mod 5, so m*(912) is 12 or 13 -->
+      <p>A symmetric example of order 12. Order 14 is ruled out by the residue condition mod 5.</p>
       <p class="code">
         <span>\(p_{912}\) \((m = 12)\):</span>
         <code>CC89A4F3BCE43B44239C97C2E14F0BA7BB0F72385611B5C017EDB6E00B8BE67C9C6A7D4932882758827785E78ECF3D0CE8FC8777896911C683</code>
@@ -1021,8 +1027,8 @@ footer {
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 928\): &nbsp;\(m^* = 11\)</p>
-      <!-- TODO: says this is an antisymmetric example of order 11, and that order 12 at 928 is ruled out by the norm bound for the residue sums mod 3, so m*(928) = 11 -->
-      <p>Claude: "An antisymmetric example of order 11. Order 12 is ruled out by the norm bound for the residue sums mod 3."</p>
+      <!-- Says this is an antisymmetric example of order 11, and that order 12 at 928 is ruled out by the norm bound for the residue sums mod 3, so m*(928) = 11 -->
+      <p>An antisymmetric example of order 11. Order 12 is ruled out by the norm bound for the residue sums mod 3.</p>
       <p class="code">
         <span>\(p_{928}\) \((m = 11)\):</span>
         <code>869B4DEE9A60A4D14BA2D35DA4DA6D14F349E65B4C27926C54D36D268358369F29B6936DA6BA69269A65259349A4D86D765349B49A69BA9F65B4</code>
@@ -1031,8 +1037,8 @@ footer {
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 944\): &nbsp;\(m^* = 11\)</p>
-      <!-- TODO: says this is an antisymmetric example of order 11, and that order 12 at 944 is ruled out by the norm bound for the residue sums mod 3, so m*(944) = 11 -->
-      <p>Claude: "An antisymmetric example of order 11. Order 12 is ruled out by the norm bound for the residue sums mod 3."</p>
+      <!-- Says this is an antisymmetric example of order 11, and that order 12 at 944 is ruled out by the norm bound for the residue sums mod 3, so m*(944) = 11 -->
+      <p>An antisymmetric example of order 11. Order 12 is ruled out by the norm bound for the residue sums mod 3.</p>
       <p class="code">
         <span>\(p_{944}\) \((m = 11)\):</span>
         <code>B2D920F6C32D8A4A75B6E965D2D964B44968F291A432D97C96F964B2586CB47B64965B2DBE4934929B4C125B6D93494F92CB2DBA436596896D7ADA</code>
@@ -1041,8 +1047,8 @@ footer {
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 976\): &nbsp;\(m^* = 11\)</p>
-      <!-- TODO: says this is an antisymmetric example of order 11, and that order 12 at 976 is ruled out by the norm bound for the residue sums mod 3, so m*(976) = 11 -->
-      <p>Claude: "An antisymmetric example of order 11. Order 12 is ruled out by the norm bound for the residue sums mod 3."</p>
+      <!-- Says this is an antisymmetric example of order 11, and that order 12 at 976 is ruled out by the norm bound for the residue sums mod 3, so m*(976) = 11 -->
+      <p>An antisymmetric example of order 11. Order 12 is ruled out by the norm bound for the residue sums mod 3.</p>
       <p class="code">
         <span>\(p_{976}\) \((m = 11)\):</span>
         <code>A69A48B5DB6B269A6D14CA1936324D74DB6833DB6DB4DB4134921D949A68E6986F25DA6D348F4994935D86BB49E69ACC27D067268769B4D219B67249A4</code>
@@ -1051,8 +1057,8 @@ footer {
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 992\): &nbsp;\(m^* = 11\)</p>
-      <!-- TODO: says this is an antisymmetric example of order 11, and that order 12 at 992 is ruled out by the norm bound for the residue sums mod 3, so m*(992) = 11 -->
-      <p>Claude: "An antisymmetric example of order 11. Order 12 is ruled out by the norm bound for the residue sums mod 3."</p>
+      <!-- Says this is an antisymmetric example of order 11, and that order 12 at 992 is ruled out by the norm bound for the residue sums mod 3, so m*(992) = 11 -->
+      <p>An antisymmetric example of order 11. Order 12 is ruled out by the norm bound for the residue sums mod 3.</p>
       <p class="code">
         <span>\(p_{992}\) \((m = 11)\):</span>
         <code>94E96372496EB6496DB2D364864B2D902967B24E2DBF7B71908D6D92DA44905B4EF2CD2596CB7192D944B2C8ECB60967B24E25B2DB24BA5F2D96DB859749</code>
@@ -1061,8 +1067,8 @@ footer {
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 1008\): &nbsp;\(m^* \in \{12, 13\}\)</p>
-      <!-- TODO: says this is a symmetric example of order 12, and that order 14 at 1008 is ruled out by the residue condition mod 5, so m*(1008) is 12 or 13 -->
-      <p>Claude: "A symmetric example of order 12. Order 14 is ruled out by the residue condition mod 5."</p>
+      <!-- Says this is a symmetric example of order 12, and that order 14 at 1008 is ruled out by the residue condition mod 5, so m*(1008) is 12 or 13 -->
+      <p>A symmetric example of order 12. Order 14 is ruled out by the residue condition mod 5.</p>
       <p class="code">
         <span>\(p_{1008}\) \((m = 12)\):</span>
         <code>E5154C71ABE24D5C4FB0A2B9CB519E2C7CA61813D6DCC264974FBB8DB408B511DE62BC3738CE671CE23696059CE54D0CD2B085F5EFABC2A3B1AE172FF12850</code>
@@ -1071,8 +1077,8 @@ footer {
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 1024\): &nbsp;\(m^* = 11\)</p>
-      <!-- TODO: says this is an antisymmetric example of order 11; that order 12 at 1024 is ruled out by the norm bound for the residue sums mod 3, so m*(1024) = 11; and that, since m*(2^9) = 9, 2^10 is the smallest power of 2 at which a partition beats Thue–Morse, whose order there is 10 -->
-      <p>Claude: "An antisymmetric example of order 11. Order 12 is ruled out by the norm bound for the residue sums mod 3. Since \(m^*(2^9) = 9\), \(2^{10}\) is the smallest power of 2 at which a partition beats Thue–Morse, whose order there is 10."</p>
+      <!-- Says this is an antisymmetric example of order 11; that order 12 at 1024 is ruled out by the norm bound for the residue sums mod 3, so m*(1024) = 11; and that, since m*(2^9) = 9, 2^10 is the smallest power of 2 at which a partition beats Thue–Morse, whose order there is 10 -->
+      <p>An antisymmetric example of order 11. Order 12 is ruled out by the norm bound for the residue sums mod 3. Since \(m^*(2^9) = 9\), \(2^{10}\) is the smallest power of 2 at which a partition beats Thue–Morse, whose order there is 10.</p>
       <p class="code">
         <span>\(p_{1024}\) \((m = 11)\):</span>
         <code>C8ECB0E96876C9A4A6C937B2556D97493CB06969965365B8D924B21B2D9ADA35854B2FD64B25B7C91892DD653A4979B0A96C16CB25B2CB6696196D1EC93C97CB</code>
@@ -1089,62 +1095,62 @@ footer {
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 544, 688\): &nbsp;\(m^* \in \{9, 10\}\)</p>
-      <!-- TODO: says how the m*(n) chart gets these: order 9 from examples above doubled or joined (each spelled out), order 11 ruled out by the residue conditions and norm bounds it names -->
-      <p>Claude: "Order 9 from examples above, joined (\(544 = 192 + 352\) and \(688 = 192 + 496\)); order 11 is ruled out by the norm bound for the residue sums mod 3 at 544 and the residue condition mod 3 at 688."</p>
+      <!-- Says how the m*(n) chart gets these: order 9 from examples above doubled or joined (each spelled out), order 11 ruled out by the residue conditions and norm bounds it names -->
+      <p>Order 9 from examples above, joined (\(544 = 192 + 352\) and \(688 = 192 + 496\)); order 11 is ruled out by the norm bound for the residue sums mod 3 at 544 and the residue condition mod 3 at 688.</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 624\): &nbsp;\(m^* \in \{10, 11, 12\}\)</p>
-      <!-- TODO: says how the m*(n) chart gets these: order 10 from examples above doubled or joined (each spelled out), order 13 ruled out by the residue conditions and norm bounds it names -->
-      <p>Claude: "Order 10 from examples above, joined (\(624 = 240 + 384\)); order 13 is ruled out by the residue condition mod 25."</p>
+      <!-- Says how the m*(n) chart gets these: order 10 from examples above doubled or joined (each spelled out), order 13 ruled out by the residue conditions and norm bounds it names -->
+      <p>Order 10 from examples above, joined (\(624 = 240 + 384\)); order 13 is ruled out by the residue condition mod 25.</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 640, 704, 736\): &nbsp;\(m^* = 10\)</p>
-      <!-- TODO: says how the m*(n) chart gets these: order 10 from examples above doubled or joined (each spelled out), order 11 ruled out by the residue conditions and norm bounds it names -->
-      <p>Claude: "Order 10 from examples above, doubled (\(640 = 2\cdot 320\), \(704 = 2\cdot 352\) and \(736 = 2\cdot 368\)); order 11 is ruled out by the residue condition mod 3 at 640 and 704 and the residue condition mod 9 at 736."</p>
+      <!-- Says how the m*(n) chart gets these: order 10 from examples above doubled or joined (each spelled out), order 11 ruled out by the residue conditions and norm bounds it names -->
+      <p>Order 10 from examples above, doubled (\(640 = 2\cdot 320\), \(704 = 2\cdot 352\) and \(736 = 2\cdot 368\)); order 11 is ruled out by the residue condition mod 3 at 640 and 704 and the residue condition mod 9 at 736.</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 672\): &nbsp;\(m^* \in \{11, 12, 13\}\)</p>
-      <!-- TODO: says how the m*(n) chart gets 672: order 11 from an example above doubled (spelled out), order 14 ruled out by the residue condition mod 5 -->
-      <p>Claude: "Order 11 from an example above, doubled (\(672 = 2\cdot 336\)); order 14 is ruled out by the residue condition mod 5."</p>
+      <!-- Says how the m*(n) chart gets 672: order 11 from an example above doubled (spelled out), order 14 ruled out by the residue condition mod 5 -->
+      <p>Order 11 from an example above, doubled (\(672 = 2\cdot 336\)); order 14 is ruled out by the residue condition mod 5.</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 864\): &nbsp;\(m^* \in \{12, 13, 14\}\)</p>
-      <!-- TODO: says how the m*(n) chart gets these: order 12 from examples above doubled or joined (each spelled out), order 15 ruled out by the residue conditions and norm bounds it names -->
-      <p>Claude: "Order 12 from examples above, doubled (\(864 = 2\cdot 432\)); order 15 is ruled out by the residue condition mod 5."</p>
+      <!-- Says how the m*(n) chart gets these: order 12 from examples above doubled or joined (each spelled out), order 15 ruled out by the residue conditions and norm bounds it names -->
+      <p>Order 12 from examples above, doubled (\(864 = 2\cdot 432\)); order 15 is ruled out by the residue condition mod 5.</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 960\): &nbsp;\(m^* \in \{13, 14, 15\}\)</p>
-      <!-- TODO: says how the m*(n) chart gets these: order 13 from examples above doubled or joined (each spelled out), order 16 ruled out by the residue conditions and norm bounds it names -->
-      <p>Claude: "Order 13 from examples above, doubled (\(960 = 2\cdot 480\)); order 16 is ruled out by the residue condition mod 7."</p>
+      <!-- Says how the m*(n) chart gets these: order 13 from examples above doubled or joined (each spelled out), order 16 ruled out by the residue conditions and norm bounds it names -->
+      <p>Order 13 from examples above, doubled (\(960 = 2\cdot 480\)); order 16 is ruled out by the residue condition mod 7.</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 2^{11}\): &nbsp;\(m^* = 12\)</p>
-      <!-- TODO: says p1024 # tau_1, the 1024 entry above times tau_1, has order 12, which beats Thue–Morse by 1, and that the upper bound is the residue condition mod 3 -->
-      <p>Claude: "\(p_{1024} \mathbin{\#} \tau_1\), the 1024 entry above times \(\tau_1\), has order 12. That beats Thue–Morse by 1. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above."</p>
+      <!-- Says p1024 # tau_1, the 1024 entry above times tau_1, has order 12, which beats Thue–Morse by 1, and that the upper bound is the residue condition mod 3 -->
+      <p>\(p_{1024} \mathbin{\#} \tau_1\), the 1024 entry above times \(\tau_1\), has order 12. That beats Thue–Morse by 1. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above.</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 2^{12}\): &nbsp;\(m^* = 13\)</p>
-      <!-- TODO: says p1024 # tau_2, the 1024 entry above times tau_2, has order 13, which beats Thue–Morse by 1, and that the upper bound is the residue condition mod 3 -->
-      <p>Claude: "\(p_{1024} \mathbin{\#} \tau_2\), the 1024 entry above times \(\tau_2\), has order 13. That beats Thue–Morse by 1. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above."</p>
+      <!-- Says p1024 # tau_2, the 1024 entry above times tau_2, has order 13, which beats Thue–Morse by 1, and that the upper bound is the residue condition mod 3 -->
+      <p>\(p_{1024} \mathbin{\#} \tau_2\), the 1024 entry above times \(\tau_2\), has order 13. That beats Thue–Morse by 1. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above.</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 2^{17}\): &nbsp;\(m^* \in \{18, \ldots, 20\}\)</p>
-      <!-- TODO: says 2^17 = 112·800 + 48·432·2, that is, (p112 # p800) ∨ (p48 # p432 # tau_1), a join of two products each of order 7 + 11 = 6 + 11 + 1 = 18, the codes of p112 and p48 (the paper's) being with the 2^24 entry below; that this beats Thue–Morse by 1 at a lower power of 2 than the 2^18 entry below; that a linked Mathematica script builds the half of the partition that contains 0, all 2^16 of its numbers, and checks its power sums exactly; and that the upper bound is the norm bound for the residue sums mod 3 -->
-      <p>Claude: "\(2^{17} = 112\cdot 800 + 48\cdot 432\cdot 2\), that is, \((p_{112} \mathbin{\#} p_{800}) \vee (p_{48} \mathbin{\#} p_{432} \mathbin{\#} \tau_1)\), a join of two products each of order \(7 + 11 = 6 + 11 + 1 = 18\) (the codes of \(p_{112}\) and \(p_{48}\), the paper's, are with the \(2^{24}\) entry below). That beats Thue–Morse by 1 at a lower power of 2 than the \(2^{18}\) entry below. The Mathematica script <a href="https://raw.githubusercontent.com/dreeves/equipow/main/certificate_2%5E17.wl">certificate_2^17.wl</a> builds the half of the partition that contains 0, all \(2^{16}\) of its numbers, and checks its power sums exactly. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above."</p>
+      <!-- TODO: says 2^17 = 112·800 + 48·432·2, that is, (p112 # p800) ∨ (p48 # p432 # tau_1), a join of two products each of order 7 + 11 = 6 + 11 + 1 = 18, the codes of p112 and p48 (BGPW's) being with the 2^24 entry below; that this beats Thue–Morse by 1 at a lower power of 2 than the 2^18 entry below; that a linked Mathematica script builds the half of the partition that contains 0, all 2^16 of its numbers, and checks its power sums exactly; and that the upper bound is the norm bound for the residue sums mod 3 -->
+      <p>Claude: "\(2^{17} = 112\cdot 800 + 48\cdot 432\cdot 2\), that is, \((p_{112} \mathbin{\#} p_{800}) \vee (p_{48} \mathbin{\#} p_{432} \mathbin{\#} \tau_1)\), a join of two products each of order \(7 + 11 = 6 + 11 + 1 = 18\) (the codes of \(p_{112}\) and \(p_{48}\), BGPW's, are with the \(2^{24}\) entry below). That beats Thue–Morse by 1 at a lower power of 2 than the \(2^{18}\) entry below. The Mathematica script <a href="https://raw.githubusercontent.com/dreeves/equipow/main/certificate_2%5E17.wl">certificate_2^17.wl</a> builds the half of the partition that contains 0, all \(2^{16}\) of its numbers, and checks its power sums exactly. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above."</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 2^{18}\): &nbsp;\(m^* \in \{19, \ldots, 21\}\)</p>
-      <!-- TODO: says 2^18 = 320·560 + 48·432·2^2, that is, (p320 # p560) ∨ (p48 # p432 # tau_2), a join of two products each of order 9 + 10 = 6 + 11 + 2 = 19, the code of p48 (the paper's) being with the 2^24 entry below; that this beats Thue–Morse by 1 at a lower power of 2 than f does at 2^24; that a linked Mathematica script builds the half of the partition that contains 0, all 2^17 of its numbers, and checks its power sums exactly; and that the upper bound is the residue condition mod 3 -->
-      <p>Claude: "\(2^{18} = 320\cdot 560 + 48\cdot 432\cdot 2^2\), that is, \((p_{320} \mathbin{\#} p_{560}) \vee (p_{48} \mathbin{\#} p_{432} \mathbin{\#} \tau_2)\), a join of two products each of order \(9 + 10 = 6 + 11 + 2 = 19\) (the code of \(p_{48}\), the paper's, is with the \(2^{24}\) entry below). That beats Thue–Morse by 1 at a lower power of 2 than \(f\) does at \(2^{24}\). The Mathematica script <a href="https://raw.githubusercontent.com/dreeves/equipow/main/certificate_2%5E18.wl">certificate_2^18.wl</a> builds the half of the partition that contains 0, all \(2^{17}\) of its numbers, and checks its power sums exactly. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above."</p>
+      <!-- TODO: says 2^18 = 320·560 + 48·432·2^2, that is, (p320 # p560) ∨ (p48 # p432 # tau_2), a join of two products each of order 9 + 10 = 6 + 11 + 2 = 19, the code of p48 (BGPW's) being with the 2^24 entry below; that this beats Thue–Morse by 1 at a lower power of 2 than f does at 2^24; that a linked Mathematica script builds the half of the partition that contains 0, all 2^17 of its numbers, and checks its power sums exactly; and that the upper bound is the residue condition mod 3 -->
+      <p>Claude: "\(2^{18} = 320\cdot 560 + 48\cdot 432\cdot 2^2\), that is, \((p_{320} \mathbin{\#} p_{560}) \vee (p_{48} \mathbin{\#} p_{432} \mathbin{\#} \tau_2)\), a join of two products each of order \(9 + 10 = 6 + 11 + 2 = 19\) (the code of \(p_{48}\), BGPW's, is with the \(2^{24}\) entry below). That beats Thue–Morse by 1 at a lower power of 2 than \(f\) does at \(2^{24}\). The Mathematica script <a href="https://raw.githubusercontent.com/dreeves/equipow/main/certificate_2%5E18.wl">certificate_2^18.wl</a> builds the half of the partition that contains 0, all \(2^{17}\) of its numbers, and checks its power sums exactly. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above."</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
@@ -1162,7 +1168,7 @@ footer {
       <!-- TODO: says the upper bound 29 at 2^24 is the norm bound for the residue sums mod 3 -->
       <p>Claude: "The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above."</p>
       <p class="code">
-        <span>\(p_{112}\) \((m = 7)\) and \(p_{48}\) \((m = 6)\), from the paper's Table 5:</span>
+        <span>\(p_{112}\) \((m = 7)\) and \(p_{48}\) \((m = 6)\), from BGPW's Table 5:</span>
         <code>A5994DB29B45A0</code>
         <code>C27D8C</code>
       </p>
@@ -1248,7 +1254,7 @@ footer {
     <li class="j">
       <span class="mk" aria-hidden="true">◆●</span>
       <p class="entry">\(n = 2^{51}\): &nbsp;\(m^* \in \{57, \ldots, 63\}\)</p>
-      <p>With \(f\) the \(2^{24}\) construction above, \(f \mathbin{\#} f \mathbin{\#} \tau_3\) has order \(25 + 25 + 3 = 53\). The paper's 52 is Stong's.</p>
+      <p>With \(f\) the \(2^{24}\) construction above, \(f \mathbin{\#} f \mathbin{\#} \tau_3\) has order \(25 + 25 + 3 = 53\). BGPW's 52 is Stong's.</p>
       <!-- TODO: says the six products of the 2^48 entry, each times tau_3, give order 57 at 2^51; and that the upper bound is the norm bound for the residue sums mod 3 -->
       <p>Claude: "The six products of the \(2^{48}\) entry, each times \(\tau_3\), give order 57. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above."</p>
     </li>
@@ -1325,7 +1331,7 @@ footer {
 </section>
 
 <section class="oeis" aria-labelledby="oeis-title">
-  <!-- TODO: a block quote by Claude, at dreeves's request (2026-10-28: "can you make a section that links to all the relevant OEIS entries and notes any discrepancies?"): the OEIS entries on this problem, each linked, with how it compares with this page on 2026-10-28, OEIS's k-powerful being order k + 1 here, and that two have errors, each marked as one with its fix: a comment of A323395, and A323629, which omits 112. A323395, the smallest length of each order (a(m − 1) for order m): its terms through a(9) = 240 agree, and this page proves the next, a(10) = 432; the error: its comment's a(12) ≤ 864 and a(13) ≤ 960 are each one order too high and should read a(12) ≤ 960 and a(13) ≤ 1920 (doubling gives order 12 at 864 and order 13 at 960, no length below 960 is known to reach order 13, and doubling 960 reaches order 14 at 1920); the comment's a(10) ≤ 432 and a(11) ≤ 480 hold, a(11) being 432 or 480 (order 12 open at 432, ruled out at 448 and 464). A306248, m*(2n): its 95 terms agree, and this page settles 48 more, through n = 143, with m*(288) open. A323610 (L6, the lengths n with m*(n) ≥ 6) and A323614 (L8): their terms agree, and so do their comments' descriptions through 1024. A323629 (L7), the error: it omits 112 from its terms, its comment (quoted) and its generating function −8x(x^6 + 2x^2 + 8x − 12)/(x − 1)^2, which should be 8x(12 − 10x − x^7)/(1 − x)^2, though the paper's Theorem 3.1 and Tables 1 to 3, A306248's a(56) = 7 and the published paper's Table 5 have it; with 112 added it agrees through 1024. Then the related entries: A382832, the same question for two distinct subsets that need not form a partition, at most A323395; A382833, the number of distinct power-sum vectors of the subsets; A362039, the least common sum of two sets of primes of order m; A010060 and A106400, Thue–Morse as 0s and 1s and as signs, its partition of {0, …, 2^k − 1} having order k; A001969 and A000069, the evil and odious numbers, the two parts of that partition; A140047, the power sums of each part of an order-k partition of {0, …, 2^k − 1}, half those of the whole set -->
+  <!-- TODO: a block quote by Claude, at dreeves's request (2026-10-28: "can you make a section that links to all the relevant OEIS entries and notes any discrepancies?"): the OEIS entries on this problem, each linked, with how it compares with this page on 2026-10-28, OEIS's k-powerful being order k + 1 here, and that two have errors, each marked as one with its fix: a comment of A323395, and A323629, which omits 112. A323395, the smallest length of each order (a(m − 1) for order m): its terms through a(9) = 240 agree, and this page proves the next, a(10) = 432; the error: its comment's a(12) ≤ 864 and a(13) ≤ 960 are each one order too high and should read a(12) ≤ 960 and a(13) ≤ 1920 (doubling gives order 12 at 864 and order 13 at 960, no length below 960 is known to reach order 13, and doubling 960 reaches order 14 at 1920); the comment's a(10) ≤ 432 and a(11) ≤ 480 hold, a(11) being 432 or 480 (order 12 open at 432, ruled out at 448 and 464). A306248, m*(2n): its 95 terms agree, and this page settles 48 more, through n = 143, with m*(288) open. A323610 (L6, the lengths n with m*(n) ≥ 6) and A323614 (L8): their terms agree, and so do their comments' descriptions through 1024. A323629 (L7), the error: it omits 112 from its terms, its comment (quoted) and its generating function −8x(x^6 + 2x^2 + 8x − 12)/(x − 1)^2, which should be 8x(12 − 10x − x^7)/(1 − x)^2, though BGPW's Theorem 3.1 and Tables 1 to 3, A306248's a(56) = 7 and the published paper's Table 5 have it; with 112 added it agrees through 1024. Then the related entries: A382832, the same question for two distinct subsets that need not form a partition, at most A323395; A382833, the number of distinct power-sum vectors of the subsets; A362039, the least common sum of two sets of primes of order m; A010060 and A106400, Thue–Morse as 0s and 1s and as signs, its partition of {0, …, 2^k − 1} having order k; A001969 and A000069, the evil and odious numbers, the two parts of that partition; A140047, the power sums of each part of an order-k partition of {0, …, 2^k − 1}, half those of the whole set -->
   <blockquote class="claude">
     <h2 id="oeis-title">OEIS entries</h2>
     <p>The entries of the OEIS on this problem, compared with this page on 2026-10-28. The OEIS's <span class="nw">\(k\)-powerful</span> is order \(k + 1\) here. Two of them have errors, each marked below with its fix: a comment of A323395, and A323629, which omits 112.</p>
@@ -1333,7 +1339,7 @@ footer {
       <li><a href="https://oeis.org/A323395">A323395</a>, the smallest \(n\) of each order (\(a(m - 1)\) for order \(m\)): its terms, through \(a(9) = 240\), agree, and this page proves the next, \(a(10) = 432\) (above). <b>Error:</b> its comment's \(a(12) \le 864\) and \(a(13) \le 960\) are each one order too high, and should read \(a(12) \le 960\) and \(a(13) \le 1920\): doubling gives order 12 at 864 and order 13 at 960, no length below 960 is known to reach order 13, and doubling 960 reaches order 14 at 1920. The comment's \(a(10) \le 432\) and \(a(11) \le 480\) hold, and \(a(11)\) is 432 or 480: order 12 is open at 432 and ruled out at 448 and 464.</li>
       <li><a href="https://oeis.org/A306248">A306248</a>, \(m^*(2n)\): its 95 terms agree, and this page settles 48 more, through \(n = 143\) (\(2n = 286\)); \(m^*(288)\) is open.</li>
       <li><a href="https://oeis.org/A323610">A323610</a>, the lengths \(n\) with \(m^*(n) \ge 6\) \((L_6)\): its terms agree, and so does its comment's description through 1024.</li>
-      <li><a href="https://oeis.org/A323629">A323629</a>, \(L_7\): <b>Error:</b> it omits 112 from its terms, from its comment (“The set consists of 96, 128, 144, 160, 176, and all multiples of 8 that are greater than or equal to 192”) and from its generating function, \(-8x(x^6 + 2x^2 + 8x - 12)/(x - 1)^2\), which should be \(8x(12 - 10x - x^7)/(1 - x)^2\). The paper's <a href="https://arxiv.org/html/1912.03491v1#S3.Thmthm1">Theorem 3.1</a> and Tables 1 to 3 have 112 in \(L_7\), as does A306248, whose \(a(56)\) is 7, and the published paper's Table 5 gives a partition of 112 of order 7. With 112 added, it agrees through 1024.</li>
+      <li><a href="https://oeis.org/A323629">A323629</a>, \(L_7\): <b>Error:</b> it omits 112 from its terms, from its comment (“The set consists of 96, 128, 144, 160, 176, and all multiples of 8 that are greater than or equal to 192”) and from its generating function, \(-8x(x^6 + 2x^2 + 8x - 12)/(x - 1)^2\), which should be \(8x(12 - 10x - x^7)/(1 - x)^2\). BGPW's <a href="https://arxiv.org/html/1912.03491v1#S3.Thmthm1">Theorem 3.1</a> and Tables 1 to 3 have 112 in \(L_7\), as does A306248, whose \(a(56)\) is 7, and the published paper's Table 5 gives a partition of 112 of order 7. With 112 added, it agrees through 1024.</li>
       <li><a href="https://oeis.org/A323614">A323614</a>, \(L_8\): its terms agree, and so does its comment's description through 1024.</li>
     </ul>
     <p>Related entries:</p>
@@ -1365,16 +1371,16 @@ footer {
   <blockquote class="claude">
     <h2 id="lattice-title">How Claude found its examples</h2>
     <p>The examples Claude found by searching, in the remarks above (\(p_{320}\), \(q_{336}\), \(p_{432}\), \(p_{560}\) and \(p_{800}\)) and in early runs at 144 and 240, came from one method: a search for the shortest vectors of a lattice, run with the C++ library <a href="https://github.com/fplll/fplll">fplll</a>.</p>
-    <p>Write a sequence as signs \(f_0, \ldots, f_{n-1}\) and let \(x_i = 2i - n + 1\), the positions centered on 0 and doubled. Order \(m\) means \(\sum f_i x_i^k = 0\) for \(k = 0, \ldots, m - 1\): by the fun fact above, these positions give the same order as \(0, \ldots, n - 1\), with smaller numbers. These are \(m\) linear equations in the signs. Claude looked only at symmetric sequences \((f_{n-1-i} = f_i)\) for even \(m\) and antisymmetric ones \((f_{n-1-i} = -f_i)\) for odd \(m\), the paper's \((-1)^m\) convention. Since \(x_{n-1-i} = -x_i\), that leaves \(h = n/2\) unknown signs \(a_i = f_i\) <span class="nw">\((i < h)\)</span> and \(\lfloor m/2\rfloor\) equations, those with \(k\) of the same parity as \(m\); the others hold for every such sequence.</p>
+    <p>Write a sequence as signs \(f_0, \ldots, f_{n-1}\) and let \(x_i = 2i - n + 1\), the positions centered on 0 and doubled. Order \(m\) means \(\sum f_i x_i^k = 0\) for \(k = 0, \ldots, m - 1\): by the fun fact above, these positions give the same order as \(0, \ldots, n - 1\), with smaller numbers. These are \(m\) linear equations in the signs. Claude looked only at symmetric sequences \((f_{n-1-i} = f_i)\) for even \(m\) and antisymmetric ones \((f_{n-1-i} = -f_i)\) for odd \(m\), BGPW's \((-1)^m\) convention. Since \(x_{n-1-i} = -x_i\), that leaves \(h = n/2\) unknown signs \(a_i = f_i\) <span class="nw">\((i < h)\)</span> and \(\lfloor m/2\rfloor\) equations, those with \(k\) of the same parity as \(m\); the others hold for every such sequence.</p>
     <p>Put \(a = 2y - 1\). The integer vectors \(y\) for which \(a\) solves the equations form a translate \(y_0 + K\) of the lattice \(K\) of integer solutions of the equations themselves, whose dimension is \(d = h - \lfloor m/2\rfloor\). (If there is no such \(y\), there is no such sequence.) So \(a\) ranges over the translate \(t + 2K\), where \(t = 2y_0 - 1\). Every vector in it has odd entries, so its squared length is at least \(h\), with equality exactly when every entry is \(\pm 1\); any other vector in it has an entry of absolute value at least 3, so its squared length is at least \(h + 8\). So the sequences sought are exactly the shortest vectors of \(t + 2K\), and finding them is a closest-vector problem: find the vectors of the lattice \(2K\) at distance \(\sqrt{h}\) from \(-t\).</p>
     <p>To search it, Claude reduced a basis \(b_1, \ldots, b_d\) of \(2K\) (LLL, then BKZ with block size 20) and enumerated. With \(b_1^*, \ldots, b_d^*\) its Gram–Schmidt vectors, the squared length of \(t + c_1b_1 + \cdots + c_db_d\) is a sum of \(d\) terms, one along each \(b_i^*\), and the term along \(b_i^*\) depends only on \(c_i, \ldots, c_d\). So the enumeration chooses \(c_d\), then \(c_{d-1}\), and so on, trying the integers at each step in order of the term they add (Schnorr–Euchner), and backs up as soon as the sum so far passes \(h\). That tree holds every solution: run to the end, it is an exhaustive search over the sequences of that symmetry, and when it ends empty it proves there are none.</p>
     <p>The tree grows about exponentially with \(d\), so Claude pruned it: once \(j\) of the \(d\) coefficients are chosen, the sum so far must be at most a fraction \(p_j\) of \(h\), with the fractions rising to \(p_d = 1\) (extreme pruning: Gama, Nguyen and Regev, Eurocrypt 2010). A pruned run visits a small part of the tree and finds a given solution with some probability. Randomizing the basis and reducing it again gives another, nearly independent try. In the early runs fplll's Pruner chose the fractions. Every example found was then checked with exact integer power sums.</p>
     <p>The searches, with \(d\) for the direct search and the times of the runs that found the examples (on one CPU in the claude.ai chat's sandbox, except 560 and 800):</p>
     <ul class="searches">
-      <li><b>144</b>, order 8, symmetric, \(d = 68\): a new example in 2.4 seconds. The constraint solver CP-SAT, with exact residue-class constraints, didn't recover the paper's example in 250 seconds.</li>
+      <li><b>144</b>, order 8, symmetric, \(d = 68\): a new example in 2.4 seconds. The constraint solver CP-SAT, with exact residue-class constraints, didn't recover BGPW's example in 250 seconds.</li>
       <li><b>240</b>, order 10, symmetric, \(d = 115\): one pruned enumeration of 57 seconds returned 8 different examples, and with retuned pruning 3 more came in 7 seconds.</li>
       <li><b>320</b>, order 9, antisymmetric, \(d = 156\): \(p_{320}\) in 0.7 seconds.</li>
-      <li><b>336</b>, order 9, antisymmetric, the piece \(q_{336}\) of 528. Claude kept the paper's \(p_{192}\), of order 9, and looked for an antisymmetric \(q\) of length 336 and order 9 whose 9th power sum is the negative of \(p_{192}\)'s. Then \(p_{192} \vee q\) has order 10, because shifting \(q\) by 192 doesn't change its 9th power sum, its lower ones being 0. That is one more linear equation, whose right side is not 0, so \(d = 163\), and \(t\) has a part outside the span of \(2K\), whose squared length comes off the \(h\) in the search. The first enumeration found \(q_{336}\) in 0.6 seconds.</li>
+      <li><b>336</b>, order 9, antisymmetric, the piece \(q_{336}\) of 528. Claude kept BGPW's \(p_{192}\), of order 9, and looked for an antisymmetric \(q\) of length 336 and order 9 whose 9th power sum is the negative of \(p_{192}\)'s. Then \(p_{192} \vee q\) has order 10, because shifting \(q\) by 192 doesn't change its 9th power sum, its lower ones being 0. That is one more linear equation, whose right side is not 0, so \(d = 163\), and \(t\) has a part outside the span of \(2K\), whose squared length comes off the \(h\) in the search. The first enumeration found \(q_{336}\) in 0.6 seconds.</li>
       <li><b>432</b>, order 11, antisymmetric, \(d = 211\): the chat's replies say only that \(p_{432}\) came from this lattice search, not its parameters or time.</li>
       <li><b>480</b>, order 12, symmetric, \(d = 234\): the chat's reply that reported \(p_{480}\) doesn't say how it was found.</li>
       <li><b>560</b>, order 10, symmetric. A direct search would have \(d = 275\), above fplll's limit of 256 for enumeration and far too slow, so Claude fixed more. The residue sums mod 27 (the \(D_r\) of the remarks above) were fixed to one pattern that the residue condition allows for order 10, the one that looked most likely, and the residue sums mod 5 and mod 7 to 0. Mod 27, the 280 pairs of positions \(i\) and \(559 - i\) fall into 14 groups, by residue class together with its mirror image. In 7 groups, holding 135 of the pairs, every placement of the \(+1\)s with the count the pattern sets became a separate case. That left 145 free signs under 16 independent equations, so \(d = 129\), and the same lattice for every case, with only \(t\) changing. The pruning fractions were a fixed shape, none below 0.3, picked by timing trial runs. Ten single-threaded processes on Danny Reeves's Mac, each reducing its own randomized basis once, found \(p_{560}\) after 97 seconds and 23 examples in 5 minutes 22 seconds.</li>
@@ -1384,9 +1390,9 @@ footer {
     <ul class="calls">
       <li><code>latticeSearch[6, 2, 0]</code>: complete, no sequences: the equations have no integer solution.</li>
       <li><code>latticeSearch[32, 5, 0, "Want" -&gt; Infinity]</code>: complete, 2 sequences: Thue–Morse and its negation.</li>
-      <li><code>latticeSearch[48, 6, 1, "Want" -&gt; Infinity]</code>: complete, 2 sequences: the paper's \(p_{48}\) and its negation, as a brute-force check of all \(2^{24}\) symmetric sequences confirms.</li>
+      <li><code>latticeSearch[48, 6, 1, "Want" -&gt; Infinity]</code>: complete, 2 sequences: BGPW's \(p_{48}\) and its negation, as a brute-force check of all \(2^{24}\) symmetric sequences confirms.</li>
       <li><code>latticeSearch[64, 6, 0, "Want" -&gt; Infinity]</code>: complete, 6 sequences: Boyd's 3 partitions.</li>
-      <li><code>latticeSearch[112, 7, -1, "Want" -&gt; Infinity, "MaxNodes" -&gt; 10^9]</code>: complete, 2 sequences: the paper's \(p_{112}\) and its negation, after 285 million nodes, about 6 minutes on Danny Reeves's Mac. The tree's size depends on the random basis: with <code>"Seed" -&gt; 2</code> and <code>3</code> it took 224 and 966 million nodes.</li>
+      <li><code>latticeSearch[112, 7, -1, "Want" -&gt; Infinity, "MaxNodes" -&gt; 10^9]</code>: complete, 2 sequences: BGPW's \(p_{112}\) and its negation, after 285 million nodes, about 6 minutes on Danny Reeves's Mac. The tree's size depends on the random basis: with <code>"Seed" -&gt; 2</code> and <code>3</code> it took 224 and 966 million nodes.</li>
       <li><code>latticeSearch[320, 11, -1, "Want" -&gt; Infinity]</code>: complete, no sequences, after a few nodes: the equations have integer solutions, but none with entries \(\pm 1\).</li>
       <li><code>latticeSearch[96, 7, -1]</code>: 1 sequence.</li>
       <li><code>latticeSearch[144, 8, 1, "Pruning" -&gt; 0.1]</code>: 1 sequence.</li>
@@ -2330,56 +2336,56 @@ try {
     none: {ok: (n, lo) => lo === 0 && n % 2 === 1},
     example: {
       ok: (n, lo, label) => typeof label === 'string' && label !== '',
-      // TODO: readout reason; says order lo is known from an example, naming where the example comes from
-      text: (n, lo, label) => `Claude: "order ${lo} from an example (${label})"`,
+      // readout reason; says order lo is known from an example, naming where the example comes from
+      text: (n, lo, label) => `Order ${lo} from an example (${label})`,
     },
     join: {
       ok: (n, lo, a, b) => [a, b].every(Number.isInteger) && a >= 1 && b >= 1 && a + b === n && lo <= Math.min(loOf(a), loOf(b)),
-      // TODO: readout reason; says order lo is known from the join of the examples of lengths a and b
-      text: (n, lo, a, b) => `Claude: "order ${lo} from the join p${sub(a)}\u00a0∨\u00a0p${sub(b)}"`,
+      // readout reason; says order lo is known from the join of the examples of lengths a and b
+      text: (n, lo, a, b) => `Order ${lo} from the join p${sub(a)}\u00a0∨\u00a0p${sub(b)}`,
     },
     product: {
       ok: (n, lo, a, b) => [a, b].every(Number.isInteger) && a >= 2 && b >= 2 && a * b === n && lo <= loOf(a) + loOf(b),
-      // TODO: readout reason; says order lo is known from the expanded product of the examples of lengths a and b
-      text: (n, lo, a, b) => `Claude: "order ${lo} from the product p${sub(a)}\u00a0#\u00a0p${sub(b)}"`,
+      // readout reason; says order lo is known from the expanded product of the examples of lengths a and b
+      text: (n, lo, a, b) => `Order ${lo} from the product p${sub(a)}\u00a0#\u00a0p${sub(b)}`,
     },
     table2: {
       ok: (n, lo) => n % 8 === 0 && n <= 304,
-      // TODO: readout reason; says order lo is known from the paper's Table 2
-      text: (n, lo) => `Claude: "order ${lo} from the paper's Table 2"`,
+      // readout reason; says order lo is known from BGPW's Table 2
+      text: (n, lo) => `Order ${lo} from BGPW's Table 2`,
     },
     page: {
       ok: (n, lo, who) => WHO.includes(who),
-      // TODO: readout reason; says order lo is known from this page's new results, naming whose they are
-      text: (n, lo, who) => `Claude: "order ${lo} from the new results above (${who})"`,
+      // readout reason; says order lo is known from this page's new results, naming whose they are
+      text: (n, lo, who) => `Order ${lo} from the new results above (${who})`,
     },
   };
   const HI = {
     odd: {ok: (n, hi) => hi === 0 && n % 2 === 1},
     two: {
       ok: (n, hi) => n % 2 === 0 && hi === (n & -n) - 1,
-      // TODO: readout reason; says order hi + 1 is ruled out because hi + 1 is the largest power of 2 dividing n
-      text: (n, hi) => `Claude: "order ${hi + 1} ruled out: ${hi + 1} is the power of 2 in ${n}"`,
+      // readout reason; says order hi + 1 is ruled out because hi + 1 is the largest power of 2 dividing n
+      text: (n, hi) => `Order ${hi + 1} ruled out: ${hi + 1} is the power of 2 in ${n}`,
     },
     norm: {
       ok: (n, hi, p) => Number.isInteger(p) && prime(p) && n % p !== 0,
-      // TODO: readout reason; says order hi + 1 is ruled out by the norm bound for the prime p
-      text: (n, hi, p) => `Claude: "order ${hi + 1} ruled out by the norm bound for p\u00a0=\u00a0${p}"`,
+      // readout reason; says order hi + 1 is ruled out by the norm bound for the prime p
+      text: (n, hi, p) => `Order ${hi + 1} ruled out by the norm bound for p\u00a0=\u00a0${p}`,
     },
     residue: {
       ok: (n, hi, M) => Number.isInteger(M) && M >= 2,
-      // TODO: readout reason; says order hi + 1 is ruled out by the residue condition mod M
-      text: (n, hi, M) => `Claude: "order ${hi + 1} ruled out by the residue condition mod ${M}"`,
+      // readout reason; says order hi + 1 is ruled out by the residue condition mod M
+      text: (n, hi, M) => `Order ${hi + 1} ruled out by the residue condition mod ${M}`,
     },
     table2: {
       ok: (n, hi) => n % 8 === 0 && n <= 304,
-      // TODO: readout reason; says order hi + 1 is ruled out by the paper's Table 2
-      text: (n, hi) => `Claude: "order ${hi + 1} ruled out by the paper's Table 2"`,
+      // readout reason; says order hi + 1 is ruled out by BGPW's Table 2
+      text: (n, hi) => `Order ${hi + 1} ruled out by BGPW's Table 2`,
     },
     page: {
       ok: (n, hi, who) => WHO.includes(who),
-      // TODO: readout reason; says order hi + 1 is ruled out in this page's new results, naming whose they are
-      text: (n, hi, who) => `Claude: "order ${hi + 1} ruled out in the new results above (${who})"`,
+      // readout reason; says order hi + 1 is ruled out in this page's new results, naming whose they are
+      text: (n, hi, who) => `Order ${hi + 1} ruled out in the new results above (${who})`,
     },
   };
   assert(D.nmax === NMAX && Number.isInteger(D.mtop) && Array.isArray(D.cols) && D.cols.length === NMAX, D.nmax, D.mtop);
@@ -2649,15 +2655,15 @@ try {
   const LO = {
     'thue-morse': {
       ok: (k, lo) => lo === k,
-      // TODO: readout reason; says order lo, which is k, is known from Thue–Morse, τ_k
-      text: (k, lo) => `Claude: "order ${lo} from Thue–Morse, τ${sub(k)}"`,
+      // readout reason; says order lo, which is k, is known from Thue–Morse, τ_k
+      text: (k, lo) => `Order ${lo} from Thue–Morse, τ${sub(k)}`,
     },
     joins: {
       ok: (k, lo, ps) => Array.isArray(ps) && ps.length >= 1 && ps.every(p => Array.isArray(p) && p.length >= 1
         && p.every(isBlock)) && ps.reduce((t, p) => t + length(p), 0n) === 2n ** BigInt(k)
         && lo === Math.min(...ps.map(order)),
-      // TODO: readout reason; says order lo is known from the join of these expanded products
-      text: (k, lo, ps) => `Claude: "order ${lo} from the join ${joined(ps)}"`,
+      // readout reason; says order lo is known from the join of these expanded products
+      text: (k, lo, ps) => `Order ${lo} from the join ${joined(ps)}`,
     },
   };
   // The m*(n) chart's reasons of an upper bound at an even n, copied line for line from its script: the reasons of
@@ -2665,28 +2671,28 @@ try {
   const MSTAR_HI = {
     two: {
       ok: (n, hi) => n % 2 === 0 && hi === (n & -n) - 1,
-      // TODO: readout reason; says order hi + 1 is ruled out because hi + 1 is the largest power of 2 dividing n
-      text: (n, hi) => `Claude: "order ${hi + 1} ruled out: ${hi + 1} is the power of 2 in ${n}"`,
+      // readout reason; says order hi + 1 is ruled out because hi + 1 is the largest power of 2 dividing n
+      text: (n, hi) => `Order ${hi + 1} ruled out: ${hi + 1} is the power of 2 in ${n}`,
     },
     norm: {
       ok: (n, hi, p) => Number.isInteger(p) && prime(p) && n % p !== 0,
-      // TODO: readout reason; says order hi + 1 is ruled out by the norm bound for the prime p
-      text: (n, hi, p) => `Claude: "order ${hi + 1} ruled out by the norm bound for p\u00a0=\u00a0${p}"`,
+      // readout reason; says order hi + 1 is ruled out by the norm bound for the prime p
+      text: (n, hi, p) => `Order ${hi + 1} ruled out by the norm bound for p\u00a0=\u00a0${p}`,
     },
     residue: {
       ok: (n, hi, M) => Number.isInteger(M) && M >= 2,
-      // TODO: readout reason; says order hi + 1 is ruled out by the residue condition mod M
-      text: (n, hi, M) => `Claude: "order ${hi + 1} ruled out by the residue condition mod ${M}"`,
+      // readout reason; says order hi + 1 is ruled out by the residue condition mod M
+      text: (n, hi, M) => `Order ${hi + 1} ruled out by the residue condition mod ${M}`,
     },
     table2: {
       ok: (n, hi) => n % 8 === 0 && n <= 304,
-      // TODO: readout reason; says order hi + 1 is ruled out by the paper's Table 2
-      text: (n, hi) => `Claude: "order ${hi + 1} ruled out by the paper's Table 2"`,
+      // readout reason; says order hi + 1 is ruled out by BGPW's Table 2
+      text: (n, hi) => `Order ${hi + 1} ruled out by BGPW's Table 2`,
     },
     page: {
       ok: (n, hi, who) => WHO.includes(who),
-      // TODO: readout reason; says order hi + 1 is ruled out in this page's new results, naming whose they are
-      text: (n, hi, who) => `Claude: "order ${hi + 1} ruled out in the new results above (${who})"`,
+      // readout reason; says order hi + 1 is ruled out in this page's new results, naming whose they are
+      text: (n, hi, who) => `Order ${hi + 1} ruled out in the new results above (${who})`,
     },
   };
   const HI = {
@@ -2702,8 +2708,8 @@ try {
     residue: {
       ok: (k, hi, chain) => Array.isArray(chain) && chain.length >= 1 && chain.every(Number.isInteger) && chain[0] >= 2
         && chain.slice(1).every((M, i) => M > chain[i] && M % chain[i] === 0),
-      // TODO: readout reason; says order hi + 1 is ruled out by the residue conditions mod each modulus of the chain
-      text: (k, hi, chain) => `Claude: "order ${hi + 1} ruled out by the residue conditions mod ${chain.join(', ')}"`,
+      // readout reason; says order hi + 1 is ruled out by the residue conditions mod each modulus of the chain
+      text: (k, hi, chain) => `Order ${hi + 1} ruled out by the residue conditions mod ${chain.join(', ')}`,
     },
   };
   assert(Object.keys(D).sort().join() === 'cols,etop,kmax', Object.keys(D));
@@ -2755,8 +2761,8 @@ try {
          ` = ${k} + ${e} = ${k + e}`),
       ' · ', MEANING[kind], ' · ', nw(`${lo} ≤ `, el('i', '', 'm'), el('sup', '', '*'), '(', ...two(), `) ≤ ${hi}`),
       ' · ', ...subbed([[why[0]], why, [why[1]]][kind].map(f => f()).join(' · ')));
-    // TODO: readout note on a cell ringed in gold; says 2^k is the least power of 2 known to beat Thue–Morse by δ, a bound the theorem below states
-    ro.append(...gold.map(() => ` · Claude: "the least k known to beat Thue–Morse by ${e}, a bound the theorem below states"`));
+    // readout note on a cell ringed in gold; says 2^k is the least power of 2 known to beat Thue–Morse by δ, a bound the theorem below states
+    ro.append(...gold.map(() => ` · The least k known to beat Thue–Morse by ${e} (see theorem below)`));
     at(outline, {left: `calc(${(k - 1) / K * 100}% - 2px)`, width: `calc(${100 / K}% + 4px)`,
                  top: `${(E - e) * ROW - 2}px`, height: `${ROW - GAP + 4}px`});
     outline.hidden = false;
