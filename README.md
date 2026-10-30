@@ -10,6 +10,7 @@ Potential tasks:
 * [CUR] Curly quotes for quoting Claude and Astra
 * [ZOO] For anti-magic/consistency, have the same zoom controls on both charts
 * [GLT] Gold trim isn't consistent between the two charts; maybe all candidates for the smallest n (2^k) for a given m (delta) should be gold-trimmed. So the first green cell in each row as well as all the black cells in its row to the left of it. Or, better: match the "smallest length known" table: green+gold is the smallest *known* n (resp. 2^k) for a give m (resp. delta) and black+gold is the smallest n (resp. 2^k) not ruled out. but then maybe we want an additional visual indicator for when those coincide (the smallest known is proven to be the smallest)?
+* [VSC] VS Code isn't happy about the "&amp;&amp;" in one of the jsdelivr lines for KaTeX
 
 Stan notes:
 

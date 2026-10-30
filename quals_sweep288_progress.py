@@ -124,7 +124,9 @@ class Sweep288ProgressQuals(unittest.TestCase):
 
     def test_wrapper_preserves_old_surveys_and_writes_one_combined_snapshot(self):
         # Replicata: both prior and sweep journals, with the sweep read later than main's initial clock.
-        # Expectata: one combined snapshot, separate persisted caches, later timestamp, unchanged progress.py.
+        # Expectata: one combined snapshot, separate persisted caches, later timestamp, unchanged progress.py; one
+        # process list for the whole snapshot (2026-10-30: the sweep is a unit of progress.main's snapshot, no longer a
+        # wrapper of progress.js_text that read its own).
         before = hashlib.sha256(Path(progress.__file__).read_bytes()).hexdigest()
         original = progress.js_text
         with tempfile.TemporaryDirectory() as directory:
@@ -144,7 +146,7 @@ class Sweep288ProgressQuals(unittest.TestCase):
                  patch.object(progress.time, 'time', side_effect=[120, 120, 125]), \
                  patch.object(progress, 'write_atomic', record):
                 self.sweep.main([])
-                self.assertEqual(processes.call_count, 2)  # original main, then one fresh sweep snapshot
+                self.assertEqual(processes.call_count, 1)  # the snapshot's, which the sweep's unit shares
             data = json.loads(dest.read_text().removeprefix('progressData(').removesuffix(');\n'))
             self.assertEqual(data['made'], 125)
             self.assertEqual([r['program'] for r in data['runs']], ['search288.py', 'sweep288.py'])
@@ -158,35 +160,33 @@ class Sweep288ProgressQuals(unittest.TestCase):
         self.assertEqual(hashlib.sha256(Path(progress.__file__).read_bytes()).hexdigest(), before)
 
     def test_persisted_sweep_cache_survives_watcher_restart_without_mutating_old_list(self):
-        # Replicata: one observed live snapshot, then a fresh call after its process disappeared.
-        # Expectata: reload saved observations, keep elapsed time, and append without mutating the input list.
+        # Replicata: the sweep's unit (see progress.snapshot) run while its process lives, then again, as after a
+        # watcher restart, once its process disappeared.
+        # Expectata: one run each time, as sweep288.py 288 10; the second reloads the saved observation and keeps its
+        # elapsed time.
         with tempfile.TemporaryDirectory() as directory:
             write(Path(directory, 'sweep288_journal.jsonl'), searching())
             cache = Path(directory, 'cache.json')
-            old = [prior.survey(prior.initial())]
             with patch.object(progress, 'HERE', directory), patch.object(self.sweep, 'CACHE', cache), \
-                 patch.object(progress, 'processes', return_value=[(123, 1, 'S', 'python3 -B sweep288.py')]), \
                  patch.object(progress.time, 'time', return_value=120):
-                first = self.sweep.snapshot(old, 120, progress.js_text)
+                (identity, thunk), = self.sweep.units([(123, 1, 'S', 'python3 -B sweep288.py')], 120)
+                first = thunk()
             with patch.object(progress, 'HERE', directory), patch.object(self.sweep, 'CACHE', cache), \
-                 patch.object(progress, 'processes', return_value=[]), \
                  patch.object(progress.time, 'time', return_value=130):
-                second = self.sweep.snapshot(old, 130, progress.js_text)
-            decode = lambda s: json.loads(s.removeprefix('progressData(').removesuffix(');\n'))
-            self.assertEqual(len(old), 1)
-            self.assertEqual(len(decode(first)['runs']), 2)
-            stopped = decode(second)['runs'][1]
-            self.assertEqual((stopped['state'], stopped['so_far']), ('ended', 20))
+                (_, thunk), = self.sweep.units([], 130)
+                second = thunk()
+            self.assertEqual(identity, ('sweep288.py', 288, 10))
+            self.assertEqual((len(first), first[0]['state']), (1, 'running'))
+            self.assertEqual((second[0]['state'], second[0]['so_far']), ('ended', 20))
 
     def test_absent_sweep_does_not_read_processes_or_create_side_cache(self):
-        # Replicata: extension serialization with no sweep journal.
-        # Expectata: exactly the original data, no extra process lookup or side-cache write.
+        # Replicata: the sweep's units with no sweep journal.
+        # Expectata: none, with no process lookup or side-cache write.
         with tempfile.TemporaryDirectory() as directory:
             cache = Path(directory, 'new', 'cache.json')
             with patch.object(progress, 'HERE', directory), patch.object(self.sweep, 'CACHE', cache), \
                  patch.object(progress, 'processes', side_effect=AssertionError('unexpected process read')):
-                result = self.sweep.snapshot([], 120, progress.js_text)
-            self.assertEqual(result, progress.js_text([], 120))
+                self.assertEqual(self.sweep.units([], 120), [])
             self.assertFalse(cache.exists())
 
     def test_wrapper_restores_serializer_after_failure(self):

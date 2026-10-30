@@ -133,7 +133,9 @@ class Search592ProgressQuals(unittest.TestCase):
 
     def test_chained_watcher_preserves_both_older_sources_and_all_surveys(self):
         # Replicata: the old search, wider sweep and 592 pilot, read at successively later times.
-        # Expectata: three surveys, one progress.js write, separate caches and unchanged historical source bytes.
+        # Expectata: three surveys, one progress.js write, separate caches and unchanged historical source bytes; one
+        # process list for the whole snapshot (2026-10-30: the sweep and the pilot are units of progress.main's
+        # snapshot, no longer wrappers of progress.js_text that read their own).
         paths = [Path(progress.__file__), Path(sweep288_progress.__file__)]
         before = [hashlib.sha256(p.read_bytes()).hexdigest() for p in paths]
         serialize = progress.js_text
@@ -156,7 +158,7 @@ class Search592ProgressQuals(unittest.TestCase):
                  patch.object(progress.time, 'time', side_effect=[120, 120, 123, 125]), \
                  patch.object(progress, 'write_atomic', record):
                 self.pilot.main([])
-                self.assertEqual(processes.call_count, 3)
+                self.assertEqual(processes.call_count, 1)
             data = json.loads(dest.read_text().removeprefix('progressData(').removesuffix(');\n'))
             self.assertEqual(data['made'], 125)
             self.assertEqual([r['program'] for r in data['runs']], ['search288.py', 'sweep288.py', 'search592.py'])
@@ -169,34 +171,33 @@ class Search592ProgressQuals(unittest.TestCase):
         self.assertEqual([hashlib.sha256(p.read_bytes()).hexdigest() for p in paths], before)
 
     def test_side_cache_survives_restart_and_input_list_is_not_mutated(self):
-        # Replicata: one observed snapshot, then another after the process disappears.
-        # Expectata: reload pilot observations, retain elapsed time, and never append to the caller's list.
+        # Replicata: the pilot's unit (see progress.snapshot) run while its process lives, then again, as after a
+        # watcher restart, once the process disappeared.
+        # Expectata: one run each time, as search592.py 592 10; the second reloads the pilot's observation and retains
+        # its elapsed time.
         with tempfile.TemporaryDirectory() as directory:
             write(Path(directory, 'search592_journal.jsonl'), searching())
             cache = Path(directory, 'cache.json')
-            old = [prior.survey(prior.initial())]
             with patch.object(progress, 'HERE', directory), patch.object(self.pilot, 'CACHE', cache), \
-                 patch.object(progress, 'processes', return_value=[(456, 1, 'S', 'python3 -B search592.py')]), \
                  patch.object(progress.time, 'time', return_value=120):
-                self.pilot.snapshot(old, 120, progress.js_text)
+                (identity, thunk), = self.pilot.units([(456, 1, 'S', 'python3 -B search592.py')], 120)
+                first = thunk()
             with patch.object(progress, 'HERE', directory), patch.object(self.pilot, 'CACHE', cache), \
-                 patch.object(progress, 'processes', return_value=[]), \
                  patch.object(progress.time, 'time', return_value=130):
-                text = self.pilot.snapshot(old, 130, progress.js_text)
-            data = json.loads(text.removeprefix('progressData(').removesuffix(');\n'))
-            self.assertEqual(len(old), 1)
-            self.assertEqual(len(data['runs']), 2)
-            self.assertEqual((data['runs'][1]['state'], data['runs'][1]['so_far']), ('ended', 20))
+                (_, thunk), = self.pilot.units([], 130)
+                second = thunk()
+            self.assertEqual(identity, ('search592.py', 592, 10))
+            self.assertEqual((len(first), first[0]['state']), (1, 'running'))
+            self.assertEqual((second[0]['state'], second[0]['so_far']), ('ended', 20))
 
     def test_absent_pilot_adds_no_process_lookup_or_side_cache(self):
-        # Replicata: extension serialization before the pilot journal exists.
-        # Expectata: exactly the original snapshot, without a process lookup or cache write.
+        # Replicata: the pilot's units before its journal exists.
+        # Expectata: none, without a process lookup or cache write.
         with tempfile.TemporaryDirectory() as directory:
             cache = Path(directory, 'cache.json')
             with patch.object(progress, 'HERE', directory), patch.object(self.pilot, 'CACHE', cache), \
                  patch.object(progress, 'processes', side_effect=AssertionError('unexpected process lookup')):
-                result = self.pilot.snapshot([], 120, progress.js_text)
-            self.assertEqual(result, progress.js_text([], 120))
+                self.assertEqual(self.pilot.units([], 120), [])
             self.assertFalse(cache.exists())
 
     def test_nested_wrappers_restore_original_serializer_after_failure(self):

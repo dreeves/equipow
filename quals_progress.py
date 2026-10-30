@@ -9,7 +9,7 @@ split of 40@6 and 64@7 supply trees whose level counts are known.
 """
 import sys
 sys.dont_write_bytecode = True
-import os, re, json, time, bisect, shutil, tempfile, threading, traceback, subprocess, contextlib, collections, glob
+import os, re, io, json, time, bisect, shutil, tempfile, threading, traceback, subprocess, contextlib, collections, glob
 import numpy as np
 import overnight_v5 as v5
 import progress
@@ -1333,16 +1333,17 @@ def q_js_is_one_progress_data_call():
     # program (overnight_v5.py), n, order, state, outcome (its finish's, or null without one: dreeves, 2026-10-25,
     # "can these be clearer when collapsed about what's paused/completed/aborted/running?"), so_far (its passes'
     # seconds of running), to_go (null: no estimate for an ended run), etas (none recorded here) and its sea (depth,
-    # keys, groups, counts, as progress.sea gives it) with the statuses' names, and nothing else.
+    # keys, groups, counts, as progress.sea gives it) with the statuses' names, and stale (null: its data are this
+    # snapshot's; 2026-10-30), and nothing else.
     now = 1792200000.25
     surveys = [progress.survey(n, order, *tiny(name), [], now, {}, {}) for n, order, name in ((64, 7, 'open'), (40, 6, 'closed'))]
     data = progress_data(progress.js_text(surveys, now))
     assert set(data) == {'made', 'runs'} and data['made'] == 1792200000, data.keys()
     for r, s in zip(data['runs'], surveys):
         assert set(r) == {'program', 'n', 'order', 'state', 'outcome', 'so_far', 'to_go', 'etas', 'statuses', 'depth', 'keys',
-                          'groups', 'counts'}, set(r)
-        assert (r['program'], r['n'], r['order'], r['state'], r['outcome'], r['to_go'], r['etas']) == (
-            'overnight_v5.py', s['n'], s['order'], 'ended', s['outcome'], None, []), r
+                          'groups', 'counts', 'stale'}, set(r)
+        assert (r['program'], r['n'], r['order'], r['state'], r['outcome'], r['to_go'], r['etas'], r['stale']) == (
+            'overnight_v5.py', s['n'], s['order'], 'ended', s['outcome'], None, [], None), r
         assert r['so_far'] == sum(b - a for a, b in s['passes']) > 0, (r['so_far'], s['passes'])
         assert r['statuses'] == list(progress.SEA_STATUSES)
         assert {k: r[k] for k in ('depth', 'keys', 'groups', 'counts')} == s['sea'], r
@@ -1454,7 +1455,8 @@ def q_box_log_of_a_closed_pass():
     # Replicata: progress.parse_box_lines of the tiny real boxsplit pass's log (one leaf, TRUTH, which closes).
     # Expectata: one pass: its start line's n 304, order 9, 1 open leaf, 0 closed on record and 10 processes (the
     # machine's, as overnight_v5's PROCESSES); the leaf 0 started and done, closed, after its start, at or before the
-    # pass's last line; the outcome ALL 1 LEAVES CLOSED; every line of a known form (none fails).
+    # pass's last line; the outcome ALL 1 LEAVES CLOSED, as boxsplit.py writes it since dreeves's a6481ff (2026-10-29:
+    # plain, no longer in Claude's quotes); every line of a known form (none fails).
     journal, log, main = tiny_box()
     passes = progress.parse_box_lines(progress.complete_lines(log))
     assert len(passes) == 1, passes
@@ -1462,7 +1464,7 @@ def q_box_log_of_a_closed_pass():
     assert (p['n'], p['order'], p['leaves'], p['on_record'], p['processes']) == (304, 9, 1, 0, v5.PROCESSES), p
     assert set(p['starts']) == set(p['dones']) == {0} and p['dones'][0][1] is True, p
     assert p['start'] <= p['starts'][0] <= p['dones'][0][0] <= p['last'], p
-    assert p['outcome'].startswith('Claude: "ALL 1 LEAVES CLOSED'), p['outcome']
+    assert p['outcome'].startswith('ALL 1 LEAVES CLOSED'), p['outcome']
 
 
 def q_box_log_with_an_unknown_line_fails():
@@ -1922,14 +1924,385 @@ def q_survey_track_adopted_unknown_exit_stays_ended():
 def q_js_text_carries_a_tracked_search():
     # Replicata: progress.js_text of survey_track's survey of two made-up records of 768:12 (one running, one ended), at
     # time 5000.
-    # Expectata: the run carries js_text's keys for every run, its sea's, and tracked (true) and work (survey_track's
-    # counts), for the page's tracked view.
+    # Expectata: the run carries js_text's keys for every run, its sea's, stale (null), and tracked (true) and work
+    # (survey_track's counts), for the page's tracked view.
     records = [track_record('r0', 300, None, None, 1000), track_record('r1', 301, 0, None, 1001)]
     s = progress.survey_track('768:12', records, [(300, 1, 'S', 'python3 -B w12.py')], 5000.0)
     r = progress_data(progress.js_text([s], 5000.0))['runs'][0]
     assert set(r) == {'program', 'n', 'order', 'state', 'outcome', 'so_far', 'to_go', 'etas', 'statuses', 'depth', 'keys',
-                      'groups', 'counts', 'tracked', 'work'}, set(r)
-    assert r['tracked'] is True and r['work'] == dict(runs=2, running=1, frozen=0, ended=1, aborted=0, found=0), r
+                      'groups', 'counts', 'stale', 'tracked', 'work'}, set(r)
+    assert r['stale'] is None and r['tracked'] is True and r['work'] == dict(runs=2, running=1, frozen=0, ended=1, aborted=0, found=0), r
+
+
+# ---------- the watcher kept between snapshots, and bounded (2026-10-30) ----------
+
+class Stop(Exception): pass
+
+
+def watch(times, after, patches):
+    """progress.main(['--watch']) for len(times) snapshots, the k-th (from 0) made at time times[k] (progress.time's
+    time(), its sleep ending the snapshot): after(k) runs at the end of each, then the next begins, or after the last
+    the loop stops.  patches: progress's attributes set for the run (name -> value), restored after; so is its time."""
+    real, k = time, [0]
+
+    class Clock:
+        def time(self): return times[k[0]]
+        def sleep(self, s):
+            assert s == progress.REFRESH, s
+            after(k[0])
+            if k[0] + 1 == len(times): raise Stop
+            k[0] += 1
+        def __getattr__(self, name): return getattr(real, name)
+    missing = object()                  # an attribute the module lacks is set for the run and taken away after
+    saved = {name: getattr(progress, name, missing) for name in patches}
+    for name, value in patches.items(): setattr(progress, name, value)
+    progress.time = Clock()
+    try:
+        progress.main(['--watch'])
+    except Stop:
+        pass
+    finally:
+        progress.time = real
+        for name, value in saved.items():
+            setattr(progress, name, value) if value is not missing else delattr(progress, name)
+
+
+def root_context(n, order):
+    """run_context with the repository's own modules, for a data-only fixture with no run directory of its own."""
+    return progress.run_modules.context(progress, progress.run_modules.load(HERE, progress.ROOT_V5, progress.ROOT_BX))
+
+
+def q_watch_reads_what_its_files_gained_and_equals_a_full_read():
+    # Replicata: the tiny resolved run (64@7, two passes) grown under progress.main(['--watch']), one worker of
+    # overnight_v5.py 64 7 running: its log cut after five line counts, two within its first pass and three within its
+    # second (the last its whole log), its journal at each its header and the records read_run dates by those lines;
+    # each snapshot made at its last line's time plus a second; after each, the files grown to the next cut, and a
+    # one-shot progress.main([]) of the same files (with fresh readings) into another data file, from the cache the
+    # watcher began that snapshot with.
+    # Expectata (2026-10-30: the watcher read 288@10's 500 MB of journal and log whole each minute): each snapshot's data
+    # file is the one-shot's, byte for byte; from the second snapshot on, the watcher reads of the log only its first
+    # line (the check that it is the same file) and the bytes it gained.
+    journal_src, log_src = tiny('resolved')
+    v5.configure(64, 7)
+    R = progress.read_run(journal_src, log_src)
+    texts = open(journal_src).read().splitlines(keepends=True)
+    lines = [l + '\n' for l in R['lines']]
+    s1, L = R['starts'][1], len(lines)
+    cuts = sorted({R['starts'][0] + 4, s1 - 2, s1 + 3, (s1 + L) // 2, L})
+    assert len(cuts) == 5 and cuts[0] < cuts[1] < s1 < cuts[2], (cuts, s1)
+    d = tempfile.mkdtemp(prefix='progress-quals-')
+    journal, log = os.path.join(d, 'journal.jsonl'), os.path.join(d, 'run.log')
+    def content(c):                     # the log's first c lines and the journal's records dated by them
+        J = sum(1 for x in R['dates'] if x < c)
+        return ''.join(lines[:c]), ''.join(texts[:1 + J] if c < L else texts)
+    log_text, journal_text = content(cuts[0])
+    open(log, 'w').write(log_text)
+    open(journal, 'w').write(journal_text)
+    counted, real_open = collections.Counter(), open
+
+    class Counting:
+        def __init__(self, f, path): self.f, self.path = f, path
+        def __enter__(self): return self
+        def __exit__(self, *a): self.f.close()
+        def read(self, *a):
+            data = self.f.read(*a)
+            counted[self.path] += len(data)
+            return data
+        def readline(self, *a):
+            data = self.f.readline(*a)
+            counted[self.path] += len(data)
+            return data
+        def __getattr__(self, name): return getattr(self.f, name)
+
+    def opening(path, *args, **kwargs):
+        f = real_open(path, *args, **kwargs)
+        return Counting(f, path) if path == log else f
+    began, gained, checked = [None], [None], []
+
+    def after(k):
+        watched = open(os.path.join(d, 'p.js')).read()
+        read = counted[log]
+        fresh_js, fresh_cache = os.path.join(d, 'fresh.js'), os.path.join(d, 'fresh.json')
+        for f in (fresh_js, fresh_cache): os.path.exists(f) and os.remove(f)
+        if began[0] is not None: shutil.copy(began[0], fresh_cache)
+        saved = progress.JS, progress.CACHE
+        progress.JS, progress.CACHE = fresh_js, fresh_cache
+        try:
+            progress.main([])
+        finally:
+            progress.JS, progress.CACHE = saved
+        assert watched == open(fresh_js).read(), (k, cuts[k])
+        head = len(lines[0].encode())
+        assert k == 0 or read <= head + gained[0], (k, read, head, gained[0])
+        checked.append(k)
+        shutil.copy(os.path.join(d, 'c.json'), os.path.join(d, f'began{k + 1}.json'))
+        began[0] = os.path.join(d, f'began{k + 1}.json')
+        if k + 1 < len(cuts):
+            new_log, new_journal = content(cuts[k + 1])
+            old_log, old_journal = open(log).read(), open(journal).read()
+            assert new_log.startswith(old_log) and new_journal.startswith(old_journal)
+            open(log, 'a').write(new_log[len(old_log):])
+            open(journal, 'a').write(new_journal[len(old_journal):])
+            gained[0] = len(new_log[len(old_log):].encode())
+        counted.clear()
+    times = [R['stamps'][c - 1] + 1 for c in cuts]
+    procs = [(4242, 1, 'S', 'python3 -B overnight_v5.py 64 7')]
+    progress.open = opening
+    try:
+        watch(times, after, dict(RUNS=((64, 7),), EXTENDED=(), HERE=d, JS=os.path.join(d, 'p.js'),
+                                 CACHE=os.path.join(d, 'c.json'), files=lambda n, order: (journal, log),
+                                 run_context=root_context, processes=lambda: procs))
+    finally:
+        del progress.open
+    assert checked == list(range(len(cuts))), checked
+
+
+def tracked_dir(targets):
+    """A temporary directory whose runs/ holds one tracked run of each target (N:M), its pid 300, 301, ..., live."""
+    d = tempfile.mkdtemp(prefix='progress-quals-')
+    os.makedirs(os.path.join(d, 'runs'))
+    for i, target in enumerate(targets):
+        lines = track_record(f'r{i}', 300 + i, None, None, 1000)
+        lines[0]['target'] = target
+        open(os.path.join(d, 'runs', f'r{i}.jsonl'), 'w').write(''.join(json.dumps(x) + '\n' for x in lines))
+    return d, [(300 + i, 1, 'S', f'python3 -B w12.py {target}') for i, target in enumerate(targets)]
+
+
+def q_watch_marks_an_overrun_survey_stale_and_updates_the_others():
+    # Replicata: progress.main(['--watch']) of a directory with two tracked searches, 720:12 and 768:12, each one live
+    # run (no overnight_v5 or boxsplit run), LIMIT 1 s, three snapshots at times 5000, 6000 and 7000; in the second,
+    # the survey of 720:12 first spins for 3 s.
+    # Expectata (2026-10-30: one run's survey took 90 minutes, and no run's data changed meanwhile): the second
+    # snapshot's data file holds 720:12's data of the first, marked stale with the first's time (stale 5000), and
+    # 768:12's own (stale null, so far to 6000); the third, both their own; the watcher's log says 720:12 ran past
+    # its limit.
+    d, procs = tracked_dir(['720:12', '768:12'])
+    original, k, seen = progress.survey_track, [0], []
+    def slow(target, records, procs, now):
+        end = time.monotonic() + 3 * (k[0] == 1 and target == '720:12')
+        while time.monotonic() < end: pass
+        return original(target, records, procs, now)
+    def after(i):
+        seen.append({r['n']: r for r in progress_data(open(os.path.join(d, 'p.js')).read())['runs']})
+        k[0] = i + 1
+    log = io.StringIO()
+    with contextlib.redirect_stderr(log):
+        watch([5000, 6000, 7000], after, dict(RUNS=(), EXTENDED=(), HERE=d, JS=os.path.join(d, 'p.js'),
+                                             CACHE=os.path.join(d, 'c.json'), processes=lambda: procs, LIMIT=1,
+                                             survey_track=slow))
+    assert [{n: r['stale'] for n, r in s.items()} for s in seen] == [{720: None, 768: None}, {720: 5000, 768: None},
+                                                                     {720: None, 768: None}], seen
+    assert [{n: r['so_far'] for n, r in s.items()} for s in seen] == [{720: 4000, 768: 4000}, {720: 4000, 768: 5000},
+                                                                      {720: 6000, 768: 6000}], seen
+    assert 'w12.py 720 12 ran past 1 s' in log.getvalue(), log.getvalue()[-2000:]
+
+
+def q_watch_survives_a_run_source_changed_under_it():
+    # Replicata: progress.main(['--watch']) with the tiny closed run (40@6) as its overnight_v5 run, made by copies of
+    # certbb.py, overnight_v5.py and boxsplit.py in a directory of its own (DIRS), beside a tracked search 768:12 with a
+    # live run; three snapshots at times 5000, 6000 and 7000; after the first, a comment appended to the copy of
+    # boxsplit.py, as a deployment replacing scratch/x288/boxsplit.py under a running chain would change it.
+    # Expectata (the coordinator, 2026-10-30: a source mismatch "must affect only that run ... and never kill the
+    # watcher or stop other runs' updates"): three snapshots made; from the second on, 40@6's data those of the first,
+    # marked stale (stale 5000), and 768:12's its own (stale null, so far up to each snapshot's time); the log has
+    # run_modules' refusal of the changed source.
+    d, procs = tracked_dir(['768:12'])
+    run = tempfile.mkdtemp(prefix='progress-quals-')
+    for name in ('certbb.py', 'overnight_v5.py', 'boxsplit.py'): shutil.copy(os.path.join(HERE, name), run)
+    journal, log_path = tiny('closed')
+    v5.configure(40, 6)
+    for src, name in ((journal, v5.JOURNAL), (log_path, v5.LOG)): shutil.copy(src, os.path.join(run, os.path.basename(name)))
+    seen = []
+    def after(k):
+        seen.append({r['program']: r for r in progress_data(open(os.path.join(d, 'p.js')).read())['runs']})
+        if k == 0: open(os.path.join(run, 'boxsplit.py'), 'a').write('\n# a deployment changed this file\n')
+    log = io.StringIO()
+    with contextlib.redirect_stderr(log):
+        watch([5000, 6000, 7000], after, dict(RUNS=((40, 6),), EXTENDED=(), HERE=d, JS=os.path.join(d, 'p.js'),
+                                             CACHE=os.path.join(d, 'c.json'), processes=lambda: procs,
+                                             DIRS={**progress.DIRS, (40, 6): run}))
+    assert [{p: r['stale'] for p, r in s.items()} for s in seen] == [{'overnight_v5.py': None, 'w12.py': None},
+                                                                     {'overnight_v5.py': 5000, 'w12.py': None},
+                                                                     {'overnight_v5.py': 5000, 'w12.py': None}], seen
+    assert [s['w12.py']['so_far'] for s in seen] == [4000, 5000, 6000], seen
+    assert seen[1]['overnight_v5.py'] == dict(seen[0]['overnight_v5.py'], stale=5000), seen
+    assert 'Fons iam lectus mutatus' in log.getvalue() and 'overnight_v5.py 40 6 failed' in log.getvalue(), log.getvalue()[-2000:]
+
+
+def q_box_log_reads_both_forms():
+    # Replicata: progress.parse_box_lines of a driver's log of 304@9 on OPEN4 (made_up_box's events) written twice:
+    # with the messages of boxsplit.py as it is (dreeves's a6481ff, 2026-10-29: plain, capitalized), and as written
+    # before (Claude's quotes, lower case, as scratch/x288's copy still writes them); then each with one line in a form
+    # mixed of both (a capital inside the quotes, or a lower-case letter without them).
+    # Expectata: both logs parse to the same passes but for the outcome, kept as each log has it; every mixed line is of
+    # no known form (AssertionError).
+    import boxsplit as bx
+    bx.configure(304, 9)
+    tally = collections.Counter(splits=1, own=1, pool=9, carried=9, outside=3, lps=12, glop=24, cpu=5.0)
+    at = lambda dt: time.strftime('%Y-%m-%d %H:%M:%S ', time.localtime(1793000000 + dt))
+    key = '{' + OPEN4[0] + '}'
+    start = ('start: n = 304, order at least 9, open leaves 4 of /tmp/main.jsonl (0 closed on record), extension moduli '
+             '[11, 13] with budgets [10000, 2000000] (LP solves; a pool or an outside node 3 per member), 10 processes, '
+             'HiGHS 1.12.0 (4f96ee8), 0 earlier verdicts')
+    control = 'startup control passed: the order-8 example of length 304 lands in an own child at each of [11, 13], and order 9 rejects it'
+    counts = bx.say_counts(tally)
+    new = [at(0) + start[0].upper() + start[1:], at(1) + control[0].upper() + control[1:],
+           at(2) + bx.say_leaf(0, OPEN4[0]), at(3) + f'{key} by 11: Box widths [2, 3], 4 vectors inside, 1 own children, '
+           'pool 3 (2 carried), 3 outside nodes, LP failures 0 (0.4 s)',
+           at(4) + f'{key} by 11: 3 outside nodes INFEASIBLE (12 LP solves, 0.3 s)', at(5) + f'{key}: INFEASIBLE; 7 LP solves (0.2 s)',
+           at(6) + bx.say_open(OPEN4[0] + ' 11:[1,2,3,4,5,6,7,8,9,10,11]'), at(7) + bx.say_leaf_closed(0, OPEN4[0], tally),
+           at(8) + 'NOT FINISHED: 1 leaves with 1 nodes left open, 0 leaves closed (0.01 h)']
+    old = [at(0) + f'Claude: "{start}"', at(1) + f'Claude: "{control}"', at(2) + 'Claude: "leaf 0: ' + key + '"',
+           at(3) + f'{key} by 11: Claude: "box widths [2, 3], 4 vectors inside, 1 own children, pool 3 (2 carried), 3 '
+           'outside nodes, LP failures 0 (0.4 s)"', at(4) + f'{key} by 11: Claude: "3 outside nodes INFEASIBLE (12 LP solves, 0.3 s)"',
+           at(5) + f'{key}: INFEASIBLE; Claude: "7 LP solves (0.2 s)"',
+           at(6) + 'Claude: "open: {' + OPEN4[0] + ' 11:[1,2,3,4,5,6,7,8,9,10,11]}"',
+           at(7) + f'Claude: "leaf 0 {key}: extension tree closed: {counts}"',
+           at(8) + 'Claude: "NOT FINISHED: 1 leaves with 1 nodes left open, 0 leaves closed (0.01 h)"']
+    assert new[2].endswith(': ' + key) and new[7].startswith(at(7) + 'Leaf 0 '), new   # boxsplit.py's own messages, as now
+    a, b = progress.parse_box_lines(new), progress.parse_box_lines(old)
+    assert [dict(p, outcome=None) for p in a] == [dict(p, outcome=None) for p in b] and a[0]['dones'] == {0: (a[0]['dones'][0][0], True)}, (a, b)
+    assert (a[0]['outcome'], b[0]['outcome']) == (new[-1][20:], old[-1][20:]), (a[0]['outcome'], b[0]['outcome'])
+    for mixed in (at(2) + 'Claude: "Leaf 0: ' + key + '"', at(2) + 'leaf 0: ' + key, at(0) + 'Claude: "' + start + '',
+                  at(1) + 'Claude: "Startup control passed: ' + control[25:] + '"'):
+        expect_assertion(progress.parse_box_lines, new[:1] + [mixed])
+
+
+def q_log_reads_the_repeated_hour_in_order():
+    # Replicata: in California's time zone, a log of 64@7 whose start line and open lines are stamped as overnight_v5
+    # stamps them (strftime of localtime) every 7 minutes from 00:50 to 02:20 on 2026-11-01, when daylight saving time
+    # ends and 01:00 to 01:59 comes twice; read_run of it with a journal of only its header; parse_lines of it.
+    # Expectata: read_run's stamps are the lines' true times, so never decreasing (read by stamp alone, through mktime,
+    # the log went back in time, an AssertionError: the watcher would have stopped surveying the run for good at 02:00
+    # that night); parse_lines' pass ends at the last.
+    saved = os.environ.get('TZ')
+    os.environ['TZ'] = 'America/Los_Angeles'
+    time.tzset()
+    progress.stamp.cache_clear()
+    getattr(progress, 'meanings', progress.stamp).cache_clear()     # the stamps' readings depend on the zone
+    try:
+        t0 = time.mktime((2026, 11, 1, 0, 50, 0, 0, 0, 1))
+        times = [t0 + 420 * i for i in range(14)]
+        assert time.localtime(times[2]).tm_isdst == 1 and time.localtime(times[11]).tm_isdst == 0
+        v5.configure(64, 7)
+        head = ('Claude: "start: n = 64, order at least 7, 1 processes, budgets [1, 1, 3] (LP solves; a pool at least 3 per '
+                'member), HiGHS 1.12.0 (4f96ee8), split moduli [3, 5], 0 earlier verdicts, siblings shuffled"')
+        lines = [time.strftime('%Y-%m-%d %H:%M:%S ', time.localtime(t)) + (head if i == 0 else 'Claude: "open: {3:[1,2,3]}"')
+                 for i, t in enumerate(times)]
+        d = tempfile.mkdtemp(prefix='progress-quals-')
+        journal, log = os.path.join(d, 'j.jsonl'), os.path.join(d, 'l.log')
+        open(journal, 'w').write(json.dumps(v5.header()) + '\n')
+        open(log, 'w').write(''.join(l + '\n' for l in lines))
+        R = progress.read_run(journal, log)
+        assert R['stamps'] == times, [(time.strftime('%H:%M:%S', time.localtime(a)), b - a) for a, b in zip(times, R['stamps'])]
+        p, = progress.parse_lines(lines)
+        assert (p['start'], p['last'], len(p['opens'])) == (times[0], times[-1], 13), p
+    finally:
+        os.environ.pop('TZ') if saved is None else os.environ.__setitem__('TZ', saved)
+        time.tzset()
+        progress.stamp.cache_clear()
+        getattr(progress, 'meanings', progress.stamp).cache_clear()
+
+
+def q_reading_dates_a_closing_only_after_its_node_s_line():
+    # Replicata: a Reading (the watcher's kept read_run) of a made-up 40@6 run: a first pass whose top node is UNKNOWN,
+    # ended NOT FINISHED, and a second pass's start line; while its first advance reads the log, the second pass's
+    # line for the top node (split again) is written and then the top's CLOSED record, so that the journal read after
+    # the log holds the record and the log read missed its node's line; then a second advance; then read_run of the
+    # files as they end.
+    # Expectata: after the first advance the CLOSED record is read but not dated (dating it then, by the top node's line
+    # of the first pass, would put it before the second pass for good: read_run's race at a pass's start, 2026-10-20);
+    # after the second, it is dated by the second pass's line, after that pass's start; and the kept reading is
+    # read_run's of the final files.
+    v5.configure(40, 6)
+    budgets = list(v5.BUDGET)
+    at = lambda dt: time.strftime('%Y-%m-%d %H:%M:%S ', time.localtime(1793000000 + dt))
+    start = (f'Claude: "start: n = 40, order at least 6, 1 processes, budgets {budgets} (LP solves; a pool at least 3 per '
+             f'member), HiGHS {v5.certbb.HIGHS}, split moduli {list(v5.CASCADE)}, 0 earlier verdicts, siblings shuffled"')
+    node = lambda dt, closed, waiting: (at(dt) + '[1] {}: UNKNOWN (0.5 + 0.1 s); Claude: "closed ' + str(closed) +
+                                        f', waiting {waiting}, running 0, open 0, LP failures 0"')
+    first = [at(0) + start, node(1, 0, 0), at(2) + 'Claude: "NOT FINISHED: 0 nodes left open, 0 closed (0.0 h)"', at(3) + start]
+    budget = progress.budget_of('', budgets)
+    records = [json.dumps(v5.header()), json.dumps({'key': '', 'verdict': 'UNKNOWN', 'budget': budget, 'lps': budget,
+                                                    'leaves': 1, 'proof': '0' * 40})]
+    closing = json.dumps({'key': '', 'verdict': 'CLOSED', 'budget': budget})
+    d = tempfile.mkdtemp(prefix='progress-quals-')
+    journal, log = os.path.join(d, 'j.jsonl'), os.path.join(d, 'l.log')
+    open(journal, 'w').write(''.join(r + '\n' for r in records))
+    open(log, 'w').write(''.join(l + '\n' for l in first))
+    reading = progress.Reading(journal, log)
+    tail, read = reading.tails[0], reading.tails[0].read
+    def racing():                       # the log read, then the writer's next line and record
+        out = read()
+        open(log, 'a').write(node(4, 1, 0) + '\n')
+        open(journal, 'a').write(closing + '\n')
+        tail.read = read
+        return out
+    tail.read = racing
+    R = reading.advance()
+    assert (len(reading.records), len(R['records']), R['bounds']) == (2, 1, [0, 1]), (len(reading.records), R['records'], R['bounds'])
+    R = reading.advance()
+    assert len(R['records']) == 2 and R['dates'] == [1, 4] and R['bounds'] == [0, 1], (R['dates'], R['bounds'])
+    full = progress.read_run(journal, log)
+    assert {k: R[k] for k in full} == full
+
+
+def q_kept_records_box_survey_and_tail_read_what_files_gained():
+    # Replicata: a journal of JSON lines grown three times (the last time with half a line, then its rest), read by one
+    # Records each time; made_up_box's driver's log of 304@9 grown line by line, surveyed by survey_box with one kept
+    # Boxes (a live driver), and afresh, at each length; a Tail of a file replaced by another, and of one cut short.
+    # Expectata: the Records' records are complete_lines' parsed each time, the half line left for later; each kept box
+    # survey is the fresh one; the Tail refuses the replaced file and the shortened one (AssertionError).
+    d = tempfile.mkdtemp(prefix='progress-quals-')
+    path = os.path.join(d, 'j.jsonl')
+    records = progress.Records(path)
+    open(path, 'w').write('')
+    for text in ('{"a": 1}\n{"b": 2}\n', '{"c": 3}\n{"d"', ': 4}\n'):
+        open(path, 'a').write(text)
+        assert records.read() == [json.loads(l) for l in progress.complete_lines(path)], records.records
+    journal, log, main = made_up_box(time.time() - 1000)
+    lines = progress.complete_lines(log)
+    procs = [(77, 1, 'S', 'python3 -B boxsplit.py 304 9')]
+    grown = os.path.join(d, 'box.log')
+    open(grown, 'w').write('')
+    kept = progress.Boxes(grown)
+    for i, line in enumerate(lines):
+        open(grown, 'a').write(line + '\n')
+        now = time.time() - 990 + 10 * i
+        mine = progress.survey_box(304, 9, grown, main, procs, now, {}, kept)
+        fresh = progress.survey_box(304, 9, grown, main, procs, now, {})
+        assert mine == fresh, (i, mine, fresh)
+    tail = progress.Tail(path)
+    tail.read()
+    os.replace(log, path)
+    expect_assertion(tail.read)
+    tail = progress.Tail(grown)
+    tail.read()
+    open(grown, 'w').write(lines[0] + '\n')
+    expect_assertion(tail.read)
+
+
+def q_urn_refuses_more_balls_than_it_may_hold():
+    # Replicata: an Urn of room 100 with DRAWS set to REPLICATES x 100 numbers, then to REPLICATES x 101.
+    # Expectata: the first fails (AssertionError: its 101 columns of balls exceed DRAWS), the second is made (2026-10-30:
+    # 288@10's boxsplit pass would have begun with 6.9 GB of balls).
+    saved = progress.DRAWS
+    try:
+        progress.DRAWS = progress.REPLICATES * 100
+        expect_assertion(progress.Urn, np.random.default_rng(0), np.arange(3.0), lambda rows, e: rows * 0.0, 100)
+        progress.DRAWS = progress.REPLICATES * 101
+        progress.Urn(np.random.default_rng(0), np.arange(3.0), lambda rows, e: rows * 0.0, 100)
+    finally:
+        progress.DRAWS = saved
+
+
+def q_page_marks_a_stale_run_with_its_time():
+    # Replicata: index.html's progress section run in Node (quals_progress_stale.cjs): its renderer's staleView on a run
+    # with stale null and on one with a stale time; and its status line's time.
+    # Expectata (2026-10-30): the mark (data-stale, Claude: "stale") hidden for the fresh run, shown for the stale one
+    # with that time as the section writes times; the status line gives the run's own data's time.
+    p = subprocess.run(['node', 'quals_progress_stale.cjs'], cwd=HERE, capture_output=True, text=True, timeout=60)
+    assert p.returncode == 0, p.stdout + p.stderr
 
 
 def main():

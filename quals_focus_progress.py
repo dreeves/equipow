@@ -44,15 +44,17 @@ class FocusProgressQuals(unittest.TestCase):
         # Replicata: a live journal read can include an append made during I/O.
         # Expectata: the snapshot clock is read after the journal, so that a
         # valid new event cannot look like an event from the future.
+        # (2026-10-30: the journal comes through a kept progress.Records, here a stand-in, no longer complete_lines.)
         calls = []
-        def lines(path):
-            calls.append('read')
-            return [json.dumps(r) for r in initial()]
+        class Journal:
+            def read(self):
+                calls.append('read')
+                return [json.loads(json.dumps(r)) for r in initial()]
         def clock():
             calls.append('clock')
             return 110
-        with patch.object(progress, 'complete_lines', lines), patch.object(progress.time, 'time', clock):
-            progress.survey_focus('qual', [], observations={})
+        with patch.object(progress.time, 'time', clock):
+            progress.survey_focus('qual', [], observations={}, journal=Journal())
         self.assertEqual(calls, ['read', 'clock'])
 
     def test_page_section_has_no_scope_prose(self):

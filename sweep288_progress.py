@@ -1,12 +1,11 @@
 """One progress watcher with the full wider-pruning sweep added.
 
-progress.py remains byte-for-byte unchanged because it belongs to the earlier
-paired study's fingerprint. The serializer hook appends this survey to its
-ordinary snapshot; the original watcher still owns all other surveys and the
-single progress.js write. Sweep observations have their own atomic cache.
+The sweep's survey is one more unit of progress.main's snapshot (see progress.snapshot), after the original watcher's
+own, bounded in time like them; the original watcher still owns the single progress.js write. Sweep observations
+have their own atomic cache. (Before 2026-10-30 this module added its survey by wrapping progress.js_text, while
+progress.py was fingerprinted by the earlier paired study.)
 """
-import glob
-import json
+import functools
 from pathlib import Path
 import sys
 
@@ -33,26 +32,24 @@ def survey(path, procs, now=None, observations=None):
     return run
 
 
-def snapshot(surveys, now, serialize):
-    """Add the sweep at serialization, preserving the original list and its later clock."""
-    extra = []
-    for path in glob.glob(str(Path(progress.HERE) / 'sweep288_journal.jsonl')):
-        with open(path, encoding='utf-8') as f: header = json.loads(f.readline())
-        cache = progress.load_cache(CACHE)
-        key = f'sweep288_{header["code"]}_{header["time"]}_observations'
-        extra.append(survey(path, progress.processes(), observations=cache.setdefault(key, {})))
-        Path(CACHE).parent.mkdir(parents=True, exist_ok=True)
-        progress.save_cache(CACHE, cache)
-    return serialize(surveys + extra, max([now] + [run['made'] for run in extra]))
+def unit(path, header, procs):
+    """The sweep's survey with its observations kept in CACHE, read and written around it."""
+    cache = progress.load_cache(CACHE)
+    key = f'sweep288_{header["code"]}_{header["time"]}_observations'
+    run = survey(path, procs, observations=cache.setdefault(key, {}))
+    Path(CACHE).parent.mkdir(parents=True, exist_ok=True)
+    progress.save_cache(CACHE, cache)
+    return [run]
 
 
-def main(argv):
-    serialize = progress.js_text
-    progress.js_text = lambda surveys, now: snapshot(surveys, now, serialize)
-    try:
-        progress.main(argv)
-    finally:
-        progress.js_text = serialize
+def units(procs, now):
+    """The sweep's unit (see progress.snapshot), if its journal exists."""
+    return [(('sweep288.py', 288, 10), functools.partial(unit, path, header, procs))
+            for path, header in progress.headers('sweep288_journal.jsonl')]
+
+
+def main(argv, extra=()):
+    progress.main(argv, extra=(units,) + tuple(extra))
 
 
 if __name__ == '__main__':

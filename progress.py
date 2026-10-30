@@ -163,12 +163,23 @@ The estimate's model, its terms defined once here (overnight_v5.py's search() is
               read whatever program the runs run, the runs of one target N:M one search.  A run is ended with its end
               line; else frozen while its process is stopped (state T), running while it lives, and aborted once it is
               gone (its tracker died before writing the end).  The search shows one dot per run (survey_track).
+  reading     the watcher's state of a run's files, kept between snapshots (2026-10-30: it read 288@10's 500 MB of journal
+              and log whole every minute, and one snapshot took 90 minutes): the bytes read so far and all parsed, dated
+              and derived from them (Reading, with its Tree and Grown; Boxes for a boxsplit pass, Records for focus.py's
+              and fanout.py's journals), changed only in atomic blocks, so that a snapshot costs about what the files
+              gained.  read_run, sea, estimate and a survey made without one make a new one, which reads the files
+              whole: the same values.
+  unit        one run's survey in a snapshot (snapshot): bounded by LIMIT seconds; a unit that fails or runs past it
+              leaves its run's last good data in the data file, marked stale, and the other units go on.
+  stale       of a run in the data file: null, or the time of the snapshot its data are from, when its survey failed or ran
+              past LIMIT since; the section marks such a run (Claude: "stale").
 The data file says when the snapshot was made, to the second, and the section keeps its age up to date.  Per run it
 gives the state, the hours of running so far and to go, the record of ETAs and the sea (see js_text).
 """
 import sys
 sys.dont_write_bytecode = True
-import os, re, json, math, time, bisect, itertools, subprocess, collections, glob, functools, shlex
+import os, re, json, math, time, bisect, itertools, subprocess, collections, glob, functools, shlex, signal, contextlib
+import struct, traceback
 import numpy as np
 import overnight_v5 as v5
 import boxsplit as bx
@@ -206,6 +217,40 @@ STATUSES = ('settled', 'open', 'split', 'pending')     # the statuses, in the or
 SEA_DEPTH = 5                          # the sea's groups are the sub-cases at this depth (240@11's 291), or above the bottom
 SEA_STATUSES = STATUSES + ('running',)  # a dot's status, by its index in the data file
 ETA_POINTS = 400                       # the most recorded ETAs the data file carries per run
+LIMIT = 120                            # seconds a run's survey may take in a snapshot (see bounded)
+STEP = 20000                           # lines, records or keys a reading takes in one atomic block (see atomic)
+DRAWS = 1 << 28                        # the most numbers an urn may hold (see Urn): 2 GiB of float64
+
+
+# ---------- surveys bounded in time (2026-10-30: one run's 90-minute snapshot froze the whole page) ----------
+
+class Overtime(Exception):
+    """A survey that ran past its seconds (see bounded)."""
+
+
+@contextlib.contextmanager
+def atomic():
+    """A block no Overtime interrupts: SIGALRM waits until the block ends.  A reading (see the vocabulary) changes
+    only in such blocks, so that an Overtime, which falls between them, leaves it whole for the next snapshot."""
+    old = signal.pthread_sigmask(signal.SIG_BLOCK, {signal.SIGALRM})
+    try:
+        yield
+    finally:
+        signal.pthread_sigmask(signal.SIG_SETMASK, old)
+
+
+def bounded(seconds, thunk):
+    """thunk(), unless it runs past seconds of wall time: then Overtime, raised by SIGALRM at the first moment outside an
+    atomic block.  The timer and the handler are restored however thunk ends."""
+    def alarm(signum, frame):
+        raise Overtime(f'over {seconds} s')
+    previous = signal.signal(signal.SIGALRM, alarm)
+    signal.setitimer(signal.ITIMER_REAL, seconds)
+    try:
+        return thunk()
+    finally:
+        signal.setitimer(signal.ITIMER_REAL, 0)
+        signal.signal(signal.SIGALRM, previous)
 
 
 # ---------- reading the runs' files ----------
@@ -242,6 +287,49 @@ def complete_lines(path):
     return open(path, encoding='utf-8').read().split('\n')[:-1]
 
 
+class Tail:
+    """A file's complete lines (see complete_lines), read as the file grows: each read() gives those completed since
+    the last.  The file may only grow: the same file (device and inode), no shorter than what was read, its first line
+    unchanged, and no carriage return, which complete_lines would read as a line's end (all asserted).  read() belongs
+    in the atomic block that keeps its lines (see atomic): the file is read past them."""
+
+    def __init__(self, path):
+        self.path, self.offset, self.ident, self.head = path, 0, None, b''
+
+    def read(self):
+        with open(self.path, 'rb') as fh:
+            st = os.fstat(fh.fileno())
+            # TODO: error copy; says the file was replaced or cut short since the watcher last read it, naming it
+            assert (self.ident in (None, (st.st_dev, st.st_ino)) and st.st_size >= self.offset
+                    and fh.read(len(self.head)) == self.head), f'Claude: "{self.path} was replaced or cut short"'
+            fh.seek(self.offset)
+            data = fh.read()
+        done = data[:data.rfind(b'\n') + 1]
+        # TODO: error copy; says the file holds a carriage return, naming it
+        assert b'\r' not in done, f'Claude: "{self.path} holds a carriage return"'
+        self.ident, self.offset = (st.st_dev, st.st_ino), self.offset + len(done)
+        self.head = self.head or done[:done.find(b'\n') + 1]
+        return done.decode('utf-8').split('\n')[:-1]
+
+
+class Records:
+    """A journal of JSON lines, its records parsed as it grows (Tail), each step atomic: [json.loads(line) for line in
+    complete_lines(path)], kept (2026-10-30: fanout_432's 9 MB and focus_480's 6 MB, parsed whole each minute)."""
+
+    def __init__(self, path):
+        self.path, self.tail, self.lines, self.records = path, Tail(path), collections.deque(), []
+
+    def read(self):
+        """The records so far."""
+        with atomic(): self.lines += self.tail.read()
+        while self.lines:
+            with atomic():
+                for _ in range(min(STEP, len(self.lines))):
+                    self.records.append(json.loads(self.lines[0]))
+                    self.lines.popleft()
+        return self.records
+
+
 def read_journal(path):
     """The journal's last record per key, for overnight_v5's current configuration, whose header it must have.
     overnight_v5.Journal.admit checks each record as the run does (made without Journal's __init__, which would
@@ -275,6 +363,66 @@ def ints(text): return [int(t) for t in text.split(', ')]
 def stamp(text): return time.mktime(time.strptime(text, '%Y-%m-%d %H:%M:%S'))
 
 
+@functools.lru_cache(maxsize=None)
+def meanings(text):
+    """The times (epoch seconds) a log line's local stamp can mean, in order: one, or two in the hour that the fall from
+    daylight saving time repeats (2026-11-01 01:00 to 01:59 here), where mktime reads some stamps as the first hour's
+    and some as the second's, so that a log read by stamp alone goes back in time.  A meaning is a time that
+    localtime gives back as the stamp."""
+    tt = time.strptime(text, '%Y-%m-%d %H:%M:%S')
+    out = sorted({t for t in (time.mktime(tt[:8] + (dst,)) for dst in (0, 1))
+                  if time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(t)) == text})
+    # TODO: error copy; says a stamp names a local time that never happens (one in the hour a spring forward skips)
+    assert out, f'Claude: "{text} is no local time"'
+    return tuple(out)
+
+
+def stamp_after(text, before):
+    """The time of a log line stamped text that follows a line of time before: the stamp's first meaning (see
+    meanings) not earlier than before, else its last (a log going back in time, which read_run refuses).  Outside a
+    repeated hour it is stamp(text)."""
+    return next((t for t in meanings(text) if t >= before), meanings(text)[-1])
+
+
+class Log:
+    """A log's passes as parse_lines makes them, taking its lines one at a time (see Reading), with what read_run keeps
+    of them: the lines, their times (each line's stamp_after the line before it) and kinds (FORMS keys), and the index
+    of each pass's start line and of each of its progress lines.  Node keys are interned: a run's journal names each
+    key again (288@10's, 2026-10-30: 1.16 million log lines, 768,353 records)."""
+
+    def __init__(self):
+        self.lines, self.stamps, self.kinds, self.passes, self.starts, self.node_lines = [], [], [], [], [], []
+
+    def take(self, line):
+        """Parse the next line into the passes, or fail (asserted) leaving everything as it was."""
+        forms = [(kind, m) for kind, form in FORMS.items() if (m := form.match(line))]
+        # TODO: error copy; says a line of the log has none of the forms progress.py knows, quoting the line
+        assert len(forms) == 1, f'Claude: "a log line of no known form: {line}"'
+        kind, m = forms[0]
+        # TODO: error copy; says a line of the log comes before any start line or after its pass's outcome line, quoting it
+        assert kind == 'start' or (self.passes and self.passes[-1]['outcome'] is None), f'Claude: "a log line out of place: {line}"'
+        t = stamp_after(m[1], self.stamps[-1] if self.stamps else -math.inf)
+        i = len(self.lines)
+        if kind == 'start':
+            self.passes.append({'start': t, 'n': int(m[2]), 'order': int(m[3]), 'processes': int(m[4]), 'budgets': ints(m[5]),
+                                'pool_budget': int(m[6]), 'highs': m[7], 'moduli': ints(m[8]), 'earlier': int(m[9]),
+                                'shuffled': m[10] is not None, 'nodes': [], 'opens': [], 'outcome': None})
+            self.starts.append(i)
+            self.node_lines.append([])
+        p = self.passes[-1]
+        p['last'] = t
+        if kind == 'node':
+            p['nodes'].append({'t': t, 'i': int(m[2]), 'key': sys.intern(m[3]), 'verdict': m[4], 'solve': float(m[5]),
+                               'split': float(m[6]), 'closed': int(m[7]), 'waiting': int(m[8]), 'running': int(m[9]),
+                               'open': int(m[10]), 'failures': int(m[11])})
+            self.node_lines[-1].append(i)
+        if kind == 'open': p['opens'].append(sys.intern(m[2]))
+        if kind == 'outcome': p['outcome'] = m[2]
+        self.lines.append(line)
+        self.stamps.append(t)
+        self.kinds.append(kind)
+
+
 def parse_lines(lines):
     """The passes of the log whose complete lines these are, in order, each a dict:
          start, last     the times (epoch seconds) of its start line and of its last line;
@@ -287,29 +435,10 @@ def parse_lines(lines):
          outcome         its last line if that says how the pass ended (NOT FINISHED, ALL NODES CLOSED or the final
                          WITNESS FOUND line), as the log has it, after the time; else None.
     Every line must have exactly one known form, every pass must begin with a start line, and no line may follow a
-    pass's outcome but the next start line (all asserted)."""
-    passes = []
-    for line in lines:
-        forms = [(kind, m) for kind, form in FORMS.items() if (m := form.match(line))]
-        # TODO: error copy; says a line of the log has none of the forms progress.py knows, quoting the line
-        assert len(forms) == 1, f'Claude: "a log line of no known form: {line}"'
-        kind, m = forms[0]
-        t = stamp(m[1])
-        if kind == 'start':
-            passes.append({'start': t, 'n': int(m[2]), 'order': int(m[3]), 'processes': int(m[4]), 'budgets': ints(m[5]),
-                           'pool_budget': int(m[6]), 'highs': m[7], 'moduli': ints(m[8]), 'earlier': int(m[9]),
-                           'shuffled': m[10] is not None, 'nodes': [], 'opens': [], 'outcome': None})
-        # TODO: error copy; says a line of the log comes before any start line or after its pass's outcome line, quoting it
-        assert passes and passes[-1]['outcome'] is None, f'Claude: "a log line out of place: {line}"'
-        p = passes[-1]
-        p['last'] = t
-        if kind == 'node':
-            p['nodes'].append({'t': t, 'i': int(m[2]), 'key': m[3], 'verdict': m[4], 'solve': float(m[5]),
-                               'split': float(m[6]), 'closed': int(m[7]), 'waiting': int(m[8]), 'running': int(m[9]),
-                               'open': int(m[10]), 'failures': int(m[11])})
-        if kind == 'open': p['opens'].append(m[2])
-        if kind == 'outcome': p['outcome'] = m[2]
-    return passes
+    pass's outcome but the next start line (all asserted).  The times are each line's stamp_after the line before."""
+    log = Log()
+    for line in lines: log.take(line)
+    return log.passes
 
 
 def parse_log(path):
@@ -360,57 +489,249 @@ def read_run(journal, log):
     asserted), but for a line whose record is nowhere in the journal: a migration dropped it, so that a later pass
     solves the node again (scratch/width/migrate_now.py dropped those the width test closes), and the line goes undated.  The log is read first: each record is written before its line, so every line read has its record in
     the journal read after it.  The records after the last line's own, but for the CLOSED records it wrote, belong to
-    lines not read yet, and are left out."""
-    lines = complete_lines(log)
-    texts = complete_lines(journal)
-    # TODO: error copy; says the journal at this path was written by another configuration or another version of the code
-    assert json.loads(texts[0]) == v5.header(), f'Claude: "the journal {journal} belongs to another configuration"'
-    run_modules.validate_header(v5, json.loads(texts[0]))
-    stamps = [stamp(line[:19]) for line in lines]
-    # TODO: error copy; says a line of the log at this path is stamped earlier than the line before it
-    assert all(a <= b for a, b in zip(stamps, stamps[1:])), f'Claude: "the log {log} goes back in time"'
-    passes = parse_lines(lines)
-    kinds = [next(kind for kind, form in FORMS.items() if form.match(line)) for line in lines]
-    starts = [i for i, kind in enumerate(kinds) if kind == 'start']
-    node_lines = [[i for i in range(a, b) if kinds[i] == 'node'] for a, b in zip(starts, starts[1:] + [len(lines)])]
-    assert [len(x) for x in node_lines] == [len(p['nodes']) for p in passes]
-    records = [json.loads(x) for x in texts[1:]]
-    present = {(r['key'], r['verdict'], r['budget']) for r in records}
-    replayed = object.__new__(v5.Journal)          # made without Journal's __init__, which would create a journal
-    replayed.records = {}
-    fresh, dates, last = {}, [], {}                # last: each key's latest progress line read so far
+    lines not read yet, and are left out.  A Reading of the two files, advanced once (see Reading)."""
+    return Reading(journal, log).advance()
 
-    def admit(line):                               # the next record, dated by this line
-        assert line >= 0
-        replayed.admit(records[len(dates)])
-        dates.append(line)
 
-    def closings():                                # the CLOSED records next in the journal, dated as dating says
-        while len(dates) < len(records) and records[len(dates)]['verdict'] == 'CLOSED':
-            admit(max(dates[-1:] + [last.get(records[len(dates)]['key'], -1)]))
+class Reading:
+    """read_run of a run's journal and log kept by the watcher and brought up to date with what the files gained (see
+    reading in the vocabulary).  Its state is read_run's: what the files held up to their last complete lines, read
+    (Tail), parsed (Log, and each record as JSON) and dated, with the latest dated record per key (final, the journal
+    replayed: overnight_v5.Journal, made without its __init__, which would create a journal).  A record whose triple
+    (key, verdict, budget) is a line's that dating took for dropped by a migration must not come later: read_run of
+    the files as they are then would date that line by it (asserted)."""
 
-    for p, indices in zip(passes, node_lines):
-        for i, nd in zip(indices, p['nodes']):
-            last[nd['key']] = i
-            budget = budget_of(nd['key'], p['budgets'])
-            prev = replayed.records.get(nd['key'], {'verdict': 'UNKNOWN', 'budget': -1})
-            assert prev['verdict'] == 'UNKNOWN', (log, i)                # search() never submits a settled node
-            if prev['budget'] >= budget:                                 # split again, with no fresh record
-                assert nd['verdict'] == 'UNKNOWN', (log, i)
+    def __init__(self, journal, log):
+        self.journal, self.log = journal, log
+        self.tails = (Tail(log), Tail(journal))
+        self.lines, self.texts = collections.deque(), collections.deque()   # read, not yet parsed
+        self.parsed, self.header = Log(), None
+        self.records, self.present, self.dropped = [], set(), set()
+        self.dated, self.dates, self.fresh, self.last = [], [], {}, {}
+        self.final = object.__new__(v5.Journal)
+        self.final.records = {}
+        self.cursor = (0, 0)              # the next progress line to date: (its pass, its index among the pass's)
+        self.grove, self.planted = None, 0                # the Tree of final (see tree), and the dated records it holds
+        self.touching, self.touches = None, {}            # the pass whose touched sub-cases are kept (see touched)
+        self.dropped_lines = set()                        # the progress lines dating took for dropped by a migration
+        self.start_pass, self.start_final, self.start_bound = None, {}, 0   # see starting
+        self.speed_at, self.seconds, self.lps, self.claims = (0, 0), 0.0, 0, set()   # see speed
+        self.wanted_pass, self.wanted_bound, self.wanted, self.checked = None, None, set(), 0   # see resplits
+        self.grown = None                                 # (Grown, History, start_bound) of the current pass
+        self.R = None                                     # read_run's dict, as the last advance made it
+
+    def advance(self):
+        """Read what the files gained and parse and date it, each step an atomic block (see atomic) of at most STEP
+        lines or records; read_run's dict of all so far.  The journal is read, then the log, then the journal again:
+        every line read has its record in the second read, and the CLOSED records left after the last dated one are
+        dated only up to the first read's end, whose records were written before the log was read and so before
+        their nodes' lines were read (a CLOSED record dated without its node's latest line would stay dated before its
+        pass: read_run's race at a pass's start, 2026-10-20, which a reading kept for good would keep)."""
+        with atomic(): self.texts += self.tails[1].read()
+        while self.texts:
+            with atomic(): self.parse(STEP)
+        safe = len(self.records)
+        with atomic(): self.lines += self.tails[0].read()
+        while self.lines:
+            with atomic(): self.take(STEP)
+        with atomic(): self.texts += self.tails[1].read()
+        while self.texts:
+            with atomic(): self.parse(STEP)
+        while self.behind():
+            with atomic(): self.date(STEP)
+        with atomic(): self.closings(safe)
+        # TODO: error copy; says the journal at this path has no header line yet
+        assert self.header is not None, f'Claude: "the journal {self.journal} has no header"'
+        L = self.parsed
+        self.R = {'lines': L.lines, 'stamps': L.stamps, 'kinds': L.kinds, 'passes': L.passes, 'starts': L.starts,
+                  'node_lines': L.node_lines, 'records': self.dated, 'fresh': self.fresh, 'dates': self.dates,
+                  'bounds': [bisect.bisect_left(self.dates, s) for s in L.starts]}
+        return self.R
+
+    def take(self, n):
+        """Parse up to n lines read (Log.take), each stamped no earlier than the line before it (asserted)."""
+        stamps = self.parsed.stamps
+        for _ in range(min(n, len(self.lines))):
+            line = self.lines[0]
+            before = stamps[-1] if stamps else -math.inf
+            # TODO: error copy; says a line of the log at this path is stamped earlier than the line before it
+            assert stamp_after(line[:19], before) >= before, f'Claude: "the log {self.log} goes back in time"'
+            self.parsed.take(line)
+            self.lines.popleft()
+
+    def parse(self, n):
+        """Parse up to n of the journal's lines read: its header first, which must be overnight_v5's (asserted)."""
+        for _ in range(min(n, len(self.texts))):
+            r = json.loads(self.texts[0])
+            if self.header is None:
+                # TODO: error copy; says the journal at this path was written by another configuration or another version of the code
+                assert r == v5.header(), f'Claude: "the journal {self.journal} belongs to another configuration"'
+                run_modules.validate_header(v5, r)
+                self.header = r
+            else:
+                r['key'] = sys.intern(r['key'])
+                triple = (r['key'], r['verdict'], r['budget'])
+                # TODO: error copy; says the journal gained the record of a progress line that was read as dropped by a migration, naming the record
+                assert triple not in self.dropped, f'Claude: "the journal {self.journal} gained the record of a dropped line: {triple}"'
+                self.records.append(r)
+                self.present.add(triple)
+            self.texts.popleft()
+
+    def behind(self):
+        """Whether a progress line parsed is not dated yet."""
+        k, j = self.cursor
+        P = self.parsed.passes
+        return k < len(P) and (j < len(P[k]['nodes']) or k + 1 < len(P))
+
+    def date(self, n):
+        """Date up to n more progress lines (see dating in the vocabulary), each whole."""
+        P, L = self.parsed.passes, self.parsed.node_lines
+        while n and self.behind():
+            k, j = self.cursor
+            if j == len(P[k]['nodes']):
+                self.cursor = (k + 1, 0)
                 continue
-            closings()
-            if (nd['key'], nd['verdict'], budget) not in present: continue          # dropped by a migration
-            # TODO: error copy; says the journal at this path has no record for a progress line that reports a fresh verdict, naming the line
-            assert len(dates) < len(records), f'Claude: "the journal {journal} lacks the record of line {i + 1} of its log"'
-            r = records[len(dates)]
-            assert (r['key'], r['verdict'], r['budget']) == (nd['key'], nd['verdict'], budget), (log, i)
-            fresh[i] = len(dates)
-            admit(i)
-    closings()
-    records = records[:len(dates)]
-    return {'lines': lines, 'stamps': stamps, 'kinds': kinds, 'passes': passes, 'starts': starts,
-            'node_lines': node_lines, 'records': records, 'fresh': fresh, 'dates': dates,
-            'bounds': [bisect.bisect_left(dates, s) for s in starts]}
+            self.date_line(P[k], P[k]['nodes'][j], L[k][j])
+            self.cursor, n = (k, j + 1), n - 1
+
+    def date_line(self, p, nd, i):
+        """Date the progress line i (nd, of pass p): read_run's dating, line by line."""
+        self.last[nd['key']] = i                                    # each key's latest progress line so far
+        budget = budget_of(nd['key'], p['budgets'])
+        prev = self.final.records.get(nd['key'], {'verdict': 'UNKNOWN', 'budget': -1})
+        assert prev['verdict'] == 'UNKNOWN', (self.log, i)          # search() never submits a settled node
+        if prev['budget'] >= budget:                                # split again, with no fresh record
+            assert nd['verdict'] == 'UNKNOWN', (self.log, i)
+            return
+        self.closings()
+        triple = (nd['key'], nd['verdict'], budget)
+        if triple not in self.present:                              # dropped by a migration
+            self.dropped.add(triple)
+            self.dropped_lines.add(i)
+            return
+        # TODO: error copy; says the journal at this path has no record for a progress line that reports a fresh verdict, naming the line
+        assert len(self.dates) < len(self.records), f'Claude: "the journal {self.journal} lacks the record of line {i + 1} of its log"'
+        r = self.records[len(self.dates)]
+        assert (r['key'], r['verdict'], r['budget']) == triple, (self.log, i)
+        self.fresh[i] = len(self.dates)
+        self.admit(i)
+
+    def admit(self, line):
+        """Date the next record by this line."""
+        assert line >= 0
+        r = self.records[len(self.dates)]
+        self.final.admit(r)
+        self.dates.append(line)
+        self.dated.append(r)
+
+    def closings(self, safe=math.inf):
+        """Date the CLOSED records next in the journal, as dating says, of the first safe records."""
+        while len(self.dates) < min(safe, len(self.records)) and self.records[len(self.dates)]['verdict'] == 'CLOSED':
+            self.admit(max(self.dates[-1:] + [self.last.get(self.records[len(self.dates)]['key'], -1)]))
+
+    def tree(self, budgets, cache):
+        """The Tree of final under these budgets and this cache (see Tree), with every dated record applied, the splits
+        cached since taken in and every group drawn, each step atomic; begun anew for other budgets or another cache."""
+        if self.grove is None or self.grove.budgets != list(budgets) or self.grove.cache is not cache:
+            with atomic(): self.grove, self.planted = Tree(self.final.records, budgets, cache), 0
+        while self.planted < len(self.dated):
+            with atomic():
+                end = min(len(self.dated), self.planted + STEP)
+                for r in self.dated[self.planted:end]: self.grove.apply(r['key'])
+                self.planted = end
+        with atomic(): self.grove.expand()
+        while self.grove.dirty:
+            with atomic(): self.grove.redraw(STEP // 100)
+        return self.grove
+
+    def touched(self, depth):
+        """touched_at of the current pass's progress lines at this depth (see work), kept up to date."""
+        p = self.parsed.passes[-1]
+        if self.touching is not p:
+            with atomic(): self.touching, self.touches = p, {}
+        kept = self.touches.setdefault(depth, [0, set()])          # [the pass's lines taken, the sub-cases]
+        while kept[0] < len(p['nodes']):
+            with atomic():
+                end = min(len(p['nodes']), kept[0] + STEP)
+                kept[1].update(touched_at(p['nodes'][kept[0]:end], depth))
+                kept[0] = end
+        return kept[1]
+
+    def starting(self, k):
+        """state_at's final_at_start of pass k, the current one: the latest record per key dated before its first line,
+        kept as one dict, which gains the records dated before the pass since (start_bound counts them)."""
+        bound = bisect.bisect_left(self.dates, self.parsed.starts[k - 1])
+        with atomic():
+            if self.start_pass != k: self.start_pass, self.start_final, self.start_bound = k, {}, 0
+            for r in self.dated[self.start_bound:bound]: self.start_final[r['key']] = r
+            self.start_bound = bound
+        return self.start_final
+
+    def speed(self, state):
+        """speed(state) kept up to date (see speed): the fresh leaf solves' seconds and LP solves summed in log order, as
+        speed sums them, over state's lines (cut at its time, and so never fewer than before: asserted), in one atomic
+        block; but should a fresh leaf's record have the key and budget of a line before it that dating took for
+        dropped (a claim speed gives that earlier line), speed_sums sums everything again."""
+        bottom = len(state['budgets']) - 1
+        P, L = state['passes'], self.parsed.node_lines
+        # TODO: error copy; says the speed kept for a run was asked for at an earlier time than before, naming the state
+        assert self.speed_at <= (len(P) - 1, len(P[-1]['nodes'])), f'Claude: "the speed of {state["label"]} goes back in time"'
+        again = False
+        with atomic():
+            k, j = self.speed_at
+            while k < len(P) and (j < len(P[k]['nodes']) or k + 1 < len(P)):
+                if j == len(P[k]['nodes']):
+                    k, j = k + 1, 0
+                    continue
+                nd, i = P[k]['nodes'][j], L[k][j]
+                kb = (nd['key'], budget_of(nd['key'], P[k]['budgets']))
+                if len(nd['key'].split()) == bottom and i in self.fresh:
+                    again |= kb in self.claims
+                    self.seconds, self.lps = self.seconds + nd['solve'], self.lps + self.dated[self.fresh[i]]['lps']
+                if len(nd['key'].split()) == bottom and i in self.dropped_lines: self.claims.add(kb)
+                j += 1
+            self.speed_at = (k, j)
+            if again: self.seconds, self.lps = speed_sums(state)
+        return self.seconds / self.lps if self.lps else None
+
+    def resplits(self, order, cache):
+        """resplits(R, order, cache) kept for the current pass: once (and again should more records be dated before the
+        pass), its nodes to split again (wanted) recovered (recover_splits) or split, each split stored whole; after that,
+        each new progress line of the pass checked against the cache, as recover_splits checks its lines: a wanted
+        node's verdict is UNKNOWN and its key holds no pool, and a child of a wanted node is among its cached children."""
+        p = self.parsed.passes[-1]
+        start = self.starting(len(self.parsed.passes))
+        if self.wanted_pass is not p or self.wanted_bound != self.start_bound:
+            budgets = p['budgets']
+            wanted = {k for k, r in start.items() if r['verdict'] == 'UNKNOWN'
+                      and len(k.split()) < len(budgets) - 1 and r['budget'] >= budget_of(k, budgets)}
+            recover_splits(self.R, wanted, cache)
+            with atomic(): self.wanted_pass, self.wanted_bound, self.wanted, self.checked = p, self.start_bound, wanted, len(p['nodes'])
+        for k in sorted(self.wanted): children(k, order, cache)
+        with atomic():
+            for nd in p['nodes'][self.checked:]:
+                key, up = nd['key'], parent_key(nd['key'])
+                assert key not in self.wanted or (nd['verdict'] == 'UNKNOWN' and '#' not in key), (self.log, nd['i'])
+                assert not key or up not in self.wanted or key in cache[up], (self.log, nd['i'])
+            self.checked = len(p['nodes'])
+        return cache
+
+    def estimating(self, order, cache, t, label):
+        """estimate's view of the run as of t (see estimate): the pass's resplit nodes split first (resplits), state_at's
+        state, the log cut at t, with its final_at_start kept (starting), and the kept Grown and History grown to it
+        (t never earlier than before: the lines a survey reads after its now wait for the next); both begun anew for
+        another pass, more records dated before the pass, another cache, or a split cached for a node the Grown left
+        with unnamed kids (see Grown)."""
+        R = self.R
+        self.resplits(order, cache)
+        passes = passes_at(R, bisect.bisect_right(R['stamps'], t))
+        state = state_from(R, t, cache, label, passes, self.starting(len(passes)))
+        g, h, bound = self.grown or (None, None, None)
+        if (g is None or g.start != passes[-1]['start'] or bound != self.start_bound or g.cache is not cache
+                or any(k in cache for k in g.unnamed)):
+            g, h = Grown(state), History(state)
+            with atomic(): self.grown = (g, h, self.start_bound)
+        return g.view(state, self.speed(state), h.credit(state))
 
 
 def passes_at(R, lines):
@@ -434,19 +755,26 @@ def state_at(R, t, cache, label):
     past time comes from the files as they are now (the quals' backtests rest on this)."""
     lines = bisect.bisect_right(R['stamps'], t)
     passes = passes_at(R, lines)
-    p, k = passes[-1], len(passes)
+    return state_from(R, t, cache, label, passes, {r['key']: r for r in R['records'][:R['bounds'][len(passes) - 1]]})
+
+
+def state_from(R, t, cache, label, passes, final_at_start):
+    """state_at's state of these passes as of t (passes_at) with this final_at_start."""
+    p = passes[-1]
     return {'t': t, 'label': label, 'passes': passes, 'processes': p['processes'], 'budgets': p['budgets'],
-            'final_at_start': {r['key']: r for r in R['records'][:R['bounds'][k - 1]]}, 'records': R['records'],
-            'cache': cache}
+            'final_at_start': final_at_start, 'records': R['records'], 'cache': cache}
 
 
 # ---------- the tree ----------
 
+POOL = re.compile(r'\d+:#(\d+):[0-9a-f]{40}')   # a pool's constraint, M:#count:sha1
+
+
 def members(key):
     """The count vectors in the key's last constraint: none for the top node, a pool's count (M:#count:sha1), or 1."""
-    parts = key.split()
-    pool = re.fullmatch(r'\d+:#(\d+):[0-9a-f]{40}', parts[-1]) if parts else None
-    return 0 if not parts else int(pool[1]) if pool else 1
+    last = key[key.rfind(' ') + 1:]
+    pool = POOL.fullmatch(last) if '#' in last else None   # a constraint without # is no pool
+    return 0 if not key else int(pool[1]) if pool else 1
 
 
 def budget_of(key, budgets):
@@ -468,22 +796,23 @@ def status(key, final, budgets):
     return 'open' if leaf(key, len(budgets) - 1) else 'split'
 
 
-@functools.lru_cache(maxsize=None)
+@functools.lru_cache(maxsize=1 << 18)
 def tree_order(key):
-    """The key's place in tree order (see the vocabulary): its constraints compared one by one, a count vector
-    M:[a,b,...] as (M, 0, (a, b, ...), '') and a pool M:#c:sha1 as (M, 1, (c,), sha1), so that a node sorts just
-    before its descendants.  Cached for one snapshot, whose surveys sort the same keys several times (main clears it
-    after each snapshot, so that it holds one snapshot's keys at most: 288@10's survey sorted 1,151,718 keys, about
-    300,000 of them distinct, on 2026-10-28)."""
+    """The key's place in tree order (see the vocabulary), as bytes that compare as its constraints compared one by
+    one: a count vector M:[a,b,...] as M, 0, a + 1, b + 1, ..., 0 and a pool M:#c:sha1 as M, 1, c + 1, 0, sha1, each
+    number in two bytes, big-endian (struct fails on one that does not fit), so that a node sorts just before its
+    descendants, siblings by their count vectors and a pool after them.  Bytes compare in C (2026-10-30: sorting
+    288@10's 770,000 keys as tuples of tuples, as before, took a minute).  Cached, up to 2^18 keys."""
     out = []
     for part in key.split():
         M, v = part.split(':', 1)
-        if v.startswith('['): out.append((int(M), 0, tuple(int(t) for t in v[1:-1].split(',')), ''))
+        if v.startswith('['): kind, nums, sha = 0, [int(t) for t in v[1:-1].split(',')], ''
         else:
             pool = re.fullmatch(r'#(\d+):([0-9a-f]{40})', v)
             assert pool, key
-            out.append((int(M), 1, (int(pool[1]),), pool[2]))
-    return tuple(out)
+            kind, nums, sha = 1, [int(pool[1])], pool[2]
+        out.append(struct.pack(f'>HB{len(nums) + 1}H', int(M), kind, *(t + 1 for t in nums), 0) + sha.encode())
+    return b''.join(out)
 
 
 def below(key, above):
@@ -491,14 +820,21 @@ def below(key, above):
     return key != above and (above == '' or key.startswith(above + ' '))
 
 
+def prefixes(key):
+    """The keys of the node's ancestors, the top node's '' first."""
+    parts = key.split()
+    return [' '.join(parts[:i]) for i in range(len(parts))]
+
+
+def infeasible_above(key, final):
+    """Whether an ancestor of the key's node is INFEASIBLE in the journal's last records final."""
+    return any(final.get(a, {}).get('verdict') == 'INFEASIBLE' for a in prefixes(key))
+
+
 def live_keys(final):
-    """The journal's keys less those below an INFEASIBLE one (see live in the vocabulary)."""
-    keys, cut = set(), None                    # cut: the last INFEASIBLE key kept, in tree order
-    for k in sorted(final, key=tree_order):
-        if cut is not None and below(k, cut): continue
-        keys.add(k)
-        cut = k if final[k]['verdict'] == 'INFEASIBLE' else None
-    return keys
+    """The journal's keys less those below an INFEASIBLE one (see live in the vocabulary): those with no INFEASIBLE
+    ancestor (in tree order an INFEASIBLE key's descendants follow it, so this is the old sort's cut)."""
+    return {k for k in final if not infeasible_above(k, final)}
 
 
 def sea(final, budgets, cache, running, unnamed=()):
@@ -508,25 +844,155 @@ def sea(final, budgets, cache, running, unnamed=()):
     running or queued node whose own key is not known here (its parent's split is not cached, and a progress line names a
     node only when it is done): each is a dot of that status in its parent's group, after that group's other dots, in
     unnamed's order (2026-10-27: before, the 288@10 page drew none of its 9 running nodes and 3106 of its 3113 queued
-    ones, so that it looked mostly settled beside an ETA of months)."""
-    bottom = len(budgets) - 1
-    depth = min(SEA_DEPTH, bottom - 1)
-    assert depth >= 0, budgets
-    live = live_keys(final)
-    nodes = live | set(running)
-    for k in live:
-        if status(k, final, budgets) == 'split' and k in cache: nodes.update(cache[k])
-    keys = sorted(nodes, key=tree_order)
-    front = [k for i, k in enumerate(keys) if not (i + 1 < len(keys) and below(keys[i + 1], k))]
-    groups = {}
-    for k in front:
-        s = 'running' if k in running else status(k, final, budgets)
-        groups.setdefault(' '.join(k.split()[:depth]), []).append(str(SEA_STATUSES.index(s)))
-    for k, s in unnamed: groups.setdefault(' '.join(k.split()[:depth]), []).append(str(SEA_STATUSES.index(s)))
-    groups = dict(sorted(groups.items(), key=lambda g: tree_order(g[0])))     # a new group in its place
-    tally = collections.Counter(c for g in groups.values() for c in g)
-    return {'depth': depth, 'keys': list(groups), 'groups': [''.join(g) for g in groups.values()],
-            'counts': {s: tally[str(i)] for i, s in enumerate(SEA_STATUSES)}}
+    ones, so that it looked mostly settled beside an ETA of months).  A Tree of final, drawn (see Tree)."""
+    return grown_tree(final, budgets, cache).sea_of(set(running), unnamed)
+
+
+STATES = {}                                 # a Tree key's states, each kept once
+
+
+def grown_tree(final, budgets, cache):
+    """A Tree of the journal's last records final, every key applied and every group drawn."""
+    tree = Tree(final, budgets, cache)
+    for k in final: tree.apply(k)
+    tree.redraw(math.inf)
+    return tree
+
+
+class Tree:
+    """The journal's keys under one pass's budgets, kept up to date key by key (see Reading.tree): each key's liveness
+    (see live), status and whether its cached split is drawn; the live keys by depth, with their counts by depth and
+    status and how many are INFEASIBLE; and the sea's static nodes, the live keys and the cached children of the live
+    split ones (each counted once per source), by group (the sub-case at the sea's depth, or a shallower key itself),
+    each group drawn (see sea: its nodes with no node below them, in tree order) with its open leaves.  Applying a key
+    costs about its depth, but for an INFEASIBLE key above others, which scans the keys for them (the width test's
+    case, 2026-10-11); a group is drawn again only after it changed.  sea_of adds a snapshot's running keys and
+    unnamed nodes."""
+
+    def __init__(self, final, budgets, cache):
+        self.final, self.budgets, self.cache = final, list(budgets), cache
+        self.bottom = len(budgets) - 1
+        self.depth = min(SEA_DEPTH, self.bottom - 1)
+        self.state = {}                         # key -> (live, status or None, its cached split drawn, live INFEASIBLE)
+        self.counts = collections.Counter()     # (depth, status) of the live keys
+        self.infeasible = 0                     # the live INFEASIBLE keys
+        self.by_depth = collections.defaultdict(set)    # the live keys, by depth
+        self.below = collections.Counter()      # the keys applied strictly below each key
+        self.waiting = set()                    # the live split keys whose splits are not cached yet
+        self.refs = collections.Counter()       # the sea's static nodes, each with its count of sources
+        self.members = collections.defaultdict(set)     # the static nodes, by group
+        self.under = collections.Counter()      # the static nodes strictly below each key
+        self.dirty = set()                      # the groups changed since drawn
+        self.drawn, self.opens = {}, {}         # each group's dots and open leaves, where it has any
+
+    def group(self, key): return ' '.join(key.split()[:self.depth])
+
+    def apply(self, key):
+        """Bring the key, new or with a new record in final, up to its record."""
+        if key not in self.state:
+            for a in prefixes(key): self.below[a] += 1
+        self.refresh(key, not infeasible_above(key, self.final))
+        if self.final[key]['verdict'] == 'INFEASIBLE' and self.below[key]:     # its keys below are live no more
+            for k in [k for k in self.state if below(k, key)]: self.refresh(k, False)
+
+    def refresh(self, key, live):
+        """Bring the key's state to its record, live or not, with everything kept of it.  A live UNKNOWN leaf is one of
+        the open leaves, whose key must hold no pool (parse_key asserts it)."""
+        r = self.final[key]
+        st = status(key, self.final, self.budgets) if live else None
+        drawn = st == 'split' and key in self.cache
+        new = (live, st, drawn, live and r['verdict'] == 'INFEASIBLE')
+        new = STATES.setdefault(new, new)           # one tuple per distinct state, however many keys share it
+        old = self.state.get(key, (False, None, False, False))
+        if new == old: return
+        if live and r['verdict'] == 'UNKNOWN' and leaf(key, self.bottom): parse_key(key)
+        self.state[key] = new
+        d = len(key.split())
+        self.counts[d, old[1]] -= old[0]
+        self.counts[d, st] += live
+        (self.by_depth[d].add if live else self.by_depth[d].discard)(key)
+        self.infeasible += new[3] - old[3]
+        (self.waiting.add if st == 'split' and not drawn else self.waiting.discard)(key)
+        if live != old[0]: self.node(key, 1 if live else -1)
+        for c in self.cache[key] if drawn != old[2] else (): self.node(c, 1 if drawn else -1)
+        self.dirty.add(self.group(key))
+
+    def node(self, key, delta):
+        """One more (delta 1) or one fewer (-1) source of key among the sea's static nodes."""
+        before = self.refs[key]
+        assert before + delta >= 0, key
+        self.refs[key] = before + delta
+        if self.refs[key] == 0: del self.refs[key]
+        if (before > 0) == (before + delta > 0): return
+        g = self.group(key)
+        (self.members[g].add if delta > 0 else self.members[g].discard)(key)
+        self.dirty.add(g)
+        for a in prefixes(key):
+            self.under[a] += delta
+            if self.under[a] == (1 if delta > 0 else 0): self.dirty.add(self.group(a))   # a's own dot needs nothing below it
+
+    def expand(self):
+        """Take in the splits cached since: their live split keys' children join the static nodes."""
+        for key in [k for k in self.waiting if k in self.cache]: self.refresh(key, True)
+
+    def redraw(self, n):
+        """Draw up to n changed groups again."""
+        while n and self.dirty:
+            g = next(iter(self.dirty))
+            self.draw(g)
+            self.dirty.discard(g)
+            n -= 1
+
+    def draw(self, g):
+        """Draw group g: its dots, and its open leaves as open_list gives them."""
+        keys = sorted(self.members.get(g, ()), key=tree_order)
+        dots = ''.join(str(SEA_STATUSES.index(status(k, self.final, self.budgets))) for k in keys if not self.under[k])
+        opens = [(k, self.final[k]['budget'], self.state[k][1]) for k in keys
+                 if self.state.get(k, (False,))[0] and self.final[k]['verdict'] == 'UNKNOWN' and leaf(k, self.bottom)]
+        for kept, value in ((self.drawn, dots), (self.opens, opens)):
+            kept[g] = value
+            if not value: del kept[g]
+
+    def sea_of(self, running, unnamed):
+        """sea's value: the drawn groups, the running keys (a set) among the nodes with their dots running, and each
+        unnamed node's dot at the end of its parent's group (see sea)."""
+        assert self.depth >= 0, self.budgets
+        extra = {k for k in running if k not in self.refs}
+        lifted = collections.Counter(a for k in extra for a in prefixes(k))
+        out = dict(self.drawn)
+        for g in {self.group(k) for k in running} | {self.group(a) for a in lifted}:
+            keys = sorted(self.members.get(g, set()) | {k for k in extra if self.group(k) == g}, key=tree_order)
+            out[g] = ''.join(str(SEA_STATUSES.index('running' if k in running else status(k, self.final, self.budgets)))
+                             for k in keys if not self.under[k] + lifted[k])
+        for k, s in unnamed:
+            out[self.group(k)] = out.get(self.group(k), '') + str(SEA_STATUSES.index(s))
+        keys = sorted((g for g in out if out[g]), key=tree_order)
+        groups = [out[g] for g in keys]
+        text = ''.join(groups)
+        return {'depth': self.depth, 'keys': keys, 'groups': groups,
+                'counts': {s: text.count(str(i)) for i, s in enumerate(SEA_STATUSES)}}
+
+    def rows(self, levels, bottom):
+        """level_rows of these levels: an enumerated level counted from its sub-cases, a deeper one from the live keys'
+        counts."""
+        rows = []
+        for d in range(bottom + 1):
+            known = d < len(levels)
+            # TODO: error copy; says the journal holds sub-cases of an enumerated level that the run's split does not give, naming the level
+            assert not known or self.by_depth[d] <= set(levels[d]), f'Claude: "the journal has level-{d} sub-cases that split() does not give"'
+            c = (collections.Counter(status(k, self.final, self.budgets) for k in levels[d]) if known else
+                 {s: self.counts[d, s] for s in STATUSES})
+            rows.append({'depth': d, 'enumerated': known,
+                         'counts': {s: c[s] if known or s != 'pending' else None for s in STATUSES}})
+        return rows
+
+    def tally(self):
+        """The live keys' counts by status."""
+        return collections.Counter({s: sum(self.counts[d, s] for d in range(self.bottom + 1)) for s in STATUSES})
+
+    def open_list(self):
+        """survey's open_list: each live UNKNOWN leaf (key, its budget, its status), in tree order, as drawn."""
+        return list(itertools.chain.from_iterable(self.opens[g] for g in sorted(self.opens, key=tree_order)))
 
 
 def parse_key(key):
@@ -614,18 +1080,11 @@ def enumerate_levels(final, budgets, order, cache, deepest):
 def level_rows(levels, final, budgets, bottom):
     """One row per depth 0..bottom: its depth, whether it is enumerated, and its counts by status.  An enumerated
     level counts its sub-cases; a deeper one counts the journal's live keys (see live) at its depth, its pending count
-    unknown (None).  Every live key at an enumerated depth must be a sub-case of that level (asserted)."""
-    keyed = collections.defaultdict(list)
-    for k in live_keys(final): keyed[len(k.split())].append(k)
-    rows = []
-    for d in range(bottom + 1):
-        known = d < len(levels)
-        # TODO: error copy; says the journal holds sub-cases of an enumerated level that the run's split does not give, naming the level
-        assert not known or set(keyed[d]) <= set(levels[d]), f'Claude: "the journal has level-{d} sub-cases that split() does not give"'
-        c = collections.Counter(status(k, final, budgets) for k in (levels[d] if known else keyed[d]))
-        rows.append({'depth': d, 'enumerated': known,
-                     'counts': {s: c[s] if known or s != 'pending' else None for s in STATUSES}})
-    return rows
+    unknown (None).  Every live key at an enumerated depth must be a sub-case of that level (asserted).  Tree.rows of
+    a Tree of final."""
+    tree = Tree(final, budgets, {})
+    for k in final: tree.apply(k)
+    return tree.rows(levels, bottom)
 
 
 # ---------- this pass's work at the estimate's level ----------
@@ -635,7 +1094,16 @@ def work(level, depth, stats, nodes):
     current pass's progress lines: the counts size (the level's sub-cases), before (settled before this pass), work
     (touched by a line of this pass at or below them, or not settled), and of the work, done (settled or open),
     progress (split) and pending."""
-    touched = {' '.join(nd['key'].split()[:depth]) for nd in nodes if len(nd['key'].split()) >= depth}
+    return work_of(level, stats, touched_at(nodes, depth))
+
+
+def touched_at(nodes, depth):
+    """The sub-cases at this depth that these progress lines touched: their nodes' ancestors there, or themselves."""
+    return {' '.join(nd['key'].split()[:depth]) for nd in nodes if len(nd['key'].split()) >= depth}
+
+
+def work_of(level, stats, touched):
+    """work's counts of the level, given the sub-cases its pass touched there."""
     work = [k for k in level if k in touched or stats[k] != 'settled']
     return {'size': len(level), 'before': len(level) - len(work), 'work': len(work),
             'done': sum(stats[k] in ('settled', 'open') for k in work), 'progress': sum(stats[k] == 'split' for k in work),
@@ -649,62 +1117,266 @@ class Node:
     parent and depth, kids (in the order search() pushes them: overnight_v5.sibling_order's in a pass that shuffles,
     the split's before), state ('pending' in the stack, 'running', 'done' with a progress line, or
     'skipped', settled before the pass), cost (a done node's solve + split seconds), start (a running node's start
-    time), fresh (a done node that certbb solved in this pass, not a resplit)."""
-    __slots__ = ('key', 'parent', 'depth', 'kids', 'state', 'cost', 'start', 'fresh')
+    time), fresh (a done node that certbb solved in this pass, not a resplit); and index, its place among its parent's
+    kids, and tot, its subtree's cost so far as a Grown tree last summed it (see Grown.sofar)."""
+    __slots__ = ('key', 'parent', 'depth', 'kids', 'state', 'cost', 'start', 'fresh', 'index', 'tot')
 
-    def __init__(self, key, parent, depth):
-        self.key, self.parent, self.depth = key, parent, depth
-        self.kids, self.state, self.cost, self.start, self.fresh = [], 'pending', 0.0, None, False
+    def __init__(self, key, parent, depth, index=0):
+        self.key, self.parent, self.depth, self.index = key, parent, depth, index
+        self.kids, self.state, self.cost, self.start, self.fresh, self.tot = [], 'pending', 0.0, None, False, 0.0
 
 
 def parent_key(key): return ' '.join(key.split()[:-1])
 
 
-def replay(state):
-    """The replay (see the vocabulary) as of state['t']: (root, stack, running), the stack's top last."""
-    p, cache, P, budgets = state['passes'][-1], state['cache'], state['processes'], state['budgets']
-    settled = {k for k, r in state['final_at_start'].items() if r['verdict'] in v5.SETTLED}
-    root = Node('', None, 0)
-    stack, running = [root], []
-    w, r, c, at = 1, 0, 0, None        # the previous line's waiting, running and closed (before the first: the top node, 0, 0)
+def path(node):
+    """The node's place in tree order: the indices of it and its ancestors among their parents' kids, from the top."""
+    out = []
+    while node.parent is not None:
+        out.append(node.index)
+        node = node.parent
+    return out[::-1]
 
-    def pop(at):                       # search() pops the top: a settled node it skips, another it submits
-        node = stack.pop()
-        if node.key in settled:
+
+def replay(state):
+    """The replay (see the vocabulary) as of state['t']: (root, stack, running), the stack's top last.  A Grown of the
+    state's pass, grown by all its lines."""
+    g = Grown(state).grow(state)
+    return g.root, g.stack, g.running
+
+
+class Grown:
+    """replay()'s tree of a run's current pass, kept by the watcher's reading (see reading in the vocabulary) and grown
+    line by line, with what estimate() reads of it (its view, see estimate) kept as it grows, so that an estimate costs
+    about the pass's pending work, not its history: the done nodes above the bottom by depth, the fresh ones apart, each
+    list in tree order (by path); the done fresh leaves' costs and floors; and each node's tot, summed again only for the
+    nodes changed since and their ancestors.  The refill after the last line is undone before more lines are replayed.
+    Its view's pending and running nodes are made from its stack and running jobs in tree order, a resplit one given
+    its children as Walk gives them.  A Grown holds one pass with its records at the start: a split cached after its
+    node was done with unnamed children would have replay() name them, so that a reading then grows another (see
+    Reading.estimating)."""
+
+    def __init__(self, state):
+        p = state['passes'][-1]
+        self.start, self.budgets, self.P, self.shuffled = p['start'], list(state['budgets']), state['processes'], p['shuffled']
+        self.cache, self.fas = state['cache'], state['final_at_start']
+        self.settled = {k for k, r in self.fas.items() if r['verdict'] in v5.SETTLED}
+        self.bottom = len(self.budgets) - 1
+        self.root = Node('', None, 0)
+        self.stack, self.running, self.refilled = [self.root], [], []
+        self.w, self.r, self.c, self.at = 1, 0, 0, None     # the previous line's waiting, running and closed (see replay)
+        self.seen, self.last = 0, None                         # the pass's lines replayed, the last of them
+        self.done_all, self.done_fresh = collections.defaultdict(list), collections.defaultdict(list)
+        self.leaf_costs, self.leaf_floors = [], set()
+        self.changed = {self.root}                             # nodes whose own cost or kids changed since summed
+        self.unnamed = set()                                   # keys of done nodes with unnamed kids
+        self.kinds_of, self.expanded = {}, set()               # the region's kinds (see view) and its resplit nodes given kids
+
+    def grow(self, state):
+        """Replay state's lines not replayed yet, between undoing the last refill and refilling (see replay), each step
+        atomic."""
+        p = state['passes'][-1]
+        # TODO: error copy; says the replay kept for a pass was given a state of another pass, or one that does not continue what it replayed, naming the state
+        assert ((p['start'], list(state['budgets']), state['processes'], p['shuffled']) == (self.start, self.budgets, self.P, self.shuffled)
+                and state['cache'] is self.cache and state['final_at_start'] is self.fas and self.seen <= len(p['nodes'])
+                and (not self.seen or p['nodes'][self.seen - 1] is self.last)), f'Claude: "the kept replay does not lead to {state["label"]}"'
+        with atomic(): self.unfill()
+        while self.seen < len(p['nodes']):
+            with atomic():
+                for nd in p['nodes'][self.seen:self.seen + STEP]:
+                    self.line(nd, state['label'])
+                    self.seen, self.last = self.seen + 1, nd
+        with atomic(): self.refill(p)
+        return self
+
+    def pop(self, at):
+        """search() pops the top: a settled node it skips, another it submits."""
+        node = self.stack.pop()
+        if node.key in self.settled:
             node.state = 'skipped'
             return 0
         node.state, node.start = 'running', at
-        running.append(node)
+        self.running.append(node)
         return 1
 
-    for nd in p['nodes']:
-        submit = nd['running'] + 1 - r
-        skip = nd['closed'] - c - (nd['verdict'] == 'INFEASIBLE')     # search() counts each settled node it skips closed
-        K = nd['waiting'] - w + submit + skip                          # so the rest of the waiting count's change is the children
-        splits = nd['verdict'] == 'UNKNOWN' and len(nd['key'].split()) < len(budgets) - 1
-        kids = cache.get(nd['key'])
-        if kids is not None and p['shuffled']: kids = v5.sibling_order(nd['key'], kids)
+    def line(self, nd, label):
+        """Replay one progress line nd (replay's step), and keep what estimate reads of its node."""
+        submit = nd['running'] + 1 - self.r
+        skip = nd['closed'] - self.c - (nd['verdict'] == 'INFEASIBLE')   # search() counts each settled node it skips closed
+        K = nd['waiting'] - self.w + submit + skip                     # so the rest of the waiting count's change is the children
+        splits = nd['verdict'] == 'UNKNOWN' and len(nd['key'].split()) < self.bottom
+        kids = self.cache.get(nd['key'])
+        if kids is not None and self.shuffled: kids = v5.sibling_order(nd['key'], kids)
         # TODO: error copy; says the replay of search() cannot account for a progress line's counts, naming the state and the line
         assert submit >= 0 and skip >= 0 and K >= 0 and (splits or K == 0) and (kids is None or len(kids) == K), \
-            f'Claude: "the replay of {state["label"]} cannot account for line [{nd["i"]}]"'
-        first = nd['t'] - nd['solve'] - nd['split'] if at is None else at
+            f'Claude: "the replay of {label} cannot account for line [{nd["i"]}]"'
+        first = nd['t'] - nd['solve'] - nd['split'] if self.at is None else self.at
         while submit or skip:          # the pops between the previous line and this one, as many of each as counted
-            took = pop(first)
+            took = self.pop(first)
             submit, skip = submit - took, skip - (1 - took)
-            assert submit >= 0 and skip >= 0, (state['label'], nd['i'])
-        node = find(running, nd)
-        running.remove(node)
+            assert submit >= 0 and skip >= 0, (label, nd['i'])
+        node = find(self.running, nd)
+        self.running.remove(node)
         node.key, node.state, node.cost = nd['key'], 'done', nd['solve'] + nd['split']
-        rec = state['final_at_start'].get(nd['key'])
-        node.fresh = rec is None or rec['budget'] < budget_of(nd['key'], budgets)
-        assert K == 0 or (splits and members(nd['key']) <= 1), (state['label'], nd['i'])    # a pool never splits
-        node.kids = [Node(c, node, node.depth + 1) for c in kids] if kids is not None else [Node(None, node, node.depth + 1) for _ in range(K)]
-        stack.extend(node.kids)
+        rec = self.fas.get(nd['key'])
+        node.fresh = rec is None or rec['budget'] < budget_of(nd['key'], self.budgets)
+        assert K == 0 or (splits and members(nd['key']) <= 1), (label, nd['i'])    # a pool never splits
+        gone = list(node.kids)                                         # an expansion (see view), the line's kids replace
+        while gone:
+            n = gone.pop()
+            self.kinds_of.pop(n, None)
+            self.expanded.discard(n)
+            gone += n.kids
+        node.kids = ([Node(c, node, node.depth + 1, i) for i, c in enumerate(kids)] if kids is not None else
+                     [Node(None, node, node.depth + 1, i) for i in range(K)])
+        self.stack.extend(node.kids)
         # TODO: error copy; says the replay of search() disagrees with a progress line's waiting or running count, naming the state and the line
-        assert (len(stack), len(running)) == (nd['waiting'], nd['running']), f'Claude: "the replay of {state["label"]} breaks at line [{nd["i"]}]"'
-        w, r, c, at = nd['waiting'], nd['running'], nd['closed'], nd['t']
-    while p['nodes'] and stack and len(running) < P: pop(at)     # the refill after the last line, as search() makes it
-    return root, stack, running
+        assert (len(self.stack), len(self.running)) == (nd['waiting'], nd['running']), f'Claude: "the replay of {label} breaks at line [{nd["i"]}]"'
+        self.w, self.r, self.c, self.at = nd['waiting'], nd['running'], nd['closed'], nd['t']
+        self.changed.add(node)
+        self.kinds_of.pop(node, None)                                  # done, it leaves the region
+        self.expanded.discard(node)
+        (self.unnamed.add if kids is None and K else self.unnamed.discard)(nd['key'])
+        if node.depth < self.bottom:                                   # a member of its depth's population (pop_at)
+            bisect.insort(self.done_all[node.depth], node, key=path)
+        if node.depth < self.bottom and node.fresh:
+            bisect.insort(self.done_fresh[node.depth], node, key=path)
+        if node.depth == self.bottom and node.fresh:                   # a member of the leaf urn
+            self.leaf_costs.append(node.cost)
+            self.leaf_floors.add(0 if rec is None else rec['budget'])     # floor_of
+
+    def refill(self, p):
+        """The refill after the last line, as search() makes it, each pop kept to be undone."""
+        while p['nodes'] and self.stack and len(self.running) < self.P:
+            self.refilled.append(self.stack[-1])
+            self.pop(self.at)
+
+    def unfill(self):
+        """Undo the refill: its nodes back on the stack, pending, the last popped first."""
+        while self.refilled:
+            node = self.refilled.pop()
+            if node.state == 'running':
+                top = self.running.pop()
+                assert top is node, node.key
+            node.state, node.start = 'pending', None
+            self.stack.append(node)
+            self.changed.add(node)
+
+    def view(self, state, speed, history):
+        """estimate's view of the tree as of state (see estimate): grown to it; its pending and running nodes, the region,
+        in tree order with their kinds (a resplit one given its kids, as Walk does, in one atomic block); the speed and
+        the history given.  A region node's kind and kids are kept while it stays pending or running: they depend on its
+        key, depth and the records at the pass's start alone."""
+        self.grow(state)
+        self.state, self.measured, self.histories = state, speed, history
+        self.kinds, self.region = {}, []
+
+        def visit(node):
+            self.region.append(node)
+            if node not in self.kinds_of: self.kinds_of[node] = classify(node, state, self.bottom)
+            self.kinds[node] = self.kinds_of[node]
+            if self.kinds[node] == 'resplit' and node not in self.expanded:
+                expand_resplit(node, state)
+                self.expanded.add(node)
+                self.changed.add(node)
+            for c in node.kids: visit(c)
+        with atomic():
+            for node in sorted(self.stack + self.running, key=path): visit(node)
+        return self
+
+    def pop_at(self, d):
+        """The population at depth d (see the vocabulary): its fresh nodes done in this pass, else all done there."""
+        return self.done_fresh[d] or self.done_all[d]
+
+    def sofar(self, t, timed):
+        """Each node's cost so far in this pass (see partway), as estimate's total gives it: tot summed again for the
+        nodes changed since the last sum, the running ones (a running leaf's own cost grows with t) and their ancestors,
+        the deepest first.  The mapping of a node to its tot (TOTS)."""
+        todo = set()
+        for n in itertools.chain(self.changed, self.running):
+            while n is not None and n not in todo:
+                todo.add(n)
+                n = n.parent
+        for n in sorted(todo, key=lambda n: -n.depth):
+            own = n.cost if n.state == 'done' else t - n.start if n in timed else 0.0
+            n.tot = own + sum(c.tot for c in n.kids)
+        self.changed = set()
+        return TOTS
+
+    def speed(self): return self.measured
+    def history(self): return self.histories
+
+    def nodes(self):
+        """Every node, in tree order."""
+        out = []
+
+        def walk(node):
+            out.append(node)
+            for c in node.kids: walk(c)
+        walk(self.root)
+        return out
+
+
+class Tots:
+    """The mapping of each node of a Grown tree to its cost so far, tot (see Grown.sofar)."""
+    def __getitem__(self, node): return node.tot
+
+
+TOTS = Tots()
+
+
+def expand_resplit(node, state):
+    """Give a pending or running resplit node its children from the cache, in the order search() will push them, each
+    pending: the replay knows them only once the node is done."""
+    # TODO: error copy; says the cache lacks the split of a node that search() will split again, naming it
+    assert node.depth == len(state['budgets']) - 1 or node.key in state['cache'], f'Claude: "no cached split for {node.key}"'
+    kids = state['cache'].get(node.key, [])
+    if state['passes'][-1]['shuffled']: kids = v5.sibling_order(node.key, kids)
+    node.kids = [Node(c, node, node.depth + 1, i) for i, c in enumerate(kids)]
+
+
+class Walk:
+    """replay()'s tree as estimate() reads it (its view, see estimate), made by walking every node, the pending and
+    running ones classified and a resplit one given its kids (expand_resplit)."""
+
+    def __init__(self, state, root, stack, running):
+        self.state, self.root, self.stack, self.running = state, root, stack, running
+        bottom = len(state['budgets']) - 1
+        self.kinds, self.all = {}, []
+
+        def walk(node):                 # every node; the kinds of the pending and running, a resplit one's children made
+            self.all.append(node)
+            if node.state in ('pending', 'running'):
+                self.kinds[node] = classify(node, state, bottom)
+                if self.kinds[node] == 'resplit' and not node.kids: expand_resplit(node, state)
+            for c in node.kids: walk(c)
+        walk(root)
+        self.region = [n for n in self.all if n in self.kinds]
+        leaves = [n for n in self.all if n.state == 'done' and n.fresh and n.depth == bottom]
+        self.leaf_costs, self.leaf_floors = [n.cost for n in leaves], {floor_of(n, state) for n in leaves}
+        self.by_depth = collections.defaultdict(list)
+        for n in self.all: self.by_depth[n.depth].append(n)
+
+    def pop_at(self, d):
+        """The population at depth d (see the vocabulary): its fresh nodes done in this pass, else all done there."""
+        return ([n for n in self.by_depth[d] if n.state == 'done' and n.fresh] or
+                [n for n in self.by_depth[d] if n.state == 'done'])
+
+    def sofar(self, t, timed):
+        """Each node's cost so far in this pass (see partway): its own (a done node's cost, a running leaf's elapsed
+        time) and its kids'."""
+        sofar = {}
+
+        def total(node):
+            own = node.cost if node.state == 'done' else t - node.start if node in timed else 0.0
+            sofar[node] = own + sum(total(c) for c in node.kids)
+            return sofar[node]
+        total(self.root)
+        return sofar
+
+    def speed(self): return speed(self.state)
+    def history(self): return history_costs(self.state)
+    def nodes(self): return self.all
 
 
 def find(running, nd):
@@ -740,6 +1412,12 @@ def floor_of(node, state):
 def speed(state):
     """Seconds per LP solve over every fresh leaf solve the log holds (see the vocabulary), or None if there is none:
     each bottom record (key, budget) of the journal is claimed by the first progress line that solved it."""
+    seconds, lps = speed_sums(state)
+    return seconds / lps if lps else None
+
+
+def speed_sums(state):
+    """speed's sums: the claiming lines' solve seconds and their records' LP solves, added in log order."""
     bottom = len(state['budgets']) - 1
     recs = {(r['key'], r['budget']): r for r in state['records'] if r['verdict'] != 'CLOSED'}
     claimed, seconds, lps = set(), 0.0, 0
@@ -749,16 +1427,20 @@ def speed(state):
             if len(nd['key'].split()) == bottom and k in recs and k not in claimed:
                 claimed.add(k)
                 seconds, lps = seconds + nd['solve'], lps + recs[k]['lps']
-    return seconds / lps if lps else None
+    return seconds, lps
 
 
 class Urn:
     """A Polya urn (see the vocabulary) in each of REPLICATES replicates: one ball per member (members: a 1-d array, the
     same in every replicate, or REPLICATES x m), one per draw made, and one new ball, whose values new(rows, e) gives:
-    one value above e for each entry of rows, an index array of replicates that may repeat one."""
+    one value above e for each entry of rows, an index array of replicates that may repeat one.  Its balls may number
+    at most DRAWS (asserted): 288@10's boxsplit pass would begin with 431,256 pending leaves, 2000 draws of each, 6.9 GB
+    (2026-10-30)."""
 
     def __init__(self, rng, members, new, room):
         R = REPLICATES
+        # TODO: error copy; says an urn would hold more numbers than the watcher allows, giving how many
+        assert R * (room + 1) <= DRAWS, f'Claude: "an urn of {R * (room + 1):,} balls is more than {DRAWS:,}"'
         self.rng, self.new, self.fixed, self.m = rng, new, members.ndim == 1, members.shape[-1]
         # the members (sorted if fixed), with one more column so that indexing never fails (a pick never takes it)
         self.M = np.append(np.sort(members), 0.0) if self.fixed else np.concatenate([members, np.zeros((R, 1))], axis=1)
@@ -867,68 +1549,74 @@ def history_costs(state):
     so a donor represents each job's first observation once, even after restarts.
     These values belong only in donor populations, never in remaining work.
     Geometry compatibility across source revisions is checked by run_modules.
+    A History of the state, credited with its pass's lines.
     """
-    def signature(p):
-        return (p['n'], p['order'], tuple(p['budgets']), tuple(p['moduli']), p['pool_budget'])
-
-    current = signature(state['passes'][-1])
-    prior = []
-    for p in reversed(state['passes'][:-1]):
-        if signature(p) != current: break
-        prior.append(p)
-    own, totals, seen = {}, collections.defaultdict(float), set()
-    bottom = len(state['budgets']) - 1
-    for p in reversed(prior):
-        for nd in p['nodes']:
-            key = nd['key']
-            if key in seen: continue
-            seen.add(key)
-            parts = key.split()
-            cost = nd['solve'] + nd['split']
-            if len(parts) < bottom: own[key] = cost
-            for depth in range(min(len(parts) + 1, bottom)):
-                totals[' '.join(parts[:depth])] += cost
-    for nd in state['passes'][-1]['nodes']:
-        key = nd['key']
-        if key not in seen: continue
-        seen.remove(key)
-        parts = key.split()
-        cost = nd['solve'] + nd['split']
-        for depth in range(min(len(parts) + 1, bottom)):
-            ancestor = ' '.join(parts[:depth])
-            totals[ancestor] = math.fsum((totals[ancestor], -cost))
-    return own, dict(totals)
+    return History(state).credit(state)
 
 
+class History:
+    """history_costs of one pass, kept as its lines come: the preceding passes' part made once, this pass's credits made
+    line by line (each as history_costs makes it, in the same order)."""
 
-def estimate(state, parts=None):
+    def __init__(self, state):
+        def signature(p):
+            return (p['n'], p['order'], tuple(p['budgets']), tuple(p['moduli']), p['pool_budget'])
+
+        current = signature(state['passes'][-1])
+        prior = []
+        for p in reversed(state['passes'][:-1]):
+            if signature(p) != current: break
+            prior.append(p)
+        self.own, self.totals, self.seen = {}, collections.defaultdict(float), set()
+        self.bottom, self.credited = len(state['budgets']) - 1, 0
+        for p in reversed(prior):
+            for nd in p['nodes']:
+                key = nd['key']
+                if key in self.seen: continue
+                self.seen.add(key)
+                parts = key.split()
+                cost = nd['solve'] + nd['split']
+                if len(parts) < self.bottom: self.own[key] = cost
+                for depth in range(min(len(parts) + 1, self.bottom)):
+                    self.totals[' '.join(parts[:depth])] += cost
+
+    def credit(self, state):
+        """Credit this pass's lines not credited yet, in one atomic block; history_costs' value."""
+        nodes = state['passes'][-1]['nodes']
+        # TODO: error copy; says the history kept for a pass was asked for at an earlier time than before
+        assert self.credited <= len(nodes), 'Claude: "a kept history goes back in time"'
+        with atomic():
+            for nd in nodes[self.credited:]:
+                key = nd['key']
+                if key not in self.seen: continue
+                self.seen.remove(key)
+                parts = key.split()
+                cost = nd['solve'] + nd['split']
+                for depth in range(min(len(parts) + 1, self.bottom)):
+                    ancestor = ' '.join(parts[:depth])
+                    self.totals[ancestor] = math.fsum((self.totals[ancestor], -cost))
+            self.credited = len(nodes)
+        return self.own, dict(self.totals)
+
+
+def estimate(state, parts=None, view=None):
     """REPLICATES samples of the current pass's remaining hours of running (see the vocabulary), or an empty array (no
-    estimate).  parts, if a dict, receives the pieces: the tree, the kinds, the draws, the items, the work, the speed."""
+    estimate).  parts, if a dict, receives the pieces: the tree, the kinds, the draws, the items, the work, the speed.
+    view is the replay's tree as the estimate reads it: its root, stack and running jobs, its pending and running
+    nodes in tree order (region) with their kinds, the done fresh leaves' costs and floors, each depth's population
+    (pop_at), the nodes' costs so far (sofar), the speed and the history (history_costs); by default a Walk of
+    replay(state); a survey gives its reading's Grown (Reading.estimating), the same tree grown line by line."""
     budgets, P, t = state['budgets'], state['processes'], state['t']
     bottom, B = len(budgets) - 1, budgets[-1]
-    root, stack, running = replay(state)
-    kinds, nodes = {}, []
-
-    def walk(node):                     # every node; the kinds of the pending and running, a resplit one's children made
-        nodes.append(node)
-        if node.state in ('pending', 'running'):
-            kinds[node] = classify(node, state, bottom)
-            if kinds[node] == 'resplit' and not node.kids:
-                # TODO: error copy; says the cache lacks the split of a node that search() will split again, naming it
-                assert node.depth == bottom or node.key in state['cache'], f'Claude: "no cached split for {node.key}"'
-                kids = state['cache'].get(node.key, [])
-                if state['passes'][-1]['shuffled']: kids = v5.sibling_order(node.key, kids)
-                node.kids = [Node(c, node, node.depth + 1) for c in kids]
-        for c in node.kids: walk(c)
-    walk(root)
-    done_leaves = [n for n in nodes if n.state == 'done' and n.fresh and n.depth == bottom]
-    censored = sorted((n for n in nodes if n.state == 'running' and kinds[n] == 'leaf'), key=lambda n: n.start)
-    waiting = [n for n in nodes if n.state == 'pending' and kinds.get(n) == 'leaf']
-    members = np.array([n.cost for n in done_leaves])
-    floors = {floor_of(n, state) for n in censored + waiting + done_leaves}
+    view = Walk(state, *replay(state)) if view is None else view
+    root, stack, running, kinds, region = view.root, view.stack, view.running, view.kinds, view.region
+    censored = sorted((n for n in region if n.state == 'running' and kinds[n] == 'leaf'), key=lambda n: n.start)
+    waiting = [n for n in region if n.state == 'pending' and kinds[n] == 'leaf']
+    members = np.array(view.leaf_costs, dtype=float)
+    floors = view.leaf_floors | {floor_of(n, state) for n in censored + waiting}
     assert len(floors) <= 1, (state['label'], floors)       # one leaf population per pass
-    s = speed(state)
-    if parts is not None: parts.update(root=root, stack=stack, running=running, kinds=kinds, nodes=nodes, speed=s, members=members)
+    s = view.speed()
+    if parts is not None: parts.update(root=root, stack=stack, running=running, kinds=kinds, nodes=view.nodes(), speed=s, members=members)
     if s is None: return np.array([])
     rng = np.random.default_rng(SEED)
     floor = max(floors, default=0)       # no leaf known yet: a first pass's, whose leaves are fresh
@@ -939,26 +1627,28 @@ def estimate(state, parts=None):
     rem = {}                            # node -> its remaining seconds of work, REPLICATES-long (absent: none)
     for n in censored: rem[n] = urns[bottom].draw(t - n.start) - (t - n.start)
     for n in waiting: rem[n] = urns[bottom].draw()
-    sofar, timed = {}, set(censored)
-
-    def total(node):                    # the node's subtree's cost so far in this pass (see partway)
-        own = node.cost if node.state == 'done' else t - node.start if node in timed else 0.0
-        sofar[node] = own + sum(total(c) for c in node.kids)
-        return sofar[node]
-    total(root)
-    historical_own, historical_total = history_costs(state)
-    by_depth = collections.defaultdict(list)
-    for n in nodes: by_depth[n.depth].append(n)
+    sofar = view.sofar(t, set(censored))
+    historical_own, historical_total = view.history()
+    above, marked = collections.defaultdict(list), set()     # by depth, the region's done or resplit ancestors
+    for n in region:
+        a = n.parent
+        while a is not None and a not in marked:
+            marked.add(a)
+            above[a.depth].append(a)
+            a = a.parent
+    subtrees = collections.defaultdict(list)                  # by depth, the region's nodes of kind 'subtree', in tree order
+    for n in region:
+        if kinds[n] == 'subtree': subtrees[n.depth].append(n)
     zero = np.zeros(REPLICATES)
     for d in range(bottom, -1, -1):
-        for n in by_depth[d]:           # a done or resplit node's remaining work is its children's
-            if n.state == 'done' or kinds.get(n) == 'resplit':
-                below = [rem[c] for c in n.kids if c in rem]
-                if below: rem[n] = sum(below, zero)
+        for n in above[d]:              # a done or resplit node's remaining work is its children's
+            assert n.state == 'done' or kinds.get(n) == 'resplit', (state['label'], n.key)
+            below = [rem[c] for c in n.kids if c in rem]
+            if below: rem[n] = sum(below, zero)
         if d == bottom: continue
         # the population: the depth's fresh nodes done in this pass, or with none its nodes split again
-        pop = [n for n in by_depth[d] if n.state == 'done' and n.fresh] or [n for n in by_depth[d] if n.state == 'done']
-        draws = [n for n in by_depth[d] if kinds.get(n) == 'subtree']
+        pop = view.pop_at(d)
+        draws = subtrees[d]
         if draws and not pop: return np.array([])
         if pop:
             eventual = np.tile(np.array([math.fsum((sofar[n], historical_total.get(n.key, 0.0))) for n in pop]), (REPLICATES, 1))
@@ -991,51 +1681,56 @@ def estimate(state, parts=None):
 # ---------- one run ----------
 
 
-def survey(n, order, journal, log, procs, now, cache, etas):
+def survey(n, order, journal, log, procs, now, cache, etas, reading=None):
     """The run (n, order) as its journal and log, the process list and the time now (epoch seconds) show it: what the
     data file needs of it, and more; cache holds the run's splits (see children), etas its record of ETAs (see the
     vocabulary), to which this snapshot's is added: [the median of its draws, then their QUANTILES], None with none (an
-    ended run has none), by its time in whole seconds."""
+    ended run has none), by its time in whole seconds.  reading is the watcher's Reading of the run, kept between
+    snapshots; by default a new one, which reads the files whole: the same survey."""
     v5.configure(n, order)
-    R = read_run(journal, log)
+    reading = Reading(journal, log) if reading is None else reading
+    # TODO: error copy; says the watcher's reading of a run was handed another run's files, naming both
+    assert (reading.journal, reading.log) == (journal, log), f'Claude: "a reading of {reading.journal} given {journal}"'
+    R = reading.advance()
     passes = R['passes']
     p = passes[-1]
     # TODO: error copy; says the log's last start line names another length, order, cascade or pool budget than overnight_v5's settings for this run
     assert (p['n'], p['order'], p['moduli'], p['pool_budget']) == (n, order, list(v5.CASCADE), v5.POOL_BUDGET), f'Claude: "the log of {n} {order} does not match overnight_v5.py"'
     budgets, bottom = p['budgets'], len(v5.CASCADE)
     assert len(budgets) == bottom + 1
-    final = {r['key']: r for r in R['records']}
+    final = reading.final.records
     state = run_state(procs, 'overnight_v5.py', n, order, p['outcome'])
     end = now if state == 'running' else max([p['last'], *map(float, etas)])   # every ETA is recorded while it runs
     levels = enumerate_levels(final, budgets, order, cache, DEEPEST)
-    rows = level_rows(levels, final, budgets, bottom)
+    tree = reading.tree(budgets, cache)
+    rows = tree.rows(levels, bottom)
     for r in rows: r['modulus'] = ([None] + list(v5.CASCADE))[r['depth']]
-    live = live_keys(final)
-    stats = {k: status(k, final, budgets) for k in live | set(levels[-1])}
-    tally = collections.Counter(stats[k] for k in live)
+    stats = {k: status(k, final, budgets) for k in levels[-1]}
+    tally = tree.tally()
     last = (p['nodes'] or [{'t': None, 'waiting': None, 'running': None}])[-1]
-    opens = sorted(((k, final[k]['budget'], stats[k]) for k in live if final[k]['verdict'] == 'UNKNOWN' and leaf(k, bottom)),
-                   key=lambda x: parse_key(x[0]))
+    opens = tree.open_list()
     spans = [(q['start'], q['last']) for q in passes[:-1]] + [(p['start'], end)]
-    parts = {}
-    draws = estimate(state_at(R, end, resplits(R, order, cache), f'{n}@{order} at {clock(end)}'), parts) if state != 'ended' else None
+    view = reading.estimating(order, cache, end, f'{n}@{order} at {clock(end)}') if state != 'ended' else None
+    draws = estimate(view.state, view=view) if view is not None else None
     etas.setdefault(str(int(end)), [float(np.median(draws))] + [float(q) for q in np.quantile(draws, QUANTILES)] if draws is not None and len(draws) else None)   # a record made stands
-    moving = [nd for nd in parts.get('nodes', []) if nd.state == 'running']
+    region, stack = (view.region, view.stack) if view is not None else ([], [])
+    moving = [nd for nd in region if nd.state == 'running']      # in tree order
     running = {nd.key for nd in moving if nd.key is not None}
     unnamed = ([(nd.parent.key, 'running') for nd in moving if nd.key is None]
-               + [(nd.parent.key, 'pending') for nd in parts.get('stack', []) if nd.key is None])
+               + [(nd.parent.key, 'pending') for nd in stack if nd.key is None])
     assert all(k is not None for k, _ in unnamed), unnamed      # a node's parent is done, so its line named it
     to_go = ({'median': float(np.median(draws)) * HOUR} | dict(zip(('lo', 'hi'), (float(q) * HOUR for q in np.quantile(draws, QUANTILES))))
              if draws is not None and len(draws) else None)
+    tree = reading.tree(budgets, cache)                         # with the splits cached since by the levels and resplits
     return {'program': 'overnight_v5.py', 'n': n, 'order': order, 'state': state, 'outcome': p['outcome'], 'budgets': budgets,
-            'sea': sea(final, budgets, cache, running, unnamed), 'so_far': sum(b - a for a, b in spans), 'to_go': to_go,
+            'sea': tree.sea_of(running, unnamed), 'so_far': sum(b - a for a, b in spans), 'to_go': to_go,
             'passes': spans,
             'elapsed': end - p['start'], 'last': p['last'],
-            'settled': sum(final[k]['verdict'] == 'INFEASIBLE' for k in live), 'open': tally['open'],
+            'settled': tree.infeasible, 'open': tally['open'],
             'split': tally['split'], 'line': last['t'], 'waiting': last['waiting'], 'running': last['running'],
             'levels': rows, 'deepest': len(levels) - 1,
             'processes': p['processes'],
-            'work': work(levels[-1], len(levels) - 1, stats, p['nodes']) if state != 'ended' else None,
+            'work': work_of(levels[-1], stats, reading.touched(len(levels) - 1)) if state != 'ended' else None,
             'draws': draws, 'etas': etas, 'open_list': opens}
 
 
@@ -1048,19 +1743,58 @@ def box_files(n, order):
     return os.path.join(os.path.dirname(journal), f'overnight_v5_{n}_{order}_boxsplit.log'), journal
 
 
+def said(head, tail):
+    """The pattern of the rest of a driver's log line after its stamp and any node, a message of boxsplit's: whose first
+    letter is head (in lower case; '' for none that changes), the rest tail.  Written two ways, matched alike: in
+    Claude's quotes, its first letter in lower case, as before 2026-10-29 (scratch/x288's copy of boxsplit.py, and
+    the logs before, still write it so), and since then plain, the letter in upper case (dreeves's a6481ff, "Remove some
+    TODOs").  The quote opening it, q, decides the letter's case and the closing quote."""
+    return rf'(?P<q>Claude: ")?(?(q){head}|{head.upper()}){tail}(?(q)")$'
+
+
 BOX_FORMS = {                          # the driver's log line forms, as boxsplit's run, drive and say_* write them
-    'start': re.compile(STAMP + r'Claude: "start: n = (\d+), order at least (\d+), open leaves (\d+) of .+ \((\d+) closed '
-                        r'on record\), extension moduli \[[\d, ]+\] with budgets \[[\d, ]+\] \(LP solves; a pool or an '
-                        r'outside node \d+ per member\), (\d+) processes, HiGHS .+, \d+ earlier verdicts"$'),
-    'control': re.compile(STAMP + r'Claude: "startup control passed: .*"$'),
-    'leaf': re.compile(STAMP + r'Claude: "leaf (\d+): \{.*\}"$'),
-    'split': re.compile(STAMP + r'\{.*\} by \d+: Claude: "box widths .*"$'),
-    'outside': re.compile(STAMP + r'\{.*\} by \d+: Claude: "\d+ outside nodes INFEASIBLE .*"$'),
-    'piece': re.compile(STAMP + r'\{.*\}: (?:INFEASIBLE|UNKNOWN); Claude: "\d+ LP solves \(\d+\.\d s\)"$'),
-    'open': re.compile(STAMP + r'Claude: "open: \{.*\}"$'),
-    'done': re.compile(STAMP + r'Claude: "leaf (\d+) \{.*\}: extension tree (closed|not closed)[:,] .*"$'),
-    'outcome': re.compile(STAMP + r'(Claude: "(?:ALL \d+ LEAVES CLOSED \(|NOT FINISHED: |WITNESS FOUND in ).*")$'),
+    'start': re.compile(STAMP + said('s', r'tart: n = (?P<n>\d+), order at least (?P<order>\d+), open leaves (?P<leaves>\d+) '
+                                          r'of .+ \((?P<on_record>\d+) closed on record\), extension moduli \[[\d, ]+\] with '
+                                          r'budgets \[[\d, ]+\] \(LP solves; a pool or an outside node \d+ per member\), '
+                                          r'(?P<processes>\d+) processes, HiGHS .+, \d+ earlier verdicts')),
+    'control': re.compile(STAMP + said('s', r'tartup control passed: .*')),
+    'leaf': re.compile(STAMP + said('l', r'eaf (?P<leaf>\d+): \{.*\}')),
+    'split': re.compile(STAMP + r'\{.*\} by \d+: ' + said('b', r'ox widths .*')),
+    'outside': re.compile(STAMP + r'\{.*\} by \d+: ' + said('', r'\d+ outside nodes INFEASIBLE .*')),
+    'piece': re.compile(STAMP + r'\{.*\}: (?:INFEASIBLE|UNKNOWN); ' + said('', r'\d+ LP solves \(\d+\.\d s\)')),
+    'open': re.compile(STAMP + said('o', r'pen: \{.*\}')),
+    'done': re.compile(STAMP + said('l', r'eaf (?P<leaf>\d+) \{.*\}: extension tree (?P<tree>closed|not closed)[:,] .*')),
+    'outcome': re.compile(STAMP + '(?P<outcome>' + said('', r'(?:ALL \d+ LEAVES CLOSED \(|NOT FINISHED: |WITNESS FOUND in ).*') + ')'),
 }
+
+
+class BoxLog:
+    """parse_box_lines kept line by line: a driver's log's passes, each line taken whole or not at all, and the leaves
+    each line starts or ends (events), in order."""
+
+    def __init__(self):
+        self.passes, self.events, self.stamped = [], [], -math.inf
+
+    def take(self, line):
+        """Parse the next line into the passes, or fail (asserted) leaving everything as it was."""
+        forms = [(kind, m) for kind, form in BOX_FORMS.items() if (m := form.match(line))]
+        # TODO: error copy; says a line of the driver's log has none of the forms progress.py knows, quoting the line
+        assert len(forms) == 1, f'Claude: "a boxsplit log line of no known form: {line}"'
+        kind, m = forms[0]
+        # TODO: error copy; says a line of the driver's log comes before any start line or after its pass's outcome line, quoting it
+        assert kind == 'start' or (self.passes and self.passes[-1]['outcome'] is None), f'Claude: "a boxsplit log line out of place: {line}"'
+        assert kind != 'done' or int(m['leaf']) in self.passes[-1]['starts'], line
+        t = stamp_after(m[1], self.stamped)
+        if kind == 'start':
+            self.passes.append({'start': t, 'n': int(m['n']), 'order': int(m['order']), 'leaves': int(m['leaves']),
+                                'on_record': int(m['on_record']), 'processes': int(m['processes']), 'starts': {},
+                                'dones': {}, 'outcome': None})
+        p = self.passes[-1]
+        p['last'] = self.stamped = t
+        if kind == 'leaf': p['starts'][int(m['leaf'])] = t
+        if kind == 'done': p['dones'][int(m['leaf'])] = (t, m['tree'] == 'closed')
+        if kind == 'outcome': p['outcome'] = m['outcome']
+        if kind in ('start', 'leaf', 'done'): self.events.append((kind, int(m['leaf']) if kind != 'start' else None, p))
 
 
 def parse_box_lines(lines):
@@ -1070,27 +1804,11 @@ def parse_box_lines(lines):
     started; dones, (the time, whether its tree closed) of each leaf done; outcome, its final line (ALL ... LEAVES
     CLOSED, NOT FINISHED or a witness), as the log has it, after the time, else None.  Every line must have exactly
     one known form, every pass must begin with a start line, no line may follow its outcome but the next start line,
-    and a leaf is done only after it started in the pass (all asserted)."""
-    passes = []
-    for line in lines:
-        forms = [(kind, m) for kind, form in BOX_FORMS.items() if (m := form.match(line))]
-        # TODO: error copy; says a line of the driver's log has none of the forms progress.py knows, quoting the line
-        assert len(forms) == 1, f'Claude: "a boxsplit log line of no known form: {line}"'
-        kind, m = forms[0]
-        t = stamp(m[1])
-        if kind == 'start':
-            passes.append({'start': t, 'n': int(m[2]), 'order': int(m[3]), 'leaves': int(m[4]), 'on_record': int(m[5]),
-                           'processes': int(m[6]), 'starts': {}, 'dones': {}, 'outcome': None})
-        # TODO: error copy; says a line of the driver's log comes before any start line or after its pass's outcome line, quoting it
-        assert passes and passes[-1]['outcome'] is None, f'Claude: "a boxsplit log line out of place: {line}"'
-        p = passes[-1]
-        p['last'] = t
-        if kind == 'leaf': p['starts'][int(m[2])] = t
-        if kind == 'done':
-            assert int(m[2]) in p['starts'], line
-            p['dones'][int(m[2])] = (t, m[3] == 'closed')
-        if kind == 'outcome': p['outcome'] = m[2]
-    return passes
+    and a leaf is done only after it started in the pass (all asserted).  The times are each line's stamp_after the
+    line before."""
+    log = BoxLog()
+    for line in lines: log.take(line)
+    return log.passes
 
 
 def driver_leaves(main):
@@ -1216,7 +1934,7 @@ def censored(jobs):
     return sorted((max(a, l) for a, l in jobs), reverse=True), sum(max(a, l) - a for a, l in jobs)
 
 
-def survey_box(n, order, log, main, procs, now, etas):
+def survey_box(n, order, log, main, procs, now, etas, box=None):
     """The boxsplit pass of the run (n, order) as the driver's log, the run's journal (main, whose open leaves the
     driver works), the process list and the time now show it, in survey's shape: program boxsplit.py, its state, its
     seconds of running (its passes'), its estimate (to_go; see below) and record of ETAs (etas, to which this snapshot's
@@ -1231,43 +1949,93 @@ def survey_box(n, order, log, main, procs, now, etas):
     budget to bound it); each running leaf drawn above its elapsed seconds (censored, the longest-running first),
     holding its worker for the rest; each pending leaf a job in the driver's order (its key's sha1); makespan on the
     pass's workers.  With no leaf of the pass done, every draw is the new ball: Gott's rule.  None when the driver is not
-    running or no leaf of the pass has begun."""
+    running or no leaf of the pass has begun.  box is the watcher's Boxes of the pass, kept between snapshots; by
+    default a new one, which reads the files whole: the same survey."""
     files(n, order)                     # overnight_v5 configured for the run, with its copy's settings if it has one
-    saved = v5.JOURNAL
-    v5.JOURNAL = main
-    try:
-        leaves = [v5.node_key(nd) for nd in driver_leaves(main)]
-    finally:
-        v5.JOURNAL = saved
-    passes = parse_box_lines(complete_lines(log))
+    box = Boxes(log) if box is None else box
+    # TODO: error copy; says the watcher's reading of a boxsplit pass was handed another driver's log, naming both
+    assert box.log == log, f'Claude: "a reading of {box.log} given {log}"'
+    leaves, passes = box.advance(main)
     p = passes[-1]
     # TODO: error copy; says the driver's log's last start line names another length, order or count of open leaves than the run's journal
     assert (p['n'], p['order'], p['leaves']) == (n, order, len(leaves)), f'Claude: "the boxsplit log of {n} {order} does not match its run"'
     state = run_state(procs, 'boxsplit.py', n, order, p['outcome'])
     end = now if state == 'running' else max([p['last'], *map(float, etas)])   # every ETA is recorded while it runs
     spans = [(q['start'], q['last']) for q in passes[:-1]] + [(p['start'], end)]
-    done = {i: ok for q in passes for i, (_, ok) in q['dones'].items()}    # each leaf's latest: did its tree close
-    running = {i: t for i, t in p['starts'].items() if i not in p['dones'] and state == 'running'}
-
-    def status(i):
-        if i in running: return 'running'
-        if i in done: return 'settled' if done[i] else 'open'
-        return 'pending'
-
-    groups = {}
-    for i in sorted(range(len(leaves)), key=lambda i: tree_order(leaves[i])):
-        groups.setdefault(' '.join(leaves[i].split()[:SEA_DEPTH]), []).append(str(SEA_STATUSES.index(status(i))))
-    tally = collections.Counter(c for g in groups.values() for c in g)
-    sea = {'depth': SEA_DEPTH, 'keys': list(groups), 'groups': [''.join(g) for g in groups.values()],
-           'counts': {s: tally[str(i)] for i, s in enumerate(SEA_STATUSES)}}
-    walls = [t - p['starts'][i] for i, (t, _) in p['dones'].items()]   # the pass's done leaves
+    running = {i: p['starts'][i] for i in box.active} if state == 'running' else {}
+    sea = box.sea(running)
+    walls = list(box.walls)                                          # the pass's done leaves
     ages = sorted((now - t for t in running.values()), reverse=True)  # its running leaves', the longest-running first
-    pending = sum(status(i) == 'pending' for i in range(len(leaves)))
+    pending = sea['counts']['pending']
     eta = lindy_urn(walls, ages, pending, p['processes']) if state == 'running' and max([*walls, *ages], default=0.0) > 0 else None
     etas.setdefault(str(int(end)), eta)   # a record made stands
     to_go = to_go_of(eta)
     return {'program': 'boxsplit.py', 'n': n, 'order': order, 'state': state, 'outcome': p['outcome'],
             'so_far': sum(b - a for a, b in spans), 'to_go': to_go, 'passes': spans, 'etas': etas, 'sea': sea}
+
+
+class Boxes:
+    """survey_box's reading of a run's boxsplit pass, kept by the watcher between snapshots: the driver's log parsed as it
+    grows (Tail, BoxLog); the run's leaves (driver_leaves, as keys), made again only when the run's journal is another
+    file or changed (its device, inode, size or modification time), with each leaf's place in tree order and each sea
+    group's span of places; each leaf's latest done verdict; the current pass's leaves started and not done (active)
+    and its done leaves' wall seconds (walls); and each leaf's dot (see survey_box), by place (codes)."""
+
+    def __init__(self, log):
+        self.log, self.tail, self.parsed, self.lines = log, Tail(log), BoxLog(), collections.deque()
+        self.sig, self.leaves, self.rank, self.spans, self.codes = None, [], {}, [], bytearray()
+        self.done, self.active, self.walls = {}, set(), []
+        self.used, self.moved, self.shown = 0, set(), set()   # events taken; leaves moved since drawn; drawn running
+
+    def advance(self, main):
+        """Take what the driver's log gained and the run's leaves, each step atomic: (the leaves, the passes)."""
+        with atomic(): self.lines += self.tail.read()
+        while self.lines:
+            with atomic():
+                for _ in range(min(STEP, len(self.lines))):
+                    self.parsed.take(self.lines[0])
+                    self.lines.popleft()
+        st = os.stat(main)
+        sig = (st.st_dev, st.st_ino, st.st_size, st.st_mtime_ns)
+        if sig != self.sig:                                         # the run's journal is another or changed
+            saved = v5.JOURNAL
+            v5.JOURNAL = main
+            try:
+                leaves = [v5.node_key(nd) for nd in driver_leaves(main)]
+            finally:
+                v5.JOURNAL = saved
+            places = sorted(range(len(leaves)), key=lambda i: tree_order(leaves[i]))
+            spans, place = [], 0                                    # a group's leaves are consecutive in tree order
+            for g, run in itertools.groupby(places, key=lambda i: ' '.join(leaves[i].split()[:SEA_DEPTH])):
+                size = sum(1 for _ in run)
+                spans.append((g, place, place + size))
+                place += size
+            with atomic():
+                self.sig, self.leaves, self.spans = sig, leaves, spans
+                self.rank = {i: place for place, i in enumerate(places)}
+                self.codes, self.moved = bytearray(len(leaves)), set(range(len(leaves)))
+        with atomic():
+            for kind, i, p in self.parsed.events[self.used:]:
+                if kind == 'start': self.active, self.walls = set(), []    # a pass begins
+                if kind == 'leaf': self.active.add(i)
+                if kind == 'done':
+                    self.active.discard(i)
+                    t, self.done[i] = p['dones'][i]
+                    self.walls.append(t - p['starts'][i])
+                self.moved.add(i)
+            self.used = len(self.parsed.events)
+        return self.leaves, self.parsed.passes
+
+    def sea(self, running):
+        """survey_box's sea: the dots of the leaves moved since drawn, or running now or then, drawn again (atomic)."""
+        with atomic():
+            for i in [i for i in self.moved | self.shown | set(running) if i in self.rank]:
+                s = 'running' if i in running else ('settled' if self.done[i] else 'open') if i in self.done else 'pending'
+                self.codes[self.rank[i]] = ord(str(SEA_STATUSES.index(s)))
+            self.moved, self.shown = set(), set(running)
+        return {'depth': SEA_DEPTH, 'keys': [g for g, _, _ in self.spans],
+                'groups': [self.codes[a:b].decode() for _, a, b in self.spans],
+                'counts': {s: self.codes.count(str(i).encode()) for i, s in enumerate(SEA_STATUSES)}}
 
 
 # ---------- files and the command line ----------
@@ -1442,7 +2210,7 @@ def without_pauses(spans, pauses):
     return spans
 
 
-def survey_focus(path, procs, now=None, observations=None, launches=None, pauses=()):
+def survey_focus(path, procs, now=None, observations=None, launches=None, pauses=(), journal=None):
     """Focused proof journals: root-case coverage, and while running an ETA, lindy_urn's on the root cases (one
     worker), recorded in observations (dreeves, 2026-10-23: with no root done, Lindy).
 
@@ -1457,8 +2225,9 @@ def survey_focus(path, procs, now=None, observations=None, launches=None, pauses
     completing it (or the record before that, if never named), its age the running time between, gaps between
     launches excluded.  The running root is drawn above its latest probe's least (see the vocabulary), turned into
     seconds at the run's seconds of running per LP solve so far: a probe with no LP solve on record fails (asserted).
+    journal is the watcher's Records of the path, kept between snapshots; by default a new one, which reads it whole.
     """
-    records = [json.loads(line) for line in complete_lines(path)]
+    records = (Records(path) if journal is None else journal).read()
     now = time.time() if now is None else now
     observations = {} if observations is None else observations
     launches = {} if launches is None else launches
@@ -1536,15 +2305,16 @@ def survey_focus(path, procs, now=None, observations=None, launches=None, pauses
                 sea=dict(depth=0, keys=[f'{header["n"]}:{header["order"]}'], groups=[codes], counts=counts))
 
 
-def survey_fanout(path, procs, now=None, observations=None, launches=None):
+def survey_fanout(path, procs, now=None, observations=None, launches=None, journal=None):
     """fanout.py's journal (see fanout.py's vocabulary): its spans of running as survey_focus's; a dot per job, grouped
     by root (keyed case:depth): split (done, leaving boxes open), settled (done, none open), running, then pending (a
     root not started, a box left open and not started, or a job whose driver is gone); and while running, an ETA: the
     pool estimate (see the vocabulary), at the pool's rate, a worker's LP solves a second over the jobs done times the
     workers (dreeves, 2026-10-23: "Can we throw more compute at 672:13?"); its floor each open case's latest probe's
     least less the case's work so far (the run's own before fanout counted to its case; a case done when every dot of
-    its roots is)."""
-    records = [json.loads(line) for line in complete_lines(path)]
+    its roots is).  journal is the watcher's Records of the path, kept between snapshots; by default a new one, which
+    reads it whole."""
+    records = (Records(path) if journal is None else journal).read()
     now = time.time() if now is None else now
     observations = {} if observations is None else observations
     launches = {} if launches is None else launches
@@ -1847,20 +2617,124 @@ def js_text(surveys, now):
     one; dreeves, 2026-10-25: the section names a run's state, an ended one completed or aborted by it), so_far (its passes' seconds of running), to_go ({median, lo, hi}, seconds of
     running: the estimate's median and QUANTILES; null without one), etas (its record of ETAs, eta_records, as [time,
     running seconds before it, median (mean before 2026-10-19), lo, hi], the time in whole seconds and the rest in seconds to a tenth, evenly thinned to at most ETA_POINTS, the last kept), statuses
-    (SEA_STATUSES) and its sea (depth, keys, groups, counts)."""
+    (SEA_STATUSES), its sea (depth, keys, groups, counts), and stale: null, or for a run whose survey failed or ran past
+    LIMIT the time (whole seconds) of the snapshot its data are from (see snapshot; 2026-10-30)."""
+    return data_text([run_data(s) for s in surveys], now)
+
+
+def run_data(s):
+    """A run's entry in the data file (see js_text) from its survey, its data this snapshot's (stale null)."""
     def etas(s):
         rs = eta_records(s)
         keep = sorted(set(range(0, len(rs), max(1, -(-len(rs) // ETA_POINTS)))) | {len(rs) - 1}) if rs else []
         return [[int(rs[i][0])] + [round(HOUR * v, 1) for v in rs[i][1:]] for i in keep]
-    runs = [{'program': s['program'], 'n': s['n'], 'order': s['order'], 'state': s['state'], 'outcome': s['outcome'],
+    return ({'program': s['program'], 'n': s['n'], 'order': s['order'], 'state': s['state'], 'outcome': s['outcome'],
              'so_far': s['so_far'], 'to_go': s['to_go'],
              'etas': etas(s), 'statuses': list(SEA_STATUSES)} | s['sea'] | s.get('display', {}) |
-            {k: s[k] for k in ('workers',) if k in s} for s in surveys]
+            {k: s[k] for k in ('workers',) if k in s} | {'stale': None})
+
+
+def data_text(runs, now):
+    """The data file's text: one call, progressData(...);, of made (now, in whole seconds) and the runs' entries."""
     return 'progressData(' + json.dumps({'made': int(now), 'runs': runs}, separators=(',', ':'), ensure_ascii=False) + ');\n'
 
 
+def read_data(path):
+    """The data file at path, as JSON (asserted to be one progressData(...); call)."""
+    text = open(path, encoding='utf-8').read()
+    # TODO: error copy; says the data file is not one progressData(...); call, naming it
+    assert text.startswith('progressData(') and text.endswith(');\n'), f'Claude: "{path} is no data file"'
+    return json.loads(text.removeprefix('progressData(').removesuffix(');\n'))
+
+
+def seeded(path):
+    """The last good data (see snapshot) of each run in the data file at path, if there is one: {(program, n, order):
+    ([its entry], the time of its data, its stale time or else the file's made)}.  A file made before 2026-10-30 has no
+    stale field: its data are its own made time's."""
+    data = read_data(path) if os.path.exists(path) else {'made': None, 'runs': []}
+    kept = {}
+    for r in data['runs']:
+        # TODO: error copy; says the data file holds two runs of the same program, length and order, naming them
+        assert (r['program'], r['n'], r['order']) not in kept, f'Claude: "{path} holds {r["program"]} {r["n"]} {r["order"]} twice"'
+        kept[r['program'], r['n'], r['order']] = ([r], r.get('stale') or data['made'])
+    return kept
+
+
+def snapshot(units, kept, readings, now):
+    """The data file's runs and the time it is made, from units, each (its run's identity, (program, n, order), and a
+    thunk making its surveys, one or none): each thunk bounded by LIMIT seconds (bounded), so that one run's slow or
+    failing survey leaves the others theirs (2026-10-30: 288@10's 90-minute snapshot froze every run).  A run whose
+    survey failed or ran past its limit keeps its last good data from kept (this watcher's earlier snapshots, or the
+    data file it found at its start), marked stale with that data's time, and the watcher's log gets the traceback; a
+    failure (not Overtime) also drops its reading (readings), begun anew the next time.  made is now, or the latest
+    time a survey says it was made at."""
+    runs, made, fresh = [], now, []
+    for identity, thunk in units:
+        try:
+            surveys = bounded(LIMIT, thunk)
+            data = [run_data(s) for s in surveys]
+            # TODO: error copy; says a survey's runs are not the one its unit names, naming both
+            assert all((r['program'], r['n'], r['order']) == identity for r in data), f'Claude: "{identity} surveyed as another"'
+            made = max([made] + [s['made'] for s in surveys if 'made' in s])
+            runs += data
+            fresh.append((identity, data))
+        except Overtime:
+            runs += stale(identity, kept, f'ran past {LIMIT} s')
+        except Exception:
+            readings.pop(identity, None)
+            runs += stale(identity, kept, 'failed')
+    for identity, data in fresh: kept[identity] = (data, int(made))
+    return runs, made
+
+
+def stale(identity, kept, why):
+    """The last good data of the run whose identity this is, marked stale (see snapshot), after writing why to the log."""
+    data, t = kept.get(identity, ([], None))
+    # TODO: log line; says this run's survey failed or ran past its limit (why), so the data file shows its data of that time, marked stale
+    report(f'{" ".join(map(str, identity))} {why}: its data of {clock(t)} stand, marked stale')
+    return [dict(r, stale=t) for r in data]
+
+
+def report(what):
+    """Write what went wrong to the watcher's log (stderr), stamped, with the traceback of the exception being handled."""
+    print(f'{clock(time.time())} Claude: "{what}"', file=sys.stderr, flush=True)
+    traceback.print_exc()
+
+
+def tried(what, f):
+    """[f()], or [] once report has written that what failed: a journal or record the watcher cannot read is left out of
+    the snapshot, whose other runs go on."""
+    try:
+        return [f()]
+    except Exception:
+        # TODO: log line; says reading this journal or record failed, so the snapshot leaves it out
+        report(f'{what} failed; this snapshot leaves it out')
+        return []
+
+
 def load_cache(path): return json.load(open(path)) if os.path.exists(path) else {}
-def save_cache(path, cache): write_atomic(path, json.dumps(cache, sort_keys=True))
+def save_cache(path, cache): write_atomic(path, cache_text(cache))
+
+
+DUMPED = {}                                 # id of a cache's large entry -> (the entry, its length, its JSON), see cache_text
+
+
+def cache_text(cache):
+    """json.dumps(cache, sort_keys=True), each entry of BIG items or more written once per length: its entries are
+    only ever added (a run's splits, by children and recover_splits, 99 MB of 288@10's 106 on 2026-10-30; the records
+    of ETAs and observations, by time), so an unchanged length is an unchanged entry.  DUMPED holds each such entry,
+    which keeps its id from being reused."""
+    parts = []
+    for k in sorted(cache):
+        v = cache[k]
+        kept, size, text = DUMPED.get(id(v), (None, None, None))
+        text = text if kept is v and size == len(v) else json.dumps(v, sort_keys=True)
+        DUMPED.update({id(v): (v, len(v), text)} if len(v) >= BIG else {})
+        parts.append(json.dumps(k) + ': ' + text)
+    return '{' + ', '.join(parts) + '}'
+
+
+BIG = 1000                                  # entries of a cache entry worth keeping its JSON (see cache_text)
 
 
 def native288(start):
@@ -1881,60 +2755,107 @@ def native288(start):
                 and command[2] == ' && '.join(shlex.join([match[1], '-B', *step]) for step in steps))
 
 
-def survey_runs(procs, now, cache):
-    """Survey overnight and box passes with each run's actual modules, headers and cache fingerprints."""
-    surveys = []
-    for n, order in RUNS:
+def run_surveys(procs, now, cache, readings):
+    """The units (see snapshot) of the overnight and boxsplit passes, each surveyed with its run's actual modules,
+    headers and cache fingerprints (run_context), its reading kept in readings by its identity."""
+    def overnight(n, order):
         with run_context(n, order):
-            surveys.append(survey(n, order, *files(n, order), procs, now,
-                                  cache.setdefault(f'{n}_{order}_{v5.CODE}', {}),
-                                  cache.setdefault(f'{n}_{order}_{v5.CODE}_etas', {})))
-    for n, order in EXTENDED:
+            journal, log = files(n, order)
+            reading = readings.setdefault(('overnight_v5.py', n, order), Reading(journal, log))
+            return [survey(n, order, journal, log, procs, now, cache.setdefault(f'{n}_{order}_{v5.CODE}', {}),
+                           cache.setdefault(f'{n}_{order}_{v5.CODE}_etas', {}), reading)]
+
+    def boxes(n, order):                # none until the driver's log exists
         with run_context(n, order):
             log, main = box_files(n, order)
-            if os.path.exists(log):
-                surveys.append(survey_box(n, order, log, main, procs, now,
-                                         cache.setdefault(f'{n}_{order}_boxsplit_{bx.CODE}_etas', {})))
-    return surveys
+            box = readings.setdefault(('boxsplit.py', n, order), Boxes(log))
+            return ([survey_box(n, order, log, main, procs, now, cache.setdefault(f'{n}_{order}_boxsplit_{bx.CODE}_etas', {}),
+                                box)] if os.path.exists(log) else [])
+    return ([(('overnight_v5.py', n, order), functools.partial(overnight, n, order)) for n, order in RUNS] +
+            [(('boxsplit.py', n, order), functools.partial(boxes, n, order)) for n, order in EXTENDED])
 
 
-def main(argv):
+def survey_runs(procs, now, cache):
+    """Survey overnight and box passes with each run's actual modules, headers and cache fingerprints: run_surveys'
+    surveys, made at once, each with a reading of its own."""
+    return [s for _, thunk in run_surveys(procs, now, cache, {}) for s in thunk()]
+
+
+def first_line(path):
+    """The file's first line, as bytes, its newline included if it has one."""
+    with open(path, 'rb') as f: return f.readline()
+
+
+def headers(pattern):
+    """(path, header) of each journal matching pattern in HERE whose first line is whole (a journal being begun has no
+    run yet), sorted by path; one that cannot be read is left out (tried)."""
+    firsts = [(path, first) for path in sorted(glob.glob(os.path.join(HERE, pattern)))
+              for first in tried(f'the first line of {path}', functools.partial(first_line, path))]
+    return [(path, h) for path, first in firsts if first.endswith(b'\n')
+            for h in tried(f'the header of {path}', functools.partial(json.loads, first))]
+
+
+def journal_surveys(procs, now, cache, readings):
+    """The units (see snapshot) of the searches surveyed from their journals and records: focus.py's and fanout.py's
+    runs, the 288 attempt batches, then the tracked searches (see the vocabulary), one per target, in that order."""
+    def focus(identity, path, key, pause_path):
+        pauses = [json.loads(line) for line in complete_lines(pause_path)] if os.path.exists(pause_path) else []
+        return [survey_focus(path, procs, observations=cache.setdefault(key + '_observations', {}),
+                             launches=cache.setdefault(key + '_launches', {}), pauses=pauses,
+                             journal=readings.setdefault(identity, Records(path)))]
+
+    def fanned(identity, path, key):
+        return [survey_fanout(path, procs, observations=cache.setdefault(key + '_observations', {}),
+                              launches=cache.setdefault(key + '_launches', {}),
+                              journal=readings.setdefault(identity, Records(path)))]
+
+    def attempts(survey_of, path, key):
+        return [survey_of(path, procs, observations=cache.setdefault(key + '_observations', {}))]
+
+    units = [(('focus.py', h['n'], h['order']),
+              functools.partial(focus, ('focus.py', h['n'], h['order']), path, f'focus_{h["n"]}_{h["code"]}_{h["time"]}',
+                                os.path.join(HERE, f'focus_{h["n"]}_pauses.jsonl')))
+             for path, h in headers('focus_*_journal.jsonl')]
+    units += [(('fanout.py', h['n'], h['order']),
+               functools.partial(fanned, ('fanout.py', h['n'], h['order']), path, f'fanout_{h["n"]}_{h["code"]}_{h["time"]}'))
+              for path, h in headers('fanout_*_journal.jsonl')]
+    units += [((name + '.py', 288, 10), functools.partial(attempts, survey_of, path, f'{name}_{h["code"]}_{h["time"]}'))
+              for name, survey_of in (('search288', survey_search288), ('pruning288', survey_pruning288))
+              for path, h in headers(name + '_journal.jsonl')]
+    def recorded(path):                 # a tracked run's records, whether native288's, its target's identity
+        lines = [json.loads(line) for line in complete_lines(path)]
+        return lines, native288(lines[0]), lines[0]['target'], (lines[0]['program'], *map(int, lines[0]['target'].split(':')))
+
+    tracked, identities = collections.defaultdict(list), {}
+    for path in sorted(glob.glob(os.path.join(HERE, 'runs', '*.jsonl'))):
+        for lines, native, target, identity in tried(f'the records of {path}', functools.partial(recorded, path)):
+            if not native:
+                tracked[target].append(lines)
+                identities.setdefault(target, identity)
+    def track(target, records): return [survey_track(target, records, procs, now)]
+    return units + [(identities[target], functools.partial(track, target, records)) for target, records in sorted(tracked.items())]
+
+
+def main(argv, extra=()):
+    """The watcher: write the data file once, or with --watch again every REFRESH seconds, keeping the cache, each run's
+    reading and its last good data between snapshots (see snapshot).  extra holds more makers of units, each called
+    with (procs, now) for its units after progress.py's own (the wrappers sweep288_progress and search592_progress)."""
     # TODO: error copy; says how to run the script: with no argument to write the data file once, or with --watch to keep rewriting it
     assert argv in ([], ['--watch']), 'Claude: "usage: python3 -B progress.py [--watch]"'
     os.nice(max(0, NICE - os.nice(0)))
+    cache, kept, readings = load_cache(CACHE), seeded(JS), {}
     while True:
-        cache, procs, now = load_cache(CACHE), processes(), time.time()
-        surveys = survey_runs(procs, now, cache)
-        for path in sorted(glob.glob(os.path.join(HERE, 'focus_*_journal.jsonl'))):
-            with open(path, encoding='utf-8') as f: header = json.loads(f.readline())
-            key = f'focus_{header["n"]}_{header["code"]}_{header["time"]}'
-            pause_path = os.path.join(HERE, f'focus_{header["n"]}_pauses.jsonl')
-            pauses = [json.loads(line) for line in complete_lines(pause_path)] if os.path.exists(pause_path) else []
-            surveys.append(survey_focus(path, procs, observations=cache.setdefault(key + '_observations', {}),
-                                        launches=cache.setdefault(key + '_launches', {}), pauses=pauses))
-        for path in sorted(glob.glob(os.path.join(HERE, 'fanout_*_journal.jsonl'))):
-            with open(path, encoding='utf-8') as f: header = json.loads(f.readline())
-            key = f'fanout_{header["n"]}_{header["code"]}_{header["time"]}'
-            surveys.append(survey_fanout(path, procs, observations=cache.setdefault(key + '_observations', {}),
-                                         launches=cache.setdefault(key + '_launches', {})))
-        for path in glob.glob(os.path.join(HERE, 'search288_journal.jsonl')):
-            with open(path, encoding='utf-8') as f: header = json.loads(f.readline())
-            key = f'search288_{header["code"]}_{header["time"]}'
-            surveys.append(survey_search288(path, procs, observations=cache.setdefault(key + '_observations', {})))
-        for path in glob.glob(os.path.join(HERE, 'pruning288_journal.jsonl')):
-            with open(path, encoding='utf-8') as f: header = json.loads(f.readline())
-            key = f'pruning288_{header["code"]}_{header["time"]}'
-            surveys.append(survey_pruning288(path, procs, observations=cache.setdefault(key + '_observations', {})))
-        tracked = collections.defaultdict(list)
-        for path in sorted(glob.glob(os.path.join(HERE, 'runs', '*.jsonl'))):
-            lines = [json.loads(line) for line in complete_lines(path)]
-            if not native288(lines[0]):
-                tracked[lines[0]['target']].append(lines)
-        surveys += [survey_track(target, records, procs, now) for target, records in sorted(tracked.items())]
-        now = max([now] + [s['made'] for s in surveys if s['program'] in ('focus.py', 'fanout.py', 'search288.py', 'pruning288.py')])
-        write_atomic(JS, js_text(surveys, now))
-        save_cache(CACHE, cache)
-        tree_order.cache_clear()
+        try:
+            procs, now = processes(), time.time()
+            units = (run_surveys(procs, now, cache, readings) + journal_surveys(procs, now, cache, readings)
+                     + [u for make in extra for u in make(procs, now)])
+            runs, made = snapshot(units, kept, readings, now)
+            write_atomic(JS, data_text(runs, made))
+            save_cache(CACHE, cache)
+        except Exception:               # outside every run's survey: the watcher goes on, its data file as last written
+            # TODO: log line; says this snapshot failed outside any run's survey, so the data file stays as last written
+            report('the snapshot failed; the data file stays as it was')
+            if not argv: raise
         if not argv: return
         time.sleep(REFRESH)
 

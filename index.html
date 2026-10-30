@@ -336,6 +336,7 @@ code {
 .progress summary h3 { display: inline; }   /* a run's heading, its fold's summary (2026-10-23) */
 .progress-run:not([data-run-state="running"]) summary { color: var(--muted); }   /* a run not running, grayed (2026-10-23) */
 .progress-run-state { margin-left: 0.6em; }   /* the word for a run's state, after its heading (2026-10-25) */
+.progress-stale { margin-left: 0.6em; color: var(--progress-open); }   /* a run's data a snapshot could not renew (2026-10-30) */
 .progress-eta text { font-size: 11px; fill: var(--muted); stroke: none; font-variant-numeric: tabular-nums lining-nums; }
 /* The labels at the latest record, commented out with them (dreeves, 2026-10-17: "comment it out for now"):
 .progress-eta text.label { font-size: 12px; font-weight: 600; stroke: var(--paper); stroke-width: 4px; stroke-linejoin: round; paint-order: stroke; }
@@ -2214,7 +2215,7 @@ SClaude[12][768] = {
       <template class="progress-run">
         <div class="progress-run">
           <details>
-          <summary><h3><span class="nw"><i>m</i><sup>*</sup>(<span data-n></span>) ≥ <span data-order></span>?</span> <code data-program></code></h3><span class="progress-run-state"><span data-label="running">running</span><span data-label="paused">paused</span><span data-label="frozen">frozen</span><span data-label="completed">completed</span><span data-label="aborted">aborted</span></span></summary>
+          <summary><h3><span class="nw"><i>m</i><sup>*</sup>(<span data-n></span>) ≥ <span data-order></span>?</span> <code data-program></code></h3><span class="progress-run-state"><span data-label="running">running</span><span data-label="paused">paused</span><span data-label="frozen">frozen</span><span data-label="completed">completed</span><span data-label="aborted">aborted</span></span><!-- Says the run's data are stale: the watcher could not survey it in time, or at all, so the data shown are those of the time given --><span class="progress-stale" data-stale hidden>Stale (<span data-stale-at></span>)</span></summary>
           <div class="progress-bar" aria-hidden="true"><span data-bar="so-far"></span><span data-bar="lo"></span><span data-bar="band"></span><i data-bar="median"></i></div>
           <canvas role="img" aria-label="One dot per sub-case, colored by its status, each subtree a block of its own"></canvas>
           <ul class="progress-key">
@@ -2986,7 +2987,8 @@ try {
       // instances of "ended" to "aborted" or "completed" as appropriate?")
       for (const e of box.querySelectorAll('[data-state]')) e.hidden = e.dataset.state !== label;
       for (const e of box.querySelectorAll('[data-tip], [data-state="running"]')) e.replaceChildren(line.content.cloneNode(true));
-      snapshot(box.querySelector('.progress-status'), data.made, run.so_far, run.to_go);
+      staleView(box, run);
+      snapshot(box.querySelector('.progress-status'), run.stale ?? data.made, run.so_far, run.to_go);
       for (const e of box.querySelectorAll('[data-count]')) e.textContent = run.counts[e.dataset.count].toLocaleString('en-US');
       bar(box, run);
       if (run.program === 'search288.py') search288View(box, run);
@@ -3005,6 +3007,15 @@ try {
       return L;
     });
     runsBox.replaceChildren(...boxes);
+  }
+
+  // a run whose survey failed or ran past its limit (progress.py's snapshot, 2026-10-30) shows its last good data,
+  // marked stale with their time, which its status line then gives as well; a data file written before then has no
+  // stale field, its runs fresh (== null: null or absent)
+  function staleView(box, run) {
+    const mark = box.querySelector('[data-stale]');
+    mark.hidden = run.stale == null;
+    mark.querySelector('[data-stale-at]').textContent = run.stale == null ? '' : stamp(run.stale);
   }
 
   function search288View(box, run) {
