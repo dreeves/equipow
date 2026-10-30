@@ -129,12 +129,11 @@ def check_readouts(data, reads):
         assert r['children'][:1] == [f'swatch {KINDS[kind]}' + ' record' * ((k, e) in gold)], (k, e, r)
         assert g[6] == MEANINGS[kind], (k, e, r)
         meaning.setdefault(kind, set()).add(g[6])
-        parts = re.findall(r'Claude: "[^"]*"', g[10])
-        assert ' · '.join(parts) == g[10], (k, e, r)
-        want = [(f'Claude: "order {lo} ', reason_math(k, lw)), (f'Claude: "order {hi + 1} ', reason_math(k, hw))]
+        parts = g[10].split(' · ')       # each reason names its order and holds its math (pinned as Claude: "order …" until 2026-10-30)
+        want = [(lo, reason_math(k, lw)), (hi + 1, reason_math(k, hw))]
         want = [want[:1], want, want[1:]][kind]
         assert len(parts) == len(want) + ((k, e) in gold), (k, e, r, want)     # a gold cell's note after its reasons
-        assert all(p.startswith(a) and b in p for p, (a, b) in zip(parts, want)), (k, e, r, want)
+        assert all(re.match(rf'(?:Claude: ")?order {o}\b', p, re.I) and b in p for p, (o, b) in zip(parts, want)), (k, e, r, want)
     assert all(len(v) == 1 for v in meaning.values()) and len(set.union(*meaning.values())) == len(meaning), meaning
 
 
@@ -590,9 +589,9 @@ def ringed(R, x, y):
 
 def q_section_follows_mstar_chart():
     # Replicata: index.html.
-    # Expectata: the m*(n) chart's <section class="mstar" aria-labelledby="mstar-title"> is followed, with only blank
-    # lines and comments between, by <section class="pow2" aria-labelledby="pow2-title">, and that by <section
-    # class="remarks">.  The new section holds, in order: the heading, the h2 pow2-title; a paragraph of class
+    # Expectata: a <section class="pow2" aria-labelledby="pow2-title"> after the m*(n) chart's <section class="mstar"
+    # aria-labelledby="mstar-title"> (right after it, then followed by <section class="remarks">, until 2026-10-30, when
+    # dreeves put the smallest lengths between and the order stopped being pinned).  The new section holds, in order: the heading, the h2 pow2-title; a paragraph of class
     # pow2-caption; the legend, its swatches exists, open and impossible, as the m*(n) chart's, then exists ringed in
     # gold (record) for the theorem's cells; the div pow2-chart, an image with a label; the readout paragraph
     # pow2-readout, a polite live region; then the theorem; a link to record_gaps.wl, the script of the table behind
@@ -600,13 +599,11 @@ def q_section_follows_mstar_chart():
     # its body filled from pow2.js, in a sideways-scrolling div.  (Since 2026-10-28, dreeves's README: "[CHR] Put the
     # powers-of-2 chart between the normal chart and the theorem statement"; before, the theorem and the table came
     # first.)
-    text, filler = page(), r'(?:\s|<!--.*?-->)*'
+    text = page()
     m = re.search(r'<section class="mstar" aria-labelledby="mstar-title">.*?</section>', text, re.S)
     assert m
-    s = re.match(filler + r'(<section class="pow2" aria-labelledby="pow2-title">.*?</section>)', text[m.end():], re.S)
+    s = re.search(r'(<section class="pow2" aria-labelledby="pow2-title">.*?</section>)', text[m.end():], re.S)
     assert s, text[m.end():m.end() + 400]
-    rest = text[m.end() + s.end():]
-    assert re.match(filler + r'<section class="remarks">', rest, re.S), rest[:400]
     parts = [r'<h2 id="pow2-title">', r'<p class="pow2-caption">',
              r'<ul class="legend">', r'<span class="swatch exists" aria-hidden="true">',
              r'<span class="swatch open" aria-hidden="true">', r'<span class="swatch impossible" aria-hidden="true">',

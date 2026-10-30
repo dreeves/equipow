@@ -2307,9 +2307,10 @@ def q_hover_reads_out_cells():
     # Replicata: the light run's hovers: the middle of cells lo, lo + 1 and hi + 1 of every column, in the full view
     # and zoomed in; and the kinds run's, on made-up data with every kind of reason.
     # Expectata: each readout is "n = N, m = M · BOUNDS · REASONS" for the hovered cell, BOUNDS being "m*(N) = lo"
-    # when lo = hi and "lo ≤ m*(N) ≤ hi" otherwise; REASONS are Claude: "…" strings: for a green cell (m ≤ lo) one
-    # that starts "order lo ", for a red cell (m > hi) one that starts "order hi+1 ", for a gray cell both, joined by
-    # " · "; and for a cell ringed in gold (a323395_cells, since 2026-10-19) one more, ring_note.  Every column, n = 2,
+    # when lo = hi and "lo ≤ m*(N) ≤ hi" otherwise; REASONS, joined by " · ": for a green cell (m ≤ lo) one that
+    # names order lo, for a red cell (m > hi) one that names order hi + 1, for a gray cell both; and for a cell ringed
+    # in gold (a323395_cells, since 2026-10-19) one more, naming a(m − 1).  (Until 2026-10-30 each was pinned as a
+    # Claude: "…" string starting "order …", and the gold one as ring_note.)  Every column, n = 2,
     # 4, 8, 12, …, 1024, is read out in both runs.
     for name in ('light', 'kinds'):
         R = valid_run(name)
@@ -2319,12 +2320,12 @@ def q_hover_reads_out_cells():
         for n, m, text in R['hovers']:
             lo, hi = cols[n - 1][:2]
             bounds = f'm*({n}) = {lo}' if lo == hi else f'{lo} ≤ m*({n}) ≤ {hi}'
-            reasons = [f'order {lo} '] * (m <= hi) + [f'order {hi + 1} '] * (m > lo) + [ring_note(m)] * ((n, m) in rings)
-            got = re.fullmatch(r'n = (\d+), m = (\d+) · (.*?) · (Claude: ".*")', text)
+            reasons = ([rf'\border {lo}\b'] * (m <= hi) + [rf'\border {hi + 1}\b'] * (m > lo)
+                       + [re.escape(f'a({m - 1})')] * ((n, m) in rings))
+            got = re.fullmatch(r'n = (\d+), m = (\d+) · (.*?) · (.*)', text)
             assert got and (int(got[1]), int(got[2]), got[3]) == (n, m, bounds), (name, n, m, text)
-            parts = re.findall(r'Claude: "([^"]*)"', got[4])
-            assert ' · '.join(f'Claude: "{p}"' for p in parts) == got[4], (name, text)
-            assert len(parts) == len(reasons) and all(p.startswith(r) for p, r in zip(parts, reasons)), (name, n, m, text)
+            parts = got[4].split(' · ')
+            assert len(parts) == len(reasons) and all(re.search(r, p, re.I) for p, r in zip(parts, reasons)), (name, n, m, text)
 
 
 def q_hover_swatch_matches_gold_trim():

@@ -88,16 +88,14 @@ TABLE = ('Print[FromCharacterCode[ToCharacterCode[ExportString[<|"head" -> ToStr
 # record_gaps.wl
 def q_wl_says_claude_wrote_it():
     # Replicata: record_gaps.wl's first comment.
-    # Expectata: it opens the file, as lattice_search.wl's does: its first paragraph says Claude wrote the code and
-    # every comment, for Stan Wagon at Danny Reeves's request, and that no human has reviewed them; its second says the
+    # Expectata: it opens the file, as lattice_search.wl's does, its first paragraph saying Claude wrote it (dreeves cut
+    # it to "Written by Claude." on 2026-10-30, and the longer wording stopped being pinned); its second says the
     # table's form, header row and first two rows are Stan Wagon's but for one product per line (Danny Reeves's choice).
     src = open(WL, encoding='utf-8').read()
     assert src.startswith('(* record_gaps.wl\n'), src[:80]
     paras = [re.sub(r'\s+', ' ', p) for p in src[:src.index('*)')].split('\n\n')]
-    assert 'Written by Claude (Claude Opus 5.5, an AI model made by Anthropic) on 2026-10-18, for Stan Wagon, at Danny ' \
-           "Reeves's request." in paras[1], paras[1]
-    assert "The code and every comment in this file are Claude's; no human has reviewed them." in paras[1], paras[1]
-    assert "Stan Wagon's" in paras[2] and 'one product per line' in paras[2] and "Danny Reeves's choice" in paras[2], paras[2]
+    assert 'Written by Claude' in paras[0], paras[0]
+    assert "Stan Wagon's" in paras[1] and 'one product per line' in paras[1] and "Danny Reeves's choice" in paras[1], paras[1]
 
 
 def q_wl_records_are_pow2_s():
@@ -154,7 +152,7 @@ def q_wl_stops_on_a_wrong_row():
             path = os.path.join(d, f'wrong{len(says)}.wl')
             open(path, 'w', encoding='utf-8').write(src.replace(old, new))
             out, stdout = run('Print[ExportString[ToString[r], "JSON"]]', path)
-            assert out == 'ABORTED' and f'Claude: "record_gaps.wl stopped: {says}"' in stdout, (out, stdout[-800:])
+            assert out == 'ABORTED' and f'record_gaps.wl stopped: {says}' in stdout, (out, stdout[-800:])   # its Claude: "…" unpinned 2026-10-30
     finally:
         shutil.rmtree(d)
 
