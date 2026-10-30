@@ -9,6 +9,8 @@ Potential tasks:
 * [INT] Interactive
 * [CUR] Curly quotes for quoting Claude and Astra
 * [ZOO] For anti-magic/consistency, have the same zoom controls on both charts
+* [GLT] Gold trim isn't consistent between the two charts; maybe all candidates for the smallest n (2^k) for a given m (delta) should be gold-trimmed. So the first green cell in each row as well as all the black cells in its row to the left of it.
+* [LEG] Then the legend could have green+gold, black+gold, and... maybe some other indicator for when the actual smallest known?
 
 Stan notes:
 
