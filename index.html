@@ -269,7 +269,7 @@ code {
 .sets pre code { display: block; }
 
 /* Claude's account of its lattice search, at Stan Wagon's request (2026-10-14): one block quote, ruled in Claude's hue */
-.lattice { display: grid; grid-template-columns: minmax(0, 1fr); max-width: var(--measure); }
+.lattice { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; max-width: var(--measure); }
 .lattice blockquote { margin: 0; padding-left: 1.1rem; border-left: 3px solid var(--claude); display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; }
 .lattice ul { margin: 0; padding-left: 1.2rem; display: grid; gap: 0.6rem; }
 .lattice .attrib { color: var(--muted); }
@@ -351,15 +351,14 @@ code {
 .progress-tip .togo, .progress-status .togo { color: var(--progress-togo); stroke: none; }
 .progress-tip .total, .progress-status .total { color: var(--progress-total); stroke: none; }
 
-/* Claude's table of the smallest length known for each order (Stan Wagon's suggestion, 2026-10-17): a block quote in
-   Claude's hue like the lattice section's, its table drawn as BGPW's (table.block) but not of that class, which
-   mstar.py reads as Table 2's and the new results'; its body filled from mstar.js. */
-.smallest, .oeis { display: grid; grid-template-columns: minmax(0, 1fr); max-width: var(--measure); }
-.smallest blockquote, .oeis blockquote { margin: 0; padding-left: 1.1rem; border-left: 3px solid var(--claude); display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; }
+/* Claude's table of the smallest length known for each order (Stan Wagon's suggestion, 2026-10-17), its table drawn as
+   BGPW's (table.block) but not of that class, which mstar.py reads as Table 2's and the new results'; its body filled
+   from mstar.js.  It and the OEIS section were block quotes in Claude's hue, like the lattice section's, until
+   dreeves's edits of 2026-10-29, and now space their parts as the other sections do. */
+.smallest, .oeis { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; max-width: var(--measure); }
 .smallest table { justify-self: start; border-collapse: collapse; font-variant-numeric: tabular-nums lining-nums; }
 .smallest th, .smallest td { border: 1px solid var(--rule); padding: 0.3rem 0.7rem; text-align: center; }
 .smallest th { font-weight: 400; }
-.smallest .attrib, .oeis .attrib { color: var(--muted); }
 .oeis ul, .mstar > ul { margin: 0; padding-left: 1.25rem; display: grid; gap: 0.35rem; }   /* lists of text */
 
 /* Claude's chart of m*(n) for n up to 1024: one canvas, drawn by the script at the end from mstar.js. Pan and zoom
@@ -699,7 +698,7 @@ footer {
   <div id="pow2-chart" role="img" aria-label='Chart of the bounds on m*(2^k) − k, the excess over Thue–Morse, for k from 1 to 72'></div>
   <p id="pow2-readout" aria-live="polite">Hover over a cell for details.</p>
   <p><b>Theorem.</b> \(m^*(2^{10}) \ge 11\), \(m^*(2^{20}) \ge 22\), \(m^*(2^{29}) \ge 32\), \(m^*(2^{37}) \ge 41\), \(m^*(2^{39}) \ge 44\), \(m^*(2^{48}) \ge 54\), \(m^*(2^{57}) \ge 64\), \(m^*(2^{65}) \ge 73\), \(m^*(2^{68}) \ge 77\) and \(m^*(2^9) = 9\).</p>
-  <p>More concisely: For \(i = 1, 2, \ldots, 9\), the known smallest values of \(k\) for which \(m^*(2^k) - k \ge i\) are 10, 20, 29, 37, 39, 48, 57, 65, 68.</p>
+  <p>More concisely: For \(i = 1, 2, \ldots, 9\), the smallest known values of \(k\) for which \(m^*(2^k) - k \ge i\) are 10, 20, 29, 37, 39, 48, 57, 65, 68.</p>
   <p>The following table shows the construction for each inequality in the above theorem: 
     \(2^k\) as a join of products, one per line, each with its order and the sum of its factors' orders.
     The bound is the least of those orders. 

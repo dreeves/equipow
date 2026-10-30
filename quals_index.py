@@ -370,6 +370,12 @@ function battery(R) {
   const mainLeft = main.getBoundingClientRect().left + parseFloat(ms.paddingLeft);
   R.prose = [...main.querySelectorAll('p, li')].filter(e => !e.closest('.legend')).map(e =>
     [e.id, getComputedStyle(e).textAlign, e.getBoundingClientRect().right - mainLeft]);
+  // Each section of main (2026-10-30): [its class, the least vertical space in CSS px between two of its children laid
+  // out one after the other], null with fewer than two laid out.
+  R.sectionGaps = [...main.querySelectorAll(':scope > section')].map(sec => {
+    const boxes = [...sec.children].filter(e => e.getClientRects().length > 0).map(e => e.getBoundingClientRect());
+    return [sec.className, boxes.length > 1 ? Math.min(...boxes.slice(1).map((b, i) => b.top - boxes[i].bottom)) : null];
+  });
   R.touchAction = getComputedStyle(cv).touchAction;
   // each n's first drawn text: its digits, or the 2 of 2^k, which KaTeX draws (since 2026-10-28) in its HTML beside
   // a hidden MathML copy that is skipped
@@ -899,8 +905,8 @@ def q_384_proof_is_linked():
 def q_section_follows_table2():
     # Replicata: index.html.
     # Expectata: the page's one <figure> (Table 2) is followed, with only blank lines and comments between, by
-    # <section class="mstar" aria-labelledby="mstar-title">, and that by <section class="pow2" (the chart of powers of
-    # 2; quals_pow2_page.py holds it to being followed by <section class="remarks">).  In order, the
+    # <section class="mstar" aria-labelledby="mstar-title"> (and that by <section class="pow2" until 2026-10-30, when
+    # dreeves put the smallest lengths between).  In order, the
     # section holds: a paragraph introducing the chart (dreeves's, which replaced the h2 mstar-title by 2026-10-27,
     # and since 2026-10-29 follows his h2 of that id and leads his list of the n left out);
     # a legend whose swatches are exists, open and impossible, then (since
@@ -913,7 +919,6 @@ def q_section_follows_table2():
     filler = r'(?:\s|<!--.*?-->)*'
     m = re.match(filler + r'<section class="mstar" aria-labelledby="mstar-title">.*?</section>', after, re.S)
     assert m, after[:400]
-    assert re.match(filler + r'<section class="pow2"', after[m.end():], re.S), after[m.end():m.end() + 400]
     parts = [r'<p>', r'<ul class="legend">', r'<span class="swatch exists" aria-hidden="true">',
              r'<span class="swatch open" aria-hidden="true">', r'<span class="swatch impossible" aria-hidden="true">',
              r'<span class="swatch exists record" aria-hidden="true">',
@@ -1740,7 +1745,7 @@ def q_1024_doubled_settles_2_11_and_2_12():
     # condition mod 3 allows and no more): pow2.js's columns are [12, 12, ["joins", [[[1024, 11], [2, 1]]]],
     # ["residue", [3]]] and [13, 13, ["joins", [[[1024, 11], [4, 2]]]], ["residue", [3]]]; the cells 2^11 and 2^12, of
     # class c titled Claude alone, values 12 and 13, right after 2^10's; each has an entry of its own, "m* = 12" and
-    # "m* = 13", whose Claude: "…" names p1024 # τ1 (τ2) and the residue condition mod 3, right before 2^17's; and the
+    # "m* = 13", right before 2^17's (its wording unpinned since 2026-10-30); and the
     # changelog states m*(2^11) = 12 and m*(2^12) = 13 on 2026-10-26, together on a line of their own.
     cols, text = pow2_data()['cols'], page()
     assert cols[10] == [12, 12, ['joins', [[[1024, 11], [2, 1]]]], ['residue', [3]]], cols[10]
@@ -1756,12 +1761,10 @@ def q_1024_doubled_settles_2_11_and_2_12():
     listed = re.findall(r'<p class="entry">\\\(n = (.*?)\\\): ', text)
     j = listed.index('2^{11}')
     assert listed[j:j + 3] == ['2^{11}', '2^{12}', '2^{17}'], listed
-    for k, m, j in ((11, 12, 1), (12, 13, 2)):
+    for k, m in ((11, 12), (12, 13)):
         li = re.search(r'<li class="c">\n      <span class="mk" aria-hidden="true">◆</span>\n      <p class="entry">\\\(n = '
                        rf'2\^\{{{k}\}}\\\): &nbsp;\\\(m\^\* = {m}\\\)</p>\n(.*?)\n    </li>', text, re.S)
         assert li, k
-        said = re.search(r'<p>Claude: "(.*?)"</p>', li.group(1)).group(1)
-        assert f'\\(p_{{1024}} \\mathbin{{\\#}} \\tau_{j}\\)' in said and 'residue condition mod 3' in said, said
     entries = [(d, statements(rest)) for d, rest in changelog()]
     assert ('2026-10-26', {2 ** 11: (12, 12), 2 ** 12: (13, 13)}) in entries, entries[:4]
 
@@ -1773,7 +1776,7 @@ def q_example_at_816_has_its_entry_code_and_set():
     # Expectata (2026-10-26: Claude's lattice search found an antisymmetric example of order 11 at 816, which the
     # norm bound for the residue sums mod 5 leaves at 11 to 14; 2026-10-28: w12.py found a symmetric example of order
     # 12 there, which replaced it, its code and its set): 816 has an entry of its own, "m* ∈ {12, 13, 14}", an
-    # <li class="c"> marked ◆, right after 800's and before 832's, whose Claude: "…" names the norm bound mod 5; its
+    # <li class="c"> marked ◆, right after 800's and before 832's (its wording unpinned since 2026-10-30); its
     # one code block, p816 of order 12, whose signs have order exactly 12 (synthetic division here) and are
     # symmetric; SClaude[12][816] exactly their +1 positions, 0 among them, and no SClaude[11][816]; 720's entry alone
     # (it shared one with 816 before; its own example since 2026-10-27,
@@ -1783,7 +1786,6 @@ def q_example_at_816_has_its_entry_code_and_set():
     li = re.search(r'<li class="c">\n      <span class="mk" aria-hidden="true">◆</span>\n      <p class="entry">\\\(n = '
                    r'816\\\): &nbsp;\\\(m\^\* \\in \\\{12, 13, 14\\\}\\\)</p>\n(.*?)\n    </li>', text, re.S)
     assert li, 'no entry of 816 alone'
-    assert 'norm bound for the residue sums mod 5' in re.search(r'<p>Claude: "(.*?)"</p>', li.group(1)).group(1), li.group(1)[:300]
     codes = re.findall(r'<p class="code">\n        <span>\\\(p_\{(\d+)\}\\\) \\\(\(m = (\d+)\)\\\):</span>\n'
                        r'        <code>([0-9A-F]+)</code>\n      </p>', li.group(1))
     assert len(codes) == 1 and codes[0][:2] == ('816', '12'), codes
@@ -1811,8 +1813,7 @@ def q_examples_at_720_and_1008_have_their_entries_codes_and_sets():
     # 11 there; 2026-10-28: w12.py found a symmetric example of order 12 at 1008, which replaced its order-11 example,
     # code and set, and that evening Astra's faster w12 found one at 720, which did the same): each has an entry of its
     # own, an <li class="c"> marked ◆ among the examples in order of n, 720's "m* ∈ {12, 13, 14}" between 656's and
-    # 752's, whose Claude: "…" names the residue condition mod 16, and 1008's
-    # "m* ∈ {12, 13}" between 992's and 1024's, naming the residue condition mod 5; each its one code block, of its
+    # 752's, and 1008's "m* ∈ {12, 13}" between 992's and 1024's (its wording unpinned since 2026-10-30); each its one code block, of its
     # order m (11 at 720, 12 at 1008), whose signs have order exactly m (synthetic division here) and are
     # antisymmetric at 720 and symmetric at 1008; SClaude[m][n] exactly their +1 positions, 0 among them, and no
     # SClaude[11][1008]; no other entry names 720 or 1008 (their joins' entries are gone); the cells 11–14 and 12–13;
@@ -1823,12 +1824,11 @@ def q_examples_at_720_and_1008_have_their_entries_codes_and_sets():
             for m, n, body in re.findall(r'SClaude\[(\d+)\]\[(\d+)\] = \{([^}]*)\};', text)}
     listed = [ns.split(', ') for ns in re.findall(r'<p class="entry">\\\(n = (.*?)\\\): ', text)]
     assert (11, 1008) not in sets and (11, 720) not in sets, 'a superseded SClaude[11][1008] or SClaude[11][720] is still on the page'
-    for n, m, values, before, after, says, hi in ((720, 12, '\\\\\\{12, 13, 14\\\\\\}', '656', '752', 'residue condition mod 16', 14),
-                                                  (1008, 12, '\\\\\\{12, 13\\\\\\}', '992', '1024', 'residue condition mod 5', 13)):
+    for n, m, values, before, after, hi in ((720, 12, '\\\\\\{12, 13, 14\\\\\\}', '656', '752', 14),
+                                            (1008, 12, '\\\\\\{12, 13\\\\\\}', '992', '1024', 13)):
         li = re.search(r'<li class="c">\n      <span class="mk" aria-hidden="true">◆</span>\n      <p class="entry">\\\(n = '
                        rf'{n}\\\): &nbsp;\\\(m\^\* \\in {values}\\\)</p>\n(.*?)\n    </li>', text, re.S)
         assert li, f'no entry of {n} alone'
-        assert says in re.search(r'<p>Claude: "(.*?)"</p>', li.group(1)).group(1), li.group(1)[:300]
         codes = re.findall(r'<p class="code">\n        <span>\\\(p_\{(\d+)\}\\\) \\\(\(m = (\d+)\)\\\):</span>\n'
                            r'        <code>([0-9A-F]+)</code>\n      </p>', li.group(1))
         assert len(codes) == 1 and codes[0][:2] == (str(n), str(m)), codes
@@ -1853,8 +1853,7 @@ def q_example_at_912_has_its_entry_code_and_set():
     # the signs, 1 = +1, then the rest by (-1)^m symmetry), the page's set SClaude[12][912], the new results' cell, and
     # mstar.js's column 912.
     # Expectata (2026-10-28: Claude's lattice search w12.py found a symmetric example of order 12 at 912): an entry of
-    # its own, an <li class="c"> marked ◆, "m* ∈ {12, 13}", between 896's and 928's, whose Claude: "…" names the
-    # residue condition mod 5; its one code block, p912 of order 12, whose signs have order exactly 12 (synthetic
+    # its own, an <li class="c"> marked ◆, "m* ∈ {12, 13}", between 896's and 928's (its wording unpinned since 2026-10-30); its one code block, p912 of order 12, whose signs have order exactly 12 (synthetic
     # division here) and are symmetric; SClaude[12][912] exactly their +1 positions, 0 among them; the built entry of
     # 672 and 768 no longer names 912; the cell 12–13; mstar.js's column [12, 13, ["example", "index.html p912"],
     # ["residue", 5]].
@@ -1862,7 +1861,6 @@ def q_example_at_912_has_its_entry_code_and_set():
     li = re.search(r'<li class="c">\n      <span class="mk" aria-hidden="true">◆</span>\n      <p class="entry">\\\(n = '
                    r'912\\\): &nbsp;\\\(m\^\* \\in \\\{12, 13\\\}\\\)</p>\n(.*?)\n    </li>', text, re.S)
     assert li, 'no entry of 912 alone'
-    assert 'residue condition mod 5' in re.search(r'<p>Claude: "(.*?)"</p>', li.group(1)).group(1), li.group(1)[:300]
     codes = re.findall(r'<p class="code">\n        <span>\\\(p_\{(\d+)\}\\\) \\\(\(m = (\d+)\)\\\):</span>\n'
                        r'        <code>([0-9A-F]+)</code>\n      </p>', li.group(1))
     assert len(codes) == 1 and codes[0][:2] == ('912', '12'), codes
@@ -1888,8 +1886,7 @@ def q_example_at_768_has_its_entry_code_and_set():
     # the signs, 1 = +1, then the rest by (-1)^m symmetry), the page's set SClaude[12][768], the new results' cell, and
     # mstar.js's column 768.
     # Expectata (2026-10-28 evening: Claude's lattice search w12.py found symmetric examples of order 12 at 768): an
-    # entry of its own, an <li class="c"> marked ◆, "m* ∈ {12, 13}", between 752's and 784's, whose Claude: "…" names
-    # the residue condition mod 5; its one code block, p768 of order 12, whose signs have order exactly 12 (synthetic
+    # entry of its own, an <li class="c"> marked ◆, "m* ∈ {12, 13}", between 752's and 784's (its wording unpinned since 2026-10-30); its one code block, p768 of order 12, whose signs have order exactly 12 (synthetic
     # division here) and are symmetric; SClaude[12][768] exactly their +1 positions, 0 among them; the built entry it
     # shared with 672 now names 672 alone; the cell 12–13; mstar.js's column [12, 13, ["example", "index.html p768"],
     # ["residue", 5]].
@@ -1897,7 +1894,6 @@ def q_example_at_768_has_its_entry_code_and_set():
     li = re.search(r'<li class="c">\n      <span class="mk" aria-hidden="true">◆</span>\n      <p class="entry">\\\(n = '
                    r'768\\\): &nbsp;\\\(m\^\* \\in \\\{12, 13\\\}\\\)</p>\n(.*?)\n    </li>', text, re.S)
     assert li, 'no entry of 768 alone'
-    assert 'residue condition mod 5' in re.search(r'<p>Claude: "(.*?)"</p>', li.group(1)).group(1), li.group(1)[:300]
     codes = re.findall(r'<p class="code">\n        <span>\\\(p_\{(\d+)\}\\\) \\\(\(m = (\d+)\)\\\):</span>\n'
                        r'        <code>([0-9A-F]+)</code>\n      </p>', li.group(1))
     assert len(codes) == 1 and codes[0][:2] == ('768', '12'), codes
@@ -1925,20 +1921,16 @@ RELATED = ('A382832', 'A382833', 'A362039', 'A010060', 'A106400', 'A001969', 'A0
 def q_oeis_section_links_the_family():
     # Replicata: index.html: the section after the table of smallest lengths.
     # Expectata (dreeves, 2026-10-28: "can you make a section that links to all the relevant OEIS entries and notes any
-    # discrepancies?"): <section class="oeis" aria-labelledby="oeis-title"> follows <section class="smallest">, with
-    # only blank lines and comments between; a TODO comment, then a block quote by Claude (blockquote class="claude",
-    # its h2 oeis-title, its attribution "— Claude"), with two lists: one item per entry on this problem (OEIS:
+    # discrepancies?"): a <section class="oeis" aria-labelledby="oeis-title"> with its h2 oeis-title (its place, a
+    # TODO comment, a block quote by Claude and its attribution "— Claude" were pinned too until 2026-10-30, when
+    # dreeves's edits took them out), with two lists: one item per entry on this problem (OEIS:
     # A323395, A306248, A323610, A323629, A323614), then one per related entry (RELATED: A382832, A382833, A362039,
     # A010060, A106400, A001969, A000069, A140047), each in that order and each linking https://oeis.org/ and its
     # number, once, and no other entry.
-    text, filler = page(), r'(?:\s|<!--.*?-->)*'
-    m = re.search(r'<section class="smallest" aria-labelledby="smallest-title">.*?</section>', text, re.S)
-    assert m
-    sec = re.match(filler + r'(<section class="oeis" aria-labelledby="oeis-title">.*?</section>)', text[m.end():], re.S)
-    assert sec, text[m.end():m.end() + 300]
-    body = sec.group(1)
-    assert re.search(r'<!-- TODO: [^\n]*-->\s*<blockquote class="claude">\s*<h2 id="oeis-title">', body), body[:400]
-    assert '<p class="attrib">— Claude</p>' in body
+    sec = re.search(r'<section class="oeis" aria-labelledby="oeis-title">.*?</section>', page(), re.S)
+    assert sec, 'no section "oeis"'
+    body = sec.group(0)
+    assert '<h2 id="oeis-title">' in body, body[:400]
     lists = [re.findall(r'<li>(.*?)</li>', ul, re.S) for ul in re.findall(r'<ul>(.*?)</ul>', body, re.S)]
     links = [[re.findall(r'href="https://oeis\.org/(A\d{6})"', li) for li in items] for items in lists]
     assert links == [[[a] for a in OEIS], [[a] for a in RELATED]], links
@@ -2035,12 +2027,7 @@ def q_912_moves_excess_3_to_2_29():
         [[608, 10], [800, 11], [800, 11]], [[336, 10], [336, 10], [912, 12]], [[240, 10], [432, 11], [432, 11]]])), base
     cells = new_cells(text)
     assert [cells[2 ** k] for k in (29, 30, 33, 34)] == [(32, 35), (33, 36), (36, 40), (37, 41)], [cells.get(2 ** k) for k in (29, 30, 33, 34)]
-    said = {int(k): re.search(r'<p>Claude: "(.*?)"</p>', body).group(1) for k, body in
-            re.findall(r'<p class="entry">\\\(n = 2\^\{?(\d+)\}?\\\): [^\n]*\n(.*?)\n    </li>', text, re.S)}
-    assert '\\(2^{29} = 608\\cdot 800^2 + 336^2\\cdot 912 + 240\\cdot 432^2\\)' in said[29], said[29]
-    assert 'each of order 32' in said[29] and 'That beats Thue–Morse by 3' in said[29], said[29]
-    for k, j, m in ((30, 1, 33), (33, 4, 36), (34, 5, 37)):
-        assert f'The join of the \\(2^{{29}}\\) entry, each product times \\(\\tau_{j}\\), has order {m}.' in said[k], said[k]
+    assert '\\(2^{29} = 608\\cdot 800^2 + 336^2\\cdot 912 + 240\\cdot 432^2\\)' in text   # the entries' wording unpinned since 2026-10-30
     theorem = re.search(r'<p><b>Theorem.</b>(.*?)</p>', text).group(1)
     assert '(2^{29}) \\ge 32' in theorem and '(2^{30})' not in theorem, theorem
     assert ' are 10, 20, 29, 37, 39, 48, 57, 65, 68.</p>' in text           # 41 for excess 5 until 768's example of order 12
@@ -2066,12 +2053,7 @@ def q_768_moves_excess_5_to_2_39():
         [[48, 6], [480, 12], [480, 12], [768, 12], [4, 2]]])), base
     cells = new_cells(text)
     assert [cells[2 ** k] for k in (39, 41, 43, 46)] == [(44, 47), (46, 50), (48, 53), (51, 57)], [cells.get(2 ** k) for k in (39, 41, 43, 46)]
-    said = {int(k): re.search(r'<p>Claude: "(.*?)"</p>', body).group(1) for k, body in
-            re.findall(r'<p class="entry">\\\(n = 2\^\{?(\d+)\}?\\\): [^\n]*\n(.*?)\n    </li>', text, re.S)}
-    assert 'A join of three products of examples above and Thue–Morse, each of order 44' in said[39], said[39]
-    assert 'That beats Thue–Morse by 5' in said[39], said[39]
-    for k, j, m in ((41, 2, 46), (43, 4, 48), (46, 7, 51)):
-        assert f'The join of the \\(2^{{39}}\\) entry, each product times \\(\\tau_{j}\\), has order {m}.' in said[k], said[k]
+    # the entries' wording unpinned since 2026-10-30
     theorem = re.search(r'<p><b>Theorem.</b>(.*?)</p>', text).group(1)
     assert '(2^{39}) \\ge 44' in theorem and '(2^{41})' not in theorem, theorem
 
@@ -2090,6 +2072,18 @@ def q_page_loads_clean():
     assert R['canvasDev'][1] > 0 and close(R['canvasCss'][0], R['mainContentW'], 1), R
     v = R['views'][0]
     assert close(v['u0'], 0, 0.01) and close(v['span'], NCOL, 0.05), v
+
+
+def q_sections_space_their_parts():
+    # Replicata: the light run: each section of main, and the space between each two of its children laid out one after
+    # the other (the least per section).
+    # Expectata (dreeves, 2026-10-30: "what's up with the spacing here?", of the smallest lengths' heading, paragraph and
+    # table, flush once his edit took them out of the block quote whose grid had spaced them): at least 12 px, as every
+    # section with two or more parts has.
+    # Resultata before: 0 px in the sections smallest, oeis and lattice.
+    R = valid_run('light')
+    tight = [(c, g) for c, g in R['sectionGaps'] if g is not None and g < 12]
+    assert len(R['sectionGaps']) >= 9 and not tight, (tight, R['sectionGaps'])
 
 
 def q_prose_has_one_measure():
@@ -2731,8 +2725,8 @@ def q_theorem_states_pow2_s_thresholds():
 
 def q_smallest_section_sits_between_the_remarks_and_the_counts():
     # Replicata: index.html's section "The smallest length known for each order".
-    # Expectata: a <section class="smallest" aria-labelledby="smallest-title"> right after the remarks' section and
-    # right before the counts' section (only blank lines and comments between), holding its heading, a link to OEIS
+    # Expectata: a <section class="smallest" aria-labelledby="smallest-title"> (anywhere since 2026-10-30, when
+    # dreeves moved it after the m*(n) chart; between the remarks and the counts before), holding its heading, a link to OEIS
     # A323395, and a table whose body is empty in the HTML: the script fills it from mstar.js; and not of class block,
     # so that the page keeps the twelve tables of that class that mstar.py reads as Table 2's and the new results'
     # (their count asserted there until 2026-10-27, which a tenth broke on 2026-10-17; nine until 2026-10-26, when the
@@ -2740,10 +2734,8 @@ def q_smallest_section_sits_between_the_remarks_and_the_counts():
     # six upper rows).
     text = page()
     filler = r'(?:\s|<!--.*?-->)*'
-    m = re.search(r'<section class="remarks">.*?</section>\n' + filler +
-                  r'(<section class="smallest" aria-labelledby="smallest-title">\n.*?\n</section>)\n' + filler +
-                  r'<section class="counts">', text, re.S)
-    assert m, 'no section "smallest" between the remarks and the counts'
+    m = re.search(r'(<section class="smallest" aria-labelledby="smallest-title">\n.*?\n</section>)', text, re.S)
+    assert m, 'no section "smallest"'
     body = m.group(1)
     assert '<h2 id="smallest-title">' in body, body[:300]
     assert 'href="https://oeis.org/A323395"' in body, body
