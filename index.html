@@ -767,44 +767,88 @@ Or just start identifying redundancies and repetition on the page and fix them o
 <section class="remarks">
   <h2>Where the new results come from</h2>
   <!-- TODO: says how the upper bounds are proven: a partition written as signs f_0, ..., f_(n−1) and f(x) = sum f_i x^i has order m when (x − 1)^m divides f(x); for a modulus M the residue sum D_r is the number of +1s minus the number of −1s at the positions i ≡ r (mod M); f(x) reduced modulo x^M − 1 is sum D_r x^r and must still be a multiple of (x − 1)^m modulo x^M − 1, each D_r having its class size's parity and being at most that size in absolute value; and the residue condition mod M rules out order m when an exhaustive search finds no residue sums meeting all that -->
-  <p>Claude: “How the upper bounds are proven. Write a partition of \(0, 1, \ldots, n - 1\) as signs \(f_0, \ldots, f_{n-1}\), \(+1\) on one half and \(-1\) on the other, and let \(f(x) = f_0 + f_1x + \cdots + f_{n-1}x^{n-1}\). Order \(m\) means that \((x - 1)^m\) divides \(f(x)\). For a modulus \(M\), the residue sum \(D_r\) is the number of \(+1\)s minus the number of \(-1\)s at the positions \(i \equiv r \pmod{M}\). Reducing \(f(x)\) modulo \(x^M - 1\) leaves \(D_0 + D_1x + \cdots + D_{M-1}x^{M-1}\), which must still be a multiple of \((x - 1)^m\) modulo \(x^M - 1\). Each \(D_r\) also has the parity of its class's size and is at most that size in absolute value. The residue condition mod \(M\) rules out order \(m\) when an exhaustive search finds no residue sums that meet all of this.”</p>
+  <p>
+    Claude: “How the upper bounds are proven. 
+    Write a partition of \(0, 1, \ldots, n - 1\) as signs \(f_0, \ldots, f_{n-1}\), \(+1\) on one half and \(-1\) on the other, and let \(f(x) = f_0 + f_1x + \cdots + f_{n-1}x^{n-1}\). 
+    Order \(m\) means that \((x - 1)^m\) divides \(f(x)\). 
+    For a modulus \(M\), the residue sum \(D_r\) is the number of \(+1\)s minus the number of \(-1\)s at the positions \(i \equiv r \pmod{M}\). 
+    Reducing \(f(x)\) modulo \(x^M - 1\) leaves \(D_0 + D_1x + \cdots + D_{M-1}x^{M-1}\), which must still be a multiple of \((x - 1)^m\) modulo \(x^M - 1\). 
+    Each \(D_r\) also has the parity of its class's size and is at most that size in absolute value. 
+    The residue condition mod \(M\) rules out order \(m\) when an exhaustive search finds no residue sums that meet all of this.”
+  </p>
   <!-- TODO: says the norm bound for a prime p not dividing n: with M = p and zeta a primitive pth root of unity, f(zeta) = sum D_r zeta^r is not 0 (else the D_r would all be equal, hence 0, as they sum to f(1) = 0, while some class has an odd size and so an odd D_r); it is a multiple of (zeta − 1)^m, whose norm is p^m, so its norm, a positive integer, is at least p^m; by the inequality of arithmetic and geometric means that norm is at most (p sum D_r^2 / (p − 1))^((p − 1)/2); and with s_r the size of class r and |D_r| ≤ s_r, order m needs p^(2m) (p − 1)^(p − 1) ≤ (p sum s_r^2)^(p − 1) -->
-  <p>Claude: “The norm bound for a prime \(p\) that does not divide \(n\) uses the same sums with \(M = p\). Let \(\zeta\) be a primitive \(p\)th root of unity. Then \(f(\zeta) = D_0 + D_1\zeta + \cdots + D_{p-1}\zeta^{p-1}\) is not 0: if it were, the \(D_r\) would all be equal, hence all 0, as they sum to \(f(1) = 0\); but since \(p\) does not divide \(n\), some class has an odd size and so an odd \(D_r\). It is a multiple of \((\zeta - 1)^m\), whose norm is \(p^m\), so the norm of \(f(\zeta)\), a positive integer, is at least \(p^m\). By the inequality of arithmetic and geometric means, that norm is also at most \((p \sum D_r^2 / (p - 1))^{(p-1)/2}\). With \(s_r\) the size of class \(r\) and \(|D_r| \le s_r\), order \(m\) needs \(p^{2m} (p - 1)^{p-1} \le (p \sum s_r^2)^{p-1}\).”</p>
+  <p>
+    Claude: “The norm bound for a prime \(p\) that does not divide \(n\) uses the same sums with \(M = p\). 
+    Let \(\zeta\) be a primitive \(p\)th root of unity. 
+    Then \(f(\zeta) = D_0 + D_1\zeta + \cdots + D_{p-1}\zeta^{p-1}\) is not 0: if it were, the \(D_r\) would all be equal, hence all 0, as they sum to \(f(1) = 0\); but since \(p\) does not divide \(n\), some class has an odd size and so an odd \(D_r\). 
+    It is a multiple of \((\zeta - 1)^m\), whose norm is \(p^m\), so the norm of \(f(\zeta)\), a positive integer, is at least \(p^m\). 
+    By the inequality of arithmetic and geometric means, that norm is also at most \((p \sum D_r^2 / (p - 1))^{(p-1)/2}\). 
+    With \(s_r\) the size of class \(r\) and \(|D_r| \le s_r\), order \(m\) needs \(p^{2m} (p - 1)^{p-1} \le (p \sum s_r^2)^{p-1}\).”
+  </p>
   <!-- TODO: says mstar.py and pow2.py (linked) repeat the search behind every residue claim each time they run, and that certificates that can be checked on their own, like proof512.wl for 512, are still to be done -->
-  <p>Claude: “<a href="https://github.com/dreeves/equipow/blob/main/mstar.py">mstar.py</a> and 
+  <p>
+    Claude: “<a href="https://github.com/dreeves/equipow/blob/main/mstar.py">mstar.py</a> and 
     <a href="https://github.com/dreeves/equipow/blob/main/pow2.py">pow2.py</a> 
     repeat the search behind every residue claim each time they run. 
-    Certificates that can be checked on their own, like proof512.wl for 512, are still to be done.”</p>
-  <p>The hex codes shown below follow Table 5 of BGPW: 
-    the left half of the signs \((1 = +1, 0 = -1)\), then the rest by \((-1)^m\) symmetry.</p>
-  <p>Finally, the symbols \(\mathbin{\#}\) and \(\vee\) denote the expanded product and the join operation on Littlewood polynomials:<br>
+    Certificates that can be checked on their own, like proof512.wl for 512, are still to be done.”
+  </p>
+  <p>
+    The hex codes shown below follow Table 5 of BGPW: 
+    the left half of the signs \((1 = +1, 0 = -1)\), then the rest by \((-1)^m\) symmetry.
+  </p>
+  <p>
+    Finally, the symbols \(\mathbin{\#}\) and \(\vee\) denote the expanded product and the join operation on Littlewood polynomials:<br>
     \(f \mathbin{\#} g = f(x)\cdot g(x^{n_f})\)<br>
     \(f \vee g = f(x) + x^{n_f} g(x)\),<br>
     where \(n_f\) is the length of \(f\). 
-    </p>
+  </p>
 
   <ul>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 240\): &nbsp;\(m^* = 10\)</p>
       <!-- TODO: says a computer search rules out order 11: it splits the question by how many +1's fall in each residue class mod 3, 5, 7, 4, 8, 11, 13 and 9, closes every case with linear-programming certificates checked in exact integer arithmetic, and needed splitting further mod 17 for the last 606 cases and mod 19 for 4 of those -->
-      <p>Claude: “Order 11 is ruled out by a computer search. It splits the question by how many \(+1\)'s fall in each residue class mod 3, 5, 7, 4, 8, 11, 13 and 9, and closes every case with linear-programming certificates checked in exact integer arithmetic; the last 606 cases needed splitting further, mod 17, and 4 of those mod 19 as well.”</p>
+      <p>
+        Claude: “Order 11 is ruled out by a computer search. 
+        It splits the question by how many \(+1\)'s fall in each residue class mod 3, 5, 7, 4, 8, 11, 13 and 9, and closes every case with linear-programming certificates checked in exact integer arithmetic; the last 606 cases needed splitting further, mod 17, and 4 of those mod 19 as well.”
+      </p>
       <!-- TODO: names the code of the search, with links, and says its journals hold every verdict with the hash of its proof -->
-      <p>Claude: “The code is <a href="https://github.com/dreeves/equipow/blob/main/overnight_v5.py">overnight_v5.py</a> with <a href="https://github.com/dreeves/equipow/blob/main/certbb.py">certbb.py</a>, and <a href="https://github.com/dreeves/equipow/blob/main/boxsplit.py">boxsplit.py</a> for the last 606 cases; their journals hold every verdict with the hash of its proof.”</p>
+      <p>
+        Claude: “The code is 
+        <a href="https://github.com/dreeves/equipow/blob/main/overnight_v5.py">overnight_v5.py</a> with 
+        <a href="https://github.com/dreeves/equipow/blob/main/certbb.py">certbb.py</a>, and 
+        <a href="https://github.com/dreeves/equipow/blob/main/boxsplit.py">boxsplit.py</a> 
+        for the last 606 cases; their journals hold every verdict with the hash of its proof.”
+      </p>
     </li>
     <li>
       <span class="mk" aria-hidden="true"></span>
       <p class="entry">\(n = 288\): &nbsp;\(m^* \in \{9, 10\}\)</p>
       <!-- TODO: says this entry is not a new result: m*(288) ≤ 10, the upper value in Table 2's entry for 288, is rederived here; proof288.py (linked) checks exactly that no partition of {0, …, 287} into two parts has equal power sums for every exponent from 0 to 10, so the bound no longer has to be taken from BGPW -->
-      <p>Claude: “Not a new result: \(m^*(288) \le 10\), the upper value in Table 2's entry for 288, is rederived here. <a href="https://github.com/dreeves/equipow/blob/main/proof288.py">proof288.py</a> checks exactly that no partition of \(\{0, \ldots, 287\}\) into two parts has equal power sums for every exponent from 0 to 10, so the bound no longer has to be taken from BGPW.”</p>
+      <p>
+        Claude: “Not a new result: \(m^*(288) \le 10\), the upper value in Table 2's entry for 288, is rederived here. 
+        <a href="https://github.com/dreeves/equipow/blob/main/proof288.py">proof288.py</a> 
+        checks exactly that no partition of \(\{0, \ldots, 287\}\) into two parts has equal power sums for every exponent from 0 to 10, so the bound no longer has to be taken from BGPW.”
+      </p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 304\): &nbsp;\(m^* = 8\)</p>
       <!-- TODO: says a computer search rules out order 9: it splits the question by how many +1's fall in each residue class mod 3, 5, 4, 7, 8 and 9, closes every case with linear-programming certificates checked in exact integer arithmetic, and needed splitting further mod 11 and 13 for the last 8 cases; and that this closes the route to order 21 for 2^20 through 8·304·368 + 320·480, which needed 304 to have order 9, though 2^20 now has order 22 another way, the 2^20 entry below -->
-      <p>Claude: “Order 9 is ruled out by a computer search. It splits the question by how many \(+1\)'s fall in each residue class mod 3, 5, 4, 7, 8 and 9, and closes every case with linear-programming certificates checked in exact integer arithmetic; the last 8 cases needed splitting further, mod 11 and then mod 13. That closes the route to order 21 for \(2^{20}\) through \(8\cdot 304\cdot 368 + 320\cdot 480 = 2^{20}\), which needed 304 to have order 9. \(2^{20}\) now has order 22 another way: the \(2^{20}\) entry below.”</p>
+      <p>
+        Claude: “Order 9 is ruled out by a computer search. 
+        It splits the question by how many \(+1\)'s fall in each residue class mod 3, 5, 4, 7, 8 and 9, and closes every case with linear-programming certificates checked in exact integer arithmetic; the last 8 cases needed splitting further, mod 11 and then mod 13. 
+        That closes the route to order 21 for \(2^{20}\) through \(8\cdot 304\cdot 368 + 320\cdot 480 = 2^{20}\), which needed 304 to have order 9. 
+        \(2^{20}\) now has order 22 another way: the \(2^{20}\) entry below.”
+      </p>
       <!-- TODO: names the code of the search, with links, and says its journals hold every verdict with the hash of its proof -->
-      <p>Claude: “The code is <a href="https://github.com/dreeves/equipow/blob/main/overnight_v5.py">overnight_v5.py</a> with <a href="https://github.com/dreeves/equipow/blob/main/certbb.py">certbb.py</a>, and <a href="https://github.com/dreeves/equipow/blob/main/boxsplit.py">boxsplit.py</a> for the last 8 cases; their journals hold every verdict with the hash of its proof.”</p>
+      <p>
+        Claude: “The code is 
+        <a href="https://github.com/dreeves/equipow/blob/main/overnight_v5.py">overnight_v5.py</a> with 
+        <a href="https://github.com/dreeves/equipow/blob/main/certbb.py">certbb.py</a>, and 
+        <a href="https://github.com/dreeves/equipow/blob/main/boxsplit.py">boxsplit.py</a> 
+        for the last 8 cases; their journals hold every verdict with the hash of its proof.”
+      </p>
     </li>
     <li class="s">
       <span class="mk" aria-hidden="true">●</span>
@@ -2269,7 +2313,7 @@ SClaude[12][768] = {
           <details>
           <summary><h3><span class="nw"><i>m</i><sup>*</sup>(<span data-n></span>) ≥ <span data-order></span>?</span> <code data-program></code></h3><span class="progress-run-state"><span data-label="running">running</span><span data-label="paused">paused</span><span data-label="frozen">frozen</span><span data-label="completed">completed</span><span data-label="aborted">aborted</span></span><!-- Says the run's data are stale: the watcher could not survey it in time, or at all, so the data shown are those of the time given --><span class="progress-stale" data-stale hidden>Stale (<span data-stale-at></span>)</span></summary>
           <div class="progress-bar" aria-hidden="true"><span data-bar="so-far"></span><span data-bar="lo"></span><span data-bar="band"></span><i data-bar="median"></i></div>
-          <canvas role="img" aria-label="One dot per sub-case, colored by its status, each subtree a block of its own"></canvas>
+          <canvas role="img" aria-label="One dot per sub-case, color-coded with status, each subtree a block of its own"></canvas>
           <ul class="progress-key">
             <li><span class="progress-sw" data-status="settled"></span>settled <span data-count="settled"></span></li>
             <li><span class="progress-sw" data-status="open"></span>open <span data-count="open"></span></li>
@@ -2327,8 +2371,8 @@ SClaude[12][768] = {
         <span>Astra: “288:10 search (second dot block): <b data-attempt-count="attempted"></b>/<b data-attempt-count="total"></b> attempted; <b data-attempt-count="empty"></b> empty, <b data-attempt-count="timeout"></b> timed out.”</span><br>
         <span>Astra: “<span data-search-state></span>; elapsed <b data-elapsed></b>; phase: <span data-attempt-phase="preparation">preparation</span><span data-attempt-phase="calibration">calibration</span><span data-attempt-phase="search">search</span>; outcome: <span data-attempt-outcome="null">pending</span><span data-attempt-outcome="control_failed">control not recovered; target not started</span><span data-attempt-outcome="budget">batch ended; unresolved</span><span data-attempt-outcome="witness">target witness verified</span><span data-attempt-outcome="failed">run failed; unresolved</span>. Empty pruned attempts and timeouts leave the question open; no completion estimate.”</span>
       </template>
-      <!-- TODO: explains that the two dot blocks count calibration and target attempts, with completed attempts still unresolved. -->
-      <template class="progress-attempt-hint">Astra: “One dot per attempt: 240:10 calibration first, 288:10 search second. <span class="progress-sw" data-status="open"></span> completed attempt; <span class="progress-sw" data-status="running"></span> running; <span class="progress-sw" data-status="pending"></span> pending.”</template>
+      <!-- Explains that the two dot blocks count calibration and target attempts, with completed attempts still unresolved. -->
+      <template class="progress-attempt-hint">One dot per attempt: 240:10 calibration first, 288:10 search second. <span class="progress-sw" data-status="open"></span> completed attempt; <span class="progress-sw" data-status="running"></span> running; <span class="progress-sw" data-status="pending"></span> pending.</template>
       <!-- TODO: compares the baseline and wider pruning attempts, requires both control recoveries, and reports completed target attempt times without implying an exclusion or ETA. -->
       <template class="progress-pruning288">
         <span>Astra: “240:10 controls recovered: baseline <b data-attempt-count="baseline_control_witnesses"></b>/1; wider <b data-attempt-count="wider_control_witnesses"></b>/1. Both are required before the target search.”</span><br>
@@ -2336,22 +2380,22 @@ SClaude[12][768] = {
         <span>Astra: “288:10 wider: <b data-attempt-count="wider_attempted"></b>/<b data-attempt-count="variant_total"></b> attempted; <b data-attempt-count="wider_empty"></b> empty, <b data-attempt-count="wider_timeout"></b> timed out, <b data-attempt-count="wider_witnesses"></b> witnesses; completed attempts took <b data-attempt-count="wider_seconds"></b> s.”</span><br>
         <span>Astra: “<span data-search-state></span>; elapsed <b data-elapsed></b>; phase: <span data-attempt-phase="preparation">preparation</span><span data-attempt-phase="calibration">calibration</span><span data-attempt-phase="search">search</span>; outcome: <span data-attempt-outcome="null">pending</span><span data-attempt-outcome="control_failed">at least one control was not recovered; target not started</span><span data-attempt-outcome="budget">batch ended; unresolved</span><span data-attempt-outcome="witness">target witness verified</span><span data-attempt-outcome="failed">run failed; unresolved</span>. Empty pruned attempts and timeouts leave the question open; no completion estimate.”</span>
       </template>
-      <!-- TODO: identifies the four dot blocks and distinguishes completed, active and pending attempts. -->
-      <template class="progress-pruning-hint">Astra: “Dot blocks, in order: 240:10 baseline, 240:10 wider, 288:10 baseline, 288:10 wider. <span class="progress-sw" data-status="open"></span> completed attempt; <span class="progress-sw" data-status="running"></span> running; <span class="progress-sw" data-status="pending"></span> pending.”</template>
-      <!-- TODO: distinguishes the fresh 560 control from the 592 pilot, reports elapsed time and outcomes, and states that empty or timed-out attempts establish no exclusion or completion estimate. -->
+      <!-- Identifies the four dot blocks and distinguishes completed, active and pending attempts. -->
+      <template class="progress-pruning-hint">Dot blocks, in order: 240:10 baseline, 240:10 wider, 288:10 baseline, 288:10 wider. <span class="progress-sw" data-status="open"></span> completed attempt; <span class="progress-sw" data-status="running"></span> running; <span class="progress-sw" data-status="pending"></span> pending.</template>
+      <!-- Distinguishes the fresh 560 control from the 592 pilot, reports elapsed time and outcomes, and states that empty or timed-out attempts establish no exclusion or completion estimate. -->
       <template class="progress-search592">
-        <span>Astra: “560:10 calibration (first dot block): <b data-attempt-count="control_attempted"></b>/<b data-attempt-count="control_total"></b> attempted; <b data-attempt-count="control_empty"></b> empty, <b data-attempt-count="control_timeout"></b> timed out, <b data-attempt-count="control_witnesses"></b> witnesses.”</span><br>
-        <span>Astra: “592:10 search (second dot block): <b data-attempt-count="attempted"></b>/<b data-attempt-count="total"></b> attempted; <b data-attempt-count="empty"></b> empty, <b data-attempt-count="timeout"></b> timed out.”</span><br>
-        <span>Astra: “<span data-search-state></span>; elapsed <b data-elapsed></b>; phase: <span data-attempt-phase="preparation">preparation</span><span data-attempt-phase="calibration">calibration</span><span data-attempt-phase="search">search</span>; outcome: <span data-attempt-outcome="null">pending</span><span data-attempt-outcome="control_failed">control not recovered; target not started</span><span data-attempt-outcome="budget">batch ended; unresolved</span><span data-attempt-outcome="witness">target witness verified</span><span data-attempt-outcome="failed">run failed; unresolved</span>. Empty pruned attempts and timeouts leave the question open; no completion estimate.”</span>
+        <span>560:10 calibration (first dot block): <b data-attempt-count="control_attempted"></b>/<b data-attempt-count="control_total"></b> attempted; <b data-attempt-count="control_empty"></b> empty, <b data-attempt-count="control_timeout"></b> timed out, <b data-attempt-count="control_witnesses"></b> witnesses.</span><br>
+        <span>592:10 search (second dot block): <b data-attempt-count="attempted"></b>/<b data-attempt-count="total"></b> attempted; <b data-attempt-count="empty"></b> empty, <b data-attempt-count="timeout"></b> timed out.</span><br>
+        <span><span data-search-state></span>; elapsed <b data-elapsed></b>; phase: <span data-attempt-phase="preparation">preparation</span><span data-attempt-phase="calibration">calibration</span><span data-attempt-phase="search">search</span>; outcome: <span data-attempt-outcome="null">pending</span><span data-attempt-outcome="control_failed">control not recovered; target not started</span><span data-attempt-outcome="budget">batch ended; unresolved</span><span data-attempt-outcome="witness">target witness verified</span><span data-attempt-outcome="failed">run failed; unresolved</span>. Empty pruned attempts and timeouts leave the question open; no completion estimate.</span>
       </template>
-      <!-- TODO: identifies the 560 calibration and 592 target dot blocks, with completed, running and pending attempt colors. -->
-      <template class="progress-592-hint">Astra: “One dot per attempt: 560:10 calibration first, 592:10 search second. <span class="progress-sw" data-status="open"></span> completed attempt; <span class="progress-sw" data-status="running"></span> running; <span class="progress-sw" data-status="pending"></span> pending.”</template>
-      <!-- TODO: says how many runs the tracked search has, how many are running, frozen, ended and aborted, how many results its runs have found, how long it has been going, and its state -->
+      <!-- Identifies the 560 calibration and 592 target dot blocks, with completed, running and pending attempt colors. -->
+      <template class="progress-592-hint">One dot per attempt: 560:10 calibration first, 592:10 search second. <span class="progress-sw" data-status="open"></span> completed attempt; <span class="progress-sw" data-status="running"></span> running; <span class="progress-sw" data-status="pending"></span> pending.</template>
+      <!-- Says how many runs the tracked search has, how many are running, frozen, ended and aborted, how many results its runs have found, how long it has been going, and its state -->
       <template class="progress-track">
-        <span>Claude: “<b data-attempt-count="runs"></b> runs: <b data-attempt-count="running"></b> running, <b data-attempt-count="frozen"></b> frozen, <b data-attempt-count="ended"></b> ended, <b data-attempt-count="aborted"></b> aborted; <b data-attempt-count="found"></b> found; elapsed <b data-elapsed></b>; <span data-search-state></span>.”</span>
+        <span><b data-attempt-count="runs"></b> runs: <b data-attempt-count="running"></b> running, <b data-attempt-count="frozen"></b> frozen, <b data-attempt-count="ended"></b> ended, <b data-attempt-count="aborted"></b> aborted; <b data-attempt-count="found"></b> found; elapsed <b data-elapsed></b>; <span data-search-state></span>.</span>
       </template>
-      <!-- TODO: says each dot is one run of the search, with the colors of ended, running, frozen and aborted runs -->
-      <template class="progress-track-hint">Claude: “One dot per run: <span class="progress-sw" data-status="settled"></span> ended; <span class="progress-sw" data-status="running"></span> running; <span class="progress-sw" data-status="pending"></span> frozen; <span class="progress-sw" data-status="open"></span> aborted.”</template>
+      <!-- Says each dot is one run of the search, with the colors of ended, running, frozen and aborted runs -->
+      <template class="progress-track-hint">One dot per run: <span class="progress-sw" data-status="settled"></span> ended; <span class="progress-sw" data-status="running"></span> running; <span class="progress-sw" data-status="pending"></span> frozen; <span class="progress-sw" data-status="open"></span> aborted.</template>
     </details>
 </section>
 

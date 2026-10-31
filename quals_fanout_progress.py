@@ -462,9 +462,9 @@ class FanoutPauseQuals(unittest.TestCase):
         # Replicata: spanning() with a pause from 230 s not over (its end infinite: no resume recorded), the driver
         # stopped (process state T), surveyed at 300 s and at 400 s, an ETA recorded at 220 s; then the same surveyed
         # at 300 s with the driver not stopped yet (its pause recorded just before its stop).
-        # Expectata: paused, as survey_focus's rule makes a stopped run (dreeves, 2026-10-30), with 130 s so far at
-        # either time, no estimate and no new record of ETAs; the record at 220 s at 120 s of running; and the run not
-        # yet stopped running, its time from 230 s left out all the same.
+        # Expectata: paused, by survey_focus's rule for a stopped run (spans_of's since 2026-10-30), with 130 s so far
+        # at either time, no estimate and no new record of ETAs; the record at 220 s at 120 s of running; and the run
+        # not yet stopped running, its time from 230 s left out all the same.
         # Resultata before: frozen, its time so far growing with every snapshot while it was stopped.
         live = [(230, float('inf'))]
         observations = {'220.0': [1, 0.5, 2]}
@@ -473,7 +473,8 @@ class FanoutPauseQuals(unittest.TestCase):
             self.assertEqual((run['state'], run['so_far'], run['to_go']), ('paused', 130, None))
             self.assertEqual(list(observations), ['220.0'])
             self.assertEqual([round(r[1] * progress.HOUR, 9) for r in progress.eta_records(run)], [120])
-        self.assertEqual((paused(spanning(), live)['state'], paused(spanning(), live)['so_far']), ('running', 130))
+        run = paused(spanning(), live)
+        self.assertEqual((run['state'], run['so_far']), ('running', 130))
 
     def test_eta_records_run_on_running_time(self):
         # Replicata: spanning() surveyed running at 300 s, with ETAs recorded at 140 s and at 260 s and a pause from
