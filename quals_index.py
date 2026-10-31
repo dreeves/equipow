@@ -4,10 +4,11 @@ arguments: all quals).
 
 Each qual is a function q_*: a passing qual returns, a failing one raises.  Each qual's comment gives its replicata (the
 setup) and expectata (what must happen); a failure's message or traceback gives the resultata (what happened instead).
-The static quals read index.html and mstar.js (and, for the changelog, index.html's git history and sourcery.html).  The
-browser quals load a copy of index.html in headless Chrome (in an iframe of the width each configuration asks for,
-since the window cannot be narrower than 500 px), in a temporary directory with a copy of mstar.js (or made-up data)
-and of pow2.js (the data of the page's chart of powers of 2), with two scripts added:
+The static quals read index.html, the stylesheet and scripts it links in page/ (inline in it until 2026-10-31) and
+mstar.js (and, for the changelog, index.html's git history and sourcery.html).  The browser quals load a copy of
+index.html in headless Chrome (in an iframe of the width each configuration asks for, since the window cannot be
+narrower than 500 px), in a temporary directory with a copy of page/, of mstar.js (or made-up data) and of pow2.js (the
+data of the page's chart of powers of 2), with two scripts added:
 EARLY, first in the head, which records errors and every string drawn on a canvas, and
 HARNESS, last in the body, which drives the chart with synthetic events and posts what it saw to the host page, which
 writes it into the DOM that --dump-dom returns.
@@ -23,6 +24,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 INDEX = os.path.join(HERE, 'index.html')
 DATA = os.path.join(HERE, 'mstar.js')         # made by mstar.py; the chart's data
 POW2 = os.path.join(HERE, 'pow2.js')          # made by pow2.py; the data of the chart of powers of 2, also on the page
+PAGE_DIR = os.path.join(HERE, 'page')         # the page's stylesheet and scripts, which index.html links (2026-10-31)
 CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
 TOKENS = ('--exists', '--open', '--impossible')                    # the chart's three colors, in the order of kind
 PROVENANCE = ('--claude', '--stan')
@@ -42,6 +44,26 @@ RUNS = {}                                     # browser runs by configuration na
 def page(): return open(INDEX, encoding='utf-8').read()
 
 
+def page_css():
+    """The page's own stylesheet: the one file of page/ that index.html links as a stylesheet, page/style.css (a <style>
+    block in index.html until 2026-10-31)."""
+    [href] = re.findall(r'<link rel="stylesheet" href="(page/[^"]+)">', page())
+    return open(os.path.join(HERE, href), encoding='utf-8').read()
+
+
+def page_scripts(text):
+    """The texts of the page's own scripts in text (index.html or a part of it), in order: each <script src="page/…">,
+    read from its file (index.html's inline scripts until 2026-10-31, each the same text but for the newline after
+    <script>)."""
+    return [open(os.path.join(HERE, src), encoding='utf-8').read()
+            for src in re.findall(r'<script src="(page/[^"]+)"></script>', text)]
+
+
+def copy_page_dir(d):
+    """A copy of page/, the page's stylesheet and scripts, in directory d, beside the copy of index.html there."""
+    shutil.copytree(PAGE_DIR, os.path.join(d, 'page'))
+
+
 def section():
     """The chart's section: the HTML from <section class="mstar" to its </section>."""
     text = page()
@@ -53,9 +75,10 @@ def section():
 def theme_blocks():
     """The custom properties of the page's one theme block, :root, as a one-item list (dreeves, 2026-10-12: no dark
     mode, so no other theme block)."""
-    css = re.search(r'<style>(.*?)</style>', page(), re.S).group(1)
+    css = page_css()
+    whole = page() + css + ''.join(page_scripts(page()))           # the page with its stylesheet and scripts
     ms = list(re.finditer(r'\n:root \{(.*?)\n\s*\}', css, re.S))
-    assert len(ms) == 1 and 'prefers-color-scheme' not in page() and 'data-theme' not in page()
+    assert len(ms) == 1 and 'prefers-color-scheme' not in whole and 'data-theme' not in whole
     return [dict(re.findall(r'(--[\w-]+):\s*([^;]+);', ms[0].group(1)))]
 
 
@@ -787,6 +810,7 @@ def run(name):
             '__OPTS__', json.dumps({'hoverEvery': every})).replace('__NCOL__', str(NCOL)).replace('__COLUMNS__', json.dumps(COLUMNS)) + '</body>')
         if theme: text = text.replace('<html lang="en">', f'<html lang="en" data-theme="{theme}">')
         open(os.path.join(d, 'index.html'), 'w', encoding='utf-8').write(text)
+        copy_page_dir(d)
         if data is not None: open(os.path.join(d, 'mstar.js'), 'w', encoding='utf-8').write(SOURCES[data]())
         shutil.copy(POW2, os.path.join(d, 'pow2.js'))
         open(os.path.join(d, 'host.html'), 'w').write(HOST.replace('__WIDTH__', str(width)))
@@ -803,9 +827,12 @@ def chrome(d, args, stderr=subprocess.DEVNULL):
     """Headless Chrome with its own profile in directory d: the DOM it dumps.  This Chrome prints the dump and then
     does not exit, so the dump is read up to </html> and then Chrome's own process group is ended (end_group), all of
     it, before d may go (a watchdog sends it SIGTERM after 600 s, and the dump is then incomplete, which the caller's
-    assert reports)."""
+    assert reports).  It lets file URLs read file URLs (--allow-file-access-from-files, since 2026-10-31, when the page's
+    scripts left index.html for page/): plain file:// gives each file an origin of its own, so an uncaught error thrown
+    in page/ reached the page's error listeners only as "Script error.", with no error object; over http(s), where the
+    page is served, its files share its origin and the error comes through whole, as it does here with the flag."""
     p = subprocess.Popen([CHROME, '--headless=new', f'--user-data-dir={d}/profile', '--no-first-run',
-                          '--no-default-browser-check', '--disable-extensions', *args],
+                          '--no-default-browser-check', '--disable-extensions', '--allow-file-access-from-files', *args],
                          stdout=subprocess.PIPE, stderr=stderr, text=True, start_new_session=True)
     stop = lambda: os.killpg(p.pid, signal.SIGTERM)
     watchdog = threading.Timer(600, stop)
@@ -848,9 +875,11 @@ def end_group(p, term=10, kill=5):
 
 
 def console_lines():
-    """The lines Chrome logs from the page's console when it loads index.html as is, with the real mstar.js beside it."""
+    """The lines Chrome logs from the page's console when it loads index.html as is, with page/ and the real mstar.js
+    beside it."""
     d = tempfile.mkdtemp(prefix='index-quals-')
     shutil.copy(INDEX, os.path.join(d, 'index.html'))
+    copy_page_dir(d)
     shutil.copy(DATA, os.path.join(d, 'mstar.js'))
     shutil.copy(POW2, os.path.join(d, 'pow2.js'))
     with open(os.path.join(d, 'stderr.txt'), 'w') as f:
@@ -1118,6 +1147,7 @@ def framed(width, harness):
     text = page()
     assert text.count('</body>') == 1
     open(os.path.join(d, 'index.html'), 'w', encoding='utf-8').write(text.replace('</body>', script + '</body>'))
+    copy_page_dir(d)
     shutil.copy(DATA, os.path.join(d, 'mstar.js'))
     shutil.copy(POW2, os.path.join(d, 'pow2.js'))
     open(os.path.join(d, 'host.html'), 'w').write(HOST.replace('__WIDTH__', str(width)))
@@ -1197,47 +1227,87 @@ def q_chrome_s_whole_process_group_ends_before_its_folder_goes():
     assert not alive(zombie.pid)
 
 
+def q_page_links_its_stylesheet_after_katex_s():
+    # Replicata: index.html; and the page 1280 px wide (framed): every formula KaTeX drew, and the element holding it.
+    # Expectata (dreeves's README, 2026-10-30: "[FAC] ... getting css and javascript out of index.html"): no <style>
+    # block; the page's own stylesheet is a file, page/style.css, linked once, in the head, right after KaTeX's
+    # stylesheet and before any script, where the style block stood, so that the page's rules still come after KaTeX's
+    # in the cascade and win where both match at equal specificity: every formula's font size is that of the element
+    # holding it (.katex at 1em), not KaTeX's 1.21em.
+    # Resultata before: the page's CSS was a <style> block in that place.
+    text = page()
+    head = text[:text.index('</head>')]
+    assert '<style' not in text and text.count('href="page/style.css"') == 1, 'a style block, or not one link'
+    assert re.search(r'\n<link rel="stylesheet" href="https://cdn\.jsdelivr\.net/npm/katex@0\.16\.47/dist/katex\.min\.css" '
+                     r'[^>\n]*>\n<link rel="stylesheet" href="page/style\.css">\n', head), head[-1500:]
+    assert head.index('href="page/style.css"') < head.index('<script'), 'a script before the stylesheet'
+    got = framed(1280, """
+  parent.postMessage(JSON.stringify([...document.querySelectorAll('.katex')].map(k =>
+    [getComputedStyle(k).fontSize, getComputedStyle(k.parentElement).fontSize])), '*');""")
+    assert len(got) > 800 and all(a == b for a, b in got), (len(got), [s for s in got if s[0] != s[1]][:5])
+
+
+def q_page_dir_holds_what_index_links():
+    # Replicata: the files in page/, and the files of page/ that index.html links, as its stylesheet or as scripts.
+    # Expectata (dreeves's README, 2026-10-30: "[FAC] ... getting css and javascript out of index.html"): page/ holds
+    # exactly those files, hidden files aside (as Finder's .DS_Store, which git ignores), each linked once: none is
+    # missing and none unused.
+    # Resultata before: no page/; the page's CSS and scripts were inline.
+    linked = [a or b for a, b in re.findall(r'<link rel="stylesheet" href="page/([^"]+)">|<script src="page/([^"]+)"></script>',
+                                            page())]
+    there = sorted(n for n in os.listdir(PAGE_DIR) if not n.startswith('.'))
+    assert linked and len(linked) == len(set(linked)) and sorted(linked) == there, (linked, there)
+
+
 def q_scripts_load_data_then_draw():
-    # Replicata: index.html's script tags; and the light run's look at the page's math once it loaded (R's math).
-    # Expectata: in the head, three: an inline script that defines a function, and then KaTeX's two (since 2026-10-28;
+    # Replicata: index.html's script tags and the files of the page's own scripts (in page/ since 2026-10-31: inline
+    # scripts before, each the same text); and the light run's look at the page's math once it loaded (R's math).
+    # Expectata: in the head, three: page/math.js, which defines a function, and then KaTeX's two (since 2026-10-28;
     # dreeves: "could you convert all the math on the page to latex"), deferred, from jsDelivr at version 0.16.47, each
     # with its SHA-256 integrity, auto-render's onload only a call of that function, with no & in any script tag of the
     # head (dreeves's README, 2026-10-30: "[VSC] VS Code isn't happy about the "&amp;&amp;" in one of the jsdelivr
-    # lines for KaTeX"); then exactly seven, after </main> and before </body>: the inline script of the pan and zoom
-    # both charts share (2026-10-30, q_both_charts_share_one_pan_and_zoom; six scripts before); a classic <script
-    # src="mstar.js"> (no type, async or defer, so it also loads from file://) and then one inline script; then the
-    # chart of powers of 2's, likewise (quals_pow2_page.py holds those two); then the inline script of the table of
-    # smallest lengths, which reads MSTAR (2026-10-17); then the inline script of the section "Search progress", which
-    # loads progress.js itself (2026-10-17).  Once the page has loaded, its math is drawn: KaTeX drew formulas, none of them an error, and no text
+    # lines for KaTeX"); then exactly seven, after </main> and before </body>: the script of the pan and zoom both
+    # charts share (2026-10-30, q_both_charts_share_one_pan_and_zoom; six scripts before), page/shared.js; a classic
+    # <script src="mstar.js"> (no type, async or defer, so it also loads from file://) and then the m*(n) chart's,
+    # page/mstar-section.js; then the chart of powers of 2's, likewise (quals_pow2_page.py holds those two); then the
+    # script of the table of smallest lengths, which reads MSTAR (2026-10-17), page/smallest-section.js; then the script
+    # of the section "Search progress", which loads progress.js itself (2026-10-17), page/progress-section.js.  Each of
+    # the page's own scripts is a classic <script src> of its file in page/ (dreeves's README, [FAC]: "getting css and
+    # javascript out of index.html"), so that each runs where it stands, in order, as when it was inline, and loads
+    # from file://.  Once the page has loaded, its math is drawn: KaTeX drew formulas, none of them an error, and no text
     # outside scripts, styles and formulas still holds a \( or \).  (Until 2026-10-30 this pinned onload's code,
     # character for character, and said that it also wrapped each formula and the text glued to it in an nw span
     # (2026-10-29); that code has never glued anything, auto-render putting each formula alone in a span of its own, so
     # the gluing is not expected here: scratch/readme-20261030/NOTES.md.)
     text = page()
     head, body = text[:text.index('</head>')], text[text.index('</head>'):]
-    katex = re.search(r'\n<script>\n(.*?)</script>\n'
+    katex = re.search(r'\n<script src="(page/math\.js)"></script>\n'
                       r'<script defer src="https://cdn\.jsdelivr\.net/npm/katex@0\.16\.47/dist/katex\.min\.js" '
                       r'integrity="sha256-[A-Za-z0-9+/]{43}=" crossorigin="anonymous"></script>\n'
                       r'<script defer src="https://cdn\.jsdelivr\.net/npm/katex@0\.16\.47/dist/contrib/auto-render\.min\.js" '
                       r'integrity="sha256-[A-Za-z0-9+/]{43}=" crossorigin="anonymous" onload="(\w+)\(\)"></script>\n', head, re.S)
     tags = re.findall(r'<script\b[^>]*>', head)
     assert katex and len(tags) == 3 and not any('&' in t for t in tags), tags
-    assert re.search(rf'^function {katex[2]}\(\) \{{$', katex[1], re.M), katex[1][:300]
-    assert re.findall(r'<script\b[^>]*>', body) == ['<script>', '<script src="mstar.js">', '<script>', '<script src="pow2.js">',
-                                                    '<script>', '<script>', '<script>'], re.findall(r'<script\b[^>]*>', body)
-    inline = re.findall(r'<script>\n(.*?)</script>', body, re.S)
-    assert 'function panZoom(' in inline[0] and '[data-smallest]' in inline[3] and 'progressData' in inline[4], [js[:60] for js in inline]
-    assert text.index('</main>') < text.index('<script>\n', len(head)) < text.index('<script src="mstar.js"></script>') < \
+    [math_js] = page_scripts(katex[0])
+    assert re.search(rf'^function {katex[2]}\(\) \{{$', math_js, re.M), math_js[:300]
+    assert re.findall(r'<script\b[^>]*>', body) == [
+        '<script src="page/shared.js">', '<script src="mstar.js">', '<script src="page/mstar-section.js">',
+        '<script src="pow2.js">', '<script src="page/pow2-section.js">', '<script src="page/smallest-section.js">',
+        '<script src="page/progress-section.js">'], re.findall(r'<script\b[^>]*>', body)
+    own = page_scripts(body)
+    assert 'function panZoom(' in own[0] and '[data-smallest]' in own[3] and 'progressData' in own[4], [js[:60] for js in own]
+    assert text.index('</main>') < text.index('<script src="page/shared.js">', len(head)) < text.index('<script src="mstar.js"></script>') < \
         text.index('</script>\n</body>')
     math = valid_run('light')['math']
     assert math['formulas'] > 800 and math['errors'] == 0 and math['raw'] == [], math
 
 
-def q_inline_script_passes_node_check():
-    # Replicata: the chart's inline script (the one that gets #mstar-chart; the page's first until 2026-10-30, when an
+def q_chart_script_passes_node_check():
+    # Replicata: the chart's script, the one that gets #mstar-chart (page/mstar-section.js since 2026-10-31, when this
+    # qual was q_inline_script_passes_node_check; an inline script before, the page's first until 2026-10-30, when an
     # inline script for KaTeX came first in the head), saved as a .js file, through node --check.
     # Expectata: exit 0: it parses as a classic script.
-    [js] = [s for s in re.findall(r'<script>\n(.*?)</script>', page(), re.S) if "getElementById('mstar-chart')" in s]
+    [js] = [s for s in page_scripts(page()) if "getElementById('mstar-chart')" in s]
     d = tempfile.mkdtemp(prefix='index-quals-')
     path = os.path.join(d, 'chart.js')
     open(path, 'w', encoding='utf-8').write(js)
@@ -1276,7 +1346,7 @@ def q_chart_colors_stand_apart():
         return L, math.hypot(a, b), math.degrees(math.atan2(b, a)) % 360
     for mode, b in zip(('light',), theme_blocks()):
         assert '--joint' not in b, mode
-    css = re.search(r'<style>(.*?)</style>', page(), re.S).group(1)
+    css = page_css()
     assert '--joint' not in css
     tints = ('repeating-linear-gradient(135deg, color-mix(in oklab, var(--claude) var(--tint), var(--paper)) 0 0.3rem, '
              'color-mix(in oklab, var(--stan) var(--tint), var(--paper)) 0.3rem 0.6rem)')
@@ -1302,8 +1372,8 @@ def q_new_results_n_cells_line_up():
 
 
 def q_new_results_fit_unscrolled_at_945_px():
-    # Replicata: index.html with mstar.js, pow2.js and progress.js beside it, in headless Chrome with a window 945 px
-    # wide: the widths of the new results' seven tables and of their sideways-scrolling frame (.new-block .scroll).
+    # Replicata: index.html with page/, mstar.js, pow2.js and progress.js beside it, in headless Chrome with a window
+    # 945 px wide: the widths of the new results' seven tables and of their sideways-scrolling frame (.new-block .scroll).
     # Expectata (the CSS comment on the new results' side padding: "keeps it in one row, unscrolled, at 945 px"; since
     # 2026-10-25, when the powers of 2 reached 23, their two rows too, and since 2026-10-26, when they reached 35 and
     # took three rows, those three; since 2026-10-27, when the block took in Table 2 and reached 1024, its six upper
@@ -1312,6 +1382,7 @@ def q_new_results_fit_unscrolled_at_945_px():
     d = tempfile.mkdtemp(prefix='index-quals-')
     try:
         for name in ('mstar.js', 'pow2.js', 'progress.js'): shutil.copy(os.path.join(HERE, name), d)
+        copy_page_dir(d)
         script = ("<script>addEventListener('load', () => setTimeout(() => { const p = document.createElement('pre'); p.id = 'fit'; "
                   "p.textContent = JSON.stringify([...document.querySelectorAll('.new-block .scroll')].map(f => ({frame: f.clientWidth, "
                   "scroll: f.scrollWidth, tables: [...f.querySelectorAll('table.block')].map(t => t.getBoundingClientRect().width)}))); "
@@ -1572,7 +1643,7 @@ def q_claude_and_astra_is_a_category_like_claude_and_bgpw():
     # legend has its key right after Astra's; the cells titled Claude and Astra are 592, 608,
     # 656 and 752, each of class ca with its value; and each of their remarks is an <li class="ca"> marked ◆✦.  (Since
     # 2026-10-26 also 784, credited for the reason 608 and 656 are, and 752 at 10, both by examples of order 10.)
-    css = re.search(r'<style>(.*?)</style>', page(), re.S).group(1)
+    css = page_css()
     tints = ('repeating-linear-gradient(135deg, color-mix(in oklab, var(--claude) var(--tint), var(--paper)) 0 0.3rem, '
              'color-mix(in oklab, var(--astra) var(--tint), var(--paper)) 0.3rem 0.6rem)')
     bar = 'repeating-linear-gradient(90deg, var(--claude) 0 0.3rem, var(--astra) 0.3rem 0.6rem) bottom / 100% 3px no-repeat'
@@ -1950,6 +2021,45 @@ def q_example_at_768_has_its_entry_code_and_set():
     assert mstar_data()['cols'][768 - 1] == [12, 13, ['example', 'index.html p768'], ['residue', 5]], mstar_data()['cols'][768 - 1]
 
 
+def q_examples_at_576_and_624_have_their_entries_codes_and_sets():
+    # Replicata: the remarks' entries naming 576 and 624, their codes decoded by the paper's Table 5 convention (the left
+    # half of the signs, 1 = +1, then the rest by (-1)^m symmetry), the page's sets SClaude[11][n], the new results'
+    # cells, the changelog's statements of 2026-10-31, and mstar.js's columns.
+    # Expectata (2026-10-31: Claude's lattice search scratch/w11-624-576/w11.py found antisymmetric examples of order
+    # 11 at 576 and 624): each n has an entry of its own, an <li class="c"> marked ◆, "m* ∈ {11, 12}", among the
+    # examples in order of n (576 between 560 and 592, 624 between 608 and 656; its wording unpinned); its one code block, p_n of order 11, whose
+    # signs have order exactly 11 (synthetic division here) and are antisymmetric; SClaude[11][n] exactly their +1
+    # positions, 0 among them; no other entry names n (its old entry is gone); the cell 11–12; the changelog states
+    # 11 ≤ m*(n) ≤ 12 on 2026-10-31; and mstar.js's column [11, 12, ["example", "index.html p<n>"], ["residue", M]], M the
+    # modulus of n's residue condition at order 13.
+    # Resultata before: 576 was 10 to 12, its lo the join 240 + 336, 624 was 10 to 12, its lo the join 240 + 384; no example of order 11 at 576 and 624.
+    text = page()
+    sets = {(int(m), int(n)): {int(t) for t in body.split(',')}
+            for m, n, body in re.findall(r'SClaude\[(\d+)\]\[(\d+)\] = \{([^}]*)\};', text)}
+    listed = [ns.split(', ') for ns in re.findall(r'<p class="entry">\\\(n = (.*?)\\\): ', text)]
+    said = changelog_by_day().get('2026-10-31', {})
+    for n, before, after, M in ((576, 560, 592, 5), (624, 608, 656, 25)):
+        li = re.search(r'<li class="c">\n      <span class="mk" aria-hidden="true">◆</span>\n      <p class="entry">\\\(n = '
+                       + str(n) + r'\\\): &nbsp;\\\(m\^\* \\in \\\{11, 12\\\}\\\)</p>\n(.*?)\n    </li>', text, re.S)
+        assert li, f'no entry of {n} alone'
+        codes = re.findall(r'<p class="code">\n        <span>\\\(p_\{(\d+)\}\\\) \\\(\(m = (\d+)\)\\\):</span>\n'
+                           r'        <code>([0-9A-F]+)</code>\n      </p>', li.group(1))
+        assert len(codes) == 1 and codes[0][:2] == (str(n), '11'), codes
+        h = codes[0][2]
+        left = [1 if b == '1' else -1 for b in bin(int(h, 16))[2:].zfill(4 * len(h))]
+        a, k = left + [-s for s in reversed(left)], 0
+        c = a
+        while not sum(c): c, k = list(itertools.accumulate(c[:-1])), k + 1
+        assert len(a) == n and k == 11 and all(a[n - 1 - i] == -a[i] for i in range(n)), (n, len(a), k)
+        assert sets[11, n] == {i for i, s in enumerate(a) if s == 1} and 0 in sets[11, n], n
+        i = listed.index([str(n)])
+        assert listed[i - 1:i + 2] == [[str(before)], [str(n)], [str(after)]], listed[i - 1:i + 2]
+        assert sum(str(n) in ns for ns in listed) == 1, (n, [ns for ns in listed if str(n) in ns])
+        assert new_cells(text)[n] == (11, 12), new_cells(text)[n]
+        assert said.get(n) == (11, 12), (n, said.get(n))
+        assert mstar_data()['cols'][n - 1] == [11, 12, ['example', f'index.html p{n}'], ['residue', M]], mstar_data()['cols'][n - 1]
+
+
 OEIS = ('A323395', 'A306248', 'A323610', 'A323629', 'A323614')                # the OEIS section's entries on this problem
 RELATED = ('A382832', 'A382833', 'A362039', 'A010060', 'A106400', 'A001969', 'A000069', 'A140047')   # and related ones
 
@@ -2110,8 +2220,8 @@ def visible_text():
 
 
 def q_quotes_of_claude_and_astra_are_curly():
-    # Replicata: index.html's text a reader sees (visible_text), its tags' attribute values and its inline scripts; and
-    # the light run's readouts of the m*(n) chart's cells ringed in gold.
+    # Replicata: index.html's text a reader sees (visible_text), its tags' attribute values and its scripts (in page/
+    # since 2026-10-31, inline before); and the light run's readouts of the m*(n) chart's cells ringed in gold.
     # Expectata (dreeves's README, 2026-10-30: "[CUR] Curly quotes for quoting Claude and Astra"): each quotation of
     # Claude's or Astra's words (QUOTED) opens with “ and closes with ”, the next quotation mark after it, in the text
     # and in an attribute value (as the zoom buttons' titles); no Claude: or Astra: in a script is followed by a straight
@@ -2128,7 +2238,7 @@ def q_quotes_of_claude_and_astra_are_curly():
     bad = [s[m.start():m.end() + 60].replace('\0', '') for s, m in quotes
            if m.group(0)[-1] != '“' or (re.compile(r'["“”]').search(s, m.end()) or [''])[0] != '”']
     assert bad == [], (len(bad), bad[:5])
-    scripts = re.findall(r'<script>\n(.*?)</script>', page(), re.S)
+    scripts = page_scripts(page())
     assert not any(re.search(r'(?:Claude|Astra): "', js) for js in scripts), [re.findall(r'.{30}(?:Claude|Astra): ".{30}', js) for js in scripts]
     R = valid_run('light')
     rings = set(a323395_cells(mstar_data()['cols']))
@@ -2354,9 +2464,10 @@ def q_zoom_buttons_sit_beside_show_all():
 
 
 def q_both_charts_share_one_pan_and_zoom():
-    # Replicata: index.html: its inline scripts, the sections of the two charts (mstar and pow2) and its style block.
+    # Replicata: index.html: its scripts, the sections of the two charts (mstar and pow2) and its stylesheet (the
+    # scripts and the stylesheet files in page/ since 2026-10-31, inline before).
     # Expectata (dreeves's README, 2026-10-30: "[ZOO] For anti-magic/consistency, have the same zoom controls on both
-    # charts"): one inline script, the first after </main>, defines function panZoom, the pan and zoom of both charts,
+    # charts"): one script, the first after </main>, defines function panZoom, the pan and zoom of both charts,
     # and nothing else; each chart's script calls it once, with its own chart (#mstar-chart, #pow2-chart) and its own
     # buttons; each section holds a div of class zoom with the same three buttons, −, + and ↺, the same but for their
     # ids' prefixes (mstar- and pow2-); one rule styles those buttons, .zoom button (and one their grayed-out look); and
@@ -2365,11 +2476,11 @@ def q_both_charts_share_one_pan_and_zoom():
     # Resultata before: only the m*(n) chart could zoom, from code of its own.
     text = page()
     body = text[text.index('</main>'):]
-    inline = re.findall(r'<script>\n(.*?)</script>', body, re.S)
-    shared = re.fullmatch(r'(?://[^\n]*\n)*function panZoom\(\{[^\n]*\}\) \{\n.*\n\}\n', inline[0], re.S)
-    assert shared and sum('function panZoom(' in js for js in inline) == 1, inline[0][:400]
+    own = page_scripts(body)
+    shared = re.fullmatch(r'(?://[^\n]*\n)*function panZoom\(\{[^\n]*\}\) \{\n.*\n\}\n', own[0], re.S)
+    assert shared and sum('function panZoom(' in js for js in own) == 1, own[0][:400]
     for chart, prefix in (('mstar-chart', 'mstar'), ('pow2-chart', 'pow2')):
-        [js] = [s for s in inline if f"getElementById('{chart}')" in s]
+        [js] = [s for s in own if f"getElementById('{chart}')" in s]
         calls = re.findall(r'panZoom\(\{el: (\w+), out: document\.getElementById\(\'([\w-]+)\'\), in: document\.getElementById\(\'([\w-]+)\'\),\s*'
                            r'reset: document\.getElementById\(\'([\w-]+)\'\)', js)
         assert js.count('panZoom(') == 1 and len(calls) == 1, (chart, calls)
@@ -2385,7 +2496,7 @@ def q_both_charts_share_one_pan_and_zoom():
         groups.append(z)
         assert re.search(rf'<(?:canvas|div) id="{prefix}-chart"[^>]* tabindex="0"', sec), prefix
     assert groups[0] == groups[1], groups
-    style = re.sub(r'/\*.*?\*/', '', re.search(r'<style>(.*?)</style>', text, re.S).group(1), flags=re.S)
+    style = re.sub(r'/\*.*?\*/', '', page_css(), flags=re.S)
     selectors = [s.strip() for sel in re.findall(r'([^{}]+)\{', style) for s in sel.split(',')]
     assert [s for s in selectors if re.search(r'\bbutton\b', s)] == ['.zoom button', '.zoom button:disabled'], selectors
 
@@ -2823,6 +2934,7 @@ def progress_run(case='main'):
         assert text.count('<head>\n') == 1 and text.count('</body>') == 1
         text = text.replace('<head>\n', '<head>\n' + early).replace('</body>', PROGRESS_HARNESS + '</body>')
         open(os.path.join(d, 'index.html'), 'w', encoding='utf-8').write(text)
+        copy_page_dir(d)
         open(os.path.join(d, 'progress.js'), 'w', encoding='utf-8').write('progressData(' + json.dumps(data) + ');\n')
         shutil.copy(DATA, os.path.join(d, 'mstar.js'))
         shutil.copy(POW2, os.path.join(d, 'pow2.js'))
@@ -2882,13 +2994,14 @@ def q_smallest_section_sits_between_the_remarks_and_the_counts():
 
 
 def q_smallest_table_matches_mstar():
-    # Replicata: index.html in headless Chrome beside mstar.js and pow2.js, its DOM dumped once its scripts ran; and
-    # smallest_rows of MSTAR (mstar_data), computed here.
+    # Replicata: index.html in headless Chrome beside page/, mstar.js and pow2.js, its DOM dumped once its scripts ran;
+    # and smallest_rows of MSTAR (mstar_data), computed here.
     # Expectata: the table's body holds exactly smallest_rows' rows, in order, through the largest order some n's upper
     # bound allows, with — where no length is known (since 2026-10-30); the first eleven orders' smallest lengths are
     # SMALLEST_PROVEN, each marked proven (432 added on 2026-10-20 after proof384.py).
     d = tempfile.mkdtemp(prefix='index-quals-')
     for src, name in ((INDEX, 'index.html'), (DATA, 'mstar.js'), (POW2, 'pow2.js')): shutil.copy(src, os.path.join(d, name))
+    copy_page_dir(d)
     dom = chrome(d, ['--virtual-time-budget=5000', '--dump-dom', 'file://' + os.path.join(d, 'index.html')])
     shutil.rmtree(d)
     body = re.search(r'<tbody data-smallest="">(.*?)</tbody>', dom, re.S)
@@ -2902,9 +3015,10 @@ def q_smallest_table_matches_mstar():
 
 
 def q_smallest_script_passes_node_check():
-    # Replicata: the inline script that fills the table of smallest lengths, saved as a .js file, through node --check.
+    # Replicata: the script that fills the table of smallest lengths (page/smallest-section.js since 2026-10-31, an
+    # inline script before), saved as a .js file, through node --check.
     # Expectata: exit 0: it parses as a classic script.
-    js = next(js for js in re.findall(r'<script>\n(.*?)</script>', page(), re.S) if '[data-smallest]' in js)
+    js = next(js for js in page_scripts(page()) if '[data-smallest]' in js)
     d = tempfile.mkdtemp(prefix='index-quals-')
     path = os.path.join(d, 'smallest.js')
     open(path, 'w', encoding='utf-8').write(js)
@@ -2919,7 +3033,8 @@ def q_progress_section_starts_closed():
     # footer: after any comments, a <details> without open, so it starts closed, whose <summary> is the heading
     # progress-title, with a key of the five statuses; and in its run template one more <details>, also without open,
     # each run's fold (dreeves, 2026-10-23; since 2026-10-25 each stays as this browser left it); no <script> on the
-    # page names progress.js, which the section's script loads only once it is opened.
+    # page names progress.js, which the section's script (page/progress-section.js since 2026-10-31) loads only once it
+    # is opened.
     text = page()
     sec = re.search(r'<section class="progress" aria-labelledby="progress-title">\n(.*?)\n</section>\n', text, re.S)
     assert sec and text.index('<section class="sets">') < sec.start() < text.index('<footer>'), sec
@@ -2930,7 +3045,7 @@ def q_progress_section_starts_closed():
     assert run.count('<details>') == 1 and run.count('</details>') == 1, run[:300]
     assert '<summary><h2 id="progress-title">' in body
     assert [s for s in re.findall(r'data-count="(\w+)"', body)] == list(STATUSES)
-    assert not re.search(r'<script[^>]*progress', text)
+    assert not re.search(r'<script[^>]*progress\.js', text)
 
 
 def q_progress_classes_meet_only_its_own_css():
@@ -2944,7 +3059,7 @@ def q_progress_classes_meet_only_its_own_css():
     sec = re.search(r'<section class="progress".*?</section>', text, re.S).group(0)
     classes = {c for attr in re.findall(r'\bclass="([^"]*)"', sec) for c in attr.split()} - {'nw'}
     others = set(re.findall(r'<section class="([\w-]+)"', text)) - {'progress'}
-    style = re.sub(r'/\*.*?\*/', '', text[text.index('<style>'):text.index('</style>')], flags=re.S)
+    style = re.sub(r'/\*.*?\*/', '', page_css(), flags=re.S)
     selectors = [s.strip() for sel in re.findall(r'([^{}]+)\{', style) for s in sel.split(',')]
     scoped = r'(\.progress(-[\w-]+)?|\.(' + '|'.join(map(re.escape, others)) + r')|#(pow2|mstar)[\w-]*)(?![\w-])'
     foreign = [s for s in selectors if not re.match(scoped, s)]
@@ -2954,14 +3069,15 @@ def q_progress_classes_meet_only_its_own_css():
 
 def q_progress_css_names_only_what_the_section_has():
     # Replicata: the page's CSS rules whose selectors start with the section's classes (.progress, .progress-*); the
-    # section's markup with its script (the page's fifth, which makes the chart's and the tip's marks).
+    # section's markup with its script (the page's last, page/progress-section.js since 2026-10-31, which makes the
+    # chart's and the tip's marks).
     # Expectata: every class and element such a selector names occurs in them, so no rule of the section's matches
     # nothing.  (2026-10-17: dreeves took the section out of its block quote, which left .progress blockquote and
     # .progress .attrib matching nothing.)
     text = page()
     sec = re.search(r'<section class="progress".*?</section>', text, re.S).group(0)
-    js = re.findall(r'<script>\n(.*?)</script>', text, re.S)[-1]
-    style = re.sub(r'/\*.*?\*/', '', text[text.index('<style>'):text.index('</style>')], flags=re.S)
+    js = page_scripts(text)[-1]
+    style = re.sub(r'/\*.*?\*/', '', page_css(), flags=re.S)
     selectors = [s.strip() for sel in re.findall(r'([^{}]+)\{', style) for s in sel.split(',')]
     ours = [re.sub(r'\[[^\]]*\]|::?[\w-]+(\([^)]*\))?', '', s) for s in selectors
             if re.match(r'\.progress(-[\w-]+)?(?![\w-])', s)]
@@ -2975,9 +3091,10 @@ def q_progress_css_names_only_what_the_section_has():
 
 
 def q_progress_script_passes_node_check():
-    # Replicata: the section's inline script (the page's fifth), saved as a .js file, through node --check.
+    # Replicata: the section's script (the page's last, page/progress-section.js since 2026-10-31, an inline script
+    # before), saved as a .js file, through node --check.
     # Expectata: exit 0: it parses as a classic script.
-    js = re.findall(r'<script>\n(.*?)</script>', page(), re.S)[-1]
+    js = page_scripts(page())[-1]
     d = tempfile.mkdtemp(prefix='index-quals-')
     path = os.path.join(d, 'progress-section.js')
     open(path, 'w', encoding='utf-8').write(js)
@@ -3159,7 +3276,7 @@ def q_progress_bands_overlap_visibly():
     # Expectata (dreeves, 2026-10-23: "shouldn't we be able to visually distinguish between a region that both red and
     # purple confidence bands cover vs just the purple confidence band covering it?"; at 16% and 16% that pair was ΔE
     # 6.1, OKLab x 100): both at least ΔE 13 from purple alone and 11 from red alone, and red alone 7 from purple alone.
-    style = page()[page().index('<style>'):page().index('</style>')]
+    style = page_css()
     color = lambda name: re.search(rf'--{name}: (#[0-9a-f]{{6}});', style).group(1)
     pct = lambda name: int(re.search(rf'\.progress-eta \.band\.{name} \{{ fill: color-mix\(in oklab, var\(--progress-{name}\) (\d+)%, var\(--paper\)\); \}}', style).group(1)) / 100
     paper = oklab(linear(color('paper')))
@@ -3193,6 +3310,7 @@ def q_progress_reloads_on_returning_to_the_tab():
 """
     text = page().replace('<head>\n', '<head>\n' + PROGRESS_REMEMBERED).replace('</body>', harness + '</body>')
     open(os.path.join(d, 'index.html'), 'w', encoding='utf-8').write(text)
+    copy_page_dir(d)
     open(os.path.join(d, 'progress.js'), 'w', encoding='utf-8').write('progressData(' + json.dumps(PROGRESS_DATA) + ');\n')
     shutil.copy(DATA, os.path.join(d, 'mstar.js'))
     shutil.copy(POW2, os.path.join(d, 'pow2.js'))
@@ -3227,6 +3345,7 @@ def progress_harness(data, harness, before=''):
     script = '<script>\n(async () => {' + FOLD_LOOK + '  await sleep(1500);\n' + harness + '\n})();\n</script>\n'
     text = page().replace('<head>\n', '<head>\n' + PROGRESS_REMEMBERED + before).replace('</body>', script + '</body>')
     open(os.path.join(d, 'index.html'), 'w', encoding='utf-8').write(text)
+    copy_page_dir(d)
     open(os.path.join(d, 'progress.js'), 'w', encoding='utf-8').write('progressData(' + json.dumps(data) + ');\n')
     shutil.copy(DATA, os.path.join(d, 'mstar.js'))
     shutil.copy(POW2, os.path.join(d, 'pow2.js'))
@@ -3322,33 +3441,45 @@ def q_progress_summary_names_each_run_s_state():
 
 
 def q_progress_shows_a_tracked_search():
-    # Replicata: index.html with one tracked search as progress.js, in the form progress.js_text gives survey_track's
-    # survey: 768:12 by w12.py, running, four runs (three running, one ended: dots running, running, running, settled),
-    # none found, 600 s so far.
-    # Expectata (dreeves, 2026-10-28: "can we rearchitect things so that always happens easily and automatically?"): its
-    # heading asks m*(768) ≥ 12? and names w12.py, its summary says running; its status line is the tracked view
-    # (template progress-track), whose counts are the run's work (4 runs, 3 running, 0 frozen, 1 ended, 0 aborted, 0
-    # found) and whose elapsed time is filled in; its readout is the tracked hint (template progress-track-hint); its
-    # ETA chart and its key are hidden.
-    base = PROGRESS_DATA['runs'][0]
-    run = dict(program='w12.py', n=768, order=12, state='running', outcome=None, so_far=600, to_go=None, etas=[],
-               statuses=base['statuses'], depth=0, keys=['768:12'], groups=['4440'],
-               counts=dict(settled=1, open=0, split=0, pending=0, running=3),
-               tracked=True, work=dict(runs=4, running=3, frozen=0, ended=1, aborted=0, found=0))
-    got = progress_harness({'made': PROGRESS_DATA['made'], 'runs': [run]}, """
-  const r = runs()[0];
+    # Replicata: index.html with two runs of 768:12 by w12.py as progress.js, alike but for the second being a tracked
+    # search's (tracked, its runs' work: 4 runs, 3 running, 1 ended, none found; dots running, running, running,
+    # settled), each in the form progress.js_text gives survey_track's survey since 2026-10-31: running, 600 s so far,
+    # to go by Gott's rule (600 s at the median, from a 19th of it to 19 times it), and two recorded ETAs, at 540 s and
+    # 600 s of running.
+    # Expectata (dreeves, 2026-10-28: "can we rearchitect things so that always happens easily and automatically?"; the
+    # coordinator, 2026-10-31: "Every run gets an ETA graph", tracked searches drawing the same ETA figure and status
+    # line as every other run): its heading asks m*(768) ≥ 12? and names w12.py, its summary says running; its ETA chart
+    # shown and drawn as the other run's (the same figure, but for its clip path's id); its status line the other's,
+    # then its counts (template progress-track: 4 runs, 3 running, 0 frozen, 1 ended, 0 aborted, 0 found) with its
+    # elapsed time filled in; its readout the tracked hint (template progress-track-hint); its key hidden.
+    # Resultata before (2026-10-28's tracked view): its ETA chart hidden and its status line its counts alone.
+    base, made = PROGRESS_DATA['runs'][0], PROGRESS_DATA['made']
+    plain = dict(program='w12.py', n=768, order=12, state='running', outcome=None, so_far=600,
+                 to_go=dict(median=600, lo=600 / 19, hi=19 * 600),
+                 etas=[[made - 60, 540.0, 540.0, 28.4, 10260.0], [made, 600.0, 600.0, 31.6, 11400.0]],
+                 statuses=base['statuses'], depth=0, keys=['768:12'], groups=['4440'],
+                 counts=dict(settled=1, open=0, split=0, pending=0, running=3), stale=None)
+    tracked = dict(plain, tracked=True, work=dict(runs=4, running=3, frozen=0, ended=1, aborted=0, found=0))
+    got = progress_harness({'made': made, 'runs': [plain, tracked]}, """
+  const [plain, r] = runs();
   const tpl = name => document.querySelector('template.' + name);
+  const fig = box => box.querySelector('.progress-eta');
+  const drawn = box => fig(box).innerHTML.replace(/progress-clip-\\d+/g, 'progress-clip');
+  const line = box => [...box.querySelectorAll('.progress-status [data-state]')].filter(e => !e.hidden).map(e => e.textContent);
   out({head: r.querySelector('h3').textContent,
        label: [...r.querySelectorAll('[data-label]')].filter(e => !e.hidden).map(e => e.dataset.label),
+       hidden: [fig(plain).hidden, fig(r).hidden], same: drawn(plain) === drawn(r), drawn: drawn(r).length,
+       lines: [line(plain), line(r)],
        counts: Object.fromEntries([...r.querySelectorAll('.progress-status [data-attempt-count]')].map(e => [e.dataset.attemptCount, e.textContent])),
        elapsed: (r.querySelector('.progress-status [data-elapsed]') || {}).textContent || '',
        readout: r.querySelector('[data-readout]').textContent.trim(),
        hint: tpl('progress-track-hint') ? tpl('progress-track-hint').content.textContent.trim() : null,
-       eta: r.querySelector('.progress-eta').hidden, key: r.querySelector('.progress-key').hidden});""")
+       key: r.querySelector('.progress-key').hidden});""")
     assert got['head'] == 'm*(768) ≥ 12? w12.py' and got['label'] == ['running'], got
+    assert got['hidden'] == [False, False] and got['same'] is True and got['drawn'] > 0, got
+    assert got['lines'][0] == got['lines'][1] and len(got['lines'][1]) == 1 and got['lines'][1][0].strip(), got
     assert got['counts'] == dict(runs='4', running='3', frozen='0', ended='1', aborted='0', found='0'), got
-    assert got['elapsed'] != '' and got['hint'] is not None and got['readout'] == got['hint'], got
-    assert got['eta'] is True and got['key'] is True, got
+    assert got['elapsed'] != '' and got['hint'] is not None and got['readout'] == got['hint'] and got['key'] is True, got
 
 
 def q_progress_status_line_names_an_ended_run_s_outcome():
@@ -3574,7 +3705,7 @@ def q_progress_eta_chart_keeps_progress_html_s_spec():
     #     assert X(13.2) < x < X(13.2) + 20 and abs(y - Y(h)) < 16, (k, labels[k], X(13.2), Y(h))
     # x, y, _ = labels['spent']
     # assert abs(x - X(13.2)) < 0.05 and y > Y(0), (labels['spent'], X(13.2), Y(0))
-    style = re.sub(r'/\*.*?\*/', '', page()[page().index('<style>'):page().index('</style>')], flags=re.S)   # live rules only
+    style = re.sub(r'/\*.*?\*/', '', page_css(), flags=re.S)   # live rules only
     assert re.search(r'--progress-spent: #2a78d6;', style) and re.search(r'--progress-togo: #e34948;', style) and re.search(r'--progress-total: #7b1fa2;', style)
     widths = {k: float(w) for k, w in re.findall(r'\.progress-eta \.(spent|togo|total) \{[^}]*stroke-width: ([\d.]+)', style)}
     assert set(widths) == {'spent', 'togo', 'total'} and widths['total'] > max(widths['spent'], widths['togo']), widths

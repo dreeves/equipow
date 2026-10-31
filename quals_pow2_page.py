@@ -5,7 +5,8 @@ to 72: the section "pow2" right after the m*(n) chart, drawn from pow2.js.  Run:
 
 Each qual is a function q_*: a passing qual returns, a failing one raises.  Each qual's comment gives its replicata (the
 setup) and expectata (what must happen); a failure's message or traceback gives the resultata (what happened instead).
-The static quals read index.html and pow2.js.  The browser quals load copies of index.html, each with mstar.js beside it and a pow2.js (the real
+The static quals read index.html, its stylesheet and scripts in page/ (inline in it until 2026-10-31) and pow2.js.  The
+browser quals load copies of index.html, each with page/ and mstar.js beside it and a pow2.js (the real
 one, made-up data, or none), in headless Chrome driven through the DevTools protocol by DRIVER, a Node script: a true
 viewport of each configuration's width and pixel ratio, its theme by prefers-color-scheme, real mouse moves, touch taps
 and swipes, and screenshots whose pixels are checked against the data.  DRIVER finds the cells by geometry alone: the
@@ -18,6 +19,7 @@ sys.dont_write_bytecode = True
 import os, re, json, html, time, shutil, tempfile, traceback, subprocess, itertools
 from math import prod, floor
 from PIL import Image
+import quals_index as qi                      # read only: page_css, page_scripts, copy_page_dir (the page's files, page/)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 INDEX = os.path.join(HERE, 'index.html')
@@ -51,18 +53,20 @@ def page(): return open(INDEX, encoding='utf-8').read()
 
 
 def chart_script():
-    """This chart's inline script: the one of the page's inline scripts that gets #pow2-chart (the page's second until
-    2026-10-30, when an inline script for KaTeX came first in the head)."""
-    [js] = [s for s in re.findall(r'<script>\n(.*?)</script>', page(), re.S) if "getElementById('pow2-chart')" in s]
+    """This chart's script: the one of the page's own scripts that gets #pow2-chart (page/pow2-section.js since
+    2026-10-31; an inline script before, the page's second until 2026-10-30, when an inline script for KaTeX came first
+    in the head)."""
+    [js] = [s for s in qi.page_scripts(page()) if "getElementById('pow2-chart')" in s]
     return js
 
 
 def theme_blocks():
     """The custom properties of the page's one theme block, :root, as a one-item list (dreeves, 2026-10-12: no dark
     mode, so no other theme block)."""
-    css = re.search(r'<style>(.*?)</style>', page(), re.S).group(1)
+    css = qi.page_css()
+    whole = page() + css + ''.join(qi.page_scripts(page()))        # the page with its stylesheet and scripts
     ms = list(re.finditer(r'\n:root \{(.*?)\n\s*\}', css, re.S))
-    assert len(ms) == 1 and 'prefers-color-scheme' not in page() and 'data-theme' not in page()
+    assert len(ms) == 1 and 'prefers-color-scheme' not in whole and 'data-theme' not in whole
     return [dict(re.findall(r'(--[\w-]+):\s*([^;]+);', ms[0].group(1)))]
 
 
@@ -293,8 +297,12 @@ import { spawn } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 """ + GROUP_JS + r"""
 const C = JSON.parse(readFileSync(0, 'utf8'));
+// --allow-file-access-from-files (2026-10-31): the page's scripts are files of page/, and plain file:// gives each file
+// an origin of its own, so an uncaught error thrown in them came through only as text, with no exception object; over
+// http(s), where the page is served, they share its origin, as they do here with the flag (quals_index's chrome)
 const chrome = spawn(C.chrome, ['--headless=new', '--remote-debugging-port=0', `--user-data-dir=${C.dir}/profile`,
-  '--no-first-run', '--no-default-browser-check', '--disable-extensions', '--hide-scrollbars', 'about:blank'],
+  '--no-first-run', '--no-default-browser-check', '--disable-extensions', '--hide-scrollbars', '--allow-file-access-from-files',
+  'about:blank'],
   {stdio: 'ignore', detached: true});
 const watchdog = setTimeout(() => { groupSignal(chrome.pid, 'SIGTERM'); process.exit(3); }, 400000);
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -594,6 +602,7 @@ def run(name):
             p = os.path.join(d, str(i))
             os.mkdir(p)
             for f in (INDEX, MSTAR) + tuple(os.path.join(HERE, icon) for icon in ICONS): shutil.copy(f, p)
+            qi.copy_page_dir(p)
             js = SOURCES[source]() if source else None
             if js: open(os.path.join(p, 'pow2.js'), 'w', encoding='utf-8').write(js)
             urls.append('file://' + os.path.join(p, 'index.html'))
@@ -710,17 +719,20 @@ def q_section_follows_mstar_chart():
 def q_scripts_load_pow2_after_mstar():
     # Replicata: index.html's script tags after its head (KaTeX's two in the head, since 2026-10-28, are
     # quals_index's q_scripts_load_data_then_draw's).
-    # Expectata: exactly seven, after </main>: the inline script of the pan and zoom both charts share (2026-10-30;
+    # Expectata: exactly seven, after </main>: the script of the pan and zoom both charts share (2026-10-30;
     # quals_index's q_both_charts_share_one_pan_and_zoom; six scripts before); the m*(n) chart's <script
-    # src="mstar.js"> and its inline script, then a classic <script src="pow2.js"> (no type, async or defer, so it also
-    # loads from file://) right after them and one inline script; then the inline script of the table of smallest
-    # lengths (2026-10-17); then the inline script of the section "Search progress" (2026-10-17), the last thing before
-    # </body>.
+    # src="mstar.js"> and its script, then a classic <script src="pow2.js"> (no type, async or defer, so it also loads
+    # from file://) right after them and this chart's script; then the script of the table of smallest lengths
+    # (2026-10-17); then the script of the section "Search progress" (2026-10-17), the last thing before </body>.  The
+    # page's own scripts are files of page/, each a classic <script src> (inline scripts until 2026-10-31).
     text = page()
     tags = re.findall(r'<script\b[^>]*>', text[text.index('</head>'):])
-    assert tags == ['<script>', '<script src="mstar.js">', '<script>', '<script src="pow2.js">', '<script>', '<script>', '<script>'], tags
+    assert tags == ['<script src="page/shared.js">', '<script src="mstar.js">', '<script src="page/mstar-section.js">',
+                    '<script src="pow2.js">', '<script src="page/pow2-section.js">', '<script src="page/smallest-section.js">',
+                    '<script src="page/progress-section.js">'], tags
     assert text.index('</main>') < text.index('<script src="mstar.js"></script>')
-    assert text.count('</script>\n<script src="pow2.js"></script>\n<script>\n') == 1
+    assert text.count('<script src="page/mstar-section.js"></script>\n<script src="pow2.js"></script>\n'
+                      '<script src="page/pow2-section.js"></script>\n') == 1
     assert text.endswith('</script>\n</body>\n</html>\n')
 
 
@@ -765,8 +777,9 @@ try {{ await endGroup({zombie.pid}, 300, 300); console.log('ended'); }} catch (e
     assert p.returncode == 0 and p.stdout.split('\n')[:2] == ['true', f'process group {zombie.pid} outlived SIGKILL'], (p.stdout, p.stderr[-500:])
 
 
-def q_inline_script_passes_node_check():
-    # Replicata: this chart's inline script (chart_script), saved as a .js file, through node --check.
+def q_chart_script_passes_node_check():
+    # Replicata: this chart's script (chart_script; inline until 2026-10-31, when this qual was
+    # q_inline_script_passes_node_check), saved as a .js file, through node --check.
     # Expectata: exit 0: it parses as a classic script.
     d = tempfile.mkdtemp(prefix='pow2-quals-')
     path = os.path.join(d, 'chart.js')
@@ -777,11 +790,11 @@ def q_inline_script_passes_node_check():
 
 
 def q_new_css_is_scoped():
-    # Replicata: this chart's CSS: the paragraph of the style block (its lines between blank lines) that holds the
-    # rule for .pow2, comments removed.
+    # Replicata: this chart's CSS: the paragraph of the page's stylesheet (its lines between blank lines; page/style.css
+    # since 2026-10-31, the style block before) that holds the rule for .pow2, comments removed.
     # Expectata: it is whole rules, and every selector of every rule starts with .pow2 or #pow2 (a class or id of the
     # new section), so this chart's CSS styles nothing of the frozen m*(n) chart or the rest of the page.
-    style = re.search(r'<style>\n(.*?)</style>', page(), re.S).group(1)
+    style = qi.page_css()
     block = next(b for b in re.split(r'\n\s*\n', style) if re.search(r'^\.pow2 \{', b, re.M))
     css = re.sub(r'/\*.*?\*/', '', block, flags=re.S)
     rules = re.findall(r'([^{}]+)\{([^{}]*)\}', css)

@@ -201,8 +201,8 @@ class Sweep288ProgressQuals(unittest.TestCase):
     def test_page_reuses_attributed_attempt_display_without_eta(self):
         # Replicata: the sweep UI dispatch and actual common renderer, without a browser.
         # Expectata: counts of 1 and 2,736, terminal states and elapsed time, with no ETA.
-        html = Path(progress.HERE, 'index.html').read_text()
-        self.assertIn("if (run.program === 'sweep288.py') search288View(box, run);", html)
+        script = Path(progress.HERE, 'page', 'progress-section.js').read_text()   # the section's script, in the page until 2026-10-31
+        self.assertIn("if (run.program === 'sweep288.py') search288View(box, run);", script)
         result = subprocess.run(['node', 'quals_sweep288_progress.cjs'], cwd=progress.HERE,
                                 capture_output=True, text=True, timeout=20)
         self.assertEqual(result.returncode, 0, result.stderr)

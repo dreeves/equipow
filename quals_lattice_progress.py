@@ -206,6 +206,7 @@ const out = document.createElement('pre'); out.id = 'lattice-qual'; out.textCont
         open(os.path.join(d, 'index.html'), 'w').write(text)
         for name in ('mstar.js', 'pow2.js'):
             shutil.copy(os.path.join(HERE, name), os.path.join(d, name))
+        q.copy_page_dir(d)
         dom = q.chrome(d, ['--window-size=1000,1100', '--virtual-time-budget=5000', '--dump-dom',
                            'file://' + os.path.join(d, 'index.html')])
         match = re.search(r'<pre id="lattice-qual">(.*?)</pre>', dom, re.S)

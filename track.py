@@ -11,7 +11,14 @@ which progress.py's watcher reads (survey_track); the search itself is not chang
            null; pid the run's process and tracker track.py's own; time when the run's process began (epoch seconds;
            for an adopted one, its start time as ps prints it, to the second).  It appears whole (written aside, then
             linked into place).  A command that could not start has pid null.  The last, once the run's process ends: {"event": "end", "time", "status"}, its exit status (a
-           negative one a signal's), or null for an adopted process, whose status track.py cannot read.
+           negative one a signal's), or null for an adopted process, whose status track.py cannot read.  Between
+           them, any lines the command appends itself (2026-10-31): {"event": "eta", "time", "median", "lo", "hi"},
+           its own estimate, at time (epoch seconds), of its target's seconds to go, the median and the 90% band from
+           lo to hi, which the watcher prefers to Gott's rule (progress.survey_track, which asserts their form).  run
+           names the record, by its absolute path, to its command in the environment variable TRACK_RECORD; the
+           command appends each line whole, opening the record to append without creating it (os.O_APPEND without
+           os.O_CREAT), so that a line written before the start is linked into place fails rather than taking the
+           start's place.  An adopted process has no such variable.
   run      python3 -B track.py run NAME N:M [--found FILE] -- COMMAND ...: starts COMMAND, writes the start, waits,
             writes the end and exits with COMMAND's status.  A hidden exclusive reservation precedes the launch.
             The command owns a new process group, cleaned even after a normal exit. SIGTERM, SIGINT and SIGHUP
@@ -35,6 +42,7 @@ RUNS = os.path.join(HERE, 'runs')
 POLL = 10                                              # seconds between an adopted process's checks
 GRACE = 2                                             # seconds before killing remaining owned processes
 CANCEL = (signal.SIGTERM, signal.SIGINT, signal.SIGHUP)
+RECORD = 'TRACK_RECORD'                               # the environment variable naming the record to its command
 
 
 def program(cmd):
@@ -126,7 +134,8 @@ def run(name, target, found, cmd):
         # Restore the inherited mask in the child before exec; cancellation stays blocked until the parent owns it.
         wrapper = ('import os,signal,sys;signal.pthread_sigmask(signal.SIG_SETMASK,'
                    + repr([int(s) for s in mask]) + ');os.execvp(sys.argv[1],sys.argv[1:])')
-        child = subprocess.Popen([sys.executable, '-c', wrapper, *cmd], start_new_session=True)
+        child = subprocess.Popen([sys.executable, '-c', wrapper, *cmd], start_new_session=True,
+                                 env=dict(os.environ, **{RECORD: os.path.join(RUNS, name + '.jsonl')}))
         fields['pid'] = child.pid
         path = start(name, target, found, fields)
         signal.pthread_sigmask(signal.SIG_SETMASK, mask)

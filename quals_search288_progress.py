@@ -161,7 +161,8 @@ class Search288ProgressQuals(unittest.TestCase):
         self.assertIn('Astra: “', templates['progress-attempt-hint'])
         self.assertEqual(set(re.findall(r'data-attempt-outcome="([^"]*)"', templates['progress-search288'])),
                          {'null', 'control_failed', 'budget', 'witness', 'failed'})
-        self.assertIn('if (run.program === \'search288.py\') search288View(box, run);', html)
+        script = Path(progress.HERE, 'page', 'progress-section.js').read_text()   # the section's script, in the page until 2026-10-31
+        self.assertIn('if (run.program === \'search288.py\') search288View(box, run);', script)
         result = subprocess.run(['node', 'quals_search288_progress.cjs'], cwd=progress.HERE,
                                 capture_output=True, text=True, timeout=20)
         self.assertEqual(result.returncode, 0, result.stderr)

@@ -630,6 +630,20 @@ def q_example_at_912_raises_its_lo():
     assert mstar.NEW[912] == (12, 13, 'Claude alone') and cs[912 - 1] == [12, 13, ['example', 'index.html p912'], ['residue', 5]], cs[912 - 1]
 
 
+def q_examples_at_576_and_624_raise_their_lo():
+    # Replicata: mstar.NEW and mstar.js's columns at 576 and 624.
+    # Expectata (2026-10-31: Claude's lattice search scratch/w11-624-576/w11.py, scratch/w13/w13.py at antisymmetric
+    # order 11 with its ranked pool kept to configurations whose exact q is below h, found antisymmetric examples of
+    # order 11 at 576 and 624): each is 11 to 12, Claude alone, its lo the page's example (["example", "index.html p<n>"]) and
+    # its hi still the residue condition at order 13 (mod 5 at 576, mod 25 at 624).
+    # Resultata before: 576 was 10 to 12, its lo the join 240 + 336, 624 was 10 to 12, its lo the join 240 + 384.
+    _, got = disk()
+    cs = got['m']['cols']
+    for n, M in ((576, 5), (624, 25)):
+        assert mstar.NEW[n] == (11, 12, 'Claude alone'), (n, mstar.NEW[n])
+        assert cs[n - 1] == [11, 12, ['example', f'index.html p{n}'], ['residue', M]], (n, cs[n - 1])
+
+
 # ---------- residue tests ----------
 
 def counts(n, P, W): return tuple((W[r] + len(range(r, n, P))) // 2 for r in range(P))     # +1's per class mod P

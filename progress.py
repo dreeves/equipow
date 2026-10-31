@@ -165,7 +165,9 @@ The estimate's model, its terms defined once here (overnight_v5.py's search() is
               and automatically?"): its runs' records, runs/NAME.jsonl (see track.py), are the watcher's only source,
               read whatever program the runs run, the runs of one target N:M one search.  A run is ended with its end
               line; else frozen while its process is stopped (state T), running while it lives, and aborted once it is
-              gone (its tracker died before writing the end).  The search shows one dot per run (survey_track).
+              gone (its tracker died before writing the end).  The search shows one dot per run (survey_track), and
+              while it runs an ETA (2026-10-31: "Every run gets an ETA graph"): the latest estimate a run of it wrote
+              to its record (eta lines, see track.py), else Gott's rule on its time so far (gott).
   reading     the watcher's state of a run's files, kept between snapshots (2026-10-30: it read 288@10's 500 MB of journal
               and log whole every minute, and one snapshot took 90 minutes): the bytes read so far and all parsed, dated
               and derived from them (Reading, with its Tree and Grown; Boxes for a boxsplit pass, Records for focus.py's
@@ -2711,16 +2713,40 @@ def survey_pruning288(path, procs, now=None, observations=None):
     return run
 
 
-def survey_track(target, records, procs, now):
+def gott(age):
+    """Gott's rule (1993; the Lindy effect, as lindy_ball draws it) for a run that has run age seconds and runs on, as a
+    recorded ETA, [median, lo, hi] hours to go: its age is as likely to be any fraction of its whole, so the q quantile
+    of the rest is age q / (1 - q): the median its age, QUANTILES' band from a 19th of it to 19 times it."""
+    return [age * q / (1 - q) / HOUR for q in (0.5, *QUANTILES)]
+
+
+def survey_track(target, records, procs, now, etas=None):
     """The tracked search (see the vocabulary) of target N:M whose runs' records are records (each its lines, as JSON),
     as the process list procs shows it at time now (epoch seconds): what the data file needs of it.  Its state is
     running while a run runs, frozen while none runs and one is frozen, and ended once none is either; its outcome,
     once none is active, 'found' if the found files of their starts hold a line in all, 'none' if no result and every
     run ended with status 0 or null, else null (the page shows an ended search with no outcome as aborted).  Its time so far runs from its first
-    start to now, or to its last line once it ended.  One dot per run in record order, in the colors of settled for
-    ended, running for running, pending for frozen and open for aborted.  work counts the runs by state and the found
-    files' lines (a missing file holds none), each file once."""
+    start to now, or once it ended to its last line or its last recorded ETA, if later (an aborted run's record ends at
+    its last line, though it was seen running after, as spans_of's runs run on to their observations).  One dot per
+    run in record order, in the colors of settled for ended, running for running, pending for frozen and open for
+    aborted.  work counts the runs by state and the found
+    files' lines (a missing file holds none), each file once.  While it runs, its estimate (to_go) is the latest eta
+    line of its records, else gott of its time so far, recorded by now's time in etas, its record of ETAs (see the
+    vocabulary; by default a new one), as every run's are; frozen or ended, it has none and keeps its records.  Each
+    record is its start line, then its eta lines, each {event, time, median, lo, hi}, lo <= median <= hi, finite from 0,
+    in time order, none before the start, then its end line once it ended (all asserted)."""
     n, order = map(int, target.split(':'))
+    etas = {} if etas is None else etas
+    for r in records:
+        events = [x['event'] for x in r]
+        # TODO: error copy; says a tracked run's record holds other than its start line, then eta lines, then at most its end line, naming the run and its lines' events
+        assert re.fullmatch(r'start(,eta)*(,end)?', ','.join(events)), f'Claude: "the record of {r[0].get("name")} runs {events}"'
+        lines = r[1:len(r) - (events[-1] == 'end')]
+        for x in lines:
+            assert set(x) == {'event', 'time', 'median', 'lo', 'hi'}, x
+            assert all(type(x[k]) in (int, float) for k in ('time', 'median', 'lo', 'hi')), x
+            assert 0 <= x['lo'] <= x['median'] <= x['hi'] < math.inf and r[0]['time'] <= x['time'] < math.inf, x
+        assert all(a['time'] <= b['time'] for a, b in zip(lines, lines[1:])), lines
     live = {pid: stat for pid, _, stat, _ in procs if not stat.startswith('Z')}
     states = [(('ended' if r[-1]['status'] in (0, None) else 'aborted') if r[-1]['event'] == 'end' else
                'aborted' if r[0]['pid'] not in live else
@@ -2730,12 +2756,17 @@ def survey_track(target, records, procs, now):
     state = 'running' if 'running' in states else 'frozen' if 'frozen' in states else 'ended'
     outcome = ('found' if found else 'none') if state == 'ended' and (found or set(states) == {'ended'}) else None
     t0 = min(r[0]['time'] for r in records)
-    t1 = now if state != 'ended' else max(r[-1]['time'] for r in records)
+    t1 = now if state != 'ended' else max([r[-1]['time'] for r in records] + [float(t) for t in etas])
     dots = {'ended': 'settled', 'running': 'running', 'frozen': 'pending', 'aborted': 'open'}
     codes = ''.join(str(SEA_STATUSES.index(dots[st])) for st in states)
     work = dict(runs=len(states), **{st: states.count(st) for st in ('running', 'frozen', 'ended', 'aborted')}, found=found)
+    latest = max((x for r in records for x in r if x['event'] == 'eta'), key=lambda x: x['time'], default=None)
+    eta = ((gott(t1 - t0) if latest is None else [latest[k] / HOUR for k in ('median', 'lo', 'hi')])
+           if state == 'running' else None)
+    if state == 'running':
+        etas[str(float(now))] = eta
     return dict(program=records[0][0]['program'], n=n, order=order, made=now, state=state, outcome=outcome,
-                so_far=t1 - t0, to_go=None, etas={}, passes=[[t0, t1]], display=dict(tracked=True, work=work),
+                so_far=t1 - t0, to_go=to_go_of(eta), etas=etas, passes=[[t0, t1]], display=dict(tracked=True, work=work),
                 sea=dict(depth=0, keys=[target], groups=[codes],
                          counts={name: codes.count(str(i)) for i, name in enumerate(SEA_STATUSES)}))
 
@@ -3018,7 +3049,10 @@ def journal_surveys(procs, now, cache, readings):
             if not native:
                 tracked[target].append(lines)
                 identities.setdefault(target, identity)
-    def track(target, records): return [survey_track(target, records, procs, now)]
+    def track(target, records):         # its record of ETAs kept by its target and its first run's start
+        n, order = target.split(':')
+        t0 = min(lines[0]['time'] for lines in records)
+        return [survey_track(target, records, procs, now, cache.setdefault(f'track_{n}_{order}_{int(t0)}_etas', {}))]
     return units + [(identities[target], functools.partial(track, target, records)) for target, records in sorted(tracked.items())]
 
 

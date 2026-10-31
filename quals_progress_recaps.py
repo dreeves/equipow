@@ -29,6 +29,7 @@ class RunTree(HTMLParser):
 class RecapQuals(unittest.TestCase):
     def setUp(self):
         self.page = Path(__file__).with_name('index.html').read_text()
+        self.script = Path(__file__).with_name('page').joinpath('progress-section.js').read_text()   # in the page until 2026-10-31
         self.source = re.search(r'<template class="progress-run">(.*?)</template>', self.page, re.S).group(1)
         self.tree = RunTree(self.source)
         self.status = next(n for n in self.tree.nodes if n['attrs'].get('class') == 'progress-status')
@@ -41,7 +42,7 @@ class RecapQuals(unittest.TestCase):
         self.assertLess(self.source.index('class="progress-eta"'), self.source.index('class="progress-status"'))
 
     def test_attempt_recaps_continue_to_use_the_same_folded_status_container(self):
-        renderer = re.search(r'  function attemptView\(box, run, templateName, hintName\) \{.*?\n  \}', self.page, re.S).group(0)
+        renderer = re.search(r'  function attemptView\(box, run, templateName, hintName\) \{.*?\n  \}', self.script, re.S).group(0)
         self.assertIn("box.querySelector('.progress-status').replaceChildren(display);", renderer)
         self.assertIn(self.fold, self.status['parents'])
 

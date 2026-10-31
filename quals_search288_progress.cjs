@@ -5,12 +5,11 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const html = fs.readFileSync('index.html', 'utf8');
-const script = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)]
-  .map(x => x[1]).find(x => x.includes('window.progressView'));
+const script = fs.readFileSync('page/progress-section.js', 'utf8');   // the section's script, in index.html until 2026-10-31
 new vm.Script(script);
-const source = html.match(/  function search288View\(box, run\) \{[\s\S]*?\n  \}/);
+const source = script.match(/  function search288View\(box, run\) \{[\s\S]*?\n  \}/);
 assert.ok(source, 'the revised-search renderer must exist');
-const common = html.match(/  function attemptView\(box, run, templateName, hintName\) \{[\s\S]*?\n  \}/);
+const common = script.match(/  function attemptView\(box, run, templateName, hintName\) \{[\s\S]*?\n  \}/);
 assert.ok(common, 'the common attempt renderer must exist');
 const body = html.match(/<template class="progress-search288">([\s\S]*?)<\/template>/)[1];
 const fields = [...body.matchAll(/data-attempt-count="([^"]+)"/g)].map(([, work]) => ({dataset: {attemptCount: work}}));

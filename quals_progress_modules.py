@@ -221,7 +221,7 @@ class NativeTrackQuals(unittest.TestCase):
                 for name, lines in (('native', native), ('heuristic', heuristic), ('other', other)):
                     lines[0]['name'] = name
                     (root / 'runs' / (name + '.jsonl')).write_text(''.join(json.dumps(line) + '\n' for line in lines))
-                def observe(target, records, procs, now):
+                def observe(target, records, procs, now, *rest):
                     captured.append((target, [lines[0]['name'] for lines in records]))
                     return {'program': 'qual'}
                 with patch.object(progress, 'CACHE', str(root / 'cache.json')), \

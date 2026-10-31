@@ -10,13 +10,14 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const html = fs.readFileSync('index.html', 'utf8');
+const script = fs.readFileSync('page/progress-section.js', 'utf8');   // the section's script, in index.html until 2026-10-31
 const template = html.match(/<template class="progress-run">([\s\S]*?)<\/template>/);
 assert.ok(template, 'the run template must exist');
 assert.match(template[1], /<!-- [^>]*stale[^>]*--><span class="progress-stale" data-stale hidden>[^<]*<span data-stale-at><\/span>[^<]*<\/span><\/summary>/,
   'the stale mark must close the run heading, after a comment recapping it');
-const source = html.match(/  function staleView\(box, run\) \{[\s\S]*?\n  \}/);
+const source = script.match(/  function staleView\(box, run\) \{[\s\S]*?\n  \}/);
 assert.ok(source, 'the renderer must have staleView');
-assert.ok(html.includes("      staleView(box, run);\n      snapshot(box.querySelector('.progress-status'), run.stale ?? data.made, run.so_far, run.to_go);"),
+assert.ok(script.includes("      staleView(box, run);\n      snapshot(box.querySelector('.progress-status'), run.stale ?? data.made, run.so_far, run.to_go);"),
   'each run must be marked, its status line at its own data\'s time');
 const context = {stamp: t => `stamp:${t}`};
 vm.createContext(context);

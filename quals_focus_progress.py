@@ -62,11 +62,12 @@ class FocusProgressQuals(unittest.TestCase):
         # numbers, i want the blue/red/purple graphs").
         # Expectata: no per-search prose templates or work counters remain, only the shared run template.
         page = Path(__file__).with_name('index.html').read_text()
+        script = Path(__file__).with_name('page').joinpath('progress-section.js').read_text()   # in the page until 2026-10-31
         section = page.split('<section class="progress"')[1].split('</section>')[0]
         for attribute in ('data-scope', 'data-work', 'data-phase', 'data-outcome'):
             self.assertNotIn(attribute, section)
-        self.assertNotIn("[data-work]", page)
-        self.assertNotIn("[data-scope]", page)
+        self.assertNotIn("[data-work]", page + script)
+        self.assertNotIn("[data-scope]", page + script)
 
     def test_running_counts_do_not_pretend_a_profile_is_closed(self):
         # Replicata: twenty LP solves and eight certified leaves, first root case active.

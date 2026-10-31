@@ -501,3 +501,13 @@ Pauses subtracted; watcher restarted (Claude, 2026-10-31 00:56 PDT):
 In progress since 00:55:
 - **[FAC] stage 1:** CSS and JS out of index.html (scratch/fac-20261031/). It owns index.html and the page quals until scratch/fac-20261031/DONE exists.
 - **An ETA graph for every run:** tracked searches get Gott's-rule ETA records by default (median = elapsed, 90% band elapsed/19 to 19×elapsed), and a search may append its own eta lines through track.py. The page side follows DONE.
+- **fastlp + narrow branching for 288's boxsplit step** (agent, finished 2026-10-31, `scratch/fastnarrow-20261030/`):
+  - The deployable certbb is `deploy/certbb.py` (sha256 de7cedbc…), switchable per call through kmax. kmax 0 reproduces the live producer token for token at +1% CPU. With the boxsplit hook (kmax 2, `hook.diff`), the step's CPU drops by about 5%, roughly 44 of 934 CPU-days, resting on two loose leaves. The uncertainty is wider than the gain, and c0 = 0 leaves get 3-10% slower.
+  - Branching in the pass costs a net 34% per bottom case.
+  - Quals: 32 + 4 + 3 green. Deploying it would change CODE, need a header migration, and change three specs in quals_boxsplit288_b.
+  - Not deployed. By the mission it is marginal next to the exact checker's 72% share in heavy subtrees, and 288's step starts only after 432:12. Its chain4/chain5 measurements still run at nice 19 (`results.json` via summary.py).
+- **[FAC] stage 1 done** (agent, 2026-10-31 02:45; `scratch/fac-20261031/NOTES.md`). index.html's CSS and its six inline scripts are now page/style.css, page/math.js, page/shared.js, page/mstar-section.js, page/pow2-section.js, page/smallest-section.js and page/progress-section.js, linked at the same places.
+  - **Checks:** screenshots are pixel-identical at 1280 and 390 px, every page suite passes before and after, and mstar.py regenerates mstar.js byte-identically.
+  - **Harnesses:** they copy page/ (quals_index.copy_page_dir), and the quals' headless Chrome runs with --allow-file-access-from-files, because from file:// an error in an external script reaches listeners only as "Script error.".
+  - **Pre-existing failures:** quals_search592_progress and quals_search288_progress fail one qual each, on dreeves's removal of "Astra: “"; scratch/latex/quals_latex.py is at 3/4.
+  - **For dreeves:** `git add page/`.

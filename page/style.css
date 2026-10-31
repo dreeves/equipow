@@ -1,0 +1,426 @@
+/* Layout: one journal-page column. BGPW's ruled two-row blocks come
+   first, stacked flush as printed, then a fourth block for results since the
+   paper, then remarks keyed to that block by the same provenance marks. */
+/* The text in Latin Modern, the OpenType Computer Modern of LaTeX, from LaTeX.css 1.14.0 (2026-05-13) as bsoule's
+   expost uses it (dreeves, 2026-10-29: "in some of our other projects -- maybe github.com/bsoule/expost and more
+   recently the help popup of github.com/dreeves/tauction -- we've used some css to make a webpage have a LaTeX
+   feel. can you do something like that for this?"); STIX Two Text after it draws what Latin Modern lacks (◆ ● ✦ ≥ ↺) */
+@font-face { font-family: "Latin Modern"; font-style: normal; font-weight: 400; font-display: swap; src: url(https://cdn.jsdelivr.net/npm/latex.css@1.14.0/fonts/LM-regular.woff2) format("woff2"); }
+@font-face { font-family: "Latin Modern"; font-style: italic; font-weight: 400; font-display: swap; src: url(https://cdn.jsdelivr.net/npm/latex.css@1.14.0/fonts/LM-italic.woff2) format("woff2"); }
+@font-face { font-family: "Latin Modern"; font-style: normal; font-weight: 700; font-display: swap; src: url(https://cdn.jsdelivr.net/npm/latex.css@1.14.0/fonts/LM-bold.woff2) format("woff2"); }
+@font-face { font-family: "Latin Modern"; font-style: italic; font-weight: 700; font-display: swap; src: url(https://cdn.jsdelivr.net/npm/latex.css@1.14.0/fonts/LM-bold-italic.woff2) format("woff2"); }
+:root {
+  --paper: #ffffff;
+  --ink: #1b1d22;
+  --muted: #596070;
+  --rule: #1b1d22;
+  /* Provenance hues, checked with the dataviz palette validator against this
+     mode's surface: color-blind ΔE 23.6 (protan). Every hue also carries a
+     glyph: ◆ Claude, ● BGPW, and ◆● both, whose cells are stripes of the
+     two. */
+  --claude: #c15f3c;
+  --stan: #3460c8;
+  /* Astra's result uses a separate hue and the glyph ✦. */
+  --astra: #7560a7;
+  /* The m*(n) chart's colors, dreeves's to tweak (2026-10-12); the readout states each cell's bounds in words. */
+  --exists: #00A86B; /* CHART COLOR GREEN */
+  --open: #243447; /* CHART COLOR BLACK */
+  --impossible: #EBC1C5; /* CHART COLOR RED */
+  --record: #FFB300;   /* the gold ring of a(m − 1), OEIS A323395, in the m*(n) chart; the dataviz validator against its three colors and the paper: worst color-blind ΔE 12.8 (protan, the green), normal-vision 16.0 (the red) */
+  --tint: 16%;
+  --serif: "Latin Modern", "STIX Two Text", "Times New Roman", Times, serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  /* The running text's one width, the text sections' 46rem, while tables and charts may span the column (dreeves,
+     2026-10-29: "the right margin seems to be inconsistent here", of a paragraph across the column above a
+     caption 46rem wide; the header's text was 42rem wide) */
+  --measure: 46rem;
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+html { background: var(--paper); }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: 1.1875rem;
+  line-height: 1.5;
+}
+/* Latin Modern's lowercase runs small: at 19px (expost's size) it is as tall as STIX Two Text's was at 17px. The
+   tables keep their 17px, so that their rows still fit as measured.  Prose is set as LaTeX sets it, justified and
+   hyphenated (hyphens follow html lang), as tauction's help is, where lines are long enough (40rem and up: a
+   phone's short lines justified open wide gaps around the formulas); the changelog, the progress section, the
+   code lines and the charts' readouts, which change under the pointer, stay ragged.  The title and byline are centered, as \maketitle sets them, the title in regular weight. */
+table { font-size: 1.0625rem; }
+main p, main li { hyphens: auto; -webkit-hyphens: auto; }
+main p, main ul:not(.legend) { max-width: var(--measure); }
+@media (min-width: 40rem) { main p, main li { text-align: justify; } }
+.changelog p, .progress p, .progress li, p.code, #mstar-readout, #pow2-readout { text-align: start; hyphens: manual; -webkit-hyphens: manual; }
+header h1 { text-align: center; font-weight: 400; font-size: 2.1rem; }
+header .lede { text-align: center; }
+main {
+  max-width: 62rem;
+  margin: 0 auto;
+  padding-block: 2.5rem 3rem;
+  padding-inline: max(1rem, env(safe-area-inset-left, 0px));
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2.25rem;
+}
+header { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.5rem; max-width: var(--measure); }
+h1 {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 600;
+  line-height: 1.15;
+  text-wrap: balance;
+}
+h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  text-wrap: balance;
+}
+p { margin: 0; }
+.lede { color: var(--muted); }
+/* The changelog under the authors' line, closed until clicked, as in dreeves's spec FreshAt
+   (doc.bmndr.co/freshat, 2026-10-26): its entries monospace, as FreshAt's are in a <pre>, and
+   the lines of an entry after its first indented past the date, by 12ch, the width of "YYYY-MM-DD: ". */
+.changelog { color: var(--muted); }
+.changelog summary { cursor: pointer; }
+.changelog p { font: 0.8125rem/1.5 var(--mono); padding-left: 12ch; text-indent: -12ch; }
+.changelog summary + p { margin-top: 0.3rem; }
+sup, sub { line-height: 0; }
+.nw { white-space: nowrap; }
+/* KaTeX's math at the text's own size (2026-10-29): KaTeX's fonts are Computer Modern, the design of the text's
+   Latin Modern, so at 1em their letters and digits are the text's exactly.  KaTeX's stylesheet loads before this
+   one, so this wins over its default 1.21em (before 2026-10-29 that default overrode 1.1em here).  A line breaks
+   in math only after a relation or operator, as in TeX, and never between a formula and the text glued to it
+   ("13.", "+1s"): auto-render's onload wraps the two in an nw span, whose formula may still break inside. */
+.katex { font-size: 1em; }
+.nw > .katex { white-space: normal; }
+
+/* The figure shrinks to its widest block so the caption centers over the
+   table, as printed; the caption keeps BGPW's small caps label. */
+figure {
+  margin: 0;
+  justify-self: start;
+  width: fit-content;
+  max-width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.9rem;
+}
+figcaption { text-align: center; }
+.sc { font-variant-caps: small-caps; letter-spacing: 0.04em; }
+.block-label {
+  font-size: 0.8125rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* BGPW's three blocks share one scroll frame so they stay aligned on
+   narrow screens; flush tables give the doubled rule seen in the print. */
+.blocks { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1.4rem; }
+.scroll { overflow-x: auto; min-width: 0; }
+table.block {
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums lining-nums;
+  white-space: nowrap;
+}
+table.block th, table.block td {
+  border: 1px solid var(--rule);
+  padding: 0.3rem 0.7rem;
+  text-align: center;
+}
+table.block th {
+  font-weight: 400;
+  font-style: normal;
+  min-width: 4.2rem;
+}
+.new-block { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.45rem; }
+/* The new results' entries for 432, 480 and 528 became ranges (2026-10-11), which made that table 12 px wider than
+   main; a little less side padding in its cells keeps it in one row, unscrolled, at 945 px (0.5rem since 2026-10-25,
+   when the powers of 2 reached 23, so that their two rows, split after 2^38, fit too; 0.4rem since 2026-10-26, when
+   they reached 25, split after 2^41; and since later that day, when they reached 35, three rows, from 2^3, 2^27 and
+   2^49; and since 2026-10-27, when the block took in Table 2 and reached 1024, six upper rows, from 8, 136, 240, 480,
+   672 and 848, the first two as Table 2's). */
+.new-block table.block td { padding-inline: 0.4rem; }
+
+/* Provenance: tint on both cells of an entry, a bar under its value, and a
+   glyph centered above its n (in every n cell of the new results a line for it, blank
+   where there is none, so they all line up). Text stays in ink. */
+td.c { --hue: var(--claude); --glyph: "◆"; }
+td.a { --hue: var(--astra); --glyph: "✦"; }
+td.j { --glyph: "◆●"; }
+td.ca { --glyph: "◆✦"; }
+td.s { --hue: var(--stan); --glyph: "●"; }
+td.a, td.c, td.j, td.s { background: color-mix(in oklab, var(--hue) var(--tint), var(--paper)); }
+tr.vals td.a, tr.vals td.c, tr.vals td.j, tr.vals td.s { box-shadow: inset 0 -3px 0 var(--hue); }
+.new-block tr.ns td::before {
+  content: var(--glyph, "\a0");
+  display: block;
+  font-size: 0.8rem;
+  line-height: 1.2;
+  letter-spacing: 0.08em;
+  color: var(--hue);
+}
+/* Claude and BGPW: stripes of the two tints over a striped bar, its glyph half in each hue */
+td.j, .key.j { background: repeating-linear-gradient(135deg, color-mix(in oklab, var(--claude) var(--tint), var(--paper)) 0 0.3rem, color-mix(in oklab, var(--stan) var(--tint), var(--paper)) 0.3rem 0.6rem); }
+tr.vals td.j, .key.j { background: repeating-linear-gradient(90deg, var(--claude) 0 0.3rem, var(--stan) 0.3rem 0.6rem) bottom / 100% 3px no-repeat, repeating-linear-gradient(135deg, color-mix(in oklab, var(--claude) var(--tint), var(--paper)) 0 0.3rem, color-mix(in oklab, var(--stan) var(--tint), var(--paper)) 0.3rem 0.6rem); box-shadow: none; }
+tr.ns td.j::before, .key.j > span, .remarks li.j .mk { background: linear-gradient(90deg, var(--claude) 50%, var(--stan) 50%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+/* Claude and Astra (2026-10-25): as Claude and BGPW, stripes of the two tints over a striped bar, its glyph half in each hue */
+td.ca, .key.ca { background: repeating-linear-gradient(135deg, color-mix(in oklab, var(--claude) var(--tint), var(--paper)) 0 0.3rem, color-mix(in oklab, var(--astra) var(--tint), var(--paper)) 0.3rem 0.6rem); }
+tr.vals td.ca, .key.ca { background: repeating-linear-gradient(90deg, var(--claude) 0 0.3rem, var(--astra) 0.3rem 0.6rem) bottom / 100% 3px no-repeat, repeating-linear-gradient(135deg, color-mix(in oklab, var(--claude) var(--tint), var(--paper)) 0 0.3rem, color-mix(in oklab, var(--astra) var(--tint), var(--paper)) 0.3rem 0.6rem); box-shadow: none; }
+tr.ns td.ca::before, .key.ca > span, .remarks li.ca .mk { background: linear-gradient(90deg, var(--claude) 50%, var(--astra) 50%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+.legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem 1.6rem;
+  font-size: 0.9375rem;
+}
+.legend li { display: flex; align-items: center; gap: 0.5rem; }
+.key {
+  display: inline-grid;
+  place-items: center;
+  width: 2.3rem;
+  height: 1.5rem;
+  border: 1px solid var(--rule);
+  font-size: 0.85rem;
+  letter-spacing: 0.08em;
+  color: var(--hue, var(--muted));
+  background: color-mix(in oklab, var(--hue, var(--paper)) var(--tint), var(--paper));
+  box-shadow: inset 0 -3px 0 var(--hue, transparent);
+}
+.key.c { --hue: var(--claude); }
+.key.a { --hue: var(--astra); }
+.key.s { --hue: var(--stan); }
+
+/* Remarks: one per new entry or group, marked like its cells */
+.remarks { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; max-width: var(--measure); }
+.remarks ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 1.15rem; }
+.remarks li {
+  display: grid;
+  grid-template-columns: 2rem minmax(0, 1fr);
+  column-gap: 0.4rem;
+  row-gap: 0.25rem;
+}
+.remarks li > * { grid-column: 2; min-width: 0; }
+.remarks .mk {
+  grid-column: 1;
+  grid-row: 1;
+  justify-self: center;
+  font-size: 0.85rem;
+  line-height: 1.85;
+  letter-spacing: 0.08em;
+}
+.remarks li.c .mk { color: var(--claude); }
+.remarks li.a .mk { color: var(--astra); }
+.remarks li.s .mk { color: var(--stan); }
+.entry { font-weight: 600; font-variant-numeric: tabular-nums lining-nums; }
+.code {
+  display: grid;
+  gap: 0.1rem;
+  font-size: 0.875rem;
+  color: var(--muted);
+}
+code {
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+/* Claude's examples written out as sets, to paste into Mathematica */
+.sets, .counts { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; max-width: var(--measure); }
+.sets pre { margin: 0; overflow-x: auto; }
+.sets pre code { display: block; }
+
+/* Claude's account of its lattice search, at Stan Wagon's request (2026-10-14): one block quote, ruled in Claude's hue */
+.lattice { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; max-width: var(--measure); }
+.lattice blockquote { margin: 0; padding-left: 1.1rem; border-left: 3px solid var(--claude); display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; }
+.lattice ul { margin: 0; padding-left: 1.2rem; display: grid; gap: 0.6rem; }
+.lattice .attrib { color: var(--muted); }
+
+/* The search's progress (dreeves, 2026-10-17: a collapsible section of index.html in place of progress.html).
+   The statuses' colors, checked with the dataviz palette validator
+   against the page's white, all pairs: worst color-blind pair ΔE 10.8 (protan), worst normal-vision pair 17.6.
+   Pending is a light neutral on purpose (below the validator's chroma floor and lightness band), and pending and
+   running sit below 3:1 against the white, so the key names every status beside its swatch and count.  The ETA
+   chart keeps progress.html's colors and marks (dreeves, 2026-10-09 and 10-10) but for elapsed + ETA's, purple since
+   2026-10-17 (dreeves: "blue+red=purple"): #7b1fa2, with the blue and red, all pairs: worst color-blind pair ΔE 11.8
+   (deutan, purple and blue), worst normal-vision pair 21.5; 8.2:1 against the white.  The two bands overlap, as do
+   their range lines, so all four multiply onto what lies under them; the bands at 40% and 26% since 2026-10-23 (dreeves: "shouldn't
+   we be able to visually distinguish between a region that both red and purple confidence bands cover vs just the purple"), so
+   the three regions they make sit ΔE 14.0, 11.9 and 7.8 apart (OKLab x 100; 6.0, 8.5 and 4.6 at 16% and 16%). */
+.progress { display: grid; grid-template-columns: minmax(0, 1fr); max-width: var(--measure); --progress-settled: #3a9f7a; --progress-open: #a8283f; --progress-split: #4a73d0; --progress-pending: #bfc3c8; --progress-running: #e09a1c; --progress-spent: #2a78d6; --progress-togo: #e34948; --progress-total: #7b1fa2; --progress-hair: #e1e0d9; }
+.progress summary { cursor: pointer; }
+.progress summary h2 { display: inline; }
+.progress details > * + * { margin-top: 0.8rem; }
+.progress-runs, .progress-run { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.6rem; }
+.progress h3 { margin: 0; font-size: 1.05rem; }
+.progress h3 code { font-family: var(--mono); font-size: 0.8rem; font-weight: 400; color: var(--muted); }
+.progress p { margin: 0; }
+.progress canvas { display: block; width: 100%; }
+.progress-bar { position: relative; display: flex; height: 0.7rem; border-radius: 2px; overflow: hidden; background: var(--progress-hair); }
+.progress-bar [data-bar="so-far"] { background: var(--progress-spent); }
+.progress-bar [data-bar="lo"] { background: color-mix(in oklab, var(--progress-togo) 45%, var(--paper)); }
+.progress-bar [data-bar="band"] { background: color-mix(in oklab, var(--progress-togo) 16%, var(--paper)); }
+.progress-bar [data-bar="median"] { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--progress-togo); }
+.progress-key { display: flex; flex-wrap: wrap; gap: 0.3rem 1.2rem; margin: 0; padding: 0; list-style: none; }
+.progress-key[hidden] { display: none; }
+.progress-sw { display: inline-block; width: 0.7rem; height: 0.7rem; margin-right: 0.35rem; border-radius: 2px; vertical-align: -0.05rem; }
+.progress-sw[data-status="settled"] { background: var(--progress-settled); }
+.progress-sw[data-status="open"] { background: var(--progress-open); }
+.progress-sw[data-status="split"] { background: var(--progress-split); }
+.progress-sw[data-status="pending"] { background: var(--progress-pending); }
+.progress-sw[data-status="running"] { background: var(--progress-running); }
+.progress-readout { color: var(--muted); min-height: 2.6rem; }
+.progress-readout code { font-family: var(--mono); font-size: 0.8rem; color: var(--ink); overflow-wrap: anywhere; }
+.progress-readout .progress-sw { margin-left: 0.6rem; }
+.progress-eta { margin: 0.4rem 0 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.3rem; }
+.progress-eta[hidden] { display: none; }
+.progress-eta svg { display: block; width: 100%; height: auto; overflow: visible; cursor: crosshair; touch-action: pan-y; }
+.progress-eta polyline { fill: none; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.progress-eta .spent { stroke: var(--progress-spent); stroke-width: 1.5; }
+.progress-eta .togo { stroke: var(--progress-togo); stroke-width: 1.5; }
+.progress-eta .total { stroke: var(--progress-total); stroke-width: 2.5; }
+.progress-eta .band { stroke: none; mix-blend-mode: multiply; }
+.progress-eta .band.togo { fill: color-mix(in oklab, var(--progress-togo) 40%, var(--paper)); }
+.progress-eta .band.total { fill: color-mix(in oklab, var(--progress-total) 26%, var(--paper)); }
+.progress-eta .ahead { stroke: var(--progress-spent); stroke-width: 1.5; stroke-dasharray: 5 4; vector-effect: non-scaling-stroke; }
+.progress-eta .cross { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 2 3; vector-effect: non-scaling-stroke; }
+.progress-eta .guide { stroke: var(--progress-total); stroke-width: 1; stroke-dasharray: 2 3; }
+.progress-eta .ideal { stroke: var(--progress-togo); stroke-width: 2; stroke-dasharray: 0 4; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.progress-eta .range { stroke-width: 6; stroke-linecap: round; vector-effect: non-scaling-stroke; mix-blend-mode: multiply; }
+.progress-eta .range.togo { stroke: color-mix(in oklab, var(--progress-togo) 30%, var(--paper)); }
+.progress-eta .range.total { stroke: color-mix(in oklab, var(--progress-total) 30%, var(--paper)); }
+.progress-eta .now.spent { fill: var(--progress-spent); stroke: none; }
+.progress-eta .now.togo { fill: var(--progress-togo); stroke: none; }
+.progress-eta .now.total { fill: var(--progress-total); stroke: none; }
+.progress-eta .axis, .progress-eta .grid { stroke: var(--progress-hair); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.progress-eta .break { stroke: var(--muted); stroke-width: 1; vector-effect: non-scaling-stroke; }   /* the slashes at the y axis's break (2026-10-23) */
+.progress-eta .yaxis { stroke: var(--muted); stroke-width: 1; vector-effect: non-scaling-stroke; }   /* the y axis's line, broken at the gap (2026-10-23) */
+.progress summary h3 { display: inline; }   /* a run's heading, its fold's summary (2026-10-23) */
+.progress-run:not([data-run-state="running"]) summary { color: var(--muted); }   /* a run not running, grayed (2026-10-23) */
+.progress-run-state { margin-left: 0.6em; }   /* the word for a run's state, after its heading (2026-10-25) */
+.progress-stale { margin-left: 0.6em; color: var(--progress-open); }   /* a run's data a snapshot could not renew (2026-10-30) */
+.progress-eta text { font-size: 11px; fill: var(--muted); stroke: none; font-variant-numeric: tabular-nums lining-nums; }
+/* The labels at the latest record, commented out with them (dreeves, 2026-10-17: "comment it out for now"):
+.progress-eta text.label { font-size: 12px; font-weight: 600; stroke: var(--paper); stroke-width: 4px; stroke-linejoin: round; paint-order: stroke; }
+.progress-eta .label.togo { fill: var(--progress-togo); }
+.progress-eta .label.total { fill: var(--progress-total); }
+.progress-eta .label.spent { fill: var(--progress-spent); } */
+/* The tip and the status line: one line, a snapshot's (template.progress-line).  Stroke none: the tip sits in the
+   chart's box, whose series rules stroke. */
+.progress-tip, .progress-status { font-variant-numeric: tabular-nums lining-nums; }
+.progress-tip { visibility: hidden; }
+.progress-tip.projected { font-style: italic; }   /* the tip past the last record: a projection */
+.progress-tip .spent, .progress-status .spent { color: var(--progress-spent); stroke: none; }
+.progress-tip .togo, .progress-status .togo { color: var(--progress-togo); stroke: none; }
+.progress-tip .total, .progress-status .total { color: var(--progress-total); stroke: none; }
+
+/* Claude's table of the smallest length known for each order (Stan Wagon's suggestion, 2026-10-17), its table drawn as
+   BGPW's (table.block) but not of that class, which mstar.py reads as Table 2's and the new results'; its body filled
+   from mstar.js.  It and the OEIS section were block quotes in Claude's hue, like the lattice section's, until
+   dreeves's edits of 2026-10-29, and now space their parts as the other sections do. */
+.smallest, .oeis { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; max-width: var(--measure); }
+.smallest table { justify-self: start; border-collapse: collapse; font-variant-numeric: tabular-nums lining-nums; }
+.smallest th, .smallest td { border: 1px solid var(--rule); padding: 0.3rem 0.7rem; text-align: center; }
+.smallest th { font-weight: 400; }
+.oeis ul, .mstar > ul { margin: 0; padding-left: 1.25rem; display: grid; gap: 0.35rem; }   /* lists of text */
+
+/* Claude's chart of m*(n) for n up to 1024: one canvas, drawn by the script at the end from mstar.js. Pan and zoom
+   act on n only, and vertical swipes still scroll the page. */
+.mstar { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; }
+/* Each chart's bar, its legend and then its zoom buttons, and how each chart takes the pointer and the keys, the same
+   for both charts (dreeves's README, 2026-10-30: "[ZOO] For anti-magic/consistency, have the same zoom controls on
+   both charts"; the m*(n) chart's own until then); their pan and zoom is panZoom, in the scripts at the end. */
+.chart-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem 1.6rem;
+}
+.swatch { display: inline-block; width: 1.4rem; height: 0.9rem; background: var(--hue); }
+.swatch.exists { --hue: var(--exists); }
+.swatch.open { --hue: var(--open); }
+.swatch.impossible { --hue: var(--impossible); }
+.swatch.record { box-shadow: 0 0 0 2px var(--record); }   /* a smallest cell, ringed in gold as in the charts */
+.swatch.proven { background-image: radial-gradient(circle closest-side, var(--record) 50%, transparent 50%); }   /* and proven the least: a gold dot, half its smaller side across */
+.zoom { display: flex; gap: 0.5rem; }
+.zoom button {
+  font: inherit;
+  font-size: 0.9375rem;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  padding: 0.1rem 0.75rem;
+  cursor: pointer;
+}
+.zoom button:disabled { opacity: 0.4; cursor: default; }  /* a zoom button at its limit, grayed out */
+#mstar-chart, #pow2-chart { touch-action: pan-y; cursor: grab; }
+#mstar-chart:active, #pow2-chart:active { cursor: grabbing; }
+#mstar-chart:focus-visible, #pow2-chart:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+#mstar-chart { display: block; width: 100%; }
+#mstar-readout { min-height: 3lh; max-width: none; font-size: 0.9375rem; font-variant-numeric: tabular-nums lining-nums; }
+#mstar-readout .swatch { margin-right: 0.5rem; vertical-align: -0.1em; }
+
+/* Claude's chart of the bounds on m*(2^k) − k for k up to 72: one svg of 72 columns, those in view (all, until it is
+   zoomed) stretched to the plot's width, drawn by the script at the end from pow2.js, with the e labels left of it and the k labels below.  As in the m*(n)
+   chart, rows are 14 px tall, the bottom device pixel of each page surface, as is a line one device pixel wide between
+   columns (a hairline grid, 2026-10-29), and the plot has 44 px of gutter on its left and 16 px on its right, so the
+   two plots line up. */
+.pow2 { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; }
+/* Claude's table of the construction behind each inequality of the theorem, ruled as the table of smallest lengths: a record
+   gap's products one per row, its bound's cell spanning them, each gap a tbody of its own so that the rules fall
+   between gaps and between columns but not between a gap's products; in a .scroll div, so a phone scrolls it. */
+.pow2-gaps { border-collapse: collapse; border: 1px solid var(--rule); font-variant-numeric: tabular-nums lining-nums; }
+.pow2-gaps th, .pow2-gaps td { border-left: 1px solid var(--rule); padding: 0.3rem 0.7rem; text-align: left; vertical-align: baseline; white-space: nowrap; }
+.pow2-gaps th { font-weight: 400; }
+.pow2-gaps thead, .pow2-gaps tbody { border-bottom: 1px solid var(--rule); }
+#pow2-chart {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 16px;
+  grid-template-rows: auto 30px;
+  font-size: 12px;
+  line-height: 12px;
+  color: var(--muted);
+}
+#pow2-chart svg { display: block; width: 100%; shape-rendering: crispEdges; }
+#pow2-chart rect.exists { fill: var(--exists); }
+#pow2-chart rect.open { fill: var(--open); }
+#pow2-chart rect.impossible { fill: var(--impossible); }
+#pow2-chart line { stroke: var(--paper); vector-effect: non-scaling-stroke; pointer-events: none; }  /* between columns */
+.pow2-es { grid-area: 1 / 1; position: relative; }
+.pow2-es span { position: absolute; right: 7px; }
+.pow2-es i { position: absolute; left: 2px; top: 50%; transform: translateY(-50%); font-size: 15px; color: var(--ink); }
+.pow2-plot { grid-area: 1 / 2; position: relative; }
+.pow2-frame { position: absolute; inset: -2px; overflow: hidden; pointer-events: none; }  /* 2 px around the plot, it clips the rings and the outline where the view ends */
+.pow2-outline { position: absolute; border: 2px solid var(--ink); pointer-events: none; }  /* the cell read out */
+.pow2-dot { position: absolute; aspect-ratio: 1; border-radius: 50%; background: var(--record); transform: translate(-50%, -50%); pointer-events: none; }  /* in a cell proven the least */
+.pow2-trim { position: absolute; border: solid var(--record); border-width: 2px 1px; pointer-events: none; }  /* a bound the theorem states: in the gaps above and below, 1 px at the sides */
+.pow2-k { grid-area: 2 / 1; padding: 6px 0 0 2px; font-size: 15px; color: var(--ink); }
+.pow2-ks { grid-area: 2 / 2; position: relative; }
+.pow2-ks span { position: absolute; transform: translateX(-50%); }
+.pow2-tick { top: 0; width: 1px; height: 4px; background: var(--muted); }
+.pow2-klabel { top: 7px; }
+#pow2-readout { min-height: 3lh; max-width: none; font-size: 0.9375rem; font-variant-numeric: tabular-nums lining-nums; }
+#pow2-readout .swatch { margin-right: 0.5rem; vertical-align: -0.1em; }
+
+footer {
+  display: grid;
+  gap: 0.5rem;
+  max-width: var(--measure);
+  padding-top: 1.25rem;
+  border-top: 1px solid color-mix(in oklab, var(--rule) 30%, var(--paper));
+  font-size: 0.9375rem;
+  color: var(--muted);
+}

@@ -1826,8 +1826,9 @@ def q_survey_track_reads_each_run_s_state():
     # the runs' dots in record order are settled, running, pending, open, open (SEA_STATUSES' colors: green ended,
     # orange running, gray frozen, crimson aborted; a zombie is gone); the search is running, its outcome null; work
     # counts 5 runs, 1 running, 1
-    # frozen, 1 ended, 2 aborted and 2 found; so_far 4000 (from the first start to the time); no ETA; n 768, order 12,
-    # program w12.py, tracked.
+    # frozen, 1 ended, 2 aborted and 2 found; so_far 4000 (from the first start to the time); its ETA by Gott's rule on
+    # that time, recorded at 5000 s (revised 2026-10-31, the coordinator: "Every run gets an ETA graph"; none before);
+    # n 768, order 12, program w12.py, tracked.
     d = tempfile.mkdtemp(prefix='progress-quals-')
     try:
         found = os.path.join(d, 'witnesses.jsonl')
@@ -1838,7 +1839,8 @@ def q_survey_track_reads_each_run_s_state():
         pick = lambda st: str(progress.SEA_STATUSES.index(st))
         assert s['sea']['groups'] == [''.join(map(pick, ['settled', 'running', 'pending', 'open', 'open']))], s['sea']
         assert s['sea']['keys'] == ['768:12'] and s['sea']['depth'] == 0, s['sea']
-        assert (s['state'], s['outcome'], s['so_far'], s['to_go'], s['etas']) == ('running', None, 4000.0, None, {}), s
+        assert (s['state'], s['outcome'], s['so_far']) == ('running', None, 4000.0), s
+        assert close(s['to_go'], dict(median=4000, lo=4000 / 19, hi=19 * 4000)) and close(s['etas'], {'5000.0': gott(4000)}), s
         assert s['display']['work'] == dict(runs=5, running=1, frozen=1, ended=1, aborted=2, found=2), s['display']
         assert (s['program'], s['n'], s['order'], s['display']['tracked']) == ('w12.py', 768, 12, True), s
     finally:
@@ -1935,6 +1937,119 @@ def q_js_text_carries_a_tracked_search():
     assert set(r) == {'program', 'n', 'order', 'state', 'outcome', 'so_far', 'to_go', 'etas', 'statuses', 'depth', 'keys',
                       'groups', 'counts', 'stale', 'tracked', 'work'}, set(r)
     assert r['stale'] is None and r['tracked'] is True and r['work'] == dict(runs=2, running=1, frozen=0, ended=1, aborted=0, found=0), r
+
+
+def close(got, want):
+    """Whether got and want, numbers or (nested) lists or dicts of numbers alike in shape, agree to 12 digits."""
+    if isinstance(want, dict): return set(got) == set(want) and all(close(got[k], want[k]) for k in want)
+    if isinstance(want, list): return len(got) == len(want) and all(close(a, b) for a, b in zip(got, want))
+    return abs(got - want) <= 1e-12 * max(1.0, abs(want))
+
+
+def gott(seconds):
+    """Gott's rule (1993) for a run that has run so many seconds, as a recorded ETA: [median, lo, hi] hours to go, its
+    median its age, its 90% band from a 19th of its age to 19 times it."""
+    return [seconds / 3600, seconds / 19 / 3600, 19 * seconds / 3600]
+
+
+def eta_line(t, median, lo, hi):
+    """A tracked run's own estimate of its target's seconds to go, as it appends it to its record (see track.py)."""
+    return dict(event='eta', time=t, median=median, lo=lo, hi=hi)
+
+
+def q_survey_track_records_gotts_eta_while_running():
+    # Replicata: progress.survey_track of 768:12 with one record, started at 1000 s, its pid running, at 5000 s and
+    # again at 6000 s, with one record of ETAs (a dict) for both; then that pid stopped (frozen) at 7000 s; then the
+    # record with its end line (status 0, at 7500 s) at 8000 s.
+    # Expectata (the coordinator, 2026-10-31: "Every run gets an ETA graph", dreeves wanting one always for whatever
+    # runs; 624:11, tracked, had none): while running, Gott's rule on the time so far, 4000 s and then 5000 s: to go its
+    # median that time and its band from a 19th of it to 19 times it, each snapshot's recorded by its time in hours as
+    # every run's ETAs are; frozen and ended, nothing to go and no new record, the two records kept and given.
+    etas, record = {}, track_record('r0', 400, None, None, 1000)
+    for now in (5000.0, 6000.0):
+        s = progress.survey_track('768:12', [record], [(400, 1, 'SN', 'python3 -B w12.py')], now, etas)
+        hours = gott(now - 1000)
+        assert s['state'] == 'running' and close(s['to_go'], dict(zip(('median', 'lo', 'hi'), (h * 3600 for h in hours)))), s
+        assert s['etas'] is etas and close(etas[str(now)], hours), etas
+    assert list(etas) == ['5000.0', '6000.0'], etas
+    frozen = progress.survey_track('768:12', [record], [(400, 1, 'TN', 'python3 -B w12.py')], 7000.0, etas)
+    ended = progress.survey_track('768:12', [record + [dict(event='end', time=7500.0, status=0)]], [], 8000.0, etas)
+    for s, state in ((frozen, 'frozen'), (ended, 'ended')):
+        assert (s['state'], s['to_go'], list(s['etas'])) == (state, None, ['5000.0', '6000.0']), s
+    assert [round(r[1] * 3600, 6) for r in progress.eta_records(ended)] == [4000, 5000], progress.eta_records(ended)
+
+
+def q_survey_track_prefers_the_search_s_latest_eta_line():
+    # Replicata: progress.survey_track of 768:12 at 5000 s with two running records: the first with eta lines at
+    # 2000 s (100 s to go at the median, 10 to 1000) and 4000 s (50 s, 5 to 500), the second with one at 3000 s (70 s,
+    # 7 to 700); then the same with the second's line at 4500 s instead.
+    # Expectata (the coordinator, 2026-10-31: a search may append its own estimate to its record, which survey_track
+    # prefers over Gott's rule): the latest line of either record is the estimate, recorded at 5000 s in hours: 4000
+    # s's (50 s, 5 to 500), then 4500 s's (70 s, 7 to 700).
+    procs = [(410, 1, 'SN', 'python3 -B w12.py'), (411, 1, 'SN', 'python3 -B w12.py')]
+    for second_at, (median, lo, hi) in ((3000.0, (50, 5, 500)), (4500.0, (70, 7, 700))):
+        records = [track_record('r0', 410, None, None, 1000) + [eta_line(2000.0, 100, 10, 1000), eta_line(4000.0, 50, 5, 500)],
+                   track_record('r1', 411, None, None, 1001) + [eta_line(second_at, 70, 7, 700)]]
+        etas = {}
+        s = progress.survey_track('768:12', records, procs, 5000.0, etas)
+        assert close(s['to_go'], dict(median=median, lo=lo, hi=hi)), s['to_go']
+        assert close(etas, {'5000.0': [median / 3600, lo / 3600, hi / 3600]}), etas
+
+
+def q_survey_track_refuses_malformed_lines():
+    # Replicata: progress.survey_track of 768:12 at 5000 s with one running record, started at 1000 s, holding an eta
+    # line that lacks a field or has one more; whose time, median, lo or hi is a string, a bool, NaN, infinite or
+    # negative; whose lo is above its median or its median above its hi; whose time is before the run's start; or two
+    # eta lines out of time order; or an eta line after the end line; a line of another event; a second start line;
+    # two end lines.
+    # Expectata: AssertionError, each: a malformed line cannot move a search's estimate or state.
+    good = eta_line(2000.0, 50.0, 5.0, 500.0)
+    end = dict(event='end', time=3000.0, status=0)
+    bad = [[{k: v for k, v in good.items() if k != 'lo'}], [dict(good, extra=1)],
+           *([dict(good, **{k: v})] for k in ('time', 'median', 'lo', 'hi')
+             for v in ('50', True, float('nan'), float('inf'), -1.0)),
+           [dict(good, lo=60.0)], [dict(good, median=600.0)], [dict(good, time=999.0)],
+           [good, dict(good, time=1500.0)], [end, good], [dict(good, event='note')],
+           [track_record('r0', 420, None, None, 1000)[0]], [end, end]]
+    assert progress.survey_track('768:12', [track_record('r0', 420, None, None, 1000) + [good]],
+                                 [(420, 1, 'SN', 'python3 -B w12.py')], 5000.0)['to_go'] is not None
+    for lines in bad:
+        expect_assertion(progress.survey_track, '768:12', [track_record('r0', 420, None, None, 1000) + lines],
+                         [(420, 1, 'SN', 'python3 -B w12.py')], 5000.0)
+
+
+def q_survey_track_runs_on_to_its_last_eta_record():
+    # Replicata: progress.survey_track of 768:12 at 9000 s with one record, started at 1000 s, with no end line and its
+    # pid gone (its tracker died with it), and a record of ETAs made at 5000 s and 6000 s, while it ran.
+    # Expectata (as spans_of's runs, which run on to the observations within them): ended, its time so far running to
+    # its last record, 5000 s, and its records on its axis of running time at 4000 s and 5000 s.
+    # Resultata before: its time so far stopped at its last line, its start, so its records fell after its end and
+    # eta_records failed (AssertionError), leaving the search stale.
+    etas = {'5000.0': gott(4000), '6000.0': gott(5000)}
+    s = progress.survey_track('768:12', [track_record('r0', 430, None, None, 1000)], [], 9000.0, etas)
+    assert (s['state'], s['so_far'], s['to_go']) == ('ended', 5000.0, None), s
+    assert [round(r[1] * 3600, 6) for r in progress.eta_records(s)] == [4000, 5000], progress.eta_records(s)
+
+
+def q_watch_keeps_a_tracked_search_s_eta_record():
+    # Replicata: progress.main(['--watch']) of a directory with one tracked search, 768:12, its one run live from
+    # 1000 s: snapshots at 5000 s and 6000 s; then its record gains an end line (status 0) at 6500 s, and a third
+    # snapshot comes at 7000 s.
+    # Expectata (the coordinator, 2026-10-31: its records live in the watcher's cache of ETAs and are thinned as every
+    # run's; an ended search keeps them): the first two data files give it to go by Gott's rule (4000 s, then 5000 s
+    # at the median) and its record of ETAs on its axis of running time, one record, then two; the third, its search
+    # ended, nothing to go and the same two records.
+    d, procs = tracked_dir(['768:12'])
+    seen = []
+    def after(k):
+        seen.append(progress_data(open(os.path.join(d, 'p.js')).read())['runs'][0])
+        if k == 1: open(os.path.join(d, 'runs', 'r0.jsonl'), 'a').write(json.dumps(dict(event='end', time=6500.0, status=0)) + '\n')
+    watch([5000, 6000, 7000], after, dict(RUNS=(), EXTENDED=(), HERE=d, JS=os.path.join(d, 'p.js'),
+                                          CACHE=os.path.join(d, 'c.json'), processes=lambda: procs))
+    records = [[5000, 4000.0, 4000.0, 210.5, 76000.0], [6000, 5000.0, 5000.0, 263.2, 95000.0]]
+    assert [r['state'] for r in seen] == ['running', 'running', 'ended'], seen
+    assert [r['etas'] for r in seen] == [records[:1], records, records], [r['etas'] for r in seen]
+    assert close([r['to_go']['median'] for r in seen[:2]], [4000.0, 5000.0]) and seen[2]['to_go'] is None, seen
 
 
 # ---------- the watcher kept between snapshots, and bounded (2026-10-30) ----------
@@ -2082,10 +2197,10 @@ def q_watch_marks_an_overrun_survey_stale_and_updates_the_others():
     # its limit.
     d, procs = tracked_dir(['720:12', '768:12'])
     original, k, seen = progress.survey_track, [0], []
-    def slow(target, records, procs, now):
+    def slow(target, records, procs, now, *rest):
         end = time.monotonic() + 3 * (k[0] == 1 and target == '720:12')
         while time.monotonic() < end: pass
-        return original(target, records, procs, now)
+        return original(target, records, procs, now, *rest)
     def after(i):
         seen.append({r['n']: r for r in progress_data(open(os.path.join(d, 'p.js')).read())['runs']})
         k[0] = i + 1
@@ -2111,10 +2226,10 @@ def q_watch_doubles_the_limit_of_a_run_that_keeps_overrunning():
     # 768:12 fresh throughout; the log names each limit.
     d, procs = tracked_dir(['720:12', '768:12'])
     original, k, seen = progress.survey_track, [0], []
-    def slow(target, records, procs, now):
+    def slow(target, records, procs, now, *rest):
         end = time.monotonic() + 3 * (k[0] >= 1 and target == '720:12')
         while time.monotonic() < end: pass
-        return original(target, records, procs, now)
+        return original(target, records, procs, now, *rest)
     def after(i):
         seen.append({r['n']: r for r in progress_data(open(os.path.join(d, 'p.js')).read())['runs']})
         k[0] = i + 1

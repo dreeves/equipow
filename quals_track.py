@@ -73,6 +73,42 @@ def q_run_names_the_script_as_its_program():
         shutil.rmtree(d)
 
 
+ETA = '''import json, os, sys, time
+path = os.environ['TRACK_RECORD']
+until = time.time() + 20                  # the record is linked into place just after this process is started
+while not os.path.exists(path):
+    assert time.time() < until, path
+    time.sleep(0.01)
+fd = os.open(path, os.O_WRONLY | os.O_APPEND)      # appended to, never created
+os.write(fd, (json.dumps(dict(event='eta', time=time.time(), median=60.0, lo=6.0, hi=600.0)) + '\\n').encode())
+os.close(fd)
+print(path, flush=True)
+'''
+
+
+def q_run_names_its_record_to_its_command():
+    # Replicata: track.py run q8 16:4 -- python3 -c ETA, in a temporary directory: ETA waits for the record named by
+    # the environment variable TRACK_RECORD, appends to it (opened without creating it) the line {"event": "eta",
+    # "time", "median": 60, "lo": 6, "hi": 600}, as a search appends its own estimate of its seconds to go, and prints
+    # the record's name.
+    # Expectata (the coordinator, 2026-10-31: track.py exports its record path to the command through an environment
+    # variable, so that a search may append eta lines, which the watcher prefers to Gott's rule): the name printed is
+    # runs/q8.jsonl's absolute path; the record holds the start, the command's line as it wrote it, and the end, with
+    # status 0, in that order.
+    d = sandbox()
+    try:
+        p = subprocess.run([PY, '-B', 'track.py', 'run', 'q8', '16:4', '--', PY, '-c', ETA], cwd=d, capture_output=True,
+                           text=True, timeout=60)
+        assert p.returncode == 0, p.stderr
+        assert p.stdout.strip() == os.path.join(os.path.realpath(d), 'runs', 'q8.jsonl'), p.stdout
+        start, eta, end = record(d, 'q8')
+        assert (start['event'], end['event'], end['status']) == ('start', 'end', 0), (start, end)
+        assert {k: eta[k] for k in ('event', 'median', 'lo', 'hi')} == dict(event='eta', median=60.0, lo=6.0, hi=600.0), eta
+        assert start['time'] <= eta['time'] <= end['time'], (start, eta, end)
+    finally:
+        shutil.rmtree(d)
+
+
 def q_run_passes_sigterm_to_its_command():
     # Replicata: track.py run q3 16:4 -- python3 -c "import time; time.sleep(60)"; once its start is written,
     # SIGTERM to track.py.
