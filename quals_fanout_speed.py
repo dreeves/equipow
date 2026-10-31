@@ -143,20 +143,23 @@ class FanoutSpeedQuals(unittest.TestCase):
         # every leaf of it proven again from scratch by reprove.walk (before tree-only storage, 2026-10-25:
         # certbb.verify of the job's tokens, which no longer leave the worker).
         # Resultata before the change: every sibling inherits its last descendant's basis.
+        # Spec change proposed 2026-10-31 (fastlp behind the producer, scratch/speed432-fastlp-20261031):
+        # the worker's LP is a fanout.Simplex, whose Dual restores a saved parent state when its solve is given one
+        # (a snapshot), where HiGHS's setBasis did.
         prepared = focus.moments(20, 5), ((),)
-        fanout.lp_for.cache_clear()
+        fanout.lp_for.cache_clear(); fanout.producer_for.cache_clear(); fanout.closed_for.cache_clear()
         fanout.init(prepared, 10000, 8)
         lp = fanout.lp_for(0)
-        native = lp.H
-        lp.H = Mock(wraps=native)
+        native = lp.dual
+        lp.dual = Mock(wraps=native)
         result = fanout.work((0, ()))
         self.assertIsNone(result['witness'])
         self.assertEqual(result['open'], [])
         self.assertEqual(fanout.frontier(20, [], result['tree']), [])
         reprove.init(prepared)
         self.assertEqual(reprove.walk((0, ()), result['tree'])['leaves'], result['tree'].count(['L']))
-        self.assertGreater(lp.H.setBasis.call_count, 0)
-        fanout.lp_for.cache_clear()
+        self.assertGreater(sum(call.args[2] is not None for call in lp.dual.solve.call_args_list), 0)
+        fanout.lp_for.cache_clear(); fanout.producer_for.cache_clear(); fanout.closed_for.cache_clear()
 
 
 if __name__ == '__main__':

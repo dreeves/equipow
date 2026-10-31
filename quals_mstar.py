@@ -232,7 +232,10 @@ def q_page_parse():
     # since 2026-10-27 a second order-10 set at 528, the symmetric one (dreeves: "sure to the additional 528 bipartition")
     assert ('SClaudeSym', 10, 528) in mstar.PAGE_SET_KEYS and ('SClaude', 10, 528) in mstar.PAGE_SET_KEYS
     sym = mstar.explicit()[528, 'index.html SClaudeSym[10][528]']
-    assert sym == sym[::-1] and exact_order_div(sym) == 10 and sym == mstar.explicit()[528, 'index.html p528']
+    # and the page's p528 of order 10 (from PAGE_CODES: since 2026-10-31 the label also names the order-11 p528,
+    # which mstar.explicit keeps at that label)
+    p528 = [h for label, m, h in mstar.PAGE_CODES if (label, m) == ('index.html p528', 10)]
+    assert len(p528) == 1 and sym == sym[::-1] and exact_order_div(sym) == 10 and sym == v5.from_hex(p528[0], 10)
 
 
 def q_384_settled_by_astra():
@@ -248,11 +251,12 @@ def q_384_settled_by_astra():
 
 
 def q_page_parse_is_strict():
-    # Replicata: index.html with one change each: Table 2's 136 -> 7 (the first value of its block); 528's "10–12" (class j) ->
-    # "10–11"; 320's title BGPW -> Claude alone; the code C27D8C -> C27D8D; the first block table dropped.
+    # Replicata: index.html with one change each: Table 2's 136 -> 7 (the first value of its block); 496's "9" (class j) ->
+    # "9–10" (528's "10–12" -> "10–11" until 2026-10-31, when 528's cell became 11–12, class c, like 576's and 624's);
+    # 320's title BGPW -> Claude alone; the code C27D8C -> C27D8D; the first block table dropped.
     # Expectata: AssertionError from mstar.page_sources for each (the parse must equal the hand copy).
     html = open(os.path.join(HERE, 'index.html'), encoding='utf-8').read()
-    for old, new in (('<td class="j">10–12</td>', '<td class="j">10–11</td>'),
+    for old, new in (('<td class="j">9</td>', '<td class="j">9–10</td>'),
                      ("<td class=\"s\" title='BGPW'>320</td>", "<td class=\"s\" title='Claude alone'>320</td>"),
                      ('<code>C27D8C</code>', '<code>C27D8D</code>')):
         assert html.count(old) == 1, old
@@ -642,6 +646,20 @@ def q_examples_at_576_and_624_raise_their_lo():
     for n, M in ((576, 5), (624, 25)):
         assert mstar.NEW[n] == (11, 12, 'Claude alone'), (n, mstar.NEW[n])
         assert cs[n - 1] == [11, 12, ['example', f'index.html p{n}'], ['residue', M]], (n, cs[n - 1])
+
+
+def q_example_at_528_raises_its_lo():
+    # Replicata: mstar.NEW and mstar.js's column at 528.
+    # Expectata (2026-10-31: Claude's lattice search scratch/w11-624-576/w11.py, at antisymmetric order 11, found
+    # seven antisymmetric examples of order 11 at 528, one per seed of its first batch): 528 is 11 to 12, Claude alone
+    # (both bounds Claude's), its lo the page's example ["example", "index.html p528"] (the order-11 code, which
+    # mstar.explicit keeps over the order-10 p528 of the same label) and its hi still the residue condition at order
+    # 13 mod 5.
+    # Resultata before: 528 was 10 to 12, Claude and BGPW, its lo the symmetric example p528 of order 10.
+    _, got = disk()
+    cs = got['m']['cols']
+    assert mstar.NEW[528] == (11, 12, 'Claude alone'), mstar.NEW[528]
+    assert cs[527] == [11, 12, ['example', 'index.html p528'], ['residue', 5]], cs[527]
 
 
 # ---------- residue tests ----------

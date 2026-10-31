@@ -1824,12 +1824,13 @@ def q_symmetric_example_at_528():
     # half of the signs, 1 = +1, then the rest by (-1)^m symmetry), and synthetic division by x - 1.
     # Expectata (2026-10-27, dreeves: "sure", to putting a symmetric 528 example on the page; four were found that day
     # by a lattice search, scratch/sym528): the entry keeps the join's code p192 and adds p528 (m = 10), which decodes
-    # to a symmetric sequence of length 528, exact order 10, +1 at 0.
+    # to a symmetric sequence of length 528, exact order 10, +1 at 0; since 2026-10-31 a third code follows them, p528
+    # (m = 11) (q_example_at_528_has_its_entry_code_and_set).
     li = re.search(r'<p class="entry">\\\(n = 528\\\): .*?</li>', page(), re.S)
     assert li, 'no entry of 528'
     codes = re.findall(r'\\\(p_\{(\d+)\}\\\) \\\(\(m = (\d+)\)\\\):</span>\n\s*<code>([0-9A-F]+)</code>',
                        li.group(0))
-    assert [c[:2] for c in codes] == [('192', '9'), ('528', '10')], codes
+    assert [c[:2] for c in codes] == [('192', '9'), ('528', '10'), ('528', '11')], codes
     h = codes[1][2]
     left = [1 if b == '1' else -1 for b in bin(int(h, 16))[2:].zfill(4 * len(h))]
     a, k = left + left[::-1], 0
@@ -2058,6 +2059,40 @@ def q_examples_at_576_and_624_have_their_entries_codes_and_sets():
         assert new_cells(text)[n] == (11, 12), new_cells(text)[n]
         assert said.get(n) == (11, 12), (n, said.get(n))
         assert mstar_data()['cols'][n - 1] == [11, 12, ['example', f'index.html p{n}'], ['residue', M]], mstar_data()['cols'][n - 1]
+
+
+def q_example_at_528_has_its_entry_code_and_set():
+    # Replicata: the remarks' entry of 528, its code blocks decoded by the paper's Table 5 convention (the left half
+    # of the signs, 1 = +1, then the rest by (-1)^m symmetry), the page's set SClaude[11][528], the new results' cell
+    # of 528, the changelog's statements of 2026-10-31, and mstar.js's column.
+    # Expectata (2026-10-31: Claude's lattice search scratch/w11-624-576/w11.py found antisymmetric examples of order
+    # 11 at 528): the entry, an <li class="c"> marked ◆ (Claude alone: both bounds are Claude's now), says
+    # "m* ∈ {11, 12}"; its last code is p528 (m = 11), whose signs have order exactly 11 (synthetic division here),
+    # are antisymmetric and have +1 at 0; SClaude[11][528] is exactly their +1 positions and is the page's last set;
+    # no other entry names 528; the cell is 11–12; the changelog states m*(528) ≥ 11 on 2026-10-31 (only its low
+    # moved: 2026-10-04 said ≥ 10 and 2026-10-11 ≤ 12); and mstar.js's column is [11, 12, ["example",
+    # "index.html p528"], ["residue", 5]].
+    # Resultata before: 528 was 10 to 12, Claude and BGPW, with no example of order 11.
+    text = page()
+    li = re.search(r'<li class="c">\n      <span class="mk" aria-hidden="true">◆</span>\n      <p class="entry">\\\(n = 528'
+                   r'\\\): &nbsp;\\\(m\^\* \\in \\\{11, 12\\\}\\\)</p>\n(.*?)\n    </li>', text, re.S)
+    assert li, 'no entry of 528 alone, class c, m* in {11, 12}'
+    codes = re.findall(r'\\\(p_\{(\d+)\}\\\) \\\(\(m = (\d+)\)\\\):</span>\n\s*<code>([0-9A-F]+)</code>', li.group(1))
+    assert codes and codes[-1][:2] == ('528', '11'), codes
+    h = codes[-1][2]
+    left = [1 if b == '1' else -1 for b in bin(int(h, 16))[2:].zfill(4 * len(h))]
+    a, k = left + [-s for s in reversed(left)], 0
+    c = a
+    while not sum(c): c, k = list(itertools.accumulate(c[:-1])), k + 1
+    assert len(a) == 528 and k == 11 and all(a[527 - i] == -a[i] for i in range(528)) and a[0] == 1, (len(a), k)
+    sets = re.findall(r'\n(SClaude\w*)\[(\d+)\]\[(\d+)\] = \{([^}]*)\};', text)
+    assert sets[-1][:3] == ('SClaude', '11', '528'), sets[-1][:3]
+    assert {int(t) for t in sets[-1][3].split(',')} == {i for i, s in enumerate(a) if s == 1}
+    listed = [ns.split(', ') for ns in re.findall(r'<p class="entry">\\\(n = (.*?)\\\): ', text)]
+    assert sum('528' in ns for ns in listed) == 1, [ns for ns in listed if '528' in ns]
+    assert new_cells(text)[528] == (11, 12), new_cells(text)[528]
+    assert changelog_by_day().get('2026-10-31', {}).get(528) == (11, None), changelog_by_day().get('2026-10-31')
+    assert mstar_data()['cols'][527] == [11, 12, ['example', 'index.html p528'], ['residue', 5]], mstar_data()['cols'][527]
 
 
 OEIS = ('A323395', 'A306248', 'A323610', 'A323629', 'A323614')                # the OEIS section's entries on this problem

@@ -39,7 +39,7 @@
   <!-- The changelog, newest first, as in dreeves's spec FreshAt (doc.bmndr.co/freshat) -->
   <details class="changelog">
     <summary><i>Changelog</i></summary>
-    <p>2026-10-31: \(11 \le m^*(576) \le 12\), \(11 \le m^*(624) \le 12\)</p>
+    <p>2026-10-31: \(m^*(528) \ge 11\), \(11 \le m^*(576) \le 12\), \(11 \le m^*(624) \le 12\)</p>
     <p>2026-10-28: <span class="nw">OEIS section</span></p>
     <p>2026-10-28: \(m^*(720) \ge 12\)</p>
     <p>2026-10-28: \(12 \le m^*(768) \le 13\)</p>
@@ -160,8 +160,8 @@
           <tr class="vals"><th scope="row">\(m^*(n)\)</th><td class="c">10</td><td>7</td><td>8</td><td>7</td><td>8</td><td>7</td><td>9–10</td><td>7</td><td class="c">8</td><td class="s">9</td><td class="j">10</td><td class="s">9</td><td class="s">9</td><td class="a">10</td><td class="s">9</td><td class="s">9</td><td class="c">11–12</td><td class="c">9</td><td class="s">9</td></tr>
         </table>
         <table class="block">
-          <tr class="ns"><th scope="row">\(n\)</th><td class="c" title='Claude alone'>480</td><td class="j" title='Claude and BGPW'>496</td><td class="c" title='Claude alone'>512</td><td class="j" title='Claude and BGPW'>528</td><td class="c" title='Claude alone'>544</td><td class="c" title='Claude alone'>560</td><td class="c" title='Claude alone'>576</td><td class="ca" title='Claude and Astra'>592</td><td class="ca" title='Claude and Astra'>608</td><td class="c" title='Claude alone'>624</td><td class="c" title='Claude alone'>640</td><td class="ca" title='Claude and Astra'>656</td></tr>
-          <tr class="vals"><th scope="row">\(m^*(n)\)</th><td class="c">12–14</td><td class="j">9</td><td class="c">9</td><td class="j">10–12</td><td class="c">9–10</td><td class="c">10</td><td class="c">11–12</td><td class="ca">10</td><td class="ca">10</td><td class="c">11–12</td><td class="c">10</td><td class="ca">10</td></tr>
+          <tr class="ns"><th scope="row">\(n\)</th><td class="c" title='Claude alone'>480</td><td class="j" title='Claude and BGPW'>496</td><td class="c" title='Claude alone'>512</td><td class="c" title='Claude alone'>528</td><td class="c" title='Claude alone'>544</td><td class="c" title='Claude alone'>560</td><td class="c" title='Claude alone'>576</td><td class="ca" title='Claude and Astra'>592</td><td class="ca" title='Claude and Astra'>608</td><td class="c" title='Claude alone'>624</td><td class="c" title='Claude alone'>640</td><td class="ca" title='Claude and Astra'>656</td></tr>
+          <tr class="vals"><th scope="row">\(m^*(n)\)</th><td class="c">12–14</td><td class="j">9</td><td class="c">9</td><td class="c">11–12</td><td class="c">9–10</td><td class="c">10</td><td class="c">11–12</td><td class="ca">10</td><td class="ca">10</td><td class="c">11–12</td><td class="c">10</td><td class="ca">10</td></tr>
         </table>
         <table class="block">
           <tr class="ns"><th scope="row">\(n\)</th><td class="c" title='Claude alone'>672</td><td class="c" title='Claude alone'>688</td><td class="c" title='Claude alone'>704</td><td class="c" title='Claude alone'>720</td><td class="c" title='Claude alone'>736</td><td class="ca" title='Claude and Astra'>752</td><td class="c" title='Claude alone'>768</td><td class="ca" title='Claude and Astra'>784</td><td class="c" title='Claude alone'>800</td><td class="c" title='Claude alone'>816</td><td class="c" title='Claude alone'>832</td></tr>
@@ -524,9 +524,9 @@ Or just start identifying redundancies and repetition on the page and fix them o
         The Mathematica script <a href="https://raw.githubusercontent.com/dreeves/equipow/main/proof512.wl">proof512.wl</a> checks its computations.</p>
       <p>Claude: “A shorter proof that needs no computer, also covering 496: <a href="proof512_short.txt">proof512_short.txt</a>.”</p>
     </li>
-    <li class="j">
-      <span class="mk" aria-hidden="true">◆●</span>
-      <p class="entry">\(n = 528\): &nbsp;\(m^* \in \{10, 11, 12\}\)</p>
+    <li class="c">
+      <span class="mk" aria-hidden="true">◆</span>
+      <p class="entry">\(n = 528\): &nbsp;\(m^* \in \{11, 12\}\)</p>
       <p>BGPW had an example of order 10 before Claude's work. Claude found another independently, by joining an example of length 192 and order 9 to an antisymmetric piece of length 336 and order 9, chosen so that their 9th power sums cancel.</p>
       <!-- Says order 13 at 528 is ruled out by the residue condition mod 5 (Claude's proof), so m*(528) is 10, 11 or 12 -->
       <p>Order 13 is ruled out by the residue condition mod 5.</p>
@@ -539,6 +539,12 @@ Or just start identifying redundancies and repetition on the page and fix them o
       <p class="code">
         <span>\(p_{528}\) \((m = 10)\):</span>
         <code>D920BDA31A6FDC8423BEC528AE51365BB4A6C36E419CCEF94C45BB00D13EE1EAA5</code>
+      </p>
+      <!-- TODO: says this is an antisymmetric example of order 11, found by a lattice search on 2026-10-31, so m*(528) is 11 or 12 -->
+      <p>Claude: “An antisymmetric example of order 11, found by a lattice search.”</p>
+      <p class="code">
+        <span>\(p_{528}\) \((m = 11)\):</span>
+        <code>9CA5A87A325DAF0ACC5936B5E14A70858F78E1DA867AADD8939CB718429D151737</code>
       </p>
     </li>
     <li class="c">
@@ -1920,7 +1926,28 @@ SClaude[11][624] = {
   543, 545, 546, 550, 555, 557, 559, 560, 561, 562, 564, 565, 566,
   568, 569, 570, 574, 575, 576, 581, 585, 589, 590, 593, 595, 596,
   600, 601, 602, 604, 605, 606, 607, 609, 611, 613, 615, 620, 621,
-  622};</code></pre>
+  622};
+SClaude[11][528] = {
+  0, 3, 4, 5, 8, 10, 13, 15, 16, 18, 20, 25, 26, 27, 28, 30, 34, 35,
+  38, 41, 43, 44, 45, 47, 48, 50, 52, 53, 54, 55, 60, 62, 64, 65, 68,
+  69, 73, 75, 76, 79, 82, 83, 85, 86, 88, 90, 91, 93, 95, 96, 97, 98,
+  103, 105, 108, 110, 113, 114, 115, 120, 125, 127, 128, 132, 133,
+  134, 135, 137, 138, 139, 140, 144, 145, 146, 151, 152, 153, 155,
+  156, 158, 160, 165, 166, 169, 170, 171, 172, 174, 176, 178, 180,
+  181, 183, 184, 185, 187, 188, 192, 195, 198, 199, 200, 203, 204,
+  205, 208, 210, 211, 213, 214, 215, 219, 220, 225, 230, 232, 235,
+  236, 237, 239, 243, 245, 247, 251, 253, 254, 255, 258, 259, 261,
+  262, 263, 267, 270, 271, 275, 277, 278, 279, 281, 283, 285, 286,
+  287, 289, 293, 294, 296, 298, 299, 300, 301, 303, 304, 305, 306,
+  309, 310, 311, 315, 318, 320, 321, 325, 326, 330, 331, 333, 334,
+  336, 337, 338, 341, 345, 348, 350, 352, 354, 359, 360, 363, 364,
+  365, 366, 368, 370, 373, 377, 378, 379, 380, 384, 385, 386, 391,
+  396, 397, 398, 401, 403, 404, 405, 406, 408, 409, 410, 411, 415,
+  416, 418, 420, 421, 423, 425, 426, 427, 428, 433, 435, 438, 440,
+  443, 446, 447, 449, 450, 453, 455, 456, 457, 460, 461, 464, 466,
+  468, 469, 470, 471, 476, 478, 481, 485, 487, 488, 490, 491, 494,
+  495, 496, 498, 503, 504, 505, 506, 508, 510, 513, 515, 516, 518,
+  520, 521, 525, 526};</code></pre>
 </section>
 
 <section class="progress" aria-labelledby="progress-title">

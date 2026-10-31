@@ -149,7 +149,7 @@ NEW = {240: (10, 10, 'Claude alone'),
        304: (8, 8, 'Claude alone'), 320: (9, 9, 'BGPW'), 336: (10, 10, 'Claude and BGPW'), 352: (9, 9, 'BGPW'),
        368: (9, 9, 'BGPW'), 400: (9, 9, 'BGPW'), 416: (9, 9, 'BGPW'), 432: (11, 12, 'Claude alone'),
        448: (9, 9, 'Claude alone'), 464: (9, 9, 'BGPW'), 480: (12, 14, 'Claude alone'),
-       496: (9, 9, 'Claude and BGPW'), 512: (9, 9, 'Claude alone'), 528: (10, 12, 'Claude and BGPW'),
+       496: (9, 9, 'Claude and BGPW'), 512: (9, 9, 'Claude alone'), 528: (11, 12, 'Claude alone'),
        576: (11, 12, 'Claude alone'),
        384: (10, 10, 'Astra alone'),
        544: (9, 10, 'Claude alone'),
@@ -222,6 +222,7 @@ PAGE_CODES = (('index.html BGPW 352', 9, 'A4DB4926DB4D36584B26936D2CFA54B6F04B2C
               ('index.html BGPW 496', 9, 'C96992D92DB24B7596496D1A530DB5994EA699A9ACE072BDC57403B339A4CE'),
               ('index.html p192', 9, 'C1BE1E21CD63D295A7887A59'),
               ('index.html p528', 10, 'D920BDA31A6FDC8423BEC528AE51365BB4A6C36E419CCEF94C45BB00D13EE1EAA5'),
+              ('index.html p528', 11, '9CA5A87A325DAF0ACC5936B5E14A70858F78E1DA867AADD8939CB718429D151737'),
               ('index.html p560', 10, '34D2E9F0DA19EC92492D966936ABCA25FAD924D26F2591EB64926924925D6E1A4BFE92'),
               ('index.html p576', 11, '9A4D54D7952F107A62ACE35B02B6A76B2B4EDE8C0968F255A481BA53F0B7E54B5DD08C39'),
               ('index.html p592', 10, '93CC6790EA26876D2DDA793492C92EB24C3B934525B66DADF25926920BA79E4D21B2CB359A'),
@@ -267,7 +268,8 @@ PAGE_SET_KEYS = (('SClaude', 9, 320), ('SClaude', 9, 336), ('SClaude', 11, 432),
                  ('SClaude', 10, 784), ('SClaude', 11, 832), ('SClaude', 11, 1024), ('SClaude', 12, 816),
                  ('SClaude', 12, 720), ('SClaude', 12, 1008), ('SClaude', 12, 912), ('SClaude', 12, 768),
                  ('SClaude', 11, 576),
-                 ('SClaude', 11, 624))
+                 ('SClaude', 11, 624),
+                 ('SClaude', 11, 528))
 
 
 def page_n(s):

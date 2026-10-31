@@ -111,8 +111,12 @@ class TreeOnlyQuals(unittest.TestCase):
             self.assertEqual(set(jobs), set(ends))
             for name, data in jobs.items():
                 self.assertEqual((set(data), data['version'], data['witness']), (FIELDS, 2, None))
-                self.assertTrue(all(t == ['L'] or (len(t) == 2 and t[0] == 'B' and type(t[1]) is int)
-                                    for t in data['tree']), data['tree'])
+                # Spec change proposed 2026-10-30 (scratch/speed432-20261030): the lex cut ['D'] may be a tree's first
+                # token, exactly on a mixed box of a reversal-closed case (fanout.py's 'lex'), as here.
+                lo, hi = fanout.box(20, data['path'])
+                self.assertEqual(fanout.cut_of(data['tree']), fanout.Lex(20).status(lo, hi) == 'mixed')
+                self.assertTrue(all(t == ['L'] or (t == ['D'] and i == 0) or (len(t) == 2 and t[0] == 'B' and type(t[1]) is int)
+                                    for i, t in enumerate(data['tree'])), data['tree'])
                 self.assertEqual(data['tree_sha256'], digest(data['tree']))
                 self.assertEqual((ends[name]['tree_sha256'], ends[name]['lps']),
                                  (data['tree_sha256'], len(data['tree'])))
@@ -130,7 +134,8 @@ class TreeOnlyQuals(unittest.TestCase):
             self.assertGreaterEqual(mstar.order([2 * t - 1 for t in x]), 4)
             [data] = [d for d in files(work).values() if d['witness'] is not None]
             self.assertEqual((data['version'], data['witness'], data['tree'][-1]), (2, x, ['W', x]))
-            self.assertTrue(all(t == ['L'] or t[0] == 'B' for t in data['tree'][:-1]))
+            # Spec change proposed 2026-10-30: the lex cut ['D'] may come first (fanout.py's 'lex').
+            self.assertTrue(all(t == ['L'] or t[0] == 'B' or (t == ['D'] and i == 0) for i, t in enumerate(data['tree'][:-1])))
             self.assertEqual(data['tree_sha256'], digest(data['tree']))
 
     def test_tree_only_job_files_take_under_two_bytes_per_node_at_432(self):
@@ -142,17 +147,20 @@ class TreeOnlyQuals(unittest.TestCase):
         # 10,000 nodes: scratch/record-20261025/launch432/treeonly/reprove_cost.py), and at least 100 times smaller
         # than the version-1 file (294.7 bytes per LP solve: scratch/record-20261025/f432/storage.py).
         prepared = focus.prepare(432, 12)
-        made, real_step = [], focus.step
-        def step(*args):
-            made.append(real_step(*args))
+        # Spec change proposed 2026-10-30: fanout.work's tokens come from fanout.Producer.step (focus.step's, made
+        # faster), the hook here; its tree may start with the lex cut, which no step makes.
+        made, real_step = [], fanout.Producer.step
+        def step(self, *args):
+            made.append(real_step(self, *args))
             return made[-1]
-        fanout.lp_for.cache_clear()
+        fanout.lp_for.cache_clear(); fanout.producer_for.cache_clear(); fanout.closed_for.cache_clear()
         fanout.init(prepared, 1000, fanout.DEEP)
-        with patch.object(focus, 'step', step):
+        with patch.object(fanout.Producer, 'step', step):
             result = fanout.work((0, ()))
-        fanout.lp_for.cache_clear()
+        fanout.lp_for.cache_clear(); fanout.producer_for.cache_clear(); fanout.closed_for.cache_clear()
         nodes = len(result['tree'])
-        self.assertEqual(nodes, len(made))
+        dead = sum(1 for t in result['tree'] if t == ['L']) - sum(1 for t in made if t[0] == 'L')
+        self.assertEqual(nodes, len(made) + fanout.cut_of(result['tree']) + dead)
         self.assertTrue(1000 <= nodes <= 4000, nodes)
         with tempfile.TemporaryDirectory() as tmp:
             Path(tmp, 'jobs').mkdir()
@@ -212,14 +220,22 @@ class TreeOnlyQuals(unittest.TestCase):
 
 class AssemblyQuals(unittest.TestCase):
     """Forged trees refused by fanout.assemble, each on a copy of one genuine finished run: (20, 5) stopped after 5 LP
-    solves, then fanout with two workers and jobs of at most 4 LP solves.  Each forgery keeps every hash consistent but
+    solves, then fanout with one worker and jobs of at most 5 LP solves.  Each forgery keeps every hash consistent but
     the one it is about, so assembly must refuse it at the check the qual names, not a later one."""
     @classmethod
     def setUpClass(cls):
+        # Spec change proposed 2026-10-31 (fastlp behind the producer, scratch/speed432-fastlp-20261031):
+        # one worker, so that the genuine run's trees are the same in every run (with two, which worker takes which job
+        # depends on timing), and jobs of at most 5 LP solves: under fastlp one worker's jobs of 4 left no job that
+        # closed its box with a B token, which closed needs (analysis/fixture_probe.py: none at 4, one at 5, under AF
+        # and LF alike).
         cls.tmp = tempfile.TemporaryDirectory()
         cls.prepared = real(20, 5)
         run, journal = stopped(cls.tmp.name, cls.prepared, 20, 5, 5)
-        assert finish(cls.tmp.name, run, journal, cls.prepared, 20, 5)[0] == 'excluded'
+        work, own = Path(cls.tmp.name, 'fanout'), Path(cls.tmp.name, 'fanout.jsonl')
+        with patch.object(focus, 'prepare', return_value=cls.prepared), patch.multiple(fanout, WORKERS=1, BUDGET=5):
+            assert fanout.run(run, work, own, 20, 5) == 'excluded'
+        assert any(not d['open'] and d['tree'][0][0] == 'B' for d in files(work).values())   # what closed needs
 
     @classmethod
     def tearDownClass(cls):

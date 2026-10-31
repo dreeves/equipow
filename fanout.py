@@ -43,13 +43,15 @@ Vocabulary (with focus.py's):
             finds for the box, which must hold that box, splits only positions free there and leaves open exactly the
             boxes the job handed back (frontier); (2) the walk from each root through the jobs of the boxes left open
             reaches every job file, once, so the jobs' boxes and the run's closed ones tile the box of each case but a
-            reflected one exactly; (3) every job_end in the journal has its job's file, with its tree_sha256 (a job's
+            reflected one exactly, a box left open without a job file being dead (see lex), and a tree's cut being on a
+            mixed box; (3) every job_end in the journal has its job's file, with its tree_sha256 (a job's
             file may lack its job_end, its driver stopped between the two).  Each session's start makes the first
             check and (3) too, before any probe or job, so that a run moved by another writer, or a job file lost
             after its job_end, stops the fanout at once (2026-10-25 review: they were found after the last job).  Then
             the finish, in fanout's journal: focus.py's chunks and journal stay as the stopped run left them.
   trust     so an exclusion rests on focus.replay of the run's chunks, on certbb.Check passing each job's
-            certificates on the job's box as its worker made them (once: no file keeps them), and on assembly.  A
+            certificates on the job's box as its worker made them (once: no file keeps them), and on assembly; and, for
+            a case closed under the reversal, on lex's lemma and invariant's exact test of the case's rows.  A
             reflected case (see reflections) closes with its source: reversing positions maps its solutions onto its
             source's, the rows checked exactly by reflection.mapping.  reprove.py rechecks a finished run's trees from
             scratch, on demand, solving every leaf's LP again for a certificate; the run never calls it.  The workers'
@@ -67,7 +69,7 @@ Vocabulary (with focus.py's):
   probe     of a case with LP work to do (a job not done), made by the driver at each session's start, before any job,
             and journaled for the progress section's ETA (2026-10-25: random dives put 672:13's tree at >= 1e13 LP
             solves while the page said 17 h to go): PROBE_PATHS random paths from the case's root down to a leaf (Knuth
-            1975), at each B token the child a fair coin picks, each node solved by focus.step from its parent's
+            1975), at each B token the child a fair coin picks, each node solved by the producer from its parent's
             post-solve LP state, each path from the root's.  A job gives a box's first child that state, and its second
             the parent's basis, restored.  On certbb.Lp's quiet options, paths taking that state at every node matched
             whole trees grown the job's way node for node on 1,198 of 1,200 paths (four small trees,
@@ -88,6 +90,34 @@ Vocabulary (with focus.py's):
   least     of a probe: floor(2^(mean - Z se + 1)) - 1, a lower bound, with one-sided 95% confidence, on its case's LP
             solves in all (its tree's under these warm starts, on case_lp's option in expectation over HiGHS's draws;
             the run's own tree was grown partly under focus.search's).
+  producer  how a worker proposes a box's token since the 2026-10-30 proposal (scratch/speed432-20261030): focus.step's
+            LP calls in its order, so its tokens, with the case's rows made once (node_rows), an Optimal point tested
+            by numpy before point_certificate, and an LP certificate's bound tested by a float64 screen whose error is
+            bounded rigorously (screen), certbb.lower_bound deciding whenever the screen cannot.  certbb.Check still
+            checks every token.  Since the 2026-10-31 proposal (scratch/speed432-fastlp-20261031) its LP is a Simplex,
+            so its LP calls, and with them its trees, are no longer focus.step's; the probes dive on it too.
+  Simplex   a case's LP since 2026-10-31, as scratch/x288/certbb.py's Simplex is 288:10's: fastlp.Dual (fastlp.py, a
+            dense bounded dual simplex in C, pinned by FASTLP_SHA256, so that fanout_code covers it) on focus.case_lp's
+            rows with the case's counts, warm-started from its last solve or from a snapshot of its state, a box's
+            second child's being its parent's post-solve state; and focus.case_lp's HiGHS LP, highs, for a ray's
+            multipliers and for each box that Dual answers neither 'Optimal' nor 'Infeasible' with a ray whose
+            certificate passes the screen (a fallback, after which Dual starts again from its slack basis).
+  lex       for a case that the reversal R, (Rx)_p = x_(N-1-p), maps onto itself (symmetric: invariant's exact test of
+            its rows, made at each session's start and by assembly; the cut applies to no other case).  Pair each
+            position k < N/2 with N-1-k, the leader k,
+            and let L(x) = sum_k 2^(N/2-1-k) (x_k - x_(N-1-k)): L(Rx) = -L(x), so a case with a solution has one with
+            L >= 0, and a proof may leave every point with L <= -1 unproved (2026-10-30 proposal).  A box is dead when
+            max L <= -1 over it (it needs no proof: the driver drops it, journaling it, and makes no job of it), pure
+            when min L >= 0, mixed otherwise.  A mixed box's job starts with the cut ('D', u, 0), u = -L's
+            coefficients, which certbb.Check takes as the side u.x <= 0 (L >= 0, proved first, by the rest of the job's
+            tree) and the side u.x >= 1 (L <= -1), left open and dropped; the tree keeps it as ['D'].  Below the cut a
+            dead box closes by the certificate 0 on every row and -1 on the cut's row, whose bound is -max L >= 1, and
+            an LP certificate is extended by a 0 for the cut's row.  A job hands back only boxes of the cut's first side,
+            as plain boxes.
+  dropped   a dead box the driver makes no job of: an open box of a job file or of a job's result.  job_end's open and
+            open_depths count the boxes it pushed, dead the ones it dropped; the pool record's dead, [root, count]
+            pairs, the boxes reach dropped (its walk's, so each session's counts every dropped box of earlier files),
+            and lex, the cases the cut applies to (symmetric).
 """
 import array
 import collections
@@ -106,9 +136,18 @@ import signal
 import sys
 import time
 
+import numpy as np
+
 import certbb
+import fastlp
 import focus
 import reflection
+
+# fastlp.py by its SHA-256 (it pins its C source and its build in turn): fanout_code, covering this file, covers them
+FASTLP_SHA256 = '3b4a16a0ff25db0c5c6b6dd02f044db0903448661f2f6e6a37ea91b39a67e317'
+# TODO: error copy; says the fast LP backend's wrapper is not the pinned one, naming it
+assert hashlib.sha256(Path(fastlp.__file__).read_bytes()).hexdigest() == FASTLP_SHA256, \
+    f'Claude: "{fastlp.__file__} is not the pinned fastlp"'
 
 # The inline note describes the original allocation; eight workers now run with 480 paused, as approved.
 WORKERS = 8                            # processes proving jobs (principle 4's slots: 480's run takes the sixth)
@@ -294,9 +333,209 @@ def init(prepared, budget, deep):
 
 @functools.lru_cache(maxsize=None)
 def lp_for(case):
-    """The worker's LP for a case, made once."""
-    (equations, cases), _, _ = WORK
-    return focus.case_lp(equations, cases[case])
+    """The worker's LP for a case (see 'Simplex'), made once."""
+    (equations, cases), *_ = WORK
+    return Simplex(equations, cases[case])
+
+
+class Simplex:
+    """A case's LP (see the vocabulary): dual, fastlp.Dual on focus.case_lp's rows, their right-hand sides the case's
+    counts as certbb.Lp.set_counts sets them; highs, focus.case_lp's LP; slack, HiGHS's status codes of the basis of
+    every row's logical, Dual's first state; fallbacks, the boxes highs took."""
+    def __init__(self, equations, choice):
+        self.highs = focus.case_lp(equations, choice)
+        b = np.array(self.highs.b)
+        for i, (j, r) in enumerate(self.highs.slot, self.highs.k):
+            b[i] = float(choice[j][1][r])
+        self.dual = fastlp.Dual(self.highs.A, b)
+        self.slack = np.array([0] * self.highs.A.shape[1] + [1] * len(b), dtype=np.int8)
+        self.fallbacks = 0
+
+    def outcome(self, lo, hi, basis, positive):
+        """(status, z, certificate) for the box: Dual's solve, from the snapshot basis when it is one, else from its
+        last solve; z its point or ray; the certificate highs.multipliers(z) of an 'Infeasible' one when
+        positive(lo, hi, it), else None.  Any other status, or a ray without a certificate, makes a fallback: Dual
+        starts again from its slack basis (so that no snapshot holds the state it left the box in), and highs solves
+        the box from its own last solve, its answer made the same way."""
+        status, z = self.dual.solve(lo, hi, basis)
+        n = self.highs.multipliers(z) if status == 'Infeasible' else None
+        if status == 'Optimal' or (n is not None and positive(lo, hi, n)):
+            return status, z, n
+        self.fallbacks += 1
+        self.dual.load(self.slack)
+        status, z = self.highs.solve(lo, hi)
+        n = self.highs.multipliers(z) if status == 'Infeasible' and z is not None else None
+        return status, z, n if n is not None and positive(lo, hi, n) else None
+
+
+EPS = 2.0 ** -52                       # twice float64's unit roundoff u = 2^-53
+
+
+class Producer:
+    """A case's producer (see the vocabulary): its rows, made once, their float64 copies for the screen, and its count
+    rows as numpy class indices for the point test."""
+    def __init__(self, equations, choice):
+        self.rows = certbb.node_rows(equations, choice)
+        N = equations.N
+        self.A = np.zeros((len(self.rows), N))
+        for i, (a, _) in enumerate(self.rows):
+            for p, c in a:
+                self.A[i, p] += float(c)
+        self.absA = np.abs(self.A)
+        self.beta = np.array([float(b) for _, b in self.rows])
+        self.absbeta = np.abs(self.beta)
+        self.factor = 4 * (len(self.rows) + N + 4) * EPS     # 8 (k + N + 4) u, k the rows: see screen
+        positions = np.arange(N)
+        self.counts = [(positions % M, np.array(v, dtype=np.int64), M) for M, v in choice]
+
+    def screen(self, lo, hi, n):
+        """certbb.lower_bound(rows, lo, hi, n) > 0, exactly.  In float64, m = fl(n), g = -(m A), val = fl(m.beta +
+        sum_p min(g_p lo_p, g_p hi_p)).  With S_p = sum_i |n_i a_ip| and T = sum_i |n_i beta_i|: each conversion errs
+        by at most u relatively, a dot product of k terms by at most gamma_k = k u / (1 - k u) times the sum of its
+        terms' sizes (in any order, with or without fused multiply-adds), min is exact and 1-Lipschitz on 0/1 bounds,
+        and the sum over the N positions errs by at most gamma_N sum_p |g_p|: so |val - exact| <= about
+        (k + N + 4) u (sum_p S_p + T), and err, 8 times that from the computed sizes, exceeds it.  Overflow is
+        asserted absent."""
+        m = np.array([float(t) for t in n])
+        g = -(m @ self.A)
+        val = float(m @ self.beta + np.minimum(g * np.asarray(lo, float), g * np.asarray(hi, float)).sum())
+        am = np.abs(m)
+        err = self.factor * float(am @ self.absbeta + (am @ self.absA).sum())
+        assert np.isfinite(val) and np.isfinite(err)
+        return val > 0 if abs(val) > err else certbb.lower_bound(self.rows, lo, hi, n) > 0
+
+    def point(self, z, lo, hi):
+        """focus.step's test of an Optimal point: round(z) if it lies in the box and breaks no row, else None
+        (numpy's rint and Python's round both round half to even; the count rows by numpy first, point_certificate
+        on every row when they all hold)."""
+        assert np.isfinite(z).all()                     # focus.step's round raises on these
+        r = np.rint(z)
+        if not (np.all(r >= np.asarray(lo)) and np.all(r <= np.asarray(hi))):
+            return None
+        xi = r.astype(np.int64)
+        if not all(np.array_equal(np.bincount(c, weights=xi, minlength=M).astype(np.int64), v) for c, v, M in self.counts):
+            return None
+        x = [int(t) for t in xi]
+        return x if certbb.point_certificate(self.rows, x) is None else None
+
+    def step(self, lp, lo, hi, basis):
+        """focus.step's token for the box, its LP's answer lp.outcome's (see 'Simplex'), from the snapshot basis when
+        it is one, else from lp's last solve."""
+        status, z, certificate = lp.outcome(lo, hi, basis, self.screen)
+        x = self.point(z, lo, hi) if status == 'Optimal' else None
+        if x is not None:
+            return ('W', x)
+        if certificate is not None:
+            return ('L', certificate)
+        if lo == hi:
+            certificate = certbb.point_certificate(self.rows, lo)
+            return ('W', lo) if certificate is None else ('L', certificate)
+        return ('B', certbb.choose(z if status == 'Optimal' else None, lo, hi, 'ends'))
+
+
+class Lex:
+    """L of the vocabulary's lex for N positions: its coefficients, the cut's vector u = -L's, and a box's status."""
+    def __init__(self, N):
+        assert N % 2 == 0
+        coef = [0] * N
+        for k in range(N // 2):
+            coef[k], coef[N - 1 - k] = 1 << (N // 2 - 1 - k), -(1 << (N // 2 - 1 - k))
+        self.N, self.coef, self.u = N, tuple(coef), tuple(-c for c in coef)
+        self.sparse = [(p, t) for p, t in enumerate(self.u) if t]
+        assert all(self.coef[p] == -self.coef[N - 1 - p] for p in range(N))   # L(Rx) = -L(x)
+
+    def status(self, lo, hi):
+        """dead, pure or mixed, from the exact least and most of L over the box."""
+        least = sum(min(c * l, c * h) for c, l, h in zip(self.coef, lo, hi, strict=True))
+        most = sum(max(c * l, c * h) for c, l, h in zip(self.coef, lo, hi, strict=True))
+        return 'dead' if most <= -1 else ('pure' if least >= 0 else 'mixed')
+
+    def scan(self, lo, hi):
+        """status without big integers: L's sign is its first nonzero pair difference d_k = x_k - x_(N-1-k)'s (each
+        weight outweighs all later ones together) and the pairs vary independently, so max L <= -1 iff the first k
+        with max d_k = hi_k - lo_(N-1-k) nonzero has it -1, and min L >= 0 iff the first k with min d_k nonzero has
+        it +1, or there is none (quals: equal to status)."""
+        dead = pure = None
+        for k in range(self.N // 2):
+            q = self.N - 1 - k
+            dead = (hi[k] - lo[q] < 0) if dead is None and hi[k] != lo[q] else dead
+            pure = (lo[k] - hi[q] > 0) if pure is None and lo[k] != hi[q] else pure
+            if dead is not None and pure is not None:
+                break
+        return 'dead' if dead else ('pure' if pure is not False else 'mixed')
+
+    def token(self):
+        return ('D', list(self.u), 0)
+
+
+def echelon(rows):
+    """The nonzero rows of a fraction-free (Bareiss) row echelon form of integer rows, every division asserted exact,
+    and their pivot columns."""
+    M, prev, pivots, r = [list(t) for t in rows], 1, [], 0
+    for col in range(len(M[0])):
+        piv = next((i for i in range(r, len(M)) if M[i][col]), None)
+        if piv is None:
+            continue
+        M[r], M[piv] = M[piv], M[r]
+        for i in range(r + 1, len(M)):
+            a, b = M[r][col], M[i][col]
+            quotients = [divmod(a * x - b * y, prev) for x, y in zip(M[i], M[r])]
+            assert all(rem == 0 for _, rem in quotients)
+            M[i] = [q for q, _ in quotients]
+        prev, r = M[r][col], r + 1
+        pivots.append(col)
+        if r == len(M):
+            break
+    return M[:r], pivots
+
+
+def invariant(equations, choice):
+    """Whether R maps the case's solutions into themselves, exactly: whether each row (a, beta) of node_rows, reversed,
+    is a rational combination of the rows whose like combination of right-hand sides is beta (an integer vector v is
+    reduced by each echelon row in turn, divided by its entries' gcd after each, and must vanish)."""
+    N = equations.N
+    dense = []
+    for a, b in certbb.node_rows(equations, choice):
+        row = [0] * (N + 1)
+        for p, c in a:
+            row[p] += c
+        row[N] = b
+        dense.append(row)
+    rows, pivots = echelon(dense)
+    for row in dense:
+        v = row[:N][::-1] + [row[N]]
+        for e, col in zip(rows, pivots):
+            if v[col]:
+                v = [e[col] * x - v[col] * y for x, y in zip(v, e)]
+                g = math.gcd(*v)
+                v = [x // g for x in v] if g > 1 else v
+        if any(v): return False
+    return True
+
+
+def symmetric(prepared, all_roots):
+    """The cases with roots that invariant finds closed under R: the only ones the lex cut applies to (see lex)."""
+    equations, cases = prepared
+    return frozenset(c for c in sorted({c for c, _ in all_roots}) if invariant(equations, cases[c]))
+
+
+@functools.lru_cache(maxsize=None)
+def closed_for(case):
+    """Whether the worker's case is closed under R (invariant), found once."""
+    (equations, cases), *_ = WORK
+    return invariant(equations, cases[case])
+
+
+@functools.lru_cache(maxsize=None)
+def producer_for(case):
+    """The worker's producer for a case, made once."""
+    (equations, cases), *_ = WORK
+    return Producer(equations, cases[case])
+
+
+@functools.lru_cache(maxsize=None)
+def lex_for(N):
+    return Lex(N)
 
 
 def exact(rows, lo, hi, x):
@@ -309,26 +548,36 @@ def exact(rows, lo, hi, x):
 
 def work(job):
     """Runs the job (see the vocabulary): its tree and tree_sha256, its open boxes' paths, its seconds and any
-    witness."""
+    witness.  A mixed box's job starts with the lex cut; below it a dead box closes by the cut's certificate, without
+    an LP solve, and an LP certificate gets a 0 for the cut's row (see lex)."""
     (equations, cases), budget, deep = WORK
     case, path = job
     choice = cases[case]
-    rows = certbb.node_rows(equations, choice)
-    check = certbb.Check(equations, tuple((M, (v,)) for M, v in choice), *box(equations.N, path))
-    lp = lp_for(case)
-    stack, tree, start = [(path, None)], [], time.monotonic()
+    producer, lex, lp = producer_for(case), lex_for(equations.N), lp_for(case)
+    rows = producer.rows
+    lo, hi = box(equations.N, path)
+    status = lex.scan(lo, hi) if closed_for(case) else 'pure'     # the cut only where R closes the case (symmetric)
+    # TODO: error copy; says a box whose every point the lex cut leaves unproved was given as a job
+    assert status != 'dead', 'Claude: "a dead box is no job"'
+    check = certbb.Check(equations, tuple((M, (v,)) for M, v in choice), lo, hi)
+    cut = [0] * (status == 'mixed')        # the cut's multiplier on each LP certificate: one 0 below the cut, else none
+    tree = [['D']] * (status == 'mixed')
+    for token in [lex.token()] * (status == 'mixed'):
+        check.feed(token)
+    stack, start = [(path, None)], time.monotonic()
     while stack and len(tree) < HARD * budget and (len(tree) < budget or len(stack[-1][0]) > len(path) + deep):
         p, basis = stack.pop()
         lo, hi = box(equations.N, p)
-        if basis is not None:
-            assert lp.H.setBasis(basis) == certbb.highs.HighsStatus.kOk
-        token = focus.step(lp, equations, choice, lo, hi)
+        dead = cut and lex.scan(lo, hi) == 'dead'
+        token = ('L', [0] * len(rows) + [-1]) if dead else producer.step(lp, lo, hi, basis)
+        token = ('L', token[1] + cut) if token[0] == 'L' and not dead else token
         tree.append(['L'] if token[0] == 'L' else list(token))       # an L's certificate: checked below, then dropped
         if token[0] == 'W':                # an exact solution, checked as focus.State checks one: the job's end
             return dict(tree=tree, tree_sha256=digest(tree), open=[], seconds=time.monotonic() - start,
                         witness=exact(rows, lo, hi, token[1]))
         check.feed(token)
-        stack += [(p + ((token[1], 1),), lp.H.getBasis()), (p + ((token[1], 0),), None)] if token[0] == 'B' else []
+        stack += [(p + ((token[1], 1),), lp.dual.snapshot()), (p + ((token[1], 0),), None)] if token[0] == 'B' \
+            else []
     return dict(tree=tree, tree_sha256=digest(tree), open=[p for p, _ in stack], seconds=time.monotonic() - start,
                 witness=None)
 
@@ -340,15 +589,14 @@ def least(mean, se):
     return math.floor(2 ** (mean - Z * se + 1)) - 1
 
 
-def dive(lp, equations, choice, root, rng):
-    """One path of a probe (see the vocabulary), from the case's root, whose post-solve basis root is: its leaf's path
-    and token."""
-    assert lp.H.setBasis(root) == certbb.highs.HighsStatus.kOk
+def dive(producer, lp, N, root, rng):
+    """One path of a probe (see the vocabulary), from the case's root, whose post-solve state root is (a snapshot of
+    lp's Dual): its leaf's path and token."""
     path = ()
-    token = focus.step(lp, equations, choice, *box(equations.N, path))
+    token = producer.step(lp, *box(N, path), root)
     while token[0] == 'B':
         path += ((token[1], rng.randrange(2)),)
-        token = focus.step(lp, equations, choice, *box(equations.N, path))
+        token = producer.step(lp, *box(N, path), None)
     return path, token
 
 
@@ -358,10 +606,10 @@ def probe(prepared, case, paths):
     assert type(paths) is int and paths >= 2
     equations, cases = prepared
     choice = cases[case]
-    lp = focus.case_lp(equations, choice)
-    focus.step(lp, equations, choice, *box(equations.N, ()))       # the root's solve, from a fresh LP, as focus.py's
-    rng, root = random.Random(case), lp.H.getBasis()
-    leaves = [dive(lp, equations, choice, root, rng) for _ in range(paths)]
+    producer, lp = Producer(equations, choice), Simplex(equations, choice)
+    producer.step(lp, *box(equations.N, ()), None)                 # the root's solve, from a fresh LP, as focus.py's
+    rng, root = random.Random(case), lp.dual.snapshot()
+    leaves = [dive(producer, lp, equations.N, root, rng) for _ in range(paths)]
     depths = [len(path) for path, _ in leaves]
     witnesses = sorted({tuple(token[1]) for _, token in leaves if token[0] == 'W'})
     rows = certbb.node_rows(equations, choice)
@@ -415,20 +663,24 @@ def farm(prepared, all_roots, done, work_dir, journal, seed):
     packed, root), the pool in the order its boxes came: reach's walk, then each job's open boxes in its result's order
     as it ends; a draw takes the box at a random index, swapped with the pool's last.  reach's walk holds its paths
     packed too (see pack).  (Until 2026-10-26 a heap of (depth, order, ...) ran the shallowest first.)"""
-    pool, rng = [], random.Random(seed)
-    def push(case, path, root):            # a job not done, into the pool
-        pool.append((case, pack(path), root))
+    pool, rng, lex, closed = [], random.Random(seed), Lex(prepared[0].N), symmetric(prepared, all_roots)
+    dropped = collections.Counter()        # the dead boxes reach drops, by root (see 'dropped')
+    def push(case, path, root):            # a job not done, into the pool, or dropped, dead: whether pushed
+        live = case not in closed or lex.scan(*box(prepared[0].N, path)) != 'dead'
+        pool.extend([(case, pack(path), root)] * live)
+        return live
     def reach(job, root):                  # the jobs not done at or below job, a done one's open boxes from its file
         todo = [pack(job[1])]              # boxes of job's case, by their paths, packed
         while todo:
             b = job[0], unpack(todo.pop())
             entry = done.get(jid(b))
-            if entry is None: push(*b, root)
+            if entry is None: dropped[root] += not push(*b, root)
             else: todo += [pack(p) for p in load(Path(work_dir) / 'jobs' / f'{jid(b)}.json.gz')['open']]
     for root, job in searched(prepared, all_roots): reach(job, root)
     found = [name for name, e in done.items() if e['witness'] is not None]
     if found: return witnessed(prepared, work_dir, found[0])
-    note(journal, 'pool', depths=[[d, c] for d, c in sorted(collections.Counter(len(p) // 2 for _, p, _ in pool).items())])
+    note(journal, 'pool', depths=[[d, c] for d, c in sorted(collections.Counter(len(p) // 2 for _, p, _ in pool).items())],
+         dead=[[r, c] for r, c in sorted(dropped.items()) if c], lex=sorted(closed))
     for case in sorted({case for case, _, _ in pool}):
         note(journal, 'probe', case=case, **probe(prepared, case, PROBE_PATHS))
     with ProcessPoolExecutor(WORKERS, mp_context=multiprocessing.get_context('spawn'), initializer=init,
@@ -448,30 +700,40 @@ def farm(prepared, all_roots, done, work_dir, journal, seed):
                 result = future.result()
                 save(work_dir, job, root, result)
                 done[jid(job)] = brief(dict(result, root=root))
+                pushed = [p for p in result['open'] if push(job[0], p, root)]
                 note(journal, 'job_end', job=jid(job), case=job[0], root=root, lps=len(result['tree']),
-                     seconds=result['seconds'], open=len(result['open']), tree_sha256=result['tree_sha256'],
-                     open_depths=[len(p) for p in result['open']])
+                     seconds=result['seconds'], open=len(pushed), tree_sha256=result['tree_sha256'],
+                     open_depths=[len(p) for p in pushed], dead=len(result['open']) - len(pushed))
                 if result['witness'] is not None:
                     workers.shutdown(cancel_futures=True)
                     return witnessed(prepared, work_dir, jid(job))
-                for p in result['open']: push(job[0], p, root)
     return None
 
 
 def frontier(N, path, tree):
     """The boxes a job's tree leaves open on the box of path (see 'tree'), as work leaves them, the next to prove last,
-    each a list of [position, value] pairs as a job file keeps it.  Asserts that each token is an L, or a B splitting
-    a position free in its box, and that a box is left for it."""
+    each a list of [position, value] pairs as a job file keeps it, less the lex cut's second side (see lex).  Asserts
+    that each token is an L, or a B splitting a position free in its box, or the cut ['D'] as the tree's first token,
+    that a box is left for it, and that none falls on the cut's second side."""
+    second = []                            # the cut's second side, a box no token may fall on: never left open
     stack = [[list(p) for p in path]]
-    for node in tree:
+    for i, node in enumerate(tree):
         # TODO: error copy; says a tree has a token after its job's last box was closed
         assert stack, 'Claude: "a tree token after the last box"'
         p = stack.pop()
-        # TODO: error copy; says a tree token is neither an L nor a B splitting a position free in its box
-        assert node == ['L'] or (len(node) == 2 and node[0] == 'B' and type(node[1]) is int and 0 <= node[1] < N
-                                 and all(q != node[1] for q, _ in p)), 'Claude: "a tree token is not an L or a free B"'
-        stack += [p + [[node[1], 1]], p + [[node[1], 0]]] if node[0] == 'B' else []
-    return stack
+        # TODO: error copy; says a tree token falls on the lex cut's second side, which no tree proves
+        assert p is not second, 'Claude: "a tree token on the cut\'s second side"'
+        # TODO: error copy; says a tree token is neither an L, nor a B splitting a position free in its box, nor the lex cut as its first token
+        assert node == ['L'] or (node == ['D'] and i == 0) or (
+            len(node) == 2 and node[0] == 'B' and type(node[1]) is int and 0 <= node[1] < N
+            and all(q != node[1] for q, _ in p)), 'Claude: "a tree token is not an L, a free B or a first cut"'
+        stack += {'B': lambda: [p + [[node[1], 1]], p + [[node[1], 0]]], 'L': list, 'D': lambda: [second, p]}[node[0]]()
+    return [p for p in stack if p is not second]
+
+
+def cut_of(tree):
+    """Whether a job's tree starts with the lex cut."""
+    return tree[:1] == [['D']]
 
 
 def unmoved(run_dir, work_dir, prepared, code, all_roots):
@@ -496,12 +758,15 @@ def assemble(run_dir, work_dir, journal, prepared, code, all_roots, done):
     # TODO: error copy; says a probe of the run found an exact solution, so the run cannot end excluded
     assert not [r for r in records(journal) if r['event'] == 'probe' and r['witnesses']], \
         'Claude: "a probe found a witness"'
+    lex, closed = Lex(equations.N), symmetric(prepared, all_roots)
     walked, jobs = {}, []                  # each job's tree_sha256 by id, and each job, as the walk reaches them
     for root, job in searched(prepared, all_roots):
         todo = [job]
         while todo:
             job = todo.pop()
             name = jid(job)
+            status = lex.status(*box(equations.N, job[1])) if job[0] in closed else 'pure'   # (see lex)
+            if name not in done and status == 'dead': continue   # dropped: each point's reflection has L >= 1 (lex)
             data = load(Path(work_dir) / 'jobs' / f'{name}.json.gz')
             # TODO: error copy; says the file named for a job's box holds another box, naming the job
             assert key(data['case'], data['path']) == job, f'Claude: "the file of {name} is another box\'s"'
@@ -509,6 +774,8 @@ def assemble(run_dir, work_dir, journal, prepared, code, all_roots, done):
             assert brief(data) == json.loads(json.dumps(done[name])), name
             # TODO: error copy; says a job's tree does not leave open the boxes the job handed back, naming the job
             assert frontier(equations.N, data['path'], data['tree']) == data['open'], f'Claude: "the tree of {name}"'
+            # TODO: error copy; says a job's tree starts with the lex cut on a box that is not mixed, naming the job
+            assert not cut_of(data['tree']) or status == 'mixed', f'Claude: "the cut of {name} on a box not mixed"'
             walked[name] = data['tree_sha256']
             jobs.append(job)
             todo += [key(job[0], p) for p in data['open']]

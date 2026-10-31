@@ -75,7 +75,9 @@ class ReproveQuals(unittest.TestCase):
             leaves = sum(t == ['L'] for d in files(work).values() for t in d['tree'])
             self.assertEqual((total['jobs'], total['nodes'], total['leaves']),
                              (len(ends), sum(e['lps'] for e in ends), leaves))
-            self.assertEqual(sum(total['attempts'].values()), leaves)
+            # Spec change proposed 2026-10-30: a leaf below the lex cut that is dead is proven by the cut's certificate,
+            # counted as dead, not by an attempt.
+            self.assertEqual(sum(total['attempts'].values()) + total['dead'], leaves)
             self.assertEqual(set(total['attempts']), set(reprove.ATTEMPTS))
             self.assertEqual(sealed(tmp), before)
             print(json.dumps(total), flush=True)
@@ -125,7 +127,12 @@ class ReproveQuals(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             prepared = real(20, 5)
             run, journal = stopped(tmp, prepared, 20, 5, 5)
-            outcome, work, own = finish(tmp, run, journal, prepared, 20, 5)
+            # Spec change proposed 2026-10-31 (fastlp behind the producer, scratch/speed432-fastlp-20261031):
+            # one worker and jobs of at most 5 LP solves, as AssemblyQuals' genuine run (quals_fanout_tree): under
+            # fastlp, two workers and jobs of 4 left no job that closed its box in more than one token.
+            work, own = Path(tmp, 'fanout'), Path(tmp, 'fanout.jsonl')
+            with patch.object(focus, 'prepare', return_value=prepared), patch.multiple(fanout, WORKERS=1, BUDGET=5):
+                outcome = fanout.run(run, work, own, 20, 5)
             self.assertEqual(outcome, 'excluded')
             name, data = next((n, d) for n, d in sorted(files(work).items()) if not d['open'] and len(d['tree']) > 1)
             self.assertEqual(data['tree'][-1], ['L'])

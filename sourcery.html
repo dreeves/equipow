@@ -10483,7 +10483,7 @@ on the cloud compute question in particuilar, do all the work you can and then i
 <header><p class="speaker">dreev</p></header>
 <pre class="prompt">standing by for whose go?</pre>
 <details>
-<summary><a class="anchor" href="#p523"><time datetime="2026-10-31T09:59:48.227000+00:00">09:59</time></a> <span class="chip"></span> <span class="agent">Claude Code</span> <span class="model">claude-opus-5-5</span> <span class="effort">(max)</span> <span class="elapsed">thought for 3m55s · 16m30s wall-clock time</span></summary>
+<summary><a class="anchor" href="#p523"><time datetime="2026-10-31T09:59:48.227000+00:00">09:59</time></a> <span class="chip"></span> <span class="agent">Claude Code</span> <span class="model">claude-opus-5-5</span> <span class="effort">(max)</span> <span class="elapsed">thought for 10m31s · 34m55s wall-clock time</span></summary>
 <div class="reply machine"><p>Claude&#x27;s. Nothing in it waits on you.</p>
 <p>The deploy agent waits for this session to send &quot;go&quot;, which happens without asking you once two things are done:</p>
 <ol><li>The agent that owns <code>progress.py</code> merges the lex cut&#x27;s two journal fields. Until then the dashboard watcher would stop at the first new-format record.</li><li>This session restarts the watcher on that code.</li></ol>
@@ -10498,7 +10498,11 @@ on the cloud compute question in particuilar, do all the work you can and then i
 <p><strong>More witnesses:</strong> 672:12 has run 7 seeds without a witness; seeds 8–14 are running. A fresh agent has the rest of the list: 528:11, then 688:10, then 544:10. It launches them after the 432 deploy, because its pause tool can&#x27;t work while 432 is mid-restart. It is also fixing a <code>track.py</code> bug: seed runs whose leftover processes had already exited never got an end line. And it is testing whether search subprocesses get starved of CPU under load, a possible speedup the last agent spotted.</p>
 <p>No change. The study of narrow branching for 288&#x27;s boxsplit step is finishing its last, low-priority measurements. Its conclusion stands: about a 5% gain, not worth deploying.</p>
 <p>The 672:12 search stopped at 03:14 without a witness. One of its seed runs crashed, and by design that stops the rest. It had run 35 seeds. 432:12 resumed automatically at the same time.</p>
-<p>The agent now on the witness list will find out why that seed failed and fix it if it&#x27;s a tool bug. Then it decides from the odds whether 672:12 or 528:11 runs next, after the 432 deploy.</p></div>
+<p>The agent now on the witness list will find out why that seed failed and fix it if it&#x27;s a tool bug. Then it decides from the odds whether 672:12 or 528:11 runs next, after the 432 deploy.</p>
+<p>That exit is the deploy&#x27;s planned stop, not a crash.</p>
+<ul><li>The fresh dry run finished at 03:30, after 21 minutes instead of the expected hour.</li><li>At 03:31 the deploy recorded 432 as running and stopped its driver.</li><li>Install, switch and relaunch are underway now. Since 432 was running at the start, it won&#x27;t be re-paused afterwards.</li></ul>
+<p>A new watch on the restarted driver goes up once the deploy&#x27;s checks pass.</p>
+<p>No change: the 432 deploy is still running its install, switch and relaunch steps.</p></div>
 </details>
 </article>
 </main>

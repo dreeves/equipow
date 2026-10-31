@@ -16,6 +16,10 @@ Vocabulary (with fanout.py's):
             on its box as fanout.work walked it, each node solved on focus.case_lp's LP for
             its case, a box's first child from its parent's post-solve state and its second from its parent's basis,
             restored; each L's box proven by an attempt; each W's point checked exactly, as focus.State checks one.
+            Below a tree's lex cut ['D'] (fanout.py's 'lex', only on a mixed box of a case closed under the reversal),
+            an L's box that is dead is proven without a solve by the cut's certificate, 0 on every row and -1 on the
+            cut's row, checked by certbb.lower_bound with the cut's row; any other L's by an attempt, whose
+            certificate holds below the cut too (the cut's row taking 0).
             A B's solve only warm-starts its children: its position is the tree's.  Each node is one LP solve (a leaf
             retried, more), as at the job's making: at 432:12, 1.1 CPU ms a node, against 1.7 for the job itself, on
             one job of 10,000 nodes (scratch/record-20261025/launch432/treeonly/reprove_cost.py).
@@ -90,26 +94,39 @@ def walk(job, tree):
     equations, cases = PREPARED
     case, path = job
     rows = certbb.node_rows(equations, cases[case])
-    lp = lp_for(case)
+    lp, lex = lp_for(case), fanout.Lex(equations.N)
+    cut, second = [], object()             # the cut's row once the tree's ['D'] is read; its second side's marker
     stack, proved, start = [(tuple(map(tuple, path)), None)], [0] * len(ATTEMPTS), time.monotonic()
     def split(p, lo, hi, position):
         assert type(position) is int and 0 <= position < len(lo) and lo[position] < hi[position], p   # a free one
         lp.solve(lo, hi)
         stack.extend([(p + ((position, 1),), lp.H.getBasis()), (p + ((position, 0),), None)])
     def leaf(p, lo, hi):
+        if cut and lex.status(lo, hi) == 'dead':                  # below the cut: proven by the cut's row alone
+            # TODO: error copy; says the lex cut's certificate fails to prove a dead box below the cut, naming the box
+            assert certbb.lower_bound(rows + cut, lo, hi, [0] * len(rows) + [-1]) > 0, \
+                f'Claude: "the cut does not prove {json.dumps(p)}"'
+            dead_leaves[0] += 1
+            return
         proved[close(lp, rows, lo, hi, f'job {fanout.jid(job)}, box {json.dumps(p)}')] += 1
+    def lexcut(p, lo, hi):                 # the tree's first token, on the job's own box (assembly checked it mixed)
+        assert not cut and p == tuple(map(tuple, path)) and fanout.Lex(equations.N).status(lo, hi) == 'mixed', p
+        cut.append((lex.sparse, 0))
+        stack.extend([(second, None), (p, None)])
     def point(p, lo, hi, x):           # an exact solution, checked as focus.State checks one
         assert len(x) == equations.N and all(type(t) is int and l <= t <= u for t, l, u in zip(x, lo, hi)), p
         assert certbb.point_certificate(rows, x) is None, p
-    actions = dict(B=split, L=leaf, W=point)
+    actions, dead_leaves = dict(B=split, L=leaf, W=point, D=lexcut), [0]
     for node in tree:
         p, basis = stack.pop()
+        # TODO: error copy; says a tree token falls on the lex cut's second side, which no tree proves
+        assert p is not second, 'Claude: "a tree token on the cut\'s second side"'
         lo, hi = fanout.box(equations.N, p)
         if basis is not None:
             assert lp.H.setBasis(basis) == OK
         actions[node[0]](p, lo, hi, *node[1:])
-    return dict(job=fanout.jid(job), nodes=len(tree), leaves=sum(proved), attempts=dict(zip(ATTEMPTS, proved)),
-                seconds=time.monotonic() - start)
+    return dict(job=fanout.jid(job), nodes=len(tree), leaves=sum(proved) + dead_leaves[0],
+                attempts=dict(zip(ATTEMPTS, proved)), dead=dead_leaves[0], seconds=time.monotonic() - start)
 
 
 def task(work_dir, job, sha):
@@ -132,8 +149,8 @@ def codes():
 
 def run(run_dir, work_dir, journal, n, m, workers):
     """Rechecks the finished fanout run of (n, m): fanout.assemble, then every job's reproof, workers at once.  Its
-    totals: jobs, nodes, leaves, leaves proven by each attempt, the reproofs' seconds, and the code that ran (codes),
-    asserted the same after the reproofs as before assembly."""
+    totals: jobs, nodes, leaves, leaves proven by each attempt, dead leaves proven by the lex cut, the reproofs'
+    seconds, and the code that ran (codes), asserted the same after the reproofs as before assembly."""
     run_dir, work_dir, journal = Path(run_dir), Path(work_dir), Path(journal)
     prepared, named = focus.prepare(n, m), codes()
     code = named['code']
@@ -153,7 +170,7 @@ def run(run_dir, work_dir, journal, n, m, workers):
         assert codes() == named, 'Claude: "the code changed during the recheck"'
     return dict(jobs=len(proofs), nodes=sum(p['nodes'] for p in proofs), leaves=sum(p['leaves'] for p in proofs),
                 attempts={a: sum(p['attempts'][a] for p in proofs) for a in ATTEMPTS},
-                seconds=sum(p['seconds'] for p in proofs), **named)
+                dead=sum(p['dead'] for p in proofs), seconds=sum(p['seconds'] for p in proofs), **named)
 
 
 def main():

@@ -222,17 +222,18 @@ class FanoutQuals(unittest.TestCase):
         # Resultata before tree-only storage (2026-10-25, this qual then named test_a_forged_job_fails_the_splice):
         # a certificate zeroed in a saved job file failed the splice, which fed every saved token through focus.py's
         # exact checker; no job file keeps a certificate now.
-        prepared, real_step, forged = real(20, 5), focus.step, []
-        def step(*args):
-            token = real_step(*args)
+        # Spec change proposed 2026-10-30: fanout.Producer.step (focus.step's tokens, made faster) is the hook.
+        prepared, real_step, forged = real(20, 5), fanout.Producer.step, []
+        def step(self, *args):
+            token = real_step(self, *args)
             zeroed = ('L', [0] * len(token[1])) if token[0] == 'L' and not any(forged) else token
             forged.append(zeroed is not token)
             return zeroed
-        fanout.lp_for.cache_clear()
+        fanout.lp_for.cache_clear(); fanout.producer_for.cache_clear(); fanout.closed_for.cache_clear()
         fanout.init(prepared, 10000, 8)
-        with patch.object(focus, 'step', step), self.assertRaises(certbb.ProofError):
+        with patch.object(fanout.Producer, 'step', step), self.assertRaises(certbb.ProofError):
             fanout.work((0, ()))
-        fanout.lp_for.cache_clear()
+        fanout.lp_for.cache_clear(); fanout.producer_for.cache_clear(); fanout.closed_for.cache_clear()
         self.assertEqual(forged.count(True), 1)
 
     def test_the_driver_keeps_no_tokens_in_memory(self):
@@ -612,20 +613,26 @@ class FanoutQuals(unittest.TestCase):
             made = dict(outcome=outcome, **sequences(own),
                         reproven={k: total[k] for k in ('jobs', 'nodes', 'leaves', 'attempts')})
             print(json.dumps(dict(n=20, order=5, **made)), flush=True)
+            # Spec change proposed 2026-10-30 (the lex cut and the faster producer, scratch/speed432-20261030):
+            # re-recorded under the patched fanout.py, the same in two runs (sandbox/record_pinned.py); before, 19 jobs,
+            # 42 nodes and 22 leaves.
+            # Spec change proposed 2026-10-31 (fastlp behind the producer, scratch/speed432-fastlp-20261031):
+            # re-recorded under the bundle's fanout.py, the same in two runs (analysis/record_pinned.py,
+            # logs/record_pinned.log); before, under the lex variant alone, 9 jobs, 25 nodes and 13 leaves.
             self.assertEqual(made, dict(
-                outcome='excluded', starts=19, ends=19,
-                starts_sha256='e555cb6195ba73d6c2084395c56f1a9149de83590042e3c43a067f857903a085',
-                ends_sha256='bfc03c802174cfc9b11e8583a4dd9481135ae93ac6687e593dadf1893d484725',
-                reproven=dict(jobs=19, nodes=42, leaves=22, attempts=dict(warm=22, cold=0, primal=0))))
+                outcome='excluded', starts=14, ends=14,
+                starts_sha256='adcaf34cdb6fd134dcd441051f1c47ad133f71e133a63591dba26e0fb6ff5f2c',
+                ends_sha256='a37f40be5f3ce9e4963a9c2f1dc107f437a02c1ddb69635354aa357b9a754258',
+                reproven=dict(jobs=14, nodes=29, leaves=15, attempts=dict(warm=14, cold=0, primal=0))))
         with tempfile.TemporaryDirectory() as tmp:
             outcome, run, work, own = self.resumed(tmp, real(16, 4), 16, 4, 3, 2)
             made = dict(outcome=outcome, **sequences(own), witness=events(own)[-1]['witness'])
             print(json.dumps(dict(n=16, order=4, **made)), flush=True)
             self.assertEqual(made, dict(
-                outcome='witness', starts=9, ends=9,
-                starts_sha256='f9a5e381793b018b5b4147d6d6439b8da203970272673a65d59487828a737fec',
-                ends_sha256='ebbe8d7abf6fd097eeba9cf857930eecaa01e549878b55632194fe8304eb3576',
-                witness=[1 - p.bit_count() % 2 for p in range(16)]))  # Thue-Morse negated, 1001011001101001
+                outcome='witness', starts=10, ends=10,
+                starts_sha256='b5cfdb26caf83191f6ed37160e1c47c8e04a069865c7fd58cb17121439f667b2',
+                ends_sha256='fbd085413b9319ddd058a6eadb897d948ad2976d2c4b7ca12b0a26afe97eea9f',
+                witness=[p.bit_count() % 2 for p in range(16)]))  # Thue-Morse, 0110100110010110 (2026-10-31)
 
     def test_assembly_s_memory_does_not_grow_with_the_journal(self):
         # Replicata: fanout on (20, 5) to its finish after its 5-solve stop; fanout.assemble on it, as fanout.run calls
@@ -645,7 +652,9 @@ class FanoutQuals(unittest.TestCase):
             self.assertEqual(outcome, 'excluded')
             code = focus.fingerprint()
             roots = fanout.roots(run, work, code)
-            padding = [r for r in events(own) if r['event'] in ('job_start', 'job_end')] * 100
+            # Spec change proposed 2026-10-30: the lex cut leaves (20, 5) 9 jobs where it had 19, so 250 copies (the
+            # qual's 2,000 records and more) in place of 100.
+            padding = [r for r in events(own) if r['event'] in ('job_start', 'job_end')] * 250
             peaks, walks = [], []
             for extra in ([], padding):
                 with open(own, 'a', encoding='utf-8') as f:

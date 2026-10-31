@@ -151,7 +151,10 @@ class CaseLpQuals(unittest.TestCase):
             self.assertEqual(len(made), 1)
             fanout.lp_for.cache_clear()
             fanout.init(prepared, 10, 8)
-            self.assertIs(fanout.lp_for(0), made[-1])
+            # Spec change proposed 2026-10-31 (fastlp behind the producer, scratch/speed432-fastlp-20261031):
+            # the worker's LP is a fanout.Simplex; its highs, which solves the boxes its Dual leaves unsettled, is
+            # case_lp's.
+            self.assertIs(fanout.lp_for(0).highs, made[-1])
             fanout.lp_for.cache_clear()
             fanout.probe(prepared, 0, 2)
         self.assertEqual(len(made), 3)

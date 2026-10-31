@@ -2479,6 +2479,7 @@ def survey_fanout(path, procs, now=None, observations=None, launches=None, journ
     leasts = {}                         # each probed case's latest least, LP solves
     sessions = []                       # each session's seed, pool record (depths, by depth) and jobs done, in order
     dropped = []                        # each pool record's dropped boxes by root (fanout.py's 'dropped'), else None
+    switched = [header['time']]         # when each code took over: the header's, then each switch's
 
     def session(r, t):
         # Legacy sessions use the header count; every new session records its own allocation.
@@ -2534,6 +2535,7 @@ def survey_fanout(path, procs, now=None, observations=None, launches=None, journ
         assert set(r) == {'event', 'time', 'pid', 'from', 'to'}, r
         spans.append([t, t])
         pids.append(str(r['pid']))
+        switched.append(r['time'])
 
     handlers = dict(session=session, job_start=job_start, job_end=job_end, probe=probe, switch=switch, pool=pool,
                     finish=lambda r, t: finish.append(r))
@@ -2578,8 +2580,11 @@ def survey_fanout(path, procs, now=None, observations=None, launches=None, journ
     assert latest['pool'] is None or min(held.values(), default=0) >= 0, f'Claude: "a pool count below 0: {dict(held)}"'
     held = {d: c for d, c in sorted(held.items()) if c}
     began = {e['job']: starts[e['job']]['time'] for e in ends.values()}
-    seconds = sum(e['seconds'] - within_pauses(began[e['job']], began[e['job']] + e['seconds'], pauses) for e in ends.values())
-    eta = (pool_estimate(samples, held, header['n'], sum(e['lps'] for e in ends.values()) / seconds * worker_counts[-1],
+    # the rate is the code in force's (2026-10-31: 432:12's switch to the C LP solver made its LP solves 2.3 times as
+    # fast): its jobs, those started since the last switch; every job's tree stays a sample
+    current = [e for e in ends.values() if began[e['job']] >= switched[-1]]
+    seconds = sum(e['seconds'] - within_pauses(began[e['job']], began[e['job']] + e['seconds'], pauses) for e in current)
+    eta = (pool_estimate(samples, held, header['n'], sum(e['lps'] for e in current) / seconds * worker_counts[-1],
                          floor)
            if status == 'running' and latest['pool'] is not None and samples and held and seconds > 0 else None)
     if status == 'running':

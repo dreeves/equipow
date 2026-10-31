@@ -351,6 +351,37 @@ class FanoutProgressQuals(unittest.TestCase):
         self.assertEqual((plain['passes'], plain['so_far']), ([[100, 120], [150, 200]], 70))
         self.assertEqual(got['to_go'], plain['to_go'])
 
+    def test_the_rate_is_the_code_in_force_s(self):
+        # Replicata: one root (case 0, depth 0); a session drawing at random (2 workers) at 100 s, its pool record at
+        # 101 s; job a (depth 0) from 110 s to 130 s, 20 LP solves in 20 s, leaving 2 boxes at depth 1; a switch at
+        # 140 s; a new session (2 workers) at 150 s, its pool record at 151 s (2 boxes at depth 1); job b (depth 1) from
+        # 160 s to 165 s, 20 LP solves in 5 s, leaving none; job c (depth 1) running from 165 s; the pool estimate
+        # stood in for; surveyed at 200 s, and the same journal before job b's end surveyed at 162 s.
+        # Expectata (2026-10-31: 432:12's switch to the C LP solver made its LP solves 2.3 times as fast, and a rate
+        # over all its jobs would have kept its ETA about twice too long for days): the pool's rate is that of the
+        # jobs the code in force ran, those started since the last switch: job b's 20 LP solves in 5 s, times 2
+        # workers; every job's tree is still a sample; and before a job of the code in force ends there is no rate, so
+        # no estimate.
+        # Resultata before: the rate (20 + 20) / (20 + 5) x 2, the old code's job a weighing in.
+        from unittest.mock import patch
+        records = [head(roots=1, root_cases=[0], root_depths=[0]),
+                   ev('session', 100, seed=1, workers=2), ev('pool', 101, depths=[[0, 1]]),
+                   ev('job_start', 110, job='a', case=0, depth=0, root=0),
+                   ev('job_end', 130, job='a', case=0, root=0, lps=20, seconds=20.0, open=2, open_depths=[1, 1]),
+                   dict(ev('switch', 140, **{'from': 'a' * 64, 'to': 'b' * 64}), pid=43),
+                   ev('session', 150, seed=2, workers=2), ev('pool', 151, depths=[[1, 2]]),
+                   ev('job_start', 160, job='b', case=0, depth=1, root=0),
+                   ev('job_end', 165, job='b', case=0, root=0, lps=20, seconds=5.0, open=0, open_depths=[]),
+                   ev('job_start', 165, job='c', case=0, depth=1, root=0)]
+        with patch.object(progress, 'pool_estimate', return_value=[1, 0.5, 2]) as estimate:
+            run = survey(records)
+        self.assertEqual(run['state'], 'running')
+        estimate.assert_called_once_with([(0, 20, [1, 1]), (1, 20, [])], {1: 1}, 672, 20 / 5 * 2, 0)
+        with patch.object(progress, 'pool_estimate', return_value=[1, 0.5, 2]) as estimate:
+            early = survey(records[:-2], now=162)
+        estimate.assert_not_called()
+        self.assertIsNone(early['to_go'])
+
     def test_a_probe_s_depths_give_its_mean_and_se(self):
         # Replicata: alone() with a probe of case 0 whose depths are 150 29s and 150 31s, its mean and standard error
         # theirs; then the same probe with 299 depths, a float depth, a negative one, or depths whose standard error is
