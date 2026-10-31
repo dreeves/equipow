@@ -175,36 +175,28 @@
     attemptView(box, run, 'progress-search288', 'progress-attempt-hint');
   }
 
-  // an attempt batch's view: its counts in place of the status line, its hint in place of the key, no ETA chart
   function attemptView(box, run, templateName, hintName) {
-    box.querySelector('.progress-status').replaceChildren(counted(templateName, run));
-    box.querySelector('.progress-eta').hidden = true;
-    hinted(box, hintName);
-  }
-
-  // a tracked search's view: its runs' counts on a line of their own after the status line, its hint in place of the key
-  function trackView(box, run) {
-    box.querySelector('.progress-status').append(document.createElement('br'), counted('progress-track', run));
-    hinted(box, 'progress-track-hint');
-  }
-
-  // the template named, its counts, phase, outcome, elapsed time and state filled in from the run
-  function counted(templateName, run) {
     const display = section.querySelector('template.' + templateName).content.cloneNode(true);
     for (const e of display.querySelectorAll('[data-attempt-count]')) e.textContent = run.work[e.dataset.attemptCount].toLocaleString('en-US');
     for (const e of display.querySelectorAll('[data-attempt-phase]')) e.hidden = e.dataset.attemptPhase !== run.phase;
     for (const e of display.querySelectorAll('[data-attempt-outcome]')) e.hidden = e.dataset.attemptOutcome !== String(run.outcome);
     display.querySelector('[data-elapsed]').textContent = duration(run.so_far);
     display.querySelector('[data-search-state]').textContent = run.state;
-    return display;
-  }
-
-  // the dots' key hidden, the hint named in the readout and the dots' label
-  function hinted(box, hintName) {
+    box.querySelector('.progress-status').replaceChildren(display);
     box.querySelector('.progress-key').hidden = true;
+    box.querySelector('.progress-eta').hidden = true;
     const hint = section.querySelector('template.' + hintName).content;
     box.querySelector('[data-readout]').replaceChildren(hint.cloneNode(true));
     box.querySelector('canvas').setAttribute('aria-label', hint.textContent.trim());
+  }
+
+  // a tracked search's view: the attempt view of its runs' counts and its hint, but after the status line every run has
+  // (kept, then put back before the counts) and with the ETA chart every run has
+  function trackView(box, run) {
+    const status = box.querySelector('.progress-status'), line = [...status.childNodes];
+    attemptView(box, run, 'progress-track', 'progress-track-hint');
+    status.prepend(...line, document.createElement('br'));
+    box.querySelector('.progress-eta').hidden = false;
   }
 
   function bar(box, run) {
