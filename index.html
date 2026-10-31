@@ -2457,6 +2457,24 @@ function panZoom({el, out: zoomOut, in: zoomIn, reset, ncol, plot, cellAt, reado
   reset.addEventListener('click', () => setView(0, ncol));
   return {redraw, uAt};
 }
+
+// The rows each column raises, for both charts' gold rings and the table of smallest lengths (dreeves's README,
+// 2026-10-30, [GLT]): scanning the columns i of cols from the left, a row r is raised by column i in its lower bound
+// when a < r <= lo, lo being its lower bound less shift(i) and a the most of that over the columns left of it, so that
+// i is the least column known to reach r; likewise its upper bound, the least column not ruled out for r.  It returns
+// [known rows, possible rows] per column, each ascending.  No row is special: a row no column is known to reach still
+// has its least column not ruled out (dreeves, 2026-10-30: "why isn't 480:14 highlighted in the chart?", then
+// "classic anti-magic violation").
+function raised(cols, shift) {
+  const rows = (a, b) => Array.from({length: Math.max(0, b - a)}, (_, j) => a + 1 + j);    // the rows a + 1 to b
+  let a = 0, b = 0;                                                // the most lower and upper bound left of column i
+  return cols.map(([lo, hi], i) => {
+    const l = lo - shift(i), h = hi - shift(i), out = [rows(a, l), rows(b, h)];
+    a = Math.max(a, l);
+    b = Math.max(b, h);
+    return out;
+  });
+}
 </script>
 <script src="mstar.js"></script>
 <script>
@@ -2564,14 +2582,12 @@ try {
   // The cells of the table of smallest lengths below, ringed in gold (dreeves's README, 2026-10-30: "[GLT] ... match the
   // "smallest length known" table: green+gold is the smallest *known* n (resp. 2^k) for a give m (resp. delta) and
   // black+gold is the smallest n (resp. 2^k) not ruled out"; a(m − 1) of OEIS A323395 alone from 2026-10-19, dreeves:
-  // "green with gold trim"): for each order m that some n reaches, {n, m, role} for the least n known to reach m and the
-  // least n whose upper bound allows m, one cell when they agree; role 1 known, 2 not ruled out, 3 both: the least n of
-  // order m, proven, a(m − 1), which also gets a gold dot (Claude's proposal for the indicator, 2026-10-30).
-  const least = test => D.cols.findIndex(test) + 1;                // the least n whose column passes test; 0 if none
-  const RINGS = Array.from({length: T}, (_, i) => i + 1).map(m => ({m, known: least(c => c[0] >= m), possible: least(c => c[1] >= m)}))
-    .filter(({known}) => known > 0)
-    .flatMap(({m, known, possible}) => [...new Set([known, possible])].map(n => ({n, m, role: (n === known) + 2 * (n === possible)})));
-  assert(RINGS.every(({n}) => NS.includes(n)), RINGS);
+  // "green with gold trim"): each cell (n, m) whose column raises row m (raised): the least n known to reach m, role 1,
+  // the least n whose upper bound allows m, role 2, or both, role 3: the least n of order m, proven, a(m − 1), which
+  // also gets a gold dot (Claude's proposal for the indicator, 2026-10-30).
+  const RINGS = raised(D.cols, () => 0).flatMap(([known, possible], i) => [...new Set([...known, ...possible])]
+    .sort((x, y) => x - y).map(m => ({n: i + 1, m, role: known.includes(m) + 2 * possible.includes(m)})));
+  assert(RINGS.every(({n, m}) => NS.includes(n) && m <= T), RINGS);
   cv.style.height = `${cssH}px`;
   const ctx = cv.getContext('2d'), strip = document.createElement('canvas'), sctx = strip.getContext('2d');
   let geo = null;                                                  // the last draw's layout
@@ -2843,9 +2859,9 @@ try {
   // hairlines there and the neighbors' edges, and 1 px at its sides, where a phone's columns are about 4 px wide; it
   // lies over the grid and under the outline of the cell read out, whose swatch it rings too, with a note (dreeves,
   // 2026-10-28: "don't forget the gold trim on the hover version"), as the m*(n) chart's readout does for its rings.
-  const least = (i, g) => D.cols.findIndex((c, j) => c[i] >= j + 1 + g) + 1;  // the least k whose lo (i = 0) or hi (1) is at least k + g; 0 if none
-  const trims = Array.from({length: E}, (_, i) => i + 1).map(g => [g, least(0, g), least(1, g)]).filter(([, known]) => known > 0)
-    .flatMap(([g, known, possible]) => [...new Set([known, possible])].map(k => [k, g, (k === known) + 2 * (k === possible)]));
+  const trims = raised(D.cols, j => j + 1).flatMap(([known, possible], j) => [...new Set([...known, ...possible])]
+    .sort((x, y) => x - y).map(g => [j + 1, g, known.includes(g) + 2 * possible.includes(g)]));  // [k, δ, role], the rows k raises
+  assert(trims.every(([, g]) => g <= E), trims);
   // readout note on a cell ringed in gold; says 2^k is the least power of 2 known to beat Thue–Morse by δ, a bound the theorem below states
   const knownNote = e => `the smallest k known to beat Thue–Morse by ${e} (see theorem below)`;
   const NOTES = {1: [knownNote],                                   // the readout's notes on a ringed cell, by its role
@@ -2965,18 +2981,21 @@ try {
 <script>
 // Claude's table of the smallest length known for each order (Stan Wagon's suggestion, 2026-10-17), from mstar.js: for
 // order m, the least n whose lower bound is at least m (a sequence of order m is known) and the least n whose upper
-// bound is (order m is not ruled out), proven smallest when the two agree; orders from 1 to the largest known at some n
-// up to MSTAR.nmax.
+// bound is (order m is not ruled out), proven smallest when the two agree; orders from 1 to the largest some n up to
+// MSTAR.nmax is not ruled out for, — where no length is known (dreeves, 2026-10-30: "why isn't 480:14 highlighted in the
+// chart?").
 (() => {
-  const least = test => MSTAR.cols.findIndex(test) + 1;             // the least n whose column passes the test; 0 if none
   const cell = text => Object.assign(document.createElement('td'), {textContent: text});
-  const rows = [];
-  for (let m = 1; least(c => c[0] >= m); m++) {
-    const known = least(c => c[0] >= m), possible = least(c => c[1] >= m);
-    const row = document.createElement('tr');
+  const knownAt = [], possibleAt = [];                             // order m: its least n known, its least n not ruled out
+  raised(MSTAR.cols, () => 0).forEach(([known, possible], i) => {
+    known.forEach(m => { knownAt[m] = i + 1; });
+    possible.forEach(m => { possibleAt[m] = i + 1; });
+  });
+  const rows = possibleAt.slice(1).map((possible, j) => {
+    const m = j + 1, known = knownAt[m] ?? '—', row = document.createElement('tr');   // — where no length is known
     row.append(cell(m), cell(known), cell(known === possible ? '✓' : ''), cell(possible));
-    rows.push(row);
-  }
+    return row;
+  });
   document.querySelector('[data-smallest]').replaceChildren(...rows);
 })();
 </script>

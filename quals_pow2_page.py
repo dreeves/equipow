@@ -117,16 +117,17 @@ MEANINGS = ('known', 'open', 'impossible')    # each kind's word in the readout,
 
 def ring_cells(data):
     """The cells the chart rings in gold (dreeves's README, 2026-10-30, [GLT]), in the page's order: for each δ = e from 1
-    while some k <= K is known to beat Thue-Morse by e, (k, e, role) for the least such k and for the least k whose
-    upper bound allows k + e, one cell when they agree; role 1 known (a bound the theorem states), 2 not ruled out, 3
-    both, proven the least.  (Until then, the known ones alone.)"""
+    while some k <= K is not ruled out to beat Thue-Morse by e, (k, e, role) for the least k known to and for the least
+    k whose upper bound allows k + e, one cell when they agree, none for a k not known; role 1 known (a bound the
+    theorem states), 2 not ruled out, 3 both, proven the least.  (Until then, the known ones alone; and until dreeves
+    asked "why isn't 480:14 highlighted in the chart?", 2026-10-30, only for each e some k was known to reach.)"""
     cols, out = data['cols'], []
     least = lambda i: lambda g: next((k for k, c in enumerate(cols, 1) if c[i] >= k + g), 0)
     for g in range(1, data['etop'] + 1):
         known, possible = least(0)(g), least(1)(g)
-        if not known: break
-        out += [(k, g, (k == known) + 2 * (k == possible)) for k in dict.fromkeys((known, possible))]
-    return out
+        if not possible: break
+        out += [(k, g, (k == known) + 2 * (k == possible)) for k in dict.fromkeys((known, possible)) if k]
+    return sorted(out)                                            # the page's order: by k, then δ (raised, 2026-10-30)
 
 
 NOTES = {1: 1, 2: 1, 3: 2}      # the notes a ringed cell's readout adds after its reasons, by role

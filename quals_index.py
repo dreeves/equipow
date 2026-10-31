@@ -406,9 +406,9 @@ function battery(R) {
   // (RINGS, ringChecks, ringBad).
   const least = test => cols.findIndex(test) + 1;
   const RINGS = [];
-  for (let m = 1; least(c => c[0] >= m); m++) {
+  for (let m = 1; least(c => c[1] >= m); m++) {
     const known = least(c => c[0] >= m), possible = least(c => c[1] >= m);
-    for (const n of new Set([known, possible])) RINGS.push([n, m, (n === known) + 2 * (n === possible)]);
+    for (const n of [...new Set([known, possible])].filter(n => n > 0)) RINGS.push([n, m, (n === known) + 2 * (n === possible)]);
   }
   R.rings = RINGS; R.ringChecks = 0; R.ringBad = []; R.ringed = {}; R.rowOneSkips = 0;
   const colOf = new Map(COLS.map((n, i) => [n, i + 1]));          // the column j of each n with one, from 1
@@ -556,7 +556,7 @@ function battery(R) {
   function sampleHovers(v, every) {    // hover the middle of cells lo, lo + 1 and hi + 1 of every every-th column
     for (let j = first(v); j <= final(v); j += every) {
       const n = COLS[j - 1], [lo, hi] = cols[n - 1];
-      for (const m of new Set([lo, lo + 1, hi + 1])) {
+      for (const m of new Set([lo, lo + 1, hi + 1, ...RINGS.filter(([rn]) => rn === n).map(([, rm]) => rm)])) {   // and its ringed cells
         if (m < 1 || m > T) continue;
         R.hovers.push([n, m, hover(middleX(v, j), rowY(m) / dpr)]);
         const {backgroundColor, boxShadow, backgroundImage} = getComputedStyle(ro.querySelector('.swatch'));
@@ -879,14 +879,16 @@ SMALLEST_PROVEN = (2, 4, 8, 16, 32, 48, 96, 144, 192, 240, 432)
 
 
 def smallest_rows(cols):
-    """The rows the section's script makes from MSTAR's cols, computed here: for each order m from 1 while some n has a
-    known sequence of order m (its lower bound at least m), the texts of m, the least such n, a check mark if that n is
-    also the least n whose upper bound is at least m (else nothing), and that least n."""
+    """The rows the section's script makes from MSTAR's cols, computed here: for each order m from 1 while some n's upper
+    bound allows m, the texts of m, the least n with a known sequence of order m (its lower bound at least m) or — when
+    none is known, a check mark if that n is also the least n whose upper bound is at least m (else nothing), and that
+    least n.  (dreeves, 2026-10-30: "why isn't 480:14 highlighted in the chart?"; until then the rows stopped at the
+    largest order known at some n.)"""
     least = lambda test: next((n for n, c in enumerate(cols, 1) if test(c)), None)
     rows, m = [], 1
-    while least(lambda c: c[0] >= m):
+    while least(lambda c: c[1] >= m):
         known, possible = least(lambda c: c[0] >= m), least(lambda c: c[1] >= m)
-        rows.append([str(m), str(known), '✓' if known == possible else '', str(possible)])
+        rows.append([str(m), str(known) if known else '—', '✓' if known == possible else '', str(possible)])
         m += 1
     return rows
 
@@ -903,7 +905,7 @@ def smallest_rings(cols):
     when they agree; role 1 known, 2 not ruled out, 3 both, proven the least (a323395_cells)."""
     out = {}
     for m, known, _, possible in smallest_rows(cols):
-        for n in {int(known), int(possible)}: out[(n, int(m))] = (n == int(known)) + 2 * (n == int(possible))
+        for n in {int(t) for t in (known, possible) if t != '—'}: out[(n, int(m))] = (str(n) == known) + 2 * (str(n) == possible)
     return out
 
 
@@ -2131,7 +2133,9 @@ def q_quotes_of_claude_and_astra_are_curly():
     R = valid_run('light')
     rings = set(a323395_cells(mstar_data()['cols']))
     notes = [t for n, m, t in R['hovers'] if (n, m) in rings]
-    assert notes and all('Claude: “' in t and t.endswith('”') and 'Claude: "' not in t for t in notes), notes[:3]
+    # A note may or may not quote Claude (dreeves's 6220ea2, 2026-10-30, dropped Claude: “…” from the m*(n) chart's
+    # ring notes); one that does uses “ and ”.
+    assert notes and all('Claude: "' not in t and t.count('“') == t.count('”') for t in notes), notes[:3]
 
 
 def q_page_loads_clean():
@@ -2283,7 +2287,8 @@ def q_chart_rings_the_smallest_lengths_in_gold():
     # known values for a(m-1)? maybe make those green with gold trim", the proven ones alone): the ringed cells are
     # exactly smallest_rings of mstar.js, the cells of the table of smallest lengths: today the proven ones, (2, 1), (4,
     # 2), …, (432, 11), SMALLEST_PROVEN by order; then (480, 12) known and (432, 12) not ruled out; (960, 13) known and
-    # (480, 13) not ruled out.  Each is ringed in --record, #ffb300 (the validator's pick against the chart's three
+    # (480, 13) not ruled out; and, with no length known (dreeves, 2026-10-30: "why isn't 480:14 highlighted in the
+    # chart?"), (480, 14) and (960, 15) not ruled out.  Each is ringed in --record, #ffb300 (the validator's pick against the chart's three
     # colors and the paper), just outside its left and right and below it, in each view of the sweep that checks it,
     # and every one is checked; at its middle a proven one is gold, a dot (Claude's proposal for when the two coincide),
     # and the others keep their cell's color.  (Their readouts' notes: q_hover_reads_out_cells.)
@@ -2875,8 +2880,9 @@ def q_smallest_section_sits_between_the_remarks_and_the_counts():
 def q_smallest_table_matches_mstar():
     # Replicata: index.html in headless Chrome beside mstar.js and pow2.js, its DOM dumped once its scripts ran; and
     # smallest_rows of MSTAR (mstar_data), computed here.
-    # Expectata: the table's body holds exactly smallest_rows' rows, in order; the first eleven orders' smallest
-    # lengths are SMALLEST_PROVEN, each marked proven (432 added on 2026-10-20 after proof384.py).
+    # Expectata: the table's body holds exactly smallest_rows' rows, in order, through the largest order some n's upper
+    # bound allows, with — where no length is known (since 2026-10-30); the first eleven orders' smallest lengths are
+    # SMALLEST_PROVEN, each marked proven (432 added on 2026-10-20 after proof384.py).
     d = tempfile.mkdtemp(prefix='index-quals-')
     for src, name in ((INDEX, 'index.html'), (DATA, 'mstar.js'), (POW2, 'pow2.js')): shutil.copy(src, os.path.join(d, name))
     dom = chrome(d, ['--virtual-time-budget=5000', '--dump-dom', 'file://' + os.path.join(d, 'index.html')])
