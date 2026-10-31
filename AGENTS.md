@@ -490,3 +490,14 @@ Results fastest on this Mac (Claude, 2026-10-31 00:30 PDT; dreeves: "i'll let yo
 - **432:12 speedups.** An agent in scratch/speed432-fastlp-20261031/ puts fastlp behind fanout's producer, on top of patch_A and of patch_A plus lex, measures ABBA on real pool boxes, and fixes deploy432.py per its reviews. Nothing is deployed until review. Lex still needs dreeves's approval.
 - **The machine.** CPU is saturated (0% idle, load ~90). 432's 8 workers got about 4 of the 10 cores. The progress watcher (PID 18865) has a 5.8 GB footprint on this 16 GB Mac: shrinking it waits until the pause-accounting change to progress.py lands.
 - **Lex approved** (dreeves, 2026-10-31, to the question of approving the lex cut: "Can-opener question?"). Approved: the lemma in 432's trusted base, its 5 qual spec changes, quals_lex.py, and patch_A's two hook edits. The bundle is patch_A + fastlp + lex, or patch_A + lex if fastlp doesn't measure well. It deploys when 432 next resumes, after the lex progress hunks are merged into the pause-accounting progress.py and the watcher restarts: the old watcher's strict check would stop at the new pool fields dead and lex.
+
+Pauses subtracted; watcher restarted (Claude, 2026-10-31 00:56 PDT):
+- **The fix.** progress.py leaves recorded pauses out of so far, the ETA charts' running-hours axes and the work rates, for 432:12's fanout and 288:10 as for 480. `PAUSES` maps a run's identity to its records and reader: focus_480_pauses.jsonl, scratch/wish2/pause432*.json, scratch/x288/pauses.jsonl. Write-up: `scratch/pauses-20261030/NOTES.txt`. dreeves committed it in 35f7977 and d45e11e.
+- **Effect.** 432's so far went from 108.8 h to 28.3 h, its rate from 123 to 477 LP/s a worker, and its median ETA from about 385 d to about 100 d before lex. 288's so far went from 79.3 h to 73.5 h.
+- **Not covered:** survey_box (288's boxsplit step) still counts pauses as running, and a stopped overnight run still shows as frozen.
+- **Inflated 432 records.** 1,274 of 432's stored ETA records were made with the inflated rate. The agent recomputes them aside, and the main session swaps the file in at the next watcher restart.
+- **Restart.** Watcher 18865 was stopped and relaunched with scratch/watcher-20261030/launch.py as PID 96307.
+
+In progress since 00:55:
+- **[FAC] stage 1:** CSS and JS out of index.html (scratch/fac-20261031/). It owns index.html and the page quals until scratch/fac-20261031/DONE exists.
+- **An ETA graph for every run:** tracked searches get Gott's-rule ETA records by default (median = elapsed, 90% band elapsed/19 to 19×elapsed), and a search may append its own eta lines through track.py. The page side follows DONE.
