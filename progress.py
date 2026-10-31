@@ -172,13 +172,20 @@ The estimate's model, its terms defined once here (overnight_v5.py's search() is
               and log whole every minute, and one snapshot took 90 minutes): the bytes read so far and all parsed, dated
               and derived from them (Reading, with its Tree and Grown; Boxes for a boxsplit pass, Records for focus.py's
               and fanout.py's journals), changed only in atomic blocks, so that a snapshot costs about what the files
-              gained.  read_run, sea, estimate and a survey made without one make a new one, which reads the files
-              whole: the same values.
+              gained; released once its run is idle (see idle).  read_run, sea, estimate and a survey made without one
+              make a new one, which reads the files whole: the same values.
   unit        one run's survey in a snapshot (snapshot): bounded by LIMIT seconds, doubled after each overrun of its run
               since the run's last completed survey; a unit that fails or runs past its bound leaves its run's last good
               data in the data file, marked stale, and the other units go on.
   stale       of a run in the data file: null, or the time of the snapshot its data are from, when its survey failed or ran
               past its bound since; the section marks such a run (Claude: "stale").
+  idle        of a run with a reading: its last survey read no time (an overnight_v5.py or boxsplit.py run not running;
+              a focus.py or fanout.py run with no live process, whose sighting its survey would record), so that its data
+              cannot change while its inputs (its files' signatures, its pauses and its processes' state) stay those that
+              survey began with: its reading is released as soon as that survey is made, and the survey, light (what
+              run_data reads of it), stands (2026-10-31: 288@10's reading, about 5 GB, was kept and surveyed again every
+              minute through weeks of its run stopped).  Once its inputs change, the run is surveyed again from a new
+              reading, which reads its files whole (surveyed).
   pause       a time a run's processes were stopped (SIGSTOP) and then continued (SIGCONT), as the tool that stopped them
               recorded it (PAUSES names each run's records; 2026-10-30: 432:12's and 288@10's pauses had counted as
               running): (start, end), epoch seconds, a pause with no resume recorded yet ending at infinity.  A run does
@@ -191,7 +198,7 @@ gives the state, the hours of running so far and to go, the record of ETAs and t
 """
 import sys
 sys.dont_write_bytecode = True
-import os, re, json, math, time, bisect, itertools, subprocess, collections, glob, functools, shlex, signal, contextlib
+import os, re, gc, json, math, time, bisect, itertools, subprocess, collections, glob, functools, shlex, signal, contextlib
 import struct, traceback
 import numpy as np
 import overnight_v5 as v5
@@ -2820,8 +2827,21 @@ def js_text(surveys, now):
     return data_text([run_data(s) for s in surveys], now)
 
 
+# What run_data reads of a survey: an idle run's survey keeps no more (see idle; 2026-10-31: an overnight_v5.py
+# survey's open_list held 612,046 of 288@10's leaves).
+LIGHT = ('program', 'n', 'order', 'state', 'outcome', 'so_far', 'to_go', 'etas', 'passes', 'sea', 'display', 'workers')
+
+
+def light(s):
+    """The survey s with only its fields in LIGHT."""
+    return {k: s[k] for k in LIGHT if k in s}
+
+
 def run_data(s):
-    """A run's entry in the data file (see js_text) from its survey, its data this snapshot's (stale null)."""
+    """A run's entry in the data file (see js_text) from its survey, light (so that an idle run's survey makes the same
+    entry), its data this snapshot's (stale null)."""
+    s = light(s)
+
     def etas(s):
         rs = eta_records(s)
         keep = sorted(set(range(0, len(rs), max(1, -(-len(rs) // ETA_POINTS)))) | {len(rs) - 1}) if rs else []
@@ -2988,26 +3008,63 @@ def native288(start):
                 and command[2] == ' && '.join(shlex.join([match[1], '-B', *step]) for step in steps))
 
 
-def run_surveys(procs, now, cache, readings):
+def signature(path):
+    """The file at path as an idle run's inputs name it (see idle): its device, inode, size and modification time in
+    nanoseconds, or none of them where there is no file (a survey that reads one fails then)."""
+    return tuple((st.st_dev, st.st_ino, st.st_size, st.st_mtime_ns) for st in map(os.stat, glob.glob(glob.escape(path))))
+
+
+def surveyed(identity, inputs, timed, readings, idle, new, survey):
+    """The survey of the run whose identity this is: its idle survey (see idle), if it has one begun with these inputs;
+    else survey(reading), of its reading in readings (new() if none, which reads its files whole), after which, unless
+    timed (it read the time: the run is running, or a focus.py or fanout.py run has a live process), its reading is
+    released at once, and the survey kept in idle, light, with these inputs.  Python gives memory back to the system
+    only by whole arenas of 1 MiB, emptied: so the release comes before other units allocate around the reading,
+    empties the caches of meanings and tree_order, whose entries were made as the reading was (2026-10-31: they kept
+    2.2 GB of 288@10's arenas), and collects the reading's cycles (its replay's Nodes) at once."""
+    if idle.get(identity, (None,))[0] == inputs: return idle[identity][1]
+    idle.pop(identity, None)
+    s = survey(readings.setdefault(identity, new()))
+    if not timed:
+        with atomic():
+            del readings[identity]
+            idle[identity] = (inputs, light(s))
+        for memo in (meanings, tree_order): memo.cache_clear()
+        gc.collect()
+    return s
+
+
+def run_surveys(procs, now, cache, readings, idle):
     """The units (see snapshot) of the overnight and boxsplit passes, each surveyed with its run's actual modules,
-    headers and cache fingerprints (run_context), its reading kept in readings by its identity.  An overnight run's
-    splits and record of ETAs are kept in cache under its geometry (run_modules.geometry), which a change of its solver
-    leaves as it was (2026-10-30; under overnight_v5.CODE before, so that each solver change began them anew)."""
+    headers and cache fingerprints (run_context), its reading kept in readings and its idle survey in idle by its
+    identity (surveyed).  An overnight run's splits and record of ETAs are kept in cache under its geometry
+    (run_modules.geometry), which a change of its solver leaves as it was (2026-10-30; under overnight_v5.CODE before,
+    so that each solver change began them anew)."""
     def overnight(n, order):
+        identity = ('overnight_v5.py', n, order)
         with run_context(n, order):
             journal, log = files(n, order)
-            reading = readings.setdefault(('overnight_v5.py', n, order), Reading(journal, log))
-            v5.configure(n, order)                                       # the geometry reads the run's configuration
-            key = f'{n}_{order}_geometry_{run_modules.geometry(v5)}'
-            return [survey(n, order, journal, log, procs, now, cache.setdefault(key, {}),
-                           cache.setdefault(key + '_etas', {}), reading, pauses_of(('overnight_v5.py', n, order)))]
+            pauses, state = pauses_of(identity), run_state(procs, 'overnight_v5.py', n, order, None)
+
+            def of(reading):
+                v5.configure(n, order)                                   # the geometry reads the run's configuration
+                key = f'{n}_{order}_geometry_{run_modules.geometry(v5)}'
+                return survey(n, order, journal, log, procs, now, cache.setdefault(key, {}),
+                              cache.setdefault(key + '_etas', {}), reading, pauses)
+            return [surveyed(identity, (signature(journal), signature(log), pauses, state), state == 'running', readings,
+                             idle, functools.partial(Reading, journal, log), of)]
 
     def boxes(n, order):                # none until the driver's log exists
+        identity = ('boxsplit.py', n, order)
         with run_context(n, order):
             log, main = box_files(n, order)
-            box = readings.setdefault(('boxsplit.py', n, order), Boxes(log))
-            return ([survey_box(n, order, log, main, procs, now, cache.setdefault(f'{n}_{order}_boxsplit_{bx.CODE}_etas', {}),
-                                box)] if os.path.exists(log) else [])
+            state = run_state(procs, 'boxsplit.py', n, order, None)
+
+            def of(box):
+                return survey_box(n, order, log, main, procs, now,
+                                  cache.setdefault(f'{n}_{order}_boxsplit_{bx.CODE}_etas', {}), box)
+            return ([surveyed(identity, (signature(log), signature(main), state), state == 'running', readings, idle,
+                              functools.partial(Boxes, log), of)] if os.path.exists(log) else [])
     return ([(('overnight_v5.py', n, order), functools.partial(overnight, n, order)) for n, order in RUNS] +
             [(('boxsplit.py', n, order), functools.partial(boxes, n, order)) for n, order in EXTENDED])
 
@@ -3015,7 +3072,7 @@ def run_surveys(procs, now, cache, readings):
 def survey_runs(procs, now, cache):
     """Survey overnight and box passes with each run's actual modules, headers and cache fingerprints: run_surveys'
     surveys, made at once, each with a reading of its own."""
-    return [s for _, thunk in run_surveys(procs, now, cache, {}) for s in thunk()]
+    return [s for _, thunk in run_surveys(procs, now, cache, {}, {}) for s in thunk()]
 
 
 def first_line(path):
@@ -3032,18 +3089,21 @@ def headers(pattern):
             for h in tried(f'the header of {path}', functools.partial(json.loads, first))]
 
 
-def journal_surveys(procs, now, cache, readings):
+def journal_surveys(procs, now, cache, readings, idle):
     """The units (see snapshot) of the searches surveyed from their journals and records: focus.py's and fanout.py's
-    runs, the 288 attempt batches, then the tracked searches (see the vocabulary), one per target, in that order."""
-    def focus(identity, path, key):
-        return [survey_focus(path, procs, observations=cache.setdefault(key + '_observations', {}),
-                             launches=cache.setdefault(key + '_launches', {}), pauses=pauses_of(identity),
-                             journal=readings.setdefault(identity, Records(path)))]
+    runs (their readings kept in readings and their idle surveys in idle by their identities: surveyed), the 288
+    attempt batches, then the tracked searches (see the vocabulary), one per target, in that order."""
+    def journaled(script, survey_of, identity, path, key):     # a run of script, survey_of its journal at path
+        pauses, main = pauses_of(identity), runs(procs, script, identity[1])
 
-    def fanned(identity, path, key):
-        return [survey_fanout(path, procs, observations=cache.setdefault(key + '_observations', {}),
-                              launches=cache.setdefault(key + '_launches', {}),
-                              journal=readings.setdefault(identity, Records(path)), pauses=pauses_of(identity))]
+        def of(journal):
+            return survey_of(path, procs, observations=cache.setdefault(key + '_observations', {}),
+                             launches=cache.setdefault(key + '_launches', {}), pauses=pauses, journal=journal)
+        return [surveyed(identity, (signature(path), pauses, [(p[0], p[2]) for p in main]), bool(main), readings, idle,
+                         functools.partial(Records, path), of)]
+
+    def focus(identity, path, key): return journaled('focus.py', survey_focus, identity, path, key)
+    def fanned(identity, path, key): return journaled('fanout.py', survey_fanout, identity, path, key)
 
     def attempts(survey_of, path, key):
         return [survey_of(path, procs, observations=cache.setdefault(key + '_observations', {}))]
@@ -3076,16 +3136,17 @@ def journal_surveys(procs, now, cache, readings):
 
 def main(argv, extra=()):
     """The watcher: write the data file once, or with --watch again every REFRESH seconds, keeping the cache, each run's
-    reading and its last good data between snapshots (see snapshot).  extra holds more makers of units, each called
-    with (procs, now) for its units after progress.py's own (the wrappers sweep288_progress and search592_progress)."""
+    reading or idle survey (see idle) and its last good data between snapshots (see snapshot).  extra holds more makers
+    of units, each called with (procs, now) for its units after progress.py's own (the wrappers sweep288_progress and
+    search592_progress)."""
     # TODO: error copy; says how to run the script: with no argument to write the data file once, or with --watch to keep rewriting it
     assert argv in ([], ['--watch']), 'Claude: "usage: python3 -B progress.py [--watch]"'
     os.nice(max(0, NICE - os.nice(0)))
-    cache, kept, readings, overruns = load_cache(CACHE), seeded(JS), {}, {}
+    cache, kept, readings, overruns, idle = load_cache(CACHE), seeded(JS), {}, {}, {}
     while True:
         try:
             procs, now = processes(), time.time()
-            units = (run_surveys(procs, now, cache, readings) + journal_surveys(procs, now, cache, readings)
+            units = (run_surveys(procs, now, cache, readings, idle) + journal_surveys(procs, now, cache, readings, idle)
                      + [u for make in extra for u in make(procs, now)])
             runs, made = snapshot(units, kept, readings, now, overruns)
             write_atomic(JS, data_text(runs, made))

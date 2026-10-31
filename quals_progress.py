@@ -10,7 +10,7 @@ split of 40@6 and 64@7 supply trees whose level counts are known.
 import sys
 sys.dont_write_bytecode = True
 import os, re, io, json, time, bisect, shutil, tempfile, threading, traceback, subprocess, contextlib, collections, glob
-import types
+import types, gc, weakref
 import numpy as np
 import overnight_v5 as v5
 import progress
@@ -2275,6 +2275,225 @@ def q_watch_survives_a_run_source_changed_under_it():
     assert [s['w12.py']['so_far'] for s in seen] == [4000, 5000, 6000], seen
     assert seen[1]['overnight_v5.py'] == dict(seen[0]['overnight_v5.py'], stale=5000), seen
     assert 'Fons iam lectus mutatus' in log.getvalue() and 'overnight_v5.py 40 6 failed' in log.getvalue(), log.getvalue()[-2000:]
+
+
+# ---------- idle runs: a survey that cannot change stands, its reading released (2026-10-31) ----------
+
+class Made:
+    """The readings made while a watch runs: patches() replaces progress's Reading, Boxes and Records by subclasses
+    that note each one made, by the base name of its first path, with a weak reference to it; alive() counts those not
+    collected, by name, and notes each kept; kept() counts the readings alive() ever found, by name (not one made and
+    dropped within a snapshot, as readings.setdefault's default is when the run has a reading)."""
+
+    def __init__(self):
+        self.noted, self.found = [], set()
+
+    def patches(self):
+        noted = self.noted
+
+        def noting(base):
+            class Noted(base):
+                def __init__(self, path, *rest):
+                    super().__init__(path, *rest)
+                    noted.append((os.path.basename(path), weakref.ref(self)))
+            return Noted
+        return dict(Reading=noting(progress.Reading), Boxes=noting(progress.Boxes), Records=noting(progress.Records))
+
+    def alive(self):
+        gc.collect()
+        live = [i for i, (_, ref) in enumerate(self.noted) if ref() is not None]
+        self.found.update(live)
+        return collections.Counter(self.noted[i][0] for i in live)
+
+    def kept(self): return collections.Counter(self.noted[i][0] for i in self.found)
+
+
+def idle_runs(d, t):
+    """A directory d of four runs, one of each kind with a reading, by the base names of their readings' first paths:
+    the tiny resolved run (64@7, ended: its log's last pass has its outcome) as overnight_v5's (run.jsonl and run.log);
+    made_up_box's boxsplit pass of 304@9, stamped from t - 1000 (its log box.log, the run's journal main.jsonl); a
+    focus.py journal of 480:14 and a fanout.py journal of 672:13 (quals_focus_progress's initial() and
+    quals_fanout_progress's started()).  Returns the patches of progress (but processes and time) that watch them, and
+    a live process of each run, by its program: overnight_v5.py's, boxsplit.py's and fanout.py's running, focus.py's
+    stopped."""
+    import quals_focus_progress, quals_fanout_progress
+    journal, log = (os.path.join(d, f) for f in ('run.jsonl', 'run.log'))
+    for path, src in zip((journal, log), tiny('resolved')): shutil.copy(src, path)
+    _, box, main = made_up_box(t - 1000)
+    for path, src in ((os.path.join(d, 'box.log'), box), (os.path.join(d, 'main.jsonl'), main)): shutil.copy(src, path)
+    for name, records in (('focus_480_journal.jsonl', quals_focus_progress.initial()),
+                          ('fanout_672_journal.jsonl', quals_fanout_progress.started())):
+        open(os.path.join(d, name), 'w').write(''.join(json.dumps(r) + '\n' for r in records))
+    paths = {(64, 7): (journal, log), (304, 9): (os.path.join(d, 'main.jsonl'), os.path.join(d, 'none.log'))}
+
+    def files(n, order):
+        v5.configure(n, order)
+        return paths[n, order]
+    patches = dict(RUNS=((64, 7),), EXTENDED=((304, 9),), HERE=d, JS=os.path.join(d, 'p.js'),
+                   CACHE=os.path.join(d, 'c.json'), files=files, run_context=root_context, PAUSES={},
+                   box_files=lambda n, order: (os.path.join(d, 'box.log'), os.path.join(d, 'main.jsonl')))
+    live = {'overnight_v5.py': (101, 1, 'SN', 'python3 -B overnight_v5.py 64 7'),
+            'boxsplit.py': (102, 1, 'SN', 'python3 -B boxsplit.py 304 9'),
+            'focus.py': (123, 1, 'TN', 'python3 -B focus.py 480'), 'fanout.py': (41, 1, 'SN', 'python3 -B fanout.py 672')}
+    return patches, live
+
+
+def resolved_cuts():
+    """The tiny resolved run (64@7, two passes) cut short: (R, cuts, texts), R read_run of it whole, cuts four counts of
+    its log's lines (two within its first pass, two within its second), and texts(c) the run's journal and log as they
+    were with its log's first c lines: the journal's records dated by them (whole, with the log whole), then the
+    lines."""
+    journal_src, log_src = tiny('resolved')
+    v5.configure(64, 7)
+    R = progress.read_run(journal_src, log_src)
+    records = open(journal_src).read().splitlines(keepends=True)
+    lines = [l + '\n' for l in R['lines']]
+    s1, L = R['starts'][1], len(lines)
+    cuts = sorted({R['starts'][0] + 4, s1 - 2, s1 + 3, (s1 + L) // 2})
+    assert len(cuts) == 4 and cuts[1] < s1 < cuts[2] < cuts[3] < L, (cuts, s1, L)
+    def texts(c):
+        return ''.join(records[:1 + sum(1 for x in R['dates'] if x < c)] if c < L else records), ''.join(lines[:c])
+    return R, cuts, texts
+
+
+def q_watch_releases_the_reading_of_a_run_not_running():
+    # Replicata: progress.main(['--watch']) of idle_runs' four runs (an overnight_v5.py run, a boxsplit.py pass, a
+    # focus.py journal and a fanout.py journal, each a reading's kind), five snapshots 10 s apart: in the first two, a
+    # process of each run lives (focus.py's stopped, the others' running); in the third and fourth none does; in the
+    # fifth they live again; every reading made noted (Made).
+    # Expectata (2026-10-31: the watcher kept 288@10's reading and surveyed it every minute through weeks of its run
+    # stopped, at a footprint of 6 to 7 GB): after each of the first two snapshots, one reading of each run kept and
+    # alive; after the third, none alive (each run's survey read no time: its reading released as soon as it was made)
+    # and none more kept; in the fourth, no reading made at all (each run idle, its inputs unchanged) and each run's
+    # entry in the data file the third's; in the fifth, one more kept of each run (its process lives again: its survey
+    # reads the time) and alive.
+    d = tempfile.mkdtemp(prefix='progress-quals-')
+    t = time.time() + 100
+    patches, live = idle_runs(d, t)
+    procs = [list(live.values())] * 2 + [[]] * 2 + [list(live.values())]
+    made, seen = Made(), []
+    names = ('run.jsonl', 'box.log', 'focus_480_journal.jsonl', 'fanout_672_journal.jsonl')
+    def after(k):
+        entries = {r['program']: r for r in progress_data(open(os.path.join(d, 'p.js')).read())['runs']}
+        alive = made.alive()
+        seen.append(([made.kept()[n] for n in names], [alive[n] for n in names], entries, len(made.noted)))
+    k = [0]
+    def processes():
+        k[0] += 1
+        return procs[k[0] - 1]
+    watch([t + 10 * i for i in range(5)], after, dict(patches, processes=processes, **made.patches()))
+    assert [(m, a) for m, a, _, _ in seen] == [([1] * 4, [1] * 4)] * 2 + [([1] * 4, [0] * 4)] * 2 + [([2] * 4, [1] * 4)], \
+        [(m, a) for m, a, _, _ in seen]
+    assert seen[3][3] == seen[2][3], (seen[2][3], seen[3][3])
+    assert set(seen[2][2]) == {'overnight_v5.py', 'boxsplit.py', 'focus.py', 'fanout.py'}, seen[2][2]
+    assert seen[3][2] == seen[2][2], (seen[2][2], seen[3][2])
+
+
+def q_watch_leaves_nothing_of_a_released_reading():
+    # Replicata: progress.main(['--watch']) of idle_runs' four runs, the overnight run's journal and log cut within its
+    # second pass (resolved_cuts' third cut, so that its survey replays the pass and estimates), two snapshots 10 s
+    # apart: in the first, each run's process lives; in the second none does, so that each run's reading is released;
+    # Python's automatic collector off through the watch (gc.disable), so that only the watcher's own collection counts.
+    # Expectata (2026-10-31: Python gives memory back to the system only by whole arenas, and after 288@10's reading was
+    # dropped, the caches of stamps and tree order kept 2.2 GB of its arenas): after the first snapshot, replay Nodes
+    # alive and entries in the meanings and tree_order caches; after the second, no Node left, not even as garbage not
+    # yet collected, and those two caches empty.
+    d = tempfile.mkdtemp(prefix='progress-quals-')
+    t = time.time() + 100
+    patches, live = idle_runs(d, t)
+    _, cuts, texts = resolved_cuts()
+    for name, text in zip(('run.jsonl', 'run.log'), texts(cuts[2])): open(os.path.join(d, name), 'w').write(text)
+    procs, seen = [list(live.values()), []], []
+    def after(k):
+        nodes = sum(type(o) is progress.Node for o in gc.get_objects())
+        seen.append((nodes, [f.cache_info().currsize for f in (progress.meanings, progress.tree_order)]))
+    k = [0]
+    def processes():
+        k[0] += 1
+        return procs[k[0] - 1]
+    enabled = gc.isenabled()
+    gc.disable()
+    try:
+        watch([t, t + 10], after, dict(patches, processes=processes))
+    finally:
+        (gc.enable if enabled else gc.disable)()
+    assert seen[0][0] > 0 and all(n > 0 for n in seen[0][1]), seen
+    assert seen[1] == (0, [0, 0]), seen
+
+
+def grow(path, text):
+    """Append to the file at path what text has beyond it (asserted to begin with what the file holds)."""
+    old = open(path).read() if os.path.exists(path) else ''
+    assert text.startswith(old), path
+    open(path, 'a').write(text[len(old):])
+
+
+def q_watch_rebuilds_a_released_run_as_one_kept_all_along():
+    # Replicata: progress.main(['--watch']) twice, each of its own copy of the same runs as they grow, eight snapshots
+    # 10 s apart: the tiny resolved run (64@7) as overnight_v5's, its log cut after four line counts in turn (its journal
+    # the records read_run dates by them) and then whole, with a pauses.jsonl (PAUSES); made_up_box's boxsplit pass of
+    # 304@9, its log cut after 5, 6 and 8 lines; quals_fanout_progress's started() as a fanout.py journal of 672:13, after 4,
+    # 5 and 6 records.  Snapshots 1 and 2: each run's process running, the cuts growing; 3 and 4: each stopped, with a
+    # pause recorded in pauses.jsonl, the files as in 2; 5: running again, the pause's resume recorded, each file grown;
+    # 6: the overnight log grown again; 7 and 8: no process, the overnight log whole.  The first watch is progress.py's;
+    # the second keeps every run's reading all along, as the watcher did before 2026-10-31 (surveyed replaced).
+    # Expectata (2026-10-31): after each snapshot, the two data files and the two caches (every file of each), byte for
+    # byte the same; the first watch kept two readings of the overnight run and of the boxsplit pass (the second after
+    # the run was stopped, its reading released once its survey read no time, and grew again: from its files whole)
+    # and one of the fanout run (a stopped fanout.py process is still sighted, so its survey reads the time), the second
+    # watch one of each.
+    R, cuts, overnight = resolved_cuts()
+    L = len(R['lines'])
+    import quals_fanout_progress
+    records = [json.dumps(r) + '\n' for r in quals_fanout_progress.started()]
+    t = max(R['stamps']) + 100
+    times = [t + 10 * i for i in range(8)]
+    #         overnight cut  box lines  fanout records  processes      pauses (each at the time given, by group 5)
+    steps = [(cuts[0],       5,         4,              'SN',          []),
+             (cuts[1],       6,         5,              'SN',          []),
+             (cuts[1],       6,         5,              'TN',          [('pause', times[1] + 5, 5)]),
+             (cuts[1],       6,         5,              'TN',          [('pause', times[1] + 5, 5)]),
+             (cuts[2],       8,         6,              'SN',          [('pause', times[1] + 5, 5), ('resume', times[4] - 5, 5)]),
+             (cuts[3],       8,         6,              'SN',          [('pause', times[1] + 5, 5), ('resume', times[4] - 5, 5)]),
+             (L,             8,         6,              None,          [('pause', times[1] + 5, 5), ('resume', times[4] - 5, 5)]),
+             (L,             8,         6,              None,          [('pause', times[1] + 5, 5), ('resume', times[4] - 5, 5)])]
+
+    def kept_all_along(identity, inputs, timed, readings, idle, new, survey):
+        return survey(readings.setdefault(identity, new()))
+
+    def run(patch):
+        d = tempfile.mkdtemp(prefix='progress-quals-')
+        patches, live = idle_runs(d, t)
+        box = open(os.path.join(d, 'box.log')).read().splitlines(keepends=True)
+        for name in ('run.jsonl', 'run.log', 'box.log', 'fanout_672_journal.jsonl'): open(os.path.join(d, name), 'w').close()
+        def lay(k):
+            c, b, f, state, pauses = steps[k]
+            for name, text in zip(('run.jsonl', 'run.log'), overnight(c)): grow(os.path.join(d, name), text)
+            grow(os.path.join(d, 'box.log'), ''.join(box[:b]))
+            grow(os.path.join(d, 'fanout_672_journal.jsonl'), ''.join(records[:f]))
+            pause_lines(os.path.join(d, 'pauses.jsonl'), pauses)
+        made, outputs, k = Made(), [], [0]
+        def after(i):
+            made.alive()
+            cache = os.path.join(d, 'c.json')
+            outputs.append((open(os.path.join(d, 'p.js')).read(),
+                            {f: open(os.path.join(cache, f)).read() for f in sorted(os.listdir(cache))}))
+            if i + 1 < len(steps): lay(i + 1)
+            k[0] = i + 1
+        def processes():
+            state = steps[k[0]][3]
+            return [(p[0], p[1], state, p[3]) for name, p in live.items()
+                    if name != 'focus.py' and state is not None]
+        lay(0)
+        watch(times, after, dict(patches, processes=processes, **made.patches(), **patch,
+                                 PAUSES={('overnight_v5.py', 64, 7): [('pauses.jsonl', progress.group_pauses)]}))
+        return outputs, made.kept()
+    idle, kept = run({}), run({'surveyed': kept_all_along})
+    for i, (a, b) in enumerate(zip(idle[0], kept[0])):
+        assert a == b, (i, [f for f in set(a[1]) | set(b[1]) if a[1].get(f) != b[1].get(f)], a[0] == b[0])
+    assert len(idle[0]) == len(kept[0]) == len(steps), (len(idle[0]), len(kept[0]))
+    names = ('run.jsonl', 'box.log', 'fanout_672_journal.jsonl')
+    assert ([idle[1][n] for n in names], [kept[1][n] for n in names]) == ([2, 2, 1], [1, 1, 1]), (idle[1], kept[1])
 
 
 def q_box_log_reads_both_forms():

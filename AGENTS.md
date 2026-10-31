@@ -550,7 +550,7 @@ Witness agent, 2026-10-31 from 03:10 (Claude; `scratch/w11-624-576/`):
 - **Fork vs exec** (`sched/probe_sched.py`): a fork()ed child at nice 15 has scheduler priority 16; an exec'd or posix_spawn'ed one at nice 15 has 31, the default, as every exec'd search process here does. With the parent hot or cold it is the same. At load about 20 the shares were 0.63-0.91 forked against 0.91-0.94 exec'd. With shape (0.6, 1.5, 1.5) the CVP children used 5 CPU s in all over 672's 10,920 CVPs, against about 245 CPU s per seed in the parent, so the tool was not changed.
 - **Fork vs exec under the 528 batch's load** (`sched/probe_load.py`, load about 53): a forked child got 0.08 of a core at priority 16, an exec'd one 0.28-0.36 at 25-27. An exec'd CVP child would start at 0.13 CPU s (0.24-1.2 s wall) against the 0.00-0.01 CPU s of a typical CVP, so a per-CVP exec would be slower; a persistent exec'd worker would be the arrangement for heavier shapes.
 - **Memory:** swap 26-32 of 27-33 GB used, sys 35-60% of CPU, each seed about 0.33 of a core with heavy page faults (the watcher 58636 and XProtectRemediatorPirrit hold about 7.3 GB each, mostly compressed). The speculative wishes were stopped to relieve it, after e = 1..7 had finished: neither 528:11 nor 672:12 moves a first for e = 1..7 (`wish_n528_m11.log`, `wish_n672_m12.log`).
-- **528:11 found (03:50:13) and recorded.** All seven seeds of the first batch found a witness, at pool ranks 42-239 (880 CVPs in all); the model expected about 0.007, so w11's excess over its model was about 900 here. The run paused 432 from 03:39:41 to 03:50:13 (632 s). Checks: the search's exact check and check11 on all seven witnesses, verify11.py 528, and page_check.py 528 11. Recorded by `apply528.py` after the red quals of `add_quals528.py`:
+- **528:11 found (03:50:13) and recorded.** All seven seeds of the first batch found a witness, at pool ranks 42-239 (886 CVPs in all, 1,911 CPU s); the model expected 0.0079, so w11's excess over its model was about 890 here. The run paused 432 from 03:39:41 to 03:50:13 (632 s). Checks: the search's exact check and check11 on all seven witnesses, verify11.py 528, and page_check.py 528 11. Recorded by `apply528.py` after the red quals of `add_quals528.py`:
   - NEW 528 (11, 12, 'Claude alone'), since both bounds are now Claude's (it was Claude and BGPW);
   - the cell 11–12, class c; the entry keeps all its words and codes, now marked ◆ with m* ∈ {11, 12}, plus a Claude line and p528 (m = 11) at its end;
   - PAGE_CODES gets ('index.html p528', 11, ...) after the order-10 p528's (mstar.explicit keeps the higher order at a shared label); SClaude[11][528] is last among the sets;
@@ -558,6 +558,15 @@ Witness agent, 2026-10-31 from 03:10 (Claude; `scratch/w11-624-576/`):
   - mstar.js changed at column 528 only; preview.png rebuilt at 0.40.
   - Quals: quals_mstar q_example_at_528_raises_its_lo and quals_index q_example_at_528_has_its_entry_code_and_set are new (red, then green). Three quals were moved off 528's old data: q_page_parse now reads the order-10 p528 from PAGE_CODES; q_symmetric_example_at_528 lists the entry's three codes; q_page_parse_is_strict mutates 496's "9" in place of 528's old "10–12".
 - **688:10 launched at 03:58:18** (`w10s/launch688.sh`): 7 seeds, at most 150 or 6 h. 432 is paused (watchdog 15081). The fresh w10s preflight (`pre-w10s/`): |H| 3^16, about 12 CPU s per seed's setup, pool 598, top log10 E -6.32. That is about 2e-4 summed odds per seed by the model, slightly more per CPU second than 672:12's.
+- **688:10: no witness.** 150 seeds (03:58:18-04:32:22; 432 paused 2,044 s), 89,835 CVPs, summed E*p 0.024, 6,568 CPU s, no failed seed. 544:10 was not run (preflight -14.11; it was to run only if 688 went quickly).
+- **528:11 and the powers of 2:** `firsts_now.py after528 8 9 10` (mstar.js with 528 at 11) leaves e = 8 undecided at K 58-64, e = 9 at 67, and finds none at e = 10, as before 528. With e = 1..7 from the stopped wish, 528:11 moves no first, and pow2.js is unchanged.
+- **672:12: no witness in its whole budget.** The second launch (`w12/launch672b.sh`: seeds 36-150, 04:32:41-06:00:38, 432 paused 5,277 s) ran all 115 seeds with no failure: 42,359 CVPs, summed E*p 0.165, 26,823 CPU s. Over both launches: 150 seeds, 53,279 CVPs, summed E*p 0.208, 35,400 CPU s, 132 minutes. By the model, P(no witness) = 0.81. `w12/record672.py` (quals, then apply) is ready for a later 672:12 witness. For 672:12, wish_n672_m12.log already shows no first moved at e = 1..7.
+- **432's pauses in this work:** 03:39:41-03:50:13 (632 s, 528), 03:58:18-04:32:22 (2,044 s, 688) and 04:32:41-06:00:38 (5,277 s, 672). Each was resumed by run.py, not by the watchdog.
+- **The model's calibration** (witnesses found against summed modeled E*p over the same CVPs; `odds.py`, and the attempts journals of scratch/w12):
+  - w11 (antisymmetric, order 11): 624 3 against 0.077 (x39), 576 3 against 0.040 (x75), 528 7 against 0.0079 (886 CVPs, x890).
+  - w12 (symmetric, order 12): 768 2 against 0.65 (x3), 720 1 against 1.21 (x0.8), 672 0 against 0.043.
+  - w10s (symmetric, order 10) at 688: 0 against 0.024.
+  - So the excess shows only in the antisymmetric (odd-order) search. Order 13 is antisymmetric, at 912 and 1008, where hi = 13, so a witness settles m*. w13's preflights of 2026-10-28 found no consistent configuration: |H| = 3^30 against cap3 = 3e6 triples, about 0.02 expected matches per round. A cap3 of about 3e7 would give a few per round, at about 1-2 GB per process. Not started.
 - **432:12 LF deployed** (deploy agent, 2026-10-31 03:31-03:39; records in `scratch/deploy432-20261030/`):
   - Fresh dry run 03:09-03:31, qualify (173 quals) at 03:17, intent 03:31:23 with 432 running (so no repause), stop at 03:31:49, install 03:32:09, switch 03:32:21 (f29b4e7d… to ba6ee62c…), relaunch 03:33:47, first verify passed at 03:39:22. Downtime was 7.5 min.
   - New driver PID 87975, 8 workers, seed 4. The shepherd adopted it.
@@ -569,3 +578,20 @@ Witness agent, 2026-10-31 from 03:10 (Claude; `scratch/w11-624-576/`):
   - survey_fanout's pool rate now counts only the jobs started since the last switch (`switched`, `current`); every job's tree stays a sample. With the jobs pooled, LF's 2.3× faster LP solves would have kept 432's ETA about twice too long for days.
   - Qual quals_fanout_progress `test_the_rate_is_the_code_in_force_s`, red (3.2 against 8) then green. quals_fanout_progress, quals_allocation_progress, quals_progress 112/112 and quals_focus_progress pass.
   - Watcher restarted as PID 6923. ETA records between 03:34 and 03:50 used the pooled rate.
+- **Witness batch 2 (agent, 2026-10-31 03:10-06:00; handover above):**
+  - 528:11 found by all 7 seeds of the first batch, verified, and recorded; dreeves committed defcdb4. 528's cell went from Claude-and-BGPW to Claude alone, since both bounds are now Claude's.
+  - 672:12: 150 seeds, summed odds 0.208, no witness.
+  - 688:10: 150 seeds, odds 0.024, no witness.
+  - 544:10 skipped.
+  - track.py now passes over zombie-only process groups (`live(pgid)`); quals_track 13/13. The six orphaned seed records were closed with status null, though their tracebacks show the cancel path (-15).
+  - w12's recenter ends at exact Babai ties.
+  - The antisymmetric (w11) model under-predicted witnesses 39-890×; the symmetric ones matched theirs.
+  - Memory is now the main bottleneck: swap 26-32 GB, sys time 35-60%. The watcher and macOS's XProtectRemediatorPirrit hold about 7.3 GB each.
+- **Started 06:10:**
+  - **Watcher memory:** an agent in `scratch/watcher-mem-20261031/` evaluates keeping incremental state only for running runs, with byte-identical output.
+  - **Order 13 at 1008 and 912:** an agent in `scratch/w13-1008-912/`. One witness at either settles m* = 13. It makes consistent configurations reachable at |H| = 3^30, then controls, preflights and seeds, and launches production seeds only after the watcher fix, or at most 3 at a time.
+- **06:25 state (Claude):** 432:12's page ETA is 20.3 d median (18.1-22.2) on LF's own rate (1,699 jobs since the switch, 246 LP/s a worker). Four agents run:
+  - watcher memory, `scratch/watcher-mem-20261031/`;
+  - order-13 witnesses at 1008/912, `scratch/w13-1008-912/`;
+  - 432's exact-checking cost, `scratch/check432-20261031/`: first map in-worker Check, assembly and reprove (which is the trusted base, and reprove's cost at the finish), then evaluate a faster exact in-worker check in fanout_code;
+  - exclusion screens, `scratch/excl-20261031/`: order 12 at 528/576/624 (each would settle m* = 11) and order 13 at 768/912/1008, looking for 752-style forced lopsided profiles.
