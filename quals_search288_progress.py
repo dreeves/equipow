@@ -158,7 +158,7 @@ class Search288ProgressQuals(unittest.TestCase):
         self.assertIn('240:10 calibration', templates['progress-search288'])
         self.assertIn('288:10 search', templates['progress-search288'])
         self.assertIn('no completion estimate', templates['progress-search288'])
-        self.assertIn('Astra: "', templates['progress-attempt-hint'])
+        self.assertIn('Astra: “', templates['progress-attempt-hint'])
         self.assertEqual(set(re.findall(r'data-attempt-outcome="([^"]*)"', templates['progress-search288'])),
                          {'null', 'control_failed', 'budget', 'witness', 'failed'})
         self.assertIn('if (run.program === \'search288.py\') search288View(box, run);', html)

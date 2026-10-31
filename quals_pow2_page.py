@@ -115,27 +115,47 @@ def kind_of(col, k, e): return (k + e > col[0]) + (k + e > col[1])     # 0 exist
 MEANINGS = ('known', 'open', 'impossible')    # each kind's word in the readout, dreeves's (approved 2026-10-12)
 
 
+def ring_cells(data):
+    """The cells the chart rings in gold (dreeves's README, 2026-10-30, [GLT]), in the page's order: for each δ = e from 1
+    while some k <= K is known to beat Thue-Morse by e, (k, e, role) for the least such k and for the least k whose
+    upper bound allows k + e, one cell when they agree; role 1 known (a bound the theorem states), 2 not ruled out, 3
+    both, proven the least.  (Until then, the known ones alone.)"""
+    cols, out = data['cols'], []
+    least = lambda i: lambda g: next((k for k, c in enumerate(cols, 1) if c[i] >= k + g), 0)
+    for g in range(1, data['etop'] + 1):
+        known, possible = least(0)(g), least(1)(g)
+        if not known: break
+        out += [(k, g, (k == known) + 2 * (k == possible)) for k in dict.fromkeys((known, possible))]
+    return out
+
+
+NOTES = {1: 1, 2: 1, 3: 2}      # the notes a ringed cell's readout adds after its reasons, by role
+
+
 def check_readouts(data, reads):
     """Assert that reads, [k, e, {text, children}] for every cell, are each that cell's readout (see
     q_hover_reads_out_every_cell)."""
-    E, cols, meaning = data['etop'], data['cols'], {}
+    E, cols, meaning, notes = data['etop'], data['cols'], {}, {}
     assert sorted((k, e) for k, e, _ in reads) == [(k, e) for k in range(1, K + 1) for e in range(1, E + 1)]
-    least = lambda g: next((i + 1 for i, c in enumerate(cols) if c[0] >= i + 1 + g), 0)
-    gold = {(least(g), g) for g in range(1, E + 1) if least(g)}     # the record gaps' cells, ringed in gold
+    gold = {(k, e): role for k, e, role in ring_cells(data)}      # the smallest cells, ringed in gold, by role
     for k, e, r in reads:
         lo, hi, lw, hw = cols[k - 1]
-        kind = kind_of(cols[k - 1], k, e)
+        kind, role = kind_of(cols[k - 1], k, e), gold.get((k, e), 0)
         g = READOUT.fullmatch(r['text'])
         assert g and [int(g[i]) for i in (1, 2, 3, 4, 5, 7, 8, 9)] == [k, k, k, e, k + e, lo, k, hi], (k, e, r)
-        assert r['children'][:1] == [f'swatch {KINDS[kind]}' + ' record' * ((k, e) in gold)], (k, e, r)
+        assert r['children'][:1] == [f'swatch {KINDS[kind]}' + ' record' * (role > 0) + ' proven' * (role == 3)], (k, e, r)
         assert g[6] == MEANINGS[kind], (k, e, r)
         meaning.setdefault(kind, set()).add(g[6])
         parts = g[10].split(' · ')       # each reason names its order and holds its math (pinned as Claude: "order …" until 2026-10-30)
         want = [(lo, reason_math(k, lw)), (hi + 1, reason_math(k, hw))]
         want = [want[:1], want, want[1:]][kind]
-        assert len(parts) == len(want) + ((k, e) in gold), (k, e, r, want)     # a gold cell's note after its reasons
-        assert all(re.match(rf'(?:Claude: ")?order {o}\b', p, re.I) and b in p for p, (o, b) in zip(parts, want)), (k, e, r, want)
+        extra = NOTES.get(role, 0)       # a gold cell's notes after its reasons, each naming its δ
+        assert len(parts) == len(want) + extra, (k, e, r, want)
+        assert all(re.match(rf'(?:Claude: “)?order {o}\b', p, re.I) and b in p for p, (o, b) in zip(parts, want)), (k, e, r, want)
+        assert all(re.search(rf'\b{e}\b', p) for p in parts[len(want):]), (k, e, r)
+        if extra: notes.setdefault(role, set()).add(' · '.join(re.sub(r'\d+', '#', p) for p in parts[len(want):]))
     assert all(len(v) == 1 for v in meaning.values()) and len(set.union(*meaning.values())) == len(meaning), meaning
+    assert all(len(v) == 1 for v in notes.values()) and len(set.union(*notes.values())) == len(notes), notes
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -308,8 +328,10 @@ const GEOMETRY = () => {
   }
   const trims = [...chart.querySelectorAll('.pow2-trim')].map(el => { const s = getComputedStyle(el);
     return [box(el.getBoundingClientRect()), s.borderTopColor, s.borderTopWidth, s.borderLeftWidth, s.pointerEvents]; });
+  const dots = [...chart.querySelectorAll('.pow2-dot')].map(el => { const s = getComputedStyle(el);
+    return [box(el.getBoundingClientRect()), s.backgroundColor, s.borderTopLeftRadius, s.pointerEvents]; });
   return {plot: box(svg.getBoundingClientRect()), svgs: chart.querySelectorAll('svg').length,
-    rects: svg.querySelectorAll('rect').length, texts, trims, innerWidth, scrollW: document.documentElement.scrollWidth,
+    rects: svg.querySelectorAll('rect').length, texts, trims, dots, innerWidth, scrollW: document.documentElement.scrollWidth,
     canvas: box(document.getElementById('mstar-chart').getBoundingClientRect())};
 };
 const DOM = cells => cells.map(([k, e, x, y]) => {
@@ -322,6 +344,14 @@ const READ = text => {
   return {text: text(ro), children, scrollW: document.documentElement.scrollWidth};
 };
 const FRAMES = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+// Each zoom button of the two charts, mstar's and pow2's side by side: what of its look its computed style and box give,
+// and its text, title and label (2026-10-30).
+const LOOKS = () => ['zoom-out', 'zoom-in', 'reset'].map(b => ['mstar', 'pow2'].map(p => {
+  const e = document.getElementById(`${p}-${b}`), s = getComputedStyle(e), r = e.getBoundingClientRect();
+  return [s.fontFamily, s.fontSize, s.color, s.backgroundColor, s.borderTopWidth, s.borderTopStyle, s.borderTopColor,
+    s.paddingTop, s.paddingLeft, s.cursor, s.opacity, Math.round(r.width * 10) / 10, Math.round(r.height * 10) / 10,
+    e.textContent, e.title, e.getAttribute('aria-label')];
+}));
 
 const out = C.urls.map(() => ({errors: []}));      // per page; anything logged before the first page goes to it
 let ws, seq = 0, current = out[0];
@@ -462,6 +492,61 @@ async function main() {
                         ct + MT + (T2 - m) * MP + (MP - 2) / 2);
       R.mstar.push([k, m, await ev(() => document.getElementById('mstar-readout').textContent)]);
     }
+    if (C.zoom) {                     // each chart's zoom buttons and keys zoom that chart (2026-10-30): R.zoom's steps
+      R.zoom = {looks: await ev(LOOKS), steps: []};
+      const show = id => ev(i => { document.getElementById(i).scrollIntoView({block: 'center'}); }, id).then(() => ev(FRAMES));
+      const click = async id => {     // a real click at the middle of element id
+        await show(id);
+        const [x, y] = await ev(i => { const r = document.getElementById(i).getBoundingClientRect();
+          return [r.left + r.width / 2, r.top + r.height / 2]; }, id);
+        for (const type of ['mousePressed', 'mouseReleased']) {
+          await send('Input.dispatchMouseEvent', {type, x, y, button: 'left', buttons: type === 'mousePressed' ? 1 : 0, clickCount: 1});
+        }
+        await ev(FRAMES);
+      };
+      const key = async (key, code, keyCode, text) => {      // a real key press, to the focused element
+        await send('Input.dispatchKeyEvent', {type: text ? 'keyDown' : 'rawKeyDown', key, code, windowsVirtualKeyCode: keyCode, ...(text ? {text} : {})});
+        await send('Input.dispatchKeyEvent', {type: 'keyUp', key, code, windowsVirtualKeyCode: keyCode});
+        await ev(FRAMES);
+      };
+      // The readouts at the left and right ends of each plot's row 1, half a CSS px in, and the four buttons' disabled.
+      const edges = async () => {
+        await show('pow2-chart');
+        const [L, T, W] = (await ev(GEOMETRY)).plot, pow2 = [];
+        for (const x of [L + 0.5, L + W - 0.5]) {
+          await input.mouse(x, T + (C.E - 1) * C.ROW + (C.ROW - C.GAP) / 2);
+          pow2.push((await ev(READ, TEXT)).text);
+        }
+        await show('mstar-chart');
+        const [cl, ct, cw] = (await ev(GEOMETRY)).canvas, T2 = await ev(() => MSTAR.mtop), [ML, MR, MT, MP] = C.mstarLayout, mstar = [];
+        for (const x of [cl + ML + 0.5, cl + cw - MR - 0.5]) {
+          await input.mouse(x, ct + MT + (T2 - 1) * MP + (MP - 2) / 2);
+          mstar.push(await ev(() => document.getElementById('mstar-readout').textContent));
+        }
+        const disabled = await ev(() => ['pow2-zoom-in', 'pow2-zoom-out', 'mstar-zoom-in', 'mstar-zoom-out'].map(i => document.getElementById(i).disabled));
+        return {pow2, mstar, disabled};
+      };
+      const step = async (name, act) => { const x = await act(); R.zoom.steps.push({name, x, ...await edges()}); };
+      await step('load', async () => {});
+      await step('pow2 +', () => click('pow2-zoom-in'));
+      await step('mstar +', () => click('mstar-zoom-in'));
+      await step('pow2 + key', async () => { await click('pow2-chart'); await key('+', 'Equal', 187, '+'); });
+      await step('pow2 → key', async () => { await click('pow2-chart'); await key('ArrowRight', 'ArrowRight', 39); });
+      await step('pow2 − key', async () => { await click('pow2-chart'); await key('-', 'Minus', 189, '-'); });
+      await step('pow2 + to its limit', async () => {
+        let n = 0;
+        while (n < 10 && !await ev(() => document.getElementById('pow2-zoom-in').disabled)) { await click('pow2-zoom-in'); n++; }
+        await show('pow2-chart');
+        const g = await ev(GEOMETRY), [L, T, W] = g.plot, cells = [];
+        for (let k = 1; k <= C.K; k++) for (let e = 1; e <= C.E; e++) {
+          cells.push([k, e, L + (k - 0.5 - (C.zoomView[0])) * W / C.zoomView[1], T + (C.E - e) * C.ROW + (C.ROW - C.GAP) / 2]);
+        }
+        const inView = cells.filter(([, , x]) => x > L && x < L + W);
+        return {clicks: n, geo: g, dom: await ev(DOM, inView)};
+      });
+      await step('pow2 ↺', () => click('pow2-reset'));
+      await step('mstar ↺', () => click('mstar-reset'));
+    }
   }
   return out;
 }
@@ -480,16 +565,17 @@ process.exit(code);
 # What DRIVER does in each configuration: its pages' pow2.js (by SOURCES; None for none); the viewport, as a phone
 # (mobile, with touch) or not; the theme; whether the chart is drawn, and then whether every cell gets a mouse move
 # (hover) or a touch tap (tap), whether the m*(n) chart's cells (2^k, hi + 1) are read out too (mstar), and whether a
-# swipe follows the outline's tap (swipe).
+# swipe follows the outline's tap (swipe), and whether each chart's zoom buttons and keys are tried (zoom).
+ZOOM_VIEW = (34, 12)       # the view of the chart of powers of 2 after its + to the limit in DRIVER's zoom steps: [u0, span)
 DESKTOP = dict(width=1280, height=900, mobile=False, swipe=False)
 PHONE = dict(width=390, height=844, mobile=True, swipe=True)
 CONFIGS = {
-    'light': DESKTOP | dict(data=['real'], dpr=2, theme='light', drawn=True, hover=True, tap=False, mstar=True),
-    'phone': PHONE | dict(data=['real'], dpr=3, theme='light', drawn=True, hover=False, tap=True, mstar=False),
-    'kinds': DESKTOP | dict(data=['kinds'], dpr=1, theme='light', drawn=True, hover=True, tap=False, mstar=False),
-    'missing': DESKTOP | dict(data=[None], dpr=1, theme='light', drawn=False, hover=False, tap=False, mstar=False),
+    'light': DESKTOP | dict(data=['real'], dpr=2, theme='light', drawn=True, hover=True, tap=False, mstar=True, zoom=True),
+    'phone': PHONE | dict(data=['real'], dpr=3, theme='light', drawn=True, hover=False, tap=True, mstar=False, zoom=False),
+    'kinds': DESKTOP | dict(data=['kinds'], dpr=1, theme='light', drawn=True, hover=True, tap=False, mstar=False, zoom=False),
+    'missing': DESKTOP | dict(data=[None], dpr=1, theme='light', drawn=False, hover=False, tap=False, mstar=False, zoom=False),
     'violations': DESKTOP | dict(data=list(VIOLATIONS), dpr=1, theme='light', drawn=False, hover=False, tap=False,
-                                 mstar=False),
+                                 mstar=False, zoom=False),
 }
 DRAWN = ('light', 'phone')                                   # the configurations on the real data
 
@@ -516,7 +602,8 @@ def run(name):
         mstar = [[k, data['cols'][k - 1][1] + 1] for k in range(1, K + 1)
                  if 2 ** k <= NMAX and c['mstar'] and data['cols'][k - 1][3][0] == 'mstar']
         shots = [os.path.join(d, 'load.png'), os.path.join(d, 'outline.png')]
-        cfg = {k: c[k] for k in ('width', 'height', 'dpr', 'mobile', 'theme', 'drawn', 'hover', 'tap', 'swipe')} | dict(
+        cfg = {k: c[k] for k in ('width', 'height', 'dpr', 'mobile', 'theme', 'drawn', 'hover', 'tap', 'swipe', 'zoom')} | dict(
+            zoomView=ZOOM_VIEW,
             chrome=CHROME, dir=d, urls=urls, K=K, E=data['etop'] if data else 0, ROW=ROW, GAP=gap(c['dpr']), outline=OUTLINE,
             swipeFrom=SWIPE, shots=shots, mstarCells=mstar, mstarLayout=MSTAR_LAYOUT, mstarCols=MSTAR_COLUMNS)
         try:
@@ -577,12 +664,13 @@ def theorem_cells():
 
 
 def ringed(R, x, y):
-    """Whether CSS point (x, y) lies on the ring of a cell the theorem states: within 1 px outside it at its sides,
-    within 2 px above or below it (over the hairline gaps there and the edges of the cells above and below)."""
+    """Whether CSS point (x, y) lies on the ring of a cell the chart rings (ring_cells; the cells the theorem states
+    until 2026-10-30): within 1 px outside it at its sides, within 2 px above or below it (over the hairline gaps there
+    and the edges of the cells above and below)."""
     def on(k, e):
         x0, y0, x1, y1 = cell_box(R, 'geo', k, e)
         return x0 - 1 <= x <= x1 + 1 and y0 - 2 <= y <= y1 + 2 and not (x0 <= x <= x1 and y0 <= y <= y1)
-    return any(on(k, e) for k, e in theorem_cells())
+    return any(on(k, e) for k, e, _ in ring_cells(R['data']))
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -594,8 +682,9 @@ def q_section_follows_mstar_chart():
     # aria-labelledby="mstar-title"> (right after it, then followed by <section class="remarks">, until 2026-10-30, when
     # dreeves put the smallest lengths between and the order stopped being pinned).  The new section holds, in order: the heading, the h2 pow2-title; a paragraph of class
     # pow2-caption; the legend, its swatches exists, open and impossible, as the m*(n) chart's, then exists ringed in
-    # gold (record) for the theorem's cells; the div pow2-chart, an image with a label; the readout paragraph
-    # pow2-readout, a polite live region; then the theorem; a link to record_gaps.wl, the script of the table behind
+    # gold (record) for the theorem's cells; the zoom buttons −, + and ↺ (the m*(n) chart's, since 2026-10-30:
+    # quals_index's q_both_charts_share_one_pan_and_zoom); the div pow2-chart, an image with a label that takes the keys
+    # (tabindex 0, since 2026-10-30); the readout paragraph pow2-readout, a polite live region; then the theorem; a link to record_gaps.wl, the script of the table behind
     # the theorem (Stan Wagon's request, 2026-10-18; quals_record_gaps checks it), and that table (dreeves, 2026-10-18),
     # its body filled from pow2.js, in a sideways-scrolling div.  (Since 2026-10-28, dreeves's README: "[CHR] Put the
     # powers-of-2 chart between the normal chart and the theorem statement"; before, the theorem and the table came
@@ -608,8 +697,10 @@ def q_section_follows_mstar_chart():
     parts = [r'<h2 id="pow2-title">', r'<p class="pow2-caption">',
              r'<ul class="legend">', r'<span class="swatch exists" aria-hidden="true">',
              r'<span class="swatch open" aria-hidden="true">', r'<span class="swatch impossible" aria-hidden="true">',
-             r'<span class="swatch exists record" aria-hidden="true">', r'</ul>',
-             r"<div id=\"pow2-chart\" role=\"img\" aria-label='[^']+'></div>", r'<p id="pow2-readout" aria-live="polite">',
+             r'<span class="swatch exists record" aria-hidden="true">', r'</ul>', r'<div class="zoom">',
+             r'<button type="button" id="pow2-zoom-out" ', r'<button type="button" id="pow2-zoom-in" ',
+             r'<button type="button" id="pow2-reset" ',
+             r"<div id=\"pow2-chart\" tabindex=\"0\" role=\"img\" aria-label='[^']+'></div>", r'<p id="pow2-readout" aria-live="polite">',
              r'<p><b>Theorem\.</b>', r'href="https://raw\.githubusercontent\.com/dreeves/equipow/main/record_gaps\.wl"',
              r'<div class="scroll">', r'<table class="pow2-gaps" data-record-gaps>']
     assert re.search('.*?'.join(parts), s.group(1), re.S), s.group(1)
@@ -618,13 +709,15 @@ def q_section_follows_mstar_chart():
 def q_scripts_load_pow2_after_mstar():
     # Replicata: index.html's script tags after its head (KaTeX's two in the head, since 2026-10-28, are
     # quals_index's q_scripts_load_data_then_draw's).
-    # Expectata: exactly six, after </main>: the m*(n) chart's <script src="mstar.js"> and its inline script, then a
-    # classic <script src="pow2.js"> (no type, async or defer, so it also loads from file://) right after them and one
-    # inline script; then the inline script of the table of smallest lengths (2026-10-17); then the inline script of
-    # the section "Search progress" (2026-10-17), the last thing before </body>.
+    # Expectata: exactly seven, after </main>: the inline script of the pan and zoom both charts share (2026-10-30;
+    # quals_index's q_both_charts_share_one_pan_and_zoom; six scripts before); the m*(n) chart's <script
+    # src="mstar.js"> and its inline script, then a classic <script src="pow2.js"> (no type, async or defer, so it also
+    # loads from file://) right after them and one inline script; then the inline script of the table of smallest
+    # lengths (2026-10-17); then the inline script of the section "Search progress" (2026-10-17), the last thing before
+    # </body>.
     text = page()
     tags = re.findall(r'<script\b[^>]*>', text[text.index('</head>'):])
-    assert tags == ['<script src="mstar.js">', '<script>', '<script src="pow2.js">', '<script>', '<script>', '<script>'], tags
+    assert tags == ['<script>', '<script src="mstar.js">', '<script>', '<script src="pow2.js">', '<script>', '<script>', '<script>'], tags
     assert text.index('</main>') < text.index('<script src="mstar.js"></script>')
     assert text.count('</script>\n<script src="pow2.js"></script>\n<script>\n') == 1
     assert text.endswith('</script>\n</body>\n</html>\n')
@@ -768,8 +861,9 @@ def q_drawn_cells_match_data():
     # view, and document.elementFromPoint at the middle of each cell (k, e), k = 1..K, e = 1..E.
     # Expectata: the pixel at each cell's middle has the color of its kind as the page's tokens give it in that theme
     # (exists when k + e <= lo, open when lo < k + e <= hi, impossible above), or the record token's gold where it
-    # lies on the ring of a cell the theorem states (ringed: within 2 px outside that cell; since 2026-10-28,
-    # q_gold_trim_rings_the_theorem_s_cells); the element at each cell's middle is an svg rect whose computed fill is
+    # lies on the ring of a cell the chart rings (ringed: within 2 px outside that cell; since 2026-10-28, the theorem's
+    # cells, and since 2026-10-30 ring_cells, q_gold_trim_rings_the_smallest_cells), and gold at the middle of a cell
+    # proven the least, its dot; the element at each cell's middle is an svg rect whose computed fill is
     # that color.  The grid is hairlines of paper (dreeves, 2026-10-29: "this with hairline grid looks great to me"),
     # each found within 2 device px of where the plot's box puts it, since the browser snaps the svg to device pixels:
     # down a column of device pixels through the middle of a cell above row 1, of the 5 nearest the cell's bottom edge
@@ -780,6 +874,7 @@ def q_drawn_cells_match_data():
     for name in DRAWN:
         R = valid(name)
         cols, tok, dpr = R['data']['cols'], R['load']['tokens'], R['load']['dpr']
+        proven = [c for c in ring_cells(R['data']) if c[2] == 3]
         rgb = lambda h: [int(h[i:i + 2], 16) for i in (1, 3, 5)]
         near = lambda d: [(floor(d) + j + 0.5) / dpr for j in range(-2, 3)]   # CSS middles of 5 device px about d
         bad = []
@@ -787,7 +882,8 @@ def q_drawn_cells_match_data():
             want = tok[KINDS[kind_of(cols[k - 1], k, e)]]
             x0, y0, x1, y1 = cell_box(R, 'geo', k, e)
             xm, ym = (x0 + x1) / 2, (y0 + y1) / 2
-            if (pixel(R, 0, xm, ym), tag, fill(f)) != (tok['record'] if ringed(R, xm, ym) else want, 'rect', want):
+            middle = tok['record'] if ringed(R, xm, ym) or (k, e, 3) in proven else want   # a proven cell's middle: its dot
+            if (pixel(R, 0, xm, ym), tag, fill(f)) != (middle, 'rect', want):
                 bad.append((k, e, want, (pixel(R, 0, xm, ym), tag, fill(f))))
             column = [(xm, y) for y in near(y1 * dpr)]
             if e > 1 and not any(ringed(R, x, y) for x, y in column):
@@ -810,9 +906,10 @@ def q_hover_reads_out_every_cell():
     # MEANING dreeves's word for the cell's kind (MEANINGS: known, open, impossible); REASONS the
     # Claude: "…" of lo's reason for a green cell, of hi's for a red one and both for a gray one, joined by " · ", lo's
     # starting "order lo " and hi's "order hi + 1 ", each holding its reason's math (reason_math).  A cell ringed in
-    # gold, a bound the theorem states (q_gold_trim_rings_the_theorem_s_cells), has its swatch ringed too (swatch
-    # exists record) and one Claude: "…" note after its reasons, as the m*(n) chart's readout does for its records
-    # (dreeves, 2026-10-28: "don't forget the gold trim on the hover version").
+    # gold (ring_cells, q_gold_trim_rings_the_smallest_cells) has its swatch ringed too (swatch … record, and … proven
+    # with its dot where it is proven the least) and notes after its reasons, as the m*(n) chart's readout does for its
+    # rings (dreeves, 2026-10-28: "don't forget the gold trim on the hover version"): NOTES of them by its role, each
+    # naming its δ, the notes of each role the same for every δ but for their numbers, and different from role to role.
     R = valid('light')
     check_readouts(R['data'], R['hovers'])
 
@@ -910,26 +1007,89 @@ def q_labels_mark_every_delta_and_round_k():
         assert len(letters) == 1 and letters[0][0] + letters[0][2] <= L, (name, below)
 
 
-def q_gold_trim_rings_the_theorem_s_cells():
+def q_gold_trim_rings_the_smallest_cells():
     # Replicata: the drawn configurations: the elements of class pow2-trim in #pow2-chart (their boxes, computed border
-    # colors and widths and pointer-events), the cells the theorem states (theorem_cells), and the data's kinds there.
+    # colors and widths and pointer-events) and of class pow2-dot (their boxes, colors, corner radii and
+    # pointer-events); the cells the chart rings (ring_cells) and the cells the theorem states (theorem_cells); and the
+    # data's kinds there.
     # Expectata (dreeves's README, 2026-10-28: "[GTR] Gold trim for the powers-of-2 chart to highlight the values in the
-    # theorem"): one ring per bound the theorem states and no other, in the theorem's order of k: each a border in the
-    # record token's gold (the gold ring of the m*(n) chart) just outside its cell, 2 px above and below it (the gaps
-    # between rows) and 1 px at its sides (a phone's columns are about 4 px wide, and its neighbors' middles stay
-    # theirs), its box the cell's grown accordingly (within 0.5 px), taking no pointer (the cell under it still reads
-    # out); each of its cells green.
-    cells = theorem_cells()
+    # theorem"; then, 2026-10-30, "[GLT] ... match the "smallest length known" table: green+gold is the smallest *known*
+    # n (resp. 2^k) for a give m (resp. delta) and black+gold is the smallest n (resp. 2^k) not ruled out. but then
+    # maybe we want an additional visual indicator for when those coincide"): one ring per cell of ring_cells and no
+    # other, in its order: for each δ the least k known to beat Thue-Morse by δ, a green cell, these being the cells the
+    # theorem states; and the least k not ruled out, an open cell, where it is another.  Each ring is a border in the
+    # record token's gold (the m*(n) chart's ring) just outside its cell, 2 px above and below it (the gaps between
+    # rows) and 1 px at its sides (a phone's columns are about 4 px wide, and its neighbors' middles stay theirs), its box
+    # the cell's grown accordingly (within 0.5 px), taking no pointer (the cell under it still reads out).  And one dot
+    # per cell where the two agree (role 3, proven the least; today (10, 1) alone; Claude's proposal for the indicator),
+    # gold, round, centered on its cell and half as wide as the cell's smaller side (within 0.5 px), taking no pointer.
+    # Resultata before: rings at the theorem's cells alone, and no dots.
     for name in DRAWN:
         R = valid(name)
-        cols, tok, trims = R['data']['cols'], R['load']['tokens'], R['geo']['trims']
-        assert len(trims) == len(cells), (name, len(trims), cells)
-        for (k, e), (box, color, top, side, pointer) in zip(cells, trims):
+        cols, tok, trims, dots = R['data']['cols'], R['load']['tokens'], R['geo']['trims'], R['geo']['dots']
+        rings = ring_cells(R['data'])
+        assert sorted((k, e) for k, e, role in rings if role & 1) == theorem_cells(), (name, rings)
+        assert len(trims) == len(rings), (name, len(trims), rings)
+        for (k, e, role), (box, color, top, side, pointer) in zip(rings, trims):
             x0, y0, x1, y1 = cell_box(R, 'geo', k, e)
             want = (x0 - 1, y0 - 2, x1 - x0 + 2, y1 - y0 + 4)
             assert all(abs(a - b) <= 0.5 for a, b in zip(box, want)), (name, k, e, box, want)
             assert (fill(color), top, side, pointer) == (tok['record'], '2px', '1px', 'none'), (name, k, e, color, top, side, pointer)
-        assert [kind_of(cols[k - 1], k, e) for k, e in cells] == [0] * len(cells), (name, cells)
+            assert kind_of(cols[k - 1], k, e) == (None, 0, 1, 0)[role], (name, k, e, role)
+        proven = [(k, e) for k, e, role in rings if role == 3]
+        assert proven and len(dots) == len(proven), (name, proven, dots)
+        for (k, e), (box, color, radius, pointer) in zip(proven, dots):
+            x0, y0, x1, y1 = cell_box(R, 'geo', k, e)
+            d = min(x1 - x0, y1 - y0) / 2
+            want = ((x0 + x1 - d) / 2, (y0 + y1 - d) / 2, d, d)
+            assert all(abs(a - b) <= 0.5 for a, b in zip(box, want)), (name, k, e, box, want)
+            assert (fill(color), radius, pointer) == (tok['record'], '50%', 'none'), (name, k, e, color, radius, pointer)
+
+
+
+def q_zoom_controls_zoom_their_own_chart():
+    # Replicata: the 1280 px light configuration, after its other steps (DRIVER's zoom steps): the two charts' zoom
+    # buttons side by side (their computed look, box, text, title and label); then, each step followed by the readouts
+    # at the left and right ends of row 1 of each plot (half a CSS px in) and the four buttons' disabled: nothing; a real
+    # click of this chart's +; of the m*(n) chart's +; a click on this chart and the key +; a click and ArrowRight; a
+    # click and −; clicks of this chart's + until it is disabled, and then the element at the middle of each cell in
+    # view and the rings' boxes; this chart's ↺; the m*(n) chart's ↺.
+    # Expectata (dreeves's README, 2026-10-30: "[ZOO] For anti-magic/consistency, have the same zoom controls on both
+    # charts"): each pair of buttons looks the same; each control zooms or pans its own chart as the m*(n) chart's always
+    # did (+ and − by 1.5 about the middle, an arrow by an eighth of the view, from 12 columns to all) and leaves the
+    # other chart's view as it was: this chart's k at its ends 1 and 72, 13 and 60 twice, 21 and 52, 25 and 56, 17 and
+    # 64, 35 and 46 after 4 clicks (ZOOM_VIEW), 1 and 72 twice; the m*(n) chart's n 2 and 1024, then 168 and 856 until
+    # its ↺; a + is disabled exactly at 12 columns and a − exactly at all; in that view of 12 columns each cell in view is
+    # its rect, of its kind's color; and each ring (ring_cells, since 2026-10-30) is around its cell, as at the full
+    # view, where that cell is in view, and wholly beyond the plot's ends, which clip it, where it is not (no ringed
+    # cell is next to that view, where a ring would show its edge, as the m*(n) chart's rings do).
+    # Resultata before: this chart had no zoom buttons.
+    R = valid('light')
+    Z, cols, tok = R['zoom'], R['data']['cols'], R['load']['tokens']
+    assert all(a == b for a, b in Z['looks']), Z['looks']
+    names = ['load', 'pow2 +', 'mstar +', 'pow2 + key', 'pow2 → key', 'pow2 − key', 'pow2 + to its limit', 'pow2 ↺', 'mstar ↺']
+    ks = [(1, 72), (13, 60), (13, 60), (21, 52), (25, 56), (17, 64), (35, 46), (1, 72), (1, 72)]
+    ns = [(2, 1024)] * 2 + [(168, 856)] * 6 + [(2, 1024)]
+    disabled = [[False, True, False, True], [False, False, False, True]] + [[False] * 4] * 4 + [
+        [True, False, False, False], [False, True, False, False], [False, True, False, True]]
+    got = [(s['name'], tuple(int(re.match(r'k = (\d+),', t)[1]) for t in s['pow2']),
+            tuple(int(re.match(r'n = (\d+),', t)[1]) for t in s['mstar']), s['disabled']) for s in Z['steps']]
+    assert got == list(zip(names, ks, ns, disabled)), got
+    limit = Z['steps'][6]['x']
+    assert limit['clicks'] == 4, limit['clicks']
+    u0, span = ZOOM_VIEW
+    L, T, W, _ = limit['geo']['plot']
+    E = R['data']['etop']
+    seen = sorted({(k, e) for k, e, _, _ in limit['dom']})
+    assert seen == [(k, e) for k in range(u0 + 1, u0 + span + 1) for e in range(1, E + 1)], seen
+    bad = [(k, e, tag, f) for k, e, tag, f in limit['dom'] if (tag, fill(f)) != ('rect', tok[KINDS[kind_of(cols[k - 1], k, e)]])]
+    assert bad == [], bad[:5]
+    for (k, e, _), (box, *_) in zip(ring_cells(R['data']), limit['geo']['trims']):
+        x0, x1 = L + (k - 1 - u0) * W / span, L + (k - u0) * W / span
+        want = (x0 - 1, T + (E - e) * ROW - 2, x1 - x0 + 2, ROW - gap(R['load']['dpr']) + 4)
+        inside = u0 < k <= u0 + span
+        assert (all(abs(a - b) <= 0.5 for a, b in zip(box, want)) if inside
+                else box[0] + box[2] <= L - 2 or box[0] >= L + W + 2), (k, e, box, want)
 
 
 def q_phone_has_no_sideways_scroll():

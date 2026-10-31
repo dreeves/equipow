@@ -365,7 +365,10 @@ code {
 /* Claude's chart of m*(n) for n up to 1024: one canvas, drawn by the script at the end from mstar.js. Pan and zoom
    act on n only, and vertical swipes still scroll the page. */
 .mstar { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; }
-.mstar-bar {
+/* Each chart's bar, its legend and then its zoom buttons, and how each chart takes the pointer and the keys, the same
+   for both charts (dreeves's README, 2026-10-30: "[ZOO] For anti-magic/consistency, have the same zoom controls on
+   both charts"; the m*(n) chart's own until then); their pan and zoom is panZoom, in the scripts at the end. */
+.chart-bar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -376,9 +379,10 @@ code {
 .swatch.exists { --hue: var(--exists); }
 .swatch.open { --hue: var(--open); }
 .swatch.impossible { --hue: var(--impossible); }
-.swatch.record { box-shadow: 0 0 0 2px var(--record); }   /* a(m − 1): green, ringed in gold as in the chart */
-.mstar-zoom { display: flex; gap: 0.5rem; }
-.mstar-bar button {
+.swatch.record { box-shadow: 0 0 0 2px var(--record); }   /* a smallest cell, ringed in gold as in the charts */
+.swatch.proven { background-image: radial-gradient(circle closest-side, var(--record) 50%, transparent 50%); }   /* and proven the least: a gold dot, half its smaller side across */
+.zoom { display: flex; gap: 0.5rem; }
+.zoom button {
   font: inherit;
   font-size: 0.9375rem;
   color: var(--ink);
@@ -387,15 +391,16 @@ code {
   padding: 0.1rem 0.75rem;
   cursor: pointer;
 }
-.mstar-bar button:disabled { opacity: 0.4; cursor: default; }  /* a zoom button at its limit, grayed out */
-#mstar-chart { display: block; width: 100%; touch-action: pan-y; cursor: grab; }
-#mstar-chart:active { cursor: grabbing; }
-#mstar-chart:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+.zoom button:disabled { opacity: 0.4; cursor: default; }  /* a zoom button at its limit, grayed out */
+#mstar-chart, #pow2-chart { touch-action: pan-y; cursor: grab; }
+#mstar-chart:active, #pow2-chart:active { cursor: grabbing; }
+#mstar-chart:focus-visible, #pow2-chart:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+#mstar-chart { display: block; width: 100%; }
 #mstar-readout { min-height: 3lh; max-width: none; font-size: 0.9375rem; font-variant-numeric: tabular-nums lining-nums; }
 #mstar-readout .swatch { margin-right: 0.5rem; vertical-align: -0.1em; }
 
-/* Claude's chart of the bounds on m*(2^k) − k for k up to 72: one svg of 72 columns stretched to the plot's width,
-   drawn by the script at the end from pow2.js, with the e labels left of it and the k labels below.  As in the m*(n)
+/* Claude's chart of the bounds on m*(2^k) − k for k up to 72: one svg of 72 columns, those in view (all, until it is
+   zoomed) stretched to the plot's width, drawn by the script at the end from pow2.js, with the e labels left of it and the k labels below.  As in the m*(n)
    chart, rows are 14 px tall, the bottom device pixel of each page surface, as is a line one device pixel wide between
    columns (a hairline grid, 2026-10-29), and the plot has 44 px of gutter on its left and 16 px on its right, so the
    two plots line up. */
@@ -424,7 +429,9 @@ code {
 .pow2-es span { position: absolute; right: 7px; }
 .pow2-es i { position: absolute; left: 2px; top: 50%; transform: translateY(-50%); font-size: 15px; color: var(--ink); }
 .pow2-plot { grid-area: 1 / 2; position: relative; }
+.pow2-frame { position: absolute; inset: -2px; overflow: hidden; pointer-events: none; }  /* 2 px around the plot, it clips the rings and the outline where the view ends */
 .pow2-outline { position: absolute; border: 2px solid var(--ink); pointer-events: none; }  /* the cell read out */
+.pow2-dot { position: absolute; aspect-ratio: 1; border-radius: 50%; background: var(--record); transform: translate(-50%, -50%); pointer-events: none; }  /* in a cell proven the least */
 .pow2-trim { position: absolute; border: solid var(--record); border-width: 2px 1px; pointer-events: none; }  /* a bound the theorem states: in the gaps above and below, 1 px at the sides */
 .pow2-k { grid-area: 2 / 1; padding: 6px 0 0 2px; font-size: 15px; color: var(--ink); }
 .pow2-ks { grid-area: 2 / 2; position: relative; }
@@ -445,8 +452,18 @@ footer {
 }
 </style>
 <!-- KaTeX draws the page's math, written \( ... \) (2026-10-28, dreeves: "could you convert all the math on the page to latex"): version 0.16.47 of 2026-05-16, each file checked against its SHA-256 from jsDelivr; auto-render runs once the page is parsed, after the scripts in the body have made their tables -->
+<script>
+// auto-render's onload, the code its onload attribute held until 2026-10-30 (dreeves's README: "[VSC] VS Code isn't
+// happy about the "&amp;&amp;" in one of the jsdelivr lines for KaTeX"): it draws the page's \( ... \).  A loop that
+// followed, meant to glue each formula to the text right after it ("13.", "+1s") in an nw span, never glued anything
+// (auto-render puts each .katex alone in a span of its own, so its next sibling is null) and was removed the same day
+// (scratch/readme-20261030/NOTES.md).  The hand-written nw spans around formulas still keep their text together.
+function renderMath() {
+  renderMathInElement(document.body, {delimiters: [{left: '\\(', right: '\\)', display: false}], throwOnError: false});
+}
+</script>
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.47/dist/katex.min.js" integrity="sha256-op0pYdMUbeWUnXisfBqdk65UlVutIqbbT76Dbojov0g=" crossorigin="anonymous"></script>
-<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.47/dist/contrib/auto-render.min.js" integrity="sha256-5TctGZvNrotN5x0PfOunKkuhJ3SifGCm8fd9A7MijuQ=" crossorigin="anonymous" onload="renderMathInElement(document.body, {delimiters: [{left: '\\(', right: '\\)', display: false}], throwOnError: false}); for (const k of document.querySelectorAll('.katex')) { const t = k.nextSibling, glued = t &amp;&amp; t.nodeType === 3 &amp;&amp; /^\S+/.exec(t.data); if (glued) { const w = document.createElement('span'); w.className = 'nw'; k.before(w); t.data = t.data.slice(glued[0].length); w.append(k, glued[0]); } }"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.47/dist/contrib/auto-render.min.js" integrity="sha256-5TctGZvNrotN5x0PfOunKkuhJ3SifGCm8fd9A7MijuQ=" crossorigin="anonymous" onload="renderMath()"></script>
 </head>
 <body>
 <main>
@@ -644,20 +661,24 @@ footer {
     So there's no bipartition that splits the sum in half, which means there's no equipowerful partition for exponent 1.
   </p>
   <p>
-    The highlighted cells in this chart indicate \(n = a(m - 1)\) of OEIS <a href="https://oeis.org/A323395">A323395</a>: the smallest \(n\) for each order \(m\).
+    The highlighted+dotted cells in this chart indicate \(n = a(m - 1)\) of OEIS <a href="https://oeis.org/A323395">A323395</a>: the smallest \(n\) for each order \(m\).
     Hover or click on a cell for details.
   </p>
   <!-- cell (n, m) is green when m*(n) ≥ m is known, red when m*(n) < m is proven, and gray when neither is; and that odd n are left out, because an odd number of integers can't be split into two halves of equal size, so no partition exists for any m -->
-  <div class="mstar-bar">
+  <div class="chart-bar">
     <ul class="legend">
       <li><span class="swatch exists" aria-hidden="true"></span>\(m \le m^*(n)\)</li>
       <li><span class="swatch open" aria-hidden="true"></span>open</li>
       <li><span class="swatch impossible" aria-hidden="true"></span><span class="nw">\(m > m^*(n)\)</span></li>
-      <li><span class="swatch exists record" aria-hidden="true"></span><span>the smallest \(n\) for a given \(m\)</span></li>
+      <!-- legend label; says a green cell ringed in gold is the smallest n known to reach a given order m -->
+      <li><span class="swatch exists record" aria-hidden="true"></span><span>the smallest \(n\) known for a given \(m\)</span></li>
+      <!-- legend label; says a black cell ringed in gold is the smallest n not ruled out for a given order m -->
+      <li><span class="swatch open record" aria-hidden="true"></span><span>the smallest \(n\) not ruled out for a given \(m\)</span></li>
+      <li><span class="swatch exists record proven" aria-hidden="true"></span><span>the smallest \(n\) for a given \(m\)</span></li>
     </ul>
-    <div class="mstar-zoom">
-      <button type="button" id="mstar-zoom-out" aria-label='zoom out' title='Claude: "zoom out"'>−</button>
-      <button type="button" id="mstar-zoom-in" aria-label='zoom in' title='Claude: "zoom in"'>+</button>
+    <div class="zoom">
+      <button type="button" id="mstar-zoom-out" aria-label='zoom out' title='Claude: “zoom out”'>−</button>
+      <button type="button" id="mstar-zoom-in" aria-label='zoom in' title='Claude: “zoom in”'>+</button>
       <!-- zooms back out to every column, n = 2 to 1024 -->
       <button type="button" id="mstar-reset" aria-label='reset zoom' title='reset zoom'>↺</button>
     </div>
@@ -689,15 +710,28 @@ footer {
     If we have a proof that \(m^*(2^k) < k + \delta\), the cell is red.
     In the details for a cell (hover or click to see them), 
     \(\tau_j\) is Thue–Morse of length \(2^j\), and \(p_n\) is the best known sequence of length \(n\).</p>
+  <div class="chart-bar">
   <ul class="legend">
     <li><span class="swatch exists" aria-hidden="true"></span>\(m^*(2^k) \ge k+\delta\)</li>
     <li><span class="swatch open" aria-hidden="true"></span>open</li>
     <li><span class="swatch impossible" aria-hidden="true"></span><span class="nw">\(m^*(2^k) < k + \delta\)</span></li>
     <!-- A cell ringed in gold is one of the bounds the theorem below states -->
     <li><span class="swatch exists record" aria-hidden="true"></span><span>smallest known \(2^k\) that beats Thue-Morse by \(\delta\)</span></li>
+    <!-- legend label; says a black cell ringed in gold is the smallest 2^k not ruled out to beat Thue–Morse by δ -->
+    <li><span class="swatch open record" aria-hidden="true"></span><span>smallest \(2^k\) not ruled out to beat Thue–Morse by \(\delta\)</span></li>
+    <!-- legend label; says a gold dot in a ringed cell marks one proven the smallest -->
+    <li><span class="swatch exists record proven" aria-hidden="true"></span><span>proven smallest</span></li>
   </ul>
-  <div id="pow2-chart" role="img" aria-label='Chart of the bounds on m*(2^k) − k, the excess over Thue–Morse, for k from 1 to 72'></div>
-  <p id="pow2-readout" aria-live="polite">Hover over a cell for details.</p>
+    <div class="zoom">
+      <button type="button" id="pow2-zoom-out" aria-label='zoom out' title='Claude: “zoom out”'>−</button>
+      <button type="button" id="pow2-zoom-in" aria-label='zoom in' title='Claude: “zoom in”'>+</button>
+      <!-- zooms back out to every column, k = 1 to 72 -->
+      <button type="button" id="pow2-reset" aria-label='reset zoom' title='reset zoom'>↺</button>
+    </div>
+  </div>
+  <!-- the clause after the semicolon and the readout's second sentence are the m*(n) chart's, word for word (2026-10-30: the same controls) -->
+  <div id="pow2-chart" tabindex="0" role="img" aria-label='Chart of the bounds on m*(2^k) − k, the excess over Thue–Morse, for k from 1 to 72; the arrow keys pan, and + and − zoom'></div>
+  <p id="pow2-readout" aria-live="polite">Hover over a cell for details. Drag or swipe sideways to pan; zoom with the − and + buttons, pinching, or ctrl-scroll.</p>
   <p><b>Theorem.</b> \(m^*(2^{10}) \ge 11\), \(m^*(2^{20}) \ge 22\), \(m^*(2^{29}) \ge 32\), \(m^*(2^{37}) \ge 41\), \(m^*(2^{39}) \ge 44\), \(m^*(2^{48}) \ge 54\), \(m^*(2^{57}) \ge 64\), \(m^*(2^{65}) \ge 73\), \(m^*(2^{68}) \ge 77\) and \(m^*(2^9) = 9\).</p>
   <p>More concisely: For \(i = 1, 2, \ldots, 9\), the smallest known values of \(k\) for which \(m^*(2^k) - k \ge i\) are 10, 20, 29, 37, 39, 48, 57, 65, 68.</p>
   <p>The following table shows the construction for each inequality in the above theorem: 
@@ -733,14 +767,14 @@ Or just start identifying redundancies and repetition on the page and fix them o
 <section class="remarks">
   <h2>Where the new results come from</h2>
   <!-- TODO: says how the upper bounds are proven: a partition written as signs f_0, ..., f_(n−1) and f(x) = sum f_i x^i has order m when (x − 1)^m divides f(x); for a modulus M the residue sum D_r is the number of +1s minus the number of −1s at the positions i ≡ r (mod M); f(x) reduced modulo x^M − 1 is sum D_r x^r and must still be a multiple of (x − 1)^m modulo x^M − 1, each D_r having its class size's parity and being at most that size in absolute value; and the residue condition mod M rules out order m when an exhaustive search finds no residue sums meeting all that -->
-  <p>Claude: "How the upper bounds are proven. Write a partition of \(0, 1, \ldots, n - 1\) as signs \(f_0, \ldots, f_{n-1}\), \(+1\) on one half and \(-1\) on the other, and let \(f(x) = f_0 + f_1x + \cdots + f_{n-1}x^{n-1}\). Order \(m\) means that \((x - 1)^m\) divides \(f(x)\). For a modulus \(M\), the residue sum \(D_r\) is the number of \(+1\)s minus the number of \(-1\)s at the positions \(i \equiv r \pmod{M}\). Reducing \(f(x)\) modulo \(x^M - 1\) leaves \(D_0 + D_1x + \cdots + D_{M-1}x^{M-1}\), which must still be a multiple of \((x - 1)^m\) modulo \(x^M - 1\). Each \(D_r\) also has the parity of its class's size and is at most that size in absolute value. The residue condition mod \(M\) rules out order \(m\) when an exhaustive search finds no residue sums that meet all of this."</p>
+  <p>Claude: “How the upper bounds are proven. Write a partition of \(0, 1, \ldots, n - 1\) as signs \(f_0, \ldots, f_{n-1}\), \(+1\) on one half and \(-1\) on the other, and let \(f(x) = f_0 + f_1x + \cdots + f_{n-1}x^{n-1}\). Order \(m\) means that \((x - 1)^m\) divides \(f(x)\). For a modulus \(M\), the residue sum \(D_r\) is the number of \(+1\)s minus the number of \(-1\)s at the positions \(i \equiv r \pmod{M}\). Reducing \(f(x)\) modulo \(x^M - 1\) leaves \(D_0 + D_1x + \cdots + D_{M-1}x^{M-1}\), which must still be a multiple of \((x - 1)^m\) modulo \(x^M - 1\). Each \(D_r\) also has the parity of its class's size and is at most that size in absolute value. The residue condition mod \(M\) rules out order \(m\) when an exhaustive search finds no residue sums that meet all of this.”</p>
   <!-- TODO: says the norm bound for a prime p not dividing n: with M = p and zeta a primitive pth root of unity, f(zeta) = sum D_r zeta^r is not 0 (else the D_r would all be equal, hence 0, as they sum to f(1) = 0, while some class has an odd size and so an odd D_r); it is a multiple of (zeta − 1)^m, whose norm is p^m, so its norm, a positive integer, is at least p^m; by the inequality of arithmetic and geometric means that norm is at most (p sum D_r^2 / (p − 1))^((p − 1)/2); and with s_r the size of class r and |D_r| ≤ s_r, order m needs p^(2m) (p − 1)^(p − 1) ≤ (p sum s_r^2)^(p − 1) -->
-  <p>Claude: "The norm bound for a prime \(p\) that does not divide \(n\) uses the same sums with \(M = p\). Let \(\zeta\) be a primitive \(p\)th root of unity. Then \(f(\zeta) = D_0 + D_1\zeta + \cdots + D_{p-1}\zeta^{p-1}\) is not 0: if it were, the \(D_r\) would all be equal, hence all 0, as they sum to \(f(1) = 0\); but since \(p\) does not divide \(n\), some class has an odd size and so an odd \(D_r\). It is a multiple of \((\zeta - 1)^m\), whose norm is \(p^m\), so the norm of \(f(\zeta)\), a positive integer, is at least \(p^m\). By the inequality of arithmetic and geometric means, that norm is also at most \((p \sum D_r^2 / (p - 1))^{(p-1)/2}\). With \(s_r\) the size of class \(r\) and \(|D_r| \le s_r\), order \(m\) needs \(p^{2m} (p - 1)^{p-1} \le (p \sum s_r^2)^{p-1}\)."</p>
+  <p>Claude: “The norm bound for a prime \(p\) that does not divide \(n\) uses the same sums with \(M = p\). Let \(\zeta\) be a primitive \(p\)th root of unity. Then \(f(\zeta) = D_0 + D_1\zeta + \cdots + D_{p-1}\zeta^{p-1}\) is not 0: if it were, the \(D_r\) would all be equal, hence all 0, as they sum to \(f(1) = 0\); but since \(p\) does not divide \(n\), some class has an odd size and so an odd \(D_r\). It is a multiple of \((\zeta - 1)^m\), whose norm is \(p^m\), so the norm of \(f(\zeta)\), a positive integer, is at least \(p^m\). By the inequality of arithmetic and geometric means, that norm is also at most \((p \sum D_r^2 / (p - 1))^{(p-1)/2}\). With \(s_r\) the size of class \(r\) and \(|D_r| \le s_r\), order \(m\) needs \(p^{2m} (p - 1)^{p-1} \le (p \sum s_r^2)^{p-1}\).”</p>
   <!-- TODO: says mstar.py and pow2.py (linked) repeat the search behind every residue claim each time they run, and that certificates that can be checked on their own, like proof512.wl for 512, are still to be done -->
-  <p>Claude: "<a href="https://github.com/dreeves/equipow/blob/main/mstar.py">mstar.py</a> and 
+  <p>Claude: “<a href="https://github.com/dreeves/equipow/blob/main/mstar.py">mstar.py</a> and 
     <a href="https://github.com/dreeves/equipow/blob/main/pow2.py">pow2.py</a> 
     repeat the search behind every residue claim each time they run. 
-    Certificates that can be checked on their own, like proof512.wl for 512, are still to be done."</p>
+    Certificates that can be checked on their own, like proof512.wl for 512, are still to be done.”</p>
   <p>The hex codes shown below follow Table 5 of BGPW: 
     the left half of the signs \((1 = +1, 0 = -1)\), then the rest by \((-1)^m\) symmetry.</p>
   <p>Finally, the symbols \(\mathbin{\#}\) and \(\vee\) denote the expanded product and the join operation on Littlewood polynomials:<br>
@@ -754,23 +788,23 @@ Or just start identifying redundancies and repetition on the page and fix them o
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 240\): &nbsp;\(m^* = 10\)</p>
       <!-- TODO: says a computer search rules out order 11: it splits the question by how many +1's fall in each residue class mod 3, 5, 7, 4, 8, 11, 13 and 9, closes every case with linear-programming certificates checked in exact integer arithmetic, and needed splitting further mod 17 for the last 606 cases and mod 19 for 4 of those -->
-      <p>Claude: "Order 11 is ruled out by a computer search. It splits the question by how many \(+1\)'s fall in each residue class mod 3, 5, 7, 4, 8, 11, 13 and 9, and closes every case with linear-programming certificates checked in exact integer arithmetic; the last 606 cases needed splitting further, mod 17, and 4 of those mod 19 as well."</p>
+      <p>Claude: “Order 11 is ruled out by a computer search. It splits the question by how many \(+1\)'s fall in each residue class mod 3, 5, 7, 4, 8, 11, 13 and 9, and closes every case with linear-programming certificates checked in exact integer arithmetic; the last 606 cases needed splitting further, mod 17, and 4 of those mod 19 as well.”</p>
       <!-- TODO: names the code of the search, with links, and says its journals hold every verdict with the hash of its proof -->
-      <p>Claude: "The code is <a href="https://github.com/dreeves/equipow/blob/main/overnight_v5.py">overnight_v5.py</a> with <a href="https://github.com/dreeves/equipow/blob/main/certbb.py">certbb.py</a>, and <a href="https://github.com/dreeves/equipow/blob/main/boxsplit.py">boxsplit.py</a> for the last 606 cases; their journals hold every verdict with the hash of its proof."</p>
+      <p>Claude: “The code is <a href="https://github.com/dreeves/equipow/blob/main/overnight_v5.py">overnight_v5.py</a> with <a href="https://github.com/dreeves/equipow/blob/main/certbb.py">certbb.py</a>, and <a href="https://github.com/dreeves/equipow/blob/main/boxsplit.py">boxsplit.py</a> for the last 606 cases; their journals hold every verdict with the hash of its proof.”</p>
     </li>
     <li>
       <span class="mk" aria-hidden="true"></span>
       <p class="entry">\(n = 288\): &nbsp;\(m^* \in \{9, 10\}\)</p>
       <!-- TODO: says this entry is not a new result: m*(288) ≤ 10, the upper value in Table 2's entry for 288, is rederived here; proof288.py (linked) checks exactly that no partition of {0, …, 287} into two parts has equal power sums for every exponent from 0 to 10, so the bound no longer has to be taken from BGPW -->
-      <p>Claude: "Not a new result: \(m^*(288) \le 10\), the upper value in Table 2's entry for 288, is rederived here. <a href="https://github.com/dreeves/equipow/blob/main/proof288.py">proof288.py</a> checks exactly that no partition of \(\{0, \ldots, 287\}\) into two parts has equal power sums for every exponent from 0 to 10, so the bound no longer has to be taken from BGPW."</p>
+      <p>Claude: “Not a new result: \(m^*(288) \le 10\), the upper value in Table 2's entry for 288, is rederived here. <a href="https://github.com/dreeves/equipow/blob/main/proof288.py">proof288.py</a> checks exactly that no partition of \(\{0, \ldots, 287\}\) into two parts has equal power sums for every exponent from 0 to 10, so the bound no longer has to be taken from BGPW.”</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 304\): &nbsp;\(m^* = 8\)</p>
       <!-- TODO: says a computer search rules out order 9: it splits the question by how many +1's fall in each residue class mod 3, 5, 4, 7, 8 and 9, closes every case with linear-programming certificates checked in exact integer arithmetic, and needed splitting further mod 11 and 13 for the last 8 cases; and that this closes the route to order 21 for 2^20 through 8·304·368 + 320·480, which needed 304 to have order 9, though 2^20 now has order 22 another way, the 2^20 entry below -->
-      <p>Claude: "Order 9 is ruled out by a computer search. It splits the question by how many \(+1\)'s fall in each residue class mod 3, 5, 4, 7, 8 and 9, and closes every case with linear-programming certificates checked in exact integer arithmetic; the last 8 cases needed splitting further, mod 11 and then mod 13. That closes the route to order 21 for \(2^{20}\) through \(8\cdot 304\cdot 368 + 320\cdot 480 = 2^{20}\), which needed 304 to have order 9. \(2^{20}\) now has order 22 another way: the \(2^{20}\) entry below."</p>
+      <p>Claude: “Order 9 is ruled out by a computer search. It splits the question by how many \(+1\)'s fall in each residue class mod 3, 5, 4, 7, 8 and 9, and closes every case with linear-programming certificates checked in exact integer arithmetic; the last 8 cases needed splitting further, mod 11 and then mod 13. That closes the route to order 21 for \(2^{20}\) through \(8\cdot 304\cdot 368 + 320\cdot 480 = 2^{20}\), which needed 304 to have order 9. \(2^{20}\) now has order 22 another way: the \(2^{20}\) entry below.”</p>
       <!-- TODO: names the code of the search, with links, and says its journals hold every verdict with the hash of its proof -->
-      <p>Claude: "The code is <a href="https://github.com/dreeves/equipow/blob/main/overnight_v5.py">overnight_v5.py</a> with <a href="https://github.com/dreeves/equipow/blob/main/certbb.py">certbb.py</a>, and <a href="https://github.com/dreeves/equipow/blob/main/boxsplit.py">boxsplit.py</a> for the last 8 cases; their journals hold every verdict with the hash of its proof."</p>
+      <p>Claude: “The code is <a href="https://github.com/dreeves/equipow/blob/main/overnight_v5.py">overnight_v5.py</a> with <a href="https://github.com/dreeves/equipow/blob/main/certbb.py">certbb.py</a>, and <a href="https://github.com/dreeves/equipow/blob/main/boxsplit.py">boxsplit.py</a> for the last 8 cases; their journals hold every verdict with the hash of its proof.”</p>
     </li>
     <li class="s">
       <span class="mk" aria-hidden="true">●</span>
@@ -799,11 +833,11 @@ Or just start identifying redundancies and repetition on the page and fix them o
       <div id="proof416" lang="en">
         <p><strong>\(m^*(416) = 9\): construction and proof.</strong></p>
         <p><a href="https://arxiv.org/html/1912.03491v1#S6.T5">BGPW Table 5</a> has the 208:8 code <code id="seed416">C5A2CB6B945B28BC43ADB6586C</code>.</p>
-        <p>Astra: "Its binary expansion gives the first 104 signs (\(1 \to +1\), \(0 \to -1\)); the remaining 104 are the same signs in reverse order. If \(P(x)\) is the polynomial of this sequence, then \(F(x) = (1 - x^{208})P(x)\) has length 416 and order 9: append the same sequence with every sign negated."</p>
-        <p>Astra: "Code for the length-416 example, using the same convention: <code id="witness416">C5A2CB6B945B28BC43ADB6586C361A6DB5C23D14DA29D6D345A3</code>"</p>
-        <p>Astra: "To rule out order 10, let \(D_0\), \(D_1\), \(D_2\) be the sums of the signs in the residue classes modulo 3. The class sizes are <span id="sizes416">139, 139, 138</span>, so \(D_0\) and \(D_1\) are odd, and \(D_0 + D_1 + D_2 = 0\)."</p>
-        <p>Astra: "Let \(\zeta\) be a cube root of unity other than 1. Since \((\zeta - 1)^{10} = -243\zeta^2\), order at least 10 implies \(f(\zeta) = (D_0 - D_2) + (D_1 - D_2)\zeta \in\) <span id="modulus416">243</span>\(\mathbb{Z}[\zeta]\). Therefore all three sums are congruent modulo 243."</p>
-        <p>Astra: "The difference \(D_0 - D_1\) is even and divisible by 243, but its absolute value is at most 278. Therefore \(D_0 = D_1 = d\). Then \(D_2 = -2d\), giving \(|d| \le 69\); but \(243 \mid 3d\), so \(81 \mid d\). Only \(d = 0\) remains, contradicting its oddness. Thus \(m^*(416) = 9\)."</p>
+        <p>Astra: “Its binary expansion gives the first 104 signs (\(1 \to +1\), \(0 \to -1\)); the remaining 104 are the same signs in reverse order. If \(P(x)\) is the polynomial of this sequence, then \(F(x) = (1 - x^{208})P(x)\) has length 416 and order 9: append the same sequence with every sign negated.”</p>
+        <p>Astra: “Code for the length-416 example, using the same convention: <code id="witness416">C5A2CB6B945B28BC43ADB6586C361A6DB5C23D14DA29D6D345A3</code>”</p>
+        <p>Astra: “To rule out order 10, let \(D_0\), \(D_1\), \(D_2\) be the sums of the signs in the residue classes modulo 3. The class sizes are <span id="sizes416">139, 139, 138</span>, so \(D_0\) and \(D_1\) are odd, and \(D_0 + D_1 + D_2 = 0\).”</p>
+        <p>Astra: “Let \(\zeta\) be a cube root of unity other than 1. Since \((\zeta - 1)^{10} = -243\zeta^2\), order at least 10 implies \(f(\zeta) = (D_0 - D_2) + (D_1 - D_2)\zeta \in\) <span id="modulus416">243</span>\(\mathbb{Z}[\zeta]\). Therefore all three sums are congruent modulo 243.”</p>
+        <p>Astra: “The difference \(D_0 - D_1\) is even and divisible by 243, but its absolute value is at most 278. Therefore \(D_0 = D_1 = d\). Then \(D_2 = -2d\), giving \(|d| \le 69\); but \(243 \mid 3d\), so \(81 \mid d\). Only \(d = 0\) remains, contradicting its oddness. Thus \(m^*(416) = 9\).”</p>
       </div>
     </li>
     <li class="j">
@@ -833,15 +867,15 @@ Or just start identifying redundancies and repetition on the page and fix them o
       </p>
       <div id="lemma432">
         <!-- TODO: says that whether order 12 is possible at 432 decides a(11) of OEIS A323395, the smallest n allowing order 12 (432 if so, 480 if not); that the residue condition allows 1200 combinations of residue sums mod 3, 4, 5 and 7, and linear-programming certificates checked in exact integer arithmetic rule out all but two; that a search can split each by the value of f'(-1) = sum of (-1)^(i-1) i f_i, a linear function of the signs like the power sums; that this value is an odd multiple of 8192, so never 0; and the idea in one sentence: mod 2, where every sign is 1, every sequence of length 432 is the same polynomial, with exactly 15 factors x + 1, and the factors forced on f use all 15, so the rest of f is odd at -1 -->
-        <p>Claude: "Whether order 12 is possible at 432 decides \(a(11)\) of OEIS <a href="https://oeis.org/A323395">A323395</a>, the smallest \(n\) allowing order 12: 432 if so, 480 if not. The residue condition allows 1200 combinations of residue sums mod 3, 4, 5 and 7, and linear-programming certificates checked in exact integer arithmetic rule out all but two. A search can split each by the value of \(f'(-1) = \sum (-1)^{i-1} i f_i\), a linear function of the signs like the power sums. That value is an odd multiple of 8192, so never 0. The idea: mod 2, where every sign is 1, every sequence of length 432 is the same polynomial, with exactly 15 factors \(x + 1\); the factors forced on \(f\) use all 15, so the rest of \(f\) is odd at \(-1\)."</p>
+        <p>Claude: “Whether order 12 is possible at 432 decides \(a(11)\) of OEIS <a href="https://oeis.org/A323395">A323395</a>, the smallest \(n\) allowing order 12: 432 if so, 480 if not. The residue condition allows 1200 combinations of residue sums mod 3, 4, 5 and 7, and linear-programming certificates checked in exact integer arithmetic rule out all but two. A search can split each by the value of \(f'(-1) = \sum (-1)^{i-1} i f_i\), a linear function of the signs like the power sums. That value is an odd multiple of 8192, so never 0. The idea: mod 2, where every sign is 1, every sequence of length 432 is the same polynomial, with exactly 15 factors \(x + 1\); the factors forced on \(f\) use all 15, so the rest of \(f\) is odd at \(-1\).”</p>
         <!-- TODO: says why 8192 divides f'(-1): in both combinations the residue sums mod 4 are all 0, so reducing f(x) modulo x^4 - 1 leaves 0 and x^4 - 1 = (x - 1)(x + 1)(x^2 + 1) divides f(x); so does (x - 1)^12, by order 12, and as x + 1 and x^2 + 1 share no root with x - 1, f = Fh for F = (x - 1)^12 (x + 1)(x^2 + 1) and h with integer coefficients, F having leading coefficient 1; then f = (x + 1)g with g = (x - 1)^12 (x^2 + 1)h, and the product rule f' = g + (x + 1)g' gives f'(-1) = g(-1) = (-2)^12 * 2 * h(-1) = 8192 h(-1) -->
-        <p>Claude: "In both combinations the residue sums mod 4 are all 0, so reducing \(f(x)\) modulo \(x^4 - 1\) leaves 0: \(x^4 - 1 = (x - 1)(x + 1)(x^2 + 1)\) divides \(f(x)\). So does \((x - 1)^{12}\), by order 12, and as \(x + 1\) and \(x^2 + 1\) share no root with \(x - 1\), \(f = Fh\) with \(F = (x - 1)^{12}(x + 1)(x^2 + 1)\), where \(h\) has integer coefficients because \(F\) has leading coefficient 1. Then \(f = (x + 1)g\) with \(g = (x - 1)^{12}(x^2 + 1)h\), and \(f' = g + (x + 1)g'\) gives \(f'(-1) = g(-1) = (-2)^{12} \cdot 2 \cdot h(-1) = 8192 h(-1)\)."</p>
+        <p>Claude: “In both combinations the residue sums mod 4 are all 0, so reducing \(f(x)\) modulo \(x^4 - 1\) leaves 0: \(x^4 - 1 = (x - 1)(x + 1)(x^2 + 1)\) divides \(f(x)\). So does \((x - 1)^{12}\), by order 12, and as \(x + 1\) and \(x^2 + 1\) share no root with \(x - 1\), \(f = Fh\) with \(F = (x - 1)^{12}(x + 1)(x^2 + 1)\), where \(h\) has integer coefficients because \(F\) has leading coefficient 1. Then \(f = (x + 1)g\) with \(g = (x - 1)^{12}(x^2 + 1)h\), and \(f' = g + (x + 1)g'\) gives \(f'(-1) = g(-1) = (-2)^{12} \cdot 2 \cdot h(-1) = 8192 h(-1)\).”</p>
         <!-- TODO: says why h(-1) is odd: mod 2, keeping only the parity of each coefficient, every sign is 1, so (x + 1)f = (x + 1)(1 + x + ... + x^431) = x^432 + 1, which is (x^27 + 1)^16 = (x + 1)^16 S^16 with S = 1 + x + ... + x^26, since (a + b)^2 = a^2 + b^2 mod 2; so f = (x + 1)^15 S^16 mod 2; F is (x + 1)^(12+1+2) mod 2 too, as x - 1 = x + 1 and x^2 + 1 = (x + 1)^2 there, so cancelling (x + 1)^15 leaves h = S^16 mod 2; so h(1) has the parity of 27^16, odd, and so does h(-1), which differs from h(1) by an even number -->
-        <p>Claude: "And \(h(-1)\) is odd. Mod 2, keeping only the parity of each coefficient, every sign is 1, so \((x + 1)f = (x + 1)(1 + x + \cdots + x^{431}) = x^{432} + 1\). As \((a + b)^2 = a^2 + b^2\), \(x^{432} + 1 = (x^{27} + 1)^{16} = (x + 1)^{16}S^{16}\), with \(S = 1 + x + \cdots + x^{26}\), so \(f = (x + 1)^{15}S^{16}\). And as \(x - 1 = x + 1\) and \(x^2 + 1 = (x + 1)^2\), \(F = (x + 1)^{12+1+2}\) too, so cancelling \((x + 1)^{15}\) from \(Fh = f\) leaves \(h = S^{16}\). Then \(h(1)\) has the parity of \(S(1)^{16} = 27^{16}\): odd, and so does \(h(-1)\), which differs from \(h(1)\) by an even number."</p>
+        <p>Claude: “And \(h(-1)\) is odd. Mod 2, keeping only the parity of each coefficient, every sign is 1, so \((x + 1)f = (x + 1)(1 + x + \cdots + x^{431}) = x^{432} + 1\). As \((a + b)^2 = a^2 + b^2\), \(x^{432} + 1 = (x^{27} + 1)^{16} = (x + 1)^{16}S^{16}\), with \(S = 1 + x + \cdots + x^{26}\), so \(f = (x + 1)^{15}S^{16}\). And as \(x - 1 = x + 1\) and \(x^2 + 1 = (x + 1)^2\), \(F = (x + 1)^{12+1+2}\) too, so cancelling \((x + 1)^{15}\) from \(Fh = f\) leaves \(h = S^{16}\). Then \(h(1)\) has the parity of \(S(1)^{16} = 27^{16}\): odd, and so does \(h(-1)\), which differs from \(h(1)\) by an even number.”</p>
         <!-- TODO: says what follows: x + 1 divides f, so f(-1) = 0 and the numbers (-1)^(i-1) f_i are half +1 and half -1, which bounds |f'(-1)| by (216 + ... + 431) - (0 + ... + 215) = 216^2 = 46,656 and leaves +-8192, +-24,576 and +-40,960; further certificates rule out all but +-8192 in both combinations; flipping every sign swaps the two combinations and negates f'(-1), so the search needs only f'(-1) = 8192, in both; and without the oddness of h(-1) it would also have to search f'(-1) = 0, where random root-to-leaf paths estimate a lower bound on the search tree's size about 12 times those for +-8192 combined -->
-        <p>Claude: "As \(x + 1\) divides \(f\), \(f(-1) = 0\): the numbers \((-1)^{i-1}f_i\) are half \(+1\) and half \(-1\), so \(|f'(-1)| \le (216 + \cdots + 431) - (0 + \cdots + 215) = 216^2 = 46{,}656\). That leaves \(\pm 8192\), \(\pm 24{,}576\) and \(\pm 40{,}960\), and further certificates rule out all but \(\pm 8192\) in both combinations. Flipping every sign swaps the two combinations and negates \(f'(-1)\), so the search needs only \(f'(-1) = 8192\), in both. Without the oddness of \(h(-1)\), it would also have to search \(f'(-1) = 0\), where random root-to-leaf paths estimate a lower bound on the search tree's size about 12 times those for \(\pm 8192\) combined."</p>
+        <p>Claude: “As \(x + 1\) divides \(f\), \(f(-1) = 0\): the numbers \((-1)^{i-1}f_i\) are half \(+1\) and half \(-1\), so \(|f'(-1)| \le (216 + \cdots + 431) - (0 + \cdots + 215) = 216^2 = 46{,}656\). That leaves \(\pm 8192\), \(\pm 24{,}576\) and \(\pm 40{,}960\), and further certificates rule out all but \(\pm 8192\) in both combinations. Flipping every sign swaps the two combinations and negates \(f'(-1)\), so the search needs only \(f'(-1) = 8192\), in both. Without the oddness of \(h(-1)\), it would also have to search \(f'(-1) = 0\), where random root-to-leaf paths estimate a lower bound on the search tree's size about 12 times those for \(\pm 8192\) combined.”</p>
         <!-- TODO: says the general form: at length n = t u, with t a power of 2 and u odd, the same steps give f = (x + 1)^(t-1) S^t mod 2 with S = 1 + x + ... + x^(u-1), which is u at 1, odd, while multiples of x + 1 are even at 1, so f has exactly t - 1 factors x + 1 mod 2, a fixed budget; that BGPW's Theorem 4.1 (Divisibility) and their Proposition 4.6, due to Berend and Golan, both linked, bound the order by it (m < t, and m < t - 1 if x + 1 divides f); and states the lemma: a divisor of f with leading coefficient 1 that uses the whole budget, as F does at 432, leaves a quotient odd at 1 and -1 -->
-        <p>Claude: "At any length \(n = t\cdot u\), with \(t\) a power of 2 and \(u\) odd, the same steps give \(f = (x + 1)^{t-1}S^t\) mod 2, where now \(S = 1 + x + \cdots + x^{u-1}\) is \(u\) at 1, odd; as multiples of \(x + 1\) are even at 1, \(f\) has exactly \(t - 1\) factors \(x + 1\) mod 2: a fixed budget. BGPW's <a href="https://arxiv.org/html/1912.03491v1#S4.Thmthm1">Theorem 4.1</a> (Divisibility) and their <a href="https://arxiv.org/html/1912.03491v1#S4.Thmthm6">Proposition 4.6</a>, due to Berend and Golan, bound the order by it: <span class="nw">\(m < t\)</span>, and <span class="nw">\(m < t - 1\)</span> if \(x + 1\) divides \(f\). The lemma: a divisor of \(f\) with leading coefficient 1 that uses the whole budget, as \(F\) does at 432, leaves a quotient odd at 1 and \(-1\)."</p>
+        <p>Claude: “At any length \(n = t\cdot u\), with \(t\) a power of 2 and \(u\) odd, the same steps give \(f = (x + 1)^{t-1}S^t\) mod 2, where now \(S = 1 + x + \cdots + x^{u-1}\) is \(u\) at 1, odd; as multiples of \(x + 1\) are even at 1, \(f\) has exactly \(t - 1\) factors \(x + 1\) mod 2: a fixed budget. BGPW's <a href="https://arxiv.org/html/1912.03491v1#S4.Thmthm1">Theorem 4.1</a> (Divisibility) and their <a href="https://arxiv.org/html/1912.03491v1#S4.Thmthm6">Proposition 4.6</a>, due to Berend and Golan, bound the order by it: <span class="nw">\(m < t\)</span>, and <span class="nw">\(m < t - 1\)</span> if \(x + 1\) divides \(f\). The lemma: a divisor of \(f\) with leading coefficient 1 that uses the whole budget, as \(F\) does at 432, leaves a quotient odd at 1 and \(-1\).”</p>
       </div>
     </li>
     <li class="c">
@@ -879,7 +913,7 @@ Or just start identifying redundancies and repetition on the page and fix them o
       <p>The Thue–Morse polynomial \(\tau_9\) has order 9. Order 10 is ruled out by the residue conditions mod 3, 9 and 27.</p>
       <p>A short proof by Claude, which also covers 496: <a href="proof512.txt">proof512.txt</a>. 
         The Mathematica script <a href="https://raw.githubusercontent.com/dreeves/equipow/main/proof512.wl">proof512.wl</a> checks its computations.</p>
-      <p>Claude: "A shorter proof that needs no computer, also covering 496: <a href="proof512_short.txt">proof512_short.txt</a>."</p>
+      <p>Claude: “A shorter proof that needs no computer, also covering 496: <a href="proof512_short.txt">proof512_short.txt</a>.”</p>
     </li>
     <li class="j">
       <span class="mk" aria-hidden="true">◆●</span>
@@ -959,7 +993,7 @@ Or just start identifying redundancies and repetition on the page and fix them o
       <!-- Says this is a symmetric example of order 10, found by Claude's lattice search with Astra's lattice code, in residue sums mod 27 that Claude chose by Astra's method for 592, and that order 11 at 752 is ruled out by an exact proof, proof752.py (linked), so m*(752) = 10 -->
       <p>A symmetric example of order 10. Claude's lattice search found it with Astra's lattice code, in residue sums mod 27 that Claude chose by Astra's method for 592. Order 11 is ruled out by an exact proof, <a href="https://github.com/dreeves/equipow/blob/main/proof752.py">proof752.py</a>.</p>
       <!-- TODO: says how proof752.py rules out order 11 at 752: the residue sums mod 3 leave just four +1s in class 0 and four −1s in class 1, or the reverse; with the signs of class 2 relaxed to arbitrary integers the power sums then require ten congruences modulo powers of 3; a meet in the middle checks all 2·C(251, 4)^2 ≈ 5.2·10^16 placements of those eight signs, and none meets them; and that this is Astra's method for 384 (place the few exceptional signs, then test congruences), made feasible here by Claude's meet in the middle -->
-      <p>Claude: "For order 11, the residue sums mod 3 leave just four \(+1\)s in class 0 and four \(-1\)s in class 1, or the reverse. Even with the signs of class 2 relaxed to arbitrary integers, the power sums then require ten congruences modulo powers of 3. A meet in the middle checks all \(2\cdot \mathrm{C}(251, 4)^2 \approx 5.2\cdot 10^{16}\) placements of those eight signs, and none meets them. This is Astra's method for 384, placing the few exceptional signs and testing congruences, made feasible here by Claude's meet in the middle."</p>
+      <p>Claude: “For order 11, the residue sums mod 3 leave just four \(+1\)s in class 0 and four \(-1\)s in class 1, or the reverse. Even with the signs of class 2 relaxed to arbitrary integers, the power sums then require ten congruences modulo powers of 3. A meet in the middle checks all \(2\cdot \mathrm{C}(251, 4)^2 \approx 5.2\cdot 10^{16}\) placements of those eight signs, and none meets them. This is Astra's method for 384, placing the few exceptional signs and testing congruences, made feasible here by Claude's meet in the middle.”</p>
       <p class="code">
         <span>\(p_{752}\) \((m = 10)\):</span>
         <code>D1C7951270B6456FBEC039A7FA05A459E422DB6416E76D06DB2D90D32FD010FBB30A6DB6D80DBAC3059EDB5826CB4C</code>
@@ -1119,9 +1153,9 @@ Or just start identifying redundancies and repetition on the page and fix them o
       <span class="mk" aria-hidden="true">✦</span>
       <p class="entry">\(n = 384\): &nbsp;\(m^* = 10\)</p>
       <!-- TODO: credits the existing doubled construction for order 10 and explains the four residue-count patterns forced by order 11. -->
-      <p>Astra: "Order 10 comes from doubling the order-9 example at 192. For order 11, congruences on the signed sums mod 5 leave only four possible vectors of \(+1\) counts in residue classes \(0, \ldots, 4\): \((1, 26, 51, 76, 38)\), \((26, 76, 1, 51, 38)\), \((51, 1, 76, 26, 38)\), and \((76, 51, 26, 1, 38)\)."</p>
+      <p>Astra: “Order 10 comes from doubling the order-9 example at 192. For order 11, congruences on the signed sums mod 5 leave only four possible vectors of \(+1\) counts in residue classes \(0, \ldots, 4\): \((1, 26, 51, 76, 38)\), \((26, 76, 1, 51, 38)\), \((51, 1, 76, 26, 38)\), and \((76, 51, 26, 1, 38)\).”</p>
       <!-- TODO: explains the exhaustive finite exclusion, without any assumption of symmetry, and links the standalone exact verifier. -->
-      <p>Astra: "Each vector has a class with just one \(+1\) and a class with just one \(-1\). Choosing their positions leaves \(4\cdot 77^2 = 23{,}716\) cases. Every case contradicts at least one exact integer congruence mod 25, 125, or 625. This rules out order 11 without assuming symmetry. The <a href="proof384.html">complete proof</a> gives the witness, every certificate coefficient, the remaining cases, and reproduction commands. The standalone verifier <a href="proof384.py">proof384.py</a> checks every congruence and case, and checks an order-10 example; it uses only Python's standard library. Mathematica: <a href="proof384.wl">proof384.wl</a>."</p>
+      <p>Astra: “Each vector has a class with just one \(+1\) and a class with just one \(-1\). Choosing their positions leaves \(4\cdot 77^2 = 23{,}716\) cases. Every case contradicts at least one exact integer congruence mod 25, 125, or 625. This rules out order 11 without assuming symmetry. The <a href="proof384.html">complete proof</a> gives the witness, every certificate coefficient, the remaining cases, and reproduction commands. The standalone verifier <a href="proof384.py">proof384.py</a> checks every congruence and case, and checks an order-10 example; it uses only Python's standard library. Mathematica: <a href="proof384.wl">proof384.wl</a>.”</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
@@ -1175,25 +1209,25 @@ Or just start identifying redundancies and repetition on the page and fix them o
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 2^{17}\): &nbsp;\(m^* \in \{18, \ldots, 20\}\)</p>
       <!-- TODO: says 2^17 = 112·800 + 48·432·2, that is, (p112 # p800) ∨ (p48 # p432 # tau_1), a join of two products each of order 7 + 11 = 6 + 11 + 1 = 18, the codes of p112 and p48 (BGPW's) being with the 2^24 entry below; that this beats Thue–Morse by 1 at a lower power of 2 than the 2^18 entry below; that a linked Mathematica script builds the half of the partition that contains 0, all 2^16 of its numbers, and checks its power sums exactly; and that the upper bound is the norm bound for the residue sums mod 3 -->
-      <p>Claude: "\(2^{17} = 112\cdot 800 + 48\cdot 432\cdot 2\), that is, \((p_{112} \mathbin{\#} p_{800}) \vee (p_{48} \mathbin{\#} p_{432} \mathbin{\#} \tau_1)\), a join of two products each of order \(7 + 11 = 6 + 11 + 1 = 18\) (the codes of \(p_{112}\) and \(p_{48}\), BGPW's, are with the \(2^{24}\) entry below). That beats Thue–Morse by 1 at a lower power of 2 than the \(2^{18}\) entry below. The Mathematica script <a href="https://raw.githubusercontent.com/dreeves/equipow/main/certificate_2%5E17.wl">certificate_2^17.wl</a> builds the half of the partition that contains 0, all \(2^{16}\) of its numbers, and checks its power sums exactly. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above."</p>
+      <p>Claude: “\(2^{17} = 112\cdot 800 + 48\cdot 432\cdot 2\), that is, \((p_{112} \mathbin{\#} p_{800}) \vee (p_{48} \mathbin{\#} p_{432} \mathbin{\#} \tau_1)\), a join of two products each of order \(7 + 11 = 6 + 11 + 1 = 18\) (the codes of \(p_{112}\) and \(p_{48}\), BGPW's, are with the \(2^{24}\) entry below). That beats Thue–Morse by 1 at a lower power of 2 than the \(2^{18}\) entry below. The Mathematica script <a href="https://raw.githubusercontent.com/dreeves/equipow/main/certificate_2%5E17.wl">certificate_2^17.wl</a> builds the half of the partition that contains 0, all \(2^{16}\) of its numbers, and checks its power sums exactly. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above.”</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 2^{18}\): &nbsp;\(m^* \in \{19, \ldots, 21\}\)</p>
       <!-- TODO: says 2^18 = 320·560 + 48·432·2^2, that is, (p320 # p560) ∨ (p48 # p432 # tau_2), a join of two products each of order 9 + 10 = 6 + 11 + 2 = 19, the code of p48 (BGPW's) being with the 2^24 entry below; that this beats Thue–Morse by 1 at a lower power of 2 than f does at 2^24; that a linked Mathematica script builds the half of the partition that contains 0, all 2^17 of its numbers, and checks its power sums exactly; and that the upper bound is the residue condition mod 3 -->
-      <p>Claude: "\(2^{18} = 320\cdot 560 + 48\cdot 432\cdot 2^2\), that is, \((p_{320} \mathbin{\#} p_{560}) \vee (p_{48} \mathbin{\#} p_{432} \mathbin{\#} \tau_2)\), a join of two products each of order \(9 + 10 = 6 + 11 + 2 = 19\) (the code of \(p_{48}\), BGPW's, is with the \(2^{24}\) entry below). That beats Thue–Morse by 1 at a lower power of 2 than \(f\) does at \(2^{24}\). The Mathematica script <a href="https://raw.githubusercontent.com/dreeves/equipow/main/certificate_2%5E18.wl">certificate_2^18.wl</a> builds the half of the partition that contains 0, all \(2^{17}\) of its numbers, and checks its power sums exactly. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above."</p>
+      <p>Claude: “\(2^{18} = 320\cdot 560 + 48\cdot 432\cdot 2^2\), that is, \((p_{320} \mathbin{\#} p_{560}) \vee (p_{48} \mathbin{\#} p_{432} \mathbin{\#} \tau_2)\), a join of two products each of order \(9 + 10 = 6 + 11 + 2 = 19\) (the code of \(p_{48}\), BGPW's, is with the \(2^{24}\) entry below). That beats Thue–Morse by 1 at a lower power of 2 than \(f\) does at \(2^{24}\). The Mathematica script <a href="https://raw.githubusercontent.com/dreeves/equipow/main/certificate_2%5E18.wl">certificate_2^18.wl</a> builds the half of the partition that contains 0, all \(2^{17}\) of its numbers, and checks its power sums exactly. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above.”</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 2^{20}\): &nbsp;\(m^* \in \{22, 23\}\)</p>
       <!-- TODO: says 2^20 = 848·992 + 240·432·2, that is, (p848 # p992) ∨ (p240 # p432 # tau_1), a join of two products each of order 11 + 11 = 10 + 11 + 1 = 22, which beats Thue–Morse by 2 at a lower power of 2 than the 2^27 entry below; and that the upper bound is the residue condition mod 3 -->
-      <p>Claude: "\(2^{20} = 848\cdot 992 + 240\cdot 432\cdot 2\), that is, \((p_{848} \mathbin{\#} p_{992}) \vee (p_{240} \mathbin{\#} p_{432} \mathbin{\#} \tau_1)\), a join of two products each of order \(11 + 11 = 10 + 11 + 1 = 22\). That beats Thue–Morse by 2 at a lower power of 2 than the \(2^{27}\) entry below. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above."</p>
+      <p>Claude: “\(2^{20} = 848\cdot 992 + 240\cdot 432\cdot 2\), that is, \((p_{848} \mathbin{\#} p_{992}) \vee (p_{240} \mathbin{\#} p_{432} \mathbin{\#} \tau_1)\), a join of two products each of order \(11 + 11 = 10 + 11 + 1 = 22\). That beats Thue–Morse by 2 at a lower power of 2 than the \(2^{27}\) entry below. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above.”</p>
     </li>
     <li class="j">
       <span class="mk" aria-hidden="true">◆●</span>
       <p class="entry">\(n = 2^{24}\): &nbsp;\(m^* \in \{26, \ldots, 29\}\)</p>
       <!-- TODO: says the joint construction 2^24 = 320^2·112 + 432·48·2^8, that is, f = (p320 # p320 # p112) ∨ (p432 # p48 # tau_8), gives m*(2^k) ≥ k + 1 for every k ≥ 24, and the 1024 entry above, times tau_(k − 10), gives it for every k ≥ 10 -->
-      <p>Claude: "Joint construction: \(2^{24} = 320^2\cdot 112 + 432\cdot 48\cdot 2^8\), that is, \(f = (p_{320} \mathbin{\#} p_{320} \mathbin{\#} p_{112}) \vee (p_{432} \mathbin{\#} p_{48} \mathbin{\#} \tau_8)\). Hence \(m^*(2^k) \ge k + 1\) for every \(k \ge 24\), and by the 1024 entry above, times \(\tau_{k-10}\), for every \(k \ge 10\)."</p>
+      <p>Claude: “Joint construction: \(2^{24} = 320^2\cdot 112 + 432\cdot 48\cdot 2^8\), that is, \(f = (p_{320} \mathbin{\#} p_{320} \mathbin{\#} p_{112}) \vee (p_{432} \mathbin{\#} p_{48} \mathbin{\#} \tau_8)\). Hence \(m^*(2^k) \ge k + 1\) for every \(k \ge 24\), and by the 1024 entry above, times \(\tau_{k-10}\), for every \(k \ge 10\).”</p>
       <!-- Says order 26 at 2^24 comes from the join of the 2^20 entry with each product times tau_4, which beats Thue–Morse by 2 -->
       <p>The join of the \(2^{20}\) entry, each product times \(\tau_4\), has order 26. That beats Thue–Morse by 2.</p>
       <!-- Says the upper bound 29 at 2^24 is the norm bound for the residue sums mod 3 -->
@@ -1208,73 +1242,73 @@ Or just start identifying redundancies and repetition on the page and fix them o
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 2^{27}\): &nbsp;\(m^* \in \{29, \ldots, 33\}\)</p>
       <!-- TODO: says 2^27 = 368^2·800 + 192^2·432 + 48·432·480, a join of three products of the examples above (their orders listed), each of order 29, which beats Thue–Morse by 2 at a lower power of 2 than f # f does at 2^48; and that the upper bound is the norm bound for the residue sums mod 3 -->
-      <p>Claude: "\(2^{27} = 368^2\cdot 800 + 192^2\cdot 432 + 48\cdot 432\cdot 480\): a join of three products of examples above (of orders 9, 11, 9, 11, 6 and 12), each of order 29. That beats Thue–Morse by 2 at a lower power of 2 than \(f \mathbin{\#} f\) does at \(2^{48}\). The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above."</p>
+      <p>Claude: “\(2^{27} = 368^2\cdot 800 + 192^2\cdot 432 + 48\cdot 432\cdot 480\): a join of three products of examples above (of orders 9, 11, 9, 11, 6 and 12), each of order 29. That beats Thue–Morse by 2 at a lower power of 2 than \(f \mathbin{\#} f\) does at \(2^{48}\). The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above.”</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 2^{29}\): &nbsp;\(m^* \in \{32, \ldots, 35\}\)</p>
       <!-- TODO: says 2^29 = 608·800^2 + 336^2·912 + 240·432^2, a join of three products of the examples above (their orders listed), each of order 32, which beats Thue–Morse by 3; and that the upper bound is the norm bound for the residue sums mod 3 -->
-      <p>Claude: "\(2^{29} = 608\cdot 800^2 + 336^2\cdot 912 + 240\cdot 432^2\): a join of three products of examples above (of orders 10, 11, 10, 12, 10 and 11), each of order 32. That beats Thue–Morse by 3. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above."</p>
+      <p>Claude: “\(2^{29} = 608\cdot 800^2 + 336^2\cdot 912 + 240\cdot 432^2\): a join of three products of examples above (of orders 10, 11, 10, 12, 10 and 11), each of order 32. That beats Thue–Morse by 3. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above.”</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 2^{30}\): &nbsp;\(m^* \in \{33, \ldots, 36\}\)</p>
       <!-- TODO: says order 33 at 2^30 comes from the join of the 2^29 entry with each product times tau_1, which beats Thue–Morse by 3; and that the upper bound is the residue condition mod 3 -->
-      <p>Claude: "The join of the \(2^{29}\) entry, each product times \(\tau_1\), has order 33. That beats Thue–Morse by 3. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above."</p>
+      <p>Claude: “The join of the \(2^{29}\) entry, each product times \(\tau_1\), has order 33. That beats Thue–Morse by 3. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above.”</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 2^{33}\): &nbsp;\(m^* \in \{36, \ldots, 40\}\)</p>
-      <!-- TODO: says order 36 at 2^33 comes from the join of the 2^29 entry with each product times tau_4, which beats Thue–Morse by 3; and that the upper bound is the residue condition mod 3 -->
-      <p>Claude: "The join of the \(2^{29}\) entry, each product times \(\tau_4\), has order 36. That beats Thue–Morse by 3. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above."</p>
+      <!-- Says order 36 at 2^33 comes from the join of the 2^29 entry with each product times tau_4, which beats Thue–Morse by 3; and that the upper bound is the residue condition mod 3 -->
+      <p>The join of the \(2^{29}\) entry, each product times \(\tau_4\), has order 36. That beats Thue–Morse by 3. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above.</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 2^{34}\): &nbsp;\(m^* \in \{37, \ldots, 41\}\)</p>
-      <!-- TODO: says order 37 at 2^34 comes from the join of the 2^29 entry with each product times tau_5, which beats Thue–Morse by 3; and that the upper bound is the residue condition mod 3 -->
-      <p>Claude: "The join of the \(2^{29}\) entry, each product times \(\tau_5\), has order 37. That beats Thue–Morse by 3. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above."</p>
+      <!-- Says order 37 at 2^34 comes from the join of the 2^29 entry with each product times tau_5, which beats Thue–Morse by 3; and that the upper bound is the residue condition mod 3 -->
+      <p>The join of the \(2^{29}\) entry, each product times \(\tau_5\), has order 37. That beats Thue–Morse by 3. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above.</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 2^{37}\): &nbsp;\(m^* \in \{41, \ldots, 45\}\)</p>
       <!-- TODO: says order 41 at 2^37 comes from a join of three products of the examples above and Thue–Morse, each of order 41, which beats Thue–Morse by 4; and that the upper bound is the residue condition mod 3 -->
-      <p>Claude: "A join of three products of examples above and Thue–Morse, each of order 41; the powers-of-2 chart above lists them. That beats Thue–Morse by 4. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above."</p>
+      <p>Claude: “A join of three products of examples above and Thue–Morse, each of order 41; the powers-of-2 chart above lists them. That beats Thue–Morse by 4. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above.”</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 2^{38}\): &nbsp;\(m^* \in \{42, \ldots, 46\}\)</p>
-      <!-- TODO: says order 42 at 2^38 comes from the join of the 2^37 entry with each product times tau_1, which beats Thue–Morse by 4; and that the upper bound is the residue condition mod 3 -->
-      <p>Claude: "The join of the \(2^{37}\) entry, each product times \(\tau_1\), has order 42. That beats Thue–Morse by 4. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above."</p>
+      <!-- Says order 42 at 2^38 comes from the join of the 2^37 entry with each product times tau_1, which beats Thue–Morse by 4; and that the upper bound is the residue condition mod 3 -->
+      <p>The join of the \(2^{37}\) entry, each product times \(\tau_1\), has order 42. That beats Thue–Morse by 4. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above.</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 2^{39}\): &nbsp;\(m^* \in \{44, \ldots, 47\}\)</p>
       <!-- TODO: says order 44 at 2^39 comes from a join of three products of the examples above and Thue–Morse, each of order 44, which beats Thue–Morse by 5; and that the upper bound is the residue condition mod 3 -->
-      <p>Claude: "A join of three products of examples above and Thue–Morse, each of order 44; the powers-of-2 chart above lists them. That beats Thue–Morse by 5. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above."</p>
+      <p>Claude: “A join of three products of examples above and Thue–Morse, each of order 44; the powers-of-2 chart above lists them. That beats Thue–Morse by 5. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above.”</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 2^{41}\): &nbsp;\(m^* \in \{46, \ldots, 50\}\)</p>
-      <!-- TODO: says order 46 at 2^41 comes from the join of the 2^39 entry with each product times tau_2, which beats Thue–Morse by 5; and that the upper bound is the residue condition mod 3 -->
-      <p>Claude: "The join of the \(2^{39}\) entry, each product times \(\tau_2\), has order 46. That beats Thue–Morse by 5. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above."</p>
+      <!-- Says order 46 at 2^41 comes from the join of the 2^39 entry with each product times tau_2, which beats Thue–Morse by 5; and that the upper bound is the residue condition mod 3 -->
+      <p>The join of the \(2^{39}\) entry, each product times \(\tau_2\), has order 46. That beats Thue–Morse by 5. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above.</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 2^{43}\): &nbsp;\(m^* \in \{48, \ldots, 53\}\)</p>
-      <!-- TODO: says order 48 at 2^43 comes from the join of the 2^39 entry with each product times tau_4, which beats Thue–Morse by 5; and that the upper bound is the norm bound for the residue sums mod 3 -->
-      <p>Claude: "The join of the \(2^{39}\) entry, each product times \(\tau_4\), has order 48. That beats Thue–Morse by 5. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above."</p>
+      <!-- Says order 48 at 2^43 comes from the join of the 2^39 entry with each product times tau_4, which beats Thue–Morse by 5; and that the upper bound is the norm bound for the residue sums mod 3 -->
+      <p>The join of the \(2^{39}\) entry, each product times \(\tau_4\), has order 48. That beats Thue–Morse by 5. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above.</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 2^{46}\): &nbsp;\(m^* \in \{51, \ldots, 57\}\)</p>
-      <!-- TODO: says order 51 at 2^46 comes from the join of the 2^39 entry with each product times tau_7, which beats Thue–Morse by 5; and that the upper bound is the norm bound for the residue sums mod 3 -->
-      <p>Claude: "The join of the \(2^{39}\) entry, each product times \(\tau_7\), has order 51. That beats Thue–Morse by 5. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above."</p>
+      <!-- Says order 51 at 2^46 comes from the join of the 2^39 entry with each product times tau_7, which beats Thue–Morse by 5; and that the upper bound is the norm bound for the residue sums mod 3 -->
+      <p>The join of the \(2^{39}\) entry, each product times \(\tau_7\), has order 51. That beats Thue–Morse by 5. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above.</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 2^{48}\): &nbsp;\(m^* \in \{54, \ldots, 59\}\)</p>
-      <!-- TODO: says order 54 at 2^48 comes from a join of six products of the examples above and Thue–Morse, each of order at least 54, which beats Thue–Morse by 6; and that the upper bound is the norm bound for the residue sums mod 3 -->
-      <p>Claude: "A join of six products of examples above and Thue–Morse, each of order at least 54; the powers-of-2 chart above lists them. That beats Thue–Morse by 6. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above."</p>
+      <!-- Says order 54 at 2^48 comes from a join of six products of the examples above and Thue–Morse, each of order at least 54, which beats Thue–Morse by 6; and that the upper bound is the norm bound for the residue sums mod 3 -->
+      <p>A join of six products of examples above and Thue–Morse, each of order at least 54; the powers-of-2 chart above lists them. That beats Thue–Morse by 6. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above.</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
@@ -1378,8 +1412,8 @@ Or just start identifying redundancies and repetition on the page and fix them o
 
 <section class="counts">
   <h2>Partitions at powers of 2</h2>
-  <p>Claude: "The partitions of \(\{0, \ldots, 2^k - 1\}\) into two parts with equal power sums for exponents \(0, \ldots, k - 1\): Thue–Morse is the only one for \(k \le 5\) (<a href="https://doi.org/10.1109/18.340458">Roth, Siegel and Vardy 1994</a>; <a href="https://doi.org/10.1090/S0025-5718-97-00892-2">Boyd 1997</a>), there are 3 for \(k = 6\) (<a href="https://doi.org/10.1090/S0025-5718-01-01360-6">Boyd 2002</a>), and there are 431 for \(k = 7\), or 367 counting a partition and its reversal once."</p>
-  <p>Claude: "The count for \(k = 7\) is new, from an exhaustive search by Claude (<a href="https://github.com/dreeves/equipow/tree/main/count128">code and the 431 sets</a>). Of the 431, 303 are antisymmetric, Thue–Morse among them, and the other 128 come in reversed pairs. The same search method shows that the order-7 partition of \(\{0, \ldots, 111\}\) is unique."</p>
+  <p>Claude: “The partitions of \(\{0, \ldots, 2^k - 1\}\) into two parts with equal power sums for exponents \(0, \ldots, k - 1\): Thue–Morse is the only one for \(k \le 5\) (<a href="https://doi.org/10.1109/18.340458">Roth, Siegel and Vardy 1994</a>; <a href="https://doi.org/10.1090/S0025-5718-97-00892-2">Boyd 1997</a>), there are 3 for \(k = 6\) (<a href="https://doi.org/10.1090/S0025-5718-01-01360-6">Boyd 2002</a>), and there are 431 for \(k = 7\), or 367 counting a partition and its reversal once.”</p>
+  <p>Claude: “The count for \(k = 7\) is new, from an exhaustive search by Claude (<a href="https://github.com/dreeves/equipow/tree/main/count128">code and the 431 sets</a>). Of the 431, 303 are antisymmetric, Thue–Morse among them, and the other 128 come in reversed pairs. The same search method shows that the order-7 partition of \(\{0, \ldots, 111\}\) is unique.”</p>
 </section>
 
 <section class="lattice" aria-labelledby="lattice-title">
@@ -2289,35 +2323,35 @@ SClaude[12][768] = {
       <template class="progress-line">@<span data-when></span>&emsp;<span class="spent"><b data-so-far></b> so far</span> + <span class="togo"><b data-to-go></b> to go</span> = <span class="total"><b data-sum></b> (<b data-done></b>)</span></template>
       <!-- TODO: distinguishes calibration attempts from target attempts, reports elapsed time and terminal outcomes, and says that empty or timed-out attempts give no exclusion or completion estimate. -->
       <template class="progress-search288">
-        <span>Astra: "240:10 calibration (first dot block): <b data-attempt-count="control_attempted"></b>/<b data-attempt-count="control_total"></b> attempted; <b data-attempt-count="control_empty"></b> empty, <b data-attempt-count="control_timeout"></b> timed out, <b data-attempt-count="control_witnesses"></b> witnesses."</span><br>
-        <span>Astra: "288:10 search (second dot block): <b data-attempt-count="attempted"></b>/<b data-attempt-count="total"></b> attempted; <b data-attempt-count="empty"></b> empty, <b data-attempt-count="timeout"></b> timed out."</span><br>
-        <span>Astra: "<span data-search-state></span>; elapsed <b data-elapsed></b>; phase: <span data-attempt-phase="preparation">preparation</span><span data-attempt-phase="calibration">calibration</span><span data-attempt-phase="search">search</span>; outcome: <span data-attempt-outcome="null">pending</span><span data-attempt-outcome="control_failed">control not recovered; target not started</span><span data-attempt-outcome="budget">batch ended; unresolved</span><span data-attempt-outcome="witness">target witness verified</span><span data-attempt-outcome="failed">run failed; unresolved</span>. Empty pruned attempts and timeouts leave the question open; no completion estimate."</span>
+        <span>Astra: “240:10 calibration (first dot block): <b data-attempt-count="control_attempted"></b>/<b data-attempt-count="control_total"></b> attempted; <b data-attempt-count="control_empty"></b> empty, <b data-attempt-count="control_timeout"></b> timed out, <b data-attempt-count="control_witnesses"></b> witnesses.”</span><br>
+        <span>Astra: “288:10 search (second dot block): <b data-attempt-count="attempted"></b>/<b data-attempt-count="total"></b> attempted; <b data-attempt-count="empty"></b> empty, <b data-attempt-count="timeout"></b> timed out.”</span><br>
+        <span>Astra: “<span data-search-state></span>; elapsed <b data-elapsed></b>; phase: <span data-attempt-phase="preparation">preparation</span><span data-attempt-phase="calibration">calibration</span><span data-attempt-phase="search">search</span>; outcome: <span data-attempt-outcome="null">pending</span><span data-attempt-outcome="control_failed">control not recovered; target not started</span><span data-attempt-outcome="budget">batch ended; unresolved</span><span data-attempt-outcome="witness">target witness verified</span><span data-attempt-outcome="failed">run failed; unresolved</span>. Empty pruned attempts and timeouts leave the question open; no completion estimate.”</span>
       </template>
       <!-- TODO: explains that the two dot blocks count calibration and target attempts, with completed attempts still unresolved. -->
-      <template class="progress-attempt-hint">Astra: "One dot per attempt: 240:10 calibration first, 288:10 search second. <span class="progress-sw" data-status="open"></span> completed attempt; <span class="progress-sw" data-status="running"></span> running; <span class="progress-sw" data-status="pending"></span> pending."</template>
+      <template class="progress-attempt-hint">Astra: “One dot per attempt: 240:10 calibration first, 288:10 search second. <span class="progress-sw" data-status="open"></span> completed attempt; <span class="progress-sw" data-status="running"></span> running; <span class="progress-sw" data-status="pending"></span> pending.”</template>
       <!-- TODO: compares the baseline and wider pruning attempts, requires both control recoveries, and reports completed target attempt times without implying an exclusion or ETA. -->
       <template class="progress-pruning288">
-        <span>Astra: "240:10 controls recovered: baseline <b data-attempt-count="baseline_control_witnesses"></b>/1; wider <b data-attempt-count="wider_control_witnesses"></b>/1. Both are required before the target search."</span><br>
-        <span>Astra: "288:10 baseline: <b data-attempt-count="baseline_attempted"></b>/<b data-attempt-count="variant_total"></b> attempted; <b data-attempt-count="baseline_empty"></b> empty, <b data-attempt-count="baseline_timeout"></b> timed out, <b data-attempt-count="baseline_witnesses"></b> witnesses; completed attempts took <b data-attempt-count="baseline_seconds"></b> s."</span><br>
-        <span>Astra: "288:10 wider: <b data-attempt-count="wider_attempted"></b>/<b data-attempt-count="variant_total"></b> attempted; <b data-attempt-count="wider_empty"></b> empty, <b data-attempt-count="wider_timeout"></b> timed out, <b data-attempt-count="wider_witnesses"></b> witnesses; completed attempts took <b data-attempt-count="wider_seconds"></b> s."</span><br>
-        <span>Astra: "<span data-search-state></span>; elapsed <b data-elapsed></b>; phase: <span data-attempt-phase="preparation">preparation</span><span data-attempt-phase="calibration">calibration</span><span data-attempt-phase="search">search</span>; outcome: <span data-attempt-outcome="null">pending</span><span data-attempt-outcome="control_failed">at least one control was not recovered; target not started</span><span data-attempt-outcome="budget">batch ended; unresolved</span><span data-attempt-outcome="witness">target witness verified</span><span data-attempt-outcome="failed">run failed; unresolved</span>. Empty pruned attempts and timeouts leave the question open; no completion estimate."</span>
+        <span>Astra: “240:10 controls recovered: baseline <b data-attempt-count="baseline_control_witnesses"></b>/1; wider <b data-attempt-count="wider_control_witnesses"></b>/1. Both are required before the target search.”</span><br>
+        <span>Astra: “288:10 baseline: <b data-attempt-count="baseline_attempted"></b>/<b data-attempt-count="variant_total"></b> attempted; <b data-attempt-count="baseline_empty"></b> empty, <b data-attempt-count="baseline_timeout"></b> timed out, <b data-attempt-count="baseline_witnesses"></b> witnesses; completed attempts took <b data-attempt-count="baseline_seconds"></b> s.”</span><br>
+        <span>Astra: “288:10 wider: <b data-attempt-count="wider_attempted"></b>/<b data-attempt-count="variant_total"></b> attempted; <b data-attempt-count="wider_empty"></b> empty, <b data-attempt-count="wider_timeout"></b> timed out, <b data-attempt-count="wider_witnesses"></b> witnesses; completed attempts took <b data-attempt-count="wider_seconds"></b> s.”</span><br>
+        <span>Astra: “<span data-search-state></span>; elapsed <b data-elapsed></b>; phase: <span data-attempt-phase="preparation">preparation</span><span data-attempt-phase="calibration">calibration</span><span data-attempt-phase="search">search</span>; outcome: <span data-attempt-outcome="null">pending</span><span data-attempt-outcome="control_failed">at least one control was not recovered; target not started</span><span data-attempt-outcome="budget">batch ended; unresolved</span><span data-attempt-outcome="witness">target witness verified</span><span data-attempt-outcome="failed">run failed; unresolved</span>. Empty pruned attempts and timeouts leave the question open; no completion estimate.”</span>
       </template>
       <!-- TODO: identifies the four dot blocks and distinguishes completed, active and pending attempts. -->
-      <template class="progress-pruning-hint">Astra: "Dot blocks, in order: 240:10 baseline, 240:10 wider, 288:10 baseline, 288:10 wider. <span class="progress-sw" data-status="open"></span> completed attempt; <span class="progress-sw" data-status="running"></span> running; <span class="progress-sw" data-status="pending"></span> pending."</template>
+      <template class="progress-pruning-hint">Astra: “Dot blocks, in order: 240:10 baseline, 240:10 wider, 288:10 baseline, 288:10 wider. <span class="progress-sw" data-status="open"></span> completed attempt; <span class="progress-sw" data-status="running"></span> running; <span class="progress-sw" data-status="pending"></span> pending.”</template>
       <!-- TODO: distinguishes the fresh 560 control from the 592 pilot, reports elapsed time and outcomes, and states that empty or timed-out attempts establish no exclusion or completion estimate. -->
       <template class="progress-search592">
-        <span>Astra: "560:10 calibration (first dot block): <b data-attempt-count="control_attempted"></b>/<b data-attempt-count="control_total"></b> attempted; <b data-attempt-count="control_empty"></b> empty, <b data-attempt-count="control_timeout"></b> timed out, <b data-attempt-count="control_witnesses"></b> witnesses."</span><br>
-        <span>Astra: "592:10 search (second dot block): <b data-attempt-count="attempted"></b>/<b data-attempt-count="total"></b> attempted; <b data-attempt-count="empty"></b> empty, <b data-attempt-count="timeout"></b> timed out."</span><br>
-        <span>Astra: "<span data-search-state></span>; elapsed <b data-elapsed></b>; phase: <span data-attempt-phase="preparation">preparation</span><span data-attempt-phase="calibration">calibration</span><span data-attempt-phase="search">search</span>; outcome: <span data-attempt-outcome="null">pending</span><span data-attempt-outcome="control_failed">control not recovered; target not started</span><span data-attempt-outcome="budget">batch ended; unresolved</span><span data-attempt-outcome="witness">target witness verified</span><span data-attempt-outcome="failed">run failed; unresolved</span>. Empty pruned attempts and timeouts leave the question open; no completion estimate."</span>
+        <span>Astra: “560:10 calibration (first dot block): <b data-attempt-count="control_attempted"></b>/<b data-attempt-count="control_total"></b> attempted; <b data-attempt-count="control_empty"></b> empty, <b data-attempt-count="control_timeout"></b> timed out, <b data-attempt-count="control_witnesses"></b> witnesses.”</span><br>
+        <span>Astra: “592:10 search (second dot block): <b data-attempt-count="attempted"></b>/<b data-attempt-count="total"></b> attempted; <b data-attempt-count="empty"></b> empty, <b data-attempt-count="timeout"></b> timed out.”</span><br>
+        <span>Astra: “<span data-search-state></span>; elapsed <b data-elapsed></b>; phase: <span data-attempt-phase="preparation">preparation</span><span data-attempt-phase="calibration">calibration</span><span data-attempt-phase="search">search</span>; outcome: <span data-attempt-outcome="null">pending</span><span data-attempt-outcome="control_failed">control not recovered; target not started</span><span data-attempt-outcome="budget">batch ended; unresolved</span><span data-attempt-outcome="witness">target witness verified</span><span data-attempt-outcome="failed">run failed; unresolved</span>. Empty pruned attempts and timeouts leave the question open; no completion estimate.”</span>
       </template>
       <!-- TODO: identifies the 560 calibration and 592 target dot blocks, with completed, running and pending attempt colors. -->
-      <template class="progress-592-hint">Astra: "One dot per attempt: 560:10 calibration first, 592:10 search second. <span class="progress-sw" data-status="open"></span> completed attempt; <span class="progress-sw" data-status="running"></span> running; <span class="progress-sw" data-status="pending"></span> pending."</template>
+      <template class="progress-592-hint">Astra: “One dot per attempt: 560:10 calibration first, 592:10 search second. <span class="progress-sw" data-status="open"></span> completed attempt; <span class="progress-sw" data-status="running"></span> running; <span class="progress-sw" data-status="pending"></span> pending.”</template>
       <!-- TODO: says how many runs the tracked search has, how many are running, frozen, ended and aborted, how many results its runs have found, how long it has been going, and its state -->
       <template class="progress-track">
-        <span>Claude: "<b data-attempt-count="runs"></b> runs: <b data-attempt-count="running"></b> running, <b data-attempt-count="frozen"></b> frozen, <b data-attempt-count="ended"></b> ended, <b data-attempt-count="aborted"></b> aborted; <b data-attempt-count="found"></b> found; elapsed <b data-elapsed></b>; <span data-search-state></span>."</span>
+        <span>Claude: “<b data-attempt-count="runs"></b> runs: <b data-attempt-count="running"></b> running, <b data-attempt-count="frozen"></b> frozen, <b data-attempt-count="ended"></b> ended, <b data-attempt-count="aborted"></b> aborted; <b data-attempt-count="found"></b> found; elapsed <b data-elapsed></b>; <span data-search-state></span>.”</span>
       </template>
       <!-- TODO: says each dot is one run of the search, with the colors of ended, running, frozen and aborted runs -->
-      <template class="progress-track-hint">Claude: "One dot per run: <span class="progress-sw" data-status="settled"></span> ended; <span class="progress-sw" data-status="running"></span> running; <span class="progress-sw" data-status="pending"></span> frozen; <span class="progress-sw" data-status="open"></span> aborted."</template>
+      <template class="progress-track-hint">Claude: “One dot per run: <span class="progress-sw" data-status="settled"></span> ended; <span class="progress-sw" data-status="running"></span> running; <span class="progress-sw" data-status="pending"></span> frozen; <span class="progress-sw" data-status="open"></span> aborted.”</template>
     </details>
 </section>
 
@@ -2326,20 +2360,119 @@ SClaude[12][768] = {
 </footer>
 
 </main>
+<script>
+// The pan and zoom of both charts (dreeves's README, 2026-10-30: "[ZOO] For anti-magic/consistency, have the same zoom
+// controls on both charts"), the m*(n) chart's own until then.  A chart of ncol columns shows the view [u0, u0 + span)
+// of u, column c (from 0) spanning u from c to c + 1, span from MIN_SPAN columns to all ncol.  el takes the pointer,
+// wheel, gesture and key events; plot() gives the plot's left edge and width in CSS px from el's left; cellAt(x, y)
+// the cell at CSS x, y of el as [column, row], or null outside the plot; readout(column, row) reads that cell out; and
+// draw(u0, span, picked) draws the view, outlining the cell read out, picked (none or one).  The buttons out and in do
+// what the - and + keys do, each grayed out at its limit, and reset shows every column.  It returns redraw(), which
+// draws the view again, and uAt(x), the u at CSS x of el.
+function panZoom({el, out: zoomOut, in: zoomIn, reset, ncol, plot, cellAt, readout, draw}) {
+  const MIN_SPAN = 12, TAP = 6;
+  let u0 = 0, span = ncol, picked = [];
+  function redraw() {
+    zoomIn.disabled = span === MIN_SPAN;                           // each zoom button grays out at its limit
+    zoomOut.disabled = span === ncol;
+    draw(u0, span, picked);
+  }
+  const at = e => { const r = el.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };   // CSS px
+  const uAt = x => { const p = plot(); return u0 + (x - p.left) * span / p.width; };
+  function pick(x, y) {                                            // read out the cell at CSS x, y and outline it
+    const c = cellAt(x, y);
+    if (c === null || picked.some(p => p[0] === c[0] && p[1] === c[1])) return;
+    picked = [c];
+    readout(...c);
+    redraw();
+  }
+  const clampSpan = s => Math.min(Math.max(s, MIN_SPAN), ncol);
+  function setView(a, s) {
+    span = clampSpan(s);
+    u0 = Math.min(Math.max(a, 0), ncol - span);
+    redraw();
+  }
+  function zoomAbout(x, s) {                                       // to span s, the u at CSS x staying put
+    const u = uAt(x), t = clampSpan(s);
+    setView(u - (u - u0) * t / span, t);
+  }
+  // Pointers: the first two drag the view, their midpoint holding the u it had when the set of pointers last changed,
+  // and their spread scaling the span.  One pointer has spread 0, so the + 1s leave its span alone: it pans.
+  const pointers = new Map();                                      // pointerId: CSS x, y now and when it went down
+  let grip = null;
+  const firstTwo = () => [...pointers.values()].slice(0, 2);
+  const mid = ps => (ps[0].x + ps.at(-1).x) / 2;
+  const spread = ps => Math.hypot(ps[0].x - ps.at(-1).x, ps[0].y - ps.at(-1).y);
+  const regrip = () => { const ps = firstTwo(); grip = ps.length ? {u: uAt(mid(ps)), span, d: spread(ps)} : null; };
+  function follow() {
+    const ps = firstTwo(), s = clampSpan(grip.span * (grip.d + 1) / (spread(ps) + 1)), p = plot();
+    setView(grip.u - (mid(ps) - p.left) * s / p.width, s);
+  }
+  el.addEventListener('pointerdown', e => {
+    el.setPointerCapture(e.pointerId);
+    const [x, y] = at(e);
+    pointers.set(e.pointerId, {x, y, x0: x, y0: y});
+    regrip();
+  });
+  el.addEventListener('pointermove', e => {
+    const p = pointers.get(e.pointerId), [x, y] = at(e);
+    if (p) { Object.assign(p, {x, y}); follow(); }
+    if (e.buttons === 0) pick(x, y);                               // hover: a mouse or pen with no button down
+  });
+  const lift = e => { const p = pointers.get(e.pointerId); pointers.delete(e.pointerId); regrip(); return p; };
+  el.addEventListener('pointerup', e => {
+    const p = lift(e), [x, y] = at(e);
+    if (p && Math.hypot(x - p.x0, y - p.y0) < TAP) pick(x, y);     // a tap or a click
+  });
+  el.addEventListener('pointercancel', lift);
+  // Wheel: with ctrl or cmd (a trackpad pinch sends ctrl) it zooms about the pointer; mostly sideways, it pans; mostly
+  // down or up it is left alone, so the page scrolls.
+  el.addEventListener('wheel', e => {
+    const p = plot(), px = [1, 16, p.width][e.deltaMode];          // CSS px per unit of delta: pixel, line, page
+    if (e.ctrlKey || e.metaKey) {
+      zoomAbout(at(e)[0], span * 2 ** (e.deltaY * px / 100));
+      e.preventDefault();
+    } else if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+      setView(u0 + e.deltaX * px * span / p.width, span);
+      e.preventDefault();
+    }
+  }, {passive: false});
+  // Safari's trackpad pinch comes as gesture events; with a touch pointer down, the pointers already zoom.
+  let gestureSpan = span;
+  el.addEventListener('gesturestart', e => { e.preventDefault(); gestureSpan = span; });
+  el.addEventListener('gesturechange', e => {
+    e.preventDefault();
+    if (pointers.size === 0) zoomAbout(at(e)[0], gestureSpan / e.scale);
+  });
+  const middle = () => { const p = plot(); return p.left + p.width / 2; };
+  const KEYS = new Map([['ArrowLeft', () => setView(u0 - span / 8, span)], ['ArrowRight', () => setView(u0 + span / 8, span)],
+    ['+', () => zoomAbout(middle(), span / 1.5)], ['=', () => zoomAbout(middle(), span / 1.5)],
+    ['-', () => zoomAbout(middle(), span * 1.5)]]);
+  el.addEventListener('keydown', e => {
+    const f = KEYS.get(e.key);
+    if (f && !(e.ctrlKey || e.metaKey || e.altKey)) { f(); e.preventDefault(); }
+  });
+  zoomIn.addEventListener('click', KEYS.get('+'));                 // the zoom buttons do what the + and - keys do
+  zoomOut.addEventListener('click', KEYS.get('-'));
+  reset.addEventListener('click', () => setView(0, ncol));
+  return {redraw, uAt};
+}
+</script>
 <script src="mstar.js"></script>
 <script>
 // Claude's chart of m*(n) for n up to 1024, drawn from MSTAR, which mstar.js defines (mstar.py makes it and states its
 // contract).  Column n is green (exists) in rows m = 1 to lo, gray (open) up to hi and red (impossible) above, up to row
 // MSTAR.mtop.  The columns are NS, n = 2 and the multiples of 4 (dreeves, 2026-10-29: "can we make my "odd multiple of
 // 2" bullet point be true?"; every even n before): an odd n has no partition at any m, and every other n = 2 mod 4 has
-// m*(n) = 1, as the data contract asserts.  Pan and zoom act on n only: the view is the interval [u0, u0 + span) of u,
+// m*(n) = 1, as the data contract asserts.  Pan and zoom (panZoom, which the chart of powers of 2 shares since
+// 2026-10-30) act on n only: the view is the interval [u0, u0 + span) of u,
 // column c (from 0), n = NS[c], spanning u from c to c + 1.  Each device pixel of the plot mixes the colors of the
 // cells it covers, weighted by how much of it each covers, so all NCOL = 257 columns can show at once even where they
 // are narrower than a pixel.
 (() => {
 const cv = document.getElementById('mstar-chart'), ro = document.getElementById('mstar-readout');
 try {
-  const D = MSTAR, NMAX = 1024, MIN_SPAN = 12, TAP = 6;
+  const D = MSTAR, NMAX = 1024;
   const NS = [2, ...Array.from({length: NMAX / 4}, (_, i) => 4 * i + 4)], NCOL = NS.length;
   // Layout in CSS px: the m labels left of the plot, room right of it for the last n label, rows ROW tall, and the n
   // axis below.
@@ -2356,27 +2489,27 @@ try {
     example: {
       ok: (n, lo, label) => typeof label === 'string' && label !== '',
       // readout reason; says order lo is known from an example, naming where the example comes from
-      text: (n, lo, label) => `Order ${lo} from an example (${label})`,
+      text: (n, lo, label) => `order ${lo} from an example (${label})`,
     },
     join: {
       ok: (n, lo, a, b) => [a, b].every(Number.isInteger) && a >= 1 && b >= 1 && a + b === n && lo <= Math.min(loOf(a), loOf(b)),
       // readout reason; says order lo is known from the join of the examples of lengths a and b
-      text: (n, lo, a, b) => `Order ${lo} from the join p${sub(a)}\u00a0∨\u00a0p${sub(b)}`,
+      text: (n, lo, a, b) => `order ${lo} from the join p${sub(a)}\u00a0∨\u00a0p${sub(b)}`,
     },
     product: {
       ok: (n, lo, a, b) => [a, b].every(Number.isInteger) && a >= 2 && b >= 2 && a * b === n && lo <= loOf(a) + loOf(b),
       // readout reason; says order lo is known from the expanded product of the examples of lengths a and b
-      text: (n, lo, a, b) => `Order ${lo} from the product p${sub(a)}\u00a0#\u00a0p${sub(b)}`,
+      text: (n, lo, a, b) => `order ${lo} from the product p${sub(a)}\u00a0#\u00a0p${sub(b)}`,
     },
     table2: {
       ok: (n, lo) => n % 8 === 0 && n <= 304,
       // readout reason; says order lo is known from BGPW's Table 2
-      text: (n, lo) => `Order ${lo} from BGPW's Table 2`,
+      text: (n, lo) => `order ${lo} from BGPW's Table 2`,
     },
     page: {
       ok: (n, lo, who) => WHO.includes(who),
       // readout reason; says order lo is known from this page's new results, naming whose they are
-      text: (n, lo, who) => `Order ${lo} from the new results above (${who})`,
+      text: (n, lo, who) => `order ${lo} from the new results above (${who})`,
     },
   };
   const HI = {
@@ -2384,27 +2517,27 @@ try {
     two: {
       ok: (n, hi) => n % 2 === 0 && hi === (n & -n) - 1,
       // readout reason; says order hi + 1 is ruled out because hi + 1 is the largest power of 2 dividing n
-      text: (n, hi) => `Order ${hi + 1} ruled out: ${hi + 1} is the power of 2 in ${n}`,
+      text: (n, hi) => `order ${hi + 1} ruled out: ${hi + 1} is the power of 2 in ${n}`,
     },
     norm: {
       ok: (n, hi, p) => Number.isInteger(p) && prime(p) && n % p !== 0,
       // readout reason; says order hi + 1 is ruled out by the norm bound for the prime p
-      text: (n, hi, p) => `Order ${hi + 1} ruled out by the norm bound for p\u00a0=\u00a0${p}`,
+      text: (n, hi, p) => `order ${hi + 1} ruled out by the norm bound for p\u00a0=\u00a0${p}`,
     },
     residue: {
       ok: (n, hi, M) => Number.isInteger(M) && M >= 2,
       // readout reason; says order hi + 1 is ruled out by the residue condition mod M
-      text: (n, hi, M) => `Order ${hi + 1} ruled out by the residue condition mod ${M}`,
+      text: (n, hi, M) => `order ${hi + 1} ruled out by the residue condition mod ${M}`,
     },
     table2: {
       ok: (n, hi) => n % 8 === 0 && n <= 304,
       // readout reason; says order hi + 1 is ruled out by BGPW's Table 2
-      text: (n, hi) => `Order ${hi + 1} ruled out by BGPW's Table 2`,
+      text: (n, hi) => `order ${hi + 1} ruled out by BGPW's Table 2`,
     },
     page: {
       ok: (n, hi, who) => WHO.includes(who),
       // readout reason; says order hi + 1 is ruled out in this page's new results, naming whose they are
-      text: (n, hi, who) => `Order ${hi + 1} ruled out in the new results above (${who})`,
+      text: (n, hi, who) => `order ${hi + 1} ruled out in the new results above (${who})`,
     },
   };
   assert(D.nmax === NMAX && Number.isInteger(D.mtop) && Array.isArray(D.cols) && D.cols.length === NMAX, D.nmax, D.mtop);
@@ -2428,21 +2561,25 @@ try {
     return [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
   };
   const T = D.mtop, cssH = TOP + T * ROW + AXIS;
-  // a(m − 1) of OEIS A323395 where the data proves it, ringed in gold (dreeves, 2026-10-19: "green with gold trim"):
-  // for each order m, the least n known to reach m, when it is also the least n whose upper bound allows m (as the
-  // table of smallest lengths below has it).
+  // The cells of the table of smallest lengths below, ringed in gold (dreeves's README, 2026-10-30: "[GLT] ... match the
+  // "smallest length known" table: green+gold is the smallest *known* n (resp. 2^k) for a give m (resp. delta) and
+  // black+gold is the smallest n (resp. 2^k) not ruled out"; a(m − 1) of OEIS A323395 alone from 2026-10-19, dreeves:
+  // "green with gold trim"): for each order m that some n reaches, {n, m, role} for the least n known to reach m and the
+  // least n whose upper bound allows m, one cell when they agree; role 1 known, 2 not ruled out, 3 both: the least n of
+  // order m, proven, a(m − 1), which also gets a gold dot (Claude's proposal for the indicator, 2026-10-30).
   const least = test => D.cols.findIndex(test) + 1;                // the least n whose column passes test; 0 if none
-  const RECORDS = Array.from({length: T}, (_, i) => i + 1).map(m => ({n: least(c => c[0] >= m), m}))
-    .filter(({n, m}) => n > 0 && n === least(c => c[1] >= m));
-  assert(RECORDS.every(({n}) => NS.includes(n)), RECORDS);
+  const RINGS = Array.from({length: T}, (_, i) => i + 1).map(m => ({m, known: least(c => c[0] >= m), possible: least(c => c[1] >= m)}))
+    .filter(({known}) => known > 0)
+    .flatMap(({m, known, possible}) => [...new Set([known, possible])].map(n => ({n, m, role: (n === known) + 2 * (n === possible)})));
+  assert(RINGS.every(({n}) => NS.includes(n)), RINGS);
   cv.style.height = `${cssH}px`;
   const ctx = cv.getContext('2d'), strip = document.createElement('canvas'), sctx = strip.getContext('2d');
-  const zoomIn = document.getElementById('mstar-zoom-in'), zoomOut = document.getElementById('mstar-zoom-out');
-  let u0 = 0, span = NCOL, cur = null, geo = null;               // the view, the cell read out, the last draw's layout
+  let geo = null;                                                  // the last draw's layout
+  const view = panZoom({el: cv, out: document.getElementById('mstar-zoom-out'), in: document.getElementById('mstar-zoom-in'),
+    reset: document.getElementById('mstar-reset'), ncol: NCOL, plot: () => ({left: geo.L / geo.dpr, width: geo.W / geo.dpr}),
+    cellAt, readout, draw});
 
-  function draw() {
-    zoomIn.disabled = span === MIN_SPAN;                           // each zoom button grays out at its limit
-    zoomOut.disabled = span === NCOL;
+  function draw(u0, span, picked) {                                // the view [u0, u0 + span) and the cell read out
     const dpr = devicePixelRatio, L = Math.round(LEFT * dpr), R = Math.round(RIGHT * dpr), top = Math.round(TOP * dpr);
     const pitch = Math.round(ROW * dpr), gap = 1;                  // a row's bottom device px is page surface
     const W = Math.round(cv.getBoundingClientRect().width * dpr) - L - R;   // the plot's width in device px
@@ -2508,7 +2645,8 @@ try {
     ctx.fillText('n', 2 * dpr, base + 6 * dpr);
     ctx.textBaseline = 'middle';
     ctx.fillText('m', 2 * dpr, top + T * pitch / 2);
-    // Rings just outside cells, 2 device px wide: each of RECORDS in gold, then the cell read out in ink.
+    // Rings just outside cells, 2 device px wide: each of RINGS in gold, with a gold dot half the cell's smaller side
+    // across in each proven the least, then the cell read out in ink.
     const ring = ({n, m}) => {
       const x0 = L + (NS.indexOf(n) - u0) / k, x1 = x0 + 1 / k, y0 = top + (T - m) * pitch;
       ctx.strokeRect(x0 - dpr, y0 - dpr, x1 - x0 + 2 * dpr, pitch - gap + 2 * dpr);
@@ -2518,111 +2656,49 @@ try {
     ctx.rect(L - 2 * dpr, 0, W + 4 * dpr, base);
     ctx.clip();
     ctx.lineWidth = 2 * dpr;
-    ctx.strokeStyle = token('--record');
-    RECORDS.forEach(ring);
+    ctx.strokeStyle = ctx.fillStyle = token('--record');
+    RINGS.forEach(ring);
+    RINGS.filter(r => r.role === 3).forEach(({n, m}) => {
+      ctx.beginPath();
+      ctx.arc(L + (NS.indexOf(n) + 0.5 - u0) / k, top + (T - m) * pitch + (pitch - gap) / 2, Math.min(1 / k, pitch - gap) / 4, 0, 2 * Math.PI);
+      ctx.fill();
+    });
     ctx.strokeStyle = token('--ink');
-    if (cur !== null) ring(cur);                                   // outline the cell read out, just outside it
+    picked.forEach(([c, m]) => ring({n: NS[c], m}));               // outline the cell read out, just outside it
     ctx.restore();
   }
 
-  const at = e => { const r = cv.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };   // CSS px
-  const uAt = x => u0 + (x * geo.dpr - geo.L) * span / geo.W;
-  function cellAt([x, y]) {                                        // the cell at CSS x, y, or null outside the plot
-    const X = x * geo.dpr - geo.L, n = NS[Math.floor(u0 + X * span / geo.W)], m = T - Math.floor((y * geo.dpr - geo.top) / geo.pitch);
-    return X >= 0 && X < geo.W && m >= 1 && m <= T ? {n, m} : null;
+  function cellAt(x, y) {                                          // the cell at CSS x, y, [column, m], or null outside the plot
+    const X = x * geo.dpr - geo.L, m = T - Math.floor((y * geo.dpr - geo.top) / geo.pitch);
+    return X >= 0 && X < geo.W && m >= 1 && m <= T ? [Math.floor(view.uAt(x)), m] : null;
   }
   const el = (tag, text) => Object.assign(document.createElement(tag), {textContent: text});
   const nw = (...parts) => { const s = el('span', ''); s.className = 'nw'; s.append(...parts); return s; };   // no wrap
   const swatch = document.createElement('span');
-  function select(c) {                                             // read out cell c and outline it
-    if (c === null || (cur !== null && c.n === cur.n && c.m === cur.m)) return;
-    cur = c;
-    const {n, m} = c, [lo, hi, lw, hw] = D.cols[n - 1], kind = kindOf(n, m);
+  const NOTES = {                                                  // the readout's note on a ringed cell, by its role
+    // Readout note on a green cell ringed in gold; says its n is the least known to reach order m
+    1: m => `the least n known of order ${m}`,
+    // Readout note on a black cell ringed in gold; says its n is the least whose upper bound allows order m
+    2: m => `the least n not ruled out for order ${m}`,
+    // Readout note on a cell ringed in gold; says its n is the least of order m: the term a(m − 1) of OEIS A323395
+    3: m => `the least n of order ${m}: a(${m - 1}) of OEIS A323395`,
+  };
+  function readout(c, m) {                                         // read out the cell of column c, n = NS[c], and row m
+    const n = NS[c], [lo, hi, lw, hw] = D.cols[n - 1], kind = kindOf(n, m);
     const why = [() => LO[lw[0]].text(n, lo, ...lw.slice(1)), () => HI[hw[0]].text(n, hi, ...hw.slice(1))];
     const mstar = [el('i', 'm'), el('sup', '*'), `(${n})`];
-    const records = RECORDS.filter(r => r.n === n && r.m === m);
+    const rings = RINGS.filter(r => r.n === n && r.m === m);        // none or one
     swatch.className = `swatch ${KIND[kind]}`;
-    swatch.classList.toggle('record', records.length > 0);
+    swatch.classList.toggle('record', rings.length > 0);
+    swatch.classList.toggle('proven', rings.some(r => r.role === 3));
     ro.replaceChildren(swatch, nw(el('i', 'n'), ` = ${n}, `, el('i', 'm'), ` = ${m}`), ' · ',
       nw(...(lo === hi ? [...mstar, ` = ${lo}`] : [`${lo} ≤ `, ...mstar, ` ≤ ${hi}`])), ' · ',
       [[why[0]], why, [why[1]]][kind].map(f => f()).join(' · '));
-    // TODO: readout note on a cell ringed in gold; says its n is the least of order m: the term a(m − 1) of OEIS A323395
-    ro.append(...records.map(() => ` · Claude: "the least n of order ${m}: a(${m - 1}) of OEIS A323395"`));
-    draw();
+    ro.append(...rings.map(r => ` · ${NOTES[r.role](m)}`));
   }
-
-  const clampSpan = s => Math.min(Math.max(s, MIN_SPAN), NCOL);
-  function setView(a, s) {
-    span = clampSpan(s);
-    u0 = Math.min(Math.max(a, 0), NCOL - span);
-    draw();
-  }
-  function zoomAbout(x, s) {                                       // to span s, the u at CSS x staying put
-    const u = uAt(x), t = clampSpan(s);
-    setView(u - (u - u0) * t / span, t);
-  }
-  // Pointers: the first two drag the view, their midpoint holding the u it had when the set of pointers last changed,
-  // and their spread scaling the span.  One pointer has spread 0, so the + 1s leave its span alone: it pans.
-  const pointers = new Map();                                      // pointerId: CSS x, y now and when it went down
-  let grip = null;
-  const firstTwo = () => [...pointers.values()].slice(0, 2);
-  const mid = ps => (ps[0].x + ps.at(-1).x) / 2;
-  const spread = ps => Math.hypot(ps[0].x - ps.at(-1).x, ps[0].y - ps.at(-1).y);
-  const regrip = () => { const ps = firstTwo(); grip = ps.length ? {u: uAt(mid(ps)), span, d: spread(ps)} : null; };
-  function follow() {
-    const ps = firstTwo(), s = clampSpan(grip.span * (grip.d + 1) / (spread(ps) + 1));
-    setView(grip.u - (mid(ps) * geo.dpr - geo.L) * s / geo.W, s);
-  }
-  cv.addEventListener('pointerdown', e => {
-    cv.setPointerCapture(e.pointerId);
-    const [x, y] = at(e);
-    pointers.set(e.pointerId, {x, y, x0: x, y0: y});
-    regrip();
-  });
-  cv.addEventListener('pointermove', e => {
-    const p = pointers.get(e.pointerId), [x, y] = at(e);
-    if (p) { Object.assign(p, {x, y}); follow(); }
-    if (e.buttons === 0) select(cellAt([x, y]));                  // hover: a mouse or pen with no button down
-  });
-  const lift = e => { const p = pointers.get(e.pointerId); pointers.delete(e.pointerId); regrip(); return p; };
-  cv.addEventListener('pointerup', e => {
-    const p = lift(e), [x, y] = at(e);
-    if (p && Math.hypot(x - p.x0, y - p.y0) < TAP) select(cellAt([x, y]));    // a tap or a click
-  });
-  cv.addEventListener('pointercancel', lift);
-  // Wheel: with ctrl or cmd (a trackpad pinch sends ctrl) it zooms about the pointer; mostly sideways, it pans; mostly
-  // down or up it is left alone, so the page scrolls.
-  cv.addEventListener('wheel', e => {
-    const px = [1, 16, geo.W / geo.dpr][e.deltaMode];              // CSS px per unit of delta: pixel, line, page
-    if (e.ctrlKey || e.metaKey) {
-      zoomAbout(at(e)[0], span * 2 ** (e.deltaY * px / 100));
-      e.preventDefault();
-    } else if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
-      setView(u0 + e.deltaX * px * span * geo.dpr / geo.W, span);
-      e.preventDefault();
-    }
-  }, {passive: false});
-  // Safari's trackpad pinch comes as gesture events; with a touch pointer down, the pointers already zoom.
-  let gestureSpan = span;
-  cv.addEventListener('gesturestart', e => { e.preventDefault(); gestureSpan = span; });
-  cv.addEventListener('gesturechange', e => {
-    e.preventDefault();
-    if (pointers.size === 0) zoomAbout(at(e)[0], gestureSpan / e.scale);
-  });
-  const middle = () => (geo.L + geo.W / 2) / geo.dpr;
-  const KEYS = new Map([['ArrowLeft', () => setView(u0 - span / 8, span)], ['ArrowRight', () => setView(u0 + span / 8, span)],
-    ['+', () => zoomAbout(middle(), span / 1.5)], ['=', () => zoomAbout(middle(), span / 1.5)],
-    ['-', () => zoomAbout(middle(), span * 1.5)]]);
-  cv.addEventListener('keydown', e => {
-    const f = KEYS.get(e.key);
-    if (f && !(e.ctrlKey || e.metaKey || e.altKey)) { f(); e.preventDefault(); }
-  });
-  zoomIn.addEventListener('click', KEYS.get('+'));                 // the zoom buttons do what the + and - keys do
-  zoomOut.addEventListener('click', KEYS.get('-'));
-  document.getElementById('mstar-reset').addEventListener('click', () => setView(0, NCOL));
-  draw();
-  new ResizeObserver(() => draw()).observe(cv);
-  document.fonts.ready.then(() => draw());
+  view.redraw();
+  new ResizeObserver(() => view.redraw()).observe(cv);
+  document.fonts.ready.then(() => view.redraw());
 } catch (e) {
   ro.textContent = `Error drawing the chart: ${e}`;
   throw e;
@@ -2634,9 +2710,9 @@ try {
 // Claude's chart of the bounds on m*(2^k) − k for k up to 72, drawn from POW2, which pow2.js defines (pow2.py makes
 // it and states its contract).  Column k is n = 2^k; row e is order k + e, an excess of e over Thue–Morse's order k.
 // Cell (k, e) is green (exists) when k + e <= lo, gray (open) when lo < k + e <= hi, and red (impossible) above, up to
-// row E = POW2.etop.  The plot is one svg with a rect per cell, its viewBox K columns wide and E * ROW px tall,
-// stretched to the plot's width; a cell reads itself out when the mouse enters it: a mouse hovering, or a finger
-// tapping (a tap sends the mouse events, a swipe that scrolls the page sends none).  Its grid is hairlines of page
+// row E = POW2.etop.  The plot is one svg with a rect per cell, its viewBox the columns in view (all K until it is
+// zoomed) and E * ROW px tall, stretched to the plot's width.  It pans and zooms as the m*(n) chart does, by the same
+// code (panZoom, 2026-10-30), and a cell reads itself out on a hover, a tap or a click.  Its grid is hairlines of page
 // surface (dreeves, 2026-10-29: "this with hairline grid looks great to me"): the bottom GAP of each row, one device
 // pixel, and a line one device pixel wide between every two columns.
 (() => {
@@ -2675,14 +2751,14 @@ try {
     'thue-morse': {
       ok: (k, lo) => lo === k,
       // readout reason; says order lo, which is k, is known from Thue–Morse, τ_k
-      text: (k, lo) => `Order ${lo} from Thue–Morse, τ${sub(k)}`,
+      text: (k, lo) => `order ${lo} from Thue–Morse, τ${sub(k)}`,
     },
     joins: {
       ok: (k, lo, ps) => Array.isArray(ps) && ps.length >= 1 && ps.every(p => Array.isArray(p) && p.length >= 1
         && p.every(isBlock)) && ps.reduce((t, p) => t + length(p), 0n) === 2n ** BigInt(k)
         && lo === Math.min(...ps.map(order)),
       // readout reason; says order lo is known from the join of these expanded products
-      text: (k, lo, ps) => `Order ${lo} from the join ${joined(ps)}`,
+      text: (k, lo, ps) => `order ${lo} from the join ${joined(ps)}`,
     },
   };
   // The m*(n) chart's reasons of an upper bound at an even n, copied line for line from its script: the reasons of
@@ -2691,27 +2767,27 @@ try {
     two: {
       ok: (n, hi) => n % 2 === 0 && hi === (n & -n) - 1,
       // readout reason; says order hi + 1 is ruled out because hi + 1 is the largest power of 2 dividing n
-      text: (n, hi) => `Order ${hi + 1} ruled out: ${hi + 1} is the power of 2 in ${n}`,
+      text: (n, hi) => `order ${hi + 1} ruled out: ${hi + 1} is the power of 2 in ${n}`,
     },
     norm: {
       ok: (n, hi, p) => Number.isInteger(p) && prime(p) && n % p !== 0,
       // readout reason; says order hi + 1 is ruled out by the norm bound for the prime p
-      text: (n, hi, p) => `Order ${hi + 1} ruled out by the norm bound for p\u00a0=\u00a0${p}`,
+      text: (n, hi, p) => `order ${hi + 1} ruled out by the norm bound for p\u00a0=\u00a0${p}`,
     },
     residue: {
       ok: (n, hi, M) => Number.isInteger(M) && M >= 2,
       // readout reason; says order hi + 1 is ruled out by the residue condition mod M
-      text: (n, hi, M) => `Order ${hi + 1} ruled out by the residue condition mod ${M}`,
+      text: (n, hi, M) => `order ${hi + 1} ruled out by the residue condition mod ${M}`,
     },
     table2: {
       ok: (n, hi) => n % 8 === 0 && n <= 304,
       // readout reason; says order hi + 1 is ruled out by BGPW's Table 2
-      text: (n, hi) => `Order ${hi + 1} ruled out by BGPW's Table 2`,
+      text: (n, hi) => `order ${hi + 1} ruled out by BGPW's Table 2`,
     },
     page: {
       ok: (n, hi, who) => WHO.includes(who),
       // readout reason; says order hi + 1 is ruled out in this page's new results, naming whose they are
-      text: (n, hi, who) => `Order ${hi + 1} ruled out in the new results above (${who})`,
+      text: (n, hi, who) => `order ${hi + 1} ruled out in the new results above (${who})`,
     },
   };
   const HI = {
@@ -2728,7 +2804,7 @@ try {
       ok: (k, hi, chain) => Array.isArray(chain) && chain.length >= 1 && chain.every(Number.isInteger) && chain[0] >= 2
         && chain.slice(1).every((M, i) => M > chain[i] && M % chain[i] === 0),
       // readout reason; says order hi + 1 is ruled out by the residue conditions mod each modulus of the chain
-      text: (k, hi, chain) => `Order ${hi + 1} ruled out by the residue conditions mod ${chain.join(', ')}`,
+      text: (k, hi, chain) => `order ${hi + 1} ruled out by the residue conditions mod ${chain.join(', ')}`,
     },
   };
   assert(Object.keys(D).sort().join() === 'cols,etop,kmax', Object.keys(D));
@@ -2755,42 +2831,47 @@ try {
   const subbed = s => s.split(/([₀-₉]+)/).map((t, i) => i % 2
     ? el('sub', '', [...t].map(d => '₀₁₂₃₄₅₆₇₈₉'.indexOf(d)).join('')) : t);
   const svg = document.createElementNS(NS, 'svg'), outline = el('div', 'pow2-outline', ''), swatch = el('span', '', '');
-  svg.setAttribute('viewBox', `0 0 ${K} ${E * ROW}`);
   svg.setAttribute('preserveAspectRatio', 'none');
   svg.style.height = `${E * ROW}px`;
-  outline.hidden = true;
-  // The bounds the theorem states, their cells ringed in gold just outside them as the m*(n) chart rings its records
-  // (dreeves's README, 2026-10-28: "[GTR] Gold trim for the powers-of-2 chart to highlight the values in the
-  // theorem"): for each record gap g, cell (k, g) of the least k with lo >= k + g (the table below has the same).  The
-  // ring is 2 px above and below the cell, over the hairlines there and the neighbors' edges, and 1 px at its sides,
-  // where a phone's columns are about 4 px wide; it lies over the grid and under the outline of the cell read out,
-  // whose swatch it rings too, with a note (dreeves, 2026-10-28: "don't
-  // forget the gold trim on the hover version"), as the m*(n) chart's readout does for its records.
-  const least = g => D.cols.findIndex((c, i) => c[0] >= i + 1 + g) + 1;       // 0 if none
-  const trims = Array.from({length: E}, (_, i) => i + 1).filter(g => least(g) > 0).map(g => [least(g), g]);
-  function select(k, e) {                                          // read out cell (k, e) and outline it
-    const [lo, hi, lw, hw] = D.cols[k - 1], kind = kindOf(k, e);
-    const gold = trims.filter(([tk, te]) => tk === k && te === e);
+  // The smallest cells of each row, ringed in gold just outside them as the m*(n) chart rings its own (dreeves's README,
+  // 2026-10-28: "[GTR] Gold trim for the powers-of-2 chart to highlight the values in the theorem"; then 2026-10-30:
+  // "[GLT] ... match the "smallest length known" table: green+gold is the smallest *known* n (resp. 2^k) for a give m
+  // (resp. delta) and black+gold is the smallest n (resp. 2^k) not ruled out"): for each record gap g, [k, g, role] for
+  // the least k with lo >= k + g, a bound the theorem states (the table below has the same), and the least k with
+  // hi >= k + g, one cell when they agree; role 1 known, 2 not ruled out, 3 both, proven the least, which also gets a
+  // gold dot (Claude's proposal for the indicator, 2026-10-30).  The ring is 2 px above and below the cell, over the
+  // hairlines there and the neighbors' edges, and 1 px at its sides, where a phone's columns are about 4 px wide; it
+  // lies over the grid and under the outline of the cell read out, whose swatch it rings too, with a note (dreeves,
+  // 2026-10-28: "don't forget the gold trim on the hover version"), as the m*(n) chart's readout does for its rings.
+  const least = (i, g) => D.cols.findIndex((c, j) => c[i] >= j + 1 + g) + 1;  // the least k whose lo (i = 0) or hi (1) is at least k + g; 0 if none
+  const trims = Array.from({length: E}, (_, i) => i + 1).map(g => [g, least(0, g), least(1, g)]).filter(([, known]) => known > 0)
+    .flatMap(([g, known, possible]) => [...new Set([known, possible])].map(k => [k, g, (k === known) + 2 * (k === possible)]));
+  // readout note on a cell ringed in gold; says 2^k is the least power of 2 known to beat Thue–Morse by δ, a bound the theorem below states
+  const knownNote = e => `the smallest k known to beat Thue–Morse by ${e} (see theorem below)`;
+  const NOTES = {1: [knownNote],                                   // the readout's notes on a ringed cell, by its role
+    // Readout note on a black cell ringed in gold; says its k is the least whose upper bound allows beating Thue–Morse by δ
+    2: [e => `the smallest k not ruled out to beat Thue–Morse by ${e}`],
+    // Readout note on a cell dotted in gold; says no smaller k beats Thue–Morse by δ, as proven
+    3: [knownNote, e => `proven as the smallest k to beat Thue–Morse by ${e}`]};
+  function readout(c, e) {                                         // read out the cell of column c, k = c + 1, and row e
+    const k = c + 1, [lo, hi, lw, hw] = D.cols[k - 1], kind = kindOf(k, e);
+    const gold = trims.filter(([tk, te]) => tk === k && te === e);  // none or one
     const why = [() => LO[lw[0]].text(k, lo, ...lw.slice(1)), () => HI[hw[0]].text(k, hi, ...hw.slice(1))];
     const two = () => ['2', el('sup', '', String(k))];           // 2^k
     swatch.className = `swatch ${KIND[kind]}`;
     swatch.classList.toggle('record', gold.length > 0);
+    swatch.classList.toggle('proven', gold.some(([, , role]) => role === 3));
     ro.replaceChildren(swatch,
       nw(el('i', '', 'k'), ` = ${k}, `, el('i', '', 'n'), ' = ', ...two(), ', ', el('i', '', 'm'),
          ` = ${k} + ${e} = ${k + e}`),
       ' · ', MEANING[kind], ' · ', nw(`${lo} ≤ `, el('i', '', 'm'), el('sup', '', '*'), '(', ...two(), `) ≤ ${hi}`),
       ' · ', ...subbed([[why[0]], why, [why[1]]][kind].map(f => f()).join(' · ')));
-    // readout note on a cell ringed in gold; says 2^k is the least power of 2 known to beat Thue–Morse by δ, a bound the theorem below states
-    ro.append(...gold.map(() => ` · The least k known to beat Thue–Morse by ${e} (see theorem below)`));
-    at(outline, {left: `calc(${(k - 1) / K * 100}% - 2px)`, width: `calc(${100 / K}% + 4px)`,
-                 top: `${(E - e) * ROW - 2}px`, height: `${ROW - GAP + 4}px`});
-    outline.hidden = false;
+    ro.append(...gold.flatMap(([, , role]) => NOTES[role].map(f => ` · ${f(e)}`)));
   }
   for (let k = 1; k <= K; k++) for (let e = 1; e <= E; e++) {
     const r = document.createElementNS(NS, 'rect');
     const attributes = {x: k - 1, y: (E - e) * ROW, width: 1, height: ROW - GAP, class: KIND[kindOf(k, e)]};
     for (const [a, v] of Object.entries(attributes)) r.setAttribute(a, v);
-    r.addEventListener('mouseenter', () => select(k, e));
     svg.append(r);
   }
   for (let k = 1; k < K; k++) {                                    // the lines between columns, over the cells
@@ -2806,14 +2887,38 @@ try {
     es.append(at(el('span', '', String(e)), {top: `${(E - e) * ROW}px`, lineHeight: `${ROW - GAP}px`}));
   }
   es.append(el('i', '', 'δ'));
-  for (let k = 10; k <= K; k += 10) {
-    const left = `${(k - 0.5) / K * 100}%`;
-    ks.append(at(el('span', 'pow2-tick', ''), {left}), at(el('span', 'pow2-klabel', String(k)), {left}));
-  }
-  plot.append(svg, ...trims.map(([k, e]) => at(el('div', 'pow2-trim', ''), {
-    left: `calc(${(k - 1) / K * 100}% - 1px)`, width: `calc(${100 / K}% + 2px)`,
-    top: `${(E - e) * ROW - 2}px`, height: `${ROW - GAP + 4}px`})), outline);
+  // The rings and the outline lie in a frame 2 px larger than the plot on every side, which clips them where the view
+  // ends, as the m*(n) chart clips its rings.  place(div, c, e, side, u0, span) puts div around the cell of column c
+  // and row e in the view [u0, u0 + span): side px out at its sides, 2 px above and below.
+  const frame = el('div', 'pow2-frame', ''), rings = trims.map(() => el('div', 'pow2-trim', ''));
+  const proven = trims.filter(([, , role]) => role === 3), dots = proven.map(() => el('div', 'pow2-dot', ''));
+  const place = (div, c, e, side, u0, span) => at(div, {left: `calc(${(c - u0) / span} * (100% - 4px) + ${2 - side}px)`,
+    width: `calc(${1 / span} * (100% - 4px) + ${2 * side}px)`, top: `${(E - e) * ROW}px`, height: `${ROW - GAP + 4}px`});
+  frame.append(...rings, ...dots, outline);
+  plot.append(svg, frame);
   chart.append(es, plot, el('i', 'pow2-k', 'k'), ks);
+  const TENS = Array.from({length: Math.floor(K / 10)}, (_, i) => 10 * i + 10);     // the k labeled below the plot
+  function draw(u0, span, picked) {                                // the view [u0, u0 + span) and the cell read out
+    svg.setAttribute('viewBox', `${u0} 0 ${span} ${E * ROW}`);
+    trims.forEach(([k, e], i) => place(rings[i], k - 1, e, 1, u0, span));
+    proven.forEach(([k, e], i) => at(dots[i], {left: `calc(${(k - 0.5 - u0) / span} * (100% - 4px) + 2px)`,   // its middle,
+      top: `${(E - e) * ROW + 2 + (ROW - GAP) / 2}px`, width: `min(${0.5 / span} * (100% - 4px), ${(ROW - GAP) / 2}px)`}));
+    outline.hidden = picked.length === 0;
+    picked.forEach(([c, e]) => place(outline, c, e, 2, u0, span));
+    ks.replaceChildren(...TENS.filter(k => u0 <= k - 0.5 && k - 0.5 <= u0 + span).flatMap(k => {
+      const left = `${(k - 0.5 - u0) / span * 100}%`;              // under the middle of column k
+      return [at(el('span', 'pow2-tick', ''), {left}), at(el('span', 'pow2-klabel', String(k)), {left})];
+    }));
+  }
+  const plotBox = () => { const a = chart.getBoundingClientRect(), b = svg.getBoundingClientRect();
+    return {left: b.left - a.left, top: b.top - a.top, width: b.width}; };
+  function cellAt(x, y) {                                          // the cell at CSS x, y, [column, e], or null outside the plot
+    const p = plotBox(), e = E - Math.floor((y - p.top) / ROW);
+    return x >= p.left && x < p.left + p.width && e >= 1 && e <= E ? [Math.floor(view.uAt(x)), e] : null;
+  }
+  const view = panZoom({el: chart, out: document.getElementById('pow2-zoom-out'), in: document.getElementById('pow2-zoom-in'),
+    reset: document.getElementById('pow2-reset'), ncol: K, plot: plotBox, cellAt, readout, draw});
+  view.redraw();
 } catch (e) {
   ro.textContent = `Error drawing this chart: ${e}`;
   throw e;
@@ -2851,8 +2956,8 @@ try {
     table.append(body);
   }
 } catch (e) {
-  // TODO: error line, as the table's caption; says this table could not be made, followed by the error
-  table.createCaption().textContent = `Claude: "Error making this table:" ${e}`;
+  // Error line, as the table's caption; says this table could not be made, followed by the error
+  table.createCaption().textContent = `Error making this table: ${e}`;
   throw e;
 }
 })();
@@ -3014,8 +3119,8 @@ try {
       if (run.program === 'search592.py') attemptView(box, run, 'progress-search592', 'progress-592-hint');
       if (run.program === 'pruning288.py') {
         attemptView(box, run, 'progress-pruning288', 'progress-pruning-hint');
-        // TODO: attribute the generated baseline/wider labels in the hover readout.
-        run = {...run, keys: run.keys.map(k => `Astra: "${k}"`)};
+        // Attribute the generated baseline/wider labels in the hover readout.
+        run = {...run, keys: run.keys.map(k => `${k}`)};
       }
       // a search run under track.py, whatever its program: one dot per run, its runs counted by state (dreeves,
       // 2026-10-28: "can we rearchitect things so that always happens easily and automatically?")

@@ -7,12 +7,9 @@ LittlewoodPolynomialsReprint.pdf is the published version of the paper this is e
 
 Potential tasks: 
 * [REO] See the notes in the index.html comments tagged [REO]
-* [CUR] Curly quotes for quoting Claude and Astra
-* [ZOO] For anti-magic/consistency, have the same zoom controls on both charts
-* [GLT] Gold trim isn't consistent between the two charts; maybe all candidates for the smallest n (2^k) for a given m (delta) should be gold-trimmed. So the first green cell in each row as well as all the black cells in its row to the left of it. Or, better: match the "smallest length known" table: green+gold is the smallest *known* n (resp. 2^k) for a give m (resp. delta) and black+gold is the smallest n (resp. 2^k) not ruled out. but then maybe we want an additional visual indicator for when those coincide (the smallest known is proven to be the smallest)?
-* [VSC] VS Code isn't happy about the "&amp;&amp;" in one of the jsdelivr lines for KaTeX
 * [ETA] Maybe the ETA graph would be less confusing / more useful if the graph reset whenever we changed something about the search algorithm? I'm not sure though, so here's an idea for having the best of both worlds: Whenever something changes about the search, spawn a new graph right below the existing one(s) and label each graph with when it started, and keep updating all of them. Or make it more explicit: A button to start a fresh graph any time and buttons to drop any previous graph.
 * [CRO] This might be fun: Let people contribute computation by just having the equipow page open in their browser. (More boringly, Claude is estimating we could bring the next two searches down from a total of 90 days on my laptop to about 4 days on cloud compute costing around $300.)
+* [FAC] Reorganize the files: quals and search stuff in their own directories, certificates?, getting css and javascript out of index.html
 
 
 Stan notes:

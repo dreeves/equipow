@@ -216,7 +216,7 @@ class Search592ProgressQuals(unittest.TestCase):
         templates = dict(re.findall(r'<template class="(progress-search592|progress-592-hint)">(.*?)</template>', html, re.S))
         self.assertEqual(set(templates), {'progress-search592', 'progress-592-hint'})
         for body in templates.values():
-            self.assertIn('Astra: "', body)
+            self.assertIn('Astra: “', body)
             self.assertIn('560:10', body)
             self.assertIn('592:10', body)
         self.assertIn('no completion estimate', templates['progress-search592'])

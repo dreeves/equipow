@@ -385,22 +385,12 @@ function battery(R) {
       {acceptNode: x => drawn(x) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP}).nextNode(), r = document.createRange();
     r.selectNodeContents(t); return r.getBoundingClientRect().bottom; }));
   // The page's math once it loaded (2026-10-30, q_scripts_load_data_then_draw): the formulas KaTeX drew, its error
-  // marks, the texts outside scripts, styles and formulas that still hold a \( or \), the formulas directly followed by
-  // text that starts with no space but not glued to it (glued: first in an nw span whose last child is that text, all
-  // of it no space), the glued texts, and the texts right after a glued span that start with no space.
-  const formulas = [...document.querySelectorAll('.katex')], raw = [];
-  const walk = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  // marks, and the texts outside scripts, styles and formulas that still hold a \( or \).
+  const raw = [], walk = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
   for (let t = walk.nextNode(); t; t = walk.nextNode()) {
     if (!t.parentElement.closest('script, style, .katex') && /\\[()]/.test(t.data)) raw.push(t.data.slice(0, 80));
   }
-  const gluedTo = k => { const w = k.parentElement, t = k.nextSibling;
-    return w.matches('span.nw') && w.firstChild === k && t === w.lastChild && t.nodeType === 3 && /^\S+$/.test(t.data) ? t : null; };
-  const glued = formulas.filter(gluedTo);
-  R.math = {formulas: formulas.length, errors: document.querySelectorAll('.katex-error').length, raw,
-    loose: formulas.filter(k => { const t = k.nextSibling; return t && t.nodeType === 3 && /^\S/.test(t.data) && !gluedTo(k); })
-      .map(k => k.parentElement.textContent.slice(0, 80)),
-    glued: glued.map(k => gluedTo(k).data),
-    after: glued.map(k => k.parentElement.nextSibling).filter(t => t && t.nodeType === 3 && /^\S/.test(t.data)).map(t => t.data.slice(0, 40))};
+  R.math = {formulas: document.querySelectorAll('.katex').length, errors: document.querySelectorAll('.katex-error').length, raw};
   if (cv.height === 0) return;
   const tok = name => getComputedStyle(cv).getPropertyValue(name).trim().toLowerCase();
   const C = {exists: tok('--exists'), open: tok('--open'), impossible: tok('--impossible'), paper: tok('--paper'), ink: tok('--ink'),
@@ -408,15 +398,21 @@ function battery(R) {
   R.tokens = C;
   const dpr = devicePixelRatio, ctx = cv.getContext('2d'), T = MSTAR.mtop, cols = MSTAR.cols;
   const colorOf = (n, m) => m <= cols[n - 1][0] ? C.exists : m <= cols[n - 1][1] ? C.open : C.impossible;
-  // The cells ringed in gold (dreeves, 2026-10-19): for each order m, the least n known to reach m when no smaller n's
-  // upper bound allows m.  A ring spoils the pixels around its cell, in its row and the row above, so the generic
-  // checks pass over the columns next to it there, and checkPixels checks the ring itself (RECS, ringChecks, ringBad).
+  // The cells ringed in gold, as the table of smallest lengths has them (dreeves's README, 2026-10-30, [GLT]; the proven
+  // ones alone, a(m − 1) of OEIS A323395, since 2026-10-19): for each order m that some n reaches, [n, m, role] for the
+  // least n known to reach m and the least n whose upper bound allows m, role 1 known, 2 not ruled out, 3 both (proven
+  // the least, also dotted in gold).  A ring spoils the pixels around its cell, in its row and the row above, so the
+  // generic checks pass over the columns next to it there, and checkPixels checks the ring itself and its cell's middle
+  // (RINGS, ringChecks, ringBad).
   const least = test => cols.findIndex(test) + 1;
-  const RECS = [];
-  for (let m = 1; m <= T; m++) { const n = least(c => c[0] >= m); if (n && n === least(c => c[1] >= m)) RECS.push([n, m]); }
-  R.records = RECS; R.ringChecks = 0; R.ringBad = []; R.ringed = {}; R.rowOneSkips = 0;
+  const RINGS = [];
+  for (let m = 1; least(c => c[0] >= m); m++) {
+    const known = least(c => c[0] >= m), possible = least(c => c[1] >= m);
+    for (const n of new Set([known, possible])) RINGS.push([n, m, (n === known) + 2 * (n === possible)]);
+  }
+  R.rings = RINGS; R.ringChecks = 0; R.ringBad = []; R.ringed = {}; R.rowOneSkips = 0;
   const colOf = new Map(COLS.map((n, i) => [n, i + 1]));          // the column j of each n with one, from 1
-  const nearRing = (j, m) => RECS.some(([n, r]) => Math.abs(j - colOf.get(n)) <= 1 && (m === r || m === r + 1));
+  const nearRing = (j, m) => RINGS.some(([n, r]) => Math.abs(j - colOf.get(n)) <= 1 && (m === r || m === r + 1));
   let img = null;
   const snap = () => { img = ctx.getImageData(0, 0, cv.width, cv.height); };
   const pix = (X, Y) => { const i = (Y * img.width + X) * 4, d = img.data;
@@ -482,22 +478,24 @@ function battery(R) {
         }
         R.pixelColumns[COLS[j - 1]] = 1;
       }
-      for (const [n, r] of RECS) {    // a ringed cell in this pass: gold just outside its left and right, and below it
-        const j = colOf.get(n);
+      for (const [n, r, role] of RINGS) {   // a ringed cell in this pass: gold just outside its left and right and below
+        const j = colOf.get(n);              // it, and at its middle gold where it is proven the least, else its color
         if (j < from || j > to) continue;
-        const Y = Math.floor(rowY(r)), x0 = PL + (j - 1 - v.u0) / k, x1 = PL + (j - v.u0) / k;
-        const got = [pix(Math.floor(x0 - dpr), Y), pix(Math.floor(x1 + dpr), Y), pix(PL + Math.floor((j - 0.5 - v.u0) / k), rows[T - r][1])];
-        R.ringChecks++; R.ringed[n] = 1;
-        if (got.some(c => c !== C.record)) R.ringBad.push([n, r, got]);
+        const Y = Math.floor(rowY(r)), x0 = PL + (j - 1 - v.u0) / k, x1 = PL + (j - v.u0) / k, xm = PL + Math.floor((j - 0.5 - v.u0) / k);
+        const got = [pix(Math.floor(x0 - dpr), Y), pix(Math.floor(x1 + dpr), Y), pix(xm, rows[T - r][1]), pix(xm, Y)];
+        const want = [C.record, C.record, C.record, role === 3 ? C.record : colorOf(n, r)];
+        R.ringChecks++; R.ringed[`${n},${r}`] = 1;
+        if (got.some((c, i) => c !== want[i])) R.ringBad.push([n, r, role, got, want]);
       }
     }
   }
   // Row 1 is exists in every column and impossible at every odd n, so with no odd n drawn, even mixed into a pixel,
   // every pixel of row 1 is exists.  The outline of the cell read out goes to row T first.  ringBands(v, m): where
-  // the rings of row m run in view v, a device px either side.
-  const ringBands = (v, m) => { const k = v.span / (PR - PL); return RECS.filter(([, r]) => r === m).flatMap(([n]) => {
-    const x0 = PL + (colOf.get(n) - 1 - v.u0) / k, x1 = PL + (colOf.get(n) - v.u0) / k;
-    return [[x0 - 2 * dpr - 1, x0 + 1], [x1 - 1, x1 + 2 * dpr + 1]];
+  // the rings of row m run in view v, and (since 2026-10-30) the gold dot of a cell of row m proven the least, half the
+  // smaller of the column's width and the row's colored height across, each a device px either side.
+  const ringBands = (v, m) => { const k = v.span / (PR - PL); return RINGS.filter(([, r]) => r === m).flatMap(([n, , role]) => {
+    const x0 = PL + (colOf.get(n) - 1 - v.u0) / k, x1 = PL + (colOf.get(n) - v.u0) / k, d = Math.min(1 / k, rows[0][1] - rows[0][0]) / 4;
+    return [[x0 - 2 * dpr - 1, x0 + 1], [x1 - 1, x1 + 2 * dpr + 1]].concat(role === 3 ? [[(x0 + x1) / 2 - d - 1, (x0 + x1) / 2 + d + 1]] : []);
   }); };
   // The column lines of view v (the hairline grid, 2026-10-29): once columns are wider than 4 CSS px, a device px of
   // paper at each boundary of whole columns, over the cells at opacity (w - 4) / 4 up to 1, w a column's CSS px; each
@@ -561,8 +559,8 @@ function battery(R) {
       for (const m of new Set([lo, lo + 1, hi + 1])) {
         if (m < 1 || m > T) continue;
         R.hovers.push([n, m, hover(middleX(v, j), rowY(m) / dpr)]);
-        const {backgroundColor, boxShadow} = getComputedStyle(ro.querySelector('.swatch'));
-        R.swatches.push([n, m, backgroundColor, boxShadow]);
+        const {backgroundColor, boxShadow, backgroundImage} = getComputedStyle(ro.querySelector('.swatch'));
+        R.swatches.push([n, m, backgroundColor, boxShadow, backgroundImage]);
       }
     }
   }
@@ -899,6 +897,16 @@ def a323395_cells(cols):
     return [(int(n), int(m)) for m, n, proven, _ in smallest_rows(cols) if proven]
 
 
+def smallest_rings(cols):
+    """The cells the m*(n) chart rings in gold (dreeves's README, 2026-10-30, [GLT]), the table of smallest lengths'
+    (smallest_rows): {(n, m): role} for the least n known of each order m and the least n not ruled out for it, one cell
+    when they agree; role 1 known, 2 not ruled out, 3 both, proven the least (a323395_cells)."""
+    out = {}
+    for m, known, _, possible in smallest_rows(cols):
+        for n in {int(known), int(possible)}: out[(n, int(m))] = (n == int(known)) + 2 * (n == int(possible))
+    return out
+
+
 def ring_note(m):
     """The readout's note on a ringed cell of order m (Claude's words, without the Claude: "…")."""
     return f'the least n of order {m}: a({m - 1}) of OEIS A323395'
@@ -1193,15 +1201,16 @@ def q_scripts_load_data_then_draw():
     # dreeves: "could you convert all the math on the page to latex"), deferred, from jsDelivr at version 0.16.47, each
     # with its SHA-256 integrity, auto-render's onload only a call of that function, with no & in any script tag of the
     # head (dreeves's README, 2026-10-30: "[VSC] VS Code isn't happy about the "&amp;&amp;" in one of the jsdelivr
-    # lines for KaTeX"); then exactly six, after </main> and before </body>: a classic <script src="mstar.js"> (no
-    # type, async or defer, so it also loads from file://) and then one inline script; then the chart of powers of 2's,
-    # likewise (quals_pow2_page.py holds those two); then the inline script of the table of smallest lengths, which
-    # reads MSTAR (2026-10-17); then the inline script of the section "Search progress", which loads progress.js itself
-    # (2026-10-17).  Once the page has loaded, its math is drawn: KaTeX drew formulas, none of them an error, and no text
-    # outside scripts, styles and formulas still holds a \( or \); and (2026-10-29) each formula directly followed by
-    # text that starts with no space was wrapped with that text in an nw span: the span's first child the formula, its
-    # last that text, no space in it, and no text right after the span that starts with no space; the \(+1\)s of the
-    # remarks among them, its s glued.  (Until 2026-10-30 this pinned onload's code, character for character.)
+    # lines for KaTeX"); then exactly seven, after </main> and before </body>: the inline script of the pan and zoom
+    # both charts share (2026-10-30, q_both_charts_share_one_pan_and_zoom; six scripts before); a classic <script
+    # src="mstar.js"> (no type, async or defer, so it also loads from file://) and then one inline script; then the
+    # chart of powers of 2's, likewise (quals_pow2_page.py holds those two); then the inline script of the table of
+    # smallest lengths, which reads MSTAR (2026-10-17); then the inline script of the section "Search progress", which
+    # loads progress.js itself (2026-10-17).  Once the page has loaded, its math is drawn: KaTeX drew formulas, none of them an error, and no text
+    # outside scripts, styles and formulas still holds a \( or \).  (Until 2026-10-30 this pinned onload's code,
+    # character for character, and said that it also wrapped each formula and the text glued to it in an nw span
+    # (2026-10-29); that code has never glued anything, auto-render putting each formula alone in a span of its own, so
+    # the gluing is not expected here: scratch/readme-20261030/NOTES.md.)
     text = page()
     head, body = text[:text.index('</head>')], text[text.index('</head>'):]
     katex = re.search(r'\n<script>\n(.*?)</script>\n'
@@ -1212,15 +1221,14 @@ def q_scripts_load_data_then_draw():
     tags = re.findall(r'<script\b[^>]*>', head)
     assert katex and len(tags) == 3 and not any('&' in t for t in tags), tags
     assert re.search(rf'^function {katex[2]}\(\) \{{$', katex[1], re.M), katex[1][:300]
-    assert re.findall(r'<script\b[^>]*>', body) == ['<script src="mstar.js">', '<script>', '<script src="pow2.js">', '<script>',
-                                                    '<script>', '<script>'], re.findall(r'<script\b[^>]*>', body)
+    assert re.findall(r'<script\b[^>]*>', body) == ['<script>', '<script src="mstar.js">', '<script>', '<script src="pow2.js">',
+                                                    '<script>', '<script>', '<script>'], re.findall(r'<script\b[^>]*>', body)
     inline = re.findall(r'<script>\n(.*?)</script>', body, re.S)
-    assert '[data-smallest]' in inline[2] and 'progressData' in inline[3], [js[:60] for js in inline]
-    assert text.index('</main>') < text.index('<script src="mstar.js"></script>') < text.index('<script>\n', len(head)) < \
+    assert 'function panZoom(' in inline[0] and '[data-smallest]' in inline[3] and 'progressData' in inline[4], [js[:60] for js in inline]
+    assert text.index('</main>') < text.index('<script>\n', len(head)) < text.index('<script src="mstar.js"></script>') < \
         text.index('</script>\n</body>')
     math = valid_run('light')['math']
     assert math['formulas'] > 800 and math['errors'] == 0 and math['raw'] == [], math
-    assert math['loose'] == [] and math['after'] == [] and 's' in math['glued'], math
 
 
 def q_inline_script_passes_node_check():
@@ -1411,13 +1419,13 @@ def q_new_results_say_which_lengths():
 
 
 def q_remarks_name_the_chart_s_constructions():
-    # Replicata: each remark sentence of the form Claude: "Order m from examples above, doubled (a = 2·b, ...) or joined
-    # (a = b + c, ...); ...", item by item, against mstar.js's loWhy at a.
+    # Replicata: each remark sentence of the form Claude: “Order m from examples above, doubled (a = 2·b, ...) or joined
+    # (a = b + c, ...); ...”, item by item, against mstar.js's loWhy at a (curly quotes since 2026-10-30, [CUR]).
     # Expectata: every item is the chart's own construction: a = 2·b is ["product", 2, b], a = b + c is ["join", b, c],
     # as their TODOs say ("how the m*(n) chart gets these").  (On 2026-10-12 the example at 560 made the chart's joins
     # 240 + 560, 336 + 560 and 432 + 560 win its ties at 800, 896 and 992, which a remark still called doublings.)
     cols = mstar_data()['cols']
-    for s in re.findall(r'Claude: "Order \d+ from examples above, (.*?); order', page()):
+    for s in re.findall(r'Claude: “Order \d+ from examples above, (.*?); order', page()):
         for kind, body in re.findall(r'(doubled|joined) \(([^)]*)\)', s):
             for a, b, c in re.findall(r'(\d+) = (?:2·(\d+)|(\d+ \+ \d+))', body):
                 want = ['product', 2, int(b)] if kind == 'doubled' else ['join', *map(int, c.split(' + '))]
@@ -2087,6 +2095,45 @@ def q_768_moves_excess_5_to_2_39():
 # ---------------------------------------------------------------------------------------------------------------------
 # Browser quals
 
+QUOTED = r'(?:Claude|Astra): ["“”]'          # Claude: or Astra: and then a quotation mark: a quotation of its words
+
+
+def visible_text():
+    """index.html's text a reader sees, with every comment, script, style and tag (attribute values with it) blanked out
+    character for character, so positions are the file's."""
+    text = page()
+    for pat in (r'<!--.*?-->', r'<script\b[^>]*>.*?</script>', r'<style>.*?</style>', r'<[^>]*>'):
+        text = re.sub(pat, lambda m: re.sub(r'[^\n]', '\0', m.group(0)), text, flags=re.S)
+    return text
+
+
+def q_quotes_of_claude_and_astra_are_curly():
+    # Replicata: index.html's text a reader sees (visible_text), its tags' attribute values and its inline scripts; and
+    # the light run's readouts of the m*(n) chart's cells ringed in gold.
+    # Expectata (dreeves's README, 2026-10-30: "[CUR] Curly quotes for quoting Claude and Astra"): each quotation of
+    # Claude's or Astra's words (QUOTED) opens with “ and closes with ”, the next quotation mark after it, in the text
+    # and in an attribute value (as the zoom buttons' titles); no Claude: or Astra: in a script is followed by a straight
+    # ", the scripts' strings that write such quotations into the page (the m*(n) readout's note on a ringed cell, the
+    # record-gaps table's error line, the labels of a paired study's dots) among them; and a ringed cell's readout
+    # quotes Claude with “ and ”.  HTML comments keep straight quotes.
+    # Resultata before: 55 quotations in the text, 2 in titles and 3 in scripts, all with straight quotes.
+    text = visible_text()
+    html = re.sub(r'(<(script|style)\b[^>]*>).*?(</\2>)', r'\1\3', re.sub(r'<!--.*?-->', '', page(), flags=re.S), flags=re.S)
+    tags = [v for t in re.findall(r'<[a-zA-Z][^>]*>', html) for v in re.findall(r"""=(?:'([^']*)'|"([^"]*)")""", t)
+            for v in v if v]
+    quotes = [(s, m) for s in [text] + tags for m in re.finditer(QUOTED, s)]
+    assert quotes, 'no quotation of Claude or Astra'
+    bad = [s[m.start():m.end() + 60].replace('\0', '') for s, m in quotes
+           if m.group(0)[-1] != '“' or (re.compile(r'["“”]').search(s, m.end()) or [''])[0] != '”']
+    assert bad == [], (len(bad), bad[:5])
+    scripts = re.findall(r'<script>\n(.*?)</script>', page(), re.S)
+    assert not any(re.search(r'(?:Claude|Astra): "', js) for js in scripts), [re.findall(r'.{30}(?:Claude|Astra): ".{30}', js) for js in scripts]
+    R = valid_run('light')
+    rings = set(a323395_cells(mstar_data()['cols']))
+    notes = [t for n, m, t in R['hovers'] if (n, m) in rings]
+    assert notes and all('Claude: “' in t and t.endswith('”') and 'Claude: "' not in t for t in notes), notes[:3]
+
+
 def q_page_loads_clean():
     # Replicata: index.html with the real mstar.js in headless Chrome, 1280 px wide at 2 device px per CSS px; and the
     # page loaded as is (nothing added), with Chrome logging its console to stderr.
@@ -2135,9 +2182,10 @@ def q_drawn_cells_match_data():
     # to lo, open up to hi, impossible above) as the page's tokens give it, and the pixel below each row is paper.  In
     # the full view and every view of the sweep, every pixel of row 1 is exists, from the plot's left edge to its
     # right: no odd column (impossible in every row, since lo = hi = 0) is drawn, not even mixed into a pixel; but for
-    # the ring of a cell of row 1 (q_chart_rings_a323395_terms_in_gold), passed over a device px either side
-    # (rowOneSkips), the cells next to a ring in its row and the row above, which that qual checks instead, and the
-    # column lines of the zoomed views (rowOneLines), which q_mstar_grid_lines_come_with_zoom checks.
+    # the ring of a cell of row 1 (q_chart_rings_the_smallest_lengths_in_gold), and since 2026-10-30 the gold dot of a
+    # cell of row 1 proven the least, passed over a device px either side (rowOneSkips), the cells next to a ring in its
+    # row and the row above, which that qual checks instead, and the column lines of the zoomed views (rowOneLines),
+    # which q_mstar_grid_lines_come_with_zoom checks.
     data = mstar_data()
     assert all(data['cols'][n - 1][0] >= 1 for n in COLUMNS), 'some column has no exists cell in row 1'
     for name in ('light', 'phone'):
@@ -2193,7 +2241,8 @@ def q_mstar_leaves_out_odd_multiples_of_2():
     # 1 in mstar.js and every multiple of 4 lo >= 2; the chart's columns are n = 2 and the multiples of 4, NCOL = 257
     # (q_page_loads_clean measures the full view's); and row 2, impossible at every n = 2 mod 4, is exists in every pixel
     # right of n = 2's column, so no other n = 2 mod 4 is drawn, not even mixed into a pixel: but for a device px past
-    # n = 2's column, the ring of row 2 and the zones of the column lines (rowTwoSkips), at most a fifth of the pixels.
+    # n = 2's column, the ring of row 2 and its gold dot (since 2026-10-30: (4, 2) is proven the least) and the zones of
+    # the column lines (rowTwoSkips), at most a fifth of the pixels.
     cols = mstar_data()['cols']
     assert all(cols[n - 1][:2] == [1, 1] for n in range(2, NMAX + 1, 4)) and all(cols[n - 1][0] >= 2 for n in COLUMNS[1:])
     assert COLUMNS[:4] == [2, 4, 8, 12] and NCOL == 257
@@ -2213,7 +2262,7 @@ def q_mstar_grid_lines_come_with_zoom():
     # device px wide at each boundary of whole columns, over the cells at opacity (w - 4) / 4 from 0 up to 1, w a
     # column's width in CSS px: none at the full view (columns under 2 px wide), part at 3 steps in, solid in the sweep.
     # Each line's zone, a device px either side, holds exactly one pixel off exists, that blend of paper over exists
-    # within 3 per channel; zones under a ring are the ring's (q_chart_rings_a323395_terms_in_gold), and zones
+    # within 3 per channel; zones under a ring are the ring's (q_chart_rings_the_smallest_lengths_in_gold), and zones
     # crossing the plot's left or right edge reach into its margins, so they are passed over.
     for name in ('light', 'phone'):
         R = valid_run(name)
@@ -2224,23 +2273,30 @@ def q_mstar_grid_lines_come_with_zoom():
         assert R['rowOneLines'] >= 3 * (sweep - 4 * len(R['views'])), (name, R['rowOneLines'], sweep)
 
 
-def q_chart_rings_a323395_terms_in_gold():
-    # Replicata: the light and phone runs: the cells the chart rings (R's records), the ring checks of the sweep, and
-    # the token --record.
-    # Expectata (dreeves, 2026-10-19: "in the chart can you highlight the known values for a(m-1)? maybe make those
-    # green with gold trim or whatever else you think might work visually"): the ringed cells are exactly
-    # a323395_cells of mstar.js, today (2, 1), (4, 2), (8, 3), (16, 4), (32, 5), (48, 6), (96, 7), (144, 8), (192, 9)
-    # (240, 10) and (432, 11), SMALLEST_PROVEN by order; each is ringed in --record, #ffb300 (the validator's pick against
-    # the chart's three colors and the paper), just outside its left and right and below it, in each view of the
-    # sweep that checks it, and every one is checked.  (Its readout's note: q_hover_reads_out_cells.)
-    want = a323395_cells(mstar_data()['cols'])
-    assert want == [(n, m) for m, n in enumerate(SMALLEST_PROVEN, 1)], want
+def q_chart_rings_the_smallest_lengths_in_gold():
+    # Replicata: the light and phone runs: the cells the chart rings, with their roles (R's rings), the ring checks of
+    # the sweep, and the token --record.
+    # Expectata (dreeves's README, 2026-10-30: "[GLT] ... Or, better: match the "smallest length known" table:
+    # green+gold is the smallest *known* n (resp. 2^k) for a give m (resp. delta) and black+gold is the smallest n (resp.
+    # 2^k) not ruled out. but then maybe we want an additional visual indicator for when those coincide (the smallest
+    # known is proven to be the smallest)?"; from 2026-10-19 until then, dreeves: "in the chart can you highlight the
+    # known values for a(m-1)? maybe make those green with gold trim", the proven ones alone): the ringed cells are
+    # exactly smallest_rings of mstar.js, the cells of the table of smallest lengths: today the proven ones, (2, 1), (4,
+    # 2), …, (432, 11), SMALLEST_PROVEN by order; then (480, 12) known and (432, 12) not ruled out; (960, 13) known and
+    # (480, 13) not ruled out.  Each is ringed in --record, #ffb300 (the validator's pick against the chart's three
+    # colors and the paper), just outside its left and right and below it, in each view of the sweep that checks it,
+    # and every one is checked; at its middle a proven one is gold, a dot (Claude's proposal for when the two coincide),
+    # and the others keep their cell's color.  (Their readouts' notes: q_hover_reads_out_cells.)
+    # Resultata before: only the 11 proven cells were ringed.
+    cols = mstar_data()['cols']
+    want = smallest_rings(cols)
+    assert [c for c, role in want.items() if role == 3] == a323395_cells(cols) == [(n, m) for m, n in enumerate(SMALLEST_PROVEN, 1)], want
     for name in ('light', 'phone'):
         R = valid_run(name)
-        assert [tuple(c) for c in R['records']] == want, (name, R['records'])
+        assert {(n, m): role for n, m, role in R['rings']} == want, (name, R['rings'])
         assert R['tokens']['record'] == '#ffb300', (name, R['tokens'])
         assert R['ringChecks'] >= len(want) and R['ringBad'] == [], (name, R['ringChecks'], R['ringBad'][:5])
-        assert sorted(map(int, R['ringed'])) == [n for n, _ in want], (name, R['ringed'])
+        assert sorted(tuple(map(int, c.split(','))) for c in R['ringed']) == sorted(want), (name, R['ringed'])
 
 
 def q_readout_reports_columns_only():
@@ -2292,6 +2348,43 @@ def q_zoom_buttons_sit_beside_show_all():
         assert re.search(r"\baria-label='[^']+'", attrs), attrs
 
 
+def q_both_charts_share_one_pan_and_zoom():
+    # Replicata: index.html: its inline scripts, the sections of the two charts (mstar and pow2) and its style block.
+    # Expectata (dreeves's README, 2026-10-30: "[ZOO] For anti-magic/consistency, have the same zoom controls on both
+    # charts"): one inline script, the first after </main>, defines function panZoom, the pan and zoom of both charts,
+    # and nothing else; each chart's script calls it once, with its own chart (#mstar-chart, #pow2-chart) and its own
+    # buttons; each section holds a div of class zoom with the same three buttons, −, + and ↺, the same but for their
+    # ids' prefixes (mstar- and pow2-); one rule styles those buttons, .zoom button (and one their grayed-out look); and
+    # each chart takes the keys (tabindex 0).  Which of the two charts each zooms is quals_pow2_page's
+    # q_zoom_controls_zoom_their_own_chart; how the m*(n) chart pans and zooms is the browser quals here.
+    # Resultata before: only the m*(n) chart could zoom, from code of its own.
+    text = page()
+    body = text[text.index('</main>'):]
+    inline = re.findall(r'<script>\n(.*?)</script>', body, re.S)
+    shared = re.fullmatch(r'(?://[^\n]*\n)*function panZoom\(\{[^\n]*\}\) \{\n.*\n\}\n', inline[0], re.S)
+    assert shared and sum('function panZoom(' in js for js in inline) == 1, inline[0][:400]
+    for chart, prefix in (('mstar-chart', 'mstar'), ('pow2-chart', 'pow2')):
+        [js] = [s for s in inline if f"getElementById('{chart}')" in s]
+        calls = re.findall(r'panZoom\(\{el: (\w+), out: document\.getElementById\(\'([\w-]+)\'\), in: document\.getElementById\(\'([\w-]+)\'\),\s*'
+                           r'reset: document\.getElementById\(\'([\w-]+)\'\)', js)
+        assert js.count('panZoom(') == 1 and len(calls) == 1, (chart, calls)
+        assert calls[0][1:] == (f'{prefix}-zoom-out', f'{prefix}-zoom-in', f'{prefix}-reset'), (chart, calls)
+        assert re.search(rf'\b{calls[0][0]} = document\.getElementById\(\'{chart}\'\)', js), (chart, calls)
+    groups = []
+    for prefix in ('mstar', 'pow2'):
+        sec = re.search(rf'<section class="{prefix}" .*?</section>', text, re.S).group(0)
+        [z] = re.findall(r'<div class="zoom">(.*?)</div>', sec, re.S)
+        z = ' '.join(re.sub(r'<!--.*?-->', '', z, flags=re.S).split()).replace(f'id="{prefix}-', 'id="')
+        assert re.findall(r'<button type="button" id="([\w-]+)"[^>]*>([^<]*)</button>', z) == [
+            ('zoom-out', '−'), ('zoom-in', '+'), ('reset', '↺')], (prefix, z)
+        groups.append(z)
+        assert re.search(rf'<(?:canvas|div) id="{prefix}-chart"[^>]* tabindex="0"', sec), prefix
+    assert groups[0] == groups[1], groups
+    style = re.sub(r'/\*.*?\*/', '', re.search(r'<style>(.*?)</style>', text, re.S).group(1), flags=re.S)
+    selectors = [s.strip() for sel in re.findall(r'([^{}]+)\{', style) for s in sel.split(',')]
+    assert [s for s in selectors if re.search(r'\bbutton\b', s)] == ['.zoom button', '.zoom button:disabled'], selectors
+
+
 def q_zoom_buttons_zoom_about_the_middle():
     # Replicata: the light run: the zoom buttons at load; a click of each from a view zoomed in 3 steps; then, from the
     # full view, clicks of + until it is disabled and then of − until it is disabled, the view measured after each; and
@@ -2335,49 +2428,58 @@ def q_hover_reads_out_cells():
     # Expectata: each readout is "n = N, m = M · BOUNDS · REASONS" for the hovered cell, BOUNDS being "m*(N) = lo"
     # when lo = hi and "lo ≤ m*(N) ≤ hi" otherwise; REASONS, joined by " · ": for a green cell (m ≤ lo) one that
     # names order lo, for a red cell (m > hi) one that names order hi + 1, for a gray cell both; and for a cell ringed
-    # in gold (a323395_cells, since 2026-10-19) one more, naming a(m − 1).  (Until 2026-10-30 each was pinned as a
-    # Claude: "…" string starting "order …", and the gold one as ring_note.)  Every column, n = 2,
-    # 4, 8, 12, …, 1024, is read out in both runs.
-    for name in ('light', 'kinds'):
+    # in gold one more, a note naming order m: a proven one's (a323395_cells, since 2026-10-19) naming a(m − 1) too, a
+    # known one's and a not-ruled-out one's (smallest_rings, since 2026-10-30) each the same for every m but for its
+    # numbers, and the three notes different.  (Until 2026-10-30 each was pinned as a Claude: "…" string starting
+    # "order …", and the gold one as ring_note.)  Every column, n = 2, 4, 8, 12, …, 1024, is read out in both runs.
+    for name in ('kinds', 'light'):                                 # light last: its notes are checked after the loop
         R = valid_run(name)
         cols = json.loads(kinds_data()[len('const MSTAR = '):-2])['cols'] if name == 'kinds' else mstar_data()['cols']
         assert {n for n, _, _ in R['hovers']} == set(COLUMNS), name
-        rings = a323395_cells(cols)
+        rings, notes = smallest_rings(cols), {}
         for n, m, text in R['hovers']:
             lo, hi = cols[n - 1][:2]
             bounds = f'm*({n}) = {lo}' if lo == hi else f'{lo} ≤ m*({n}) ≤ {hi}'
+            note = {1: rf'\border {m}\b', 2: rf'\border {m}\b', 3: rf'\border {m}\b.*{re.escape(f"a({m - 1})")}'}
             reasons = ([rf'\border {lo}\b'] * (m <= hi) + [rf'\border {hi + 1}\b'] * (m > lo)
-                       + [re.escape(f'a({m - 1})')] * ((n, m) in rings))
+                       + [note[r] for r in [rings.get((n, m), 0)] if r])
             got = re.fullmatch(r'n = (\d+), m = (\d+) · (.*?) · (.*)', text)
             assert got and (int(got[1]), int(got[2]), got[3]) == (n, m, bounds), (name, n, m, text)
             parts = got[4].split(' · ')
             assert len(parts) == len(reasons) and all(re.search(r, p, re.I) for p, r in zip(parts, reasons)), (name, n, m, text)
+            if (n, m) in rings: notes.setdefault(rings[(n, m)], set()).add(re.sub(r'\d+', '#', parts[-1]))
+        assert all(len(v) == 1 for v in notes.values()) and len(set.union(*notes.values())) == len(notes), (name, notes)
+    assert set(notes) == {1, 2, 3}, notes                           # the light run reads out all three
 
 
 def q_hover_swatch_matches_gold_trim():
     # Replicata: the light and kinds runs' hover sweeps, sampling the readout swatch after each cell selection.
-    # Expectata: all proven OEIS cells (all 11 in the real data) have a 2 px gold ring on their swatch, every other
-    # swatch has no ring, and its fill retains the cell's exists/open/impossible color.  The sweeps include both
-    # directions of transition between record and ordinary cells, so a ring cannot persist after leaving a record.
+    # Expectata: every ringed cell (smallest_rings, since 2026-10-30; the 11 proven ones alone before) has a 2 px gold
+    # ring on its swatch, and a proven one also a gold dot at its middle (a radial gradient of --record; Claude's
+    # proposal, 2026-10-30), every other swatch has neither, and its fill retains the cell's exists/open/impossible
+    # color.  The sweeps include both directions of transition between ringed and ordinary cells, so a ring cannot
+    # persist after leaving one.
     # Resultata: each assertion reports the hovered cell and its expected and computed CSS values.
     rgb = lambda h: 'rgb(' + ', '.join(str(int(h[i:i + 2], 16)) for i in (1, 3, 5)) + ')'
     assert a323395_cells(mstar_data()['cols']) == [(n, m) for m, n in enumerate(SMALLEST_PROVEN, 1)]
     for name in ('light', 'kinds'):
         R = valid_run(name)
         cols = json.loads(kinds_data()[len('const MSTAR = '):-2])['cols'] if name == 'kinds' else mstar_data()['cols']
-        rings = set(a323395_cells(cols))
+        rings = smallest_rings(cols)
         swatches = R['swatches']
-        assert rings <= {(n, m) for n, m, _, _ in swatches}, (name, rings, swatches)
+        assert set(rings) <= {(n, m) for n, m, *_ in swatches}, (name, rings, swatches)
         assert {(False, True), (True, False)} <= {
             (tuple(a[:2]) in rings, tuple(b[:2]) in rings) for a, b in zip(swatches, swatches[1:])}, name
         assert {0, 1, 2} == {(m <= cols[n - 1][0]) + (m <= cols[n - 1][1])
-                            for n, m, _, _ in swatches if (n, m) not in rings}, name
+                            for n, m, *_ in swatches if (n, m) not in rings}, name
         shadows = {False: 'none', True: rgb(R['tokens']['record']) + ' 0px 0px 0px 2px'}
-        for n, m, fill, shadow in swatches:
+        for n, m, fill, shadow, image in swatches:
             lo, hi = cols[n - 1][:2]
             kind = ('impossible', 'open', 'exists')[(m <= lo) + (m <= hi)]
-            want = (rgb(R['tokens'][kind]), shadows[(n, m) in rings])
-            assert (fill, shadow) == want, (name, n, m, 'expected', want, 'computed', (fill, shadow))
+            dot = rings.get((n, m)) == 3
+            want = (rgb(R['tokens'][kind]), shadows[(n, m) in rings], dot)
+            got = (fill, shadow, image.startswith('radial-gradient(') and rgb(R['tokens']['record']) in image)
+            assert got == want and (dot or image == 'none'), (name, n, m, 'expected', want, 'computed', (fill, shadow, image))
 
 
 def q_canvas_draws_only_numbers():

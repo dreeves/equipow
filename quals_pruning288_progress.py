@@ -162,7 +162,7 @@ class Pruning288ProgressQuals(unittest.TestCase):
         html = Path(progress.HERE, 'index.html').read_text()
         body = re.search(r'<template class="progress-pruning288">(.*?)</template>', html, re.S)
         self.assertIsNotNone(body)
-        for text in ('Astra: "', 'baseline', 'wider', 'no completion estimate', 'completed attempts'):
+        for text in ('Astra: “', 'baseline', 'wider', 'no completion estimate', 'completed attempts'):
             self.assertIn(text, body[1])
         for field in ('baseline_attempted', 'wider_attempted', 'baseline_empty', 'wider_empty',
                       'baseline_timeout', 'wider_timeout', 'baseline_seconds', 'wider_seconds'):
