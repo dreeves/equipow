@@ -528,10 +528,14 @@ class FanoutPauseQuals(unittest.TestCase):
     def test_pause432_records_read_as_pauses(self):
         # Replicata: a directory holding pause432.py, pause432.200.done.json (paused at 150.5 s, resumed in second 200)
         # and pause432.json (paused at 250.25 s, not resumed); then one holding pause432.py alone.
-        # Expectata: the pauses (150.5, 200) and (250.25, inf), in order; then none.
+        # Expectata: the pauses (150.5, 200) and (250.25, inf), in order; then none.  (2026-10-31: and a pause resumed
+        # in the second it began in, pause432.150.done.json paused at 150.5, ends where it began: (150.5, 150.5).)
         with tempfile.TemporaryDirectory() as d:
             pause_dir(d, {'pause432.json': pause432(250.25), 'pause432.200.done.json': pause432(150.5)})
             self.assertEqual(progress.pause432_pauses(d), [(150.5, 200), (250.25, math.inf)])
+        with tempfile.TemporaryDirectory() as d:
+            pause_dir(d, {'pause432.150.done.json': pause432(150.5)})
+            self.assertEqual(progress.pause432_pauses(d), [(150.5, 150.5)])
         with tempfile.TemporaryDirectory() as d:
             self.assertEqual(progress.pause432_pauses(pause_dir(d, {})), [])
 
@@ -539,7 +543,9 @@ class FanoutPauseQuals(unittest.TestCase):
         # Replicata: pause432_pauses of a directory holding a pause record that lacks a field or has one more, procs
         # empty or not a list, a process whose pid is not an int above 0 or whose start time is not a nonempty string,
         # or not a pair, a watchdog not a pair, paused_at not a finite number from 0; a file named pause432.x.done.json
-        # or pause432.200.json; a pause resumed in a second before it began; two pauses that overlap, done or not.
+        # or pause432.200.json; a pause resumed in a second before the one it began in (149 for 150.5; 2026-10-31: 150
+        # was here, the second it began in, which a pause shorter than a second legitimately has); two pauses that
+        # overlap, done or not.
         # Expectata: AssertionError, each: a malformed pause cannot move the run's time.
         good = pause432(150.5)
         bad = [{'pause432.200.done.json': {k: v for k, v in good.items() if k != 'watchdog'}},
@@ -551,7 +557,7 @@ class FanoutPauseQuals(unittest.TestCase):
                {'pause432.200.done.json': dict(good, watchdog=[18826])},
                *({'pause432.200.done.json': dict(good, paused_at=t)} for t in ('150.5', None, -1.0, float('nan'), float('inf'), True)),
                {'pause432.x.done.json': good}, {'pause432.200.json': good},
-               {'pause432.150.done.json': good},
+               {'pause432.149.done.json': good},
                {'pause432.200.done.json': good, 'pause432.300.done.json': pause432(190.0)},
                {'pause432.200.done.json': good, 'pause432.json': pause432(100.0)}]
         for files in bad:

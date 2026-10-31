@@ -10578,7 +10578,7 @@ on the cloud compute question in particuilar, do all the work you can and then i
 <header><p class="speaker">dreev</p></header>
 <pre class="prompt">are you able to tackle more tasks while sub-agents run? if so, there are some tasks in the readme that shouldn't need input from me: the rest of FAC, MIN. and IND</pre>
 <details>
-<summary><a class="anchor" href="#p527"><time datetime="2026-10-31T14:48:23.698000+00:00">14:48</time></a> <span class="chip"></span> <span class="agent">Claude Code</span> <span class="model">claude-opus-5-5</span> <span class="effort">(max)</span> <span class="elapsed">thought for 13m55s · 53m51s wall-clock time</span></summary>
+<summary><a class="anchor" href="#p527"><time datetime="2026-10-31T14:48:23.698000+00:00">14:48</time></a> <span class="chip"></span> <span class="agent">Claude Code</span> <span class="model">claude-opus-5-5</span> <span class="effort">(max)</span> <span class="elapsed">thought for 2h41m26s · 3h24m52s wall-clock time</span></summary>
 <div class="reply machine"><p>The memory fix passed every check: byte-identical output, the footprint down from 6.0 to 2.2 GB, and 239 of 240 suites (the one failure predates it). Restarting the watcher on it now.</p>
 <p>Yes, other work can go on while sub-agents run, and all three README items are in hand.</p>
 <p><strong>[IND] and [MIN]</strong> are being done by an agent now:</p>
@@ -10603,7 +10603,23 @@ on the cloud compute question in particuilar, do all the work you can and then i
 <p><strong>Important for your machine:</strong> don&#x27;t run <code>brew upgrade</code> on gmp until a(11)&#x27;s final recheck has finished. The run pins the exact GMP library files. A changed library would stop its next restart and the final recheck, though nothing breaks while the current session runs.</p>
 <p><strong>Dashboard fix underway:</strong> an agent is making the page show every remaining stage to a result, so no ETA covers only part of the way.</p>
 <ul><li><strong>432:</strong> the search, then the assembly step, then the recheck.</li><li><strong>288:</strong> the pass, then the boxsplit step, the handoff and the final pass.</li><li><strong>How:</strong> the estimates come from measured costs recorded with their sources, under one compact line per run.</li></ul>
-<p><strong>New names from the deploy:</strong> <code>NativeCheck</code>, <code>native_bound_of</code>, <code>NATIVE_SHA256</code>, &quot;dual&quot; (the recheck&#x27;s first attempt) and <code>Variant.old</code>.</p></div>
+<p><strong>New names from the deploy:</strong> <code>NativeCheck</code>, <code>native_bound_of</code>, <code>NATIVE_SHA256</code>, &quot;dual&quot; (the recheck&#x27;s first attempt) and <code>Variant.old</code>.</p>
+<p>The dashboard now shows every stage to a result. The watcher restarted on it at 09:45.</p>
+<p>Each run gets one line under its ETA chart naming the later stages, with estimates built from measured costs and the run&#x27;s own share of the machine. The new data file <code>stages.json</code> records those costs with their sources.</p>
+<p>| Run | Stages after the current one | To a recordable result |<br>|---|---|---|<br>| 432:12 | search about 8.5 days, assembly about 19 h, final recheck 6–7.7 days | about 14.5–17.8 days |<br>| 288:10 | boxsplit step, about 255 days at the median | median about 258 days (156 days to 1.2 years) |</p>
+<p>Two caveats:</p>
+<ul><li>432&#x27;s line shows &quot;—&quot; while 432 is paused for the 1008:13 seeds. Its estimate is only computed while it runs.</li><li>288&#x27;s boxsplit figure is too low, not too high. It uses the faster candidate&#x27;s measured cost, but the copy still installed takes about twice the CPU.</li></ul>
+<p><strong>Next for 288:</strong> an agent is preparing everything its boxsplit step needs before 288 resumes:</p>
+<ul><li>the 2× faster boxsplit candidate;</li><li>the GMP exact check that made 432&#x27;s workers 2.5× faster, applied to the cost that dominates heavy boxsplit cases;</li><li>the fix for the handoff bug;</li><li>a launcher that restarts at the boxsplit step without replaying the pass.</li></ul>
+<p>It prepares and qualifies only, and the deploy happens when 288 is due to resume.</p>
+<p><strong>New names for you to look over:</strong> <code>stages.json</code>, and the terms &quot;chain&quot;, &quot;stage&quot;, &quot;share&quot; and &quot;recordable result&quot;. The full list is in <code>scratch/stages-20261031/NOTES.md</code>.</p>
+<p>The 288 bundle is staged, with the boxsplit step expected to drop from about 67 to 34 CPU s per leaf. But first, an urgent find: 432&#x27;s row on the dashboard has been stale since 10:03. Checking the proposed fix.</p>
+<p>Two updates.</p>
+<p><strong>Fixed: 432&#x27;s dashboard row had been stale since 10:03.</strong> A pause shorter than one second broke it. The pause tool names its records by the whole second, so that record seemed to end before it began, and the page&#x27;s reader refused it.</p>
+<ul><li>The reader now accepts an end within the same second as the start, and still rejects one in an earlier second.</li><li>All progress suites pass, including <code>quals_progress</code> 117/117.</li><li>The watcher restarted on the fix at 11:12.</li></ul>
+<p><strong>288&#x27;s boxsplit bundle is staged, not deployed.</strong> It goes in when 288 resumes, behind 432.</p>
+<ul><li><strong>Speed:</strong> the 2× faster boxsplit, plus the GMP exact check (2× more on 288, measured 1.98×). The step drops from about 67 to about 34 CPU s per open leaf: about 156 days at today&#x27;s machine load, or 47 days with full cores, instead of about a year.</li><li><strong>Fixes included:</strong></li><li>the handoff bug;</li><li>a qual that could write the live journal if run in place;</li><li>a real solver bug: a state left broken after a failed solve made a later restore crash;</li><li>a launcher that restarts 288 at the boxsplit step without replaying the pass.</li><li><strong>Still unaddressed:</strong> the boxsplit step&#x27;s start peaks at 4–6 GB of memory, and the handoff at 5–10 GB, on this 16 GB machine.</li></ul>
+<p><strong>New names:</strong> several, including <code>native_rows</code>, <code>run288box.py</code> and <code>deploy4.py</code>. The full list is in <code>scratch/ready288-20261031/NOTES.md</code>.</p></div>
 </details>
 </article>
 </main>

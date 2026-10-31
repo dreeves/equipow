@@ -1,0 +1,127 @@
+{
+ "about": "The later stages of each search, in order, to a recordable result, and what each costs: progress.py (stages_of) estimates each later stage from the run's own count of the unit each part is per, that part's CPU seconds per unit (cpu: median and the 5% and 95% quantiles of its uncertainty), its processes, and the share of a core the run's workers get now.  A stage with run is a run of its own, surveyed by progress.py while it runs.  Written by scratch/stages-20261031/derive.py, whose measurements are in scratch/stages-20261031/derive.json.",
+ "chains": [
+  [
+   {
+    "stage": "fanout.py",
+    "run": [
+     "fanout.py",
+     432,
+     12
+    ]
+   },
+   {
+    "stage": "fanout.assemble",
+    "parts": [
+     {
+      "per": "token",
+      "processes": 1,
+      "cpu": {
+       "median": 2.807993226445418e-06,
+       "lo": 2.7301267084467004e-06,
+       "hi": 2.8879283063597763e-06
+      },
+      "source": "scratch/stages-20261031/assembly_files_1_300.json (assembly_files.py); scratch/check432-20261031/assembly_cost.json for comparison: 2.93 us a token on 150 files",
+      "date": "2026-10-31 09:32",
+      "conditions": "fanout.load, fanout.frontier, Lex.status and fanout.brief of 300 job files drawn at random from scratch/fanout432/jobs (3,795,939 tokens), per token, in one process at nice 19, the live machine loaded; the driver assembles serially after its last job and before it writes its finish (fanout.py run, assemble).  Band: bootstrap over the files."
+     }
+    ]
+   },
+   {
+    "stage": "reprove.py",
+    "parts": [
+     {
+      "per": "token",
+      "processes": 1,
+      "cpu": {
+       "median": 3.1467081004199475e-06,
+       "lo": 3.0672034588248467e-06,
+       "hi": 3.228440073782411e-06
+      },
+      "source": "scratch/stages-20261031/assembly_files_1_300.json (assembly_files.py)",
+      "date": "2026-10-31 09:32",
+      "conditions": "reprove.py runs fanout.finished (load and brief of every job file) and then fanout.assemble, serially, before its reproofs; measured as the driver's assembly part, with load and brief counted twice.  Band: bootstrap over the files."
+     },
+     {
+      "per": "token",
+      "processes": 8,
+      "cpu": {
+       "median": 0.0001716619894795922,
+       "lo": 0.0001589005023870589,
+       "hi": 0.0001895316650727872
+      },
+      "source": "scratch/check432-20261031/measure_q3.json (measure_q3.py)",
+      "date": "2026-10-31 07:45",
+      "conditions": "The installed reprove.py (Q3, reprove_code 563b7394...; GMP exact bound), its walk of 12 trees (8 corpus trees and 4 whole job files, 76,613 nodes, a node a token), ABBA against Q2, CPU by process_time at nice 19, one BLAS thread; reprove.py runs fanout.WORKERS = 8 worker processes.  Band: bootstrap over the trees (the four job files hold 92% of the nodes); the bench of 06:44 measured Q2 7% higher than this run did, a difference between sessions that the band leaves out."
+     }
+    ]
+   }
+  ],
+  [
+   {
+    "stage": "overnight_v5.py",
+    "run": [
+     "overnight_v5.py",
+     288,
+     10
+    ]
+   },
+   {
+    "stage": "boxsplit.py",
+    "run": [
+     "boxsplit.py",
+     288,
+     10
+    ],
+    "parts": [
+     {
+      "per": "open leaf",
+      "processes": 10,
+      "cpu": {
+       "median": 66.96107921377742,
+       "lo": 45.549419564186074,
+       "hi": 100.23298315180656
+      },
+      "source": "scratch/boxsplit288-b-20261030/estimate_final2_r1.json (estimate.py), arms 1000 per_leaf_cpu_s; NOTES.md there, \"The whole boxsplit step at B1 = 1000\"",
+      "date": "2026-10-30 23:22",
+      "conditions": "The candidate scratch/boxsplit288-b-20261030/candidate/boxsplit.py (sha256 739b54eb..., EXTENSION ((11, 13), (1000, 2000000))) on the certbb of 2026-10-30 19:42 (fastlp), nice 19, one BLAS thread, load 110-166: 40 uniform leaves (u60f), 3 heavy (heavy4f) and 8 loose (loose8), loose leaves censored at 150-300 s; per leaf, base + own children by slack band, weighted by round a's 1,000-leaf survey.  Band: that estimate's bootstrap. The installed scratch/x288/boxsplit.py (sha256 6cd66f4a...) is not this code: on the uniform leaves it took 2.03 times this CPU (1.81-2.21), on loose leaves less; until the candidate is installed this cost is a floor.  The step runs v5.PROCESSES = 10 workers."
+     }
+    ]
+   },
+   {
+    "stage": "handoff288.py",
+    "parts": [
+     {
+      "per": "open leaf",
+      "processes": 1,
+      "cpu": {
+       "median": 0.00012476430521102106,
+       "lo": 0.00010673486811507542,
+       "hi": 0.00014583923819539747
+      },
+      "source": "scratch/boxsplit288-b-20261030/mem_handoff.out (mem_handoff.py)",
+      "date": "2026-10-30 18:25",
+      "conditions": "scratch/x288/handoff288.handoff on prefixes of the live journal, one process at nice 19: 3.21 CPU s for 30,102 closed leaves, 15.04 for 120,533.  Median the larger's per leaf, low end the smaller's, high end the growth between them applied once more: the handoff will close about ten times as many leaves."
+     }
+    ]
+   },
+   {
+    "stage": "overnight_v5.py",
+    "parts": [
+     {
+      "per": "open leaf",
+      "processes": 10,
+      "cpu": {
+       "median": 0.028774146535376854,
+       "lo": 0.025564568593375688,
+       "hi": 0.030192490506357406
+      },
+      "source": "scratch/x288/overnight_v5_288_10.log; ps; scratch/x288/pauses.jsonl",
+      "date": "2026-10-31 09:32",
+      "conditions": "The final pass splits again every node above the bottom that the journal holds UNKNOWN, as each restart of the pass did: the worker seconds of those splits over the open leaves walked past, at the restarts of 2026-10-30 00:04, 17:23 and 19:43 (0.06003, 0.06757, 0.07090 s an open leaf: low, median and high), times the share of a core the current pass's 10 workers got, 0.4258 (ps: their CPU over their seconds of running, the pauses left out).  The three restarts ran at shares not measured, so the band mixes the cost's spread with the machine's.  Leaves out the journal's loading and the startup control, minutes."
+     }
+    ]
+   }
+  ]
+ ]
+}

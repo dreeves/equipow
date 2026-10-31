@@ -11,7 +11,8 @@
 // median marked); the sea, one dot per sub-case of the data's groups, each group a block of cells (strips below), cells
 // of pitch px, chosen from 10 down to 2 px so that the sea is at most about 560 px tall, a dot a device px short of its
 // cell (none short below 3 device px); and progress.html's ETA chart
-// (eta_chart there: dreeves's design), from the run's recorded ETAs.
+// (eta_chart there: dreeves's design), from the run's recorded ETAs; and below the status line, for a run with stages
+// after its own, those stages to a recordable result (stagesView, 2026-10-31).
 // Strips: an ordered strip layout (Bederson, Shneiderman and Wattenberg 2002) on whole cells.  The groups, in order,
 // fill strips across the cols; a strip's blocks share its height h, each as wide as its count needs at that height, a
 // cell's gap between blocks and between strips; h is the least at which the strip's blocks fit across, and a strip
@@ -24,6 +25,7 @@
   const runsBox = section.querySelector('.progress-runs');
   const template = section.querySelector('template.progress-run');
   const line = section.querySelector('template.progress-line');      // a snapshot's line: the status line's running form, and the tip
+  const stage = section.querySelector('template.progress-stage');    // one later stage in a run's line of stages
   const missing = section.querySelector('.progress-missing');
   const POLL = window.PROGRESS_POLL_MS || 60000;
   const KEPT = 'progress-open';                // localStorage: "1" while this browser last left the section open
@@ -63,6 +65,7 @@
   const dur = (sec, fmt) => `${fmt(sec / unitOf(sec)[0])}\u202f${unitOf(sec)[1]}`;   // fmt's number, a narrow no-break space, the unit
   // a range of durations, its unit once when both ends share it: "0.5–3.0 h", "149.9 d–6.4 y"
   const range = (lo, hi, fmt) => unitOf(lo) === unitOf(hi) ? `${fmt(lo / unitOf(lo)[0])}–${dur(hi, fmt)}` : `${dur(lo, fmt)}–${dur(hi, fmt)}`;
+  const ranged = g => g ? range(g.lo, g.hi, tenth) : '—';             // an estimate's range ({lo, hi}), or — with none
   // A snapshot's line (template.progress-line), into el's fields: the snapshot's time t, its seconds of running so far
   // x and its estimate g of the seconds to go ({lo, hi}; null: none), as the frozen, paused, completed and aborted forms
   // take them too.
@@ -70,7 +73,7 @@
   const snapshot = (el, t, x, g) => {
     fill(el, 'when', stamp(t));
     fill(el, 'so-far', dur(x, tenth));
-    fill(el, 'to-go', g ? range(g.lo, g.hi, tenth) : '—');
+    fill(el, 'to-go', ranged(g));
     fill(el, 'sum', g ? range(x + g.lo, x + g.hi, hrs) : '—');
     fill(el, 'done', g ? finish(t, t + g.lo, t + g.hi) : '—');
   };
@@ -157,6 +160,7 @@
       if (run.tracked) trackView(box, run);
       const L = sea(box, run);
       L.etaXs = etaChart(box.querySelector('.progress-eta'), run);
+      stagesView(box, run);
       return L;
     });
     runsBox.replaceChildren(...boxes);
@@ -197,6 +201,26 @@
     attemptView(box, run, 'progress-track', 'progress-track-hint');
     status.prepend(...line, document.createElement('br'));
     box.querySelector('.progress-eta').hidden = false;
+  }
+
+  // A run's stages to a recordable result, under its status line (progress.py's stages; the coordinator, 2026-10-31,
+  // after the page's ETA had covered only the stage running, twice in two days): the program its chart covers, each
+  // later stage with the range of its time to go, and the range to a recordable result, each — with no estimate.
+  // Shown for a run with a stage after its own; a run of one stage has none (no stages in its entry, as in a data file
+  // written before then).
+  function stagesView(box, run) {
+    const p = box.querySelector('[data-stages]'), later = (run.stages ?? []).slice(1);
+    p.hidden = !later.length;
+    fill(p, 'stage-now', run.program);
+    const items = later.map(s => {
+      const item = stage.content.firstElementChild.cloneNode(true);
+      fill(item, 'stage-name', s.name);
+      fill(item, 'stage-to-go', ranged(s.to_go));
+      return item;
+    });
+    items.slice(1).forEach(item => item.prepend(', '));
+    p.querySelector('[data-stages-later]').replaceChildren(...items);
+    fill(p, 'stages-total', ranged(run.total));
   }
 
   function bar(box, run) {

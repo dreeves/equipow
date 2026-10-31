@@ -182,9 +182,9 @@ class GeometryCacheQuals(unittest.TestCase):
 
 
 class NativeTrackQuals(unittest.TestCase):
-    def record(self, target='288:10', end=0, command=None, cwd=None):
+    def record(self, target='288:10', end=0, command=None, cwd=None, first=0):
         steps = (('overnight_v5.py', '288', '10'), ('boxsplit.py', '288', '10'),
-                 ('handoff288.py',), ('overnight_v5.py', '288', '10'))
+                 ('handoff288.py',), ('overnight_v5.py', '288', '10'))[first:]
         script = ' && '.join(shlex.join(['/opt/homebrew/bin/python3', '-B', *step]) for step in steps)
         lines = quals_progress.track_record('native', 987, end, None, 1000)
         lines[0].update(target=target, program='sh', command=command or shlex.join(['/bin/sh', '-c', script]),
@@ -196,6 +196,16 @@ class NativeTrackQuals(unittest.TestCase):
         # Expectata: identity comes from its recorded command and cwd, independent of live process ancestry.
         for end in (None, 0, -15):
             self.assertTrue(progress.native288(self.record(end=end)[0]))
+
+    def test_the_chain_from_its_boxsplit_step_is_recognized(self):
+        # Replicata (2026-10-31, scratch/ready288-20261031): the chain as run288box.py restarts it, from its boxsplit
+        # step (boxsplit.py 288 10, handoff288.py, overnight_v5.py 288 10), with and without its end record; then the
+        # chain from its handoff, and from its final pass, which no launcher starts.
+        # Expectata: the first two are the native chain, which its box survey shows; the others are not.
+        for end in (None, 0, -15):
+            self.assertTrue(progress.native288(self.record(end=end, first=1)[0]))
+        for first in (2, 3):
+            self.assertFalse(progress.native288(self.record(first=first)[0]))
 
     def test_other_commands_targets_and_directories_remain_visible(self):
         # Replicata: another same-target heuristic, another target, another cwd, or another shell program.

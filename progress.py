@@ -193,13 +193,36 @@ The estimate's model, its terms defined once here (overnight_v5.py's search() is
               and the ETA chart's axis) and out of every duration that its processes clock by the wall clock, which runs
               on while they are stopped: a fanout job's seconds (from its job_start), a progress line's solve and split
               (up to the line), a running node's age (from its start).
+  chain       the stages a search goes through to a recordable result (2026-10-31: the page's ETA covered only the
+              stage running, twice in two days: 288:10's first pass, with its boxsplit step, handoff and final pass to
+              come, and 432:12's fanout, with assembly and reprove.py to come), in order, as STAGES lists them (read
+              from STAGES_FILE, stages.json, which scratch/stages-20261031/derive.py writes): each stage a name, and a
+              run of its own (run: its program, n and order, which this file surveys while it runs) or not; every stage
+              after the first with its parts, each the CPU seconds a unit of the run's work costs (per: one of UNITS),
+              measured (cpu: its median and QUANTILES), on so many processes, with its provenance (source, date,
+              conditions).  A recordable result: one the page may record, 432:12's after reprove.py, 288:10's after
+              its final pass.
+  share       of a run: the CPU seconds its workers (the children of its main process that multiprocessing spawned,
+              SPAWNED) have used over their seconds of running (each one's since it began, less the run's pauses):
+              the share of a core one process of the run gets on this machine now (share_of, from ps by cpu_times);
+              none without a live worker.  A later stage is taken to get the same share a process.
+  stages      of a run in a chain, not ended: its own (its program and to_go), then each stage after it in its chain,
+              each with its estimate: one value a replicate of the run's estimate, the sum over the stage's parts of
+              the run's count of the part's unit times the part's cpu (drawn) over its processes times the run's
+              share; and total, the time to go to a recordable result, every stage's summed replicate by replicate.
+              The run's counts: a fanout.py run's tokens, its jobs' LP solves done and the pool estimate's to go
+              (pool_draws), one LP solve a token; an overnight_v5.py pass's open leaves at its end, those open now times
+              its growth, 1 + the estimate's work to go over the work its estimate's span has done (span_work: the same
+              worker seconds), so that open leaves are taken to come in proportion to work; a boxsplit.py pass's
+              leaves.  None without an estimate of the run's (no draws), with no work logged, or without a share.
+              stages_of makes them.
 The data file says when the snapshot was made, to the second, and the section keeps its age up to date.  Per run it
 gives the state, the hours of running so far and to go, the record of ETAs and the sea (see js_text).
 """
 import sys
 sys.dont_write_bytecode = True
 import os, re, gc, json, math, time, bisect, itertools, subprocess, collections, glob, functools, shlex, signal, contextlib
-import struct, traceback
+import struct, traceback, statistics
 import numpy as np
 import overnight_v5 as v5
 import boxsplit as bx
@@ -240,6 +263,10 @@ ETA_POINTS = 400                       # the most recorded ETAs the data file ca
 LIMIT = 120                            # seconds a run's survey may take in a snapshot, before overruns (see snapshot)
 STEP = 20000                           # lines, records or keys a reading takes in one atomic block (see atomic)
 DRAWS = 1 << 28                        # the most numbers an urn may hold (see Urn): 2 GiB of float64
+STAGES_FILE = os.path.join(HERE, 'stages.json')   # the searches' chains (see the vocabulary), read once as this loads
+UNITS = ('token', 'open leaf')         # what a part's cpu can be per (see chain): a fanout's token, a pass's open leaf
+SPAWNED = 'from multiprocessing.spawn import spawn_main'   # in the command of a worker multiprocessing spawned (see share)
+ZS = tuple(statistics.NormalDist().inv_cdf(q) for q in QUANTILES)   # QUANTILES of the standard normal (see drawn)
 
 
 # ---------- surveys bounded in time (2026-10-30: one run's 90-minute snapshot froze the whole page) ----------
@@ -1722,13 +1749,21 @@ def estimate(state, parts=None, view=None):
 # ---------- one run ----------
 
 
-def survey(n, order, journal, log, procs, now, cache, etas, reading=None, pauses=()):
+def span_work(parts, view):
+    """The worker seconds of the work the estimate's span has done (see stages in the vocabulary), from estimate's
+    parts and view: the root's cost so far in this pass and its history's, the first costs of the contiguous earlier
+    passes of its kind less this pass's repeats of them (history_costs), so that a restart's replay counts once."""
+    return parts['sofar'][view.root] + view.history()[1].get('', 0.0)
+
+
+def survey(n, order, journal, log, procs, now, cache, etas, reading=None, pauses=(), times=None):
     """The run (n, order) as its journal and log, the process list and the time now (epoch seconds) show it: what the
     data file needs of it, and more; cache holds the run's splits (see children), etas its record of ETAs (see the
     vocabulary), to which this snapshot's is added: [the median of its draws, then their QUANTILES], None with none (an
     ended run has none), by its time in whole seconds.  reading is the watcher's Reading of the run, kept between
     snapshots; by default a new one, which reads the files whole: the same survey.  pauses are the run's (see the
-    vocabulary; by default none): its passes, so far, the ETA chart's axis and its estimate leave them out."""
+    vocabulary; by default none): its passes, so far, the ETA chart's axis and its estimate leave them out.  Its stages
+    (stages_of): its open leaves at the pass's end (see stages in the vocabulary), its share by times (see share_of)."""
     v5.configure(n, order)
     reading = Reading(journal, log) if reading is None else reading
     # TODO: error copy; says the watcher's reading of a run was handed another run's files, naming both
@@ -1753,7 +1788,12 @@ def survey(n, order, journal, log, procs, now, cache, etas, reading=None, pauses
     opens = tree.open_list()
     spans = without_pauses([(q['start'], q['last']) for q in passes[:-1]] + [(p['start'], end)], pauses)
     view = reading.estimating(order, cache, end, f'{n}@{order} at {clock(end)}', pauses) if state != 'ended' else None
-    draws = estimate(view.state, view=view) if view is not None else None
+    parts = {}                                                  # the estimate's pieces: its work to go, its costs so far
+    draws = estimate(view.state, parts, view) if view is not None else None
+    hours = draws if draws is not None and len(draws) else None    # its replicates, hours to go; None without an estimate
+    done = 0.0 if hours is None else span_work(parts, view)
+    # open at the pass's end; none without an estimate, or with no work logged yet (the log's tenths of seconds)
+    leaves = tally['open'] * (1 + parts['work'] / done) if done > 0 else None
     etas.setdefault(str(int(end)), [float(np.median(draws))] + [float(q) for q in np.quantile(draws, QUANTILES)] if draws is not None and len(draws) else None)   # a record made stands
     region, stack = (view.region, view.stack) if view is not None else ([], [])
     moving = [nd for nd in region if nd.state == 'running']      # in tree order
@@ -1773,7 +1813,9 @@ def survey(n, order, journal, log, procs, now, cache, etas, reading=None, pauses
             'levels': rows, 'deepest': len(levels) - 1,
             'processes': p['processes'],
             'work': work_of(levels[-1], stats, reading.touched(len(levels) - 1)) if state != 'ended' else None,
-            'draws': draws, 'etas': etas, 'open_list': opens}
+            'draws': draws, 'etas': etas, 'open_list': opens} | stages_of(
+                ('overnight_v5.py', n, order), state, to_go, hours, {'open leaf': leaves},
+                share_of(procs, runs(procs, 'overnight_v5.py', n, order), pauses, now, times))
 
 
 # ---------- a run's boxsplit pass (boxsplit.py over its open leaves; dreeves, 2026-10-17) ----------
@@ -1913,10 +1955,16 @@ BOOT = 200                             # its bootstrap replicates, and those of 
 
 
 def pool_estimate(samples, pool, n, rate, floor):
-    """The pool estimate (see the vocabulary) as [median, lo, hi] hours to go: samples [(depth, LP solves, open boxes'
-    depths)], pool {depth: boxes}, n the deepest a box can be, rate the pool's LP solves a second, floor the LP solves
-    every draw is at least."""
-    assert samples and pool and max(pool) <= n and rate > 0
+    """The pool estimate (see the vocabulary) as [median, lo, hi] hours to go: pool_draws at rate, the pool's LP solves
+    a second."""
+    assert rate > 0
+    return quantiles(pool_draws(samples, pool, n, floor) / rate / HOUR)
+
+
+def pool_draws(samples, pool, n, floor):
+    """The pool estimate's BOOT replicates of the LP solves to go (see the vocabulary): samples [(depth, LP solves, open
+    boxes' depths)], pool {depth: boxes}, n the deepest a box can be, floor the LP solves every draw is at least."""
+    assert samples and pool and max(pool) <= n
     rng = np.random.default_rng(SEED)
     bands = sorted({d // BAND for d, _, _ in samples})
     near = [min(bands, key=lambda b: (abs(b - d // BAND), -b)) for d in range(n + 1)]   # the deeper on a tie
@@ -1934,7 +1982,7 @@ def pool_estimate(samples, pool, n, rate, floor):
         cost, below = means[near[d]]
         T[:, d] = cost + (below * T[:, d:d + width]).sum(axis=1)
     total = sum(count * T[:, d] for d, count in pool.items())
-    return quantiles(np.maximum(total, floor) / rate / HOUR)
+    return np.maximum(total, floor)
 
 
 def box_work(u, d, c, at, pending):
@@ -1955,11 +2003,17 @@ def box_work(u, d, c, at, pending):
 
 
 def box_estimate(walls, ages, pending, workers):
-    """A boxsplit pass's estimate (see survey_box): ([median, lo, hi] hours to go, whether restricted), box_work of its
-    started leaves (walls, the seconds of the done ones; ages, those so far of the running ones) over its workers, the
-    median and QUANTILES of BOOT bootstrap replicates, the started leaves drawn again with replacement (as counts over
-    the distinct (seconds, done or running) cells: memory and time by those cells); restricted, the started leaves'
-    own (box_work)."""
+    """A boxsplit pass's estimate (see survey_box): ([median, lo, hi] hours to go, whether restricted), the median and
+    QUANTILES of box_draws' replicates."""
+    hours, restricted = box_draws(walls, ages, pending, workers)
+    return quantiles(hours), restricted
+
+
+def box_draws(walls, ages, pending, workers):
+    """box_estimate's replicates: (BOOT replicates of the hours to go, whether restricted), box_work of the pass's
+    started leaves (walls, the seconds of the done ones; ages, those so far of the running ones) over its workers, in
+    each replicate the started leaves drawn again with replacement (as counts over the distinct (seconds, done or
+    running) cells: memory and time by those cells); restricted, the started leaves' own (box_work)."""
     # TODO: error copy; says a boxsplit estimate needs a started leaf, ages and pending not below 0, and a worker
     assert walls + ages and min(ages, default=0) >= 0 <= pending and workers > 0, 'Claude: "no estimate of these"'
     u, place = np.unique(np.array(walls + ages, dtype=float), return_inverse=True)
@@ -1969,7 +2023,7 @@ def box_estimate(walls, ages, pending, workers):
     rng = np.random.default_rng(SEED)
     hours = [box_work(u, *np.split(rng.multinomial(n, np.r_[d, c] / n).astype(float), 2), at, pending)[0]
              for _ in range(BOOT)]
-    return quantiles(np.array(hours) / workers / HOUR), box_work(u, d, c, at, pending)[1]
+    return np.array(hours) / workers / HOUR, box_work(u, d, c, at, pending)[1]
 
 
 def to_go_of(eta):
@@ -2013,11 +2067,12 @@ def censored(jobs):
     return sorted((max(a, l) for a, l in jobs), reverse=True), sum(max(a, l) - a for a, l in jobs)
 
 
-def survey_box(n, order, log, main, procs, now, etas, box=None):
+def survey_box(n, order, log, main, procs, now, etas, box=None, pauses=(), times=None):
     """The boxsplit pass of the run (n, order) as the driver's log, the run's journal (main, whose open leaves the
     driver works), the process list and the time now show it, in survey's shape: program boxsplit.py, its state, its
     seconds of running (its passes'), its estimate (to_go; see below) and record of ETAs (etas, to which this snapshot's
-    goes, as survey's), and its sea: one dot per open leaf, grouped and ordered as survey's sea, running if it started
+    goes, as survey's), its stages (stages_of: its open leaves its pass's leaves; its share by times, see share_of),
+    and its sea: one dot per open leaf, grouped and ordered as survey's sea, running if it started
     in the current pass of a running driver and is not done in it, else settled or open as its latest line saying it is
     done says its tree closed or not, else pending.  The log alone says all this, every pass's lines kept; the driver's
     journal is not read: the driver writes a leaf's done line and then its CLOSED record, so a reader of both could see
@@ -2034,32 +2089,38 @@ def survey_box(n, order, log, main, procs, now, etas, box=None):
     (nor of the end of a pass with fewer leaves left than workers, which the division by the workers puts early).
     Where the longest time seen is a running leaf's, nothing is known past it: the mean is restricted to it, a floor
     (restricted).  None when the driver is not running or no leaf of the pass has begun.  box is the watcher's Boxes of
-    the pass, kept between snapshots; by default a new one, which reads the files whole: the same survey."""
+    the pass, kept between snapshots; by default a new one, which reads the files whole: the same survey.  pauses are
+    the run's (see the vocabulary; by default none): left out of its spans of running, its leaves' wall seconds and its
+    running leaves' seconds so far (2026-10-31, scratch/ready288-20261031: 288@10's boxsplit step is stopped and
+    continued with its chain)."""
     files(n, order)                     # overnight_v5 configured for the run, with its copy's settings if it has one
     box = Boxes(log) if box is None else box
     # TODO: error copy; says the watcher's reading of a boxsplit pass was handed another driver's log, naming both
     assert box.log == log, f'Claude: "a reading of {box.log} given {log}"'
-    leaves, passes = box.advance(main)
+    leaves, passes = box.advance(main, pauses)
     p = passes[-1]
     # TODO: error copy; says the driver's log's last start line names another length, order or count of open leaves than the run's journal
     assert (p['n'], p['order'], p['leaves']) == (n, order, len(leaves)), f'Claude: "the boxsplit log of {n} {order} does not match its run"'
     state = run_state(procs, 'boxsplit.py', n, order, p['outcome'])
     end = now if state == 'running' else max([p['last'], *map(float, etas)])   # every ETA is recorded while it runs
-    spans = [(q['start'], q['last']) for q in passes[:-1]] + [(p['start'], end)]
+    spans = without_pauses([(q['start'], q['last']) for q in passes[:-1]] + [(p['start'], end)], pauses)
     running = {i: p['starts'][i] for i in box.active} if state == 'running' else {}
     sea = box.sea(running)
     assert len(box.walls) + len(box.active) == len(p['starts']), log  # each leaf started in the pass done or at work
-    walls = box.walls                                                # the pass's done leaves' wall seconds
-    ages = sorted(now - t for t in running.values())                 # its running leaves' seconds so far
+    walls = box.walls                                                # the pass's done leaves' wall seconds, less pauses
+    ages = sorted(now - t - within_pauses(t, now, pauses) for t in running.values())     # its running leaves' so far
     pending = p['leaves'] - p['on_record'] - len(p['starts'])        # its leaves the driver has yet to start
     assert pending >= 0, log
-    eta, restricted = (box_estimate(walls, ages, pending, p['processes']) if state == 'running' and walls + ages
-                       else (None, None))
+    hours, restricted = (box_draws(walls, ages, pending, p['processes']) if state == 'running' and walls + ages
+                         else (None, None))
+    eta = None if hours is None else quantiles(hours)
     etas.setdefault(str(int(end)), eta)   # a record made stands
     to_go = to_go_of(eta)
+    share = share_of(procs, runs(procs, 'boxsplit.py', n, order), pauses, now, times)
     return {'program': 'boxsplit.py', 'n': n, 'order': order, 'state': state, 'outcome': p['outcome'],
             'so_far': sum(b - a for a, b in spans), 'to_go': to_go, 'restricted': restricted, 'passes': spans,
-            'etas': etas, 'sea': sea}
+            'etas': etas, 'sea': sea} | stages_of(('boxsplit.py', n, order), state, to_go, hours,
+                                                   {'open leaf': p['leaves']}, share)
 
 
 class Boxes:
@@ -2075,8 +2136,10 @@ class Boxes:
         self.done, self.active, self.walls = {}, set(), []
         self.used, self.moved, self.shown = 0, set(), set()   # events taken; leaves moved since drawn; drawn running
 
-    def advance(self, main):
-        """Take what the driver's log gained and the run's leaves, each step atomic: (the leaves, the passes)."""
+    def advance(self, main, pauses=()):
+        """Take what the driver's log gained and the run's leaves, each step atomic: (the leaves, the passes); a done
+        leaf's wall seconds leave out the pauses (see the vocabulary) between its start and its done line, which are
+        recorded by then (a pause's resume comes before the line)."""
         with atomic(): self.lines += self.tail.read()
         while self.lines:
             with atomic():
@@ -2109,7 +2172,7 @@ class Boxes:
                 if kind == 'done':
                     self.active.discard(i)
                     t, self.done[i] = p['dones'][i]
-                    self.walls.append(t - p['starts'][i])
+                    self.walls.append(t - p['starts'][i] - within_pauses(p['starts'][i], t, pauses))
                 self.moved.add(i)
             self.used = len(self.parsed.events)
         return self.leaves, self.parsed.passes
@@ -2124,6 +2187,107 @@ class Boxes:
         return {'depth': SEA_DEPTH, 'keys': [g for g, _, _ in self.spans],
                 'groups': [self.codes[a:b].decode() for _, a, b in self.spans],
                 'counts': {s: self.codes.count(str(i).encode()) for i, s in enumerate(SEA_STATUSES)}}
+
+
+# ---------- the stages to a recordable result (the coordinator, 2026-10-31; see chain, share and stages) ----------
+
+def load_stages(path):
+    """The chains (see the vocabulary) in the data file at path, each checked (asserted): every stage a name, and a run
+    ([program, n, order], the program its name) or none; each chain's first stage a run, without parts, every later
+    stage with parts, each per one of UNITS, on a whole number of processes from 1, its cpu {median, lo, hi} with
+    0 < lo <= median <= hi < inf, and its provenance (source, date, conditions) text; no run in two places."""
+    with open(path, encoding='utf-8') as fh: data = json.load(fh)
+    # TODO: error copy; says the stages file holds other than its note and its chains, naming it
+    assert type(data) is dict and set(data) == {'about', 'chains'} and type(data['chains']) is list, f'Claude: "{path} is no stages file"'
+    for chain in data['chains']:
+        assert type(chain) is list and chain and type(chain[0]) is dict and 'run' in chain[0], chain
+        for i, s in enumerate(chain):
+            assert type(s) is dict and set(s) - {'run', 'parts'} == {'stage'} and type(s['stage']) is str, s
+            assert 'run' not in s or (type(s['run']) is list and len(s['run']) == 3 and s['run'][0] == s['stage']
+                                      and all(type(x) is int for x in s['run'][1:])), s
+            assert ('parts' in s) == (i > 0) and type(s.get('parts', [{}])) is list and s.get('parts', [{}]), s
+            for p in s.get('parts', []):
+                assert type(p) is dict and set(p) == {'per', 'processes', 'cpu', 'source', 'date', 'conditions'}, p
+                assert p['per'] in UNITS and type(p['processes']) is int and p['processes'] >= 1, p
+                assert type(p['cpu']) is dict and set(p['cpu']) == {'median', 'lo', 'hi'}, p
+                assert all(type(p['cpu'][k]) in (int, float) for k in p['cpu']), p
+                assert 0 < p['cpu']['lo'] <= p['cpu']['median'] <= p['cpu']['hi'] < math.inf, p
+                assert all(type(p[k]) is str and p[k] for k in ('source', 'date', 'conditions')), p
+    named = [tuple(s['run']) for chain in data['chains'] for s in chain if 'run' in s]
+    # TODO: error copy; says a run stands in two places of the stages file, naming the file
+    assert len(named) == len(set(named)), f'Claude: "a run of {path} stands twice"'
+    return data['chains']
+
+
+STAGES = load_stages(STAGES_FILE)            # the searches' chains (see the vocabulary)
+
+
+def later_of(identity):
+    """The stages after the run whose identity this is, (program, n, order), in its chain in STAGES: none for a run in
+    no chain."""
+    return next((chain[i + 1:] for chain in STAGES for i, s in enumerate(chain) if s.get('run') == list(identity)), [])
+
+
+def drawn(rng, cpu, k):
+    """k draws (rng's) of a measured cost cpu, {median, lo, hi}: a two-piece log-normal whose median and QUANTILES are
+    the cost's, its logarithm normal on each side of the median, with the spread that side's quantile gives (ZS): the
+    measured band, however lopsided."""
+    z = rng.standard_normal(k)
+    up = z > 0
+    return cpu['median'] * np.where(up, cpu['hi'] / cpu['median'], cpu['lo'] / cpu['median']) ** (z / np.where(up, ZS[1], ZS[0]))
+
+
+def stages_of(identity, state, to_go, hours, counts, share):
+    """The stages (see the vocabulary) of the run whose identity this is, in its state: {} for a run ended or in no
+    chain; else {stages, total}, stages its own ({name: its program, to_go}) and each later stage's ({name, to_go}:
+    to_go_of its replicates' median and QUANTILES), total to_go_of every stage's replicates summed.  hours: the run's
+    estimate, one value a replicate, hours to go, or None; counts: {unit: the run's count, one a replicate (or one for
+    all), or None without hours} for each unit its later stages' parts are per (asserted); share: the run's, or None.
+    Each part's cpu is drawn (drawn) from a stream of its own, SEED's first spawned, part after part in the chain's
+    order.  With no hours or no share, no stage after the run's own has an estimate, and no total."""
+    later = later_of(identity) if state != 'ended' else []
+    if not later: return {}
+    parts = [p for s in later for p in s['parts']]
+    # TODO: error copy; says the stages file asks a run for a count of a unit its survey does not give, naming the run and the units
+    assert {p['per'] for p in parts} <= set(counts), f'Claude: "{identity} counts {sorted(counts)}, not {sorted({p["per"] for p in parts})}"'
+    if hours is None or share is None:
+        return {'stages': [dict(name=identity[0], to_go=to_go)] + [dict(name=s['stage'], to_go=None) for s in later],
+                'total': None}
+    assert all(counts[p['per']] is not None and np.shape(counts[p['per']]) in ((), np.shape(hours)) for p in parts), \
+        (identity, np.shape(hours))
+    rng = np.random.default_rng(np.random.SeedSequence(SEED).spawn(1)[0])
+    stage_hours = [sum(counts[p['per']] * drawn(rng, p['cpu'], len(hours)) / (p['processes'] * share * HOUR)
+                       for p in s['parts']) for s in later]
+    return {'stages': [dict(name=identity[0], to_go=to_go)] +
+                      [dict(name=s['stage'], to_go=to_go_of(quantiles(h))) for s, h in zip(later, stage_hours)],
+            'total': to_go_of(quantiles(hours + sum(stage_hours)))}
+
+
+def ps_seconds(text):
+    """ps's TIME (minutes:seconds.hundredths, the minutes going past 59) or ETIME ([[days-]hours:]minutes:seconds) in
+    seconds."""
+    m = re.fullmatch(r'(?:(?:(\d+)-)?(\d+):)?(\d+):(\d+(?:\.\d+)?)', text)
+    # TODO: error copy; says ps wrote a time in no form this file reads, quoting it
+    assert m, f'Claude: "{text} is no time of ps\'s"'
+    return 86400 * int(m[1] or 0) + 3600 * int(m[2] or 0) + 60 * int(m[3]) + float(m[4])
+
+
+def cpu_times():
+    """Each process's CPU time and time since it began as ps writes them (TIME and ETIME, see ps_seconds), by pid."""
+    out = subprocess.run(['ps', '-ax', '-o', 'pid=,time=,etime='], capture_output=True, text=True, check=True)
+    return {int(a): (b, c) for a, b, c in (line.split() for line in out.stdout.splitlines())}
+
+
+def share_of(procs, main, pauses, now, times=None):
+    """The share (see the vocabulary) of the run whose main process main is (runs' list: one or none), as the process
+    list procs shows its workers, with its pauses, at the time now; times() gives each process's CPU time and time
+    since it began, by pid, as ps writes them (cpu_times's, by default); a worker gone since procs was read is left
+    out.  None without a live worker: no seconds of running."""
+    clocked = (cpu_times if times is None else times)()
+    kids = [tuple(map(ps_seconds, clocked[p[0]])) for m in main for p in procs
+            if p[1] == m[0] and SPAWNED in p[3] and not p[2].startswith('Z') and p[0] in clocked]
+    running = sum(e - within_pauses(now - e, now, pauses) for _, e in kids)
+    return sum(c for c, _ in kids) / running if running > 0 else None
 
 
 # ---------- files and the command line ----------
@@ -2340,7 +2504,9 @@ def pause432_pauses(path):
     stops 432:12's fanout driver and workers: pause432.json while they are stopped, renamed pause432.R.done.json when
     it continues them, R the whole second of the renaming; each {procs, watchdog, paused_at}: the processes it stopped
     and the watchdog it started, each [pid, start time as ps prints it], and when it stopped them.  A done pause ends at
-    R, one not done is not over.  The directory's other files are not its."""
+    R, or where it began when R is the second it began in (a pause shorter than that second: pause432.py names the done
+    record by its time truncated, 2026-10-31 10:03, scratch/ready288-20261031); one not done is not over.  The
+    directory's other files are not its."""
     def process(p): return type(p) is list and len(p) == 2 and type(p[0]) is int and p[0] > 0 and type(p[1]) is str and p[1] != ''
     pauses = []
     for name in sorted(glob.glob(os.path.join(glob.escape(path), 'pause432*.json'))):
@@ -2349,7 +2515,9 @@ def pause432_pauses(path):
         assert m and type(r) is dict and set(r) == {'procs', 'watchdog', 'paused_at'}, (name, r)
         assert type(r['procs']) is list and r['procs'] and all(map(process, r['procs'])) and process(r['watchdog']), (name, r)
         assert type(r['paused_at']) in (int, float) and 0 <= r['paused_at'] < math.inf, (name, r)
-        pauses.append((r['paused_at'], math.inf if m[1] is None else int(m[1])))
+        # TODO: error copy; says a pause record says it ended in a second before the one it began in
+        assert m[1] is None or int(m[1]) + 1 > r['paused_at'], f'Claude: "{name} ends before it begins"'
+        pauses.append((r['paused_at'], math.inf if m[1] is None else max(int(m[1]), r['paused_at'])))
     return in_order(sorted(pauses))
 
 
@@ -2357,7 +2525,8 @@ def pause432_pauses(path):
 # HERE, the reader of its records)].  A run not here records none.  Each reader asserts its records' form.
 PAUSES = {('focus.py', 480, 14): [('focus_480_pauses.jsonl', lambda path: focus_pauses(json_lines(path), 480))],
           ('fanout.py', 432, 12): [(os.path.join('scratch', 'wish2'), pause432_pauses)],
-          ('overnight_v5.py', 288, 10): [(os.path.join('scratch', 'x288', 'pauses.jsonl'), group_pauses)]}
+          ('overnight_v5.py', 288, 10): [(os.path.join('scratch', 'x288', 'pauses.jsonl'), group_pauses)],
+          ('boxsplit.py', 288, 10): [(os.path.join('scratch', 'x288', 'pauses.jsonl'), group_pauses)]}   # its chain's
 
 
 def pauses_of(identity):
@@ -2460,7 +2629,7 @@ def survey_focus(path, procs, now=None, observations=None, launches=None, pauses
                 sea=dict(depth=0, keys=[f'{header["n"]}:{header["order"]}'], groups=[codes], counts=counts))
 
 
-def survey_fanout(path, procs, now=None, observations=None, launches=None, journal=None, pauses=()):
+def survey_fanout(path, procs, now=None, observations=None, launches=None, journal=None, pauses=(), times=None):
     """fanout.py's journal (see fanout.py's vocabulary): its spans of running as survey_focus's, its pauses (see the
     vocabulary; by default none) left out; a dot per job, grouped by root (keyed case:depth): split (done, leaving boxes
     open), settled (done, none open), running, then pending (a root not started, a box left open and not started, or a
@@ -2469,8 +2638,9 @@ def survey_fanout(path, procs, now=None, observations=None, launches=None, journ
     its worker's clock ran on while stopped; 2026-10-31, 54 of 432:12's 22,456 jobs had run across pauses, 645 of
     their 647 hours paused), times the workers (dreeves, 2026-10-23: "Can we throw more compute at 672:13?"); its floor each open case's
     latest probe's least less the case's work so far (the run's own before fanout counted to its case; a case done when
-    every dot of its roots is).  journal is the watcher's Records of the path, kept between snapshots; by default a new
-    one, which reads it whole."""
+    every dot of its roots is); and its stages (stages_of: its tokens, the LP solves of its jobs done and the pool
+    estimate's replicates to go; its share by times, see share_of).  journal is the watcher's Records of the path, kept
+    between snapshots; by default a new one, which reads it whole."""
     records = (Records(path) if journal is None else journal).read()
     now = time.time() if now is None else now
     observations = {} if observations is None else observations
@@ -2591,16 +2761,20 @@ def survey_fanout(path, procs, now=None, observations=None, launches=None, journ
     # fast): its jobs, those started since the last switch; every job's tree stays a sample
     current = [e for e in ends.values() if began[e['job']] >= switched[-1]]
     seconds = sum(e['seconds'] - within_pauses(began[e['job']], began[e['job']] + e['seconds'], pauses) for e in current)
-    eta = (pool_estimate(samples, held, header['n'], sum(e['lps'] for e in current) / seconds * worker_counts[-1],
-                         floor)
-           if status == 'running' and latest['pool'] is not None and samples and held and seconds > 0 else None)
+    eta, hours, tokens = None, None, None   # the estimate; its replicates of hours to go and of the tree's tokens
+    if status == 'running' and latest['pool'] is not None and samples and held and seconds > 0:
+        rate = sum(e['lps'] for e in current) / seconds * worker_counts[-1]
+        lps = pool_draws(samples, held, header['n'], floor)
+        eta = pool_estimate(samples, held, header['n'], rate, floor)
+        hours, tokens = lps / rate / HOUR, sum(e['lps'] for e in ends.values()) + lps
     if status == 'running':
         observations[str(float(now))] = eta
     return dict(program='fanout.py', n=header['n'], order=header['order'], made=now, state=status, workers=worker_counts[-1],
                 outcome=finish[0]['outcome'] if finish else None, so_far=sum(b - a for a, b in spans),
                 to_go=to_go_of(eta), etas=observations, passes=spans,
                 sea=dict(depth=0, keys=[f'{c}:{d}' for c, d in zip(cases_of, header['root_depths'])], groups=groups,
-                         counts=counts))
+                         counts=counts)) | stages_of(('fanout.py', header['n'], header['order']), status, to_go_of(eta),
+                                                     hours, {'token': tokens}, share_of(procs, main, pauses, now, times))
 
 
 def survey_attempts(path, procs, now, observations, program, n, order, scope, control_required=1):
@@ -2823,13 +2997,16 @@ def js_text(surveys, now):
     running: the estimate's median and QUANTILES; null without one), etas (its record of ETAs, eta_records, as [time,
     running seconds before it, median (mean before 2026-10-19), lo, hi], the time in whole seconds and the rest in seconds to a tenth, evenly thinned to at most ETA_POINTS, the last kept), statuses
     (SEA_STATUSES), its sea (depth, keys, groups, counts), and stale: null, or for a run whose survey failed or ran past
-    LIMIT the time (whole seconds) of the snapshot its data are from (see snapshot; 2026-10-30)."""
+    LIMIT the time (whole seconds) of the snapshot its data are from (see snapshot; 2026-10-30); and for a run in a chain,
+    not ended (2026-10-31), its stages (see the vocabulary), [{name, to_go}], its own first, each to_go as the run's
+    or null, and total, the time to go to a recordable result in the same form, or null."""
     return data_text([run_data(s) for s in surveys], now)
 
 
 # What run_data reads of a survey: an idle run's survey keeps no more (see idle; 2026-10-31: an overnight_v5.py
 # survey's open_list held 612,046 of 288@10's leaves).
-LIGHT = ('program', 'n', 'order', 'state', 'outcome', 'so_far', 'to_go', 'etas', 'passes', 'sea', 'display', 'workers')
+LIGHT = ('program', 'n', 'order', 'state', 'outcome', 'so_far', 'to_go', 'etas', 'passes', 'sea', 'display', 'workers',
+         'stages', 'total')
 
 
 def light(s):
@@ -2849,7 +3026,7 @@ def run_data(s):
     return ({'program': s['program'], 'n': s['n'], 'order': s['order'], 'state': s['state'], 'outcome': s['outcome'],
              'so_far': s['so_far'], 'to_go': s['to_go'],
              'etas': etas(s), 'statuses': list(SEA_STATUSES)} | s['sea'] | s.get('display', {}) |
-            {k: s[k] for k in ('workers',) if k in s} | {'stale': None})
+            {k: s[k] for k in ('workers', 'stages', 'total') if k in s} | {'stale': None})
 
 
 def data_text(runs, now):
@@ -3004,8 +3181,10 @@ def native288(start):
              and re.match(r'(\S+) -B ', command[2]))
     steps = (('overnight_v5.py', '288', '10'), ('boxsplit.py', '288', '10'),
              ('handoff288.py',), ('overnight_v5.py', '288', '10'))
+    # the whole chain (run288.py) or its tail from the boxsplit step (run288box.py, 2026-10-31)
     return bool(match and re.fullmatch(r'Python|python[\d.]*', os.path.basename(match[1]))
-                and command[2] == ' && '.join(shlex.join([match[1], '-B', *step]) for step in steps))
+                and command[2] in [' && '.join(shlex.join([match[1], '-B', *step]) for step in steps[first:])
+                                   for first in (0, 1)])
 
 
 def signature(path):
@@ -3058,13 +3237,13 @@ def run_surveys(procs, now, cache, readings, idle):
         identity = ('boxsplit.py', n, order)
         with run_context(n, order):
             log, main = box_files(n, order)
-            state = run_state(procs, 'boxsplit.py', n, order, None)
+            pauses, state = pauses_of(identity), run_state(procs, 'boxsplit.py', n, order, None)
 
             def of(box):
                 return survey_box(n, order, log, main, procs, now,
-                                  cache.setdefault(f'{n}_{order}_boxsplit_{bx.CODE}_etas', {}), box)
-            return ([surveyed(identity, (signature(log), signature(main), state), state == 'running', readings, idle,
-                              functools.partial(Boxes, log), of)] if os.path.exists(log) else [])
+                                  cache.setdefault(f'{n}_{order}_boxsplit_{bx.CODE}_etas', {}), box, pauses)
+            return ([surveyed(identity, (signature(log), signature(main), pauses, state), state == 'running', readings,
+                              idle, functools.partial(Boxes, log), of)] if os.path.exists(log) else [])
     return ([(('overnight_v5.py', n, order), functools.partial(overnight, n, order)) for n, order in RUNS] +
             [(('boxsplit.py', n, order), functools.partial(boxes, n, order)) for n, order in EXTENDED])
 

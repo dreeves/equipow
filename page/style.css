@@ -322,6 +322,7 @@ code {
 /* The tip and the status line: one line, a snapshot's (template.progress-line).  Stroke none: the tip sits in the
    chart's box, whose series rules stroke. */
 .progress-tip, .progress-status { font-variant-numeric: tabular-nums lining-nums; }
+.progress-stages { font-variant-numeric: tabular-nums lining-nums; }   /* a run's later stages, under its status line (2026-10-31) */
 .progress-tip { visibility: hidden; }
 .progress-tip.projected { font-style: italic; }   /* the tip past the last record: a projection */
 .progress-tip .spent, .progress-status .spent { color: var(--progress-spent); stroke: none; }

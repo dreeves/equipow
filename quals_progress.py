@@ -1586,17 +1586,19 @@ def q_watch_shows_a_boxsplit_pass_once_its_log_exists():
     # and cache there too, and time.sleep replaced by a stub that stops the loop at its first call: once before the driver's log
     # exists (the search's first pass still running), once after.
     # Expectata: the first data file holds no run (no boxsplit pass to show yet, and no crash); the second holds the
-    # boxsplit pass of 288@10, program boxsplit.py.
+    # boxsplit pass of 288@10, program boxsplit.py.  (2026-10-31: PAUSES emptied for the fixture, as idle_runs empties
+    # it, since PAUSES names the boxsplit run's pause records, scratch/x288/pauses.jsonl under HERE, which the
+    # temporary HERE lacks.)
     d = tempfile.mkdtemp(prefix='progress-quals-')
     saved = (progress.RUNS, progress.EXTENDED, progress.JS, progress.CACHE, progress.HERE, progress.files,
-             progress.box_files, progress.run_context, time.sleep)
+             progress.box_files, progress.run_context, time.sleep, progress.PAUSES)
     class Stop(Exception): pass
     def stub(s): raise Stop
     runs = []
     try:
         log, main, _ = made_up_box288(d, False)
         os.rename(log, log + '.later')
-        progress.RUNS, progress.EXTENDED = (), ((288, 10),)
+        progress.RUNS, progress.EXTENDED, progress.PAUSES = (), ((288, 10),), {}
         progress.JS, progress.CACHE = os.path.join(d, 'p.js'), os.path.join(d, 'c.json')
         progress.HERE = d
         progress.files = lambda n, order: (main, os.path.join(d, 'overnight_v5_288_10.log'))
@@ -1617,7 +1619,7 @@ def q_watch_shows_a_boxsplit_pass_once_its_log_exists():
         once()
     finally:
         (progress.RUNS, progress.EXTENDED, progress.JS, progress.CACHE, progress.HERE, progress.files,
-         progress.box_files, progress.run_context, time.sleep) = saved
+         progress.box_files, progress.run_context, time.sleep, progress.PAUSES) = saved
         shutil.rmtree(d)
     assert runs == [[], [('boxsplit.py', 288, 10)]], runs
 
@@ -1666,6 +1668,47 @@ def q_box_survey_marks_settled_open_running_and_pending():
     assert [progress.SEA_STATUSES[int(c)] for c in ''.join(s['sea']['groups'])].count('running') == 0
     assert (s['state'], s['so_far'], s['to_go'], s['restricted']) == ('ended', 302.0, None, None), s
     assert s['sea']['counts'] == {'settled': 1, 'open': 1, 'split': 0, 'pending': 2, 'running': 0}, s['sea']['counts']
+
+
+def q_box_survey_leaves_out_its_pauses():
+    # Replicata (2026-10-31, scratch/ready288-20261031): progress.survey_box of made_up_box's pass at t0 + 152 with its
+    # process running, as in q_box_survey_marks_settled_open_running_and_pending, with a pause from t0 + 50 to t0 + 80,
+    # while leaves 0, 1 and 2 were at work.
+    # Expectata: its seconds of running 152 - 30 and its spans of running the pass's but the pause; the estimate the one
+    # of leaf 0's and leaf 1's wall times less the pause, 70 s and 270 s, and leaf 2's 150 s so far less it, 120 s.
+    # Resultata before: survey_box took no pauses (the boxsplit run had no entry in PAUSES either), so the chain's
+    # pauses would have counted as running, the leaves' times and the share of a core with them.
+    t0 = 1792200000.0
+    journal, log, main = made_up_box(t0)
+    procs = [(900, 1, 'SN', 'python3 -u -B boxsplit.py 304 9')]
+    s = progress.survey_box(304, 9, log, main, procs, t0 + 152, {}, pauses=[(t0 + 50, t0 + 80)])
+    assert (s['state'], s['so_far']) == ('running', 122.0), (s['state'], s['so_far'])
+    assert [list(q) for q in s['passes'] if q[0] < q[1]] == [[t0, t0 + 50], [t0 + 80, t0 + 152]], s['passes']
+    eta, restricted = progress.box_estimate([70.0, 270.0], [120.0], 1, 10)
+    assert (s['to_go'], s['restricted']) == (progress.to_go_of(eta), restricted), (s['to_go'], eta)
+
+
+def q_main_reads_a_box_run_s_pauses():
+    # Replicata (2026-10-31, scratch/ready288-20261031): one snapshot of progress.main(['--watch']) at t with
+    # made_up_box's pass of 304@9, stamped from t - 1000 and its process running, as its only run; PAUSES giving the
+    # boxsplit.py run a pauses.jsonl beside the data file, which holds a pause from t - 950 to t - 920, resumed.
+    # Expectata: the data file's boxsplit run has 1000 - 30 seconds so far.
+    t = 1792300000.0
+    d = tempfile.mkdtemp(prefix='progress-quals-')
+    _, box, main = made_up_box(t - 1000)
+    pause_lines(os.path.join(d, 'pauses.jsonl'), [('pause', t - 950, 5), ('resume', t - 920, 5)])
+
+    def files(n, order):
+        v5.configure(n, order)
+        return main, os.path.join(d, 'none.log')
+    out = []
+    watch([t], lambda k: out.append(progress.read_data(os.path.join(d, 'p.js'))),
+          dict(RUNS=(), EXTENDED=((304, 9),), HERE=d, JS=os.path.join(d, 'p.js'), CACHE=os.path.join(d, 'c.json'),
+               files=files, run_context=root_context, box_files=lambda n, order: (box, main),
+               processes=lambda: [(102, 1, 'SN', 'python3 -B boxsplit.py 304 9')],
+               PAUSES={('boxsplit.py', 304, 9): [('pauses.jsonl', progress.group_pauses)]}))
+    run, = out[0]['runs']
+    assert (run['program'], run['state'], run['so_far']) == ('boxsplit.py', 'running', 970.0), run
 
 
 def q_box_survey_reads_the_log_alone():
@@ -3120,11 +3163,14 @@ def q_pauses_table_names_each_paused_run_s_records():
     # Replicata: progress.PAUSES, the table of runs and where their pauses are recorded.
     # Expectata (2026-10-30): 480:14's focus.py run, 432:12's fanout.py run and 288@10's overnight_v5.py run, each
     # with one source: focus_480_pauses.jsonl, scratch/wish2 (pause432.py's records) and scratch/x288/pauses.jsonl;
-    # each a file or directory that exists here, which its reader reads without failing, in order.
+    # and (2026-10-31, scratch/ready288-20261031) 288@10's boxsplit.py run, a step of the same chain, stopped and
+    # continued with its process group, so with the overnight run's source; each a file or directory that exists here,
+    # which its reader reads without failing, in order.
+    x288 = os.path.join('scratch', 'x288', 'pauses.jsonl')
     assert {k: [path for path, _ in v] for k, v in progress.PAUSES.items()} == {
         ('focus.py', 480, 14): ['focus_480_pauses.jsonl'],
         ('fanout.py', 432, 12): [os.path.join('scratch', 'wish2')],
-        ('overnight_v5.py', 288, 10): [os.path.join('scratch', 'x288', 'pauses.jsonl')]}, progress.PAUSES
+        ('overnight_v5.py', 288, 10): [x288], ('boxsplit.py', 288, 10): [x288]}, progress.PAUSES
     for identity in progress.PAUSES:
         pauses = progress.pauses_of(identity)
         assert pauses == sorted(pauses) and all(c <= d for c, d in pauses), (identity, pauses)

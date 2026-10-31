@@ -2012,10 +2012,14 @@ SClaude[11][528] = {
             <span data-state="aborted">Aborted after running for <span class="spent"><b data-so-far></b></span>.</span>
             <span data-state="paused">Paused after running for <span class="spent"><b data-so-far></b></span>.</span>
           </p>
+          <!-- Says the ETA chart above covers only this run's own stage (its program, as in the heading); names each later stage to a recordable result, in order, with the range of its estimated time to go (— where there is no estimate); then gives the range of the time to go to a recordable result, every stage together -->
+          <p class="progress-stages" data-stages hidden>The above graph covers <code data-stage-now></code> only; then <span data-stages-later></span>; so total time to a proof would be <b data-stages-total></b>.</p>
           </details>
         </div>
       </template>
       <template class="progress-line">@<span data-when></span>&emsp;<span class="spent"><b data-so-far></b> so far</span> + <span class="togo"><b data-to-go></b> to go</span> = <span class="total"><b data-sum></b> (<b data-done></b>)</span></template>
+      <!-- One later stage in a run's line of stages: its name, then the range of its estimated time to go -->
+      <template class="progress-stage"><span><code data-stage-name></code> <b data-stage-to-go></b></span></template>
       <!-- TODO: distinguishes calibration attempts from target attempts, reports elapsed time and terminal outcomes, and says that empty or timed-out attempts give no exclusion or completion estimate. -->
       <template class="progress-search288">
         <span>Astra: “240:10 calibration (first dot block): <b data-attempt-count="control_attempted"></b>/<b data-attempt-count="control_total"></b> attempted; <b data-attempt-count="control_empty"></b> empty, <b data-attempt-count="control_timeout"></b> timed out, <b data-attempt-count="control_witnesses"></b> witnesses.”</span><br>

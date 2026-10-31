@@ -19,16 +19,18 @@ import sys
 from types import SimpleNamespace
 
 
+# solve_node is not here (2026-10-31, scratch/ready288-20261031): it runs the solver and checks its proof, decides no
+# split, and nothing here calls it; the 288 bundle's checks with certbb.NativeCheck, the repository's with certbb.Check.
 GEOMETRY = ('lattice_poly', 'lattice_basis', 'moment_rows', 'moments', 'count_rows', 'ExactSystem',
-            'integer_system', 'admissible', 'act', 'stabilizer', 'rep', 'split', 'solve_node',
+            'integer_system', 'admissible', 'act', 'stabilizer', 'rep', 'split',
             'node_key', 'work', 'sibling_order', 'search')
 BOX_GEOMETRY = ('parse_key', 'open_leaves', 'admissible_box', 'outside_key')
 CHECKER = ('ProofError', 'require', 'Moments', 'node_rows', 'lower_bound', 'fixed', 'cuts', 'Check', 'verify')
 # What decides a run's splits (overnight_v5.split's children of a node, as node_key writes them): the sources of
 # SPLIT_SOURCES and the values of SPLIT_VALUES, as the run's overnight_v5 has them once configured; every module name
 # split reads, at any depth of its calls (quals_run_modules checks that none is missing).  They differ from GEOMETRY:
-# Relaxation, moment_basis, is_pool, size and gbinom decide splits and are not in it; search, work, sibling_order,
-# solve_node and moments are in it and decide none (2026-10-30).
+# Relaxation, moment_basis, is_pool, size and gbinom decide splits and are not in it; search, work, sibling_order and
+# moments are in it and decide none (2026-10-30; solve_node was too, until 2026-10-31).
 SPLIT_SOURCES = ('split', 'is_pool', 'stabilizer', 'act', 'rep', 'size', 'moment_rows', 'gbinom', 'integer_system',
                  'ExactSystem', 'count_rows', 'admissible', 'lattice_basis', 'lattice_poly', 'Relaxation',
                  'moment_basis', 'node_key')

@@ -3720,6 +3720,51 @@ def q_progress_shows_a_tracked_search():
     assert got['elapsed'] != '' and got['hint'] is not None and got['readout'] == got['hint'] and got['key'] is True, got
 
 
+STAGES_LOOK = """
+  out(runs().map(r => {
+    const p = r.querySelector('[data-stages]'), text = sel => (p.querySelector(sel) || {}).textContent;
+    return {shown: !p.hidden, now: text('[data-stage-now]'), total: text('[data-stages-total]'),
+            later: [...p.querySelectorAll('[data-stages-later] > span')].map(s =>
+              [s.querySelector('[data-stage-name]').textContent, s.querySelector('[data-stage-to-go]').textContent]),
+            after: !!(r.querySelector('.progress-status').compareDocumentPosition(p) & Node.DOCUMENT_POSITION_FOLLOWING)};
+  }));"""
+
+
+def q_progress_names_a_run_s_later_stages():
+    # Replicata: index.html with two runs of 432:12 by fanout.py as progress.js, each in the form progress.js_text gives
+    # a run in a chain (2026-10-31): the first with one later stage, reprove.py, 7 to 9 days to go (median 8), and in
+    # all 10 to 14 days to a recordable result (median 12); the second with two, fanout.assemble with no estimate and
+    # then reprove.py as the first's, and no total.
+    # Expectata (the coordinator, 2026-10-31, after the page's ETA had covered only the stage running, twice in two
+    # days: "the current stage's ETA chart stays as it is, labeled as that stage's; under it, one compact line naming
+    # the later stages with their estimates, and the total to a recordable result"): below each run's status line, its
+    # line of stages shown, naming the program its chart covers (fanout.py), each later stage in order with the range
+    # of its time to go, 7.0–9.0 d, or — with no estimate, and the range to a recordable result, 10.0–14.0 d, or —.
+    # Resultata before: no line of stages; the ETA chart's stage alone, unnamed as one stage of more.
+    base, d = dict(PROGRESS_DATA['runs'][0], program='fanout.py', n=432, order=12), 86400.0
+    reprove = dict(name='reprove.py', to_go=dict(median=8 * d, lo=7 * d, hi=9 * d))
+    one = dict(base, stages=[dict(name='fanout.py', to_go=base['to_go']), reprove],
+               total=dict(median=12 * d, lo=10 * d, hi=14 * d))
+    two = dict(base, stages=[dict(name='fanout.py', to_go=base['to_go']), dict(name='fanout.assemble', to_go=None), reprove],
+               total=None)
+    got = progress_harness({'made': PROGRESS_DATA['made'], 'runs': [one, two]}, STAGES_LOOK)
+    days = '7.0–9.0' + NNBSP + 'd'
+    assert got == [dict(shown=True, now='fanout.py', total='10.0–14.0' + NNBSP + 'd', later=[['reprove.py', days]], after=True),
+                   dict(shown=True, now='fanout.py', total='—', later=[['fanout.assemble', '—'], ['reprove.py', days]],
+                        after=True)], got
+
+
+def q_progress_shows_no_stages_for_a_run_of_one_stage():
+    # Replicata: index.html with two runs as progress.js: PROGRESS_DATA's (no stages, as progress.js_text gives a run in
+    # no chain, or as a data file written before 2026-10-31 has none), and the same with stages its own alone.
+    # Expectata (the coordinator, 2026-10-31: "Runs with a single stage show nothing extra"): neither shows a line of
+    # stages.
+    base = PROGRESS_DATA['runs'][0]
+    alone = dict(base, stages=[dict(name=base['program'], to_go=base['to_go'])], total=base['to_go'])
+    got = progress_harness({'made': PROGRESS_DATA['made'], 'runs': [base, alone]}, STAGES_LOOK)
+    assert [r['shown'] for r in got] == [False, False], got
+
+
 def q_progress_status_line_names_an_ended_run_s_outcome():
     # Replicata: index.html with the five runs of q_progress_summary_names_each_run_s_state as progress.js: running,
     # paused, frozen, ended with an outcome (excluded) and ended with none.

@@ -88,6 +88,20 @@ class ModuleQuals(unittest.TestCase):
             self.load()
         self.assertIs(sys.modules['certbb'], self.root_certbb)
 
+    def test_a_changed_solver_call_site_is_accepted(self):
+        # Replicata (2026-10-31, scratch/ready288-20261031): a local overnight_v5 whose solve_node differs from the
+        # root's, as the 288 bundle's checks with certbb.NativeCheck where the repository's checks with certbb.Check;
+        # everything else as in the root.
+        # Expectata: it loads: solve_node runs certbb and decides no split, and the watcher never calls it, so it is
+        # no part of the geometry or the replay (run_modules.GEOMETRY leaves it out).
+        for directory, value in ((self.old, 'Check'), (self.new, 'NativeCheck')):
+            with (directory / 'overnight_v5.py').open('a') as fh:
+                fh.write(f'\n\ndef solve_node(*args):\n    return {value!r}\n')
+        with patch.dict(sys.modules, {'certbb': self.root_certbb}):
+            root_v5 = self.module('qual_root_v5_solve_node', self.old / 'overnight_v5.py')
+        loaded = run_modules.load(self.new, root_v5, self.root_bx)
+        self.assertEqual((loaded.v5.solve_node(), root_v5.solve_node()), ('NativeCheck', 'Check'))
+
     def test_changed_source_after_loading_is_rejected(self):
         # Replicata: load a run, then alter its local solver file.
         # Expectata: loading fails rather than silently retaining a stale imported solver.
