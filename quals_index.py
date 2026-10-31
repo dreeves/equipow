@@ -384,6 +384,23 @@ function battery(R) {
     const t = document.createTreeWalker(td, NodeFilter.SHOW_TEXT,
       {acceptNode: x => drawn(x) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP}).nextNode(), r = document.createRange();
     r.selectNodeContents(t); return r.getBoundingClientRect().bottom; }));
+  // The page's math once it loaded (2026-10-30, q_scripts_load_data_then_draw): the formulas KaTeX drew, its error
+  // marks, the texts outside scripts, styles and formulas that still hold a \( or \), the formulas directly followed by
+  // text that starts with no space but not glued to it (glued: first in an nw span whose last child is that text, all
+  // of it no space), the glued texts, and the texts right after a glued span that start with no space.
+  const formulas = [...document.querySelectorAll('.katex')], raw = [];
+  const walk = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  for (let t = walk.nextNode(); t; t = walk.nextNode()) {
+    if (!t.parentElement.closest('script, style, .katex') && /\\[()]/.test(t.data)) raw.push(t.data.slice(0, 80));
+  }
+  const gluedTo = k => { const w = k.parentElement, t = k.nextSibling;
+    return w.matches('span.nw') && w.firstChild === k && t === w.lastChild && t.nodeType === 3 && /^\S+$/.test(t.data) ? t : null; };
+  const glued = formulas.filter(gluedTo);
+  R.math = {formulas: formulas.length, errors: document.querySelectorAll('.katex-error').length, raw,
+    loose: formulas.filter(k => { const t = k.nextSibling; return t && t.nodeType === 3 && /^\S/.test(t.data) && !gluedTo(k); })
+      .map(k => k.parentElement.textContent.slice(0, 80)),
+    glued: glued.map(k => gluedTo(k).data),
+    after: glued.map(k => k.parentElement.nextSibling).filter(t => t && t.nodeType === 3 && /^\S/.test(t.data)).map(t => t.data.slice(0, 40))};
   if (cv.height === 0) return;
   const tok = name => getComputedStyle(cv).getPropertyValue(name).trim().toLowerCase();
   const C = {exists: tok('--exists'), open: tok('--open'), impossible: tok('--impossible'), paper: tok('--paper'), ink: tok('--ink'),
@@ -1171,37 +1188,46 @@ def q_chrome_s_whole_process_group_ends_before_its_folder_goes():
 
 
 def q_scripts_load_data_then_draw():
-    # Replicata: index.html's script tags.
-    # Expectata: in the head, KaTeX's two (since 2026-10-28; dreeves: "could you convert all the math on the page to
-    # latex"), deferred, from jsDelivr at version 0.16.47, each with its SHA-256 integrity, auto-render's onload drawing
-    # the page's \( ... \) once the page is parsed, and then (2026-10-29) wrapping each formula and the text glued to it,
-    # no space between, in an nw span; then exactly six, after </main> and before </body>: a classic
-    # <script src="mstar.js"> (no type, async or defer, so it also loads from file://) and then one inline script; then
-    # the chart of powers of 2's, likewise (quals_pow2_page.py holds those two); then the inline script of the table of
-    # smallest lengths, which reads MSTAR (2026-10-17); then the inline script of the section "Search progress", which
-    # loads progress.js itself (2026-10-17).
+    # Replicata: index.html's script tags; and the light run's look at the page's math once it loaded (R's math).
+    # Expectata: in the head, three: an inline script that defines a function, and then KaTeX's two (since 2026-10-28;
+    # dreeves: "could you convert all the math on the page to latex"), deferred, from jsDelivr at version 0.16.47, each
+    # with its SHA-256 integrity, auto-render's onload only a call of that function, with no & in any script tag of the
+    # head (dreeves's README, 2026-10-30: "[VSC] VS Code isn't happy about the "&amp;&amp;" in one of the jsdelivr
+    # lines for KaTeX"); then exactly six, after </main> and before </body>: a classic <script src="mstar.js"> (no
+    # type, async or defer, so it also loads from file://) and then one inline script; then the chart of powers of 2's,
+    # likewise (quals_pow2_page.py holds those two); then the inline script of the table of smallest lengths, which
+    # reads MSTAR (2026-10-17); then the inline script of the section "Search progress", which loads progress.js itself
+    # (2026-10-17).  Once the page has loaded, its math is drawn: KaTeX drew formulas, none of them an error, and no text
+    # outside scripts, styles and formulas still holds a \( or \); and (2026-10-29) each formula directly followed by
+    # text that starts with no space was wrapped with that text in an nw span: the span's first child the formula, its
+    # last that text, no space in it, and no text right after the span that starts with no space; the \(+1\)s of the
+    # remarks among them, its s glued.  (Until 2026-10-30 this pinned onload's code, character for character.)
     text = page()
     head, body = text[:text.index('</head>')], text[text.index('</head>'):]
-    katex = re.findall(r'<script defer src="https://cdn\.jsdelivr\.net/npm/katex@0\.16\.47/dist/([\w/.-]+)" '
-                       r'integrity="sha256-[A-Za-z0-9+/]{43}=" crossorigin="anonymous"( onload="renderMathInElement\(document\.body, '
-                       r'\{delimiters: \[\{left: \'\\\\\(\', right: \'\\\\\)\', display: false\}\], throwOnError: false\}\); '
-                       r'for \(const k of document\.querySelectorAll\(\'\.katex\'\)\) \{ const t = k\.nextSibling, glued = t &amp;&amp; '
-                       r't\.nodeType === 3 &amp;&amp; /\^\\S\+/\.exec\(t\.data\); if \(glued\) \{ const w = document\.createElement\(\'span\'\); '
-                       r'w\.className = \'nw\'; k\.before\(w\); t\.data = t\.data\.slice\(glued\[0\]\.length\); w\.append\(k, glued\[0\]\); \} \}")?></script>', head)
-    assert katex == [('katex.min.js', ''), ('contrib/auto-render.min.js', katex[-1][1])] and katex[-1][1] \
-        and len(re.findall(r'<script\b', head)) == 2, (katex, re.findall(r'<script\b[^>]*>', head))
+    katex = re.search(r'\n<script>\n(.*?)</script>\n'
+                      r'<script defer src="https://cdn\.jsdelivr\.net/npm/katex@0\.16\.47/dist/katex\.min\.js" '
+                      r'integrity="sha256-[A-Za-z0-9+/]{43}=" crossorigin="anonymous"></script>\n'
+                      r'<script defer src="https://cdn\.jsdelivr\.net/npm/katex@0\.16\.47/dist/contrib/auto-render\.min\.js" '
+                      r'integrity="sha256-[A-Za-z0-9+/]{43}=" crossorigin="anonymous" onload="(\w+)\(\)"></script>\n', head, re.S)
+    tags = re.findall(r'<script\b[^>]*>', head)
+    assert katex and len(tags) == 3 and not any('&' in t for t in tags), tags
+    assert re.search(rf'^function {katex[2]}\(\) \{{$', katex[1], re.M), katex[1][:300]
     assert re.findall(r'<script\b[^>]*>', body) == ['<script src="mstar.js">', '<script>', '<script src="pow2.js">', '<script>',
                                                     '<script>', '<script>'], re.findall(r'<script\b[^>]*>', body)
-    inline = re.findall(r'<script>\n(.*?)</script>', text, re.S)
+    inline = re.findall(r'<script>\n(.*?)</script>', body, re.S)
     assert '[data-smallest]' in inline[2] and 'progressData' in inline[3], [js[:60] for js in inline]
-    assert text.index('</main>') < text.index('<script src="mstar.js"></script>') < text.index('<script>\n') < \
+    assert text.index('</main>') < text.index('<script src="mstar.js"></script>') < text.index('<script>\n', len(head)) < \
         text.index('</script>\n</body>')
+    math = valid_run('light')['math']
+    assert math['formulas'] > 800 and math['errors'] == 0 and math['raw'] == [], math
+    assert math['loose'] == [] and math['after'] == [] and 's' in math['glued'], math
 
 
 def q_inline_script_passes_node_check():
-    # Replicata: the inline script, saved as a .js file, through node --check.
+    # Replicata: the chart's inline script (the one that gets #mstar-chart; the page's first until 2026-10-30, when an
+    # inline script for KaTeX came first in the head), saved as a .js file, through node --check.
     # Expectata: exit 0: it parses as a classic script.
-    js = re.search(r'<script>\n(.*?)</script>', page(), re.S).group(1)
+    [js] = [s for s in re.findall(r'<script>\n(.*?)</script>', page(), re.S) if "getElementById('mstar-chart')" in s]
     d = tempfile.mkdtemp(prefix='index-quals-')
     path = os.path.join(d, 'chart.js')
     open(path, 'w', encoding='utf-8').write(js)

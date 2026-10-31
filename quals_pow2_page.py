@@ -50,10 +50,11 @@ RUNS = {}                                     # DRIVER's reports by configuratio
 def page(): return open(INDEX, encoding='utf-8').read()
 
 
-def scripts():
-    """The page's inline scripts, in order: the m*(n) chart's, then this chart's, then the table of smallest lengths'
-    (2026-10-17), then the section "Search progress"'s (2026-10-17)."""
-    return re.findall(r'<script>\n(.*?)</script>', page(), re.S)
+def chart_script():
+    """This chart's inline script: the one of the page's inline scripts that gets #pow2-chart (the page's second until
+    2026-10-30, when an inline script for KaTeX came first in the head)."""
+    [js] = [s for s in re.findall(r'<script>\n(.*?)</script>', page(), re.S) if "getElementById('pow2-chart')" in s]
+    return js
 
 
 def theme_blocks():
@@ -671,11 +672,11 @@ try {{ await endGroup({zombie.pid}, 300, 300); console.log('ended'); }} catch (e
 
 
 def q_inline_script_passes_node_check():
-    # Replicata: this chart's inline script (the page's second), saved as a .js file, through node --check.
+    # Replicata: this chart's inline script (chart_script), saved as a .js file, through node --check.
     # Expectata: exit 0: it parses as a classic script.
     d = tempfile.mkdtemp(prefix='pow2-quals-')
     path = os.path.join(d, 'chart.js')
-    open(path, 'w', encoding='utf-8').write(scripts()[1])
+    open(path, 'w', encoding='utf-8').write(chart_script())
     p = subprocess.run(['node', '--check', path], capture_output=True, text=True, timeout=60)
     shutil.rmtree(d)
     assert p.returncode == 0, p.stderr
@@ -718,7 +719,7 @@ def q_caption_defines_readout_symbols():
 
 def long_blocks():
     """The chart script's LONG, the examples longer than NMAX that its blocks may use, as [[n, m], ...] (JSON)."""
-    m = re.search(r'\n  const LONG = (\[[^\n;]*\]);', scripts()[1])
+    m = re.search(r'\n  const LONG = (\[[^\n;]*\]);', chart_script())
     assert m, 'no const LONG in the chart script'
     return json.loads(m.group(1))
 
