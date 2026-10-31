@@ -2677,11 +2677,11 @@ try {
   const swatch = document.createElement('span');
   const NOTES = {                                                  // the readout's note on a ringed cell, by its role
     // Readout note on a green cell ringed in gold; says its n is the least known to reach order m
-    1: m => `the least n known of order ${m}`,
+    1: m => `the smallest n known of order ${m}`,
     // Readout note on a black cell ringed in gold; says its n is the least whose upper bound allows order m
-    2: m => `the least n not ruled out for order ${m}`,
+    2: m => `the smallest n not ruled out for order ${m}`,
     // Readout note on a cell ringed in gold; says its n is the least of order m: the term a(m − 1) of OEIS A323395
-    3: m => `the least n of order ${m}: a(${m - 1}) of OEIS A323395`,
+    3: m => `the smallest n of order ${m}: a(${m - 1}) of OEIS A323395`,
   };
   function readout(c, m) {                                         // read out the cell of column c, n = NS[c], and row m
     const n = NS[c], [lo, hi, lw, hw] = D.cols[n - 1], kind = kindOf(n, m);
