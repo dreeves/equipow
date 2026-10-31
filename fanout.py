@@ -49,7 +49,7 @@ Vocabulary (with focus.py's):
             check and (3) too, before any probe or job, so that a run moved by another writer, or a job file lost
             after its job_end, stops the fanout at once (2026-10-25 review: they were found after the last job).  Then
             the finish, in fanout's journal: focus.py's chunks and journal stay as the stopped run left them.
-  trust     so an exclusion rests on focus.replay of the run's chunks, on certbb.Check passing each job's
+  trust     so an exclusion rests on focus.replay of the run's chunks, on NativeCheck passing each job's
             certificates on the job's box as its worker made them (once: no file keeps them), and on assembly; and, for
             a case closed under the reversal, on lex's lemma and invariant's exact test of the case's rows.  A
             reflected case (see reflections) closes with its source: reversing positions maps its solutions onto its
@@ -93,15 +93,20 @@ Vocabulary (with focus.py's):
   producer  how a worker proposes a box's token since the 2026-10-30 proposal (scratch/speed432-20261030): focus.step's
             LP calls in its order, so its tokens, with the case's rows made once (node_rows), an Optimal point tested
             by numpy before point_certificate, and an LP certificate's bound tested by a float64 screen whose error is
-            bounded rigorously (screen), certbb.lower_bound deciding whenever the screen cannot.  certbb.Check still
-            checks every token.  Since the 2026-10-31 proposal (scratch/speed432-fastlp-20261031) its LP is a Simplex,
-            so its LP calls, and with them its trees, are no longer focus.step's; the probes dive on it too.
+            bounded rigorously (screen), certbb.lower_bound deciding whenever the screen cannot.  NativeCheck (until
+            the 2026-10-31 proposal of scratch/check432-20261031, certbb.Check) still checks every token.  Since the
+            2026-10-31 proposal (scratch/speed432-fastlp-20261031) its LP is a Simplex, so its LP calls, and with them
+            its trees, are no longer focus.step's; the probes dive on it too.
   Simplex   a case's LP since 2026-10-31, as scratch/x288/certbb.py's Simplex is 288:10's: fastlp.Dual (fastlp.py, a
             dense bounded dual simplex in C, pinned by FASTLP_SHA256, so that fanout_code covers it) on focus.case_lp's
             rows with the case's counts, warm-started from its last solve or from a snapshot of its state, a box's
             second child's being its parent's post-solve state; and focus.case_lp's HiGHS LP, highs, for a ray's
             multipliers and for each box that Dual answers neither 'Optimal' nor 'Infeasible' with a ray whose
             certificate passes the screen (a fallback, after which Dual starts again from its slack basis).
+  NativeCheck  the worker's check since the 2026-10-31 proposal (scratch/check432-20261031): certbb.Check with each
+            certificate's bound by native_bound (scratch/native672's GMP, in C++, its files and the GMP libraries
+            pinned by NATIVE_SHA256) in place of certbb.lower_bound, about 7 times as fast; reprove.py, which a(11)
+            awaits, proves every leaf again with certbb.lower_bound itself.
   lex       for a case that the reversal R, (Rx)_p = x_(N-1-p), maps onto itself (symmetric: invariant's exact test of
             its rows, made at each session's start and by assembly; the cut applies to no other case).  Pair each
             position k < N/2 with N-1-k, the leader k,
@@ -126,6 +131,7 @@ import fcntl
 import functools
 import gzip
 import hashlib
+import itertools
 import json
 import math
 import multiprocessing
@@ -148,6 +154,23 @@ FASTLP_SHA256 = '3b4a16a0ff25db0c5c6b6dd02f044db0903448661f2f6e6a37ea91b39a67e31
 # TODO: error copy; says the fast LP backend's wrapper is not the pinned one, naming it
 assert hashlib.sha256(Path(fastlp.__file__).read_bytes()).hexdigest() == FASTLP_SHA256, \
     f'Claude: "{fastlp.__file__} is not the pinned fastlp"'
+
+import native_bound                    # imported after fastlp's pin, which a changed fastlp.py fails first
+# native_bound.py, its C++ source and build, and the GMP libraries the build loads, by their SHA-256: fanout_code,
+# covering this file, covers them
+NATIVE_SHA256 = {Path(native_bound.__file__).with_name('native_bound.py'):
+                 'c50ed1f27f42932eb6929119dd96f05d3815780f0f32c5da94e03e38dd924665',
+                 Path(native_bound.__file__).with_name('native_bound.cpp'):
+                 'c6779c46e1a67ebb2b4945daf878b36dda9b0be29a1b4ef9dc252c2358bec1e3',
+                 Path(native_bound._native_bound.__file__):
+                 '10cf84480be02962c9bfc093002c2604c4c75b0ddffed55ef28abf2f2a0d6094',
+                 Path('/opt/homebrew/opt/gmp/lib/libgmp.10.dylib'):
+                 '9220cca5e94b5077a99a068b0d1b9dd39da1d8febb3f518e6a8ce7aadc0d140b',
+                 Path('/opt/homebrew/opt/gmp/lib/libgmpxx.4.dylib'):
+                 '31cb9677cff4568c1efff1a1f967639e5eab854427493530d39300b75eb2fcaf'}
+# TODO: error copy; says a file of the GMP bound, or a GMP library it loads, is not the pinned one
+assert all(hashlib.sha256(path.read_bytes()).hexdigest() == h for path, h in NATIVE_SHA256.items()), \
+    'Claude: "a file of the GMP bound is not the pinned one"'
 
 # The inline note describes the original allocation; eight workers now run with 480 paused, as approved.
 WORKERS = 8                            # processes proving jobs (principle 4's slots: 480's run takes the sixth)
@@ -546,6 +569,65 @@ def exact(rows, lo, hi, x):
     return x
 
 
+@functools.lru_cache(maxsize=None)
+def native_bound_of(moments, pairs, extra):
+    """The GMP bound of node_rows(moments, pairs) followed by the rows extra, ((a, beta), ...), prepared once:
+    native_bound.Bound(rows + extra, N).evaluate, which is certbb.lower_bound(rows + extra, lo, hi, n) (quals)."""
+    return native_bound.Bound(certbb.node_rows(moments, pairs) + list(extra), moments.N).evaluate
+
+
+class NativeCheck(certbb.Check):
+    """certbb.Check with each certificate's bound by GMP (see the vocabulary): its replay's checks, in its order, with its
+    messages, each L's bound by the prepared native_bound_of its box's rows and path rows (made with the box, at the
+    start and at each D token) in place of certbb.lower_bound; feed and end are certbb.Check's."""
+    def replay(self, moments, node, lo, hi):
+        N, require = moments.N, certbb.require
+        for choice in itertools.product(*(V for _, V in node)):
+            pairs = tuple((M, v) for (M, _), v in zip(node, choice, strict=True))
+            rows = certbb.node_rows(moments, pairs)
+            boxes = [(list(lo or [0] * N), list(hi or [1] * N), [], native_bound_of(moments, pairs, ()))]
+            # TODO: error copy; says the box to check is not made of zeros and ones with each lower end at most its upper end
+            require(all(type(l) is int and type(u) is int and 0 <= l <= u <= 1 for l, u in zip(*boxes[0][:2], strict=True)),
+                    'Claude: "the box is not a 0/1 box"')
+            while boxes:                                      # depth first, x_p = 0 before x_p = 1, u.x <= c before u.x >= c + 1
+                l, u, path, evaluate = boxes.pop()
+                token = yield
+                # TODO: error copy; says the proof stopped before every box was closed
+                require(token is not None, 'Claude: "the proof ends early"')
+                # TODO: error copy; says a token of the proof is not a tuple starting with B, L or D and of that kind's length
+                require(type(token) is tuple and len(token) >= 2 and type(token[0]) is str
+                        and len(token) == certbb.ARITY.get(token[0]), 'Claude: "a token is not a B, L or D token of its length"')
+                kind, arg = token[0], token[1]
+                if kind == 'L':
+                    # TODO: error copy; says a certificate is not a list of whole numbers, one per row and per path row
+                    require(type(arg) is list and len(arg) == len(rows) + len(path) and all(type(m) is int for m in arg),
+                            'Claude: "a certificate is not one integer per row"')
+                    # TODO: error copy; says a multiplier on a cut row has the wrong sign for that row's side
+                    require(all(s * m >= 0 for m, (s, _, _) in zip(arg[len(rows):], path, strict=True)),
+                            'Claude: "a path multiplier has the wrong sign"')
+                    # TODO: error copy; says a certificate's exact bound is not positive, so it closes nothing
+                    require(evaluate(l, u, arg) > 0, 'Claude: "a certificate fails"')
+                elif kind == 'B':
+                    # TODO: error copy; says a split token does not split a position still free
+                    require(type(arg) is int and 0 <= arg < N and l[arg] == 0 and u[arg] == 1,
+                            'Claude: "a split does not split a free position"')
+                    boxes += [certbb.fixed(l, u, arg, 1) + (path, evaluate), certbb.fixed(l, u, arg, 0) + (path, evaluate)]
+                else:
+                    c = token[2]
+                    # TODO: error copy; says a cut token is not a list of N whole numbers and a whole number
+                    require(type(arg) is list and len(arg) == N and all(type(t) is int for t in arg) and type(c) is int,
+                            f'Claude: "a cut is not {N} integers and an integer"')
+                    # TODO: error copy; says a cut leaves one of its sides without a point of the box, so it cuts nothing
+                    require(certbb.cuts(arg, c, l, u), 'Claude: "a cut does not cut the box"')
+                    a = tuple((p, t) for p, t in enumerate(arg) if t)
+                    sides = [path + [(1, a, c + 1)], path + [(-1, a, c)]]
+                    boxes += [(l, u, side, native_bound_of(moments, pairs, tuple((r, beta) for _, r, beta in side)))
+                              for side in sides]
+        # TODO: error copy; says the proof has tokens after its last box was closed
+        require((yield) is None, 'Claude: "the proof goes on after the last box"')
+        yield
+
+
 def work(job):
     """Runs the job (see the vocabulary): its tree and tree_sha256, its open boxes' paths, its seconds and any
     witness.  A mixed box's job starts with the lex cut; below it a dead box closes by the cut's certificate, without
@@ -559,7 +641,7 @@ def work(job):
     status = lex.scan(lo, hi) if closed_for(case) else 'pure'     # the cut only where R closes the case (symmetric)
     # TODO: error copy; says a box whose every point the lex cut leaves unproved was given as a job
     assert status != 'dead', 'Claude: "a dead box is no job"'
-    check = certbb.Check(equations, tuple((M, (v,)) for M, v in choice), lo, hi)
+    check = NativeCheck(equations, tuple((M, (v,)) for M, v in choice), lo, hi)
     cut = [0] * (status == 'mixed')        # the cut's multiplier on each LP certificate: one 0 below the cut, else none
     tree = [['D']] * (status == 'mixed')
     for token in [lex.token()] * (status == 'mixed'):

@@ -17,7 +17,7 @@ import join720 as J
 class JoinQuals(unittest.TestCase):
     def test_control_model_contains_the_known_528_witness(self):
         model = J.model('calibration')
-        q = mstar.explicit()[336, 'index.html q336']
+        q = mstar.explicit()[336, 'equipow q336']
         self.assertEqual((len(model['p']), model['q_n'], model['m']), (192, 336, 9))
         self.assertTrue(J.verify(model, q[:168]))
         self.assertEqual(sp.Matrix(model['A']).rank(), 5)
@@ -33,7 +33,7 @@ class JoinQuals(unittest.TestCase):
 
     def test_exact_check_rejects_wrong_moment_and_non_signs(self):
         model = J.model('calibration')
-        q = mstar.explicit()[336, 'index.html q336']
+        q = mstar.explicit()[336, 'equipow q336']
         half = q[:168]
         self.assertTrue(J.verify(model, half))
         bad = list(half); bad[0] *= -1
@@ -80,7 +80,7 @@ class JoinQuals(unittest.TestCase):
         self.assertTrue(all(x % 2 for x in small))
 
     def events(self):
-        control = J.model('calibration')['p'] + mstar.explicit()[336, 'index.html q336']
+        control = J.model('calibration')['p'] + mstar.explicit()[336, 'equipow q336']
         return [dict(event='header', version=J.VERSION, n=720, order=11,
                      total=J.TOTAL, control_total=J.CONTROL_TOTAL, seconds=J.SECONDS,
                      code=J.CODE, libraries=J.LIBRARIES, time=1, pid=1),

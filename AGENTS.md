@@ -595,3 +595,60 @@ Witness agent, 2026-10-31 from 03:10 (Claude; `scratch/w11-624-576/`):
   - order-13 witnesses at 1008/912, `scratch/w13-1008-912/`;
   - 432's exact-checking cost, `scratch/check432-20261031/`: first map in-worker Check, assembly and reprove (which is the trusted base, and reprove's cost at the finish), then evaluate a faster exact in-worker check in fanout_code;
   - exclusion screens, `scratch/excl-20261031/`: order 12 at 528/576/624 (each would settle m* = 11) and order 13 at 768/912/1008, looking for 752-style forced lopsided profiles.
+- **432:12's checks mapped** (agent, 2026-10-31; `scratch/check432-20261031/NOTES.md`):
+  - The in-worker certbb.Check is an early safety net. a(11) rests on assembly plus reprove.py, which re-derives every leaf's certificate (HiGHS) and checks it with the unchanged certbb.lower_bound.
+  - **Reprove's cost.** The pool estimate puts the tree at 1.71e10 nodes. At 1.34 ms a node, reprove costs about 264 CPU-days, 2.3× the fanout's remaining 116 CPU-days. So a recordable a(11) was about 75 wall days away, not the page's 20.
+  - **N3**: NativeCheck, the same check with the bound computed in GMP. Workers run 2.49× faster; no spec change; fanout_code 576aa600…; new root files native_bound.py/.cpp/.so and build_native.py.
+  - **Q2**: reprove on fanout.Simplex from the Dual's state. Reprove runs 2.50× faster; reprove_code b575c82e…; three approved spec changes.
+  - **End to end:** N3 + Q2 is about 152 CPU-days, about 30 wall days.
+  - **Not adopted:** X (no in-worker check) is out. GMP inside reprove, about 87 CPU-days, is a trust decision for dreeves.
+  - The agent is staging deploy432 variant N3Q2 and dry-running it; deploy on "go", after the watcher restarts on the memory fix.
+  - The page's 432 ETA covers only the fanout. Showing later stages (432's reprove, 288's boxsplit, handoff and final pass) is owed.
+- **GMP inside reprove approved** (dreeves, 2026-10-31: "you know exactly what i'm going to say to that"). The check432 agent builds reprove variant Q3 (exact check via native_bound_of, files and library pinned by sha256 in reprove) and folds it into the N3 deploy. Expected: about 87 CPU-days end to end, roughly 17 wall days to a recordable a(11).
+- **Exclusion screens: none closed** (agent, 2026-10-31; `scratch/excl-20261031/NOTES.md`, about 35 CPU-minutes).
+  - **Targets:** order 12 at 528/576/624 and order 13 at 768/912/1008. Each has a forced lopsided mod-5 profile, but 20-3,160 residue combinations stay open after mods 3, 5, 7 and 4.
+  - **Failed:**
+    - finer moduli multiply the open cases;
+    - branch and bound would need 10^18-10^28 nodes;
+    - a 752-style meet in the middle would leave 5e9 to 1e76 survivors (three or four of five classes relaxed, where 752 relaxed one of three);
+    - slicing on f'(-1) still allows 5-17 values;
+    - joint coprime moduli add nothing (index M^(m-1));
+    - every CP-SAT residue screen is feasible.
+  - **Caught false result:** a too-tight z bound in the affine CP-SAT runs.
+  - **Next possibility:** excluding only symmetric or antisymmetric sequences, which would not lower hi.
+- **README tasks** (dreeves, 2026-10-31: "the rest of FAC, MIN. and IND"):
+  - An agent does [IND] and [MIN] in `scratch/readme-20261031/`:
+    - [IND]: "equipow p320" in hover readouts, anchors on the code entries, links in static text;
+    - [MIN]: the smallest-lengths table extended by products of known sequences (order 14 at 1920, 15 at 3840).
+  - [FAC] stage 2 (quals, and maybe certificates, into directories) waits until after the N3Q3 deploy, since deploy432 runs and installs root quals, and until the agents that run quals by path finish.
+  - [FAC] stage 3 (search code) waits until 432's reprove finishes.
+- **Watcher memory fix live** (agent's change, verified 2026-10-31; `scratch/watcher-mem-20261031/NOTES.md`).
+  - **The change:** progress.py releases an idle run's reading right after its survey and reuses that survey while the run's inputs are unchanged. Names: idle, `surveyed`, `signature`, `LIGHT`/`light`, `journaled`. It also clears the `meanings`/`tree_order` caches and runs gc.
+  - **Checks:** full-scale byte identity held (seqA 6 rounds, seqB 4). Footprint fell from 5.8-6.05 GB to 2.16-2.17 GB, and a steady snapshot from 2.55 to 0.7 CPU s. Suites 239/240; the one failure is the pre-existing "Astra: “" qual. Resuming 288 costs one rebuild of about 4 min and 125 CPU s.
+  - **mimalloc** does not help.
+  - **Restart:** watcher 6923 (5.46 GB at the end) was stopped and relaunched as PID 10427 at 07:51:33.
+  - The check432 agent has a conditional go for the N3(Q3) deploy, since the relaunch gate (watcher newer than progress.py) is satisfied.
+
+Order-13 witness agent, 2026-10-31 from 06:05 (Claude; `scratch/w13-1008-912/`):
+- **Tool:** `w13.py` there is scratch/w11-624-576/w11.py at order 13 with four changes.
+  - `wagner.py`: consistent configurations by Wagner's four-list algorithm. Lists of the cheapest compatible move pairs of four orbit groups; a level-1 key from a homomorphism of H onto a cyclic 3-group; exact class matching. Each pool round repairs a climbed configuration, then polishes its best repair (repairs with d = 0). At 1008, |H| = 3^30: the old two-list repair matched nothing (`before/red_pool.log`); a round (lists of 3e5, 20 targets, 12 CPU s) gives about 300 repairs and 1,800 polished configurations, best q 2.2-3.3 (log10 E -2.4 to -2.6; ceiling -1.94).
+  - `cvpworker.py`: one exec'd enumeration process per seed in place of a fork per CVP (forked children are starved at nice 15). A bug of its first version (it raised its own hard CPU limit; seed 3 of the first launch died after 3,262 CVPs) has a red-then-green qual.
+  - `reduced()`: BKZ at block sizes 30, 40, 45 after BKZ-20 (option bkz).
+  - An unknown key=value option stops the run.
+- **Quals:** `quals_w13.py` 15/15 (red on the old tool in `before/`: 5 of 14 passed); `mutants.py` (3 mutants caught); the copied driver quals (seeds 10, run 4, page_check 1, lookup 3).
+- **Controls:** the Wagner qual recovers the doubled p480's configuration (960) from an 8-move perturbation. `control-w11/` (the same code at order 11) found a new 528:11 witness at pool rank 556 in 98 CPU s; check11 and plain integers confirm it.
+- **Design probes:** fixed orbits F = 8, 9, 10, 11 give |H| 3^7, 3^30, 3^32, 3^33, E ceilings -2.88, -1.94, -10.67, -19.69, lattice dimensions 190, 153, 117, 81 (`fixplan_1008.log`, `fixplan2_1008.log`). w11's 9 stays.
+- **Enumeration at dimension 153:** fplll's cost model is unreliable here. The exact tree of a planted target under shape (0.4, 1.5, 1.1) held 7.0e6 nodes in its last 40 levels (`treesize_1008.log`). Linear pruning (0.02, 1.0, 1.0), p_emp 0.8%, lets almost no target past the top levels: 0 of the first 97,222 CVPs took 0.05 CPU s. The order-11 witnesses' tail profiles look like random points' (`control-w11/skew_528.log`, `profile.py`), so p_emp applies to them.
+- **1008:13 launched** at 07:54:20 (`launch1008.sh`, 3 seeds, 150 seeds or 6 h). Seed 3 died on the worker bug at 07:58 (432 paused 220 s). Relaunched from seed 4 at 08:00:16, 432 paused again (watchdog 2 h). A seed: 60 rounds (30,720 configurations, 12 min), BKZ to 45, CVPs at about 8 ms each. By 08:26: 97,222 CVPs, summed E*p 0.51, no witness. 912:13 follows with the same settings (`launch912.sh`).
+- **[IND] and [MIN] done** (agent, 2026-10-31; `scratch/readme-20261031/NOTES.md`):
+  - [IND]: hover labels say "equipow …" (mstar.py's PAGE_CODES, EXAMPLE_LABELS and set labels). Every code is `<code id="N:M">`, and 41 references in page math are `\href{#N:M}{p_{N}}`; page/math.js renders only `#\d+:\d+` hrefs. The one exception is p_{240} in the 2^20 construction (quals_index.OFF_PAGE). mstar.page_sources requires ids that match their length and order.
+  - [MIN]: the smallest-lengths table uses best[m] = min(the chart's least n with lo ≥ m, best[a]·best[m−a]), giving order 14 at 1920 and 15 at 3840. A Claude-attributed note under the table explains products.
+  - Quals: quals_index 111/111 and every other page suite green; 5 new quals seen red first; the spec changes follow from the request.
+  - **Any newly recorded code needs `<code id="N:M">` and an 'equipow …' label.**
+  - Not touched: proof384.html still links index.html#proof384 and names index.html in its reproduction steps. Untested: KaTeX's aria-hidden markup may hide the new links from screen readers.
+- **432:12 N3Q3 deployed** (check432 agent, 2026-10-31 08:24-08:40; records `scratch/deploy432-20261030/N3Q3/`).
+  - **Phases:** qualify (197 quals), dry run, intent (paused for w13's 1008 seeds), stop, install, switch (ba6ee62c… to 576aa600…), relaunch (driver 64695, seed 5, 8 workers), first verify at about 08:40, and repause at 08:40:29 (pause432.json names the new pids; w13's resume or its watchdog continues them).
+  - **Q3:** reprove's exact check is GMP. It runs 2.93× faster than Q2 (0.172 against 0.502 ms a node); reprove_code 563b7394….
+  - **Expected:** reprove about 34 CPU-days; fanout plus reprove about 81 CPU-days, down from about 380.
+  - **Frozen besides the earlier list:** native_bound.py/.cpp/.so, build_native.py, reprove.py, and **the Homebrew libgmp/libgmpxx dylibs** (pinned; a `brew upgrade gmp` stops the next session start and reprove).
+  - quals_check432 13/13 and quals_deploy432 32/32. Rollback is possible (same trees as LF).

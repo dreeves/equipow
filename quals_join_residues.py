@@ -43,7 +43,7 @@ class ResidueQuals(unittest.TestCase):
         # Resultata without the helper: the 163-dimensional geometry remains.
         raw = J.model('calibration')
         strong = J.residue_model(raw)
-        q = mstar.explicit()[336, 'index.html q336']
+        q = mstar.explicit()[336, 'equipow q336']
         self.assertTrue(satisfies(strong, q[:168]))
         self.assertTrue(J.verify(strong, q[:168]))
         self.assertEqual(sp.Matrix(strong['A']).rank(), 9)
@@ -113,7 +113,7 @@ class ResidueCaseQuals(unittest.TestCase):
         # Resultata before implementation: there is no complete case family.
         model = J.residue_model(J.model('calibration'))
         cases = J.residue_cases(model, 7)
-        q = mstar.explicit()[336, 'index.html q336'][:168]
+        q = mstar.explicit()[336, 'equipow q336'][:168]
         self.assertEqual(len(cases), 7)
         self.assertEqual(sum(satisfies(c, q) for c in cases), 1)
         self.assertTrue(all(len(c['A']) == sp.Matrix(c['A']).rank() == 12 for c in cases))

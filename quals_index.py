@@ -413,7 +413,22 @@ function battery(R) {
   for (let t = walk.nextNode(); t; t = walk.nextNode()) {
     if (!t.parentElement.closest('script, style, .katex') && /\\[()]/.test(t.data)) raw.push(t.data.slice(0, 80));
   }
-  R.math = {formulas: document.querySelectorAll('.katex').length, errors: document.querySelectorAll('.katex-error').length, raw};
+  R.math = {formulas: document.querySelectorAll('.katex').length, errors: document.querySelectorAll('.katex-error').length, raw,
+            unsupported: document.querySelectorAll('.katex-mathml mstyle[mathcolor="#cc0000"]').length};
+  // Where the page shows "index.html" once its scripts ran (dreeves's README, 2026-10-31, [IND]: "we should never refer
+  // to "index.html" in user-facing copy"): each text of the body outside scripts and styles that holds it, and each
+  // attribute of an element of the body that does, as up to 80 characters of it.
+  R.indexHtml = [];
+  for (let t = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT), x = t.nextNode(); x; x = t.nextNode())
+    if (!x.parentElement.closest('script, style') && x.data.includes('index.html')) R.indexHtml.push(x.data.slice(0, 80));
+  for (const e of document.body.querySelectorAll('*'))
+    for (const a of e.attributes) if (a.value.includes('index.html')) R.indexHtml.push(`${e.tagName} ${a.name}: ${a.value.slice(0, 80)}`);
+  // The page's links to its own anchors (2026-10-31, [IND]): for each a[href^="#"] of main, [its href, the tag of the
+  // element whose id the href names (null when none has it), whether KaTeX drew it].
+  R.anchors = [...document.querySelectorAll('main a[href^="#"]')].map(a => {
+    const target = document.getElementById(a.getAttribute('href').slice(1));
+    return [a.getAttribute('href'), target && target.tagName, !!a.closest('.katex')];
+  });
   if (cv.height === 0) return;
   const tok = name => getComputedStyle(cv).getPropertyValue(name).trim().toLowerCase();
   const C = {exists: tok('--exists'), open: tok('--open'), impossible: tok('--impossible'), paper: tok('--paper'), ink: tok('--ink'),
@@ -909,32 +924,33 @@ SMALLEST_PROVEN = (2, 4, 8, 16, 32, 48, 96, 144, 192, 240, 432)
 
 def smallest_rows(cols):
     """The rows the section's script makes from MSTAR's cols, computed here: for each order m from 1 while some n's upper
-    bound allows m, the texts of m, the least n with a known sequence of order m (its lower bound at least m) or — when
-    none is known, a check mark if that n is also the least n whose upper bound is at least m (else nothing), and that
-    least n.  (dreeves, 2026-10-30: "why isn't 480:14 highlighted in the chart?"; until then the rows stopped at the
-    largest order known at some n.)"""
-    least = lambda test: next((n for n, c in enumerate(cols, 1) if test(c)), None)
-    rows, m = [], 1
-    while least(lambda c: c[1] >= m):
-        known, possible = least(lambda c: c[0] >= m), least(lambda c: c[1] >= m)
-        rows.append([str(m), str(known) if known else '—', '✓' if known == possible else '', str(possible)])
-        m += 1
-    return rows
+    bound allows m (least_columns), the texts of m, the least length known to reach m, a check mark if that is also the
+    least n whose upper bound is at least m (else nothing), and that least n.  (dreeves, 2026-10-30: "why isn't 480:14
+    highlighted in the chart?"; until then the rows stopped at the largest order known at some n.)  The least length
+    known is best[m] = min(the least n whose lower bound is at least m, best[a] best[m - a] for 0 < a < m), a product
+    f(x) g(x^n), n the length of f, having order at least the sum of theirs (dreeves's README, 2026-10-31, [MIN]; until
+    then — where no n up to NMAX was known to reach m)."""
+    best = {}
+    for m, known, _ in least_columns(cols):
+        best[m] = min([known or math.inf] + [best[a] * best[m - a] for a in range(1, m)])
+    assert all(type(b) is int for b in best.values()), best
+    return [[str(m), str(best[m]), '✓' if best[m] == possible else '', str(possible)] for m, _, possible in least_columns(cols)]
 
 
 def a323395_cells(cols):
-    """The cells (n, m) the chart rings in gold (dreeves, 2026-10-19): smallest_rows' proven ones, the terms a(m − 1)
-    of OEIS A323395 that the data proves."""
-    return [(int(n), int(m)) for m, n, proven, _ in smallest_rows(cols) if proven]
+    """The cells (n, m) the chart rings in gold and dots (dreeves, 2026-10-19), the proven ones of least_columns, whose
+    least n known to reach m is also the least not ruled out: the terms a(m − 1) of OEIS A323395 that the data proves."""
+    return [(known, m) for m, known, possible in least_columns(cols) if known == possible]
 
 
 def smallest_rings(cols):
-    """The cells the m*(n) chart rings in gold (dreeves's README, 2026-10-30, [GLT]), the table of smallest lengths'
-    (smallest_rows): {(n, m): role} for the least n known of each order m and the least n not ruled out for it, one cell
-    when they agree; role 1 known, 2 not ruled out, 3 both, proven the least (a323395_cells)."""
+    """The cells the m*(n) chart rings in gold (dreeves's README, 2026-10-30, [GLT]), the chart's own least columns
+    (least_columns), the table of smallest lengths' cells up to NMAX (its lengths from products beyond the chart, since
+    2026-10-31, have no column): {(n, m): role} for the least n known of each order m and the least n not ruled out for
+    it, one cell when they agree; role 1 known, 2 not ruled out, 3 both, proven the least (a323395_cells)."""
     out = {}
-    for m, known, _, possible in smallest_rows(cols):
-        for n in {int(t) for t in (known, possible) if t != '—'}: out[(n, int(m))] = (str(n) == known) + 2 * (str(n) == possible)
+    for m, known, possible in least_columns(cols):
+        for n in {known, possible} - {None}: out[(n, m)] = (n == known) + 2 * (n == possible)
     return out
 
 
@@ -1511,14 +1527,15 @@ def q_2_18_shows_its_construction():
     # Expectata (dreeves, 2026-10-12: "for 2^18, index.html should show the proof, right? ... can we also get mathematica
     # code to generate the full list of 2^18/2 integers?"): the remark writes out the construction, (p320 # p560) ∨
     # (p48 # p432 # τ2), links the script; the script decodes the four blocks from hex
-    # codes that are exactly codes on the page.
+    # codes that are exactly codes on the page.  (Since 2026-10-31 each name links to its code, \href{#N:M}{...}, which
+    # the comparison drops, unlink: q_codes_are_anchors_and_names_link_to_them.)
     li = re.search(r'<p class="entry">\\\(n = 2\^\{18\}\\\): .*?</li>', page(), re.S).group(0)
-    assert '\\((p_{320} \\mathbin{\\#} p_{560}) \\vee (p_{48} \\mathbin{\\#} p_{432} \\mathbin{\\#} \\tau_2)\\)' in li, li
+    assert '\\((p_{320} \\mathbin{\\#} p_{560}) \\vee (p_{48} \\mathbin{\\#} p_{432} \\mathbin{\\#} \\tau_2)\\)' in unlink(li), li
     assert 'certificate_2%5E18.wl"' in li, li
     wl = open(os.path.join(HERE, 'certificate_2^18.wl'), encoding='utf-8').read()
     codes = re.findall(r'(p\d+) = fromHex\["([0-9A-F]+)", \d+\];', wl)
     assert [k for k, _ in codes] == ['p320', 'p560', 'p432', 'p48'], codes
-    assert all(f'<code>{h}</code>' in page() for _, h in codes), codes
+    assert all(re.search(rf'<code id="\d+:\d+">{h}</code>', page()) for _, h in codes), codes
 
 
 def q_2_17_shows_its_construction():
@@ -1526,14 +1543,15 @@ def q_2_17_shows_its_construction():
     # Expectata (as for 2^18, which dreeves asked for on 2026-10-12; 800's example of order 11, 2026-10-17, moved the
     # first power of 2 that beats Thue-Morse by 1 from 2^18 to 2^17): the remark writes out the construction,
     # (p112 # p800) v (p48 # p432 # tau_1), links the script; the script
-    # decodes the four blocks from hex codes that are exactly codes on the page.
+    # decodes the four blocks from hex codes that are exactly codes on the page.  (Since 2026-10-31 each name links to
+    # its code, \href{#N:M}{...}, which the comparison drops, unlink: q_codes_are_anchors_and_names_link_to_them.)
     li = re.search(r'<p class="entry">\\\(n = 2\^\{17\}\\\): .*?</li>', page(), re.S).group(0)
-    assert '\\((p_{112} \\mathbin{\\#} p_{800}) \\vee (p_{48} \\mathbin{\\#} p_{432} \\mathbin{\\#} \\tau_1)\\)' in li, li
+    assert '\\((p_{112} \\mathbin{\\#} p_{800}) \\vee (p_{48} \\mathbin{\\#} p_{432} \\mathbin{\\#} \\tau_1)\\)' in unlink(li), li
     assert 'certificate_2%5E17.wl"' in li, li
     wl = open(os.path.join(HERE, 'certificate_2^17.wl'), encoding='utf-8').read()
     codes = re.findall(r'(p\d+) = fromHex\["([0-9A-F]+)", \d+\];', wl)
     assert [k for k, _ in codes] == ['p112', 'p800', 'p48', 'p432'], codes
-    assert all(f'<code>{h}</code>' in page() for _, h in codes), codes
+    assert all(re.search(rf'<code id="\d+:\d+">{h}</code>', page()) for _, h in codes), codes
 
 
 def q_chart_agrees_with_tables():
@@ -1679,7 +1697,7 @@ def q_examples_of_2026_10_25_have_entries_codes_and_sets():
     # Expectata: each n has an entry of its own, "m* = m", in 800's form: its one code block, p_n of order m, whose
     # signs have order exactly m (synthetic division here), symmetric for even m and antisymmetric for odd; the set
     # SClaude[m][n] is exactly that sequence's +1 positions, 0 among them; and mstar.js's column n is [m, m,
-    # ["example", "index.html p" + n], hiWhy].
+    # ["example", "equipow p" + n], hiWhy].
     text, cols = page(), mstar_data()['cols']
     sets = {(int(m), int(n)): {int(t) for t in body.split(',')}
             for m, n, body in re.findall(r'SClaude\[(\d+)\]\[(\d+)\] = \{([^}]*)\};', text)}
@@ -1692,9 +1710,9 @@ def q_examples_of_2026_10_25_have_entries_codes_and_sets():
                        + str(n) + r'\\\): &nbsp;\\\(m\^\* = (\d+)\\\)</p>\n(.*?)\n    </li>', text, re.S)
         assert li and int(li.group(1)) == m, n
         lo, hi, lw, hw = cols[n - 1]
-        assert [lo, hi, lw] == [m, m, ['example', f'index.html p{n}']], (n, cols[n - 1])
+        assert [lo, hi, lw] == [m, m, ['example', f'equipow p{n}']], (n, cols[n - 1])
         codes = re.findall(r'<p class="code">\n        <span>\\\(p_\{(\d+)\}\\\) \\\(\(m = (\d+)\)\\\):</span>\n'
-                           r'        <code>([0-9A-F]+)</code>\n      </p>', li.group(2))
+                           r'        <code id="\d+:\d+">([0-9A-F]+)</code>\n      </p>', li.group(2))
         assert len(codes) == 1 and codes[0][:2] == (str(n), str(m)), (n, codes)
         h = codes[0][2]
         left = [1 if b == '1' else -1 for b in bin(int(h, 16))[2:].zfill(4 * len(h))]
@@ -1709,12 +1727,12 @@ def q_752_bound_cites_proof752():
     # the middle): the entry links proof752.py at its GitHub address; mstar.js's column 752 has hi 10 and hiWhy
     # ["page", "Claude and Astra"]; and proof752.py is in the working directory.  Since 2026-10-26, when Claude's
     # search found an example of order 10 at 752, the entry is "m* = 10" and the column is [10, 10, ["example",
-    # "index.html p752"], …].
+    # "equipow p752"], …].
     li = re.search(r'<p class="entry">\\\(n = 752\\\): &nbsp;\\\(m\^\* = 10\\\)</p>\n(.*?)\n    </li>',
                    page(), re.S)
     assert li, 'no entry for 752 alone'
     assert 'href="https://github.com/dreeves/equipow/blob/main/proof752.py"' in li.group(1), li.group(1)[:600]
-    assert mstar_data()['cols'][752 - 1] == [10, 10, ['example', 'index.html p752'], ['page', 'Claude and Astra']]
+    assert mstar_data()['cols'][752 - 1] == [10, 10, ['example', 'equipow p752'], ['page', 'Claude and Astra']]
     assert os.path.isfile(os.path.join(HERE, 'proof752.py'))
 
 
@@ -1750,7 +1768,7 @@ def q_examples_of_2026_10_26_have_entries_codes_and_sets():
     # whose signs have order exactly m (synthetic division here), symmetric for even m and antisymmetric for odd; the
     # set SClaude[m][n]
     # is exactly that sequence's +1 positions, 0 among them; mstar.js's column n is [m, m, ["example",
-    # "index.html p" + n], hiWhy]; no entry lists n with another n; and the entries run in order of n among the
+    # "equipow p" + n], hiWhy]; no entry lists n with another n; and the entries run in order of n among the
     # examples': 656's, 752's, 784's, 800's, 832's, 848's.
     text, cols = page(), mstar_data()['cols']
     sets = {(int(m), int(n)): {int(t) for t in body.split(',')}
@@ -1764,9 +1782,9 @@ def q_examples_of_2026_10_26_have_entries_codes_and_sets():
                        + str(n) + r'\\\): &nbsp;\\\(m\^\* = (\d+)\\\)</p>\n(.*?)\n    </li>', text, re.S)
         assert li and int(li.group(1)) == m, n
         lo, hi, lw, hw = cols[n - 1]
-        assert [lo, hi, lw] == [m, m, ['example', f'index.html p{n}']], (n, cols[n - 1])
+        assert [lo, hi, lw] == [m, m, ['example', f'equipow p{n}']], (n, cols[n - 1])
         codes = re.findall(r'<p class="code">\n        <span>\\\(p_\{(\d+)\}\\\) \\\(\(m = (\d+)\)\\\):</span>\n'
-                           r'        <code>([0-9A-F]+)</code>\n      </p>', li.group(2))
+                           r'        <code id="\d+:\d+">([0-9A-F]+)</code>\n      </p>', li.group(2))
         assert len(codes) == 1 and codes[0][:2] == (str(n), str(m)), (n, codes)
         h = codes[0][2]
         left = [1 if b == '1' else -1 for b in bin(int(h, 16))[2:].zfill(4 * len(h))]
@@ -1797,7 +1815,7 @@ def q_example_at_1024_has_its_entry_code_set_and_cell():
                    r'1024\\\): &nbsp;\\\(m\^\* = 11\\\)</p>\n(.*?)\n    </li>', text, re.S)
     assert li, 'no entry of 1024 alone'
     codes = re.findall(r'<p class="code">\n        <span>\\\(p_\{(\d+)\}\\\) \\\(\(m = (\d+)\)\\\):</span>\n'
-                       r'        <code>([0-9A-F]+)</code>\n      </p>', li.group(1))
+                       r'        <code id="\d+:\d+">([0-9A-F]+)</code>\n      </p>', li.group(1))
     assert len(codes) == 1 and codes[0][:2] == ('1024', '11'), codes
     h = codes[0][2]
     left = [1 if b == '1' else -1 for b in bin(int(h, 16))[2:].zfill(4 * len(h))]
@@ -1828,7 +1846,7 @@ def q_symmetric_example_at_528():
     # (m = 11) (q_example_at_528_has_its_entry_code_and_set).
     li = re.search(r'<p class="entry">\\\(n = 528\\\): .*?</li>', page(), re.S)
     assert li, 'no entry of 528'
-    codes = re.findall(r'\\\(p_\{(\d+)\}\\\) \\\(\(m = (\d+)\)\\\):</span>\n\s*<code>([0-9A-F]+)</code>',
+    codes = re.findall(r'\\\(p_\{(\d+)\}\\\) \\\(\(m = (\d+)\)\\\):</span>\n\s*<code id="\d+:\d+">([0-9A-F]+)</code>',
                        li.group(0))
     assert [c[:2] for c in codes] == [('192', '9'), ('528', '10'), ('528', '11')], codes
     h = codes[1][2]
@@ -1889,13 +1907,13 @@ def q_example_at_816_has_its_entry_code_and_set():
     # symmetric; SClaude[12][816] exactly their +1 positions, 0 among them, and no SClaude[11][816]; 720's entry alone
     # (it shared one with 816 before; its own example since 2026-10-27,
     # q_examples_at_720_and_1008_have_their_entries_codes_and_sets); the cell 816 of value 12–14; and mstar.js's
-    # column 816 is [12, 14, ["example", "index.html p816"], ["norm", 5]].
+    # column 816 is [12, 14, ["example", "equipow p816"], ["norm", 5]].
     text = page()
     li = re.search(r'<li class="c">\n      <span class="mk" aria-hidden="true">◆</span>\n      <p class="entry">\\\(n = '
                    r'816\\\): &nbsp;\\\(m\^\* \\in \\\{12, 13, 14\\\}\\\)</p>\n(.*?)\n    </li>', text, re.S)
     assert li, 'no entry of 816 alone'
     codes = re.findall(r'<p class="code">\n        <span>\\\(p_\{(\d+)\}\\\) \\\(\(m = (\d+)\)\\\):</span>\n'
-                       r'        <code>([0-9A-F]+)</code>\n      </p>', li.group(1))
+                       r'        <code id="\d+:\d+">([0-9A-F]+)</code>\n      </p>', li.group(1))
     assert len(codes) == 1 and codes[0][:2] == ('816', '12'), codes
     h = codes[0][2]
     left = [1 if b == '1' else -1 for b in bin(int(h, 16))[2:].zfill(4 * len(h))]
@@ -1910,7 +1928,7 @@ def q_example_at_816_has_its_entry_code_and_set():
     i = listed.index(['816'])
     assert listed[i - 1:i + 2] == [['800'], ['816'], ['832']] and ['720'] in listed, listed
     assert new_cells(text)[816] == (12, 14), new_cells(text)[816]
-    assert mstar_data()['cols'][816 - 1] == [12, 14, ['example', 'index.html p816'], ['norm', 5]], mstar_data()['cols'][816 - 1]
+    assert mstar_data()['cols'][816 - 1] == [12, 14, ['example', 'equipow p816'], ['norm', 5]], mstar_data()['cols'][816 - 1]
 
 
 def q_examples_at_720_and_1008_have_their_entries_codes_and_sets():
@@ -1925,8 +1943,8 @@ def q_examples_at_720_and_1008_have_their_entries_codes_and_sets():
     # order m (11 at 720, 12 at 1008), whose signs have order exactly m (synthetic division here) and are
     # antisymmetric at 720 and symmetric at 1008; SClaude[m][n] exactly their +1 positions, 0 among them, and no
     # SClaude[11][1008]; no other entry names 720 or 1008 (their joins' entries are gone); the cells 11–14 and 12–13;
-    # and mstar.js's columns [11, 14, ["example", "index.html p720"], ["residue", 16]] and [12, 13, ["example",
-    # "index.html p1008"], ["residue", 5]].
+    # and mstar.js's columns [11, 14, ["example", "equipow p720"], ["residue", 16]] and [12, 13, ["example",
+    # "equipow p1008"], ["residue", 5]].
     text = page()
     sets = {(int(m), int(n)): {int(t) for t in body.split(',')}
             for m, n, body in re.findall(r'SClaude\[(\d+)\]\[(\d+)\] = \{([^}]*)\};', text)}
@@ -1938,7 +1956,7 @@ def q_examples_at_720_and_1008_have_their_entries_codes_and_sets():
                        rf'{n}\\\): &nbsp;\\\(m\^\* \\in {values}\\\)</p>\n(.*?)\n    </li>', text, re.S)
         assert li, f'no entry of {n} alone'
         codes = re.findall(r'<p class="code">\n        <span>\\\(p_\{(\d+)\}\\\) \\\(\(m = (\d+)\)\\\):</span>\n'
-                           r'        <code>([0-9A-F]+)</code>\n      </p>', li.group(1))
+                           r'        <code id="\d+:\d+">([0-9A-F]+)</code>\n      </p>', li.group(1))
         assert len(codes) == 1 and codes[0][:2] == (str(n), str(m)), codes
         h = codes[0][2]
         left = [1 if b == '1' else -1 for b in bin(int(h, 16))[2:].zfill(4 * len(h))]
@@ -1952,8 +1970,8 @@ def q_examples_at_720_and_1008_have_their_entries_codes_and_sets():
         assert sum(str(n) in ns for ns in listed) == 1, (n, [ns for ns in listed if str(n) in ns])
         assert new_cells(text)[n] == (m, hi), new_cells(text)[n]
     cols = mstar_data()['cols']
-    assert cols[720 - 1] == [12, 14, ['example', 'index.html p720'], ['residue', 16]], cols[720 - 1]
-    assert cols[1008 - 1] == [12, 13, ['example', 'index.html p1008'], ['residue', 5]], cols[1008 - 1]
+    assert cols[720 - 1] == [12, 14, ['example', 'equipow p720'], ['residue', 16]], cols[720 - 1]
+    assert cols[1008 - 1] == [12, 13, ['example', 'equipow p1008'], ['residue', 5]], cols[1008 - 1]
 
 
 def q_example_at_912_has_its_entry_code_and_set():
@@ -1963,14 +1981,14 @@ def q_example_at_912_has_its_entry_code_and_set():
     # Expectata (2026-10-28: Claude's lattice search w12.py found a symmetric example of order 12 at 912): an entry of
     # its own, an <li class="c"> marked ◆, "m* ∈ {12, 13}", between 896's and 928's (its wording unpinned since 2026-10-30); its one code block, p912 of order 12, whose signs have order exactly 12 (synthetic
     # division here) and are symmetric; SClaude[12][912] exactly their +1 positions, 0 among them; the built entry of
-    # 672 and 768 no longer names 912; the cell 12–13; mstar.js's column [12, 13, ["example", "index.html p912"],
+    # 672 and 768 no longer names 912; the cell 12–13; mstar.js's column [12, 13, ["example", "equipow p912"],
     # ["residue", 5]].
     text = page()
     li = re.search(r'<li class="c">\n      <span class="mk" aria-hidden="true">◆</span>\n      <p class="entry">\\\(n = '
                    r'912\\\): &nbsp;\\\(m\^\* \\in \\\{12, 13\\\}\\\)</p>\n(.*?)\n    </li>', text, re.S)
     assert li, 'no entry of 912 alone'
     codes = re.findall(r'<p class="code">\n        <span>\\\(p_\{(\d+)\}\\\) \\\(\(m = (\d+)\)\\\):</span>\n'
-                       r'        <code>([0-9A-F]+)</code>\n      </p>', li.group(1))
+                       r'        <code id="\d+:\d+">([0-9A-F]+)</code>\n      </p>', li.group(1))
     assert len(codes) == 1 and codes[0][:2] == ('912', '12'), codes
     h = codes[0][2]
     left = [1 if b == '1' else -1 for b in bin(int(h, 16))[2:].zfill(4 * len(h))]
@@ -1986,7 +2004,7 @@ def q_example_at_912_has_its_entry_code_and_set():
     assert listed[i - 1:i + 2] == [['896'], ['912'], ['928']], listed[i - 1:i + 2]
     assert sum('912' in ns for ns in listed) == 1 and ['672'] in listed, [ns for ns in listed if '672' in ns]   # 672 and 768 until 768's example
     assert new_cells(text)[912] == (12, 13), new_cells(text)[912]
-    assert mstar_data()['cols'][912 - 1] == [12, 13, ['example', 'index.html p912'], ['residue', 5]], mstar_data()['cols'][912 - 1]
+    assert mstar_data()['cols'][912 - 1] == [12, 13, ['example', 'equipow p912'], ['residue', 5]], mstar_data()['cols'][912 - 1]
 
 
 def q_example_at_768_has_its_entry_code_and_set():
@@ -1996,14 +2014,14 @@ def q_example_at_768_has_its_entry_code_and_set():
     # Expectata (2026-10-28 evening: Claude's lattice search w12.py found symmetric examples of order 12 at 768): an
     # entry of its own, an <li class="c"> marked ◆, "m* ∈ {12, 13}", between 752's and 784's (its wording unpinned since 2026-10-30); its one code block, p768 of order 12, whose signs have order exactly 12 (synthetic
     # division here) and are symmetric; SClaude[12][768] exactly their +1 positions, 0 among them; the built entry it
-    # shared with 672 now names 672 alone; the cell 12–13; mstar.js's column [12, 13, ["example", "index.html p768"],
+    # shared with 672 now names 672 alone; the cell 12–13; mstar.js's column [12, 13, ["example", "equipow p768"],
     # ["residue", 5]].
     text = page()
     li = re.search(r'<li class="c">\n      <span class="mk" aria-hidden="true">◆</span>\n      <p class="entry">\\\(n = '
                    r'768\\\): &nbsp;\\\(m\^\* \\in \\\{12, 13\\\}\\\)</p>\n(.*?)\n    </li>', text, re.S)
     assert li, 'no entry of 768 alone'
     codes = re.findall(r'<p class="code">\n        <span>\\\(p_\{(\d+)\}\\\) \\\(\(m = (\d+)\)\\\):</span>\n'
-                       r'        <code>([0-9A-F]+)</code>\n      </p>', li.group(1))
+                       r'        <code id="\d+:\d+">([0-9A-F]+)</code>\n      </p>', li.group(1))
     assert len(codes) == 1 and codes[0][:2] == ('768', '12'), codes
     h = codes[0][2]
     left = [1 if b == '1' else -1 for b in bin(int(h, 16))[2:].zfill(4 * len(h))]
@@ -2019,7 +2037,7 @@ def q_example_at_768_has_its_entry_code_and_set():
     assert listed[i - 1:i + 2] == [['752'], ['768'], ['784']], listed[i - 1:i + 2]
     assert sum('768' in ns for ns in listed) == 1 and ['672'] in listed, [ns for ns in listed if '672' in ns or '768' in ns]
     assert new_cells(text)[768] == (12, 13), new_cells(text)[768]
-    assert mstar_data()['cols'][768 - 1] == [12, 13, ['example', 'index.html p768'], ['residue', 5]], mstar_data()['cols'][768 - 1]
+    assert mstar_data()['cols'][768 - 1] == [12, 13, ['example', 'equipow p768'], ['residue', 5]], mstar_data()['cols'][768 - 1]
 
 
 def q_examples_at_576_and_624_have_their_entries_codes_and_sets():
@@ -2031,7 +2049,7 @@ def q_examples_at_576_and_624_have_their_entries_codes_and_sets():
     # examples in order of n (576 between 560 and 592, 624 between 608 and 656; its wording unpinned); its one code block, p_n of order 11, whose
     # signs have order exactly 11 (synthetic division here) and are antisymmetric; SClaude[11][n] exactly their +1
     # positions, 0 among them; no other entry names n (its old entry is gone); the cell 11–12; the changelog states
-    # 11 ≤ m*(n) ≤ 12 on 2026-10-31; and mstar.js's column [11, 12, ["example", "index.html p<n>"], ["residue", M]], M the
+    # 11 ≤ m*(n) ≤ 12 on 2026-10-31; and mstar.js's column [11, 12, ["example", "equipow p<n>"], ["residue", M]], M the
     # modulus of n's residue condition at order 13.
     # Resultata before: 576 was 10 to 12, its lo the join 240 + 336, 624 was 10 to 12, its lo the join 240 + 384; no example of order 11 at 576 and 624.
     text = page()
@@ -2044,7 +2062,7 @@ def q_examples_at_576_and_624_have_their_entries_codes_and_sets():
                        + str(n) + r'\\\): &nbsp;\\\(m\^\* \\in \\\{11, 12\\\}\\\)</p>\n(.*?)\n    </li>', text, re.S)
         assert li, f'no entry of {n} alone'
         codes = re.findall(r'<p class="code">\n        <span>\\\(p_\{(\d+)\}\\\) \\\(\(m = (\d+)\)\\\):</span>\n'
-                           r'        <code>([0-9A-F]+)</code>\n      </p>', li.group(1))
+                           r'        <code id="\d+:\d+">([0-9A-F]+)</code>\n      </p>', li.group(1))
         assert len(codes) == 1 and codes[0][:2] == (str(n), '11'), codes
         h = codes[0][2]
         left = [1 if b == '1' else -1 for b in bin(int(h, 16))[2:].zfill(4 * len(h))]
@@ -2058,7 +2076,7 @@ def q_examples_at_576_and_624_have_their_entries_codes_and_sets():
         assert sum(str(n) in ns for ns in listed) == 1, (n, [ns for ns in listed if str(n) in ns])
         assert new_cells(text)[n] == (11, 12), new_cells(text)[n]
         assert said.get(n) == (11, 12), (n, said.get(n))
-        assert mstar_data()['cols'][n - 1] == [11, 12, ['example', f'index.html p{n}'], ['residue', M]], mstar_data()['cols'][n - 1]
+        assert mstar_data()['cols'][n - 1] == [11, 12, ['example', f'equipow p{n}'], ['residue', M]], mstar_data()['cols'][n - 1]
 
 
 def q_example_at_528_has_its_entry_code_and_set():
@@ -2071,13 +2089,13 @@ def q_example_at_528_has_its_entry_code_and_set():
     # are antisymmetric and have +1 at 0; SClaude[11][528] is exactly their +1 positions and is the page's last set;
     # no other entry names 528; the cell is 11–12; the changelog states m*(528) ≥ 11 on 2026-10-31 (only its low
     # moved: 2026-10-04 said ≥ 10 and 2026-10-11 ≤ 12); and mstar.js's column is [11, 12, ["example",
-    # "index.html p528"], ["residue", 5]].
+    # "equipow p528"], ["residue", 5]].
     # Resultata before: 528 was 10 to 12, Claude and BGPW, with no example of order 11.
     text = page()
     li = re.search(r'<li class="c">\n      <span class="mk" aria-hidden="true">◆</span>\n      <p class="entry">\\\(n = 528'
                    r'\\\): &nbsp;\\\(m\^\* \\in \\\{11, 12\\\}\\\)</p>\n(.*?)\n    </li>', text, re.S)
     assert li, 'no entry of 528 alone, class c, m* in {11, 12}'
-    codes = re.findall(r'\\\(p_\{(\d+)\}\\\) \\\(\(m = (\d+)\)\\\):</span>\n\s*<code>([0-9A-F]+)</code>', li.group(1))
+    codes = re.findall(r'\\\(p_\{(\d+)\}\\\) \\\(\(m = (\d+)\)\\\):</span>\n\s*<code id="\d+:\d+">([0-9A-F]+)</code>', li.group(1))
     assert codes and codes[-1][:2] == ('528', '11'), codes
     h = codes[-1][2]
     left = [1 if b == '1' else -1 for b in bin(int(h, 16))[2:].zfill(4 * len(h))]
@@ -2092,7 +2110,7 @@ def q_example_at_528_has_its_entry_code_and_set():
     assert sum('528' in ns for ns in listed) == 1, [ns for ns in listed if '528' in ns]
     assert new_cells(text)[528] == (11, 12), new_cells(text)[528]
     assert changelog_by_day().get('2026-10-31', {}).get(528) == (11, None), changelog_by_day().get('2026-10-31')
-    assert mstar_data()['cols'][527] == [11, 12, ['example', 'index.html p528'], ['residue', 5]], mstar_data()['cols'][527]
+    assert mstar_data()['cols'][527] == [11, 12, ['example', 'equipow p528'], ['residue', 5]], mstar_data()['cols'][527]
 
 
 OEIS = ('A323395', 'A306248', 'A323610', 'A323629', 'A323614')                # the OEIS section's entries on this problem
@@ -2283,6 +2301,100 @@ def q_quotes_of_claude_and_astra_are_curly():
     assert notes and all('Claude: "' not in t and t.count('“') == t.count('”') for t in notes), notes[:3]
 
 
+# The page's codes as anchors, and no "index.html" for its readers (dreeves's README, 2026-10-31: "[IND] Find a better
+# way to refer to things like "index.html p320" -- we should never refer to "index.html" in user-facing copy. How about
+# just drop the "index.html" and make the "p320" or whatever be a hyperlink / anchor link? If that doesn't work for
+# hovertext, we could just say "equipow p320" instead of "index.html p320".")
+
+# The names in the page's math of sequences whose codes the page does not show, so that a name there has no code to link
+# to: BGPW's example of order 10 at 240 (the published paper's Table 5), a factor of 2^20's construction.
+OFF_PAGE = ('p_{240}',)
+
+
+def blank_comments(text):
+    """text with each HTML comment blanked out character for character, so that positions are text's."""
+    return re.sub(r'<!--.*?-->', lambda m: re.sub(r'[^\n]', ' ', m.group(0)), text, flags=re.S)
+
+
+def unlink(text):
+    """text with each link of a name to its code, \\href{#N:M}{name} (2026-10-31, [IND]), written as the name alone."""
+    return re.sub(r'\\href\{#\d+:\d+\}\{([pq]_\{\d+\})\}', r'\1', text)
+
+
+def page_codes(text):
+    """[(start, end, n, m, attributes, hex)] for each code of the code blocks (<p class="code">) of text, a version of
+    index.html with its comments blanked: its block's span in text; its order m, the (m = M) of its block's labels in
+    order; its length n, by the paper's Table 5 convention (the hex digits give the left half of the signs, the rest
+    follows by (-1)^m symmetry); and its <code> tag's attributes."""
+    out = []
+    for b in re.finditer(r'<p class="code">(.*?)</p>', text, re.S):
+        ms = [int(x) for x in re.findall(r'\\\(\(m = (\d+)\)\\\)', b.group(1))]
+        tags = re.findall(r'<code([^>]*)>([0-9A-F]+)</code>', b.group(1))
+        assert len(ms) == len(tags) == b.group(1).count('<code') >= 1, b.group(1)
+        out += [(b.start(), b.end(), 8 * len(h), m, attrs, h) for m, (attrs, h) in zip(ms, tags)]
+    return out
+
+
+def q_codes_are_anchors_and_names_link_to_them():
+    # Replicata: index.html outside its comments: the codes of its code blocks (page_codes) and the names p_{N} and
+    # q_{N} in its math; and the light run's links to anchors of the page (R's anchors) and its math.
+    # Expectata ([IND]: "make the "p320" or whatever be a hyperlink / anchor link"): each code is <code id="N:M">, N its
+    # length and M its order, the ids distinct; a name in a code's own block with that code's length is the code's own
+    # name (p_{448} in its label, p_{192} twice in its), and every other name is \href{#N:M}{name}, a link to the one
+    # code whose own names include it, or else one of OFF_PAGE, which no code carries; every \href of the page is such a
+    # link; and in the light run each is an <a> that KaTeX drew, to the <code> of its id, and KaTeX drew no command in
+    # its error color (an \href it does not trust, it draws as its name in red).
+    # Resultata before: no code had an id, and no name was a link.
+    text = blank_comments(page())
+    codes = page_codes(text)
+    ids = [f'{n}:{m}' for _, _, n, m, _, _ in codes]
+    assert [a for *_, a, _ in codes] == [f' id="{i}"' for i in ids] and len(set(ids)) == len(ids), \
+        [(i, a) for i, (*_, a, _) in zip(ids, codes) if a != f' id="{i}"'][:5]
+    names = [(f.start(1) + x.start(), x.group(0), int(x.group(1)))         # (position, name, N)
+             for f in re.finditer(r'\\\((.*?)\\\)', text, re.S) for x in re.finditer(r'\b[pq]_\{(\d+)\}', f.group(1))]
+    own = lambda i, n: [f'{c[2]}:{c[3]}' for c in codes if c[0] <= i < c[1] and c[2] == n]
+    owners = {}                                                             # name: the ids of the codes it is an own name of
+    for i, name, n in names:
+        for c in own(i, n): owners.setdefault(name, set()).add(c)
+    links = {x.start(2): (x.group(1), x.group(2)) for x in re.finditer(r'\\href\{#([^}]*)\}\{([pq]_\{\d+\})\}', text)}
+    others = [(i, name) for i, name, n in names if not own(i, n)]
+    assert text.count('\\href') == len(links) == sum(i in links for i, _ in others), (text.count('\\href'), len(links))
+    unlinked = sorted({name for i, name in others if i not in links})
+    assert unlinked == sorted(OFF_PAGE) and not owners.keys() & set(OFF_PAGE), unlinked
+    bad = [(name, links[i]) for i, name in others if i in links and (links[i][1] != name or owners.get(name) != {links[i][0]})]
+    assert bad == [], bad
+    R = valid_run('light')
+    assert sorted(R['anchors']) == sorted([f'#{t}', 'CODE', True] for t, _ in links.values()), (R['anchors'][:5], len(links))
+    assert R['math']['unsupported'] == 0, R['math']
+
+
+def q_readers_never_see_index_html():
+    # Replicata: index.html outside its comments; page/'s stylesheet and scripts outside their comments (/* ... */, and in
+    # a script a // at a line's start or after a space, to the line's end); mstar.js's and pow2.js's data as node sees
+    # it (their reasons, not their first lines' comments); and the light run: the page's text and attribute values once
+    # its scripts ran (R's indexHtml) and the readouts of its hovers.
+    # Expectata ([IND]: "we should never refer to "index.html" in user-facing copy ... If that doesn't work for
+    # hovertext, we could just say "equipow p320" instead of "index.html p320""): none of them holds "index.html"; and
+    # the readout of a cell that an example of the page settles names it as equipow and its name: 320's, "(equipow
+    # p320)", and 352's, "(equipow BGPW 352)".
+    # Resultata before: 34 of mstar.js's example labels ("index.html p320", "index.html BGPW 352", ...), and so the
+    # light run's readouts of their columns.
+    assert 'index.html' not in blank_comments(page())
+    for name in sorted(os.listdir(PAGE_DIR)):
+        src = re.sub(r'/\*.*?\*/', '', open(os.path.join(PAGE_DIR, name), encoding='utf-8').read(), flags=re.S)
+        code = re.sub(r'(^|(?<=\s))//[^\n]*', '', src, flags=re.M) if name.endswith('.js') else src
+        assert 'index.html' not in code, (name, re.findall(r'.{0,40}index\.html.{0,20}', code)[:3])
+    for data in (mstar_data(), pow2_data()):
+        text = json.dumps(data, ensure_ascii=False)
+        assert 'index.html' not in text, re.findall(r'.{30}index\.html.{20}', text)[:5]
+    R = valid_run('light')
+    assert R['indexHtml'] == [], R['indexHtml'][:5]
+    shown = [t for n, m, t in R['hovers'] if 'index.html' in t]
+    assert shown == [], (len(shown), shown[:3])
+    for n, label in ((320, 'equipow p320'), (352, 'equipow BGPW 352')):
+        assert any(f'({label})' in t for k, m, t in R['hovers'] if k == n), [t for k, m, t in R['hovers'] if k == n]
+
+
 def q_page_loads_clean():
     # Replicata: index.html with the real mstar.js in headless Chrome, 1280 px wide at 2 device px per CSS px; and the
     # page loaded as is (nothing added), with Chrome logging its console to stderr.
@@ -2430,7 +2542,8 @@ def q_chart_rings_the_smallest_lengths_in_gold():
     # 2^k) not ruled out. but then maybe we want an additional visual indicator for when those coincide (the smallest
     # known is proven to be the smallest)?"; from 2026-10-19 until then, dreeves: "in the chart can you highlight the
     # known values for a(m-1)? maybe make those green with gold trim", the proven ones alone): the ringed cells are
-    # exactly smallest_rings of mstar.js, the cells of the table of smallest lengths: today the proven ones, (2, 1), (4,
+    # exactly smallest_rings of mstar.js, the chart's own least columns, the cells of the table of smallest lengths up to
+    # 1024 (since 2026-10-31 its rows 14 and 15 give products beyond the chart, 1920 and 3840): today the proven ones, (2, 1), (4,
     # 2), …, (432, 11), SMALLEST_PROVEN by order; then (480, 12) known and (432, 12) not ruled out; (960, 13) known and
     # (480, 13) not ruled out; and, with no length known (dreeves, 2026-10-30: "why isn't 480:14 highlighted in the
     # chart?"), (480, 14) and (960, 15) not ruled out.  Each is ringed in --record, #ffb300 (the validator's pick against the chart's three
@@ -3028,25 +3141,115 @@ def q_smallest_section_sits_between_the_remarks_and_the_counts():
     assert text.count('<table class="block">') == 12, text.count('<table class="block">')
 
 
+SMALLEST_TABLE = []    # the table of smallest lengths as the page draws it, made once per process (smallest_table)
+
+
+def smallest_table():
+    """The rows of the table of smallest lengths, each as the texts of its cells: index.html in headless Chrome beside
+    page/, mstar.js and pow2.js, its DOM dumped once its scripts ran; made once per process."""
+    if not SMALLEST_TABLE:
+        d = tempfile.mkdtemp(prefix='index-quals-')
+        for src, name in ((INDEX, 'index.html'), (DATA, 'mstar.js'), (POW2, 'pow2.js')): shutil.copy(src, os.path.join(d, name))
+        copy_page_dir(d)
+        dom = chrome(d, ['--virtual-time-budget=5000', '--dump-dom', 'file://' + os.path.join(d, 'index.html')])
+        shutil.rmtree(d)
+        body = re.search(r'<tbody data-smallest="">(.*?)</tbody>', dom, re.S)
+        assert body, dom[-2000:]
+        SMALLEST_TABLE.extend([html.unescape(re.sub(r'<[^>]+>', '', c)) for c in re.findall(r'<td>(.*?)</td>', tr, re.S)]
+                              for tr in re.findall(r'<tr>(.*?)</tr>', body.group(1), re.S))
+    return SMALLEST_TABLE
+
+
 def q_smallest_table_matches_mstar():
-    # Replicata: index.html in headless Chrome beside page/, mstar.js and pow2.js, its DOM dumped once its scripts ran;
-    # and smallest_rows of MSTAR (mstar_data), computed here.
+    # Replicata: the table of smallest lengths as the page draws it (smallest_table); and smallest_rows of MSTAR
+    # (mstar_data), computed here.
     # Expectata: the table's body holds exactly smallest_rows' rows, in order, through the largest order some n's upper
-    # bound allows, with — where no length is known (since 2026-10-30); the first eleven orders' smallest lengths are
-    # SMALLEST_PROVEN, each marked proven (432 added on 2026-10-20 after proof384.py).
-    d = tempfile.mkdtemp(prefix='index-quals-')
-    for src, name in ((INDEX, 'index.html'), (DATA, 'mstar.js'), (POW2, 'pow2.js')): shutil.copy(src, os.path.join(d, name))
-    copy_page_dir(d)
-    dom = chrome(d, ['--virtual-time-budget=5000', '--dump-dom', 'file://' + os.path.join(d, 'index.html')])
-    shutil.rmtree(d)
-    body = re.search(r'<tbody data-smallest="">(.*?)</tbody>', dom, re.S)
-    assert body, dom[-2000:]
-    got = [[html.unescape(re.sub(r'<[^>]+>', '', c)) for c in re.findall(r'<td>(.*?)</td>', tr, re.S)]
-           for tr in re.findall(r'<tr>(.*?)</tr>', body.group(1), re.S)]
+    # bound allows (since 2026-10-30), with a product of lesser orders' lengths where that is less than the chart's, as
+    # beyond the chart (since 2026-10-31, [MIN]; until then — where no n up to NMAX was known to reach m); the first
+    # eleven orders' smallest lengths are SMALLEST_PROVEN, each marked proven (432 added on 2026-10-20 after
+    # proof384.py).
+    got = smallest_table()
     want = smallest_rows(mstar_data()['cols'])
     assert got == want, (got, want)
     proven = got[:len(SMALLEST_PROVEN)]
     assert [r[1] for r in proven] == [str(n) for n in SMALLEST_PROVEN] and all(r[2] == '✓' for r in proven), proven
+
+
+# The smallest lengths past the chart (dreeves's README, 2026-10-31: "[MIN] In the "smallest length known for each
+# order" table, we currently have no entries for the smallest known n for orders 14 and 15. But we know from Thue-Morse
+# that 2^14 has order at least 14 and in fact from the chart below the table, we know 2^13 has order 14. Similarly for
+# 2^14 having order at least 15.").
+
+def least_columns(cols):
+    """[(m, the least n whose lower bound is at least m, or None, the least n whose upper bound is)] for each order m from
+    1 while some n's upper bound allows m: the chart's own least n known to reach m and least n not ruled out."""
+    least = lambda test: next((n for n, c in enumerate(cols, 1) if test(c)), None)
+    out, m = [], 1
+    while least(lambda c: c[1] >= m):
+        out.append((m, least(lambda c: c[0] >= m), least(lambda c: c[1] >= m)))
+        m += 1
+    return out
+
+
+def products_least(cols, m):
+    """By brute force over the chart's data: the least product n_1 n_2 ... n_k (k >= 1) of lengths of the chart whose
+    lower bounds sum to at least m, a product f(x) g(x^n) (f of length n) having order at least the sum of its factors'.
+    A depth-first search over the multisets of lengths with a lower bound of at least 1, in rising order, cut off where
+    the product already exceeds the least found."""
+    ns = [n for n, c in enumerate(cols, 1) if c[0] >= 1]
+    best = math.inf
+    def go(start, product, order):
+        nonlocal best
+        if order >= m:
+            best = min(best, product)
+            return
+        for j in range(start, len(ns)):
+            if product * ns[j] > best: break
+            go(j, product * ns[j], order + cols[ns[j] - 1][0])
+    go(0, 1, 0)
+    return best
+
+
+def q_smallest_lengths_go_past_the_chart():
+    # Replicata: the table of smallest lengths as the page draws it (smallest_table).
+    # Expectata ([MIN]): every order has a smallest known length, a number; orders 14 and 15, which no n up to 1024 is
+    # known to reach, have products: 1920 = 960 · 2 (960 = 480 · 2, the chart's least n of order 13, and 480 of order
+    # 12) and 3840 = 1920 · 2, each less than [MIN]'s 2^13 and 2^14, and neither proven least, the least n not ruled
+    # out being 480 and 960.
+    # Resultata before: — at orders 14 and 15.
+    rows = smallest_table()
+    assert all(re.fullmatch(r'\d+', r[1]) for r in rows), rows
+    assert rows[13:] == [['14', '1920', '', '480'], ['15', '3840', '', '960']], rows[13:]
+
+
+def q_smallest_known_is_the_least_product_of_the_chart_s_lengths():
+    # Replicata: the table of smallest lengths as the page draws it (smallest_table), and mstar.js's columns.
+    # Expectata ([MIN]): each order m's smallest known length is products_least(cols, m), the least product of lengths
+    # of the chart whose lower bounds sum to at least m, found by brute force.
+    # Resultata before: — at orders 14 and 15, whose least products are 1920 and 3840.
+    cols = mstar_data()['cols']
+    rows = smallest_table()
+    assert [r[1] for r in rows] == [str(products_least(cols, m)) for m in range(1, len(rows) + 1)], rows
+
+
+def q_smallest_rows_the_chart_decides_are_unchanged():
+    # Replicata: the table of smallest lengths as the page draws it (smallest_table), mstar.js's columns, and as a
+    # control a table made by a wrong rule, 2^m (Thue–Morse) at every order.
+    # Expectata ([MIN]): products fill only rows that the chart does not decide: at each order m that some n up to 1024
+    # is known to reach (today 1 to 13), the row is the chart's own, as before 2026-10-31: m, the least n whose lower
+    # bound is at least m, ✓ when that is also the least n whose upper bound is, and that n (least_columns); and the
+    # control fails this.
+    # Resultata before: (none: this holds before and after, as it must; the control is what fails.)
+    cols = mstar_data()['cols']
+    def check(rows):
+        want = [[str(m), str(k), '✓' if k == p else '', str(p)] for m, k, p in least_columns(cols) if k is not None]
+        assert len(want) >= 13 and rows[:len(want)] == want, (rows[:len(want)], want)
+    check(smallest_table())
+    wrong = [[str(m), str(2 ** m), '✓' if 2 ** m == p else '', str(p)] for m, k, p in least_columns(cols)]
+    try: check(wrong)
+    except AssertionError: return
+    # TODO: error copy; says the check passed a table made by a wrong rule
+    raise AssertionError('Claude: "the check passed the wrong table"')
 
 
 def q_smallest_script_passes_node_check():

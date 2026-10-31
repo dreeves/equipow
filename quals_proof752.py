@@ -137,7 +137,7 @@ class Quals(unittest.TestCase):
         # Replicata: the page's order-11 sequence of length 800 and Thue-Morse of length 2048.
         # Expectata: exact order 11, a count vector the proof allows, and an own placement meeting
         # every certificate; every one-swap neighbour of the 800 placement fails.
-        code, = (h for label, m, h in mstar.PAGE_CODES if label == 'index.html p800')
+        code, = (h for label, m, h in mstar.PAGE_CODES if label == 'equipow p800')
         p800 = from_hex(code, 11)
         thue_morse = [(-1) ** bin(p).count('1') for p in range(2048)]
         for signs in (p800, thue_morse):

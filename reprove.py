@@ -7,22 +7,29 @@ the fanout run of N finished (both its locks are taken here, so neither focus.py
     PYTHONPATH=scratch/lower24-design/beyond1000/pylib /opt/homebrew/bin/python3 -B reprove.py N
 
 Vocabulary (with fanout.py's):
-  attempt   how a leaf's LP is solved, in ATTEMPTS's order, until its multipliers make a certificate that
-            certbb.lower_bound finds positive on the leaf's box: warm, from its parent's post-solve LP state, as its
-            worker solved it; cold, after clearSolver; primal, after clearSolver again, by primal simplex
-            (simplex_strategy 4) in place of certbb.Lp's dual (1), restored after.  A leaf that no attempt proves fails
-            the recheck: an AssertionError naming its job and its box's path.
+  attempt   how a leaf's LP is solved, in ATTEMPTS's order, until its multipliers make a certificate that the
+            exact bound finds positive on the leaf's box: dual, by fastlp's Dual from its parent's post-solve
+            state, as its worker solved it (fanout.Simplex, since the 2026-10-31 proposal, scratch/check432-20261031),
+            its ray's multipliers by focus.case_lp's LP; then on that HiGHS LP, Dual having gone back to its slack
+            basis: warm, from HiGHS's last solve; cold, after clearSolver; primal, after clearSolver again, by primal
+            simplex (simplex_strategy 4) in place of certbb.Lp's dual (1), restored after.  A leaf that no attempt
+            proves fails the recheck: an AssertionError naming its job and its box's path.
   reproof   of a job: its tree, the one assembly checked (by its tree_sha256, read again from the job's file), walked
-            on its box as fanout.work walked it, each node solved on focus.case_lp's LP for
-            its case, a box's first child from its parent's post-solve state and its second from its parent's basis,
-            restored; each L's box proven by an attempt; each W's point checked exactly, as focus.State checks one.
+            on its box as fanout.work walked it, each node solved by fanout.Simplex for its case, a box's first child
+            from its parent's post-solve state and its second from a snapshot of that state; each L's box proven by an
+            attempt; each W's point checked exactly, as focus.State checks one.
             Below a tree's lex cut ['D'] (fanout.py's 'lex', only on a mixed box of a case closed under the reversal),
             an L's box that is dead is proven without a solve by the cut's certificate, 0 on every row and -1 on the
-            cut's row, checked by certbb.lower_bound with the cut's row; any other L's by an attempt, whose
+            cut's row, checked by the exact bound with the cut's row; any other L's by an attempt, whose
             certificate holds below the cut too (the cut's row taking 0).
             A B's solve only warm-starts its children: its position is the tree's.  Each node is one LP solve (a leaf
-            retried, more), as at the job's making: at 432:12, 1.1 CPU ms a node, against 1.7 for the job itself, on
-            one job of 10,000 nodes (scratch/record-20261025/launch432/treeonly/reprove_cost.py).
+            retried, more), as at the job's making: at 432:12, 0.17 CPU ms a node with the exact bound, against 0.50
+            with certbb.lower_bound (12 trees, 76,613 nodes) and 1.34 with every solve on HiGHS and certbb.lower_bound
+            (subtrees of 80 random pool boxes; scratch/check432-20261031).
+  exact bound  reprove's check of a certificate since 2026-10-31 (dreeves: GMP inside reprove): native_bound_of,
+            the GMP bound (scratch/native672's C++, pinned by NATIVE_SHA256) of the case's rows (certbb.node_rows) and
+            any cut row, equal to certbb.lower_bound on the same rows, box and multipliers (quals), about 7 times as
+            fast.
 A reflected case has no tree to reprove: it closes with its source (see fanout.py's 'trust').  The run's chunks are
 rechecked by focus.replay, within assembly, their certificates being kept.
 """
@@ -40,8 +47,26 @@ import time
 import certbb
 import fanout
 import focus
+import native_bound                    # the GMP bound of reprove's exact check (scratch/native672's, byte for byte)
 
-ATTEMPTS = ('warm', 'cold', 'primal')  # see the vocabulary
+# native_bound.py, its C++ source and build, and the GMP libraries the build loads, by their SHA-256, pinned here as in
+# fanout.py, so that reprove_code and these pins name the whole recorded check (2026-10-31: dreeves approved GMP inside
+# reprove)
+NATIVE_SHA256 = {Path(native_bound.__file__).with_name('native_bound.py'):
+                 'c50ed1f27f42932eb6929119dd96f05d3815780f0f32c5da94e03e38dd924665',
+                 Path(native_bound.__file__).with_name('native_bound.cpp'):
+                 'c6779c46e1a67ebb2b4945daf878b36dda9b0be29a1b4ef9dc252c2358bec1e3',
+                 Path(native_bound._native_bound.__file__):
+                 '10cf84480be02962c9bfc093002c2604c4c75b0ddffed55ef28abf2f2a0d6094',
+                 Path('/opt/homebrew/opt/gmp/lib/libgmp.10.dylib'):
+                 '9220cca5e94b5077a99a068b0d1b9dd39da1d8febb3f518e6a8ce7aadc0d140b',
+                 Path('/opt/homebrew/opt/gmp/lib/libgmpxx.4.dylib'):
+                 '31cb9677cff4568c1efff1a1f967639e5eab854427493530d39300b75eb2fcaf'}
+# TODO: error copy; says a file of the GMP bound, or a GMP library it loads, is not the pinned one
+assert all(hashlib.sha256(path.read_bytes()).hexdigest() == h for path, h in NATIVE_SHA256.items()), \
+    'Claude: "a file of the GMP bound is not the pinned one"'
+
+ATTEMPTS = ('dual', 'warm', 'cold', 'primal')  # see the vocabulary
 OK = certbb.highs.HighsStatus.kOk
 PREPARED = None                        # a worker's prepared equations and cases, set by init
 
@@ -55,9 +80,10 @@ def init(prepared):
 
 @functools.lru_cache(maxsize=None)
 def lp_for(case):
-    """The worker's LP for a case, made once, by focus.case_lp, as fanout's workers make theirs."""
+    """The worker's LP for a case, made once: fanout.Simplex, as fanout's workers make theirs (fastlp's Dual on
+    focus.case_lp's rows, and focus.case_lp's LP, highs)."""
     equations, cases = PREPARED
-    return focus.case_lp(equations, cases[case])
+    return fanout.Simplex(equations, cases[case])
 
 
 def ray(lp, status, z):
@@ -65,8 +91,13 @@ def ray(lp, status, z):
     return lp.multipliers(z) if status == 'Infeasible' and z is not None else None
 
 
-def attempts(lp, lo, hi):
-    """Each attempt's multipliers for the box (see 'attempt'), in ATTEMPTS's order, each solved only when asked for."""
+def attempts(simplex, lo, hi, basis):
+    """Each attempt's multipliers for the box (see 'attempt'), in ATTEMPTS's order, each solved only when asked for:
+    dual, fastlp's Dual from the snapshot basis or its last state, its ray's multipliers by highs (Dual starting again
+    from its slack basis when another attempt is asked for, as after a worker's fallback), then highs's."""
+    lp = simplex.highs
+    yield ray(lp, *simplex.dual.solve(lo, hi, basis))
+    simplex.dual.load(simplex.slack)
     yield ray(lp, *lp.solve(lo, hi))
     assert lp.H.clearSolver() == OK
     yield ray(lp, *lp.solve(lo, hi))
@@ -77,12 +108,19 @@ def attempts(lp, lo, hi):
         assert lp.H.setOptionValue('simplex_strategy', 1) == OK
 
 
-def close(lp, rows, lo, hi, where):
-    """The index in ATTEMPTS of the first attempt whose certificate proves the box (see 'attempt'); where says which
-    box it is, for the error."""
-    with contextlib.closing(attempts(lp, lo, hi)) as tried:
-        proven = next((i for i, n in enumerate(tried) if n is not None and certbb.lower_bound(rows, lo, hi, n) > 0),
-                      None)
+@functools.lru_cache(maxsize=None)
+def native_bound_of(moments, pairs, extra):
+    """The exact bound (see the vocabulary), as fanout.py's: the GMP bound of node_rows(moments, pairs) followed by the
+    rows extra, ((a, beta), ...), prepared once: native_bound.Bound(rows + extra, N).evaluate, which is
+    certbb.lower_bound(rows + extra, lo, hi, n) (quals)."""
+    return native_bound.Bound(certbb.node_rows(moments, pairs) + list(extra), moments.N).evaluate
+
+
+def close(lp, bound, lo, hi, basis, where):
+    """The index in ATTEMPTS of the first attempt whose certificate proves the box (see 'attempt'), bound(lo, hi, n)
+    being the exact bound of the box's rows; where says which box it is, for the error."""
+    with contextlib.closing(attempts(lp, lo, hi, basis)) as tried:
+        proven = next((i for i, n in enumerate(tried) if n is not None and bound(lo, hi, n) > 0), None)
     # TODO: error copy; says that no attempt found an exact certificate for a leaf's box, naming the box
     assert proven is not None, f'Claude: "no certificate proves {where}"'
     return proven
@@ -93,27 +131,28 @@ def walk(job, tree):
     last solve: the job's id, its nodes, its leaves, how many of them each attempt proved, and its seconds."""
     equations, cases = PREPARED
     case, path = job
-    rows = certbb.node_rows(equations, cases[case])
+    rows, bound = certbb.node_rows(equations, cases[case]), native_bound_of(equations, tuple(cases[case]), ())
     lp, lex = lp_for(case), fanout.Lex(equations.N)
     cut, second = [], object()             # the cut's row once the tree's ['D'] is read; its second side's marker
     stack, proved, start = [(tuple(map(tuple, path)), None)], [0] * len(ATTEMPTS), time.monotonic()
-    def split(p, lo, hi, position):
+    def split(p, lo, hi, basis, position):
         assert type(position) is int and 0 <= position < len(lo) and lo[position] < hi[position], p   # a free one
-        lp.solve(lo, hi)
-        stack.extend([(p + ((position, 1),), lp.H.getBasis()), (p + ((position, 0),), None)])
-    def leaf(p, lo, hi):
+        lp.outcome(lo, hi, basis, lambda lo, hi, n: True)     # only for its children's warm starts: any answer will do
+        stack.extend([(p + ((position, 1),), lp.dual.snapshot()), (p + ((position, 0),), None)])
+    def leaf(p, lo, hi, basis):
         if cut and lex.status(lo, hi) == 'dead':                  # below the cut: proven by the cut's row alone
             # TODO: error copy; says the lex cut's certificate fails to prove a dead box below the cut, naming the box
-            assert certbb.lower_bound(rows + cut, lo, hi, [0] * len(rows) + [-1]) > 0, \
+            dead = native_bound_of(equations, tuple(cases[case]), tuple(cut))     # the rows and the cut's
+            assert dead(lo, hi, [0] * len(rows) + [-1]) > 0, \
                 f'Claude: "the cut does not prove {json.dumps(p)}"'
             dead_leaves[0] += 1
             return
-        proved[close(lp, rows, lo, hi, f'job {fanout.jid(job)}, box {json.dumps(p)}')] += 1
-    def lexcut(p, lo, hi):                 # the tree's first token, on the job's own box (assembly checked it mixed)
+        proved[close(lp, bound, lo, hi, basis, f'job {fanout.jid(job)}, box {json.dumps(p)}')] += 1
+    def lexcut(p, lo, hi, basis):          # the tree's first token, on the job's own box (assembly checked it mixed)
         assert not cut and p == tuple(map(tuple, path)) and fanout.Lex(equations.N).status(lo, hi) == 'mixed', p
-        cut.append((lex.sparse, 0))
+        cut.append((tuple(lex.sparse), 0))
         stack.extend([(second, None), (p, None)])
-    def point(p, lo, hi, x):           # an exact solution, checked as focus.State checks one
+    def point(p, lo, hi, basis, x):           # an exact solution, checked as focus.State checks one
         assert len(x) == equations.N and all(type(t) is int and l <= t <= u for t, l, u in zip(x, lo, hi)), p
         assert certbb.point_certificate(rows, x) is None, p
     actions, dead_leaves = dict(B=split, L=leaf, W=point, D=lexcut), [0]
@@ -122,9 +161,7 @@ def walk(job, tree):
         # TODO: error copy; says a tree token falls on the lex cut's second side, which no tree proves
         assert p is not second, 'Claude: "a tree token on the cut\'s second side"'
         lo, hi = fanout.box(equations.N, p)
-        if basis is not None:
-            assert lp.H.setBasis(basis) == OK
-        actions[node[0]](p, lo, hi, *node[1:])
+        actions[node[0]](p, lo, hi, basis, *node[1:])
     return dict(job=fanout.jid(job), nodes=len(tree), leaves=sum(proved) + dead_leaves[0],
                 attempts=dict(zip(ATTEMPTS, proved)), dead=dead_leaves[0], seconds=time.monotonic() - start)
 

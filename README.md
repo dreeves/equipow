@@ -10,8 +10,9 @@ Potential tasks:
 * [ETA] Maybe the ETA graph would be less confusing / more useful if the graph reset whenever we changed something about the search algorithm? I'm not sure though, so here's an idea for having the best of both worlds: Whenever something changes about the search, spawn a new graph right below the existing one(s) and label each graph with when it started, and keep updating all of them. Or make it more explicit: A button to start a fresh graph any time and buttons to drop any previous graph.
 * [CRO] This might be fun: Let people contribute computation by just having the equipow page open in their browser. (More boringly, Claude is estimating we could bring the next two searches down from a total of 90 days on my laptop to about 4 days on cloud compute costing around $300.)
 * [FAC] Reorganize the files: quals and search stuff in their own directories, certificates?, getting css and javascript out of index.html
-* [IND] Find a better way to refer to things like "index.html p320" -- we should never refer to "index.html" in user-facing copy
+* [IND] Find a better way to refer to things like "index.html p320" -- we should never refer to "index.html" in user-facing copy. How about just drop the "index.html" and make the "p320" or whatever be a hyperlink / anchor link? If that doesn't work for hovertext, we could just say "equipow p320" instead of "index.html p320".
 * [MIN] In the "smallest length known for each order" table, we currently have no entries for the smallest known n for orders 14 and 15. But we know from Thue-Morse that 2^14 has order at least 14 and in fact from the chart below the table, we know 2^13 has order 14. Similarly for 2^14 having order at least 15.
+* [FLP] I think the smallest-known and smallest-not-ruled-out columns should be swapped
 
 Stan notes:
 

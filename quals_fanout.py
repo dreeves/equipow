@@ -623,7 +623,9 @@ class FanoutQuals(unittest.TestCase):
                 outcome='excluded', starts=14, ends=14,
                 starts_sha256='adcaf34cdb6fd134dcd441051f1c47ad133f71e133a63591dba26e0fb6ff5f2c',
                 ends_sha256='a37f40be5f3ce9e4963a9c2f1dc107f437a02c1ddb69635354aa357b9a754258',
-                reproven=dict(jobs=14, nodes=29, leaves=15, attempts=dict(warm=14, cold=0, primal=0))))
+                # Spec change proposed 2026-10-31 (scratch/check432-20261031): reprove's leaves proven by its new first
+                # attempt, dual (fastlp's Dual, as the worker's), where HiGHS's warm attempt proved them.
+                reproven=dict(jobs=14, nodes=29, leaves=15, attempts=dict(dual=14, warm=0, cold=0, primal=0))))
         with tempfile.TemporaryDirectory() as tmp:
             outcome, run, work, own = self.resumed(tmp, real(16, 4), 16, 4, 3, 2)
             made = dict(outcome=outcome, **sequences(own), witness=events(own)[-1]['witness'])

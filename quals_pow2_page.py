@@ -838,7 +838,7 @@ def q_long_blocks_are_the_remarks_examples():
     # remarks' examples of length n > NMAX, as [n, m], in page order, each decoding to length n and order exactly m
     # (synthetic division); and every block of pow2.js's joins longer than NMAX, other than f and τ_j, is in LONG.
     # Since 2026-10-27, when the m*(n) chart reached 1024, there are none: LONG is [].
-    codes = re.findall(r'\\\(p_\{(\d+)\}\\\) \\\(\(m = (\d+)\)\\\):</span>\n\s*<code>([0-9A-F]+)</code>',
+    codes = re.findall(r'\\\(p_\{(\d+)\}\\\) \\\(\(m = (\d+)\)\\\):</span>\n\s*<code id="\d+:\d+">([0-9A-F]+)</code>',
                        page())
     long = [(int(n), int(m), h) for n, m, h in codes if int(n) > NMAX]
     assert long_blocks() == [[n, m] for n, m, _ in long] == [], (long_blocks(), long)

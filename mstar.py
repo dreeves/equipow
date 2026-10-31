@@ -208,46 +208,49 @@ CITED = {}
 for _n, (_lo, _hi) in TABLE2.items(): CITED.setdefault(_n, []).append((_lo, _hi, ['table2']))
 for _n, (_lo, _hi, _who) in NEW.items(): CITED.setdefault(_n, []).append((_lo, _hi, ['page', _who]))
 # The hex codes in the page's remarks, in page order, as (label, m, hex) in the paper's Table 5 convention
-# (overnight_v5.from_hex).  The label names the page and the code's name there.
-PAGE_CODES = (('index.html BGPW 352', 9, 'A4DB4926DB4D36584B26936D2CFA54B6F04B2C13D4A2'),
-              ('index.html BGPW 368', 9, '96C965925B75B0CB249E583CF26B2E836C31DAC874B67D'),
-              ('index.html BGPW 400', 9, '34DB69269A69269A6D379A8D1C57459C5B45E5100DBAF7EAAA'),
-              ('index.html BGPW 464', 9, '93C96596CB2586DB1C965964E69975A207755BE209CE5E28F2C35A92BA'),
-              ('index.html p320', 9, 'B24B649ED92CD2C36496CB2DB6295D974138BA41'),
-              ('index.html BGPW 336', 10, 'C87695B43E0ED258AB29C7793D8521DB227C0B746D'),
-              ('index.html q336', 9, '9C5479E2669C97071E731A62EBC06F28E87B4961DF'),
-              ('index.html p432', 11, '5A56B0EE234E8794ADE3D0C384F72A5C63A8BD65035EF015B78B46'),
-              ('index.html p448', 9, 'A5994DB29B45A0FA5D26B24D665A5A66B24D64BA5F05A2D94DB299A5'),
-              ('index.html p480', 12, 'B0CBC94F1E2C68D1E3A6371C357C4B1347952BB968236CF6C82CD9CE01F3'),
-              ('index.html BGPW 496', 9, 'C96992D92DB24B7596496D1A530DB5994EA699A9ACE072BDC57403B339A4CE'),
-              ('index.html p192', 9, 'C1BE1E21CD63D295A7887A59'),
-              ('index.html p528', 10, 'D920BDA31A6FDC8423BEC528AE51365BB4A6C36E419CCEF94C45BB00D13EE1EAA5'),
-              ('index.html p528', 11, '9CA5A87A325DAF0ACC5936B5E14A70858F78E1DA867AADD8939CB718429D151737'),
-              ('index.html p560', 10, '34D2E9F0DA19EC92492D966936ABCA25FAD924D26F2591EB64926924925D6E1A4BFE92'),
-              ('index.html p576', 11, '9A4D54D7952F107A62ACE35B02B6A76B2B4EDE8C0968F255A481BA53F0B7E54B5DD08C39'),
-              ('index.html p592', 10, '93CC6790EA26876D2DDA793492C92EB24C3B934525B66DADF25926920BA79E4D21B2CB359A'),
-              ('index.html p608', 10, 'AC965934D659969A4CE792CD6492D72C836BE49E193612E97792C9AAB265AC867BAE921924D7'),
-              ('index.html p624', 11, '8F5508E59DDE388857B94A274173BA87E1DA2F19563A50E398A0F9DC6295E65B9E06B09E398F54'),
-              ('index.html p656', 10, 'C32DA6E924AED161B6D94216DB6CBE4A4932FD4996135826A94DF6CA6CB4DA1EB4D90D92134D82F8EE'),
-              ('index.html p720', 12, 'D508EE7A682A54DC2FCCC5DEAEC42DD200500E3FD2F9BBA0E66FEE28F1A983831A12C69D5181FC6CBDA6B9703C'),
-              ('index.html p752', 10, 'D1C7951270B6456FBEC039A7FA05A459E422DB6416E76D06DB2D90D32FD010FBB30A6DB6D80DBAC3059EDB5826CB4C'),
-              ('index.html p768', 12, 'AB5186723E74399FC150E3179F7008E728787ABA4678EAF3C4C73E033113ADA98C721D7131CE439DA5FECD734DE50904'),
-              ('index.html p784', 10, 'B24F643A19DC1B49FC831C2FF25926F80B24FFC1B423C92E933B25304F60FA2B341F59FFB668379251243048E2BE6BA89F'),
-              ('index.html p800', 11, '966965968F2C965B25B44B25B3596D924B6D96496C964B65B2CB24B25B2C96CB6C97496CB2CD6E960B243A59A592DB2DB6D9'),
-              ('index.html p816', 12, '9DA92A11F804FDEB7EBC4021CB6722C67D282BD35624BCF238A1E1DD66DC9D496BC238EF6CB84018A2D7854A72C535DDF61A9C'),
-              ('index.html p832', 11, 'B49969329E6934CB4DB69B4D34924C359B4926DB69A4DB49369F69261A4D36D6499A926D2C9B68B4D369A4D2DDB6904936DA69B4'),
-              ('index.html p848', 11, '96B905B25BADB2496D32C924B74B6C96596CF25964B28925B25B6DAA5B6D96C965164B14B2C92F52D12596C97CB6CBEC86592CB2C9'),
-              ('index.html p880', 11, 'C965B1C92D925B6C92D964BE4D2FB20B6592492D16D9259ADB6FD64926964925A64B6E62EF60D2CB24B6D925B2CB05960B6CB6CB75B74F'),
-              ('index.html p896', 11, 'B25B2D92512CD65BA5B2DB2514CD65B8CB698E6364E65905B6196D12C82CBADB3DB6E32C9659ACB6D96512492C9ECB2196DB2C92D944B259'),
-              ('index.html p912', 12, 'CC89A4F3BCE43B44239C97C2E14F0BA7BB0F72385611B5C017EDB6E00B8BE67C9C6A7D4932882758827785E78ECF3D0CE8FC8777896911C683'),
-              ('index.html p928', 11, '869B4DEE9A60A4D14BA2D35DA4DA6D14F349E65B4C27926C54D36D268358369F29B6936DA6BA69269A65259349A4D86D765349B49A69BA9F65B4'),
-              ('index.html p944', 11, 'B2D920F6C32D8A4A75B6E965D2D964B44968F291A432D97C96F964B2586CB47B64965B2DBE4934929B4C125B6D93494F92CB2DBA436596896D7ADA'),
-              ('index.html p976', 11, 'A69A48B5DB6B269A6D14CA1936324D74DB6833DB6DB4DB4134921D949A68E6986F25DA6D348F4994935D86BB49E69ACC27D067268769B4D219B67249A4'),
-              ('index.html p992', 11, '94E96372496EB6496DB2D364864B2D902967B24E2DBF7B71908D6D92DA44905B4EF2CD2596CB7192D944B2C8ECB60967B24E25B2DB24BA5F2D96DB859749'),
-              ('index.html p1008', 12, 'E5154C71ABE24D5C4FB0A2B9CB519E2C7CA61813D6DCC264974FBB8DB408B511DE62BC3738CE671CE23696059CE54D0CD2B085F5EFABC2A3B1AE172FF12850'),
-              ('index.html p1024', 11, 'C8ECB0E96876C9A4A6C937B2556D97493CB06969965365B8D924B21B2D9ADA35854B2FD64B25B7C91892DD653A4979B0A96C16CB25B2CB6696196D1EC93C97CB'),
-              ('index.html p112', 7, 'A5994DB29B45A0'),
-              ('index.html p48', 6, 'C27D8C'))
+# (overnight_v5.from_hex).  The label names the page and the code's name there.  It names the page by its site,
+# equipow.dreev.es, since the chart's readout shows it (dreeves's README, 2026-10-31: "[IND] ... we should never refer to
+# "index.html" in user-facing copy ... If that doesn't work for hovertext, we could just say "equipow p320" instead of
+# "index.html p320""); "index.html" until then.  On the page each code is <code id="N:M">, N its length and M its order.
+PAGE_CODES = (('equipow BGPW 352', 9, 'A4DB4926DB4D36584B26936D2CFA54B6F04B2C13D4A2'),
+              ('equipow BGPW 368', 9, '96C965925B75B0CB249E583CF26B2E836C31DAC874B67D'),
+              ('equipow BGPW 400', 9, '34DB69269A69269A6D379A8D1C57459C5B45E5100DBAF7EAAA'),
+              ('equipow BGPW 464', 9, '93C96596CB2586DB1C965964E69975A207755BE209CE5E28F2C35A92BA'),
+              ('equipow p320', 9, 'B24B649ED92CD2C36496CB2DB6295D974138BA41'),
+              ('equipow BGPW 336', 10, 'C87695B43E0ED258AB29C7793D8521DB227C0B746D'),
+              ('equipow q336', 9, '9C5479E2669C97071E731A62EBC06F28E87B4961DF'),
+              ('equipow p432', 11, '5A56B0EE234E8794ADE3D0C384F72A5C63A8BD65035EF015B78B46'),
+              ('equipow p448', 9, 'A5994DB29B45A0FA5D26B24D665A5A66B24D64BA5F05A2D94DB299A5'),
+              ('equipow p480', 12, 'B0CBC94F1E2C68D1E3A6371C357C4B1347952BB968236CF6C82CD9CE01F3'),
+              ('equipow BGPW 496', 9, 'C96992D92DB24B7596496D1A530DB5994EA699A9ACE072BDC57403B339A4CE'),
+              ('equipow p192', 9, 'C1BE1E21CD63D295A7887A59'),
+              ('equipow p528', 10, 'D920BDA31A6FDC8423BEC528AE51365BB4A6C36E419CCEF94C45BB00D13EE1EAA5'),
+              ('equipow p528', 11, '9CA5A87A325DAF0ACC5936B5E14A70858F78E1DA867AADD8939CB718429D151737'),
+              ('equipow p560', 10, '34D2E9F0DA19EC92492D966936ABCA25FAD924D26F2591EB64926924925D6E1A4BFE92'),
+              ('equipow p576', 11, '9A4D54D7952F107A62ACE35B02B6A76B2B4EDE8C0968F255A481BA53F0B7E54B5DD08C39'),
+              ('equipow p592', 10, '93CC6790EA26876D2DDA793492C92EB24C3B934525B66DADF25926920BA79E4D21B2CB359A'),
+              ('equipow p608', 10, 'AC965934D659969A4CE792CD6492D72C836BE49E193612E97792C9AAB265AC867BAE921924D7'),
+              ('equipow p624', 11, '8F5508E59DDE388857B94A274173BA87E1DA2F19563A50E398A0F9DC6295E65B9E06B09E398F54'),
+              ('equipow p656', 10, 'C32DA6E924AED161B6D94216DB6CBE4A4932FD4996135826A94DF6CA6CB4DA1EB4D90D92134D82F8EE'),
+              ('equipow p720', 12, 'D508EE7A682A54DC2FCCC5DEAEC42DD200500E3FD2F9BBA0E66FEE28F1A983831A12C69D5181FC6CBDA6B9703C'),
+              ('equipow p752', 10, 'D1C7951270B6456FBEC039A7FA05A459E422DB6416E76D06DB2D90D32FD010FBB30A6DB6D80DBAC3059EDB5826CB4C'),
+              ('equipow p768', 12, 'AB5186723E74399FC150E3179F7008E728787ABA4678EAF3C4C73E033113ADA98C721D7131CE439DA5FECD734DE50904'),
+              ('equipow p784', 10, 'B24F643A19DC1B49FC831C2FF25926F80B24FFC1B423C92E933B25304F60FA2B341F59FFB668379251243048E2BE6BA89F'),
+              ('equipow p800', 11, '966965968F2C965B25B44B25B3596D924B6D96496C964B65B2CB24B25B2C96CB6C97496CB2CD6E960B243A59A592DB2DB6D9'),
+              ('equipow p816', 12, '9DA92A11F804FDEB7EBC4021CB6722C67D282BD35624BCF238A1E1DD66DC9D496BC238EF6CB84018A2D7854A72C535DDF61A9C'),
+              ('equipow p832', 11, 'B49969329E6934CB4DB69B4D34924C359B4926DB69A4DB49369F69261A4D36D6499A926D2C9B68B4D369A4D2DDB6904936DA69B4'),
+              ('equipow p848', 11, '96B905B25BADB2496D32C924B74B6C96596CF25964B28925B25B6DAA5B6D96C965164B14B2C92F52D12596C97CB6CBEC86592CB2C9'),
+              ('equipow p880', 11, 'C965B1C92D925B6C92D964BE4D2FB20B6592492D16D9259ADB6FD64926964925A64B6E62EF60D2CB24B6D925B2CB05960B6CB6CB75B74F'),
+              ('equipow p896', 11, 'B25B2D92512CD65BA5B2DB2514CD65B8CB698E6364E65905B6196D12C82CBADB3DB6E32C9659ACB6D96512492C9ECB2196DB2C92D944B259'),
+              ('equipow p912', 12, 'CC89A4F3BCE43B44239C97C2E14F0BA7BB0F72385611B5C017EDB6E00B8BE67C9C6A7D4932882758827785E78ECF3D0CE8FC8777896911C683'),
+              ('equipow p928', 11, '869B4DEE9A60A4D14BA2D35DA4DA6D14F349E65B4C27926C54D36D268358369F29B6936DA6BA69269A65259349A4D86D765349B49A69BA9F65B4'),
+              ('equipow p944', 11, 'B2D920F6C32D8A4A75B6E965D2D964B44968F291A432D97C96F964B2586CB47B64965B2DBE4934929B4C125B6D93494F92CB2DBA436596896D7ADA'),
+              ('equipow p976', 11, 'A69A48B5DB6B269A6D14CA1936324D74DB6833DB6DB4DB4134921D949A68E6986F25DA6D348F4994935D86BB49E69ACC27D067268769B4D219B67249A4'),
+              ('equipow p992', 11, '94E96372496EB6496DB2D364864B2D902967B24E2DBF7B71908D6D92DA44905B4EF2CD2596CB7192D944B2C8ECB60967B24E25B2DB24BA5F2D96DB859749'),
+              ('equipow p1008', 12, 'E5154C71ABE24D5C4FB0A2B9CB519E2C7CA61813D6DCC264974FBB8DB408B511DE62BC3738CE671CE23696059CE54D0CD2B085F5EFABC2A3B1AE172FF12850'),
+              ('equipow p1024', 11, 'C8ECB0E96876C9A4A6C937B2556D97493CB06969965365B8D924B21B2D9ADA35854B2FD64B25B7C91892DD653A4979B0A96C16CB25B2CB6696196D1EC93C97CB'),
+              ('equipow p112', 7, 'A5994DB29B45A0'),
+              ('equipow p48', 6, 'C27D8C'))
 # Claude's own examples of order 9 at the lengths where the page credits BGPW's (352, 368, 400, 464 and 496), found on
 # 2026-10-12 by a CP-SAT search (scratch/lower24-design/wider/), as (n, m, hex) in overnight_v5.from_hex's convention;
 # BGPW's examples came first, as the page says, and since 2026-10-12 the page shows theirs (PAGE_CODES), which win
@@ -305,7 +308,9 @@ def page_sources(html):
     of 2, written \\(2^{k}\\), k rising from 3.  Every cell of the new results has a title; a cell titled as the legend's "The
     published paper (2021)" has no provenance class and copies Table 2's entry at its n, and every entry of Table 2
     that is not a new result is so copied; every other cell has a class, its value cell the same class, and is a new
-    result.  A length shown twice, in the upper rows and as a power of 2 (8 to 1024), is the same cell both times."""
+    result.  A length shown twice, in the upper rows and as a power of 2 (8 to 1024), is the same cell both times.  Each
+    code of a code block is <code id="N:M">, an anchor that the page's names of it link to, N its length and M its order
+    (2026-10-31, [IND]), the ids distinct."""
     tables = re.findall(r'<table class="block">(.*?)</table>', html, re.S)
     rows = []
     for t in tables:
@@ -332,12 +337,15 @@ def page_sources(html):
     assert set(copies) <= set(table2) and all(table2[n] == v for n, v in copies.items()), copies
     new = {n: page_value(v) + (re.search(r"title='([^']*)'", attr)[1],) for c, n, attr, va, v in cells if attr != paper}
     assert set(table2) - set(new) == set(copies), set(table2) - set(new) - set(copies)
-    codes = []
+    codes, ids = [], []
     for block in re.findall(r'<p class="code">(.*?)</p>', html, re.S):
         ms = [int(m) for m in re.findall(r'\\\(\(m = (\d+)\)\\\)', block)]
-        hs = re.findall(r'<code>([0-9A-F]+)</code>', block)
-        assert len(ms) == len(hs) >= 1, block
-        codes += list(zip(ms, hs))
+        tags = re.findall(r'<code id="(\d+):(\d+)">([0-9A-F]+)</code>', block)
+        assert len(ms) == len(tags) == block.count('<code') >= 1, block
+        assert all((int(n), int(k)) == (len(v5.from_hex(h, m)), m) for m, (n, k, h) in zip(ms, tags)), block
+        codes += [(m, h) for m, (_, _, h) in zip(ms, tags)]
+        ids += [f'{n}:{k}' for n, k, _ in tags]
+    assert len(set(ids)) == len(ids), ids
     section = re.search(r'<section class="sets">(.*?)</section>', html, re.S)[1]
     sets = [(name, int(m), int(n), {int(t) for t in body.split(',')})
             for name, m, n, body in re.findall(r'(\w+)\[(\d+)\]\[(\d+)\] = \{([^}]*)\};', section)]
@@ -373,9 +381,9 @@ BGPW_T5 = ((5, 40, 'C1EC9'), (6, 48, 'C27D8C'), (6, 72, '998EAA3C5'), (6, 88, '9
            (9, 240, '9666995C93C3AA5935E81CB7C2938D'))
 # Where each of overnight_v5.EXAMPLES comes from, by its comments there: the published paper's Table 5, the page, or
 # Thue-Morse; the rest were found with CP-SAT for overnight_v5's quals.
-EXAMPLE_LABELS = {(240, 10): 'BGPW Table 5', (432, 11): 'index.html p432', (192, 9): 'BGPW Table 5',
+EXAMPLE_LABELS = {(240, 10): 'BGPW Table 5', (432, 11): 'equipow p432', (192, 9): 'BGPW Table 5',
                   (384, 10): 'overnight_v5 EXAMPLES',
-                  (320, 9): 'index.html p320', (336, 9): 'index.html q336', (48, 6): 'BGPW Table 5',
+                  (320, 9): 'equipow p320', (336, 9): 'equipow q336', (48, 6): 'BGPW Table 5',
                   (112, 7): 'BGPW Table 5', (304, 8): 'BGPW Table 5', (64, 6): 'Thue–Morse',
                   (40, 5): 'overnight_v5 EXAMPLES', (48, 5): 'overnight_v5 EXAMPLES', (56, 5): 'overnight_v5 EXAMPLES',
                   (104, 6): 'overnight_v5 EXAMPLES'}
@@ -425,7 +433,7 @@ def explicit():
                + [('BGPW Table 5', m, from_rp(h, m, n)) for m, n, h in BGPW_T5]
                + [('BGPW Table 5', m, v5.from_hex(h, m)) for (n, m), h in v5_bgpw]
                + [(label, m, v5.from_hex(h, m)) for label, m, h in PAGE_CODES]
-               + [(f'index.html {name}[{m}][{n}]', m, from_set(S, n)) for name, m, n, S in src['sets']]
+               + [(f'equipow {name}[{m}][{n}]', m, from_set(S, n)) for name, m, n, S in src['sets']]
                + [(EXAMPLE_LABELS[n, m], m, v5.from_hex(h, m)) for (n, m), h in v5_rest]
                + [('found here', *brute(n)) for n in range(1, BRUTE_MAX + 1) if brute(n)[0] >= 1]
                + [('found here', m, v5.from_hex(h, m)) for n, m, h in FOUND])

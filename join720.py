@@ -30,7 +30,7 @@ ROOT = Path(__file__).resolve().parent
 WORK = ROOT / 'scratch' / 'join720'
 JOURNAL = ROOT / 'join720_journal.jsonl'
 VERSION, TOTAL, CONTROL_TOTAL, SECONDS, SEED = 1, 16, 14, 30, 20261021
-FIXED = {'calibration': (mstar.explicit()[192, 'index.html p192'], 336, 9),
+FIXED = {'calibration': (mstar.explicit()[192, 'equipow p192'], 336, 9),
          'search': (mstar.build(336), 384, 10)}
 CODE = hashlib.sha256(b''.join((ROOT / p).read_bytes() for p in
     ('join720.py', 'lattice288.py', 'mstar.py', 'overnight_v5.py', 'certbb.py'))

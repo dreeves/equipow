@@ -231,10 +231,10 @@ def q_page_parse():
     assert sorted((name, m, n) for name, m, n, _ in src['sets']) == sorted(mstar.PAGE_SET_KEYS)
     # since 2026-10-27 a second order-10 set at 528, the symmetric one (dreeves: "sure to the additional 528 bipartition")
     assert ('SClaudeSym', 10, 528) in mstar.PAGE_SET_KEYS and ('SClaude', 10, 528) in mstar.PAGE_SET_KEYS
-    sym = mstar.explicit()[528, 'index.html SClaudeSym[10][528]']
+    sym = mstar.explicit()[528, 'equipow SClaudeSym[10][528]']
     # and the page's p528 of order 10 (from PAGE_CODES: since 2026-10-31 the label also names the order-11 p528,
     # which mstar.explicit keeps at that label)
-    p528 = [h for label, m, h in mstar.PAGE_CODES if (label, m) == ('index.html p528', 10)]
+    p528 = [h for label, m, h in mstar.PAGE_CODES if (label, m) == ('equipow p528', 10)]
     assert len(p528) == 1 and sym == sym[::-1] and exact_order_div(sym) == 10 and sym == v5.from_hex(p528[0], 10)
 
 
@@ -253,12 +253,17 @@ def q_384_settled_by_astra():
 def q_page_parse_is_strict():
     # Replicata: index.html with one change each: Table 2's 136 -> 7 (the first value of its block); 496's "9" (class j) ->
     # "9–10" (528's "10–12" -> "10–11" until 2026-10-31, when 528's cell became 11–12, class c, like 576's and 624's);
-    # 320's title BGPW -> Claude alone; the code C27D8C -> C27D8D; the first block table dropped.
+    # 320's title BGPW -> Claude alone; the code C27D8C -> C27D8D; that code's anchor id 48:6, its length and order
+    # (2026-10-31, dreeves's README, [IND]: "make the "p320" or whatever be a hyperlink / anchor link"), dropped, -> 48:7
+    # and -> 49:6; the first block table dropped.
     # Expectata: AssertionError from mstar.page_sources for each (the parse must equal the hand copy).
     html = open(os.path.join(HERE, 'index.html'), encoding='utf-8').read()
     for old, new in (('<td class="j">9</td>', '<td class="j">9–10</td>'),
                      ("<td class=\"s\" title='BGPW'>320</td>", "<td class=\"s\" title='Claude alone'>320</td>"),
-                     ('<code>C27D8C</code>', '<code>C27D8D</code>')):
+                     ('<code id="48:6">C27D8C</code>', '<code id="48:6">C27D8D</code>'),
+                     ('<code id="48:6">C27D8C</code>', '<code>C27D8C</code>'),
+                     ('<code id="48:6">C27D8C</code>', '<code id="48:7">C27D8C</code>'),
+                     ('<code id="48:6">C27D8C</code>', '<code id="49:6">C27D8C</code>')):
         assert html.count(old) == 1, old
         expect_assertion(lambda: mstar.page_sources(html.replace(old, new)))
     i = html.index('<tr class="vals">', html.index('<td>136</td>'))
@@ -507,26 +512,26 @@ def q_gray_columns():
     tens, elevens = (592, 608, 656, 752, 784), (832, 848, 880, 896, 928, 944, 976, 992)
     assert gray == tuple(n for n in USER_GRAY if n not in (240, 384, 560, 640, 704, 736, 800) + tens + elevens), gray
     assert [got['m']['cols'][n - 1][:2] for n in (240, 384, 560, 640, 704, 736, 800)] == [[10, 10]] * 6 + [[11, 11]]
-    assert [got['m']['cols'][n - 1][:3] for n in tens + elevens] == [[10, 10, ['example', f'index.html p{n}']] for n in tens] \
-        + [[11, 11, ['example', f'index.html p{n}']] for n in elevens]
+    assert [got['m']['cols'][n - 1][:3] for n in tens + elevens] == [[10, 10, ['example', f'equipow p{n}']] for n in tens] \
+        + [[11, 11, ['example', f'equipow p{n}']] for n in elevens]
     assert got['m']['cols'][240 - 1][2:] == [['example', 'BGPW Table 5'], ['page', 'Claude alone']]
-    assert got['m']['cols'][560 - 1][2] == ['example', 'index.html p560']
-    assert got['m']['cols'][800 - 1][2:] == [['example', 'index.html p800'], ['norm', 3]]
-    assert gray[-1] == 1008 and got['m']['cols'][1008 - 1] == [12, 13, ['example', 'index.html p1008'], ['residue', 5]]
+    assert got['m']['cols'][560 - 1][2] == ['example', 'equipow p560']
+    assert got['m']['cols'][800 - 1][2:] == [['example', 'equipow p800'], ['norm', 3]]
+    assert gray[-1] == 1008 and got['m']['cols'][1008 - 1] == [12, 13, ['example', 'equipow p1008'], ['residue', 5]]
 
 
 def q_results_of_2026_10_25():
     # Replicata (regression): mstar.NEW and mstar.js's columns at the n that 2026-10-25's results changed.
     # Expectata: 592, 608 and 656 settled at 10 and credited to Claude and Astra; 848, 880, 896, 928, 944, 976 and 992
-    # settled at 11, Claude alone; each lo from its example on the page (["example", "index.html p" + n]); 752's hi 10,
+    # settled at 11, Claude alone; each lo from its example on the page (["example", "equipow p" + n]); 752's hi 10,
     # Claude and Astra's, the page's (proof752.py), ["page", "Claude and Astra"]; 288 still Table 2's 9 to 10.  (Until
     # 2026-10-26, when 752 reached order 10 and 832 order 11, q_results_of_2026_10_26's, 752's lo was 9, the join 192 +
     # 560, and 832's the join 240 + 592, which tied the doubling 2 x 416 and came first.)
     _, got = disk()
     cs = got['m']['cols']
-    for n in (592, 608, 656): assert mstar.NEW[n] == (10, 10, 'Claude and Astra') and cs[n - 1][2] == ['example', f'index.html p{n}'], n
+    for n in (592, 608, 656): assert mstar.NEW[n] == (10, 10, 'Claude and Astra') and cs[n - 1][2] == ['example', f'equipow p{n}'], n
     for n in (848, 880, 896, 928, 944, 976, 992):
-        assert mstar.NEW[n] == (11, 11, 'Claude alone') and cs[n - 1][2] == ['example', f'index.html p{n}'], n
+        assert mstar.NEW[n] == (11, 11, 'Claude alone') and cs[n - 1][2] == ['example', f'equipow p{n}'], n
     assert mstar.NEW[752][1:] == (10, 'Claude and Astra') and cs[752 - 1][1::2] == [10, ['page', 'Claude and Astra']]
     assert 288 not in mstar.NEW and cs[288 - 1][:2] == [9, 10] and cs[288 - 1][3] == ['table2'], cs[288 - 1]
 
@@ -535,14 +540,14 @@ def q_results_of_2026_10_26():
     # Replicata (regression): mstar.NEW and mstar.js's columns at the n that 2026-10-26's results changed, and at the
     # two that stay in their grouped remark.
     # Expectata: 752 and 784 settled at 10 and credited to Claude and Astra, 832 settled at 11, Claude alone; each lo
-    # from its example on the page (["example", "index.html p" + n]); each hi as before: 752's the page's (proof752.py),
+    # from its example on the page (["example", "equipow p" + n]); each hi as before: 752's the page's (proof752.py),
     # 784's the residue condition mod 27 and 832's the norm bound mod 3; 544 and 688 still 9 to 10, their lo the joins
     # 192 + 352 and 192 + 496.
     _, got = disk()
     cs = got['m']['cols']
-    assert mstar.NEW[752] == (10, 10, 'Claude and Astra') and cs[752 - 1] == [10, 10, ['example', 'index.html p752'], ['page', 'Claude and Astra']]
-    assert mstar.NEW[784] == (10, 10, 'Claude and Astra') and cs[784 - 1] == [10, 10, ['example', 'index.html p784'], ['residue', 27]]
-    assert mstar.NEW[832] == (11, 11, 'Claude alone') and cs[832 - 1] == [11, 11, ['example', 'index.html p832'], ['norm', 3]]
+    assert mstar.NEW[752] == (10, 10, 'Claude and Astra') and cs[752 - 1] == [10, 10, ['example', 'equipow p752'], ['page', 'Claude and Astra']]
+    assert mstar.NEW[784] == (10, 10, 'Claude and Astra') and cs[784 - 1] == [10, 10, ['example', 'equipow p784'], ['residue', 27]]
+    assert mstar.NEW[832] == (11, 11, 'Claude alone') and cs[832 - 1] == [11, 11, ['example', 'equipow p832'], ['norm', 3]]
     assert [cs[n - 1][:3] for n in (544, 688)] == [[9, 10, ['join', 192, 352]], [9, 10, ['join', 192, 496]]]
 
 
@@ -553,14 +558,14 @@ def q_example_at_1024_is_checked():
     # 2^10 the first power of 2 beyond Thue-Morse): explicit() has the page's code p1024 and its set SClaude[11][1024],
     # the same sequence, antisymmetric, of order exactly 11 by synthetic division here, +1 at 0, and Thue-Morse tau_10;
     # NEW[2^10] is (11, 11, 'Claude alone'), the norm bound for 3 capping it at 11, and so is mstar.js's column 1024,
-    # [11, 11, ["example", "index.html p1024"], ["norm", 3]]; and doubled once and twice it settles 2^11 and 2^12,
+    # [11, 11, ["example", "equipow p1024"], ["norm", 3]]; and doubled once and twice it settles 2^11 and 2^12,
     # NEW[2^11] (12, 12, 'Claude alone') and NEW[2^12] (13, 13, 'Claude alone').
     ex = {label: a for (n, label), a in mstar.explicit().items() if n == 1024}
-    assert set(ex) == {'index.html SClaude[11][1024]', 'index.html p1024', 'Thue–Morse'}, sorted(ex)
+    assert set(ex) == {'equipow SClaude[11][1024]', 'equipow p1024', 'Thue–Morse'}, sorted(ex)
     assert ex['Thue–Morse'] == mstar.thue_morse(10) and exact_order_div(ex['Thue–Morse']) == 10
-    assert disk()[1]['m']['cols'][1024 - 1] == [11, 11, ['example', 'index.html p1024'], ['norm', 3]]
-    a = ex['index.html p1024']
-    assert ex['index.html SClaude[11][1024]'] == a and exact_order_div(a) == 11 and a[0] == 1, a[:8]
+    assert disk()[1]['m']['cols'][1024 - 1] == [11, 11, ['example', 'equipow p1024'], ['norm', 3]]
+    a = ex['equipow p1024']
+    assert ex['equipow SClaude[11][1024]'] == a and exact_order_div(a) == 11 and a[0] == 1, a[:8]
     assert all(a[1023 - i] == -a[i] for i in range(1024))
     assert mstar.NEW[2 ** 10] == (11, 11, 'Claude alone') and mstar.norm(1024, 3) == 11, mstar.NEW.get(2 ** 10)
     assert [mstar.NEW.get(2 ** k) for k in (11, 12)] == [(12, 12, 'Claude alone'), (13, 13, 'Claude alone')]
@@ -581,7 +586,7 @@ def q_lengths_from_1002_to_1024():
     want = {n: [1, 1] if n % 4 == 2 else [3, 3] if n % 8 == 4 else None for n in range(1002, 1025, 2)}
     assert all(cs[n - 1][:2] == v for n, v in want.items() if v), [(n, cs[n - 1]) for n in want]
     assert cs[1016 - 1][:2] == [7, 7] and cs[1016 - 1][3] == ['two'], cs[1016 - 1]
-    assert cs[1024 - 1][:2] == [11, 11] and cs[1008 - 1] == [12, 13, ['example', 'index.html p1008'], ['residue', 5]], cs[1008 - 1]
+    assert cs[1024 - 1][:2] == [11, 11] and cs[1008 - 1] == [12, 13, ['example', 'equipow p1008'], ['residue', 5]], cs[1008 - 1]
     assert [cs[n - 1][0] for n in (240, 768)] == [10, 12]          # 768's lo 11, the join's other part, until 2026-10-28
     assert mstar.RESIDUE[1008] == (14, (5,), 'digits') and mstar.two(1008) == mstar.norm(1008, 5) == 15
     assert mstar.NEW[1008] == (12, 13, 'Claude alone'), mstar.NEW.get(1008)
@@ -592,11 +597,11 @@ def q_example_at_816_raises_its_lo():
     # Expectata (2026-10-26: Claude's lattice search, w11.py at 816 without go800f's last-orbit table, found an
     # antisymmetric example of order 11 there; 2026-10-28: w12.py found a symmetric example of order 12 there, which
     # replaced it as p816): 816 is 12 to 14, Claude alone, its lo the page's example
-    # (["example", "index.html p816"]) and its hi still the norm bound for the residue sums mod 5; and 2^41 is 46 to 50
+    # (["example", "equipow p816"]) and its hi still the norm bound for the residue sums mod 5; and 2^41 is 46 to 50
     # (45 to 50 before), 816 being among the blocks of the first power of 2 known to beat Thue-Morse by 5.
     _, got = disk()
     cs = got['m']['cols']
-    assert mstar.NEW[816] == (12, 14, 'Claude alone') and cs[816 - 1] == [12, 14, ['example', 'index.html p816'], ['norm', 5]], cs[816 - 1]
+    assert mstar.NEW[816] == (12, 14, 'Claude alone') and cs[816 - 1] == [12, 14, ['example', 'equipow p816'], ['norm', 5]], cs[816 - 1]
     assert mstar.NEW[2 ** 41] == (46, 50, 'Claude alone'), mstar.NEW[2 ** 41]
 
 
@@ -606,60 +611,60 @@ def q_examples_at_720_and_1008_raise_their_lo():
     # examples of order 11 there; 2026-10-28: w12.py found a symmetric example of order 12 at 1008, which replaced its
     # order-11 one as p1008; that evening Astra's faster w12 found one at 720, which replaced its order-11 one as p720):
     # 720 is 12 to 14 and 1008 is 12 to 13, Claude alone, each lo the page's example
-    # (["example", "index.html p720"], ["example", "index.html p1008"]) and each hi still its residue claim (order 15
+    # (["example", "equipow p720"], ["example", "equipow p1008"]) and each hi still its residue claim (order 15
     # mod 16 at 720, order 14 mod 5 at 1008).
     _, got = disk()
     cs = got['m']['cols']
-    assert mstar.NEW[720] == (12, 14, 'Claude alone') and cs[720 - 1] == [12, 14, ['example', 'index.html p720'], ['residue', 16]], cs[720 - 1]
-    assert mstar.NEW[1008] == (12, 13, 'Claude alone') and cs[1008 - 1] == [12, 13, ['example', 'index.html p1008'], ['residue', 5]], cs[1008 - 1]
+    assert mstar.NEW[720] == (12, 14, 'Claude alone') and cs[720 - 1] == [12, 14, ['example', 'equipow p720'], ['residue', 16]], cs[720 - 1]
+    assert mstar.NEW[1008] == (12, 13, 'Claude alone') and cs[1008 - 1] == [12, 13, ['example', 'equipow p1008'], ['residue', 5]], cs[1008 - 1]
 
 
 def q_example_at_768_raises_its_lo():
     # Replicata: mstar.NEW and mstar.js's column at 768.
     # Expectata (2026-10-28 evening: Claude's lattice search w12.py found symmetric examples of order 12 at 768, seeds 1
-    # and 3): 768 is 12 to 13, Claude alone, its lo the page's example (["example", "index.html p768"]; 11 before, by
+    # and 3): 768 is 12 to 13, Claude alone, its lo the page's example (["example", "equipow p768"]; 11 before, by
     # doubling 384) and its hi still the residue condition mod 5 at order 14.
     _, got = disk()
     cs = got['m']['cols']
-    assert mstar.NEW[768] == (12, 13, 'Claude alone') and cs[768 - 1] == [12, 13, ['example', 'index.html p768'], ['residue', 5]], cs[768 - 1]
+    assert mstar.NEW[768] == (12, 13, 'Claude alone') and cs[768 - 1] == [12, 13, ['example', 'equipow p768'], ['residue', 5]], cs[768 - 1]
 
 
 def q_example_at_912_raises_its_lo():
     # Replicata: mstar.NEW and mstar.js's column at 912.
     # Expectata (2026-10-28: Claude's lattice search w12.py, the symmetric order-12 port of w11.py, found a symmetric
-    # example of order 12 at 912): 912 is 12 to 13, Claude alone, its lo the page's example (["example", "index.html
+    # example of order 12 at 912): 912 is 12 to 13, Claude alone, its lo the page's example (["example", "equipow
     # p912"]) and its hi still the residue condition mod 5 at order 14.
     _, got = disk()
     cs = got['m']['cols']
-    assert mstar.NEW[912] == (12, 13, 'Claude alone') and cs[912 - 1] == [12, 13, ['example', 'index.html p912'], ['residue', 5]], cs[912 - 1]
+    assert mstar.NEW[912] == (12, 13, 'Claude alone') and cs[912 - 1] == [12, 13, ['example', 'equipow p912'], ['residue', 5]], cs[912 - 1]
 
 
 def q_examples_at_576_and_624_raise_their_lo():
     # Replicata: mstar.NEW and mstar.js's columns at 576 and 624.
     # Expectata (2026-10-31: Claude's lattice search scratch/w11-624-576/w11.py, scratch/w13/w13.py at antisymmetric
     # order 11 with its ranked pool kept to configurations whose exact q is below h, found antisymmetric examples of
-    # order 11 at 576 and 624): each is 11 to 12, Claude alone, its lo the page's example (["example", "index.html p<n>"]) and
+    # order 11 at 576 and 624): each is 11 to 12, Claude alone, its lo the page's example (["example", "equipow p<n>"]) and
     # its hi still the residue condition at order 13 (mod 5 at 576, mod 25 at 624).
     # Resultata before: 576 was 10 to 12, its lo the join 240 + 336, 624 was 10 to 12, its lo the join 240 + 384.
     _, got = disk()
     cs = got['m']['cols']
     for n, M in ((576, 5), (624, 25)):
         assert mstar.NEW[n] == (11, 12, 'Claude alone'), (n, mstar.NEW[n])
-        assert cs[n - 1] == [11, 12, ['example', f'index.html p{n}'], ['residue', M]], (n, cs[n - 1])
+        assert cs[n - 1] == [11, 12, ['example', f'equipow p{n}'], ['residue', M]], (n, cs[n - 1])
 
 
 def q_example_at_528_raises_its_lo():
     # Replicata: mstar.NEW and mstar.js's column at 528.
     # Expectata (2026-10-31: Claude's lattice search scratch/w11-624-576/w11.py, at antisymmetric order 11, found
     # seven antisymmetric examples of order 11 at 528, one per seed of its first batch): 528 is 11 to 12, Claude alone
-    # (both bounds Claude's), its lo the page's example ["example", "index.html p528"] (the order-11 code, which
+    # (both bounds Claude's), its lo the page's example ["example", "equipow p528"] (the order-11 code, which
     # mstar.explicit keeps over the order-10 p528 of the same label) and its hi still the residue condition at order
     # 13 mod 5.
     # Resultata before: 528 was 10 to 12, Claude and BGPW, its lo the symmetric example p528 of order 10.
     _, got = disk()
     cs = got['m']['cols']
     assert mstar.NEW[528] == (11, 12, 'Claude alone'), mstar.NEW[528]
-    assert cs[527] == [11, 12, ['example', 'index.html p528'], ['residue', 5]], cs[527]
+    assert cs[527] == [11, 12, ['example', 'equipow p528'], ['residue', 5]], cs[527]
 
 
 # ---------- residue tests ----------

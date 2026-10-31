@@ -236,6 +236,8 @@ code {
   color: var(--ink);
   overflow-wrap: anywhere;
 }
+/* A code's anchor (2026-10-31, [IND]): a link to it scrolls its label into view too, the lines above it in its block */
+.code code[id] { scroll-margin-top: 6rem; }
 
 /* Claude's examples written out as sets, to paste into Mathematica */
 .sets, .counts { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; max-width: var(--measure); }
