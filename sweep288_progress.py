@@ -12,7 +12,7 @@ import sys
 import progress
 
 
-CACHE = Path(progress.HERE) / 'scratch' / 'sweep288' / 'progress-cache.json'
+CACHE = Path(progress.HERE) / 'scratch' / 'sweep288' / 'progress-cache.json'      # a directory (progress.save_cache)
 
 
 def survey(path, procs, now=None, observations=None):
@@ -37,7 +37,6 @@ def unit(path, header, procs):
     cache = progress.load_cache(CACHE)
     key = f'sweep288_{header["code"]}_{header["time"]}_observations'
     run = survey(path, procs, observations=cache.setdefault(key, {}))
-    Path(CACHE).parent.mkdir(parents=True, exist_ok=True)
     progress.save_cache(CACHE, cache)
     return [run]
 

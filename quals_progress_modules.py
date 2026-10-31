@@ -60,7 +60,9 @@ class ProgressModuleQuals(unittest.TestCase):
 
     def test_surveys_use_local_modules_for_both_cache_keys_and_full_calls(self):
         # Replicata: both overnight and box passes of an isolated solver appear in one snapshot.
-        # Expectata: all file resolution and survey calls see local modules, and caches use their actual CODEs.
+        # Expectata: all file resolution and survey calls see local modules; the overnight run's splits and ETAs are
+        # cached under its geometry, the repository's own (2026-10-30: under its CODE before, which its solver
+        # changes), the box pass's ETAs under its boxsplit CODE.
         seen, cache = [], {}
         (self.directory / 'overnight_v5_304_9_boxsplit.log').touch()
         def observe(kind):
@@ -74,7 +76,12 @@ class ProgressModuleQuals(unittest.TestCase):
         self.assertEqual(got, [{'kind': 'main'}, {'kind': 'box'}])
         local = progress.run_module(str(self.directory))
         self.assertTrue(all(v5 is local and bx.v5 is local for _, v5, bx, _ in seen))
-        self.assertEqual(set(cache), {f'304_9_{local.CODE}', f'304_9_{local.CODE}_etas',
+        local.configure(304, 9)
+        geometry = progress.run_modules.geometry(local)
+        self.assertNotEqual(local.CODE, self.old[0].CODE)
+        self.old[0].configure(304, 9)
+        self.assertEqual(geometry, progress.run_modules.geometry(self.old[0]))
+        self.assertEqual(set(cache), {f'304_9_geometry_{geometry}', f'304_9_geometry_{geometry}_etas',
                                     f'304_9_boxsplit_{seen[1][2].CODE}_etas'})
         self.assertEqual((progress.v5, progress.bx), self.old)
 
@@ -108,6 +115,70 @@ class ProgressModuleQuals(unittest.TestCase):
             archive.write_bytes(data + b'{}\n')
             with self.assertRaises(AssertionError):
                 progress.read_journal(str(journal))
+
+
+class GeometryCacheQuals(unittest.TestCase):
+    """The split cache under a run's geometry (2026-10-30), on quals_progress.tiny('open') (64@7, which splits), surveyed
+    as the watcher surveys a run (survey_runs) from run directories of copies of the repository's sources."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.journal, self.log = quals_progress.tiny('open')
+
+    def run_dir(self, name, edit=lambda text: text, solver=''):
+        """A run directory: the root's overnight_v5.py (through edit), certbb.py (with solver appended) and
+        boxsplit.py, and tiny('open')'s journal and log under the run's names, the journal's header the run's own (as a
+        migration writes it)."""
+        d = Path(self.tmp.name) / name
+        d.mkdir()
+        root = Path(progress.__file__).parent
+        for f in ('overnight_v5.py', 'certbb.py', 'boxsplit.py'): shutil.copyfile(root / f, d / f)
+        (d / 'overnight_v5.py').write_text(edit((d / 'overnight_v5.py').read_text()))
+        with (d / 'certbb.py').open('a') as fh: fh.write(solver)
+        local = progress.run_module(str(d))
+        local.configure(64, 7)
+        body = Path(self.journal).read_text().split('\n', 1)[1]
+        (d / 'overnight_v5_64_7_journal.jsonl').write_text(json.dumps(local.header()) + '\n' + body)
+        shutil.copyfile(self.log, d / 'overnight_v5_64_7.log')
+        return d
+
+    def survey(self, d, cache):
+        """survey_runs of 64@7 from the run directory d with this cache, no process running."""
+        with patch.dict(progress.DIRS, {(64, 7): str(d)}), patch.object(progress, 'RUNS', ((64, 7),)), \
+                patch.object(progress, 'EXTENDED', ()):
+            got, = progress.survey_runs([], 0, cache)
+        return got
+
+    def test_a_solver_change_reuses_every_split_and_a_geometry_change_does_not(self):
+        # Replicata: tiny('open') surveyed with one cache from three run directories in turn: the root's sources;
+        # certbb.py with a line added (another solver, so another CODE, the journal's header migrated to it);
+        # overnight_v5.py with Relaxation's docstring changed (another geometry, the same CODE).  Before the second
+        # survey, the splits' entry is replaced by a dict that records every key set in it (children sets one only for a
+        # split it computes).
+        # Expectata (2026-10-30): the first survey caches splits under one geometry key; the solver's change keeps that
+        # key and computes no split (none set, the entry unchanged); the Relaxation change caches them anew under
+        # another key, equal to the first.
+        class Recording(dict):
+            def __setitem__(self, key, value):
+                sets.append(key)
+                super().__setitem__(key, value)
+        sets, cache = [], {}
+        first = self.survey(self.run_dir('root'), cache)
+        (splits, etas), = [(k, k + '_etas') for k in cache if not k.endswith('_etas')]
+        self.assertTrue(splits.startswith('64_7_geometry_') and set(cache) == {splits, etas} and cache[splits])
+        kept = dict(cache[splits])
+        cache[splits] = Recording(kept)
+        solver = self.run_dir('solver', solver='\nGEOMETRY_QUAL_SOLVER = True\n')
+        self.assertNotEqual(progress.run_module(str(solver)).CODE, progress.run_module(str(Path(self.tmp.name) / 'root')).CODE)
+        second = self.survey(solver, cache)
+        self.assertEqual((sets, set(cache), cache[splits]), ([], {splits, etas}, kept))
+        self.assertEqual((second['levels'], second['sea']), (first['levels'], first['sea']))
+        relaxation = self.run_dir('relaxation', lambda text: text.replace(
+            'The LP relaxation, 0 <= x_p <= 1, of', 'The LP relaxation (geometry qual), 0 <= x_p <= 1, of', 1))
+        self.survey(relaxation, cache)
+        (other,) = [k for k in cache if not k.endswith('_etas') and k != splits]
+        self.assertEqual(dict(cache[other]), kept)
 
 
 class NativeTrackQuals(unittest.TestCase):

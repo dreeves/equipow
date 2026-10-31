@@ -164,9 +164,9 @@ class Search592ProgressQuals(unittest.TestCase):
             self.assertEqual([r['program'] for r in data['runs']], ['search288.py', 'sweep288.py', 'search592.py'])
             self.assertEqual([r['so_far'] for r in data['runs'][1:]], [23, 25])
             self.assertEqual(writes.count(str(dest)), 1)
-            self.assertEqual(json.loads(newcache.read_text()), {'search592_qual_100_observations': {'125.0': None}})
-            self.assertEqual(json.loads(sweepcache.read_text()), {'sweep288_qual_100_observations': {'123.0': None}})
-            self.assertFalse(any(k.startswith('search592_') for k in json.loads(oldcache.read_text())))
+            self.assertEqual(progress.load_cache(newcache), {'search592_qual_100_observations': {'125.0': None}})
+            self.assertEqual(progress.load_cache(sweepcache), {'sweep288_qual_100_observations': {'123.0': None}})
+            self.assertFalse(any(k.startswith('search592_') for k in progress.load_cache(oldcache)))
         self.assertIs(progress.js_text, serialize)
         self.assertEqual([hashlib.sha256(p.read_bytes()).hexdigest() for p in paths], before)
 

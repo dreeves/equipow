@@ -712,6 +712,24 @@ footer {
   </div>
 </section>
 
+
+<!--
+[REO] Everything below this line and above the Search Progress section is an organizational disaster.
+Spec for a revamp:
+In addition to the hover blurbs, every cell m(n) is a link to a dynamically generated page that lays out everything we know about equipowerful partitions of {0, 1, ..., n - 1} of order m.
+On that page:
+1. If m(n) is a green cell, show a table of hex codes, one for each partition we know of that achieves the highest order we know of for n.
+2. When you click the hex code, we expand it to an explicit partition and check the arithmetic so show exactly which exponents are equipowerful.
+3. If m(n) is a red cell, show the proof that order m is impossible for n.
+Possibly some of that should be combined; I haven't totally thought it through.
+But the idea is to remove all the mess of endless scrolling and make it easy for the reader to click to see exactly what they want to see.
+Separate dynamically generated pages may be dumb, I don't know.
+Actually, for starters, forget everything about interactivity and just have a collapsible section for each interesting n?
+Or before that, we could just do the hex code thing, where we have every interesting bipartition in a big list and you can click the hex code to expand it?
+Or just start identifying redundancies and repetition on the page and fix them one at a time?
+-->
+
+
 <section class="remarks">
   <h2>Where the new results come from</h2>
   <!-- TODO: says how the upper bounds are proven: a partition written as signs f_0, ..., f_(n−1) and f(x) = sum f_i x^i has order m when (x − 1)^m divides f(x); for a modulus M the residue sum D_r is the number of +1s minus the number of −1s at the positions i ≡ r (mod M); f(x) reduced modulo x^M − 1 is sum D_r x^r and must still be a multiple of (x − 1)^m modulo x^M − 1, each D_r having its class size's parity and being at most that size in absolute value; and the residue condition mod M rules out order m when an exhaustive search finds no residue sums meeting all that -->

@@ -153,9 +153,9 @@ class Sweep288ProgressQuals(unittest.TestCase):
             self.assertEqual(data['runs'][0]['groups'], ['33', '333'])
             self.assertEqual(data['runs'][1]['so_far'], 25)
             self.assertEqual(writes.count(str(dest)), 1)
-            cache = json.loads(newcache.read_text())
+            cache = progress.load_cache(newcache)
             self.assertEqual(cache['sweep288_qual_100_observations'], {'125.0': None})
-            self.assertFalse(any(k.startswith('sweep288_') for k in json.loads(oldcache.read_text())))
+            self.assertFalse(any(k.startswith('sweep288_') for k in progress.load_cache(oldcache)))
         self.assertIs(progress.js_text, original)
         self.assertEqual(hashlib.sha256(Path(progress.__file__).read_bytes()).hexdigest(), before)
 

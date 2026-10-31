@@ -24,6 +24,15 @@ GEOMETRY = ('lattice_poly', 'lattice_basis', 'moment_rows', 'moments', 'count_ro
             'node_key', 'work', 'sibling_order', 'search')
 BOX_GEOMETRY = ('parse_key', 'open_leaves', 'admissible_box', 'outside_key')
 CHECKER = ('ProofError', 'require', 'Moments', 'node_rows', 'lower_bound', 'fixed', 'cuts', 'Check', 'verify')
+# What decides a run's splits (overnight_v5.split's children of a node, as node_key writes them): the sources of
+# SPLIT_SOURCES and the values of SPLIT_VALUES, as the run's overnight_v5 has them once configured; every module name
+# split reads, at any depth of its calls (quals_run_modules checks that none is missing).  They differ from GEOMETRY:
+# Relaxation, moment_basis, is_pool, size and gbinom decide splits and are not in it; search, work, sibling_order,
+# solve_node and moments are in it and decide none (2026-10-30).
+SPLIT_SOURCES = ('split', 'is_pool', 'stabilizer', 'act', 'rep', 'size', 'moment_rows', 'gbinom', 'integer_system',
+                 'ExactSystem', 'count_rows', 'admissible', 'lattice_basis', 'lattice_poly', 'Relaxation',
+                 'moment_basis', 'node_key')
+SPLIT_VALUES = ('N', 'CASCADE', 'TOL', 'GROUP')
 ABSENT = object()
 
 
@@ -76,6 +85,15 @@ def module(directory, stem, aliases):
     except BaseException:
         sys.modules.pop(name, None)
         raise
+
+
+def geometry(v5):
+    """The geometry of the run v5 is configured for: the sha1 of the sources of SPLIT_SOURCES and the values of
+    SPLIT_VALUES in v5, which decide its splits and do not change with its solver (progress keys a run's cached splits
+    and its record of ETAs by it; 2026-10-30: before, by overnight_v5.CODE, which certbb's source changes, so that each
+    solver change started 288@10's 99 MB of splits cold).  inspect reads each source from its file as it is now."""
+    return hashlib.sha1((''.join(inspect.getsource(getattr(v5, name)) for name in SPLIT_SOURCES)
+                         + repr([getattr(v5, name) for name in SPLIT_VALUES])).encode()).hexdigest()
 
 
 def equivalent(local, root, names):

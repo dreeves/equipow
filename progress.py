@@ -11,7 +11,9 @@ For each run (N, ORDER) in RUNS it reads overnight_v5_N_ORDER_journal.jsonl and 
 directory (DIRS; see
 overnight_v5.py's docstring for their formats and for node, split, pool, budget, verdict and cascade) and the process
 list.  The tree's levels are enumerated with overnight_v5.split itself, each node split at most once: the children's
-keys are kept in CACHE, a file git ignores, by run and by overnight_v5.CODE.  Vocabulary, each term defined once here:
+keys are kept in CACHE, a directory git ignores (see save_cache), by run and by the run's geometry
+(run_modules.geometry: what decides its splits, which a change of its solver leaves as it was).  Vocabulary, each term
+defined once here:
   pass        one run of overnight_v5.py on a journal: a start line of the log and the lines after it.  A later pass
               resumes from the journal, perhaps with larger budgets.  The current pass is the log's last.
   sub-case    a node of the search tree.
@@ -68,7 +70,7 @@ keys are kept in CACHE, a file git ignores, by run and by overnight_v5.CODE.  Vo
               made before then hold): the hours of running until the current pass ends, as likely more as less, which
               is when the search ends, unless the pass leaves sub-cases open, as 304@9's first did; no
               estimate foresees a later pass.  Each time the data file is made it records its ETA with the estimate's
-              range (its draws' QUANTILES), by the snapshot's time, in CACHE (by run and overnight_v5.CODE); the data
+              range (its draws' QUANTILES), by the snapshot's time, in CACHE (by run and its geometry); the data
               file carries that record (see eta_records), and the section's ETA chart draws it, the range as a shaded
               band: only ETAs actually made, none reconstructed for times before the record began (dreeves,
               2026-10-09), against the search's elapsed running time, whatever its passes (dreeves, 2026-10-10).
@@ -169,10 +171,11 @@ The estimate's model, its terms defined once here (overnight_v5.py's search() is
               and fanout.py's journals), changed only in atomic blocks, so that a snapshot costs about what the files
               gained.  read_run, sea, estimate and a survey made without one make a new one, which reads the files
               whole: the same values.
-  unit        one run's survey in a snapshot (snapshot): bounded by LIMIT seconds; a unit that fails or runs past it
-              leaves its run's last good data in the data file, marked stale, and the other units go on.
+  unit        one run's survey in a snapshot (snapshot): bounded by LIMIT seconds, doubled after each overrun of its run
+              since the run's last completed survey; a unit that fails or runs past its bound leaves its run's last good
+              data in the data file, marked stale, and the other units go on.
   stale       of a run in the data file: null, or the time of the snapshot its data are from, when its survey failed or ran
-              past LIMIT since; the section marks such a run (Claude: "stale").
+              past its bound since; the section marks such a run (Claude: "stale").
 The data file says when the snapshot was made, to the second, and the section keeps its age up to date.  Per run it
 gives the state, the hours of running so far and to go, the record of ETAs and the sea (see js_text).
 """
@@ -190,7 +193,7 @@ ROOT_V5, ROOT_BX = v5, bx
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 JS = os.path.join(HERE, 'progress.js')         # the data file of index.html's section "Search progress" (see the vocabulary)
-CACHE = os.path.join(HERE, '.progress_cache.json')
+CACHE = os.path.join(HERE, '.progress_cache.json')    # a directory since 2026-10-30 (see save_cache), git-ignored
 # The completed 240@11 proof and its boxsplit pass, and the 384@11 search
 # superseded by proof384.py, left the live display on 2026-10-20. Their journals remain.  So did the finished 288:10
 # symmetric batch (lattice288.py) and 720:11 joined batch (join720.py) on 2026-10-23; their adapters remain.
@@ -217,7 +220,7 @@ STATUSES = ('settled', 'open', 'split', 'pending')     # the statuses, in the or
 SEA_DEPTH = 5                          # the sea's groups are the sub-cases at this depth (240@11's 291), or above the bottom
 SEA_STATUSES = STATUSES + ('running',)  # a dot's status, by its index in the data file
 ETA_POINTS = 400                       # the most recorded ETAs the data file carries per run
-LIMIT = 120                            # seconds a run's survey may take in a snapshot (see bounded)
+LIMIT = 120                            # seconds a run's survey may take in a snapshot, before overruns (see snapshot)
 STEP = 20000                           # lines, records or keys a reading takes in one atomic block (see atomic)
 DRAWS = 1 << 28                        # the most numbers an urn may hold (see Urn): 2 GiB of float64
 
@@ -1784,6 +1787,8 @@ class BoxLog:
         # TODO: error copy; says a line of the driver's log comes before any start line or after its pass's outcome line, quoting it
         assert kind == 'start' or (self.passes and self.passes[-1]['outcome'] is None), f'Claude: "a boxsplit log line out of place: {line}"'
         assert kind != 'done' or int(m['leaf']) in self.passes[-1]['starts'], line
+        assert kind != 'leaf' or int(m['leaf']) not in self.passes[-1]['starts'], line     # a leaf starts once a pass,
+        assert kind != 'done' or int(m['leaf']) not in self.passes[-1]['dones'], line      # and is done once
         t = stamp_after(m[1], self.stamped)
         if kind == 'start':
             self.passes.append({'start': t, 'n': int(m['n']), 'order': int(m['order']), 'leaves': int(m['leaves']),
@@ -1804,8 +1809,8 @@ def parse_box_lines(lines):
     started; dones, (the time, whether its tree closed) of each leaf done; outcome, its final line (ALL ... LEAVES
     CLOSED, NOT FINISHED or a witness), as the log has it, after the time, else None.  Every line must have exactly
     one known form, every pass must begin with a start line, no line may follow its outcome but the next start line,
-    and a leaf is done only after it started in the pass (all asserted).  The times are each line's stamp_after the
-    line before."""
+    and a leaf is done only after it started in the pass, and starts and is done at most once in it (all asserted).  The
+    times are each line's stamp_after the line before."""
     log = BoxLog()
     for line in lines: log.take(line)
     return log.passes
@@ -1865,7 +1870,7 @@ def lindy_work(walls, ages, pending, rate):
 
 
 BAND = 4                               # depth levels in a band of the pool estimate's samples (see the vocabulary)
-BOOT = 200                             # its bootstrap replicates
+BOOT = 200                             # its bootstrap replicates, and those of the boxsplit estimate (box_estimate)
 
 
 def pool_estimate(samples, pool, n, rate, floor):
@@ -1891,6 +1896,41 @@ def pool_estimate(samples, pool, n, rate, floor):
         T[:, d] = cost + (below * T[:, d:d + width]).sum(axis=1)
     total = sum(count * T[:, d] for d, count in pool.items())
     return quantiles(np.maximum(total, floor) / rate / HOUR)
+
+
+def box_work(u, d, c, at, pending):
+    """The worker seconds a boxsplit pass has to go by Kaplan-Meier (1958) on its started leaves (see survey_box), and
+    whether its mean is restricted: u, the distinct seconds seen, ascending; d and c, how many done leaves (events) and
+    running ones (censored at their seconds so far) were seen at each; at, each running leaf's place in u; pending, the
+    leaves to start.  The survival S steps down at each u by the done leaves there over those at risk, seen there or
+    later (a done leaf before a running one at the same seconds).  tau is the longest time seen; the mean is the area
+    under S up to it, and each running leaf seen at t has its area past t over S(t) to go.  Past tau nothing is known:
+    where it is a running leaf's, S(tau) > 0 and the area stops at tau all the same, a floor (restricted; Efron's 1967
+    tail, tau taken as an event).  The worker seconds are pending times the mean plus the running leaves' rests."""
+    seen = d + c
+    S = np.cumprod(1 - d / np.maximum(np.cumsum(seen[::-1])[::-1], 1))
+    tau = np.flatnonzero(seen)[-1]
+    area = np.cumsum(np.r_[1.0, S[:-1]] * np.diff(np.minimum(np.r_[0.0, u], u[tau])))      # under S to each u (and tau)
+    rest = area[-1] - area[at]
+    return pending * area[-1] + np.divide(rest, S[at], out=np.zeros(len(at)), where=rest > 0).sum(), bool(S[tau] > 0)
+
+
+def box_estimate(walls, ages, pending, workers):
+    """A boxsplit pass's estimate (see survey_box): ([median, lo, hi] hours to go, whether restricted), box_work of its
+    started leaves (walls, the seconds of the done ones; ages, those so far of the running ones) over its workers, the
+    median and QUANTILES of BOOT bootstrap replicates, the started leaves drawn again with replacement (as counts over
+    the distinct (seconds, done or running) cells: memory and time by those cells); restricted, the started leaves'
+    own (box_work)."""
+    # TODO: error copy; says a boxsplit estimate needs a started leaf, ages and pending not below 0, and a worker
+    assert walls + ages and min(ages, default=0) >= 0 <= pending and workers > 0, 'Claude: "no estimate of these"'
+    u, place = np.unique(np.array(walls + ages, dtype=float), return_inverse=True)
+    d = np.bincount(place[:len(walls)], minlength=len(u)).astype(float)
+    c = np.bincount(place[len(walls):], minlength=len(u)).astype(float)
+    at, n = place[len(walls):], len(place)
+    rng = np.random.default_rng(SEED)
+    hours = [box_work(u, *np.split(rng.multinomial(n, np.r_[d, c] / n).astype(float), 2), at, pending)[0]
+             for _ in range(BOOT)]
+    return quantiles(np.array(hours) / workers / HOUR), box_work(u, d, c, at, pending)[1]
 
 
 def to_go_of(eta):
@@ -1943,14 +1983,19 @@ def survey_box(n, order, log, main, procs, now, etas, box=None):
     done says its tree closed or not, else pending.  The log alone says all this, every pass's lines kept; the driver's
     journal is not read: the driver writes a leaf's done line and then its CLOSED record, so a reader of both could see
     the one without the other (the watcher's crash of 2026-10-17 16:03).
-    The estimate: an urn (see the vocabulary) of the wall seconds, start to done, of every leaf done in the current
-    pass (an earlier pass did other work: 240@11's second pass split by 19 the nodes its first left open by 17), its new
-    ball lindy_ball's Lindy tail above the longest time seen in the pass, done or still running (a leaf's tree has no
-    budget to bound it); each running leaf drawn above its elapsed seconds (censored, the longest-running first),
-    holding its worker for the rest; each pending leaf a job in the driver's order (its key's sha1); makespan on the
-    pass's workers.  With no leaf of the pass done, every draw is the new ball: Gott's rule.  None when the driver is not
-    running or no leaf of the pass has begun.  box is the watcher's Boxes of the pass, kept between snapshots; by
-    default a new one, which reads the files whole: the same survey."""
+    The estimate (2026-10-30, in place of an urn of Lindy draws, whose balls for 288@10's 431,256 leaves would have
+    held 6.9 GB): Kaplan-Meier (1958) on the current pass's started leaves (an earlier pass did other work: 240@11's
+    second split by 19 the nodes its first left open by 17), box_estimate.  The driver starts leaves in the order of
+    their keys' sha1, an order that knows nothing of their cost, so the started ones are a random sample of the pass's
+    leaves: each done leaf an event at its wall seconds, start line to the line saying it is done, each running one
+    censored at its seconds so far.  The worker seconds to go are the pending leaves (the pass's leaves less those
+    closed on record and those started) times the mean, plus each running leaf's expected rest beyond its seconds so
+    far, over the pass's workers; the median and band of BOOT bootstrap replicates of the started leaves.  The band is
+    the mean's uncertainty, not that of the sum of the pending leaves' seconds, which varies less over many leaves
+    (nor of the end of a pass with fewer leaves left than workers, which the division by the workers puts early).
+    Where the longest time seen is a running leaf's, nothing is known past it: the mean is restricted to it, a floor
+    (restricted).  None when the driver is not running or no leaf of the pass has begun.  box is the watcher's Boxes of
+    the pass, kept between snapshots; by default a new one, which reads the files whole: the same survey."""
     files(n, order)                     # overnight_v5 configured for the run, with its copy's settings if it has one
     box = Boxes(log) if box is None else box
     # TODO: error copy; says the watcher's reading of a boxsplit pass was handed another driver's log, naming both
@@ -1964,14 +2009,18 @@ def survey_box(n, order, log, main, procs, now, etas, box=None):
     spans = [(q['start'], q['last']) for q in passes[:-1]] + [(p['start'], end)]
     running = {i: p['starts'][i] for i in box.active} if state == 'running' else {}
     sea = box.sea(running)
-    walls = list(box.walls)                                          # the pass's done leaves
-    ages = sorted((now - t for t in running.values()), reverse=True)  # its running leaves', the longest-running first
-    pending = sea['counts']['pending']
-    eta = lindy_urn(walls, ages, pending, p['processes']) if state == 'running' and max([*walls, *ages], default=0.0) > 0 else None
+    assert len(box.walls) + len(box.active) == len(p['starts']), log  # each leaf started in the pass done or at work
+    walls = box.walls                                                # the pass's done leaves' wall seconds
+    ages = sorted(now - t for t in running.values())                 # its running leaves' seconds so far
+    pending = p['leaves'] - p['on_record'] - len(p['starts'])        # its leaves the driver has yet to start
+    assert pending >= 0, log
+    eta, restricted = (box_estimate(walls, ages, pending, p['processes']) if state == 'running' and walls + ages
+                       else (None, None))
     etas.setdefault(str(int(end)), eta)   # a record made stands
     to_go = to_go_of(eta)
     return {'program': 'boxsplit.py', 'n': n, 'order': order, 'state': state, 'outcome': p['outcome'],
-            'so_far': sum(b - a for a, b in spans), 'to_go': to_go, 'passes': spans, 'etas': etas, 'sea': sea}
+            'so_far': sum(b - a for a, b in spans), 'to_go': to_go, 'restricted': restricted, 'passes': spans,
+            'etas': etas, 'sea': sea}
 
 
 class Boxes:
@@ -2660,10 +2709,12 @@ def seeded(path):
     return kept
 
 
-def snapshot(units, kept, readings, now):
+def snapshot(units, kept, readings, now, overruns):
     """The data file's runs and the time it is made, from units, each (its run's identity, (program, n, order), and a
-    thunk making its surveys, one or none): each thunk bounded by LIMIT seconds (bounded), so that one run's slow or
-    failing survey leaves the others theirs (2026-10-30: 288@10's 90-minute snapshot froze every run).  A run whose
+    thunk making its surveys, one or none): each thunk bounded by LIMIT seconds times 2 to the number of its run's
+    overruns since its last completed survey (overruns, by identity; bounded), so that one run's slow or failing survey
+    leaves the others theirs (2026-10-30: 288@10's 90-minute snapshot froze every run), and a step of a survey that
+    starts over whenever it is cut off (outside atomic blocks) still finishes within a few snapshots.  A run whose
     survey failed or ran past its limit keeps its last good data from kept (this watcher's earlier snapshots, or the
     data file it found at its start), marked stale with that data's time, and the watcher's log gets the traceback; a
     failure (not Overtime) also drops its reading (readings), begun anew the next time.  made is now, or the latest
@@ -2671,15 +2722,17 @@ def snapshot(units, kept, readings, now):
     runs, made, fresh = [], now, []
     for identity, thunk in units:
         try:
-            surveys = bounded(LIMIT, thunk)
+            surveys = bounded(LIMIT * 2 ** overruns.get(identity, 0), thunk)
             data = [run_data(s) for s in surveys]
             # TODO: error copy; says a survey's runs are not the one its unit names, naming both
             assert all((r['program'], r['n'], r['order']) == identity for r in data), f'Claude: "{identity} surveyed as another"'
             made = max([made] + [s['made'] for s in surveys if 'made' in s])
             runs += data
             fresh.append((identity, data))
+            overruns[identity] = 0
         except Overtime:
-            runs += stale(identity, kept, f'ran past {LIMIT} s')
+            runs += stale(identity, kept, f'ran past {LIMIT * 2 ** overruns.get(identity, 0)} s')
+            overruns[identity] = overruns.get(identity, 0) + 1
         except Exception:
             readings.pop(identity, None)
             runs += stale(identity, kept, 'failed')
@@ -2712,29 +2765,60 @@ def tried(what, f):
         return []
 
 
-def load_cache(path): return json.load(open(path)) if os.path.exists(path) else {}
-def save_cache(path, cache): write_atomic(path, cache_text(cache))
+# A cache (CACHE, and each wrapper's own) is a directory of files, one per top-level key, KEY.json holding the entry's
+# JSON (2026-10-30: the one 106 MB file, 99 MB of it 288@10's splits, was rewritten at every snapshot, about 150 GB a
+# day, when one record of ETAs had changed).
+STORED = {}                                 # (a cache's directory, a key) -> what this process last loaded from or
+                                            # wrote to that key's file there, as stored() makes it (see save_cache)
+BIG = 1000                                  # an entry's items from which save_cache tells a change by object and length
 
 
-DUMPED = {}                                 # id of a cache's large entry -> (the entry, its length, its JSON), see cache_text
+def stored(v):
+    """What STORED keeps of an entry v: v and its length for an entry of BIG items or more, which is only ever added to
+    (a run's splits, by children and recover_splits; its records of ETAs and observations, by time), so that the same
+    object of the same length is the same entry; else its JSON, since a small entry may change in place (a run's
+    launches: each [first, last] pair's last)."""
+    return (v, len(v)) if len(v) >= BIG else json.dumps(v, sort_keys=True)
 
 
-def cache_text(cache):
-    """json.dumps(cache, sort_keys=True), each entry of BIG items or more written once per length: its entries are
-    only ever added (a run's splits, by children and recover_splits, 99 MB of 288@10's 106 on 2026-10-30; the records
-    of ETAs and observations, by time), so an unchanged length is an unchanged entry.  DUMPED holds each such entry,
-    which keeps its id from being reused."""
-    parts = []
-    for k in sorted(cache):
-        v = cache[k]
-        kept, size, text = DUMPED.get(id(v), (None, None, None))
-        text = text if kept is v and size == len(v) else json.dumps(v, sort_keys=True)
-        DUMPED.update({id(v): (v, len(v), text)} if len(v) >= BIG else {})
-        parts.append(json.dumps(k) + ': ' + text)
-    return '{' + ', '.join(parts) + '}'
+def entry_file(path, key):
+    """The file of the cache in the directory path that holds the entry key: KEY.json, the key a name of letters,
+    digits, '_', '.' and '-' not beginning with '.' or '-' (asserted)."""
+    # TODO: error copy; says this cache key can be no file's name, quoting it
+    assert re.fullmatch(r'[A-Za-z0-9_][A-Za-z0-9_.-]*', key), f'Claude: "the cache key {key!r} names no file"'
+    return os.path.join(path, key + '.json')
 
 
-BIG = 1000                                  # entries of a cache entry worth keeping its JSON (see cache_text)
+def load_cache(path):
+    """The cache in the directory path ({} if there is none): each KEY.json's entry under its key, each noted in
+    STORED as loaded.  A file a write left half made has another name (write_atomic's), which this leaves out.  path
+    must be a directory or nothing (asserted: a cache file of the single-file form before 2026-10-30 is converted
+    once, not read as empty)."""
+    path = os.path.abspath(path)
+    # TODO: error copy; says the cache at this path is a file, not a directory of entries, naming it
+    assert os.path.isdir(path) or not os.path.exists(path), f'Claude: "the cache {path} is no directory"'
+    cache = {}
+    for name in sorted(glob.glob(os.path.join(glob.escape(path), '*.json'))):
+        key = os.path.basename(name).removesuffix('.json')
+        with open(name, encoding='utf-8') as fh: cache[key] = json.load(fh)
+        STORED[path, key] = stored(cache[key])
+    return cache
+
+
+def save_cache(path, cache):
+    """Keep cache in the directory path (made if missing): each entry's JSON, json.dumps(entry, sort_keys=True), in its
+    own file (entry_file), written (write_atomic) only when the entry is not what this process last loaded from or wrote
+    to that file (STORED; see stored).  Every key loaded or written there must still be in cache (asserted: its file
+    would bring it back at the next load)."""
+    path = os.path.abspath(path)
+    # TODO: error copy; says a cache no longer holds a key whose file its directory has, naming the directory
+    assert {k for p, k in STORED if p == path} <= set(cache), f'Claude: "the cache {path} lost a key"'
+    os.makedirs(path, exist_ok=True)
+    for key in sorted(cache):
+        mark = stored(cache[key])
+        if mark != STORED.get((path, key)):
+            write_atomic(entry_file(path, key), json.dumps(cache[key], sort_keys=True))
+            STORED[path, key] = mark
 
 
 def native288(start):
@@ -2757,13 +2841,17 @@ def native288(start):
 
 def run_surveys(procs, now, cache, readings):
     """The units (see snapshot) of the overnight and boxsplit passes, each surveyed with its run's actual modules,
-    headers and cache fingerprints (run_context), its reading kept in readings by its identity."""
+    headers and cache fingerprints (run_context), its reading kept in readings by its identity.  An overnight run's
+    splits and record of ETAs are kept in cache under its geometry (run_modules.geometry), which a change of its solver
+    leaves as it was (2026-10-30; under overnight_v5.CODE before, so that each solver change began them anew)."""
     def overnight(n, order):
         with run_context(n, order):
             journal, log = files(n, order)
             reading = readings.setdefault(('overnight_v5.py', n, order), Reading(journal, log))
-            return [survey(n, order, journal, log, procs, now, cache.setdefault(f'{n}_{order}_{v5.CODE}', {}),
-                           cache.setdefault(f'{n}_{order}_{v5.CODE}_etas', {}), reading)]
+            v5.configure(n, order)                                       # the geometry reads the run's configuration
+            key = f'{n}_{order}_geometry_{run_modules.geometry(v5)}'
+            return [survey(n, order, journal, log, procs, now, cache.setdefault(key, {}),
+                           cache.setdefault(key + '_etas', {}), reading)]
 
     def boxes(n, order):                # none until the driver's log exists
         with run_context(n, order):
@@ -2843,13 +2931,13 @@ def main(argv, extra=()):
     # TODO: error copy; says how to run the script: with no argument to write the data file once, or with --watch to keep rewriting it
     assert argv in ([], ['--watch']), 'Claude: "usage: python3 -B progress.py [--watch]"'
     os.nice(max(0, NICE - os.nice(0)))
-    cache, kept, readings = load_cache(CACHE), seeded(JS), {}
+    cache, kept, readings, overruns = load_cache(CACHE), seeded(JS), {}, {}
     while True:
         try:
             procs, now = processes(), time.time()
             units = (run_surveys(procs, now, cache, readings) + journal_surveys(procs, now, cache, readings)
                      + [u for make in extra for u in make(procs, now)])
-            runs, made = snapshot(units, kept, readings, now)
+            runs, made = snapshot(units, kept, readings, now, overruns)
             write_atomic(JS, data_text(runs, made))
             save_cache(CACHE, cache)
         except Exception:               # outside every run's survey: the watcher goes on, its data file as last written

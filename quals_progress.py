@@ -10,6 +10,7 @@ split of 40@6 and 64@7 supply trees whose level counts are known.
 import sys
 sys.dont_write_bytecode = True
 import os, re, io, json, time, bisect, shutil, tempfile, threading, traceback, subprocess, contextlib, collections, glob
+import types
 import numpy as np
 import overnight_v5 as v5
 import progress
@@ -1143,9 +1144,9 @@ def q_watch_rewrites_and_sleeps():
     # cache in a temporary directory, and time.sleep replaced by a stub that stops the loop at its second call; then
     # main(['--bogus']).
     # Expectata: the data file is written twice with the run in it (2026-10-17: index.html's section reads it, in place
-    # of the page progress.html), the stub sees 60 s each time, the cache
-    # file holds the run's splits and its record of ETAs, and this process now runs at nice 15 or more; a bad
-    # argument fails with AssertionError.
+    # of the page progress.html), the stub sees 60 s each time, the cache (a directory since 2026-10-30, a file per
+    # entry) holds the run's splits and its record of ETAs, keyed by its geometry (2026-10-30; by overnight_v5.CODE
+    # before), and this process now runs at nice 15 or more; a bad argument fails with AssertionError.
     d = tempfile.mkdtemp(prefix='progress-quals-')
     saved = (progress.RUNS, progress.EXTENDED, progress.JS, progress.CACHE, progress.HERE,
              progress.files, progress.run_context, time.sleep)
@@ -1173,7 +1174,10 @@ def q_watch_rewrites_and_sleeps():
     assert sleeps == [60, 60] and len(writes) == 2, (sleeps, writes)
     assert [r['n'] for r in progress_data(open(os.path.join(d, 'p.js')).read())['runs']] == [40]
     assert sorted(os.listdir(d)) == ['c.json', 'p.js'], os.listdir(d)
-    assert list(json.load(open(os.path.join(d, 'c.json')))) == [f'40_6_{v5.CODE}', f'40_6_{v5.CODE}_etas']
+    v5.configure(40, 6)
+    key = f'40_6_geometry_{progress.run_modules.geometry(v5)}'
+    assert sorted(progress.load_cache(os.path.join(d, 'c.json'))) == [key, key + '_etas']
+    assert sorted(os.listdir(os.path.join(d, 'c.json'))) == [key + '.json', key + '_etas.json']
     assert os.nice(0) >= 15
     expect_assertion(progress.main, ['--bogus'])
 
@@ -1637,12 +1641,11 @@ def q_box_survey_marks_settled_open_running_and_pending():
     # Replicata: progress.survey_box of made_up_box's pass at t0 + 152 with its process running (boxsplit.py 304 9),
     # then with none.
     # Expectata: running: leaf 0 settled, leaf 1 open, leaf 2 running, leaf 3 pending, the dots in tree order grouped
-    # at SEA_DEPTH, counts 1 each and none split; its seconds of running 152; an estimate from the two finished leaves'
-    # wall times, 100 s and 300 s, and a time not seen yet drawn from the Lindy tail above 300 s, the longest seen in
-    # the pass (lindy_ball; since 2026-10-19, when dreeves okayed the Lindy effect in place of the longest time seen as
-    # a ceiling): leaf 2, 150 s along, holds a worker until 300 s or longer, and leaf 3, on a free worker, takes 100 s,
-    # 300 s, leaf 2's time or longer, so the band's bottom is 150 s, its top past 300 s (no ceiling), and its median
-    # between; and the ETA recorded at t0 + 152 is that median.  With no process: ended, leaf 2 pending, no estimate,
+    # at SEA_DEPTH, counts 1 each and none split; its seconds of running 152; the estimate box_estimate's (2026-10-30:
+    # Kaplan-Meier on the pass's started leaves, in place of the urn's Lindy tail) of the two finished leaves' wall
+    # times, 100 s and 300 s, leaf 2 running 150 s and leaf 3 pending, on the pass's 10 processes: not restricted (the
+    # longest time seen, 300 s, a done leaf's; q_box_work_of_a_running_leaf_is_its_expected_rest has its worker
+    # seconds); and the ETA recorded at t0 + 152 is that estimate.  With no process: ended, leaf 2 pending, no estimate,
     # its seconds of running 302 (its last line's).
     t0 = 1792200000.0
     journal, log, main = made_up_box(t0)
@@ -1655,12 +1658,13 @@ def q_box_survey_marks_settled_open_running_and_pending():
     assert s['sea']['keys'] == sorted({' '.join(k.split()[:progress.SEA_DEPTH]) for k in OPEN4}, key=progress.tree_order), s['sea']['keys']
     assert s['sea']['counts'] == {'settled': 1, 'open': 1, 'split': 0, 'pending': 1, 'running': 1}, s['sea']['counts']
     assert (s['state'], s['so_far']) == ('running', 152.0), (s['state'], s['so_far'])
-    go = s['to_go']
-    assert go['lo'] == 150.0 and go['hi'] > 300.0 and 150 <= go['median'] < go['hi'], go
-    assert list(etas) == [str(int(t0 + 152))] and abs(etas[str(int(t0 + 152))][0] - go['median'] / 3600) < 1e-12, etas
+    eta, restricted = progress.box_estimate([100.0, 300.0], [150.0], 1, 10)
+    assert (s['to_go'], s['restricted'], restricted) == (progress.to_go_of(eta), False, False), (s['to_go'], eta)
+    assert eta[1] <= eta[0] <= eta[2], eta
+    assert list(etas) == [str(int(t0 + 152))] and etas[str(int(t0 + 152))] == eta, etas
     s = progress.survey_box(304, 9, log, main, [], t0 + 152, {})
     assert [progress.SEA_STATUSES[int(c)] for c in ''.join(s['sea']['groups'])].count('running') == 0
-    assert (s['state'], s['so_far'], s['to_go']) == ('ended', 302.0, None), s
+    assert (s['state'], s['so_far'], s['to_go'], s['restricted']) == ('ended', 302.0, None, None), s
     assert s['sea']['counts'] == {'settled': 1, 'open': 1, 'split': 0, 'pending': 2, 'running': 0}, s['sea']['counts']
 
 
@@ -1729,21 +1733,20 @@ def q_lindy_ball_is_scale_free():
             assert abs((x > k * s).mean() - share) < 3 * se, (e, k, (x > k * s).mean())
 
 
-def q_box_estimate_with_no_leaf_of_its_pass_done_is_gotts():
+def q_box_estimate_with_no_leaf_of_its_pass_done_is_a_floor():
     # Replicata: progress.survey_box of made_up_second_box_pass at t0 + 2002 with its process running: in the second
-    # pass, leaf 1 is 1000 s along and no leaf is done; the first pass's leaves took 100 to 300 s.
-    # Expectata (dreeves, 2026-10-19: "ok, let's try it"): the estimate draws from the current pass's finished leaves
-    # only, none here, so leaf 1's time is the Lindy tail above its own 1000 s (lindy_ball): Gott's rule, its remaining
-    # time's median 1000 s, its 5% point 1000/19 s and its 95% point 19000 s, each within three standard errors of
-    # REPLICATES draws (the median in 0.87 to 1.15 e, the 5% point in 0.036 to 0.07 e, the 95% point in 14 to 28 e).
-    # (Under the old ceiling, the first pass's times, all shorter, put the remaining time at 0.)
+    # pass, leaf 1 is 1000 s along and no leaf is done, none pending (3 closed on record); the first pass's leaves
+    # took 100 to 300 s.
+    # Expectata (2026-10-30, Kaplan-Meier in place of 2026-10-19's Gott's rule): the estimate takes the current pass's
+    # started leaves only, here leaf 1 alone, running: the longest time seen is a running leaf's, so nothing is known
+    # past its 1000 s and the estimate is a floor (restricted): 0 s to go, median, lo and hi.  (Under Gott's rule its
+    # median was 1000 s; under the ceiling before it, the first pass's times put it at 0.)
     t0 = 1792200000.0
     journal, log, main = made_up_second_box_pass(t0)
     s = progress.survey_box(304, 9, log, main, [(900, 1, 'SN', 'python3 -u -B boxsplit.py 304 9')], t0 + 2002, {})
     statuses = [progress.SEA_STATUSES[int(c)] for c in ''.join(s['sea']['groups'])]
     assert sorted(statuses) == ['running', 'settled', 'settled', 'settled'], statuses
-    go, e = s['to_go'], 1000.0
-    assert 0.87 * e < go['median'] < 1.15 * e and 0.036 * e < go['lo'] < 0.07 * e and 14 * e < go['hi'] < 28 * e, go
+    assert (s['to_go'], s['restricted']) == ({'median': 0.0, 'lo': 0.0, 'hi': 0.0}, True), (s['to_go'], s['restricted'])
 
 
 def q_box_survey_of_a_frozen_pass_keeps_its_records():
@@ -2023,8 +2026,9 @@ def q_watch_reads_what_its_files_gained_and_equals_a_full_read():
         watched = open(os.path.join(d, 'p.js')).read()
         read = counted[log]
         fresh_js, fresh_cache = os.path.join(d, 'fresh.js'), os.path.join(d, 'fresh.json')
-        for f in (fresh_js, fresh_cache): os.path.exists(f) and os.remove(f)
-        if began[0] is not None: shutil.copy(began[0], fresh_cache)
+        os.path.exists(fresh_js) and os.remove(fresh_js)
+        os.path.exists(fresh_cache) and shutil.rmtree(fresh_cache)          # a cache is a directory (2026-10-30)
+        if began[0] is not None: shutil.copytree(began[0], fresh_cache)
         saved = progress.JS, progress.CACHE
         progress.JS, progress.CACHE = fresh_js, fresh_cache
         try:
@@ -2035,7 +2039,7 @@ def q_watch_reads_what_its_files_gained_and_equals_a_full_read():
         head = len(lines[0].encode())
         assert k == 0 or read <= head + gained[0], (k, read, head, gained[0])
         checked.append(k)
-        shutil.copy(os.path.join(d, 'c.json'), os.path.join(d, f'began{k + 1}.json'))
+        shutil.copytree(os.path.join(d, 'c.json'), os.path.join(d, f'began{k + 1}.json'))
         began[0] = os.path.join(d, f'began{k + 1}.json')
         if k + 1 < len(cuts):
             new_log, new_journal = content(cuts[k + 1])
@@ -2095,6 +2099,35 @@ def q_watch_marks_an_overrun_survey_stale_and_updates_the_others():
     assert [{n: r['so_far'] for n, r in s.items()} for s in seen] == [{720: 4000, 768: 4000}, {720: 4000, 768: 5000},
                                                                       {720: 6000, 768: 6000}], seen
     assert 'w12.py 720 12 ran past 1 s' in log.getvalue(), log.getvalue()[-2000:]
+
+
+def q_watch_doubles_the_limit_of_a_run_that_keeps_overrunning():
+    # Replicata: progress.main(['--watch']) of a directory with two tracked searches, 720:12 and 768:12, LIMIT 1 s, five
+    # snapshots at times 5000 to 9000; from the second on, the survey of 720:12 first spins for 3 s outside any atomic
+    # block, as a build step that starts over whenever it is cut off (recover_splits, Grown and History of a big run).
+    # Expectata (Claude, 2026-10-30: such a step longer than a fixed LIMIT would never finish): each overrun doubles that
+    # run's next limit, and its first completed survey resets it, so 720:12 is stale at 6000 and 7000 (limits 1 and
+    # 2 s, its data of 5000), fresh at 8000 (limit 4 s), and stale at 9000 again (limit 1 s, its data of 8000);
+    # 768:12 fresh throughout; the log names each limit.
+    d, procs = tracked_dir(['720:12', '768:12'])
+    original, k, seen = progress.survey_track, [0], []
+    def slow(target, records, procs, now):
+        end = time.monotonic() + 3 * (k[0] >= 1 and target == '720:12')
+        while time.monotonic() < end: pass
+        return original(target, records, procs, now)
+    def after(i):
+        seen.append({r['n']: r for r in progress_data(open(os.path.join(d, 'p.js')).read())['runs']})
+        k[0] = i + 1
+    log = io.StringIO()
+    with contextlib.redirect_stderr(log):
+        watch([5000, 6000, 7000, 8000, 9000], after, dict(RUNS=(), EXTENDED=(), HERE=d, JS=os.path.join(d, 'p.js'),
+                                                         CACHE=os.path.join(d, 'c.json'), processes=lambda: procs,
+                                                         LIMIT=1, survey_track=slow))
+    assert [{n: r['stale'] for n, r in s.items()} for s in seen] == [
+        {720: None, 768: None}, {720: 5000, 768: None}, {720: 5000, 768: None}, {720: None, 768: None},
+        {720: 8000, 768: None}], seen
+    said = re.findall(r'w12\.py 720 12 ran past (\d+) s', log.getvalue())
+    assert said == ['1', '2', '1'], (said, log.getvalue()[-2000:])
 
 
 def q_watch_survives_a_run_source_changed_under_it():
@@ -2303,6 +2336,269 @@ def q_page_marks_a_stale_run_with_its_time():
     # with that time as the section writes times; the status line gives the run's own data's time.
     p = subprocess.run(['node', 'quals_progress_stale.cjs'], cwd=HERE, capture_output=True, text=True, timeout=60)
     assert p.returncode == 0, p.stdout + p.stderr
+
+
+# ---------- the cache, one file per entry (2026-10-30) ----------
+
+def made_up_cache():
+    """A cache with one big entry (BIG + 5 items: a run's splits' shape) and three small ones: a launches record of
+    [first, last] pairs, an empty entry and a record of ETAs with a None and floats."""
+    big = {f'3:[{i},1,2]': [f'3:[{i},1,2] 5:[{j},0,0,0,0]' for j in range(3)] for i in range(progress.BIG + 5)}
+    return {'288_10_geometry_qual': big, 'fanout_qual_launches': {'123': [1.5, 2.5], '456': [3.0, 3.0]},
+            'focus_qual_observations': {}, '288_10_geometry_qual_etas': {'1792200000': [1.25, 0.5, 2.0], '1792200060': None}}
+
+
+def counted_saves(path, cache):
+    """save_cache(path, cache), returning the base names of the files it wrote (write_atomic's calls)."""
+    real, written = progress.write_atomic, []
+    def counting(p, text):
+        written.append(os.path.basename(p))
+        return real(p, text)
+    progress.write_atomic = counting
+    try:
+        progress.save_cache(path, cache)
+    finally:
+        progress.write_atomic = real
+    return written
+
+
+def q_cache_round_trip_keeps_each_entry_in_a_file_of_its_own():
+    # Replicata: made_up_cache() saved with save_cache to a directory not yet made, then loaded with load_cache.
+    # Expectata (2026-10-30): the same dict; the directory made, holding one file per key, KEY.json, each the entry's
+    # json.dumps(entry, sort_keys=True), and nothing else.
+    d = tempfile.mkdtemp(prefix='progress-quals-')
+    try:
+        path, cache = os.path.join(d, 'cache.json'), made_up_cache()
+        progress.save_cache(path, cache)
+        assert progress.load_cache(path) == cache
+        assert sorted(os.listdir(path)) == sorted(k + '.json' for k in cache), os.listdir(path)
+        for k, v in cache.items():
+            assert open(os.path.join(path, k + '.json')).read() == json.dumps(v, sort_keys=True), k
+    finally:
+        shutil.rmtree(d)
+
+
+def q_cache_writes_only_the_entries_that_changed():
+    # Replicata: made_up_cache() saved, saved again unchanged; then its launches' [first, last] pair updated in place
+    # (the same length); then its big entry added to; then a key added; then the directory loaded afresh, as by a
+    # watcher just started, and saved unchanged; write_atomic's calls counted each time.
+    # Expectata (2026-10-30: the single file was rewritten whole every snapshot, 106 MB, about 150 GB a day): every
+    # file written once, then none; then the launches' file alone (a small entry is compared by its JSON, not its
+    # length); then the big entry's alone; then the new key's alone; then none.
+    d = tempfile.mkdtemp(prefix='progress-quals-')
+    try:
+        path, cache = os.path.join(d, 'cache.json'), made_up_cache()
+        assert sorted(counted_saves(path, cache)) == sorted(k + '.json' for k in cache)
+        assert counted_saves(path, cache) == []
+        cache['fanout_qual_launches']['123'][1] = 9.5
+        assert counted_saves(path, cache) == ['fanout_qual_launches.json']
+        cache['288_10_geometry_qual']['3:[-1,1,2]'] = []
+        assert counted_saves(path, cache) == ['288_10_geometry_qual.json']
+        cache['focus_qual_launches'] = {'7': [1.0, 1.0]}
+        assert counted_saves(path, cache) == ['focus_qual_launches.json']
+        again = progress.load_cache(path)
+        assert again == cache and counted_saves(path, again) == []
+    finally:
+        shutil.rmtree(d)
+
+
+def q_cache_files_are_replaced_whole():
+    # Replicata: one big entry (about 4 MB of JSON) saved 20 times with save_cache, its content alternating between two
+    # values of the same length (a new object each time), while another thread reads its file over and over.
+    # Expectata: every read parses, and is one of the two values (write_atomic: a reader opens the old file or the new
+    # one, whole, never part of one).
+    d = tempfile.mkdtemp(prefix='progress-quals-')
+    path = os.path.join(d, 'cache.json')
+    values = [{str(i): 'x' * 200 + str(i % 7 == j) for i in range(20000)} for j in range(2)]
+    file, reads, bad, stop = os.path.join(path, 'big.json'), [], [], threading.Event()
+    progress.save_cache(path, {'big': dict(values[1])})
+    def reader():
+        while not stop.is_set():
+            try:
+                with open(file) as fh: got = json.loads(fh.read())
+                reads.append(1)
+                bad.extend([] if got in values else ['a value neither written'])
+            except Exception as e:
+                bad.append(repr(e))
+    t = threading.Thread(target=reader)
+    t.start()
+    try:
+        for i in range(20): progress.save_cache(path, {'big': dict(values[i % 2])})
+    finally:
+        stop.set()
+        t.join()
+        shutil.rmtree(d)
+    assert reads and not bad, (len(reads), bad[:3])
+
+
+def q_cache_refuses_a_lost_key_a_key_no_file_can_hold_and_an_old_cache_file():
+    # Replicata: save_cache of a cache that lost a key it was saved with; of a cache with a key holding '/'; load_cache
+    # of a path that is a file, as the single-file cache was before 2026-10-30.
+    # Expectata: AssertionError each time (a lost key's file would come back at the next load; an old file read as an
+    # empty cache would start every split anew).
+    d = tempfile.mkdtemp(prefix='progress-quals-')
+    try:
+        path, cache = os.path.join(d, 'cache.json'), made_up_cache()
+        progress.save_cache(path, cache)
+        expect_assertion(progress.save_cache, path, {k: v for k, v in cache.items() if k != 'focus_qual_observations'})
+        expect_assertion(progress.save_cache, os.path.join(d, 'other'), {'a/b': {}})
+        old = os.path.join(d, 'old.json')
+        open(old, 'w').write(json.dumps(cache))
+        expect_assertion(progress.load_cache, old)
+    finally:
+        shutil.rmtree(d)
+
+
+# ---------- the boxsplit estimate: Kaplan-Meier on the started leaves (2026-10-30) ----------
+
+def km_cells(walls, ages):
+    """box_work's u, d, c and at for these done leaves' seconds and running leaves' ages, as box_estimate makes them."""
+    u, place = np.unique(np.array(walls + ages, dtype=float), return_inverse=True)
+    return (u, np.bincount(place[:len(walls)], minlength=len(u)).astype(float),
+            np.bincount(place[len(walls):], minlength=len(u)).astype(float), place[len(walls):])
+
+
+def q_box_work_without_censoring_is_the_plain_mean():
+    # Replicata: box_work of 500 done leaves, their seconds lognormal draws rounded to whole seconds (as the log's stamps
+    # make them; many ties), and none running: with 1 leaf pending, then with 1000.
+    # Expectata (2026-10-30): the plain mean of the seconds, to 1e-12, then 1000 times it; not restricted (the longest
+    # time seen is a done leaf's).
+    walls = [float(x) for x in np.round(np.random.default_rng(3).lognormal(np.log(60), 1, 500))]
+    for pending in (1, 1000):
+        work, restricted = progress.box_work(*km_cells(walls, []), pending)
+        assert abs(work - pending * np.mean(walls)) <= 1e-12 * pending * np.mean(walls) and not restricted, (work, pending)
+
+
+def q_box_work_of_a_running_leaf_is_its_expected_rest():
+    # Replicata: box_work of leaves done at 100 s and 300 s and one running at 150 s, 1 leaf pending (made_up_box's pass
+    # at t0 + 152).
+    # Expectata: Kaplan-Meier's survival is 1 to 100 s, 2/3 from 100 s (one of the three at risk done) to 300 s, 0
+    # after (the one at risk then done), so the mean is 100 + 200 * 2/3 = 233.33 s; the running leaf, past 150 s, has
+    # the area past it over S(150 s) = 2/3, 150 s, to go: 383.33 worker seconds, not restricted.
+    work, restricted = progress.box_work(*km_cells([100.0, 300.0], [150.0]), 1)
+    assert abs(work - (100 + 200 * 2 / 3 + 150)) < 1e-9 and not restricted, (work, restricted)
+
+
+def q_box_estimate_rises_with_a_censored_heavy_leaf():
+    # Replicata: box_estimate of 200 done leaves (lognormal seconds), 10,000 pending on 10 workers; then with one more
+    # leaf running at 10 times the longest done one; then with one running at half the longest instead.
+    # Expectata (2026-10-30): the heavy running leaf makes the longest time seen a running leaf's, so the estimate is
+    # restricted (a floor: nothing is known past that time) and its median, lo and hi rise; the short running leaf
+    # leaves it not restricted.
+    walls = [float(x) for x in np.random.default_rng(5).lognormal(np.log(60), 1, 200)]
+    plain, r0 = progress.box_estimate(walls, [], 10000, 10)
+    heavy, r1 = progress.box_estimate(walls, [10 * max(walls)], 10000, 10)
+    short, r2 = progress.box_estimate(walls, [max(walls) / 2], 10000, 10)
+    assert (r0, r1, r2) == (False, True, False), (r0, r1, r2)
+    assert all(h > p for h, p in zip(heavy, plain)), (heavy, plain)
+
+
+def q_box_estimate_band_covers_the_truth():
+    # Replicata: 400 synthetic passes of 20,000 leaves on 10 workers, each leaf's wall seconds a lognormal draw (median
+    # 60 s, sigma 1), the leaves started in a random order by list scheduling and surveyed once the workers have run
+    # 400 leaves' expected seconds (about 400 started, 10 running, 19,600 pending): box_estimate of the done leaves'
+    # seconds, the running ones' ages and the pending count, against the truth, the pass's actual seconds to go (the
+    # pending leaves' seconds and the running ones' rests, over the workers).
+    # Expectata (2026-10-30): the 90% band (QUANTILES of BOOT bootstrap replicates) holds the truth in 0.85 to 0.95 of
+    # the passes (0.895 when written; a binomial standard error of 0.015).  With heavier tails it holds less: sigma 1.5,
+    # 0.83; sigma 2, 0.67 (scratch/watcher2-20261030/coverage.py), the truth then above the band.
+    import heapq
+    rng, mu = np.random.default_rng(20261030), np.log(60)
+    mean, hits = np.exp(mu + 0.5), 0
+    for _ in range(400):
+        costs, free, ends = rng.lognormal(mu, 1, 20000), [0.0] * 10, []
+        T = 400 * mean / 10
+        while len(ends) < len(costs) and free[0] <= T:
+            t = heapq.heappop(free)
+            ends.append((t, t + costs[len(ends)]))
+            heapq.heappush(free, ends[-1][1])
+        walls = [float(e - s) for s, e in ends if e <= T]
+        ages = [float(T - s) for s, e in ends if e > T]
+        truth = (costs[len(ends):].sum() + sum(e - T for s, e in ends if e > T)) / 10 / 3600
+        (_, lo, hi), _ = progress.box_estimate(walls, ages, len(costs) - len(ends), 10)
+        hits += lo <= truth <= hi
+    assert 0.85 <= hits / 400 <= 0.95, hits / 400
+
+
+def made_up_x288_box(d, x288, done, running, pending):
+    """A made-up boxsplit pass of 288@10 in directory d, written with scratch/x288's boxsplit.py's own messages (x288,
+    its modules, run_modules.load's): a run journal of done + running + pending made-up bottom keys, UNKNOWN; the
+    driver's start and control lines; each leaf of done (seconds, closed) and of running (seconds so far at 10:00:00)
+    started in turn, as drive() starts them; the done ones' summary lines.  Returns (the log, the journal)."""
+    progress.files(288, 10)
+    keys = [' '.join(f'{m}:[{i}]' for m in v5.CASCADE) for i in range(len(done) + len(running) + pending)]
+    log, main = (os.path.join(d, f'overnight_v5_288_10{x}') for x in ('_boxsplit.log', '_journal.jsonl'))
+    with open(main, 'w') as fh:
+        fh.write(json.dumps(v5.header()) + '\n')
+        for k in keys:
+            fh.write(json.dumps({'key': k, 'verdict': 'UNKNOWN', 'budget': 1000, 'lps': 1000, 'leaves': 0,
+                                 'proof': '0' * 40}) + '\n')
+    x288.bx.configure(288, 10)
+    x288.v5.JOURNAL = main
+    leaves = [x288.bx.parse_key(k) for k in keys]
+    at = lambda t, msg: time.strftime('%Y-%m-%d %H:%M:%S ', time.localtime(t)) + msg
+    now = progress.stamp('2026-10-28 10:00:00')
+    tally = collections.Counter(splits=1, own=2, pool=9, carried=9, outside=3, lps=12, glop=24, cpu=5.0)
+    lines = [at(now - 9000, x288.bx.say_start(leaves, types.SimpleNamespace(records={}))),
+             at(now - 8990, 'Claude: "startup control passed: the order-9 example of length 288 lands in an own child '
+                             'at each of [11, 13], and order 10 rejects it"')]
+    events = [(now - 8000 + 10 * i, x288.bx.say_leaf(i, keys[i])) for i in range(len(done))]
+    events += [(now - 8000 + 10 * i + w, (x288.bx.say_leaf_closed if closed else x288.bx.say_leaf_open)(
+        i, keys[i], tally + collections.Counter(open=int(not closed)))) for i, (w, closed) in enumerate(done)]
+    events += [(now - a, x288.bx.say_leaf(len(done) + j, keys[len(done) + j])) for j, a in enumerate(running)]
+    lines += [at(t, msg) for t, msg in sorted(events, key=lambda e: e[0])]
+    open(log, 'w').write(''.join(line + '\n' for line in lines))
+    return log, main, now
+
+
+def q_box_survey_reads_x288_s_lines_into_kaplan_meier():
+    # Replicata: a made-up pass of 288@10 written with scratch/x288's boxsplit.py's own messages (made_up_x288_box): 30
+    # open leaves; 9 done in 200 to 1,000 s, two of them left open; 3 running 50, 500 and 4,000 s; 18 pending;
+    # surveyed at 10:00:00 with its driver running.
+    # Expectata (2026-10-30): its lines parse (the copy's quoted forms); the sea has 7 settled, 2 open, 3 running and 18
+    # pending dots; the estimate is box_estimate's of the 9 done leaves' seconds, the 3 ages (in ascending order) and
+    # 18 pending, on the pass's processes (its start line's), restricted (the longest time seen, 4,000 s, a running
+    # leaf's).
+    done = [(200, True), (300, True), (400, False), (500, True), (600, True), (700, True), (800, False), (900, True),
+            (1000, True)]
+    running = [50, 500, 4000]
+    d = tempfile.mkdtemp(prefix='progress-quals-')
+    try:
+        x288 = progress.run_modules.load(os.path.join(HERE, 'scratch', 'x288'), progress.ROOT_V5, progress.ROOT_BX)
+        log, main, now = made_up_x288_box(d, x288, done, running, 18)
+        procs = [(900, 1, 'SN', 'python3 -B boxsplit.py 288 10')]
+        s = progress.survey_box(288, 10, log, main, procs, now, {})
+    finally:
+        shutil.rmtree(d)
+    assert s['sea']['counts'] == {'settled': 7, 'open': 2, 'split': 0, 'pending': 18, 'running': 3}, s['sea']['counts']
+    eta, restricted = progress.box_estimate([float(w) for w, _ in done], [float(a) for a in running], 18,
+                                            x288.v5.PROCESSES)
+    assert (s['to_go'], s['restricted'], restricted) == (progress.to_go_of(eta), True, True), (s['to_go'], eta)
+
+
+def q_box_survey_of_240_at_11_renders():
+    # Replicata: survey_box of 240@11's finished boxsplit run, its 50 MB driver's log and its run's journal, no process
+    # running, through js_text; then its first pass's log cut at 10 h of running, surveyed then with its driver running.
+    # Expectata (2026-10-30): ended, outcome ALL 606 LEAVES CLOSED, no estimate, 606 settled dots, the data file's run
+    # entry with the fields of every run; at 10 h, running, an estimate with lo <= median <= hi, all finite.
+    v5.configure(240, 11)
+    log, main = progress.box_files(240, 11)
+    s = progress.survey_box(240, 11, log, main, [], time.time(), {})
+    r, = progress_data(progress.js_text([s], time.time()))['runs']
+    assert (r['program'], r['state'], r['to_go']) == ('boxsplit.py', 'ended', None), r
+    assert re.match(r'(Claude: ")?ALL 606 LEAVES CLOSED', r['outcome']), r['outcome']      # as the log has it
+    assert r['counts'] == {'settled': 606, 'open': 0, 'split': 0, 'pending': 0, 'running': 0}, r['counts']
+    lines = progress.complete_lines(log)
+    t = progress.parse_box_lines(lines[:1])[0]['start'] + 10 * 3600
+    d = tempfile.mkdtemp(prefix='progress-quals-')
+    try:
+        cut = os.path.join(d, 'box.log')
+        open(cut, 'w').write(''.join(line + '\n' for line in lines if progress.stamp(line[:19]) <= t))
+        s = progress.survey_box(240, 11, cut, main, [(900, 1, 'SN', 'python3 -u -B boxsplit.py 240 11')], t, {})
+    finally:
+        shutil.rmtree(d)
+    go = s['to_go']
+    assert s['state'] == 'running' and 0 <= go['lo'] <= go['median'] <= go['hi'] < np.inf, go
 
 
 def main():

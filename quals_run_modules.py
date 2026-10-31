@@ -1,10 +1,13 @@
 """Synthetic quals for isolated solver imports and temporary progress bindings."""
 import hashlib
 import importlib.util
+import inspect
 import json
 from pathlib import Path
+import shutil
 import sys
 import tempfile
+import types
 from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
@@ -169,6 +172,86 @@ class ModuleQuals(unittest.TestCase):
         archive.write_bytes(data + b'{"key":"two"}\n')
         with self.assertRaises(AssertionError):
             run_modules.validate_header(loaded.v5, header)
+
+
+def read_names(module, start):
+    """The names of module that start (a function's or class's name) reads, at any depth of its calls through the
+    module's own functions and classes, start included: each code object's global names that the module defines (its
+    functions, classes and values; not other modules, nor what it imported from them), and those names' own."""
+    def codes(obj):
+        obj = inspect.unwrap(obj)
+        if isinstance(obj, type):
+            for v in vars(obj).values():
+                yield from codes(v.__func__ if isinstance(v, (staticmethod, classmethod)) else v) if callable(v) or isinstance(v, (staticmethod, classmethod)) else ()
+            return
+        stack = [obj.__code__]
+        while stack:
+            c = stack.pop()
+            yield c
+            stack += [k for k in c.co_consts if isinstance(k, types.CodeType)]
+    seen, todo = set(), [start]
+    while todo:
+        name = todo.pop()
+        obj = getattr(module, name, None)
+        own = not isinstance(obj, types.ModuleType) and getattr(obj, '__module__', module.__name__) == module.__name__
+        if name in seen or not hasattr(module, name) or not own: continue
+        seen.add(name)
+        todo += [n for c in (codes(obj) if callable(obj) else ()) for n in c.co_names]
+    return seen
+
+
+class GeometryQuals(unittest.TestCase):
+    """The geometry of a run (run_modules.geometry), on copies of the repository's own overnight_v5.py, certbb.py and
+    boxsplit.py, each run directory loaded as progress loads one (run_modules.load)."""
+
+    def setUp(self):
+        import overnight_v5, boxsplit
+        self.root_v5, self.root_bx = overnight_v5, boxsplit
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+
+    def run_dir(self, name, edit=None, solver=''):
+        """A run directory with copies of the root's three sources, overnight_v5.py's text passed through edit, and
+        solver appended to certbb.py; its modules loaded and configured for 64@7."""
+        d = Path(self.tmp.name) / name
+        d.mkdir()
+        root = Path(self.root_v5.__file__).parent
+        for f in ('overnight_v5.py', 'certbb.py', 'boxsplit.py'): shutil.copyfile(root / f, d / f)
+        v5 = d / 'overnight_v5.py'
+        v5.write_text((edit or (lambda text: text))(v5.read_text()))
+        with (d / 'certbb.py').open('a') as fh: fh.write(solver)
+        loaded = run_modules.load(d, self.root_v5, self.root_bx)
+        loaded.v5.configure(64, 7)
+        return loaded.v5
+
+    def test_split_names_are_every_name_split_reads(self):
+        # Replicata: the names the repository's overnight_v5.split and node_key read, at any depth of their calls
+        # through the module's own functions and classes (read_names).
+        # Expectata (2026-10-30): exactly SPLIT_SOURCES and SPLIT_VALUES, so that the geometry covers every module
+        # name that decides a split; a name split reads and the geometry left out would let a changed split reuse
+        # stale cached children.
+        names = read_names(self.root_v5, 'split') | read_names(self.root_v5, 'node_key')
+        self.assertEqual(names, set(run_modules.SPLIT_SOURCES) | set(run_modules.SPLIT_VALUES))
+        self.assertEqual(len(set(run_modules.SPLIT_SOURCES)), len(run_modules.SPLIT_SOURCES))
+
+    def test_geometry_follows_the_split_and_not_the_solver(self):
+        # Replicata: four run directories configured for 64@7: the root's sources; certbb.py with a line added
+        # (another solver: CODE changes); overnight_v5.py with Relaxation's docstring changed (a source split reads
+        # that CODE does not hash); overnight_v5.py with 64@7's cascade (4, 7) reversed.
+        # Expectata (2026-10-30): the solver's change keeps the geometry and changes CODE; the Relaxation change changes
+        # the geometry and keeps CODE (the gap of the old CODE key); the cascade's change changes the geometry.
+        same = self.run_dir('same')
+        solver = self.run_dir('solver', solver='\nGEOMETRY_QUAL_SOLVER = True\n')
+        relaxation = self.run_dir('relaxation', lambda text: text.replace(
+            'The LP relaxation, 0 <= x_p <= 1, of', 'The LP relaxation (geometry qual), 0 <= x_p <= 1, of', 1))
+        cascade = self.run_dir('cascade', lambda text: text.replace('(64, 7): ((4, 7),', '(64, 7): ((7, 4),', 1))
+        self.assertEqual(run_modules.geometry(solver), run_modules.geometry(same))
+        self.assertNotEqual(solver.CODE, same.CODE)
+        self.assertNotEqual(run_modules.geometry(relaxation), run_modules.geometry(same))
+        self.assertEqual(relaxation.CODE, same.CODE)
+        self.assertNotEqual(run_modules.geometry(cascade), run_modules.geometry(same))
+        self.root_v5.configure(64, 7)
+        self.assertEqual(run_modules.geometry(same), run_modules.geometry(self.root_v5))
 
 
 if __name__ == '__main__':
