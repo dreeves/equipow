@@ -3041,14 +3041,16 @@ try {
   const stamp = t => `${local(t)}:${pad(new Date(t * 1000).getSeconds())}`;
   const ampm = d => `${d.getHours() % 12 || 12}:${pad(d.getMinutes())}${d.getHours() < 12 ? 'am' : 'pm'}`;   // "6:27am"
   const WEEK = 7 * 86400;                // seconds
-  // The finish times of a snapshot at t, local, as "Mon 6:27am – 10:58pm": the second weekday only when its date
-  // differs; but an end a week or more after t as its date, as "2027-03-15" (dreeves, 2026-10-23: "the parenthetical
-  // needs disambiguation when >1week").
+  const day = d => ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()];
+  // A finish time of a snapshot at t, local, as "Mon 6:27am"; but a week or more after t as its date, as "2027-03-15"
+  // (dreeves, 2026-10-23: "the parenthetical needs disambiguation when >1week").
+  const moment = (t, t1) => t1 - t < WEEK ? `${day(new Date(t1 * 1000))} ${ampm(new Date(t1 * 1000))}` : local(t1).slice(0, 10);
+  // The finish times of a snapshot at t, local, as "Mon 6:27am – 10:58pm": the first a moment, the second's weekday only
+  // when its date differs, and an end a week or more after t as its date.
   const finish = (t, t1, t2) => {
-    const a = new Date(t1 * 1000), b = new Date(t2 * 1000), day = d => ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()];
-    const first = t1 - t < WEEK ? `${day(a)} ${ampm(a)}` : local(t1).slice(0, 10);
+    const a = new Date(t1 * 1000), b = new Date(t2 * 1000);
     const second = t2 - t < WEEK ? `${a.toDateString() === b.toDateString() ? '' : day(b) + ' '}${ampm(b)}` : local(t2).slice(0, 10);
-    return `${first} – ${second}`;
+    return `${moment(t, t1)} – ${second}`;
   };
   const duration = sec => {
     const s = Math.max(0, Math.floor(sec)), d = Math.floor(s / 86400);
@@ -3066,13 +3068,23 @@ try {
   // A snapshot's line (template.progress-line), into el's fields: the snapshot's time t, its seconds of running so far
   // x and its estimate g of the seconds to go ({lo, hi}; null: none), as the frozen, paused, completed and aborted forms
   // take them too.
+  const fill = (el, field, text) => { for (const e of el.querySelectorAll(`[data-${field}]`)) e.textContent = text; };
   const snapshot = (el, t, x, g) => {
-    const fill = (field, text) => { for (const e of el.querySelectorAll(`[data-${field}]`)) e.textContent = text; };
-    fill('when', stamp(t));
-    fill('so-far', dur(x, tenth));
-    fill('to-go', g ? range(g.lo, g.hi, tenth) : '—');
-    fill('sum', g ? range(x + g.lo, x + g.hi, hrs) : '—');
-    fill('done', g ? finish(t, t + g.lo, t + g.hi) : '—');
+    fill(el, 'when', stamp(t));
+    fill(el, 'so-far', dur(x, tenth));
+    fill(el, 'to-go', g ? range(g.lo, g.hi, tenth) : '—');
+    fill(el, 'sum', g ? range(x + g.lo, x + g.hi, hrs) : '—');
+    fill(el, 'done', g ? finish(t, t + g.lo, t + g.hi) : '—');
+  };
+  // A point on the median's course past a run's last record, the dashed line its ETA chart draws there, into el's
+  // fields as snapshot writes a record's: the clock t, the seconds of running x and the median's seconds to go m, so
+  // that the hours in all and the finish time are the median's.
+  const course = (el, t, x, m) => {
+    fill(el, 'when', stamp(t));
+    fill(el, 'so-far', dur(x, tenth));
+    fill(el, 'to-go', dur(m, tenth));
+    fill(el, 'sum', dur(x + m, hrs));
+    fill(el, 'done', moment(t, t + m));
   };
   const num = v => String(Number(v.toPrecision(12)));
   const pct = v => `${+(100 * v).toFixed(4)}%`;
@@ -3366,14 +3378,18 @@ try {
     q('[data-marks]').setAttribute('visibility', 'visible');
     const svg = fig.querySelector('svg'), cross = q('[data-cross]'), tip = q('[data-tip]');
     const xsvg = pts.map(p => X(p[1])), end = xsvg[xsvg.length - 1], hour = X(1) - X(0);   // viewBox units
-    // record k's line carried on s seconds of running past it (0: the record's own): the clock and the hours so far
-    // advance together, and the ETA's band falls second for second, to no less than 0 (the run may be done by then);
-    // in italics (projected) when carried on, the projection past the last record (dreeves, 2026-10-18)
+    // record k's line, with its band, at the record (s = 0); s seconds of running past the last record, in italics
+    // (projected; dreeves, 2026-10-18), the median's course alone, the dashed line the chart draws there, as the bands
+    // end at the last record (dreeves, 2026-10-30: "that blurb should have just the median, not ranges"): the clock
+    // and the hours so far advance together and the median falls second for second, to no less than 0 (the run may
+    // be done by then), so that the hours in all and the finish time stay the median's
     const at = (k, s) => {
-      const [t, x, , lo, hi] = run.etas[k];
-      snapshot(tip, t + s, x + s, {lo: Math.max(0, lo - s), hi: Math.max(0, hi - s)});
+      const [t, x, median, lo, hi] = run.etas[k];
+      if (s > 0) course(tip, t + s, x + s, Math.max(0, median - s));
+      else snapshot(tip, t, x, {lo, hi});
       tip.classList.toggle('projected', s > 0);
     };
+    tip.style.minHeight = '';                   // its height at rest, measured again at the next hover (below)
     at(pts.length - 1, 0);                      // laid out at rest, invisible, as the latest record's line
     set(cross, {x1: X(last[1]), y1: T, x2: X(last[1]), y2: Y(0)});   // hidden at rest; up through the strip
     svg.addEventListener('mousemove', ev => {
@@ -3385,6 +3401,9 @@ try {
       for (let i = 1; i < xsvg.length; i++) if (Math.abs(xsvg[i] - near) <= Math.abs(xsvg[k] - near)) k = i;
       const cx = xsvg[k] + hour * s / 3600;
       set(cross, {x1: cx, y1: T, x2: cx, y2: Y(0)}).setAttribute('visibility', 'visible');
+      // the tip keeps the height of its line at rest, the latest record's, measured at the first hover after a draw
+      // (laid out by then): the median's line past the last record is shorter, and the status line below must not move
+      tip.style.minHeight = tip.style.minHeight || `${tip.getBoundingClientRect().height}px`;
       at(k, s);
       tip.style.visibility = 'visible';           // laid out at rest (the CSS hides it), so showing it moves nothing
     });

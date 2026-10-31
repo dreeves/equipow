@@ -2704,15 +2704,19 @@ def ampm(t):
 WEEK = 7 * 86400                               # seconds; a finish time a week or more on is a date (dreeves, 2026-10-23)
 
 
+def moment(t, t1):
+    """A finish time of a snapshot at t: its weekday and its 12-hour time; but a week or more after t its local date,
+    YYYY-MM-DD (dreeves, 2026-10-23: "the parenthetical needs disambiguation when >1week")."""
+    return f'{time.strftime("%a", time.localtime(t1))} {ampm(t1)}' if t1 - t < WEEK else time.strftime('%Y-%m-%d', time.localtime(t1))
+
+
 def finish(t, t1, t2):
-    """The status line's finish times, of a snapshot at t: the first's weekday, the first, a spaced en dash, the second's
-    weekday only when its date differs, the second; but an end a week or more after t as its local date, YYYY-MM-DD
-    (dreeves, 2026-10-23: "the parenthetical needs disambiguation when >1week")."""
+    """The status line's finish times, of a snapshot at t: the first (moment), a spaced en dash, the second's weekday
+    only when its date differs, the second; but an end a week or more after t as its local date."""
     day = lambda s: time.strftime('%a', time.localtime(s))
     date = lambda s: time.strftime('%Y-%m-%d', time.localtime(s))
-    first = f'{day(t1)} {ampm(t1)}' if t1 - t < WEEK else date(t1)
     second = f'{"" if date(t1) == date(t2) else day(t2) + " "}{ampm(t2)}' if t2 - t < WEEK else date(t2)
-    return f'{first} – {second}'
+    return f'{moment(t, t1)} – {second}'
 # The harness: notes what has loaded, opens the section, waits 3.5 s, reads each dot's middle pixel, the key's counts,
 # the state line and the times, the time bar's parts, the subtrees' blocks and the ETA chart (its markup at rest), hovers over the third
 # group's first dot and over the ETA chart's second record, gives progressData a changed snapshot (one dot running ->
@@ -3443,15 +3447,18 @@ def q_progress_tip_projects_past_the_last_record():
     # Replicata: progress_run: hovers over the ETA chart's records, then at 2.5 h of running, half an hour past its last
     # record (PROGRESS_DATA's, at 2 h: 0.5–3.0 h to go).
     # Expectata (dreeves, 2026-10-18: "the hover feature of showing the historical ETA might as well work for the whole
-    # graph, right? i guess what we'd need is a way to make the distinction clear between historical vs projected"):
-    # there the tip is the last record's line carried on half an hour, in italics (class projected): the clock and the
-    # hours so far half an hour on, 2.5 h so far, the band half an hour lower and no lower than 0, 0.0–2.5 h to go, so
-    # 2.5–5.0 h in all and the status line's finish times; the cross line at the pointer; over a record, no italics;
-    # and the status line below the chart did not move.
+    # graph, right? i guess what we'd need is a way to make the distinction clear between historical vs projected";
+    # then 2026-10-30: "maybe when showing the italicized hovertext for hovering over future points, that blurb should
+    # have just the median, not ranges?"): past its last record the chart draws the median's course alone, the dashed
+    # ideal line down to the projected finish, and no band, so there the tip reads out that course, in italics (class
+    # projected): the clock and the hours so far half an hour on, 2.5 h so far, the median half an hour lower and no
+    # lower than 0, 0.5 h to go, so 3.0 h in all and the median's finish time, the record's time plus its median
+    # (moment); the cross line at the pointer; over a record, no italics; and the status line below the chart did not
+    # move.  (From 2026-10-18 until then the band, carried on the same way.)
     R = progress_run()
     E, h = R['eta'], NNBSP + 'h'
     t = PROGRESS_DATA['made'] + 1800
-    want = f'@{stamp(t)}{EMSP}2.5{h} so far + 0.0–2.5{h} to go = 2.5–5.0{h} ({finish(t, t, t + 9000)})'
+    want = f'@{stamp(t)}{EMSP}2.5{h} so far + 0.5{h} to go = 3.0{h} ({moment(t, t + 1800)})'
     assert E['tipAhead'] == want, (E['tipAhead'], want)
     A = E['ahead']
     assert A['projected'] is True and A['style'] == 'italic' and abs(A['cross'] - A['want']) < 0.05, A
