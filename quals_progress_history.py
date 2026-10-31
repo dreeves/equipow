@@ -14,7 +14,7 @@ def phase(nodes=(), **changes):
 
 
 def job(key, cost):
-    return dict(key=key, solve=cost, split=0.0)
+    return dict(key=key, solve=cost, split=0.0, t=0.0)
 
 
 def fixture(restarted, count=100, partial=False):
@@ -46,7 +46,7 @@ def fixture(restarted, count=100, partial=False):
         stack.append(leaf)
     passes = [phase(old), phase(current)] if restarted else [phase(old)]
     state = dict(t=1000.0, label='restart fixture', passes=passes, processes=1,
-                 budgets=[100, 100, 100], final_at_start=records, records=[], cache={})
+                 budgets=[100, 100, 100], final_at_start=records, records=[], cache={}, pauses=())
     return state, (root, stack, []), donors, pending
 
 

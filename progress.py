@@ -34,8 +34,8 @@ defined once here:
   state       of a run: ended if no process runs overnight_v5.py N ORDER or the current pass has logged its
               outcome; otherwise frozen if that process or one of its workers (its child processes) is stopped, as by
               SIGSTOP; otherwise running.
-  cost        of a sub-case in a pass: the worker seconds (solve plus split) of the log's progress lines for it and
-              for the sub-cases below it.
+  cost        of a sub-case in a pass: the worker seconds (solve plus split, the run's pauses left out) of the log's
+              progress lines for it and for the sub-cases below it.
   work        of a pass, at the deepest enumerated level: the sub-cases not settled when the pass began, or touched by
               it, each done (settled or open), partway (split), or pending.
   dating      each journal record is dated by a line of the log: a fresh verdict's record by its node's progress line,
@@ -92,8 +92,9 @@ The estimate's model, its terms defined once here (overnight_v5.py's search() is
   floor       a leaf kind's previous budget: 0 for a fresh leaf, the earlier UNKNOWN record's budget for a re-solve.  A
               leaf's LP solves lie in (floor, budget]: certbb solves at least one LP per node, and a re-solve replays
               its first floor LP solves exactly (certbb is deterministic).
-  speed       seconds per LP solve: the solve seconds over the LP solves (journal lps) of every fresh leaf solve the
-              log holds, all passes pooled.  It turns the floor and the budget into seconds; nothing else uses it.
+  speed       seconds per LP solve: the solve seconds (the run's pauses left out) over the LP solves (journal lps) of
+              every fresh leaf solve the log holds, all passes pooled.  It turns the floor and the budget into seconds;
+              nothing else uses it.
   urn         a Polya urn (Blackwell and MacQueen 1973) with one new ball: one ball per member of a population, and
               each draw takes a uniformly chosen ball and adds its value back as a ball.  A member's ball gives the
               member's value; the new ball gives a new value.  With n balls besides the new one, a draw is new with
@@ -107,10 +108,10 @@ The estimate's model, its terms defined once here (overnight_v5.py's search() is
               (1975) estimate of a tree's size grows a random path.  Every value is a member's, a leaf at most the
               budget's seconds, or a sum of a bounded number of those (the cascade is finite), so every sample is
               bounded and the mean is finite.
-  censored    a running leaf: its cost exceeds its elapsed seconds (t less its start).  It is drawn from its urn's
-              balls above the elapsed time, the gap ball's included (from the larger of its bottom and the elapsed
-              time), the longest-running first, each then a ball: Efron's (1967) redistribution to the right, which
-              gives the Kaplan and Meier (1958) estimate, with random weights.
+  censored    a running leaf: its cost exceeds its elapsed seconds (t less its start, less the run's pauses between:
+              its age).  It is drawn from its urn's balls above the elapsed time, the gap ball's included (from the
+              larger of its bottom and the elapsed time), the longest-running first, each then a ball: Efron's (1967)
+              redistribution to the right, which gives the Kaplan and Meier (1958) estimate, with random weights.
   partway     a fresh node of this pass that has finished its own job and split, but not its subtree.  Its cost so
               far is its subtree's logged seconds plus its running leaves' elapsed seconds; its eventual cost is that
               plus its remaining work, which the draws below it give.
@@ -176,6 +177,13 @@ The estimate's model, its terms defined once here (overnight_v5.py's search() is
               data in the data file, marked stale, and the other units go on.
   stale       of a run in the data file: null, or the time of the snapshot its data are from, when its survey failed or ran
               past its bound since; the section marks such a run (Claude: "stale").
+  pause       a time a run's processes were stopped (SIGSTOP) and then continued (SIGCONT), as the tool that stopped them
+              recorded it (PAUSES names each run's records; 2026-10-30: 432:12's and 288@10's pauses had counted as
+              running): (start, end), epoch seconds, a pause with no resume recorded yet ending at infinity.  A run does
+              no work while stopped, so a survey leaves its run's pauses out of its spans of running (its time so far
+              and the ETA chart's axis) and out of every duration that its processes clock by the wall clock, which runs
+              on while they are stopped: a fanout job's seconds (from its job_start), a progress line's solve and split
+              (up to the line), a running node's age (from its start).
 The data file says when the snapshot was made, to the second, and the section keeps its age up to date.  Per run it
 gives the state, the hours of running so far and to go, the record of ETAs and the sea (see js_text).
 """
@@ -672,9 +680,10 @@ class Reading:
 
     def speed(self, state):
         """speed(state) kept up to date (see speed): the fresh leaf solves' seconds and LP solves summed in log order, as
-        speed sums them, over state's lines (cut at its time, and so never fewer than before: asserted), in one atomic
-        block; but should a fresh leaf's record have the key and budget of a line before it that dating took for
-        dropped (a claim speed gives that earlier line), speed_sums sums everything again."""
+        speed sums them (solved, with state's pauses), over state's lines (cut at its time, and so never fewer than
+        before: asserted), in one atomic block; but should a fresh leaf's record have the key and budget of a line
+        before it that dating took for dropped (a claim speed gives that earlier line), speed_sums sums everything
+        again."""
         bottom = len(state['budgets']) - 1
         P, L = state['passes'], self.parsed.node_lines
         # TODO: error copy; says the speed kept for a run was asked for at an earlier time than before, naming the state
@@ -690,7 +699,7 @@ class Reading:
                 kb = (nd['key'], budget_of(nd['key'], P[k]['budgets']))
                 if len(nd['key'].split()) == bottom and i in self.fresh:
                     again |= kb in self.claims
-                    self.seconds, self.lps = self.seconds + nd['solve'], self.lps + self.dated[self.fresh[i]]['lps']
+                    self.seconds, self.lps = self.seconds + solved(nd, state['pauses']), self.lps + self.dated[self.fresh[i]]['lps']
                 if len(nd['key'].split()) == bottom and i in self.dropped_lines: self.claims.add(kb)
                 j += 1
             self.speed_at = (k, j)
@@ -719,16 +728,17 @@ class Reading:
             self.checked = len(p['nodes'])
         return cache
 
-    def estimating(self, order, cache, t, label):
+    def estimating(self, order, cache, t, label, pauses):
         """estimate's view of the run as of t (see estimate): the pass's resplit nodes split first (resplits), state_at's
-        state, the log cut at t, with its final_at_start kept (starting), and the kept Grown and History grown to it
-        (t never earlier than before: the lines a survey reads after its now wait for the next); both begun anew for
-        another pass, more records dated before the pass, another cache, or a split cached for a node the Grown left
-        with unnamed kids (see Grown)."""
+        state, the log cut at t, with its final_at_start kept (starting) and the run's pauses, and the kept Grown and
+        History grown to it (t never earlier than before: the lines a survey reads after its now wait for the next); both
+        begun anew for another pass, more records dated before the pass, another cache, or a split cached for a node the
+        Grown left with unnamed kids (see Grown).  A line's worked and solved seconds, made once as it is taken, depend
+        only on the pauses begun by its time, which were all recorded when its survey read them (after its now)."""
         R = self.R
         self.resplits(order, cache)
         passes = passes_at(R, bisect.bisect_right(R['stamps'], t))
-        state = state_from(R, t, cache, label, passes, self.starting(len(passes)))
+        state = state_from(R, t, cache, label, passes, self.starting(len(passes)), pauses)
         g, h, bound = self.grown or (None, None, None)
         if (g is None or g.start != passes[-1]['start'] or bound != self.start_bound or g.cache is not cache
                 or any(k in cache for k in g.unnamed)):
@@ -749,23 +759,25 @@ def passes_at(R, lines):
                                        last=R['stamps'][lines - 1], outcome=p['outcome'] if ended else None)]
 
 
-def state_at(R, t, cache, label):
+def state_at(R, t, cache, label, pauses=()):
     """What estimate() needs of the run as of time t (epoch seconds, at or after its first start line), from read_run's
     R and the run's cached splits (see children): a dict of t, label (naming the state in errors), the passes as of t
     (passes_at, the current pass last), that pass's processes and budgets, final_at_start (the last record per key
-    before the pass's first record), records (all of R's: estimate() uses only those that lines before t claim), and
-    cache.  Only the log is cut at t: every other input is the same at any time in the pass, so the state as of a
-    past time comes from the files as they are now (the quals' backtests rest on this)."""
+    before the pass's first record), records (all of R's: estimate() uses only those that lines before t claim),
+    cache, and the run's pauses (see the vocabulary; by default none).  Only the log is cut at t: every other input is
+    the same at any time in the pass, so the state as of a past time comes from the files as they are now (the quals'
+    backtests rest on this; a pause begun after t changes no duration up to t)."""
     lines = bisect.bisect_right(R['stamps'], t)
     passes = passes_at(R, lines)
-    return state_from(R, t, cache, label, passes, {r['key']: r for r in R['records'][:R['bounds'][len(passes) - 1]]})
+    return state_from(R, t, cache, label, passes, {r['key']: r for r in R['records'][:R['bounds'][len(passes) - 1]]},
+                      pauses)
 
 
-def state_from(R, t, cache, label, passes, final_at_start):
-    """state_at's state of these passes as of t (passes_at) with this final_at_start."""
+def state_from(R, t, cache, label, passes, final_at_start, pauses):
+    """state_at's state of these passes as of t (passes_at) with this final_at_start and these pauses."""
     p = passes[-1]
     return {'t': t, 'label': label, 'passes': passes, 'processes': p['processes'], 'budgets': p['budgets'],
-            'final_at_start': final_at_start, 'records': R['records'], 'cache': cache}
+            'final_at_start': final_at_start, 'records': R['records'], 'cache': cache, 'pauses': pauses}
 
 
 # ---------- the tree ----------
@@ -1119,9 +1131,10 @@ class Node:
     """A node of the current pass's tree as the replay knows it: key (None while a split that is not cached hides it),
     parent and depth, kids (in the order search() pushes them: overnight_v5.sibling_order's in a pass that shuffles,
     the split's before), state ('pending' in the stack, 'running', 'done' with a progress line, or
-    'skipped', settled before the pass), cost (a done node's solve + split seconds), start (a running node's start
-    time), fresh (a done node that certbb solved in this pass, not a resplit); and index, its place among its parent's
-    kids, and tot, its subtree's cost so far as a Grown tree last summed it (see Grown.sofar)."""
+    'skipped', settled before the pass), cost (a done node's solve + split seconds less the run's pauses: worked), start
+    (a running node's start time, by the wall clock), fresh (a done node that certbb solved in this pass, not a
+    resplit); and index, its place among its parent's kids, and tot, its subtree's cost so far as a Grown tree last
+    summed it (see Grown.sofar)."""
     __slots__ = ('key', 'parent', 'depth', 'kids', 'state', 'cost', 'start', 'fresh', 'index', 'tot')
 
     def __init__(self, key, parent, depth, index=0):
@@ -1187,7 +1200,7 @@ class Grown:
         while self.seen < len(p['nodes']):
             with atomic():
                 for nd in p['nodes'][self.seen:self.seen + STEP]:
-                    self.line(nd, state['label'])
+                    self.line(nd, state['label'], state['pauses'])
                     self.seen, self.last = self.seen + 1, nd
         with atomic(): self.refill(p)
         return self
@@ -1202,8 +1215,9 @@ class Grown:
         self.running.append(node)
         return 1
 
-    def line(self, nd, label):
-        """Replay one progress line nd (replay's step), and keep what estimate reads of its node."""
+    def line(self, nd, label, pauses):
+        """Replay one progress line nd (replay's step), and keep what estimate reads of its node: its cost, the line's
+        worked seconds (the run's pauses left out).  A node's start stays the wall clock's: the replay's times are."""
         submit = nd['running'] + 1 - self.r
         skip = nd['closed'] - self.c - (nd['verdict'] == 'INFEASIBLE')   # search() counts each settled node it skips closed
         K = nd['waiting'] - self.w + submit + skip                     # so the rest of the waiting count's change is the children
@@ -1220,7 +1234,7 @@ class Grown:
             assert submit >= 0 and skip >= 0, (label, nd['i'])
         node = find(self.running, nd)
         self.running.remove(node)
-        node.key, node.state, node.cost = nd['key'], 'done', nd['solve'] + nd['split']
+        node.key, node.state, node.cost = nd['key'], 'done', worked(nd, pauses)
         rec = self.fas.get(nd['key'])
         node.fresh = rec is None or rec['budget'] < budget_of(nd['key'], self.budgets)
         assert K == 0 or (splits and members(nd['key']) <= 1), (label, nd['i'])    # a pool never splits
@@ -1291,17 +1305,18 @@ class Grown:
         """The population at depth d (see the vocabulary): its fresh nodes done in this pass, else all done there."""
         return self.done_fresh[d] or self.done_all[d]
 
-    def sofar(self, t, timed):
-        """Each node's cost so far in this pass (see partway), as estimate's total gives it: tot summed again for the
-        nodes changed since the last sum, the running ones (a running leaf's own cost grows with t) and their ancestors,
-        the deepest first.  The mapping of a node to its tot (TOTS)."""
+    def sofar(self, ages):
+        """Each node's cost so far in this pass (see partway), as estimate's total gives it, ages holding each running
+        leaf's own (its age, see censored): tot summed again for the nodes changed since the last sum, the running ones (a running
+        leaf's own cost grows with time) and their ancestors, the deepest first.  The mapping of a node to its tot
+        (TOTS)."""
         todo = set()
         for n in itertools.chain(self.changed, self.running):
             while n is not None and n not in todo:
                 todo.add(n)
                 n = n.parent
         for n in sorted(todo, key=lambda n: -n.depth):
-            own = n.cost if n.state == 'done' else t - n.start if n in timed else 0.0
+            own = n.cost if n.state == 'done' else ages[n] if n in ages else 0.0
             n.tot = own + sum(c.tot for c in n.kids)
         self.changed = set()
         return TOTS
@@ -1365,13 +1380,13 @@ class Walk:
         return ([n for n in self.by_depth[d] if n.state == 'done' and n.fresh] or
                 [n for n in self.by_depth[d] if n.state == 'done'])
 
-    def sofar(self, t, timed):
-        """Each node's cost so far in this pass (see partway): its own (a done node's cost, a running leaf's elapsed
-        time) and its kids'."""
+    def sofar(self, ages):
+        """Each node's cost so far in this pass (see partway): its own (a done node's cost, a running leaf's age from
+        ages, see censored) and its kids'."""
         sofar = {}
 
         def total(node):
-            own = node.cost if node.state == 'done' else t - node.start if node in timed else 0.0
+            own = node.cost if node.state == 'done' else ages[node] if node in ages else 0.0
             sofar[node] = own + sum(total(c) for c in node.kids)
             return sofar[node]
         total(self.root)
@@ -1420,7 +1435,8 @@ def speed(state):
 
 
 def speed_sums(state):
-    """speed's sums: the claiming lines' solve seconds and their records' LP solves, added in log order."""
+    """speed's sums: the claiming lines' solve seconds (solved: the run's pauses left out) and their records' LP solves,
+    added in log order."""
     bottom = len(state['budgets']) - 1
     recs = {(r['key'], r['budget']): r for r in state['records'] if r['verdict'] != 'CLOSED'}
     claimed, seconds, lps = set(), 0.0, 0
@@ -1429,8 +1445,19 @@ def speed_sums(state):
             k = (nd['key'], budget_of(nd['key'], p['budgets']))
             if len(nd['key'].split()) == bottom and k in recs and k not in claimed:
                 claimed.add(k)
-                seconds, lps = seconds + nd['solve'], lps + recs[k]['lps']
+                seconds, lps = seconds + solved(nd, state['pauses']), lps + recs[k]['lps']
     return seconds, lps
+
+
+def worked(nd, pauses):
+    """A progress line's node's solve and split seconds, less those within the pauses (see the vocabulary): its worker
+    clocks them by the wall clock, and they end at the line's time."""
+    return nd['solve'] + nd['split'] - within_pauses(nd['t'] - nd['solve'] - nd['split'], nd['t'], pauses)
+
+
+def solved(nd, pauses):
+    """A progress line's node's solve seconds, less those within the pauses: the solve came first, the split after."""
+    return nd['solve'] - within_pauses(nd['t'] - nd['solve'] - nd['split'], nd['t'] - nd['split'], pauses)
 
 
 class Urn:
@@ -1578,7 +1605,7 @@ class History:
                 if key in self.seen: continue
                 self.seen.add(key)
                 parts = key.split()
-                cost = nd['solve'] + nd['split']
+                cost = worked(nd, state['pauses'])
                 if len(parts) < self.bottom: self.own[key] = cost
                 for depth in range(min(len(parts) + 1, self.bottom)):
                     self.totals[' '.join(parts[:depth])] += cost
@@ -1594,7 +1621,7 @@ class History:
                 if key not in self.seen: continue
                 self.seen.remove(key)
                 parts = key.split()
-                cost = nd['solve'] + nd['split']
+                cost = worked(nd, state['pauses'])
                 for depth in range(min(len(parts) + 1, self.bottom)):
                     ancestor = ' '.join(parts[:depth])
                     self.totals[ancestor] = math.fsum((self.totals[ancestor], -cost))
@@ -1628,9 +1655,11 @@ def estimate(state, parts=None, view=None):
     urns = {bottom: Urn(rng, members, gap_ball(rng, *gap), len(censored) + len(waiting))}
     if parts is not None: parts.update(gap=gap, floor=floor, urns=urns)
     rem = {}                            # node -> its remaining seconds of work, REPLICATES-long (absent: none)
-    for n in censored: rem[n] = urns[bottom].draw(t - n.start) - (t - n.start)
+    # each running leaf's age, its seconds since its start less the pauses, the oldest first (the earlier start, the older)
+    ages = {n: t - n.start - within_pauses(n.start, t, state['pauses']) for n in censored}
+    for n in censored: rem[n] = urns[bottom].draw(ages[n]) - ages[n]
     for n in waiting: rem[n] = urns[bottom].draw()
-    sofar = view.sofar(t, set(censored))
+    sofar = view.sofar(ages)
     historical_own, historical_total = view.history()
     above, marked = collections.defaultdict(list), set()     # by depth, the region's done or resplit ancestors
     for n in region:
@@ -1684,12 +1713,13 @@ def estimate(state, parts=None, view=None):
 # ---------- one run ----------
 
 
-def survey(n, order, journal, log, procs, now, cache, etas, reading=None):
+def survey(n, order, journal, log, procs, now, cache, etas, reading=None, pauses=()):
     """The run (n, order) as its journal and log, the process list and the time now (epoch seconds) show it: what the
     data file needs of it, and more; cache holds the run's splits (see children), etas its record of ETAs (see the
     vocabulary), to which this snapshot's is added: [the median of its draws, then their QUANTILES], None with none (an
     ended run has none), by its time in whole seconds.  reading is the watcher's Reading of the run, kept between
-    snapshots; by default a new one, which reads the files whole: the same survey."""
+    snapshots; by default a new one, which reads the files whole: the same survey.  pauses are the run's (see the
+    vocabulary; by default none): its passes, so far, the ETA chart's axis and its estimate leave them out."""
     v5.configure(n, order)
     reading = Reading(journal, log) if reading is None else reading
     # TODO: error copy; says the watcher's reading of a run was handed another run's files, naming both
@@ -1712,8 +1742,8 @@ def survey(n, order, journal, log, procs, now, cache, etas, reading=None):
     tally = tree.tally()
     last = (p['nodes'] or [{'t': None, 'waiting': None, 'running': None}])[-1]
     opens = tree.open_list()
-    spans = [(q['start'], q['last']) for q in passes[:-1]] + [(p['start'], end)]
-    view = reading.estimating(order, cache, end, f'{n}@{order} at {clock(end)}') if state != 'ended' else None
+    spans = without_pauses([(q['start'], q['last']) for q in passes[:-1]] + [(p['start'], end)], pauses)
+    view = reading.estimating(order, cache, end, f'{n}@{order} at {clock(end)}', pauses) if state != 'ended' else None
     draws = estimate(view.state, view=view) if view is not None else None
     etas.setdefault(str(int(end)), [float(np.median(draws))] + [float(q) for q in np.quantile(draws, QUANTILES)] if draws is not None and len(draws) else None)   # a record made stands
     region, stack = (view.region, view.stack) if view is not None else ([], [])
@@ -2214,12 +2244,14 @@ def started_at(r, launches):
     return min(r['time'], launches.get(str(r['pid']), [r['time']])[0]) if r['event'] == 'session' else r['time']
 
 
-def spans_of(spans, pids, main, launches, observations, now, decided):
+def spans_of(spans, pids, main, launches, observations, now, decided, pauses):
     """A run's spans of running and state, from its sessions' spans and pids (in journal order), its live process main,
-    the sightings, the recorded observations and whether its journal says it is decided (survey_focus's docstring):
-    each pid's latest session runs to its last sighting, a sighted pid never journaled is a span of its own, the spans
-    are in order and disjoint (asserted), each runs on to the observations within it, and the last to now while
-    running."""
+    the sightings, the recorded observations, whether its journal says it is decided (survey_focus's docstring) and its
+    pauses (see the vocabulary): each pid's latest session runs to its last sighting, a sighted pid never journaled is a
+    span of its own, the spans are in order and disjoint (asserted), each runs on to the observations within it, and
+    the last to now while running; then the pauses are left out, each begun by now (asserted: a journal survey reads its
+    run's pauses before its clock).  The run of a stopped process is paused: focus.py's since 2026-10-25, fanout.py's
+    since 2026-10-30 (432:12's, stopped by scratch/wish2/pause432.py); overnight_v5.py's survey calls its run frozen."""
     for pid, i in {pid: i for i, pid in enumerate(pids)}.items():      # each pid's latest session
         spans[i][1] = max(spans[i][1], launches.get(pid, spans[i])[1])
     spans += [list(v) for pid, v in launches.items() if pid not in pids]   # seen, never journaled
@@ -2232,22 +2264,24 @@ def spans_of(spans, pids, main, launches, observations, now, decided):
     for span, stop in zip(spans, [a for a, _ in spans[1:]] + [now + 1]):
         span[1] = max([span[1]] + [t for t in observed if span[0] <= t < stop])
     spans[-1][1] = now if status == 'running' else spans[-1][1]
-    return spans, status
+    assert all(c <= now for c, _ in pauses), (pauses, now)
+    return without_pauses(spans, pauses), 'paused' if status == 'frozen' else status
 
 
-def focus_pauses(records, now, n):
-    """Recorded STOP/CONT intervals; the guardian keeps each process's pid, start time and exact command."""
+def focus_pauses(records, n):
+    """The pauses (see the vocabulary) of focus.py n's run in its guardian's records (focus_N_pauses.jsonl, since
+    2026-10-25): STOP/CONT intervals; the guardian keeps each process's pid, start time and exact command.  A last
+    pause without its resume is not over."""
     for i, r in enumerate(records):
         assert set(r) == {'event', 'time', 'pid', 'start', 'command'}, r
         assert r['event'] == ('pause', 'resume')[i % 2], r
-        assert type(r['time']) in (int, float) and 0 <= r['time'] <= now, r
+        assert type(r['time']) in (int, float) and 0 <= r['time'] < math.inf, r
         assert type(r['pid']) is int and r['pid'] > 0, r
         assert type(r['start']) is str and r['start'], r
         assert type(r['command']) is str and runs([(r['pid'], 1, 'T', r['command'])], 'focus.py', n), r
-    assert all(a['time'] <= b['time'] for a, b in zip(records, records[1:])), records
     assert all(all(a[k] == b[k] for k in ('pid', 'start', 'command'))
                for a, b in zip(records[::2], records[1::2])), records
-    return [(a['time'], b) for a, b in zip(records[::2], [r['time'] for r in records[1::2]] + [now])]
+    return in_order([(a['time'], b) for a, b in zip(records[::2], [r['time'] for r in records[1::2]] + [math.inf])])
 
 
 def without_pauses(spans, pauses):
@@ -2257,6 +2291,70 @@ def without_pauses(spans, pauses):
         spans = [[start, start]] + [[x, y] for a, b in spans for x, y in ((a, min(b, c)), (max(a, d), b))
                                     if x < y] + [[end, end]]
     return spans
+
+
+def within_pauses(a, b, pauses):
+    """The seconds from a to b that fall within the pauses (see the vocabulary)."""
+    return sum(max(0.0, min(b, d) - max(a, c)) for c, d in pauses)
+
+
+def in_order(pauses):
+    """pauses, (start, end) pairs, asserted in order and apart: each starting at 0 or later and ending no earlier (at
+    infinity if not over), and none starting before the one before it ends."""
+    assert all(type(c) in (int, float) and type(d) in (int, float) and 0 <= c <= d for c, d in pauses), pauses
+    assert all(d <= c for (_, d), (c, _) in zip(pauses, pauses[1:])), pauses
+    return pauses
+
+
+def json_lines(path):
+    """The file's complete lines (complete_lines), each parsed as JSON."""
+    return [json.loads(line) for line in complete_lines(path)]
+
+
+def group_pauses(path):
+    """The pauses (see the vocabulary) in the file path as a run stopped and continued by its process group records
+    them (scratch/x288/pauses.jsonl, 2026-10-28): lines {event, time, pgid, why}, a pause then its resume, in turn, a
+    last pause without its resume not over.  The process group may change between pauses (288@10's chain was launched
+    again under another, 2026-10-30)."""
+    records = json_lines(path)
+    for i, r in enumerate(records):
+        assert set(r) == {'event', 'time', 'pgid', 'why'}, r
+        assert r['event'] == ('pause', 'resume')[i % 2], r
+        assert type(r['time']) in (int, float) and 0 <= r['time'] < math.inf, r
+        assert type(r['pgid']) is int and r['pgid'] > 0, r
+        assert type(r['why']) is str and r['why'], r
+    return in_order(list(zip([r['time'] for r in records[::2]], [r['time'] for r in records[1::2]] + [math.inf])))
+
+
+def pause432_pauses(path):
+    """The pauses (see the vocabulary) recorded in the directory path by scratch/wish2/pause432.py (2026-10-26), which
+    stops 432:12's fanout driver and workers: pause432.json while they are stopped, renamed pause432.R.done.json when
+    it continues them, R the whole second of the renaming; each {procs, watchdog, paused_at}: the processes it stopped
+    and the watchdog it started, each [pid, start time as ps prints it], and when it stopped them.  A done pause ends at
+    R, one not done is not over.  The directory's other files are not its."""
+    def process(p): return type(p) is list and len(p) == 2 and type(p[0]) is int and p[0] > 0 and type(p[1]) is str and p[1] != ''
+    pauses = []
+    for name in sorted(glob.glob(os.path.join(glob.escape(path), 'pause432*.json'))):
+        m = re.fullmatch(r'pause432(?:\.(\d+)\.done)?\.json', os.path.basename(name))
+        with open(name, encoding='utf-8') as fh: r = json.load(fh)
+        assert m and type(r) is dict and set(r) == {'procs', 'watchdog', 'paused_at'}, (name, r)
+        assert type(r['procs']) is list and r['procs'] and all(map(process, r['procs'])) and process(r['watchdog']), (name, r)
+        assert type(r['paused_at']) in (int, float) and 0 <= r['paused_at'] < math.inf, (name, r)
+        pauses.append((r['paused_at'], math.inf if m[1] is None else int(m[1])))
+    return in_order(sorted(pauses))
+
+
+# Where each run's pauses (see the vocabulary) are recorded, by the run's identity (program, n, order): [(the path, from
+# HERE, the reader of its records)].  A run not here records none.  Each reader asserts its records' form.
+PAUSES = {('focus.py', 480, 14): [('focus_480_pauses.jsonl', lambda path: focus_pauses(json_lines(path), 480))],
+          ('fanout.py', 432, 12): [(os.path.join('scratch', 'wish2'), pause432_pauses)],
+          ('overnight_v5.py', 288, 10): [(os.path.join('scratch', 'x288', 'pauses.jsonl'), group_pauses)]}
+
+
+def pauses_of(identity):
+    """The pauses of the run whose identity this is, as its sources in PAUSES record them, in order (in_order); none for
+    a run not in PAUSES.  Its unit reads them as it begins (see journal_surveys and run_surveys)."""
+    return in_order(sorted(p for path, reader in PAUSES.get(identity, ()) for p in reader(os.path.join(HERE, path))))
 
 
 def survey_focus(path, procs, now=None, observations=None, launches=None, pauses=(), journal=None):
@@ -2274,7 +2372,8 @@ def survey_focus(path, procs, now=None, observations=None, launches=None, pauses
     completing it (or the record before that, if never named), its age the running time between, gaps between
     launches excluded.  The running root is drawn above its latest probe's least (see the vocabulary), turned into
     seconds at the run's seconds of running per LP solve so far: a probe with no LP solve on record fails (asserted).
-    journal is the watcher's Records of the path, kept between snapshots; by default a new one, which reads it whole.
+    pauses are the run's (see the vocabulary; by default none), left out of its spans (spans_of).  journal is the
+    watcher's Records of the path, kept between snapshots; by default a new one, which reads it whole.
     """
     records = (Records(path) if journal is None else journal).read()
     now = time.time() if now is None else now
@@ -2328,9 +2427,7 @@ def survey_focus(path, procs, now=None, observations=None, launches=None, pauses
         spans[-1][1] = r['time']
         state['time'] = t
     assert spans
-    spans, status = spans_of(spans, pids, main, launches, observations, now, state['outcome'] is not None)
-    spans = without_pauses(spans, focus_pauses(pauses, now, header['n']))
-    status = 'paused' if status == 'frozen' else status
+    spans, status = spans_of(spans, pids, main, launches, observations, now, state['outcome'] is not None, pauses)
     def running(t): return sum(max(0.0, min(t, b) - a) for a, b in spans)   # seconds of running before t
     active = snap['case'] if status == 'running' else None
     assert set(snap['completed']) <= set(begun) & set(ended)
@@ -2354,15 +2451,17 @@ def survey_focus(path, procs, now=None, observations=None, launches=None, pauses
                 sea=dict(depth=0, keys=[f'{header["n"]}:{header["order"]}'], groups=[codes], counts=counts))
 
 
-def survey_fanout(path, procs, now=None, observations=None, launches=None, journal=None):
-    """fanout.py's journal (see fanout.py's vocabulary): its spans of running as survey_focus's; a dot per job, grouped
-    by root (keyed case:depth): split (done, leaving boxes open), settled (done, none open), running, then pending (a
-    root not started, a box left open and not started, or a job whose driver is gone); and while running, an ETA: the
-    pool estimate (see the vocabulary), at the pool's rate, a worker's LP solves a second over the jobs done times the
-    workers (dreeves, 2026-10-23: "Can we throw more compute at 672:13?"); its floor each open case's latest probe's
-    least less the case's work so far (the run's own before fanout counted to its case; a case done when every dot of
-    its roots is).  journal is the watcher's Records of the path, kept between snapshots; by default a new one, which
-    reads it whole."""
+def survey_fanout(path, procs, now=None, observations=None, launches=None, journal=None, pauses=()):
+    """fanout.py's journal (see fanout.py's vocabulary): its spans of running as survey_focus's, its pauses (see the
+    vocabulary; by default none) left out; a dot per job, grouped by root (keyed case:depth): split (done, leaving boxes
+    open), settled (done, none open), running, then pending (a root not started, a box left open and not started, or a
+    job whose driver is gone); and while running, an ETA: the pool estimate (see the vocabulary), at the pool's rate, a
+    worker's LP solves a second over the jobs' seconds, each less the pauses within it (from its job_start record on:
+    its worker's clock ran on while stopped; 2026-10-31, 54 of 432:12's 22,456 jobs had run across pauses, 645 of
+    their 647 hours paused), times the workers (dreeves, 2026-10-23: "Can we throw more compute at 672:13?"); its floor each open case's
+    latest probe's least less the case's work so far (the run's own before fanout counted to its case; a case done when
+    every dot of its roots is).  journal is the watcher's Records of the path, kept between snapshots; by default a new
+    one, which reads it whole."""
     records = (Records(path) if journal is None else journal).read()
     now = time.time() if now is None else now
     observations = {} if observations is None else observations
@@ -2434,7 +2533,7 @@ def survey_fanout(path, procs, now=None, observations=None, launches=None, journ
         handlers[r['event']](r, t)
         spans[-1][1] = previous = r['time']
     assert spans
-    spans, status = spans_of(spans, pids, main, launches, observations, now, bool(finish))
+    spans, status = spans_of(spans, pids, main, launches, observations, now, bool(finish), pauses)
     # only the latest session's driver runs jobs; one an earlier driver left unended is pending again
     running = {j for j in starts if j not in ends and str(starts[j]['pid']) == pids[-1]
                and starts[j]['case'] not in reflections} if status == 'running' else set()
@@ -2463,7 +2562,8 @@ def survey_fanout(path, procs, now=None, observations=None, launches=None, journ
     # TODO: error copy; says the pool of fanout's run would hold fewer than no boxes at some depth, giving the counts
     assert latest['pool'] is None or min(held.values(), default=0) >= 0, f'Claude: "a pool count below 0: {dict(held)}"'
     held = {d: c for d, c in sorted(held.items()) if c}
-    seconds = sum(e['seconds'] for e in ends.values())
+    began = {e['job']: starts[e['job']]['time'] for e in ends.values()}
+    seconds = sum(e['seconds'] - within_pauses(began[e['job']], began[e['job']] + e['seconds'], pauses) for e in ends.values())
     eta = (pool_estimate(samples, held, header['n'], sum(e['lps'] for e in ends.values()) / seconds * worker_counts[-1],
                          floor)
            if status == 'running' and latest['pool'] is not None and samples and held and seconds > 0 else None)
@@ -2851,7 +2951,7 @@ def run_surveys(procs, now, cache, readings):
             v5.configure(n, order)                                       # the geometry reads the run's configuration
             key = f'{n}_{order}_geometry_{run_modules.geometry(v5)}'
             return [survey(n, order, journal, log, procs, now, cache.setdefault(key, {}),
-                           cache.setdefault(key + '_etas', {}), reading)]
+                           cache.setdefault(key + '_etas', {}), reading, pauses_of(('overnight_v5.py', n, order)))]
 
     def boxes(n, order):                # none until the driver's log exists
         with run_context(n, order):
@@ -2886,23 +2986,21 @@ def headers(pattern):
 def journal_surveys(procs, now, cache, readings):
     """The units (see snapshot) of the searches surveyed from their journals and records: focus.py's and fanout.py's
     runs, the 288 attempt batches, then the tracked searches (see the vocabulary), one per target, in that order."""
-    def focus(identity, path, key, pause_path):
-        pauses = [json.loads(line) for line in complete_lines(pause_path)] if os.path.exists(pause_path) else []
+    def focus(identity, path, key):
         return [survey_focus(path, procs, observations=cache.setdefault(key + '_observations', {}),
-                             launches=cache.setdefault(key + '_launches', {}), pauses=pauses,
+                             launches=cache.setdefault(key + '_launches', {}), pauses=pauses_of(identity),
                              journal=readings.setdefault(identity, Records(path)))]
 
     def fanned(identity, path, key):
         return [survey_fanout(path, procs, observations=cache.setdefault(key + '_observations', {}),
                               launches=cache.setdefault(key + '_launches', {}),
-                              journal=readings.setdefault(identity, Records(path)))]
+                              journal=readings.setdefault(identity, Records(path)), pauses=pauses_of(identity))]
 
     def attempts(survey_of, path, key):
         return [survey_of(path, procs, observations=cache.setdefault(key + '_observations', {}))]
 
     units = [(('focus.py', h['n'], h['order']),
-              functools.partial(focus, ('focus.py', h['n'], h['order']), path, f'focus_{h["n"]}_{h["code"]}_{h["time"]}',
-                                os.path.join(HERE, f'focus_{h["n"]}_pauses.jsonl')))
+              functools.partial(focus, ('focus.py', h['n'], h['order']), path, f'focus_{h["n"]}_{h["code"]}_{h["time"]}'))
              for path, h in headers('focus_*_journal.jsonl')]
     units += [(('fanout.py', h['n'], h['order']),
                functools.partial(fanned, ('fanout.py', h['n'], h['order']), path, f'fanout_{h["n"]}_{h["code"]}_{h["time"]}'))

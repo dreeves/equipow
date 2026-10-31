@@ -383,5 +383,174 @@ class FanoutProgressQuals(unittest.TestCase):
             self.assertEqual([(r['program'], r['n'], r['order']) for r in data['runs']], [('fanout.py', 672, 13)])
 
 
+def spanning(**kw):
+    """A session drawing at random (seed 1, 2 workers) at 100 s and its pool record at 101 s (1 box at depth 0, 2 at
+    depth 1); job a (case 0, depth 1) started at 110 s and done at 211 s after 20 LP solves, its seconds 100 by its
+    worker's clock (110 s to 210 s); job b (case 1, depth 0) started at 211 s and done at 221 s after 20 LP solves in
+    10 s; neither leaving a box open, so 1 box is left at depth 1.  kw changes the header."""
+    return [head(**dict(dict(roots=2, root_cases=[0, 1], root_depths=[1, 0]), **kw)),
+            ev('session', 100, seed=1, workers=2), ev('pool', 101, depths=[[0, 1], [1, 2]]),
+            ev('job_start', 110, job='a', case=0, depth=1, root=0),
+            ev('job_end', 211, job='a', case=0, root=0, lps=20, seconds=100.0, open=0, open_depths=[]),
+            ev('job_start', 211, job='b', case=1, depth=0, root=1),
+            ev('job_end', 221, job='b', case=1, root=1, lps=20, seconds=10.0, open=0, open_depths=[])]
+
+
+def paused(records, pauses, now=300, state='SN', observations=None):
+    """survey_fanout of records with the run's pauses (see progress.py's vocabulary) given, the driver alive in this
+    process state, at now."""
+    with tempfile.TemporaryDirectory() as d:
+        path = os.path.join(d, 'fanout_672_journal.jsonl')
+        Path(path).write_text(''.join(json.dumps(r) + '\n' for r in records))
+        procs = [(PID, 1, state, '/opt/homebrew/bin/python3 -B fanout.py 672')]
+        return progress.survey_fanout(path, procs, now, {} if observations is None else observations, {},
+                                      pauses=pauses)
+
+
+def pause432(paused_at, **kw):
+    """A pause record as scratch/wish2/pause432.py writes it: the 8 workers' and the driver's [pid, start time] (procs),
+    the watchdog's, and paused_at.  kw changes it."""
+    return dict(dict(procs=[[70075 + i, 'Mon Oct 26 22:51:06 2026'] for i in range(8)] +
+                           [[68450, 'Mon Oct 26 22:49:40 2026']],
+                     watchdog=[18826, 'Fri Oct 30 19:43:23 2026'], paused_at=paused_at), **kw)
+
+
+def pause_dir(d, files):
+    """Writes files, {name: record}, into the directory d, with pause432.py itself beside them; d."""
+    Path(d, 'pause432.py').write_text('# not a pause record\n')
+    for name, r in files.items(): Path(d, name).write_text(json.dumps(r))
+    return d
+
+
+class FanoutPauseQuals(unittest.TestCase):
+    """The pauses of fanout.py's runs (dreeves's 432:12, paused by scratch/wish2/pause432.py since 2026-10-26)."""
+
+    def test_pauses_leave_the_spans_and_the_job_seconds(self):
+        # Replicata: spanning() surveyed at 300 s, the driver running, the pool estimate stood in for: with no pauses;
+        # with one pause from 230 s to 250 s, after both jobs; and with two, 130 s to 150 s and 170 s to 200 s, both
+        # within job a, whose worker's clock ran on through them.
+        # Expectata: the pauses leave the run's spans, so 200 s, 180 s and 150 s so far; the pool's rate is the jobs'
+        # LP solves over their seconds less the pauses within each, times the 2 workers: 40 LP solves in 110 s
+        # untouched by the pause after them, and in 60 s (job a's 100 less its 20 + 30 s of pauses) with both in it.
+        # Resultata before: 432:12's so far 108 h where it had run about 28 h, and its rate 127 LP solves a second a
+        # worker where it had done 479 (2026-10-30: 609 of its jobs' 830 job-hours across pauses were paused).
+        from unittest.mock import patch
+        for pauses, so_far, seconds, running in (
+                ([], 200, 110, [[100, 300]]),
+                ([(230, 250)], 180, 110, [[100, 230], [250, 300]]),
+                ([(130, 150), (170, 200)], 150, 60, [[100, 130], [150, 170], [200, 300]])):
+            with self.subTest(pauses=pauses), \
+                    patch.object(progress, 'pool_estimate', return_value=[1, 0.5, 2]) as estimate:
+                run = paused(spanning(), pauses)
+                self.assertEqual((run['state'], run['so_far']), ('running', so_far))
+                self.assertEqual([p for p in run['passes'] if p[0] < p[1]], running)
+                estimate.assert_called_once_with([(1, 20, []), (0, 20, [])], {1: 1}, 672, 40 / seconds * 2, 0)
+
+    def test_a_job_spanning_two_pauses_loses_both_and_a_job_beside_them_neither(self):
+        # Replicata: spanning() with job b ending at 241 s after 30 s of its worker's clock (211 s to 241 s), and three
+        # pauses: 130 s to 150 s and 170 s to 200 s, within job a, and 221 s to 231 s, within job b.
+        # Expectata: job a's seconds less 50, job b's less 10, so the rate is 40 LP solves in 50 + 20 s, times 2.
+        from unittest.mock import patch
+        records = [dict(r, time=241, seconds=30.0) if r.get('job') == 'b' and r['event'] == 'job_end' else r
+                   for r in spanning()]
+        with patch.object(progress, 'pool_estimate', return_value=[1, 0.5, 2]) as estimate:
+            run = paused(records, [(130, 150), (170, 200), (221, 231)])
+        estimate.assert_called_once_with([(1, 20, []), (0, 20, [])], {1: 1}, 672, 40 / 70 * 2, 0)
+        self.assertEqual(run['so_far'], 200 - 20 - 30 - 10)
+
+    def test_a_pause_not_over_runs_to_now_and_a_stopped_run_is_paused(self):
+        # Replicata: spanning() with a pause from 230 s not over (its end infinite: no resume recorded), the driver
+        # stopped (process state T), surveyed at 300 s and at 400 s, an ETA recorded at 220 s; then the same surveyed
+        # at 300 s with the driver not stopped yet (its pause recorded just before its stop).
+        # Expectata: paused, as survey_focus's rule makes a stopped run (dreeves, 2026-10-30), with 130 s so far at
+        # either time, no estimate and no new record of ETAs; the record at 220 s at 120 s of running; and the run not
+        # yet stopped running, its time from 230 s left out all the same.
+        # Resultata before: frozen, its time so far growing with every snapshot while it was stopped.
+        live = [(230, float('inf'))]
+        observations = {'220.0': [1, 0.5, 2]}
+        for now in (300, 400):
+            run = paused(spanning(), live, now=now, state='TN', observations=observations)
+            self.assertEqual((run['state'], run['so_far'], run['to_go']), ('paused', 130, None))
+            self.assertEqual(list(observations), ['220.0'])
+            self.assertEqual([round(r[1] * progress.HOUR, 9) for r in progress.eta_records(run)], [120])
+        self.assertEqual((paused(spanning(), live)['state'], paused(spanning(), live)['so_far']), ('running', 130))
+
+    def test_eta_records_run_on_running_time(self):
+        # Replicata: spanning() surveyed running at 300 s, with ETAs recorded at 140 s and at 260 s and a pause from
+        # 150 s to 200 s; the pool estimate stood in for.
+        # Expectata: the records on the ETA chart's axis of running time at 40 s, 110 s and, this snapshot's, 150 s:
+        # the pause leaves the axis.
+        from unittest.mock import patch
+        observations = {'140.0': [1, 0.5, 2], '260.0': [1, 0.5, 2]}
+        with patch.object(progress, 'pool_estimate', return_value=[1, 0.5, 2]):
+            run = paused(spanning(), [(150, 200)], observations=observations)
+        self.assertEqual([round(r[1] * progress.HOUR, 9) for r in progress.eta_records(run)], [40, 110, 150])
+
+    def test_pauses_must_have_begun_by_now(self):
+        # Replicata: spanning() surveyed at 300 s with a pause from 301 s.
+        # Expectata: AssertionError: a journal survey reads its run's pauses before its clock, so a pause after its
+        # now is no record of this run's.
+        with self.assertRaises(AssertionError):
+            paused(spanning(), [(301, 310)])
+
+    def test_pause432_records_read_as_pauses(self):
+        # Replicata: a directory holding pause432.py, pause432.200.done.json (paused at 150.5 s, resumed in second 200)
+        # and pause432.json (paused at 250.25 s, not resumed); then one holding pause432.py alone.
+        # Expectata: the pauses (150.5, 200) and (250.25, inf), in order; then none.
+        with tempfile.TemporaryDirectory() as d:
+            pause_dir(d, {'pause432.json': pause432(250.25), 'pause432.200.done.json': pause432(150.5)})
+            self.assertEqual(progress.pause432_pauses(d), [(150.5, 200), (250.25, math.inf)])
+        with tempfile.TemporaryDirectory() as d:
+            self.assertEqual(progress.pause432_pauses(pause_dir(d, {})), [])
+
+    def test_malformed_pause432_records_fail_loudly(self):
+        # Replicata: pause432_pauses of a directory holding a pause record that lacks a field or has one more, procs
+        # empty or not a list, a process whose pid is not an int above 0 or whose start time is not a nonempty string,
+        # or not a pair, a watchdog not a pair, paused_at not a finite number from 0; a file named pause432.x.done.json
+        # or pause432.200.json; a pause resumed in a second before it began; two pauses that overlap, done or not.
+        # Expectata: AssertionError, each: a malformed pause cannot move the run's time.
+        good = pause432(150.5)
+        bad = [{'pause432.200.done.json': {k: v for k, v in good.items() if k != 'watchdog'}},
+               {'pause432.200.done.json': dict(good, extra=1)},
+               {'pause432.200.done.json': dict(good, procs=[])},
+               {'pause432.200.done.json': dict(good, procs=[68450, 'Mon Oct 26 22:49:40 2026'])},
+               *({'pause432.200.done.json': dict(good, procs=[p])}
+                 for p in ([True, 'x'], [0, 'x'], [1.0, 'x'], [7, ''], [7, None], [7], [7, 'x', 'y'], '7')),
+               {'pause432.200.done.json': dict(good, watchdog=[18826])},
+               *({'pause432.200.done.json': dict(good, paused_at=t)} for t in ('150.5', None, -1.0, float('nan'), float('inf'), True)),
+               {'pause432.x.done.json': good}, {'pause432.200.json': good},
+               {'pause432.150.done.json': good},
+               {'pause432.200.done.json': good, 'pause432.300.done.json': pause432(190.0)},
+               {'pause432.200.done.json': good, 'pause432.json': pause432(100.0)}]
+        for files in bad:
+            with self.subTest(files=files), tempfile.TemporaryDirectory() as d, self.assertRaises(AssertionError):
+                progress.pause432_pauses(pause_dir(d, files))
+
+    def test_main_reads_432_s_pauses(self):
+        # Replicata: a one-shot snapshot at 300 s of a directory holding 432:12's fanout journal, spanning() with n 432
+        # and order 12, its driver stopped, and in scratch/wish2 the pauses 130 s to 150 s and 170 s to 200 s, done,
+        # and one from 230 s, not over, as pause432.py leaves them.
+        # Expectata: the data file's run paused, with 30 + 20 + 30 = 80 s so far and nothing to go.
+        # Resultata before: frozen, with 200 s so far.
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory() as d:
+            Path(d, 'fanout_432_journal.jsonl').write_text(
+                ''.join(json.dumps(r) + '\n' for r in spanning(n=432, order=12)))
+            os.makedirs(os.path.join(d, 'scratch', 'wish2'))
+            pause_dir(os.path.join(d, 'scratch', 'wish2'), {'pause432.150.done.json': pause432(130.0),
+                                                            'pause432.200.done.json': pause432(170.0),
+                                                            'pause432.json': pause432(230.0)})
+            dest, cache = Path(d, 'p.js'), Path(d, 'c.json')
+            with patch.multiple(progress, HERE=d, RUNS=(), EXTENDED=(), JS=dest, CACHE=cache), \
+                 patch.object(progress.os, 'nice', return_value=15), \
+                 patch.object(progress, 'processes', return_value=[(PID, 1, 'TN', 'python3 -B fanout.py 432')]), \
+                 patch.object(progress.time, 'time', return_value=300):
+                progress.main([])
+            data = json.loads(dest.read_text().removeprefix('progressData(').removesuffix(');\n'))
+        run, = data['runs']
+        self.assertEqual((run['program'], run['n'], run['order']), ('fanout.py', 432, 12))
+        self.assertEqual((run['state'], run['so_far'], run['to_go'], run['stale']), ('paused', 80, None, None))
+
+
 if __name__ == '__main__':
     unittest.main()

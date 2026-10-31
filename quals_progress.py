@@ -239,7 +239,7 @@ def q_replay_pushes_a_shuffled_pass_s_children_in_sibling_order():
     def state(shuffled):
         p = {'start': 0.0, 'last': 4.0, 'shuffled': shuffled, 'nodes': lines, 'opens': [], 'outcome': None}
         return {'t': 4.0, 'label': 'a made-up pass', 'passes': [p], 'cache': {'': kids}, 'processes': 1,
-                'budgets': [10, 10, 10], 'final_at_start': {}}
+                'budgets': [10, 10, 10], 'final_at_start': {}, 'pauses': ()}
     root, stack, running = progress.replay(state(True))
     assert (stack, running) == ([], []) and [n.key for n in root.kids] == v5.sibling_order('', kids), (stack, running)
     expect_assertion(progress.replay, state(False))
@@ -2599,6 +2599,201 @@ def q_box_survey_of_240_at_11_renders():
         shutil.rmtree(d)
     go = s['to_go']
     assert s['state'] == 'running' and 0 <= go['lo'] <= go['median'] <= go['hi'] < np.inf, go
+
+
+# ---------- pauses (2026-10-30: 288@10, stopped by its process group while other searches ran) ----------
+
+INF = float('inf')
+
+
+def q_within_pauses_counts_each_overlap():
+    # Replicata: progress.within_pauses of intervals against the pauses 10 s to 20 s and 30 s to 40 s; of one against
+    # a pause from 50 s not over (its end infinite: no resume recorded); and of one against no pauses.
+    # Expectata: the seconds of each interval inside the pauses: none for one beside or between them, all of one
+    # inside a pause, the part inside for one across a pause's start or end, both pauses' for one across both, up to
+    # its own end for a pause not over; and 0 with no pauses.
+    P = [(10.0, 20.0), (30.0, 40.0)]
+    for (a, b), want in {(0.0, 10.0): 0, (20.0, 30.0): 0, (40.0, 41.0): 0, (12.0, 18.0): 6, (5.0, 15.0): 5,
+                         (15.0, 25.0): 5, (15.0, 35.0): 10, (5.0, 45.0): 20}.items():
+        assert progress.within_pauses(a, b, P) == want, (a, b, progress.within_pauses(a, b, P))
+    assert progress.within_pauses(45.0, 70.0, [(50.0, INF)]) == 20
+    assert progress.within_pauses(1.0, 2.0, []) == 0
+
+
+def pause_lines(path, records):
+    """Writes records, each (event, time, pgid), to path as scratch/x288's pauses.jsonl holds them, each with its
+    reason; path."""
+    open(path, 'w').write(''.join(json.dumps({'event': e, 'time': t, 'pgid': g, 'why': 'a qual'}) + '\n'
+                                  for e, t, g in records))
+    return path
+
+
+def q_group_pauses_read_pairs_and_one_not_over():
+    # Replicata: progress.group_pauses of a pauses.jsonl as scratch/x288's (2026-10-28): a pause at 100 s and its
+    # resume at 160 s by process group 7, a pause at 200 s by group 9 not resumed, and a partial line after it; of an
+    # empty one; and of ones with a record lacking a field or with one more, a resume first or two pauses in a row, a
+    # time not a finite number from 0 or earlier than the one before, a group not an int above 0, or an empty reason.
+    # Expectata: the pauses (100, 160) and (200, inf), whatever the group (the chain was launched again under another,
+    # 2026-10-30); none; and AssertionError for each malformed one: a malformed pause cannot move the run's time.
+    d = tempfile.mkdtemp(prefix='progress-quals-')
+    path = pause_lines(os.path.join(d, 'pauses.jsonl'), [('pause', 100.0, 7), ('resume', 160.0, 7), ('pause', 200.0, 9)])
+    open(path, 'a').write('{"event": "resume", "ti')
+    assert progress.group_pauses(path) == [(100.0, 160.0), (200.0, INF)], progress.group_pauses(path)
+    assert progress.group_pauses(pause_lines(os.path.join(d, 'none.jsonl'), [])) == []
+    good = {'event': 'pause', 'time': 100.0, 'pgid': 7, 'why': 'a qual'}
+    resume = dict(good, event='resume', time=160.0)
+    bad = [[{k: v for k, v in good.items() if k != 'why'}], [dict(good, extra=1)], [resume], [good, dict(good, time=150.0)],
+           [dict(good, time=t) for t in ('100', None, True)], [dict(good, time=-1.0)], [dict(good, time=float('nan'))],
+           [dict(good, time=INF)], [good, dict(resume, time=99.0)], [dict(good, pgid=0)], [dict(good, pgid=True)],
+           [dict(good, pgid=7.0)], [dict(good, why='')], [dict(good, why=None)]]
+    for i, records in enumerate(bad):
+        path = os.path.join(d, f'bad{i}.jsonl')
+        open(path, 'w').write(''.join(json.dumps(r) + '\n' for r in records))
+        expect_assertion(progress.group_pauses, path)
+
+
+KIDS = ['3:[0,1,2]', '3:[1,1,1]', '3:[2,1,0]']
+
+
+def paused_pass(pauses, t=4.0):
+    """A made-up pass of one worker (budgets 10, 10), as of t, with these pauses: the top node UNKNOWN, split (cached)
+    into the three leaves KIDS, which then finish INFEASIBLE after 5 LP solves each, in the order search() pops them
+    when it shuffles; the top's line at 1 s, after 0.5 s of solve and 0.25 s of split (so it ran from 0.25 s), the
+    leaves' at 2, 3 and 4 s, after 0.5 s of solve each; the lines logged by t.  The state as state_at makes it, and the
+    leaves in the order of their lines."""
+    order = v5.sibling_order('', KIDS)[::-1]
+    lines = [{'t': 1.0, 'i': 1, 'key': '', 'verdict': 'UNKNOWN', 'solve': 0.5, 'split': 0.25, 'closed': 0, 'waiting': 3,
+              'running': 0, 'open': 0, 'failures': 0}]
+    lines += [{'t': 2.0 + j, 'i': 2 + j, 'key': k, 'verdict': 'INFEASIBLE', 'solve': 0.5, 'split': 0.0, 'closed': j + 1,
+               'waiting': 2 - j, 'running': 0, 'open': 0, 'failures': 0} for j, k in enumerate(order)]
+    p = {'start': 0.0, 'last': t, 'n': 64, 'order': 7, 'processes': 1, 'budgets': [10, 10], 'pool_budget': 3,
+         'moduli': [3], 'shuffled': True, 'nodes': [nd for nd in lines if nd['t'] <= t], 'opens': [], 'outcome': None}
+    records = [{'key': '', 'verdict': 'UNKNOWN', 'budget': 10, 'lps': 7}]
+    records += [{'key': k, 'verdict': 'INFEASIBLE', 'budget': 10, 'lps': 5} for k in KIDS]
+    return {'t': t, 'label': 'a made-up pass with pauses', 'passes': [p], 'cache': {'': KIDS}, 'processes': 1,
+            'budgets': [10, 10], 'final_at_start': {}, 'records': records, 'pauses': pauses}, order
+
+
+def q_replay_costs_speed_and_history_leave_out_their_pauses():
+    # Replicata: paused_pass with the pauses 0.125 s to 0.375 s and 0.875 s to 1.25 s (across the top's solve and its
+    # split), 2.625 s to 2.875 s (within the second leaf) and 3.75 s to 3.875 s (within the third), and with none: its
+    # replay's node costs, speed_sums, and history_costs of a later pass (no line yet) after it.
+    # Expectata: each node's cost its solve and split seconds less those in the pauses, 0.5 s for the top and 0.5,
+    # 0.25 and 0.375 s for the leaves; speed_sums the leaves' solve seconds less theirs, 1.125 s, over 15 LP solves;
+    # the history the top's own 0.5 s and 1.625 s in all.  With no pauses, each as logged: 0.75 s and 0.5 s each,
+    # 1.5 s over 15, 0.75 s and 2.25 s.
+    # Resultata before: overnight_v5's workers clock solve and split by the wall clock, which runs on while they are
+    # stopped, so a node of 288@10 running across a pause cost the pause's hours.
+    for pauses, top, leaves, solved in (([(0.125, 0.375), (0.875, 1.25), (2.625, 2.875), (3.75, 3.875)], 0.5,
+                                         [0.5, 0.25, 0.375], 1.125), ([], 0.75, [0.5] * 3, 1.5)):
+        s, order = paused_pass(pauses)
+        root, stack, running = progress.replay(s)
+        assert (stack, running) == ([], []), (stack, running)
+        assert (root.cost, [n.cost for n in sorted(root.kids, key=lambda n: order.index(n.key))]) == (top, leaves), \
+            (pauses, root.cost, [(n.key, n.cost) for n in root.kids])
+        assert progress.speed_sums(s) == (solved, 15), (pauses, progress.speed_sums(s))
+        later = dict(s, passes=s['passes'] + [dict(s['passes'][0], start=10.0, last=10.0, nodes=[])])
+        assert progress.history_costs(later) == ({'': top}, {'': top + sum(leaves)}), progress.history_costs(later)
+
+
+def q_a_running_leaf_s_age_leaves_out_its_pauses():
+    # Replicata: paused_pass as of 1.75 s, its top's line alone logged, so that the first leaf runs from 1 s, with a
+    # pause from 1.25 s to 1.5 s and with none: estimate() of each, at a speed of 1 s an LP solve.
+    # Expectata: the running leaf's cost so far its age less the pause, 0.5 s (0.75 s with none), and each draw of its
+    # cost in all, its remaining work plus that age, within the gap: from one LP solve's second up to the bottom
+    # budget's 10.
+    # Resultata before: a leaf running across a pause aged by its wall time (288@10's ten running leaves, each by the
+    # pause's hours at its resume).
+    from unittest import mock
+    for pauses, age in (([(1.25, 1.5)], 0.5), ([], 0.75)):
+        s, order = paused_pass(pauses, t=1.75)
+        parts = {}
+        with mock.patch.dict(progress.estimate.__globals__, speed=lambda state: 1.0):
+            assert len(progress.estimate(s, parts)) == progress.REPLICATES
+        leaf, = [n for n in parts['running']]
+        assert leaf.key == order[0] and parts['sofar'][leaf] == age, (pauses, leaf.key, parts['sofar'][leaf])
+        whole = parts['rem'][leaf] + age
+        assert (whole >= 1 - 1e-9).all() and (whole <= 10 + 1e-9).all(), (pauses, whole.min(), whole.max())
+
+
+def q_kept_reading_leaves_out_pauses_as_a_full_read_does():
+    # Replicata: the tiny resolved run (64@7, two passes, ended) with a pause over its whole second pass, and with none:
+    # its estimate's view as of its last line, made by a Reading (Reading.estimating: the kept speed and Grown) and from
+    # scratch (state_at with the same pauses: speed and replay).
+    # Expectata: the kept view and the full read agree on the speed and on every node's cost; with no pause, each
+    # node's cost is its line's solve and split seconds; with the pause, every node of the second pass costs nothing
+    # (to rounding: its seconds less the same seconds paused), and the speed is no higher.
+    journal, log = tiny('resolved')
+    v5.configure(64, 7)
+    R = progress.read_run(journal, log)
+    first, second = R['passes']
+    lines = {nd['key']: nd for nd in second['nodes']}
+    speeds = {}
+    for pauses in ([(second['start'], second['last'] + 1)], []):
+        cache = {}
+        kept = progress.Reading(journal, log)
+        kept.advance()
+        g = kept.estimating(7, cache, second['last'], 'kept', pauses)
+        full = progress.state_at(R, second['last'], cache, 'full', pauses)
+        root, stack, running = progress.replay(full)
+        costs = {n.key: n.cost for n in progress.Walk(full, root, stack, running).nodes() if n.state == 'done'}
+        assert g.speed() == progress.speed(full), (pauses, g.speed(), progress.speed(full))
+        assert {n.key: n.cost for n in g.nodes() if n.state == 'done'} == costs, pauses
+        assert set(costs) == set(lines), (set(costs) ^ set(lines))
+        assert all((abs(c) < 1e-6) if pauses else c == lines[k]['solve'] + lines[k]['split'] for k, c in costs.items()), costs
+        speeds[bool(pauses)] = progress.speed(full)
+    assert speeds[True] <= speeds[False], speeds
+
+
+def q_survey_leaves_out_its_pauses():
+    # Replicata: survey() of the tiny resolved run (64@7, two passes, ended) with an ETA recorded 1 s into its second
+    # pass, with no pauses and with one over its whole first pass.
+    # Expectata: with the pause, its seconds so far less the first pass's, its passes those of the second alone, and
+    # the record's running time 1 s, against the first pass's length plus 1 s with none.
+    # Resultata before: 288@10's 5.9 h of pauses on 2026-10-28 counted as running.
+    journal, log = tiny('resolved')
+    P = progress.parse_log(log)
+    first, second = P
+    at = second['start'] + 1
+    for pauses, so_far, x in (([], first['last'] - first['start'] + second['last'] - second['start'],
+                               first['last'] - first['start'] + 1),
+                              ([(first['start'], first['last'])], second['last'] - second['start'], 1)):
+        s = progress.survey(64, 7, journal, log, [], time.time(), {}, {str(int(at)): [1.0, 0.5, 2.0]}, pauses=pauses)
+        assert s['state'] == 'ended' and s['so_far'] == so_far, (pauses, s['so_far'], so_far)
+        running = [[second['start'], second['last']]] if pauses else [[first['start'], first['last']], [second['start'], second['last']]]
+        assert [list(q) for q in s['passes'] if q[0] < q[1]] == running, s['passes']
+        assert [round(r[1] * progress.HOUR, 6) for r in progress.eta_records(s)] == [x], (pauses, progress.eta_records(s))
+
+
+def q_main_reads_an_overnight_run_s_pauses():
+    # Replicata: one snapshot of progress.main(['--watch']) with the tiny resolved run (64@7, ended) as its only run,
+    # PAUSES giving it a pauses.jsonl beside the data file, which holds a pause over its whole first pass, resumed.
+    # Expectata: the data file's run has the second pass's seconds alone so far.
+    journal, log = tiny('resolved')
+    first, second = progress.parse_log(log)
+    d = tempfile.mkdtemp(prefix='progress-quals-')
+    pause_lines(os.path.join(d, 'pauses.jsonl'), [('pause', first['start'], 5), ('resume', first['last'], 5)])
+    out = []
+    watch([second['last'] + 10], lambda k: out.append(progress.read_data(os.path.join(d, 'p.js'))),
+          dict(RUNS=((64, 7),), EXTENDED=(), HERE=d, JS=os.path.join(d, 'p.js'), CACHE=os.path.join(d, 'c.json'),
+               files=lambda n, order: (journal, log), run_context=root_context, processes=lambda: [],
+               PAUSES={('overnight_v5.py', 64, 7): [('pauses.jsonl', progress.group_pauses)]}))
+    run, = out[0]['runs']
+    assert (run['program'], run['so_far']) == ('overnight_v5.py', second['last'] - second['start']), run
+
+
+def q_pauses_table_names_each_paused_run_s_records():
+    # Replicata: progress.PAUSES, the table of runs and where their pauses are recorded.
+    # Expectata (2026-10-30): 480:14's focus.py run, 432:12's fanout.py run and 288@10's overnight_v5.py run, each
+    # with one source: focus_480_pauses.jsonl, scratch/wish2 (pause432.py's records) and scratch/x288/pauses.jsonl;
+    # each a file or directory that exists here, which its reader reads without failing, in order.
+    assert {k: [path for path, _ in v] for k, v in progress.PAUSES.items()} == {
+        ('focus.py', 480, 14): ['focus_480_pauses.jsonl'],
+        ('fanout.py', 432, 12): [os.path.join('scratch', 'wish2')],
+        ('overnight_v5.py', 288, 10): [os.path.join('scratch', 'x288', 'pauses.jsonl')]}, progress.PAUSES
+    for identity in progress.PAUSES:
+        pauses = progress.pauses_of(identity)
+        assert pauses == sorted(pauses) and all(c <= d for c, d in pauses), (identity, pauses)
 
 
 def main():

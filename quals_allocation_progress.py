@@ -21,7 +21,7 @@ def focus(records, pauses, now=200, state='TN', observations=None, launches=None
         path = Path(directory, 'focus_480_journal.jsonl')
         path.write_text(''.join(json.dumps(r) + '\n' for r in records))
         procs = [(pid, 1, state, '/opt/homebrew/bin/python3 -B focus.py 480')]
-        return progress.survey_focus(path, procs, now, observations, launches, pauses=pauses)
+        return progress.survey_focus(path, procs, now, observations, launches, pauses=progress.focus_pauses(pauses, 480))
 
 
 def drawn_started():

@@ -32,7 +32,7 @@ class RecoveryQuals(unittest.TestCase):
                                   for c in progress.v5.split(7, progress.parse_key(key))]
         cls.state = dict(t=p['start'], label='qual', passes=cls.R['passes'], processes=p['processes'],
                          budgets=p['budgets'], records=cls.R['records'],
-                         final_at_start={r['key']:r for r in cls.R['records']}, cache=cls.known)
+                         final_at_start={r['key']:r for r in cls.R['records']}, cache=cls.known, pauses=())
         cls.expected = progress.estimate(cls.state)
         assert len(cls.expected) and np.ptp(cls.expected) > 0
 
