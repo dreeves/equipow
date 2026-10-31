@@ -11,6 +11,7 @@ Potential tasks:
 * [CRO] This might be fun: Let people contribute computation by just having the equipow page open in their browser. (More boringly, Claude is estimating we could bring the next two searches down from a total of 90 days on my laptop to about 4 days on cloud compute costing around $300.)
 * [FAC] Reorganize the files: quals and search stuff in their own directories, certificates?, getting css and javascript out of index.html
 * [IND] Find a better way to refer to things like "index.html p320" -- we should never refer to "index.html" in user-facing copy
+* [MIN] In the "smallest length known for each order" table, we currently have no entries for the smallest known n for orders 14 and 15. But we know from Thue-Morse that 2^14 has order at least 14 and in fact from the chart below the table, we know 2^13 has order 14. Similarly for 2^14 having order at least 15.
 
 Stan notes:
 

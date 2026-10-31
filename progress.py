@@ -2478,6 +2478,7 @@ def survey_fanout(path, procs, now=None, observations=None, launches=None, journ
     spans, pids, starts, ends, finish, reflections, worker_counts = [], [], {}, {}, [], {}, []
     leasts = {}                         # each probed case's latest least, LP solves
     sessions = []                       # each session's seed, pool record (depths, by depth) and jobs done, in order
+    dropped = []                        # each pool record's dropped boxes by root (fanout.py's 'dropped'), else None
 
     def session(r, t):
         # Legacy sessions use the header count; every new session records its own allocation.
@@ -2514,7 +2515,16 @@ def survey_fanout(path, procs, now=None, observations=None, launches=None, journ
         leasts[r['case']] = probe_least(r, cases_of, header['n'])
 
     def pool(r, t):                        # fanout.py's pool record (since 2026-10-26): its session's, once
-        assert str(r['pid']) == pids[-1] and sessions[-1]['pool'] is None and set(r) == {'event', 'time', 'pid', 'depths'}, r
+        # since the 2026-10-30 lex cut (fanout.py's 'dropped'), with dead, [root, count] pairs of the boxes its walk
+        # dropped, and lex, the cases the cut applies to
+        assert str(r['pid']) == pids[-1] and sessions[-1]['pool'] is None and set(r) in (
+            {'event', 'time', 'pid', 'depths'}, {'event', 'time', 'pid', 'depths', 'dead', 'lex'}), r
+        dead = r.get('dead', [])
+        assert type(dead) is list and all(type(x) is list and len(x) == 2 and type(x[0]) is int and 0 <= x[0] < roots
+                                          and type(x[1]) is int and x[1] >= 1 for x in dead) \
+            and [x[0] for x in dead] == sorted({x[0] for x in dead}), r
+        assert type(r.get('lex', [])) is list and all(type(c) is int and c in cases_of for c in r.get('lex', [])), r
+        dropped.append(collections.Counter(dict(map(tuple, dead))) if 'dead' in r else None)
         d = r['depths']
         assert type(d) is list and all(type(x) is list and len(x) == 2 and all(type(v) is int for v in x) and x[0] >= 0
                                        and x[1] >= 1 for x in d) and [x[0] for x in d] == sorted({x[0] for x in d}), r
@@ -2539,11 +2549,14 @@ def survey_fanout(path, procs, now=None, observations=None, launches=None, journ
     # only the latest session's driver runs jobs; one an earlier driver left unended is pending again
     running = {j for j in starts if j not in ends and str(starts[j]['pid']) == pids[-1]
                and starts[j]['case'] not in reflections} if status == 'running' else set()
+    # the dead boxes the first pool record with dead dropped: open in job_ends from before the cut, never jobs (a job_end
+    # since counts only the boxes it pushed; each later pool record's dead is the first's plus those job_ends' dead)
+    first = next((d for d in dropped if d is not None), collections.Counter())
     groups = []
     for root in range(roots):
         done = [e for e in ends.values() if e['root'] == root]
         split, live = sum(e['open'] > 0 for e in done), sum(starts[j]['root'] == root for j in running)
-        pending = 1 + sum(e['open'] for e in done) - len(done) - live
+        pending = 1 + sum(e['open'] for e in done) - len(done) - live - first[root]
         assert pending >= 0, (root, pending)
         # A reflected target remains open until the final checked exclusion, including during proof replay.
         reflected = '0' if finish and finish[0]['outcome'] == 'excluded' else '1'

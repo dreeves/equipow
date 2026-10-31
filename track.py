@@ -95,12 +95,24 @@ def end(path, status):
     with open(path, 'a', encoding='utf-8') as f: f.write(json.dumps(dict(event='end', time=time.time(), status=status)) + '\n')
 
 
+def live(pgid):
+    """The pids of process group pgid's live members, as ps lists them (a zombie, stat Z, is dead already: only its
+    parent's wait takes it out of the group)."""
+    out = subprocess.run(['ps', '-A', '-o', 'pid=,pgid=,stat='], capture_output=True, text=True, check=True).stdout
+    return [int(p) for p, g, stat in (line.split() for line in out.splitlines()) if int(g) == pgid and not stat.startswith('Z')]
+
+
 def group_signal(pid, signum):
-    """Signal an owned process group; an already absent group needs no cleanup."""
+    """Signal an owned process group.  killpg fails when the group has no live member, and such a group needs no
+    cleanup: ESRCH when it has no member at all, and on macOS EPERM when its members are all zombies, dead already and
+    awaiting their parents' wait (2026-10-31: a seed's forked CVP child, left a zombie when the seed was killed; six
+    trackers died of that EPERM and wrote no end).  That no live member remains is asserted."""
     try:
         os.killpg(pid, signum)
-    except ProcessLookupError:
-        pass
+    except (ProcessLookupError, PermissionError):
+        members = live(pid)
+        # TODO: error copy; says signalling the run's process group failed although it has live members, naming them
+        assert not members, f'Claude: "could not signal process group {pid}, whose live members are {members}"'
 
 
 def cleanup(child, signum=signal.SIGTERM):

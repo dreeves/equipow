@@ -238,6 +238,90 @@ def q_owned_descendants_end_on_exit_and_signal():
             shutil.rmtree(d)
 
 
+ZOMBIE = '''import os, subprocess, sys, time
+C = os.fork()
+if C == 0:
+    D = os.fork()
+    if D == 0: os._exit(0)
+    os.setsid()
+    while not subprocess.run(['ps', '-o', 'stat=', '-p', str(D)], capture_output=True, text=True).stdout.strip().startswith('Z'):
+        time.sleep(0.01)
+    open('zombie.tmp', 'w').write(f'{os.getpid()} {D}')
+    os.rename('zombie.tmp', 'zombie')
+    time.sleep(60)
+    os._exit(0)
+while not os.path.exists('zombie'): time.sleep(0.01)
+time.sleep(float(sys.argv[1]))
+raise SystemExit(int(sys.argv[2]))
+'''
+
+
+def q_cleanup_passes_over_a_group_of_zombies():
+    # Replicata: the command (ZOMBIE) forks C, C forks D, still in the command's process group, and leaves the group
+    # by setsid; D exits at once and stays a zombie of C, which lives on outside the group.  Then the command exits 0,
+    # or waits while its tracker gets TERM.  Either way the tracker's cleanup finds in the group only D, a zombie, and
+    # on macOS killpg of such a group fails with EPERM.  (2026-10-31: six seed trackers of 624:11 and 576:11 died so,
+    # cancelled while a forked CVP child was a zombie, and wrote no end.)
+    # Expectata: as with no zombie: the tracker exits with the command's status (0), or -15 when cancelled (241 as an
+    # exit code); its record ends with that status; its reservation is gone; D is still a zombie when it is checked.
+    for delay, code, cancel in [('0', 0, False), ('60', -15, True)]:
+        d, tr, c = sandbox(), None, None
+        try:
+            open(os.path.join(d, 'zombie.py'), 'w').write(ZOMBIE)
+            with open(os.path.join(d, 'tracker.err'), 'w') as log:      # C keeps a pipe's write end open
+                tr = subprocess.Popen([PY, '-B', 'track.py', 'run', 'zombie', '16:4', '--', PY, 'zombie.py', delay,
+                                       str(max(code, 0))], cwd=d, stdout=subprocess.DEVNULL, stderr=log)
+            marker = os.path.join(d, 'zombie')
+            until(lambda: os.path.exists(marker) and os.path.exists(os.path.join(d, 'runs', 'zombie.jsonl')), 10)
+            c, z = map(int, open(marker).read().split())
+            if cancel: tr.send_signal(signal.SIGTERM)
+            tr.wait(timeout=10)
+            err = open(os.path.join(d, 'tracker.err')).read()
+            stat = subprocess.run(['ps', '-o', 'stat=', '-p', str(z)], capture_output=True, text=True).stdout.strip()
+            assert stat.startswith('Z'), (z, stat)
+            assert tr.returncode == code & 0xFF, (tr.returncode, err)
+            assert record(d, 'zombie')[-1]['status'] == code, (record(d, 'zombie'), err)
+            assert not os.path.exists(os.path.join(d, 'runs', '.zombie.reserved')), err
+        finally:
+            for pid in [c, None if tr is None or tr.poll() is not None else tr.pid]:
+                if pid is not None:
+                    try: os.kill(pid, signal.SIGKILL)
+                    except ProcessLookupError: pass
+            if tr is not None: tr.wait(timeout=5)
+            shutil.rmtree(d)
+
+
+def q_group_signal_fails_loudly_while_a_member_lives():
+    # Replicata: a process sleeping in a process group of its own; track.group_signal on that group, with os.killpg
+    # made to raise PermissionError, then ProcessLookupError (as it would for a live member it may not signal, which
+    # no qual can make without root); then group_signal unpatched, with SIGKILL.
+    # Expectata: both patched calls raise AssertionError naming the sleeper's pid (a failed killpg is passed over
+    # only when no live member remains); the unpatched call kills the sleeper.
+    d = sandbox()
+    try:
+        code = '''import os, signal, subprocess, sys, time, track
+s = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(60)'], start_new_session=True)
+time.sleep(0.3)
+real = os.killpg
+for exc in (PermissionError, ProcessLookupError):
+    def fails(pgid, signum, exc=exc): raise exc(1, 'injected')
+    os.killpg = fails
+    try:
+        track.group_signal(s.pid, signal.SIGTERM)
+        raise SystemExit('no assertion for ' + exc.__name__)
+    except AssertionError as e:
+        assert str(s.pid) in str(e), e
+os.killpg = real
+track.group_signal(s.pid, signal.SIGKILL)
+assert s.wait(timeout=10) == -signal.SIGKILL
+print('ok', flush=True)
+'''
+        p = subprocess.run([PY, '-B', '-c', code], cwd=d, capture_output=True, text=True, timeout=30)
+        assert p.returncode == 0 and p.stdout == 'ok\n', (p.returncode, p.stdout, p.stderr)
+    finally:
+        shutil.rmtree(d)
+
+
 def q_spawn_failure_preserves_a_failure_record():
     # Replicata: launch a nonexistent command. Expectata: no command runs, the tracker fails, and its reserved name
     # has a terminal failure record, so another launch cannot silently reuse it.

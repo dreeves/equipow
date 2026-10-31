@@ -511,3 +511,27 @@ In progress since 00:55:
   - **Harnesses:** they copy page/ (quals_index.copy_page_dir), and the quals' headless Chrome runs with --allow-file-access-from-files, because from file:// an error in an external script reaches listeners only as "Script error.".
   - **Pre-existing failures:** quals_search592_progress and quals_search288_progress fail one qual each, on dreeves's removal of "Astra: “"; scratch/latex/quals_latex.py is at 3/4.
   - **For dreeves:** `git add page/`.
+- **432:12 LF bundle ready** (agent, 2026-10-31 03:00; `scratch/speed432-fastlp-20261031/NOTES.md`). LF is patch_A + lex + fastlp behind the producer, fanout_code ba6ee62c…; AF is patch_A + fastlp, 518fcd78….
+  - **Measurement:** patch_A to patch_A + fastlp is 2.09× less CPU (95% CI 2.02-2.16) on 125 complete random pool subtrees, ABBA. fastlp's trees are about 10% larger, growing with size, so the remaining work likely gains 1.9-2.0×. Afterwards certbb.Check holds 66% of the CPU. reprove (HiGHS) proved 256,620 fastlp leaves with 0 failures.
+  - **Approval:** its six spec changes (re-recorded pinned sequences, the AssemblyQuals and reprove fixtures, the restore qual, quals_case_lp, quals_lex's REPO) and quals_fanout_fastlp.py were approved by the main session under the 2026-10-31 can-opener rule.
+  - **Deployment:** after the lex progress hunks (`progress/progress_lex.patch`) are merged and the watcher restarts, a fresh dry run (dryrun432.py LF, 45-60 min), then deploy432.py qualify/intent/stop/install/switch/relaunch/verify LF, plus repause if 432 was paused at intent. Downtime is about 30 min.
+  - **Untested possible 288 issue:** x288's certbb.Simplex has no reset after a Trouble answer. A non-finite state snapshotted at a split would raise at restore. Check this before 288 resumes.
+
+624:11 and 576:11 found and recorded (Claude, 2026-10-31 00:14-03:03 PDT; `scratch/w11-624-576/`).
+- **Tool:** `w11.py` there is scratch/w13/w13.py at order 11 with scratch/w12's fast repair (copies) and `search_pool()`, which keeps only configurations of exact q < h (the 2026-10-26 crash at pool ranks 253/254 was NRAND's random configurations, q > h). Quals: quals_w11 4, repair 6 + 3, quals_seeds 10, quals_run 4. Control: 720:11 seed 1 found a new witness at CVP rank 0.
+- **Drivers:** `run.py SCRIPT N M FIRST PAR COUNT WALL [opts]` pauses 432 with pause432.py, runs `seeds.py` (track.py per seed, stops at the first witness, COUNT seeds or WALL s), resumes 432 unless the watchdog did.
+- **Fork starvation:** a fork()ed CVP child at nice 15 gets scheduler priority 16 here and a few percent of a core under load (an exec'd one gets about 27). Shape (0.6, 1.5, 2.0) made CVPs cost 0.2-24 CPU s, so 624's first 7 seeds were stopped; (0.6, 1.5, 1.5) (p 0.75, mean 0.046 CPU s at 624, `cvp_cost.py`) found 624 (seeds 8, 11, 12) and 576 (seeds 3, 4, 6) in the first batch each. Sums of E*p were only 0.077 and 0.039: the E model ran low.
+- **Recorded:** `apply.py` (LaTeX), `add_quals.py` (quals_mstar q_examples_at_576_and_624_raise_their_lo, quals_index q_examples_at_576_and_624_have_their_entries_codes_and_sets, red then green), mstar.js (columns 576 and 624 only), preview.png at zoom 0.40 (the builder now hides .oeis). The combined wish {576: 11, 624: 11} (`wish_both.json`) moves no first. Suites: quals_mstar 36/36, quals_pow2 16/16, quals_record_gaps 7/7, quals_pow2_page 23/23, quals_index 105/105.
+- **track.py:** its cleanup raises PermissionError at os.killpg(SIGKILL) when a cancelled seed's group holds only zombies (its forked CVP child), so 6 seed records have no end line and left .reserved files in runs/.
+- **Running at 03:03:** 672:12, `w12/` there (byte-identical copy of scratch/w12's tool), run.py pid 4854, driver pid in `seeds672_12.pid`, 432 paused since 02:30:54. Next on the coordinator's list: 528:11 (preflight top log10 E -4.79, `preflight_528.log`), then 688:10 (w10s, needs quals and a planted control), 544:10 only if 688 succeeds quickly.
+- **03:10 state (Claude):**
+  - The progress.py owner finished. The lex hunks are merged (progress.py e37581c4…, uncommitted); tracked searches get Gott's-rule ETA records (`gott`, `TRACK_RECORD`, one chart for every run, committed by dreeves).
+  - 432's inflated ETA records were recomputed (`scratch/pauses-20261030/recompute432/`) and merged by merge432.py with the watcher stopped.
+  - The watcher was restarted at 03:08:31 as PID 58636, after quals_progress 112/112 and quals_track 11/11.
+  - The 432 deploy agent got "go" at 03:09: a fresh dryrun432.py LF, then deploy432.py through verify LF, and repause if 432 was paused at intent. deploy432.py's staleness and install checks now cover only the files the run uses: fingerprints, installed files, width.py and reprove.py.
+  - A fresh witness agent took over scratch/w11-624-576/:
+    - the track.py fix for zombie-only process groups (6 records have no end line);
+    - 672:12, still running;
+    - then 528:11, 688:10 and 544:10, launched only after the LF deploy's verify passes;
+    - and the fork-vs-exec CVP child priority finding.
+- **672:12 stopped (03:14:49):** seed 35 hit w12's assertion "Babai recentering did not settle in 16 rounds" (as 720:12's seed 11 did), so seeds.py stopped its peers and failed; run.py then resumed 432 (paused 2,635 s). 35 seeds ran, no witness (`scratch/w11-624-576/w12/search672_s*.log`). Seeds 1-34 are done; a relaunch can start at seed 36 with the rest of the budget.

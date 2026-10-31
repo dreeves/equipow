@@ -553,5 +553,57 @@ class FanoutPauseQuals(unittest.TestCase):
         self.assertEqual((run['state'], run['so_far'], run['to_go'], run['stale']), ('paused', 80, None, None))
 
 
+def cut(dead, lex, legacy=True):
+    """started() (driver 41: job a of root 1 done leaving 2 boxes open, jobs b and c begun), then the drivers 42, 43 and
+    44 in turn, each a session drawing at random and its pool record (root 0's box at depth 0, job c's at depth 2): 42's
+    without dead and lex (before the lex cut) if legacy, 43's with dead and lex as given, 44's with its later dead
+    (root 0's 1 and root 1's 3) and lex [0, 1]; driver 44 alive at 200 s."""
+    def session(pid, t, **pool):
+        return [dict(ev('session', t, seed=pid - 40), pid=pid), dict(ev('pool', t + 1, depths=[[0, 1], [2, 1]], **pool), pid=pid)]
+    records = started() + session(42, 130) * legacy + session(43, 140, dead=dead, lex=lex)
+    records += session(44, 150, dead=[[0, 1], [1, 3]], lex=[0, 1])
+    with tempfile.TemporaryDirectory() as d:
+        path = os.path.join(d, 'fanout_672_journal.jsonl')
+        Path(path).write_text(''.join(json.dumps(r) + '\n' for r in records))
+        return progress.survey_fanout(path, [(44, 1, 'SN', 'python3 -B fanout.py 672')], 200, {}, {})
+
+
+class FanoutLexQuals(unittest.TestCase):
+    """The pool records of fanout.py's lex cut (2026-10-30: its walk drops the boxes the cut excludes, 'dropped')."""
+
+    def test_a_pool_record_with_dead_and_lex_takes_its_first_dead_from_the_pending(self):
+        # Replicata: cut([[1, 1]], [0]): a pool record before the cut, without dead and lex; then the first with them,
+        # root 1's dead 1 (one of job a's 2 open boxes dropped by the cut) and lex [0]; then a later one, its dead the
+        # first's and more, root 0's 1 and root 1's 3; and the same with no pool record before the cut.
+        # Expectata (the coordinator, 2026-10-31: the lex deploy is gated on it): accepted; each root's pending dots
+        # fewer by the first record's dead alone (a job_end since the cut counts only the boxes it pushed, so a later
+        # record's dead holds the first's): root 0 one pending dot, root 1 its split job a and one pending dot (job c,
+        # its driver gone), not two.
+        # Resultata before: AssertionError, a pool record of other fields than event, time, pid and depths.
+        for legacy in (True, False):
+            run = cut([[1, 1]], [0], legacy)
+            self.assertEqual(run['sea']['groups'], ['3', '23'], legacy)
+            self.assertEqual(run['sea']['counts'], dict(settled=0, open=0, split=1, pending=2, running=0), legacy)
+
+    def test_malformed_dead_and_lex_fail_loudly(self):
+        # Replicata: cut with dead not a list; an entry not a [root, count] pair; a root that is no int or not a root
+        # of the run (-1, 2, a bool); a count not an int from 1 (0, 1.0); roots out of order or twice; lex not a list,
+        # or naming a case not the run's or a bool; and a pool record with dead but no lex.
+        # Expectata: AssertionError, each: a malformed record cannot move the pending count.
+        bad = [({'1': 1}, [0]), ([[1]], [0]), ([[1, 1, 1]], [0]), ([1, 1], [0]), ([[-1, 1]], [0]), ([[2, 1]], [0]),
+               ([[True, 1]], [0]), ([[1, 0]], [0]), ([[1, 1.0]], [0]), ([[1, 1], [0, 1]], [0]), ([[1, 1], [1, 1]], [0]),
+               ([[1, 1]], 0), ([[1, 1]], [5]), ([[1, 1]], [True])]
+        for dead, lex in bad:
+            with self.subTest(dead=dead, lex=lex), self.assertRaises(AssertionError):
+                cut(dead, lex)
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, 'fanout_672_journal.jsonl')
+            records = started() + [dict(ev('session', 130, seed=2), pid=42),
+                                   dict(ev('pool', 131, depths=[[0, 1], [2, 1]], dead=[[1, 1]]), pid=42)]
+            Path(path).write_text(''.join(json.dumps(r) + '\n' for r in records))
+            with self.assertRaises(AssertionError):
+                progress.survey_fanout(path, [(42, 1, 'SN', 'python3 -B fanout.py 672')], 200, {}, {})
+
+
 if __name__ == '__main__':
     unittest.main()
