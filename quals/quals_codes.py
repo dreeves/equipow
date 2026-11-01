@@ -5,9 +5,12 @@ equipowerful"; and later that day, when the section "Claude's examples as sets" 
 give should be presented the same way as an expandable hex code"): each code of index.html (<code id="N:M">, N its
 length and M its order, in a code block or in a sentence) and each join of its codes (<span data-join="IDS"
 data-order="M">, IDS the codes' ids, its signs theirs one after the other, M its order), clicked, or given Enter or
-Space while it has focus, shows right below it its partition: the positions with +1 and with -1, and the power sums of
-both parts for k = 0 to M, computed exactly in the browser, and the next click hides it.  No part of a bipartition is
-written out anywhere else on the page, and every set that the section of sets gave is a part of one of them.
+Space while it has focus, shows below it its partition: the positions with +1 and with -1, and the power sums of both
+parts for k = 0 to M, computed exactly in the browser, and the next click hides it.  No part of a bipartition is written
+out anywhere else on the page, and every set that the section of sets gave is a part of one of them.  Every box, a
+code's or a join's partition or a construction's derivation (quals_derivations), opens right after the block that holds
+its button, its nearest p or li, never inside running text, the boxes of one block in the order of their buttons
+(the coordinator, 2026-10-31), and the button's aria-controls names it.
 Run: python3 -B quals/quals_codes.py [name ...]   (no arguments: all quals).
 
 Each qual is a function q_*: a passing qual returns, a failing one raises.  Each qual's comment gives its replicata (the
@@ -15,7 +18,8 @@ setup) and expectata (what must happen); a failure's message or traceback gives 
 The quals load copies of index.html, each with page/, mstar.js, pow2.js and the page's icons beside it, in headless
 Chrome driven through the DevTools protocol by DRIVER, a Node script: a true viewport of each configuration's width and
 pixel ratio, real mouse clicks (touch taps for a phone) at the middle of each code or join, and real key presses.  What
-one shows is read from the element right after it.  The numbers the page shows are held to mstar.py's own reading of
+one shows is read from the element its aria-controls names (the element right after it until the boxes left running
+text, 2026-10-31).  The numbers the page shows are held to mstar.py's own reading of
 the page's codes and joins (page_sources) and its decoding of them (overnight_v5.from_hex, mstar.join), with Python's
 exact integers; and the sets the page gave until 2026-10-31 to SETS, the file that keeps them.
 """
@@ -112,10 +116,11 @@ const FRAMES = () => new Promise(r => requestAnimationFrame(() => requestAnimati
 const KATEX = () => new Promise(r => { const t0 = performance.now();
   const t = () => document.querySelector('.katex') || performance.now() - t0 > 20000 ? r(!!document.querySelector('.katex')) : setTimeout(t, 50);
   t(); });
-// The page's codes and joins, in page order: each code with an id and each element with data-join; and the key that
-// names one, a code's id or a join's data-join.  The functions here run in the page, where DEFINE puts these two as
-// qualsItems and qualsKey once it has loaded.
-const ITEMS = () => [...document.querySelectorAll('code[id], [data-join]')];
+// The page's items, in page order: the elements that C.items selects (drive's items: by default CODES_AND_JOINS, each
+// code with an id and each element with data-join); and the key that names a code or a join, a code's id or a join's
+// data-join.  The functions here run in the page, where DEFINE puts these two as qualsItems and qualsKey once it has
+// loaded.
+const ITEMS = `() => [...document.querySelectorAll(${JSON.stringify(C.items)})]`;
 const KEY = e => e.id || e.dataset.join;
 // The focus (the key of the focused element), the scroll, the viewport and the page's width, each code and join as
 // [key, role, tabIndex, aria-expanded], and how many partitions (class partition) show
@@ -123,12 +128,12 @@ const LOOK = () => ({active: document.activeElement && qualsKey(document.activeE
   scrollW: document.documentElement.scrollWidth,
   codes: qualsItems().map(c => [qualsKey(c), c.getAttribute('role'), c.tabIndex, c.getAttribute('aria-expanded')]),
   partitions: [...document.querySelectorAll('.partition')].filter(e => e.checkVisibility()).length});
-// Item i and the element right after it: if that is a partition (class partition), whether it shows, its box, its
+// Item i and the element its aria-controls names: if that is a partition (class partition), whether it shows, its box, its
 // parts' numbers with their boxes' heights (client, scroll); its power sums' cells, in page order: the k (data-k), the
 // marks (data-relation), and each part's sums (data-sum "+1" and "-1") with the widths of the lines each takes (CSS px,
 // to 0.1); and how far any cell of its power sums reaches past its right edge (spill, CSS px; at most 0 when none does)
 const READ = i => {
-  const code = qualsItems()[i], next = code.nextElementSibling;
+  const code = qualsItems()[i], next = document.getElementById(code.getAttribute('aria-controls'));
   const rect = e => { const b = e.getBoundingClientRect(); return [b.left, b.top, b.right, b.bottom]; };
   const box = next && next.classList.contains('partition') ? next : null;
   const part = s => { const e = box.querySelector(`[data-part="${s}"]`);
@@ -202,6 +207,9 @@ const OPS = {
   look: () => ev(LOOK),
   read: i => ev(READ, i),
   scan: () => ev(SCAN),
+  // the value in the page of the function whose source text is src, called with args (for the quals of other files,
+  // quals_derivations, which read what they need with functions of their own)
+  js: (src, ...args) => ev(src, ...args),
   // a real click (a phone's touch tap) at the middle of the first line of item i, scrolled to the middle of the
   // viewport: where, and whether the element there just before was the item or inside it
   click: async i => {
@@ -285,18 +293,38 @@ process.exit(code);
 
 DESKTOP = dict(width=1280, height=900, dpr=2, mobile=False)
 PHONE = dict(width=390, height=844, dpr=3, mobile=True)
+CODES_AND_JOINS = 'code[id], [data-join]'     # the selector of the items of this file's quals: the codes and joins
+BUTTONS = 'code[id], [data-join], [data-construction]'   # every button of the page: codes, joins and constructions
+# In the page, after the placed run's clicks: each button, in page order, as [its tag, its key (a code's id, a join's
+# data-join, a construction's data-construction), the index of its block (its nearest p or li) among the buttons'
+# blocks, aria-expanded, aria-controls]; each box (class partition or derivation), as [the index of the button whose
+# aria-controls names it (null for none), whether it is inside a p, whether it shows]; and for each block, the indexes
+# of the buttons whose boxes come right after it, one after the other (null for a button without a block)
+PLACE = """() => {
+  const buttons = [...document.querySelectorAll('code[id], [data-join], [data-construction]')];
+  const blocks = [...new Set(buttons.map(b => b.closest('p, li')))];
+  const owner = new Map(buttons.map((b, i) => [document.getElementById(b.getAttribute('aria-controls')), i]));
+  owner.delete(null);
+  const after = bl => { const out = []; for (let x = bl.nextElementSibling; owner.has(x); x = x.nextElementSibling) out.push(owner.get(x)); return out; };
+  return {buttons: buttons.map(b => [b.tagName, b.id || b.dataset.join || b.dataset.construction, blocks.indexOf(b.closest('p, li')),
+            b.getAttribute('aria-expanded'), b.getAttribute('aria-controls')]),
+          boxes: [...document.querySelectorAll('.partition, .derivation')].map(x => [owner.get(x) ?? null, !!x.closest('p'), x.checkVisibility()]),
+          after: blocks.map(bl => bl && after(bl))};
+}"""
 
 
-def drive(viewport, steps, text=None):
+def drive(viewport, steps, text=None, items=CODES_AND_JOINS):
     """DRIVER's report on a copy of index.html (or of text) in a temporary directory with page/, mstar.js, pow2.js and
     the page's icons beside it, in the viewport given (DESKTOP, PHONE): {'steps': each step's result, 'errors':
-    [(the number of steps done, a line logged)]}.  A step is [op, ...args] of DRIVER's OPS."""
+    [(the number of steps done, a line logged)]}.  A step is [op, ...args] of DRIVER's OPS; an op's item i is the i-th
+    element, in page order, that the selector items selects."""
     d = tempfile.mkdtemp(prefix='codes-quals-')
     try:
         open(os.path.join(d, 'index.html'), 'w', encoding='utf-8').write(qi.page() if text is None else text)
         qi.copy_page_dir(d)
         for f in ('mstar.js', 'pow2.js') + qp.ICONS: shutil.copy(os.path.join(HERE, f), d)
-        cfg = viewport | dict(chrome=qi.CHROME, dir=d, url='file://' + os.path.join(d, 'index.html'), steps=steps)
+        cfg = viewport | dict(chrome=qi.CHROME, dir=d, url='file://' + os.path.join(d, 'index.html'), steps=steps,
+                              items=items)
         p = subprocess.run(['node', '--input-type=module', '-e', DRIVER], input=json.dumps(cfg), capture_output=True,
                            text=True, timeout=600)
         path = os.path.join(d, 'report.json')
@@ -348,7 +376,10 @@ def run(name):
     order: the page with WRONG_ORDER for FIRST, clicked and read.
     length: the page with WRONG_LENGTH for FIRST, as loaded.
     joinorder: the page with JOIN_ORDER for the join, clicked and read.
-    missing: the page with MISSING for the join, as loaded."""
+    missing: the page with MISSING for the join, as loaded.
+    placed: 1280 px wide; every button of the page (BUTTONS: codes, joins and constructions) clicked once, from the last
+           to the first; then PLACE.
+    forward: the same, the buttons clicked from the first to the last."""
     if name not in RUNS:
         page, big = [key for key, *_ in items()], largest()
         keys = [['tabTo', 'code[id], [data-join]', 400]] + [s for k in ('Enter', 'Enter', 'Space', 'Space')
@@ -365,9 +396,18 @@ def run(name):
             'joinorder': lambda: (DESKTOP, [['load'], ['look'], ['click', page.index('192:9 336:9')],
                                             ['read', page.index('192:9 336:9')]], changed_join(JOIN_ORDER)),
             'missing': lambda: (DESKTOP, [['load'], ['look']], changed_join(MISSING)),
+            'placed': lambda: (DESKTOP, [['load']] + [['click', i] for i in reversed(range(buttons()))] + [['js', PLACE]],
+                               None, BUTTONS),
+            'forward': lambda: (DESKTOP, [['load']] + [['click', i] for i in range(buttons())] + [['js', PLACE]],
+                                None, BUTTONS),
         }[name]()
-        RUNS[name] = drive(steps[0], steps[1], steps[2])
+        RUNS[name] = drive(*steps)
     return RUNS[name]
+
+
+def buttons():
+    """How many buttons index.html has outside its comments: codes with ids, joins and constructions."""
+    return len(re.findall(r'<code id="|<span data-join="|<span data-construction="', qi.blank_comments(qi.page())))
 
 
 def shown(R):
@@ -587,6 +627,49 @@ def q_no_bipartition_outside_expandable_elements():
            + [('join', j) for j in scan['joins'] if j[1:] != ['button', 'false']]
            + [('run', r) for r in scan['runs'] if r >= shortest])
     assert scan['hex'] and bad == [], (len(scan['hex']), shortest, bad)
+
+
+def q_boxes_open_after_their_blocks():
+    # Replicata: the placed and forward runs: every code, join and construction of the page clicked once, from the last
+    # to the first and from the first to the last, so that each opens its box; then each button's block (its nearest p
+    # or li), the element its aria-controls names, and the elements right after each block (PLACE).
+    # Expectata (the coordinator, 2026-10-31, from the shot of the 2^17 entry with its derivation open: "an expansion
+    # opens right after the block element (the nearest p or li ancestor) that holds its button, never inside running
+    # text"): every button has a block, is expanded and names a box with aria-controls; every box is a button's, shows,
+    # and is inside no p; and right after each block come exactly the boxes of its buttons, in their order, so that each
+    # box's previous sibling is its button's block or the box of an earlier button of that block; nothing is logged.
+    # Resultata before: a box opened right after its button, inside the button's block: in a sentence, the 2^17 entry's
+    # derivation left ", a join of two products ..." below it, as the 416 proof's codes left its quote and period; and no
+    # button had aria-controls.
+    for name in ('placed', 'forward'):
+        R = run(name)
+        assert R['errors'] == [], (name, R['errors'][:5])
+        scan = R['steps'][-1]
+        bad = [b for b in scan['buttons'] if b[3] != 'true' or not b[4]]
+        assert scan['buttons'] and bad == [], (name, len(scan['buttons']), bad[:5])
+        assert all(owner is not None and not inside and shows for owner, inside, shows in scan['boxes']), (name, scan['boxes'][:5])
+        assert sorted(owner for owner, *_ in scan['boxes']) == list(range(len(scan['buttons']))), (name, len(scan['boxes']))
+        want = [[i for i, b in enumerate(scan['buttons']) if b[2] == k] for k in range(len(scan['after']))]
+        assert scan['after'] == want, (name, [(k, got, w) for k, (got, w) in enumerate(zip(scan['after'], want)) if got != w][:5])
+
+
+def q_boxes_of_one_block_keep_their_buttons_order():
+    # Replicata: the placed and forward runs (every button clicked once, from the last to the first, so that in a block
+    # with two buttons the second opened first, and from the first to the last), their blocks with more than one
+    # button: the 448 entry's code block (the
+    # construction of its label, p448 = p112 # τ2, and the code 448:9), the 528 entry's (the join p192 ∨ q336 and the
+    # code 192:9) and the 2^24 entry's (the codes 112:7 and 48:6).
+    # Expectata (the coordinator, 2026-10-31: "both boxes go after the block, in button order whatever the click
+    # order"): right after each of these blocks, the boxes of its two buttons, the first button's first.
+    # Resultata before: each box opened right after its own button, inside the block, so that the first code's
+    # partition stood between the two codes of the 2^24 entry.
+    for name in ('placed', 'forward'):
+        scan = run(name)['steps'][-1]
+        keys = [(tag, key) for tag, key, *_ in scan['buttons']]
+        blocks = [[keys[i] for i in range(len(keys)) if scan['buttons'][i][2] == k] for k in range(len(scan['after']))]
+        several = [(b, [keys[i] for i in after]) for b, after in zip(blocks, scan['after']) if len(b) > 1]
+        assert several == [(b, b) for b in ([('SPAN', '448:9'), ('CODE', '448:9')], [('SPAN', '192:9 336:9'), ('CODE', '192:9')],
+                                            [('CODE', '112:7'), ('CODE', '48:6')])], (name, several)
 
 
 def main():

@@ -11,19 +11,23 @@ from itertools import combinations, accumulate
 from math import comb, gcd, prod
 import hashlib
 import json
+from pathlib import Path
 import random
+import sys
 import time
 
 import numpy as np
 import sympy as sp
 from fpylll import (IntegerMatrix, LLL, BKZ, GSO, Enumeration, EnumerationError,
                    EvaluatorStrategy, FPLLL)
+ROOT = Path(__file__).resolve().parents[2]   # the repository's root, above searches/search592/ ([FAC] stage 3a)
+sys.path[:0] = [str(ROOT), str(ROOT / 'searches' / 'join720')]   # for join720, lattice288 and overnight_v5
 from join720 import recenter, working_precision
 from lattice288 import valid
 from overnight_v5 import gbinom
 
 SHAPE = (.3, 1.5, 1.)
-SOURCES = ('search592_geometry.py', 'join720.py', 'lattice288.py',
+SOURCES = ('searches/search592/search592_geometry.py', 'searches/join720/join720.py', 'lattice288.py',
            'overnight_v5.py', 'mstar.py', 'certbb.py', 'width.py')
 
 

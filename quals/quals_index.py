@@ -1536,7 +1536,7 @@ def q_2_18_shows_its_construction():
     li = re.search(r'<p class="entry">\\\(n = 2\^\{18\}\\\): .*?</li>', page(), re.S).group(0)
     assert '\\((p_{320} \\mathbin{\\#} p_{560}) \\vee (p_{48} \\mathbin{\\#} p_{432} \\mathbin{\\#} \\tau_2)\\)' in unlink(li), li
     assert 'certificate_2%5E18.wl"' in li, li
-    wl = open(os.path.join(HERE, 'certificate_2^18.wl'), encoding='utf-8').read()
+    wl = open(os.path.join(HERE, 'proofs', 'certificate_2^18.wl'), encoding='utf-8').read()   # proofs/: [FAC] 3a
     codes = re.findall(r'(p\d+) = fromHex\["([0-9A-F]+)", \d+\];', wl)
     assert [k for k, _ in codes] == ['p320', 'p560', 'p432', 'p48'], codes
     assert all(re.search(rf'<code id="\d+:\d+">{h}</code>', page()) for _, h in codes), codes
@@ -1552,7 +1552,7 @@ def q_2_17_shows_its_construction():
     li = re.search(r'<p class="entry">\\\(n = 2\^\{17\}\\\): .*?</li>', page(), re.S).group(0)
     assert '\\((p_{112} \\mathbin{\\#} p_{800}) \\vee (p_{48} \\mathbin{\\#} p_{432} \\mathbin{\\#} \\tau_1)\\)' in unlink(li), li
     assert 'certificate_2%5E17.wl"' in li, li
-    wl = open(os.path.join(HERE, 'certificate_2^17.wl'), encoding='utf-8').read()
+    wl = open(os.path.join(HERE, 'proofs', 'certificate_2^17.wl'), encoding='utf-8').read()   # proofs/: [FAC] 3a
     codes = re.findall(r'(p\d+) = fromHex\["([0-9A-F]+)", \d+\];', wl)
     assert [k for k, _ in codes] == ['p112', 'p800', 'p48', 'p432'], codes
     assert all(re.search(rf'<code id="\d+:\d+">{h}</code>', page()) for _, h in codes), codes
@@ -1732,9 +1732,9 @@ def q_752_bound_cites_proof752():
     li = re.search(r'<p class="entry">\\\(n = 752\\\): &nbsp;\\\(m\^\* = 10\\\)</p>\n(.*?)\n    </li>',
                    page(), re.S)
     assert li, 'no entry for 752 alone'
-    assert 'href="https://github.com/dreeves/equipow/blob/main/proof752.py"' in li.group(1), li.group(1)[:600]
+    assert 'href="https://github.com/dreeves/equipow/blob/main/proofs/proof752.py"' in li.group(1), li.group(1)[:600]
     assert mstar_data()['cols'][752 - 1] == [10, 10, ['example', 'equipow p752'], ['page', 'Claude and Astra']]
-    assert os.path.isfile(os.path.join(HERE, 'proof752.py'))
+    assert os.path.isfile(os.path.join(HERE, 'proofs', 'proof752.py'))       # in proofs/ since [FAC] stage 3a
 
 
 def q_288_bound_is_proved_here():
@@ -1752,12 +1752,12 @@ def q_288_bound_is_proved_here():
     assert 'proof288' not in fig, fig[:600]
     li = re.search(r'<li>\n      <span class="mk" aria-hidden="true"></span>\n      <p class="entry">\\\(n = 288\\\): &nbsp;'
                    r'\\\(m\^\* \\in \\\{9, 10\\\}\\\)</p>\n(.*?)\n    </li>', text, re.S)
-    assert li and 'href="https://github.com/dreeves/equipow/blob/main/proof288.py"' in li.group(1), li and li.group(1)
+    assert li and 'href="https://github.com/dreeves/equipow/blob/main/proofs/proof288.py"' in li.group(1), li and li.group(1)
     listed = re.findall(r'<p class="entry">\\\(n = (.*?)\\\): ', text)
     assert listed[listed.index('288') - 1:listed.index('288') + 2] == ['240', '288', '304'], listed
     col = mstar_data()['cols'][288 - 1]
     assert col[:2] == [9, 10] and col[3] == ['table2'], col
-    assert os.path.isfile(os.path.join(HERE, 'proof288.py'))
+    assert os.path.isfile(os.path.join(HERE, 'proofs', 'proof288.py'))       # in proofs/ since [FAC] stage 3a
 
 
 def q_examples_of_2026_10_26_have_entries_and_codes():
@@ -2275,7 +2275,8 @@ def q_quotes_of_claude_and_astra_are_curly():
 # hovertext, we could just say "equipow p320" instead of "index.html p320".")
 
 # The names in the page's math of sequences whose codes the page does not show, so that a name there has no code to link
-# to: BGPW's example of order 10 at 240 (the published paper's Table 5), a factor of 2^20's construction.
+# to: BGPW's example of order 10 at 240 (the published paper's Table 5), a factor of 2^20's construction.  Since
+# 2026-10-31 each is a part of a construction (data-construction), whose derivation cites mstar.js's source of it.
 OFF_PAGE = ('p_{240}',)
 
 
@@ -2311,11 +2312,15 @@ def q_codes_are_anchors_and_names_link_to_them():
     # length and M its order, the ids distinct; a name in a code's own block with that code's length is the code's own
     # name (p_{448} in its label, p_{192} in its and in the join beside it); a name inside a join of codes (<span
     # data-join="IDS">, since 2026-10-31: a button, which holds no link) stands for the code that IDS lists at its
-    # place, and is that code's own name; and every other name is \href{#N:M}{name}, a link to the one
-    # code whose own names include it, or else one of OFF_PAGE, which no code carries; every \href of the page is such a
-    # link; and in the light run each is an <a> that KaTeX drew, to the <code> of its id, and KaTeX drew no command in
-    # its error color (an \href it does not trust, it draws as its name in red).
-    # Resultata before: no code had an id, and no name was a link.
+    # place, and is that code's own name; a name p_{N} inside a construction (<span data-construction="N:M">, since
+    # 2026-10-31: a button too, whose derivation's rows link to the codes instead, which quals_derivations'
+    # q_leaves_resolve checks) stands for the best known sequence of length N, the code N:L with L mstar.js's lower
+    # bound at N, and is that code's own name, or else it is one of OFF_PAGE, which no code carries, each of which is
+    # such a part; every other name is \href{#N:M}{name}, a link to the one code whose own names include it; every
+    # \href of the page is such a link; and in the light run each is an <a> that KaTeX drew, to the <code> of its id,
+    # and KaTeX drew no command in its error color (an \href it does not trust, it draws as its name in red).
+    # Resultata before: no code had an id, and no name was a link.  Then (2026-10-31, the constructions made buttons,
+    # their names no longer links) this qual, which knew no constructions, found 9 names unlinked besides OFF_PAGE's.
     text = blank_comments(page())
     codes = page_codes(text)
     ids = [f'{n}:{m}' for _, _, n, m, _, _ in codes]
@@ -2334,10 +2339,17 @@ def q_codes_are_anchors_and_names_link_to_them():
         assert len(inside) == len(x.group(1).split(' ')), (inside, x.group(1))
         parts.update(zip(inside, x.group(1).split(' ')))
     assert [(name, parts[i]) for i, name, n in names if i in parts and owners.get(name) != {parts[i]}] == [], parts
-    others = [(i, name) for i, name, n in names if not own(i, n) and i not in parts]
+    cols = mstar_data()['cols']
+    built = {}                                                              # a name inside a construction: the id it stands for
+    for x in re.finditer(r'<span data-construction="[^"]*">(.*?)</span>', text, re.S):
+        built.update((i, f'{n}:{cols[n - 1][0]}') for i, name, n in names if x.start(1) <= i < x.end(1) and not own(i, n))
+    assert [(name, built[i]) for i, name, n in names if i in built and owners.get(name, set()) != {built[i]}
+            and not (name in OFF_PAGE and name not in owners)] == [], built
+    assert sorted({name for i, name, n in names if i in built and name in OFF_PAGE}) == sorted(OFF_PAGE), built
+    others = [(i, name) for i, name, n in names if not own(i, n) and i not in parts and i not in built]
     assert text.count('\\href') == len(links) == sum(i in links for i, _ in others), (text.count('\\href'), len(links))
     unlinked = sorted({name for i, name in others if i not in links})
-    assert unlinked == sorted(OFF_PAGE) and not owners.keys() & set(OFF_PAGE), unlinked
+    assert unlinked == [] and not owners.keys() & set(OFF_PAGE), unlinked
     bad = [(name, links[i]) for i, name in others if i in links and (links[i][1] != name or owners.get(name) != {links[i][0]})]
     assert bad == [], bad
     R = valid_run('light')

@@ -13,6 +13,8 @@ import unittest
 from unittest.mock import call, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))   # the repository's root, for its modules
+# search592.py's directory, since [FAC] stage 3a (2026-10-31)
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'searches' / 'search592'))
 import overnight_v5 as ov
 
 

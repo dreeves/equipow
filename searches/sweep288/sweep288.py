@@ -16,6 +16,8 @@ import subprocess
 import sys
 import time
 
+ROOT = Path(__file__).resolve().parents[2]   # the repository's root, above searches/sweep288/ ([FAC] stage 3a)
+sys.path[:0] = [str(ROOT), str(ROOT / 'searches' / 'pruning288'), str(ROOT / 'searches' / 'search288')]
 import overnight_v5 as ov
 import pruning288_geometry as G
 import search288 as prior
@@ -23,16 +25,15 @@ import target288
 from lattice288 import valid
 
 
-ROOT = Path(__file__).resolve().parent
 WORK = ROOT / 'scratch' / 'sweep288'
-JOURNAL = ROOT / 'sweep288_journal.jsonl'
+JOURNAL = ROOT / 'searches' / 'sweep288' / 'sweep288_journal.jsonl'
 TOTAL, SECONDS, WIDTH = 2736, 30, .1
 QUESTIONS = dict(calibration=(240, 10), search=(288, 10))
-SOURCES = ('sweep288.py', 'pruning288_geometry.py') + prior.SOURCES
+SOURCES = ('searches/sweep288/sweep288.py', 'searches/pruning288/pruning288_geometry.py') + prior.SOURCES
 CODE = hashlib.sha256(b''.join((ROOT/name).read_bytes() for name in SOURCES)).hexdigest()
-INPUT_PATHS = ('search288_journal.jsonl', 'scratch/search288/calibration.json',
+INPUT_PATHS = ('searches/search288/search288_journal.jsonl', 'scratch/search288/calibration.json',
                'scratch/search288/search.json', '.lattice288_prepared.json',
-               'pruning288_journal.jsonl')
+               'searches/pruning288/pruning288_journal.jsonl')
 INPUT = {name: hashlib.sha256((ROOT/name).read_bytes()).hexdigest() for name in INPUT_PATHS}
 
 
@@ -239,7 +240,7 @@ def load_cases():
 
 
 def references():
-    rows = [json.loads(line) for line in (ROOT/'pruning288_journal.jsonl').read_text().splitlines()]
+    rows = [json.loads(line) for line in (ROOT/'searches/pruning288/pruning288_journal.jsonl').read_text().splitlines()]
     assert rows[-1]['event'] == 'finish' and rows[-1]['outcome'] == 'budget'
     kept = [r for r in rows if r['event'] == 'attempt_end' and r['phase'] == 'search' and r['width'] == WIDTH]
     assert len(kept) == 7 and {r['case'] for r in kept} == set(range(7))

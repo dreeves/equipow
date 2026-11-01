@@ -163,8 +163,10 @@ class AllocationProgressQuals(unittest.TestCase):
         # Expectata: the generated snapshot remains paused at ten active seconds.
         # Resultata before the fix: main never loaded the pause journal.
         with tempfile.TemporaryDirectory() as directory:
-            Path(directory, 'focus_480_journal.jsonl').write_text(''.join(json.dumps(r) + '\n' for r in initial()))
-            Path(directory, 'focus_480_pauses.jsonl').write_text(json.dumps(pause('pause', 110)) + '\n{"event":')
+            kept = Path(directory, 'searches', 'focus_480')       # 480:14's files' place since [FAC] stage 3a
+            kept.mkdir(parents=True)
+            Path(kept, 'focus_480_journal.jsonl').write_text(''.join(json.dumps(r) + '\n' for r in initial()))
+            Path(kept, 'focus_480_pauses.jsonl').write_text(json.dumps(pause('pause', 110)) + '\n{"event":')
             dest, cache = Path(directory, 'p.js'), Path(directory, 'c.json')
             with patch.multiple(progress, HERE=directory, RUNS=(), EXTENDED=(), JS=dest, CACHE=cache), \
                  patch.object(progress.os, 'nice', return_value=15), \

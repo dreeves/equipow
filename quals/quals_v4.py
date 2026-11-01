@@ -16,6 +16,10 @@ import numpy as np
 import sympy as sp
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # the repository's root, above quals/
 sys.path.insert(0, HERE)                                              # for its modules
+V4_DIR = os.path.join(HERE, 'searches', 'overnight_v4')    # overnight_v4.py's, since [FAC] stage 3a (2026-10-31)
+V3_DIR = os.path.join(HERE, 'searches', 'overnight_240')   # overnight_240_v3.py's and v2's, since [FAC] stage 3a
+sys.path.insert(0, V3_DIR)
+sys.path.insert(0, V4_DIR)
 import overnight_v4 as v4
 import overnight_240_v3 as v3
 from ortools.sat.python import cp_model
@@ -166,8 +170,8 @@ def q_configure():
     # next to overnight_v4.py; then AssertionError in configure.
     v4.configure(304, 9)
     assert (v4.N, v4.ORDER, (v4.CASCADE, v4.CUTS, v4.BUDGET)) == (304, 9, v4.SETTINGS[304, 9])
-    assert v4.JOURNAL == os.path.join(HERE, 'overnight_304_9_journal.jsonl')
-    assert v4.LOG == os.path.join(HERE, 'overnight_304_9.log')
+    assert v4.JOURNAL == os.path.join(V4_DIR, 'overnight_304_9_journal.jsonl')
+    assert v4.LOG == os.path.join(V4_DIR, 'overnight_304_9.log')
     expect_assertion(lambda: v4.configure(240, 12), 'configure')
 
 
@@ -210,10 +214,10 @@ def q_command_line():
     # Expectata: each exits at once with AssertionError (the usage message, then the missing settings), and
     # leaves no journal or log behind.
     for args, words in (([], 'usage'), (['240', '12'], 'no settings for N = 240, order 12')):
-        p = subprocess.run([sys.executable, '-B', os.path.join(HERE, 'overnight_v4.py')] + args,
+        p = subprocess.run([sys.executable, '-B', os.path.join(V4_DIR, 'overnight_v4.py')] + args,
                            capture_output=True, text=True, timeout=300)
         assert p.returncode != 0 and 'AssertionError' in p.stderr and words in p.stderr, p.stderr[-600:]
-    assert not any(os.path.exists(os.path.join(HERE, f)) for f in ('overnight_240_12_journal.jsonl', 'overnight_240_12.log'))
+    assert not any(os.path.exists(os.path.join(V4_DIR, f)) for f in ('overnight_240_12_journal.jsonl', 'overnight_240_12.log'))
 
 
 def q_v4_builds_v3_models_at_240_11():
@@ -927,7 +931,7 @@ def q_sigint_finishes_solve_and_records_nothing():
     # journal holds only its header line.
     d = tempfile.mkdtemp()
     path = os.path.join(d, 'j.jsonl')
-    code = (f"import sys; sys.dont_write_bytecode = True; sys.path.insert(0, {HERE!r})\n"
+    code = (f"import sys; sys.dont_write_bytecode = True; sys.path.insert(0, {V4_DIR!r})\n"
             f"import overnight_v4 as v4\n"
             f"if __name__ == '__main__':\n"
             f"    v4.configure(240, 11)\n"
@@ -1000,7 +1004,7 @@ def end_to_end(n, order):
     for path in (journal, log):
         if os.path.exists(path): os.remove(path)
     script = os.path.join(RUNS, f'drive_{n}_{order}.py')
-    open(script, 'w').write(DRIVER.format(here=HERE, n=n, order=order, journal=journal, log=log))
+    open(script, 'w').write(DRIVER.format(here=V4_DIR, n=n, order=order, journal=journal, log=log))
     texts = []
     for _ in range(2):
         p = subprocess.run([sys.executable, '-B', script], capture_output=True, text=True, timeout=3600)

@@ -17,8 +17,8 @@ import numpy as np
 
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # the repository's root, above quals/
 INDEX = os.path.join(HERE, 'index.html')
-WL = os.path.join(HERE, 'lattice_search.wl')
-WL_URL = 'https://raw.githubusercontent.com/dreeves/equipow/main/lattice_search.wl'
+WL = os.path.join(HERE, 'proofs', 'lattice_search.wl')    # in proofs/ since [FAC] stage 3a (2026-10-31)
+WL_URL = 'https://raw.githubusercontent.com/dreeves/equipow/main/proofs/lattice_search.wl'
 # The calls the section lists, in its order, with what each returns: (call, number of sequences, complete).  Why each
 # is right:
 #   6, 2, 0: order 2 needs 4 | n; here the equations already have no integer solution (with a = 2y - 1 they ask that

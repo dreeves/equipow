@@ -26,10 +26,12 @@ Usage: nice -n 19 python3 -B migrate_journals.py JOURNAL [JOURNAL ...]     (path
        quals: nice -n 19 python3 -B quals_width.py q_migration_script q_migration_alive_sees_this_process
 """
 import os, sys, re, json, shutil, subprocess
+# the repository's root, above searches/overnight_v5_240_11/ ([FAC] stage 3a), and so its modules
+HERE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, HERE)
 import overnight_v5 as v5
 import boxsplit as bx
 
-HERE = os.path.dirname(os.path.abspath(__file__))
 KEPT = os.path.join(HERE, 'scratch', 'width')          # where the copies go, as <name>.code_<old code>.jsonl
 PROBE = 3                                              # the LP solves of the probe: the root solve and a cut's two sides
 WATCHER = r'progress\.py --watch$'                     # the page watcher's command line

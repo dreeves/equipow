@@ -236,27 +236,39 @@ code {
   color: var(--ink);
   overflow-wrap: anywhere;
 }
-/* A code's anchor (2026-10-31, [IND]): a link to it scrolls its label into view too, the lines above it in its block */
-.code code[id] { scroll-margin-top: 6rem; }
+/* A code's anchor (2026-10-31, [IND]): a link to it scrolls its label into view too, the lines above it in its block;
+   and a construction's, which the derivations that name it link to, the lines above it */
+.code code[id], [data-construction][id] { scroll-margin-top: 6rem; }
 /* The codes and joins as buttons (2026-10-31, dreeves's [REO] item 2; page/codes.js marks each with aria-expanded): a
-   click shows its partition right below it, ruled at its left; each part's numbers wrap in a box four and a half lines
+   click shows its partition below it, after the block that holds it (page/codes.js), ruled at its left; each part's
+   numbers wrap in a box four and a half lines
    tall that scrolls, its cut line showing there is more; and the power sums, at the code block's size (not the page's
    17px for tables), the first part's over the second's in one column, so that equal sums line up digit for digit
    and wrap alike where the column is too narrow for them, as on a phone (side by side, they wrapped differently,
    and in a frame that scrolled sideways, = and ≠ were out of view there).  A partition has a code block's size, color
-   and ragged lines wherever it is, also under a code in a sentence (in the proof of m*(416) = 9).  A join, the page's
-   math, in the codes' ink, is ruled below, since an underline does not reach into KaTeX's boxes. */
+   and ragged lines wherever it is, also after a sentence (in the proof of m*(416) = 9).  A join, the page's
+   math, in the codes' ink, is ruled below, since an underline does not reach into KaTeX's boxes.  A construction, a
+   formula built with # and ∨, is a button too (2026-10-31), ruled as a join, and its derivation is framed as a
+   partition is. */
 code[aria-expanded] { cursor: pointer; text-decoration: underline dotted var(--muted); text-underline-offset: 0.2em; }
-[data-join][aria-expanded] { cursor: pointer; color: var(--ink); border-bottom: 1px dotted var(--muted); }
+[data-join][aria-expanded], [data-construction][aria-expanded] { cursor: pointer; color: var(--ink); border-bottom: 1px dotted var(--muted); }
 .code > [aria-expanded] { justify-self: start; }
-.partition { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.35rem; margin-block: 0.3rem 0.5rem; padding-left: 0.75rem; border-left: 1px solid var(--muted);
+.partition, .derivation { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.35rem; margin-block: 0.3rem 0.5rem; padding-left: 0.75rem; border-left: 1px solid var(--muted);
              font-size: 0.875rem; color: var(--muted); text-align: start; hyphens: manual; -webkit-hyphens: manual; }
-.partition[hidden] { display: none; }
+.partition[hidden], .derivation[hidden] { display: none; }
 .partition-part { max-height: 6.75em; overflow-y: auto; overflow-wrap: anywhere; }
 .partition-part [data-part], .power-sums td { font-family: var(--mono); font-size: 0.8125rem; color: var(--ink); }
 .power-sums { justify-self: start; border-collapse: collapse; font-size: inherit; line-height: 1.3; }
 .power-sums th { font-weight: 400; text-align: end; white-space: nowrap; padding-inline: 0.25rem; }
 .power-sums td { text-align: end; overflow-wrap: anywhere; padding-inline: 0.25rem; }
+/* A derivation's steps (2026-10-31): each step's formula at the left, then its length n and its order m, each with the
+   arithmetic that gives it, at the right, so that the results line up; the bound below them */
+.derivation-steps { justify-self: start; border-collapse: collapse; font-size: inherit; line-height: 1.3; }
+.derivation-steps th { font-weight: 400; text-align: start; padding-inline: 0 0.5rem; color: var(--ink); }
+.derivation-steps thead th { text-align: end; color: var(--muted); }
+.derivation-steps td { text-align: end; padding-inline: 0.5rem 0; color: var(--ink); }
+.derivation-steps a { text-underline-offset: 0.45em; }      /* below a name's subscript, as KaTeX underlines its links */
+[data-bound] { color: var(--ink); }
 
 /* The section on partitions at powers of 2 */
 .counts { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; max-width: var(--measure); }

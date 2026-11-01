@@ -12,7 +12,8 @@ import sys
 import time
 
 
-HERE = Path(__file__).resolve().parent
+HERE = Path(__file__).resolve().parents[2]   # the repository's root, above searches/fanout_672/ ([FAC] stage 3a)
+sys.path.insert(0, str(HERE))                # for the modules main imports
 LEASE = HERE / 'scratch/search288/lease.py'
 assert hashlib.sha256(LEASE.read_bytes()).hexdigest() == '15081e570df339105a52600e63c7adcf814b8aea09cc5c52d31308bd153df285'
 spec = importlib.util.spec_from_file_location('qualified_lease', LEASE)
@@ -110,7 +111,7 @@ def main():
         with open(HERE / 'scratch/allocate672/lease.json', 'x') as record:
             json.dump(dict(pid=os.getpid(), time=time.time(), intent=intent), record, indent=2)
         return run(intent['pid'], (intent['start'], intent['command']), intent['child'],
-                   HERE / 'focus_480_pauses.jsonl')
+                   HERE / 'searches' / 'focus_480' / 'focus_480_pauses.jsonl')
 
 
 if __name__ == '__main__':

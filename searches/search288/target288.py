@@ -9,14 +9,16 @@ from hashlib import sha256
 import json
 from math import lcm
 from pathlib import Path
+import sys
 
 import numpy as np
 import sympy as sp
 
+ROOT = Path(__file__).resolve().parents[2]   # the repository's root, above searches/search288/ ([FAC] stage 3a)
+sys.path.insert(0, str(ROOT))                # for lattice288
 import lattice288
 
 
-ROOT = Path(__file__).resolve().parent
 PREPARED = ROOT / '.lattice288_prepared.json'
 SOURCES = ('lattice288.py', 'overnight_v5.py', 'certbb.py')
 

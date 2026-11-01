@@ -12,6 +12,8 @@ from unittest.mock import patch
 
 import sympy as sp
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))   # the repository's root, for its modules
+# search592_geometry.py's directory, since [FAC] stage 3a (2026-10-31)
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'searches' / 'search592'))
 import search592_geometry as G
 
 

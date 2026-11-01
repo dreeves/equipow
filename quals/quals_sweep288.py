@@ -13,6 +13,8 @@ import unittest
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))   # the repository's root, for its modules
+# sweep288.py's directory, since [FAC] stage 3a (2026-10-31)
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'searches' / 'sweep288'))
 import sweep288 as S
 
 
@@ -142,7 +144,7 @@ class WorkerQuals(unittest.TestCase):
 
     def script(self, body):
         path = self.work/'child.py'
-        path.write_text('import sys\nfrom pathlib import Path\nsys.path.insert(0, '+repr(str(S.ROOT))+')\n'+body)
+        path.write_text('import sys\nfrom pathlib import Path\nsys.path.insert(0, '+repr(str(Path(S.__file__).parent))+')\n'+body)
         return [sys.executable, '-B', str(path)]
 
     def test_two_real_tiny_jobs_reuse_the_same_worker(self):

@@ -699,10 +699,17 @@ def as_code(journal):
     finally: v5.CODE = saved
 
 
+def finished(n, order):
+    """The journal and log of overnight_v5's finished run (n, order), as it named them, in the run's directory under
+    searches/, where they are since [FAC] stage 3a (2026-10-31); overnight_v5.configure names them in the root."""
+    d = os.path.join(HERE, 'searches', f'overnight_v5_{n}_{order}')
+    return os.path.join(d, f'overnight_v5_{n}_{order}_journal.jsonl'), os.path.join(d, f'overnight_v5_{n}_{order}.log')
+
+
 def as_written(n, order):
     """overnight_v5 configured for (n, order), as_code its run's journal (304@9's header keeps the code its run had)."""
     v5.configure(n, order)
-    return as_code(v5.JOURNAL)
+    return as_code(finished(n, order)[0])
 
 
 def live(n, order):
@@ -711,7 +718,7 @@ def live(n, order):
     if (n, order) not in LIVE:
         with as_written(n, order):
             cache = progress.load_cache(progress.CACHE)[f'{n}_{order}_{v5.CODE}']
-            LIVE[n, order] = (progress.read_run(v5.JOURNAL, v5.LOG), cache)
+            LIVE[n, order] = (progress.read_run(*finished(n, order)), cache)
     return LIVE[n, order]
 
 
@@ -990,7 +997,7 @@ def pass2():
     if not PASS2:
         with as_written(240, 11):
             t = progress.stamp(PASS2_AT)
-            now = progress.read_run(v5.JOURNAL, v5.LOG)
+            now = progress.read_run(*finished(240, 11))
             lines = bisect.bisect_right(now['stamps'], t)
             d = tempfile.mkdtemp(prefix='progress-quals-')
             journal, log = os.path.join(d, 'journal.jsonl'), os.path.join(d, 'run.log')
@@ -2961,7 +2968,8 @@ def q_box_survey_of_240_at_11_renders():
     # Expectata (2026-10-30): ended, outcome ALL 606 LEAVES CLOSED, no estimate, 606 settled dots, the data file's run
     # entry with the fields of every run; at 10 h, running, an estimate with lo <= median <= hi, all finite.
     v5.configure(240, 11)
-    log, main = progress.box_files(240, 11)
+    main = finished(240, 11)[0]       # in searches/ since [FAC] stage 3a, beside its boxsplit log (box_files names the root)
+    log = os.path.join(os.path.dirname(main), 'overnight_v5_240_11_boxsplit.log')
     s = progress.survey_box(240, 11, log, main, [], time.time(), {})
     r, = progress_data(progress.js_text([s], time.time()))['runs']
     assert (r['program'], r['state'], r['to_go']) == ('boxsplit.py', 'ended', None), r
@@ -3161,16 +3169,53 @@ def q_main_reads_an_overnight_run_s_pauses():
     assert (run['program'], run['so_far']) == ('overnight_v5.py', second['last'] - second['start']), run
 
 
+def q_journals_of_finished_searches_are_found_in_searches():
+    # Replicata ([FAC] stage 3a, 2026-10-31: the finished searches' journals moved from the repository's root to
+    # searches/NAME/): a directory as HERE with a focus.py journal of 432:12 at its root, where a running search writes
+    # it, a focus.py journal of 480:14 with its pauses (one, resumed) in searches/focus_480/ and a fanout.py journal of
+    # 672:13 in searches/fanout_672/ (quals_focus_progress's initial(), for 432:12 under its header, and
+    # quals_fanout_progress's started()); journal_surveys' units, no process running.
+    # Expectata: a unit each, focus.py's by path (432:12's at the root first) then fanout.py's, each surveying its
+    # program, n and order; 480:14's pauses those of its file.
+    # Resultata before: headers looked in HERE alone, finding 432:12's journal only, and PAUSES named
+    # focus_480_pauses.jsonl in HERE.
+    import quals_focus_progress, quals_fanout_progress
+    focus = quals_focus_progress.initial()
+    journals = {'focus_432_journal.jsonl': [dict(focus[0], n=432, order=12)] + focus[1:],
+                os.path.join('searches', 'focus_480', 'focus_480_journal.jsonl'): focus,
+                os.path.join('searches', 'fanout_672', 'fanout_672_journal.jsonl'): quals_fanout_progress.started()}
+    pause = dict(pid=123, start='Thu Oct 22 12:00:00 2026', command='/opt/homebrew/bin/python3 -B focus.py 480')
+    d = tempfile.mkdtemp(prefix='progress-quals-')
+    saved = progress.HERE
+    try:
+        for name, records in journals.items():
+            os.makedirs(os.path.dirname(os.path.join(d, name)), exist_ok=True)
+            open(os.path.join(d, name), 'w').write(''.join(json.dumps(r) + '\n' for r in records))
+        open(os.path.join(d, 'searches', 'focus_480', 'focus_480_pauses.jsonl'), 'w').write(
+            ''.join(json.dumps(dict(pause, event=e, time=t)) + '\n' for e, t in (('pause', 102), ('resume', 104))))
+        progress.HERE = d
+        units = progress.journal_surveys([], 200, {}, {}, {})
+        identities = [identity for identity, _ in units]
+        assert identities == [('focus.py', 432, 12), ('focus.py', 480, 14), ('fanout.py', 672, 13)], identities
+        surveys = [s for _, thunk in units for s in thunk()]
+        assert [(s['program'], s['n'], s['order']) for s in surveys] == identities, surveys
+        assert progress.pauses_of(('focus.py', 480, 14)) == [(102, 104)], progress.pauses_of(('focus.py', 480, 14))
+    finally:
+        progress.HERE = saved
+        shutil.rmtree(d)
+
+
 def q_pauses_table_names_each_paused_run_s_records():
     # Replicata: progress.PAUSES, the table of runs and where their pauses are recorded.
     # Expectata (2026-10-30): 480:14's focus.py run, 432:12's fanout.py run and 288@10's overnight_v5.py run, each
-    # with one source: focus_480_pauses.jsonl, scratch/wish2 (pause432.py's records) and scratch/x288/pauses.jsonl;
+    # with one source: focus_480_pauses.jsonl (in searches/focus_480/ since [FAC] stage 3a, 2026-10-31), scratch/wish2
+    # (pause432.py's records) and scratch/x288/pauses.jsonl;
     # and (2026-10-31, scratch/ready288-20261031) 288@10's boxsplit.py run, a step of the same chain, stopped and
     # continued with its process group, so with the overnight run's source; each a file or directory that exists here,
     # which its reader reads without failing, in order.
     x288 = os.path.join('scratch', 'x288', 'pauses.jsonl')
     assert {k: [path for path, _ in v] for k, v in progress.PAUSES.items()} == {
-        ('focus.py', 480, 14): ['focus_480_pauses.jsonl'],
+        ('focus.py', 480, 14): [os.path.join('searches', 'focus_480', 'focus_480_pauses.jsonl')],
         ('fanout.py', 432, 12): [os.path.join('scratch', 'wish2')],
         ('overnight_v5.py', 288, 10): [x288], ('boxsplit.py', 288, 10): [x288]}, progress.PAUSES
     for identity in progress.PAUSES:

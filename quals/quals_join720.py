@@ -12,6 +12,8 @@ import unittest
 from unittest.mock import patch
 import sympy as sp
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))   # the repository's root, for its modules
+# join720.py's directory, since [FAC] stage 3a (2026-10-31)
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'searches' / 'join720'))
 import mstar
 import join720 as J
 

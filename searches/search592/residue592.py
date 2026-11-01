@@ -16,8 +16,11 @@ The exact inputs and derivation status are in scratch/search592/derivation.json.
 Neither profile uses any coordinates from a known witness.
 """
 from math import comb
+from pathlib import Path
+import sys
 
 import sympy as sp
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))   # the repository's root, for mstar ([FAC] stage 3a)
 import mstar
 
 

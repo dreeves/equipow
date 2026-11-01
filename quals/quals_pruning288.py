@@ -13,6 +13,8 @@ import unittest
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))   # the repository's root, for its modules
+# pruning288.py's directory, since [FAC] stage 3a (2026-10-31)
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'searches' / 'pruning288'))
 import overnight_v5 as ov
 import pruning288 as P
 

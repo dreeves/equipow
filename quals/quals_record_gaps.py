@@ -17,8 +17,8 @@ import quals_pow2_page as qp               # read only: kinds_cols and kinds_dat
 
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # the repository's root, above quals/
 INDEX = os.path.join(HERE, 'index.html')
-WL = os.path.join(HERE, 'record_gaps.wl')
-WL_URL = 'https://raw.githubusercontent.com/dreeves/equipow/main/record_gaps.wl'
+WL = os.path.join(HERE, 'proofs', 'record_gaps.wl')       # in proofs/ since [FAC] stage 3a (2026-10-31)
+WL_URL = 'https://raw.githubusercontent.com/dreeves/equipow/main/proofs/record_gaps.wl'
 POW2_JS = os.path.join(HERE, 'pow2.js')
 HEADER = ['Record gaps', 'The power of 2', 'The order']        # Stan Wagon's, which record_gaps.wl's table heads
 THEOREM_KS = [10, 20, 29, 37, 39, 48, 57, 65, 68]              # the theorem's alternative form on index.html

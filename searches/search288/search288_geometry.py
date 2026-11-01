@@ -5,11 +5,15 @@ Fixed coordinates are JSON-safe [position, sign] pairs in the first half.
 An empty attempt discards possible solutions and establishes no exclusion.
 """
 from math import gcd
+from pathlib import Path
 import random
+import sys
 
 from fpylll import (IntegerMatrix, LLL, BKZ, Enumeration, EnumerationError,
                    EvaluatorStrategy, FPLLL)
 import sympy as sp
+ROOT = Path(__file__).resolve().parents[2]   # the repository's root, above searches/search288/ ([FAC] stage 3a)
+sys.path[:0] = [str(ROOT), str(ROOT / 'searches' / 'join720')]   # for mstar, overnight_v5, lattice288, join720
 import mstar
 import overnight_v5 as ov
 from lattice288 import IntegerSystem, moment_rows, count_rows, valid

@@ -711,7 +711,7 @@ def q_section_follows_mstar_chart():
              r'<button type="button" id="pow2-zoom-out" ', r'<button type="button" id="pow2-zoom-in" ',
              r'<button type="button" id="pow2-reset" ',
              r"<div id=\"pow2-chart\" tabindex=\"0\" role=\"img\" aria-label='[^']+'></div>", r'<p id="pow2-readout" aria-live="polite">',
-             r'<p><b>Theorem\.</b>', r'href="https://raw\.githubusercontent\.com/dreeves/equipow/main/record_gaps\.wl"',
+             r'<p><b>Theorem\.</b>', r'href="https://raw\.githubusercontent\.com/dreeves/equipow/main/proofs/record_gaps\.wl"',
              r'<div class="scroll">', r'<table class="pow2-gaps" data-record-gaps>']
     assert re.search('.*?'.join(parts), s.group(1), re.S), s.group(1)
 

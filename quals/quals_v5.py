@@ -18,6 +18,8 @@ import numpy as np
 import sympy as sp
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # the repository's root, above quals/
 sys.path.insert(0, HERE)                                              # for its modules
+# overnight_v4.py's and overnight_240_v3.py's directories, since [FAC] stage 3a (2026-10-31)
+sys.path[:0] = [os.path.join(HERE, 'searches', d) for d in ('overnight_v4', 'overnight_240')]
 import overnight_v5 as v5
 import certbb
 import overnight_v4 as v4
@@ -34,7 +36,7 @@ C2 = TOP4 + ((8, ((21, 17, 17, 21, 9, 13, 13, 9),)), (11, ((11,) * 9 + (5, 16),)
 EXAMPLE = v5.from_hex(v5.EXAMPLES[240, 10], 10)
 SIGNS_12_3 = '+-+---+++-+-'                   # order 3, f(-1) = 8: found by CP-SAT for these quals
 V4_CUTS = (27, 25, 32, 11, 13)                # overnight_v4's cut moduli at 240@11 and 304@9, kept here as test moduli
-V3_JOURNAL = os.path.join(HERE, 'overnight_240_v3_journal.jsonl')      # read only
+V3_JOURNAL = os.path.join(HERE, 'searches', 'overnight_240', 'overnight_240_v3_journal.jsonl')      # read only
 BIG = 10 ** 9                                 # an LP-solve limit no qual's solve reaches
 
 

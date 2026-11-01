@@ -17,22 +17,24 @@ import subprocess
 import sys
 import time
 
+ROOT = Path(__file__).resolve().parents[2]   # the repository's root, above searches/pruning288/ ([FAC] stage 3a)
+sys.path[:0] = [str(ROOT), str(ROOT / 'searches' / 'search288')]   # for progress, lattice288 and search288
 import progress
 import pruning288_geometry as G
 import search288 as S
 from lattice288 import atomic_json, valid
 
 
-ROOT = Path(__file__).resolve().parent
 WORK = ROOT / 'scratch' / 'pruning288'
-JOURNAL = ROOT / 'pruning288_journal.jsonl'
+JOURNAL = ROOT / 'searches' / 'pruning288' / 'pruning288_journal.jsonl'
 WIDTHS, SECONDS = (0, .1), 30
 INDICES = dict(calibration=[2], search=list(range(7)))
 SCHEDULE = {phase: [(case, width) for case in cases for width in WIDTHS]
             for phase, cases in INDICES.items()}
-SOURCES = ('pruning288.py', 'pruning288_geometry.py', 'progress.py') + S.SOURCES
+SOURCES = ('searches/pruning288/pruning288.py', 'searches/pruning288/pruning288_geometry.py',
+           'progress.py') + S.SOURCES
 CODE = hashlib.sha256(b''.join((ROOT / name).read_bytes() for name in SOURCES)).hexdigest()
-INPUT_PATHS = ('search288_journal.jsonl', 'scratch/search288/calibration.json',
+INPUT_PATHS = ('searches/search288/search288_journal.jsonl', 'scratch/search288/calibration.json',
                'scratch/search288/search.json', '.lattice288_prepared.json')
 INPUT = {name: hashlib.sha256((ROOT / name).read_bytes()).hexdigest() for name in INPUT_PATHS}
 

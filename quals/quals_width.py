@@ -19,6 +19,8 @@ import sympy as sp
 from scipy.optimize import linprog
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # the repository's root, above quals/
 sys.path.insert(0, HERE)                                              # for its modules
+# migrate_journals.py's directory, since [FAC] stage 3a (2026-10-31)
+sys.path.insert(0, os.path.join(HERE, 'searches', 'overnight_v5_240_11'))
 import overnight_v5 as v5
 import certbb
 import width
@@ -1055,7 +1057,7 @@ def q_migration_script():
                {'key': parent, 'verdict': 'CLOSED', 'budget': 10000}]
     texts = {'overnight_v5_240_11_journal.jsonl': json.dumps(v5.header() | {'code': FIRST_WIDTH_CODE}) + '\n' + ''.join(json.dumps(r) + '\n' for r in records)}
     for name, k in (('overnight_v5_304_9_journal.jsonl', 300), ('overnight_v5_304_9_boxsplit_journal.jsonl', 50)):
-        with open(os.path.join(HERE, name)) as fh:
+        with open(os.path.join(HERE, 'searches', 'overnight_v5_304_9', name)) as fh:   # [FAC] stage 3a
             texts[name] = ''.join(itertools.islice(fh, k))
     paths = {}
     for name, text in texts.items():

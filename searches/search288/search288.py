@@ -20,16 +20,19 @@ import sys
 import time
 
 import fpylll
+
+ROOT = Path(__file__).resolve().parents[2]   # the repository's root, above searches/search288/ ([FAC] stage 3a)
+sys.path.insert(0, str(ROOT))                # for lattice288
 import search288_geometry as G
 import target288
 from lattice288 import atomic_json, valid
 
 
-ROOT = Path(__file__).resolve().parent
 WORK = ROOT / 'scratch' / 'search288'
-JOURNAL = ROOT / 'search288_journal.jsonl'
+JOURNAL = ROOT / 'searches' / 'search288' / 'search288_journal.jsonl'
 VERSION, CONTROL_TOTAL, TOTAL, SECONDS = 1, 12, 16, 30
-SOURCES = ('search288.py', 'search288_geometry.py', 'target288.py', 'join720.py',
+SOURCES = ('searches/search288/search288.py', 'searches/search288/search288_geometry.py',
+           'searches/search288/target288.py', 'searches/join720/join720.py',
            'lattice288.py', 'mstar.py', 'overnight_v5.py', 'certbb.py')
 CODE = hashlib.sha256(b''.join((ROOT / p).read_bytes() for p in SOURCES)).hexdigest()
 INPUT = hashlib.sha256(target288.PREPARED.read_bytes()).hexdigest()

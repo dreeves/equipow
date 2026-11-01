@@ -13,6 +13,8 @@ from concurrent.futures import Future
 import sympy as sp
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # the repository's root, above quals/
 sys.path.insert(0, HERE)                                              # for its modules
+V3_DIR = os.path.join(HERE, 'searches', 'overnight_240')   # overnight_240_v3.py's and v2's, since [FAC] stage 3a
+sys.path.insert(0, V3_DIR)
 import overnight_240_v3 as v3
 from ortools.sat.python import cp_model
 
@@ -532,7 +534,7 @@ def q_sigint_finishes_solve_and_records_nothing():
     # journal holds only its header line.
     d = tempfile.mkdtemp()
     path = os.path.join(d, 'j.jsonl')
-    code = (f"import sys; sys.dont_write_bytecode = True; sys.path.insert(0, {HERE!r})\n"
+    code = (f"import sys; sys.dont_write_bytecode = True; sys.path.insert(0, {V3_DIR!r})\n"
             f"import overnight_240_v3 as v3\n"
             f"from concurrent.futures import ProcessPoolExecutor\n"
             f"if __name__ == '__main__':\n"

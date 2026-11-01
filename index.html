@@ -305,7 +305,7 @@
   <p>The following table shows the construction for each inequality in the above theorem: 
     \(2^k\) as a join of products, one per line, each with its order and the sum of its factors' orders.
     The bound is the least of those orders. 
-    The Mathematica script <a href="https://raw.githubusercontent.com/dreeves/equipow/main/record_gaps.wl">record_gaps.wl</a> 
+    The Mathematica script <a href="https://raw.githubusercontent.com/dreeves/equipow/main/proofs/record_gaps.wl">record_gaps.wl</a> 
     generates this table and checks all the arithmetic.</p>
   <div class="scroll">
     <table class="pow2-gaps" data-record-gaps>
@@ -376,12 +376,25 @@ Or just start identifying redundancies and repetition on the page and fix them o
       </table>
     </div>
   </template>
+  <!-- A construction's derivation (2026-10-31), which page/codes.js puts right below it at its first click and fills in with names, numbers and the signs of arithmetic: a row per step, each part (p_N, τ_j, or a letter that names a construction) and then the product or join that uses it, with its length n and its order m, the whole formula last; then the bound m*(N) ≥ M.  A part τ_j cites Thue–Morse, as the powers-of-2 chart's caption calls it -->
+  <template data-derivation>
+    <div class="derivation">
+      <table class="derivation-steps">
+        <thead><tr><th></th><th><i>n</i></th><th><i>m</i></th></tr></thead>
+        <tbody data-steps></tbody>
+      </table>
+      <div data-bound><i>m</i><sup>*</sup>(<span data-bound-n></span>) ≥ <span data-bound-m></span></div>
+    </div>
+    <span data-thue-morse>Thue–Morse</span>
+  </template>
   <p>
     Finally, the symbols \(\mathbin{\#}\) and \(\vee\) denote the expanded product and the join operation on Littlewood polynomials:<br>
     \(f \mathbin{\#} g = f(x)\cdot g(x^{n_f})\)<br>
     \(f \vee g = f(x) + x^{n_f} g(x)\),<br>
     where \(n_f\) is the length of \(f\). 
   </p>
+  <!-- Says that a click on a formula built with # and ∨ shows its derivation, and gives the rules that the derivation uses: a product multiplies the lengths of its parts and adds their orders, and a join adds the lengths and has at least the smallest of their orders -->
+  <p>Click a formula built with those to see its derivation. A product multiplies the lengths of its parts and adds their orders; a join adds the lengths, and its order is at least the smallest of its parts.</p>
 
   <ul>
     <li class="c">
@@ -407,7 +420,7 @@ Or just start identifying redundancies and repetition on the page and fix them o
       <!-- TODO: says this entry is not a new result: m*(288) ≤ 10, the upper value in Table 2's entry for 288, is rederived here; proof288.py (linked) checks exactly that no partition of {0, …, 287} into two parts has equal power sums for every exponent from 0 to 10, so the bound no longer has to be taken from BGPW -->
       <p>
         Claude: “Not a new result: \(m^*(288) \le 10\), the upper value in Table 2's entry for 288, is rederived here. 
-        <a href="https://github.com/dreeves/equipow/blob/main/proof288.py">proof288.py</a> 
+        <a href="https://github.com/dreeves/equipow/blob/main/proofs/proof288.py">proof288.py</a> 
         checks exactly that no partition of \(\{0, \ldots, 287\}\) into two parts has equal power sums for every exponent from 0 to 10, so the bound no longer has to be taken from BGPW.”
       </p>
     </li>
@@ -505,9 +518,9 @@ Or just start identifying redundancies and repetition on the page and fix them o
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 448\): &nbsp;\(m^* = 9\)</p>
-      <p>BGPW's order-7 example of length 112, doubled twice, \(\href{#112:7}{p_{112}} \mathbin{\#} \tau_2\), has order 9. Order 10 is ruled out by the residue condition mod 3.</p>
+      <p>BGPW's order-7 example of length 112, doubled twice, <span data-construction="448:9">\(p_{112} \mathbin{\#} \tau_2\)</span>, has order 9. Order 10 is ruled out by the residue condition mod 3.</p>
       <p class="code">
-        <span>\(p_{448} = \href{#112:7}{p_{112}} \mathbin{\#} \tau_2\) \((m = 9)\):</span>
+        <span><span data-construction="448:9">\(p_{448} = p_{112} \mathbin{\#} \tau_2\)</span> \((m = 9)\):</span>
         <code id="448:9">A5994DB29B45A0FA5D26B24D665A5A66B24D64BA5F05A2D94DB299A5</code>
       </p>
     </li>
@@ -535,9 +548,9 @@ Or just start identifying redundancies and repetition on the page and fix them o
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 512\): &nbsp;\(m^* = 9\)</p>
       <p>The Thue–Morse polynomial \(\tau_9\) has order 9. Order 10 is ruled out by the residue conditions mod 3, 9 and 27.</p>
-      <p>A short proof by Claude, which also covers 496: <a href="proof512.txt">proof512.txt</a>. 
-        The Mathematica script <a href="https://raw.githubusercontent.com/dreeves/equipow/main/proof512.wl">proof512.wl</a> checks its computations.</p>
-      <p>Claude: “A shorter proof that needs no computer, also covering 496: <a href="proof512_short.txt">proof512_short.txt</a>.”</p>
+      <p>A short proof by Claude, which also covers 496: <a href="proofs/proof512.txt">proof512.txt</a>. 
+        The Mathematica script <a href="https://raw.githubusercontent.com/dreeves/equipow/main/proofs/proof512.wl">proof512.wl</a> checks its computations.</p>
+      <p>A shorter “manual” proof, also covering 496: <a href="proofs/proof512_short.txt">proof512_short.txt</a>.</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
@@ -639,7 +652,7 @@ Or just start identifying redundancies and repetition on the page and fix them o
       <span class="mk" aria-hidden="true">◆✦</span>
       <p class="entry">\(n = 752\): &nbsp;\(m^* = 10\)</p>
       <!-- Says this is a symmetric example of order 10, found by Claude's lattice search with Astra's lattice code, in residue sums mod 27 that Claude chose by Astra's method for 592, and that order 11 at 752 is ruled out by an exact proof, proof752.py (linked), so m*(752) = 10 -->
-      <p>A symmetric example of order 10. Claude's lattice search found it with Astra's lattice code, in residue sums mod 27 that Claude chose by Astra's method for 592. Order 11 is ruled out by an exact proof, <a href="https://github.com/dreeves/equipow/blob/main/proof752.py">proof752.py</a>.</p>
+      <p>A symmetric example of order 10. Claude's lattice search found it with Astra's lattice code, in residue sums mod 27 that Claude chose by Astra's method for 592. Order 11 is ruled out by an exact proof, <a href="https://github.com/dreeves/equipow/blob/main/proofs/proof752.py">proof752.py</a>.</p>
       <!-- TODO: says how proof752.py rules out order 11 at 752: the residue sums mod 3 leave just four +1s in class 0 and four −1s in class 1, or the reverse; with the signs of class 2 relaxed to arbitrary integers the power sums then require ten congruences modulo powers of 3; a meet in the middle checks all 2·C(251, 4)^2 ≈ 5.2·10^16 placements of those eight signs, and none meets them; and that this is Astra's method for 384 (place the few exceptional signs, then test congruences), made feasible here by Claude's meet in the middle -->
       <p>Claude: “For order 11, the residue sums mod 3 leave just four \(+1\)s in class 0 and four \(-1\)s in class 1, or the reverse. Even with the signs of class 2 relaxed to arbitrary integers, the power sums then require ten congruences modulo powers of 3. A meet in the middle checks all \(2\cdot \mathrm{C}(251, 4)^2 \approx 5.2\cdot 10^{16}\) placements of those eight signs, and none meets them. This is Astra's method for 384, placing the few exceptional signs and testing congruences, made feasible here by Claude's meet in the middle.”</p>
       <p class="code">
@@ -839,37 +852,37 @@ Or just start identifying redundancies and repetition on the page and fix them o
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 2^{11}\): &nbsp;\(m^* = 12\)</p>
       <!-- Says p1024 # tau_1, the 1024 entry above times tau_1, has order 12, which beats Thue–Morse by 1, and that the upper bound is the residue condition mod 3 -->
-      <p>\(\href{#1024:11}{p_{1024}} \mathbin{\#} \tau_1\), the 1024 entry above times \(\tau_1\), has order 12. That beats Thue–Morse by 1. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above.</p>
+      <p><span data-construction="2048:12">\(p_{1024} \mathbin{\#} \tau_1\)</span>, the 1024 entry above times \(\tau_1\), has order 12. That beats Thue–Morse by 1. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above.</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 2^{12}\): &nbsp;\(m^* = 13\)</p>
       <!-- Says p1024 # tau_2, the 1024 entry above times tau_2, has order 13, which beats Thue–Morse by 1, and that the upper bound is the residue condition mod 3 -->
-      <p>\(\href{#1024:11}{p_{1024}} \mathbin{\#} \tau_2\), the 1024 entry above times \(\tau_2\), has order 13. That beats Thue–Morse by 1. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above.</p>
+      <p><span data-construction="4096:13">\(p_{1024} \mathbin{\#} \tau_2\)</span>, the 1024 entry above times \(\tau_2\), has order 13. That beats Thue–Morse by 1. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above.</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 2^{17}\): &nbsp;\(m^* \in \{18, \ldots, 20\}\)</p>
       <!-- TODO: says 2^17 = 112·800 + 48·432·2, that is, (p112 # p800) ∨ (p48 # p432 # tau_1), a join of two products each of order 7 + 11 = 6 + 11 + 1 = 18, the codes of p112 and p48 (BGPW's) being with the 2^24 entry below; that this beats Thue–Morse by 1 at a lower power of 2 than the 2^18 entry below; that a linked Mathematica script builds the half of the partition that contains 0, all 2^16 of its numbers, and checks its power sums exactly; and that the upper bound is the norm bound for the residue sums mod 3 -->
-      <p>Claude: “\(2^{17} = 112\cdot 800 + 48\cdot 432\cdot 2\), that is, \((\href{#112:7}{p_{112}} \mathbin{\#} \href{#800:11}{p_{800}}) \vee (\href{#48:6}{p_{48}} \mathbin{\#} \href{#432:11}{p_{432}} \mathbin{\#} \tau_1)\), a join of two products each of order \(7 + 11 = 6 + 11 + 1 = 18\) (the codes of \(\href{#112:7}{p_{112}}\) and \(\href{#48:6}{p_{48}}\), BGPW's, are with the \(2^{24}\) entry below). That beats Thue–Morse by 1 at a lower power of 2 than the \(2^{18}\) entry below. The Mathematica script <a href="https://raw.githubusercontent.com/dreeves/equipow/main/certificate_2%5E17.wl">certificate_2^17.wl</a> builds the half of the partition that contains 0, all \(2^{16}\) of its numbers, and checks its power sums exactly. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above.”</p>
+      <p>Claude: “\(2^{17} = 112\cdot 800 + 48\cdot 432\cdot 2\), that is, <span data-construction="131072:18">\((p_{112} \mathbin{\#} p_{800}) \vee (p_{48} \mathbin{\#} p_{432} \mathbin{\#} \tau_1)\)</span>, a join of two products each of order \(7 + 11 = 6 + 11 + 1 = 18\) (the codes of \(\href{#112:7}{p_{112}}\) and \(\href{#48:6}{p_{48}}\), BGPW's, are with the \(2^{24}\) entry below). That beats Thue–Morse by 1 at a lower power of 2 than the \(2^{18}\) entry below. The Mathematica script <a href="https://raw.githubusercontent.com/dreeves/equipow/main/proofs/certificate_2%5E17.wl">certificate_2^17.wl</a> builds the half of the partition that contains 0, all \(2^{16}\) of its numbers, and checks its power sums exactly. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above.”</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 2^{18}\): &nbsp;\(m^* \in \{19, \ldots, 21\}\)</p>
       <!-- TODO: says 2^18 = 320·560 + 48·432·2^2, that is, (p320 # p560) ∨ (p48 # p432 # tau_2), a join of two products each of order 9 + 10 = 6 + 11 + 2 = 19, the code of p48 (BGPW's) being with the 2^24 entry below; that this beats Thue–Morse by 1 at a lower power of 2 than f does at 2^24; that a linked Mathematica script builds the half of the partition that contains 0, all 2^17 of its numbers, and checks its power sums exactly; and that the upper bound is the residue condition mod 3 -->
-      <p>Claude: “\(2^{18} = 320\cdot 560 + 48\cdot 432\cdot 2^2\), that is, \((\href{#320:9}{p_{320}} \mathbin{\#} \href{#560:10}{p_{560}}) \vee (\href{#48:6}{p_{48}} \mathbin{\#} \href{#432:11}{p_{432}} \mathbin{\#} \tau_2)\), a join of two products each of order \(9 + 10 = 6 + 11 + 2 = 19\) (the code of \(\href{#48:6}{p_{48}}\), BGPW's, is with the \(2^{24}\) entry below). That beats Thue–Morse by 1 at a lower power of 2 than \(f\) does at \(2^{24}\). The Mathematica script <a href="https://raw.githubusercontent.com/dreeves/equipow/main/certificate_2%5E18.wl">certificate_2^18.wl</a> builds the half of the partition that contains 0, all \(2^{17}\) of its numbers, and checks its power sums exactly. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above.”</p>
+      <p>Claude: “\(2^{18} = 320\cdot 560 + 48\cdot 432\cdot 2^2\), that is, <span data-construction="262144:19">\((p_{320} \mathbin{\#} p_{560}) \vee (p_{48} \mathbin{\#} p_{432} \mathbin{\#} \tau_2)\)</span>, a join of two products each of order \(9 + 10 = 6 + 11 + 2 = 19\) (the code of \(\href{#48:6}{p_{48}}\), BGPW's, is with the \(2^{24}\) entry below). That beats Thue–Morse by 1 at a lower power of 2 than \(f\) does at \(2^{24}\). The Mathematica script <a href="https://raw.githubusercontent.com/dreeves/equipow/main/proofs/certificate_2%5E18.wl">certificate_2^18.wl</a> builds the half of the partition that contains 0, all \(2^{17}\) of its numbers, and checks its power sums exactly. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above.”</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 2^{20}\): &nbsp;\(m^* \in \{22, 23\}\)</p>
       <!-- TODO: says 2^20 = 848·992 + 240·432·2, that is, (p848 # p992) ∨ (p240 # p432 # tau_1), a join of two products each of order 11 + 11 = 10 + 11 + 1 = 22, which beats Thue–Morse by 2 at a lower power of 2 than the 2^27 entry below; and that the upper bound is the residue condition mod 3 -->
-      <p>Claude: “\(2^{20} = 848\cdot 992 + 240\cdot 432\cdot 2\), that is, \((\href{#848:11}{p_{848}} \mathbin{\#} \href{#992:11}{p_{992}}) \vee (p_{240} \mathbin{\#} \href{#432:11}{p_{432}} \mathbin{\#} \tau_1)\), a join of two products each of order \(11 + 11 = 10 + 11 + 1 = 22\). That beats Thue–Morse by 2 at a lower power of 2 than the \(2^{27}\) entry below. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above.”</p>
+      <p>Claude: “\(2^{20} = 848\cdot 992 + 240\cdot 432\cdot 2\), that is, <span data-construction="1048576:22">\((p_{848} \mathbin{\#} p_{992}) \vee (p_{240} \mathbin{\#} p_{432} \mathbin{\#} \tau_1)\)</span>, a join of two products each of order \(11 + 11 = 10 + 11 + 1 = 22\). That beats Thue–Morse by 2 at a lower power of 2 than the \(2^{27}\) entry below. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above.”</p>
     </li>
     <li class="j">
       <span class="mk" aria-hidden="true">◆●</span>
       <p class="entry">\(n = 2^{24}\): &nbsp;\(m^* \in \{26, \ldots, 29\}\)</p>
       <!-- TODO: says the joint construction 2^24 = 320^2·112 + 432·48·2^8, that is, f = (p320 # p320 # p112) ∨ (p432 # p48 # tau_8), gives m*(2^k) ≥ k + 1 for every k ≥ 24, and the 1024 entry above, times tau_(k − 10), gives it for every k ≥ 10 -->
-      <p>Claude: “Joint construction: \(2^{24} = 320^2\cdot 112 + 432\cdot 48\cdot 2^8\), that is, \(f = (\href{#320:9}{p_{320}} \mathbin{\#} \href{#320:9}{p_{320}} \mathbin{\#} \href{#112:7}{p_{112}}) \vee (\href{#432:11}{p_{432}} \mathbin{\#} \href{#48:6}{p_{48}} \mathbin{\#} \tau_8)\). Hence \(m^*(2^k) \ge k + 1\) for every \(k \ge 24\), and by the 1024 entry above, times \(\tau_{k-10}\), for every \(k \ge 10\).”</p>
+      <p>Claude: “Joint construction: \(2^{24} = 320^2\cdot 112 + 432\cdot 48\cdot 2^8\), that is, <span data-construction="16777216:25">\(f = (p_{320} \mathbin{\#} p_{320} \mathbin{\#} p_{112}) \vee (p_{432} \mathbin{\#} p_{48} \mathbin{\#} \tau_8)\)</span>. Hence \(m^*(2^k) \ge k + 1\) for every \(k \ge 24\), and by the 1024 entry above, times \(\tau_{k-10}\), for every \(k \ge 10\).”</p>
       <!-- Says order 26 at 2^24 comes from the join of the 2^20 entry with each product times tau_4, which beats Thue–Morse by 2 -->
       <p>The join of the \(2^{20}\) entry, each product times \(\tau_4\), has order 26. That beats Thue–Morse by 2.</p>
       <!-- Says the upper bound 29 at 2^24 is the norm bound for the residue sums mod 3 -->
@@ -884,7 +897,7 @@ Or just start identifying redundancies and repetition on the page and fix them o
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 2^{27}\): &nbsp;\(m^* \in \{29, \ldots, 33\}\)</p>
       <!-- TODO: says 2^27 = 368^2·800 + 192^2·432 + 48·432·480, a join of three products of the examples above (their orders listed), each of order 29, which beats Thue–Morse by 2 at a lower power of 2 than f # f does at 2^48; and that the upper bound is the norm bound for the residue sums mod 3 -->
-      <p>Claude: “\(2^{27} = 368^2\cdot 800 + 192^2\cdot 432 + 48\cdot 432\cdot 480\): a join of three products of examples above (of orders 9, 11, 9, 11, 6 and 12), each of order 29. That beats Thue–Morse by 2 at a lower power of 2 than \(f \mathbin{\#} f\) does at \(2^{48}\). The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above.”</p>
+      <p>Claude: “\(2^{27} = 368^2\cdot 800 + 192^2\cdot 432 + 48\cdot 432\cdot 480\): a join of three products of examples above (of orders 9, 11, 9, 11, 6 and 12), each of order 29. That beats Thue–Morse by 2 at a lower power of 2 than <span data-construction="281474976710656:50">\(f \mathbin{\#} f\)</span> does at \(2^{48}\). The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above.”</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
@@ -961,7 +974,7 @@ Or just start identifying redundancies and repetition on the page and fix them o
     <li class="j">
       <span class="mk" aria-hidden="true">◆●</span>
       <p class="entry">\(n = 2^{51}\): &nbsp;\(m^* \in \{57, \ldots, 63\}\)</p>
-      <p>With \(f\) the \(2^{24}\) construction above, \(f \mathbin{\#} f \mathbin{\#} \tau_3\) has order \(25 + 25 + 3 = 53\). BGPW's 52 is Stong's.</p>
+      <p>With \(f\) the \(2^{24}\) construction above, <span data-construction="2251799813685248:53">\(f \mathbin{\#} f \mathbin{\#} \tau_3\)</span> has order \(25 + 25 + 3 = 53\). BGPW's 52 is Stong's.</p>
       <!-- Says the six products of the 2^48 entry, each times tau_3, give order 57 at 2^51; and that the upper bound is the norm bound for the residue sums mod 3 -->
       <p>The six products of the \(2^{48}\) entry, each times \(\tau_3\), give order 57. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above.</p>
     </li>
@@ -1055,7 +1068,7 @@ Or just start identifying redundancies and repetition on the page and fix them o
 <section class="counts">
   <h2>Partitions at powers of 2</h2>
   <p>Claude: “The partitions of \(\{0, \ldots, 2^k - 1\}\) into two parts with equal power sums for exponents \(0, \ldots, k - 1\): Thue–Morse is the only one for \(k \le 5\) (<a href="https://doi.org/10.1109/18.340458">Roth, Siegel and Vardy 1994</a>; <a href="https://doi.org/10.1090/S0025-5718-97-00892-2">Boyd 1997</a>), there are 3 for \(k = 6\) (<a href="https://doi.org/10.1090/S0025-5718-01-01360-6">Boyd 2002</a>), and there are 431 for \(k = 7\), or 367 counting a partition and its reversal once.”</p>
-  <p>Claude: “The count for \(k = 7\) is new, from an exhaustive search by Claude (<a href="https://github.com/dreeves/equipow/tree/main/count128">code and the 431 sets</a>). Of the 431, 303 are antisymmetric, Thue–Morse among them, and the other 128 come in reversed pairs. The same search method shows that the order-7 partition of \(\{0, \ldots, 111\}\) is unique.”</p>
+  <p>Claude: “The count for \(k = 7\) is new, from an exhaustive search by Claude (<a href="https://github.com/dreeves/equipow/tree/main/proofs/count128">code and the 431 sets</a>). Of the 431, 303 are antisymmetric, Thue–Morse among them, and the other 128 come in reversed pairs. The same search method shows that the order-7 partition of \(\{0, \ldots, 111\}\) is unique.”</p>
 </section>
 
 <section class="lattice" aria-labelledby="lattice-title">
@@ -1081,7 +1094,7 @@ Or just start identifying redundancies and repetition on the page and fix them o
       <li><b>560</b>, order 10, symmetric. A direct search would have \(d = 275\), above fplll's limit of 256 for enumeration and far too slow, so Claude fixed more. The residue sums mod 27 (the \(D_r\) of the remarks above) were fixed to one pattern that the residue condition allows for order 10, the one that looked most likely, and the residue sums mod 5 and mod 7 to 0. Mod 27, the 280 pairs of positions \(i\) and \(559 - i\) fall into 14 groups, by residue class together with its mirror image. In 7 groups, holding 135 of the pairs, every placement of the \(+1\)s with the count the pattern sets became a separate case. That left 145 free signs under 16 independent equations, so \(d = 129\), and the same lattice for every case, with only \(t\) changing. The pruning fractions were a fixed shape, none below 0.3, picked by timing trial runs. Ten single-threaded processes on Danny Reeves's Mac, each reducing its own randomized basis once, found \(\href{#560:10}{p_{560}}\) after 97 seconds and 23 examples in 5 minutes 22 seconds.</li>
       <li><b>800</b>, order 11, antisymmetric. A direct search would have \(d = 395\), so Claude fixed more, as at 560. The residue sums mod 27 were fixed to the most likely pattern that the residue condition allows for order 11, refining the most likely one mod 9, the residue sums mod 5 to 0, and those mod 7 to their most likely pattern. Mod 27, the 400 pairs of positions \(i\) and \(799 - i\) fall into 14 groups. In the 9 groups that make up the classes 0 and 1 mod 3, holding 267 of the pairs, every placement of the \(+1\)s with the count the pattern sets became a separate case. Only about 1 case in \(3^{20}\) is consistent with the fixed residue sums, so a meet-in-the-middle search listed the consistent ones. That left 133 free signs under 14 independent equations, so \(d = 119\). The pruning fractions were a fixed shape, none below 0.4. One single-threaded process on Danny Reeves's Mac, at low priority beside another search, reduced its basis once and found \(\href{#800:11}{p_{800}}\) and 2 more examples in 224 cases, at about a quarter of a CPU-second each; a second run, with another random basis, found 30 more in 2623 cases.</li>
     </ul>
-    <p><a href="https://raw.githubusercontent.com/dreeves/equipow/main/lattice_search.wl">lattice_search.wl</a> is a plain Mathematica version of the direct search, without the matching or the fixed residue sums, to time against other search code. In place of fplll it uses LatticeReduce, which does LLL but not BKZ, and its own compiled enumeration, pruned by a simpler rule: the sum so far may be at most \(\min(1, \delta + j/d)\) times \(h\), with \(\delta\) the option "Pruning". \(\delta = 1\), the default, prunes nothing. \(\delta = 0\) is the linear pruning of Gama, Nguyen and Regev, too tight here: the solutions' sums run above \(j/d\) times \(h\), most of all over the first coefficients chosen. An empty list of sequences proves there are none only when the result's "complete" is True, which takes an unpruned search that ran to its end; a search cut off by "MaxNodes" returns False, and its empty list shows only that none turned up in the part of the tree it searched. These calls have known results, in which each sequence's negation counts too:</p>
+    <p><a href="https://raw.githubusercontent.com/dreeves/equipow/main/proofs/lattice_search.wl">lattice_search.wl</a> is a plain Mathematica version of the direct search, without the matching or the fixed residue sums, to time against other search code. In place of fplll it uses LatticeReduce, which does LLL but not BKZ, and its own compiled enumeration, pruned by a simpler rule: the sum so far may be at most \(\min(1, \delta + j/d)\) times \(h\), with \(\delta\) the option "Pruning". \(\delta = 1\), the default, prunes nothing. \(\delta = 0\) is the linear pruning of Gama, Nguyen and Regev, too tight here: the solutions' sums run above \(j/d\) times \(h\), most of all over the first coefficients chosen. An empty list of sequences proves there are none only when the result's "complete" is True, which takes an unpruned search that ran to its end; a search cut off by "MaxNodes" returns False, and its empty list shows only that none turned up in the part of the tree it searched. These calls have known results, in which each sequence's negation counts too:</p>
     <ul class="calls">
       <li><code>latticeSearch[6, 2, 0]</code>: complete, no sequences: the equations have no integer solution.</li>
       <li><code>latticeSearch[32, 5, 0, "Want" -&gt; Infinity]</code>: complete, 2 sequences: Thue–Morse and its negation.</li>

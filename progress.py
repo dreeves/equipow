@@ -2523,7 +2523,8 @@ def pause432_pauses(path):
 
 # Where each run's pauses (see the vocabulary) are recorded, by the run's identity (program, n, order): [(the path, from
 # HERE, the reader of its records)].  A run not here records none.  Each reader asserts its records' form.
-PAUSES = {('focus.py', 480, 14): [('focus_480_pauses.jsonl', lambda path: focus_pauses(json_lines(path), 480))],
+PAUSES = {('focus.py', 480, 14): [(os.path.join('searches', 'focus_480', 'focus_480_pauses.jsonl'),
+                                   lambda path: focus_pauses(json_lines(path), 480))],
           ('fanout.py', 432, 12): [(os.path.join('scratch', 'wish2'), pause432_pauses)],
           ('overnight_v5.py', 288, 10): [(os.path.join('scratch', 'x288', 'pauses.jsonl'), group_pauses)],
           ('boxsplit.py', 288, 10): [(os.path.join('scratch', 'x288', 'pauses.jsonl'), group_pauses)]}   # its chain's
@@ -3260,9 +3261,11 @@ def first_line(path):
 
 
 def headers(pattern):
-    """(path, header) of each journal matching pattern in HERE whose first line is whole (a journal being begun has no
-    run yet), sorted by path; one that cannot be read is left out (tried)."""
-    firsts = [(path, first) for path in sorted(glob.glob(os.path.join(HERE, pattern)))
+    """(path, header) of each journal matching pattern in HERE, where a search runs, or in a directory of HERE's
+    searches/, where a finished search's files are kept (since [FAC] stage 3a, 2026-10-31), whose first line is
+    whole (a journal being begun has no run yet), sorted by path; one that cannot be read is left out (tried)."""
+    firsts = [(path, first) for path in sorted(glob.glob(os.path.join(HERE, pattern)) +
+                                               glob.glob(os.path.join(HERE, 'searches', '*', pattern)))
               for first in tried(f'the first line of {path}', functools.partial(first_line, path))]
     return [(path, h) for path, first in firsts if first.endswith(b'\n')
             for h in tried(f'the header of {path}', functools.partial(json.loads, first))]

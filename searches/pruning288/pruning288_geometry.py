@@ -7,10 +7,14 @@ Empty results and timeouts establish no exclusion.
 from copy import deepcopy
 import hashlib
 import json
+from pathlib import Path
 import random
+import sys
 import time
 
 from fpylll import GSO, Enumeration, EnumerationError, EvaluatorStrategy
+ROOT = Path(__file__).resolve().parents[2]   # the repository's root, above searches/pruning288/ ([FAC] stage 3a)
+sys.path[:0] = [str(ROOT / 'searches' / 'search288'), str(ROOT / 'searches' / 'join720')]
 import search288_geometry as G
 from join720 import working_precision
 

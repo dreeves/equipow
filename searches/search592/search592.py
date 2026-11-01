@@ -19,21 +19,23 @@ import time
 
 import fpylll
 import numpy
+
+ROOT = Path(__file__).resolve().parents[2]   # the repository's root, above searches/search592/ ([FAC] stage 3a)
+sys.path.insert(0, str(ROOT))                # for lattice288
 import residue592 as R
 import search592_geometry as G
 from lattice288 import valid
 
 
-ROOT = Path(__file__).resolve().parent
 WORK = ROOT / 'scratch' / 'search592'
-JOURNAL = ROOT / 'search592_journal.jsonl'
+JOURNAL = ROOT / 'searches' / 'search592' / 'search592_journal.jsonl'
 CONTROL_TOTAL, TOTAL, SECONDS, PREP_SECONDS = 32, 32, 30, 600
 QUESTIONS = dict(calibration=(560, 10), search=(592, 10))
 SETTINGS = dict(calibration=dict(seed=6, slice_index=2, nslices=4),
                 search=dict(seed=20261025, slice_index=0, nslices=1))
 PROFILES = {p: R.profile(n) for p, (n, _) in QUESTIONS.items()}
 INPUT = {p: G.digest(profile) for p, profile in PROFILES.items()}
-SOURCES = ('search592.py', 'residue592.py') + G.SOURCES
+SOURCES = ('searches/search592/search592.py', 'searches/search592/residue592.py') + G.SOURCES
 CODE = hashlib.sha256(b''.join((ROOT/name).read_bytes() for name in SOURCES)).hexdigest()
 LIBRARIES = dict(fpylll=fpylll.__version__, sympy=G.sp.__version__, numpy=numpy.__version__)
 IDENTITY = ('basis_hash', 'profile_hash', 'plan_hash')

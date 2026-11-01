@@ -13,6 +13,9 @@ from unittest.mock import patch
 
 import sympy as sp
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))   # the repository's root, for its modules
+# search288_geometry.py's and pruning288_geometry.py's directories, since [FAC] stage 3a (2026-10-31)
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'searches' / 'search288'))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'searches' / 'pruning288'))
 import search288_geometry as G
 import pruning288_geometry as P
 

@@ -28,7 +28,9 @@ import certbb
 import boxsplit as bx
 
 RUNS = os.path.join(HERE, 'scratch', 'boxsplit', 'quals')       # the quals' journals and logs
-MAIN = (os.path.join(HERE, 'overnight_v5_304_9_journal.jsonl'), os.path.join(HERE, 'overnight_v5_304_9.log'))  # read only
+# read only; in searches/ since [FAC] stage 3a (2026-10-31), though overnight_v5.configure names them in the root
+MAIN = tuple(os.path.join(HERE, 'searches', 'overnight_v5_304_9', f'overnight_v5_304_9{x}')
+             for x in ('_journal.jsonl', '.log'))
 UNTOUCHED = tuple(hashlib.sha1(open(f, 'rb').read()).hexdigest() for f in MAIN)   # as the quals began
 # The 8 open leaves of the 304@9 journal after its second pass, in the order of the log's 'open:' lines of
 # 2026-10-10 05:08:01 (the split angle's OPEN8).
@@ -75,7 +77,7 @@ def as_written():
     after."""
     at(304, 9)
     saved = v5.CODE
-    v5.CODE = json.loads(open(v5.JOURNAL).readline())['code']
+    v5.CODE = json.loads(open(MAIN[0]).readline())['code']
     try: yield
     finally: v5.CODE = saved
 
@@ -362,9 +364,9 @@ def q_open_leaves():
     # then the 8 leaves' CLOSED records in OPEN8's order, and no open leaf.
     cut = os.path.join(RUNS, 'before_handoff_journal.jsonl')
     with as_written():
-        lines = open(v5.JOURNAL).read().splitlines()
+        lines = open(MAIN[0]).read().splitlines()
         open(cut, 'w').write(''.join(line + '\n' for line in lines[:HANDOFF]))
-        journal, whole = v5.Journal(cut), v5.Journal(v5.JOURNAL)
+        journal, whole = v5.Journal(cut), v5.Journal(MAIN[0])
     assert [json.loads(line) for line in lines[HANDOFF:HANDOFF + 8]] == [
         {'key': k, 'verdict': 'CLOSED', 'budget': v5.node_budget(bx.parse_key(k))} for k in OPEN8]
     assert bx.open_leaves(whole) == []
@@ -835,7 +837,7 @@ def q_solve_piece_pins_to_solve_node():
     # Expectata: identical (verdict, sequence, {lps, leaves, proof}) each time, so solve_piece is solve_node but for
     # taking the moments as a parameter.
     with as_written():
-        journal = v5.Journal(v5.JOURNAL)
+        journal = v5.Journal(MAIN[0])
     cheapest = min((r['lps'], k) for k, r in journal.records.items()
                    if r['verdict'] == 'INFEASIBLE' and '#' not in k and len(k.split()) == 6)
     node8, a = example_node(8, 6)
@@ -925,7 +927,7 @@ def q_ground_truth_leaf_closes():
     # pool's, whose carried members close without one; GLOP's solves are the count box's 23 and one per vector not
     # carried; the reread journal holds the same records.
     with as_written():
-        assert v5.Journal(v5.JOURNAL).records[TRUTH]['lps'] == 13499
+        assert v5.Journal(MAIN[0]).records[TRUTH]['lps'] == 13499
     node = bx.parse_key(TRUTH)
     path, _ = paths('truth')
     journal, lines = bx.Journal(path), []

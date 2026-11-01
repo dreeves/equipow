@@ -11,6 +11,9 @@ import unittest
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))   # the repository's root, for its modules
+# fanout_lease.py's directory, since [FAC] stage 3a (2026-10-31)
+LEASE_DIR = str(Path(__file__).resolve().parent.parent / 'searches' / 'fanout_672')
+sys.path.insert(0, LEASE_DIR)
 import fanout_lease as lease
 
 
@@ -87,7 +90,7 @@ class FanoutLeaseQuals(unittest.TestCase):
         # Replicata: cancellation while a disposable lease owns a running child group.
         # Expectata: both cancellation signals clean up and resume, with a complete pause pair.
         # Resultata before implementation: no unbounded lease exists.
-        code = ('import json,sys;import fanout_lease as f;'
+        code = (f'import json,sys;sys.path.insert(0,{LEASE_DIR!r});import fanout_lease as f;'
                 'f.run(int(sys.argv[1]),tuple(json.loads(sys.argv[2])),sys.argv[4:],sys.argv[3])')
         for signum in (signal.SIGTERM, signal.SIGINT):
             with self.subTest(signum=signum):

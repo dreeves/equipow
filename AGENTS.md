@@ -728,3 +728,31 @@ Order-13 witness agent, 2026-10-31 from 06:05 (Claude; `scratch/w13-1008-912/`):
   - **Removed:** the section, its CSS, PAGE_SET_KEYS, from_set and the sets parsing. PAGE_JOINS was added. The 31 sets are kept as the oracle in quals/quals_codes_sets.json.
   - **Quals green:** quals_codes 9/9 (4 new), quals_index 114/114, quals_mstar 37/37 and the rest. record672.py was updated; the historical apply scripts that write sets are listed in NOTES.
   - **Stan's package:** its SClaude[11][432] has 217 numbers, so it is not half of a partition of 0..431, and it differs from the page's set in 229 positions.
+- **Construction formulas to expand into derivations** (agent started 2026-10-31, `scratch/derive-20261031/`; dreeves: "i think so? maybe show me a before/after screenshot if there's any doubt?").
+  - **Behavior:** each power-of-2 construction formula becomes a button expanding to its derivation: each part's length and order, the rules (# adds orders and multiplies lengths; ∨ takes the smaller order and adds lengths), and a total checked against the stated bound.
+  - **Leaves:** page codes, τ_j, and off-page codes (p240).
+  - **Data:** one machine-readable source (pow2.js/mstar.py), with quals tying it to the KaTeX.
+  - **Screenshots** before and after, at 1280/390 px.
+- **[FAC] stage 3a started** (agent, 2026-10-31, `scratch/fac3-20261031/`): finished searches' code, journals and logs go to searches/<name>/, and proofs and certificates to proofs/.
+  - **Kept at the root:** 432's frozen files, live infrastructure (progress.py, run_modules.py, the watcher's entry and wrapper, shepherd, track, stages.json, runs/), the page's files, boxsplit.py, and proof384.html with its files (dreeves's decision).
+  - **Updates:** progress.py's run paths, the page's GitHub links, and the quals checking them. The watcher restarts after its DONE marker.
+  - **Concurrency:** it runs alongside the derivation agent, both told to use anchored, hash-checked edits.
+- **Construction derivations live** (agent, 2026-10-31; `scratch/derive-20261031/NOTES.md`):
+  - **Scope:** 10 formulas built from p_N, τ_j and defined letters with # and ∨ are `<span data-construction="N:M">` buttons: 448 twice, 2^11, 2^12, 2^17, 2^18, 2^20, f at 2^24, f # f, and f # f # τ3. Formulas written only as length arithmetic (2^27, 2^29, 2^37-2^68 in words) are not clickable.
+  - **Data:** the structure is parsed strictly from each formula's KaTeX text. Part orders come from mstar.js's lower bounds; τ_j is (2^j, j); p240 is cited from BGPW Table 5. The claimed N:M is the one hand copy, checked at first click.
+  - **One button() path** for codes, joins and constructions. Names inside formulas are no longer links; each derivation row links its code.
+  - **SUPERSEDED:** f (25 against 26), f # f (50 against 54) and f # f # τ3 (53 against 57) are below later bounds.
+  - **Quals:** quals_derivations 7/7 (new); quals_index's anchors qual changed spec; all page suites green; 17 mutants caught.
+  - **Follow-up in progress:** an expansion opens after its button's block (p/li), not mid-sentence.
+- **Boxes open after their block** (derivation agent, 2026-10-31):
+  - **Rule:** every expansion box, for a code, a join or a construction, goes right after its button's nearest p/li, in button order within a block. Boxes have ids `expansion-K`, and buttons get aria-controls. The 2^17 sentence and the 416 proof now read to their end before the box.
+  - **Quals:** quals_codes 11/11 (2 new, red first; the box is found through aria-controls, a spec change) and quals_derivations 7/7; all page suites green; 19 mutants caught.
+  - **Unexplained flake:** q_a_construction_that_is_not_its_claim_fails_loudly failed once in each of two mutation runs under load and passes when rerun.
+- **[FAC] stage 3a done** (agent, 2026-10-31 18:57; `scratch/fac3-20261031/NOTES.md`, moved.json):
+  - **searches/:** join720, search288 (with target288.py), pruning288, sweep288, search592 (with residue592.py), overnight_240, overnight_v4, overnight_v5_240_11 (with migrate_journals.py), overnight_v5_304_9, overnight_v5_384_11, focus_480, focus_672, fanout_672 (with fanout_lease.py).
+  - **proofs/:** the 12 proof and certificate files and count128/.
+  - **Kept back:** lattice288.py and its data stay at the root, since its prepared file's fingerprint covers its own path.
+  - **Code changes:** progress.headers() looks at the root and searches/*/; PAUSES points to searches/focus_480/. shepherd.py reads the stopped searches' journals from searches/ (restarted by the agent as PID 46424). 12 moved modules got ROOT and sys.path lines.
+  - **Quals:** 28 quals files updated, plus 3 new quals (q_page_links_resolve and others). Suites 1,162 quals with the same 3 known failures.
+  - **Links:** 10 page links point into proofs/; old external URLs break.
+  - **Watcher** restarted as PID 78863 at 19:22:18.

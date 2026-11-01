@@ -11,6 +11,7 @@ from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parent.parent   # the repository's root, above quals/
 sys.path.insert(0, str(ROOT))                    # for its modules
+sys.path.insert(0, str(ROOT / 'searches' / 'search592'))   # residue592.py's directory, since [FAC] stage 3a
 import mstar
 import residue592 as R
 
