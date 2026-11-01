@@ -9,7 +9,7 @@ instead).
 """
 import sys
 sys.dont_write_bytecode = True
-import os, json, time, math, shutil, tempfile, traceback, contextlib
+import os, re, json, time, math, shutil, tempfile, traceback, contextlib, statistics
 import numpy as np
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))   # the repository's root, for its modules
 import overnight_v5 as v5
@@ -21,12 +21,26 @@ WORKER = 'Python -B -c from multiprocessing.spawn import spawn_main; spawn_main(
 TRACKER = 'Python -B -c from multiprocessing.resource_tracker import main;main(4)'
 
 
+def part(per, k, cpu):
+    """A made-up part: per a unit, on k processes, costing cpu, with made-up provenance."""
+    return dict(per=per, processes=k, cpu=cpu, source='a qual', date='2026-10-31', conditions='made up')
+
+
 def made_up(run, *later):
     """A made-up STAGES: one chain, the run (program, n, order), then each later stage given as (its name, its parts,
-    each (per, processes, cpu)), every part with made-up provenance."""
+    each (per, processes, cpu)), every part with made-up provenance.  Since 2026-11-01 (the stages of CRAM's reprove.py,
+    scratch/stages-cram-20261101) a later stage has phases, not parts: here its parts make one lane of one phase, one
+    after another, so each stage costs the sum of its parts as before."""
     return [[dict(stage=run[0], run=list(run))] +
-            [dict(stage=name, parts=[dict(per=per, processes=k, cpu=cpu, source='a qual', date='2026-10-31',
-                                          conditions='made up') for per, k, cpu in parts]) for name, parts in later]]
+            [dict(stage=name, phases=[[[part(*p) for p in parts]]]) for name, parts in later]]
+
+
+def phased(run, *later):
+    """A made-up STAGES: one chain, the run (program, n, order), then each later stage given as (its name, its phases,
+    each a list of lanes, each a list of parts (per, processes, cpu)), every part with made-up provenance."""
+    return [[dict(stage=run[0], run=list(run))] +
+            [dict(stage=name, phases=[[[part(*p) for p in lane] for lane in phase] for phase in phases])
+             for name, phases in later]]
 
 
 def point(c):
@@ -55,17 +69,25 @@ def q_stages_file_names_each_search_s_chain():
     # overnight_v5.py's final pass); 432:12's parts per token, 288:10's per open leaf; reprove.py's reproofs on
     # fanout.WORKERS processes and its assembly on one, as fanout.assemble's; boxsplit.py's and the final pass's on
     # overnight_v5's PROCESSES (the machine's cores), handoff288.py on one; every part's provenance written out.
+    # Spec change, 2026-11-01 (the coordinator, after CRAM's install at 03:5x PST, scratch/stages-cram-20261101): a
+    # later stage has phases (one after another), each of lanes (at once), each of parts (one after another).
+    # fanout.assemble is one part on one process; reprove.py three phases, its briefs on fanout.WORKERS processes, then
+    # its walk (one process: assembly, then the seal) beside its reproofs (fanout.WORKERS processes: the task's read,
+    # then the walk), then its seals on one process; 288:10's stages one part each, as before.
     names = [[s['stage'] for s in chain] for chain in progress.STAGES]
     assert names == [['fanout.py', 'fanout.assemble', 'reprove.py'],
                      ['overnight_v5.py', 'boxsplit.py', 'handoff288.py', 'overnight_v5.py']], names
     runs = [[s.get('run') for s in chain] for chain in progress.STAGES]
     assert runs == [[['fanout.py', 432, 12], None, None],
                     [['overnight_v5.py', 288, 10], ['boxsplit.py', 288, 10], None, None]], runs
-    shape = [[[(p['per'], p['processes']) for p in s.get('parts', [])] for s in chain] for chain in progress.STAGES]
-    assert shape == [[[], [('token', 1)], [('token', 1), ('token', fanout.WORKERS)]],
-                     [[], [('open leaf', v5.PROCESSES)], [('open leaf', 1)], [('open leaf', v5.PROCESSES)]]], shape
-    assert all(len(p[k]) > 20 for chain in progress.STAGES for s in chain for p in s.get('parts', [])
-               for k in ('source', 'conditions')), progress.STAGES
+    shape = [[[[[(p['per'], p['processes']) for p in lane] for lane in phase] for phase in s.get('phases', [])]
+              for s in chain] for chain in progress.STAGES]
+    W = fanout.WORKERS
+    assert shape == [[[], [[[('token', 1)]]],
+                      [[[('token', W)]], [[('token', 1), ('token', 1)], [('token', W), ('token', W)]], [[('token', 1)]]]],
+                     [[], [[[('open leaf', v5.PROCESSES)]]], [[[('open leaf', 1)]]], [[[('open leaf', v5.PROCESSES)]]]]], shape
+    assert all(len(p[k]) > 20 for chain in progress.STAGES for s in chain for phase in s.get('phases', [])
+               for lane in phase for p in lane for k in ('source', 'conditions')), progress.STAGES
 
 
 def q_a_later_stage_is_its_counts_times_its_cpu_over_processes_and_share():
@@ -150,20 +172,29 @@ def q_malformed_stages_files_fail_loudly():
     # stage with parts; a run whose program is not its stage's name; a run in two chains; a field the file does not
     # have.
     # Expectata: the well-formed file loads as written; every broken copy fails with an AssertionError.
+    # Spec change, 2026-11-01 (scratch/stages-cram-20261101): a later stage's phases in place of its parts (see
+    # made_up), so the broken copies reach a part through its phase and lane, a later stage without phases or a first
+    # stage with them is broken, and so are a stage with no phase, a phase with no lane, a lane with no part, a lane
+    # that is a part, and a later stage with parts as written before 2026-11-01.
     good = {'about': 'a qual', 'chains': made_up(('fanout.py', 672, 13), ('A', [('token', 1, dict(median=2.0, lo=1.0, hi=3.0))]))}
     def broken(f):
         data = json.loads(json.dumps(good))
         f(data)
         return data
-    part = lambda d: d['chains'][0][1]['parts'][0]
+    stage = lambda d: d['chains'][0][1]
+    part = lambda d: stage(d)['phases'][0][0][0]
     bad = [broken(lambda d: part(d).pop('source')), broken(lambda d: part(d).update(source='')),
            broken(lambda d: part(d).update(date=20261031)), broken(lambda d: part(d).update(per='leaf')),
            broken(lambda d: part(d)['cpu'].update(lo=2.5)), broken(lambda d: part(d)['cpu'].update(lo=0.0, median=0.0)),
            broken(lambda d: part(d).update(processes=0)), broken(lambda d: d['chains'][0][0].pop('run')),
-           broken(lambda d: d['chains'][0][1].pop('parts')), broken(lambda d: d['chains'][0][0].update(parts=[])),
+           broken(lambda d: stage(d).pop('phases')), broken(lambda d: d['chains'][0][0].update(phases=[])),
            broken(lambda d: d['chains'][0][0].update(stage='focus.py')),
            broken(lambda d: d['chains'].append([dict(stage='fanout.py', run=['fanout.py', 672, 13])])),
-           broken(lambda d: d.update(extra=1))]
+           broken(lambda d: d.update(extra=1)),
+           broken(lambda d: stage(d).update(phases=[])), broken(lambda d: stage(d).update(phases=[[]])),
+           broken(lambda d: stage(d).update(phases=[[[]]])), broken(lambda d: stage(d).update(phases=[[part(d)]])),
+           broken(lambda d: stage(d).update(parts=[part(d)])),
+           broken(lambda d: stage(d).update(parts=stage(d).pop('phases')[0][0]))]
     d = tempfile.mkdtemp(prefix='stages-quals-')
     try:
         path = os.path.join(d, 'stages.json')
@@ -343,6 +374,181 @@ def q_an_idle_run_keeps_its_stages_and_a_run_of_one_stage_has_none():
     assert (entry['stages'], entry['total']) == (s['stages'], None), entry
     one = progress.run_data({k: v for k, v in s.items() if k not in ('stages', 'total')})
     assert not {'stages', 'total'} & set(one), one
+
+
+# ---------- CRAM's stages (2026-11-01: the coordinator, after CRAM's install at 03:5x PST; Astra's constraints of
+# 03:54 and 04:19 PST in omg-we-found-other-agents.md; scratch/stages-cram-20261101) ----------
+
+CRAM = {'fanout.py': 'f56e2346b3005dc512678d9ddbcf2f5e283ee5c53df0d89a57b257f103635a55',
+        'reprove.py': '631b3fbe5b505116784cdd94326ce568aa8ff4849e09a83409b5e260f7726131'}
+# a part's source: measure.py's corrected record (measure2_, its arms each releasing their own results; Astra,
+# 2026-11-01 04:43 PST: the first record, measure_, charged one arm's release to the next) and the part's arm
+SOURCE = re.compile(r'(scratch/stages-cram-20261101/measure2_\d+_\d+_\d+\.json), arm (\w+) \(measure\.py\)')
+
+
+def two_piece(cpu, z):
+    """The cost cpu, {median, lo, hi}, at the standard normal's z, as progress.drawn defines its draws: a two-piece
+    log-normal whose median and QUANTILES are the cost's."""
+    side = cpu['hi'] if z > 0 else cpu['lo']
+    return cpu['median'] * (side / cpu['median']) ** (z / statistics.NormalDist().inv_cdf(0.95 if z > 0 else 0.05))
+
+
+def q_lanes_at_once_take_the_longer_replicate_by_replicate():
+    # Replicata: a made-up chain of 672:13's fanout.py run with one later stage of one phase of two lanes, each lane
+    # one part per token on 1 process measured at a median of 1 CPU s, 0.5 at its low end and 2 at its high end;
+    # stages_of with 3,600 tokens and a share of 1, the run's estimate 0 h in every replicate.  Apart, the quantiles of
+    # the larger of two independent draws of that cost: G(q) = F(q)^2 = p, so q is the cost at the standard normal's
+    # quantile of p^(1/2) (two_piece).
+    # Expectata (Astra, 2026-11-01 03:54 PST: "Any overlap combination belongs on replicate draws before quantiles,
+    # not on already-aggregated medians/bands"): the stage's median, low and high those of the larger draw (1.258,
+    # 0.726 and 2.279 h) within 6%: not the larger of the lanes' own quantiles (1, 0.5 and 2 h), which a combination
+    # of medians and bands would give; the total the stage's.
+    run = ('fanout.py', 672, 13)
+    cost = dict(median=1.0, lo=0.5, hi=2.0)
+    with chains(phased(run, ('A', [[[('token', 1, cost)], [('token', 1, cost)]]]))):
+        got = progress.stages_of(run, 'running', None, np.zeros(progress.REPLICATES), {'token': 3600.0}, 1.0)
+    z = lambda p: statistics.NormalDist().inv_cdf(math.sqrt(p))
+    want = dict(median=two_piece(cost, z(0.5)), lo=two_piece(cost, z(0.05)), hi=two_piece(cost, z(0.95)))
+    assert [round(want[k], 3) for k in ('median', 'lo', 'hi')] == [1.258, 0.726, 2.279], want
+    for k in want:
+        assert math.isclose(got['stages'][1]['to_go'][k], want[k] * 3600, rel_tol=0.06), (k, got['stages'][1], want)
+    assert got['stages'][1]['to_go']['median'] > 1.1 * 3600 and got['stages'][1]['to_go']['lo'] > 0.6 * 3600, got
+    assert close(got['total'], got['stages'][1]['to_go']), got
+
+
+def q_phases_follow_one_another_and_each_lasts_its_longest_lane():
+    # Replicata: a made-up chain of 672:13's fanout.py run, its estimate 1 h in every replicate, then stage R in three
+    # phases: one lane per token on 8 processes at 0.8 CPU s; then two lanes, one on 1 process (0.1, then 0.2 CPU s a
+    # token), the other on 8 (4, then 4); then one lane on 1 process at 0.05; then stage S, one part on 1 process at
+    # 0.25; stages_of with 3,600 tokens and a share of 0.5.  Then the same with the 1-process lane of R's second phase
+    # at 3, then 1 CPU s a token.
+    # Expectata (Astra, 2026-11-01 03:54 PST: the outer chain sequential; inside reprove, briefs before the streaming
+    # walk with its reproofs, then the final seals after the drain; never one max over the whole of reprove): R's
+    # phases summed, each its longest lane, its lanes' parts summed: 3600 x 0.8 / (8 x 0.5) = 720 s, then max(3600 x
+    # 0.3 / 0.5, 3600 x 8 / (8 x 0.5)) = 7,200 s, then 3600 x 0.05 / 0.5 = 360 s: R 8,280 s; S 3600 x 0.25 / 0.5 =
+    # 1,800 s; the total 3,600 + 8,280 + 1,800 s.  With the 1-process lane the longer, max(28,800, 7,200): R 29,880 s
+    # and the total 3,600 + 29,880 + 1,800 s.
+    run = ('fanout.py', 672, 13)
+    for a, b, R in ((0.1, 0.2, 8280.0), (3.0, 1.0, 29880.0)):
+        made = phased(run, ('R', [[[('token', 8, point(0.8))]],
+                                  [[('token', 1, point(a)), ('token', 1, point(b))], [('token', 8, point(4.0)), ('token', 8, point(4.0))]],
+                                  [[('token', 1, point(0.05))]]]),
+                      ('S', [[[('token', 1, point(0.25))]]]))
+        with chains(made):
+            got = progress.stages_of(run, 'running', None, np.ones(progress.REPLICATES), {'token': 3600.0}, 0.5)
+        assert [s['name'] for s in got['stages']] == ['fanout.py', 'R', 'S'], got
+        assert close(got['stages'][1]['to_go'], dict(median=R, lo=R, hi=R)), (a, b, got['stages'][1])
+        assert close(got['stages'][2]['to_go'], dict(median=1800.0, lo=1800.0, hi=1800.0)), got['stages'][2]
+        assert close(got['total'], {k: 3600 + R + 1800.0 for k in ('median', 'lo', 'hi')}), (a, b, got['total'])
+
+
+def arms(stage):
+    """Each part of a stage of the real stages.json as (its measurement file, its arm), read from its source, shaped
+    as the stage's phases and lanes."""
+    named = lambda p: SOURCE.fullmatch(p['source']).groups()
+    return [[[named(p) for p in lane] for lane in phase] for phase in stage['phases']]
+
+
+def q_cram_reprove_walks_beside_its_reproofs_between_its_briefs_and_its_seals():
+    # Replicata: 432:12's chain in progress.STAGES, the repository's stages.json; each part's measured code path, the
+    # arm its source names in scratch/stages-cram-20261101's measurement (measure.py).
+    # Expectata (the coordinator and Astra, 2026-11-01, of CRAM's reprove.py: reprove.briefs, then fanout.assemble's
+    # walk with each job's reproof released as assemble passes it, then the seals after the drain): fanout.assemble
+    # one part, assemble's per-job work; reprove.py's first phase briefed (its workers' briefs), its second the walk
+    # (assemble's per-job work, then the seal passed takes) beside the reproofs (the task's read, then the walk), its
+    # third the seals; every part from one measurement file.
+    chain = next(c for c in progress.STAGES if c[0].get('run') == ['fanout.py', 432, 12])
+    got = [arms(s) for s in chain[1:]]
+    files = {f for stage in got for phase in stage for lane in phase for f, _ in lane}
+    assert len(files) == 1, files
+    assert [[[[a for _, a in lane] for lane in phase] for phase in stage] for stage in got] == [
+        [[['assemble']]],
+        [[['briefed']], [['assemble', 'sealed'], ['read', 'walk']], [['sealed']]]], got
+
+
+def q_cram_coefficients_are_cpu_measured_on_cram():
+    # Replicata: each part of 432:12's later stages in progress.STAGES, and the measurement file and arm its source
+    # names (scratch/stages-cram-20261101/measure.py's output: a row a job file, each arm's CPU nanoseconds summed over
+    # its timings, by time.process_time_ns, and its tokens).
+    # Expectata (Astra, 2026-11-01 03:54 PST: "Coefficients must be CPU per unit measured as CPU"; the coordinator:
+    # each coefficient's provenance): the file measured the installed CRAM files (fanout.py f56e2346..., reprove.py
+    # 631b3fbe...) at nice 19 with single-threaded BLAS; each part's median its arm's CPU seconds a token, the arm's
+    # nanoseconds over its tokens times its timings, summed over the files that ran it (Astra, 04:36 PST: a
+    # token-weighted rate); its low and high ends around it; its conditions naming both files' sha256 prefixes; no part
+    # citing the measurements of N3Q3's code (measure_q3.json, assembly_files_1_300.json) that CRAM replaced.
+    chain = next(c for c in progress.STAGES if c[0].get('run') == ['fanout.py', 432, 12])
+    parts = [p for s in chain[1:] for phase in s['phases'] for lane in phase for p in lane]
+    assert parts and all(SOURCE.fullmatch(p['source']) for p in parts), [p['source'] for p in parts]
+    assert not [p for p in parts if 'measure_q3' in p['source'] + p['conditions'] or 'assembly_files' in p['source']], parts
+    for p in parts:
+        path, arm = SOURCE.fullmatch(p['source']).groups()
+        m = json.load(open(os.path.join(progress.HERE, path)))
+        assert m['identity']['files'] == CRAM and m['nice'] == 19 and set(m['threads'].values()) == {'1'}, m['identity']
+        rows = [r for r in m['rows'] if arm in r['ns']]
+        per = sum(r['ns'][arm] for r in rows) / sum(r['tokens'] * r['timings'][arm] for r in rows) / 1e9
+        assert rows and math.isclose(p['cpu']['median'], per, rel_tol=1e-12), (arm, p['cpu'], per)
+        assert p['cpu']['lo'] < per < p['cpu']['hi'], (arm, p['cpu'])
+        assert p['per'] == 'token' and CRAM['fanout.py'][:8] in p['conditions'] and CRAM['reprove.py'][:8] in p['conditions'], p
+
+
+def journal432(d):
+    """quals_fanout_progress.drawn()'s journal, as 432:12's, in the directory d: 15 LP solves done (jobs a and b), the
+    pool estimate 45 to go in every replicate, at 4 LP solves a second."""
+    import quals_fanout_progress
+    records = quals_fanout_progress.drawn()
+    assert records[0]['event'] == 'header'
+    path = os.path.join(d, 'fanout_432_journal.jsonl')
+    open(path, 'w').write(''.join(json.dumps(r) + '\n' for r in [dict(records[0], n=432, order=12)] + records[1:]))
+    return path
+
+
+def q_the_fanout_stage_is_the_journal_s_rate_with_no_factor():
+    # Replicata: survey_fanout of quals_fanout_progress.drawn()'s journal as 432:12's (journal432) at 300 s, its driver
+    # 41 alive with a worker 42 that ps says used 30 CPU minutes in an hour (a share of 0.5), under the repository's
+    # stages.json; and stages_of of 432:12's run with its estimate 0 h, the same 60 tokens and share, in as many
+    # replicates as the pool estimate's (BOOT: pool_draws).
+    # Expectata (Astra, 2026-11-01 04:19 PST: "the running search's observed throughput already reflects installed
+    # worker behavior, so its estimate must not also be multiplied by the 3.743% benchmark reduction"; the
+    # coordinator: the fanout stage's rate comes from the journal, with no extra factor): fanout.py's own stage the
+    # pool estimate at the journal's rate exactly, 45 LP solves at 4 a second, 11.25 s at its median, low and high,
+    # as the survey's to_go; the later stages fanout.assemble and reprove.py; the total 11.25 s more than the later
+    # stages' alone at their median, low and high: the run's replicates added unscaled to theirs, from 15 + 45 tokens.
+    procs = [(41, 1, 'SN', '/opt/homebrew/bin/python3 -B fanout.py 432'), (42, 41, 'SN', WORKER)]
+    times = lambda: {42: ('30:00.00', '01:00:00')}
+    d = tempfile.mkdtemp(prefix='stages-quals-')
+    try:
+        s = progress.survey_fanout(journal432(d), procs, 300, {}, {}, times=times)
+    finally:
+        shutil.rmtree(d)
+    assert [x['name'] for x in s['stages']] == ['fanout.py', 'fanout.assemble', 'reprove.py'], s['stages']
+    assert close(s['stages'][0]['to_go'], dict(median=11.25, lo=11.25, hi=11.25)) and s['stages'][0]['to_go'] == s['to_go'], s
+    alone = progress.stages_of(('fanout.py', 432, 12), 'running', None, np.zeros(progress.BOOT),
+                               {'token': np.full(progress.BOOT, 60.0)}, 0.5)
+    assert [x['to_go'] for x in alone['stages'][1:]] == [x['to_go'] for x in s['stages'][1:]], (alone, s['stages'])
+    assert close(s['total'], {k: 11.25 + v for k, v in alone['total'].items()}), (s['total'], alone['total'])
+
+
+def q_the_288_chain_sums_its_stages_as_before():
+    # Replicata: stages_of of 288:10's overnight_v5.py run and of its boxsplit.py run under the repository's
+    # stages.json, running, each with its estimate drawn at random (REPLICATES replicates), open leaves at random
+    # (one a replicate) and a share of 0.43; apart, the arithmetic of stages_of before 2026-11-01: each later stage
+    # the sum of its parts, a part its count times its cost drawn (drawn, from SEED's first spawned stream, part after
+    # part in the chain's order) over its processes times the share, and the total the run's replicates plus each
+    # stage's.
+    # Expectata (Astra, 2026-11-01 03:54 PST: "Existing sequential-addition behavior and the 288 chain should remain
+    # qualified"): every stage's to_go and the total exactly that arithmetic's, so that 288:10's line is unchanged.
+    rng = np.random.default_rng(7)
+    for run in (('overnight_v5.py', 288, 10), ('boxsplit.py', 288, 10)):
+        hours = rng.gamma(2.0, 30.0, progress.REPLICATES)
+        leaves = rng.uniform(1e6, 2e6, progress.REPLICATES)
+        got = progress.stages_of(run, 'running', progress.to_go_of(progress.quantiles(hours)), hours, {'open leaf': leaves}, 0.43)
+        later = progress.later_of(run)
+        assert later and all(len(s['phases']) == 1 and len(s['phases'][0]) == 1 for s in later), later
+        stream = np.random.default_rng(np.random.SeedSequence(progress.SEED).spawn(1)[0])
+        before = [sum(leaves * progress.drawn(stream, p['cpu'], len(hours)) / (p['processes'] * 0.43 * progress.HOUR)
+                      for p in s['phases'][0][0]) for s in later]
+        assert [x['to_go'] for x in got['stages'][1:]] == [progress.to_go_of(progress.quantiles(h)) for h in before], run
+        assert got['total'] == progress.to_go_of(progress.quantiles(hours + sum(before))), run
 
 
 def main():

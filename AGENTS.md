@@ -756,3 +756,125 @@ Order-13 witness agent, 2026-10-31 from 06:05 (Claude; `scratch/w13-1008-912/`):
   - **Quals:** 28 quals files updated, plus 3 new quals (q_page_links_resolve and others). Suites 1,162 quals with the same 3 known failures.
   - **Links:** 10 page links point into proofs/; old external URLs break.
   - **Watcher** restarted as PID 78863 at 19:22:18.
+- **Collaboration with Astra (Codex) started** (2026-10-31 23:31; dreeves: "monitor omg-we-found-other-agents.md to collaborate with astra et al on speeding up the searches ... it's up to y'all to coordinate, figure out turn-taking, etc").
+  - **The file:** the root omg-we-found-other-agents.md, append-only, dated and attributed, with claims before edits.
+  - **Split:** Astra has idea 1 (carry and reproof overhead, scratch/claude-astra-20261031/reprove/ and carry/). Claude has idea 2 (incremental frontier, and overlapping reprove's assembly with its reproof): a sub-agent works in scratch/claude-astra-20261031/assembly/. Idea 3 (certificate reuse) is unclaimed.
+  - **Timing slots:** one at a time; Astra holds the first.
+  - **Deploys:** one bundled deploy432 variant, reviewed in the file.
+  - **Watch:** a background wait on the file's mtime wakes the main session at each change.
+- **Astra's two candidates reviewed** (Claude, 23:40): both are approved for the bundled deploy432 variant.
+  - reprove overhead (`scratch/claude-astra-20261031/reprove/`): 15.3% less reproof CPU on 4 saved jobs.
+  - carry adapter (`carry/fanout.diff`): `carry_for(lp)` shifts once and caches columns, assigned as Simplex's LP's carry; certbb.py is unchanged. 4.2% less search CPU and 5.1% less reproof CPU.
+  - Proposed in the shared file: deploy carry + reprove during a 432 pause, and Claude's assembly changes as a second switch.
+- **672:12 third launch** (Claude, 2026-10-31 23:42 PDT; by the mission, about 0.11 modeled witnesses an hour against 432's roughly 12 days).
+  - **The chain:** `scratch/w11-624-576/w12/launch672c.sh` (shell PID 24043 in launch672c.pid, log run672c.out) runs up to 6 run.py batches.
+  - **Each batch** pauses 432 and keeps 7 w12 seeds running from 151 + 200b until a witness, 200 seeds or 7000 s, which stays under pause432's 2-hour watchdog. Then it resumes 432.
+  - **The chain stops** after a failed batch or a witness.
+  - **Before launch:** quals_w12 5/5 (`quals_w12.2359.out`). Seeds 1-150 had summed E*p 0.208 and no witness.
+  - **record672.py is ready,** but it writes the changelog date 2026-10-31; a witness after midnight needs 2026-11-01.
+  - **To stop:** SIGTERM to the shell, then to the batch's driver (`seeds672_12.pid`); run.py then resumes 432.
+- **CRA prepared** (2026-11-01 ~02:00, not deployed; records `scratch/deploy432-20261030/CRA/`, NOTES.md there).
+  - **Contents:** Astra's carry and reproof-overhead changes, plus Claude's assembly changes (an incremental fanout.frontier, and reprove overlapped with assembly through assemble's new `passed` hook).
+  - **Files:** fanout.py 825f1ccb…, fanout_code 0e75f6e2…; reprove.py 10102f1a….
+  - **Measured:**
+    - frontier 4.88× faster, assemble's per-job checks 3.28×;
+    - carry 4.2% less search CPU, 5.1% less reproof CPU;
+    - Astra's reproof overhead change 15.3% less reproof CPU;
+    - projected about 28 h saved at the finish.
+  - **Evidence:** qualify CRA 233 quals green. The dry run matches N3Q3's expectations. Corpus-wide frontier check: 105,860 job files, 0 mismatches against the workers' open lists (`scratch/claude-astra-20261031/assembly/logs/corpus_check.json`).
+  - **Review:** every piece reviewed by Astra in omg-we-found-other-agents.md.
+  - **Deploy route:** only after the 672:12 chain ends, with no repause.
+    - First `CR/ready.py CRA` (the guard: no 672 chain process or pause432 user, no pause432.json, 432 running; plus install's and relaunch's checks).
+    - Then intent, stop, install CRA, switch CRA, relaunch CRA and verify CRA, one at a time, stopping at the first failure. Downtime is about 32 min.
+  - **Defects fixed along the way:** deploy432's ps-lstart dating in the repeated DST hour, now born from etime as a lower bound; a torn read in the overlapped reproof.
+  - **Open defects of the paused route (repause):** the lost pause interval, and a race with pause432 resume.
+- **Certificate reuse (Astra) is negative:** preparation costs about 0.95 ms a hit to break even.
+- **Next, Claude's:** the finish's memory. The driver holds about 1.7 KB a job (178 MB at 105,860), and assemble's `jobs` list about 3.2 KB a job, so roughly 7 GB at the finish at about 1.6M jobs. The assembly sub-agent measures it in `scratch/claude-astra-20261031/memory/`.
+- **CRAM supersedes CRA as the deploy candidate** (2026-11-01 02:50 PST): CRA plus the memory compaction.
+  - **Files:** fanout.py f56e2346…, reprove.py 631b3fbe…, fanout_code cd6521ed….
+  - **The compaction:** assemble shares each (position, value) pair through `pairs`, keyed by repr, so 5 and 5.0 stay apart; reprove's job-file list lives only inside `briefs`.
+  - **Memory, measured on 105,860 files:** finish bookkeeping 4,012 → 1,036 bytes a job. Extrapolated to about 1.6M jobs, the driver's finish goes from about 6.4–7.3 GB to about 1.7 GB.
+  - **Evidence:** qualify CRAM 239 green; the dry run equals CRA's except in the two files; frontier is byte-identical to CRA's, so the corpus check applies; 23 mutants caught; quals_deploy432 71/71.
+  - **Commands now name the variant:** `deploy432.py PHASE VARIANT`, with records in `scratch/deploy432-20261030/VARIANT/`. The plan is `CRAM/NOTES.md`: ready.py CRAM, then intent, stop, install, switch, relaunch and verify CRAM, one at a time. The fallback is the same commands with CRA.
+  - **Deploy timing:** after Astra's review and once the 672:12 chain has ended.
+  - **New names for dreeves:** `pairs`, `briefs`.
+- **672:12 third launch so far** (02:55 PST): batches 0 and 1, seeds 151-550, no witness. Summed E*p is 0.53 for this launch and 0.74 over all 672 seeds. Batch 2 (driver 83038) runs seeds from 551.
+- **672:12 found and recorded** (2026-11-01).
+  - **The find:** the third launch's batch 2, seed 685, pool rank 61, at 03:46 PST, after 140 of the batch's seeds. Over seeds 151-690 the summed E*p was about 0.6; over all of 672's seeds, about 0.8.
+  - **Checks:** the search's exact check; `verify12.py` (plain integers, both shifts, (x−1)^12 dividing exactly and (x−1)^13 not, symmetric); `page_check.py 672 12` (overnight_v5.exact_order of the decoded page code is 12).
+  - **Recorded by `scratch/w11-624-576/w12/record672.py`:**
+    - Before applying, its changelog step was moved to a new top line, "2026-11-01: 12 ≤ m*(672) ≤ 13", with the qual's date to match; the original is kept as record672.v1-20261031.py.
+    - NEW 672 (12, 13); p672 (`<code id="672:12">`, equipow p672) after p656.
+    - An example entry between 656's and 720's in place of the doubled-336 entry; the cell 12–13; mstar.js column 672 only.
+  - **Quals:** quals_mstar q_example_at_672_raises_its_lo and quals_index q_example_at_672_has_its_entry_and_code, both red first. q_examples_at_720_and_1008_have_their_entries_and_codes now expects 720's entry after 672's, not 656's (dated comment).
+  - **Suites:** quals_mstar 38, quals_pow2 16, quals_record_gaps 7, quals_pow2_page 23, quals_codes 11, quals_derivations 7, quals_index 115.
+  - **preview.png** rebuilt at 0.40.
+  - **Pending:** `firsts_now.py after672 1..10`, to see whether any powers-of-2 first moves.
+  - **What stopped the chain:** the witness, after which run.py resumed 432 at 03:46:41.
+- **CRAM deployed** (2026-11-01 03:49-03:55 PST, by CRAM/NOTES.md, each phase run alone and inspected).
+  - **Phases:** ready.py CRAM passed; intent (paused false); stop 0.84 s (driver 64695 gone); install (root fanout.py f56e2346…, reprove.py 631b3fbe…, old files in CRAM/before-CRAM/); switch 576aa600… → cd6521ed…; relaunch, with new driver **95078** at nice 15 and a session at cd6521ed…, seed 6, 8 workers.
+  - **Still to run:** verify CRAM, after the session start (about 25 min).
+  - **Frozen now:** fanout.py f56e2346… and reprove.py 631b3fbe…, besides the earlier list.
+  - **Firsts** (`scratch/w11-624-576/firsts_now.py after672 1..10`, 626 s, `firsts_now_after672.json`): with mstar.js as it now stands, no powers-of-2 first moves. δ = 8 is still undecided at K 58-64 and δ = 9 at 67, so pow2.js is unchanged.
+  - **CRAM verify** passed at 04:11 PST (`CRAM/verify-CRAM.jsonl`): 8 job_starts, and the pool record matches the walk. Stop to first job_start took 21 min. The shepherd adopted driver 95078.
+- **Installed CRAM against N3Q3** (Astra, 04:18 PST, `scratch/claude-astra-20261101/combined/`): on four complete jobs, worker search 3.7% less CPU, full saved-tree reproof 15.2% less. Exact results match. This sample covers neither assembly, I/O nor scheduling.
+- **688:10 second launch** (Claude, 2026-11-01 04:18:31 PST; by the value/ETA rule, about 0.04 modeled witnesses an hour against 432's roughly 11 days; a witness settles m*(688) = 10).
+  - **The chain:** `scratch/w11-624-576/w10s/launch688b.sh` (shell 16989, log `run688b.out`) runs batches of run.py with 432 (driver 95078) paused, seven w10s seeds from 151 + 600b, at most 7000 s each, at most 12 batches.
+  - **Before launch:** quals_w10s 4/4, after two fixture labels were updated to [IND]'s `equipow pN` (copy kept as quals_w10s.v1-20261031.py).
+  - **A witness** would need a recorder that splits the shared 544/688 entry. None is written yet.
+- **Stage model for CRAM:** a Claude sub-agent updates stages.json, progress.stages_of and quals_stages under Astra's 03:54 constraints, in `scratch/stages-cram-20261101/`. Astra reviews; then the watcher restarts.
+- **688:10 found and recorded** (2026-11-01). m*(688) = 10, settled.
+  - **The find:** launch688b.sh batch 0, seed 377, at 04:44:52 PST, after 231 of the batch's seeds; 432 was paused 1,582 s.
+  - **Checks:** the search's check10; `verify10.py` (plain integers, both shifts, (x−1)^10 dividing exactly and (x−1)^11 not, symmetric); `page_check.py 688 10`.
+  - **Recorded by `scratch/w11-624-576/w10s/record688.py`:**
+    - NEW 688 (10, 10); p688 (`<code id="688:10">`) after p672; the cell 10.
+    - The entry it shared with 544 now names 544 alone, its 688 clauses left out, as apply768.py once did with 672's.
+    - An example entry between 672's and 720's; the changelog's 2026-11-01 line gained "m*(688) = 10".
+  - **Quals:**
+    - New, both red first: q_example_at_688_settles_it and q_example_at_688_has_its_entry_and_code.
+    - Moved with the result, each with a dated comment: 672's next neighbor is now 688; 720's previous neighbor is now 688; q_results_of_2026_10_26 now pins 544 alone; q_gray_columns adds 688 to the lengths settled at 10.
+  - **Suites:** quals_mstar 39, quals_pow2 16, quals_record_gaps 7, quals_pow2_page 23, quals_codes 11, quals_derivations 7, quals_index 116.
+  - **preview.png** rebuilt at 0.40. `firsts_now.py after688` is running.
+  - **Firsts:** `firsts_now.py after688`, 787 s, `firsts_now_after688.json`. No powers-of-2 first moves (δ = 8 is still undecided at K 58-64, δ = 9 at 67), so pow2.js is unchanged.
+- **Stage model for CRAM installed** (2026-11-01 05:25 PST; sub-agent work in `scratch/stages-cram-20261101/`, approved by Astra at 05:25).
+  - **Files:** progress.py 7c8ae8a3…, stages.json c4f120de…, quals/quals_stages.py d0998759…, index.html c93f1e15….
+  - **The model:**
+    - stages.json's later stages are now `phases`: lists of lanes, each a list of parts.
+    - A lane is the sum of its parts, a phase the elementwise max of its lanes, a stage the sum of its phases, per replicate draw.
+    - 432:12's chain is fanout.py → fanout.assemble → reprove.py (briefs; the assembly lane beside the workers' read and walk lane; seals).
+    - Coefficients are CPU per tree token from `measure2_1_300_48.json`.
+    - Stated assumptions: 9q of capacity for nine processes, ideal overlap, CPU-limited time; unmeasured work is called unmeasured.
+  - **The page:** a Claude-attributed note after dreeves's stage sentence.
+  - **288's output** is byte-identical (2,535 differential calls).
+  - **Watcher:** restarted as PID 13505. Its first snapshot gives 432:12 8.48 days (8.14–8.78) to a recordable result: fanout 4.67, assembly 0.165, reproof 3.63.
+- **Astra's installed-worker profile** is done (`scratch/claude-astra-20261101/profile/`, raw cProfile output, exact checks passed). Astra is interpreting it.
+- **Astra's CRAM worker profile** (05:30 PST, `scratch/claude-astra-20261101/profile/`): on four jobs, 7.93 instrumented CPU s, of which:
+  - native dual solves 1.79 s;
+  - native exact bound (NativeCheck's GMP) 1.24 s;
+  - numpy.asarray 0.71 s and numpy.array 0.36 s, from Producer.screen, Producer.point and certbb.choose;
+  - `scaled` 0.68 s cumulative.
+- **Candidates, both producer-side** (fanout.py only, certbb.py byte-identical):
+  - A, Astra's: reuse local NumPy bounds between point and choose.
+  - B, Claude's: a vectorized `Lp.scaled` closure, `scaled_for(lp)`, giving the same integers bit for bit (SCALE_BITS 50, round half to even in both).
+  - A Claude sub-agent prepares both as one variant on CRAM in `scratch/claude-astra-20261101/ab/`: quals, ABBA, staged variant, dry run. It deploys only after Astra's review.
+- **Astra ended its turn at 05:32 PST**, after verifying the watcher restart. Its reviews resume when its session does. Correction: the Overtime traces in the watcher log were October 31 entries, not errors from this restart.
+- **Candidate A** (Astra, `scratch/claude-astra-20261101/bounds/`, fanout.py be97f737…): Producer.step reuses local NumPy bounds for point and choose.
+  - **Measured:** 6.2% less worker CPU on four jobs (5.4% with setup), every job faster, exact trees.
+  - **Code:** +4 lines; +1 `if` and −1 conditional expression on the existing Optimal decision.
+  - **Review:** Claude found no discrepancy (06:51 entry).
+- **Candidate B, archived** (Claude, `scratch/claude-astra-20261101/scaled/`, fanout.py 000c4609…): a vectorized `scaled`, exact on native 1-D float64 rays (9 quals, 13 mutants caught).
+  - **Why archived:** the real per-call cost was 7.4 µs against 4.4 µs (the profile's 54 µs was mostly cProfile overhead), so the gain is about 1% of worker CPU and none in reproof. 16 lines and a narrower contract buy too little.
+- **Variant CRAMA** (CRAM plus A): the deploy sub-agent is staging it in `scratch/deploy432-20261030/CRAMA/`, then qualify and dry run, then Astra's review, then the main session deploys by the guarded steps.
+- **CRAMA deployed** (2026-11-01 07:09-07:34 PST): CRAM plus candidate A (Producer.step reuses local NumPy bounds).
+  - **Selection:** A alone, by the predeclared rule. Astra's 144-trial joint benchmark gave A/CRAM worker 0.9415, and AB/A 0.9895, missing the 0.98 bar; B and AB stay archived.
+  - **Phases** (each alone, by CRAMA/NOTES.md, with Astra's reviews): ready.py CRAMA, intent, stop 0.32 s, install (root fanout.py be97f737…; reprove.py unchanged at 631b3fbe…), switch cd6521ed… → **3bdc4361…**, relaunch (driver **5788**, seed 7), verify at 07:34. Downtime was about 24 min.
+  - **Frozen now:** fanout.py be97f737…, besides the earlier list.
+  - **Rollback:** CRAMA/before-CRAMA/fanout.py, `fanout.py switch 432`, relaunch, after stopping 5788 and checking the locks are free.
+- **Collaboration round closed** (2026-11-01 07:38 PST): Astra independently verified CRAMA live; its file observer stopped.
+  - **Open items** (the list is in omg-we-found-other-agents.md, 07:38):
+    - the sampled final recheck, dreeves's decision;
+    - a float screen for NativeCheck's exact bound (about 16% of worker CPU), a trust-base question for dreeves;
+    - fastlp's dual solve (about 23%);
+    - repause's two defects;
+    - quals_deploy432's teardown flake;
+    - refreshing the carry and overhead production manifests to CRAMA for any later variant.

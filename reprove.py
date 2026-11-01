@@ -33,11 +33,13 @@ Vocabulary (with fanout.py's):
 A reflected case has no tree to reprove: it closes with its source (see fanout.py's 'trust').  The run's chunks are
 rechecked by focus.replay, within assembly, their certificates being kept.
 """
-from concurrent.futures import ProcessPoolExecutor
+import collections
+from concurrent.futures import FIRST_COMPLETED, ProcessPoolExecutor, wait
 import contextlib
 import fcntl
 import functools
 import hashlib
+import io
 import json
 import multiprocessing
 from pathlib import Path
@@ -67,6 +69,8 @@ assert all(hashlib.sha256(path.read_bytes()).hexdigest() == h for path, h in NAT
     'Claude: "a file of the GMP bound is not the pinned one"'
 
 ATTEMPTS = ('dual', 'warm', 'cold', 'primal')  # see the vocabulary
+CHUNK = 64                             # job files a worker reads at a time at the recheck's start (briefed)
+AHEAD = 2                              # reproofs submitted at a time, a worker (see run)
 OK = certbb.highs.HighsStatus.kOk
 PREPARED = None                        # a worker's prepared equations and cases, set by init
 
@@ -131,6 +135,13 @@ def walk(job, tree):
     last solve: the job's id, its nodes, its leaves, how many of them each attempt proved, and its seconds."""
     equations, cases = PREPARED
     case, path = job
+    name = fanout.jid(job)
+    class Where:
+        """A leaf diagnostic rendered only if its proof fails."""
+        def __init__(self, path):
+            self.path = path
+        def __str__(self):
+            return f'job {name}, box {json.dumps(self.path)}'
     rows, bound = certbb.node_rows(equations, cases[case]), native_bound_of(equations, tuple(cases[case]), ())
     lp, lex = lp_for(case), fanout.Lex(equations.N)
     cut, second = [], object()             # the cut's row once the tree's ['D'] is read; its second side's marker
@@ -140,16 +151,16 @@ def walk(job, tree):
         lp.outcome(lo, hi, basis, lambda lo, hi, n: True)     # only for its children's warm starts: any answer will do
         stack.extend([(p + ((position, 1),), lp.dual.snapshot()), (p + ((position, 0),), None)])
     def leaf(p, lo, hi, basis):
-        if cut and lex.status(lo, hi) == 'dead':                  # below the cut: proven by the cut's row alone
+        if cut and lex.scan(lo, hi) == 'dead':                  # below the cut: proven by the cut's row alone
             # TODO: error copy; says the lex cut's certificate fails to prove a dead box below the cut, naming the box
             dead = native_bound_of(equations, tuple(cases[case]), tuple(cut))     # the rows and the cut's
             assert dead(lo, hi, [0] * len(rows) + [-1]) > 0, \
                 f'Claude: "the cut does not prove {json.dumps(p)}"'
             dead_leaves[0] += 1
             return
-        proved[close(lp, bound, lo, hi, basis, f'job {fanout.jid(job)}, box {json.dumps(p)}')] += 1
+        proved[close(lp, bound, lo, hi, basis, Where(p))] += 1
     def lexcut(p, lo, hi, basis):          # the tree's first token, on the job's own box (assembly checked it mixed)
-        assert not cut and p == tuple(map(tuple, path)) and fanout.Lex(equations.N).status(lo, hi) == 'mixed', p
+        assert not cut and p == tuple(map(tuple, path)) and lex.scan(lo, hi) == 'mixed', p
         cut.append((tuple(lex.sparse), 0))
         stack.extend([(second, None), (p, None)])
     def point(p, lo, hi, basis, x):           # an exact solution, checked as focus.State checks one
@@ -162,18 +173,43 @@ def walk(job, tree):
         assert p is not second, 'Claude: "a tree token on the cut\'s second side"'
         lo, hi = fanout.box(equations.N, p)
         actions[node[0]](p, lo, hi, basis, *node[1:])
-    return dict(job=fanout.jid(job), nodes=len(tree), leaves=sum(proved) + dead_leaves[0],
+    return dict(job=name, nodes=len(tree), leaves=sum(proved) + dead_leaves[0],
                 attempts=dict(zip(ATTEMPTS, proved)), dead=dead_leaves[0], seconds=time.monotonic() - start)
 
 
-def task(work_dir, job, sha):
+def task(work_dir, job, sha, seal):
     """A worker's task: the reproof of the job's tree, read from its file by fanout.load, which must still hold the
     tree that assembly checked, whose tree_sha256 is sha (2026-10-25 review: a file changed after assembly was
-    reproven as it then was)."""
-    data = fanout.load(Path(work_dir) / 'jobs' / f'{fanout.jid(job)}.json.gz')
+    reproven as it then was).  Since 2026-10-31 (scratch/claude-astra-20261031/assembly) the file's bytes are read
+    once, checked against seal, the sha256 of its bytes when assembly passed the job (see run), and parsed from those
+    very bytes: a reproof may now run while another writer changes the file, and no read of it can then be torn."""
+    path = Path(work_dir) / 'jobs' / f'{fanout.jid(job)}.json.gz'
+    raw = path.read_bytes()
+    # TODO: error copy; says a job's file changed after assembly checked it, naming the job
+    assert hashlib.sha256(raw).digest() == seal, f'Claude: "the file of job {fanout.jid(job)} changed after assembly"'
+    data = fanout.load(path, lambda path: fanout.read(io.BytesIO(raw)))
     # TODO: error copy; says a job's file changed after assembly checked it, naming the job
     assert data['tree_sha256'] == sha, f'Claude: "the file of job {fanout.jid(job)} changed after assembly"'
     return walk(job, data['tree'])
+
+
+def briefed(path):
+    """A worker's task at the recheck's start: fanout.finished's entry for one job file, its brief, the file checked by
+    fanout.load."""
+    return fanout.brief(fanout.load(path))
+
+
+def briefs(pool, work_dir):
+    """fanout.finished's value, each job file read by the pool's workers (briefed): its files, keys, order and failure.
+    Its list of files lives only while it runs (2026-11-01, scratch/claude-astra-20261031/memory: kept in run's frame,
+    it held about 0.3 KB a job file through the whole recheck)."""
+    files = sorted((Path(work_dir) / 'jobs').glob('*.json.gz'))
+    return dict(zip((f.name.split('.')[0] for f in files), pool.map(briefed, files, chunksize=CHUNK)))
+
+
+def sealed(work_dir, job):
+    """The sha256 of the bytes of a job's file, as they are now: what the recheck's last check compares (see run)."""
+    return hashlib.sha256((Path(work_dir) / 'jobs' / f'{fanout.jid(job)}.json.gz').read_bytes()).digest()
 
 
 def codes():
@@ -185,29 +221,58 @@ def codes():
 
 
 def run(run_dir, work_dir, journal, n, m, workers):
-    """Rechecks the finished fanout run of (n, m): fanout.assemble, then every job's reproof, workers at once.  Its
-    totals: jobs, nodes, leaves, leaves proven by each attempt, dead leaves proven by the lex cut, the reproofs'
-    seconds, and the code that ran (codes), asserted the same after the reproofs as before assembly."""
+    """Rechecks the finished fanout run of (n, m): fanout.assemble, every job's reproof begun as soon as assembly has
+    checked the job itself (see below), workers at once.  Its totals: jobs, nodes, leaves, leaves proven by each
+    attempt, dead leaves proven by the lex cut, the reproofs' seconds, and the code that ran (codes), asserted the same
+    after the reproofs as before assembly.
+    Overlapped since 2026-10-31 (scratch/claude-astra-20261031/assembly; until then the workers started only after
+    assembly, whose walk is serial): done, fanout.finished's value, read by the workers (briefed); each job queued for
+    its reproof (backlog) as soon as assemble passes it, before assembly's checks of the whole, nothing accepted unless
+    assemble returns; at most AHEAD reproofs a worker submitted at a time, the walk never waiting for them; each
+    finished reproof folded into the totals when next seen (at each job assemble passes, and after the walk as each
+    finishes), so that a failed one stops the walk at its next job; and, since a reproof may now read its job's file
+    before assembly ends, the sha256 of each file's bytes, taken as assemble passes it (sealed), compared again at the
+    end, so that a file changed after assembly checked it is refused whether it changed before its reproof read it or
+    after.  The seconds total adds the reproofs' seconds in the order they finish, not the walk's."""
     run_dir, work_dir, journal = Path(run_dir), Path(work_dir), Path(journal)
     prepared, named = focus.prepare(n, m), codes()
     code = named['code']
     with open(run_dir / 'run.lock', 'a') as theirs, open(work_dir / 'lock', 'a') as ours:
         fcntl.flock(theirs, fcntl.LOCK_EX | fcntl.LOCK_NB)
         fcntl.flock(ours, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        done = fanout.finished(work_dir)
-        jobs = fanout.assemble(run_dir, work_dir, journal, prepared, code, fanout.roots(run_dir, work_dir, code), done)
         pool = ProcessPoolExecutor(workers, mp_context=multiprocessing.get_context('spawn'), initializer=init,
                                    initargs=(prepared,))
         try:
-            proofs = list(pool.map(functools.partial(task, work_dir), jobs,
-                                   [done[fanout.jid(job)]['tree_sha256'] for job in jobs]))
+            done = briefs(pool, work_dir)
+            backlog, running, seals, totals = collections.deque(), set(), bytearray(), collections.Counter()
+            def fill():                    # finished reproofs folded into totals, a failed one raised; the pool refilled
+                finished = {f for f in running if f.done()}
+                running.difference_update(finished)
+                for proof in [f.result() for f in finished]:
+                    totals.update(jobs=1, nodes=proof['nodes'], leaves=proof['leaves'], dead=proof['dead'],
+                                  seconds=proof['seconds'], **proof['attempts'])
+                running.update(pool.submit(task, work_dir, job, sha, bytes(seals[32 * i:32 * i + 32]))
+                               for job, sha, i in (backlog.popleft()
+                                                   for _ in range(min(len(backlog), AHEAD * workers - len(running)))))
+            def passed(job, sha):          # a job assembly has checked itself: its file's bytes sealed, its reproof queued
+                backlog.append((job, sha, len(seals) // 32))
+                seals.extend(sealed(work_dir, job))
+                fill()
+            jobs = fanout.assemble(run_dir, work_dir, journal, prepared, code, fanout.roots(run_dir, work_dir, code),
+                                   done, passed)
+            while backlog or running:
+                wait(running, return_when=FIRST_COMPLETED)
+                fill()
         finally:
-            pool.shutdown(cancel_futures=True)              # a failed reproof cancels the jobs not yet begun
+            pool.shutdown(cancel_futures=True)              # a failed reproof or check cancels the jobs not yet begun
+        assert totals['jobs'] == len(jobs) and len(seals) == 32 * len(jobs), (totals['jobs'], len(jobs), len(seals))
+        changed = [fanout.jid(job) for i, job in enumerate(jobs) if sealed(work_dir, job) != seals[32 * i:32 * i + 32]]
+        # TODO: error copy; says job files changed after assembly checked them, naming the jobs
+        assert not changed, f'Claude: "the files of jobs {changed} changed after assembly"'
         # TODO: error copy; says the code changed while the recheck ran, so its totals cannot name the code that ran
         assert codes() == named, 'Claude: "the code changed during the recheck"'
-    return dict(jobs=len(proofs), nodes=sum(p['nodes'] for p in proofs), leaves=sum(p['leaves'] for p in proofs),
-                attempts={a: sum(p['attempts'][a] for p in proofs) for a in ATTEMPTS},
-                dead=sum(p['dead'] for p in proofs), seconds=sum(p['seconds'] for p in proofs), **named)
+    return dict(jobs=totals['jobs'], nodes=totals['nodes'], leaves=totals['leaves'],
+                attempts={a: totals[a] for a in ATTEMPTS}, dead=totals['dead'], seconds=totals['seconds'], **named)
 
 
 def main():

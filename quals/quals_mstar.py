@@ -525,10 +525,12 @@ def q_gray_columns():
     # since 2026-10-27, when the chart reached 1024, 1008 last, at 10 to 13 (lo from 240 + 768, a join; hi by the
     # residue condition mod 5 at order 14), at 11 to 13 from that night (lo from the page's example p1008 of order 11,
     # found by w11.py: q_examples_at_720_and_1008_raise_their_lo), and at 12 to 13 since 2026-10-28 (lo from the
-    # symmetric example of order 12 that replaced it as p1008, found by w12.py).
+    # symmetric example of order 12 that replaced it as p1008, found by w12.py); and less 688, settled at 10 on
+    # 2026-11-01 (lo from the page's example p688, found by w10s.py: q_example_at_688_settles_it; hi by the residue
+    # condition mod 3).
     _, got = disk()
     gray = tuple(n for n, c in enumerate(got['m']['cols'], 1) if c[0] < c[1])
-    tens, elevens = (592, 608, 656, 752, 784), (832, 848, 880, 896, 928, 944, 976, 992)
+    tens, elevens = (592, 608, 656, 688, 752, 784), (832, 848, 880, 896, 928, 944, 976, 992)
     assert gray == tuple(n for n in USER_GRAY if n not in (240, 384, 560, 640, 704, 736, 800) + tens + elevens), gray
     assert [got['m']['cols'][n - 1][:2] for n in (240, 384, 560, 640, 704, 736, 800)] == [[10, 10]] * 6 + [[11, 11]]
     assert [got['m']['cols'][n - 1][:3] for n in tens + elevens] == [[10, 10, ['example', f'equipow p{n}']] for n in tens] \
@@ -560,14 +562,14 @@ def q_results_of_2026_10_26():
     # two that stay in their grouped remark.
     # Expectata: 752 and 784 settled at 10 and credited to Claude and Astra, 832 settled at 11, Claude alone; each lo
     # from its example on the page (["example", "equipow p" + n]); each hi as before: 752's the page's (proof752.py),
-    # 784's the residue condition mod 27 and 832's the norm bound mod 3; 544 and 688 still 9 to 10, their lo the joins
-    # 192 + 352 and 192 + 496.
+    # 784's the residue condition mod 27 and 832's the norm bound mod 3; 544 still 9 to 10, its lo the join 192 + 352
+    # (688, 9 to 10 by the join 192 + 496 until 2026-11-01, is settled at 10 by its example: q_example_at_688_settles_it).
     _, got = disk()
     cs = got['m']['cols']
     assert mstar.NEW[752] == (10, 10, 'Claude and Astra') and cs[752 - 1] == [10, 10, ['example', 'equipow p752'], ['page', 'Claude and Astra']]
     assert mstar.NEW[784] == (10, 10, 'Claude and Astra') and cs[784 - 1] == [10, 10, ['example', 'equipow p784'], ['residue', 27]]
     assert mstar.NEW[832] == (11, 11, 'Claude alone') and cs[832 - 1] == [11, 11, ['example', 'equipow p832'], ['norm', 3]]
-    assert [cs[n - 1][:3] for n in (544, 688)] == [[9, 10, ['join', 192, 352]], [9, 10, ['join', 192, 496]]]
+    assert cs[544 - 1][:3] == [9, 10, ['join', 192, 352]], cs[544 - 1]
 
 
 def q_example_at_1024_is_checked():
@@ -684,6 +686,30 @@ def q_example_at_528_raises_its_lo():
     cs = got['m']['cols']
     assert mstar.NEW[528] == (11, 12, 'Claude alone'), mstar.NEW[528]
     assert cs[527] == [11, 12, ['example', 'equipow p528'], ['residue', 5]], cs[527]
+
+
+def q_example_at_672_raises_its_lo():
+    # Replicata: mstar.NEW and mstar.js's column at 672.
+    # Expectata (2026-11-01: Claude's lattice search scratch/w11-624-576/w12/w12.py found a symmetric example of order
+    # 12 at 672): 672 is 12 to 13, Claude alone, its lo the page's example (["example", "equipow p672"]) and its
+    # hi still the residue condition at order 14 mod 5.
+    # Resultata before: 672 was 11 to 13, its lo the product 2 * 336.
+    _, got = disk()
+    cs = got['m']['cols']
+    assert mstar.NEW[672] == (12, 13, 'Claude alone'), mstar.NEW[672]
+    assert cs[671] == [12, 13, ['example', 'equipow p672'], ['residue', 5]], cs[671]
+
+
+def q_example_at_688_settles_it():
+    # Replicata: mstar.NEW and mstar.js's column at 688.
+    # Expectata (2026-11-01: Claude's lattice search scratch/w11-624-576/w10s/w10s.py found a symmetric example of order
+    # 10 at 688): 688 is settled at 10, Claude alone, its lo the page's example (["example", "equipow p688"]) and its hi
+    # still the residue condition at order 11 mod 3.
+    # Resultata before: 688 was 9 to 10, its lo the join 192 + 496.
+    _, got = disk()
+    cs = got['m']['cols']
+    assert mstar.NEW[688] == (10, 10, 'Claude alone'), mstar.NEW[688]
+    assert cs[687] == [10, 10, ['example', 'equipow p688'], ['residue', 3]], cs[687]
 
 
 # ---------- residue tests ----------

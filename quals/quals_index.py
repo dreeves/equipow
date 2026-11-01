@@ -1924,8 +1924,8 @@ def q_examples_at_720_and_1008_have_their_entries_and_codes():
     # Expectata (2026-10-27: Claude's lattice search, w11.py at 720 and at 1008, found antisymmetric examples of order
     # 11 there; 2026-10-28: w12.py found a symmetric example of order 12 at 1008, which replaced its order-11 example
     # and code, and that evening Astra's faster w12 found one at 720, which did the same): each has an entry of its
-    # own, an <li class="c"> marked ◆ among the examples in order of n, 720's "m* ∈ {12, 13, 14}" between 656's and
-    # 752's, and 1008's "m* ∈ {12, 13}" between 992's and 1024's (its wording unpinned since 2026-10-30); each its one code block, of its
+    # own, an <li class="c"> marked ◆ among the examples in order of n, 720's "m* ∈ {12, 13, 14}" between 688's (656's
+    # until 2026-11-01, when 672's and then 688's example entries came between them) and 752's, and 1008's "m* ∈ {12, 13}" between 992's and 1024's (its wording unpinned since 2026-10-30); each its one code block, of its
     # order m (11 at 720, 12 at 1008), whose signs have order exactly m (synthetic division here) and are
     # antisymmetric at 720 and symmetric at 1008 (their sets SClaude[m][n] left the page on 2026-10-31); no other
     # entry names 720 or 1008 (their joins' entries are gone); the cells 11–14 and 12–13;
@@ -1933,7 +1933,7 @@ def q_examples_at_720_and_1008_have_their_entries_and_codes():
     # "equipow p1008"], ["residue", 5]].
     text = page()
     listed = [ns.split(', ') for ns in re.findall(r'<p class="entry">\\\(n = (.*?)\\\): ', text)]
-    for n, m, values, before, after, hi in ((720, 12, '\\\\\\{12, 13, 14\\\\\\}', '656', '752', 14),
+    for n, m, values, before, after, hi in ((720, 12, '\\\\\\{12, 13, 14\\\\\\}', '688', '752', 14),
                                             (1008, 12, '\\\\\\{12, 13\\\\\\}', '992', '1024', 13)):
         li = re.search(r'<li class="c">\n      <span class="mk" aria-hidden="true">◆</span>\n      <p class="entry">\\\(n = '
                        rf'{n}\\\): &nbsp;\\\(m\^\* \\in {values}\\\)</p>\n(.*?)\n    </li>', text, re.S)
@@ -2079,6 +2079,70 @@ def q_example_at_528_has_its_entry_and_code():
     assert new_cells(text)[528] == (11, 12), new_cells(text)[528]
     assert changelog_by_day().get('2026-10-31', {}).get(528) == (11, None), changelog_by_day().get('2026-10-31')
     assert mstar_data()['cols'][527] == [11, 12, ['example', 'equipow p528'], ['residue', 5]], mstar_data()['cols'][527]
+
+
+def q_example_at_672_has_its_entry_and_code():
+    # Replicata: the remarks' entry naming 672, its code decoded by the paper's Table 5 convention, the new results'
+    # cell of 672, the changelog's statements of 2026-11-01, and mstar.js's column.
+    # Expectata (2026-11-01: Claude's lattice search scratch/w11-624-576/w12/w12.py found a symmetric example of order
+    # 12 at 672): 672 has an entry of its own, an <li class="c"> marked ◆, "m* ∈ {12, 13}", between 656's and 688's
+    # (720's until 688's example entry came between them, also on 2026-11-01);
+    # its one code, p672 (m = 12), has signs of order exactly 12 (synthetic division here), symmetric, +1 at 0;
+    # its code is <code id="672:12"> (the page's sets left it on 2026-10-31); no other entry names 672; the cell is
+    # 12–13; the changelog states 12 ≤ m*(672) ≤ 13 on 2026-11-01; mstar.js's column is [12, 13, ["example",
+    # "equipow p672"], ["residue", 5]].
+    # Resultata before: 672 was 11 to 13 (built: 2 * 336), with no example of order 12.
+    text = page()
+    li = re.search(r'<li class="c">\n      <span class="mk" aria-hidden="true">◆</span>\n      <p class="entry">\\\(n = 672'
+                   r'\\\): &nbsp;\\\(m\^\* \\in \\\{12, 13\\\}\\\)</p>\n(.*?)\n    </li>', text, re.S)
+    assert li, 'no entry of 672 alone, m* in {12, 13}'
+    codes = re.findall(r'\\\(p_\{(\d+)\}\\\) \\\(\(m = (\d+)\)\\\):</span>\n\s*<code id="672:12">([0-9A-F]+)</code>', li.group(1))
+    assert len(codes) == 1 and codes[0][:2] == ('672', '12'), codes
+    h = codes[0][2]
+    left = [1 if b == '1' else -1 for b in bin(int(h, 16))[2:].zfill(4 * len(h))]
+    a, k = left + left[::-1], 0
+    c = a
+    while not sum(c): c, k = list(itertools.accumulate(c[:-1])), k + 1
+    assert len(a) == 672 and k == 12 and a == a[::-1] and a[0] == 1, (len(a), k)
+    listed = [ns.split(', ') for ns in re.findall(r'<p class="entry">\\\(n = (.*?)\\\): ', text)]
+    i = listed.index(['672'])
+    assert listed[i - 1:i + 2] == [['656'], ['672'], ['688']], listed[i - 1:i + 2]
+    assert sum('672' in ns for ns in listed) == 1, [ns for ns in listed if '672' in ns]
+    assert new_cells(text)[672] == (12, 13), new_cells(text)[672]
+    assert changelog_by_day().get('2026-11-01', {}).get(672) == (12, 13), changelog_by_day().get('2026-11-01')
+    assert mstar_data()['cols'][671] == [12, 13, ['example', 'equipow p672'], ['residue', 5]], mstar_data()['cols'][671]
+
+
+def q_example_at_688_has_its_entry_and_code():
+    # Replicata: the remarks' entries naming 688 and 544, 688's code decoded by the paper's Table 5 convention, the new
+    # results' cells of 688 and 544, the changelog's statements of 2026-11-01, and mstar.js's column.
+    # Expectata (2026-11-01: Claude's lattice search scratch/w11-624-576/w10s/w10s.py found a symmetric example of order
+    # 10 at 688): 688 has an entry of its own, an <li class="c"> marked ◆, "m* = 10", between 672's and 720's; its one
+    # code, p688 (m = 10), has signs of order exactly 10 (synthetic division here), symmetric, +1 at 0; its code is
+    # <code id="688:10">; the entry it shared with 544 names 544 alone; no other entry names 688; the cells are 10 and,
+    # at 544, 9–10; the changelog states m*(688) = 10 on 2026-11-01; mstar.js's column is [10, 10, ["example",
+    # "equipow p688"], ["residue", 3]].
+    # Resultata before: 688 was 9 to 10 (built: the join 192 + 496), in one entry with 544.
+    text = page()
+    li = re.search(r'<li class="c">\n      <span class="mk" aria-hidden="true">◆</span>\n      <p class="entry">\\\(n = 688'
+                   r'\\\): &nbsp;\\\(m\^\* = 10\\\)</p>\n(.*?)\n    </li>', text, re.S)
+    assert li, 'no entry of 688 alone, m* = 10'
+    codes = re.findall(r'\\\(p_\{(\d+)\}\\\) \\\(\(m = (\d+)\)\\\):</span>\n\s*<code id="688:10">([0-9A-F]+)</code>', li.group(1))
+    assert len(codes) == 1 and codes[0][:2] == ('688', '10'), codes
+    h = codes[0][2]
+    left = [1 if b == '1' else -1 for b in bin(int(h, 16))[2:].zfill(4 * len(h))]
+    a, k = left + left[::-1], 0
+    c = a
+    while not sum(c): c, k = list(itertools.accumulate(c[:-1])), k + 1
+    assert len(a) == 688 and k == 10 and a == a[::-1] and a[0] == 1, (len(a), k)
+    listed = [ns.split(', ') for ns in re.findall(r'<p class="entry">\\\(n = (.*?)\\\): ', text)]
+    i = listed.index(['688'])
+    assert listed[i - 1:i + 2] == [['672'], ['688'], ['720']], listed[i - 1:i + 2]
+    assert sum('688' in ns for ns in listed) == 1, [ns for ns in listed if '688' in ns]
+    assert ['544'] in listed, [ns for ns in listed if '544' in ns]
+    assert (new_cells(text)[688], new_cells(text)[544]) == ((10, 10), (9, 10)), (new_cells(text)[688], new_cells(text)[544])
+    assert changelog_by_day().get('2026-11-01', {}).get(688) == (10, 10), changelog_by_day().get('2026-11-01')
+    assert mstar_data()['cols'][687] == [10, 10, ['example', 'equipow p688'], ['residue', 3]], mstar_data()['cols'][687]
 
 
 OEIS = ('A323395', 'A306248', 'A323610', 'A323629', 'A323614')                # the OEIS section's entries on this problem

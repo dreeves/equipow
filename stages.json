@@ -1,5 +1,5 @@
 {
- "about": "The later stages of each search, in order, to a recordable result, and what each costs: progress.py (stages_of) estimates each later stage from the run's own count of the unit each part is per, that part's CPU seconds per unit (cpu: median and the 5% and 95% quantiles of its uncertainty), its processes, and the share of a core the run's workers get now.  A stage with run is a run of its own, surveyed by progress.py while it runs.  Written by scratch/stages-20261031/derive.py, whose measurements are in scratch/stages-20261031/derive.json.",
+ "about": "The later stages of each search, in order, to a recordable result, and what each costs: progress.py (stages_of) estimates each later stage from the run's own count of the unit each part is per, that part's CPU seconds per unit (cpu: median and the 5% and 95% quantiles of its uncertainty), its processes, and the share of a core the run's workers get now, taken for every process of every later stage (so 9 processes at once at a share q are taken to have 9 q of the machine's cores: an assumption).  A later stage has phases, one after another; a phase has lanes, at once, and lasts as long as its longest lane (ideal overlap, an approximation: the time a pipeline loses is not in it); a lane has parts, one after another; all of it replicate by replicate.  CPU over the share is a CPU-limited time, without storage waits.  What a part's conditions call unmeasured is not in the estimate.  A stage with run is a run of its own, surveyed by progress.py while it runs.  432:12's chain written by scratch/stages-cram-20261101/derive.py from its measurements (derive.json there); 288:10's as scratch/stages-20261031/derive.py wrote it (derive.json there), each of its parts the one part of the one lane of its stage's one phase.",
  "chains": [
   [
    {
@@ -12,48 +12,114 @@
    },
    {
     "stage": "fanout.assemble",
-    "parts": [
-     {
-      "per": "token",
-      "processes": 1,
-      "cpu": {
-       "median": 2.807993226445418e-06,
-       "lo": 2.7301267084467004e-06,
-       "hi": 2.8879283063597763e-06
-      },
-      "source": "scratch/stages-20261031/assembly_files_1_300.json (assembly_files.py); scratch/check432-20261031/assembly_cost.json for comparison: 2.93 us a token on 150 files",
-      "date": "2026-10-31 09:32",
-      "conditions": "fanout.load, fanout.frontier, Lex.status and fanout.brief of 300 job files drawn at random from scratch/fanout432/jobs (3,795,939 tokens), per token, in one process at nice 19, the live machine loaded; the driver assembles serially after its last job and before it writes its finish (fanout.py run, assemble).  Band: bootstrap over the files."
-     }
+    "phases": [
+     [
+      [
+       {
+        "per": "token",
+        "processes": 1,
+        "cpu": {
+         "median": 8.330325089494676e-07,
+         "lo": 8.234195075342357e-07,
+         "hi": 8.443454465716638e-07
+        },
+        "source": "scratch/stages-cram-20261101/measure2_1_300_48.json, arm assemble (measure.py)",
+        "date": "2026-11-01 04:50",
+        "conditions": "arm assemble: fanout.assemble's loop body for one done job (jid, Lex.status, load, the box, root, witness and brief checks, frontier, the cut's check, walked, jobs, passed, the todo push through pairs), its statements asserted verbatim against fanout.assemble's source.  The driver assembles alone, serially, after its last job and before it writes its finish (fanout.py run, assemble, passed its default). Sample: 300 job files drawn at random (seed 1) from the 107,976 of scratch/fanout432/jobs (4,318,134 tokens). CPU by time.process_time_ns of one process at nice 19, one BLAS thread, on the installed CRAM files (fanout.py f56e2346..., reprove.py 631b3fbe..., fanout_code cd6521ed...), the live machine loaded (load average 16.1 to 66.6; 432:12's 8 workers running since 04:44:52 PST, and ps at its end showing macOS's mobileassetd and modelcatalogd busy), 2026-11-01 04:47:22 PST to 2026-11-01 04:50:23 PST.  Each file was read before its timed arms, so its reads were warm, and process_time leaves storage waits out: with the share, a CPU-limited time, without cold reads or reads in parallel.  The harness made its dicts and lists anew for each file and collected garbage untimed, so the allocator and caches of a walk over the whole corpus are not reproduced.  Each arm's time includes releasing its own result (measure.py's timed, quals_measure.py). Rate: the arm's CPU over its tokens, summed over the files.  Band: 5% and 95% of 2,000 bootstrap replicates of that rate, each a resample of whole file records; sampling uncertainty over the measured corpus only, not the future jobs' mix, the machine's scheduling or the model's error. Beside it: the assembly candidate's per-job checks, without the pairs push, 835 ns a token (scratch/claude-astra-20261031/assembly/logs/bench_walk.json). Unmeasured, and not in the estimate: unmoved (focus.replay of the run's chunks), symmetric's invariant of each case, the checks over the journal's records (the sessions' codes, the probes, every job_end at the end) and set(walked) == set(done)."
+       }
+      ]
+     ]
     ]
    },
    {
     "stage": "reprove.py",
-    "parts": [
-     {
-      "per": "token",
-      "processes": 1,
-      "cpu": {
-       "median": 3.1467081004199475e-06,
-       "lo": 3.0672034588248467e-06,
-       "hi": 3.228440073782411e-06
-      },
-      "source": "scratch/stages-20261031/assembly_files_1_300.json (assembly_files.py)",
-      "date": "2026-10-31 09:32",
-      "conditions": "reprove.py runs fanout.finished (load and brief of every job file) and then fanout.assemble, serially, before its reproofs; measured as the driver's assembly part, with load and brief counted twice.  Band: bootstrap over the files."
-     },
-     {
-      "per": "token",
-      "processes": 8,
-      "cpu": {
-       "median": 0.0001716619894795922,
-       "lo": 0.0001589005023870589,
-       "hi": 0.0001895316650727872
-      },
-      "source": "scratch/check432-20261031/measure_q3.json (measure_q3.py)",
-      "date": "2026-10-31 07:45",
-      "conditions": "The installed reprove.py (Q3, reprove_code 563b7394...; GMP exact bound), its walk of 12 trees (8 corpus trees and 4 whole job files, 76,613 nodes, a node a token), ABBA against Q2, CPU by process_time at nice 19, one BLAS thread; reprove.py runs fanout.WORKERS = 8 worker processes.  Band: bootstrap over the trees (the four job files hold 92% of the nodes); the bench of 06:44 measured Q2 7% higher than this run did, a difference between sessions that the band leaves out."
-     }
+    "phases": [
+     [
+      [
+       {
+        "per": "token",
+        "processes": 8,
+        "cpu": {
+         "median": 2.978433508547905e-07,
+         "lo": 2.906759889305561e-07,
+         "hi": 3.05805812200451e-07
+        },
+        "source": "scratch/stages-cram-20261101/measure2_1_300_48.json, arm briefed (measure.py)",
+        "date": "2026-11-01 04:50",
+        "conditions": "arm briefed: reprove.briefed of one job file (fanout.brief of fanout.load), as reprove.briefs runs it for every job file on the pool's fanout.WORKERS = 8 worker processes, before assembly. Sample: 300 job files drawn at random (seed 1) from the 107,976 of scratch/fanout432/jobs (4,318,134 tokens). CPU by time.process_time_ns of one process at nice 19, one BLAS thread, on the installed CRAM files (fanout.py f56e2346..., reprove.py 631b3fbe..., fanout_code cd6521ed...), the live machine loaded (load average 16.1 to 66.6; 432:12's 8 workers running since 04:44:52 PST, and ps at its end showing macOS's mobileassetd and modelcatalogd busy), 2026-11-01 04:47:22 PST to 2026-11-01 04:50:23 PST.  Each file was read before its timed arms, so its reads were warm, and process_time leaves storage waits out: with the share, a CPU-limited time, without cold reads or reads in parallel.  The harness made its dicts and lists anew for each file and collected garbage untimed, so the allocator and caches of a walk over the whole corpus are not reproduced.  Each arm's time includes releasing its own result (measure.py's timed, quals_measure.py). Rate: the arm's CPU over its tokens, summed over the files.  Band: 5% and 95% of 2,000 bootstrap replicates of that rate, each a resample of whole file records; sampling uncertainty over the measured corpus only, not the future jobs' mix, the machine's scheduling or the model's error. Beside it: fanout.finished's work in the assembly sub-agent's bench, 323 ns a token. Unmeasured, and not in the estimate: focus.prepare, codes(), the pool's start, the job files' enumeration and sorting, the briefs' return to the driver and the driver's construction of done."
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "per": "token",
+        "processes": 1,
+        "cpu": {
+         "median": 8.330325089494676e-07,
+         "lo": 8.234195075342357e-07,
+         "hi": 8.443454465716638e-07
+        },
+        "source": "scratch/stages-cram-20261101/measure2_1_300_48.json, arm assemble (measure.py)",
+        "date": "2026-11-01 04:50",
+        "conditions": "arm assemble: fanout.assemble's loop body for one done job (jid, Lex.status, load, the box, root, witness and brief checks, frontier, the cut's check, walked, jobs, passed, the todo push through pairs), its statements asserted verbatim against fanout.assemble's source.  In reprove.py the driver walks so, alone, beside the reproofs (a lane of the phase). Sample: 300 job files drawn at random (seed 1) from the 107,976 of scratch/fanout432/jobs (4,318,134 tokens). CPU by time.process_time_ns of one process at nice 19, one BLAS thread, on the installed CRAM files (fanout.py f56e2346..., reprove.py 631b3fbe..., fanout_code cd6521ed...), the live machine loaded (load average 16.1 to 66.6; 432:12's 8 workers running since 04:44:52 PST, and ps at its end showing macOS's mobileassetd and modelcatalogd busy), 2026-11-01 04:47:22 PST to 2026-11-01 04:50:23 PST.  Each file was read before its timed arms, so its reads were warm, and process_time leaves storage waits out: with the share, a CPU-limited time, without cold reads or reads in parallel.  The harness made its dicts and lists anew for each file and collected garbage untimed, so the allocator and caches of a walk over the whole corpus are not reproduced.  Each arm's time includes releasing its own result (measure.py's timed, quals_measure.py). Rate: the arm's CPU over its tokens, summed over the files.  Band: 5% and 95% of 2,000 bootstrap replicates of that rate, each a resample of whole file records; sampling uncertainty over the measured corpus only, not the future jobs' mix, the machine's scheduling or the model's error. Unmeasured, and not in the estimate: the time the pipeline loses (the phase is taken to last as long as its longer lane, ideal overlap), and the checks over the journal, as for fanout.assemble."
+       },
+       {
+        "per": "token",
+        "processes": 1,
+        "cpu": {
+         "median": 1.3725025670810587e-08,
+         "lo": 1.1892395521616334e-08,
+         "hi": 1.600132763801168e-08
+        },
+        "source": "scratch/stages-cram-20261101/measure2_1_300_48.json, arm sealed (measure.py)",
+        "date": "2026-11-01 04:50",
+        "conditions": "arm sealed: reprove.sealed of one job (its file's bytes read and hashed), as passed takes it for each job assemble passes, on the driver, after the job's assembly (the same lane). Sample: 300 job files drawn at random (seed 1) from the 107,976 of scratch/fanout432/jobs (4,318,134 tokens). CPU by time.process_time_ns of one process at nice 19, one BLAS thread, on the installed CRAM files (fanout.py f56e2346..., reprove.py 631b3fbe..., fanout_code cd6521ed...), the live machine loaded (load average 16.1 to 66.6; 432:12's 8 workers running since 04:44:52 PST, and ps at its end showing macOS's mobileassetd and modelcatalogd busy), 2026-11-01 04:47:22 PST to 2026-11-01 04:50:23 PST.  Each file was read before its timed arms, so its reads were warm, and process_time leaves storage waits out: with the share, a CPU-limited time, without cold reads or reads in parallel.  The harness made its dicts and lists anew for each file and collected garbage untimed, so the allocator and caches of a walk over the whole corpus are not reproduced.  Each arm's time includes releasing its own result (measure.py's timed, quals_measure.py). Rate: the arm's CPU over its tokens, summed over the files.  Band: 5% and 95% of 2,000 bootstrap replicates of that rate, each a resample of whole file records; sampling uncertainty over the measured corpus only, not the future jobs' mix, the machine's scheduling or the model's error. Unmeasured, and not in the estimate: passed's fill (the reproofs' submission and pickling, the folding of their totals)."
+       }
+      ],
+      [
+       {
+        "per": "token",
+        "processes": 8,
+        "cpu": {
+         "median": 3.0645042511418126e-07,
+         "lo": 2.9967141496912637e-07,
+         "hi": 3.141244532793424e-07
+        },
+        "source": "scratch/stages-cram-20261101/measure2_1_300_48.json, arm read (measure.py)",
+        "date": "2026-11-01 04:50",
+        "conditions": "arm read, read/parse/release: reprove.task's statements before its walk (the file's bytes read, checked against their seal, parsed by fanout.load, the tree's sha256 checked), asserted verbatim against its source, and the parsed data released (the worker releases it after the walk, in the same lane), as each of the 8 workers runs them for each job it reproves (the other lane of the phase). Sample: 300 job files drawn at random (seed 1) from the 107,976 of scratch/fanout432/jobs (4,318,134 tokens). CPU by time.process_time_ns of one process at nice 19, one BLAS thread, on the installed CRAM files (fanout.py f56e2346..., reprove.py 631b3fbe..., fanout_code cd6521ed...), the live machine loaded (load average 16.1 to 66.6; 432:12's 8 workers running since 04:44:52 PST, and ps at its end showing macOS's mobileassetd and modelcatalogd busy), 2026-11-01 04:47:22 PST to 2026-11-01 04:50:23 PST.  Each file was read before its timed arms, so its reads were warm, and process_time leaves storage waits out: with the share, a CPU-limited time, without cold reads or reads in parallel.  The harness made its dicts and lists anew for each file and collected garbage untimed, so the allocator and caches of a walk over the whole corpus are not reproduced.  Each arm's time includes releasing its own result (measure.py's timed, quals_measure.py). Rate: the arm's CPU over its tokens, summed over the files.  Band: 5% and 95% of 2,000 bootstrap replicates of that rate, each a resample of whole file records; sampling uncertainty over the measured corpus only, not the future jobs' mix, the machine's scheduling or the model's error. Unmeasured, and not in the estimate: the tasks' and proofs' passage between the driver and the workers."
+       },
+       {
+        "per": "token",
+        "processes": 8,
+        "cpu": {
+         "median": 0.00014655556190265828,
+         "lo": 0.0001431604395446637,
+         "hi": 0.00014971241214464925
+        },
+        "source": "scratch/stages-cram-20261101/measure2_1_300_48.json, arm walk (measure.py)",
+        "date": "2026-11-01 04:50",
+        "conditions": "arm walk: reprove.walk of one job's tree, its LPs and exact bounds made untimed and kept warm from job to job, as a worker keeps them, after the task's read (the same lane). Sample: the first 48 of 300 job files drawn at random (seed 1) from the 107,976 of scratch/fanout432/jobs (787,761 tokens). CPU by time.process_time_ns of one process at nice 19, one BLAS thread, on the installed CRAM files (fanout.py f56e2346..., reprove.py 631b3fbe..., fanout_code cd6521ed...), the live machine loaded (load average 16.1 to 66.6; 432:12's 8 workers running since 04:44:52 PST, and ps at its end showing macOS's mobileassetd and modelcatalogd busy), 2026-11-01 04:47:22 PST to 2026-11-01 04:50:23 PST.  Each file was read before its timed arms, so its reads were warm, and process_time leaves storage waits out: with the share, a CPU-limited time, without cold reads or reads in parallel.  The harness made its dicts and lists anew for each file and collected garbage untimed, so the allocator and caches of a walk over the whole corpus are not reproduced.  Each arm's time includes releasing its own result (measure.py's timed, quals_measure.py). Rate: the arm's CPU over its tokens, summed over the files.  Band: 5% and 95% of 2,000 bootstrap replicates of that rate, each a resample of whole file records; sampling uncertainty over the measured corpus only, not the future jobs' mix, the machine's scheduling or the model's error. Beside it, a difference the band leaves out, its cause not established: the same 48 files walked by measure.v1.py at 04:38 to 04:41 PST (load average 11.6 to 10.5, 688:10's seeds running), 135.2 us a token, this record's 8.4% more; and Astra's walk of 4 purposive jobs, two replicates each, on the same installed files at 04:16 to 04:18 PST (432:12's 8 workers running), 137.250 us a token (scratch/claude-astra-20261101/combined/summary.json). Unmeasured, and not in the estimate: the time a worker waits for its next job (the phase is taken to last as long as its longer lane)."
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "per": "token",
+        "processes": 1,
+        "cpu": {
+         "median": 1.3725025670810587e-08,
+         "lo": 1.1892395521616334e-08,
+         "hi": 1.600132763801168e-08
+        },
+        "source": "scratch/stages-cram-20261101/measure2_1_300_48.json, arm sealed (measure.py)",
+        "date": "2026-11-01 04:50",
+        "conditions": "arm sealed: reprove.sealed of one job, as reprove.py takes it again for every job after the last reproof, on the driver, to refuse a file changed since assembly passed it. Sample: 300 job files drawn at random (seed 1) from the 107,976 of scratch/fanout432/jobs (4,318,134 tokens). CPU by time.process_time_ns of one process at nice 19, one BLAS thread, on the installed CRAM files (fanout.py f56e2346..., reprove.py 631b3fbe..., fanout_code cd6521ed...), the live machine loaded (load average 16.1 to 66.6; 432:12's 8 workers running since 04:44:52 PST, and ps at its end showing macOS's mobileassetd and modelcatalogd busy), 2026-11-01 04:47:22 PST to 2026-11-01 04:50:23 PST.  Each file was read before its timed arms, so its reads were warm, and process_time leaves storage waits out: with the share, a CPU-limited time, without cold reads or reads in parallel.  The harness made its dicts and lists anew for each file and collected garbage untimed, so the allocator and caches of a walk over the whole corpus are not reproduced.  Each arm's time includes releasing its own result (measure.py's timed, quals_measure.py). Rate: the arm's CPU over its tokens, summed over the files.  Band: 5% and 95% of 2,000 bootstrap replicates of that rate, each a resample of whole file records; sampling uncertainty over the measured corpus only, not the future jobs' mix, the machine's scheduling or the model's error. Unmeasured, and not in the estimate: codes() at the end."
+       }
+      ]
+     ]
     ]
    }
   ],
@@ -73,53 +139,65 @@
      288,
      10
     ],
-    "parts": [
-     {
-      "per": "open leaf",
-      "processes": 10,
-      "cpu": {
-       "median": 66.96107921377742,
-       "lo": 45.549419564186074,
-       "hi": 100.23298315180656
-      },
-      "source": "scratch/boxsplit288-b-20261030/estimate_final2_r1.json (estimate.py), arms 1000 per_leaf_cpu_s; NOTES.md there, \"The whole boxsplit step at B1 = 1000\"",
-      "date": "2026-10-30 23:22",
-      "conditions": "The candidate scratch/boxsplit288-b-20261030/candidate/boxsplit.py (sha256 739b54eb..., EXTENSION ((11, 13), (1000, 2000000))) on the certbb of 2026-10-30 19:42 (fastlp), nice 19, one BLAS thread, load 110-166: 40 uniform leaves (u60f), 3 heavy (heavy4f) and 8 loose (loose8), loose leaves censored at 150-300 s; per leaf, base + own children by slack band, weighted by round a's 1,000-leaf survey.  Band: that estimate's bootstrap. The installed scratch/x288/boxsplit.py (sha256 6cd66f4a...) is not this code: on the uniform leaves it took 2.03 times this CPU (1.81-2.21), on loose leaves less; until the candidate is installed this cost is a floor.  The step runs v5.PROCESSES = 10 workers."
-     }
+    "phases": [
+     [
+      [
+       {
+        "per": "open leaf",
+        "processes": 10,
+        "cpu": {
+         "median": 66.96107921377742,
+         "lo": 45.549419564186074,
+         "hi": 100.23298315180656
+        },
+        "source": "scratch/boxsplit288-b-20261030/estimate_final2_r1.json (estimate.py), arms 1000 per_leaf_cpu_s; NOTES.md there, \"The whole boxsplit step at B1 = 1000\"",
+        "date": "2026-10-30 23:22",
+        "conditions": "The candidate scratch/boxsplit288-b-20261030/candidate/boxsplit.py (sha256 739b54eb..., EXTENSION ((11, 13), (1000, 2000000))) on the certbb of 2026-10-30 19:42 (fastlp), nice 19, one BLAS thread, load 110-166: 40 uniform leaves (u60f), 3 heavy (heavy4f) and 8 loose (loose8), loose leaves censored at 150-300 s; per leaf, base + own children by slack band, weighted by round a's 1,000-leaf survey.  Band: that estimate's bootstrap. The installed scratch/x288/boxsplit.py (sha256 6cd66f4a...) is not this code: on the uniform leaves it took 2.03 times this CPU (1.81-2.21), on loose leaves less; until the candidate is installed this cost is a floor.  The step runs v5.PROCESSES = 10 workers."
+       }
+      ]
+     ]
     ]
    },
    {
     "stage": "handoff288.py",
-    "parts": [
-     {
-      "per": "open leaf",
-      "processes": 1,
-      "cpu": {
-       "median": 0.00012476430521102106,
-       "lo": 0.00010673486811507542,
-       "hi": 0.00014583923819539747
-      },
-      "source": "scratch/boxsplit288-b-20261030/mem_handoff.out (mem_handoff.py)",
-      "date": "2026-10-30 18:25",
-      "conditions": "scratch/x288/handoff288.handoff on prefixes of the live journal, one process at nice 19: 3.21 CPU s for 30,102 closed leaves, 15.04 for 120,533.  Median the larger's per leaf, low end the smaller's, high end the growth between them applied once more: the handoff will close about ten times as many leaves."
-     }
+    "phases": [
+     [
+      [
+       {
+        "per": "open leaf",
+        "processes": 1,
+        "cpu": {
+         "median": 0.00012476430521102106,
+         "lo": 0.00010673486811507542,
+         "hi": 0.00014583923819539747
+        },
+        "source": "scratch/boxsplit288-b-20261030/mem_handoff.out (mem_handoff.py)",
+        "date": "2026-10-30 18:25",
+        "conditions": "scratch/x288/handoff288.handoff on prefixes of the live journal, one process at nice 19: 3.21 CPU s for 30,102 closed leaves, 15.04 for 120,533.  Median the larger's per leaf, low end the smaller's, high end the growth between them applied once more: the handoff will close about ten times as many leaves."
+       }
+      ]
+     ]
     ]
    },
    {
     "stage": "overnight_v5.py",
-    "parts": [
-     {
-      "per": "open leaf",
-      "processes": 10,
-      "cpu": {
-       "median": 0.028774146535376854,
-       "lo": 0.025564568593375688,
-       "hi": 0.030192490506357406
-      },
-      "source": "scratch/x288/overnight_v5_288_10.log; ps; scratch/x288/pauses.jsonl",
-      "date": "2026-10-31 09:32",
-      "conditions": "The final pass splits again every node above the bottom that the journal holds UNKNOWN, as each restart of the pass did: the worker seconds of those splits over the open leaves walked past, at the restarts of 2026-10-30 00:04, 17:23 and 19:43 (0.06003, 0.06757, 0.07090 s an open leaf: low, median and high), times the share of a core the current pass's 10 workers got, 0.4258 (ps: their CPU over their seconds of running, the pauses left out).  The three restarts ran at shares not measured, so the band mixes the cost's spread with the machine's.  Leaves out the journal's loading and the startup control, minutes."
-     }
+    "phases": [
+     [
+      [
+       {
+        "per": "open leaf",
+        "processes": 10,
+        "cpu": {
+         "median": 0.028774146535376854,
+         "lo": 0.025564568593375688,
+         "hi": 0.030192490506357406
+        },
+        "source": "scratch/x288/overnight_v5_288_10.log; ps; scratch/x288/pauses.jsonl",
+        "date": "2026-10-31 09:32",
+        "conditions": "The final pass splits again every node above the bottom that the journal holds UNKNOWN, as each restart of the pass did: the worker seconds of those splits over the open leaves walked past, at the restarts of 2026-10-30 00:04, 17:23 and 19:43 (0.06003, 0.06757, 0.07090 s an open leaf: low, median and high), times the share of a core the current pass's 10 workers got, 0.4258 (ps: their CPU over their seconds of running, the pauses left out).  The three restarts ran at shares not measured, so the band mixes the cost's spread with the machine's.  Leaves out the journal's loading and the startup control, minutes."
+       }
+      ]
+     ]
     ]
    }
   ]

@@ -136,6 +136,7 @@ import json
 import math
 import multiprocessing
 import os
+from operator import mul
 from pathlib import Path
 import random
 import signal
@@ -277,13 +278,15 @@ def save(work_dir, job, root, result):
                  dict(version=2, case=job[0], path=[list(p) for p in job[1]], root=root, **result))
 
 
-def load(path):
+def load(path, reader=read):
     """A done job's file, read and checked: version 2 with FIELDS, named for its box, its tree its tree_sha256's, and
     each box it hands back strictly within its own, its path and at least one position more (2026-10-26 launch
-    review: a file handing back its own box or its parent job's made a session's start walk them round forever)."""
+    review: a file handing back its own box or its parent job's made a session's start walk them round forever).
+    reader(path) gives the file's data: read, or since 2026-10-31 (scratch/claude-astra-20261031/assembly) a reproof's
+    read of the bytes reprove.py checked against their sha256."""
     # TODO: error copy; says a job file that assembly needs is not there, naming it
     assert path.exists(), f'Claude: "no job file {path.name}"'
-    data = read(path)
+    data = reader(path)
     # TODO: error copy; says a job file is not a tree-only one (version 2), so fanout refuses to read it, naming it
     assert data['version'] == 2 and set(data) == FIELDS, f'Claude: "{path.name} is not a tree-only job file"'
     assert path.name == f'{jid(key(data["case"], data["path"]))}.json.gz', path
@@ -361,12 +364,29 @@ def lp_for(case):
     return Simplex(equations, cases[case])
 
 
+def carry_for(lp):
+    """certbb.Lp.carry with each moment multiplier shifted once. T, s and the count-row layout are invariant
+    after the LP is built; cache their column form and shifts here without changing the frozen certbb source."""
+    shifts = tuple(lp.smax - s for s in lp.s)
+    columns = tuple(zip(*lp.T, strict=True))
+    assert len(lp.T) == len(shifts) == lp.k == len(columns)
+    def carry(Y):
+        shifted = [Y[i] << shift for i, shift in enumerate(shifts)]
+        n = [sum(map(mul, shifted, column)) for column in columns]
+        n += [0] * (lp.rows_total - lp.k)
+        for i, t in zip(lp.row, Y[lp.k:], strict=True):
+            n[i] = t << lp.smax
+        return n
+    return carry
+
+
 class Simplex:
     """A case's LP (see the vocabulary): dual, fastlp.Dual on focus.case_lp's rows, their right-hand sides the case's
     counts as certbb.Lp.set_counts sets them; highs, focus.case_lp's LP; slack, HiGHS's status codes of the basis of
     every row's logical, Dual's first state; fallbacks, the boxes highs took."""
     def __init__(self, equations, choice):
         self.highs = focus.case_lp(equations, choice)
+        self.highs.carry = carry_for(self.highs)
         b = np.array(self.highs.b)
         for i, (j, r) in enumerate(self.highs.slot, self.highs.k):
             b[i] = float(choice[j][1][r])
@@ -445,7 +465,11 @@ class Producer:
         """focus.step's token for the box, its LP's answer lp.outcome's (see 'Simplex'), from the snapshot basis when
         it is one, else from lp's last solve."""
         status, z, certificate = lp.outcome(lo, hi, basis, self.screen)
-        x = self.point(z, lo, hi) if status == 'Optimal' else None
+        l, h, x = lo, hi, None
+        if status == 'Optimal':
+            assert np.isfinite(z).all()                 # point's first failure, before bounds are converted
+            l, h = np.asarray(lo), np.asarray(hi)
+            x = self.point(z, l, h)
         if x is not None:
             return ('W', x)
         if certificate is not None:
@@ -453,7 +477,7 @@ class Producer:
         if lo == hi:
             certificate = certbb.point_certificate(self.rows, lo)
             return ('W', lo) if certificate is None else ('L', certificate)
-        return ('B', certbb.choose(z if status == 'Optimal' else None, lo, hi, 'ends'))
+        return ('B', certbb.choose(z if status == 'Optimal' else None, l, h, 'ends'))
 
 
 class Lex:
@@ -796,21 +820,39 @@ def frontier(N, path, tree):
     """The boxes a job's tree leaves open on the box of path (see 'tree'), as work leaves them, the next to prove last,
     each a list of [position, value] pairs as a job file keeps it, less the lex cut's second side (see lex).  Asserts
     that each token is an L, or a B splitting a position free in its box, or the cut ['D'] as the tree's first token,
-    that a box is left for it, and that none falls on the cut's second side."""
+    that a box is left for it, and that none falls on the cut's second side.  N is the case's length, a positive int.
+    Incremental (2026-10-31, scratch/claude-astra-20261031/assembly; until then each B scanned and copied its box's
+    whole path): the box a token proves is path's pairs (root), then those of below past its first, sentinel, a pair
+    at position N that fixed's extra slot takes; fixed holds the positions of below's pairs.  Each box left to prove is
+    an entry (d, pair) on the stack, its box root, below[1:d] and pair; every entry is a child of a box on below's path,
+    so popping one cuts below back to d, unmarking, and adds its pair.  The job's box is (0, sentinel), both at the start
+    and when the cut pushes it again.  A B's position is free when no pair of root has it (free: the scan of root that
+    each B made, once a position) and no pair of below does (fixed): the same verdict, and the same error at the same
+    token, as the scan of the box's whole path."""
     second = []                            # the cut's second side, a box no token may fall on: never left open
-    stack = [[list(p) for p in path]]
+    root = [list(p) for p in path]
+    free = functools.lru_cache(maxsize=None)(lambda k: all(q != k for q, _ in root))
+    sentinel = [N, None]
+    below, fixed = [sentinel], bytearray(N + 1)
+    push = {'B': lambda node, d: ((d, [node[1], 1]), (d, [node[1], 0])), 'L': lambda node, d: (),
+            'D': lambda node, d: (second, (d - 1, below[-1]))}
+    stack = [(0, sentinel)]
     for i, node in enumerate(tree):
         # TODO: error copy; says a tree has a token after its job's last box was closed
         assert stack, 'Claude: "a tree token after the last box"'
         p = stack.pop()
         # TODO: error copy; says a tree token falls on the lex cut's second side, which no tree proves
         assert p is not second, 'Claude: "a tree token on the cut\'s second side"'
+        d, pair = p
+        while len(below) > d: fixed[below.pop()[0]] = 0
+        below.append(pair)
+        fixed[pair[0]] = 1
         # TODO: error copy; says a tree token is neither an L, nor a B splitting a position free in its box, nor the lex cut as its first token
         assert node == ['L'] or (node == ['D'] and i == 0) or (
             len(node) == 2 and node[0] == 'B' and type(node[1]) is int and 0 <= node[1] < N
-            and all(q != node[1] for q, _ in p)), 'Claude: "a tree token is not an L, a free B or a first cut"'
-        stack += {'B': lambda: [p + [[node[1], 1]], p + [[node[1], 0]]], 'L': list, 'D': lambda: [second, p]}[node[0]]()
-    return [p for p in stack if p is not second]
+            and free(node[1]) and not fixed[node[1]]), 'Claude: "a tree token is not an L, a free B or a first cut"'
+        stack += push[node[0]](node, len(below))
+    return [root + (below[:d] + [pair])[1:] for d, pair in (p for p in stack if p is not second)]
 
 
 def cut_of(tree):
@@ -828,9 +870,15 @@ def unmoved(run_dir, work_dir, prepared, code, all_roots):
     assert (state.chunks, state.lp, state.witness) == (start['chunks'], start['lp'], None)
 
 
-def assemble(run_dir, work_dir, journal, prepared, code, all_roots, done):
+def assemble(run_dir, work_dir, journal, prepared, code, all_roots, done, passed=lambda job, sha: None):
     """Assembly (see the vocabulary), with done as the driver keeps it: the jobs, (case, path) each, in the order its
-    walk reaches them."""
+    walk reaches them.  passed(job, tree_sha256) is called with each job as soon as its own checks pass, in that order,
+    before checks (2) and (3) of the whole (2026-10-31, scratch/claude-astra-20261031/assembly: so that reprove.py can
+    start each job's reproof early); the run is assembled only if assemble returns.
+    Its memory (2026-11-01, scratch/claude-astra-20261031/memory): a job's key, (case, path), is key's value, but its
+    pairs are shared: each (position, value) pair of the open lists becomes one tuple per repr (repr tells 5 from 5.0,
+    True and -0.0, as jid's JSON does), so a key costs its path's pointers, not a tuple for each pair; and walked's
+    values are done's tree_sha256 strings, which brief's check has found equal to the file's."""
     equations, _ = prepared
     unmoved(run_dir, work_dir, prepared, code, all_roots)
     current = fingerprint()                # each check below reads the journal anew, one record at a time (records)
@@ -842,6 +890,7 @@ def assemble(run_dir, work_dir, journal, prepared, code, all_roots, done):
         'Claude: "a probe found a witness"'
     lex, closed = Lex(equations.N), symmetric(prepared, all_roots)
     walked, jobs = {}, []                  # each job's tree_sha256 by id, and each job, as the walk reaches them
+    pairs = {}                             # each (position, value) pair's one tuple, by its repr: the jobs share them
     for root, job in searched(prepared, all_roots):
         todo = [job]
         while todo:
@@ -858,9 +907,10 @@ def assemble(run_dir, work_dir, journal, prepared, code, all_roots, done):
             assert frontier(equations.N, data['path'], data['tree']) == data['open'], f'Claude: "the tree of {name}"'
             # TODO: error copy; says a job's tree starts with the lex cut on a box that is not mixed, naming the job
             assert not cut_of(data['tree']) or status == 'mixed', f'Claude: "the cut of {name} on a box not mixed"'
-            walked[name] = data['tree_sha256']
+            walked[name] = done[name]['tree_sha256']     # data's, by brief's check above: done's own string
             jobs.append(job)
-            todo += [key(job[0], p) for p in data['open']]
+            passed(job, walked[name])
+            todo += [(job[0], tuple(pairs.setdefault(repr(q), tuple(q)) for q in p)) for p in data['open']]
     # TODO: error copy; says a job file lies outside the boxes that the walk from the roots reaches
     assert set(walked) == set(done), f'Claude: "job files outside the tiling: {sorted(set(done) - set(walked))}"'
     for r in (r for r in records(journal) if r['event'] == 'job_end'):

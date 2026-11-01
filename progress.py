@@ -196,20 +196,33 @@ The estimate's model, its terms defined once here (overnight_v5.py's search() is
   chain       the stages a search goes through to a recordable result (2026-10-31: the page's ETA covered only the
               stage running, twice in two days: 288:10's first pass, with its boxsplit step, handoff and final pass to
               come, and 432:12's fanout, with assembly and reprove.py to come), in order, as STAGES lists them (read
-              from STAGES_FILE, stages.json, which scratch/stages-20261031/derive.py writes): each stage a name, and a
-              run of its own (run: its program, n and order, which this file surveys while it runs) or not; every stage
-              after the first with its parts, each the CPU seconds a unit of the run's work costs (per: one of UNITS),
-              measured (cpu: its median and QUANTILES), on so many processes, with its provenance (source, date,
-              conditions).  A recordable result: one the page may record, 432:12's after reprove.py, 288:10's after
-              its final pass.
+              from STAGES_FILE, stages.json, which scratch/stages-cram-20261101/derive.py writes, 288:10's chain as
+              scratch/stages-20261031/derive.py wrote it): each stage a name, and a run of its own (run: its program, n
+              and order, which this file surveys while it runs) or not; every stage after the first with its phases,
+              one after another, each phase's lanes at once, and each lane's parts one after another (2026-11-01,
+              scratch/stages-cram-20261101: CRAM's reprove.py walks its jobs beside their reproofs, between its briefs
+              and its seals); each part the CPU seconds a unit of the run's work costs (per: one of UNITS), measured
+              (cpu: its median and QUANTILES), on so many processes, with its provenance (source, date, conditions).
+              A recordable result: one the page may record, 432:12's after reprove.py, 288:10's after its final pass.
   share       of a run: the CPU seconds its workers (the children of its main process that multiprocessing spawned,
               SPAWNED) have used over their seconds of running (each one's since it began, less the run's pauses):
               the share of a core one process of the run gets on this machine now (share_of, from ps by cpu_times);
-              none without a live worker.  A later stage is taken to get the same share a process.
+              none without a live worker.  A later stage is taken to get the same share a process, however many of
+              its processes run at once: k processes at a share q are taken to have k q of the machine's cores in all.
+              That is an assumption, not an observation (2026-11-01, Astra): reprove.py's walk beside its reproofs
+              runs nine processes at once, its driver and fanout.WORKERS = 8 workers, so at the share q of 432:12's 8
+              search workers it assumes 9 q, where those 8 were observed to get 8 q.
   stages      of a run in a chain, not ended: its own (its program and to_go), then each stage after it in its chain,
-              each with its estimate: one value a replicate of the run's estimate, the sum over the stage's parts of
-              the run's count of the part's unit times the part's cpu (drawn) over its processes times the run's
-              share; and total, the time to go to a recordable result, every stage's summed replicate by replicate.
+              each with its estimate, one value a replicate of the run's estimate: a part's the run's count of the
+              part's unit times the part's cpu (drawn) over its processes times the run's share; a lane's its parts'
+              sum; a phase's the largest of its lanes'; a stage's its phases' sum; and total, the time to go to a
+              recordable result, every stage's summed; all of it replicate by replicate, before any quantile is taken
+              (2026-11-01, Astra: "Any overlap combination belongs on replicate draws before quantiles").  The largest
+              lane is a phase's time only with ideal overlap, an approximation: the time its lanes lose to their
+              pipeline (the order the driver releases jobs in, the jobs' sizes, the workers' waits between the
+              driver's fill calls) is not in it.  And CPU over a share is a CPU-limited time: storage waits (cold
+              reads, reads in parallel) are not in it.  What a stage does besides its parts (each part's conditions
+              say what was measured) is unmeasured, and not in its estimate.
               The run's counts: a fanout.py run's tokens, its jobs' LP solves done and the pool estimate's to go
               (pool_draws), one LP solve a token; an overnight_v5.py pass's open leaves at its end, those open now times
               its growth, 1 + the estimate's work to go over the work its estimate's span has done (span_work: the same
@@ -2193,8 +2206,9 @@ class Boxes:
 
 def load_stages(path):
     """The chains (see the vocabulary) in the data file at path, each checked (asserted): every stage a name, and a run
-    ([program, n, order], the program its name) or none; each chain's first stage a run, without parts, every later
-    stage with parts, each per one of UNITS, on a whole number of processes from 1, its cpu {median, lo, hi} with
+    ([program, n, order], the program its name) or none; each chain's first stage a run, without phases, every later
+    stage with phases, a list of phases, each a list of lanes, each a list of parts, none of the lists empty; each
+    part per one of UNITS, on a whole number of processes from 1, its cpu {median, lo, hi} with
     0 < lo <= median <= hi < inf, and its provenance (source, date, conditions) text; no run in two places."""
     with open(path, encoding='utf-8') as fh: data = json.load(fh)
     # TODO: error copy; says the stages file holds other than its note and its chains, naming it
@@ -2202,11 +2216,14 @@ def load_stages(path):
     for chain in data['chains']:
         assert type(chain) is list and chain and type(chain[0]) is dict and 'run' in chain[0], chain
         for i, s in enumerate(chain):
-            assert type(s) is dict and set(s) - {'run', 'parts'} == {'stage'} and type(s['stage']) is str, s
+            assert type(s) is dict and set(s) - {'run', 'phases'} == {'stage'} and type(s['stage']) is str, s
             assert 'run' not in s or (type(s['run']) is list and len(s['run']) == 3 and s['run'][0] == s['stage']
                                       and all(type(x) is int for x in s['run'][1:])), s
-            assert ('parts' in s) == (i > 0) and type(s.get('parts', [{}])) is list and s.get('parts', [{}]), s
-            for p in s.get('parts', []):
+            phases = s.get('phases', [])           # a chain's first stage has none (asserted next)
+            assert ('phases' in s) == (i > 0) and type(phases) is list and (phases or i == 0), s
+            assert all(type(phase) is list and phase and all(type(lane) is list and lane for lane in phase)
+                       for phase in phases), s
+            for p in (p for phase in phases for lane in phase for p in lane):
                 assert type(p) is dict and set(p) == {'per', 'processes', 'cpu', 'source', 'date', 'conditions'}, p
                 assert p['per'] in UNITS and type(p['processes']) is int and p['processes'] >= 1, p
                 assert type(p['cpu']) is dict and set(p['cpu']) == {'median', 'lo', 'hi'}, p
@@ -2242,12 +2259,16 @@ def stages_of(identity, state, to_go, hours, counts, share):
     chain; else {stages, total}, stages its own ({name: its program, to_go}) and each later stage's ({name, to_go}:
     to_go_of its replicates' median and QUANTILES), total to_go_of every stage's replicates summed.  hours: the run's
     estimate, one value a replicate, hours to go, or None; counts: {unit: the run's count, one a replicate (or one for
-    all), or None without hours} for each unit its later stages' parts are per (asserted); share: the run's, or None.
+    all), or None without hours} for each unit its later stages' parts are per (asserted); share: the run's, or None,
+    taken for every process of every later stage (see share: k processes at once are taken to have k times it).
     Each part's cpu is drawn (drawn) from a stream of its own, SEED's first spawned, part after part in the chain's
-    order.  With no hours or no share, no stage after the run's own has an estimate, and no total."""
+    order (stage after stage, phase after phase, lane after lane).  Replicate by replicate, a lane's hours are its
+    parts' summed, a phase's its lanes' largest (ideal overlap, an approximation: see stages), a stage's its phases'
+    summed, and the total the run's own and every stage's summed; quantiles only then.  With no hours or no share, no
+    stage after the run's own has an estimate, and no total."""
     later = later_of(identity) if state != 'ended' else []
     if not later: return {}
-    parts = [p for s in later for p in s['parts']]
+    parts = [p for s in later for phase in s['phases'] for lane in phase for p in lane]
     # TODO: error copy; says the stages file asks a run for a count of a unit its survey does not give, naming the run and the units
     assert {p['per'] for p in parts} <= set(counts), f'Claude: "{identity} counts {sorted(counts)}, not {sorted({p["per"] for p in parts})}"'
     if hours is None or share is None:
@@ -2256,8 +2277,9 @@ def stages_of(identity, state, to_go, hours, counts, share):
     assert all(counts[p['per']] is not None and np.shape(counts[p['per']]) in ((), np.shape(hours)) for p in parts), \
         (identity, np.shape(hours))
     rng = np.random.default_rng(np.random.SeedSequence(SEED).spawn(1)[0])
-    stage_hours = [sum(counts[p['per']] * drawn(rng, p['cpu'], len(hours)) / (p['processes'] * share * HOUR)
-                       for p in s['parts']) for s in later]
+    lane_hours = lambda lane: sum(counts[p['per']] * drawn(rng, p['cpu'], len(hours)) / (p['processes'] * share * HOUR)
+                                  for p in lane)
+    stage_hours = [sum(np.maximum.reduce([lane_hours(lane) for lane in phase]) for phase in s['phases']) for s in later]
     return {'stages': [dict(name=identity[0], to_go=to_go)] +
                       [dict(name=s['stage'], to_go=to_go_of(quantiles(h))) for s, h in zip(later, stage_hours)],
             'total': to_go_of(quantiles(hours + sum(stage_hours)))}
