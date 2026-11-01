@@ -99,7 +99,9 @@ class Quals(unittest.TestCase):
         for flags in ((), ('-O',)):
             result = subprocess.run((sys.executable, *flags, str(path)),
                                     capture_output=True, text=True, check=True)
-            self.assertIn('Astra: "m*(384) = 10;', result.stdout)
+            # the verdict without the attribution that dreeves's a6481ff (2026-10-29) dropped from it; quals don't pin
+            # wording (dreeves, 2026-10-26; unpinned 2026-10-31)
+            self.assertIn('m*(384) = 10;', result.stdout)
             self.assertIn('23716', result.stdout)
             self.assertEqual(result.stderr, '')
             # Optimization must never disable rejection of false evidence.

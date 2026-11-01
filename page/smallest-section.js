@@ -18,7 +18,10 @@
   if (!best.slice(1).every(Number.isFinite)) throw new Error(JSON.stringify(best));   // best[1] is 2 (the data contract's m*(2) = 1)
   const rows = possibleAt.slice(1).map((possible, j) => {
     const m = j + 1, row = document.createElement('tr');
-    row.append(cell(m), cell(best[m]), cell(best[m] === possible ? '✓' : ''), cell(possible));
+    // in the chart's order, the n not ruled out before the n known, the check mark last (dreeves's README, 2026-10-31:
+    // "[FLP] I think the smallest-known and smallest-not-ruled-out columns should be swapped, so the numbers in that
+    // table are in the same order they're in in the chart. And then I think the checkmarks should be the last column")
+    row.append(cell(m), cell(possible), cell(best[m]), cell(best[m] === possible ? '✓' : ''));
     return row;
   });
   document.querySelector('[data-smallest]').replaceChildren(...rows);

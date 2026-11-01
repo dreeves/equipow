@@ -78,7 +78,7 @@ Quals: python3 quals_mstar.py
 import sys
 sys.dont_write_bytecode = True
 import os, re, json
-from functools import lru_cache
+from functools import lru_cache, reduce
 from operator import mul
 import numpy as np
 import sympy as sp
@@ -128,12 +128,6 @@ def from_rp(h, m, n):
     assert n % 2 == 0 and 0 < n // 2 <= len(bits), (h, n)
     left = [2 * int(b) - 1 for b in bits[:n // 2]]
     return left + [(-1) ** m * t for t in reversed(left)]
-
-
-def from_set(S, n):
-    """The sequence of length n that is +1 exactly on the set S of positions 0..n-1."""
-    assert S <= set(range(n)), n
-    return [1 if i in S else -1 for i in range(n)]
 
 
 # ---------- citations and sequences on index.html ----------
@@ -260,19 +254,13 @@ FOUND = ((352, 9, '969E4C06F693B61B683699E934D241A6DB4936D7CDA6'),
          (400, 9, 'A70B2F45D60B4BE22CD2DE51B49B4924DB6D26D349A6926DB4'),
          (464, 9, '8EA4DC62B3DF10709957C395683E3A4D369A6F30DA6984D36D86934C26'),
          (496, 9, 'C2BAD83D5017FA285E3D82ED96135DA2394EB48A6D349E6994D349B6D34DA7'))
-# The sets of the page's section "Claude's examples as sets", as (name, m, n) for name[m][n], in page order: SClaude, and
-# since 2026-10-27 SClaudeSym for a second, symmetric example at a length and order SClaude already has (dreeves: "sure to
-# the additional 528 bipartition")
-PAGE_SET_KEYS = (('SClaude', 9, 320), ('SClaude', 9, 336), ('SClaude', 11, 432), ('SClaude', 9, 448),
-                 ('SClaude', 12, 480), ('SClaude', 10, 528), ('SClaudeSym', 10, 528), ('SClaude', 10, 560),
-                 ('SClaude', 11, 800), ('SClaude', 10, 592), ('SClaude', 10, 608), ('SClaude', 10, 656),
-                 ('SClaude', 11, 848), ('SClaude', 11, 880), ('SClaude', 11, 896), ('SClaude', 11, 928),
-                 ('SClaude', 11, 944), ('SClaude', 11, 976), ('SClaude', 11, 992), ('SClaude', 10, 752),
-                 ('SClaude', 10, 784), ('SClaude', 11, 832), ('SClaude', 11, 1024), ('SClaude', 12, 816),
-                 ('SClaude', 12, 720), ('SClaude', 12, 1008), ('SClaude', 12, 912), ('SClaude', 12, 768),
-                 ('SClaude', 11, 576),
-                 ('SClaude', 11, 624),
-                 ('SClaude', 11, 528))
+# The joins of the page's codes, in page order, as (label, m, ids): each <span data-join="IDS" data-order="M"> of a code
+# block, IDS the ids N:M of codes of the code blocks, separated by spaces, whose signs one after the other are the
+# join's (join() above, the paper's ∨), and M its order.  The label names the page and the join as the page writes it.
+# Since 2026-10-31, when the section "Claude's examples as sets" left the page (dreeves: "every bipartition we give
+# should be presented the same way as an expandable hex code"): the 528 entry's f = p192 ∨ q336, neither symmetric nor
+# antisymmetric, so that no code in the paper's form can hold it, was that section's SClaude[10][528].
+PAGE_JOINS = (('equipow p192 ∨ q336', 10, ('192:9', '336:9')),)
 
 
 def page_n(s):
@@ -301,16 +289,18 @@ UPPER = tuple(range(8, 305, 8)) + tuple(range(320, NMAX + 1, 16))
 
 
 def page_sources(html):
-    """Table 2, the new results, the codes and the sets, parsed out of index.html and asserted equal to the hand
+    """Table 2, the new results, the codes and the joins, parsed out of index.html and asserted equal to the hand
     copies above.  Returns {'table2': {n: (lo, hi)}, 'new': {n: (lo, hi, who)}, 'codes': [(m, hex)],
-    'sets': [(name, m, n, set)]}.  The page's tables of class "block" are Table 2's three, then the new results', which since
+    'joins': [(m, ids)]}.  The page's tables of class "block" are Table 2's three, then the new results', which since
     2026-10-27 subsume Table 2: their upper rows, of the lengths UPPER in order, written in digits, then their powers
     of 2, written \\(2^{k}\\), k rising from 3.  Every cell of the new results has a title; a cell titled as the legend's "The
     published paper (2021)" has no provenance class and copies Table 2's entry at its n, and every entry of Table 2
     that is not a new result is so copied; every other cell has a class, its value cell the same class, and is a new
     result.  A length shown twice, in the upper rows and as a power of 2 (8 to 1024), is the same cell both times.  Each
     code of a code block is <code id="N:M">, an anchor that the page's names of it link to, N its length and M its order
-    (2026-10-31, [IND]), the ids distinct."""
+    (2026-10-31, [IND]), the ids distinct; each join of a code block, <span data-join="IDS" data-order="M"> (since
+    2026-10-31, when the page's sets left it), joins codes of the code blocks, IDS their ids, M its order; and each code
+    or join has its block's labels' (m = M) in order, one for each."""
     tables = re.findall(r'<table class="block">(.*?)</table>', html, re.S)
     rows = []
     for t in tables:
@@ -337,24 +327,25 @@ def page_sources(html):
     assert set(copies) <= set(table2) and all(table2[n] == v for n, v in copies.items()), copies
     new = {n: page_value(v) + (re.search(r"title='([^']*)'", attr)[1],) for c, n, attr, va, v in cells if attr != paper}
     assert set(table2) - set(new) == set(copies), set(table2) - set(new) - set(copies)
-    codes, ids = [], []
+    codes, ids, joins = [], [], []
     for block in re.findall(r'<p class="code">(.*?)</p>', html, re.S):
         ms = [int(m) for m in re.findall(r'\\\(\(m = (\d+)\)\\\)', block)]
-        tags = re.findall(r'<code id="(\d+):(\d+)">([0-9A-F]+)</code>', block)
-        assert len(ms) == len(tags) == block.count('<code') >= 1, block
-        assert all((int(n), int(k)) == (len(v5.from_hex(h, m)), m) for m, (n, k, h) in zip(ms, tags)), block
-        codes += [(m, h) for m, (_, _, h) in zip(ms, tags)]
-        ids += [f'{n}:{k}' for n, k, _ in tags]
+        tags = re.findall(r'<code id="(\d+):(\d+)">([0-9A-F]+)</code>|<span data-join="([\d: ]+)" data-order="(\d+)">', block)
+        assert len(ms) == len(tags) == block.count('<code') + block.count(' data-join=') >= 1, block
+        coded = [(m, int(n), int(k), h) for m, (n, k, h, _, _) in zip(ms, tags) if h]               # its codes
+        joined = [(m, int(order), parts) for m, (_, _, h, parts, order) in zip(ms, tags) if not h]   # its joins
+        assert all((n, k) == (len(v5.from_hex(h, m)), m) for m, n, k, h in coded), block
+        assert all(order == m for m, order, _ in joined), block
+        codes += [(m, h) for m, _, _, h in coded]
+        ids += [f'{n}:{k}' for _, n, k, _ in coded]
+        joins += [(m, tuple(parts.split(' '))) for m, _, parts in joined]
     assert len(set(ids)) == len(ids), ids
-    section = re.search(r'<section class="sets">(.*?)</section>', html, re.S)[1]
-    sets = [(name, int(m), int(n), {int(t) for t in body.split(',')})
-            for name, m, n, body in re.findall(r'(\w+)\[(\d+)\]\[(\d+)\] = \{([^}]*)\};', section)]
-    assert section.count(' = {') == len(sets) and {name for name, *_ in sets} <= {'SClaude', 'SClaudeSym'}, sets
+    assert all(set(parts) <= set(ids) for _, parts in joins), joins
     assert table2 == TABLE2, table2
     assert new == NEW, new
     assert codes == [(m, h) for _, m, h in PAGE_CODES], codes
-    assert [(name, m, n) for name, m, n, _ in sets] == list(PAGE_SET_KEYS), sets
-    return {'table2': table2, 'new': new, 'codes': codes, 'sets': sets}
+    assert joins == [(m, parts) for _, m, parts in PAGE_JOINS], joins
+    return {'table2': table2, 'new': new, 'codes': codes, 'joins': joins}
 
 
 # ---------- explicit sequences from elsewhere ----------
@@ -419,11 +410,12 @@ def brute(n):
 @lru_cache(maxsize=None)
 def explicit():
     """Every explicit sequence, as {(n, label): sequence}, in this order of preference: Thue-Morse, BGPW's Table 4,
-    BGPW's Table 5 (arXiv v1, and the published one through overnight_v5.EXAMPLES), the page's codes, the page's sets,
-    the rest of overnight_v5.EXAMPLES, brute force ("found here", order >= 1 only) and FOUND ("found here").  Each
-    sequence's exact order is asserted equal to what its source says; at a repeated (n, label) the one of higher order
-    stays."""
-    src = page_sources(open(PAGE, encoding='utf-8').read())
+    BGPW's Table 5 (arXiv v1, and the published one through overnight_v5.EXAMPLES), the page's codes, the page's joins
+    of them, the rest of overnight_v5.EXAMPLES, brute force ("found here", order >= 1 only) and FOUND ("found
+    here").  Each sequence's exact order is asserted equal to what its source says; at a repeated (n, label) the one of
+    higher order stays."""
+    page_sources(open(PAGE, encoding='utf-8').read())       # the page as PAGE_CODES and PAGE_JOINS have it
+    coded = {f'{len(v5.from_hex(h, m))}:{m}': v5.from_hex(h, m) for _, m, h in PAGE_CODES}   # by the codes' ids
     v5_bgpw = [(k, h) for k, h in v5.EXAMPLES.items() if EXAMPLE_LABELS[k] == 'BGPW Table 5']
     v5_rest = [(k, h) for k, h in v5.EXAMPLES.items() if EXAMPLE_LABELS[k] != 'BGPW Table 5']
     assert set(EXAMPLE_LABELS) == set(v5.EXAMPLES)
@@ -433,7 +425,7 @@ def explicit():
                + [('BGPW Table 5', m, from_rp(h, m, n)) for m, n, h in BGPW_T5]
                + [('BGPW Table 5', m, v5.from_hex(h, m)) for (n, m), h in v5_bgpw]
                + [(label, m, v5.from_hex(h, m)) for label, m, h in PAGE_CODES]
-               + [(f'equipow {name}[{m}][{n}]', m, from_set(S, n)) for name, m, n, S in src['sets']]
+               + [(label, m, reduce(join, (coded[i] for i in ids))) for label, m, ids in PAGE_JOINS]
                + [(EXAMPLE_LABELS[n, m], m, v5.from_hex(h, m)) for (n, m), h in v5_rest]
                + [('found here', *brute(n)) for n in range(1, BRUTE_MAX + 1) if brute(n)[0] >= 1]
                + [('found here', m, v5.from_hex(h, m)) for n, m, h in FOUND])
