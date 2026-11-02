@@ -7,10 +7,13 @@ LittlewoodPolynomialsReprint.pdf is the published version of the paper this is e
 
 Potential tasks: 
 * [REO] See the notes in the index.html comments tagged [REO]
+* [960] Is it possible to get an explicit bipartition for 960?
 * [ETA] Maybe the ETA graph would be less confusing / more useful if the graph reset whenever we changed something about the search algorithm? I'm not sure though, so here's an idea for having the best of both worlds: Whenever something changes about the search, spawn a new graph right below the existing one(s) and label each graph with when it started, and keep updating all of them. Or make it more explicit: A button to start a fresh graph any time and buttons to drop any previous graph. PS: Wait, would panning and zooming subsume all that? I guess there's still the idea of "ignore everything that happened previously and recompute the ETA starting now".
 * [CRO] This might be fun: Let people contribute computation by just having the equipow page open in their browser. (More boringly, Claude is estimating we could bring the next two searches down from a total of 90 days on my laptop to about 4 days on cloud compute costing around $300.)
 * [FAC] Finish reorganizing the files: quals and search stuff in their own directories, certificates?, favicons etc in an images directory?
 * [SER] Could the searches show a live estimate of the probability of finding a bipartition?
+* [HOV] When hovering/clicking on cells in the charts it'd be nice to highlight the values of m and n (resp., delta and k) on the axes of the chart
+
 
 Stan notes:
 
