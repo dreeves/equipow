@@ -878,3 +878,10 @@ Order-13 witness agent, 2026-10-31 from 06:05 (Claude; `scratch/w13-1008-912/`):
     - repause's two defects;
     - quals_deploy432's teardown flake;
     - refreshing the carry and overhead production manifests to CRAMA for any later variant.
+- **Grok 4.7's review** (2026-11-01 20:11 PST, in omg-we-found-other-agents.md) corrected the closed round's open list.
+  - **The sampled recheck:** reprove.walk solves every branch LP (`split`, for warm starts) and re-solves every leaf (`close`), so skipping unsampled leaves alone saves at most the leaf share. Claude's "hours" was unverified.
+    - Claude's refinement, an estimate: a walk that solves only the ancestors of sampled leaves would do roughly 7% of today's node solves at a 2% sample on balanced trees, more on real ones (10-20%?).
+    - It needs new code, and it stays a trust decision for dreeves.
+  - **The ETA:** the 20:10 snapshot's conditional total is 13.04 days (fanout 6.77, assembly 0.27, reproof 5.99), up from 8.48 at 05:27 because the pool estimate revised the tree upward.
+  - **Other points:** the float screen's fallback ran zero times on four jobs (worker-only, up to about 16%); `_fastlp.Dual.stats` exists but nothing reads it; screen's asarray on the infeasible half and carry's residual are candidates like A.
+- **Sampled-walk visitation measured** (Claude, 2026-11-01 20:23 PST, `scratch/sampled-walk-20261101/`): on 2 × 5,000 random job files, at p = 0.02 a leaf-sampled reproof walk visits 24.3% of branch nodes and 13.1% of all nodes. At 0.05 that is 41.7% and 23.4%; at 0.10, 58.5% and 34.2%. That is about twice the balanced model, and roughly 9-17% of reproof CPU at p = 0.02 by cost weighting (an estimate). Claude then paused at dreeves's request ("can you pause and let grok and astra work for a bit?").
