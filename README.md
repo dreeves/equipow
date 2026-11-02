@@ -13,6 +13,7 @@ Potential tasks:
 * [FAC] Finish reorganizing the files: quals and search stuff in their own directories, certificates?, favicons etc in an images directory?
 * [SER] Could the searches show a live estimate of the probability of finding a bipartition?
 * [HOV] When hovering/clicking on cells in the charts it'd be nice to highlight the values of m and n (resp., delta and k) on the axes of the chart
+* [APP] Eyeballing the charts it looks like maybe m*(n) ~= 1.2*log2(n) or something; any interesting conjectures on the asymptotics here?
 
 
 Stan notes:
