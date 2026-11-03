@@ -275,10 +275,10 @@ code[aria-expanded] { cursor: pointer; text-decoration: underline dotted var(--m
 .counts { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; max-width: var(--measure); }
 
 /* Claude's account of its lattice search, at Stan Wagon's request (2026-10-14): one block quote, ruled in Claude's hue */
-.lattice { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; max-width: var(--measure); }
-.lattice blockquote { margin: 0; padding-left: 1.1rem; border-left: 3px solid var(--claude); display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; }
-.lattice ul { margin: 0; padding-left: 1.2rem; display: grid; gap: 0.6rem; }
-.lattice .attrib { color: var(--muted); }
+.lattice, .pintree { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; max-width: var(--measure); }
+.lattice blockquote, .pintree blockquote { margin: 0; padding-left: 1.1rem; border-left: 3px solid var(--claude); display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; }
+.lattice ul, .pintree ul { margin: 0; padding-left: 1.2rem; display: grid; gap: 0.6rem; }
+.lattice .attrib, .pintree .attrib { color: var(--muted); }
 
 /* The search's progress (dreeves, 2026-10-17: a collapsible section of index.html in place of progress.html).
    The statuses' colors, checked with the dataviz palette validator
