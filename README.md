@@ -11,16 +11,13 @@ Potential tasks:
   1. Prove symmetric order 10 impossible at 288, using the symmetry-restricted lattice, residue constraints, and exact infeasibility certificates. This is substantially smaller than the unrestricted problem.
   2. If excluded, attack unrestricted order 10 at 288 using lattice searches without imposing symmetry.
   3. Systematically repeat this at other (n,m) with m>=9, prioritizing cases where modular constraints eliminate the symmetry-restricted problem cheaply.
-  4. Or show there's no symmetric witness for 960:14
 * [REO] See the notes in the index.html comments tagged [REO]
-* [960] Is it possible to get an explicit bipartition for 960?
 * [ETA] Maybe the ETA graph would be less confusing / more useful if the graph reset whenever we changed something about the search algorithm? I'm not sure though, so here's an idea for having the best of both worlds: Whenever something changes about the search, spawn a new graph right below the existing one(s) and label each graph with when it started, and keep updating all of them. Or make it more explicit: A button to start a fresh graph any time and buttons to drop any previous graph. PS: Wait, would panning and zooming subsume all that? I guess there's still the idea of "ignore everything that happened previously and recompute the ETA starting now".
 * [CRO] This might be fun: Let people contribute computation by just having the equipow page open in their browser. (More boringly, Claude is estimating we could bring the next two searches down from a total of 90 days on my laptop to about 4 days on cloud compute costing around $300.)
 * [FAC] Finish reorganizing the files: quals and search stuff in their own directories, certificates?, favicons etc in an images directory?
 * [SER] Could the searches show a live estimate of the probability of finding a bipartition?
-* [TRE] Could we see a time series of the number of pending nodes? If we could see the growth of that slow down, or when it starts to actually go down, we can better infer the ETA.
+* [TRE] We now have a time series of the number of pending nodes in the search. Seeing when that plateaus or starts to actually go down should improve our ETA. Can we incorporate that in the ETA graph?
 * [APP] Eyeballing the charts it looks like maybe `m*(n) ~= 1.2*log2(n)` or something; any interesting conjectures on the asymptotics here? PS: For powers of two we already have something like this: `m*(2^k) = c*log2(n)` where `c` is at least `77/68` and at most `2/log2(3)`. Relatedly, the upper envelope of `m*(n)` is at least `12/log2(480) log2(n)` ~= 1.347 which we get from Theorem 4.1 (Multiplication) of BGPW which tells us that `m*(n^k) >= k m*(n)`. Namely, `m*(480^k) >= 12k` so for certain `n`, `m*(n) >= 12 log_480(n) = 12 log2(n) / log2(480) = 12/log2(480) log2(n)`. So whenever we find a new high watermark for `m*(n)/log2(n)` that bumps up the upper envelope for the `m*()` function. Currently the best we have is 480:12. The following would beat that: 432:12, 672:13, 720: 13, 960:14. Update: We got 960:15! So 15/log2(960) ≈ 1.514 is the new bound on the upper envelope. Also 2^58 gives us 66/58 ≈ 1.138 as the lower bound.
-* [LIN] Add one more line for m=16 to the "smallest length known for each order" table
 
 
 Stan notes:
