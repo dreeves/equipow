@@ -1077,7 +1077,7 @@ def q_zoom_controls_zoom_their_own_chart():
     # its ↺; a + is disabled exactly at 12 columns and a − exactly at all; in that view of 12 columns each cell in view is
     # its rect, of its kind's color; and each ring (ring_cells, since 2026-10-30) is around its cell, as at the full
     # view, where that cell is in view, and wholly beyond the plot's ends, which clip it, where it is not (no ringed
-    # cell is next to that view, where a ring would show its edge, as the m*(n) chart's rings do).
+    # cell was next to that view, where a ring shows its edge, as the m*(n) chart's rings do, until 2026-11-03, when (47, 6) became one, around its cell there too).
     # Resultata before: this chart had no zoom buttons.
     R = valid('light')
     Z, cols, tok = R['zoom'], R['data']['cols'], R['load']['tokens']
@@ -1102,7 +1102,7 @@ def q_zoom_controls_zoom_their_own_chart():
     for (k, e, _), (box, *_) in zip(ring_cells(R['data']), limit['geo']['trims']):
         x0, x1 = L + (k - 1 - u0) * W / span, L + (k - u0) * W / span
         want = (x0 - 1, T + (E - e) * ROW - 2, x1 - x0 + 2, ROW - gap(R['load']['dpr']) + 4)
-        inside = u0 < k <= u0 + span
+        inside = u0 <= k <= u0 + span + 1
         assert (all(abs(a - b) <= 0.5 for a, b in zip(box, want)) if inside
                 else box[0] + box[2] <= L - 2 or box[0] >= L + W + 2), (k, e, box, want)
 

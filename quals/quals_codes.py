@@ -517,7 +517,8 @@ def q_partitions_fit_a_phone():
     # frame that scrolled sideways): the rows of 38 of the 39 partitions reached past the partition's right edge, the
     # largest code's by 312 px, = and ≠ with them.  Then (the second, side by side, each sum wrapping in its column): 104
     # rows of equal sums in 16 codes wrapped differently, 1024:11's at k = 4 on one line in the first column and two in
-    # the second (scratch/reo-expander-20261031/red/wrap_alike_side_by_side.log).
+    # the second (scratch/reo-expander-20261031/red/wrap_alike_side_by_side.log).  Then (2026-11-03, the codes of order 13 and 15): the partitions of 912:13, 960:15
+    # and 1008:13 were 871, 1014 and 871 px tall against the viewport's 844, their power sums growing with the order.
     R = run('phone')
     assert R['errors'] == [], R['errors'][:5]
     read, look, last = R['steps'][2], R['steps'][3], R['steps'][-1]

@@ -8,6 +8,8 @@ proofs/count128/bdfs
 proofs/count128/qualrun/
 proofs/count128/profiles/
 scratch/
+searches/pinned/*.so
+searches/pinned/coins
 .progress_cache.json
 .progress_cache.json.*.tmp
 progress.js.*.tmp
