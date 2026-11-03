@@ -632,13 +632,14 @@ def q_examples_at_720_and_1008_raise_their_lo():
     # Expectata (2026-10-27: Claude's lattice search, w11.py at 720 and at 1008 (scratch/w1008), found antisymmetric
     # examples of order 11 there; 2026-10-28: w12.py found a symmetric example of order 12 at 1008, which replaced its
     # order-11 one as p1008; that evening Astra's faster w12 found one at 720, which replaced its order-11 one as p720;
-    # 2026-11-03: searches/pinned/ found an antisymmetric example of order 13 at 1008, 12 to 13 until then):
-    # 720 is 12 to 14 and 1008 is 13, Claude alone, each lo the page's example
+    # 2026-11-03: searches/pinned/ found an antisymmetric example of order 13 at 1008, 12 to 13 until then, and the beam
+    # campaign (scratch/beam-campaign-20261103/) one at 720, 12 to 14 until then: q_example_at_720_reaches_order_13):
+    # 720 is 13 to 14 and 1008 is 13, Claude alone, each lo the page's example
     # (["example", "equipow p720"], ["example", "equipow p1008"]) and each hi still its residue claim (order 15
     # mod 16 at 720, order 14 mod 5 at 1008).
     _, got = disk()
     cs = got['m']['cols']
-    assert mstar.NEW[720] == (12, 14, 'Claude alone') and cs[720 - 1] == [12, 14, ['example', 'equipow p720'], ['residue', 16]], cs[720 - 1]
+    assert mstar.NEW[720] == (13, 14, 'Claude alone') and cs[720 - 1] == [13, 14, ['example', 'equipow p720'], ['residue', 16]], cs[720 - 1]
     assert mstar.NEW[1008] == (13, 13, 'Claude alone') and cs[1008 - 1] == [13, 13, ['example', 'equipow p1008'], ['residue', 5]], cs[1008 - 1]
 
 
@@ -725,6 +726,17 @@ def q_results_of_2026_11_03():
                      (960, 15, ['residue', 7]), (1008, 13, ['residue', 5])):
         assert mstar.NEW[n] == (m, m, 'Claude alone'), (n, mstar.NEW[n])
         assert cs[n - 1] == [m, m, ['example', f'equipow p{n}'], hw], (n, cs[n - 1])
+
+
+def q_example_at_720_reaches_order_13():
+    # Replicata: mstar.NEW and mstar.js's column at 720.
+    # Expectata (2026-11-03: the beam campaign's lattice search, scratch/beam-campaign-20261103/, pinned_beam.py of scratch/pinned-fast-20261103/,
+    # found an antisymmetric example of order 13 at 720): 720 is 13 to 14, Claude alone, its lo the page's example (["example", "equipow p720"]) and
+    # its hi as before (['residue', 16]).
+    # Resultata before: 720 was 12 to 14, its lo the page's example of order 12.
+    _, got = disk()
+    cs = got['m']['cols']
+    assert mstar.NEW[720] == (13, 14, 'Claude alone') and cs[720 - 1] == [13, 14, ['example', 'equipow p720'], ['residue', 16]], cs[720 - 1]
 
 
 # ---------- residue tests ----------

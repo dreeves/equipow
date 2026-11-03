@@ -39,7 +39,9 @@
   <!-- The changelog, newest first, as in dreeves's spec FreshAt (doc.bmndr.co/freshat) -->
   <details class="changelog">
     <summary><i>Changelog</i></summary>
-    <p>2026-11-03: \(m^*(544) = 10\), \(m^*(576) = 12\), \(m^*(624) = 12\), \(m^*(912) = 13\), \(m^*(960) = 15\), \(m^*(1008) = 13\)</p>
+    <p>2026-11-03: \(m^*(720) \ge 13\)</p>
+    <p>2026-11-03: \(m^*(960) = 15\)</p>
+    <p>2026-11-03: \(m^*(544) = 10\), \(m^*(576) = 12\), \(m^*(624) = 12\), \(m^*(912) = 13\), \(m^*(1008) = 13\)</p>
     <p>2026-11-03: \(m^*(2^{28}) \ge 31\), \(m^*(2^{36}) \ge 40\), \(m^*(2^{47}) \ge 53\), \(m^*(2^{56}) \ge 63\), \(m^*(2^{58}) \ge 66\)</p>
     <p>2026-11-01: \(12 \le m^*(672) \le 13\), \(m^*(688) = 10\)</p>
     <p>2026-10-31: <span class="nw">Expandable hex codes</span></p>
@@ -169,7 +171,7 @@
         </table>
         <table class="block">
           <tr class="ns"><th scope="row">\(n\)</th><td class="c" title='Claude alone'>672</td><td class="c" title='Claude alone'>688</td><td class="c" title='Claude alone'>704</td><td class="c" title='Claude alone'>720</td><td class="c" title='Claude alone'>736</td><td class="ca" title='Claude and Astra'>752</td><td class="c" title='Claude alone'>768</td><td class="ca" title='Claude and Astra'>784</td><td class="c" title='Claude alone'>800</td><td class="c" title='Claude alone'>816</td><td class="c" title='Claude alone'>832</td></tr>
-          <tr class="vals"><th scope="row">\(m^*(n)\)</th><td class="c">12–13</td><td class="c">10</td><td class="c">10</td><td class="c">12–14</td><td class="c">10</td><td class="ca">10</td><td class="c">12–13</td><td class="ca">10</td><td class="c">11</td><td class="c">12–14</td><td class="c">11</td></tr>
+          <tr class="vals"><th scope="row">\(m^*(n)\)</th><td class="c">12–13</td><td class="c">10</td><td class="c">10</td><td class="c">13–14</td><td class="c">10</td><td class="ca">10</td><td class="c">12–13</td><td class="ca">10</td><td class="c">11</td><td class="c">12–14</td><td class="c">11</td></tr>
         </table>
         <table class="block">
           <tr class="ns"><th scope="row">\(n\)</th><td class="c" title='Claude alone'>848</td><td class="c" title='Claude alone'>864</td><td class="c" title='Claude alone'>880</td><td class="c" title='Claude alone'>896</td><td class="c" title='Claude alone'>912</td><td class="c" title='Claude alone'>928</td><td class="c" title='Claude alone'>944</td><td class="c" title='Claude alone'>960</td><td class="c" title='Claude alone'>976</td><td class="c" title='Claude alone'>992</td><td class="c" title='Claude alone'>1008</td><td class="c" title='Claude alone'>1024</td></tr>
@@ -685,12 +687,17 @@ Or just start identifying redundancies and repetition on the page and fix them o
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry">\(n = 720\): &nbsp;\(m^* \in \{12, 13, 14\}\)</p>
+      <p class="entry">\(n = 720\): &nbsp;\(m^* \in \{13, 14\}\)</p>
       <!-- Says this is a symmetric example of order 12, and that order 15 at 720 is ruled out by the residue condition mod 16, so m*(720) is 12, 13 or 14 -->
       <p>A symmetric example of order 12. Order 15 is ruled out by the residue condition mod 16.</p>
       <p class="code">
         <span>\(p_{720}\) \((m = 12)\):</span>
         <code id="720:12">D508EE7A682A54DC2FCCC5DEAEC42DD200500E3FD2F9BBA0E66FEE28F1A983831A12C69D5181FC6CBDA6B9703C</code>
+      </p>
+      <p>An antisymmetric example of order 13, found by a lattice search.</p>
+      <p class="code">
+        <span>\(p_{720}\) \((m = 13)\):</span>
+        <code id="720:13">AC98B16ECCCACE4C4CD952CCCF94AC4C95ECC54D9BCC5AB1408CED96ECDCBA49C40ACA1EFDA95A8DC34E0C5C5D</code>
       </p>
     </li>
     <li class="ca">
@@ -1115,17 +1122,21 @@ Or just start identifying redundancies and repetition on the page and fix them o
 </section>
 
 <section class="oeis" aria-labelledby="oeis-title">
-  <!-- A block quote by Claude, at dreeves's request (2026-10-28: "can you make a section that links to all the relevant OEIS entries and notes any discrepancies?"): the OEIS entries on this problem, each linked, with how it compares with this page on 2026-10-28, OEIS's k-powerful being order k + 1 here, and that two have errors, each marked as one with its fix: a comment of A323395, and A323629, which omits 112. A323395, the smallest length of each order (a(m − 1) for order m): its terms through a(9) = 240 agree, and this page proves the next, a(10) = 432, and a(14) = 960; the error: its comment's a(12) ≤ 864 is one order too high and should read a(12) ≤ 912 (doubling gives order 12 at 864, and no length below 912 is known to reach order 13); its a(13) ≤ 960 holds, though not by the doubling that gave it, which reaches only order 13 at 960: the example of order 15 at 960 gives it; the comment's a(10) ≤ 432 and a(11) ≤ 480 hold, a(11) being 432 or 480 (order 12 open at 432, ruled out at 448 and 464). A306248, m*(2n): its 95 terms agree, and this page settles 48 more, through n = 143, with m*(288) open. A323610 (L6, the lengths n with m*(n) ≥ 6) and A323614 (L8): their terms agree, and so do their comments' descriptions through 1024. A323629 (L7), the error: it omits 112 from its terms, its comment (quoted) and its generating function −8x(x^6 + 2x^2 + 8x − 12)/(x − 1)^2, which should be 8x(12 − 10x − x^7)/(1 − x)^2, though BGPW's Theorem 3.1 and Tables 1 to 3, A306248's a(56) = 7 and the published paper's Table 5 have it; with 112 added it agrees through 1024. Then the related entries: A382832, the same question for two distinct subsets that need not form a partition, at most A323395; A382833, the number of distinct power-sum vectors of the subsets; A362039, the least common sum of two sets of primes of order m; A010060 and A106400, Thue–Morse as 0s and 1s and as signs, its partition of {0, …, 2^k − 1} having order k; A001969 and A000069, the evil and odious numbers, the two parts of that partition; A140047, the power sums of each part of an order-k partition of {0, …, 2^k − 1}, half those of the whole set -->
+  <!-- A block quote by Claude, at dreeves's request (2026-10-28: "can you make a section that links to all the relevant OEIS entries and notes any discrepancies?"): the OEIS entries on this problem, each linked, with how it compares with this page on 2026-10-28, OEIS's k-powerful being order k + 1 here, and that one has an error, marked as one with its fix: A323629, which omits 112. A323395, the smallest length of each order (a(m − 1) for order m): its terms through a(9) = 240 agree, and this page proves the next, a(10) = 432, and a(14) = 960; its comment's a(12) ≤ 864 and a(13) ≤ 960 hold (proven only on 2026-11-03; both were unproven when the comment was posted on 2026-10-17), though not by the doublings that gave them, which reach only order 12 at 864 and order 13 at 960: the examples of order 13 at 720 and of order 15 at 960 give them, and a(12) ≤ 720; the comment's a(10) ≤ 432 and a(11) ≤ 480 hold, a(11) being 432 or 480 (order 12 open at 432, ruled out at 448 and 464). A306248, m*(2n): its 95 terms agree, and this page settles 48 more, through n = 143, with m*(288) open. A323610 (L6, the lengths n with m*(n) ≥ 6) and A323614 (L8): their terms agree, and so do their comments' descriptions through 1024. A323629 (L7), the error: it omits 112 from its terms, its comment (quoted) and its generating function −8x(x^6 + 2x^2 + 8x − 12)/(x − 1)^2, which should be 8x(12 − 10x − x^7)/(1 − x)^2, though BGPW's Theorem 3.1 and Tables 1 to 3, A306248's a(56) = 7 and the published paper's Table 5 have it; with 112 added it agrees through 1024. Then the related entries: A382832, the same question for two distinct subsets that need not form a partition, at most A323395; A382833, the number of distinct power-sum vectors of the subsets; A362039, the least common sum of two sets of primes of order m; A010060 and A106400, Thue–Morse as 0s and 1s and as signs, its partition of {0, …, 2^k − 1} having order k; A001969 and A000069, the evil and odious numbers, the two parts of that partition; A140047, the power sums of each part of an order-k partition of {0, …, 2^k − 1}, half those of the whole set -->
     <h2 id="oeis-title">Claude Comments on OEIS Entries</h2>
     <p>
-      Nota Bene: the OEIS's <span class="nw">\(k\)-powerful</span> is order \(k + 1\) here. 
-      Two OEIS entries have errors, each marked below with its fix: an incorrect comment on A323395, and A323629 omitting 112.
+      Nota Bene: 
+      what's called 
+      "<span class="nw">\(k\)-powerful</span>" 
+      in the OEIS is what we call order \(k + 1\) here. 
+      One OEIS entry has an error: A323629 omits 112 (see below).
+      And A323395 previously overclaimed some bounds on later entries in the sequence, which was an error at the time but the bounds fortuitously turned out to be correct.
     </p>
     <p>
       Claude wrote all the bullet points below.
     </p>
     <ul>
-      <li><a href="https://oeis.org/A323395">A323395</a>, the smallest \(n\) of each order (\(a(m - 1)\) for order \(m\)): its terms, through \(a(9) = 240\), agree, and this page proves the next, \(a(10) = 432\), and \(a(14) = 960\) (above). <b>Error:</b> its comment's \(a(12) \le 864\) is one order too high, and should read \(a(12) \le 912\): doubling gives order 12 at 864, and no length below 912 is known to reach order 13. Its \(a(13) \le 960\) holds, though not by the doubling that gave it, which reaches only order 13 at 960: the example of order 15 at 960 above gives it. The comment's \(a(10) \le 432\) and \(a(11) \le 480\) hold, and \(a(11)\) is 432 or 480: order 12 is open at 432 and ruled out at 448 and 464.</li>
+      <li><a href="https://oeis.org/A323395">A323395</a>, the smallest \(n\) of each order (\(a(m - 1)\) for order \(m\)): its terms, through \(a(9) = 240\), agree, and this page proves the next, \(a(10) = 432\), and \(a(14) = 960\) (above). Its comment's \(a(12) \le 864\) and \(a(13) \le 960\) hold, though not by the doublings that gave them, which reach only order 12 at 864 and order 13 at 960: the examples above of order 13 at 720 and of order 15 at 960 give them, and \(a(12) \le 720\). The comment's \(a(10) \le 432\) and \(a(11) \le 480\) hold, and \(a(11)\) is 432 or 480: order 12 is open at 432 and ruled out at 448 and 464.</li>
       <li><a href="https://oeis.org/A306248">A306248</a>, \(m^*(2n)\): its 95 terms agree, and this page settles 48 more, through \(n = 143\) (\(2n = 286\)); \(m^*(288)\) is open.</li>
       <li><a href="https://oeis.org/A323610">A323610</a>, the lengths \(n\) with \(m^*(n) \ge 6\) \((L_6)\): its terms agree, and so does its comment's description through 1024.</li>
       <li><a href="https://oeis.org/A323629">A323629</a>, \(L_7\): <b>Error:</b> it omits 112 from its terms, from its comment (“The set consists of 96, 128, 144, 160, 176, and all multiples of 8 that are greater than or equal to 192”) and from its generating function, \(-8x(x^6 + 2x^2 + 8x - 12)/(x - 1)^2\), which should be \(8x(12 - 10x - x^7)/(1 - x)^2\). BGPW's <a href="https://arxiv.org/html/1912.03491v1#S3.Thmthm1">Theorem 3.1</a> and Tables 1 to 3 have 112 in \(L_7\), as does A306248, whose \(a(56)\) is 7, and the published paper's Table 5 gives a partition of 112 of order 7. With 112 added, it agrees through 1024.</li>
@@ -1261,12 +1272,30 @@ Or just start identifying redundancies and repetition on the page and fix them o
           <p class="progress-stages" data-stages hidden>The above graph covers <code data-stage-now></code> only; then <span data-stages-later></span>; so total time to a proof would be <b data-stages-total></b>.
             <!-- TODO: says the line's ranges hold only under the model's assumptions (each later stage's measured CPU costs, every one of its processes at the share of a core the run's workers get now, and perfect overlap where a stage's parts run at once), and leave out waits in a stage's pipeline, waits for storage and changes in the machine's load, so that the real time to a proof is less certain than the ranges show -->
             Claude: “These ranges assume measured CPU costs, today's share of a core for every process, and perfect overlap where parts run at once; pipeline waits, storage waits and changes in the machine's load are not in them, so the time to a proof is less certain than they show.”</p>
+          <!-- A fanout run's pool over its hours of running (README [TRE]): above, how many boxes were pending or running (not done: waiting for a job, or a running job's own); below, the net change in that count per job ended in each stretch of running time (a job ended takes its box out and puts in the boxes it left open), with a line at 0, so that the growth slowing shows as the lower line falling and the count turning down as that line going below 0; the line of text above reads out the latest moment, or the one nearest the pointer -->
+          <div class="progress-pool">
+            <p class="progress-pool-tip" data-pool-tip></p>
+            <svg viewBox="0 0 640 230" role="img" aria-label="Claude: Boxes pending or running against the hours of running, and below, the net change per job ended">
+              <g data-pool-grid></g>
+              <polygon class="wash" data-pool-wash></polygon>
+              <polyline class="count" data-pool-line="count"></polyline>
+              <polyline class="net" data-pool-line="net"></polyline>
+              <text class="title" data-pool-title="count">boxes pending or running</text>
+              <text class="title" data-pool-title="net">net change per job ended</text>
+              <g data-pool-ticks="count"></g>
+              <g data-pool-ticks="net"></g>
+              <g data-pool-ticks="x"></g>
+              <line class="cross" visibility="hidden" data-pool-cross></line>
+            </svg>
+          </div>
           </details>
         </div>
       </template>
       <template class="progress-line">@<span data-when></span>&emsp;<span class="spent"><b data-so-far></b> so far</span> + <span class="togo"><b data-to-go></b> to go</span> = <span class="total"><b data-sum></b> (<b data-done></b>)</span></template>
       <!-- One later stage in a run's line of stages: its name, then the range of its estimated time to go -->
       <template class="progress-stage"><span><code data-stage-name></code> <b data-stage-to-go></b></span></template>
+      <!-- the pool chart's line for one moment: @ and its time, its hours of running so far, how many boxes were pending or running then, and the net change in that count per job ended in its stretch of running time (— where no job ended in that stretch) -->
+      <template class="progress-pool-line">@<span data-when></span>&emsp;<b data-so-far></b> so far: <b data-pool-count></b> boxes pending or running, net <b data-pool-net></b> per job ended</template>
       <!-- TODO: distinguishes calibration attempts from target attempts, reports elapsed time and terminal outcomes, and says that empty or timed-out attempts give no exclusion or completion estimate. -->
       <template class="progress-search288">
         <span>Astra: “240:10 calibration (first dot block): <b data-attempt-count="control_attempted"></b>/<b data-attempt-count="control_total"></b> attempted; <b data-attempt-count="control_empty"></b> empty, <b data-attempt-count="control_timeout"></b> timed out, <b data-attempt-count="control_witnesses"></b> witnesses.”</span><br>

@@ -719,7 +719,7 @@ const MSTAR = {"nmax": 1024, "mtop": 16, "cols": [
 [0, 0, ["none"], ["odd"]],
 [1, 1, ["join", 2, 716], ["two"]],
 [0, 0, ["none"], ["odd"]],
-[12, 14, ["example", "equipow p720"], ["residue", 16]],
+[13, 14, ["example", "equipow p720"], ["residue", 16]],
 [0, 0, ["none"], ["odd"]],
 [1, 1, ["join", 2, 720], ["two"]],
 [0, 0, ["none"], ["odd"]],

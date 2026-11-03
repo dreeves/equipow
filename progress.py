@@ -161,6 +161,19 @@ The estimate's model, its terms defined once here (overnight_v5.py's search() is
               replicates, each band's samples resampled (a bootstrap: the uncertainty of the bands' means, not of the
               process itself, whose sum over thousands of boxes varies less).  None until the session has a pool record,
               a sample and a box.
+  pool series of a fanout.py run (dreeves, 2026-11-03, README [TRE]: "Could we see a time series of the number of
+              pending nodes? If we could see the growth of that slow down, or when it starts to actually go down, we can
+              better infer the ETA."): the size of its pool (the boxes not done, its running jobs' among them, as the
+              pool estimate's) at each moment the journal says it changed, on the ETA chart's axis of running time
+              (running_before): a session's pool record sets it, the boxes its walk found not done, before any job;
+              then each job_end of that session takes its box out and puts the boxes it pushed in (its open: the lex
+              cut's dead ones are dropped, not pushed; fanout.py's 'dropped').  A session without a pool record (before
+              2026-10-26) has none, the pool at its start unrecorded, and none may run jobs after one that has one
+              (asserted).  The data file carries it thinned (pool_series): the run's running time cut into POOL_BUCKETS
+              equal stretches, each with at most 4 of its points, its first, last, lowest and highest (M4, Jugel et al.
+              2014: a line through them draws as the whole series' does, a stretch to a pixel), each an actual moment of
+              the series; and each stretch's jobs ended and their open boxes less one, summed: its net change by jobs,
+              without a pool record's jump (the lex cut's first drop, 2026-10-31).
   tracked     a search run under track.py (dreeves, 2026-10-28: "can we rearchitect things so that always happens easily
               and automatically?"): its runs' records, runs/NAME.jsonl (see track.py), are the watcher's only source,
               read whatever program the runs run, the runs of one target N:M one search.  A run is ended with its end
@@ -273,6 +286,8 @@ STATUSES = ('settled', 'open', 'split', 'pending')     # the statuses, in the or
 SEA_DEPTH = 5                          # the sea's groups are the sub-cases at this depth (240@11's 291), or above the bottom
 SEA_STATUSES = STATUSES + ('running',)  # a dot's status, by its index in the data file
 ETA_POINTS = 400                       # the most recorded ETAs the data file carries per run
+POOL_BUCKETS = 100                     # the stretches of a fanout run's running time its pool series is thinned over and
+                                       # summed by in the data file (see pool series), ETA_POINTS / 4 points at most
 LIMIT = 120                            # seconds a run's survey may take in a snapshot, before overruns (see snapshot)
 STEP = 20000                           # lines, records or keys a reading takes in one atomic block (see atomic)
 DRAWS = 1 << 28                        # the most numbers an urn may hold (see Urn): 2 GiB of float64
@@ -2652,6 +2667,38 @@ def survey_focus(path, procs, now=None, observations=None, launches=None, pauses
                 sea=dict(depth=0, keys=[f'{header["n"]}:{header["order"]}'], groups=[codes], counts=counts))
 
 
+def pool_series(sessions, spans):
+    """The pool series (see the vocabulary) of a fanout.py run, as the data file carries it: {points: [[time, in whole
+    seconds; seconds of running, to a tenth; boxes pending or running; stretch]], buckets: [[jobs ended, net change]],
+    one per stretch}, a stretch each of POOL_BUCKETS equal parts of the run's running time, from 0 to its spans' end; at
+    most 4 points a stretch, its first, last, lowest (the earliest of equals) and highest (the latest of equals), in time
+    order; a pool record's point is no job and changes no net.  sessions are
+    the run's, in journal order, each a dict of its pool record's boxes by depth (pool; None without one), that record's
+    time (at) and its job_end records in order (ends); spans its spans of running (a survey's passes, pauses left
+    out)."""
+    first = next((i for i, s in enumerate(sessions) if s['pool'] is not None), len(sessions))
+    # TODO: error copy; says a session ran jobs without a pool record after a session that had one, so the pool's size over it is unknown
+    assert all(s['pool'] is not None or not s['ends'] for s in sessions[first:]), \
+        'Claude: "a session after the first pool record ran jobs without one"'
+    pieces = [(np.array([s['at'], *(e['time'] for e in s['ends'])], dtype=float),     # a session's moments, its steps
+               np.array([0, *(e['open'] - 1 for e in s['ends'])], dtype=np.int64), sum(s['pool'].values()))
+              for s in sessions if s['pool'] is not None]                           # and its pool record's boxes
+    t = np.concatenate([np.zeros(0)] + [p[0] for p in pieces])
+    step = np.concatenate([np.zeros(0, dtype=np.int64)] + [p[1] for p in pieces])   # 0 at a pool record
+    count = np.concatenate([np.zeros(0, dtype=np.int64)] + [p[2] + np.cumsum(p[1]) for p in pieces])
+    job = np.concatenate([np.zeros(0, dtype=bool)] + [np.arange(len(p[1])) > 0 for p in pieces])   # not a pool record
+    x = running_before(spans, t)
+    edges = np.linspace(0.0, running_before(spans, [spans[-1][1]])[0], POOL_BUCKETS + 1)
+    b = np.minimum(np.searchsorted(edges, x, side='right') - 1, POOL_BUCKETS - 1)    # each point's stretch, in order
+    u = np.unique(b)
+    lo, hi = np.searchsorted(b, u, side='left'), np.searchsorted(b, u, side='right') - 1   # each stretch's first, last
+    order = np.lexsort((count, b))                       # by stretch, then by size: order[lo] its lowest, order[hi] its highest
+    keep = np.unique(np.concatenate([lo, hi, order[lo], order[hi]]))
+    return dict(points=[[int(t[i]), round(float(x[i]), 1), int(count[i]), int(b[i])] for i in keep],
+                buckets=[[int(j), int(n)] for j, n in zip(np.bincount(b, weights=job, minlength=POOL_BUCKETS),
+                                                          np.bincount(b, weights=step, minlength=POOL_BUCKETS))])
+
+
 def survey_fanout(path, procs, now=None, observations=None, launches=None, journal=None, pauses=(), times=None):
     """fanout.py's journal (see fanout.py's vocabulary): its spans of running as survey_focus's, its pauses (see the
     vocabulary; by default none) left out; a dot per job, grouped by root (keyed case:depth): split (done, leaving boxes
@@ -2662,8 +2709,8 @@ def survey_fanout(path, procs, now=None, observations=None, launches=None, journ
     their 647 hours paused), times the workers (dreeves, 2026-10-23: "Can we throw more compute at 672:13?"); its floor each open case's
     latest probe's least less the case's work so far (the run's own before fanout counted to its case; a case done when
     every dot of its roots is); and its stages (stages_of: its tokens, the LP solves of its jobs done and the pool
-    estimate's replicates to go; its share by times, see share_of).  journal is the watcher's Records of the path, kept
-    between snapshots; by default a new one, which reads it whole."""
+    estimate's replicates to go; its share by times, see share_of); and its pool series (pool_series, 2026-11-03).
+    journal is the watcher's Records of the path, kept between snapshots; by default a new one, which reads it whole."""
     records = (Records(path) if journal is None else journal).read()
     now = time.time() if now is None else now
     observations = {} if observations is None else observations
@@ -2677,7 +2724,7 @@ def survey_fanout(path, procs, now=None, observations=None, launches=None, journ
     sight(main, launches, now)
     spans, pids, starts, ends, finish, reflections, worker_counts = [], [], {}, {}, [], {}, []
     leasts = {}                         # each probed case's latest least, LP solves
-    sessions = []                       # each session's seed, pool record (depths, by depth) and jobs done, in order
+    sessions = []                       # each session's seed, pool record (depths, by depth; at, its time) and jobs done, in order
     dropped = []                        # each pool record's dropped boxes by root (fanout.py's 'dropped'), else None
     switched = [header['time']]         # when each code took over: the header's, then each switch's
 
@@ -2696,7 +2743,7 @@ def survey_fanout(path, procs, now=None, observations=None, launches=None, journ
         assert not set(reflections) & set(reflections.values())
         spans.append([t, t])
         pids.append(str(r['pid']))
-        sessions.append(dict(seed=r.get('seed'), pool=None, ends=[]))
+        sessions.append(dict(seed=r.get('seed'), pool=None, at=None, ends=[]))
 
     def job_start(r, t):
         assert 0 <= r['root'] < roots and cases_of[r['root']] == r['case'], r
@@ -2720,6 +2767,7 @@ def survey_fanout(path, procs, now=None, observations=None, launches=None, journ
         # dropped, and lex, the cases the cut applies to
         assert str(r['pid']) == pids[-1] and sessions[-1]['pool'] is None and set(r) in (
             {'event', 'time', 'pid', 'depths'}, {'event', 'time', 'pid', 'depths', 'dead', 'lex'}), r
+        assert not sessions[-1]['ends'], r     # after the walk, before any job (the pool series' anchor, 2026-11-03)
         dead = r.get('dead', [])
         assert type(dead) is list and all(type(x) is list and len(x) == 2 and type(x[0]) is int and 0 <= x[0] < roots
                                           and type(x[1]) is int and x[1] >= 1 for x in dead) \
@@ -2729,7 +2777,7 @@ def survey_fanout(path, procs, now=None, observations=None, launches=None, journ
         d = r['depths']
         assert type(d) is list and all(type(x) is list and len(x) == 2 and all(type(v) is int for v in x) and x[0] >= 0
                                        and x[1] >= 1 for x in d) and [x[0] for x in d] == sorted({x[0] for x in d}), r
-        sessions[-1]['pool'] = collections.Counter(dict(map(tuple, d)))
+        sessions[-1].update(pool=collections.Counter(dict(map(tuple, d))), at=r['time'])
 
     def switch(r, t):                      # fanout.py's switch, between sessions: a span of no length, its writer's
         assert set(r) == {'event', 'time', 'pid', 'from', 'to'}, r
@@ -2794,7 +2842,7 @@ def survey_fanout(path, procs, now=None, observations=None, launches=None, journ
         observations[str(float(now))] = eta
     return dict(program='fanout.py', n=header['n'], order=header['order'], made=now, state=status, workers=worker_counts[-1],
                 outcome=finish[0]['outcome'] if finish else None, so_far=sum(b - a for a, b in spans),
-                to_go=to_go_of(eta), etas=observations, passes=spans,
+                to_go=to_go_of(eta), etas=observations, passes=spans, pool=pool_series(sessions, spans),
                 sea=dict(depth=0, keys=[f'{c}:{d}' for c, d in zip(cases_of, header['root_depths'])], groups=groups,
                          counts=counts)) | stages_of(('fanout.py', header['n'], header['order']), status, to_go_of(eta),
                                                      hours, {'token': tokens}, share_of(procs, main, pauses, now, times))
@@ -2996,21 +3044,31 @@ def survey_track(target, records, procs, now, etas=None):
 def clock(t): return '—' if t is None else time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(t))
 
 
+def running_before(spans, times):
+    """The seconds of running before each moment of times (epoch seconds), as an array, in spans, a run's spans of
+    running in order (a survey's passes): the spans' seconds before the moment, one after a span's end and before the
+    next span (a pause; a gap between sessions or passes) counting as that span's end.  Each moment must fall between
+    the first span's start and the last span's end (asserted).  (eta_records' elapsed until 2026-11-03, by bisect, one
+    moment at a time: the same sums in the same order.)"""
+    starts, ends = np.array([a for a, _ in spans], dtype=float), np.array([b for _, b in spans], dtype=float)
+    times = np.asarray(times, dtype=float)
+    k = np.searchsorted(starts, times, side='right') - 1
+    # TODO: error copy; says a moment falls before the run's first span of running or after its last
+    assert ((k >= 0) & (times <= ends[-1])).all(), 'Claude: "a moment outside the run\'s spans of running"'
+    return np.concatenate([[0.0], np.cumsum(ends - starts)])[k] + np.minimum(times, ends[k]) - starts[k]
+
+
 def eta_records(s):
     """The run's record of ETAs (see ETA in the vocabulary) with an estimate, in time order, as (time, running hours
     before it, median (mean before 2026-10-19), lo, hi), hours.  A recorded time's running hours come from the passes: one after a pass's last
     line (its process ran on, or was stopped, unlogged) counts as that pass's end, the log's clock being the only one;
-    it must fall between the first pass's start and the snapshot (asserted)."""
+    it must fall between the first pass's start and the snapshot (asserted).  Its running hours are running_before's."""
     spans = s['passes']
-    starts = [a for a, _ in spans]
-    before = list(itertools.accumulate((b - a for a, b in spans), initial=0.0))   # running seconds before each pass
-    def elapsed(t):
-        k = bisect.bisect_right(starts, t) - 1
+    made = sorted(((float(t), e) for t, e in s['etas'].items() if e is not None), key=lambda te: te[0])
+    for t, _ in made:
         # TODO: error copy; says the record of ETAs holds a time before the search began or after the snapshot
-        assert k >= 0 and t <= spans[-1][1], f'Claude: "the ETA of {clock(t)} falls outside the running of {s["n"]} {s["order"]}"'
-        return (before[k] + min(t, spans[k][1]) - starts[k]) / HOUR
-    return [(t, elapsed(t), *e) for t, e in sorted(((float(t), e) for t, e in s['etas'].items()), key=lambda te: te[0])
-            if e is not None]
+        assert spans[0][0] <= t <= spans[-1][1], f'Claude: "the ETA of {clock(t)} falls outside the running of {s["n"]} {s["order"]}"'
+    return [(t, x / HOUR, *e) for (t, e), x in zip(made, running_before(spans, [t for t, _ in made]).tolist())]
 
 
 def js_text(surveys, now):
@@ -3022,14 +3080,15 @@ def js_text(surveys, now):
     (SEA_STATUSES), its sea (depth, keys, groups, counts), and stale: null, or for a run whose survey failed or ran past
     LIMIT the time (whole seconds) of the snapshot its data are from (see snapshot; 2026-10-30); and for a run in a chain,
     not ended (2026-10-31), its stages (see the vocabulary), [{name, to_go}], its own first, each to_go as the run's
-    or null, and total, the time to go to a recordable result in the same form, or null."""
+    or null, and total, the time to go to a recordable result in the same form, or null; and for a fanout.py run
+    (2026-11-03), pool, its pool series as pool_series gives it."""
     return data_text([run_data(s) for s in surveys], now)
 
 
 # What run_data reads of a survey: an idle run's survey keeps no more (see idle; 2026-10-31: an overnight_v5.py
 # survey's open_list held 612,046 of 288@10's leaves).
 LIGHT = ('program', 'n', 'order', 'state', 'outcome', 'so_far', 'to_go', 'etas', 'passes', 'sea', 'display', 'workers',
-         'stages', 'total')
+         'stages', 'total', 'pool')
 
 
 def light(s):
@@ -3049,7 +3108,7 @@ def run_data(s):
     return ({'program': s['program'], 'n': s['n'], 'order': s['order'], 'state': s['state'], 'outcome': s['outcome'],
              'so_far': s['so_far'], 'to_go': s['to_go'],
              'etas': etas(s), 'statuses': list(SEA_STATUSES)} | s['sea'] | s.get('display', {}) |
-            {k: s[k] for k in ('workers', 'stages', 'total') if k in s} | {'stale': None})
+            {k: s[k] for k in ('workers', 'stages', 'total', 'pool') if k in s} | {'stale': None})
 
 
 def data_text(runs, now):

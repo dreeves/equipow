@@ -314,7 +314,11 @@ NOTEWORTHY = (('2026-10-04', 2 ** 24, (25, None), 'the first power of 2 known to
               ('2026-10-20', 384, (10, 10), 'with 240, settles a(10) = 432 of OEIS A323395'),
               ('2026-10-20', 240, (10, 10), "settles the paper's Table 2 entry, 10 or 11, and its open question"),
               ('2026-10-26', 2 ** 10, (11, 11), 'the first power of 2 known to beat Thue-Morse, down from 2^17, and the '
-               'first that can, since m*(2^9) = 9'))
+               'first that can, since m*(2^9) = 9'),
+              ('2026-11-03', 960, (15, 15), 'the smallest length known with order 15, down from 3840, and the first allowed it: '
+               'settles a(14) = 960 of OEIS A323395'),
+              ('2026-11-03', 720, (13, None), 'the smallest length known with order 13, down from 912 that morning and 960 '
+               'before'))
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -1968,17 +1972,18 @@ def q_examples_at_720_and_1008_have_their_entries_and_codes():
     # Expectata (2026-10-27: Claude's lattice search, w11.py at 720 and at 1008, found antisymmetric examples of order
     # 11 there; 2026-10-28: w12.py found a symmetric example of order 12 at 1008, which replaced its order-11 example
     # and code, and that evening Astra's faster w12 found one at 720, which did the same): each has an entry of its
-    # own, an <li class="c"> marked ◆ among the examples in order of n, 720's "m* ∈ {12, 13, 14}" between 688's (656's
+    # own, an <li class="c"> marked ◆ among the examples in order of n, 720's "m* ∈ {13, 14}" ("m* ∈ {12, 13, 14}" until 2026-11-03) between 688's (656's
     # until 2026-11-01, when 672's and then 688's example entries came between them) and 752's, and 1008's "m* = 13" ("m* ∈ {12, 13}" until 2026-11-03) between 992's and 1024's (its wording unpinned since 2026-10-30); each a code block of its
     # order m (11 at 720, 12 at 1008), whose signs have order exactly m (synthetic division here) and are
-    # antisymmetric at 720 and symmetric at 1008 (their sets SClaude[m][n] left the page on 2026-10-31), 720's its only one and 1008's followed by that of order 13
-    # (since 2026-11-03: q_results_of_2026_11_03_have_entries_and_codes); no other
-    # entry names 720 or 1008 (their joins' entries are gone); the cells 11–14 and 13 (12–13 until 2026-11-03);
-    # and mstar.js's columns [11, 14, ["example", "equipow p720"], ["residue", 16]] and [13, 13, ["example",
+    # antisymmetric at 720 and symmetric at 1008 (their sets SClaude[m][n] left the page on 2026-10-31), each followed by that of order 13
+    # (since 2026-11-03: q_results_of_2026_11_03_have_entries_and_codes at 1008, and at 720 q_example_at_720_has_its_code_of_order_13,
+    # the beam campaign's; 720's was its only one until then); no other
+    # entry names 720 or 1008 (their joins' entries are gone); the cells 13–14 and 13 (12–14 and 12–13 until 2026-11-03);
+    # and mstar.js's columns [13, 14, ["example", "equipow p720"], ["residue", 16]] and [13, 13, ["example",
     # "equipow p1008"], ["residue", 5]].
     text = page()
     listed = [ns.split(', ') for ns in re.findall(r'<p class="entry">\\\(n = (.*?)\\\): ', text)]
-    for n, m, values, before, after, cell, more in ((720, 12, '\\\\in \\\\\\{12, 13, 14\\\\\\}', '688', '752', (12, 14), ()),
+    for n, m, values, before, after, cell, more in ((720, 12, '\\\\in \\\\\\{13, 14\\\\\\}', '688', '752', (13, 14), ('13',)),
                                                     (1008, 12, '= 13', '992', '1024', (13, 13), ('13',))):
         li = re.search(r'<li class="c">\n      <span class="mk" aria-hidden="true">◆</span>\n      <p class="entry">\\\(n = '
                        rf'{n}\\\): &nbsp;\\\(m\^\* {values}\\\)</p>\n(.*?)\n    </li>', text, re.S)
@@ -1997,7 +2002,7 @@ def q_examples_at_720_and_1008_have_their_entries_and_codes():
         assert sum(str(n) in ns for ns in listed) == 1, (n, [ns for ns in listed if str(n) in ns])
         assert new_cells(text)[n] == cell, new_cells(text)[n]
     cols = mstar_data()['cols']
-    assert cols[720 - 1] == [12, 14, ['example', 'equipow p720'], ['residue', 16]], cols[720 - 1]
+    assert cols[720 - 1] == [13, 14, ['example', 'equipow p720'], ['residue', 16]], cols[720 - 1]
     assert cols[1008 - 1] == [13, 13, ['example', 'equipow p1008'], ['residue', 5]], cols[1008 - 1]
 
 
@@ -2297,6 +2302,36 @@ def q_firsts_move_to_2_56_and_2_58():
         names_base(text, k, base, t, order)
 
 
+def q_example_at_720_has_its_code_of_order_13():
+    # Replicata: the remarks' entry naming 720, its codes decoded by the paper's Table 5 convention (the left half of the signs, 1 = +1, then the
+    # rest by (-1)^m symmetry), the new results' cell of 720, the changelog's statements of 2026-11-03, and mstar.js's column.
+    # Expectata (2026-11-03: the beam campaign's lattice search, scratch/beam-campaign-20261103/, found an antisymmetric example of order 13 at 720):
+    # 720's entry, an <li class="c"> marked ◆, its statement of m* \(m^* \in \{13, 14\}\), between 688's and 752's; its codes p720 (m = 12) and
+    # p720 (m = 13), in that order, the second <code id="720:13">, its signs of order exactly 13 (synthetic division here), antisymmetric, +1 at
+    # 0; no other entry names 720; the cell 13 to 14; the changelog's statement of 720 on 2026-11-03 is (13, None) (quals_index's statement()); mstar.js's column
+    # [13, 14, ["example", "equipow p720"], ['residue', 16]].
+    # Resultata before: 720 was 12 to 14, with one code, of order 12.
+    text = page()
+    entry = '<p class="entry">\\(n = 720\\): &nbsp;\\(m^* \\in \\{13, 14\\}\\)</p>'
+    li = re.search(r'<li class="c">\n      <span class="mk" aria-hidden="true">◆</span>\n      ' + re.escape(entry) + r'\n(.*?)\n    </li>', text, re.S)
+    assert li, 'no entry of 720 alone with its new statement'
+    codes = re.findall(r'\\\(p_\{(\d+)\}\\\) \\\(\(m = (\d+)\)\\\):</span>\n\s*<code id="(\d+:\d+)">([0-9A-F]+)</code>', li.group(1))
+    assert [c[:3] for c in codes] == [('720', '12', '720:12'), ('720', '13', '720:13')], codes
+    h = codes[1][3]
+    left = [1 if b == '1' else -1 for b in bin(int(h, 16))[2:].zfill(4 * len(h))]
+    a = left + [-t for t in reversed(left)]
+    k, c = 0, a
+    while not sum(c): c, k = list(itertools.accumulate(c[:-1])), k + 1
+    assert len(a) == 720 and k == 13 and a[0] == 1 and all(a[720 - 1 - i] == -a[i] for i in range(720)), (len(a), k)
+    listed = [ns.split(', ') for ns in re.findall(r'<p class="entry">\\\(n = (.*?)\\\): ', text)]
+    i = listed.index(['720'])
+    assert listed[i - 1:i + 2] == [['688'], ['720'], ['752']], listed[i - 1:i + 2]
+    assert sum('720' in ns for ns in listed) == 1, [ns for ns in listed if '720' in ns]
+    assert new_cells(text)[720] == (13, 14), new_cells(text)[720]
+    assert changelog_by_day().get('2026-11-03', {}).get(720) == (13, None), changelog_by_day().get('2026-11-03')
+    assert mstar_data()['cols'][720 - 1] == [13, 14, ['example', 'equipow p720'], ['residue', 16]], mstar_data()['cols'][720 - 1]
+
+
 OEIS = ('A323395', 'A306248', 'A323610', 'A323629', 'A323614')                # the OEIS section's entries on this problem
 RELATED = ('A382832', 'A382833', 'A362039', 'A010060', 'A106400', 'A001969', 'A000069', 'A140047')   # and related ones
 
@@ -2324,7 +2359,8 @@ def q_oeis_notes_hold_on_the_chart():
     # Expectata: what each note says of this page holds in the chart's data (OEIS's k-powerful is order k + 1 here):
     # A323395's: a(10) = 432 proven (the least n known to reach order 11 is the least n allowed it); a(11) 432 or 480
     # (order 12 open at 432, ruled out at 448 and 464, known at 480); order 12 known at 864, and since 2026-11-03 order 15 at 960 (lo),
-    # 912 the least n known to reach order 13 (so a(12) <= 912), and a(14) = 960 proven (the least n known to reach order 15 is the least n allowed it);
+    # 720 the least n known to reach order 13 (so a(12) <= 720; 912 that morning, before the beam campaign's 720:13), and a(14) = 960 proven (the
+    # least n known to reach order 15 is the least n allowed it);
     # (until 2026-11-03: order 13 at 960, the least n known to reach it, so a(12) <= 960, doubling 960 giving 1920); A306248's: m*(2n) settled
     # (lo = hi) for every n up to 143 and open at 288, 48 more terms than OEIS's 95; A323610's and A323614's: their
     # comments' descriptions of L6 (48 and the multiples of 8 from 64) and L8 (144 and the multiples of 16 from 192)
@@ -2339,9 +2375,9 @@ def q_oeis_notes_hold_on_the_chart():
     lo, hi = (lambda n: cols[n - 1][0]), (lambda n: cols[n - 1][1])
     known = lambda m: next(n for n in range(2, NMAX + 1, 2) if lo(n) >= m)
     allowed = lambda m: next(n for n in range(2, NMAX + 1, 2) if hi(n) >= m)
-    assert known(11) == allowed(11) == 432 and (lo(864), lo(960)) == (12, 15) and known(13) == 912 and known(15) == allowed(15) == 960
+    assert known(11) == allowed(11) == 432 and (lo(864), lo(960)) == (12, 15) and known(13) == 720 and known(15) == allowed(15) == 960
     assert lo(432) < 12 <= hi(432) and max(hi(448), hi(464)) < 12 <= lo(480) and known(12) == 480
-    assert all(w in notes['A323395'] for w in ('432', '448', '464', '480', '864', '912', '960')), notes['A323395']
+    assert all(w in notes['A323395'] for w in ('432', '448', '464', '480', '720', '864', '960')), notes['A323395']
     assert all(lo(2 * n) == hi(2 * n) for n in range(1, 144)) and lo(288) < hi(288)
     assert all(w in notes['A306248'] for w in ('95', '48', '143', '286', '288')), notes['A306248']
     rules = {'A323610': (6, lambda n: n == 48 or (n % 8 == 0 and n >= 64)),
@@ -2373,21 +2409,21 @@ def gf_terms(numerator, nmax):
 def q_oeis_errors_say_how_to_fix_them():
     # Replicata: the OEIS section's first list, and mstar.js.
     # Expectata (dreeves, 2026-10-29: "can you make sure the errors in OEIS are made clear on the page? then we don't
-    # need suggested_edits.txt"): the notes on the two entries with an error, A323395 and A323629, and no others, mark
-    # it with a bold "Error:" and give the fix.  A323395's comment has a(12) ≤ 864, which should read a(12) ≤ 912: 912 is the least n known to reach order 13
-    # (12-powerful), since 2026-11-03; and its a(13) ≤ 960 holds, by the example of order 15 at 960, though not by doubling.  (Until 2026-11-03 both were wrong, and
-    # should have read a(12) ≤ 960 and a(13) ≤ 1920: 960 was the least n known to reach order 13, and doubling it reached order 14 at 1920.)  A323629's generating function, L7_GF_OEIS, should be L7_GF: through 1024, L7_GF's series is
+    # need suggested_edits.txt"): the note on the entry with an error, A323629, and no other, marks it with a bold "Error:"
+    # and gives the fix.  A323395's comment (a(12) ≤ 864, a(13) ≤ 960) holds since 2026-11-03, by the beam campaign's example of order 13
+    # at 720, the least n known to reach order 13 (12-powerful), and the example of order 15 at 960, the least n known to reach order 14, though
+    # not by the doublings: its note marks no error and says that a(12) ≤ 720.  (Until 2026-11-03 both bounds were wrong, and should have read
+    # a(12) ≤ 960 and a(13) ≤ 1920; that morning, before 720:13, its a(12) ≤ 864 was still wrong, and should have read a(12) ≤ 912.)
+    # A323629's generating function, L7_GF_OEIS, should be L7_GF: through 1024, L7_GF's series is
     # the chart's L7 (every n with m*(n) ≥ 7) and L7_GF_OEIS's is L7 without 112.
     # Resultata before: the A323395 note said its bounds "look one order too high", and the A323629 note gave no
     # generating function; scratch/oeis/suggested_edits.txt held the fixes.
     body = re.search(r'<section class="oeis" aria-labelledby="oeis-title">.*?</section>', page(), re.S).group(0)
     notes = dict(zip(OEIS, re.findall(r'<li>(.*?)</li>', re.search(r'<ul>(.*?)</ul>', body, re.S).group(1), re.S)))
-    assert [a for a in OEIS if '<b>Error:</b>' in notes[a]] == ['A323395', 'A323629'], notes
-    assert all(notes[a].count('<b>Error:</b>') == 1 for a in ('A323395', 'A323629')), notes
+    assert [a for a in OEIS if '<b>Error:</b>' in notes[a]] == ['A323629'] and notes['A323629'].count('<b>Error:</b>') == 1, notes
     lo = lambda n: mstar_data()['cols'][n - 1][0]
-    assert next(n for n in range(2, NMAX + 1, 2) if lo(n) >= 13) == 912 and next(n for n in range(2, NMAX + 1, 2) if lo(n) >= 14) == 960
-    wrong, right = (r'\(a(12) \le 864\)', ), (r'\(a(12) \le 912\)', r'\(a(13) \le 960\)')
-    assert all(t in notes['A323395'].split('<b>Error:</b>')[1] for t in wrong + right), notes['A323395']
+    assert next(n for n in range(2, NMAX + 1, 2) if lo(n) >= 13) == 720 and next(n for n in range(2, NMAX + 1, 2) if lo(n) >= 14) == 960
+    assert all(t in notes['A323395'] for t in (r'\(a(12) \le 864\)', r'\(a(13) \le 960\)', r'\(a(12) \le 720\)')), notes['A323395']
     L7 = [n for n in range(2, NMAX + 1, 2) if lo(n) >= 7]
     assert gf_terms(L7_GF[1], NMAX) == L7 and gf_terms(L7_GF_OEIS[1], NMAX) == [n for n in L7 if n != 112]
     after = notes['A323629'].split('<b>Error:</b>')[1]
@@ -4034,6 +4070,96 @@ def q_progress_shows_no_stages_for_a_run_of_one_stage():
     alone = dict(base, stages=[dict(name=base['program'], to_go=base['to_go'])], total=base['to_go'])
     got = progress_harness({'made': PROGRESS_DATA['made'], 'runs': [base, alone]}, STAGES_LOOK)
     assert [r['shown'] for r in got] == [False, False], got
+
+
+# A running fanout run with a pool series, in the form progress.js_text gives it (progress.pool_series; dreeves,
+# 2026-11-03, README [TRE]): 4 h of running in 100 stretches of 144 s; six points, [time, seconds of running, boxes
+# pending or running, stretch]: a pool record's 30,000 boxes at 0.5 h, then 100,000 at 1 h, 180,000 at 2 h, a drop to
+# 90,000 at 2.03 h (as the lex cut's), 150,000 at 3 h and 210,000 at 3.89 h; and four stretches with jobs ended, [jobs,
+# net change], whose net change per job is +0.5, +0.2, +0.1 and -0.05.
+POOL_POINTS = [[PROGRESS_DATA['made'] - 14400 + x, float(x), c, b] for x, c, b in
+               ((1800, 30000, 12), (3600, 100000, 25), (7200, 180000, 50), (7300, 90000, 50), (10800, 150000, 75),
+                (14000, 210000, 97))]
+POOL_JOBS = {25: [1000, 500], 50: [2000, 400], 75: [3000, 300], 97: [4000, -200]}
+PROGRESS_POOL = dict(PROGRESS_DATA['runs'][0], program='fanout.py', n=432, order=12, so_far=4 * HOURS,
+                     pool=dict(points=POOL_POINTS, buckets=[POOL_JOBS.get(b, [0, 0]) for b in range(100)]))
+POOL_LOOK = """
+  const all = runs(), [r, other, empty] = all;
+  r.querySelector('details').open = true;            // laid out, so that the pointer has somewhere to be
+  await sleep(50);
+  const fig = box => box.querySelector('.progress-pool');
+  const f = fig(r), svg = f.querySelector('svg'), cross = svg.querySelector('[data-pool-cross]');
+  const vertices = (box, sel) => (fig(box).querySelector(sel).getAttribute('points') || '').trim().split(/\\s+/)
+    .filter(Boolean).map(p => p.split(',').map(Number));
+  const ticks = (box, which) => [...fig(box).querySelectorAll(`[data-pool-ticks="${which}"] text`)]
+    .map(t => [t.textContent, +t.getAttribute('x'), +t.getAttribute('y')]);
+  const tip = box => fig(box).querySelector('[data-pool-tip]').textContent.replace(/[ \\t\\n\\r]+/g, ' ').trim();
+  const L = window.progressView.layouts[0], sb = svg.getBoundingClientRect();
+  const hover = k => svg.dispatchEvent(new MouseEvent('mousemove', {clientX: sb.left + L.poolXs[k] * sb.width / 640,
+                                                                    clientY: sb.top + sb.height / 2, bubbles: true}));
+  const rest = tip(r);
+  hover(2);
+  const third = tip(r), crossAt = [cross.getAttribute('visibility'), +cross.getAttribute('x1'), L.poolXs[2]];
+  hover(0);
+  const first = tip(r);
+  svg.dispatchEvent(new MouseEvent('mouseleave'));
+  out({hidden: all.map(b => fig(b).hidden),
+       after: !!(r.querySelector('[data-stages]').compareDocumentPosition(f) & Node.DOCUMENT_POSITION_FOLLOWING),
+       count: vertices(r, '[data-pool-line="count"]'), wash: vertices(r, '[data-pool-wash]'),
+       net: vertices(r, '[data-pool-line="net"]'), zero: [...f.querySelectorAll('line.zero')].map(l => +l.getAttribute('y1')),
+       xticks: ticks(r, 'x'), counts: ticks(r, 'count'), nets: ticks(r, 'net'),
+       titles: [...f.querySelectorAll('[data-pool-title]')].map(t => t.textContent),
+       rest, third, first, left: tip(r), crossAt, crossLeft: cross.getAttribute('visibility'),
+       empty: {lines: [vertices(empty, '[data-pool-line="count"]').length, vertices(empty, '[data-pool-line="net"]').length],
+               tip: tip(empty), xticks: ticks(empty, 'x').map(t => t[0])}});"""
+
+
+def q_progress_draws_a_fanout_run_s_pool():
+    # Replicata: index.html with three runs as progress.js: PROGRESS_POOL, a fanout run with a pool series; PROGRESS_DATA's
+    # overnight_v5.py run, whose entry has no pool; and PROGRESS_POOL with a pool of no point and no job (a fanout run
+    # before its first pool record).  The first run's fold opened, its pool chart hovered at its third point, then at
+    # its first, then left.
+    # Expectata (dreeves, 2026-11-03, README [TRE]: "Could we see a time series of the number of pending nodes? If we
+    # could see the growth of that slow down, or when it starts to actually go down, we can better infer the ETA."):
+    # the first and third runs' pool charts shown, after the line of stages, and the second's hidden.  The first's
+    # upper line a vertex per point, at its seconds of running on the x ticks' scale (0 to 4 h, labeled 0, 1, 2, 3, 4 h)
+    # and its boxes on the count ticks' (0 to 250K by 50K), over a wash down to 0 at its ends; its lower line a vertex
+    # per stretch with jobs, at the stretch's middle and its net change per job ended, on the net ticks' scale (−0.5, 0,
+    # +0.5), with a line at 0; the panels' titles; the tip at rest the latest point's line: @ its time, an em space, 3.9 h
+    # so far: 210,000 boxes pending or running, net −0.05 per job ended; over the third point the third's (2.0 h,
+    # 180,000, +0.20), the cross at it; over the first the first's (0.5 h, 30,000, and — for its stretch, whose only
+    # point is a pool record); and after the pointer leaves, the latest's again, the cross hidden.  The third run's
+    # chart its axes alone, with no line and no tip.
+    # Resultata before: no pool chart.
+    empty = dict(PROGRESS_POOL, n=480, pool=dict(points=[], buckets=[[0, 0]] * 100))
+    got = progress_harness({'made': PROGRESS_DATA['made'], 'runs': [PROGRESS_POOL, PROGRESS_DATA['runs'][0], empty]}, POOL_LOOK)
+    assert got['hidden'] == [False, True, False] and got['after'] is True, got
+    h = NNBSP + 'h'
+    assert [t[0] for t in got['xticks']] == ['0', '1', '2', '3', f'4{h}'], got['xticks']
+    assert [t[0] for t in got['counts']] == ['0', '50K', '100K', '150K', '200K', '250K'], got['counts']
+    assert [t[0] for t in got['nets']] == ['−0.5', '0', '+0.5'], got['nets']
+    x0, x4 = got['xticks'][0][1], got['xticks'][-1][1]
+    def X(s): return x0 + (x4 - x0) * s / 14400
+    def scale(ticks, lo, hi):                     # the y of a value on a panel's scale, from its end ticks' (4 below)
+        (_, _, ya), (_, _, yb) = ticks[0], ticks[-1]
+        return lambda v: ya - 4 + (yb - ya) * (v - lo) / (hi - lo)
+    Y1, Y2 = scale(got['counts'], 0, 250000), scale(got['nets'], -0.5, 0.5)
+    def near(got_pts, want): return len(got_pts) == len(want) and all(abs(a - c) < 0.05 and abs(b - d) < 0.05 for (a, b), (c, d) in zip(got_pts, want))
+    line = [(X(x), Y1(c)) for _, x, c, _ in POOL_POINTS]
+    assert near(got['count'], line), (got['count'], line)
+    assert near(got['wash'], [(line[0][0], Y1(0))] + line + [(line[-1][0], Y1(0))]), got['wash']
+    nets = [(X(14400 * (b + 0.5) / 100), net / jobs) for b, (jobs, net) in sorted(POOL_JOBS.items())]
+    assert near(got['net'], [(x, Y2(v)) for x, v in nets]), (got['net'], nets)
+    assert len(got['zero']) == 1 and abs(got['zero'][0] - Y2(0)) < 0.05, got['zero']
+    assert got['titles'] == ['boxes pending or running', 'net change per job ended'], got['titles']
+    def said(k, net):
+        t, x = POOL_POINTS[k][0], POOL_POINTS[k][1]
+        return f'@{stamp(t)}{EMSP}{x / 3600:.1f}{h} so far: {POOL_POINTS[k][2]:,} boxes pending or running, net {net} per job ended'
+    assert got['rest'] == said(5, '−0.05') and got['left'] == got['rest'], (got['rest'], got['left'])
+    assert got['third'] == said(2, '+0.20') and got['first'] == said(0, '—'), (got['third'], got['first'])
+    assert got['crossAt'][0] == 'visible' and abs(got['crossAt'][1] - got['crossAt'][2]) < 0.05, got['crossAt']
+    assert got['crossLeft'] == 'hidden', got['crossLeft']
+    assert got['empty'] == dict(lines=[0, 0], tip='', xticks=['0', '1', '2', '3', f'4{h}']), got['empty']
 
 
 def q_progress_status_line_names_an_ended_run_s_outcome():

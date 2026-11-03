@@ -12,13 +12,15 @@
 // of pitch px, chosen from 10 down to 2 px so that the sea is at most about 560 px tall, a dot a device px short of its
 // cell (none short below 3 device px); and progress.html's ETA chart
 // (eta_chart there: dreeves's design), from the run's recorded ETAs; and below the status line, for a run with stages
-// after its own, those stages to a recordable result (stagesView, 2026-10-31).
+// after its own, those stages to a recordable result (stagesView, 2026-10-31); and last, for a fanout run, its pool
+// chart (poolChart, 2026-11-03).
 // Strips: an ordered strip layout (Bederson, Shneiderman and Wattenberg 2002) on whole cells.  The groups, in order,
 // fill strips across the cols; a strip's blocks share its height h, each as wide as its count needs at that height, a
 // cell's gap between blocks and between strips; h is the least at which the strip's blocks fit across, and a strip
 // takes the next group unless that worsens its worst block's aspect ratio.
 // window.progressView holds the loads, renders, data and, per run, its layout (rects, cols, rows, pitch;
-// place(group, dot): device px) and the ETA chart's record x positions (etaXs, in its viewBox), for the quals.
+// place(group, dot): device px), the ETA chart's record x positions (etaXs, in its viewBox) and the pool chart's point x
+// positions (poolXs, in its viewBox), for the quals.
 (() => {
   const section = document.querySelector('section.progress');
   const details = section.querySelector('details');
@@ -26,6 +28,7 @@
   const template = section.querySelector('template.progress-run');
   const line = section.querySelector('template.progress-line');      // a snapshot's line: the status line's running form, and the tip
   const stage = section.querySelector('template.progress-stage');    // one later stage in a run's line of stages
+  const poolLine = section.querySelector('template.progress-pool-line');   // the pool chart's tip: a moment's line
   const missing = section.querySelector('.progress-missing');
   const POLL = window.PROGRESS_POLL_MS || 60000;
   const KEPT = 'progress-open';                // localStorage: "1" while this browser last left the section open
@@ -93,6 +96,23 @@
     const e = Math.floor(Math.log10(top / 5));
     return [1, 2, 5, 10].map(m => m * 10 ** e).find(step => top / step <= 5);
   };
+  // each axis's round ticks in the unit of its largest value (unitOf; dreeves, 2026-10-23), as hours, and their labels,
+  // the last with the unit: the x axis's up past its top, the y axis's up to its cap (the ETA chart's axes, and the pool
+  // chart's x axis, 2026-11-03)
+  const axis = (top, round) => {
+    const [s, u] = unitOf(top * 3600), k = s / 3600, step = tickStep(top / k);
+    const ticks = Array.from({length: round(top / k / step) + 1}, (_, i) => step * i);
+    return [ticks.map(v => v * k), ticks.map((v, i) => num(v) + (i === ticks.length - 1 ? '\u202f' + u : ''))];
+  };
+  const NS = 'http://www.w3.org/2000/svg';
+  const set = (el, attrs) => { for (const k in attrs) el.setAttribute(k, typeof attrs[k] === 'number' ? attrs[k].toFixed(2) : attrs[k]); return el; };
+  const make = (tag, attrs, text) => { const e = set(document.createElementNS(NS, tag), attrs); if (text !== undefined) e.textContent = text; return e; };
+  // the pool chart's numbers (2026-11-03): a count tick compact, "250K"; a net change signed, a tick's as it is, "+0.5",
+  // and a stretch's per job to a hundredth, "+0.35"; each with the minus sign in place of the hyphen Intl writes
+  const compact = new Intl.NumberFormat('en-US', {notation: 'compact'});
+  const signedTick = new Intl.NumberFormat('en-US', {signDisplay: 'exceptZero', maximumFractionDigits: 3});
+  const signedNet = new Intl.NumberFormat('en-US', {signDisplay: 'exceptZero', minimumFractionDigits: 2, maximumFractionDigits: 2});
+  const minus = text => text.replace('-', '\u2212');
 
   function load() {
     view.loads += 1;
@@ -161,6 +181,7 @@
       const L = sea(box, run);
       L.etaXs = etaChart(box.querySelector('.progress-eta'), run);
       stagesView(box, run);
+      L.poolXs = poolChart(box.querySelector('.progress-pool'), run);
       return L;
     });
     runsBox.replaceChildren(...boxes);
@@ -314,19 +335,12 @@
 
   function etaChart(fig, run) {
     const pts = run.etas.map(([t, x, m, lo, hi]) => [t, x / 3600, m / 3600, lo / 3600, hi / 3600]);
-    const NS = 'http://www.w3.org/2000/svg', W = 640, H = 240, L = 48, R = 72, T = 14, B = 30, CROWD = 44, HEAD = 1.1, TOP = 40, GAP = 10;
+    const W = 640, H = 240, L = 48, R = 72, T = 14, B = 30, CROWD = 44, HEAD = 1.1, TOP = 40, GAP = 10;
     const now = run.so_far / 3600, last = pts[pts.length - 1];
     const xmax = Math.max(now, 1 / 3600, ...pts.slice(-1).map(p => p[1] + p[2]));
     // the y axis's cap: a bit above the projected finish, the guide's level, and the elapsed time (dreeves, 2026-10-23:
     // "truncate the y-axis a bit above the horizontal purple dashed line"); anything taller goes to the top panel
     const ymax = HEAD * xmax;
-    // each axis's round ticks in the unit of its largest value (unitOf; dreeves, 2026-10-23), as hours, and their labels,
-    // the last with the unit: the x axis's up past its top, the y axis's up to its cap
-    const axis = (top, round) => {
-      const [s, u] = unitOf(top * 3600), k = s / 3600, step = tickStep(top / k);
-      const ticks = Array.from({length: round(top / k / step) + 1}, (_, i) => step * i);
-      return [ticks.map(v => v * k), ticks.map((v, i) => num(v) + (i === ticks.length - 1 ? '\u202f' + u : ''))];
-    };
     const [xticks, xlabels] = axis(xmax, Math.ceil), [yticks, ylabels] = axis(ymax, Math.floor);
     const X = x => L + (W - L - R) * x / xticks[xticks.length - 1];
     const cap = ymax;
@@ -358,8 +372,6 @@
         .map(([v, y]) => [X(q[0] + (p[0] - q[0]) * (v - q[1]) / (p[1] - q[1])), y]).concat([[X(p[0]), Y(p[1])]]);
     });
     const P = ps => trace(ps).map(([x, y]) => `${x.toFixed(2)},${y.toFixed(2)}`).join(' ');
-    const set = (el, attrs) => { for (const k in attrs) el.setAttribute(k, typeof attrs[k] === 'number' ? attrs[k].toFixed(2) : attrs[k]); return el; };
-    const make = (tag, attrs, text) => { const e = set(document.createElementNS(NS, tag), attrs); if (text !== undefined) e.textContent = text; return e; };
     const q = sel => fig.querySelector(sel);
     q('[data-grid]').replaceChildren(...yticks.slice(1).concat(t2).map(v => make('line', {class: 'grid', x1: L, y1: Y(v), x2: W - R, y2: Y(v)})),
                                      make('line', {class: 'axis', x1: L, y1: Y(0), x2: W - R, y2: Y(0)}),
@@ -441,6 +453,84 @@
     });
     svg.addEventListener('mouseleave', () => { cross.setAttribute('visibility', 'hidden'); tip.style.visibility = ''; });
     return xsvg;
+  }
+
+  // A fanout run's pool chart (progress.py's pool series; dreeves, 2026-11-03, README [TRE]: "Could we see a time
+  // series of the number of pending nodes? If we could see the growth of that slow down, or when it starts to actually
+  // go down, we can better infer the ETA."), from its data's pool: two panels on one x axis of running time, 0 to the
+  // run's so far as the ETA chart's, each with a y axis of its own (two measures: never two scales on one plot).  Above,
+  // the boxes pending or running at each point, each an actual moment of the series (a stretch's first, last, lowest
+  // and highest), a line over a wash down to 0.  Below, through 0, each stretch's net change per job ended (its jobs'
+  // open boxes less one, over its jobs) at the stretch's middle, a stretch with no job ended left out.  Per job ended,
+  // not per hour: a stretch's change per hour moves with the jobs' pace too (the machine's load, the solver's speed),
+  // its change per job only with how the pool grows, which slows as that line falls and turns the pool down once it is
+  // below 0.  The tip above them reads out the latest point at rest and the point nearest the pointer on hover, the
+  // cross at it (its height kept as the ETA chart's tip's is).  Shown for a run whose data has a pool (fanout.py's):
+  // with no point yet, its axes alone and no tip; hidden for the other programs'.  Returns the points' x positions (in
+  // its viewBox), for the quals.
+  function poolChart(fig, run) {
+    fig.hidden = !run.pool;
+    const {points, buckets} = run.pool ?? {points: [], buckets: []};
+    const W = 640, H = 230, L = 48, R = 72, T = 18, B = 30, GAP = 22, LOW = 52;   // LOW: the lower panel's height
+    const top1 = T, bot1 = H - B - LOW - GAP, top2 = H - B - LOW, bot2 = H - B;  // the panels' edges
+    const [xticks, xlabels] = axis(Math.max(run.so_far / 3600, 1 / 3600), Math.ceil);
+    const X = h => L + (W - L - R) * h / xticks[xticks.length - 1];
+    const most = Math.max(1, ...points.map(p => p[2])), cstep = Math.max(1, tickStep(most));   // whole boxes
+    const cticks = Array.from({length: Math.ceil(most / cstep) + 1}, (_, i) => i * cstep);
+    const Y1 = c => bot1 - (bot1 - top1) * c / cticks[cticks.length - 1];
+    // each stretch with a job ended: [its middle, hours of running; its net change per job]
+    const nets = buckets.flatMap(([jobs, net], b) => jobs ? [[run.so_far * (b + 0.5) / buckets.length / 3600, net / jobs]] : []);
+    const lo = Math.min(0, ...nets.map(n => n[1])), hi = Math.max(0, ...nets.map(n => n[1]));
+    // the lower panel's round ticks, 0 among them, about 3 (its 52 units hold no more labels): a 1 in place of the
+    // span of a panel with no stretch yet, whose values are all 0
+    const nstep = tickStep(2 * (hi - lo || 1)), first = Math.floor(lo / nstep), last = Math.max(Math.ceil(hi / nstep), first + 1);
+    const nticks = Array.from({length: last - first + 1}, (_, i) => (first + i) * nstep);
+    const Y2 = v => bot2 - (bot2 - top2) * (v - nticks[0]) / (nticks[nticks.length - 1] - nticks[0]);
+    const xy = ps => ps.map(([x, y]) => `${x.toFixed(2)},${y.toFixed(2)}`).join(' ');
+    const q = sel => fig.querySelector(sel);
+    q('[data-pool-grid]').replaceChildren(
+      ...cticks.slice(1).map(c => make('line', {class: 'grid', x1: L, y1: Y1(c), x2: W - R, y2: Y1(c)})),
+      ...nticks.map(v => make('line', {class: 'grid', x1: L, y1: Y2(v), x2: W - R, y2: Y2(v)})),
+      make('line', {class: 'axis', x1: L, y1: Y1(0), x2: W - R, y2: Y1(0)}),
+      make('line', {class: 'zero', x1: L, y1: Y2(0), x2: W - R, y2: Y2(0)}),
+      make('line', {class: 'yaxis', x1: L, y1: bot1, x2: L, y2: top1}),
+      make('line', {class: 'yaxis', x1: L, y1: bot2, x2: L, y2: top2}));
+    q('[data-pool-ticks="count"]').replaceChildren(...cticks.map(c =>
+      make('text', {class: 'ytick', x: L - 6, y: Y1(c) + 4, 'text-anchor': 'end'}, compact.format(c))));
+    q('[data-pool-ticks="net"]').replaceChildren(...nticks.map(v =>
+      make('text', {class: 'ytick', x: L - 6, y: Y2(v) + 4, 'text-anchor': 'end'}, minus(signedTick.format(v)))));
+    q('[data-pool-ticks="x"]').replaceChildren(...xticks.map((v, i) =>
+      make('text', {class: 'xtick', x: X(v), y: H - 8, 'text-anchor': 'middle'}, xlabels[i])));
+    set(q('[data-pool-title="count"]'), {x: L, y: top1 - 6});
+    set(q('[data-pool-title="net"]'), {x: L, y: top2 - 6});
+    const line = points.map(p => [X(p[1] / 3600), Y1(p[2])]);
+    set(q('[data-pool-line="count"]'), {points: xy(line)});
+    set(q('[data-pool-wash]'), {points: xy([...line.slice(0, 1).map(([x]) => [x, Y1(0)]), ...line,
+                                            ...line.slice(-1).map(([x]) => [x, Y1(0)])])});
+    set(q('[data-pool-line="net"]'), {points: xy(nets.map(([h, v]) => [X(h), Y2(v)]))});
+    const tip = q('[data-pool-tip]'), cross = q('[data-pool-cross]'), svg = fig.querySelector('svg');
+    tip.style.minHeight = '';                   // its height at rest, measured again at the next hover (below)
+    if (!points.length) { tip.replaceChildren(); return []; }        // no pool record yet: the axes alone, as the ETA chart's
+    tip.replaceChildren(poolLine.content.cloneNode(true));
+    const at = k => {                          // point k's line, with its stretch's net change per job ended, or — with no job
+      const [t, x, count, b] = points[k], [jobs, net] = buckets[b];
+      fill(tip, 'when', stamp(t));
+      fill(tip, 'so-far', dur(x, tenth));
+      fill(tip, 'pool-count', count.toLocaleString('en-US'));
+      fill(tip, 'pool-net', jobs ? minus(signedNet.format(net / jobs)) : '—');
+    };
+    at(points.length - 1);
+    const xs = line.map(([x]) => x);
+    svg.addEventListener('mousemove', ev => {
+      const b = svg.getBoundingClientRect(), x = (ev.clientX - b.left) * W / b.width;
+      let k = 0;                                 // the nearest point, the latest of equals
+      for (let i = 1; i < xs.length; i++) if (Math.abs(xs[i] - x) <= Math.abs(xs[k] - x)) k = i;
+      set(cross, {x1: xs[k], y1: top1, x2: xs[k], y2: bot2}).setAttribute('visibility', 'visible');
+      tip.style.minHeight = tip.style.minHeight || `${tip.getBoundingClientRect().height}px`;
+      at(k);
+    });
+    svg.addEventListener('mouseleave', () => { cross.setAttribute('visibility', 'hidden'); at(points.length - 1); });
+    return xs;
   }
 
   function sync() {

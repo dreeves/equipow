@@ -116,7 +116,15 @@ RESIDUE = {11: (13, (3,), 'digits'), 12: (14, (3,), 'digits'), 14: (17, (3,), 'd
 # to 28, for e = 4 from 37 to 36 and for e = 6 from 48 to 47: BASES[28], BASES[36] and BASES[47], which lifted match the superseded BASES[29], BASES[37] and
 # BASES[48] at every k above them.  searches/pinned/coins, this search over those blocks, those of excess below -0.2 left out for speed, finds no K <= 27 reaching e
 # = 3, no K <= 35 reaching e = 4, no K <= 46 reaching e = 6 and no K <= 55 reaching e = 7; K = 56 at e = 7 and 58, 60 and 62 at e = 8 were not decided in 15 minutes
-# each; at e = 8 it finds nothing at K = 56, and at e = 9, tried only at K = 61 and 64, nothing there.
+# each; at e = 8 it finds nothing at K = 56, and at e = 9, tried only at K = 61 and 64, nothing there.  Later that day the
+# docstring's search over all of mstar.js's blocks (scratch/w11-624-576/firsts_now.py through scratch/wish5/wish5.py;
+# firsts_now_afterpinned.json there) moved the first K0 for e = 7 from 57 to 56 and for e = 8 from 65 to 58: BASES[56] and
+# BASES[58], which lifted match the superseded BASES[57] and BASES[65] at every k above them.  wish5 adds 1008 at order 12;
+# rerun with 1008 at its order 13 (scratch/firsts-56-58/firsts.json), the search finds the first K0 of each e <= 8 again,
+# no K below it reaching e, and no K <= 67 reaching e = 9, exhaustively, with nothing undecided; at e = 10 no K <= 72 has a
+# coin whose odd part is prime to 3, and 1008, a multiple of 3, adds none.  Each new base has four products, the fewest
+# that joins of products of the search's atoms allow at its K (scratch/firsts-56-58/fewer.py: none of three), and keeps two
+# products of the search's witness (scratch/firsts-56-58/NOTES.md).
 # (The examples of order 10 at 592, 608 and 656 and of order 11 at 848, 880, 896, 928, 944, 976 and 992, 2026-10-25,
 # had moved the first K0 for e = 2 from 27 to 20 (BASES[20] is 848 # 992 joined to 240 # 432 # tau_1), for e = 3 from
 # 34 to 30, for e = 4 from 38 to 37, for e = 6 from 52 to 49 and for e = 8 from 66 to 65, and given e = 9 at 72; the

@@ -644,5 +644,157 @@ class FanoutLexQuals(unittest.TestCase):
                 progress.survey_fanout(path, [(42, 1, 'SN', 'python3 -B fanout.py 672')], 200, {}, {})
 
 
+def pool_survey(records, pauses=(), now=200, pid=44):
+    """survey_fanout of records at now, the run's pauses given, its driver pid alive and running."""
+    with tempfile.TemporaryDirectory() as d:
+        path = os.path.join(d, 'fanout_672_journal.jsonl')
+        Path(path).write_text(''.join(json.dumps(r) + '\n' for r in records))
+        return progress.survey_fanout(path, [(pid, 1, 'SN', 'python3 -B fanout.py 672')], now, {}, {}, pauses=pauses)
+
+
+def pooling():
+    """Two roots (root 0 case 1 at depth 0, root 1 case 0 at depth 1).  Driver 41's session at 100 s, before pool records
+    (no seed, no pool record): job a (root 1) done at 102 s leaving 2 boxes open.  A switch at 110 s.  Driver 42's
+    session (seed 2) at 120 s, its pool record at 121 s: root 0's box and job a's two, 3; job b (root 1, depth 2) done at
+    124 s leaving 3 (pending 5); job c (root 0) done at 130 s leaving none (4); job d (root 1, depth 2) from 152 s to 160 s
+    leaving 1 (4).  Driver 44's session (seed 3) at 170 s, its pool record at 171 s: the lex cut's walk dropped 2 of the 4
+    boxes, so 2; job e (depth 3) done at 176 s leaving 2 (3); job f started at 176 s, running."""
+    def at(pid, *records): return [dict(r, pid=pid) for r in records]
+    return ([head(), ev('session', 100),
+             ev('job_start', 101, job='a', case=0, depth=1, root=1),
+             ev('job_end', 102, job='a', case=0, root=1, lps=4, seconds=1.0, open=2)] +
+            at(43, ev('switch', 110, **{'from': 'a' * 64, 'to': 'b' * 64})) +
+            at(42, ev('session', 120, seed=2), ev('pool', 121, depths=[[0, 1], [2, 2]]),
+               ev('job_start', 122, job='b', case=0, depth=2, root=1),
+               ev('job_end', 124, job='b', case=0, root=1, lps=8, seconds=2.0, open=3, open_depths=[3, 3, 4]),
+               ev('job_start', 124, job='c', case=1, depth=0, root=0),
+               ev('job_end', 130, job='c', case=1, root=0, lps=6, seconds=6.0, open=0, open_depths=[]),
+               ev('job_start', 152, job='d', case=0, depth=2, root=1),
+               ev('job_end', 160, job='d', case=0, root=1, lps=8, seconds=8.0, open=1, open_depths=[3])) +
+            at(44, ev('session', 170, seed=3), ev('pool', 171, depths=[[3, 1], [4, 1]], dead=[[1, 2]], lex=[0]),
+               ev('job_start', 172, job='e', case=0, depth=3, root=1),
+               ev('job_end', 176, job='e', case=0, root=1, lps=4, seconds=4.0, open=2, open_depths=[4, 5], dead=0),
+               ev('job_start', 176, job='f', case=0, depth=4, root=1)))
+
+
+def dense(n=2000, seed=1):
+    """One root (case 0, depth 0).  A session drawing at random (seed 1, 2 workers) at 100 s and its pool record at 101 s,
+    the root's box; then n jobs, job i started at 102 + 2i s and done 1 s later, each taking the box pushed earliest
+    (breadth first, so that no box is deeper than the run's n) and leaving open boxes one level below it: the first 30,
+    the rest 0, 1, 2 or 3, drawn by random.Random(seed) with weights 4, 3, 1 and 2, so that the pool's size wanders up and
+    down (asserted never to empty); and the full series by hand: [(time, boxes pending or running, the job's open boxes
+    less one, or 0 at the pool record)]."""
+    import random
+    rng, boxes = random.Random(seed), [0]
+    records = [head(roots=1, root_cases=[0], root_depths=[0]), ev('session', 100, seed=1, workers=2),
+               ev('pool', 101, depths=[[0, 1]])]
+    series = [(101, 1, 0)]
+    for i in range(n):
+        assert boxes, i                                  # the fixture's pool never empties
+        depth = boxes.pop(0)
+        opened = 30 if i == 0 else rng.choices([0, 1, 2, 3], weights=[4, 3, 1, 2])[0]
+        boxes += [depth + 1] * opened
+        records += [ev('job_start', 102 + 2 * i, job=f'j{i}', case=0, depth=depth, root=0),
+                    ev('job_end', 103 + 2 * i, job=f'j{i}', case=0, root=0, lps=10, seconds=1.0, open=opened,
+                       open_depths=[depth + 1] * opened)]
+        series.append((103 + 2 * i, series[-1][1] + opened - 1, opened - 1))
+    return records, series
+
+
+class FanoutPoolQuals(unittest.TestCase):
+    """The pool series of fanout.py's runs (dreeves, 2026-11-03, README [TRE]: "Could we see a time series of the number
+    of pending nodes? If we could see the growth of that slow down, or when it starts to actually go down, we can
+    better infer the ETA."): the boxes pending or running, set by each session's pool record and moved by each job_end of
+    its session, on the ETA chart's axis of running time."""
+
+    def test_pool_records_anchor_the_series_and_job_ends_move_it(self):
+        # Replicata: pooling() surveyed at 200 s, driver 44 alive, with a pause from 131 s to 151 s (between jobs c and
+        # d).
+        # Expectata: the run's spans of running [100, 102], [120, 131], [151, 160] and [170, 200], 52 s; the pool series'
+        # points, each [its time in whole seconds, its seconds of running, the boxes pending or running, its stretch of
+        # 100 over the 52 s]: driver 41's job a none (its session has no pool record: the pool at its start went
+        # unrecorded); the switch none; then 42's pool record, 3 boxes at 3 s of running (1 s into its span, after 2 s of
+        # driver 41's), 5 after job b, 4 after job c, 4 after job d at 22 s (the pause's 20 s left out); 44's pool record,
+        # 2 (the lex cut's dropped boxes gone at once), and 3 after job e, the running job f among them, as the sea's
+        # pending and running dots, 2 + 1; each of the 6 points in a stretch of its own, so all kept.  And each stretch's
+        # jobs ended and their open boxes less one, summed: 1 and +2 in stretch 11 (job b), 1 and -1 in 23 (c), 1 and 0
+        # in 42 (d), 1 and +1 in 53 (e); 0 and 0 in the 96 others, the pool records' stretches 5 and 44 among them (a pool
+        # record is no job).
+        # Resultata before: no pool series (KeyError).
+        run = pool_survey(pooling(), pauses=[(131, 151)])
+        self.assertEqual([p for p in run['passes'] if p[0] < p[1]], [[100, 102], [120, 131], [151, 160], [170, 200]])
+        self.assertEqual((run['state'], run['so_far']), ('running', 52))
+        pool = run['pool']
+        self.assertEqual(pool['points'], [[121, 3.0, 3, 5], [124, 6.0, 5, 11], [130, 12.0, 4, 23], [160, 22.0, 4, 42],
+                                          [171, 23.0, 2, 44], [176, 28.0, 3, 53]])
+        want = [[0, 0]] * 100
+        for b, jobs_net in ((11, [1, 2]), (23, [1, -1]), (42, [1, 0]), (53, [1, 1])): want[b] = jobs_net
+        self.assertEqual(pool['buckets'], want)
+        counts = run['sea']['counts']
+        self.assertEqual(pool['points'][-1][2], counts['pending'] + counts['running'])
+
+    def test_the_series_keeps_each_stretch_s_first_last_lowest_and_highest(self):
+        # Replicata: dense(): 2,000 jobs, the pool's size wandering up and down, surveyed at 4111 s, its 4011 s of running
+        # in 100 stretches of 40.11 s (no stretch's edge at a point's whole second), about 20 jobs each; and the full
+        # series by hand.
+        # Expectata (M4, Jugel et al. 2014: each stretch's first, last, lowest and highest points draw the same line at
+        # a pixel a stretch): at most 4 points in each stretch, in time order, each an actual point of the full series
+        # (its time, seconds of running and boxes); in each stretch with a point, its first and last points and a point
+        # at its lowest and at its highest; the first point the pool record's, the last the latest job_end's; and each
+        # stretch's jobs and net change exactly the full series' sums.
+        records, series = dense()
+        pool = pool_survey(records, now=4111, pid=PID)['pool']
+        width = (4111 - 100) / 100
+        stretch = lambda x: min(int(x / width), 99)
+        full = [[t, float(t - 100), c, stretch(t - 100)] for t, c, _ in series]
+        self.assertTrue(set(map(tuple, pool['points'])) <= set(map(tuple, full)))
+        self.assertEqual(pool['points'], sorted(pool['points']))
+        self.assertEqual((pool['points'][0], pool['points'][-1]), (full[0], full[-1]))
+        for b in range(100):
+            mine, theirs = [p for p in pool['points'] if p[3] == b], [p for p in full if p[3] == b]
+            with self.subTest(stretch=b):
+                self.assertLessEqual(len(mine), 4)
+                self.assertEqual(bool(mine), bool(theirs))
+                if theirs:
+                    self.assertIn(theirs[0], mine)
+                    self.assertIn(theirs[-1], mine)
+                    self.assertEqual(min(p[2] for p in mine), min(p[2] for p in theirs))
+                    self.assertEqual(max(p[2] for p in mine), max(p[2] for p in theirs))
+                self.assertEqual(pool['buckets'][b], [sum(1 for t, _, _ in series[1:] if stretch(t - 100) == b),
+                                                      sum(d for t, _, d in series[1:] if stretch(t - 100) == b)])
+        self.assertLess(len(pool['points']), len(full) / 4)
+
+    def test_a_journal_without_pool_records_has_an_empty_series(self):
+        # Replicata: started(): a session before pool records, with a job done.
+        # Expectata: no point (the pool at the session's start went unrecorded), and 100 stretches of no jobs.
+        run = survey(started())
+        self.assertEqual(run['pool'], dict(points=[], buckets=[[0, 0]] * 100))
+
+    def test_a_pool_record_after_a_job_end_of_its_session_fails_loudly(self):
+        # Replicata: pooling() with driver 44's pool record moved after its job_end of job e.
+        # Expectata: AssertionError: fanout.py journals a session's pool record after its walk and before any job, so a
+        # job_end before it is no journal of fanout.py's, and its anchor would not be the pool at the session's start.
+        records = pooling()
+        i = next(i for i, r in enumerate(records) if r['event'] == 'pool' and r['pid'] == 44)
+        moved = records[:i] + records[i + 1:i + 4] + [dict(records[i], time=176)] + records[i + 4:]
+        with self.assertRaises(AssertionError):
+            pool_survey(moved)
+
+    def test_a_session_running_jobs_without_a_pool_record_after_one_with_fails_loudly(self):
+        # Replicata: pooling() with driver 44's pool record taken out, its session running job e all the same.
+        # Expectata: AssertionError: the pool's size over that session would be unknown, and the line would cross it.
+        records = [r for r in pooling() if not (r['event'] == 'pool' and r['pid'] == 44)]
+        with self.assertRaises(AssertionError):
+            pool_survey(records)
+
+    def test_the_data_file_carries_the_pool_series(self):
+        # Replicata: pooling()'s survey, as js_text writes it and as an idle run's survey keeps it (light).
+        # Expectata: the run's entry carries pool as the survey made it, and light keeps it.
+        run = pool_survey(pooling(), pauses=[(131, 151)])
+        data = json.loads(progress.js_text([run], 200).removeprefix('progressData(').removesuffix(');\n'))
+        self.assertEqual(data['runs'][0]['pool'], run['pool'])
+        self.assertEqual(progress.light(run)['pool'], run['pool'])
+
+
 if __name__ == '__main__':
     unittest.main()

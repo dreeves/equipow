@@ -358,6 +358,23 @@ code[aria-expanded] { cursor: pointer; text-decoration: underline dotted var(--m
 .progress-tip .spent, .progress-status .spent { color: var(--progress-spent); stroke: none; }
 .progress-tip .togo, .progress-status .togo { color: var(--progress-togo); stroke: none; }
 .progress-tip .total, .progress-status .total { color: var(--progress-total); stroke: none; }
+/* A fanout run's pool chart (2026-11-03, README [TRE]): the boxes pending or running over the hours of running, and
+   below, the net change per job ended, each a single series, so in the page's ink, no hue (blue, red and purple are the
+   ETA chart's, just above); the upper one over a wash of the sea's pending gray, multiplied, so that its gridlines show
+   through; 0 in the muted y axes' color.  The dataviz validator on ink and muted against the white: contrast 3:1 and
+   up, CVD ΔE 25.7 between them (its lightness and chroma checks are for categorical hues, which these are not).  The
+   ETA chart's hairlines, ticks and cross.  Its tip shows at rest (the latest moment's line), unlike the ETA chart's,
+   which a status line repeats. */
+.progress-pool { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.3rem; margin: 0.4rem 0 0; }
+.progress-pool[hidden] { display: none; }
+.progress-pool svg { display: block; width: 100%; height: auto; overflow: visible; cursor: crosshair; touch-action: pan-y; }
+.progress-pool polyline { fill: none; stroke: var(--ink); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.progress-pool .wash { fill: color-mix(in oklab, var(--progress-pending) 45%, var(--paper)); stroke: none; mix-blend-mode: multiply; }
+.progress-pool .axis, .progress-pool .grid { stroke: var(--progress-hair); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.progress-pool .yaxis, .progress-pool .zero { stroke: var(--muted); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.progress-pool .cross { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 2 3; vector-effect: non-scaling-stroke; }
+.progress-pool text { font-size: 11px; fill: var(--muted); stroke: none; font-variant-numeric: tabular-nums lining-nums; }
+.progress-pool-tip { font-variant-numeric: tabular-nums lining-nums; }
 
 /* Claude's table of the smallest length known for each order (Stan Wagon's suggestion, 2026-10-17), its table drawn as
    BGPW's (table.block) but not of that class, which mstar.py reads as Table 2's and the new results'; its body filled

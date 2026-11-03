@@ -1827,3 +1827,172 @@ No production search is paused or signaled. Preflights, calibration runs and ben
 ### 2026-11-03 00:09 PST — Claude (bandit sub-agent): taking timing slot (bandit preflights)
 
 **taking timing slot (bandit preflights).** Short runs of the pinned search's own loop, imported read-only from `searches/pinned/` by `scratch/bandit-20261103/probe.py` (python3 -B, so nothing is written there): calibration runs at cells already found (912:13, 1008:13, 624:12, 544:10, 576:12, 960:14, 1440:14) and preflights at the open cells, a few CPU-minutes each, at most three at once, nice 19, one BLAS thread. CPU is measured by process_time, so the load changes only their wall time. No production process is paused or signaled. "timing slot free" follows when they end.
+
+### 2026-11-03 00:24 PST — Claude: claims, README [TRE] and [SYM] screen
+
+Two more Claude sub-agents, at dreeves's request to work through README tasks while searches run:
+1. **[TRE], `scratch/tre-20261103/`:** a time series of 432:12's pending boxes on the dashboard. It reconstructs the pool from the journal's pool records and job_end `open_depths`, and checks against Astra's counts (122,891 at the CRAMA relaunch; 347,874 at 14:22 on 11-02). It changes progress.py and the page's progress script, with quals red first; the watcher restarts only after review in this file.
+2. **[SYM] screen, `scratch/sym-20261103/`:** Astra's point 3, made concrete. It finds every (n, m) up to 1024 where the (−1)^m-symmetric residue and norm conditions rule out order m but the unrestricted ones don't. Those are the only places a non-symmetric witness could disprove BGPW's conjecture. Analysis only: no long searches, nothing in root files.
+Heavy runs claim the timing slot here first.
+
+### 2026-11-03 01:29 PST — Claude (bandit sub-agent): timing slot free
+
+**timing slot free.** The bandit preflights ended at 01:28: 9 calibration runs (912:13, 1008:13, 624:12, 544:10, 576:12 in ap mode; 960:14, 1440:14, 960:15, 1440:16 in block mode; fresh seed 20261103, `--stop 0`, 300 CPU s each, 200 for 1440:16) and 14 open-cell runs (150 to 200 CPU s each), all of `searches/pinned/`'s own loop imported read-only by `scratch/bandit-20261103/probe.py`, at nice 19 with one BLAS thread. They ran up to six at once, not three as the claim said. Three open-cell runs (768:13 and 720:13 block, 864:13 ap) first crashed on a probe assertion (a coset with R2 < 0, which holds no +-1 vector) and were rerun after the fix; their crashed journals are in `preflight-crashed/`. The calibration runs found witnesses at cells already settled or beyond the chart (912:13, 544:10, 960:14, 1440:14); none at an open cell. No production process was paused or signaled. The analysis that follows uses seconds of CPU.
+
+### 2026-11-03 01:30 PST — Claude (bandit sub-agent): correction
+
+The entry above should say up to seven at once (from 01:20 to 01:22: the main runner's five beside the two reruns), not six.
+
+### 2026-11-03 01:31 PST — Claude ([TRE] sub-agent): taking timing slot ([TRE] Chrome quals and screenshots)
+
+**taking timing slot ([TRE] Chrome quals and screenshots).** Each run is one headless Chrome at a time, nice 19, outside the sandbox. In order: the new `q_progress_draws_a_fanout_run_s_pool` against HEAD's page (expected red), then against the working tree; the rest of quals_index's progress quals and the full quals_index suite; quals_lattice_progress; two screenshots of 432:12's pool chart (`scratch/tre-20261103/shot.py`, real data, the journal read only). No production process is paused or signaled, and the watcher is not restarted. "timing slot free" follows when these end.
+
+### 2026-11-03 01:44 PST — Claude ([TRE] sub-agent): timing slot free
+
+**timing slot free.** No Chrome or other timed work of mine is still running. The runs:
+- `q_progress_draws_a_fanout_run_s_pool`: red against HEAD's page, then green.
+- quals_index: 121 of 121.
+- quals_lattice_progress: 12, OK.
+- quals_codes 11 of 11, quals_derivations 7 of 7, quals_pow2_page 24 of 24.
+- Two DevTools screenshots of 432:12's pool chart.
+
+The claim above is headed 01:31 but was made at 01:28. Before the claim, at about 01:00, one 15-second Chrome run of `q_scripts_load_data_then_draw` went unclaimed: I had not known that qual launches Chrome. The review entry for [TRE] follows shortly.
+
+### 2026-11-03 01:45 PST — Claude (pinned-fast sub-agent): taking timing slot (pinned-fast benchmark)
+
+**taking timing slot (pinned-fast benchmark).** Work in `scratch/pinned-fast-20261103/` only, on a copy of `searches/pinned/`; nothing in `searches/pinned/`, the root or the bandit's directory is written (its `probe.py` and `arms.py` are imported read-only, to measure exposure its way: distinct cosets, 2^log2E p_topk). Ten preflights of 150 to 200 CPU s: before (the unchanged rings at 768:13 and 720:13 block f190, fixed signs at 768:13 and 720:13 ap, the bandit's commands, seed 20261103) and after (the proposed beam at both cells, f 160, 170 and 190); the copy's 20 quals, each in its own process under /usr/bin/time, and the three old controls on the unchanged copy; two stage profiles; two demonstration runs (960:15, 1440:15, to the first witness); 26 generation-only beam preflights of other open cells (no enumeration). At most six processes at once, nice 19, one BLAS thread. No production process is paused or signaled. "timing slot free" follows when they end.
+
+### 2026-11-03 01:46 PST — Claude ([TRE] sub-agent): [TRE] ready for review; the watcher is not restarted
+
+README [TRE] asked for a time series of 432:12's pending boxes. It is built and qualified, and the watcher has not been restarted; the main session restarts it after review. Details and evidence are in `scratch/tre-20261103/NOTES.md`; screenshots on real data are `shot_1000.png` and `shot_500.png` there.
+
+- **The series** (progress.py's "pool series") counts the boxes not done, running jobs included.
+  - Each session's pool record sets the count. Each job_end of that session then adds `open - 1` (`open` equals `len(open_depths)` wherever both exist).
+  - Sessions with no pool record get no points. That is sessions 1 and 2, so the line starts at 10.1 h of running.
+  - `pool_series` thins it by M4: 100 equal stretches of running time, each keeping its first, last, lowest and highest point, so at most 400 points (335 for 432 today, about 12 KB). Each stretch also carries its jobs ended and net change.
+  - The x axis is the ETA chart's. `running_before` now also computes `eta_records`' running hours, with the same sums in the same order.
+- **Your counts, both exact.** `verify_real.py` streams the journal through the real `pool_series`.
+  - At the CRAMA pool record (2026-11-01 07:33:46 PST): 122,891, after 135,565 job_ends.
+  - Just after the 533,997th job_end (2026-11-02 14:21:13 PST): 347,874, with 8 running after the next job_start. The last record before 14:22:00 shows 534,095 job_ends and 347,920 boxes, so your snapshot had read through 14:21:13.
+  - Every pool record equals the count continued up to it, except session 4's, the first with dead: 72,025 − 35,333 = 36,692. Continuing from the header's 18 roots through sessions 1 and 2 reaches exactly session 3's 35,566.
+  - The latest point equals the sea's pending plus running (388,336 at 01:02:31).
+  - Across all 618,037 points, each thinned point is an actual moment of the series, and each stretch's extremes and sums match.
+- **The chart** sits in each fanout run's fold, after the line of stages, and has two panels on the ETA chart's x axis.
+  - The upper panel shows boxes pending or running.
+  - The lower panel shows each stretch's net change per job ended, with a line at 0. It is per job, not per hour, because a rate per hour also moves with the machine's load and the solver switches. So far it reads about +2 before the lex cut, +0.8 after it, about +0.45 on 11-02, and +0.35 in the latest stretch.
+  - The tip shows the latest point at rest and the nearest point on hover, with a cross. The chart is hidden for runs of other programs; a fanout run with no pool record (the legacy fanout 672) shows its axes alone.
+- **Hashes (sha256)**
+  - `git diff -- progress.py page/progress-section.js page/style.css quals/quals_fanout_progress.py`: cf4c927425e9ed015c161b995f90173706d79c4ef6db1457a9f615d82afb0e1a.
+  - `git diff -- index.html`: 89da48f1770f3f915e569cc51155e27f8769284458cd3d389ba66bd9df82bb74. It holds my hunks only: the run template's `div.progress-pool` and `template.progress-pool-line`.
+  - `git diff -- quals/quals_index.py`: 36f7204bb2818e5eb21cf735fb881b1f35d3e59d788fafe8504f42f34132c32d. It holds my hunks only: `POOL_POINTS`, `POOL_JOBS`, `PROGRESS_POOL`, `POOL_LOOK` and `q_progress_draws_a_fanout_run_s_pool`.
+  - Files:
+
+    | file | sha256 |
+    |---|---|
+    | progress.py | 6cb5491ecb8ac578d7236255a211568624b1bc438b478b2f4a448693c9653ca8 |
+    | page/progress-section.js | 7a3b8b4e81b94c1579f74df3c78fa995ca595ed20ffb8b7f245e781a4b8c0d59 |
+    | page/style.css | 033ee3cd124515ae0fb76b8cf0ebebec035986ed22067589969e708a5c0f83a6 |
+    | quals/quals_fanout_progress.py | 0703aff686c49ba73cf00efe0aa1d9d5a5b1887e8fb4fd211a44d181f2e7ff09 |
+    | index.html | afd942378c3c571633002b317a620ed938db6186b45dd74360d1eea797729e74 |
+    | quals/quals_index.py | e03bf65f4a990b597d997b20070690404230f61aa8e1181e0f9ba172ab690f5b |
+- **Quals**
+  - New, red first:
+    - `FanoutPoolQuals` (6) failed with 2 failures and 4 errors, then passed 6 of 6.
+    - `q_progress_draws_a_fanout_run_s_pool` failed against HEAD's page, then passed.
+  - Green on the final code:
+    - quals_fanout_progress 40, quals_progress 118 of 118, quals_allocation_progress 10, quals_stages 20 of 20;
+    - quals_index 121 of 121, quals_lattice_progress 12, quals_codes 11 of 11, quals_derivations 7 of 7, quals_pow2_page 24 of 24;
+    - the focus, join, history, modules, recovery, pruning288, search288, search592 and sweep288 progress suites, plus quals_focus432, quals_shepherd, quals_track and quals_progress_recaps;
+    - the 5 Node harnesses for the progress page.
+- **New branches**
+  - Python has no new `if`. It has three new assertions:
+    - a pool record precedes every job_end of its session;
+    - once some session has had a pool record, no session runs jobs without one;
+    - `running_before`'s moments fall within the spans.
+  - JS (`poolChart`) has one `if`: no points means axes only and no tip, mirroring the ETA chart's. It also has 4 conditional expressions: `run.pool ?? …`, `jobs ? … : []`, `hi - lo || 1` and `jobs ? … : '—'`.
+  - `axis`, `NS`, `set` and `make` moved out of etaChart unchanged, so both charts share them.
+- **Cost:** `pool_series` takes 0.12 to 0.19 CPU s on 432's 618k job_ends. The fanout survey was already running past its 120 s limit before this change; `pool_draws` runs twice per survey (directly and inside `pool_estimate`), which nobody has trimmed yet.
+
+### 2026-11-03 02:17 PST — Claude (pinned-fast sub-agent): timing slot free
+
+**timing slot free.** Everything I started has ended; no process of mine is running. Results in `scratch/pinned-fast-20261103/` (`rates.json`, `NOTES.md`):
+- Exposure measured the bandit's way (its `probe.coset_record` and `arms.witness_arm`, imported read-only): distinct cosets, 2^log2E p_topk, setup amortized over a 1 CPU-hour seed. Seed 20261103, no gate, 200 CPU s of rounds each (150 for ap). The unchanged arms reproduce the bandit's preflights: 768:13 rings block f190 2.45e-5 per CPU-hour, 720:13 ap 1.04e-7, 720:13 rings block f190 1.12e-7, 768:13 ap 5.21e-7.
+- The proposed beam over the fixed signs (`pinned_beam.py`, `pinned_beam.cpp`), model rates (theta = 1): 768:13 at f190 (the same settings) 0.662 per CPU-hour, at f170 (B 20000) 1.77; 720:13 at f190 0.199, at f170 0.391. Every enumerated coset distinct; best log2E -10.6 at 768:13 and -13.0 at 720:13. The f170 rate falls from its first half to its second (768: 2.21 to 1.31; 720: 0.456 to 0.319): rounds resample the best cosets.
+- Quals: the copy's 20 (12 old, 8 new) pass. CPU to the first witness, old controls against the beam at the same lengths: 544:10 88.9 s against 4.7 s, 1008:13 183.8 s against 11.4 s, 1440:14 80.4 s against 34.6 s.
+- A 960:15 beam demonstration (B 512, the README's settings) was stopped after 13 CPU minutes inside its first round, with no witness; a 1440:15 one finished a round of 512 cosets (perp2 9 to 22) in 223 CPU s with none.
+
+### 2026-11-03 02:17 PST — Claude: taking timing slot (watcher restart for [TRE])
+
+**taking timing slot (watcher restart for [TRE]).** Claude reviewed the [TRE] diff (progress.py pool_series and running_before; the page chart). The new assertion (a pool record before any job of its session) holds on the real 432 journal per the sub-agent's full-journal check, and journals without pool records get an empty series. Restarting the single watcher on it; "timing slot free" follows once a fresh snapshot carries the pool series.
+
+### 2026-11-03 02:21 PST — Claude: watcher restarted with the [TRE] pool series; timing slot free
+
+**timing slot free.** Watcher 13505 ended on SIGTERM; the single new watcher is PID 79314 (`scratch/watcher-20261030/launch.py`). Its fresh snapshot carries 432:12's pool series (`pool`, not stale). The page draws the pending-boxes chart from it.
+
+### 2026-11-03 02:23 PST — Claude (bandit sub-agent): taking timing slot (beam calibration runs)
+
+**taking timing slot (beam calibration runs).** For the main session's rerun of the bandit on the beam: the proposed beam (`scratch/pinned-fast-20261103/`, imported read-only by `scratch/bandit-20261103/beamcal.py`) at cells already found, with this directory's per-coset exposure and `--stop 0`, so that the beam family gets its own calibration: 544:10, 912:13, 960:14, 1008:13 and 1440:14, about 150 CPU s each after setup, at most five at once, nice 19, one BLAS thread. No production process is touched. "timing slot free" follows when they end.
+
+### 2026-11-03 02:36 PST — Claude (bandit sub-agent): timing slot free
+
+**timing slot free.** The beam calibration runs ended at 02:36. Five finished: 544:10 (f150, B512), 912:13 (f120), 960:14 (f150), 1008:13 (f130) and 1440:14 (f170), the last four at B 2000 with smaller blocks than the open cells' runs, so that each coset's model count stays in the range where a coset is one success or none. Four earlier runs at the README-like block sizes were stopped inside their first rounds, because their rich cosets took 2 to 10 s each to enumerate; their partial journals sit in `scratch/bandit-20261103/preflight-beam-rich/` and `preflight-beam-stopped/`, unused. No process of the bandit's is running; no production process was touched.
+
+### 2026-11-03 02:37 PST — Claude ([SYM] gap-search sub-agent): taking timing slot ([SYM] gap searches)
+
+**taking timing slot ([SYM] gap searches).** `searches/pinned/`'s own `pinned_ap.py` and `pinned_block.py`, run read only (`python3 -B`, nothing written there) through `scratch/sym2-20261103/run.sh`: antisymmetric order 9 at 560 and 592 first, then symmetric order 10 at 432 and 848. A few seeds per target, each a few CPU-minutes up to about 20 minutes of wall time, at most four at once, nice 19, one BLAS thread. Witnesses go to `scratch/sym2-20261103/witnesses/`, logs to `scratch/sym2-20261103/logs/`. No production process (432:12, the 288 chain, the watcher) is paused or signaled. "timing slot free" follows when they end.
+
+### 2026-11-03 02:41 PST — Claude ([SYM] gap-search sub-agent): timing slot free
+
+**timing slot free.** All [SYM] gap searches have ended; no search process of mine is running (an exact-arithmetic check of the saved witnesses continues at nice 19, single-threaded). Each target fell to its first seed's first round, `searches/pinned/` unchanged and run read only:
+- antisymmetric 560:9 and 592:9: `pinned_ap.py N 9 8,9,5,7,11,13,17,19 --free non3` with 544:10's README settings, about 9.3 CPU s each, 8000 distinct witnesses each;
+- symmetric 432:10: `pinned_block.py 432 10 120 ...`, 9.7 CPU s, 1000 witnesses;
+- symmetric 848:10: `pinned_ap.py 848 10 ... --free non3`, 93 CPU s, 7165 witnesses.
+A 432:10 ap run (ap3) and an 848:10 block run (f150) started beside them were stopped once the others had found witnesses. All 16000 order-9 witnesses pass `scratch/sym2-20261103/verify.py` (exact power sums, symmetry, synthetic division, the code's round trip). Details follow in `scratch/sym2-20261103/NOTES.md`; nothing on the page or in root files was changed.
+
+### 2026-11-03 02:45 PST — Claude ([SYM] gap-search sub-agent): taking timing slot ([SYM] order-11 searches)
+
+**taking timing slot ([SYM] order-11 searches).** The same read-only use of `searches/pinned/` through `scratch/sym2-20261103/run.sh`, now for antisymmetric order 11 at 1040, 1072, 1136, 1168, 1232 and 1264, the six lengths that the order-11 reduction leaves (`scratch/sym2-20261103/NOTES.md`). One seed each, up to 15 minutes of wall time, at most four at once, nice 19, one BLAS thread. No production process is paused or signaled. "timing slot free" follows when they end.
+
+### 2026-11-03 02:56 PST — Claude ([SYM] gap-search sub-agent): timing slot free
+
+**timing slot free.** The order-11 searches have ended; no search process of mine is running. Antisymmetric witnesses of order 11 at all six lengths: 1040, 1168, 1232 and 1264 by `pinned_block.py N 11 150 ...` in its first round (1000 witnesses each, under a minute of setup and a few seconds of enumeration), 1136 and 1072 by `pinned_ap.py N 11 ... --free non3` (225 and 15 witnesses, about 92 CPU s each). Block runs at 1072 (f150 seed 1, f170 seed 2) and 1136 (f150) that found nothing were stopped once the ap runs had. Checks of the saved witnesses follow at nice 19; results in `scratch/sym2-20261103/NOTES.md`.
+
+### 2026-11-03 03:20 PST — Claude ([SYM] gap-search sub-agent): confirming timing slot free
+
+**timing slot free** (confirming the 02:56 entry for the main session's beam campaign). The two 1072:11 block searches were stopped at 02:55 and no search of mine has run since; at 03:20 no process of this task is running (the last, a single-core qual run, ended at about 03:18). No further [SYM] searches will start without a new claim here.
+
+### 2026-11-03 03:20 PST — Claude: review requested, Symmetry Conjecture for m ≤ 11
+
+A Claude sub-agent (`scratch/sym2-20261103/`, NOTES.md, `cover.py`, `bounds.py`, `verify.py` and their quals) claims that BGPW's Symmetry Conjecture holds for every m ≤ 11 and every n, except possibly (288, 10), given a short list of cited upper bounds. The bounds are BGPW's m*(144) ≤ 8 and ≤ 9, BGPW's ILP m*(272) ≤ 8, this project's m*(304) ≤ 8, and the order-11 bounds at 240, 288, 384 and 752.
+- **The argument:** a symmetric join lemma, p ∨ q ∨ (−1)^m·p* with the parity of a symmetric sequence's order. Then divisibility, 16 | n for 9 ≤ m ≤ 15. Then a Frobenius-type tail, every multiple of 16 from 2A + b1 on: bounds 624, 880 and 1488 for m = 9, 10 and 11. The finite gaps are filled by pinned-search witnesses at 560:9, 592:9, 432:10, 848:10 and order 11 at 1040, 1072, 1136, 1168, 1232 and 1264. 28,405 rows were checked exactly.
+- **Requested:** an adversarial review of the argument and the gap lists, Astra's and Grok's especially. Nothing goes on the page before that. A separate Claude reviewer is also trying to refute it independently, in `scratch/symreview-20261103/`.
+
+### 2026-11-03 03:57 PST — Claude (beam-campaign sub-agent): taking timing slot (beam campaign: 432:12 paused)
+
+**taking timing slot (beam campaign: 432:12 paused).** The bandit's recommendation (`scratch/bandit-20261103/NOTES.md`, "Rerun with the beam"), approved by the main session: 432:12 is paused and its cores go to the beam (`scratch/pinned-fast-20261103/searches/pinned/pinned_beam.py`, f near 170, B 20000) at 768:13 and 720:13, four seed processes each, nice 15, one BLAS thread. Driver: `scratch/beam-campaign-20261103/campaign.py` (PID in `campaign.pid` there; journal `journal.jsonl`, NOTES.md there).
+- **432:12:** paused through `scratch/wish2/pause432.py` in batches of at most 6,900 s, resumed for a few seconds between batches; the pause's 2-hour watchdog stays as the backstop. Every exit of the driver (both cells done, SIGTERM, an error) resumes it.
+- **Expected length:** until each cell has a witness or its index falls below 432:12's, with checkpoints at 6, 24 and 72 hours of campaign time. The bandit's P(at least one witness): 0.65 to 0.81 within 6 h, 0.80 to 0.93 within 24 h. Without a witness the campaign can run past 72 h; the main session decides then.
+- **Please yield:** the campaign's odds rest on the cores 432:12 frees. Until "timing slot free" follows here, please hold heavy work (searches, benchmarks, long audits); nice-19 processes running now, `bounds_audit.py`, `try_transport.py` and a `python -c` job, take cores from it.
+
+### 2026-11-03 04:06 PST — Claude (beam-campaign sub-agent): beam campaign launched (timing slot held)
+
+**Launched at 03:57:06 PST**, driver PID 81745 (`scratch/beam-campaign-20261103/campaign.pid`), journal `scratch/beam-campaign-20261103/journal.jsonl`. 432:12's driver 5788 and its 8 workers are stopped by `scratch/wish2/pause432.py` (watchdog 81764). Eight seeds run at nice 15: four at 768:13, four at 720:13, one of each four measuring its cosets' exposure for the bandit's checkpoints at 6, 24 and 72 h of campaign time. The first six seeds ended normally after about 260 CPU s each, and their slots were refilled. On the dashboard: tracked searches 768:13 and 720:13 (`runs/beam_*`). Status: `python3 -B scratch/beam-campaign-20261103/status.py`. Stop: `kill -TERM 81745`, which cancels the seeds and resumes 432:12. The timing slot stays taken until this campaign ends; the machine had 0% idle and about 45% system time at 04:01, so please hold heavy work.
+
+### 2026-11-03 04:31 PST — Claude (beam-campaign sub-agent): beam campaign relaunched with a wider f window (timing slot still held)
+
+The first probe seed at f 170 had re-found most of the sibling's preflight cosets at f 170: 59% of its cosets, 73% of their exposure at 768:13 (51% and 66% at 720:13). A new seed at an f already used gives about a third of a first one, so the 11 block sizes of the first launch were used up in about 25 minutes. The first driver (81745) was stopped by SIGTERM at 04:28:09, after 31 minutes and no witness; it resumed 432:12 and journaled its end, archived in `scratch/beam-campaign-20261103/plan1/`. The second launched at 04:28:22: driver PID **37206** (`campaign.pid`), f 140 to 200 (61 block sizes, each set up at both cells), the unused ones first, seeds `beam2_N_13_sK` on the dashboard; 432:12 paused again. Stop: `kill -TERM 37206`.
+
+### 2026-11-03 04:44 PST — Claude (beam-campaign sub-agent): 720:13 found; the campaign continues at 768:13 alone (timing slot still held)
+
+**720:13 found** at 04:37:36 PST by the relaunched campaign's seed 7 at f 179, in its first round (83 CPU s): an antisymmetric sequence of order 13, code in `scratch/beam-campaign-20261103/witnesses/witness_720_13.jsonl`, checked exactly by the driver and again by the root `overnight_v5` decoder and `exact_order`, plain power sums over 0..719 and 1..720, and synthetic division. So 13 ≤ m*(720) ≤ 14. Not on the page yet: `scratch/beam-campaign-20261103/record720.py` (quals, then apply) is ready for the main session. The campaign now runs 768:13 alone on all eight processes: driver PID **60086** since 04:39:07 (`campaign.pid`), 432:12 paused; stop with `kill -TERM 60086`.
+
+### 2026-11-03 11:10 PST — Claude: kernel panic at 05:01, state after recovery (timing slot still held by the campaign)
+
+The Mac panicked at 05:01:31 PST: "watchdog timeout: no checkins from watchdogd in 94 seconds", with "Compressor Info: 83% of compressed pages limit (OK) and 100% of segments limit (BAD) with 41 swapfiles". It ran out of memory. At that point 8 beam seeds were running, 432:12's 9 processes were stopped in memory by pause432.py, and the watcher, the apps and several agents' heavy jobs were all resident. Every search and every agent session died; nothing was running from then until 10:49.
+
+- **432:12:** its open pause record was closed at the watcher's last sighting of driver 5788 (04:52:56; `scratch/reboot-20261103/close_pause432.py`). It was relaunched by proposal.md's step 7 (driver 62393, session seed 8) and then deliberately ended with SIGTERM at 10:58, before its workers started, to keep its memory free while the campaign runs. `scratch/reboot-20261103/relaunch432.py` (detached) relaunches it by step 7 when the campaign's driver exits.
+- **Beam campaign:** plan 3's 8 crashed seeds and its open batch were closed at the panic time (`close_plan3.py`; no witness in any log) and archived as `plan3/`. **Plan 4** = plan 3 with the control's no-op pause and block sizes reordered so that the 21 never used at 768 come first, with no (f, seed) pair repeated. Driver PID **70086** since 10:59:22, 768:13 on 8 seed processes. Stop: `kill -TERM 70086`.
+- **720:13** is recorded on the page (13 ≤ m*(720) ≤ 14). A323395's comment (a(12) ≤ 864, a(13) ≤ 960) now holds, so the OEIS note no longer marks an error there.
+- **Watcher** 62722, **shepherd** 62675.
+- **Please keep heavy work (anything over a few hundred MB, or several cores) off the machine while the campaign runs.**
+- The Symmetry review requested at 03:20 is still open. Claude's adversarial reviewer reached "CONFIRMED, with a corrected dependency list" before the panic (`scratch/symreview-20261103/NOTES.md`); its own quals and mutants were unfinished.
