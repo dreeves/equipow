@@ -40,7 +40,7 @@
   <details class="changelog">
     <summary><i>Changelog</i></summary>
     <p>2026-11-03: \(m^*(544) = 10\), \(m^*(576) = 12\), \(m^*(624) = 12\), \(m^*(912) = 13\), \(m^*(960) = 15\), \(m^*(1008) = 13\)</p>
-    <p>2026-11-03: \(m^*(2^{28}) \ge 31\), \(m^*(2^{36}) \ge 40\), \(m^*(2^{47}) \ge 53\)</p>
+    <p>2026-11-03: \(m^*(2^{28}) \ge 31\), \(m^*(2^{36}) \ge 40\), \(m^*(2^{47}) \ge 53\), \(m^*(2^{56}) \ge 63\), \(m^*(2^{58}) \ge 66\)</p>
     <p>2026-11-01: \(12 \le m^*(672) \le 13\), \(m^*(688) = 10\)</p>
     <p>2026-10-31: <span class="nw">Expandable hex codes</span></p>
     <p>2026-10-31: \(m^*(528) \ge 11\), \(11 \le m^*(576) \le 12\), \(11 \le m^*(624) \le 12\)</p>
@@ -192,8 +192,8 @@
           <tr class="vals"><th scope="row">\(m^*(n)\)</th><td class="c">29–33</td><td class="c">31–34</td><td class="c">32–35</td><td class="c">33–36</td><td class="c">36–40</td><td class="c">37–41</td><td class="c">40–44</td><td class="c">41–45</td><td class="c">42–46</td><td class="c">44–47</td><td class="c">46–50</td><td class="c">48–53</td><td class="c">51–57</td></tr>
         </table>
         <table class="block">
-          <tr class="ns"><th scope="row">\(n\)</th><td class="c" title='Claude alone'>\(2^{47}\)</td><td class="c" title='Claude alone'>\(2^{48}\)</td><td class="c" title='Claude alone'>\(2^{49}\)</td><td class="j" title='Claude and BGPW'>\(2^{51}\)</td><td class="c" title='Claude alone'>\(2^{52}\)</td><td class="c" title='Claude alone'>\(2^{57}\)</td><td class="c" title='Claude alone'>\(2^{61}\)</td><td class="c" title='Claude alone'>\(2^{65}\)</td><td class="c" title='Claude alone'>\(2^{66}\)</td><td class="c" title='Claude alone'>\(2^{67}\)</td><td class="c" title='Claude alone'>\(2^{68}\)</td><td class="c" title='Claude alone'>\(2^{71}\)</td><td class="c" title='Claude alone'>\(2^{72}\)</td></tr>
-          <tr class="vals"><th scope="row">\(m^*(n)\)</th><td class="c">53–58</td><td class="c">54–59</td><td class="c">55–60</td><td class="j">57–63</td><td class="c">58–64</td><td class="c">64–70</td><td class="c">68–75</td><td class="c">73–81</td><td class="c">74–82</td><td class="c">75–83</td><td class="c">77–84</td><td class="c">80–88</td><td class="c">81–89</td></tr>
+          <tr class="ns"><th scope="row">\(n\)</th><td class="c" title='Claude alone'>\(2^{47}\)</td><td class="c" title='Claude alone'>\(2^{48}\)</td><td class="c" title='Claude alone'>\(2^{49}\)</td><td class="j" title='Claude and BGPW'>\(2^{51}\)</td><td class="c" title='Claude alone'>\(2^{52}\)</td><td class="c" title='Claude alone'>\(2^{56}\)</td><td class="c" title='Claude alone'>\(2^{57}\)</td><td class="c" title='Claude alone'>\(2^{58}\)</td><td class="c" title='Claude alone'>\(2^{61}\)</td><td class="c" title='Claude alone'>\(2^{65}\)</td><td class="c" title='Claude alone'>\(2^{66}\)</td><td class="c" title='Claude alone'>\(2^{67}\)</td><td class="c" title='Claude alone'>\(2^{68}\)</td><td class="c" title='Claude alone'>\(2^{71}\)</td><td class="c" title='Claude alone'>\(2^{72}\)</td></tr>
+          <tr class="vals"><th scope="row">\(m^*(n)\)</th><td class="c">53–58</td><td class="c">54–59</td><td class="c">55–60</td><td class="j">57–63</td><td class="c">58–64</td><td class="c">63–69</td><td class="c">64–70</td><td class="c">66–71</td><td class="c">69–75</td><td class="c">73–81</td><td class="c">74–82</td><td class="c">75–83</td><td class="c">77–84</td><td class="c">80–88</td><td class="c">81–89</td></tr>
         </table>
       </div>
     </div>
@@ -303,8 +303,8 @@
   <!-- the clause after the semicolon and the readout's second sentence are the m*(n) chart's, word for word (2026-10-30: the same controls) -->
   <div id="pow2-chart" tabindex="0" role="img" aria-label='Chart of the bounds on m*(2^k) − k, the excess over Thue–Morse, for k from 1 to 72; the arrow keys pan, and + and − zoom'></div>
   <p id="pow2-readout" aria-live="polite">Hover over a cell for details. Drag or swipe sideways to pan; zoom with the − and + buttons, pinching, or ctrl-scroll.</p>
-  <p><b>Theorem.</b> \(m^*(2^{10}) \ge 11\), \(m^*(2^{20}) \ge 22\), \(m^*(2^{28}) \ge 31\), \(m^*(2^{36}) \ge 40\), \(m^*(2^{39}) \ge 44\), \(m^*(2^{47}) \ge 53\), \(m^*(2^{57}) \ge 64\), \(m^*(2^{65}) \ge 73\), \(m^*(2^{68}) \ge 77\) and \(m^*(2^9) = 9\).</p>
-  <p>More concisely: For \(i = 1, 2, \ldots, 9\), the smallest known values of \(k\) for which \(m^*(2^k) - k \ge i\) are 10, 20, 28, 36, 39, 47, 57, 65, 68.</p>
+  <p><b>Theorem.</b> \(m^*(2^{10}) \ge 11\), \(m^*(2^{20}) \ge 22\), \(m^*(2^{28}) \ge 31\), \(m^*(2^{36}) \ge 40\), \(m^*(2^{39}) \ge 44\), \(m^*(2^{47}) \ge 53\), \(m^*(2^{56}) \ge 63\), \(m^*(2^{58}) \ge 66\), \(m^*(2^{68}) \ge 77\) and \(m^*(2^9) = 9\).</p>
+  <p>More concisely: For \(i = 1, 2, \ldots, 9\), the smallest known values of \(k\) for which \(m^*(2^k) - k \ge i\) are 10, 20, 28, 36, 39, 47, 56, 58, 68.</p>
   <p>The following table shows the construction for each inequality in the above theorem: 
     \(2^k\) as a join of products, one per line, each with its order and the sum of its factors' orders.
     The bound is the least of those orders. 
@@ -1053,33 +1053,45 @@ Or just start identifying redundancies and repetition on the page and fix them o
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry">\(n = 2^{57}\): &nbsp;\(m^* \in \{64, \ldots, 70\}\)</p>
-      <!-- Says order 64 at 2^57 comes from a join of eight products of the examples above and Thue–Morse, each of order at least 64, which beats Thue–Morse by 7; and that the upper bound is the residue condition mod 3 -->
-      <p>A join of eight products of examples above and Thue–Morse, each of order at least 64; the powers-of-2 chart above lists them. That beats Thue–Morse by 7. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above.</p>
+      <p class="entry">\(n = 2^{56}\): &nbsp;\(m^* \in \{63, \ldots, 69\}\)</p>
+      <!-- TODO: says 2^56 = 832·800^4·208 + 992·960^2·832·800 + 912^2·672·576^2·2 + 960^2·848·576·432, a join of four products of the examples above and Thue–Morse, of orders 63, 63, 63 and 64, which beats Thue–Morse by 7; and that the upper bound is the residue condition mod 3 -->
+      <p>Claude: “\(2^{56} = 832\cdot 800^4\cdot 208 + 992\cdot 960^2\cdot 832\cdot 800 + 912^2\cdot 672\cdot 576^2\cdot 2 + 960^2\cdot 848\cdot 576\cdot 432\): a join of four products of examples above and Thue–Morse, of orders 63, 63, 63 and 64. That beats Thue–Morse by 7. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above.”</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry">\(n = 2^{61}\): &nbsp;\(m^* \in \{68, \ldots, 75\}\)</p>
-      <!-- Says order 68 at 2^61 comes from the join of the 2^57 entry with each product times tau_4, which beats Thue–Morse by 7; and that the upper bound is the residue condition mod 3 -->
-      <p>The join of the \(2^{57}\) entry, each product times \(\tau_4\), has order 68. That beats Thue–Morse by 7. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above.</p>
+      <p class="entry">\(n = 2^{57}\): &nbsp;\(m^* \in \{64, \ldots, 70\}\)</p>
+      <!-- TODO: says order 64 at 2^57 comes from the join of the 2^56 entry with each product times tau_1, which beats Thue–Morse by 7; and that the upper bound is the residue condition mod 3 -->
+      <p>Claude: “The join of the \(2^{56}\) entry, each product times \(\tau_1\), has order 64. That beats Thue–Morse by 7. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above.”</p>
+    </li>
+    <li class="c">
+      <span class="mk" aria-hidden="true">◆</span>
+      <p class="entry">\(n = 2^{58}\): &nbsp;\(m^* \in \{66, \ldots, 71\}\)</p>
+      <!-- TODO: says 2^58 = 848·800^5 + 960^2·800^3·2^3 + 912·624^2·576^2·2^5 + 960·768·672^2·528·2^4, a join of four products of the examples above and Thue–Morse, of orders 66, 66, 66 and 66, which beats Thue–Morse by 8; and that the upper bound is the residue condition mod 3 -->
+      <p>Claude: “\(2^{58} = 848\cdot 800^5 + 960^2\cdot 800^3\cdot 2^3 + 912\cdot 624^2\cdot 576^2\cdot 2^5 + 960\cdot 768\cdot 672^2\cdot 528\cdot 2^4\): a join of four products of examples above and Thue–Morse, of orders 66, 66, 66 and 66. That beats Thue–Morse by 8. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above.”</p>
+    </li>
+    <li class="c">
+      <span class="mk" aria-hidden="true">◆</span>
+      <p class="entry">\(n = 2^{61}\): &nbsp;\(m^* \in \{69, \ldots, 75\}\)</p>
+      <!-- TODO: says order 69 at 2^61 comes from the join of the 2^58 entry with each product times tau_3, which beats Thue–Morse by 8; and that the upper bound is the residue condition mod 3 -->
+      <p>Claude: “The join of the \(2^{58}\) entry, each product times \(\tau_3\), has order 69. That beats Thue–Morse by 8. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above.”</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 2^{65}\): &nbsp;\(m^* \in \{73, \ldots, 81\}\)</p>
-      <!-- Says order 73 at 2^65 comes from a join of eight products of the examples above and Thue–Morse, each of order at least 73, which beats Thue–Morse by 8; and that the upper bound is the norm bound for the residue sums mod 3 -->
-      <p>A join of eight products of examples above and Thue–Morse, each of order at least 73; the powers-of-2 chart above lists them. That beats Thue–Morse by 8. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above.</p>
+      <!-- TODO: says order 73 at 2^65 comes from the join of the 2^58 entry with each product times tau_7, which beats Thue–Morse by 8; and that the upper bound is the norm bound for the residue sums mod 3 -->
+      <p>Claude: “The join of the \(2^{58}\) entry, each product times \(\tau_7\), has order 73. That beats Thue–Morse by 8. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above.”</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 2^{66}\): &nbsp;\(m^* \in \{74, \ldots, 82\}\)</p>
-      <!-- Says order 74 at 2^66 comes from the join of the 2^65 entry with each product times tau_1, which beats Thue–Morse by 8; and that the upper bound is the norm bound for the residue sums mod 3 -->
-      <p>The join of the \(2^{65}\) entry, each product times \(\tau_1\), has order 74. That beats Thue–Morse by 8. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above.</p>
+      <!-- TODO: says order 74 at 2^66 comes from the join of the 2^58 entry with each product times tau_8, which beats Thue–Morse by 8; and that the upper bound is the norm bound for the residue sums mod 3 -->
+      <p>Claude: “The join of the \(2^{58}\) entry, each product times \(\tau_8\), has order 74. That beats Thue–Morse by 8. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above.”</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 2^{67}\): &nbsp;\(m^* \in \{75, \ldots, 83\}\)</p>
-      <!-- Says order 75 at 2^67 comes from the join of the 2^65 entry with each product times tau_2, which beats Thue–Morse by 8; and that the upper bound is the norm bound for the residue sums mod 3 -->
-      <p>The join of the \(2^{65}\) entry, each product times \(\tau_2\), has order 75. That beats Thue–Morse by 8. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above.</p>
+      <!-- TODO: says order 75 at 2^67 comes from the join of the 2^58 entry with each product times tau_9, which beats Thue–Morse by 8; and that the upper bound is the norm bound for the residue sums mod 3 -->
+      <p>Claude: “The join of the \(2^{58}\) entry, each product times \(\tau_9\), has order 75. That beats Thue–Morse by 8. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above.”</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
