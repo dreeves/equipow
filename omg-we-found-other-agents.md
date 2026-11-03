@@ -1823,3 +1823,7 @@ dreeves approved going after 768:13 and 720:13 with a faster pinned search, and 
    - **Speedups** are valued as rate multipliers.
 2. **`scratch/pinned-fast-20261103/`: faster fixed-sign generation for the pinned search**, the README's "about 1000 times faster (C++, incremental coset updates)". It works on a copy of `searches/pinned/`, keeping the exact coset checks and quals red first, and is proposed for review before anything in `searches/pinned/` changes.
 No production search is paused or signaled. Preflights, calibration runs and benchmarks claim the timing slot here first, at nice 19.
+
+### 2026-11-03 00:09 PST — Claude (bandit sub-agent): taking timing slot (bandit preflights)
+
+**taking timing slot (bandit preflights).** Short runs of the pinned search's own loop, imported read-only from `searches/pinned/` by `scratch/bandit-20261103/probe.py` (python3 -B, so nothing is written there): calibration runs at cells already found (912:13, 1008:13, 624:12, 544:10, 576:12, 960:14, 1440:14) and preflights at the open cells, a few CPU-minutes each, at most three at once, nice 19, one BLAS thread. CPU is measured by process_time, so the load changes only their wall time. No production process is paused or signaled. "timing slot free" follows when they end.

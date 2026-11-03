@@ -2278,10 +2278,15 @@ def q_firsts_move_to_2_56_and_2_58():
     # and 2^58 66–71, 2^57 64–70 and 2^65 73–81 as before, and 2^61 69–75, its low one more than before; each new entry writes its join out, as pow2.js has it,
     # with its products' orders; the entries that named the bases at 2^57 and 2^65, and 2^65's at 2^66 and 2^67, name the new ones, each product times τ1 at 2^57
     # and τ3, τ7, τ8 and τ9 at 2^61, 2^65, 2^66 and 2^67; the theorem states m*(2^56) >= 63 and m*(2^58) >= 66 in place of 2^57's and 2^65's, and its list of
-    # firsts is 10, 20, 28, 36, 39, 47, 56, 58, 68.
+    # firsts is 10, 20, 28, 36, 39, 47, 56, 58, 68.  And as searches/pinned/README.md says, its coins had left 2^56 (excess 7) and 2^58, 2^60 and 2^62 (excess 8)
+    # undecided at its time limit: the new entries say so, each linking searches/pinned and naming those powers (main session, 2026-11-03: "Say so on the page in
+    # the same way the README does"; their wording unpinned).
     # Resultata before: the firsts were 10, 20, 28, 36, 39, 47, 57, 65, 68, and the cell of 2^61 read 68–75.
     cols, text = pow2_data()['cols'], page()
     for k, lo, hi in ((56, 63, 69), (58, 66, 71)): first_entry(cols, text, k, lo, hi)
+    for k, ks in ((56, (56,)), (58, (58, 60, 62))):
+        li = re.search(r'<p class="entry">\\\(n = 2\^\{%d\}\\\): .*?</li>' % k, text, re.S).group(0)
+        assert 'href="https://github.com/dreeves/equipow/tree/main/searches/pinned"' in li and all(f'\\(2^{{{j}}}\\)' in li for j in ks), li
     cells = new_cells(text)
     assert [cells[2 ** k] for k in (57, 61, 65)] == [(64, 70), (69, 75), (73, 81)], [cells.get(2 ** k) for k in (57, 61, 65)]
     theorem = re.search(r'<p><b>Theorem.</b>(.*?)</p>', text).group(1)

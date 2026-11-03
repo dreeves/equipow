@@ -11968,7 +11968,7 @@ gh pr create --repo dreeves/equipow --title &quot;Settle m*(n) at 544, 576, 624,
 <header><p class="speaker">dreev</p></header>
 <pre class="prompt">faster search sounds good; 768:13 and 720:13 would be awesome. but be systematic about this. can we model this as a multi-armed bandit problem?</pre>
 <details>
-<summary><a class="anchor" href="#p568"><time datetime="2026-11-03T07:45:09.823000+00:00">07:45</time></a> <span class="chip"></span> <span class="agent">Claude Code</span> <span class="model">claude-opus-5-5</span> <span class="effort">(max)</span> <span class="elapsed">thought for 3m9s · 3m16s wall-clock time</span></summary>
+<summary><a class="anchor" href="#p568"><time datetime="2026-11-03T07:45:09.823000+00:00">07:45</time></a> <span class="chip"></span> <span class="agent">Claude Code</span> <span class="model">claude-opus-5-5</span> <span class="effort">(max)</span> <span class="elapsed">thought for 3m28s · 20m3s wall-clock time</span></summary>
 <div class="reply machine"><p>Yes, a bandit fits well, with three refinements. Before writing it up, a look at where the pinned search spends its time:</p>
 <p>Yes, it fits a multi-armed bandit, with three twists. Here&#x27;s the setup, now being built.</p>
 <p><strong>The model</strong></p>
@@ -11977,7 +11977,8 @@ gh pr create --repo dreeves/equipow --title &quot;Settle m*(n) at 544, 576, 624,
 <ol><li><strong>Rewards are one-shot.</strong> A cell is settled once; it isn&#x27;t a slot machine paying repeatedly. Because each failure only lowers an arm&#x27;s posterior, the arms deteriorate, and for deteriorating arms the greedy rule is the optimal (Gittins) policy: always run the arm with the highest posterior expected results per CPU-hour.</li><li><strong>432:12 is a deterministic arm.</strong> Its result arrives on completion, so its index is roughly one result per remaining CPU-hours. Astra&#x27;s latest diagnosis matters here: its frontier keeps growing, its estimate has drifted to about 18 days, and paging cut its workers to about 62% of a core.</li><li><strong>Speedups multiply r.</strong> The model reports what a 10×, 100× or 1000× faster search does to each arm&#x27;s expected time and to its chance of a result within 24 hours or a week. That shows where engineering pays.</li></ol>
 <p><strong>Running now</strong> (claimed in the shared file; nothing pauses 432):</p>
 <ul><li>the bandit model: calibration from all past runs, preflights for every open cell, a ranked table and an allocation recommendation, with its quals red first;</li><li>the faster fixed-sign generator for the pinned search, which benefits every pinned arm, not just 768 and 720. It is profiled first, exactness is kept, and the measure is expected witnesses per CPU-hour, not raw speed. Its measured rates feed the bandit;</li><li>recording of 2^56 and 2^58 on the page.</li></ul>
-<p>When those land, I&#x27;ll bring you the bandit&#x27;s ranking and recommended allocation before launching any long search.</p></div>
+<p>When those land, I&#x27;ll bring you the bandit&#x27;s ranking and recommended allocation before launching any long search.</p>
+<p>The firsts recheck finished in about 98 minutes. Its full list matches the other session&#x27;s at 2^28, 2^36 and 2^47, and adds 2^56 (δ = 7) and 2^58 (δ = 8). δ = 9 and δ = 10 found nothing below their current firsts. The recording sub-agent has that. The bandit model, the pinned-search speedup and the recording are still running.</p></div>
 </details>
 </article>
 </main>
