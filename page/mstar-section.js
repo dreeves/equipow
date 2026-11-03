@@ -202,6 +202,25 @@ try {
     ctx.strokeStyle = token('--ink');
     picked.forEach(([c, m]) => ring({n: NS[c], m}));               // outline the cell read out, just outside it
     ctx.restore();
+    // The cell read out on the axes (dreeves's README, 2026-11-02: "[HOV] When hovering/clicking on cells in the charts
+    // it'd be nice to highlight the values of m and n (resp., delta and k) on the axes of the chart"): its m and its n,
+    // each in paper on a box of ink as tall as a row's colored part and 3 px wider than the number on either side, the
+    // m over its row's m label and the n on the n labels' line, under its column's middle while that is in view, as a
+    // label's must be, over any label there.  The chart of powers of 2 tags its δ and k the same way.
+    ctx.font = `${12 * dpr}px ${serif}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const tag = (t, x, y) => {                                     // the number t, centered at x, y
+      const w = ctx.measureText(t).width + 6 * dpr;
+      ctx.fillStyle = token('--ink');
+      ctx.fillRect(Math.round(x - w / 2), Math.round(y - (pitch - gap) / 2), Math.round(w), pitch - gap);
+      ctx.fillStyle = token('--paper');
+      ctx.fillText(t, x, y);
+    };
+    picked.forEach(([, m]) => tag(String(m), L - 7 * dpr - ctx.measureText(String(m)).width / 2,
+      top + (T - m) * pitch + (pitch - gap) / 2));
+    picked.filter(([c]) => u0 <= c + 0.5 && c + 0.5 <= u0 + span)    // 13 px down: the n labels' middle, 7 + 12 / 2
+      .forEach(([c]) => tag(String(NS[c]), L + (c + 0.5 - u0) / k, base + 13 * dpr));
   }
 
   function cellAt(x, y) {                                          // the cell at CSS x, y, [column, m], or null outside the plot

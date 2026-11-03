@@ -350,7 +350,14 @@ const DOM = cells => cells.map(([k, e, x, y]) => {
 const READ = text => {
   const ro = document.getElementById('pow2-readout');
   const children = [...ro.children].map(c => c.className);
-  return {text: text(ro), children, scrollW: document.documentElement.scrollWidth};
+  // the tags of the cell read out (2026-11-02, [HOV]): each .pow2-tag in #pow2-chart as [its text, whether it shows,
+  // its box, its computed background and color, the id of the image that holds it for assistive technology]
+  const tags = [...document.querySelectorAll('#pow2-chart .pow2-tag')].map(t => {
+    const r = t.getBoundingClientRect(), s = getComputedStyle(t);
+    return [t.textContent, t.checkVisibility(), [r.left, r.top, r.width, r.height], s.backgroundColor, s.color,
+            t.closest('[role="img"]')?.id];
+  });
+  return {text: text(ro), children, scrollW: document.documentElement.scrollWidth, tags};
 };
 const FRAMES = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
 // Each zoom button of the two charts, mstar's and pow2's side by side: what of its look its computed style and box give,
@@ -462,6 +469,7 @@ async function main() {
     await ev(() => document.getElementById('pow2-chart').scrollIntoView({block: 'center'}));
     await ev(FRAMES);
     R.geo = await ev(GEOMETRY);
+    R.read0 = await ev(READ, TEXT);
     const [L, T, W] = R.geo.plot, cells = [];
     for (let k = 1; k <= C.K; k++) for (let e = 1; e <= C.E; e++) {
       cells.push([k, e, L + (k - 0.5) * W / C.K, T + (C.E - e) * C.ROW + (C.ROW - C.GAP) / 2]);
@@ -521,10 +529,12 @@ async function main() {
       // The readouts at the left and right ends of each plot's row 1, half a CSS px in, and the four buttons' disabled.
       const edges = async () => {
         await show('pow2-chart');
-        const [L, T, W] = (await ev(GEOMETRY)).plot, pow2 = [];
+        const [L, T, W] = (await ev(GEOMETRY)).plot, pow2 = [], pow2Tags = [];
         for (const x of [L + 0.5, L + W - 0.5]) {
           await input.mouse(x, T + (C.E - 1) * C.ROW + (C.ROW - C.GAP) / 2);
-          pow2.push((await ev(READ, TEXT)).text);
+          const r = await ev(READ, TEXT);
+          pow2.push(r.text);
+          pow2Tags.push(r.tags);
         }
         await show('mstar-chart');
         const [cl, ct, cw] = (await ev(GEOMETRY)).canvas, T2 = await ev(() => MSTAR.mtop), [ML, MR, MT, MP] = C.mstarLayout, mstar = [];
@@ -533,7 +543,7 @@ async function main() {
           mstar.push(await ev(() => document.getElementById('mstar-readout').textContent));
         }
         const disabled = await ev(() => ['pow2-zoom-in', 'pow2-zoom-out', 'mstar-zoom-in', 'mstar-zoom-out'].map(i => document.getElementById(i).disabled));
-        return {pow2, mstar, disabled};
+        return {pow2, mstar, disabled, pow2Tags, pow2Plot: [L, T, W]};
       };
       const step = async (name, act) => { const x = await act(); R.zoom.steps.push({name, x, ...await edges()}); };
       await step('load', async () => {});
@@ -555,6 +565,18 @@ async function main() {
       });
       await step('pow2 ↺', () => click('pow2-reset'));
       await step('mstar ↺', () => click('mstar-reset'));
+      // A corner of a zoomed view read out, then that view panned by the keys alone until the corner's column is out of
+      // view (2026-11-02, [HOV], q_axes_tag_the_cell_read_out): a click of this chart's + from the full view that its ↺
+      // left, (12, 48); a click on the chart, for the keys; a mouse move to the top-left cell, k = 13 and δ = E; eight
+      // presses of ArrowRight, an eighth of the view each, to (24, 48), the end.  Each with the plot then.
+      const read = async () => ({...await ev(READ, TEXT), plot: (await ev(GEOMETRY)).plot});
+      await click('pow2-zoom-in');
+      await click('pow2-chart');
+      const plot = (await ev(GEOMETRY)).plot;
+      await input.mouse(plot[0] + 0.5, plot[1] + (C.ROW - C.GAP) / 2);
+      const corner = await read();
+      for (let i = 0; i < 8; i++) await key('ArrowRight', 'ArrowRight', 39);
+      R.zoom.away = {corner, away: await read()};
     }
   }
   return out;
@@ -991,6 +1013,73 @@ def q_outline_marks_the_cell():
         assert got == want, (name, got, want)
         hits = [(tag, fill(f)) for _, _, tag, f in R['outlineDom']]
         assert hits == [('rect', want[4]), ('rect', tok[KINDS[kind_of(cols[k - 2], k - 1, e)]])], (name, hits)
+
+
+def check_tags(R, read, plot, view, k, e):
+    """Assert that the tags READ found (read's) show cell (k, e), the cell read out, in the view [u0, u0 + span) of the
+    plot at (plot[0], plot[1]) in the viewport, plot[2] CSS px wide, as q_axes_tag_the_cell_read_out says; return
+    whether k's column's middle is in view."""
+    (L, T, W), (u0, span) = plot[:3], view
+    E, tok, g = R['data']['etop'], R['load']['tokens'], gap(R['load']['dpr'])
+    tags = read['tags']
+    assert len(tags) == 2 and all(t[5] == 'pow2-chart' for t in tags), tags
+    shown = [t for t in tags if t[1]]
+    assert all((fill(t[3]), fill(t[4])) == (tok['ink'], tok['paper']) for t in shown), shown
+    left = [t for t in shown if t[2][0] + t[2][2] <= L + 0.5]
+    below = [t for t in shown if t[2][1] >= T + E * ROW - 0.5]
+    in_view = u0 <= k - 0.5 <= u0 + span
+    assert len(left) == 1 and len(below) == in_view and len(shown) == 1 + in_view, (k, e, view, tags)
+    L0, T0 = R['geo']['plot'][:2]                                  # where the plot was when the δ labels were measured
+    [(lx, ly, lw, lh)] = [(b[0] - L0 + L, b[1] - T0 + T, b[2], b[3]) for t, b in R['geo']['texts']
+                          if t == str(e) and b[0] + b[2] <= L0]
+    text, _, (x, y, w, h), *_ = left[0]
+    top = T + (E - e) * ROW                                        # row e's colored part: from top to top + ROW - g
+    assert text == str(e) and top - 0.5 <= y and y + h <= top + ROW - g + 0.5, (k, e, left, top)
+    assert x <= lx + 0.5 and lx + lw <= x + w + 0.5 and y <= ly + lh / 2 <= y + h, (k, e, left, (lx, ly, lw, lh))
+    for text, _, (x, y, w, h), *_ in below:
+        assert text == str(k) and abs(x + w / 2 - (L + (k - 0.5 - u0) * W / span)) <= 1, (k, e, view, below)
+        assert y + h <= T + E * ROW + 30, (k, e, below)
+    return in_view
+
+
+def q_axes_tag_the_cell_read_out():
+    # Replicata: the drawn configurations: the chart at load; then after the mouse move to every cell (1280 px) or the
+    # tap on every cell (390 px), column by column, its four corners among them; in the 1280 px configuration, after
+    # each mouse move to an end of row 1 in DRIVER's zoom steps (views zoomed, panned and zoomed to 12 columns among
+    # them); and after a mouse move to the top-left cell of the view a click of + makes, (12, 48), and then that view
+    # panned by eight presses of ArrowRight, the keys alone, to (24, 48): the elements of class pow2-tag in #pow2-chart,
+    # with the readout and the plot.
+    # Expectata (dreeves's README, 2026-11-02: "[HOV] When hovering/clicking on cells in the charts it'd be nice to
+    # highlight the values of m and n (resp., delta and k) on the axes of the chart"; quals_index's
+    # q_axes_tag_the_cell_read_out is the same for the m*(n) chart): the chart always holds two tags, inside its image,
+    # which assistive technology knows by its label alone (the readout states the cell); at load neither shows; once a
+    # cell (k, δ) is read out, as the readout names it, its δ is tagged over its row's δ label, the tag's box holding
+    # that label's and lying within the row's colored part, left of the plot, so no other row's label is touched; and
+    # its k on the k axis, below the plot, the tag's box centered on its column's middle to within 1 px, while that
+    # middle is in view, as a k label's must be, and no k tag shows otherwise; each tag that shows is in paper on ink
+    # (the outline's ink).  Panning with the keys alone keeps the cell read out, as the readout keeps it.
+    # Resultata before: no tags.
+    for name in DRAWN:
+        R = valid(name)
+        E, tags0 = R['data']['etop'], R['read0']['tags']
+        assert len(tags0) == 2 and not any(t[1] for t in tags0), (name, tags0)
+        reads = R['hovers'] + R['taps']
+        assert {(1, 1), (1, E), (K, 1), (K, E)} <= {(k, e) for k, e, _ in reads}, name
+        for k, e, r in reads:
+            g = READOUT.fullmatch(r['text'])
+            assert g and (int(g[1]), int(g[4])) == (k, e), (name, k, e, r['text'])
+            assert check_tags(R, r, R['geo']['plot'], (0, K), k, e), (name, k, e)
+    R = valid('light')
+    for s in R['zoom']['steps']:
+        ends = [(int(g[1]), int(g[4])) for g in map(READOUT.fullmatch, s['pow2'])]
+        view = (ends[0][0] - 1, ends[1][0] - ends[0][0] + 1)          # whole columns, from the k at each end
+        for (k, e), tags in zip(ends, s['pow2Tags']):
+            assert check_tags(R, {'tags': tags}, s['pow2Plot'], view, k, e), (s['name'], view, k, e)
+    a, b = R['zoom']['away']['corner'], R['zoom']['away']['away']
+    g = READOUT.fullmatch(a['text'])
+    assert (int(g[1]), int(g[4])) == (13, R['data']['etop']) and b['text'] == a['text'], (a['text'], b['text'])
+    assert check_tags(R, a, a['plot'], (12, 48), 13, R['data']['etop']), a
+    assert not check_tags(R, b, b['plot'], (24, 48), 13, R['data']['etop']), b
 
 
 def q_labels_mark_every_delta_and_round_k():

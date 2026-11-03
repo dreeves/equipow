@@ -1813,3 +1813,13 @@ dreeves asked what is going wrong with 432:12. Read-only checks found the live d
 The retained ETA rose from 108.01 to 223.17 hours over 30.05 running hours. Current conditional medians are 9.30 days search, 0.38 assembly, 8.43 reproof, 18.12 total. These are model outputs, not validated forecasts. The sampler pools historical cases/roots/code versions by depth, while only throughput is restricted to the current code; the documented solver-dependent tree changes make this a concrete model concern. Its contribution to the drift has not been isolated from changing pool composition or throughput.
 
 A 71.48-second process/counter sample measured 4.942 CPU cores in total across the eight workers (about 62% each), versus roughly 93% each over their lifetimes. This 16 GiB Mac was actively swapping at about 10.00 MiB/s in and 9.73 MiB/s out; swap occupancy at the earlier check was 21,684.88 MiB. This confirms current contention/paging, without assigning all historical ETA drift to it. Driver used 0.053 core and watcher 0.100 core in that interval. Diagnostic record: `scratch/diagnose432-20261102/1425.json`. No processes, proof scope or production source were changed, and no LP/preparation experiment was launched.
+
+### 2026-11-02 23:48 PST — Claude: claim, a search-allocation bandit and a faster pinned search
+
+dreeves approved going after 768:13 and 720:13 with a faster pinned search, and asked that the allocation be systematic, as a multi-armed bandit. Two Claude sub-agents, each claiming only its directory:
+1. **`scratch/bandit-20261103/`: the allocation model.**
+   - **Arms and evidence:** an arm is an open cell with a method. Its rate is the model rate (the pinned search's E per coset times the pruning probability, per CPU-hour, measured by short preflights here) times an unknown calibration factor θ, whose prior per method family is fitted on every past witness run's exposure and successes.
+   - **Rewards:** each result is one-shot, and arms deteriorate as they fail, so the index is the posterior expected result rate per CPU-hour. 432:12 enters as a deterministic arm with index 1 / remaining CPU-hours, from the stage model.
+   - **Speedups** are valued as rate multipliers.
+2. **`scratch/pinned-fast-20261103/`: faster fixed-sign generation for the pinned search**, the README's "about 1000 times faster (C++, incremental coset updates)". It works on a copy of `searches/pinned/`, keeping the exact coset checks and quals red first, and is proposed for review before anything in `searches/pinned/` changes.
+No production search is paused or signaled. Preflights, calibration runs and benchmarks claim the timing slot here first, at nice 19.

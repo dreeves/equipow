@@ -445,6 +445,11 @@ code[aria-expanded] { cursor: pointer; text-decoration: underline dotted var(--m
 .pow2-ks span { position: absolute; transform: translateX(-50%); }
 .pow2-tick { top: 0; width: 1px; height: 4px; background: var(--muted); }
 .pow2-klabel { top: 7px; }
+/* The cell read out on the axes (dreeves's README, 2026-11-02, [HOV]), as the m*(n) chart draws its own: its δ over
+   its row's label and its k under its column's middle, each in paper on ink, 3 px of ink either side of the number. */
+.pow2-tag { background: var(--ink); color: var(--paper); padding: 0 3px; }
+.pow2-es .pow2-tag { right: 4px; }                                     /* its number where the label's is, 7 px from the plot */
+.pow2-ks .pow2-tag { top: 13px; transform: translate(-50%, -50%); }   /* its middle on the k labels' middle, 7 + 12 / 2 px down */
 #pow2-readout { min-height: 3lh; max-width: none; font-size: 0.9375rem; font-variant-numeric: tabular-nums lining-nums; }
 #pow2-readout .swatch { margin-right: 0.5rem; vertical-align: -0.1em; }
 

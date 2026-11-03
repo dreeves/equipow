@@ -371,7 +371,7 @@ for (const k of ['error', 'warn']) {
 }
 const __fillText = CanvasRenderingContext2D.prototype.fillText;
 CanvasRenderingContext2D.prototype.fillText = function (t, x, y, ...rest) {
-  __texts.push(String(t)); __fills.push([String(t), x, y]); return __fillText.call(this, t, x, y, ...rest); };
+  __texts.push(String(t)); __fills.push([String(t), x, y, this.fillStyle]); return __fillText.call(this, t, x, y, ...rest); };
 Element.prototype.setPointerCapture = function () {};     // synthetic pointers are never active, so capture would throw
 </script>
 """
@@ -473,6 +473,25 @@ function battery(R) {
   while (pix(PR, Yt) !== C.impossible) PR--;
   PR++;
   R.plot = [PL, PR];
+  // The tags of the cell read out (dreeves's README, 2026-11-02: "[HOV] When hovering/clicking on cells in the charts
+  // it'd be nice to highlight the values of m and n (resp., delta and k) on the axes of the chart"), as the last draw
+  // left them (tags): what was written in paper since __fills was last emptied, as [string, x, y] in device px; and
+  // the boxes of ink, [X0, X1, Y0, Y1] (inclusive) or null, left of the plot (from 26 device px per CSS px left of it
+  // to 3 short of it, where an outline of a cell of the first column may reach) above the n axis, and below the plot
+  // (from 25 left of it to the canvas's right edge) on the n axis: there nothing but a tag is ink, the letters m and n
+  // lying further left (the italic m's right edge reaches 30 left of it).  R.tags0 is at load, before any hover.
+  const axisTop = rows[T - 1][1] + 1;                              // the n axis's top, past row 1's bottom device px of paper
+  const inkBox = (X0, X1, Y0, Y1) => {
+    let b = null;
+    for (let Y = Y0; Y < Y1; Y++) for (let X = X0; X < X1; X++) {
+      if (pix(X, Y) === C.ink) b = b ? [Math.min(b[0], X), Math.max(b[1], X), Math.min(b[2], Y), Math.max(b[3], Y)] : [X, X, Y, Y];
+    }
+    return b;
+  };
+  const tags = () => { snap(); return {paper: __fills.filter(f => f[3] === C.paper).map(f => f.slice(0, 3)),
+    left: inkBox(PL - 26 * dpr, PL - 3 * dpr, 0, axisTop), below: inkBox(PL - 25 * dpr, cv.width, axisTop, cv.height)}; };
+  R.axisTop = axisTop;
+  R.tags0 = tags();
   const L = PL / dpr, W = (PR - PL) / dpr, yProbe = rowY(1) / dpr;      // CSS px
   const ptr = (type, x, y, o) => { const r = rect(), e = new PointerEvent(type, {clientX: r.left + x, clientY: r.top + y,
     pointerId: 1, pointerType: 'mouse', buttons: 0, bubbles: true, cancelable: true, ...o}); cv.dispatchEvent(e); return e; };
@@ -726,6 +745,29 @@ function battery(R) {
       for (let i = 0; i < 40 && !b.disabled; i++) { b.click(); R.clicks.push([kind, view(), disabled()]); }
     }
   } catch (e) { R.buttonsError = String(e && e.stack || e); }
+  // The tags (q_axes_tag_the_cell_read_out), each from the draw of a hover, with the view and the readout then: in the
+  // full view, its four corners (its first and last columns, in rows 1 and T) and a cell in the middle; in a view
+  // zoomed in 5 steps and panned right an eighth of it, the same at the plot's very ends, where its columns are cut
+  // (the first's middle out of view, the last's in), then its first whole column in row 2; then (tagAway) that view
+  // panned right by a whole view with the keys alone, from the draw of the last press.
+  R.tagHovers = [];
+  const tagHover = (v, x, m) => { __fills.length = 0; const text = hover(x, rowY(m) / dpr); R.tagHovers.push({v, text, ...tags()}); };
+  const tagCorners = v => [[L + 0.25, 1], [L + 0.25, T], [L + W - 0.25, T], [L + W - 0.25, 1], [L + W / 2, 3]]
+    .forEach(([x, m]) => tagHover(v, x, m));
+  reset.click();
+  tagCorners(view());
+  for (let i = 0; i < 5; i++) key('+');
+  key('ArrowRight');
+  {
+    const v = view();
+    tagCorners(v);
+    tagHover(v, middleX(v, first(v)), 2);
+    for (let i = 0; i < 7; i++) key('ArrowRight');
+    __fills.length = 0;
+    key('ArrowRight');
+    const text = ro.textContent, t = tags();
+    R.tagAway = {before: R.tagHovers.at(-1).text, text, ...t, v: view()};
+  }
 }
 const R = {errors: window.__errors, opts: OPTS};
 const go = () => {
@@ -1636,15 +1678,16 @@ def q_citations_match_the_page():
     titled = {value(n): (cls, who) for cls, who, n in
               re.findall(r"<td(?: class=\"(a|c|ca|j|s)\")? title='([^']*)'>([^<]*)</td>", new)}
     titles = {n: who for n, (cls, who) in titled.items() if cls}      # the rest, unclassed, copy Table 2's powers of 2
-    # 240 (since 2026-10-20), the 44 multiples of 16 from 304 to 992 (512 written 2^9) and 30 larger powers of 2,
+    # 240 (since 2026-10-20), the 44 multiples of 16 from 304 to 992 (512 written 2^9) and 32 larger powers of 2,
     # 2^17 to 2^72 (6 until 560 reached order 10 on 2026-10-12, 11 until 800 reached order 11 on 2026-10-17, 18
     # until 592, 608 and 656 reached order 10 and 848, 880, 896, 928, 944, 976 and 992 order 11 on 2026-10-25, 23
     # until 752 and 784 reached order 10 and 832 order 11 on 2026-10-26, 25 until 912 reached order 12 on 2026-10-28,
-    # when 2^29 joined them, 26 until 768 reached order 12 that evening, when 2^39 joined them, 27 until 2026-11-03, when 2^28, 2^36 and 2^47 joined them); and since 1024 reached
+    # when 2^29 joined them, 26 until 768 reached order 12 that evening, when 2^39 joined them, 27 until 2026-11-03, when 2^28, 2^36 and 2^47 joined them, 30
+    # until later that day, when 2^56 and 2^58 joined them); and since 1024 reached
     # order 11, later that
     # day, 2^10, 2^11 and 2^12; and since 2026-10-27, when the block reached 1024, 1008.  The unclassed cells, Table
     # 2's powers of 2 (2^3 to 2^8) until then, copy every entry of Table 2 that stands: up to 304 but 240 and 304.
-    assert len(titles) == 1 + 44 + 33 + 1, len(titles)
+    assert len(titles) == 1 + 44 + 35 + 1, len(titles)    # 1 + 44 + 33 + 1 until 2^56 and 2^58 joined them, later on 2026-11-03
     assert sorted(n for n in titled if n not in titles) == [n for n in range(8, 305, 8) if n not in (240, 304)], titled
     table2 = {n for n, *_ in table_entries()} - set(titles)
     assert len(table2) == 36, sorted(table2)          # 240 and 304 are in both
@@ -2182,36 +2225,71 @@ def q_results_of_2026_11_03_have_entries_and_codes():
     assert 'a(14) = 960' in li and 'A323395' in li, li
 
 
+def first_entry(cols, text, k, lo, hi):
+    """Asserts what q_firsts_of_2026_11_03 asks of each new first 2^k (and q_firsts_move_to_2_56_and_2_58, which shares
+    it since later that day): pow2.js's [lo, hi] at 2^k, its column before at lo - 2, its cell, and its entry writing out
+    its join, as pow2.js has it (each product's blocks in order, a run of one length as a power, tau_j as 2 or 2^j), with
+    its products' orders, the least of them lo."""
+    assert cols[k - 1][:2] == [lo, hi] and cols[k - 2][0] == lo - 2, cols[k - 2:k]
+    assert new_cells(text)[2 ** k] == (lo, hi), new_cells(text).get(2 ** k)
+    li = re.search(r'<p class="entry">\\\(n = 2\^\{%d\}\\\): .*?</li>' % k, text, re.S).group(0)
+    products = cols[k - 1][2][1]
+    def factors(p):
+        runs = [(n, len(list(g))) for n, g in itertools.groupby(n for n, m in p)]
+        power = {2 ** m: m for n, m in p if n == 2 ** m}
+        return '\\cdot '.join(('2' if power[n] == 1 else f'2^{power[n]}') if n in power else f'{n}' if c == 1 else f'{n}^{c}' for n, c in runs)
+    assert f'\\(2^{{{k}}} = ' + ' + '.join(factors(p) for p in products) + '\\)' in li, li
+    orders = [sum(m for n, m in p) for p in products]
+    assert min(orders) == lo and f'of orders {", ".join(map(str, orders[:-1]))} and {orders[-1]}.' in li, (orders, li)
+
+
+def names_base(text, k, base, t, order):
+    """Asserts that 2^k's entry names the 2^base entry, each product times tau_t, and order."""
+    li = re.search(r'<p class="entry">\\\(n = 2\^\{%d\}\\\): .*?</li>' % k, text, re.S).group(0)
+    assert f'\\(2^{{{base}}}\\) entry' in li and f'\\tau_{t}\\)' in li and f'order {order}' in li, li
+
+
 def q_firsts_of_2026_11_03():
     # Replicata: pow2.js's columns, the new results' cells of the powers of 2, the remarks' entries, and the theorem's statement and its list of firsts.
     # Expectata (coins, searches/pinned/, with the blocks of 2026-11-03): excess 3 first at 2^28, excess 4 at 2^36 and excess 6 at 2^47, each a join whose products have
     # order at least k + e, one of order exactly k + e: lo is 31 at 2^28, 40 at 2^36 and 53 at 2^47, one more than each column before it had; the cells read 2^28 31–34, 2^36 40–44
     # and 2^47 53–58, 2^29 32–35, 2^37 41–45 and 2^48 54–59 as before; each new entry writes its join out, as pow2.js has it, with its products' orders; the entries that named the
     # bases at 2^29, 2^37 and 2^48 name the new ones; the theorem states m*(2^28) >= 31, m*(2^36) >= 40 and m*(2^47) >= 53 in place of 2^29's, 2^37's and 2^48's, and
-    # its list of firsts is 10, 20, 28, 36, 39, 47, 57, 65, 68.
+    # its list of firsts is 10, 20, 28, 36, 39, 47, 57, 65, 68.  (Since later on 2026-11-03, q_firsts_move_to_2_56_and_2_58, the list ends 56, 58, 68; what stands
+    # of it here: its first six, 10, 20, 28, 36, 39, 47.)
     # Resultata before: the firsts were 10, 20, 29, 37, 39, 48, 57, 65, 68.
     cols, text = pow2_data()['cols'], page()
-    for k, lo, hi, N in ((28, 31, 34, 2 ** 28), (36, 40, 44, 2 ** 36), (47, 53, 58, 2 ** 47)):
-        assert cols[k - 1][:2] == [lo, hi] and cols[k - 2][0] == lo - 2, cols[k - 2:k]
-        assert new_cells(text)[N] == (lo, hi), new_cells(text).get(N)
-        li = re.search(r'<p class="entry">\\\(n = 2\^\{%d\}\\\): .*?</li>' % k, text, re.S).group(0)
-        products = cols[k - 1][2][1]
-        def factors(p):
-            runs = [(n, len(list(g))) for n, g in itertools.groupby(n for n, m in p)]
-            power = {2 ** m: m for n, m in p if n == 2 ** m}
-            return '\\cdot '.join(('2' if power[n] == 1 else f'2^{power[n]}') if n in power else f'{n}' if c == 1 else f'{n}^{c}' for n, c in runs)
-        assert f'\\(2^{{{k}}} = ' + ' + '.join(factors(p) for p in products) + '\\)' in li, li
-        orders = [sum(m for n, m in p) for p in products]
-        assert min(orders) == lo and f'of orders {", ".join(map(str, orders[:-1]))} and {orders[-1]}.' in li, (orders, li)
+    for k, lo, hi in ((28, 31, 34), (36, 40, 44), (47, 53, 58)): first_entry(cols, text, k, lo, hi)
     cells = new_cells(text)
     assert [cells[2 ** k] for k in (29, 37, 48)] == [(32, 35), (41, 45), (54, 59)]
     theorem = re.search(r'<p><b>Theorem.</b>(.*?)</p>', text).group(1)
     for k, lo in ((28, 31), (36, 40), (47, 53)): assert f'(2^{{{k}}}) \\ge {lo}' in theorem, theorem
     for k in (29, 37, 48): assert f'(2^{{{k}}})' not in theorem, theorem
-    assert ' are 10, 20, 28, 36, 39, 47, 57, 65, 68.</p>' in text
+    assert ' are 10, 20, 28, 36, 39, 47, ' in text      # ' are 10, 20, 28, 36, 39, 47, 57, 65, 68.</p>' until later on 2026-11-03
     for k, base, t, order in ((29, 28, 1, 32), (30, 28, 2, 33), (33, 28, 5, 36), (34, 28, 6, 37), (37, 36, 1, 41), (38, 36, 2, 42), (48, 47, 1, 54), (49, 47, 2, 55), (52, 47, 5, 58)):
-        li = re.search(r'<p class="entry">\\\(n = 2\^\{%d\}\\\): .*?</li>' % k, text, re.S).group(0)
-        assert f'\\(2^{{{base}}}\\) entry' in li and f'\\tau_{t}\\)' in li and f'order {order}' in li, li
+        names_base(text, k, base, t, order)
+
+
+def q_firsts_move_to_2_56_and_2_58():
+    # Replicata: pow2.js's columns, the new results' cells of the powers of 2, the remarks' entries, and the theorem's statement and its list of firsts.
+    # Expectata (later on 2026-11-03: scratch/w11-624-576/firsts_now.py, the exhaustive search of scratch/wish5 over the blocks of that day, rerun with 1008 at its order
+    # 13 in scratch/firsts-56-58/): excess 7 first at 2^56 and excess 8 at 2^58, each a join whose products have order at least k + e, one of order exactly k + e: lo is 63
+    # at 2^56 and 66 at 2^58, one more than each column before it had (BASES[47] lifted gave 62 at 2^56, BASES[57] lifted 65 at 2^58); the cells read 2^56 63–69
+    # and 2^58 66–71, 2^57 64–70 and 2^65 73–81 as before, and 2^61 69–75, its low one more than before; each new entry writes its join out, as pow2.js has it,
+    # with its products' orders; the entries that named the bases at 2^57 and 2^65, and 2^65's at 2^66 and 2^67, name the new ones, each product times τ1 at 2^57
+    # and τ3, τ7, τ8 and τ9 at 2^61, 2^65, 2^66 and 2^67; the theorem states m*(2^56) >= 63 and m*(2^58) >= 66 in place of 2^57's and 2^65's, and its list of
+    # firsts is 10, 20, 28, 36, 39, 47, 56, 58, 68.
+    # Resultata before: the firsts were 10, 20, 28, 36, 39, 47, 57, 65, 68, and the cell of 2^61 read 68–75.
+    cols, text = pow2_data()['cols'], page()
+    for k, lo, hi in ((56, 63, 69), (58, 66, 71)): first_entry(cols, text, k, lo, hi)
+    cells = new_cells(text)
+    assert [cells[2 ** k] for k in (57, 61, 65)] == [(64, 70), (69, 75), (73, 81)], [cells.get(2 ** k) for k in (57, 61, 65)]
+    theorem = re.search(r'<p><b>Theorem.</b>(.*?)</p>', text).group(1)
+    for k, lo in ((56, 63), (58, 66)): assert f'(2^{{{k}}}) \\ge {lo}' in theorem, theorem
+    for k in (57, 65): assert f'(2^{{{k}}})' not in theorem, theorem
+    assert ' are 10, 20, 28, 36, 39, 47, 56, 58, 68.</p>' in text
+    for k, base, t, order in ((57, 56, 1, 64), (61, 58, 3, 69), (65, 58, 7, 73), (66, 58, 8, 74), (67, 58, 9, 75)):
+        names_base(text, k, base, t, order)
 
 
 OEIS = ('A323395', 'A306248', 'A323610', 'A323629', 'A323614')                # the OEIS section's entries on this problem
@@ -2696,23 +2774,28 @@ def q_readout_reports_columns_only():
 
 
 def q_n_labels_are_round_multiples_of_4():
-    # Replicata: the n labels (the strings drawn below the rows, right of the plot's left edge) of one draw in each of
-    # the full view, every view of the sweep, and the view zoomed in as far as it goes; in the light and phone runs.
-    # Expectata: they are the multiples of one step s, from 4, 20, 40, 100, 200, 500 (so every label is an n with a
-    # column, n / 4 from 1 on; until 2026-10-29 the steps were 2, 10, 20, 50, ... and every even n had a column), whose
-    # columns' middles are in view, in order, each centered on its column's middle to within a device px; s is the
-    # first of those steps that puts the labels at least 48 CSS px apart.
+    # Replicata: the strings drawn below the rows, right of the plot's left edge, in one draw in each of the full view,
+    # every view of the sweep, and the view zoomed in as far as it goes: the draw of a hover over the first whole
+    # column in view; in the light and phone runs.
+    # Expectata: the n labels, and then (since 2026-11-02, dreeves's README: "[HOV] ...") the tag of the cell read out,
+    # the n of that first column, centered on its middle to within a device px (q_axes_tag_the_cell_read_out).  The
+    # labels are the multiples of one step s, from 4, 20, 40, 100, 200, 500 (so every label is an n with a column, n / 4
+    # from 1 on; until 2026-10-29 the steps were 2, 10, 20, 50, ... and every even n had a column), whose columns'
+    # middles are in view, in order, each centered on its column's middle to within a device px; s is the first of
+    # those steps that puts the labels at least 48 CSS px apart.
     for name in ('light', 'phone'):
         R = valid_run(name)
         (PL, PR), dpr = R['plot'], R['dpr']
         assert len(R['labelDraws']) == len(R['views']) + 1, (name, len(R['labelDraws']))
         for d in R['labelDraws']:
-            v, got = d['v'], d['labels']
+            v, (*got, tag) = d['v'], d['labels']
             s = next(s for s in STEPS if s / 4 * (PR - PL) / dpr / v['span'] >= 48)
             want = [n for n in range(s, NMAX + 1, s) if v['u0'] - 1e-6 <= n / 4 + 0.5 <= v['u0'] + v['span'] + 1e-6]
             assert [t for t, _ in got] == [str(n) for n in want], (name, v, s, got)
             for t, x in got:
                 assert close(x, PL + (int(t) / 4 + 0.5 - v['u0']) * (PR - PL) / v['span'], 1), (name, v, t, x)
+            j = math.ceil(v['u0'] - 1e-3) + 1                      # the first whole column in view, the harness's first(v)
+            assert tag[0] == str(COLUMNS[j - 1]) and close(tag[1], PL + (j - 0.5 - v['u0']) * (PR - PL) / v['span'], 1), (name, v, tag)
 
 
 def q_zoom_buttons_sit_beside_show_all():
@@ -2973,6 +3056,51 @@ def q_tap_and_outline():
     o = R['outline']
     assert R['outlineText'].startswith(f'n = {o["n"]}, m = {o["m"]} · '), R['outlineText']
     assert o['middle'] == o['want'] and o['left'] == o['ink'] and o['right'] == o['ink'], o
+
+
+def q_axes_tag_the_cell_read_out():
+    # Replicata: the light and phone runs: the canvas at load; then hovers, each with the draw it makes: in the full
+    # view, its four corners (n = 2 and 1024, in rows 1 and T) and a cell in the middle; in a view zoomed in 5 steps and
+    # panned right an eighth of it, its corners at the plot's very ends, where its columns are cut (the first's middle
+    # out of view, the last's in), a cell in the middle and its first whole column in row 2; then that view panned
+    # right by a whole view with the keys alone, the last press's draw.
+    # Expectata (dreeves's README, 2026-11-02: "[HOV] When hovering/clicking on cells in the charts it'd be nice to
+    # highlight the values of m and n (resp., delta and k) on the axes of the chart"): the cell read out, as the readout
+    # names it, is tagged on both axes in paper on ink (the outline's ink), each draw writing nothing else in paper: its
+    # m over its row's m label, left of the plot, the ink exactly that row's colored part and reaching past the label's
+    # right end, so no other row's label is touched; and its n on the n axis, below the plot, written on its column's
+    # middle to within a device px and the ink centered there to within 2, while that middle is in view, as an n
+    # label's must be, and no ink there otherwise.  At load, before any cell is read out, nothing is tagged: no ink in
+    # either place, nothing written in paper.  Panning with the keys alone keeps the cell read out, as the readout keeps
+    # it: its m stays tagged and its n goes with its column's middle.  (quals_pow2_page's q_axes_tag_the_cell_read_out
+    # is the same for the chart of powers of 2.)
+    # Resultata before: no tags.
+    for name in ('light', 'phone'):
+        R = valid_run(name)
+        (PL, PR), dpr, rows = R['plot'], R['dpr'], R['rows']
+        T = len(rows)
+        assert R['tags0'] == {'paper': [], 'left': None, 'below': None}, (name, R['tags0'])
+        seen = []
+        for s in R['tagHovers'] + [R['tagAway']]:
+            n, m = map(int, re.match(r'n = (\d+), m = (\d+) · ', s['text']).groups())
+            v, j = s['v'], COLUMNS.index(n) + 1
+            mid = PL + (j - 0.5 - v['u0']) * (PR - PL) / v['span']
+            shown = v['u0'] - 1e-6 <= j - 0.5 <= v['u0'] + v['span'] + 1e-6
+            seen.append((n, m, shown))
+            top, bottom = rows[T - m]                              # row m's colored part, in device px: [top, bottom)
+            ms = [(t, x, y) for t, x, y in s['paper'] if y < R['axisTop']]
+            ns = [(t, x, y) for t, x, y in s['paper'] if y >= R['axisTop']]
+            assert [t for t, _, _ in ms] == [str(m)] and ms[0][1] < PL and close(ms[0][2], (top + bottom) / 2, 1), (name, n, m, s['paper'])
+            assert [t for t, _, _ in ns] == [str(n)] * shown and all(close(x, mid, 1) for _, x, _ in ns), (name, n, m, mid, s['paper'])
+            assert s['left'] is not None, (name, n, m, s['left'])
+            X0, X1, Y0, Y1 = s['left']
+            assert (Y0, Y1 + 1) == (top, bottom) and PL - 7 * dpr <= X1, (name, n, m, s['left'], top, bottom)
+            assert (s['below'] is not None) == shown, (name, n, m, shown, s['below'])
+            assert not shown or close((s['below'][0] + s['below'][1] + 1) / 2, mid, 2), (name, n, m, mid, s['below'])
+        corners = {(2, 1, True), (2, T, True), (COLUMNS[-1], T, True), (COLUMNS[-1], 1, True)}
+        assert corners <= set(seen) and {True, False} <= {shown for *_, shown in seen[5:-1]}, (name, seen)
+        away = R['tagAway']
+        assert away['text'] == away['before'] and not seen[-1][2], (name, away['text'], away['before'], seen[-1])
 
 
 def q_phone_has_no_sideways_scroll():

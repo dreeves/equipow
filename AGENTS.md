@@ -890,3 +890,23 @@ Order-13 witness agent, 2026-10-31 from 06:05 (Claude; `scratch/w13-1008-912/`):
   - **q_residue_controls at 624:** at order 12 the enumeration mod 25 passes 2*10^8 nodes (566 s) with no vector listed, under p624's own vector mod 5, so the qual follows that vector alone through the tree's tests. A sequence with two signs swapped fails that walk at row 11.
   - **Phone layout:** `.power-sums` now scrolls past 60vh: at phone width the partitions of 912:13, 960:15 and 1008:13 were 871, 1014 and 871 px tall against 844 (q_partitions_fit_a_phone). Constructions (`data-construction`) were left off the new entries of 2^28, 2^36 and 2^47: a derivation of 2^47's size made the page 449 px wide at phone width.
   - **Environment of that session:** Linux, no wolframscript, so q_wl_returns_the_table and q_wl_stops_on_a_wrong_row did not run and `proofs/record_gaps.wl`'s new rows were checked as text only. The 26 suites that need the Mac's `_fastlp` binary, quals_progress among them, could not import, at HEAD as well. The suites hardcode the Mac Chrome path, so they ran through a throwaway wrapper; Node 20 needed `NODE_OPTIONS=--experimental-websocket`. preview.png was rebuilt by a one-off (zoom 0.40, only the title and the figure shown), the builder not being in the repo.
+- **The pinned search's results, checked on the Mac** (Claude, 2026-11-02 evening).
+  - **Witnesses:** all 26 lines in `searches/pinned/witnesses/` were decoded independently (the paper's Table 5 convention) and have exactly their claimed orders, both by synthetic division and by direct power sums, with the (-1)^m symmetry.
+  - **Data and page:** mstar.js and pow2.js regenerate byte-identically.
+  - **Suites:**
+    - quals_index 118, quals_pow2_page 23, quals_mstar 40, quals_pow2 16, quals_codes 11, quals_derivations 7;
+    - quals_record_gaps 7, including the two wolframscript quals that the Linux session could not run;
+    - quals_pinned 12: it rediscovers 544:10, 1008:13 and 1440:14, and coins reproduces the firsts.
+  - **Building the native parts on the Mac:** the Makefile's g++ lacks the C++ headers, so build them as build_native.py does: `SDK=$(xcrun --show-sdk-path); clang++ ... -isysroot $SDK -isystem $SDK/usr/include/c++/v1`, with the Makefile's other flags. The outputs are git-ignored.
+  - **Running quals_pinned:** it needs `PYTHONPATH=scratch/lower24-design/beyond1000/pylib` for fpylll.
+  - **preview.png** was rebuilt with the canonical builder (`scratch/record-20261025/page/preview.py 0.40`); the committed one had Linux fonts.
+  - **Dates:** the commit's changelog and quals say 2026-11-03, the Linux session's UTC date; it was 2026-11-02 in Pacific time. That is pinned in about 40 places, so it was left alone.
+- **Search allocation as a bandit** (2026-11-02 23:48 PST; dreeves: "faster search sounds good; 768:13 and 720:13 would be awesome. but be systematic about this. can we model this as a multi-armed bandit problem?"). Two Claude sub-agents:
+  - **`scratch/bandit-20261103/`: the model.**
+    - An arm is (open cell, method). Its rate λ = θ·r: r is measured as model E·p per CPU-hour from preflights, and θ's prior per method family is fitted on past runs' exposures and successes (Poisson).
+    - Rewards are one-shot and arms deteriorate as they fail, so the index is the posterior expected results per CPU-hour.
+    - 432:12 is the deterministic arm, by its remaining CPU.
+    - Speedups are valued as rate multipliers.
+  - **`scratch/pinned-fast-20261103/`: faster fixed-sign generation** for searches/pinned (the README's "1000 times faster (C++, incremental coset updates)"). It works on a copy, with exact coset checks kept and quals red first.
+  - Neither launches long searches or touches 432's processes.
+- **Recording of 2^56 (δ 7) and 2^58 (δ 8)** in progress (sub-agent, `scratch/firsts-56-58/`).

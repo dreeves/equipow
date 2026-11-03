@@ -177,7 +177,13 @@ try {
   for (let e = 1; e <= E; e++) {                                   // centered on its row's colored part
     es.append(at(el('span', '', String(e)), {top: `${(E - e) * ROW}px`, lineHeight: `${ROW - GAP}px`}));
   }
-  es.append(el('i', '', 'δ'));
+  // The cell read out on the axes (dreeves's README, 2026-11-02: "[HOV] When hovering/clicking on cells in the charts
+  // it'd be nice to highlight the values of m and n (resp., delta and k) on the axes of the chart"), as the m*(n) chart
+  // tags its m and n: its δ over its row's δ label (etag) and its k on the k labels' line under its column's middle
+  // (ktag, last in ks, over any label there), each in paper on ink, as tall as a row's colored part; both hidden until a
+  // cell is read out, and the k also while its column's middle is out of view, as the k labels are (shows).
+  const [etag, ktag] = Array.from({length: 2}, () => at(el('span', 'pow2-tag', ''), {lineHeight: `${ROW - GAP}px`}));
+  es.append(el('i', '', 'δ'), etag);
   // The rings and the outline lie in a frame 2 px larger than the plot on every side, which clips them where the view
   // ends, as the m*(n) chart clips its rings.  place(div, c, e, side, u0, span) puts div around the cell of column c
   // and row e in the view [u0, u0 + span): side px out at its sides, 2 px above and below.
@@ -190,16 +196,22 @@ try {
   chart.append(es, plot, el('i', 'pow2-k', 'k'), ks);
   const TENS = Array.from({length: Math.floor(K / 10)}, (_, i) => 10 * i + 10);     // the k labeled below the plot
   function draw(u0, span, picked) {                                // the view [u0, u0 + span) and the cell read out
+    const shows = k => u0 <= k - 0.5 && k - 0.5 <= u0 + span;      // whether column k's middle is in view
     svg.setAttribute('viewBox', `${u0} 0 ${span} ${E * ROW}`);
     trims.forEach(([k, e], i) => place(rings[i], k - 1, e, 1, u0, span));
     proven.forEach(([k, e], i) => at(dots[i], {left: `calc(${(k - 0.5 - u0) / span} * (100% - 4px) + 2px)`,   // its middle,
       top: `${(E - e) * ROW + 2 + (ROW - GAP) / 2}px`, width: `min(${0.5 / span} * (100% - 4px), ${(ROW - GAP) / 2}px)`}));
-    outline.hidden = picked.length === 0;
-    picked.forEach(([c, e]) => place(outline, c, e, 2, u0, span));
-    ks.replaceChildren(...TENS.filter(k => u0 <= k - 0.5 && k - 0.5 <= u0 + span).flatMap(k => {
+    outline.hidden = etag.hidden = picked.length === 0;
+    ktag.hidden = !picked.some(([c]) => shows(c + 1));
+    picked.forEach(([c, e]) => {
+      place(outline, c, e, 2, u0, span);
+      at(etag, {top: `${(E - e) * ROW}px`}).textContent = String(e);
+      at(ktag, {left: `${(c + 0.5 - u0) / span * 100}%`}).textContent = String(c + 1);
+    });
+    ks.replaceChildren(...TENS.filter(shows).flatMap(k => {
       const left = `${(k - 0.5 - u0) / span * 100}%`;              // under the middle of column k
       return [at(el('span', 'pow2-tick', ''), {left}), at(el('span', 'pow2-klabel', String(k)), {left})];
-    }));
+    }), ktag);
   }
   const plotBox = () => { const a = chart.getBoundingClientRect(), b = svg.getBoundingClientRect();
     return {left: b.left - a.left, top: b.top - a.top, width: b.width}; };
