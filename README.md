@@ -13,7 +13,7 @@ Potential tasks:
 * [FAC] Finish reorganizing the files: quals and search stuff in their own directories, certificates?, favicons etc in an images directory?
 * [SER] Could the searches show a live estimate of the probability of finding a bipartition?
 * [HOV] When hovering/clicking on cells in the charts it'd be nice to highlight the values of m and n (resp., delta and k) on the axes of the chart
-* [APP] Eyeballing the charts it looks like maybe m*(n) ~= 1.2*log2(n) or something; any interesting conjectures on the asymptotics here?
+* [APP] Eyeballing the charts it looks like maybe `m*(n) ~= 1.2*log2(n)` or something; any interesting conjectures on the asymptotics here? PS: For powers of two we already have something like this: `m*(2^k) = c*log2(n)` where `c` is at least `77/68` and at most `2/log2(3)`. Relatedly, the upper envelope of `m*(n)` is at least `12/log2(480) log2(n)` ~= 1.347 which we get from Theorem 4.1 (Multiplication) of BGPW which tells us that `m*(n^k) >= k m*(n)`. Namely, `m*(480^k) >= 12k` so for certain `n`, `m*(n) >= 12 log_480(n) = 12 log2(n) / log2(480) = 12/log2(480) log2(n)`. So whenever we find a new high watermark for `m*(n)/log2(n)` that bumps up the upper envelope for the `m*()` function. Currently the best we have is 480:12. The following would beat that: 432:12, 672:13, 720: 13, 960:14.
 
 
 Stan notes:
