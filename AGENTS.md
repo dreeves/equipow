@@ -910,3 +910,10 @@ Order-13 witness agent, 2026-10-31 from 06:05 (Claude; `scratch/w13-1008-912/`):
   - **`scratch/pinned-fast-20261103/`: faster fixed-sign generation** for searches/pinned (the README's "1000 times faster (C++, incremental coset updates)"). It works on a copy, with exact coset checks kept and quals red first.
   - Neither launches long searches or touches 432's processes.
 - **Recording of 2^56 (δ 7) and 2^58 (δ 8)** in progress (sub-agent, `scratch/firsts-56-58/`).
+- **Pin trees** (Claude Opus 5.5, 2026-11-03, `searches/pintree/`, whose README explains the method; `proofs/pintree.py`'s docstring states the argument): exact proofs that no sequence has order 12 at 432 or order 13 at 816, so m*(432) = 11, a(11) = 480 in A323395, and m*(816) = 12.
+  - **What is new:** the parity coset `rep + 2 L(M, m)` at M = 2^k (mod 8 vectors fall 20 to 108 times; the running searches do not use it), certificates reused across nodes (over 90% of closures), and splitting only on residue sums, adaptively, never on a sign.
+  - **Trust:** the LP only suggests. `proofs/pintree.py` and `proofs/pintree_second.py` share no code, use only the standard library and accept both proofs with the same counts; the second took 64 minutes on 12 processes on 816:13, by hand, not in quals_pintree.
+  - **Not reached:** other open cells have loose nodes; the README has rough costs, from 200 CPU-days (480:14) up. These estimates may help the bandit in `scratch/bandit-20261103/`.
+  - **The Mac's 432:12 run** is an independent route to the same answer. Whether to stop it is dreeves's call; progress.js and the page's Search progress section still show it.
+  - **Environment of that session:** Linux, Python 3.11; quals_record_gaps' two wolframscript quals and the 26 suites that need the Mac's `_fastlp` did not run. preview.png still shows 432 and 816 as open: rebuild it with `scratch/record-20261025/page/preview.py 0.40`, which only the Mac has.
+  - **highspy:** `searches/pintree/pintree_prove.py` needs it; on Linux it clashes with ortools (through mstar.py) in one process, so quals_pintree runs the prover in processes of its own.
