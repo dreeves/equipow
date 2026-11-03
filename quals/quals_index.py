@@ -977,13 +977,18 @@ def smallest_rows(cols):
     highlighted in the chart?"; until then the rows stopped at the largest order known at some n.)  The least length
     known is best[m] = min(the least n whose lower bound is at least m, best[a] best[m - a] for 0 < a < m), a product
     f(x) g(x^n), n the length of f, having order at least the sum of theirs (dreeves's README, 2026-10-31, [MIN]; until
-    then — where no n up to NMAX was known to reach m)."""
+    then — where no n up to NMAX was known to reach m).  Then one row more, for the next order, which no n up to NMAX
+    allows: "> NMAX" not ruled out, and its least product (dreeves's README, 2026-11-03: "[LIN] Add one more line for
+    m=16 to the "smallest length known for each order" table"; until then the rows stopped at the largest order allowed)."""
     best = {}
     for m, known, _ in least_columns(cols):
         best[m] = min([known or math.inf] + [best[a] * best[m - a] for a in range(1, m)])
+    top = len(best) + 1
+    best[top] = min(best[a] * best[top - a] for a in range(1, top))
     assert all(type(b) is int for b in best.values()), best
     # in the chart's order, the n not ruled out before the n known, the check mark last ([FLP], 2026-10-31)
-    return [[str(m), str(possible), str(best[m]), '✓' if best[m] == possible else ''] for m, _, possible in least_columns(cols)]
+    return ([[str(m), str(possible), str(best[m]), '✓' if best[m] == possible else ''] for m, _, possible in least_columns(cols)]
+            + [[str(top), f'> {NMAX}', str(best[top]), '']])
 
 
 def a323395_cells(cols):
@@ -3483,7 +3488,7 @@ def q_smallest_table_matches_mstar():
     # Replicata: the table of smallest lengths as the page draws it (smallest_table); and smallest_rows of MSTAR
     # (mstar_data), computed here.
     # Expectata: the table's body holds exactly smallest_rows' rows, in order, through the largest order some n's upper
-    # bound allows (since 2026-10-30), with a product of lesser orders' lengths where that is less than the chart's, as
+    # bound allows (since 2026-10-30) and one order more (since 2026-11-03, [LIN]), with a product of lesser orders' lengths where that is less than the chart's, as
     # beyond the chart (since 2026-10-31, [MIN]; until then — where no n up to NMAX was known to reach m); the first
     # twelve orders' smallest lengths are SMALLEST_PROVEN, each marked proven (480 added on 2026-11-03 after the pin tree of 432:12; 432 added on 2026-10-20 after
     # proof384.py).
@@ -3535,9 +3540,11 @@ def q_smallest_lengths_go_past_the_chart():
     # order 15, the least n not ruled out being 480 and 960.  (From 2026-10-31 until then no n up to 1024 was known to reach them, and they had products: 1920 = 960 · 2
     # (960 = 480 · 2, the chart's least n of order 13, and 480 of order 12) and 3840 = 1920 · 2, each less than [MIN]'s 2^13 and 2^14, and neither proven least.)
     # Resultata before: — at orders 14 and 15.
+    # And since 2026-11-03 ([LIN]: "Add one more line for m=16"), order 16, which no n up to 1024 allows: not ruled out
+    # only past 1024, and reached at 1920 = 960 · 2, its example of order 15 times Thue–Morse's of order 1 at 2.
     rows = smallest_table()
     assert all(re.fullmatch(r'\d+', r[2]) for r in rows), rows
-    assert rows[13:] == [['14', '480', '960', ''], ['15', '960', '960', '✓']], rows[13:]
+    assert rows[13:] == [['14', '480', '960', ''], ['15', '960', '960', '✓'], ['16', '> 1024', '1920', '']], rows[13:]
 
 
 def q_smallest_known_is_the_least_product_of_the_chart_s_lengths():
@@ -3583,8 +3590,10 @@ def q_smallest_columns_follow_the_chart():
     assert head, 'no header for the table of smallest lengths'
     assert re.findall(r'<th>(.*?)</th>', head.group(1)) == [
         'order \\(m\\)', 'smallest \\(n\\) not ruled out', 'smallest known \\(n\\)', 'proven smallest'], head.group(1)
+    # "> N" (since 2026-11-03, [LIN]: the order past the chart) means at least N + 1.
     rows = smallest_table()
-    assert all(int(r[1]) <= int(r[2]) and r[3] == ('✓' if r[1] == r[2] else '') for r in rows), rows
+    least = lambda t: int(t[2:]) + 1 if t.startswith('> ') else int(t)
+    assert all(least(r[1]) <= int(r[2]) and r[3] == ('✓' if r[1] == r[2] else '') for r in rows), rows
 
 
 def q_smallest_script_passes_node_check():
