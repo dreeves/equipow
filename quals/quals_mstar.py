@@ -358,7 +358,8 @@ def q_explicit_sources_exact():
 def q_schema():
     # Replicata: mstar.js on disk: its text, and the file run as a classic script by node.
     # Expectata: comment lines, then the single statement "const MSTAR = {...};" whose object is JSON, so the file
-    # defines exactly one global (node sees no other); keys nmax, mtop, cols; nmax = 1024 (1000 until 2026-10-27, when
+    # defines exactly one global (node sees no other); keys nmax, mtop, mtopAt (since 2026-11-03, README [LIN]), cols;
+    # mtopAt an even integer above nmax; nmax = 1024 (1000 until 2026-10-27, when
     # the chart reached 1024 at dreeves's and Stan Wagon's request); 1024 columns, each
     # [lo, hi, loWhy, hiWhy] with integers 0 <= lo <= hi < mtop = max hi + 1 (so row mtop is red in every column);
     # every reason has its contract form; ["none"] and ["odd"] exactly at odd n.
@@ -367,7 +368,8 @@ def q_schema():
     assert body.startswith('const MSTAR = ') and body.endswith('};\n') and body.count(';') == 1, body[:80]
     assert json.loads(body[len('const MSTAR = '):-2]) == got['m'] and got['keys'] == [], got['keys']
     M = got['m']
-    assert list(M) == ['nmax', 'mtop', 'cols'] and M['nmax'] == 1024 == mstar.NMAX and len(M['cols']) == 1024
+    assert list(M) == ['nmax', 'mtop', 'mtopAt', 'cols'] and M['nmax'] == 1024 == mstar.NMAX and len(M['cols']) == 1024
+    assert type(M['mtopAt']) is int and M['mtopAt'] > M['nmax'] and M['mtopAt'] % 2 == 0, M['mtopAt']
     T = M['mtop']
     assert type(T) is int and T == max(c[1] for c in M['cols']) + 1
     forms_lo = {'none': (), 'example': (str,), 'join': (int, int), 'product': (int, int), 'table2': (),
@@ -768,6 +770,25 @@ def v5_admissible(n, order, M, fixed):
     finally:
         v5.N = saved
         for f in v5.CACHED: f.cache_clear()
+
+
+def q_mtop_is_open_first_at_1440_past_the_chart():
+    # Replicata: mstar.js's mtop and mtopAt, and mstar.mtop_at(16) computed now.
+    # Expectata (dreeves's README, 2026-11-03: "[LIN] Add one more line for m=16 to the "smallest length known for each
+    # order" table", then "yes, 1440 instead of ">1024" if that's all we know so far. we don't need to spend serious
+    # effort tightening that"): mtopAt is the least n past NMAX that the chart's own upper-bound tests leave open at
+    # order mtop = 16: two(n) and norm(n, p) for the primes of PRIMES not dividing n, then every chain of CHAINS in both
+    # sweeps through chain_none at MTOP_CAP nodes, where a capped enumeration rules nothing out.  That n is 1440
+    # (scratch/lin16-20261103/, 2026-11-03).  Below it: norm mod 5 rules out 1056, 1152 and 1248, and 1344 passes two
+    # and norm but no vector mod 5 is admissible; at 1440, two and norm allow order 16.
+    # Resultata before: mstar.js had no mtopAt, and the table's order-16 row read "> 1024".
+    _, got = disk()
+    M = got['m']
+    assert M['mtop'] == 16 and M.get('mtopAt') == 1440 == mstar.mtop_at(16), (M['mtop'], M.get('mtopAt'))
+    tests = lambda n: min([mstar.two(n)] + [mstar.norm(n, p) for p in mstar.PRIMES if n % p])
+    assert [mstar.norm(n, 5) for n in (1056, 1152, 1248)] == [15, 15, 15]
+    assert tests(1344) >= 16 and mstar.chain_none(1344, 16, (5,), 'digits', mstar.MTOP_CAP)
+    assert tests(1440) >= 16
 
 
 def q_digits_order():

@@ -816,7 +816,7 @@ def kinds_data(violation=None):
                  (20, [3, 3, ['page', 'Claude alone'], ['two']]), (24, [4, 5, ['example', 'BGPW Table 5'], ['residue', 9]]),
                  (32, [5, 7, ['product', 16, 2], ['norm', 5]]), (48, [6, 7, ['table2'], ['norm', 7]])):
         cols[n - 1] = c
-    data = {'nmax': NMAX, 'mtop': max(c[1] for c in cols) + 1, 'cols': cols}
+    data = {'nmax': NMAX, 'mtop': max(c[1] for c in cols) + 1, 'mtopAt': NMAX + 2, 'cols': cols}
     VIOLATIONS.get(violation, (lambda data: None,))[0](data)
     return 'const MSTAR = ' + json.dumps(data) + ';\n'
 
@@ -848,6 +848,7 @@ VIOLATIONS = {   # name: (a change that breaks the contract, what the page's err
     'hi at mtop': (column(100, [1, 8, ['example', 'x'], ['residue', 3]]), "[100,[1,8,['example','x'],['residue',3]]]"),
     'mtop': (lambda data: data.update(mtop=9), '[9]'),
     'nmax': (lambda data: data.update(nmax=999), '[999,8]'),
+    'mtopAt': (lambda data: data.update(mtopAt=NMAX), f'[{NMAX}]'),   # not past the chart (since 2026-11-03, [LIN])
 }
 
 
@@ -970,25 +971,28 @@ SMALLEST_PROVEN = (2, 4, 8, 16, 32, 48, 96, 144, 192, 240, 432, 480)
 PROVEN_CELLS = [(n, m) for m, n in enumerate(SMALLEST_PROVEN, 1)] + [(960, 15)]   # the cells (n, m) proven least: (960, 15) since 2026-11-03
 
 
-def smallest_rows(cols):
+def smallest_rows(data):
     """The rows the section's script makes from MSTAR's cols, computed here: for each order m from 1 while some n's upper
     bound allows m (least_columns), the texts of m, the least length known to reach m, a check mark if that is also the
     least n whose upper bound is at least m (else nothing), and that least n.  (dreeves, 2026-10-30: "why isn't 480:14
     highlighted in the chart?"; until then the rows stopped at the largest order known at some n.)  The least length
     known is best[m] = min(the least n whose lower bound is at least m, best[a] best[m - a] for 0 < a < m), a product
     f(x) g(x^n), n the length of f, having order at least the sum of theirs (dreeves's README, 2026-10-31, [MIN]; until
-    then — where no n up to NMAX was known to reach m).  Then one row more, for the next order, which no n up to NMAX
-    allows: "> NMAX" not ruled out, and its least product (dreeves's README, 2026-11-03: "[LIN] Add one more line for
-    m=16 to the "smallest length known for each order" table"; until then the rows stopped at the largest order allowed)."""
+    then — where no n up to NMAX was known to reach m).  Then one row more, for mtop, the order no n up to NMAX allows:
+    not ruled out first at mtopAt, the least n past NMAX that the chart's own tests leave open (mstar.mtop_at), and
+    reached first at its least product (dreeves's README, 2026-11-03: "[LIN] Add one more line for m=16 to the
+    "smallest length known for each order" table", then "yes, 1440 instead of ">1024" if that's all we know so far";
+    until then the rows stopped at the largest order allowed)."""
+    cols, top, at = data['cols'], data['mtop'], data['mtopAt']
     best = {}
     for m, known, _ in least_columns(cols):
         best[m] = min([known or math.inf] + [best[a] * best[m - a] for a in range(1, m)])
-    top = len(best) + 1
+    assert top == len(best) + 1, (top, len(best))
     best[top] = min(best[a] * best[top - a] for a in range(1, top))
     assert all(type(b) is int for b in best.values()), best
+    rows = [(m, possible) for m, _, possible in least_columns(cols)] + [(top, at)]
     # in the chart's order, the n not ruled out before the n known, the check mark last ([FLP], 2026-10-31)
-    return ([[str(m), str(possible), str(best[m]), '✓' if best[m] == possible else ''] for m, _, possible in least_columns(cols)]
-            + [[str(top), f'> {NMAX}', str(best[top]), '']])
+    return [[str(m), str(possible), str(best[m]), '✓' if best[m] == possible else ''] for m, possible in rows]
 
 
 def a323395_cells(cols):
@@ -1025,7 +1029,7 @@ def q_384_proof_is_linked():
     remark = re.search(r'<li class="a" id="proof384">(.*?)</li>', text, re.S)
     assert remark, 'no remark for 384'
     assert 'href="proof384.py"' in remark.group(1) and '\\(m^* = 10\\)' in remark.group(1), remark.group(1)[:300]
-    assert smallest_rows(mstar_data()['cols'])[10] == ['11', '432', '432', '✓']
+    assert smallest_rows(mstar_data())[10] == ['11', '432', '432', '✓']
 
 
 def q_section_follows_table2():
@@ -3212,7 +3216,7 @@ def q_contract_violations_fail_loudly():
     # arguments; a join of lengths that do not add up to n; a join or product claiming more than its parts give; "two"
     # with the wrong hi; "norm" for a prime dividing n, and for a composite; "table2" at an n not in Table 2; "page" for
     # a provenance the page does not use; an example with an empty label; "none" or "odd" at an even n; an example at
-    # an odd n; a column of five entries; hi at mtop; mtop above max hi + 1; nmax not 1024.
+    # an odd n; a column of five entries; hi at mtop; mtop above max hi + 1; nmax not 1024; mtopAt not past nmax.
     # Expectata: in each case the canvas stays 0 px tall and the readout ends with the error, which quotes the
     # offending column as JSON (or mtop, or nmax and mtop), and the error is uncaught.
     for v, (_, quoted) in VIOLATIONS.items():
@@ -3493,7 +3497,7 @@ def q_smallest_table_matches_mstar():
     # twelve orders' smallest lengths are SMALLEST_PROVEN, each marked proven (480 added on 2026-11-03 after the pin tree of 432:12; 432 added on 2026-10-20 after
     # proof384.py).
     got = smallest_table()
-    want = smallest_rows(mstar_data()['cols'])
+    want = smallest_rows(mstar_data())
     assert got == want, (got, want)
     proven = got[:len(SMALLEST_PROVEN)]
     assert [r[2] for r in proven] == [str(n) for n in SMALLEST_PROVEN] and all(r[3] == '✓' for r in proven), proven
@@ -3540,11 +3544,12 @@ def q_smallest_lengths_go_past_the_chart():
     # order 15, the least n not ruled out being 480 and 960.  (From 2026-10-31 until then no n up to 1024 was known to reach them, and they had products: 1920 = 960 · 2
     # (960 = 480 · 2, the chart's least n of order 13, and 480 of order 12) and 3840 = 1920 · 2, each less than [MIN]'s 2^13 and 2^14, and neither proven least.)
     # Resultata before: — at orders 14 and 15.
-    # And since 2026-11-03 ([LIN]: "Add one more line for m=16"), order 16, which no n up to 1024 allows: not ruled out
-    # only past 1024, and reached at 1920 = 960 · 2, its example of order 15 times Thue–Morse's of order 1 at 2.
+    # And since 2026-11-03 ([LIN]: "Add one more line for m=16", then "yes, 1440 instead of ">1024" if that's all we
+    # know so far"), order 16, which no n up to 1024 allows: not ruled out first at 1440 (mstar.js's mtopAt), and
+    # reached at 1920 = 960 · 2, its example of order 15 times Thue–Morse's of order 1 at 2.
     rows = smallest_table()
     assert all(re.fullmatch(r'\d+', r[2]) for r in rows), rows
-    assert rows[13:] == [['14', '480', '960', ''], ['15', '960', '960', '✓'], ['16', '> 1024', '1920', '']], rows[13:]
+    assert rows[13:] == [['14', '480', '960', ''], ['15', '960', '960', '✓'], ['16', '1440', '1920', '']], rows[13:]
 
 
 def q_smallest_known_is_the_least_product_of_the_chart_s_lengths():
@@ -3590,10 +3595,8 @@ def q_smallest_columns_follow_the_chart():
     assert head, 'no header for the table of smallest lengths'
     assert re.findall(r'<th>(.*?)</th>', head.group(1)) == [
         'order \\(m\\)', 'smallest \\(n\\) not ruled out', 'smallest known \\(n\\)', 'proven smallest'], head.group(1)
-    # "> N" (since 2026-11-03, [LIN]: the order past the chart) means at least N + 1.
     rows = smallest_table()
-    least = lambda t: int(t[2:]) + 1 if t.startswith('> ') else int(t)
-    assert all(least(r[1]) <= int(r[2]) and r[3] == ('✓' if r[1] == r[2] else '') for r in rows), rows
+    assert all(int(r[1]) <= int(r[2]) and r[3] == ('✓' if r[1] == r[2] else '') for r in rows), rows
 
 
 def q_smallest_script_passes_node_check():

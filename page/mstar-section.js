@@ -89,6 +89,7 @@ try {
     assert(n % 4 !== 2 || (lo === 1 && hi === 1), n, c);           // why such n, but 2, need no column
   });
   assert(D.mtop === Math.max(...D.cols.map(c => c[1])) + 1, D.mtop);
+  assert(Number.isInteger(D.mtopAt) && D.mtopAt > D.nmax && D.mtopAt % 2 === 0, D.mtopAt);   // past the chart ([LIN])
 
   const KIND = ['exists', 'open', 'impossible'];                  // the colors' tokens, by kind of cell
   const kindOf = (n, m) => m <= D.cols[n - 1][0] ? 0 : m <= D.cols[n - 1][1] ? 1 : 2;

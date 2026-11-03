@@ -6,6 +6,7 @@ LittlewoodPolynomialsReprint.pdf is the published version of the paper this is e
 ---
 
 Potential tasks: 
+* [NUM] Number the tables and charts for easier reference. To avoid confusion with BGPW's Table 2 I guess we could just omit "Table 1" and start with our extended results as "Table 3"?
 * [SYM] What's currently the most promising way to prove or disprove the Symmetry Conjecture?
   Astra suggests:
   1. Prove symmetric order 10 impossible at 288, using the symmetry-restricted lattice, residue constraints, and exact infeasibility certificates. This is substantially smaller than the unrestricted problem.
