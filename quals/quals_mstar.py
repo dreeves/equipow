@@ -529,11 +529,11 @@ def q_gray_columns():
     # symmetric example of order 12 that replaced it as p1008, found by w12.py); and less 688, settled at 10 on
     # 2026-11-01 (lo from the page's example p688, found by w10s.py: q_example_at_688_settles_it; hi by the residue
     # condition mod 3); and less 544, settled at 10, 576 and 624 at 12, 912 and 1008 at 13 and 960 at 15 on 2026-11-03 (lo from the page's examples, found by
-    # searches/pinned/: q_results_of_2026_11_03; hi as before).
+    # searches/pinned/: q_results_of_2026_11_03; hi as before); and less 432, settled at 11, and 816, settled at 12, later that day (lo as before; hi by their pin trees: q_pin_trees_settle_432_and_816).
     _, got = disk()
     gray = tuple(n for n, c in enumerate(got['m']['cols'], 1) if c[0] < c[1])
     tens, elevens = (592, 608, 656, 688, 752, 784), (832, 848, 880, 896, 928, 944, 976, 992)
-    assert gray == tuple(n for n in USER_GRAY if n not in (240, 384, 560, 640, 704, 736, 800) + tens + elevens + (544, 576, 624, 912, 960, 1008)), gray
+    assert gray == tuple(n for n in USER_GRAY if n not in (240, 384, 560, 640, 704, 736, 800) + tens + elevens + (432, 544, 576, 624, 816, 912, 960, 1008)), gray
     assert [got['m']['cols'][n - 1][:2] for n in (240, 384, 560, 640, 704, 736, 800)] == [[10, 10]] * 6 + [[11, 11]]
     assert [got['m']['cols'][n - 1][:3] for n in tens + elevens] == [[10, 10, ['example', f'equipow p{n}']] for n in tens] \
         + [[11, 11, ['example', f'equipow p{n}']] for n in elevens]
@@ -618,12 +618,12 @@ def q_example_at_816_raises_its_lo():
     # Replicata: mstar.NEW and mstar.js's column at 816, and mstar.NEW at 2^41.
     # Expectata (2026-10-26: Claude's lattice search, w11.py at 816 without go800f's last-orbit table, found an
     # antisymmetric example of order 11 there; 2026-10-28: w12.py found a symmetric example of order 12 there, which
-    # replaced it as p816): 816 is 12 to 14, Claude alone, its lo the page's example
-    # (["example", "equipow p816"]) and its hi still the norm bound for the residue sums mod 5; and 2^41 is 46 to 50
+    # replaced it as p816): 816 is 12, Claude alone, its lo the page's example
+    # (["example", "equipow p816"]) and its hi, since 2026-11-03, its pin tree (q_pin_trees_settle_432_and_816: 12 to 14 until then, its hi the norm bound for the residue sums mod 5); and 2^41 is 46 to 50
     # (45 to 50 before), 816 being among the blocks of the first power of 2 known to beat Thue-Morse by 5.
     _, got = disk()
     cs = got['m']['cols']
-    assert mstar.NEW[816] == (12, 14, 'Claude alone') and cs[816 - 1] == [12, 14, ['example', 'equipow p816'], ['norm', 5]], cs[816 - 1]
+    assert mstar.NEW[816] == (12, 12, 'Claude alone') and cs[816 - 1] == [12, 12, ['example', 'equipow p816'], ['page', 'Claude alone']], cs[816 - 1]
     assert mstar.NEW[2 ** 41] == (46, 50, 'Claude alone'), mstar.NEW[2 ** 41]
 
 
@@ -725,6 +725,19 @@ def q_results_of_2026_11_03():
                      (960, 15, ['residue', 7]), (1008, 13, ['residue', 5])):
         assert mstar.NEW[n] == (m, m, 'Claude alone'), (n, mstar.NEW[n])
         assert cs[n - 1] == [m, m, ['example', f'equipow p{n}'], hw], (n, cs[n - 1])
+
+
+def q_pin_trees_settle_432_and_816():
+    # Replicata: mstar.NEW and mstar.js's columns at 432 and 816, and the proof files that the page cites for their upper bounds.
+    # Expectata (2026-11-03: proofs/pintree_432_12.json.gz and proofs/pintree_816_13.json.gz, which proofs/pintree.py and proofs/pintree_second.py check: quals_pintree): 432 is settled at 11 and 816 at 12, Claude alone, each lo still the
+    # page's example, each hi the page's proof; every n below 480 then has hi below 12, so that 480, which has an example of order 12, is the smallest length of order 12.
+    # Resultata before: 432 was 11 to 12, its hi the residue condition mod 5 at order 13; 816 was 12 to 14, its hi the norm bound mod 5 at order 15.
+    _, got = disk()
+    cs = got['m']['cols']
+    assert mstar.NEW[432] == (11, 11, 'Claude alone') and cs[432 - 1] == [11, 11, ['example', 'equipow p432'], ['page', 'Claude alone']], cs[432 - 1]
+    assert mstar.NEW[816] == (12, 12, 'Claude alone') and cs[816 - 1] == [12, 12, ['example', 'equipow p816'], ['page', 'Claude alone']], cs[816 - 1]
+    assert next(n for n, c in enumerate(cs, 1) if c[1] >= 12) == 480 and cs[480 - 1][0] == 12
+    for name in ('pintree_432_12.json.gz', 'pintree_816_13.json.gz'): assert os.path.exists(os.path.join(HERE, 'proofs', name)), name
 
 
 # ---------- residue tests ----------

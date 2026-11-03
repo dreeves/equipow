@@ -960,8 +960,8 @@ def close(a, b, tol): return abs(a - b) <= tol
 
 # The section "The smallest length known for each order" (Stan Wagon's suggestion, relayed 2026-10-17: "keep track of a
 # table that shows the first n that gives 1,2,3,4,5,…,12"; dreeves: "yeah").  Orders 1 to 11 have their smallest
-# lengths proven: OEIS A323395's a(0) to a(8), 240 as a(9), and (2026-10-20) 432 as a(10), after proof384.py.
-SMALLEST_PROVEN = (2, 4, 8, 16, 32, 48, 96, 144, 192, 240, 432)
+# lengths proven: OEIS A323395's a(0) to a(8), 240 as a(9), and (2026-10-20) 432 as a(10), after proof384.py; and order 12 too, since 2026-11-03: 480 as a(11), after the pin tree of 432:12.
+SMALLEST_PROVEN = (2, 4, 8, 16, 32, 48, 96, 144, 192, 240, 432, 480)
 PROVEN_CELLS = [(n, m) for m, n in enumerate(SMALLEST_PROVEN, 1)] + [(960, 15)]   # the cells (n, m) proven least: (960, 15) since 2026-11-03
 
 
@@ -1934,16 +1934,16 @@ def q_example_at_816_has_its_entry_and_code():
     # and 816.
     # Expectata (2026-10-26: Claude's lattice search found an antisymmetric example of order 11 at 816, which the
     # norm bound for the residue sums mod 5 leaves at 11 to 14; 2026-10-28: w12.py found a symmetric example of order
-    # 12 there, which replaced it and its code): 816 has an entry of its own, "m* ∈ {12, 13, 14}", an
+    # 12 there, which replaced it and its code; 2026-11-03: a pin tree rules order 13 out): 816 has an entry of its own, "m* = 12" ("m* ∈ {12, 13, 14}" until 2026-11-03), an
     # <li class="c"> marked ◆, right after 800's and before 832's (its wording unpinned since 2026-10-30); its
     # one code block, p816 of order 12, whose signs have order exactly 12 (synthetic division here) and are
     # symmetric (its set SClaude[12][816] left the page on 2026-10-31); 720's entry alone
     # (it shared one with 816 before; its own example since 2026-10-27,
-    # q_examples_at_720_and_1008_have_their_entries_and_codes); the cell 816 of value 12–14; and mstar.js's
-    # column 816 is [12, 14, ["example", "equipow p816"], ["norm", 5]].
+    # q_examples_at_720_and_1008_have_their_entries_and_codes); the cell 816 of value 12 (12–14 until 2026-11-03); and mstar.js's
+    # column 816 is [12, 12, ["example", "equipow p816"], ["page", "Claude alone"]] ([12, 14, ["example", "equipow p816"], ["norm", 5]] until 2026-11-03).
     text = page()
     li = re.search(r'<li class="c">\n      <span class="mk" aria-hidden="true">◆</span>\n      <p class="entry">\\\(n = '
-                   r'816\\\): &nbsp;\\\(m\^\* \\in \\\{12, 13, 14\\\}\\\)</p>\n(.*?)\n    </li>', text, re.S)
+                   r'816\\\): &nbsp;\\\(m\^\* = 12\\\)</p>\n(.*?)\n    </li>', text, re.S)
     assert li, 'no entry of 816 alone'
     codes = re.findall(r'<p class="code">\n        <span>\\\(p_\{(\d+)\}\\\) \\\(\(m = (\d+)\)\\\):</span>\n'
                        r'        <code id="\d+:\d+">([0-9A-F]+)</code>\n      </p>', li.group(1))
@@ -1957,8 +1957,8 @@ def q_example_at_816_has_its_entry_and_code():
     listed = [ns.split(', ') for ns in re.findall(r'<p class="entry">\\\(n = (.*?)\\\): ', text)]
     i = listed.index(['816'])
     assert listed[i - 1:i + 2] == [['800'], ['816'], ['832']] and ['720'] in listed, listed
-    assert new_cells(text)[816] == (12, 14), new_cells(text)[816]
-    assert mstar_data()['cols'][816 - 1] == [12, 14, ['example', 'equipow p816'], ['norm', 5]], mstar_data()['cols'][816 - 1]
+    assert new_cells(text)[816] == (12, 12), new_cells(text)[816]
+    assert mstar_data()['cols'][816 - 1] == [12, 12, ['example', 'equipow p816'], ['page', 'Claude alone']], mstar_data()['cols'][816 - 1]
 
 
 def q_examples_at_720_and_1008_have_their_entries_and_codes():
@@ -2297,6 +2297,34 @@ def q_firsts_move_to_2_56_and_2_58():
         names_base(text, k, base, t, order)
 
 
+def q_pin_trees_are_on_the_page():
+    # Replicata: the remarks' entries of 432 and 816, the new results' cells, the changelog's statements of 2026-11-03, the section of the pin trees, the OEIS note on A323395, the table of smallest lengths, and mstar.js.
+    # Expectata (the user, 2026-11-03: "let's add them to the github, including an explanation of how the new stuff works"): 432's entry says m* = 11 and 816's m* = 12, each with its code still there and a Claude paragraph linking its proof file; the cells read 11 and 12;
+    # the changelog states m*(432) = 11 and m*(816) = 12 on that day; a section explains the method (a <section class="pintree"> with its h2 and a Claude block quote), states each proof's certificates, and links both checkers, both proofs and searches/pintree;
+    # A323395's note says this page proves a(11) = 480; the table's row for order 12 is 480, 480, proven.
+    # Resultata before: 432 was 11 to 12 and 816 was 12 to 14; A323395's note said a(11) is 432 or 480.
+    text = page()
+    GH = 'https://github.com/dreeves/equipow/blob/main/'
+    for n, M, proof in ((432, 11, 'pintree_432_12.json.gz'), (816, 12, 'pintree_816_13.json.gz')):
+        li = re.search(r'<li class="c">\n      <span class="mk" aria-hidden="true">◆</span>\n      <p class="entry">\\\(n = %d\\\): &nbsp;\\\(m\^\* = %d\\\)</p>\n(.*?)\n    </li>' % (n, M), text, re.S)
+        assert li, f'no entry of {n} alone, m* = {M}'
+        assert f'<code id="{n}:{M}">' in li.group(1), n
+        assert f'{GH}proofs/{proof}' in li.group(1) and 'Claude: “' in li.group(1), li.group(1)[:400]
+        assert new_cells(text)[n] == (M, M), new_cells(text)[n]
+        assert changelog_by_day().get('2026-11-03', {}).get(n) == (M, M), changelog_by_day().get('2026-11-03')
+    sec = re.search(r'<section class="pintree" aria-labelledby="pintree-title">(.*?)</section>', text, re.S)
+    assert sec, 'no section of the pin trees'
+    body = sec.group(1)
+    assert '<blockquote class="claude">' in body and '<h2 id="pintree-title">' in body, body[:300]
+    for link in ('proofs/pintree.py', 'proofs/pintree_second.py', 'proofs/pintree_432_12.json.gz', 'proofs/pintree_816_13.json.gz'): assert f'{GH}{link}' in body, link
+    assert 'https://github.com/dreeves/equipow/tree/main/searches/pintree' in body
+    assert '3,119' in body and '187,269' in body, body[:300]
+    oeis = re.search(r'<section class="oeis" aria-labelledby="oeis-title">.*?</section>', text, re.S).group(0)
+    note = dict(zip(OEIS, re.findall(r'<li>(.*?)</li>', re.search(r'<ul>(.*?)</ul>', oeis, re.S).group(1), re.S)))['A323395']
+    assert 'a(11) = 480' in note and 'is 432 or 480' not in note, note
+    assert smallest_table()[11] == ['12', '480', '480', '✓'], smallest_table()[11]
+
+
 OEIS = ('A323395', 'A306248', 'A323610', 'A323629', 'A323614')                # the OEIS section's entries on this problem
 RELATED = ('A382832', 'A382833', 'A362039', 'A010060', 'A106400', 'A001969', 'A000069', 'A140047')   # and related ones
 
@@ -2322,8 +2350,8 @@ def q_oeis_section_links_the_family():
 def q_oeis_notes_hold_on_the_chart():
     # Replicata: the OEIS section's first list, and mstar.js.
     # Expectata: what each note says of this page holds in the chart's data (OEIS's k-powerful is order k + 1 here):
-    # A323395's: a(10) = 432 proven (the least n known to reach order 11 is the least n allowed it); a(11) 432 or 480
-    # (order 12 open at 432, ruled out at 448 and 464, known at 480); order 12 known at 864, and since 2026-11-03 order 15 at 960 (lo),
+    # A323395's: a(10) = 432 proven (the least n known to reach order 11 is the least n allowed it); a(11) = 480 proven, since 2026-11-03 (order 12 ruled out at 432, 448 and 464, known at 480;
+    # until then a(11) was 432 or 480, order 12 open at 432); order 12 known at 864, and since 2026-11-03 order 15 at 960 (lo),
     # 912 the least n known to reach order 13 (so a(12) <= 912), and a(14) = 960 proven (the least n known to reach order 15 is the least n allowed it);
     # (until 2026-11-03: order 13 at 960, the least n known to reach it, so a(12) <= 960, doubling 960 giving 1920); A306248's: m*(2n) settled
     # (lo = hi) for every n up to 143 and open at 288, 48 more terms than OEIS's 95; A323610's and A323614's: their
@@ -2340,7 +2368,7 @@ def q_oeis_notes_hold_on_the_chart():
     known = lambda m: next(n for n in range(2, NMAX + 1, 2) if lo(n) >= m)
     allowed = lambda m: next(n for n in range(2, NMAX + 1, 2) if hi(n) >= m)
     assert known(11) == allowed(11) == 432 and (lo(864), lo(960)) == (12, 15) and known(13) == 912 and known(15) == allowed(15) == 960
-    assert lo(432) < 12 <= hi(432) and max(hi(448), hi(464)) < 12 <= lo(480) and known(12) == 480
+    assert max(hi(432), hi(448), hi(464)) < 12 <= lo(480) and known(12) == allowed(12) == 480
     assert all(w in notes['A323395'] for w in ('432', '448', '464', '480', '864', '912', '960')), notes['A323395']
     assert all(lo(2 * n) == hi(2 * n) for n in range(1, 144)) and lo(288) < hi(288)
     assert all(w in notes['A306248'] for w in ('95', '48', '143', '286', '288')), notes['A306248']
@@ -2748,7 +2776,7 @@ def q_chart_rings_the_smallest_lengths_in_gold():
     # known values for a(m-1)? maybe make those green with gold trim", the proven ones alone): the ringed cells are
     # exactly smallest_rings of mstar.js, the chart's own least columns, the cells of the table of smallest lengths up to
     # 1024 (from 2026-10-31 until 2026-11-03 its rows 14 and 15 gave products beyond the chart, 1920 and 3840): today the proven ones, (2, 1), (4,
-    # 2), …, (432, 11), SMALLEST_PROVEN by order, and (960, 15); then (480, 12) known and (432, 12) not ruled out; (912, 13) known and
+    # 2), …, (432, 11), (480, 12), SMALLEST_PROVEN by order ((480, 12) known and (432, 12) not ruled out until 2026-11-03), and (960, 15); then (912, 13) known and
     # (480, 13) not ruled out; (960, 14) known and (480, 14) not ruled out (until 2026-11-03, with no length known (dreeves, 2026-10-30: "why isn't 480:14 highlighted in the
     # chart?"), (480, 14) and (960, 15) not ruled out).  Each is ringed in --record, #ffb300 (the validator's pick against the chart's three
     # colors and the paper), just outside its left and right and below it, in each view of the sweep that checks it,
@@ -3420,7 +3448,7 @@ def q_smallest_table_matches_mstar():
     # Expectata: the table's body holds exactly smallest_rows' rows, in order, through the largest order some n's upper
     # bound allows (since 2026-10-30), with a product of lesser orders' lengths where that is less than the chart's, as
     # beyond the chart (since 2026-10-31, [MIN]; until then — where no n up to NMAX was known to reach m); the first
-    # eleven orders' smallest lengths are SMALLEST_PROVEN, each marked proven (432 added on 2026-10-20 after
+    # twelve orders' smallest lengths are SMALLEST_PROVEN, each marked proven (480 added on 2026-11-03 after the pin tree of 432:12; 432 added on 2026-10-20 after
     # proof384.py).
     got = smallest_table()
     want = smallest_rows(mstar_data()['cols'])
