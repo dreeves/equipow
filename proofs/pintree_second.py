@@ -297,6 +297,12 @@ class Check:
 DATA = None
 
 
+def initialize(data):
+    """Give each worker the proof explicitly, including under spawn."""
+    global DATA
+    DATA = data
+
+
 def subtree(job):
     start, end, pins = job
     C = Check(DATA)
@@ -340,7 +346,7 @@ if __name__ == '__main__':
     totals = dict(top.stats)
     if top.jobs:
         print(f'Claude: "the top of the tree holds; {len(top.jobs)} subtrees to replay [{time.time()-t0:.0f} s]"', flush=True)
-        with Pool(procs) as pool:
+        with Pool(procs, initializer=initialize, initargs=(DATA,)) as pool:
             for st in pool.imap_unordered(subtree, sorted(top.jobs, key=lambda j: j[0] - j[1]), chunksize=1):
                 for k, v in st.items(): totals[k] += v
     print(f'Claude: "VERIFIED by the second check: no sequence of length {DATA["n"]} has order {DATA["m"]}.  {totals} [{time.time()-t0:.0f} s]"', flush=True)

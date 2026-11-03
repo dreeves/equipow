@@ -20,6 +20,7 @@ Potential tasks:
 * [SER] Could the searches show a live estimate of the probability of finding a bipartition?
 * [TRE] Could we see a time series of the number of pending nodes? If we could see the growth of that slow down, or when it starts to actually go down, we can better infer the ETA.
 * [APP] Eyeballing the charts it looks like maybe `m*(n) ~= 1.2*log2(n)` or something; any interesting conjectures on the asymptotics here? PS: For powers of two we already have something like this: `m*(2^k) = c*log2(n)` where `c` is at least `77/68` and at most `2/log2(3)`. Relatedly, the upper envelope of `m*(n)` is at least `12/log2(480) log2(n)` ~= 1.347 which we get from Theorem 4.1 (Multiplication) of BGPW which tells us that `m*(n^k) >= k m*(n)`. Namely, `m*(480^k) >= 12k` so for certain `n`, `m*(n) >= 12 log_480(n) = 12 log2(n) / log2(480) = 12/log2(480) log2(n)`. So whenever we find a new high watermark for `m*(n)/log2(n)` that bumps up the upper envelope for the `m*()` function. Currently the best we have is 480:12. The following would beat that: 432:12, 672:13, 720: 13, 960:14. Update: We got 960:15! So 15/log2(960) ≈ 1.514 is the new bound on the upper envelope. Also 2^58 gives us 66/58 ≈ 1.138 as the lower bound.
+* [LIN] Add one more line for m=16 to the "smallest length known for each order" table
 
 
 Stan notes:
