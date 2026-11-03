@@ -920,6 +920,7 @@ def close(a, b, tol): return abs(a - b) <= tol
 # table that shows the first n that gives 1,2,3,4,5,…,12"; dreeves: "yeah").  Orders 1 to 11 have their smallest
 # lengths proven: OEIS A323395's a(0) to a(8), 240 as a(9), and (2026-10-20) 432 as a(10), after proof384.py.
 SMALLEST_PROVEN = (2, 4, 8, 16, 32, 48, 96, 144, 192, 240, 432)
+PROVEN_CELLS = [(n, m) for m, n in enumerate(SMALLEST_PROVEN, 1)] + [(960, 15)]   # the cells (n, m) proven least: (960, 15) since 2026-11-03
 
 
 def smallest_rows(cols):
@@ -1635,15 +1636,15 @@ def q_citations_match_the_page():
     titled = {value(n): (cls, who) for cls, who, n in
               re.findall(r"<td(?: class=\"(a|c|ca|j|s)\")? title='([^']*)'>([^<]*)</td>", new)}
     titles = {n: who for n, (cls, who) in titled.items() if cls}      # the rest, unclassed, copy Table 2's powers of 2
-    # 240 (since 2026-10-20), the 44 multiples of 16 from 304 to 992 (512 written 2^9) and 27 larger powers of 2,
+    # 240 (since 2026-10-20), the 44 multiples of 16 from 304 to 992 (512 written 2^9) and 30 larger powers of 2,
     # 2^17 to 2^72 (6 until 560 reached order 10 on 2026-10-12, 11 until 800 reached order 11 on 2026-10-17, 18
     # until 592, 608 and 656 reached order 10 and 848, 880, 896, 928, 944, 976 and 992 order 11 on 2026-10-25, 23
     # until 752 and 784 reached order 10 and 832 order 11 on 2026-10-26, 25 until 912 reached order 12 on 2026-10-28,
-    # when 2^29 joined them, 26 until 768 reached order 12 that evening, when 2^39 joined them); and since 1024 reached
+    # when 2^29 joined them, 26 until 768 reached order 12 that evening, when 2^39 joined them, 27 until 2026-11-03, when 2^28, 2^36 and 2^47 joined them); and since 1024 reached
     # order 11, later that
     # day, 2^10, 2^11 and 2^12; and since 2026-10-27, when the block reached 1024, 1008.  The unclassed cells, Table
     # 2's powers of 2 (2^3 to 2^8) until then, copy every entry of Table 2 that stands: up to 304 but 240 and 304.
-    assert len(titles) == 1 + 44 + 30 + 1, len(titles)
+    assert len(titles) == 1 + 44 + 33 + 1, len(titles)
     assert sorted(n for n in titled if n not in titles) == [n for n in range(8, 305, 8) if n not in (240, 304)], titled
     table2 = {n for n, *_ in table_entries()} - set(titles)
     assert len(table2) == 36, sorted(table2)          # 240 and 304 are in both
@@ -1925,22 +1926,23 @@ def q_examples_at_720_and_1008_have_their_entries_and_codes():
     # 11 there; 2026-10-28: w12.py found a symmetric example of order 12 at 1008, which replaced its order-11 example
     # and code, and that evening Astra's faster w12 found one at 720, which did the same): each has an entry of its
     # own, an <li class="c"> marked ◆ among the examples in order of n, 720's "m* ∈ {12, 13, 14}" between 688's (656's
-    # until 2026-11-01, when 672's and then 688's example entries came between them) and 752's, and 1008's "m* ∈ {12, 13}" between 992's and 1024's (its wording unpinned since 2026-10-30); each its one code block, of its
+    # until 2026-11-01, when 672's and then 688's example entries came between them) and 752's, and 1008's "m* = 13" ("m* ∈ {12, 13}" until 2026-11-03) between 992's and 1024's (its wording unpinned since 2026-10-30); each a code block of its
     # order m (11 at 720, 12 at 1008), whose signs have order exactly m (synthetic division here) and are
-    # antisymmetric at 720 and symmetric at 1008 (their sets SClaude[m][n] left the page on 2026-10-31); no other
-    # entry names 720 or 1008 (their joins' entries are gone); the cells 11–14 and 12–13;
-    # and mstar.js's columns [11, 14, ["example", "equipow p720"], ["residue", 16]] and [12, 13, ["example",
+    # antisymmetric at 720 and symmetric at 1008 (their sets SClaude[m][n] left the page on 2026-10-31), 720's its only one and 1008's followed by that of order 13
+    # (since 2026-11-03: q_results_of_2026_11_03_have_entries_and_codes); no other
+    # entry names 720 or 1008 (their joins' entries are gone); the cells 11–14 and 13 (12–13 until 2026-11-03);
+    # and mstar.js's columns [11, 14, ["example", "equipow p720"], ["residue", 16]] and [13, 13, ["example",
     # "equipow p1008"], ["residue", 5]].
     text = page()
     listed = [ns.split(', ') for ns in re.findall(r'<p class="entry">\\\(n = (.*?)\\\): ', text)]
-    for n, m, values, before, after, hi in ((720, 12, '\\\\\\{12, 13, 14\\\\\\}', '688', '752', 14),
-                                            (1008, 12, '\\\\\\{12, 13\\\\\\}', '992', '1024', 13)):
+    for n, m, values, before, after, cell, more in ((720, 12, '\\\\in \\\\\\{12, 13, 14\\\\\\}', '688', '752', (12, 14), ()),
+                                                    (1008, 12, '= 13', '992', '1024', (13, 13), ('13',))):
         li = re.search(r'<li class="c">\n      <span class="mk" aria-hidden="true">◆</span>\n      <p class="entry">\\\(n = '
-                       rf'{n}\\\): &nbsp;\\\(m\^\* \\in {values}\\\)</p>\n(.*?)\n    </li>', text, re.S)
+                       rf'{n}\\\): &nbsp;\\\(m\^\* {values}\\\)</p>\n(.*?)\n    </li>', text, re.S)
         assert li, f'no entry of {n} alone'
         codes = re.findall(r'<p class="code">\n        <span>\\\(p_\{(\d+)\}\\\) \\\(\(m = (\d+)\)\\\):</span>\n'
                            r'        <code id="\d+:\d+">([0-9A-F]+)</code>\n      </p>', li.group(1))
-        assert len(codes) == 1 and codes[0][:2] == (str(n), str(m)), codes
+        assert [c[:2] for c in codes] == [(str(n), o) for o in (str(m),) + more], codes
         h = codes[0][2]
         left = [1 if b == '1' else -1 for b in bin(int(h, 16))[2:].zfill(4 * len(h))]
         a, k = left + [(-1) ** m * s for s in reversed(left)], 0
@@ -1950,27 +1952,28 @@ def q_examples_at_720_and_1008_have_their_entries_and_codes():
         i = listed.index([str(n)])
         assert listed[i - 1:i + 2] == [[before], [str(n)], [after]], listed[i - 1:i + 2]
         assert sum(str(n) in ns for ns in listed) == 1, (n, [ns for ns in listed if str(n) in ns])
-        assert new_cells(text)[n] == (m, hi), new_cells(text)[n]
+        assert new_cells(text)[n] == cell, new_cells(text)[n]
     cols = mstar_data()['cols']
     assert cols[720 - 1] == [12, 14, ['example', 'equipow p720'], ['residue', 16]], cols[720 - 1]
-    assert cols[1008 - 1] == [12, 13, ['example', 'equipow p1008'], ['residue', 5]], cols[1008 - 1]
+    assert cols[1008 - 1] == [13, 13, ['example', 'equipow p1008'], ['residue', 5]], cols[1008 - 1]
 
 
 def q_example_at_912_has_its_entry_and_code():
     # Replicata: the remarks' entries naming 912, its code decoded by the paper's Table 5 convention (the left half of
     # the signs, 1 = +1, then the rest by (-1)^m symmetry), the new results' cell, and mstar.js's column 912.
     # Expectata (2026-10-28: Claude's lattice search w12.py found a symmetric example of order 12 at 912): an entry of
-    # its own, an <li class="c"> marked ◆, "m* ∈ {12, 13}", between 896's and 928's (its wording unpinned since 2026-10-30); its one code block, p912 of order 12, whose signs have order exactly 12 (synthetic
-    # division here) and are symmetric (its set SClaude[12][912] left the page on 2026-10-31); the built entry of
-    # 672 and 768 no longer names 912; the cell 12–13; mstar.js's column [12, 13, ["example", "equipow p912"],
+    # its own, an <li class="c"> marked ◆, "m* = 13" ("m* ∈ {12, 13}" until 2026-11-03), between 896's and 928's (its wording unpinned since 2026-10-30); a code block, p912 of order 12, whose signs have order exactly 12 (synthetic
+    # division here) and are symmetric (its set SClaude[12][912] left the page on 2026-10-31), followed since 2026-11-03 by that of order 13
+    # (q_results_of_2026_11_03_have_entries_and_codes); the built entry of
+    # 672 and 768 no longer names 912; the cell 13 (12–13 until 2026-11-03); mstar.js's column [13, 13, ["example", "equipow p912"],
     # ["residue", 5]].
     text = page()
     li = re.search(r'<li class="c">\n      <span class="mk" aria-hidden="true">◆</span>\n      <p class="entry">\\\(n = '
-                   r'912\\\): &nbsp;\\\(m\^\* \\in \\\{12, 13\\\}\\\)</p>\n(.*?)\n    </li>', text, re.S)
+                   r'912\\\): &nbsp;\\\(m\^\* = 13\\\)</p>\n(.*?)\n    </li>', text, re.S)
     assert li, 'no entry of 912 alone'
     codes = re.findall(r'<p class="code">\n        <span>\\\(p_\{(\d+)\}\\\) \\\(\(m = (\d+)\)\\\):</span>\n'
                        r'        <code id="\d+:\d+">([0-9A-F]+)</code>\n      </p>', li.group(1))
-    assert len(codes) == 1 and codes[0][:2] == ('912', '12'), codes
+    assert [c[:2] for c in codes] == [('912', '12'), ('912', '13')], codes
     h = codes[0][2]
     left = [1 if b == '1' else -1 for b in bin(int(h, 16))[2:].zfill(4 * len(h))]
     a, k = left + list(reversed(left)), 0
@@ -1981,8 +1984,8 @@ def q_example_at_912_has_its_entry_and_code():
     i = listed.index(['912'])
     assert listed[i - 1:i + 2] == [['896'], ['912'], ['928']], listed[i - 1:i + 2]
     assert sum('912' in ns for ns in listed) == 1 and ['672'] in listed, [ns for ns in listed if '672' in ns]   # 672 and 768 until 768's example
-    assert new_cells(text)[912] == (12, 13), new_cells(text)[912]
-    assert mstar_data()['cols'][912 - 1] == [12, 13, ['example', 'equipow p912'], ['residue', 5]], mstar_data()['cols'][912 - 1]
+    assert new_cells(text)[912] == (13, 13), new_cells(text)[912]
+    assert mstar_data()['cols'][912 - 1] == [13, 13, ['example', 'equipow p912'], ['residue', 5]], mstar_data()['cols'][912 - 1]
 
 
 def q_example_at_768_has_its_entry_and_code():
@@ -2019,11 +2022,11 @@ def q_examples_at_576_and_624_have_their_entries_and_codes():
     # half of the signs, 1 = +1, then the rest by (-1)^m symmetry), the new results' cells, the changelog's statements
     # of 2026-10-31, and mstar.js's columns.
     # Expectata (2026-10-31: Claude's lattice search scratch/w11-624-576/w11.py found antisymmetric examples of order
-    # 11 at 576 and 624): each n has an entry of its own, an <li class="c"> marked ◆, "m* ∈ {11, 12}", among the
-    # examples in order of n (576 between 560 and 592, 624 between 608 and 656; its wording unpinned); its one code block, p_n of order 11, whose
+    # 11 at 576 and 624): each n has an entry of its own, an <li class="c"> marked ◆, "m* = 12" ("m* ∈ {11, 12}" until 2026-11-03), among the
+    # examples in order of n (576 between 560 and 592, 624 between 608 and 656; its wording unpinned); a code block, p_n of order 11, whose
     # signs have order exactly 11 (synthetic division here) and are antisymmetric (its set SClaude[11][n] left the page
-    # on 2026-10-31); no other entry names n (its old entry is gone); the cell 11–12; the changelog states
-    # 11 ≤ m*(n) ≤ 12 on 2026-10-31; and mstar.js's column [11, 12, ["example", "equipow p<n>"], ["residue", M]], M the
+    # on 2026-10-31), followed since 2026-11-03 by that of order 12 (q_results_of_2026_11_03_have_entries_and_codes); no other entry names n (its old entry is gone); the cell 12 (11–12 until 2026-11-03); the changelog states
+    # 11 ≤ m*(n) ≤ 12 on 2026-10-31; and mstar.js's column [12, 12, ["example", "equipow p<n>"], ["residue", M]], M the
     # modulus of n's residue condition at order 13.
     # Resultata before: 576 was 10 to 12, its lo the join 240 + 336, 624 was 10 to 12, its lo the join 240 + 384; no example of order 11 at 576 and 624.
     text = page()
@@ -2031,11 +2034,11 @@ def q_examples_at_576_and_624_have_their_entries_and_codes():
     said = changelog_by_day().get('2026-10-31', {})
     for n, before, after, M in ((576, 560, 592, 5), (624, 608, 656, 25)):
         li = re.search(r'<li class="c">\n      <span class="mk" aria-hidden="true">◆</span>\n      <p class="entry">\\\(n = '
-                       + str(n) + r'\\\): &nbsp;\\\(m\^\* \\in \\\{11, 12\\\}\\\)</p>\n(.*?)\n    </li>', text, re.S)
+                       + str(n) + r'\\\): &nbsp;\\\(m\^\* = 12\\\)</p>\n(.*?)\n    </li>', text, re.S)
         assert li, f'no entry of {n} alone'
         codes = re.findall(r'<p class="code">\n        <span>\\\(p_\{(\d+)\}\\\) \\\(\(m = (\d+)\)\\\):</span>\n'
                            r'        <code id="\d+:\d+">([0-9A-F]+)</code>\n      </p>', li.group(1))
-        assert len(codes) == 1 and codes[0][:2] == (str(n), '11'), codes
+        assert [c[:2] for c in codes] == [(str(n), '11'), (str(n), '12')], codes
         h = codes[0][2]
         left = [1 if b == '1' else -1 for b in bin(int(h, 16))[2:].zfill(4 * len(h))]
         a, k = left + [-s for s in reversed(left)], 0
@@ -2045,9 +2048,9 @@ def q_examples_at_576_and_624_have_their_entries_and_codes():
         i = listed.index([str(n)])
         assert listed[i - 1:i + 2] == [[str(before)], [str(n)], [str(after)]], listed[i - 1:i + 2]
         assert sum(str(n) in ns for ns in listed) == 1, (n, [ns for ns in listed if str(n) in ns])
-        assert new_cells(text)[n] == (11, 12), new_cells(text)[n]
+        assert new_cells(text)[n] == (12, 12), new_cells(text)[n]
         assert said.get(n) == (11, 12), (n, said.get(n))
-        assert mstar_data()['cols'][n - 1] == [11, 12, ['example', f'equipow p{n}'], ['residue', M]], mstar_data()['cols'][n - 1]
+        assert mstar_data()['cols'][n - 1] == [12, 12, ['example', f'equipow p{n}'], ['residue', M]], mstar_data()['cols'][n - 1]
 
 
 def q_example_at_528_has_its_entry_and_code():
@@ -2140,9 +2143,75 @@ def q_example_at_688_has_its_entry_and_code():
     assert listed[i - 1:i + 2] == [['672'], ['688'], ['720']], listed[i - 1:i + 2]
     assert sum('688' in ns for ns in listed) == 1, [ns for ns in listed if '688' in ns]
     assert ['544'] in listed, [ns for ns in listed if '544' in ns]
-    assert (new_cells(text)[688], new_cells(text)[544]) == ((10, 10), (9, 10)), (new_cells(text)[688], new_cells(text)[544])
+    assert (new_cells(text)[688], new_cells(text)[544]) == ((10, 10), (10, 10)), (new_cells(text)[688], new_cells(text)[544])   # 544 9 to 10 until 2026-11-03
     assert changelog_by_day().get('2026-11-01', {}).get(688) == (10, 10), changelog_by_day().get('2026-11-01')
     assert mstar_data()['cols'][687] == [10, 10, ['example', 'equipow p688'], ['residue', 3]], mstar_data()['cols'][687]
+
+
+def q_results_of_2026_11_03_have_entries_and_codes():
+    # Replicata: the remarks' entries of 2026-11-03's examples, their codes decoded by the paper's Table 5 convention, the new results' cells, the changelog's
+    # statements of that day, and mstar.js's columns.
+    # Expectata: each n has one entry, an <li class="c"> marked ◆, "m* = M", among the examples in order of n; one code p_n (m = M), <code id="n:M">, has signs of
+    # order exactly M (synthetic division here), (-1)^M-symmetric, +1 at 0; no other entry names n; the cell is M; the changelog states m*(n) = M on 2026-11-03.
+    # And 960's entry says that it settles a(14) = 960 of A323395: no length below 960 allows order 15 (hi < 15 in mstar.js).  The codes of order M - 1 at 576, 624, 912 and
+    # 1008 stay, before the new ones, as 528 keeps its code of order 10 (q_former_sets_are_halves_of_expansions: dreeves, "being careful not to lose anything").
+    # Resultata before: 544's and 960's entries gave only joins or doubling, and 576's, 624's, 912's and 1008's codes had order one less.
+    text = page()
+    listed = [ns.split(', ') for ns in re.findall(r'<p class="entry">\\\(n = (.*?)\\\): ', text)]
+    for n, M, before, after in ((544, 10, '528', '560'), (576, 12, '560', '592'), (624, 12, '608', '656'), (912, 13, '896', '928'),
+                                (960, 15, '944', '976'), (1008, 13, '992', '1024')):
+        li = re.search(r'<li class="c">\n      <span class="mk" aria-hidden="true">◆</span>\n      <p class="entry">\\\(n = %d\\\): &nbsp;\\\(m\^\* = %d\\\)</p>\n(.*?)\n    </li>' % (n, M), text, re.S)
+        assert li, f'no entry of {n} alone, m* = {M}'
+        codes = re.findall(r'\\\(p_\{(\d+)\}\\\) \\\(\(m = (\d+)\)\\\):</span>\n\s*<code id="%d:%d">([0-9A-F]+)</code>' % (n, M), li.group(1))
+        assert len(codes) == 1 and codes[0][:2] == (str(n), str(M)), codes
+        h = codes[0][2]
+        left = [1 if b == '1' else -1 for b in bin(int(h, 16))[2:].zfill(4 * len(h))]
+        a = left + [(-1) ** M * t for t in reversed(left)]
+        k, c = 0, a
+        while not sum(c): c, k = list(itertools.accumulate(c[:-1])), k + 1
+        assert len(a) == n and k == M and a[0] == 1, (n, len(a), k)
+        i = listed.index([str(n)])
+        assert listed[i - 1:i + 2] == [[before], [str(n)], [after]], listed[i - 1:i + 2]
+        assert sum(str(n) in ns for ns in listed) == 1, [ns for ns in listed if str(n) in ns]
+        assert new_cells(text)[n] == (M, M), new_cells(text)[n]
+        assert changelog_by_day().get('2026-11-03', {}).get(n) == (M, M), changelog_by_day().get('2026-11-03')
+        assert mstar_data()['cols'][n - 1][:3] == [M, M, ['example', f'equipow p{n}']], mstar_data()['cols'][n - 1]
+    cols = mstar_data()['cols']
+    assert next(n for n, c in enumerate(cols, 1) if c[1] >= 15) == 960 and cols[959][0] == 15
+    li = re.search(r'<p class="entry">\\\(n = 960\\\): .*?</li>', text, re.S).group(0)
+    assert 'a(14) = 960' in li and 'A323395' in li, li
+
+
+def q_firsts_of_2026_11_03():
+    # Replicata: pow2.js's columns, the new results' cells of the powers of 2, the remarks' entries, and the theorem's statement and its list of firsts.
+    # Expectata (coins, searches/pinned/, with the blocks of 2026-11-03): excess 3 first at 2^28, excess 4 at 2^36 and excess 6 at 2^47, each a join whose products have
+    # order at least k + e, one of order exactly k + e: lo is 31 at 2^28, 40 at 2^36 and 53 at 2^47, one more than each column before it had; the cells read 2^28 31–34, 2^36 40–44
+    # and 2^47 53–58, 2^29 32–35, 2^37 41–45 and 2^48 54–59 as before; each new entry writes its join out, as pow2.js has it, with its products' orders; the entries that named the
+    # bases at 2^29, 2^37 and 2^48 name the new ones; the theorem states m*(2^28) >= 31, m*(2^36) >= 40 and m*(2^47) >= 53 in place of 2^29's, 2^37's and 2^48's, and
+    # its list of firsts is 10, 20, 28, 36, 39, 47, 57, 65, 68.
+    # Resultata before: the firsts were 10, 20, 29, 37, 39, 48, 57, 65, 68.
+    cols, text = pow2_data()['cols'], page()
+    for k, lo, hi, N in ((28, 31, 34, 2 ** 28), (36, 40, 44, 2 ** 36), (47, 53, 58, 2 ** 47)):
+        assert cols[k - 1][:2] == [lo, hi] and cols[k - 2][0] == lo - 2, cols[k - 2:k]
+        assert new_cells(text)[N] == (lo, hi), new_cells(text).get(N)
+        li = re.search(r'<p class="entry">\\\(n = 2\^\{%d\}\\\): .*?</li>' % k, text, re.S).group(0)
+        products = cols[k - 1][2][1]
+        def factors(p):
+            runs = [(n, len(list(g))) for n, g in itertools.groupby(n for n, m in p)]
+            power = {2 ** m: m for n, m in p if n == 2 ** m}
+            return '\\cdot '.join(('2' if power[n] == 1 else f'2^{power[n]}') if n in power else f'{n}' if c == 1 else f'{n}^{c}' for n, c in runs)
+        assert f'\\(2^{{{k}}} = ' + ' + '.join(factors(p) for p in products) + '\\)' in li, li
+        orders = [sum(m for n, m in p) for p in products]
+        assert min(orders) == lo and f'of orders {", ".join(map(str, orders[:-1]))} and {orders[-1]}.' in li, (orders, li)
+    cells = new_cells(text)
+    assert [cells[2 ** k] for k in (29, 37, 48)] == [(32, 35), (41, 45), (54, 59)]
+    theorem = re.search(r'<p><b>Theorem.</b>(.*?)</p>', text).group(1)
+    for k, lo in ((28, 31), (36, 40), (47, 53)): assert f'(2^{{{k}}}) \\ge {lo}' in theorem, theorem
+    for k in (29, 37, 48): assert f'(2^{{{k}}})' not in theorem, theorem
+    assert ' are 10, 20, 28, 36, 39, 47, 57, 65, 68.</p>' in text
+    for k, base, t, order in ((29, 28, 1, 32), (30, 28, 2, 33), (33, 28, 5, 36), (34, 28, 6, 37), (37, 36, 1, 41), (38, 36, 2, 42), (48, 47, 1, 54), (49, 47, 2, 55), (52, 47, 5, 58)):
+        li = re.search(r'<p class="entry">\\\(n = 2\^\{%d\}\\\): .*?</li>' % k, text, re.S).group(0)
+        assert f'\\(2^{{{base}}}\\) entry' in li and f'\\tau_{t}\\)' in li and f'order {order}' in li, li
 
 
 OEIS = ('A323395', 'A306248', 'A323610', 'A323629', 'A323614')                # the OEIS section's entries on this problem
@@ -2171,8 +2240,9 @@ def q_oeis_notes_hold_on_the_chart():
     # Replicata: the OEIS section's first list, and mstar.js.
     # Expectata: what each note says of this page holds in the chart's data (OEIS's k-powerful is order k + 1 here):
     # A323395's: a(10) = 432 proven (the least n known to reach order 11 is the least n allowed it); a(11) 432 or 480
-    # (order 12 open at 432, ruled out at 448 and 464, known at 480); order 12 known at 864 and order 13 at 960 (lo),
-    # 960 the least n known to reach order 13 (so a(12) <= 960), doubling 960 giving 1920; A306248's: m*(2n) settled
+    # (order 12 open at 432, ruled out at 448 and 464, known at 480); order 12 known at 864, and since 2026-11-03 order 15 at 960 (lo),
+    # 912 the least n known to reach order 13 (so a(12) <= 912), and a(14) = 960 proven (the least n known to reach order 15 is the least n allowed it);
+    # (until 2026-11-03: order 13 at 960, the least n known to reach it, so a(12) <= 960, doubling 960 giving 1920); A306248's: m*(2n) settled
     # (lo = hi) for every n up to 143 and open at 288, 48 more terms than OEIS's 95; A323610's and A323614's: their
     # comments' descriptions of L6 (48 and the multiples of 8 from 64) and L8 (144 and the multiples of 16 from 192)
     # are exactly the chart's lengths of order 6 and 8 through 1024, every other length ruled out; A323629's: 112 in
@@ -2186,9 +2256,9 @@ def q_oeis_notes_hold_on_the_chart():
     lo, hi = (lambda n: cols[n - 1][0]), (lambda n: cols[n - 1][1])
     known = lambda m: next(n for n in range(2, NMAX + 1, 2) if lo(n) >= m)
     allowed = lambda m: next(n for n in range(2, NMAX + 1, 2) if hi(n) >= m)
-    assert known(11) == allowed(11) == 432 and (lo(864), lo(960)) == (12, 13) and known(13) == 960
+    assert known(11) == allowed(11) == 432 and (lo(864), lo(960)) == (12, 15) and known(13) == 912 and known(15) == allowed(15) == 960
     assert lo(432) < 12 <= hi(432) and max(hi(448), hi(464)) < 12 <= lo(480) and known(12) == 480
-    assert all(w in notes['A323395'] for w in ('432', '448', '464', '480', '864', '960', '1920')), notes['A323395']
+    assert all(w in notes['A323395'] for w in ('432', '448', '464', '480', '864', '912', '960')), notes['A323395']
     assert all(lo(2 * n) == hi(2 * n) for n in range(1, 144)) and lo(288) < hi(288)
     assert all(w in notes['A306248'] for w in ('95', '48', '143', '286', '288')), notes['A306248']
     rules = {'A323610': (6, lambda n: n == 48 or (n % 8 == 0 and n >= 64)),
@@ -2221,9 +2291,9 @@ def q_oeis_errors_say_how_to_fix_them():
     # Replicata: the OEIS section's first list, and mstar.js.
     # Expectata (dreeves, 2026-10-29: "can you make sure the errors in OEIS are made clear on the page? then we don't
     # need suggested_edits.txt"): the notes on the two entries with an error, A323395 and A323629, and no others, mark
-    # it with a bold "Error:" and give the fix.  A323395's comment has a(12) ≤ 864 and a(13) ≤ 960, which should read
-    # a(12) ≤ 960 and a(13) ≤ 1920: 960 is the least n known to reach order 13 (12-powerful), and doubling it reaches
-    # order 14 at 1920.  A323629's generating function, L7_GF_OEIS, should be L7_GF: through 1024, L7_GF's series is
+    # it with a bold "Error:" and give the fix.  A323395's comment has a(12) ≤ 864, which should read a(12) ≤ 912: 912 is the least n known to reach order 13
+    # (12-powerful), since 2026-11-03; and its a(13) ≤ 960 holds, by the example of order 15 at 960, though not by doubling.  (Until 2026-11-03 both were wrong, and
+    # should have read a(12) ≤ 960 and a(13) ≤ 1920: 960 was the least n known to reach order 13, and doubling it reached order 14 at 1920.)  A323629's generating function, L7_GF_OEIS, should be L7_GF: through 1024, L7_GF's series is
     # the chart's L7 (every n with m*(n) ≥ 7) and L7_GF_OEIS's is L7 without 112.
     # Resultata before: the A323395 note said its bounds "look one order too high", and the A323629 note gave no
     # generating function; scratch/oeis/suggested_edits.txt held the fixes.
@@ -2232,8 +2302,8 @@ def q_oeis_errors_say_how_to_fix_them():
     assert [a for a in OEIS if '<b>Error:</b>' in notes[a]] == ['A323395', 'A323629'], notes
     assert all(notes[a].count('<b>Error:</b>') == 1 for a in ('A323395', 'A323629')), notes
     lo = lambda n: mstar_data()['cols'][n - 1][0]
-    assert next(n for n in range(2, NMAX + 1, 2) if lo(n) >= 13) == 960 and lo(960) + 1 == 14
-    wrong, right = (r'\(a(12) \le 864\)', r'\(a(13) \le 960\)'), (r'\(a(12) \le 960\)', r'\(a(13) \le 1920\)')
+    assert next(n for n in range(2, NMAX + 1, 2) if lo(n) >= 13) == 912 and next(n for n in range(2, NMAX + 1, 2) if lo(n) >= 14) == 960
+    wrong, right = (r'\(a(12) \le 864\)', ), (r'\(a(12) \le 912\)', r'\(a(13) \le 960\)')
     assert all(t in notes['A323395'].split('<b>Error:</b>')[1] for t in wrong + right), notes['A323395']
     L7 = [n for n in range(2, NMAX + 1, 2) if lo(n) >= 7]
     assert gf_terms(L7_GF[1], NMAX) == L7 and gf_terms(L7_GF_OEIS[1], NMAX) == [n for n in L7 if n != 112]
@@ -2250,18 +2320,14 @@ def q_912_moves_excess_3_to_2_29():
     # 33–36, 2^33 36–40 and 2^34 37–41; 2^29's entry gives 2^29 = 608·800² + 336²·912 + 240·432², a join of three
     # products of examples above, each of order 32, that beats Thue–Morse by 3; 2^30's, 2^33's and 2^34's each name the
     # 2^29 entry, each product times τ1, τ4 and τ5, of orders 33, 36 and 37; the theorem states m*(2^29) ≥ 32 in place
-    # of m*(2^30) ≥ 33, and its list of firsts is 10, 20, 29, 37, 41, 48, 57, 65, 68.
+    # of m*(2^30) ≥ 33, and its list of firsts is 10, 20, 29, 37, 41, 48, 57, 65, 68.  Since 2026-11-03 (q_firsts_of_2026_11_03) excess 3 is first at 2^28 and column 29 is
+    # that join's lift; what stands of this qual: lo is k + 3 from 2^29 to 2^35, those cells, and no K below 2^28 beating Thue-Morse by 3.
     cols, text = pow2_data()['cols'], page()
-    base = cols[28][2]
-    assert cols[27][0] == 30 and [c[0] - k for k, c in enumerate(cols[28:35], 29)] == [3] * 7, [c[:2] for c in cols[27:35]]
-    assert base[0] == 'joins' and sorted(map(sorted, base[1])) == sorted(map(sorted, [
-        [[608, 10], [800, 11], [800, 11]], [[336, 10], [336, 10], [912, 12]], [[240, 10], [432, 11], [432, 11]]])), base
+    assert cols[26][0] == 29 and [c[0] - k for k, c in enumerate(cols[28:35], 29)] == [3] * 7, [c[:2] for c in cols[26:35]]
     cells = new_cells(text)
     assert [cells[2 ** k] for k in (29, 30, 33, 34)] == [(32, 35), (33, 36), (36, 40), (37, 41)], [cells.get(2 ** k) for k in (29, 30, 33, 34)]
-    assert '\\(2^{29} = 608\\cdot 800^2 + 336^2\\cdot 912 + 240\\cdot 432^2\\)' in text   # the entries' wording unpinned since 2026-10-30
     theorem = re.search(r'<p><b>Theorem.</b>(.*?)</p>', text).group(1)
-    assert '(2^{29}) \\ge 32' in theorem and '(2^{30})' not in theorem, theorem
-    assert ' are 10, 20, 29, 37, 39, 48, 57, 65, 68.</p>' in text           # 41 for excess 5 until 768's example of order 12
+    assert '(2^{29})' not in theorem and '(2^{30})' not in theorem, theorem   # 2^29's bound in it until 2026-11-03
 
 
 def q_768_moves_excess_5_to_2_39():
@@ -2275,10 +2341,11 @@ def q_768_moves_excess_5_to_2_39():
     # 2^39 entry, each product times τ2, τ4 and τ7, of orders 46, 48 and 51; the theorem states m*(2^39) ≥ 44 in place
     # of m*(2^41) ≥ 46.  (From 2026-10-26, when 816's example of order 11 moved it from 2^43, until then, excess 5's
     # first was 2^41 = (800^2 # 832 # 848 # τ2) ∨ (432^3 # 816 # τ2) ∨ (480^3 # 784) ∨ (432^2 # 480^2), each product
-    # of order 46, 816's of order 47 after 816's example of order 12 that afternoon: q_816_moves_excess_5_to_2_41.)
+    # of order 46, 816's of order 47 after 816's example of order 12 that afternoon: q_816_moves_excess_5_to_2_41.)  (Since 2026-11-03, q_firsts_of_2026_11_03: k + 5 from
+    # 2^39 to 2^46, 2^47 at k + 6.)
     cols, text = pow2_data()['cols'], page()
     base = cols[38][2]
-    assert cols[37][0] == 42 and [c[0] - k for k, c in enumerate(cols[38:47], 39)] == [5] * 9, [c[:2] for c in cols[37:47]]
+    assert cols[37][0] == 42 and [c[0] - k for k, c in enumerate(cols[38:46], 39)] == [5] * 8, [c[:2] for c in cols[37:46]]
     assert base[0] == 'joins' and sorted(map(sorted, base[1])) == sorted(map(sorted, [
         [[800, 11], [832, 11], [832, 11], [832, 11]], [[192, 9], [432, 11], [432, 11], [768, 12], [2, 1]],
         [[48, 6], [480, 12], [480, 12], [768, 12], [4, 2]]])), base
@@ -2597,17 +2664,17 @@ def q_chart_rings_the_smallest_lengths_in_gold():
     # known is proven to be the smallest)?"; from 2026-10-19 until then, dreeves: "in the chart can you highlight the
     # known values for a(m-1)? maybe make those green with gold trim", the proven ones alone): the ringed cells are
     # exactly smallest_rings of mstar.js, the chart's own least columns, the cells of the table of smallest lengths up to
-    # 1024 (since 2026-10-31 its rows 14 and 15 give products beyond the chart, 1920 and 3840): today the proven ones, (2, 1), (4,
-    # 2), …, (432, 11), SMALLEST_PROVEN by order; then (480, 12) known and (432, 12) not ruled out; (960, 13) known and
-    # (480, 13) not ruled out; and, with no length known (dreeves, 2026-10-30: "why isn't 480:14 highlighted in the
-    # chart?"), (480, 14) and (960, 15) not ruled out.  Each is ringed in --record, #ffb300 (the validator's pick against the chart's three
+    # 1024 (from 2026-10-31 until 2026-11-03 its rows 14 and 15 gave products beyond the chart, 1920 and 3840): today the proven ones, (2, 1), (4,
+    # 2), …, (432, 11), SMALLEST_PROVEN by order, and (960, 15); then (480, 12) known and (432, 12) not ruled out; (912, 13) known and
+    # (480, 13) not ruled out; (960, 14) known and (480, 14) not ruled out (until 2026-11-03, with no length known (dreeves, 2026-10-30: "why isn't 480:14 highlighted in the
+    # chart?"), (480, 14) and (960, 15) not ruled out).  Each is ringed in --record, #ffb300 (the validator's pick against the chart's three
     # colors and the paper), just outside its left and right and below it, in each view of the sweep that checks it,
     # and every one is checked; at its middle a proven one is gold, a dot (Claude's proposal for when the two coincide),
     # and the others keep their cell's color.  (Their readouts' notes: q_hover_reads_out_cells.)
     # Resultata before: only the 11 proven cells were ringed.
     cols = mstar_data()['cols']
     want = smallest_rings(cols)
-    assert [c for c, role in want.items() if role == 3] == a323395_cells(cols) == [(n, m) for m, n in enumerate(SMALLEST_PROVEN, 1)], want
+    assert [c for c, role in want.items() if role == 3] == a323395_cells(cols) == PROVEN_CELLS, want
     for name in ('light', 'phone'):
         R = valid_run(name)
         assert {(n, m): role for n, m, role in R['rings']} == want, (name, R['rings'])
@@ -2779,7 +2846,7 @@ def q_hover_swatch_matches_gold_trim():
     # persist after leaving one.
     # Resultata: each assertion reports the hovered cell and its expected and computed CSS values.
     rgb = lambda h: 'rgb(' + ', '.join(str(int(h[i:i + 2], 16)) for i in (1, 3, 5)) + ')'
-    assert a323395_cells(mstar_data()['cols']) == [(n, m) for m, n in enumerate(SMALLEST_PROVEN, 1)]
+    assert a323395_cells(mstar_data()['cols']) == PROVEN_CELLS
     for name in ('light', 'kinds'):
         R = valid_run(name)
         cols = json.loads(kinds_data()[len('const MSTAR = '):-2])['cols'] if name == 'kinds' else mstar_data()['cols']
@@ -3266,14 +3333,13 @@ def products_least(cols, m):
 
 def q_smallest_lengths_go_past_the_chart():
     # Replicata: the table of smallest lengths as the page draws it (smallest_table).
-    # Expectata ([MIN]): every order has a smallest known length, a number; orders 14 and 15, which no n up to 1024 is
-    # known to reach, have products: 1920 = 960 · 2 (960 = 480 · 2, the chart's least n of order 13, and 480 of order
-    # 12) and 3840 = 1920 · 2, each less than [MIN]'s 2^13 and 2^14, and neither proven least, the least n not ruled
-    # out being 480 and 960.
+    # Expectata ([MIN]): every order has a smallest known length, a number; orders 14 and 15 are reached at 960 by its example of order 15 (2026-11-03), 960 proven least at
+    # order 15, the least n not ruled out being 480 and 960.  (From 2026-10-31 until then no n up to 1024 was known to reach them, and they had products: 1920 = 960 · 2
+    # (960 = 480 · 2, the chart's least n of order 13, and 480 of order 12) and 3840 = 1920 · 2, each less than [MIN]'s 2^13 and 2^14, and neither proven least.)
     # Resultata before: — at orders 14 and 15.
     rows = smallest_table()
     assert all(re.fullmatch(r'\d+', r[2]) for r in rows), rows
-    assert rows[13:] == [['14', '480', '1920', ''], ['15', '960', '3840', '']], rows[13:]
+    assert rows[13:] == [['14', '480', '960', ''], ['15', '960', '960', '✓']], rows[13:]
 
 
 def q_smallest_known_is_the_least_product_of_the_chart_s_lengths():
