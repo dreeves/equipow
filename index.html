@@ -1329,9 +1329,25 @@ Or just start identifying redundancies and repetition on the page and fix them o
               <line class="cross" visibility="hidden" data-pool-cross></line>
             </svg>
           </div>
+          <!-- a chart, for a target a witness campaign searches, of the modeled chance (the search bandit's model, from the rate its probe seeds measure) that the campaign finds one within the next t hours, for t up to 72; above it, on hover, that chance within the hours under the pointer; below it, the chance within 6 h and within 24 h, each marked on the chart with a dot, and the CPU-hours searched so far without a find -->
+          <div class="progress-chance">
+            <p class="progress-chance-tip" data-chance-tip></p>
+            <svg viewBox="0 0 640 200" role="img" aria-label="Claude: “The modeled chance of a find within the next t hours, for t up to 72”">
+              <g data-chance-grid></g>
+              <polygon class="wash" data-chance-wash></polygon>
+              <polyline data-chance-line></polyline>
+              <g data-chance-marks></g>
+              <g data-chance-ticks="p"></g>
+              <g data-chance-ticks="t"></g>
+              <line class="cross" visibility="hidden" data-chance-cross></line>
+            </svg>
+            <p class="progress-chance-line">Probability of finding a bipartition within 6 h: <b data-chance-at="6"></b>; within 24 h: <b data-chance-at="24"></b>; <b data-chance-spent></b> CPU-hours so far.</p>
+          </div>
           </details>
         </div>
       </template>
+      <!-- the chance chart's tip: the modeled chance of a find within the hours under the pointer -->
+      <template class="progress-chance-point">Probability of finding a bipartition within <b data-chance-hours></b>: <b data-chance-p></b></template>
       <template class="progress-line">@<span data-when></span>&emsp;<span class="spent"><b data-so-far></b> so far</span> + <span class="togo"><b data-to-go></b> to go</span> = <span class="total"><b data-sum></b> (<b data-done></b>)</span></template>
       <!-- One later stage in a run's line of stages: its name, then the range of its estimated time to go -->
       <template class="progress-stage"><span><code data-stage-name></code> <b data-stage-to-go></b></span></template>

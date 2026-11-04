@@ -12,15 +12,16 @@
 // of pitch px, chosen from 10 down to 2 px so that the sea is at most about 560 px tall, a dot a device px short of its
 // cell (none short below 3 device px); and progress.html's ETA chart
 // (eta_chart there: dreeves's design), from the run's recorded ETAs; and below the status line, for a run with stages
-// after its own, those stages to a recordable result (stagesView, 2026-10-31); and last, for a fanout run, its pool
-// chart (poolChart, 2026-11-03).
+// after its own, those stages to a recordable result (stagesView, 2026-10-31); then, for a fanout run, its pool chart
+// (poolChart, 2026-11-03); and last, for a target a witness campaign searches, its chance chart (chanceChart,
+// 2026-11-03).
 // Strips: an ordered strip layout (Bederson, Shneiderman and Wattenberg 2002) on whole cells.  The groups, in order,
 // fill strips across the cols; a strip's blocks share its height h, each as wide as its count needs at that height, a
 // cell's gap between blocks and between strips; h is the least at which the strip's blocks fit across, and a strip
 // takes the next group unless that worsens its worst block's aspect ratio.
 // window.progressView holds the loads, renders, data and, per run, its layout (rects, cols, rows, pitch;
-// place(group, dot): device px), the ETA chart's record x positions (etaXs, in its viewBox) and the pool chart's point x
-// positions (poolXs, in its viewBox), for the quals.
+// place(group, dot): device px), the ETA chart's record x positions (etaXs, in its viewBox) and the pool chart's and the
+// chance chart's point x positions (poolXs and chanceXs, in their viewBoxes), for the quals.
 (() => {
   const section = document.querySelector('section.progress');
   const details = section.querySelector('details');
@@ -29,6 +30,7 @@
   const line = section.querySelector('template.progress-line');      // a snapshot's line: the status line's running form, and the tip
   const stage = section.querySelector('template.progress-stage');    // one later stage in a run's line of stages
   const poolLine = section.querySelector('template.progress-pool-line');   // the pool chart's tip: a moment's line
+  const point = section.querySelector('template.progress-chance-point');   // the chance chart's tip: an hour's line
   const missing = section.querySelector('.progress-missing');
   const POLL = window.PROGRESS_POLL_MS || 60000;
   const KEPT = 'progress-open';                // localStorage: "1" while this browser last left the section open
@@ -104,9 +106,11 @@
     const ticks = Array.from({length: round(top / k / step) + 1}, (_, i) => step * i);
     return [ticks.map(v => v * k), ticks.map((v, i) => num(v) + (i === ticks.length - 1 ? '\u202f' + u : ''))];
   };
+  const assert = (ok, ...what) => { if (!ok) throw new Error(JSON.stringify(what).replace(/"/g, "'")); };   // as mstar-section.js's
   const NS = 'http://www.w3.org/2000/svg';
   const set = (el, attrs) => { for (const k in attrs) el.setAttribute(k, typeof attrs[k] === 'number' ? attrs[k].toFixed(2) : attrs[k]); return el; };
   const make = (tag, attrs, text) => { const e = set(document.createElementNS(NS, tag), attrs); if (text !== undefined) e.textContent = text; return e; };
+  const xy = ps => ps.map(([x, y]) => `${x.toFixed(2)},${y.toFixed(2)}`).join(' ');   // a polyline's or polygon's points
   // the pool chart's numbers (2026-11-03): a count tick compact, "250K"; a net change signed, a tick's as it is, "+0.5",
   // and a stretch's per job to a hundredth, "+0.35"; each with the minus sign in place of the hyphen Intl writes
   const compact = new Intl.NumberFormat('en-US', {notation: 'compact'});
@@ -182,6 +186,7 @@
       L.etaXs = etaChart(box.querySelector('.progress-eta'), run);
       stagesView(box, run);
       L.poolXs = poolChart(box.querySelector('.progress-pool'), run);
+      L.chanceXs = chanceChart(box.querySelector('.progress-chance'), run);
       return L;
     });
     runsBox.replaceChildren(...boxes);
@@ -486,7 +491,6 @@
     const nstep = tickStep(2 * (hi - lo || 1)), first = Math.floor(lo / nstep), last = Math.max(Math.ceil(hi / nstep), first + 1);
     const nticks = Array.from({length: last - first + 1}, (_, i) => (first + i) * nstep);
     const Y2 = v => bot2 - (bot2 - top2) * (v - nticks[0]) / (nticks[nticks.length - 1] - nticks[0]);
-    const xy = ps => ps.map(([x, y]) => `${x.toFixed(2)},${y.toFixed(2)}`).join(' ');
     const q = sel => fig.querySelector(sel);
     q('[data-pool-grid]').replaceChildren(
       ...cticks.slice(1).map(c => make('line', {class: 'grid', x1: L, y1: Y1(c), x2: W - R, y2: Y1(c)})),
@@ -530,6 +534,68 @@
       at(k);
     });
     svg.addEventListener('mouseleave', () => { cross.setAttribute('visibility', 'hidden'); at(points.length - 1); });
+    return xs;
+  }
+
+  // A witness campaign's chance chart (progress.py's chance; README [SER], 2026-11-03: "Could the searches show a live
+  // estimate of the probability of finding a bipartition?"), from its data's chance: the modeled chance of a find within
+  // the next t hours, for each of its hours (every quarter hour up to 72), a line over a wash down to 0, on round ticks
+  // of percent up to 1% at least (a chance of 0 throughout still has an axis) and of hours every TICK; a dot at each hour
+  // the line below the chart states (its data-chance-at elements: 6 and 24 h), that line giving the chance there and the
+  // CPU-hours searched so far.  The tip above the chart reads out the point nearest the pointer, the cross at it; at rest
+  // it is laid out as the last point's line and hidden, as the ETA chart's tip is.  A single series, so no legend, the
+  // line below naming it.  Shown for a run whose data has a chance (a target a campaign searches, while it is live, see
+  // progress.py), hidden for every other; with no rate measured yet (p empty), its axes alone, no tip, and — for its
+  // chances.  Returns the points' x positions (in its viewBox), for the quals.
+  function chanceChart(fig, run) {
+    fig.hidden = !run.chance;
+    if (fig.hidden) return [];
+    const {hours, p, cpu_hours} = run.chance;
+    const W = 640, H = 200, L = 48, R = 72, T = 14, B = 30, TICK = 12;      // as the charts above (TICK: hours apart)
+    const end = hours[hours.length - 1], top = Math.max(0.01, ...p), step = tickStep(top);
+    const tticks = Array.from({length: Math.floor(end / TICK) + 1}, (_, i) => i * TICK);
+    const pticks = Array.from({length: Math.ceil(top / step - 1e-9) + 1}, (_, i) => i * step);
+    const X = h => L + (W - L - R) * h / end, Y = v => H - B - (H - B - T) * v / pticks[pticks.length - 1];
+    const percent = v => `${Number((100 * v).toPrecision(2))}%`;             // a chance, to 2 significant digits
+    const q = sel => fig.querySelector(sel);
+    q('[data-chance-grid]').replaceChildren(
+      ...pticks.slice(1).map(v => make('line', {class: 'grid', x1: L, y1: Y(v), x2: W - R, y2: Y(v)})),
+      make('line', {class: 'axis', x1: L, y1: Y(0), x2: W - R, y2: Y(0)}),
+      make('line', {class: 'yaxis', x1: L, y1: Y(0), x2: L, y2: T}));
+    q('[data-chance-ticks="p"]').replaceChildren(...pticks.map((v, i) =>
+      make('text', {class: 'ytick', x: L - 6, y: Y(v) + 4, 'text-anchor': 'end'}, num(100 * v) + (i === pticks.length - 1 ? '%' : ''))));
+    q('[data-chance-ticks="t"]').replaceChildren(...tticks.map((h, i) =>
+      make('text', {class: 'xtick', x: X(h), y: H - 8, 'text-anchor': 'middle'}, num(h) + (i === tticks.length - 1 ? ' h' : ''))));
+    fill(fig, 'chance-spent', hrs(cpu_hours));
+    const stated = [...fig.querySelectorAll('[data-chance-at]')], tip = q('[data-chance-tip]');
+    tip.style.minHeight = '';                   // its height at rest, measured again at the next hover (below)
+    if (!p.length) {                            // no rate measured yet: the axes alone, as the pool chart's with no point
+      for (const e of stated) e.textContent = '—';
+      tip.replaceChildren();
+      return [];
+    }
+    const at = h => p[hours.indexOf(h)];
+    assert(p.length === hours.length && stated.every(e => hours.includes(+e.dataset.chanceAt)), p.length, hours.length);
+    for (const e of stated) e.textContent = percent(at(+e.dataset.chanceAt));
+    const line = hours.map((h, i) => [X(h), Y(p[i])]);
+    set(q('[data-chance-line]'), {points: xy(line)});
+    set(q('[data-chance-wash]'), {points: xy([[line[0][0], Y(0)], ...line, [line[line.length - 1][0], Y(0)]])});
+    q('[data-chance-marks]').replaceChildren(...stated.map(e => make('circle', {class: 'mark', r: 4, cx: X(+e.dataset.chanceAt),
+                                                                               cy: Y(at(+e.dataset.chanceAt))})));
+    tip.replaceChildren(point.content.cloneNode(true));
+    const show = k => { fill(tip, 'chance-hours', `${num(hours[k])} h`); fill(tip, 'chance-p', percent(p[k])); };
+    show(hours.length - 1);                     // laid out at rest, invisible, as the last point's line
+    const svg = fig.querySelector('svg'), cross = q('[data-chance-cross]'), xs = line.map(([x]) => x);
+    svg.addEventListener('mousemove', ev => {
+      const b = svg.getBoundingClientRect(), x = (ev.clientX - b.left) * W / b.width;
+      let k = 0;                                 // the nearest point, the latest of equals
+      for (let i = 1; i < xs.length; i++) if (Math.abs(xs[i] - x) <= Math.abs(xs[k] - x)) k = i;
+      set(cross, {x1: xs[k], y1: T, x2: xs[k], y2: Y(0)}).setAttribute('visibility', 'visible');
+      tip.style.minHeight = tip.style.minHeight || `${tip.getBoundingClientRect().height}px`;
+      show(k);
+      tip.style.visibility = 'visible';         // laid out at rest (the CSS hides it), so showing it moves nothing
+    });
+    svg.addEventListener('mouseleave', () => { cross.setAttribute('visibility', 'hidden'); tip.style.visibility = ''; });
     return xs;
   }
 

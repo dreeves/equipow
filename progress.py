@@ -181,6 +181,14 @@ The estimate's model, its terms defined once here (overnight_v5.py's search() is
               gone (its tracker died before writing the end).  The search shows one dot per run (survey_track), and
               while it runs an ETA (2026-10-31: "Every run gets an ETA graph"): the latest estimate a run of it wrote
               to its record (eta lines, see track.py), else Gott's rule on its time so far (gott).
+  campaign    a witness search whose driver runs its seeds as tracked runs, one target per cell of its plan
+              (scratch/beam-campaign-20261103's campaign.py, 2026-11-03; chance.py's vocabulary): CAMPAIGNS names its
+              directory by the target it searches.
+  chance      of a tracked target a campaign searches (README [SER], 2026-11-03: "Could the searches show a live
+              estimate of the probability of finding a bipartition?"; dreeves: "sure, build [SER]"): chance.of's, at
+              the snapshot's time: while the target is live in its campaign, the chance of a witness within the next t
+              hours, t every quarter hour up to 72, under the search-allocation bandit's model, with the CPU-hours
+              searched without one; else none (see chance.py's vocabulary).
   reading     the watcher's state of a run's files, kept between snapshots (2026-10-30: it read 288@10's 500 MB of journal
               and log whole every minute, and one snapshot took 90 minutes): the bytes read so far and all parsed, dated
               and derived from them (Reading, with its Tree and Grown; Boxes for a boxsplit pass, Records for focus.py's
@@ -254,6 +262,7 @@ import overnight_v5 as v5
 import boxsplit as bx
 import fanout
 import run_modules
+import chance
 
 ROOT_V5, ROOT_BX = v5, bx
 
@@ -271,7 +280,10 @@ RUNS = ((288, 10),)                   # displayed overnight_v5 runs, (N, ORDER)
 # runs from scratch/x288 (2026-10-27) while the original is frozen for 432:12; its solver may differ only with identical
 # geometry, replay functions and exact proof checker (run_modules).
 DIRS = {(288, 10): os.path.join('scratch', 'x288')}
-REFRESH = 60                           # seconds between rewrites under --watch (the section reloads the data file as often)
+# The directory of the witness campaign (see the vocabulary) that searches a tracked target, (N, ORDER), relative to HERE:
+# the beam campaign's plan 7 searches 528:12 (2026-11-03).  A campaign that turns to another target needs its entry here.
+CAMPAIGNS = {(528, 12): os.path.join('scratch', 'beam-campaign-20261103')}
+REFRESH = 60                          # seconds between rewrites under --watch (the section reloads the data file as often)
 NICE = 15                              # the niceness the process lowers itself to
 # The deepest level enumerated.  Splitting cost the runs themselves (their logs' split seconds, on loaded workers)
 # under 4 s per node on average down to depth 5, but 6.4 s at depth 6 of 240@11 (up to 51 s).  Levels 0..6 need
@@ -3081,14 +3093,18 @@ def js_text(surveys, now):
     LIMIT the time (whole seconds) of the snapshot its data are from (see snapshot; 2026-10-30); and for a run in a chain,
     not ended (2026-10-31), its stages (see the vocabulary), [{name, to_go}], its own first, each to_go as the run's
     or null, and total, the time to go to a recordable result in the same form, or null; and for a fanout.py run
-    (2026-11-03), pool, its pool series as pool_series gives it."""
+    (2026-11-03), pool, its pool series as pool_series gives it; and for a tracked target a campaign searches
+    (2026-11-03, README [SER]), chance: null, or as chance.measure gives it, {cpu_hours, rate, cores, hours, p}: the
+    CPU-hours searched without a witness, the exposure per CPU-hour (null before a probe seed has finished), the
+    recent CPU-hours per wall-hour, the hours t (chance.HOURS), and the chance of a witness within each (empty
+    without a rate)."""
     return data_text([run_data(s) for s in surveys], now)
 
 
 # What run_data reads of a survey: an idle run's survey keeps no more (see idle; 2026-10-31: an overnight_v5.py
 # survey's open_list held 612,046 of 288@10's leaves).
 LIGHT = ('program', 'n', 'order', 'state', 'outcome', 'so_far', 'to_go', 'etas', 'passes', 'sea', 'display', 'workers',
-         'stages', 'total', 'pool')
+         'stages', 'total', 'pool', 'chance')
 
 
 def light(s):
@@ -3108,7 +3124,7 @@ def run_data(s):
     return ({'program': s['program'], 'n': s['n'], 'order': s['order'], 'state': s['state'], 'outcome': s['outcome'],
              'so_far': s['so_far'], 'to_go': s['to_go'],
              'etas': etas(s), 'statuses': list(SEA_STATUSES)} | s['sea'] | s.get('display', {}) |
-            {k: s[k] for k in ('workers', 'stages', 'total', 'pool') if k in s} | {'stale': None})
+            {k: s[k] for k in ('workers', 'stages', 'total', 'pool', 'chance') if k in s} | {'stale': None})
 
 
 def data_text(runs, now):
@@ -3393,7 +3409,9 @@ def journal_surveys(procs, now, cache, readings, idle):
     def track(target, records):         # its record of ETAs kept by its target and its first run's start
         n, order = target.split(':')
         t0 = min(lines[0]['time'] for lines in records)
-        return [survey_track(target, records, procs, now, cache.setdefault(f'track_{n}_{order}_{int(t0)}_etas', {}))]
+        s = survey_track(target, records, procs, now, cache.setdefault(f'track_{n}_{order}_{int(t0)}_etas', {}))
+        key = (int(n), int(order))      # a target a campaign searches carries its chance (see the vocabulary)
+        return [s | ({'chance': chance.of(HERE, CAMPAIGNS[key], target, now)} if key in CAMPAIGNS else {})]
     return units + [(identities[target], functools.partial(track, target, records)) for target, records in sorted(tracked.items())]
 
 

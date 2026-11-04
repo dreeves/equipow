@@ -4283,6 +4283,91 @@ def q_progress_draws_a_fanout_run_s_pool():
     assert got['empty'] == dict(lines=[0, 0], tip='', xticks=['0', '1', '2', '3', f'4{h}']), got['empty']
 
 
+# A tracked target a campaign searches, in the form progress.js_text gives it with its chance (chance.of; README [SER],
+# 2026-11-03): a made-up chance of a find within each quarter hour t up to 72 h, 0.05 (1 - exp(-t / 30)), after 2.14
+# CPU-hours searched.
+CHANCE_HOURS = [k / 4 for k in range(289)]
+CHANCE = dict(cpu_hours=2.14, rate=9.15e-4, cores=3.2, hours=CHANCE_HOURS, p=[-0.05 * math.expm1(-t / 30) for t in CHANCE_HOURS])
+PROGRESS_CHANCE = dict(program='probe_seed.py', n=528, order=12, state='running', outcome=None, so_far=600,
+                       to_go=dict(median=600, lo=600 / 19, hi=19 * 600), etas=[[PROGRESS_DATA['made'], 600.0, 600.0, 31.6, 11400.0]],
+                       statuses=list(STATUSES), depth=0, keys=['528:12'], groups=['4440'],
+                       counts=dict(settled=1, open=0, split=0, pending=0, running=3), stale=None, tracked=True,
+                       work=dict(runs=4, running=3, frozen=0, ended=1, aborted=0, found=0), chance=CHANCE)
+CHANCE_LOOK = """
+  const all = runs(), [r, other, empty, none] = all;
+  for (const b of [r, empty]) b.querySelector('details').open = true;   // laid out, so that the pointer has somewhere to be
+  await sleep(50);
+  const fig = box => box.querySelector('.progress-chance');
+  const f = fig(r), svg = f.querySelector('svg'), cross = svg.querySelector('[data-chance-cross]'), tip = f.querySelector('[data-chance-tip]');
+  const vertices = (box, sel) => (fig(box).querySelector(sel).getAttribute('points') || '').trim().split(/\\s+/)
+    .filter(Boolean).map(p => p.split(',').map(Number));
+  const ticks = (box, which) => [...fig(box).querySelectorAll(`[data-chance-ticks="${which}"] text`)]
+    .map(t => [t.textContent, +t.getAttribute('x'), +t.getAttribute('y')]);
+  const stated = box => Object.fromEntries([...fig(box).querySelectorAll('[data-chance-at]')].map(e => [e.dataset.chanceAt, e.textContent]));
+  const read = box => [...fig(box).querySelectorAll('[data-chance-tip] [data-chance-hours], [data-chance-tip] [data-chance-p]')].map(e => e.textContent);
+  const L = window.progressView.layouts[0], sb = svg.getBoundingClientRect();
+  const hover = k => svg.dispatchEvent(new MouseEvent('mousemove', {clientX: sb.left + L.chanceXs[k] * sb.width / 640,
+                                                                    clientY: sb.top + sb.height / 2, bubbles: true}));
+  const rest = [getComputedStyle(tip).visibility, read(r)];
+  hover(53);
+  const hovered = [getComputedStyle(tip).visibility, read(r), cross.getAttribute('visibility'), +cross.getAttribute('x1'), L.chanceXs[53]];
+  svg.dispatchEvent(new MouseEvent('mouseleave'));
+  out({hidden: all.map(b => fig(b).hidden), xs: L.chanceXs.length,
+       after: !!(r.querySelector('.progress-pool').compareDocumentPosition(f) & Node.DOCUMENT_POSITION_FOLLOWING),
+       folded: r.querySelector('details').contains(f),
+       line: vertices(r, '[data-chance-line]'), wash: vertices(r, '[data-chance-wash]'),
+       marks: [...f.querySelectorAll('[data-chance-marks] circle')].map(c => [+c.getAttribute('cx'), +c.getAttribute('cy')]),
+       pticks: ticks(r, 'p'), tticks: ticks(r, 't'), stated: stated(r), spent: f.querySelector('[data-chance-spent]').textContent,
+       rest, hovered, left: [getComputedStyle(tip).visibility, cross.getAttribute('visibility')],
+       empty: {line: vertices(empty, '[data-chance-line]').length, marks: fig(empty).querySelectorAll('[data-chance-marks] circle').length,
+               stated: stated(empty), spent: fig(empty).querySelector('[data-chance-spent]').textContent, tip: read(empty),
+               pticks: ticks(empty, 'p').map(t => t[0]), tticks: ticks(empty, 't').map(t => t[0])}});"""
+
+
+def q_progress_draws_a_campaign_target_s_chance():
+    # Replicata: index.html with four runs as progress.js: PROGRESS_CHANCE, a tracked target a campaign searches, with
+    # its chance; PROGRESS_DATA's overnight_v5.py run, whose entry has none; PROGRESS_CHANCE with no rate measured yet
+    # (rate null, no chance: p empty); and with its chance null (not live: found, stopped, or its campaign ended).  The
+    # first and third runs' folds opened, the first's chance chart hovered at its point of 13.25 h, then left.
+    # Expectata (README [SER], 2026-11-03: "Could the searches show a live estimate of the probability of finding a
+    # bipartition?"; the coordinator: "a small chart of the chance of at least one witness within the next t hours, for
+    # t from 0 to 72, with the values at 6 h and 24 h marked and stated.  Also show the compute spent so far without a
+    # find", in the style of the section's charts, with a hover readout): the first and third runs' chance charts shown,
+    # in their folds, after the pool chart, and the second's and fourth's hidden.  The first's line a vertex per hour, at
+    # its hour on the hour ticks' scale (0 to 72, every 12, the last 72 h) and its chance on the percent ticks' (0 to 5%,
+    # every 1, the last 5%), over a wash down to 0 at its ends; a dot at 6 h and one at 24 h, on the line; the chance
+    # within 6 h and within 24 h stated as percents to 2 significant digits, 0.91% and 2.8%, and the CPU-hours searched,
+    # 2.1; its tip at rest hidden, laid out as the last point's line (72 h, 4.5%); over the point of 13.25 h shown with
+    # its hours and chance, 13.25 h and 1.8%, the cross at it; hidden again, with the cross, once the pointer leaves.  The
+    # third's: its axes alone (hours as the first's; percent 0 to 1%, every 0.2), no line, dot or tip, — for its chances
+    # and its CPU-hours stated.
+    # Resultata before: no chance chart.
+    empty = dict(PROGRESS_CHANCE, n=672, order=13, chance=dict(CHANCE, rate=None, p=[]))
+    none = dict(PROGRESS_CHANCE, n=864, order=13, chance=None)
+    got = progress_harness({'made': PROGRESS_DATA['made'], 'runs': [PROGRESS_CHANCE, PROGRESS_DATA['runs'][0], empty, none]}, CHANCE_LOOK)
+    assert got['hidden'] == [False, True, False, True] and got['after'] is True and got['folded'] is True, got['hidden']
+    h = NNBSP + 'h'
+    assert [t[0] for t in got['tticks']] == ['0', '12', '24', '36', '48', '60', f'72{h}'], got['tticks']
+    assert [t[0] for t in got['pticks']] == ['0', '1', '2', '3', '4', '5%'], got['pticks']
+    x0, x72 = got['tticks'][0][1], got['tticks'][-1][1]
+    (_, _, y0), (_, _, y5) = got['pticks'][0], got['pticks'][-1]
+    X = lambda t: x0 + (x72 - x0) * t / 72
+    Y = lambda v: y0 - 4 + (y5 - y0) * v / 0.05                  # a tick label sits 4 below its value's line
+    near = lambda pts, want: len(pts) == len(want) and all(abs(a - c) < 0.05 and abs(b - d) < 0.05 for (a, b), (c, d) in zip(pts, want))
+    line = [(X(t), Y(v)) for t, v in zip(CHANCE_HOURS, CHANCE['p'])]
+    assert got['xs'] == 289 and near(got['line'], line), (got['xs'], got['line'][:3], line[:3])
+    assert near(got['wash'], [(line[0][0], Y(0))] + line + [(line[-1][0], Y(0))]), got['wash'][:3]
+    assert near(got['marks'], [line[CHANCE_HOURS.index(6)], line[CHANCE_HOURS.index(24)]]), got['marks']
+    pct = lambda v: f'{float(f"{100 * v:.2g}"):g}%'               # as the page writes a chance: 2 significant digits
+    p6, p24, p13, p72 = (CHANCE['p'][CHANCE_HOURS.index(t)] for t in (6, 24, 13.25, 72))
+    assert got['stated'] == {'6': pct(p6), '24': pct(p24)} == {'6': '0.91%', '24': '2.8%'} and got['spent'] == '2.1', got['stated']
+    assert got['rest'] == ['hidden', [f'72{h}', pct(p72)]] and pct(p72) == '4.5%', got['rest']
+    assert got['hovered'][:3] == ['visible', [f'13.25{h}', pct(p13)], 'visible'] and pct(p13) == '1.8%', got['hovered']
+    assert abs(got['hovered'][3] - got['hovered'][4]) < 0.05 and got['left'] == ['hidden', 'hidden'], (got['hovered'], got['left'])
+    assert got['empty'] == dict(line=0, marks=0, stated={'6': '—', '24': '—'}, spent='2.1', tip=[],
+                                pticks=['0', '0.2', '0.4', '0.6', '0.8', '1%'], tticks=[t[0] for t in got['tticks']]), got['empty']
+
+
 def q_progress_status_line_names_an_ended_run_s_outcome():
     # Replicata: index.html with the five runs of q_progress_summary_names_each_run_s_state as progress.js: running,
     # paused, frozen, ended with an outcome (excluded) and ended with none.

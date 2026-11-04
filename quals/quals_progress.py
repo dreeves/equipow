@@ -2082,6 +2082,51 @@ def q_survey_track_runs_on_to_its_last_eta_record():
     assert [round(r[1] * 3600, 6) for r in progress.eta_records(s)] == [4000, 5000], progress.eta_records(s)
 
 
+def q_a_campaign_s_target_carries_its_chance():
+    # Replicata: progress.journal_surveys at time 5200 in quals_chance's made-up campaign's directory as HERE (its
+    # campaign in camp/, live at 528:12), whose runs/ also holds a tracked run of 528:12 and one of 768:12, both
+    # running, with progress.CAMPAIGNS naming camp for (528, 12); each unit's surveys, and js_text's entries for them.
+    # Expectata (README [SER], 2026-11-03: "Could the searches show a live estimate of the probability of finding a
+    # bipartition?"; the coordinator: attached to the tracked target's survey, the campaign's directory named
+    # explicitly, as DIRS names other runs'): 528:12's survey carries chance, chance.of(HERE, 'camp', '528:12', 5200),
+    # and its entry in the data file the same, as JSON; 768:12's carries none.
+    # Resultata before: no chance anywhere.
+    import chance, quals_chance
+    d = quals_chance.campaign()
+    os.makedirs(os.path.join(d, 'runs'))
+    for i, target in enumerate(('528:12', '768:12')):
+        lines = track_record(f'r{i}', 300 + i, None, None, 1000)
+        lines[0]['target'] = target
+        open(os.path.join(d, 'runs', f'r{i}.jsonl'), 'w').write(''.join(json.dumps(x) + '\n' for x in lines))
+    procs = [(300 + i, 1, 'S', f'python3 -B w12.py {i}') for i in range(2)]
+    missing = object()
+    saved = {name: getattr(progress, name, missing) for name in ('HERE', 'CAMPAIGNS')}
+    try:
+        progress.HERE, progress.CAMPAIGNS = d, {(528, 12): 'camp'}
+        surveys = {s['n']: s for _, thunk in progress.journal_surveys(procs, 5200.0, {}, {}, {}) for s in thunk()}
+        want = chance.of(d, 'camp', '528:12', 5200.0)
+        assert sorted(surveys) == [528, 768] and want is not None and len(want['p']) == len(chance.HOURS), sorted(surveys)
+        assert surveys[528]['chance'] == want and 'chance' not in surveys[768], surveys[768].keys()
+        runs = {r['n']: r for r in progress_data(progress.js_text(list(surveys.values()), 5200.0))['runs']}
+        assert runs[528]['chance'] == json.loads(json.dumps(want)) and 'chance' not in runs[768], runs[768].keys()
+    finally:
+        for name, value in saved.items():
+            setattr(progress, name, value) if value is not missing else delattr(progress, name)
+        shutil.rmtree(d)
+
+
+def q_campaigns_name_the_beam_campaign():
+    # Replicata: progress.CAMPAIGNS, the table of witness campaigns by the target each searches (README [SER],
+    # 2026-11-03).
+    # Expectata: 528:12's, the beam campaign's directory, scratch/beam-campaign-20261103, holding its plan, which says
+    # it is there, its journal and its priors (chance.PRIORS).
+    import chance
+    assert progress.CAMPAIGNS == {(528, 12): os.path.join('scratch', 'beam-campaign-20261103')}, progress.CAMPAIGNS
+    for d in progress.CAMPAIGNS.values():
+        assert all(os.path.exists(os.path.join(progress.HERE, d, name)) for name in ('plan.json', 'journal.jsonl', chance.PRIORS)), d
+        assert json.load(open(os.path.join(progress.HERE, d, 'plan.json')))['dir'] == d, d
+
+
 def q_watch_keeps_a_tracked_search_s_eta_record():
     # Replicata: progress.main(['--watch']) of a directory with one tracked search, 768:12, its one run live from
     # 1000 s: snapshots at 5000 s and 6000 s; then its record gains an end line (status 0) at 6500 s, and a third
