@@ -10,6 +10,7 @@ proofs/count128/profiles/
 scratch/
 searches/pinned/*.so
 searches/pinned/coins
+searches/tilted/*.so
 .progress_cache.json
 .progress_cache.json.*.tmp
 progress.js.*.tmp
