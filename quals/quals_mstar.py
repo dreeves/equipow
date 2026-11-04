@@ -754,6 +754,17 @@ def q_pin_trees_settle_432_and_816():
     for name in ('pintree_432_12.json.gz', 'pintree_816_13.json.gz'): assert os.path.exists(os.path.join(HERE, 'proofs', name)), name
 
 
+def q_example_at_768_reaches_order_13():
+    # Replicata: mstar.NEW and mstar.js's column at 768.
+    # Expectata (2026-11-03: the beam campaign's lattice search, scratch/beam-campaign-20261103/, pinned_beam.py of scratch/pinned-fast-20261103/,
+    # found an antisymmetric example of order 13 at 768): 768 is 13 to 13, Claude alone, its lo the page's example (["example", "equipow p768"]) and
+    # its hi as before (['residue', 5]).
+    # Resultata before: 768 was 12 to 13, its lo the page's example of order 12.
+    _, got = disk()
+    cs = got['m']['cols']
+    assert mstar.NEW[768] == (13, 13, 'Claude alone') and cs[768 - 1] == [13, 13, ['example', 'equipow p768'], ['residue', 5]], cs[768 - 1]
+
+
 # ---------- residue tests ----------
 
 def counts(n, P, W): return tuple((W[r] + len(range(r, n, P))) // 2 for r in range(P))     # +1's per class mod P

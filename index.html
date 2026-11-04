@@ -42,7 +42,7 @@
     <p>2026-11-03: \(m^*(432) = 11\)</p>
     <p>2026-11-03: \(m^*(720) \ge 13\)</p>
     <p>2026-11-03: \(m^*(960) = 15\)</p>
-    <p>2026-11-03: \(m^*(544) = 10\), \(m^*(576) = 12\), \(m^*(624) = 12\), \(m^*(816) = 12\), \(m^*(912) = 13\), \(m^*(1008) = 13\)</p>
+    <p>2026-11-03: \(m^*(544) = 10\), \(m^*(576) = 12\), \(m^*(624) = 12\), \(m^*(768) = 13\), \(m^*(816) = 12\), \(m^*(912) = 13\), \(m^*(1008) = 13\)</p>
     <p>2026-11-03: \(m^*(2^{28}) \ge 31\), \(m^*(2^{36}) \ge 40\), \(m^*(2^{47}) \ge 53\), \(m^*(2^{56}) \ge 63\), \(m^*(2^{58}) \ge 66\)</p>
     <p>2026-11-01: \(12 \le m^*(672) \le 13\), \(m^*(688) = 10\)</p>
     <p>2026-10-31: <span class="nw">Expandable hex codes</span></p>
@@ -172,7 +172,7 @@
         </table>
         <table class="block">
           <tr class="ns"><th scope="row">\(n\)</th><td class="c" title='Claude alone'>672</td><td class="c" title='Claude alone'>688</td><td class="c" title='Claude alone'>704</td><td class="c" title='Claude alone'>720</td><td class="c" title='Claude alone'>736</td><td class="ca" title='Claude and Astra'>752</td><td class="c" title='Claude alone'>768</td><td class="ca" title='Claude and Astra'>784</td><td class="c" title='Claude alone'>800</td><td class="c" title='Claude alone'>816</td><td class="c" title='Claude alone'>832</td></tr>
-          <tr class="vals"><th scope="row">\(m^*(n)\)</th><td class="c">12–13</td><td class="c">10</td><td class="c">10</td><td class="c">13–14</td><td class="c">10</td><td class="ca">10</td><td class="c">12–13</td><td class="ca">10</td><td class="c">11</td><td class="c">12</td><td class="c">11</td></tr>
+          <tr class="vals"><th scope="row">\(m^*(n)\)</th><td class="c">12–13</td><td class="c">10</td><td class="c">10</td><td class="c">13–14</td><td class="c">10</td><td class="ca">10</td><td class="c">13</td><td class="ca">10</td><td class="c">11</td><td class="c">12</td><td class="c">11</td></tr>
         </table>
         <table class="block">
           <tr class="ns"><th scope="row">\(n\)</th><td class="c" title='Claude alone'>848</td><td class="c" title='Claude alone'>864</td><td class="c" title='Claude alone'>880</td><td class="c" title='Claude alone'>896</td><td class="c" title='Claude alone'>912</td><td class="c" title='Claude alone'>928</td><td class="c" title='Claude alone'>944</td><td class="c" title='Claude alone'>960</td><td class="c" title='Claude alone'>976</td><td class="c" title='Claude alone'>992</td><td class="c" title='Claude alone'>1008</td><td class="c" title='Claude alone'>1024</td></tr>
@@ -721,12 +721,18 @@ Or just start identifying redundancies and repetition on the page and fix them o
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry">\(n = 768\): &nbsp;\(m^* \in \{12, 13\}\)</p>
+      <p class="entry">\(n = 768\): &nbsp;\(m^* = 13\)</p>
       <!-- Says this is a symmetric example of order 12, and that order 14 at 768 is ruled out by the residue condition mod 5, so m*(768) is 12 or 13 -->
       <p>A symmetric example of order 12. Order 14 is ruled out by the residue condition mod 5.</p>
       <p class="code">
         <span>\(p_{768}\) \((m = 12)\):</span>
         <code id="768:12">AB5186723E74399FC150E3179F7008E728787ABA4678EAF3C4C73E033113ADA98C721D7131CE439DA5FECD734DE50904</code>
+      </p>
+      <!-- TODO: says this is an antisymmetric example of order 13, found by a lattice search on 2026-11-03, so m*(768) = 13 -->
+      <p>Claude: “An antisymmetric example of order 13, found by a lattice search.”</p>
+      <p class="code">
+        <span>\(p_{768}\) \((m = 13)\):</span>
+        <code id="768:13">959CE12B46B3BC272BC27489A56ACED0B5657AC652AC2B714AD49E2B8D5E35AC305B4E35D5A5235893AD277894A4FDEF</code>
       </p>
     </li>
     <li class="ca">

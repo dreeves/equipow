@@ -2370,6 +2370,36 @@ def q_pin_trees_are_on_the_page():
     assert smallest_table()[11] == ['12', '480', '480', '✓'], smallest_table()[11]
 
 
+def q_example_at_768_has_its_code_of_order_13():
+    # Replicata: the remarks' entry naming 768, its codes decoded by the paper's Table 5 convention (the left half of the signs, 1 = +1, then the
+    # rest by (-1)^m symmetry), the new results' cell of 768, the changelog's statements of 2026-11-03, and mstar.js's column.
+    # Expectata (2026-11-03: the beam campaign's lattice search, scratch/beam-campaign-20261103/, found an antisymmetric example of order 13 at 768):
+    # 768's entry, an <li class="c"> marked ◆, its statement of m* \(m^* = 13\), between 752's and 784's; its codes p768 (m = 12) and
+    # p768 (m = 13), in that order, the second <code id="768:13">, its signs of order exactly 13 (synthetic division here), antisymmetric, +1 at
+    # 0; no other entry names 768; the cell 13 to 13; the changelog's statement of 768 on 2026-11-03 is (13, 13) (quals_index's statement()); mstar.js's column
+    # [13, 13, ["example", "equipow p768"], ['residue', 5]].
+    # Resultata before: 768 was 12 to 13, with one code, of order 12.
+    text = page()
+    entry = '<p class="entry">\\(n = 768\\): &nbsp;\\(m^* = 13\\)</p>'
+    li = re.search(r'<li class="c">\n      <span class="mk" aria-hidden="true">◆</span>\n      ' + re.escape(entry) + r'\n(.*?)\n    </li>', text, re.S)
+    assert li, 'no entry of 768 alone with its new statement'
+    codes = re.findall(r'\\\(p_\{(\d+)\}\\\) \\\(\(m = (\d+)\)\\\):</span>\n\s*<code id="(\d+:\d+)">([0-9A-F]+)</code>', li.group(1))
+    assert [c[:3] for c in codes] == [('768', '12', '768:12'), ('768', '13', '768:13')], codes
+    h = codes[1][3]
+    left = [1 if b == '1' else -1 for b in bin(int(h, 16))[2:].zfill(4 * len(h))]
+    a = left + [-t for t in reversed(left)]
+    k, c = 0, a
+    while not sum(c): c, k = list(itertools.accumulate(c[:-1])), k + 1
+    assert len(a) == 768 and k == 13 and a[0] == 1 and all(a[768 - 1 - i] == -a[i] for i in range(768)), (len(a), k)
+    listed = [ns.split(', ') for ns in re.findall(r'<p class="entry">\\\(n = (.*?)\\\): ', text)]
+    i = listed.index(['768'])
+    assert listed[i - 1:i + 2] == [['752'], ['768'], ['784']], listed[i - 1:i + 2]
+    assert sum('768' in ns for ns in listed) == 1, [ns for ns in listed if '768' in ns]
+    assert new_cells(text)[768] == (13, 13), new_cells(text)[768]
+    assert changelog_by_day().get('2026-11-03', {}).get(768) == (13, 13), changelog_by_day().get('2026-11-03')
+    assert mstar_data()['cols'][768 - 1] == [13, 13, ['example', 'equipow p768'], ['residue', 5]], mstar_data()['cols'][768 - 1]
+
+
 OEIS = ('A323395', 'A306248', 'A323610', 'A323629', 'A323614')                # the OEIS section's entries on this problem
 RELATED = ('A382832', 'A382833', 'A362039', 'A010060', 'A106400', 'A001969', 'A000069', 'A140047')   # and related ones
 
