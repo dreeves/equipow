@@ -265,7 +265,7 @@ function legendItem(legend, kind, role) {
 // m, or the product of two lesser orders' best lengths where that is less, since f(x) g(x^n), n the length of f, has
 // order at least the sum of theirs (dreeves's README, 2026-10-31: "[MIN] In the "smallest length known for each order"
 // table, we currently have no entries for the smallest known n for orders 14 and 15"; the table showed — where no n up
-// to MSTAR.nmax was known to reach m).
+// to MSTAR.nmax was known to reach m).  An example longer than the chart counts as well (MSTAR.past).
 function smallest() {
   const knownAt = [], possibleAt = [];                             // order m: its least n known, its least n not ruled out
   raised(MSTAR.cols, () => 0).forEach(([known, possible], i) => {
@@ -276,6 +276,8 @@ function smallest() {
   // past the chart that its own tests leave open (dreeves's README, 2026-11-03: "[LIN] Add one more line for m=16 to
   // the "smallest length known for each order" table", then "yes, 1440 instead of ">1024" if that's all we know so far").
   possibleAt.push(MSTAR.mtopAt);
+  // An example past the chart reaches its order at its own length (mstar.js's past; since 2026-11-04, 1440:16).
+  MSTAR.past.forEach(([n, m]) => { knownAt[m] = Math.min(knownAt[m] ?? Infinity, n); });
   const best = [];                                                 // Infinity stands for knownAt's missing n, the least of none
   possibleAt.forEach((_, m) => { best[m] = Math.min(knownAt[m] ?? Infinity, ...best.slice(1, m).map((b, j) => b * best[m - 1 - j])); });
   if (!best.slice(1).every(Number.isFinite)) throw new Error(JSON.stringify(best));   // best[1] is 2 (the data contract's m*(2) = 1)

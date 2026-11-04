@@ -358,7 +358,8 @@ def q_explicit_sources_exact():
 def q_schema():
     # Replicata: mstar.js on disk: its text, and the file run as a classic script by node.
     # Expectata: comment lines, then the single statement "const MSTAR = {...};" whose object is JSON, so the file
-    # defines exactly one global (node sees no other); keys nmax, mtop, mtopAt (since 2026-11-03, README [LIN]), cols;
+    # defines exactly one global (node sees no other); keys nmax, mtop, mtopAt (since 2026-11-03, README [LIN]), past (since 2026-11-04: the
+    # explicit sequences longer than nmax, for the table of smallest lengths, q_past_lists_the_example_of_order_16_at_1440), cols;
     # mtopAt an even integer above nmax; nmax = 1024 (1000 until 2026-10-27, when
     # the chart reached 1024 at dreeves's and Stan Wagon's request); 1024 columns, each
     # [lo, hi, loWhy, hiWhy] with integers 0 <= lo <= hi < mtop = max hi + 1 (so row mtop is red in every column);
@@ -368,7 +369,8 @@ def q_schema():
     assert body.startswith('const MSTAR = ') and body.endswith('};\n') and body.count(';') == 1, body[:80]
     assert json.loads(body[len('const MSTAR = '):-2]) == got['m'] and got['keys'] == [], got['keys']
     M = got['m']
-    assert list(M) == ['nmax', 'mtop', 'mtopAt', 'cols'] and M['nmax'] == 1024 == mstar.NMAX and len(M['cols']) == 1024
+    assert list(M) == ['nmax', 'mtop', 'mtopAt', 'past', 'cols'] and M['nmax'] == 1024 == mstar.NMAX and len(M['cols']) == 1024
+    assert all(type(n) is int and n > M['nmax'] and type(m) is int and type(label) is str for n, m, label in M['past']), M['past']
     assert type(M['mtopAt']) is int and M['mtopAt'] > M['nmax'] and M['mtopAt'] % 2 == 0, M['mtopAt']
     T = M['mtop']
     assert type(T) is int and T == max(c[1] for c in M['cols']) + 1
@@ -536,7 +538,8 @@ def q_gray_columns():
     gray = tuple(n for n, c in enumerate(got['m']['cols'], 1) if c[0] < c[1])
     tens, elevens = (592, 608, 656, 688, 752, 784), (832, 848, 880, 896, 928, 944, 976, 992)
     # 768 settled at 13 on 2026-11-03 (the beam campaign's plan 6), and left the gray columns.
-    assert gray == tuple(n for n in USER_GRAY if n not in (240, 384, 560, 640, 704, 736, 800) + tens + elevens + (432, 544, 576, 624, 768, 816, 912, 960, 1008)), gray
+    # 672 settled at 13 on 2026-11-04 (searches/tilted/: q_example_at_672_reaches_order_13), and left them too.
+    assert gray == tuple(n for n in USER_GRAY if n not in (240, 384, 560, 640, 704, 736, 800) + tens + elevens + (432, 544, 576, 624, 672, 768, 816, 912, 960, 1008)), gray
     assert [got['m']['cols'][n - 1][:2] for n in (240, 384, 560, 640, 704, 736, 800)] == [[10, 10]] * 6 + [[11, 11]]
     assert [got['m']['cols'][n - 1][:3] for n in tens + elevens] == [[10, 10, ['example', f'equipow p{n}']] for n in tens] \
         + [[11, 11, ['example', f'equipow p{n}']] for n in elevens]
@@ -703,8 +706,9 @@ def q_example_at_672_raises_its_lo():
     # Resultata before: 672 was 11 to 13, its lo the product 2 * 336.
     _, got = disk()
     cs = got['m']['cols']
-    assert mstar.NEW[672] == (12, 13, 'Claude alone'), mstar.NEW[672]
-    assert cs[671] == [12, 13, ['example', 'equipow p672'], ['residue', 5]], cs[671]
+    # Since 2026-11-04, 13 to 13: searches/tilted/ found an example of order 13 (q_example_at_672_reaches_order_13).
+    assert mstar.NEW[672] == (13, 13, 'Claude alone'), mstar.NEW[672]
+    assert cs[671] == [13, 13, ['example', 'equipow p672'], ['residue', 5]], cs[671]
 
 
 def q_example_at_688_settles_it():
@@ -765,6 +769,32 @@ def q_example_at_768_reaches_order_13():
     _, got = disk()
     cs = got['m']['cols']
     assert mstar.NEW[768] == (13, 13, 'Claude alone') and cs[768 - 1] == [13, 13, ['example', 'equipow p768'], ['residue', 5]], cs[768 - 1]
+
+
+def q_example_at_672_reaches_order_13():
+    # Replicata: mstar.NEW and mstar.js's column at 672.
+    # Expectata (2026-11-04: the tilted search, searches/tilted/, found an antisymmetric example of order 13 at 672): 672 is 13 to 13,
+    # Claude alone, its lo the page's example (["example", "equipow p672"]) and its hi as before (['residue', 5]).
+    # Resultata before: 672 was 12 to 13, its lo the page's example of order 12.
+    _, got = disk()
+    cs = got['m']['cols']
+    assert mstar.NEW[672] == (13, 13, 'Claude alone') and cs[672 - 1] == [13, 13, ['example', 'equipow p672'], ['residue', 5]], cs[672 - 1]
+
+
+def q_past_lists_the_example_of_order_16_at_1440():
+    # Replicata: mstar.js's past, its mtop and mtopAt, and mstar.explicit()'s sequences past NMAX.
+    # Expectata (2026-11-04: the tilted search, searches/tilted/, found a symmetric example of order 16 at 1440, the least n past the chart
+    # that its tests leave open at order 16, so a(15) = 1440 in OEIS A323395): past is [[1440, 16, "equipow p1440"]], one row [n, m, label] for
+    # each explicit sequence longer than NMAX, whose exact order is m; mtop and mtopAt as before, 16 and 1440, so the least n known
+    # to reach order mtop is the least n not ruled out.
+    # Resultata before: mstar.js had no past, and the page's least n known to reach order 16 was the product 1920 = 960 * 2.
+    _, got = disk()
+    M = got['m']
+    assert M['past'] == [[1440, 16, 'equipow p1440']], M['past']
+    assert (M['mtop'], M['mtopAt']) == (16, 1440), (M['mtop'], M['mtopAt'])
+    far = {key: a for key, a in mstar.explicit().items() if key[0] > mstar.NMAX}
+    assert [[n, mstar.order(a), label] for (n, label), a in far.items()] == M['past'], list(far)
+    assert all(mstar.order(a) == 16 and len(a) == 1440 and a == a[::-1] for a in far.values()), list(far)
 
 
 # ---------- residue tests ----------

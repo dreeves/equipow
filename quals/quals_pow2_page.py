@@ -935,10 +935,12 @@ def q_long_blocks_are_the_remarks_examples():
     # remarks' examples of length n > NMAX, as [n, m], in page order, each decoding to length n and order exactly m
     # (synthetic division); and every block of pow2.js's joins longer than NMAX, other than f and τ_j, is in LONG.
     # Since 2026-10-27, when the m*(n) chart reached 1024, there are none: LONG is [].
+    # Since 2026-11-04 the page has one such example, 1440:16, beside the table of smallest lengths.  No join of pow2.js uses it, so LONG, the
+    # examples longer than NMAX that the chart's blocks may use, stays [] (and the caption names no p_1440: q_caption_defines_readout_symbols).
     codes = re.findall(r'\\\(p_\{(\d+)\}\\\) \\\(\(m = (\d+)\)\\\):</span>\n\s*<code id="\d+:\d+">([0-9A-F]+)</code>',
                        page())
     long = [(int(n), int(m), h) for n, m, h in codes if int(n) > NMAX]
-    assert long_blocks() == [[n, m] for n, m, _ in long] == [], (long_blocks(), long)
+    assert long_blocks() == [] and [[n, m] for n, m, _ in long] == [[1440, 16]], (long_blocks(), long)
     assert NMAX == 1024 and [n for n, *_ in codes].count('1024') == 1, (NMAX, [n for n, *_ in codes])
     for n, m, h in long:
         left = [2 * int(b) - 1 for b in bin(int(h, 16))[2:].zfill(4 * len(h))]

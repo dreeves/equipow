@@ -319,7 +319,8 @@ NOTEWORTHY = (('2026-10-04', 2 ** 24, (25, None), 'the first power of 2 known to
               ('2026-11-03', 720, (13, None), 'the smallest length known with order 13, down from 912 that morning and 960 '
                'before'),
               ('2026-11-03', 960, (15, 15), 'the smallest length known with order 15, down from 3840, and the first allowed it: '
-               'settles a(14) = 960 of OEIS A323395'))
+               'settles a(14) = 960 of OEIS A323395'),
+              ('2026-11-04', 672, (13, 13), 'the smallest length known with order 13, down from 720'))
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -897,7 +898,7 @@ def kinds_data(violation=None):
                  (20, [3, 3, ['page', 'Claude alone'], ['two']]), (24, [4, 5, ['example', 'BGPW Table 5'], ['residue', 9]]),
                  (32, [5, 7, ['product', 16, 2], ['norm', 5]]), (48, [6, 7, ['table2'], ['norm', 7]])):
         cols[n - 1] = c
-    data = {'nmax': NMAX, 'mtop': max(c[1] for c in cols) + 1, 'mtopAt': NMAX + 2, 'cols': cols}
+    data = {'nmax': NMAX, 'mtop': max(c[1] for c in cols) + 1, 'mtopAt': NMAX + 2, 'past': [], 'cols': cols}
     VIOLATIONS.get(violation, (lambda data: None,))[0](data)
     return 'const MSTAR = ' + json.dumps(data) + ';\n'
 
@@ -930,6 +931,7 @@ VIOLATIONS = {   # name: (a change that breaks the contract, what the page's err
     'mtop': (lambda data: data.update(mtop=9), '[9]'),
     'nmax': (lambda data: data.update(nmax=999), '[999,8]'),
     'mtopAt': (lambda data: data.update(mtopAt=NMAX), f'[{NMAX}]'),   # not past the chart (since 2026-11-03, [LIN])
+    'past': (lambda data: data.update(past=[[NMAX, 3, 'x']]), f"[[[{NMAX},3,'x']]]"),   # an example not past the chart (since 2026-11-04)
 }
 
 
@@ -1072,13 +1074,15 @@ def smallest_rows(data):
     not ruled out first at mtopAt, the least n past NMAX that the chart's own tests leave open (mstar.mtop_at), and
     reached first at its least product (dreeves's README, 2026-11-03: "[LIN] Add one more line for m=16 to the
     "smallest length known for each order" table", then "yes, 1440 instead of ">1024" if that's all we know so far";
-    until then the rows stopped at the largest order allowed)."""
+    until then the rows stopped at the largest order allowed).  An example past the chart (mstar.js's past, since
+    2026-11-04) reaches its order at its own length, as a known n does."""
     cols, top, at = data['cols'], data['mtop'], data['mtopAt']
     best = {}
     for m, known, _ in least_columns(cols):
         best[m] = min([known or math.inf] + [best[a] * best[m - a] for a in range(1, m)])
     assert top == len(best) + 1, (top, len(best))
     best[top] = min(best[a] * best[top - a] for a in range(1, top))
+    for n, m, _ in data['past']: best[m] = min(best[m], n)
     assert all(type(b) is int for b in best.values()), best
     rows = [(m, possible) for m, _, possible in least_columns(cols)] + [(top, at)]
     # in the chart's order, the n not ruled out before the n known, the check mark last ([FLP], 2026-10-31)
@@ -2245,10 +2249,11 @@ def q_example_at_672_has_its_entry_and_code():
     # 12–13; the changelog states 12 ≤ m*(672) ≤ 13 on 2026-11-01; mstar.js's column is [12, 13, ["example",
     # "equipow p672"], ["residue", 5]].
     # Resultata before: 672 was 11 to 13 (built: 2 * 336), with no example of order 12.
+    # Since 2026-11-04 m* = 13, the cell 13 and the column [13, 13, ...]: q_example_at_672_has_its_code_of_order_13.  Its code of order 12 stays.
     text = page()
     li = re.search(r'<li class="c">\n      <span class="mk" aria-hidden="true">◆</span>\n      <p class="entry">\\\(n = 672'
-                   r'\\\): &nbsp;\\\(m\^\* \\in \\\{12, 13\\\}\\\)</p>\n(.*?)\n    </li>', text, re.S)
-    assert li, 'no entry of 672 alone, m* in {12, 13}'
+                   r'\\\): &nbsp;\\\(m\^\* = 13\\\)</p>\n(.*?)\n    </li>', text, re.S)
+    assert li, 'no entry of 672 alone, m* = 13'
     codes = re.findall(r'\\\(p_\{(\d+)\}\\\) \\\(\(m = (\d+)\)\\\):</span>\n\s*<code id="672:12">([0-9A-F]+)</code>', li.group(1))
     assert len(codes) == 1 and codes[0][:2] == ('672', '12'), codes
     h = codes[0][2]
@@ -2261,9 +2266,9 @@ def q_example_at_672_has_its_entry_and_code():
     i = listed.index(['672'])
     assert listed[i - 1:i + 2] == [['656'], ['672'], ['688']], listed[i - 1:i + 2]
     assert sum('672' in ns for ns in listed) == 1, [ns for ns in listed if '672' in ns]
-    assert new_cells(text)[672] == (12, 13), new_cells(text)[672]
+    assert new_cells(text)[672] == (13, 13), new_cells(text)[672]
     assert changelog_by_day().get('2026-11-01', {}).get(672) == (12, 13), changelog_by_day().get('2026-11-01')
-    assert mstar_data()['cols'][671] == [12, 13, ['example', 'equipow p672'], ['residue', 5]], mstar_data()['cols'][671]
+    assert mstar_data()['cols'][671] == [13, 13, ['example', 'equipow p672'], ['residue', 5]], mstar_data()['cols'][671]
 
 
 def q_example_at_688_has_its_entry_and_code():
@@ -2492,6 +2497,67 @@ def q_example_at_768_has_its_code_of_order_13():
     assert mstar_data()['cols'][768 - 1] == [13, 13, ['example', 'equipow p768'], ['residue', 5]], mstar_data()['cols'][768 - 1]
 
 
+def q_example_at_672_has_its_code_of_order_13():
+    # Replicata: the remarks' entry naming 672, its codes decoded by the paper's Table 5 convention (the left half of the signs, 1 = +1, then the
+    # rest by (-1)^m symmetry), the new results' cell of 672, the changelog's statements of 2026-11-04, the table of smallest lengths, and mstar.js's column.
+    # Expectata (2026-11-04: the tilted search, searches/tilted/, found an antisymmetric example of order 13 at 672):
+    # 672's entry, an <li class="c"> marked ◆, its statement of m* \\(m^* = 13\\), between 656's and 688's; its codes p672 (m = 12) and
+    # p672 (m = 13), in that order, the second <code id="672:13">, its signs of order exactly 13 (synthetic division here), antisymmetric, +1 at
+    # 0; no other entry names 672; the cell 13 to 13; the changelog's statement of 672 on 2026-11-04 is (13, 13) (quals_index's statement()), on a line of its own
+    # (NOTEWORTHY: the smallest length known with order 13); order 13's row reads 480, 672, unproven; mstar.js's column [13, 13, ["example", "equipow p672"], ['residue', 5]].
+    # Resultata before: 672 was 12 to 13, with one code, of order 12, and order 13's least known length was 720.
+    text = page()
+    entry = '<p class="entry">\\(n = 672\\): &nbsp;\\(m^* = 13\\)</p>'
+    li = re.search(r'<li class="c">\n      <span class="mk" aria-hidden="true">◆</span>\n      ' + re.escape(entry) + r'\n(.*?)\n    </li>', text, re.S)
+    assert li, 'no entry of 672 alone with its new statement'
+    codes = re.findall(r'\\\(p_\{(\d+)\}\\\) \\\(\(m = (\d+)\)\\\):</span>\n\s*<code id="(\d+:\d+)">([0-9A-F]+)</code>', li.group(1))
+    assert [c[:3] for c in codes] == [('672', '12', '672:12'), ('672', '13', '672:13')], codes
+    h = codes[1][3]
+    assert h == '94E71B4AB0A5E5785A33AC2F58C2778C2D699A17D467584AD5B4297A4EB48D2BCAD2B3C5255AE612A567', h
+    left = [1 if b == '1' else -1 for b in bin(int(h, 16))[2:].zfill(4 * len(h))]
+    a = left + [-t for t in reversed(left)]
+    k, c = 0, a
+    while not sum(c): c, k = list(itertools.accumulate(c[:-1])), k + 1
+    assert len(a) == 672 and k == 13 and a[0] == 1 and all(a[672 - 1 - i] == -a[i] for i in range(672)), (len(a), k)
+    listed = [ns.split(', ') for ns in re.findall(r'<p class="entry">\\\(n = (.*?)\\\): ', text)]
+    i = listed.index(['672'])
+    assert listed[i - 1:i + 2] == [['656'], ['672'], ['688']], listed[i - 1:i + 2]
+    assert sum('672' in ns for ns in listed) == 1, [ns for ns in listed if '672' in ns]
+    assert new_cells(text)[672] == (13, 13), new_cells(text)[672]
+    assert changelog_by_day().get('2026-11-04', {}).get(672) == (13, 13), changelog_by_day().get('2026-11-04')
+    assert smallest_table()[12] == ['13', '480', '672', ''], smallest_table()[12]
+    assert mstar_data()['cols'][672 - 1] == [13, 13, ['example', 'equipow p672'], ['residue', 5]], mstar_data()['cols'][672 - 1]
+
+
+def q_example_at_1440_settles_a_15():
+    # Replicata: the section of the table of smallest lengths, its code decoded by the paper's Table 5 convention, the table as the page draws it, the
+    # changelog's entries, the OEIS section's note on A323395, and mstar.js.
+    # Expectata (2026-11-04: the tilted search, searches/tilted/, found a symmetric example of order 16 at 1440): the section holds one code, <code id="1440:16">, its signs of
+    # order exactly 16 (synthetic division here), symmetric, +1 at 0, and says m* is 16 or 17; 1440 has no remark, Table 1 having no cell for it
+    # (q_new_results_state_what_the_chart_proves); order 16's row of the table reads 1440, 1440, proven, since mstar.js's mtopAt is 1440; the changelog has an entry of 2026-11-04
+    # stating a(15) = 1440 (no m*(1440) statement, for the same reason: q_changelog_brings_every_new_result_up_to_date); and the OEIS note on A323395 states a(15) = 1440.
+    # Resultata before: order 16's row read 1440, 1920, not proven, and no example of order 16 was known below 1920.
+    text = page()
+    section = re.search(r'<section class="smallest".*?</section>', text, re.S).group(0)
+    codes = re.findall(r'\\\(p_\{(\d+)\}\\\) \\\(\(m = (\d+)\)\\\):</span>\n\s*<code id="(\d+:\d+)">([0-9A-F]+)</code>', section)
+    assert [c[:3] for c in codes] == [('1440', '16', '1440:16')], codes
+    h = codes[0][3]
+    assert h == '9E21C6F54B340E3CAF46C59F362A518761CD3896A8DAB346DC58D731D72B46AC9A3630DAA94E91D235364CD316F68A7B8AF8E336A449B12CD9E0D6D51AA55C49AC65CCCB90F2D5EA2A166DB9936D0369D05CF5A95CA006EF87B2', h
+    left = [1 if b == '1' else -1 for b in bin(int(h, 16))[2:].zfill(4 * len(h))]
+    a = left + left[::-1]
+    k, c = 0, a
+    while not sum(c): c, k = list(itertools.accumulate(c[:-1])), k + 1
+    assert len(a) == 1440 and k == 16 and a[0] == 1 and a == a[::-1], (len(a), k)
+    assert '\\(m^*(1440) \\in \\{16, 17\\}\\)' in section, 'the bounds at 1440'
+    listed = [ns.split(', ') for ns in re.findall(r'<p class="entry">\\\(n = (.*?)\\\): ', text)]
+    assert not any('1440' in ns for ns in listed) and 1440 not in new_cells(text), listed
+    assert smallest_table()[15] == ['16', '1440', '1440', '✓'], smallest_table()[15]
+    assert mstar_data()['mtopAt'] == 1440 and mstar_data()['past'] == [[1440, 16, 'equipow p1440']], mstar_data()['past']
+    assert any(d == '2026-11-04' and '\\(a(15) = 1440\\)' in rest for d, rest in changelog()), changelog()[:3]
+    body = re.search(r'<section class="oeis" aria-labelledby="oeis-title">.*?</section>', text, re.S).group(0)
+    assert '\\(a(15) = 1440\\)' in re.search(r'<li>(.*?)</li>', body, re.S).group(1), 'the note on A323395'
+
+
 OEIS = ('A323395', 'A306248', 'A323610', 'A323629', 'A323614')                # the OEIS section's entries on this problem
 RELATED = ('A382832', 'A382833', 'A362039', 'A010060', 'A106400', 'A001969', 'A000069', 'A140047')   # and related ones
 
@@ -2519,8 +2585,8 @@ def q_oeis_notes_hold_on_the_chart():
     # Expectata: what each note says of this page holds in the chart's data (OEIS's k-powerful is order k + 1 here):
     # A323395's: a(10) = 432 proven (the least n known to reach order 11 is the least n allowed it); a(11) = 480 proven, since 2026-11-03 (order 12 ruled out at 432, 448 and 464, known at 480;
     # until then a(11) was 432 or 480, order 12 open at 432); order 12 known at 864, and since 2026-11-03 order 15 at 960 (lo),
-    # 720 the least n known to reach order 13 (so a(12) <= 720; 912 that morning, before the beam campaign's 720:13), and a(14) = 960 proven (the
-    # least n known to reach order 15 is the least n allowed it);
+    # 672 the least n known to reach order 13 (so a(12) <= 672, since 2026-11-04; 720 from the beam campaign's 720:13 on 2026-11-03, 912 that morning), a(14) = 960 proven (the
+    # least n known to reach order 15 is the least n allowed it), and a(15) = 1440 proven (since 2026-11-04: q_example_at_1440_settles_a_15);
     # (until 2026-11-03: order 13 at 960, the least n known to reach it, so a(12) <= 960, doubling 960 giving 1920); A306248's: m*(2n) settled
     # (lo = hi) for every n up to 143 and open at 288, 48 more terms than OEIS's 95; A323610's and A323614's: their
     # comments' descriptions of L6 (48 and the multiples of 8 from 64) and L8 (144 and the multiples of 16 from 192)
@@ -2535,9 +2601,9 @@ def q_oeis_notes_hold_on_the_chart():
     lo, hi = (lambda n: cols[n - 1][0]), (lambda n: cols[n - 1][1])
     known = lambda m: next(n for n in range(2, NMAX + 1, 2) if lo(n) >= m)
     allowed = lambda m: next(n for n in range(2, NMAX + 1, 2) if hi(n) >= m)
-    assert known(11) == allowed(11) == 432 and (lo(864), lo(960)) == (12, 15) and known(13) == 720 and known(15) == allowed(15) == 960
+    assert known(11) == allowed(11) == 432 and (lo(864), lo(960)) == (12, 15) and known(13) == 672 and known(15) == allowed(15) == 960
     assert max(hi(432), hi(448), hi(464)) < 12 <= lo(480) and known(12) == allowed(12) == 480
-    assert all(w in notes['A323395'] for w in ('432', '448', '464', '480', '720', '864', '960')), notes['A323395']
+    assert all(w in notes['A323395'] for w in ('432', '448', '464', '480', '672', '864', '960', '1440')), notes['A323395']
     assert all(lo(2 * n) == hi(2 * n) for n in range(1, 144)) and lo(288) < hi(288)
     assert all(w in notes['A306248'] for w in ('95', '48', '143', '286', '288')), notes['A306248']
     rules = {'A323610': (6, lambda n: n == 48 or (n % 8 == 0 and n >= 64)),
@@ -2574,6 +2640,7 @@ def q_oeis_errors_say_how_to_fix_them():
     # at 720, the least n known to reach order 13 (12-powerful), and the example of order 15 at 960, the least n known to reach order 14, though
     # not by the doublings: its note marks no error and says that a(12) ≤ 720.  (Until 2026-11-03 both bounds were wrong, and should have read
     # a(12) ≤ 960 and a(13) ≤ 1920; that morning, before 720:13, its a(12) ≤ 864 was still wrong, and should have read a(12) ≤ 912.)
+    # Since 2026-11-04 the least n known to reach order 13 is 672 (q_example_at_672_has_its_code_of_order_13), and the note says that a(12) ≤ 672.
     # A323629's generating function, L7_GF_OEIS, should be L7_GF: through 1024, L7_GF's series is
     # the chart's L7 (every n with m*(n) ≥ 7) and L7_GF_OEIS's is L7 without 112.
     # Resultata before: the A323395 note said its bounds "look one order too high", and the A323629 note gave no
@@ -2582,8 +2649,8 @@ def q_oeis_errors_say_how_to_fix_them():
     notes = dict(zip(OEIS, re.findall(r'<li>(.*?)</li>', re.search(r'<ul>(.*?)</ul>', body, re.S).group(1), re.S)))
     assert [a for a in OEIS if '<b>Error:</b>' in notes[a]] == ['A323629'] and notes['A323629'].count('<b>Error:</b>') == 1, notes
     lo = lambda n: mstar_data()['cols'][n - 1][0]
-    assert next(n for n in range(2, NMAX + 1, 2) if lo(n) >= 13) == 720 and next(n for n in range(2, NMAX + 1, 2) if lo(n) >= 14) == 960
-    assert all(t in notes['A323395'] for t in (r'\(a(12) \le 864\)', r'\(a(13) \le 960\)', r'\(a(12) \le 720\)')), notes['A323395']
+    assert next(n for n in range(2, NMAX + 1, 2) if lo(n) >= 13) == 672 and next(n for n in range(2, NMAX + 1, 2) if lo(n) >= 14) == 960
+    assert all(t in notes['A323395'] for t in (r'\(a(12) \le 864\)', r'\(a(13) \le 960\)', r'\(a(12) \le 672\)')), notes['A323395']
     L7 = [n for n in range(2, NMAX + 1, 2) if lo(n) >= 7]
     assert gf_terms(L7_GF[1], NMAX) == L7 and gf_terms(L7_GF_OEIS[1], NMAX) == [n for n in L7 if n != 112]
     after = notes['A323629'].split('<b>Error:</b>')[1]
@@ -3340,7 +3407,7 @@ def q_contract_violations_fail_loudly():
     # arguments; a join of lengths that do not add up to n; a join or product claiming more than its parts give; "two"
     # with the wrong hi; "norm" for a prime dividing n, and for a composite; "table2" at an n not in Table 2; "page" for
     # a provenance the page does not use; an example with an empty label; "none" or "odd" at an even n; an example at
-    # an odd n; a column of five entries; hi at mtop; mtop above max hi + 1; nmax not 1024; mtopAt not past nmax.
+    # an odd n; a column of five entries; hi at mtop; mtop above max hi + 1; nmax not 1024; mtopAt not past nmax; a row of past not past nmax.
     # Expectata: in each case the canvas stays 0 px tall and the readout ends with the error, which quotes the
     # offending column as JSON (or mtop, or nmax and mtop), and the error is uncaught.
     for v, (_, quoted) in VIOLATIONS.items():
@@ -4080,10 +4147,11 @@ def q_smallest_lengths_go_past_the_chart():
     # Resultata before: — at orders 14 and 15.
     # And since 2026-11-03 ([LIN]: "Add one more line for m=16", then "yes, 1440 instead of ">1024" if that's all we
     # know so far"), order 16, which no n up to 1024 allows: not ruled out first at 1440 (mstar.js's mtopAt), and
-    # reached at 1920 = 960 · 2, its example of order 15 times Thue–Morse's of order 1 at 2.
+    # reached at 1920 = 960 · 2, its example of order 15 times Thue–Morse's of order 1 at 2, until 2026-11-04, when the example of order 16 at 1440 reached
+    # it at the least n not ruled out (q_example_at_1440_settles_a_15).
     rows = smallest_table()
     assert all(re.fullmatch(r'\d+', r[2]) for r in rows), rows
-    assert rows[13:] == [['14', '480', '960', ''], ['15', '960', '960', '✓'], ['16', '1440', '1920', '']], rows[13:]
+    assert rows[13:] == [['14', '480', '960', ''], ['15', '960', '960', '✓'], ['16', '1440', '1440', '✓']], rows[13:]
 
 
 def q_smallest_known_is_the_least_product_of_the_chart_s_lengths():
@@ -4091,9 +4159,11 @@ def q_smallest_known_is_the_least_product_of_the_chart_s_lengths():
     # Expectata ([MIN]): each order m's smallest known length is products_least(cols, m), the least product of lengths
     # of the chart whose lower bounds sum to at least m, found by brute force.
     # Resultata before: — at orders 14 and 15, whose least products are 1920 and 3840.
-    cols = mstar_data()['cols']
+    # Since 2026-11-04 an example past the chart (mstar.js's past) competes with them: order 16's 1440 against its least product, 1920.
+    cols, past = mstar_data()['cols'], mstar_data()['past']
     rows = smallest_table()
-    assert [r[2] for r in rows] == [str(products_least(cols, m)) for m in range(1, len(rows) + 1)], rows
+    assert products_least(cols, 16) == 1920, products_least(cols, 16)
+    assert [r[2] for r in rows] == [str(min([products_least(cols, m)] + [n for n, k, _ in past if k == m])) for m in range(1, len(rows) + 1)], rows
 
 
 def q_smallest_rows_the_chart_decides_are_unchanged():

@@ -223,6 +223,9 @@ const OPS = {
     await ev(FRAMES);
     await press('section.remarks details > summary');
     if (!await ev(() => document.querySelector('section.remarks details').open)) throw new Error('the fold of the remarks did not open');
+    // then a real click on the page's title, which moves the start of the tab order back to the top: the click on the
+    // summary had moved it there, past the codes above the fold (2026-11-04: since PR 4, 1440:16 beside Table 3)
+    await press('h1');
     return {katex};
   },
   look: () => ev(LOOK),

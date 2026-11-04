@@ -39,6 +39,8 @@
   <!-- The changelog, newest first, as in dreeves's spec FreshAt (doc.bmndr.co/freshat) -->
   <details class="changelog">
     <summary><i>Changelog</i></summary>
+    <p>2026-11-04: \(a(15) = 1440\)</p>
+    <p>2026-11-04: \(m^*(672) = 13\)</p>
     <p>2026-11-03: Number the figures/tables</p>
     <p>2026-11-03: \(m^*(432) = 11\)</p>
     <p>2026-11-03: \(m^*(720) \ge 13\)</p>
@@ -173,7 +175,7 @@
         </table>
         <table class="block">
           <tr class="ns"><th scope="row">\(n\)</th><td class="c" title='Claude alone'>672</td><td class="c" title='Claude alone'>688</td><td class="c" title='Claude alone'>704</td><td class="c" title='Claude alone'>720</td><td class="c" title='Claude alone'>736</td><td class="ca" title='Claude and Astra'>752</td><td class="c" title='Claude alone'>768</td><td class="ca" title='Claude and Astra'>784</td><td class="c" title='Claude alone'>800</td><td class="c" title='Claude alone'>816</td><td class="c" title='Claude alone'>832</td></tr>
-          <tr class="vals"><th scope="row">\(m^*(n)\)</th><td class="c">12–13</td><td class="c">10</td><td class="c">10</td><td class="c">13–14</td><td class="c">10</td><td class="ca">10</td><td class="c">13</td><td class="ca">10</td><td class="c">11</td><td class="c">12</td><td class="c">11</td></tr>
+          <tr class="vals"><th scope="row">\(m^*(n)\)</th><td class="c">13</td><td class="c">10</td><td class="c">10</td><td class="c">13–14</td><td class="c">10</td><td class="ca">10</td><td class="c">13</td><td class="ca">10</td><td class="c">11</td><td class="c">12</td><td class="c">11</td></tr>
         </table>
         <table class="block">
           <tr class="ns"><th scope="row">\(n\)</th><td class="c" title='Claude alone'>848</td><td class="c" title='Claude alone'>864</td><td class="c" title='Claude alone'>880</td><td class="c" title='Claude alone'>896</td><td class="c" title='Claude alone'>912</td><td class="c" title='Claude alone'>928</td><td class="c" title='Claude alone'>944</td><td class="c" title='Claude alone'>960</td><td class="c" title='Claude alone'>976</td><td class="c" title='Claude alone'>992</td><td class="c" title='Claude alone'>1008</td><td class="c" title='Claude alone'>1024</td></tr>
@@ -313,8 +315,12 @@
   </table>
   <!-- Says where the table's smallest known lengths beyond the chart come from: if f has length n and order a, and g has order b, then f(x) g(x^n) has order at least a + b, so the product of two lesser orders' lengths reaches their sum -->
   <p>Values of \(n\) beyond what the chart shows are from products: if \(f\) has length \(n\) and order \(a\), and \(g\) has order \(b\), then \(f(x)\,g(x^n)\) has order at least \(a + b\).</p>
-  <!-- TODO: says that order 16's smallest n not ruled out, 1440, is no product: it is the least length past 1024 that the chart's own tests leave open at order 16; every shorter one fails the 2-adic bound, a norm bound or a residue condition; a longer search could still rule 1440 out -->
-  <p>Claude: “Order 16's smallest \(n\) not ruled out, 1440, is no product: it is the least length past 1024 that the chart's own tests leave open at order 16. Each shorter one fails the 2-adic bound, a norm bound or a residue condition; a longer search could still rule 1440 out.”</p>
+  <!-- TODO: says that order 16's smallest n, 1440, is no product: it is the least length past 1024 that the chart's own tests leave open at order 16, every shorter one failing the 2-adic bound, a norm bound or a residue condition; that a symmetric example of order 16, found by a lattice search on 2026-11-04, reaches it, which settles a(15) = 1440 of OEIS A323395; and that order 18 at 1440 is ruled out by the residue condition mod 7, so m*(1440) is 16 or 17 -->
+  <p>Claude: “Order 16's smallest \(n\), 1440, is no product: it is the least length past 1024 that the chart's own tests leave open at order 16. Each shorter one fails the 2-adic bound, a norm bound or a residue condition. The symmetric example below, found by a lattice search, reaches it, which settles \(a(15) = 1440\) of OEIS <a href="https://oeis.org/A323395">A323395</a>. Order 18 is ruled out at 1440 by the residue condition mod 7, so \(m^*(1440) \in \{16, 17\}\).”</p>
+  <p class="code">
+    <span>\(p_{1440}\) \((m = 16)\):</span>
+    <code id="1440:16">9E21C6F54B340E3CAF46C59F362A518761CD3896A8DAB346DC58D731D72B46AC9A3630DAA94E91D235364CD316F68A7B8AF8E336A449B12CD9E0D6D51AA55C49AC65CCCB90F2D5EA2A166DB9936D0369D05CF5A95CA006EF87B2</code>
+  </p>
 </section>
 
 <!-- Claude's chart of what is known about m*(2^k) − k, the excess over Thue–Morse, for every k up to 72, drawn by the script at the end from pow2.js -->
@@ -727,12 +733,18 @@ Or just start identifying redundancies and repetition on the page and fix them o
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
-      <p class="entry">\(n = 672\): &nbsp;\(m^* \in \{12, 13\}\)</p>
+      <p class="entry">\(n = 672\): &nbsp;\(m^* = 13\)</p>
       <!-- TODO: says this is a symmetric example of order 12 -->
       <p>Claude: “A symmetric example of order 12.”</p>
       <p class="code">
         <span>\(p_{672}\) \((m = 12)\):</span>
         <code id="672:12">A9D2518FC721CF719C870CD87698C3A1EEE1C5C739CC62983F91646AA8EF30EE2791C5AA4F470CCD05EE</code>
+      </p>
+      <!-- TODO: says this is an antisymmetric example of order 13, found by a lattice search on 2026-11-04; and that it makes 672 the smallest length known with order 13, so a(12) <= 672 in OEIS A323395 -->
+      <p>Claude: “An antisymmetric example of order 13, found by a lattice search. It is the shortest known of that order.”</p>
+      <p class="code">
+        <span>\(p_{672}\) \((m = 13)\):</span>
+        <code id="672:13">94E71B4AB0A5E5785A33AC2F58C2778C2D699A17D467584AD5B4297A4EB48D2BCAD2B3C5255AE612A567</code>
       </p>
     </li>
     <li class="c">
@@ -1094,8 +1106,8 @@ Or just start identifying redundancies and repetition on the page and fix them o
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 2^{47}\): &nbsp;\(m^* \in \{53, \ldots, 58\}\)</p>
-      <!-- TODO: says 2^47 = 960^3·432 + 960^2·672·816·2 + 576^3·1008·2^4 + 960^2·800·880·2^3 + 800^4·320, a join of five products of the examples above and Thue–Morse, of orders 56, 55, 53, 55 and 53, which beats Thue–Morse by 6 -->
-      <p>Claude: “\(2^{47} = 960^3\cdot 432 + 960^2\cdot 672\cdot 816\cdot 2 + 576^3\cdot 1008\cdot 2^4 + 960^2\cdot 800\cdot 880\cdot 2^3 + 800^4\cdot 320\): a join of five products of examples above and Thue–Morse, of orders 56, 55, 53, 55 and 53. That beats Thue–Morse by 6.”</p>
+      <!-- TODO: says 2^47 = 960^3·432 + 960^2·672·816·2 + 576^3·1008·2^4 + 960^2·800·880·2^3 + 800^4·320, a join of five products of the examples above and Thue–Morse, of orders 56, 56, 53, 55 and 53, which beats Thue–Morse by 6 -->
+      <p>Claude: “\(2^{47} = 960^3\cdot 432 + 960^2\cdot 672\cdot 816\cdot 2 + 576^3\cdot 1008\cdot 2^4 + 960^2\cdot 800\cdot 880\cdot 2^3 + 800^4\cdot 320\): a join of five products of examples above and Thue–Morse, of orders 56, 56, 53, 55 and 53. That beats Thue–Morse by 6.”</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
@@ -1125,8 +1137,8 @@ Or just start identifying redundancies and repetition on the page and fix them o
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 2^{56}\): &nbsp;\(m^* \in \{63, \ldots, 69\}\)</p>
-      <!-- TODO: says 2^56 = 832·800^4·208 + 992·960^2·832·800 + 912^2·672·576^2·2 + 960^2·848·576·432, a join of four products of the examples above and Thue–Morse, of orders 63, 63, 63 and 64, which beats Thue–Morse by 7; that the search for such joins in searches/pinned (its coins, as its README says) left 2^56 undecided at its 15-minute limit, and a later search over every product of the examples decided it -->
-      <p>Claude: “\(2^{56} = 832\cdot 800^4\cdot 208 + 992\cdot 960^2\cdot 832\cdot 800 + 912^2\cdot 672\cdot 576^2\cdot 2 + 960^2\cdot 848\cdot 576\cdot 432\): a join of four products of examples above and Thue–Morse, of orders 63, 63, 63 and 64. That beats Thue–Morse by 7. The search for such joins in <a href="https://github.com/dreeves/equipow/tree/main/searches/pinned">searches/pinned</a> left \(2^{56}\) undecided at its 15-minute limit; a later search over every product of examples decided it.”</p>
+      <!-- TODO: says 2^56 = 832·800^4·208 + 992·960^2·832·800 + 912^2·672·576^2·2 + 960^2·848·576·432, a join of four products of the examples above and Thue–Morse, of orders 63, 63, 64 and 64, which beats Thue–Morse by 7; that the search for such joins in searches/pinned (its coins, as its README says) left 2^56 undecided at its 15-minute limit, and a later search over every product of the examples decided it -->
+      <p>Claude: “\(2^{56} = 832\cdot 800^4\cdot 208 + 992\cdot 960^2\cdot 832\cdot 800 + 912^2\cdot 672\cdot 576^2\cdot 2 + 960^2\cdot 848\cdot 576\cdot 432\): a join of four products of examples above and Thue–Morse, of orders 63, 63, 64 and 64. That beats Thue–Morse by 7. The search for such joins in <a href="https://github.com/dreeves/equipow/tree/main/searches/pinned">searches/pinned</a> left \(2^{56}\) undecided at its 15-minute limit; a later search over every product of examples decided it.”</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
@@ -1137,8 +1149,8 @@ Or just start identifying redundancies and repetition on the page and fix them o
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 2^{58}\): &nbsp;\(m^* \in \{66, \ldots, 71\}\)</p>
-      <!-- TODO: says 2^58 = 848·800^5 + 960^2·800^3·2^3 + 912·624^2·576^2·2^5 + 960·768·672^2·528·2^4, a join of four products of the examples above and Thue–Morse, of orders 66, 66, 66 and 67, which beats Thue–Morse by 8; that the search for such joins in searches/pinned (its coins, as its README says) left 2^58, 2^60 and 2^62 undecided at its 15-minute limit, and a later search over every product of the examples decided them -->
-      <p>Claude: “\(2^{58} = 848\cdot 800^5 + 960^2\cdot 800^3\cdot 2^3 + 912\cdot 624^2\cdot 576^2\cdot 2^5 + 960\cdot 768\cdot 672^2\cdot 528\cdot 2^4\): a join of four products of examples above and Thue–Morse, of orders 66, 66, 66 and 67. That beats Thue–Morse by 8. The search for such joins in <a href="https://github.com/dreeves/equipow/tree/main/searches/pinned">searches/pinned</a> left \(2^{58}\), \(2^{60}\) and \(2^{62}\) undecided at its 15-minute limit; a later search over every product of examples decided them.”</p>
+      <!-- TODO: says 2^58 = 848·800^5 + 960^2·800^3·2^3 + 912·624^2·576^2·2^5 + 960·768·672^2·528·2^4, a join of four products of the examples above and Thue–Morse, of orders 66, 66, 66 and 69, which beats Thue–Morse by 8; that the search for such joins in searches/pinned (its coins, as its README says) left 2^58, 2^60 and 2^62 undecided at its 15-minute limit, and a later search over every product of the examples decided them -->
+      <p>Claude: “\(2^{58} = 848\cdot 800^5 + 960^2\cdot 800^3\cdot 2^3 + 912\cdot 624^2\cdot 576^2\cdot 2^5 + 960\cdot 768\cdot 672^2\cdot 528\cdot 2^4\): a join of four products of examples above and Thue–Morse, of orders 66, 66, 66 and 69. That beats Thue–Morse by 8. The search for such joins in <a href="https://github.com/dreeves/equipow/tree/main/searches/pinned">searches/pinned</a> left \(2^{58}\), \(2^{60}\) and \(2^{62}\) undecided at its 15-minute limit; a later search over every product of examples decided them.”</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
@@ -1187,7 +1199,7 @@ Or just start identifying redundancies and repetition on the page and fix them o
 </section>
 
 <section class="oeis" aria-labelledby="oeis-title">
-  <!-- A block quote by Claude, at dreeves's request (2026-10-28: "can you make a section that links to all the relevant OEIS entries and notes any discrepancies?"): the OEIS entries on this problem, each linked, with how it compares with this page on 2026-10-28, OEIS's k-powerful being order k + 1 here, and that one has an error, marked as one with its fix: A323629, which omits 112. A323395, the smallest length of each order (a(m − 1) for order m): its terms through a(9) = 240 agree, and this page proves the next two, a(10) = 432 and a(11) = 480, and a(14) = 960; its comment's a(12) ≤ 864 and a(13) ≤ 960 hold (proven only on 2026-11-03; both were unproven when the comment was posted on 2026-10-17), though not by the doublings that gave them, which reach only order 12 at 864 and order 13 at 960: the examples of order 13 at 720 and of order 15 at 960 give them, and a(12) ≤ 720; the comment's a(10) ≤ 432 and a(11) ≤ 480 hold, with equality (order 12 ruled out at 432, 448 and 464). A306248, m*(2n): its 95 terms agree, and this page settles 48 more, through n = 143, with m*(288) open. A323610 (L6, the lengths n with m*(n) ≥ 6) and A323614 (L8): their terms agree, and so do their comments' descriptions through 1024. A323629 (L7), the error: it omits 112 from its terms, its comment (quoted) and its generating function −8x(x^6 + 2x^2 + 8x − 12)/(x − 1)^2, which should be 8x(12 − 10x − x^7)/(1 − x)^2, though BGPW's Theorem 3.1 and Tables 1 to 3, A306248's a(56) = 7 and the published paper's Table 5 have it; with 112 added it agrees through 1024. Then the related entries: A382832, the same question for two distinct subsets that need not form a partition, at most A323395; A382833, the number of distinct power-sum vectors of the subsets; A362039, the least common sum of two sets of primes of order m; A010060 and A106400, Thue–Morse as 0s and 1s and as signs, its partition of {0, …, 2^k − 1} having order k; A001969 and A000069, the evil and odious numbers, the two parts of that partition; A140047, the power sums of each part of an order-k partition of {0, …, 2^k − 1}, half those of the whole set -->
+  <!-- A block quote by Claude, at dreeves's request (2026-10-28: "can you make a section that links to all the relevant OEIS entries and notes any discrepancies?"): the OEIS entries on this problem, each linked, with how it compares with this page on 2026-10-28, OEIS's k-powerful being order k + 1 here, and that one has an error, marked as one with its fix: A323629, which omits 112. A323395, the smallest length of each order (a(m − 1) for order m): its terms through a(9) = 240 agree, and this page proves the next two, a(10) = 432 and a(11) = 480, and a(14) = 960; its comment's a(12) ≤ 864 and a(13) ≤ 960 hold (proven only on 2026-11-03; both were unproven when the comment was posted on 2026-10-17), though not by the doublings that gave them, which reach only order 12 at 864 and order 13 at 960: the examples of order 13 at 672 and of order 15 at 960 give them, and a(12) ≤ 672; the comment's a(10) ≤ 432 and a(11) ≤ 480 hold, with equality (order 12 ruled out at 432, 448 and 464). A306248, m*(2n): its 95 terms agree, and this page settles 48 more, through n = 143, with m*(288) open. A323610 (L6, the lengths n with m*(n) ≥ 6) and A323614 (L8): their terms agree, and so do their comments' descriptions through 1024. A323629 (L7), the error: it omits 112 from its terms, its comment (quoted) and its generating function −8x(x^6 + 2x^2 + 8x − 12)/(x − 1)^2, which should be 8x(12 − 10x − x^7)/(1 − x)^2, though BGPW's Theorem 3.1 and Tables 1 to 3, A306248's a(56) = 7 and the published paper's Table 5 have it; with 112 added it agrees through 1024. Then the related entries: A382832, the same question for two distinct subsets that need not form a partition, at most A323395; A382833, the number of distinct power-sum vectors of the subsets; A362039, the least common sum of two sets of primes of order m; A010060 and A106400, Thue–Morse as 0s and 1s and as signs, its partition of {0, …, 2^k − 1} having order k; A001969 and A000069, the evil and odious numbers, the two parts of that partition; A140047, the power sums of each part of an order-k partition of {0, …, 2^k − 1}, half those of the whole set -->
     <h2 id="oeis-title">Claude Comments on OEIS Entries</h2>
     <p>
       Nota Bene: 
@@ -1201,7 +1213,7 @@ Or just start identifying redundancies and repetition on the page and fix them o
       Claude wrote all the bullet points below.
     </p>
     <ul>
-      <li><a href="https://oeis.org/A323395">A323395</a>, the smallest \(n\) of each order (\(a(m - 1)\) for order \(m\)): its terms, through \(a(9) = 240\), agree, and this page proves the next two, \(a(10) = 432\) and \(a(11) = 480\), and \(a(14) = 960\) (above). Its comment's \(a(12) \le 864\) and \(a(13) \le 960\) hold, though not by the doublings that gave them, which reach only order 12 at 864 and order 13 at 960: the examples above of order 13 at 720 and of order 15 at 960 give them, and \(a(12) \le 720\). The comment's \(a(10) \le 432\) and \(a(11) \le 480\) hold, with equality: order 12 is ruled out at 432, 448 and 464.</li>
+      <li><a href="https://oeis.org/A323395">A323395</a>, the smallest \(n\) of each order (\(a(m - 1)\) for order \(m\)): its terms, through \(a(9) = 240\), agree, and this page proves the next two, \(a(10) = 432\) and \(a(11) = 480\), and \(a(14) = 960\) and \(a(15) = 1440\) (above). Its comment's \(a(12) \le 864\) and \(a(13) \le 960\) hold, though not by the doublings that gave them, which reach only order 12 at 864 and order 13 at 960: the examples above of order 13 at 672 and of order 15 at 960 give them, and \(a(12) \le 672\). The comment's \(a(10) \le 432\) and \(a(11) \le 480\) hold, with equality: order 12 is ruled out at 432, 448 and 464.</li>
       <li><a href="https://oeis.org/A306248">A306248</a>, \(m^*(2n)\): its 95 terms agree, and this page settles 48 more, through \(n = 143\) (\(2n = 286\)); \(m^*(288)\) is open.</li>
       <li><a href="https://oeis.org/A323610">A323610</a>, the lengths \(n\) with \(m^*(n) \ge 6\) \((L_6)\): its terms agree, and so does its comment's description through 1024.</li>
       <li><a href="https://oeis.org/A323629">A323629</a>, \(L_7\): <b>Error:</b> it omits 112 from its terms, from its comment (“The set consists of 96, 128, 144, 160, 176, and all multiples of 8 that are greater than or equal to 192”) and from its generating function, \(-8x(x^6 + 2x^2 + 8x - 12)/(x - 1)^2\), which should be \(8x(12 - 10x - x^7)/(1 - x)^2\). BGPW's <a href="https://arxiv.org/html/1912.03491v1#S3.Thmthm1">Theorem 3.1</a> and Tables 1 to 3 have 112 in \(L_7\), as does A306248, whose \(a(56)\) is 7, and the published paper's Table 5 gives a partition of 112 of order 7. With 112 added, it agrees through 1024.</li>
@@ -1269,6 +1281,14 @@ Or just start identifying redundancies and repetition on the page and fix them o
       <li><b>The free set.</b> The positions divisible by 3 when 3 divides \(n\); the others when it does not, the class of 0 mod 3 being nearly fixed then; or a central block, which imposes no congruences, the fixed signs annealed ring by ring from the outside in, each ring measured against what the positions inside it can still reach.</li>
     </ul>
     <p>The times of the runs that found them: 1008 in about 1 CPU minute per seed, 912 in 45 seconds, 624 in 97 seconds and 544 in under 2 minutes; 576 in about 11 minutes on 5 cores; and 960, with the central block, in about 100 minutes in all on 6 to 12 cores. The README in that directory has the commands.</p>
+    <!-- TODO: Claude's account of the search of 2026-11-04 (searches/tilted/): the examples it found, at 672 and 1440; that it keeps the pinned residue sums, the lattice and the enumeration and changes three things: each sign's bias estimated from the pins by maximizing entropy subject to them; the fixed signs chosen by a randomized beam search that favors those biases, each run with its own random field so that runs reach different cosets; and a pruning bound that sags below the straight line through the middle of the tree (at 1008, order 13, in 180 seconds, 43 examples with no sag, 989 with a sag of 0.45 and 1 with 0.6); and the times of the runs that found them, 532 seconds at 672 and 709 seconds at 1440, each on one core -->
+    <p>The examples of 2026-11-04, of order 13 at 672 and of order 16 at 1440, came from a further development, <a href="https://github.com/dreeves/equipow/tree/main/searches/tilted">searches/tilted</a>, which keeps the pinned residue sums, the lattice and the enumeration and changes three things.</p>
+    <ul class="searches">
+      <li><b>Each sign's bias.</b> Pinned residue sums can leave some signs nearly decided. Maximizing entropy subject to the pins gives each sign an expected value, and from those an estimate of the number of solutions that no longer assumes the signs are balanced.</li>
+      <li><b>The fixed signs.</b> A beam search chooses them, favoring the signs' biases and the squared length of \(t\)'s part outside the span of \(2K\). Each run adds its own random field to the biases, so that runs reach different cosets.</li>
+      <li><b>A sagging bound.</b> The enumeration's bound runs below the straight line through the middle of the tree. At 1008, for order 13, in 180 seconds on one core: 43 examples with no sag, 989 with a sag of 0.45, and 1 with a sag of 0.6.</li>
+    </ul>
+    <p>The runs that found them took 532 seconds at 672 and 709 seconds at 1440, each on one core. The README in that directory has the commands.</p>
     <p class="attrib">— Claude</p>
   </blockquote>
 </section>

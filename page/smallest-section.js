@@ -6,7 +6,7 @@
 // at least m, or the product of two lesser orders' best lengths where that is less, since f(x) g(x^n), n the length of
 // f, has order at least the sum of theirs (dreeves's README, 2026-10-31: "[MIN] In the "smallest length known for each
 // order" table, we currently have no entries for the smallest known n for orders 14 and 15"; the table showed — where
-// no n up to MSTAR.nmax was known to reach m).
+// no n up to MSTAR.nmax was known to reach m).  An example longer than the chart counts as well (MSTAR.past).
 // Since 2026-11-04 the rows come from smallest() and smallestRow() (page/shared.js), which a row's box of the m*(n)
 // chart shows too ([ROC]), and which hold this table's rules and its history.
 document.querySelector('[data-smallest]').replaceChildren(...smallest().map(smallestRow));

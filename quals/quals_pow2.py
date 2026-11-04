@@ -77,8 +77,8 @@ def expect_assertion(f):
 
 @lru_cache(maxsize=None)
 def long_examples():
-    """{(n, m)}: index.html's examples longer than mstar.NMAX (none since 2026-10-27, when the m*(n) chart reached the
-    one there was, at 1024), each a code block of the remarks, p_n of order m alone,
+    """{(n, m)}: index.html's examples longer than mstar.NMAX (none from 2026-10-27, when the m*(n) chart reached the
+    one there was, at 1024, until 2026-11-04, 1440:16), each a code block, p_n of order m alone,
     decoded here by the paper's Table 5 convention (the left half of the signs, 1 = +1, then the rest by (-1)^m
     symmetry), its length n and its exact order m asserted (synthetic division)."""
     page = open(os.path.join(HERE, 'index.html'), encoding='utf-8').read()
@@ -219,7 +219,8 @@ def q_base_blocks_and_their_sources():
     blocks = {K0: {(n, m) for p in ps for n, m in p if n != 2 ** m} for K0, ps in pow2.BASES.items()}
     short = {K0: {(n, m) for n, m in bs if n <= mstar.NMAX} for K0, bs in blocks.items()}
     assert all(mstar_disk()[n - 1][0] == m for bs in short.values() for n, m in bs), short
-    assert set().union(*blocks.values()) - set().union(*short.values()) <= long_examples() == set(), blocks
+    # Since 2026-11-04 the page has one example longer than NMAX, 1440:16, which beside the table of smallest lengths moves no first, so no base uses it (searches/tilted/README.md).
+    assert set().union(*blocks.values()) - set().union(*short.values()) == set() and long_examples() == {(1440, 16)}, blocks
     assert (1024, 11) in short[10] and mstar.NMAX == 1024
     assert {(n, m) for n, m in pow2.blocks() if n > mstar.NMAX and n != 2 ** m} == long_examples()
     cited = {K0: {(n, m) for n, m in bs if mstar_disk()[n - 1][2] == ['page', 'BGPW']} for K0, bs in short.items()}

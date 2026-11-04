@@ -104,6 +104,8 @@ try {
   });
   assert(D.mtop === Math.max(...D.cols.map(c => c[1])) + 1, D.mtop);
   assert(Number.isInteger(D.mtopAt) && D.mtopAt > D.nmax && D.mtopAt % 2 === 0, D.mtopAt);   // past the chart ([LIN])
+  // the explicit sequences longer than the chart reaches, for the table of smallest lengths (since 2026-11-04: 1440:16)
+  assert(Array.isArray(D.past) && D.past.every(([n, m, label]) => Number.isInteger(n) && n > D.nmax && n % 2 === 0 && Number.isInteger(m) && m > 0 && label), D.past);
 
   const KIND = ['exists', 'open', 'impossible'];                  // the colors' tokens, by kind of cell
   const kindOf = (n, m) => m <= D.cols[n - 1][0] ? 0 : m <= D.cols[n - 1][1] ? 1 : 2;
