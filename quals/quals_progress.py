@@ -2098,6 +2098,9 @@ def q_a_campaign_s_target_carries_its_chance():
     # Spec change (README [CON], 2026-11-03; dreeves: "i guess just apply common sense here too"): chance.shown, which
     # adds the chance's history to chance.of's chance, in place of chance.of; and 528:12's to_go null, the chance in
     # place of Gott's rule (a witness search ends with a find, or when stopped, on no schedule), 768:12's Gott's.
+    # Spec change (dreeves, 2026-11-04: "shouldn't there always be an ETA graph, even when it's just based on the lindy
+    # effect? death to if-statements, remember?"): 528:12's to_go Gott's rule, as 768:12's (both started at 1000), the
+    # chance beside it; until then null.
     # Resultata before: no chance anywhere.
     import chance, quals_chance
     d = quals_chance.campaign()
@@ -2115,7 +2118,7 @@ def q_a_campaign_s_target_carries_its_chance():
         want = chance.shown(d, 'camp', '528:12', 5200.0)
         assert sorted(surveys) == [528, 768] and want is not None and len(want['p']) == len(chance.HOURS), sorted(surveys)
         assert surveys[528]['chance'] == want and 'chance' not in surveys[768], surveys[768].keys()
-        assert surveys[528]['to_go'] is None and surveys[768]['to_go'] is not None, (surveys[528]['to_go'], surveys[768]['to_go'])
+        assert surveys[528]['to_go'] is not None and surveys[528]['to_go'] == surveys[768]['to_go'], (surveys[528]['to_go'], surveys[768]['to_go'])
         runs = {r['n']: r for r in progress_data(progress.js_text(list(surveys.values()), 5200.0))['runs']}
         assert runs[528]['chance'] == json.loads(json.dumps(want)) and 'chance' not in runs[768], runs[768].keys()
     finally:

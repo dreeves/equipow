@@ -5417,8 +5417,8 @@ def q_progress_draws_a_campaign_target_s_chance():
     # bipartition?"; README [CON] and dreeves, 2026-11-03: "the curve should fall in light of the conditional
     # probability but it should remain historically accurate, yes? does this end up making it kind of redundant with the
     # ETA graph? ... what's actually most useful to see during a search"): the chance charts of the first, third and
-    # fifth shown, in their folds, after the pool chart, and the second's and fourth's hidden; their ETA charts hidden,
-    # the chance chart in their place, and the second's and fourth's shown.  The first's line a vertex per point of its
+    # fifth shown, in their folds, after the pool chart, and the second's and fourth's hidden; every run's ETA chart
+    # shown, the chance charts below theirs.  The first's line a vertex per point of its
     # history, at its hours since its since on the hour ticks' scale (0 to 6, every 2, the last 6 h) and its chance
     # within 24 h on the percent ticks' (0 to 5%, every 1, the last 5%), over a wash down to 0 at its ends; a dot on its
     # last point; the chance within 6 h and within 24 h now stated as percents to 2 significant digits, 0.91% and 2.8%,
@@ -5429,14 +5429,16 @@ def q_progress_draws_a_campaign_target_s_chance():
     # laid out, — for its chances now.
     # Spec change (README [CON], 2026-11-03; dreeves: "i guess just apply common sense here too"): until then the chart
     # was the chance within the next t hours for t up to 72, every quarter hour, with dots at 6 and 24 h, beside the ETA
-    # chart; it is now the history of the chance within 24 h, in the ETA chart's place.
+    # chart; it is now the history of the chance within 24 h, in the ETA chart's place.  Spec change (dreeves,
+    # 2026-11-04: "shouldn't there always be an ETA graph, even when it's just based on the lindy effect? death to
+    # if-statements, remember?"): the ETA charts of the first, third and fifth shown, as every run's; until then hidden.
     # Resultata before: the forward curve (289 vertices on a 72-h axis) beside the ETA chart.
     empty = dict(PROGRESS_CHANCE, n=672, order=13, chance=dict(CHANCE, rate=None, p=[], history=[]))
     none = dict(PROGRESS_CHANCE, n=864, order=13, chance=None)
     unrated = dict(PROGRESS_CHANCE, n=720, order=13, chance=dict(CHANCE, rate=None, p=[]))
     got = progress_harness({'made': PROGRESS_DATA['made'], 'runs': [PROGRESS_CHANCE, PROGRESS_DATA['runs'][0], empty, none, unrated]}, CHANCE_LOOK)
     assert got['hidden'] == [False, True, False, True, False] and got['after'] is True and got['folded'] is True, got['hidden']
-    assert got['eta'] == [True, False, True, False, True], got['eta']
+    assert got['eta'] == [False] * 5, got['eta']
     h = NNBSP + 'h'
     assert [t[0] for t in got['tticks']] == ['0', '2', '4', f'6{h}'], got['tticks']
     assert [t[0] for t in got['pticks']] == ['0', '1', '2', '3', '4', '5%'], got['pticks']

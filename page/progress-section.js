@@ -250,14 +250,15 @@
   }
 
   // a tracked search's view: the attempt view of its runs' counts and its hint, but after the status line every run has
-  // (kept, then put back before the counts) and with the ETA chart every run has, except a target a witness campaign
-  // searches, whose chance chart takes its place (README [CON], 2026-11-03: for a search that ends only with a find,
-  // the ETA chart is Gott's rule alone)
+  // (kept, then put back before the counts) and with the ETA chart every run has, a target a witness campaign searches
+  // too, its chance chart below (dreeves, 2026-11-04: "shouldn't there always be an ETA graph, even when it's just
+  // based on the lindy effect? death to if-statements, remember?"; from 2026-11-03, README [CON], the chance chart had
+  // taken its place)
   function trackView(box, run) {
     const status = box.querySelector('.progress-status'), line = [...status.childNodes];
     attemptView(box, run, 'progress-track', 'progress-track-hint');
     status.prepend(...line, document.createElement('br'));
-    box.querySelector('.progress-eta').hidden = Boolean(run.chance);
+    box.querySelector('.progress-eta').hidden = false;
   }
 
   // A run's stages to a recordable result, under its status line (progress.py's stages; the coordinator, 2026-10-31,
@@ -570,19 +571,19 @@
     return xs;
   }
 
-  // A witness campaign's chance chart (progress.py's chance; README [SER] and [CON], 2026-11-03), in the place of the
-  // run's ETA chart (dreeves: "does this end up making it kind of redundant with the ETA graph? ... what's actually most
-  // useful to see during a search"): the history of the modeled chance of a find within the next 24 h, as it stood at
-  // each quarter hour since the campaign began searching the target, and now ("the curve should fall in light of the
-  // conditional probability but it should remain historically accurate"), a line over a wash down to 0, on round ticks
-  // of percent up to 1% at least (a chance of 0 throughout still has an axis) and of the hours since that start (the
-  // ETA chart's axis); a dot at its last point.  The line below states the chance within 6 h and within 24 h now (its
-  // data-chance-at elements) and the CPU-hours searched so far.  The tip above the chart reads out the point nearest
-  // the pointer, its time and its chance within 24 h as it stood then, the cross at it; at rest it is laid out as the
-  // last point's and hidden, as the ETA chart's tip is.  A single series, so no legend, the line below naming it.
-  // Shown for a run whose data has a chance (a target a campaign searches, while it is live, see progress.py), hidden
-  // for every other; with no point yet, its axes alone and no tip; with no rate measured yet in the live plan (p
-  // empty), — for the chances now.  Returns the points' x positions (in its viewBox), for the quals.
+  // A witness campaign's chance chart (progress.py's chance; README [SER] and [CON], 2026-11-03), below the run's ETA
+  // chart (dreeves, 2026-11-04: "shouldn't there always be an ETA graph, even when it's just based on the lindy
+  // effect?"; from 2026-11-03 it had taken that chart's place): the history of the modeled chance of a find within the
+  // next 24 h, as it stood at each quarter hour since the campaign began searching the target, and now ("the curve
+  // should fall in light of the conditional probability but it should remain historically accurate"), a line over a
+  // wash down to 0, on round ticks of percent up to 1% at least (a chance of 0 throughout still has an axis) and of the
+  // hours since that start (the ETA chart's axis); a dot at its last point.  The line below states the chance within 6
+  // h and within 24 h now (its data-chance-at elements) and the CPU-hours searched so far.  The tip above the chart
+  // reads out the point nearest the pointer, its time and its chance within 24 h as it stood then, the cross at it; at
+  // rest it is laid out as the last point's and hidden, as the ETA chart's tip is.  A single series, so no legend, the
+  // line below naming it.  Shown for a run whose data has a chance (a target a campaign searches, while it is live, see
+  // progress.py), hidden for every other; with no point yet, its axes alone and no tip; with no rate measured yet in
+  // the live plan (p empty), — for the chances now.  Returns the points' x positions (in its viewBox), for the quals.
   function chanceChart(fig, run) {
     fig.hidden = !run.chance;
     if (fig.hidden) return [];

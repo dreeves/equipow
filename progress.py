@@ -3416,10 +3416,11 @@ def journal_surveys(procs, now, cache, readings, idle):
         n, order = target.split(':')
         t0 = min(lines[0]['time'] for lines in records)
         s = survey_track(target, records, procs, now, cache.setdefault(f'track_{n}_{order}_{int(t0)}_etas', {}))
-        key = (int(n), int(order))      # a target a campaign searches carries its chance (see the vocabulary), in place of
-                                        # Gott's rule (README [CON], 2026-11-03: a witness search ends with a find, or
-                                        # when stopped, on no schedule)
-        return [s | ({'chance': chance.shown(HERE, CAMPAIGNS[key], target, now), 'to_go': None} if key in CAMPAIGNS else {})]
+        key = (int(n), int(order))      # a target a campaign searches carries its chance (see the vocabulary) beside
+                                        # its ETA, Gott's rule as every tracked search's (dreeves, 2026-11-04:
+                                        # "shouldn't there always be an ETA graph, even when it's just based on the
+                                        # lindy effect?"; from 2026-11-03, README [CON], its to_go was null)
+        return [s | ({'chance': chance.shown(HERE, CAMPAIGNS[key], target, now)} if key in CAMPAIGNS else {})]
     return units + [(identities[target], functools.partial(track, target, records)) for target, records in sorted(tracked.items())]
 
 
