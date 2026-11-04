@@ -2448,3 +2448,21 @@ Fresh CPU means: median 5.129753 → 5.064494 seconds (1.27% reduction); larger 
 **Candidate for a prover-only resume:** `scratch/formtree-codex-20261104/prover/score-pex.cpp`, SHA `49a0852aabc7074d3ffbc5d223a0dc0365bf3d8efa64609b151c6e4a96db6f2b`, against unchanged live source `fdb13682b5d8c17fb955d534d87b0038815d36aad319c1861f2b4a9d5462dd4d`. `score.diff` changes only the maximum-score scan, has no net new if, no setting or checker change, and includes no cache experiment. Its reduction vectorizes under the exact live flags; 13,592 edge-case quals pass. Independent source review in `math/SCORE-REVIEW.md` supports identical first-maximum selection on the live score domain. Existing stream controls and the clean repetition support using this as a small improvement. Claude may take the source-install/resume claim after its own diff review; preserve the completed fixed-checker verdicts. No new run from scratch is needed.
 
 All three durable Codex qual files match their reviewed installation hashes. Other explored speed leads are parked on measured evidence; no further benchmark or source edit is running. Full data and reproducibility: `prover/REVIEW.md`, `quiet2-summary.json`, and `math/RECOMBINATION-PROBE.md`.
+
+### 2026-11-04 15:29:38 PST — Claude: score-only prover installed by a resume
+
+Diff reviewed and approved. `best` starts at 0 (pex.cpp:390), so `fmax` then `find` gives the first index of the maximum exactly when one score is positive, as the old `>` scan did, and NaN loses in both. Stopped at 15:28:13 by the new `stopall.py` ("stopped 11", group empty in 1 s: it works on this Mac). Installed `searches/formtree/pex.cpp` 49a0852a… (the previous one in `scratch/formtree-mac-20261104/score-deploy/before/`), and run.sh rebuilt libpex.so at 15:28:15. Resumed from the verdicts: "890 tasks to run; 640015 nodes done". New driver 52302, process group 51888, record `runs/formtree_288_10_d.jsonl`, memory guard on 52302. fkernel unchanged (the fixed build of 15:09:45).
+
+### 2026-11-04 15:30:39 PST — Codex: deployed run independently observed
+
+Read-only confirmation after Claude's resume: live pex.cpp is the reviewed 49a0852a candidate; process inspection finds driver 52302 with ten live workers. The first new 60-second progress record has OPEN 0, REJECTED 0, wrong names 0, and five total Python samples with zero disagreements. The resume carried forward 640,015 checked nodes; its record is `runs/formtree_288_10_d.jsonl`. The three installed Codex regression files match their reviewed hashes.
+
+This collaboration round is complete: checker/driver/process fixes and the small prover improvement are installed, the search is running, and all experimental timings and negative leads remain documented. No benchmark or scratch watcher from Codex remains running. The 1.27% and 3.57% CPU reductions remain two-task measurements, not a campaign ETA or a new mathematical exclusion.
+
+### 2026-11-04 15:40:54 PST — Codex: new user request — credibility and improvement of 288:10 ETA
+
+dreeves asks whether the current Search progress ETA is believable and asks Codex to work with Claude to improve it. Current source shows ftree has no recorded eta lines, so survey_track uses Gott's rule on wall time from the first tracked 288:10 launch. It does not consult the frontier, proof work or sampled tree size. That is an age-based prior, not a calibrated completion forecast.
+
+**Claims:** isolated `scratch/eta288-codex-20261104/` only: (1) current displayed ETA, timeline/accounting and integration quals; (2) retrospective audit of the earlier 2.6M-node pending-frontier prediction against the same old run (not counting checker-restart redo); (3) statistical treatment of biased/heavy-tailed dives and work/rate uncertainty. No live source or state edit, no heavy probe or second watcher.
+
+Please coordinate on the ETA implementation. Claude retains runtime ownership. Useful inputs: any original data/code behind the README's 9.3e8-node estimate and its claimed standard error; whether it samples the exact production traversal; and any newer frontier snapshots or probe outputs. A checked, backtested work estimate should feed the existing eta-line facility rather than silently relabelling Gott's band as measured confidence. The existing ETA chart/history and human prose will be preserved.

@@ -392,7 +392,8 @@ static int lp_maximize_core_(double *val, int maxit) {
           double gain_ = 0;
           if (NOWT) { for (int j = 0; j < n; j++) { double v_ = asp[j] * dp[j]; sc[j] = v_ > dtol ? v_ : 0.0; gain_ += v_ > 0 ? v_ : 0.0; } }
           else for (int j = 0; j < n; j++) { double dj = dp[j]; double v_ = asp[j] * dj; sc[j] = v_ > dtol ? dj * dj / wp[j] : 0.0; gain_ += v_ > 0 ? v_ : 0.0; }
-          for (int j = 0; j < n; j++) if (sc[j] > best) { best = sc[j]; q = j; }
+          for (int j = 0; j < n; j++) best = fmax(best, sc[j]);
+          if (best > 0) q = find(sc, sc + n, best) - sc;
           if (LP_GST > 0 && q >= 0) {
               // what these multipliers prove, whatever the basis: nothing above vcur + 2 gain.  If no grid value lies between, the rest of the climb cannot change the answer.
               double nxt_ = LP_G0 + (floor((vcur - LP_G0) / LP_GST + 1e-9) + 1.0) * LP_GST;
