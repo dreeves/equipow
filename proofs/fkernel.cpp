@@ -102,8 +102,10 @@ static string err; static bool awaiting = false, finished_tree = false;
 static ll c_nodes, c_closed, c_fix, c_split, c_certs, c_open, c_spill; static vector<string> spills; static string start_name;
 static void fail(const string &s) { if (err.empty()) err = s; }
 static void ensure_id(int id) { if (id >= (int)F.size()) { F.resize(id + 256); present.resize(id + 256, 0); value.resize(id + 256, 0); } }   // id <= MAX_ID: small_int
+// a 128-bit integer in decimal: to_string((ll)v) for every v that fits in 64 bits (2026-11-04: node_name printed (ll)v, so v and v + 2^64 had one name)
+static string str128(LL v) { ULL u = v < 0 ? (ULL)0 - (ULL)v : (ULL)v; string s; do { s += (char)('0' + (int)(u % 10)); u /= 10; } while (u); if (v < 0) s += '-'; reverse(s.begin(), s.end()); return s; }
 static string node_name(int G) {
-    vector<string> lines; for (int id : rows) { const Form &f = F[id]; string s = to_string(f.M) + " " + to_string((ll)value[id]); for (int x : f.w) s += " " + to_string(x); lines.push_back(s); }
+    vector<string> lines; for (int id : rows) { const Form &f = F[id]; string s = to_string(f.M) + " " + str128(value[id]); for (int x : f.w) s += " " + to_string(x); lines.push_back(s); }
     sort(lines.begin(), lines.end()); Sha S; string head = "n " + to_string(n_) + " m " + to_string(m_) + " G " + to_string(G) + "\n"; S.add(head.data(), head.size()); for (auto &l : lines) { S.add(l.data(), l.size()); S.add("\n", 1); } return S.hex().substr(0, 32);
 }
 struct Cert { int dd = 0, ss = 0; vector<LL> B; vector<pair<int, LL>> c; };
@@ -118,6 +120,7 @@ static inline ULL mag(LL a) { return a < 0 ? (ULL)(-a) : (ULL)a; }
 static bool safe_mul(ULL a, ULL b, ULL &o) { return !__builtin_mul_overflow(a, b, &o) && o < BIG; }
 static vector<LL> Wx; static LL GM[128][128]; static bool GMon[128];
 static bool weights(const Cert &C, LL &K) {
+    memset(GMon, 0, sizeof GMon);   // scratch of this call alone (2026-11-04: an early return in the loop below left GMon[M] set, and every later call in the process then left modulus M's rows out of W)
     if (C.dd < 0 || C.dd > 64 || C.ss < 0 || C.ss > 64) { fail("a scale out of range"); return false; }
     Wx.assign(n_, 0);
     // the moments by Newton's differences.  Every partial value is at most this sum, which is usually far too high, the terms mostly cancelling: past BIG each addition is tested instead, and each W(p)

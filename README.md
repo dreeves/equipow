@@ -36,14 +36,6 @@ Stan notes:
 
 ---
 
-musing from Stan; what do you think?
-
-I was wondering about new OEIS sequence with m*(2^n) (it would be 1,2,3,4,5,6,7,8,9,11)
-
-But maybe that is silly as we have one with m*(n) and we could add commentary to that one.
-
----
-
 Danny Reeves and me: The 175-year-old Prouhet result that the "power-sum exponent" of 2^n is ≥ n was proved (2019) by Stong with a very ingenious argument to not be sharp, in that for 2^51 it is at least 52. 
 See https://en.wikipedia.org/wiki/Prouhet%E2%80%93Tarry%E2%80%93Escott_problem for defns.
 We've now shown that for 2^10 it's exactly 11.

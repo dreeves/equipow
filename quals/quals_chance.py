@@ -270,24 +270,38 @@ def q_cores_continue_across_relaunches():
         shutil.rmtree(d)
 
 
-def q_of_is_none_unless_the_target_is_live():
-    # Replicata: chance.of(root, 'camp', target, 5200) for campaign(): at 864:13, which its plan does not hold; at 720:13
-    # after a witness and its stop (arm_stop, reason witness); after the witness alone (journaled just before the stop);
-    # after a checkpoint's stop; at 528:12 after the campaign's end (STOP); and after that end and a relaunch (AGAIN).
-    # Expectata (the coordinator, 2026-11-03: "for each live witness campaign target"): None, each, but after the
-    # relaunch, when 528:12 is live again, its chance as in q_cores_continue_across_relaunches.
+def q_of_gives_the_chance_now_once_the_target_is_not_live():
+    # Replicata: chance.of(root, 'camp', target, 5200) for campaign(): at 864:13, which no plan holds; at 720:13 after a
+    # witness and its stop (arm_stop, reason witness); after the witness alone (journaled just before the stop); after
+    # a checkpoint's stop; at 528:12 after the campaign's end (STOP); and after that end and a relaunch (AGAIN).
+    # Expectata: AssertionError at 864:13; at 720:13, each, its cpu_hours (seed 6's 999 s) and no rate, cores or chance
+    # (None, None and p empty), as no probe seed there measured its exposure; at 528:12 after the end its chance as of
+    # 5200 with nothing running there: cores 0, so the chance within each t 0; and after the relaunch, when 528:12 is
+    # live again, its chance as in q_cores_continue_across_relaunches.
+    # Spec change (dreeves, 2026-11-04: "why did the probability graph disappear for the 528:12 search just because the
+    # search was aborted? shouldn't it stay there for posterity like the ETA graph does? is this another anti-magic
+    # violation?"): until then None for every target not live (q_of_is_none_unless_the_target_is_live, after the
+    # coordinator, 2026-11-03: "for each live witness campaign target"), and so no chance chart once a search stopped.
     # Spec change (README [CON], 2026-11-03; dreeves: "i guess just apply common sense here too"): until then cores 0 s
     # over the 1200 s since the relaunch.  Spec change (2026-11-04): until then cores the search CPU of the seeds ended
     # in the last hour over the seconds of it in which the campaign ran (see q_cores_are_the_seeds_running_times_their_cpu_share).
     witness = dict(time=3300.0, event='witness', cell='720:13', k=6, f=170, code='AB', order=13, plus=360)
     stop = lambda reason: dict(time=3301.0, event='arm_stop', cell='720:13', reason=reason)
-    for journal, target in ((JOURNAL, '864:13'), (JOURNAL + [witness, stop('witness')], '720:13'), (JOURNAL + [witness], '720:13'),
-                            (JOURNAL + [stop('checkpoint')], '720:13'), (JOURNAL + STOP, '528:12')):
+    d = campaign()
+    try:
+        expect_assertion(chance.of, d, 'camp', '864:13', 5200.0)
+    finally:
+        shutil.rmtree(d)
+    unmeasured = dict(cpu_hours=999.0 / 3600, rate=None, cores=None, hours=list(chance.HOURS), p=[])
+    for journal, target, want in ((JOURNAL + [witness, stop('witness')], '720:13', unmeasured), (JOURNAL + [witness], '720:13', unmeasured),
+                                  (JOURNAL + [stop('checkpoint')], '720:13', unmeasured), (JOURNAL + STOP, '528:12', expected(1430.0, 0.0))):
         d = campaign(journal=journal)
         try:
-            assert chance.of(d, 'camp', target, 5200.0) is None, (target, journal[-1])
+            got = chance.of(d, 'camp', target, 5200.0)
+            assert close(got, want), (target, journal[-1], got and {k: v for k, v in got.items() if k != 'p'})
         finally:
             shutil.rmtree(d)
+    assert set(expected(1430.0, 0.0)['p']) == {0.0}
     d = campaign(journal=JOURNAL + STOP + AGAIN)
     try:
         got = chance.of(d, 'camp', '528:12', 5200.0)
@@ -448,6 +462,31 @@ def q_history_falls_while_nothing_is_found():
         got = chance.history(d, 'camp', '528:12', 20000.0)
         assert len(got) > 10 and all(b[1] <= a[1] and b[2] <= a[2] for a, b in zip(got, got[1:])), got
         assert got[-1][1] < got[0][1] and got[-1][2] < got[0][2], got
+    finally:
+        shutil.rmtree(d)
+
+
+def q_shown_keeps_the_history_once_the_search_stops():
+    # Replicata: chance.shown(root, 'camp', '528:12', 20000) for q_history_falls_while_nothing_is_found's campaign,
+    # stopped at 10300 (a SIGTERM: its driver cancels seed 31, running since 10100, after 200 CPU s, then ends), and
+    # chance.history at the stop, 10300.
+    # Expectata (dreeves, 2026-11-04: "shouldn't it stay there for posterity like the ETA graph does?"): what the page
+    # reads, not None: chance.of's chance as of 20000 with since (the launch, 1000) and the history added; that chance's
+    # cpu_hours the probe's 300 s of rounds, seeds 2 to 30's 300 s each and seed 31's 200 s, its rate probe seed 1's,
+    # its cores 0 and so its chance within each t 0, nothing running there after the stop; and its history the one at
+    # the stop less that one's last point (its now, 10300): every quarter hour while the search ran, none after it.
+    # Resultata before: None, and so no chart, once the search stopped.
+    journal = ([dict(time=1000.0, event='start')] + life(1100.0, 1400.0, 'probe', 1, 900.0)
+               + [x for k in range(2, 31) for x in life(1400.0 + 300.0 * (k - 2), 1400.0 + 300.0 * (k - 1), 'plain', k, 300.0)]
+               + [begun(10100.0, 'plain', 31), seed(10300.0, 'plain', 31, 200.0, cancelled=True), dict(time=10300.0, event='end', reason='signal')])
+    d = campaign(journal=journal, cells=('528:12',))
+    try:
+        got = chance.shown(d, 'camp', '528:12', 20000.0)
+        at_stop = chance.history(d, 'camp', '528:12', 10300.0)
+        assert got is not None, got
+        assert close({k: v for k, v in got.items() if k not in ('since', 'history')}, expected(300.0 + 29 * 300.0 + 200.0, 0.0)), got
+        assert got['since'] == 1000.0 and len(at_stop) > 10 and at_stop[-1][0] == 10300.0, (got['since'], at_stop[-1:])
+        assert got['history'] == at_stop[:-1] and got['history'][-1][0] == 10000.0, (got['history'][-2:], at_stop[-2:])
     finally:
         shutil.rmtree(d)
 

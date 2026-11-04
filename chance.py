@@ -3,7 +3,7 @@
 searches show a live estimate of the probability of finding a bipartition?"; dreeves: "sure, build [SER]"): the
 search-allocation bandit's model (scratch/bandit-20261103/bandit.py, as scratch/bandit-20261103b/rerun.py's
 exists_posterior and witness_index_p use it), fed by a campaign's own files.  progress.py puts it in its data file for
-each live target of a campaign it names (its CAMPAIGNS), and the section "Search progress" draws it.  Quals:
+each target of a campaign it names (its CAMPAIGNS), live or not, and the section "Search progress" draws it.  Quals:
 python3 -B quals/quals_chance.py
 
 Vocabulary, each term defined once here:
@@ -42,14 +42,14 @@ Vocabulary, each term defined once here:
               together, and 1.8 times too high in the rest (2026-11-04).
   prior       of a target, in its campaign's PRIORS: with probability 1 - p_exists no (-1)^m-symmetric sequence exists
               at the cell and theta = 0; otherwise log2 theta is normal with mean and sd.
-  chance      of a live target within t hours: P(a witness within the next t hours | none in H CPU-hours) under the
+  chance      of a target within t hours: P(a witness within the next t hours | none in H CPU-hours) under the
               bandit's model, witnesses a Poisson process at theta r per CPU-hour, r the live plan's: E[1 - exp(-theta r
               c t)] over the posterior, the prior weighted by exp(-theta spent), which also updates P(exists) (within).
   as of t     of a campaign, as it stood just before time t: its plans begun by then, each with its records from before
               then; a quantity as of t is computed from those alone, with t as now.
   since       of a target, the first start of a plan of its campaign holding it: its history's origin.
-  history     of a live target, its chance within 6 h and within 24 h as of each time, every QUARTER seconds from its
-              since, and as of now, at the times it was live with a rate
+  history     of a target, its chance within 6 h and within 24 h as of each time, every QUARTER seconds from its
+              since, and as of now, at the times it was live with a rate (so it ends where its search stopped)
               (README [CON], 2026-11-03; dreeves: "the curve should fall in light of the conditional probability but it
               should remain historically accurate"): each point from the records before its time alone, so later
               records never change it.
@@ -234,21 +234,24 @@ def history(root, campaign, target, now):
 
 
 def shown(root, campaign, target, now):
-    """What the page shows of the target at time now: its chance (of) with its since and its history (history)
-    added; None while the target is not live."""
-    c = of(root, campaign, target, now)
-    return c and dict(c, since=began(plans(root, campaign), target), history=history(root, campaign, target, now))
+    """What the page shows of the target at time now: its chance (of) with its since and its history (history) added,
+    live or not: once its search stops, its history kept up to the stop, as the ETA chart keeps its records (dreeves,
+    2026-11-04: "shouldn't it stay there for posterity like the ETA graph does? is this another anti-magic violation?";
+    until then None once the target was not live, and so no chart)."""
+    return dict(of(root, campaign, target, now), since=began(plans(root, campaign), target), history=history(root, campaign, target, now))
 
 
 def of(root, campaign, target, now):
     """The chance (measure) of the target N:M at time now (epoch seconds), from the campaign in the directory campaign
-    (a path from root, the repository's root, where the campaign runs) as of now, while the target is live there; else
-    None.  Asserted: the campaign began before now."""
+    (a path from root, the repository's root, where the campaign runs) as of now, live or not: its cores count the
+    seeds running there, so once its search stops its chance within each t is 0 (2026-11-04; until then None for a
+    target not live).  Asserted: the campaign began before now, and one of its plans holds the target."""
     ps = as_of(plans(root, campaign), now)
     # TODO: error copy; says the campaign had not begun before the time given, naming both
     assert ps, f'Claude: "{campaign} had not begun before {now}"'
-    _, plan, records = ps[-1]
-    return measure(root, campaign, ps, prior_of(root, campaign, target), target) if target in live(plan, records) else None
+    # TODO: error copy; says no plan of the campaign holds the target, naming both
+    assert any(target in cells(plan) for _, plan, _ in ps), f'Claude: "no plan of {campaign} holds {target}"'
+    return measure(root, campaign, ps, prior_of(root, campaign, target), target)
 
 
 if __name__ == '__main__':

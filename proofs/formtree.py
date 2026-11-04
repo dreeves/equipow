@@ -419,6 +419,8 @@ def assemble(starts, verdicts):
     """Every start node, and every node spilled on the way, has an accepted verdict with no open node.  Returns the totals over the tasks the proof uses."""
     by_name, refused = {}, {}
     for v in verdicts:
+        # TODO: says the independent checkers disagree, so this run cannot be assembled.
+        if v.get('py') is False: raise ValueError(f'Examinatores dissentiunt: {v["start"]}')
         if v['ok']: by_name.setdefault(v['start'], v)
         else: refused[v['start']] = v['why']
     total = dict(tasks=0, nodes=0, closed=0, fixes=0, splits=0, certs=0)

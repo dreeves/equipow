@@ -580,9 +580,11 @@
   // h and within 24 h now (its data-chance-at elements) and the CPU-hours searched so far.  The tip above the chart
   // reads out the point nearest the pointer, its time and its chance within 24 h as it stood then, the cross at it; at
   // rest it is laid out as the last point's and hidden, as the ETA chart's tip is.  A single series, so no legend, the
-  // line below naming it.  Shown for a run whose data has a chance (a target a campaign searches, while it is live, see
-  // progress.py), hidden for every other; with no point yet, its axes alone and no tip; with no rate measured yet in
-  // the live plan (p empty), — for the chances now.  Returns the points' x positions (in its viewBox), for the quals.
+  // line below naming it.  Shown for a run whose data has a chance (a target a campaign searches, live or not, see
+  // progress.py: once its search stops, its history up to the stop and a chance now of 0; dreeves, 2026-11-04:
+  // "shouldn't it stay there for posterity like the ETA graph does?"), hidden for every other; with no point yet, its
+  // axes alone and no tip; with no rate measured yet in the live plan (p empty), — for the chances now.  Returns the
+  // points' x positions (in its viewBox), for the quals.
   function chanceChart(fig, run) {
     fig.hidden = !run.chance;
     if (fig.hidden) return [];

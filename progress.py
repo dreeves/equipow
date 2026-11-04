@@ -186,10 +186,12 @@ The estimate's model, its terms defined once here (overnight_v5.py's search() is
               directory by the target it searches.
   chance      of a tracked target a campaign searches (README [SER], 2026-11-03: "Could the searches show a live
               estimate of the probability of finding a bipartition?"; dreeves: "sure, build [SER]"): chance.shown's, at
-              the snapshot's time: while the target is live in its campaign, the chance of a witness within the next t
-              hours, t every quarter hour up to 72, under the search-allocation bandit's model, with the CPU-hours
+              the snapshot's time, live or not: the chance of a witness within the next t hours, t every quarter hour
+              up to 72, under the search-allocation bandit's model (0 once nothing runs there), with the CPU-hours
               searched without one, and its history, that chance within 6 and 24 h as of each quarter hour since the
-              campaign began searching the target (README [CON], 2026-11-03); else none (see chance.py's vocabulary).
+              campaign began searching the target while it was live (README [CON], 2026-11-03), kept once the search
+              stops (dreeves, 2026-11-04: "shouldn't it stay there for posterity like the ETA graph does?"; until then
+              none once the target was not live; see chance.py's vocabulary).
   reading     the watcher's state of a run's files, kept between snapshots (2026-10-30: it read 288@10's 500 MB of journal
               and log whole every minute, and one snapshot took 90 minutes): the bytes read so far and all parsed, dated
               and derived from them (Reading, with its Tree and Grown; Boxes for a boxsplit pass, Records for focus.py's
@@ -3099,7 +3101,7 @@ def js_text(surveys, now):
     not ended (2026-10-31), its stages (see the vocabulary), [{name, to_go}], its own first, each to_go as the run's
     or null, and total, the time to go to a recordable result in the same form, or null; and for a fanout.py run
     (2026-11-03), pool, its pool series as pool_series gives it; and for a tracked target a campaign searches
-    (2026-11-03, README [SER]), chance: null, or as chance.shown gives it, {cpu_hours, rate, cores, hours, p,
+    (2026-11-03, README [SER]), chance, as chance.shown gives it, {cpu_hours, rate, cores, hours, p, since,
     history}: the CPU-hours searched without a witness, the exposure per CPU-hour (null before a probe seed has
     finished), the search CPU-hours per wall-hour ahead (null likewise; 2026-11-04), the hours t (chance.HOURS), the
     chance of a witness within each (empty without a rate), and its history, [[time, p6, p24], ...] (README [CON],

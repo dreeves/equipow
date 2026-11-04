@@ -36,7 +36,7 @@ def worker_init(n, m, mods, want):
 
 def job(a):
     name, limit, logp = a
-    path = os.path.join(PENDING, name); prefix = os.path.join(SPILL, str(os.getpid())); tmp = prefix + '.stream'
+    path = os.path.join(PENDING, name); prefix = os.path.join(SPILL, f'{os.getpid()}_{name}'); tmp = prefix + '.stream'
     sampled = int(name[:8], 16) % PY_SAMPLE == 0
     text = None
     if int(name[8:16], 16) % AUDIT_SAMPLE == 0:
@@ -53,10 +53,11 @@ def job(a):
         if os.path.getsize(tmp) <= STREAM_LIMIT:
             p = subprocess.run([sys.executable, '-B', '-I', '-S', os.path.join(HERE, '..', '..', 'proofs', 'formtree.py'), 'check', tmp], capture_output=True, text=True)
             lines = p.stdout.splitlines()
-            py = len(lines) == 1 and json.loads(lines[0]) == v
-        os.remove(tmp)
-    if v['ok']:
-        for i, child in enumerate(v['spills']): os.replace(f'{prefix}_{i}', os.path.join(PENDING, child))
+            py = p.returncode == 0 and len(lines) == 1 and json.loads(lines[0]) == v
+    # TODO: says the task verdict or independent checker disagrees; retain the evidence.
+    assert v['ok'] and v['start'] == name and len(v['spills']) == int(r['spilled']) and py is not False, ('Exitus operis non congruit', name, v, py, r['spilled'])
+    if sampled: os.remove(tmp)
+    for i, child in enumerate(v['spills']): os.replace(f'{prefix}_{i}', os.path.join(PENDING, child))
     return name, r, v, py, text
 
 
@@ -73,6 +74,8 @@ def read_verdicts(path):
 
 def remaining(starts, verdicts):
     """Walk down from the start nodes: {name: root} for each node with no accepted verdict, and the accepted verdicts on the way."""
+    # TODO: says a recorded independent-checker disagreement prevents continuation.
+    assert all(v.get('py') is not False for v in verdicts), 'Examinatores dissentiunt'
     have = {v['start']: v for v in verdicts if v['ok']}
     todo, used, seen = {}, [], set()
     stack = [(s['name'], i) for i, s in enumerate(starts)]

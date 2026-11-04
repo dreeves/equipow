@@ -3,15 +3,13 @@
     handoff.py save DIR OUT.tar.gz PROGRESS.json     after: python3 stopall.py ftree.py
     handoff.py restore IN.tar.gz DIR                 run.sh does this when DIR does not exist"""
 import json, os, re, subprocess, sys, tarfile, time, importlib.util
+from processes import processes, runs
 HERE = os.path.dirname(os.path.abspath(__file__))
 NAME = re.compile(r'[0-9a-f]{32}$')
 
 
 def running():
-    for line in subprocess.run(['ps', '-A', '-o', 'args='], capture_output=True, text=True, check=True).stdout.splitlines():
-        args = line.split()
-        if args and 'python' in os.path.basename(args[0]) and any(a.endswith('ftree.py') for a in args[1:]): return True
-    return False
+    return bool(runs(processes(), 'ftree.py'))
 
 
 def save(d, out, progress):
