@@ -203,7 +203,8 @@ def page_table(pow2_text, cols):
                   r'<table class="pow2-gaps" data-record-gaps="">(.*?)</table>\s*</div>', dom, re.S)
     assert m, dom[-2000:]
     text = lambda cell: cell_text(cell)
-    head = re.fullmatch(r'\s*<thead><tr>(.*?)</tr></thead>(.*)', m.group(1), re.S)
+    # Its caption, Table 4, since 2026-11-03 (README [NUM]: the page's tables and figures numbered, as LaTeX captions them).
+    head = re.fullmatch(r'\s*<caption><span class="sc">Table 4\.</span></caption>\s*<thead><tr>(.*?)</tr></thead>(.*)', m.group(1), re.S)
     assert head and len(re.findall(r'<th>(.*?)</th>', head.group(1))) == len(HEADER), m.group(1)[:400]
     bodies = re.findall(r'<tbody>(.*?)</tbody>', head.group(2), re.S)
     assert ''.join(f'<tbody>{b}</tbody>' for b in bodies) == head.group(2).strip(), head.group(2)[:400]

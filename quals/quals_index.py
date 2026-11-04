@@ -1550,8 +1550,9 @@ def q_new_results_say_which_lengths():
     # 8 up to NMAX has lo = hi = 7 in mstar.js (so that none of them, past 304, has anything to show); and it links
     # Theorem 4.1.
     block = page()[page().index('<div class="new-block">'):page().index('</figure>')]
+    # (Since 2026-11-03 the powers-of-2 frame has its own caption, Table 2, between this paragraph and it: README [NUM].)
     m = re.search(r'<div class="scroll">(?:(?!</div>).)*</div>\s*(?:<!--(?:(?!-->).)*-->\s*)*<p>((?:(?!</p>).)*)</p>\s*'
-                  r'<div class="scroll">', block, re.S)
+                  r'<p class="float-caption"><span class="sc">Table 2\.</span></p>\s*<div class="scroll">', block, re.S)
     assert m, 'no paragraph between the new results\' frames'
     # numbers as words: not part of another word or of a decimal like the 4.1 of Theorem 4.1, but a sentence's final
     # period may follow one (dreeves's rewording of 2026-10-27 ends a sentence with "304.")
@@ -2056,11 +2057,12 @@ def q_example_at_768_has_its_entry_and_code():
     # ["residue", 5]].
     text = page()
     li = re.search(r'<li class="c">\n      <span class="mk" aria-hidden="true">◆</span>\n      <p class="entry">\\\(n = '
-                   r'768\\\): &nbsp;\\\(m\^\* \\in \\\{12, 13\\\}\\\)</p>\n(.*?)\n    </li>', text, re.S)
+                   r'768\\\): &nbsp;\\\(m\^\* = 13\\\)</p>\n(.*?)\n    </li>', text, re.S)   # "m* ∈ {12, 13}" until 2026-11-03
     assert li, 'no entry of 768 alone'
     codes = re.findall(r'<p class="code">\n        <span>\\\(p_\{(\d+)\}\\\) \\\(\(m = (\d+)\)\\\):</span>\n'
                        r'        <code id="\d+:\d+">([0-9A-F]+)</code>\n      </p>', li.group(1))
-    assert len(codes) == 1 and codes[0][:2] == ('768', '12'), codes
+    # Since 2026-11-03 the entry also has the beam campaign's code of order 13 after it (q_example_at_768_has_its_code_of_order_13).
+    assert [c[:2] for c in codes] == [('768', '12'), ('768', '13')], codes
     h = codes[0][2]
     left = [1 if b == '1' else -1 for b in bin(int(h, 16))[2:].zfill(4 * len(h))]
     a, k = left + list(reversed(left)), 0
@@ -2071,8 +2073,8 @@ def q_example_at_768_has_its_entry_and_code():
     i = listed.index(['768'])
     assert listed[i - 1:i + 2] == [['752'], ['768'], ['784']], listed[i - 1:i + 2]
     assert sum('768' in ns for ns in listed) == 1 and ['672'] in listed, [ns for ns in listed if '672' in ns or '768' in ns]
-    assert new_cells(text)[768] == (12, 13), new_cells(text)[768]
-    assert mstar_data()['cols'][768 - 1] == [12, 13, ['example', 'equipow p768'], ['residue', 5]], mstar_data()['cols'][768 - 1]
+    assert new_cells(text)[768] == (13, 13), new_cells(text)[768]                                   # 12–13 until 2026-11-03
+    assert mstar_data()['cols'][768 - 1] == [13, 13, ['example', 'equipow p768'], ['residue', 5]], mstar_data()['cols'][768 - 1]
 
 
 def q_examples_at_576_and_624_have_their_entries_and_codes():
@@ -2533,9 +2535,11 @@ def q_768_moves_excess_5_to_2_39():
     cols, text = pow2_data()['cols'], page()
     base = cols[38][2]
     assert cols[37][0] == 42 and [c[0] - k for k, c in enumerate(cols[38:46], 39)] == [5] * 8, [c[:2] for c in cols[37:46]]
+    # 768 is a block of order 13 since 2026-11-03 (the beam campaign's plan 6; 12 before): the two products holding it
+    # have order 45, and the join stays 44, the first product's.
     assert base[0] == 'joins' and sorted(map(sorted, base[1])) == sorted(map(sorted, [
-        [[800, 11], [832, 11], [832, 11], [832, 11]], [[192, 9], [432, 11], [432, 11], [768, 12], [2, 1]],
-        [[48, 6], [480, 12], [480, 12], [768, 12], [4, 2]]])), base
+        [[800, 11], [832, 11], [832, 11], [832, 11]], [[192, 9], [432, 11], [432, 11], [768, 13], [2, 1]],
+        [[48, 6], [480, 12], [480, 12], [768, 13], [4, 2]]])), base
     cells = new_cells(text)
     assert [cells[2 ** k] for k in (39, 41, 43, 46)] == [(44, 47), (46, 50), (48, 53), (51, 57)], [cells.get(2 ** k) for k in (39, 41, 43, 46)]
     # the entries' wording unpinned since 2026-10-30
@@ -3627,6 +3631,52 @@ def q_smallest_columns_follow_the_chart():
         'order \\(m\\)', 'smallest \\(n\\) not ruled out', 'smallest known \\(n\\)', 'proven smallest'], head.group(1)
     rows = smallest_table()
     assert all(int(r[1]) <= int(r[2]) and r[3] == ('✓' if r[1] == r[2] else '') for r in rows), rows
+
+
+def q_tables_and_figures_are_numbered():
+    # Replicata: index.html: the labels of its own tables and charts, and every mention of a numbered table or figure
+    # in its visible text, its tags' attribute values, its scripts (page/) and mstar.js's hover labels.
+    # Expectata (dreeves's README, 2026-11-03: "[NUM] Number the tables and charts for easier reference. To avoid
+    # confusion with BGPW's Table 2 I guess we could just omit "Table 1" and start with our extended results as "Table
+    # 3"?", then "alternatively we could just always be clear about the BGPW prefix and have our own tables/figures/charts
+    # numbered normally from 1", then "can you do this more like latex does it? the numbers don't belong in the section
+    # headers", and "the powers-of-two table should have it's own number, right? if there's prose in between two tables
+    # that's not a caption, they can't be considered the same table"): the page's own tables and charts are numbered from
+    # 1 in page order, each by a small-caps label in its caption, as in LaTeX and as BGPW's Table 2 above them is: a
+    # table's caption above it, a figure's below it. Table 1 the extended results other than powers of 2 (a caption above
+    # them, with dreeves's words "Extended results since BGPW"), Table 2 the powers of 2 (a caption right above their
+    # frame), Figure 1 the m*(n) chart (a caption after its readout), Table 3 the smallest lengths (its caption), Figure 2
+    # the powers-of-2 chart (a caption after its readout), Table 4 the record gaps (its caption); no section heading holds
+    # a label; each label once; and every other numbered table or figure the
+    # page names is the paper's, named as such just before it ("BGPW" or "paper's" among the 40 visible characters
+    # before it) or right after it ("of BGPW", "of the paper", as in dreeves's "Table 2 of the paper by Buhler, ...").
+    # Resultata before: no labels; and Claude's "the upper value in Table 2's entry for 288" named BGPW's Table 2 bare.
+    text, seen = page(), visible_text()
+    LABELS = (('Table 1', r'<div class="new-block">\s*<p class="float-caption"><span class="sc">'),
+              ('Table 2', r'<p class="float-caption"><span class="sc">'),
+              ('Figure 1', r'<p id="mstar-readout" aria-live="polite">[^\n]*</p>\n  <p class="float-caption"><span class="sc">'),
+              ('Table 3', r'<h2 id="smallest-title">[^\n]*</h2>.*?<table>\s*<caption><span class="sc">'),
+              ('Figure 2', r'<p id="pow2-readout" aria-live="polite">[^\n]*</p>\n  <p class="float-caption"><span class="sc">'),
+              ('Table 4', r'<table class="pow2-gaps" data-record-gaps>\s*<caption><span class="sc">'))
+    at = []
+    assert not re.search(r'<h2[^>]*>[^\n]*<span class="sc">(?:Table|Figure)', text), 'a label in a section heading'
+    for label, lead in LABELS:
+        m = re.search(lead + re.escape(label) + r'\.</span>', text, re.S)
+        assert m, label
+        at.append(m.end() - len(label + '.</span>'))
+    assert at == sorted(at), at
+    assert re.search(r'<p class="float-caption"><span class="sc">Table 2\.</span></p>\s*<div class="scroll">\s*<table class="block">\s*'
+                     r'<tr class="ns"><th scope="row">\\\(n\\\)</th><td[^>]*>\\\(2\^', text), 'Table 2 is not right above the powers of 2'
+    assert re.findall(r'<span class="sc">((?:Table|Figure) \d+)\.</span>', text) == [label for label, _ in LABELS]
+    mention, after = r'\b(?:Tables?|Figures?) \d+', r' of (?:BGPW|the paper)\b'
+    bare = [seen[m.start():m.end()] for m in re.finditer(mention, seen) if m.start() not in at
+            and not re.search(r"BGPW|paper's", seen[:m.start()].replace('\0', '')[-40:])
+            and not re.match(after, seen[m.end():].replace('\0', ''))]
+    tags = [v for t in re.findall(r'<[a-zA-Z][^>]*>', text) for v in re.findall(r"""=(?:'([^']*)'|"([^"]*)")""", t) for v in v if v]
+    others = tags + page_scripts(text) + [open(DATA, encoding='utf-8').read()]
+    bare += [o[max(0, m.start() - 40):m.end()] for o in others for m in re.finditer(mention, o)
+             if not re.search(r"BGPW|paper's", o[max(0, m.start() - 40):m.start()]) and not re.match(after, o[m.end():])]
+    assert not bare, bare
 
 
 def q_smallest_script_passes_node_check():

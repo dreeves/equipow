@@ -113,13 +113,9 @@ figure {
   gap: 0.9rem;
 }
 figcaption { text-align: center; }
+/* A table's or chart's numbered caption ([NUM]), as LaTeX sets one: centered, above a table and below a chart. */
+.float-caption { text-align: center; max-width: none; }
 .sc { font-variant-caps: small-caps; letter-spacing: 0.04em; }
-.block-label {
-  font-size: 0.8125rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
 
 /* BGPW's three blocks share one scroll frame so they stay aligned on
    narrow screens; flush tables give the doubled rule seen in the print. */

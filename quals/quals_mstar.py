@@ -535,7 +535,8 @@ def q_gray_columns():
     _, got = disk()
     gray = tuple(n for n, c in enumerate(got['m']['cols'], 1) if c[0] < c[1])
     tens, elevens = (592, 608, 656, 688, 752, 784), (832, 848, 880, 896, 928, 944, 976, 992)
-    assert gray == tuple(n for n in USER_GRAY if n not in (240, 384, 560, 640, 704, 736, 800) + tens + elevens + (432, 544, 576, 624, 816, 912, 960, 1008)), gray
+    # 768 settled at 13 on 2026-11-03 (the beam campaign's plan 6), and left the gray columns.
+    assert gray == tuple(n for n in USER_GRAY if n not in (240, 384, 560, 640, 704, 736, 800) + tens + elevens + (432, 544, 576, 624, 768, 816, 912, 960, 1008)), gray
     assert [got['m']['cols'][n - 1][:2] for n in (240, 384, 560, 640, 704, 736, 800)] == [[10, 10]] * 6 + [[11, 11]]
     assert [got['m']['cols'][n - 1][:3] for n in tens + elevens] == [[10, 10, ['example', f'equipow p{n}']] for n in tens] \
         + [[11, 11, ['example', f'equipow p{n}']] for n in elevens]
@@ -611,7 +612,7 @@ def q_lengths_from_1002_to_1024():
     assert all(cs[n - 1][:2] == v for n, v in want.items() if v), [(n, cs[n - 1]) for n in want]
     assert cs[1016 - 1][:2] == [7, 7] and cs[1016 - 1][3] == ['two'], cs[1016 - 1]
     assert cs[1024 - 1][:2] == [11, 11] and cs[1008 - 1] == [13, 13, ['example', 'equipow p1008'], ['residue', 5]], cs[1008 - 1]
-    assert [cs[n - 1][0] for n in (240, 768)] == [10, 12]          # 768's lo 11, the join's other part, until 2026-10-28
+    assert [cs[n - 1][0] for n in (240, 768)] == [10, 13]          # 768's lo 11, the join's other part, until 2026-10-28; 12 until 2026-11-03
     assert mstar.RESIDUE[1008] == (14, (5,), 'digits') and mstar.two(1008) == mstar.norm(1008, 5) == 15
     assert mstar.NEW[1008] == (13, 13, 'Claude alone'), mstar.NEW.get(1008)
 
@@ -652,7 +653,8 @@ def q_example_at_768_raises_its_lo():
     # doubling 384) and its hi still the residue condition mod 5 at order 14.
     _, got = disk()
     cs = got['m']['cols']
-    assert mstar.NEW[768] == (12, 13, 'Claude alone') and cs[768 - 1] == [12, 13, ['example', 'equipow p768'], ['residue', 5]], cs[768 - 1]
+    # Since 2026-11-03, 13 to 13: the beam campaign's plan 6 found an example of order 13 (q_example_at_768_reaches_order_13).
+    assert mstar.NEW[768] == (13, 13, 'Claude alone') and cs[768 - 1] == [13, 13, ['example', 'equipow p768'], ['residue', 5]], cs[768 - 1]
 
 
 def q_example_at_912_raises_its_lo():

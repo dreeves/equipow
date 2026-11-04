@@ -39,6 +39,7 @@
   <!-- The changelog, newest first, as in dreeves's spec FreshAt (doc.bmndr.co/freshat) -->
   <details class="changelog">
     <summary><i>Changelog</i></summary>
+    <p>2026-11-03: Number the figures/tables</p>
     <p>2026-11-03: \(m^*(432) = 11\)</p>
     <p>2026-11-03: \(m^*(720) \ge 13\)</p>
     <p>2026-11-03: \(m^*(960) = 15\)</p>
@@ -151,7 +152,7 @@
     <p>Note: \(m^*(2^{51}) \ge 52\) is due to Richard Stong.</p>
 
     <div class="new-block">
-      <p class="block-label">Extended results since BGPW</p>
+      <p class="float-caption"><span class="sc">Table 1.</span>&ensp;Extended results since BGPW</p>
       <div class="scroll">
         <!-- Cell titles reuse the legend's labels below -->
         <table class="block">
@@ -185,6 +186,7 @@
         odd multiples of 8 have \(m^*(n) \le 7\) and 
         for all \(n\ge 200\) it turns out the order is exactly 7.
         (There's a short proof of this; not sure if it's interesting.)</p>
+      <p class="float-caption"><span class="sc">Table 2.</span></p>
       <div class="scroll">
         <table class="block">
           <tr class="ns"><th scope="row">\(n\)</th><td title='The published paper (2021)'>\(2^3\)</td><td title='The published paper (2021)'>\(2^4\)</td><td title='The published paper (2021)'>\(2^5\)</td><td title='The published paper (2021)'>\(2^6\)</td><td title='The published paper (2021)'>\(2^7\)</td><td title='The published paper (2021)'>\(2^8\)</td><td class="c" title='Claude alone'>\(2^9\)</td><td class="c" title='Claude alone'>\(2^{10}\)</td><td class="c" title='Claude alone'>\(2^{11}\)</td><td class="c" title='Claude alone'>\(2^{12}\)</td><td class="c" title='Claude alone'>\(2^{17}\)</td><td class="c" title='Claude alone'>\(2^{18}\)</td><td class="c" title='Claude alone'>\(2^{20}\)</td><td class="j" title='Claude and BGPW'>\(2^{24}\)</td></tr>
@@ -257,6 +259,7 @@
   </div>
   <canvas id="mstar-chart" height="0" tabindex="0" role="img" aria-label='chart of the bounds on m*(n) for even n up to 1024; the arrow keys pan, and + and − zoom'></canvas>
   <p id="mstar-readout" aria-live="polite">Hover over a cell for details. Drag or swipe sideways to pan; zoom with the − and + buttons, pinching, or ctrl-scroll.</p>
+  <p class="float-caption"><span class="sc">Figure 1.</span></p>
 </section>
 
 <section class="smallest" aria-labelledby="smallest-title">
@@ -266,6 +269,7 @@
     (See again OEIS <a href="https://oeis.org/A323395">A323395</a>.)
   </p>
   <table>
+  <caption><span class="sc">Table 3.</span></caption>
   <thead><tr><th>order \(m\)</th><th>smallest \(n\) not ruled out</th><th>smallest known \(n\)</th><th>proven smallest</th></tr></thead>
   <tbody data-smallest></tbody>
   </table>
@@ -308,6 +312,7 @@
   <!-- the clause after the semicolon and the readout's second sentence are the m*(n) chart's, word for word (2026-10-30: the same controls) -->
   <div id="pow2-chart" tabindex="0" role="img" aria-label='Chart of the bounds on m*(2^k) − k, the excess over Thue–Morse, for k from 1 to 72; the arrow keys pan, and + and − zoom'></div>
   <p id="pow2-readout" aria-live="polite">Hover over a cell for details. Drag or swipe sideways to pan; zoom with the − and + buttons, pinching, or ctrl-scroll.</p>
+  <p class="float-caption"><span class="sc">Figure 2.</span></p>
   <p><b>Theorem.</b> \(m^*(2^{10}) \ge 11\), \(m^*(2^{20}) \ge 22\), \(m^*(2^{28}) \ge 31\), \(m^*(2^{36}) \ge 40\), \(m^*(2^{39}) \ge 44\), \(m^*(2^{47}) \ge 53\), \(m^*(2^{56}) \ge 63\), \(m^*(2^{58}) \ge 66\), \(m^*(2^{68}) \ge 77\) and \(m^*(2^9) = 9\).</p>
   <p>More concisely: For \(i = 1, 2, \ldots, 9\), the smallest known values of \(k\) for which \(m^*(2^k) - k \ge i\) are 10, 20, 28, 36, 39, 47, 56, 58, 68.</p>
   <p>The following table shows the construction for each inequality in the above theorem: 
@@ -317,6 +322,7 @@
     generates this table and checks all the arithmetic.</p>
   <div class="scroll">
     <table class="pow2-gaps" data-record-gaps>
+      <caption><span class="sc">Table 4.</span></caption>
       <thead><tr><th>Record gaps</th><th>The power of 2</th><th>The order</th></tr></thead>
     </table>
   </div>
@@ -425,9 +431,9 @@ Or just start identifying redundancies and repetition on the page and fix them o
     <li>
       <span class="mk" aria-hidden="true"></span>
       <p class="entry">\(n = 288\): &nbsp;\(m^* \in \{9, 10\}\)</p>
-      <!-- TODO: says this entry is not a new result: m*(288) ≤ 10, the upper value in Table 2's entry for 288, is rederived here; proof288.py (linked) checks exactly that no partition of {0, …, 287} into two parts has equal power sums for every exponent from 0 to 10, so the bound no longer has to be taken from BGPW -->
+      <!-- TODO: says this entry is not a new result: m*(288) ≤ 10, the upper value of BGPW's Table 2 for 288, is rederived here; proof288.py (linked) checks exactly that no partition of {0, …, 287} into two parts has equal power sums for every exponent from 0 to 10, so the bound no longer has to be taken from BGPW -->
       <p>
-        Claude: “Not a new result: \(m^*(288) \le 10\), the upper value in Table 2's entry for 288, is rederived here. 
+        Claude: “Not a new result: \(m^*(288) \le 10\), the upper value of BGPW's Table 2 for 288, is rederived here. 
         <a href="https://github.com/dreeves/equipow/blob/main/proofs/proof288.py">proof288.py</a> 
         checks exactly that no partition of \(\{0, \ldots, 287\}\) into two parts has equal power sums for every exponent from 0 to 10, so the bound no longer has to be taken from BGPW.”
       </p>
@@ -973,8 +979,8 @@ Or just start identifying redundancies and repetition on the page and fix them o
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 2^{28}\): &nbsp;\(m^* \in \{31, \ldots, 34\}\)</p>
-      <!-- TODO: says 2^28 = 960·768·2^5 + 576^2·48·2 + 800·832·320, a join of three products of the examples above and Thue–Morse, of orders 32, 31 and 31, which beats Thue–Morse by 3; and that the upper bound is the norm bound for the residue sums mod 3 -->
-      <p>Claude: “\(2^{28} = 960\cdot 768\cdot 2^5 + 576^2\cdot 48\cdot 2 + 800\cdot 832\cdot 320\): a join of three products of examples above and Thue–Morse, of orders 32, 31 and 31. That beats Thue–Morse by 3. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above.”</p>
+      <!-- TODO: says 2^28 = 960·768·2^5 + 576^2·48·2 + 800·832·320, a join of three products of the examples above and Thue–Morse, of orders 33, 31 and 31, which beats Thue–Morse by 3; and that the upper bound is the norm bound for the residue sums mod 3 -->
+      <p>Claude: “\(2^{28} = 960\cdot 768\cdot 2^5 + 576^2\cdot 48\cdot 2 + 800\cdot 832\cdot 320\): a join of three products of examples above and Thue–Morse, of orders 33, 31 and 31. That beats Thue–Morse by 3. The upper bound is the norm bound for the residue sums mod 3, as in the powers-of-2 chart above.”</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
@@ -1021,8 +1027,8 @@ Or just start identifying redundancies and repetition on the page and fix them o
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 2^{39}\): &nbsp;\(m^* \in \{44, \ldots, 47\}\)</p>
-      <!-- TODO: says order 44 at 2^39 comes from a join of three products of the examples above and Thue–Morse, each of order 44, which beats Thue–Morse by 5; and that the upper bound is the residue condition mod 3 -->
-      <p>Claude: “A join of three products of examples above and Thue–Morse, each of order 44; the powers-of-2 chart above lists them. That beats Thue–Morse by 5. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above.”</p>
+      <!-- TODO: says order 44 at 2^39 comes from a join of three products of the examples above and Thue–Morse, of orders 44, 45 and 45, which beats Thue–Morse by 5; and that the upper bound is the residue condition mod 3 -->
+      <p>Claude: “A join of three products of examples above and Thue–Morse, of orders 44, 45 and 45; the powers-of-2 chart above lists them. That beats Thue–Morse by 5. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above.”</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
@@ -1088,8 +1094,8 @@ Or just start identifying redundancies and repetition on the page and fix them o
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 2^{58}\): &nbsp;\(m^* \in \{66, \ldots, 71\}\)</p>
-      <!-- TODO: says 2^58 = 848·800^5 + 960^2·800^3·2^3 + 912·624^2·576^2·2^5 + 960·768·672^2·528·2^4, a join of four products of the examples above and Thue–Morse, of orders 66, 66, 66 and 66, which beats Thue–Morse by 8; that the search for such joins in searches/pinned (its coins, as its README says) left 2^58, 2^60 and 2^62 undecided at its 15-minute limit, and a later search over every product of the examples decided them; and that the upper bound is the residue condition mod 3 -->
-      <p>Claude: “\(2^{58} = 848\cdot 800^5 + 960^2\cdot 800^3\cdot 2^3 + 912\cdot 624^2\cdot 576^2\cdot 2^5 + 960\cdot 768\cdot 672^2\cdot 528\cdot 2^4\): a join of four products of examples above and Thue–Morse, of orders 66, 66, 66 and 66. That beats Thue–Morse by 8. The search for such joins in <a href="https://github.com/dreeves/equipow/tree/main/searches/pinned">searches/pinned</a> left \(2^{58}\), \(2^{60}\) and \(2^{62}\) undecided at its 15-minute limit; a later search over every product of examples decided them. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above.”</p>
+      <!-- TODO: says 2^58 = 848·800^5 + 960^2·800^3·2^3 + 912·624^2·576^2·2^5 + 960·768·672^2·528·2^4, a join of four products of the examples above and Thue–Morse, of orders 66, 66, 66 and 67, which beats Thue–Morse by 8; that the search for such joins in searches/pinned (its coins, as its README says) left 2^58, 2^60 and 2^62 undecided at its 15-minute limit, and a later search over every product of the examples decided them; and that the upper bound is the residue condition mod 3 -->
+      <p>Claude: “\(2^{58} = 848\cdot 800^5 + 960^2\cdot 800^3\cdot 2^3 + 912\cdot 624^2\cdot 576^2\cdot 2^5 + 960\cdot 768\cdot 672^2\cdot 528\cdot 2^4\): a join of four products of examples above and Thue–Morse, of orders 66, 66, 66 and 67. That beats Thue–Morse by 8. The search for such joins in <a href="https://github.com/dreeves/equipow/tree/main/searches/pinned">searches/pinned</a> left \(2^{58}\), \(2^{60}\) and \(2^{62}\) undecided at its 15-minute limit; a later search over every product of examples decided them. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above.”</p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>

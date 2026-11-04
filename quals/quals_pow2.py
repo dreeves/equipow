@@ -189,7 +189,9 @@ def q_new_lower_bounds():
     for k, (lo, hi, lw, hw) in enumerate(cols(), 1): assert (lo - k, lw[0]) == (want[k], kind[k]), (k, lo, lw[0])
     orders = {K0: pow2.join_lo(K0, ps) for K0, ps in pow2.BASES.items()}
     assert orders == {10: 11, 20: 22, 28: 31, 36: 40, 39: 44, 47: 53, 56: 63, 58: 66, 68: 77}, orders   # 57: 64, 65: 73 until later on 2026-11-03
-    assert [768, 12] in (b for p in pow2.BASES[39] for b in p), pow2.BASES[39]
+    # 768 is a block of order 13 since 2026-11-03 (the beam campaign's plan 6 found an example of order 13; 12 before):
+    # its products in BASES[28], [39] and [58] gain 1, and no join's least product changes, so no lo moves.
+    assert [768, 13] in (b for p in pow2.BASES[39] for b in p), pow2.BASES[39]
     assert [960, 15] in (b for p in pow2.BASES[28] for b in p), pow2.BASES[28]
     assert [912, 13] in (b for p in pow2.BASES[36] for b in p), pow2.BASES[36]
     assert all([960, 15] in (b for p in pow2.BASES[K0] for b in p) for K0 in (56, 58)), (pow2.BASES[56], pow2.BASES[58])
