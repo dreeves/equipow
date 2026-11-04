@@ -47,7 +47,9 @@ for (const outcome of [null, 'budget', 'control_failed', 'witness', 'failed']) {
   assert.deepEqual(outcomes.filter(x => !x.hidden).map(x => x.dataset.attemptOutcome), [String(outcome)]);
   assert.equal(elapsed.textContent, 'duration:125');
   assert.equal(state.textContent, 'running');
-  assert.equal(eta.hidden, true);
+  // the ETA chart left as every run's, shown (dreeves, 2026-11-04: "shouldn't there always be an ETA graph, even when
+  // it's just based on the lindy effect? death to if-statements, remember?"); until then hidden
+  assert.equal(eta.hidden, undefined);
   assert.equal(key.hidden, true);
   assert.equal(status.child, display);
   assert.equal(readout.child, hint);

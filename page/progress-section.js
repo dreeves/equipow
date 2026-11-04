@@ -234,6 +234,10 @@
     attemptView(box, run, 'progress-search288', 'progress-attempt-hint');
   }
 
+  // a run of attempts' view: its counts and state in place of the status line, its key hidden, and its hint in the
+  // readout; its ETA chart as every run's (dreeves, 2026-11-04: "shouldn't there always be an ETA graph, even when it's
+  // just based on the lindy effect? death to if-statements, remember?"; until then this view hid it, and a tracked
+  // search's showed it again, but for a target a witness campaign searches, from 2026-11-03)
   function attemptView(box, run, templateName, hintName) {
     const display = section.querySelector('template.' + templateName).content.cloneNode(true);
     for (const e of display.querySelectorAll('[data-attempt-count]')) e.textContent = run.work[e.dataset.attemptCount].toLocaleString('en-US');
@@ -243,22 +247,17 @@
     display.querySelector('[data-search-state]').textContent = run.state;
     box.querySelector('.progress-status').replaceChildren(display);
     box.querySelector('.progress-key').hidden = true;
-    box.querySelector('.progress-eta').hidden = true;
     const hint = section.querySelector('template.' + hintName).content;
     box.querySelector('[data-readout]').replaceChildren(hint.cloneNode(true));
     box.querySelector('canvas').setAttribute('aria-label', hint.textContent.trim());
   }
 
   // a tracked search's view: the attempt view of its runs' counts and its hint, but after the status line every run has
-  // (kept, then put back before the counts) and with the ETA chart every run has, a target a witness campaign searches
-  // too, its chance chart below (dreeves, 2026-11-04: "shouldn't there always be an ETA graph, even when it's just
-  // based on the lindy effect? death to if-statements, remember?"; from 2026-11-03, README [CON], the chance chart had
-  // taken its place)
+  // (kept, then put back before the counts)
   function trackView(box, run) {
     const status = box.querySelector('.progress-status'), line = [...status.childNodes];
     attemptView(box, run, 'progress-track', 'progress-track-hint');
     status.prepend(...line, document.createElement('br'));
-    box.querySelector('.progress-eta').hidden = false;
   }
 
   // A run's stages to a recordable result, under its status line (progress.py's stages; the coordinator, 2026-10-31,
