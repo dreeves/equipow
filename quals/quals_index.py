@@ -1552,7 +1552,7 @@ def q_new_results_say_which_lengths():
     block = page()[page().index('<div class="new-block">'):page().index('</figure>')]
     # (Since 2026-11-03 the powers-of-2 frame has its own caption, Table 2, between this paragraph and it: README [NUM].)
     m = re.search(r'<div class="scroll">(?:(?!</div>).)*</div>\s*(?:<!--(?:(?!-->).)*-->\s*)*<p>((?:(?!</p>).)*)</p>\s*'
-                  r'<p class="float-caption"><span class="sc">Table 2\.</span></p>\s*<div class="scroll">', block, re.S)
+                  r'<p class="float-caption"><span class="sc">Table 2\.</span>[^\n]*</p>\s*<div class="scroll">', block, re.S)   # its words: d66ad09
     assert m, 'no paragraph between the new results\' frames'
     # numbers as words: not part of another word or of a decimal like the 4.1 of Theorem 4.1, but a sentence's final
     # period may follow one (dreeves's rewording of 2026-10-27 ends a sentence with "304.")
@@ -3665,7 +3665,8 @@ def q_tables_and_figures_are_numbered():
         assert m, label
         at.append(m.end() - len(label + '.</span>'))
     assert at == sorted(at), at
-    assert re.search(r'<p class="float-caption"><span class="sc">Table 2\.</span></p>\s*<div class="scroll">\s*<table class="block">\s*'
+    # (A caption may go on past its label, as Table 1's does and, since dreeves's d66ad09, Table 2's.)
+    assert re.search(r'<p class="float-caption"><span class="sc">Table 2\.</span>[^\n]*</p>\s*<div class="scroll">\s*<table class="block">\s*'
                      r'<tr class="ns"><th scope="row">\\\(n\\\)</th><td[^>]*>\\\(2\^', text), 'Table 2 is not right above the powers of 2'
     assert re.findall(r'<span class="sc">((?:Table|Figure) \d+)\.</span>', text) == [label for label, _ in LABELS]
     mention, after = r'\b(?:Tables?|Figures?) \d+', r' of (?:BGPW|the paper)\b'

@@ -44,20 +44,22 @@ SPAN, STEP = 10.0, 0.01          # within's grid of log2 theta: mean +- SPAN sd,
 PRIORS = 'chance.json'           # in a campaign's directory: {targets: {N:M: {p_exists, mean, sd}}, sources: {...}}
 
 
-def within(p, mean, sd, spent, aheads):
+def within(p_exists, mean, sd, spent, aheads):
     """The chance of a witness within each exposure of aheads, given none in the exposure spent, the prior P(exists)
-    p and log2 theta ~ N(mean, sd^2) if it exists: p E[exp(-theta spent) (1 - exp(-theta b))] / (p E[exp(-theta spent)]
-    + 1 - p) for each b, E over that normal, as a list.  The bandit's P(exists | data) times its p_success over its
-    posterior given existence (rerun.witness_index_p), on a grid of its own."""
+    p_exists and log2 theta ~ N(mean, sd^2) if it exists: p_exists E[exp(-theta spent) (1 - exp(-theta b))] /
+    (p_exists E[exp(-theta spent)] + 1 - p_exists) for each b, E over that normal, as a list.  The bandit's
+    P(exists | data) times its p_success over its posterior given existence (rerun.witness_index_p), on a grid of its
+    own."""
     # TODO: error copy; says within's inputs are out of range, quoting them
-    assert (0 <= p <= 1 and 0 < sd < math.inf and math.isfinite(mean) and 0 <= spent < math.inf
-            and all(0 <= b < math.inf for b in aheads)), f'Claude: "within({p}, {mean}, {sd}, {spent}, ...) is out of range"'
+    assert (0 <= p_exists <= 1 and 0 < sd < math.inf and math.isfinite(mean) and 0 <= spent < math.inf
+            and all(0 <= b < math.inf for b in aheads)), f'Claude: "within({p_exists}, {mean}, {sd}, {spent}, ...) is out of range"'
     z = np.arange(mean - SPAN * sd, mean + SPAN * sd + STEP / 2, STEP)
     w = np.exp(-0.5 * ((z - mean) / sd) ** 2)
     theta = np.exp2(z)
     kept = w / w.sum() * np.exp(-theta * spent)       # the prior's weight times P(no witness in spent | theta)
-    return [float(p * (kept @ -np.expm1(-theta * b)) / (p * kept.sum() + (1 - p))) for b in aheads]   # (1 - p) first: 1 - p = 0 exactly
-                                                                                                        # when p = 1, not after rounding
+    # (1 - p_exists) added as a whole: 0 exactly when p_exists is 1, where adding 1 and then subtracting p_exists would
+    # leave a rounding error as large as the rest of the sum (4e-9 of the chance, 2026-11-03)
+    return [float(p_exists * (kept @ -np.expm1(-theta * b)) / (p_exists * kept.sum() + (1 - p_exists))) for b in aheads]
 
 
 def lines(path):
@@ -77,7 +79,7 @@ def rounds(path):
     return sum(x['X'] for x in body), sum(x['cpu'] for x in body)
 
 
-def prior(root, campaign, target):
+def prior_of(root, campaign, target):
     """The target's prior, {p_exists, mean, sd}, from the campaign's PRIORS (asserted there and in range)."""
     targets = json.load(open(os.path.join(root, campaign, PRIORS), encoding='utf-8'))['targets']
     # TODO: error copy; says the campaign's priors hold no prior for the target, or one of another form, naming both
@@ -95,8 +97,8 @@ def live(plan, records):
     return [f'{c["n"]}:{c["m"]}' for c in plan['cells'] if running and f'{c["n"]}:{c["m"]}' not in stopped]
 
 
-def measure(root, records, x, target, now):
-    """The chance of the target, whose prior is x, from its campaign's journal records at time now (epoch seconds):
+def measure(root, records, prior, target, now):
+    """The chance of the target, whose prior is this, from its campaign's journal records at time now (epoch seconds):
     {cpu_hours, rate, cores, hours, p}: H, r and c (see the vocabulary), HOURS, and the chance within each (within, at
     exposure spent r H and ahead r c t); with no rate yet, rate None and p empty."""
     start = max(r['time'] for r in records if r['event'] == 'start')
@@ -114,7 +116,7 @@ def measure(root, records, x, target, now):
                     cores=sum(cpu[e['k']] for e in ends if e['k'] in cpu and e['time'] > t0) / (now - t0))
     if not probes: return dict(measured, rate=None, p=[])         # no probe seed has finished: no rate measured yet
     rate = sum(X for X, _ in probes.values()) / (sum(c for _, c in probes.values()) / 3600)
-    return dict(measured, rate=rate, p=within(x['p_exists'], x['mean'], x['sd'], rate * measured['cpu_hours'],
+    return dict(measured, rate=rate, p=within(prior['p_exists'], prior['mean'], prior['sd'], rate * measured['cpu_hours'],
                                               [rate * measured['cores'] * t for t in HOURS]))
 
 
@@ -128,7 +130,7 @@ def of(root, campaign, target, now):
     records = lines(os.path.join(root, campaign, 'journal.jsonl'))
     # TODO: error copy; says the campaign's journal does not begin with its start record, naming the campaign
     assert records and records[0]['event'] == 'start', f'Claude: "{campaign}/journal.jsonl does not begin with its start"'
-    return measure(root, records, prior(root, campaign, target), target, now) if target in live(plan, records) else None
+    return measure(root, records, prior_of(root, campaign, target), target, now) if target in live(plan, records) else None
 
 
 if __name__ == '__main__':

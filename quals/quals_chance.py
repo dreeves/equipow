@@ -269,8 +269,9 @@ def q_of_refuses_malformed_campaigns():
     # (a finished probe seed has one); its done line counting 2 rounds of 3; its rounds numbered 1, 3, 2; its header
     # missing; a seed_end of a kind other than plain or probe; the plan's dir other than camp (its seeds' prefixes are
     # paths from the root only if it names camp); no prior for 528:12; a prior with P(exists) 1.5, with sd 0, with an
-    # extra field, without its sd; and at now 1000, the campaign's start (no span to measure cores over).
-    # Expectata: AssertionError, each.
+    # extra field, without its sd; a prior with P(exists) 1.5 before any probe seed has finished (so that no chance is
+    # computed with it yet); and at now 1000, the campaign's start (no span to measure cores over).
+    # Expectata: AssertionError, each: a malformed prior fails at once, not at the first probe seed's end.
     prefix = os.path.join('camp', 'seeds', '528_12_s1')
     lines = probe_lines(ROUNDS)
     swapped = lines[:2] + [lines[3], lines[2]] + lines[4:]
@@ -279,7 +280,9 @@ def q_of_refuses_malformed_campaigns():
            dict(journal=JOURNAL + [dict(seed(3300.0, 'plain', 9, 1.0), kind='odd')]), dict(plan_dir='elsewhere'),
            dict(priors={'720:13': PRIOR}), dict(priors={'528:12': dict(PRIOR, p_exists=1.5)}),
            dict(priors={'528:12': dict(PRIOR, sd=0.0)}), dict(priors={'528:12': dict(PRIOR, extra=1)}),
-           dict(priors={'528:12': {k: v for k, v in PRIOR.items() if k != 'sd'}})]
+           dict(priors={'528:12': {k: v for k, v in PRIOR.items() if k != 'sd'}}),
+           dict(priors={'528:12': dict(PRIOR, p_exists=1.5)}, probes={},
+                journal=[r for r in JOURNAL if not (r['event'] == 'seed_end' and r['k'] == 1)])]
     for kw in bad:
         d = campaign(**kw)
         try:
