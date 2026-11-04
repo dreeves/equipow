@@ -242,15 +242,15 @@ try {
   }
   // The panel of column c, k = c + 1 (columnPanel, in page/shared.js), its fragment kK, as the m*(n) chart's: its
   // heading, k, n = 2^k and its bounds; the status of each cell clicked, of the rows (excesses) given, none or one; the
-  // explanations of its reasons; and the link to its entry in the remarks, if one lists 2^k.
+  // explanations of its reasons; and below them its entry in the remarks, if one lists 2^k (since 2026-11-03, [REO]
+  // step 2: the entry itself, where its link was).
   const open = columnPanel({region: document.getElementById('pow2-panel'), chart, ncol: K, fragment: c => `k${c + 1}`,
-    fill: (c, rows) => {
+    length: c => 2n ** BigInt(c + 1), fill: (c, rows) => {
       const k = c + 1, [lo, hi, lw, hw] = D.cols[k - 1];
       return {heading: [`\\(k = ${k}\\)`, ', ', `\\(n = 2^{${k}}\\)`, ': ',
                         `\\(${lo === hi ? `m^*(2^{${k}}) = ${lo}` : `${lo} \\le m^*(2^{${k}}) \\le ${hi}`}\\)`],
               parts: [...rows.map(e => filled(`status-${KIND[kindOf(k, e)]}`, {m: k + e, lo, hi})),
-                      ...LO[lw[0]].panel(k, lo, ...lw.slice(1)), ...HI[hw[0]].panel(k, hi, ...hw.slice(1)),
-                      ...entries(2n ** BigInt(k), `2^{${k}}`)]};
+                      ...LO[lw[0]].panel(k, lo, ...lw.slice(1)), ...HI[hw[0]].panel(k, hi, ...hw.slice(1))]};
     }});
   const view = panZoom({el: chart, out: document.getElementById('pow2-zoom-out'), in: document.getElementById('pow2-zoom-in'),
     reset: document.getElementById('pow2-reset'), ncol: K, plot: plotBox, cellAt, readout, draw, open: (c, e) => open(c, [e])});

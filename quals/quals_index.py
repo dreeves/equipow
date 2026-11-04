@@ -3454,9 +3454,10 @@ def q_every_column_s_panel_shows_exactly_its_reasons():
     # Replicata: the panel of each of the m*(n) chart's 257 columns, opened in turn by its fragment, nN (the panels run).
     # Expectata: each opens (not hidden, the fragment its own, the focus on its heading) with no error and no KaTeX
     # error mark; it shows exactly the data's reasons, the kinds of its texts in order (panel_whys: the lower bound's,
-    # the code's where the page shows the example's code, the upper bound's, the entry's where the remarks list n); its
-    # heading gives n and the bounds; and each text names its reason's arguments (panel_says), with links to the parts'
-    # own panels, the example's code and the entry.
+    # the code's where the page shows the example's code, the upper bound's; the entry's link where the remarks list n
+    # until [REO] step 2, 2026-11-03, which moved the entry itself in); its heading gives n and the bounds; and each
+    # text names its reason's arguments (panel_says), with links to the parts' own panels and the example's code, and
+    # the entry that lists n shown (q_panel_shows_its_entry_and_gives_it_back).
     # Resultata before: no panel.
     R = valid_run('panels')
     cols = mstar_data()['cols']
@@ -3644,9 +3645,9 @@ def q_no_panel_mentions_the_remarks_below():
 def remarks_fold():
     """The remarks section's fold, from index.html: (the section's text before it, its summary's text, the text it
     holds after the summary, the section's text after it), asserting it is one <details> without open whose first
-    child is a <summary>."""
+    element is a <summary> (comments may come before it: its TODO recap)."""
     section = re.search(r'<section class="remarks">(.*?)</section>', page(), re.S)[1]
-    folds = re.findall(r'<details([^>]*)>\s*<summary>(.*?)</summary>(.*?)</details>', section, re.S)
+    folds = re.findall(r'<details([^>]*)>\s*(?:<!--.*?-->\s*)*<summary>(.*?)</summary>(.*?)</details>', section, re.S)
     assert len(folds) == 1 == section.count('<details') and 'open' not in folds[0][0], folds and folds[0][0]
     before, after = section.split('<details', 1)[0], section.split('</details>', 1)[1]
     return before, folds[0][1], folds[0][2], after

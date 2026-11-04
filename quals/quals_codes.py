@@ -192,8 +192,27 @@ const LINES = {                      // the lines that each kind of event logs (
   'Log.entryAdded': ({entry: x}) => ['error', 'warning'].includes(x.level) ? `log ${x.level} ${x.source}: ${x.text} ${x.url || ''}` : null,
 };
 const KEYS = {Tab: ['Tab', 'Tab', 9, ''], Enter: ['Enter', 'Enter', 13, '\r'], Space: [' ', 'Space', 32, ' ']};
+// A real click (a phone's touch tap) at the middle of the element that the selector selects, scrolled to the middle of
+// the viewport
+const press = async selector => {
+  await ev(s => { document.querySelector(s).scrollIntoView({block: 'center'}); return 0; }, selector);
+  await ev(FRAMES);
+  const [x, y] = await ev(s => { const b = document.querySelector(s).getClientRects()[0]; return [b.left + b.width / 2, b.top + b.height / 2]; }, selector);
+  if (C.mobile) {
+    await send('Input.dispatchTouchEvent', {type: 'touchStart', touchPoints: [{x, y}]});
+    await send('Input.dispatchTouchEvent', {type: 'touchEnd', touchPoints: []});
+  } else {
+    for (const type of ['mousePressed', 'mouseReleased']) {
+      await send('Input.dispatchMouseEvent', {type, x, y, button: 'left', buttons: type === 'mousePressed' ? 1 : 0, clickCount: 1});
+    }
+  }
+  await sleep(50);
+  await ev(FRAMES);
+};
 const OPS = {
-  // the page loaded, its fonts ready and KaTeX's math drawn: whether it was
+  // the page loaded, its fonts ready and KaTeX's math drawn: whether it was.  Then, since 2026-11-03 ([REO] step 2,
+  // when the remarks' list, where the codes are, went into a fold closed until clicked), a real click on the fold's
+  // summary, which must open it: the codes can be clicked only once they show.
   load: async () => {
     const loaded = next('Page.loadEventFired');
     await send('Page.navigate', {url: C.url});
@@ -202,6 +221,8 @@ const OPS = {
     await ev(() => document.fonts.ready.then(() => 0));
     const katex = await ev(KATEX);
     await ev(FRAMES);
+    await press('section.remarks details > summary');
+    if (!await ev(() => document.querySelector('section.remarks details').open)) throw new Error('the fold of the remarks did not open');
     return {katex};
   },
   look: () => ev(LOOK),

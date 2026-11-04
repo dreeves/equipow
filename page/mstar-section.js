@@ -132,13 +132,14 @@ try {
   let geo = null;                                                  // the last draw's layout
   // The panel of column c, n = NS[c] (columnPanel, in page/shared.js), its fragment nN: its heading, n and its bounds;
   // the status of each cell clicked, of the rows given, none or one; the explanations of its lower bound's reason and
-  // its upper bound's; and the link to its entry in the remarks, if one lists n.
+  // its upper bound's; and below them its entry in the remarks, if one lists n (since 2026-11-03, [REO] step 2: the
+  // entry itself, where its link was).
   const open = columnPanel({region: document.getElementById('mstar-panel'), chart: cv, ncol: NCOL, fragment: c => `n${NS[c]}`,
-    fill: (c, rows) => {
+    length: c => BigInt(NS[c]), fill: (c, rows) => {
       const n = NS[c], [lo, hi, lw, hw] = D.cols[n - 1];
       return {heading: [`\\(n = ${n}\\)`, ': ', `\\(${lo === hi ? `m^*(${n}) = ${lo}` : `${lo} \\le m^*(${n}) \\le ${hi}`}\\)`],
               parts: [...rows.map(m => filled(`status-${KIND[kindOf(n, m)]}`, {m, lo, hi})), ...LO[lw[0]].panel(n, lo, ...lw.slice(1)),
-                      ...HI[hw[0]].panel(n, hi, ...hw.slice(1)), ...entries(BigInt(n), `${n}`)]};
+                      ...HI[hw[0]].panel(n, hi, ...hw.slice(1))]};
     }});
   const view = panZoom({el: cv, out: document.getElementById('mstar-zoom-out'), in: document.getElementById('mstar-zoom-in'),
     reset: document.getElementById('mstar-reset'), ncol: NCOL, plot: () => ({left: geo.L / geo.dpr, width: geo.W / geo.dpr}),

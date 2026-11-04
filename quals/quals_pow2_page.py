@@ -1365,7 +1365,7 @@ def q_panels_show_exactly_each_column_s_reasons():
     # its texts name their reasons' arguments (pow2_says): each product of a join with its blocks' lengths multiplied
     # out and its orders added, the blocks linked to their columns' panels in the m*(n) chart but τ_j, the lengths'
     # total 2^k in digits and the least order; the prime of a norm bound; the moduli of a residue claim and the script
-    # that repeats it; and the link to the remarks' entry where one lists 2^k.
+    # that repeats it; and the remarks' entry itself where one lists 2^k (its link until [REO] step 2, 2026-11-03).
     # Resultata before: no panel.
     R = valid('light')
     assert [P['k'] for P in R['panels']] == list(range(1, K + 1)), [P['k'] for P in R['panels']][:5]
@@ -1472,7 +1472,7 @@ def q_panels_show_their_entries_and_give_them_back():
             assert P['entries'] == qi.panel_entries(2 ** P['k']) and P['listed'] == qi.held(order, *P['entries']), (name, P['k'], P['entries'])
             assert P['dups'] == [] and 'remarks below' not in ' '.join([P['text'], *P['entryText']]), (name, P['k'], P['dups'])
         assert R['after']['hidden'] and R['after']['entries'] == [] and R['after']['listed'] == order, (name, R['after']['entries'])
-        assert sum(1 for P in R['panels'] if P['entries']) >= 40, name
+        assert sum(1 for P in R['panels'] if P['entries']) >= 30, name    # 36 on 2026-11-03: 2^9, 2^10 and 34 entries of their own
     [R] = run('fragment')
     assert R['errors'] == [], R['errors']
     for step, want in (('fragment', ['entry-1073741824']), ('escaped', []), ('reopened', ['entry-1024']), ('closed', [])):

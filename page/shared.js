@@ -128,7 +128,11 @@ function raised(cols, shift) {
 // page opens that column's panel when it loads with it or moves to it, as the Stacks project's tags name their
 // results.  The panel is a disclosure, not a dialog: a region with a heading and a close button; its heading takes the
 // focus as it opens, and its button or Escape closes it, the focus back on the chart.  Without the panels the page
-// reads as before.
+// reads as before.  Since [REO] step 2 (the main session's design of 2026-11-03, after dreeves's "how can we reduce the
+// redundancy and clutter? we want everything to appear in this box"), a panel also shows its length's entry of the
+// remarks, below its explanations: the entry itself, moved in, not a copy, as its codes' ids must stay unique and their
+// buttons keep working (page/codes.js), and moved back to its place in the list when the panel closes or opens
+// another column.  The list stays in the page, in a fold closed until clicked, which find in page opens.
 
 // A number as text, its thousands set off by commas, in a span of class big, which may wrap anywhere: a formula cannot
 // wrap, and some of these numbers are 90 digits long.
@@ -151,20 +155,22 @@ function filled(name, values) {
   return box;
 }
 
-// The entries of the remarks below the charts ("Where the new results come from"): each p.entry gets the lengths it
-// lists, in decimal digits, as data-lengths, and the id entry-N, N the first of them, from its TeX before KaTeX draws
-// it, \(n = 320, 352, ...\): or \(n = 2^{11}\):.  entries(n, name) gives the panel's link to the entry that lists the
-// length n (a BigInt), named name in TeX, or none.
-document.querySelectorAll('section.remarks p.entry').forEach(p => {
-  const x = /^\\\(n = (.+?)\\\):/.exec(p.textContent);
-  if (x === null) throw new Error(`an entry outside the form: ${p.textContent.slice(0, 80)}`);
+// The entries of the remarks below the charts ("Where the new results come from"), each an li of the list there that
+// holds a p.entry: each p.entry gets the lengths it lists, in decimal digits, as data-lengths, and the id entry-N, N the
+// first of them, from its TeX before KaTeX draws it, \(n = 320, 352, ...\): or \(n = 2^{11}\):.  HOMES keeps each
+// entry's place in the list, a comment right before its li, where the li goes back when a panel that showed it is done
+// with it (columnPanel, below).  entries(n) gives the entry that lists the length n (a BigInt), none or one.
+const HOMES = new Map([...document.querySelectorAll('section.remarks p.entry')].map(p => {
+  const x = /^\\\(n = (.+?)\\\):/.exec(p.textContent), li = p.parentElement;
+  if (x === null || li.tagName !== 'LI') throw new Error(`an entry outside the form: ${p.textContent.slice(0, 80)}`);
   const ns = x[1].split(', ').map(s => BigInt(s.replace(/^2\^\{(\d+)\}$/, (_, k) => String(2n ** BigInt(k)))));
   p.dataset.lengths = ns.join(' ');
   p.id = `entry-${ns[0]}`;
-});
-const entries = (n, name) => [...document.querySelectorAll('section.remarks p.entry')]
-  .filter(p => p.dataset.lengths.split(' ').includes(String(n)))
-  .map(p => filled('entry', {entry: linked(`#${p.id}`, `\\(n = ${name}\\)`)}));
+  const home = document.createComment(` the place of ${p.id} in the list, where it goes back from a panel `);
+  li.before(home);
+  return [li, home];
+}));
+const entries = n => [...HOMES.keys()].filter(li => li.querySelector('p.entry').dataset.lengths.split(' ').includes(String(n)));
 
 // The explanations of the upper bounds, which both charts use: for the length n (a BigInt), named name in TeX, and the
 // upper bound hi, a reason of the kind each is named for, with its arguments.  The norm bound is worked out in exact
@@ -195,23 +201,30 @@ const WHY_HI = {
 };
 
 // The panel of a chart: region, its element (hidden until it opens); chart, the chart's element, which gets the focus
-// back; ncol columns; fragment(c), column c's fragment; and fill(c, rows), column c's heading and parts, the rows those
-// of the cells clicked, none or one.  It returns open(c, rows), which opens the panel of column c, as panZoom's open
-// does on a tap or a click.
-function columnPanel({region, chart, ncol, fragment, fill}) {
+// back; ncol columns; fragment(c), column c's fragment; length(c), column c's length, a BigInt; and fill(c, rows),
+// column c's heading and parts, the rows those of the cells clicked, none or one.  Below the parts, in its
+// [data-panel-entries], it shows the entry that lists column c's length, if any, moved there from wherever it is: its
+// place in the list or the other chart's panel, which then shows none.  It returns open(c, rows), which opens the
+// panel of column c, as panZoom's open does on a tap or a click.
+function columnPanel({region, chart, ncol, fragment, length, fill}) {
   const title = region.querySelector('[data-panel-title]'), body = region.querySelector('[data-panel-body]');
+  const shelf = region.querySelector('[data-panel-entries]');
+  const back = () => [...shelf.children].forEach(li => HOMES.get(li).after(li));   // its entries, each back in its place
   let shown = 0;                                                   // the column shown last
   function open(c, rows) {
     const {heading, parts} = fill(c, rows);
+    back();
     title.replaceChildren(...heading);
     body.replaceChildren(...parts);
+    shelf.append(...entries(length(c)));
     region.hidden = false;
     shown = c;
     history.replaceState(null, '', `#${fragment(c)}`);
-    renderMathInElement(region, MATH);                             // KaTeX draws its math, with the page's options
+    [title, body].forEach(e => renderMathInElement(e, MATH));      // KaTeX draws its math, with the page's options
     title.focus({preventScroll: true});
   }
   function close() {
+    back();
     region.hidden = true;
     if (location.hash === `#${fragment(shown)}`) history.replaceState(null, '', location.pathname + location.search);
     chart.focus();

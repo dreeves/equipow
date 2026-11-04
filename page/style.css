@@ -219,6 +219,10 @@ tr.ns td.ca::before, .key.ca > span, .remarks li.ca .mk { background: linear-gra
 .remarks li.c .mk { color: var(--claude); }
 .remarks li.a .mk { color: var(--astra); }
 .remarks li.s .mk { color: var(--stan); }
+/* The list of entries in one fold, closed until clicked ([REO] step 2, 2026-11-03), as the Search progress section's
+   folds are: its summary a pointer, the list below it. */
+.remarks summary { cursor: pointer; }
+.remarks details > * + * { margin-top: 0.8rem; }
 .entry { font-weight: 600; font-variant-numeric: tabular-nums lining-nums; }
 .code {
   display: grid;
@@ -486,6 +490,10 @@ code[aria-expanded] { cursor: pointer; text-decoration: underline dotted var(--m
 .column-panel-body [data-why] { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.3rem; }
 .column-panel-body ul { margin: 0; padding-left: 1.25rem; display: grid; gap: 0.25rem; }
 .column-panel .big { overflow-wrap: anywhere; font-variant-numeric: tabular-nums lining-nums; }
+/* The panel's entry of the remarks ([REO] step 2, 2026-11-03), styled as in the list by the rules of .remarks, set off
+   from the explanations above it by a hairline; gone, gap and all, when the panel shows no entry. */
+.column-panel .remarks { padding-top: 0.75rem; border-top: 1px solid color-mix(in oklab, var(--rule) 30%, var(--paper)); }
+.column-panel .remarks:not(:has(li)) { display: none; }
 
 footer {
   display: grid;

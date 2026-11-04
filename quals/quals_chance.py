@@ -63,22 +63,44 @@ def probe_lines(rounds, done=True):
     return [head] + body + [end] * done
 
 
-def campaign(journal=JOURNAL, probes=None, priors=None, plan_dir='camp', cells=('528:12', '720:13')):
+def campaign(journal=JOURNAL, probes=None, priors=None, plan_dir='camp', cells=('528:12', '720:13'), archives=()):
     """A temporary directory as the repository's root, with a campaign in camp/: its plan.json (dir plan_dir, the cells),
     its journal.jsonl (journal), its probe seeds' PREFIX.jsonl files (probes: {prefix: lines}; by default probe seed 1's
-    of ROUNDS) and its chance.json (priors: {target: prior}; by default PRIOR at 528:12 and 720:13)."""
+    of ROUNDS), its chance.json (priors: {target: prior}; by default PRIOR at 528:12 and 720:13), and its archived plans
+    (archives: (name, {cells, journal, probes, dir}) each, name planK and dir camp by default), each written as a plan is
+    archived, moved whole below camp/name: its plan.json, its journal and its probe seeds' files, which its journal names
+    where they were before the move (camp/seeds/...)."""
     d = tempfile.mkdtemp(prefix='chance-quals-')
     camp = os.path.join(d, 'camp')
     os.makedirs(os.path.join(camp, 'seeds'))
-    plan = dict(name='q', dir=plan_dir, cells=[dict(n=int(c.split(':')[0]), m=int(c.split(':')[1]), fs=[170]) for c in cells])
-    json.dump(plan, open(os.path.join(camp, 'plan.json'), 'w'))
+    plan_of = lambda cells, where: dict(name='q', dir=where, cells=[dict(n=int(c.split(':')[0]), m=int(c.split(':')[1]), fs=[170]) for c in cells])
+    json.dump(plan_of(cells, plan_dir), open(os.path.join(camp, 'plan.json'), 'w'))
     open(os.path.join(camp, 'journal.jsonl'), 'w').write(''.join(json.dumps(r) + '\n' for r in journal))
     probes = {os.path.join('camp', 'seeds', '528_12_s1'): probe_lines(ROUNDS)} if probes is None else probes
     for prefix, lines in probes.items():
         open(os.path.join(d, prefix + '.jsonl'), 'w').write(''.join(json.dumps(x) + '\n' for x in lines))
+    for name, a in archives:
+        home = os.path.join(camp, name)
+        os.makedirs(os.path.join(home, 'seeds'))
+        json.dump(plan_of(a['cells'], a.get('dir', 'camp')), open(os.path.join(home, 'plan.json'), 'w'))
+        open(os.path.join(home, 'journal.jsonl'), 'w').write(''.join(json.dumps(r) + '\n' for r in a['journal']))
+        for prefix, lines in a['probes'].items():
+            open(os.path.join(home, os.path.relpath(prefix, 'camp') + '.jsonl'), 'w').write(''.join(json.dumps(x) + '\n' for x in lines))
     priors = {'528:12': PRIOR, '720:13': PRIOR} if priors is None else priors
     json.dump(dict(targets=priors, sources={}), open(os.path.join(camp, 'chance.json'), 'w'))
     return d
+
+
+# Two made-up archived plans, run before JOURNAL's: plan1 at 528:12 (launched at 100; plain seed 1 ended at 400 after
+# 1000 CPU s, probe seed 2 at 500, its rounds EARLY; ended at 600) and plan2 at 768:13 (launched at 700; a plain seed of
+# 5000 CPU s ended at 800; ended at 900).  EARLY: 2e-4 and 1e-4 of exposure in 100 and 200 CPU s, 3.6e-3 per CPU-hour.
+EARLY = ((2e-4, 100.0), (1e-4, 200.0))
+PLAN1 = dict(cells=('528:12',), probes={os.path.join('camp', 'seeds', '528_12_s2'): probe_lines(EARLY)},
+             journal=[dict(time=100.0, event='start'), seed(400.0, 'plain', 1, 1000.0), seed(500.0, 'probe', 2, 2000.0),
+                      dict(time=600.0, event='end', reason='signal')])
+PLAN2 = dict(cells=('768:13',), probes={},
+             journal=[dict(time=700.0, event='start'), seed(800.0, 'plain', 1, 5000.0, cell='768:13'),
+                      dict(time=900.0, event='end', reason='signal')])
 
 
 def expected(cpu_seconds, recent, span, prior=PRIOR, rounds=ROUNDS):
@@ -262,6 +284,43 @@ def q_without_a_finished_probe_seed_there_is_no_chance_yet():
         assert close(got, dict(cpu_hours=430.0 / 3600, rate=None, cores=230.0 / 3600, hours=list(chance.HOURS), p=[])), got
     finally:
         shutil.rmtree(d)
+
+
+def q_earlier_plans_hours_without_a_witness_count():
+    # Replicata: chance.of(root, 'camp', '528:12', 5200) for campaign() with the archived plans plan1 (PLAN1, at 528:12)
+    # and plan2 (PLAN2, at 768:13), as the campaign archives a plan when it starts the next.
+    # Expectata (README [CON], 2026-11-03: "Shouldn't the probability generally go down, conditional on not having found
+    # anything so far?"): the chance given no witness in any of the campaign's plans at the target: its CPU-hours every
+    # plan's (730 s in the live one, and plan1's 1000 + 300 s: its plain seed's and its probe's rounds'), 768:13's left
+    # out; the exposure spent each plan's own rate times its CPU-hours there (their pins, and so their rates, differ:
+    # 0.0054 per CPU-hour in the live plan, 3.6e-3 in plan1); the rate and the cores the live plan's, as before.
+    # Resultata before: the archived plans left out, so each new plan forgot the hours searched before it (its CPU-hours
+    # 730 s, its exposure 0.0054 x 730 / 3600).
+    d = campaign(archives=(('plan1', PLAN1), ('plan2', PLAN2)))
+    try:
+        got = chance.of(d, 'camp', '528:12', 5200.0)
+        rate, early = 4.5e-4 / (300.0 / 3600), 3e-4 / (300.0 / 3600)
+        spent, cores = rate * 730.0 / 3600 + early * 1300.0 / 3600, 530.0 / 3600
+        want = dict(cpu_hours=2030.0 / 3600, rate=rate, cores=cores, hours=list(chance.HOURS),
+                    p=chance.within(PRIOR['p_exists'], PRIOR['mean'], PRIOR['sd'], spent, [rate * cores * t for t in chance.HOURS]))
+        assert close(got, want), got and {k: v for k, v in got.items() if k != 'p'}
+    finally:
+        shutil.rmtree(d)
+
+
+def q_of_refuses_malformed_archives():
+    # Replicata: chance.of(root, 'camp', '528:12', 5200) for campaign() with: PLAN1 archived as plan2 with no plan1 (a
+    # gap in the numbering); PLAN1 archived as plan1 naming another directory; PLAN1 archived with its journal less its
+    # start; and PLAN1 archived without its probe seed's end and files, so that nothing measured the exposure of its
+    # 1000 CPU s at 528:12.
+    # Expectata: AssertionError, each: the last because the chance cannot be conditioned on hours of unknown exposure.
+    for archives in ((('plan2', PLAN1),), (('plan1', dict(PLAN1, dir='elsewhere')),), (('plan1', dict(PLAN1, journal=PLAN1['journal'][1:])),),
+                     (('plan1', dict(PLAN1, probes={}, journal=[r for r in PLAN1['journal'] if r.get('k') != 2])),)):
+        d = campaign(archives=archives)
+        try:
+            expect_assertion(chance.of, d, 'camp', '528:12', 5200.0)
+        finally:
+            shutil.rmtree(d)
 
 
 def q_of_refuses_malformed_campaigns():
