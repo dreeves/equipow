@@ -123,8 +123,36 @@
     const s = document.createElement('script');
     s.src = 'progress.js?' + Date.now();
     s.onload = () => s.remove();
-    s.onerror = () => { s.remove(); missing.hidden = false; };
+    s.onerror = () => { s.remove(); missing.hidden = false; answer(() => [missing.cloneNode(true)]); };
     document.head.appendChild(s);
+  }
+  // The runs at a target, for the charts' boxes (page/shared.js, 2026-11-04; dreeves's README, [CEL]: "If the cell is
+  // black... maybe just summarize the search efforts so far?"): want(n, m, put) loads progress.js, then puts, for each
+  // run of the order m at the length n (a BigInt), its brief; — if none is at that target; or, if progress.js does not
+  // load, this section's line that says so.  The section draws the data as it does any (render, below).
+  const wants = [];
+  view.want = (n, m, put) => { wants.push([n, m, put]); load(); };
+  const answer = f => wants.splice(0).forEach(([n, m, put]) => put(f(n, m)));
+  // A run's state as its fold's summary names it: running, paused or frozen, or, ended, completed if it recorded an
+  // outcome, else aborted (dreeves, 2026-10-25)
+  const labelOf = run => run.state !== 'ended' ? run.state : run.outcome === null ? 'aborted' : 'completed';
+  // Into a run's box (box) its fold's summary: its question, its program and its state
+  function heading(box, run) {
+    for (const e of box.querySelectorAll('[data-label]')) e.hidden = e.dataset.label !== labelOf(run);
+    box.querySelector('[data-n]').textContent = run.n;
+    box.querySelector('[data-order]').textContent = run.order;
+    box.querySelector('[data-program]').textContent = run.program;
+  }
+  // A run's brief, for want: a line of its fold's summary, as heading fills it (its stale mark as staleView sets it),
+  // then its time so far; and, for a target a witness campaign searches, its chance line, as chanceChart fills it
+  function brief(run) {
+    const box = template.content.firstElementChild.cloneNode(true), said = document.createElement('p');
+    heading(box, run);
+    staleView(box, run);
+    chanceChart(box.querySelector('.progress-chance'), run);
+    said.append(...box.querySelector('summary h3').childNodes, ' ', ...box.querySelector('summary').querySelectorAll(':scope > span'),
+                ' ', dur(run.so_far, tenth));
+    return [said, ...box.querySelectorAll('.progress-chance:not([hidden]) .progress-chance-line')];
   }
 
   function tick() {
@@ -133,6 +161,10 @@
 
   window.progressData = data => {
     missing.hidden = true;
+    answer((n, m) => {
+      const here = data.runs.filter(r => BigInt(r.n) === n && r.order === m);
+      return here.length ? here.flatMap(brief) : ['—'];
+    });
     if (data.made === made) return;
     made = data.made;
     view.data = data;
@@ -155,13 +187,10 @@
       // run's state (remember; dreeves, 2026-10-25); a run not running grayed; the summary names the state, an ended
       // run completed if it recorded an outcome, else aborted (dreeves, 2026-10-25: "can these be clearer when
       // collapsed about what's paused/completed/aborted/running?")
-      const label = run.state !== 'ended' ? run.state : run.outcome === null ? 'aborted' : 'completed';
+      const label = labelOf(run);
       box.dataset.runState = run.state;
       remember(box.querySelector('details'), `${FOLD}${run.program} ${run.n} ${run.order}`);
-      for (const e of box.querySelectorAll('[data-label]')) e.hidden = e.dataset.label !== label;
-      box.querySelector('[data-n]').textContent = run.n;
-      box.querySelector('[data-order]').textContent = run.order;
-      box.querySelector('[data-program]').textContent = run.program;
+      heading(box, run);
       // the status line below the charts names the state as the summary does (dreeves, 2026-10-26: "can you change those
       // instances of "ended" to "aborted" or "completed" as appropriate?")
       for (const e of box.querySelectorAll('[data-state]')) e.hidden = e.dataset.state !== label;
@@ -221,12 +250,14 @@
   }
 
   // a tracked search's view: the attempt view of its runs' counts and its hint, but after the status line every run has
-  // (kept, then put back before the counts) and with the ETA chart every run has
+  // (kept, then put back before the counts) and with the ETA chart every run has, except a target a witness campaign
+  // searches, whose chance chart takes its place (README [CON], 2026-11-03: for a search that ends only with a find,
+  // the ETA chart is Gott's rule alone)
   function trackView(box, run) {
     const status = box.querySelector('.progress-status'), line = [...status.childNodes];
     attemptView(box, run, 'progress-track', 'progress-track-hint');
     status.prepend(...line, document.createElement('br'));
-    box.querySelector('.progress-eta').hidden = false;
+    box.querySelector('.progress-eta').hidden = Boolean(run.chance);
   }
 
   // A run's stages to a recordable result, under its status line (progress.py's stages; the coordinator, 2026-10-31,
@@ -290,7 +321,9 @@
     const css = getComputedStyle(section);
     const colors = run.statuses.map(s => css.getPropertyValue('--progress-' + s).trim());
     const groups = run.groups, sizes = groups.map(g => g.length);
-    const Wpx = runsBox.clientWidth, dpr = window.devicePixelRatio || 1;   // the section's: a folded canvas has none
+    // the section's own width: a folded canvas has none, and nor has the list of runs while the section is folded, as
+    // it is when a chart's box has the data loaded (want, above; runsBox's width until 2026-11-04)
+    const Wpx = section.clientWidth, dpr = window.devicePixelRatio || 1;
     let L = null;
     for (let pitch = 10; pitch >= 2 && !L; pitch--) {
       const cols = Math.max(1, Math.floor(Wpx / pitch)), S = strips(sizes, cols);
@@ -537,25 +570,29 @@
     return xs;
   }
 
-  // A witness campaign's chance chart (progress.py's chance; README [SER], 2026-11-03: "Could the searches show a live
-  // estimate of the probability of finding a bipartition?"), from its data's chance: the modeled chance of a find within
-  // the next t hours, for each of its hours (every quarter hour up to 72), a line over a wash down to 0, on round ticks
-  // of percent up to 1% at least (a chance of 0 throughout still has an axis) and of hours every TICK; a dot at each hour
-  // the line below the chart states (its data-chance-at elements: 6 and 24 h), that line giving the chance there and the
-  // CPU-hours searched so far.  The tip above the chart reads out the point nearest the pointer, the cross at it; at rest
-  // it is laid out as the last point's line and hidden, as the ETA chart's tip is.  A single series, so no legend, the
-  // line below naming it.  Shown for a run whose data has a chance (a target a campaign searches, while it is live, see
-  // progress.py), hidden for every other; with no rate measured yet (p empty), its axes alone, no tip, and — for its
-  // chances.  Returns the points' x positions (in its viewBox), for the quals.
+  // A witness campaign's chance chart (progress.py's chance; README [SER] and [CON], 2026-11-03), in the place of the
+  // run's ETA chart (dreeves: "does this end up making it kind of redundant with the ETA graph? ... what's actually most
+  // useful to see during a search"): the history of the modeled chance of a find within the next 24 h, as it stood at
+  // each quarter hour since the campaign began searching the target, and now ("the curve should fall in light of the
+  // conditional probability but it should remain historically accurate"), a line over a wash down to 0, on round ticks
+  // of percent up to 1% at least (a chance of 0 throughout still has an axis) and of the hours since that start (the
+  // ETA chart's axis); a dot at its last point.  The line below states the chance within 6 h and within 24 h now (its
+  // data-chance-at elements) and the CPU-hours searched so far.  The tip above the chart reads out the point nearest
+  // the pointer, its time and its chance within 24 h as it stood then, the cross at it; at rest it is laid out as the
+  // last point's and hidden, as the ETA chart's tip is.  A single series, so no legend, the line below naming it.
+  // Shown for a run whose data has a chance (a target a campaign searches, while it is live, see progress.py), hidden
+  // for every other; with no point yet, its axes alone and no tip; with no rate measured yet in the live plan (p
+  // empty), — for the chances now.  Returns the points' x positions (in its viewBox), for the quals.
   function chanceChart(fig, run) {
     fig.hidden = !run.chance;
     if (fig.hidden) return [];
-    const {hours, p, cpu_hours} = run.chance;
-    const W = 640, H = 200, L = 48, R = 72, T = 14, B = 30, TICK = 12;      // as the charts above (TICK: hours apart)
-    const end = hours[hours.length - 1], top = Math.max(0.01, ...p), step = tickStep(top);
-    const tticks = Array.from({length: Math.floor(end / TICK) + 1}, (_, i) => i * TICK);
+    const {hours, p, cpu_hours, since, history} = run.chance;
+    const W = 640, H = 200, L = 48, R = 72, T = 14, B = 30, AHEAD = 24;      // as the charts above (AHEAD: the hours ahead)
+    const pts = history.map(([t, , p24]) => [(t - since) / 3600, p24, t]);
+    const top = Math.max(0.01, ...pts.map(([, v]) => v)), step = tickStep(top);
+    const [tticks, tlabels] = axis(Math.max(1 / 4, ...pts.map(([h]) => h)), Math.ceil);   // a quarter hour at least: the history's step
     const pticks = Array.from({length: Math.ceil(top / step - 1e-9) + 1}, (_, i) => i * step);
-    const X = h => L + (W - L - R) * h / end, Y = v => H - B - (H - B - T) * v / pticks[pticks.length - 1];
+    const X = h => L + (W - L - R) * h / tticks[tticks.length - 1], Y = v => H - B - (H - B - T) * v / pticks[pticks.length - 1];
     const percent = v => `${Number((100 * v).toPrecision(2))}%`;             // a chance, to 2 significant digits
     const q = sel => fig.querySelector(sel);
     q('[data-chance-grid]').replaceChildren(
@@ -565,26 +602,23 @@
     q('[data-chance-ticks="p"]').replaceChildren(...pticks.map((v, i) =>
       make('text', {class: 'ytick', x: L - 6, y: Y(v) + 4, 'text-anchor': 'end'}, num(100 * v) + (i === pticks.length - 1 ? '%' : ''))));
     q('[data-chance-ticks="t"]').replaceChildren(...tticks.map((h, i) =>
-      make('text', {class: 'xtick', x: X(h), y: H - 8, 'text-anchor': 'middle'}, num(h) + (i === tticks.length - 1 ? ' h' : ''))));
+      make('text', {class: 'xtick', x: X(h), y: H - 8, 'text-anchor': 'middle'}, tlabels[i])));
     fill(fig, 'chance-spent', hrs(cpu_hours));
     const stated = [...fig.querySelectorAll('[data-chance-at]')], tip = q('[data-chance-tip]');
+    assert(stated.every(e => hours.includes(+e.dataset.chanceAt)) && (p.length === hours.length || !p.length), p.length, hours.length);
+    for (const e of stated) e.textContent = p.length ? percent(p[hours.indexOf(+e.dataset.chanceAt)]) : '—';
     tip.style.minHeight = '';                   // its height at rest, measured again at the next hover (below)
-    if (!p.length) {                            // no rate measured yet: the axes alone, as the pool chart's with no point
-      for (const e of stated) e.textContent = '—';
-      tip.replaceChildren();
-      return [];
-    }
-    const at = h => p[hours.indexOf(h)];
-    assert(p.length === hours.length && stated.every(e => hours.includes(+e.dataset.chanceAt)), p.length, hours.length);
-    for (const e of stated) e.textContent = percent(at(+e.dataset.chanceAt));
-    const line = hours.map((h, i) => [X(h), Y(p[i])]);
+    tip.replaceChildren();
+    if (!pts.length) return [];                 // no point yet: the axes alone, as the pool chart's with no point
+    const line = pts.map(([h, v]) => [X(h), Y(v)]), last = line[line.length - 1];
     set(q('[data-chance-line]'), {points: xy(line)});
-    set(q('[data-chance-wash]'), {points: xy([[line[0][0], Y(0)], ...line, [line[line.length - 1][0], Y(0)]])});
-    q('[data-chance-marks]').replaceChildren(...stated.map(e => make('circle', {class: 'mark', r: 4, cx: X(+e.dataset.chanceAt),
-                                                                               cy: Y(at(+e.dataset.chanceAt))})));
-    tip.replaceChildren(point.content.cloneNode(true));
-    const show = k => { fill(tip, 'chance-hours', `${num(hours[k])} h`); fill(tip, 'chance-p', percent(p[k])); };
-    show(hours.length - 1);                     // laid out at rest, invisible, as the last point's line
+    set(q('[data-chance-wash]'), {points: xy([[line[0][0], Y(0)], ...line, [last[0], Y(0)]])});
+    q('[data-chance-marks]').replaceChildren(make('circle', {class: 'mark', r: 4, cx: last[0], cy: last[1]}));
+    const when = document.createElement('span');
+    tip.replaceChildren(when, ' · ', point.content.cloneNode(true));
+    fill(tip, 'chance-hours', `${AHEAD}\u202fh`);           // as the ETA chart writes hours
+    const show = k => { when.textContent = local(pts[k][2]); fill(tip, 'chance-p', percent(pts[k][1])); };
+    show(pts.length - 1);                       // laid out at rest, invisible, as the last point's
     const svg = fig.querySelector('svg'), cross = q('[data-chance-cross]'), xs = line.map(([x]) => x);
     svg.addEventListener('mousemove', ev => {
       const b = svg.getBoundingClientRect(), x = (ev.clientX - b.left) * W / b.width;

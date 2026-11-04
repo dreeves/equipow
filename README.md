@@ -6,6 +6,7 @@ LittlewoodPolynomialsReprint.pdf is the published version of the paper this is e
 ---
 
 Potential tasks: 
+* [M17] Let's add m=17 to the "smallest length known" table; no need for much search, just whatever bounds we can find quickly.
 * [ROC] Only if it's straightforward and if it makes sense and isn't a nighmare to make it anti-magic and DRY: in addition to clicking individual cells, allow clicking the column number or the row number. For a column, the info box would explain the known bounds for that value of n -- both the witness for the highest green cell in the column and the proof for the lowest red cell. For a row, it would be like a row in Table 3, giving the smallest n not ruled out and the smallest known n, mention the A323395 sequence, etc. 
 * [CEL] For the info box you see when clicking a cell, color-code it to match the cell. And the info box for a cell should focus on that cell. If the cell is green, just give the partition (expandable hex code) for the highest green cell in that cell's column. If the cell is red, show the proof for the lowest red cell in that cell's column. If the cell is black... maybe just summarize the search efforts so far?
 * [THM] Call the theorem in equipow Theorem 1.
@@ -25,6 +26,14 @@ Potential tasks:
 
 
 Stan notes:
+
+---
+
+musing from Stan; what do you think?
+
+I was wondering about new OEIS sequence with m*(2^n) (it would be 1,2,3,4,5,6,7,8,9,11)
+
+But maybe that is silly as we have one with m*(n) and we could add commentary to that one.
 
 ---
 

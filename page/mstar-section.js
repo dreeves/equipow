@@ -21,46 +21,42 @@ try {
   const sub = k => String(k).replace(/\d/g, d => '₀₁₂₃₄₅₆₇₈₉'[d]);
   const loOf = n => D.cols[n - 1][0];
   // The reasons of the data contract.  ok(n, lo or hi, ...its arguments) checks one; text(n, lo or hi, ...) gives it in
-  // Claude's words, starting "order lo" or "order hi + 1"; and panel(n, lo or hi, ...) gives its explanation in the
-  // panel of column n, from the templates of the page (filled, in page/shared.js), each part linked to its own
-  // column's panel and an example to its code where the page shows it.  Odd n get no column, so "none" and "odd" have
-  // no text and no panel.
-  const part = a => linked(`#n${a}`, `\\(p_{${a}}\\)`);        // the best known sequence of length a, linked to its panel
+  // Claude's words, starting "order lo" or "order hi + 1"; and witness(n, lo, ...) or proof(n, hi, ...) what a box
+  // shows of it (since 2026-11-04, [CEL]; an explanation in the panel of column n from 2026-11-03), from the templates
+  // of the page (page/shared.js): an example's label, a join's or a product's construction, which page/codes.js
+  // expands into its derivation, and the proof of an upper bound worked out for n.  Odd n get no column, so "none" and
+  // "odd" have no text and no box.
   const LO = {
     none: {ok: (n, lo) => lo === 0 && n % 2 === 1},
     example: {
       ok: (n, lo, label) => typeof label === 'string' && label !== '',
       // readout reason; says order lo is known from an example, naming where the example comes from
       text: (n, lo, label) => `order ${lo} from an example (${label})`,
-      panel: (n, lo, label) => [filled('lo-example', {lo, label}), ...[...document.querySelectorAll(`code[id="${n}:${lo}"]`)]
-        .map(c => filled('lo-code', {code: `\\(\\href{#${c.id}}{p_{${n}}}\\)`}))],
+      witness: (n, lo, label) => example(n, lo, label),
     },
     join: {
       ok: (n, lo, a, b) => [a, b].every(Number.isInteger) && a >= 1 && b >= 1 && a + b === n && lo <= Math.min(loOf(a), loOf(b)),
       // readout reason; says order lo is known from the join of the examples of lengths a and b
       text: (n, lo, a, b) => `order ${lo} from the join p${sub(a)}\u00a0∨\u00a0p${sub(b)}`,
-      panel: (n, lo, a, b) => [filled('lo-join', {lo, a, b, parts: [part(a), ' \\(\\vee\\) ', part(b)],
-        sum: `\\(${a} + ${b} = ${n}\\)`, min: `\\(\\min(${loOf(a)}, ${loOf(b)}) = ${Math.min(loOf(a), loOf(b))}\\)`})],
+      witness: (n, lo, a, b) => construction(BigInt(n), n, lo, `p_{${a}} \\vee p_{${b}}`),
     },
     product: {
       ok: (n, lo, a, b) => [a, b].every(Number.isInteger) && a >= 2 && b >= 2 && a * b === n && lo <= loOf(a) + loOf(b),
       // readout reason; says order lo is known from the expanded product of the examples of lengths a and b
       text: (n, lo, a, b) => `order ${lo} from the product p${sub(a)}\u00a0#\u00a0p${sub(b)}`,
-      panel: (n, lo, a, b) => [filled('lo-product', {lo, a, b, parts: [part(a), ' \\(\\mathbin{\\#}\\) ', part(b)],
-        fg: `\\(f(x)\\,g(x^{${a}})\\)`, length: `\\(${a} \\cdot ${b} = ${n}\\)`,
-        sum: `\\(${loOf(a)} + ${loOf(b)} = ${loOf(a) + loOf(b)}\\)`})],
+      witness: (n, lo, a, b) => construction(BigInt(n), n, lo, `p_{${a}} \\mathbin{\\#} p_{${b}}`),
     },
     table2: {
       ok: (n, lo) => n % 8 === 0 && n <= 304,
       // readout reason; says order lo is known from BGPW's Table 2
       text: (n, lo) => `order ${lo} from BGPW's Table 2`,
-      panel: (n, lo) => [filled('lo-table2', {lo})],
+      witness: (n, lo) => shown([filled('witness-table2', {bound: bound(n, 'ge', lo)})]),
     },
     page: {
       ok: (n, lo, who) => WHO.includes(who),
       // readout reason; says order lo is known from this page's new results, naming whose they are
       text: (n, lo, who) => `order ${lo} from the new results above (${who})`,
-      panel: (n, lo, who) => [filled('lo-page', {lo, who})],
+      witness: (n, lo, who) => shown([filled('witness-page', {bound: bound(n, 'ge', lo), who})], [], [BigInt(n)]),
     },
   };
   const HI = {
@@ -69,31 +65,31 @@ try {
       ok: (n, hi) => n % 2 === 0 && hi === (n & -n) - 1,
       // readout reason; says order hi + 1 is ruled out because hi + 1 is the largest power of 2 dividing n
       text: (n, hi) => `order ${hi + 1} ruled out: ${hi + 1} is the power of 2 in ${n}`,
-      panel: (n, hi) => [WHY_HI.two(BigInt(n), `${n}`, hi)],
+      proof: (n, hi) => PROOF.two(BigInt(n), `${n}`, hi),
     },
     norm: {
       ok: (n, hi, p) => Number.isInteger(p) && prime(p) && n % p !== 0,
       // readout reason; says order hi + 1 is ruled out by the norm bound for the prime p
       text: (n, hi, p) => `order ${hi + 1} ruled out by the norm bound for p\u00a0=\u00a0${p}`,
-      panel: (n, hi, p) => [WHY_HI.norm(BigInt(n), `${n}`, hi, p)],
+      proof: (n, hi, p) => PROOF.norm(BigInt(n), `${n}`, hi, p),
     },
     residue: {
       ok: (n, hi, M) => Number.isInteger(M) && M >= 2,
       // readout reason; says order hi + 1 is ruled out by the residue condition mod M
       text: (n, hi, M) => `order ${hi + 1} ruled out by the residue condition mod ${M}`,
-      panel: (n, hi, M) => [WHY_HI.residue(BigInt(n), `${n}`, hi, 'mstar.py', M)],
+      proof: (n, hi, M) => PROOF.residue(BigInt(n), `${n}`, hi, 'mstar.py', M),
     },
     table2: {
       ok: (n, hi) => n % 8 === 0 && n <= 304,
       // readout reason; says order hi + 1 is ruled out by BGPW's Table 2
       text: (n, hi) => `order ${hi + 1} ruled out by BGPW's Table 2`,
-      panel: (n, hi) => [WHY_HI.table2(BigInt(n), `${n}`, hi)],
+      proof: (n, hi) => PROOF.table2(BigInt(n), `${n}`, hi),
     },
     page: {
       ok: (n, hi, who) => WHO.includes(who),
       // readout reason; says order hi + 1 is ruled out in this page's new results, naming whose they are
       text: (n, hi, who) => `order ${hi + 1} ruled out in the new results above (${who})`,
-      panel: (n, hi, who) => [WHY_HI.page(BigInt(n), `${n}`, hi, who)],
+      proof: (n, hi, who) => PROOF.page(BigInt(n), `${n}`, hi, who),
     },
   };
   assert(D.nmax === NMAX && Number.isInteger(D.mtop) && Array.isArray(D.cols) && D.cols.length === NMAX, D.nmax, D.mtop);
@@ -130,22 +126,43 @@ try {
   cv.style.height = `${cssH}px`;
   const ctx = cv.getContext('2d'), strip = document.createElement('canvas'), sctx = strip.getContext('2d');
   let geo = null;                                                  // the last draw's layout
-  // The panel of column c, n = NS[c] (columnPanel, in page/shared.js), its fragment nN: its heading, n and its bounds;
-  // the status of each cell clicked, of the rows given, none or one; the explanations of its lower bound's reason and
-  // its upper bound's; and below them its entry in the remarks, if one lists n (since 2026-11-03, [REO] step 2: the
-  // entry itself, where its link was).
-  const open = columnPanel({region: document.getElementById('mstar-panel'), chart: cv, ncol: NCOL, fragment: c => `n${NS[c]}`,
-    length: c => BigInt(NS[c]), fill: (c, rows) => {
-      const n = NS[c], [lo, hi, lw, hw] = D.cols[n - 1];
-      return {heading: [`\\(n = ${n}\\)`, ': ', `\\(${lo === hi ? `m^*(${n}) = ${lo}` : `${lo} \\le m^*(${n}) \\le ${hi}`}\\)`],
-              parts: [...rows.map(m => filled(`status-${KIND[kindOf(n, m)]}`, {m, lo, hi})), ...LO[lw[0]].panel(n, lo, ...lw.slice(1)),
-                      ...HI[hw[0]].panel(n, hi, ...hw.slice(1))]};
+  // The boxes under the chart (chartPanel, in page/shared.js; dreeves's README, 2026-11-03, [CEL] and [ROC]): the target
+  // [c, m] is the cell of column c, n = NS[c], and row m; [c, null] the column, at its n label; [null, m] the row, at
+  // its m label; their fragments nN, mM and nNmM.  A cell's box shows, by its kind, the witness of its column's lower
+  // bound (green: "just give the partition (expandable hex code) for the highest green cell in that cell's column"),
+  // the proof of its upper bound (red: "show the proof for the lowest red cell"), or both, with the searches of its n
+  // and m (black: "maybe just summarize the search efforts so far?"); a column's box, both, and the entry of its n
+  // ("both the witness for the highest green cell in the column and the proof for the lowest red cell"); a row's, the
+  // row of the order m in the table of smallest lengths, as that table has it (smallestRow), and the term a(m - 1) of
+  // OEIS A323395, which is that order's smallest length ("like a row in [the table of smallest lengths], giving the
+  // smallest n not ruled out and the smallest known n, mention the A323395 sequence").  A cell's heading leads with its swatch, kind and gold ring
+  // alike, and the legend's words for that swatch, the legend's own item cloned; its n and m link to the boxes of its
+  // column and its row.
+  const panel = document.getElementById('mstar-panel'), legend = [...cv.closest('section').querySelectorAll('.legend li')];
+  const witness = n => { const [lo, , lw] = D.cols[n - 1]; return together(LO[lw[0]].witness(n, lo, ...lw.slice(1)), copies(BigInt(n), lo)); };
+  const proof = n => { const [, hi, , hw] = D.cols[n - 1]; return HI[hw[0]].proof(n, hi, ...hw.slice(1)); };
+  const SAYS = {exists: witness, impossible: proof, open: (n, m) => together(witness(n), proof(n), searches(BigInt(n), m)),
+                column: n => together(witness(n), proof(n), shown([], [], [BigInt(n)])), row: (n, m) => smallestBox(m)};
+  const cell = (n, m) => {
+    const [swatch, ...words] = legendItem(legend, KIND[kindOf(n, m)], Math.max(0, ...RINGS.filter(r => r.n === n && r.m === m).map(r => r.role)));
+    return [swatch, linked(`#n${n}`, `\\(n = ${n}\\)`), ', ', linked(`#m${m}`, `\\(m = ${m}\\)`), ': ', ...words];
+  };
+  const HEADINGS = {exists: cell, open: cell, impossible: cell, row: (n, m) => [`\\(m = ${m}\\)`], column: n => {
+    const [lo, hi] = D.cols[n - 1];
+    return [`\\(n = ${n}\\)`, ': ', `\\(${lo === hi ? `m^*(${n}) = ${lo}` : `${lo} \\le m^*(${n}) \\le ${hi}`}\\)`];
+  }};
+  const open = chartPanel({region: panel, chart: cv, ncol: NCOL, nrow: T, pin: ts => view.pin(ts),
+    fragment: (c, m) => `${c === null ? '' : `n${NS[c]}`}${m === null ? '' : `m${m}`}`,
+    fill: (c, m) => {
+      const n = NS[c], kind = c === null ? 'row' : m === null ? 'column' : KIND[kindOf(n, m)];
+      return {kind, heading: HEADINGS[kind](n, m), ...SAYS[kind](n, m)};
     }});
   const view = panZoom({el: cv, out: document.getElementById('mstar-zoom-out'), in: document.getElementById('mstar-zoom-in'),
     reset: document.getElementById('mstar-reset'), ncol: NCOL, plot: () => ({left: geo.L / geo.dpr, width: geo.W / geo.dpr}),
-    cellAt, readout, draw, open: (c, m) => open(c, [m])});
+    targetAt, readout, draw, open});
 
-  function draw(u0, span, picked) {                                // the view [u0, u0 + span) and the cell read out
+  // the view [u0, u0 + span), the cell read out (picked) and the target of the box open (pinned)
+  function draw(u0, span, picked, pinned) {
     const dpr = devicePixelRatio, L = Math.round(LEFT * dpr), R = Math.round(RIGHT * dpr), top = Math.round(TOP * dpr);
     const pitch = Math.round(ROW * dpr), gap = 1;                  // a row's bottom device px is page surface
     const W = Math.round(cv.getBoundingClientRect().width * dpr) - L - R;   // the plot's width in device px
@@ -212,10 +229,12 @@ try {
     ctx.textBaseline = 'middle';
     ctx.fillText('m', 2 * dpr, top + T * pitch / 2);
     // Rings just outside cells, 2 device px wide: each of RINGS in gold, with a gold dot half the cell's smaller side
-    // across in each proven the least, then the cell read out in ink.
-    const ring = ({n, m}) => {
-      const x0 = L + (NS.indexOf(n) - u0) / k, x1 = x0 + 1 / k, y0 = top + (T - m) * pitch;
-      ctx.strokeRect(x0 - dpr, y0 - dpr, x1 - x0 + 2 * dpr, pitch - gap + 2 * dpr);
+    // across in each proven the least, then the cell read out in ink, and the target of the box open, its cell, column
+    // or row (since 2026-11-04: [c, m], null for every column or every row).
+    const ring = ([c, m]) => {
+      const [c0, c1] = c === null ? [0, NCOL] : [c, c + 1], [m0, m1] = m === null ? [1, T] : [m, m];
+      const x0 = L + (c0 - u0) / k, x1 = L + (c1 - u0) / k, y0 = top + (T - m1) * pitch;
+      ctx.strokeRect(x0 - dpr, y0 - dpr, x1 - x0 + 2 * dpr, (m1 - m0 + 1) * pitch - gap + 2 * dpr);
     };
     ctx.save();
     ctx.beginPath();
@@ -223,15 +242,21 @@ try {
     ctx.clip();
     ctx.lineWidth = 2 * dpr;
     ctx.strokeStyle = ctx.fillStyle = token('--record');
-    RINGS.forEach(ring);
+    RINGS.forEach(({n, m}) => ring([NS.indexOf(n), m]));
     RINGS.filter(r => r.role === 3).forEach(({n, m}) => {
       ctx.beginPath();
       ctx.arc(L + (NS.indexOf(n) + 0.5 - u0) / k, top + (T - m) * pitch + (pitch - gap) / 2, Math.min(1 / k, pitch - gap) / 4, 0, 2 * Math.PI);
       ctx.fill();
     });
     ctx.strokeStyle = token('--ink');
-    picked.forEach(([c, m]) => ring({n: NS[c], m}));               // outline the cell read out, just outside it
+    picked.forEach(ring);                                          // outline the cell read out, just outside it
+    pinned.forEach(ring);                                          // and the target of the box open
     ctx.restore();
+    // The box's caret under its target's column's middle, kept within the plot, or under its row's m label (--caret, in
+    // CSS px from the box's left edge inside its border)
+    const left = cv.getBoundingClientRect().left - panel.getBoundingClientRect().left - panel.clientLeft;
+    pinned.forEach(([c]) => panel.style.setProperty('--caret', `${left + (c === null ? LEFT / 2
+      : Math.min(Math.max(L + (c + 0.5 - u0) / k, L), L + W) / dpr)}px`));
     // The cell read out on the axes (dreeves's README, 2026-11-02: "[HOV] When hovering/clicking on cells in the charts
     // it'd be nice to highlight the values of m and n (resp., delta and k) on the axes of the chart"): its m and its n,
     // each in paper on a box of ink as tall as a row's colored part and 3 px wider than the number on either side, the
@@ -253,9 +278,13 @@ try {
       .forEach(([c]) => tag(String(NS[c]), L + (c + 0.5 - u0) / k, base + 13 * dpr));
   }
 
-  function cellAt(x, y) {                                          // the cell at CSS x, y, [column, m], or null outside the plot
-    const X = x * geo.dpr - geo.L, m = T - Math.floor((y * geo.dpr - geo.top) / geo.pitch);
-    return X >= 0 && X < geo.W && m >= 1 && m <= T ? [Math.floor(view.uAt(x)), m] : null;
+  // What is at CSS x, y (panZoom's targetAt): a cell, [column, m]; the strip of the n labels under the plot, [column,
+  // null]; the strip of the m labels left of it, [null, m]; or null: the corner between those strips, the margin right
+  // of the plot, the gap above its rows.
+  function targetAt(x, y) {
+    const X = x * geo.dpr - geo.L, Y = y * geo.dpr - geo.top, m = T - Math.floor(Y / geo.pitch);
+    const t = [X < 0 ? null : X < geo.W ? Math.floor(view.uAt(x)) : undefined, Y < 0 ? undefined : m >= 1 ? m : null];
+    return t.includes(undefined) || t.every(v => v === null) ? null : t;
   }
   const el = (tag, text) => Object.assign(document.createElement(tag), {textContent: text});
   const nw = (...parts) => { const s = el('span', ''); s.className = 'nw'; s.append(...parts); return s; };   // no wrap

@@ -51,12 +51,13 @@ body {
    tables keep their 17px, so that their rows still fit as measured.  Prose is set as LaTeX sets it, justified and
    hyphenated (hyphens follow html lang), as tauction's help is, where lines are long enough (40rem and up: a
    phone's short lines justified open wide gaps around the formulas); the changelog, the progress section, the
-   code lines and the charts' readouts, which change under the pointer, stay ragged.  The title and byline are centered, as \maketitle sets them, the title in regular weight. */
+   code lines and the charts' readouts, which change under the pointer, stay ragged, and so do the parts of the boxes
+   under the charts (2026-11-04: lines mostly of math, which justified spread wide).  The title and byline are centered, as \maketitle sets them, the title in regular weight. */
 table { font-size: 1.0625rem; }
 main p, main li { hyphens: auto; -webkit-hyphens: auto; }
 main p, main ul:not(.legend) { max-width: var(--measure); }
 @media (min-width: 40rem) { main p, main li { text-align: justify; } }
-.changelog p, .progress p, .progress li, p.code, #mstar-readout, #pow2-readout { text-align: start; hyphens: manual; -webkit-hyphens: manual; }
+.changelog p, .progress p, .progress li, p.code, #mstar-readout, #pow2-readout, .column-panel-body p { text-align: start; hyphens: manual; -webkit-hyphens: manual; }
 header h1 { text-align: center; font-weight: 400; font-size: 2.1rem; }
 header .lede { text-align: center; }
 main {
@@ -387,9 +388,9 @@ code[aria-expanded] { cursor: pointer; text-decoration: underline dotted var(--m
    from mstar.js.  It and the OEIS section were block quotes in Claude's hue, like the lattice section's, until
    dreeves's edits of 2026-10-29, and now space their parts as the other sections do. */
 .smallest, .oeis { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; max-width: var(--measure); }
-.smallest table { justify-self: start; border-collapse: collapse; font-variant-numeric: tabular-nums lining-nums; }
-.smallest th, .smallest td { border: 1px solid var(--rule); padding: 0.3rem 0.7rem; text-align: center; }
-.smallest th { font-weight: 400; }
+.smallest table, [data-why="row-smallest"] table { justify-self: start; border-collapse: collapse; font-variant-numeric: tabular-nums lining-nums; }
+.smallest th, .smallest td, [data-why="row-smallest"] th, [data-why="row-smallest"] td { border: 1px solid var(--rule); padding: 0.3rem 0.7rem; text-align: center; }
+.smallest th, [data-why="row-smallest"] th { font-weight: 400; }   /* and a row's box of the m*(n) chart, a row of the table (2026-11-04) */
 .oeis ul, .mstar > ul { margin: 0; padding-left: 1.25rem; display: grid; gap: 0.35rem; }   /* lists of text */
 
 /* Claude's chart of m*(n) for n up to 1024: one canvas, drawn by the script at the end from mstar.js. Pan and zoom
@@ -476,11 +477,24 @@ code[aria-expanded] { cursor: pointer; text-decoration: underline dotted var(--m
 #pow2-readout { min-height: 3lh; max-width: none; font-size: 0.9375rem; font-variant-numeric: tabular-nums lining-nums; }
 #pow2-readout .swatch { margin-right: 0.5rem; vertical-align: -0.1em; }
 
-/* The panel of a column, under each chart ([REO], 2026-11-03): a ruled box at the running text's measure, its heading
-   and close button on one line; hidden until a cell is clicked (the hidden attribute, which display: grid would
-   otherwise override).  A number of class big is text that may wrap anywhere: some are 90 digits long. */
-.column-panel { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.75rem; max-width: var(--measure);
-                padding: 0.75rem 1rem; border: 1px solid var(--rule); }
+/* The box under a chart ([REO], 2026-11-03, a column's panel at the running text's measure; since 2026-11-04 a cell's,
+   a column's or a row's box, dreeves's README items [CEL] and [ROC]): as wide as its chart, so that the caret on its
+   top edge can stand under any column, its parts at the running text's measure; its frame and its caret in the color of
+   the cell clicked, the chart's own token (data-kind; ink for a column's or a row's box), 3 px wide, so that the
+   palest, the red, still shows; its heading and close button on one line, the heading led by the cell's swatch, as the
+   legend's; hidden until a target is clicked (the hidden attribute, which display: grid would otherwise override).
+   The caret, a triangle 18 px wide and 11 px tall on the frame's top edge, stands at --caret, the x that the chart gives
+   it (from the box's left, inside its frame), kept within the box.  A number of class big is text that may wrap
+   anywhere: some are 90 digits long. */
+.column-panel { --frame: var(--rule); position: relative; display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.75rem;
+                margin-top: 11px; padding: 0.75rem 1rem; border: 3px solid var(--frame); }
+.column-panel[data-kind="exists"] { --frame: var(--exists); }
+.column-panel[data-kind="open"] { --frame: var(--open); }
+.column-panel[data-kind="impossible"] { --frame: var(--impossible); }
+.column-panel::before { content: ""; position: absolute; top: -14px; left: clamp(0px, calc(var(--caret, 50%) - 9px), calc(100% - 18px));
+                        border: solid transparent; border-width: 0 9px 11px; border-bottom-color: var(--frame); }
+.column-panel > :not(.column-panel-bar) { max-width: var(--measure); }
+.column-panel .swatch { margin-right: 0.5rem; vertical-align: -0.1em; }
 .column-panel[hidden] { display: none; }
 .column-panel-bar { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }
 .column-panel h3 { margin: 0; font-size: 1.1rem; font-weight: 600; }

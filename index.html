@@ -260,7 +260,7 @@
   <canvas id="mstar-chart" height="0" tabindex="0" role="img" aria-label='chart of the bounds on m*(n) for even n up to 1024; the arrow keys pan, and + and − zoom'></canvas>
   <p id="mstar-readout" aria-live="polite">Hover over a cell for details. Drag or swipe sideways to pan; zoom with the − and + buttons, pinching, or ctrl-scroll.</p>
   <p class="float-caption"><span class="sc">Figure 1.</span></p>
-  <!-- The panel of a column of the chart above (dreeves's spec [REO], above the remarks below; Claude's design of 2026-11-03, which dreeves approved), which page/mstar-section.js fills at a tap or a click on a cell, or as the page loads with a column's fragment, #nN: a heading, the column's n and its bounds, and the explanations of its reasons, from the templates below; then, in its div of class remarks, the remarks' entry of its n, if one lists it, the entry itself moved in from the list below until the panel closes or shows another column ([REO] step 2, 2026-11-03: page/shared.js); the button closes it; its label is the zoom buttons' kind, a symbol with its word as aria-label and title -->
+  <!-- The box under the chart above (dreeves's spec [REO], above the remarks below; Claude's design of 2026-11-03, which dreeves approved; since 2026-11-04 his README items [CEL] and [ROC]), which page/mstar-section.js fills at a tap or a click on a cell, on a column's n label or on a row's m label, or as the page loads with a fragment, #nN, #mM or #nNmM: a heading, and the box's parts from the templates below, framed in the color of the cell clicked (data-kind) with a caret under its column; then, in its div of class remarks, the remarks' entry of its n, for a column's box (or a cell's whose bound rests on a proof of the page's own), the entry itself moved in from the list below until the box closes or shows another target ([REO] step 2, 2026-11-03: page/shared.js); the button closes it; its label is the zoom buttons' kind, a symbol with its word as aria-label and title -->
   <div class="column-panel" id="mstar-panel" role="region" aria-labelledby="mstar-panel-title" hidden>
     <div class="column-panel-bar">
       <h3 id="mstar-panel-title" tabindex="-1" data-panel-title></h3>
@@ -269,39 +269,35 @@
     <div class="column-panel-body" data-panel-body></div>
     <div class="remarks"><ul data-panel-entries></ul></div>
   </div>
-  <!-- The panels' templates, one per kind of text, for both charts: page/shared.js's filled() puts a copy of one into a panel, each data-slot holding the column's own value, and KaTeX draws its math then. -->
-  <!-- TODO: says the cell clicked, of order m, is known to exist: m is at most the lower bound lo -->
-  <template data-panel="status-exists"><p>Claude: “The cell clicked, order <span data-slot="m"></span>, is known: it is at most the lower bound, <span data-slot="lo"></span>.”</p></template>
-  <!-- TODO: says the cell clicked, of order m, is open: above the lower bound lo and at most the upper bound hi -->
-  <template data-panel="status-open"><p>Claude: “The cell clicked, order <span data-slot="m"></span>, is open: it is above the lower bound, <span data-slot="lo"></span>, and at most the upper bound, <span data-slot="hi"></span>.”</p></template>
-  <!-- TODO: says the cell clicked, of order m, is ruled out: it is above the upper bound hi -->
-  <template data-panel="status-impossible"><p>Claude: “The cell clicked, order <span data-slot="m"></span>, is ruled out: it is above the upper bound, <span data-slot="hi"></span>.”</p></template>
-  <!-- TODO: says the lower bound, order lo, comes from an example, named by its label -->
-  <template data-panel="lo-example"><p>Claude: “The lower bound, order <span data-slot="lo"></span>, comes from an example: <span data-slot="label"></span>.”</p></template>
-  <!-- TODO: says the example's code is on this page, linked, and that a click on the code expands it into its partition and checks its power sums -->
-  <template data-panel="lo-code"><p>Claude: “Its code is <span data-slot="code"></span> on this page; a click on the code expands it into its partition and checks its power sums.”</p></template>
-  <!-- TODO: says the lower bound, order lo, comes from the join of the best known sequences of lengths a and b (each linked to its own column's panel), one after the other, of length a + b = n, and that a join's order is at least the lesser of its parts' orders, min(lo(a), lo(b)) -->
-  <template data-panel="lo-join"><p>Claude: “The lower bound, order <span data-slot="lo"></span>, comes from the join <span data-slot="parts"></span>: the best known sequences of lengths <span data-slot="a"></span> and <span data-slot="b"></span>, one after the other, of length <span data-slot="sum"></span>. A join's order is at least the lesser of its parts' orders, <span data-slot="min"></span>.”</p></template>
-  <!-- TODO: says the lower bound, order lo, comes from the product of the best known sequences f and g of lengths a and b (each linked to its own column's panel), f(x) g(x^a), whose length is a · b = n and whose order is at least the sum of theirs -->
-  <template data-panel="lo-product"><p>Claude: “The lower bound, order <span data-slot="lo"></span>, comes from the product <span data-slot="parts"></span>, which is <span data-slot="fg"></span> for \(f\) and \(g\) the best known sequences of lengths <span data-slot="a"></span> and <span data-slot="b"></span>: its length is <span data-slot="length"></span>, and its order is at least the sum of theirs, <span data-slot="sum"></span>.”</p></template>
-  <!-- TODO: says the lower bound, order lo, is cited from BGPW's Table 2, copied at the top of this page -->
-  <template data-panel="lo-table2"><p>Claude: “The lower bound, order <span data-slot="lo"></span>, is cited from BGPW's Table 2, at the top of this page.”</p></template>
-  <!-- TODO: says the lower bound, order lo, is cited from the new results above, naming whose they are -->
-  <template data-panel="lo-page"><p>Claude: “The lower bound, order <span data-slot="lo"></span>, is cited from the new results above (<span data-slot="who"></span>).”</p></template>
-  <!-- TODO: says the lower bound, order k, comes from Thue–Morse τ_k, of length 2^k, whose sign at i is (−1)^s(i), s(i) the number of 1s among the binary digits of i (Prouhet) -->
-  <template data-panel="lo-thue-morse"><p>Claude: “The lower bound, order <span data-slot="k"></span>, comes from Thue–Morse, <span data-slot="tau"></span>, of length <span data-slot="length"></span>: its sign at \(i\) is \((-1)^{s(i)}\), with \(s(i)\) the number of 1s among the binary digits of \(i\) (Prouhet).”</p></template>
-  <!-- TODO: says the lower bound, order lo, comes from the join of the products listed, each with its length n and its order m; that their lengths add up to 2^k, written out; and that the join's order is at least the least of theirs -->
-  <template data-panel="lo-joins"><p>Claude: “The lower bound, order <span data-slot="lo"></span>, comes from the join of these products, each with its length \(n\) and its order \(m\):</p><ul data-slot="products"></ul><p>Their lengths add up to <span data-slot="power"></span>, which is <span data-slot="total"></span>, and the join's order is at least the least of theirs, <span data-slot="least"></span>.”</p></template>
-  <!-- TODO: says the upper bound: order hi + 1 is ruled out by the 2-adic bound, BGPW's Divisibility (their Theorem 4.1, linked): for n = 2^t u with u odd, the order is at most 2^t − 1; the column's n written so, its t and that bound; and why: mod 2 every sign is 1, so f(x) = 1 + x + ... + x^(n−1) = (x^n + 1)/(x + 1), which is (x^u + 1)^(2^t)/(x + 1) as (a + b)^2 = a^2 + b^2 mod 2, written out for the column; x + 1 divides x^u + 1 only once, so (x − 1)^m, which is (x + 1)^m mod 2, divides f(x) only for m ≤ 2^t − 1 -->
-  <template data-panel="hi-two"><p>Claude: “The upper bound: order <span data-slot="m"></span> is ruled out by the 2-adic bound, BGPW's Divisibility (their <a href="https://arxiv.org/html/1912.03491v1#S4.Thmthm1">Theorem 4.1</a>): for \(n = 2^t u\) with \(u\) odd, the order is at most \(2^t - 1\). Here <span data-slot="n"></span>, so <span data-slot="t"></span>, and the order is at most <span data-slot="hi"></span>. Mod 2, every sign is 1, so \(f(x) = 1 + x + \cdots + x^{n-1} = (x^n + 1)/(x + 1)\), which is <span data-slot="f"></span>, as \((a + b)^2 = a^2 + b^2\) mod 2. And \(x + 1\) divides \(x^u + 1\) only once, so \((x - 1)^m\), which is \((x + 1)^m\) mod 2, divides \(f(x)\) only for \(m \le 2^t - 1\).”</p></template>
-  <!-- TODO: says the upper bound: order m = hi + 1 is ruled out by the norm bound for the prime p, which does not divide n, which the paragraph on the norm bound below derives; gives the sizes s_r of the classes of 0, ..., n − 1 mod p and the sum of their squares; says order m needs p^(2m) (p − 1)^(p − 1) ≤ (p sum s_r^2)^(p − 1), and that at this m the left side, written as powers and then in digits, is more than the right side, p sum s_r^2 to the power p − 1, in digits; and in other words that the norm of f(ζ), an integer, would be at least p^m, in digits, but is at most the floor of (p sum s_r^2/(p − 1))^((p − 1)/2), in digits, which p^m exceeds by the percentage given -->
-  <template data-panel="hi-norm"><p>Claude: “The upper bound: order <span data-slot="m"></span> is ruled out by the norm bound for the prime <span data-slot="p"></span>, which does not divide <span data-slot="n"></span>; the paragraph on the norm bound below derives it. Mod <span data-slot="pp"></span>, the classes of \(0, 1, \ldots, n - 1\) have the sizes \(s_r\) <span data-slot="sizes"></span>, and \(\sum s_r^2\) is <span data-slot="squares"></span>. Order \(m\) needs \(p^{2m} (p - 1)^{p-1} \le (p \sum s_r^2)^{p-1}\). At <span data-slot="atm"></span>, the left side, <span data-slot="left"></span>, is <span data-slot="lhs"></span>, more than the right side, \(p \sum s_r^2 =\) <span data-slot="base"></span> to the power <span data-slot="power"></span>, which is <span data-slot="rhs"></span>. In other words, the norm of \(f(\zeta)\), an integer, would be at least <span data-slot="pm"></span> <span data-slot="pmv"></span>, but it is at most \(\lfloor (p \sum s_r^2 / (p - 1))^{(p-1)/2} \rfloor =\) <span data-slot="cap"></span>, which \(p^m\) exceeds by <span data-slot="pct"></span>%.”</p></template>
-  <!-- TODO: says the upper bound: order hi + 1 is ruled out by the residue condition mod M (or the moduli of a chain), which the paragraph on how the upper bounds are proven below defines: an exhaustive search of the residue sums found none that meet it at that order; and that the script named (linked) repeats the search each time it runs -->
-  <template data-panel="hi-residue"><p>Claude: “The upper bound: order <span data-slot="m"></span> is ruled out by the residue condition mod <span data-slot="mod"></span>, which the paragraph ‘How the upper bounds are proven’ below defines: an exhaustive search of the residue sums found none that meet it at order <span data-slot="m"></span>. <span data-slot="source"></span> repeats the search each time it runs.”</p></template>
-  <!-- TODO: says the upper bound: order hi + 1 is ruled out by BGPW's Table 2, copied at the top of this page, which this page cites -->
-  <template data-panel="hi-table2"><p>Claude: “The upper bound: order <span data-slot="m"></span> is ruled out by BGPW's Table 2, at the top of this page, which this page cites.”</p></template>
-  <!-- TODO: says the upper bound: order hi + 1 is ruled out in the new results above, naming whose they are, by a proof on this page -->
-  <template data-panel="hi-page"><p>Claude: “The upper bound: order <span data-slot="m"></span> is ruled out in the new results above (<span data-slot="who"></span>), by a proof on this page.”</p></template>
+  <!-- The boxes' templates, one per kind of part, for both charts (since 2026-11-04, dreeves's README items [CEL] and [ROC]: the math alone, with the column's own numbers, in place of 2026-11-03's sentences): page/shared.js's filled() puts a copy of one into a box, each data-slot holding the column's own value, and KaTeX draws its math then; a box sets the parts in Claude's words, those of the witnesses and the proofs, in one quote, Claude: “…”, its one attribution. -->
+  <!-- A lower bound's witness, an example: the bound, then the example's source as the data names it, its label -->
+  <template data-panel="witness-example"><p><span data-slot="bound"></span>: <span data-slot="label"></span></p></template>
+  <!-- A copy of the page's code of a witness, which page/codes.js expands into its partition as it does the code itself -->
+  <template data-panel="witness-code"><p><span data-slot="code"></span></p></template>
+  <!-- A lower bound's witness, a construction (a join or a product of examples), which page/codes.js expands into its derivation -->
+  <template data-panel="witness-construction"><p><span data-slot="bound"></span>: <span data-construction data-slot="formula"></span></p></template>
+  <!-- A lower bound's witness cited from BGPW's Table 2 (linked) -->
+  <template data-panel="witness-table2"><p><span data-slot="bound"></span>: BGPW, <a href="https://arxiv.org/html/1912.03491v1#S3.T2">Table 2</a></p></template>
+  <!-- TODO: a lower bound found in the new results, naming whose they are; its entry follows in the box -->
+  <template data-panel="witness-page"><p><span data-slot="bound"></span>: found by <span data-slot="who"></span></p></template>
+  <!-- TODO: a lower bound's witness, Thue–Morse τ_k, whose sign at i is (−1)^s(i), s(i) the number of 1s among the binary digits of i (Prouhet) -->
+  <template data-panel="witness-thue-morse"><p><span data-slot="bound"></span>: Thue–Morse <span data-slot="tau"></span>, \(f_i = (-1)^{s(i)}\) with \(s(i)\) the number of 1s in \(i\) in binary (Prouhet)</p></template>
+  <!-- TODO: the proof of the 2-adic bound (BGPW's Theorem 4.1, linked), for the column's n = 2^t u, u odd: mod 2 every sign is 1, so f(x) is (x^u + 1)^(2^t)/(x + 1), and x + 1 divides x^u + 1 only once, so (x − 1)^m, which is (x + 1)^m mod 2, divides f only for m ≤ 2^t − 1 -->
+  <template data-panel="proof-two"><p><span data-slot="bound"></span>: 2-adic bound (BGPW, <a href="https://arxiv.org/html/1912.03491v1#S4.Thmthm1">Theorem 4.1</a>): <span data-slot="n"></span>, and mod 2 <span data-slot="f"></span>, where <span data-slot="once"></span>, so \((x - 1)^m \mid f\) only for <span data-slot="m"></span></p></template>
+  <!-- TODO: the proof of the norm bound for the prime p, which does not divide n: order m needs p^m ≤ the norm of f(ζ_p), an integer, which is at most the floor of (p Σ s_r² / (p − 1))^((p − 1)/2), s_r the number of i < n with i ≡ r mod p; the column's s_r and Σ s_r²; at m = hi + 1, p^m, in digits, is more than that floor, in digits -->
+  <template data-panel="proof-norm"><p><span data-slot="bound"></span>: norm bound, <span data-slot="p"></span>: order \(m\) needs \(p^m \le N(f(\zeta_p)) \le \lfloor (p \sum s_r^2 / (p - 1))^{(p-1)/2} \rfloor\), for \(s_r = |\{i < n : i \equiv r \bmod p\}|\) = <span data-slot="sizes"></span> and \(\sum s_r^2 =\) <span data-slot="squares"></span>; at <span data-slot="m"></span>, <span data-slot="pm"></span> <span data-slot="pmv"></span> \(>\) <span data-slot="cap"></span></p></template>
+  <!-- TODO: the proof by the residue condition mod M (or the moduli of a chain): order m needs residue sums D_r, the sums of the signs f_i with i ≡ r mod M, with |D_r| ≤ s_r and D_r ≡ s_r mod 2 (s_r the number of i < n with i ≡ r mod M), and (x − 1)^m dividing Σ D_r x^r modulo x^M − 1; at m = hi + 1 an exhaustive search, by the script named (linked), finds none -->
+  <template data-panel="proof-residue"><p><span data-slot="bound"></span>: residue condition mod <span data-slot="M"></span>: order \(m\) needs \(D_r = \sum_{i \equiv r} f_i\) with \(|D_r| \le s_r\), \(D_r \equiv s_r \pmod 2\) and \((x - 1)^m \mid \sum D_r x^r \bmod x^M - 1\), for \(s_r = |\{i < n : i \equiv r \bmod M\}|\); at <span data-slot="m"></span> an exhaustive search (<span data-slot="source"></span>) finds none</p></template>
+  <!-- An upper bound cited from BGPW's Table 2 (linked) -->
+  <template data-panel="proof-table2"><p><span data-slot="bound"></span>: BGPW, <a href="https://arxiv.org/html/1912.03491v1#S3.T2">Table 2</a></p></template>
+  <!-- TODO: an upper bound proven in the new results, naming whose they are; the proof is the column's entry, which follows in the box -->
+  <template data-panel="proof-page"><p><span data-slot="bound"></span>: proven by <span data-slot="who"></span></p></template>
+  <!-- A row's box of the m*(n) chart: its row of the table of smallest lengths, under that table's head (cloned), and the term a(m − 1) of OEIS A323395 (linked) -->
+  <template data-panel="row-smallest"><table><tbody data-slot="row"></tbody></table><p>OEIS <a href="https://oeis.org/A323395">A323395</a>: <span data-slot="term"></span></p></template>
+  <!-- A gold-ringed cell of a row of the chart of powers of 2: the legend's swatch and words for it, and its k, linked to its cell's box -->
+  <template data-panel="row-ring"><p><span data-slot="item"></span>: <span data-slot="k"></span></p></template>
+  <!-- A row's row of the table of record gaps, under that table's head (cloned) -->
+  <template data-panel="row-gaps"><div class="scroll"><table class="pow2-gaps"></table></div></template>
 </section>
 
 <section class="smallest" aria-labelledby="smallest-title">
@@ -355,7 +351,7 @@
   <div id="pow2-chart" tabindex="0" role="img" aria-label='Chart of the bounds on m*(2^k) − k, the excess over Thue–Morse, for k from 1 to 72; the arrow keys pan, and + and − zoom'></div>
   <p id="pow2-readout" aria-live="polite">Hover over a cell for details. Drag or swipe sideways to pan; zoom with the − and + buttons, pinching, or ctrl-scroll.</p>
   <p class="float-caption"><span class="sc">Figure 2.</span></p>
-  <!-- The panel of a column of the chart above, as the m*(n) chart's, which page/pow2-section.js fills from the same templates at a tap or a click on a cell, or as the page loads with a column's fragment, #kK, and which shows the remarks' entry of its 2^k as the m*(n) chart's shows its n's -->
+  <!-- The box under the chart above, as the m*(n) chart's, which page/pow2-section.js fills from the same templates at a tap or a click on a cell, on a column's k label or on a row's δ label, or as the page loads with a fragment, #kK, #dD or #kKdD, and which shows the remarks' entry of its 2^k as the m*(n) chart's shows its n's -->
   <div class="column-panel" id="pow2-panel" role="region" aria-labelledby="pow2-panel-title" hidden>
     <div class="column-panel-bar">
       <h3 id="pow2-panel-title" tabindex="-1" data-panel-title></h3>
@@ -1377,10 +1373,11 @@ Or just start identifying redundancies and repetition on the page and fix them o
               <line class="cross" visibility="hidden" data-pool-cross></line>
             </svg>
           </div>
-          <!-- a chart, for a target a witness campaign searches, of the modeled chance (the search bandit's model, from the rate its probe seeds measure) that the campaign finds one within the next t hours, for t up to 72; above it, on hover, that chance within the hours under the pointer; below it, the chance within 6 h and within 24 h, each marked on the chart with a dot, and the CPU-hours searched so far without a find -->
+          <!-- a chart, for a target a witness campaign searches, in the place of its ETA chart, of the history of the modeled chance (the search bandit's model, from the rate its probe seeds measure) that the campaign finds one within the next 24 h, as that chance stood at each quarter hour since the campaign began searching the target, and now, a dot on its last point; above it, on hover, the time under the pointer and the chance as it stood then; below it, the chance within 6 h and within 24 h now, and the CPU-hours searched so far without a find -->
           <div class="progress-chance">
             <p class="progress-chance-tip" data-chance-tip></p>
-            <svg viewBox="0 0 640 200" role="img" aria-label="Claude: “The modeled chance of a find within the next t hours, for t up to 72”">
+            <!-- TODO: aria label; says the chart shows, over the hours of the search so far, the modeled chance of a find within the next 24 hours as it stood at each time -->
+            <svg viewBox="0 0 640 200" role="img" aria-label="Claude: “The modeled chance of a find within the next 24 hours, as it stood at each hour of the search”">
               <g data-chance-grid></g>
               <polygon class="wash" data-chance-wash></polygon>
               <polyline data-chance-line></polyline>
@@ -1394,7 +1391,7 @@ Or just start identifying redundancies and repetition on the page and fix them o
           </details>
         </div>
       </template>
-      <!-- the chance chart's tip: the modeled chance of a find within the hours under the pointer -->
+      <!-- the chance chart's tip, after the time under the pointer: the modeled chance of a find within the next 24 h as it stood then -->
       <template class="progress-chance-point">Probability of finding a bipartition within <b data-chance-hours></b>: <b data-chance-p></b></template>
       <template class="progress-line">@<span data-when></span>&emsp;<span class="spent"><b data-so-far></b> so far</span> + <span class="togo"><b data-to-go></b> to go</span> = <span class="total"><b data-sum></b> (<b data-done></b>)</span></template>
       <!-- One later stage in a run's line of stages: its name, then the range of its estimated time to go -->

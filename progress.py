@@ -185,10 +185,11 @@ The estimate's model, its terms defined once here (overnight_v5.py's search() is
               (scratch/beam-campaign-20261103's campaign.py, 2026-11-03; chance.py's vocabulary): CAMPAIGNS names its
               directory by the target it searches.
   chance      of a tracked target a campaign searches (README [SER], 2026-11-03: "Could the searches show a live
-              estimate of the probability of finding a bipartition?"; dreeves: "sure, build [SER]"): chance.of's, at
+              estimate of the probability of finding a bipartition?"; dreeves: "sure, build [SER]"): chance.shown's, at
               the snapshot's time: while the target is live in its campaign, the chance of a witness within the next t
               hours, t every quarter hour up to 72, under the search-allocation bandit's model, with the CPU-hours
-              searched without one; else none (see chance.py's vocabulary).
+              searched without one, and its history, that chance within 6 and 24 h as of each quarter hour since the
+              campaign began searching the target (README [CON], 2026-11-03); else none (see chance.py's vocabulary).
   reading     the watcher's state of a run's files, kept between snapshots (2026-10-30: it read 288@10's 500 MB of journal
               and log whole every minute, and one snapshot took 90 minutes): the bytes read so far and all parsed, dated
               and derived from them (Reading, with its Tree and Grown; Boxes for a boxsplit pass, Records for focus.py's
@@ -3094,10 +3095,10 @@ def js_text(surveys, now):
     not ended (2026-10-31), its stages (see the vocabulary), [{name, to_go}], its own first, each to_go as the run's
     or null, and total, the time to go to a recordable result in the same form, or null; and for a fanout.py run
     (2026-11-03), pool, its pool series as pool_series gives it; and for a tracked target a campaign searches
-    (2026-11-03, README [SER]), chance: null, or as chance.measure gives it, {cpu_hours, rate, cores, hours, p}: the
-    CPU-hours searched without a witness, the exposure per CPU-hour (null before a probe seed has finished), the
-    recent CPU-hours per wall-hour, the hours t (chance.HOURS), and the chance of a witness within each (empty
-    without a rate)."""
+    (2026-11-03, README [SER]), chance: null, or as chance.shown gives it, {cpu_hours, rate, cores, hours, p,
+    history}: the CPU-hours searched without a witness, the exposure per CPU-hour (null before a probe seed has
+    finished), the recent CPU-hours per wall-hour, the hours t (chance.HOURS), the chance of a witness within each
+    (empty without a rate), and its history, [[time, p6, p24], ...] (README [CON], 2026-11-03)."""
     return data_text([run_data(s) for s in surveys], now)
 
 
@@ -3410,8 +3411,10 @@ def journal_surveys(procs, now, cache, readings, idle):
         n, order = target.split(':')
         t0 = min(lines[0]['time'] for lines in records)
         s = survey_track(target, records, procs, now, cache.setdefault(f'track_{n}_{order}_{int(t0)}_etas', {}))
-        key = (int(n), int(order))      # a target a campaign searches carries its chance (see the vocabulary)
-        return [s | ({'chance': chance.of(HERE, CAMPAIGNS[key], target, now)} if key in CAMPAIGNS else {})]
+        key = (int(n), int(order))      # a target a campaign searches carries its chance (see the vocabulary), in place of
+                                        # Gott's rule (README [CON], 2026-11-03: a witness search ends with a find, or
+                                        # when stopped, on no schedule)
+        return [s | ({'chance': chance.shown(HERE, CAMPAIGNS[key], target, now), 'to_go': None} if key in CAMPAIGNS else {})]
     return units + [(identities[target], functools.partial(track, target, records)) for target, records in sorted(tracked.items())]
 
 

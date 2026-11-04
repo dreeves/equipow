@@ -104,14 +104,16 @@
       assert(ts[i++] === ')', claim, tex);
       return inner;
     };
-    const operation = () => {                                      // operands joined by one operator, # or ∨
+    // operands joined by one operator, # or ∨; or one operand alone, which is that operand (since 2026-11-04, for a
+    // chart's box: the construction of a power of 2 as one product, (p_{1024} # τ_1), or as one block, (p_{1024}))
+    const operation = () => {
       const kids = [operand()], op = OPERATORS[ts[i]];
       while (i < ts.length && ts[i] !== ')') {
         assert(OPERATORS[ts[i++]] === op, claim, tex);             // # and ∨ meet only across parentheses
         kids.push(operand());
       }
-      assert(op !== undefined && kids.length >= 2, claim, tex);
-      return [op, kids];
+      assert(op !== undefined || kids.length === 1, claim, tex);
+      return kids.length === 1 ? kids[0] : [op, kids];
     };
     const lhs = i ? (named(ts[0], claim), ts[0]) : null;           // the name before =, as written, checked as a name
     const tree = operation();
@@ -201,10 +203,10 @@
   const buttons = [...document.querySelectorAll('code[id], [data-join], [data-construction]')];
   const outside = buttons.filter(e => e.closest('p, li') === null);
   assert(outside.length === 0, outside.map(e => e.outerHTML.slice(0, 80)));
-  const blocks = Map.groupBy(buttons, e => e.closest('p, li'));   // each block: its buttons, in page order
   const boxes = new Map();                                         // each code, join and construction: its box, once made
   function button(e, make) {                                       // e shows and hides make()'s box, after e's block
     const block = e.closest('p, li');
+    assert(block !== null, e.outerHTML.slice(0, 80));
     const toggle = () => {
       const box = boxes.get(e) ?? made();
       box.hidden = !box.hidden;
@@ -213,7 +215,7 @@
     const made = () => {
       const box = Object.assign(make(), {hidden: true, id: `expansion-${buttons.indexOf(e) + 1}`});
       boxes.set(e, box);
-      block.after(...blocks.get(block).filter(b => boxes.has(b)).map(b => boxes.get(b)));    // its block's, in order
+      block.after(...buttons.filter(b => b.closest('p, li') === block && boxes.has(b)).map(b => boxes.get(b)));   // its block's, in order
       e.setAttribute('aria-controls', box.id);
       return box;
     };
@@ -229,4 +231,12 @@
   }
   sequences.forEach((s, e) => button(e, () => partition(e, s)));
   built.forEach(e => button(e, () => derivation(e)));
+  // The joins and constructions a chart's box makes after the page has loaded (page/shared.js, 2026-11-04), buttons as
+  // the page's own: expandable.partition(e), a join (a box's copy of a code is a join of that one code), and
+  // expandable.derivation(e), a construction, each checked as the page's are as it loads, its box numbered after every
+  // button before it.
+  window.expandable = {
+    partition: e => { buttons.push(e); const s = sequence(e); button(e, () => partition(e, s)); },
+    derivation: e => { buttons.push(e); parsed.set(e, parse(e)); button(e, () => derivation(e)); },
+  };
 })();

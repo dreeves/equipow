@@ -4784,19 +4784,23 @@ def q_progress_draws_a_fanout_run_s_pool():
     assert got['empty'] == dict(lines=[0, 0], tip='', xticks=['0', '1', '2', '3', f'4{h}']), got['empty']
 
 
-# A tracked target a campaign searches, in the form progress.js_text gives it with its chance (chance.of; README [SER],
-# 2026-11-03): a made-up chance of a find within each quarter hour t up to 72 h, 0.05 (1 - exp(-t / 30)), after 2.14
-# CPU-hours searched.
+# A tracked target a campaign searches, in the form progress.js_text gives it with its chance (chance.shown; README
+# [SER] and [CON], 2026-11-03): a made-up chance of a find within each quarter hour t up to 72 h, 0.05 (1 - exp(-t /
+# 30)), after 2.14 CPU-hours searched; since 6 h before the data was made; and its history, 24 points a quarter hour
+# apart from then, the k-th's chance within 24 h 0.05 exp(-k / 12) and within 6 h 0.02 exp(-k / 12).
 CHANCE_HOURS = [k / 4 for k in range(289)]
-CHANCE = dict(cpu_hours=2.14, rate=9.15e-4, cores=3.2, hours=CHANCE_HOURS, p=[-0.05 * math.expm1(-t / 30) for t in CHANCE_HOURS])
+CHANCE_SINCE = PROGRESS_DATA['made'] - 6 * 3600
+CHANCE_HISTORY = [[CHANCE_SINCE + 900 * k, 0.02 * math.exp(-k / 12), 0.05 * math.exp(-k / 12)] for k in range(1, 25)]
+CHANCE = dict(cpu_hours=2.14, rate=9.15e-4, cores=3.2, hours=CHANCE_HOURS, p=[-0.05 * math.expm1(-t / 30) for t in CHANCE_HOURS],
+              since=CHANCE_SINCE, history=CHANCE_HISTORY)
 PROGRESS_CHANCE = dict(program='probe_seed.py', n=528, order=12, state='running', outcome=None, so_far=600,
                        to_go=dict(median=600, lo=600 / 19, hi=19 * 600), etas=[[PROGRESS_DATA['made'], 600.0, 600.0, 31.6, 11400.0]],
                        statuses=list(STATUSES), depth=0, keys=['528:12'], groups=['4440'],
                        counts=dict(settled=1, open=0, split=0, pending=0, running=3), stale=None, tracked=True,
                        work=dict(runs=4, running=3, frozen=0, ended=1, aborted=0, found=0), chance=CHANCE)
 CHANCE_LOOK = """
-  const all = runs(), [r, other, empty, none] = all;
-  for (const b of [r, empty]) b.querySelector('details').open = true;   // laid out, so that the pointer has somewhere to be
+  const all = runs(), [r, other, empty, none, unrated] = all;
+  for (const b of [r, empty, unrated]) b.querySelector('details').open = true;   // laid out, so that the pointer has somewhere to be
   await sleep(50);
   const fig = box => box.querySelector('.progress-chance');
   const f = fig(r), svg = f.querySelector('svg'), cross = svg.querySelector('[data-chance-cross]'), tip = f.querySelector('[data-chance-tip]');
@@ -4805,15 +4809,16 @@ CHANCE_LOOK = """
   const ticks = (box, which) => [...fig(box).querySelectorAll(`[data-chance-ticks="${which}"] text`)]
     .map(t => [t.textContent, +t.getAttribute('x'), +t.getAttribute('y')]);
   const stated = box => Object.fromEntries([...fig(box).querySelectorAll('[data-chance-at]')].map(e => [e.dataset.chanceAt, e.textContent]));
-  const read = box => [...fig(box).querySelectorAll('[data-chance-tip] [data-chance-hours], [data-chance-tip] [data-chance-p]')].map(e => e.textContent);
+  const read = box => [...fig(box).querySelectorAll('[data-chance-tip] > span, [data-chance-tip] [data-chance-hours], [data-chance-tip] [data-chance-p]')]
+    .map(e => e.textContent);
   const L = window.progressView.layouts[0], sb = svg.getBoundingClientRect();
   const hover = k => svg.dispatchEvent(new MouseEvent('mousemove', {clientX: sb.left + L.chanceXs[k] * sb.width / 640,
                                                                     clientY: sb.top + sb.height / 2, bubbles: true}));
   const rest = [getComputedStyle(tip).visibility, read(r)];
-  hover(53);
-  const hovered = [getComputedStyle(tip).visibility, read(r), cross.getAttribute('visibility'), +cross.getAttribute('x1'), L.chanceXs[53]];
+  hover(10);
+  const hovered = [getComputedStyle(tip).visibility, read(r), cross.getAttribute('visibility'), +cross.getAttribute('x1'), L.chanceXs[10]];
   svg.dispatchEvent(new MouseEvent('mouseleave'));
-  out({hidden: all.map(b => fig(b).hidden), xs: L.chanceXs.length,
+  out({hidden: all.map(b => fig(b).hidden), eta: all.map(b => b.querySelector('.progress-eta').hidden), xs: L.chanceXs.length,
        after: !!(r.querySelector('.progress-pool').compareDocumentPosition(f) & Node.DOCUMENT_POSITION_FOLLOWING),
        folded: r.querySelector('details').contains(f),
        line: vertices(r, '[data-chance-line]'), wash: vertices(r, '[data-chance-wash]'),
@@ -4822,51 +4827,64 @@ CHANCE_LOOK = """
        rest, hovered, left: [getComputedStyle(tip).visibility, cross.getAttribute('visibility')],
        empty: {line: vertices(empty, '[data-chance-line]').length, marks: fig(empty).querySelectorAll('[data-chance-marks] circle').length,
                stated: stated(empty), spent: fig(empty).querySelector('[data-chance-spent]').textContent, tip: read(empty),
-               pticks: ticks(empty, 'p').map(t => t[0]), tticks: ticks(empty, 't').map(t => t[0])}});"""
+               pticks: ticks(empty, 'p').map(t => t[0]), tticks: ticks(empty, 't').map(t => t[0])},
+       unrated: {line: vertices(unrated, '[data-chance-line]').length, marks: fig(unrated).querySelectorAll('[data-chance-marks] circle').length,
+                 stated: stated(unrated), tip: read(unrated)}});"""
 
 
 def q_progress_draws_a_campaign_target_s_chance():
-    # Replicata: index.html with four runs as progress.js: PROGRESS_CHANCE, a tracked target a campaign searches, with
+    # Replicata: index.html with five runs as progress.js: PROGRESS_CHANCE, a tracked target a campaign searches, with
     # its chance; PROGRESS_DATA's overnight_v5.py run, whose entry has none; PROGRESS_CHANCE with no rate measured yet
-    # (rate null, no chance: p empty); and with its chance null (not live: found, stopped, or its campaign ended).  The
-    # first and third runs' folds opened, the first's chance chart hovered at its point of 13.25 h, then left.
+    # and no history (rate null, p and history empty); with its chance null (not live: found, stopped, or its campaign
+    # ended); and with no rate measured yet in its live plan but its history kept (rate null, p empty).  The folds of
+    # the first, third and fifth opened, the first's chance chart hovered at its eleventh point, then left.
     # Expectata (README [SER], 2026-11-03: "Could the searches show a live estimate of the probability of finding a
-    # bipartition?"; the coordinator: "a small chart of the chance of at least one witness within the next t hours, for
-    # t from 0 to 72, with the values at 6 h and 24 h marked and stated.  Also show the compute spent so far without a
-    # find", in the style of the section's charts, with a hover readout): the first and third runs' chance charts shown,
-    # in their folds, after the pool chart, and the second's and fourth's hidden.  The first's line a vertex per hour, at
-    # its hour on the hour ticks' scale (0 to 72, every 12, the last 72 h) and its chance on the percent ticks' (0 to 5%,
-    # every 1, the last 5%), over a wash down to 0 at its ends; a dot at 6 h and one at 24 h, on the line; the chance
-    # within 6 h and within 24 h stated as percents to 2 significant digits, 0.91% and 2.8%, and the CPU-hours searched,
-    # 2.1; its tip at rest hidden, laid out as the last point's line (72 h, 4.5%); over the point of 13.25 h shown with
-    # its hours and chance, 13.25 h and 1.8%, the cross at it; hidden again, with the cross, once the pointer leaves.  The
-    # third's: its axes alone (hours as the first's; percent 0 to 1%, every 0.2), no line, dot or tip, — for its chances
-    # and its CPU-hours stated.
-    # Resultata before: no chance chart.
-    empty = dict(PROGRESS_CHANCE, n=672, order=13, chance=dict(CHANCE, rate=None, p=[]))
+    # bipartition?"; README [CON] and dreeves, 2026-11-03: "the curve should fall in light of the conditional
+    # probability but it should remain historically accurate, yes? does this end up making it kind of redundant with the
+    # ETA graph? ... what's actually most useful to see during a search"): the chance charts of the first, third and
+    # fifth shown, in their folds, after the pool chart, and the second's and fourth's hidden; their ETA charts hidden,
+    # the chance chart in their place, and the second's and fourth's shown.  The first's line a vertex per point of its
+    # history, at its hours since its since on the hour ticks' scale (0 to 6, every 2, the last 6 h) and its chance
+    # within 24 h on the percent ticks' (0 to 5%, every 1, the last 5%), over a wash down to 0 at its ends; a dot on its
+    # last point; the chance within 6 h and within 24 h now stated as percents to 2 significant digits, 0.91% and 2.8%,
+    # and the CPU-hours searched, 2.1; its tip at rest hidden, laid out as the last point's (its local time, 24 h and
+    # 0.68%); over the eleventh point shown with its time, 24 h and 2%, the cross at it; hidden again, with the cross,
+    # once the pointer leaves.  The third's: its axes alone (hours 0 to 0.25, every 0.05; percent 0 to 1%, every 0.2),
+    # no line, dot or tip, — for its chances and its CPU-hours stated.  The fifth's: its history's line and dot, its tip
+    # laid out, — for its chances now.
+    # Spec change (README [CON], 2026-11-03; dreeves: "i guess just apply common sense here too"): until then the chart
+    # was the chance within the next t hours for t up to 72, every quarter hour, with dots at 6 and 24 h, beside the ETA
+    # chart; it is now the history of the chance within 24 h, in the ETA chart's place.
+    # Resultata before: the forward curve (289 vertices on a 72-h axis) beside the ETA chart.
+    empty = dict(PROGRESS_CHANCE, n=672, order=13, chance=dict(CHANCE, rate=None, p=[], history=[]))
     none = dict(PROGRESS_CHANCE, n=864, order=13, chance=None)
-    got = progress_harness({'made': PROGRESS_DATA['made'], 'runs': [PROGRESS_CHANCE, PROGRESS_DATA['runs'][0], empty, none]}, CHANCE_LOOK)
-    assert got['hidden'] == [False, True, False, True] and got['after'] is True and got['folded'] is True, got['hidden']
+    unrated = dict(PROGRESS_CHANCE, n=720, order=13, chance=dict(CHANCE, rate=None, p=[]))
+    got = progress_harness({'made': PROGRESS_DATA['made'], 'runs': [PROGRESS_CHANCE, PROGRESS_DATA['runs'][0], empty, none, unrated]}, CHANCE_LOOK)
+    assert got['hidden'] == [False, True, False, True, False] and got['after'] is True and got['folded'] is True, got['hidden']
+    assert got['eta'] == [True, False, True, False, True], got['eta']
     h = NNBSP + 'h'
-    assert [t[0] for t in got['tticks']] == ['0', '12', '24', '36', '48', '60', f'72{h}'], got['tticks']
+    assert [t[0] for t in got['tticks']] == ['0', '2', '4', f'6{h}'], got['tticks']
     assert [t[0] for t in got['pticks']] == ['0', '1', '2', '3', '4', '5%'], got['pticks']
-    x0, x72 = got['tticks'][0][1], got['tticks'][-1][1]
+    x0, x6 = got['tticks'][0][1], got['tticks'][-1][1]
     (_, _, y0), (_, _, y5) = got['pticks'][0], got['pticks'][-1]
-    X = lambda t: x0 + (x72 - x0) * t / 72
+    X = lambda hours: x0 + (x6 - x0) * hours / 6
     Y = lambda v: y0 - 4 + (y5 - y0) * v / 0.05                  # a tick label sits 4 below its value's line
     near = lambda pts, want: len(pts) == len(want) and all(abs(a - c) < 0.05 and abs(b - d) < 0.05 for (a, b), (c, d) in zip(pts, want))
-    line = [(X(t), Y(v)) for t, v in zip(CHANCE_HOURS, CHANCE['p'])]
-    assert got['xs'] == 289 and near(got['line'], line), (got['xs'], got['line'][:3], line[:3])
+    line = [(X((t - CHANCE_SINCE) / 3600), Y(p24)) for t, _, p24 in CHANCE_HISTORY]
+    assert got['xs'] == 24 and near(got['line'], line), (got['xs'], got['line'][:3], line[:3])
     assert near(got['wash'], [(line[0][0], Y(0))] + line + [(line[-1][0], Y(0))]), got['wash'][:3]
-    assert near(got['marks'], [line[CHANCE_HOURS.index(6)], line[CHANCE_HOURS.index(24)]]), got['marks']
+    assert near(got['marks'], [line[-1]]), got['marks']
     pct = lambda v: f'{float(f"{100 * v:.2g}"):g}%'               # as the page writes a chance: 2 significant digits
-    p6, p24, p13, p72 = (CHANCE['p'][CHANCE_HOURS.index(t)] for t in (6, 24, 13.25, 72))
+    clock = lambda t: time.strftime('%Y-%m-%d %H:%M', time.localtime(t))   # as the page writes a time (its local)
+    p6, p24 = (CHANCE['p'][CHANCE_HOURS.index(t)] for t in (6, 24))
     assert got['stated'] == {'6': pct(p6), '24': pct(p24)} == {'6': '0.91%', '24': '2.8%'} and got['spent'] == '2.1', got['stated']
-    assert got['rest'] == ['hidden', [f'72{h}', pct(p72)]] and pct(p72) == '4.5%', got['rest']
-    assert got['hovered'][:3] == ['visible', [f'13.25{h}', pct(p13)], 'visible'] and pct(p13) == '1.8%', got['hovered']
+    (t24, _, last), (t11, _, eleventh) = CHANCE_HISTORY[-1], CHANCE_HISTORY[10]
+    assert got['rest'] == ['hidden', [clock(t24), f'24{h}', pct(last)]] and pct(last) == '0.68%', got['rest']
+    assert got['hovered'][:3] == ['visible', [clock(t11), f'24{h}', pct(eleventh)], 'visible'] and pct(eleventh) == '2%', got['hovered']
     assert abs(got['hovered'][3] - got['hovered'][4]) < 0.05 and got['left'] == ['hidden', 'hidden'], (got['hovered'], got['left'])
     assert got['empty'] == dict(line=0, marks=0, stated={'6': '—', '24': '—'}, spent='2.1', tip=[],
-                                pticks=['0', '0.2', '0.4', '0.6', '0.8', '1%'], tticks=[t[0] for t in got['tticks']]), got['empty']
+                                pticks=['0', '0.2', '0.4', '0.6', '0.8', '1%'], tticks=['0', '0.05', '0.1', '0.15', '0.2', f'0.25{h}']), got['empty']
+    assert got['unrated'] == dict(line=24, marks=1, stated={'6': '—', '24': '—'}, tip=[clock(t24), f'24{h}', '0.68%']), got['unrated']
 
 
 def q_progress_status_line_names_an_ended_run_s_outcome():

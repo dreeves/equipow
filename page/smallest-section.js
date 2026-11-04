@@ -7,27 +7,6 @@
 // f, has order at least the sum of theirs (dreeves's README, 2026-10-31: "[MIN] In the "smallest length known for each
 // order" table, we currently have no entries for the smallest known n for orders 14 and 15"; the table showed — where
 // no n up to MSTAR.nmax was known to reach m).
-(() => {
-  const cell = text => Object.assign(document.createElement('td'), {textContent: text});
-  const knownAt = [], possibleAt = [];                             // order m: its least n known, its least n not ruled out
-  raised(MSTAR.cols, () => 0).forEach(([known, possible], i) => {
-    known.forEach(m => { knownAt[m] = i + 1; });
-    possible.forEach(m => { possibleAt[m] = i + 1; });
-  });
-  // One order more than the largest some n up to MSTAR.nmax allows, not ruled out first at MSTAR.mtopAt, the least n
-  // past the chart that its own tests leave open (dreeves's README, 2026-11-03: "[LIN] Add one more line for m=16 to
-  // the "smallest length known for each order" table", then "yes, 1440 instead of ">1024" if that's all we know so far").
-  possibleAt.push(MSTAR.mtopAt);
-  const best = [];                                                 // Infinity stands for knownAt's missing n, the least of none
-  possibleAt.forEach((_, m) => { best[m] = Math.min(knownAt[m] ?? Infinity, ...best.slice(1, m).map((b, j) => b * best[m - 1 - j])); });
-  if (!best.slice(1).every(Number.isFinite)) throw new Error(JSON.stringify(best));   // best[1] is 2 (the data contract's m*(2) = 1)
-  const rows = possibleAt.slice(1).map((possible, j) => {
-    const m = j + 1, row = document.createElement('tr');
-    // in the chart's order, the n not ruled out before the n known, the check mark last (dreeves's README, 2026-10-31:
-    // "[FLP] I think the smallest-known and smallest-not-ruled-out columns should be swapped, so the numbers in that
-    // table are in the same order they're in in the chart. And then I think the checkmarks should be the last column")
-    row.append(cell(m), cell(possible), cell(best[m]), cell(best[m] === possible ? '✓' : ''));
-    return row;
-  });
-  document.querySelector('[data-smallest]').replaceChildren(...rows);
-})();
+// Since 2026-11-04 the rows come from smallest() and smallestRow() (page/shared.js), which a row's box of the m*(n)
+// chart shows too ([ROC]), and which hold this table's rules and its history.
+document.querySelector('[data-smallest]').replaceChildren(...smallest().map(smallestRow));

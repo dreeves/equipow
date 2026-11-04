@@ -2088,8 +2088,11 @@ def q_a_campaign_s_target_carries_its_chance():
     # running, with progress.CAMPAIGNS naming camp for (528, 12); each unit's surveys, and js_text's entries for them.
     # Expectata (README [SER], 2026-11-03: "Could the searches show a live estimate of the probability of finding a
     # bipartition?"; the coordinator: attached to the tracked target's survey, the campaign's directory named
-    # explicitly, as DIRS names other runs'): 528:12's survey carries chance, chance.of(HERE, 'camp', '528:12', 5200),
-    # and its entry in the data file the same, as JSON; 768:12's carries none.
+    # explicitly, as DIRS names other runs'): 528:12's survey carries chance, chance.shown(HERE, 'camp', '528:12',
+    # 5200), and its entry in the data file the same, as JSON; 768:12's carries none.
+    # Spec change (README [CON], 2026-11-03; dreeves: "i guess just apply common sense here too"): chance.shown, which
+    # adds the chance's history to chance.of's chance, in place of chance.of; and 528:12's to_go null, the chance in
+    # place of Gott's rule (a witness search ends with a find, or when stopped, on no schedule), 768:12's Gott's.
     # Resultata before: no chance anywhere.
     import chance, quals_chance
     d = quals_chance.campaign()
@@ -2104,9 +2107,10 @@ def q_a_campaign_s_target_carries_its_chance():
     try:
         progress.HERE, progress.CAMPAIGNS = d, {(528, 12): 'camp'}
         surveys = {s['n']: s for _, thunk in progress.journal_surveys(procs, 5200.0, {}, {}, {}) for s in thunk()}
-        want = chance.of(d, 'camp', '528:12', 5200.0)
+        want = chance.shown(d, 'camp', '528:12', 5200.0)
         assert sorted(surveys) == [528, 768] and want is not None and len(want['p']) == len(chance.HOURS), sorted(surveys)
         assert surveys[528]['chance'] == want and 'chance' not in surveys[768], surveys[768].keys()
+        assert surveys[528]['to_go'] is None and surveys[768]['to_go'] is not None, (surveys[528]['to_go'], surveys[768]['to_go'])
         runs = {r['n']: r for r in progress_data(progress.js_text(list(surveys.values()), 5200.0))['runs']}
         assert runs[528]['chance'] == json.loads(json.dumps(want)) and 'chance' not in runs[768], runs[768].keys()
     finally:
