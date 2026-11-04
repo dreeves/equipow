@@ -64,6 +64,14 @@ def copy_page_dir(d):
     shutil.copytree(PAGE_DIR, os.path.join(d, 'page'))
 
 
+def the_theorem(text):
+    """The text of the powers-of-2 section's theorem in text (index.html), after its label, "Theorem 1." (dreeves's
+    README, 2026-11-04: "[THM] Call the theorem in equipow Theorem 1"; it was "Theorem 1." from 819936b, 2026-10-17,
+    and "Theorem." from 699517e, 2026-10-27, until then)."""
+    [t] = re.findall(r'<p><b>Theorem 1\.</b>(.*?)</p>', text, re.S)
+    return t
+
+
 def section():
     """The chart's section: the HTML from <section class="mstar" to its </section>."""
     text = page()
@@ -872,7 +880,8 @@ async function fragment(R) {
 // (said, its math written back as TeX, Claude's quote with it where there is one), which of its parts are of Claude's
 // English (claude: each part's data-claude),
 // its copies of codes (data-join) and its constructions (data-construction), the searches' text, and the canvas's
-// pixels where the target's outline goes, with the target's own color.  Then (each with its report): the first
+// pixels where the target's outline goes, with the target's own color (its pixel at its middle, three quarters down its
+// row, clear of the gold rings of the cells above and below and of its own gold dot).  Then (each with its report): the first
 // target's box again, its code copy clicked (expanded: the box of the copy, its rows' k and marks); the box of cell
 // (36, 2) and a click on its construction (derived: the derivation's rows and bound); the box of cell (528, 12) once
 // its searches have loaded (searched); its close button (closed, with the pixels of its outline then); and the page's
@@ -927,11 +936,12 @@ async function boxes(R) {
     const before = getComputedStyle(region, '::before'), b = region.getBoundingClientRect(), r = cv.getBoundingClientRect();
     const sw = region.querySelector('h3 .swatch'), said = [...body().querySelectorAll(':scope > [data-why^="witness"], :scope > [data-why^="proof"]')];
     snap();
-    return {target: t, ...panelReport(), kind: region.dataset.kind, frame: hex(getComputedStyle(region).borderTopColor),
+    return {target: t, ...panelReport(), frame: hex(getComputedStyle(region).borderTopColor),
       caret: b.left + region.clientLeft + parseFloat(before.left) + parseFloat(before.borderLeftWidth),
-      column: r.left + placeOf(t)[0] / dpr, own: t.includes(null) ? null : pix(placeOf(t)[0], rows[T - t[1]][0] + 2),
+      column: r.left + placeOf(t)[0] / dpr,
+      own: t.includes(null) ? null : pix(placeOf(t)[0], rows[T - t[1]][0] + (rows[T - t[1]][1] - rows[T - t[1]][0]) * 3 / 4),   // clear of rings and dots
       swatch: sw && {cls: sw.className, color: hex(getComputedStyle(sw).backgroundColor), ring: getComputedStyle(sw).boxShadow},
-      parts: [...body().children].map(e => e.dataset.why), said: said.map(tex).join(' '),
+      said: said.map(tex).join(' '),
       claude: [...body().children].map(e => e.hasAttribute('data-claude')),
       copies: [...body().querySelectorAll('[data-join]')].map(e => [e.dataset.join, e.dataset.order, e.getAttribute('role'), e.textContent]),
       constructions: [...body().querySelectorAll('[data-construction]')].map(e => [e.dataset.construction, e.getAttribute('role'), tex(e)]),
@@ -950,22 +960,24 @@ async function boxes(R) {
     away();
     R.boxes.push(boxReport(t));
   }
-  // the first target's code copy, expanded
+  // the first target's code copy, expanded (each of these two reports null where the box has no such button)
   click(BOX_TARGETS[0]);
-  const copy = body().querySelector('[data-join]');
-  copy.click();
-  const shown = document.getElementById(copy.getAttribute('aria-controls'));
-  R.expanded = {expanded: copy.getAttribute('aria-expanded'), inBox: region.contains(shown), shown: shown.checkVisibility(),
-                ks: [...shown.querySelectorAll('[data-k]')].map(c => c.textContent),
-                relations: [...shown.querySelectorAll('[data-relation]')].map(c => c.textContent)};
+  R.expanded = [...body().querySelectorAll('[data-join]')].slice(0, 1).map(copy => {
+    copy.click();
+    const shown = document.getElementById(copy.getAttribute('aria-controls'));
+    return {expanded: copy.getAttribute('aria-expanded'), inBox: region.contains(shown), shown: shown.checkVisibility(),
+            ks: [...shown.querySelectorAll('[data-k]')].map(c => c.textContent),
+            relations: [...shown.querySelectorAll('[data-relation]')].map(c => c.textContent)};
+  })[0] ?? null;
   // a construction's derivation
   click([36, 2]);
-  const built = body().querySelector('[data-construction]');
-  built.click();
-  const steps = document.getElementById(built.getAttribute('aria-controls'));
-  R.derived = {expanded: built.getAttribute('aria-expanded'), inBox: region.contains(steps), shown: steps.checkVisibility(),
-               rows: [...steps.querySelectorAll('[data-steps] tr')].map(tr => [tr.dataset.n, tr.dataset.m]),
-               bound: steps.querySelector('[data-bound]').textContent.replace(/\s+/g, ' ').trim()};
+  R.derived = [...body().querySelectorAll('[data-construction]')].slice(0, 1).map(built => {
+    built.click();
+    const steps = document.getElementById(built.getAttribute('aria-controls'));
+    return {expanded: built.getAttribute('aria-expanded'), inBox: region.contains(steps), shown: steps.checkVisibility(),
+            rows: [...steps.querySelectorAll('[data-steps] tr')].map(tr => [tr.dataset.n, tr.dataset.m]),
+            bound: steps.querySelector('[data-bound]').textContent.replace(/\s+/g, ' ').trim()};
+  })[0] ?? null;
   // the searches of an open cell, once loaded
   click([528, 12]);
   await loaded();
@@ -1030,7 +1042,7 @@ def kinds_data(violation=None):
                  (20, [3, 3, ['page', 'Claude alone'], ['two']]), (24, [4, 5, ['example', 'BGPW Table 5'], ['residue', 9]]),
                  (32, [5, 7, ['product', 16, 2], ['norm', 5]]), (48, [6, 7, ['table2'], ['norm', 7]])):
         cols[n - 1] = c
-    data = {'nmax': NMAX, 'mtop': max(c[1] for c in cols) + 1, 'mtopAt': NMAX + 2, 'past': [], 'cols': cols}
+    data = {'nmax': NMAX, 'mtop': max(c[1] for c in cols) + 1, 'mtopAt': [NMAX + 2], 'past': [], 'cols': cols}
     VIOLATIONS.get(violation, (lambda data: None,))[0](data)
     return 'const MSTAR = ' + json.dumps(data) + ';\n'
 
@@ -1062,7 +1074,9 @@ VIOLATIONS = {   # name: (a change that breaks the contract, what the page's err
     'hi at mtop': (column(100, [1, 8, ['example', 'x'], ['residue', 3]]), "[100,[1,8,['example','x'],['residue',3]]]"),
     'mtop': (lambda data: data.update(mtop=9), '[9]'),
     'nmax': (lambda data: data.update(nmax=999), '[999,8]'),
-    'mtopAt': (lambda data: data.update(mtopAt=NMAX), f'[{NMAX}]'),   # not past the chart (since 2026-11-03, [LIN])
+    'mtopAt': (lambda data: data.update(mtopAt=[NMAX]), f'[[{NMAX}]]'),   # not past the chart (since 2026-11-03, [LIN])
+    # since 2026-11-04 ([M17]) a list, one n per order from mtop on, which cannot fall: order m + 1 at n has order m there
+    'mtopAt falls': (lambda data: data.update(mtopAt=[NMAX + 4, NMAX + 2]), f'[[{NMAX + 4},{NMAX + 2}]]'),
     'past': (lambda data: data.update(past=[[NMAX, 3, 'x']]), f"[[[{NMAX},3,'x']]]"),   # an example not past the chart (since 2026-11-04)
 }
 
@@ -1211,21 +1225,22 @@ def smallest_rows(data):
     highlighted in the chart?"; until then the rows stopped at the largest order known at some n.)  The least length
     known is best[m] = min(the least n whose lower bound is at least m, best[a] best[m - a] for 0 < a < m), a product
     f(x) g(x^n), n the length of f, having order at least the sum of theirs (dreeves's README, 2026-10-31, [MIN]; until
-    then — where no n up to NMAX was known to reach m).  Then one row more, for mtop, the order no n up to NMAX allows:
-    not ruled out first at mtopAt, the least n past NMAX that the chart's own tests leave open (mstar.mtop_at), and
-    reached first at its least product (dreeves's README, 2026-11-03: "[LIN] Add one more line for m=16 to the
-    "smallest length known for each order" table", then "yes, 1440 instead of ">1024" if that's all we know so far";
-    until then the rows stopped at the largest order allowed).  An example past the chart (mstar.js's past, since
-    2026-11-04) reaches its order at its own length, as a known n does."""
+    then — where no n up to NMAX was known to reach m).  Then a row for each order past the chart, from mtop, the order
+    no n up to NMAX allows, each not ruled out first at its n of mtopAt, the least n past NMAX that the chart's own
+    tests leave open at that order (mstar.mtop_at), and reached first at its least product (dreeves's README,
+    2026-11-03: "[LIN] Add one more line for m=16 to the "smallest length known for each order" table", then "yes, 1440
+    instead of ">1024" if that's all we know so far"; and 2026-11-04: "[M17] Let's add m=17 to the "smallest length
+    known" table"; until 2026-11-03 the rows stopped at the largest order allowed, and until 2026-11-04 at mtop).  An
+    example past the chart (mstar.js's past, since 2026-11-04) reaches its order at its own length, as a known n does,
+    and so its length goes into the products of later orders (2880 = 1440 · 2 at order 17)."""
     cols, top, at = data['cols'], data['mtop'], data['mtopAt']
+    rows = [(m, possible) for m, _, possible in least_columns(cols)] + [(top + i, n) for i, n in enumerate(at)]
+    assert [m for m, _ in rows] == list(range(1, len(rows) + 1)), rows
+    known = {m: n for m, n, _ in least_columns(cols) if n is not None}
+    for n, m, _ in data['past']: known[m] = min(known.get(m, math.inf), n)
     best = {}
-    for m, known, _ in least_columns(cols):
-        best[m] = min([known or math.inf] + [best[a] * best[m - a] for a in range(1, m)])
-    assert top == len(best) + 1, (top, len(best))
-    best[top] = min(best[a] * best[top - a] for a in range(1, top))
-    for n, m, _ in data['past']: best[m] = min(best[m], n)
+    for m, _ in rows: best[m] = min([known.get(m, math.inf)] + [best[a] * best[m - a] for a in range(1, m)])
     assert all(type(b) is int for b in best.values()), best
-    rows = [(m, possible) for m, _, possible in least_columns(cols)] + [(top, at)]
     # in the chart's order, the n not ruled out before the n known, the check mark last ([FLP], 2026-10-31)
     return [[str(m), str(possible), str(best[m]), '✓' if best[m] == possible else ''] for m, possible in rows]
 
@@ -2515,7 +2530,7 @@ def q_firsts_of_2026_11_03():
     for k, lo, hi in ((28, 31, 34), (36, 40, 44), (47, 53, 58)): first_entry(cols, text, k, lo, hi)
     cells = new_cells(text)
     assert [cells[2 ** k] for k in (29, 37, 48)] == [(32, 35), (41, 45), (54, 59)]
-    theorem = re.search(r'<p><b>Theorem.</b>(.*?)</p>', text).group(1)
+    theorem = the_theorem(text)
     for k, lo in ((28, 31), (36, 40), (47, 53)): assert f'(2^{{{k}}}) \\ge {lo}' in theorem, theorem
     for k in (29, 37, 48): assert f'(2^{{{k}}})' not in theorem, theorem
     assert ' are 10, 20, 28, 36, 39, 47, ' in text      # ' are 10, 20, 28, 36, 39, 47, 57, 65, 68.</p>' until later on 2026-11-03
@@ -2542,7 +2557,7 @@ def q_firsts_move_to_2_56_and_2_58():
         assert 'href="https://github.com/dreeves/equipow/tree/main/searches/pinned"' in li and all(f'\\(2^{{{j}}}\\)' in li for j in ks), li
     cells = new_cells(text)
     assert [cells[2 ** k] for k in (57, 61, 65)] == [(64, 70), (69, 75), (73, 81)], [cells.get(2 ** k) for k in (57, 61, 65)]
-    theorem = re.search(r'<p><b>Theorem.</b>(.*?)</p>', text).group(1)
+    theorem = the_theorem(text)
     for k, lo in ((56, 63), (58, 66)): assert f'(2^{{{k}}}) \\ge {lo}' in theorem, theorem
     for k in (57, 65): assert f'(2^{{{k}}})' not in theorem, theorem
     assert ' are 10, 20, 28, 36, 39, 47, 56, 58, 68.</p>' in text
@@ -2693,7 +2708,8 @@ def q_example_at_1440_settles_a_15():
     listed = [ns.split(', ') for ns in re.findall(r'<p class="entry">\\\(n = (.*?)\\\): ', text)]
     assert not any('1440' in ns for ns in listed) and 1440 not in new_cells(text), listed
     assert smallest_table()[15] == ['16', '1440', '1440', '✓'], smallest_table()[15]
-    assert mstar_data()['mtopAt'] == 1440 and mstar_data()['past'] == [[1440, 16, 'equipow p1440']], mstar_data()['past']
+    # (mtopAt is a list since 2026-11-04, [M17], order 16's n first)
+    assert mstar_data()['mtopAt'][0] == 1440 and mstar_data()['past'] == [[1440, 16, 'equipow p1440']], mstar_data()['past']
     assert any(d == '2026-11-04' and '\\(a(15) = 1440\\)' in rest for d, rest in changelog()), changelog()[:3]
     body = re.search(r'<section class="oeis" aria-labelledby="oeis-title">.*?</section>', text, re.S).group(0)
     assert '\\(a(15) = 1440\\)' in re.search(r'<li>(.*?)</li>', body, re.S).group(1), 'the note on A323395'
@@ -2813,7 +2829,7 @@ def q_912_moves_excess_3_to_2_29():
     assert cols[26][0] == 29 and [c[0] - k for k, c in enumerate(cols[28:35], 29)] == [3] * 7, [c[:2] for c in cols[26:35]]
     cells = new_cells(text)
     assert [cells[2 ** k] for k in (29, 30, 33, 34)] == [(32, 35), (33, 36), (36, 40), (37, 41)], [cells.get(2 ** k) for k in (29, 30, 33, 34)]
-    theorem = re.search(r'<p><b>Theorem.</b>(.*?)</p>', text).group(1)
+    theorem = the_theorem(text)
     assert '(2^{29})' not in theorem and '(2^{30})' not in theorem, theorem   # 2^29's bound in it until 2026-11-03
 
 
@@ -2841,7 +2857,7 @@ def q_768_moves_excess_5_to_2_39():
     cells = new_cells(text)
     assert [cells[2 ** k] for k in (39, 41, 43, 46)] == [(44, 47), (46, 50), (48, 53), (51, 57)], [cells.get(2 ** k) for k in (39, 41, 43, 46)]
     # the entries' wording unpinned since 2026-10-30
-    theorem = re.search(r'<p><b>Theorem.</b>(.*?)</p>', text).group(1)
+    theorem = the_theorem(text)
     assert '(2^{39}) \\ge 44' in theorem and '(2^{41})' not in theorem, theorem
 
 
@@ -3548,7 +3564,8 @@ def q_contract_violations_fail_loudly():
     # arguments; a join of lengths that do not add up to n; a join or product claiming more than its parts give; "two"
     # with the wrong hi; "norm" for a prime dividing n, and for a composite; "table2" at an n not in Table 2; "page" for
     # a provenance the page does not use; an example with an empty label; "none" or "odd" at an even n; an example at
-    # an odd n; a column of five entries; hi at mtop; mtop above max hi + 1; nmax not 1024; mtopAt not past nmax; a row of past not past nmax.
+    # an odd n; a column of five entries; hi at mtop; mtop above max hi + 1; nmax not 1024; mtopAt not past nmax, or falling
+    # (since 2026-11-04); a row of past not past nmax.
     # Expectata: in each case the canvas stays 0 px tall and the readout ends with the error, which quotes the
     # offending column as JSON (or mtop, or nmax and mtop), and the error is uncaught.
     for v, (_, quoted) in VIOLATIONS.items():
@@ -3631,8 +3648,8 @@ def panel_says(cols, n, P):
              'norm': [('p', f'\\(p = {harg} \\nmid n\\)' in t)],
              'residue': [('M', f'residue condition mod \\(M = {harg}\\)' in t and 'mstar.py' in t)],
              'table2': [('cited', f'\\(m^*({n}) \\le {hi}\\): BGPW, Table 2' in t)], 'page': [('who', f'proven by {harg}' in t)]}[hw[0]]
-    copied = f'{n}:{lo}' in code_ids() and f'{n}:{lo}' not in entry_codes(n)
-    says += [('copy', P['copies'] == [[f'{n}:{lo}', str(lo), 'button', code_digits(f'{n}:{lo}')]] * copied)]
+    copies = [[c, str(lo), 'button', code_digits(c)] for c in [f'{n}:{lo}'] if c in code_ids() and c not in entry_codes(n)]
+    says += [('copy', P['copies'] == copies)]
     says += [('entry', P['entries'] == panel_entries(n))]      # the entry itself since [REO] step 2 (2026-11-03), not its link
     return says
 
@@ -3862,8 +3879,9 @@ def q_no_panel_mentions_the_remarks_below():
     for name in ('panels', 'phone panels'):
         said = [P['n'] for P in valid_run(name)['panels'] if 'remarks below' in ' '.join([P['text'], *P['entryText']])]
         assert said == [], (name, said[:10])
-    templates = re.findall(r'<template data-panel="([^"]+)">(.*?)</template>', page(), re.S)
-    assert len(templates) >= 15 and 'entry' not in {t for t, _ in templates}, [t for t, _ in templates]
+    # (spec change, 2026-11-04, [CEL]: the boxes' 14 templates, some marked data-claude, in place of 2026-11-03's 16)
+    templates = re.findall(r'<template data-panel="([^"]+)"[^>]*>(.*?)</template>', page(), re.S)
+    assert len(templates) >= 14 and 'entry' not in {t for t, _ in templates}, [t for t, _ in templates]
     assert not [t for t, body in templates if 'remarks below' in body], [t for t, body in templates if 'remarks below' in body]
 
 
@@ -4108,7 +4126,7 @@ def q_box_caret_points_at_its_target():
     # column, for a cell's box and a column's, or of the strip of the m labels, for a row's.
     # Resultata before: no caret.
     R, B = boxes_run()
-    bad = [(t, P['caret'], P['column']) for t, P in B.items() if not abs(P['caret'] - P['column']) <= 2]
+    bad = [(t, P['caret'], P['column']) for t, P in B.items() if P['caret'] is None or abs(P['caret'] - P['column']) > 2]   # None: no caret
     assert bad == [], bad
 
 
@@ -4130,7 +4148,7 @@ def q_green_box_gives_the_witness_and_its_code():
         P, (lo, hi, lw, hw) = B[t], cols[n - 1]
         assert kind_of(cols, n, m) == 'exists' and P['whys'] == box_parts(cols, n, m), (t, P['whys'], box_parts(cols, n, m))
         assert P['said'].startswith(f'\\(m^*({n}) \\ge {lo}\\):') and 'Claude' not in P['said'], (t, P['said'])   # no English to attribute
-        copies = [[f'{n}:{lo}', str(lo), 'button', code_digits(f'{n}:{lo}')]] * (f'{n}:{lo}' in code_ids())
+        copies = [[c, str(lo), 'button', code_digits(c)] for c in [f'{n}:{lo}'] if c in code_ids()]
         assert P['copies'] == copies, (t, P['copies'])
     assert B[(1024, 8)]['said'].startswith('\\(m^*(1024) \\ge 11\\): equipow p1024'), B[(1024, 8)]['said']
     assert R['expanded'] == {'expanded': 'true', 'inBox': True, 'shown': True, 'ks': [str(k) for k in range(12)],
@@ -4249,11 +4267,19 @@ def q_boxes_say_nothing_about_elsewhere():
     # Resultata before: the norm bound's sentence said "the paragraph on the norm bound below derives it", and others
     # "at the top of this page" and "the new results above".
     elsewhere = re.compile(r'\b(?:below|above|this page|paragraph|remarks)\b', re.I)
-    templates = re.findall(r'<template data-panel="([^"]+)">(.*?)</template>', page(), re.S)
-    assert len(templates) >= 10 and [t for t, body in templates if elsewhere.search(body)] == [], templates
+    templates = re.findall(r'<template data-panel="([^"]+)"[^>]*>(.*?)</template>', page(), re.S)
+    assert len(templates) >= 14 and [t for t, body in templates if elsewhere.search(body)] == [], templates
     said = [(P['target'], P['said']) for P in valid_run('boxes')['boxes']]
     said += [(P['n'], text) for P in valid_run('panels')['panels'] for why, text, _ in P['parts'] if why.startswith(('witness', 'proof'))]
     assert [(t, s) for t, s in said if elsewhere.search(s)] == [], [(t, s) for t, s in said if elsewhere.search(s)][:3]
+
+
+def quoted_right(parts):
+    """Whether a box's parts, [(kind, text, whether of Claude's English)], quote Claude once around its parts of Claude's
+    English, from the start of the first to the end of the last, and not at all without any."""
+    claude, text = [i for i, (_, _, c) in enumerate(parts) if c], ''.join(t for _, t, _ in parts)
+    return (text.count('Claude: “') == text.count('”') == min(1, len(claude))
+            and all(parts[i][1].startswith('Claude: “') for i in claude[:1]) and all(parts[i][1].endswith('”') for i in claude[-1:]))
 
 
 def q_box_quotes_claude_around_its_english_alone():
@@ -4271,26 +4297,20 @@ def q_box_quotes_claude_around_its_english_alone():
     assert {name for _, name, claude in templates if claude} == CLAUDE_TEMPLATES, [(name, claude) for _, name, claude in templates]
     assert all(comment.startswith('<!-- TODO: ') == bool(claude) for comment, _, claude in templates), [(c[:30], n) for c, n, _ in templates]
     boxes = [(P['target'], P['parts']) for P in valid_run('boxes')['boxes']] + [(P['n'], P['parts']) for P in valid_run('panels')['panels']]
-    bad = []
-    for t, parts in boxes:
-        claude = [i for i, (_, _, c) in enumerate(parts) if c]
-        quoted = ''.join(text for _, text, _ in parts)
-        good = (quoted.count('Claude: “') == min(1, len(claude)) and quoted.count('”') == min(1, len(claude))
-                and all(parts[i][1].startswith('Claude: “') for i in claude[:1]) and all(parts[i][1].endswith('”') for i in claude[-1:]))
-        bad += [(t, parts)] * (not good)
+    bad = [(t, parts) for t, parts in boxes if not quoted_right(parts)]
     assert bad == [], bad[:3]
     assert {bool(sum(c for _, _, c in parts)) for _, parts in boxes} == {True, False}, 'boxes with and without English'
 
 
 def q_cell_box_words_stay_within_budget():
-    # Replicata: every column's box of the m*(n) chart (the panels run), the parts of Claude's words in each, its
-    # witness's and its proof's; a cell's box of its column shows its witness, its proof, or both (a black cell's); and
-    # the boxes run's boxes of cells.
+    # Replicata: the boxes run's boxes of cells, the text of their parts but their searches (which are the Search
+    # progress section's); and every column's box of the m*(n) chart (the panels run), its witness's and its proof's
+    # parts, a cell's box of its column showing its witness, its proof, or both (a black cell's).
     # Expectata (dreeves, 2026-11-03: "so many pointless words in the implementation so far"; spec, Claude's proposal of
     # 2026-11-04 for dreeves to review): a cell's box has at most BOX_WORDS, 24, words outside its math, codes and
     # numbers (words), the attribution "Claude", where it has one, and the data's labels among them; the most on
-    # 2026-11-04, 19, is a black cell's at 480 and 528, an example's label and the residue condition's proof.
-    # Resultata before: the panel of (1024, 12) alone had 99 such words (scratch/reo-step3-20261103/red/).
+    # 2026-11-04, 19, is a black cell's at 480, 528 and 720, an example's label and the residue condition's proof.
+    # Resultata before: the panel that a click on (1024, 12) opened had 121 such words (scratch/reo-step3-20261103/red/).
     cols, most = mstar_data()['cols'], []
     for P in valid_run('panels')['panels']:
         n, parts = P['n'], P['parts']
@@ -4301,8 +4321,9 @@ def q_cell_box_words_stay_within_budget():
             shows = SHOWS[kind]                    # the attribution, Claude, is a word where the box has one
             count = ((claude['witness'] and shows[0]) or (claude['proof'] and shows[1])) + len(words(text['witness'])) * shows[0] + len(words(text['proof'])) * shows[1]
             most.append((count, n, kind))
-    most += [(len(words(P['said'])), tuple(P['target']), 'clicked') for P in valid_run('boxes')['boxes'] if None not in P['target']]
-    assert max(most)[0] <= BOX_WORDS, sorted(most)[-5:]
+    most += [(len(words(' '.join(text for why, text, _ in P['parts'] if why != 'searches'))), tuple(P['target']), 'clicked')
+             for P in valid_run('boxes')['boxes'] if None not in P['target']]
+    assert max(c for c, *_ in most) <= BOX_WORDS, sorted(most, key=lambda x: x[0])[-5:]
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -4564,7 +4585,8 @@ def q_smallest_table_matches_mstar():
     # Replicata: the table of smallest lengths as the page draws it (smallest_table); and smallest_rows of MSTAR
     # (mstar_data), computed here.
     # Expectata: the table's body holds exactly smallest_rows' rows, in order, through the largest order some n's upper
-    # bound allows (since 2026-10-30) and one order more (since 2026-11-03, [LIN]), with a product of lesser orders' lengths where that is less than the chart's, as
+    # bound allows (since 2026-10-30) and the orders past the chart through mstar.MMAX (one more since 2026-11-03, [LIN]; through 17 since 2026-11-04, [M17]),
+    # with a product of lesser orders' lengths where that is less than the chart's, as
     # beyond the chart (since 2026-10-31, [MIN]; until then — where no n up to NMAX was known to reach m); the first
     # twelve orders' smallest lengths are SMALLEST_PROVEN, each marked proven (480 added on 2026-11-03 after the pin tree of 432:12; 432 added on 2026-10-20 after
     # proof384.py).
@@ -4591,21 +4613,23 @@ def least_columns(cols):
     return out
 
 
-def products_least(cols, m):
-    """By brute force over the chart's data: the least product n_1 n_2 ... n_k (k >= 1) of lengths of the chart whose
-    lower bounds sum to at least m, a product f(x) g(x^n) (f of length n) having order at least the sum of its factors'.
-    A depth-first search over the multisets of lengths with a lower bound of at least 1, in rising order, cut off where
-    the product already exceeds the least found."""
-    ns = [n for n, c in enumerate(cols, 1) if c[0] >= 1]
+def products_least(cols, m, past=()):
+    """By brute force over the chart's data: the least product n_1 n_2 ... n_k (k >= 1) of lengths of the chart, and of
+    the examples past it in past (mstar.js's past, [n, order, label]; since 2026-11-04), whose lower bounds sum to at
+    least m, a product f(x) g(x^n) (f of length n) having order at least the sum of its factors'.  A depth-first search
+    over the multisets of lengths with a lower bound of at least 1, in rising order, cut off where the product already
+    exceeds the least found."""
+    lengths = sorted([(n, c[0]) for n, c in enumerate(cols, 1) if c[0] >= 1] + [(n, k) for n, k, _ in past])
     best = math.inf
     def go(start, product, order):
         nonlocal best
         if order >= m:
             best = min(best, product)
             return
-        for j in range(start, len(ns)):
-            if product * ns[j] > best: break
-            go(j, product * ns[j], order + cols[ns[j] - 1][0])
+        for j in range(start, len(lengths)):
+            n, lo = lengths[j]
+            if product * n > best: break
+            go(j, product * n, order + lo)
     go(0, 1, 0)
     return best
 
@@ -4620,9 +4644,14 @@ def q_smallest_lengths_go_past_the_chart():
     # know so far"), order 16, which no n up to 1024 allows: not ruled out first at 1440 (mstar.js's mtopAt), and
     # reached at 1920 = 960 · 2, its example of order 15 times Thue–Morse's of order 1 at 2, until 2026-11-04, when the example of order 16 at 1440 reached
     # it at the least n not ruled out (q_example_at_1440_settles_a_15).
+    # And since 2026-11-04 (dreeves's README: "[M17] Let's add m=17 to the "smallest length known" table; no need for much
+    # search, just whatever bounds we can find quickly"), order 17: not ruled out first at 1440 either (mstar.js's
+    # mtopAt; quals_mstar's q_order_17_is_open_first_at_1440), and reached at 2880 = 1440 · 2, the example of order 16
+    # times Thue–Morse's of order 1 at 2, not proven least.  (Resultata before: the table stopped at order 16.)
     rows = smallest_table()
     assert all(re.fullmatch(r'\d+', r[2]) for r in rows), rows
-    assert rows[13:] == [['14', '480', '960', ''], ['15', '960', '960', '✓'], ['16', '1440', '1440', '✓']], rows[13:]
+    assert rows[13:] == [['14', '480', '960', ''], ['15', '960', '960', '✓'], ['16', '1440', '1440', '✓'],
+                         ['17', '1440', '2880', '']], rows[13:]
 
 
 def q_smallest_known_is_the_least_product_of_the_chart_s_lengths():
@@ -4631,10 +4660,11 @@ def q_smallest_known_is_the_least_product_of_the_chart_s_lengths():
     # of the chart whose lower bounds sum to at least m, found by brute force.
     # Resultata before: — at orders 14 and 15, whose least products are 1920 and 3840.
     # Since 2026-11-04 an example past the chart (mstar.js's past) competes with them: order 16's 1440 against its least product, 1920.
+    # Since 2026-11-04 ([M17]) its length is a factor too: order 17's 2880 = 1440 · 2 against the chart's own 3840 = 960 · 4.
     cols, past = mstar_data()['cols'], mstar_data()['past']
     rows = smallest_table()
-    assert products_least(cols, 16) == 1920, products_least(cols, 16)
-    assert [r[2] for r in rows] == [str(min([products_least(cols, m)] + [n for n, k, _ in past if k == m])) for m in range(1, len(rows) + 1)], rows
+    assert [products_least(cols, m, p) for m in (16, 17) for p in ((), past)] == [1920, 1440, 3840, 2880]
+    assert [r[2] for r in rows] == [str(products_least(cols, m, past)) for m in range(1, len(rows) + 1)], rows
 
 
 def q_smallest_rows_the_chart_decides_are_unchanged():

@@ -12,6 +12,8 @@ sys.dont_write_bytecode = True
 import os, re, json, time, math, shutil, tempfile, traceback, contextlib, statistics
 import numpy as np
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))   # the repository's root, for its modules
+# the engine's modules, in engine/ since [FAC] stage 3b (2026-11-04)
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'engine'))
 import overnight_v5 as v5
 import fanout
 import progress

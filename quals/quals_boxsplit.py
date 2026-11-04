@@ -23,12 +23,14 @@ from sympy.matrices.normalforms import hermite_normal_form
 from ortools.linear_solver import pywraplp
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # the repository's root, above quals/
 sys.path.insert(0, HERE)                                              # for its modules
+ENGINE = os.path.join(HERE, 'engine')                                 # the engine's, since [FAC] stage 3b (2026-11-04)
+sys.path.insert(0, ENGINE)                                            # for its modules
 import overnight_v5 as v5
 import certbb
 import boxsplit as bx
 
 RUNS = os.path.join(HERE, 'scratch', 'boxsplit', 'quals')       # the quals' journals and logs
-# read only; in searches/ since [FAC] stage 3a (2026-10-31), though overnight_v5.configure names them in the root
+# read only; in searches/ since [FAC] stage 3a (2026-10-31), though overnight_v5.configure names them beside itself
 MAIN = tuple(os.path.join(HERE, 'searches', 'overnight_v5_304_9', f'overnight_v5_304_9{x}')
              for x in ('_journal.jsonl', '.log'))
 UNTOUCHED = tuple(hashlib.sha1(open(f, 'rb').read()).hexdigest() for f in MAIN)   # as the quals began
@@ -341,13 +343,13 @@ def q_configure():
     bx.configure(304, 9)
     assert (v5.N, v5.ORDER, v5.CASCADE) == (304, 9, (3, 5, 4, 7, 8, 9))
     assert (bx.MODULI, bx.BUDGETS) == ((11, 13), (10000, 2000000))
-    assert bx.JOURNAL == os.path.join(HERE, 'overnight_v5_304_9_boxsplit_journal.jsonl') != v5.JOURNAL
-    assert bx.LOG == os.path.join(HERE, 'overnight_v5_304_9_boxsplit.log') != v5.LOG
+    assert bx.JOURNAL == os.path.join(ENGINE, 'overnight_v5_304_9_boxsplit_journal.jsonl') != v5.JOURNAL
+    assert bx.LOG == os.path.join(ENGINE, 'overnight_v5_304_9_boxsplit.log') != v5.LOG
     bx.configure(240, 11)
     assert (v5.N, v5.ORDER, v5.CASCADE) == (240, 11, (3, 5, 7, 4, 8, 11, 13, 9))
     assert (bx.MODULI, bx.BUDGETS) == ((17, 19), (2000000, 2000000))
-    assert bx.JOURNAL == os.path.join(HERE, 'overnight_v5_240_11_boxsplit_journal.jsonl') != v5.JOURNAL
-    assert bx.LOG == os.path.join(HERE, 'overnight_v5_240_11_boxsplit.log') != v5.LOG
+    assert bx.JOURNAL == os.path.join(ENGINE, 'overnight_v5_240_11_boxsplit_journal.jsonl') != v5.JOURNAL
+    assert bx.LOG == os.path.join(ENGINE, 'overnight_v5_240_11_boxsplit.log') != v5.LOG
     assert (48, 6) in v5.SETTINGS and (48, 6) not in bx.EXTENSION
     expect_assertion(lambda: bx.configure(48, 6), 'configure')
     assert all(len(b) == len(m) and all(type(t) is int and t >= 1 for t in b) for m, b in bx.EXTENSION.values())
@@ -1113,7 +1115,7 @@ def q_run_on_one_leaf():
     before = open(main).read()
     journal, log = paths('run')
     script = os.path.join(RUNS, 'run.py')
-    open(script, 'w').write(SCRIPT.format(here=HERE, main=main, journal=journal, log=log))
+    open(script, 'w').write(SCRIPT.format(here=ENGINE, main=main, journal=journal, log=log))
     texts, records, starts = [], [], [start_line(main, {})]           # the first run starts the driver's journal
     for _ in range(2):
         p = subprocess.run([sys.executable, '-B', script], capture_output=True, text=True, timeout=1800)
@@ -1149,7 +1151,7 @@ def q_run_works_leaves_in_parallel():
     main = made_up_main(keys)
     journal, log = paths('parallel')
     script = os.path.join(RUNS, 'parallel.py')
-    open(script, 'w').write(SCRIPT.format(here=HERE, main=main, journal=journal, log=log))
+    open(script, 'w').write(SCRIPT.format(here=ENGINE, main=main, journal=journal, log=log))
     texts, records = [], []
     for _ in range(2):
         p = subprocess.run([sys.executable, '-B', script], capture_output=True, text=True, timeout=1800)

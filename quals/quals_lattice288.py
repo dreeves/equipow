@@ -13,6 +13,8 @@ from unittest.mock import patch
 
 import sympy as sp
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))   # the repository's root, for its modules
+# the engine's modules, in engine/ since [FAC] stage 3b (2026-11-04)
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'engine'))
 import lattice288 as L
 
 
@@ -140,7 +142,8 @@ class LatticeQuals(unittest.TestCase):
     def test_duplicate_runner_fails_before_touching_the_journal(self):
         with tempfile.TemporaryDirectory() as d, patch.object(L, 'WORK', Path(d)):
             with L.lock_run():
-                code = ("from pathlib import Path\nimport lattice288 as L\n"
+                code = (f"import sys; sys.path.insert(0, {str(Path(L.__file__).parent)!r})\n"
+                        "from pathlib import Path\nimport lattice288 as L\n"
                         f"L.WORK=Path({d!r})\nL.JOURNAL=L.WORK/'journal'\n"
                         "L.PREPARED=L.WORK/'prepared'\nL.main()\n")
                 p = subprocess.run([sys.executable, '-B', '-c', code],

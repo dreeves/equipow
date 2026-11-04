@@ -17,4 +17,4 @@ progress.js.*.tmp
 .lattice288_prepared.json
 .lattice288_work/
 runs/
-/fanout_432_journal.jsonl
+/searches/fanout_432/fanout_432_journal.jsonl

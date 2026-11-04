@@ -16,6 +16,8 @@ from functools import lru_cache
 import sympy as sp
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # the repository's root, above quals/
 sys.path.insert(0, HERE)                                              # for its modules
+ENGINE = os.path.join(HERE, 'engine')                                 # the engine's, since [FAC] stage 3b (2026-11-04)
+sys.path.insert(0, ENGINE)                                            # for its modules
 import mstar
 import overnight_v5 as v5
 
@@ -360,7 +362,8 @@ def q_schema():
     # Expectata: comment lines, then the single statement "const MSTAR = {...};" whose object is JSON, so the file
     # defines exactly one global (node sees no other); keys nmax, mtop, mtopAt (since 2026-11-03, README [LIN]), past (since 2026-11-04: the
     # explicit sequences longer than nmax, for the table of smallest lengths, q_past_lists_the_example_of_order_16_at_1440), cols;
-    # mtopAt an even integer above nmax; nmax = 1024 (1000 until 2026-10-27, when
+    # mtopAt a list of even integers above nmax, one per order from mtop on, never falling (an integer, mtop's alone, from
+    # 2026-11-03 until 2026-11-04, README [M17]); nmax = 1024 (1000 until 2026-10-27, when
     # the chart reached 1024 at dreeves's and Stan Wagon's request); 1024 columns, each
     # [lo, hi, loWhy, hiWhy] with integers 0 <= lo <= hi < mtop = max hi + 1 (so row mtop is red in every column);
     # every reason has its contract form; ["none"] and ["odd"] exactly at odd n.
@@ -371,7 +374,9 @@ def q_schema():
     M = got['m']
     assert list(M) == ['nmax', 'mtop', 'mtopAt', 'past', 'cols'] and M['nmax'] == 1024 == mstar.NMAX and len(M['cols']) == 1024
     assert all(type(n) is int and n > M['nmax'] and type(m) is int and type(label) is str for n, m, label in M['past']), M['past']
-    assert type(M['mtopAt']) is int and M['mtopAt'] > M['nmax'] and M['mtopAt'] % 2 == 0, M['mtopAt']
+    at = M['mtopAt']
+    assert type(at) is list and at and all(type(n) is int and n > M['nmax'] and n % 2 == 0 for n in at), at
+    assert at == sorted(at), at                  # order m + 1 at n has order m there
     T = M['mtop']
     assert type(T) is int and T == max(c[1] for c in M['cols']) + 1
     forms_lo = {'none': (), 'example': (str,), 'join': (int, int), 'product': (int, int), 'table2': (),
@@ -791,7 +796,7 @@ def q_past_lists_the_example_of_order_16_at_1440():
     _, got = disk()
     M = got['m']
     assert M['past'] == [[1440, 16, 'equipow p1440']], M['past']
-    assert (M['mtop'], M['mtopAt']) == (16, 1440), (M['mtop'], M['mtopAt'])
+    assert (M['mtop'], M['mtopAt'][0]) == (16, 1440), (M['mtop'], M['mtopAt'])   # mtop's, first of mtopAt since 2026-11-04 ([M17])
     far = {key: a for key, a in mstar.explicit().items() if key[0] > mstar.NMAX}
     assert [[n, mstar.order(a), label] for (n, label), a in far.items()] == M['past'], list(far)
     assert all(mstar.order(a) == 16 and len(a) == 1440 and a == a[::-1] for a in far.values()), list(far)
@@ -827,11 +832,27 @@ def q_mtop_is_open_first_at_1440_past_the_chart():
     # Resultata before: mstar.js had no mtopAt, and the table's order-16 row read "> 1024".
     _, got = disk()
     M = got['m']
-    assert M['mtop'] == 16 and M.get('mtopAt') == 1440 == mstar.mtop_at(16), (M['mtop'], M.get('mtopAt'))
+    # (mtopAt is a list since 2026-11-04, [M17], mtop's first: q_order_17_is_open_first_at_1440.)
+    assert M['mtop'] == 16 and M['mtopAt'][0] == 1440 == mstar.mtop_at(16), (M['mtop'], M['mtopAt'])
     tests = lambda n: min([mstar.two(n)] + [mstar.norm(n, p) for p in mstar.PRIMES if n % p])
     assert [mstar.norm(n, 5) for n in (1056, 1152, 1248)] == [15, 15, 15]
     assert tests(1344) >= 16 and mstar.chain_none(1344, 16, (5,), 'digits', mstar.MTOP_CAP)
     assert tests(1440) >= 16
+
+
+def q_order_17_is_open_first_at_1440():
+    # Replicata: mstar.js's mtop and mtopAt, mstar.MMAX, and mstar.mtop_at(16) and mstar.mtop_at(17) computed now.
+    # Expectata (dreeves's README, 2026-11-04: "[M17] Let's add m=17 to the "smallest length known" table; no need for
+    # much search, just whatever bounds we can find quickly"): the table runs through order MMAX = 17, and mtopAt gives
+    # the least n past NMAX that the chart's own upper-bound tests leave open at each order from mtop = 16 to MMAX, as
+    # mtop_at finds it: 1440 at both.  So every even n from 1026 to 1438 fails order 17 as it fails order 16, and at
+    # 1440 two and norm allow order 17 (m*(1440) is 16 or 17).
+    # Resultata before: mtopAt was 1440 alone, mtop's, and the table stopped at order 16.
+    _, got = disk()
+    M = got['m']
+    assert mstar.MMAX == 17 and M['mtop'] == 16, (mstar.MMAX, M['mtop'])
+    assert M['mtopAt'] == [1440, 1440] == [mstar.mtop_at(m) for m in (16, 17)], M['mtopAt']
+    assert min([mstar.two(1440)] + [mstar.norm(1440, p) for p in mstar.PRIMES if 1440 % p]) >= 17
 
 
 def q_digits_order():

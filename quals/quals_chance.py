@@ -43,13 +43,32 @@ def seed(t, kind, k, cpu, cancelled=False, cell='528:12'):
                 prefix=os.path.join('camp', 'seeds', f'{n}_{m}_s{k}'), status=0, cancelled=cancelled, cpu=cpu, witnesses=[])
 
 
-# A made-up campaign's journal, its times in epoch seconds: launched at 1000 with two cells, 528:12 and 720:13; at
-# 528:12, plain seed 2 ended at 1500 after 200 CPU s, probe seed 1 at 2800 (its tracker's rusage 900 s, its bookkeeping
-# in it), plain seed 3 at 2900 after 180 s, plain seed 4 cancelled at 3000 after 50 s, probe seed 5 cancelled at 3100
-# with no files at all; and at 720:13 a plain seed of 999 s.
-JOURNAL = [dict(time=1000.0, event='start'), seed(1500.0, 'plain', 2, 200.0), seed(2800.0, 'probe', 1, 900.0),
-           seed(2900.0, 'plain', 3, 180.0), seed(3000.0, 'plain', 4, 50.0, cancelled=True),
-           seed(3100.0, 'probe', 5, 20.0, cancelled=True), seed(3200.0, 'plain', 6, 999.0, cell='720:13')]
+def begun(t, kind, k, cell='528:12'):
+    """A campaign journal's seed_start record, as campaign.py writes it."""
+    n, m = cell.split(':')
+    return dict(time=t, event='seed_start', cell=cell, k=k, f=170, slot=0, kind=kind,
+                prefix=os.path.join('camp', 'seeds', f'{n}_{m}_s{k}'), wall=6400, tracker=1)
+
+
+def life(a, b, kind, k, cpu, cancelled=False, cell='528:12'):
+    """A seed's seed_start record at a and its seed_end record at b."""
+    return [begun(a, kind, k, cell), seed(b, kind, k, cpu, cancelled, cell)]
+
+
+# A made-up campaign's journal, its times in epoch seconds, in time order: launched at 1000 with two cells, 528:12 and
+# 720:13; at 528:12, plain seed 2 from 1000 to 1500 (200 CPU s), probe seed 1 from 1000 to 2800 (its tracker's rusage
+# 900 s, its bookkeeping in it), plain seed 3 from 1500 to 2900 (180 s), plain seed 4 from 2800, cancelled at 3000
+# after 50 s, probe seed 5 from 2900, cancelled at 3100 with no files at all, and plain seeds 7 and 8 running from 3000
+# and 3100; and at 720:13 a plain seed of 999 s from 1000 to 3200.
+JOURNAL = sorted([dict(time=1000.0, event='start')] + life(1000.0, 1500.0, 'plain', 2, 200.0) + life(1000.0, 2800.0, 'probe', 1, 900.0)
+                 + life(1500.0, 2900.0, 'plain', 3, 180.0) + life(2800.0, 3000.0, 'plain', 4, 50.0, cancelled=True)
+                 + life(2900.0, 3100.0, 'probe', 5, 20.0, cancelled=True) + life(1000.0, 3200.0, 'plain', 6, 999.0, cell='720:13')
+                 + [begun(3000.0, 'plain', 7), begun(3100.0, 'plain', 8)], key=lambda r: r['time'])
+# JOURNAL's campaign stopped at 3500 (a SIGTERM: its driver cancels its running seeds 7 and 8, after 400 and 300 CPU s,
+# then ends), and relaunched at 4000 (resuming the journal) with plain seeds 9 and 10 running from then.
+STOP = [seed(3500.0, 'plain', 7, 400.0, cancelled=True), seed(3500.0, 'plain', 8, 300.0, cancelled=True),
+        dict(time=3500.0, event='end', reason='signal')]
+AGAIN = [dict(time=4000.0, event='start', resumed=True), begun(4000.0, 'plain', 9), begun(4000.0, 'plain', 10)]
 # probe seed 1's rounds, (X, cpu): 3e-4, 1e-4 and 5e-5 of exposure in 100 CPU s each
 ROUNDS = ((3e-4, 100.0), (1e-4, 100.0), (5e-5, 100.0))
 
@@ -91,24 +110,25 @@ def campaign(journal=JOURNAL, probes=None, priors=None, plan_dir='camp', cells=(
     return d
 
 
-# Two made-up archived plans, run before JOURNAL's: plan1 at 528:12 (launched at 100; plain seed 1 ended at 400 after
-# 1000 CPU s, probe seed 2 at 500, its rounds EARLY; ended at 600) and plan2 at 768:13 (launched at 700; a plain seed of
-# 5000 CPU s ended at 800; ended at 900).  EARLY: 2e-4 and 1e-4 of exposure in 100 and 200 CPU s, 3.6e-3 per CPU-hour.
+# Two made-up archived plans, run before JOURNAL's: plan1 at 528:12 (launched at 100; plain seed 1 from 100 to 400,
+# 1000 CPU s, probe seed 2 from 100 to 500, its rounds EARLY; ended at 600) and plan2 at 768:13 (launched at 700; a
+# plain seed of 5000 CPU s from 700 to 800; ended at 900).  EARLY: 2e-4 and 1e-4 of exposure in 100 and 200 CPU s,
+# 3.6e-3 per CPU-hour.
 EARLY = ((2e-4, 100.0), (1e-4, 200.0))
 PLAN1 = dict(cells=('528:12',), probes={os.path.join('camp', 'seeds', '528_12_s2'): probe_lines(EARLY)},
-             journal=[dict(time=100.0, event='start'), seed(400.0, 'plain', 1, 1000.0), seed(500.0, 'probe', 2, 2000.0),
-                      dict(time=600.0, event='end', reason='signal')])
+             journal=[dict(time=100.0, event='start'), begun(100.0, 'plain', 1), begun(100.0, 'probe', 2),
+                      seed(400.0, 'plain', 1, 1000.0), seed(500.0, 'probe', 2, 2000.0), dict(time=600.0, event='end', reason='signal')])
 PLAN2 = dict(cells=('768:13',), probes={},
-             journal=[dict(time=700.0, event='start'), seed(800.0, 'plain', 1, 5000.0, cell='768:13'),
-                      dict(time=900.0, event='end', reason='signal')])
+             journal=[dict(time=700.0, event='start')] + life(700.0, 800.0, 'plain', 1, 5000.0, cell='768:13')
+                     + [dict(time=900.0, event='end', reason='signal')])
 
 
-def expected(cpu_seconds, recent, span, prior=PRIOR, rounds=ROUNDS):
-    """What chance.of gives a live target whose seeds' search CPU is cpu_seconds in all and recent in the last span
-    seconds, with probe seed 1's rounds: hours its cpu_hours, rate its rounds' exposure per CPU-hour, cores recent per
-    span, and the chance at each hour of chance.HOURS, by chance.within (whose own quals are below)."""
+def expected(cpu_seconds, cores, prior=PRIOR, rounds=ROUNDS):
+    """What chance.of gives a live target whose ended seeds' search CPU is cpu_seconds in all, with these cores and
+    probe seed 1's rounds: hours its cpu_hours, rate its rounds' exposure per CPU-hour, and the chance at each hour of
+    chance.HOURS, by chance.within (whose own quals are below)."""
     rate = sum(x for x, _ in rounds) / (sum(c for _, c in rounds) / 3600)
-    hours, cores = cpu_seconds / 3600, recent / span
+    hours = cpu_seconds / 3600
     return dict(cpu_hours=hours, rate=rate, cores=cores, hours=list(chance.HOURS),
                 p=chance.within(prior['p_exists'], prior['mean'], prior['sd'], rate * hours, [rate * cores * t for t in chance.HOURS]))
 
@@ -215,40 +235,37 @@ def q_of_reads_a_live_target_s_campaign():
     # Expectata (the coordinator, 2026-11-03): its rate the probe seeds' round lines' summed X over their summed cpu
     # (4.5e-4 in 300 CPU s: 0.0054 per CPU-hour; the probe's rusage, 900 s, its bookkeeping in it, and the cancelled
     # probe seed 5, which has no files, left out); its CPU-hours every ended seed's search CPU (plain seeds' cpu,
-    # cancelled ones too, and probe seed 1's rounds': 200 + 300 + 180 + 50 s), 720:13's left out; its cores the search
-    # CPU of the seeds that ended in the last hour (after 1600: 300 + 180 + 50 s) per second of it; hours chance.HOURS;
-    # and p the chance within each, by chance.within at exposure spent rate x CPU-hours and ahead rate x cores x t.
+    # cancelled ones too, and probe seed 1's rounds': 200 + 300 + 180 + 50 s), 720:13's left out; its cores the seeds
+    # running there (7 and 8) times the search CPU per second of life of the seeds that ended in the hour up to the
+    # latest end, 3000 (seeds 2, 1, 3 and 4: 730 s over 500 + 1800 + 1400 + 200 s; probe seed 5 has no search CPU);
+    # hours chance.HOURS; and p the chance within each, by chance.within at exposure spent rate x CPU-hours and ahead
+    # rate x cores x t.
+    # Spec change (2026-11-04): until then its cores the search CPU of the seeds that ended in the last hour (after
+    # 1600: 300 + 180 + 50 s) per second of it (see q_cores_are_the_seeds_running_times_their_cpu_share).
     d = campaign()
     try:
         got = chance.of(d, 'camp', '528:12', 5200.0)
-        assert close(got, expected(730.0, 530.0, 3600.0)), got and {k: v for k, v in got.items() if k != 'p'}
+        assert close(got, expected(730.0, 2 * 730.0 / 3900.0)), got and {k: v for k, v in got.items() if k != 'p'}
     finally:
         shutil.rmtree(d)
 
 
-def q_cores_count_the_last_hour_s_search_across_relaunches():
-    # Replicata: chance.of(root, 'camp', '528:12', now) for campaign() with JOURNAL's first two records alone (its start
-    # at 1000 and plain seed 2's end at 1500 after 200 CPU s) at now 2000, 1000 s after the start; and for JOURNAL with
-    # an end at 3500 (a SIGTERM), a second start at 4000 (the relaunch, which resumes the journal) and plain seed 8
-    # ending at 4500 after 100 CPU s, at now 5000.
-    # Expectata: cores the search CPU of the seeds ended in the last hour over the seconds of it in which the campaign
-    # ran: 200 s over 1000 s, then 830 s (every seed's but probe seed 5's, which has no files) over 3100 s (1400 to 3500
-    # and 4000 to 5000); the CPU-hours every ended seed's, those before the relaunch too (no probe seed has ended in the
-    # first: no rate and no chance yet).
-    # Spec change (README [CON], 2026-11-03; dreeves: "i guess just apply common sense here too"): until then this qual expected cores
-    # counted from the latest start, 100 s over 1000 s after the relaunch; counted so, they began near 0 with each plan
-    # or relaunch, before its first seeds ended, and the chance rose over its first hour.
-    d = campaign(journal=JOURNAL[:2])
+def q_cores_continue_across_relaunches():
+    # Replicata: chance.of(root, 'camp', '528:12', now) for campaign() with JOURNAL, then STOP (its seeds 7 and 8
+    # cancelled at 3500 after 400 and 300 CPU s, and its end) and AGAIN (its relaunch at 4000, which resumes the
+    # journal, with plain seeds 9 and 10 running from then), at now 4001 and 5200.
+    # Expectata: at both, cores the relaunched seeds running (9 and 10) times the search CPU per second of life of the
+    # seeds that ended in the hour up to the latest end, those before the relaunch: 730 + 400 + 300 s over 3900 + 500 +
+    # 400 s; the CPU-hours every ended seed's, those before the relaunch too.
+    # Spec change (README [CON], 2026-11-03; dreeves: "i guess just apply common sense here too"): until then this qual
+    # expected cores counted from the latest start; counted so, they began near 0 with each plan or relaunch, before its
+    # first seeds ended, and the chance rose over its first hour.  Spec change (2026-11-04): until then cores the search
+    # CPU of the seeds ended in the last hour over the seconds of it in which the campaign ran (see
+    # q_cores_are_the_seeds_running_times_their_cpu_share), and this qual's name q_cores_count_the_last_hour_s_search_across_relaunches.
+    d = campaign(journal=JOURNAL + STOP + AGAIN)
     try:
-        got = chance.of(d, 'camp', '528:12', 2000.0)
-        assert close(got, dict(cpu_hours=200.0 / 3600, rate=None, cores=0.2, hours=list(chance.HOURS), p=[])), got
-    finally:
-        shutil.rmtree(d)
-    journal = JOURNAL + [dict(time=3500.0, event='end', reason='signal'), dict(time=4000.0, event='start', resumed=True),
-                         seed(4500.0, 'plain', 8, 100.0)]
-    d = campaign(journal=journal)
-    try:
-        assert close(chance.of(d, 'camp', '528:12', 5000.0), expected(830.0, 830.0, 3100.0))
+        for now in (4001.0, 5200.0):
+            assert close(chance.of(d, 'camp', '528:12', now), expected(1430.0, 2 * 1430.0 / 4800.0)), now
     finally:
         shutil.rmtree(d)
 
@@ -256,39 +273,39 @@ def q_cores_count_the_last_hour_s_search_across_relaunches():
 def q_of_is_none_unless_the_target_is_live():
     # Replicata: chance.of(root, 'camp', target, 5200) for campaign(): at 864:13, which its plan does not hold; at 720:13
     # after a witness and its stop (arm_stop, reason witness); after the witness alone (journaled just before the stop);
-    # after a checkpoint's stop; at 528:12 after the campaign's end (reason signal); and after that end and a relaunch.
+    # after a checkpoint's stop; at 528:12 after the campaign's end (STOP); and after that end and a relaunch (AGAIN).
     # Expectata (the coordinator, 2026-11-03: "for each live witness campaign target"): None, each, but after the
-    # relaunch, when 528:12 is live again and its chance as before, its cores the search CPU of the seeds ended in the
-    # last hour (530 s) over the seconds of it in which the campaign ran (1600 to 3500 and 4000 to 5200: 3100 s).
-    # Spec change (README [CON], 2026-11-03; dreeves: "i guess just apply common sense here too"): until then cores 0 s over the 1200 s since the
-    # relaunch.
+    # relaunch, when 528:12 is live again, its chance as in q_cores_continue_across_relaunches.
+    # Spec change (README [CON], 2026-11-03; dreeves: "i guess just apply common sense here too"): until then cores 0 s
+    # over the 1200 s since the relaunch.  Spec change (2026-11-04): until then cores the search CPU of the seeds ended
+    # in the last hour over the seconds of it in which the campaign ran (see q_cores_are_the_seeds_running_times_their_cpu_share).
     witness = dict(time=3300.0, event='witness', cell='720:13', k=6, f=170, code='AB', order=13, plus=360)
     stop = lambda reason: dict(time=3301.0, event='arm_stop', cell='720:13', reason=reason)
-    end, again = dict(time=3500.0, event='end', reason='signal'), dict(time=4000.0, event='start', resumed=True)
     for journal, target in ((JOURNAL, '864:13'), (JOURNAL + [witness, stop('witness')], '720:13'), (JOURNAL + [witness], '720:13'),
-                            (JOURNAL + [stop('checkpoint')], '720:13'), (JOURNAL + [end], '528:12')):
+                            (JOURNAL + [stop('checkpoint')], '720:13'), (JOURNAL + STOP, '528:12')):
         d = campaign(journal=journal)
         try:
             assert chance.of(d, 'camp', target, 5200.0) is None, (target, journal[-1])
         finally:
             shutil.rmtree(d)
-    d = campaign(journal=JOURNAL + [end, again])
+    d = campaign(journal=JOURNAL + STOP + AGAIN)
     try:
         got = chance.of(d, 'camp', '528:12', 5200.0)
-        assert close(got, expected(730.0, 530.0, 3100.0)), got and {k: v for k, v in got.items() if k != 'p'}
+        assert close(got, expected(1430.0, 2 * 1430.0 / 4800.0)), got and {k: v for k, v in got.items() if k != 'p'}
     finally:
         shutil.rmtree(d)
 
 
 def q_without_a_finished_probe_seed_there_is_no_chance_yet():
     # Replicata: chance.of(root, 'camp', '528:12', 5200) for campaign() with JOURNAL less probe seed 1's end (its probe
-    # still running, or not yet begun), and no probe files.
-    # Expectata: no rate (None) and no chance (p empty), as nothing has measured the target's exposure yet; its
-    # CPU-hours and cores as before, less the probe's (430 s in all, 230 s in the last hour); hours chance.HOURS.
+    # still running), and no probe files.
+    # Expectata: no rate, no cores (None, each) and no chance (p empty), as nothing has measured the target's exposure
+    # yet; its CPU-hours as before, less the probe's (430 s); hours chance.HOURS.
+    # Spec change (2026-11-04): until then cores 230 s over the last hour's 3600 s, the seeds' search CPU that ended in it.
     d = campaign(journal=[r for r in JOURNAL if not (r['event'] == 'seed_end' and r['k'] == 1)], probes={})
     try:
         got = chance.of(d, 'camp', '528:12', 5200.0)
-        assert close(got, dict(cpu_hours=430.0 / 3600, rate=None, cores=230.0 / 3600, hours=list(chance.HOURS), p=[])), got
+        assert close(got, dict(cpu_hours=430.0 / 3600, rate=None, cores=None, hours=list(chance.HOURS), p=[])), got
     finally:
         shutil.rmtree(d)
 
@@ -300,14 +317,18 @@ def q_earlier_plans_hours_without_a_witness_count():
     # anything so far?"): the chance given no witness in any of the campaign's plans at the target: its CPU-hours every
     # plan's (730 s in the live one, and plan1's 1000 + 300 s: its plain seed's and its probe's rounds'), 768:13's left
     # out; the exposure spent each plan's own rate times its CPU-hours there (their pins, and so their rates, differ:
-    # 0.0054 per CPU-hour in the live plan, 3.6e-3 in plan1); the rate and the cores the live plan's, as before.
+    # 0.0054 per CPU-hour in the live plan, 3.6e-3 in plan1); the rate the live plan's, as before; the cores its seeds
+    # running (7 and 8) times the search CPU per second of life of the seeds that ended in the hour up to the latest end,
+    # plan1's among them: 730 + 1000 + 300 s over 3900 + 300 + 400 s.
     # Resultata before: the archived plans left out, so each new plan forgot the hours searched before it (its CPU-hours
     # 730 s, its exposure 0.0054 x 730 / 3600).
+    # Spec change (2026-11-04): until then cores 530 s over the last hour's 3600 s, the search CPU of the seeds ended in
+    # it (see q_cores_are_the_seeds_running_times_their_cpu_share).
     d = campaign(archives=(('plan1', PLAN1), ('plan2', PLAN2)))
     try:
         got = chance.of(d, 'camp', '528:12', 5200.0)
         rate, early = 4.5e-4 / (300.0 / 3600), 3e-4 / (300.0 / 3600)
-        spent, cores = rate * 730.0 / 3600 + early * 1300.0 / 3600, 530.0 / 3600
+        spent, cores = rate * 730.0 / 3600 + early * 1300.0 / 3600, 2 * 2030.0 / 4600.0
         want = dict(cpu_hours=2030.0 / 3600, rate=rate, cores=cores, hours=list(chance.HOURS),
                     p=chance.within(PRIOR['p_exists'], PRIOR['mean'], PRIOR['sd'], spent, [rate * cores * t for t in chance.HOURS]))
         assert close(got, want), got and {k: v for k, v in got.items() if k != 'p'}
@@ -316,26 +337,60 @@ def q_earlier_plans_hours_without_a_witness_count():
 
 
 def q_cores_continue_across_a_plan_switch():
-    # Replicata: chance.of(root, 'camp', '528:12', 1300) for campaign() with JOURNAL's start alone (at 1000), no probe
-    # files of its own, and two archived plans: plan1 at 768:13 (launched at 100; a plain seed of 5000 CPU s ended at
-    # 300; ended at 390) and plan2 at 528:12 (launched at 400; plain seed 1 ended at 950 after 400 CPU s, probe seed 2
-    # at 960, its rounds EARLY; ended at 990); and the same with an arm_stop of 528:12 in plan2 at 600 (a checkpoint's).
-    # Expectata (README [CON], 2026-11-03): cores 700 s (400 s and EARLY's 300) over the seconds of the last hour in
-    # which a plan ran at 528:12: 400 to 990 and 1000 to 1300, 890 s, plan1's span at 768:13 left out; with the stop,
-    # over 400 to 600 and 1000 to 1300, 500 s; CPU-hours 700 s; no rate yet in the live plan, so no chance.
-    # Resultata before: cores 0, as nothing has ended since the live plan's start.
+    # Replicata: chance.of(root, 'camp', '528:12', 1300) for a campaign whose live plan was launched at 1000, its probe
+    # seed 1 (ROUNDS) from 1000 to 1200 and plain seeds 2 and 3 running from 1000, with two archived plans: plan1 at
+    # 768:13 (launched at 100; a plain seed of 5000 CPU s from 100 to 300; ended at 390) and plan2 at 528:12 (launched at
+    # 400; plain seed 1 from 400 to 950, 400 CPU s; probe seed 2 from 400 to 960, its rounds EARLY; ended at 990).
+    # Expectata (README [CON], 2026-11-03): cores the live plan's seeds running (2 and 3) times the search CPU per second
+    # of life of the seeds at 528:12 that ended in the hour up to the latest end, plan2's among them: 300 + 400 + 300 s
+    # over 200 + 550 + 560 s, plan1's seed at 768:13 left out; CPU-hours 1000 s; the rate the live plan's (ROUNDS), the
+    # exposure spent each plan's rate times its CPU-hours there.
+    # Resultata before: cores 0, as nothing had ended since the live plan's start.
+    # Spec change (2026-11-04): until then the live plan had no probe seed and cores 700 s over the seconds of the last
+    # hour in which a plan ran at 528:12, and a second case stopped 528:12 in plan2 at 600, cutting that span (see
+    # q_cores_are_the_seeds_running_times_their_cpu_share).
     other = dict(cells=('768:13',), probes={},
-                 journal=[dict(time=100.0, event='start'), seed(300.0, 'plain', 1, 5000.0, cell='768:13'), dict(time=390.0, event='end', reason='signal')])
-    early = [dict(time=400.0, event='start'), seed(950.0, 'plain', 1, 400.0), seed(960.0, 'probe', 2, 2000.0), dict(time=990.0, event='end', reason='signal')]
-    stop = dict(time=600.0, event='arm_stop', cell='528:12', reason='checkpoint')
-    for journal, span in ((early, 890.0), (early[:1] + [stop] + early[1:], 500.0)):
-        d = campaign(journal=JOURNAL[:1], probes={}, archives=(('plan1', other),
-                     ('plan2', dict(cells=('528:12',), probes={os.path.join('camp', 'seeds', '528_12_s2'): probe_lines(EARLY)}, journal=journal))))
-        try:
-            got = chance.of(d, 'camp', '528:12', 1300.0)
-            assert close(got, dict(cpu_hours=700.0 / 3600, rate=None, cores=700.0 / span, hours=list(chance.HOURS), p=[])), (span, got)
-        finally:
-            shutil.rmtree(d)
+                 journal=[dict(time=100.0, event='start')] + life(100.0, 300.0, 'plain', 1, 5000.0, cell='768:13') + [dict(time=390.0, event='end', reason='signal')])
+    early = ([dict(time=400.0, event='start'), begun(400.0, 'plain', 1), begun(400.0, 'probe', 2), seed(950.0, 'plain', 1, 400.0),
+              seed(960.0, 'probe', 2, 2000.0), dict(time=990.0, event='end', reason='signal')])
+    journal = [dict(time=1000.0, event='start'), begun(1000.0, 'probe', 1), begun(1000.0, 'plain', 2), begun(1000.0, 'plain', 3),
+               seed(1200.0, 'probe', 1, 900.0)]
+    d = campaign(journal=journal, archives=(('plan1', other),
+                 ('plan2', dict(cells=('528:12',), probes={os.path.join('camp', 'seeds', '528_12_s2'): probe_lines(EARLY)}, journal=early))))
+    try:
+        got = chance.of(d, 'camp', '528:12', 1300.0)
+        rate, cores = 4.5e-4 / (300.0 / 3600), 2 * 1000.0 / 1310.0
+        spent = rate * 300.0 / 3600 + 3e-4 / (300.0 / 3600) * 700.0 / 3600
+        want = dict(cpu_hours=1000.0 / 3600, rate=rate, cores=cores, hours=list(chance.HOURS),
+                    p=chance.within(PRIOR['p_exists'], PRIOR['mean'], PRIOR['sd'], spent, [rate * cores * t for t in chance.HOURS]))
+        assert close(got, want), got and {k: v for k, v in got.items() if k != 'p'}
+    finally:
+        shutil.rmtree(d)
+
+
+def q_cores_are_the_seeds_running_times_their_cpu_share():
+    # Replicata: chance.of(root, 'camp', '528:12', now) for a made-up campaign run as plan 11 runs, in batches of 8
+    # seeds that start together and end 6400 s later: launched at 1000; the first batch, seeds 1 to 8 (seed 1 a probe,
+    # its rounds ROUNDS, 300 CPU s of search; the others plain, 3000 CPU s each), from 1000 to 7400; the second, seeds
+    # 9 to 16 (plain, 6000 CPU s each), from 7400 to 13800; and the third, seeds 17 to 24, running from 13800; at now
+    # 14400 (10 minutes into the third batch) and 17500 (more than an hour into it).
+    # Expectata (2026-11-04): at both times, cores the 8 seeds running times the search CPU per second of life of the
+    # seeds that ended in the hour up to the latest end, the second batch's (48000 s over 51200 s): 7.5; the first
+    # batch's left out, ended 6400 s before.
+    # Resultata before: 8 x 6000 / 3600 = 13.3 at 14400 (the second batch's whole CPU in the last hour's 3600 s) and 0
+    # at 17500 (no seed ended in its last hour), as in plan 11, whose chance chart read 0 in the last 45 minutes of each
+    # 107-minute batch.
+    journal = ([dict(time=1000.0, event='start')] + life(1000.0, 7400.0, 'probe', 1, 900.0)
+               + [x for k in range(2, 9) for x in life(1000.0, 7400.0, 'plain', k, 3000.0)]
+               + [x for k in range(9, 17) for x in life(7400.0, 13800.0, 'plain', k, 6000.0)]
+               + [begun(13800.0, 'plain', k) for k in range(17, 25)])
+    d = campaign(journal=journal, cells=('528:12',))
+    try:
+        for now in (14400.0, 17500.0):
+            got = chance.of(d, 'camp', '528:12', now)
+            assert close(got, expected(300.0 + 7 * 3000.0 + 8 * 6000.0, 7.5)), (now, got and {k: v for k, v in got.items() if k != 'p'})
+    finally:
+        shutil.rmtree(d)
 
 
 def as_it_stood(t, journal=JOURNAL, archives=(('plan1', PLAN1),)):
@@ -380,15 +435,17 @@ def q_history_gives_the_chance_as_it_stood():
 
 def q_history_falls_while_nothing_is_found():
     # Replicata: chance.history(root, 'camp', '528:12', now) for a made-up campaign launched at 1000 whose probe seed 1
-    # (ROUNDS) ended at 1100 and whose plain seeds each ended 300 s after the one before, from 1400, after 300 CPU s
-    # each, without a witness, at now 20000.
-    # Expectata: the chance within 6 h and within 24 h never rises from a point to the next once the cores' hour is full
-    # (from 4600 on), and is lower at the last point than at 4600: the same search, more hours without a find.
-    journal = ([dict(time=1000.0, event='start'), seed(1100.0, 'probe', 1, 900.0)]
-               + [seed(1100.0 + 300.0 * k, 'plain', k + 1, 300.0) for k in range(1, 63)])
+    # (ROUNDS, 300 CPU s of search) ran from 1100 to 1400, then plain seeds 2 to 63 one after another, 300 s and 300 CPU
+    # s each, the last running at now 20000, without a witness: one seed running at a time, at a share of 1.
+    # Expectata: the chance within 6 h and within 24 h never rises from a point to the next, and is lower at the last
+    # point than at the first: the same search, more hours without a find.
+    # Spec change (2026-11-04): until then the seeds' starts were not journaled and the qual held from 4600 on, once the
+    # cores' hour was full (see q_cores_are_the_seeds_running_times_their_cpu_share).
+    journal = ([dict(time=1000.0, event='start')] + life(1100.0, 1400.0, 'probe', 1, 900.0)
+               + [x for k in range(2, 64) for x in life(1400.0 + 300.0 * (k - 2), 1400.0 + 300.0 * (k - 1), 'plain', k, 300.0)])
     d = campaign(journal=journal, cells=('528:12',))
     try:
-        got = [p for p in chance.history(d, 'camp', '528:12', 20000.0) if p[0] >= 4600.0]
+        got = chance.history(d, 'camp', '528:12', 20000.0)
         assert len(got) > 10 and all(b[1] <= a[1] and b[2] <= a[2] for a, b in zip(got, got[1:])), got
         assert got[-1][1] < got[0][1] and got[-1][2] < got[0][2], got
     finally:
@@ -416,19 +473,28 @@ def q_of_refuses_malformed_campaigns():
     # missing; a seed_end of a kind other than plain or probe; the plan's dir other than camp (its seeds' prefixes are
     # paths from the root only if it names camp); no prior for 528:12; a prior with P(exists) 1.5, with sd 0, with an
     # extra field, without its sd; a prior with P(exists) 1.5 before any probe seed has finished (so that no chance is
-    # computed with it yet); and at now 1000, the campaign's start (no span to measure cores over).
+    # computed with it yet); a seed_end without its seed_start; a seed started twice; a seed ending at its start; an
+    # end record while seeds 7 and 8 run; a second start without an end before it; and at now 1000, before which the
+    # campaign had not begun.
     # Expectata: AssertionError, each: a malformed prior fails at once, not at the first probe seed's end.
+    # Spec change (2026-11-04): the seeds' starts, the runs at an end and the alternation of starts and ends checked
+    # (see q_cores_are_the_seeds_running_times_their_cpu_share); until then the reason for the last was that at the
+    # campaign's start there was no span to measure cores over.
     prefix = os.path.join('camp', 'seeds', '528_12_s1')
     lines = probe_lines(ROUNDS)
     swapped = lines[:2] + [lines[3], lines[2]] + lines[4:]
     bad = [dict(probes={prefix: lines[:-1]}), dict(probes={prefix: lines[:-1] + [dict(lines[-1], rounds=2)]}),
            dict(probes={prefix: swapped}), dict(probes={prefix: lines[1:]}),
-           dict(journal=JOURNAL + [dict(seed(3300.0, 'plain', 9, 1.0), kind='odd')]), dict(plan_dir='elsewhere'),
+           dict(journal=JOURNAL + [begun(3250.0, 'odd', 9), dict(seed(3300.0, 'plain', 9, 1.0), kind='odd')]), dict(plan_dir='elsewhere'),
            dict(priors={'720:13': PRIOR}), dict(priors={'528:12': dict(PRIOR, p_exists=1.5)}),
            dict(priors={'528:12': dict(PRIOR, sd=0.0)}), dict(priors={'528:12': dict(PRIOR, extra=1)}),
            dict(priors={'528:12': {k: v for k, v in PRIOR.items() if k != 'sd'}}),
            dict(priors={'528:12': dict(PRIOR, p_exists=1.5)}, probes={},
-                journal=[r for r in JOURNAL if not (r['event'] == 'seed_end' and r['k'] == 1)])]
+                journal=[r for r in JOURNAL if not (r['event'] == 'seed_end' and r['k'] == 1)]),
+           dict(journal=JOURNAL + [seed(3300.0, 'plain', 9, 1.0)]), dict(journal=JOURNAL + [begun(3300.0, 'plain', 7)]),
+           dict(journal=JOURNAL + life(3300.0, 3300.0, 'plain', 9, 1.0)),
+           dict(journal=JOURNAL + [dict(time=3500.0, event='end', reason='signal')]),
+           dict(journal=JOURNAL + [dict(time=3500.0, event='start', resumed=True)])]
     for kw in bad:
         d = campaign(**kw)
         try:

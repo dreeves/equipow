@@ -103,7 +103,10 @@ try {
     assert(n % 4 !== 2 || (lo === 1 && hi === 1), n, c);           // why such n, but 2, need no column
   });
   assert(D.mtop === Math.max(...D.cols.map(c => c[1])) + 1, D.mtop);
-  assert(Number.isInteger(D.mtopAt) && D.mtopAt > D.nmax && D.mtopAt % 2 === 0, D.mtopAt);   // past the chart ([LIN])
+  // the least n not ruled out at each order from mtop on, past the chart ([LIN], 2026-11-03; a list since 2026-11-04,
+  // [M17]), which cannot fall: order m + 1 at n has order m there
+  assert(Array.isArray(D.mtopAt) && D.mtopAt.length > 0 && D.mtopAt.every(n => Number.isInteger(n) && n > D.nmax && n % 2 === 0), D.mtopAt);
+  assert(D.mtopAt.slice(1).every((n, i) => D.mtopAt[i] <= n), D.mtopAt);
   // the explicit sequences longer than the chart reaches, for the table of smallest lengths (since 2026-11-04: 1440:16)
   assert(Array.isArray(D.past) && D.past.every(([n, m, label]) => Number.isInteger(n) && n > D.nmax && n % 2 === 0 && Number.isInteger(m) && m > 0 && label), D.past);
 

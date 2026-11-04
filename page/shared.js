@@ -262,22 +262,24 @@ function legendItem(legend, kind, role) {
 // from mstar.js: smallest() gives for each order m, from 1, [m, the least n whose upper bound is at least m (order m is
 // not ruled out), the least length known to reach m, best]; and smallestRow(row) its row of the table: m, those two,
 // and ✓ where they agree, the order's smallest length proven.  The orders run from 1 to the largest some n up to
-// MSTAR.nmax is not ruled out for (dreeves, 2026-10-30: "why isn't 480:14 highlighted in the chart?"), and one more,
-// whose least n not ruled out is MSTAR.mtopAt (2026-11-03, [LIN]).  best[m] is the least n whose lower bound is at least
-// m, or the product of two lesser orders' best lengths where that is less, since f(x) g(x^n), n the length of f, has
-// order at least the sum of theirs (dreeves's README, 2026-10-31: "[MIN] In the "smallest length known for each order"
-// table, we currently have no entries for the smallest known n for orders 14 and 15"; the table showed — where no n up
-// to MSTAR.nmax was known to reach m).  An example longer than the chart counts as well (MSTAR.past).
+// MSTAR.nmax is not ruled out for (dreeves, 2026-10-30: "why isn't 480:14 highlighted in the chart?"), and those past
+// it, each with its least n not ruled out in MSTAR.mtopAt (one more from 2026-11-03, [LIN]; through order 17 since
+// 2026-11-04, [M17]).  best[m] is the least n whose lower bound is at least m, or the product of two lesser orders' best
+// lengths where that is less, since f(x) g(x^n), n the length of f, has order at least the sum of theirs (dreeves's
+// README, 2026-10-31: "[MIN] In the "smallest length known for each order" table, we currently have no entries for the
+// smallest known n for orders 14 and 15"; the table showed — where no n up to MSTAR.nmax was known to reach m).  An
+// example longer than the chart counts as well (MSTAR.past).
 function smallest() {
   const knownAt = [], possibleAt = [];                             // order m: its least n known, its least n not ruled out
   raised(MSTAR.cols, () => 0).forEach(([known, possible], i) => {
     known.forEach(m => { knownAt[m] = i + 1; });
     possible.forEach(m => { possibleAt[m] = i + 1; });
   });
-  // One order more than the largest some n up to MSTAR.nmax allows, not ruled out first at MSTAR.mtopAt, the least n
-  // past the chart that its own tests leave open (dreeves's README, 2026-11-03: "[LIN] Add one more line for m=16 to
-  // the "smallest length known for each order" table", then "yes, 1440 instead of ">1024" if that's all we know so far").
-  possibleAt.push(MSTAR.mtopAt);
+  // The orders past the largest some n up to MSTAR.nmax allows, each not ruled out first at its n of MSTAR.mtopAt, the
+  // least n past the chart that its own tests leave open (dreeves's README, 2026-11-03: "[LIN] Add one more line for
+  // m=16 to the "smallest length known for each order" table", then "yes, 1440 instead of ">1024" if that's all we know
+  // so far"; and 2026-11-04: "[M17] Let's add m=17 to the "smallest length known" table").
+  possibleAt.push(...MSTAR.mtopAt);
   // An example past the chart reaches its order at its own length (mstar.js's past; since 2026-11-04, 1440:16).
   MSTAR.past.forEach(([n, m]) => { knownAt[m] = Math.min(knownAt[m] ?? Infinity, n); });
   const best = [];                                                 // Infinity stands for knownAt's missing n, the least of none

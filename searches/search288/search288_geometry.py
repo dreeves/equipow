@@ -13,7 +13,8 @@ from fpylll import (IntegerMatrix, LLL, BKZ, Enumeration, EnumerationError,
                    EvaluatorStrategy, FPLLL)
 import sympy as sp
 ROOT = Path(__file__).resolve().parents[2]   # the repository's root, above searches/search288/ ([FAC] stage 3a)
-sys.path[:0] = [str(ROOT), str(ROOT / 'searches' / 'join720')]   # for mstar, overnight_v5, lattice288, join720
+# for mstar; overnight_v5 and lattice288, in engine/ since [FAC] stage 3b (2026-11-04); join720
+sys.path[:0] = [str(ROOT), str(ROOT / 'engine'), str(ROOT / 'searches' / 'join720')]
 import mstar
 import overnight_v5 as ov
 from lattice288 import IntegerSystem, moment_rows, count_rows, valid

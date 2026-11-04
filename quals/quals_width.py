@@ -19,6 +19,8 @@ import sympy as sp
 from scipy.optimize import linprog
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # the repository's root, above quals/
 sys.path.insert(0, HERE)                                              # for its modules
+ENGINE = os.path.join(HERE, 'engine')                                 # the engine's, since [FAC] stage 3b (2026-11-04)
+sys.path.insert(0, ENGINE)                                            # for its modules
 # migrate_journals.py's directory, since [FAC] stage 3a (2026-10-31)
 sys.path.insert(0, os.path.join(HERE, 'searches', 'overnight_v5_240_11'))
 import overnight_v5 as v5
@@ -1010,7 +1012,7 @@ def q_code_and_source_cover_width():
     # CODE, and a worker running another width.py is refused by work().
     d = tempfile.mkdtemp(dir=QUALS)
     for f in ('overnight_v5.py', 'certbb.py', 'width.py'):
-        open(os.path.join(d, f), 'w').write(open(os.path.join(HERE, f)).read())
+        open(os.path.join(d, f), 'w').write(open(os.path.join(ENGINE, f)).read())
     probe = (f"import sys, json; sys.dont_write_bytecode = True; sys.path.insert(0, {d!r})\n"
              f"import overnight_v5 as v5\n"
              f"assert v5.__file__.startswith({d!r}) and v5.certbb.__file__.startswith({d!r}) and v5.certbb.width.__file__.startswith({d!r})\n"
@@ -1024,7 +1026,7 @@ def q_code_and_source_cover_width():
     open(os.path.join(d, 'width.py'), 'a').write('# one more line\n')
     code, source = ask()
     assert code != v5.CODE and source[:2] == v5.SOURCE[:2] and source[2] != v5.SOURCE[2]
-    assert hashlib.sha1(open(os.path.join(HERE, 'width.py'), 'rb').read()).hexdigest() == v5.SOURCE[2]
+    assert hashlib.sha1(open(os.path.join(ENGINE, 'width.py'), 'rb').read()).hexdigest() == v5.SOURCE[2]
 
 
 def q_migration_script():

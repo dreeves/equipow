@@ -21,7 +21,7 @@ import fpylll
 import numpy
 
 ROOT = Path(__file__).resolve().parents[2]   # the repository's root, above searches/search592/ ([FAC] stage 3a)
-sys.path.insert(0, str(ROOT))                # for lattice288
+sys.path[:0] = [str(ROOT), str(ROOT / 'engine')]   # for lattice288, in engine/ since [FAC] stage 3b
 import residue592 as R
 import search592_geometry as G
 from lattice288 import valid

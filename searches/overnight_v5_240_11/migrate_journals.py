@@ -29,6 +29,8 @@ import os, sys, re, json, shutil, subprocess
 # the repository's root, above searches/overnight_v5_240_11/ ([FAC] stage 3a), and so its modules
 HERE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, HERE)
+# overnight_v5 and boxsplit, in engine/ since [FAC] stage 3b (2026-11-04)
+sys.path.insert(0, os.path.join(HERE, 'engine'))
 import overnight_v5 as v5
 import boxsplit as bx
 

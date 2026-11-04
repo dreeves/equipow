@@ -24,6 +24,14 @@ Potential tasks:
 * [CON] Does this probabilty graph actually make sense? Shouldn't the probability generally go down, conditional on not having found anything so far?
 * [APP] Eyeballing the charts it looks like maybe `m*(n) ~= 1.2*log2(n)` or something; any interesting conjectures on the asymptotics here? PS: For powers of two we already have something like this: `m*(2^k) = c*log2(n)` where `c` is at least `77/68` and at most `2/log2(3)`. Relatedly, the upper envelope of `m*(n)` is at least `12/log2(480) log2(n)` ~= 1.347 which we get from Theorem 4.1 (Multiplication) of BGPW which tells us that `m*(n^k) >= k m*(n)`. Namely, `m*(480^k) >= 12k` so for certain `n`, `m*(n) >= 12 log_480(n) = 12 log2(n) / log2(480) = 12/log2(480) log2(n)`. So whenever we find a new high watermark for `m*(n)/log2(n)` that bumps up the upper envelope for the `m*()` function. Currently the best we have is 480:12. The following would beat that: 432:12, 672:13, 720: 13, 960:14. Update: We got 960:15! So 15/log2(960) ≈ 1.514 is the new bound on the upper envelope. Also 2^58 gives us 66/58 ≈ 1.138 as the lower bound.
 
+Claude:
+
+[FUL]: no red cell assumes the Symmetry Conjecture. Nine upper bounds come from BGPW's Table 2: 56, 96, 144, 152, 168, 176, 184, 272 and 288. They proved those by hand or by ILP over all sign patterns; the ILP at 168, 176, 184 and 272 is uncertified but was cross-checked in two solvers. Their three conjecture-dependent values aren't used: 288 shows as 9–10, and 240 and 304 rest on our own proofs. Every other red cell is the 2-adic bound, a norm bound, a residue condition, or one of our proofs.
+
+[APP], for powers of 2: the product rule gives m*(2^(a+b)) ≥ m*(2^a) + m*(2^b). So by Fekete's lemma m*(2^k)/k converges to its supremum c, with 66/58 ≈ 1.138 ≤ c ≤ 2/log₂3 ≈ 1.262 (the upper end from the mod-3 norm bound). For n not divisible by 3, the same bound gives m*(n) ≤ 1.262 log₂n + O(1). So the 1.514 high-water mark from 960^k can only come from multiples of 3.
+
+[end Claude]
+
 
 Stan notes:
 

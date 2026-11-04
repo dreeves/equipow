@@ -18,6 +18,8 @@ import numpy as np
 import sympy as sp
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # the repository's root, above quals/
 sys.path.insert(0, HERE)                                              # for its modules
+ENGINE = os.path.join(HERE, 'engine')                                 # the engine's, since [FAC] stage 3b (2026-11-04)
+sys.path.insert(0, ENGINE)                                            # for its modules
 # overnight_v4.py's and overnight_240_v3.py's directories, since [FAC] stage 3a (2026-10-31)
 sys.path[:0] = [os.path.join(HERE, 'searches', d) for d in ('overnight_v4', 'overnight_240')]
 import overnight_v5 as v5
@@ -209,8 +211,8 @@ def q_configure():
     # overnight_v5.py; then AssertionError in configure.
     v5.configure(304, 9)
     assert (v5.N, v5.ORDER, (v5.CASCADE, v5.BUDGET)) == (304, 9, v5.SETTINGS[304, 9])
-    assert v5.JOURNAL == os.path.join(HERE, 'overnight_v5_304_9_journal.jsonl')
-    assert v5.LOG == os.path.join(HERE, 'overnight_v5_304_9.log')
+    assert v5.JOURNAL == os.path.join(ENGINE, 'overnight_v5_304_9_journal.jsonl')
+    assert v5.LOG == os.path.join(ENGINE, 'overnight_v5_304_9.log')
     expect_assertion(lambda: v5.configure(240, 12), 'configure')
 
 
@@ -270,10 +272,11 @@ def q_command_line():
     # Expectata: each exits at once with AssertionError (the usage message, then the missing settings), and
     # leaves no journal or log behind.
     for args, words in (([], 'usage'), (['240', '12'], 'no settings for N = 240, order 12')):
-        p = subprocess.run([sys.executable, '-B', os.path.join(HERE, 'overnight_v5.py')] + args,
+        p = subprocess.run([sys.executable, '-B', os.path.join(ENGINE, 'overnight_v5.py')] + args,
                            capture_output=True, text=True, timeout=300)
         assert p.returncode != 0 and 'AssertionError' in p.stderr and words in p.stderr, p.stderr[-600:]
-    assert not any(os.path.exists(os.path.join(HERE, f)) for f in ('overnight_v5_240_12_journal.jsonl', 'overnight_v5_240_12.log'))
+    assert not any(os.path.exists(os.path.join(ENGINE, f))
+                   for f in ('overnight_v5_240_12_journal.jsonl', 'overnight_v5_240_12.log'))
 
 
 def q_v5_is_v4_but_the_node_solver():
@@ -1027,7 +1030,7 @@ def q_work_requires_the_same_source():
     # Expectata: SOURCE is the sha1 of the bytes of overnight_v5.py, of certbb.py and of width.py; each call fails
     # with AssertionError in work.
     at(240, 11)
-    assert v5.SOURCE == tuple(hashlib.sha1(open(os.path.join(HERE, f), 'rb').read()).hexdigest()
+    assert v5.SOURCE == tuple(hashlib.sha1(open(os.path.join(ENGINE, f), 'rb').read()).hexdigest()
                               for f in ('overnight_v5.py', 'certbb.py', 'width.py'))
     for source in ('another file', (v5.SOURCE[0], '0' * 40, v5.SOURCE[2]), ('0' * 40,) + v5.SOURCE[1:],
                    v5.SOURCE[:2] + ('0' * 40,), v5.SOURCE[:2]):
@@ -1043,7 +1046,7 @@ def q_code_and_source_cover_certbb():
     # gives a fresh journal header and is caught by every worker.
     d = tempfile.mkdtemp()
     for f in ('overnight_v5.py', 'certbb.py', 'width.py'):
-        open(os.path.join(d, f), 'w').write(open(os.path.join(HERE, f)).read())
+        open(os.path.join(d, f), 'w').write(open(os.path.join(ENGINE, f)).read())
     probe = (f"import sys, json; sys.dont_write_bytecode = True; sys.path.insert(0, {d!r})\n"
              f"import overnight_v5 as v5\n"
              f"assert v5.__file__.startswith({d!r}) and v5.certbb.__file__.startswith({d!r})\n"
@@ -1127,7 +1130,7 @@ def q_sigint_stops_at_once_and_records_nothing():
     # Expectata: KeyboardInterrupt ends the run within 60 s of the signal, and the journal holds only its header line.
     d = tempfile.mkdtemp()
     path = os.path.join(d, 'j.jsonl')
-    code = (f"import sys; sys.dont_write_bytecode = True; sys.path.insert(0, {HERE!r})\n"
+    code = (f"import sys; sys.dont_write_bytecode = True; sys.path.insert(0, {ENGINE!r})\n"
             f"import overnight_v5 as v5\n"
             f"if __name__ == '__main__':\n"
             f"    v5.configure(240, 11)\n"
@@ -1438,11 +1441,11 @@ def q_solve_checks_point_certificates():
 def q_certbb_refuses_python_O():
     # Replicata: a fresh python -O importing certbb; another running overnight_v5.py 40 6 under -O.
     # Expectata: both fail with certbb's ImportError naming python -O, and no journal or log for 40@6 appears.
-    p = run_child(f'import sys; sys.path.insert(0, {HERE!r})\nimport certbb\n', '-O')
+    p = run_child(f'import sys; sys.path.insert(0, {ENGINE!r})\nimport certbb\n', '-O')
     assert p.returncode != 0 and 'ImportError' in p.stderr and 'python -O' in p.stderr, p.stderr[-600:]
-    names = [os.path.join(HERE, f) for f in ('overnight_v5_40_6_journal.jsonl', 'overnight_v5_40_6.log')]
+    names = [os.path.join(ENGINE, f) for f in ('overnight_v5_40_6_journal.jsonl', 'overnight_v5_40_6.log')]
     assert not any(map(os.path.exists, names))
-    p = subprocess.run([sys.executable, '-B', '-O', os.path.join(HERE, 'overnight_v5.py'), '40', '6'],
+    p = subprocess.run([sys.executable, '-B', '-O', os.path.join(ENGINE, 'overnight_v5.py'), '40', '6'],
                        capture_output=True, text=True, timeout=300, cwd=HERE)
     assert p.returncode != 0 and 'ImportError' in p.stderr and 'python -O' in p.stderr, p.stderr[-600:]
     assert not any(map(os.path.exists, names))
@@ -1456,8 +1459,8 @@ def q_verify_holds_under_python_O():
     # too many; and, as a control, (g) a proof of an empty pool, which is empty and valid.
     # Expectata: __debug__ is False there and (a) to (f) each raise ProofError, (g) none: verify's checks do not rest
     # on assert.  (Red: certbb with assert-based checks accepts (a) under -O, as the review found.)
-    path = os.path.join(HERE, 'certbb.py')
-    code = f"""import sys, json, types; sys.dont_write_bytecode = True; sys.path.insert(0, {HERE!r})
+    path = os.path.join(ENGINE, 'certbb.py')
+    code = f"""import sys, json, types; sys.dont_write_bytecode = True; sys.path.insert(0, {ENGINE!r})
 src = open({path!r}).read()
 guard = [line for line in src.splitlines(True) if line.startswith('if not __debug__:')]
 # TODO: error copy; says certbb.py does not have exactly one import guard line (this child runs under -O, so no assert)
@@ -1507,7 +1510,7 @@ def q_check_streams_a_long_proof_in_bounded_memory():
     # more than 100 MB of tokens and more than 250 million digits, yet the peak grows by less than 20 MB while
     # solve_node checks it; keeping the tokens raises the peak by more than 100 MB (so the measurement sees a kept proof).
     assert sys.platform == 'darwin', sys.platform              # ru_maxrss is in bytes on macOS (kilobytes on Linux)
-    code = f"""import sys, json, resource, hashlib; sys.dont_write_bytecode = True; sys.path.insert(0, {HERE!r})
+    code = f"""import sys, json, resource, hashlib; sys.dont_write_bytecode = True; sys.path.insert(0, {ENGINE!r})
 import overnight_v5 as v5, certbb
 def peak(): return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
 v5.configure(40, 6)
@@ -1839,7 +1842,7 @@ def end_to_end(n, order):
     for path in (journal, log):
         if os.path.exists(path): os.remove(path)
     script = os.path.join(RUNS, f'drive_{n}_{order}.py')
-    open(script, 'w').write(DRIVER.format(here=HERE, n=n, order=order, journal=journal, log=log))
+    open(script, 'w').write(DRIVER.format(here=ENGINE, n=n, order=order, journal=journal, log=log))
     texts = []
     for _ in range(2):
         p = subprocess.run([sys.executable, '-B', script], capture_output=True, text=True, timeout=3600)

@@ -20,7 +20,7 @@ class ProgressModuleQuals(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.directory = Path(self.tmp.name)
-        root = Path(progress.__file__).parent
+        root = Path(progress.__file__).parent / 'engine'       # the engine's, since [FAC] stage 3b (2026-11-04)
         for name in ('certbb.py', 'overnight_v5.py', 'boxsplit.py'):
             shutil.copyfile(root / name, self.directory / name)
         with (self.directory / 'certbb.py').open('a') as fh:
@@ -133,7 +133,7 @@ class GeometryCacheQuals(unittest.TestCase):
         migration writes it)."""
         d = Path(self.tmp.name) / name
         d.mkdir()
-        root = Path(progress.__file__).parent
+        root = Path(progress.__file__).parent / 'engine'       # the engine's, since [FAC] stage 3b (2026-11-04)
         for f in ('overnight_v5.py', 'certbb.py', 'boxsplit.py'): shutil.copyfile(root / f, d / f)
         (d / 'overnight_v5.py').write_text(edit((d / 'overnight_v5.py').read_text()))
         with (d / 'certbb.py').open('a') as fh: fh.write(solver)

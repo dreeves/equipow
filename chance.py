@@ -29,13 +29,17 @@ Vocabulary, each term defined once here:
   cpu_hours (H)  the search CPU-hours of the target's ended seeds in all of its campaign's plans: the campaign has found
               no witness in them (README [CON], 2026-11-03: "conditional on not having found anything so far").
   spent       the exposure of those hours: each plan's own rate times its CPU-hours at the target, summed over the plans.
-  ran         of a plan at a target: the spans in which the plan, holding the target among its cells, ran: from each
-              start record of its journal to the next end record, or to now, and none after a stop of the target there
-              (a witness or arm_stop record of its cell).
-  cores (c)   the target's recent search CPU-hours per wall-hour: the search CPU of its seeds, in any of the campaign's
-              plans, that ended in the last WINDOW seconds, over the seconds of that span in which a plan ran at the
-              target (README [CON], 2026-11-03: counted from the latest start instead, it began near 0 with each plan or
-              relaunch, before its first seeds ended, and the chance rose over its first hour).
+  life        of an ended seed: the seconds from its seed_start record to its seed_end record.
+  running     of a plan at a target: its seeds there with a seed_start record and no seed_end record yet; none at an
+              end record of the plan's journal (the campaign's driver ends its seeds before it stops).
+  cores (c)   the target's search CPU-hours per wall-hour ahead: the live plan's seeds running there times the search
+              CPU per second of life of the target's seeds, in any of the campaign's plans, that ended in the WINDOW
+              seconds up to the latest of their ends (their search CPU summed over their lives summed); none before the
+              live plan's first probe seed has finished, when no chance is computed.  Counted from the latest start
+              instead, it began near 0 with each plan or relaunch, before its first seeds ended (README [CON],
+              2026-11-03); counted as the search CPU of the seeds that ended in the last WINDOW seconds per second of
+              it, it was 0 in the last 45 minutes of each of plan 11's 107-minute batches, whose seeds start and end
+              together, and 1.8 times too high in the rest (2026-11-04).
   prior       of a target, in its campaign's PRIORS: with probability 1 - p_exists no (-1)^m-symmetric sequence exists
               at the cell and theta = 0; otherwise log2 theta is normal with mean and sd.
   chance      of a live target within t hours: P(a witness within the next t hours | none in H CPU-hours) under the
@@ -58,7 +62,7 @@ import numpy as np
 
 HOURS = tuple(k / 4 for k in range(4 * 72 + 1))   # the chance's t: every quarter hour from 0 to 72 (the coordinator,
                                                   # 2026-11-03: "for t from 0 to 72")
-WINDOW = 3600.0                  # seconds: cores' span, "the campaign's recent CPU-hours per wall-hour"
+WINDOW = 3600.0                  # seconds: the span of the latest seeds' ends whose CPU per second of life cores takes
 SPAN, STEP = 10.0, 0.01          # within's grid of log2 theta: mean +- SPAN sd, STEP bits apart (the trapezoid rule on a
                                  # smooth integrand; the prior's mass beyond 10 sd is about 1e-23)
 PRIORS = 'chance.json'           # in a campaign's directory: {targets: {N:M: {p_exists, mean, sd}}, sources: {...}}
@@ -136,7 +140,8 @@ def plans(root, campaign):
     """The campaign's plans (see the vocabulary), its archived ones in order and its live one last, as (home, plan,
     records): its directory (a path from root), its plan.json and its journal's records.  Asserted: the archived plans
     numbered from 1 without a gap, and each plan naming the campaign's directory (its seeds' prefixes are paths from
-    root only if it does) and its journal beginning with its start record."""
+    root only if it does) and its journal beginning with its start record, its start and end records alternating in
+    time order, and no seed running at an end record."""
     ks = sorted(int(m[1]) for m in map(ARCHIVED.fullmatch, os.listdir(os.path.join(root, campaign))) if m)
     # TODO: error copy; says the campaign's archived plans are not numbered 1, 2, ... without a gap, listing their numbers
     assert ks == list(range(1, len(ks) + 1)), f'Claude: "the archived plans of {campaign} are numbered {ks}"'
@@ -146,28 +151,37 @@ def plans(root, campaign):
         # TODO: error copy; says a plan of the campaign names another directory than the campaign's, naming both
         assert plan['dir'] == campaign, f'Claude: "{home}/plan.json says it is in {plan["dir"]}"'
         records = lines(os.path.join(root, home, 'journal.jsonl'))
-        # TODO: error copy; says a plan's journal does not begin with its start record, naming the plan's directory
-        assert records and records[0]['event'] == 'start', f'Claude: "{home}/journal.jsonl does not begin with its start"'
+        marks = [(r['event'], r['time']) for r in records if r['event'] in ('start', 'end')]
+        idle = all({(x['cell'], x['k']) for x in records[:i] if x['event'] == 'seed_start'}
+                   == {(x['cell'], x['k']) for x in records[:i] if x['event'] == 'seed_end'} for i, r in enumerate(records) if r['event'] == 'end')
+        # TODO: error copy; says a plan's journal does not begin with its start record, its start and end records do not alternate in time order, or a seed was running at an end record, naming the plan's directory
+        assert (records and records[0]['event'] == 'start' and [t for _, t in marks] == sorted(t for _, t in marks)
+                and [e for e, _ in marks] == ['start', 'end'] * (len(marks) // 2) + ['start'] * (len(marks) % 2) and idle), \
+            f'Claude: "{home}/journal.jsonl does not begin with its start, its starts and ends do not alternate in time order, or a seed ran at an end"'
         out.append((home, plan, records))
     return out
 
 
 def searched(root, campaign, home, records, target):
-    """The target's search in one of the campaign's plans, the one in home with these journal records: (ends, cpu,
-    probes), its seeds' seed_end records, their search CPU by seed and its finished probe seeds' rounds (X, cpu) by seed,
-    each PREFIX.jsonl read below home where its journal names it below the campaign's directory (an archived plan's
-    files moved with it).  Asserted: each seed of kind plain or probe, ended once, a plain one with its CPU seconds,
-    and each named below the campaign's directory."""
+    """The target's search in one of the campaign's plans, the one in home with these journal records: (starts, ends,
+    cpu, probes), its seeds' seed_start times by seed, their seed_end records, their search CPU by seed and its finished
+    probe seeds' rounds (X, cpu) by seed, each PREFIX.jsonl read below home where its journal names it below the
+    campaign's directory (an archived plan's files moved with it).  Asserted: each seed started once and ended at most
+    once, after its start, of kind plain or probe, a plain one with its CPU seconds, and each named below the
+    campaign's directory."""
+    begun = [r for r in records if r['event'] == 'seed_start' and r['cell'] == target]
+    starts = {r['k']: r['time'] for r in begun}
     ends = [r for r in records if r['event'] == 'seed_end' and r['cell'] == target]
-    # TODO: error copy; says the target's seeds are not each of kind plain or probe, ended once, a plain one with its CPU seconds and each named below the campaign's directory
-    assert ({e['kind'] for e in ends} <= {'plain', 'probe'} and len({e['k'] for e in ends}) == len(ends)
+    # TODO: error copy; says the target's seeds are not each started once and ended at most once, after its start, of kind plain or probe, a plain one with its CPU seconds and each named below the campaign's directory
+    assert (len(starts) == len(begun) and all(e['k'] in starts and starts[e['k']] < e['time'] for e in ends)
+            and {e['kind'] for e in ends} <= {'plain', 'probe'} and len({e['k'] for e in ends}) == len(ends)
             and all(type(e['cpu']) in (int, float) and 0 <= e['cpu'] < math.inf for e in ends if e['kind'] == 'plain')
             and all(e['prefix'].startswith(campaign + os.sep) for e in ends)), \
-        f'Claude: "the seeds of {target} in {home} are of kinds {sorted({e["kind"] for e in ends})}, or one ended twice, without its CPU or outside {campaign}"'
+        f'Claude: "the seeds of {target} in {home} are of kinds {sorted({e["kind"] for e in ends})}, or one started twice, ended twice, before its start or without its CPU, or outside {campaign}"'
     probes = {e['k']: rounds(os.path.join(root, home, os.path.relpath(e['prefix'], campaign) + '.jsonl'))
               for e in ends if e['kind'] == 'probe' and not e['cancelled']}
     cpu = {e['k']: e['cpu'] for e in ends if e['kind'] == 'plain'} | {k: c for k, (_, c) in probes.items()}   # search CPU
-    return ends, cpu, probes
+    return starts, ends, cpu, probes
 
 
 def rate_of(probes):
@@ -175,43 +189,27 @@ def rate_of(probes):
     return sum(X for X, _ in probes.values()) / (sum(c for _, c in probes.values()) / 3600)
 
 
-def ran(plan, records, target, now):
-    """The spans (a, b) in which the plan, with these journal records, ran at the target (see the vocabulary), a span
-    after a stop of the target there with b <= a; none if the target is not among its cells.  Asserted: its start and
-    end records alternating from a start, in time order, and all before now."""
-    marks = [(r['event'], r['time']) for r in records if r['event'] in ('start', 'end')]
-    starts, ends = [t for e, t in marks if e == 'start'], [t for e, t in marks if e == 'end']
-    # TODO: error copy; says the plan's journal's start and end records do not alternate from a start in time order before now
-    assert ([e for e, _ in marks] == ['start', 'end'] * len(ends) + ['start'] * (len(starts) - len(ends))
-            and len(starts) - len(ends) in (0, 1) and [t for _, t in marks] == sorted(t for _, t in marks)
-            and all(t < now for _, t in marks)), f'Claude: "the starts and ends of a plan at {target} are {marks}, before {now}"'
-    held = target in cells(plan)
-    cut = min([r['time'] for r in records if r['event'] in ('witness', 'arm_stop') and r['cell'] == target], default=math.inf)
-    return [(a, min(b, cut)) for a, b in zip(starts, ends + [now]) if held]
-
-
-def measure(root, campaign, plans, prior, target, now):
-    """The chance of the target, whose prior is this, from its campaign's plans (as plans gives them, the live one last)
-    at time now (epoch seconds): {cpu_hours, rate, cores, hours, p}: H (every plan's), the live plan's r, c (see the
-    vocabulary), HOURS, and the chance within each (within, at exposure spent and ahead r c t); with no rate yet in the
-    live plan, rate None and p empty.  Asserted: every archived plan that searched the target has its rate there."""
+def measure(root, campaign, plans, prior, target):
+    """The chance of the target, whose prior is this, from its campaign's plans (as plans gives them, the live one last,
+    or as they stood at a time, as_of): {cpu_hours, rate, cores, hours, p}: H (every plan's), the live plan's r, c (see
+    the vocabulary), HOURS, and the chance within each (within, at exposure spent and ahead r c t); with no rate yet in
+    the live plan, rate and cores None and p empty.  Asserted: every archived plan that searched the target has its
+    rate there."""
     each = [searched(root, campaign, home, records, target) for home, _, records in plans]
-    *earlier, (_, _, probes) = each
-    start = max(r['time'] for r in plans[-1][2] if r['event'] == 'start')
-    # TODO: error copy; says the time given is not after the campaign's latest start, so there is no span to measure its pace over
-    assert now > start, f'Claude: "{now} is not after the campaign\'s start, {start}"'
-    unmeasured = [home for (home, _, _), (_, c, p) in zip(plans, earlier) if c and not p]
+    *earlier, (starts, ends, _, probes) = each
+    unmeasured = [home for (home, _, _), (_, _, c, p) in zip(plans, earlier) if c and not p]
     # TODO: error copy; says these archived plans searched the target with no finished probe seed, so the exposure of their hours there is unknown, naming them
     assert not unmeasured, f'Claude: "{unmeasured} searched {target} without a finished probe seed: the exposure of those hours is unknown"'
-    t0 = now - WINDOW
-    span = sum(max(0.0, b - max(a, t0)) for _, plan, records in plans for a, b in ran(plan, records, target, now))
-    recent = sum(c[e['k']] for seeds, c, _ in each for e in seeds if e['k'] in c and e['time'] > t0)
-    measured = dict(cpu_hours=sum(sum(c.values()) for _, c, _ in each) / 3600, hours=list(HOURS), cores=recent / span)
-    if not probes: return dict(measured, rate=None, p=[])         # no probe seed has finished: no rate measured yet
+    measured = dict(cpu_hours=sum(sum(c.values()) for _, _, c, _ in each) / 3600, hours=list(HOURS))
+    if not probes: return dict(measured, rate=None, cores=None, p=[])   # no probe seed has finished: no rate measured yet
     rate = rate_of(probes)
-    spent = sum(rate_of(p) * (sum(c.values()) / 3600) for _, c, p in each if p)
-    return dict(measured, rate=rate, p=within(prior['p_exists'], prior['mean'], prior['sd'], spent,
-                                              [rate * measured['cores'] * t for t in HOURS]))
+    spent = sum(rate_of(p) * (sum(c.values()) / 3600) for _, _, c, p in each if p)
+    lives = [(e['time'], e['time'] - s[e['k']], c[e['k']]) for s, seeds, c, _ in each for e in seeds if e['k'] in c]
+    last = max(t for t, _, _ in lives)                            # a finished probe seed's end among them
+    recent = [(life, cpu) for t, life, cpu in lives if t > last - WINDOW]
+    cores = len(set(starts) - {e['k'] for e in ends}) * sum(cpu for _, cpu in recent) / sum(life for life, _ in recent)
+    return dict(measured, rate=rate, cores=cores, p=within(prior['p_exists'], prior['mean'], prior['sd'], spent,
+                                                         [rate * cores * t for t in HOURS]))
 
 
 def as_of(plans, t):
@@ -231,7 +229,7 @@ def history(root, campaign, target, now):
     prior, first = prior_of(root, campaign, target), began(ps, target)
     times = [first + QUARTER * k for k in range(1, math.ceil((now - first) / QUARTER))] + [now]
     stood = [(t, as_of(ps, t)) for t in times]
-    chances = [(t, measure(root, campaign, p, prior, target, t)) for t, p in stood if target in live(p[-1][1], p[-1][2])]
+    chances = [(t, measure(root, campaign, p, prior, target)) for t, p in stood if target in live(p[-1][1], p[-1][2])]
     return [[t, c['p'][HOURS.index(6)], c['p'][HOURS.index(24)]] for t, c in chances if c['p']]
 
 
@@ -244,10 +242,13 @@ def shown(root, campaign, target, now):
 
 def of(root, campaign, target, now):
     """The chance (measure) of the target N:M at time now (epoch seconds), from the campaign in the directory campaign
-    (a path from root, the repository's root, where the campaign runs), while the target is live there; else None."""
-    ps = plans(root, campaign)
+    (a path from root, the repository's root, where the campaign runs) as of now, while the target is live there; else
+    None.  Asserted: the campaign began before now."""
+    ps = as_of(plans(root, campaign), now)
+    # TODO: error copy; says the campaign had not begun before the time given, naming both
+    assert ps, f'Claude: "{campaign} had not begun before {now}"'
     _, plan, records = ps[-1]
-    return measure(root, campaign, ps, prior_of(root, campaign, target), target, now) if target in live(plan, records) else None
+    return measure(root, campaign, ps, prior_of(root, campaign, target), target) if target in live(plan, records) else None
 
 
 if __name__ == '__main__':

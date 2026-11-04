@@ -210,6 +210,8 @@ class ShepherdQuals(unittest.TestCase):
         self.assertEqual([(s.name, s.script, s.args) for s in shepherd.SEARCHES],
                          [('480:14', 'focus.py', ('480',) + UNBOUNDED), ('672:13', 'focus.py', ('672',) + UNBOUNDED),
                           ('672:13 fanout', 'fanout.py', ('672',)), ('432:12 fanout', 'fanout.py', ('432',))])
+        # 432:12's fanout's journal and log in searches/fanout_432/ since [FAC] stage 3b (2026-11-04), as stage 3a
+        # moved the others'
         self.assertEqual([(s.journal, s.out, s.err, s.data, s.memory, s.processes) for s in shepherd.SEARCHES],
                          [('searches/focus_480/focus_480_journal.jsonl', 'searches/focus_480/focus_480.log',
                            'scratch/focus480/run.err', 'scratch/focus480/run', 64 << 20, 1),
@@ -217,7 +219,8 @@ class ShepherdQuals(unittest.TestCase):
                            'scratch/focus672/run.err', 'scratch/focus672/run', 64 << 20, 1),
                           ('searches/fanout_672/fanout_672_journal.jsonl', 'searches/fanout_672/fanout_672.log',
                            'scratch/fanout672/run.err', 'scratch/fanout672', 2 << 30, 8),
-                          ('fanout_432_journal.jsonl', 'fanout_432.log', 'scratch/fanout432/run.err', 'scratch/fanout432', 2 << 30, 8)])
+                          ('searches/fanout_432/fanout_432_journal.jsonl', 'searches/fanout_432/fanout_432.log',
+                           'scratch/fanout432/run.err', 'scratch/fanout432', 2 << 30, 8)])
         command = '/opt/homebrew/Cellar/python@3.13/3.13.6/Frameworks/Python.framework/Versions/3.13/Resources/Python.app/Contents/MacOS/Python -B focus.py {} --seconds inf --lp-budget 1000000000000000000'
         procs = [proc(1, command.format(480)), proc(2, command.format(672))]
         with patch.object(shepherd, 'last_record', return_value=None):
@@ -234,6 +237,15 @@ class ShepherdQuals(unittest.TestCase):
         self.assertEqual([(s.name, shepherd.status(s, [])) for s in shepherd.SEARCHES[:3]],
                          [('480:14', ('stopped', None)), ('672:13', ('stopped', None)),
                           ('672:13 fanout', ('stopped', None))])
+
+    def test_the_retired_432_fanout_reads_as_stopped(self):
+        # Replicata ([FAC] stage 3b, 2026-11-04: the retired 432:12 run's journals and log moved from the root to
+        # searches/): the 432:12 fanout's status, from its journal where SEARCHES names it, no process running.
+        # Expectata: stopped (432:12 retired on 2026-11-03, its journal ends in no finish).  A journal missing where the
+        # shepherd reads it would read as launchable, and the shepherd would launch the retired run.
+        # Resultata before the edit: launchable, its journal gone from the root.
+        (s,) = [s for s in shepherd.SEARCHES if s.name == '432:12 fanout']
+        self.assertEqual(shepherd.status(s, []), ('stopped', None))
 
     def test_the_432_fanout_takes_the_eight_slots_alone(self):
         # Replicata: the registry at the statuses of the 432:12 launch: 480:14, 672:13 and 672:13's fanout stopped,

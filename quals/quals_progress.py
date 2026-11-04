@@ -14,6 +14,8 @@ import types, gc, weakref
 import numpy as np
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # the repository's root, above quals/
 sys.path.insert(0, HERE)                                              # for its modules
+ENGINE = os.path.join(HERE, 'engine')                                 # the engine's, since [FAC] stage 3b (2026-11-04)
+sys.path.insert(0, ENGINE)                                            # for its modules
 import overnight_v5 as v5
 import progress
 
@@ -42,7 +44,8 @@ def drive(n, order, budget, journal, log):
     which run() begins just after the start line, so that every pass lasts a second at least: the log's stamps are
     whole seconds, and a tiny pass can run within one (q_each_tiny_pass_lasts_a_second_at_least)."""
     script = os.path.join(os.path.dirname(journal), f'drive_{n}_{order}.py')
-    open(script, 'w').write(DRIVER.format(here=HERE, n=n, order=order, journal=journal, log=log, budget=tuple(budget)))
+    open(script, 'w').write(DRIVER.format(here=ENGINE, n=n, order=order, journal=journal, log=log,
+                                          budget=tuple(budget)))
     p = subprocess.run([sys.executable, '-B', script], capture_output=True, text=True, timeout=600)
     assert p.returncode == 0, p.stderr[-2000:]
 
@@ -701,7 +704,7 @@ def as_code(journal):
 
 def finished(n, order):
     """The journal and log of overnight_v5's finished run (n, order), as it named them, in the run's directory under
-    searches/, where they are since [FAC] stage 3a (2026-10-31); overnight_v5.configure names them in the root."""
+    searches/, where they are since [FAC] stage 3a (2026-10-31); overnight_v5.configure names them beside itself."""
     d = os.path.join(HERE, 'searches', f'overnight_v5_{n}_{order}')
     return os.path.join(d, f'overnight_v5_{n}_{order}_journal.jsonl'), os.path.join(d, f'overnight_v5_{n}_{order}.log')
 
@@ -1116,7 +1119,8 @@ def q_files_reads_a_run_from_its_own_directory():
     # Expectata: 288@10's journal and log are scratch/x288's, and overnight_v5's settings for it are the copy's, with
     # a bottom budget of 1000 (2026-10-27 22:55: scratch/x288/trial/plan10k.py's model gave 12.7 s per bottom case at
     # 1000 against 24.7 s at 10000; 10000 from 21:44, after boxsplit closed in seconds bottom cases the search had
-    # spent up to an hour on; 2000000 before); 304@9's are the repository's own; the altered copy, whose geometry differs
+    # spent up to an hour on; 2000000 before); 304@9's are the repository's own, in engine/ since [FAC] stage 3b; the
+    # altered copy, whose geometry differs
     # from overnight_v5's, is refused (AssertionError). A local solver CODE may differ with identical
     # geometry, replay and exact checker; run_module verifies those source identities before accepting it.
     here = progress.HERE
@@ -1127,7 +1131,8 @@ def q_files_reads_a_run_from_its_own_directory():
     assert v5.SETTINGS[288, 10] == copy.SETTINGS[288, 10] == ((3, 5, 7, 4, 8, 9), (10000,) * 6 + (1000,))
     progress.run_modules.equivalent(copy, v5, progress.run_modules.GEOMETRY)
     progress.run_modules.equivalent(copy.certbb, v5.certbb, progress.run_modules.CHECKER)
-    assert progress.files(304, 9) == tuple(os.path.join(here, f'overnight_v5_304_9{x}') for x in ('_journal.jsonl', '.log'))
+    assert progress.files(304, 9) == tuple(os.path.join(here, 'engine', f'overnight_v5_304_9{x}')
+                                           for x in ('_journal.jsonl', '.log'))
     d = tempfile.mkdtemp(prefix='progress-quals-')
     try:
         src = open(os.path.join(here, 'scratch', 'x288', 'overnight_v5.py'), encoding='utf-8').read()
@@ -1170,7 +1175,7 @@ def q_watch_rewrites_and_sleeps():
     progress.files = lambda n, order: tiny('closed')
     # The data-only fixture uses the root producer, with no copied source directory.
     progress.run_context = lambda n, order: progress.run_modules.context(progress,
-        progress.run_modules.load(HERE, progress.ROOT_V5, progress.ROOT_BX))
+        progress.run_modules.load(ENGINE, progress.ROOT_V5, progress.ROOT_BX))
     time.sleep = stub
     try:
         progress.main(['--watch'])
@@ -1326,9 +1331,9 @@ def q_sea_of_240_at_11():
     v5.configure(240, 11)
     d = tempfile.mkdtemp(prefix='progress-quals-')
     journal, log = (os.path.join(d, os.path.basename(p)) for p in (v5.JOURNAL, v5.LOG))
-    for path, live in ((journal, v5.JOURNAL), (log, v5.LOG)):
+    for path, live in ((journal, v5.JOURNAL), (log, v5.LOG)):        # at the root in 8297bae (in engine/ since 3b)
         with open(path, 'w', encoding='utf-8') as f:
-            f.write(subprocess.run(['git', '-C', HERE, 'show', f'8297bae:{os.path.relpath(live, HERE)}'],
+            f.write(subprocess.run(['git', '-C', HERE, 'show', f'8297bae:{os.path.basename(live)}'],
                                    capture_output=True, text=True, check=True).stdout)
     with as_code(journal): final = progress.read_journal(journal)
     budgets = progress.parse_log(log)[-1]['budgets']
@@ -1425,7 +1430,7 @@ def tiny_box():
         main, journal, log = (os.path.join(d, f) for f in ('main.jsonl', 'box.jsonl', 'box.log'))
         made_up_main(main, (TRUTH,))
         script = os.path.join(d, 'box.py')
-        open(script, 'w').write(BOX_DRIVER.format(here=HERE, main=main, journal=journal, log=log))
+        open(script, 'w').write(BOX_DRIVER.format(here=ENGINE, main=main, journal=journal, log=log))
         p = subprocess.run([sys.executable, '-B', script], capture_output=True, text=True, timeout=900)
         assert p.returncode == 0, p.stderr[-2000:]
         TINY['box'] = (journal, log, main)
@@ -1613,7 +1618,7 @@ def q_watch_shows_a_boxsplit_pass_once_its_log_exists():
         progress.box_files = lambda n, order: (log, main)
         # The data-only fixture uses the root producer, with no copied source directory.
         progress.run_context = lambda n, order: progress.run_modules.context(progress,
-            progress.run_modules.load(HERE, progress.ROOT_V5, progress.ROOT_BX))
+            progress.run_modules.load(ENGINE, progress.ROOT_V5, progress.ROOT_BX))
         time.sleep = stub
 
         def once():
@@ -2187,7 +2192,7 @@ def watch(times, after, patches):
 
 def root_context(n, order):
     """run_context with the repository's own modules, for a data-only fixture with no run directory of its own."""
-    return progress.run_modules.context(progress, progress.run_modules.load(HERE, progress.ROOT_V5, progress.ROOT_BX))
+    return progress.run_modules.context(progress, progress.run_modules.load(ENGINE, progress.ROOT_V5, progress.ROOT_BX))
 
 
 def q_watch_reads_what_its_files_gained_and_equals_a_full_read():
@@ -2356,7 +2361,7 @@ def q_watch_survives_a_run_source_changed_under_it():
     # run_modules' refusal of the changed source.
     d, procs = tracked_dir(['768:12'])
     run = tempfile.mkdtemp(prefix='progress-quals-')
-    for name in ('certbb.py', 'overnight_v5.py', 'boxsplit.py'): shutil.copy(os.path.join(HERE, name), run)
+    for name in ('certbb.py', 'overnight_v5.py', 'boxsplit.py'): shutil.copy(os.path.join(ENGINE, name), run)
     journal, log_path = tiny('closed')
     v5.configure(40, 6)
     for src, name in ((journal, v5.JOURNAL), (log_path, v5.LOG)): shutil.copy(src, os.path.join(run, os.path.basename(name)))

@@ -17,7 +17,9 @@ import sys
 import time
 
 ROOT = Path(__file__).resolve().parents[2]   # the repository's root, above searches/sweep288/ ([FAC] stage 3a)
-sys.path[:0] = [str(ROOT), str(ROOT / 'searches' / 'pruning288'), str(ROOT / 'searches' / 'search288')]
+# overnight_v5 and lattice288 in engine/ since [FAC] stage 3b (2026-11-04)
+sys.path[:0] = [str(ROOT), str(ROOT / 'engine'), str(ROOT / 'searches' / 'pruning288'),
+                str(ROOT / 'searches' / 'search288')]
 import overnight_v5 as ov
 import pruning288_geometry as G
 import search288 as prior
@@ -32,7 +34,7 @@ QUESTIONS = dict(calibration=(240, 10), search=(288, 10))
 SOURCES = ('searches/sweep288/sweep288.py', 'searches/pruning288/pruning288_geometry.py') + prior.SOURCES
 CODE = hashlib.sha256(b''.join((ROOT/name).read_bytes() for name in SOURCES)).hexdigest()
 INPUT_PATHS = ('searches/search288/search288_journal.jsonl', 'scratch/search288/calibration.json',
-               'scratch/search288/search.json', '.lattice288_prepared.json',
+               'scratch/search288/search.json', 'engine/.lattice288_prepared.json',
                'searches/pruning288/pruning288_journal.jsonl')
 INPUT = {name: hashlib.sha256((ROOT/name).read_bytes()).hexdigest() for name in INPUT_PATHS}
 

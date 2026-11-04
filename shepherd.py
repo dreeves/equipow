@@ -85,6 +85,8 @@ class Search:
 UNBOUNDED = ('--seconds', 'inf', '--lp-budget', str(10 ** 18))   # no budget (principle 2): focus.py's flags take a value
 # 480:14's and 672:13's runs and 672:13's fanout, stopped on 2026-10-25: their journals and logs are in searches/
 # since [FAC] stage 3a (2026-10-31), where the shepherd reads them (a missing journal would read as launchable).
+# Their scripts, focus.py and fanout.py, are in engine/ since [FAC] stage 3b (2026-11-04), where a launch from HERE
+# would not find them; all four searches are stopped, and the shepherd never launches a stopped search.
 SEARCHES = (                           # focus.py's memory: 56 MB at most measured (2026-10-22 and 23), rounded up
     Search('480:14', 'focus.py', ('480',) + UNBOUNDED, 'searches/focus_480/focus_480_journal.jsonl',
            'searches/focus_480/focus_480.log', 'scratch/focus480/run.err', 'scratch/focus480/run', 64 << 20, 1),
@@ -97,9 +99,10 @@ SEARCHES = (                           # focus.py's memory: 56 MB at most measur
            'searches/fanout_672/fanout_672.log', 'scratch/fanout672/run.err', 'scratch/fanout672', 2 << 30, 8),
     # 432:12's run (dreeves, 2026-10-25: "sounds good on 432:12"), its focus.py prefix of 40 LP solves run by hand
     # first and not registered (its budget finish would read as launchable): fanout.py's 8 workers, 131 MB each and
-    # the driver 139 MB at the start (2026-10-26 dry run), the driver then growing by its jobs' open boxes
-    Search('432:12 fanout', 'fanout.py', ('432',), 'fanout_432_journal.jsonl', 'fanout_432.log',
-           'scratch/fanout432/run.err', 'scratch/fanout432', 2 << 30, 8),
+    # the driver 139 MB at the start (2026-10-26 dry run), the driver then growing by its jobs' open boxes; retired
+    # on 2026-11-03 (proofs/pintree settled m*(432) = 11), its journal and log in searches/ since [FAC] stage 3b
+    Search('432:12 fanout', 'fanout.py', ('432',), 'searches/fanout_432/fanout_432_journal.jsonl',
+           'searches/fanout_432/fanout_432.log', 'scratch/fanout432/run.err', 'scratch/fanout432', 2 << 30, 8),
 )
 
 

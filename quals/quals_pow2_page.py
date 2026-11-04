@@ -38,6 +38,10 @@ KINDS = ('exists', 'open', 'impossible')      # the kinds of cell, as the tokens
 F = [2 ** 24, 25]                             # f, the 2^24 construction, as [n, m]: a block until 2026-10-29, now none
 KLABELS = list(range(10, K + 1, 10))          # the k labels below the plot
 OUTLINE = (36, 5)                             # the cell whose outline the screenshots check
+# the targets of the boxes' clicks (2026-11-04, [CEL] and [ROC]): cells [k, δ], a column's k label [k, None] and rows' δ
+# labels [None, δ]; and the progress.js of the page copies, with no runs (an open cell's box loads it)
+BOX_TARGETS = [[30, 2], [30, 8], [30, 5], [10, 1], [9, 1], [20, 2], [13, 2], [30, None], [None, 3], [None, 12]]
+NO_RUNS = {'made': 1792200000, 'runs': []}
 SWIPE = (29, 8)                               # the cell a phone's swipe starts on, after the outline's tap
 MSTAR_LAYOUT = (44, 16, 2, 14)                # the m*(n) chart's plot: left and right gutters, top, row pitch (CSS px)
 NMAX = int(re.search(r'"nmax": (\d+)', open(MSTAR, encoding='utf-8').read()).group(1))   # the m*(n) chart's last n (1024)
@@ -317,7 +321,7 @@ const TEXT = el => {
 const PROBE = text => {
   const sec = document.querySelector('section.pow2'), chart = document.getElementById('pow2-chart');
   const ro = document.getElementById('pow2-readout'), css = getComputedStyle(document.documentElement);
-  const tokens = ['exists', 'open', 'impossible', 'paper', 'ink', 'record'].map(t => [t, css.getPropertyValue('--' + t).trim()]);
+  const tokens = ['exists', 'open', 'impossible', 'paper', 'ink', 'record', 'rule'].map(t => [t, css.getPropertyValue('--' + t).trim()]);
   const page = document.documentElement;
   const attrs = el => ['aria-label', 'title', 'alt'].filter(a => el.hasAttribute(a)).map(a => el.getAttribute(a));
   return {innerWidth, dpr: devicePixelRatio, dark: matchMedia('(prefers-color-scheme: dark)').matches,
@@ -382,9 +386,65 @@ const PANEL = () => {
     errors: region.querySelectorAll('.katex-error').length, scrollW: document.documentElement.scrollWidth, innerWidth,
     entries: held.map(li => li.querySelector('p.entry').id), entryText: held.map(li => li.textContent.replace(/\s+/g, ' ').trim()),
     listed: [...document.querySelectorAll('section.remarks ul > li > p.entry')].map(p => p.id),
-    dups: ids.filter((x, i) => ids.indexOf(x) !== i)};
+    dups: ids.filter((x, i) => ids.indexOf(x) !== i),
+    // since 2026-11-04 ([CEL], [ROC]), as quals_index's panelReport: the box's kind, its parts as [kind, text, whether of
+    // Claude's English], its copies of codes and its constructions
+    kind: region.dataset.kind ?? null,
+    parts: [...c.querySelectorAll('[data-panel-body] > [data-why]')].map(e => [e.dataset.why, e.textContent.replace(/\s+/g, ' ').trim(),
+                                                                              e.hasAttribute('data-claude')]),
+    copies: [...c.querySelectorAll('[data-panel-body] [data-join]')].map(e => [e.dataset.join, e.dataset.order, e.getAttribute('role'), e.textContent]),
+    constructions: [...c.querySelectorAll('[data-panel-body] [data-construction]')].map(e => [e.dataset.construction, e.getAttribute('role'),
+                                                                                              e.textContent.trim()])};
 };
 const HASHED = h => new Promise(r => { addEventListener('hashchange', () => r(), {once: true}); location.hash = h; });
+// The boxes of the chart's cells, columns and rows (2026-11-04, dreeves's README items [CEL] and [ROC]).  PLACE(t): where
+// the target t is in the full view, in CSS px of the viewport: a cell's middle, [k, e]; for a column, [k, null], 10 px
+// under its column's middle; for a row, [null, e], the middle of the δ labels' strip at its row.  BOX(t): the box as it
+// stands after a click there (PANEL's report), with its frame's color, its caret's middle and the middle there of the
+// target's column (or the δ labels' strip), the box of the outline of its target (pin: the frame's last outline) and
+// the box it should have (want: 2 px around the target's cells), the heading's swatch, the fill of the cell under the
+// target, the text of its parts of the kinds witness-* and proof-* (said), its searches' text as shown and the cells of
+// its tables.  LOADED: until
+// the box's searches, if it has any, have loaded (at most 3 s).  DERIVED: a click on each of the box's constructions,
+// and each one's claim, its derivation's bound and whether its derivation shows.
+const PLACE = ([k, e]) => {
+  const c = document.getElementById('pow2-chart').getBoundingClientRect(), s = document.querySelector('#pow2-chart svg').getBoundingClientRect();
+  const E = POW2.etop, ROW = 14;
+  return [k === null ? c.left + (s.left - c.left) / 2 : s.left + (k - 0.5) * s.width / 72, e === null ? s.bottom + 10 : s.top + (E - e) * ROW + 6.5];
+};
+const BOX = (t, PLACE, PANEL) => {                 // PLACE and PANEL passed in, as the page knows neither
+  const region = document.getElementById('pow2-panel'), body = region.querySelector('[data-panel-body]');
+  const hex = rgb => '#' + rgb.match(/\d+/g).slice(0, 3).map(v => (+v).toString(16).padStart(2, '0')).join('');
+  const tex = e => { const c = e.cloneNode(true);
+    c.querySelectorAll('.katex').forEach(x => x.replaceWith(`\\(${x.querySelector('annotation').textContent}\\)`));
+    return c.textContent.replace(/\s+/g, ' ').trim(); };
+  const s = document.querySelector('#pow2-chart svg').getBoundingClientRect(), E = POW2.etop, ROW = 14, GAP = 1 / devicePixelRatio;
+  const [k, e] = t, [c0, c1] = k === null ? [0, 72] : [k - 1, k], [e0, e1] = e === null ? [1, E] : [e, e];
+  const pin = [...document.querySelectorAll('#pow2-chart .pow2-frame > .pow2-outline')].at(-1), p = pin.getBoundingClientRect();
+  const before = getComputedStyle(region, '::before'), b = region.getBoundingClientRect(), sw = region.querySelector('h3 .swatch');
+  const [x, y] = PLACE(t), under = t.includes(null) ? null : document.elementFromPoint(x, y);
+  return {target: t, ...PANEL(), frame: hex(getComputedStyle(region).borderTopColor),
+    caret: b.left + region.clientLeft + parseFloat(before.left) + parseFloat(before.borderLeftWidth), column: x,
+    pin: [p.left, p.top, p.right, p.bottom], pinHidden: pin.hidden,
+    want: [s.left + c0 * s.width / 72 - 2, s.top + (E - e1) * ROW - 2, s.left + c1 * s.width / 72 + 2, s.top + (E - e0) * ROW + ROW - GAP + 2],
+    swatch: sw && {cls: sw.className, color: hex(getComputedStyle(sw).backgroundColor), ring: getComputedStyle(sw).boxShadow},
+    fill: under && hex(getComputedStyle(under).fill),
+    said: [...body.querySelectorAll(':scope > [data-why^="witness"], :scope > [data-why^="proof"]')].map(tex).join(' '),
+    searches: [...body.querySelectorAll('[data-why="searches"]')].map(e => e.innerText),
+    tables: [...body.querySelectorAll('table')].map(table => [...table.rows].map(tr => [...tr.cells].map(tex)))};
+};
+const LOADED = () => new Promise(r => { const t0 = Date.now(); const f = () => {
+  const d = [...document.querySelectorAll('#pow2-panel [data-why="searches"] > div')];
+  if (d.every(x => x.childNodes.length) || Date.now() - t0 > 3000) r(); else setTimeout(f, 50); }; f(); });
+const DERIVED = () => [...document.querySelectorAll('#pow2-panel [data-panel-body] [data-construction]')].map(e => {
+  e.click();
+  const box = document.getElementById(e.getAttribute('aria-controls'));
+  return [e.dataset.construction, box.querySelector('[data-bound]').textContent.replace(/\s+/g, ' ').trim(), box.checkVisibility()];
+});
+// The table of record gaps as the page draws it: its head's and its rows' cells, the math written back as TeX
+const GAPS = () => [...document.querySelector('[data-record-gaps]').querySelectorAll('thead tr, tbody tr')].map(tr => [...tr.cells].map(c => {
+  const x = c.cloneNode(true); x.querySelectorAll('.katex').forEach(k => k.replaceWith(`\\(${k.querySelector('annotation').textContent}\\)`));
+  return x.textContent.replace(/\s+/g, ' ').trim(); }));
 // Each zoom button of the two charts, mstar's and pow2's side by side: what of its look its computed style and box give,
 // and its text, title and label (2026-10-30).
 const LOOKS = () => ['zoom-out', 'zoom-in', 'reset'].map(b => ['mstar', 'pow2'].map(p => {
@@ -563,11 +623,14 @@ async function main() {
         }
         await ev(FRAMES);
       };
-      // a real click on the chart for the keys: on its δ axis, 8 px in from its left edge, so that the click focuses the
-      // chart and opens no cell's panel (since 2026-11-03 a click on a cell moves the focus to the cell's panel)
+      // a real click on the chart for the keys: in its bottom left corner, 8 px in from its left edge and 15 px below its
+      // plot, by its letter k, so that the click focuses the chart and opens no box (since 2026-11-03 a click on a cell
+      // moves the focus to the cell's box; on its δ axis, where this click was until 2026-11-04, a click now opens that
+      // row's box)
       const grab = async () => {
-        const w = await ev(() => document.getElementById('pow2-chart').getBoundingClientRect().width);
-        await click('pow2-chart', [8 / w, 0.25]);
+        const [w, y] = await ev(() => { const c = document.getElementById('pow2-chart').getBoundingClientRect(),
+          s = document.querySelector('#pow2-chart svg').getBoundingClientRect(); return [c.width, (s.bottom + 15 - c.top) / c.height]; });
+        await click('pow2-chart', [8 / w, y]);
       };
       const key = async (key, code, keyCode, text) => {      // a real key press, to the focused element
         await send('Input.dispatchKeyEvent', {type: text ? 'keyDown' : 'rawKeyDown', key, code, windowsVirtualKeyCode: keyCode, ...(text ? {text} : {})});
@@ -636,10 +699,32 @@ async function main() {
         await send('Input.dispatchMouseEvent', {type, x, y, button: 'left', buttons: type === 'mousePressed' ? 1 : 0, clickCount: 1});
       }
       await ev(FRAMES);
+      await ev(LOADED);
       R.clickPanel = await ev(PANEL);
+      // the boxes of C.boxes, each by a real click on its target in the full view (2026-11-04, [CEL] and [ROC]), and the
+      // table of record gaps
+      R.boxes = [];
+      for (const t of C.boxes) {
+        const [bx, by] = await ev(PLACE, t);
+        for (const type of ['mousePressed', 'mouseReleased']) {
+          await send('Input.dispatchMouseEvent', {type, x: bx, y: by, button: 'left', buttons: type === 'mousePressed' ? 1 : 0, clickCount: 1});
+        }
+        await ev(FRAMES);
+        await ev(LOADED);
+        const [ax, ay] = await ev(PLACE, [1, 1]);         // the pointer off to cell (1, 1), so that the cell read out is elsewhere
+        await send('Input.dispatchMouseEvent', {type: 'mouseMoved', x: ax, y: ay});
+        await ev(FRAMES);
+        R.boxes.push(await ev(BOX, t, PLACE, PANEL));
+      }
+      R.gaps = await ev(GAPS);
       R.panels = [];
+      R.derived = [];
       await ev(() => history.replaceState(null, '', location.pathname));
-      for (let k = 1; k <= C.K; k++) { await ev(HASHED, `#k${k}`); R.panels.push({k, ...await ev(PANEL)}); }
+      for (let k = 1; k <= C.K; k++) {
+        await ev(HASHED, `#k${k}`);
+        R.panels.push({k, ...await ev(PANEL)});
+        R.derived.push({k, derived: await ev(DERIVED)});    // since 2026-11-04: each column's construction, derived
+      }
       await ev(() => { document.querySelector('#pow2-panel [data-panel-close]').click(); });   // the last one closed
       R.after = await ev(PANEL);
     }
@@ -698,6 +783,8 @@ def run(name):
             os.mkdir(p)
             for f in (INDEX, MSTAR) + tuple(os.path.join(HERE, icon) for icon in ICONS): shutil.copy(f, p)
             qi.copy_page_dir(p)
+            # a progress.js with no runs (2026-11-04): an open cell's box loads it to show the searches at its cell
+            open(os.path.join(p, 'progress.js'), 'w', encoding='utf-8').write('progressData(' + json.dumps(NO_RUNS) + ');\n')
             js = SOURCES[source]() if source else None
             if js: open(os.path.join(p, 'pow2.js'), 'w', encoding='utf-8').write(js)
             urls.append('file://' + os.path.join(p, 'index.html') + c.get('fragment', ''))
@@ -708,7 +795,7 @@ def run(name):
                  if 2 ** k <= NMAX and c['mstar'] and data['cols'][k - 1][3][0] == 'mstar']
         shots = [os.path.join(d, 'load.png'), os.path.join(d, 'outline.png')]
         cfg = {k: c[k] for k in ('width', 'height', 'dpr', 'mobile', 'theme', 'drawn', 'hover', 'tap', 'swipe', 'zoom')} | dict(
-            panels=c.get('panels', False), fragment=c.get('fragment', ''),
+            panels=c.get('panels', False), fragment=c.get('fragment', ''), boxes=BOX_TARGETS,
             zoomView=ZOOM_VIEW,
             chrome=CHROME, dir=d, urls=urls, K=K, E=data['etop'] if data else 0, ROW=ROW, GAP=gap(c['dpr']), outline=OUTLINE,
             swipeFrom=SWIPE, shots=shots, mstarCells=mstar, mstarLayout=MSTAR_LAYOUT, mstarCols=MSTAR_COLUMNS)
@@ -762,10 +849,9 @@ def cell_box(R, geo, k, e):
 def theorem_cells():
     """The cells (k, e) of the chart whose bounds the theorem on the page states, from its text: m*(2^k) >= v as
     (k, v - k).  Its m*(2^9) = 9 has no cell of its own: the chart has no row 0."""
-    t = re.search(r'<p><b>Theorem\.</b>(.*?)</p>', page(), re.S)
-    assert t, 'no Theorem paragraph'
-    pairs = re.findall(r'\(2\^\{?(\d+)\}?\) \\ge (\d+)', t.group(1))
-    assert pairs, t.group(1)
+    t = qi.the_theorem(page())   # labeled "Theorem 1." since 2026-11-04 ([THM]), "Theorem." before
+    pairs = re.findall(r'\(2\^\{?(\d+)\}?\) \\ge (\d+)', t)
+    assert pairs, t
     return sorted((int(k), int(v) - int(k)) for k, v in pairs)
 
 
@@ -807,7 +893,7 @@ def q_section_follows_mstar_chart():
              r'<button type="button" id="pow2-zoom-out" ', r'<button type="button" id="pow2-zoom-in" ',
              r'<button type="button" id="pow2-reset" ',
              r"<div id=\"pow2-chart\" tabindex=\"0\" role=\"img\" aria-label='[^']+'></div>", r'<p id="pow2-readout" aria-live="polite">',
-             r'<p><b>Theorem\.</b>', r'href="https://raw\.githubusercontent\.com/dreeves/equipow/main/proofs/record_gaps\.wl"',
+             r'<p><b>Theorem 1\.</b>', r'href="https://raw\.githubusercontent\.com/dreeves/equipow/main/proofs/record_gaps\.wl"',
              r'<div class="scroll">', r'<table class="pow2-gaps" data-record-gaps>']
     assert re.search('.*?'.join(parts), s.group(1), re.S), s.group(1)
 
@@ -1322,40 +1408,49 @@ def q_made_up_data_reads_every_kind():
 # the full explanation of column k, from the same templates as the m*(n) chart's panels.
 
 def pow2_whys(data, k, rows=()):
-    """The kinds of text that column k's panel shows, in order, for the cells clicked in rows (excesses): a status per
-    cell, its lower bound's reason, and its upper bound's (the m*(n) chart's own, for a reason mstar).  (Its entry's
-    link, the template "entry", followed until [REO] step 2, 2026-11-03, which moved the entry itself into the panel:
-    quals_index.panel_entries.)"""
+    """The kinds of the parts of the box of column k, in order, or of its cell (k, e) for rows [e], as
+    quals_index.box_parts has the m*(n) chart's: its witness (Thue–Morse, or a join's construction, then a copy of the
+    page's code of the length 2^k and the order lo, where the page has one, unless the box shows the entry that holds
+    that code), for a green cell, a black one and a column; its proof (the m*(n) chart's kind, for a reason mstar), for a
+    red cell, a black one and a column; and a black cell's searches.  Spec change (2026-11-04, dreeves's README items
+    [CEL] and [ROC]): until then the kinds of text of the column's one panel: a status per cell clicked, its lower
+    bound's reason, and its upper bound's (and its entry's link, the template "entry", until [REO] step 2, 2026-11-03,
+    which moved the entry itself into the panel: quals_index.panel_entries)."""
     lo, hi, lw, hw = data['cols'][k - 1]
-    status = ['status-' + KINDS[kind_of(data['cols'][k - 1], k, e)] for e in rows]
-    upper = hw[1][0] if hw[0] == 'mstar' else hw[0]
-    return status + [f'lo-{lw[0]}', f'hi-{upper}']
+    kind = KINDS[kind_of(data['cols'][k - 1], k, rows[0])] if rows else None
+    witness, proof = qi.SHOWS[kind]
+    upper, code = hw[1][0] if hw[0] == 'mstar' else hw[0], f'{2 ** k}:{lo}'
+    entry = kind is None or (proof and upper == 'page')
+    copy = code in qi.code_ids() and not (entry and code in qi.entry_codes(2 ** k))
+    return (([{'thue-morse': 'witness-thue-morse', 'joins': 'witness-construction'}[lw[0]]] + ['witness-code'] * copy) * witness
+            + [f'proof-{upper}'] * proof + ['searches'] * (kind == 'open'))
 
 
 def pow2_says(data, k, P):
-    """What column k's panel P must say, by its reasons' arguments, as [(what, found)]."""
+    """What the box of column k, P, must say, by its reasons' arguments, as [(what, found)].  Spec change (2026-11-04,
+    [CEL]; dreeves: "so many pointless words in the implementation so far"): its bounds as math, each leading its part
+    (an upper bound of the m*(n) chart's, a reason mstar, naming 2^k in digits, as that chart's reasons do); a join's
+    construction, a button claiming 2^k:lo, its products in parentheses, as the readout writes them, each block τ_j or
+    p_n; Thue–Morse's τ_k; each proof's numbers.  Until then the sentences of 2026-11-03: each product with its blocks'
+    lengths multiplied out and its orders added, each block linked to its column's panel, the lengths' total 2^k in
+    digits, the least order."""
     lo, hi, lw, hw = data['cols'][k - 1]
     t = P['text']
     bounds = f'm^*(2^{{{k}}}) = {lo}' if lo == hi else f'{lo} \\le m^*(2^{{{k}}}) \\le {hi}'
-    says = [('heading', P['heading'] == f'\\(k = {k}\\), \\(n = 2^{{{k}}}\\): \\({bounds}\\)'),
-            ('lower', f'The lower bound, order {lo}' in t), ('upper', f'order {hi + 1} is ruled out' in t)]
-    if lw[0] == 'joins':
-        for p in lw[1]:
-            n, m = prod(b[0] for b in p), sum(b[1] for b in p)
-            says += [('product', f"\\(n = {' \\cdot '.join(str(b[0]) for b in p)} =\\) {n:,}, "
-                                 f"\\(m = {' + '.join(str(b[1]) for b in p)} = {m}\\)" in t)]
-            says += [('block link', f'#n{b[0]}' in P['links']) for b in p if b[0] != 2 ** b[1]]
-        says += [('total', f'which is {2 ** k:,},' in t),
-                 ('least', f"the least of theirs, min({', '.join(str(sum(b[1] for b in p)) for p in lw[1])}) = {lo}." in t)]
-    else:
-        says += [('tau', f'comes from Thue–Morse, \\(\\tau_{{{k}}}\\), of length \\(2^{{{k}}}\\)' in t)]
     kind, args = (hw[1][0], hw[1][1:]) if hw[0] == 'mstar' else (hw[0], hw[1:])
-    source = 'mstar.py' if hw[0] == 'mstar' else 'pow2.py'
-    says += {'two': [('t', f'\\(n = {2 ** k} = 2^{{{k}}} \\cdot 1\\)' in t)],
-             'norm': [('p', f'\\(p = {args and args[0]}\\)' in t)],
-             'residue': [('M', f"residue condition mod {', '.join(map(str, args and (args[0] if isinstance(args[0], list) else args)))}," in t
-                                and f'{source} repeats' in t)],
-             'table2': [('cited', 'ruled out by BGPW' in t)], 'page': [('who', f'({args and args[0]})' in t)]}[kind]
+    source, name = ('mstar.py', f'{2 ** k}') if hw[0] == 'mstar' else ('pow2.py', f'2^{{{k}}}')
+    says = [('heading', P['heading'] == f'\\(k = {k}\\), \\(n = 2^{{{k}}}\\): \\({bounds}\\)'),
+            ('lower', f'\\(m^*(2^{{{k}}}) \\ge {lo}\\):' in t), ('upper', f'\\(m^*({name}) \\le {hi}\\):' in t)]
+    if lw[0] == 'joins':
+        tex = ' \\vee '.join('(' + ' \\mathbin{\\#} '.join(f'\\tau_{{{m}}}' if n == 2 ** m else f'p_{{{n}}}' for n, m in p) + ')' for p in lw[1])
+        says += [('construction', [f'{2 ** k}:{lo}', 'button', f'\\({tex}\\)'] in P['constructions'])]
+    else:
+        says += [('tau', f'Thue–Morse \\(\\tau_{{{k}}}\\)' in t)]
+    moduli = ', '.join(map(str, args[0] if args and isinstance(args[0], list) else args))
+    says += {'two': [('t', f'\\(n = 2^{{{k}}} \\cdot 1\\)' in t)],
+             'norm': [('p', f'\\(p = {args and args[0]} \\nmid n\\)' in t)],
+             'residue': [('M', f'residue condition mod \\(M = {moduli}\\)' in t and source in t)],
+             'table2': [('cited', 'BGPW, Table 2' in t)], 'page': [('who', f'proven by {args and args[0]}' in t)]}[kind]
     says += [('entry', P['entries'] == qi.panel_entries(2 ** k))]   # the entry itself since [REO] step 2 (2026-11-03), not its link
     return says
 
@@ -1383,9 +1478,10 @@ def q_panels_show_exactly_each_column_s_reasons():
 def q_norm_panels_hold_at_powers_of_2():
     # Replicata: the light run: the panel of each column whose upper bound is the norm bound for a prime p, at
     # n = 2^k, up to 2^72, so in numbers of up to 90 digits.
-    # Expectata: at m = hi + 1 the left side, p^(2m) (p - 1)^(p - 1), is more than the right side,
-    # (p sum s_r^2)^(p - 1), and p^m more than the floor of (p sum s_r^2 / (p - 1))^((p - 1)/2); the panel gives each
-    # of them in digits, exactly as Python's integers have them.
+    # Expectata: at m = hi + 1, p^m is more than the floor of (p sum s_r^2 / (p - 1))^((p - 1)/2); the box gives both
+    # in digits, and the class sizes s_r and their squares' sum, exactly as Python's integers have them.  Spec change
+    # (2026-11-04, [CEL]): until then also both sides of p^(2m) (p - 1)^(p - 1) <= (p sum s_r^2)^(p - 1), the same
+    # inequality squared, the left more than the right.
     R = valid('light')
     found = 0
     for P in R['panels']:
@@ -1396,25 +1492,28 @@ def q_norm_panels_hold_at_powers_of_2():
         n, p, m = 2 ** k, why[1], hi + 1
         sizes = [(n - r + p - 1) // p for r in range(p)]
         S = sum(x * x for x in sizes)
-        lhs, rhs = p ** (2 * m) * (p - 1) ** (p - 1), (p * S) ** (p - 1)
         cap = (p * S) ** ((p - 1) // 2) // (p - 1) ** ((p - 1) // 2)
-        assert lhs > rhs and p ** m > cap, (k, p, m)
-        for said in (', '.join(f'{x:,}' for x in sizes), f'is {S:,}.', f'is {lhs:,},', f'which is {rhs:,}.',
-                     f'=\\) {p ** m:,},', f'=\\) {cap:,},'):
+        assert p ** m > cap, (k, p, m)
+        for said in ('= ' + ', '.join(f'{x:,}' for x in sizes) + ' and', f'\\(\\sum s_r^2 =\\) {S:,};',
+                     f'\\(p^m = {p}^{{{m}}} =\\) {p ** m:,} \\(>\\) {cap:,}'):
             assert said in P['text'], (k, said, P['text'])
         found += 1
     assert found > 30, found
 
 
-def q_click_opens_its_column_s_panel():
+def q_click_opens_its_cell_s_box():
     # Replicata: the light run: a real mouse click on cell OUTLINE (k = 36, δ = 5), in the full view.
-    # Expectata: the panel of column 36 opens, its fragment set and its heading focused, and starts with the status of
-    # the cell clicked, order 36 + 5 = 41.
+    # Expectata: the box of the cell opens, its fragment k36d5 set and its heading focused, a black cell's (its kind
+    # open), the heading the cell's k and δ and the legend's word for its swatch, open; its parts its column's witness
+    # and proof, and the searches at n = 2^36 and m = 41 (pow2_whys).
+    # Spec change (2026-11-04, [CEL]: "the info box for a cell should focus on that cell"; until then
+    # q_click_opens_its_column_s_panel): the panel of column 36 opened, its fragment k36, starting with the cell's
+    # status: "The cell clicked, order 41, is open".
     R = valid('light')
     P, (k, e) = R['clickPanel'], OUTLINE
-    assert not P['hidden'] and P['hash'] == f'#k{k}' and P['focus'], P
+    assert not P['hidden'] and P['hash'] == f'#k{k}d{e}' and P['focus'] and P['kind'] == 'open', P
+    assert P['heading'] == f'\\(k = {k}\\), \\(\\delta = {e}\\): open', P['heading']
     assert P['whys'] == pow2_whys(R['data'], k, [e]), P['whys']
-    assert f'The cell clicked, order {k + e},' in P['text'], P['text']
 
 
 def q_fragment_opens_its_panel_and_focus_comes_back():
@@ -1453,7 +1552,8 @@ def q_made_up_panels_use_every_kind():
         bad = [what for what, found in pow2_says(R['data'], P['k'], P) if not found]
         assert bad == [], (P['k'], bad, P['text'])
     kinds = {w for P in R['panels'] for w in P['whys']}
-    assert {'lo-thue-morse', 'lo-joins', 'hi-two', 'hi-norm', 'hi-residue', 'hi-table2', 'hi-page'} <= kinds, kinds
+    # (spec change, 2026-11-04, [CEL]: the parts' kinds are a witness's and a proof's, lo-KIND and hi-KIND until then)
+    assert {'witness-thue-morse', 'witness-construction', 'proof-two', 'proof-norm', 'proof-residue', 'proof-table2', 'proof-page'} <= kinds, kinds
 
 
 def q_panels_show_their_entries_and_give_them_back():
@@ -1479,6 +1579,155 @@ def q_panels_show_their_entries_and_give_them_back():
     assert R['errors'] == [], R['errors']
     for step, want in (('fragment', ['entry-1073741824']), ('escaped', []), ('reopened', ['entry-1024']), ('closed', [])):
         assert R[step]['entries'] == want and R[step]['listed'] == qi.held(order, *want) and R[step]['dups'] == [], (step, R[step]['entries'])
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# The boxes of the chart's cells, columns and rows (dreeves's README, 2026-11-03, items [CEL] and [ROC]; the main
+# session's design of 2026-11-04), as quals_index's boxes quals have the m*(n) chart's: a real click on a cell, on the
+# strip of the k labels or on the strip of the δ labels opens that cell's, column's or row's box under the chart.
+
+def pow2_boxes():
+    """The light run, with its boxes by their targets."""
+    R = valid('light')
+    return R, {tuple(B['target']): B for B in R['boxes']}
+
+
+def q_cell_boxes_take_their_cell_s_color():
+    # Replicata: the light run (1280 px): real clicks on the cells of BOX_TARGETS in the full view; on the strip of the k
+    # labels under column 30, 10 px below the plot; and on the strip of the δ labels at rows 3 and 12.
+    # Expectata ([CEL]: "color-code it to match the cell"; the design of 2026-11-04: "the box's frame or header band in
+    # the clicked cell's own color (use the charts' own CSS tokens, not new colors), with a swatch identical to the cell
+    # (gold ring included when the cell is ringed)"): each cell's box open, its fragment kKdD, its kind the cell's, its
+    # frame the very fill of the cell under the click, its heading led by a swatch of that color, ringed in gold where
+    # the cell is (record; proven where it is the least: ring_cells), every role among them; a column's and a row's box
+    # framed in --rule, its heading without a swatch.
+    # Resultata before: each click on a cell opened its column's panel, framed in --rule whatever the cell, with no
+    # swatch; a click on a strip opened nothing.
+    R, B = pow2_boxes()
+    cols, tok = R['data']['cols'], R['load']['tokens']
+    rings = {(k, e): role for k, e, role in ring_cells(R['data'])}
+    cells = [t for t in B if None not in t]
+    for k, e in cells:
+        P, kind, role = B[(k, e)], KINDS[kind_of(cols[k - 1], k, e)], rings.get((k, e), 0)
+        assert not P['hidden'] and P['hash'] == f'#k{k}d{e}' and P['kind'] == kind, (k, e, P['hidden'], P['hash'], P['kind'])
+        assert P['fill'] == tok[kind] == P['frame'] == P['swatch']['color'], (k, e, P['fill'], P['frame'], P['swatch'])
+        assert P['swatch']['cls'] == f"swatch {kind}{['', ' record', ' record', ' record proven'][role]}", (k, e, P['swatch'])
+    assert {rings.get(t, 0) for t in cells} == {0, 1, 2, 3}, 'not every role of ring among the cells clicked'
+    for t in [t for t in B if None in t]:
+        assert not B[t]['hidden'] and B[t]['kind'] == ('row' if t[0] is None else 'column'), (t, B[t]['kind'])
+        assert B[t]['frame'] == tok['rule'] and B[t]['swatch'] is None, (t, B[t]['frame'], B[t]['swatch'])
+
+
+def q_box_outline_and_caret_mark_the_target():
+    # Replicata: the light run's boxes of BOX_TARGETS, each after its click and the pointer then moved off to cell (1, 1).
+    # Expectata (the design of 2026-11-04: "the clicked cell keeps an outline while its box is open; ... Column box: the
+    # column is outlined; row box: the row"; "a caret on the box's top edge at the clicked column's x (clamped)"): while
+    # each box is open, the chart's outline of its target shows, 2 px outside the target's cells, within 1 px (a cell's,
+    # a column's every row, a row's every column); and the middle of the caret on the box's top edge is within 2 px of
+    # the middle of the target's column, or of the δ labels' strip for a row.
+    # Resultata before: only the cell read out was outlined, and there was no caret.
+    R, B = pow2_boxes()
+    bad = [(t, P['pin'], P['want']) for t, P in B.items() if P['pinHidden'] or max(abs(a - b) for a, b in zip(P['pin'], P['want'])) > 1]
+    assert bad == [], bad
+    bad = [(t, P['caret'], P['column']) for t, P in B.items() if P['caret'] is None or abs(P['caret'] - P['column']) > 2]   # None: no caret
+    assert bad == [], bad
+
+
+def q_pow2_boxes_show_witness_proof_and_searches_by_kind():
+    # Replicata: the light run's boxes of the cells (30, 2), (20, 2) and (10, 1), green; (30, 8) and (9, 1), red; and
+    # (30, 5) and (13, 2), black; with a progress.js of no runs.
+    # Expectata ([CEL]): each shows, by its kind, its column's witness, its proof, or both and its searches
+    # (pow2_whys), each led by its bound: a join's construction, a button claiming 2^k:lo, its products in parentheses
+    # as the readout writes them (for k = 10 the one block p_1024), with a copy of the page's code of 1024 and order 11
+    # where the column is 10; a residue proof by the chain mod 3 (pow2.py) at 30, by the m*(n) chart's residue condition
+    # mod 27 at 2^9 = 512 (mstar.py); for a black cell, under the Search progress section's heading, a dash: no run.
+    # Resultata before: a click opened the column's panel: the cell's status sentence and both bounds' sentences.
+    R, B = pow2_boxes()
+    cols = R['data']['cols']
+    for t in ((30, 2), (20, 2), (10, 1), (30, 8), (9, 1), (30, 5), (13, 2)):
+        assert B[t]['whys'] == pow2_whys(R['data'], *t[:1], [t[1]]), (t, B[t]['whys'], pow2_whys(R['data'], t[0], [t[1]]))
+    assert B[(10, 1)]['constructions'] == [['1024:11', 'button', '\\((p_{1024})\\)']], B[(10, 1)]['constructions']
+    assert B[(10, 1)]['copies'] == [['1024:11', '11', 'button', qi.code_digits('1024:11')]], B[(10, 1)]['copies']
+    assert B[(30, 2)]['constructions'] == [['1073741824:33', 'button', '\\((p_{960} \\mathbin{\\#} p_{768} \\mathbin{\\#} \\tau_{7}) \\vee '
+                                            '(p_{576} \\mathbin{\\#} p_{576} \\mathbin{\\#} p_{48} \\mathbin{\\#} \\tau_{3}) \\vee '
+                                            '(p_{800} \\mathbin{\\#} p_{832} \\mathbin{\\#} p_{320} \\mathbin{\\#} \\tau_{2})\\)']], B[(30, 2)]['constructions']
+    assert cols[29][3] == ['residue', [3]] and 'residue condition mod \\(M = 3\\)' in B[(30, 8)]['said'] and 'pow2.py' in B[(30, 8)]['said'], B[(30, 8)]['said']
+    assert B[(30, 8)]['said'].startswith('Claude: “\\(m^*(2^{30}) \\le 36\\):'), B[(30, 8)]['said']
+    assert cols[8][3] == ['mstar', ['residue', 27]] and B[(9, 1)]['said'].startswith('Claude: “\\(m^*(512) \\le 9\\): residue condition mod \\(M = 27\\)'), B[(9, 1)]['said']
+    flat = lambda t: ' '.join(t.split())
+    for t in ((30, 5), (13, 2)):
+        assert [flat(x) for x in B[t]['searches']] == ['Search progress —'], (t, B[t].get('searches'))
+
+
+def q_column_and_row_boxes_open_from_their_labels():
+    # Replicata: the light run: real clicks on the strip of the k labels under column 30, and on the strip of the δ labels
+    # at rows 3 and 12; and the page's table of record gaps as drawn.
+    # Expectata ([ROC]; the main session's design of 2026-11-04 for this chart's rows: "for the powers of 2: Table 4's row
+    # for that δ (the record-gaps table)"): column 30's box, its fragment k30, its heading k, 2^k and the bounds, its
+    # parts its witness and proof (pow2_whys); row 3's, its fragment d3, its heading δ = 3: a line per gold-ringed cell
+    # of the row, the legend's swatch and words for it and its k, linked to its cell's box (the least k known to beat
+    # Thue–Morse by 3, 28, and the least not ruled out, 16), then that row of the table of record gaps under its head,
+    # as the page's table has them; row 12's, its one ringed cell, the least k not ruled out, and no table, 12 being no
+    # record gap.
+    # Resultata before: nothing opened.
+    R, B = pow2_boxes()
+    C = B[(30, None)]
+    assert not C['hidden'] and C['hash'] == '#k30' and C['kind'] == 'column' and C['whys'] == pow2_whys(R['data'], 30), (C['hash'], C['whys'])
+    rings = ring_cells(R['data'])
+    for e in (3, 12):
+        P, mine = B[(None, e)], [(k, role) for k, g, role in rings if g == e]
+        assert not P['hidden'] and P['hash'] == f'#d{e}' and P['kind'] == 'row' and P['heading'] == f'\\(\\delta = {e}\\)', (e, P['hash'], P['heading'])
+        assert P['whys'] == ['row-ring'] * len(mine) + ['row-gaps'] * (e == 3), (e, P['whys'])
+        assert [f'#k{k}d{e}' for k, _ in mine] == [h for h in P['links'] if h.startswith('#k')], (e, P['links'])
+        assert all(f'\\(k = {k}\\)' in P['text'] for k, _ in mine), (e, P['text'])
+    assert [k for k, g, _ in rings if g == 3] == [16, 28], rings
+    gaps = R['gaps']
+    i = [j for j, row in enumerate(gaps) if row[0].startswith('\\(m^*(2^{28}) \\ge 31\\)')][0]
+    assert B[(None, 3)]['tables'] == [[gaps[0]] + gaps[i:i + 3]], (B[(None, 3)]['tables'], gaps[i:i + 3])
+
+
+def q_every_column_s_construction_derives_its_bound():
+    # Replicata: the light run: the box of each of the 72 columns, opened by its fragment, and a click on each of its
+    # constructions.
+    # Expectata (page/codes.js, since 2026-11-04 also for the constructions the boxes make: "a derivation whose length
+    # and order are not N:M" throws): each column whose lower bound is a join has one construction, claiming 2^k:lo, and
+    # its derivation shows, its bound m*(2^k) >= lo; a column of Thue–Morse has none; so pow2.js's blocks agree with
+    # mstar.js's orders.
+    # Resultata before: no construction in the panels.
+    R = valid('light')
+    cols = R['data']['cols']
+    for D in R['derived']:
+        k, (lo, _, lw, _) = D['k'], cols[D['k'] - 1]
+        want = [[f'{2 ** k}:{lo}', f'm*(2{k}) ≥ {lo}' if k > 1 else f'm*(2) ≥ {lo}', True]] if lw[0] == 'joins' else []
+        assert D['derived'] == want, (k, D['derived'], want)
+    assert sum(1 for D in R['derived'] if D['derived']) == sum(1 for c in cols if c[2][0] == 'joins') > 50
+
+
+def q_pow2_cell_boxes_are_brief_and_quote_claude_right():
+    # Replicata: the light run's box of each column (its witness's and its proof's parts), and its boxes of cells.
+    # Expectata (as quals_index's q_cell_box_words_stay_within_budget and q_box_quotes_claude_around_its_english_alone
+    # have the m*(n) chart's; dreeves, 2026-11-03: "so many pointless words", and 2026-11-04: "we don't need claude
+    # attribution for blurbs without words like these"; spec, Claude's proposal of 2026-11-04): a cell's box, which
+    # shows its column's witness, proof or both, has at most quals_index.BOX_WORDS words outside its math, codes and
+    # numbers; no box says below, above, this page, paragraph or remarks; each box quotes Claude once around its parts of
+    # Claude's English, and not at all without any.
+    # Resultata before: the panel of 2^30 alone had over 100 words, "at the top of this page" among them.
+    R = valid('light')
+    cols, top, most, elsewhere = R['data']['cols'], R['data']['etop'], [], re.compile(r'\b(?:below|above|this page|paragraph|remarks)\b', re.I)
+    for P in R['panels']:
+        k, parts = P['k'], P['parts']
+        lo, hi = cols[k - 1][:2]
+        text = {w: ' '.join(t for why, t, _ in parts if why.startswith(w)).replace('Claude: “', '').replace('”', '') for w in ('witness', 'proof')}
+        claude = {w: any(c for why, _, c in parts if why.startswith(w)) for w in ('witness', 'proof')}
+        for kind in [x for x, present in (('exists', lo > k), ('open', hi > lo), ('impossible', hi < k + top)) if present]:
+            shows = qi.SHOWS[kind]
+            most.append((((claude['witness'] and shows[0]) or (claude['proof'] and shows[1])) + len(qi.words(text['witness'])) * shows[0]
+                         + len(qi.words(text['proof'])) * shows[1], k, kind))
+        assert not elsewhere.search(text['witness'] + text['proof']) and qi.quoted_right(parts), (k, parts)
+    most += [(len(qi.words(' '.join(text for why, text, _ in P['parts'] if why != 'searches'))), tuple(P['target']), 'clicked')
+             for P in R['boxes'] if None not in P['target']]
+    assert max(c for c, *_ in most) <= qi.BOX_WORDS, sorted(most, key=lambda x: x[0])[-5:]
+    assert all(qi.quoted_right(P['parts']) for P in R['boxes']), [P['target'] for P in R['boxes'] if not qi.quoted_right(P['parts'])]
 
 
 def q_missing_data_fails_loudly():

@@ -5,6 +5,8 @@ import unittest
 
 import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))   # the repository's root, for its modules
+# the engine's modules, in engine/ since [FAC] stage 3b (2026-11-04)
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'engine'))
 import certbb
 from focus import moments
 import overnight_v5 as v5

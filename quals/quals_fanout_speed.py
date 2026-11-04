@@ -8,6 +8,8 @@ import unittest
 from unittest.mock import Mock, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))   # the repository's root, for its modules
+# the engine's modules, in engine/ since [FAC] stage 3b (2026-11-04)
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'engine'))
 import certbb
 import fanout
 import focus

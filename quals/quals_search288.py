@@ -14,6 +14,8 @@ import unittest
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))   # the repository's root, for its modules
+# the engine's modules, in engine/ since [FAC] stage 3b (2026-11-04)
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'engine'))
 # search288.py's directory, since [FAC] stage 3a (2026-10-31)
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'searches' / 'search288'))
 import search288 as S

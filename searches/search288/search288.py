@@ -22,7 +22,7 @@ import time
 import fpylll
 
 ROOT = Path(__file__).resolve().parents[2]   # the repository's root, above searches/search288/ ([FAC] stage 3a)
-sys.path.insert(0, str(ROOT))                # for lattice288
+sys.path[:0] = [str(ROOT), str(ROOT / 'engine')]   # for lattice288, in engine/ since [FAC] stage 3b
 import search288_geometry as G
 import target288
 from lattice288 import atomic_json, valid
@@ -33,7 +33,7 @@ JOURNAL = ROOT / 'searches' / 'search288' / 'search288_journal.jsonl'
 VERSION, CONTROL_TOTAL, TOTAL, SECONDS = 1, 12, 16, 30
 SOURCES = ('searches/search288/search288.py', 'searches/search288/search288_geometry.py',
            'searches/search288/target288.py', 'searches/join720/join720.py',
-           'lattice288.py', 'mstar.py', 'overnight_v5.py', 'certbb.py')
+           'engine/lattice288.py', 'mstar.py', 'engine/overnight_v5.py', 'engine/certbb.py')
 CODE = hashlib.sha256(b''.join((ROOT / p).read_bytes() for p in SOURCES)).hexdigest()
 INPUT = hashlib.sha256(target288.PREPARED.read_bytes()).hexdigest()
 LIBRARIES = dict(fpylll=fpylll.__version__, sympy=G.sp.__version__)

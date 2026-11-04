@@ -27,6 +27,8 @@ from unittest.mock import patch
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))   # the repository's root, for its modules
+# the engine's modules, in engine/ since [FAC] stage 3b (2026-11-04)
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'engine'))
 import certbb
 import fanout
 import focus
@@ -433,10 +435,11 @@ class Focus432Quals(unittest.TestCase):
             self.assertNotEqual(prints[1], before)
             self.assertEqual(prints[2], before)
 
-    def edited_fingerprint(self, name, edits):
-        """focus.fingerprint with the bytes it reads of the file name beside focus.py edited: each (old, new) of
-        edits, old occurring there exactly once, made new."""
-        path, real = Path(focus.__file__).resolve().with_name(name), Path.read_bytes
+    def edited_fingerprint(self, path, edits):
+        """focus.fingerprint with the bytes it reads of the file at path edited: each (old, new) of edits, old
+        occurring there exactly once, made new (a path, not a name beside focus.py, since [FAC] stage 3b, when
+        mstar.py and focus.py came apart)."""
+        path, real = Path(path).resolve(), Path.read_bytes
         data = real(path)
         for old, new in edits:
             self.assertEqual(data.count(old), 1, old)
@@ -454,7 +457,7 @@ class Focus432Quals(unittest.TestCase):
         edits = ((b'NEW = {', b"NEW = {1000: (0, 0, 'qual'), "),
                  (b'PAGE_CODES = (', b"PAGE_CODES = (('qual', 1, '0'), "),
                  (b'RESIDUE = {', b"RESIDUE = {1000: (1, (3,), 'digits'), "))
-        self.assertEqual(self.edited_fingerprint('mstar.py', edits), focus.fingerprint())
+        self.assertEqual(self.edited_fingerprint(mstar.__file__, edits), focus.fingerprint())
 
     def test_fingerprint_covers_residues_py(self):
         # Replicata: focus.fingerprint, then again with the bytes it reads of residues.py edited: residue_vectors's
@@ -462,7 +465,7 @@ class Focus432Quals(unittest.TestCase):
         # Expectata: another fingerprint: the residue enumeration is the proof searches' code.
         # Resultata before the move: FileNotFoundError, there being no residues.py.
         edits = ((b'    assert m >= 1 and M >= 2\n', b'    assert m >= 1 and M >= 3\n'),)
-        self.assertNotEqual(self.edited_fingerprint('residues.py', edits), focus.fingerprint())
+        self.assertNotEqual(self.edited_fingerprint(residues.__file__, edits), focus.fingerprint())
 
     def test_the_run_s_code_imports_nothing_from_mstar(self):
         # Replicata: the import statements, at any depth, of the Python sources the 432:12 run and its recheck execute:
@@ -503,7 +506,7 @@ class Focus432Quals(unittest.TestCase):
         self.assertTrue(all(isinstance(n, (ast.Import, ast.ImportFrom)) for n in header[1:]), header)
         self.assertLessEqual({ast.get_source_segment(new, n) for n in header[1:]}, set(old.splitlines()))
         moved = ('digits', 'SWEEPS', 'lattice', 'basis', 'Capped', 'Budget', 'residue_vectors')
-        tree = ast.parse((root / 'mstar.py').read_text(encoding='utf-8'))
+        tree = ast.parse(Path(mstar.__file__).read_text(encoding='utf-8'))      # at the root, apart from the engine
         here = {n.name for n in tree.body if isinstance(n, (ast.FunctionDef, ast.ClassDef))}
         here |= {t.id for n in tree.body if isinstance(n, ast.Assign) for t in n.targets if isinstance(t, ast.Name)}
         self.assertFalse(here & set(moved), here & set(moved))

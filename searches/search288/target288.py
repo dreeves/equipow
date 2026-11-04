@@ -15,16 +15,17 @@ import numpy as np
 import sympy as sp
 
 ROOT = Path(__file__).resolve().parents[2]   # the repository's root, above searches/search288/ ([FAC] stage 3a)
-sys.path.insert(0, str(ROOT))                # for lattice288
+ENGINE = ROOT / 'engine'                     # lattice288, its sources and cases: [FAC] stage 3b (2026-11-04)
+sys.path.insert(0, str(ENGINE))
 import lattice288
 
 
-PREPARED = ROOT / '.lattice288_prepared.json'
+PREPARED = ENGINE / '.lattice288_prepared.json'
 SOURCES = ('lattice288.py', 'overnight_v5.py', 'certbb.py')
 
 
 def source_hash():
-    return sha256(b''.join((ROOT / name).read_bytes() for name in SOURCES)).hexdigest()
+    return sha256(b''.join((ENGINE / name).read_bytes() for name in SOURCES)).hexdigest()
 
 
 def independent(rows):

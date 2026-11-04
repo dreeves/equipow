@@ -14,7 +14,7 @@ import target288
 class TargetQuals(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.prepared = json.loads(Path('.lattice288_prepared.json').read_text())
+        cls.prepared = json.loads(target288.PREPARED.read_text())     # in engine/ since [FAC] stage 3b
 
     def test_existing_cases_have_the_geometry_contract(self):
         # Replicata: the archived preparation used by the completed 288 batch.

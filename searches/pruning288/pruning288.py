@@ -18,7 +18,8 @@ import sys
 import time
 
 ROOT = Path(__file__).resolve().parents[2]   # the repository's root, above searches/pruning288/ ([FAC] stage 3a)
-sys.path[:0] = [str(ROOT), str(ROOT / 'searches' / 'search288')]   # for progress, lattice288 and search288
+# for progress; lattice288, in engine/ since [FAC] stage 3b (2026-11-04); search288
+sys.path[:0] = [str(ROOT), str(ROOT / 'engine'), str(ROOT / 'searches' / 'search288')]
 import progress
 import pruning288_geometry as G
 import search288 as S
@@ -35,7 +36,7 @@ SOURCES = ('searches/pruning288/pruning288.py', 'searches/pruning288/pruning288_
            'progress.py') + S.SOURCES
 CODE = hashlib.sha256(b''.join((ROOT / name).read_bytes() for name in SOURCES)).hexdigest()
 INPUT_PATHS = ('searches/search288/search288_journal.jsonl', 'scratch/search288/calibration.json',
-               'scratch/search288/search.json', '.lattice288_prepared.json')
+               'scratch/search288/search.json', 'engine/.lattice288_prepared.json')
 INPUT = {name: hashlib.sha256((ROOT / name).read_bytes()).hexdigest() for name in INPUT_PATHS}
 
 

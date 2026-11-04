@@ -23,7 +23,9 @@
 //
 // A construction is data-construction, "N:M", the length N and the order M that the page states for its formula, a
 // formula over sequences in the page's math: names joined by # (\mathbin{\#}) or ∨ (\vee), one of the two in each pair
-// of parentheses, and, in front, a name and = or nothing (the name names it).  Its box, from template[data-derivation], is its
+// of parentheses, or one name alone, in parentheses or not (since 2026-11-04, for the boxes under the charts, whose
+// constructions of powers of 2 write every product of a join in parentheses, as the readout does, (p_{1024}) among them),
+// and, in front, a name and = or nothing (the name names it).  Its box, from template[data-derivation], is its
 // derivation: a row per step, each part and then the product or join that uses it, with its length n and order m
 // (rows data-n and data-m), the whole formula last, and below them the bound m*(N) ≥ M.  A part p_N is the best known
 // sequence of length N, as the powers-of-2 chart's caption says: its order is mstar.js's lower bound at N, and its row

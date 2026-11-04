@@ -58,11 +58,12 @@ The two lemmas behind hi (each checked against brute force by quals_mstar.py):
         <= p sum_r size(p, r)^2 (f(1) = 0 for m >= 1), and by AM-GM, N^2 <= (p sum_r size(p, r)^2 / (p-1))^(p-1).
 
 The data contract.  mstar.js is a classic script (no modules, so the page also works from file://) defining one global:
-    const MSTAR = {"nmax": 1024, "mtop": T, "mtopAt": N, "past": [[n, m, label], ...], "cols": [[lo, hi, loWhy, hiWhy], ...]};
+    const MSTAR = {"nmax": 1024, "mtop": T, "mtopAt": [N, ...], "past": [[n, m, label], ...], "cols": [[lo, hi, loWhy, hiWhy], ...]};
 cols[n-1] is column n.  0 <= lo <= hi < T = max hi + 1.  Cell (n, m), m = 1..T, is green when m <= lo, gray when
-lo < m <= hi, and red when m > hi; row T is red in every column.  mtopAt = N is the least n past nmax that the
-chart's own upper-bound tests leave open at order T (mtop_at; since 2026-11-03), an even integer above nmax: the table
-of smallest lengths' least n not ruled out at T.  past (since 2026-11-04) lists the explicit sequences longer than nmax, each
+lo < m <= hi, and red when m > hi; row T is red in every column.  mtopAt lists, for each order from T to MMAX, the
+least n past nmax that the chart's own upper-bound tests leave open at that order (mtop_at; T's alone, a number, from
+2026-11-03, a list since 2026-11-04), even integers above nmax that never fall: the table of smallest lengths' least n
+not ruled out at those orders.  past (since 2026-11-04) lists the explicit sequences longer than nmax, each
 [n, m, label] with m its exact order: the table of smallest lengths' lengths known past the chart, which has no column for them.
   loWhy  ["none"] (lo = 0, n odd); ["example", label] (an explicit sequence of length n, label saying where it is
          from); ["join", a, b] (the sequence for a, then the one for b; lo is the lesser of theirs); ["product", a, b]
@@ -85,6 +86,8 @@ from functools import lru_cache, reduce
 from operator import mul
 import numpy as np
 import sympy as sp
+# the engine's modules, overnight_v5 and residues, in engine/ since [FAC] stage 3b (2026-11-04)
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'engine'))
 import overnight_v5 as v5                    # read only: EXAMPLES and from_hex
 # The residue enumeration, moved verbatim to residues.py on 2026-10-26 so that focus.fingerprint, the proof
 # searches' continuation identity, covers it and not this file (see residues.py); imported back for the claims
@@ -101,6 +104,10 @@ RESIDUE_CAP = 10 ** 7                        # nodes allowed to the enumeration 
 CHAINS = ((3,), (4,), (5,), (7,), (3, 9), (4, 8), (11,), (13,), (4, 8, 16), (5, 25), (3, 9, 27), (7, 49),
           (4, 8, 16, 32))                    # the residue chains of scratch/mstar/residue_search.py, which found RESIDUE
 MTOP_CAP = 300000                            # nodes per chain past NMAX (mtop_at): that search's first pass
+MMAX = 17                                    # the table of smallest lengths' last order, so mstar.js's mtopAt runs
+                                             # from mtop to it (dreeves's README, 2026-11-04: "[M17] Let's add m=17 to
+                                             # the "smallest length known" table; no need for much search, just
+                                             # whatever bounds we can find quickly"; the table stopped at mtop before)
 HERE = os.path.dirname(os.path.abspath(__file__))
 PAGE = os.path.join(HERE, 'index.html')
 JS = os.path.join(HERE, 'mstar.js')
@@ -522,16 +529,25 @@ def ruled_out(n, m, chain, sweep):
 @lru_cache(maxsize=None)
 def mtop_at(m):
     """The least n past NMAX that the chart's own upper-bound tests leave open at order m: two(n) and norm(n, p) for
-    the primes of PRIMES not dividing n, then each chain of CHAINS in each sweep (ruled_out); its value for mtop is
-    mstar.js's mtopAt, the table of smallest lengths' least n not ruled out at the order past the chart (dreeves's
-    README, 2026-11-03: "[LIN] Add one more line for m=16 to the "smallest length known for each order" table", then
-    "yes, 1440 instead of ">1024" if that's all we know so far. we don't need to spend serious effort tightening
-    that").  A citation or a longer search could rule its n out yet, as for the chart's own columns."""
+    the primes of PRIMES not dividing n, then each chain of CHAINS in each sweep (ruled_out); its values at the orders
+    from mtop to MMAX are mstar.js's mtopAt (open_past), the table of smallest lengths' least n not ruled out at the
+    orders past the chart (dreeves's README, 2026-11-03: "[LIN] Add one more line for m=16 to the "smallest length
+    known for each order" table", then "yes, 1440 instead of ">1024" if that's all we know so far. we don't need to
+    spend serious effort tightening that").  A citation or a longer search could rule its n out yet, as for the
+    chart's own columns."""
     n = NMAX + 2
     while (min([two(n)] + [norm(n, p) for p in PRIMES if n % p]) < m
            or any(ruled_out(n, m, chain, sweep) for sweep in SWEEPS for chain in CHAINS)):
         n += 2
     return n
+
+
+def open_past(T):
+    """mstar.js's mtopAt: mtop_at(m) for each order m from T, the chart's top row, to MMAX (since 2026-11-04, [M17]; T's
+    alone from 2026-11-03).  Order m + 1 at n has order m there, so the list cannot fall."""
+    at = [mtop_at(m) for m in range(T, MMAX + 1)]
+    assert at and at == sorted(at), at
+    return at
 
 
 # ---------- the columns ----------
@@ -605,7 +621,7 @@ def js_text(cols):
     T = max(c[1] for c in cols) + 1
     rows = ',\n'.join(json.dumps(c) for c in cols)
     return ('// Generated by mstar.py from index.html and the sources it names; edit mstar.py, not this file.\n'
-            f'const MSTAR = {{"nmax": {NMAX}, "mtop": {T}, "mtopAt": {mtop_at(T)}, "past": {json.dumps(past())}, "cols": [\n{rows}\n]}};\n')
+            f'const MSTAR = {{"nmax": {NMAX}, "mtop": {T}, "mtopAt": {json.dumps(open_past(T))}, "past": {json.dumps(past())}, "cols": [\n{rows}\n]}};\n')
 
 
 def main():
@@ -615,8 +631,9 @@ def main():
     open(JS, 'w', encoding='utf-8').write(js_text(cols))
     settled = sum(c[0] == c[1] for c in cols)
     gray = [n for n, c in enumerate(cols, 1) if c[0] < c[1]]
-    # TODO: summary line; says mstar.js was written: how many of the columns are settled (lo = hi), the gray columns, and the top row
-    print(f'Claude: "wrote mstar.js: {settled} of {NMAX} columns settled; gray: {gray}; mtop {max(c[1] for c in cols) + 1}, first open at {mtop_at(max(c[1] for c in cols) + 1)}"')
+    # TODO: summary line; says mstar.js was written: how many of the columns are settled (lo = hi), the gray columns, the top row, and where each order from it to MMAX is first open
+    T = max(c[1] for c in cols) + 1
+    print(f'Claude: "wrote mstar.js: {settled} of {NMAX} columns settled; gray: {gray}; mtop {T}, first open at {open_past(T)}"')
 
 
 if __name__ == '__main__':

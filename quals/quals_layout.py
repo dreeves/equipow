@@ -2,7 +2,8 @@
 """Quals for where the quals are ([FAC] stage 2, 2026-10-31; dreeves's README: "[FAC] Reorganize the files: quals and
 search stuff in their own directories"): in quals/, each finding the repository's root by its own location, so that
 each runs as it did at the root; and that the root's pages link files that are here ([FAC] stage 3a, 2026-10-31: the
-finished searches into searches/, the proofs and certificates into proofs/).
+finished searches into searches/, the proofs and certificates into proofs/); and that the search engine is in
+engine/, importing nothing of the root's ([FAC] stage 3b, 2026-11-04).
 Run: python3 -B quals/quals_layout.py [name ...]   (no arguments: all quals).
 
 Each qual is a function q_*: a passing qual returns, a failing one raises.  Each qual's comment gives its replicata (the
@@ -91,6 +92,46 @@ def q_page_links_resolve():
     assert len(named) > 25, named
     missing = [(p, file) for p, file in named if not (os.path.isfile if file else os.path.isdir)(os.path.join(HERE, p))]
     assert not missing, missing
+
+
+# The engine's files ([FAC] stage 3b, 2026-11-04): its modules, their compiled parts and sources, and the data its
+# modules read beside themselves, in engine/ (q_engine_is_in_engine).
+ENGINE = os.path.join(HERE, 'engine')
+# The git-ignored .lattice288_prepared.json is left out, which a fresh clone lacks.
+ENGINE_FILES = ('boxsplit.py', 'build_native.py', 'certbb.py', 'fanout.py', 'fastlp.py', '_fastlp.c',
+                '_fastlp.cpython-313-darwin.so', 'focus.py', 'focus432.py', 'focus480.py', 'focus672.py',
+                'focus432_certificates.json.gz', 'focus480_certificates.json.gz', 'lattice288.py', 'lattice288.log',
+                'lattice288_journal.jsonl', 'native_bound.py', 'native_bound.cpp',
+                '_native_bound.cpython-313-darwin.so', 'overnight_v5.py', 'reflection.py', 'reprove.py', 'residues.py',
+                'width.py')
+
+
+def q_engine_is_in_engine():
+    # Replicata ([FAC] stage 3b, 2026-11-04; dreeves's README: "[FAC] Finish reorganizing the files: quals and search
+    # stuff in their own directories"): the names in the repository's root and in its engine/.
+    # Expectata: every one of ENGINE_FILES in engine/ and none of them at the root.
+    # Resultata before the move: no engine/, all of them at the root.
+    assert os.path.isdir(ENGINE), ENGINE
+    assert not [n for n in ENGINE_FILES if not os.path.isfile(os.path.join(ENGINE, n))], os.listdir(ENGINE)
+    assert not [n for n in ENGINE_FILES if os.path.exists(os.path.join(HERE, n))], ENGINE_FILES
+
+
+def q_engine_imports_from_anywhere():
+    # Replicata: each Python module of engine/, imported in a fresh Python whose working directory and TMPDIR are an
+    # empty temporary directory, PYTHONPATH engine/ and PYLIB (fpylll, which lattice288 imports): not the root.
+    # Expectata: every one imports, their pins of their compiled parts and sources holding: the engine imports nothing
+    # of the root's, as its scripts and their workers run it.
+    # Resultata before the move: no engine/ to import from.
+    names = sorted(n[:-len('.py')] for n in os.listdir(ENGINE) if n.endswith('.py'))
+    assert names == sorted(n[:-len('.py')] for n in ENGINE_FILES if n.endswith('.py')), names
+    with tempfile.TemporaryDirectory() as d:
+        env = dict(os.environ, PYTHONPATH=os.pathsep.join([ENGINE, PYLIB]), TMPDIR=d)
+        run = lambda n: subprocess.run([sys.executable, '-B', '-c', f'import {n}'], cwd=d, env=env,
+                                       capture_output=True, text=True, timeout=600)
+        with ThreadPoolExecutor(4) as pool:
+            done = list(pool.map(run, names))
+    bad = [(n, p.returncode, p.stderr[-1500:]) for n, p in zip(names, done) if p.returncode]
+    assert not bad, bad
 
 
 def main():

@@ -259,6 +259,10 @@ sys.dont_write_bytecode = True
 import os, re, gc, json, math, time, bisect, itertools, subprocess, collections, glob, functools, shlex, signal, contextlib
 import struct, traceback, statistics
 import numpy as np
+# The engine's directory, relative to HERE (since [FAC] stage 3b, 2026-11-04): the modules this imports, and the
+# runs of the engine's own overnight_v5.py, which names their files beside itself (see DIRS).
+ENGINE = 'engine'
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ENGINE))
 import overnight_v5 as v5
 import boxsplit as bx
 import fanout
@@ -277,9 +281,9 @@ CACHE = os.path.join(HERE, '.progress_cache.json')    # a directory since 2026-1
 # the same lease; it shows once its driver's log exists.
 EXTENDED = ((288, 10),)               # displayed boxsplit runs, (N, ORDER), each shown once its driver's log exists
 RUNS = ((288, 10),)                   # displayed overnight_v5 runs, (N, ORDER)
-# The directory of a run that a copy of overnight_v5.py makes, relative to HERE; the rest are the repository's own.  288@10
-# runs from scratch/x288 (2026-10-27) while the original is frozen for 432:12; its solver may differ only with identical
-# geometry, replay functions and exact proof checker (run_modules).
+# The directory of a run that a copy of overnight_v5.py makes, relative to HERE; the rest are the engine's own, in
+# ENGINE.  288@10 runs from scratch/x288 (2026-10-27) while the original is frozen for 432:12; its solver may differ
+# only with identical geometry, replay functions and exact proof checker (run_modules).
 DIRS = {(288, 10): os.path.join('scratch', 'x288')}
 # The directory of the witness campaign (see the vocabulary) that searches a tracked target, (N, ORDER), relative to HERE:
 # the beam campaign's plan 7 searches 528:12 (2026-11-03).  A campaign that turns to another target needs its entry here.
@@ -351,16 +355,16 @@ def run_module(d):
 
 def run_context(n, order):
     """Use this run's actual solver and replay modules throughout file resolution and one complete survey."""
-    d = os.path.join(HERE, DIRS.get((n, order), ''))
+    d = os.path.join(HERE, DIRS.get((n, order), ENGINE))
     return run_modules.context(sys.modules[__name__], run_modules.load(d, ROOT_V5, ROOT_BX))
 
 
 def files(n, order):
     """The journal and log of the run (n, order), named as overnight_v5.configure names them, in the run's directory
-    (DIRS, or the repository's own).  run_module checks identical geometry, replay and exact verification before
+    (DIRS, or the engine's own, ENGINE).  run_module checks identical geometry, replay and exact verification before
     accepting a different local solver CODE. Its settings for the run become overnight_v5's (they must agree where
     both have them). Standalone callers retain their root module; run_context binds complete surveys to the copy."""
-    d = os.path.join(HERE, DIRS.get((n, order), ''))
+    d = os.path.join(HERE, DIRS.get((n, order), ENGINE))
     copy = run_module(d)
     # TODO: error copy; says the run's directory holds an overnight_v5.py whose code or settings differ from overnight_v5's
     assert v5.SETTINGS.get((n, order), copy.SETTINGS[n, order]) == copy.SETTINGS[n, order], \
@@ -3097,8 +3101,9 @@ def js_text(surveys, now):
     (2026-11-03), pool, its pool series as pool_series gives it; and for a tracked target a campaign searches
     (2026-11-03, README [SER]), chance: null, or as chance.shown gives it, {cpu_hours, rate, cores, hours, p,
     history}: the CPU-hours searched without a witness, the exposure per CPU-hour (null before a probe seed has
-    finished), the recent CPU-hours per wall-hour, the hours t (chance.HOURS), the chance of a witness within each
-    (empty without a rate), and its history, [[time, p6, p24], ...] (README [CON], 2026-11-03)."""
+    finished), the search CPU-hours per wall-hour ahead (null likewise; 2026-11-04), the hours t (chance.HOURS), the
+    chance of a witness within each (empty without a rate), and its history, [[time, p6, p24], ...] (README [CON],
+    2026-11-03)."""
     return data_text([run_data(s) for s in surveys], now)
 
 

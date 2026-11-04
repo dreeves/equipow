@@ -12,6 +12,8 @@ HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # the repos
 PROOFS = os.path.join(HERE, 'proofs')
 PROVE = os.path.join(HERE, 'searches', 'pintree', 'pintree_prove.py')
 sys.path.insert(0, HERE); sys.path.insert(0, PROOFS)
+# residues, in engine/ since [FAC] stage 3b (2026-11-04)
+sys.path.insert(0, os.path.join(HERE, 'engine'))
 COUNTS = {(432, 12): {'closed': 7561, 'splits': 101, 'vectors': 7672, 'skipped': 11, 'bounds': 2860, 'certificates': 3119},
           (816, 13): {'closed': 332497, 'splits': 6269, 'vectors': 338958, 'skipped': 193, 'bounds': 166072, 'certificates': 187269}}
 
