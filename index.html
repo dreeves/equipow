@@ -41,6 +41,7 @@
     <summary><i>Changelog</i></summary>
     <p>2026-11-04: \(a(15) = 1440\)</p>
     <p>2026-11-04: \(m^*(672) = 13\)</p>
+    <p>2026-11-03: Clickable cells in the charts</p>
     <p>2026-11-03: Number the figures/tables</p>
     <p>2026-11-03: \(m^*(432) = 11\)</p>
     <p>2026-11-03: \(m^*(720) \ge 13\)</p>
@@ -48,7 +49,7 @@
     <p>2026-11-03: \(m^*(544) = 10\), \(m^*(576) = 12\), \(m^*(624) = 12\), \(m^*(768) = 13\), \(m^*(816) = 12\), \(m^*(912) = 13\), \(m^*(1008) = 13\)</p>
     <p>2026-11-03: \(m^*(2^{28}) \ge 31\), \(m^*(2^{36}) \ge 40\), \(m^*(2^{47}) \ge 53\), \(m^*(2^{56}) \ge 63\), \(m^*(2^{58}) \ge 66\)</p>
     <p>2026-11-01: \(12 \le m^*(672) \le 13\), \(m^*(688) = 10\)</p>
-    <p>2026-10-31: <span class="nw">Expandable hex codes</span></p>
+    <p>2026-10-31: Expandable hex codes</p>
     <p>2026-10-31: \(m^*(528) \ge 11\), \(11 \le m^*(576) \le 12\), \(11 \le m^*(624) \le 12\)</p>
     <p>2026-10-28: <span class="nw">OEIS section</span></p>
     <p>2026-10-28: \(m^*(720) \ge 12\)</p>
@@ -59,7 +60,7 @@
     <p>2026-10-28: \(12 \le m^*(912) \le 13\)</p>
     <p>2026-10-28: \(m^*(2^{29}) \ge 32\)</p>
     <p>2026-10-27: \(11 \le m^*(720) \le 14\), \(11 \le m^*(1008) \le 13\)</p>
-    <p>2026-10-27: <span class="nw">Extend table through 1024</span></p>
+    <p>2026-10-27: Extend table through 1024</p>
     <p>2026-10-26: \(11 \le m^*(816) \le 14\)</p>
     <p>2026-10-26: \(m^*(2^{41}) \ge 46\)</p>
     <p>2026-10-26: \(m^*(2^{10}) = 11\)</p>
@@ -271,7 +272,7 @@
     <div class="column-panel-body" data-panel-body></div>
     <div class="remarks"><ul data-panel-entries></ul></div>
   </div>
-  <!-- The boxes' templates, one per kind of part, for both charts (since 2026-11-04, dreeves's README items [CEL] and [ROC]: the math alone, with the column's own numbers, in place of 2026-11-03's sentences): page/shared.js's filled() puts a copy of one into a box, each data-slot holding the column's own value, and KaTeX draws its math then; a box sets the parts in Claude's words, those of the witnesses and the proofs, in one quote, Claude: “…”, its one attribution. -->
+  <!-- The boxes' templates, one per kind of part, for both charts (since 2026-11-04, dreeves's README items [CEL] and [ROC]: the math alone, with the column's own numbers, in place of 2026-11-03's sentences): page/shared.js's filled() puts a copy of one into a box, each data-slot holding the column's own value, and KaTeX draws its math then; a box sets its parts of Claude's English, those of the templates marked data-claude, each with its TODO recap, in one quote, Claude: “…”, its one attribution, and a box with none has none (dreeves, 2026-11-04: "we don't need claude attribution for blurbs without words like these"). -->
   <!-- A lower bound's witness, an example: the bound, then the example's source as the data names it, its label -->
   <template data-panel="witness-example"><p><span data-slot="bound"></span>: <span data-slot="label"></span></p></template>
   <!-- A copy of the page's code of a witness, which page/codes.js expands into its partition as it does the code itself -->
@@ -281,19 +282,19 @@
   <!-- A lower bound's witness cited from BGPW's Table 2 (linked) -->
   <template data-panel="witness-table2"><p><span data-slot="bound"></span>: BGPW, <a href="https://arxiv.org/html/1912.03491v1#S3.T2">Table 2</a></p></template>
   <!-- TODO: a lower bound found in the new results, naming whose they are; its entry follows in the box -->
-  <template data-panel="witness-page"><p><span data-slot="bound"></span>: found by <span data-slot="who"></span></p></template>
+  <template data-panel="witness-page" data-claude><p><span data-slot="bound"></span>: found by <span data-slot="who"></span></p></template>
   <!-- TODO: a lower bound's witness, Thue–Morse τ_k, whose sign at i is (−1)^s(i), s(i) the number of 1s among the binary digits of i (Prouhet) -->
-  <template data-panel="witness-thue-morse"><p><span data-slot="bound"></span>: Thue–Morse <span data-slot="tau"></span>, \(f_i = (-1)^{s(i)}\) with \(s(i)\) the number of 1s in \(i\) in binary (Prouhet)</p></template>
+  <template data-panel="witness-thue-morse" data-claude><p><span data-slot="bound"></span>: Thue–Morse <span data-slot="tau"></span>, \(f_i = (-1)^{s(i)}\) with \(s(i)\) the number of 1s in \(i\) in binary (Prouhet)</p></template>
   <!-- TODO: the proof of the 2-adic bound (BGPW's Theorem 4.1, linked), for the column's n = 2^t u, u odd: mod 2 every sign is 1, so f(x) is (x^u + 1)^(2^t)/(x + 1), and x + 1 divides x^u + 1 only once, so (x − 1)^m, which is (x + 1)^m mod 2, divides f only for m ≤ 2^t − 1 -->
-  <template data-panel="proof-two"><p><span data-slot="bound"></span>: 2-adic bound (BGPW, <a href="https://arxiv.org/html/1912.03491v1#S4.Thmthm1">Theorem 4.1</a>): <span data-slot="n"></span>, and mod 2 <span data-slot="f"></span>, where <span data-slot="once"></span>, so \((x - 1)^m \mid f\) only for <span data-slot="m"></span></p></template>
+  <template data-panel="proof-two" data-claude><p><span data-slot="bound"></span>: 2-adic bound (BGPW, <a href="https://arxiv.org/html/1912.03491v1#S4.Thmthm1">Theorem 4.1</a>): <span data-slot="n"></span>, and mod 2 <span data-slot="f"></span>, where <span data-slot="once"></span>, so \((x - 1)^m \mid f\) only for <span data-slot="m"></span></p></template>
   <!-- TODO: the proof of the norm bound for the prime p, which does not divide n: order m needs p^m ≤ the norm of f(ζ_p), an integer, which is at most the floor of (p Σ s_r² / (p − 1))^((p − 1)/2), s_r the number of i < n with i ≡ r mod p; the column's s_r and Σ s_r²; at m = hi + 1, p^m, in digits, is more than that floor, in digits -->
-  <template data-panel="proof-norm"><p><span data-slot="bound"></span>: norm bound, <span data-slot="p"></span>: order \(m\) needs \(p^m \le N(f(\zeta_p)) \le \lfloor (p \sum s_r^2 / (p - 1))^{(p-1)/2} \rfloor\), for \(s_r = |\{i < n : i \equiv r \bmod p\}|\) = <span data-slot="sizes"></span> and \(\sum s_r^2 =\) <span data-slot="squares"></span>; at <span data-slot="m"></span>, <span data-slot="pm"></span> <span data-slot="pmv"></span> \(>\) <span data-slot="cap"></span></p></template>
+  <template data-panel="proof-norm" data-claude><p><span data-slot="bound"></span>: norm bound, <span data-slot="p"></span>: order \(m\) needs \(p^m \le N(f(\zeta_p)) \le \lfloor (p \sum s_r^2 / (p - 1))^{(p-1)/2} \rfloor\), for \(s_r = |\{i < n : i \equiv r \bmod p\}|\) = <span data-slot="sizes"></span> and \(\sum s_r^2 =\) <span data-slot="squares"></span>; at <span data-slot="m"></span>, <span data-slot="pm"></span> <span data-slot="pmv"></span> \(>\) <span data-slot="cap"></span></p></template>
   <!-- TODO: the proof by the residue condition mod M (or the moduli of a chain): order m needs residue sums D_r, the sums of the signs f_i with i ≡ r mod M, with |D_r| ≤ s_r and D_r ≡ s_r mod 2 (s_r the number of i < n with i ≡ r mod M), and (x − 1)^m dividing Σ D_r x^r modulo x^M − 1; at m = hi + 1 an exhaustive search, by the script named (linked), finds none -->
-  <template data-panel="proof-residue"><p><span data-slot="bound"></span>: residue condition mod <span data-slot="M"></span>: order \(m\) needs \(D_r = \sum_{i \equiv r} f_i\) with \(|D_r| \le s_r\), \(D_r \equiv s_r \pmod 2\) and \((x - 1)^m \mid \sum D_r x^r \bmod x^M - 1\), for \(s_r = |\{i < n : i \equiv r \bmod M\}|\); at <span data-slot="m"></span> an exhaustive search (<span data-slot="source"></span>) finds none</p></template>
+  <template data-panel="proof-residue" data-claude><p><span data-slot="bound"></span>: residue condition mod <span data-slot="M"></span>: order \(m\) needs \(D_r = \sum_{i \equiv r} f_i\) with \(|D_r| \le s_r\), \(D_r \equiv s_r \pmod 2\) and \((x - 1)^m \mid \sum D_r x^r \bmod x^M - 1\), for \(s_r = |\{i < n : i \equiv r \bmod M\}|\); at <span data-slot="m"></span> an exhaustive search (<span data-slot="source"></span>) finds none</p></template>
   <!-- An upper bound cited from BGPW's Table 2 (linked) -->
   <template data-panel="proof-table2"><p><span data-slot="bound"></span>: BGPW, <a href="https://arxiv.org/html/1912.03491v1#S3.T2">Table 2</a></p></template>
   <!-- TODO: an upper bound proven in the new results, naming whose they are; the proof is the column's entry, which follows in the box -->
-  <template data-panel="proof-page"><p><span data-slot="bound"></span>: proven by <span data-slot="who"></span></p></template>
+  <template data-panel="proof-page" data-claude><p><span data-slot="bound"></span>: proven by <span data-slot="who"></span></p></template>
   <!-- A row's box of the m*(n) chart: its row of the table of smallest lengths, under that table's head (cloned), and the term a(m − 1) of OEIS A323395 (linked) -->
   <template data-panel="row-smallest"><table><tbody data-slot="row"></tbody></table><p>OEIS <a href="https://oeis.org/A323395">A323395</a>: <span data-slot="term"></span></p></template>
   <!-- A gold-ringed cell of a row of the chart of powers of 2: the legend's swatch and words for it, and its k, linked to its cell's box -->

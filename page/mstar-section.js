@@ -56,7 +56,7 @@ try {
       ok: (n, lo, who) => WHO.includes(who),
       // readout reason; says order lo is known from this page's new results, naming whose they are
       text: (n, lo, who) => `order ${lo} from the new results above (${who})`,
-      witness: (n, lo, who) => shown([filled('witness-page', {bound: bound(n, 'ge', lo), who})], [], [BigInt(n)]),
+      witness: (n, lo, who) => shown([filled('witness-page', {bound: bound(n, 'ge', lo), who})], [BigInt(n)]),
     },
   };
   const HI = {
@@ -144,7 +144,7 @@ try {
   const witness = n => { const [lo, , lw] = D.cols[n - 1]; return together(LO[lw[0]].witness(n, lo, ...lw.slice(1)), copies(BigInt(n), lo)); };
   const proof = n => { const [, hi, , hw] = D.cols[n - 1]; return HI[hw[0]].proof(n, hi, ...hw.slice(1)); };
   const SAYS = {exists: witness, impossible: proof, open: (n, m) => together(witness(n), proof(n), searches(BigInt(n), m)),
-                column: n => together(witness(n), proof(n), shown([], [], [BigInt(n)])), row: (n, m) => smallestBox(m)};
+                column: n => together(witness(n), proof(n), shown([], [BigInt(n)])), row: (n, m) => smallestBox(m)};
   const cell = (n, m) => {
     const [swatch, ...words] = legendItem(legend, KIND[kindOf(n, m)], Math.max(0, ...RINGS.filter(r => r.n === n && r.m === m).map(r => r.role)));
     return [swatch, linked(`#n${n}`, `\\(n = ${n}\\)`), ', ', linked(`#m${m}`, `\\(m = ${m}\\)`), ': ', ...words];

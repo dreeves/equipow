@@ -136,8 +136,9 @@ function raised(cols, shift) {
 // chart puts it as it draws (--caret); and the chart outlines the target while its box is open (panZoom's pin).  Its
 // heading names the target, a cell's after the cell's own swatch, with the legend's words for that swatch, cloned.
 // Its parts come from the templates of the page, one per kind, template[data-panel="NAME"], filled with the column's
-// own numbers (filled), as LMFDB's knowls fill one text per kind of invariant; those of Claude's words in one quote,
-// Claude: “…”, the box's one attribution, and the others after it.  Every target has a fragment (#n1024, #m12,
+// own numbers (filled), as LMFDB's knowls fill one text per kind of invariant; its parts of Claude's English, those of
+// a template marked data-claude, in one quote, Claude: “…”, the box's one attribution, and a box with none of them
+// with none (dreeves, 2026-11-04: "we don't need claude attribution for blurbs without words like these").  Every target has a fragment (#n1024, #m12,
 // #n1024m12; #k30, #d5, #k30d5), which the box puts in the page's address as it opens, and the page opens that box when
 // it loads with that fragment or moves to it, as the Stacks project's tags name their results.  The box is a
 // disclosure, not a dialog: a region with a heading and a close button; its heading takes the focus as it opens, and
@@ -156,14 +157,15 @@ const linked = (href, ...children) => { const a = document.createElement('a'); a
 
 // A box's part of one kind, NAME: a div of data-why NAME holding a copy of template[data-panel="NAME"]'s content, each
 // of its [data-slot] elements holding values[its slot]: a string (which may hold the page's math, \( ... \), drawn once
-// the box opens), a number, a node, or a list of them.  It throws on a template that is missing or has a slot that
-// values lacks.
+// the box opens), a number, a node, or a list of them; and data-claude where the template has it, a part of Claude's
+// English.  It throws on a template that is missing or has a slot that values lacks.
 function filled(name, values) {
   const t = document.querySelector(`template[data-panel="${name}"]`);
   const slots = t && [...t.content.querySelectorAll('[data-slot]')].map(s => s.dataset.slot);
   if (!t || !slots.every(s => Object.hasOwn(values, s))) throw new Error(`no template ${name} for ${Object.keys(values)}`);
   const box = document.createElement('div');
   box.dataset.why = name;
+  box.toggleAttribute('data-claude', t.hasAttribute('data-claude'));
   box.append(t.content.cloneNode(true));
   box.querySelectorAll('[data-slot]').forEach(s => s.replaceChildren(...[values[s.dataset.slot]].flat()
     .map(x => x instanceof Node ? x.cloneNode(true) : String(x))));
@@ -187,11 +189,11 @@ const HOMES = new Map([...document.querySelectorAll('section.remarks p.entry')].
 }));
 const entries = n => [...HOMES.keys()].filter(li => li.querySelector('p.entry').dataset.lengths.split(' ').includes(String(n)));
 
-// What a box shows (2026-11-04): said, its parts in Claude's words, which it sets in its one quote; parts, its other
-// parts, after them; and entries, the lengths whose entries of the remarks it shows, after both.  together(...xs) shows
-// all of xs, in order.  bound(name, rel, v) is the bound m*(name) ≥ v (rel ge) or ≤ v (le), in TeX.
-const shown = (said = [], parts = [], entries = []) => ({said, parts, entries});
-const together = (...xs) => shown(xs.flatMap(x => x.said), xs.flatMap(x => x.parts), xs.flatMap(x => x.entries));
+// What a box shows (2026-11-04): parts, its parts, in order; and entries, the lengths whose entries of the remarks it
+// shows, after them.  together(...xs) shows all of xs, in order.  bound(name, rel, v) is the bound m*(name) ≥ v (rel
+// ge) or ≤ v (le), in TeX.
+const shown = (parts = [], entries = []) => ({parts, entries});
+const together = (...xs) => shown(xs.flatMap(x => x.parts), xs.flatMap(x => x.entries));
 const bound = (name, rel, v) => `\\(m^*(${name}) \\${rel} ${v}\\)`;
 
 // The witnesses of the lower bounds, as both charts' boxes show them (dreeves's README, [CEL]: "If the cell is green,
@@ -242,7 +244,7 @@ const PROOF = {
     M: `\\(M = ${moduli.join(', ')}\\)`, m: `\\(m = ${hi + 1}\\)`,
     source: linked(`https://github.com/dreeves/equipow/blob/main/${source}`, source)})]),
   table2: (n, name, hi) => shown([filled('proof-table2', {bound: bound(name, 'le', hi)})]),
-  page: (n, name, hi, who) => shown([filled('proof-page', {bound: bound(name, 'le', hi), who})], [], [n]),
+  page: (n, name, hi, who) => shown([filled('proof-page', {bound: bound(name, 'le', hi), who})], [n]),
 };
 
 // The legend's item for a cell of the kind (exists, open or impossible) and the role of its gold ring (0, none; 1, the
@@ -293,7 +295,7 @@ function smallestRow([m, possible, best]) {
 }
 // A row's box of the m*(n) chart: its row of the table of smallest lengths, under that table's own head, and the term
 // a(m - 1) of OEIS A323395, the smallest length of order m: that length where it is proven, else between the two.
-const smallestBox = m => shown([], smallest().filter(([r]) => r === m).map(([r, possible, best]) => {
+const smallestBox = m => shown(smallest().filter(([r]) => r === m).map(([r, possible, best]) => {
   const part = filled('row-smallest', {row: smallestRow([r, possible, best]),
     term: `\\(${possible === best ? `a(${r - 1}) = ${best}` : `${possible} \\le a(${r - 1}) \\le ${best}`}\\)`});
   part.querySelector('table').prepend(document.querySelector('section.smallest thead').cloneNode(true));
@@ -309,31 +311,32 @@ const searches = (n, m) => {
   title.append(Object.assign(document.createElement('b'), {textContent: document.getElementById('progress-title').textContent}));
   part.append(title, runs);
   progressView.want(n, m, nodes => runs.replaceChildren(...nodes));
-  return shown([], [part]);
+  return shown([part]);
 };
 
 // The box of a chart: region, its element (hidden until it opens); chart, the chart's element, which gets the focus
 // back; ncol columns and nrow rows; fragment(column, row), a target's fragment; fill(column, row), what its box shows:
-// {kind, heading, said, parts, entries}; and pin(targets), which has the chart outline the targets, none or one.  The
+// {kind, heading, parts, entries}; and pin(targets), which has the chart outline the targets, none or one.  The
 // entries it shows go below its parts, in its [data-panel-entries], each moved there from wherever it is: its place in
-// the list or the other chart's box, which then shows none; and a copy of a code goes when the box shows the code
-// itself, in an entry.  It returns open(target), which opens the box of the target, as panZoom's open does.
+// the list or the other chart's box, which then shows none; a copy of a code goes when the box shows the code itself,
+// in an entry; and its quote of Claude opens at its first part of Claude's English and closes at its last.  It returns
+// open(target), which opens the box of the target, as panZoom's open does.
 function chartPanel({region, chart, ncol, nrow, fragment, fill, pin}) {
   const title = region.querySelector('[data-panel-title]'), body = region.querySelector('[data-panel-body]');
   const shelf = region.querySelector('[data-panel-entries]');
   const back = () => [...shelf.children].forEach(li => HOMES.get(li).after(li));   // its entries, each back in its place
   let last = null;                                                 // the target shown last
   function open(t) {
-    const {kind, heading, said, parts, entries: lengths} = fill(...t);
+    const {kind, heading, parts, entries: lengths} = fill(...t);
     back();
     shelf.append(...lengths.flatMap(entries));
-    const held = [...shelf.querySelectorAll('code[id]')].map(c => c.id), quoted = said.filter(p => !held.includes(p.dataset.copy));
-    const ps = quoted.flatMap(e => [...e.querySelectorAll('p')]);  // Claude's words, in one quote around them
+    const held = [...shelf.querySelectorAll('code[id]')].map(c => c.id), kept = parts.filter(p => !held.includes(p.dataset.copy));
+    const ps = kept.filter(p => p.hasAttribute('data-claude')).flatMap(e => [...e.querySelectorAll('p')]);   // Claude's English, quoted
     ps.slice(0, 1).forEach(p => p.prepend('Claude: “'));
     ps.slice(-1).forEach(p => p.append('”'));
     region.dataset.kind = kind;
     title.replaceChildren(...heading);
-    body.replaceChildren(...quoted, ...parts);
+    body.replaceChildren(...kept);
     body.querySelectorAll('[data-join]').forEach(e => expandable.partition(e));       // its copies of codes, and its
     body.querySelectorAll('[data-construction]').forEach(e => expandable.derivation(e));   // constructions, buttons
     region.hidden = false;

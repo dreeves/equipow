@@ -261,7 +261,7 @@ try {
   const legend = [...chart.closest('section').querySelectorAll('.legend li')];
   const witness = k => { const [lo, , lw] = D.cols[k - 1]; return together(LO[lw[0]].witness(k, lo, ...lw.slice(1)), copies(2n ** BigInt(k), lo)); };
   const proof = k => { const [, hi, , hw] = D.cols[k - 1]; return HI[hw[0]].proof(k, hi, ...hw.slice(1)); };
-  const rowBox = e => shown([], [...trims.filter(([, te]) => te === e).map(([k, , role]) => filled('row-ring',
+  const rowBox = e => shown([...trims.filter(([, te]) => te === e).map(([k, , role]) => filled('row-ring',
     {item: legendItem(legend, ['', 'exists', 'open', 'exists'][role], role), k: linked(`#k${k}d${e}`, `\\(k = ${k}\\)`)})),
     ...recordGaps().slice(e - 1, e).map(body => {
       const part = filled('row-gaps', {});
@@ -269,7 +269,7 @@ try {
       return part;
     })]);
   const SAYS = {exists: witness, impossible: proof, open: (k, e) => together(witness(k), proof(k), searches(2n ** BigInt(k), k + e)),
-                column: k => together(witness(k), proof(k), shown([], [], [2n ** BigInt(k)])), row: (k, e) => rowBox(e)};
+                column: k => together(witness(k), proof(k), shown([], [2n ** BigInt(k)])), row: (k, e) => rowBox(e)};
   const cell = (k, e) => {
     const [swatch, ...words] = legendItem(legend, KIND[kindOf(k, e)], Math.max(0, ...trims.filter(([tk, te]) => tk === k && te === e).map(([, , role]) => role)));
     return [swatch, linked(`#k${k}`, `\\(k = ${k}\\)`), ', ', linked(`#d${e}`, `\\(\\delta = ${e}\\)`), ': ', ...words];

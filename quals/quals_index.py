@@ -788,7 +788,11 @@ function battery(R) {
 // also shows the remarks' entry of its length, the li that holds its p.entry, moved in: the generated text and links
 // leave out the entries it shows, and the report gives their p.entry ids (entries) and texts (entryText) apart, with
 // the ids of the p.entry still in the remarks' list, in order (listed), the ids that two elements of the page share
-// (dups), and the fold of the list (fold): whether it is there, open and shown.
+// (dups), and the fold of the list (fold): whether it is there, open and shown.  Since 2026-11-04 ([CEL], [ROC]) also the
+// box's kind (data-kind: the kind of the cell clicked, column or row), its parts as [kind, text, whether it is of
+// Claude's English: data-claude] (parts), its copies of
+// codes (copies: [data-join, data-order, role, digits]) and its constructions (constructions: [data-construction,
+// role, TeX]).
 const HELD = 'li:has(> p.entry)';                                  // an entry of the remarks, wherever it is
 function panelReport(id = 'mstar-panel') {
   const region = document.getElementById(id), c = region.cloneNode(true);
@@ -804,7 +808,13 @@ function panelReport(id = 'mstar-panel') {
           entries: held.map(li => li.querySelector('p.entry').id), entryText: held.map(li => li.textContent.replace(/\s+/g, ' ').trim()),
           listed: [...document.querySelectorAll('section.remarks ul > li > p.entry')].map(p => p.id),
           dups: ids.filter((x, i) => ids.indexOf(x) !== i),
-          fold: {there: fold !== null, open: fold?.open ?? null, shown: fold?.checkVisibility() ?? null}};
+          fold: {there: fold !== null, open: fold?.open ?? null, shown: fold?.checkVisibility() ?? null},
+          kind: region.dataset.kind ?? null,
+          parts: [...c.querySelectorAll('[data-panel-body] > [data-why]')].map(e => [e.dataset.why, e.textContent.replace(/\s+/g, ' ').trim(),
+                                                                                    e.hasAttribute('data-claude')]),
+          copies: [...c.querySelectorAll('[data-panel-body] [data-join]')].map(e => [e.dataset.join, e.dataset.order, e.getAttribute('role'), e.textContent]),
+          constructions: [...c.querySelectorAll('[data-panel-body] [data-construction]')].map(e => [e.dataset.construction, e.getAttribute('role'),
+                                                                                                    e.textContent.trim()])};
 }
 // Every column's panel, opened by its fragment, nN, in turn (OPTS.panels; the run lifts Chrome's limit of 200 changes
 // of a frame's address per 10 s, which these 514 changes pass in about 2 s), then the last one closed by its button
@@ -852,11 +862,133 @@ async function fragment(R) {
   region.querySelector('h3').dispatchEvent(escape());
   R.allClosed = {mstar: panelReport(), pow2: panelReport('pow2-panel'), box: boxReport()};
 }
+// The boxes under the m*(n) chart (dreeves's README, 2026-11-03, [CEL] and [ROC]; since 2026-11-04, OPTS.boxes): in the
+// chart's full view, located by its pixels as battery locates it, a click (pointerdown and pointerup) on each target of
+// BOX_TARGETS in turn, [n, m] a cell, [n, null] the strip of the n labels under column n, [null, m] the strip of the m
+// labels left of row m; then a hover on cell (4, 1), so that the outline of the cell read out leaves the target; then
+// the box's report (boxReport): the panel's (panelReport), its kind (data-kind), its frame's color, its caret's middle
+// and the middle there of the target's column (or of the m labels' strip), in CSS px from the viewport's left, its
+// heading's swatch (classes, color, ring), its parts' kinds, the text of its parts of the kinds witness-* and proof-*
+// (said, its math written back as TeX, Claude's quote with it where there is one), which of its parts are of Claude's
+// English (claude: each part's data-claude),
+// its copies of codes (data-join) and its constructions (data-construction), the searches' text, and the canvas's
+// pixels where the target's outline goes, with the target's own color.  Then (each with its report): the first
+// target's box again, its code copy clicked (expanded: the box of the copy, its rows' k and marks); the box of cell
+// (36, 2) and a click on its construction (derived: the derivation's rows and bound); the box of cell (528, 12) once
+// its searches have loaded (searched); its close button (closed, with the pixels of its outline then); and the page's
+// fragment set to #m16 and then #n1024m12 (hashed).
+const BOX_TARGETS = [[1024, 8], [1024, 12], [528, 12], [480, 12], [480, 13], [672, 13], [240, 11], [1020, 4], [56, 6],
+                     [36, 2], [80, 3], [1024, null], [null, 12], [null, 13], [null, 16]];
+async function boxes(R) {
+  const cv = document.getElementById('mstar-chart'), region = document.getElementById('mstar-panel');
+  const tok = name => getComputedStyle(cv).getPropertyValue(name).trim().toLowerCase();
+  const C = {exists: tok('--exists'), open: tok('--open'), impossible: tok('--impossible'), paper: tok('--paper'), ink: tok('--ink'),
+             rule: tok('--rule')};
+  R.tokens = C;
+  const dpr = devicePixelRatio, ctx = cv.getContext('2d'), T = MSTAR.mtop;
+  let img = null;
+  const snap = () => { img = ctx.getImageData(0, 0, cv.width, cv.height); };
+  const pix = (X, Y) => { const i = (Math.floor(Y) * img.width + Math.floor(X)) * 4, d = img.data;
+    return '#' + [d[i], d[i + 1], d[i + 2]].map(v => v.toString(16).padStart(2, '0')).join(''); };
+  const hex = rgb => '#' + rgb.match(/\d+/g).slice(0, 3).map(v => (+v).toString(16).padStart(2, '0')).join('');
+  snap();
+  const runs = [];                                 // the rows: runs of pixels not paper down the middle device column
+  for (let Y = 0, s = -1, X = cv.width >> 1; Y <= cv.height; Y++) {
+    const on = Y < cv.height && pix(X, Y) !== C.paper;
+    if (on && s < 0) s = Y;
+    if (!on && s >= 0) { runs.push([s, Y]); s = -1; }
+  }
+  const rows = runs.slice(0, T), rowY = m => (rows[T - m][0] + rows[T - m][1]) / 2;   // device px
+  let PL = 0, PR = cv.width - 1;                   // the plot: the run of impossible pixels across row T
+  while (pix(PL, rowY(T)) !== C.impossible) PL++;
+  while (pix(PR, rowY(T)) !== C.impossible) PR--;
+  PR++;
+  const k = NCOL / (PR - PL), colOf = n => COLS.indexOf(n) + 1;     // columns per device px; column j from 1
+  const x0 = j => PL + (j - 1) / k, x1 = j => PL + j / k;
+  // where a target is, in device px of the canvas: a cell's middle; under column n, 10 CSS px below the plot; left of
+  // row m, the middle of the strip left of the plot
+  const placeOf = ([n, m]) => [n === null ? PL / 2 : (x0(colOf(n)) + x1(colOf(n))) / 2, m === null ? rows[T - 1][1] + 10 * dpr : rowY(m)];
+  const ptr = (type, X, Y, o) => { const r = cv.getBoundingClientRect();
+    cv.dispatchEvent(new PointerEvent(type, {clientX: r.left + X / dpr, clientY: r.top + Y / dpr, pointerId: 1, pointerType: 'mouse',
+      buttons: 0, bubbles: true, cancelable: true, ...o})); };
+  const click = t => { const [X, Y] = placeOf(t); ptr('pointerdown', X, Y, {buttons: 1}); ptr('pointerup', X, Y, {}); };
+  const away = () => { const [X, Y] = placeOf([4, 1]); ptr('pointermove', X, Y, {}); };
+  const tex = e => { const c = e.cloneNode(true);
+    c.querySelectorAll('.katex').forEach(x => x.replaceWith(`\\(${x.querySelector('annotation').textContent}\\)`));
+    return c.textContent.replace(/\s+/g, ' ').trim(); };
+  // the pixels where target t's outline goes, just outside its cells: for a cell, left and right of it in its row;
+  // for a column, left of it in rows 1 and T; for a row, above it at the plot's middle and a quarter of the way in
+  const outlinePixels = ([n, m]) => { snap(); return n === null
+    ? [pix((PL + PR) / 2, rows[T - m][0] - dpr), pix(PL + (PR - PL) / 4, rows[T - m][0] - dpr)]
+    : m === null ? [pix(x0(colOf(n)) - dpr, rowY(1)), pix(x0(colOf(n)) - dpr, rowY(T))]
+    : [pix(x0(colOf(n)) - dpr, rowY(m)), pix(x1(colOf(n)) + dpr, rowY(m))]; };
+  const body = () => region.querySelector('[data-panel-body]');
+  function boxReport(t) {
+    const before = getComputedStyle(region, '::before'), b = region.getBoundingClientRect(), r = cv.getBoundingClientRect();
+    const sw = region.querySelector('h3 .swatch'), said = [...body().querySelectorAll(':scope > [data-why^="witness"], :scope > [data-why^="proof"]')];
+    snap();
+    return {target: t, ...panelReport(), kind: region.dataset.kind, frame: hex(getComputedStyle(region).borderTopColor),
+      caret: b.left + region.clientLeft + parseFloat(before.left) + parseFloat(before.borderLeftWidth),
+      column: r.left + placeOf(t)[0] / dpr, own: t.includes(null) ? null : pix(placeOf(t)[0], rows[T - t[1]][0] + 2),
+      swatch: sw && {cls: sw.className, color: hex(getComputedStyle(sw).backgroundColor), ring: getComputedStyle(sw).boxShadow},
+      parts: [...body().children].map(e => e.dataset.why), said: said.map(tex).join(' '),
+      claude: [...body().children].map(e => e.hasAttribute('data-claude')),
+      copies: [...body().querySelectorAll('[data-join]')].map(e => [e.dataset.join, e.dataset.order, e.getAttribute('role'), e.textContent]),
+      constructions: [...body().querySelectorAll('[data-construction]')].map(e => [e.dataset.construction, e.getAttribute('role'), tex(e)]),
+      searches: [...body().querySelectorAll('[data-why="searches"]')].map(e => e.innerText),
+      tables: [...body().querySelectorAll('table')].map(table => [...table.rows].map(tr => [...tr.cells].map(tex))),
+      outline: outlinePixels(t)};
+  }
+  R.table3 = [...document.querySelector('section.smallest table').rows].map(tr => [...tr.cells].map(tex));
+  R.table4 = [...document.querySelector('[data-record-gaps]').querySelectorAll('thead tr, tbody tr')].map(tr => [...tr.cells].map(tex));
+  // until the box's searches, if it has any, have loaded (at most 5 s)
+  const loaded = async () => { for (let i = 0; i < 100 && [...body().querySelectorAll('[data-why="searches"] > div')].some(d => !d.childNodes.length); i++) await new Promise(r => setTimeout(r, 50)); };
+  R.boxes = [];
+  for (const t of BOX_TARGETS) {
+    click(t);
+    await loaded();
+    away();
+    R.boxes.push(boxReport(t));
+  }
+  // the first target's code copy, expanded
+  click(BOX_TARGETS[0]);
+  const copy = body().querySelector('[data-join]');
+  copy.click();
+  const shown = document.getElementById(copy.getAttribute('aria-controls'));
+  R.expanded = {expanded: copy.getAttribute('aria-expanded'), inBox: region.contains(shown), shown: shown.checkVisibility(),
+                ks: [...shown.querySelectorAll('[data-k]')].map(c => c.textContent),
+                relations: [...shown.querySelectorAll('[data-relation]')].map(c => c.textContent)};
+  // a construction's derivation
+  click([36, 2]);
+  const built = body().querySelector('[data-construction]');
+  built.click();
+  const steps = document.getElementById(built.getAttribute('aria-controls'));
+  R.derived = {expanded: built.getAttribute('aria-expanded'), inBox: region.contains(steps), shown: steps.checkVisibility(),
+               rows: [...steps.querySelectorAll('[data-steps] tr')].map(tr => [tr.dataset.n, tr.dataset.m]),
+               bound: steps.querySelector('[data-bound]').textContent.replace(/\s+/g, ' ').trim()};
+  // the searches of an open cell, once loaded
+  click([528, 12]);
+  await loaded();
+  away();
+  R.searched = boxReport([528, 12]);
+  region.querySelector('[data-panel-close]').click();
+  R.closed = {...panelReport(), outline: outlinePixels([528, 12])};
+  await hashed('#m16');
+  R.hashed = [boxReport([null, 16])];
+  await hashed('#n1024m12');
+  R.hashed.push(boxReport([1024, 12]));
+}
+// The page loaded with a box's fragment (OPTS.boxFragment, 2026-11-04): its box as the page shows it then.
+async function boxFragment(R) {
+  R.atLoad = {...panelReport(), kind: document.getElementById('mstar-panel').dataset.kind};
+}
 const R = {errors: window.__errors, opts: OPTS};
 const go = async () => {
   try {
     if (OPTS.fragment) await fragment(R);
     else if (OPTS.panels) await panels(R);
+    else if (OPTS.boxes) await boxes(R);
+    else if (OPTS.boxFragment) await boxFragment(R);
     else battery(R);
   } catch (e) { R.harnessError = String(e && e.stack || e); }
   R.texts = [...new Set(window.__texts)];
@@ -945,9 +1077,15 @@ CONFIGS = {   # name: (mstar.js, window width, device pixel ratio, theme, hover 
     'panels': ('real', 1280, 2, None, 1),
     'phone panels': ('real', 390, 3, None, 5),
     'kinds panels': ('kinds', 1280, 2, None, 1),
+    'boxes': ('real', 1280, 2, None, 1),
+    'phone boxes': ('real', 390, 3, None, 5),
+    'box fragment': ('real', 1280, 2, None, 1),
 } | {f'violates {v}': (v, 1280, 1, None, 1) for v in VIOLATIONS}
 PANELS = ('panels', 'phone panels', 'kinds panels')   # the configurations that open every column's panel in turn ([REO], 2026-11-03)
 FRAGMENTS = {'fragment': '#n1024', 'phone fragment': '#n1024'}   # the configurations that load the page with a fragment
+# the configurations that click the boxes' targets (the harness's boxes) and that load the page with a cell's fragment,
+# each beside a made-up progress.js, BOX_PROGRESS (2026-11-04, [CEL] and [ROC])
+BOXES, BOX_LOADS = ('boxes', 'phone boxes'), {'box fragment': '#n1024m12'}
 SOURCES = {'real': lambda: open(DATA, encoding='utf-8').read(), 'kinds': kinds_data} | {
     v: (lambda v=v: kinds_data(v)) for v in VIOLATIONS}           # mstar.js's text, by CONFIGS's first entry
 
@@ -959,7 +1097,8 @@ def run(name):
         d = tempfile.mkdtemp(prefix='index-quals-')
         text = page()
         assert text.count('<head>\n') == 1 and text.count('</body>') == 1 and text.count('<html lang="en">') == 1
-        opts = {'hoverEvery': every, 'panels': name in PANELS, 'fragment': name in FRAGMENTS}
+        opts = {'hoverEvery': every, 'panels': name in PANELS, 'fragment': name in FRAGMENTS, 'boxes': name in BOXES,
+                'boxFragment': name in BOX_LOADS}
         text = text.replace('<head>\n', '<head>\n' + EARLY).replace('</body>', HARNESS.replace(
             '__OPTS__', json.dumps(opts)).replace('__NCOL__', str(NCOL)).replace('__COLUMNS__', json.dumps(COLUMNS)) + '</body>')
         if theme: text = text.replace('<html lang="en">', f'<html lang="en" data-theme="{theme}">')
@@ -967,8 +1106,10 @@ def run(name):
         copy_page_dir(d)
         if data is not None: open(os.path.join(d, 'mstar.js'), 'w', encoding='utf-8').write(SOURCES[data]())
         shutil.copy(POW2, os.path.join(d, 'pow2.js'))
+        if name in BOXES or name in BOX_LOADS:
+            open(os.path.join(d, 'progress.js'), 'w', encoding='utf-8').write('progressData(' + json.dumps(BOX_PROGRESS) + ');\n')
         open(os.path.join(d, 'host.html'), 'w').write(HOST.replace('__WIDTH__', str(width)).replace(
-            'src="index.html"', f'src="index.html{FRAGMENTS.get(name, "")}"'))
+            'src="index.html"', f'src="index.html{(FRAGMENTS | BOX_LOADS).get(name, "")}"'))
         dom = chrome(d, ['--disable-ipc-flooding-protection'] * (name in PANELS) + [f'--window-size={max(width, 500) + 40},1100', f'--force-device-scale-factor={dpr}',
                          '--virtual-time-budget=10000', '--dump-dom', 'file://' + os.path.join(d, 'host.html')])
         m = re.search(r'<pre id="harness-out">(.*?)</pre>', dom, re.S)
@@ -3452,13 +3593,12 @@ def entry_order():
 
 
 def panel_whys(cols, n, rows=()):
-    """The kinds of text that column n's panel of the m*(n) chart shows, in order, for the cells clicked in rows: a
-    status per cell, its lower bound's reason and, for an example, its code where the page shows it, and its upper
-    bound's.  (Its entry's link, the template "entry", followed until [REO] step 2, 2026-11-03, which moved the entry
-    itself into the panel: panel_entries.)"""
-    lo, hi, lw, hw = cols[n - 1]
-    status = ['status-' + ('exists' if m <= lo else 'open' if m <= hi else 'impossible') for m in rows]
-    return status + [f'lo-{lw[0]}'] + ['lo-code'] * (lw[0] == 'example' and f'{n}:{lo}' in code_ids()) + [f'hi-{hw[0]}']
+    """The kinds of the parts of the box of the m*(n) chart's column n, in order, or of its cell (n, m) for rows [m]
+    (box_parts).  Spec change (2026-11-04, dreeves's README items [CEL] and [ROC]): until then the kinds of text of the
+    column's one panel, for the cells clicked in rows: a status per cell, its lower bound's reason and, for an example,
+    its code where the page shows it, and its upper bound's (and its entry's link, the template "entry", until [REO]
+    step 2, 2026-11-03, which moved the entry itself into the panel: panel_entries)."""
+    return box_parts(cols, n, *rows)
 
 
 def panel_entries(n):
@@ -3468,26 +3608,31 @@ def panel_entries(n):
 
 
 def panel_says(cols, n, P):
-    """What column n's panel P must say, by its reasons' arguments, as [(what, found)]."""
+    """What the box of the m*(n) chart's column n, P, must say, by its reasons' arguments, as [(what, found)].  Spec change
+    (2026-11-04, [CEL]; dreeves: "so many pointless words in the implementation so far"): its bounds as math, each
+    leading its part; an example's label; a join's or a product's construction, a button claiming n:lo; each proof's
+    numbers; and the copy of the page's code of the length n and the order lo, unless its entry, which the box shows,
+    holds that code.  Until then: the sentences of 2026-11-03, each part linked to its own column's panel and an
+    example to its code."""
     lo, hi, lw, hw = cols[n - 1]
     t = P['text']
     says = [('heading', P['heading'] == (f'\\(n = {n}\\): \\(m^*({n}) = {lo}\\)' if lo == hi else
                                           f'\\(n = {n}\\): \\({lo} \\le m^*({n}) \\le {hi}\\)')),
-            ('lower', f'The lower bound, order {lo}' in t), ('upper', f'order {hi + 1} is ruled out' in t)]
+            ('lower', f'\\(m^*({n}) \\ge {lo}\\):' in t), ('upper', f'\\(m^*({n}) \\le {hi}\\):' in t)]
     a, b = (lw + [0, 0])[1:3]
     arg, harg = (lw + [None])[1], (hw + [None])[1]                  # the first argument of each reason, if any
-    says += {'example': [('label', f'comes from an example: {arg}.' in t)],
-             'join': [('parts', f'\\(p_{{{a}}}\\) \\(\\vee\\) \\(p_{{{b}}}\\)' in t and {f'#n{a}', f'#n{b}'} <= set(P['links'])),
-                      ('sum', f'\\({a} + {b} = {n}\\)' in t)],
-             'product': [('parts', f'\\(p_{{{a}}}\\) \\(\\mathbin{{\\#}}\\) \\(p_{{{b}}}\\)' in t and {f'#n{a}', f'#n{b}'} <= set(P['links'])),
-                         ('length', f'\\({a} \\cdot {b} = {n}\\)' in t)],
-             'table2': [('cited', "cited from BGPW's Table 2" in t)], 'page': [('who', f'({arg})' in t)]}[lw[0]]
+    built = lambda tex: [f'{n}:{lo}', 'button', f'\\({tex}\\)'] in P['constructions']
+    says += {'example': [('label', f'\\(m^*({n}) \\ge {lo}\\): {arg}' in t)],
+             'join': [('construction', built(f'p_{{{a}}} \\vee p_{{{b}}}'))],
+             'product': [('construction', built(f'p_{{{a}}} \\mathbin{{\\#}} p_{{{b}}}'))],
+             'table2': [('cited', f'\\(m^*({n}) \\ge {lo}\\): BGPW, Table 2' in t)], 'page': [('who', f'found by {arg}' in t)]}[lw[0]]
     t2 = (n & -n).bit_length() - 1
-    says += {'two': [('t', f'\\(n = {n} = 2^{{{t2}}} \\cdot {n >> t2}\\)' in t and f'\\(t = {t2}\\)' in t)],
-             'norm': [('p', f'\\(p = {harg}\\)' in t)],
-             'residue': [('M', f'residue condition mod {harg},' in t and 'mstar.py repeats' in t)],
-             'table2': [('cited', 'ruled out by BGPW' in t)], 'page': [('who', f'({harg})' in t)]}[hw[0]]
-    says += [('code', f'#{n}:{lo}' in P['links'])] * (lw[0] == 'example' and f'{n}:{lo}' in code_ids())
+    says += {'two': [('t', f'\\(n = 2^{{{t2}}} \\cdot {n >> t2}\\)' in t and f'\\(m \\le 2^{{{t2}}} - 1 = {hi}\\)' in t)],
+             'norm': [('p', f'\\(p = {harg} \\nmid n\\)' in t)],
+             'residue': [('M', f'residue condition mod \\(M = {harg}\\)' in t and 'mstar.py' in t)],
+             'table2': [('cited', f'\\(m^*({n}) \\le {hi}\\): BGPW, Table 2' in t)], 'page': [('who', f'proven by {harg}' in t)]}[hw[0]]
+    copied = f'{n}:{lo}' in code_ids() and f'{n}:{lo}' not in entry_codes(n)
+    says += [('copy', P['copies'] == [[f'{n}:{lo}', str(lo), 'button', code_digits(f'{n}:{lo}')]] * copied)]
     says += [('entry', P['entries'] == panel_entries(n))]      # the entry itself since [REO] step 2 (2026-11-03), not its link
     return says
 
@@ -3503,17 +3648,19 @@ def q_panel_works_out_the_norm_bound_at_1024():
     # Replicata: the page loaded with the fragment #n1024, which opens the panel of n = 1024; its upper bound is the norm
     # bound for p = 3 (mstar.js: [11, 11, ["example", "equipow p1024"], ["norm", 3]]).
     # Expectata (the coordinator's spec, 2026-11-03: "For n = 1024, p = 3, a qual must find classes 342, 341, 341,
-    # 3^12 = 531,441 and the cap 524,289 (= 2^19 + 1), so order 12 fails by 1.4%"): the panel gives the class sizes mod
-    # 3, 342, 341 and 341, and their squares' sum, 349,526; both sides of 3^(2m) 2^2 <= (3 sum s_r^2)^2 at m = 12,
-    # 1,129,718,145,924 = 3^24 * 4 and 1,099,515,822,084 = 1,048,578^2; the norm's floor 3^12 = 531,441 and its cap
-    # 524,289; and that 3^12 exceeds the cap by 1.4%.
+    # 3^12 = 531,441 and the cap 524,289 (= 2^19 + 1), so order 12 fails by 1.4%"): the box gives the class sizes mod
+    # 3, 342, 341 and 341, and their squares' sum, 349,526; and at m = 12 the norm's floor 3^12 = 531,441, more than its
+    # cap 524,289.
+    # Spec change (2026-11-04, [CEL]; dreeves: "so many pointless words in the implementation so far"): the box shows the
+    # norm bound's one inequality, p^m <= the cap, with these numbers; until then it also gave both sides of
+    # 3^(2m) 2^2 <= (3 sum s_r^2)^2 at m = 12, the same inequality squared, 1,129,718,145,924 = 3^24 * 4 and
+    # 1,099,515,822,084 = 1,048,578^2, and that 3^12 exceeds the cap by 1.4%.
     # Resultata before: no panel.
     R = valid_run('fragment')
     t = R['fragment']['text']
-    assert 3 ** 24 * 4 == 1129718145924 and 1048578 ** 2 == 1099515822084 and 1048578 // 2 == 524289 == 2 ** 19 + 1
-    for said in ('the sizes \\(s_r\\) 342, 341, 341,', '\\(\\sum s_r^2\\) is 349,526.', '\\(m = 12\\)',
-                 'the left side, \\(3^{24} \\cdot 2^{2}\\), is 1,129,718,145,924,', '1,048,578 to the power \\(p - 1 = 2\\)',
-                 'which is 1,099,515,822,084.', '\\(p^m = 3^{12} =\\) 531,441,', '\\rfloor =\\) 524,289,', 'exceeds by 1.4%.'):
+    assert 342 ** 2 + 2 * 341 ** 2 == 349526 and 3 * 349526 // 2 == 524289 == 2 ** 19 + 1 and 3 ** 12 == 531441
+    for said in ('\\(p = 3 \\nmid n\\)', '= 342, 341, 341 and \\(\\sum s_r^2 =\\) 349,526;',
+                 'at \\(m = 12\\), \\(p^m = 3^{12} =\\) 531,441 \\(>\\) 524,289'):
         assert said in t, (said, t)
 
 
@@ -3537,15 +3684,19 @@ def q_every_column_s_panel_shows_exactly_its_reasons():
         assert bad == [], (n, bad, P['text'])
         assert all(panel_link_lands(href) for href in P['links']), (n, P['links'])
     kinds = {w for P in R['panels'] for w in P['whys']}
-    # (and 'entry', the link to the remarks' entry, until [REO] step 2, 2026-11-03, when the entry moved into the panel)
-    assert kinds == {'lo-example', 'lo-code', 'lo-join', 'lo-product', 'hi-two', 'hi-norm', 'hi-residue', 'hi-table2',
-                     'hi-page'}, kinds
+    # Spec change (2026-11-04, [CEL] and [ROC]): the parts' kinds are a witness's and a proof's; until then the
+    # explanations lo-example, lo-code, lo-join, lo-product, hi-two, hi-norm, hi-residue, hi-table2 and hi-page (and
+    # 'entry', the link to the remarks' entry, until [REO] step 2, 2026-11-03, when the entry moved into the panel)
+    assert {'witness-example', 'witness-construction', 'proof-two', 'proof-norm', 'proof-residue', 'proof-table2',
+            'proof-page'} <= kinds <= {*WITNESSES.values(), 'witness-code', 'proof-two', 'proof-norm', 'proof-residue',
+                                      'proof-table2', 'proof-page'}, kinds
 
 
 def q_norm_panels_hold_their_claims():
     # Replicata: the panels run: the panel of each column whose upper bound is the norm bound for a prime p.
-    # Expectata: at m = hi + 1 the left side it gives, in digits, is more than the right side, and p^m more than the cap;
-    # each number is the exact integer its formula says (Python's own arithmetic).
+    # Expectata: at m = hi + 1, p^m, in digits, is more than the cap, in digits, each the exact integer its formula says
+    # (Python's own arithmetic), and so are the class sizes and their squares' sum.  Spec change (2026-11-04, [CEL]): until
+    # then also both sides of p^(2m) (p - 1)^(p - 1) <= (p sum s_r^2)^(p - 1), the left more than the right.
     R = valid_run('panels')
     cols = mstar_data()['cols']
     found = 0
@@ -3556,24 +3707,28 @@ def q_norm_panels_hold_their_claims():
         p, m = hw[1], hi + 1
         sizes = [len(range(r, n, p)) for r in range(p)]
         S = sum(x * x for x in sizes)
-        lhs, rhs, cap = p ** (2 * m) * (p - 1) ** (p - 1), (p * S) ** (p - 1), (p * S) ** ((p - 1) // 2) // (p - 1) ** ((p - 1) // 2)
-        assert lhs > rhs and p ** m > cap, (n, p, m)
-        for said in (', '.join(f'{x:,}' for x in sizes), f'is {S:,}.', f'is {lhs:,},', f'which is {rhs:,}.', f'=\\) {p ** m:,},',
-                     f'=\\) {cap:,},'):
+        cap = (p * S) ** ((p - 1) // 2) // (p - 1) ** ((p - 1) // 2)
+        assert p ** m > cap, (n, p, m)
+        for said in ('= ' + ', '.join(f'{x:,}' for x in sizes) + ' and', f'\\(\\sum s_r^2 =\\) {S:,};',
+                     f'\\(p^m = {p}^{{{m}}} =\\) {p ** m:,} \\(>\\) {cap:,}'):
             assert said in P['text'], (n, said, P['text'])
         found += 1
     assert found == sum(1 for n in COLUMNS if cols[n - 1][3][0] == 'norm') > 10, found
 
 
-def q_tap_opens_its_column_s_panel():
+def q_tap_opens_its_cell_s_box():
     # Replicata: the light run's mouse click on a cell of row 1 (R.click), in a view zoomed in 3 steps.
-    # Expectata: the panel of the clicked cell's column opens, its fragment set, the focus on its heading, and it starts
-    # with the clicked cell's status: order 1, known in every column.
+    # Expectata: the box of the clicked cell opens, its fragment nNm1 set and its heading focused, a green cell's (its
+    # kind exists), the heading the cell's n and m and the legend's words for its swatch, m <= m*(n); its parts its
+    # column's witness alone (panel_whys).
+    # Spec change (2026-11-04, [CEL]: "the info box for a cell should focus on that cell"; until then
+    # q_tap_opens_its_column_s_panel): the panel of the cell's column opened, its fragment nN, starting with the cell's
+    # status: "The cell clicked, order 1, is known".
     R = valid_run('light')
     P, n = R['clickPanel'], R['click']['want'][0]
-    assert not P['hidden'] and P['hash'] == f'#n{n}' and P['focus'], P
+    assert not P['hidden'] and P['hash'] == f'#n{n}m1' and P['focus'] and P['kind'] == 'exists', P
+    assert P['heading'] == f'\\(n = {n}\\), \\(m = 1\\): \\(m \\le m^*(n)\\)', P['heading']
     assert P['whys'] == panel_whys(mstar_data()['cols'], n, [1]), P['whys']
-    assert 'The cell clicked, order 1, is known' in P['text'], P['text']
 
 
 def q_fragment_opens_its_panel_and_focus_comes_back():
@@ -3600,6 +3755,9 @@ def q_panels_fit_a_phone():
     assert R['innerW'] == 390 and wide == [] and len(R['panels']) == NCOL, wide[:5]
     F = valid_run('phone fragment')
     assert not F['fragment']['hidden'] and F['fragment']['scrollW'] <= 390, F['fragment']
+    # and (since 2026-11-04, [CEL] and [ROC]) the boxes of the phone boxes run, each target's box opened by a click there
+    B = valid_run('phone boxes')['boxes']
+    assert len(B) >= 15 and [(P['target'], P['scrollW']) for P in B if P['hidden'] or P['scrollW'] > 390] == [], [(P['target'], P['scrollW']) for P in B]
 
 
 def q_made_up_data_opens_every_kind_of_panel():
@@ -3612,8 +3770,8 @@ def q_made_up_data_opens_every_kind_of_panel():
     for P in R['panels']:
         assert not P['hidden'] and P['errors'] == 0 and P['whys'] == panel_whys(cols, P['n']), (P['n'], P)
     kinds = {w for P in R['panels'] for w in P['whys']}
-    assert {f'lo-{k}' for k in ('example', 'join', 'product', 'table2', 'page')} | {
-        f'hi-{k}' for k in ('two', 'norm', 'residue', 'table2', 'page')} <= kinds, kinds
+    # (spec change, 2026-11-04, [CEL]: the parts' kinds are a witness's and a proof's, lo-KIND and hi-KIND until then)
+    assert set(WITNESSES.values()) | {f'proof-{k}' for k in ('two', 'norm', 'residue', 'table2', 'page')} <= kinds, kinds
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -3832,6 +3990,319 @@ def q_find_in_page_opens_the_fold():
         m = re.search(r'<html[^>]* data-fold="([^"]*)"', dom)
         assert m, (frag, dom[:300])
         assert json.loads(html.unescape(m[1])) == {'there': True, 'open': True, 'shown': True}, (frag, m[1])
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# The boxes of the charts' cells, columns and rows (dreeves's README, 2026-11-03: "[CEL] For the info box you see when
+# clicking a cell, color-code it to match the cell. And the info box for a cell should focus on that cell. If the cell
+# is green, just give the partition (expandable hex code) for the highest green cell in that cell's column. If the cell
+# is red, show the proof for the lowest red cell in that cell's column. If the cell is black... maybe just summarize the
+# search efforts so far?", and "[ROC] Only if it's straightforward and if it makes sense and isn't a nighmare to make it
+# anti-magic and DRY: in addition to clicking individual cells, allow clicking the column number or the row number";
+# in chat: "so many pointless words in the implementation so far ... think through what the user will want to see and
+# making the correspondence between the clicked cell and the info box visually obvious"; the main session's design of
+# 2026-11-04): a click on a cell of the m*(n) chart, on the strip of its n labels or on the strip of its m labels opens,
+# under the chart, the box of that cell, column or row (the boxes runs, the harness's boxes).
+
+WITNESSES = {'example': 'witness-example', 'join': 'witness-construction', 'product': 'witness-construction',
+             'table2': 'witness-table2', 'page': 'witness-page'}    # a box's part of a lower bound, by its reason's kind
+SHOWS = {'exists': (True, False), 'open': (True, True), 'impossible': (False, True), None: (True, True)}   # (witness, proof),
+# by the kind of cell of a box, None for a column's
+BOX_WORDS = 24    # a cell's box's words of Claude's English, at most (q_cell_box_words_stay_within_budget)
+# The boxes' templates of Claude's English (dreeves, 2026-11-04: "we don't need claude attribution for blurbs without
+# words like these"): the others hold math, codes, the data's labels and citations alone
+CLAUDE_TEMPLATES = {'witness-page', 'witness-thue-morse', 'proof-two', 'proof-norm', 'proof-residue', 'proof-page'}
+
+
+def entry_codes(n):
+    """The ids of the codes that the remarks' entry that lists the length n holds (none if no entry lists n)."""
+    return {c for lengths, li in entry_lis() if n in lengths for c in re.findall(r'<code id="(\d+:\d+)">', li)}
+
+
+def code_digits(id_):
+    """The hex digits of the page's code of the id N:M."""
+    return re.search(rf'<code id="{id_}">([0-9A-F]+)</code>', page()).group(1)
+
+
+def kind_of(cols, n, m):
+    """The kind of the m*(n) chart's cell (n, m): exists, open or impossible."""
+    lo, hi = cols[n - 1][:2]
+    return 'exists' if m <= lo else 'open' if m <= hi else 'impossible'
+
+
+def box_parts(cols, n, m=None):
+    """The kinds of the parts of the box of the m*(n) chart's cell (n, m), or of its column n's (m None), in order (since
+    2026-11-04): of its column's lower bound, its witness (WITNESSES, then a copy of the page's code of the length n and
+    the order lo, where the page has one: witness-code), for a green cell, a black one and a column; of its upper bound,
+    its proof (proof-KIND), for a red cell, a black one and a column; and a black cell's searches.  A copy goes where the
+    box shows the code itself, in the entry that lists n, which a column's box shows, and a cell's whose bound shown is
+    one of the page's own (page)."""
+    lo, hi, lw, hw = cols[n - 1]
+    kind = None if m is None else kind_of(cols, n, m)
+    witness, proof = SHOWS[kind]
+    entry = kind is None or (witness and lw[0] == 'page') or (proof and hw[0] == 'page')
+    copy = f'{n}:{lo}' in code_ids() and not (entry and f'{n}:{lo}' in entry_codes(n))
+    return ([WITNESSES[lw[0]]] + ['witness-code'] * copy) * witness + [f'proof-{hw[0]}'] * proof + ['searches'] * (kind == 'open')
+
+
+def words(text):
+    """The words of a box's text outside its math, its codes and its numbers: its runs of letters."""
+    return re.findall(r'[A-Za-z]+', re.sub(r'[0-9A-F]{16,}', ' ', re.sub(r'\\\(.*?\\\)', ' ', text)))
+
+
+def boxes_run(name='boxes'):
+    """The boxes run (or another configuration's), with each box's report by its target, as a tuple."""
+    R = valid_run(name)
+    return R, {tuple(B['target']): B for B in R['boxes']}
+
+
+def q_cell_box_takes_its_cell_s_color():
+    # Replicata: the boxes run (1280 px): a click on each cell of BOX_TARGETS in the m*(n) chart's full view, the pointer
+    # then moved off to cell (4, 1); and on the strip of the n labels under column 1024, and on the strip of the m labels
+    # left of rows 12, 13 and 16.
+    # Expectata ([CEL]: "color-code it to match the cell"; the design of 2026-11-04: "the box's frame or header band in
+    # the clicked cell's own color (use the charts' own CSS tokens, not new colors), with a swatch identical to the cell
+    # (gold ring included when the cell is ringed)"): each cell's box open, its fragment nNmM, its kind the cell's, its
+    # frame the very color of the cell's pixels, its heading led by a swatch of that color, ringed in gold where the
+    # cell is ringed (record), and dotted where it is proven the least of its order (proven, a(m − 1)), the swatch of the
+    # legend's item whose words follow it; a column's and a row's box framed in ink, its heading without a swatch.
+    # Resultata before: each click on a cell opened its column's panel, in a frame of ink whatever the cell, with no
+    # swatch; a click on a strip opened nothing.
+    R, B = boxes_run()
+    cols, rings = mstar_data()['cols'], smallest_rings(mstar_data()['cols'])
+    cells = [t for t in B if None not in t]
+    assert len(cells) >= 10, cells
+    for n, m in cells:
+        P, kind, role = B[(n, m)], kind_of(cols, n, m), rings.get((n, m), 0)
+        assert not P['hidden'] and P['hash'] == f'#n{n}m{m}' and P['kind'] == kind, (n, m, P['hidden'], P['hash'], P['kind'])
+        assert P['own'] == R['tokens'][kind] and P['frame'] == P['own'] and P['swatch']['color'] == P['own'], (n, m, P['own'], P['frame'], P['swatch'])
+        assert P['swatch']['cls'] == f"swatch {kind}{['', ' record', ' record', ' record proven'][role]}", (n, m, P['swatch'])
+        assert (P['swatch']['ring'] != 'none') == (role > 0), (n, m, P['swatch'])
+    assert {rings.get(t, 0) for t in cells} == {0, 1, 2, 3}, 'not every role of ring among the cells clicked'
+    for t in [t for t in B if None in t]:
+        P = B[t]
+        assert not P['hidden'] and P['kind'] == ('row' if t[0] is None else 'column') and P['frame'] == R['tokens']['rule'], (t, P['kind'], P['frame'])
+        assert P['swatch'] is None, (t, P['swatch'])
+
+
+def q_box_outline_stays_while_open_and_goes_with_it():
+    # Replicata: the boxes run: each target's box opened by its click, then the pointer moved off to cell (4, 1), so that
+    # the cell read out, outlined in ink, is elsewhere; and the box of cell (528, 12), opened again, then closed by its
+    # button.
+    # Expectata (the design of 2026-11-04: "the clicked cell keeps an outline while its box is open ... Column box: the
+    # column is outlined; row box: the row"): while a box is open, the chart's pixels just outside its target are ink: a
+    # cell's left and right of it in its row, a column's left of it in rows 1 and 16, a row's above it at the plot's
+    # middle and a quarter of the way in; once the box is closed, none of them is.
+    # Resultata before: only the cell read out was outlined, so with the pointer off at (4, 1) no target was.
+    R, B = boxes_run()
+    ink = R['tokens']['ink']
+    bad = [(t, P['outline']) for t, P in B.items() if P['outline'] != [ink, ink]]
+    assert bad == [], bad
+    assert R['closed']['hidden'] and ink not in R['closed']['outline'], R['closed']
+
+
+def q_box_caret_points_at_its_target():
+    # Replicata: the boxes run, each target's box.
+    # Expectata (the design of 2026-11-04: "a caret on the box's top edge at the clicked column's x (clamped)"): the
+    # middle of the caret on the box's top edge (its ::before, a triangle) within 2 CSS px of the middle of the target's
+    # column, for a cell's box and a column's, or of the strip of the m labels, for a row's.
+    # Resultata before: no caret.
+    R, B = boxes_run()
+    bad = [(t, P['caret'], P['column']) for t, P in B.items() if not abs(P['caret'] - P['column']) <= 2]
+    assert bad == [], bad
+
+
+def q_green_box_gives_the_witness_and_its_code():
+    # Replicata: the boxes run: the boxes of the green cells (1024, 8), (672, 13), (480, 12), (36, 2) and (80, 3); then the
+    # box of (1024, 8) again and a click on its code, and the box of (36, 2) and a click on its construction.
+    # Expectata ([CEL]: "If the cell is green, just give the partition (expandable hex code) for the highest green cell
+    # in that cell's column"): each shows its column's witness alone (box_parts), led by the bound m*(n) >= lo; an
+    # example's with its label and a copy of the page's code of length n and order lo (data-join its id, data-order lo),
+    # a button with the code's digits, which, clicked, opens in the box the code's partition, its power sums for k = 0
+    # to 11, equal below 11 and unequal at 11; a join's or a product's with its construction, a button claiming n:lo,
+    # whose derivation, clicked, opens in the box: p_8 and p_28, then the join of length 36 and order 3.
+    # Resultata before: a click opened the column's panel: the cell's status, both bounds' sentences, and a link to the
+    # code, in the list below.
+    R, B = boxes_run()
+    cols = mstar_data()['cols']
+    for t in ((1024, 8), (672, 13), (480, 12), (36, 2), (80, 3)):
+        n, m = t
+        P, (lo, hi, lw, hw) = B[t], cols[n - 1]
+        assert kind_of(cols, n, m) == 'exists' and P['whys'] == box_parts(cols, n, m), (t, P['whys'], box_parts(cols, n, m))
+        assert P['said'].startswith(f'\\(m^*({n}) \\ge {lo}\\):') and 'Claude' not in P['said'], (t, P['said'])   # no English to attribute
+        copies = [[f'{n}:{lo}', str(lo), 'button', code_digits(f'{n}:{lo}')]] * (f'{n}:{lo}' in code_ids())
+        assert P['copies'] == copies, (t, P['copies'])
+    assert B[(1024, 8)]['said'].startswith('\\(m^*(1024) \\ge 11\\): equipow p1024'), B[(1024, 8)]['said']
+    assert R['expanded'] == {'expanded': 'true', 'inBox': True, 'shown': True, 'ks': [str(k) for k in range(12)],
+                             'relations': ['='] * 11 + ['≠']}, R['expanded']
+    assert B[(36, 2)]['constructions'] == [['36:3', 'button', '\\(p_{8} \\vee p_{28}\\)']], B[(36, 2)]['constructions']
+    assert B[(80, 3)]['constructions'] == [['80:6', 'button', '\\(p_{2} \\mathbin{\\#} p_{40}\\)']], B[(80, 3)]['constructions']
+    assert R['derived'] == {'expanded': 'true', 'inBox': True, 'shown': True, 'rows': [['8', '3'], ['28', '3'], ['36', '3']],
+                            'bound': 'm*(36) ≥ 3'}, R['derived']
+
+
+def q_red_box_works_out_the_proof():
+    # Replicata: the boxes run: the boxes of the red cells (1024, 12), a norm bound for p = 3; (1020, 4), the 2-adic
+    # bound; (56, 6), BGPW's Table 2; and (240, 11), a proof of the page's own.
+    # Expectata ([CEL]: "If the cell is red, show the proof for the lowest red cell in that cell's column"): each shows
+    # its column's proof alone (box_parts), its bound m*(n) <= hi, worked out with n's numbers: for 1024, p = 3, the
+    # class sizes 342, 341 and 341 and their squares' sum 349,526, and at m = 12, p^m = 3^12 = 531,441, more than the
+    # floor 524,289; for 1020 = 2^2 * 255, m <= 2^2 - 1 = 3, with BGPW's Theorem 4.1 linked; for 56, BGPW's Table 2,
+    # linked; for 240, who proved it, and the remarks' entry of 240 shown in the box, which holds the proof; no witness
+    # and no searches.
+    # Resultata before: the column's panel, its status sentence, both bounds' sentences and the norm bound's paragraph
+    # "below".
+    R, B = boxes_run()
+    cols = mstar_data()['cols']
+    for t, quote in (((1024, 12), 'Claude: “'), ((1020, 4), 'Claude: “'), ((56, 6), ''), ((240, 11), 'Claude: “')):   # BGPW's, cited, no English
+        assert kind_of(cols, *t) == 'impossible' and B[t]['whys'] == box_parts(cols, *t), (t, B[t]['whys'])
+        assert B[t]['said'].startswith(f'{quote}\\(m^*({t[0]}) \\le {cols[t[0] - 1][1]}\\):'), (t, B[t]['said'])
+    assert 3 ** 12 == 531441 > 3 * (342 ** 2 + 2 * 341 ** 2) // 2 == 524289 and 342 ** 2 + 2 * 341 ** 2 == 349526
+    for said in ('\\(p = 3 \\nmid n\\)', '= 342, 341, 341 and \\(\\sum s_r^2 =\\) 349,526;',
+                 'at \\(m = 12\\), \\(p^m = 3^{12} =\\) 531,441 \\(>\\) 524,289'):
+        assert said in B[(1024, 12)]['said'], (said, B[(1024, 12)]['said'])
+    assert '\\(n = 2^{2} \\cdot 255\\)' in B[(1020, 4)]['said'] and '\\(m \\le 2^{2} - 1 = 3\\)' in B[(1020, 4)]['said'], B[(1020, 4)]['said']
+    assert 'https://arxiv.org/html/1912.03491v1#S4.Thmthm1' in B[(1020, 4)]['links'], B[(1020, 4)]['links']
+    assert 'BGPW, Table 2' in B[(56, 6)]['said'] and 'https://arxiv.org/html/1912.03491v1#S3.T2' in B[(56, 6)]['links'], B[(56, 6)]
+    assert 'proven by Claude alone' in B[(240, 11)]['said'] and B[(240, 11)]['entries'] == ['entry-240'], B[(240, 11)]
+    assert all(B[t]['entries'] == [] for t in ((1024, 12), (1020, 4), (56, 6))), [B[t]['entries'] for t in B]
+
+
+def q_black_box_shows_both_bounds_and_the_searches():
+    # Replicata: the boxes run, with BOX_PROGRESS as progress.js: two runs at 528:12, PROGRESS_CHANCE, a tracked search
+    # that a campaign runs, with its chance, and an overnight_v5.py run, aborted; and one at 64:7.  The box of the black
+    # cell (528, 12), once its searches had loaded (searched); and the boxes of the black cells (480, 13).
+    # Expectata ([CEL]: "If the cell is black... maybe just summarize the search efforts so far?"; the design of
+    # 2026-11-04: "the two bracketing facts in compact form (the order-lo witness, the order hi + 1 proof), plus the
+    # search efforts"): each shows its column's witness and proof (box_parts) and then its searches: the heading of the
+    # Search progress section, and below it each run of that section at the cell's n and m, its question, program and
+    # state as that section's fold names them, with its time so far, and for the campaign its chance line as that
+    # section states it (within 6 h 0.91%, within 24 h 2.8%, 2.1 CPU-hours); nothing of 64:7; for (480, 13), with no run,
+    # a dash.
+    # Resultata before: the column's panel, with its status sentence and no searches.
+    R, B = boxes_run()
+    cols = mstar_data()['cols']
+    S = R['searched']
+    assert S['whys'] == box_parts(cols, 528, 12) == ['witness-example', 'witness-code', 'proof-residue', 'searches'], S['whys']
+    assert S['said'].startswith('\\(m^*(528) \\ge 11\\): equipow p528') and S['said'].endswith('finds none”'), S['said']
+    assert 'Claude: “\\(m^*(528) \\le 12\\): residue condition mod \\(M = 5\\)' in S['said'], S['said']
+    flat = lambda t: ' '.join(t.split())                         # its spaces, the narrow no-break ones before a unit among them, as one
+    assert [flat(t) for t in S['searches']] == ['Search progress m*(528) ≥ 12? probe_seed.py running 0.2 h Probability of finding a '
+                                                'bipartition within 6 h: 0.91%; within 24 h: 2.8%; 2.1 CPU-hours so far. m*(528) ≥ 12? '
+                                                'overnight_v5.py aborted 2.0 h'], S['searches']
+    assert B[(480, 13)]['whys'] == box_parts(cols, 480, 13) and [flat(t) for t in B[(480, 13)]['searches']] == ['Search progress —'], B[(480, 13)]
+
+
+def q_column_box_opens_from_its_n_label():
+    # Replicata: the boxes run: a click on the strip of the n labels under column 1024, 10 CSS px below the plot.
+    # Expectata ([ROC]: "allow clicking the column number ... For a column, the info box would explain the known bounds
+    # for that value of n -- both the witness for the highest green cell in the column and the proof for the lowest red
+    # cell"): the box of the column opens, its fragment n1024, its heading n and m*(1024) = 11, its parts the witness and
+    # the proof (box_parts: no copy of 1024:11, whose own code its entry shows) and the remarks' entry of 1024.
+    # Resultata before: nothing opened.
+    R, B = boxes_run()
+    P = B[(1024, None)]
+    assert not P['hidden'] and P['hash'] == '#n1024' and P['focus'] and P['kind'] == 'column', P
+    assert P['heading'] == '\\(n = 1024\\): \\(m^*(1024) = 11\\)' and P['whys'] == box_parts(mstar_data()['cols'], 1024), (P['heading'], P['whys'])
+    assert P['entries'] == ['entry-1024'] and P['copies'] == [], (P['entries'], P['copies'])
+
+
+def q_row_box_is_its_row_of_the_smallest_lengths():
+    # Replicata: the boxes run: clicks on the strip of the m labels, left of the plot, at rows 12, 13 and 16; and the
+    # page's own table of smallest lengths as drawn.
+    # Expectata ([ROC]: "For a row, it would be like a row in [the table of smallest lengths], giving the smallest n not
+    # ruled out and the smallest known n, mention the A323395 sequence"): the box of the row opens, its fragment mM,
+    # its heading m = M; its one part a table, that table's head and its row for the order M, as the page's table
+    # has them, and the term a(M − 1) of OEIS A323395, linked, the order's smallest length: a(11) = 480, proven; 480 <=
+    # a(12) <= 672; a(15) = 1440, proven.
+    # Resultata before: nothing opened.
+    R, B = boxes_run()
+    table = R['table3']
+    for m, term in ((12, '\\(a(11) = 480\\)'), (13, '\\(480 \\le a(12) \\le 672\\)'), (16, '\\(a(15) = 1440\\)')):
+        P = B[(None, m)]
+        assert not P['hidden'] and P['hash'] == f'#m{m}' and P['kind'] == 'row' and P['heading'] == f'\\(m = {m}\\)', (m, P)
+        assert P['whys'] == ['row-smallest'] and P['tables'] == [[table[0], table[m]]], (m, P['tables'], table[0], table[m])
+        assert P['links'] == ['https://oeis.org/A323395'] and P['text'].endswith(f'OEIS A323395: {term}'), (m, P['links'], P['text'])
+
+
+def q_box_fragments_name_cells_and_rows():
+    # Replicata: the page loaded with the fragment #n1024m12 (the box fragment run); and, in the boxes run, the fragment
+    # set to #m16 and then to #n1024m12.
+    # Expectata (the design of 2026-11-04, as of 2026-11-03 for a column's: every box has a fragment, which opens it as
+    # the page loads or moves to it): the box of cell (1024, 12) open at load, its heading focused, red, its proof; the
+    # box of row 16 after #m16; the box of cell (1024, 12) again after #n1024m12.
+    # Resultata before: only a column's fragment opened anything.
+    F = valid_run('box fragment')['atLoad']
+    assert not F['hidden'] and F['hash'] == '#n1024m12' and F['focus'] and F['kind'] == 'impossible' and F['whys'] == ['proof-norm'], F
+    R, _ = boxes_run()
+    row, cell = R['hashed']
+    assert not row['hidden'] and row['kind'] == 'row' and row['heading'] == '\\(m = 16\\)', row
+    assert not cell['hidden'] and cell['kind'] == 'impossible' and cell['whys'] == ['proof-norm'] and cell['hash'] == '#n1024m12', cell
+
+
+def q_boxes_say_nothing_about_elsewhere():
+    # Replicata: the boxes' templates in index.html, and the parts of Claude's words in every box of the boxes run and
+    # in every column's box of the panels run.
+    # Expectata (dreeves, 2026-11-03: "we want everything to appear in this box -- the box shouldn't ever refer to
+    # "remarks below""; the design of 2026-11-04: "No box refers to anything outside itself ("below", "above", "on this
+    # page", "the paragraph on ...")"): none of them says below, above, this page, paragraph or remarks.
+    # Resultata before: the norm bound's sentence said "the paragraph on the norm bound below derives it", and others
+    # "at the top of this page" and "the new results above".
+    elsewhere = re.compile(r'\b(?:below|above|this page|paragraph|remarks)\b', re.I)
+    templates = re.findall(r'<template data-panel="([^"]+)">(.*?)</template>', page(), re.S)
+    assert len(templates) >= 10 and [t for t, body in templates if elsewhere.search(body)] == [], templates
+    said = [(P['target'], P['said']) for P in valid_run('boxes')['boxes']]
+    said += [(P['n'], text) for P in valid_run('panels')['panels'] for why, text, _ in P['parts'] if why.startswith(('witness', 'proof'))]
+    assert [(t, s) for t, s in said if elsewhere.search(s)] == [], [(t, s) for t, s in said if elsewhere.search(s)][:3]
+
+
+def q_box_quotes_claude_around_its_english_alone():
+    # Replicata: index.html's boxes' templates; every box of the boxes run, and every column's box of the panels run.
+    # Expectata (dreeves, 2026-11-04, of «Claude: “m*(480) ≥ 12: equipow p480 <code>”»: "we don't need claude
+    # attribution for blurbs without words like these"; the design of 2026-11-04: "every generated English word sits
+    # under one Claude attribution per box ... with a TODO comment above each template giving a recap of what the copy
+    # conveys"): the templates marked data-claude are exactly CLAUDE_TEMPLATES, each with a TODO recap right above it,
+    # and no other template has a TODO recap; a box's parts of those (data-claude) sit in one quote, its Claude: “ at
+    # the start of the first and its ” at the end of the last, where it has any, and a box with none has no quote.
+    # Resultata before: every box had Claude: “ … ” around all of its witness's and its proof's parts, those of math,
+    # codes and labels alone too, such as 480's “m*(480) ≥ 12: equipow p480 <code>”.
+    templates = re.findall(r'(<!--(?:(?!-->).)*-->)\n  <template data-panel="([^"]+)"( data-claude)?>', page(), re.S)
+    assert len(templates) == len(re.findall(r'<template data-panel=', page())) >= 14, len(templates)
+    assert {name for _, name, claude in templates if claude} == CLAUDE_TEMPLATES, [(name, claude) for _, name, claude in templates]
+    assert all(comment.startswith('<!-- TODO: ') == bool(claude) for comment, _, claude in templates), [(c[:30], n) for c, n, _ in templates]
+    boxes = [(P['target'], P['parts']) for P in valid_run('boxes')['boxes']] + [(P['n'], P['parts']) for P in valid_run('panels')['panels']]
+    bad = []
+    for t, parts in boxes:
+        claude = [i for i, (_, _, c) in enumerate(parts) if c]
+        quoted = ''.join(text for _, text, _ in parts)
+        good = (quoted.count('Claude: “') == min(1, len(claude)) and quoted.count('”') == min(1, len(claude))
+                and all(parts[i][1].startswith('Claude: “') for i in claude[:1]) and all(parts[i][1].endswith('”') for i in claude[-1:]))
+        bad += [(t, parts)] * (not good)
+    assert bad == [], bad[:3]
+    assert {bool(sum(c for _, _, c in parts)) for _, parts in boxes} == {True, False}, 'boxes with and without English'
+
+
+def q_cell_box_words_stay_within_budget():
+    # Replicata: every column's box of the m*(n) chart (the panels run), the parts of Claude's words in each, its
+    # witness's and its proof's; a cell's box of its column shows its witness, its proof, or both (a black cell's); and
+    # the boxes run's boxes of cells.
+    # Expectata (dreeves, 2026-11-03: "so many pointless words in the implementation so far"; spec, Claude's proposal of
+    # 2026-11-04 for dreeves to review): a cell's box has at most BOX_WORDS, 24, words outside its math, codes and
+    # numbers (words), the attribution "Claude", where it has one, and the data's labels among them; the most on
+    # 2026-11-04, 19, is a black cell's at 480 and 528, an example's label and the residue condition's proof.
+    # Resultata before: the panel of (1024, 12) alone had 99 such words (scratch/reo-step3-20261103/red/).
+    cols, most = mstar_data()['cols'], []
+    for P in valid_run('panels')['panels']:
+        n, parts = P['n'], P['parts']
+        lo, hi = cols[n - 1][:2]
+        text = {k: ' '.join(t for why, t, _ in parts if why.startswith(k)).replace('Claude: “', '').replace('”', '') for k in ('witness', 'proof')}
+        claude = {k: any(c for why, _, c in parts if why.startswith(k)) for k in ('witness', 'proof')}
+        for kind in [k for k, present in (('exists', lo >= 1), ('open', hi > lo), ('impossible', hi < mstar_data()['mtop'])) if present]:
+            shows = SHOWS[kind]                    # the attribution, Claude, is a word where the box has one
+            count = ((claude['witness'] and shows[0]) or (claude['proof'] and shows[1])) + len(words(text['witness'])) * shows[0] + len(words(text['proof'])) * shows[1]
+            most.append((count, n, kind))
+    most += [(len(words(P['said'])), tuple(P['target']), 'clicked') for P in valid_run('boxes')['boxes'] if None not in P['target']]
+    assert max(most)[0] <= BOX_WORDS, sorted(most)[-5:]
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -4868,6 +5339,10 @@ PROGRESS_CHANCE = dict(program='probe_seed.py', n=528, order=12, state='running'
                        statuses=list(STATUSES), depth=0, keys=['528:12'], groups=['4440'],
                        counts=dict(settled=1, open=0, split=0, pending=0, running=3), stale=None, tracked=True,
                        work=dict(runs=4, running=3, frozen=0, ended=1, aborted=0, found=0), chance=CHANCE)
+# The boxes runs' progress.js (2026-11-04, [CEL]: a black cell's box summarizes the searches at its cell): two runs at
+# 528:12, PROGRESS_CHANCE and an overnight_v5.py run that ended with no outcome (aborted), and one at 64:7.
+BOX_PROGRESS = {'made': PROGRESS_DATA['made'], 'runs': [PROGRESS_CHANCE, dict(PROGRESS_DATA['runs'][0], n=528, order=12, state='ended',
+                                                                              to_go=None), PROGRESS_DATA['runs'][0]]}
 CHANCE_LOOK = """
   const all = runs(), [r, other, empty, none, unrated] = all;
   for (const b of [r, empty, unrated]) b.querySelector('details').open = true;   // laid out, so that the pointer has somewhere to be
