@@ -224,7 +224,12 @@ class Weights:
     """A certificate's w(p), multiplied by Den, once."""
     def __init__(self, n, xs, cert):
         values, classes, T = cert
-        self.classes = {int(M): c for M, c in classes.items()}
+        assert type(n) is int and n > 0
+        assert xs and all(type(x) is int for x in xs)
+        assert all(type(v) is int for v in values) and type(T) is int
+        assert all(type(M) is str and M == str(int(M)) and int(M) > 0 for M in classes)
+        assert all(len(c) == int(M) and all(type(v) is int for v in c) for M, c in classes.items())
+        self.classes = {int(M): tuple(c) for M, c in classes.items()}
         self.T = T
         Den, table = lagrange(n, xs)
         self.Den = Den
@@ -237,6 +242,8 @@ class Weights:
         self.total = sum(abs(v) for v in self.w)
 
     def K(self, pins):
+        assert all(type(M) is int and M > 0 for M in pins)
+        assert all(len(D) == M and all(type(d) is int for d in D) for M, D in pins.items())
         if sorted(self.classes) != list(effective(pins)): raise ValueError(f'a certificate on {sorted(self.classes)} for pins on {effective(pins)}')
         return sum(c * d for M, cs in self.classes.items() for c, d in zip(cs, pins[M]))
 
@@ -245,6 +252,8 @@ class Weights:
 
     def bound(self, pins, M, r, s):
         """The greatest integer that s * D^(M)_r can be under the pins, by this certificate."""
+        assert all(type(x) is int for x in (M, r, s))
+        assert M > 0 and 0 <= r < M and s in (-1, 1)
         total = 0
         for p, v in enumerate(self.w):
             total += abs(self.Den * self.T * s * (p % M == r) - v)
@@ -262,6 +271,9 @@ def images(pins, n):
 class Replay:
     """Replays the tokens of a proof, raising on anything that does not hold.  stats: what was checked."""
     def __init__(self, n, m, xs, table, tokens, sym_depth):
+        assert type(n) is int and n > 0 and type(m) is int and m > 0
+        assert type(sym_depth) is int and sym_depth >= 0
+        assert all(type(x) is int for x in xs)
         if len(xs) != m: raise ValueError('a node per order')
         self.n, self.m, self.xs, self.table, self.sym_depth = n, m, tuple(xs), table, sym_depth
         self.tokens = iter(tokens)
@@ -270,6 +282,7 @@ class Replay:
         self.stats = {'closed by certificate': 0, 'splits': 0, 'skipped by symmetry': 0, 'vectors': 0, 'bounds': 0}
 
     def weights(self, c):
+        assert type(c) is int and 0 <= c < len(self.table)
         if c not in self.cache: self.cache[c] = Weights(self.n, self.xs, self.table[c])
         return self.cache[c]
 
@@ -280,6 +293,7 @@ class Replay:
             self.stats['closed by certificate'] += 1
         elif token[0] == 'S':
             M, bounds = token[1], token[2]
+            assert type(M) is int and M > 1
             if M in pins: raise ValueError(f'{M} is pinned already')
             prime_power(M)
             lo, hi = None, None
@@ -309,8 +323,12 @@ class Replay:
         return self.stats
 
 
+def reject_number(value):
+    raise ValueError
+
+
 def verify(path):
-    with gzip.open(path, 'rt', encoding='utf-8') as f: data = json.load(f)
+    with gzip.open(path, 'rt', encoding='utf-8') as f: data = json.load(f, parse_float=reject_number, parse_constant=reject_number)
     n, m = data['n'], data['m']
     sys.setrecursionlimit(100000)
     table = [(c[0], c[1], c[2]) for c in data['table']]

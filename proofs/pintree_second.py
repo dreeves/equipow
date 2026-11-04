@@ -20,6 +20,29 @@ def require(ok, what):
     if not ok: raise ValueError(what)
 
 
+def integers(values):
+    # TODO: says proof arithmetic requires integers, excluding booleans and floats.
+    require(all(type(v) is int for v in values), 'Numeri integri requiruntur.')
+
+
+def noninteger(text):
+    # TODO: says JSON numbers in a proof must be written as integers.
+    raise ValueError('Numeri integri requiruntur.')
+
+
+def load(stream):
+    """Decode integers exactly and reject booleans before replay, including unused fields."""
+    data = json.load(stream, parse_float=noninteger, parse_constant=noninteger)
+    pending = [data]
+    while pending:
+        value = pending.pop()
+        # TODO: says a boolean cannot stand for an integer in a proof.
+        require(type(value) is not bool, 'Numeri integri requiruntur.')
+        if type(value) is dict: pending.extend(value.values())
+        elif type(value) is list: pending.extend(value)
+    return data
+
+
 def sizes(n, M):
     return [n // M + (1 if r < n % M else 0) for r in range(M)]
 
@@ -87,7 +110,9 @@ def in_lattice(y, M, m, e):
 
 class Cursor:
     """The tokens, with their place."""
-    def __init__(self, tokens, i=0): self.t, self.i = tokens, i
+    def __init__(self, tokens, i=0):
+        integers((i,))
+        self.t, self.i = tokens, i
     def next(self):
         self.i += 1
         return self.t[self.i - 1]
@@ -99,6 +124,7 @@ class Check:
         self.n, self.m, self.xs = data['n'], data['m'], data['nodes']
         self.table = data['table']
         self.sym_depth = data['sym_depth']
+        integers((self.n, self.m, self.sym_depth, *self.xs))
         self.e = 1 if self.n < 2 ** self.m else 0
         self.closed, self.closers, self.bases = set(), {}, {}
         self.stats = {'closed': 0, 'splits': 0, 'vectors': 0, 'skipped': 0, 'bounds': 0}
@@ -107,6 +133,7 @@ class Check:
 
     def g_values(self, values):
         """g at every position, in exact fractions, by divided differences; and a test that g has degree < m."""
+        integers(values)
         xs, m, n = self.xs, self.m, self.n
         c = [Fraction(v) for v in values]
         for j in range(1, m):
@@ -124,14 +151,20 @@ class Check:
 
     def full(self, c):
         """A certificate's classes, w, sum of |w| and T."""
+        integers((c,))
         values, classes, T = self.table[c]
+        integers((T,))
+        integers(v for row in classes.values() for v in row)
+        # TODO: says modulus keys must be positive integers or their canonical JSON string representation.
+        require(all(type(M) in (str, int) and str(M) == str(int(M)) and int(M) > 0 for M in classes), 'Moduli integri requiruntur.')
         require(len(values) == self.m and T > 0, 'the form of a certificate')
         g = self.g_values(values)
-        cl = {int(M): w for M, w in classes.items()}
+        cl = {int(M): tuple(w) for M, w in classes.items()}
         w = [g[p] + sum(x[p % M] for M, x in cl.items()) for p in range(self.n)]
         return cl, w, sum(abs(t) for t in w), T
 
     def closer(self, c):
+        integers((c,))
         if c not in self.closers:
             cl, w, tot, T = self.full(c)
             if len(self.closers) > 50000: self.closers.clear()
@@ -142,6 +175,8 @@ class Check:
         return sorted(M for M in pins if not any(Q != M and Q % M == 0 for Q in pins))
 
     def K(self, cl, pins):
+        integers((*cl, *pins))
+        integers(v for row in (*cl.values(), *pins.values()) for v in row)
         require(sorted(cl) == self.finest(pins), 'a certificate on other moduli than the pins')
         return sum(a * b for M in cl for a, b in zip(cl[M], pins[M]))
 
@@ -195,6 +230,9 @@ class Check:
 
     def admissible(self, M, pins, lo, hi):
         """All vectors meeting the conditions, walking the coordinates from last to first, sorted by (r mod parent, r); each result tested by division as well."""
+        integers((M, *pins))
+        integers(v for row in pins.values() for v in row)
+        integers(v for bound in (lo, hi) if bound is not None for v in bound)
         n, m = self.n, self.m
         sz = sizes(n, M)
         P = max((Q for Q in pins if Q != M and M % Q == 0), default=None)
@@ -260,6 +298,7 @@ class Check:
         else:
             require(tok[0] == 'S', f'unknown token {tok[0]}')
             M, bounds = tok[1], tok[2]
+            integers((M,))
             require(M not in pins, f'{M} is pinned already')
             lo, hi = None, None
             if bounds is not None:
@@ -336,7 +375,7 @@ def hints(data):
 
 if __name__ == '__main__':
     t0 = time.time()
-    with gzip.open(sys.argv[1], 'rt', encoding='utf-8') as f: DATA = json.load(f)
+    with gzip.open(sys.argv[1], 'rt', encoding='utf-8') as f: DATA = load(f)
     procs = int(sys.argv[2]) if len(sys.argv) > 2 else 1
     top = Check(DATA)
     top.cursor = Cursor(DATA['tokens'])
