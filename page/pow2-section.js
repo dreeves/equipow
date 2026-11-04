@@ -37,12 +37,23 @@ try {
   const length = p => p.reduce((t, [n]) => t * BigInt(n), 1n), order = p => p.reduce((t, [, m]) => t + m, 0);
   const joined = ps => ps.map(p => `(${p.map(name).join(' # ')})`).join(' ∨ ');     // a join of products, written out
   // The reasons of the data contract.  ok(k, lo or hi, ...its arguments) checks one; text(k, lo or hi, ...) gives it in
-  // Claude's words, starting "order lo" or "order hi + 1".
+  // Claude's words, starting "order lo" or "order hi + 1"; and panel(k, lo or hi, ...) gives its explanation in the
+  // panel of column k, as the m*(n) chart's do (filled and WHY_HI, in page/shared.js): a join's products one per line,
+  // each block linked to its column's panel in the m*(n) chart but τ_j, each product with its length and its order.
+  const blockTex = ([n, m]) => n === 2 ** m ? `\\(\\tau_{${m}}\\)` : linked(`#n${n}`, `\\(p_{${n}}\\)`);
+  const productLine = p => {                                      // a product of a join, as a line of the panel
+    const li = document.createElement('li');
+    li.append(blockTex(p[0]), ...p.slice(1).flatMap(b => [' \\(\\mathbin{\\#}\\) ', blockTex(b)]),
+      ': \\(n = ' + p.map(([n]) => n).join(' \\cdot ') + ' =\\) ', bigNum(length(p)),
+      ', \\(m = ' + p.map(([, m]) => m).join(' + ') + ` = ${order(p)}\\)`);
+    return li;
+  };
   const LO = {
     'thue-morse': {
       ok: (k, lo) => lo === k,
       // readout reason; says order lo, which is k, is known from Thue–Morse, τ_k
       text: (k, lo) => `order ${lo} from Thue–Morse, τ${sub(k)}`,
+      panel: (k, lo) => [filled('lo-thue-morse', {k, tau: `\\(\\tau_{${k}}\\)`, length: `\\(2^{${k}}\\)`})],
     },
     joins: {
       ok: (k, lo, ps) => Array.isArray(ps) && ps.length >= 1 && ps.every(p => Array.isArray(p) && p.length >= 1
@@ -50,6 +61,8 @@ try {
         && lo === Math.min(...ps.map(order)),
       // readout reason; says order lo is known from the join of these expanded products
       text: (k, lo, ps) => `order ${lo} from the join ${joined(ps)}`,
+      panel: (k, lo, ps) => [filled('lo-joins', {lo, products: ps.map(productLine), power: `\\(2^{${k}}\\)`,
+        total: bigNum(2n ** BigInt(k)), least: `min(${ps.map(order).join(', ')}) = ${Math.min(...ps.map(order))}`})],   // text, which wraps
     },
   };
   // The m*(n) chart's reasons of an upper bound at an even n, copied line for line from its script: the reasons of
@@ -59,26 +72,31 @@ try {
       ok: (n, hi) => n % 2 === 0 && hi === (n & -n) - 1,
       // readout reason; says order hi + 1 is ruled out because hi + 1 is the largest power of 2 dividing n
       text: (n, hi) => `order ${hi + 1} ruled out: ${hi + 1} is the power of 2 in ${n}`,
+      panel: (n, hi) => [WHY_HI.two(BigInt(n), `${n}`, hi)],
     },
     norm: {
       ok: (n, hi, p) => Number.isInteger(p) && prime(p) && n % p !== 0,
       // readout reason; says order hi + 1 is ruled out by the norm bound for the prime p
       text: (n, hi, p) => `order ${hi + 1} ruled out by the norm bound for p\u00a0=\u00a0${p}`,
+      panel: (n, hi, p) => [WHY_HI.norm(BigInt(n), `${n}`, hi, p)],
     },
     residue: {
       ok: (n, hi, M) => Number.isInteger(M) && M >= 2,
       // readout reason; says order hi + 1 is ruled out by the residue condition mod M
       text: (n, hi, M) => `order ${hi + 1} ruled out by the residue condition mod ${M}`,
+      panel: (n, hi, M) => [WHY_HI.residue(BigInt(n), `${n}`, hi, 'mstar.py', M)],
     },
     table2: {
       ok: (n, hi) => n % 8 === 0 && n <= 304,
       // readout reason; says order hi + 1 is ruled out by BGPW's Table 2
       text: (n, hi) => `order ${hi + 1} ruled out by BGPW's Table 2`,
+      panel: (n, hi) => [WHY_HI.table2(BigInt(n), `${n}`, hi)],
     },
     page: {
       ok: (n, hi, who) => WHO.includes(who),
       // readout reason; says order hi + 1 is ruled out in this page's new results, naming whose they are
       text: (n, hi, who) => `order ${hi + 1} ruled out in the new results above (${who})`,
+      panel: (n, hi, who) => [WHY_HI.page(BigInt(n), `${n}`, hi, who)],
     },
   };
   const HI = {
@@ -86,16 +104,19 @@ try {
       ok: (k, hi, why) => 2 ** k <= NMAX && Array.isArray(why) && Object.hasOwn(MSTAR_HI, why[0])
         && MSTAR_HI[why[0]].ok.length === why.length + 1 && MSTAR_HI[why[0]].ok(2 ** k, hi, ...why.slice(1)),
       text: (k, hi, why) => MSTAR_HI[why[0]].text(2 ** k, hi, ...why.slice(1)),
+      panel: (k, hi, why) => MSTAR_HI[why[0]].panel(2 ** k, hi, ...why.slice(1)),
     },
     norm: {
       ok: (k, hi, p) => Number.isInteger(p) && p > 2 && prime(p) && hi === normBound(k, p),
       text: (k, hi, p) => MSTAR_HI.norm.text(2 ** k, hi, p),        // the same lemma, in the same words
+      panel: (k, hi, p) => [WHY_HI.norm(2n ** BigInt(k), `2^{${k}}`, hi, p)],
     },
     residue: {
       ok: (k, hi, chain) => Array.isArray(chain) && chain.length >= 1 && chain.every(Number.isInteger) && chain[0] >= 2
         && chain.slice(1).every((M, i) => M > chain[i] && M % chain[i] === 0),
       // readout reason; says order hi + 1 is ruled out by the residue conditions mod each modulus of the chain
       text: (k, hi, chain) => `order ${hi + 1} ruled out by the residue conditions mod ${chain.join(', ')}`,
+      panel: (k, hi, chain) => [WHY_HI.residue(2n ** BigInt(k), `2^{${k}}`, hi, 'pow2.py', ...chain)],
     },
   };
   assert(Object.keys(D).sort().join() === 'cols,etop,kmax', Object.keys(D));
@@ -219,8 +240,20 @@ try {
     const p = plotBox(), e = E - Math.floor((y - p.top) / ROW);
     return x >= p.left && x < p.left + p.width && e >= 1 && e <= E ? [Math.floor(view.uAt(x)), e] : null;
   }
+  // The panel of column c, k = c + 1 (columnPanel, in page/shared.js), its fragment kK, as the m*(n) chart's: its
+  // heading, k, n = 2^k and its bounds; the status of each cell clicked, of the rows (excesses) given, none or one; the
+  // explanations of its reasons; and the link to its entry in the remarks, if one lists 2^k.
+  const open = columnPanel({region: document.getElementById('pow2-panel'), chart, ncol: K, fragment: c => `k${c + 1}`,
+    fill: (c, rows) => {
+      const k = c + 1, [lo, hi, lw, hw] = D.cols[k - 1];
+      return {heading: [`\\(k = ${k}\\)`, ', ', `\\(n = 2^{${k}}\\)`, ': ',
+                        `\\(${lo === hi ? `m^*(2^{${k}}) = ${lo}` : `${lo} \\le m^*(2^{${k}}) \\le ${hi}`}\\)`],
+              parts: [...rows.map(e => filled(`status-${KIND[kindOf(k, e)]}`, {m: k + e, lo, hi})),
+                      ...LO[lw[0]].panel(k, lo, ...lw.slice(1)), ...HI[hw[0]].panel(k, hi, ...hw.slice(1)),
+                      ...entries(2n ** BigInt(k), `2^{${k}}`)]};
+    }});
   const view = panZoom({el: chart, out: document.getElementById('pow2-zoom-out'), in: document.getElementById('pow2-zoom-in'),
-    reset: document.getElementById('pow2-reset'), ncol: K, plot: plotBox, cellAt, readout, draw});
+    reset: document.getElementById('pow2-reset'), ncol: K, plot: plotBox, cellAt, readout, draw, open: (c, e) => open(c, [e])});
   view.redraw();
 } catch (e) {
   ro.textContent = `Error drawing this chart: ${e}`;

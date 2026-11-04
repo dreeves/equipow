@@ -21,33 +21,46 @@ try {
   const sub = k => String(k).replace(/\d/g, d => '₀₁₂₃₄₅₆₇₈₉'[d]);
   const loOf = n => D.cols[n - 1][0];
   // The reasons of the data contract.  ok(n, lo or hi, ...its arguments) checks one; text(n, lo or hi, ...) gives it in
-  // Claude's words, starting "order lo" or "order hi + 1".  Odd n get no column, so "none" and "odd" have no text.
+  // Claude's words, starting "order lo" or "order hi + 1"; and panel(n, lo or hi, ...) gives its explanation in the
+  // panel of column n, from the templates of the page (filled, in page/shared.js), each part linked to its own
+  // column's panel and an example to its code where the page shows it.  Odd n get no column, so "none" and "odd" have
+  // no text and no panel.
+  const part = a => linked(`#n${a}`, `\\(p_{${a}}\\)`);        // the best known sequence of length a, linked to its panel
   const LO = {
     none: {ok: (n, lo) => lo === 0 && n % 2 === 1},
     example: {
       ok: (n, lo, label) => typeof label === 'string' && label !== '',
       // readout reason; says order lo is known from an example, naming where the example comes from
       text: (n, lo, label) => `order ${lo} from an example (${label})`,
+      panel: (n, lo, label) => [filled('lo-example', {lo, label}), ...[...document.querySelectorAll(`code[id="${n}:${lo}"]`)]
+        .map(c => filled('lo-code', {code: `\\(\\href{#${c.id}}{p_{${n}}}\\)`}))],
     },
     join: {
       ok: (n, lo, a, b) => [a, b].every(Number.isInteger) && a >= 1 && b >= 1 && a + b === n && lo <= Math.min(loOf(a), loOf(b)),
       // readout reason; says order lo is known from the join of the examples of lengths a and b
       text: (n, lo, a, b) => `order ${lo} from the join p${sub(a)}\u00a0∨\u00a0p${sub(b)}`,
+      panel: (n, lo, a, b) => [filled('lo-join', {lo, a, b, parts: [part(a), ' \\(\\vee\\) ', part(b)],
+        sum: `\\(${a} + ${b} = ${n}\\)`, min: `\\(\\min(${loOf(a)}, ${loOf(b)}) = ${Math.min(loOf(a), loOf(b))}\\)`})],
     },
     product: {
       ok: (n, lo, a, b) => [a, b].every(Number.isInteger) && a >= 2 && b >= 2 && a * b === n && lo <= loOf(a) + loOf(b),
       // readout reason; says order lo is known from the expanded product of the examples of lengths a and b
       text: (n, lo, a, b) => `order ${lo} from the product p${sub(a)}\u00a0#\u00a0p${sub(b)}`,
+      panel: (n, lo, a, b) => [filled('lo-product', {lo, a, b, parts: [part(a), ' \\(\\mathbin{\\#}\\) ', part(b)],
+        fg: `\\(f(x)\\,g(x^{${a}})\\)`, length: `\\(${a} \\cdot ${b} = ${n}\\)`,
+        sum: `\\(${loOf(a)} + ${loOf(b)} = ${loOf(a) + loOf(b)}\\)`})],
     },
     table2: {
       ok: (n, lo) => n % 8 === 0 && n <= 304,
       // readout reason; says order lo is known from BGPW's Table 2
       text: (n, lo) => `order ${lo} from BGPW's Table 2`,
+      panel: (n, lo) => [filled('lo-table2', {lo})],
     },
     page: {
       ok: (n, lo, who) => WHO.includes(who),
       // readout reason; says order lo is known from this page's new results, naming whose they are
       text: (n, lo, who) => `order ${lo} from the new results above (${who})`,
+      panel: (n, lo, who) => [filled('lo-page', {lo, who})],
     },
   };
   const HI = {
@@ -56,26 +69,31 @@ try {
       ok: (n, hi) => n % 2 === 0 && hi === (n & -n) - 1,
       // readout reason; says order hi + 1 is ruled out because hi + 1 is the largest power of 2 dividing n
       text: (n, hi) => `order ${hi + 1} ruled out: ${hi + 1} is the power of 2 in ${n}`,
+      panel: (n, hi) => [WHY_HI.two(BigInt(n), `${n}`, hi)],
     },
     norm: {
       ok: (n, hi, p) => Number.isInteger(p) && prime(p) && n % p !== 0,
       // readout reason; says order hi + 1 is ruled out by the norm bound for the prime p
       text: (n, hi, p) => `order ${hi + 1} ruled out by the norm bound for p\u00a0=\u00a0${p}`,
+      panel: (n, hi, p) => [WHY_HI.norm(BigInt(n), `${n}`, hi, p)],
     },
     residue: {
       ok: (n, hi, M) => Number.isInteger(M) && M >= 2,
       // readout reason; says order hi + 1 is ruled out by the residue condition mod M
       text: (n, hi, M) => `order ${hi + 1} ruled out by the residue condition mod ${M}`,
+      panel: (n, hi, M) => [WHY_HI.residue(BigInt(n), `${n}`, hi, 'mstar.py', M)],
     },
     table2: {
       ok: (n, hi) => n % 8 === 0 && n <= 304,
       // readout reason; says order hi + 1 is ruled out by BGPW's Table 2
       text: (n, hi) => `order ${hi + 1} ruled out by BGPW's Table 2`,
+      panel: (n, hi) => [WHY_HI.table2(BigInt(n), `${n}`, hi)],
     },
     page: {
       ok: (n, hi, who) => WHO.includes(who),
       // readout reason; says order hi + 1 is ruled out in this page's new results, naming whose they are
       text: (n, hi, who) => `order ${hi + 1} ruled out in the new results above (${who})`,
+      panel: (n, hi, who) => [WHY_HI.page(BigInt(n), `${n}`, hi, who)],
     },
   };
   assert(D.nmax === NMAX && Number.isInteger(D.mtop) && Array.isArray(D.cols) && D.cols.length === NMAX, D.nmax, D.mtop);
@@ -112,9 +130,19 @@ try {
   cv.style.height = `${cssH}px`;
   const ctx = cv.getContext('2d'), strip = document.createElement('canvas'), sctx = strip.getContext('2d');
   let geo = null;                                                  // the last draw's layout
+  // The panel of column c, n = NS[c] (columnPanel, in page/shared.js), its fragment nN: its heading, n and its bounds;
+  // the status of each cell clicked, of the rows given, none or one; the explanations of its lower bound's reason and
+  // its upper bound's; and the link to its entry in the remarks, if one lists n.
+  const open = columnPanel({region: document.getElementById('mstar-panel'), chart: cv, ncol: NCOL, fragment: c => `n${NS[c]}`,
+    fill: (c, rows) => {
+      const n = NS[c], [lo, hi, lw, hw] = D.cols[n - 1];
+      return {heading: [`\\(n = ${n}\\)`, ': ', `\\(${lo === hi ? `m^*(${n}) = ${lo}` : `${lo} \\le m^*(${n}) \\le ${hi}`}\\)`],
+              parts: [...rows.map(m => filled(`status-${KIND[kindOf(n, m)]}`, {m, lo, hi})), ...LO[lw[0]].panel(n, lo, ...lw.slice(1)),
+                      ...HI[hw[0]].panel(n, hi, ...hw.slice(1)), ...entries(BigInt(n), `${n}`)]};
+    }});
   const view = panZoom({el: cv, out: document.getElementById('mstar-zoom-out'), in: document.getElementById('mstar-zoom-in'),
     reset: document.getElementById('mstar-reset'), ncol: NCOL, plot: () => ({left: geo.L / geo.dpr, width: geo.W / geo.dpr}),
-    cellAt, readout, draw});
+    cellAt, readout, draw, open: (c, m) => open(c, [m])});
 
   function draw(u0, span, picked) {                                // the view [u0, u0 + span) and the cell read out
     const dpr = devicePixelRatio, L = Math.round(LEFT * dpr), R = Math.round(RIGHT * dpr), top = Math.round(TOP * dpr);

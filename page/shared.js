@@ -4,9 +4,10 @@
 // wheel, gesture and key events; plot() gives the plot's left edge and width in CSS px from el's left; cellAt(x, y)
 // the cell at CSS x, y of el as [column, row], or null outside the plot; readout(column, row) reads that cell out; and
 // draw(u0, span, picked) draws the view, outlining the cell read out, picked (none or one).  The buttons out and in do
-// what the - and + keys do, each grayed out at its limit, and reset shows every column.  It returns redraw(), which
-// draws the view again, and uAt(x), the u at CSS x of el.
-function panZoom({el, out: zoomOut, in: zoomIn, reset, ncol, plot, cellAt, readout, draw}) {
+// what the - and + keys do, each grayed out at its limit, and reset shows every column.  A tap or a click on a cell
+// also calls open(column, row), which opens the panel of its column (columnPanel, below; since 2026-11-03).  It
+// returns redraw(), which draws the view again, and uAt(x), the u at CSS x of el.
+function panZoom({el, out: zoomOut, in: zoomIn, reset, ncol, plot, cellAt, readout, draw, open}) {
   const MIN_SPAN = 12, TAP = 6;
   let u0 = 0, span = ncol, picked = [];
   function redraw() {
@@ -59,7 +60,11 @@ function panZoom({el, out: zoomOut, in: zoomIn, reset, ncol, plot, cellAt, reado
   const lift = e => { const p = pointers.get(e.pointerId); pointers.delete(e.pointerId); regrip(); return p; };
   el.addEventListener('pointerup', e => {
     const p = lift(e), [x, y] = at(e);
-    if (p && Math.hypot(x - p.x0, y - p.y0) < TAP) pick(x, y);     // a tap or a click
+    if (p && Math.hypot(x - p.x0, y - p.y0) < TAP) {               // a tap or a click: read out and open its cell
+      pick(x, y);
+      const c = cellAt(x, y);
+      if (c !== null) open(...c);
+    }
   });
   el.addEventListener('pointercancel', lift);
   // Wheel: with ctrl or cmd (a trackpad pinch sends ctrl) it zooms about the pointer; mostly sideways, it pans; mostly
@@ -111,4 +116,117 @@ function raised(cols, shift) {
     b = Math.max(b, h);
     return out;
   });
+}
+
+// ---------- the panels of the charts' columns ----------
+// The panel under each chart (dreeves's spec [REO] in index.html; Claude's design of 2026-11-03 from precedents, which
+// dreeves approved: "those sound like good precedents. go ahead").  The charts stay as they are, an overview, and a
+// tap or a click on a cell opens the details of its column right under its chart: its bounds, the cell's own status
+// when a cell was clicked, and one explanation per reason, each from a template of the page for its kind,
+// template[data-panel="NAME"], filled with the column's own numbers (filled), as LMFDB's knowls fill one text per kind
+// of invariant.  A column has a fragment (#n1024, #k30) that the panel puts in the page's address as it opens, and the
+// page opens that column's panel when it loads with it or moves to it, as the Stacks project's tags name their
+// results.  The panel is a disclosure, not a dialog: a region with a heading and a close button; its heading takes the
+// focus as it opens, and its button or Escape closes it, the focus back on the chart.  Without the panels the page
+// reads as before.
+
+// A number as text, its thousands set off by commas, in a span of class big, which may wrap anywhere: a formula cannot
+// wrap, and some of these numbers are 90 digits long.
+const bigNum = x => Object.assign(document.createElement('span'), {className: 'big', textContent: x.toLocaleString('en-US')});
+const linked = (href, ...children) => { const a = document.createElement('a'); a.setAttribute('href', href); a.append(...children); return a; };
+
+// The panel's text of one kind, NAME: a div of data-why NAME holding a copy of template[data-panel="NAME"]'s content,
+// each of its [data-slot] elements holding values[its slot]: a string (which may hold the page's math, \( ... \), drawn
+// once the panel opens), a number, a node, or a list of them.  It throws on a template that is missing or has a slot
+// that values lacks.
+function filled(name, values) {
+  const t = document.querySelector(`template[data-panel="${name}"]`);
+  const slots = t && [...t.content.querySelectorAll('[data-slot]')].map(s => s.dataset.slot);
+  if (!t || !slots.every(s => Object.hasOwn(values, s))) throw new Error(`no template ${name} for ${Object.keys(values)}`);
+  const box = document.createElement('div');
+  box.dataset.why = name;
+  box.append(t.content.cloneNode(true));
+  box.querySelectorAll('[data-slot]').forEach(s => s.replaceChildren(...[values[s.dataset.slot]].flat()
+    .map(x => x instanceof Node ? x.cloneNode(true) : String(x))));
+  return box;
+}
+
+// The entries of the remarks below the charts ("Where the new results come from"): each p.entry gets the lengths it
+// lists, in decimal digits, as data-lengths, and the id entry-N, N the first of them, from its TeX before KaTeX draws
+// it, \(n = 320, 352, ...\): or \(n = 2^{11}\):.  entries(n, name) gives the panel's link to the entry that lists the
+// length n (a BigInt), named name in TeX, or none.
+document.querySelectorAll('section.remarks p.entry').forEach(p => {
+  const x = /^\\\(n = (.+?)\\\):/.exec(p.textContent);
+  if (x === null) throw new Error(`an entry outside the form: ${p.textContent.slice(0, 80)}`);
+  const ns = x[1].split(', ').map(s => BigInt(s.replace(/^2\^\{(\d+)\}$/, (_, k) => String(2n ** BigInt(k)))));
+  p.dataset.lengths = ns.join(' ');
+  p.id = `entry-${ns[0]}`;
+});
+const entries = (n, name) => [...document.querySelectorAll('section.remarks p.entry')]
+  .filter(p => p.dataset.lengths.split(' ').includes(String(n)))
+  .map(p => filled('entry', {entry: linked(`#${p.id}`, `\\(n = ${name}\\)`)}));
+
+// The explanations of the upper bounds, which both charts use: for the length n (a BigInt), named name in TeX, and the
+// upper bound hi, a reason of the kind each is named for, with its arguments.  The norm bound is worked out in exact
+// integers: the class sizes s_r of 0..n-1 mod p, the sum of their squares, and both sides of p^(2m) (p-1)^(p-1) <=
+// (p sum s_r^2)^(p-1) at m = hi + 1; and, as the norm of f(zeta) is an integer at least p^m and at most
+// (p sum s_r^2 / (p-1))^((p-1)/2), that floor and how far p^m passes it.  The panel shows the numbers of the claim, which
+// mstar.py and pow2.py assert as they make the data; it does not decide the claim itself.
+const WHY_HI = {
+  two: (n, name, hi) => {
+    const two = n & -n, t = two.toString(2).length - 1;
+    return filled('hi-two', {m: hi + 1, hi, n: `\\(n = ${name} = 2^{${t}} \\cdot ${n / two}\\)`, t: `\\(t = ${t}\\)`,
+                             f: `\\((x^{${n / two}} + 1)^{${two}}/(x + 1)\\)`});
+  },
+  norm: (n, name, hi, p) => {
+    const P = BigInt(p), m = hi + 1, sizes = Array.from({length: p}, (_, r) => (n - BigInt(r) + P - 1n) / P);
+    const squares = sizes.reduce((s, x) => s + x * x, 0n), base = P * squares, h = (P - 1n) / 2n;
+    const lhs = P ** BigInt(2 * m) * (P - 1n) ** (P - 1n), rhs = base ** (P - 1n), ratio = Number(lhs * 10n ** 15n / rhs) / 1e15;
+    return filled('hi-norm', {m, p: `\\(p = ${p}\\)`, n: `\\(n = ${name}\\)`, pp: p,
+      sizes: bigNum(sizes.map(s => s.toLocaleString('en-US')).join(', ')), squares: bigNum(squares),
+      atm: `\\(m = ${m}\\)`, left: `\\(${p}^{${2 * m}} \\cdot ${p - 1}^{${p - 1}}\\)`, lhs: bigNum(lhs), base: bigNum(base),
+      power: `\\(p - 1 = ${p - 1}\\)`, rhs: bigNum(rhs), pm: `\\(p^m = ${p}^{${m}} =\\)`, pmv: bigNum(P ** BigInt(m)),
+      cap: bigNum(base ** h / (P - 1n) ** h), pct: Number((100 * (Math.sqrt(ratio) - 1)).toPrecision(2)).toLocaleString('en-US')});
+  },
+  residue: (n, name, hi, source, ...moduli) => filled('hi-residue', {m: hi + 1, mod: moduli.join(', '),
+    source: linked(`https://github.com/dreeves/equipow/blob/main/${source}`, source)}),
+  table2: (n, name, hi) => filled('hi-table2', {m: hi + 1}),
+  page: (n, name, hi, who) => filled('hi-page', {m: hi + 1, who}),
+};
+
+// The panel of a chart: region, its element (hidden until it opens); chart, the chart's element, which gets the focus
+// back; ncol columns; fragment(c), column c's fragment; and fill(c, rows), column c's heading and parts, the rows those
+// of the cells clicked, none or one.  It returns open(c, rows), which opens the panel of column c, as panZoom's open
+// does on a tap or a click.
+function columnPanel({region, chart, ncol, fragment, fill}) {
+  const title = region.querySelector('[data-panel-title]'), body = region.querySelector('[data-panel-body]');
+  let shown = 0;                                                   // the column shown last
+  function open(c, rows) {
+    const {heading, parts} = fill(c, rows);
+    title.replaceChildren(...heading);
+    body.replaceChildren(...parts);
+    region.hidden = false;
+    shown = c;
+    history.replaceState(null, '', `#${fragment(c)}`);
+    renderMathInElement(region, MATH);                             // KaTeX draws its math, with the page's options
+    title.focus({preventScroll: true});
+  }
+  function close() {
+    region.hidden = true;
+    if (location.hash === `#${fragment(shown)}`) history.replaceState(null, '', location.pathname + location.search);
+    chart.focus();
+  }
+  region.querySelector('[data-panel-close]').addEventListener('click', close);
+  region.addEventListener('keydown', e => {                        // Escape, anywhere in the panel, closes it
+    if (e.key !== 'Escape') return;
+    e.preventDefault();
+    close();
+  });
+  // The fragment of the page's address, as it loads (once KaTeX is there) and as it changes: the panel of the column
+  // that it names, if any, opens and shows.
+  const visit = () => Array.from({length: ncol}, (_, c) => c).filter(c => location.hash === `#${fragment(c)}`)
+    .forEach(c => { open(c, []); region.scrollIntoView(); });
+  addEventListener('hashchange', visit);
+  addEventListener('DOMContentLoaded', visit);
+  return open;
 }

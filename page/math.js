@@ -6,7 +6,10 @@
 // KaTeX draws \href only where its option trust allows (by default nowhere: it then draws the command's name, in red).
 // The page trusts exactly its links to its codes' anchors, # and an id N:M (dreeves's README, 2026-10-31, [IND]: "make
 // the 'p320' or whatever be a hyperlink / anchor link"), so that any other \href still shows in red.
+// MATH holds auto-render's options, which the charts' panels use too, for the math they add to the page later
+// (page/shared.js, 2026-11-03).
+const MATH = {delimiters: [{left: '\\(', right: '\\)', display: false}], throwOnError: false,
+              trust: ({command, url}) => command === '\\href' && /^#\d+:\d+$/.test(url)};
 function renderMath() {
-  renderMathInElement(document.body, {delimiters: [{left: '\\(', right: '\\)', display: false}], throwOnError: false,
-                                      trust: ({command, url}) => command === '\\href' && /^#\d+:\d+$/.test(url)});
+  renderMathInElement(document.body, MATH);
 }

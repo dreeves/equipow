@@ -302,7 +302,7 @@ const C = JSON.parse(readFileSync(0, 'utf8'));
 // http(s), where the page is served, they share its origin, as they do here with the flag (quals_index's chrome)
 const chrome = spawn(C.chrome, ['--headless=new', '--remote-debugging-port=0', `--user-data-dir=${C.dir}/profile`,
   '--no-first-run', '--no-default-browser-check', '--disable-extensions', '--hide-scrollbars', '--allow-file-access-from-files',
-  'about:blank'],
+  '--disable-ipc-flooding-protection', 'about:blank'],
   {stdio: 'ignore', detached: true});
 const watchdog = setTimeout(() => { groupSignal(chrome.pid, 'SIGTERM'); process.exit(3); }, 400000);
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -360,6 +360,31 @@ const READ = text => {
   return {text: text(ro), children, scrollW: document.documentElement.scrollWidth, tags};
 };
 const FRAMES = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+// The panel of the chart's columns ([REO], 2026-11-03), as it stands: whether it is hidden, the page's fragment,
+// whether its heading has the focus and which element has it, the kinds of its texts (data-why) in order, its heading
+// and text with each formula KaTeX drew written back as its TeX, \( ... \), its links' hrefs, KaTeX's error marks in it,
+// and the page's width and the window's then.  (Each panel opens with a change of the page's address, and 72 of them
+// and a phone's 1296 taps pass Chrome's limit of 200 such changes per 10 s, which --disable-ipc-flooding-protection
+// lifts.)
+// Since [REO] step 2 (2026-11-03) a panel also shows the remarks' entry of its length, the li that holds its p.entry,
+// moved in: the text and links leave out the entries it shows, and the panel gives their p.entry ids (entries) and texts
+// (entryText) apart, with the ids of the p.entry still in the remarks' list, in order (listed), and the ids that two
+// elements of the page share (dups), as quals_index's panelReport does.
+const PANEL = () => {
+  const region = document.getElementById('pow2-panel'), c = region.cloneNode(true), HELD = 'li:has(> p.entry)';
+  c.querySelectorAll('.katex').forEach(k => k.replaceWith(`\\(${k.querySelector('annotation').textContent}\\)`));
+  const held = [...c.querySelectorAll(HELD)], ids = [...document.querySelectorAll('[id]')].map(e => e.id);
+  held.forEach(li => li.remove());
+  return {hidden: region.hidden, hash: location.hash, focus: document.activeElement === region.querySelector('h3'),
+    active: document.activeElement.id, whys: [...region.querySelectorAll('[data-why]')].map(e => e.dataset.why),
+    heading: c.querySelector('h3').textContent, text: c.textContent.replace(/\s+/g, ' ').trim(),
+    links: [...region.querySelectorAll('a[href]')].filter(a => !a.closest(HELD)).map(a => a.getAttribute('href')),
+    errors: region.querySelectorAll('.katex-error').length, scrollW: document.documentElement.scrollWidth, innerWidth,
+    entries: held.map(li => li.querySelector('p.entry').id), entryText: held.map(li => li.textContent.replace(/\s+/g, ' ').trim()),
+    listed: [...document.querySelectorAll('section.remarks ul > li > p.entry')].map(p => p.id),
+    dups: ids.filter((x, i) => ids.indexOf(x) !== i)};
+};
+const HASHED = h => new Promise(r => { addEventListener('hashchange', () => r(), {once: true}); location.hash = h; });
 // Each zoom button of the two charts, mstar's and pow2's side by side: what of its look its computed style and box give,
 // and its text, title and label (2026-10-30).
 const LOOKS = () => ['zoom-out', 'zoom-in', 'reset'].map(b => ['mstar', 'pow2'].map(p => {
@@ -465,6 +490,23 @@ async function main() {
     await ev(() => document.fonts.ready.then(() => 0));
     await ev(FRAMES);
     R.load = await ev(PROBE, TEXT);
+    if (C.fragment) {                 // loaded with #k30: its panel, then a real Escape, #k10, and its close button's click
+      R.fragment = await ev(PANEL);
+      for (const type of ['rawKeyDown', 'keyUp']) {
+        await send('Input.dispatchKeyEvent', {type, key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27});
+      }
+      await ev(FRAMES);
+      R.escaped = await ev(PANEL);
+      await ev(HASHED, '#k10');
+      R.reopened = await ev(PANEL);
+      const [x, y] = await ev(() => { const b = document.querySelector('#pow2-panel [data-panel-close]');
+        b.scrollIntoView({block: 'center'}); const r = b.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; });
+      for (const type of ['mousePressed', 'mouseReleased']) {
+        await send('Input.dispatchMouseEvent', {type, x, y, button: 'left', buttons: type === 'mousePressed' ? 1 : 0, clickCount: 1});
+      }
+      await ev(FRAMES);
+      R.closed = await ev(PANEL);
+    }
     if (!C.drawn) continue;
     await ev(() => document.getElementById('pow2-chart').scrollIntoView({block: 'center'}));
     await ev(FRAMES);
@@ -512,14 +554,20 @@ async function main() {
     if (C.zoom) {                     // each chart's zoom buttons and keys zoom that chart (2026-10-30): R.zoom's steps
       R.zoom = {looks: await ev(LOOKS), steps: []};
       const show = id => ev(i => { document.getElementById(i).scrollIntoView({block: 'center'}); }, id).then(() => ev(FRAMES));
-      const click = async id => {     // a real click at the middle of element id
+      const click = async (id, at = [0.5, 0.5]) => {     // a real click at element id's middle, or at the fractions at of it
         await show(id);
-        const [x, y] = await ev(i => { const r = document.getElementById(i).getBoundingClientRect();
-          return [r.left + r.width / 2, r.top + r.height / 2]; }, id);
+        const [x, y] = await ev((i, [a, b]) => { const r = document.getElementById(i).getBoundingClientRect();
+          return [r.left + a * r.width, r.top + b * r.height]; }, id, at);
         for (const type of ['mousePressed', 'mouseReleased']) {
           await send('Input.dispatchMouseEvent', {type, x, y, button: 'left', buttons: type === 'mousePressed' ? 1 : 0, clickCount: 1});
         }
         await ev(FRAMES);
+      };
+      // a real click on the chart for the keys: on its δ axis, 8 px in from its left edge, so that the click focuses the
+      // chart and opens no cell's panel (since 2026-11-03 a click on a cell moves the focus to the cell's panel)
+      const grab = async () => {
+        const w = await ev(() => document.getElementById('pow2-chart').getBoundingClientRect().width);
+        await click('pow2-chart', [8 / w, 0.25]);
       };
       const key = async (key, code, keyCode, text) => {      // a real key press, to the focused element
         await send('Input.dispatchKeyEvent', {type: text ? 'keyDown' : 'rawKeyDown', key, code, windowsVirtualKeyCode: keyCode, ...(text ? {text} : {})});
@@ -549,9 +597,9 @@ async function main() {
       await step('load', async () => {});
       await step('pow2 +', () => click('pow2-zoom-in'));
       await step('mstar +', () => click('mstar-zoom-in'));
-      await step('pow2 + key', async () => { await click('pow2-chart'); await key('+', 'Equal', 187, '+'); });
-      await step('pow2 → key', async () => { await click('pow2-chart'); await key('ArrowRight', 'ArrowRight', 39); });
-      await step('pow2 − key', async () => { await click('pow2-chart'); await key('-', 'Minus', 189, '-'); });
+      await step('pow2 + key', async () => { await grab(); await key('+', 'Equal', 187, '+'); });
+      await step('pow2 → key', async () => { await grab(); await key('ArrowRight', 'ArrowRight', 39); });
+      await step('pow2 − key', async () => { await grab(); await key('-', 'Minus', 189, '-'); });
       await step('pow2 + to its limit', async () => {
         let n = 0;
         while (n < 10 && !await ev(() => document.getElementById('pow2-zoom-in').disabled)) { await click('pow2-zoom-in'); n++; }
@@ -571,12 +619,29 @@ async function main() {
       // presses of ArrowRight, an eighth of the view each, to (24, 48), the end.  Each with the plot then.
       const read = async () => ({...await ev(READ, TEXT), plot: (await ev(GEOMETRY)).plot});
       await click('pow2-zoom-in');
-      await click('pow2-chart');
+      await grab();
       const plot = (await ev(GEOMETRY)).plot;
       await input.mouse(plot[0] + 0.5, plot[1] + (C.ROW - C.GAP) / 2);
       const corner = await read();
       for (let i = 0; i < 8; i++) await key('ArrowRight', 'ArrowRight', 39);
       R.zoom.away = {corner, away: await read()};
+    }
+    if (C.panels) {                   // a real click on cell C.outline opens its panel; then every column's, by its fragment
+      await ev(() => { document.getElementById('pow2-chart').scrollIntoView({block: 'center'}); });
+      await ev(FRAMES);
+      await ev(() => document.getElementById('pow2-reset').click());
+      const [L, T, W] = (await ev(GEOMETRY)).plot, [k, e] = C.outline;
+      const x = L + (k - 0.5) * W / C.K, y = T + (C.E - e) * C.ROW + (C.ROW - C.GAP) / 2;
+      for (const type of ['mousePressed', 'mouseReleased']) {
+        await send('Input.dispatchMouseEvent', {type, x, y, button: 'left', buttons: type === 'mousePressed' ? 1 : 0, clickCount: 1});
+      }
+      await ev(FRAMES);
+      R.clickPanel = await ev(PANEL);
+      R.panels = [];
+      await ev(() => history.replaceState(null, '', location.pathname));
+      for (let k = 1; k <= C.K; k++) { await ev(HASHED, `#k${k}`); R.panels.push({k, ...await ev(PANEL)}); }
+      await ev(() => { document.querySelector('#pow2-panel [data-panel-close]').click(); });   // the last one closed
+      R.after = await ev(PANEL);
     }
   }
   return out;
@@ -600,13 +665,21 @@ process.exit(code);
 ZOOM_VIEW = (34, 12)       # the view of the chart of powers of 2 after its + to the limit in DRIVER's zoom steps: [u0, span)
 DESKTOP = dict(width=1280, height=900, mobile=False, swipe=False)
 PHONE = dict(width=390, height=844, mobile=True, swipe=True)
+# Since 2026-11-03 ([REO]) also whether the panels are tried (panels: a real click on a cell, then every column's
+# panel by its fragment) and the fragment the page loads with (fragment: its panel, then Escape, another fragment and
+# the close button).
 CONFIGS = {
-    'light': DESKTOP | dict(data=['real'], dpr=2, theme='light', drawn=True, hover=True, tap=False, mstar=True, zoom=True),
-    'phone': PHONE | dict(data=['real'], dpr=3, theme='light', drawn=True, hover=False, tap=True, mstar=False, zoom=False),
-    'kinds': DESKTOP | dict(data=['kinds'], dpr=1, theme='light', drawn=True, hover=True, tap=False, mstar=False, zoom=False),
+    'light': DESKTOP | dict(data=['real'], dpr=2, theme='light', drawn=True, hover=True, tap=False, mstar=True, zoom=True,
+                            panels=True),
+    'phone': PHONE | dict(data=['real'], dpr=3, theme='light', drawn=True, hover=False, tap=True, mstar=False, zoom=False,
+                          panels=True),
+    'kinds': DESKTOP | dict(data=['kinds'], dpr=1, theme='light', drawn=True, hover=True, tap=False, mstar=False, zoom=False,
+                            panels=True),
     'missing': DESKTOP | dict(data=[None], dpr=1, theme='light', drawn=False, hover=False, tap=False, mstar=False, zoom=False),
     'violations': DESKTOP | dict(data=list(VIOLATIONS), dpr=1, theme='light', drawn=False, hover=False, tap=False,
                                  mstar=False, zoom=False),
+    'fragment': DESKTOP | dict(data=['real'], dpr=2, theme='light', drawn=False, hover=False, tap=False, mstar=False,
+                               zoom=False, fragment='#k30'),
 }
 DRAWN = ('light', 'phone')                                   # the configurations on the real data
 
@@ -627,7 +700,7 @@ def run(name):
             qi.copy_page_dir(p)
             js = SOURCES[source]() if source else None
             if js: open(os.path.join(p, 'pow2.js'), 'w', encoding='utf-8').write(js)
-            urls.append('file://' + os.path.join(p, 'index.html'))
+            urls.append('file://' + os.path.join(p, 'index.html') + c.get('fragment', ''))
             datas.append(pow2_of(js) if c['drawn'] else None)
         data = datas[0]
         # the cells (2^k, hi + 1) of the m*(n) chart to read out, for the k whose hiWhy is ["mstar", why]
@@ -635,6 +708,7 @@ def run(name):
                  if 2 ** k <= NMAX and c['mstar'] and data['cols'][k - 1][3][0] == 'mstar']
         shots = [os.path.join(d, 'load.png'), os.path.join(d, 'outline.png')]
         cfg = {k: c[k] for k in ('width', 'height', 'dpr', 'mobile', 'theme', 'drawn', 'hover', 'tap', 'swipe', 'zoom')} | dict(
+            panels=c.get('panels', False), fragment=c.get('fragment', ''),
             zoomView=ZOOM_VIEW,
             chrome=CHROME, dir=d, urls=urls, K=K, E=data['etop'] if data else 0, ROW=ROW, GAP=gap(c['dpr']), outline=OUTLINE,
             swipeFrom=SWIPE, shots=shots, mstarCells=mstar, mstarLayout=MSTAR_LAYOUT, mstarCols=MSTAR_COLUMNS)
@@ -1238,6 +1312,171 @@ def q_made_up_data_reads_every_kind():
     assert {c[3][0] for c in cols} == {'mstar', 'norm', 'residue'}
     assert {c[3][1][0] for c in cols if c[3][0] == 'mstar'} == {'two', 'norm', 'residue', 'table2', 'page'}
     check_readouts(R['data'], R['hovers'])
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# The panels of the chart's columns (dreeves's spec [REO]; Claude's design of 2026-11-03, which dreeves approved: "those
+# sound like good precedents. go ahead"): a click or a tap on a cell, or the page's fragment kK, opens under the chart
+# the full explanation of column k, from the same templates as the m*(n) chart's panels.
+
+def pow2_whys(data, k, rows=()):
+    """The kinds of text that column k's panel shows, in order, for the cells clicked in rows (excesses): a status per
+    cell, its lower bound's reason, and its upper bound's (the m*(n) chart's own, for a reason mstar).  (Its entry's
+    link, the template "entry", followed until [REO] step 2, 2026-11-03, which moved the entry itself into the panel:
+    quals_index.panel_entries.)"""
+    lo, hi, lw, hw = data['cols'][k - 1]
+    status = ['status-' + KINDS[kind_of(data['cols'][k - 1], k, e)] for e in rows]
+    upper = hw[1][0] if hw[0] == 'mstar' else hw[0]
+    return status + [f'lo-{lw[0]}', f'hi-{upper}']
+
+
+def pow2_says(data, k, P):
+    """What column k's panel P must say, by its reasons' arguments, as [(what, found)]."""
+    lo, hi, lw, hw = data['cols'][k - 1]
+    t = P['text']
+    bounds = f'm^*(2^{{{k}}}) = {lo}' if lo == hi else f'{lo} \\le m^*(2^{{{k}}}) \\le {hi}'
+    says = [('heading', P['heading'] == f'\\(k = {k}\\), \\(n = 2^{{{k}}}\\): \\({bounds}\\)'),
+            ('lower', f'The lower bound, order {lo}' in t), ('upper', f'order {hi + 1} is ruled out' in t)]
+    if lw[0] == 'joins':
+        for p in lw[1]:
+            n, m = prod(b[0] for b in p), sum(b[1] for b in p)
+            says += [('product', f"\\(n = {' \\cdot '.join(str(b[0]) for b in p)} =\\) {n:,}, "
+                                 f"\\(m = {' + '.join(str(b[1]) for b in p)} = {m}\\)" in t)]
+            says += [('block link', f'#n{b[0]}' in P['links']) for b in p if b[0] != 2 ** b[1]]
+        says += [('total', f'which is {2 ** k:,},' in t),
+                 ('least', f"the least of theirs, min({', '.join(str(sum(b[1] for b in p)) for p in lw[1])}) = {lo}." in t)]
+    else:
+        says += [('tau', f'comes from Thue–Morse, \\(\\tau_{{{k}}}\\), of length \\(2^{{{k}}}\\)' in t)]
+    kind, args = (hw[1][0], hw[1][1:]) if hw[0] == 'mstar' else (hw[0], hw[1:])
+    source = 'mstar.py' if hw[0] == 'mstar' else 'pow2.py'
+    says += {'two': [('t', f'\\(n = {2 ** k} = 2^{{{k}}} \\cdot 1\\)' in t)],
+             'norm': [('p', f'\\(p = {args and args[0]}\\)' in t)],
+             'residue': [('M', f"residue condition mod {', '.join(map(str, args and (args[0] if isinstance(args[0], list) else args)))}," in t
+                                and f'{source} repeats' in t)],
+             'table2': [('cited', 'ruled out by BGPW' in t)], 'page': [('who', f'({args and args[0]})' in t)]}[kind]
+    says += [('entry', P['entries'] == qi.panel_entries(2 ** k))]   # the entry itself since [REO] step 2 (2026-11-03), not its link
+    return says
+
+
+def q_panels_show_exactly_each_column_s_reasons():
+    # Replicata: the light run: the panel of each of the 72 columns, opened in turn by its fragment, kK.
+    # Expectata: each opens (not hidden, its own fragment, the focus on its heading), with no KaTeX error mark; it shows
+    # exactly the data's reasons, the kinds of its texts in order (pow2_whys); its heading gives k, 2^k and the bounds;
+    # its texts name their reasons' arguments (pow2_says): each product of a join with its blocks' lengths multiplied
+    # out and its orders added, the blocks linked to their columns' panels in the m*(n) chart but τ_j, the lengths'
+    # total 2^k in digits and the least order; the prime of a norm bound; the moduli of a residue claim and the script
+    # that repeats it; and the link to the remarks' entry where one lists 2^k.
+    # Resultata before: no panel.
+    R = valid('light')
+    assert [P['k'] for P in R['panels']] == list(range(1, K + 1)), [P['k'] for P in R['panels']][:5]
+    for P in R['panels']:
+        k = P['k']
+        assert not P['hidden'] and P['hash'] == f'#k{k}' and P['focus'] and P['errors'] == 0, (k, P)
+        assert P['whys'] == pow2_whys(R['data'], k), (k, P['whys'], pow2_whys(R['data'], k))
+        bad = [what for what, found in pow2_says(R['data'], k, P) if not found]
+        assert bad == [], (k, bad, P['text'])
+        assert all(qi.panel_link_lands(href) for href in P['links']), (k, P['links'])
+
+
+def q_norm_panels_hold_at_powers_of_2():
+    # Replicata: the light run: the panel of each column whose upper bound is the norm bound for a prime p, at
+    # n = 2^k, up to 2^72, so in numbers of up to 90 digits.
+    # Expectata: at m = hi + 1 the left side, p^(2m) (p - 1)^(p - 1), is more than the right side,
+    # (p sum s_r^2)^(p - 1), and p^m more than the floor of (p sum s_r^2 / (p - 1))^((p - 1)/2); the panel gives each
+    # of them in digits, exactly as Python's integers have them.
+    R = valid('light')
+    found = 0
+    for P in R['panels']:
+        k = P['k']
+        lo, hi, lw, hw = R['data']['cols'][k - 1]
+        why = hw[1] if hw[0] == 'mstar' else hw
+        if why[0] != 'norm': continue
+        n, p, m = 2 ** k, why[1], hi + 1
+        sizes = [(n - r + p - 1) // p for r in range(p)]
+        S = sum(x * x for x in sizes)
+        lhs, rhs = p ** (2 * m) * (p - 1) ** (p - 1), (p * S) ** (p - 1)
+        cap = (p * S) ** ((p - 1) // 2) // (p - 1) ** ((p - 1) // 2)
+        assert lhs > rhs and p ** m > cap, (k, p, m)
+        for said in (', '.join(f'{x:,}' for x in sizes), f'is {S:,}.', f'is {lhs:,},', f'which is {rhs:,}.',
+                     f'=\\) {p ** m:,},', f'=\\) {cap:,},'):
+            assert said in P['text'], (k, said, P['text'])
+        found += 1
+    assert found > 30, found
+
+
+def q_click_opens_its_column_s_panel():
+    # Replicata: the light run: a real mouse click on cell OUTLINE (k = 36, δ = 5), in the full view.
+    # Expectata: the panel of column 36 opens, its fragment set and its heading focused, and starts with the status of
+    # the cell clicked, order 36 + 5 = 41.
+    R = valid('light')
+    P, (k, e) = R['clickPanel'], OUTLINE
+    assert not P['hidden'] and P['hash'] == f'#k{k}' and P['focus'], P
+    assert P['whys'] == pow2_whys(R['data'], k, [e]), P['whys']
+    assert f'The cell clicked, order {k + e},' in P['text'], P['text']
+
+
+def q_fragment_opens_its_panel_and_focus_comes_back():
+    # Replicata: the page loaded with the fragment #k30; then a real Escape key; then the fragment #k10; then a real
+    # click on the panel's close button.
+    # Expectata (the design of 2026-11-03: "Loading the page with such a fragment opens that panel"; "On open, focus
+    # moves to the panel's heading; close or Escape returns focus to the chart"): nothing logged; the panel of k = 30
+    # is open at load, its heading focused; Escape hides it, the fragment gone and the focus on the chart; #k10 opens
+    # 10's panel; its close button hides it, the fragment gone, the focus on the chart.
+    [R] = run('fragment')
+    assert R['errors'] == [], R['errors']
+    F, E, O, C = R['fragment'], R['escaped'], R['reopened'], R['closed']
+    assert not F['hidden'] and F['hash'] == '#k30' and F['focus'] and F['heading'].startswith('\\(k = 30\\)'), F
+    assert E['hidden'] and E['hash'] == '' and E['active'] == 'pow2-chart', E
+    assert not O['hidden'] and O['hash'] == '#k10' and O['focus'] and O['heading'].startswith('\\(k = 10\\)'), O
+    assert C['hidden'] and C['hash'] == '' and C['active'] == 'pow2-chart', C
+
+
+def q_panels_fit_a_phone():
+    # Replicata: the phone run, 390 px wide: every column's panel opened in turn, after a tap on every cell.
+    # Expectata: nothing logged; with each panel open, the page is no wider than the window.
+    # (A phone's innerWidth is its visual viewport's, which widens to show a page wider than the window, so the page's
+    # width is compared with the window's, PHONE's 390 px, as q_phone_has_no_sideways_scroll compares it.)
+    R = valid('phone')
+    wide = [(P['k'], P['scrollW']) for P in R['panels'] if P['scrollW'] > PHONE['width']]
+    assert len(R['panels']) == K and wide == [], wide[:5]
+
+
+def q_made_up_panels_use_every_kind():
+    # Replicata: made-up data that uses every kind of reason (kinds_cols): every column's panel opened in turn.
+    # Expectata: nothing logged; each panel opens and shows exactly its data's reasons; between them they use every
+    # kind of lower and upper bound of the data contract, the m*(n) chart's kinds among them.
+    R = valid('kinds')
+    for P in R['panels']:
+        assert not P['hidden'] and P['errors'] == 0 and P['whys'] == pow2_whys(R['data'], P['k']), (P['k'], P)
+        bad = [what for what, found in pow2_says(R['data'], P['k'], P) if not found]
+        assert bad == [], (P['k'], bad, P['text'])
+    kinds = {w for P in R['panels'] for w in P['whys']}
+    assert {'lo-thue-morse', 'lo-joins', 'hi-two', 'hi-norm', 'hi-residue', 'hi-table2', 'hi-page'} <= kinds, kinds
+
+
+def q_panels_show_their_entries_and_give_them_back():
+    # Replicata: the light and phone runs: every column's panel by its fragment in turn, then the last closed by its
+    # button; and the fragment run: the page loaded with #k30; a real Escape; #k10; its close button.
+    # Expectata ([REO] step 2, the main session's design of 2026-11-03: "When a column panel opens, its length's remarks
+    # entry ... is moved into the panel, below the generated reasons. It is not cloned ... When the panel closes, or
+    # another column's panel opens, the entry goes back to its exact place in the list"; and dreeves's "the box shouldn't
+    # ever refer to "remarks below""): each open panel shows exactly the entry that lists its 2^k, if any
+    # (quals_index.panel_entries), with no id on two elements of the page, while the list holds the others in their
+    # order (quals_index.entry_order); with the panel closed the list is whole, in order; and no panel's text, the
+    # entry's included, says "remarks below".
+    # Resultata before: the panels linked their entries ("Its entry in the remarks below"), which stayed in the list.
+    order = qi.entry_order()
+    for name in ('light', 'phone'):
+        R = valid(name)
+        for P in R['panels']:
+            assert P['entries'] == qi.panel_entries(2 ** P['k']) and P['listed'] == qi.held(order, *P['entries']), (name, P['k'], P['entries'])
+            assert P['dups'] == [] and 'remarks below' not in ' '.join([P['text'], *P['entryText']]), (name, P['k'], P['dups'])
+        assert R['after']['hidden'] and R['after']['entries'] == [] and R['after']['listed'] == order, (name, R['after']['entries'])
+        assert sum(1 for P in R['panels'] if P['entries']) >= 40, name
+    [R] = run('fragment')
+    assert R['errors'] == [], R['errors']
+    for step, want in (('fragment', ['entry-1073741824']), ('escaped', []), ('reopened', ['entry-1024']), ('closed', [])):
+        assert R[step]['entries'] == want and R[step]['listed'] == qi.held(order, *want) and R[step]['dups'] == [], (step, R[step]['entries'])
 
 
 def q_missing_data_fails_loudly():

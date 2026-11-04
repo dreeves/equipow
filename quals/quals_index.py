@@ -388,6 +388,11 @@ function battery(R) {
   const cv = document.getElementById('mstar-chart'), ro = document.getElementById('mstar-readout');
   const reset = document.getElementById('mstar-reset'), rect = () => cv.getBoundingClientRect();
   R.readout0 = ro.textContent;
+  // The fold of the remarks' list ([REO] step 2, 2026-11-03), as the page loads: whether it is there and open, and
+  // whether its summary and its list are shown
+  const fold = document.querySelector('section.remarks details');
+  R.fold = {there: fold !== null, open: fold?.open ?? null, summary: fold?.querySelector(':scope > summary')?.checkVisibility() ?? null,
+            list: fold?.querySelector(':scope > ul')?.checkVisibility() ?? null};
   R.canvasCss = [rect().width, rect().height];
   R.canvasDev = [cv.width, cv.height];
   R.dpr = devicePixelRatio; R.innerW = innerWidth; R.scrollW = document.documentElement.scrollWidth;
@@ -738,6 +743,7 @@ function battery(R) {
     hover(L + 0.8 * W, rowY(5) / dpr);
     ptr('pointerdown', x2, yProbe, {buttons: 1}); ptr('pointerup', x2, yProbe, {});
     R.click = {want: [COLS[Math.floor(v.u0 + (x2 - L) * k)], 1], text: ro.textContent};
+    R.clickPanel = panelReport();                                  // the panel the click opened ([REO], 2026-11-03)
   }
   // The zoom buttons: a click of each from a view zoomed in 3 steps; then, from the full view, clicks of + until it is
   // disabled and then of − until it is disabled, the view measured after each.
@@ -774,9 +780,84 @@ function battery(R) {
     R.tagAway = {before: R.tagHovers.at(-1).text, text, ...t, v: view()};
   }
 }
+// The panel of the m*(n) chart's columns ([REO], 2026-11-03), or of the chart of powers of 2's (id), as it stands:
+// whether it is hidden, the page's fragment, whether its heading has the focus and which element has it, the kinds of
+// its texts (data-why) in order, its generated text with each formula KaTeX drew written back as its TeX, \( ... \),
+// its links' hrefs, KaTeX's error marks in it, and the page's width then.  Since [REO] step 2 (2026-11-03) a panel
+// also shows the remarks' entry of its length, the li that holds its p.entry, moved in: the generated text and links
+// leave out the entries it shows, and the report gives their p.entry ids (entries) and texts (entryText) apart, with
+// the ids of the p.entry still in the remarks' list, in order (listed), the ids that two elements of the page share
+// (dups), and the fold of the list (fold): whether it is there, open and shown.
+const HELD = 'li:has(> p.entry)';                                  // an entry of the remarks, wherever it is
+function panelReport(id = 'mstar-panel') {
+  const region = document.getElementById(id), c = region.cloneNode(true);
+  c.querySelectorAll('.katex').forEach(k => k.replaceWith(`\\(${k.querySelector('annotation').textContent}\\)`));
+  const held = [...c.querySelectorAll(HELD)];
+  held.forEach(li => li.remove());
+  const ids = [...document.querySelectorAll('[id]')].map(e => e.id), fold = document.querySelector('section.remarks details');
+  return {hidden: region.hidden, hash: location.hash, focus: document.activeElement === region.querySelector('h3'),
+          active: document.activeElement.id, whys: [...region.querySelectorAll('[data-why]')].map(e => e.dataset.why),
+          heading: c.querySelector('h3').textContent, text: c.textContent.replace(/\s+/g, ' ').trim(),
+          links: [...region.querySelectorAll('a[href]')].filter(a => !a.closest(HELD)).map(a => a.getAttribute('href')),
+          errors: region.querySelectorAll('.katex-error').length, scrollW: document.documentElement.scrollWidth,
+          entries: held.map(li => li.querySelector('p.entry').id), entryText: held.map(li => li.textContent.replace(/\s+/g, ' ').trim()),
+          listed: [...document.querySelectorAll('section.remarks ul > li > p.entry')].map(p => p.id),
+          dups: ids.filter((x, i) => ids.indexOf(x) !== i),
+          fold: {there: fold !== null, open: fold?.open ?? null, shown: fold?.checkVisibility() ?? null}};
+}
+// Every column's panel, opened by its fragment, nN, in turn (OPTS.panels; the run lifts Chrome's limit of 200 changes
+// of a frame's address per 10 s, which these 514 changes pass in about 2 s), then the last one closed by its button
+// (after); and the page loaded with a fragment, its panel open at load (OPTS.fragment): its report, then the report
+// after Escape in its heading, and after the panel of n = 512 opened by its fragment and closed by its button.  Then
+// ([REO] step 2, 2026-11-03) the entries' moves: 1024's panel again (again), a click on its code there (expanded: the
+// code's aria-expanded and its box, in the panel or not, shown or not, its rows' k and marks), the powers-of-2 chart's
+// panel of k = 10, n = 1024, whose entry is the same (crossed: both panels, and the box), its close button
+// (crossClosed: both again), 512's panel and then 1024's while it is open (switched), and Escape (allClosed).
+const hashed = h => new Promise(r => { addEventListener('hashchange', () => r(), {once: true}); location.hash = h; });
+async function panels(R) {
+  history.replaceState(null, '', location.pathname);
+  R.innerW = innerWidth;
+  R.panels = [];
+  for (const n of COLS) { await hashed(`#n${n}`); R.panels.push({n, ...panelReport()}); }
+  document.querySelector('#mstar-panel [data-panel-close]').click();
+  R.after = panelReport();
+}
+async function fragment(R) {
+  const region = document.getElementById('mstar-panel'), escape = () => new KeyboardEvent('keydown', {key: 'Escape', bubbles: true, cancelable: true});
+  const key = escape();
+  R.fragment = panelReport();
+  region.querySelector('h3').dispatchEvent(key);
+  R.escaped = {...panelReport(), prevented: key.defaultPrevented};
+  await hashed('#n512');
+  R.reopened = panelReport();
+  region.querySelector('[data-panel-close]').click();
+  R.closed = panelReport();
+  await hashed('#n1024');
+  R.again = panelReport();
+  const code = document.querySelector('code[id="1024:11"]');
+  code.click();
+  const box = () => document.getElementById(code.getAttribute('aria-controls'));
+  const boxReport = () => ({expanded: code.getAttribute('aria-expanded'), inMstar: region.contains(box()),
+    inPow2: document.getElementById('pow2-panel').contains(box()), inEntry: code.closest(HELD).contains(box()), shown: box().checkVisibility(),
+    ks: [...box().querySelectorAll('[data-k]')].map(c => c.textContent), relations: [...box().querySelectorAll('[data-relation]')].map(c => c.textContent)});
+  R.expanded = boxReport();
+  await hashed('#k10');
+  R.crossed = {mstar: panelReport(), pow2: panelReport('pow2-panel'), box: boxReport()};
+  document.querySelector('#pow2-panel [data-panel-close]').click();
+  R.crossClosed = {mstar: panelReport(), pow2: panelReport('pow2-panel'), box: boxReport()};
+  await hashed('#n512');
+  await hashed('#n1024');
+  R.switched = panelReport();
+  region.querySelector('h3').dispatchEvent(escape());
+  R.allClosed = {mstar: panelReport(), pow2: panelReport('pow2-panel'), box: boxReport()};
+}
 const R = {errors: window.__errors, opts: OPTS};
-const go = () => {
-  try { battery(R); } catch (e) { R.harnessError = String(e && e.stack || e); }
+const go = async () => {
+  try {
+    if (OPTS.fragment) await fragment(R);
+    else if (OPTS.panels) await panels(R);
+    else battery(R);
+  } catch (e) { R.harnessError = String(e && e.stack || e); }
   R.texts = [...new Set(window.__texts)];
   parent.postMessage(JSON.stringify(R), '*');
 };
@@ -857,7 +938,14 @@ CONFIGS = {   # name: (mstar.js, window width, device pixel ratio, theme, hover 
     'phone': ('real', 390, 3, None, 5),
     'kinds': ('kinds', 1280, 2, None, 1),
     'missing': (None, 1280, 2, None, 1),
+    'fragment': ('real', 1280, 2, None, 1),
+    'phone fragment': ('real', 390, 3, None, 5),
+    'panels': ('real', 1280, 2, None, 1),
+    'phone panels': ('real', 390, 3, None, 5),
+    'kinds panels': ('kinds', 1280, 2, None, 1),
 } | {f'violates {v}': (v, 1280, 1, None, 1) for v in VIOLATIONS}
+PANELS = ('panels', 'phone panels', 'kinds panels')   # the configurations that open every column's panel in turn ([REO], 2026-11-03)
+FRAGMENTS = {'fragment': '#n1024', 'phone fragment': '#n1024'}   # the configurations that load the page with a fragment
 SOURCES = {'real': lambda: open(DATA, encoding='utf-8').read(), 'kinds': kinds_data} | {
     v: (lambda v=v: kinds_data(v)) for v in VIOLATIONS}           # mstar.js's text, by CONFIGS's first entry
 
@@ -869,15 +957,17 @@ def run(name):
         d = tempfile.mkdtemp(prefix='index-quals-')
         text = page()
         assert text.count('<head>\n') == 1 and text.count('</body>') == 1 and text.count('<html lang="en">') == 1
+        opts = {'hoverEvery': every, 'panels': name in PANELS, 'fragment': name in FRAGMENTS}
         text = text.replace('<head>\n', '<head>\n' + EARLY).replace('</body>', HARNESS.replace(
-            '__OPTS__', json.dumps({'hoverEvery': every})).replace('__NCOL__', str(NCOL)).replace('__COLUMNS__', json.dumps(COLUMNS)) + '</body>')
+            '__OPTS__', json.dumps(opts)).replace('__NCOL__', str(NCOL)).replace('__COLUMNS__', json.dumps(COLUMNS)) + '</body>')
         if theme: text = text.replace('<html lang="en">', f'<html lang="en" data-theme="{theme}">')
         open(os.path.join(d, 'index.html'), 'w', encoding='utf-8').write(text)
         copy_page_dir(d)
         if data is not None: open(os.path.join(d, 'mstar.js'), 'w', encoding='utf-8').write(SOURCES[data]())
         shutil.copy(POW2, os.path.join(d, 'pow2.js'))
-        open(os.path.join(d, 'host.html'), 'w').write(HOST.replace('__WIDTH__', str(width)))
-        dom = chrome(d, [f'--window-size={max(width, 500) + 40},1100', f'--force-device-scale-factor={dpr}',
+        open(os.path.join(d, 'host.html'), 'w').write(HOST.replace('__WIDTH__', str(width)).replace(
+            'src="index.html"', f'src="index.html{FRAGMENTS.get(name, "")}"'))
+        dom = chrome(d, ['--disable-ipc-flooding-protection'] * (name in PANELS) + [f'--window-size={max(width, 500) + 40},1100', f'--force-device-scale-factor={dpr}',
                          '--virtual-time-budget=10000', '--dump-dom', 'file://' + os.path.join(d, 'host.html')])
         m = re.search(r'<pre id="harness-out">(.*?)</pre>', dom, re.S)
         assert m, (name, dom[-3000:])
@@ -3265,6 +3355,415 @@ def q_made_up_data_draws():
     # Expectata: no errors; the chart is drawn with one row per m up to mtop.
     R = valid_run('kinds')
     assert R['canvasDev'][1] > 0 and len(R['rows']) == 8, R['rows']
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# The panels of the charts' columns (dreeves's spec [REO]; Claude's design of 2026-11-03, which dreeves approved: "those
+# sound like good precedents. go ahead"): a click or a tap on a cell, or the page's fragment nN, opens under the m*(n)
+# chart the full explanation of column n, one template per kind of reason filled with the column's numbers.
+
+def entry_lengths():
+    """{n: the id the page's script gives the remarks entry that lists n}: each p.entry's lengths, its TeX's n = ...,
+    with 2^{k} as its digits, and the id entry-N, N the first of them."""
+    out = {}
+    for ns in re.findall(r'<p class="entry">\\\(n = (.*?)\\\): ', page()):
+        lengths = [2 ** int(x[3:-1]) if x.startswith('2^{') else int(x) for x in ns.split(', ')]
+        out.update({n: f'entry-{lengths[0]}' for n in lengths})
+    return out
+
+
+def code_ids():
+    """The ids N:M of the page's codes."""
+    return set(re.findall(r'<code id="(\d+:\d+)">', page()))
+
+
+def entry_order():
+    """The ids of the remarks' entries in the page's order, as the page's script names them (entry-N, N the first length
+    each lists): the order of the list, to which every entry a panel showed goes back ([REO] step 2, 2026-11-03)."""
+    return [f'entry-{2 ** int(x[3:-1]) if x.startswith("2^{") else int(x)}'
+            for x in (ns.split(', ')[0] for ns in re.findall(r'<p class="entry">\\\(n = (.*?)\\\): ', page()))]
+
+
+def panel_whys(cols, n, rows=()):
+    """The kinds of text that column n's panel of the m*(n) chart shows, in order, for the cells clicked in rows: a
+    status per cell, its lower bound's reason and, for an example, its code where the page shows it, and its upper
+    bound's.  (Its entry's link, the template "entry", followed until [REO] step 2, 2026-11-03, which moved the entry
+    itself into the panel: panel_entries.)"""
+    lo, hi, lw, hw = cols[n - 1]
+    status = ['status-' + ('exists' if m <= lo else 'open' if m <= hi else 'impossible') for m in rows]
+    return status + [f'lo-{lw[0]}'] + ['lo-code'] * (lw[0] == 'example' and f'{n}:{lo}' in code_ids()) + [f'hi-{hw[0]}']
+
+
+def panel_entries(n):
+    """The ids of the remarks' entries that the panel of the length n shows ([REO] step 2, 2026-11-03): the entry that
+    lists n, if any."""
+    return [e for e in [entry_lengths().get(n)] if e]
+
+
+def panel_says(cols, n, P):
+    """What column n's panel P must say, by its reasons' arguments, as [(what, found)]."""
+    lo, hi, lw, hw = cols[n - 1]
+    t = P['text']
+    says = [('heading', P['heading'] == (f'\\(n = {n}\\): \\(m^*({n}) = {lo}\\)' if lo == hi else
+                                          f'\\(n = {n}\\): \\({lo} \\le m^*({n}) \\le {hi}\\)')),
+            ('lower', f'The lower bound, order {lo}' in t), ('upper', f'order {hi + 1} is ruled out' in t)]
+    a, b = (lw + [0, 0])[1:3]
+    arg, harg = (lw + [None])[1], (hw + [None])[1]                  # the first argument of each reason, if any
+    says += {'example': [('label', f'comes from an example: {arg}.' in t)],
+             'join': [('parts', f'\\(p_{{{a}}}\\) \\(\\vee\\) \\(p_{{{b}}}\\)' in t and {f'#n{a}', f'#n{b}'} <= set(P['links'])),
+                      ('sum', f'\\({a} + {b} = {n}\\)' in t)],
+             'product': [('parts', f'\\(p_{{{a}}}\\) \\(\\mathbin{{\\#}}\\) \\(p_{{{b}}}\\)' in t and {f'#n{a}', f'#n{b}'} <= set(P['links'])),
+                         ('length', f'\\({a} \\cdot {b} = {n}\\)' in t)],
+             'table2': [('cited', "cited from BGPW's Table 2" in t)], 'page': [('who', f'({arg})' in t)]}[lw[0]]
+    t2 = (n & -n).bit_length() - 1
+    says += {'two': [('t', f'\\(n = {n} = 2^{{{t2}}} \\cdot {n >> t2}\\)' in t and f'\\(t = {t2}\\)' in t)],
+             'norm': [('p', f'\\(p = {harg}\\)' in t)],
+             'residue': [('M', f'residue condition mod {harg},' in t and 'mstar.py repeats' in t)],
+             'table2': [('cited', 'ruled out by BGPW' in t)], 'page': [('who', f'({harg})' in t)]}[hw[0]]
+    says += [('code', f'#{n}:{lo}' in P['links'])] * (lw[0] == 'example' and f'{n}:{lo}' in code_ids())
+    says += [('entry', P['entries'] == panel_entries(n))]      # the entry itself since [REO] step 2 (2026-11-03), not its link
+    return says
+
+
+def panel_link_lands(href):
+    """Whether a panel's link lands: on a column's panel (#nN, N a column of the m*(n) chart), a code (#N:M), an entry
+    of the remarks (#entry-N, as the page's script names them) or a page outside (https)."""
+    return (href.startswith('https://') or href[1:] in code_ids() or href[1:] in set(entry_lengths().values())
+            or re.fullmatch(r'#n(\d+)', href) is not None and int(href[2:]) in COLUMNS)
+
+
+def q_panel_works_out_the_norm_bound_at_1024():
+    # Replicata: the page loaded with the fragment #n1024, which opens the panel of n = 1024; its upper bound is the norm
+    # bound for p = 3 (mstar.js: [11, 11, ["example", "equipow p1024"], ["norm", 3]]).
+    # Expectata (the coordinator's spec, 2026-11-03: "For n = 1024, p = 3, a qual must find classes 342, 341, 341,
+    # 3^12 = 531,441 and the cap 524,289 (= 2^19 + 1), so order 12 fails by 1.4%"): the panel gives the class sizes mod
+    # 3, 342, 341 and 341, and their squares' sum, 349,526; both sides of 3^(2m) 2^2 <= (3 sum s_r^2)^2 at m = 12,
+    # 1,129,718,145,924 = 3^24 * 4 and 1,099,515,822,084 = 1,048,578^2; the norm's floor 3^12 = 531,441 and its cap
+    # 524,289; and that 3^12 exceeds the cap by 1.4%.
+    # Resultata before: no panel.
+    R = valid_run('fragment')
+    t = R['fragment']['text']
+    assert 3 ** 24 * 4 == 1129718145924 and 1048578 ** 2 == 1099515822084 and 1048578 // 2 == 524289 == 2 ** 19 + 1
+    for said in ('the sizes \\(s_r\\) 342, 341, 341,', '\\(\\sum s_r^2\\) is 349,526.', '\\(m = 12\\)',
+                 'the left side, \\(3^{24} \\cdot 2^{2}\\), is 1,129,718,145,924,', '1,048,578 to the power \\(p - 1 = 2\\)',
+                 'which is 1,099,515,822,084.', '\\(p^m = 3^{12} =\\) 531,441,', '\\rfloor =\\) 524,289,', 'exceeds by 1.4%.'):
+        assert said in t, (said, t)
+
+
+def q_every_column_s_panel_shows_exactly_its_reasons():
+    # Replicata: the panel of each of the m*(n) chart's 257 columns, opened in turn by its fragment, nN (the panels run).
+    # Expectata: each opens (not hidden, the fragment its own, the focus on its heading) with no error and no KaTeX
+    # error mark; it shows exactly the data's reasons, the kinds of its texts in order (panel_whys: the lower bound's,
+    # the code's where the page shows the example's code, the upper bound's, the entry's where the remarks list n); its
+    # heading gives n and the bounds; and each text names its reason's arguments (panel_says), with links to the parts'
+    # own panels, the example's code and the entry.
+    # Resultata before: no panel.
+    R = valid_run('panels')
+    cols = mstar_data()['cols']
+    assert [P['n'] for P in R['panels']] == COLUMNS, [P['n'] for P in R['panels']][:5]
+    for P in R['panels']:
+        n = P['n']
+        assert not P['hidden'] and P['hash'] == f'#n{n}' and P['focus'] and P['errors'] == 0, (n, P)
+        assert P['whys'] == panel_whys(cols, n), (n, P['whys'], panel_whys(cols, n))
+        bad = [what for what, found in panel_says(cols, n, P) if not found]
+        assert bad == [], (n, bad, P['text'])
+        assert all(panel_link_lands(href) for href in P['links']), (n, P['links'])
+    kinds = {w for P in R['panels'] for w in P['whys']}
+    # (and 'entry', the link to the remarks' entry, until [REO] step 2, 2026-11-03, when the entry moved into the panel)
+    assert kinds == {'lo-example', 'lo-code', 'lo-join', 'lo-product', 'hi-two', 'hi-norm', 'hi-residue', 'hi-table2',
+                     'hi-page'}, kinds
+
+
+def q_norm_panels_hold_their_claims():
+    # Replicata: the panels run: the panel of each column whose upper bound is the norm bound for a prime p.
+    # Expectata: at m = hi + 1 the left side it gives, in digits, is more than the right side, and p^m more than the cap;
+    # each number is the exact integer its formula says (Python's own arithmetic).
+    R = valid_run('panels')
+    cols = mstar_data()['cols']
+    found = 0
+    for P in R['panels']:
+        n = P['n']
+        lo, hi, lw, hw = cols[n - 1]
+        if hw[0] != 'norm': continue
+        p, m = hw[1], hi + 1
+        sizes = [len(range(r, n, p)) for r in range(p)]
+        S = sum(x * x for x in sizes)
+        lhs, rhs, cap = p ** (2 * m) * (p - 1) ** (p - 1), (p * S) ** (p - 1), (p * S) ** ((p - 1) // 2) // (p - 1) ** ((p - 1) // 2)
+        assert lhs > rhs and p ** m > cap, (n, p, m)
+        for said in (', '.join(f'{x:,}' for x in sizes), f'is {S:,}.', f'is {lhs:,},', f'which is {rhs:,}.', f'=\\) {p ** m:,},',
+                     f'=\\) {cap:,},'):
+            assert said in P['text'], (n, said, P['text'])
+        found += 1
+    assert found == sum(1 for n in COLUMNS if cols[n - 1][3][0] == 'norm') > 10, found
+
+
+def q_tap_opens_its_column_s_panel():
+    # Replicata: the light run's mouse click on a cell of row 1 (R.click), in a view zoomed in 3 steps.
+    # Expectata: the panel of the clicked cell's column opens, its fragment set, the focus on its heading, and it starts
+    # with the clicked cell's status: order 1, known in every column.
+    R = valid_run('light')
+    P, n = R['clickPanel'], R['click']['want'][0]
+    assert not P['hidden'] and P['hash'] == f'#n{n}' and P['focus'], P
+    assert P['whys'] == panel_whys(mstar_data()['cols'], n, [1]), P['whys']
+    assert 'The cell clicked, order 1, is known' in P['text'], P['text']
+
+
+def q_fragment_opens_its_panel_and_focus_comes_back():
+    # Replicata: the page loaded with the fragment #n1024; then Escape in the panel's heading; then the fragment #n512;
+    # then a click on the panel's close button.
+    # Expectata (the design of 2026-11-03: "Loading the page with such a fragment opens that panel"; "On open, focus
+    # moves to the panel's heading; close or Escape returns focus to the chart"): the panel of n = 1024 is open at load,
+    # its heading focused; Escape hides it, its default prevented, the fragment gone and the focus on the chart; #n512
+    # opens 512's panel; its close button hides it, the fragment gone, the focus on the chart.
+    R = valid_run('fragment')
+    F, E, O, C = R['fragment'], R['escaped'], R['reopened'], R['closed']
+    assert not F['hidden'] and F['hash'] == '#n1024' and F['focus'] and F['heading'].startswith('\\(n = 1024\\)'), F
+    assert E['hidden'] and E['prevented'] and E['hash'] == '' and E['active'] == 'mstar-chart', E
+    assert not O['hidden'] and O['hash'] == '#n512' and O['focus'] and O['heading'].startswith('\\(n = 512\\)'), O
+    assert C['hidden'] and C['hash'] == '' and C['active'] == 'mstar-chart', C
+
+
+def q_panels_fit_a_phone():
+    # Replicata: 390 px wide: every column's panel opened in turn (the phone panels run); and the page loaded there
+    # with #n1024.
+    # Expectata: with each panel open, the page is no wider than the window.
+    R = valid_run('phone panels')
+    wide = [(P['n'], P['scrollW']) for P in R['panels'] if P['scrollW'] > R['innerW']]
+    assert R['innerW'] == 390 and wide == [] and len(R['panels']) == NCOL, wide[:5]
+    F = valid_run('phone fragment')
+    assert not F['fragment']['hidden'] and F['fragment']['scrollW'] <= 390, F['fragment']
+
+
+def q_made_up_data_opens_every_kind_of_panel():
+    # Replicata: made-up data that uses every kind of reason (kinds_data): every column's panel opened in turn.
+    # Expectata: no errors; each panel opens and shows exactly its data's reasons; between them they use every kind of
+    # lower and upper bound of the data contract (but none and odd, which odd n have, with no column).
+    R = valid_run('kinds panels')
+    cols = json.loads(kinds_data()[len('const MSTAR = '):-2])['cols']
+    assert len(R['panels']) == NCOL, len(R['panels'])
+    for P in R['panels']:
+        assert not P['hidden'] and P['errors'] == 0 and P['whys'] == panel_whys(cols, P['n']), (P['n'], P)
+    kinds = {w for P in R['panels'] for w in P['whys']}
+    assert {f'lo-{k}' for k in ('example', 'join', 'product', 'table2', 'page')} | {
+        f'hi-{k}' for k in ('two', 'norm', 'residue', 'table2', 'page')} <= kinds, kinds
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# The remarks' entries in the panels ([REO] step 2; dreeves, 2026-11-03: "how can we reduce the redundancy and clutter?
+# we want everything to appear in this box -- the box shouldn't ever refer to "remarks below". but also it would be
+# nice to be able to grep the page and find everything?", and the main session's design of that day): a column's panel
+# shows the remarks' entry of its length, the entry itself moved in, not a copy, and it goes back to its place in the
+# list when the panel closes or opens another column; the list, the entries' source text, stays in the page in one
+# fold, closed until clicked, which find in page opens; and no entry repeats a sentence of its panel's generated text.
+
+def held(order, *gone):
+    """The list's order with the entries gone shown elsewhere."""
+    return [e for e in order if e not in gone]
+
+
+def q_panel_shows_its_entry_and_gives_it_back():
+    # Replicata: the fragment runs (1280 and 390 px): the page loaded with #n1024; Escape; #n512; its close button;
+    # #n1024 again; the powers-of-2 chart's #k10 (n = 1024 there too); that panel's close button; #n512, then #n1024
+    # while it is open; Escape.  And the panels runs: every column's panel by its fragment in turn, then the last closed.
+    # Expectata (the design, 2026-11-03: "When a column panel opens, its length's remarks entry ... is moved into the
+    # panel, below the generated reasons. It is not cloned ... When the panel closes, or another column's panel opens,
+    # the entry goes back to its exact place in the list"; "If an entry lists several lengths (e.g. 320 and 352), it
+    # moves into whichever of their panels opens"; "A column with no entry shows its generated reasons only"): each
+    # open panel shows exactly the entry that lists its length, if any (panel_entries), and the list holds the others in
+    # their order (entry_order); the powers-of-2 chart's panel of 2^10 takes 1024's entry from the m*(n) chart's, which
+    # stays open, showing none; once a panel closes or switches, every entry it showed is back in its place, and with
+    # both panels closed the list is whole, in order.
+    # Resultata before: panels linked their entries ("Its entry in the remarks below"), which stayed in the list.
+    order = entry_order()
+    assert len(order) == len(set(order)) > 70 and 'entry-1024' in order and 'entry-512' in order, order
+    for name in ('fragment', 'phone fragment'):
+        R = valid_run(name)
+        steps = [('fragment', R['fragment'], ['entry-1024']), ('escaped', R['escaped'], []), ('reopened', R['reopened'], ['entry-512']),
+                 ('closed', R['closed'], []), ('again', R['again'], ['entry-1024']),
+                 ('crossed mstar', R['crossed']['mstar'], []), ('crossed pow2', R['crossed']['pow2'], ['entry-1024']),
+                 ('crossClosed mstar', R['crossClosed']['mstar'], []), ('crossClosed pow2', R['crossClosed']['pow2'], []),
+                 ('switched', R['switched'], ['entry-1024']), ('allClosed', R['allClosed']['mstar'], [])]
+        for step, P, want in steps:
+            assert P['entries'] == want, (name, step, P['entries'], want)
+        shown = {'fragment': ['entry-1024'], 'escaped': [], 'reopened': ['entry-512'], 'closed': [], 'again': ['entry-1024'],
+                 'crossed mstar': ['entry-1024'], 'crossed pow2': ['entry-1024'], 'crossClosed mstar': [], 'crossClosed pow2': [],
+                 'switched': ['entry-1024'], 'allClosed': []}
+        for step, P, _ in steps:
+            assert P['listed'] == held(order, *shown[step]), (name, step, sorted(set(order) ^ set(P['listed'])))
+        assert not R['crossed']['mstar']['hidden'] and not R['crossed']['pow2']['hidden'], R['crossed']
+        assert R['crossClosed']['pow2']['hidden'] and not R['crossClosed']['mstar']['hidden'], R['crossClosed']
+        assert R['allClosed']['mstar']['hidden'] and R['allClosed']['pow2']['hidden'], R['allClosed']
+    for name in ('panels', 'phone panels'):
+        R = valid_run(name)
+        for P in R['panels']:
+            assert P['entries'] == panel_entries(P['n']) and P['listed'] == held(order, *P['entries']), (name, P['n'], P['entries'])
+        assert R['after']['hidden'] and R['after']['entries'] == [] and R['after']['listed'] == order, (name, R['after']['entries'])
+    assert {P['n'] for P in valid_run('panels')['panels'] if P['entries']} >= {320, 352, 416, 512, 1024}
+
+
+def q_entry_ids_stay_unique_and_codes_expand_in_a_panel():
+    # Replicata: the fragment runs: 1024's panel opened by its fragment, a click on its code there, 1024:11, then the
+    # powers-of-2 chart's panel of 2^10, which takes the entry, then both closed; and the panels runs, each column's
+    # panel in turn.
+    # Expectata (the design, 2026-11-03: "It is not cloned: the entry holds ids (codes' N:M ids) that must stay unique,
+    # and codes.js's expanders must keep working"): no id is on two elements of the page at any step; the click expands
+    # the code in the panel (aria-expanded true), its box right there, shown, inside the entry: the power sums for k = 0
+    # to 11, equal below 11 and unequal at 11; the box moves with the entry into the other panel, still shown, and back
+    # into the list with it.
+    # Resultata before: the code was in the list, and its box opened there, outside the panel.
+    for name in ('fragment', 'phone fragment'):
+        R = valid_run(name)
+        reports = [R[k] for k in ('fragment', 'escaped', 'reopened', 'closed', 'again', 'switched')] + [
+            R[k][c] for k in ('crossed', 'crossClosed', 'allClosed') for c in ('mstar', 'pow2')]
+        assert all(P['dups'] == [] for P in reports), (name, [P['dups'] for P in reports])
+        want = {'expanded': 'true', 'inEntry': True, 'ks': [str(k) for k in range(12)], 'relations': ['='] * 11 + ['≠']}
+        for step, at in (('expanded', {'inMstar': True, 'inPow2': False, 'shown': True}),
+                         ('crossed', {'inMstar': False, 'inPow2': True, 'shown': True}),
+                         ('allClosed', {'inMstar': False, 'inPow2': False})):
+            B = R[step] if step == 'expanded' else R[step]['box']
+            assert {k: B[k] for k in [*want, *at]} == want | at, (name, step, B)
+    for name in ('panels', 'phone panels'):
+        assert all(P['dups'] == [] for P in valid_run(name)['panels']), name
+
+
+def q_no_panel_mentions_the_remarks_below():
+    # Replicata: the panels runs, every column's panel of the m*(n) chart, its generated text and the entry it shows;
+    # and the panel templates of index.html.
+    # Expectata (dreeves, 2026-11-03: "we want everything to appear in this box -- the box shouldn't ever refer to
+    # "remarks below""): no panel's text says "remarks below", and no template says it; the template "entry" ("Its
+    # entry in the remarks below") is gone.
+    # Resultata before: every panel of a length with an entry ended "Its entry in the remarks below: ...".
+    for name in ('panels', 'phone panels'):
+        said = [P['n'] for P in valid_run(name)['panels'] if 'remarks below' in ' '.join([P['text'], *P['entryText']])]
+        assert said == [], (name, said[:10])
+    templates = re.findall(r'<template data-panel="([^"]+)">(.*?)</template>', page(), re.S)
+    assert len(templates) >= 15 and 'entry' not in {t for t, _ in templates}, [t for t, _ in templates]
+    assert not [t for t, body in templates if 'remarks below' in body], [t for t, body in templates if 'remarks below' in body]
+
+
+def remarks_fold():
+    """The remarks section's fold, from index.html: (the section's text before it, its summary's text, the text it
+    holds after the summary, the section's text after it), asserting it is one <details> without open whose first
+    child is a <summary>."""
+    section = re.search(r'<section class="remarks">(.*?)</section>', page(), re.S)[1]
+    folds = re.findall(r'<details([^>]*)>\s*<summary>(.*?)</summary>(.*?)</details>', section, re.S)
+    assert len(folds) == 1 == section.count('<details') and 'open' not in folds[0][0], folds and folds[0][0]
+    before, after = section.split('<details', 1)[0], section.split('</details>', 1)[1]
+    return before, folds[0][1], folds[0][2], after
+
+
+def q_remarks_list_folds_closed_under_its_summary():
+    # Replicata: index.html's section "Where the new results come from"; and the light run, as the page loads.
+    # Expectata (the design, 2026-11-03: "The remarks list ... stays in the HTML exactly as written, as the source text.
+    # Fold it into one closed <details> with a summary line ... styled like the Search progress section's folds";
+    # "Keep the section's introduction (the paragraphs that explain the upper-bound methods: the residue condition and
+    # the norm bound) visible above the fold"; "Without JavaScript the page reads as before, with the list foldable"):
+    # the list of entries, every <p class="entry"> of the page with it, is in one <details> without open, after its
+    # <summary>, which has words; the paragraphs on how the upper bounds are proven and on the norm bound come before it,
+    # outside (the panels' templates cite them by those words); nothing but the closing of the section follows it.  As
+    # the page loads the fold is closed, its summary shown
+    # and its list not.  A summary is a pointer in the stylesheet, as the Search progress section's are.
+    # Resultata before: the list stood open, with no fold.
+    before, summary, inside, after = remarks_fold()
+    assert re.sub(r'<[^>]+>|\s+', ' ', summary).strip(), summary
+    assert re.fullmatch(r'\s*<ul>\n.*\n  </ul>\s*', inside, re.S) and inside.count('<p class="entry">') == page().count('<p class="entry">'), inside[:300]
+    assert 'How the upper bounds are proven.' in before and 'The norm bound for a prime' in before, before[:300]
+    assert after.strip() == '', after
+    assert '.remarks summary { cursor: pointer; }' in page_css(), 'no pointer on the summary'
+    assert valid_run('light')['fold'] == {'there': True, 'open': False, 'summary': True, 'list': False}, valid_run('light')['fold']
+
+
+def panel_reasons(n, cols, pcols):
+    """[lo, hi, loWhy, hiWhy] of each panel that shows the length n, by the columns cols of mstar.js and pcols of
+    pow2.js: the m*(n) chart's column n, if it has one, and the powers-of-2 chart's column k for n = 2^k, its hiWhy
+    ["mstar", why] read as why."""
+    k = n.bit_length() - 1
+    return ([cols[n - 1] for _ in [0] if n in COLUMNS]
+            + [[lo, hi, lw, hw[1] if hw[0] == 'mstar' else hw] for lo, hi, lw, hw in pcols[k - 1:k] if n == 2 ** k])
+
+
+def repeated_reasons(reasons, n):
+    """The sentences that would repeat, in a panel of the length n with the reasons [lo, hi, loWhy, hiWhy], what its
+    generated text states, in the forms the remarks used for them, as regexes over an entry's HTML: the upper bound's
+    reason, the residue condition mod M (a chain's last modulus) or the norm bound for the residue sums mod p, as the
+    entries of the m*(n) chart's lengths said it and as those of the powers of 2 did ("as in the powers-of-2 chart
+    above"); Thue–Morse's order, where Thue–Morse is the lower bound's reason; and a doubling with the upper bound's
+    reason, where those are the panel's two reasons."""
+    lo, hi, lw, hw = reasons
+    M = hw[1][-1] if isinstance((hw + [None])[1], list) else (hw + [None])[1]
+    said = {'residue': f'the residue condition mod {M}', 'norm': f'the norm bound for the residue sums mod {M}'}.get(hw[0])
+    forms = ([rf'Order {hi + 1} is ruled out by {said}\.', rf'The upper bound is {said}, as in the powers-of-2 chart above\.'] * bool(said)
+             + [rf'The Thue–Morse polynomial \\\(\\tau_\{{?{lo}\}}?\\\) has order {lo}\.'] * (lw in (['thue-morse'], ['example', 'Thue–Morse']))
+             + [rf'Order {lo} from examples above, doubled \(\\\({n} = 2\\cdot {lw[-1]}\\\)\); order {hi + 1} is ruled out by {said}\.']
+             * (lw[:2] == ['product', 2] and bool(said)))
+    return [re.compile(f) for f in forms]
+
+
+def entry_lis():
+    """[(the lengths it lists, its HTML with comments blanked)] for each entry, an li of the remarks' list, in page
+    order."""
+    section = blank_comments(re.search(r'<section class="remarks">(.*?)</section>', page(), re.S)[1])
+    lis = re.findall(r'<li[ >].*?</li>', section, re.S)
+    lengths = [re.search(r'<p class="entry">\\\(n = (.*?)\\\): ', li)[1].split(', ') for li in lis]
+    return [([2 ** int(x[3:-1]) if x.startswith('2^{') else int(x) for x in ns], li) for ns, li in zip(lengths, lis)]
+
+
+def q_no_entry_repeats_its_panel_s_reasons():
+    # Replicata: each entry of the remarks' list and, for each length it lists, the reasons of every panel that shows
+    # that length (panel_reasons: the m*(n) chart's column, and the powers-of-2 chart's at a power of 2).
+    # Expectata (the design, 2026-11-03: "No sentence shown twice. Delete from the entries each sentence that a
+    # generated reason now states with the same content, for example "Order 12 is ruled out by the norm bound for the
+    # residue sums mod 3." and "Order 13 is ruled out by the residue condition mod 5." Keep everything the templates do
+    # not say: provenance, credit ..., history, methods, links and codes"; "Delete them only where the generated text
+    # says exactly the same thing"): no entry has a sentence in the forms that state one of those panels' reasons
+    # (repeated_reasons), which the panel's generated text states; a sentence that says more (a credit, a chain of
+    # moduli, several lengths' reasons) is not in those forms.  The forms catch sentences of the entries as they stood
+    # (controls).
+    # Resultata before: 544's entry said "Order 11 is ruled out by the norm bound for the residue sums mod 3.", as its
+    # panel's norm bound worked out does, and so did 63 other sentences, one in each of 63 other entries.
+    reasons, cols, pcols = {}, mstar_data()['cols'], pow2_data()['cols']
+    lis = entry_lis()
+    assert len(lis) == len(entry_order()), len(lis)
+    found = []
+    for lengths, li in lis:
+        for n in lengths:
+            reasons.setdefault(n, panel_reasons(n, cols, pcols))
+            found += [(n, f.pattern) for r in reasons[n] for f in repeated_reasons(r, n) if f.search(li)]
+    assert found == [], (len(found), found[:8])
+    assert all(reasons[n] for n in reasons), [n for n in reasons if not reasons[n]]
+    controls = {544: 'Claude: “A symmetric example of order 10, found by a lattice search. Order 11 is ruled out by the norm bound for the residue sums mod 3.”',
+                864: 'Order 12 from examples above, doubled (\\(864 = 2\\cdot 432\\)); order 15 is ruled out by the residue condition mod 5.',
+                512: 'The Thue–Morse polynomial \\(\\tau_9\\) has order 9.',
+                2 ** 30: 'That beats Thue–Morse by 3. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above.'}
+    for n, said in controls.items():      # sentences of the entries as they stood, which the forms must catch
+        assert [n for r in panel_reasons(n, cols, pcols) for f in repeated_reasons(r, n) if f.search(said)], (n, said)
+
+
+def q_find_in_page_opens_the_fold():
+    # Replicata: index.html loaded on its own (not in the harness's frame) with the text fragment #:~:text=Berend and
+    # Golan, words of 432's entry, and then with the fragment #lemma432, an element of that entry, in the closed fold.
+    # Expectata (the design, 2026-11-03: "Browser find-in-page opens a closed <details> on a match; check that the find
+    # still works"): Chrome opens the fold to show the match, as the HTML standard's ancestor revealing algorithm has
+    # it for find in page, text fragments and fragments: each load ends with the fold open and the entry's lemma shown.
+    # (Chrome's find bar has no headless form; a text fragment is Chrome's other text search that reveals what it finds.
+    # window.find finds the words in the fold but opens nothing: scratch/reo-step2-20261103/findprobe/.)
+    # Resultata before: no fold.
+    for frag in ('#:~:text=Berend%20and%20Golan', '#lemma432'):
+        d = tempfile.mkdtemp(prefix='index-quals-')
+        probe = ('<script>addEventListener("load", () => setTimeout(() => { const f = document.querySelector("section.remarks details"),'
+                 ' t = document.getElementById("lemma432"); document.documentElement.dataset.fold = JSON.stringify({there: f !== null,'
+                 ' open: f?.open ?? null, shown: t.checkVisibility()}); }, 1500));</script>')
+        text = page()
+        assert text.count('</body>') == 1
+        open(os.path.join(d, 'index.html'), 'w', encoding='utf-8').write(text.replace('</body>', probe + '</body>'))
+        copy_page_dir(d)
+        shutil.copy(DATA, os.path.join(d, 'mstar.js'))
+        shutil.copy(POW2, os.path.join(d, 'pow2.js'))
+        dom = chrome(d, ['--window-size=1280,1000', '--virtual-time-budget=10000', '--dump-dom', 'file://' + os.path.join(d, 'index.html') + frag])
+        shutil.rmtree(d)
+        m = re.search(r'<html[^>]* data-fold="([^"]*)"', dom)
+        assert m, (frag, dom[:300])
+        assert json.loads(html.unescape(m[1])) == {'there': True, 'open': True, 'shown': True}, (frag, m[1])
 
 
 # ---------------------------------------------------------------------------------------------------------------------

@@ -260,6 +260,49 @@
   <canvas id="mstar-chart" height="0" tabindex="0" role="img" aria-label='chart of the bounds on m*(n) for even n up to 1024; the arrow keys pan, and + and − zoom'></canvas>
   <p id="mstar-readout" aria-live="polite">Hover over a cell for details. Drag or swipe sideways to pan; zoom with the − and + buttons, pinching, or ctrl-scroll.</p>
   <p class="float-caption"><span class="sc">Figure 1.</span></p>
+  <!-- The panel of a column of the chart above (dreeves's spec [REO], above the remarks below; Claude's design of 2026-11-03, which dreeves approved), which page/mstar-section.js fills at a tap or a click on a cell, or as the page loads with a column's fragment, #nN: a heading, the column's n and its bounds, and the explanations of its reasons, from the templates below; the button closes it; its label is the zoom buttons' kind, a symbol with its word as aria-label and title -->
+  <div class="column-panel" id="mstar-panel" role="region" aria-labelledby="mstar-panel-title" hidden>
+    <div class="column-panel-bar">
+      <h3 id="mstar-panel-title" tabindex="-1" data-panel-title></h3>
+      <button type="button" data-panel-close aria-label="close" title='Close'>×</button>
+    </div>
+    <div class="column-panel-body" data-panel-body></div>
+  </div>
+  <!-- The panels' templates, one per kind of text, for both charts: page/shared.js's filled() puts a copy of one into a panel, each data-slot holding the column's own value, and KaTeX draws its math then. -->
+  <!-- TODO: says the cell clicked, of order m, is known to exist: m is at most the lower bound lo -->
+  <template data-panel="status-exists"><p>Claude: “The cell clicked, order <span data-slot="m"></span>, is known: it is at most the lower bound, <span data-slot="lo"></span>.”</p></template>
+  <!-- TODO: says the cell clicked, of order m, is open: above the lower bound lo and at most the upper bound hi -->
+  <template data-panel="status-open"><p>Claude: “The cell clicked, order <span data-slot="m"></span>, is open: it is above the lower bound, <span data-slot="lo"></span>, and at most the upper bound, <span data-slot="hi"></span>.”</p></template>
+  <!-- TODO: says the cell clicked, of order m, is ruled out: it is above the upper bound hi -->
+  <template data-panel="status-impossible"><p>Claude: “The cell clicked, order <span data-slot="m"></span>, is ruled out: it is above the upper bound, <span data-slot="hi"></span>.”</p></template>
+  <!-- TODO: says the lower bound, order lo, comes from an example, named by its label -->
+  <template data-panel="lo-example"><p>Claude: “The lower bound, order <span data-slot="lo"></span>, comes from an example: <span data-slot="label"></span>.”</p></template>
+  <!-- TODO: says the example's code is on this page, linked, and that a click on the code expands it into its partition and checks its power sums -->
+  <template data-panel="lo-code"><p>Claude: “Its code is <span data-slot="code"></span> on this page; a click on the code expands it into its partition and checks its power sums.”</p></template>
+  <!-- TODO: says the lower bound, order lo, comes from the join of the best known sequences of lengths a and b (each linked to its own column's panel), one after the other, of length a + b = n, and that a join's order is at least the lesser of its parts' orders, min(lo(a), lo(b)) -->
+  <template data-panel="lo-join"><p>Claude: “The lower bound, order <span data-slot="lo"></span>, comes from the join <span data-slot="parts"></span>: the best known sequences of lengths <span data-slot="a"></span> and <span data-slot="b"></span>, one after the other, of length <span data-slot="sum"></span>. A join's order is at least the lesser of its parts' orders, <span data-slot="min"></span>.”</p></template>
+  <!-- TODO: says the lower bound, order lo, comes from the product of the best known sequences f and g of lengths a and b (each linked to its own column's panel), f(x) g(x^a), whose length is a · b = n and whose order is at least the sum of theirs -->
+  <template data-panel="lo-product"><p>Claude: “The lower bound, order <span data-slot="lo"></span>, comes from the product <span data-slot="parts"></span>, which is <span data-slot="fg"></span> for \(f\) and \(g\) the best known sequences of lengths <span data-slot="a"></span> and <span data-slot="b"></span>: its length is <span data-slot="length"></span>, and its order is at least the sum of theirs, <span data-slot="sum"></span>.”</p></template>
+  <!-- TODO: says the lower bound, order lo, is cited from BGPW's Table 2, copied at the top of this page -->
+  <template data-panel="lo-table2"><p>Claude: “The lower bound, order <span data-slot="lo"></span>, is cited from BGPW's Table 2, at the top of this page.”</p></template>
+  <!-- TODO: says the lower bound, order lo, is cited from the new results above, naming whose they are -->
+  <template data-panel="lo-page"><p>Claude: “The lower bound, order <span data-slot="lo"></span>, is cited from the new results above (<span data-slot="who"></span>).”</p></template>
+  <!-- TODO: says the lower bound, order k, comes from Thue–Morse τ_k, of length 2^k, whose sign at i is (−1)^s(i), s(i) the number of 1s among the binary digits of i (Prouhet) -->
+  <template data-panel="lo-thue-morse"><p>Claude: “The lower bound, order <span data-slot="k"></span>, comes from Thue–Morse, <span data-slot="tau"></span>, of length <span data-slot="length"></span>: its sign at \(i\) is \((-1)^{s(i)}\), with \(s(i)\) the number of 1s among the binary digits of \(i\) (Prouhet).”</p></template>
+  <!-- TODO: says the lower bound, order lo, comes from the join of the products listed, each with its length n and its order m; that their lengths add up to 2^k, written out; and that the join's order is at least the least of theirs -->
+  <template data-panel="lo-joins"><p>Claude: “The lower bound, order <span data-slot="lo"></span>, comes from the join of these products, each with its length \(n\) and its order \(m\):</p><ul data-slot="products"></ul><p>Their lengths add up to <span data-slot="power"></span>, which is <span data-slot="total"></span>, and the join's order is at least the least of theirs, <span data-slot="least"></span>.”</p></template>
+  <!-- TODO: says the upper bound: order hi + 1 is ruled out by the 2-adic bound, BGPW's Divisibility (their Theorem 4.1, linked): for n = 2^t u with u odd, the order is at most 2^t − 1; the column's n written so, its t and that bound; and why: mod 2 every sign is 1, so f(x) = 1 + x + ... + x^(n−1) = (x^n + 1)/(x + 1), which is (x^u + 1)^(2^t)/(x + 1) as (a + b)^2 = a^2 + b^2 mod 2, written out for the column; x + 1 divides x^u + 1 only once, so (x − 1)^m, which is (x + 1)^m mod 2, divides f(x) only for m ≤ 2^t − 1 -->
+  <template data-panel="hi-two"><p>Claude: “The upper bound: order <span data-slot="m"></span> is ruled out by the 2-adic bound, BGPW's Divisibility (their <a href="https://arxiv.org/html/1912.03491v1#S4.Thmthm1">Theorem 4.1</a>): for \(n = 2^t u\) with \(u\) odd, the order is at most \(2^t - 1\). Here <span data-slot="n"></span>, so <span data-slot="t"></span>, and the order is at most <span data-slot="hi"></span>. Mod 2, every sign is 1, so \(f(x) = 1 + x + \cdots + x^{n-1} = (x^n + 1)/(x + 1)\), which is <span data-slot="f"></span>, as \((a + b)^2 = a^2 + b^2\) mod 2. And \(x + 1\) divides \(x^u + 1\) only once, so \((x - 1)^m\), which is \((x + 1)^m\) mod 2, divides \(f(x)\) only for \(m \le 2^t - 1\).”</p></template>
+  <!-- TODO: says the upper bound: order m = hi + 1 is ruled out by the norm bound for the prime p, which does not divide n, which the paragraph on the norm bound below derives; gives the sizes s_r of the classes of 0, ..., n − 1 mod p and the sum of their squares; says order m needs p^(2m) (p − 1)^(p − 1) ≤ (p sum s_r^2)^(p − 1), and that at this m the left side, written as powers and then in digits, is more than the right side, p sum s_r^2 to the power p − 1, in digits; and in other words that the norm of f(ζ), an integer, would be at least p^m, in digits, but is at most the floor of (p sum s_r^2/(p − 1))^((p − 1)/2), in digits, which p^m exceeds by the percentage given -->
+  <template data-panel="hi-norm"><p>Claude: “The upper bound: order <span data-slot="m"></span> is ruled out by the norm bound for the prime <span data-slot="p"></span>, which does not divide <span data-slot="n"></span>; the paragraph on the norm bound below derives it. Mod <span data-slot="pp"></span>, the classes of \(0, 1, \ldots, n - 1\) have the sizes \(s_r\) <span data-slot="sizes"></span>, and \(\sum s_r^2\) is <span data-slot="squares"></span>. Order \(m\) needs \(p^{2m} (p - 1)^{p-1} \le (p \sum s_r^2)^{p-1}\). At <span data-slot="atm"></span>, the left side, <span data-slot="left"></span>, is <span data-slot="lhs"></span>, more than the right side, \(p \sum s_r^2 =\) <span data-slot="base"></span> to the power <span data-slot="power"></span>, which is <span data-slot="rhs"></span>. In other words, the norm of \(f(\zeta)\), an integer, would be at least <span data-slot="pm"></span> <span data-slot="pmv"></span>, but it is at most \(\lfloor (p \sum s_r^2 / (p - 1))^{(p-1)/2} \rfloor =\) <span data-slot="cap"></span>, which \(p^m\) exceeds by <span data-slot="pct"></span>%.”</p></template>
+  <!-- TODO: says the upper bound: order hi + 1 is ruled out by the residue condition mod M (or the moduli of a chain), which the paragraph on how the upper bounds are proven below defines: an exhaustive search of the residue sums found none that meet it at that order; and that the script named (linked) repeats the search each time it runs -->
+  <template data-panel="hi-residue"><p>Claude: “The upper bound: order <span data-slot="m"></span> is ruled out by the residue condition mod <span data-slot="mod"></span>, which the paragraph ‘How the upper bounds are proven’ below defines: an exhaustive search of the residue sums found none that meet it at order <span data-slot="m"></span>. <span data-slot="source"></span> repeats the search each time it runs.”</p></template>
+  <!-- TODO: says the upper bound: order hi + 1 is ruled out by BGPW's Table 2, copied at the top of this page, which this page cites -->
+  <template data-panel="hi-table2"><p>Claude: “The upper bound: order <span data-slot="m"></span> is ruled out by BGPW's Table 2, at the top of this page, which this page cites.”</p></template>
+  <!-- TODO: says the upper bound: order hi + 1 is ruled out in the new results above, naming whose they are, by a proof on this page -->
+  <template data-panel="hi-page"><p>Claude: “The upper bound: order <span data-slot="m"></span> is ruled out in the new results above (<span data-slot="who"></span>), by a proof on this page.”</p></template>
+  <!-- TODO: says the column's entry in the remarks below, linked -->
+  <template data-panel="entry"><p>Claude: “Its entry in the remarks below: <span data-slot="entry"></span>.”</p></template>
 </section>
 
 <section class="smallest" aria-labelledby="smallest-title">
@@ -313,6 +356,14 @@
   <div id="pow2-chart" tabindex="0" role="img" aria-label='Chart of the bounds on m*(2^k) − k, the excess over Thue–Morse, for k from 1 to 72; the arrow keys pan, and + and − zoom'></div>
   <p id="pow2-readout" aria-live="polite">Hover over a cell for details. Drag or swipe sideways to pan; zoom with the − and + buttons, pinching, or ctrl-scroll.</p>
   <p class="float-caption"><span class="sc">Figure 2.</span></p>
+  <!-- The panel of a column of the chart above, as the m*(n) chart's, which page/pow2-section.js fills from the same templates at a tap or a click on a cell, or as the page loads with a column's fragment, #kK -->
+  <div class="column-panel" id="pow2-panel" role="region" aria-labelledby="pow2-panel-title" hidden>
+    <div class="column-panel-bar">
+      <h3 id="pow2-panel-title" tabindex="-1" data-panel-title></h3>
+      <button type="button" data-panel-close aria-label="close" title='close'>×</button>
+    </div>
+    <div class="column-panel-body" data-panel-body></div>
+  </div>
   <p><b>Theorem.</b> \(m^*(2^{10}) \ge 11\), \(m^*(2^{20}) \ge 22\), \(m^*(2^{28}) \ge 31\), \(m^*(2^{36}) \ge 40\), \(m^*(2^{39}) \ge 44\), \(m^*(2^{47}) \ge 53\), \(m^*(2^{56}) \ge 63\), \(m^*(2^{58}) \ge 66\), \(m^*(2^{68}) \ge 77\) and \(m^*(2^9) = 9\).</p>
   <p>More concisely: For \(i = 1, 2, \ldots, 9\), the smallest known values of \(k\) for which \(m^*(2^k) - k \ge i\) are 10, 20, 28, 36, 39, 47, 56, 58, 68.</p>
   <p>The following table shows the construction for each inequality in the above theorem: 

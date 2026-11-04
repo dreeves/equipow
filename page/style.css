@@ -472,6 +472,21 @@ code[aria-expanded] { cursor: pointer; text-decoration: underline dotted var(--m
 #pow2-readout { min-height: 3lh; max-width: none; font-size: 0.9375rem; font-variant-numeric: tabular-nums lining-nums; }
 #pow2-readout .swatch { margin-right: 0.5rem; vertical-align: -0.1em; }
 
+/* The panel of a column, under each chart ([REO], 2026-11-03): a ruled box at the running text's measure, its heading
+   and close button on one line; hidden until a cell is clicked (the hidden attribute, which display: grid would
+   otherwise override).  A number of class big is text that may wrap anywhere: some are 90 digits long. */
+.column-panel { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.75rem; max-width: var(--measure);
+                padding: 0.75rem 1rem; border: 1px solid var(--rule); }
+.column-panel[hidden] { display: none; }
+.column-panel-bar { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }
+.column-panel h3 { margin: 0; font-size: 1.1rem; font-weight: 600; }
+.column-panel-bar [data-panel-close] { font: inherit; color: var(--ink); background: var(--paper); border: 1px solid var(--rule);
+                           padding: 0 0.6rem; cursor: pointer; }
+.column-panel-body { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.6rem; }
+.column-panel-body [data-why] { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.3rem; }
+.column-panel-body ul { margin: 0; padding-left: 1.25rem; display: grid; gap: 0.25rem; }
+.column-panel .big { overflow-wrap: anywhere; font-variant-numeric: tabular-nums lining-nums; }
+
 footer {
   display: grid;
   gap: 0.5rem;
