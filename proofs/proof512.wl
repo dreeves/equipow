@@ -1,6 +1,6 @@
 (* This script is all Claude *)
 (* Written on 2026-10-07 by a Claude Opus 5.5 subagent in Claude Code. Its comments and messages were later rewritten by Claude Opus 5.5 and reviewed by another Opus 5.5 subagent. *)
-(* Checks the computations in proof512.txt, which proves that 512 and 496 are not in L_10:
+(* Checks the computations in proof512.txt, in the entry for 512 on the equipow page (https://equipow.dreev.es/#n512), which proves that 512 and 496 are not in L_10:
    no sequence of 512 or of 496 signs has order 10 or more.
    Run with wolframscript -file proof512.wl. All arithmetic is exact. The last line printed is the verdict. *)
 (* Notation as in proof512.txt: positions are 0..n-1, and S(r mod M) is the sum of a_i over i = r (mod M). *)

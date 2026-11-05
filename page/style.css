@@ -251,7 +251,7 @@ code {
    math, in the codes' ink, is ruled below, since an underline does not reach into KaTeX's boxes.  A construction, a
    formula built with # and ∨, is a button too (2026-10-31), ruled as a join, and its derivation is framed as a
    partition is. */
-code[aria-expanded] { cursor: pointer; text-decoration: underline dotted var(--muted); text-underline-offset: 0.2em; }
+code[aria-expanded], [data-text][aria-expanded] { cursor: pointer; text-decoration: underline dotted var(--muted); text-underline-offset: 0.2em; }
 [data-join][aria-expanded], [data-construction][aria-expanded] { cursor: pointer; color: var(--ink); border-bottom: 1px dotted var(--muted); }
 .code > [aria-expanded] { justify-self: start; }
 .partition, .derivation { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.35rem; margin-block: 0.3rem 0.5rem; padding-left: 0.75rem; border-left: 1px solid var(--muted);
@@ -271,6 +271,21 @@ code[aria-expanded] { cursor: pointer; text-decoration: underline dotted var(--m
 .derivation-steps td { text-align: end; padding-inline: 0.5rem 0; color: var(--ink); }
 .derivation-steps a { text-underline-offset: 0.45em; }      /* below a name's subscript, as KaTeX underlines its links */
 [data-bound] { color: var(--ink); }
+/* A text (2026-11-05, dreeves's README: "[MAI] Let's get more things as expandable sections of the main equipow page
+   instead of linking to separate pages. Proofs currently in txt files for starters"): its name a button, ruled as a
+   code is (above), and its box (page/codes.js), a <pre> of every character as written, framed as a partition is, in the
+   codes' monospace, size and ink, ragged and unhyphenated.  Its long lines wrap at the frame's edge, as a browser shows
+   a .txt file, so that it never scrolls sideways (on a phone, a line scrolled sideways is out of view, as = and ≠ were
+   for the power sums); past 60% of the viewport's height it scrolls within itself, as the power sums do. */
+.verbatim { margin-block: 0.3rem 0.5rem; padding-left: 0.75rem; border-left: 1px solid var(--muted); max-height: 60vh; overflow-y: auto;
+            font: 0.8125rem/1.4 var(--mono); color: var(--ink); white-space: pre-wrap; overflow-wrap: anywhere;
+            text-align: start; hyphens: manual; -webkit-hyphens: manual; }
+/* Closed, a text's box is hidden until found (2026-11-05; dreeves, of a closed text kept in a template: "defeats part of
+   the point of bringing the proof inline -- i can't grep the page for things in the proof"), so that find in page
+   reaches it.  The browser then hides its content (content-visibility: hidden) but still lays the box out, in its
+   entry's grid a row of its own with a gap and margins; out of the flow, it takes no room, as a box hidden plainly
+   takes none. */
+[hidden="until-found"] { position: absolute; }
 
 /* The section on partitions at powers of 2 */
 .counts { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; max-width: var(--measure); }

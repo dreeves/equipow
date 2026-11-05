@@ -2735,3 +2735,13 @@ Both strings are now in English, attributed to you, with your TODO recaps above 
 - quals_work_summary.cjs: it checks each variant's fields, no longer the TODO comment or the words "CPU-hours so far."
 - quals_index's q_progress_draws_a_search_s_odds: red since your install, because it expected exactly two basis notes. It now expects lindy, campaign and work, each shown only for its own run.
 All three pass, with the other eleven progress-drawing quals and the curly-quote qual.
+
+### 2026-11-05 00:31 PST — Claude: README [MAI] and [APP], outside your lane
+
+dreeves asked for the README items that need no decisions from him. A Claude sub-agent works on [MAI] in `scratch/mai-20261105/`: the two `.txt` proofs linked from index.html's 512 entry become boxes that open in place. It edits only the 512 entry of index.html, plus page/codes.js, page/style.css, quals/quals_codes.py and proofs/. It makes anchored edits and doesn't touch the Search progress section, page/progress-section.js or your Python. A second sub-agent researches [APP] (asymptotics) in `scratch/app-20261105/`, read only.
+
+### 2026-11-05 01:21 PST — Claude: [MAI] done; two of Claude's own quals fixes touch the progress copy
+
+- **[MAI] is done:** only the 512 entry, page/codes.js, page/style.css, quals/quals_codes.py and proofs/ changed.
+- **quoted_right (quals_index):** a black cell's box copies the Search progress runs, so the Astra quote Claude put in the chance line at 00:12 broke this qual's quote count. It now leaves a box's searches out, as the box word budget already does. Your progress copy is untouched.
+- **Theorem quals:** q_theorem_states_pow2_s_thresholds and quals_pow2_page's theorem_cells now read `=` as well as `\ge`, after dreeves's Theorem 1 rewrite in 6000eaa.

@@ -4276,7 +4276,10 @@ def q_boxes_say_nothing_about_elsewhere():
 
 def quoted_right(parts):
     """Whether a box's parts, [(kind, text, whether of Claude's English)], quote Claude once around its parts of Claude's
-    English, from the start of the first to the end of the last, and not at all without any."""
+    English, from the start of the first to the end of the last, and not at all without any.  Spec change (Claude,
+    2026-11-05): a box's searches, its copy of the Search progress section's runs, are left out, since they carry that
+    section's own quotations (Astra's in the chance line since 2026-11-05), as the word budget leaves them out."""
+    parts = [p for p in parts if p[0] != 'searches']
     claude, text = [i for i, (_, _, c) in enumerate(parts) if c], ''.join(t for _, t, _ in parts)
     return (text.count('Claude: “') == text.count('”') == min(1, len(claude))
             and all(parts[i][1].startswith('Claude: “') for i in claude[:1]) and all(parts[i][1].endswith('”') for i in claude[-1:]))
@@ -4537,8 +4540,12 @@ def q_theorem_states_pow2_s_thresholds():
     cols = pow2_data()['cols']
     E = max(c[0] - k for k, c in enumerate(cols, 1))
     firsts = [next(k for k in range(1, len(cols) + 1) if cols[k - 1][0] - k >= e) for e in range(1, E + 1)]
-    assert bounds[:E] == [(k, '\\ge', k + e) for e, k in enumerate(firsts, 1)], (bounds, firsts)
-    assert bounds[E:] == [(9, '=', 9)] and cols[8][:2] == [9, 9], (bounds[E:], cols[8][:2])
+    # Spec change (Claude, 2026-11-05): dreeves's 6000eaa (2026-11-04) puts m*(2^9) = 9 first and states m*(2^{10}) = 11
+    # as an equality, which pow2.js settles; so the bounds are compared as a set, and a bound may say = where pow2.js's
+    # two bounds there are equal.
+    assert sorted((k, v) for k, _, v in bounds) == sorted([(9, 9)] + [(k, k + e) for e, k in enumerate(firsts, 1)]), (bounds, firsts)
+    assert all(op == '\\ge' or cols[k - 1][:2] == [v, v] for k, op, v in bounds), [(b, cols[b[0] - 1][:2]) for b in bounds]
+    assert (9, '=', 9) in bounds and cols[8][:2] == [9, 9], (bounds, cols[8][:2])
     assert f'1, 2, \\ldots, {E}' in alt and ', '.join(map(str, firsts)) in alt, (alt, firsts)
 
 

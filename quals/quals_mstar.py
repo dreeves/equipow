@@ -949,9 +949,10 @@ def q_residue_claims():
     # Replicata: every claim (m, chain, sweep) of mstar.RESIDUE at its n, enumerated through its chain to the end with
     # no cap, by mstar.chain_none; and, independently, by overnight_v5.admissible level by level (every vector of each
     # level under every vector of the level before), for every claim but 512's and 784's, both through (3, 9, 27), where
-    # v5's sweep, 'natural', runs past 5*10^6 nodes (past 3 CPU-hours at 784): proof512.txt on the page proves 512's by
-    # hand, and 784's was re-proved on 2026-10-12 by two other enumerations, scratch/lower24-design/onecell2/full27.py
-    # (none of the 1320 admissible vectors mod 9 has a refinement mod 27) and judge/chain784.py.
+    # v5's sweep, 'natural', runs past 5*10^6 nodes (past 3 CPU-hours at 784): the two proofs in the page's 512 entry,
+    # proof512.txt and proof512_short.txt (by hand), prove 512's, and 784's was re-proved on 2026-10-12 by two other
+    # enumerations, scratch/lower24-design/onecell2/full27.py (none of the 1320 admissible vectors mod 9 has a refinement
+    # mod 27) and judge/chain784.py.
     # Expectata: no admissible vector at the last modulus, by both; the claim lowers hi below two and norm (none is
     # dead weight); m - 1 >= lo (a claim at or below a known example's order would be a bug).
     _, got = disk()

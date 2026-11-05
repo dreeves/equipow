@@ -1158,3 +1158,26 @@ Order-13 witness agent, 2026-10-31 from 06:05 (Claude; `scratch/w13-1008-912/`):
   - New UI copy is Latin with TODO recaps. Work-mode popups and probability rows show checked nodes and measured nodes per wall second. ftree’s field labeled CPU is actually summed task wall time, so it is not substituted as CPU-hours. Campaign human wording is preserved.
   - The single watcher is now **91568**, `/opt/homebrew/bin/python3 -B search592_progress.py --watch`, nice 15, log `scratch/eta288-takeover-20261104/deploy/progress.log`. Only former watcher 60481 was stopped; proof driver 52302 and its ten original workers remain running. No ETA feeder is required. The model is an ignored runtime artifact under `runs/models/`; preserve it with the run. Do not remove it after activation or edit its pinned source inputs during this run.
   - Verification: 31 chance, 16 model, 15 reader, 4 integration, 11 selected legacy progress quals; 2 new and 5 existing Node harnesses. Two live HTTP snapshots 63 seconds apart advanced work/rate and all three coherent graphs, with all 460 saved ETA points and 35 earlier probability-history points preserved. At the later snapshot: 66,696,331 checked nodes, 2601.2 nodes/s, median 6.89 days remaining and conditional interval 2.63–18.98 days. Artifacts and explicit branch inventory: `scratch/eta288-takeover-20261104/`. No browser/screen access or proof-search restart occurred.
+
+- **README tasks without decisions** (Claude, 2026-11-05 00:30-01:50; dreeves: "can you start in on README tasks that don't need decisions from me?"):
+  - **[MAI], the starters:** the 512 entry's proof512.txt and proof512_short.txt are now `<span data-text="NAME">` buttons.
+    - The box is a fourth kind in page/codes.js, beside codes, joins and constructions: the static `<pre class="verbatim" data-text-box="NAME" hidden="until-found">` right after the button's paragraph, so the text travels with the entry into a column's panel.
+    - Closed, it stays hidden until found, so the browser's find in page searches it and opens it (dreeves, of a first design that kept the text in a `<template>`: "defeats part of the point of bringing the proof inline -- i can't grep the page for things in the proof"). Its `beforematch` marks the button expanded.
+    - button(e, make, closed) generalizes the toggle (`box.hidden ? false : closed`), and texts' boxes are made at load. The CSS rule `[hidden="until-found"] { position: absolute; }` keeps a closed box from adding a gap row in the entry's grid; the closed entry measures the same as HEAD's at 1280 and 390 px.
+    - The text is the files' byte for byte, except curly quotes on each `Claude: “…”` line, per [CUR] (scratch/mai-20261105/bytecheck.json).
+    - The two .txt files are deleted (git keeps them), and proof512.wl's comment names the page.
+    - codes.js asserts that the texts and the `data-text-box` boxes pair one to one, each until-found at load.
+    - Quals, red first: quals_codes q_texts_show_their_boxes, q_closed_texts_take_no_room, q_texts_and_boxes_pair_one_to_one, q_find_in_page_reaches_a_closed_text (a text fragment, `#:~:text=`, as the proxy for find in page, as q_find_in_page_opens_the_fold does) and q_texts_fit_a_phone.
+    - New names awaiting dreeves: data-text, data-text-box, verbatim. Details: scratch/mai-20261105/NOTES.md.
+  - **[APP]:** answered in chat (scratch/app-20261105/NOTES.md).
+    - Corrections to the bullet; Boyd 1997's bounds; the conjecture c = 2/log2 3.
+    - A ceiling: joins of blocks up to 1024 can raise c's lower bound to at most 11/log2 800 ≈ 1.1406.
+    - An error in BGPW §3: m*(8k+4) = 2 holds only at n = 4, since m*(12) = m*(20) = 3 (checked by brute force).
+  - **[SYM]:** answered in chat from the 2026-11-03 work. The independent review (scratch/symreview-20261103/NOTES.md) CONFIRMED C(m) for every m ≤ 11 except (288, 10), given cited bounds. The memory note symmetry-conjecture lists them.
+  - **Astra's Latin translated** (00:12): the chance line's work measure and the work basis note are now `Astra: “…”` quotes. dreeves rewrote the data-work-eta paragraph himself.
+  - **Quals fixed:**
+    - quals_work_eta.cjs and quals_work_summary.cjs check fields, not words or TODO comments.
+    - q_progress_draws_a_search_s_odds expects three basis notes.
+    - quoted_right leaves a box's searches out: the 00:12 Astra quote in the chance line had broken q_box_quotes_claude_around_its_english_alone.
+    - q_theorem_states_pow2_s_thresholds and quals_pow2_page's theorem_cells read `=` as well as `\ge`, after dreeves's Theorem 1 rewrite in 6000eaa.
+  - **Suites:** quals_codes 16/16, quals_pow2_page 37/37, quals_index 156/156, quals_derivations 7/7, quals_mstar 47/47. quals_layout's q_python_quals_import_from_anywhere is still red, as since PR 5.

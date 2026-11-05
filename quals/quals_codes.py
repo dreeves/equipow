@@ -10,7 +10,12 @@ parts for k = 0 to M, computed exactly in the browser, and the next click hides 
 out anywhere else on the page, and every set that the section of sets gave is a part of one of them.  Every box, a
 code's or a join's partition or a construction's derivation (quals_derivations), opens right after the block that holds
 its button, its nearest p or li, never inside running text, the boxes of one block in the order of their buttons
-(the coordinator, 2026-10-31), and the button's aria-controls names it.
+(the coordinator, 2026-10-31), and the button's aria-controls names it.  Since 2026-11-05 (dreeves's README: "[MAI]
+Let's get more things as expandable sections of the main equipow page instead of linking to separate pages. Proofs
+currently in txt files for starters"), a text is a button too: <span data-text="NAME">, whose click shows its box, the
+page's <pre data-text-box="NAME">, which holds the text as the file it replaces had it; and since the same day (dreeves:
+a template "defeats part of the point of bringing the proof inline -- i can't grep the page for things in the proof")
+the box is in the page from the start, hidden until found, so that find in page reaches a closed text and opens it.
 Run: python3 -B quals/quals_codes.py [name ...]   (no arguments: all quals).
 
 Each qual is a function q_*: a passing qual returns, a failing one raises.  Each qual's comment gives its replicata (the
@@ -25,7 +30,7 @@ exact integers; and the sets the page gave until 2026-10-31 to SETS, the file th
 """
 import sys
 sys.dont_write_bytecode = True
-import os, re, json, time, shutil, tempfile, traceback, subprocess
+import os, re, html, json, time, shutil, tempfile, traceback, subprocess, urllib.parse
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # the repository's root, above quals/
 sys.path.insert(0, HERE)                                              # for its modules
 import mstar
@@ -94,6 +99,38 @@ def former_sets():
     assert len(sets) == 31 and all(ps == sorted(set(ps)) and ps[0] == 0 and ps[-1] < n == 2 * len(ps)
                                    for _, m, n, ps in sets), [s[:3] for s in sets]
     return sets
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# The page's texts (2026-11-05, dreeves's README, [MAI]): each a button, <span data-text="NAME">, and its box, the
+# page's <pre data-text-box="NAME">, which holds its text (a <template id="NAME"> until dreeves's follow-up that day)
+
+TEXT = re.compile(r'\sdata-text="([^"]*)"')
+BOX = re.compile(r'<pre\b([^>]*\sdata-text-box="[^"]*"[^>]*)>\n?(.*?)</pre>', re.S)
+
+
+def texts(text=None):
+    """The names of the texts of index.html (or of text) outside its comments, in page order: each data-text, the name
+    of its box."""
+    return TEXT.findall(qi.blank_comments(qi.page() if text is None else text))
+
+
+def text_boxes(text=None):
+    """[(name, attributes, its text)] for each text's box of index.html (or of text) outside its comments, in page
+    order: each <pre> with data-text-box, its name; its start tag's attributes, as a dict; and its text as the browser
+    reads it, its character references resolved and the newline right after the <pre> start tag dropped, as the HTML
+    standard's parser drops it ("Newlines at the start of pre blocks are ignored as an authoring convenience")."""
+    return [(a['data-text-box'], a, html.unescape(body))
+            for a, body in ((dict(re.findall(r'([\w-]+)="([^"]*)"', attrs)), body)
+                            for attrs, body in BOX.findall(qi.blank_comments(qi.page() if text is None else text)))]
+
+
+def unique_phrase(name):
+    """The first run of four or more words of letters alone in the text of the box name (text_boxes) that the page's
+    text a reader sees (quals_index.visible_text) holds exactly once: a phrase that only that text has."""
+    [t] = [t for n, _, t in text_boxes() if n == name]
+    seen = qi.visible_text()
+    return next(p for p in re.findall(r'[A-Za-z]+(?: [A-Za-z]+){3,}', t) if seen.count(p) == 1)
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -228,6 +265,20 @@ const OPS = {
     await press('h1');
     return {katex};
   },
+  // the page loaded at C.url with C.fragment, its fragment (a text fragment, #:~:text=..., among them), its fonts ready
+  // and KaTeX's math drawn, and then ms more for what the fragment does (a text fragment scrolls to its text, revealing
+  // what hides it); the fold of the remarks is left as the fragment left it (2026-11-05)
+  arrive: async ms => {
+    const loaded = next('Page.loadEventFired');
+    await send('Page.navigate', {url: C.url + C.fragment});
+    await loaded;
+    await send('Runtime.evaluate', {expression: DEFINE(), returnByValue: true});
+    await ev(() => document.fonts.ready.then(() => 0));
+    const katex = await ev(KATEX);
+    await sleep(ms);
+    await ev(FRAMES);
+    return {katex};
+  },
   look: () => ev(LOOK),
   read: i => ev(READ, i),
   scan: () => ev(SCAN),
@@ -318,37 +369,76 @@ process.exit(code);
 DESKTOP = dict(width=1280, height=900, dpr=2, mobile=False)
 PHONE = dict(width=390, height=844, dpr=3, mobile=True)
 CODES_AND_JOINS = 'code[id], [data-join]'     # the selector of the items of this file's quals: the codes and joins
-BUTTONS = 'code[id], [data-join], [data-construction]'   # every button of the page: codes, joins and constructions
+TEXTS = '[data-text]'                         # the selector of the texts' buttons (since 2026-11-05)
+# every button of the page: codes, joins, constructions and (since 2026-11-05) texts
+BUTTONS = 'code[id], [data-join], [data-construction], [data-text]'
 # In the page, after the placed run's clicks: each button, in page order, as [its tag, its key (a code's id, a join's
-# data-join, a construction's data-construction), the index of its block (its nearest p or li) among the buttons'
-# blocks, aria-expanded, aria-controls]; each box (class partition or derivation), as [the index of the button whose
-# aria-controls names it (null for none), whether it is inside a p, whether it shows]; and for each block, the indexes
-# of the buttons whose boxes come right after it, one after the other (null for a button without a block)
+# data-join, a construction's data-construction, a text's data-text), the index of its block (its nearest p or li)
+# among the buttons' blocks, aria-expanded, aria-controls]; each box (class partition, derivation or, a text's,
+# verbatim), as [the index of the button whose aria-controls names it (null for none), whether it is inside a p, whether
+# it shows]; and for each block, the indexes of the buttons whose boxes come right after it, one after the other (null
+# for a button without a block)
 PLACE = """() => {
-  const buttons = [...document.querySelectorAll('code[id], [data-join], [data-construction]')];
+  const buttons = [...document.querySelectorAll('code[id], [data-join], [data-construction], [data-text]')];
   const blocks = [...new Set(buttons.map(b => b.closest('p, li')))];
   const owner = new Map(buttons.map((b, i) => [document.getElementById(b.getAttribute('aria-controls')), i]));
   owner.delete(null);
   const after = bl => { const out = []; for (let x = bl.nextElementSibling; owner.has(x); x = x.nextElementSibling) out.push(owner.get(x)); return out; };
-  return {buttons: buttons.map(b => [b.tagName, b.id || b.dataset.join || b.dataset.construction, blocks.indexOf(b.closest('p, li')),
-            b.getAttribute('aria-expanded'), b.getAttribute('aria-controls')]),
-          boxes: [...document.querySelectorAll('.partition, .derivation')].map(x => [owner.get(x) ?? null, !!x.closest('p'), x.checkVisibility()]),
+  return {buttons: buttons.map(b => [b.tagName, b.id || b.dataset.join || b.dataset.construction || b.dataset.text,
+            blocks.indexOf(b.closest('p, li')), b.getAttribute('aria-expanded'), b.getAttribute('aria-controls')]),
+          boxes: [...document.querySelectorAll('.partition, .derivation, .verbatim')].map(x => [owner.get(x) ?? null, !!x.closest('p'), x.checkVisibility()]),
           after: blocks.map(bl => bl && after(bl))};
 }"""
+# In the page: item i, a text's button (TEXTS), as {name (its data-text), entry (the id of the p.entry of its li, or
+# null), role, tab (tabIndex), expanded (aria-expanded), box}: its box, the element its aria-controls names (null for
+# none), as {name (its data-text-box), hidden (its hidden property: false, true or "until-found"), shown (whether it
+# shows), after (whether it is the next element after the button's block, its nearest p or li), inP (whether it is
+# inside a p), text (its textContent), rect (its left, top, right and bottom, CSS px)}
+TEXT_READ = """(i) => {
+  const e = qualsItems()[i], box = document.getElementById(e.getAttribute('aria-controls')), block = e.closest('p, li');
+  const b = box && box.getBoundingClientRect();
+  return {name: e.dataset.text, entry: e.closest('li')?.querySelector('p.entry')?.id ?? null, role: e.getAttribute('role'),
+          tab: e.tabIndex, expanded: e.getAttribute('aria-expanded'),
+          box: box && {name: box.dataset.textBox ?? null, hidden: box.hidden, shown: box.checkVisibility(),
+                       after: block.nextElementSibling === box, inP: box.closest('p') !== null, text: box.textContent,
+                       rect: [b.left, b.top, b.right, b.bottom]}};
+}"""
+# In the page: the viewport's width (innerWidth), the page's (scrollW, its root's scrollWidth), and each text's button
+# as [its data-text, aria-expanded, its box's hidden property, whether its box shows, its box's left and right edges
+# (CSS px)], the last three null without a box
+TEXT_LOOK = """() => ({innerWidth, scrollW: document.documentElement.scrollWidth,
+  boxes: qualsItems().map(e => { const x = document.getElementById(e.getAttribute('aria-controls')), b = x && x.getBoundingClientRect();
+    return [e.dataset.text, e.getAttribute('aria-expanded'), x && x.hidden, x && x.checkVisibility(), b && [b.left, b.right]]; })})"""
+# In the page: how many of the texts' buttons have a box (aria-controls names an element); and the heights (CSS px) of
+# the entries (li) that hold them, with their boxes in them as they are, and with the boxes taken out of the layout for
+# a moment (display none), in that order
+ROOM = """() => {
+  const lis = [...new Set(qualsItems().map(e => e.closest('li')))];
+  const boxes = qualsItems().map(e => document.getElementById(e.getAttribute('aria-controls'))).filter(Boolean);
+  const heights = () => lis.map(li => li.getBoundingClientRect().height);
+  const asTheyAre = heights();
+  boxes.forEach(b => { b.style.display = 'none'; });
+  const without = heights();
+  boxes.forEach(b => { b.style.display = ''; });
+  return {boxes: boxes.length, heights: [asTheyAre, without]};
+}"""
+# In the page: whether the remarks' fold is open
+FOLD = """() => document.querySelector('section.remarks details').open"""
 
 
-def drive(viewport, steps, text=None, items=CODES_AND_JOINS):
+def drive(viewport, steps, text=None, items=CODES_AND_JOINS, fragment=''):
     """DRIVER's report on a copy of index.html (or of text) in a temporary directory with page/, mstar.js, pow2.js and
     the page's icons beside it, in the viewport given (DESKTOP, PHONE): {'steps': each step's result, 'errors':
     [(the number of steps done, a line logged)]}.  A step is [op, ...args] of DRIVER's OPS; an op's item i is the i-th
-    element, in page order, that the selector items selects."""
+    element, in page order, that the selector items selects.  The op arrive loads the page with fragment (since
+    2026-11-05)."""
     d = tempfile.mkdtemp(prefix='codes-quals-')
     try:
         open(os.path.join(d, 'index.html'), 'w', encoding='utf-8').write(qi.page() if text is None else text)
         qi.copy_page_dir(d)
         for f in ('mstar.js', 'pow2.js') + qp.ICONS: shutil.copy(os.path.join(HERE, f), d)
         cfg = viewport | dict(chrome=qi.CHROME, dir=d, url='file://' + os.path.join(d, 'index.html'), steps=steps,
-                              items=items)
+                              items=items, fragment=fragment)
         p = subprocess.run(['node', '--input-type=module', '-e', DRIVER], input=json.dumps(cfg), capture_output=True,
                            text=True, timeout=600)
         path = os.path.join(d, 'report.json')
@@ -390,6 +480,26 @@ def changed_join(new):
     return text.replace(F528, new)
 
 
+# The page with its texts changed, for the quals that the page fails loudly (q_texts_and_boxes_pair_one_to_one), each
+# as (what it replaces, its replacement, the name its error must name): orphan adds a box that no button names (orphan);
+# nowhere, a button that names no box (nowhere); twice, a second box named proof512; plain, proof512_short's box hidden
+# plainly, not until found.
+SHORT = '<pre class="verbatim" data-text-box="proof512_short" hidden="until-found">'
+MUTANTS = {'orphan': (SHORT, '<pre class="verbatim" data-text-box="orphan" hidden="until-found">orphan</pre>\n      ' + SHORT, 'orphan'),
+           'nowhere': ('<span data-text="proof512_short">',
+                       '<span data-text="nowhere">nowhere</span> <span data-text="proof512_short">', 'nowhere'),
+           'twice': (SHORT, '<pre class="verbatim" data-text-box="proof512" hidden="until-found">twice</pre>\n      ' + SHORT, 'proof512'),
+           'plain': (SHORT, '<pre class="verbatim" data-text-box="proof512_short" hidden>', 'proof512_short')}
+
+
+def changed_text(name):
+    """index.html with its texts changed as MUTANTS[name] has it: the one place of what it replaces, replaced."""
+    old, new, _ = MUTANTS[name]
+    text = qi.page()
+    assert text.count(old) == 1, (name, text.count(old))
+    return text.replace(old, new)
+
+
 def run(name):
     """DRIVER's report for one configuration, made on first use:
     light: 1280 px wide; at load the codes and joins; then Tab pressed until one has focus, and Enter, Enter, Space and
@@ -401,9 +511,15 @@ def run(name):
     length: the page with WRONG_LENGTH for FIRST, as loaded.
     joinorder: the page with JOIN_ORDER for the join, clicked and read.
     missing: the page with MISSING for the join, as loaded.
-    placed: 1280 px wide; every button of the page (BUTTONS: codes, joins and constructions) clicked once, from the last
-           to the first; then PLACE.
-    forward: the same, the buttons clicked from the first to the last."""
+    placed: 1280 px wide; every button of the page (BUTTONS: codes, joins, constructions and texts) clicked once, from
+           the last to the first; then PLACE.
+    forward: the same, the buttons clicked from the first to the last.
+    texts: 1280 px wide; at load ROOM, then each text's button (TEXTS) read (TEXT_READ); then each clicked twice, read
+           after each click.
+    phonetexts: 390 px wide, a phone's; at load ROOM; then each text's button tapped; then TEXT_LOOK.
+    found: 1280 px wide; the page loaded with the text fragment #:~:text=PHRASE (arrive), PHRASE the first phrase that
+           only proof512_short's text has (unique_phrase), and 2 s for its search; then FOLD, and each text read.
+    orphan, nowhere, twice, plain: the page changed as MUTANTS has it, as loaded; then TEXT_LOOK."""
     if name not in RUNS:
         page, big = [key for key, *_ in items()], largest()
         keys = [['tabTo', 'code[id], [data-join]', 400]] + [s for k in ('Enter', 'Enter', 'Space', 'Space')
@@ -424,14 +540,21 @@ def run(name):
                                None, BUTTONS),
             'forward': lambda: (DESKTOP, [['load']] + [['click', i] for i in range(buttons())] + [['js', PLACE]],
                                 None, BUTTONS),
+            'texts': lambda: (DESKTOP, [['load'], ['js', ROOM]] + [['js', TEXT_READ, i] for i in range(len(texts()))]
+                              + [s for i in range(len(texts())) for s in (['click', i], ['js', TEXT_READ, i]) * 2], None, TEXTS),
+            'phonetexts': lambda: (PHONE, [['load'], ['js', ROOM]] + [['click', i] for i in range(len(texts()))]
+                                   + [['js', TEXT_LOOK]], None, TEXTS),
+            'found': lambda: (DESKTOP, [['arrive', 2000], ['js', FOLD]] + [['js', TEXT_READ, i] for i in range(len(texts()))],
+                              None, TEXTS, '#:~:text=' + urllib.parse.quote(unique_phrase('proof512_short'), safe='')),
+            **{m: (lambda m=m: (DESKTOP, [['load'], ['js', TEXT_LOOK]], changed_text(m), TEXTS)) for m in MUTANTS},
         }[name]()
         RUNS[name] = drive(*steps)
     return RUNS[name]
 
 
 def buttons():
-    """How many buttons index.html has outside its comments: codes with ids, joins and constructions."""
-    return len(re.findall(r'<code id="|<span data-join="|<span data-construction="', qi.blank_comments(qi.page())))
+    """How many buttons index.html has outside its comments: codes with ids, joins, constructions and texts."""
+    return len(re.findall(r'<code id="|<span data-join="|<span data-construction="|<span data-text="', qi.blank_comments(qi.page())))
 
 
 def shown(R):
@@ -655,9 +778,10 @@ def q_no_bipartition_outside_expandable_elements():
 
 
 def q_boxes_open_after_their_blocks():
-    # Replicata: the placed and forward runs: every code, join and construction of the page clicked once, from the last
-    # to the first and from the first to the last, so that each opens its box; then each button's block (its nearest p
-    # or li), the element its aria-controls names, and the elements right after each block (PLACE).
+    # Replicata: the placed and forward runs: every code, join, construction and (since 2026-11-05) text of the page
+    # clicked once, from the last to the first and from the first to the last, so that each opens its box; then each
+    # button's block (its nearest p or li), the element its aria-controls names, and the elements right after each block
+    # (PLACE).
     # Expectata (the coordinator, 2026-10-31, from the shot of the 2^17 entry with its derivation open: "an expansion
     # opens right after the block element (the nearest p or li ancestor) that holds its button, never inside running
     # text"): every button has a block, is expanded and names a box with aria-controls; every box is a button's, shows,
@@ -695,6 +819,125 @@ def q_boxes_of_one_block_keep_their_buttons_order():
         several = [(b, [keys[i] for i in after]) for b, after in zip(blocks, scan['after']) if len(b) > 1]
         assert several == [(b, b) for b in ([('SPAN', '448:9'), ('CODE', '448:9')], [('SPAN', '192:9 336:9'), ('CODE', '192:9')],
                                             [('CODE', '112:7'), ('CODE', '48:6')])], (name, several)
+
+
+def q_texts_show_their_boxes():
+    # Replicata: index.html outside its comments: its texts' names (texts: each data-text), its texts' boxes (text_boxes:
+    # each <pre> with data-text-box, its text as the HTML parser reads it) and every href; and the texts run (1280 px
+    # wide): at load (after ROOM) each text's button and its box read (TEXT_READ), then each button clicked twice (a real
+    # mouse click at the middle of its first line) and read after each click.
+    # Expectata (dreeves's README, 2026-11-05: "[MAI] Let's get more things as expandable sections of the main equipow
+    # page instead of linking to separate pages. Proofs currently in txt files for starters"): the 512 entry's two
+    # proofs, proof512 and proof512_short, are texts, and the page links no .txt file; at load each text is a button
+    # (role button, in the tab order, aria-expanded false) whose aria-controls names its box, the <pre> whose
+    # data-text-box is its name, right after its block (its nearest p or li), inside no p, and closed; its first click
+    # shows the box (aria-expanded true); the box's text is, character for character, the text index.html holds in it,
+    # which is not empty; its second click closes it (aria-expanded false); and nothing is logged.  Spec change,
+    # 2026-11-05 (dreeves, of the template design: "defeats part of the point of bringing the proof inline -- i can't grep
+    # the page for things in the proof"): the box is in the page from the start, made as the page loads, and closed means
+    # hidden until found (hidden "until-found"), at load and again after a click closes it, so that find in page reaches
+    # it (q_find_in_page_reaches_a_closed_text); until then the box was a copy of a template made at the first click,
+    # and a closed box was plainly hidden.
+    # Resultata before: no element with data-text; the 512 entry linked its proofs as files, proofs/proof512.txt and
+    # proofs/proof512_short.txt.  Then (the template design) no box existed before the first click.
+    names, R = texts(), run('texts')
+    assert R['errors'] == [], R['errors'][:5]
+    assert {'proof512', 'proof512_short'} <= set(names), names
+    hrefs = re.findall(r'\shref="([^"]*\.txt)(?:[#?][^"]*)?"', qi.blank_comments(qi.page()))
+    assert hrefs == [], hrefs
+    text = {name: t for name, _, t in text_boxes()}
+    loads, clicks = R['steps'][2:2 + len(names)], R['steps'][2 + len(names):]
+    assert [s['name'] for s in loads] == names and len(clicks) == 4 * len(names), ([s['name'] for s in loads], len(clicks))
+    assert [s['entry'] for s in loads if s['name'] in ('proof512', 'proof512_short')] == ['entry-512'] * 2, loads
+    look = lambda s: (s['role'], s['tab'], s['expanded'], s['box'] and (s['box']['name'], s['box']['hidden'], s['box']['after'], s['box']['inP']))
+    bad = [(s['name'], look(s)) for s in loads if look(s) != ('button', 0, 'false', (s['name'], 'until-found', True, False))]
+    assert bad == [], bad
+    for j, name in enumerate(names):
+        _, opened, _, closed = clicks[4 * j:4 * j + 4]
+        box = opened['box']
+        assert (opened['expanded'], box['hidden'], box['shown'], box['after'], box['inP']) == ('true', False, True, True, False), \
+            (name, opened['expanded'], {k: v for k, v in box.items() if k != 'text'})
+        assert text[name] and box['text'] == text[name], (name, len(box['text']), len(text[name]))
+        assert (closed['expanded'], closed['box']['hidden']) == ('false', 'until-found'), (name, closed['expanded'], closed['box']['hidden'])
+
+
+def q_closed_texts_take_no_room():
+    # Replicata: the texts run (1280 px wide) and the phonetexts run (390 px, a phone's), each as loaded, the remarks'
+    # fold open and every text closed: each entry (li) that holds a text's button, its height with its texts' boxes in it
+    # as they are, and with the boxes taken out of the layout for a moment (ROOM).
+    # Expectata (the main session, 2026-11-05: a closed until-found element "is still displayed with
+    # content-visibility: hidden, so it would add a gap row. Take it out of the flow while closed"): every text has its
+    # box from the start, and at both widths each entry is exactly as tall with its closed boxes as without them, as it
+    # was with the proofs' links (HEAD's 512 entry).
+    # Resultata before: (the template design) no box existed before a click.
+    for name in ('texts', 'phonetexts'):
+        R = run(name)
+        room = R['steps'][1]
+        assert room['boxes'] == len(texts()) >= 2, (name, room)
+        assert room['heights'][0] == room['heights'][1], (name, room)
+
+
+def q_texts_and_boxes_pair_one_to_one():
+    # Replicata: index.html outside its comments: its texts' names (texts) and its texts' boxes (text_boxes: each <pre>
+    # with data-text-box, its name and attributes); and four pages made from it (MUTANTS), each loaded and its texts'
+    # buttons looked at (TEXT_LOOK): orphan, with a box that no button names (orphan); nowhere, with a button that names
+    # no box (nowhere); twice, with a second box named proof512; and plain, with proof512_short's box hidden plainly, not
+    # until found.
+    # Expectata (the main session's design, 2026-11-05: "asserting exactly one template per button and no template
+    # without a button (fail loudly, rule 12)"): on the page, the texts' names are distinct, they are exactly its boxes'
+    # names, one box for each, and each box is hidden until found (hidden="until-found"); each of the four pages throws
+    # as it loads, with an error that names its name (orphan, nowhere, proof512, proof512_short), and no text there
+    # becomes a button (aria-expanded none).  Spec change, 2026-11-05 (dreeves: the template design "defeats part of the
+    # point of bringing the proof inline -- i can't grep the page for things in the proof"): boxes in place of
+    # templates, each hidden until found as the page loads (until then: templates with ids, each holding one element).
+    # Resultata before: no texts and no boxes; the four pages could not be made.
+    names, held = texts(), text_boxes()
+    assert names and len(set(names)) == len(names) and sorted(names) == sorted(n for n, _, _ in held), (names, held)
+    assert all(a.get('hidden') == 'until-found' for _, a, _ in held), [(n, a) for n, a, _ in held]
+    for name, (*_, said) in MUTANTS.items():
+        R = run(name)                             # steps: load (step 0), TEXT_LOOK
+        assert R['errors'] and all(k == 0 for k, _ in R['errors']) and any(said in line for _, line in R['errors']), (name, R['errors'])
+        assert R['steps'][1]['boxes'] and all(b[1] is None for b in R['steps'][1]['boxes']), (name, R['steps'][1]['boxes'])
+
+
+def q_find_in_page_reaches_a_closed_text():
+    # Replicata: the found run: index.html loaded (1280 px wide) with the text fragment #:~:text=PHRASE, PHRASE the first
+    # phrase that only proof512_short's text has (unique_phrase), the remarks' fold and every text closed; 2 s later, the
+    # fold (FOLD) and each text's button and box read (TEXT_READ).  (Chrome's find bar has no headless form; a text
+    # fragment is Chrome's other search of a page's text, and it reveals what it finds as find in page does, by the same
+    # ancestor revealing algorithm of the HTML standard: it opens a closed details and removes hidden="until-found",
+    # firing beforematch, as q_find_in_page_opens_the_fold of quals_index has it do for the fold.)
+    # Expectata (dreeves, 2026-11-05, of the template design: "defeats part of the point of bringing the proof inline --
+    # i can't grep the page for things in the proof"): the search reaches the closed text and opens it: the remarks'
+    # fold is open; proof512_short's box shows (hidden false) and its button says so (aria-expanded true); proof512's box
+    # stays closed (hidden until found, aria-expanded false); and nothing is logged.
+    # Resultata before: (the template design) the phrase was in no element of the page, only in a template's inert
+    # content; no text had a box (the run could not find its phrase in a box: text_boxes found none).
+    R = run('found')
+    assert R['errors'] == [], R['errors'][:5]
+    fold, reads = R['steps'][1], {s['name']: s for s in R['steps'][2:]}
+    assert fold is True, fold
+    states = {name: (s['expanded'], s['box'] and (s['box']['name'], s['box']['hidden'])) for name, s in reads.items()}
+    assert states['proof512_short'] == ('true', ('proof512_short', False)), states
+    assert states['proof512'] == ('false', ('proof512', 'until-found')), states
+
+
+def q_texts_fit_a_phone():
+    # Replicata: index.html as a phone shows it (390 px wide, 844 tall, 3 device px per CSS px, touch; the phonetexts
+    # run): each text's button tapped, so that every text shows at once; then the page and the texts' boxes looked at
+    # (TEXT_LOOK).
+    # Expectata (the main session's design, 2026-11-05: "readable at 1280 px and on a 390 px phone with no page-level
+    # sideways scroll (the box may scroll within itself)"): every text's box shows (aria-expanded true, hidden false),
+    # within the viewport's width (its left edge at 0 px or more, its right at 390 px or less), and the page is no wider
+    # than the viewport; nothing is logged.
+    # Resultata before: the page had no texts to tap; the proofs were files that the page linked.
+    R = run('phonetexts')
+    assert R['errors'] == [], R['errors'][:5]
+    look = R['steps'][-1]
+    assert sorted(b[0] for b in look['boxes']) == sorted(texts()) and {'proof512', 'proof512_short'} <= set(texts()), look['boxes']
+    bad = [b for b in look['boxes'] if not (b[1:4] == ['true', False, True] and 0 <= b[4][0] and b[4][1] <= look['innerWidth'])]
+    assert bad == [] and look['innerWidth'] == 390, (bad, look['innerWidth'])
+    assert look['scrollW'] <= look['innerWidth'], (look['scrollW'], look['innerWidth'])
 
 
 def main():

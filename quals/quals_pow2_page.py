@@ -847,12 +847,13 @@ def cell_box(R, geo, k, e):
 
 
 def theorem_cells():
-    """The cells (k, e) of the chart whose bounds the theorem on the page states, from its text: m*(2^k) >= v as
-    (k, v - k).  Its m*(2^9) = 9 has no cell of its own: the chart has no row 0."""
+    """The cells (k, e) of the chart whose bounds the theorem on the page states, from its text: m*(2^k) >= v, or = v
+    (since dreeves's 6000eaa, 2026-11-04, m*(2^{10}) = 11), as (k, v - k).  Its m*(2^9) = 9 has no cell of its own: the
+    chart has no row 0."""
     t = qi.the_theorem(page())   # labeled "Theorem 1." since 2026-11-04 ([THM]), "Theorem." before
-    pairs = re.findall(r'\(2\^\{?(\d+)\}?\) \\ge (\d+)', t)
+    pairs = re.findall(r'\(2\^\{?(\d+)\}?\) (?:\\ge|=) (\d+)', t)
     assert pairs, t
-    return sorted((int(k), int(v) - int(k)) for k, v in pairs)
+    return sorted((int(k), int(v) - int(k)) for k, v in pairs if int(v) > int(k))
 
 
 def ringed(R, x, y):
