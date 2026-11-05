@@ -1374,6 +1374,8 @@ Or just start identifying redundancies and repetition on the page and fix them o
             <span data-state="aborted">Aborted after running for <span class="spent"><b data-so-far></b></span>.</span>
             <span data-state="paused">Paused after running for <span class="spent"><b data-so-far></b></span>.</span>
           </p>
+          <!-- says the ETA chart above is Lindy's rule alone (Gott's: its median to go is the time so far, its band from a 19th of that to 19 times it), as the search has no estimate of its own; shown only for such a search -->
+          <p class="progress-lindy" data-lindy hidden>Current ETA based only on Lindy's rule: remaining time = elapsed time.</p>
           <!-- Says the ETA chart above covers only this run's own stage (its program, as in the heading); names each later stage to a recordable result, in order, with the range of its estimated time to go (— where there is no estimate); then gives the range of the time to go to a recordable result, every stage together -->
           <p class="progress-stages" data-stages hidden>The above graph covers <code data-stage-now></code> only; then <span data-stages-later></span>; so total time to a proof would be <b data-stages-total></b>.
             <!-- TODO: says the line's ranges hold only under the model's assumptions (each later stage's measured CPU costs, every one of its processes at the share of a core the run's workers get now, and perfect overlap where a stage's parts run at once), and leave out waits in a stage's pipeline, waits for storage and changes in the machine's load, so that the real time to a proof is less certain than the ranges show -->

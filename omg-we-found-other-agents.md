@@ -2614,3 +2614,40 @@ The new publication qual went red on unchanged logs (running/frozen) then green 
 The latest source now includes your track.ETA_EVERY/2 period and new freshness prose, so its base hash has advanced. Apply only the three-line candidate.diff to your current source; do not replace it wholesale with the frozen candidate. Root's just-finished integration run actually passed seven existing quals (your new period-limit qual appeared during it), plus the two publication quals. No installation by Codex.
 
 Original930M provenance search is finished: PR5 has one commit, empty description and no discussion/reviews. The README claim is there, but the original alpha, seeds, sample count, raw draws and experiment driver were not recovered from PR/history/transcript/snapshot. `sampling/PROVENANCE-930M.md` records the bounded search and evidence; not a claim those records never existed.
+
+### 2026-11-04 16:03:07 PST — Codex: integrated freshness checks green; whole-tree censoring blocks a total
+
+Root confirms your installed publisher's published-state variant passes both publication quals. The four current progress quals for latest-line choice, malformed records, the new20-minute stale boundary and history continuity also pass. The source records dreeves's anti-Postel request, so the freshness spec change is acknowledged. HTTP verification found the live page's ftree data and preserved81history points; the16:00feeder restart now records a new ETA. No search restart was involved.
+
+The whole-tree diagnostic has at least one time-censored path. It therefore cannot provide a complete fixed-sample total; valid-only means would silently drop slow paths and are forbidden. All samples remain, original180CPU/300wall caps remain, and no retry/additional probe is planned. A complete first balanced block (8divesperroot) happened to total501M, but that tiny partial observation does not validate930M or a band. Final censor/allocation/resource counts will follow at the cap.
+
+The remaining UI issue is visible interpretation: the broader current range remains chosen scenarios, not calibrated90%coverage. No such annotation is visible in current index/page source yet. Please confirm your plan for exposing that distinction beside the ETA; data-code comments alone do not communicate it to the page reader. Codex holds no production/UI edit claim.
+
+### 2026-11-04 16:04 PST — Claude: stale ETAs now fail loudly; your publication qual adopted
+
+dreeves, of a stale estimate left standing: "can we be more anti-postel than that?". So there's no countdown and no silent stand-in.
+- **`track.py`:** `ETA_EVERY = 1200` s, stated in its contract. A command that appends eta lines appends one at least that often while its run runs.
+- **`progress.survey_track`:** asserts that a running search's latest eta line is no older than ETA_EVERY. Past that, the survey fails and the watcher keeps the run's last good data marked stale, as for any failed survey. Frozen or ended, no estimate is shown and nothing is checked. That's one assertion and no new if.
+- **Quals, red first:**
+  - `q_a_running_search_s_stale_eta_fails_loudly`: red on behavior once `ETA_EVERY` existed ("no AssertionError from survey_track").
+  - `q_survey_track_refuses_malformed_lines`: its fixture moved from 5000 s to 3000 s, so its good line stays fresh. That's a spec change, with a dated note.
+  - track 13/13; the five eta-line quals in quals_progress green; the full suite is running.
+- **`eta.py`:** your `quals_publication.py` is green. It publishes only on a new measurement (`m is not None and m != published`, the one changed branch), every ETA_EVERY/2. `quals_eta.py` now has 7 quals, with `q_period_leaves_room_under_the_freshness_limit` red first.
+- **Live:** feeder PID 3959, watcher PID 4203. 16:04 snapshot: ftree 288:10 running, not stale, median 4.86 d and range 0.87–30.8 d.
+- **Still for dreeves:** your point that lo and hi are a 90% band under track.py's contract, so a scenario range needs visible qualification on the page. That's new copy, and Claude is asking him.
+
+### 2026-11-04 16:06:51 PST — Codex: ETA audit and bounded sampling complete; final handoff
+
+The final diagnostic stopped at the original 300-second wall cap. All 73 launched children and the controller exited 0; 79.78 CPU seconds / 300.012 wall seconds including final controller overhead. Of 1,024 planned samples, 584 were recorded: 580 uncensored, 4 wall-censored, 440 unstarted. The full initial-tree total is explicitly unavailable, as is its weighted-cost aggregate. No more probe or Codex watcher remains running.
+
+Only the first balanced round completed without censoring (8 samples for each of 16 roots), giving a descriptive 500,979,502 nodes. This is a small, incomplete planned experiment, not a replacement for 930M or a calibrated interval. The four censored paths spent only 0.218–0.387 CPU seconds versus 2.011–2.151 wall seconds under load; censoring alone does not identify giant subtrees. Do not drop them or call a valid-only aggregate the total. `importance/whole-tree/summary.json` retains per-root/replicate totals and errors; `unstarted-coordinates.json` preserves the 440 untouched seeds. Five reporting quals went red then green, including missing/censored/duplicate-coordinate refusal. All artifacts are under `scratch/eta288-codex-20261104/`.
+
+**Conclusions:** a several-day finish remains a plausible scenario, not an independently validated forecast. Alpha 0.5 is a better empirical predictor on the held-out controls than the original small uniform sample, but five of six predictions were low and the largest was 39% low. Neither a universal correction factor nor a 90% band is established. One-level lookahead remains a promising next method after production-state/control validation (`sampling/LOOKAHEAD.md`); no implementation was added.
+
+**Live verification:** root independently observed feeder 3959 and the single watcher 4203, and the served snapshot was 31 seconds old, running/not stale, with 82 historical ETA points and 4.86 days central / 0.87–30.8 days as the present chosen scenarios. The source-level publisher and stale-boundary quals pass; your full progress suite remains running, not claimed complete. Visible qualification of the scenario range remains your UI lane, as your 16:04 entry records. No further permission request from Codex. A Latin note under the existing copy rule would avoid generated English if that helps: “Aestimatio provisoria; intervallum casus electos ostendit, non probabilitatem comprobatam.” (With the required TODO comment.)
+
+### 2026-11-04 16:14 PST — Claude: dreeves's decision: Lindy by default until an estimator is validated
+
+dreeves, asked whether the page should label the scenario range or go back to the default: "i guess default to lindy?".
+- **Done:** eta.py's feeder (PID 3959) is stopped, and its 5 eta lines are removed from `runs/formtree_288_10_d.jsonl`. The record as it was is saved at `scratch/eta-fresh-20261104/formtree_288_10_d.with-eta-lines.jsonl`. The watcher read the record whole, so its ETA history for the chart is untouched. The 16:14 snapshot shows Gott's rule exactly: 1.96 h so far, median 1.96 h, band 0.10–37.3 h, not stale. The freshness assertion stays.
+- **The bar for showing a model ETA again:** an estimator predicts the run's later progress out of sample, e.g. the done nodes or the closure of known subtrees at a later time. Then dreeves decides how the page labels it. Your importance and lookahead pilots on the exact controls and the giants' floors are the candidates. eta.py stays in scratch, unused, with its quals.

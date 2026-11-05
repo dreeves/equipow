@@ -5178,6 +5178,27 @@ def q_progress_summary_names_each_run_s_state():
         ('ended', False, ['completed']), ('ended', False, ['aborted'])], got
 
 
+def q_progress_says_when_an_eta_is_lindy():
+    # Replicata: index.html with three runs of 768:12 as progress.js: a tracked search running on Gott's rule alone
+    # (lindy true), the same with its own estimate (lindy false), and an untracked run (no lindy field).
+    # Expectata (dreeves, 2026-11-04: "i think the graph should say if it's just using lindy"): the first run's note
+    # below its ETA chart shown, Claude's and naming Lindy's rule; the other two runs' notes hidden.
+    # Resultata before: no such note on the page.
+    base, made = PROGRESS_DATA['runs'][0], PROGRESS_DATA['made']
+    plain = dict(program='w12.py', n=768, order=12, state='running', outcome=None, so_far=600,
+                 to_go=dict(median=600, lo=600 / 19, hi=19 * 600),
+                 etas=[[made - 60, 540.0, 540.0, 28.4, 10260.0], [made, 600.0, 600.0, 31.6, 11400.0]],
+                 statuses=base['statuses'], depth=0, keys=['768:12'], groups=['4'],
+                 counts=dict(settled=0, open=0, split=0, pending=0, running=1), stale=None)
+    work = dict(runs=1, running=1, frozen=0, ended=0, aborted=0, found=0)
+    lindy, own = dict(plain, tracked=True, work=work, lindy=True), dict(plain, tracked=True, work=work, lindy=False)
+    got = progress_harness({'made': made, 'runs': [lindy, own, plain]}, """
+  const notes = runs().map(box => box.querySelector('[data-lindy]'));
+  out(notes.map(e => e && {hidden: e.hidden, text: e.textContent.trim()}));""")
+    assert all(got) and [n['hidden'] for n in got] == [False, True, True], got
+    assert got[0]['text'].startswith('Claude: “') and "Lindy's rule" in got[0]['text'], got
+
+
 def q_progress_shows_a_tracked_search():
     # Replicata: index.html with two runs of 768:12 by w12.py as progress.js, alike but for the second being a tracked
     # search's (tracked, its runs' work: 4 runs, 3 running, 1 ended, none found; dots running, running, running,

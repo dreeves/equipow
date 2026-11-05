@@ -213,6 +213,7 @@
       if (run.tracked) trackView(box, run);
       const L = sea(box, run);
       L.etaXs = etaChart(box.querySelector('.progress-eta'), run);
+      box.querySelector('[data-lindy]').hidden = !run.lindy;   // a tracked search on Lindy's rule alone says so (dreeves, 2026-11-04)
       stagesView(box, run);
       L.poolXs = poolChart(box.querySelector('.progress-pool'), run);
       L.chanceXs = chanceChart(box.querySelector('.progress-chance'), run);

@@ -3022,7 +3022,9 @@ def survey_track(target, records, procs, now, etas=None):
     aborted.  work counts the runs by state and the found
     files' lines (a missing file holds none), each file once.  While it runs, its estimate (to_go) is the latest eta
     line of its records, else gott of its time so far, recorded by now's time in etas, its record of ETAs (see the
-    vocabulary; by default a new one), as every run's are; frozen or ended, it has none and keeps its records.  Each
+    vocabulary; by default a new one), as every run's are; frozen or ended, it has none and keeps its records.  Its
+    display's lindy is true while it runs on gott alone, for the page to say so (dreeves, 2026-11-04: "i think the graph
+    should say if it's just using lindy").  Each
     record is its start line, then its eta lines, each {event, time, median, lo, hi}, lo <= median <= hi, finite from 0,
     in time order, none before the start, then its end line once it ended (all asserted); and while it runs, its latest
     eta line, if any, at most track.ETA_EVERY seconds old (asserted: past that, the watcher shows it stale rather than an
@@ -3061,7 +3063,8 @@ def survey_track(target, records, procs, now, etas=None):
     if state == 'running':
         etas[str(float(now))] = eta
     return dict(program=records[0][0]['program'], n=n, order=order, made=now, state=state, outcome=outcome,
-                so_far=t1 - t0, to_go=to_go_of(eta), etas=etas, passes=[[t0, t1]], display=dict(tracked=True, work=work),
+                so_far=t1 - t0, to_go=to_go_of(eta), etas=etas, passes=[[t0, t1]],
+                display=dict(tracked=True, work=work, lindy=state == 'running' and latest is None),
                 sea=dict(depth=0, keys=[target], groups=[codes],
                          counts={name: codes.count(str(i)) for i, name in enumerate(SEA_STATUSES)}))
 

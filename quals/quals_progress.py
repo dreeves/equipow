@@ -1985,14 +1985,15 @@ def q_survey_track_adopted_unknown_exit_stays_ended():
 def q_js_text_carries_a_tracked_search():
     # Replicata: progress.js_text of survey_track's survey of two made-up records of 768:12 (one running, one ended), at
     # time 5000.
-    # Expectata: the run carries js_text's keys for every run, its sea's, stale (null), and tracked (true) and work
-    # (survey_track's counts), for the page's tracked view.
+    # Expectata: the run carries js_text's keys for every run, its sea's, stale (null), and tracked (true), work
+    # (survey_track's counts) and lindy (true: it runs on Gott's rule alone), for the page's tracked view.
+    # Spec change (dreeves, 2026-11-04: "i think the graph should say if it's just using lindy"): until then no lindy.
     records = [track_record('r0', 300, None, None, 1000), track_record('r1', 301, 0, None, 1001)]
     s = progress.survey_track('768:12', records, [(300, 1, 'S', 'python3 -B w12.py')], 5000.0)
     r = progress_data(progress.js_text([s], 5000.0))['runs'][0]
     assert set(r) == {'program', 'n', 'order', 'state', 'outcome', 'so_far', 'to_go', 'etas', 'statuses', 'depth', 'keys',
-                      'groups', 'counts', 'stale', 'tracked', 'work'}, set(r)
-    assert r['stale'] is None and r['tracked'] is True and r['work'] == dict(runs=2, running=1, frozen=0, ended=1, aborted=0, found=0), r
+                      'groups', 'counts', 'stale', 'tracked', 'work', 'lindy'}, set(r)
+    assert r['stale'] is None and r['tracked'] is True and r['lindy'] is True and r['work'] == dict(runs=2, running=1, frozen=0, ended=1, aborted=0, found=0), r
 
 
 def close(got, want):
@@ -2074,6 +2075,21 @@ def q_survey_track_refuses_malformed_lines():
     for lines in bad:
         expect_assertion(progress.survey_track, '768:12', [track_record('r0', 420, None, None, 1000) + lines],
                          [(420, 1, 'SN', 'python3 -B w12.py')], 3000.0)
+
+
+def q_survey_track_says_when_its_eta_is_lindy():
+    # Replicata: progress.survey_track of 768:12, one record started at 1000 s, at 3000 s: its pid running with no eta
+    # line; running with its own eta line at 2500 s; frozen with no eta line; ended with none.
+    # Expectata (dreeves, 2026-11-04: "i think the graph should say if it's just using lindy"): its display's lindy
+    # true only while it runs on Gott's rule alone; false with its own estimate, and false frozen or ended, when it shows
+    # no estimate.
+    # Resultata before: no lindy in the display, so the page could not say so.
+    record = track_record('r0', 450, None, None, 1000)
+    run, frozen = [(450, 1, 'SN', 'python3 -B ftree.py')], [(450, 1, 'TN', 'python3 -B ftree.py')]
+    got = [progress.survey_track('768:12', [r], p, 3000.0)['display'].get('lindy')
+           for r, p in ((record, run), (record + [eta_line(2500.0, 50.0, 5.0, 500.0)], run), (record, frozen),
+                        (record + [dict(event='end', time=2900.0, status=0)], []))]
+    assert got == [True, False, False, False], got
 
 
 def q_a_running_search_s_stale_eta_fails_loudly():

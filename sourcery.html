@@ -13527,7 +13527,7 @@ ps, i'm going to sleep soon; try to answer your own can-opener questions!
 <pre class="prompt">do you believe the ETA on the search progress page for 288:10 now? can you work with claude on making that ETA more accurate?
 </pre>
 <details>
-<summary><a class="anchor" href="#p646"><time datetime="2026-11-04T23:39:51.176000+00:00">23:39</time></a> <span class="chip"></span> <span class="agent">Codex</span> <span class="model">gpt-6-astra</span> <span class="effort">(ultra)</span> <span class="elapsed">thought for 17m27s · 20m3s wall-clock time</span></summary>
+<summary><a class="anchor" href="#p646"><time datetime="2026-11-04T23:39:51.176000+00:00">23:39</time></a> <span class="chip"></span> <span class="agent">Codex</span> <span class="model">gpt-6-astra</span> <span class="effort">(ultra)</span> <span class="elapsed">thought for 23m5s · 24m50s wall-clock time</span></summary>
 <div class="reply machine"><p>The current ETA, its calculation, and the latest run data will be checked against actual progress. Findings and proposed changes will be coordinated with Claude through the shared file.</p>
 <p>Not as a reliable forecast. At 15:40 the page showed about <strong>84 minutes remaining</strong>, with a band from <strong>4 minutes to 27 hours</strong>. That is Gott’s age-based rule: the median equals elapsed time. It does not use the completed work or the remaining search tree.</p>
 <p>The next step is to check the tree-size estimates against observed results before using them to improve the ETA.</p>
@@ -13544,7 +13544,13 @@ ps, i'm going to sleep soon; try to answer your own can-opener questions!
 <p>The separate-subtree check is more encouraging: importance sampling predicted the right scale much more often. It still underestimated five of six completed subtrees, including the largest by <strong>39%</strong>.</p>
 <p>A final sample across all 16 starting branches will provide an independent check of the README’s total-size estimate. It will remain provisional unless it survives later comparisons with completed work.</p>
 <p>The timestamp fix passes its new quals and the existing publisher checks. Claude is also adding a check that marks estimates over 20 minutes old as stale, following the requested fail-loudly behavior.</p>
-<p>The original 930-million-node experiment’s sampling details could not be recovered. The final probe therefore uses recorded settings and samples every starting branch.</p></div>
+<p>The original 930-million-node experiment’s sampling details could not be recovered. The final probe therefore uses recorded settings and samples every starting branch.</p>
+<p>The local page now serves the broader range: about <strong>4.4 days centrally, with 0.8–28 days as scenarios</strong>. The timestamp fix and stale-estimate boundary checks pass.</p>
+<p>The whole-tree probe is still running. Its recorded samples will distinguish a new measurement from the older estimate, though unseen large branches may still dominate the error.</p>
+<p>One whole-tree sample hit its time limit. Dropping that path would make the estimate look too small, so it is being retained as incomplete. The probe cannot supply a complete total while that sample remains unresolved.</p>
+<p>This is why the current several-day estimate should still be treated as provisional.</p>
+<p>The reporting fix is installed and its checks pass. The final sampling run is nearing its preset limit; incomplete paths will remain explicit in the results handed to Claude.</p>
+<p>The evidence supports improving the estimator, but still does not support a precise completion date.</p></div>
 </details>
 </article>
 <article class="exchange claude" id="p647" data-login="dreeves">
@@ -13586,8 +13592,8 @@ ps, i'm going to sleep soon; try to answer your own can-opener questions!
 <div class="diffstat">+51 −8 <span class="blocks" aria-hidden="true"><span class="add"></span><span class="add"></span><span class="add"></span><span class="add"></span><span class="del"></span></span></div></header>
 <pre class="prompt">re: stale ETAs lingering: can we be more anti-postel than that?</pre>
 <details>
-<summary><a class="anchor" href="#p649"><time datetime="2026-11-04T23:56:12.234000+00:00">23:56</time></a> <span class="chip"></span> <span class="agent">Claude Code</span> <span class="elapsed">thought for 2m24s</span></summary>
-<div class="reply machine empty"><p>Response still generating when this transcript was captured</p></div>
+<summary><a class="anchor" href="#p649"><time datetime="2026-11-04T23:56:12.234000+00:00">23:56</time></a> <span class="chip"></span> <span class="agent">Claude Code</span> <span class="model">claude-opus-5-5</span> <span class="effort">(max)</span> <span class="elapsed">thought for 3m14s · 4m13s wall-clock time</span></summary>
+<div class="reply machine"><p>Waiting for the new watcher&#x27;s first snapshot, then checking that the live 288:10 run shows a current estimate and isn&#x27;t marked stale.</p></div>
 </details>
 </article>
 </main>
