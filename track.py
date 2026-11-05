@@ -14,7 +14,10 @@ which progress.py's watcher reads (survey_track); the search itself is not chang
            negative one a signal's), or null for an adopted process, whose status track.py cannot read.  Between
            them, any lines the command appends itself (2026-10-31): {"event": "eta", "time", "median", "lo", "hi"},
            its own estimate, at time (epoch seconds), of its target's seconds to go, the median and the 90% band from
-           lo to hi, which the watcher prefers to Gott's rule (progress.survey_track, which asserts their form).  run
+           lo to hi, which the watcher prefers to Gott's rule (progress.survey_track, which asserts their form).  A
+           command that appends them appends one at least every ETA_EVERY seconds while its run is running: past that,
+           survey_track refuses the latest one, and the watcher shows the search stale (dreeves, 2026-11-04, of an
+           estimate left standing by a dead or stalled producer: "can we be more anti-postel than that?").  run
            names the record, by its absolute path, to its command in the environment variable TRACK_RECORD; the
            command appends each line whole, opening the record to append without creating it (os.O_APPEND without
            os.O_CREAT), so that a line written before the start is linked into place fails rather than taking the
@@ -43,6 +46,7 @@ POLL = 10                                              # seconds between an adop
 GRACE = 2                                             # seconds before killing remaining owned processes
 CANCEL = (signal.SIGTERM, signal.SIGINT, signal.SIGHUP)
 RECORD = 'TRACK_RECORD'                               # the environment variable naming the record to its command
+ETA_EVERY = 1200.0                                    # seconds: the oldest a running search's latest eta line may be
 
 
 def program(cmd):

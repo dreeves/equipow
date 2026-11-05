@@ -2059,6 +2059,8 @@ def q_survey_track_refuses_malformed_lines():
     # eta lines out of time order; or an eta line after the end line; a line of another event; a second start line;
     # two end lines.
     # Expectata: AssertionError, each: a malformed line cannot move a search's estimate or state.
+    # Spec change (dreeves, 2026-11-04, of stale ETAs: "can we be more anti-postel than that?"): surveyed at 3000 s, not
+    # 5000 s, so that the good line, at 2000 s, is within track.ETA_EVERY of it (q_a_running_search_s_stale_eta_fails_loudly).
     good = eta_line(2000.0, 50.0, 5.0, 500.0)
     end = dict(event='end', time=3000.0, status=0)
     bad = [[{k: v for k, v in good.items() if k != 'lo'}], [dict(good, extra=1)],
@@ -2068,10 +2070,29 @@ def q_survey_track_refuses_malformed_lines():
            [good, dict(good, time=1500.0)], [end, good], [dict(good, event='note')],
            [track_record('r0', 420, None, None, 1000)[0]], [end, end]]
     assert progress.survey_track('768:12', [track_record('r0', 420, None, None, 1000) + [good]],
-                                 [(420, 1, 'SN', 'python3 -B w12.py')], 5000.0)['to_go'] is not None
+                                 [(420, 1, 'SN', 'python3 -B w12.py')], 3000.0)['to_go'] is not None
     for lines in bad:
         expect_assertion(progress.survey_track, '768:12', [track_record('r0', 420, None, None, 1000) + lines],
-                         [(420, 1, 'SN', 'python3 -B w12.py')], 5000.0)
+                         [(420, 1, 'SN', 'python3 -B w12.py')], 3000.0)
+
+
+def q_a_running_search_s_stale_eta_fails_loudly():
+    # Replicata: progress.survey_track of 768:12, one record started at 1000 s whose own eta line is at 2000 s, its pid
+    # running, at 2000 s + track.ETA_EVERY and one second later; then, at that later time, the same record with its pid
+    # stopped (frozen), and with its end line.
+    # Expectata (dreeves, 2026-11-04, of an ETA left standing by a dead or stalled producer: "can we be more anti-postel
+    # than that?"): at the limit, the line is the estimate; past it, AssertionError, so that the watcher keeps the run's
+    # last good data marked stale (progress.bounded) rather than showing an old estimate as current; frozen or ended,
+    # no estimate is shown, and the old line fails nothing.
+    # Resultata before: past the limit, the old line was the estimate, shown as current indefinitely.
+    import track
+    record = track_record('r0', 440, None, None, 1000) + [eta_line(2000.0, 50.0, 5.0, 500.0)]
+    run = [(440, 1, 'SN', 'python3 -B ftree.py')]
+    at = 2000.0 + track.ETA_EVERY
+    assert close(progress.survey_track('768:12', [record], run, at)['to_go'], dict(median=50.0, lo=5.0, hi=500.0))
+    expect_assertion(progress.survey_track, '768:12', [record], run, at + 1)
+    assert progress.survey_track('768:12', [record], [(440, 1, 'TN', 'python3 -B ftree.py')], at + 1)['to_go'] is None
+    assert progress.survey_track('768:12', [record + [dict(event='end', time=at, status=0)]], [], at + 1)['to_go'] is None
 
 
 def q_survey_track_runs_on_to_its_last_eta_record():
