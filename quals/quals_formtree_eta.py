@@ -1,0 +1,227 @@
+"""Quals for tree-work uncertainty and immutable forecast history."""
+import copy
+import hashlib
+import json
+import pathlib
+import sys
+import tempfile
+import unittest
+from unittest import mock
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
+import numpy as np
+import formtree_eta as eta
+
+
+def model():
+    return dict(seed=28810, log_bias=0.0, discrepancy_log_sd=1.0,
+                root_log_sd=0.0, rate_log_sd=0.35, roots=[dict(name='a', blocks=[[10]*8, [30]*8]),
+                                        dict(name='b', blocks=[[100]*8, [300]*8])])
+
+
+def work(a=0, b=0, complete=False):
+    return dict(done=a+b, rate=10., roots=[dict(name='a', done=a, complete=complete),
+                                          dict(name='b', done=b, complete=False)])
+
+
+class Model(unittest.TestCase):
+    def test_exact_root_is_not_resampled_or_counted_twice(self):
+        # Replicata: root a has closed at 17; b remains open.
+        # Expectata: every total contains exactly 17 from a, not its sampled size.
+        # Resultata: any resampled or duplicated completed work violates equality.
+        x=eta.draws(model(), work(17, 50, True), 1024)
+        np.testing.assert_array_equal(x['trees'][:,0], np.full(1024,17.))
+        np.testing.assert_allclose(x['total'], 17+x['trees'][:,1])
+        self.assertTrue(np.all(x['trees'][:,1]>50))
+
+    def test_joint_lower_bounds_condition_shared_discrepancy(self):
+        # Replicata: two unfinished roots have large observed lower bounds.
+        # Expectata: all draws exceed both; one common factor scales both roots.
+        x=eta.draws(model(), work(100, 2000), 2048)
+        self.assertTrue(np.all(x['trees']>np.array([100,2000])))
+        np.testing.assert_allclose(x['trees'][:,0]/x['base'][:,0],
+                                   x['trees'][:,1]/x['base'][:,1])
+        self.assertTrue(np.all(x['weight']>=0))
+        self.assertAlmostEqual(float(x['weight'].sum()),1.)
+        self.assertGreater(np.ptp(x['weight']),0)
+
+    def test_local_discrepancy_allows_root_specific_misses(self):
+        # Replicata: independent local log discrepancy .75 plus shared discrepancy,
+        # conditioned on lower bounds in two roots.
+        # Expectata: local factors vary separately, all lower bounds hold, and the
+        # remaining factor is exactly shared. With local SD zero, proposals equal
+        # the unchanged block-bootstrap bases.
+        m=model();m['root_log_sd']=.75
+        x=eta.draws(m,work(100,2000),2048)
+        local=x['proposal']/x['base']
+        self.assertGreater(np.std(np.log(local[:,0]/local[:,1])),.5)
+        np.testing.assert_allclose(x['trees'][:,0]/x['proposal'][:,0],
+                                   x['trees'][:,1]/x['proposal'][:,1])
+        self.assertTrue(np.all(x['trees']>np.array([100,2000])))
+        plain=eta.draws(model(),work(),1024)
+        np.testing.assert_array_equal(plain['proposal'],plain['base'])
+
+    def test_bootstrap_resamples_whole_blocks(self):
+        # Replicata: two constant blocks, not sixteen independent paths.
+        # Expectata: their bootstrap means can only be 10,20,30 (and 10x those).
+        x=eta.draws(model(),work(),1024)
+        self.assertEqual(set(x['base'][:,0]),{10,20,30})
+        self.assertEqual(set(x['base'][:,1]),{100,200,300})
+
+    def test_conditioning_weights_and_factor_cdf_match_exact_mixture(self):
+        # Replicata: one pending root, base means 10/20/30 with masses 1/4,1/2,1/4,
+        # and observed work 100. Expectata: each mass is weighted by P(B>100/base),
+        # and the conditional factor CDF agrees with that exact finite mixture.
+        # Resultata: uniform/inverted survival weights or reversed truncation fail.
+        from scipy.special import ndtr
+        m=model();m['roots']=m['roots'][:1]
+        w=dict(done=100,rate=10.,roots=[dict(name='a',done=100,complete=False)])
+        x=eta.draws(m,w,50000)
+        base=np.array([10.,20.,30.]);prior=np.array([.25,.5,.25])
+        threshold=100/base;sf=ndtr(-np.log(threshold))
+        expected=prior*sf/(prior@sf)
+        observed=np.array([x['weight'][x['base'][:,0]==b].sum() for b in base])
+        np.testing.assert_allclose(observed,expected,atol=.01,rtol=0)
+        factor=x['trees'][:,0]/x['base'][:,0]
+        expected_cdf=float(prior@np.maximum(ndtr(np.log(5))-ndtr(np.log(threshold)),0)/(prior@sf))
+        self.assertAlmostEqual(float(x['weight'][factor<=5].sum()),expected_cdf,delta=.01)
+
+    def test_reproducible_draws_keep_rate_units(self):
+        # Replicata: repeat an unchanged measurement and then double throughput.
+        # Expectata: no random flicker; only rate doubles, in nodes/second.
+        a=eta.draws(model(),work(),1024);b=eta.draws(model(),work(),1024)
+        for key in a: np.testing.assert_array_equal(a[key],b[key])
+        w=work();w['rate']*=2;c=eta.draws(model(),w,1024)
+        np.testing.assert_array_equal(a['total'],c['total'])
+        np.testing.assert_allclose(c['rate'],2*a['rate'])
+
+    def test_invalid_geometry_or_work_is_refused(self):
+        # Replicata: mismatched root order, invalid block, wrong done sum/rate.
+        # Expectata: explicit failure; no repaired input or fallback forecast.
+        cases=[]
+        m=model();m['roots'][0]['name']='x';cases.append((m,work()))
+        m=model();m['roots'][0]['blocks'][0][0]=float('nan');cases.append((m,work()))
+        w=work();w['done']=1;cases.append((model(),w))
+        w=work();w['rate']=0;cases.append((model(),w))
+        for m,w in cases:
+            with self.subTest(case=(m,w)),self.assertRaises(AssertionError):eta.draws(m,w)
+
+    def test_history_preserves_old_forecasts_and_current_curve(self):
+        # Replicata: two old model points and a current estimate within cadence.
+        # Expectata: old values stay exact; current is drawn but not committed yet.
+        p=[[100.,{'exists':.01}],[1000.,{'exists':.009}]];saved=copy.deepcopy(p)
+        current={'exists':.008}
+        shown=eta.history(p,current,1100.)
+        self.assertEqual(p,saved);self.assertEqual(shown,saved+[[1100.,current]])
+        eta.history(p,current,1900.)
+        self.assertEqual(p,saved+[[1900.,current]])
+        with self.assertRaises(AssertionError):eta.history(p,current,1800.)
+
+
+class Attachment(unittest.TestCase):
+    def setUp(self):
+        self.temp=tempfile.TemporaryDirectory();self.addCleanup(self.temp.cleanup)
+        self.root=pathlib.Path(self.temp.name)
+        source=self.root/'source';source.write_bytes(b'fixed input')
+        digest=hashlib.sha256(source.read_bytes()).hexdigest()
+        self.model=model() | dict(version=1,kind='formtree',target='288:10',samples=32,alpha=.5,
+            checks={'source':digest},provenance=dict(manifest_sha256=digest,samples_sha256=digest,
+            seed_namespace='qual',source='source'),calibration=[],assumptions=dict(
+            discrepancy='qual',rate='qual',witness='qual',interval='qual'))
+        for r in self.model['roots']:r['input_sha256']=digest
+        self.path=self.root/'model.json';self.path.write_text(json.dumps(self.model))
+        self.s=dict(n=288,order=10,program='ftree.py',state='running',passes=[[1000,2000]],
+                    to_go=dict(median=1000,lo=10,hi=19000),etas={'1500.0':[1,2,3],'2000.0':[4,5,6]},
+                    display=dict(lindy=True,tracked=True))
+        self.old=dict(program='ftree.py',n=288,order=10,chance=dict(since=1000.,
+                      history=[[1500.,.003,.005],[1900.,.004,.006]]),
+                      odds=dict(exists=[[1500.,.01],[1900.,.009]],curves=[[1900.,[0.]*73]]))
+        (self.root/'progress.js').write_text('progressData('+json.dumps({'runs':[self.old]})+');\n')
+        self.w=work(5,50);self.w.update(source_time=1990.,source_age=10.)
+
+    def test_load_binds_schema_samples_and_sources(self):
+        # Replicata: valid stored model, then mismatched count/target/hash/version.
+        # Expectata: original loads with its byte hash; each invalid variant fails.
+        m,digest=eta.load(self.root,self.path)
+        self.assertEqual(m,self.model)
+        self.assertEqual(digest,hashlib.sha256(self.path.read_bytes()).hexdigest())
+        for field,value in [('samples',33),('target','432:12'),('version',2),('kind','other')]:
+            bad=self.model|{field:value};self.path.write_text(json.dumps(bad))
+            with self.subTest(field=field),self.assertRaises(AssertionError):eta.load(self.root,self.path)
+        self.path.write_text(json.dumps(self.model));(self.root/'source').write_bytes(b'changed')
+        with self.assertRaises(AssertionError):eta.load(self.root,self.path)
+
+    def test_attach_keeps_old_arrays_and_only_replaces_current_eta(self):
+        # Replicata: actual saved legacy arrays plus two changed model snapshots.
+        # Expectata: no retroactive recomputation; only current ETA is replaced.
+        cache={};old=copy.deepcopy(self.old)
+        with mock.patch.object(eta.formtree_work,'read',return_value=self.w):
+            got=eta.attach(copy.deepcopy(self.s),self.root,self.path,.01,2000.,cache)
+        self.assertEqual(got['etas']['1500.0'],[1,2,3]);self.assertNotEqual(got['etas']['2000.0'],[4,5,6])
+        self.assertFalse(got['display']['lindy'])
+        self.assertEqual(got['chance']['history'][:2],old['chance']['history'])
+        self.assertEqual(got['odds']['exists'][:2],old['odds']['exists'])
+        self.assertEqual(got['odds']['curves'][0],old['odds']['curves'][0])
+        first=copy.deepcopy(cache['points'])
+        (self.root/'progress.js').write_text('invalid on purpose')
+        self.model['log_bias']=.5;self.path.write_text(json.dumps(self.model))
+        with mock.patch.object(eta.formtree_work,'read',return_value=self.w):
+            again=eta.attach(copy.deepcopy(self.s),self.root,self.path,.01,2100.,cache)
+        self.assertEqual(cache['points'],first)
+        self.assertEqual(again['chance']['history'][:2],old['chance']['history'])
+        self.assertEqual(set(again['display']['work_eta']),{'source_time','samples','nodes','done','rate',
+             'roots_done','roots_total','model','interval','discrepancy_factor','root_discrepancy_factor','rate_log_sd'})
+
+    def test_paused_preserves_posterior_and_terminal_is_zero_remaining(self):
+        # Replicata: active snapshot, paused with no throughput, then all roots closed.
+        # Expectata: paused future-find chance zero, last posterior/history retained;
+        # terminal has zero remaining and existence zero, without sampling again.
+        cache={}
+        with mock.patch.object(eta.formtree_work,'read',return_value=self.w):
+            live=eta.attach(copy.deepcopy(self.s),self.root,self.path,.01,2000.,cache)
+        saved_points=copy.deepcopy(cache['points'])
+        self.w['rate']=0;paused=copy.deepcopy(self.s);paused['state']='frozen'
+        with mock.patch.object(eta.formtree_work,'read',return_value=self.w),mock.patch.object(eta,'draws',side_effect=AssertionError):
+            stopped=eta.attach(paused,self.root,self.path,.01,2100.,cache)
+        self.assertIsNone(stopped['to_go']);self.assertEqual(stopped['chance']['exists'],live['chance']['exists'])
+        self.assertTrue(all(x==0 for x in stopped['chance']['p']+stopped['chance']['found']))
+        for r in self.w['roots']:r['complete']=True
+        paused['state']='ended'
+        with mock.patch.object(eta.formtree_work,'read',return_value=self.w),mock.patch.object(eta,'draws',side_effect=AssertionError):
+            ended=eta.attach(paused,self.root,self.path,.01,3000.,cache)
+        # Spec clarification, root 2026-11-04: an inactive terminal survey has no
+        # new ETA point beyond its ended pass; its current probability tail is zero.
+        self.assertIsNone(ended['to_go'])
+        self.assertEqual(ended['chance']['exists'],0.)
+        self.assertNotIn('3000.0',ended['etas'])
+        self.assertEqual(cache['points'],saved_points)
+        self.assertEqual(ended['chance']['history'][-1][0],2000.)
+        self.assertEqual(ended['odds']['exists'][-1],[3000.,0.])
+
+    def test_live_reader_uses_its_observation_clock_and_active_completion_is_zero(self):
+        # Replicata: the source may append after the watcher's earlier epoch;
+        # then a still-active survey observes all roots complete.
+        # Expectata: reader measures time after its frozen reads; zero ETA is
+        # recorded only for the active survey, within its still-open pass.
+        cache={}
+        with mock.patch.object(eta.formtree_work,'read',return_value=self.w) as read:
+            eta.attach(copy.deepcopy(self.s),self.root,self.path,.01,2000.,cache)
+        self.assertIsNone(read.call_args.kwargs.get('now'))
+        for r in self.w['roots']:r['complete']=True
+        with mock.patch.object(eta.formtree_work,'read',return_value=self.w):
+            ended=eta.attach(copy.deepcopy(self.s),self.root,self.path,.01,2100.,cache)
+        self.assertEqual(ended['to_go'],dict(median=0.,lo=0.,hi=0.))
+        self.assertEqual(ended['etas']['2100.0'],[0.,0.,0.])
+
+    def test_cold_fixture_seeds_legacy_only_before_activation(self):
+        # Replicata: no progress.js exists for this fixture.
+        # Expectata: prior Lindy points precede now; the current point is work-based.
+        (self.root/'progress.js').unlink();cache={}
+        with mock.patch.object(eta.formtree_work,'read',return_value=self.w):
+            got=eta.attach(copy.deepcopy(self.s),self.root,self.path,.01,2000.,cache)
+        self.assertTrue(all(t<2000. for t,*_ in cache['legacy']['history']))
+        self.assertEqual(got['odds']['basis'],'work')
+        self.assertEqual(got['chance']['history'][-1][0],2000.)
+
+
+if __name__=='__main__':unittest.main()

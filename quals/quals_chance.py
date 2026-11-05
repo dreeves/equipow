@@ -713,6 +713,105 @@ def q_the_beam_campaign_s_priors_are_the_bandit_s():
     assert all(os.path.exists(os.path.join(HERE, w.rstrip(',.;:)'))) for w in names), names
 
 
+def q_work_point_mass_has_exact_bayesian_probabilities_and_eta():
+    # Replicata: total work 100, done 20, rate 10/hour, prior existence 1/5.
+    # Expectata: no-find survival 4/5 gives posterior existence 1/6; conditional
+    # find time is uniform on the next 8 hours. Completion has that uniform mass
+    # 1/6 and a mass 5/6 at 8 hours, so its 5%, 50%, 95% times are 2.4, 8, 8 h.
+    got = chance.work(0.2, [100], 20, [10], [1])
+    assert close(got['exists'], 1 / 6), got
+    assert close(got['found'], [min(h / 8, 1) for h in chance.AHEAD]), got['found']
+    assert close(got['p'], [min(h / 8, 1) / 6 for h in chance.HOURS]), got['p']
+    assert close(got['completion'], [h / 48 if h < 8 else 1 for h in chance.HOURS]), got['completion']
+    assert close(got['to_go'], dict(median=8 * 3600, lo=2.4 * 3600, hi=8 * 3600)), got['to_go']
+    assert got['hours'] == list(chance.HOURS) and all(got[k] is None for k in ('cpu_hours', 'rate', 'cores')), got
+
+
+def q_work_prior_endpoints_and_no_find_progress():
+    # Replicata: the same known total/rate with prior zero and one; then prior
+    # 1/5 at 0, 20 and 90 units done without a witness.
+    # Expectata: zero prior keeps chance zero with exhaustion in 8 h; one prior
+    # has a uniform find/completion time with quantiles .4,4,7.6 h. Increasing
+    # checked work lowers existence for this fixed total; at zero work it is 1/5.
+    absent = chance.work(0, [100], 20, [10], [1])
+    present = chance.work(1, [100], 20, [10], [1])
+    assert absent['exists'] == 0 and absent['p'] == [0] * len(chance.HOURS), absent
+    assert close(absent['to_go'], dict(median=28800, lo=28800, hi=28800)), absent['to_go']
+    assert present['exists'] == 1 and close(present['p'], present['completion']), present
+    assert close(present['to_go'], dict(median=14400, lo=1440, hi=27360)), present['to_go']
+    values = [chance.work(0.2, [100], d, [10], [1])['exists'] for d in (0, 20, 90)]
+    assert close(values[0], 0.2) and values[0] > values[1] > values[2], values
+
+
+def q_work_irregular_weights_keep_total_rate_pairs():
+    # Replicata: work totals 100 and 200, done 50, rates 10 and 50/hour,
+    # weights 1/4 and 3/4, existence prior 2/5; also permute their paired rows.
+    # Expectata: survival A=11/16, normalizer 7/8, posterior existence 11/35.
+    # At 1 h find mass is 17/175, conditional find 17/55. At 3 h completion
+    # is 141/175; the median and upper quantile are at the 3 h and 5 h atoms.
+    got = chance.work(0.4, [100, 200], 50, [10, 50], [0.25, 0.75])
+    other = chance.work(0.4, [200, 100], 50, [50, 10], [0.75, 0.25])
+    assert close(got, other), (got, other)
+    assert close(got['exists'], 11 / 35), got['exists']
+    assert close(got['found'][1], 17 / 55), got['found'][1]
+    assert close(got['p'][chance.HOURS.index(1)], 17 / 175), got['p']
+    assert close(got['completion'][chance.HOURS.index(3)], 141 / 175), got['completion']
+    assert close(got['to_go'], dict(median=3 * 3600, lo=(35 / 68) * 3600, hi=5 * 3600)), got['to_go']
+
+
+def q_work_conditions_structural_support_once():
+    # Replicata: a work prior has 80% mass at 10 and 20% at 100, after 20 is
+    # checked with the run still open. A zero-weight enormous draw is also added.
+    # Expectata: the impossible short draw is conditioned out, not clamped to
+    # immediate completion; result equals a single surviving 100-unit draw.
+    got = chance.work(0.2, [10, 100, 1e100], 20, [1, 10, 1], [0.8, 0.2, 0])
+    want = chance.work(0.2, [100], 20, [10], [1])
+    assert close(got, want), (got, want)
+
+
+def q_work_curves_factor_are_monotone_and_have_endpoints():
+    # Replicata: irregular work/rate draws whose residual times are at most 20 h.
+    # Expectata: all curves start at zero, rise within [0,1], and by 72 h reach
+    # existence, one, one respectively; p is exists times found at shared hours.
+    got = chance.work(0.3, [50, 120, 400], 20, [10, 20, 19], [0.1, 0.6, 0.3])
+    for key in ('p', 'found', 'completion'):
+        xs = got[key]
+        assert xs[0] == 0 and all(0 <= x <= 1 + 1e-14 for x in xs), (key, xs)
+        assert all(a <= b + 1e-14 for a, b in zip(xs, xs[1:])), (key, xs)
+    assert close([got['p'][-1], got['found'][-1], got['completion'][-1]], [got['exists'], 1, 1]), got
+    assert close([got['p'][chance.HOURS.index(h)] for h in chance.AHEAD],
+                 [got['exists'] * f for f in got['found']]), got
+
+
+def q_work_completion_quantiles_handle_ties_and_large_scale_ratios():
+    # Replicata: no existence, residual times 1 and 1e40 hours with weights .9,.1;
+    # then a guaranteed witness and two identical 8-hour residual times.
+    # Expectata: exact weighted atoms give 1,1,1e40 h quantiles without a linear
+    # bisection losing the small scale; duplicate rows remain one uniform law.
+    atoms = chance.work(0, [1, 1e40], 0, [1, 1], [0.9, 0.1])
+    assert close(atoms['to_go'], dict(median=3600, lo=3600, hi=1e40 * 3600)), atoms['to_go']
+    ties = chance.work(1, [100, 180], 20, [10, 20], [0.3, 0.7])
+    assert close(ties['to_go'], dict(median=14400, lo=1440, hi=27360)), ties['to_go']
+
+
+def q_work_refuses_invalid_inputs_and_exhausted_support():
+    # Replicata: invalid priors/done, mismatched or empty arrays, nonnumbers,
+    # nonfinite/nonpositive totals and rates, invalid or unnormalized weights,
+    # and work draws all already passed by the still-running search.
+    # Expectata: assertion before returning a forecast; no silent repair or
+    # fallback to a different model.
+    good = (0.2, [100, 200], 20, [10, 20], [0.3, 0.7])
+    bad = [(p, *good[1:]) for p in (-0.1, 1.1, True, float('nan'), float('inf'))]
+    bad += [(good[0], good[1], d, good[3], good[4]) for d in (-1, True, float('nan'), float('inf'), 200)]
+    bad += [(good[0], t, good[2], good[3], good[4]) for t in ([], [100], [[100, 200]], [0, 200],
+             [-1, 200], [float('nan'), 200], [float('inf'), 200], ['100', '200'], [True, False])]
+    bad += [(good[0], good[1], good[2], r, good[4]) for r in ([10], [0, 20], [-1, 20],
+             [float('nan'), 20], [float('inf'), 20], ['10', '20'])]
+    bad += [(*good[:4], w) for w in ([1], [0, 0], [-0.3, 1.3], [0.3, 0.6],
+             [float('nan'), 0.7], [float('inf'), 0.7], [True, False])]
+    for args in bad: expect_assertion(chance.work, *args)
+
+
 def main():
     names = sys.argv[1:] or [n for n in globals() if n.startswith('q_')]
     failed = 0

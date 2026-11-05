@@ -150,9 +150,10 @@
     heading(box, run);
     staleView(box, run);
     chanceChart(box.querySelector('.progress-chance'), run);
+    const measured = workView(box, run);
     said.append(...box.querySelector('summary h3').childNodes, ' ', ...box.querySelector('summary').querySelectorAll(':scope > span'),
                 ' ', dur(run.so_far, tenth));
-    return [said, ...box.querySelectorAll('.progress-chance:not([hidden]) .progress-chance-line')];
+    return [said, ...measured];
   }
 
   function tick() {
@@ -214,6 +215,7 @@
       const L = sea(box, run);
       L.etaXs = etaChart(box.querySelector('.progress-eta'), run);
       box.querySelector('[data-lindy]').hidden = !run.lindy;   // a tracked search on Lindy's rule alone says so (dreeves, 2026-11-04)
+      workView(box, run);
       stagesView(box, run);
       L.poolXs = poolChart(box.querySelector('.progress-pool'), run);
       L.chanceXs = chanceChart(box.querySelector('.progress-chance'), run);
@@ -230,6 +232,16 @@
     const mark = box.querySelector('[data-stale]');
     mark.hidden = run.stale == null;
     mark.querySelector('[data-stale-at]').textContent = run.stale == null ? '' : stamp(run.stale);
+  }
+
+  // The measured work model's basis and units; returns the row used in a popup brief.
+  function workView(box, run) {
+    const basis = run.work_eta ? 'work' : 'cpu';
+    box.querySelector('[data-work-eta]').hidden = basis !== 'work';
+    for (const e of box.querySelectorAll('[data-work-measure]')) e.hidden = e.dataset.workMeasure !== basis;
+    for (const [key, value] of Object.entries(run.work_eta ?? {})) fill(box, `work-${key}`, value.toLocaleString('en-US', {maximumFractionDigits: 1}));
+    fill(box, 'work-source_time', run.work_eta ? stamp(run.work_eta.source_time) : '');
+    return box.querySelectorAll({work: '[data-work-eta]', cpu: '.progress-chance:not([hidden]) .progress-chance-line'}[basis]);
   }
 
   function search288View(box, run) {

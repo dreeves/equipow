@@ -367,7 +367,9 @@
     <div class="column-panel-body" data-panel-body></div>
     <div class="remarks"><ul data-panel-entries></ul></div>
   </div>
-  <p><b>Theorem 1.</b> \(m^*(2^{10}) \ge 11\), \(m^*(2^{20}) \ge 22\), \(m^*(2^{28}) \ge 31\), \(m^*(2^{36}) \ge 40\), \(m^*(2^{39}) \ge 44\), \(m^*(2^{47}) \ge 53\), \(m^*(2^{56}) \ge 63\), \(m^*(2^{58}) \ge 66\), \(m^*(2^{68}) \ge 77\) and \(m^*(2^9) = 9\).</p>
+  <p><b>Theorem 1.</b> 
+    \(m^*(2^9) = 9\), 
+    \(m^*(2^{10}) = 11\), \(m^*(2^{20}) \ge 22\), \(m^*(2^{28}) \ge 31\), \(m^*(2^{36}) \ge 40\), \(m^*(2^{39}) \ge 44\), \(m^*(2^{47}) \ge 53\), \(m^*(2^{56}) \ge 63\), \(m^*(2^{58}) \ge 66\), and \(m^*(2^{68}) \ge 77\).</p>
   <p>More concisely: For \(i = 1, 2, \ldots, 9\), the smallest known values of \(k\) for which \(m^*(2^k) - k \ge i\) are 10, 20, 28, 36, 39, 47, 56, 58, 68.</p>
   <p>The following table shows the construction for each inequality in the above theorem: 
     \(2^k\) as a join of products, one per line, each with its order and the sum of its factors' orders.
@@ -1376,6 +1378,8 @@ Or just start identifying redundancies and repetition on the page and fix them o
           </p>
           <!-- says the ETA chart above is Lindy's rule alone (Gott's: its median to go is the time so far, its band from a 19th of that to 19 times it), as the search has no estimate of its own; shown only for such a search -->
           <p class="progress-lindy" data-lindy hidden>Current ETA based only on Lindy's rule: remaining time = elapsed time.</p>
+          <!-- TODO: identifies the sampled tree and measured throughput, sample count, checked nodes, current nodes per second and source time; the 90% interval is conditional on unvalidated model assumptions. -->
+          <p class="progress-lindy" data-work-eta hidden>Arbor aestimata ex <b data-work-samples></b> speciminibus; <b data-work-done></b> nodi comprobati; cursus mensuratus <b data-work-rate></b> nodi/s. Intervallum 90% condicionale; assumptiones exemplaris nondum comprobatae. Fons: <span data-work-source_time></span>.</p>
           <!-- Says the ETA chart above covers only this run's own stage (its program, as in the heading); names each later stage to a recordable result, in order, with the range of its estimated time to go (— where there is no estimate); then gives the range of the time to go to a recordable result, every stage together -->
           <p class="progress-stages" data-stages hidden>The above graph covers <code data-stage-now></code> only; then <span data-stages-later></span>; so total time to a proof would be <b data-stages-total></b>.
             <!-- TODO: says the line's ranges hold only under the model's assumptions (each later stage's measured CPU costs, every one of its processes at the share of a core the run's workers get now, and perfect overlap where a stage's parts run at once), and leave out waits in a stage's pipeline, waits for storage and changes in the machine's load, so that the real time to a proof is less certain than the ranges show -->
@@ -1399,7 +1403,7 @@ Or just start identifying redundancies and repetition on the page and fix them o
           <!-- three graphs, for a search with a model of its odds (progress.py's odds and chance): first, the chance that a bipartition exists, given none found so far, over the hours of the search; second, the chance of finding one by each later time if one exists, one curve for each hour of the last day, each starting at 0 at its own "now", the latest bold and the older ones fainter; third, their product 24 h along, the chance of a find within the next 24 h as it stood at each time; then a note on what the odds rest on -->
           <div class="progress-odds" hidden>
             <!-- title; says the graph below is the chance that a bipartition exists, given that the search has found none so far -->
-            <p class="progress-odds-title">Probability a bipartition exists, given none found so far, plotted over time</p>
+            <p class="progress-odds-title">Probability a bipartition exists, given none found so far, plotted over time:</p>
             <!-- aria label; says the chart shows the chance that a bipartition exists, given none found so far, over the hours of the search -->
             <svg viewBox="0 0 640 160" role="img" aria-label="Pr(bipartition exists | none found so far) plotted over time">
               <g data-exists-grid></g>
@@ -1410,7 +1414,7 @@ Or just start identifying redundancies and repetition on the page and fix them o
               <g data-exists-ticks="t"></g>
             </svg>
             <!-- title; says the graph below is the chance of finding a bipartition by each time, if one exists, with one curve for each hour of the last day, the latest bold -->
-            <p class="progress-odds-title">Probability our search finds a bipartition by future time t <i>given a bipartition exists</i> and given nothing found so far, plotted afresh every hour</p>
+            <p class="progress-odds-title">Probability our search finds a bipartition by future time t <i>given a bipartition exists</i> and given nothing found so far, plotted afresh every hour:</p>
             <!-- aria label; says the chart shows the chance of finding a bipartition by each time, if one exists, one curve for each hour of the last day, each from its own hour on, the latest bold -->
             <svg viewBox="0 0 640 200" role="img" aria-label="Pr(search finds a bipartition by time t | a bipartition exists and none found so far) plotted hourly">
               <g data-found-grid></g>
@@ -1422,7 +1426,7 @@ Or just start identifying redundancies and repetition on the page and fix them o
             <!-- the third graph, their product 24 h along: the history of the modeled chance of a find within the next 24 h, as it stood at each quarter hour since the search began (P(exists) then times the chance of a find within 24 h given existence, the curve from then 24 h along), and now, a dot on its last point; above it, on hover, the time under the pointer and the chance as it stood then; below it, the chance within 6 h and within 24 h now, and the CPU-hours searched so far without a find (— for a search whose model counts none: an exhaustive search on Lindy's rule) -->
             <div class="progress-chance">
               <!-- title; says the graph below is the chance that the search finds a bipartition within the next 24 h, given none found so far, at each time of the search: the first graph's value then times the second's curve from then, 24 h along -->
-              <p class="progress-odds-title">Probability the search finds a bipartition within 24 hours</p>
+              <p class="progress-odds-title">Probability the search finds a bipartition within 24 hours:</p>
               <p class="progress-chance-tip" data-chance-tip></p>
               <!-- aria label; says the chart shows, over the hours of the search so far, the modeled chance of a find within the next 24 hours as it stood at each time -->
               <svg viewBox="0 0 640 200" role="img" aria-label="Probability the search finds a bipartition within 24 hours">
@@ -1434,12 +1438,14 @@ Or just start identifying redundancies and repetition on the page and fix them o
                 <g data-chance-ticks="t"></g>
                 <line class="cross" visibility="hidden" data-chance-cross></line>
               </svg>
-              <p class="progress-chance-line">Probability of finding a bipartition within 6 h: <b data-chance-at="6"></b>; within 24 h: <b data-chance-at="24"></b>; <b data-chance-spent></b> CPU-hours so far.</p>
+              <p class="progress-chance-line">Probability of finding a bipartition within 6 h: <b data-chance-at="6"></b>; within 24 h: <b data-chance-at="24"></b>; <span data-work-measure="cpu"><b data-chance-spent></b> CPU-hours so far.</span><!-- TODO: for the work model, reports checked nodes and measured nodes per wall second instead of unavailable CPU-hours. --><span data-work-measure="work" hidden><b data-work-done></b> nodi comprobati; <b data-work-rate></b> nodi/s.</span></p>
             </div>
             <!-- says the search covers every case, so it finds a bipartition exactly when one exists, but nothing yet measures how much of it is covered, so the first graph holds its prior and the second follows Lindy's rule -->
-            <p class="progress-odds-basis" data-odds-basis="lindy" hidden>No measure yet of the size of the search space so the first graph is based only on priors and the second only on Lindy's rule (time remaining = elapsed time).</p>
+            <p class="progress-odds-basis" data-odds-basis="lindy" hidden>No estimate yet of the size of the search space so the first graph is based only on priors and the second only on Lindy's rule (time remaining = elapsed time).</p>
             <!-- says the odds come from the campaign's model of its search, fit to the rates its probe seeds measured -->
             <p class="progress-odds-basis" data-odds-basis="campaign" hidden>Estimates based on a model of how fast we're covering the search space. This is all Claude of course. Something about the rates of “probe seeds”.</p>
+            <!-- TODO: states the initial existence probability 0.01, assumes the first witness is uniformly located in the remaining work, and explains sensitivity to uncertainty in tree size. -->
+            <p class="progress-odds-basis" data-odds-basis="work" hidden>Probabilitas initialis existentiae: 0.01. Primus testis per opus reliquum aequabiliter distribui ponitur; probabilitates ab incerta arboris magnitudine pendent.</p>
           </div>
           </details>
         </div>

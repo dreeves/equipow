@@ -263,7 +263,7 @@ gives the state, the hours of running so far and to go, the record of ETAs and t
 import sys
 sys.dont_write_bytecode = True
 import os, re, gc, json, math, time, bisect, itertools, subprocess, collections, glob, functools, shlex, signal, contextlib
-import struct, traceback, statistics
+import struct, traceback, statistics, copy
 import numpy as np
 # The engine's directory, relative to HERE (since [FAC] stage 3b, 2026-11-04): the modules this imports, and the
 # runs of the engine's own overnight_v5.py, which names their files beside itself (see DIRS).
@@ -275,6 +275,7 @@ import fanout
 import run_modules
 import chance
 import track
+import formtree_eta
 
 ROOT_V5, ROOT_BX = v5, bx
 
@@ -3436,11 +3437,29 @@ def journal_surveys(procs, now, cache, readings, idle):
     def track(target, records):         # its record of ETAs kept by its target and its first run's start
         n, order = target.split(':')
         t0 = min(lines[0]['time'] for lines in records)
-        s = survey_track(target, records, procs, now, cache.setdefault(f'track_{n}_{order}_{int(t0)}_etas', {}))
+        model = os.path.join(HERE, 'runs', 'models', f'{n}_{order}.json')
+        work_key = f'work_{n}_{order}_{int(t0)}'
+        eta_key = f'track_{n}_{order}_{int(t0)}_etas'
+        present = os.path.isfile(model)
+        assert present or work_key not in cache, (target, model)
+        # A failed model survey must not commit the preliminary Gott estimate or
+        # partially built probability history. Publish both cache changes together.
+        etas = dict(cache.get(eta_key, {})) if present else cache.setdefault(eta_key, {})
+        s = survey_track(target, records, procs, now, etas)
         key = (int(n), int(order))      # a target a campaign searches carries its chance (see the vocabulary) beside
                                         # its ETA, Gott's rule as every tracked search's (dreeves, 2026-11-04:
                                         # "shouldn't there always be an ETA graph, even when it's just based on the
                                         # lindy effect?"; from 2026-11-03, README [CON], its to_go was null)
+        # A frozen work model replaces the age-only estimate and all its probability
+        # graphs together (dreeves, 2026-11-04: "can you take over for a while?").
+        # The presence branch allows legacy runs without a model to retain Lindy.
+        # Once activated, loss of the model is an error, not a silent fallback.
+        if present:
+            assert key in EXHAUSTIVE and s['program'] == 'ftree.py', (target, s['program'])
+            work_cache = copy.deepcopy(cache.get(work_key, {}))
+            result = formtree_eta.attach(s, HERE, model, EXHAUSTIVE[key], now, work_cache)
+            cache[eta_key], cache[work_key] = etas, work_cache
+            return [result]
         # its odds (see the vocabulary) beside its chance, as the page reads them: a campaign's from chance.shown, an
         # exhaustive search's from chance.lindy_shown, by Lindy's rule while it runs on that alone (dreeves,
         # 2026-11-04: "graphs first, then refine the estimates"; then "can we get that 3rd chart as well,

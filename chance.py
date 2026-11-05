@@ -140,6 +140,75 @@ def within(p_exists, mean, sd, spent, aheads):
     return [float(p_exists * (kept @ -np.expm1(-theta * b)) / (p_exists * kept.sum() + (1 - p_exists))) for b in aheads]
 
 
+def _work_cdf(rest, absent, present, ahead):
+    """Completion CDF at ahead hours: absent masses at rest, present masses uniform on [0, rest]."""
+    h = np.asarray(ahead)[:, None]
+    return (h >= rest) @ absent + (np.minimum(h, rest) / rest) @ present
+
+
+def _work_quantiles(rest, absent, present):
+    """The 5%, 50%, 95% completion times in hours, inverting its linear pieces and atoms at rest."""
+    order = np.argsort(rest)
+    t, a, b = rest[order], absent[order], present[order]
+    slope = np.cumsum((b / t)[::-1])[::-1]
+    before = (np.cumsum(a) - a) + (np.cumsum(b) - b) + t * slope
+    after = before + a
+    q = np.array([0.05, 0.5, 0.95])
+    k = np.searchsorted(after, q, side='left')
+    delta = np.divide(np.maximum(before[k] - q, 0), slope[k], out=np.zeros(3), where=slope[k] > 0)
+    return t[k] - delta
+
+
+def work(p_exists, total, done, rate, weight):
+    """A work model's current chance and completion ETA, conditional on no witness and a still-open search.
+
+    total, rate and weight are matching one-dimensional draws: positive total work, positive work per wall-hour,
+    and nonnegative weights summing to one. Paired work/rate draws may be dependent. done is checked work in the same
+    units, excluding repeated work. The structural draws precede the no-witness update; draws at or below done are
+    conditioned out, not clamped. No surviving support is a failed model, not a completed proof.
+
+    The existence prior is p_exists. Work has the same structural distribution under existence and nonexistence;
+    if a witness exists, its first discovery is assumed uniform in [0,total]. At work W>done, no-find survival is
+    q=(W-done)/W. For normalized structural weights a, A=sum(a*q) and Z=1-p_exists+p_exists*A. The posterior existence
+    probability is p_exists*A/Z. A further x work finds it with conditional probability sum(a*min(x,W-done)/W)/A.
+    These are conditional modeling assumptions, not empirically calibrated existence probabilities.
+
+    Returns measure's fields, with CPU-hours/rate/cores null because those fields denote campaign exposure units;
+    p is the unconditional find CDF on HOURS, found the existence-conditional CDF on AHEAD. Also completion, the CDF
+    on HOURS of a witness or accepted exhaustion, and to_go, its median/5%/95% in seconds. Completion mixes a mass
+    at (W-done)/rate when absent with a uniform time on that interval when present, using their joint posterior
+    weights. At a zero existence prior, found remains the model's counterfactual conditional-on-existence curve.
+    No terminal verdict is inferred here; a caller supplies actual proof/witness status separately.
+    """
+    assert type(p_exists) in (int, float) and 0 <= p_exists <= 1
+    assert type(done) in (int, float) and math.isfinite(done) and done >= 0
+    total, rate, weight = (np.asarray(x) for x in (total, rate, weight))
+    assert all(x.ndim == 1 and x.dtype.kind in 'iuf' for x in (total, rate, weight))
+    assert len(total) == len(rate) == len(weight) > 0
+    total, rate, weight = (x.astype(float) for x in (total, rate, weight))
+    assert all(np.all(np.isfinite(x)) for x in (total, rate, weight))
+    assert np.all(total > 0) and np.all(rate > 0) and np.all(weight >= 0)
+    assert math.isclose(float(weight.sum()), 1.0, rel_tol=1e-12, abs_tol=0)
+    keep = (total > done) & (weight > 0)
+    assert np.any(keep)
+    total, rate, weight = total[keep], rate[keep], weight[keep]
+    weight = weight / weight.sum()
+    left = total - done
+    rest, q = left / rate, left / total
+    assert np.all(np.isfinite(rest)) and np.all(rest > 0)
+    A = float(weight @ q)
+    Z = 1 - p_exists + p_exists * A
+    absent, present = (1 - p_exists) * weight / Z, p_exists * weight * q / Z
+    conditional = weight * q / A
+    found = _work_cdf(rest, np.zeros(len(rest)), conditional, AHEAD)
+    p = p_exists * A / Z
+    within = p * _work_cdf(rest, np.zeros(len(rest)), conditional, HOURS)
+    lo, median, hi = _work_quantiles(rest, absent, present) * 3600
+    return dict(cpu_hours=None, rate=None, cores=None, hours=list(HOURS), exists=p, found=found.tolist(),
+                p=within.tolist(), completion=_work_cdf(rest, absent, present, HOURS).tolist(),
+                to_go=dict(median=float(median), lo=float(lo), hi=float(hi)))
+
+
 def lines(path):
     """The file's complete lines, each parsed as JSON: a last line without its newline is still being written, so it
     is left out (as progress.complete_lines)."""
