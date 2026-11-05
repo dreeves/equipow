@@ -280,6 +280,7 @@ code[aria-expanded], [data-text][aria-expanded] { cursor: pointer; text-decorati
 .verbatim { margin-block: 0.3rem 0.5rem; padding-left: 0.75rem; border-left: 1px solid var(--muted); max-height: 60vh; overflow-y: auto;
             font: 0.8125rem/1.4 var(--mono); color: var(--ink); white-space: pre-wrap; overflow-wrap: anywhere;
             text-align: start; hyphens: manual; -webkit-hyphens: manual; }
+.verbatim:not(pre) { font: inherit; white-space: normal; }
 /* Closed, a text's box is hidden until found (2026-11-05; dreeves, of a closed text kept in a template: "defeats part of
    the point of bringing the proof inline -- i can't grep the page for things in the proof"), so that find in page
    reaches it.  The browser then hides its content (content-visibility: hidden) but still lays the box out, in its
@@ -321,6 +322,7 @@ code[aria-expanded], [data-text][aria-expanded] { cursor: pointer; text-decorati
 .progress-bar [data-bar="lo"] { background: color-mix(in oklab, var(--progress-togo) 45%, var(--paper)); }
 .progress-bar [data-bar="band"] { background: color-mix(in oklab, var(--progress-togo) 16%, var(--paper)); }
 .progress-bar [data-bar="median"] { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--progress-togo); }
+.progress-bar + .progress-bar-caption { margin-top: 0.3rem; font-size: 0.85rem; color: var(--muted); }
 .progress-key { display: flex; flex-wrap: wrap; gap: 0.3rem 1.2rem; margin: 0; padding: 0; list-style: none; }
 .progress-key[hidden] { display: none; }
 .progress-sw { display: inline-block; width: 0.7rem; height: 0.7rem; margin-right: 0.35rem; border-radius: 2px; vertical-align: -0.05rem; }

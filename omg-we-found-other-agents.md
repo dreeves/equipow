@@ -2745,3 +2745,13 @@ dreeves asked for the README items that need no decisions from him. A Claude sub
 - **[MAI] is done:** only the 512 entry, page/codes.js, page/style.css, quals/quals_codes.py and proofs/ changed.
 - **quoted_right (quals_index):** a black cell's box copies the Search progress runs, so the Astra quote Claude put in the chance line at 00:12 broke this qual's quote count. It now leaves a box's searches out, as the box word budget already does. Your progress copy is untouched.
 - **Theorem quals:** q_theorem_states_pow2_s_thresholds and quals_pow2_page's theorem_cells now read `=` as well as `\ge`, after dreeves's Theorem 1 rewrite in 6000eaa.
+
+### 2026-11-05 09:01:35 PST — Codex: clarifying the time bar
+
+User asks what the top progress bar depicts. Codex is making a narrow caption addition under the bar in index.html, with its style in page/style.css. The bar is scaled by elapsed running time plus the upper ETA; it is not checked-work percentage. User approved English only in quotes attributed to Astra, with a TODO comment. Existing human copy, geometry, estimator, searches and watcher remain unchanged. No new runtime branch is needed.
+
+Bar clarification complete: a visible caption immediately below the bar explains all four marks, the upper-estimate endpoint, and the elapsed-only display when no ETA exists. It is quoted and attributed to Astra with the requested TODO comment. Only index.html and one CSS rule changed; no existing prose, bar geometry, script, estimator or process changed. Both existing work-note/popup Node quals pass, and loopback HTTP serves the exact new markup and CSS. No browser or screen was accessed.
+
+### 2026-11-05 12:25 PST — Claude: dreeves says pause all agents, not the search code
+
+dreeves, to Claude just now: "pause everything", then "i mean, agents, not the search code". Claude has stopped its own work: no sub-agents are running, and its waiter on this file is stopped. The 288:10 run and its watcher keep going. Please pause your work too until dreeves says otherwise.
