@@ -576,34 +576,26 @@
     return xs;
   }
 
-  // A witness campaign's chance chart (progress.py's chance; README [SER] and [CON], 2026-11-03), below the run's ETA
-  // chart (dreeves, 2026-11-04: "shouldn't there always be an ETA graph, even when it's just based on the lindy
-  // effect?"; from 2026-11-03 it had taken that chart's place): the history of the modeled chance of a find within the
-  // next 24 h, as it stood at each quarter hour since the campaign began searching the target, and now ("the curve
-  // should fall in light of the conditional probability but it should remain historically accurate"), a line over a
-  // wash down to 0, on round ticks of percent up to 1% at least (a chance of 0 throughout still has an axis) and of the
-  // hours since that start (the ETA chart's axis); a dot at its last point.  The line below states the chance within 6
-  // h and within 24 h now (its data-chance-at elements) and the CPU-hours searched so far.  The tip above the chart
-  // reads out the point nearest the pointer, its time and its chance within 24 h as it stood then, the cross at it; at
-  // rest it is laid out as the last point's and hidden, as the ETA chart's tip is.  A single series, so no legend, the
-  // line below naming it.  Shown for a run whose data has a chance (a target a campaign searches, live or not, see
-  // progress.py: once its search stops, its history up to the stop and a chance now of 0; dreeves, 2026-11-04:
-  // "shouldn't it stay there for posterity like the ETA graph does?"), hidden for every other; with no point yet, its
-  // axes alone and no tip; with no rate measured yet in the live plan (p empty), — for the chances now.  Returns the
-  // points' x positions (in its viewBox), for the quals.
+  // The span, in hours since the chance's since, of the time axis the first of a modeled search's graphs (oddsChart)
+  // and the third (chanceChart) share: to the latest time either has (a stopped search's P(exists) runs to now, its
+  // history only to the stop), a quarter hour at least (the history's step).
+  const span = run => Math.max(1 / 4, ...[...run.odds.exists, ...run.chance.history].map(([t]) => (t - run.chance.since) / 3600));
+
   // A modeled search's odds (progress.py's odds; dreeves, 2026-11-04: "1. probability a partition exists, starting from
   // whatever prior and going down as the search proceeds and doesn't find one ... 2. probability of finding a partition
   // by time t *conditional on a partition existing* and also conditional on not having found one so far ... draw the
-  // current one bolded and the previous ones stay visible but are more and more faded"): above, P(exists) over the
-  // hours since its first point, a line over a wash down to 0, a dot on its last point, on round ticks of percent up to
-  // 1% at least; below, each curve of P(found by t | exists) from its own start, on one axis of hours from the earliest
+  // current one bolded and the previous ones stay visible but are more and more faded"): first, P(exists) over the hours
+  // since the chance's since, a line over a wash down to 0, a dot on its last point, on round ticks of percent up to 1%
+  // at least, on the third graph's time axis (span; the odds come with a chance, progress.py giving the two
+  // together); second, each curve of P(found by t | exists) from its own start, on one axis of hours from the earliest
   // curve's start, percent 0 to 100, a dashed line at the latest's start, the latest bold (class now) and the earlier
-  // ones (class old) fainter the older they are; and the note of its own basis, the others hidden.  Hidden for a run
-  // with no odds.
+  // ones (class old) fainter the older they are; and the note of its own basis, the others hidden. Before a rate is
+  // measured, no point or curve (see chance.py's odds), so each graph's axes alone. Hidden for a run with no odds.
   function oddsChart(fig, run) {
     fig.hidden = !run.odds;
     if (fig.hidden) return;
-    const {exists, curves, ahead, basis} = run.odds;
+    assert(run.chance, 'odds without a chance');
+    const {exists, curves, ahead, basis} = run.odds, since = run.chance.since;
     const W = 640, L = 48, R = 72, T = 14, B = 30, q = sel => fig.querySelector(sel);
     for (const e of fig.querySelectorAll('[data-odds-basis]')) e.hidden = e.dataset.oddsBasis !== basis;
     const percents = top => { const step = tickStep(top); return Array.from({length: Math.ceil(top / step - 1e-9) + 1}, (_, i) => i * step); };
@@ -617,37 +609,57 @@
       q(`[data-${name}-ticks="t"]`).replaceChildren(...tticks.map((h, i) =>
         make('text', {class: 'xtick', x: X(h), y: H - 8, 'text-anchor': 'middle'}, tlabels[i])));
     };
-    {                                                 // P(exists), over the hours since its first point
-      const H = 160, t0 = exists[0][0], pts = exists.map(([t, p]) => [(t - t0) / 3600, p]);
+    {                                                 // P(exists), over the hours since the chance's since
+      const H = 160, pts = exists.map(([t, p]) => [(t - since) / 3600, p]);
       const pticks = percents(Math.max(0.01, ...pts.map(([, p]) => p)));
-      const [tticks, tlabels] = axis(Math.max(1 / 4, ...pts.map(([h]) => h)), Math.ceil);
+      const [tticks, tlabels] = axis(span(run), Math.ceil);
       const X = h => L + (W - L - R) * h / tticks[tticks.length - 1], Y = v => H - B - (H - B - T) * v / pticks[pticks.length - 1];
       frame('exists', H, X, Y, pticks, tticks, tlabels);
-      const line = pts.map(([h, p]) => [X(h), Y(p)]), last = line[line.length - 1];
+      const line = pts.map(([h, p]) => [X(h), Y(p)]), ends = [line.slice(0, 1), line.slice(-1)];   // none with no point
       set(q('[data-exists-line]'), {points: xy(line)});
-      set(q('[data-exists-wash]'), {points: xy([[line[0][0], Y(0)], ...line, [last[0], Y(0)]])});
-      q('[data-exists-marks]').replaceChildren(make('circle', {class: 'mark', r: 4, cx: last[0], cy: last[1]}));
+      set(q('[data-exists-wash]'), {points: xy([...ends[0].map(([x]) => [x, Y(0)]), ...line, ...ends[1].map(([x]) => [x, Y(0)])])});
+      q('[data-exists-marks]').replaceChildren(...ends[1].map(([cx, cy]) => make('circle', {class: 'mark', r: 4, cx, cy})));
     }
     {                                                 // P(found by t | exists), each curve from its own start
-      const H = 200, first = curves[0][0], latest = curves[curves.length - 1][0], back = Math.max((latest - first) / 3600, 1e-9);
+      const H = 200, starts = curves.map(([t]) => t);
+      const [first, latest] = starts.length ? [starts[0], starts[starts.length - 1]] : [since, since];   // no curve: 0 to 72 h
+      const back = Math.max((latest - first) / 3600, 1e-9);
       const [tticks, tlabels] = axis((latest - first) / 3600 + ahead[ahead.length - 1], Math.ceil), pticks = [0, 0.25, 0.5, 0.75, 1];
       const X = h => L + (W - L - R) * h / tticks[tticks.length - 1], Y = v => H - B - (H - B - T) * v;
       frame('found', H, X, Y, pticks, tticks, tlabels);
       q('[data-found-curves]').replaceChildren(...curves.map(([start, ps], i) => make('polyline', Object.assign(
         {class: i === curves.length - 1 ? 'now' : 'old', points: xy(ahead.map((a, j) => [X((start - first) / 3600 + a), Y(ps[j])]))},
         i === curves.length - 1 ? {} : {opacity: 0.12 + 0.48 * (1 - (latest - start) / 3600 / back)}))));
-      set(q('[data-found-now]'), {x1: X((latest - first) / 3600), y1: Y(0), x2: X((latest - first) / 3600), y2: T});
+      q('[data-found-now]').replaceChildren(...starts.slice(-1).map(t =>   // at the latest curve's start, none with no curve
+        make('line', {class: 'nowline', x1: X((t - first) / 3600), y1: Y(0), x2: X((t - first) / 3600), y2: T})));
     }
   }
 
+  // A modeled search's chance chart (progress.py's chance; README [SER] and [CON], 2026-11-03), the third of its odds'
+  // graphs, in their figure (dreeves, 2026-11-04: "can we get that 3rd chart as well, consistently, after the P(exists)
+  // and P(find|exists) charts?"; until then on its own below the run's ETA chart, and from 2026-11-03 to 2026-11-04 in
+  // that chart's place): their product 24 h along, the history of the modeled chance of a find within the next 24 h, as
+  // it stood at each quarter hour since the search began, and now ("the curve should fall in light of the conditional
+  // probability but it should remain historically accurate"), a line over a wash down to 0, on round ticks of percent up
+  // to 1% at least (a chance of 0 throughout still has an axis) and of the hours since that start, the first graph's (span);
+  // a dot at its last point. The line below states the chance within 6 h and within 24 h now (its data-chance-at
+  // elements) and the CPU-hours searched so far (— where its model counts none, an exhaustive search on Lindy's rule).
+  // The tip above the chart reads out the point nearest the pointer, its time and its chance within 24 h as it stood
+  // then, the cross at it; at rest it is laid out as the last point's and hidden, as the ETA chart's tip is. A single
+  // series, so no legend, the line below naming it. Shown for a run whose data has a chance (a target a campaign
+  // searches, live or not, see progress.py: once its search stops, its history up to the stop and a chance now of 0;
+  // dreeves, 2026-11-04: "shouldn't it stay there for posterity like the ETA graph does?"; or a target an exhaustive
+  // search covers), hidden for every other; with no point yet, its axes alone and no tip; with no rate measured yet in
+  // the live plan (p empty), — for the chances now. Returns the points' x positions (in its viewBox), for the quals.
   function chanceChart(fig, run) {
     fig.hidden = !run.chance;
     if (fig.hidden) return [];
+    assert(run.odds, 'a chance without odds');      // progress.py gives the two together
     const {hours, p, cpu_hours, since, history} = run.chance;
     const W = 640, H = 200, L = 48, R = 72, T = 14, B = 30, AHEAD = 24;      // as the charts above (AHEAD: the hours ahead)
     const pts = history.map(([t, , p24]) => [(t - since) / 3600, p24, t]);
     const top = Math.max(0.01, ...pts.map(([, v]) => v)), step = tickStep(top);
-    const [tticks, tlabels] = axis(Math.max(1 / 4, ...pts.map(([h]) => h)), Math.ceil);   // a quarter hour at least: the history's step
+    const [tticks, tlabels] = axis(span(run), Math.ceil);           // the first graph's (span)
     const pticks = Array.from({length: Math.ceil(top / step - 1e-9) + 1}, (_, i) => i * step);
     const X = h => L + (W - L - R) * h / tticks[tticks.length - 1], Y = v => H - B - (H - B - T) * v / pticks[pticks.length - 1];
     const percent = v => `${Number((100 * v).toPrecision(2))}%`;             // a chance, to 2 significant digits
@@ -660,7 +672,7 @@
       make('text', {class: 'ytick', x: L - 6, y: Y(v) + 4, 'text-anchor': 'end'}, num(100 * v) + (i === pticks.length - 1 ? '%' : ''))));
     q('[data-chance-ticks="t"]').replaceChildren(...tticks.map((h, i) =>
       make('text', {class: 'xtick', x: X(h), y: H - 8, 'text-anchor': 'middle'}, tlabels[i])));
-    fill(fig, 'chance-spent', hrs(cpu_hours));
+    fill(fig, 'chance-spent', cpu_hours === null ? '—' : hrs(cpu_hours));   // none in Lindy's model
     const stated = [...fig.querySelectorAll('[data-chance-at]')], tip = q('[data-chance-tip]');
     assert(stated.every(e => hours.includes(+e.dataset.chanceAt)) && (p.length === hours.length || !p.length), p.length, hours.length);
     for (const e of stated) e.textContent = p.length ? percent(p[hours.indexOf(+e.dataset.chanceAt)]) : '—';

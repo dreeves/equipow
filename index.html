@@ -1396,22 +1396,7 @@ Or just start identifying redundancies and repetition on the page and fix them o
               <line class="cross" visibility="hidden" data-pool-cross></line>
             </svg>
           </div>
-          <!-- a chart, for a target a witness campaign searches, below its ETA chart, of the history of the modeled chance (the search bandit's model, from the rate its probe seeds measure) that the campaign finds one within the next 24 h, as that chance stood at each quarter hour since the campaign began searching the target, and now, a dot on its last point; above it, on hover, the time under the pointer and the chance as it stood then; below it, the chance within 6 h and within 24 h now, and the CPU-hours searched so far without a find -->
-          <div class="progress-chance">
-            <p class="progress-chance-tip" data-chance-tip></p>
-            <!-- TODO: aria label; says the chart shows, over the hours of the search so far, the modeled chance of a find within the next 24 hours as it stood at each time -->
-            <svg viewBox="0 0 640 200" role="img" aria-label="Claude: “The modeled chance of a find within the next 24 hours, as it stood at each hour of the search”">
-              <g data-chance-grid></g>
-              <polygon class="wash" data-chance-wash></polygon>
-              <polyline data-chance-line></polyline>
-              <g data-chance-marks></g>
-              <g data-chance-ticks="p"></g>
-              <g data-chance-ticks="t"></g>
-              <line class="cross" visibility="hidden" data-chance-cross></line>
-            </svg>
-            <p class="progress-chance-line">Probability of finding a bipartition within 6 h: <b data-chance-at="6"></b>; within 24 h: <b data-chance-at="24"></b>; <b data-chance-spent></b> CPU-hours so far.</p>
-          </div>
-          <!-- two graphs, for a search with a model of its odds (progress.py's odds): above, the chance that a bipartition exists, given none found so far, over the hours of the search; below, the chance of finding one by each later time if one exists, one curve for each hour of the last day, each starting at 0 at its own "now", the latest bold and the older ones fainter; then a note on what the odds rest on -->
+          <!-- three graphs, for a search with a model of its odds (progress.py's odds and chance): first, the chance that a bipartition exists, given none found so far, over the hours of the search; second, the chance of finding one by each later time if one exists, one curve for each hour of the last day, each starting at 0 at its own "now", the latest bold and the older ones fainter; third, their product 24 h along, the chance of a find within the next 24 h as it stood at each time; then a note on what the odds rest on -->
           <div class="progress-odds" hidden>
             <!-- title; says the graph below is the chance that a bipartition exists, given that the search has found none so far -->
             <p class="progress-odds-title">Probability a bipartition exists, given none found so far, plotted over time</p>
@@ -1430,10 +1415,27 @@ Or just start identifying redundancies and repetition on the page and fix them o
             <svg viewBox="0 0 640 200" role="img" aria-label="Pr(search finds a bipartition by time t | a bipartition exists and none found so far) plotted hourly">
               <g data-found-grid></g>
               <g data-found-curves></g>
-              <line class="nowline" data-found-now></line>
+              <g data-found-now></g>
               <g data-found-ticks="p"></g>
               <g data-found-ticks="t"></g>
             </svg>
+            <!-- the third graph, their product 24 h along: the history of the modeled chance of a find within the next 24 h, as it stood at each quarter hour since the search began (P(exists) then times the chance of a find within 24 h given existence, the curve from then 24 h along), and now, a dot on its last point; above it, on hover, the time under the pointer and the chance as it stood then; below it, the chance within 6 h and within 24 h now, and the CPU-hours searched so far without a find (— for a search whose model counts none: an exhaustive search on Lindy's rule) -->
+            <div class="progress-chance">
+              <!-- title; says the graph below is the chance that the search finds a bipartition within the next 24 h, given none found so far, at each time of the search: the first graph's value then times the second's curve from then, 24 h along -->
+              <p class="progress-odds-title">Probability the search finds a bipartition within 24 hours</p>
+              <p class="progress-chance-tip" data-chance-tip></p>
+              <!-- aria label; says the chart shows, over the hours of the search so far, the modeled chance of a find within the next 24 hours as it stood at each time -->
+              <svg viewBox="0 0 640 200" role="img" aria-label="Probability the search finds a bipartition within 24 hours">
+                <g data-chance-grid></g>
+                <polygon class="wash" data-chance-wash></polygon>
+                <polyline data-chance-line></polyline>
+                <g data-chance-marks></g>
+                <g data-chance-ticks="p"></g>
+                <g data-chance-ticks="t"></g>
+                <line class="cross" visibility="hidden" data-chance-cross></line>
+              </svg>
+              <p class="progress-chance-line">Probability of finding a bipartition within 6 h: <b data-chance-at="6"></b>; within 24 h: <b data-chance-at="24"></b>; <b data-chance-spent></b> CPU-hours so far.</p>
+            </div>
             <!-- says the search covers every case, so it finds a bipartition exactly when one exists, but nothing yet measures how much of it is covered, so the first graph holds its prior and the second follows Lindy's rule -->
             <p class="progress-odds-basis" data-odds-basis="lindy" hidden>No measure yet of the size of the search space so the first graph is based only on priors and the second only on Lindy's rule (time remaining = elapsed time).</p>
             <!-- says the odds come from the campaign's model of its search, fit to the rates its probe seeds measured -->

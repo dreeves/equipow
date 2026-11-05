@@ -2129,10 +2129,12 @@ def q_an_exhaustive_search_carries_lindy_s_odds():
     # started at 1000, running, with progress.EXHAUSTIVE giving 288:10 the prior 0.01; then the same with the run's own
     # eta line at 5000.
     # Expectata (dreeves, 2026-11-04, of two graphs, P(exists) and P(found by t | exists), for "the currently running
-    # search"; then "graphs first, then refine the estimates"): its survey carries odds, chance.lindy(0.01, 1000, 5200),
-    # and no chance, as no campaign searches it; its data file entry the same; and with an estimate of its own, the
-    # survey fails (AssertionError): Lindy's odds would contradict its ETA.
-    # Resultata before: no odds.
+    # search"; then "graphs first, then refine the estimates"): its survey carries odds and its chance,
+    # chance.lindy_shown(0.01, 1000, 5200)'s, split as a campaign target's are; its data file entry the same; and with an
+    # estimate of its own, the survey fails (AssertionError): Lindy's odds would contradict its ETA.
+    # Spec change (dreeves, 2026-11-04: "can we get that 3rd chart as well, consistently, after the P(exists) and
+    # P(find|exists) charts?"): until then chance.lindy(0.01, 1000, 5200) for its odds and no chance, so no third graph.
+    # Resultata before: no odds; then odds and no chance.
     import chance
     d = tempfile.mkdtemp(prefix='quals-odds-')
     os.makedirs(os.path.join(d, 'runs'))
@@ -2146,9 +2148,10 @@ def q_an_exhaustive_search_carries_lindy_s_odds():
     try:
         progress.HERE, progress.CAMPAIGNS, progress.EXHAUSTIVE = d, {}, {(288, 10): 0.01}
         [s] = [s for _, thunk in progress.journal_surveys(procs, 5200.0, {}, {}, {}) for s in thunk()]
-        assert s['odds'] == chance.lindy(0.01, 1000.0, 5200.0) and 'chance' not in s, s.keys()
+        shown = chance.lindy_shown(0.01, 1000.0, 5200.0)
+        assert s['odds'] == shown['odds'] and s['chance'] == {k: v for k, v in shown.items() if k != 'odds'}, s.keys()
         [r] = progress_data(progress.js_text([s], 5200.0))['runs']
-        assert r['odds'] == json.loads(json.dumps(s['odds'])), r.keys()
+        assert r['odds'] == json.loads(json.dumps(s['odds'])) and r['chance'] == json.loads(json.dumps(s['chance'])), r.keys()
         open(path, 'a').write(json.dumps(eta_line(5000.0, 50.0, 5.0, 500.0)) + '\n')
         [(_, thunk)] = [u for u in progress.journal_surveys(procs, 5200.0, {}, {}, {})]
         expect_assertion(thunk)

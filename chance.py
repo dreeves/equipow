@@ -53,6 +53,18 @@ Vocabulary, each term defined once here:
               (README [CON], 2026-11-03; dreeves: "the curve should fall in light of the conditional probability but it
               should remain historically accurate"): each point from the records before its time alone, so later
               records never change it.
+  exhaustive  of a search: one that covers every case, so that it finds a witness exactly when one exists (288:10's
+              form trees, searches/formtree); with no estimate of its own its remaining time follows Lindy's rule, which
+              gives its odds and chance (lindy_shown): P(exists) its prior throughout, as nothing measures the fraction
+              covered, and no CPU-hours, rate or cores, which that model does not use.
+  odds        of a modeled search, what its first two graphs draw (dreeves, 2026-11-04: "1. probability a partition
+              exists ... 2. probability of finding a partition by time t *conditional on a partition existing* and also
+              conditional on not having found one so far"): its basis (campaign or lindy), ahead (AHEAD), exists, [t,
+              P(exists)] at its history's times and at now, and curves, [t, P(a witness within each hour of AHEAD |
+              one exists)] at every fourth of those times back from the last, within BACK hours of it, and at now; now's
+              only once a rate is measured there and when the last point is not now's (its search stopped).  Its third
+              graph is the history, P(exists) times P(found within 24 h | exists) as of each time (dreeves, 2026-11-04:
+              "can we get that 3rd chart as well, consistently, after the P(exists) and P(find|exists) charts?").
 """
 import sys
 sys.dont_write_bytecode = True
@@ -265,13 +277,17 @@ def began(plans, target):
     return min(records[0]['time'] for _, plan, records in plans if target in cells(plan))
 
 
+def quarters(since, now):
+    """A history's times (see the vocabulary) from since to now: every QUARTER seconds after since, then now."""
+    return [since + QUARTER * k for k in range(1, math.ceil((now - since) / QUARTER))] + [now]
+
+
 def stood(root, campaign, target, now):
     """The target's chance (measure) as of each of its history's times (see the vocabulary) at time now: [(t, chance),
     ...] in time order."""
     ps = plans(root, campaign)
     prior, first = prior_of(root, campaign, target), began(ps, target)
-    times = [first + QUARTER * k for k in range(1, math.ceil((now - first) / QUARTER))] + [now]
-    then = [(t, as_of(ps, t)) for t in times]
+    then = [(t, as_of(ps, t)) for t in quarters(first, now)]
     chances = [(t, measure(root, campaign, p, prior, target)) for t, p in then if target in live(p[-1][1], p[-1][2])]
     return [(t, c) for t, c in chances if c['p']]
 
@@ -287,23 +303,31 @@ def history(root, campaign, target, now):
     return rows(stood(root, campaign, target, now))
 
 
-def odds(points, now, c):
-    """A campaign target's odds (see the vocabulary) from its stood points and its chance c as of now: exists at the
-    points' times and at now, curves at every fourth point back from the last, within BACK hours of it, and at now."""
-    last = points[-1][0]
-    picked = [(t, x) for t, x in points[::-1][::4] if t >= last - 3600 * BACK][::-1]
-    tail = [] if now == last else [(now, c)]           # now, unless the last point is now's (the target still live)
-    return dict(basis='campaign', ahead=list(AHEAD), exists=[[t, x['exists']] for t, x in points + tail],
+def odds(points, now, c, basis):
+    """The odds (see the vocabulary) on this basis from a history's points (stood's form) and the chance c as of now:
+    exists at the points' times and at now, curves at every fourth point back from the last, within BACK hours of it,
+    and at now; now's only once a rate is measured there (c's exists not None; until then, with no points either,
+    neither) and when the last point is not now's.  (Until 2026-11-04 now's always, unmeasured or not, and none at all
+    with no points: an IndexError.)"""
+    picked = [(t, x) for t, x in points[::-1][::4] if t >= points[-1][0] - 3600 * BACK][::-1]
+    # now's chance, unless unmeasured or already the last point (the target still live)
+    tail = [] if c['exists'] is None or [t for t, _ in points[-1:]] == [now] else [(now, c)]
+    return dict(basis=basis, ahead=list(AHEAD), exists=[[t, x['exists']] for t, x in points + tail],
                 curves=[[t, x['found']] for t, x in picked + tail])
 
 
-def lindy(p_exists, t0, now):
-    """The odds (see the vocabulary) of an exhaustive search begun at t0 with prior P(exists) p_exists and no estimate
-    of its own, at time now: exists its prior at t0 and now, as nothing measures the fraction covered; curves at each
-    whole hour back from now within BACK hours and after t0, and at now, lindy_found on the search's age then."""
-    times = [now - 3600 * k for k in range(BACK, -1, -1) if now - 3600 * k > t0]
-    return dict(basis='lindy', ahead=list(AHEAD), exists=[[t0, p_exists], [now, p_exists]],
-                curves=[[t, lindy_found((t - t0) / 3600, AHEAD)] for t in times])
+def lindy_shown(p_exists, t0, now):
+    """What the page shows (shown's form) of an exhaustive search (see the vocabulary) begun at t0, with prior
+    P(exists) p_exists and no estimate of its own, at time now: as of each of its history's times from t0, its chance
+    in measure's form, P(exists) its prior and the chance within each of AHEAD hours given existence lindy_found on its
+    age then, within each of HOURS their product, and no CPU-hours, rate or cores; with since t0, its history (rows) and
+    its odds (odds) from those points, now's the last."""
+    def at(t):                                         # its chance as of t, in measure's form
+        tau = (t - t0) / 3600
+        return dict(cpu_hours=None, rate=None, cores=None, hours=list(HOURS), exists=p_exists, found=lindy_found(tau, AHEAD),
+                    p=[p_exists * x for x in lindy_found(tau, HOURS)])
+    points = [(t, at(t)) for t in quarters(t0, now)]
+    return dict(points[-1][1], since=t0, history=rows(points), odds=odds(points, now, points[-1][1], 'lindy'))
 
 
 def shown(root, campaign, target, now):
@@ -312,7 +336,7 @@ def shown(root, campaign, target, now):
     records (dreeves, 2026-11-04: "shouldn't it stay there for posterity like the ETA graph does? is this another
     anti-magic violation?"; until then None once the target was not live, and so no chart)."""
     c, points = of(root, campaign, target, now), stood(root, campaign, target, now)
-    return dict(c, since=began(plans(root, campaign), target), history=rows(points), odds=odds(points, now, c))
+    return dict(c, since=began(plans(root, campaign), target), history=rows(points), odds=odds(points, now, c, 'campaign'))
 
 
 def of(root, campaign, target, now):

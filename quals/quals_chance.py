@@ -18,6 +18,7 @@ import chance
 BANDIT = os.path.join(HERE, 'scratch', 'bandit-20261103b')            # the bandit's rerun (rerun.py, analysis.py, ranking.json)
 CAMPAIGN = os.path.join('scratch', 'beam-campaign-20261103')          # the beam campaign, from the root
 PRIOR = dict(p_exists=0.3, mean=-2.24, sd=3.95)                       # a made-up campaign's prior at 528:12 (the bandit's, rounded)
+SHOWN = {'cpu_hours', 'rate', 'cores', 'hours', 'p', 'exists', 'found', 'since', 'history', 'odds'}   # chance.shown's keys
 
 
 def expect_assertion(f, *args):
@@ -558,6 +559,7 @@ def q_shown_carries_the_odds():
         try:
             got = chance.shown(d, 'camp', '528:12', 20000.0)
             o = got['odds']
+            assert set(got) == SHOWN, sorted(got)
             assert o['basis'] == 'campaign' and o['ahead'] == list(chance.AHEAD), o.keys()
             times = [t for t, _, _ in got['history']]
             assert [t for t, _ in o['exists']] == times + [20000.0] * (times[-1] != 20000.0), ([t for t, _ in o['exists']][-3:], times[-3:])
@@ -572,19 +574,65 @@ def q_shown_carries_the_odds():
             shutil.rmtree(d)
 
 
-def q_lindy_odds_hold_the_prior_and_lindy_s_curves():
-    # Replicata: chance.lindy(0.01, 1000, 1000 + 30 h): an exhaustive search begun at 1000 s with P(exists) 0.01 and no
-    # estimate of its own, 30 h along.
-    # Expectata (dreeves, 2026-11-04, of the two graphs; and of the search that covers every case: "the second graph
-    # would jump almost immediately to probability 1" were it nearly done): basis 'lindy'; exists the prior at the start
-    # and now, as nothing measures the fraction covered; curves at each whole hour back from now within chance.BACK
-    # hours, and now, each chance.lindy_found on the search's age then, now's the last.
-    now = 1000.0 + 30 * 3600
-    o = chance.lindy(0.01, 1000.0, now)
-    assert o['basis'] == 'lindy' and o['ahead'] == list(chance.AHEAD) and o['exists'] == [[1000.0, 0.01], [now, 0.01]], o['exists']
-    starts = [t for t, _ in o['curves']]
-    assert starts == [now - 3600 * k for k in range(chance.BACK, -1, -1)], starts
-    assert all(c == chance.lindy_found((t - 1000.0) / 3600, chance.AHEAD) for t, c in o['curves']), o['curves'][:1]
+def q_lindy_shown_is_shown_s_form():
+    # Replicata: chance.lindy_shown(0.01, 1000, 1000 + 30 h + 100 s): an exhaustive search begun at 1000 s with P(exists)
+    # 0.01 and no estimate of its own, 30 h and 100 s along.
+    # Expectata (dreeves, 2026-11-04: "can we get that 3rd chart as well, consistently, after the P(exists) and
+    # P(find|exists) charts?"): shown's form (its keys SHOWN), so that every modeled search draws the same three graphs:
+    # no CPU-hours, rate or cores, which its model does not use; hours chance.HOURS and p its chance within each, the
+    # prior times chance.lindy_found on its age; exists the prior and found lindy_found over chance.AHEAD; since its
+    # start; its history [t, p6, p24] at each quarter hour from its start and at now, each the prior times lindy_found on
+    # its age then; its odds with basis 'lindy', ahead chance.AHEAD, exists the prior at the history's times, and curves
+    # at every fourth of those times back from now, within chance.BACK hours of it, each lindy_found on its age then,
+    # now's last.
+    # Spec change (the same request): until then chance.lindy gave an exhaustive search's odds alone, exists the prior
+    # at its start and at now and curves at each whole hour back from now, and it had no chance, so no third graph.
+    # Resultata before: no chance.lindy_shown (AttributeError).
+    t0, now = 1000.0, 1000.0 + 30 * 3600 + 100
+    got = chance.lindy_shown(0.01, t0, now)
+    tau = (now - t0) / 3600
+    assert set(got) == SHOWN and got['since'] == t0, (sorted(got), got.get('since'))
+    assert got['cpu_hours'] is None and got['rate'] is None and got['cores'] is None, (got['cpu_hours'], got['rate'], got['cores'])
+    assert got['hours'] == list(chance.HOURS) and close(got['p'], [0.01 * x for x in chance.lindy_found(tau, chance.HOURS)]), got['p'][:3]
+    assert got['exists'] == 0.01 and close(got['found'], chance.lindy_found(tau, chance.AHEAD)), got['exists']
+    times = [t0 + 900.0 * k for k in range(1, 121)] + [now]
+    at = lambda t, s: 0.01 * chance.lindy_found((t - t0) / 3600, [s])[0]
+    assert close(got['history'], [[t, at(t, 6), at(t, 24)] for t in times]), got['history'][:2]
+    o = got['odds']
+    assert o['basis'] == 'lindy' and o['ahead'] == list(chance.AHEAD) and o['exists'] == [[t, 0.01] for t in times], o['exists'][:2]
+    want = [t for t in times[::-1][::4] if t >= now - 3600 * chance.BACK][::-1]
+    assert [t for t, _ in o['curves']] == want and want[-1] == now, ([t for t, _ in o['curves']][-3:], want[-3:])
+    assert all(close(c, chance.lindy_found((t - t0) / 3600, chance.AHEAD)) for t, c in o['curves']), o['curves'][:1]
+
+
+def q_odds_wait_for_a_measured_rate():
+    # Replicata: chance.shown(root, 'camp', '528:12', 5200) for q_without_a_finished_probe_seed_there_is_no_chance_yet's
+    # campaign (its probe seed still running, so no rate measured anywhere); and for a campaign whose archived plan1
+    # searched 528:12 from 100 to 2000 (probe seed 1 from 100 to 400, rounds EARLY; plain seed 2 from 100 to 2000, 1700
+    # CPU s), its live plan from 3000 with probe seed 3 and plain seed 4 running.
+    # Expectata (dreeves, 2026-11-04, of the three graphs laid out "consistently"): shown's form, its odds drawn from
+    # measured points alone, as its history is: in the first, no history and odds whose exists and curves are empty, so
+    # that each graph shows its axes alone; in the second, the history plan1's two points while it ran (1000 and
+    # 1900), exists at those and the curve at 1900 alone, with nothing at now, where the live plan has no rate yet.
+    # Resultata before: IndexError (chance.odds read the last of no points); and in the second, exists and curves ended
+    # with now's unmeasured chance, None and [].
+    first = campaign(journal=[r for r in JOURNAL if not (r['event'] == 'seed_end' and r['k'] == 1)], probes={})
+    plan1 = dict(cells=('528:12',), probes={os.path.join('camp', 'seeds', '528_12_s1'): probe_lines(EARLY)},
+                 journal=[dict(time=100.0, event='start'), begun(100.0, 'probe', 1), begun(100.0, 'plain', 2), seed(400.0, 'probe', 1, 900.0),
+                          seed(2000.0, 'plain', 2, 1700.0), dict(time=2000.0, event='end', reason='signal')])
+    second = campaign(journal=[dict(time=3000.0, event='start'), begun(3000.0, 'probe', 3), begun(3000.0, 'plain', 4)],
+                      probes={}, cells=('528:12',), archives=(('plan1', plan1),))
+    try:
+        got = chance.shown(first, 'camp', '528:12', 5200.0)
+        assert set(got) == SHOWN and got['history'] == [], (sorted(got), got['history'])
+        assert got['odds'] == dict(basis='campaign', ahead=list(chance.AHEAD), exists=[], curves=[]), got['odds']
+        got = chance.shown(second, 'camp', '528:12', 5200.0)
+        assert set(got) == SHOWN and [t for t, _, _ in got['history']] == [1000.0, 1900.0], got['history']
+        assert [t for t, _ in got['odds']['exists']] == [1000.0, 1900.0], got['odds']['exists']
+        assert all(isinstance(p, float) for _, p in got['odds']['exists']) and [t for t, _ in got['odds']['curves']] == [1900.0], got['odds']
+    finally:
+        shutil.rmtree(first)
+        shutil.rmtree(second)
 
 
 def q_of_refuses_malformed_archives():

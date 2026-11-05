@@ -191,7 +191,11 @@ The estimate's model, its terms defined once here (overnight_v5.py's search() is
               searched without one, and its history, that chance within 6 and 24 h as of each quarter hour since the
               campaign began searching the target while it was live (README [CON], 2026-11-03), kept once the search
               stops (dreeves, 2026-11-04: "shouldn't it stay there for posterity like the ETA graph does?"; until then
-              none once the target was not live; see chance.py's vocabulary).
+              none once the target was not live; see chance.py's vocabulary).  Of a target an exhaustive search covers
+              (EXHAUSTIVE), chance.lindy_shown's, in the same form: its prior times Lindy's rule, with no CPU-hours
+              (2026-11-04).
+  odds        of a target with a chance, chance.py's odds (see its vocabulary), given beside it: what the first two of
+              its three graphs draw, the chance chart the third.
   reading     the watcher's state of a run's files, kept between snapshots (2026-10-30: it read 288@10's 500 MB of journal
               and log whole every minute, and one snapshot took 90 minutes): the bytes read so far and all parsed, dated
               and derived from them (Reading, with its Tree and Grown; Boxes for a boxsplit pass, Records for focus.py's
@@ -3114,11 +3118,13 @@ def js_text(surveys, now):
     not ended (2026-10-31), its stages (see the vocabulary), [{name, to_go}], its own first, each to_go as the run's
     or null, and total, the time to go to a recordable result in the same form, or null; and for a fanout.py run
     (2026-11-03), pool, its pool series as pool_series gives it; and for a tracked target a campaign searches
-    (2026-11-03, README [SER]), chance, as chance.shown gives it, {cpu_hours, rate, cores, hours, p, since,
-    history}: the CPU-hours searched without a witness, the exposure per CPU-hour (null before a probe seed has
+    (2026-11-03, README [SER]), chance, as chance.shown gives it, {cpu_hours, rate, cores, hours, p, exists, found,
+    since, history}: the CPU-hours searched without a witness, the exposure per CPU-hour (null before a probe seed has
     finished), the search CPU-hours per wall-hour ahead (null likewise; 2026-11-04), the hours t (chance.HOURS), the
-    chance of a witness within each (empty without a rate), and its history, [[time, p6, p24], ...] (README [CON],
-    2026-11-03)."""
+    chance of a witness within each (empty without a rate), P(exists) and the chance within each hour ahead given
+    existence (null and empty likewise), and its history, [[time, p6, p24], ...] (README [CON], 2026-11-03); and odds
+    (2026-11-04), {basis, ahead, exists, curves}, as chance.py defines them; for a target an exhaustive search covers,
+    the same from chance.lindy_shown, its CPU-hours, rate and cores null."""
     return data_text([run_data(s) for s in surveys], now)
 
 
@@ -3436,14 +3442,15 @@ def journal_surveys(procs, now, cache, readings, idle):
                                         # "shouldn't there always be an ETA graph, even when it's just based on the
                                         # lindy effect?"; from 2026-11-03, README [CON], its to_go was null)
         # its odds (see the vocabulary) beside its chance, as the page reads them: a campaign's from chance.shown, an
-        # exhaustive search's by Lindy's rule while it runs on that alone (dreeves, 2026-11-04: "graphs first, then
-        # refine the estimates")
-        shown = chance.shown(HERE, CAMPAIGNS[key], target, now) if key in CAMPAIGNS else None
+        # exhaustive search's from chance.lindy_shown, by Lindy's rule while it runs on that alone (dreeves,
+        # 2026-11-04: "graphs first, then refine the estimates"; then "can we get that 3rd chart as well,
+        # consistently, after the P(exists) and P(find|exists) charts?")
+        shown = (chance.shown(HERE, CAMPAIGNS[key], target, now) if key in CAMPAIGNS else
+                 chance.lindy_shown(EXHAUSTIVE[key], t0, now) if key in EXHAUSTIVE else None)
         # TODO: error copy; says an exhaustive search's odds follow Lindy's rule, so they need it running with no estimate of its own, naming the target
         assert key not in EXHAUSTIVE or (s['state'] == 'running' and s['display']['lindy']), \
             f'Claude: "the odds of {target} follow Lindy\'s rule, but it is {s["state"]} with an estimate of its own or none"'
-        extra = ({'chance': {k: v for k, v in shown.items() if k != 'odds'}, 'odds': shown['odds']} if shown else
-                 {'odds': chance.lindy(EXHAUSTIVE[key], t0, now)} if key in EXHAUSTIVE else {})
+        extra = {'chance': {k: v for k, v in shown.items() if k != 'odds'}, 'odds': shown['odds']} if shown else {}
         return [s | extra]
     return units + [(identities[target], functools.partial(track, target, records)) for target, records in sorted(tracked.items())]
 

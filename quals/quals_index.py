@@ -5391,11 +5391,34 @@ CHANCE_SINCE = PROGRESS_DATA['made'] - 6 * 3600
 CHANCE_HISTORY = [[CHANCE_SINCE + 900 * k, 0.02 * math.exp(-k / 12), 0.05 * math.exp(-k / 12)] for k in range(1, 25)]
 CHANCE = dict(cpu_hours=2.14, rate=9.15e-4, cores=3.2, hours=CHANCE_HOURS, p=[-0.05 * math.expm1(-t / 30) for t in CHANCE_HOURS],
               since=CHANCE_SINCE, history=CHANCE_HISTORY)
+# A modeled search's odds as progress.js carries them (chance.lindy_shown and chance.odds, 2026-11-04): an exhaustive
+# search on Lindy's rule begun 30 h before the data was made, P(exists) its prior 0.01 at each quarter hour from then and
+# a curve an hour back over a day, each chance.lindy_found on its age then; a campaign target's, P(exists) falling over 8
+# quarter hours from 0.3 and four curves, now's flat at 0 (its search stopped); and a campaign target's before any rate
+# is measured, with neither.
+def lindy_at(tau, aheads): return [s / tau * math.log1p(tau / s) if s else 0.0 for s in aheads]
+def lindy_curve(tau): return lindy_at(tau, range(73))
+ODDS_T0 = PROGRESS_DATA['made'] - 30 * 3600
+ODDS_LINDY = dict(basis='lindy', ahead=list(range(73)), exists=[[ODDS_T0 + 900 * k, 0.01] for k in range(1, 121)],
+                  curves=[[PROGRESS_DATA['made'] - 3600 * k, lindy_curve(30 - k)] for k in range(24, -1, -1)])
+ODDS_CAMPAIGN = dict(basis='campaign', ahead=list(range(73)),
+                     exists=[[PROGRESS_DATA['made'] - 900 * (8 - k), 0.3 * math.exp(-k / 20)] for k in range(9)],
+                     curves=[[PROGRESS_DATA['made'] - 3600 * (3 - k), [0.0] + [0.6 * (1 - math.exp(-s / 12)) for s in range(1, 73)]] for k in range(3)]
+                            + [[PROGRESS_DATA['made'], [0.0] * 73]])
+ODDS_NONE = dict(basis='campaign', ahead=list(range(73)), exists=[], curves=[])
+# That exhaustive search's chance as progress.js carries it (chance.lindy_shown): no CPU-hours, rate or cores, which its
+# model does not use; its chance within each quarter hour t up to 72 h, the prior times Lindy's rule on its 30 h; and its
+# history at each quarter hour from its start, the prior times Lindy's rule on its age then.
+LINDY_CHANCE = dict(cpu_hours=None, rate=None, cores=None, hours=CHANCE_HOURS, p=[0.01 * x for x in lindy_at(30, CHANCE_HOURS)],
+                    exists=0.01, found=lindy_curve(30), since=ODDS_T0,
+                    history=[[ODDS_T0 + 900 * k, *(0.01 * x for x in lindy_at(k / 4, (6, 24)))] for k in range(1, 121)])
+# PROGRESS_CHANCE carries its odds beside its chance, as every run with a chance does (2026-11-04: progress.py gives the
+# two together, and the chance chart is the third of their graphs).
 PROGRESS_CHANCE = dict(program='probe_seed.py', n=528, order=12, state='running', outcome=None, so_far=600,
                        to_go=dict(median=600, lo=600 / 19, hi=19 * 600), etas=[[PROGRESS_DATA['made'], 600.0, 600.0, 31.6, 11400.0]],
                        statuses=list(STATUSES), depth=0, keys=['528:12'], groups=['4440'],
                        counts=dict(settled=1, open=0, split=0, pending=0, running=3), stale=None, tracked=True,
-                       work=dict(runs=4, running=3, frozen=0, ended=1, aborted=0, found=0), chance=CHANCE)
+                       work=dict(runs=4, running=3, frozen=0, ended=1, aborted=0, found=0), chance=CHANCE, odds=ODDS_CAMPAIGN)
 # The boxes runs' progress.js (2026-11-04, [CEL]: a black cell's box summarizes the searches at its cell): two runs at
 # 528:12, PROGRESS_CHANCE and an overnight_v5.py run that ended with no outcome (aborted), and one at 64:7.
 BOX_PROGRESS = {'made': PROGRESS_DATA['made'], 'runs': [PROGRESS_CHANCE, dict(PROGRESS_DATA['runs'][0], n=528, order=12, state='ended',
@@ -5434,23 +5457,11 @@ CHANCE_LOOK = """
                  stated: stated(unrated), tip: read(unrated)}});"""
 
 
-# A modeled search's odds as progress.js carries them (chance.lindy and chance.odds, 2026-11-04): an exhaustive search
-# on Lindy's rule begun 30 h before the data was made, P(exists) its prior 0.01 throughout and a curve an hour back over
-# a day, each chance.lindy_found on its age then; and a campaign target's, P(exists) falling over 8 quarter hours from
-# 0.3 and four curves, now's flat at 0 (its search stopped).
-def lindy_curve(tau): return [s / tau * math.log1p(tau / s) if s else 0.0 for s in range(73)]
-ODDS_T0 = PROGRESS_DATA['made'] - 30 * 3600
-ODDS_LINDY = dict(basis='lindy', ahead=list(range(73)), exists=[[ODDS_T0, 0.01], [PROGRESS_DATA['made'], 0.01]],
-                  curves=[[PROGRESS_DATA['made'] - 3600 * k, lindy_curve(30 - k)] for k in range(24, -1, -1)])
-ODDS_CAMPAIGN = dict(basis='campaign', ahead=list(range(73)),
-                     exists=[[PROGRESS_DATA['made'] - 900 * (8 - k), 0.3 * math.exp(-k / 20)] for k in range(9)],
-                     curves=[[PROGRESS_DATA['made'] - 3600 * (3 - k), [0.0] + [0.6 * (1 - math.exp(-s / 12)) for s in range(1, 73)]] for k in range(3)]
-                            + [[PROGRESS_DATA['made'], [0.0] * 73]])
-
-
 def q_progress_draws_a_search_s_odds():
-    # Replicata: index.html with three runs as progress.js: PROGRESS_CHANCE's run with ODDS_LINDY, the same with
-    # ODDS_CAMPAIGN, and PROGRESS_DATA's overnight_v5.py run, with no odds; the first two folds opened.
+    # Replicata: index.html with three runs as progress.js: an exhaustive search on Lindy's rule (288:10, LINDY_CHANCE
+    # and ODDS_LINDY), PROGRESS_CHANCE (ODDS_CAMPAIGN), and PROGRESS_DATA's overnight_v5.py run, with no odds; the first
+    # two folds opened.  (Until 2026-11-04's third graph the first was PROGRESS_CHANCE's run with ODDS_LINDY, its chance
+    # a campaign's.)
     # Expectata (dreeves, 2026-11-04: "what if we had 2 probability graphs: 1. probability a partition exists, starting
     # from whatever prior and going down as the search proceeds and doesn't find one ... 2. probability of finding a
     # partition by time t *conditional on a partition existing* and also conditional on not having found one so far ...
@@ -5461,7 +5472,7 @@ def q_progress_draws_a_search_s_odds():
     # last bold (class now) and fully opaque, the others fainter the older they are; the note of its own basis shown and
     # the other's hidden.  The third run's odds hidden.
     # Resultata before: no such graphs.
-    lindy, campaign = dict(PROGRESS_CHANCE, odds=ODDS_LINDY), dict(PROGRESS_CHANCE, n=720, order=13, odds=ODDS_CAMPAIGN)
+    lindy, campaign = dict(PROGRESS_CHANCE, n=288, order=10, chance=LINDY_CHANCE, odds=ODDS_LINDY), dict(PROGRESS_CHANCE, n=720, order=13)
     got = progress_harness({'made': PROGRESS_DATA['made'], 'runs': [lindy, campaign, PROGRESS_DATA['runs'][0]]}, """
   const all = runs();
   for (const b of all.slice(0, 2)) b.querySelector('details').open = true;
@@ -5481,6 +5492,68 @@ def q_progress_draws_a_search_s_odds():
         assert [c[1] for c in g['curves']] == ['old'] * (len(odds['curves']) - 1) + ['now'] and g['curves'][-1][2] == 1, (name, g['curves'][-3:])
         assert all(a[2] < b[2] for a, b in zip(g['curves'], g['curves'][1:])), (name, [c[2] for c in g['curves']])
         assert g['bases'] == {'lindy': name != 'lindy', 'campaign': name != 'campaign'}, (name, g['bases'])
+
+
+def q_progress_draws_the_chance_after_the_odds():
+    # Replicata: index.html with four runs as progress.js: an exhaustive search on Lindy's rule (288:10, LINDY_CHANCE
+    # and ODDS_LINDY), PROGRESS_CHANCE (a campaign target, CHANCE and ODDS_CAMPAIGN), PROGRESS_CHANCE with no rate
+    # measured yet (its chance's rate and cores null, p and history empty; ODDS_NONE), and PROGRESS_CHANCE stopped
+    # halfway (its history CHANCE_HISTORY's first 12 points, to 3 h, its odds' P(exists) still to now, 6 h); their folds
+    # opened.
+    # Expectata (dreeves, 2026-11-04: "can we get that 3rd chart as well, consistently, after the P(exists) and
+    # P(find|exists) charts? maybe we'll see a way to combine them but let's start with everything laid out"): in each
+    # run, three graphs in its odds' figure, in this order, each under a title of its own: P(exists), P(found by t |
+    # exists), then the chance chart, the history of the chance within 24 h; then the note on its basis.  The first and
+    # the third on one time axis, hours since the chance's since, to the latest time either has: the same hour ticks at
+    # the same places, the stopped search's 0 to 6 h, its history's line ending halfway along.  The exhaustive
+    # search's chance chart a vertex per point of its history, its chances within 6 h and 24 h stated as LINDY_CHANCE's,
+    # and — for its CPU-hours, which its model does not count; the campaign target's 2.1 CPU-hours.  With no rate
+    # measured yet, every graph's axes alone: no line, curve, dot or now line.
+    # Resultata before: the chance chart before the odds' figure, outside it, with no title; the first graph's hours
+    # counted from its own first point; and with no rate measured yet, no graphs at all (a TypeError at its first point).
+    lindy = dict(PROGRESS_CHANCE, n=288, order=10, chance=LINDY_CHANCE, odds=ODDS_LINDY)
+    unmeasured = dict(PROGRESS_CHANCE, n=672, order=13, chance=dict(CHANCE, rate=None, cores=None, p=[], history=[]), odds=ODDS_NONE)
+    stopped = dict(PROGRESS_CHANCE, n=720, order=13, chance=dict(CHANCE, history=CHANCE_HISTORY[:12]))
+    got = progress_harness({'made': PROGRESS_DATA['made'], 'runs': [lindy, PROGRESS_CHANCE, unmeasured, stopped]}, """
+  const all = runs();
+  for (const b of all) b.querySelector('details').open = true;
+  await sleep(50);
+  const pts = e => (e.getAttribute('points') || '').trim().split(/\\s+/).filter(Boolean).length;
+  const ticks = (box, sel) => [...box.querySelectorAll(`${sel} text`)].map(t => [t.textContent, +t.getAttribute('x')]);
+  const kind = s => ['exists-line', 'found-curves', 'chance-line'].find(k => s.querySelector(`[data-${k}]`));
+  const titled = s => {                                // the nearest title before the graph, among its siblings
+    let e = s.previousElementSibling;
+    while (e && !e.matches('.progress-odds-title')) e = e.previousElementSibling;
+    return !!e && e.textContent.trim().length > 0;
+  };
+  out(all.map(box => {
+    const f = box.querySelector('.progress-odds'), chance = box.querySelector('.progress-chance'), svgs = [...f.querySelectorAll('svg')];
+    return {hidden: f.hidden, inside: f.contains(chance), chanceHidden: chance.hidden, svgs: svgs.map(kind),
+            shown: svgs.map(s => s.getBoundingClientRect().height > 0), titled: svgs.map(titled),
+            beforeNotes: [...f.querySelectorAll('[data-odds-basis]')].every(n => !!(chance.compareDocumentPosition(n) & Node.DOCUMENT_POSITION_FOLLOWING)),
+            existsTicks: ticks(f, '[data-exists-ticks="t"]'), chanceTicks: ticks(box, '[data-chance-ticks="t"]'),
+            existsLine: pts(f.querySelector('[data-exists-line]')), line: pts(box.querySelector('[data-chance-line]')),
+            curves: f.querySelectorAll('[data-found-curves] polyline').length, nows: f.querySelectorAll('[data-found-now] line').length,
+            marks: [f.querySelectorAll('[data-exists-marks] circle').length, box.querySelectorAll('[data-chance-marks] circle').length],
+            stated: Object.fromEntries([...box.querySelectorAll('[data-chance-at]')].map(e => [e.dataset.chanceAt, e.textContent])),
+            spent: box.querySelector('[data-chance-spent]').textContent,
+            lastX: (box.querySelector('[data-chance-line]').getAttribute('points') || '').trim().split(/\\s+/).filter(Boolean).map(p => +p.split(',')[0]).pop() ?? null};
+  }));""")
+    assert len(got) == 4, got
+    for g in got:
+        assert g['hidden'] is False and g['inside'] is True and g['chanceHidden'] is False, g
+        assert g['svgs'] == ['exists-line', 'found-curves', 'chance-line'] and g['shown'] == [True] * 3 and g['titled'] == [True] * 3, g
+        assert g['beforeNotes'] is True and g['existsTicks'] == g['chanceTicks'] and g['chanceTicks'], (g['existsTicks'], g['chanceTicks'])
+    pct = lambda v: f'{float(f"{100 * v:.2g}"):g}%'               # as the page writes a chance: 2 significant digits
+    lin, camp, none, stop = got
+    assert lin['existsLine'] == 120 and lin['line'] == 120 and lin['curves'] == 25 and lin['nows'] == 1 and lin['marks'] == [1, 1], lin
+    want = {str(t): pct(LINDY_CHANCE['p'][CHANCE_HOURS.index(t)]) for t in (6, 24)}
+    assert lin['stated'] == want == {'6': '0.36%', '24': '0.65%'} and lin['spent'] == '—', (lin['stated'], lin['spent'])
+    assert camp['line'] == 24 and camp['spent'] == '2.1' and [t[0] for t in camp['chanceTicks']] == ['0', '2', '4', f'6{NNBSP}h'], camp
+    assert none['existsLine'] == 0 and none['line'] == 0 and none['curves'] == 0 and none['nows'] == 0 and none['marks'] == [0, 0], none
+    ticks = stop['chanceTicks']
+    assert [t[0] for t in ticks] == ['0', '2', '4', f'6{NNBSP}h'] and stop['line'] == 12, (ticks, stop['line'])
+    assert abs(stop['lastX'] - (ticks[0][1] + (ticks[-1][1] - ticks[0][1]) / 2)) < 0.05, (stop['lastX'], ticks)   # its 3 h of 6
 
 
 def q_progress_draws_a_campaign_target_s_chance():
@@ -5508,9 +5581,11 @@ def q_progress_draws_a_campaign_target_s_chance():
     # chart; it is now the history of the chance within 24 h, in the ETA chart's place.  Spec change (dreeves,
     # 2026-11-04: "shouldn't there always be an ETA graph, even when it's just based on the lindy effect? death to
     # if-statements, remember?"): the ETA charts of the first, third and fifth shown, as every run's; until then hidden.
+    # Fixture change (2026-11-04, the chance chart the third of the odds' graphs, in their figure): each run with a chance
+    # carries its odds, as progress.js gives the two together, the third ODDS_NONE; the fourth neither.
     # Resultata before: the forward curve (289 vertices on a 72-h axis) beside the ETA chart.
-    empty = dict(PROGRESS_CHANCE, n=672, order=13, chance=dict(CHANCE, rate=None, p=[], history=[]))
-    none = dict(PROGRESS_CHANCE, n=864, order=13, chance=None)
+    empty = dict(PROGRESS_CHANCE, n=672, order=13, chance=dict(CHANCE, rate=None, p=[], history=[]), odds=ODDS_NONE)
+    none = dict(PROGRESS_CHANCE, n=864, order=13, chance=None, odds=None)
     unrated = dict(PROGRESS_CHANCE, n=720, order=13, chance=dict(CHANCE, rate=None, p=[]))
     got = progress_harness({'made': PROGRESS_DATA['made'], 'runs': [PROGRESS_CHANCE, PROGRESS_DATA['runs'][0], empty, none, unrated]}, CHANCE_LOOK)
     assert got['hidden'] == [False, True, False, True, False] and got['after'] is True and got['folded'] is True, got['hidden']
