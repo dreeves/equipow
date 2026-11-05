@@ -296,6 +296,8 @@ code[aria-expanded], [data-text][aria-expanded] { cursor: pointer; text-decorati
 .proof-body > :first-child { margin-top: 0; }
 .proof-body > :last-child { margin-bottom: 0; }
 .proof-body .proof-equation, .proof-body .math { max-width: 100%; overflow-x: auto; padding-block: 0.2rem; white-space: nowrap; text-align: start; }
+/* KaTeX's positioning boxes can exceed its visible notation by a pixel. Keep only horizontal scrolling. */
+.proof-body .proof-equation { overflow-y: hidden; }
 .proof-body pre { max-width: 100%; overflow-x: auto; }
 .proof-body table { border-collapse: collapse; margin-inline: auto; font-variant-numeric: tabular-nums lining-nums; }
 .proof-body th, .proof-body td { padding: 0.25rem 0.5rem; text-align: right; white-space: nowrap; }
