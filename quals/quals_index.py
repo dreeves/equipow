@@ -4970,7 +4970,13 @@ def q_progress_breaks_the_y_axis_above_the_projected_finish():
     # from the x axis to the main panel's top and from the top panel's bottom to its top, broken at the gap, with a
     # slash across each end of the break (none at the right, where no line is); every band vertex in one panel or on an
     # edge of the gap; and narrow has one panel: its y axis whole, its slashes hidden, nothing clipped.
-    for case, over, labels in (('long', True, ['6', '8\u202fy']), ('eta', True, ['20\u202fh']), ('narrow', False, [])):
+    # Spec change (dreeves, 2026-11-04, of a break whose band top sat just above the cap: "does the y-axis break in this
+    # particular graph make sense?", then of a break only where it gives the main panel a larger scale than one axis up
+    # to the tallest value would: "sounds like your principled fix should work. updating the quals is fine."): eta's
+    # tallest value, its band top at 16.2 h, is 1.04 times the cap, under the 196/146 = 1.34 at which a break gains room,
+    # so eta has one panel, up to that top, 16.2/14.2 times the projected finish; long's, 6.8 times, still breaks.
+    # Until then eta's band top went to a top panel from 15.62 h to 20 h, labeled 20 h.
+    for case, over, labels, ratio in (('long', True, ['6', '8\u202fy'], 1.1), ('eta', False, [], 16.2 / 14.2), ('narrow', False, [], 1.1)):
         parts = SvgParts()
         parts.feed(progress_run(case)['etaSvg'])
         pts = lambda a: [tuple(map(float, xy.split(','))) for xy in a['points'].split()]
@@ -4979,7 +4985,7 @@ def q_progress_breaks_the_y_axis_above_the_projected_finish():
         [guide] = [pts(a) for tag, a, _ in parts.items if tag == 'polyline' and a.get('class') == 'guide']
         rects = [tuple(float(a[k]) for k in ('x', 'y', 'width', 'height')) for tag, a, _ in parts.items if tag == 'rect']
         yt, yb = rects[0][3], rects[1][1]                     # the top panel's bottom edge, the main panel's top
-        assert abs((axis - yb) - 1.1 * (axis - guide[0][1])) < 0.05, (case, axis, yb, guide[0])
+        assert abs((axis - yb) - ratio * (axis - guide[0][1])) < 0.05, (case, axis, yb, guide[0])
         assert not [a for tag, a, _ in parts.items if a.get('class') == 'cap'], case
         rows = sorted({round(seg(a)[1], 2) for tag, a, _ in parts.items if tag == 'line' and a.get('class') in ('grid', 'axis')})
         assert all(b - a >= 4 for a, b in zip(rows, rows[1:])), (case, rows)
@@ -5182,7 +5188,8 @@ def q_progress_says_when_an_eta_is_lindy():
     # Replicata: index.html with three runs of 768:12 as progress.js: a tracked search running on Gott's rule alone
     # (lindy true), the same with its own estimate (lindy false), and an untracked run (no lindy field).
     # Expectata (dreeves, 2026-11-04: "i think the graph should say if it's just using lindy"): the first run's note
-    # below its ETA chart shown, Claude's and naming Lindy's rule; the other two runs' notes hidden.
+    # below its ETA chart shown, and not empty; the other two runs' notes hidden.  Its words are not pinned (dreeves
+    # wrote his own the same day, and no qual pins wording since 2026-10-26).
     # Resultata before: no such note on the page.
     base, made = PROGRESS_DATA['runs'][0], PROGRESS_DATA['made']
     plain = dict(program='w12.py', n=768, order=12, state='running', outcome=None, so_far=600,
@@ -5195,8 +5202,7 @@ def q_progress_says_when_an_eta_is_lindy():
     got = progress_harness({'made': made, 'runs': [lindy, own, plain]}, """
   const notes = runs().map(box => box.querySelector('[data-lindy]'));
   out(notes.map(e => e && {hidden: e.hidden, text: e.textContent.trim()}));""")
-    assert all(got) and [n['hidden'] for n in got] == [False, True, True], got
-    assert got[0]['text'].startswith('Claude: “') and "Lindy's rule" in got[0]['text'], got
+    assert all(got) and [n['hidden'] for n in got] == [False, True, True] and got[0]['text'], got
 
 
 def q_progress_shows_a_tracked_search():
@@ -5428,6 +5434,55 @@ CHANCE_LOOK = """
                  stated: stated(unrated), tip: read(unrated)}});"""
 
 
+# A modeled search's odds as progress.js carries them (chance.lindy and chance.odds, 2026-11-04): an exhaustive search
+# on Lindy's rule begun 30 h before the data was made, P(exists) its prior 0.01 throughout and a curve an hour back over
+# a day, each chance.lindy_found on its age then; and a campaign target's, P(exists) falling over 8 quarter hours from
+# 0.3 and four curves, now's flat at 0 (its search stopped).
+def lindy_curve(tau): return [s / tau * math.log1p(tau / s) if s else 0.0 for s in range(73)]
+ODDS_T0 = PROGRESS_DATA['made'] - 30 * 3600
+ODDS_LINDY = dict(basis='lindy', ahead=list(range(73)), exists=[[ODDS_T0, 0.01], [PROGRESS_DATA['made'], 0.01]],
+                  curves=[[PROGRESS_DATA['made'] - 3600 * k, lindy_curve(30 - k)] for k in range(24, -1, -1)])
+ODDS_CAMPAIGN = dict(basis='campaign', ahead=list(range(73)),
+                     exists=[[PROGRESS_DATA['made'] - 900 * (8 - k), 0.3 * math.exp(-k / 20)] for k in range(9)],
+                     curves=[[PROGRESS_DATA['made'] - 3600 * (3 - k), [0.0] + [0.6 * (1 - math.exp(-s / 12)) for s in range(1, 73)]] for k in range(3)]
+                            + [[PROGRESS_DATA['made'], [0.0] * 73]])
+
+
+def q_progress_draws_a_search_s_odds():
+    # Replicata: index.html with three runs as progress.js: PROGRESS_CHANCE's run with ODDS_LINDY, the same with
+    # ODDS_CAMPAIGN, and PROGRESS_DATA's overnight_v5.py run, with no odds; the first two folds opened.
+    # Expectata (dreeves, 2026-11-04: "what if we had 2 probability graphs: 1. probability a partition exists, starting
+    # from whatever prior and going down as the search proceeds and doesn't find one ... 2. probability of finding a
+    # partition by time t *conditional on a partition existing* and also conditional on not having found one so far ...
+    # every timestep we'd draw a new version of the graph that starts going up from zero starting now, for every "now".
+    # so maybe we just draw the current one bolded and the previous ones stay visible but are more and more faded?", then
+    # "graphs first, then refine the estimates"): each of the first two runs' odds shown: P(exists) a line with a vertex
+    # per point and a dot on its last; P(found by t | exists) a curve per entry, each with a vertex per hour ahead, the
+    # last bold (class now) and fully opaque, the others fainter the older they are; the note of its own basis shown and
+    # the other's hidden.  The third run's odds hidden.
+    # Resultata before: no such graphs.
+    lindy, campaign = dict(PROGRESS_CHANCE, odds=ODDS_LINDY), dict(PROGRESS_CHANCE, n=720, order=13, odds=ODDS_CAMPAIGN)
+    got = progress_harness({'made': PROGRESS_DATA['made'], 'runs': [lindy, campaign, PROGRESS_DATA['runs'][0]]}, """
+  const all = runs();
+  for (const b of all.slice(0, 2)) b.querySelector('details').open = true;
+  await sleep(50);
+  const fig = box => box.querySelector('.progress-odds');
+  const pts = e => (e.getAttribute('points') || '').trim().split(/\\s+/).filter(Boolean).length;
+  const view = box => ({                              // not look: the harness's prelude declares that
+    line: pts(fig(box).querySelector('[data-exists-line]')), marks: fig(box).querySelectorAll('[data-exists-marks] circle').length,
+    curves: [...fig(box).querySelectorAll('[data-found-curves] polyline')].map(c => [pts(c), c.getAttribute('class'), +(c.getAttribute('opacity') ?? 1)]),
+    bases: Object.fromEntries([...fig(box).querySelectorAll('[data-odds-basis]')].map(e => [e.dataset.oddsBasis, e.hidden]))});
+  out({hidden: all.map(b => fig(b).hidden), lindy: view(all[0]), campaign: view(all[1])});""")
+    assert got['hidden'] == [False, False, True], got['hidden']
+    for name, odds in (('lindy', ODDS_LINDY), ('campaign', ODDS_CAMPAIGN)):
+        g = got[name]
+        assert g['line'] == len(odds['exists']) and g['marks'] == 1, (name, g['line'], g['marks'])
+        assert [c[0] for c in g['curves']] == [73] * len(odds['curves']), (name, g['curves'])
+        assert [c[1] for c in g['curves']] == ['old'] * (len(odds['curves']) - 1) + ['now'] and g['curves'][-1][2] == 1, (name, g['curves'][-3:])
+        assert all(a[2] < b[2] for a, b in zip(g['curves'], g['curves'][1:])), (name, [c[2] for c in g['curves']])
+        assert g['bases'] == {'lindy': name != 'lindy', 'campaign': name != 'campaign'}, (name, g['bases'])
+
+
 def q_progress_draws_a_campaign_target_s_chance():
     # Replicata: index.html with five runs as progress.js: PROGRESS_CHANCE, a tracked target a campaign searches, with
     # its chance; PROGRESS_DATA's overnight_v5.py run, whose entry has none; PROGRESS_CHANCE with no rate measured yet
@@ -5650,7 +5705,11 @@ def q_progress_eta_chart_keeps_progress_html_s_spec():
     # when the confidence bands go above the y-axis cap", then "can you do something more canonical for the y-axis
     # break?"), the main panel stops 10% above the projected finish, at 15.62 h, in place of 20 h: its gridlines at 5, 10
     # and 15 h and its top edge at 15.62 h; and elapsed + ETA's band top (16.2 h) and range line's go to a top panel,
-    # 15.62 to 20 h, labeled 20 h (q_progress_breaks_the_y_axis_above_the_projected_finish).
+    # 15.62 to 20 h, labeled 20 h (q_progress_breaks_the_y_axis_above_the_projected_finish).  And since 2026-11-04
+    # (dreeves, of a break only where it gives the main panel a larger scale than one axis up to the tallest value
+    # would: "sounds like your principled fix should work. updating the quals is fine."), no break here: the band top,
+    # 16.2 h, is only 1.04 times that cap, so one axis runs up to it, gridlines at 5, 10 and 15 h, labeled to 15 h, its top
+    # edge at 16.2 h, with nothing in a top panel, the slashes hidden and the y axis's line whole.
     R = progress_run('eta')
     parts = SvgParts()
     parts.feed(R['etaSvg'])
@@ -5662,22 +5721,19 @@ def q_progress_eta_chart_keeps_progress_html_s_spec():
     def X(h): return x0 + (x1 - x0) * h / 13.2
     def Y(h): return y0 + (y1 - y0) * h / 13.2
     def near(p, q): return abs(p[0] - q[0]) < 0.05 and abs(p[1] - q[1]) < 0.05
-    cap, lo2, hi2 = 1.1 * 14.2, 1.1 * 14.2, 20                          # the main panel's cap; the top panel's ends, h
-    YB = Y(cap)                                                          # the main panel's top edge; the top panel's
-    YT = YB - 10                                                         # bottom edge, 10 units above, its top 40 above that
-    def Ys(h): return Y(min(h, cap)) - 10 * (h > cap) - 40 * min(1, max(0, (h - lo2) / (hi2 - lo2)))
+    cap = 16.2                                                           # the one panel's cap, h: the tallest value
+    YB = YT = Y(cap)                                                     # its top edge, the plot's: no top panel
+    def Ys(h): return Y(h)
     def check(got, want, what): assert len(got) == len(want) and all(near(g, (X(a), Ys(b))) for g, (a, b) in zip(got, want)), (what, got, [(X(a), Ys(b)) for a, b in want])
     for k, w in (('spent', [(0, 0), (13.2, 13.2)]), ('togo', [(0, 2), (13.2, 1)]), ('total', [(0, 2), (13.2, 14.2)]),
                  ('guide', [(13.2, 14.2), (14.2, 14.2), (14.2, 0)])): check(polys[k], w, k)
     bands = {a['class']: pts(a['points']) for tag, a, _ in els if tag == 'polygon'}
     assert sorted(bands) == ['band togo', 'band total'], bands.keys()
     check(bands['band togo'], [(0, 4), (13.2, 3), (13.2, 0.5), (0, 1)], 'band togo')
-    # elapsed + ETA's band crosses the break twice, so it gets each crossing on both edges of the gap (2026-10-23)
-    xc = 13.2 * (cap - 4) / (16.2 - 4)
-    want = [(X(0), Ys(4)), (X(xc), YB), (X(xc), YT), (X(13.2), Ys(16.2)), (X(13.2), YT), (X(13.2), YB), (X(13.2), Ys(13.7)), (X(0), Ys(1))]
-    assert len(bands['band total']) == len(want) and all(near(g, w) for g, w in zip(bands['band total'], want)), (bands['band total'], want)
+    check(bands['band total'], [(0, 4), (13.2, 16.2), (13.2, 13.7), (0, 1)], 'band total')   # within the one panel (2026-11-04)
     lines = [(a['class'], tuple(float(a[k]) for k in ('x1', 'y1', 'x2', 'y2')), a) for tag, a, _ in els if tag == 'line']
-    assert sorted(c for c, _, _ in lines) == sorted(['axis', 'ahead', 'ideal', 'range togo', 'range total', 'cross'] + ['grid'] * 4 + ['break'] * 2 + ['yaxis'] * 2), [c for c, _, _ in lines]
+    assert sorted(c for c, _, _ in lines) == sorted(['axis', 'ahead', 'ideal', 'range togo', 'range total', 'cross'] + ['grid'] * 3 + ['break'] * 2 + ['yaxis'] * 2), [c for c, _, _ in lines]
+    assert all(a.get('visibility') == 'hidden' for c, _, a in lines if c == 'break'), lines
     seg = {c: s for c, s, _ in lines if c not in ('grid', 'break', 'yaxis')}
     check([seg['ahead'][:2], seg['ahead'][2:]], [(13.2, 13.2), (14.2, 14.2)], 'ahead')
     check([seg['ideal'][:2], seg['ideal'][2:]], [(13.2, 1), (14.2, 0)], 'ideal')
@@ -5687,12 +5743,12 @@ def q_progress_eta_chart_keeps_progress_html_s_spec():
     grid = [s for c, s, _ in lines if c == 'grid' and s[1] > YB]       # the main panel's
     hours = sorted((y0 - g[1]) / (y0 - Y(1)) for g in grid)              # to 0.01 h: positions are written to 0.01 units
     assert len(hours) == 3 and all(abs(h - t) < 0.01 for h, t in zip(hours, (5, 10, 15))) and all(g[1] == g[3] for g in grid), grid
-    assert [s[1] for c, s, _ in lines if c == 'grid' and s[1] < YB] == [14], lines     # the top panel's, at 20 h, its top
+    assert [s[1] for c, s, _ in lines if c == 'grid' and s[1] < YB] == [], lines       # no top panel (2026-11-04)
     assert sorted(round(y, 2) for c, s, _ in lines if c == 'yaxis' for y in (s[1], s[3])) == sorted([round(YT, 2), round(YB, 2), 14, round(Y(0), 2)]), lines   # its y axis's ends at the break
     cross = next(a for c, _, a in lines if c == 'cross')
     assert cross.get('visibility') == 'hidden', cross
     yt = [(float(a['y']), text) for tag, a, text in els if tag == 'text' and a.get('class') == 'ytick']
-    assert [v for _, v in yt] == ['0', '5', '10', '15\u202fh', '20\u202fh'] and all(abs(y - 4 - Ys(int(v.split()[0]))) < 0.05 for y, v in yt), yt   # up to the cap, 15.62 h, then the top panel's (2026-10-23; to 20 h before)
+    assert [v for _, v in yt] == ['0', '5', '10', '15\u202fh'] and all(abs(y - 4 - Ys(int(v.split()[0]))) < 0.05 for y, v in yt), yt   # up to the cap, 16.2 h (2026-11-04; to the cap 15.62 h, then the top panel's 20 h, from 2026-10-23; to 20 h before)
     xt = [(float(a['x']), text) for tag, a, text in els if tag == 'text' and a.get('class') == 'xtick']
     assert [v for _, v in xt] == ['0', '5', '10', '15\u202fh'] and all(abs(x - X(int(v.split()[0]))) < 0.05 for x, v in xt), xt
     now = {a['class'].split()[1]: (float(a['cx']), float(a['cy'])) for tag, a, _ in els if tag == 'circle'}

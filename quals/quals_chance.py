@@ -126,11 +126,16 @@ PLAN2 = dict(cells=('768:13',), probes={},
 def expected(cpu_seconds, cores, prior=PRIOR, rounds=ROUNDS):
     """What chance.of gives a live target whose ended seeds' search CPU is cpu_seconds in all, with these cores and
     probe seed 1's rounds: hours its cpu_hours, rate its rounds' exposure per CPU-hour, and the chance at each hour of
-    chance.HOURS, by chance.within (whose own quals are below)."""
+    chance.HOURS, by chance.within (whose own quals are below); P(exists) by chance.exists and the chance within each
+    hour of chance.AHEAD given existence by chance.found (spec change, dreeves, 2026-11-04, of two graphs, "probability
+    a partition exists" and "probability of finding a partition by time t *conditional on a partition existing*": until
+    then no exists or found)."""
     rate = sum(x for x, _ in rounds) / (sum(c for _, c in rounds) / 3600)
     hours = cpu_seconds / 3600
     return dict(cpu_hours=hours, rate=rate, cores=cores, hours=list(chance.HOURS),
-                p=chance.within(prior['p_exists'], prior['mean'], prior['sd'], rate * hours, [rate * cores * t for t in chance.HOURS]))
+                p=chance.within(prior['p_exists'], prior['mean'], prior['sd'], rate * hours, [rate * cores * t for t in chance.HOURS]),
+                exists=chance.exists(prior['p_exists'], prior['mean'], prior['sd'], rate * hours),
+                found=chance.found(prior['mean'], prior['sd'], rate * hours, [rate * cores * t for t in chance.AHEAD]))
 
 
 # ---------- the model ----------
@@ -177,6 +182,41 @@ def q_within_without_exposure_is_the_prior_predictive():
             want = p * quad(f, lo, hi, points=points, limit=400, epsabs=1e-14)[0]
             got = chance.within(p, mean, sd, 0.0, [b])[0]
             assert abs(got - want) <= 1e-10, (p, mean, sd, b, got, want)
+
+
+def q_exists_and_found_factor_within():
+    # Replicata: chance.exists and chance.found for the 528:12 prior and for priors of P(exists) 0, 0.01 and 1, after
+    # exposures 0, 0.002 and 0.2, at exposures ahead 0 to 0.2.
+    # Expectata (dreeves, 2026-11-04: two graphs, "probability a partition exists ... going down as the search proceeds
+    # and doesn't find one" and "probability of finding a partition by time t conditional on a partition existing and
+    # also conditional on not having found one so far"): their product is within's chance, to 12 digits; exists falls as
+    # the exposure spent grows (strictly, where P(exists) is strictly between 0 and 1), and is the prior with none spent;
+    # found is 0 with nothing ahead, never falls as the exposure ahead grows, and stays at most 1.
+    # Resultata before: neither function.
+    ahead = [k * 0.0005 for k in range(401)]
+    for p in (PRIOR['p_exists'], 0.0, 0.01, 1.0):
+        es = [chance.exists(p, PRIOR['mean'], PRIOR['sd'], a) for a in (0.0, 0.002, 0.2)]
+        assert abs(es[0] - p) <= 1e-12 and (es[0] > es[1] > es[2] if 0 < p < 1 else es[0] == es[1] == es[2] == p), (p, es)
+        for a in (0.0, 0.002, 0.2):
+            f = chance.found(PRIOR['mean'], PRIOR['sd'], a, ahead)
+            w = chance.within(p, PRIOR['mean'], PRIOR['sd'], a, ahead)
+            e = chance.exists(p, PRIOR['mean'], PRIOR['sd'], a)
+            assert f[0] == 0.0 and all(x <= y for x, y in zip(f, f[1:])) and f[-1] <= 1.0, (p, a, f[:3], f[-1])
+            assert all(abs(e * x - y) <= 1e-12 * max(1e-300, abs(y)) + 1e-300 for x, y in zip(f, w)), (p, a)
+
+
+def q_lindy_found_is_gotts_expected_coverage():
+    # Replicata: chance.lindy_found at an age of 3 h, 0 to 72 h ahead; and E[min(1, s / R)] by scipy.integrate.quad,
+    # R the remaining time by Gott's rule on that age, P(R > x) = 3 / (3 + x), its density 3 / (3 + x)^2.
+    # Expectata: an exhaustive search with no estimate of its own (it finds a witness exactly when one exists, one
+    # anywhere in the work left alike) finds it within s hours with chance E[min(1, s / R)] = (s / 3) log(1 + 3 / s):
+    # equal to the integral to 1e-9; 0 with nothing ahead; rising; below 1, and within 0.03 of it 72 h ahead.
+    from scipy.integrate import quad
+    tau, ahead = 3.0, list(range(73))
+    got = chance.lindy_found(tau, ahead)
+    want = [0.0] + [s / (tau + s) + quad(lambda x: s / x * tau / (tau + x) ** 2, s, math.inf)[0] for s in ahead[1:]]
+    assert all(abs(g - w) <= 1e-9 for g, w in zip(got, want)), [(s, g, w) for s, g, w in zip(ahead, got, want) if abs(g - w) > 1e-9][:3]
+    assert got[0] == 0.0 and all(x < y for x, y in zip(got, got[1:])) and 0.97 < got[-1] < 1, (got[:3], got[-1])
 
 
 def q_within_rises_with_t_to_the_posterior_chance_of_existence():
@@ -292,7 +332,7 @@ def q_of_gives_the_chance_now_once_the_target_is_not_live():
         expect_assertion(chance.of, d, 'camp', '864:13', 5200.0)
     finally:
         shutil.rmtree(d)
-    unmeasured = dict(cpu_hours=999.0 / 3600, rate=None, cores=None, hours=list(chance.HOURS), p=[])
+    unmeasured = dict(cpu_hours=999.0 / 3600, rate=None, cores=None, hours=list(chance.HOURS), p=[], exists=None, found=[])
     for journal, target, want in ((JOURNAL + [witness, stop('witness')], '720:13', unmeasured), (JOURNAL + [witness], '720:13', unmeasured),
                                   (JOURNAL + [stop('checkpoint')], '720:13', unmeasured), (JOURNAL + STOP, '528:12', expected(1430.0, 0.0))):
         d = campaign(journal=journal)
@@ -319,7 +359,7 @@ def q_without_a_finished_probe_seed_there_is_no_chance_yet():
     d = campaign(journal=[r for r in JOURNAL if not (r['event'] == 'seed_end' and r['k'] == 1)], probes={})
     try:
         got = chance.of(d, 'camp', '528:12', 5200.0)
-        assert close(got, dict(cpu_hours=430.0 / 3600, rate=None, cores=None, hours=list(chance.HOURS), p=[])), got
+        assert close(got, dict(cpu_hours=430.0 / 3600, rate=None, cores=None, hours=list(chance.HOURS), p=[], exists=None, found=[])), got
     finally:
         shutil.rmtree(d)
 
@@ -344,7 +384,9 @@ def q_earlier_plans_hours_without_a_witness_count():
         rate, early = 4.5e-4 / (300.0 / 3600), 3e-4 / (300.0 / 3600)
         spent, cores = rate * 730.0 / 3600 + early * 1300.0 / 3600, 2 * 2030.0 / 4600.0
         want = dict(cpu_hours=2030.0 / 3600, rate=rate, cores=cores, hours=list(chance.HOURS),
-                    p=chance.within(PRIOR['p_exists'], PRIOR['mean'], PRIOR['sd'], spent, [rate * cores * t for t in chance.HOURS]))
+                    p=chance.within(PRIOR['p_exists'], PRIOR['mean'], PRIOR['sd'], spent, [rate * cores * t for t in chance.HOURS]),
+                    exists=chance.exists(PRIOR['p_exists'], PRIOR['mean'], PRIOR['sd'], spent),
+                    found=chance.found(PRIOR['mean'], PRIOR['sd'], spent, [rate * cores * t for t in chance.AHEAD]))
         assert close(got, want), got and {k: v for k, v in got.items() if k != 'p'}
     finally:
         shutil.rmtree(d)
@@ -376,7 +418,9 @@ def q_cores_continue_across_a_plan_switch():
         rate, cores = 4.5e-4 / (300.0 / 3600), 2 * 1000.0 / 1310.0
         spent = rate * 300.0 / 3600 + 3e-4 / (300.0 / 3600) * 700.0 / 3600
         want = dict(cpu_hours=1000.0 / 3600, rate=rate, cores=cores, hours=list(chance.HOURS),
-                    p=chance.within(PRIOR['p_exists'], PRIOR['mean'], PRIOR['sd'], spent, [rate * cores * t for t in chance.HOURS]))
+                    p=chance.within(PRIOR['p_exists'], PRIOR['mean'], PRIOR['sd'], spent, [rate * cores * t for t in chance.HOURS]),
+                    exists=chance.exists(PRIOR['p_exists'], PRIOR['mean'], PRIOR['sd'], spent),
+                    found=chance.found(PRIOR['mean'], PRIOR['sd'], spent, [rate * cores * t for t in chance.AHEAD]))
         assert close(got, want), got and {k: v for k, v in got.items() if k != 'p'}
     finally:
         shutil.rmtree(d)
@@ -442,7 +486,8 @@ def q_history_gives_the_chance_as_it_stood():
                 assert (chance.of(e, 'camp', '528:12', t) or {}).get('p', []) == [], t
             finally:
                 shutil.rmtree(e)
-        assert chance.shown(d, 'camp', '528:12', 5200.0) == dict(chance.of(d, 'camp', '528:12', 5200.0), since=100.0, history=got)
+        # its odds (since 2026-11-04, the two graphs dreeves asked for) are q_shown_carries_the_odds's
+        assert {k: v for k, v in chance.shown(d, 'camp', '528:12', 5200.0).items() if k != 'odds'} == dict(chance.of(d, 'camp', '528:12', 5200.0), since=100.0, history=got)
     finally:
         shutil.rmtree(d)
 
@@ -484,11 +529,62 @@ def q_shown_keeps_the_history_once_the_search_stops():
         got = chance.shown(d, 'camp', '528:12', 20000.0)
         at_stop = chance.history(d, 'camp', '528:12', 10300.0)
         assert got is not None, got
-        assert close({k: v for k, v in got.items() if k not in ('since', 'history')}, expected(300.0 + 29 * 300.0 + 200.0, 0.0)), got
+        assert close({k: v for k, v in got.items() if k not in ('since', 'history', 'odds')}, expected(300.0 + 29 * 300.0 + 200.0, 0.0)), got   # odds: q_shown_carries_the_odds (2026-11-04)
         assert got['since'] == 1000.0 and len(at_stop) > 10 and at_stop[-1][0] == 10300.0, (got['since'], at_stop[-1:])
         assert got['history'] == at_stop[:-1] and got['history'][-1][0] == 10000.0, (got['history'][-2:], at_stop[-2:])
     finally:
         shutil.rmtree(d)
+
+
+def q_shown_carries_the_odds():
+    # Replicata: chance.shown(root, 'camp', '528:12', 20000) for q_history_falls_while_nothing_is_found's campaign (one
+    # seed running at a time from 1400 on, the last at 20000) and for q_shown_keeps_the_history_once_the_search_stops's
+    # (stopped at 10300), read at 20000.
+    # Expectata (dreeves, 2026-11-04: "1. probability a partition exists ... a simple monotone decreasing time series. 2.
+    # probability of finding a partition by time t *conditional on a partition existing* and also conditional on not
+    # having found one so far ... every timestep we'd draw a new version of the graph that starts going up from zero
+    # starting now ... draw the current one bolded and the previous ones ... more and more faded"): odds, with basis
+    # 'campaign', ahead chance.AHEAD; exists, [t, P(exists)] at the history's times and at now, never rising, each
+    # chance.exists as the campaign stood then; curves, [t, P(found within each hour of AHEAD | exists)], one at every
+    # fourth of the history's points back from its last, within chance.BACK hours of it, and one at now, each starting
+    # at 0 and never falling, now's the last.  Running, now's curve rises; stopped, nothing runs, so now's is 0 throughout.
+    # Resultata before: no odds.
+    seeds = lambda last: [x for k in range(2, last) for x in life(1400.0 + 300.0 * (k - 2), 1400.0 + 300.0 * (k - 1), 'plain', k, 300.0)]
+    running = [dict(time=1000.0, event='start')] + life(1100.0, 1400.0, 'probe', 1, 900.0) + seeds(64)
+    stopped = ([dict(time=1000.0, event='start')] + life(1100.0, 1400.0, 'probe', 1, 900.0) + seeds(31)
+               + [begun(10100.0, 'plain', 31), seed(10300.0, 'plain', 31, 200.0, cancelled=True), dict(time=10300.0, event='end', reason='signal')])
+    for journal, live in ((running, True), (stopped, False)):
+        d = campaign(journal=journal, cells=('528:12',))
+        try:
+            got = chance.shown(d, 'camp', '528:12', 20000.0)
+            o = got['odds']
+            assert o['basis'] == 'campaign' and o['ahead'] == list(chance.AHEAD), o.keys()
+            times = [t for t, _, _ in got['history']]
+            assert [t for t, _ in o['exists']] == times + [20000.0] * (times[-1] != 20000.0), ([t for t, _ in o['exists']][-3:], times[-3:])
+            assert all(b[1] <= a[1] for a, b in zip(o['exists'], o['exists'][1:])), o['exists']
+            assert o['exists'][-1][1] == got['exists'], (o['exists'][-1], got['exists'])
+            starts = [t for t, _ in o['curves']]
+            want = [t for t in times[::-1][::4] if t >= times[-1] - 3600 * chance.BACK][::-1]
+            assert starts == want + [20000.0] * (want[-1] != 20000.0), (starts, want)
+            assert all(c[0] == 0.0 and all(x <= y for x, y in zip(c, c[1:])) and len(c) == len(chance.AHEAD) for _, c in o['curves']), o['curves'][:1]
+            assert (o['curves'][-1][1][-1] > 0) == live and (live or set(o['curves'][-1][1]) == {0.0}), (live, o['curves'][-1][1][:3])
+        finally:
+            shutil.rmtree(d)
+
+
+def q_lindy_odds_hold_the_prior_and_lindy_s_curves():
+    # Replicata: chance.lindy(0.01, 1000, 1000 + 30 h): an exhaustive search begun at 1000 s with P(exists) 0.01 and no
+    # estimate of its own, 30 h along.
+    # Expectata (dreeves, 2026-11-04, of the two graphs; and of the search that covers every case: "the second graph
+    # would jump almost immediately to probability 1" were it nearly done): basis 'lindy'; exists the prior at the start
+    # and now, as nothing measures the fraction covered; curves at each whole hour back from now within chance.BACK
+    # hours, and now, each chance.lindy_found on the search's age then, now's the last.
+    now = 1000.0 + 30 * 3600
+    o = chance.lindy(0.01, 1000.0, now)
+    assert o['basis'] == 'lindy' and o['ahead'] == list(chance.AHEAD) and o['exists'] == [[1000.0, 0.01], [now, 0.01]], o['exists']
+    starts = [t for t, _ in o['curves']]
+    assert starts == [now - 3600 * k for k in range(chance.BACK, -1, -1)], starts
+    assert all(c == chance.lindy_found((t - 1000.0) / 3600, chance.AHEAD) for t, c in o['curves']), o['curves'][:1]
 
 
 def q_of_refuses_malformed_archives():

@@ -68,6 +68,49 @@ SPAN, STEP = 10.0, 0.01          # within's grid of log2 theta: mean +- SPAN sd,
 PRIORS = 'chance.json'           # in a campaign's directory: {targets: {N:M: {p_exists, mean, sd}}, sources: {...}}
 ARCHIVED = re.compile(r'plan([1-9][0-9]*)')     # an archived plan's directory below its campaign's: planK, K from 1
 QUARTER = 900.0                  # seconds between a history's points
+AHEAD = tuple(range(73))         # hours ahead of each of the odds' curves: every hour from 0 to 72
+BACK = 24                        # hours back from the latest curve that the odds keep curves for, one an hour
+
+
+def grid(mean, sd, spent):
+    """within's grid of theta and, at each point, the prior's weight times P(no witness in the exposure spent | theta),
+    given log2 theta ~ N(mean, sd^2)."""
+    z = np.arange(mean - SPAN * sd, mean + SPAN * sd + STEP / 2, STEP)
+    w = np.exp(-0.5 * ((z - mean) / sd) ** 2)
+    theta = np.exp2(z)
+    return theta, w / w.sum() * np.exp(-theta * spent)
+
+
+def exists(p_exists, mean, sd, spent):
+    """P(a witness exists | none in the exposure spent), the prior P(exists) p_exists and log2 theta ~ N(mean, sd^2) if
+    it exists: p_exists E[exp(-theta spent)] / (p_exists E[exp(-theta spent)] + 1 - p_exists); the odds' first factor."""
+    # TODO: error copy; says exists's inputs are out of range, quoting them
+    assert 0 <= p_exists <= 1 and 0 < sd < math.inf and math.isfinite(mean) and 0 <= spent < math.inf, f'Claude: "exists({p_exists}, {mean}, {sd}, {spent}) is out of range"'
+    _, kept = grid(mean, sd, spent)
+    return float(p_exists * kept.sum() / (p_exists * kept.sum() + (1 - p_exists)))
+
+
+def found(mean, sd, spent, aheads):
+    """P(a witness within each exposure b of aheads | one exists and none in the exposure spent), log2 theta ~ N(mean,
+    sd^2) a priori: E[exp(-theta spent) (1 - exp(-theta b))] / E[exp(-theta spent)], as a list; the odds' second factor,
+    so that exists times found is within."""
+    # TODO: error copy; says found's inputs are out of range, quoting them
+    assert (0 < sd < math.inf and math.isfinite(mean) and 0 <= spent < math.inf
+            and all(0 <= b < math.inf for b in aheads)), f'Claude: "found({mean}, {sd}, {spent}, ...) is out of range"'
+    theta, kept = grid(mean, sd, spent)
+    # TODO: error copy; says the exposure spent leaves no weight on the grid, so the chance given existence is undefined, quoting it
+    assert kept.sum() > 0, f'Claude: "no weight left after exposure {spent}"'
+    return [float((kept @ -np.expm1(-theta * b)) / kept.sum()) for b in aheads]
+
+
+def lindy_found(tau, aheads):
+    """P(found within each s hours of aheads | a witness exists and none found yet) for an exhaustive search (one that
+    finds a witness exactly when one exists) with no estimate of its own, aged tau hours: its remaining time R by Gott's
+    rule (P(R > x) = tau / (tau + x)), the witness anywhere in the work left alike, so E[min(1, s / R)] =
+    (s / tau) log(1 + tau / s), and 0 with nothing ahead; as a list."""
+    # TODO: error copy; says lindy_found's inputs are out of range, quoting them
+    assert 0 < tau < math.inf and all(0 <= s < math.inf for s in aheads), f'Claude: "lindy_found({tau}, ...) is out of range"'
+    return [s / tau * math.log1p(tau / s) if s else 0.0 for s in aheads]
 
 
 def within(p_exists, mean, sd, spent, aheads):
@@ -79,10 +122,7 @@ def within(p_exists, mean, sd, spent, aheads):
     # TODO: error copy; says within's inputs are out of range, quoting them
     assert (0 <= p_exists <= 1 and 0 < sd < math.inf and math.isfinite(mean) and 0 <= spent < math.inf
             and all(0 <= b < math.inf for b in aheads)), f'Claude: "within({p_exists}, {mean}, {sd}, {spent}, ...) is out of range"'
-    z = np.arange(mean - SPAN * sd, mean + SPAN * sd + STEP / 2, STEP)
-    w = np.exp(-0.5 * ((z - mean) / sd) ** 2)
-    theta = np.exp2(z)
-    kept = w / w.sum() * np.exp(-theta * spent)       # the prior's weight times P(no witness in spent | theta)
+    theta, kept = grid(mean, sd, spent)               # the prior's weight times P(no witness in spent | theta)
     # (1 - p_exists) added as a whole: 0 exactly when p_exists is 1, where adding 1 and then subtracting p_exists would
     # leave a rounding error as large as the rest of the sum (4e-9 of the chance, 2026-11-03)
     return [float(p_exists * (kept @ -np.expm1(-theta * b)) / (p_exists * kept.sum() + (1 - p_exists))) for b in aheads]
@@ -191,17 +231,18 @@ def rate_of(probes):
 
 def measure(root, campaign, plans, prior, target):
     """The chance of the target, whose prior is this, from its campaign's plans (as plans gives them, the live one last,
-    or as they stood at a time, as_of): {cpu_hours, rate, cores, hours, p}: H (every plan's), the live plan's r, c (see
-    the vocabulary), HOURS, and the chance within each (within, at exposure spent and ahead r c t); with no rate yet in
-    the live plan, rate and cores None and p empty.  Asserted: every archived plan that searched the target has its
-    rate there."""
+    or as they stood at a time, as_of): {cpu_hours, rate, cores, hours, p, exists, found}: H (every plan's), the live
+    plan's r, c (see the vocabulary), HOURS, and the chance within each (within, at exposure spent and ahead r c t);
+    P(exists) (exists, at spent) and the chance within each hour of AHEAD given existence (found, ahead r c t); with no
+    rate yet in the live plan, rate, cores and exists None and p and found empty.  Asserted: every archived plan that
+    searched the target has its rate there."""
     each = [searched(root, campaign, home, records, target) for home, _, records in plans]
     *earlier, (starts, ends, _, probes) = each
     unmeasured = [home for (home, _, _), (_, _, c, p) in zip(plans, earlier) if c and not p]
     # TODO: error copy; says these archived plans searched the target with no finished probe seed, so the exposure of their hours there is unknown, naming them
     assert not unmeasured, f'Claude: "{unmeasured} searched {target} without a finished probe seed: the exposure of those hours is unknown"'
     measured = dict(cpu_hours=sum(sum(c.values()) for _, _, c, _ in each) / 3600, hours=list(HOURS))
-    if not probes: return dict(measured, rate=None, cores=None, p=[])   # no probe seed has finished: no rate measured yet
+    if not probes: return dict(measured, rate=None, cores=None, p=[], exists=None, found=[])   # no probe seed has finished: no rate measured yet
     rate = rate_of(probes)
     spent = sum(rate_of(p) * (sum(c.values()) / 3600) for _, _, c, p in each if p)
     lives = [(e['time'], e['time'] - s[e['k']], c[e['k']]) for s, seeds, c, _ in each for e in seeds if e['k'] in c]
@@ -209,7 +250,9 @@ def measure(root, campaign, plans, prior, target):
     recent = [(life, cpu) for t, life, cpu in lives if t > last - WINDOW]
     cores = len(set(starts) - {e['k'] for e in ends}) * sum(cpu for _, cpu in recent) / sum(life for life, _ in recent)
     return dict(measured, rate=rate, cores=cores, p=within(prior['p_exists'], prior['mean'], prior['sd'], spent,
-                                                         [rate * cores * t for t in HOURS]))
+                                                         [rate * cores * t for t in HOURS]),
+                exists=exists(prior['p_exists'], prior['mean'], prior['sd'], spent),
+                found=found(prior['mean'], prior['sd'], spent, [rate * cores * t for t in AHEAD]))
 
 
 def as_of(plans, t):
@@ -222,23 +265,54 @@ def began(plans, target):
     return min(records[0]['time'] for _, plan, records in plans if target in cells(plan))
 
 
-def history(root, campaign, target, now):
-    """The target's history (see the vocabulary) at time now, from the campaign in the directory campaign (as of):
-    [[t, p6, p24], ...] in time order."""
+def stood(root, campaign, target, now):
+    """The target's chance (measure) as of each of its history's times (see the vocabulary) at time now: [(t, chance),
+    ...] in time order."""
     ps = plans(root, campaign)
     prior, first = prior_of(root, campaign, target), began(ps, target)
     times = [first + QUARTER * k for k in range(1, math.ceil((now - first) / QUARTER))] + [now]
-    stood = [(t, as_of(ps, t)) for t in times]
-    chances = [(t, measure(root, campaign, p, prior, target)) for t, p in stood if target in live(p[-1][1], p[-1][2])]
-    return [[t, c['p'][HOURS.index(6)], c['p'][HOURS.index(24)]] for t, c in chances if c['p']]
+    then = [(t, as_of(ps, t)) for t in times]
+    chances = [(t, measure(root, campaign, p, prior, target)) for t, p in then if target in live(p[-1][1], p[-1][2])]
+    return [(t, c) for t, c in chances if c['p']]
+
+
+def rows(points):
+    """A history's rows (see the vocabulary), [[t, p6, p24], ...], from stood points."""
+    return [[t, c['p'][HOURS.index(6)], c['p'][HOURS.index(24)]] for t, c in points]
+
+
+def history(root, campaign, target, now):
+    """The target's history (see the vocabulary) at time now, from the campaign in the directory campaign (as of):
+    [[t, p6, p24], ...] in time order."""
+    return rows(stood(root, campaign, target, now))
+
+
+def odds(points, now, c):
+    """A campaign target's odds (see the vocabulary) from its stood points and its chance c as of now: exists at the
+    points' times and at now, curves at every fourth point back from the last, within BACK hours of it, and at now."""
+    last = points[-1][0]
+    picked = [(t, x) for t, x in points[::-1][::4] if t >= last - 3600 * BACK][::-1]
+    tail = [] if now == last else [(now, c)]           # now, unless the last point is now's (the target still live)
+    return dict(basis='campaign', ahead=list(AHEAD), exists=[[t, x['exists']] for t, x in points + tail],
+                curves=[[t, x['found']] for t, x in picked + tail])
+
+
+def lindy(p_exists, t0, now):
+    """The odds (see the vocabulary) of an exhaustive search begun at t0 with prior P(exists) p_exists and no estimate
+    of its own, at time now: exists its prior at t0 and now, as nothing measures the fraction covered; curves at each
+    whole hour back from now within BACK hours and after t0, and at now, lindy_found on the search's age then."""
+    times = [now - 3600 * k for k in range(BACK, -1, -1) if now - 3600 * k > t0]
+    return dict(basis='lindy', ahead=list(AHEAD), exists=[[t0, p_exists], [now, p_exists]],
+                curves=[[t, lindy_found((t - t0) / 3600, AHEAD)] for t in times])
 
 
 def shown(root, campaign, target, now):
-    """What the page shows of the target at time now: its chance (of) with its since and its history (history) added,
-    live or not: once its search stops, its history kept up to the stop, as the ETA chart keeps its records (dreeves,
-    2026-11-04: "shouldn't it stay there for posterity like the ETA graph does? is this another anti-magic violation?";
-    until then None once the target was not live, and so no chart)."""
-    return dict(of(root, campaign, target, now), since=began(plans(root, campaign), target), history=history(root, campaign, target, now))
+    """What the page shows of the target at time now: its chance (of) with its since, its history (history) and its
+    odds (odds) added, live or not: once its search stops, its history kept up to the stop, as the ETA chart keeps its
+    records (dreeves, 2026-11-04: "shouldn't it stay there for posterity like the ETA graph does? is this another
+    anti-magic violation?"; until then None once the target was not live, and so no chart)."""
+    c, points = of(root, campaign, target, now), stood(root, campaign, target, now)
+    return dict(c, since=began(plans(root, campaign), target), history=rows(points), odds=odds(points, now, c))
 
 
 def of(root, campaign, target, now):

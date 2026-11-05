@@ -291,6 +291,10 @@ DIRS = {(288, 10): os.path.join('scratch', 'x288')}
 # The directory of the witness campaign (see the vocabulary) that searches a tracked target, (N, ORDER), relative to HERE:
 # the beam campaign's plan 7 searches 528:12 (2026-11-03).  A campaign that turns to another target needs its entry here.
 CAMPAIGNS = {(528, 12): os.path.join('scratch', 'beam-campaign-20261103')}
+# the prior P(exists) of each target an exhaustive tracked search (one that finds a witness exactly when one exists)
+# covers, for its odds (see the vocabulary): 288:10 by searches/formtree's form trees, the prior the Symmetry
+# Conjecture screen's (AGENTS.md, 2026-11-03: "Estimated chance of a disproof at 288: 1% or less")
+EXHAUSTIVE = {(288, 10): 0.01}
 REFRESH = 60                          # seconds between rewrites under --watch (the section reloads the data file as often)
 NICE = 15                              # the niceness the process lowers itself to
 # The deepest level enumerated.  Splitting cost the runs themselves (their logs' split seconds, on loaded workers)
@@ -3121,7 +3125,7 @@ def js_text(surveys, now):
 # What run_data reads of a survey: an idle run's survey keeps no more (see idle; 2026-10-31: an overnight_v5.py
 # survey's open_list held 612,046 of 288@10's leaves).
 LIGHT = ('program', 'n', 'order', 'state', 'outcome', 'so_far', 'to_go', 'etas', 'passes', 'sea', 'display', 'workers',
-         'stages', 'total', 'pool', 'chance')
+         'stages', 'total', 'pool', 'chance', 'odds')
 
 
 def light(s):
@@ -3141,7 +3145,7 @@ def run_data(s):
     return ({'program': s['program'], 'n': s['n'], 'order': s['order'], 'state': s['state'], 'outcome': s['outcome'],
              'so_far': s['so_far'], 'to_go': s['to_go'],
              'etas': etas(s), 'statuses': list(SEA_STATUSES)} | s['sea'] | s.get('display', {}) |
-            {k: s[k] for k in ('workers', 'stages', 'total', 'pool', 'chance') if k in s} | {'stale': None})
+            {k: s[k] for k in ('workers', 'stages', 'total', 'pool', 'chance', 'odds') if k in s} | {'stale': None})
 
 
 def data_text(runs, now):
@@ -3431,7 +3435,16 @@ def journal_surveys(procs, now, cache, readings, idle):
                                         # its ETA, Gott's rule as every tracked search's (dreeves, 2026-11-04:
                                         # "shouldn't there always be an ETA graph, even when it's just based on the
                                         # lindy effect?"; from 2026-11-03, README [CON], its to_go was null)
-        return [s | ({'chance': chance.shown(HERE, CAMPAIGNS[key], target, now)} if key in CAMPAIGNS else {})]
+        # its odds (see the vocabulary) beside its chance, as the page reads them: a campaign's from chance.shown, an
+        # exhaustive search's by Lindy's rule while it runs on that alone (dreeves, 2026-11-04: "graphs first, then
+        # refine the estimates")
+        shown = chance.shown(HERE, CAMPAIGNS[key], target, now) if key in CAMPAIGNS else None
+        # TODO: error copy; says an exhaustive search's odds follow Lindy's rule, so they need it running with no estimate of its own, naming the target
+        assert key not in EXHAUSTIVE or (s['state'] == 'running' and s['display']['lindy']), \
+            f'Claude: "the odds of {target} follow Lindy\'s rule, but it is {s["state"]} with an estimate of its own or none"'
+        extra = ({'chance': {k: v for k, v in shown.items() if k != 'odds'}, 'odds': shown['odds']} if shown else
+                 {'odds': chance.lindy(EXHAUSTIVE[key], t0, now)} if key in EXHAUSTIVE else {})
+        return [s | extra]
     return units + [(identities[target], functools.partial(track, target, records)) for target, records in sorted(tracked.items())]
 
 

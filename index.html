@@ -1411,6 +1411,34 @@ Or just start identifying redundancies and repetition on the page and fix them o
             </svg>
             <p class="progress-chance-line">Probability of finding a bipartition within 6 h: <b data-chance-at="6"></b>; within 24 h: <b data-chance-at="24"></b>; <b data-chance-spent></b> CPU-hours so far.</p>
           </div>
+          <!-- two graphs, for a search with a model of its odds (progress.py's odds): above, the chance that a bipartition exists, given none found so far, over the hours of the search; below, the chance of finding one by each later time if one exists, one curve for each hour of the last day, each starting at 0 at its own "now", the latest bold and the older ones fainter; then a note on what the odds rest on -->
+          <div class="progress-odds" hidden>
+            <!-- title; says the graph below is the chance that a bipartition exists, given that the search has found none so far -->
+            <p class="progress-odds-title">Probability a bipartition exists, given none found so far, plotted over time</p>
+            <!-- aria label; says the chart shows the chance that a bipartition exists, given none found so far, over the hours of the search -->
+            <svg viewBox="0 0 640 160" role="img" aria-label="Pr(bipartition exists | none found so far) plotted over time">
+              <g data-exists-grid></g>
+              <polygon class="wash" data-exists-wash></polygon>
+              <polyline data-exists-line></polyline>
+              <g data-exists-marks></g>
+              <g data-exists-ticks="p"></g>
+              <g data-exists-ticks="t"></g>
+            </svg>
+            <!-- title; says the graph below is the chance of finding a bipartition by each time, if one exists, with one curve for each hour of the last day, the latest bold -->
+            <p class="progress-odds-title">Probability our search finds a bipartition by future time t <i>given a bipartition exists</i> and given nothing found so far, plotted afresh every hour</p>
+            <!-- aria label; says the chart shows the chance of finding a bipartition by each time, if one exists, one curve for each hour of the last day, each from its own hour on, the latest bold -->
+            <svg viewBox="0 0 640 200" role="img" aria-label="Pr(search finds a bipartition by time t | a bipartition exists and none found so far) plotted hourly">
+              <g data-found-grid></g>
+              <g data-found-curves></g>
+              <line class="nowline" data-found-now></line>
+              <g data-found-ticks="p"></g>
+              <g data-found-ticks="t"></g>
+            </svg>
+            <!-- says the search covers every case, so it finds a bipartition exactly when one exists, but nothing yet measures how much of it is covered, so the first graph holds its prior and the second follows Lindy's rule -->
+            <p class="progress-odds-basis" data-odds-basis="lindy" hidden>No measure yet of the size of the search space so the first graph is based only on priors and the second only on Lindy's rule (time remaining = elapsed time).</p>
+            <!-- says the odds come from the campaign's model of its search, fit to the rates its probe seeds measured -->
+            <p class="progress-odds-basis" data-odds-basis="campaign" hidden>Estimates based on a model of how fast we're covering the search space. This is all Claude of course. Something about the rates of “probe seeds”.</p>
+          </div>
           </details>
         </div>
       </template>

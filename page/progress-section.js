@@ -217,6 +217,7 @@
       stagesView(box, run);
       L.poolXs = poolChart(box.querySelector('.progress-pool'), run);
       L.chanceXs = chanceChart(box.querySelector('.progress-chance'), run);
+      oddsChart(box.querySelector('.progress-odds'), run);
       return L;
     });
     runsBox.replaceChildren(...boxes);
@@ -378,18 +379,22 @@
     const now = run.so_far / 3600, last = pts[pts.length - 1];
     const xmax = Math.max(now, 1 / 3600, ...pts.slice(-1).map(p => p[1] + p[2]));
     // the y axis's cap: a bit above the projected finish, the guide's level, and the elapsed time (dreeves, 2026-10-23:
-    // "truncate the y-axis a bit above the horizontal purple dashed line"); anything taller goes to the top panel
-    const ymax = HEAD * xmax;
-    const [xticks, xlabels] = axis(xmax, Math.ceil), [yticks, ylabels] = axis(ymax, Math.floor);
+    // "truncate the y-axis a bit above the horizontal purple dashed line"); anything taller goes to the top panel where
+    // that gives the main panel a larger scale than one axis up to the tallest value would, i.e. where the tallest is
+    // more than room / (room - TOP - GAP) times the cap (dreeves, 2026-11-04, of a break whose band top sat just above
+    // the cap: "sounds like your principled fix should work"); else one axis runs up to the tallest value
+    const ymax = HEAD * xmax, room = H - B - T;
+    const values = pts.flatMap(p => [p[2], p[4], p[1] + p[2], p[1] + p[4]]), tall = Math.max(ymax, ...values);
+    const over = (room - TOP - GAP) * tall > room * ymax, cap = over ? ymax : tall;
+    const [xticks, xlabels] = axis(xmax, Math.ceil), [yticks, ylabels] = axis(cap, Math.floor);
     const X = x => L + (W - L - R) * x / xticks[xticks.length - 1];
-    const cap = ymax;
     // The y axis broken canonically, the span between its panels elided (dreeves, 2026-10-23: "can you do something
     // more canonical for the y-axis break? maybe something like this?", a two-panel plot with slashes at the break; "i
     // guess i shouldn't have said truncation when i meant elision"): the values above the cap, the bands' tops mostly,
     // get a top panel TOP units tall, GAP above the main one, linear from lo2, the round tick of their unit at or below
     // the least of them but no lower than the cap, to hi2, the round tick at or above the greatest; with none, the top
     // panel and the gap have no height.
-    const tops = pts.flatMap(p => [p[2], p[4], p[1] + p[2], p[1] + p[4]]).filter(v => v > cap), over = tops.length > 0;
+    const tops = values.filter(v => v > cap);              // none unless over: the one axis's cap is the tallest
     const greatest = Math.max(cap, ...tops), least = Math.min(greatest, ...tops);
     const [s2, u2] = unitOf(greatest * 3600), k2 = s2 / 3600, step2 = tickStep(greatest / k2) * k2;
     const lo2 = Math.max(cap, Math.floor(least / step2) * step2);
@@ -586,6 +591,55 @@
   // "shouldn't it stay there for posterity like the ETA graph does?"), hidden for every other; with no point yet, its
   // axes alone and no tip; with no rate measured yet in the live plan (p empty), — for the chances now.  Returns the
   // points' x positions (in its viewBox), for the quals.
+  // A modeled search's odds (progress.py's odds; dreeves, 2026-11-04: "1. probability a partition exists, starting from
+  // whatever prior and going down as the search proceeds and doesn't find one ... 2. probability of finding a partition
+  // by time t *conditional on a partition existing* and also conditional on not having found one so far ... draw the
+  // current one bolded and the previous ones stay visible but are more and more faded"): above, P(exists) over the
+  // hours since its first point, a line over a wash down to 0, a dot on its last point, on round ticks of percent up to
+  // 1% at least; below, each curve of P(found by t | exists) from its own start, on one axis of hours from the earliest
+  // curve's start, percent 0 to 100, a dashed line at the latest's start, the latest bold (class now) and the earlier
+  // ones (class old) fainter the older they are; and the note of its own basis, the others hidden.  Hidden for a run
+  // with no odds.
+  function oddsChart(fig, run) {
+    fig.hidden = !run.odds;
+    if (fig.hidden) return;
+    const {exists, curves, ahead, basis} = run.odds;
+    const W = 640, L = 48, R = 72, T = 14, B = 30, q = sel => fig.querySelector(sel);
+    for (const e of fig.querySelectorAll('[data-odds-basis]')) e.hidden = e.dataset.oddsBasis !== basis;
+    const percents = top => { const step = tickStep(top); return Array.from({length: Math.ceil(top / step - 1e-9) + 1}, (_, i) => i * step); };
+    const frame = (name, H, X, Y, pticks, tticks, tlabels) => {   // the grid, axes and ticks of one of the two graphs
+      q(`[data-${name}-grid]`).replaceChildren(
+        ...pticks.slice(1).map(v => make('line', {class: 'grid', x1: L, y1: Y(v), x2: W - R, y2: Y(v)})),
+        make('line', {class: 'axis', x1: L, y1: Y(0), x2: W - R, y2: Y(0)}),
+        make('line', {class: 'yaxis', x1: L, y1: Y(0), x2: L, y2: T}));
+      q(`[data-${name}-ticks="p"]`).replaceChildren(...pticks.map((v, i) =>
+        make('text', {class: 'ytick', x: L - 6, y: Y(v) + 4, 'text-anchor': 'end'}, num(100 * v) + (i === pticks.length - 1 ? '%' : ''))));
+      q(`[data-${name}-ticks="t"]`).replaceChildren(...tticks.map((h, i) =>
+        make('text', {class: 'xtick', x: X(h), y: H - 8, 'text-anchor': 'middle'}, tlabels[i])));
+    };
+    {                                                 // P(exists), over the hours since its first point
+      const H = 160, t0 = exists[0][0], pts = exists.map(([t, p]) => [(t - t0) / 3600, p]);
+      const pticks = percents(Math.max(0.01, ...pts.map(([, p]) => p)));
+      const [tticks, tlabels] = axis(Math.max(1 / 4, ...pts.map(([h]) => h)), Math.ceil);
+      const X = h => L + (W - L - R) * h / tticks[tticks.length - 1], Y = v => H - B - (H - B - T) * v / pticks[pticks.length - 1];
+      frame('exists', H, X, Y, pticks, tticks, tlabels);
+      const line = pts.map(([h, p]) => [X(h), Y(p)]), last = line[line.length - 1];
+      set(q('[data-exists-line]'), {points: xy(line)});
+      set(q('[data-exists-wash]'), {points: xy([[line[0][0], Y(0)], ...line, [last[0], Y(0)]])});
+      q('[data-exists-marks]').replaceChildren(make('circle', {class: 'mark', r: 4, cx: last[0], cy: last[1]}));
+    }
+    {                                                 // P(found by t | exists), each curve from its own start
+      const H = 200, first = curves[0][0], latest = curves[curves.length - 1][0], back = Math.max((latest - first) / 3600, 1e-9);
+      const [tticks, tlabels] = axis((latest - first) / 3600 + ahead[ahead.length - 1], Math.ceil), pticks = [0, 0.25, 0.5, 0.75, 1];
+      const X = h => L + (W - L - R) * h / tticks[tticks.length - 1], Y = v => H - B - (H - B - T) * v;
+      frame('found', H, X, Y, pticks, tticks, tlabels);
+      q('[data-found-curves]').replaceChildren(...curves.map(([start, ps], i) => make('polyline', Object.assign(
+        {class: i === curves.length - 1 ? 'now' : 'old', points: xy(ahead.map((a, j) => [X((start - first) / 3600 + a), Y(ps[j])]))},
+        i === curves.length - 1 ? {} : {opacity: 0.12 + 0.48 * (1 - (latest - start) / 3600 / back)}))));
+      set(q('[data-found-now]'), {x1: X((latest - first) / 3600), y1: Y(0), x2: X((latest - first) / 3600), y2: T});
+    }
+  }
+
   function chanceChart(fig, run) {
     fig.hidden = !run.chance;
     if (fig.hidden) return [];

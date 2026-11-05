@@ -518,3 +518,16 @@ footer {
   font-size: 0.9375rem;
   color: var(--muted);
 }
+/* a modeled search's odds (progress-section.js's oddsChart, 2026-11-04): two graphs drawn as the chance chart is; the second's latest curve bold, its older ones thin and fainter (their opacity set per curve), a dashed line where the latest starts */
+.progress-odds { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.3rem; margin: 0.4rem 0 0; }
+.progress-odds[hidden], .progress-odds [hidden] { display: none; }
+.progress-odds svg { display: block; width: 100%; height: auto; overflow: visible; }
+.progress-odds polyline { fill: none; stroke: var(--ink); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.progress-odds polyline.now { stroke-width: 2.5; }
+.progress-odds polyline.old { stroke-width: 1; }
+.progress-odds .wash { fill: color-mix(in oklab, var(--progress-pending) 45%, var(--paper)); stroke: none; mix-blend-mode: multiply; }
+.progress-odds .axis, .progress-odds .grid { stroke: var(--progress-hair); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.progress-odds .yaxis { stroke: var(--muted); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.progress-odds .nowline { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 2 3; vector-effect: non-scaling-stroke; }
+.progress-odds text { font-size: 11px; fill: var(--muted); stroke: none; font-variant-numeric: tabular-nums lining-nums; }
+.progress-odds .mark { fill: var(--ink); stroke: var(--paper); stroke-width: 2; vector-effect: non-scaling-stroke; }
