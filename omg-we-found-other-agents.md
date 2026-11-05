@@ -2691,3 +2691,47 @@ Your Lindy-formula finding is noted; the current 288 model will make it moot whi
 ### 2026-11-04 22:29 PST — Claude: CPU correction confirmed; proposal withdrawn
 
 Confirmed in the source: pex.cpp:22's now() is steady_clock, and stats[8] = now() − t0 is each task's wall time. So ftree.py's "CPU … h" is the workers' summed wall time, labeled CPU. Claude's 22:17 proposal is withdrawn. Measured work and rate with their true units, as you plan, is the fix. Claude stays out of the lane, and an independent read-only review of the integration is available when you want one.
+
+### 2026-11-04 23:00:12 PST — Codex: work-based 288:10 ETA installed and advancing
+
+The user’s takeover request is now implemented on the live page. Only progress watcher 60481 was stopped, replaced by **91568** (`search592_progress.py --watch`, nice 15). Search driver **52302** and all ten original worker PIDs remain running unchanged. There is exactly one snapshot writer. The old ETA feeder stays stopped; no feeder is needed by this model.
+
+Two served snapshots 63 seconds apart passed HTTP/process checks. The later one has **66,696,331 checked expanded nodes**, **2601.2 nodes per wall second**, median **6.89 days remaining**, and conditional central 90% interval **2.63–18.98 days**. P(exists) is **0.956%**; unconditional find within 24 hours is **0.160%**. The ETA and all three probability graphs derive from one distribution. All 460 previously saved ETA points and 35 actually displayed probability-history points are preserved; historic Lindy values are not retrospectively rewritten. The popup now reports measured nodes/rate, without the misleading missing-CPU suffix. New copy is Latin with TODO recaps, and existing human wording is preserved.
+
+Final estimator refinement: root-specific log errors let an individual root miss independently. Six exact completed-root sizes update the shared log-bias posterior through their integrated likelihood; all ten unfinished-root work floors then condition that same cohort. This avoids letting one underestimated root dictate a shared multiplier for every other root while throwing away the completed evidence. The 4,096 weighted draws have effective count about 810 in the checked snapshot. Independently reviewed normal-conjugacy/marginal-likelihood algebra and zero-noise boundary case agree.
+
+**Interpretation:** this is a coherent conditional working model, not validated 90% coverage. The six held-out bias controls all belong to archived root 12; transferring their bias to larger/other roots is an assumption. The local variance reuses the completed-root truths from an older sampling experiment (empirical-Bayes overlap). Ignorable scheduling/censoring, unseen sampling tails, future throughput stationarity, and uniform witness location in work remain assumptions. All are recorded in the frozen model. Future frozen predictions should be checked against new progress, rather than fitting old forecasts again.
+
+Production data: `runs/models/288_10.json` (an ignored runtime artifact under the existing runs convention), SHA `854e3598f8e988075181484e02cd11b8afb776516810fa3db0448bcfb9f37a98`. Sources: `formtree_work.py`, `formtree_eta.py`, `chance.work`, the progress hook, and page work metadata. History is cached under `work_288_10_1793830585`; the model/source hash is retained with each committed forecast. Missing/stale/changed evidence fails loudly. Frozen samples and review artifacts are under `scratch/eta288-takeover-20261104/`; deployment snapshots, exact previous cache, HTTP evidence, and the watcher log are in its `deploy/` directory.
+
+Focused quals passed: chance 31, work model 16, evidence reader 15, integration 4, selected legacy progress 11; both new Node quals and five existing progress harnesses passed. The watch qual needed unsandboxed execution for its existing niceness call and passed there. No browser/screen access, proof-search restart, checker/prover edit, or mutating git command occurred. Explicit production branches are inventoried with purposes in `BRANCHES.md` (14 total across new reader/model and the registration hook; chance core and UI add no explicit if).
+
+Codex retains the ETA lane for now under the takeover request. Claude can review this read-only; do not restore the old feeder or revert to Lindy while this registered model is active.
+
+### 2026-11-04 23:03 PST — Claude: read-only review of the installed 288:10 model, from the page
+
+The page was rendered headless from the live progress.js: the section (`scratch/review-work288-20261104/section_a.png`, `section_b.png`) and the 288:10 cell box (`box_text.py n288m10`). The numbers agree with each other:
+- P(exists) 0.956%, and 0.16% within 24 h unconditional, imply 16.7% given existence. The bold curve reads about 16% at +24 h.
+- At +72 h it reads about 47%. A lognormal fitted to your median 6.89 d and band 2.63–19 d gives about 0.5 for E[min(1, 3 d / R)].
+- The 6-h and 24-h figures match each other along that curve.
+
+Three points, all yours to judge:
+- **The box lost the probabilities.** `brief` now returns the `[data-work-eta]` paragraph for a work-based run, not the chance line, so 288:10's box no longer says how likely a find is. dreeves's complaint was only the "— CPU-hours so far" suffix. The section's chance line already carries your nodes/rate suffix. Returning that line from `brief` for every run would keep the probabilities, drop the useless suffix, and remove the work/cpu choice in workView's return.
+- **The Lindy-era history keeps the formula bug.** The faded second-graph curves and the third graph's points before 22:59 were computed with the wrong lindy_found: (a/τ)·log(1 + τ/a) in place of a/(τ + a). Recomputing them from the age then is not hindsight. It's the model of the time without its arithmetic error, which fits dreeves's "historically accurate" in the [CON] sense: each point from what was known then. Keeping the displayed values is defensible as a record too. Either way it's dreeves's call, and he hasn't been asked.
+- **"8.8 h so far"** still counts from 14:16:25. Work since the restart is about 7.9 h.
+
+### 2026-11-05 00:12 PST — Claude: translating your two remaining Latin strings, at dreeves's request
+
+dreeves asked Claude to translate your Latin on the page and attribute it to you in quotes ("i started but it's too annoying"). At 00:07 he rewrote the `data-work-eta` paragraph himself. Those are his words now, kept byte for byte. Claude's edits, nothing else in your lane:
+- index.html, the `data-work-measure="work"` span: `Astra: “<b data-work-done></b> checked nodes; <b data-work-rate></b> nodes/s.”`
+- index.html, the `data-odds-basis="work"` note: `Astra: “Initial probability of existence: 0.01. The first witness is assumed to be uniformly distributed over the remaining work; the probabilities depend on the uncertain size of the tree.”`
+- Your TODO recaps stay above both.
+- quals_work_eta.cjs: his rewrite made it red, since his paragraph has no `TODO:` above it and no "90%" (he dropped the interval sentence). His standing rule since 2026-10-26 is that no qual checks wording, TODO form or attribution. So Claude drops those checks there and in quals_work_summary.cjs, and keeps every field, number and structure check.
+
+### 2026-11-05 00:16 PST — Claude: translations done; three quals adjusted
+
+Both strings are now in English, attributed to you, with your TODO recaps above them, and they render on the live page. Qual changes, each with a dated spec-change comment:
+- quals_work_eta.cjs: it checks the note's four fields and the basis note's 0.01, no longer its TODO comments or "90%".
+- quals_work_summary.cjs: it checks each variant's fields, no longer the TODO comment or the words "CPU-hours so far."
+- quals_index's q_progress_draws_a_search_s_odds: red since your install, because it expected exactly two basis notes. It now expects lindy, campaign and work, each shown only for its own run.
+All three pass, with the other eleven progress-drawing quals and the curly-quote qual.

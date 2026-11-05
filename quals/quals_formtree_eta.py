@@ -25,6 +25,52 @@ def work(a=0, b=0, complete=False):
 
 
 class Model(unittest.TestCase):
+    def test_completed_root_updates_shared_normal_and_pending_floor(self):
+        # Replicata: one exact root is twice its constant bootstrap base, with
+        # prior shared log bias N(0,1) and local log SD 1; another root is censored.
+        # Expectata: shared log bias is N(log(2)/2,1/2) before censoring; pending
+        # survival uses that posterior, and completed roots draw no local error.
+        from scipy.special import ndtr
+        m=model();m['root_log_sd']=1.;m['roots'][0]['blocks']=[[10]*8,[10]*8]
+        x=eta.draws(m,work(20,200,True),4096)
+        mu=np.log(2)/2;sd=np.sqrt(.5)
+        np.testing.assert_allclose(x['bias_mean'],mu)
+        self.assertAlmostEqual(x['bias_sd'],sd)
+        np.testing.assert_array_equal(x['proposal'][:,0],x['base'][:,0])
+        survival=ndtr((mu-np.log(200/x['proposal'][:,1]))/sd)
+        np.testing.assert_allclose(x['weight'],survival/survival.sum(),rtol=1e-12)
+        self.assertTrue(np.all(x['trees'][:,1]>200))
+
+    def test_completed_marginal_likelihood_reweights_bootstrap_rows(self):
+        # Replicata: the exact completed root is 20; bootstrap bases 10,20,30
+        # have masses1/4,1/2,1/4. Shared and local log variances are each1.
+        # Expectata: row masses multiply the N(0,2) density at log(20/base),
+        # even without any pending-root floor; fixing totals alone misses this.
+        m=model();m['root_log_sd']=1.
+        x=eta.draws(m,work(20,0,True),50000)
+        base=np.array([10.,20.,30.]);prior=np.array([.25,.5,.25])
+        density=np.exp(-np.log(20/base)**2/4)
+        expected=prior*density/(prior@density)
+        actual=np.array([x['weight'][x['base'][:,0]==b].sum() for b in base])
+        np.testing.assert_allclose(actual,expected,atol=.01,rtol=0)
+        np.testing.assert_allclose(x['bias_mean'],np.log(20/x['base'][:,0])/2)
+
+    def test_zero_local_noise_one_exact_root_pins_shared_bias(self):
+        # Replicata: one completed root and zero local noise; then two exact
+        # roots under the same singular observation model.
+        # Expectata: the first fixes B=17/base, with normal-prior density weights;
+        # multiple zero-noise observations are explicitly unsupported, not jittered.
+        m=model();x=eta.draws(m,work(17,0,True),1024)
+        y=np.log(17/x['base'][:,0])
+        np.testing.assert_allclose(x['trees'][:,1]/x['proposal'][:,1],np.exp(y))
+        expected=np.exp(-y*y/2);expected/=expected.sum()
+        np.testing.assert_allclose(x['weight'],expected)
+        self.assertEqual(x['bias_sd'],0.)
+        m['roots'].append(dict(name='c',blocks=[[100]*8,[300]*8]))
+        w=dict(done=187,rate=10.,roots=[dict(name='a',done=17,complete=True),
+               dict(name='b',done=170,complete=True),dict(name='c',done=0,complete=False)])
+        with self.assertRaises(AssertionError):eta.draws(m,w)
+
     def test_exact_root_is_not_resampled_or_counted_twice(self):
         # Replicata: root a has closed at 17; b remains open.
         # Expectata: every total contains exactly 17 from a, not its sampled size.

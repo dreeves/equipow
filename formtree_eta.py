@@ -17,17 +17,20 @@ import re
 import chance
 import formtree_work
 import numpy as np
-from scipy.special import ndtr, ndtri
+from scipy.special import ndtr, ndtri, log_ndtr, ndtri_exp
 
 
 def draws(model, work, count=4096):
-    """Weighted total-work/rate draws, conditioned on every unfinished root.
+    """Weighted total-work/rate draws, conditioned on exact and unfinished roots.
 
     base resamples whole eight-dive blocks independently within each root.
     Independent lognormal local discrepancies first scale the bootstrap bases.
-    A single shared lognormal discrepancy then scales all unfinished roots. Its survival
-    probability above their maximum required factor reweights the bootstrap;
-    its conditional inverse CDF then samples that factor without rejection.
+    Completed log ratios update the normal shared log discrepancy analytically;
+    their integrated likelihood reweights each bootstrap row. Pending-root lower
+    bounds then multiply that weight by the updated shared-factor survival, and
+    its conditional inverse CDF samples the remaining uncertainty without rejection.
+    With zero local noise, one completed root fixes the shared factor exactly;
+    multiple zero-noise completed observations are explicitly unsupported.
     Rates are nodes per wall second, with shared persistent log uncertainty.
     """
     assert isinstance(count,int) and count>0
@@ -48,22 +51,48 @@ def draws(model, work, count=4096):
         means=blocks.mean(axis=1)
         base.append(means[rng.integers(len(means),size=(count,len(means)))].mean(axis=1))
     base=np.stack(base,axis=1)
-    proposal=base*np.exp(local_sd*rng.standard_normal(base.shape))
+    completed=~pending
+    bias_mean=np.full(count,mu);bias_sd=sd;log_likelihood=np.zeros(count)
+    if completed.any():
+        assert (done[completed]>0).all()
+        y=np.log(done[completed])-np.log(base[:,completed])
+        n=y.shape[1]
+        if local_sd==0:
+            assert n==1
+            bias_mean=y[:,0];bias_sd=0.
+            log_likelihood=-.5*((bias_mean-mu)/sd)**2
+        else:
+            ybar=y.mean(axis=1);den=local_sd**2+n*sd**2
+            bias_mean=mu+n*sd**2*(ybar-mu)/den
+            bias_sd=sd*local_sd/np.sqrt(den)
+            quad=((y-ybar[:,None])**2).sum(axis=1)/local_sd**2+n*(ybar-mu)**2/den
+            log_likelihood=-.5*quad
+    proposal=base.copy()
+    proposal[:,pending]*=np.exp(local_sd*rng.standard_normal((count,int(pending.sum()))))
     assert np.isfinite(proposal).all() and (proposal>0).all()
     threshold=(done[pending]/proposal[:,pending]).max(axis=1)
-    with np.errstate(divide='ignore'):
-        z=(np.log(threshold)-mu)/sd
-    survival=ndtr(-z)
-    assert np.isfinite(survival).all() and (survival>0).all()
-    u=rng.uniform(np.finfo(float).eps,1.,count)
-    factor=np.exp(mu-sd*ndtri(u*survival))
-    trees=np.broadcast_to(done,base.shape).copy()
+    if bias_sd==0:
+        factor=np.exp(bias_mean);keep=factor>threshold
+        assert keep.any()
+        base,proposal,bias_mean,log_likelihood,factor=(x[keep] for x in
+            (base,proposal,bias_mean,log_likelihood,factor))
+        log_weight=log_likelihood
+    else:
+        with np.errstate(divide='ignore'):
+            z=(np.log(threshold)-bias_mean)/bias_sd
+        log_survival=log_ndtr(-z)
+        u=rng.uniform(np.finfo(float).eps,1.,count)
+        factor=np.exp(bias_mean-bias_sd*ndtri_exp(np.log(u)+log_survival))
+        log_weight=log_likelihood+log_survival
+    assert np.isfinite(log_weight).any() and not np.isnan(log_weight).any()
+    weight=np.exp(log_weight-log_weight.max());weight/=weight.sum()
+    trees=np.broadcast_to(done,proposal.shape).copy()
     trees[:,pending]=proposal[:,pending]*factor[:,None]
-    rate=work['rate']*np.exp(rsd*rng.standard_normal(count))
+    rate=work['rate']*np.exp(rsd*rng.standard_normal(len(factor)))
     assert np.isfinite(trees).all() and (trees[:,pending]>done[pending]).all()
     assert np.isfinite(rate).all() and (rate>0).all()
-    return dict(total=trees.sum(axis=1),rate=rate,weight=survival/survival.sum(),
-                trees=trees,base=base,proposal=proposal)
+    return dict(total=trees.sum(axis=1),rate=rate,weight=weight,trees=trees,base=base,proposal=proposal,
+                bias_mean=bias_mean,bias_sd=bias_sd,completed_log_likelihood=log_likelihood)
 
 
 def history(points, current, now, period=900):

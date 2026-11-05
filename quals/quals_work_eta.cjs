@@ -12,11 +12,15 @@ new vm.Script(script);
 const source = script.match(/  function workView\(box, run\) \{[\s\S]*?\n  \}/);
 assert.ok(source);
 assert.ok(script.includes('      workView(box, run);'));
-const note = html.match(/<!-- TODO:[^>]*-->\s*<p[^>]*data-work-eta[^>]*>([\s\S]*?)<\/p>/);
+// Spec change (Claude, 2026-11-05): dreeves rewrote the work note in his own words, with no TODO comment and no 90%
+// sentence, and by his rule since 2026-10-26 no qual checks wording, TODO comments or attribution; so the note's
+// fields and the prior's number are checked, not its words.
+const note = html.match(/<p[^>]*data-work-eta[^>]*>([\s\S]*?)<\/p>/);
 assert.ok(note);
-assert.match(note[1], /90%/);
 for (const key of ['samples', 'done', 'rate', 'source_time']) assert.ok(note[1].includes(`data-work-${key}`));
-assert.match(html, /<!-- TODO:[^>]*-->\s*<p[^>]*data-odds-basis="work"[^>]*>[\s\S]*?0\.01[\s\S]*?<\/p>/);
+const basisNote = html.match(/<p[^>]*data-odds-basis="work"[^>]*>([\s\S]*?)<\/p>/);
+assert.ok(basisNote);
+assert.match(basisNote[1], /0\.01/);
 const oddsMarkup = html.slice(html.indexOf('<div class="progress-odds"'), html.indexOf('</details>', html.indexOf('<div class="progress-odds"')));
 assert.equal((oddsMarkup.match(/<svg /g) || []).length, 3);
 assert.ok(oddsMarkup.indexOf('data-exists-') < oddsMarkup.indexOf('data-found-'));

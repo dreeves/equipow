@@ -11,8 +11,10 @@ const script = fs.readFileSync(path.join(root, 'page/progress-section.js'), 'utf
 const brief = script.match(/  function brief\(run\) \{[\s\S]*?\n  \}/)[0];
 const workView = script.match(/  function workView\(box, run\) \{[\s\S]*?\n  \}/)[0];
 const chanceLine = html.match(/<p class="progress-chance-line">([\s\S]*?)<\/p>/)[1];
-assert.match(chanceLine, /<span data-work-measure="cpu"><b data-chance-spent><\/b> CPU-hours so far\.<\/span>/);
-assert.match(chanceLine, /<!-- TODO:[^>]*-->\s*<span data-work-measure="work" hidden>.*data-work-done.*data-work-rate.*<\/span>/);
+// Spec change (Claude, 2026-11-05, translating Astra's Latin at dreeves's request): by dreeves's rule since
+// 2026-10-26, no qual checks wording, TODO comments or attribution, so each variant's fields are checked, not its words.
+assert.match(chanceLine, /<span data-work-measure="cpu">[^<]*<b data-chance-spent><\/b>[^<]*<\/span>/);
+assert.match(chanceLine, /<span data-work-measure="work" hidden>.*data-work-done.*data-work-rate.*<\/span>/);
 assert.match(chanceLine, /data-chance-at="6"/);
 assert.match(chanceLine, /data-chance-at="24"/);
 assert.doesNotMatch(chanceLine, /^<[^>]*hidden/);

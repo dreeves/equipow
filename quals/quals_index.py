@@ -5491,7 +5491,9 @@ def q_progress_draws_a_search_s_odds():
         assert [c[0] for c in g['curves']] == [73] * len(odds['curves']), (name, g['curves'])
         assert [c[1] for c in g['curves']] == ['old'] * (len(odds['curves']) - 1) + ['now'] and g['curves'][-1][2] == 1, (name, g['curves'][-3:])
         assert all(a[2] < b[2] for a, b in zip(g['curves'], g['curves'][1:])), (name, [c[2] for c in g['curves']])
-        assert g['bases'] == {'lindy': name != 'lindy', 'campaign': name != 'campaign'}, (name, g['bases'])
+        # Spec change (Claude, 2026-11-05): Astra's work model (installed 2026-11-04 23:00, committed in 6000eaa) added a
+        # third basis note, work, hidden for both of these runs.
+        assert g['bases'] == {b: name != b for b in ('lindy', 'campaign', 'work')}, (name, g['bases'])
 
 
 def q_progress_draws_the_chance_after_the_odds():
