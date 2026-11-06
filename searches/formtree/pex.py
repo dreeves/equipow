@@ -24,8 +24,7 @@ def moment_rows(n, m):
     return np.array([[float(a) for a in row] for row in Q]), U
 def write_config(n, m, mods, path, wmax=200):
     import mpmath as mp
-    from adapt import problem, is2, size
-    from dualforms import dual_forms
+    from cellconfig import problem, is2, size, dual_forms
     out = [f'{n} {m} {len(mods)}']
     for M in mods:
         B, piv, order, R = problem(n, m, M); nb = len(piv); mult = 2 if is2(M) else 1
