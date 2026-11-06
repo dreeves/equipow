@@ -215,8 +215,47 @@ class Attachment(unittest.TestCase):
             again=eta.attach(copy.deepcopy(self.s),self.root,self.path,.01,2100.,cache)
         self.assertEqual(cache['points'],first)
         self.assertEqual(again['chance']['history'][:2],old['chance']['history'])
+        # Spec extension, dreeves2026-11-06: learned uncertainty and [BUL] expose
+        # the model interval's coverage and actual posterior/sampling diagnostics.
         self.assertEqual(set(again['display']['work_eta']),{'source_time','samples','nodes','done','rate',
-             'roots_done','roots_total','model','interval','discrepancy_factor','root_discrepancy_factor','rate_log_sd'})
+             'roots_done','roots_total','model','interval','discrepancy_factor','root_discrepancy_factor','rate_log_sd',
+             'coverage','root_log_sd_posterior','effective_samples','forecast_samples'})
+
+    def test_learned_scatter_schema_and_current_uncertainty_are_published(self):
+        # Replicata: a v2 prior over root scatter, retaining frozen search inputs.
+        # Expectata: a validated model, normalized posterior summary and explicit
+        # central90% interpretation; changing only a version number remains invalid.
+        self.model.update(version=2,root_log_sd=.75,root_log_sd_uncertainty=.5)
+        self.path.write_text(json.dumps(self.model))
+        loaded,_=eta.load(self.root,self.path)
+        self.assertEqual(loaded,self.model)
+        with mock.patch.object(eta.formtree_work,'read',return_value=self.w):
+            result=eta.attach(copy.deepcopy(self.s),self.root,self.path,.01,2000.,{})
+        meta=result['display']['work_eta']
+        self.assertEqual(meta['coverage'],.9)
+        self.assertEqual(meta['forecast_samples'],65536)
+        self.assertGreater(meta['effective_samples'],100)
+        scatter=meta['root_log_sd_posterior']
+        self.assertLess(scatter['lo'],scatter['median'])
+        self.assertLess(scatter['median'],scatter['hi'])
+        self.assertGreater(scatter['lo'],0)
+        for value in (-1.,float('nan'),float('inf')):
+            self.model['root_log_sd_uncertainty']=value
+            self.path.write_text(json.dumps(self.model))
+            with self.subTest(value=value),self.assertRaises(AssertionError):eta.load(self.root,self.path)
+
+    def test_numerically_concentrated_posterior_is_not_published(self):
+        # Replicata: a v2 importance proposal leaves only one effective draw.
+        # Expectata: refuse numerical false precision before committing a forecast.
+        self.model.update(version=2,root_log_sd=.75,root_log_sd_uncertainty=.5)
+        self.path.write_text(json.dumps(self.model))
+        samples=dict(total=np.array([100.,200.]),rate=np.array([10.,10.]),
+                     weight=np.array([1.,0.]),root_log_sd=np.array([.5,.8]))
+        cache={}
+        with mock.patch.object(eta.formtree_work,'read',return_value=self.w), \
+             mock.patch.object(eta,'draws',return_value=samples),self.assertRaises(AssertionError):
+            eta.attach(copy.deepcopy(self.s),self.root,self.path,.01,2000.,cache)
+        self.assertNotIn('points',cache)
 
     def test_paused_preserves_posterior_and_terminal_is_zero_remaining(self):
         # Replicata: active snapshot, paused with no throughput, then all roots closed.

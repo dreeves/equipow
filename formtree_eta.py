@@ -5,8 +5,9 @@ A shared multiplicative discrepancy represents errors that more root samples
 cannot average away. Remaining roots condition that factor jointly on their
 observed work; completed roots contribute their exact sizes. Independent local
 log discrepancies allow a root-specific miss without imposing it on every root.
-The local and shared variance components are not independently identified by
-the small calibration sample; their combined variance is an explicit assumption.
+Version 1 fixes the local scatter. Version 2 gives it a lognormal prior and
+learns it from exact completions and unfinished-root survival together.
+The shared-bias prior and exchangeability across roots remain assumptions.
 """
 import copy
 import hashlib
@@ -42,6 +43,9 @@ def draws(model, work, count=4096):
     assert np.isfinite(work['rate']) and work['rate']>0
     mu,sd,rsd,local_sd=(model[k] for k in ('log_bias','discrepancy_log_sd','rate_log_sd','root_log_sd'))
     assert np.isfinite([mu,sd,rsd,local_sd]).all() and sd>0 and rsd>=0 and local_sd>=0
+    scatter_uncertainty=model.get('root_log_sd_uncertainty',0.)
+    assert np.isfinite(scatter_uncertainty) and scatter_uncertainty>=0
+    assert scatter_uncertainty==0 or local_sd>0
     rng=np.random.default_rng(model['seed'])
     base=[]
     for root in model['roots']:
@@ -51,13 +55,17 @@ def draws(model, work, count=4096):
         means=blocks.mean(axis=1)
         base.append(means[rng.integers(len(means),size=(count,len(means)))].mean(axis=1))
     base=np.stack(base,axis=1)
+    # A prior on log scatter lets exact AND unfinished roots learn its size;
+    # retaining the draws integrates that uncertainty rather than plugging in a fit.
+    if scatter_uncertainty>0:
+        local_sd=local_sd*np.exp(scatter_uncertainty*rng.standard_normal(count))
     completed=~pending
     bias_mean=np.full(count,mu);bias_sd=sd;log_likelihood=np.zeros(count)
     if completed.any():
         assert (done[completed]>0).all()
         y=np.log(done[completed])-np.log(base[:,completed])
         n=y.shape[1]
-        if local_sd==0:
+        if np.all(local_sd==0):
             assert n==1
             bias_mean=y[:,0];bias_sd=0.
             log_likelihood=-.5*((bias_mean-mu)/sd)**2
@@ -67,11 +75,15 @@ def draws(model, work, count=4096):
             bias_sd=sd*local_sd/np.sqrt(den)
             quad=((y-ybar[:,None])**2).sum(axis=1)/local_sd**2+n*(ybar-mu)**2/den
             log_likelihood=-.5*quad
+            # det(sigma^2 I + sd^2 11') varies with sampled sigma and must not
+            # disappear from its likelihood. For fixed sigma this is constant.
+            log_likelihood-=.5*((n-1)*np.log(local_sd**2)+np.log(den))
     proposal=base.copy()
-    proposal[:,pending]*=np.exp(local_sd*rng.standard_normal((count,int(pending.sum()))))
+    proposal[:,pending]*=np.exp(np.broadcast_to(local_sd,(count,))[:,None]*
+                               rng.standard_normal((count,int(pending.sum()))))
     assert np.isfinite(proposal).all() and (proposal>0).all()
     threshold=(done[pending]/proposal[:,pending]).max(axis=1)
-    if bias_sd==0:
+    if np.all(bias_sd==0):
         factor=np.exp(bias_mean);keep=factor>threshold
         assert keep.any()
         base,proposal,bias_mean,log_likelihood,factor=(x[keep] for x in
@@ -92,7 +104,8 @@ def draws(model, work, count=4096):
     assert np.isfinite(trees).all() and (trees[:,pending]>done[pending]).all()
     assert np.isfinite(rate).all() and (rate>0).all()
     return dict(total=trees.sum(axis=1),rate=rate,weight=weight,trees=trees,base=base,proposal=proposal,
-                bias_mean=bias_mean,bias_sd=bias_sd,completed_log_likelihood=log_likelihood)
+                bias_mean=bias_mean,bias_sd=bias_sd,completed_log_likelihood=log_likelihood,
+                root_log_sd=np.broadcast_to(local_sd,(len(weight),)))
 
 
 def history(points, current, now, period=900):
@@ -111,15 +124,19 @@ def load(root, path, target='288:10'):
     """Read a versioned model, validate its schema and input hashes, and return it with its byte hash."""
     root=Path(root);path=root/path
     data=path.read_bytes();model=json.loads(data)
+    assert type(model['version']) is int and model['version'] in (1,2)
+    extra={1:set(),2:{'root_log_sd_uncertainty'}}[model['version']]
     assert set(model)=={'version','kind','target','seed','roots','checks','log_bias','discrepancy_log_sd',
-                        'rate_log_sd','root_log_sd','samples','alpha','provenance','calibration','assumptions'}
-    assert type(model['version']) is int and model['version']==1
+                        'rate_log_sd','root_log_sd','samples','alpha','provenance','calibration','assumptions'} | extra
     assert model['kind']=='formtree' and model['target']==target
     assert type(model['seed']) is int and model['seed']>=0
     assert type(model['samples']) is int and model['samples']>0
     assert all(type(model[k]) in (int,float) and math.isfinite(model[k]) for k in
                ('log_bias','discrepancy_log_sd','rate_log_sd','root_log_sd','alpha'))
     assert model['discrepancy_log_sd']>0 and model['rate_log_sd']>=0 and model['root_log_sd']>=0 and model['alpha']>=0
+    uncertainty=model.get('root_log_sd_uncertainty',0.)
+    assert type(uncertainty) in (int,float) and math.isfinite(uncertainty) and uncertainty>=0
+    assert model['version']==1 or uncertainty>0 and model['root_log_sd']>0
     roots=model['roots'];assert type(roots) is list and roots
     names=[];samples=0
     for row in roots:
@@ -180,12 +197,21 @@ def attach(s, root, model_path, p_exists, now, cache):
         cache['legacy']=_legacy(s,root,p_exists,now)
     legacy=cache['legacy'];complete=all(r['complete'] for r in w['roots'])
     zero=dict(median=0.,lo=0.,hi=0.)
+    uncertainty=dict(root_log_sd_posterior=None,effective_samples=None,forecast_samples=0)
     if complete:
         c=dict(cpu_hours=None,rate=None,cores=None,hours=list(chance.HOURS),exists=0.,
                found=[0.]*len(chance.AHEAD),p=[0.]*len(chance.HOURS))
         to_go=zero if active else None
     elif active:
-        samples=draws(model,w)
+        samples=draws(model,w,count={1:4096,2:65536}[model['version']])
+        order=np.argsort(samples['root_log_sd'])
+        quantiles=np.interp([.05,.5,.95],np.cumsum(samples['weight'][order]),samples['root_log_sd'][order])
+        uncertainty=dict(root_log_sd_posterior=dict(zip(('lo','median','hi'),quantiles.tolist())),
+                         effective_samples=float(1/(samples['weight']@samples['weight'])),
+                         forecast_samples=len(samples['weight']))
+        # Numerical adequacy for coarse tail quantiles; not a coverage guarantee.
+        # A concentrated proposal must not publish an apparently precise forecast.
+        assert model['version']==1 or uncertainty['effective_samples']>=1000, uncertainty
         forecast=chance.work(p_exists,samples['total'],w['done'],samples['rate']*3600,samples['weight'])
         c={k:forecast[k] for k in ('cpu_hours','rate','cores','hours','exists','found','p')}
         to_go=forecast['to_go']
@@ -195,7 +221,7 @@ def attach(s, root, model_path, p_exists, now, cache):
         c=dict(cpu_hours=None,rate=None,cores=None,hours=list(chance.HOURS),exists=posterior,
                found=[0.]*len(chance.AHEAD),p=[0.]*len(chance.HOURS))
         to_go=None
-    current=dict(chance=c,model=digest,done=w['done'],rate=w['rate'])
+    current=dict(chance=c,model=digest,done=w['done'],rate=w['rate'],uncertainty=uncertainty)
     if active:
         points=history(cache.setdefault('points',[[now,copy.deepcopy(current)]]),copy.deepcopy(current),now)
         cache['shown']=copy.deepcopy(points)
@@ -207,12 +233,15 @@ def attach(s, root, model_path, p_exists, now, cache):
     odds['exists']=copy.deepcopy(legacy['exists'])+odds['exists']
     odds['curves']=[copy.deepcopy(r) for r in legacy['curves'] if r[0]>=now-3600*chance.BACK]+odds['curves']
     shown=dict(c,since=legacy['since'],history=copy.deepcopy(legacy['history'])+chance.rows(measured))
+    # The discrepancy-factor fields describe frozen priors; the learned root
+    # scatter is reported separately in root_log_sd_posterior.
     metadata=dict(source_time=w['source_time'],samples=model['samples'],
                   nodes=float(sum(np.asarray(r['blocks']).mean() for r in model['roots'])),
                   done=w['done'],rate=w['rate'],roots_done=sum(r['complete'] for r in w['roots']),
                   roots_total=len(w['roots']),model='importance',interval='conditional',
                   discrepancy_factor=math.exp(model['discrepancy_log_sd']),
-                  root_discrepancy_factor=math.exp(model['root_log_sd']),rate_log_sd=model['rate_log_sd'])
+                  root_discrepancy_factor=math.exp(model['root_log_sd']),rate_log_sd=model['rate_log_sd'],
+                  coverage=.9,**uncertainty)
     if to_go is not None:
         s['etas'][str(float(now))]=[to_go[k]/3600 for k in ('median','lo','hi')]
     return s | dict(to_go=to_go,display=s['display'] | dict(lindy=False,work_eta=metadata),chance=shown,odds=odds)

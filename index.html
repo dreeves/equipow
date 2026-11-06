@@ -1707,18 +1707,13 @@ of them with m ≡ 0, 1, 2 mod 3) and two exceptional signs, and d_0 ≡ d_3 (mo
         <div class="progress-run">
           <details>
           <summary><h3><span class="nw"><i>m</i><sup>*</sup>(<span data-n></span>) ≥ <span data-order></span>?</span> <code data-program></code></h3><span class="progress-run-state"><span data-label="running">running</span><span data-label="paused">paused</span><span data-label="frozen">frozen</span><span data-label="completed">completed</span><span data-label="aborted">aborted</span></span><!-- Says the run's data are stale: the watcher could not survey it in time, or at all, so the data shown are those of the time given --><span class="progress-stale" data-stale hidden>Stale (<span data-stale-at></span>)</span></summary>
-          <div class="progress-bar" aria-hidden="true"><span data-bar="so-far"></span><span data-bar="lo"></span><span data-bar="band"></span><i data-bar="median"></i></div>
-          <!-- explains that the bar is a running-time scale, identifies its elapsed segment, lower estimate, finish range and median, and distinguishes its upper estimate from guaranteed completion; without an ETA it shows elapsed time alone. English in an Astra quote authorized by dreeves, 2026-11-05. -->
-          <p class="progress-bar-caption">Blue = time spent; darker pink = min time remaining; pale pink = 90%-ish confidence band; red tick = median finish.</p>
-          <canvas role="img" aria-label="One dot per sub-case, color-coded with status, each subtree a block of its own"></canvas>
-          <ul class="progress-key">
-            <li><span class="progress-sw" data-status="settled"></span>settled <span data-count="settled"></span></li>
-            <li><span class="progress-sw" data-status="open"></span>open <span data-count="open"></span></li>
-            <li><span class="progress-sw" data-status="split"></span>split <span data-count="split"></span></li>
-            <li><span class="progress-sw" data-status="pending"></span>pending <span data-count="pending"></span></li>
-            <li><span class="progress-sw" data-status="running"></span>running <span data-count="running"></span></li>
-          </ul>
-          <p class="progress-readout" data-readout>Hover over the dots for a subtree's key and counts.</p>
+          <div class="progress-time">
+          <div class="progress-bar" aria-hidden="true"><span data-bar="so-far"></span><span data-bar="lo"></span><span data-bar="band"><svg class="progress-brace" viewBox="0 0 100 16" preserveAspectRatio="none"><path d="M0 16 C0 8 2 8 5 8 H45 C49 8 50 6 50 0 C50 6 51 8 55 8 H95 C98 8 100 8 100 16" vector-effect="non-scaling-stroke"></path></svg></span><i data-bar="median"></i></div>
+          <!-- TODO: the bar summarizes the latest time estimate, not the fraction of work completed; blue is elapsed time, red reaches the lower forecast, purple spans the finish interval, and the bullseye marks its median. Coverage is shown only when explicitly supplied by the conditional model; the interval is not a guaranteed bound. English in an Astra quote authorized by dreeves. -->
+          <!-- Previous human-written caption, retained verbatim while the legend changes with PRG/BUL:
+          Blue = time spent; darker pink = min time remaining; pale pink = 90%-ish confidence band; red tick = median finish.
+          -->
+          <p class="progress-bar-caption">Astra: “Time scale: <span class="spent">blue = time spent</span>; <span class="togo">red = time to the lower estimate</span>; <span class="total">purple brace = finish range<span data-bar-coverage hidden> (<b data-bar-percent></b> conditional model interval)</span>; bullseye = median finish</span>. The range is not a guarantee.”</p>
           <div class="progress-eta">
             <p class="progress-tip" data-tip></p>
             <svg viewBox="0 0 640 240" role="img" aria-label="The recorded ETAs against the hours of running, with the elapsed time and elapsed + ETA">
@@ -1766,6 +1761,16 @@ of them with m ≡ 0, 1, 2 mod 3) and two exceptional signs, and d_0 ≡ d_3 (mo
           <p class="progress-stages" data-stages hidden>The above graph covers <code data-stage-now></code> only; then <span data-stages-later></span>; so total time to a proof would be <b data-stages-total></b>.
             <!-- TODO: says the line's ranges hold only under the model's assumptions (each later stage's measured CPU costs, every one of its processes at the share of a core the run's workers get now, and perfect overlap where a stage's parts run at once), and leave out waits in a stage's pipeline, waits for storage and changes in the machine's load, so that the real time to a proof is less certain than the ranges show -->
             Claude: “These ranges assume measured CPU costs, today's share of a core for every process, and perfect overlap where parts run at once; pipeline waits, storage waits and changes in the machine's load are not in them, so the time to a proof is less certain than they show.”</p>
+          </div>
+          <canvas role="img" aria-label="One dot per sub-case, color-coded with status, each subtree a block of its own"></canvas>
+          <ul class="progress-key">
+            <li><span class="progress-sw" data-status="settled"></span>settled <span data-count="settled"></span></li>
+            <li><span class="progress-sw" data-status="open"></span>open <span data-count="open"></span></li>
+            <li><span class="progress-sw" data-status="split"></span>split <span data-count="split"></span></li>
+            <li><span class="progress-sw" data-status="pending"></span>pending <span data-count="pending"></span></li>
+            <li><span class="progress-sw" data-status="running"></span>running <span data-count="running"></span></li>
+          </ul>
+          <p class="progress-readout" data-readout>Hover over the dots for a subtree's key and counts.</p>
           <!-- A fanout run's pool over its hours of running (README [TRE]): above, how many boxes were pending or running (not done: waiting for a job, or a running job's own); below, the net change in that count per job ended in each stretch of running time (a job ended takes its box out and puts in the boxes it left open), with a line at 0, so that the growth slowing shows as the lower line falling and the count turning down as that line going below 0; the line of text above reads out the latest moment, or the one nearest the pointer -->
           <div class="progress-pool">
             <p class="progress-pool-tip" data-pool-tip></p>

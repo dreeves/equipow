@@ -302,6 +302,11 @@
     part('band').style.width = pct(g ? (g.hi - g.lo) / total : 0);
     part('median').style.left = pct(g ? (run.so_far + g.median) / total : 0);
     part('median').hidden = !g;
+    part('band').hidden = !g;
+    const coverage = run.work_eta?.coverage ?? null;
+    assert(coverage === null || (typeof coverage === 'number' && Number.isFinite(coverage) && coverage > 0 && coverage < 1 && run.work_eta.interval === 'conditional'), coverage);
+    box.querySelector('[data-bar-coverage]').hidden = !g || coverage === null;
+    fill(box, 'bar-percent', coverage === null ? '' : pct(coverage));
   }
 
   function strips(sizes, W) {

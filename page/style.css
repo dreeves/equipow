@@ -333,12 +333,19 @@ code[aria-expanded], [data-text][aria-expanded] { cursor: pointer; text-decorati
 .progress h3 code { font-family: var(--mono); font-size: 0.8rem; font-weight: 400; color: var(--muted); }
 .progress p { margin: 0; }
 .progress canvas { display: block; width: 100%; }
-.progress-bar { position: relative; display: flex; height: 0.7rem; border-radius: 2px; overflow: hidden; background: var(--progress-hair); }
+.progress-time { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.4rem; }
+.progress-bar { position: relative; display: flex; align-items: flex-end; height: 2rem; margin-inline: 0.5rem; }
+.progress-bar > span { height: 0.65rem; }
 .progress-bar [data-bar="so-far"] { background: var(--progress-spent); }
-.progress-bar [data-bar="lo"] { background: color-mix(in oklab, var(--progress-togo) 45%, var(--paper)); }
-.progress-bar [data-bar="band"] { background: color-mix(in oklab, var(--progress-togo) 16%, var(--paper)); }
-.progress-bar [data-bar="median"] { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--progress-togo); }
+.progress-bar [data-bar="lo"] { background: color-mix(in oklab, var(--progress-togo) 40%, var(--paper)); }
+.progress-bar [data-bar="band"] { position: relative; background: color-mix(in oklab, var(--progress-total) 26%, var(--paper)); }
+.progress-bar .progress-brace { position: absolute; bottom: 100%; width: 100%; height: 1rem; overflow: visible; fill: none; stroke: var(--progress-total); stroke-width: 1.5; }
+.progress-bar [data-bar="median"] { position: absolute; bottom: 0.325rem; width: 0.9rem; height: 0.9rem; transform: translate(-50%, 50%); border: 2px solid var(--progress-total); border-radius: 50%; background: var(--paper); box-sizing: border-box; }
+.progress-bar [data-bar="median"]::after { content: ""; position: absolute; inset: 3px; border-radius: 50%; background: var(--progress-total); }
 .progress-bar + .progress-bar-caption { margin-top: 0.3rem; font-size: 0.85rem; color: var(--muted); }
+.progress-bar-caption .spent { color: var(--progress-spent); }
+.progress-bar-caption .togo { color: var(--progress-togo); }
+.progress-bar-caption .total { color: var(--progress-total); }
 .progress-key { display: flex; flex-wrap: wrap; gap: 0.3rem 1.2rem; margin: 0; padding: 0; list-style: none; }
 .progress-key[hidden] { display: none; }
 .progress-sw { display: inline-block; width: 0.7rem; height: 0.7rem; margin-right: 0.35rem; border-radius: 2px; vertical-align: -0.05rem; }

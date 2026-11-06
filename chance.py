@@ -142,8 +142,16 @@ def within(p_exists, mean, sd, spent, aheads):
 
 def _work_cdf(rest, absent, present, ahead):
     """Completion CDF at ahead hours: absent masses at rest, present masses uniform on [0, rest]."""
-    h = np.asarray(ahead)[:, None]
-    return (h >= rest) @ absent + (np.minimum(h, rest) / rest) @ present
+    order = np.argsort(rest)
+    t, a, b = rest[order], absent[order], present[order]
+    mass = np.r_[0., np.cumsum(a + b)]
+    h = np.asarray(ahead)
+    k = np.searchsorted(t, h, side='right')
+    # Sum uncompleted uniform slopes in log space: b/t can overflow for tiny t.
+    # Above the final completion, the slope is zero and the horizon is immaterial.
+    with np.errstate(divide='ignore'):
+        slope = np.r_[np.logaddexp.accumulate((np.log(b) - np.log(t))[::-1])[::-1], -np.inf]
+        return mass[k] + np.exp(np.log(np.minimum(h, t[-1])) + slope[k])
 
 
 def _work_quantiles(rest, absent, present):

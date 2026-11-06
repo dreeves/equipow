@@ -7,6 +7,7 @@ LittlewoodPolynomialsReprint.pdf is the published version of the paper this is e
 
 Potential tasks: 
 * [BUL] Better way to show search progress bar. Idea: Be more visually evocative of progress bar with the right edge replaced with a wide horizontal curly brace designating that a bull's eye representing the end of the search could be anywhere in the wide region, and indicate the confidence interval (80% or 90%) for that region. I think we're still missing a much nicer way to visually indicate progress on an unknown amount of work.
+* [PRG] Maybe start with pairing the progress bar with the red/blue/purple progress graph. The progress bar is a 1-dimensional version of the graph, right? So use the same colors and make the correspondences clear.
 * [MAI] Let's get more things as expandable sections of the main equipow page instead of linking to separate pages. Proofs currently in txt files for starters.
 * [CLU] Are there past searches we don't care about anymore that we don't need on the page? Some are interesting for posterity.
 * [ROC] Only if it's straightforward and if it makes sense and isn't a nighmare to make it anti-magic and DRY: in addition to clicking individual cells, allow clicking the column number or the row number. For a column, the info box would explain the known bounds for that value of n -- both the witness for the highest green cell in the column and the proof for the lowest red cell. For a row, it would be like a row in Table 3, giving the smallest n not ruled out and the smallest known n, mention the A323395 sequence, etc. 
