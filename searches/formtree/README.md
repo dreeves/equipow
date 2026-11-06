@@ -107,13 +107,14 @@ The engine is bigger than it needs to be: `pex.cpp` still holds the options that
 
 ## Limits
 
-- `*.cfg` here covers 288:10 and 432:12 only. Making one for another cell (`pex.write_config`) and `top_make.py` for a new cell use `adapt.py` and `dualforms.py`, which are not in the repository, and fpylll.
+- `*.cfg` here covers 288:10 and 432:12. For another cell, `python3 -B cellconfig.py n:m` writes one (it needs sympy, fpylll and mpmath besides numpy; it remade both kept files byte for byte), then `top_make.py` makes its top. The driver's moduli and order, in `run.sh`, were tuned for 288:10 only.
+- The run stops when the session that started it ends: on 2026-11-04 a run started from inside a Claude Code background job was killed with the job. Start it from a terminal of your own.
 - Memory: an unbounded list in an early checker reached 13.7 GB on 2026-11-04 before it was killed. Now each process has an address-space limit and the checkers allocate nothing in proportion to a number in the stream. Core dumps are off.
 
 ## Files
 
 - `proofs/formtree.py`: the check, standard library only, integers only, and the statement of the argument. `proofs/fkernel.cpp`: the second check, sharing no code with it.
-- `pex.cpp`, `pex.py`: the prover, which only suggests. `ftree.py`: the driver. `run.sh`: build and run. `handoff.py`: save and restore a state. `audit.py`: spot check. `top_make.py`: makes a top. `stopall.py`: stops processes by command line.
+- `pex.cpp`, `pex.py`: the prover, which only suggests. `ftree.py`: the driver. `run.sh`: build and run. `handoff.py`: save and restore a state. `audit.py`: spot check. `top_make.py`: makes a top. `cellconfig.py`: makes a cell's `.cfg`. `stopall.py`: stops processes by command line.
 - `top_288_10.json.gz`, `top_432_12.json.gz`: the tops. `pex_*.cfg`, `pex_*.cfg.Q.npy`: lattice data and the prover's list of forms; a bad entry would be refused by the checkers.
 - `run288v_snapshot.tar.gz`, `run288v_progress.json`: the run's state.
 - `fixtures/`: small real streams for the quals. `quals/quals_formtree.py`: the quals.
