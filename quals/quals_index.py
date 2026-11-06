@@ -5667,12 +5667,15 @@ def q_progress_redraws_in_place_and_reads_out_a_subtree():
 
 
 def q_progress_draws_time_to_scale():
-    # Replicata: progress_run's time bar: its parts' widths and the median's mark, as the section sets them.
-    # Expectata (dreeves, 2026-10-09: "lead with time so far and time to go, to scale"): out of so far + the band's
-    # top (2 h + 3 h), so far 40%, the band's bottom 10% after it, the rest of the band 50%, and the median's mark at
-    # 60% (the mean's until 2026-10-19, when the boxsplit estimate's Lindy tail made means useless).
+    # Spec change authorized by dreeves, 2026-11-06: replace the median circle and fixed endpoint with a time ruler.
+    # Replicata: progress_run's 2 h elapsed and 0.5–3 h remaining, on labeled ticks reaching past the upper estimate.
+    # Expectata: 6 h axis; elapsed/current marker at 2 h, interval at 2.5–5 h; no median lookalike or fixed finish.
+    # Resultata before: 5 h filled the bar, and a median circle at 3 h resembled current progress.
     R = progress_run()
-    assert {k: float(v.rstrip('%')) for k, v in R['bar'].items()} == {'so-far': 40.0, 'lo': 10.0, 'band': 50.0, 'median': 60.0}, R['bar']
+    got = {k: float(v.rstrip('%')) for k, v in R['bar'].items() if k != 'ticks'}
+    want = {'so-far': 100/3, 'now': 100/3, 'band': 250/6}
+    assert got.keys() == want.keys() and all(abs(got[k]-v)<0.0001 for k,v in want.items()), R['bar']
+
 
 
 def q_progress_lays_out_each_subtree_as_a_block():

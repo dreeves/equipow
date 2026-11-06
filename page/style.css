@@ -334,17 +334,19 @@ code[aria-expanded], [data-text][aria-expanded] { cursor: pointer; text-decorati
 .progress p { margin: 0; }
 .progress canvas { display: block; width: 100%; }
 .progress-time { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.4rem; }
-.progress-bar { position: relative; display: flex; align-items: flex-end; height: 2rem; margin-inline: 0.5rem; }
-.progress-bar > span { height: 0.65rem; }
-.progress-bar [data-bar="so-far"] { background: var(--progress-spent); }
-.progress-bar [data-bar="lo"] { background: color-mix(in oklab, var(--progress-togo) 40%, var(--paper)); }
-.progress-bar [data-bar="band"] { position: relative; background: color-mix(in oklab, var(--progress-total) 26%, var(--paper)); }
-.progress-bar .progress-brace { position: absolute; bottom: 100%; width: 100%; height: 1rem; overflow: visible; fill: none; stroke: var(--progress-total); stroke-width: 1.5; }
-.progress-bar [data-bar="median"] { position: absolute; bottom: 0.325rem; width: 0.9rem; height: 0.9rem; transform: translate(-50%, 50%); border: 2px solid var(--progress-total); border-radius: 50%; background: var(--paper); box-sizing: border-box; }
-.progress-bar [data-bar="median"]::after { content: ""; position: absolute; inset: 3px; border-radius: 50%; background: var(--progress-total); }
-.progress-bar + .progress-bar-caption { margin-top: 0.3rem; font-size: 0.85rem; color: var(--muted); }
+.progress-bar { position: relative; height: 4.2rem; margin-inline: 2.8rem; }
+.progress-bar::before { content: ""; position: absolute; top: 2.5rem; width: 100%; border-top: 1px dashed var(--muted); }
+.progress-bar::after { content: ""; position: absolute; top: 2.3rem; right: 0; width: 0.4rem; height: 0.4rem; border-top: 1px solid var(--muted); border-right: 1px solid var(--muted); transform: rotate(45deg); }
+.progress-bar [data-bar="so-far"] { position: absolute; top: 2.5rem; height: 3px; background: var(--progress-spent); transform: translateY(-1px); }
+.progress-bar [data-bar="band"] { position: absolute; top: 1.65rem; border-top: 4px solid var(--progress-total); }
+.progress-bar [data-bar="band"]::before, .progress-bar [data-bar="band"]::after { content: ""; position: absolute; top: -0.45rem; height: 0.65rem; border-left: 1px solid var(--progress-total); }
+.progress-bar [data-bar="band"]::after { right: 0; }
+.progress-bar [data-bar="now"] { position: absolute; top: 1.15rem; height: 1.75rem; border-left: 2px solid var(--progress-spent); font-style: normal; }
+.progress-bar [data-bar="now"] > span { position: absolute; bottom: calc(100% + 0.15rem); transform: translateX(-50%); white-space: nowrap; font-size: 0.75rem; color: var(--progress-spent); }
+.progress-bar [data-bar="ticks"] > span { position: absolute; top: 3.1rem; transform: translateX(-50%); white-space: nowrap; font-size: 0.75rem; color: var(--muted); }
+.progress-bar [data-bar="ticks"] > span::before { content: ""; position: absolute; top: -0.6rem; height: 0.3rem; left: 50%; border-left: 1px solid var(--muted); }
+.progress-bar + .progress-bar-caption { margin-top: 0; font-size: 0.85rem; color: var(--muted); }
 .progress-bar-caption .spent { color: var(--progress-spent); }
-.progress-bar-caption .togo { color: var(--progress-togo); }
 .progress-bar-caption .total { color: var(--progress-total); }
 .progress-key { display: flex; flex-wrap: wrap; gap: 0.3rem 1.2rem; margin: 0; padding: 0; list-style: none; }
 .progress-key[hidden] { display: none; }

@@ -7,6 +7,8 @@
 // see remember).  Every word
 // it shows is in the section's HTML (its templates); this script writes numbers, times and marks, durations with their
 // units, h, d or y (dreeves, 2026-10-23).
+// 2026-11-06, dreeves: the bar described next is now a labeled time ruler; only elapsed time is marked, with a
+// separate finish interval and ticks beyond it. The median remains in the ETA history chart, not on the ruler.
 // Per run: a bar of hours so far and to go, to scale (so far, then the band's bottom, then the rest of the band, the
 // median marked); the sea, one dot per sub-case of the data's groups, each group a block of cells (strips below), cells
 // of pitch px, chosen from 10 down to 2 px so that the sea is at most about 560 px tall, a dot a device px short of its
@@ -295,14 +297,24 @@
   }
 
   function bar(box, run) {
-    const g = run.to_go, total = run.so_far + (g ? g.hi : 0) || 1;
+    const g = run.to_go, end = run.so_far + (g?.hi ?? 0);
+    // Twenty percent headroom before rounding time ticks; even a zero-time snapshot has a one-hour axis.
+    const [ticks, labels] = axis(Math.max(1, end / 3600 * 1.2), Math.ceil), total = ticks.at(-1) * 3600;
     const part = name => box.querySelector(`[data-bar="${name}"]`);
     part('so-far').style.width = pct(run.so_far / total);
-    part('lo').style.width = pct(g ? g.lo / total : 0);
-    part('band').style.width = pct(g ? (g.hi - g.lo) / total : 0);
-    part('median').style.left = pct(g ? (run.so_far + g.median) / total : 0);
-    part('median').hidden = !g;
+    part('now').style.left = pct(run.so_far / total);
+    part('band').style.left = pct((run.so_far + (g?.lo ?? 0)) / total);
+    part('band').style.width = pct(((g?.hi ?? 0) - (g?.lo ?? 0)) / total);
     part('band').hidden = !g;
+    part('ticks').replaceChildren(...ticks.map((t, i) => {
+      const tick = document.createElement('span');
+      tick.style.left = pct(t * 3600 / total);
+      tick.textContent = labels[i];
+      return tick;
+    }));
+    const live = run.state === 'running' && run.stale == null;
+    box.querySelector('[data-bar-live]').hidden = !live;
+    box.querySelector('[data-bar-recorded]').hidden = live;
     const coverage = run.work_eta?.coverage ?? null;
     assert(coverage === null || (typeof coverage === 'number' && Number.isFinite(coverage) && coverage > 0 && coverage < 1 && run.work_eta.interval === 'conditional'), coverage);
     box.querySelector('[data-bar-coverage]').hidden = !g || coverage === null;

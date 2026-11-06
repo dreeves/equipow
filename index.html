@@ -1708,12 +1708,13 @@ of them with m ≡ 0, 1, 2 mod 3) and two exceptional signs, and d_0 ≡ d_3 (mo
           <details>
           <summary><h3><span class="nw"><i>m</i><sup>*</sup>(<span data-n></span>) ≥ <span data-order></span>?</span> <code data-program></code></h3><span class="progress-run-state"><span data-label="running">running</span><span data-label="paused">paused</span><span data-label="frozen">frozen</span><span data-label="completed">completed</span><span data-label="aborted">aborted</span></span><!-- Says the run's data are stale: the watcher could not survey it in time, or at all, so the data shown are those of the time given --><span class="progress-stale" data-stale hidden>Stale (<span data-stale-at></span>)</span></summary>
           <div class="progress-time">
-          <div class="progress-bar" aria-hidden="true"><span data-bar="so-far"></span><span data-bar="lo"></span><span data-bar="band"><svg class="progress-brace" viewBox="0 0 100 16" preserveAspectRatio="none"><path d="M0 16 C0 8 2 8 5 8 H45 C49 8 50 6 50 0 C50 6 51 8 55 8 H95 C98 8 100 8 100 16" vector-effect="non-scaling-stroke"></path></svg></span><i data-bar="median"></i></div>
-          <!-- TODO: the bar summarizes the latest time estimate, not the fraction of work completed; blue is elapsed time, red reaches the lower forecast, purple spans the finish interval, and the bullseye marks its median. Coverage is shown only when explicitly supplied by the conditional model; the interval is not a guaranteed bound. English in an Astra quote authorized by dreeves. -->
+          <!-- a time ruler, not completed-work percentage; the sole blue marker names the current or recorded elapsed time. The purple interval marks the forecast, with visible time beyond it. New English in Astra quotes authorized by dreeves, 2026-11-06. -->
+          <div class="progress-bar" aria-hidden="true"><span data-bar="so-far"></span><span data-bar="band"></span><i data-bar="now"><span><b data-bar-live>now</b><b data-bar-recorded hidden>recorded</b></span></i><div data-bar="ticks"></div></div>
           <!-- Previous human-written caption, retained verbatim while the legend changes with PRG/BUL:
           Blue = time spent; darker pink = min time remaining; pale pink = 90%-ish confidence band; red tick = median finish.
           -->
-          <p class="progress-bar-caption">Astra: “Time scale: <span class="spent">blue = time spent</span>; <span class="togo">red = time to the lower estimate</span>; <span class="total">purple brace = finish range<span data-bar-coverage hidden> (<b data-bar-percent></b> conditional model interval)</span>; bullseye = median finish</span>. The range is not a guarantee.”</p>
+          <!-- TODO: the ruler shows elapsed running time and the estimated finish interval; supported conditional model coverage is explicit, not a guaranteed finish. -->
+          <p class="progress-bar-caption"><span class="spent">time spent</span> / <span class="total"><span data-bar-coverage hidden> <b data-bar-percent></b> confidence interval for finish</span></span></p>
           <div class="progress-eta">
             <p class="progress-tip" data-tip></p>
             <svg viewBox="0 0 640 240" role="img" aria-label="The recorded ETAs against the hours of running, with the elapsed time and elapsed + ETA">
