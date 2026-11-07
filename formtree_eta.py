@@ -21,6 +21,9 @@ import numpy as np
 from scipy.special import ndtr, ndtri, log_ndtr, ndtri_exp
 
 
+PROPOSALS_CAP=2**20   # the most proposals attach draws to reach a model's floor of effective draws (2026-11-07)
+
+
 def draws(model, work, count=4096):
     """Weighted total-work/rate draws, conditioned on exact and unfinished roots.
 
@@ -212,7 +215,14 @@ def attach(s, root, model_path, p_exists, now, cache):
         to_go=zero if active else None
         total=dict(median=float(w['done']),lo=float(w['done']),hi=float(w['done']))
     elif active:
-        samples=draws(model,w,count={1:4096,2:65536}[model['version']])
+        # The proposals doubled until their effective draws reach the floor below, at most PROPOSALS_CAP: the floor is the
+        # requirement, the count only what meets it (Claude, 2026-11-07; dreeves, of 288:10's ETA stale since its posterior
+        # narrowed to 860 effective draws of 65,536: "can-opener question?").  A version-1 model has no floor.
+        floor,count={1:0,2:1000}[model['version']],{1:4096,2:65536}[model['version']]
+        samples=draws(model,w,count=count)
+        while float(1/(samples['weight']@samples['weight']))<floor and count<PROPOSALS_CAP:
+            count*=2
+            samples=draws(model,w,count=count)
         order=np.argsort(samples['root_log_sd'])
         lo,hi=chance.BANDS['work']
         quantiles=np.interp([lo,.5,hi],np.cumsum(samples['weight'][order]),samples['root_log_sd'][order])
@@ -221,7 +231,7 @@ def attach(s, root, model_path, p_exists, now, cache):
                          forecast_samples=len(samples['weight']))
         # Numerical adequacy for coarse tail quantiles; not a coverage guarantee.
         # A concentrated proposal must not publish an apparently precise forecast.
-        assert model['version']==1 or uncertainty['effective_samples']>=1000, uncertainty
+        assert uncertainty['effective_samples']>=floor, uncertainty
         forecast=chance.work(p_exists,samples['total'],w['done'],samples['rate']*3600,samples['weight'])
         exists=forecast['exists']
         to_go=forecast['to_go']

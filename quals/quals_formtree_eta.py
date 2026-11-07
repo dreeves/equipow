@@ -295,6 +295,33 @@ class Attachment(unittest.TestCase):
             eta.attach(copy.deepcopy(self.s),self.root,self.path,.01,2000.,cache)
         self.assertNotIn('points',cache)
 
+    def test_proposals_double_until_the_effective_draws_reach_the_floor(self):
+        # Replicata: a v2 model whose draws are made up, their effective count 1/80 of the proposals (819 of 65,536);
+        # then one whose effective count is 1/10,000 of them.
+        # Expectata (dreeves, 2026-11-07, of 288:10's ETA gone stale at 860 effective draws of 65,536: "can-opener
+        # question?"): the proposals doubled until the effective draws reach the floor of 1,000, the forecast made from
+        # those, 131,072 here; with a floor out of reach by PROPOSALS_CAP (2^20), refused as before, after drawing at
+        # 65,536 and each doubling up to the cap.
+        # Resultata before: one draw of 65,536, refused at 819.
+        self.model.update(version=2,root_log_sd=.75,root_log_sd_uncertainty=.5)
+        self.path.write_text(json.dumps(self.model))
+        def made(per):
+            calls=[]
+            def fake(model,work,count):
+                calls.append(count);k=count//per;weight=np.zeros(count);weight[:k]=1/k
+                return dict(total=np.linspace(100.,200.,count),rate=np.full(count,10.),weight=weight,root_log_sd=np.linspace(.4,.9,count))
+            return fake,calls
+        fake,calls=made(80)
+        with mock.patch.object(eta.formtree_work,'read',return_value=self.w),mock.patch.object(eta,'draws',side_effect=fake):
+            meta=eta.attach(copy.deepcopy(self.s),self.root,self.path,.01,2000.,{})['display']['work_eta']
+        self.assertEqual(calls,[65536,131072])
+        self.assertEqual((meta['forecast_samples'],round(meta['effective_samples'])),(131072,1638))
+        fake,calls=made(10000)
+        with mock.patch.object(eta.formtree_work,'read',return_value=self.w),mock.patch.object(eta,'draws',side_effect=fake), \
+             self.assertRaises(AssertionError):
+            eta.attach(copy.deepcopy(self.s),self.root,self.path,.01,2000.,{})
+        self.assertEqual(calls,[65536*2**k for k in range(5)])
+
     def test_paused_preserves_posterior_and_terminal_is_zero_remaining(self):
         # Replicata: active snapshot, paused with no throughput, then all roots closed.
         # Expectata: paused, last posterior/history retained, now's point that posterior;

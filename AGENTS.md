@@ -1275,3 +1275,9 @@ Order-13 witness agent, 2026-10-31 from 06:05 (Claude; `scratch/w13-1008-912/`):
     - The counts line is a second `p.progress-status[data-track-line]` after the CPU chart, filled by trackView; empty, and so hidden by `:empty`, for other runs.
     - workView's status-line selector excludes it, so the chart boxes' briefs are unchanged.
     - The CPU qual checks this order.
+- **288:10's ETA stale from 13:04 to 14:28 on 2026-11-07, fixed** (Claude; dreeves: "the search page is stale right now?", then "can-opener question?").
+  - **Cause:** Astra's v2 work model refused every snapshot because its importance sampler gave fewer than its 1,000-effective-draw floor: about 860 of 65,536, falling as the search narrowed the posterior.
+  - **Fix:** formtree_eta.attach now doubles the proposals until the effective draws reach the model's floor (1,000 for v2, 0 for v1), up to PROPOSALS_CAP = 2^20, and still refuses past it. On the live run, 131,072 proposals give about 1,575 effective draws, at 0.2 s.
+  - **Quals:** new test_proposals_double_until_the_effective_draws_reach_the_floor (red at 819, then green). quals_formtree_eta 20/20, including Astra's pinned 65,536 fixture and the degenerate-proposal refusal.
+  - **Watcher:** restarted as PID 63934.
+  - **Pitfall:** `pgrep -f "search592_progress.py --watch"` also matched a leftover `bash -c` whose command text named the watcher, and the kill hit it too; the CPU sampler, its child, survived (PID 59474). Stop the watcher by the pid in scratch/watcher-20261030/launched.json, or with progress.runs-style matching.
