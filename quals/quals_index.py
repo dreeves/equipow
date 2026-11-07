@@ -2711,8 +2711,8 @@ def q_example_at_1440_settles_a_15():
     # (mtopAt is a list since 2026-11-04, [M17], order 16's n first)
     assert mstar_data()['mtopAt'][0] == 1440 and mstar_data()['past'] == [[1440, 16, 'equipow p1440']], mstar_data()['past']
     assert any(d == '2026-11-04' and '\\(a(15) = 1440\\)' in rest for d, rest in changelog()), changelog()[:3]
-    body = re.search(r'<section class="oeis" aria-labelledby="oeis-title">.*?</section>', text, re.S).group(0)
-    assert '\\(a(15) = 1440\\)' in re.search(r'<li>(.*?)</li>', body, re.S).group(1), 'the note on A323395'
+    # Spec change (2026-11-07; dreeves, of quals that failed on his rewrite of the OEIS notes: "if i wrote something, that
+    # shouldn't make a qual fail, right?"): this qual no longer asks the OEIS note on A323395 to state a(15) = 1440.
 
 
 OEIS = ('A323395', 'A306248', 'A323610', 'A323629', 'A323614')                # the OEIS section's entries on this problem
@@ -2738,80 +2738,45 @@ def q_oeis_section_links_the_family():
 
 
 def q_oeis_notes_hold_on_the_chart():
-    # Replicata: the OEIS section's first list, and mstar.js.
-    # Expectata: what each note says of this page holds in the chart's data (OEIS's k-powerful is order k + 1 here):
-    # A323395's: a(10) = 432 proven (the least n known to reach order 11 is the least n allowed it); a(11) = 480 proven, since 2026-11-03 (order 12 ruled out at 432, 448 and 464, known at 480;
-    # until then a(11) was 432 or 480, order 12 open at 432); order 12 known at 864, and since 2026-11-03 order 15 at 960 (lo),
-    # 672 the least n known to reach order 13 (so a(12) <= 672, since 2026-11-04; 720 from the beam campaign's 720:13 on 2026-11-03, 912 that morning), a(14) = 960 proven (the
-    # least n known to reach order 15 is the least n allowed it), and a(15) = 1440 proven (since 2026-11-04: q_example_at_1440_settles_a_15);
-    # (until 2026-11-03: order 13 at 960, the least n known to reach it, so a(12) <= 960, doubling 960 giving 1920); A306248's: m*(2n) settled
-    # (lo = hi) for every n up to 143 and open at 288, 48 more terms than OEIS's 95; A323610's and A323614's: their
-    # comments' descriptions of L6 (48 and the multiples of 8 from 64) and L8 (144 and the multiples of 16 from 192)
-    # are exactly the chart's lengths of order 6 and 8 through 1024, every other length ruled out; A323629's: 112 in
-    # L7 (m*(112) = 7, A306248's a(56)), and its comment's description with 112 added (96, 112, 128, 144, 160, 176
-    # and the multiples of 8 from 192) the chart's L7 through 1024.  Each note states its numbers.  (OEIS's side,
-    # fetched on 2026-10-28, is in scratch/oeis/: its JSON, b-files and compare.py.)
+    # Replicata: the OEIS section's first list, and mstar.js (its columns, past examples, mtop and mtopAt).
+    # Expectata: what Claude's words in the notes (each note's text after "Claude:") say of the chart holds there; nothing
+    # has to be said, and dreeves's words are not read at all.  Every \(a(k) = N\) and
+    # \(a(k) \le N\): a(k), OEIS's least n that is k-powerful, is the least n of order k + 1, so for = the least n known
+    # to reach k + 1 (a column's lo, or a past example) is N and so is the least not ruled out (a column's hi, or past
+    # the chart mtopAt), and for \le the least known is at most N.  "through \(n = N\)": m*(2n) settled for every
+    # n <= N.  "\(m^*(M)\) is open": lo < hi at M.  "description through 1024" in a note on L_m: the chart's L_m through
+    # 1024 is the comment's description (A323610: 48 and the multiples of 8 from 64; A323614: 144 and the multiples of
+    # 16 from 192; A323629: 96, 112, ..., 176 and the multiples of 8 from 192).
+    # Spec change (2026-11-07; dreeves, of three quals that failed on his rewrite of these notes: "if i wrote something,
+    # that shouldn't make a qual fail, right?", and "quals like that never made any dang sense"): before, this qual asked
+    # each note to state particular numbers (A323395's:
+    # 432, 448, 464, 480, 672, 864, 960, 1440), so his rewrite, which states only a(11) = 480, failed it; and
+    # q_oeis_errors_say_how_to_fix_them, which asked A323629's note to mark its error ("Error:", with both generating
+    # functions) and A323395's to state a(12) <= 864, a(13) <= 960 and a(12) <= 672, is gone: his notes now say that OEIS
+    # fixed both entries.
+    # Resultata before: red on his notes for the A323395 numbers (and the errors qual on the missing "Error:").
     text = page()
     body = re.search(r'<section class="oeis" aria-labelledby="oeis-title">.*?</section>', text, re.S).group(0)
     notes = dict(zip(OEIS, re.findall(r'<li>(.*?)</li>', re.search(r'<ul>(.*?)</ul>', body, re.S).group(1), re.S)))
-    cols = mstar_data()['cols']
+    data = mstar_data()
+    cols = data['cols']
     lo, hi = (lambda n: cols[n - 1][0]), (lambda n: cols[n - 1][1])
-    known = lambda m: next(n for n in range(2, NMAX + 1, 2) if lo(n) >= m)
-    allowed = lambda m: next(n for n in range(2, NMAX + 1, 2) if hi(n) >= m)
-    assert known(11) == allowed(11) == 432 and (lo(864), lo(960)) == (12, 15) and known(13) == 672 and known(15) == allowed(15) == 960
-    assert max(hi(432), hi(448), hi(464)) < 12 <= lo(480) and known(12) == allowed(12) == 480
-    assert all(w in notes['A323395'] for w in ('432', '448', '464', '480', '672', '864', '960', '1440')), notes['A323395']
-    assert all(lo(2 * n) == hi(2 * n) for n in range(1, 144)) and lo(288) < hi(288)
-    assert all(w in notes['A306248'] for w in ('95', '48', '143', '286', '288')), notes['A306248']
+    known = lambda m: min([n for n in range(2, NMAX + 1, 2) if lo(n) >= m] + [n for n, o, _ in data['past'] if o >= m])
+    allowed = lambda m: next((n for n in range(2, NMAX + 1, 2) if hi(n) >= m), None) or data['mtopAt'][m - data['mtop']]
+    said = ' '.join(note.split('Claude:', 1)[1] for note in notes.values() if 'Claude:' in note)   # Claude's words alone
+    for k, rel, N in re.findall(r'\\\(a\((\d+)\) (=|\\le) (\d+)\\\)', said):
+        k, N = int(k), int(N)
+        assert known(k + 1) == allowed(k + 1) == N if rel == '=' else known(k + 1) <= N, (k, rel, N, known(k + 1), allowed(k + 1))
+    for N in map(int, re.findall(r'through \\\(n = (\d+)\\\)', said)):
+        assert all(lo(2 * n) == hi(2 * n) for n in range(1, N + 1)), N
+    for M in map(int, re.findall(r'\\\(m\^\*\((\d+)\)\\\) is open', said)):
+        assert lo(M) < hi(M), M
     rules = {'A323610': (6, lambda n: n == 48 or (n % 8 == 0 and n >= 64)),
              'A323629': (7, lambda n: n in (96, 112, 128, 144, 160, 176) or (n % 8 == 0 and n >= 192)),
              'A323614': (8, lambda n: n == 144 or (n % 16 == 0 and n >= 192))}
     for a, (m, rule) in rules.items():
-        assert all((lo(n) >= m) == rule(n) and (hi(n) >= m) == rule(n) for n in range(2, NMAX + 1, 2)), a
-        assert NMAX == 1024 and '1024' in notes[a], notes[a]
-    assert lo(112) == hi(112) == 7 and all(w in notes['A323629'] for w in ('112', '56')), notes['A323629']
-
-
-# A323629's generating function as OEIS gives it (Alois P. Heinz's, fetched 2026-10-28), and as it is with 112, each
-# with the coefficients of its numerator over (1 - x)^2: -8x(x^6 + 2x^2 + 8x - 12) = 96x - 64x^2 - 16x^3 - 8x^7, and
-# 8x(12 - 10x - x^7) = 96x - 80x^2 - 8x^8.
-L7_GF_OEIS = (r'\(-8x(x^6 + 2x^2 + 8x - 12)/(x - 1)^2\)', {1: 96, 2: -64, 3: -16, 7: -8})
-L7_GF = (r'\(8x(12 - 10x - x^7)/(1 - x)^2\)', {1: 96, 2: -80, 8: -8})
-
-
-def gf_terms(numerator, nmax):
-    """The coefficients of x, x^2, ... in numerator/(1 - x)^2 up to the last that is at most nmax, numerator as {power:
-    coefficient} with no constant term, its series rising: 1/(1 - x)^2 is the sum of (i + 1) x^i."""
-    terms = []
-    for n in itertools.count(1):
-        c = sum(a * (n - j + 1) for j, a in numerator.items() if j <= n)
-        if c > nmax: return terms
-        terms.append(c)
-
-
-def q_oeis_errors_say_how_to_fix_them():
-    # Replicata: the OEIS section's first list, and mstar.js.
-    # Expectata (dreeves, 2026-10-29: "can you make sure the errors in OEIS are made clear on the page? then we don't
-    # need suggested_edits.txt"): the note on the entry with an error, A323629, and no other, marks it with a bold "Error:"
-    # and gives the fix.  A323395's comment (a(12) ≤ 864, a(13) ≤ 960) holds since 2026-11-03, by the beam campaign's example of order 13
-    # at 720, the least n known to reach order 13 (12-powerful), and the example of order 15 at 960, the least n known to reach order 14, though
-    # not by the doublings: its note marks no error and says that a(12) ≤ 720.  (Until 2026-11-03 both bounds were wrong, and should have read
-    # a(12) ≤ 960 and a(13) ≤ 1920; that morning, before 720:13, its a(12) ≤ 864 was still wrong, and should have read a(12) ≤ 912.)
-    # Since 2026-11-04 the least n known to reach order 13 is 672 (q_example_at_672_has_its_code_of_order_13), and the note says that a(12) ≤ 672.
-    # A323629's generating function, L7_GF_OEIS, should be L7_GF: through 1024, L7_GF's series is
-    # the chart's L7 (every n with m*(n) ≥ 7) and L7_GF_OEIS's is L7 without 112.
-    # Resultata before: the A323395 note said its bounds "look one order too high", and the A323629 note gave no
-    # generating function; scratch/oeis/suggested_edits.txt held the fixes.
-    body = re.search(r'<section class="oeis" aria-labelledby="oeis-title">.*?</section>', page(), re.S).group(0)
-    notes = dict(zip(OEIS, re.findall(r'<li>(.*?)</li>', re.search(r'<ul>(.*?)</ul>', body, re.S).group(1), re.S)))
-    assert [a for a in OEIS if '<b>Error:</b>' in notes[a]] == ['A323629'] and notes['A323629'].count('<b>Error:</b>') == 1, notes
-    lo = lambda n: mstar_data()['cols'][n - 1][0]
-    assert next(n for n in range(2, NMAX + 1, 2) if lo(n) >= 13) == 672 and next(n for n in range(2, NMAX + 1, 2) if lo(n) >= 14) == 960
-    assert all(t in notes['A323395'] for t in (r'\(a(12) \le 864\)', r'\(a(13) \le 960\)', r'\(a(12) \le 672\)')), notes['A323395']
-    L7 = [n for n in range(2, NMAX + 1, 2) if lo(n) >= 7]
-    assert gf_terms(L7_GF[1], NMAX) == L7 and gf_terms(L7_GF_OEIS[1], NMAX) == [n for n in L7 if n != 112]
-    after = notes['A323629'].split('<b>Error:</b>')[1]
-    assert L7_GF_OEIS[0] in after and L7_GF[0] in after and after.index(L7_GF_OEIS[0]) < after.index(L7_GF[0]), after
+        assert 'description through 1024' not in notes[a].split('Claude:', 1)[-1] or (NMAX == 1024 and all(
+            (lo(n) >= m) == rule(n) and (hi(n) >= m) == rule(n) for n in range(2, NMAX + 1, 2))), a
 
 
 def q_912_moves_excess_3_to_2_29():
@@ -3896,11 +3861,26 @@ def remarks_fold():
     """The remarks section's fold, from index.html: (the section's text before it, its summary's text, the text it
     holds after the summary, the section's text after it), asserting it is one <details> without open whose first
     element is a <summary> (comments may come before it: its TODO recap)."""
+    # Spec change (2026-11-07; dreeves chose "Allow nested disclosures" over moving the inline proofs out of the remarks):
+    # the fold is the section's one outermost <details>; closed disclosures nested inside its entries (Astra's typeset
+    # 512 proof and complete 384 proof, which quals_inline384 and quals_proof_layout require to be native <details>) are
+    # allowed.  Before, the section had to hold exactly one <details>, and its first </details> closed the fold.
     section = re.search(r'<section class="remarks">(.*?)</section>', page(), re.S)[1]
-    folds = re.findall(r'<details([^>]*)>\s*(?:<!--.*?-->\s*)*<summary>(.*?)</summary>(.*?)</details>', section, re.S)
-    assert len(folds) == 1 == section.count('<details') and 'open' not in folds[0][0], folds and folds[0][0]
-    before, after = section.split('<details', 1)[0], section.split('</details>', 1)[1]
-    return before, folds[0][1], folds[0][2], after
+    tags = list(re.finditer(r'<details([^>]*)>|</details>', section))
+    depth, top, nested = 0, [], []
+    for x in tags:
+        if x.group(0).startswith('</'):
+            depth -= 1
+            if depth == 0: top[-1].append(x)
+        else:
+            (top.append([x]) if depth == 0 else nested.append(x))
+            depth += 1
+    assert depth == 0 and len(top) == 1 and len(top[0]) == 2, [len(f) for f in top]
+    opening, closing = top[0]
+    assert 'open' not in opening.group(1) and not any('open' in x.group(1) for x in nested), (opening.group(1), [x.group(1) for x in nested])
+    fold = re.fullmatch(r'\s*(?:<!--.*?-->\s*)*<summary>(.*?)</summary>(.*)', section[opening.end():closing.start()], re.S)
+    assert fold, section[opening.end():opening.end() + 300]
+    return section[:opening.start()], fold.group(1), fold.group(2), section[closing.end():]
 
 
 def q_remarks_list_folds_closed_under_its_summary():

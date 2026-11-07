@@ -8,7 +8,8 @@ The quals marked "engine" need numpy and g++, and take minutes.  All run under a
 import sys
 sys.dont_write_bytecode = True
 import gzip, hashlib, importlib.util, itertools, json, os, random, re, resource, subprocess, tempfile, time, traceback
-resource.setrlimit(resource.RLIMIT_AS, (4 << 30, 4 << 30))   # 2026-11-04: an unbounded list in the checker took this process to 13.7 GB.  Nothing here may take the machine down.
+if sys.platform == 'linux': resource.setrlimit(resource.RLIMIT_AS, (4 << 30, 4 << 30))   # 2026-11-04: an unbounded list in the checker took this process to 13.7 GB.  Nothing here may take the machine down.
+# (2026-11-07, dreeves: "Yes, same guard": macOS refuses RLIMIT_AS, so on Linux only, as in searches/formtree/audit.py and ftree.py)
 from math import gcd
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # the repository's root, above quals/
 PROVER = os.path.join(ROOT, 'searches', 'formtree')

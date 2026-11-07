@@ -8,7 +8,9 @@
 // that a derivation cites, which is mstar.js's; this script writes names, numbers and the signs of arithmetic.  Each
 // throws, showing nothing, on a claim of the page that it finds false.
 //
-// A code is <code id="N:M">, N its length and M its order, in a code block or in a sentence; a join of codes is
+// A code is <code id="N:M">, N its length and M its order, in a code block or in a sentence, or <code data-code="N:M">
+// where its id is another's (since 2026-11-07, dreeves: the witness of Astra's inline 384 proof, whose codes keep
+// proof384.html's ids as data-proof-id, "Yes, data-code"), one of the two and not both; a join of codes is
 // data-join, the ids of codes separated by spaces, with data-order, its order M.  Its box, from
 // template[data-partition], is its partition: the two parts, the positions i with f_i = +1 and with f_i = -1, and their
 // power sums, the sum of i^k over each part for k = 0 to M, in BigInt, so exact: for each k two rows, the first part's
@@ -65,8 +67,9 @@
       assert(/^\d+$/.test(e.dataset.order) && codes.every(Boolean), e.dataset.join, e.dataset.order);
       return [Number(e.dataset.order), codes.flatMap(c => sequence(c)[1])];
     }
-    const [n, m] = e.id.split(':').map(Number);
-    assert(/^\d+:\d+$/.test(e.id) && /^[0-9A-F]+$/.test(e.textContent) && n === 8 * e.textContent.length, e.id, e.textContent);
+    assert((e.id === '') === ('code' in e.dataset), e.outerHTML.slice(0, 80));   // its N:M in its id or in data-code
+    const nm = e.id || e.dataset.code, [n, m] = nm.split(':').map(Number);
+    assert(/^\d+:\d+$/.test(nm) && /^[0-9A-F]+$/.test(e.textContent) && n === 8 * e.textContent.length, nm, e.textContent);
     return [m, signs(e.textContent, m)];
   }
   const cell = (tag, text, data, rowSpan) => {                    // a cell of the power sums
@@ -143,7 +146,7 @@
   const naming = built.filter(e => parsed.get(e)[0] !== null);     // the constructions with a name before an =
   const defined = new Map(naming.map(e => [parsed.get(e)[0], e])); // each such name: its construction
   assert(defined.size === naming.length, naming.map(e => parsed.get(e)[0]));
-  const sequences = new Map([...document.querySelectorAll('code[id], [data-join]')].map(e => [e, sequence(e)]));
+  const sequences = new Map([...document.querySelectorAll('code[id], code[data-code], [data-join]')].map(e => [e, sequence(e)]));
   // The parts, by kind: their length n, order m, link (the href of the code or construction they are, or null) and
   // citation (the source they cite, or null)
   const PARTS = {
@@ -224,7 +227,7 @@
   // aria-controls names it once it is made.  A box is made at its button's first click, or, a text's, as the page loads
   // (button returns made, which makes it).  Closed, a box's hidden is closed: true, or a text's "until-found", which find
   // in page opens, firing beforematch on the box, which marks its button expanded (2026-11-05).
-  const buttons = [...document.querySelectorAll('code[id], [data-join], [data-construction], [data-text]')];
+  const buttons = [...document.querySelectorAll('code[id], code[data-code], [data-join], [data-construction], [data-text]')];
   const outside = buttons.filter(e => e.closest('p, li') === null);
   assert(outside.length === 0, outside.map(e => e.outerHTML.slice(0, 80)));
   const boxes = new Map();                                         // each button: its box, once made
