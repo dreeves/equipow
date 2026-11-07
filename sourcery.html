@@ -14957,8 +14957,15 @@ then kill everything below that.</pre>
 <header><p class="speaker">dreev</p></header>
 <pre class="prompt">ok, next?</pre>
 <details>
-<summary><a class="anchor" href="#p731"><time datetime="2026-11-07T08:18:24.459000+00:00">08:18</time></a> <span class="chip"></span> <span class="agent">Claude Code</span></summary>
-<div class="reply machine empty"><p>Response still generating when this transcript was captured</p></div>
+<summary><a class="anchor" href="#p731"><time datetime="2026-11-07T08:18:24.459000+00:00">08:18</time></a> <span class="chip"></span> <span class="agent">Claude Code</span> <span class="model">claude-opus-5-5</span> <span class="effort">(max)</span> <span class="elapsed">thought for 6m47s · 9m51s wall-clock time</span></summary>
+<div class="reply machine"><p>Next is a new search target, 1456:12, now running.</p>
+<p>A block of length 1456 and order 12 would move two powers-of-2 firsts. I checked both exactly with the page&#x27;s own decider:</p>
+<ul><li>excess 4 would move from 2^36 to 2^31;</li><li>excess 7 would move from 2^56 to 2^51.</li></ul>
+<p>It would also be the first length not divisible by 3 with order 12. Every length not divisible by 3 up to 1024 is capped by 800:11&#x27;s ratio, which is why 1456 is the one to try. Order 12 forces every position ≡ 0 mod 3 to the same sign, which narrows the search a lot.</p>
+<p>The tilted search&#x27;s quals passed, including the 544:10 and 1008:13 controls. Four 30-minute seeds are running beside 288:10 and show on the progress page. They take about 30% of 288&#x27;s throughput while they run.</p>
+<p>Whether 1456:12 would also lower the firsts for excess 9 (68) or 10 (none up to 72) is still being checked.</p>
+<p>Excess 9 and 10 are still undecided. The page&#x27;s decider couldn&#x27;t settle K = 67 for excess 9, or K = 71 and 72 for excess 10; the problem was too big for it. Settling them needs the same mod-3 reduction that settled 2^67 last time, so I&#x27;ll only do it if a 1456:12 witness turns up.</p>
+<p>As it stands, a 1456:12 witness would move the excess-4 and excess-7 firsts, and possibly those two as well. The four seeds are running. Notes are in <code>scratch/wish1456-20261107/NOTES.md</code>.</p></div>
 </details>
 </article>
 </main>
