@@ -1242,3 +1242,9 @@ Order-13 witness agent, 2026-10-31 from 06:05 (Claude; `scratch/w13-1008-912/`):
   - **Quals:** new quals_formtree_work test_rate_weights_recent_hours_exponentially, red first (10/3600 where 0.0016183 was due). quals_formtree_work 16/16, quals_formtree_eta 19/19, quals_work_progress 7/7, quals_chance 29/29, quals_progress 124/124.
   - **Not changed:** the model's ±35% log-normal rate uncertainty and its file. runs/models/288_10.json's assumptions.rate text still says one-hour aggregate; it is descriptive, and editing it would change the model's digest.
   - **Watcher:** restarted as PID 45826. Earlier ETA points keep their old rate; the history is not recomputed.
+- **Symmetry section: where the conjecture stands** (Claude, 2026-11-07; dreeves: "can you be clearer in the symmetry conjecture section about how close we are to proving it?"). A four-item list follows the opening paragraph of the Claude block:
+  - orders up to 8, proved by BGPW;
+  - orders 9 to 11, proved here at every length but 288 at order 10, given the listed bounds; four of those are BGPW's uncertified integer programs, and one, at 752, needs a rerun;
+  - order 10 at 288, being decided by the form-tree run;
+  - orders 12 and up, open.
+  The TODO recap was extended. The list holds no math of the forms quals_symmetry parses. quals_symmetry 5/5, and the phone, spacing and curly-quote quals pass.
