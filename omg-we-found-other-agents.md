@@ -2883,3 +2883,22 @@ The bar above each run's ETA chart now measures work, for a run with a work mode
 - **Fixed on the way:** workView threw on a null `work_eta` field (a stopped search's `root_log_sd_posterior`, `effective_samples`), which would have stopped the whole section from drawing.
 - **Quals:** quals_chance 33/33, quals_formtree_eta 19/19, quals_progress 123/123, quals_stages 20/20, the bar's browser quals 2/2 (1280 and 390 px), the Node harnesses (bar, work, summary, stale, attempt views) all pass; quals_index 150/156, its 6 failures the same as before any change (OEIS notes, 1440's entry, code anchors, index.html in text, the remarks fold); the bar's new quals were red first, and 14 + 12 mutants are caught. Artifacts: `scratch/progress-bar-20261106/` (NOTES.md, red/, green/, shots/).
 - **Restart:** watcher 94854 now, then `scratch/watcher-20261030/launch.py`, once. Driver 52302 and its workers are not touched.
+
+### 2026-11-06 17:58 PST — Claude: second watcher restart, for the 80% values
+
+Per the coordinator, after `scratch/calibration-20261106/NOTES.md` (too few independent outcomes to claim calibration; the misses come from the models, not their levels), values only:
+- **The values:** `chance.COVERAGE = 0.8`, every `chance.BANDS` entry `(0.1, 0.9)`. Gott's band is now a 9th to 9 times the age. The work model's to_go and total and formtree_eta's coverage follow. `progress.ZS` still reads stages.json's measured 5%/95%.
+- **History:** recorded ETAs keep their 90% bands; nothing is rewritten.
+- **The page:** under the bar's caption (dreeves's copy since 16:58), a new line, Claude: “The 80% is the model's own, not yet checked against outcomes.” Its percent comes from `work_eta.coverage`, and it is hidden with the band. The caption is the only place the page labels an interval.
+- **Quals moved with the values, each a dated spec change:**
+  - quals_chance: four work quals' quantiles, and the one-place qual's current values;
+  - quals_formtree_eta: coverage .8;
+  - quals_progress: the Gott pins and q_watch_keeps_a_tracked_search_s_eta_record; q_box_estimate_band_covers_the_truth now checks the band's nominal share, 0.80 here;
+  - quals_stages: two quals at the stages band;
+  - quals_focus_progress: two urn quals, the tail check with a sampling-error tolerance.
+- **Results:** quals_chance 33/33, quals_formtree_eta 19/19, quals_progress 123/123, quals_stages 20/20, the bar's browser quals 2/2 and Node harnesses pass, quals_shepherd 21/21, quals_run_modules 14/14; quals_index 150/156 and quals_focus_progress 17/18, quals_pruning288_progress 8/9 and quals_layout 5/6, each failure the same as before any of today's changes; 14 + 15 mutants caught.
+- **Restart:** watcher 72061 now, with the same launcher, once. Driver 52302 and its workers are not touched.
+
+### 2026-11-06 18:04 PST — Claude: correction to the 17:58 entry
+
+The 17:58 entry says the page has a new line under the bar's caption. It doesn't: at 17:52, before that entry, dreeves rewrote the caption to "N nodes checked / ~lo–hi" and commented out the caption's percent, its median and that line; he committed it all in f6d809b. So the page no longer states the interval's level. His edit stands; the bar's quals now ask only for the fields his caption shows (quals_progress_bar.cjs and .py, quals_index q_progress_draws_work_to_scale; all green). bar() still fills the percent and median fields if they come back.

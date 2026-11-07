@@ -69,14 +69,11 @@ HARNESS = r"""<script>
       result.cases.push({work, shown: visible(q('.progress-work')), paragraph: visible(q('[data-work-eta]')),
         bar: rect(q('.progress-bar')), done: rect(part('done')), band: rect(part('band')), median: rect(part('median')),
         bandShown: visible(part('band')), medianShown: visible(part('median')), purpleShown: visible(q('.progress-bar-caption .total')),
-        note: {shown: visible(q('.progress-bar-caption[data-bar-total]')), percent: q('.progress-bar-caption[data-bar-total] [data-bar-percent]').textContent,
-               rect: rect(q('.progress-bar-caption[data-bar-total]'))},
         ticks: [...q('[data-bar="ticks"]').children].map(e => ({text: e.textContent, rect: rect(e), font: parseFloat(getComputedStyle(e).fontSize)})),
         caption: rect(q('.progress-bar-caption')), captionText: q('.progress-bar-caption').textContent,
-        fields: Object.fromEntries(['bar-done', 'bar-range', 'bar-median', 'bar-percent'].map(f => [f, q(`[data-${f}]`).textContent])),
+        fields: Object.fromEntries(['bar-done', 'bar-range'].map(f => [f, q(`[data-${f}]`).textContent])),
         want: work && {done: compact.format(work.done),
-                       range: work.total && `${compact.format(work.total.lo)}–${compact.format(work.total.hi)}`,
-                       median: work.total && compact.format(work.total.median)},
+                       range: work.total && `${compact.format(work.total.lo)}–${compact.format(work.total.hi)}`},
         colors: {done: getComputedStyle(part('done')).backgroundColor, spent: getComputedStyle(fig.querySelector('polyline.spent')).stroke,
                  band: getComputedStyle(part('band')).backgroundColor, bandTotal: getComputedStyle(fig.querySelector('polygon.band.total')).fill,
                  median: getComputedStyle(part('median')).backgroundColor, total: getComputedStyle(fig.querySelector('polyline.total')).stroke,
@@ -131,11 +128,11 @@ class ProgressBar(unittest.TestCase):
         # without; for each shown, the track's end the last tick's number, at least 1.1 times the larger of done and
         # the total's upper end and less than 1.65 times it; the blue part as wide as done / end of the track, the
         # band from lo / end to hi / end, the median tick centered at median / end (each to a CSS px); the band, the
-        # tick, the caption's purple part and the note under the caption (the coordinator, 2026-11-06: the percent is
-        # the model's own, not yet checked against outcomes) shown exactly when there is a total; the ticks from 0 in round steps,
+        # tick and the caption's purple part shown exactly when there is a total; the ticks from 0 in round steps,
         # the first flush with the track's left end, the last with its right, the rest centered on theirs, none
-        # overlapping, none past the page's edges, at 11 px or more; the caption's numbers compact and its percent, and the
-        # note's, the coverage's; blue, the band and the tick in the ETA chart's colors (its elapsed line's, its band's of elapsed +
+        # overlapping, none past the page's edges, at 11 px or more; the caption's numbers compact (the nodes checked and
+        # the total's range: dreeves's caption since f6d809b, 2026-11-06, its percent, median and the note under it
+        # commented out); blue, the band and the tick in the ETA chart's colors (its elapsed line's, its band's of elapsed +
         # ETA, its line of elapsed + ETA), and the caption's parts too; the bar above the ETA chart; the caption within
         # the page; and no sideways scroll (dreeves, 2026-10-29: a phone shows no wider page).
         # Resultata: the measured geometry, colors or visibility that differ.
@@ -165,8 +162,6 @@ class ProgressBar(unittest.TestCase):
                 self.assertEqual(c['bandShown'], total is not None)
                 self.assertEqual(c['medianShown'], total is not None)
                 self.assertEqual(c['purpleShown'], total is not None)
-                self.assertEqual(c['note']['shown'], total is not None)
-                self.assertEqual(c['note']['percent'], f"{round(100 * work['coverage'])}%")
                 if total is not None:
                     self.assertAlmostEqual(c['band']['x'], at(t['lo']), delta=1)
                     self.assertAlmostEqual(c['band']['right'], at(t['hi']), delta=1)
@@ -174,9 +169,7 @@ class ProgressBar(unittest.TestCase):
                     self.assertLess(c['median']['y'], c['bar']['y'])
                     self.assertGreater(c['median']['bottom'], c['bar']['bottom'])
                     self.assertEqual(c['fields']['bar-range'], c['want']['range'])
-                    self.assertEqual(c['fields']['bar-median'], c['want']['median'])
                 self.assertEqual(c['fields']['bar-done'], c['want']['done'])
-                self.assertEqual(c['fields']['bar-percent'], f"{round(100 * work['coverage'])}%")
                 rects = [k['rect'] for k in c['ticks']]
                 self.assertAlmostEqual(rects[0]['x'], x0, delta=1)
                 self.assertAlmostEqual(rects[-1]['right'], x0 + W, delta=1)
@@ -198,7 +191,6 @@ class ProgressBar(unittest.TestCase):
                 self.assertTrue(c['beforeChart'])
                 self.assertGreaterEqual(c['caption']['x'], 0)
                 self.assertLessEqual(c['caption']['right'], width)
-                if total is not None: self.assertLessEqual(c['note']['rect']['right'], width)
 
     def test_desktop(self): self.check_width(1280)
     def test_phone(self): self.check_width(390)

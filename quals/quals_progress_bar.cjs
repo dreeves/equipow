@@ -11,11 +11,12 @@
 // 10, at least 1, the end at least 1.1 times the larger of done and the total's upper end and less than 1.65 times it
 // (PROPERTIES); for these cases exactly the ticks of WANT, labeled compact (500M, 1B); the band, the tick and the
 // caption's purple part hidden exactly when the total is none; the caption's numbers compact (done, lo–hi, median) and
-// its percent the coverage's, and so the note's under it; malformed models fail loudly.  The markup: a container with
-// data-work-measure="work", hidden until drawn, holding the track (done, band, median), its axis (ticks), the caption,
-// whose numbers have their fields, and last a note with the percent too, hidden with the total's marks (the
-// coordinator, 2026-11-06: the page says the percent is the model's own, not yet checked against outcomes); workView
-// shows that container exactly when it shows the work paragraph (data-work-eta), so with a work model and not without.
+// its percent the coverage's, wherever the page has those fields; malformed models fail loudly.  The markup: a
+// container with data-work-measure="work", hidden until drawn, holding the track (done, band, median), its axis
+// (ticks) and last the caption, which gives the nodes checked and, in a part hidden with the total's marks, the
+// total's range (dreeves's caption since f6d809b, 2026-11-06: "N nodes checked / ~lo–hi", its percent, median and the
+// note under it commented out); workView shows that container exactly when it shows the work paragraph
+// (data-work-eta), so with a work model and not without.
 // Resultata: assertion failures name the case and the part that differs.
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -38,11 +39,9 @@ const element = () => ({style: {}, hidden: false, textContent: '', children: [],
 const parts = Object.fromEntries(['done', 'band', 'median', 'ticks'].map(k => [k, element()]));
 const caption = Object.fromEntries(['bar-done', 'bar-range', 'bar-median', 'bar-percent'].map(k => [k, element()]));
 const purple = element();                                 // the caption's purple part
-const note = element(), notePercent = element();          // the note under the caption, and its percent
 const box = {
   querySelector: s => parts[s.match(/^\[data-bar="([^"]+)"\]$/)[1]],
-  querySelectorAll: s => s === '[data-bar-total]' ? [parts.band, parts.median, purple, note]
-                       : s === '[data-bar-percent]' ? [caption['bar-percent'], notePercent] : [caption[s.match(/^\[data-([^\]]+)\]$/)[1]]],
+  querySelectorAll: s => s === '[data-bar-total]' ? [parts.band, parts.median, purple] : [caption[s.match(/^\[data-([^\]]+)\]$/)[1]]],
 };
 const context = {document: {createElement: element}};
 vm.createContext(context);
@@ -81,11 +80,11 @@ for (const [run, want] of WANT) {
   close(percent(parts.band.style.left), 100 * t.lo / end, `${what} band left`);
   close(percent(parts.band.style.width), 100 * (t.hi - t.lo) / end, `${what} band width`);
   close(percent(parts.median.style.left), 100 * t.median / end, `${what} median`);
-  for (const e of [parts.band, parts.median, purple, note]) assert.equal(e.hidden, total === null, what);
+  for (const e of [parts.band, parts.median, purple]) assert.equal(e.hidden, total === null, what);
   assert.equal(caption['bar-done'].textContent, compact.format(done), what);
   assert.equal(caption['bar-range'].textContent, `${compact.format(t.lo)}–${compact.format(t.hi)}`, what);
   assert.equal(caption['bar-median'].textContent, compact.format(t.median), what);
-  for (const e of [caption['bar-percent'], notePercent]) assert.equal(e.textContent, coverage === null ? '' : `${Math.round(100 * coverage)}%`, what);
+  assert.equal(caption['bar-percent'].textContent, coverage === null ? '' : `${Math.round(100 * coverage)}%`, what);
 }
 // malformed models fail loudly, before anything is drawn from them
 const good = {lo: 7.8e8, median: 1.27e9, hi: 2.5e9};
@@ -98,16 +97,16 @@ for (const run of [model(-1, good), model(NaN, good), model('5', good), model(9e
   assert.throws(() => context.draw(box, run), /^Error: \[/, JSON.stringify(run));   // the page's assert: its message the JSON of what failed
 }
 
-// The markup: index.html's run template, its comments left out (a retired caption is kept verbatim in one)
+// The markup: index.html's run template, its comments left out (retired captions are kept verbatim in them).
+// Spec change (Claude, 2026-11-06): dreeves's f6d809b made the caption "N nodes checked / ~lo–hi" and commented out
+// its percent, its median and the note under it, so the markup's checks ask only for the fields it shows.
 const template = html.match(/<template class="progress-run">([\s\S]*?)<\/template>/)[1].replace(/<!--[\s\S]*?-->/g, '');
-const container = template.match(/<div class="progress-work" data-work-measure="work" hidden>([\s\S]*?)<p class="progress-bar-caption">([\s\S]*?)<\/p>\s*<p class="progress-bar-caption" data-bar-total>([\s\S]*?)<\/p>\s*<\/div>/);
-assert.ok(container, 'the bar\'s container, with its caption and then the note last');
-assert.match(container[3], /<b data-bar-percent><\/b>/, 'the note gives the percent');
+const container = template.match(/<div class="progress-work" data-work-measure="work" hidden>([\s\S]*?)<p class="progress-bar-caption">([\s\S]*?)<\/p>\s*<\/div>/);
+assert.ok(container, 'the bar\'s container, with its caption last');
 assert.match(container[1], /<div class="progress-bar" aria-hidden="true"><span data-bar="done"><\/span><span data-bar="band" data-bar-total><\/span><i data-bar="median" data-bar-total><\/i><\/div>/);
 assert.match(container[1], /<div class="progress-bar-axis" aria-hidden="true" data-bar="ticks"><\/div>/);
-assert.match(container[2], /<span class="spent">[^]*<b data-bar-done><\/b>[^]*<\/span><span class="total" data-bar-total>[^]*<b data-bar-percent><\/b>[^]*<b data-bar-range><\/b>[^]*<b data-bar-median><\/b>[^]*<\/span>/);
+assert.match(container[2], /<span class="spent">[^]*<b data-bar-done><\/b>[^]*<\/span>\s*<span class="total" data-bar-total>[^]*<b data-bar-range><\/b>[^]*<\/span>/);
 assert.equal((template.match(/data-work-measure="work"/g) || []).length, 2, 'the bar\'s container and the chance line\'s work figures');
-assert.equal((template.match(/data-bar-percent/g) || []).length, 2, 'the caption\'s percent and the note\'s');
 // workView shows the container exactly when it shows the work paragraph
 const shown = {dataset: {workMeasure: 'work'}, hidden: true}, cpu = {dataset: {workMeasure: 'cpu'}, hidden: false};
 const paragraph = {hidden: true};

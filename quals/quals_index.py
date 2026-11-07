@@ -5287,6 +5287,22 @@ def q_progress_names_a_run_s_later_stages():
                         after=True)], got
 
 
+def q_progress_lists_running_runs_first():
+    # Replicata: index.html with three runs as progress.js, PROGRESS_DATA's run as an ended a.py, a running b.py and
+    # an ended c.py, in that order.
+    # Expectata (dreeves, 2026-11-06, asking for a Pareto improvement to the search progress display; the coordinator's
+    # choice: the one live run was listed 10th of 22, under nine ended ones): the running run first, then the others
+    # in the data's order, each run's box its own.
+    # Resultata before: a.py, b.py, c.py, the data's order.
+    base = PROGRESS_DATA['runs'][0]
+    ended = dict(base, state='ended', to_go=None)
+    data = {'made': PROGRESS_DATA['made'], 'runs': [dict(ended, program='a.py'), dict(base, program='b.py'),
+                                                     dict(ended, program='c.py')]}
+    got = progress_harness(data, """
+  out(runs().map(r => [r.querySelector('[data-program]').textContent, r.dataset.runState]));""")
+    assert got == [['b.py', 'running'], ['a.py', 'ended'], ['c.py', 'ended']], got
+
+
 def q_progress_shows_no_stages_for_a_run_of_one_stage():
     # Replicata: index.html with two runs as progress.js: PROGRESS_DATA's (no stages, as progress.js_text gives a run in
     # no chain, or as a data file written before 2026-10-31 has none), and the same with stages its own alone.
@@ -5683,8 +5699,9 @@ def q_progress_draws_work_to_scale():
     # PROGRESS_DATA's, which has none.
     # Expectata: the first shows its work bar and its work paragraph; the bar's blue part 15.625% of the track (done
     # over the track's end, 3B, the round tick past 1.1 x 2.5B), its band from 26% to 83.333%, its median tick at
-    # 42.333%, its ticks 0, 1B, 2B and 3B at 0, 33.333, 66.667 and 100%, and its caption's numbers 469M, 780M–2.5B,
-    # 1.3B and 90%; the second shows neither the bar nor the work paragraph.
+    # 42.333%, its ticks 0, 1B, 2B and 3B at 0, 33.333, 66.667 and 100%, and its caption's numbers 469M and 780M–2.5B
+    # (dreeves's caption since f6d809b, 2026-11-06, its percent and median commented out); the second shows neither the
+    # bar nor the work paragraph.
     # Resultata before: the bar was a time ruler, shown for every run, its blue part elapsed time.
     got = progress_harness({'made': PROGRESS_DATA['made'], 'runs': [PROGRESS_WORK, PROGRESS_DATA['runs'][0]]}, """
   for (const r of runs()) r.querySelector('details').open = true;
@@ -5692,7 +5709,7 @@ def q_progress_draws_work_to_scale():
   out(runs().map(r => ({bar: r.querySelector('.progress-work').checkVisibility(), work: r.querySelector('[data-work-eta]').checkVisibility(),
     styles: Object.fromEntries([...r.querySelectorAll('.progress-bar [data-bar]')].map(e => [e.dataset.bar, [e.style.left, e.style.width]])),
     ticks: [...r.querySelector('[data-bar="ticks"]').children].map(e => [e.textContent, e.style.left]),
-    fields: Object.fromEntries(['done', 'range', 'median', 'percent'].map(f => [f, r.querySelector(`[data-bar-${f}]`).textContent]))})));""")
+    fields: Object.fromEntries(['done', 'range'].map(f => [f, r.querySelector(`[data-bar-${f}]`).textContent]))})));""")
     work, plain = got
     assert (work['bar'], work['work'], plain['bar'], plain['work']) == (True, True, False, False), got
     near = lambda s, v: abs(float(s.rstrip('%')) - v) < 0.001
@@ -5701,7 +5718,7 @@ def q_progress_draws_work_to_scale():
     assert near(styles['median'][0], 42.3333), styles
     assert [t for t, _ in work['ticks']] == ['0', '1B', '2B', '3B'], work['ticks']
     assert all(near(left, v) for (_, left), v in zip(work['ticks'], (0, 33.3333, 66.6667, 100))), work['ticks']
-    assert work['fields'] == dict(done='469M', range='780M–2.5B', median='1.3B', percent='90%'), work['fields']
+    assert work['fields'] == dict(done='469M', range='780M–2.5B'), work['fields']
 
 
 

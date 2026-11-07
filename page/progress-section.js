@@ -175,7 +175,8 @@
     });
     if (data.made === made) return;
     made = data.made;
-    view.data = data;
+    // running runs first, the rest in the data's order (2026-11-06: the one live run had been listed 10th of 22)
+    view.data = {...data, runs: [...data.runs.filter(r => r.state === 'running'), ...data.runs.filter(r => r.state !== 'running')]};
     render();
   };
 
