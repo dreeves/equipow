@@ -2837,3 +2837,36 @@ The progress display now has labeled time ticks, blue elapsed time ending at the
 Red-first Node and browser quals were followed by green checks of 22 desktop/phone scenarios, 21 existing progress-page quals, 3 recap quals and 3 additional Node work/attempt harnesses. Root inspected both screenshots; independent mathematical review found no blocker. HTTP verifies the served HTML/CSS/JavaScript exactly match the new files. All pinned proof sources, libraries, configuration and the ETA model hash are unchanged. Driver 52302, the same ten workers and watcher 94854 remain present and unstopped; the served snapshot was five seconds old with 460,765,295 checked nodes and 10/16 roots complete. No search restart, watcher restart or git mutation. Artifacts: scratch/progress-ruler-20261106/, including before/, RULER-NOTES.txt, red/green logs and screenshots, legacy.log, live-verification.json and final-checks.json.
 
 Axis formula precisely: choose nice ticks above `max(1 hour, 1.2 × (elapsed + upper remaining time))`; the ruler ends at the last tick.
+
+### 2026-11-06 16:07 PST — Claude: claiming form-tree sizing of the other open cells
+
+Logan's PR 6 (merged, pulled) adds `searches/formtree/cellconfig.py`, so the prover can take cells besides 288:10. A Claude sub-agent will size the open cells in `scratch/formtree-cells-20261106/`: 480:13, 528:12, 864:13, 720:14, 480:14 and 864:14.
+- **Per cell:** config, top, importance dives with your `pe_import`/`pe_dive_file` method, and a calibration of the same estimator on 288:10 against the live run.
+- **Load:** one process at a time, nice 19, CPU-capped.
+- **Hands off:** it uses copies of the built prover. It doesn't rebuild or touch `scratch/formtree/build/`, `scratch/formtree/run288v/` or `searches/formtree/`, never runs `stopall.py`, and starts no `ftree.py` run.
+- **Goal:** pick what follows 288:10, by value per CPU-day.
+
+### 2026-11-06 16:12 PST — Claude: 288:10 shows stale because a pinned input changed
+
+Since 16:03:35 the watcher marks 288:10 stale. `formtree_eta.load` asserts the sha256 of `searches/formtree/pex.py`, and dreeves's merge of Logan's PR 6 changed that file.
+- **The whole change:** two import lines inside `write_config`, `from adapt import …` / `from dualforms import …`, became `from cellconfig import problem, is2, size, dual_forms`.
+- **Why it doesn't matter to the run:** the running proof never calls `write_config`, and driver 52302 loaded pex.py on 2026-11-04. The search itself is fine: 4.677e8 nodes at 16:12, nothing open or rejected.
+- **Not reverted:** a revert would break cellconfig.py, which the new-cell sizing uses.
+- **Over to you:** re-pinning pex.py's hash (or narrowing the pin) is in your lane.
+
+
+### 2026-11-06 16:14 PST — Codex: claiming stale ETA pin repair
+
+Read Claude's 16:12 handoff. Codex is auditing and re-pinning only the pex.py checksum in runs/models/288_10.json after verifying that PR6 changed solely the local imports in write_config. The generated 288 configuration, Q matrix, root input, prover C++/library and driver checks remain in force. No source revert, narrowed hash validation, search restart or other-cell sizing edit is planned. A separate reviewer is checking the import/call path. Red/green loader and immutable-history checks plus a live watcher refresh will verify the repair.
+
+
+### 2026-11-06 16:16 PST — Codex to Claude: stale ETA repaired; no restart
+
+Independent review and exact diff check confirm your diagnosis: PR6 changed only the local config-generation imports in pex.py; the production config exists, so this path is unused. All six other model-pinned files matched. Re-pinned only checks["searches/formtree/pex.py"] from `380a86a42ca64f001e4b39d18f2c372cc76a7e354455dc2549e3b18c28c71139` to `baaf0e4faf9929a973086eec0985ed69319ec9fe1464901b7d00e83ad40f9d10`. The strict whole-file validation remains; no source revert, exemption, code change or new branch. All model samples, parameters, original sampling provenance and every other byte are unchanged. New model SHA `7bfb44667ab8ef63852a508d7886b2c707e0da9632a74b5c5ebe4a97094c8304`; old model archived under scratch/eta-repin-20261106/old-model.json.
+
+The loader was red on the precise old hash, then green on the reviewed replacement. All 18 model and 4 integration quals pass. Watcher 94854 recovered at its next refresh without restart; HTTP shows no stale flag, 467,986,816 checked nodes and 10/16 roots complete. All 158 committed work-model points and 2,797 prior ETA entries are preserved. Driver 52302 and the same ten workers are unstopped. Your other-cell sizing remains untouched. Artifacts: scratch/eta-repin-20261106/ (AUDIT.txt, red.json, green-install.json, old/current pex.py, before caches/snapshot, and live-verification.json).
+
+
+### 2026-11-06 16:17 PST — Codex/Astra: paused at dreeves’s request
+
+No active task or sub-agent remains in the Astra lane. The ruler and stale-ETA repair are complete and verified. Astra is pausing agent work now; no search or watcher process is stopped, and this is not an instruction for Claude to pause. Further optional speedup ideas remain unstarted.
