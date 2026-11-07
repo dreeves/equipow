@@ -10,13 +10,16 @@
 // median / end (percent), the track's end the last of its round ticks: 0 and on in steps of 1, 2 or 5 times a power of
 // 10, at least 1, the end at least 1.1 times the larger of done and the total's upper end and less than 1.65 times it
 // (PROPERTIES); for these cases exactly the ticks of WANT, labeled compact (500M, 1B); the band, the tick and the
-// caption's purple part hidden exactly when the total is none; the caption's numbers compact (done, lo–hi, median) and
-// its percent the coverage's, wherever the page has those fields; malformed models fail loudly.  The markup: a
-// container with data-work-measure="work", hidden until drawn, holding the track (done, band, median), its axis
-// (ticks) and last the caption, which gives the nodes checked and, in a part hidden with the total's marks, the
-// total's range (dreeves's caption since f6d809b, 2026-11-06: "N nodes checked / ~lo–hi", its percent, median and the
-// note under it commented out); workView shows that container exactly when it shows the work paragraph
-// (data-work-eta), so with a work model and not without.
+// caption's purple part hidden exactly when the total is none; the caption's nodes checked exact and its other numbers
+// compact (lo–hi, median), its percent the coverage's, wherever the page has those fields; malformed models fail loudly.
+// The markup: a container with data-work-measure="work", hidden until drawn, holding the track (done, band, median),
+// its axis (ticks) and last the caption, which gives the nodes checked and then the rate in its blue part and, in a
+// part hidden with the total's marks, the total's range (dreeves's caption since f6d809b, 2026-11-06: "N nodes checked
+// / ~lo–hi", its percent, median and the note under it commented out); no field of the samples or the source time in
+// the run template; workView shows that container exactly when the run has a work model, and fills the rate in.
+// Spec change (Claude, 2026-11-06; dreeves: "1. add nodes/s to the blue/purple line" and "2. kill the whole line with
+// number of samples"): the caption's blue part gives the rate too, and the work paragraph (data-work-eta: samples,
+// nodes checked, rate and source time), which workView showed with the container until then, is gone.
 // Resultata: assertion failures name the case and the part that differs.
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -81,7 +84,9 @@ for (const [run, want] of WANT) {
   close(percent(parts.band.style.width), 100 * (t.hi - t.lo) / end, `${what} band width`);
   close(percent(parts.median.style.left), 100 * t.median / end, `${what} median`);
   for (const e of [parts.band, parts.median, purple]) assert.equal(e.hidden, total === null, what);
-  assert.equal(caption['bar-done'].textContent, compact.format(done), what);
+  // spec change (dreeves, 2026-11-06: "479M nodes checked" above and "479,017,754 nodes checked" below, "the exact
+  // number seems better"): the bar's count exact, as the work paragraph's is
+  assert.equal(caption['bar-done'].textContent, done.toLocaleString('en-US'), what);
   assert.equal(caption['bar-range'].textContent, `${compact.format(t.lo)}–${compact.format(t.hi)}`, what);
   assert.equal(caption['bar-median'].textContent, compact.format(t.median), what);
   assert.equal(caption['bar-percent'].textContent, coverage === null ? '' : `${Math.round(100 * coverage)}%`, what);
@@ -106,18 +111,24 @@ assert.ok(container, 'the bar\'s container, with its caption last');
 assert.match(container[1], /<div class="progress-bar" aria-hidden="true"><span data-bar="done"><\/span><span data-bar="band" data-bar-total><\/span><i data-bar="median" data-bar-total><\/i><\/div>/);
 assert.match(container[1], /<div class="progress-bar-axis" aria-hidden="true" data-bar="ticks"><\/div>/);
 assert.match(container[2], /<span class="spent">[^]*<b data-bar-done><\/b>[^]*<\/span>\s*<span class="total" data-bar-total>[^]*<b data-bar-range><\/b>[^]*<\/span>/);
+// the blue part (up to its own end tag: it holds no span): the nodes checked, then the rate
+const blue = container[2].match(/<span class="spent">([^]*?)<\/span>/)[1];
+assert.ok(blue.includes('<b data-bar-done></b>') && blue.indexOf('<b data-bar-done></b>') < blue.indexOf('<b data-work-rate></b>'), blue);
+assert.doesNotMatch(template, /data-work-(eta|samples|source_time)\b/, 'a field of the work paragraph, its samples or its source time');
 assert.equal((template.match(/data-work-measure="work"/g) || []).length, 2, 'the bar\'s container and the chance line\'s work figures');
-// workView shows the container exactly when it shows the work paragraph
+// workView shows the container exactly when the run has a work model, and fills the model's rate in (the box holds no
+// work paragraph: workView queried one until 2026-11-06)
 const shown = {dataset: {workMeasure: 'work'}, hidden: true}, cpu = {dataset: {workMeasure: 'cpu'}, hidden: false};
-const paragraph = {hidden: true};
-const fields = {querySelectorAll: () => []};
-const viewBox = {querySelector: s => ({'[data-work-eta]': paragraph})[s],
+const rate = {textContent: ''};
+const fields = {querySelectorAll: s => s === '[data-work-rate]' ? [rate] : []};
+const viewBox = {querySelector: s => undefined,
                  querySelectorAll: s => s === '[data-work-measure]' ? [shown, cpu] : fields.querySelectorAll(s)};
 for (const run of [model(468750102, good), {}, {work_eta: null}, model(4e8, null)]) {
+  rate.textContent = '';
   context.workView(viewBox, run);
-  assert.equal(shown.hidden, paragraph.hidden, JSON.stringify(run));
   assert.equal(shown.hidden, !run.work_eta, JSON.stringify(run));
   assert.equal(cpu.hidden, !!run.work_eta, JSON.stringify(run));
+  assert.equal(rate.textContent, run.work_eta ? '1,884.1' : '', JSON.stringify(run));   // model()'s rate, 1884.1
 }
 // and fills the model's numbers into their fields with no number among its fields null, as a model makes them for a
 // search stopped short (total, root_log_sd_posterior and effective_samples null; formtree_eta.attach): workView

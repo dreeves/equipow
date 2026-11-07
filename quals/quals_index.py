@@ -4452,7 +4452,7 @@ PROGRESS_HARNESS = """<script>
     out.status = {afterChart: !fig.contains(status) && !!(fig.compareDocumentPosition(status) & Node.DOCUMENT_POSITION_FOLLOWING),
                   colors: [...shown.querySelectorAll('.spent, .togo, .total')].map(e => [e.className, getComputedStyle(e).color]),
                   ink: getComputedStyle(shown).color,
-                  when: getComputedStyle(section.querySelector('.progress-run [data-state="running"] [data-when]')).color,
+                  when: getComputedStyle(section.querySelector('.progress-run [data-tip] [data-when]')).color,
                   legends: section.querySelectorAll('.progress-eta-keys').length};
     const tipEl = fig.querySelector('[data-tip]');
     out.tipRest = {visibility: getComputedStyle(tipEl).visibility, height: tipEl.getBoundingClientRect().height};
@@ -4917,6 +4917,10 @@ def q_progress_states_times_and_hours():
     # chart has no record), its parts in the chart's colors: the hours so far blue (spent), the hours to go red (togo),
     # the hours in all and the clock times purple (total: #7b1fa2 since dreeves's "blue+red=purple", 2026-10-17; the
     # page's ink before).
+    # Spec change (Claude, 2026-11-06; dreeves: "i don't think we need "@2026-11-06 19:12:49" under the graph since the
+    # search progress line above the progress bar shows the freshness"): the line's text is checked as its template
+    # gives it (its textContent), which the ETA chart's tip shows whole; the status line hides its @, its time and the
+    # em space (q_progress_status_line_has_no_time_but_its_tip_does), so the time's ink is read in the tip.
     R = progress_run()
     made, go, h = PROGRESS_DATA['made'], PROGRESS_DATA['runs'][0]['to_go'], NNBSP + 'h'
     want = f'@{stamp(made)}{EMSP}2.0{h} so far + 0.5–3.0{h} to go = 2.5–5.0{h} ({finish(made, made + go["lo"], made + go["hi"])})'
@@ -4934,6 +4938,34 @@ def q_progress_states_times_and_hours():
     assert R['status']['ink'] == R['status']['when'] == 'rgb(27, 29, 34)', R['status']
 
 
+def q_progress_status_line_has_no_time_but_its_tip_does():
+    # Replicata: index.html with two running runs as progress.js, each fold open: PROGRESS_DATA's, its data fresh, and
+    # the same with its data stale, from an hour before the snapshot; then a hover over the first run's ETA chart at its
+    # last record.
+    # Expectata (dreeves, 2026-11-06: "i don't think we need "@2026-11-06 19:12:49" under the graph since the search
+    # progress line above the progress bar shows the freshness"): each status line under the ETA chart shows its hours
+    # so far + to go = in all and its finish times (the stale run's from its stale time), and no @, time or em space
+    # before them; the tip above the chart, over the last record, still shows the @, the snapshot's time and an em
+    # space, then the status line's text; the stale run's summary still shows its stale time as the section's stamp
+    # writes it, the time its status line gave until then; and the section's line above the runs, the snapshot's time.
+    # Resultata before: each status line began with an @, its time (the stale run's its stale time) and an em space.
+    made, go, h = PROGRESS_DATA['made'], PROGRESS_DATA['runs'][0]['to_go'], NNBSP + 'h'
+    old = made - 3600
+    got = progress_harness({'made': made, 'runs': [PROGRESS_DATA['runs'][0], dict(PROGRESS_DATA['runs'][0], stale=old)]}, """
+  for (const r of runs()) r.querySelector('details').open = true;
+  await sleep(200);
+  const [fresh, stale] = runs(), squeeze = t => t.replace(/[ \\t\\n\\r]+/g, ' ').trim();
+  const shown = r => squeeze(r.querySelector('.progress-status [data-state="running"]').innerText);
+  const L = window.progressView.layouts[0], svg = fresh.querySelector('.progress-eta svg'), sb = svg.getBoundingClientRect();
+  svg.dispatchEvent(new MouseEvent('mousemove', {clientX: sb.left + L.etaXs[L.etaXs.length - 1] * sb.width / 640, clientY: sb.top + sb.height / 2, bubbles: true}));
+  out({status: [shown(fresh), shown(stale)], tip: squeeze(fresh.querySelector('[data-tip]').innerText),
+       mark: stale.querySelector('[data-stale]').checkVisibility() && stale.querySelector('[data-stale-at]').textContent,
+       made: document.querySelector('section.progress [data-made]').textContent});""")
+    line = lambda t: f'2.0{h} so far + 0.5–3.0{h} to go = 2.5–5.0{h} ({finish(t, t + go["lo"], t + go["hi"])})'
+    assert got == dict(status=[line(made), line(old)], tip=f'@{stamp(made)}{EMSP}{line(made)}', mark=stamp(old),
+                       made=stamp(made)), got
+
+
 def q_progress_writes_days_and_years_past_72_h_and_dates_past_a_week():
     # Replicata: progress_run('long'): PROGRESS_LONG's two running runs.
     # Expectata (dreeves, 2026-10-23: "this would be more helpful as days or years when over like 48 or maybe 72h, and
@@ -4944,6 +4976,10 @@ def q_progress_writes_days_and_years_past_72_h_and_dates_past_a_week():
     # as its local date, both of the first run's, YYYY-MM-DD; and the first run's ETA chart's axes each in the unit of
     # its largest value, hours of running in days, 0 to 400 d, and hours in all in days too, 0 to 300 d, as the y axis
     # stops a bit above the projected finish (dreeves, 2026-10-23; q_progress_caps_the_y_axis_above_the_projected_finish).
+    # Spec change (Claude, 2026-11-06; dreeves: "i don't think we need "@2026-11-06 19:12:49" under the graph since the
+    # search progress line above the progress bar shows the freshness"): the lines' text as their template gives it (its
+    # textContent), its @, time and em space shown in the ETA chart's tip alone
+    # (q_progress_status_line_has_no_time_but_its_tip_does).
     R = progress_run('long')
     made, (a, b) = PROGRESS_LONG['made'], [r['to_go'] for r in PROGRESS_LONG['runs']]
     h, d, y = NNBSP + 'h', NNBSP + 'd', NNBSP + 'y'
@@ -5695,30 +5731,88 @@ def q_progress_draws_work_to_scale():
     # that makes sense to you? also bring back a subtle tick for the median finish time. bigger picture: should that
     # progress bar be measuring amount of work, not time? the ETA graph is for time. we can still have a 90% CI for
     # amount of work remaining, right?"), in place of q_progress_draws_time_to_scale (Astra's time ruler of that day).
+    # Spec change (Claude, 2026-11-06; dreeves: "479M nodes checked" above and "479,017,754 nodes checked" below, "the
+    # exact number seems better"; then "1. add nodes/s to the blue/purple line" and "2. kill the whole line with number
+    # of samples"): the caption's nodes checked exact and followed by the rate, and no work paragraph (its samples,
+    # nodes checked, rate and source time), shown with the bar until then.
     # Replicata: index.html with two runs, both folds open: PROGRESS_WORK, which has a work model, and
     # PROGRESS_DATA's, which has none.
-    # Expectata: the first shows its work bar and its work paragraph; the bar's blue part 15.625% of the track (done
-    # over the track's end, 3B, the round tick past 1.1 x 2.5B), its band from 26% to 83.333%, its median tick at
-    # 42.333%, its ticks 0, 1B, 2B and 3B at 0, 33.333, 66.667 and 100%, and its caption's numbers 469M and 780M–2.5B
-    # (dreeves's caption since f6d809b, 2026-11-06, its percent and median commented out); the second shows neither the
-    # bar nor the work paragraph.
+    # Expectata: the first shows its work bar; the bar's blue part 15.625% of the track (done over the track's end, 3B,
+    # the round tick past 1.1 x 2.5B), its band from 26% to 83.333%, its median tick at 42.333%, its ticks 0, 1B, 2B
+    # and 3B at 0, 33.333, 66.667 and 100%, and its caption's numbers 468,750,102, then the rate 1,884.1 in its blue
+    # part, and 780M–2.5B (dreeves's caption since f6d809b, 2026-11-06, its percent and median commented out); the
+    # second shows no bar; neither run's box has a field of the samples or the source time.
     # Resultata before: the bar was a time ruler, shown for every run, its blue part elapsed time.
     got = progress_harness({'made': PROGRESS_DATA['made'], 'runs': [PROGRESS_WORK, PROGRESS_DATA['runs'][0]]}, """
   for (const r of runs()) r.querySelector('details').open = true;
   await sleep(200);
-  out(runs().map(r => ({bar: r.querySelector('.progress-work').checkVisibility(), work: r.querySelector('[data-work-eta]').checkVisibility(),
+  out(runs().map(r => ({bar: r.querySelector('.progress-work').checkVisibility(),
+    unshown: r.querySelectorAll('[data-work-eta], [data-work-samples], [data-work-source_time]').length,
     styles: Object.fromEntries([...r.querySelectorAll('.progress-bar [data-bar]')].map(e => [e.dataset.bar, [e.style.left, e.style.width]])),
     ticks: [...r.querySelector('[data-bar="ticks"]').children].map(e => [e.textContent, e.style.left]),
-    fields: Object.fromEntries(['done', 'range'].map(f => [f, r.querySelector(`[data-bar-${f}]`).textContent]))})));""")
+    fields: {...Object.fromEntries(['done', 'range'].map(f => [f, r.querySelector(`[data-bar-${f}]`).textContent])),
+             rate: (r.querySelector('.progress-bar-caption .spent [data-work-rate]') || {}).textContent}})));""")
     work, plain = got
-    assert (work['bar'], work['work'], plain['bar'], plain['work']) == (True, True, False, False), got
+    assert (work['bar'], plain['bar'], work['unshown'], plain['unshown']) == (True, False, 0, 0), got
     near = lambda s, v: abs(float(s.rstrip('%')) - v) < 0.001
     styles = work['styles']
     assert near(styles['done'][1], 15.625) and near(styles['band'][0], 26) and near(styles['band'][1], 57.3333), styles
     assert near(styles['median'][0], 42.3333), styles
     assert [t for t, _ in work['ticks']] == ['0', '1B', '2B', '3B'], work['ticks']
     assert all(near(left, v) for (_, left), v in zip(work['ticks'], (0, 33.3333, 66.6667, 100))), work['ticks']
-    assert work['fields'] == dict(done='469M', range='780M–2.5B'), work['fields']
+    assert work['fields'] == dict(done='468,750,102', range='780M–2.5B', rate='1,884.1'), work['fields']
+
+
+def q_progress_brief_of_a_work_model_run_is_its_bar_caption():
+    # Replicata: index.html with PROGRESS_WORK as progress.js; then want(288, 10), as the box of the m*(n) chart's black
+    # cell (288, 10) asks for the runs at its target (page/shared.js's searches).
+    # Expectata (dreeves, 2026-11-06: "1. add nodes/s to the blue/purple line" and "2. kill the whole line with number
+    # of samples"; the coordinator: the box keeps showing a work-model run's nodes checked, rate and range): two rows,
+    # the run's summary line and then its bar's caption, filled as on the page: 468,750,102 nodes checked, then the
+    # rate 1,884.1, and the total's range 780M–2.5B, shown; no field of the samples or the source time.
+    # Resultata before: the second row was the work paragraph, with its samples and its source time.
+    got = progress_harness({'made': PROGRESS_DATA['made'], 'runs': [PROGRESS_WORK]}, """
+  const rows = await new Promise(put => window.progressView.want(288n, 10, put));
+  const caption = rows[rows.length - 1], text = sel => (caption.querySelector(sel) || {}).textContent ?? null;
+  out({rows: rows.length, caption: caption.matches('p.progress-bar-caption'), done: text('.spent [data-bar-done]'),
+       rate: text('.spent [data-work-rate]'), range: text('.total [data-bar-range]'),
+       purple: !!caption.querySelector('.total') && !caption.querySelector('.total').hidden,
+       unshown: caption.querySelectorAll('[data-work-samples], [data-work-source_time]').length});""")
+    assert got == dict(rows=2, caption=True, done='468,750,102', rate='1,884.1', range='780M–2.5B', purple=True, unshown=0), got
+
+
+def q_progress_shows_runs_and_dots_only_without_a_work_model():
+    # Replicata: index.html with three running runs as progress.js, each fold open: a tracked search with a work model
+    # (ftree.py's 288:10 as survey_track and formtree_eta.attach give it: four launches of one proof search, 1 running
+    # and 3 ended, and PROGRESS_WORK's model), a tracked search without one (w12.py's 768:12, as in
+    # q_progress_shows_a_tracked_search), and PROGRESS_DATA's overnight_v5.py run.
+    # Expectata (dreeves, 2026-11-06, of the tracked search's line "4 runs: 1 running, 0 frozen, 3 ended, 0 aborted; 0
+    # found; elapsed …; running." and its "One dot per run" dots, for 288:10: "sounds like noise?"): the first shows
+    # neither the line of its runs nor its dots, their key or their readout, but its status line and its bar; the
+    # second still shows its runs' line, its dots and their readout, its key hidden as every tracked search's; the
+    # third still shows its dots, their key and their readout, and has no runs' line.
+    # Resultata before: the first showed the line of its four runs and their four dots, as the second does.
+    base, made = PROGRESS_DATA['runs'][0], PROGRESS_DATA['made']
+    tracked = dict(program='w12.py', n=768, order=12, state='running', outcome=None, so_far=600,
+                   to_go=dict(median=600, lo=600 / 9, hi=9 * 600),
+                   etas=[[made - 60, 540.0, 540.0, 60.0, 4860.0], [made, 600.0, 600.0, 66.7, 5400.0]],
+                   statuses=base['statuses'], depth=0, keys=['768:12'], groups=['4440'],
+                   counts=dict(settled=1, open=0, split=0, pending=0, running=3), stale=None, tracked=True,
+                   work=dict(runs=4, running=3, frozen=0, ended=1, aborted=0, found=0), lindy=True)
+    worked = dict(tracked, program='ftree.py', n=288, order=10, keys=['288:10'], groups=['0004'],
+                  counts=dict(settled=3, open=0, split=0, pending=0, running=1), lindy=False,
+                  work=dict(runs=4, running=1, frozen=0, ended=3, aborted=0, found=0), work_eta=PROGRESS_WORK['work_eta'])
+    got = progress_harness({'made': made, 'runs': [worked, tracked, base]}, """
+  for (const r of runs()) r.querySelector('details').open = true;
+  await sleep(200);
+  const shows = (r, sel) => { const e = r.querySelector(sel); return e && e.checkVisibility(); };
+  out(runs().map(r => ({program: r.querySelector('[data-program]').textContent,
+    runs: shows(r, '.progress-status [data-attempt-count="runs"]'), dots: shows(r, 'canvas'), key: shows(r, '.progress-key'),
+    readout: shows(r, '[data-readout]'), status: shows(r, '.progress-status [data-state="running"]'), bar: shows(r, '.progress-work')})));""")
+    want = [dict(program='ftree.py', runs=False, dots=False, key=False, readout=False, status=True, bar=True),
+            dict(program='w12.py', runs=True, dots=True, key=False, readout=True, status=True, bar=False),
+            dict(program='overnight_v5.py', runs=None, dots=True, key=True, readout=True, status=True, bar=False)]
+    assert got == want, got
 
 
 
@@ -5747,6 +5841,10 @@ def q_progress_draws_the_eta_chart():
     # snapshot thereof and with the datetimestamp prefix"): over the second record, an @ and its time, an em space, 1.0 h
     # so far + 1.0–3.0 h to go = 2.0–4.0 h, and in parentheses the local times its band ends between; over the last (the
     # snapshot's own), the status line exactly, markup and all; and the hover moved the status line not at all.
+    # Spec change (Claude, 2026-11-06; dreeves: "i don't think we need "@2026-11-06 19:12:49" under the graph since the
+    # search progress line above the progress bar shows the freshness"): the status line's markup and text still the
+    # tip's, but the status line hides the @, the time and the em space, which the tip shows
+    # (q_progress_status_line_has_no_time_but_its_tip_does).
     R = progress_run()
     E = R['eta']
     assert not E['hidden'] and E['togo'] == 3 and abs(E['widths'][0] - E['widths'][1]) <= 1, E

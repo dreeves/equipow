@@ -1,5 +1,9 @@
 // Replicata: actual brief/work renderers with work, campaign, Lindy, and unmodeled run fixtures.
 // Expectata: work popups report measurements; full chance lines retain probabilities and truthful units.
+// Spec change (Claude, 2026-11-06; dreeves: "1. add nodes/s to the blue/purple line" and "2. kill the whole line with
+// number of samples"): a work run's popup row is its bar's caption (the nodes checked, the rate and the total's range),
+// its numbers drawn into the brief's box by bar as on the page, in place of the work paragraph (data-work-eta), which
+// is gone.
 // Resultata: assertions identify a wrong returned row, measurement value, or hidden variant.
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -19,32 +23,37 @@ assert.match(chanceLine, /data-chance-at="6"/);
 assert.match(chanceLine, /data-chance-at="24"/);
 assert.doesNotMatch(chanceLine, /^<[^>]*hidden/);
 
+// a run's box: the work fields twice each (the bar's caption's rate and the chance line's), the bar's caption, the
+// two variants of the chance line's measure, and the chance chart with its line; no work paragraph
 function fixture() {
-  const fields = Object.fromEntries(['samples', 'done', 'rate', 'source_time'].map(key => [`work-${key}`, [{textContent: ''}, {textContent: ''}]]));
-  const eta = {id: 'eta', hidden: true, querySelectorAll: s => (fields[s.slice(6, -1)] || []).slice(0, 1)};
+  const fields = Object.fromEntries(['done', 'rate'].map(key => [`work-${key}`, [{textContent: ''}, {textContent: ''}]]));
+  const caption = {id: 'caption'};
   const cpu = {dataset: {workMeasure: 'cpu'}, hidden: false};
   const measure = {dataset: {workMeasure: 'work'}, hidden: true};
   const chance = {id: 'chance', hidden: false};
   const line = {id: 'chance-line'};
   const box = {
-    querySelector: s => ({'[data-work-eta]': eta, '.progress-chance': chance, 'summary h3': {childNodes: ['heading']}, summary: {querySelectorAll: () => []}})[s],
-    querySelectorAll: s => ({'[data-work-measure]': [cpu, measure], '[data-work-eta]': [eta], '.progress-chance:not([hidden]) .progress-chance-line': chance.hidden ? [] : [line]})[s] || fields[s.slice(6, -1)] || [],
+    querySelector: s => ({'.progress-chance': chance, 'summary h3': {childNodes: ['heading']}, summary: {querySelectorAll: () => []}})[s],
+    querySelectorAll: s => ({'[data-work-measure]': [cpu, measure], '[data-work-measure="work"] .progress-bar-caption': [caption],
+                             '.progress-chance:not([hidden]) .progress-chance-line': chance.hidden ? [] : [line]})[s] || fields[s.slice(6, -1)] || [],
   };
-  return {box, eta, cpu, measure, chance, line, fields};
+  return {box, caption, cpu, measure, chance, line, fields};
 }
 let f = fixture();
+const drawn = [];                                       // the boxes and runs bar drew
 const context = {
   template: {content: {firstElementChild: {cloneNode: () => f.box}}},
   document: {createElement: () => ({id: 'heading', append() {}})},
   heading() {}, staleView() {}, chanceChart: (fig, run) => { fig.hidden = !run.chance; },
+  bar: (box, run) => { drawn.push([box, run]); },
   dur: x => String(x), tenth: x => x, stamp: t => `stamp:${t}`,
   fill: (el, key, text) => { for (const e of el.querySelectorAll(`[data-${key}]`)) e.textContent = text; },
 };
 vm.createContext(context);
 vm.runInContext(workView + '\n' + brief + '\nthis.draw = brief; this.work = workView;', context);
 const run = {so_far: 3600, chance: {cpu_hours: null}, work_eta: {samples: 1024, done: 12345, rate: 678.9, source_time: 123456}};
-assert.deepEqual(Array.from(context.draw(run), x => x.id), ['heading', 'eta']);
-assert.equal(f.eta.hidden, false);
+assert.deepEqual(Array.from(context.draw(run), x => x.id), ['heading', 'caption']);
+assert.ok(drawn.some(([box, r]) => box === f.box && r === run), 'the bar drawn into the brief\'s box, for its caption\'s numbers');
 assert.equal(f.cpu.hidden, true);
 assert.equal(f.measure.hidden, false);
 assert.equal(f.chance.hidden, false);

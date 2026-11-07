@@ -1719,9 +1719,10 @@ of them with m ≡ 0, 1, 2 mod 3) and two exceptional signs, and d_0 ≡ d_3 (mo
           <p class="progress-bar-caption"><span class="spent">time spent</span> / <span class="total"><span data-bar-coverage hidden> <b data-bar-percent></b> confidence interval for finish</span></span></p>
           -->
           <!-- the work bar's caption, in its colors: blue, how many nodes the search has checked; purple, the interval (at the page's one level, the percent given) of the total nodes it will have checked when it ends, by a witness or with every node checked, its range and its median, which the tick marks; the purple part hidden for a search that makes no forecast now (stopped short of its end) -->
+          <!-- in the blue part, after the nodes checked, the work model's rate: nodes checked a second, measured (workView fills it; dreeves, 2026-11-06: "1. add nodes/s to the blue/purple line") -->
           <p class="progress-bar-caption">
-          <span class="spent"><b data-bar-done></b> nodes checked</span>
-          <span class="total" data-bar-total> / ~<b data-bar-range></b> 
+          <span class="spent"><b data-bar-done></b> nodes checked (<b data-work-rate></b> nodes/s)</span>
+          <span class="total" data-bar-total> / ~<b data-bar-range></b>
           <!-- (<b data-bar-percent></b> CI) -->
           <!-- <b data-bar-median></b> -->
           </span></p>
@@ -1769,13 +1770,13 @@ of them with m ≡ 0, 1, 2 mod 3) and two exceptional signs, and d_0 ≡ d_3 (mo
           </p>
           <!-- says the ETA chart above is Lindy's rule alone (Gott's: its median to go is the time so far, its band from a 9th of that to 9 times it, a 19th to 19 times until 2026-11-06), as the search has no estimate of its own; shown only for such a search -->
           <p class="progress-lindy" data-lindy hidden>Current ETA based only on Lindy's rule: remaining time = elapsed time.</p>
-          <!-- identifies the sampled tree and measured throughput, sample count, checked nodes, current nodes per second and source time; the 90% interval is conditional on unvalidated model assumptions. -->
-          <p class="progress-lindy" data-work-eta hidden>Search progress: <b data-work-samples></b> samples; <b data-work-done></b> nodes checked; <b data-work-rate></b> nodes/s. Last updated: <span data-work-source_time></span>.</p>
           <!-- Says the ETA chart above covers only this run's own stage (its program, as in the heading); names each later stage to a recordable result, in order, with the range of its estimated time to go (— where there is no estimate); then gives the range of the time to go to a recordable result, every stage together -->
           <p class="progress-stages" data-stages hidden>The above graph covers <code data-stage-now></code> only; then <span data-stages-later></span>; so total time to a proof would be <b data-stages-total></b>.
             <!-- TODO: says the line's ranges hold only under the model's assumptions (each later stage's measured CPU costs, every one of its processes at the share of a core the run's workers get now, and perfect overlap where a stage's parts run at once), and leave out waits in a stage's pipeline, waits for storage and changes in the machine's load, so that the real time to a proof is less certain than the ranges show -->
             Claude: “These ranges assume measured CPU costs, today's share of a core for every process, and perfect overlap where parts run at once; pipeline waits, storage waits and changes in the machine's load are not in them, so the time to a proof is less certain than they show.”</p>
           </div>
+          <!-- the sea: the dots, their key and their readout, in one box shown for a run with no work model and hidden for one with a work model, whose bar above measures its progress (data-work-measure="cpu", workView's toggle; dreeves, 2026-11-06, of 288:10's dots, one per launch of its proof search, and the line of those launches: "sounds like noise?") -->
+          <div class="progress-sea" data-work-measure="cpu">
           <canvas role="img" aria-label="One dot per sub-case, color-coded with status, each subtree a block of its own"></canvas>
           <ul class="progress-key">
             <li><span class="progress-sw" data-status="settled"></span>settled <span data-count="settled"></span></li>
@@ -1785,6 +1786,7 @@ of them with m ≡ 0, 1, 2 mod 3) and two exceptional signs, and d_0 ≡ d_3 (mo
             <li><span class="progress-sw" data-status="running"></span>running <span data-count="running"></span></li>
           </ul>
           <p class="progress-readout" data-readout>Hover over the dots for a subtree's key and counts.</p>
+          </div>
           <!-- A fanout run's pool over its hours of running (README [TRE]): above, how many boxes were pending or running (not done: waiting for a job, or a running job's own); below, the net change in that count per job ended in each stretch of running time (a job ended takes its box out and puts in the boxes it left open), with a line at 0, so that the growth slowing shows as the lower line falling and the count turning down as that line going below 0; the line of text above reads out the latest moment, or the one nearest the pointer -->
           <div class="progress-pool">
             <p class="progress-pool-tip" data-pool-tip></p>
@@ -1853,7 +1855,8 @@ of them with m ≡ 0, 1, 2 mod 3) and two exceptional signs, and d_0 ≡ d_3 (mo
       </template>
       <!-- the chance chart's tip, after the time under the pointer: the modeled chance of a find within the next 24 h as it stood then -->
       <template class="progress-chance-point">Probability of finding a bipartition within <b data-chance-hours></b>: <b data-chance-p></b></template>
-      <template class="progress-line">@<span data-when></span>&emsp;<span class="spent"><b data-so-far></b> so far</span> + <span class="togo"><b data-to-go></b> to go</span> = <span class="total"><b data-sum></b> (<b data-done></b>)</span></template>
+      <!-- a snapshot's line: its time after an @, and an em space, in one span (progress-stamp) that the ETA chart's tip above the chart shows and the status line below it hides (dreeves, 2026-11-06: "i don't think we need "@2026-11-06 19:12:49" under the graph since the search progress line above the progress bar shows the freshness"), then its hours so far + to go = in all and its finish times -->
+      <template class="progress-line"><span class="progress-stamp">@<span data-when></span>&emsp;</span><span class="spent"><b data-so-far></b> so far</span> + <span class="togo"><b data-to-go></b> to go</span> = <span class="total"><b data-sum></b> (<b data-done></b>)</span></template>
       <!-- One later stage in a run's line of stages: its name, then the range of its estimated time to go -->
       <template class="progress-stage"><span><code data-stage-name></code> <b data-stage-to-go></b></span></template>
       <!-- the pool chart's line for one moment: @ and its time, its hours of running so far, how many boxes were pending or running then, and the net change in that count per job ended in its stretch of running time (— where no job ended in that stretch) -->
@@ -1884,8 +1887,9 @@ of them with m ≡ 0, 1, 2 mod 3) and two exceptional signs, and d_0 ≡ d_3 (mo
       <!-- Identifies the 560 calibration and 592 target dot blocks, with completed, running and pending attempt colors. -->
       <template class="progress-592-hint">One dot per attempt: 560:10 calibration first, 592:10 search second. <span class="progress-sw" data-status="open"></span> completed attempt; <span class="progress-sw" data-status="running"></span> running; <span class="progress-sw" data-status="pending"></span> pending.</template>
       <!-- Says how many runs the tracked search has, how many are running, frozen, ended and aborted, how many results its runs have found, how long it has been going, and its state -->
+      <!-- on a line of its own (its break inside it) after the status line every run has (trackView), and hidden with that break for a search with a work model, whose bar measures its progress (data-work-measure="cpu", workView's toggle; dreeves, 2026-11-06, of 288:10's line of its four launches: "sounds like noise?") -->
       <template class="progress-track">
-        <span><b data-attempt-count="runs"></b> runs: <b data-attempt-count="running"></b> running, <b data-attempt-count="frozen"></b> frozen, <b data-attempt-count="ended"></b> ended, <b data-attempt-count="aborted"></b> aborted; <b data-attempt-count="found"></b> found; elapsed <b data-elapsed></b>; <span data-search-state></span>.</span>
+        <span data-work-measure="cpu"><br><b data-attempt-count="runs"></b> runs:<b data-attempt-count="running"></b> running, <b data-attempt-count="frozen"></b> frozen, <b data-attempt-count="ended"></b> ended, <b data-attempt-count="aborted"></b> aborted; <b data-attempt-count="found"></b> found; elapsed <b data-elapsed></b>; <span data-search-state></span>.</span>
       </template>
       <!-- Says each dot is one run of the search, with the colors of ended, running, frozen and aborted runs -->
       <template class="progress-track-hint">One dot per run: <span class="progress-sw" data-status="settled"></span> ended; <span class="progress-sw" data-status="running"></span> running; <span class="progress-sw" data-status="pending"></span> frozen; <span class="progress-sw" data-status="open"></span> aborted.</template>

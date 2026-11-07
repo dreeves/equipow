@@ -357,6 +357,11 @@ code[aria-expanded], [data-text][aria-expanded] { cursor: pointer; text-decorati
 .progress-bar-caption .total { color: var(--progress-total); }
 .progress-key { display: flex; flex-wrap: wrap; gap: 0.3rem 1.2rem; margin: 0; padding: 0; list-style: none; }
 .progress-key[hidden] { display: none; }
+/* A run's sea, its dots, their key and their readout in one box since 2026-11-06 (workView hides it for a run with a
+   work model), its parts spaced as the fold's own are (.progress details > * + *), with the same outcome: the key
+   0.8rem below the dots (this rule after .progress-key's, which it overrides), the readout right below them (.progress
+   p, more specific, overrides this). */
+.progress-sea > * + * { margin-top: 0.8rem; }
 .progress-sw { display: inline-block; width: 0.7rem; height: 0.7rem; margin-right: 0.35rem; border-radius: 2px; vertical-align: -0.05rem; }
 .progress-sw[data-status="settled"] { background: var(--progress-settled); }
 .progress-sw[data-status="open"] { background: var(--progress-open); }
@@ -404,6 +409,10 @@ code[aria-expanded], [data-text][aria-expanded] { cursor: pointer; text-decorati
 .progress-tip, .progress-status { font-variant-numeric: tabular-nums lining-nums; }
 .progress-stages { font-variant-numeric: tabular-nums lining-nums; }   /* a run's later stages, under its status line (2026-10-31) */
 .progress-tip { visibility: hidden; }
+/* The status line without its snapshot's time and the em space after it, which the tip above the chart keeps
+   (dreeves, 2026-11-06: "i don't think we need "@2026-11-06 19:12:49" under the graph since the search progress line
+   above the progress bar shows the freshness"); a stale run's summary gives that run's time. */
+.progress-status .progress-stamp { display: none; }
 .progress-tip.projected { font-style: italic; }   /* the tip past the last record: a projection */
 .progress-tip .spent, .progress-status .spent { color: var(--progress-spent); stroke: none; }
 .progress-tip .togo, .progress-status .togo { color: var(--progress-togo); stroke: none; }

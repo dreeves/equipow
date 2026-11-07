@@ -7,9 +7,10 @@
 // see remember).  Every word
 // it shows is in the section's HTML (its templates); this script writes numbers, times and marks, durations with their
 // units, h, d or y (dreeves, 2026-10-23).
-// Per run: for a run with a work model, a bar of its work, its nodes checked and the interval of its total nodes when
-// the search ends, the median a tick (bar, 2026-11-06; a bar of hours so far and to go before, and that day a time
-// ruler); the sea, one dot per sub-case of the data's groups, each group a block of cells (strips below), cells
+// Per run: for a run with a work model, a bar of its work, its nodes checked and their rate and the interval of its
+// total nodes when the search ends, the median a tick (bar, 2026-11-06; a bar of hours so far and to go before, and
+// that day a time ruler); for a run with none (workView, 2026-11-06), the sea, one dot per sub-case of the data's
+// groups, each group a block of cells (strips below), cells
 // of pitch px, chosen from 10 down to 2 px so that the sea is at most about 560 px tall, a dot a device px short of its
 // cell (none short below 3 device px); and progress.html's ETA chart
 // (eta_chart there: dreeves's design), from the run's recorded ETAs; and below the status line, for a run with stages
@@ -151,12 +152,14 @@
     box.querySelector('[data-program]').textContent = run.program;
   }
   // A run's brief, for want: a line of its fold's summary, as heading fills it (its stale mark as staleView sets it),
-  // then its time so far; and, for a target a witness campaign searches, its chance line, as chanceChart fills it
+  // then its time so far; and, for a run with a work model, its bar's caption, as bar and workView fill it, or else,
+  // for a target a witness campaign searches, its chance line, as chanceChart fills it
   function brief(run) {
     const box = template.content.firstElementChild.cloneNode(true), said = document.createElement('p');
     heading(box, run);
     staleView(box, run);
     chanceChart(box.querySelector('.progress-chance'), run);
+    bar(box, run);
     const measured = workView(box, run);
     said.append(...box.querySelector('summary h3').childNodes, ' ', ...box.querySelector('summary').querySelectorAll(':scope > span'),
                 ' ', dur(run.so_far, tenth));
@@ -242,16 +245,19 @@
     mark.querySelector('[data-stale-at]').textContent = run.stale == null ? '' : stamp(run.stale);
   }
 
-  // The measured work model's basis and units; returns the row used in a popup brief.
+  // The measured work model's basis and units: each part of the box marked with a basis (data-work-measure) shown
+  // exactly for the run's, the work bar and the chance line's nodes for a run with a work model, the sea, a tracked
+  // search's line of its runs (dreeves, 2026-11-06, of 288:10's: "sounds like noise?") and the chance line's CPU-hours
+  // for any other; returns the row used in a popup brief: the bar's caption, its nodes checked and rate (dreeves,
+  // 2026-11-06: "1. add nodes/s to the blue/purple line"; the work paragraph until then, gone with "2. kill the whole
+  // line with number of samples"), or the chance line.
   function workView(box, run) {
     const basis = run.work_eta ? 'work' : 'cpu';
-    box.querySelector('[data-work-eta]').hidden = basis !== 'work';
     for (const e of box.querySelectorAll('[data-work-measure]')) e.hidden = e.dataset.workMeasure !== basis;
     // the model's numbers into their fields (its other fields, objects or null, have none: a null among them threw here
     // until 2026-11-06, as a search stopped short of its end gives them)
     for (const [key, value] of Object.entries(run.work_eta ?? {}).filter(([, v]) => typeof v === 'number')) fill(box, `work-${key}`, value.toLocaleString('en-US', {maximumFractionDigits: 1}));
-    fill(box, 'work-source_time', run.work_eta ? stamp(run.work_eta.source_time) : '');
-    return box.querySelectorAll({work: '[data-work-eta]', cpu: '.progress-chance:not([hidden]) .progress-chance-line'}[basis]);
+    return box.querySelectorAll({work: '[data-work-measure="work"] .progress-bar-caption', cpu: '.progress-chance:not([hidden]) .progress-chance-line'}[basis]);
   }
 
   function search288View(box, run) {
@@ -277,11 +283,12 @@
   }
 
   // a tracked search's view: the attempt view of its runs' counts and its hint, but after the status line every run has
-  // (kept, then put back before the counts)
+  // (kept, then put back before the counts, which start on a line of their own: the break is their template's, so that
+  // workView hides it with them for a search with a work model, 2026-11-06)
   function trackView(box, run) {
     const status = box.querySelector('.progress-status'), line = [...status.childNodes];
     attemptView(box, run, 'progress-track', 'progress-track-hint');
-    status.prepend(...line, document.createElement('br'));
+    status.prepend(...line);
   }
 
   // A run's stages to a recordable result, under its status line (progress.py's stages; the coordinator, 2026-10-31,
@@ -335,7 +342,7 @@
       tick.textContent = compact.format(v);
       return tick;
     }));
-    fill(box, 'bar-done', compact.format(done));
+    fill(box, 'bar-done', done.toLocaleString('en-US'));   // exact, as the work paragraph's count was (dreeves, 2026-11-06)
     fill(box, 'bar-range', `${compact.format(t.lo)}–${compact.format(t.hi)}`);
     fill(box, 'bar-median', compact.format(t.median));
     fill(box, 'bar-percent', coverage === null ? '' : pct(coverage));

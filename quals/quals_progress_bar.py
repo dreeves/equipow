@@ -4,6 +4,9 @@ Spec change (Claude, 2026-11-06; dreeves: "i don't like how that progress bar lo
 makes sense to you? also bring back a subtle tick for the median finish time. bigger picture: should that progress bar
 be measuring amount of work, not time? the ETA graph is for time. we can still have a 90% CI for amount of work
 remaining, right?"): a work bar replaces the time ruler, whose quals these were (Astra's, 2026-11-06).
+Spec change (Claude, 2026-11-06; dreeves: "1. add nodes/s to the blue/purple line" and "2. kill the whole line with
+number of samples"): the caption's blue part gives the work model's rate after the nodes checked, and the work
+paragraph (samples, nodes checked, rate and source time), which showed exactly when the bar did, is gone.
 Run from the repository's root: python3 -B quals/quals_progress_bar.py.  With PROGRESS_BAR_ARTIFACTS set to a
 directory, each width's report and a screenshot of its last case (the live search's numbers of 2026-11-06) go there.
 """
@@ -66,13 +69,19 @@ HARNESS = r"""<script>
       const box = section.querySelector('.progress-run'), q = s => box.querySelector(s);
       const fig = q('.progress-eta'), part = name => q(`[data-bar="${name}"]`);
       const visible = e => e.checkVisibility();
-      result.cases.push({work, shown: visible(q('.progress-work')), paragraph: visible(q('[data-work-eta]')),
+      const rate = q('.progress-bar-caption .spent [data-work-rate]');
+      result.cases.push({work, shown: visible(q('.progress-work')),
+        rateAfterDone: !!(q('.progress-bar-caption .spent [data-bar-done]').compareDocumentPosition(rate) & Node.DOCUMENT_POSITION_FOLLOWING),
+        unshown: box.querySelectorAll('[data-work-eta], [data-work-samples], [data-work-source_time]').length,
         bar: rect(q('.progress-bar')), done: rect(part('done')), band: rect(part('band')), median: rect(part('median')),
         bandShown: visible(part('band')), medianShown: visible(part('median')), purpleShown: visible(q('.progress-bar-caption .total')),
         ticks: [...q('[data-bar="ticks"]').children].map(e => ({text: e.textContent, rect: rect(e), font: parseFloat(getComputedStyle(e).fontSize)})),
         caption: rect(q('.progress-bar-caption')), captionText: q('.progress-bar-caption').textContent,
-        fields: Object.fromEntries(['bar-done', 'bar-range'].map(f => [f, q(`[data-${f}]`).textContent])),
-        want: work && {done: compact.format(work.done),
+        fields: {...Object.fromEntries(['bar-done', 'bar-range'].map(f => [f, q(`[data-${f}]`).textContent])), 'work-rate': rate.textContent},
+        // spec change (dreeves, 2026-11-06: "479M nodes checked" above and "479,017,754 nodes checked" below, "the
+        // exact number seems better"): the bar's count exact, as the work paragraph's was; and (dreeves, 2026-11-06: "1.
+        // add nodes/s to the blue/purple line") the rate after it, as workView writes the model's numbers
+        want: work && {done: work.done.toLocaleString('en-US'), rate: work.rate.toLocaleString('en-US', {maximumFractionDigits: 1}),
                        range: work.total && `${compact.format(work.total.lo)}–${compact.format(work.total.hi)}`},
         colors: {done: getComputedStyle(part('done')).backgroundColor, spent: getComputedStyle(fig.querySelector('polyline.spent')).stroke,
                  band: getComputedStyle(part('band')).backgroundColor, bandTotal: getComputedStyle(fig.querySelector('polygon.band.total')).fill,
@@ -124,14 +133,18 @@ def value(label):
 class ProgressBar(unittest.TestCase):
     def check_width(self, width):
         # Replicata: the page at width with each of CASES in turn as the one run, a form-tree search's, its fold open.
-        # Expectata: the bar shown exactly when the work paragraph is, so for every case with a work model and not
-        # without; for each shown, the track's end the last tick's number, at least 1.1 times the larger of done and
-        # the total's upper end and less than 1.65 times it; the blue part as wide as done / end of the track, the
+        # Expectata: the bar shown for every case with a work model and not without; no field of the samples or the
+        # source time in the run's box, nor the work paragraph (dreeves, 2026-11-06: "2. kill the whole line with number
+        # of samples"; the bar was shown exactly when that paragraph was until then); the caption's blue part giving
+        # the rate after the nodes checked (dreeves, 2026-11-06: "1. add nodes/s to the blue/purple line"), as the
+        # model's numbers are written (a tenth at most, grouped); for each shown, the track's end the last tick's
+        # number, at least 1.1 times the larger of done and the total's upper end and less than 1.65 times it; the
+        # blue part as wide as done / end of the track, the
         # band from lo / end to hi / end, the median tick centered at median / end (each to a CSS px); the band, the
         # tick and the caption's purple part shown exactly when there is a total; the ticks from 0 in round steps,
         # the first flush with the track's left end, the last with its right, the rest centered on theirs, none
-        # overlapping, none past the page's edges, at 11 px or more; the caption's numbers compact (the nodes checked and
-        # the total's range: dreeves's caption since f6d809b, 2026-11-06, its percent, median and the note under it
+        # overlapping, none past the page's edges, at 11 px or more; the caption's nodes checked exact and the total's
+        # range compact (dreeves's caption since f6d809b, 2026-11-06, its percent, median and the note under it
         # commented out); blue, the band and the tick in the ETA chart's colors (its elapsed line's, its band's of elapsed +
         # ETA, its line of elapsed + ETA), and the caption's parts too; the bar above the ETA chart; the caption within
         # the page; and no sideways scroll (dreeves, 2026-10-29: a phone shows no wider page).
@@ -142,10 +155,12 @@ class ProgressBar(unittest.TestCase):
         for c in result['cases']:
             work = c['work']
             with self.subTest(width=width, work=work):
-                self.assertEqual(c['shown'], c['paragraph'])
                 self.assertEqual(c['shown'], work is not None)
+                self.assertEqual(c['unshown'], 0)
+                self.assertTrue(c['rateAfterDone'])
                 self.assertLessEqual(c['documentWidth'], width)
                 if work is None: continue
+                self.assertEqual(c['fields']['work-rate'], c['want']['rate'])
                 done, total = work['done'], work['total']
                 t = total or dict(lo=done, median=done, hi=done)
                 ticks = [value(k['text']) for k in c['ticks']]
