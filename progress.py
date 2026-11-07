@@ -278,6 +278,7 @@ import run_modules
 import chance
 import track
 import formtree_eta
+import cpu
 
 ROOT_V5, ROOT_BX = v5, bx
 
@@ -320,6 +321,7 @@ DEEPEST = 6
 REPLICATES = 2000                      # draws in an estimate: a Monte Carlo precision setting
 SEED = 0                               # the estimate's random generator's seed: an estimate is a function of its state
 HOUR = 3600                            # seconds
+CPU_POINTS = 480                       # the most rows a run's CPU series keeps: about a pixel of its chart each
 STATUSES = ('settled', 'open', 'split', 'pending')     # the statuses, in the order of the levels' counts
 SEA_DEPTH = 5                          # the sea's groups are the sub-cases at this depth (240@11's 291), or above the bottom
 SEA_STATUSES = STATUSES + ('running',)  # a dot's status, by its index in the data file
@@ -3034,7 +3036,7 @@ def gott(age):
     return [age * q / (1 - q) / HOUR for q in (0.5, *chance.BANDS['gott'])]
 
 
-def survey_track(target, records, procs, now, etas=None):
+def survey_track(target, records, procs, now, etas=None, cpu=()):
     """The tracked search (see the vocabulary) of target N:M whose runs' records are records (each its lines, as JSON),
     as the process list procs shows it at time now (epoch seconds): what the data file needs of it.  Its state is
     running while a run runs, frozen while none runs and one is frozen, and ended once none is either; its outcome,
@@ -3052,7 +3054,8 @@ def survey_track(target, records, procs, now, etas=None):
     record is its start line, then its eta lines, each {event, time, median, lo, hi}, lo <= median <= hi, finite from 0,
     in time order, none before the start, then its end line once it ended (all asserted); and while it runs, its latest
     eta line, if any, at most track.ETA_EVERY seconds old (asserted: past that, the watcher shows it stale rather than an
-    old estimate as current; dreeves, 2026-11-04: "can we be more anti-postel than that?")."""
+    old estimate as current; dreeves, 2026-11-04: "can we be more anti-postel than that?").  Its cpu (2026-11-07) is cpu_series of
+    cpu, the machine's intervals (cpu.py), within its time, for its records' names."""
     n, order = map(int, target.split(':'))
     etas = {} if etas is None else etas
     for r in records:
@@ -3088,6 +3091,7 @@ def survey_track(target, records, procs, now, etas=None):
         etas[str(float(now))] = eta
     return dict(program=records[0][0]['program'], n=n, order=order, made=now, state=state, outcome=outcome,
                 so_far=t1 - t0, to_go=to_go_of(eta), etas=etas, passes=[[t0, t1]],
+                cpu=cpu_series([r for r in cpu if t0 <= r[0] and r[1] <= t1], [[t0, t1]], {r[0]['name'] for r in records}),
                 display=dict(tracked=True, work=work, lindy=state == 'running' and latest is None),
                 sea=dict(depth=0, keys=[target], groups=[codes],
                          counts={name: codes.count(str(i)) for i, name in enumerate(SEA_STATUSES)}))
@@ -3108,6 +3112,30 @@ def running_before(spans, times):
     # TODO: error copy; says a moment falls before the run's first span of running or after its last
     assert ((k >= 0) & (times <= ends[-1])).all(), 'Claude: "a moment outside the run\'s spans of running"'
     return np.concatenate([[0.0], np.cumsum(ends - starts)])[k] + np.minimum(times, ends[k]) - starts[k]
+
+
+def cpu_series(rows, spans, names):
+    """A run's CPU series (2026-11-07; dreeves: "could we get a nice CPU usage graph on the search page? similar to what
+    activity monitor shows. three colors: one for the search, one for all other processes on the machine, and one for
+    idle, if any", then "maybe aligned with the ETA graph"): of rows, the machine's intervals (cpu.py) within its spans,
+    those that name one of names, its runs' (the sampler followed them), each as [its start's and end's hours of
+    running (running_before's, the ETA chart's x), its end's time, the search's share (names' shares summed), other
+    processes' (the rest of the busy share), idle], in order; with more than CPU_POINTS, consecutive ones merged k at a
+    time (k the least that leaves at most CPU_POINTS), their shares weighted by their durations, but never across a gap
+    (an interval that does not start where the last ended)."""
+    mine = [(a, b, idle, sum(v for k, v in share.items() if k in names)) for a, b, idle, share in rows if names & set(share)]
+    xs = running_before(spans, [t for a, b, *_ in mine for t in (a, b)]).tolist() if mine else []
+    k, out, n = -(-len(mine) // CPU_POINTS), [], 0
+    for i, (a, b, idle, search) in enumerate(mine):
+        row = [xs[2 * i] / HOUR, xs[2 * i + 1] / HOUR, b, search, 1 - idle - search, idle]
+        joined = n < k and out and out[-1][2] == a        # the last row ends where this interval starts, with room
+        if joined:
+            last, w0, w1 = out[-1], out[-1][1] - out[-1][0], row[1] - row[0]
+            out[-1] = [last[0], row[1], b] + [(u * w0 + v * w1) / (w0 + w1) for u, v in zip(last[3:], row[3:])]
+        else:
+            out.append(row)
+        n = n + 1 if joined else 1
+    return out
 
 
 def eta_records(s):
@@ -3145,7 +3173,7 @@ def js_text(surveys, now):
 # What run_data reads of a survey: an idle run's survey keeps no more (see idle; 2026-10-31: an overnight_v5.py
 # survey's open_list held 612,046 of 288@10's leaves).
 LIGHT = ('program', 'n', 'order', 'state', 'outcome', 'so_far', 'to_go', 'etas', 'passes', 'sea', 'display', 'workers',
-         'stages', 'total', 'pool', 'odds')
+         'stages', 'total', 'pool', 'odds', 'cpu')
 
 
 def light(s):
@@ -3168,7 +3196,9 @@ def run_data(s):
              'so_far': s['so_far'], 'to_go': s['to_go'],
              'etas': etas(s), 'statuses': list(SEA_STATUSES)} | s['sea'] | s.get('display', {}) |
             {k: s[k] for k in ('workers', 'stages', 'total', 'pool') if k in s} |
-            {'odds': s.get('odds', dict(prior=IGNORANT, since=None, exists=[])), 'stale': None})
+            {'odds': s.get('odds', dict(prior=IGNORANT, since=None, exists=[])), 'stale': None,
+             # its CPU series (cpu_series), none for a run the sampler never followed, rounded for the data file
+             'cpu': [[round(r[0], 5), round(r[1], 5), int(r[2])] + [round(v, 4) for v in r[3:]] for r in s.get('cpu', [])]})
 
 
 def data_text(runs, now):
@@ -3234,6 +3264,12 @@ def stale(identity, kept, why):
     # TODO: log line; says this run's survey failed or ran past its limit (why), so the data file shows its data of that time, marked stale
     report(f'{" ".join(map(str, identity))} {why}: its data of {clock(t)} stand, marked stale')
     return [dict(r, stale=t) for r in data]
+
+
+def cpu_file():
+    """The file of the CPU intervals that cpu.py's sampler appends (runs/cpu/intervals.jsonl), which the watcher only
+    reads (2026-11-07)."""
+    return os.path.join(HERE, 'runs', 'cpu', 'intervals.jsonl')
 
 
 def report(what):
@@ -3461,7 +3497,7 @@ def journal_surveys(procs, now, cache, readings, idle):
         # A failed model survey must not commit the preliminary Gott estimate or
         # partially built probability history. Publish both cache changes together.
         etas = dict(cache.get(eta_key, {})) if present else cache.setdefault(eta_key, {})
-        s = survey_track(target, records, procs, now, etas)
+        s = survey_track(target, records, procs, now, etas, cpu.read(cpu_file()))   # with the CPU intervals (2026-11-07)
         key = (int(n), int(order))      # a target a campaign searches carries its odds (see the vocabulary) beside
                                         # its ETA, Gott's rule as every tracked search's (dreeves, 2026-11-04:
                                         # "shouldn't there always be an ETA graph, even when it's just based on the

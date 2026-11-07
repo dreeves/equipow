@@ -1362,8 +1362,12 @@ def q_js_is_one_progress_data_call():
     data = progress_data(progress.js_text(surveys, now))
     assert set(data) == {'made', 'runs'} and data['made'] == 1792200000, data.keys()
     for r, s in zip(data['runs'], surveys):
+        # (spec change, Claude, 2026-11-07; dreeves: "could we get a nice CPU usage graph on the search page?", and "for
+        # anti-magic i don't want to conditionally include or exclude graphs": every run carries its CPU series, empty
+        # where the watcher sampled none; until then no cpu)
         assert set(r) == {'program', 'n', 'order', 'state', 'outcome', 'so_far', 'to_go', 'etas', 'statuses', 'depth', 'keys',
-                          'groups', 'counts', 'stale', 'odds'}, set(r)
+                          'groups', 'counts', 'stale', 'odds', 'cpu'}, set(r)
+        assert r['cpu'] == [], r['cpu']
         assert (r['program'], r['n'], r['order'], r['state'], r['outcome'], r['to_go'], r['etas'], r['stale']) == (
             'overnight_v5.py', s['n'], s['order'], 'ended', s['outcome'], None, [], None), r
         assert r['odds'] == dict(prior=0.5, since=None, exists=[]), r['odds']
@@ -2002,10 +2006,52 @@ def q_js_text_carries_a_tracked_search():
     records = [track_record('r0', 300, None, None, 1000), track_record('r1', 301, 0, None, 1001)]
     s = progress.survey_track('768:12', records, [(300, 1, 'S', 'python3 -B w12.py')], 5000.0)
     r = progress_data(progress.js_text([s], 5000.0))['runs'][0]
+    # (spec change, Claude, 2026-11-07, as in q_js_is_one_progress_data_call: cpu too)
     assert set(r) == {'program', 'n', 'order', 'state', 'outcome', 'so_far', 'to_go', 'etas', 'statuses', 'depth', 'keys',
-                      'groups', 'counts', 'stale', 'tracked', 'work', 'lindy', 'odds'}, set(r)
+                      'groups', 'counts', 'stale', 'tracked', 'work', 'lindy', 'odds', 'cpu'}, set(r)
     assert r['odds'] == dict(prior=0.5, since=None, exists=[]), r['odds']
     assert r['stale'] is None and r['tracked'] is True and r['lindy'] is True and r['work'] == dict(runs=2, running=1, frozen=0, ended=1, aborted=0, found=0), r
+
+
+def q_survey_track_carries_its_cpu():
+    # Replicata: survey_track of 768:12, records r0 (running, started at 1000) and r1 (ended, started at 1001), at time
+    # 5000, given five intervals of the machine's CPU (cpu.py: t0, t1, idle, {name: share}): one before the first start;
+    # two with r0's share; one with neither record's name (the sampler did not follow them); one with both.
+    # Expectata (dreeves, 2026-11-07: "could we get a nice CPU usage graph on the search page? ... three colors: one for
+    # the search, one for all other processes on the machine, and one for idle, if any", "maybe aligned with the ETA
+    # graph"): its cpu, the intervals inside its time that name one of its records, in order, each as [its start and end
+    # in hours of running, as the ETA chart's x (running_before), its end's time, the search's share (its records'
+    # shares summed), other processes' (the rest of the busy share), idle]; the others left out.
+    # Resultata before: no cpu.
+    records = [track_record('r0', 300, None, None, 1000), track_record('r1', 301, 0, None, 1001)]
+    rows = [[900, 960, 0.5, {'r0': 0.3}], [1000, 1060, 0.2, {'r0': 0.5}], [1060, 1120, 0.1, {'r0': 0.6, 'x': 0.2}],
+            [1120, 1180, 0.4, {'x': 0.5}], [1180, 1240, 0.0, {'r0': 0.7, 'r1': 0.1}]]
+    s = progress.survey_track('768:12', records, [(300, 1, 'S', 'python3 -B w12.py')], 5000.0, cpu=rows)
+    h = lambda t: (t - 1000) / 3600
+    want = [[h(1000), h(1060), 1060, 0.5, 0.3, 0.2], [h(1060), h(1120), 1120, 0.6, 0.3, 0.1],
+            [h(1180), h(1240), 1240, 0.8, 0.2, 0.0]]
+    assert close(s['cpu'], want), s['cpu']
+
+
+def q_cpu_series_merges_to_at_most_cpu_points():
+    # Replicata: progress.cpu_series of 1000 made-up minute-long intervals in one span, contiguous but for a gap after the
+    # 600th, their shares varying.  Expectata: at most CPU_POINTS rows; each merged row's shares the duration-weighted
+    # means of its intervals', so the CPU-hours of the search, other processes and idle are kept; no row spans the gap;
+    # every row's shares summing to 1.
+    t0 = 10000.0
+    rows = []
+    for i in range(1000):
+        a = t0 + 60 * i + (600 if i >= 600 else 0)
+        rows.append([a, a + 60, (i % 7) / 10, {'r': (i % 5) / 10}])
+    spans = [[t0, rows[-1][1]]]
+    out = progress.cpu_series(rows, spans, {'r'})
+    assert 0 < len(out) <= progress.CPU_POINTS, len(out)
+    hours = lambda f: sum((r[1] - r[0]) * f(r) for r in out)
+    want = lambda f: sum(60 / 3600 * f(r) for r in rows)
+    assert abs(hours(lambda r: r[3]) - want(lambda r: r[3]['r'])) < 1e-9 and abs(hours(lambda r: r[5]) - want(lambda r: r[2])) < 1e-9
+    gap = (rows[599][1] - t0) / 3600, (rows[600][0] - t0) / 3600
+    assert not any(r[0] < gap[1] and r[1] > gap[0] for r in out), gap
+    assert all(abs(r[3] + r[4] + r[5] - 1) < 1e-12 for r in out)
 
 
 def close(got, want):

@@ -1253,3 +1253,25 @@ Order-13 witness agent, 2026-10-31 from 06:05 (Claude; `scratch/w13-1008-912/`):
   - **What the page supplies:** 912:12, 1008:13 and 1440:16 give orders 12, 13 and 16. Orders 14 and 15 lack an example: every explicit sequence of order 14 or more, and every join and product of them, has a length that is a multiple of 32 (the chart has only 960 with lo ≥ 14, past it only 1440).
   - **Chat only:** why no full hand proof is in reach. At 288, the conjecture plus BGPW's computation means m*(288) = 9, a nonexistence that residue and norm tests don't reach.
   - **Quals:** the status list's last item now points to the theorem, and the TODO recap was extended. quals_symmetry 5/5, quals_derivations 7/7, and the anchor, phone, curly-quote and spacing quals pass.
+
+- **CPU usage chart** (Claude, 2026-11-07; dreeves: "could we get a nice CPU usage graph on the search page? similar to what activity monitor shows. three colors: one for the search, one for all other processes on the machine, and one for idle, if any", then "maybe aligned with the ETA graph").
+  - **The sampler, `cpu.py`:**
+    - It reads the kernel's busy and idle ticks (host_processor_info via ctypes, as Activity Monitor does) and each tracked run's process-group CPU time (`ps -A -o pid=,pgid=,stat=,time=`).
+    - Every 60 s it appends `[t0, t1, idle, {run name: share}]` to `runs/cpu/intervals.jsonl`.
+    - **Run it** from the root with `nohup nice -n 15 /opt/homebrew/bin/python3 -B cpu.py --watch >> runs/cpu/sampler.log 2>&1 &`. A lock (`runs/cpu/lock`) refuses a second one. Started 06:52 as PID 59474.
+    - **Not managed by the shepherd or the watcher:** relaunch it after a reboot.
+    - It is separate from the watcher because every directory the watcher writes is pinned by q_watch_rewrites_and_sleeps, and because snapshots take seconds to minutes while samples keep a steady minute.
+  - **The watcher:** `progress.cpu_series` reads the file through `progress.cpu_file()`, read-only. It maps each interval to hours of running with `running_before`, the ETA chart's x. It keeps only intervals naming one of the run's records, merges them down to at most CPU_POINTS = 480 rows, never across a gap, and emits `cpu` for every run (empty where never sampled).
+  - **The page:** each run box has `.progress-cpu` right under its ETA chart, with the same x scale through `etaX(run)`, extracted from etaChart. It stacks search (`--progress-spent` blue), other processes (#b5651d rust) and idle (`--progress-hair`); both colors pass the dataviz validator. Its key reads "CPU usage: search, other processes, idle" (dreeves's words), and the readout gives the latest or hovered row's percentages.
+  - **Quals:**
+    - quals/quals_cpu.py, 8 new: ps time formats, interval math, refusals, live ticks, groups, the sampler loop with a failure, one sampler at a time.
+    - quals_progress, 2 new: q_survey_track_carries_its_cpu, q_cpu_series_merges_to_at_most_cpu_points. Key sets of 2 quals gain cpu (spec change, dated).
+    - quals_index, 1 new: q_progress_draws_cpu_aligned_with_the_eta_chart (band edges at the ETA records' xs). The fixture runs gain cpu.
+  - **Mishaps fixed along the way:**
+    - An early version sampled inside the watcher, and quals that run `progress.main` wrote junk intervals into the live file; those were dropped.
+    - q_watch_rewrites_and_sleeps has a pre-existing load-dependent race when run alone: its fixture's `subprocess.run(timeout=600)` busy-waits with `time.sleep(0.001)` into the qual's global sleep stub.
+  - **First reading:** the 288 search got 44–58% of the CPU, with other processes (another session's crashla quals at nice 0) taking the rest and nothing idle.
+  - **Layout** (dreeves, the same morning: "let's keep the blue/red/purple line of numbers directly below the ETA graph, not below the CPU graph", then "not the black text line though"). A run box now reads: ETA chart, status line, Lindy and stages notes (they say "the above graph"), CPU chart, then a tracked search's counts line ("4 runs: …").
+    - The counts line is a second `p.progress-status[data-track-line]` after the CPU chart, filled by trackView; empty, and so hidden by `:empty`, for other runs.
+    - workView's status-line selector excludes it, so the chart boxes' briefs are unchanged.
+    - The CPU qual checks this order.

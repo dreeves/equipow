@@ -222,6 +222,7 @@
       if (run.tracked) trackView(box, run);
       const L = sea(box, run);
       L.etaXs = etaChart(box.querySelector('.progress-eta'), run);
+      cpuChart(box.querySelector('.progress-cpu'), run);
       box.querySelector('[data-lindy]').hidden = !run.lindy;   // a tracked search on Lindy's rule alone says so (dreeves, 2026-11-04)
       workView(box, run);
       stagesView(box, run);
@@ -267,7 +268,8 @@
     // the model's numbers into their fields (its other fields, objects or null, have none: a null among them threw here
     // until 2026-11-06, as a search stopped short of its end gives them)
     for (const [key, value] of Object.entries(run.work_eta ?? {}).filter(([, v]) => typeof v === 'number')) fill(box, `work-${key}`, value.toLocaleString('en-US', {maximumFractionDigits: 1}));
-    return box.querySelectorAll({work: '[data-work-measure="work"] .progress-bar-caption', cpu: '.progress-status'}[basis]);
+    // (the status line, not a tracked search's counts below the CPU chart, [data-track-line], since 2026-11-07)
+    return box.querySelectorAll({work: '[data-work-measure="work"] .progress-bar-caption', cpu: '.progress-status:not([data-track-line])'}[basis]);
   }
 
   function search288View(box, run) {
@@ -292,12 +294,15 @@
     box.querySelector('canvas').setAttribute('aria-label', hint.textContent.trim());
   }
 
-  // a tracked search's view: the attempt view of its runs' counts and its hint, but after the status line every run has
-  // (kept, then put back before the counts)
+  // a tracked search's view: the attempt view of its runs' counts and its hint, the counts below the CPU chart
+  // ([data-track-line]) and the status line every run has kept right under the ETA chart (dreeves, 2026-11-07: "let's keep
+  // the blue/red/purple line of numbers directly below the ETA graph, not below the CPU graph", "not the black text line
+  // though"; until then the counts followed it in the same paragraph)
   function trackView(box, run) {
     const status = box.querySelector('.progress-status'), line = [...status.childNodes];
     attemptView(box, run, 'progress-track', 'progress-track-hint');
-    status.prepend(...line, document.createElement('br'));
+    box.querySelector('[data-track-line]').replaceChildren(...status.childNodes);
+    status.replaceChildren(...line);
   }
 
   // A run's stages to a recordable result, under its status line (progress.py's stages; the coordinator, 2026-10-31,
@@ -440,11 +445,22 @@
     return L;
   }
 
+  // The ETA chart's x axis: hours of running, from 0 to past the projected finish (the last record's elapsed + ETA, or
+  // the time so far), its round ticks and labels, and its scale across the chart's width; the CPU chart under it shares
+  // them, so that the two line up (2026-11-07)
+  const ETA_W = 640, ETA_L = 48, ETA_R = 72;
+  function etaX(run) {
+    const last = run.etas[run.etas.length - 1];
+    const xmax = Math.max(run.so_far / 3600, 1 / 3600, ...(last ? [(last[1] + last[2]) / 3600] : []));
+    const [xticks, xlabels] = axis(xmax, Math.ceil);
+    return {xmax, xticks, xlabels, X: x => ETA_L + (ETA_W - ETA_L - ETA_R) * x / xticks[xticks.length - 1]};
+  }
+
   function etaChart(fig, run) {
     const pts = run.etas.map(([t, x, m, lo, hi]) => [t, x / 3600, m / 3600, lo / 3600, hi / 3600]);
-    const W = 640, H = 240, L = 48, R = 72, T = 14, B = 30, CROWD = 44, HEAD = 1.1, TOP = 40, GAP = 10;
+    const W = ETA_W, H = 240, L = ETA_L, R = ETA_R, T = 14, B = 30, CROWD = 44, HEAD = 1.1, TOP = 40, GAP = 10;
     const now = run.so_far / 3600, last = pts[pts.length - 1];
-    const xmax = Math.max(now, 1 / 3600, ...pts.slice(-1).map(p => p[1] + p[2]));
+    const {xmax, xticks, xlabels, X} = etaX(run);
     // the y axis's cap: a bit above the projected finish, the guide's level, and the elapsed time (dreeves, 2026-10-23:
     // "truncate the y-axis a bit above the horizontal purple dashed line"); anything taller goes to the top panel where
     // that gives the main panel a larger scale than one axis up to the tallest value would, i.e. where the tallest is
@@ -453,8 +469,7 @@
     const ymax = HEAD * xmax, room = H - B - T;
     const values = pts.flatMap(p => [p[2], p[4], p[1] + p[2], p[1] + p[4]]), tall = Math.max(ymax, ...values);
     const over = (room - TOP - GAP) * tall > room * ymax, cap = over ? ymax : tall;
-    const [xticks, xlabels] = axis(xmax, Math.ceil), [yticks, ylabels] = axis(cap, Math.floor);
-    const X = x => L + (W - L - R) * x / xticks[xticks.length - 1];
+    const [yticks, ylabels] = axis(cap, Math.floor);
     // The y axis broken canonically, the span between its panels elided (dreeves, 2026-10-23: "can you do something
     // more canonical for the y-axis break? maybe something like this?", a two-panel plot with slashes at the break; "i
     // guess i shouldn't have said truncation when i meant elision"): the values above the cap, the bands' tops mostly,
@@ -654,6 +669,42 @@
   // the run's time so far or its last point, a quarter hour at least.  With no point to draw (a run with no model of its
   // search, which states the ignorant prior with no history, since null, or a modeled one before its first
   // measurement), its axes alone, grayed (data-empty).
+  // The machine's CPU over the run's hours of running, under its ETA chart and on its x axis (etaX), so that a dip lines
+  // up with the ETA it moved (dreeves, 2026-11-07: "could we get a nice CPU usage graph on the search page? similar to
+  // what activity monitor shows. three colors: one for the search, one for all other processes on the machine, and one
+  // for idle, if any", then "maybe aligned with the ETA graph"): run.cpu's rows, [hours of running at an interval's
+  // start, at its end, its end's time, the search's share, other processes', idle] (progress.py's cpu_series), stacked
+  // from the bottom in that order on 0 to 100%, each band one polygon per stretch of contiguous rows (a gap where the
+  // watcher sampled nothing); other processes' share at least 0 where reading the ticks and ps a moment apart left it
+  // below (cpu.py's SKEW).  Its key's readout is the latest row's shares at its time, or at the pointer the row under
+  // it, and empty with no rows, when the chart shows its grid alone.
+  function cpuChart(fig, run) {
+    assert(Array.isArray(run.cpu), run.program, run.n, run.order);
+    const {xticks, X} = etaX(run), H = 72, T = 4, B = 4, Y = f => H - B - (H - B - T) * f;
+    const q = sel => fig.querySelector(sel), readout = q('[data-cpu-readout]'), cross = q('[data-cpu-cross]'), svg = fig.querySelector('svg');
+    q('[data-cpu-grid]').replaceChildren(...xticks.map(v => make('line', {class: 'grid', x1: X(v), y1: T, x2: X(v), y2: H - B})),
+                                         make('line', {class: 'axis', x1: ETA_L, y1: Y(0), x2: ETA_W - ETA_R, y2: Y(0)}));
+    q('[data-cpu-ticks]').replaceChildren(make('text', {class: 'ytick', x: ETA_L - 6, y: Y(1) + 8, 'text-anchor': 'end'}, '100%'),
+                                          make('text', {class: 'ytick', x: ETA_L - 6, y: Y(0), 'text-anchor': 'end'}, '0'));
+    const tops = r => [r[3], r[3] + Math.max(0, r[4]), r[3] + Math.max(0, r[4]) + r[5]];   // the bands' tops, bottom up
+    const stretches = run.cpu.reduce((s, r, i) => (i && run.cpu[i - 1][1] === r[0] ? s[s.length - 1].push(r) : s.push([r]), s), []);
+    const bands = ['search', 'other', 'idle'].flatMap((name, j) => stretches.map(rows => {
+      const edge = f => rows.flatMap(r => [[X(r[0]), Y(f(r))], [X(r[1]), Y(f(r))]]);
+      return make('polygon', {class: `band ${name}`, points: xy(edge(r => tops(r)[j]).concat(edge(r => j && tops(r)[j - 1]).reverse()))});
+    }));
+    q('[data-cpu-bands]').replaceChildren(...bands);
+    const say = r => { readout.textContent = r ? `${stamp(r[2])}: search ${Math.round(100 * r[3])}% · other processes ${Math.round(100 * Math.max(0, r[4]))}% · idle ${Math.round(100 * r[5])}%` : ''; };
+    const rest = run.cpu[run.cpu.length - 1];
+    say(rest);
+    svg.onmousemove = ev => {                   // the row under the pointer, or the nearest, and a crosshair through it
+      const b = svg.getBoundingClientRect(), x = (ev.clientX - b.left) * ETA_W / b.width;
+      const row = run.cpu.reduce((best, r) => Math.abs((X(r[0]) + X(r[1])) / 2 - x) < Math.abs((X(best[0]) + X(best[1])) / 2 - x) ? r : best, rest ?? [0, 0]);
+      say(rest && row);
+      set(cross, {x1: x, y1: T, x2: x, y2: H - B}).setAttribute('visibility', rest ? 'visible' : 'hidden');
+    };
+    svg.onmouseleave = () => { say(rest); cross.setAttribute('visibility', 'hidden'); };
+  }
+
   function oddsChart(fig, run) {
     assert(run.odds, 'a run without odds', run.program, run.n, run.order);
     const {prior, since, exists} = run.odds;

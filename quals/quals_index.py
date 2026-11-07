@@ -4340,7 +4340,10 @@ PROGRESS_DATA = {'made': 1792200000, 'runs': [{
              [1792200000, 7200.0, 3600.0, 1800.0, 10800.0]],
     'statuses': list(STATUSES), 'depth': 1, 'keys': ['3:[0,0,3]', '3:[1,1,1]', '3:[2,1,0]'],
     'groups': ['0123', '4', '00110'], 'counts': {'settled': 4, 'open': 3, 'split': 1, 'pending': 1, 'running': 1},
-    'odds': ODDS_IGNORANT}]}
+    'odds': ODDS_IGNORANT,
+    # its CPU (2026-11-07): the search, other processes and idle over its first hour of running and its second, beside
+    # its ETA records at 0, 1 and 2 h
+    'cpu': [[0.0, 1.0, 1792196400, 0.5, 0.3, 0.2], [1.0, 2.0, 1792200000, 0.25, 0.25, 0.5]]}]}
 # progress.html's ETA chart case (quals_progress.eta_chart_case): 13.2 h of running, ended, ETAs of [2, 1, 4] h at
 # its start and [1, 0.5, 3] h at its end
 PROGRESS_ETA_DATA = {'made': 1792200000, 'runs': [dict(PROGRESS_DATA['runs'][0], state='ended', so_far=47520.0, to_go=None,
@@ -4470,6 +4473,15 @@ PROGRESS_HARNESS = """<script>
     out.eta.ahead = {projected: tipEl.classList.contains('projected'), style: getComputedStyle(tipEl).fontStyle,
                      cross: Number(fig.querySelector('[data-cross]').getAttribute('x1')), want: xAt(2.5)};
     out.jumpAhead = status.getBoundingClientRect().top - top0;
+    const cfig = section.querySelector('.progress-run .progress-cpu');
+    out.cpu = cfig && {bands: [...cfig.querySelectorAll('[data-cpu-bands] polygon')].map(p => [p.getAttribute('class'), p.getAttribute('points')]),
+                       readout: squeeze(cfig.querySelector('[data-cpu-readout]').textContent),
+                       after: !!(fig.compareDocumentPosition(cfig) & Node.DOCUMENT_POSITION_FOLLOWING),
+                       afterStatus: !!(status.compareDocumentPosition(cfig) & Node.DOCUMENT_POSITION_FOLLOWING),
+                       afterStages: !!(section.querySelector('.progress-run [data-stages]').compareDocumentPosition(cfig) & Node.DOCUMENT_POSITION_FOLLOWING),
+                       trackLineAfter: !!(cfig.compareDocumentPosition(section.querySelector('.progress-run [data-track-line]')) & Node.DOCUMENT_POSITION_FOLLOWING),
+                       widths: [cfig.querySelector('svg').getBoundingClientRect().width, svg.getBoundingClientRect().width],
+                       etaXs: L.etaXs};
     const d2 = JSON.parse(JSON.stringify(view().data));
     d2.made += 60; d2.runs[0].groups[1] = '1'; d2.runs[0].counts.running -= 1; d2.runs[0].counts.open += 1;
     window.progressData(d2);
@@ -4993,6 +5005,38 @@ def q_progress_writes_days_and_years_past_72_h_and_dates_past_a_week():
     assert ticks('ytick') == ['0', '100', '200', f'300{d}', '6', f'8{y}'], ticks('ytick')   # then the top panel's
 
 
+def q_progress_draws_cpu_aligned_with_the_eta_chart():
+    # Replicata: the harness's run (PROGRESS_DATA), its ETA records at 0, 1 and 2 h of running, its cpu rows the search,
+    # other processes and idle over 0-1 h (0.5, 0.3, 0.2) and 1-2 h (0.25, 0.25, 0.5).
+    # Expectata (dreeves, 2026-11-07: "could we get a nice CPU usage graph on the search page? similar to what activity
+    # monitor shows. three colors: one for the search, one for all other processes on the machine, and one for idle, if
+    # any", then "maybe aligned with the ETA graph"): below the ETA chart, its status line and its notes on Lindy's rule
+    # and the later stages (spec change, the same day: "let's keep the blue/red/purple line of numbers directly below the
+    # ETA graph, not below the CPU graph", then "not the black text line though": a tracked search's counts of its runs,
+    # [data-track-line], follow it; before it, right under the ETA chart), a CPU chart as wide, three bands stacked from the bottom in that order (classes band search, band other, band idle), each one
+    # polygon over the two rows (one stretch, no gap), every band's left and right edges at the ETA chart's x of 0 and 2 h
+    # (its records' xs: the same axis); the bands' tops the shares' sums on a 0-100% scale, the search's at 50% then 25%,
+    # other processes' at 80% then 50%, idle's at 100%; and its key's readout, at rest, the latest row's shares at its
+    # time: "search 25% · other processes 25% · idle 50%".
+    # Resultata before: no CPU chart.
+    R = progress_run()
+    c = R['cpu']
+    assert c is not None, 'no CPU chart'
+    assert c['after'] and c['afterStatus'] and c['afterStages'] and c['trackLineAfter'] and abs(c['widths'][0] - c['widths'][1]) < 0.5, c
+    assert [k for k, _ in c['bands']] == ['band search', 'band other', 'band idle'], c['bands']
+    x0, x2 = c['etaXs'][0], c['etaXs'][2]
+    H, T, B = 72, 4, 4
+    Y = lambda f: H - B - (H - B - T) * f
+    for (_, points), tops in zip(c['bands'], ([0.5, 0.25], [0.8, 0.5], [1.0, 1.0])):
+        ps = [tuple(map(float, p.split(','))) for p in points.split()]
+        xs = [x for x, _ in ps]
+        assert abs(min(xs) - x0) < 0.02 and abs(max(xs) - x2) < 0.02, (points, x0, x2)
+        upper = [y for x, y in ps[:4]]
+        want = [Y(tops[0]), Y(tops[0]), Y(tops[1]), Y(tops[1])]
+        assert all(abs(a - b) < 0.02 for a, b in zip(upper, want)), (upper, want)
+    assert c['readout'] == f'{stamp(1792200000)}: search 25% · other processes 25% · idle 50%', c['readout']
+
+
 def q_progress_breaks_the_y_axis_above_the_projected_finish():
     # Replicata: the ETA charts of progress_run('long') (480:14's bands, thousands of hours above its projected
     # finish), of progress_run('eta') (its purple band's top 0.6 h above the cap) and of progress_run('narrow') (bands
@@ -5239,7 +5283,8 @@ def q_progress_says_when_an_eta_is_lindy():
                  to_go=dict(median=600, lo=600 / 19, hi=19 * 600),
                  etas=[[made - 60, 540.0, 540.0, 28.4, 10260.0], [made, 600.0, 600.0, 31.6, 11400.0]],
                  statuses=base['statuses'], depth=0, keys=['768:12'], groups=['4'],
-                 counts=dict(settled=0, open=0, split=0, pending=0, running=1), stale=None, odds=ODDS_IGNORANT)
+                 counts=dict(settled=0, open=0, split=0, pending=0, running=1), stale=None, odds=ODDS_IGNORANT,
+                 cpu=[])   # (2026-11-07: every run's data carry its CPU series, none here)
     work = dict(runs=1, running=1, frozen=0, ended=0, aborted=0, found=0)
     lindy, own = dict(plain, tracked=True, work=work, lindy=True), dict(plain, tracked=True, work=work, lindy=False)
     got = progress_harness({'made': made, 'runs': [lindy, own, plain]}, """
@@ -5268,7 +5313,8 @@ def q_progress_shows_a_tracked_search():
                  to_go=dict(median=600, lo=600 / 19, hi=19 * 600),
                  etas=[[made - 60, 540.0, 540.0, 28.4, 10260.0], [made, 600.0, 600.0, 31.6, 11400.0]],
                  statuses=base['statuses'], depth=0, keys=['768:12'], groups=['4440'],
-                 counts=dict(settled=1, open=0, split=0, pending=0, running=3), stale=None, odds=ODDS_IGNORANT)
+                 counts=dict(settled=1, open=0, split=0, pending=0, running=3), stale=None, odds=ODDS_IGNORANT,
+                 cpu=[])   # (2026-11-07: every run's data carry its CPU series, none here)
     tracked = dict(plain, tracked=True, work=dict(runs=4, running=3, frozen=0, ended=1, aborted=0, found=0))
     got = progress_harness({'made': made, 'runs': [plain, tracked]}, """
   const [plain, r] = runs();
@@ -5482,7 +5528,8 @@ PROGRESS_CAMPAIGN = dict(program='probe_seed.py', n=528, order=12, state='runnin
                          to_go=dict(median=600, lo=600 / 19, hi=19 * 600), etas=[[PROGRESS_DATA['made'], 600.0, 600.0, 31.6, 11400.0]],
                          statuses=list(STATUSES), depth=0, keys=['528:12'], groups=['4440'],
                          counts=dict(settled=1, open=0, split=0, pending=0, running=3), stale=None, tracked=True,
-                         work=dict(runs=4, running=3, frozen=0, ended=1, aborted=0, found=0), odds=ODDS_CAMPAIGN)
+                         work=dict(runs=4, running=3, frozen=0, ended=1, aborted=0, found=0), odds=ODDS_CAMPAIGN,
+                         cpu=[])   # (2026-11-07: every run's data carry its CPU series, none here)
 # The boxes runs' progress.js (2026-11-04, [CEL]: a black cell's box summarizes the searches at its cell): two runs at
 # 528:12, PROGRESS_CAMPAIGN and an overnight_v5.py run that ended with no outcome (aborted), and one at 64:7.
 BOX_PROGRESS = {'made': PROGRESS_DATA['made'], 'runs': [PROGRESS_CAMPAIGN, dict(PROGRESS_DATA['runs'][0], n=528, order=12, state='ended',
@@ -5755,7 +5802,8 @@ def q_progress_shows_runs_and_dots_for_every_run():
                    etas=[[made - 60, 540.0, 540.0, 60.0, 4860.0], [made, 600.0, 600.0, 66.7, 5400.0]],
                    statuses=base['statuses'], depth=0, keys=['768:12'], groups=['4440'],
                    counts=dict(settled=1, open=0, split=0, pending=0, running=3), stale=None, tracked=True,
-                   work=dict(runs=4, running=3, frozen=0, ended=1, aborted=0, found=0), lindy=True, odds=ODDS_IGNORANT)
+                   work=dict(runs=4, running=3, frozen=0, ended=1, aborted=0, found=0), lindy=True, odds=ODDS_IGNORANT,
+                   cpu=[])   # (2026-11-07: every run's data carry its CPU series, none here)
     worked = dict(tracked, program='ftree.py', n=288, order=10, keys=['288:10'], groups=['0004'],
                   counts=dict(settled=3, open=0, split=0, pending=0, running=1), lindy=False,
                   work=dict(runs=4, running=1, frozen=0, ended=3, aborted=0, found=0), work_eta=PROGRESS_WORK['work_eta'])
