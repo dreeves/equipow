@@ -2989,7 +2989,14 @@ def q_codes_are_anchors_and_names_link_to_them():
     bad = [(name, links[i]) for i, name in others if i in links and (links[i][1] != name or owners.get(name) != {links[i][0]})]
     assert bad == [], bad
     R = valid_run('light')
-    assert sorted(R['anchors']) == sorted([f'#{t}', 'CODE', True] for t, _ in links.values()), (R['anchors'][:5], len(links))
+    # Spec change (2026-11-07; dreeves, asked whether a code may also be linked by an ordinary HTML link, as the
+    # Asymptotics section's "1440:16" was, or only by its name in math: "consistency is good?"): every link to a code
+    # is still its name, \href{#N:M}{p_{N}}, drawn by KaTeX; a link to another element of the page, as Astra's to the
+    # complete proof of 384, may be an ordinary link, but must name an element that is there.  Before, every link to
+    # an anchor of the page had to be such a name.
+    assert all(target for _, target, _ in R['anchors']), R['anchors']
+    assert sorted(a for a in R['anchors'] if a[1] == 'CODE') == sorted([f'#{t}', 'CODE', True] for t, _ in links.values()), \
+        (R['anchors'][:5], len(links))
     assert R['math']['unsupported'] == 0, R['math']
 
 
