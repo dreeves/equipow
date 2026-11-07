@@ -1248,3 +1248,8 @@ Order-13 witness agent, 2026-10-31 from 06:05 (Claude; `scratch/w13-1008-912/`):
   - order 10 at 288, being decided by the form-tree run;
   - orders 12 and up, open.
   The TODO recap was extended. The list holds no math of the forms quals_symmetry parses. quals_symmetry 5/5, and the phone, spacing and curly-quote quals pass.
+- **Symmetry section: the large-length theorem** (Claude, 2026-11-07; dreeves: "sure", after asking for an attempt by hand). Three paragraphs end the Claude block.
+  - **The theorem:** given Freiman and Litsyn's theorem as BGPW quote it (not read here), with s = (−1)^m and 2^a the least power of 2 above m, the conjecture holds at every sufficiently large length iff some s-symmetric order-m sequence has a length that is 2^a × odd. The proof is p ∨ s·p* at lengths divisible by 2^(a+1), p ∨ q ∨ s·p* at 2^a × odd, and the converse from the theorem.
+  - **What the page supplies:** 912:12, 1008:13 and 1440:16 give orders 12, 13 and 16. Orders 14 and 15 lack an example: every explicit sequence of order 14 or more, and every join and product of them, has a length that is a multiple of 32 (the chart has only 960 with lo ≥ 14, past it only 1440).
+  - **Chat only:** why no full hand proof is in reach. At 288, the conjecture plus BGPW's computation means m*(288) = 9, a nonexistence that residue and norm tests don't reach.
+  - **Quals:** the status list's last item now points to the theorem, and the TODO recap was extended. quals_symmetry 5/5, quals_derivations 7/7, and the anchor, phone, curly-quote and spacing quals pass.
