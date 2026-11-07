@@ -6,6 +6,7 @@ LittlewoodPolynomialsReprint.pdf is the published version of the paper this is e
 ---
 
 Potential tasks: 
+* [CER] BGPW never gave certified proofs (just triple-checked ILP runs) for n = 168, 176, 184, and 272. Claude thinks it can properly certify them with short proofs.
 * [MAI] Let's get more things as expandable sections of the main equipow page instead of linking to separate pages. Proofs currently in txt files for starters.
 * [CLU] Are there past searches we don't care about anymore that we don't need on the page? Some are interesting for posterity.
 * [SYM] What's currently the most promising way to prove or disprove the Symmetry Conjecture?
@@ -14,7 +15,7 @@ Potential tasks:
   2. If excluded, attack unrestricted order 10 at 288 using lattice searches without imposing symmetry.
   3. Systematically repeat this at other (n,m) with m>=9, prioritizing cases where modular constraints eliminate the symmetry-restricted problem cheaply.
 * [REO] See the notes in the index.html comments tagged [REO].
-* [CRO] This might be fun: Let people contribute computation by just having the equipow page open in their browser. (More boringly, Claude is estimating we could bring the next two searches down from a total of 90 days on my laptop to about 4 days on cloud compute costing around $300.)
+* [CRO] This might be fun: Let people contribute computation by just having the equipow page open in their browser. Claude thinks this could work. (More boringly, Claude is estimating we could bring the next two searches down from a total of 90 days on my laptop to about 4 days on cloud compute costing around $300.)
 * [TRE] We now have a time series of the number of pending nodes in the search. Seeing when that plateaus or starts to actually go down should improve our ETA. Can we incorporate that in the ETA graph?
 * [APP] Eyeballing the charts it looks like maybe `m*(n) ~= 1.2*log2(n)` or something; any interesting conjectures on the asymptotics here? For powers of two we already have something like this: `m*(2^k) = c*log2(n)` where `c` is at least `77/68` and at most `2/log2(3)`. Relatedly, the upper envelope of `m*(n)` is at least `12/log2(480) log2(n)` ~= 1.347 which we get from Theorem 4.1 (Multiplication) of BGPW which tells us that `m*(n^k) >= k m*(n)`. Namely, `m*(480^k) >= 12k` so for certain `n`, `m*(n) >= 12 log_480(n) = 12 log2(n) / log2(480) = 12/log2(480) log2(n)`. So whenever we find a new high watermark for `m*(n)/log2(n)` that bumps up the upper envelope for the `m*()` function. Currently the best we have is 480:12. The following would beat that: 432:12, 672:13, 720: 13, 960:14. Update: We got 960:15! So 15/log2(960) ≈ 1.514 is the new bound on the upper envelope. Also 2^58 gives us 66/58 ≈ 1.138 as the lower bound. Claude adds: "For powers of 2: the product rule gives `m*(2^(a+b)) ≥ m*(2^a) + m*(2^b)`. So by Fekete's lemma `m*(2^k)/k` converges to its supremum `c`, with `66/58 ≈ 1.138 ≤ c ≤ 2/log₂3 ≈ 1.262` (the upper end from the mod-3 norm bound). For `n` not divisible by 3, the same bound gives `m*(n) ≤ 1.262 log₂n + O(1)`. So the 1.514 high-water mark from 960^k can only come from multiples of 3."
 

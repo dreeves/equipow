@@ -5339,6 +5339,27 @@ def q_progress_names_a_run_s_later_stages():
                         after=True)], got
 
 
+def q_asymptotics_states_the_records_in_the_data():
+    # Replicata: index.html's section "Asymptotics" (class asymptotics), mstar.js (its columns' lower bounds and its
+    # past examples) and pow2.js (its columns' lower bounds).
+    # Expectata (dreeves, 2026-11-06: "Can you add an "Asymptotics" section that uses my words with your corrections?"):
+    # the section names the record of m*(n)/log2 n among the known lower bounds, as N:M with the ratio to three
+    # decimals, and the record of m*(2^k)/k, the lower end of c, as the fraction lo/k, so that a new record turns this
+    # red until the section is updated.  Numbers only, no wording.
+    # Resultata before: no such section.
+    from fractions import Fraction
+    found = re.search(r'<section class="asymptotics".*?</section>', page(), re.S)
+    assert found, 'no section asymptotics'
+    text = re.sub(r'<!--.*?-->', '', found.group(0), flags=re.S)   # what the reader sees, not the TODO recaps
+    M = mstar_data()
+    known = [(c[0] / math.log2(n), n, c[0]) for n, c in enumerate(M['cols'], 1) if c[0] > 0 and n > 1]
+    known += [(m / math.log2(n), n, m) for n, m, _ in M['past']]
+    ratio, n, m = max(known)
+    assert f'{n}:{m}' in text and f'{ratio:.3f}' in text, (n, m, ratio)
+    best, lo, k = max((Fraction(c[0], k), c[0], k) for k, c in enumerate(pow2_data()['cols'], 1))
+    assert f'{lo}/{k}' in text and f'{float(best):.3f}' in text, (lo, k, float(best))
+
+
 def q_progress_lists_running_runs_first():
     # Replicata: index.html with three runs as progress.js, PROGRESS_DATA's run as an ended a.py, a running b.py and
     # an ended c.py, in that order.

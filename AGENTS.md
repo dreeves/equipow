@@ -1192,3 +1192,15 @@ Order-13 witness agent, 2026-10-31 from 06:05 (Claude; `scratch/w13-1008-912/`):
 
 
 - **288 ETA checksum repair** (Codex, 2026-11-06 16:16 PST, Claude handoff): PR6 changed only pex.py's local config-writer imports to cellconfig, triggering the intended stale-data guard. Existing cfg/Q/prover/library/driver/root inputs all matched; this run never regenerates its config. After independent source/call-path review, only that model checksum was re-pinned to `baaf0e4faf9929a973086eec0985ed69319ec9fe1464901b7d00e83ad40f9d10`. New runs/models/288_10.json SHA `7bfb44667ab8ef63852a508d7886b2c707e0da9632a74b5c5ebe4a97094c8304`; parameters, samples, provenance and strict whole-file checks unchanged. Watcher 94854 recovered without restart; driver 52302 and ten workers stayed active. All 158 committed work-model points and 2,797 old ETA entries preserved. Red→green live loader and 22 existing model/integration quals passed. Artifacts and old model: scratch/eta-repin-20261106/. No git mutation or production code change.
+
+- **Asymptotics section** (Claude, 2026-11-06 23:50; dreeves: "Can you add an "Asymptotics" section that uses my words with your corrections?"): `section.asymptotics` follows the powers-of-2 section. dreeves's README [APP] paragraphs come first, corrected; an HTML comment above them lists every change. A Claude block follows, covering:
+  - Fekete's lemma, and Boyd 1997 Theorem 1 (the ratio above (p − 1)/log2 p forces p | n);
+  - m*(n)/log2 n has no limit, and U is its limsup and its sup;
+  - the conjecture c = 2/log2 3, with its evidence and the construction cap 11/log2 800;
+  - BGPW §7's last question, and O(1440^(m/16)).
+  - The facts were checked against mstar.js, pow2.js, Boyd's text (scratch/app-20261105/sources/) and the reprint. dreeves edited the section right afterwards (reflow, "More from Claude:").
+  - **Qual:** new quals_index q_asymptotics_states_the_records_in_the_data checks that the section's visible text names the record ratios: m*(n)/log2 n over mstar.js lo and `past`, as N:M with three decimals, and m*(2^k)/k over pow2.js lo, as lo/k. It was red first. It goes red on a made-up 1920:18, a made-up m*(2^58) ≥ 67, or a stale section.
+  - **Suites:** quals_pow2_page 37/37, quals_derivations 7/7, quals_mstar 47/47, quals_record_gaps 7/7, quals_codes 15/16 (Astra's inline 384 witness, as before), quals_index 156/162.
+  - **Five of the six quals_index failures predate the section:** three are on dreeves's OEIS-note edits (q_example_at_1440_settles_a_15, q_oeis_notes_hold_on_the_chart, q_oeis_errors_say_how_to_fix_them). Two come from Astra's inline proofs: "index.html" in links copied from proof384.html, and extra `<details>` inside the remarks section, which remarks_fold requires to hold exactly one.
+  - **The sixth**, q_codes_are_anchors_and_names_link_to_them, also lists the section's plain `<a href="#1440:16">`, beside Astra's #496:9 and #proof384-complete: that qual admits anchors only as KaTeX \href links to codes.
+  - Screenshots and suite log: scratch/asymptotics-20261106/.

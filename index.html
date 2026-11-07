@@ -384,6 +384,37 @@
   </div>
 </section>
 
+<section class="asymptotics" aria-labelledby="asymptotics-title">
+  <h2 id="asymptotics-title">Asymptotics</h2>
+  <!-- dreeves's words, from README.md's [APP] item, with Claude's corrections at his request (2026-11-06: "Can you add an "Asymptotics" section that uses my words with your corrections?"): the math typeset; m*(2^k) = c*log2(n) became m*(2^k)/k → c; "c is at least 77/68 and at most 2/log2(3)" became "c is at most 2/log2(3)", joined to his later sentence "Also 2^58 gives us 66/58 ≈ 1.138 as the lower bound" without its "Also"; "~= 1.347" became ≈ 1.347 log2 n; "Currently the best we have is 480:12. The following would beat that: 432:12, 672:13, 720: 13, 960:14. Update: We got 960:15! So 15/log2(960) ≈ 1.514 is the new bound on the upper envelope." became the two sentences with 1440:16 and 1.525 -->
+<p>
+Eyeballing the charts it looks like maybe \(m^*(n) \approx 1.2\log_2 n\).
+What can we say about the asymptotics?
+For powers of two we already have this: 
+\(m^*(2^k)/k \to c\) where \(c\) is at most \(2/\log_2 3\), and \(2^{58}\) gives us \(66/58 \approx 1.138\) as the lower bound.
+</p><p>
+Relatedly, the upper envelope of \(m^*(n)\) is at least 
+\(\frac{12}{\log_2 480}\log_2 n \approx 1.347\log_2 n\) 
+which we get from Theorem 4.1 (Multiplication) of BGPW which tells us that 
+\(m^*(n^k) \ge k\,m^*(n)\). 
+Namely, \(m^*(480^k) \ge 12k\) so for certain \(n\), 
+\(m^*(n) \ge 12\log_{480} n = 12\log_2 n/\log_2 480 = \frac{12}{\log_2 480}\log_2 n\). 
+So whenever we find a new high watermark for \(m^*(n)/\log_2 n\) 
+that bumps up the upper envelope for the \(m^*\) function. 
+Currently the best we have is 
+<a href="#1440:16">1440:16</a>. 
+So \(16/\log_2 1440 \approx 1.525\) is the newest bound on the upper envelope.
+</p>
+More from Claude:
+  <!-- TODO: a block quote by Claude, the corrections that take words and the answer to the question above. The limit c exists: Multiplication makes m*(2^k) superadditive in k, so by Fekete's lemma m*(2^k)/k converges to its supremum; its upper end is Boyd's bound (1997, Theorem 1), which the norm bound below sharpens: if a prime p does not divide n, then m*(n) ≤ ((p − 1)/log2 p) log2 n; at p = 3 that is 2/log2 3 ≈ 1.262, so only a multiple of 3, as 1440 = 2^5·3^2·5 is, can beat that ratio, and only a multiple of 15 can beat 4/log2 5 ≈ 1.723. m*(n)/log2 n has no limit: m*(n) is 1 for every n ≡ 2 mod 4 and at most 3 for every n ≡ 4 mod 8 (Divisibility); its limit superior is the upper envelope's ratio U, which Multiplication makes equal to the supremum of m*(n)/log2 n, so U ≥ 1.525. Claude conjectures c = 2/log2 3, the most the norm bound allows: for every k from 2 to 12 the upper bound from residue sums mod 3, 9 or 27 is attained at 2^k, as at 39 of the 43 multiples of 16 up to 1024 that are not multiples of 3; that pattern's first test is 2^13, where 14 ≤ m* ≤ 15, the 15 from the norm bound; and the lower end 66/58 is no evidence against it, since at 2^k a join of products of Thue–Morse sequences and blocks up to 1024 can show at most 11/log2 800 ≈ 1.141 times k: 2^k is not a multiple of 3, so one of the join's parts and all of that part's factors are not, and every such factor's ratio of order to log2 of its length is at most 11/log2 800, with equality at 800 among the blocks, by the chart's upper bounds, and 1 for Thue–Morse. Whether U is finite is open: U is finite exactly when the least length of order m is at least a^m for some a > 1, BGPW's last question (§7) being how that length grows; they place it between e^((1 + o(1))√m) and O(192^(m/9)), and 1440:16 lowers the latter to O(1440^(m/16)), from about 1.793^m to about 1.575^m; Boyd's bound m*(n) ≤ (1 + o(1))(ln n)^2/ln ln n (1997, Remark 1) allows either -->
+  <blockquote class="claude">
+    <p>The limit \(c\) exists: Multiplication gives \(m^*(2^{a+b}) \ge m^*(2^a) + m^*(2^b)\), so by Fekete's lemma \(m^*(2^k)/k\) converges to its supremum. Its upper end is Boyd's bound (1997, Theorem 1), which the norm bound below sharpens: if a prime \(p\) does not divide \(n\), then \(m^*(n) \le \frac{p-1}{\log_2 p}\log_2 n\). At \(p = 3\) that is \(2/\log_2 3 \approx 1.262\). So only a multiple of 3, as \(1440 = 2^5 \cdot 3^2 \cdot 5\) is, can beat that ratio, and only a multiple of 15 can beat \(4/\log_2 5 \approx 1.723\).</p>
+    <p>\(m^*(n)/\log_2 n\) has no limit: \(m^*(n)\) is 1 for every \(n \equiv 2 \pmod 4\) and at most 3 for every \(n \equiv 4 \pmod 8\) (BGPW's Theorem 4.1, Divisibility). Its limit superior is the upper envelope's ratio, \(U\), which Multiplication makes equal to \(\sup_n m^*(n)/\log_2 n\), so \(U \ge 1.525\).</p>
+    <p>Claude conjectures that \(c = 2/\log_2 3\), the most the norm bound allows. For every \(k\) from 2 to 12, the upper bound from residue sums mod 3, 9 or 27 is attained at \(2^k\), as it is at 39 of the 43 multiples of 16 up to 1024 that are not multiples of 3. That pattern's first test is \(2^{13}\), where \(14 \le m^*(2^{13}) \le 15\), the 15 from the norm bound. The lower end, \(66/58\), is no evidence against the conjecture: at \(2^k\), a join of products of Thue–Morse sequences and blocks up to 1024 can show at most \(\frac{11}{\log_2 800}k \approx 1.141k\). Since \(2^k\) is not a multiple of 3, one of the join's parts is not, nor is any of that part's factors. By the chart's upper bounds, each such factor's order is at most \(\frac{11}{\log_2 800}\) times \(\log_2\) of its length, with equality at 800 among the blocks, and Thue–Morse's is exactly that logarithm.</p>
+    <p>Whether \(U\) is finite is open. It is finite exactly when the least length of order \(m\) is at least \(a^m\) for some \(a > 1\), and how that length grows is BGPW's last question (§7). They place it between \(e^{(1+o(1))\sqrt m}\) and \(O(192^{m/9})\); 1440:16 lowers the latter to \(O(1440^{m/16})\), from about \(1.793^m\) to about \(1.575^m\). Boyd's bound \(m^*(n) \le (1+o(1))(\ln n)^2/\ln\ln n\) (1997, Remark 1) allows either.</p>
+  </blockquote>
+</section>
+
 
 <!--
 [REO] Everything below this line and above the Search Progress section is an organizational disaster.
