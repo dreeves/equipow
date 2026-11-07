@@ -189,6 +189,10 @@ def attach(s, root, model_path, p_exists, now, cache):
 
     cache is dedicated to this target. Its legacy arrays are copied once from the actual page snapshot, and points
     retain the model hash, done and rate used when committed. No past prediction is fitted again with new inputs.
+    work_eta's total (2026-11-06, for the page's work bar) is the work done when the search ends, chance.work's: its
+    median and band (chance.BANDS['work']) while the search runs; exactly done at all three once every root is
+    complete; none for a search stopped short of that, which makes no forecast. Its coverage, the page's label for
+    its interval, is chance.COVERAGE.
     """
     model,digest=load(root,model_path,f'{s["n"]}:{s["order"]}')
     active=s['state']=='running'
@@ -202,10 +206,12 @@ def attach(s, root, model_path, p_exists, now, cache):
         c=dict(cpu_hours=None,rate=None,cores=None,hours=list(chance.HOURS),exists=0.,
                found=[0.]*len(chance.AHEAD),p=[0.]*len(chance.HOURS))
         to_go=zero if active else None
+        total=dict(median=float(w['done']),lo=float(w['done']),hi=float(w['done']))
     elif active:
         samples=draws(model,w,count={1:4096,2:65536}[model['version']])
         order=np.argsort(samples['root_log_sd'])
-        quantiles=np.interp([.05,.5,.95],np.cumsum(samples['weight'][order]),samples['root_log_sd'][order])
+        lo,hi=chance.BANDS['work']
+        quantiles=np.interp([lo,.5,hi],np.cumsum(samples['weight'][order]),samples['root_log_sd'][order])
         uncertainty=dict(root_log_sd_posterior=dict(zip(('lo','median','hi'),quantiles.tolist())),
                          effective_samples=float(1/(samples['weight']@samples['weight'])),
                          forecast_samples=len(samples['weight']))
@@ -215,12 +221,14 @@ def attach(s, root, model_path, p_exists, now, cache):
         forecast=chance.work(p_exists,samples['total'],w['done'],samples['rate']*3600,samples['weight'])
         c={k:forecast[k] for k in ('cpu_hours','rate','cores','hours','exists','found','p')}
         to_go=forecast['to_go']
+        total=forecast['total']
     else:
         posterior=(cache['last']['chance']['exists'] if 'last' in cache else
                    legacy['exists'][-1][1] if legacy['exists'] else p_exists)
         c=dict(cpu_hours=None,rate=None,cores=None,hours=list(chance.HOURS),exists=posterior,
                found=[0.]*len(chance.AHEAD),p=[0.]*len(chance.HOURS))
         to_go=None
+        total=None
     current=dict(chance=c,model=digest,done=w['done'],rate=w['rate'],uncertainty=uncertainty)
     if active:
         points=history(cache.setdefault('points',[[now,copy.deepcopy(current)]]),copy.deepcopy(current),now)
@@ -241,7 +249,7 @@ def attach(s, root, model_path, p_exists, now, cache):
                   roots_total=len(w['roots']),model='importance',interval='conditional',
                   discrepancy_factor=math.exp(model['discrepancy_log_sd']),
                   root_discrepancy_factor=math.exp(model['root_log_sd']),rate_log_sd=model['rate_log_sd'],
-                  coverage=.9,**uncertainty)
+                  coverage=chance.COVERAGE,total=total,**uncertainty)
     if to_go is not None:
         s['etas'][str(float(now))]=[to_go[k]/3600 for k in ('median','lo','hi')]
     return s | dict(to_go=to_go,display=s['display'] | dict(lindy=False,work_eta=metadata),chance=shown,odds=odds)

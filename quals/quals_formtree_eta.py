@@ -217,14 +217,18 @@ class Attachment(unittest.TestCase):
         self.assertEqual(again['chance']['history'][:2],old['chance']['history'])
         # Spec extension, dreeves2026-11-06: learned uncertainty and [BUL] expose
         # the model interval's coverage and actual posterior/sampling diagnostics.
+        # Spec extension (Claude, 2026-11-06; dreeves: "should that progress bar be measuring amount of work, not
+        # time? ... we can still have a 90% CI for amount of work remaining, right?"): total, the work bar's interval.
         self.assertEqual(set(again['display']['work_eta']),{'source_time','samples','nodes','done','rate',
              'roots_done','roots_total','model','interval','discrepancy_factor','root_discrepancy_factor','rate_log_sd',
-             'coverage','root_log_sd_posterior','effective_samples','forecast_samples'})
+             'coverage','root_log_sd_posterior','effective_samples','forecast_samples','total'})
 
     def test_learned_scatter_schema_and_current_uncertainty_are_published(self):
         # Replicata: a v2 prior over root scatter, retaining frozen search inputs.
         # Expectata: a validated model, normalized posterior summary and explicit
-        # central90% interpretation; changing only a version number remains invalid.
+        # central80% interpretation; changing only a version number remains invalid.
+        # Spec change (Claude, 2026-11-06): central 80% (chance.COVERAGE 0.8, the work band (0.1, 0.9)) after the
+        # coordinator's calibration study (scratch/calibration-20261106); central 90% before.
         self.model.update(version=2,root_log_sd=.75,root_log_sd_uncertainty=.5)
         self.path.write_text(json.dumps(self.model))
         loaded,_=eta.load(self.root,self.path)
@@ -232,7 +236,7 @@ class Attachment(unittest.TestCase):
         with mock.patch.object(eta.formtree_work,'read',return_value=self.w):
             result=eta.attach(copy.deepcopy(self.s),self.root,self.path,.01,2000.,{})
         meta=result['display']['work_eta']
-        self.assertEqual(meta['coverage'],.9)
+        self.assertEqual(meta['coverage'],.8)
         self.assertEqual(meta['forecast_samples'],65536)
         self.assertGreater(meta['effective_samples'],100)
         scatter=meta['root_log_sd_posterior']
@@ -243,6 +247,33 @@ class Attachment(unittest.TestCase):
             self.model['root_log_sd_uncertainty']=value
             self.path.write_text(json.dumps(self.model))
             with self.subTest(value=value),self.assertRaises(AssertionError):eta.load(self.root,self.path)
+
+    def test_total_work_is_the_forecast_s_and_exact_once_complete(self):
+        # Replicata (dreeves, 2026-11-06: "should that progress bar be measuring amount of work, not time? ... we can
+        # still have a 90% CI for amount of work remaining, right?"): the live fixture; the same search frozen; then
+        # every root complete, the search running and ended.
+        # Expectata: work_eta's total, the nodes checked when the search ends, {median, lo, hi}: while it runs,
+        # chance.work's total on the same draws, done at most its lo, lo below median below hi; frozen, none (a stopped
+        # search makes no forecast); complete, exactly done at all three, running or ended.
+        # Resultata before: work_eta had no total (KeyError).
+        cache={}
+        with mock.patch.object(eta.formtree_work,'read',return_value=self.w):
+            live=eta.attach(copy.deepcopy(self.s),self.root,self.path,.01,2000.,cache)
+        x=eta.draws(json.loads(self.path.read_text()),self.w,4096)
+        want=eta.chance.work(.01,x['total'],self.w['done'],x['rate']*3600,x['weight'])['total']
+        total=live['display']['work_eta']['total']
+        self.assertEqual(total,want)
+        self.assertLessEqual(self.w['done'],total['lo'])
+        self.assertLess(total['lo'],total['median']);self.assertLess(total['median'],total['hi'])
+        frozen=copy.deepcopy(self.s);frozen['state']='frozen'
+        with mock.patch.object(eta.formtree_work,'read',return_value=self.w):
+            self.assertIsNone(eta.attach(frozen,self.root,self.path,.01,2100.,cache)['display']['work_eta']['total'])
+        for r in self.w['roots']:r['complete']=True
+        for state in ('running','ended'):
+            s=copy.deepcopy(self.s);s['state']=state
+            with mock.patch.object(eta.formtree_work,'read',return_value=self.w):
+                got=eta.attach(s,self.root,self.path,.01,2200.,cache)['display']['work_eta']['total']
+            self.assertEqual(got,dict(median=55.,lo=55.,hi=55.))
 
     def test_numerically_concentrated_posterior_is_not_published(self):
         # Replicata: a v2 importance proposal leaves only one effective draw.

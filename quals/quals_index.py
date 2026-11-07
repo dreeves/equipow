@@ -4401,7 +4401,7 @@ def finish(t, t1, t2):
     second = f'{"" if date(t1) == date(t2) else day(t2) + " "}{ampm(t2)}' if t2 - t < WEEK else date(t2)
     return f'{moment(t, t1)} – {second}'
 # The harness: notes what has loaded, opens the section, waits 3.5 s, reads each dot's middle pixel, the key's counts,
-# the state line and the times, the time bar's parts, the subtrees' blocks and the ETA chart (its markup at rest), hovers over the third
+# the state line and the times, the subtrees' blocks and the ETA chart (its markup at rest), hovers over the third
 # group's first dot and over the ETA chart's second record, gives progressData a changed snapshot (one dot running ->
 # open), then closes the section and waits 3.5 s more; its report goes into <pre id="harness-out">.
 PROGRESS_HARNESS = """<script>
@@ -4440,7 +4440,6 @@ PROGRESS_HARNESS = """<script>
     const box = canvas.getBoundingClientRect(), dpr = canvas.width / box.width;
     canvas.dispatchEvent(new MouseEvent('mousemove', {clientX: box.left + (hx + L.size / 2) / dpr, clientY: box.top + (hy + L.size / 2) / dpr, bubbles: true}));
     out.readout = section.querySelector('[data-readout]').textContent.replace(/\\s+/g, ' ').trim();
-    out.bar = Object.fromEntries([...section.querySelectorAll('[data-bar]')].map(e => [e.dataset.bar, e.style.width || e.style.left]));
     out.blocks = {rects: L.rects, cols: L.cols, rows: L.rows};
     const fig = section.querySelector('.progress-eta'), svg = fig.querySelector('svg');
     const text = sel => squeeze(fig.querySelector(sel).textContent);
@@ -5666,15 +5665,43 @@ def q_progress_redraws_in_place_and_reads_out_a_subtree():
 
 
 
-def q_progress_draws_time_to_scale():
-    # Spec change authorized by dreeves, 2026-11-06: replace the median circle and fixed endpoint with a time ruler.
-    # Replicata: progress_run's 2 h elapsed and 0.5–3 h remaining, on labeled ticks reaching past the upper estimate.
-    # Expectata: 6 h axis; elapsed/current marker at 2 h, interval at 2.5–5 h; no median lookalike or fixed finish.
-    # Resultata before: 5 h filled the bar, and a median circle at 3 h resembled current progress.
-    R = progress_run()
-    got = {k: float(v.rstrip('%')) for k, v in R['bar'].items() if k != 'ticks'}
-    want = {'so-far': 100/3, 'now': 100/3, 'band': 250/6}
-    assert got.keys() == want.keys() and all(abs(got[k]-v)<0.0001 for k,v in want.items()), R['bar']
+# a form-tree search with a work model (formtree_eta.attach's work_eta), the live 288:10 run's numbers of 2026-11-06:
+# 468,750,102 nodes checked; the total, the nodes checked when the search ends, 780M to 2.5B, median 1.27B, at 90%
+PROGRESS_WORK = dict(PROGRESS_DATA['runs'][0], program='ftree.py', n=288, order=10, work_eta=dict(
+    source_time=1792199990, samples=1024, nodes=1.037e9, done=468750102, rate=1884.1, roots_done=10, roots_total=16,
+    model='importance', interval='conditional', discrepancy_factor=2.117, root_discrepancy_factor=2.117, rate_log_sd=0.35,
+    coverage=0.9, root_log_sd_posterior=dict(lo=0.35, median=0.52, hi=0.83), effective_samples=2273.9,
+    forecast_samples=65536, total=dict(median=1270000000.0, lo=780000000.0, hi=2500000000.0)))
+
+
+def q_progress_draws_work_to_scale():
+    # Spec change (Claude, 2026-11-06; dreeves: "i don't like how that progress bar looks. can you revamp it in a way
+    # that makes sense to you? also bring back a subtle tick for the median finish time. bigger picture: should that
+    # progress bar be measuring amount of work, not time? the ETA graph is for time. we can still have a 90% CI for
+    # amount of work remaining, right?"), in place of q_progress_draws_time_to_scale (Astra's time ruler of that day).
+    # Replicata: index.html with two runs, both folds open: PROGRESS_WORK, which has a work model, and
+    # PROGRESS_DATA's, which has none.
+    # Expectata: the first shows its work bar and its work paragraph; the bar's blue part 15.625% of the track (done
+    # over the track's end, 3B, the round tick past 1.1 x 2.5B), its band from 26% to 83.333%, its median tick at
+    # 42.333%, its ticks 0, 1B, 2B and 3B at 0, 33.333, 66.667 and 100%, and its caption's numbers 469M, 780M–2.5B,
+    # 1.3B and 90%; the second shows neither the bar nor the work paragraph.
+    # Resultata before: the bar was a time ruler, shown for every run, its blue part elapsed time.
+    got = progress_harness({'made': PROGRESS_DATA['made'], 'runs': [PROGRESS_WORK, PROGRESS_DATA['runs'][0]]}, """
+  for (const r of runs()) r.querySelector('details').open = true;
+  await sleep(200);
+  out(runs().map(r => ({bar: r.querySelector('.progress-work').checkVisibility(), work: r.querySelector('[data-work-eta]').checkVisibility(),
+    styles: Object.fromEntries([...r.querySelectorAll('.progress-bar [data-bar]')].map(e => [e.dataset.bar, [e.style.left, e.style.width]])),
+    ticks: [...r.querySelector('[data-bar="ticks"]').children].map(e => [e.textContent, e.style.left]),
+    fields: Object.fromEntries(['done', 'range', 'median', 'percent'].map(f => [f, r.querySelector(`[data-bar-${f}]`).textContent]))})));""")
+    work, plain = got
+    assert (work['bar'], work['work'], plain['bar'], plain['work']) == (True, True, False, False), got
+    near = lambda s, v: abs(float(s.rstrip('%')) - v) < 0.001
+    styles = work['styles']
+    assert near(styles['done'][1], 15.625) and near(styles['band'][0], 26) and near(styles['band'][1], 57.3333), styles
+    assert near(styles['median'][0], 42.3333), styles
+    assert [t for t, _ in work['ticks']] == ['0', '1B', '2B', '3B'], work['ticks']
+    assert all(near(left, v) for (_, left), v in zip(work['ticks'], (0, 33.3333, 66.6667, 100))), work['ticks']
+    assert work['fields'] == dict(done='469M', range='780M–2.5B', median='1.3B', percent='90%'), work['fields']
 
 
 

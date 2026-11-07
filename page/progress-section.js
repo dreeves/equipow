@@ -7,10 +7,9 @@
 // see remember).  Every word
 // it shows is in the section's HTML (its templates); this script writes numbers, times and marks, durations with their
 // units, h, d or y (dreeves, 2026-10-23).
-// 2026-11-06, dreeves: the bar described next is now a labeled time ruler; only elapsed time is marked, with a
-// separate finish interval and ticks beyond it. The median remains in the ETA history chart, not on the ruler.
-// Per run: a bar of hours so far and to go, to scale (so far, then the band's bottom, then the rest of the band, the
-// median marked); the sea, one dot per sub-case of the data's groups, each group a block of cells (strips below), cells
+// Per run: for a run with a work model, a bar of its work, its nodes checked and the interval of its total nodes when
+// the search ends, the median a tick (bar, 2026-11-06; a bar of hours so far and to go before, and that day a time
+// ruler); the sea, one dot per sub-case of the data's groups, each group a block of cells (strips below), cells
 // of pitch px, chosen from 10 down to 2 px so that the sea is at most about 560 px tall, a dot a device px short of its
 // cell (none short below 3 device px); and progress.html's ETA chart
 // (eta_chart there: dreeves's design), from the run's recorded ETAs; and below the status line, for a run with stages
@@ -99,6 +98,12 @@
   const tickStep = top => {                                           // progress.py's tick_step
     const e = Math.floor(Math.log10(top / 5));
     return [1, 2, 5, 10].map(m => m * 10 ** e).find(step => top / step <= 5);
+  };
+  // round ticks of a count from 0 to the first at or past top, tickStep apart but at least 1 (whole things: the pool
+  // chart's boxes, 2026-11-03, and the work bar's nodes, 2026-11-06)
+  const countTicks = top => {
+    const step = Math.max(1, tickStep(top));
+    return Array.from({length: Math.ceil(top / step) + 1}, (_, i) => i * step);
   };
   // each axis's round ticks in the unit of its largest value (unitOf; dreeves, 2026-10-23), as hours, and their labels,
   // the last with the unit: the x axis's up past its top, the y axis's up to its cap (the ETA chart's axes, and the pool
@@ -241,7 +246,9 @@
     const basis = run.work_eta ? 'work' : 'cpu';
     box.querySelector('[data-work-eta]').hidden = basis !== 'work';
     for (const e of box.querySelectorAll('[data-work-measure]')) e.hidden = e.dataset.workMeasure !== basis;
-    for (const [key, value] of Object.entries(run.work_eta ?? {})) fill(box, `work-${key}`, value.toLocaleString('en-US', {maximumFractionDigits: 1}));
+    // the model's numbers into their fields (its other fields, objects or null, have none: a null among them threw here
+    // until 2026-11-06, as a search stopped short of its end gives them)
+    for (const [key, value] of Object.entries(run.work_eta ?? {}).filter(([, v]) => typeof v === 'number')) fill(box, `work-${key}`, value.toLocaleString('en-US', {maximumFractionDigits: 1}));
     fill(box, 'work-source_time', run.work_eta ? stamp(run.work_eta.source_time) : '');
     return box.querySelectorAll({work: '[data-work-eta]', cpu: '.progress-chance:not([hidden]) .progress-chance-line'}[basis]);
   }
@@ -296,28 +303,40 @@
     fill(p, 'stages-total', ranged(run.total));
   }
 
+  // A run's work bar (dreeves, 2026-11-06: "i don't like how that progress bar looks. can you revamp it in a way that
+  // makes sense to you? also bring back a subtle tick for the median finish time. bigger picture: should that progress
+  // bar be measuring amount of work, not time? the ETA graph is for time. we can still have a 90% CI for amount of work
+  // remaining, right?"), from its work model (its work_eta: formtree_eta.py's, for an exhaustive search): a track of
+  // nodes from 0 to the last of its round ticks (countTicks), PAST times the larger of the nodes checked and the total's
+  // upper end at least; blue up to the nodes checked (done); the total, the nodes checked when the search ends (by a
+  // witness or with every node checked), its interval (lo to hi: the work model's band, chance.py's BANDS) a purple band,
+  // its median a tick; the ticks labeled below, compact (500M, 1B); and the caption's numbers, compact, with the
+  // coverage the page claims for its intervals (chance.py's COVERAGE, which work_eta carries).  A search stopped
+  // short of its end makes no forecast (total null): no band, tick or purple caption.  workView shows the bar with the
+  // model's other figures (data-work-measure); a run with no model draws an empty bar there, hidden.
   function bar(box, run) {
-    const g = run.to_go, end = run.so_far + (g?.hi ?? 0);
-    // Twenty percent headroom before rounding time ticks; even a zero-time snapshot has a one-hour axis.
-    const [ticks, labels] = axis(Math.max(1, end / 3600 * 1.2), Math.ceil), total = ticks.at(-1) * 3600;
+    const PAST = 1.1;
+    const {done, total, coverage} = run.work_eta ?? {done: 0, total: null, coverage: null};
+    const t = total ?? {lo: done, median: done, hi: done};          // the total's marks, hidden without a total
+    assert(total !== undefined && [done, t.lo, t.median, t.hi].every(Number.isFinite) && 0 <= done && done <= t.lo &&
+           t.lo <= t.median && t.median <= t.hi, done, total);     // a model gives its total, null for no forecast
+    assert(coverage === null || (typeof coverage === 'number' && coverage > 0 && coverage < 1 && run.work_eta.interval === 'conditional'), coverage);
+    const ticks = countTicks(Math.max(1, PAST * t.hi)), end = ticks[ticks.length - 1];
     const part = name => box.querySelector(`[data-bar="${name}"]`);
-    part('so-far').style.width = pct(run.so_far / total);
-    part('now').style.left = pct(run.so_far / total);
-    part('band').style.left = pct((run.so_far + (g?.lo ?? 0)) / total);
-    part('band').style.width = pct(((g?.hi ?? 0) - (g?.lo ?? 0)) / total);
-    part('band').hidden = !g;
-    part('ticks').replaceChildren(...ticks.map((t, i) => {
+    part('done').style.width = pct(done / end);
+    part('band').style.left = pct(t.lo / end);
+    part('band').style.width = pct((t.hi - t.lo) / end);
+    part('median').style.left = pct(t.median / end);
+    for (const e of box.querySelectorAll('[data-bar-total]')) e.hidden = !total;
+    part('ticks').replaceChildren(...ticks.map(v => {
       const tick = document.createElement('span');
-      tick.style.left = pct(t * 3600 / total);
-      tick.textContent = labels[i];
+      tick.style.left = pct(v / end);
+      tick.textContent = compact.format(v);
       return tick;
     }));
-    const live = run.state === 'running' && run.stale == null;
-    box.querySelector('[data-bar-live]').hidden = !live;
-    box.querySelector('[data-bar-recorded]').hidden = live;
-    const coverage = run.work_eta?.coverage ?? null;
-    assert(coverage === null || (typeof coverage === 'number' && Number.isFinite(coverage) && coverage > 0 && coverage < 1 && run.work_eta.interval === 'conditional'), coverage);
-    box.querySelector('[data-bar-coverage]').hidden = !g || coverage === null;
+    fill(box, 'bar-done', compact.format(done));
+    fill(box, 'bar-range', `${compact.format(t.lo)}–${compact.format(t.hi)}`);
+    fill(box, 'bar-median', compact.format(t.median));
     fill(box, 'bar-percent', coverage === null ? '' : pct(coverage));
   }
 
@@ -548,8 +567,7 @@
     const top1 = T, bot1 = H - B - LOW - GAP, top2 = H - B - LOW, bot2 = H - B;  // the panels' edges
     const [xticks, xlabels] = axis(Math.max(run.so_far / 3600, 1 / 3600), Math.ceil);
     const X = h => L + (W - L - R) * h / xticks[xticks.length - 1];
-    const most = Math.max(1, ...points.map(p => p[2])), cstep = Math.max(1, tickStep(most));   // whole boxes
-    const cticks = Array.from({length: Math.ceil(most / cstep) + 1}, (_, i) => i * cstep);
+    const cticks = countTicks(Math.max(1, ...points.map(p => p[2])));   // whole boxes
     const Y1 = c => bot1 - (bot1 - top1) * c / cticks[cticks.length - 1];
     // each stretch with a job ended: [its middle, hours of running; its net change per job]
     const nets = buckets.flatMap(([jobs, net], b) => jobs ? [[run.so_far * (b + 0.5) / buckets.length / 3600, net / jobs]] : []);

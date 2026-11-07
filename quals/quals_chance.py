@@ -717,13 +717,15 @@ def q_work_point_mass_has_exact_bayesian_probabilities_and_eta():
     # Replicata: total work 100, done 20, rate 10/hour, prior existence 1/5.
     # Expectata: no-find survival 4/5 gives posterior existence 1/6; conditional
     # find time is uniform on the next 8 hours. Completion has that uniform mass
-    # 1/6 and a mass 5/6 at 8 hours, so its 5%, 50%, 95% times are 2.4, 8, 8 h.
+    # 1/6 and a mass 5/6 at 8 hours, so its 10%, 50%, 90% times are 4.8, 8, 8 h.
+    # Spec change (Claude, 2026-11-06): every band (0.1, 0.9) since the coordinator's calibration study for dreeves
+    # (scratch/calibration-20261106: "80% that actually means 80%"); the quantiles here moved with it (5%, 50%, 95% at 2.4, 8, 8 h before).
     got = chance.work(0.2, [100], 20, [10], [1])
     assert close(got['exists'], 1 / 6), got
     assert close(got['found'], [min(h / 8, 1) for h in chance.AHEAD]), got['found']
     assert close(got['p'], [min(h / 8, 1) / 6 for h in chance.HOURS]), got['p']
     assert close(got['completion'], [h / 48 if h < 8 else 1 for h in chance.HOURS]), got['completion']
-    assert close(got['to_go'], dict(median=8 * 3600, lo=2.4 * 3600, hi=8 * 3600)), got['to_go']
+    assert close(got['to_go'], dict(median=8 * 3600, lo=4.8 * 3600, hi=8 * 3600)), got['to_go']
     assert got['hours'] == list(chance.HOURS) and all(got[k] is None for k in ('cpu_hours', 'rate', 'cores')), got
 
 
@@ -731,14 +733,16 @@ def q_work_prior_endpoints_and_no_find_progress():
     # Replicata: the same known total/rate with prior zero and one; then prior
     # 1/5 at 0, 20 and 90 units done without a witness.
     # Expectata: zero prior keeps chance zero with exhaustion in 8 h; one prior
-    # has a uniform find/completion time with quantiles .4,4,7.6 h. Increasing
+    # has a uniform find/completion time with quantiles .8,4,7.2 h. Increasing
     # checked work lowers existence for this fixed total; at zero work it is 1/5.
+    # Spec change (Claude, 2026-11-06): every band (0.1, 0.9) since the coordinator's calibration study for dreeves
+    # (scratch/calibration-20261106: "80% that actually means 80%"); the quantiles here moved with it (.4, 4, 7.6 h at 5%, 50%, 95% before).
     absent = chance.work(0, [100], 20, [10], [1])
     present = chance.work(1, [100], 20, [10], [1])
     assert absent['exists'] == 0 and absent['p'] == [0] * len(chance.HOURS), absent
     assert close(absent['to_go'], dict(median=28800, lo=28800, hi=28800)), absent['to_go']
     assert present['exists'] == 1 and close(present['p'], present['completion']), present
-    assert close(present['to_go'], dict(median=14400, lo=1440, hi=27360)), present['to_go']
+    assert close(present['to_go'], dict(median=14400, lo=2880, hi=25920)), present['to_go']
     values = [chance.work(0.2, [100], d, [10], [1])['exists'] for d in (0, 20, 90)]
     assert close(values[0], 0.2) and values[0] > values[1] > values[2], values
 
@@ -748,7 +752,10 @@ def q_work_irregular_weights_keep_total_rate_pairs():
     # weights 1/4 and 3/4, existence prior 2/5; also permute their paired rows.
     # Expectata: survival A=11/16, normalizer 7/8, posterior existence 11/35.
     # At 1 h find mass is 17/175, conditional find 17/55. At 3 h completion
-    # is 141/175; the median and upper quantile are at the 3 h and 5 h atoms.
+    # is 141/175; the median and upper quantile are at the 3 h and 5 h atoms, the
+    # lower 35/34 h, where the two spread masses, 17/175 an hour, reach 10%.
+    # Spec change (Claude, 2026-11-06): every band (0.1, 0.9) since the coordinator's calibration study for dreeves
+    # (scratch/calibration-20261106: "80% that actually means 80%"); the quantiles here moved with it (the lower at 35/68 h, its 5%, before).
     got = chance.work(0.4, [100, 200], 50, [10, 50], [0.25, 0.75])
     other = chance.work(0.4, [200, 100], 50, [50, 10], [0.75, 0.25])
     assert close(got, other), (got, other)
@@ -756,7 +763,7 @@ def q_work_irregular_weights_keep_total_rate_pairs():
     assert close(got['found'][1], 17 / 55), got['found'][1]
     assert close(got['p'][chance.HOURS.index(1)], 17 / 175), got['p']
     assert close(got['completion'][chance.HOURS.index(3)], 141 / 175), got['completion']
-    assert close(got['to_go'], dict(median=3 * 3600, lo=(35 / 68) * 3600, hi=5 * 3600)), got['to_go']
+    assert close(got['to_go'], dict(median=3 * 3600, lo=(35 / 34) * 3600, hi=5 * 3600)), got['to_go']
 
 
 def q_work_conditions_structural_support_once():
@@ -784,14 +791,16 @@ def q_work_curves_factor_are_monotone_and_have_endpoints():
 
 
 def q_work_completion_quantiles_handle_ties_and_large_scale_ratios():
-    # Replicata: no existence, residual times 1 and 1e40 hours with weights .9,.1;
+    # Replicata: no existence, residual times 1 and 1e40 hours with weights .85,.15;
     # then a guaranteed witness and two identical 8-hour residual times.
     # Expectata: exact weighted atoms give 1,1,1e40 h quantiles without a linear
     # bisection losing the small scale; duplicate rows remain one uniform law.
-    atoms = chance.work(0, [1, 1e40], 0, [1, 1], [0.9, 0.1])
+    # Spec change (Claude, 2026-11-06): every band (0.1, 0.9) since the coordinator's calibration study for dreeves
+    # (scratch/calibration-20261106: "80% that actually means 80%"); the quantiles here moved with it (weights .9, .1 before, whose 1 h atom now holds the 90% point exactly, and the uniform law .4, 4, 7.6 h).
+    atoms = chance.work(0, [1, 1e40], 0, [1, 1], [0.85, 0.15])
     assert close(atoms['to_go'], dict(median=3600, lo=3600, hi=1e40 * 3600)), atoms['to_go']
     ties = chance.work(1, [100, 180], 20, [10, 20], [0.3, 0.7])
-    assert close(ties['to_go'], dict(median=14400, lo=1440, hi=27360)), ties['to_go']
+    assert close(ties['to_go'], dict(median=14400, lo=2880, hi=25920)), ties['to_go']
 
 
 def q_work_refuses_invalid_inputs_and_exhausted_support():
@@ -810,6 +819,198 @@ def q_work_refuses_invalid_inputs_and_exhausted_support():
     bad += [(*good[:4], w) for w in ([1], [0, 0], [-0.3, 1.3], [0.3, 0.6],
              [float('nan'), 0.7], [float('inf'), 0.7], [True, False])]
     for args in bad: expect_assertion(chance.work, *args)
+
+
+def end_masses(p, total, done, weight):
+    """Brute force's view of chance.work's posterior, from its docstring alone: the draws at or below done and those of
+    weight 0 dropped and the rest's weights w renormalized; each draw W then carries the mass (1 - p) w at its end (no
+    witness: the whole tree checked) and p w (W - done) / W spread evenly over the work from done to W (a witness,
+    uniform in the tree's work, not in the work done), both over their sum.  As (W, at its end, spread) rows."""
+    rows = [(W, w) for W, w in zip(total, weight) if W > done and w > 0]
+    s = math.fsum(w for _, w in rows)
+    rows = [(W, w / s, (W - done) / W) for W, w in rows]
+    Z = math.fsum(w * ((1 - p) + p * q) for _, w, q in rows)
+    return [(W, (1 - p) * w / Z, p * w * q / Z) for W, w, q in rows]
+
+
+def mixture_quantile(rows, level):
+    """The least x at which F(x) = sum of a [r <= x] + b min(1, x / r) over rows (r, a, b) reaches level: masses a at
+    r and b spread evenly over [0, r]; by bisection on that exact CDF, to the floats' resolution."""
+    F = lambda x: math.fsum(a * (r <= x) + b * min(1.0, x / r) for r, a, b in rows)
+    lo, hi = 0.0, max(r for r, _, _ in rows)          # F(0) = 0 < level <= F(hi) = 1
+    while lo < (lo + hi) / 2 < hi:
+        mid = (lo + hi) / 2
+        lo, hi = (lo, mid) if F(mid) >= level else (mid, hi)
+    return hi
+
+
+def weighted_quantile(values, weights, level):
+    """The least value whose cumulative weight, the values in increasing order, reaches level."""
+    acc = 0.0
+    for v, w in sorted(zip(values, weights)):
+        acc += w
+        if acc >= level: return v
+
+
+def brute_work(p, total, done, rate, weight, quantiles):
+    """chance.work's to_go (seconds) and total (work), {median, lo, hi}, by brute force (end_masses, mixture_quantile)
+    at 0.5 and quantiles, a (lo, hi) pair."""
+    rows = end_masses(p, total, done, weight)
+    rates = {W: r for W, r, w in zip(total, rate, weight) if W > done and w > 0}
+    levels = dict(median=0.5, lo=quantiles[0], hi=quantiles[1])
+    return dict(to_go={k: 3600 * mixture_quantile([((W - done) / rates[W], a, b) for W, a, b in rows], q) for k, q in levels.items()},
+                total={k: done + mixture_quantile([(W - done, a, b) for W, a, b in rows], q) for k, q in levels.items()})
+
+
+# six draws of total work for done 20 (q_work_total_quantiles_match_brute_force): 15, at or below done, conditioned out;
+# 1e4, of weight 0; and four survivors, 120, 300, 250 and 80, with weights renormalized from 0.8 to 1, 0.1625, 0.3875,
+# 0.1375 and 0.3125, so that in increasing order their cumulative weights are 0.3125, 0.475, 0.6125 and 1
+WORK_DRAWS = dict(total=[120, 15, 300, 250, 80, 1e4], done=20, rate=[7, 3, 11, 5, 2, 13], weight=[0.13, 0.2, 0.31, 0.11, 0.25, 0.0])
+
+
+def q_work_total_quantiles_match_brute_force():
+    # Replicata (dreeves, 2026-11-06: "should that progress bar be measuring amount of work, not time? ... we can still
+    # have a 90% CI for amount of work remaining, right?"): chance.work on WORK_DRAWS with existence priors 0, 0.3 and 1;
+    # the same draws at other rates, and at one rate for all; and the point mass of
+    # q_work_point_mass_has_exact_bayesian_probabilities_and_eta.
+    # Expectata: its total, the work done when the search ends, {median, lo, hi} at 0.5 and the work model's band
+    # (chance.BANDS's work), from the same posterior weights as its to_go: with prior 0 (no witness: the whole tree),
+    # the weighted quantiles of the survivors' totals, their weights renormalized: 80, 250 and 300; at every prior,
+    # total and to_go the brute force's (brute_work: bisection on the exact CDF of masses from work's docstring alone);
+    # total unchanged at other rates; at one rate r for all, done + r to_go; and 68, 100 and 100 for the point mass
+    # (20 + 10/h x 4.8 h for its 10%; 44 at its 5% before the bands became (0.1, 0.9), 2026-11-06).
+    # Resultata before: work returned no total (KeyError).
+    d, band = WORK_DRAWS, chance.BANDS['work']
+    got = chance.work(0, d['total'], d['done'], d['rate'], d['weight'])['total']
+    survivors = [(W, w) for W, w in zip(d['total'], d['weight']) if W > d['done'] and w > 0]
+    want = {k: weighted_quantile([W for W, _ in survivors], [w / 0.8 for _, w in survivors], q) for k, q in (('median', 0.5), ('lo', band[0]), ('hi', band[1]))}
+    assert got == want == dict(median=250, lo=80, hi=300), (got, want)
+    for p in (0, 0.3, 1):
+        got = chance.work(p, d['total'], d['done'], d['rate'], d['weight'])
+        want = brute_work(p, d['total'], d['done'], d['rate'], d['weight'], band)
+        assert close(got['total'], want['total'], 1e-9) and close(got['to_go'], want['to_go'], 1e-9), (p, got['total'], got['to_go'], want)
+        other = chance.work(p, d['total'], d['done'], [1, 2, 3, 4, 5, 6], d['weight'])
+        assert other['total'] == got['total'], (p, other['total'], got['total'])
+        one = chance.work(p, d['total'], d['done'], [10] * 6, d['weight'])
+        assert close(one['total'], {k: d['done'] + 10 * v / 3600 for k, v in one['to_go'].items()}), (p, one)
+    assert close(chance.work(0.2, [100], 20, [10], [1])['total'], dict(median=100, lo=68, hi=100)), chance.work(0.2, [100], 20, [10], [1])
+
+
+# A fresh Python, given the directory of a copy of chance.py, the repository's root and WORK_DRAWS, prints as JSON what
+# each estimator and the page's label make of that copy (q_each_band_and_the_coverage_are_set_in_one_place): chance's
+# COVERAGE and BANDS; progress.ZS; progress.gott of 4 hours; the levels each of progress's other estimators asks
+# numpy.quantile for (asked: lindy_urn, box_estimate, pool_estimate, stages_of on a made-up chain, and survey's tree
+# estimate on quals_progress's tiny resolving run); chance.work on WORK_DRAWS at prior 0.3; and formtree_eta.attach's
+# work_eta on the made-up live search of quals_formtree_eta's Attachment (a version-2 model), beside chance.work's
+# total and the root scatter's quantiles at the work band on the same draws.
+BAND_PROBE = r"""
+import sys, os, json, copy, hashlib, pathlib, tempfile
+from unittest import mock
+sys.path[:0] = sys.argv[1:3]
+import numpy as np
+import chance, progress, formtree_eta
+assert pathlib.Path(chance.__file__).parent == pathlib.Path(sys.argv[1]), chance.__file__
+d = json.loads(sys.argv[3])
+asked, real = [], np.quantile
+def spy(a, q, *args, **kw):
+    asked.append([float(v) for v in np.atleast_1d(q)])
+    return real(a, q, *args, **kw)
+np.quantile = spy
+def levels(f):                                    # the levels f asks numpy.quantile for, call by call
+    del asked[:]
+    f()
+    return [list(x) for x in asked]
+progress.STAGES = [[dict(stage='own', run=['fanout.py', 672, 13]),
+                    dict(stage='A', phases=[[[dict(per='token', processes=1, cpu=dict(median=2.0, lo=1.0, hi=8.0))]]])]]
+sys.path.insert(0, os.path.join(sys.argv[2], 'quals'))
+import quals_progress
+journal, log = quals_progress.tiny('resolving')
+start = progress.parse_log(log)[-1]['start']
+asks = dict(urn=levels(lambda: progress.lindy_urn([3600.0, 7200.0], [600.0], 2, 2)),
+            box=levels(lambda: progress.box_estimate([100.0] * 20, [10.0], 5, 2)),
+            pool=levels(lambda: progress.pool_estimate([(0, 100, [1]), (1, 50, [])], {0: 2, 1: 3}, 1, 10.0, 0)),
+            stages=levels(lambda: progress.stages_of(('fanout.py', 672, 13), 'running', None, np.zeros(progress.REPLICATES),
+                                                     {'token': 3600.0}, 1.0)),
+            tree=levels(lambda: progress.survey(64, 7, journal, log, [(1, 0, 'S', 'python3 overnight_v5.py 64 7')], start + 30, {}, {})))
+root = pathlib.Path(tempfile.mkdtemp(prefix='band-probe-'))
+(root / 'source').write_bytes(b'fixed input')
+digest = hashlib.sha256(b'fixed input').hexdigest()
+model = dict(version=2, kind='formtree', target='288:10', seed=28810, log_bias=0.0, discrepancy_log_sd=1.0, root_log_sd=.75,
+             root_log_sd_uncertainty=.5, rate_log_sd=.35, samples=32, alpha=.5, checks={'source': digest},
+             roots=[dict(name='a', blocks=[[10] * 8, [30] * 8], input_sha256=digest), dict(name='b', blocks=[[100] * 8, [300] * 8], input_sha256=digest)],
+             provenance=dict(manifest_sha256=digest, samples_sha256=digest, seed_namespace='qual', source='source'), calibration=[],
+             assumptions=dict(discrepancy='qual', rate='qual', witness='qual', interval='qual'))
+(root / 'model.json').write_text(json.dumps(model))
+old = dict(program='ftree.py', n=288, order=10, chance=dict(since=1000., history=[[1500., .003, .005]]),
+           odds=dict(exists=[[1500., .01]], curves=[[1500., [0.] * 73]]))
+(root / 'progress.js').write_text('progressData(' + json.dumps({'runs': [old]}) + ');\n')
+s = dict(n=288, order=10, program='ftree.py', state='running', passes=[[1000, 2000]], to_go=dict(median=1000, lo=10, hi=19000),
+         etas={}, display=dict(lindy=True, tracked=True))
+w = dict(done=55, rate=10., roots=[dict(name='a', done=5, complete=False), dict(name='b', done=50, complete=False)], source_time=1990., source_age=10.)
+with mock.patch.object(formtree_eta.formtree_work, 'read', return_value=w):
+    meta = formtree_eta.attach(copy.deepcopy(s), root, root / 'model.json', .01, 2000., {})['display']['work_eta']
+x = formtree_eta.draws(json.loads((root / 'model.json').read_text()), w, 65536)
+order = np.argsort(x['root_log_sd'])
+lo, hi = chance.BANDS['work']
+scatter = np.interp([lo, .5, hi], np.cumsum(x['weight'][order]), x['root_log_sd'][order])
+print(json.dumps(dict(COVERAGE=chance.COVERAGE, BANDS=chance.BANDS, ZS=progress.ZS, gott=progress.gott(4 * 3600), asked=asks,
+                      work=chance.work(.3, d['total'], d['done'], d['rate'], d['weight']), coverage=meta['coverage'],
+                      total=meta['total'], forecast=chance.work(.01, x['total'], w['done'], x['rate'] * 3600, x['weight'])['total'],
+                      scatter=meta['root_log_sd_posterior'], quantiled=dict(zip(('lo', 'median', 'hi'), scatter.tolist())))))
+"""
+# a calibration's kind of change (q_each_band_and_the_coverage_are_set_in_one_place): another coverage for the page, and
+# each estimator a band of its own, none of them today's (0.1, 0.9)
+CALIBRATED = dict(coverage=0.7, bands=dict(tree=(0.11, 0.89), box=(0.12, 0.88), urn=(0.13, 0.87), pool=(0.14, 0.86),
+                                           stages=(0.15, 0.85), gott=(0.16, 0.84), work=(0.17, 0.83)))
+
+
+def q_each_band_and_the_coverage_are_set_in_one_place():
+    # Replicata (the coordinator, 2026-11-06, for dreeves, who wants "80% that actually means 80%": the page labels its
+    # intervals with one coverage, and each estimator draws its band at levels of its own, calibrated to give it; each
+    # set in one place, so that the calibration changes values, not structure): chance.py, which must hold exactly one
+    # COVERAGE line and one BANDS entry for each of the estimators tree, box, urn, pool, stages, gott and work, every band
+    # (0.1, 0.9) and COVERAGE 0.8 (the coordinator, 2026-11-06, after scratch/calibration-20261106; (0.05, 0.95) and 0.9
+    # before); a copy of it as it is, then one with CALIBRATED's values in those lines alone;
+    # for each, BAND_PROBE in a fresh Python with that copy first on its path.
+    # Expectata: chance.COVERAGE and chance.BANDS are the copy's; Gott's rule's band at gott's levels (a q / (1 - q) at
+    # each); lindy_urn, box_estimate, pool_estimate, stages_of (for each later stage and for the total) and survey's tree
+    # estimate ask numpy.quantile for their own entry's levels and no other; chance.work's to_go and total are
+    # brute_work's at work's band; formtree_eta's work_eta has the coverage COVERAGE (the page's label), the total
+    # chance.work's on its draws and root scatter quantiles at work's band; and progress.ZS, which reads stages.json's cpu
+    # bands, stays at the standard normal's 5% and 95%, the quantiles those bands were measured at (stages.json's about),
+    # whatever the bands are.
+    # Resultata before: there was no COVERAGE or BANDS: one level set every band and the label (chance.LEVEL, earlier on
+    # 2026-11-06), and before that progress.py, chance.py and formtree_eta.py each wrote 0.05, 0.95 and 0.9.
+    import re, subprocess, statistics
+    source = open(os.path.join(HERE, 'chance.py'), encoding='utf-8').read()
+    names = list(CALIBRATED['bands'])
+    assert re.findall(r'^COVERAGE = (\S+) ', source, re.M) == ['0.8'], re.findall(r'^COVERAGE = .*', source, re.M)
+    assert all(len(re.findall(rf'^ +{name}=\(0\.1, 0\.9\)', source, re.M)) == 1 for name in names), names
+    calibrated = re.sub(r'^COVERAGE = 0\.8 ', f'COVERAGE = {CALIBRATED["coverage"]} ', source, flags=re.M)
+    for name, (lo, hi) in CALIBRATED['bands'].items():
+        calibrated = re.sub(rf'^( +{name}=)\(0\.1, 0\.9\)', rf'\g<1>({lo}, {hi})', calibrated, flags=re.M)
+    nominal = dict(coverage=0.8, bands={name: (0.1, 0.9) for name in names})
+    for text, want in ((source, nominal), (calibrated, CALIBRATED)):
+        d = tempfile.mkdtemp(prefix='band-quals-')
+        open(os.path.join(d, 'chance.py'), 'w', encoding='utf-8').write(text)
+        p = subprocess.run([sys.executable, '-B', '-c', BAND_PROBE, d, HERE, json.dumps(WORK_DRAWS)], capture_output=True, text=True, cwd=d, timeout=600)
+        shutil.rmtree(d)
+        assert p.returncode == 0, p.stderr[-3000:]
+        got = json.loads(p.stdout)
+        bands = want['bands']
+        assert got['COVERAGE'] == want['coverage'] and {k: tuple(v) for k, v in got['BANDS'].items()} == bands, (got['COVERAGE'], got['BANDS'])
+        a = 4 * 3600
+        assert close(got['gott'], [a / 3600] + [a * q / (1 - q) / 3600 for q in bands['gott']]), (want, got['gott'])
+        for name, asks in got['asked'].items():
+            assert asks and all(tuple(levels) == bands[name] for levels in asks), (name, asks, bands[name])
+        assert len(got['asked']['stages']) == 2, got['asked']['stages']          # its one later stage, then the total
+        d0 = WORK_DRAWS
+        brute = brute_work(.3, d0['total'], d0['done'], d0['rate'], d0['weight'], bands['work'])
+        assert close(got['work']['total'], brute['total'], 1e-9) and close(got['work']['to_go'], brute['to_go'], 1e-9), (want, got['work'], brute)
+        assert got['coverage'] == want['coverage'] and got['total'] == got['forecast'], (want, got['coverage'], got['total'], got['forecast'])
+        assert close(got['scatter'], got['quantiled']), (want, got['scatter'], got['quantiled'])
+        normal = statistics.NormalDist()
+        assert close(got['ZS'], [normal.inv_cdf(0.05), normal.inv_cdf(0.95)]), (want, got['ZS'])
 
 
 def main():

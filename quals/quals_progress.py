@@ -969,7 +969,7 @@ def q_survey_records_its_eta():
     # pass, with one record (a dict); the tiny open run (ended) surveyed with another, empty.
     # Expectata: the first record holds exactly the two snapshots' ETAs, each [its survey's median draw (its mean until
     # 2026-10-19, when the boxsplit estimate's Lindy tail made means useless), then the
-    # draws' QUANTILES], by its time in whole seconds, and is the surveys' etas; the ended run's holds one None, by its
+    # draws' band (chance.BANDS's tree)], by its time in whole seconds, and is the surveys' etas; the ended run's holds one None, by its
     # last line's time (an ended run has no estimate).
     journal, log = tiny('resolving')
     start = progress.parse_log(log)[-1]['start']
@@ -977,7 +977,9 @@ def q_survey_records_its_eta():
     etas = {}
     a = progress.survey(64, 7, journal, log, procs, start + 30, {}, etas)
     b = progress.survey(64, 7, journal, log, procs, start + 40, {}, etas)
-    def eta(d): return [float(np.median(d))] + [float(q) for q in np.quantile(d, progress.QUANTILES)]
+    # (spec change, Claude, 2026-11-06: each estimator has its band in chance.BANDS, the tree estimate's there, in place of
+    # progress.QUANTILES, so that each can be calibrated to the page's one coverage)
+    def eta(d): return [float(np.median(d))] + [float(q) for q in np.quantile(d, progress.chance.BANDS['tree'])]
     assert etas == {str(int(start + 30)): eta(a['draws']), str(int(start + 40)): eta(b['draws'])}, etas
     assert a['etas'] is etas and b['etas'] is etas
     journal, log = tiny('open')
@@ -1896,7 +1898,9 @@ def q_survey_track_reads_each_run_s_state():
         assert s['sea']['groups'] == [''.join(map(pick, ['settled', 'running', 'pending', 'open', 'open']))], s['sea']
         assert s['sea']['keys'] == ['768:12'] and s['sea']['depth'] == 0, s['sea']
         assert (s['state'], s['outcome'], s['so_far']) == ('running', None, 4000.0), s
-        assert close(s['to_go'], dict(median=4000, lo=4000 / 19, hi=19 * 4000)) and close(s['etas'], {'5000.0': gott(4000)}), s
+        # (spec change, Claude, 2026-11-06: Gott's band from a 9th to 9 times the age, chance.BANDS's gott (0.1, 0.9) after
+        # the coordinator's calibration study, scratch/calibration-20261106; a 19th to 19 times before)
+        assert close(s['to_go'], dict(median=4000, lo=4000 / 9, hi=9 * 4000)) and close(s['etas'], {'5000.0': gott(4000)}), s
         assert s['display']['work'] == dict(runs=5, running=1, frozen=1, ended=1, aborted=2, found=2), s['display']
         assert (s['program'], s['n'], s['order'], s['display']['tracked']) == ('w12.py', 768, 12, True), s
     finally:
@@ -2005,8 +2009,10 @@ def close(got, want):
 
 def gott(seconds):
     """Gott's rule (1993) for a run that has run so many seconds, as a recorded ETA: [median, lo, hi] hours to go, its
-    median its age, its 90% band from a 19th of its age to 19 times it."""
-    return [seconds / 3600, seconds / 19 / 3600, 19 * seconds / 3600]
+    median its age, its 80% band from a 9th of its age to 9 times it (spec change, Claude, 2026-11-06: chance.BANDS's
+    gott (0.1, 0.9) after the coordinator's calibration study, scratch/calibration-20261106; its 90% band from a 19th
+    to 19 times before)."""
+    return [seconds / 3600, seconds / 9 / 3600, 9 * seconds / 3600]
 
 
 def eta_line(t, median, lo, hi):
@@ -2020,7 +2026,7 @@ def q_survey_track_records_gotts_eta_while_running():
     # record with its end line (status 0, at 7500 s) at 8000 s.
     # Expectata (the coordinator, 2026-10-31: "Every run gets an ETA graph", dreeves wanting one always for whatever
     # runs; 624:11, tracked, had none): while running, Gott's rule on the time so far, 4000 s and then 5000 s: to go its
-    # median that time and its band from a 19th of it to 19 times it, each snapshot's recorded by its time in hours as
+    # median that time and its band from a 9th of it to 9 times it (a 19th to 19 times until 2026-11-06), each snapshot's recorded by its time in hours as
     # every run's ETAs are; frozen and ended, nothing to go and no new record, the two records kept and given.
     etas, record = {}, track_record('r0', 400, None, None, 1000)
     for now in (5000.0, 6000.0):
@@ -2234,7 +2240,9 @@ def q_watch_keeps_a_tracked_search_s_eta_record():
         if k == 1: open(os.path.join(d, 'runs', 'r0.jsonl'), 'a').write(json.dumps(dict(event='end', time=6500.0, status=0)) + '\n')
     watch([5000, 6000, 7000], after, dict(RUNS=(), EXTENDED=(), HERE=d, JS=os.path.join(d, 'p.js'),
                                           CACHE=os.path.join(d, 'c.json'), processes=lambda: procs))
-    records = [[5000, 4000.0, 4000.0, 210.5, 76000.0], [6000, 5000.0, 5000.0, 263.2, 95000.0]]
+    # (spec change, Claude, 2026-11-06: Gott's band a 9th to 9 times the age, chance.BANDS's gott (0.1, 0.9) after the
+    # coordinator's calibration study, scratch/calibration-20261106; 210.5 and 76000, 263.2 and 95000 at (0.05, 0.95))
+    records = [[5000, 4000.0, 4000.0, 444.4, 36000.0], [6000, 5000.0, 5000.0, 555.6, 45000.0]]
     assert [r['state'] for r in seen] == ['running', 'running', 'ended'], seen
     assert [r['etas'] for r in seen] == [records[:1], records, records], [r['etas'] for r in seen]
     assert close([r['to_go']['median'] for r in seen[:2]], [4000.0, 5000.0]) and seen[2]['to_go'] is None, seen
@@ -3022,9 +3030,12 @@ def q_box_estimate_band_covers_the_truth():
     # 400 leaves' expected seconds (about 400 started, 10 running, 19,600 pending): box_estimate of the done leaves'
     # seconds, the running ones' ages and the pending count, against the truth, the pass's actual seconds to go (the
     # pending leaves' seconds and the running ones' rests, over the workers).
-    # Expectata (2026-10-30): the 90% band (QUANTILES of BOOT bootstrap replicates) holds the truth in 0.85 to 0.95 of
-    # the passes (0.895 when written; a binomial standard error of 0.015).  With heavier tails it holds less: sigma 1.5,
-    # 0.83; sigma 2, 0.67 (scratch/watcher2-20261030/coverage.py), the truth then above the band.
+    # Expectata (2026-10-30): the band (chance.BANDS's box of BOOT bootstrap replicates) holds the truth in its nominal
+    # share of the passes, within 0.05: 0.75 to 0.85 at (0.1, 0.9), 0.80 when the bands moved there (spec change,
+    # Claude, 2026-11-06, after the coordinator's calibration study, scratch/calibration-20261106); 0.85 to 0.95 at
+    # (0.05, 0.95) before, 0.895 when written (a binomial standard error of 0.015).  With heavier tails it holds less:
+    # at (0.05, 0.95), sigma 1.5, 0.83; sigma 2, 0.67 (scratch/watcher2-20261030/coverage.py), the truth then above
+    # the band.
     import heapq
     rng, mu = np.random.default_rng(20261030), np.log(60)
     mean, hits = np.exp(mu + 0.5), 0
@@ -3040,7 +3051,8 @@ def q_box_estimate_band_covers_the_truth():
         truth = (costs[len(ends):].sum() + sum(e - T for s, e in ends if e > T)) / 10 / 3600
         (_, lo, hi), _ = progress.box_estimate(walls, ages, len(costs) - len(ends), 10)
         hits += lo <= truth <= hi
-    assert 0.85 <= hits / 400 <= 0.95, hits / 400
+    lo, hi = progress.chance.BANDS['box']
+    assert abs(hits / 400 - (hi - lo)) <= 0.05, (hits / 400, (lo, hi))
 
 
 def made_up_x288_box(d, x288, done, running, pending):

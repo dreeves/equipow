@@ -111,18 +111,25 @@ def q_a_later_stage_is_its_counts_times_its_cpu_over_processes_and_share():
     assert close(got['total'], {k: 3 * 3600.0 + sum(want) for k in ('median', 'lo', 'hi')}), got['total']
 
 
-def q_a_later_stage_s_band_is_its_cost_s_measured_band():
+def q_a_later_stage_s_band_comes_from_its_cost_s_measured_band():
     # Replicata: a made-up chain of 672:13's fanout.py run with one later stage, one part per token on 1 process
-    # measured at a median of 2 CPU s, 1 at its low end and 8 at its high end (QUANTILES' 5% and 95%); stages_of with
+    # measured at a median of 2 CPU s, 1 at its low end and 8 at its high end (MEASURED, 5% and 95%); stages_of with
     # 3,600 tokens and a share of 1, the run's estimate 0 h in every replicate.  And drawn of that cost, 400,000 draws.
-    # Expectata: the stage's median, low and high near 2, 1 and 8 h (the replicates' quantiles, within 10%: 2,000
-    # draws), the total the same; the 400,000 draws' quantiles within 1% of 1, 2 and 8: a two-piece log-normal whose
-    # quantiles are the measured ones, however lopsided.
+    # Expectata: the stage's median, low and high near the cost law's at 0.5 and at the stages band's levels (chance.BANDS's
+    # stages, (0.1, 0.9): 2, 1.165 and 5.890 h; two_piece), the replicates' quantiles, within 10% (2,000 draws), the
+    # total the same; the 400,000 draws' quantiles within 1% of 1, 2 and 8: a two-piece log-normal whose 5% and 95%
+    # are the measured ones, however lopsided.
+    # Spec change (Claude, 2026-11-06): named q_a_later_stage_s_band_is_its_cost_s_measured_band while the band's levels
+    # were the measured 5% and 95% (2, 1 and 8 h); the bands are (0.1, 0.9) since the coordinator's calibration study
+    # (scratch/calibration-20261106), so the stage's band is the cost law's 10% and 90%.
     run = ('fanout.py', 672, 13)
-    with chains(made_up(run, ('A', [('token', 1, dict(median=2.0, lo=1.0, hi=8.0))]))):
+    cost = dict(median=2.0, lo=1.0, hi=8.0)
+    with chains(made_up(run, ('A', [('token', 1, cost)]))):
         got = progress.stages_of(run, 'running', None, np.zeros(progress.REPLICATES), {'token': 3600.0}, 1.0)
-    for k, w in (('median', 2.0), ('lo', 1.0), ('hi', 8.0)):
-        assert math.isclose(got['stages'][1]['to_go'][k], w * 3600, rel_tol=0.1), (k, got['stages'][1])
+    lo, hi = progress.chance.BANDS['stages']
+    for k, level in (('median', 0.5), ('lo', lo), ('hi', hi)):
+        w = two_piece(cost, statistics.NormalDist().inv_cdf(level))
+        assert math.isclose(got['stages'][1]['to_go'][k], w * 3600, rel_tol=0.1), (k, w, got['stages'][1])
     assert close(got['total'], got['stages'][1]['to_go']), got
     q = np.quantile(progress.drawn(np.random.default_rng(1), dict(median=2.0, lo=1.0, hi=8.0), 400000), (0.05, 0.5, 0.95))
     assert np.allclose(q, (1.0, 2.0, 8.0), rtol=0.01), q
@@ -324,8 +331,11 @@ def q_a_pass_s_stages_count_its_open_leaves_at_its_end():
     assert np.array_equal(draws, s['draws']) and (growth >= 1).all(), growth
     leaves = s['open'] * growth
     assert [x['name'] for x in s['stages']] == ['overnight_v5.py', 'A'] and s['stages'][0]['to_go'] == s['to_go'], s['stages']
-    assert close(s['stages'][1]['to_go'], progress.to_go_of(progress.quantiles(leaves)), 1e-6), (s['stages'][1], leaves[:5])
-    assert close(s['total'], progress.to_go_of(progress.quantiles(s['draws'] + leaves)), 1e-6), s['total']
+    # (spec change, Claude, 2026-11-06: progress.quantiles takes the band of the estimator whose draws it summarizes, each
+    # estimator's own in chance.BANDS, so that each can be calibrated to the page's one coverage: here stages_of's)
+    stages = progress.chance.BANDS['stages']
+    assert close(s['stages'][1]['to_go'], progress.to_go_of(progress.quantiles(leaves, stages)), 1e-6), (s['stages'][1], leaves[:5])
+    assert close(s['total'], progress.to_go_of(progress.quantiles(s['draws'] + leaves, stages)), 1e-6), s['total']
 
 
 def q_a_restart_s_replay_leaves_the_span_s_work_as_it_was():
@@ -343,7 +353,9 @@ def q_a_restart_s_replay_leaves_the_span_s_work_as_it_was():
         view = progress.Walk(state, *tree)
         got.append((progress.span_work(parts, view), 1 + parts['work'] / progress.span_work(parts, view)))
     assert math.isclose(got[0][0], 11000.0) and math.isclose(got[1][0], 11000.0), got
-    assert progress.quantiles(got[0][1]) == progress.quantiles(got[1][1]), got
+    # (spec change, Claude, 2026-11-06: progress.quantiles takes an estimator's band, here stages_of's, which the growth feeds)
+    stages = progress.chance.BANDS['stages']
+    assert progress.quantiles(got[0][1], stages) == progress.quantiles(got[1][1], stages), got
 
 
 def q_a_boxsplit_pass_s_stages_count_its_leaves():
@@ -390,7 +402,7 @@ SOURCE = re.compile(r'(scratch/stages-cram-20261101/measure2_\d+_\d+_\d+\.json),
 
 def two_piece(cpu, z):
     """The cost cpu, {median, lo, hi}, at the standard normal's z, as progress.drawn defines its draws: a two-piece
-    log-normal whose median and QUANTILES are the cost's."""
+    log-normal whose median and MEASURED quantiles are the cost's."""
     side = cpu['hi'] if z > 0 else cpu['lo']
     return cpu['median'] * (side / cpu['median']) ** (z / statistics.NormalDist().inv_cdf(0.95 if z > 0 else 0.05))
 
@@ -402,16 +414,21 @@ def q_lanes_at_once_take_the_longer_replicate_by_replicate():
     # the larger of two independent draws of that cost: G(q) = F(q)^2 = p, so q is the cost at the standard normal's
     # quantile of p^(1/2) (two_piece).
     # Expectata (Astra, 2026-11-01 03:54 PST: "Any overlap combination belongs on replicate draws before quantiles,
-    # not on already-aggregated medians/bands"): the stage's median, low and high those of the larger draw (1.258,
-    # 0.726 and 2.279 h) within 6%: not the larger of the lanes' own quantiles (1, 0.5 and 2 h), which a combination
-    # of medians and bands would give; the total the stage's.
+    # not on already-aggregated medians/bands"): the stage's median, low and high those of the larger draw at 0.5 and
+    # the stages band's levels (1.258, 0.817 and 1.989 h at (0.1, 0.9)) within 6%: not the larger of the lanes' own
+    # quantiles (1, 0.582 and 1.717 h at those levels), which a combination of medians and bands would give; the total
+    # the stage's.
+    # Spec change (Claude, 2026-11-06): the levels are chance.BANDS's stages, (0.1, 0.9) since the coordinator's
+    # calibration study (scratch/calibration-20261106); at (0.05, 0.95) before, the larger draw's were 1.258, 0.726 and
+    # 2.279 h and the lanes' own 1, 0.5 and 2 h.
     run = ('fanout.py', 672, 13)
     cost = dict(median=1.0, lo=0.5, hi=2.0)
     with chains(phased(run, ('A', [[[('token', 1, cost)], [('token', 1, cost)]]]))):
         got = progress.stages_of(run, 'running', None, np.zeros(progress.REPLICATES), {'token': 3600.0}, 1.0)
     z = lambda p: statistics.NormalDist().inv_cdf(math.sqrt(p))
-    want = dict(median=two_piece(cost, z(0.5)), lo=two_piece(cost, z(0.05)), hi=two_piece(cost, z(0.95)))
-    assert [round(want[k], 3) for k in ('median', 'lo', 'hi')] == [1.258, 0.726, 2.279], want
+    lo, hi = progress.chance.BANDS['stages']
+    want = dict(median=two_piece(cost, z(0.5)), lo=two_piece(cost, z(lo)), hi=two_piece(cost, z(hi)))
+    assert [round(want[k], 3) for k in ('median', 'lo', 'hi')] == [1.258, 0.817, 1.989], want
     for k in want:
         assert math.isclose(got['stages'][1]['to_go'][k], want[k] * 3600, rel_tol=0.06), (k, got['stages'][1], want)
     assert got['stages'][1]['to_go']['median'] > 1.1 * 3600 and got['stages'][1]['to_go']['lo'] > 0.6 * 3600, got
@@ -539,18 +556,21 @@ def q_the_288_chain_sums_its_stages_as_before():
     # stage's.
     # Expectata (Astra, 2026-11-01 03:54 PST: "Existing sequential-addition behavior and the 288 chain should remain
     # qualified"): every stage's to_go and the total exactly that arithmetic's, so that 288:10's line is unchanged.
-    rng = np.random.default_rng(7)
+    # (spec change, Claude, 2026-11-06: progress.quantiles takes the band of the estimator whose draws it summarizes,
+    # chance.BANDS's: stages_of's for the later stages and the total; the run's own to_go, which stages_of passes through,
+    # at that band too)
+    rng, stages = np.random.default_rng(7), progress.chance.BANDS['stages']
     for run in (('overnight_v5.py', 288, 10), ('boxsplit.py', 288, 10)):
         hours = rng.gamma(2.0, 30.0, progress.REPLICATES)
         leaves = rng.uniform(1e6, 2e6, progress.REPLICATES)
-        got = progress.stages_of(run, 'running', progress.to_go_of(progress.quantiles(hours)), hours, {'open leaf': leaves}, 0.43)
+        got = progress.stages_of(run, 'running', progress.to_go_of(progress.quantiles(hours, stages)), hours, {'open leaf': leaves}, 0.43)
         later = progress.later_of(run)
         assert later and all(len(s['phases']) == 1 and len(s['phases'][0]) == 1 for s in later), later
         stream = np.random.default_rng(np.random.SeedSequence(progress.SEED).spawn(1)[0])
         before = [sum(leaves * progress.drawn(stream, p['cpu'], len(hours)) / (p['processes'] * 0.43 * progress.HOUR)
                       for p in s['phases'][0][0]) for s in later]
-        assert [x['to_go'] for x in got['stages'][1:]] == [progress.to_go_of(progress.quantiles(h)) for h in before], run
-        assert got['total'] == progress.to_go_of(progress.quantiles(hours + sum(before))), run
+        assert [x['to_go'] for x in got['stages'][1:]] == [progress.to_go_of(progress.quantiles(h, stages)) for h in before], run
+        assert got['total'] == progress.to_go_of(progress.quantiles(hours + sum(before), stages)), run
 
 
 def main():

@@ -221,11 +221,14 @@ class FocusProgressQuals(unittest.TestCase):
     def test_a_probe_far_above_gotts_band_moves_the_median_to_twice_its_least(self):
         # Replicata: one() at 110 s, root 0 10 s old, its run's 20 LP solves in 10 s of running (0.5 s each), then the
         # same with a probe of root 0 whose least is 1,214,318,730 LP solves (mean 30, standard error 0.5), or
-        # 607,159,365 s at the run's 0.5 s per LP solve, far above Gott's band (to go 9.4 s at the median, 174 s at the
-        # 95% point).
+        # 607,159,365 s at the run's 0.5 s per LP solve, far above Gott's band (to go 9.4 s at the median, 79 s at the
+        # 90% point).
         # Expectata: the running root is drawn above its least, Gott's rule given total >= least: the median to go
-        # within 10% of 2 x 607,159,365 s, every draw at least that least less the 10 s done, the 95% point within 10%
-        # of 20 x 607,159,365 s.
+        # within 10% of 2 x 607,159,365 s, every draw at least that least less the 10 s done, the band's upper point
+        # (chance.BANDS's urn, its q) near 1 / (1 - q) x 607,159,365 s, 10 x at 0.9: within three standard errors of a
+        # q-quantile of REPLICATES draws, sqrt(q / ((1 - q) REPLICATES)) relative, 20% at 0.9 (8.88 x here).
+        # Spec change (Claude, 2026-11-06): the urn band is (0.1, 0.9) since the coordinator's calibration study
+        # (scratch/calibration-20261106); its 95% point was within 10% of 20 x before, and Gott's at 174 s.
         # Resultata before probes: an AssertionError, the probe record being of no known event.
         least = 0.5 * probe(0, 30.0, 0.5)['least']
         self.assertEqual(least, 607159365)
@@ -233,14 +236,18 @@ class FocusProgressQuals(unittest.TestCase):
         go = survey(one() + [probe(0, 30.0, 0.5)])['to_go']
         self.assertAlmostEqual(go['median'] / (2 * least), 1, delta=0.1)
         self.assertGreaterEqual(go['lo'], least - 10)
-        self.assertAlmostEqual(go['hi'] / (20 * least), 1, delta=0.1)
+        q = progress.chance.BANDS['urn'][1]
+        self.assertAlmostEqual(go['hi'] / (least / (1 - q)), 1, delta=3 * math.sqrt(q / ((1 - q) * progress.REPLICATES)))
 
     def test_with_no_probe_the_estimate_is_unchanged(self):
         # Replicata: one() and initial() at 110 s, journals with no probe, as every journal before 2026-10-25.
         # Expectata: to go exactly lindy_urn's on root 0's 10 s on one worker, initial()'s root 1 pending, and exactly
-        # what the code before probes gave (recorded 2026-10-25).
-        before = {0: dict(median=9.394155108210814, lo=0.5251321194851291, hi=173.906597671673),
-                  1: dict(median=35.234254010697285, lo=12.161240756887707, hi=374.9650206487719)}
+        # what the code before probes gave (recorded 2026-10-25), its band at the urn band's levels.
+        # Spec change (Claude, 2026-11-06): the urn band is (0.1, 0.9) since the coordinator's calibration study
+        # (scratch/calibration-20261106), so lo and hi are those of the same draws at 10% and 90%; at (0.05, 0.95) they
+        # were 0.5251321194851291 and 173.906597671673 for 0, and 12.161240756887707 and 374.9650206487719 for 1.
+        before = {0: dict(median=9.394155108210814, lo=1.069356152504365, hi=78.77592929881857),
+                  1: dict(median=35.234254010697285, lo=13.873781566730294, hi=182.8347397482354)}
         for records, pending in ((one(), 0), (initial(), 1)):
             go = survey(records)['to_go']
             self.assertEqual(go, progress.to_go_of(progress.lindy_urn([], [10.0], pending, 1)))

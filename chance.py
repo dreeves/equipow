@@ -82,6 +82,25 @@ ARCHIVED = re.compile(r'plan([1-9][0-9]*)')     # an archived plan's directory b
 QUARTER = 900.0                  # seconds between a history's points
 AHEAD = tuple(range(73))         # hours ahead of each of the odds' curves: every hour from 0 to 72
 BACK = 24                        # hours back from the latest curve that the odds keep curves for, one an hour
+# The section "Search progress" claims one coverage for its intervals, and each estimator draws its band at levels of
+# its own, set to give that coverage (2026-11-06; dreeves wants "80% that actually means 80%": the levels that
+# historically gave it, estimator by estimator); each is set here alone, so that a calibration changes values only.
+COVERAGE = 0.8                   # the coverage the page labels its intervals with (the work bar's caption: work_eta's
+                                 # coverage), the nominal one of every band since 2026-11-06.  Not checked against
+                                 # outcomes: no estimator has enough finished ones, and the misses seen come from the
+                                 # models, not their levels (scratch/calibration-20261106/NOTES.md), so the page calls
+                                 # it the model's own.  From the stopgap of 2026-10-12 until then 0.9, every band (0.05,
+                                 # 0.95): nominal 80% had held the truth 22 of 31 times for the tree estimate in a replay
+                                 # of 304@9's two finished passes (its recorded 80% bands held 0.56, that study found).
+                                 # ETAs recorded before 2026-11-06 keep their 90% bands.
+BANDS = dict(                    # each estimator's lower and upper quantile levels: its band around its median
+    tree=(0.1, 0.9),             # progress.py's estimate: an overnight_v5.py pass's hours to go, from subtree costs
+    box=(0.1, 0.9),              # progress.py's box_estimate: a boxsplit.py pass's, Kaplan-Meier on its leaves
+    urn=(0.1, 0.9),              # progress.py's lindy_urn and lindy_work: Lindy urns of jobs (focus.py's root cases)
+    pool=(0.1, 0.9),             # progress.py's pool_estimate: a fanout.py run's, from its pool's random draws
+    stages=(0.1, 0.9),           # progress.py's stages_of: each later stage's, and the time to a recordable result
+    gott=(0.1, 0.9),             # progress.py's gott: Gott's rule, for a tracked search with no estimate of its own
+    work=(0.1, 0.9))             # work: the form-tree work model's to_go and total (and formtree_eta.py's scatter)
 
 
 def grid(mean, sd, spent):
@@ -155,13 +174,15 @@ def _work_cdf(rest, absent, present, ahead):
 
 
 def _work_quantiles(rest, absent, present):
-    """The 5%, 50%, 95% completion times in hours, inverting its linear pieces and atoms at rest."""
+    """The points at BANDS['work'][0], 50% and BANDS['work'][1] of the law with masses absent at rest and present spread
+    evenly over [0, rest], in rest's units (completion times in hours, or remaining work), inverting its linear pieces
+    and atoms."""
     order = np.argsort(rest)
     t, a, b = rest[order], absent[order], present[order]
     slope = np.cumsum((b / t)[::-1])[::-1]
     before = (np.cumsum(a) - a) + (np.cumsum(b) - b) + t * slope
     after = before + a
-    q = np.array([0.05, 0.5, 0.95])
+    q = np.array([BANDS['work'][0], 0.5, BANDS['work'][1]])
     k = np.searchsorted(after, q, side='left')
     delta = np.divide(np.maximum(before[k] - q, 0), slope[k], out=np.zeros(3), where=slope[k] > 0)
     return t[k] - delta
@@ -183,9 +204,13 @@ def work(p_exists, total, done, rate, weight):
 
     Returns measure's fields, with CPU-hours/rate/cores null because those fields denote campaign exposure units;
     p is the unconditional find CDF on HOURS, found the existence-conditional CDF on AHEAD. Also completion, the CDF
-    on HOURS of a witness or accepted exhaustion, and to_go, its median/5%/95% in seconds. Completion mixes a mass
-    at (W-done)/rate when absent with a uniform time on that interval when present, using their joint posterior
-    weights. At a zero existence prior, found remains the model's counterfactual conditional-on-existence curve.
+    on HOURS of a witness or accepted exhaustion, and to_go, its median and band (BANDS['work']) in seconds.
+    Completion mixes a mass at (W-done)/rate when absent with a uniform time on that interval when present, using
+    their joint posterior weights. At a zero existence prior, found remains the model's counterfactual conditional-on-existence curve.
+    And total (dreeves, 2026-11-06: "should that progress bar be measuring amount of work, not time? ... we can still
+    have a 90% CI for amount of work remaining, right?"): the work done when the search ends, its median and band in
+    work's units, the same law in work: the mass absent at W, present spread evenly over [done, W],
+    with completion's weights draw for draw, so that it does not depend on the rates.
     No terminal verdict is inferred here; a caller supplies actual proof/witness status separately.
     """
     assert type(p_exists) in (int, float) and 0 <= p_exists <= 1
@@ -212,9 +237,11 @@ def work(p_exists, total, done, rate, weight):
     p = p_exists * A / Z
     within = p * _work_cdf(rest, np.zeros(len(rest)), conditional, HOURS)
     lo, median, hi = _work_quantiles(rest, absent, present) * 3600
+    end = done + _work_quantiles(left, absent, present)       # the work done when the search ends: lo, median, hi
     return dict(cpu_hours=None, rate=None, cores=None, hours=list(HOURS), exists=p, found=found.tolist(),
                 p=within.tolist(), completion=_work_cdf(rest, absent, present, HOURS).tolist(),
-                to_go=dict(median=float(median), lo=float(lo), hi=float(hi)))
+                to_go=dict(median=float(median), lo=float(lo), hi=float(hi)),
+                total=dict(median=float(end[1]), lo=float(end[0]), hi=float(end[2])))
 
 
 def lines(path):

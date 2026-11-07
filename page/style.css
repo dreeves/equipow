@@ -334,18 +334,25 @@ code[aria-expanded], [data-text][aria-expanded] { cursor: pointer; text-decorati
 .progress p { margin: 0; }
 .progress canvas { display: block; width: 100%; }
 .progress-time { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.4rem; }
-.progress-bar { position: relative; height: 4.2rem; margin-inline: 2.8rem; }
-.progress-bar::before { content: ""; position: absolute; top: 2.5rem; width: 100%; border-top: 1px dashed var(--muted); }
-.progress-bar::after { content: ""; position: absolute; top: 2.3rem; right: 0; width: 0.4rem; height: 0.4rem; border-top: 1px solid var(--muted); border-right: 1px solid var(--muted); transform: rotate(45deg); }
-.progress-bar [data-bar="so-far"] { position: absolute; top: 2.5rem; height: 3px; background: var(--progress-spent); transform: translateY(-1px); }
-.progress-bar [data-bar="band"] { position: absolute; top: 1.65rem; border-top: 4px solid var(--progress-total); }
-.progress-bar [data-bar="band"]::before, .progress-bar [data-bar="band"]::after { content: ""; position: absolute; top: -0.45rem; height: 0.65rem; border-left: 1px solid var(--progress-total); }
-.progress-bar [data-bar="band"]::after { right: 0; }
-.progress-bar [data-bar="now"] { position: absolute; top: 1.15rem; height: 1.75rem; border-left: 2px solid var(--progress-spent); font-style: normal; }
-.progress-bar [data-bar="now"] > span { position: absolute; bottom: calc(100% + 0.15rem); transform: translateX(-50%); white-space: nowrap; font-size: 0.75rem; color: var(--progress-spent); }
-.progress-bar [data-bar="ticks"] > span { position: absolute; top: 3.1rem; transform: translateX(-50%); white-space: nowrap; font-size: 0.75rem; color: var(--muted); }
-.progress-bar [data-bar="ticks"] > span::before { content: ""; position: absolute; top: -0.6rem; height: 0.3rem; left: 50%; border-left: 1px solid var(--muted); }
-.progress-bar + .progress-bar-caption { margin-top: 0; font-size: 0.85rem; color: var(--muted); }
+/* A run's work bar (dreeves, 2026-11-06: "should that progress bar be measuring amount of work, not time? the ETA graph
+   is for time", and "bring back a subtle tick for the median finish time"), for a run with a work model: a track of
+   nodes in the ETA chart's hairline, as tall as the bar of hours before it (until 2026-11-06), blue up to the nodes
+   checked (the chart's elapsed blue), the interval of the total a band in the pale purple of the chart's band of
+   elapsed + ETA, its median a 2 px tick in that purple, a little past the track's edges; the track's round ticks
+   labeled below in the chart's muted gray, the first flush left and the last flush right, so that none overhangs the
+   column; the caption in the status line's colors. */
+.progress-work { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.2rem; }
+.progress-work[hidden], .progress-work [hidden] { display: none; }
+.progress-bar { position: relative; height: 0.7rem; border-radius: 2px; background: var(--progress-hair); }
+.progress-bar > * { position: absolute; top: 0; bottom: 0; }
+.progress-bar [data-bar="done"] { left: 0; border-radius: 2px 0 0 2px; background: var(--progress-spent); }
+.progress-bar [data-bar="band"] { background: color-mix(in oklab, var(--progress-total) 26%, var(--paper)); }
+.progress-bar [data-bar="median"] { top: -0.2rem; bottom: -0.2rem; width: 2px; margin-left: -1px; background: var(--progress-total); }
+.progress-bar-axis { position: relative; height: 0.9rem; font-size: 0.75rem; line-height: 0.9rem; color: var(--muted); font-variant-numeric: tabular-nums lining-nums; }
+.progress-bar-axis > span { position: absolute; top: 0; transform: translateX(-50%); white-space: nowrap; }
+.progress-bar-axis > span:first-child { transform: none; }
+.progress-bar-axis > span:last-child { transform: translateX(-100%); }
+.progress-bar-caption { font-size: 0.85rem; color: var(--muted); font-variant-numeric: tabular-nums lining-nums; }
 .progress-bar-caption .spent { color: var(--progress-spent); }
 .progress-bar-caption .total { color: var(--progress-total); }
 .progress-key { display: flex; flex-wrap: wrap; gap: 0.3rem 1.2rem; margin: 0; padding: 0; list-style: none; }

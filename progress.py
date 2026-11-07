@@ -63,14 +63,14 @@ defined once here:
               SEA_DEPTH (or above the bottom, if that is shallower; a shallower dot is its own group).
   estimate    of a running or frozen run: REPLICATES draws of the current pass's remaining hours of running, from the
               model below; or none, when the model has nothing to draw from.  The data file gives their median (the ETA)
-              and their QUANTILES (the band around it); their mean until 2026-10-19, when the boxsplit estimate took a
-              Lindy tail (lindy_ball), whose mean is infinite.  Provisional (2026-10-09): the survival-analysis
+              and their band around it (chance.BANDS's tree); their mean until 2026-10-19, when the boxsplit estimate
+              took a Lindy tail (lindy_ball), whose mean is infinite.  Provisional (2026-10-09): the survival-analysis
               design of the workflow in scratch/eta-dist/, ported whole, while that workflow's judges are still out.
   ETA         the median of a snapshot's estimate (dreeves's name for it; its mean until 2026-10-19, as the records
               made before then hold): the hours of running until the current pass ends, as likely more as less, which
               is when the search ends, unless the pass leaves sub-cases open, as 304@9's first did; no
               estimate foresees a later pass.  Each time the data file is made it records its ETA with the estimate's
-              range (its draws' QUANTILES), by the snapshot's time, in CACHE (by run and its geometry); the data
+              range (its draws' band), by the snapshot's time, in CACHE (by run and its geometry); the data
               file carries that record (see eta_records), and the section's ETA chart draws it, the range as a shaded
               band: only ETAs actually made, none reconstructed for times before the record began (dreeves,
               2026-10-09), against the search's elapsed running time, whatever its passes (dreeves, 2026-10-10).
@@ -157,10 +157,10 @@ The estimate's model, its terms defined once here (overnight_v5.py's search() is
               d's band (BAND levels) of (s's LP solves + the sum over s's open boxes of E[T(d + their depth - s's)]),
               from depth n down, 0 past n; a band with no sample takes the nearest band's that has one, the deeper on a
               tie.  The estimate: the sum over the pool of E[T(d)], at least the probes' floor (each open case's least
-              less its work so far, summed), over the pool's rate; its median and band the median and QUANTILES of BOOT
-              replicates, each band's samples resampled (a bootstrap: the uncertainty of the bands' means, not of the
-              process itself, whose sum over thousands of boxes varies less).  None until the session has a pool record,
-              a sample and a box.
+              less its work so far, summed), over the pool's rate; its median and band the median and band
+              (chance.BANDS's pool) of BOOT replicates, each band's samples resampled (a bootstrap: the uncertainty of
+              the bands' means, not of the process itself, whose sum over thousands of boxes varies less).  None until
+              the session has a pool record, a sample and a box.
   pool series of a fanout.py run (dreeves, 2026-11-03, README [TRE]: "Could we see a time series of the number of
               pending nodes? If we could see the growth of that slow down, or when it starts to actually go down, we can
               better infer the ETA."): the size of its pool (the boxes not done, its running jobs' among them, as the
@@ -230,7 +230,8 @@ The estimate's model, its terms defined once here (overnight_v5.py's search() is
               one after another, each phase's lanes at once, and each lane's parts one after another (2026-11-01,
               scratch/stages-cram-20261101: CRAM's reprove.py walks its jobs beside their reproofs, between its briefs
               and its seals); each part the CPU seconds a unit of the run's work costs (per: one of UNITS), measured
-              (cpu: its median and QUANTILES), on so many processes, with its provenance (source, date, conditions).
+              (cpu: its median and MEASURED quantiles), on so many processes, with its provenance (source, date,
+              conditions).
               A recordable result: one the page may record, 432:12's after reprove.py, 288:10's after its final pass.
   share       of a run: the CPU seconds its workers (the children of its main process that multiprocessing spawned,
               SPAWNED) have used over their seconds of running (each one's since it began, less the run's pauses):
@@ -308,8 +309,6 @@ NICE = 15                              # the niceness the process lowers itself 
 DEEPEST = 6
 REPLICATES = 2000                      # draws in an estimate: a Monte Carlo precision setting
 SEED = 0                               # the estimate's random generator's seed: an estimate is a function of its state
-QUANTILES = (0.05, 0.95)               # the estimate's range, the ETA's band: the middle 90% of its draws (80% was too
-                                       # narrow: backtested on 304@9's two finished passes, it held the truth 22 of 31 times)
 HOUR = 3600                            # seconds
 STATUSES = ('settled', 'open', 'split', 'pending')     # the statuses, in the order of the levels' counts
 SEA_DEPTH = 5                          # the sea's groups are the sub-cases at this depth (240@11's 291), or above the bottom
@@ -323,7 +322,9 @@ DRAWS = 1 << 28                        # the most numbers an urn may hold (see U
 STAGES_FILE = os.path.join(HERE, 'stages.json')   # the searches' chains (see the vocabulary), read once as this loads
 UNITS = ('token', 'open leaf')         # what a part's cpu can be per (see chain): a fanout's token, a pass's open leaf
 SPAWNED = 'from multiprocessing.spawn import spawn_main'   # in the command of a worker multiprocessing spawned (see share)
-ZS = tuple(statistics.NormalDist().inv_cdf(q) for q in QUANTILES)   # QUANTILES of the standard normal (see drawn)
+MEASURED = (0.05, 0.95)                # the quantiles of every cpu band in STAGES_FILE (its about: "the 5% and 95%
+                                       # quantiles"), as measured, whatever the estimators' bands are (chance.BANDS)
+ZS = tuple(statistics.NormalDist().inv_cdf(q) for q in MEASURED)    # MEASURED of the standard normal (see drawn)
 
 
 # ---------- surveys bounded in time (2026-10-30: one run's 90-minute snapshot froze the whole page) ----------
@@ -1816,7 +1817,7 @@ def span_work(parts, view):
 def survey(n, order, journal, log, procs, now, cache, etas, reading=None, pauses=(), times=None):
     """The run (n, order) as its journal and log, the process list and the time now (epoch seconds) show it: what the
     data file needs of it, and more; cache holds the run's splits (see children), etas its record of ETAs (see the
-    vocabulary), to which this snapshot's is added: [the median of its draws, then their QUANTILES], None with none (an
+    vocabulary), to which this snapshot's is added: [the median of its draws, then their band], None with none (an
     ended run has none), by its time in whole seconds.  reading is the watcher's Reading of the run, kept between
     snapshots; by default a new one, which reads the files whole: the same survey.  pauses are the run's (see the
     vocabulary; by default none): its passes, so far, the ETA chart's axis and its estimate leave them out.  Its stages
@@ -1851,14 +1852,14 @@ def survey(n, order, journal, log, procs, now, cache, etas, reading=None, pauses
     done = 0.0 if hours is None else span_work(parts, view)
     # open at the pass's end; none without an estimate, or with no work logged yet (the log's tenths of seconds)
     leaves = tally['open'] * (1 + parts['work'] / done) if done > 0 else None
-    etas.setdefault(str(int(end)), [float(np.median(draws))] + [float(q) for q in np.quantile(draws, QUANTILES)] if draws is not None and len(draws) else None)   # a record made stands
+    etas.setdefault(str(int(end)), [float(np.median(draws))] + [float(q) for q in np.quantile(draws, chance.BANDS['tree'])] if draws is not None and len(draws) else None)   # a record made stands
     region, stack = (view.region, view.stack) if view is not None else ([], [])
     moving = [nd for nd in region if nd.state == 'running']      # in tree order
     running = {nd.key for nd in moving if nd.key is not None}
     unnamed = ([(nd.parent.key, 'running') for nd in moving if nd.key is None]
                + [(nd.parent.key, 'pending') for nd in stack if nd.key is None])
     assert all(k is not None for k, _ in unnamed), unnamed      # a node's parent is done, so its line named it
-    to_go = ({'median': float(np.median(draws)) * HOUR} | dict(zip(('lo', 'hi'), (float(q) * HOUR for q in np.quantile(draws, QUANTILES))))
+    to_go = ({'median': float(np.median(draws)) * HOUR} | dict(zip(('lo', 'hi'), (float(q) * HOUR for q in np.quantile(draws, chance.BANDS['tree']))))
              if draws is not None and len(draws) else None)
     tree = reading.tree(budgets, cache)                         # with the splits cached since by the levels and resplits
     return {'program': 'overnight_v5.py', 'n': n, 'order': order, 'state': state, 'outcome': p['outcome'], 'budgets': budgets,
@@ -1984,9 +1985,10 @@ def lindy_draws(walls, ages, pending):
     return [urn.draw(e) - e for e in ages], [urn.draw() for _ in range(pending)]
 
 
-def quantiles(hours):
-    """REPLICATES draws of hours as a recorded ETA: [median, lo, hi] (QUANTILES)."""
-    return [float(np.median(hours))] + [float(q) for q in np.quantile(hours, QUANTILES)]
+def quantiles(hours, band):
+    """REPLICATES draws of hours as a recorded ETA: [median, lo, hi], lo and hi at band, the estimator's lower and upper
+    quantile levels (its entry in chance.BANDS)."""
+    return [float(np.median(hours))] + [float(q) for q in np.quantile(hours, band)]
 
 
 def lindy_urn(walls, ages, pending, workers):
@@ -1997,14 +1999,14 @@ def lindy_urn(walls, ages, pending, workers):
     loads = np.zeros((REPLICATES, workers))
     for j, rest in enumerate(rests):
         loads[:, j] = rest
-    return quantiles(makespan(loads, [('job', size) for size in sizes]) / HOUR)
+    return quantiles(makespan(loads, [('job', size) for size in sizes]) / HOUR, chance.BANDS['urn'])
 
 
 def lindy_work(walls, ages, pending, rate):
     """The [median, lo, hi] hours to go of work shared by a pool (fanout.py's cases, 2026-10-23): walls and ages in any
     unit of work, the pool doing rate of it a second; the rests and sizes summed, as the pool works on every job at once."""
     rests, sizes = lindy_draws(walls, ages, pending)
-    return quantiles(sum(rests + sizes) / rate / HOUR)
+    return quantiles(sum(rests + sizes) / rate / HOUR, chance.BANDS['urn'])
 
 
 BAND = 4                               # depth levels in a band of the pool estimate's samples (see the vocabulary)
@@ -2015,7 +2017,7 @@ def pool_estimate(samples, pool, n, rate, floor):
     """The pool estimate (see the vocabulary) as [median, lo, hi] hours to go: pool_draws at rate, the pool's LP solves
     a second."""
     assert rate > 0
-    return quantiles(pool_draws(samples, pool, n, floor) / rate / HOUR)
+    return quantiles(pool_draws(samples, pool, n, floor) / rate / HOUR, chance.BANDS['pool'])
 
 
 def pool_draws(samples, pool, n, floor):
@@ -2061,9 +2063,9 @@ def box_work(u, d, c, at, pending):
 
 def box_estimate(walls, ages, pending, workers):
     """A boxsplit pass's estimate (see survey_box): ([median, lo, hi] hours to go, whether restricted), the median and
-    QUANTILES of box_draws' replicates."""
+    band (chance.BANDS's box) of box_draws' replicates."""
     hours, restricted = box_draws(walls, ages, pending, workers)
-    return quantiles(hours), restricted
+    return quantiles(hours, chance.BANDS['box']), restricted
 
 
 def box_draws(walls, ages, pending, workers):
@@ -2170,7 +2172,7 @@ def survey_box(n, order, log, main, procs, now, etas, box=None, pauses=(), times
     assert pending >= 0, log
     hours, restricted = (box_draws(walls, ages, pending, p['processes']) if state == 'running' and walls + ages
                          else (None, None))
-    eta = None if hours is None else quantiles(hours)
+    eta = None if hours is None else quantiles(hours, chance.BANDS['box'])
     etas.setdefault(str(int(end)), eta)   # a record made stands
     to_go = to_go_of(eta)
     share = share_of(procs, runs(procs, 'boxsplit.py', n, order), pauses, now, times)
@@ -2290,9 +2292,9 @@ def later_of(identity):
 
 
 def drawn(rng, cpu, k):
-    """k draws (rng's) of a measured cost cpu, {median, lo, hi}: a two-piece log-normal whose median and QUANTILES are
-    the cost's, its logarithm normal on each side of the median, with the spread that side's quantile gives (ZS): the
-    measured band, however lopsided."""
+    """k draws (rng's) of a measured cost cpu, {median, lo, hi}: a two-piece log-normal whose median and MEASURED
+    quantiles are the cost's, its logarithm normal on each side of the median, with the spread that side's quantile
+    gives (ZS): the measured band, however lopsided."""
     z = rng.standard_normal(k)
     up = z > 0
     return cpu['median'] * np.where(up, cpu['hi'] / cpu['median'], cpu['lo'] / cpu['median']) ** (z / np.where(up, ZS[1], ZS[0]))
@@ -2301,9 +2303,10 @@ def drawn(rng, cpu, k):
 def stages_of(identity, state, to_go, hours, counts, share):
     """The stages (see the vocabulary) of the run whose identity this is, in its state: {} for a run ended or in no
     chain; else {stages, total}, stages its own ({name: its program, to_go}) and each later stage's ({name, to_go}:
-    to_go_of its replicates' median and QUANTILES), total to_go_of every stage's replicates summed.  hours: the run's
-    estimate, one value a replicate, hours to go, or None; counts: {unit: the run's count, one a replicate (or one for
-    all), or None without hours} for each unit its later stages' parts are per (asserted); share: the run's, or None,
+    to_go_of its replicates' median and band, chance.BANDS's stages), total to_go_of every stage's replicates summed,
+    at that band too.  hours: the run's estimate, one value a replicate, hours to go, or None; counts: {unit: the run's
+    count, one a replicate (or one for all), or None without hours} for each unit its later stages' parts are per
+    (asserted); share: the run's, or None,
     taken for every process of every later stage (see share: k processes at once are taken to have k times it).
     Each part's cpu is drawn (drawn) from a stream of its own, SEED's first spawned, part after part in the chain's
     order (stage after stage, phase after phase, lane after lane).  Replicate by replicate, a lane's hours are its
@@ -2325,8 +2328,9 @@ def stages_of(identity, state, to_go, hours, counts, share):
                                   for p in lane)
     stage_hours = [sum(np.maximum.reduce([lane_hours(lane) for lane in phase]) for phase in s['phases']) for s in later]
     return {'stages': [dict(name=identity[0], to_go=to_go)] +
-                      [dict(name=s['stage'], to_go=to_go_of(quantiles(h))) for s, h in zip(later, stage_hours)],
-            'total': to_go_of(quantiles(hours + sum(stage_hours)))}
+                      [dict(name=s['stage'], to_go=to_go_of(quantiles(h, chance.BANDS['stages'])))
+                       for s, h in zip(later, stage_hours)],
+            'total': to_go_of(quantiles(hours + sum(stage_hours), chance.BANDS['stages']))}
 
 
 def ps_seconds(text):
@@ -3015,8 +3019,9 @@ def survey_pruning288(path, procs, now=None, observations=None):
 def gott(age):
     """Gott's rule (1993; the Lindy effect, as lindy_ball draws it) for a run that has run age seconds and runs on, as a
     recorded ETA, [median, lo, hi] hours to go: its age is as likely to be any fraction of its whole, so the q quantile
-    of the rest is age q / (1 - q): the median its age, QUANTILES' band from a 19th of it to 19 times it."""
-    return [age * q / (1 - q) / HOUR for q in (0.5, *QUANTILES)]
+    of the rest is age q / (1 - q): the median its age, its band at chance.BANDS's gott, from a 9th of it to 9 times it
+    at (0.1, 0.9) (a 19th to 19 times at (0.05, 0.95), until 2026-11-06)."""
+    return [age * q / (1 - q) / HOUR for q in (0.5, *chance.BANDS['gott'])]
 
 
 def survey_track(target, records, procs, now, etas=None):
@@ -3112,7 +3117,7 @@ def js_text(surveys, now):
     """The data file (see the vocabulary): one call, progressData(...);, of the snapshot's JSON: made (now, in whole
     seconds) and, per run, program (overnight_v5.py or boxsplit.py), n, order, state, outcome (its finish's, null without
     one; dreeves, 2026-10-25: the section names a run's state, an ended one completed or aborted by it), so_far (its passes' seconds of running), to_go ({median, lo, hi}, seconds of
-    running: the estimate's median and QUANTILES; null without one), etas (its record of ETAs, eta_records, as [time,
+    running: the estimate's median and band; null without one), etas (its record of ETAs, eta_records, as [time,
     running seconds before it, median (mean before 2026-10-19), lo, hi], the time in whole seconds and the rest in seconds to a tenth, evenly thinned to at most ETA_POINTS, the last kept), statuses
     (SEA_STATUSES), its sea (depth, keys, groups, counts), and stale: null, or for a run whose survey failed or ran past
     LIMIT the time (whole seconds) of the snapshot its data are from (see snapshot; 2026-10-30); and for a run in a chain,

@@ -2870,3 +2870,16 @@ The loader was red on the precise old hash, then green on the reviewed replaceme
 ### 2026-11-06 16:17 PST — Codex/Astra: paused at dreeves’s request
 
 No active task or sub-agent remains in the Astra lane. The ruler and stale-ETA repair are complete and verified. Astra is pausing agent work now; no search or watcher process is stopped, and this is not an instruction for Claude to pause. Further optional speedup ideas remain unstarted.
+
+### 2026-11-06 16:21 PST — Claude: claiming the progress bar redesign and the 80% intervals
+
+While you're paused, dreeves asked Claude to revamp the progress bar ("in a way that makes sense to you"), bring back a subtle tick at the median finish, and consider a bar in units of work, not time, with 80% intervals in place of 90%. Claude claims bar() in page/progress-section.js, the bar's markup and CSS, their quals, and the interval level wherever it's set: progress.py, chance.py and formtree_eta.py's interval output only, not the model's samples or fit. The live run and the watcher keep going. A watcher restart, if one is needed, will be one restart, announced here first.
+
+### 2026-11-06 17:25 PST — Claude: work bar and per-estimator bands done; restarting the watcher once
+
+The bar above each run's ETA chart now measures work, for a run with a work model (only ftree.py 288:10): blue to the checked nodes, a purple band over the interval of `work_eta.total` (the nodes checked when the search ends, a witness or the tree exhausted), a purple tick at its median, compact node ticks, a caption with the numbers. It shows exactly when dreeves's work paragraph does (workView's `data-work-measure`), so no other run has a bar now.
+- **Data:** `chance.work` returns `total` from the same weighted law as `to_go` (same weights, remaining work in place of time); `formtree_eta.attach` publishes it (exactly `done` once complete, null when stopped short). `runs/models/288_10.json` is byte-identical.
+- **Levels, per the coordinator's 17:00 design:** `chance.COVERAGE = 0.9` is the page's label (`work_eta.coverage`); `chance.BANDS` holds each estimator's quantile pair (tree, box, urn, pool, stages, gott, work), all `(0.05, 0.95)`. `progress.QUANTILES` is gone; `progress.quantiles(hours, band)` takes the estimator's pair. `progress.ZS` now reads `MEASURED = (0.05, 0.95)`, stages.json's measured bands, so recalibrating a band no longer changes how those measurements are read.
+- **Fixed on the way:** workView threw on a null `work_eta` field (a stopped search's `root_log_sd_posterior`, `effective_samples`), which would have stopped the whole section from drawing.
+- **Quals:** quals_chance 33/33, quals_formtree_eta 19/19, quals_progress 123/123, quals_stages 20/20, the bar's browser quals 2/2 (1280 and 390 px), the Node harnesses (bar, work, summary, stale, attempt views) all pass; quals_index 150/156, its 6 failures the same as before any change (OEIS notes, 1440's entry, code anchors, index.html in text, the remarks fold); the bar's new quals were red first, and 14 + 12 mutants are caught. Artifacts: `scratch/progress-bar-20261106/` (NOTES.md, red/, green/, shots/).
+- **Restart:** watcher 94854 now, then `scratch/watcher-20261030/launch.py`, once. Driver 52302 and its workers are not touched.
