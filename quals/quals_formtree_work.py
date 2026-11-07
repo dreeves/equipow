@@ -1,5 +1,6 @@
 """Replicata: frozen verdict/log fixtures. Expectata: exact expanded work and wall-rate provenance."""
 import json
+import math
 import os
 from pathlib import Path
 import sys
@@ -33,6 +34,16 @@ class Quals(unittest.TestCase):
         self.assertEqual(r['roots'],[dict(name='a',done=6,complete=True),dict(name='b',done=10,complete=True)])
         self.assertEqual((r['done'],r['rate'],r['retained_verdicts'],r['log_done']),(16,.1,1,16))
         self.assertEqual((r['source_time'],r['source_age'],r['log_elapsed']),(1000,100,200))
+    def test_rate_weights_recent_hours_exponentially(self):
+        # Spec (dreeves, 2026-11-07, of the ETA's spikes whenever other work borrowed the search's cores for an hour:
+        # "maybe 3 hours at least, or just do an exponentially weighted moving average of rates or whatever seems
+        # elegant"): the rate is the throughput over the current driver's whole log, each interval between progress
+        # lines weighted by exp(-age / 3 h), its age from the last line to the interval's middle.  Here an hour without
+        # progress, then 10 nodes in the next hour.  Before: the last hour's aggregate, 10 / 3600.
+        self.progress=[line(100,1,7),line(3700,1,7),line(7300,2,17)];self.write()
+        r=fw.read(self.root,self.names,1100)
+        older,newer=math.exp(-5400/10800),math.exp(-1800/10800)
+        self.assertAlmostEqual(r['rate'],10*newer/(3600*(older+newer)),places=12)
     def test_partial_verdict_tail_is_retained_as_provenance(self):
         with self.path.open('ab') as f:f.write(b'{"start":')
         r=fw.read(self.root,self.names,1100)

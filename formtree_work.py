@@ -7,6 +7,7 @@ import re
 import time
 
 MAX_AGE = 1200
+TAU = 3 * 3600   # the rate's time constant, s (dreeves, 2026-11-07: "maybe 3 hours at least, or just do an exponentially weighted moving average of rates")
 PROGRESS = re.compile(r'^\[(\d+)s\] done (\d+), left (\d+); nodes ([0-9.e+]+),')
 HEADER = re.compile(r'^(\d+) start nodes; \d+ tasks to run; (\d+) nodes done$')
 
@@ -64,7 +65,7 @@ def _driver(root):
 
 
 def read(root, roots, now=None, active=True):
-    """Repository root, ordered immutable root names, observation epoch -> exact work and last-hour wall rate.
+    """Repository root, ordered immutable root names, observation epoch -> exact work and its wall rate, weighted toward the last TAU.
 
     The log is captured before the verdict prefix so its completed-task counts are available. Log mtime is an
     observation-time proxy, not an exact timestamp of the last progress line or the process start. Driver elapsed
@@ -103,9 +104,14 @@ def read(root, roots, now=None, active=True):
         assert count < len(raw) and f'{raw[count]:.4g}' == match[4]
         points.append((elapsed, expanded[count]))
     assert len(points) > 1 and all(b[0] > a[0] and b[1] >= a[1] for a, b in zip(points, points[1:]))
-    recent = [p for p in points if p[0] >= points[-1][0] - 3600]
-    assert len(recent) > 1
-    rate = (recent[-1][1] - recent[0][1]) / (recent[-1][0] - recent[0][0])
+    # the throughput, each interval between progress lines weighted by exp(-age / TAU), its age measured between middles
+    # back from the newest interval, whose weight is then exactly 1 (2026-11-07; before, the last hour's aggregate, which
+    # swung the ETA whenever other work took the cores)
+    pairs = list(zip(points, points[1:]))
+    newest = (pairs[-1][0][0] + pairs[-1][1][0]) / 2
+    weights = [math.exp(((a[0] + b[0]) / 2 - newest) / TAU) for a, b in pairs]
+    rate = (sum(w * (b[1] - a[1]) for w, (a, b) in zip(weights, pairs))
+            / sum(w * (b[0] - a[0]) for w, (a, b) in zip(weights, pairs)))
     assert math.isfinite(rate) and rate >= 0 and (not active or rate > 0)
     driver = _driver(root)
     observed_at = time.time() if now is None else now
