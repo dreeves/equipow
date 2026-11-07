@@ -1,7 +1,8 @@
 // Replicata: the actual work-model renderer (workView) and existing basis loop, with a small DOM fixture; and
 // index.html's markup.
 // Expectata: work measurements update; legacy visibility and all three probability charts remain; no field of the
-// samples or the source time anywhere on the page, the rate in the work bar's caption.
+// samples or the source time anywhere on the page, the rate in the work bar's caption; the work note's prior a field,
+// no number typed into it.
 // Spec change (Claude, 2026-11-06; dreeves: "1. add nodes/s to the blue/purple line" and "2. kill the whole line with
 // number of samples"): the work paragraph (data-work-eta: samples, nodes checked, rate and source time), whose fields
 // this qual checked, is gone; the rate is in the bar's caption, after its nodes checked, and workView shows the bar
@@ -28,7 +29,11 @@ assert.ok(caption);
 assert.match(caption[1], /<span class="spent">[^<]*<b data-bar-done><\/b>[^<]*<b data-work-rate><\/b>[^<]*<\/span>/);
 const basisNote = html.match(/<p[^>]*data-odds-basis="work"[^>]*>([\s\S]*?)<\/p>/);
 assert.ok(basisNote);
-assert.match(basisNote[1], /0\.01/);
+// Spec change (Claude, 2026-11-06; dreeves, of 288:10's prior 0.01, typed into this note: "that sounds dumb. let's start
+// with an ignorant prior (50%) and let it fall naturally as the search progresses"): the note's prior is a field that
+// the page fills from the run's odds (data-odds-prior), so that it states the run's actual prior; no number is typed in.
+assert.match(basisNote[1], /<span data-odds-prior><\/span>/);
+assert.doesNotMatch(basisNote[1], /\d/);
 const oddsMarkup = html.slice(html.indexOf('<div class="progress-odds"'), html.indexOf('</details>', html.indexOf('<div class="progress-odds"')));
 assert.equal((oddsMarkup.match(/<svg /g) || []).length, 3);
 assert.ok(oddsMarkup.indexOf('data-exists-') < oddsMarkup.indexOf('data-found-'));

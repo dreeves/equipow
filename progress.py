@@ -298,9 +298,12 @@ DIRS = {(288, 10): os.path.join('scratch', 'x288')}
 # the beam campaign's plan 7 searches 528:12 (2026-11-03).  A campaign that turns to another target needs its entry here.
 CAMPAIGNS = {(528, 12): os.path.join('scratch', 'beam-campaign-20261103')}
 # the prior P(exists) of each target an exhaustive tracked search (one that finds a witness exactly when one exists)
-# covers, for its odds (see the vocabulary): 288:10 by searches/formtree's form trees, the prior the Symmetry
-# Conjecture screen's (AGENTS.md, 2026-11-03: "Estimated chance of a disproof at 288: 1% or less")
-EXHAUSTIVE = {(288, 10): 0.01}
+# covers, for its odds (see the vocabulary): 288:10 by searches/formtree's form trees, an ignorant 0.5 (dreeves,
+# 2026-11-06, of the Symmetry Conjecture screen's 0.01, AGENTS.md, 2026-11-03: "Estimated chance of a disproof at 288:
+# 1% or less": "that sounds dumb. let's start with an ignorant prior (50%) and let it fall naturally as the search
+# progresses"; its history made under 0.01 converted exactly, chance.reprior, by
+# scratch/pareto-progress-20261106/prior/migrate.py)
+EXHAUSTIVE = {(288, 10): 0.5}
 REFRESH = 60                          # seconds between rewrites under --watch (the section reloads the data file as often)
 NICE = 15                              # the niceness the process lowers itself to
 # The deepest level enumerated.  Splitting cost the runs themselves (their logs' split seconds, on loaded workers)

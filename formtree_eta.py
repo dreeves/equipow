@@ -237,7 +237,7 @@ def attach(s, root, model_path, p_exists, now, cache):
         points=cache.get('shown',cache.get('points',[]))
     cache['last']=copy.deepcopy(current)
     measured=[(t,x['chance']) for t,x in points]
-    odds=chance.odds(measured,now,c,'work')
+    odds=chance.odds(measured,now,c,'work',p_exists)
     odds['exists']=copy.deepcopy(legacy['exists'])+odds['exists']
     odds['curves']=[copy.deepcopy(r) for r in legacy['curves'] if r[0]>=now-3600*chance.BACK]+odds['curves']
     shown=dict(c,since=legacy['since'],history=copy.deepcopy(legacy['history'])+chance.rows(measured))

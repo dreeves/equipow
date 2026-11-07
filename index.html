@@ -1847,8 +1847,8 @@ of them with m ≡ 0, 1, 2 mod 3) and two exceptional signs, and d_0 ≡ d_3 (mo
             <p class="progress-odds-basis" data-odds-basis="lindy" hidden>No estimate yet of the size of the search space so the first graph is based only on priors and the second only on Lindy's rule (time remaining = elapsed time).</p>
             <!-- says the odds come from the campaign's model of its search, fit to the rates its probe seeds measured -->
             <p class="progress-odds-basis" data-odds-basis="campaign" hidden>Estimates based on a model of how fast we're covering the search space. This is all Claude of course. Something about the rates of “probe seeds”.</p>
-            <!-- states the initial existence probability 0.01, assumes the first witness is uniformly located in the remaining work, and explains sensitivity to uncertainty in tree size. -->
-            <p class="progress-odds-basis" data-odds-basis="work" hidden>Initial probability a bipartition exists: 0.01. We assume the first witness is uniformly distributed over the remaining work; the uncertainty is in the amount of that work.</p>
+            <!-- states the initial existence probability, the run's prior from its odds (odds.prior; 0.01 typed in until dreeves, 2026-11-06: "let's start with an ignorant prior (50%) and let it fall naturally as the search progresses"), assumes the first witness is uniformly located in the remaining work, and explains sensitivity to uncertainty in tree size. -->
+            <p class="progress-odds-basis" data-odds-basis="work" hidden>Initial probability a bipartition exists: <span data-odds-prior></span>. We assume the first witness is uniformly distributed over the remaining work; the uncertainty is in the amount of that work.</p>
           </div>
           </details>
         </div>

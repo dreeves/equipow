@@ -59,7 +59,10 @@ Vocabulary, each term defined once here:
               covered, and no CPU-hours, rate or cores, which that model does not use.
   odds        of a modeled search, what its first two graphs draw (dreeves, 2026-11-04: "1. probability a partition
               exists ... 2. probability of finding a partition by time t *conditional on a partition existing* and also
-              conditional on not having found one so far"): its basis (campaign or lindy), ahead (AHEAD), exists, [t,
+              conditional on not having found one so far"): its basis (campaign, lindy or work), its prior P(exists)
+              (prior: the campaign's p_exists, or an exhaustive search's; since 2026-11-06, so that the page states the
+              prior in use, dreeves: "let's start with an ignorant prior (50%) and let it fall naturally as the search
+              progresses", of 288:10's 0.01, which the page had stated as typed), ahead (AHEAD), exists, [t,
               P(exists)] at its history's times and at now, and curves, [t, P(a witness within each hour of AHEAD |
               one exists)] at every fourth of those times back from the last, within BACK hours of it, and at now; now's
               only once a rate is measured there and when the last point is not now's (its search stopped).  Its third
@@ -407,17 +410,32 @@ def history(root, campaign, target, now):
     return rows(stood(root, campaign, target, now))
 
 
-def odds(points, now, c, basis):
-    """The odds (see the vocabulary) on this basis from a history's points (stood's form) and the chance c as of now:
-    exists at the points' times and at now, curves at every fourth point back from the last, within BACK hours of it,
-    and at now; now's only once a rate is measured there (c's exists not None; until then, with no points either,
-    neither) and when the last point is not now's.  (Until 2026-11-04 now's always, unmeasured or not, and none at all
-    with no points: an IndexError.)"""
+def odds(points, now, c, basis, prior):
+    """The odds (see the vocabulary) on this basis, under this prior P(exists), from a history's points (stood's form)
+    and the chance c as of now: exists at the points' times and at now, curves at every fourth point back from the last,
+    within BACK hours of it, and at now; now's only once a rate is measured there (c's exists not None; until then, with
+    no points either, neither) and when the last point is not now's.  (Until 2026-11-04 now's always, unmeasured or not,
+    and none at all with no points: an IndexError.)"""
+    # TODO: error copy; says the odds' prior is not a probability, quoting it
+    assert type(prior) in (int, float) and 0 <= prior <= 1, f'Claude: "the prior {prior!r} is no probability"'
     picked = [(t, x) for t, x in points[::-1][::4] if t >= points[-1][0] - 3600 * BACK][::-1]
     # now's chance, unless unmeasured or already the last point (the target still live)
     tail = [] if c['exists'] is None or [t for t, _ in points[-1:]] == [now] else [(now, c)]
-    return dict(basis=basis, ahead=list(AHEAD), exists=[[t, x['exists']] for t, x in points + tail],
+    return dict(basis=basis, prior=prior, ahead=list(AHEAD), exists=[[t, x['exists']] for t, x in points + tail],
                 curves=[[t, x['found']] for t, x in picked + tail])
+
+
+def reprior(p, old, new):
+    """P(exists | the evidence) under the prior P(exists) new, from p, that posterior under the prior old (dreeves,
+    2026-11-06, of 288:10's prior 0.01: "that sounds dumb. let's start with an ignorant prior (50%) and let it fall
+    naturally as the search progresses"): the evidence's likelihood ratio, P(none found | exists) / P(none found | none
+    exists) = p (1 - old) / (old (1 - p)), does not depend on the prior, so the posterior under new is new L / (new L +
+    1 - new).  So a chance of a find made under old, P(exists) times a chance given existence, which the prior leaves
+    alone, times reprior(p, old, new) / p is the one made under new."""
+    # TODO: error copy; says reprior's inputs are out of range, quoting them
+    assert 0 <= p < 1 and 0 < old < 1 and 0 <= new <= 1, f'Claude: "reprior({p}, {old}, {new}) is out of range"'
+    L = p * (1 - old) / (old * (1 - p))
+    return new * L / (new * L + (1 - new))
 
 
 def lindy_shown(p_exists, t0, now):
@@ -431,7 +449,7 @@ def lindy_shown(p_exists, t0, now):
         return dict(cpu_hours=None, rate=None, cores=None, hours=list(HOURS), exists=p_exists, found=lindy_found(tau, AHEAD),
                     p=[p_exists * x for x in lindy_found(tau, HOURS)])
     points = [(t, at(t)) for t in quarters(t0, now)]
-    return dict(points[-1][1], since=t0, history=rows(points), odds=odds(points, now, points[-1][1], 'lindy'))
+    return dict(points[-1][1], since=t0, history=rows(points), odds=odds(points, now, points[-1][1], 'lindy', p_exists))
 
 
 def shown(root, campaign, target, now):
@@ -440,7 +458,8 @@ def shown(root, campaign, target, now):
     records (dreeves, 2026-11-04: "shouldn't it stay there for posterity like the ETA graph does? is this another
     anti-magic violation?"; until then None once the target was not live, and so no chart)."""
     c, points = of(root, campaign, target, now), stood(root, campaign, target, now)
-    return dict(c, since=began(plans(root, campaign), target), history=rows(points), odds=odds(points, now, c, 'campaign'))
+    return dict(c, since=began(plans(root, campaign), target), history=rows(points),
+                odds=odds(points, now, c, 'campaign', prior_of(root, campaign, target)['p_exists']))
 
 
 def of(root, campaign, target, now):

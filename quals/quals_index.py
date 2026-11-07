@@ -5453,17 +5453,19 @@ CHANCE = dict(cpu_hours=2.14, rate=9.15e-4, cores=3.2, hours=CHANCE_HOURS, p=[-0
 # search on Lindy's rule begun 30 h before the data was made, P(exists) its prior 0.01 at each quarter hour from then and
 # a curve an hour back over a day, each chance.lindy_found on its age then; a campaign target's, P(exists) falling over 8
 # quarter hours from 0.3 and four curves, now's flat at 0 (its search stopped); and a campaign target's before any rate
-# is measured, with neither.
+# is measured, with neither.  Each carries its prior P(exists) (chance.odds's prior, 2026-11-06: dreeves, "let's start
+# with an ignorant prior (50%) and let it fall naturally as the search progresses"; the page states it from there): 0.01
+# for the exhaustive search, 0.3 for the campaign's target.
 def lindy_at(tau, aheads): return [s / tau * math.log1p(tau / s) if s else 0.0 for s in aheads]
 def lindy_curve(tau): return lindy_at(tau, range(73))
 ODDS_T0 = PROGRESS_DATA['made'] - 30 * 3600
-ODDS_LINDY = dict(basis='lindy', ahead=list(range(73)), exists=[[ODDS_T0 + 900 * k, 0.01] for k in range(1, 121)],
+ODDS_LINDY = dict(basis='lindy', prior=0.01, ahead=list(range(73)), exists=[[ODDS_T0 + 900 * k, 0.01] for k in range(1, 121)],
                   curves=[[PROGRESS_DATA['made'] - 3600 * k, lindy_curve(30 - k)] for k in range(24, -1, -1)])
-ODDS_CAMPAIGN = dict(basis='campaign', ahead=list(range(73)),
+ODDS_CAMPAIGN = dict(basis='campaign', prior=0.3, ahead=list(range(73)),
                      exists=[[PROGRESS_DATA['made'] - 900 * (8 - k), 0.3 * math.exp(-k / 20)] for k in range(9)],
                      curves=[[PROGRESS_DATA['made'] - 3600 * (3 - k), [0.0] + [0.6 * (1 - math.exp(-s / 12)) for s in range(1, 73)]] for k in range(3)]
                             + [[PROGRESS_DATA['made'], [0.0] * 73]])
-ODDS_NONE = dict(basis='campaign', ahead=list(range(73)), exists=[], curves=[])
+ODDS_NONE = dict(basis='campaign', prior=0.3, ahead=list(range(73)), exists=[], curves=[])
 # That exhaustive search's chance as progress.js carries it (chance.lindy_shown): no CPU-hours, rate or cores, which its
 # model does not use; its chance within each quarter hour t up to 72 h, the prior times Lindy's rule on its 30 h; and its
 # history at each quarter hour from its start, the prior times Lindy's rule on its age then.
@@ -5552,6 +5554,24 @@ def q_progress_draws_a_search_s_odds():
         # Spec change (Claude, 2026-11-05): Astra's work model (installed 2026-11-04 23:00, committed in 6000eaa) added a
         # third basis note, work, hidden for both of these runs.
         assert g['bases'] == {b: name != b for b in ('lindy', 'campaign', 'work')}, (name, g['bases'])
+
+
+def q_progress_work_note_states_the_run_s_prior():
+    # Replicata: index.html with two runs as progress.js, each a modeled search on the work basis (LINDY_CHANCE's chance
+    # and ODDS_LINDY's points, as a work model's), their priors P(exists) 0.5 and 0.01; both folds opened.
+    # Expectata (dreeves, 2026-11-06, of 288:10's prior 0.01, which the work note stated as typed: "that sounds dumb.
+    # let's start with an ignorant prior (50%) and let it fall naturally as the search progresses"; the coordinator: the
+    # number filled from the data, the run's actual prior, so that it can't go stale): each run's work note shown, its
+    # initial probability its own prior as the page writes numbers, 0.5 and 0.01; the other two notes hidden.
+    # Resultata before: the note's 0.01 was typed into it, the same for every run.
+    work = lambda prior: dict(PROGRESS_CHANCE, n=288, order=10, chance=LINDY_CHANCE, odds=dict(ODDS_LINDY, basis='work', prior=prior))
+    got = progress_harness({'made': PROGRESS_DATA['made'], 'runs': [work(0.5), dict(work(0.01), n=304, order=9)]}, """
+  for (const r of runs()) r.querySelector('details').open = true;
+  await sleep(50);
+  out(runs().map(r => { const note = r.querySelector('[data-odds-basis="work"]'), field = note.querySelector('[data-odds-prior]');
+    return {shown: note.checkVisibility(), prior: field && field.textContent,
+            others: [...r.querySelectorAll('[data-odds-basis]:not([data-odds-basis="work"])')].map(e => e.checkVisibility())}; }));""")
+    assert got == [dict(shown=True, prior='0.5', others=[False, False]), dict(shown=True, prior='0.01', others=[False, False])], got
 
 
 def q_progress_draws_the_chance_after_the_odds():

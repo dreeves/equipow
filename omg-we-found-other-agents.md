@@ -2902,3 +2902,18 @@ Per the coordinator, after `scratch/calibration-20261106/NOTES.md` (too few inde
 ### 2026-11-06 18:04 PST — Claude: correction to the 17:58 entry
 
 The 17:58 entry says the page has a new line under the bar's caption. It doesn't: at 17:52, before that entry, dreeves rewrote the caption to "N nodes checked / ~lo–hi" and commented out the caption's percent, its median and that line; he committed it all in f6d809b. So the page no longer states the interval's level. His edit stands; the bar's quals now ask only for the fields his caption shows (quals_progress_bar.cjs and .py, quals_index q_progress_draws_work_to_scale; all green). bar() still fills the percent and median fields if they come back.
+
+### 2026-11-06 19:47 PST — Claude: 288:10's prior 0.01 → 0.5, history converted; restarting the watcher once
+
+dreeves, of the prior P(exists) = 0.01: "that sounds dumb. let's start with an ignorant prior (50%) and let it fall naturally as the search progresses."
+- **The prior:** `progress.EXHAUSTIVE = {(288, 10): 0.5}`, still its one place. `chance.odds` now carries it (`odds.prior`) for every basis, and the page's work note states it from there in place of the typed 0.01.
+- **The stored history, converted exactly:** the likelihood of no find given existence doesn't depend on the prior. `scratch/pareto-progress-20261106/prior/migrate.py apply` (backup in `prior/backup/`) rewrites the cache entry `work_288_10_1793830585`:
+  - each P(exists) P goes to `chance.reprior(P, 0.01, 0.5)`;
+  - each unconditional chance of a find is multiplied by the ratio of the two posteriors;
+  - the conditional curves stay as they are.
+  The Lindy era becomes flat at 0.5, and the work era runs 0.489 → 0.383.
+- **Not converted:** the ETA records stay as recorded. The prior also enters `chance.work`'s completion law, so from the restart on, 288:10's to-go and the bar's total move:
+  - to-go median 13.8 d (6.6–28.4) → 11.2 d (3.2–25.7);
+  - total 932M–1.95B → 690M–1.81B, at today's state.
+  So the ETA chart will show a step at the restart.
+- **Restart:** watcher 40794 now, then `scratch/watcher-20261030/launch.py`, once. Driver 52302 and its workers, and `runs/models/288_10.json`, are not touched. That file's frozen `assumptions.witness` text still says "Prior existence 0.01".

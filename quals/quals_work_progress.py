@@ -11,6 +11,7 @@ from unittest.mock import patch
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 import progress
 import formtree_work
+import chance
 
 
 class Integration(unittest.TestCase):
@@ -86,6 +87,26 @@ class Integration(unittest.TestCase):
         (self.root/'source').write_text('frozen');s=self.survey(5320.)
         self.assertNotIn('5260.0',s['etas'])
         self.assertIn('5200.0',s['etas']);self.assertIn('5320.0',s['etas'])
+
+    def test_the_published_p_exists_history_starts_at_one_half_and_falls(self):
+        # Replicata: the live target surveyed with progress.EXHAUSTIVE as configured (no patch), on a fresh copy of the
+        # cache, its history before the work model Lindy's from the run's start; and the same evidence under the prior
+        # 0.01 (survey's patch, the configured prior until 2026-11-06).
+        # Expectata (dreeves, 2026-11-06, of 288:10's prior 0.01: "that sounds dumb. let's start with an ignorant prior
+        # (50%) and let it fall naturally as the search progresses"): 288:10's prior 0.5, which the odds carry; their
+        # P(exists) history starting at 0.5 and never rising, its current value below 0.5: the posterior of 0.5 given
+        # the work checked, the Bayes formula on the likelihood the posterior under 0.01 gives (chance.reprior).
+        # Resultata before: the prior 0.01, the history starting there, and no prior in the odds.
+        cache=copy.deepcopy(self.cache)
+        with (patch.object(progress,'HERE',str(self.root)),patch.object(progress,'CAMPAIGNS',{}),
+              patch.object(formtree_work,'read',return_value=copy.deepcopy(self.work))):
+            s=[s for _,thunk in progress.journal_surveys(self.procs,5200.,cache,{},{}) for s in thunk()][0]
+        old=self.survey()['odds']['exists'][-1][1]
+        o=s['odds']
+        self.assertEqual((progress.EXHAUSTIVE[(288,10)],o['prior'],o['exists'][0][1]),(.5,.5,.5))
+        self.assertTrue(all(b[1]<=a[1] for a,b in zip(o['exists'],o['exists'][1:])),o['exists'])
+        self.assertLess(o['exists'][-1][1],.5)
+        self.assertAlmostEqual(o['exists'][-1][1],chance.reprior(old,.01,.5),delta=1e-12)
 
 
 if __name__=='__main__':unittest.main()

@@ -644,15 +644,20 @@
   // at least, on the third graph's time axis (span; the odds come with a chance, progress.py giving the two
   // together); second, each curve of P(found by t | exists) from its own start, on one axis of hours from the earliest
   // curve's start, percent 0 to 100, a dashed line at the latest's start, the latest bold (class now) and the earlier
-  // ones (class old) fainter the older they are; and the note of its own basis, the others hidden. Before a rate is
+  // ones (class old) fainter the older they are; and the note of its own basis, the others hidden, the prior filled
+  // into the work note (2026-11-06). Before a rate is
   // measured, no point or curve (see chance.py's odds), so each graph's axes alone. Hidden for a run with no odds.
   function oddsChart(fig, run) {
     fig.hidden = !run.odds;
     if (fig.hidden) return;
     assert(run.chance, 'odds without a chance');
-    const {exists, curves, ahead, basis} = run.odds, since = run.chance.since;
+    const {exists, curves, ahead, basis, prior} = run.odds, since = run.chance.since;
     const W = 640, L = 48, R = 72, T = 14, B = 30, q = sel => fig.querySelector(sel);
     for (const e of fig.querySelectorAll('[data-odds-basis]')) e.hidden = e.dataset.oddsBasis !== basis;
+    // the prior P(exists) its first graph starts from, which the work note states (dreeves, 2026-11-06: "let's start
+    // with an ignorant prior (50%) and let it fall naturally as the search progresses"; 0.01 typed into it until then)
+    assert(typeof prior === 'number' && 0 <= prior && prior <= 1, 'odds without a prior', prior);
+    fill(fig, 'odds-prior', num(prior));
     const percents = top => { const step = tickStep(top); return Array.from({length: Math.ceil(top / step - 1e-9) + 1}, (_, i) => i * step); };
     const frame = (name, H, X, Y, pticks, tticks, tlabels) => {   // the grid, axes and ticks of one of the two graphs
       q(`[data-${name}-grid]`).replaceChildren(

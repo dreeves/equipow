@@ -549,6 +549,9 @@ def q_shown_carries_the_odds():
     # chance.exists as the campaign stood then; curves, [t, P(found within each hour of AHEAD | exists)], one at every
     # fourth of the history's points back from its last, within chance.BACK hours of it, and one at now, each starting
     # at 0 and never falling, now's the last.  Running, now's curve rises; stopped, nothing runs, so now's is 0 throughout.
+    # Spec change (Claude, 2026-11-06; dreeves: "that sounds dumb. let's start with an ignorant prior (50%) and let it
+    # fall naturally as the search progresses", of 288:10's prior 0.01, which the page's work note stated as typed):
+    # the odds carry their prior P(exists) (prior), the campaign's, so that the page states the prior from its data.
     # Resultata before: no odds.
     seeds = lambda last: [x for k in range(2, last) for x in life(1400.0 + 300.0 * (k - 2), 1400.0 + 300.0 * (k - 1), 'plain', k, 300.0)]
     running = [dict(time=1000.0, event='start')] + life(1100.0, 1400.0, 'probe', 1, 900.0) + seeds(64)
@@ -561,6 +564,7 @@ def q_shown_carries_the_odds():
             o = got['odds']
             assert set(got) == SHOWN, sorted(got)
             assert o['basis'] == 'campaign' and o['ahead'] == list(chance.AHEAD), o.keys()
+            assert o['prior'] == PRIOR['p_exists'], o.get('prior')
             times = [t for t, _, _ in got['history']]
             assert [t for t, _ in o['exists']] == times + [20000.0] * (times[-1] != 20000.0), ([t for t, _ in o['exists']][-3:], times[-3:])
             assert all(b[1] <= a[1] for a, b in zip(o['exists'], o['exists'][1:])), o['exists']
@@ -587,6 +591,8 @@ def q_lindy_shown_is_shown_s_form():
     # now's last.
     # Spec change (the same request): until then chance.lindy gave an exhaustive search's odds alone, exists the prior
     # at its start and at now and curves at each whole hour back from now, and it had no chance, so no third graph.
+    # Spec change (Claude, 2026-11-06; dreeves: "let's start with an ignorant prior (50%) and let it fall naturally as
+    # the search progresses"): the odds carry their prior (prior), here 0.01, from which the page states it.
     # Resultata before: no chance.lindy_shown (AttributeError).
     t0, now = 1000.0, 1000.0 + 30 * 3600 + 100
     got = chance.lindy_shown(0.01, t0, now)
@@ -600,6 +606,7 @@ def q_lindy_shown_is_shown_s_form():
     assert close(got['history'], [[t, at(t, 6), at(t, 24)] for t in times]), got['history'][:2]
     o = got['odds']
     assert o['basis'] == 'lindy' and o['ahead'] == list(chance.AHEAD) and o['exists'] == [[t, 0.01] for t in times], o['exists'][:2]
+    assert o['prior'] == 0.01, o.get('prior')
     want = [t for t in times[::-1][::4] if t >= now - 3600 * chance.BACK][::-1]
     assert [t for t, _ in o['curves']] == want and want[-1] == now, ([t for t, _ in o['curves']][-3:], want[-3:])
     assert all(close(c, chance.lindy_found((t - t0) / 3600, chance.AHEAD)) for t, c in o['curves']), o['curves'][:1]
@@ -614,6 +621,8 @@ def q_odds_wait_for_a_measured_rate():
     # measured points alone, as its history is: in the first, no history and odds whose exists and curves are empty, so
     # that each graph shows its axes alone; in the second, the history plan1's two points while it ran (1000 and
     # 1900), exists at those and the curve at 1900 alone, with nothing at now, where the live plan has no rate yet.
+    # Spec change (Claude, 2026-11-06; dreeves: "let's start with an ignorant prior (50%) and let it fall naturally as
+    # the search progresses"): the odds carry their prior (prior), the campaign's, measured or not.
     # Resultata before: IndexError (chance.odds read the last of no points); and in the second, exists and curves ended
     # with now's unmeasured chance, None and [].
     first = campaign(journal=[r for r in JOURNAL if not (r['event'] == 'seed_end' and r['k'] == 1)], probes={})
@@ -625,7 +634,7 @@ def q_odds_wait_for_a_measured_rate():
     try:
         got = chance.shown(first, 'camp', '528:12', 5200.0)
         assert set(got) == SHOWN and got['history'] == [], (sorted(got), got['history'])
-        assert got['odds'] == dict(basis='campaign', ahead=list(chance.AHEAD), exists=[], curves=[]), got['odds']
+        assert got['odds'] == dict(basis='campaign', prior=PRIOR['p_exists'], ahead=list(chance.AHEAD), exists=[], curves=[]), got['odds']
         got = chance.shown(second, 'camp', '528:12', 5200.0)
         assert set(got) == SHOWN and [t for t, _, _ in got['history']] == [1000.0, 1900.0], got['history']
         assert [t for t, _ in got['odds']['exists']] == [1000.0, 1900.0], got['odds']['exists']
@@ -894,6 +903,35 @@ def q_work_total_quantiles_match_brute_force():
         one = chance.work(p, d['total'], d['done'], [10] * 6, d['weight'])
         assert close(one['total'], {k: d['done'] + 10 * v / 3600 for k, v in one['to_go'].items()}), (p, one)
     assert close(chance.work(0.2, [100], 20, [10], [1])['total'], dict(median=100, lo=68, hi=100)), chance.work(0.2, [100], 20, [10], [1])
+
+
+def q_reprior_gives_the_posterior_under_another_prior_exactly():
+    # Replicata (dreeves, 2026-11-06, of 288:10's prior P(exists) 0.01: "that sounds dumb. let's start with an ignorant
+    # prior (50%) and let it fall naturally as the search progresses"; the coordinator: recompute its stored history
+    # exactly, as the likelihood of nothing found yet given existence does not depend on the prior): chance.work on
+    # WORK_DRAWS and on 4096 seeded draws at 288:10's scale (totals lognormal about 1.3e9 nodes, 4.8e8 done), each at
+    # priors 0.01 and 0.5; chance.exists of PRIOR's mean and sd after exposures 0, 0.3 and 30, at both priors; and the
+    # posterior of the Lindy era, which measured nothing, equal to its prior.
+    # Expectata: chance.reprior(P, 0.01, 0.5) of each posterior P made under 0.01 is the one made under 0.5, to 1e-12
+    # relative; each chance of a find within an hour of HOURS (p) made under 0.01, times the ratio of the two posteriors,
+    # is the one made under 0.5, to 1e-15; the chances given existence (found) are the same under both; a posterior
+    # equal to its prior goes to the new prior: reprior(0.01, 0.01, 0.5) is 0.5; and inputs out of range fail loudly.
+    # Resultata before: no chance.reprior (AttributeError).
+    rng = np.random.default_rng(20261106)
+    big = dict(total=np.exp(rng.normal(np.log(1.3e9), 0.5, 4096)), done=4.8e8, rate=np.exp(rng.normal(np.log(5e6), 0.35, 4096)),
+               weight=rng.dirichlet(np.ones(4096)))
+    for d in (WORK_DRAWS, big):
+        old, new = (chance.work(p, d['total'], d['done'], d['rate'], d['weight']) for p in (0.01, 0.5))
+        P = chance.reprior(old['exists'], 0.01, 0.5)
+        assert close(P, new['exists']) and 0 < old['exists'] < 0.01 < P < 0.5, (old['exists'], P, new['exists'])
+        assert close([x * P / old['exists'] for x in old['p']], new['p'], 1e-15) and old['found'] == new['found'], max(
+            abs(x * P / old['exists'] - y) for x, y in zip(old['p'], new['p']))
+    for spent in (0.0, 0.3, 30.0):
+        old, new = (chance.exists(p, PRIOR['mean'], PRIOR['sd'], spent) for p in (0.01, 0.5))
+        assert close(chance.reprior(old, 0.01, 0.5), new), (spent, chance.reprior(old, 0.01, 0.5), new)
+    assert chance.reprior(0.01, 0.01, 0.5) == 0.5, chance.reprior(0.01, 0.01, 0.5)
+    for args in ((0.5, 0.0, 0.5), (0.5, 1.0, 0.5), (1.0, 0.01, 0.5), (-0.1, 0.01, 0.5), (0.5, 0.01, 1.5)):
+        expect_assertion(chance.reprior, *args)
 
 
 # A fresh Python, given the directory of a copy of chance.py, the repository's root and WORK_DRAWS, prints as JSON what

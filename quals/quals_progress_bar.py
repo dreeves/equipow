@@ -43,6 +43,8 @@ CASES = [work_eta(9.5e8, dict(median=9.9e8, lo=9.6e8, hi=1.05e9)),
          dict(work_eta(4e8, None), root_log_sd_posterior=None, effective_samples=None, forecast_samples=0),
          work_eta(1234, dict(median=5000, lo=2000, hi=9000), 0.8),
          work_eta(5e10, dict(median=2e11, lo=6e10, hi=9.9e11)),
+         # the live caption's shape at 19:52 on 2026-11-06, whose range split across two lines at 390 px
+         dict(work_eta(478948790, dict(median=1.2e9, lo=6.93e8, hi=1.82e9)), rate=928.7),
          None,
          LIVE]
 
@@ -89,6 +91,7 @@ HARNESS = r"""<script>
                  captionSpent: getComputedStyle(q('.progress-bar-caption .spent')).color,
                  captionTotal: getComputedStyle(q('.progress-bar-caption .total')).color},
         beforeChart: !!(q('.progress-work').compareDocumentPosition(fig) & Node.DOCUMENT_POSITION_FOLLOWING),
+        rangeLines: q('[data-bar-range]').getClientRects().length,
         documentWidth: document.documentElement.scrollWidth, viewport: innerWidth});
     }
     section.querySelector('.progress-run').scrollIntoView();
@@ -184,6 +187,9 @@ class ProgressBar(unittest.TestCase):
                     self.assertLess(c['median']['y'], c['bar']['y'])
                     self.assertGreater(c['median']['bottom'], c['bar']['bottom'])
                     self.assertEqual(c['fields']['bar-range'], c['want']['range'])
+                    # the purple range, lo–hi, one piece, never split across lines (2026-11-06: at 390 px it
+                    # wrapped as "~693M–" and "1.8B")
+                    self.assertEqual(c['rangeLines'], 1)
                 self.assertEqual(c['fields']['bar-done'], c['want']['done'])
                 rects = [k['rect'] for k in c['ticks']]
                 self.assertAlmostEqual(rects[0]['x'], x0, delta=1)
