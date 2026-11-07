@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
-"""The chance that a witness campaign finds a witness within the next t hours (README [SER], 2026-11-03: "Could the
-searches show a live estimate of the probability of finding a bipartition?"; dreeves: "sure, build [SER]"): the
-search-allocation bandit's model (scratch/bandit-20261103/bandit.py, as scratch/bandit-20261103b/rerun.py's
-exists_posterior and witness_index_p use it), fed by a campaign's own files.  progress.py puts it in its data file for
-each target of a campaign it names (its CAMPAIGNS), live or not, and the section "Search progress" draws it.  Quals:
-python3 -B quals/quals_chance.py
+"""The chance that a bipartition exists, given none found so far (README [SER], 2026-11-03: "Could the searches show a
+live estimate of the probability of finding a bipartition?"; dreeves: "sure, build [SER]"; since 2026-11-06 that alone,
+dreeves: "everything here seems useless, kill it unless you have a good argument for salvaging anything. the up-to-date
+probability that a bipartition exists is great."): of a witness campaign's target, the search-allocation bandit's model
+(scratch/bandit-20261103/bandit.py, as scratch/bandit-20261103b/rerun.py's exists_posterior uses it), fed by the
+campaign's own files; of a target an exhaustive search covers, its work model's (work, as formtree_eta.py uses it, with
+the time and the work to exhaust the search's tree).  progress.py puts it in its data file for each target of a
+campaign it names (its CAMPAIGNS), live or not, and for each target an exhaustive search covers (its EXHAUSTIVE), and the
+section "Search progress" draws it.  Quals: python3 -B quals/quals_chance.py
 
 Vocabulary, each term defined once here:
   campaign    a witness search run by scratch/beam-campaign-20261103/campaign.py, whose docstring defines its plan, cell,
@@ -26,48 +29,34 @@ Vocabulary, each term defined once here:
   rate (r)    of a plan at a target, its exposure per CPU-hour of search: its finished probe seeds' rounds' summed X
               (exposure) over their summed cpu (probe_seed.py's PREFIX.jsonl), the coordinator's "ΣX over Σcpu"; none
               before a probe seed of the target has finished in the plan.  Plans' pins differ, and with them their rates.
-  cpu_hours (H)  the search CPU-hours of the target's ended seeds in all of its campaign's plans: the campaign has found
-              no witness in them (README [CON], 2026-11-03: "conditional on not having found anything so far").
-  spent       the exposure of those hours: each plan's own rate times its CPU-hours at the target, summed over the plans.
-  life        of an ended seed: the seconds from its seed_start record to its seed_end record.
-  running     of a plan at a target: its seeds there with a seed_start record and no seed_end record yet; none at an
-              end record of the plan's journal (the campaign's driver ends its seeds before it stops).
-  cores (c)   the target's search CPU-hours per wall-hour ahead: the live plan's seeds running there times the search
-              CPU per second of life of the target's seeds, in any of the campaign's plans, that ended in the WINDOW
-              seconds up to the latest of their ends (their search CPU summed over their lives summed); none before the
-              live plan's first probe seed has finished, when no chance is computed.  Counted from the latest start
-              instead, it began near 0 with each plan or relaunch, before its first seeds ended (README [CON],
-              2026-11-03); counted as the search CPU of the seeds that ended in the last WINDOW seconds per second of
-              it, it was 0 in the last 45 minutes of each of plan 11's 107-minute batches, whose seeds start and end
-              together, and 1.8 times too high in the rest (2026-11-04).
+  spent       the exposure of the target's search: each plan's own rate times the search CPU-hours of the target's ended
+              seeds in it, summed over the campaign's plans: the campaign has found no witness in them (README [CON],
+              2026-11-03: "conditional on not having found anything so far").
   prior       of a target, in its campaign's PRIORS: with probability 1 - p_exists no (-1)^m-symmetric sequence exists
               at the cell and theta = 0; otherwise log2 theta is normal with mean and sd.
-  chance      of a target within t hours: P(a witness within the next t hours | none in H CPU-hours) under the
-              bandit's model, witnesses a Poisson process at theta r per CPU-hour, r the live plan's: E[1 - exp(-theta r
-              c t)] over the posterior, the prior weighted by exp(-theta spent), which also updates P(exists) (within).
+  exists      of a target: P(a witness exists | none in the exposure spent) under the bandit's model, the prior weighted
+              by exp(-theta spent) (exists).  Until 2026-11-06 also the chance of a witness within the next t hours,
+              witnesses a Poisson process at theta r per CPU-hour at the CPU-hours per wall-hour of the seeds running
+              (cores), of which this was the first factor.
   as of t     of a campaign, as it stood just before time t: its plans begun by then, each with its records from before
               then; a quantity as of t is computed from those alone, with t as now.
   since       of a target, the first start of a plan of its campaign holding it: its history's origin.
-  history     of a target, its chance within 6 h and within 24 h as of each time, every QUARTER seconds from its
-              since, and as of now, at the times it was live with a rate (so it ends where its search stopped)
-              (README [CON], 2026-11-03; dreeves: "the curve should fall in light of the conditional probability but it
-              should remain historically accurate"): each point from the records before its time alone, so later
-              records never change it.
+  history     of a target, its P(exists) as of each time, every QUARTER seconds from its since, and as of now, at the
+              times it was live with a rate in its live plan (so it ends where its search stopped) (README [CON],
+              2026-11-03; dreeves: "the curve should fall in light of the conditional probability but it should remain
+              historically accurate"): each point from the records before its time alone, so later records never
+              change it.
   exhaustive  of a search: one that covers every case, so that it finds a witness exactly when one exists (288:10's
-              form trees, searches/formtree); with no estimate of its own its remaining time follows Lindy's rule, which
-              gives its odds and chance (lindy_shown): P(exists) its prior throughout, as nothing measures the fraction
-              covered, and no CPU-hours, rate or cores, which that model does not use.
-  odds        of a modeled search, what its first two graphs draw (dreeves, 2026-11-04: "1. probability a partition
-              exists ... 2. probability of finding a partition by time t *conditional on a partition existing* and also
-              conditional on not having found one so far"): its basis (campaign, lindy or work), its prior P(exists)
-              (prior: the campaign's p_exists, or an exhaustive search's; since 2026-11-06, so that the page states the
-              prior in use, dreeves: "let's start with an ignorant prior (50%) and let it fall naturally as the search
-              progresses", of 288:10's 0.01, which the page had stated as typed), ahead (AHEAD), exists, [t,
-              P(exists)] at its history's times and at now, and curves, [t, P(a witness within each hour of AHEAD |
-              one exists)] at every fourth of those times back from the last, within BACK hours of it, and at now; now's
-              only once a rate is measured there and when the last point is not now's (its search stopped).  Its third
-              graph is the history, P(exists) times P(found within 24 h | exists) as of each time (dreeves, 2026-11-04:
-              "can we get that 3rd chart as well, consistently, after the P(exists) and P(find|exists) charts?").
+              form trees, searches/formtree), whose P(exists) is its work model's (work).
+  odds        of a modeled target, what the page states and draws of it (dreeves, 2026-11-04: "1. probability a
+              partition exists, starting from whatever prior and going down as the search proceeds and doesn't find
+              one"; 2026-11-06: "after the ETA graph, explicitly state the prior probability a bipartition exists ...
+              then show the first probability graph ... then kill everything below that"): its prior P(exists) (prior:
+              the campaign's p_exists, or an exhaustive search's), its history's origin (since), and exists, [t,
+              P(exists)] at its history's times and at now, now's only once measured there and when the last point is
+              not now's (its search stopped).  Until 2026-11-06 it carried its basis (campaign, lindy or work), the
+              hours ahead and curves of the chance of a find given existence, and came with the chance of a find within
+              t hours and that chance's history, which the page drew in two more graphs.
 """
 import sys
 sys.dont_write_bytecode = True
@@ -75,16 +64,11 @@ import os, re, json, math
 from functools import lru_cache
 import numpy as np
 
-HOURS = tuple(k / 4 for k in range(4 * 72 + 1))   # the chance's t: every quarter hour from 0 to 72 (the coordinator,
-                                                  # 2026-11-03: "for t from 0 to 72")
-WINDOW = 3600.0                  # seconds: the span of the latest seeds' ends whose CPU per second of life cores takes
-SPAN, STEP = 10.0, 0.01          # within's grid of log2 theta: mean +- SPAN sd, STEP bits apart (the trapezoid rule on a
+SPAN, STEP = 10.0, 0.01          # exists's grid of log2 theta: mean +- SPAN sd, STEP bits apart (the trapezoid rule on a
                                  # smooth integrand; the prior's mass beyond 10 sd is about 1e-23)
 PRIORS = 'chance.json'           # in a campaign's directory: {targets: {N:M: {p_exists, mean, sd}}, sources: {...}}
 ARCHIVED = re.compile(r'plan([1-9][0-9]*)')     # an archived plan's directory below its campaign's: planK, K from 1
 QUARTER = 900.0                  # seconds between a history's points
-AHEAD = tuple(range(73))         # hours ahead of each of the odds' curves: every hour from 0 to 72
-BACK = 24                        # hours back from the latest curve that the odds keep curves for, one an hour
 # The section "Search progress" claims one coverage for its intervals, and each estimator draws its band at levels of
 # its own, set to give that coverage (2026-11-06; dreeves wants "80% that actually means 80%": the levels that
 # historically gave it, estimator by estimator); each is set here alone, so that a calibration changes values only.
@@ -107,7 +91,7 @@ BANDS = dict(                    # each estimator's lower and upper quantile lev
 
 
 def grid(mean, sd, spent):
-    """within's grid of theta and, at each point, the prior's weight times P(no witness in the exposure spent | theta),
+    """exists's grid of theta and, at each point, the prior's weight times P(no witness in the exposure spent | theta),
     given log2 theta ~ N(mean, sd^2)."""
     z = np.arange(mean - SPAN * sd, mean + SPAN * sd + STEP / 2, STEP)
     w = np.exp(-0.5 * ((z - mean) / sd) ** 2)
@@ -117,82 +101,23 @@ def grid(mean, sd, spent):
 
 def exists(p_exists, mean, sd, spent):
     """P(a witness exists | none in the exposure spent), the prior P(exists) p_exists and log2 theta ~ N(mean, sd^2) if
-    it exists: p_exists E[exp(-theta spent)] / (p_exists E[exp(-theta spent)] + 1 - p_exists); the odds' first factor."""
+    it exists: p_exists E[exp(-theta spent)] / (p_exists E[exp(-theta spent)] + 1 - p_exists)."""
     # TODO: error copy; says exists's inputs are out of range, quoting them
     assert 0 <= p_exists <= 1 and 0 < sd < math.inf and math.isfinite(mean) and 0 <= spent < math.inf, f'Claude: "exists({p_exists}, {mean}, {sd}, {spent}) is out of range"'
     _, kept = grid(mean, sd, spent)
     return float(p_exists * kept.sum() / (p_exists * kept.sum() + (1 - p_exists)))
 
 
-def found(mean, sd, spent, aheads):
-    """P(a witness within each exposure b of aheads | one exists and none in the exposure spent), log2 theta ~ N(mean,
-    sd^2) a priori: E[exp(-theta spent) (1 - exp(-theta b))] / E[exp(-theta spent)], as a list; the odds' second factor,
-    so that exists times found is within."""
-    # TODO: error copy; says found's inputs are out of range, quoting them
-    assert (0 < sd < math.inf and math.isfinite(mean) and 0 <= spent < math.inf
-            and all(0 <= b < math.inf for b in aheads)), f'Claude: "found({mean}, {sd}, {spent}, ...) is out of range"'
-    theta, kept = grid(mean, sd, spent)
-    # TODO: error copy; says the exposure spent leaves no weight on the grid, so the chance given existence is undefined, quoting it
-    assert kept.sum() > 0, f'Claude: "no weight left after exposure {spent}"'
-    return [float((kept @ -np.expm1(-theta * b)) / kept.sum()) for b in aheads]
-
-
-def lindy_found(tau, aheads):
-    """P(found within each s hours of aheads | a witness exists and none found yet) for an exhaustive search (one that
-    finds a witness exactly when one exists) with no estimate of its own, aged tau hours: its remaining time R by Gott's
-    rule (P(R > x) = tau / (tau + x)), the witness anywhere in the work left alike, so E[min(1, s / R)] =
-    (s / tau) log(1 + tau / s), and 0 with nothing ahead; as a list."""
-    # TODO: error copy; says lindy_found's inputs are out of range, quoting them
-    assert 0 < tau < math.inf and all(0 <= s < math.inf for s in aheads), f'Claude: "lindy_found({tau}, ...) is out of range"'
-    return [s / tau * math.log1p(tau / s) if s else 0.0 for s in aheads]
-
-
-def within(p_exists, mean, sd, spent, aheads):
-    """The chance of a witness within each exposure of aheads, given none in the exposure spent, the prior P(exists)
-    p_exists and log2 theta ~ N(mean, sd^2) if it exists: p_exists E[exp(-theta spent) (1 - exp(-theta b))] /
-    (p_exists E[exp(-theta spent)] + 1 - p_exists) for each b, E over that normal, as a list.  The bandit's
-    P(exists | data) times its p_success over its posterior given existence (rerun.witness_index_p), on a grid of its
-    own."""
-    # TODO: error copy; says within's inputs are out of range, quoting them
-    assert (0 <= p_exists <= 1 and 0 < sd < math.inf and math.isfinite(mean) and 0 <= spent < math.inf
-            and all(0 <= b < math.inf for b in aheads)), f'Claude: "within({p_exists}, {mean}, {sd}, {spent}, ...) is out of range"'
-    theta, kept = grid(mean, sd, spent)               # the prior's weight times P(no witness in spent | theta)
-    # (1 - p_exists) added as a whole: 0 exactly when p_exists is 1, where adding 1 and then subtracting p_exists would
-    # leave a rounding error as large as the rest of the sum (4e-9 of the chance, 2026-11-03)
-    return [float(p_exists * (kept @ -np.expm1(-theta * b)) / (p_exists * kept.sum() + (1 - p_exists))) for b in aheads]
-
-
-def _work_cdf(rest, absent, present, ahead):
-    """Completion CDF at ahead hours: absent masses at rest, present masses uniform on [0, rest]."""
-    order = np.argsort(rest)
-    t, a, b = rest[order], absent[order], present[order]
-    mass = np.r_[0., np.cumsum(a + b)]
-    h = np.asarray(ahead)
-    k = np.searchsorted(t, h, side='right')
-    # Sum uncompleted uniform slopes in log space: b/t can overflow for tiny t.
-    # Above the final completion, the slope is zero and the horizon is immaterial.
-    with np.errstate(divide='ignore'):
-        slope = np.r_[np.logaddexp.accumulate((np.log(b) - np.log(t))[::-1])[::-1], -np.inf]
-        return mass[k] + np.exp(np.log(np.minimum(h, t[-1])) + slope[k])
-
-
-def _work_quantiles(rest, absent, present):
-    """The points at BANDS['work'][0], 50% and BANDS['work'][1] of the law with masses absent at rest and present spread
-    evenly over [0, rest], in rest's units (completion times in hours, or remaining work), inverting its linear pieces
-    and atoms."""
-    order = np.argsort(rest)
-    t, a, b = rest[order], absent[order], present[order]
-    slope = np.cumsum((b / t)[::-1])[::-1]
-    before = (np.cumsum(a) - a) + (np.cumsum(b) - b) + t * slope
-    after = before + a
-    q = np.array([BANDS['work'][0], 0.5, BANDS['work'][1]])
-    k = np.searchsorted(after, q, side='left')
-    delta = np.divide(np.maximum(before[k] - q, 0), slope[k], out=np.zeros(3), where=slope[k] > 0)
-    return t[k] - delta
+def _quantiles(values, weight):
+    """The points at BANDS['work'][0], 50% and BANDS['work'][1] of the law with the masses weight at values: at each
+    level, the least value whose cumulative mass, the values in increasing order, reaches it."""
+    order = np.argsort(values)
+    return values[order][np.searchsorted(np.cumsum(weight[order]), [BANDS['work'][0], 0.5, BANDS['work'][1]], side='left')]
 
 
 def work(p_exists, total, done, rate, weight):
-    """A work model's current chance and completion ETA, conditional on no witness and a still-open search.
+    """A work model's forecast for a still-open search with no witness so far: P(exists), and the time and the work to
+    exhaust its tree.
 
     total, rate and weight are matching one-dimensional draws: positive total work, positive work per wall-hour,
     and nonnegative weights summing to one. Paired work/rate draws may be dependent. done is checked work in the same
@@ -202,18 +127,17 @@ def work(p_exists, total, done, rate, weight):
     The existence prior is p_exists. Work has the same structural distribution under existence and nonexistence;
     if a witness exists, its first discovery is assumed uniform in [0,total]. At work W>done, no-find survival is
     q=(W-done)/W. For normalized structural weights a, A=sum(a*q) and Z=1-p_exists+p_exists*A. The posterior existence
-    probability is p_exists*A/Z. A further x work finds it with conditional probability sum(a*min(x,W-done)/W)/A.
-    These are conditional modeling assumptions, not empirically calibrated existence probabilities.
+    probability, exists, is p_exists*A/Z. These are conditional modeling assumptions, not empirically calibrated
+    existence probabilities.
 
-    Returns measure's fields, with CPU-hours/rate/cores null because those fields denote campaign exposure units;
-    p is the unconditional find CDF on HOURS, found the existence-conditional CDF on AHEAD. Also completion, the CDF
-    on HOURS of a witness or accepted exhaustion, and to_go, its median and band (BANDS['work']) in seconds.
-    Completion mixes a mass at (W-done)/rate when absent with a uniform time on that interval when present, using
-    their joint posterior weights. At a zero existence prior, found remains the model's counterfactual conditional-on-existence curve.
-    And total (dreeves, 2026-11-06: "should that progress bar be measuring amount of work, not time? ... we can still
-    have a 90% CI for amount of work remaining, right?"): the work done when the search ends, its median and band in
-    work's units, the same law in work: the mass absent at W, present spread evenly over [done, W],
-    with completion's weights draw for draw, so that it does not depend on the rates.
+    to_go, the time to exhaust the tree (every node checked, no witness): the median and band (BANDS['work']) of
+    (W-done)/rate under the weights a, in seconds; and total (dreeves, 2026-11-06: "should that progress bar be measuring
+    amount of work, not time? ... we can still have a 90% CI for amount of work remaining, right?"), the work then, W,
+    under the same weights, in work's units, so that it does not depend on the rates.  Neither depends on p_exists:
+    each is the law of a witness's find mixed with the tree's exhaustion at P(exists) 0, since a witness of an
+    exhaustive search is found only when the search reaches it (the coordinator's analysis, which dreeves accepted on
+    2026-11-06; until then that mixture at the posterior P(exists), so that the prior moved them, with p, found and
+    completion, the chances of a find and of the search's end within each hour, beside them).
     No terminal verdict is inferred here; a caller supplies actual proof/witness status separately.
     """
     assert type(p_exists) in (int, float) and 0 <= p_exists <= 1
@@ -234,16 +158,9 @@ def work(p_exists, total, done, rate, weight):
     assert np.all(np.isfinite(rest)) and np.all(rest > 0)
     A = float(weight @ q)
     Z = 1 - p_exists + p_exists * A
-    absent, present = (1 - p_exists) * weight / Z, p_exists * weight * q / Z
-    conditional = weight * q / A
-    found = _work_cdf(rest, np.zeros(len(rest)), conditional, AHEAD)
-    p = p_exists * A / Z
-    within = p * _work_cdf(rest, np.zeros(len(rest)), conditional, HOURS)
-    lo, median, hi = _work_quantiles(rest, absent, present) * 3600
-    end = done + _work_quantiles(left, absent, present)       # the work done when the search ends: lo, median, hi
-    return dict(cpu_hours=None, rate=None, cores=None, hours=list(HOURS), exists=p, found=found.tolist(),
-                p=within.tolist(), completion=_work_cdf(rest, absent, present, HOURS).tolist(),
-                to_go=dict(median=float(median), lo=float(lo), hi=float(hi)),
+    lo, median, hi = _quantiles(rest, weight) * 3600
+    end = done + _quantiles(left, weight)       # the work done when the tree is exhausted: lo, median, hi
+    return dict(exists=p_exists * A / Z, to_go=dict(median=float(median), lo=float(lo), hi=float(hi)),
                 total=dict(median=float(end[1]), lo=float(end[0]), hi=float(end[2])))
 
 
@@ -322,12 +239,12 @@ def plans(root, campaign):
 
 
 def searched(root, campaign, home, records, target):
-    """The target's search in one of the campaign's plans, the one in home with these journal records: (starts, ends,
-    cpu, probes), its seeds' seed_start times by seed, their seed_end records, their search CPU by seed and its finished
-    probe seeds' rounds (X, cpu) by seed, each PREFIX.jsonl read below home where its journal names it below the
-    campaign's directory (an archived plan's files moved with it).  Asserted: each seed started once and ended at most
-    once, after its start, of kind plain or probe, a plain one with its CPU seconds, and each named below the
-    campaign's directory."""
+    """The target's search in one of the campaign's plans, the one in home with these journal records: (cpu, probes),
+    its seeds' search CPU by seed and its finished probe seeds' rounds (X, cpu) by seed, each PREFIX.jsonl read below
+    home where its journal names it below the campaign's directory (an archived plan's files moved with it).  (Until
+    2026-11-06 also its seeds' starts and ends, for the CPU-hours per wall-hour ahead.)  Asserted: each seed started once
+    and ended at most once, after its start, of kind plain or probe, a plain one with its CPU seconds, and each named
+    below the campaign's directory."""
     begun = [r for r in records if r['event'] == 'seed_start' and r['cell'] == target]
     starts = {r['k']: r['time'] for r in begun}
     ends = [r for r in records if r['event'] == 'seed_end' and r['cell'] == target]
@@ -340,7 +257,7 @@ def searched(root, campaign, home, records, target):
     probes = {e['k']: rounds(os.path.join(root, home, os.path.relpath(e['prefix'], campaign) + '.jsonl'))
               for e in ends if e['kind'] == 'probe' and not e['cancelled']}
     cpu = {e['k']: e['cpu'] for e in ends if e['kind'] == 'plain'} | {k: c for k, (_, c) in probes.items()}   # search CPU
-    return starts, ends, cpu, probes
+    return cpu, probes
 
 
 def rate_of(probes):
@@ -349,29 +266,16 @@ def rate_of(probes):
 
 
 def measure(root, campaign, plans, prior, target):
-    """The chance of the target, whose prior is this, from its campaign's plans (as plans gives them, the live one last,
-    or as they stood at a time, as_of): {cpu_hours, rate, cores, hours, p, exists, found}: H (every plan's), the live
-    plan's r, c (see the vocabulary), HOURS, and the chance within each (within, at exposure spent and ahead r c t);
-    P(exists) (exists, at spent) and the chance within each hour of AHEAD given existence (found, ahead r c t); with no
-    rate yet in the live plan, rate, cores and exists None and p and found empty.  Asserted: every archived plan that
-    searched the target has its rate there."""
+    """P(exists) of the target, whose prior is this, from its campaign's plans (as plans gives them, the live one last,
+    or as they stood at a time, as_of): exists at the exposure spent (see the vocabulary); None until a probe seed of
+    the target has finished in the live plan, its rate measured there (as before 2026-11-06, when that rate also set
+    the chance of a find ahead).  Asserted: every archived plan that searched the target has its rate there."""
     each = [searched(root, campaign, home, records, target) for home, _, records in plans]
-    *earlier, (starts, ends, _, probes) = each
-    unmeasured = [home for (home, _, _), (_, _, c, p) in zip(plans, earlier) if c and not p]
+    unmeasured = [home for (home, _, _), (c, p) in zip(plans, each[:-1]) if c and not p]
     # TODO: error copy; says these archived plans searched the target with no finished probe seed, so the exposure of their hours there is unknown, naming them
     assert not unmeasured, f'Claude: "{unmeasured} searched {target} without a finished probe seed: the exposure of those hours is unknown"'
-    measured = dict(cpu_hours=sum(sum(c.values()) for _, _, c, _ in each) / 3600, hours=list(HOURS))
-    if not probes: return dict(measured, rate=None, cores=None, p=[], exists=None, found=[])   # no probe seed has finished: no rate measured yet
-    rate = rate_of(probes)
-    spent = sum(rate_of(p) * (sum(c.values()) / 3600) for _, _, c, p in each if p)
-    lives = [(e['time'], e['time'] - s[e['k']], c[e['k']]) for s, seeds, c, _ in each for e in seeds if e['k'] in c]
-    last = max(t for t, _, _ in lives)                            # a finished probe seed's end among them
-    recent = [(life, cpu) for t, life, cpu in lives if t > last - WINDOW]
-    cores = len(set(starts) - {e['k'] for e in ends}) * sum(cpu for _, cpu in recent) / sum(life for life, _ in recent)
-    return dict(measured, rate=rate, cores=cores, p=within(prior['p_exists'], prior['mean'], prior['sd'], spent,
-                                                         [rate * cores * t for t in HOURS]),
-                exists=exists(prior['p_exists'], prior['mean'], prior['sd'], spent),
-                found=found(prior['mean'], prior['sd'], spent, [rate * cores * t for t in AHEAD]))
+    spent = sum(rate_of(p) * (sum(c.values()) / 3600) for c, p in each if p)
+    return exists(prior['p_exists'], prior['mean'], prior['sd'], spent) if each[-1][1] else None
 
 
 def as_of(plans, t):
@@ -390,39 +294,24 @@ def quarters(since, now):
 
 
 def stood(root, campaign, target, now):
-    """The target's chance (measure) as of each of its history's times (see the vocabulary) at time now: [(t, chance),
+    """The target's P(exists) (measure) as of each of its history's times (see the vocabulary) at time now: [(t, P),
     ...] in time order."""
     ps = plans(root, campaign)
     prior, first = prior_of(root, campaign, target), began(ps, target)
     then = [(t, as_of(ps, t)) for t in quarters(first, now)]
     chances = [(t, measure(root, campaign, p, prior, target)) for t, p in then if target in live(p[-1][1], p[-1][2])]
-    return [(t, c) for t, c in chances if c['p']]
+    return [(t, P) for t, P in chances if P is not None]
 
 
-def rows(points):
-    """A history's rows (see the vocabulary), [[t, p6, p24], ...], from stood points."""
-    return [[t, c['p'][HOURS.index(6)], c['p'][HOURS.index(24)]] for t, c in points]
-
-
-def history(root, campaign, target, now):
-    """The target's history (see the vocabulary) at time now, from the campaign in the directory campaign (as of):
-    [[t, p6, p24], ...] in time order."""
-    return rows(stood(root, campaign, target, now))
-
-
-def odds(points, now, c, basis, prior):
-    """The odds (see the vocabulary) on this basis, under this prior P(exists), from a history's points (stood's form)
-    and the chance c as of now: exists at the points' times and at now, curves at every fourth point back from the last,
-    within BACK hours of it, and at now; now's only once a rate is measured there (c's exists not None; until then, with
-    no points either, neither) and when the last point is not now's.  (Until 2026-11-04 now's always, unmeasured or not,
-    and none at all with no points: an IndexError.)"""
+def odds(since, points, now, current, prior):
+    """The odds (see the vocabulary) under this prior P(exists), its history's origin since, from a history's points
+    [(t, P(exists)), ...] (stood's form) and current, P(exists) as of now (None before it is measured there): exists
+    at the points' times and at now, now's only once measured and when the last point is not now's.  (Until 2026-11-04
+    now's always, unmeasured or not, and none at all with no points: an IndexError.)"""
     # TODO: error copy; says the odds' prior is not a probability, quoting it
     assert type(prior) in (int, float) and 0 <= prior <= 1, f'Claude: "the prior {prior!r} is no probability"'
-    picked = [(t, x) for t, x in points[::-1][::4] if t >= points[-1][0] - 3600 * BACK][::-1]
-    # now's chance, unless unmeasured or already the last point (the target still live)
-    tail = [] if c['exists'] is None or [t for t, _ in points[-1:]] == [now] else [(now, c)]
-    return dict(basis=basis, prior=prior, ahead=list(AHEAD), exists=[[t, x['exists']] for t, x in points + tail],
-                curves=[[t, x['found']] for t, x in picked + tail])
+    tail = [] if current is None or [t for t, _ in points[-1:]] == [now] else [(now, current)]
+    return dict(prior=prior, since=since, exists=[[t, p] for t, p in points + tail])
 
 
 def reprior(p, old, new):
@@ -438,35 +327,23 @@ def reprior(p, old, new):
     return new * L / (new * L + (1 - new))
 
 
-def lindy_shown(p_exists, t0, now):
-    """What the page shows (shown's form) of an exhaustive search (see the vocabulary) begun at t0, with prior
-    P(exists) p_exists and no estimate of its own, at time now: as of each of its history's times from t0, its chance
-    in measure's form, P(exists) its prior and the chance within each of AHEAD hours given existence lindy_found on its
-    age then, within each of HOURS their product, and no CPU-hours, rate or cores; with since t0, its history (rows) and
-    its odds (odds) from those points, now's the last."""
-    def at(t):                                         # its chance as of t, in measure's form
-        tau = (t - t0) / 3600
-        return dict(cpu_hours=None, rate=None, cores=None, hours=list(HOURS), exists=p_exists, found=lindy_found(tau, AHEAD),
-                    p=[p_exists * x for x in lindy_found(tau, HOURS)])
-    points = [(t, at(t)) for t in quarters(t0, now)]
-    return dict(points[-1][1], since=t0, history=rows(points), odds=odds(points, now, points[-1][1], 'lindy', p_exists))
-
-
 def shown(root, campaign, target, now):
-    """What the page shows of the target at time now: its chance (of) with its since, its history (history) and its
-    odds (odds) added, live or not: once its search stops, its history kept up to the stop, as the ETA chart keeps its
-    records (dreeves, 2026-11-04: "shouldn't it stay there for posterity like the ETA graph does? is this another
-    anti-magic violation?"; until then None once the target was not live, and so no chart)."""
-    c, points = of(root, campaign, target, now), stood(root, campaign, target, now)
-    return dict(c, since=began(plans(root, campaign), target), history=rows(points),
-                odds=odds(points, now, c, 'campaign', prior_of(root, campaign, target)['p_exists']))
+    """What the page shows of the target at time now, live or not: its odds (odds), from its history (stood), its
+    P(exists) now (of) and its campaign's prior, the history's origin its since (began); once its search stops, its
+    history kept up to the stop, as the ETA chart keeps its records (dreeves, 2026-11-04: "shouldn't it stay there for
+    posterity like the ETA graph does? is this another anti-magic violation?"; until then None once the target was not
+    live, and so no chart).  (Until 2026-11-06 also its chance of a witness within each t hours and that chance's
+    history.)"""
+    return odds(began(plans(root, campaign), target), stood(root, campaign, target, now), now, of(root, campaign, target, now),
+                prior_of(root, campaign, target)['p_exists'])
 
 
 def of(root, campaign, target, now):
-    """The chance (measure) of the target N:M at time now (epoch seconds), from the campaign in the directory campaign
-    (a path from root, the repository's root, where the campaign runs) as of now, live or not: its cores count the
-    seeds running there, so once its search stops its chance within each t is 0 (2026-11-04; until then None for a
-    target not live).  Asserted: the campaign began before now, and one of its plans holds the target."""
+    """P(exists) (measure) of the target N:M at time now (epoch seconds), from the campaign in the directory campaign
+    (a path from root, the repository's root, where the campaign runs) as of now, live or not: once its search stops,
+    its P(exists) as it stood then.  (Until 2026-11-06 the chance of a witness within each t hours, 0 once its search
+    stopped, as it counted the seeds running there; until 2026-11-04 None for a target not live.)  Asserted: the
+    campaign began before now, and one of its plans holds the target."""
     ps = as_of(plans(root, campaign), now)
     # TODO: error copy; says the campaign had not begun before the time given, naming both
     assert ps, f'Claude: "{campaign} had not begun before {now}"'

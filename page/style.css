@@ -358,11 +358,6 @@ code[aria-expanded], [data-text][aria-expanded] { cursor: pointer; text-decorati
 .progress-bar-caption [data-bar-range] { white-space: nowrap; }   /* lo–hi in one piece: at 390 px it split after the en dash (2026-11-06) */
 .progress-key { display: flex; flex-wrap: wrap; gap: 0.3rem 1.2rem; margin: 0; padding: 0; list-style: none; }
 .progress-key[hidden] { display: none; }
-/* A run's sea, its dots, their key and their readout in one box since 2026-11-06 (workView hides it for a run with a
-   work model), its parts spaced as the fold's own are (.progress details > * + *), with the same outcome: the key
-   0.8rem below the dots (this rule after .progress-key's, which it overrides), the readout right below them (.progress
-   p, more specific, overrides this). */
-.progress-sea > * + * { margin-top: 0.8rem; }
 .progress-sw { display: inline-block; width: 0.7rem; height: 0.7rem; margin-right: 0.35rem; border-radius: 2px; vertical-align: -0.05rem; }
 .progress-sw[data-status="settled"] { background: var(--progress-settled); }
 .progress-sw[data-status="open"] { background: var(--progress-open); }
@@ -425,22 +420,16 @@ code[aria-expanded], [data-text][aria-expanded] { cursor: pointer; text-decorati
    up, CVD ΔE 25.7 between them (its lightness and chroma checks are for categorical hues, which these are not).  The
    ETA chart's hairlines, ticks and cross.  Its tip shows at rest (the latest moment's line), unlike the ETA chart's,
    which a status line repeats. */
-/* A witness campaign's chance chart (2026-11-03, README [SER]): the modeled chance of a find within the next t hours,
-   a single series, so drawn as the pool chart's are, in ink over its wash; the dots at the hours its line below states
-   in ink too, each ringed in the paper (the dataviz skill's 2px surface ring, so that it reads where it sits on the
-   line).  Its tip hidden at rest, as the ETA chart's, the line below stating the values it would show. */
-.progress-pool, .progress-chance { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.3rem; margin: 0.4rem 0 0; }
-.progress-pool[hidden], .progress-chance[hidden] { display: none; }
-.progress-pool svg, .progress-chance svg { display: block; width: 100%; height: auto; overflow: visible; cursor: crosshair; touch-action: pan-y; }
-.progress-pool polyline, .progress-chance polyline { fill: none; stroke: var(--ink); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
-.progress-pool .wash, .progress-chance .wash { fill: color-mix(in oklab, var(--progress-pending) 45%, var(--paper)); stroke: none; mix-blend-mode: multiply; }
-.progress-pool .axis, .progress-pool .grid, .progress-chance .axis, .progress-chance .grid { stroke: var(--progress-hair); stroke-width: 1; vector-effect: non-scaling-stroke; }
-.progress-pool .yaxis, .progress-pool .zero, .progress-chance .yaxis { stroke: var(--muted); stroke-width: 1; vector-effect: non-scaling-stroke; }
-.progress-pool .cross, .progress-chance .cross { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 2 3; vector-effect: non-scaling-stroke; }
-.progress-pool text, .progress-chance text { font-size: 11px; fill: var(--muted); stroke: none; font-variant-numeric: tabular-nums lining-nums; }
-.progress-pool-tip, .progress-chance-tip, .progress-chance-line { font-variant-numeric: tabular-nums lining-nums; }
-.progress-chance .mark { fill: var(--ink); stroke: var(--paper); stroke-width: 2; vector-effect: non-scaling-stroke; }
-.progress-chance-tip { visibility: hidden; }
+.progress-pool { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.3rem; margin: 0.4rem 0 0; }
+.progress-pool[hidden] { display: none; }
+.progress-pool svg { display: block; width: 100%; height: auto; overflow: visible; cursor: crosshair; touch-action: pan-y; }
+.progress-pool polyline { fill: none; stroke: var(--ink); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.progress-pool .wash { fill: color-mix(in oklab, var(--progress-pending) 45%, var(--paper)); stroke: none; mix-blend-mode: multiply; }
+.progress-pool .axis, .progress-pool .grid { stroke: var(--progress-hair); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.progress-pool .yaxis, .progress-pool .zero { stroke: var(--muted); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.progress-pool .cross { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 2 3; vector-effect: non-scaling-stroke; }
+.progress-pool text { font-size: 11px; fill: var(--muted); stroke: none; font-variant-numeric: tabular-nums lining-nums; }
+.progress-pool-tip { font-variant-numeric: tabular-nums lining-nums; }
 
 /* Claude's table of the smallest length known for each order (Stan Wagon's suggestion, 2026-10-17), its table drawn as
    BGPW's (table.block) but not of that class, which mstar.py reads as Table 2's and the new results'; its body filled
@@ -577,16 +566,13 @@ footer {
   font-size: 0.9375rem;
   color: var(--muted);
 }
-/* a modeled search's odds (progress-section.js's oddsChart, 2026-11-04): two graphs drawn as the chance chart is; the second's latest curve bold, its older ones thin and fainter (their opacity set per curve), a dashed line where the latest starts */
+/* every run's prior and its graph of P(exists) (progress-section.js's oddsChart, 2026-11-04; every run's since 2026-11-06, when the two graphs below it went): a single series, drawn as the pool chart's are, in ink over its wash, its last point a dot ringed in the paper; a graph with no point to draw (data-empty) grayed, its axes alone, as an element without data is (dreeves, 2026-11-06: "for anti-magic i don't want to conditionally include or exclude graphs") */
 .progress-odds { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.3rem; margin: 0.4rem 0 0; }
-.progress-odds[hidden], .progress-odds [hidden] { display: none; }
 .progress-odds svg { display: block; width: 100%; height: auto; overflow: visible; }
+.progress-odds[data-empty] svg { opacity: 0.4; }
 .progress-odds polyline { fill: none; stroke: var(--ink); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
-.progress-odds polyline.now { stroke-width: 2.5; }
-.progress-odds polyline.old { stroke-width: 1; }
 .progress-odds .wash { fill: color-mix(in oklab, var(--progress-pending) 45%, var(--paper)); stroke: none; mix-blend-mode: multiply; }
 .progress-odds .axis, .progress-odds .grid { stroke: var(--progress-hair); stroke-width: 1; vector-effect: non-scaling-stroke; }
 .progress-odds .yaxis { stroke: var(--muted); stroke-width: 1; vector-effect: non-scaling-stroke; }
-.progress-odds .nowline { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 2 3; vector-effect: non-scaling-stroke; }
 .progress-odds text { font-size: 11px; fill: var(--muted); stroke: none; font-variant-numeric: tabular-nums lining-nums; }
 .progress-odds .mark { fill: var(--ink); stroke: var(--paper); stroke-width: 2; vector-effect: non-scaling-stroke; }

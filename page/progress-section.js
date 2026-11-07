@@ -8,22 +8,22 @@
 // it shows is in the section's HTML (its templates); this script writes numbers, times and marks, durations with their
 // units, h, d or y (dreeves, 2026-10-23).
 // Per run: for a run with a work model, a bar of its work, its nodes checked and their rate and the interval of its
-// total nodes when the search ends, the median a tick (bar, 2026-11-06; a bar of hours so far and to go before, and
-// that day a time ruler); for a run with none (workView, 2026-11-06), the sea, one dot per sub-case of the data's
+// total nodes when its tree is exhausted, the median a tick (bar, 2026-11-06; a bar of hours so far and to go before,
+// and that day a time ruler); the sea, one dot per sub-case of the data's
 // groups, each group a block of cells (strips below), cells
 // of pitch px, chosen from 10 down to 2 px so that the sea is at most about 560 px tall, a dot a device px short of its
 // cell (none short below 3 device px); and progress.html's ETA chart
 // (eta_chart there: dreeves's design), from the run's recorded ETAs; and below the status line, for a run with stages
 // after its own, those stages to a recordable result (stagesView, 2026-10-31); then, for a fanout run, its pool chart
-// (poolChart, 2026-11-03); and last, for a target a witness campaign searches, its chance chart (chanceChart,
-// 2026-11-03).
+// (poolChart, 2026-11-03); and last, for every run, its prior and its graph of P(exists) (oddsChart, 2026-11-04; every
+// run's since 2026-11-06, when the two graphs below it went, the chance chart among them, chanceChart, from 2026-11-03).
 // Strips: an ordered strip layout (Bederson, Shneiderman and Wattenberg 2002) on whole cells.  The groups, in order,
 // fill strips across the cols; a strip's blocks share its height h, each as wide as its count needs at that height, a
 // cell's gap between blocks and between strips; h is the least at which the strip's blocks fit across, and a strip
 // takes the next group unless that worsens its worst block's aspect ratio.
 // window.progressView holds the loads, renders, data and, per run, its layout (rects, cols, rows, pitch;
-// place(group, dot): device px), the ETA chart's record x positions (etaXs, in its viewBox) and the pool chart's and the
-// chance chart's point x positions (poolXs and chanceXs, in their viewBoxes), for the quals.
+// place(group, dot): device px), the ETA chart's record x positions (etaXs, in its viewBox) and the pool chart's point x
+// positions (poolXs, in its viewBox), for the quals.
 (() => {
   const section = document.querySelector('section.progress');
   const details = section.querySelector('details');
@@ -32,7 +32,6 @@
   const line = section.querySelector('template.progress-line');      // a snapshot's line: the status line's running form, and the tip
   const stage = section.querySelector('template.progress-stage');    // one later stage in a run's line of stages
   const poolLine = section.querySelector('template.progress-pool-line');   // the pool chart's tip: a moment's line
-  const point = section.querySelector('template.progress-chance-point');   // the chance chart's tip: an hour's line
   const missing = section.querySelector('.progress-missing');
   const POLL = window.PROGRESS_POLL_MS || 60000;
   const KEPT = 'progress-open';                // localStorage: "1" while this browser last left the section open
@@ -152,13 +151,15 @@
     box.querySelector('[data-program]').textContent = run.program;
   }
   // A run's brief, for want: a line of its fold's summary, as heading fills it (its stale mark as staleView sets it),
-  // then its time so far; and, for a run with a work model, its bar's caption, as bar and workView fill it, or else,
-  // for a target a witness campaign searches, its chance line, as chanceChart fills it
-  function brief(run) {
+  // then its time so far; then the row workView picks, as the section draws it: a run with a work model's bar caption,
+  // as bar and workView fill it, every other run's status line, as statusLine fills it at made, the snapshot's time (the
+  // coordinator, 2026-11-06, with the chance line gone: "Make every other run brief its status line (time so far + to
+  // go)"; until then a target a witness campaign searches had its chance line there, and the others nothing)
+  function brief(run, made) {
     const box = template.content.firstElementChild.cloneNode(true), said = document.createElement('p');
     heading(box, run);
     staleView(box, run);
-    chanceChart(box.querySelector('.progress-chance'), run);
+    statusLine(box, run, made);
     bar(box, run);
     const measured = workView(box, run);
     said.append(...box.querySelector('summary h3').childNodes, ' ', ...box.querySelector('summary').querySelectorAll(':scope > span'),
@@ -174,7 +175,7 @@
     missing.hidden = true;
     answer((n, m) => {
       const here = data.runs.filter(r => BigInt(r.n) === n && r.order === m);
-      return here.length ? here.flatMap(brief) : ['—'];
+      return here.length ? here.flatMap(run => brief(run, data.made)) : ['—'];
     });
     if (data.made === made) return;
     made = data.made;
@@ -199,16 +200,12 @@
       // run's state (remember; dreeves, 2026-10-25); a run not running grayed; the summary names the state, an ended
       // run completed if it recorded an outcome, else aborted (dreeves, 2026-10-25: "can these be clearer when
       // collapsed about what's paused/completed/aborted/running?")
-      const label = labelOf(run);
       box.dataset.runState = run.state;
       remember(box.querySelector('details'), `${FOLD}${run.program} ${run.n} ${run.order}`);
       heading(box, run);
-      // the status line below the charts names the state as the summary does (dreeves, 2026-10-26: "can you change those
-      // instances of "ended" to "aborted" or "completed" as appropriate?")
-      for (const e of box.querySelectorAll('[data-state]')) e.hidden = e.dataset.state !== label;
-      for (const e of box.querySelectorAll('[data-tip], [data-state="running"]')) e.replaceChildren(line.content.cloneNode(true));
+      box.querySelector('[data-tip]').replaceChildren(line.content.cloneNode(true));   // the ETA chart's tip: a snapshot's line
       staleView(box, run);
-      snapshot(box.querySelector('.progress-status'), run.stale ?? data.made, run.so_far, run.to_go);
+      statusLine(box, run, data.made);
       for (const e of box.querySelectorAll('[data-count]')) e.textContent = run.counts[e.dataset.count].toLocaleString('en-US');
       bar(box, run);
       if (run.program === 'search288.py') search288View(box, run);
@@ -229,11 +226,22 @@
       workView(box, run);
       stagesView(box, run);
       L.poolXs = poolChart(box.querySelector('.progress-pool'), run);
-      L.chanceXs = chanceChart(box.querySelector('.progress-chance'), run);
       oddsChart(box.querySelector('.progress-odds'), run);
       return L;
     });
     runsBox.replaceChildren(...boxes);
+  }
+
+  // A run's status line (p.progress-status), below its ETA chart, and in a chart's box as its brief's row (brief): only
+  // its state's form shown, naming the state as its fold's summary does (dreeves, 2026-10-26: "can you change those
+  // instances of "ended" to "aborted" or "completed" as appropriate?"), the running form a snapshot's line
+  // (template.progress-line); its fields a snapshot's at the run's stale time or else made, the snapshot's time, its
+  // time so far and its estimate to go (render's lines until 2026-11-06, when brief came to brief it too)
+  function statusLine(box, run, made) {
+    const status = box.querySelector('.progress-status');
+    for (const e of status.querySelectorAll('[data-state]')) e.hidden = e.dataset.state !== labelOf(run);
+    status.querySelector('[data-state="running"]').replaceChildren(line.content.cloneNode(true));
+    snapshot(status, run.stale ?? made, run.so_far, run.to_go);
   }
 
   // a run whose survey failed or ran past its limit (progress.py's snapshot, 2026-10-30) shows its last good data,
@@ -246,18 +254,20 @@
   }
 
   // The measured work model's basis and units: each part of the box marked with a basis (data-work-measure) shown
-  // exactly for the run's, the work bar and the chance line's nodes for a run with a work model, the sea, a tracked
-  // search's line of its runs (dreeves, 2026-11-06, of 288:10's: "sounds like noise?") and the chance line's CPU-hours
-  // for any other; returns the row used in a popup brief: the bar's caption, its nodes checked and rate (dreeves,
-  // 2026-11-06: "1. add nodes/s to the blue/purple line"; the work paragraph until then, gone with "2. kill the whole
-  // line with number of samples"), or the chance line.
+  // exactly for the run's, the work bar for a run with a work model (and from that evening until that night the sea and
+  // a tracked search's line of its runs for any other: dreeves, 2026-11-06, of 288:10's, "sounds like noise?", then "for
+  // anti-magic i don't want to conditionally include or exclude graphs"); returns the row used in a popup brief: the
+  // bar's caption, its nodes checked and rate (dreeves, 2026-11-06: "1. add nodes/s to the blue/purple line"; the work
+  // paragraph until then, gone with "2. kill the whole line with number of samples"), or else the status line (the
+  // chance line until that night, gone with it: the coordinator, "Make every other run brief its status line (time so
+  // far + to go)").
   function workView(box, run) {
     const basis = run.work_eta ? 'work' : 'cpu';
     for (const e of box.querySelectorAll('[data-work-measure]')) e.hidden = e.dataset.workMeasure !== basis;
     // the model's numbers into their fields (its other fields, objects or null, have none: a null among them threw here
     // until 2026-11-06, as a search stopped short of its end gives them)
     for (const [key, value] of Object.entries(run.work_eta ?? {}).filter(([, v]) => typeof v === 'number')) fill(box, `work-${key}`, value.toLocaleString('en-US', {maximumFractionDigits: 1}));
-    return box.querySelectorAll({work: '[data-work-measure="work"] .progress-bar-caption', cpu: '.progress-chance:not([hidden]) .progress-chance-line'}[basis]);
+    return box.querySelectorAll({work: '[data-work-measure="work"] .progress-bar-caption', cpu: '.progress-status'}[basis]);
   }
 
   function search288View(box, run) {
@@ -283,12 +293,11 @@
   }
 
   // a tracked search's view: the attempt view of its runs' counts and its hint, but after the status line every run has
-  // (kept, then put back before the counts, which start on a line of their own: the break is their template's, so that
-  // workView hides it with them for a search with a work model, 2026-11-06)
+  // (kept, then put back before the counts)
   function trackView(box, run) {
     const status = box.querySelector('.progress-status'), line = [...status.childNodes];
     attemptView(box, run, 'progress-track', 'progress-track-hint');
-    status.prepend(...line);
+    status.prepend(...line, document.createElement('br'));
   }
 
   // A run's stages to a recordable result, under its status line (progress.py's stages; the coordinator, 2026-10-31,
@@ -316,8 +325,10 @@
   // bar be measuring amount of work, not time? the ETA graph is for time. we can still have a 90% CI for amount of work
   // remaining, right?"), from its work model (its work_eta: formtree_eta.py's, for an exhaustive search): a track of
   // nodes from 0 to the last of its round ticks (countTicks), PAST times the larger of the nodes checked and the total's
-  // upper end at least; blue up to the nodes checked (done); the total, the nodes checked when the search ends (by a
-  // witness or with every node checked), its interval (lo to hi: the work model's band, chance.py's BANDS) a purple band,
+  // upper end at least; blue up to the nodes checked (done); the total, the nodes checked when the tree is exhausted
+  // (every node checked; when the search ends, by a witness or so, until 2026-11-06, when dreeves accepted the
+  // coordinator's analysis that a witness is found only when the search reaches it), its interval (lo to hi: the work
+  // model's band, chance.py's BANDS) a purple band,
   // its median a tick; the ticks labeled below, compact (500M, 1B); and the caption's numbers, compact, with the
   // coverage the page claims for its intervals (chance.py's COVERAGE, which work_eta carries).  A search stopped
   // short of its end makes no forecast (total null): no band, tick or purple caption.  workView shows the bar with the
@@ -631,135 +642,43 @@
     return xs;
   }
 
-  // The span, in hours since the chance's since, of the time axis the first of a modeled search's graphs (oddsChart)
-  // and the third (chanceChart) share: to the latest time either has (a stopped search's P(exists) runs to now, its
-  // history only to the stop), a quarter hour at least (the history's step).
-  const span = run => Math.max(1 / 4, ...[...run.odds.exists, ...run.chance.history].map(([t]) => (t - run.chance.since) / 3600));
-
-  // A modeled search's odds (progress.py's odds; dreeves, 2026-11-04: "1. probability a partition exists, starting from
-  // whatever prior and going down as the search proceeds and doesn't find one ... 2. probability of finding a partition
-  // by time t *conditional on a partition existing* and also conditional on not having found one so far ... draw the
-  // current one bolded and the previous ones stay visible but are more and more faded"): first, P(exists) over the hours
-  // since the chance's since, a line over a wash down to 0, a dot on its last point, on round ticks of percent up to 1%
-  // at least, on the third graph's time axis (span; the odds come with a chance, progress.py giving the two
-  // together); second, each curve of P(found by t | exists) from its own start, on one axis of hours from the earliest
-  // curve's start, percent 0 to 100, a dashed line at the latest's start, the latest bold (class now) and the earlier
-  // ones (class old) fainter the older they are; and the note of its own basis, the others hidden, the prior filled
-  // into the work note (2026-11-06). Before a rate is
-  // measured, no point or curve (see chance.py's odds), so each graph's axes alone. Hidden for a run with no odds.
+  // A run's prior P(exists) and its graph of P(exists) given none found so far, every run's (dreeves, 2026-11-04: "1.
+  // probability a partition exists, starting from whatever prior and going down as the search proceeds and doesn't find
+  // one"; 2026-11-06: "for anti-magic i don't want to conditionally include or exclude graphs", "after the ETA graph,
+  // explicitly state the prior probability a bipartition exists ... then show the first probability graph, even though
+  // for 288:10 it's uninteresting. then kill everything below that", and "go with 50% as the ignorant prior when there's
+  // no model or whatever"; until then, for a run with odds alone, two more graphs, P(found by t | exists) and the
+  // chance of a find within 24 h, and a note on their basis), from its odds (progress.py's), {prior, since, exists}:
+  // the prior stated as the page writes numbers, and P(exists) at each [t, p] of exists over the hours since since, a
+  // line over a wash down to 0, a dot on its last point, on round ticks of percent up to 1% at least and of hours up to
+  // the run's time so far or its last point, a quarter hour at least.  With no point to draw (a run with no model of its
+  // search, which states the ignorant prior with no history, since null, or a modeled one before its first
+  // measurement), its axes alone, grayed (data-empty).
   function oddsChart(fig, run) {
-    fig.hidden = !run.odds;
-    if (fig.hidden) return;
-    assert(run.chance, 'odds without a chance');
-    const {exists, curves, ahead, basis, prior} = run.odds, since = run.chance.since;
-    const W = 640, L = 48, R = 72, T = 14, B = 30, q = sel => fig.querySelector(sel);
-    for (const e of fig.querySelectorAll('[data-odds-basis]')) e.hidden = e.dataset.oddsBasis !== basis;
-    // the prior P(exists) its first graph starts from, which the work note states (dreeves, 2026-11-06: "let's start
-    // with an ignorant prior (50%) and let it fall naturally as the search progresses"; 0.01 typed into it until then)
-    assert(typeof prior === 'number' && 0 <= prior && prior <= 1, 'odds without a prior', prior);
+    assert(run.odds, 'a run without odds', run.program, run.n, run.order);
+    const {prior, since, exists} = run.odds;
+    assert(typeof prior === 'number' && 0 <= prior && prior <= 1 && Array.isArray(exists) && (Number.isFinite(since) || (since === null && !exists.length))
+           && exists.every(([t, p]) => Number.isFinite(t) && 0 <= p && p <= 1), 'malformed odds', run.odds);
     fill(fig, 'odds-prior', num(prior));
-    const percents = top => { const step = tickStep(top); return Array.from({length: Math.ceil(top / step - 1e-9) + 1}, (_, i) => i * step); };
-    const frame = (name, H, X, Y, pticks, tticks, tlabels) => {   // the grid, axes and ticks of one of the two graphs
-      q(`[data-${name}-grid]`).replaceChildren(
-        ...pticks.slice(1).map(v => make('line', {class: 'grid', x1: L, y1: Y(v), x2: W - R, y2: Y(v)})),
-        make('line', {class: 'axis', x1: L, y1: Y(0), x2: W - R, y2: Y(0)}),
-        make('line', {class: 'yaxis', x1: L, y1: Y(0), x2: L, y2: T}));
-      q(`[data-${name}-ticks="p"]`).replaceChildren(...pticks.map((v, i) =>
-        make('text', {class: 'ytick', x: L - 6, y: Y(v) + 4, 'text-anchor': 'end'}, num(100 * v) + (i === pticks.length - 1 ? '%' : ''))));
-      q(`[data-${name}-ticks="t"]`).replaceChildren(...tticks.map((h, i) =>
-        make('text', {class: 'xtick', x: X(h), y: H - 8, 'text-anchor': 'middle'}, tlabels[i])));
-    };
-    {                                                 // P(exists), over the hours since the chance's since
-      const H = 160, pts = exists.map(([t, p]) => [(t - since) / 3600, p]);
-      const pticks = percents(Math.max(0.01, ...pts.map(([, p]) => p)));
-      const [tticks, tlabels] = axis(span(run), Math.ceil);
-      const X = h => L + (W - L - R) * h / tticks[tticks.length - 1], Y = v => H - B - (H - B - T) * v / pticks[pticks.length - 1];
-      frame('exists', H, X, Y, pticks, tticks, tlabels);
-      const line = pts.map(([h, p]) => [X(h), Y(p)]), ends = [line.slice(0, 1), line.slice(-1)];   // none with no point
-      set(q('[data-exists-line]'), {points: xy(line)});
-      set(q('[data-exists-wash]'), {points: xy([...ends[0].map(([x]) => [x, Y(0)]), ...line, ...ends[1].map(([x]) => [x, Y(0)])])});
-      q('[data-exists-marks]').replaceChildren(...ends[1].map(([cx, cy]) => make('circle', {class: 'mark', r: 4, cx, cy})));
-    }
-    {                                                 // P(found by t | exists), each curve from its own start
-      const H = 200, starts = curves.map(([t]) => t);
-      const [first, latest] = starts.length ? [starts[0], starts[starts.length - 1]] : [since, since];   // no curve: 0 to 72 h
-      const back = Math.max((latest - first) / 3600, 1e-9);
-      const [tticks, tlabels] = axis((latest - first) / 3600 + ahead[ahead.length - 1], Math.ceil), pticks = [0, 0.25, 0.5, 0.75, 1];
-      const X = h => L + (W - L - R) * h / tticks[tticks.length - 1], Y = v => H - B - (H - B - T) * v;
-      frame('found', H, X, Y, pticks, tticks, tlabels);
-      q('[data-found-curves]').replaceChildren(...curves.map(([start, ps], i) => make('polyline', Object.assign(
-        {class: i === curves.length - 1 ? 'now' : 'old', points: xy(ahead.map((a, j) => [X((start - first) / 3600 + a), Y(ps[j])]))},
-        i === curves.length - 1 ? {} : {opacity: 0.12 + 0.48 * (1 - (latest - start) / 3600 / back)}))));
-      q('[data-found-now]').replaceChildren(...starts.slice(-1).map(t =>   // at the latest curve's start, none with no curve
-        make('line', {class: 'nowline', x1: X((t - first) / 3600), y1: Y(0), x2: X((t - first) / 3600), y2: T})));
-    }
-  }
-
-  // A modeled search's chance chart (progress.py's chance; README [SER] and [CON], 2026-11-03), the third of its odds'
-  // graphs, in their figure (dreeves, 2026-11-04: "can we get that 3rd chart as well, consistently, after the P(exists)
-  // and P(find|exists) charts?"; until then on its own below the run's ETA chart, and from 2026-11-03 to 2026-11-04 in
-  // that chart's place): their product 24 h along, the history of the modeled chance of a find within the next 24 h, as
-  // it stood at each quarter hour since the search began, and now ("the curve should fall in light of the conditional
-  // probability but it should remain historically accurate"), a line over a wash down to 0, on round ticks of percent up
-  // to 1% at least (a chance of 0 throughout still has an axis) and of the hours since that start, the first graph's (span);
-  // a dot at its last point. The line below states the chance within 6 h and within 24 h now (its data-chance-at
-  // elements) and the CPU-hours searched so far (— where its model counts none, an exhaustive search on Lindy's rule).
-  // The tip above the chart reads out the point nearest the pointer, its time and its chance within 24 h as it stood
-  // then, the cross at it; at rest it is laid out as the last point's and hidden, as the ETA chart's tip is. A single
-  // series, so no legend, the line below naming it. Shown for a run whose data has a chance (a target a campaign
-  // searches, live or not, see progress.py: once its search stops, its history up to the stop and a chance now of 0;
-  // dreeves, 2026-11-04: "shouldn't it stay there for posterity like the ETA graph does?"; or a target an exhaustive
-  // search covers), hidden for every other; with no point yet, its axes alone and no tip; with no rate measured yet in
-  // the live plan (p empty), — for the chances now. Returns the points' x positions (in its viewBox), for the quals.
-  function chanceChart(fig, run) {
-    fig.hidden = !run.chance;
-    if (fig.hidden) return [];
-    assert(run.odds, 'a chance without odds');      // progress.py gives the two together
-    const {hours, p, cpu_hours, since, history} = run.chance;
-    const W = 640, H = 200, L = 48, R = 72, T = 14, B = 30, AHEAD = 24;      // as the charts above (AHEAD: the hours ahead)
-    const pts = history.map(([t, , p24]) => [(t - since) / 3600, p24, t]);
-    const top = Math.max(0.01, ...pts.map(([, v]) => v)), step = tickStep(top);
-    const [tticks, tlabels] = axis(span(run), Math.ceil);           // the first graph's (span)
+    fig.toggleAttribute('data-empty', !exists.length);
+    const W = 640, H = 160, L = 48, R = 72, T = 14, B = 30, q = sel => fig.querySelector(sel);
+    const pts = exists.map(([t, p]) => [(t - since) / 3600, p]);
+    const top = Math.max(0.01, ...pts.map(([, p]) => p)), step = tickStep(top);
     const pticks = Array.from({length: Math.ceil(top / step - 1e-9) + 1}, (_, i) => i * step);
+    const [tticks, tlabels] = axis(Math.max(1 / 4, run.so_far / 3600, ...pts.map(([h]) => h)), Math.ceil);
     const X = h => L + (W - L - R) * h / tticks[tticks.length - 1], Y = v => H - B - (H - B - T) * v / pticks[pticks.length - 1];
-    const percent = v => `${Number((100 * v).toPrecision(2))}%`;             // a chance, to 2 significant digits
-    const q = sel => fig.querySelector(sel);
-    q('[data-chance-grid]').replaceChildren(
+    q('[data-exists-grid]').replaceChildren(
       ...pticks.slice(1).map(v => make('line', {class: 'grid', x1: L, y1: Y(v), x2: W - R, y2: Y(v)})),
       make('line', {class: 'axis', x1: L, y1: Y(0), x2: W - R, y2: Y(0)}),
       make('line', {class: 'yaxis', x1: L, y1: Y(0), x2: L, y2: T}));
-    q('[data-chance-ticks="p"]').replaceChildren(...pticks.map((v, i) =>
+    q('[data-exists-ticks="p"]').replaceChildren(...pticks.map((v, i) =>
       make('text', {class: 'ytick', x: L - 6, y: Y(v) + 4, 'text-anchor': 'end'}, num(100 * v) + (i === pticks.length - 1 ? '%' : ''))));
-    q('[data-chance-ticks="t"]').replaceChildren(...tticks.map((h, i) =>
+    q('[data-exists-ticks="t"]').replaceChildren(...tticks.map((h, i) =>
       make('text', {class: 'xtick', x: X(h), y: H - 8, 'text-anchor': 'middle'}, tlabels[i])));
-    fill(fig, 'chance-spent', cpu_hours === null ? '—' : hrs(cpu_hours));   // none in Lindy's model
-    const stated = [...fig.querySelectorAll('[data-chance-at]')], tip = q('[data-chance-tip]');
-    assert(stated.every(e => hours.includes(+e.dataset.chanceAt)) && (p.length === hours.length || !p.length), p.length, hours.length);
-    for (const e of stated) e.textContent = p.length ? percent(p[hours.indexOf(+e.dataset.chanceAt)]) : '—';
-    tip.style.minHeight = '';                   // its height at rest, measured again at the next hover (below)
-    tip.replaceChildren();
-    if (!pts.length) return [];                 // no point yet: the axes alone, as the pool chart's with no point
-    const line = pts.map(([h, v]) => [X(h), Y(v)]), last = line[line.length - 1];
-    set(q('[data-chance-line]'), {points: xy(line)});
-    set(q('[data-chance-wash]'), {points: xy([[line[0][0], Y(0)], ...line, [last[0], Y(0)]])});
-    q('[data-chance-marks]').replaceChildren(make('circle', {class: 'mark', r: 4, cx: last[0], cy: last[1]}));
-    const when = document.createElement('span');
-    tip.replaceChildren(when, ' · ', point.content.cloneNode(true));
-    fill(tip, 'chance-hours', `${AHEAD}\u202fh`);           // as the ETA chart writes hours
-    const show = k => { when.textContent = local(pts[k][2]); fill(tip, 'chance-p', percent(pts[k][1])); };
-    show(pts.length - 1);                       // laid out at rest, invisible, as the last point's
-    const svg = fig.querySelector('svg'), cross = q('[data-chance-cross]'), xs = line.map(([x]) => x);
-    svg.addEventListener('mousemove', ev => {
-      const b = svg.getBoundingClientRect(), x = (ev.clientX - b.left) * W / b.width;
-      let k = 0;                                 // the nearest point, the latest of equals
-      for (let i = 1; i < xs.length; i++) if (Math.abs(xs[i] - x) <= Math.abs(xs[k] - x)) k = i;
-      set(cross, {x1: xs[k], y1: T, x2: xs[k], y2: Y(0)}).setAttribute('visibility', 'visible');
-      tip.style.minHeight = tip.style.minHeight || `${tip.getBoundingClientRect().height}px`;
-      show(k);
-      tip.style.visibility = 'visible';         // laid out at rest (the CSS hides it), so showing it moves nothing
-    });
-    svg.addEventListener('mouseleave', () => { cross.setAttribute('visibility', 'hidden'); tip.style.visibility = ''; });
-    return xs;
+    const line = pts.map(([h, p]) => [X(h), Y(p)]), ends = [line.slice(0, 1), line.slice(-1)];   // none with no point
+    set(q('[data-exists-line]'), {points: xy(line)});
+    set(q('[data-exists-wash]'), {points: xy([...ends[0].map(([x]) => [x, Y(0)]), ...line, ...ends[1].map(([x]) => [x, Y(0)])])});
+    q('[data-exists-marks]').replaceChildren(...ends[1].map(([cx, cy]) => make('circle', {class: 'mark', r: 4, cx, cy})));
   }
 
   function sync() {

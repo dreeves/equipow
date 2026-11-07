@@ -40,27 +40,59 @@ class Integration(unittest.TestCase):
         self.cache={'track_288_10_1000_etas':{'1600.0':[1.,.2,3.]}}
         self.procs=[(310,1,'S','python3 -B ftree.py 288:10')]
 
-    def survey(self,now=5200.):
+    def survey(self,now=5200.,prior=.01):
         with (patch.object(progress,'HERE',str(self.root)),patch.object(progress,'CAMPAIGNS',{}),
-              patch.object(progress,'EXHAUSTIVE',{(288,10):.01}),
+              patch.object(progress,'EXHAUSTIVE',{(288,10):prior}),
               patch.object(formtree_work,'read',return_value=copy.deepcopy(self.work))):
             units=progress.journal_surveys(self.procs,now,self.cache,{}, {})
             return [s for _,thunk in units for s in thunk()][0]
 
-    def test_work_model_replaces_lindy_and_drives_all_three_probability_graphs(self):
+    def test_work_model_replaces_lindy_and_drives_the_p_exists_graph(self):
         # Replicata: registered frozen samples and exact checked work for a live target.
-        # Expectata: a work ETA, with coherent existence/conditional/unconditional charts.
+        # Expectata: a work ETA; odds of the prior, the history's origin (the run's start, 1000: a cold start has no
+        # points plotted before it) and P(exists), now's alone and below the prior; no chance.
+        # Spec change (Claude, 2026-11-06; dreeves: "everything here seems useless, kill it unless you have a good
+        # argument for salvaging anything. the up-to-date probability that a bipartition exists is great."; then
+        # "show the first probability graph, even though for 288:10 it's uninteresting. then kill everything below
+        # that"): until then the model also drove a chance of a find within each hour and curves given existence
+        # (chance, and odds' basis and curves), this qual's name ..._drives_all_three_probability_graphs.
         # Resultata before: the model is ignored and every graph remains Lindy-based.
         s=self.survey();self.assertFalse(s['display']['lindy'])
-        self.assertEqual(s['odds']['basis'],'work')
+        self.assertNotIn('chance',s)
+        self.assertEqual(set(s['odds']),{'prior','since','exists'})
+        self.assertEqual((s['odds']['prior'],s['odds']['since']),(.01,1000.))
+        self.assertEqual([t for t,_ in s['odds']['exists']],[5200.])
+        self.assertLess(s['odds']['exists'][-1][1],.01)
         self.assertNotEqual(s['to_go']['median'],s['so_far'])
         self.assertEqual(s['display']['work_eta']['done'],67)
         self.assertEqual(s['etas']['1600.0'],[1.,.2,3.])
-        c=s['chance']
-        for hour in (0,1,6,24,72):
-            self.assertAlmostEqual(c['p'][c['hours'].index(hour)],c['exists']*c['found'][hour])
-        self.assertGreater(len(c['history']),1)
-        self.assertTrue(s['odds']['curves'])
+
+    def test_the_eta_and_the_bar_s_total_do_not_depend_on_the_prior(self):
+        # Replicata (dreeves, 2026-11-06: "everything here seems useless, kill it unless you have a good argument for
+        # salvaging anything. the up-to-date probability that a bipartition exists is great."; the coordinator's
+        # analysis, which dreeves accepted: a witness of the exhaustive 288:10 proof is found only when the search
+        # reaches it, so the ETA and the bar's total become the time and the work to exhaust the tree): the live
+        # target surveyed under the prior P(exists) 0.01 and, from the same cache, under 0.5.
+        # Expectata: the same to_go, the same ETA recorded at 5200 and the same work_eta total under both.
+        # Resultata before: each moved with the prior, a witness's find uniform in the work left mixed in.
+        cache=copy.deepcopy(self.cache)
+        low=self.survey();self.cache=cache;high=self.survey(prior=.5)
+        self.assertEqual(low['to_go'],high['to_go'])
+        self.assertEqual(low['etas']['5200.0'],high['etas']['5200.0'])
+        self.assertEqual(low['display']['work_eta']['total'],high['display']['work_eta']['total'])
+
+    def test_p_exists_follows_the_prior(self):
+        # Replicata: the live target surveyed under the prior P(exists) 0.01 and, from the same cache, under 0.5.
+        # Expectata (dreeves, 2026-11-06: "the up-to-date probability that a bipartition exists is great"; then "after
+        # the ETA graph, explicitly state the prior probability a bipartition exists"): each survey's odds carry its
+        # prior; its P(exists) now is below that prior, and the one under 0.5 is the one under 0.01 moved to 0.5 by
+        # Bayes's formula (chance.reprior: the likelihood of no find so far does not depend on the prior).
+        # Not red first: P(exists) followed the prior before 2026-11-06's change too; this qual keeps it so.
+        cache=copy.deepcopy(self.cache)
+        low=self.survey()['odds'];self.cache=cache;high=self.survey(prior=.5)['odds']
+        self.assertEqual((low['prior'],high['prior']),(.01,.5))
+        self.assertLess(low['exists'][-1][1],.01);self.assertLess(high['exists'][-1][1],.5)
+        self.assertAlmostEqual(high['exists'][-1][1],chance.reprior(low['exists'][-1][1],.01,.5),delta=1e-12)
 
     def test_twice_the_measured_speed_halves_the_remaining_time(self):
         # Replicata: identical work evidence, twice the aggregate wall throughput.
@@ -88,25 +120,27 @@ class Integration(unittest.TestCase):
         self.assertNotIn('5260.0',s['etas'])
         self.assertIn('5200.0',s['etas']);self.assertIn('5320.0',s['etas'])
 
-    def test_the_published_p_exists_history_starts_at_one_half_and_falls(self):
+    def test_288_10_s_prior_is_one_percent(self):
         # Replicata: the live target surveyed with progress.EXHAUSTIVE as configured (no patch), on a fresh copy of the
-        # cache, its history before the work model Lindy's from the run's start; and the same evidence under the prior
-        # 0.01 (survey's patch, the configured prior until 2026-11-06).
-        # Expectata (dreeves, 2026-11-06, of 288:10's prior 0.01: "that sounds dumb. let's start with an ignorant prior
-        # (50%) and let it fall naturally as the search progresses"): 288:10's prior 0.5, which the odds carry; their
-        # P(exists) history starting at 0.5 and never rising, its current value below 0.5: the posterior of 0.5 given
-        # the work checked, the Bayes formula on the likelihood the posterior under 0.01 gives (chance.reprior).
-        # Resultata before: the prior 0.01, the history starting there, and no prior in the odds.
+        # cache; and the same evidence under the prior 0.5 (survey's patch, the configured prior from 2026-11-06 19:47
+        # until that night).
+        # Expectata (dreeves, 2026-11-06: "after the ETA graph, explicitly state the prior probability a bipartition
+        # exists. we can go back to 1% or whatever makes sense for 288:10."): 288:10's prior 0.01, which its odds
+        # carry; its P(exists) now below 0.01: the posterior under 0.5 moved to 0.01 by Bayes's formula
+        # (chance.reprior), as its stored history was moved back that night.
+        # Spec change (the same request; until then this qual was test_the_published_p_exists_history_starts_at_one_half_and_falls,
+        # after dreeves, 2026-11-06: "that sounds dumb. let's start with an ignorant prior (50%) and let it fall
+        # naturally as the search progresses", of the prior 0.01): the prior 0.01 again, in place of 0.5.
+        # Resultata before: the prior 0.5.
         cache=copy.deepcopy(self.cache)
         with (patch.object(progress,'HERE',str(self.root)),patch.object(progress,'CAMPAIGNS',{}),
               patch.object(formtree_work,'read',return_value=copy.deepcopy(self.work))):
             s=[s for _,thunk in progress.journal_surveys(self.procs,5200.,cache,{},{}) for s in thunk()][0]
-        old=self.survey()['odds']['exists'][-1][1]
+        half=self.survey(prior=.5)['odds']['exists'][-1][1]
         o=s['odds']
-        self.assertEqual((progress.EXHAUSTIVE[(288,10)],o['prior'],o['exists'][0][1]),(.5,.5,.5))
-        self.assertTrue(all(b[1]<=a[1] for a,b in zip(o['exists'],o['exists'][1:])),o['exists'])
-        self.assertLess(o['exists'][-1][1],.5)
-        self.assertAlmostEqual(o['exists'][-1][1],chance.reprior(old,.01,.5),delta=1e-12)
+        self.assertEqual((progress.EXHAUSTIVE[(288,10)],o['prior']),(.01,.01))
+        self.assertLess(o['exists'][-1][1],.01)
+        self.assertAlmostEqual(o['exists'][-1][1],chance.reprior(half,.5,.01),delta=1e-14)
 
 
 if __name__=='__main__':unittest.main()

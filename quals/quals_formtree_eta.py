@@ -179,9 +179,8 @@ class Attachment(unittest.TestCase):
         self.s=dict(n=288,order=10,program='ftree.py',state='running',passes=[[1000,2000]],
                     to_go=dict(median=1000,lo=10,hi=19000),etas={'1500.0':[1,2,3],'2000.0':[4,5,6]},
                     display=dict(lindy=True,tracked=True))
-        self.old=dict(program='ftree.py',n=288,order=10,chance=dict(since=1000.,
-                      history=[[1500.,.003,.005],[1900.,.004,.006]]),
-                      odds=dict(exists=[[1500.,.01],[1900.,.009]],curves=[[1900.,[0.]*73]]))
+        # the page's snapshot, in the odds' form of 2026-11-06 (its chance and curves until then)
+        self.old=dict(program='ftree.py',n=288,order=10,odds=dict(prior=.01,since=1000.,exists=[[1500.,.01],[1900.,.009]]))
         (self.root/'progress.js').write_text('progressData('+json.dumps({'runs':[self.old]})+');\n')
         self.w=work(5,50);self.w.update(source_time=1990.,source_age=10.)
 
@@ -200,21 +199,24 @@ class Attachment(unittest.TestCase):
     def test_attach_keeps_old_arrays_and_only_replaces_current_eta(self):
         # Replicata: actual saved legacy arrays plus two changed model snapshots.
         # Expectata: no retroactive recomputation; only current ETA is replaced.
+        # Spec change (Claude, 2026-11-06; dreeves: "everything here seems useless, kill it unless you have a good
+        # argument for salvaging anything. the up-to-date probability that a bipartition exists is great."): the saved
+        # P(exists) points and their origin kept, and no chance or curves beside them, which went with their graphs.
         cache={};old=copy.deepcopy(self.old)
         with mock.patch.object(eta.formtree_work,'read',return_value=self.w):
             got=eta.attach(copy.deepcopy(self.s),self.root,self.path,.01,2000.,cache)
         self.assertEqual(got['etas']['1500.0'],[1,2,3]);self.assertNotEqual(got['etas']['2000.0'],[4,5,6])
         self.assertFalse(got['display']['lindy'])
-        self.assertEqual(got['chance']['history'][:2],old['chance']['history'])
+        self.assertNotIn('chance',got)
         self.assertEqual(got['odds']['exists'][:2],old['odds']['exists'])
-        self.assertEqual(got['odds']['curves'][0],old['odds']['curves'][0])
+        self.assertEqual((got['odds']['prior'],got['odds']['since']),(.01,old['odds']['since']))
         first=copy.deepcopy(cache['points'])
         (self.root/'progress.js').write_text('invalid on purpose')
         self.model['log_bias']=.5;self.path.write_text(json.dumps(self.model))
         with mock.patch.object(eta.formtree_work,'read',return_value=self.w):
             again=eta.attach(copy.deepcopy(self.s),self.root,self.path,.01,2100.,cache)
         self.assertEqual(cache['points'],first)
-        self.assertEqual(again['chance']['history'][:2],old['chance']['history'])
+        self.assertEqual(again['odds']['exists'][:2],old['odds']['exists'])
         # Spec extension, dreeves2026-11-06: learned uncertainty and [BUL] expose
         # the model interval's coverage and actual posterior/sampling diagnostics.
         # Spec extension (Claude, 2026-11-06; dreeves: "should that progress bar be measuring amount of work, not
@@ -252,10 +254,15 @@ class Attachment(unittest.TestCase):
         # Replicata (dreeves, 2026-11-06: "should that progress bar be measuring amount of work, not time? ... we can
         # still have a 90% CI for amount of work remaining, right?"): the live fixture; the same search frozen; then
         # every root complete, the search running and ended.
-        # Expectata: work_eta's total, the nodes checked when the search ends, {median, lo, hi}: while it runs,
+        # Expectata: work_eta's total, the nodes checked when the tree is exhausted, {median, lo, hi}: while it runs,
         # chance.work's total on the same draws, done at most its lo, lo below median below hi; frozen, none (a stopped
         # search makes no forecast); complete, exactly done at all three, running or ended.
         # Resultata before: work_eta had no total (KeyError).
+        # Spec change (Claude, 2026-11-06; dreeves: "everything here seems useless, kill it unless you have a good
+        # argument for salvaging anything. the up-to-date probability that a bipartition exists is great."; the
+        # coordinator's analysis, which dreeves accepted: the ETA and the bar's total are the time and the work to
+        # exhaust the tree): chance.work's total is the work then, in place of the work when the search ends, by a
+        # witness or with the tree exhausted.
         cache={}
         with mock.patch.object(eta.formtree_work,'read',return_value=self.w):
             live=eta.attach(copy.deepcopy(self.s),self.root,self.path,.01,2000.,cache)
@@ -290,8 +297,11 @@ class Attachment(unittest.TestCase):
 
     def test_paused_preserves_posterior_and_terminal_is_zero_remaining(self):
         # Replicata: active snapshot, paused with no throughput, then all roots closed.
-        # Expectata: paused future-find chance zero, last posterior/history retained;
+        # Expectata: paused, last posterior/history retained, now's point that posterior;
         # terminal has zero remaining and existence zero, without sampling again.
+        # Spec change (Claude, 2026-11-06; dreeves: "everything here seems useless, kill it unless you have a good
+        # argument for salvaging anything. the up-to-date probability that a bipartition exists is great."): no
+        # chance of a future find (zero while paused), which went with its graphs.
         cache={}
         with mock.patch.object(eta.formtree_work,'read',return_value=self.w):
             live=eta.attach(copy.deepcopy(self.s),self.root,self.path,.01,2000.,cache)
@@ -299,8 +309,8 @@ class Attachment(unittest.TestCase):
         self.w['rate']=0;paused=copy.deepcopy(self.s);paused['state']='frozen'
         with mock.patch.object(eta.formtree_work,'read',return_value=self.w),mock.patch.object(eta,'draws',side_effect=AssertionError):
             stopped=eta.attach(paused,self.root,self.path,.01,2100.,cache)
-        self.assertIsNone(stopped['to_go']);self.assertEqual(stopped['chance']['exists'],live['chance']['exists'])
-        self.assertTrue(all(x==0 for x in stopped['chance']['p']+stopped['chance']['found']))
+        self.assertIsNone(stopped['to_go']);self.assertEqual(stopped['odds']['exists'][-1],[2100.,live['odds']['exists'][-1][1]])
+        self.assertEqual(stopped['odds']['exists'][:-1],live['odds']['exists'])
         for r in self.w['roots']:r['complete']=True
         paused['state']='ended'
         with mock.patch.object(eta.formtree_work,'read',return_value=self.w),mock.patch.object(eta,'draws',side_effect=AssertionError):
@@ -308,10 +318,9 @@ class Attachment(unittest.TestCase):
         # Spec clarification, root 2026-11-04: an inactive terminal survey has no
         # new ETA point beyond its ended pass; its current probability tail is zero.
         self.assertIsNone(ended['to_go'])
-        self.assertEqual(ended['chance']['exists'],0.)
         self.assertNotIn('3000.0',ended['etas'])
         self.assertEqual(cache['points'],saved_points)
-        self.assertEqual(ended['chance']['history'][-1][0],2000.)
+        self.assertEqual(ended['odds']['exists'][-2][0],2000.)
         self.assertEqual(ended['odds']['exists'][-1],[3000.,0.])
 
     def test_live_reader_uses_its_observation_clock_and_active_completion_is_zero(self):
@@ -329,15 +338,20 @@ class Attachment(unittest.TestCase):
         self.assertEqual(ended['to_go'],dict(median=0.,lo=0.,hi=0.))
         self.assertEqual(ended['etas']['2100.0'],[0.,0.,0.])
 
-    def test_cold_fixture_seeds_legacy_only_before_activation(self):
+    def test_cold_fixture_has_no_points_before_activation(self):
         # Replicata: no progress.js exists for this fixture.
-        # Expectata: prior Lindy points precede now; the current point is work-based.
+        # Expectata: no legacy points, as nothing was plotted before; their origin the run's start, 1000; the odds' one
+        # point now's, work-based.
+        # Spec change (Claude, 2026-11-06; dreeves: "everything here seems useless, kill it unless you have a good
+        # argument for salvaging anything. the up-to-date probability that a bipartition exists is great."): until
+        # then the cold start took Lindy points from before now, from its former Lindy model (chance.lindy_shown, gone
+        # with the graphs it drew), and the odds a basis, work; this qual test_cold_fixture_seeds_legacy_only_before_activation.
         (self.root/'progress.js').unlink();cache={}
         with mock.patch.object(eta.formtree_work,'read',return_value=self.w):
             got=eta.attach(copy.deepcopy(self.s),self.root,self.path,.01,2000.,cache)
-        self.assertTrue(all(t<2000. for t,*_ in cache['legacy']['history']))
-        self.assertEqual(got['odds']['basis'],'work')
-        self.assertEqual(got['chance']['history'][-1][0],2000.)
+        self.assertEqual(cache['legacy'],dict(since=1000,exists=[]))
+        self.assertEqual(got['odds']['since'],1000)
+        self.assertEqual([t for t,_ in got['odds']['exists']],[2000.])
 
 
 if __name__=='__main__':unittest.main()

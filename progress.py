@@ -184,18 +184,19 @@ The estimate's model, its terms defined once here (overnight_v5.py's search() is
   campaign    a witness search whose driver runs its seeds as tracked runs, one target per cell of its plan
               (scratch/beam-campaign-20261103's campaign.py, 2026-11-03; chance.py's vocabulary): CAMPAIGNS names its
               directory by the target it searches.
-  chance      of a tracked target a campaign searches (README [SER], 2026-11-03: "Could the searches show a live
-              estimate of the probability of finding a bipartition?"; dreeves: "sure, build [SER]"): chance.shown's, at
-              the snapshot's time, live or not: the chance of a witness within the next t hours, t every quarter hour
-              up to 72, under the search-allocation bandit's model (0 once nothing runs there), with the CPU-hours
-              searched without one, and its history, that chance within 6 and 24 h as of each quarter hour since the
-              campaign began searching the target while it was live (README [CON], 2026-11-03), kept once the search
-              stops (dreeves, 2026-11-04: "shouldn't it stay there for posterity like the ETA graph does?"; until then
-              none once the target was not live; see chance.py's vocabulary).  Of a target an exhaustive search covers
-              (EXHAUSTIVE), chance.lindy_shown's, in the same form: its prior times Lindy's rule, with no CPU-hours
-              (2026-11-04).
-  odds        of a target with a chance, chance.py's odds (see its vocabulary), given beside it: what the first two of
-              its three graphs draw, the chance chart the third.
+  odds        of a run, chance.py's odds (see its vocabulary), {prior, since, exists}: its prior P(exists), its history's
+              origin and its P(exists) given none found so far as of each quarter hour of that history and now, what
+              the page states and draws of it (README [SER] and [CON], 2026-11-03; dreeves, 2026-11-06: "the up-to-date
+              probability that a bipartition exists is great"): a target a campaign searches (CAMPAIGNS) has
+              chance.shown's, live or not, its history kept once the search stops (dreeves, 2026-11-04: "shouldn't it
+              stay there for posterity like the ETA graph does?"), and a target an exhaustive search covers
+              (EXHAUSTIVE) its work model's, formtree_eta.attach's; every other run, with no model of its search,
+              IGNORANT's prior with no history (since None, exists empty), as nothing updates it (run_data).  Until
+              2026-11-06 only a tracked target with a model had odds, and its data also carried its chance, of a witness
+              within the next t hours, with that chance's history, and its odds a basis and curves of the chance of a
+              find given existence, which the page drew in two more graphs (dreeves, that day: "everything here seems
+              useless, kill it unless you have a good argument for salvaging anything"); and an exhaustive search
+              before its work model had odds by Lindy's rule (chance.lindy_shown).
   reading     the watcher's state of a run's files, kept between snapshots (2026-10-30: it read 288@10's 500 MB of journal
               and log whole every minute, and one snapshot took 90 minutes): the bytes read so far and all parsed, dated
               and derived from them (Reading, with its Tree and Grown; Boxes for a boxsplit pass, Records for focus.py's
@@ -298,12 +299,18 @@ DIRS = {(288, 10): os.path.join('scratch', 'x288')}
 # the beam campaign's plan 7 searches 528:12 (2026-11-03).  A campaign that turns to another target needs its entry here.
 CAMPAIGNS = {(528, 12): os.path.join('scratch', 'beam-campaign-20261103')}
 # the prior P(exists) of each target an exhaustive tracked search (one that finds a witness exactly when one exists)
-# covers, for its odds (see the vocabulary): 288:10 by searches/formtree's form trees, an ignorant 0.5 (dreeves,
-# 2026-11-06, of the Symmetry Conjecture screen's 0.01, AGENTS.md, 2026-11-03: "Estimated chance of a disproof at 288:
-# 1% or less": "that sounds dumb. let's start with an ignorant prior (50%) and let it fall naturally as the search
-# progresses"; its history made under 0.01 converted exactly, chance.reprior, by
-# scratch/pareto-progress-20261106/prior/migrate.py)
-EXHAUSTIVE = {(288, 10): 0.5}
+# covers, for its odds (see the vocabulary): 288:10 by searches/formtree's form trees, 0.01 (dreeves, 2026-11-06:
+# "after the ETA graph, explicitly state the prior probability a bipartition exists. we can go back to 1% or whatever
+# makes sense for 288:10."; the coordinator: the Symmetry Conjecture screen's generous ceiling, AGENTS.md, 2026-11-03:
+# "Estimated chance of a disproof at 288: 1% or less", whose counting heuristic said about 1e-9).  From 19:47 that day
+# until then an ignorant 0.5 (dreeves: "that sounds dumb. let's start with an ignorant prior (50%) and let it fall
+# naturally as the search progresses"); its history converted exactly each time, chance.reprior, by
+# scratch/pareto-progress-20261106/prior/migrate.py and then scratch/pareto-progress-20261106/uniform/migrate.py.
+EXHAUSTIVE = {(288, 10): 0.01}
+# the prior P(exists) a run states with no model of its search (its target in neither CAMPAIGNS nor EXHAUSTIVE, so no
+# configured prior): an ignorant 0.5 (dreeves, 2026-11-06: "go with 50% as the ignorant prior when there's no model or
+# whatever"); with no model nothing updates it, so such a run's odds have no history (see the vocabulary)
+IGNORANT = 0.5
 REFRESH = 60                          # seconds between rewrites under --watch (the section reloads the data file as often)
 NICE = 15                              # the niceness the process lowers itself to
 # The deepest level enumerated.  Splitting cost the runs themselves (their logs' split seconds, on loaded workers)
@@ -3126,21 +3133,19 @@ def js_text(surveys, now):
     LIMIT the time (whole seconds) of the snapshot its data are from (see snapshot; 2026-10-30); and for a run in a chain,
     not ended (2026-10-31), its stages (see the vocabulary), [{name, to_go}], its own first, each to_go as the run's
     or null, and total, the time to go to a recordable result in the same form, or null; and for a fanout.py run
-    (2026-11-03), pool, its pool series as pool_series gives it; and for a tracked target a campaign searches
-    (2026-11-03, README [SER]), chance, as chance.shown gives it, {cpu_hours, rate, cores, hours, p, exists, found,
-    since, history}: the CPU-hours searched without a witness, the exposure per CPU-hour (null before a probe seed has
-    finished), the search CPU-hours per wall-hour ahead (null likewise; 2026-11-04), the hours t (chance.HOURS), the
-    chance of a witness within each (empty without a rate), P(exists) and the chance within each hour ahead given
-    existence (null and empty likewise), and its history, [[time, p6, p24], ...] (README [CON], 2026-11-03); and odds
-    (2026-11-04), {basis, ahead, exists, curves}, as chance.py defines them; for a target an exhaustive search covers,
-    the same from chance.lindy_shown, its CPU-hours, rate and cores null."""
+    (2026-11-03), pool, its pool series as pool_series gives it; and every run's odds (see the vocabulary), {prior,
+    since, exists}, as chance.py defines them: its prior P(exists), its history's origin, and [time, P(exists)] at
+    each point of that history and at now; for a run with no model of the probability that a bipartition exists,
+    IGNORANT's prior, since null and no point (2026-11-06).  (From 2026-11-03 to 2026-11-06 also, for a tracked target
+    with a model, its chance, of a witness within the next t hours, with its history, and from 2026-11-04 its odds'
+    basis, hours ahead and curves; and no odds for any other run.)"""
     return data_text([run_data(s) for s in surveys], now)
 
 
 # What run_data reads of a survey: an idle run's survey keeps no more (see idle; 2026-10-31: an overnight_v5.py
 # survey's open_list held 612,046 of 288@10's leaves).
 LIGHT = ('program', 'n', 'order', 'state', 'outcome', 'so_far', 'to_go', 'etas', 'passes', 'sea', 'display', 'workers',
-         'stages', 'total', 'pool', 'chance', 'odds')
+         'stages', 'total', 'pool', 'odds')
 
 
 def light(s):
@@ -3150,7 +3155,9 @@ def light(s):
 
 def run_data(s):
     """A run's entry in the data file (see js_text) from its survey, light (so that an idle run's survey makes the same
-    entry), its data this snapshot's (stale null)."""
+    entry), its data this snapshot's (stale null); its odds its survey's, or IGNORANT's prior with no history for a run
+    whose survey has none, no model of its search (dreeves, 2026-11-06: "go with 50% as the ignorant prior when there's
+    no model or whatever")."""
     s = light(s)
 
     def etas(s):
@@ -3160,7 +3167,8 @@ def run_data(s):
     return ({'program': s['program'], 'n': s['n'], 'order': s['order'], 'state': s['state'], 'outcome': s['outcome'],
              'so_far': s['so_far'], 'to_go': s['to_go'],
              'etas': etas(s), 'statuses': list(SEA_STATUSES)} | s['sea'] | s.get('display', {}) |
-            {k: s[k] for k in ('workers', 'stages', 'total', 'pool', 'chance', 'odds') if k in s} | {'stale': None})
+            {k: s[k] for k in ('workers', 'stages', 'total', 'pool') if k in s} |
+            {'odds': s.get('odds', dict(prior=IGNORANT, since=None, exists=[])), 'stale': None})
 
 
 def data_text(runs, now):
@@ -3454,12 +3462,12 @@ def journal_surveys(procs, now, cache, readings, idle):
         # partially built probability history. Publish both cache changes together.
         etas = dict(cache.get(eta_key, {})) if present else cache.setdefault(eta_key, {})
         s = survey_track(target, records, procs, now, etas)
-        key = (int(n), int(order))      # a target a campaign searches carries its chance (see the vocabulary) beside
+        key = (int(n), int(order))      # a target a campaign searches carries its odds (see the vocabulary) beside
                                         # its ETA, Gott's rule as every tracked search's (dreeves, 2026-11-04:
                                         # "shouldn't there always be an ETA graph, even when it's just based on the
                                         # lindy effect?"; from 2026-11-03, README [CON], its to_go was null)
-        # A frozen work model replaces the age-only estimate and all its probability
-        # graphs together (dreeves, 2026-11-04: "can you take over for a while?").
+        # A frozen work model replaces the age-only estimate and gives the odds
+        # (dreeves, 2026-11-04: "can you take over for a while?").
         # The presence branch allows legacy runs without a model to retain Lindy.
         # Once activated, loss of the model is an error, not a silent fallback.
         if present:
@@ -3468,17 +3476,13 @@ def journal_surveys(procs, now, cache, readings, idle):
             result = formtree_eta.attach(s, HERE, model, EXHAUSTIVE[key], now, work_cache)
             cache[eta_key], cache[work_key] = etas, work_cache
             return [result]
-        # its odds (see the vocabulary) beside its chance, as the page reads them: a campaign's from chance.shown, an
-        # exhaustive search's from chance.lindy_shown, by Lindy's rule while it runs on that alone (dreeves,
-        # 2026-11-04: "graphs first, then refine the estimates"; then "can we get that 3rd chart as well,
-        # consistently, after the P(exists) and P(find|exists) charts?")
-        shown = (chance.shown(HERE, CAMPAIGNS[key], target, now) if key in CAMPAIGNS else
-                 chance.lindy_shown(EXHAUSTIVE[key], t0, now) if key in EXHAUSTIVE else None)
-        # TODO: error copy; says an exhaustive search's odds follow Lindy's rule, so they need it running with no estimate of its own, naming the target
-        assert key not in EXHAUSTIVE or (s['state'] == 'running' and s['display']['lindy']), \
-            f'Claude: "the odds of {target} follow Lindy\'s rule, but it is {s["state"]} with an estimate of its own or none"'
-        extra = {'chance': {k: v for k, v in shown.items() if k != 'odds'}, 'odds': shown['odds']} if shown else {}
-        return [s | extra]
+        # its odds (see the vocabulary), as the page reads them: a campaign's from chance.shown; an exhaustive search's
+        # from its work model alone (above; until 2026-11-06, before its model, by Lindy's rule, chance.lindy_shown,
+        # which went with the graphs it drew: dreeves, "everything here seems useless, kill it unless you have a good
+        # argument for salvaging anything")
+        # TODO: error copy; says a target an exhaustive search covers needs its work model, naming the target and the model's file
+        assert key not in EXHAUSTIVE, f'Claude: "{target} is covered by an exhaustive search, but its work model {model} is missing"'
+        return [s | ({'odds': chance.shown(HERE, CAMPAIGNS[key], target, now)} if key in CAMPAIGNS else {})]
     return units + [(identities[target], functools.partial(track, target, records)) for target, records in sorted(tracked.items())]
 
 

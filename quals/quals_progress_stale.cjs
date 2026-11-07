@@ -19,8 +19,13 @@ assert.match(template[1], /<!-- [^>]*stale[^>]*--><span class="progress-stale" d
   'the stale mark must close the run heading, after a comment recapping it');
 const source = script.match(/  function staleView\(box, run\) \{[\s\S]*?\n  \}/);
 assert.ok(source, 'the renderer must have staleView');
-assert.ok(script.includes("      staleView(box, run);\n      snapshot(box.querySelector('.progress-status'), run.stale ?? data.made, run.so_far, run.to_go);"),
-  'each run must be marked, its status line at its own data\'s time');
+// Spec change (Claude, 2026-11-06; the coordinator, with the chance line gone: "Make every other run brief its status
+// line (time so far + to go)"): the status line is filled by statusLine, which render and brief share, at the run's
+// stale time or else the snapshot's; until then render filled it itself, right after staleView.
+assert.ok(script.includes("      staleView(box, run);\n      statusLine(box, run, data.made);"),
+  'each run must be marked, then its status line filled');
+assert.ok(script.includes("    snapshot(status, run.stale ?? made, run.so_far, run.to_go);"),
+  'its status line at its own data\'s time');
 const context = {stamp: t => `stamp:${t}`};
 vm.createContext(context);
 vm.runInContext(source[0] + '\nthis.mark = staleView;', context);

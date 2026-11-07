@@ -4187,16 +4187,20 @@ def q_red_box_works_out_the_proof():
 
 
 def q_black_box_shows_both_bounds_and_the_searches():
-    # Replicata: the boxes run, with BOX_PROGRESS as progress.js: two runs at 528:12, PROGRESS_CHANCE, a tracked search
-    # that a campaign runs, with its chance, and an overnight_v5.py run, aborted; and one at 64:7.  The box of the black
-    # cell (528, 12), once its searches had loaded (searched); and the boxes of the black cells (480, 13).
+    # Replicata: the boxes run, with BOX_PROGRESS as progress.js: two runs at 528:12, PROGRESS_CAMPAIGN, a tracked
+    # search that a campaign runs, with its odds, and an overnight_v5.py run, aborted; and one at 64:7.  The box of the
+    # black cell (528, 12), once its searches had loaded (searched); and the boxes of the black cells (480, 13).
     # Expectata ([CEL]: "If the cell is black... maybe just summarize the search efforts so far?"; the design of
     # 2026-11-04: "the two bracketing facts in compact form (the order-lo witness, the order hi + 1 proof), plus the
     # search efforts"): each shows its column's witness and proof (box_parts) and then its searches: the heading of the
     # Search progress section, and below it each run of that section at the cell's n and m, its question, program and
-    # state as that section's fold names them, with its time so far, and for the campaign its chance line as that
-    # section states it (within 6 h 0.91%, within 24 h 2.8%, 2.1 CPU-hours); nothing of 64:7; for (480, 13), with no run,
-    # a dash.
+    # state as that section's fold names them, with its time so far, and then its status line as that section states
+    # it (the campaign's 0.2 h so far + 0.0–3.2 h to go = 0.2–3.3 h and its finish times, the other's 2.0 h of running);
+    # nothing of 64:7; for (480, 13), with no run, a dash.
+    # Spec change (Claude, 2026-11-06; dreeves: "everything here seems useless, kill it unless you have a good argument
+    # for salvaging anything. the up-to-date probability that a bipartition exists is great."; the coordinator: "Make
+    # every other run brief its status line (time so far + to go)"): each run's status line, in place of the campaign's
+    # chance line (within 6 h 0.91%, within 24 h 2.8%, 2.1 CPU-hours) and nothing for the other run.
     # Resultata before: the column's panel, with its status sentence and no searches.
     R, B = boxes_run()
     cols = mstar_data()['cols']
@@ -4205,9 +4209,10 @@ def q_black_box_shows_both_bounds_and_the_searches():
     assert S['said'].startswith('\\(m^*(528) \\ge 11\\): equipow p528') and S['said'].endswith('finds none”'), S['said']
     assert 'Claude: “\\(m^*(528) \\le 12\\): residue condition mod \\(M = 5\\)' in S['said'], S['said']
     flat = lambda t: ' '.join(t.split())                         # its spaces, the narrow no-break ones before a unit among them, as one
-    assert [flat(t) for t in S['searches']] == ['Search progress m*(528) ≥ 12? probe_seed.py running 0.2 h Probability of finding a '
-                                                'bipartition within 6 h: 0.91%; within 24 h: 2.8%; 2.1 CPU-hours so far. m*(528) ≥ 12? '
-                                                'overnight_v5.py aborted 2.0 h'], S['searches']
+    made, to_go = BOX_PROGRESS['made'], PROGRESS_CAMPAIGN['to_go']
+    status = f'0.2 h so far + 0.0–3.2 h to go = 0.2–3.3 h ({finish(made, made + to_go["lo"], made + to_go["hi"])})'
+    assert [flat(t) for t in S['searches']] == [f'Search progress m*(528) ≥ 12? probe_seed.py running 0.2 h {status} m*(528) ≥ 12? '
+                                                'overnight_v5.py aborted 2.0 h Aborted after running for 2.0 h.'], S['searches']
     assert B[(480, 13)]['whys'] == box_parts(cols, 480, 13) and [flat(t) for t in B[(480, 13)]['searches']] == ['Search progress —'], B[(480, 13)]
 
 
@@ -4278,7 +4283,8 @@ def quoted_right(parts):
     """Whether a box's parts, [(kind, text, whether of Claude's English)], quote Claude once around its parts of Claude's
     English, from the start of the first to the end of the last, and not at all without any.  Spec change (Claude,
     2026-11-05): a box's searches, its copy of the Search progress section's runs, are left out, since they carry that
-    section's own quotations (Astra's in the chance line since 2026-11-05), as the word budget leaves them out."""
+    section's own quotations (Astra's in the chance line, from 2026-11-05 until that line went on 2026-11-06), as the
+    word budget leaves them out."""
     parts = [p for p in parts if p[0] != 'searches']
     claude, text = [i for i, (_, _, c) in enumerate(parts) if c], ''.join(t for _, t, _ in parts)
     return (text.count('Claude: “') == text.count('”') == min(1, len(claude))
@@ -4335,13 +4341,19 @@ def q_cell_box_words_stay_within_budget():
 # progress.py's data file, progress.js (its contract: progress.js_text).
 
 STATUSES = ('settled', 'open', 'split', 'pending', 'running')
-# made-up data: one running run, three groups, every status, three recorded ETAs an hour apart
+# a run's odds as progress.js gives them for a run with no model of its search (progress.py's run_data, 2026-11-06:
+# IGNORANT's prior with no history; dreeves: "go with 50% as the ignorant prior when there's no model or whatever"),
+# which every made-up run without odds of its own carries, as every real one does since then
+ODDS_IGNORANT = dict(prior=0.5, since=None, exists=[])
+# made-up data: one running run, three groups, every status, three recorded ETAs an hour apart, and the odds of a run with
+# no model of its search
 PROGRESS_DATA = {'made': 1792200000, 'runs': [{
     'program': 'overnight_v5.py', 'n': 64, 'order': 7, 'state': 'running', 'outcome': None, 'so_far': 7200.0, 'to_go': {'median': 3600.0, 'lo': 1800.0, 'hi': 10800.0},
     'etas': [[1792192800, 0.0, 10800.0, 7200.0, 14400.0], [1792196400, 3600.0, 7200.0, 3600.0, 10800.0],
              [1792200000, 7200.0, 3600.0, 1800.0, 10800.0]],
     'statuses': list(STATUSES), 'depth': 1, 'keys': ['3:[0,0,3]', '3:[1,1,1]', '3:[2,1,0]'],
-    'groups': ['0123', '4', '00110'], 'counts': {'settled': 4, 'open': 3, 'split': 1, 'pending': 1, 'running': 1}}]}
+    'groups': ['0123', '4', '00110'], 'counts': {'settled': 4, 'open': 3, 'split': 1, 'pending': 1, 'running': 1},
+    'odds': ODDS_IGNORANT}]}
 # progress.html's ETA chart case (quals_progress.eta_chart_case): 13.2 h of running, ended, ETAs of [2, 1, 4] h at
 # its start and [1, 0.5, 3] h at its end
 PROGRESS_ETA_DATA = {'made': 1792200000, 'runs': [dict(PROGRESS_DATA['runs'][0], state='ended', so_far=47520.0, to_go=None,
@@ -5233,12 +5245,14 @@ def q_progress_says_when_an_eta_is_lindy():
     # below its ETA chart shown, and not empty; the other two runs' notes hidden.  Its words are not pinned (dreeves
     # wrote his own the same day, and no qual pins wording since 2026-10-26).
     # Resultata before: no such note on the page.
+    # Fixture change (Claude, 2026-11-06; dreeves: "go with 50% as the ignorant prior when there's no model or whatever",
+    # and "for anti-magic i don't want to conditionally include or exclude graphs"): odds, as every run's data carries them.
     base, made = PROGRESS_DATA['runs'][0], PROGRESS_DATA['made']
     plain = dict(program='w12.py', n=768, order=12, state='running', outcome=None, so_far=600,
                  to_go=dict(median=600, lo=600 / 19, hi=19 * 600),
                  etas=[[made - 60, 540.0, 540.0, 28.4, 10260.0], [made, 600.0, 600.0, 31.6, 11400.0]],
                  statuses=base['statuses'], depth=0, keys=['768:12'], groups=['4'],
-                 counts=dict(settled=0, open=0, split=0, pending=0, running=1), stale=None)
+                 counts=dict(settled=0, open=0, split=0, pending=0, running=1), stale=None, odds=ODDS_IGNORANT)
     work = dict(runs=1, running=1, frozen=0, ended=0, aborted=0, found=0)
     lindy, own = dict(plain, tracked=True, work=work, lindy=True), dict(plain, tracked=True, work=work, lindy=False)
     got = progress_harness({'made': made, 'runs': [lindy, own, plain]}, """
@@ -5260,12 +5274,14 @@ def q_progress_shows_a_tracked_search():
     # then its counts (template progress-track: 4 runs, 3 running, 0 frozen, 1 ended, 0 aborted, 0 found) with its
     # elapsed time filled in; its readout the tracked hint (template progress-track-hint); its key hidden.
     # Resultata before (2026-10-28's tracked view): its ETA chart hidden and its status line its counts alone.
+    # Fixture change (Claude, 2026-11-06; dreeves: "go with 50% as the ignorant prior when there's no model or whatever",
+    # and "for anti-magic i don't want to conditionally include or exclude graphs"): odds, as every run's data carries them.
     base, made = PROGRESS_DATA['runs'][0], PROGRESS_DATA['made']
     plain = dict(program='w12.py', n=768, order=12, state='running', outcome=None, so_far=600,
                  to_go=dict(median=600, lo=600 / 19, hi=19 * 600),
                  etas=[[made - 60, 540.0, 540.0, 28.4, 10260.0], [made, 600.0, 600.0, 31.6, 11400.0]],
                  statuses=base['statuses'], depth=0, keys=['768:12'], groups=['4440'],
-                 counts=dict(settled=1, open=0, split=0, pending=0, running=3), stale=None)
+                 counts=dict(settled=1, open=0, split=0, pending=0, running=3), stale=None, odds=ODDS_IGNORANT)
     tracked = dict(plain, tracked=True, work=dict(runs=4, running=3, frozen=0, ended=1, aborted=0, found=0))
     got = progress_harness({'made': made, 'runs': [plain, tracked]}, """
   const [plain, r] = runs();
@@ -5440,259 +5456,167 @@ def q_progress_draws_a_fanout_run_s_pool():
     assert got['empty'] == dict(lines=[0, 0], tip='', xticks=['0', '1', '2', '3', f'4{h}']), got['empty']
 
 
-# A tracked target a campaign searches, in the form progress.js_text gives it with its chance (chance.shown; README
-# [SER] and [CON], 2026-11-03): a made-up chance of a find within each quarter hour t up to 72 h, 0.05 (1 - exp(-t /
-# 30)), after 2.14 CPU-hours searched; since 6 h before the data was made; and its history, 24 points a quarter hour
-# apart from then, the k-th's chance within 24 h 0.05 exp(-k / 12) and within 6 h 0.02 exp(-k / 12).
-CHANCE_HOURS = [k / 4 for k in range(289)]
-CHANCE_SINCE = PROGRESS_DATA['made'] - 6 * 3600
-CHANCE_HISTORY = [[CHANCE_SINCE + 900 * k, 0.02 * math.exp(-k / 12), 0.05 * math.exp(-k / 12)] for k in range(1, 25)]
-CHANCE = dict(cpu_hours=2.14, rate=9.15e-4, cores=3.2, hours=CHANCE_HOURS, p=[-0.05 * math.expm1(-t / 30) for t in CHANCE_HOURS],
-              since=CHANCE_SINCE, history=CHANCE_HISTORY)
-# A modeled search's odds as progress.js carries them (chance.lindy_shown and chance.odds, 2026-11-04): an exhaustive
-# search on Lindy's rule begun 30 h before the data was made, P(exists) its prior 0.01 at each quarter hour from then and
-# a curve an hour back over a day, each chance.lindy_found on its age then; a campaign target's, P(exists) falling over 8
-# quarter hours from 0.3 and four curves, now's flat at 0 (its search stopped); and a campaign target's before any rate
-# is measured, with neither.  Each carries its prior P(exists) (chance.odds's prior, 2026-11-06: dreeves, "let's start
-# with an ignorant prior (50%) and let it fall naturally as the search progresses"; the page states it from there): 0.01
-# for the exhaustive search, 0.3 for the campaign's target.
-def lindy_at(tau, aheads): return [s / tau * math.log1p(tau / s) if s else 0.0 for s in aheads]
-def lindy_curve(tau): return lindy_at(tau, range(73))
-ODDS_T0 = PROGRESS_DATA['made'] - 30 * 3600
-ODDS_LINDY = dict(basis='lindy', prior=0.01, ahead=list(range(73)), exists=[[ODDS_T0 + 900 * k, 0.01] for k in range(1, 121)],
-                  curves=[[PROGRESS_DATA['made'] - 3600 * k, lindy_curve(30 - k)] for k in range(24, -1, -1)])
-ODDS_CAMPAIGN = dict(basis='campaign', prior=0.3, ahead=list(range(73)),
-                     exists=[[PROGRESS_DATA['made'] - 900 * (8 - k), 0.3 * math.exp(-k / 20)] for k in range(9)],
-                     curves=[[PROGRESS_DATA['made'] - 3600 * (3 - k), [0.0] + [0.6 * (1 - math.exp(-s / 12)) for s in range(1, 73)]] for k in range(3)]
-                            + [[PROGRESS_DATA['made'], [0.0] * 73]])
-ODDS_NONE = dict(basis='campaign', prior=0.3, ahead=list(range(73)), exists=[], curves=[])
-# That exhaustive search's chance as progress.js carries it (chance.lindy_shown): no CPU-hours, rate or cores, which its
-# model does not use; its chance within each quarter hour t up to 72 h, the prior times Lindy's rule on its 30 h; and its
-# history at each quarter hour from its start, the prior times Lindy's rule on its age then.
-LINDY_CHANCE = dict(cpu_hours=None, rate=None, cores=None, hours=CHANCE_HOURS, p=[0.01 * x for x in lindy_at(30, CHANCE_HOURS)],
-                    exists=0.01, found=lindy_curve(30), since=ODDS_T0,
-                    history=[[ODDS_T0 + 900 * k, *(0.01 * x for x in lindy_at(k / 4, (6, 24)))] for k in range(1, 121)])
-# PROGRESS_CHANCE carries its odds beside its chance, as every run with a chance does (2026-11-04: progress.py gives the
-# two together, and the chance chart is the third of their graphs).
-PROGRESS_CHANCE = dict(program='probe_seed.py', n=528, order=12, state='running', outcome=None, so_far=600,
-                       to_go=dict(median=600, lo=600 / 19, hi=19 * 600), etas=[[PROGRESS_DATA['made'], 600.0, 600.0, 31.6, 11400.0]],
-                       statuses=list(STATUSES), depth=0, keys=['528:12'], groups=['4440'],
-                       counts=dict(settled=1, open=0, split=0, pending=0, running=3), stale=None, tracked=True,
-                       work=dict(runs=4, running=3, frozen=0, ended=1, aborted=0, found=0), chance=CHANCE, odds=ODDS_CAMPAIGN)
+# A run's odds as progress.js carries them (progress.py's odds; since 2026-11-06 {prior, since, exists}): a campaign
+# target's, its prior P(exists) 0.3, its history's origin 6 h before the data was made, and P(exists) at 9 quarter
+# hours to then, falling from 0.3 (ODDS_CAMPAIGN); the same before its first measurement, with no point (ODDS_NONE);
+# and the live 288:10 run's, its prior 0.01, its origin 3 h before, and P(exists) at three hours to then (ODDS_WORK).
+# (Until 2026-11-06 odds carried a basis, the hours ahead and curves, and came with a chance, whose history the chance
+# chart drew: dreeves, that day, "everything here seems useless, kill it unless you have a good argument for salvaging
+# anything. the up-to-date probability that a bipartition exists is great.")
+ODDS_SINCE = PROGRESS_DATA['made'] - 6 * 3600
+ODDS_CAMPAIGN = dict(prior=0.3, since=ODDS_SINCE, exists=[[PROGRESS_DATA['made'] - 900 * (8 - k), 0.3 * math.exp(-k / 20)] for k in range(9)])
+ODDS_NONE = dict(prior=0.3, since=ODDS_SINCE, exists=[])
+ODDS_WORK = dict(prior=0.01, since=PROGRESS_DATA['made'] - 3 * 3600,
+                 exists=[[PROGRESS_DATA['made'] - 3600 * (2 - k), 0.01 - 0.002 * k] for k in range(3)])
+# PROGRESS_CAMPAIGN: a tracked target a campaign searches, with its odds (PROGRESS_CHANCE until 2026-11-06, with its
+# chance too).
+PROGRESS_CAMPAIGN = dict(program='probe_seed.py', n=528, order=12, state='running', outcome=None, so_far=600,
+                         to_go=dict(median=600, lo=600 / 19, hi=19 * 600), etas=[[PROGRESS_DATA['made'], 600.0, 600.0, 31.6, 11400.0]],
+                         statuses=list(STATUSES), depth=0, keys=['528:12'], groups=['4440'],
+                         counts=dict(settled=1, open=0, split=0, pending=0, running=3), stale=None, tracked=True,
+                         work=dict(runs=4, running=3, frozen=0, ended=1, aborted=0, found=0), odds=ODDS_CAMPAIGN)
 # The boxes runs' progress.js (2026-11-04, [CEL]: a black cell's box summarizes the searches at its cell): two runs at
-# 528:12, PROGRESS_CHANCE and an overnight_v5.py run that ended with no outcome (aborted), and one at 64:7.
-BOX_PROGRESS = {'made': PROGRESS_DATA['made'], 'runs': [PROGRESS_CHANCE, dict(PROGRESS_DATA['runs'][0], n=528, order=12, state='ended',
-                                                                              to_go=None), PROGRESS_DATA['runs'][0]]}
-CHANCE_LOOK = """
-  const all = runs(), [r, other, empty, none, unrated] = all;
-  for (const b of [r, empty, unrated]) b.querySelector('details').open = true;   // laid out, so that the pointer has somewhere to be
-  await sleep(50);
-  const fig = box => box.querySelector('.progress-chance');
-  const f = fig(r), svg = f.querySelector('svg'), cross = svg.querySelector('[data-chance-cross]'), tip = f.querySelector('[data-chance-tip]');
-  const vertices = (box, sel) => (fig(box).querySelector(sel).getAttribute('points') || '').trim().split(/\\s+/)
-    .filter(Boolean).map(p => p.split(',').map(Number));
-  const ticks = (box, which) => [...fig(box).querySelectorAll(`[data-chance-ticks="${which}"] text`)]
-    .map(t => [t.textContent, +t.getAttribute('x'), +t.getAttribute('y')]);
-  const stated = box => Object.fromEntries([...fig(box).querySelectorAll('[data-chance-at]')].map(e => [e.dataset.chanceAt, e.textContent]));
-  const read = box => [...fig(box).querySelectorAll('[data-chance-tip] > span, [data-chance-tip] [data-chance-hours], [data-chance-tip] [data-chance-p]')]
-    .map(e => e.textContent);
-  const L = window.progressView.layouts[0], sb = svg.getBoundingClientRect();
-  const hover = k => svg.dispatchEvent(new MouseEvent('mousemove', {clientX: sb.left + L.chanceXs[k] * sb.width / 640,
-                                                                    clientY: sb.top + sb.height / 2, bubbles: true}));
-  const rest = [getComputedStyle(tip).visibility, read(r)];
-  hover(10);
-  const hovered = [getComputedStyle(tip).visibility, read(r), cross.getAttribute('visibility'), +cross.getAttribute('x1'), L.chanceXs[10]];
-  svg.dispatchEvent(new MouseEvent('mouseleave'));
-  out({hidden: all.map(b => fig(b).hidden), eta: all.map(b => b.querySelector('.progress-eta').hidden), xs: L.chanceXs.length,
-       after: !!(r.querySelector('.progress-pool').compareDocumentPosition(f) & Node.DOCUMENT_POSITION_FOLLOWING),
-       folded: r.querySelector('details').contains(f),
-       line: vertices(r, '[data-chance-line]'), wash: vertices(r, '[data-chance-wash]'),
-       marks: [...f.querySelectorAll('[data-chance-marks] circle')].map(c => [+c.getAttribute('cx'), +c.getAttribute('cy')]),
-       pticks: ticks(r, 'p'), tticks: ticks(r, 't'), stated: stated(r), spent: f.querySelector('[data-chance-spent]').textContent,
-       rest, hovered, left: [getComputedStyle(tip).visibility, cross.getAttribute('visibility')],
-       empty: {line: vertices(empty, '[data-chance-line]').length, marks: fig(empty).querySelectorAll('[data-chance-marks] circle').length,
-               stated: stated(empty), spent: fig(empty).querySelector('[data-chance-spent]').textContent, tip: read(empty),
-               pticks: ticks(empty, 'p').map(t => t[0]), tticks: ticks(empty, 't').map(t => t[0])},
-       unrated: {line: vertices(unrated, '[data-chance-line]').length, marks: fig(unrated).querySelectorAll('[data-chance-marks] circle').length,
-                 stated: stated(unrated), tip: read(unrated)}});"""
+# 528:12, PROGRESS_CAMPAIGN and an overnight_v5.py run that ended with no outcome (aborted), and one at 64:7.
+BOX_PROGRESS = {'made': PROGRESS_DATA['made'], 'runs': [PROGRESS_CAMPAIGN, dict(PROGRESS_DATA['runs'][0], n=528, order=12, state='ended',
+                                                                                to_go=None), PROGRESS_DATA['runs'][0]]}
 
 
-def q_progress_draws_a_search_s_odds():
-    # Replicata: index.html with three runs as progress.js: an exhaustive search on Lindy's rule (288:10, LINDY_CHANCE
-    # and ODDS_LINDY), PROGRESS_CHANCE (ODDS_CAMPAIGN), and PROGRESS_DATA's overnight_v5.py run, with no odds; the first
-    # two folds opened.  (Until 2026-11-04's third graph the first was PROGRESS_CHANCE's run with ODDS_LINDY, its chance
-    # a campaign's.)
-    # Expectata (dreeves, 2026-11-04: "what if we had 2 probability graphs: 1. probability a partition exists, starting
-    # from whatever prior and going down as the search proceeds and doesn't find one ... 2. probability of finding a
-    # partition by time t *conditional on a partition existing* and also conditional on not having found one so far ...
-    # every timestep we'd draw a new version of the graph that starts going up from zero starting now, for every "now".
-    # so maybe we just draw the current one bolded and the previous ones stay visible but are more and more faded?", then
-    # "graphs first, then refine the estimates"): each of the first two runs' odds shown: P(exists) a line with a vertex
-    # per point and a dot on its last; P(found by t | exists) a curve per entry, each with a vertex per hour ahead, the
-    # last bold (class now) and fully opaque, the others fainter the older they are; the note of its own basis shown and
-    # the other's hidden.  The third run's odds hidden.
-    # Resultata before: no such graphs.
-    lindy, campaign = dict(PROGRESS_CHANCE, n=288, order=10, chance=LINDY_CHANCE, odds=ODDS_LINDY), dict(PROGRESS_CHANCE, n=720, order=13)
-    got = progress_harness({'made': PROGRESS_DATA['made'], 'runs': [lindy, campaign, PROGRESS_DATA['runs'][0]]}, """
-  const all = runs();
-  for (const b of all.slice(0, 2)) b.querySelector('details').open = true;
-  await sleep(50);
-  const fig = box => box.querySelector('.progress-odds');
-  const pts = e => (e.getAttribute('points') || '').trim().split(/\\s+/).filter(Boolean).length;
-  const view = box => ({                              // not look: the harness's prelude declares that
-    line: pts(fig(box).querySelector('[data-exists-line]')), marks: fig(box).querySelectorAll('[data-exists-marks] circle').length,
-    curves: [...fig(box).querySelectorAll('[data-found-curves] polyline')].map(c => [pts(c), c.getAttribute('class'), +(c.getAttribute('opacity') ?? 1)]),
-    bases: Object.fromEntries([...fig(box).querySelectorAll('[data-odds-basis]')].map(e => [e.dataset.oddsBasis, e.hidden]))});
-  out({hidden: all.map(b => fig(b).hidden), lindy: view(all[0]), campaign: view(all[1])});""")
-    assert got['hidden'] == [False, False, True], got['hidden']
-    for name, odds in (('lindy', ODDS_LINDY), ('campaign', ODDS_CAMPAIGN)):
-        g = got[name]
-        assert g['line'] == len(odds['exists']) and g['marks'] == 1, (name, g['line'], g['marks'])
-        assert [c[0] for c in g['curves']] == [73] * len(odds['curves']), (name, g['curves'])
-        assert [c[1] for c in g['curves']] == ['old'] * (len(odds['curves']) - 1) + ['now'] and g['curves'][-1][2] == 1, (name, g['curves'][-3:])
-        assert all(a[2] < b[2] for a, b in zip(g['curves'], g['curves'][1:])), (name, [c[2] for c in g['curves']])
-        # Spec change (Claude, 2026-11-05): Astra's work model (installed 2026-11-04 23:00, committed in 6000eaa) added a
-        # third basis note, work, hidden for both of these runs.
-        assert g['bases'] == {b: name != b for b in ('lindy', 'campaign', 'work')}, (name, g['bases'])
+def odds_runs():
+    """The runs of the quals of a run's prior and its P(exists) graph (2026-11-06), in this order: PROGRESS_CAMPAIGN, a
+    campaign target with its odds; PROGRESS_DATA's overnight_v5.py run, which has no model of its search (ODDS_IGNORANT);
+    PROGRESS_WORK, the live 288:10 run, with ODDS_WORK; and PROGRESS_CAMPAIGN at 672:13 before its first measurement
+    (ODDS_NONE).  All running, so the section lists them in this order."""
+    return [PROGRESS_CAMPAIGN, PROGRESS_DATA['runs'][0], dict(PROGRESS_WORK, odds=ODDS_WORK), dict(PROGRESS_CAMPAIGN, n=672, order=13, odds=ODDS_NONE)]
 
 
-def q_progress_work_note_states_the_run_s_prior():
-    # Replicata: index.html with two runs as progress.js, each a modeled search on the work basis (LINDY_CHANCE's chance
-    # and ODDS_LINDY's points, as a work model's), their priors P(exists) 0.5 and 0.01; both folds opened.
-    # Expectata (dreeves, 2026-11-06, of 288:10's prior 0.01, which the work note stated as typed: "that sounds dumb.
-    # let's start with an ignorant prior (50%) and let it fall naturally as the search progresses"; the coordinator: the
-    # number filled from the data, the run's actual prior, so that it can't go stale): each run's work note shown, its
-    # initial probability its own prior as the page writes numbers, 0.5 and 0.01; the other two notes hidden.
-    # Resultata before: the note's 0.01 was typed into it, the same for every run.
-    work = lambda prior: dict(PROGRESS_CHANCE, n=288, order=10, chance=LINDY_CHANCE, odds=dict(ODDS_LINDY, basis='work', prior=prior))
-    got = progress_harness({'made': PROGRESS_DATA['made'], 'runs': [work(0.5), dict(work(0.01), n=304, order=9)]}, """
+# Quals removed on 2026-11-06 (Claude; dreeves: "everything here seems useless, kill it unless you have a good argument
+# for salvaging anything. the up-to-date probability that a bipartition exists is great."; "for anti-magic i don't want
+# to conditionally include or exclude graphs."; then "after the ETA graph, explicitly state the prior probability a
+# bipartition exists. we can go back to 1% or whatever makes sense for 288:10. then show the first probability graph,
+# even though for 288:10 it's uninteresting. then kill everything below that."), with the graphs, lines and notes they
+# specified: q_progress_draws_a_search_s_odds (in its place q_progress_every_run_has_one_probability_graph),
+# q_progress_work_note_states_the_run_s_prior (in its place q_progress_states_each_run_s_prior),
+# q_progress_draws_the_chance_after_the_odds and q_progress_draws_a_campaign_target_s_chance (the third graph and its
+# line; in their place q_progress_has_none_of_the_removed_graphs_or_lines).
+
+
+def q_progress_every_run_has_one_probability_graph():
+    # Replicata: index.html with odds_runs() as progress.js, every fold opened.
+    # Expectata (dreeves, 2026-11-06: "for anti-magic i don't want to conditionally include or exclude graphs"; then
+    # "show the first probability graph, even though for 288:10 it's uninteresting. then kill everything below that";
+    # and "go with 50% as the ignorant prior when there's no model or whatever"; the coordinator: a run with no model of
+    # its search has nothing to update its prior with, so its graph is the same frame grayed, with no line, by one
+    # mechanism for all runs): every run's box has exactly one probability graph, its P(exists) graph, shown, a vertex
+    # per point of its odds (9, none for the run without a model, 3, and none before the first measurement) and a dot
+    # on its last; a graph with no point grayed (data-empty, its svg's opacity below 1) and no other, so that the run
+    # without a model and the campaign target before its first measurement look alike but for the prior they state;
+    # the run without a model's axes those of its time so far (0 to 2 h) and percent to 1%.  The campaign target's
+    # line at its points' hours since its odds' since on the hour ticks' scale (0 to 6 h, every 2) and at their
+    # P(exists) on the percent ticks' (0 to 30%, every 10).
+    # Resultata before: the section threw at the first run with odds but no chance ("odds without a chance"); with
+    # chances, a run without odds had its odds' figure hidden and a run with odds three graphs.
+    got = progress_harness({'made': PROGRESS_DATA['made'], 'runs': odds_runs()}, """
   for (const r of runs()) r.querySelector('details').open = true;
-  await sleep(50);
-  out(runs().map(r => { const note = r.querySelector('[data-odds-basis="work"]'), field = note.querySelector('[data-odds-prior]');
-    return {shown: note.checkVisibility(), prior: field && field.textContent,
-            others: [...r.querySelectorAll('[data-odds-basis]:not([data-odds-basis="work"])')].map(e => e.checkVisibility())}; }));""")
-    assert got == [dict(shown=True, prior='0.5', others=[False, False]), dict(shown=True, prior='0.01', others=[False, False])], got
-
-
-def q_progress_draws_the_chance_after_the_odds():
-    # Replicata: index.html with four runs as progress.js: an exhaustive search on Lindy's rule (288:10, LINDY_CHANCE
-    # and ODDS_LINDY), PROGRESS_CHANCE (a campaign target, CHANCE and ODDS_CAMPAIGN), PROGRESS_CHANCE with no rate
-    # measured yet (its chance's rate and cores null, p and history empty; ODDS_NONE), and PROGRESS_CHANCE stopped
-    # halfway (its history CHANCE_HISTORY's first 12 points, to 3 h, its odds' P(exists) still to now, 6 h); their folds
-    # opened.
-    # Expectata (dreeves, 2026-11-04: "can we get that 3rd chart as well, consistently, after the P(exists) and
-    # P(find|exists) charts? maybe we'll see a way to combine them but let's start with everything laid out"): in each
-    # run, three graphs in its odds' figure, in this order, each under a title of its own: P(exists), P(found by t |
-    # exists), then the chance chart, the history of the chance within 24 h; then the note on its basis.  The first and
-    # the third on one time axis, hours since the chance's since, to the latest time either has: the same hour ticks at
-    # the same places, the stopped search's 0 to 6 h, its history's line ending halfway along.  The exhaustive
-    # search's chance chart a vertex per point of its history, its chances within 6 h and 24 h stated as LINDY_CHANCE's,
-    # and — for its CPU-hours, which its model does not count; the campaign target's 2.1 CPU-hours.  With no rate
-    # measured yet, every graph's axes alone: no line, curve, dot or now line.
-    # Resultata before: the chance chart before the odds' figure, outside it, with no title; the first graph's hours
-    # counted from its own first point; and with no rate measured yet, no graphs at all (a TypeError at its first point).
-    lindy = dict(PROGRESS_CHANCE, n=288, order=10, chance=LINDY_CHANCE, odds=ODDS_LINDY)
-    unmeasured = dict(PROGRESS_CHANCE, n=672, order=13, chance=dict(CHANCE, rate=None, cores=None, p=[], history=[]), odds=ODDS_NONE)
-    stopped = dict(PROGRESS_CHANCE, n=720, order=13, chance=dict(CHANCE, history=CHANCE_HISTORY[:12]))
-    got = progress_harness({'made': PROGRESS_DATA['made'], 'runs': [lindy, PROGRESS_CHANCE, unmeasured, stopped]}, """
-  const all = runs();
-  for (const b of all) b.querySelector('details').open = true;
-  await sleep(50);
-  const pts = e => (e.getAttribute('points') || '').trim().split(/\\s+/).filter(Boolean).length;
-  const ticks = (box, sel) => [...box.querySelectorAll(`${sel} text`)].map(t => [t.textContent, +t.getAttribute('x')]);
-  const kind = s => ['exists-line', 'found-curves', 'chance-line'].find(k => s.querySelector(`[data-${k}]`));
-  const titled = s => {                                // the nearest title before the graph, among its siblings
-    let e = s.previousElementSibling;
-    while (e && !e.matches('.progress-odds-title')) e = e.previousElementSibling;
-    return !!e && e.textContent.trim().length > 0;
-  };
-  out(all.map(box => {
-    const f = box.querySelector('.progress-odds'), chance = box.querySelector('.progress-chance'), svgs = [...f.querySelectorAll('svg')];
-    return {hidden: f.hidden, inside: f.contains(chance), chanceHidden: chance.hidden, svgs: svgs.map(kind),
-            shown: svgs.map(s => s.getBoundingClientRect().height > 0), titled: svgs.map(titled),
-            beforeNotes: [...f.querySelectorAll('[data-odds-basis]')].every(n => !!(chance.compareDocumentPosition(n) & Node.DOCUMENT_POSITION_FOLLOWING)),
-            existsTicks: ticks(f, '[data-exists-ticks="t"]'), chanceTicks: ticks(box, '[data-chance-ticks="t"]'),
-            existsLine: pts(f.querySelector('[data-exists-line]')), line: pts(box.querySelector('[data-chance-line]')),
-            curves: f.querySelectorAll('[data-found-curves] polyline').length, nows: f.querySelectorAll('[data-found-now] line').length,
-            marks: [f.querySelectorAll('[data-exists-marks] circle').length, box.querySelectorAll('[data-chance-marks] circle').length],
-            stated: Object.fromEntries([...box.querySelectorAll('[data-chance-at]')].map(e => [e.dataset.chanceAt, e.textContent])),
-            spent: box.querySelector('[data-chance-spent]').textContent,
-            lastX: (box.querySelector('[data-chance-line]').getAttribute('points') || '').trim().split(/\\s+/).filter(Boolean).map(p => +p.split(',')[0]).pop() ?? null};
-  }));""")
-    assert len(got) == 4, got
-    for g in got:
-        assert g['hidden'] is False and g['inside'] is True and g['chanceHidden'] is False, g
-        assert g['svgs'] == ['exists-line', 'found-curves', 'chance-line'] and g['shown'] == [True] * 3 and g['titled'] == [True] * 3, g
-        assert g['beforeNotes'] is True and g['existsTicks'] == g['chanceTicks'] and g['chanceTicks'], (g['existsTicks'], g['chanceTicks'])
-    pct = lambda v: f'{float(f"{100 * v:.2g}"):g}%'               # as the page writes a chance: 2 significant digits
-    lin, camp, none, stop = got
-    assert lin['existsLine'] == 120 and lin['line'] == 120 and lin['curves'] == 25 and lin['nows'] == 1 and lin['marks'] == [1, 1], lin
-    want = {str(t): pct(LINDY_CHANCE['p'][CHANCE_HOURS.index(t)]) for t in (6, 24)}
-    assert lin['stated'] == want == {'6': '0.36%', '24': '0.65%'} and lin['spent'] == '—', (lin['stated'], lin['spent'])
-    assert camp['line'] == 24 and camp['spent'] == '2.1' and [t[0] for t in camp['chanceTicks']] == ['0', '2', '4', f'6{NNBSP}h'], camp
-    assert none['existsLine'] == 0 and none['line'] == 0 and none['curves'] == 0 and none['nows'] == 0 and none['marks'] == [0, 0], none
-    ticks = stop['chanceTicks']
-    assert [t[0] for t in ticks] == ['0', '2', '4', f'6{NNBSP}h'] and stop['line'] == 12, (ticks, stop['line'])
-    assert abs(stop['lastX'] - (ticks[0][1] + (ticks[-1][1] - ticks[0][1]) / 2)) < 0.05, (stop['lastX'], ticks)   # its 3 h of 6
-
-
-def q_progress_draws_a_campaign_target_s_chance():
-    # Replicata: index.html with five runs as progress.js: PROGRESS_CHANCE, a tracked target a campaign searches, with
-    # its chance; PROGRESS_DATA's overnight_v5.py run, whose entry has none; PROGRESS_CHANCE with no rate measured yet
-    # and no history (rate null, p and history empty); with its chance null (not live: found, stopped, or its campaign
-    # ended); and with no rate measured yet in its live plan but its history kept (rate null, p empty).  The folds of
-    # the first, third and fifth opened, the first's chance chart hovered at its eleventh point, then left.
-    # Expectata (README [SER], 2026-11-03: "Could the searches show a live estimate of the probability of finding a
-    # bipartition?"; README [CON] and dreeves, 2026-11-03: "the curve should fall in light of the conditional
-    # probability but it should remain historically accurate, yes? does this end up making it kind of redundant with the
-    # ETA graph? ... what's actually most useful to see during a search"): the chance charts of the first, third and
-    # fifth shown, in their folds, after the pool chart, and the second's and fourth's hidden; every run's ETA chart
-    # shown, the chance charts below theirs.  The first's line a vertex per point of its
-    # history, at its hours since its since on the hour ticks' scale (0 to 6, every 2, the last 6 h) and its chance
-    # within 24 h on the percent ticks' (0 to 5%, every 1, the last 5%), over a wash down to 0 at its ends; a dot on its
-    # last point; the chance within 6 h and within 24 h now stated as percents to 2 significant digits, 0.91% and 2.8%,
-    # and the CPU-hours searched, 2.1; its tip at rest hidden, laid out as the last point's (its local time, 24 h and
-    # 0.68%); over the eleventh point shown with its time, 24 h and 2%, the cross at it; hidden again, with the cross,
-    # once the pointer leaves.  The third's: its axes alone (hours 0 to 0.25, every 0.05; percent 0 to 1%, every 0.2),
-    # no line, dot or tip, — for its chances and its CPU-hours stated.  The fifth's: its history's line and dot, its tip
-    # laid out, — for its chances now.
-    # Spec change (README [CON], 2026-11-03; dreeves: "i guess just apply common sense here too"): until then the chart
-    # was the chance within the next t hours for t up to 72, every quarter hour, with dots at 6 and 24 h, beside the ETA
-    # chart; it is now the history of the chance within 24 h, in the ETA chart's place.  Spec change (dreeves,
-    # 2026-11-04: "shouldn't there always be an ETA graph, even when it's just based on the lindy effect? death to
-    # if-statements, remember?"): the ETA charts of the first, third and fifth shown, as every run's; until then hidden.
-    # Fixture change (2026-11-04, the chance chart the third of the odds' graphs, in their figure): each run with a chance
-    # carries its odds, as progress.js gives the two together, the third ODDS_NONE; the fourth neither.
-    # Resultata before: the forward curve (289 vertices on a 72-h axis) beside the ETA chart.
-    empty = dict(PROGRESS_CHANCE, n=672, order=13, chance=dict(CHANCE, rate=None, p=[], history=[]), odds=ODDS_NONE)
-    none = dict(PROGRESS_CHANCE, n=864, order=13, chance=None, odds=None)
-    unrated = dict(PROGRESS_CHANCE, n=720, order=13, chance=dict(CHANCE, rate=None, p=[]))
-    got = progress_harness({'made': PROGRESS_DATA['made'], 'runs': [PROGRESS_CHANCE, PROGRESS_DATA['runs'][0], empty, none, unrated]}, CHANCE_LOOK)
-    assert got['hidden'] == [False, True, False, True, False] and got['after'] is True and got['folded'] is True, got['hidden']
-    assert got['eta'] == [False] * 5, got['eta']
+  await sleep(200);
+  const vertices = e => (e.getAttribute('points') || '').trim().split(/\\s+/).filter(Boolean).map(p => p.split(',').map(Number));
+  const ticks = (f, which, axis) => [...f.querySelectorAll(`[data-exists-ticks="${which}"] text`)].map(t => [t.textContent, +t.getAttribute(axis)]);
+  out(runs().map(box => { const f = box.querySelector('.progress-odds');
+    return {program: box.querySelector('[data-program]').textContent, graphs: f.querySelectorAll('svg').length, shown: f.checkVisibility(),
+            empty: f.hasAttribute('data-empty'), opacity: +getComputedStyle(f.querySelector('svg')).opacity, line: vertices(f.querySelector('[data-exists-line]')),
+            marks: [...f.querySelectorAll('[data-exists-marks] circle')].map(c => [+c.getAttribute('cx'), +c.getAttribute('cy')]),
+            pticks: ticks(f, 'p', 'y'), tticks: ticks(f, 't', 'x')}; }));""")
+    assert [g['program'] for g in got] == ['probe_seed.py', 'overnight_v5.py', 'ftree.py', 'probe_seed.py'], got
+    assert [(g['graphs'], g['shown']) for g in got] == [(1, True)] * 4, [(g['graphs'], g['shown']) for g in got]
+    assert [len(g['line']) for g in got] == [9, 0, 3, 0] and [len(g['marks']) for g in got] == [1, 0, 1, 0], [(len(g['line']), g['marks']) for g in got]
+    assert [g['empty'] for g in got] == [False, True, False, True], [g['empty'] for g in got]
+    assert [g['opacity'] < 1 for g in got] == [False, True, False, True] and got[0]['opacity'] == got[2]['opacity'] == 1, [g['opacity'] for g in got]
     h = NNBSP + 'h'
-    assert [t[0] for t in got['tticks']] == ['0', '2', '4', f'6{h}'], got['tticks']
-    assert [t[0] for t in got['pticks']] == ['0', '1', '2', '3', '4', '5%'], got['pticks']
-    x0, x6 = got['tticks'][0][1], got['tticks'][-1][1]
-    (_, _, y0), (_, _, y5) = got['pticks'][0], got['pticks'][-1]
+    assert [t for t, _ in got[1]['tticks']] == ['0', '0.5', '1', '1.5', f'2{h}'] and [t for t, _ in got[1]['pticks']] == ['0', '0.2', '0.4', '0.6', '0.8', '1%'], got[1]
+    camp = got[0]
+    assert [t for t, _ in camp['tticks']] == ['0', '2', '4', f'6{h}'] and [t for t, _ in camp['pticks']] == ['0', '10', '20', '30%'], (camp['tticks'], camp['pticks'])
+    (_, x0), (_, x6) = camp['tticks'][0], camp['tticks'][-1]
+    (_, y0), (_, y3) = camp['pticks'][0], camp['pticks'][-1]
     X = lambda hours: x0 + (x6 - x0) * hours / 6
-    Y = lambda v: y0 - 4 + (y5 - y0) * v / 0.05                  # a tick label sits 4 below its value's line
-    near = lambda pts, want: len(pts) == len(want) and all(abs(a - c) < 0.05 and abs(b - d) < 0.05 for (a, b), (c, d) in zip(pts, want))
-    line = [(X((t - CHANCE_SINCE) / 3600), Y(p24)) for t, _, p24 in CHANCE_HISTORY]
-    assert got['xs'] == 24 and near(got['line'], line), (got['xs'], got['line'][:3], line[:3])
-    assert near(got['wash'], [(line[0][0], Y(0))] + line + [(line[-1][0], Y(0))]), got['wash'][:3]
-    assert near(got['marks'], [line[-1]]), got['marks']
-    pct = lambda v: f'{float(f"{100 * v:.2g}"):g}%'               # as the page writes a chance: 2 significant digits
-    clock = lambda t: time.strftime('%Y-%m-%d %H:%M', time.localtime(t))   # as the page writes a time (its local)
-    p6, p24 = (CHANCE['p'][CHANCE_HOURS.index(t)] for t in (6, 24))
-    assert got['stated'] == {'6': pct(p6), '24': pct(p24)} == {'6': '0.91%', '24': '2.8%'} and got['spent'] == '2.1', got['stated']
-    (t24, _, last), (t11, _, eleventh) = CHANCE_HISTORY[-1], CHANCE_HISTORY[10]
-    assert got['rest'] == ['hidden', [clock(t24), f'24{h}', pct(last)]] and pct(last) == '0.68%', got['rest']
-    assert got['hovered'][:3] == ['visible', [clock(t11), f'24{h}', pct(eleventh)], 'visible'] and pct(eleventh) == '2%', got['hovered']
-    assert abs(got['hovered'][3] - got['hovered'][4]) < 0.05 and got['left'] == ['hidden', 'hidden'], (got['hovered'], got['left'])
-    assert got['empty'] == dict(line=0, marks=0, stated={'6': '—', '24': '—'}, spent='2.1', tip=[],
-                                pticks=['0', '0.2', '0.4', '0.6', '0.8', '1%'], tticks=['0', '0.05', '0.1', '0.15', '0.2', f'0.25{h}']), got['empty']
-    assert got['unrated'] == dict(line=24, marks=1, stated={'6': '—', '24': '—'}, tip=[clock(t24), f'24{h}', '0.68%']), got['unrated']
+    Y = lambda v: y0 - 4 + (y3 - y0) * v / 0.3                    # a tick label sits 4 below its value's line
+    want = [(X((t - ODDS_SINCE) / 3600), Y(p)) for t, p in ODDS_CAMPAIGN['exists']]
+    assert all(abs(a - c) < 0.05 and abs(b - d) < 0.05 for (a, b), (c, d) in zip(camp['line'], want)), (camp['line'][:3], want[:3])
+    assert all(abs(a - c) < 0.05 for a, c in zip(camp['marks'][0], want[-1])), (camp['marks'], want[-1])
+
+
+def q_progress_has_none_of_the_removed_graphs_or_lines():
+    # Replicata: the section's markup in index.html, its comments left out; the section's script, its comments left
+    # out; the page's CSS rules; and the boxes of odds_runs() as progress.js, every fold opened.
+    # Expectata (dreeves, 2026-11-06: "everything here seems useless, kill it unless you have a good argument for
+    # salvaging anything. the up-to-date probability that a bipartition exists is great."; then "then show the first
+    # probability graph ... then kill everything below that"): none of what was below the P(exists) graph anywhere: no
+    # graph of P(found by t | exists) (data-found-*), no chance chart (progress-chance, data-chance-*), no template of
+    # its tip (progress-chance-point), no chance line (the chances within 6 h and 24 h, its CPU-hours, nodes and rate),
+    # no note on the odds' basis (data-odds-basis); the script draws none of them (chanceChart, chanceXs, curves, a
+    # basis), and no CSS rule styles them (progress-chance, the curves' now and old, the now line); and no drawn box
+    # holds one of those elements.
+    # Resultata before: all of them, in the markup, the script and the CSS, and drawn in every box of a run with odds.
+    text = page()
+    sec = re.sub(r'<!--.*?-->', '', re.search(r'<section class="progress".*?</section>', text, re.S).group(0), flags=re.S)
+    removed = r'data-found-|data-chance-|progress-chance|data-odds-basis'
+    assert not re.findall(removed, sec), sorted(set(re.findall(removed, sec)))
+    js = re.sub(r'/\*.*?\*/|//[^\n]*', '', page_scripts(text)[-1], flags=re.S)
+    assert not re.findall(r'chanceChart|chanceXs|curves|data-found|data-chance|progress-chance|odds-basis|oddsBasis', js), sorted(set(re.findall(r'chanceChart|chanceXs|curves|data-found|data-chance|progress-chance|odds-basis|oddsBasis', js)))
+    css = re.sub(r'/\*.*?\*/', '', page_css(), flags=re.S)
+    assert not re.findall(r'progress-chance|polyline\.now|polyline\.old|\.nowline', css), sorted(set(re.findall(r'progress-chance|polyline\.now|polyline\.old|\.nowline', css)))
+    got = progress_harness({'made': PROGRESS_DATA['made'], 'runs': odds_runs()}, """
+  for (const r of runs()) r.querySelector('details').open = true;
+  await sleep(200);
+  out(runs().map(box => box.querySelectorAll('[data-found-curves], [data-found-now], .progress-chance, [data-chance-line], [data-chance-at], [data-chance-spent], [data-odds-basis]').length));""")
+    assert got == [0, 0, 0, 0], got
+
+
+def q_progress_states_each_run_s_prior():
+    # Replicata: index.html with odds_runs() as progress.js, every fold opened.
+    # Expectata (dreeves, 2026-11-06: "after the ETA graph, explicitly state the prior probability a bipartition exists.
+    # we can go back to 1% or whatever makes sense for 288:10. then show the first probability graph"; and "go with 50%
+    # as the ignorant prior when there's no model or whatever"; the coordinator: shown for every run, never "—"): in
+    # every run's box a line stating its prior P(exists), shown, after its ETA chart and its status line, right before
+    # its P(exists) graph's title, that graph the last of its figure: 0.3, 0.5 (the ignorant prior of the run without a
+    # model), 0.01 and 0.3, as the page writes numbers.  Its words are dreeves's, unpinned (no qual pins wording,
+    # dreeves's rule since 2026-10-26).
+    # Resultata before: no such line; the prior was stated only in the work basis's note, below all three graphs, for a
+    # run on that basis.
+    got = progress_harness({'made': PROGRESS_DATA['made'], 'runs': odds_runs()}, """
+  for (const r of runs()) r.querySelector('details').open = true;
+  await sleep(200);
+  const after = (a, b) => !!(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+  out(runs().map(box => { const field = box.querySelector('.progress-odds [data-odds-prior]'), line = field && field.closest('p');
+    const f = box.querySelector('.progress-odds'), title = f.querySelector('.progress-odds-title'), svg = f.querySelector('svg');
+    return field && {prior: field.textContent, shown: line.checkVisibility(), afterEta: after(box.querySelector('.progress-eta'), line),
+                     afterStatus: after(box.querySelector('.progress-status'), line), next: line.nextElementSibling === title,
+                     graph: title.nextElementSibling === svg && svg === f.lastElementChild}; }));""")
+    assert [g and g['prior'] for g in got] == ['0.3', '0.5', '0.01', '0.3'], got
+    assert all(g['shown'] and g['afterEta'] and g['afterStatus'] and g['next'] and g['graph'] for g in got), got
+
+
+def q_progress_brief_of_a_run_without_a_work_model_is_its_status_line():
+    # Replicata: index.html with BOX_PROGRESS's runs as progress.js: at 528:12, PROGRESS_CAMPAIGN (running) and an
+    # overnight_v5.py run that ended with no outcome (aborted); then want(528, 12), as the box of the m*(n) chart's black
+    # cell (528, 12) asks for the runs at its target (page/shared.js's searches).
+    # Expectata (the coordinator, 2026-11-06, with the chance line gone: "Make every other run brief its status line
+    # (time so far + to go), with no new branch beyond a selector map like workView's"; dreeves: "everything here seems
+    # useless, kill it unless you have a good argument for salvaging anything"): two rows a run, its summary line, then
+    # its status line (p.progress-status) filled as the section fills that run's own: only its state's form shown, the
+    # first's running one with its time so far, its range to go, in all and its finish times as in the section, the
+    # second's aborted one with its 2.0 h.
+    # Resultata before: the first run's second row was its chance line, and the second run had no second row.
+    got = progress_harness(BOX_PROGRESS, """
+  const rows = await new Promise(put => window.progressView.want(528n, 12, put));
+  const shown = row => [...row.querySelectorAll('[data-state]')].filter(e => !e.hidden);
+  const fields = e => Object.fromEntries(['so-far', 'to-go', 'sum', 'done'].map(f => [f, (e.querySelector(`[data-${f}]`) || {}).textContent ?? null]));
+  const section = runs().find(r => r.querySelector('[data-program]').textContent === 'probe_seed.py');
+  out({rows: rows.length, status: rows.map(r => r.matches('p.progress-status')), states: rows.map(r => shown(r).map(e => e.dataset.state)),
+       running: fields(shown(rows[1])[0]), section: fields(section.querySelector('.progress-status [data-state="running"]')),
+       aborted: shown(rows[3])[0].textContent});""")
+    assert got['rows'] == 4 and got['status'] == [False, True, False, True], got
+    assert got['states'] == [[], ['running'], [], ['aborted']], got['states']
+    assert got['running'] == got['section'] and got['running']['so-far'] == f'0.2{NNBSP}h', (got['running'], got['section'])
+    assert got['aborted'] == f'Aborted after running for 2.0{NNBSP}h.', got['aborted']
 
 
 def q_progress_status_line_names_an_ended_run_s_outcome():
@@ -5801,24 +5725,29 @@ def q_progress_brief_of_a_work_model_run_is_its_bar_caption():
     assert got == dict(rows=2, caption=True, done='468,750,102', rate='1,884.1', range='780M–2.5B', purple=True, unshown=0), got
 
 
-def q_progress_shows_runs_and_dots_only_without_a_work_model():
+def q_progress_shows_runs_and_dots_for_every_run():
     # Replicata: index.html with three running runs as progress.js, each fold open: a tracked search with a work model
     # (ftree.py's 288:10 as survey_track and formtree_eta.attach give it: four launches of one proof search, 1 running
     # and 3 ended, and PROGRESS_WORK's model), a tracked search without one (w12.py's 768:12, as in
     # q_progress_shows_a_tracked_search), and PROGRESS_DATA's overnight_v5.py run.
-    # Expectata (dreeves, 2026-11-06, of the tracked search's line "4 runs: 1 running, 0 frozen, 3 ended, 0 aborted; 0
-    # found; elapsed …; running." and its "One dot per run" dots, for 288:10: "sounds like noise?"): the first shows
-    # neither the line of its runs nor its dots, their key or their readout, but its status line and its bar; the
-    # second still shows its runs' line, its dots and their readout, its key hidden as every tracked search's; the
-    # third still shows its dots, their key and their readout, and has no runs' line.
-    # Resultata before: the first showed the line of its four runs and their four dots, as the second does.
+    # Expectata (dreeves, 2026-11-06: "for anti-magic i don't want to conditionally include or exclude graphs"; the
+    # coordinator: "Every run shows its sea and its runs line exactly as runs without a work model do"): the first and
+    # the second each show the line of its runs, its dots and their readout, its key hidden as every tracked search's,
+    # its status line, and the first its bar; the third its dots, their key and their readout, and no runs' line.
+    # Spec change (the same request; until then this qual was q_progress_shows_runs_and_dots_only_without_a_work_model,
+    # after dreeves, 2026-11-06, of 288:10's line "4 runs: 1 running, 0 frozen, 3 ended, 0 aborted; 0 found; elapsed …;
+    # running." and its "One dot per run" dots: "sounds like noise?"): the first shows its runs' line and its dots
+    # again, in place of neither.
+    # Resultata before: the first showed neither the line of its runs nor its dots, their key or their readout.
+    # Fixture change (Claude, 2026-11-06; dreeves: "go with 50% as the ignorant prior when there's no model or
+    # whatever"): odds, as every run's data carries them.
     base, made = PROGRESS_DATA['runs'][0], PROGRESS_DATA['made']
     tracked = dict(program='w12.py', n=768, order=12, state='running', outcome=None, so_far=600,
                    to_go=dict(median=600, lo=600 / 9, hi=9 * 600),
                    etas=[[made - 60, 540.0, 540.0, 60.0, 4860.0], [made, 600.0, 600.0, 66.7, 5400.0]],
                    statuses=base['statuses'], depth=0, keys=['768:12'], groups=['4440'],
                    counts=dict(settled=1, open=0, split=0, pending=0, running=3), stale=None, tracked=True,
-                   work=dict(runs=4, running=3, frozen=0, ended=1, aborted=0, found=0), lindy=True)
+                   work=dict(runs=4, running=3, frozen=0, ended=1, aborted=0, found=0), lindy=True, odds=ODDS_IGNORANT)
     worked = dict(tracked, program='ftree.py', n=288, order=10, keys=['288:10'], groups=['0004'],
                   counts=dict(settled=3, open=0, split=0, pending=0, running=1), lindy=False,
                   work=dict(runs=4, running=1, frozen=0, ended=3, aborted=0, found=0), work_eta=PROGRESS_WORK['work_eta'])
@@ -5829,7 +5758,7 @@ def q_progress_shows_runs_and_dots_only_without_a_work_model():
   out(runs().map(r => ({program: r.querySelector('[data-program]').textContent,
     runs: shows(r, '.progress-status [data-attempt-count="runs"]'), dots: shows(r, 'canvas'), key: shows(r, '.progress-key'),
     readout: shows(r, '[data-readout]'), status: shows(r, '.progress-status [data-state="running"]'), bar: shows(r, '.progress-work')})));""")
-    want = [dict(program='ftree.py', runs=False, dots=False, key=False, readout=False, status=True, bar=True),
+    want = [dict(program='ftree.py', runs=True, dots=True, key=False, readout=True, status=True, bar=True),
             dict(program='w12.py', runs=True, dots=True, key=False, readout=True, status=True, bar=False),
             dict(program='overnight_v5.py', runs=None, dots=True, key=True, readout=True, status=True, bar=False)]
     assert got == want, got

@@ -1352,17 +1352,21 @@ def q_js_is_one_progress_data_call():
     # program (overnight_v5.py), n, order, state, outcome (its finish's, or null without one: dreeves, 2026-10-25,
     # "can these be clearer when collapsed about what's paused/completed/aborted/running?"), so_far (its passes'
     # seconds of running), to_go (null: no estimate for an ended run), etas (none recorded here) and its sea (depth,
-    # keys, groups, counts, as progress.sea gives it) with the statuses' names, and stale (null: its data are this
-    # snapshot's; 2026-10-30), and nothing else.
+    # keys, groups, counts, as progress.sea gives it) with the statuses' names, stale (null: its data are this
+    # snapshot's; 2026-10-30), and odds, the ignorant prior with no history, and nothing else.
+    # Spec change (Claude, 2026-11-06; dreeves: "go with 50% as the ignorant prior when there's no model or whatever",
+    # and "for anti-magic i don't want to conditionally include or exclude graphs"): every run carries its odds, a run
+    # with no model of its search progress.IGNORANT's prior with no history; until then no odds here.
     now = 1792200000.25
     surveys = [progress.survey(n, order, *tiny(name), [], now, {}, {}) for n, order, name in ((64, 7, 'open'), (40, 6, 'closed'))]
     data = progress_data(progress.js_text(surveys, now))
     assert set(data) == {'made', 'runs'} and data['made'] == 1792200000, data.keys()
     for r, s in zip(data['runs'], surveys):
         assert set(r) == {'program', 'n', 'order', 'state', 'outcome', 'so_far', 'to_go', 'etas', 'statuses', 'depth', 'keys',
-                          'groups', 'counts', 'stale'}, set(r)
+                          'groups', 'counts', 'stale', 'odds'}, set(r)
         assert (r['program'], r['n'], r['order'], r['state'], r['outcome'], r['to_go'], r['etas'], r['stale']) == (
             'overnight_v5.py', s['n'], s['order'], 'ended', s['outcome'], None, [], None), r
+        assert r['odds'] == dict(prior=0.5, since=None, exists=[]), r['odds']
         assert r['so_far'] == sum(b - a for a, b in s['passes']) > 0, (r['so_far'], s['passes'])
         assert r['statuses'] == list(progress.SEA_STATUSES)
         assert {k: r[k] for k in ('depth', 'keys', 'groups', 'counts')} == s['sea'], r
@@ -1992,11 +1996,15 @@ def q_js_text_carries_a_tracked_search():
     # Expectata: the run carries js_text's keys for every run, its sea's, stale (null), and tracked (true), work
     # (survey_track's counts) and lindy (true: it runs on Gott's rule alone), for the page's tracked view.
     # Spec change (dreeves, 2026-11-04: "i think the graph should say if it's just using lindy"): until then no lindy.
+    # Spec change (Claude, 2026-11-06; dreeves: "go with 50% as the ignorant prior when there's no model or whatever",
+    # and "for anti-magic i don't want to conditionally include or exclude graphs"): odds too, the ignorant prior with no
+    # history, as every run without a model of its search carries; until then no odds here.
     records = [track_record('r0', 300, None, None, 1000), track_record('r1', 301, 0, None, 1001)]
     s = progress.survey_track('768:12', records, [(300, 1, 'S', 'python3 -B w12.py')], 5000.0)
     r = progress_data(progress.js_text([s], 5000.0))['runs'][0]
     assert set(r) == {'program', 'n', 'order', 'state', 'outcome', 'so_far', 'to_go', 'etas', 'statuses', 'depth', 'keys',
-                      'groups', 'counts', 'stale', 'tracked', 'work', 'lindy'}, set(r)
+                      'groups', 'counts', 'stale', 'tracked', 'work', 'lindy', 'odds'}, set(r)
+    assert r['odds'] == dict(prior=0.5, since=None, exists=[]), r['odds']
     assert r['stale'] is None and r['tracked'] is True and r['lindy'] is True and r['work'] == dict(runs=2, running=1, frozen=0, ended=1, aborted=0, found=0), r
 
 
@@ -2130,35 +2138,29 @@ def q_survey_track_runs_on_to_its_last_eta_record():
     assert [round(r[1] * 3600, 6) for r in progress.eta_records(s)] == [4000, 5000], progress.eta_records(s)
 
 
-def q_an_exhaustive_search_carries_lindy_s_odds():
+def q_an_exhaustive_search_needs_its_work_model():
     # Replicata: progress.journal_surveys at time 5200 in a directory as HERE whose runs/ holds a tracked run of 288:10
-    # started at 1000, running, with progress.EXHAUSTIVE giving 288:10 the prior 0.01; then the same with the run's own
-    # eta line at 5000.
-    # Expectata (dreeves, 2026-11-04, of two graphs, P(exists) and P(found by t | exists), for "the currently running
-    # search"; then "graphs first, then refine the estimates"): its survey carries odds and its chance,
-    # chance.lindy_shown(0.01, 1000, 5200)'s, split as a campaign target's are; its data file entry the same; and with an
-    # estimate of its own, the survey fails (AssertionError): Lindy's odds would contradict its ETA.
-    # Spec change (dreeves, 2026-11-04: "can we get that 3rd chart as well, consistently, after the P(exists) and
-    # P(find|exists) charts?"): until then chance.lindy(0.01, 1000, 5200) for its odds and no chance, so no third graph.
-    # Resultata before: no odds; then odds and no chance.
-    import chance
+    # started at 1000, running, with progress.EXHAUSTIVE giving 288:10 the prior 0.01 and no work model in runs/models/.
+    # Expectata (dreeves, 2026-11-06: "everything here seems useless, kill it unless you have a good argument for
+    # salvaging anything. the up-to-date probability that a bipartition exists is great."): its survey fails
+    # (AssertionError, so that the watcher shows the search stale): an exhaustive search's odds come from its work model
+    # alone.
+    # Spec change (the same request; until then this qual was q_an_exhaustive_search_carries_lindy_s_odds, after
+    # dreeves, 2026-11-04, of two graphs, P(exists) and P(found by t | exists), for "the currently running search"; then
+    # "graphs first, then refine the estimates"): before its model such a search carried odds and a chance by Lindy's
+    # rule, chance.lindy_shown(0.01, 1000, 5200)'s, P(exists) its prior throughout, its curves and its chance of a find
+    # from Lindy's coverage, while it ran with no estimate of its own; they went with the graphs they drew.
+    # Resultata before: the survey carried those odds and that chance.
     d = tempfile.mkdtemp(prefix='quals-odds-')
     os.makedirs(os.path.join(d, 'runs'))
     lines = track_record('r0', 310, None, None, 1000)
     lines[0]['target'] = '288:10'
-    path = os.path.join(d, 'runs', 'r0.jsonl')
-    open(path, 'w').write(''.join(json.dumps(x) + '\n' for x in lines))
+    open(os.path.join(d, 'runs', 'r0.jsonl'), 'w').write(''.join(json.dumps(x) + '\n' for x in lines))
     procs = [(310, 1, 'S', 'python3 -B ftree.py 288:10')]
     missing = object()
     saved = {name: getattr(progress, name, missing) for name in ('HERE', 'CAMPAIGNS', 'EXHAUSTIVE')}
     try:
         progress.HERE, progress.CAMPAIGNS, progress.EXHAUSTIVE = d, {}, {(288, 10): 0.01}
-        [s] = [s for _, thunk in progress.journal_surveys(procs, 5200.0, {}, {}, {}) for s in thunk()]
-        shown = chance.lindy_shown(0.01, 1000.0, 5200.0)
-        assert s['odds'] == shown['odds'] and s['chance'] == {k: v for k, v in shown.items() if k != 'odds'}, s.keys()
-        [r] = progress_data(progress.js_text([s], 5200.0))['runs']
-        assert r['odds'] == json.loads(json.dumps(s['odds'])) and r['chance'] == json.loads(json.dumps(s['chance'])), r.keys()
-        open(path, 'a').write(json.dumps(eta_line(5000.0, 50.0, 5.0, 500.0)) + '\n')
         [(_, thunk)] = [u for u in progress.journal_surveys(procs, 5200.0, {}, {}, {})]
         expect_assertion(thunk)
     finally:
@@ -2167,20 +2169,25 @@ def q_an_exhaustive_search_carries_lindy_s_odds():
         shutil.rmtree(d)
 
 
-def q_a_campaign_s_target_carries_its_chance():
+def q_a_campaign_s_target_carries_its_odds():
     # Replicata: progress.journal_surveys at time 5200 in quals_chance's made-up campaign's directory as HERE (its
     # campaign in camp/, live at 528:12), whose runs/ also holds a tracked run of 528:12 and one of 768:12, both
     # running, with progress.CAMPAIGNS naming camp for (528, 12); each unit's surveys, and js_text's entries for them.
     # Expectata (README [SER], 2026-11-03: "Could the searches show a live estimate of the probability of finding a
     # bipartition?"; the coordinator: attached to the tracked target's survey, the campaign's directory named
-    # explicitly, as DIRS names other runs'): 528:12's survey carries chance, chance.shown(HERE, 'camp', '528:12',
-    # 5200), and its entry in the data file the same, as JSON; 768:12's carries none.
+    # explicitly, as DIRS names other runs'): 528:12's survey carries odds, chance.shown(HERE, 'camp', '528:12', 5200),
+    # its prior, its history's origin and its P(exists) at each point, and no chance; its entry in the data file the
+    # same, as JSON; 768:12's survey carries neither, and its entry the ignorant prior's odds (progress.IGNORANT, no
+    # history), as every run without a model of its search; both to_go Gott's rule (both started at 1000).
     # Spec change (README [CON], 2026-11-03; dreeves: "i guess just apply common sense here too"): chance.shown, which
-    # adds the chance's history to chance.of's chance, in place of chance.of; and 528:12's to_go null, the chance in
-    # place of Gott's rule (a witness search ends with a find, or when stopped, on no schedule), 768:12's Gott's.
-    # Spec change (dreeves, 2026-11-04: "shouldn't there always be an ETA graph, even when it's just based on the lindy
-    # effect? death to if-statements, remember?"): 528:12's to_go Gott's rule, as 768:12's (both started at 1000), the
-    # chance beside it; until then null.
+    # added the chance's history to chance.of's chance, in place of chance.of.  Spec change (dreeves, 2026-11-04:
+    # "shouldn't there always be an ETA graph, even when it's just based on the lindy effect? death to if-statements,
+    # remember?"): 528:12's to_go Gott's rule, as 768:12's; until then null.  Spec change (Claude, 2026-11-06; dreeves:
+    # "everything here seems useless, kill it unless you have a good argument for salvaging anything. the up-to-date
+    # probability that a bipartition exists is great."): its odds alone, {prior, since, exists}, in place of its chance
+    # (of a witness within each t hours, with that chance's history) beside odds with a basis and curves; the qual's
+    # name until then q_a_campaign_s_target_carries_its_chance.  And (dreeves, that night: "go with 50% as the ignorant
+    # prior when there's no model or whatever") 768:12's entry the ignorant prior's odds, in place of none.
     # Resultata before: no chance anywhere.
     import chance, quals_chance
     d = quals_chance.campaign()
@@ -2195,22 +2202,33 @@ def q_a_campaign_s_target_carries_its_chance():
     try:
         progress.HERE, progress.CAMPAIGNS = d, {(528, 12): 'camp'}
         surveys = {s['n']: s for _, thunk in progress.journal_surveys(procs, 5200.0, {}, {}, {}) for s in thunk()}
-        # Spec change (dreeves, 2026-11-04, of two graphs, "probability a partition exists" and "probability of finding
-        # a partition by time t *conditional on a partition existing*"): the odds that chance.shown adds go beside the
-        # chance, as every modeled target's do (q_an_exhaustive_search_carries_lindy_s_odds); until then no odds.
         shown = chance.shown(d, 'camp', '528:12', 5200.0)
-        want = {k: v for k, v in shown.items() if k != 'odds'}
-        assert sorted(surveys) == [528, 768] and len(want['p']) == len(chance.HOURS) and shown['odds']['basis'] == 'campaign', sorted(surveys)
-        assert surveys[528]['chance'] == want and surveys[528]['odds'] == shown['odds'], surveys[528].keys()
+        assert sorted(surveys) == [528, 768] and set(shown) == {'prior', 'since', 'exists'} and shown['exists'], (sorted(surveys), shown)
+        assert surveys[528]['odds'] == shown and 'chance' not in surveys[528], surveys[528].keys()
         assert 'chance' not in surveys[768] and 'odds' not in surveys[768], surveys[768].keys()
         assert surveys[528]['to_go'] is not None and surveys[528]['to_go'] == surveys[768]['to_go'], (surveys[528]['to_go'], surveys[768]['to_go'])
         runs = {r['n']: r for r in progress_data(progress.js_text(list(surveys.values()), 5200.0))['runs']}
-        assert runs[528]['chance'] == json.loads(json.dumps(want)) and runs[528]['odds'] == json.loads(json.dumps(shown['odds'])), runs[528].keys()
-        assert 'chance' not in runs[768] and 'odds' not in runs[768], runs[768].keys()
+        assert runs[528]['odds'] == json.loads(json.dumps(shown)) and 'chance' not in runs[528], runs[528].keys()
+        assert 'chance' not in runs[768] and runs[768]['odds'] == dict(prior=0.5, since=None, exists=[]), runs[768].keys()
     finally:
         for name, value in saved.items():
             setattr(progress, name, value) if value is not missing else delattr(progress, name)
         shutil.rmtree(d)
+
+
+def q_a_run_without_a_model_states_the_ignorant_prior():
+    # Replicata: progress.js_text of two surveys at time 5000: survey_track's of a made-up record of 768:12 (running),
+    # which has no odds, and the same with odds of its own (prior 0.3, since 1000, one point at 4900).
+    # Expectata (dreeves, 2026-11-06: "go with 50% as the ignorant prior when there's no model or whatever"; the
+    # coordinator: defined once, beside the configured priors, and with no model of its search nothing updates it, so
+    # no history): progress.IGNORANT is 0.5; the first entry's odds its prior with no history, {prior: 0.5, since: null,
+    # exists: []}; the second's its own odds.
+    # Resultata before: no IGNORANT, and no odds in the first entry (the page drew no graph for such a run).
+    assert progress.IGNORANT == 0.5, progress.IGNORANT
+    s = progress.survey_track('768:12', [track_record('r0', 300, None, None, 1000)], [(300, 1, 'S', 'python3 -B w12.py')], 5000.0)
+    own = dict(prior=0.3, since=1000.0, exists=[[4900.0, 0.25]])
+    runs = progress_data(progress.js_text([s, dict(s, odds=own)], 5000.0))['runs']
+    assert [r['odds'] for r in runs] == [dict(prior=0.5, since=None, exists=[]), own], [r['odds'] for r in runs]
 
 
 def q_campaigns_name_the_beam_campaign():

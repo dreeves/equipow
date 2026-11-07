@@ -167,44 +167,48 @@ def load(root, path, target='288:10'):
     return model,hashlib.sha256(data).hexdigest()
 
 
-def _legacy(s, root, prior, now):
-    """Capture actual plotted arrays once; a cold fixture without a snapshot uses its former Lindy model."""
+def _legacy(s, root, now):
+    """Capture the actually plotted P(exists) once, from the page's snapshot (progress.js: its run's odds), its history's
+    origin and its points; a cold start without a snapshot has plotted none, its origin the run's start.  (Until
+    2026-11-06 it captured the chance's history and the curves too, and a cold start took its former Lindy model's.)"""
     path=Path(root)/'progress.js'
     if path.exists():
         text=path.read_text();assert text.startswith('progressData(') and text.rstrip().endswith(');')
         saved=json.loads(text[len('progressData('):].rstrip()[:-2])
         matches=[r for r in saved['runs'] if (r['program'],r['n'],r['order'])==('ftree.py',s['n'],s['order'])]
-        assert len(matches)==1
-        c,o=matches[0]['chance'],matches[0]['odds']
+        assert len(matches)==1 and set(matches[0]['odds'])=={'prior','since','exists'}
+        since,exists=matches[0]['odds']['since'],matches[0]['odds']['exists']
     else:
-        c=chance.lindy_shown(prior,s['passes'][0][0],now);o=c['odds']
-        c=dict(c,history=[r for r in c['history'] if r[0]<now])
-        o=dict(o,exists=[r for r in o['exists'] if r[0]<now],curves=[r for r in o['curves'] if r[0]<now])
-    assert all(row[0]<=now for rows in (c['history'],o['exists'],o['curves']) for row in rows)
-    return copy.deepcopy(dict(since=c['since'],history=c['history'],exists=o['exists'],curves=o['curves']))
+        since,exists=s['passes'][0][0],[]
+    assert all(t<=now for t,_ in exists)
+    return copy.deepcopy(dict(since=since,exists=exists))
 
 
 def attach(s, root, model_path, p_exists, now, cache):
     """Attach one current work forecast and immutable earlier chart points to a tracked survey.
 
-    cache is dedicated to this target. Its legacy arrays are copied once from the actual page snapshot, and points
+    cache is dedicated to this target. Its legacy points are copied once from the actual page snapshot, and points
     retain the model hash, done and rate used when committed. No past prediction is fitted again with new inputs.
-    work_eta's total (2026-11-06, for the page's work bar) is the work done when the search ends, chance.work's: its
-    median and band (chance.BANDS['work']) while the search runs; exactly done at all three once every root is
-    complete; none for a search stopped short of that, which makes no forecast. Its coverage, the page's label for
-    its interval, is chance.COVERAGE.
+    Since 2026-11-06 (dreeves: "everything here seems useless, kill it unless you have a good argument for salvaging
+    anything. the up-to-date probability that a bipartition exists is great.") each keeps P(exists) alone (exists), and
+    the odds carry the prior p_exists, the history's origin (legacy's since) and P(exists) at the legacy points, at each
+    committed point and at now (chance.odds).
+    to_go and work_eta's total (2026-11-06, for the page's work bar) are the time and the work to exhaust the tree,
+    chance.work's: their median and band (chance.BANDS['work']) while the search runs, which the prior does not move;
+    exactly done, and no time to go, once every root is complete; none for a search stopped short of that, which makes
+    no forecast. Its coverage, the page's label for its interval, is chance.COVERAGE.
     """
     model,digest=load(root,model_path,f'{s["n"]}:{s["order"]}')
     active=s['state']=='running'
     w=formtree_work.read(root,[r['name'] for r in model['roots']],now=None,active=active)
     if 'legacy' not in cache:
-        cache['legacy']=_legacy(s,root,p_exists,now)
+        cache['legacy']=_legacy(s,root,now)
     legacy=cache['legacy'];complete=all(r['complete'] for r in w['roots'])
+    assert set(legacy)=={'since','exists'},set(legacy)
     zero=dict(median=0.,lo=0.,hi=0.)
     uncertainty=dict(root_log_sd_posterior=None,effective_samples=None,forecast_samples=0)
     if complete:
-        c=dict(cpu_hours=None,rate=None,cores=None,hours=list(chance.HOURS),exists=0.,
-               found=[0.]*len(chance.AHEAD),p=[0.]*len(chance.HOURS))
+        exists=0.
         to_go=zero if active else None
         total=dict(median=float(w['done']),lo=float(w['done']),hi=float(w['done']))
     elif active:
@@ -219,28 +223,22 @@ def attach(s, root, model_path, p_exists, now, cache):
         # A concentrated proposal must not publish an apparently precise forecast.
         assert model['version']==1 or uncertainty['effective_samples']>=1000, uncertainty
         forecast=chance.work(p_exists,samples['total'],w['done'],samples['rate']*3600,samples['weight'])
-        c={k:forecast[k] for k in ('cpu_hours','rate','cores','hours','exists','found','p')}
+        exists=forecast['exists']
         to_go=forecast['to_go']
         total=forecast['total']
     else:
-        posterior=(cache['last']['chance']['exists'] if 'last' in cache else
-                   legacy['exists'][-1][1] if legacy['exists'] else p_exists)
-        c=dict(cpu_hours=None,rate=None,cores=None,hours=list(chance.HOURS),exists=posterior,
-               found=[0.]*len(chance.AHEAD),p=[0.]*len(chance.HOURS))
+        exists=(cache['last']['exists'] if 'last' in cache else
+                legacy['exists'][-1][1] if legacy['exists'] else p_exists)
         to_go=None
         total=None
-    current=dict(chance=c,model=digest,done=w['done'],rate=w['rate'],uncertainty=uncertainty)
+    current=dict(exists=exists,model=digest,done=w['done'],rate=w['rate'],uncertainty=uncertainty)
     if active:
         points=history(cache.setdefault('points',[[now,copy.deepcopy(current)]]),copy.deepcopy(current),now)
         cache['shown']=copy.deepcopy(points)
     else:
         points=cache.get('shown',cache.get('points',[]))
     cache['last']=copy.deepcopy(current)
-    measured=[(t,x['chance']) for t,x in points]
-    odds=chance.odds(measured,now,c,'work',p_exists)
-    odds['exists']=copy.deepcopy(legacy['exists'])+odds['exists']
-    odds['curves']=[copy.deepcopy(r) for r in legacy['curves'] if r[0]>=now-3600*chance.BACK]+odds['curves']
-    shown=dict(c,since=legacy['since'],history=copy.deepcopy(legacy['history'])+chance.rows(measured))
+    odds=chance.odds(legacy['since'],legacy['exists']+[[t,x['exists']] for t,x in points],now,exists,p_exists)
     # The discrepancy-factor fields describe frozen priors; the learned root
     # scatter is reported separately in root_log_sd_posterior.
     metadata=dict(source_time=w['source_time'],samples=model['samples'],
@@ -252,4 +250,4 @@ def attach(s, root, model_path, p_exists, now, cache):
                   coverage=chance.COVERAGE,total=total,**uncertainty)
     if to_go is not None:
         s['etas'][str(float(now))]=[to_go[k]/3600 for k in ('median','lo','hi')]
-    return s | dict(to_go=to_go,display=s['display'] | dict(lindy=False,work_eta=metadata),chance=shown,odds=odds)
+    return s | dict(to_go=to_go,display=s['display'] | dict(lindy=False,work_eta=metadata),odds=odds)

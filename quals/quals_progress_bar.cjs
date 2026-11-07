@@ -115,19 +115,24 @@ assert.match(container[2], /<span class="spent">[^]*<b data-bar-done><\/b>[^]*<\
 const blue = container[2].match(/<span class="spent">([^]*?)<\/span>/)[1];
 assert.ok(blue.includes('<b data-bar-done></b>') && blue.indexOf('<b data-bar-done></b>') < blue.indexOf('<b data-work-rate></b>'), blue);
 assert.doesNotMatch(template, /data-work-(eta|samples|source_time)\b/, 'a field of the work paragraph, its samples or its source time');
-assert.equal((template.match(/data-work-measure="work"/g) || []).length, 2, 'the bar\'s container and the chance line\'s work figures');
+// Spec change (Claude, 2026-11-06; dreeves: "everything here seems useless, kill it unless you have a good argument for
+// salvaging anything. the up-to-date probability that a bipartition exists is great.", and "for anti-magic i don't want
+// to conditionally include or exclude graphs"): the bar's container is the template's one part with a basis
+// (data-work-measure); the chance line's work figures went with that line, and the sea's and the runs line's basis,
+// which hid them for a run with a work model, went the same night.
+assert.equal((template.match(/data-work-measure=/g) || []).length, 1, 'the bar\'s container, the one part with a basis');
+assert.equal((template.match(/data-work-measure="work"/g) || []).length, 1, 'the bar\'s container');
 // workView shows the container exactly when the run has a work model, and fills the model's rate in (the box holds no
 // work paragraph: workView queried one until 2026-11-06)
-const shown = {dataset: {workMeasure: 'work'}, hidden: true}, cpu = {dataset: {workMeasure: 'cpu'}, hidden: false};
+const shown = {dataset: {workMeasure: 'work'}, hidden: true};
 const rate = {textContent: ''};
 const fields = {querySelectorAll: s => s === '[data-work-rate]' ? [rate] : []};
 const viewBox = {querySelector: s => undefined,
-                 querySelectorAll: s => s === '[data-work-measure]' ? [shown, cpu] : fields.querySelectorAll(s)};
+                 querySelectorAll: s => s === '[data-work-measure]' ? [shown] : fields.querySelectorAll(s)};
 for (const run of [model(468750102, good), {}, {work_eta: null}, model(4e8, null)]) {
   rate.textContent = '';
   context.workView(viewBox, run);
   assert.equal(shown.hidden, !run.work_eta, JSON.stringify(run));
-  assert.equal(cpu.hidden, !!run.work_eta, JSON.stringify(run));
   assert.equal(rate.textContent, run.work_eta ? '1,884.1' : '', JSON.stringify(run));   // model()'s rate, 1884.1
 }
 // and fills the model's numbers into their fields with no number among its fields null, as a model makes them for a
@@ -135,5 +140,5 @@ for (const run of [model(468750102, good), {}, {work_eta: null}, model(4e8, null
 // called each value's toLocaleString until 2026-11-06, which threw on null and stopped the section's drawing
 const number = {textContent: ''}, filled = {querySelectorAll: s => s === '[data-work-done]' ? [number] : []};
 const stopped = {work_eta: {...model(4e8, null).work_eta, root_log_sd_posterior: null, effective_samples: null, forecast_samples: 0, source_time: 1}};
-context.workView({querySelector: viewBox.querySelector, querySelectorAll: s => s === '[data-work-measure]' ? [shown, cpu] : filled.querySelectorAll(s)}, stopped);
+context.workView({querySelector: viewBox.querySelector, querySelectorAll: s => s === '[data-work-measure]' ? [shown] : filled.querySelectorAll(s)}, stopped);
 assert.equal(number.textContent, '400,000,000');

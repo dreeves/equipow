@@ -2917,3 +2917,12 @@ dreeves, of the prior P(exists) = 0.01: "that sounds dumb. let's start with an i
   - total 932M–1.95B → 690M–1.81B, at today's state.
   So the ETA chart will show a step at the restart.
 - **Restart:** watcher 40794 now, then `scratch/watcher-20261030/launch.py`, once. Driver 52302 and its workers, and `runs/models/288_10.json`, are not touched. That file's frozen `assumptions.witness` text still says "Prior existence 0.01".
+
+### 2026-11-06 21:18 PST — Claude: one probability graph per run, 288:10's prior 0.01 again, its ETA to exhaustion; restarting the watcher once
+
+dreeves: "everything here seems useless, kill it unless you have a good argument for salvaging anything. the up-to-date probability that a bipartition exists is great."; "for anti-magic i don't want to conditionally include or exclude graphs."; "after the ETA graph, explicitly state the prior probability a bipartition exists. we can go back to 1% or whatever makes sense for 288:10. then show the first probability graph, even though for 288:10 it's uninteresting. then kill everything below that."; "go with 50% as the ignorant prior when there's no model or whatever".
+- **Data:** every run's entry carries `odds` = {prior, since, exists} and no `chance`: a campaign target's from `chance.shown`, 288:10's from its work model, every other run's `progress.IGNORANT` (0.5) with no history. `progress.EXHAUSTIVE = {(288, 10): 0.01}`.
+- **ETA:** 288:10's to_go and the bar's total are the time and the work to exhaust the tree, which the prior no longer moves. At 21:02: to-go median 5.12 d (1.48–11.81) → 6.28 d (3.06–13.01); total 699M–1.82B → 950M–1.96B. Recorded ETAs stay, so the ETA chart steps at the restart.
+- **History:** the cache entry `work_288_10_1793830585` moved back exactly from 0.5 to 0.01 (`chance.reprior`; against the pre-0.5 backup within 5.5e-16 relative), keeping P(exists) alone; backup in `scratch/pareto-progress-20261106/uniform/backup/`.
+- **Page:** each run shows its prior's line and one P(exists) graph, grayed with no point to draw; the other two graphs, the chance line and the basis notes are gone; the sea and the runs line show for every run again. Applied with progress.js converted to the new form, together, right before the launch (`uniform/switch.py`).
+- **Restart:** watcher 60505 now, then `scratch/watcher-20261030/launch.py`, once. Driver 52302 and its workers, and `runs/models/288_10.json`, are not touched.

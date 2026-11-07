@@ -1697,7 +1697,7 @@ of them with m ≡ 0, 1, 2 mod 3) and two exceptional signs, and d_0 ≡ d_3 (mo
 </section>
 
 <section class="progress" aria-labelledby="progress-title">
-  <!-- Claude's copy, at dreeves's request (2026-10-17), on the certified searches' progress, in a section that starts closed: when the snapshot was made and how old it is; per run, its question and the program that runs it (overnight_v5.py, or boxsplit.py over a run's open sub-cases), then one word for its state, shown folded too (running, paused, frozen, completed or aborted: an ended run completed if it recorded an outcome, else aborted; dreeves, 2026-10-25), whether it is running, paused, frozen, completed or aborted (the status line naming the state as the summary does; dreeves, 2026-10-26), and its hours of running so far + to go = in all (dreeves's form, 2026-10-17; running: after an @ and the snapshot's time in place of "Running:" (dreeves, 2026-10-17), with the local times that range ends between, in parentheses; durations in days from 72 h and years from 365.25 d, and finish times a week or more on as dates (dreeves, 2026-10-23)), as the status line below the ETA chart, its parts in the chart's colors in place of a legend (dreeves, 2026-10-17; and as a bar drawn to scale at the top until 2026-11-06, when a bar of work took its place for a run with a work model: its nodes checked, and the interval and median of its total nodes when the search ends); a sea of dots, one per sub-case, each subtree a block of its own, colored by status, with a key of the statuses and their counts and a readout of the subtree under the pointer; and progress.html's ETA chart (elapsed time, ETA and elapsed + ETA, in dreeves's words), with a tip above it: the status line's running form for the recorded ETA under the pointer, at its time (dreeves, 2026-10-17: "the same as the line below, just an earlier snapshot thereof"), and right of the last record that record's line carried on to the hour of running under the pointer, in italics, a projection (dreeves, 2026-10-18) -->
+  <!-- Claude's copy, at dreeves's request (2026-10-17), on the certified searches' progress, in a section that starts closed: when the snapshot was made and how old it is; per run, its question and the program that runs it (overnight_v5.py, or boxsplit.py over a run's open sub-cases), then one word for its state, shown folded too (running, paused, frozen, completed or aborted: an ended run completed if it recorded an outcome, else aborted; dreeves, 2026-10-25), whether it is running, paused, frozen, completed or aborted (the status line naming the state as the summary does; dreeves, 2026-10-26), and its hours of running so far + to go = in all (dreeves's form, 2026-10-17; running: after an @ and the snapshot's time in place of "Running:" (dreeves, 2026-10-17), with the local times that range ends between, in parentheses; durations in days from 72 h and years from 365.25 d, and finish times a week or more on as dates (dreeves, 2026-10-23)), as the status line below the ETA chart, its parts in the chart's colors in place of a legend (dreeves, 2026-10-17; and as a bar drawn to scale at the top until 2026-11-06, when a bar of work took its place for a run with a work model: its nodes checked, and the interval and median of its total nodes when its tree is exhausted, the search's end by a witness or so until that night); a sea of dots, one per sub-case, each subtree a block of its own, colored by status, with a key of the statuses and their counts and a readout of the subtree under the pointer; and progress.html's ETA chart (elapsed time, ETA and elapsed + ETA, in dreeves's words), with a tip above it: the status line's running form for the recorded ETA under the pointer, at its time (dreeves, 2026-10-17: "the same as the line below, just an earlier snapshot thereof"), and right of the last record that record's line carried on to the hour of running under the pointer, in italics, a projection (dreeves, 2026-10-18) -->
     <details>
       <summary><h2 id="progress-title">Search progress</h2></summary>
       <p>As of <span data-made>—</span> (<span data-age>—</span> ago).</p>
@@ -1708,7 +1708,7 @@ of them with m ≡ 0, 1, 2 mod 3) and two exceptional signs, and d_0 ≡ d_3 (mo
           <details>
           <summary><h3><span class="nw"><i>m</i><sup>*</sup>(<span data-n></span>) ≥ <span data-order></span>?</span> <code data-program></code></h3><span class="progress-run-state"><span data-label="running">running</span><span data-label="paused">paused</span><span data-label="frozen">frozen</span><span data-label="completed">completed</span><span data-label="aborted">aborted</span></span><!-- Says the run's data are stale: the watcher could not survey it in time, or at all, so the data shown are those of the time given --><span class="progress-stale" data-stale hidden>Stale (<span data-stale-at></span>)</span></summary>
           <div class="progress-time">
-          <!-- The work bar (dreeves, 2026-11-06: "should that progress bar be measuring amount of work, not time? the ETA graph is for time. we can still have a 90% CI for amount of work remaining, right?", and "bring back a subtle tick for the median finish time"), in place of the time ruler of that day and the bar of hours so far and to go before it: for a run with a work model, shown with the model's other figures (data-work-measure), a track of nodes, blue up to the nodes checked, the interval of the total nodes checked when the search ends a purple band, its median a tick, and the track's round ticks labeled below -->
+          <!-- The work bar (dreeves, 2026-11-06: "should that progress bar be measuring amount of work, not time? the ETA graph is for time. we can still have a 90% CI for amount of work remaining, right?", and "bring back a subtle tick for the median finish time"), in place of the time ruler of that day and the bar of hours so far and to go before it: for a run with a work model, shown with the model's other figures (data-work-measure), a track of nodes, blue up to the nodes checked, the interval of the total nodes checked when the tree is exhausted (when the search ends, by a witness or so, until that night) a purple band, its median a tick, and the track's round ticks labeled below -->
           <div class="progress-work" data-work-measure="work" hidden>
           <div class="progress-bar" aria-hidden="true"><span data-bar="done"></span><span data-bar="band" data-bar-total></span><i data-bar="median" data-bar-total></i></div>
           <div class="progress-bar-axis" aria-hidden="true" data-bar="ticks"></div>
@@ -1718,7 +1718,7 @@ of them with m ≡ 0, 1, 2 mod 3) and two exceptional signs, and d_0 ≡ d_3 (mo
           <!-- The time ruler's caption, retained verbatim with the ruler gone (2026-11-06):
           <p class="progress-bar-caption"><span class="spent">time spent</span> / <span class="total"><span data-bar-coverage hidden> <b data-bar-percent></b> confidence interval for finish</span></span></p>
           -->
-          <!-- the work bar's caption, in its colors: blue, how many nodes the search has checked; purple, the interval (at the page's one level, the percent given) of the total nodes it will have checked when it ends, by a witness or with every node checked, its range and its median, which the tick marks; the purple part hidden for a search that makes no forecast now (stopped short of its end) -->
+          <!-- the work bar's caption, in its colors: blue, how many nodes the search has checked; purple, the interval (at the page's one level, the percent given) of the total nodes it will have checked when its tree is exhausted (when it ends, by a witness or with every node checked, until that night), its range and its median, which the tick marks; the purple part hidden for a search that makes no forecast now (stopped short of its end) -->
           <!-- in the blue part, after the nodes checked, the work model's rate: nodes checked a second, measured (workView fills it; dreeves, 2026-11-06: "1. add nodes/s to the blue/purple line") -->
           <p class="progress-bar-caption">
           <span class="spent"><b data-bar-done></b> nodes checked (<b data-work-rate></b> nodes/s)</span>
@@ -1775,8 +1775,6 @@ of them with m ≡ 0, 1, 2 mod 3) and two exceptional signs, and d_0 ≡ d_3 (mo
             <!-- TODO: says the line's ranges hold only under the model's assumptions (each later stage's measured CPU costs, every one of its processes at the share of a core the run's workers get now, and perfect overlap where a stage's parts run at once), and leave out waits in a stage's pipeline, waits for storage and changes in the machine's load, so that the real time to a proof is less certain than the ranges show -->
             Claude: “These ranges assume measured CPU costs, today's share of a core for every process, and perfect overlap where parts run at once; pipeline waits, storage waits and changes in the machine's load are not in them, so the time to a proof is less certain than they show.”</p>
           </div>
-          <!-- the sea: the dots, their key and their readout, in one box shown for a run with no work model and hidden for one with a work model, whose bar above measures its progress (data-work-measure="cpu", workView's toggle; dreeves, 2026-11-06, of 288:10's dots, one per launch of its proof search, and the line of those launches: "sounds like noise?") -->
-          <div class="progress-sea" data-work-measure="cpu">
           <canvas role="img" aria-label="One dot per sub-case, color-coded with status, each subtree a block of its own"></canvas>
           <ul class="progress-key">
             <li><span class="progress-sw" data-status="settled"></span>settled <span data-count="settled"></span></li>
@@ -1786,7 +1784,6 @@ of them with m ≡ 0, 1, 2 mod 3) and two exceptional signs, and d_0 ≡ d_3 (mo
             <li><span class="progress-sw" data-status="running"></span>running <span data-count="running"></span></li>
           </ul>
           <p class="progress-readout" data-readout>Hover over the dots for a subtree's key and counts.</p>
-          </div>
           <!-- A fanout run's pool over its hours of running (README [TRE]): above, how many boxes were pending or running (not done: waiting for a job, or a running job's own); below, the net change in that count per job ended in each stretch of running time (a job ended takes its box out and puts in the boxes it left open), with a line at 0, so that the growth slowing shows as the lower line falling and the count turning down as that line going below 0; the line of text above reads out the latest moment, or the one nearest the pointer -->
           <div class="progress-pool">
             <p class="progress-pool-tip" data-pool-tip></p>
@@ -1803,8 +1800,9 @@ of them with m ≡ 0, 1, 2 mod 3) and two exceptional signs, and d_0 ≡ d_3 (mo
               <line class="cross" visibility="hidden" data-pool-cross></line>
             </svg>
           </div>
-          <!-- three graphs, for a search with a model of its odds (progress.py's odds and chance): first, the chance that a bipartition exists, given none found so far, over the hours of the search; second, the chance of finding one by each later time if one exists, one curve for each hour of the last day, each starting at 0 at its own "now", the latest bold and the older ones fainter; third, their product 24 h along, the chance of a find within the next 24 h as it stood at each time; then a note on what the odds rest on -->
-          <div class="progress-odds" hidden>
+          <!-- every run's prior P(exists), then its graph of P(exists) given none found so far (progress.py's odds; dreeves, 2026-11-06: "for anti-magic i don't want to conditionally include or exclude graphs", and "after the ETA graph, explicitly state the prior probability a bipartition exists. we can go back to 1% or whatever makes sense for 288:10. then show the first probability graph, even though for 288:10 it's uninteresting. then kill everything below that"; until then three graphs and a note on their basis, for a search with a model of its odds alone): the prior, in dreeves's words, then the chance that a bipartition exists, given none found so far, over the hours of the search; for a run with no model of its search the ignorant prior (progress.py's IGNORANT, 0.5: dreeves, 2026-11-06, "go with 50% as the ignorant prior when there's no model or whatever"), and, as for any run with no point to draw, the same graph grayed (data-empty), with no line -->
+          <div class="progress-odds">
+            <p>Prior probability a bipartition exists: <b data-odds-prior></b></p>
             <!-- title; says the graph below is the chance that a bipartition exists, given that the search has found none so far -->
             <p class="progress-odds-title">Probability a bipartition exists, given none found so far, plotted vs time:</p>
             <!-- aria label; says the chart shows the chance that a bipartition exists, given none found so far, over the hours of the search -->
@@ -1816,45 +1814,10 @@ of them with m ≡ 0, 1, 2 mod 3) and two exceptional signs, and d_0 ≡ d_3 (mo
               <g data-exists-ticks="p"></g>
               <g data-exists-ticks="t"></g>
             </svg>
-            <!-- title; says the graph below is the chance of finding a bipartition by each time, if one exists, with one curve for each hour of the last day, the latest bold -->
-            <p class="progress-odds-title">Probability our search finds a bipartition by future time t <i>given a bipartition exists</i> and given nothing found so far, plotted afresh every hour:</p>
-            <!-- aria label; says the chart shows the chance of finding a bipartition by each time, if one exists, one curve for each hour of the last day, each from its own hour on, the latest bold -->
-            <svg viewBox="0 0 640 200" role="img" aria-label="Pr(search finds a bipartition by time t | a bipartition exists and none found so far) plotted hourly">
-              <g data-found-grid></g>
-              <g data-found-curves></g>
-              <g data-found-now></g>
-              <g data-found-ticks="p"></g>
-              <g data-found-ticks="t"></g>
-            </svg>
-            <!-- the third graph, their product 24 h along: the history of the modeled chance of a find within the next 24 h, as it stood at each quarter hour since the search began (P(exists) then times the chance of a find within 24 h given existence, the curve from then 24 h along), and now, a dot on its last point; above it, on hover, the time under the pointer and the chance as it stood then; below it, the chance within 6 h and within 24 h now, and the CPU-hours searched so far without a find (— for a search whose model counts none: an exhaustive search on Lindy's rule) -->
-            <div class="progress-chance">
-              <!-- title; says the graph below is the chance that the search finds a bipartition within the next 24 h, given none found so far, at each time of the search: the first graph's value then times the second's curve from then, 24 h along -->
-              <p class="progress-odds-title">Probability the search finds a bipartition within 24 hours:</p>
-              <p class="progress-chance-tip" data-chance-tip></p>
-              <!-- aria label; says the chart shows, over the hours of the search so far, the modeled chance of a find within the next 24 hours as it stood at each time -->
-              <svg viewBox="0 0 640 200" role="img" aria-label="Probability the search finds a bipartition within 24 hours">
-                <g data-chance-grid></g>
-                <polygon class="wash" data-chance-wash></polygon>
-                <polyline data-chance-line></polyline>
-                <g data-chance-marks></g>
-                <g data-chance-ticks="p"></g>
-                <g data-chance-ticks="t"></g>
-                <line class="cross" visibility="hidden" data-chance-cross></line>
-              </svg>
-              <p class="progress-chance-line">Probability of finding a bipartition within 6 h: <b data-chance-at="6"></b>; within 24 h: <b data-chance-at="24"></b>; <span data-work-measure="cpu"><b data-chance-spent></b> CPU-hours so far.</span><!-- for the work model, reports checked nodes and measured nodes per wall second instead of unavailable CPU-hours. --><span data-work-measure="work" hidden><b data-work-done></b> nodes checked; <b data-work-rate></b> nodes/s.</span></p>
-            </div>
-            <!-- says the search covers every case, so it finds a bipartition exactly when one exists, but nothing yet measures how much of it is covered, so the first graph holds its prior and the second follows Lindy's rule -->
-            <p class="progress-odds-basis" data-odds-basis="lindy" hidden>No estimate yet of the size of the search space so the first graph is based only on priors and the second only on Lindy's rule (time remaining = elapsed time).</p>
-            <!-- says the odds come from the campaign's model of its search, fit to the rates its probe seeds measured -->
-            <p class="progress-odds-basis" data-odds-basis="campaign" hidden>Estimates based on a model of how fast we're covering the search space. This is all Claude of course. Something about the rates of “probe seeds”.</p>
-            <!-- states the initial existence probability, the run's prior from its odds (odds.prior; 0.01 typed in until dreeves, 2026-11-06: "let's start with an ignorant prior (50%) and let it fall naturally as the search progresses"), assumes the first witness is uniformly located in the remaining work, and explains sensitivity to uncertainty in tree size. -->
-            <p class="progress-odds-basis" data-odds-basis="work" hidden>Initial probability a bipartition exists: <span data-odds-prior></span>. We assume the first witness is uniformly distributed over the remaining work; the uncertainty is in the amount of that work.</p>
           </div>
           </details>
         </div>
       </template>
-      <!-- the chance chart's tip, after the time under the pointer: the modeled chance of a find within the next 24 h as it stood then -->
-      <template class="progress-chance-point">Probability of finding a bipartition within <b data-chance-hours></b>: <b data-chance-p></b></template>
       <!-- a snapshot's line: its time after an @, and an em space, in one span (progress-stamp) that the ETA chart's tip above the chart shows and the status line below it hides (dreeves, 2026-11-06: "i don't think we need "@2026-11-06 19:12:49" under the graph since the search progress line above the progress bar shows the freshness"), then its hours so far + to go = in all and its finish times -->
       <template class="progress-line"><span class="progress-stamp">@<span data-when></span>&emsp;</span><span class="spent"><b data-so-far></b> so far</span> + <span class="togo"><b data-to-go></b> to go</span> = <span class="total"><b data-sum></b> (<b data-done></b>)</span></template>
       <!-- One later stage in a run's line of stages: its name, then the range of its estimated time to go -->
@@ -1887,9 +1850,8 @@ of them with m ≡ 0, 1, 2 mod 3) and two exceptional signs, and d_0 ≡ d_3 (mo
       <!-- Identifies the 560 calibration and 592 target dot blocks, with completed, running and pending attempt colors. -->
       <template class="progress-592-hint">One dot per attempt: 560:10 calibration first, 592:10 search second. <span class="progress-sw" data-status="open"></span> completed attempt; <span class="progress-sw" data-status="running"></span> running; <span class="progress-sw" data-status="pending"></span> pending.</template>
       <!-- Says how many runs the tracked search has, how many are running, frozen, ended and aborted, how many results its runs have found, how long it has been going, and its state -->
-      <!-- on a line of its own (its break inside it) after the status line every run has (trackView), and hidden with that break for a search with a work model, whose bar measures its progress (data-work-measure="cpu", workView's toggle; dreeves, 2026-11-06, of 288:10's line of its four launches: "sounds like noise?") -->
       <template class="progress-track">
-        <span data-work-measure="cpu"><br><b data-attempt-count="runs"></b> runs: <b data-attempt-count="running"></b> running, <b data-attempt-count="frozen"></b> frozen, <b data-attempt-count="ended"></b> ended, <b data-attempt-count="aborted"></b> aborted; <b data-attempt-count="found"></b> found; elapsed <b data-elapsed></b>; <span data-search-state></span>.</span>
+        <span><b data-attempt-count="runs"></b> runs: <b data-attempt-count="running"></b> running, <b data-attempt-count="frozen"></b> frozen, <b data-attempt-count="ended"></b> ended, <b data-attempt-count="aborted"></b> aborted; <b data-attempt-count="found"></b> found; elapsed <b data-elapsed></b>; <span data-search-state></span>.</span>
       </template>
       <!-- Says each dot is one run of the search, with the colors of ended, running, frozen and aborted runs -->
       <template class="progress-track-hint">One dot per run: <span class="progress-sw" data-status="settled"></span> ended; <span class="progress-sw" data-status="running"></span> running; <span class="progress-sw" data-status="pending"></span> frozen; <span class="progress-sw" data-status="open"></span> aborted.</template>
