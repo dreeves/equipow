@@ -1,3 +1,5 @@
+This file is all Claude.
+
 # The tilted search
 
 The search behind the results of 2026-11-04. Claude (Opus 5.5) wrote it, on top of `searches/pinned/`, whose problem setup, lattice and profiles it imports; the page's "How Claude found its examples" gives the short account.
@@ -15,7 +17,7 @@ Each time is one single-threaded process's wall time on a loaded 16-core machine
 
 **Why 1440 is the least length of order 16.** Up to 1024 the chart's upper bounds are all below 16. Of the even n from 1026 to 1438, `mstar.two` (the 2-adic bound: n is not a multiple of 32) rules out 195 and `mstar.norm` rules out 11, each at order 16. That leaves 1344 = 64 · 21, where the residue condition mod 5 does it: its class sums D_r, of sizes 269, 269, 269, 269, 268, must all be congruent mod 5^4, since f is divisible by (x - 1)^16 and (1 - z)^4 is 5 times a unit at a fifth root of unity z. No two differ by 625 or more, so they are all equal, and they sum to 0, so each is 0. But four of the classes have odd size. `mstar.mtop_at(16)` does this search; `quals_mstar`'s `q_mtop_is_open_first_at_1440_past_the_chart` checks it.
 
-**Powers of 2.** `searches/pinned/coins`, with 672 at order 13 and 1440 at order 16 among its blocks, finds no earlier first K than the page has for excess 1 to 8: 10, 20, 28, 36, 39, 47, 56, 58, with none left undecided. It leaves out blocks of excess below -0.2. Excess 9 and 10 are undecided: a 25-minute run of each, at low priority beside other work, did not finish, so whether 1440:16 lowers excess 9's 68, or reaches excess 10 by K = 72, is open. `pow2.js`'s bounds are as before.
+**Powers of 2.** `searches/pinned/coins`, with 672 at order 13 and 1440 at order 16 among its blocks, finds no earlier first K than the page has for excess 1 to 8: 10, 20, 28, 36, 39, 47, 56, 58, with none left undecided. It leaves out blocks of excess below -0.2. Excess 9 and 10 are undecided: a 25-minute run of each, at low priority beside other work, did not finish, so whether 1440:16 lowers excess 9's 68, or reaches excess 10 by K = 72, is open. `pow2.js`'s bounds are as before. Since decided (2026-11-06, `scratch/firsts-9-10-20261106/`): neither moves. Excess 9's first stays 68 and excess 10 has none up to K = 72, exhaustively, with every block through 1440:16. The decision used the page's own search (`p2v_search64`) and, at excess 9 and K = 67, a reduction mod 3 checked by two deciders. `coins` cannot settle these: it drops coins past 3,000,000, and its −0.2 excess rule leaves out blocks such as 12:3, which BASES[68] uses.
 
 ## Running it
 

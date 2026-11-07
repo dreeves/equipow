@@ -408,7 +408,7 @@ TEXT_READ = """(i) => {
 # (CSS px)], the last three null without a box
 TEXT_LOOK = """() => ({innerWidth, scrollW: document.documentElement.scrollWidth,
   boxes: qualsItems().map(e => { const x = document.getElementById(e.getAttribute('aria-controls')), b = x && x.getBoundingClientRect();
-    return [e.dataset.text, e.getAttribute('aria-expanded'), x && x.hidden, x && x.checkVisibility(), b && [b.left, b.right]]; })})"""
+    return [e.dataset.text, e.getAttribute('aria-expanded'), x && x.hidden, x && x.checkVisibility(), b && [b.left, b.right], x && [x.scrollHeight, x.clientHeight]]; })})"""
 # In the page: how many of the texts' buttons have a box (aria-controls names an element); and the heights (CSS px) of
 # the entries (li) that hold them, with their boxes in them as they are, and with the boxes taken out of the layout for
 # a moment (display none), in that order
@@ -938,6 +938,11 @@ def q_texts_fit_a_phone():
     bad = [b for b in look['boxes'] if not (b[1:4] == ['true', False, True] and 0 <= b[4][0] and b[4][1] <= look['innerWidth'])]
     assert bad == [] and look['innerWidth'] == 390, (bad, look['innerWidth'])
     assert look['scrollW'] <= look['innerWidth'], (look['scrollW'], look['innerWidth'])
+    # Spec change (2026-11-06, the coordinator's decision after predicting dreeves's answer: his [MAI] "get more things
+    # as expandable sections of the main equipow page", and his 2026-11-05 report of spurious scroll bars as a bug): an
+    # open text shows all of itself inline, with no scrolling inside its box, as the typeset proof above it does.
+    tall = [b[0] for b in look['boxes'] if b[5][0] > b[5][1] + 1]
+    assert tall == [], (tall, [b[5] for b in look['boxes']])
 
 
 def main():

@@ -276,8 +276,9 @@ code[aria-expanded], [data-text][aria-expanded] { cursor: pointer; text-decorati
    code is (above), and its box (page/codes.js), a <pre> of every character as written, framed as a partition is, in the
    codes' monospace, size and ink, ragged and unhyphenated.  Its long lines wrap at the frame's edge, as a browser shows
    a .txt file, so that it never scrolls sideways (on a phone, a line scrolled sideways is out of view, as = and ≠ were
-   for the power sums); past 60% of the viewport's height it scrolls within itself, as the power sums do. */
-.verbatim { margin-block: 0.3rem 0.5rem; padding-left: 0.75rem; border-left: 1px solid var(--muted); max-height: 60vh; overflow-y: auto;
+   for the power sums); and it shows in full, with no scrolling inside it, as the typeset proof above it does (since
+   2026-11-06; until then it scrolled past 60% of the viewport's height, as the power sums do). */
+.verbatim { margin-block: 0.3rem 0.5rem; padding-left: 0.75rem; border-left: 1px solid var(--muted);
             font: 0.8125rem/1.4 var(--mono); color: var(--ink); white-space: pre-wrap; overflow-wrap: anywhere;
             text-align: start; hyphens: manual; -webkit-hyphens: manual; }
 .verbatim:not(pre) { font: inherit; white-space: normal; }
@@ -308,10 +309,11 @@ code[aria-expanded], [data-text][aria-expanded] { cursor: pointer; text-decorati
 .counts { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; max-width: var(--measure); }
 
 /* Claude's account of its lattice search, at Stan Wagon's request (2026-10-14): one block quote, ruled in Claude's hue */
-.lattice, .pintree { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; max-width: var(--measure); }
-.lattice blockquote, .pintree blockquote { margin: 0; padding-left: 1.1rem; border-left: 3px solid var(--claude); display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; }
-.lattice ul, .pintree ul { margin: 0; padding-left: 1.2rem; display: grid; gap: 0.6rem; }
-.lattice .attrib, .pintree .attrib { color: var(--muted); }
+.lattice, .pintree, .symmetry { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; max-width: var(--measure); }
+.lattice blockquote, .pintree blockquote, .symmetry blockquote { margin: 0; padding-left: 1.1rem; border-left: 3px solid var(--claude); display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; }
+.lattice ul, .pintree ul, .symmetry ul { margin: 0; padding-left: 1.2rem; display: grid; gap: 0.6rem; }
+.lattice .attrib, .pintree .attrib, .symmetry .attrib { color: var(--muted); }
+.symmetry li > p { text-align: start; hyphens: manual; -webkit-hyphens: manual; }   /* its code lines, ragged and unhyphenated, as p.code's are */
 
 /* The search's progress (dreeves, 2026-10-17: a collapsible section of index.html in place of progress.html).
    The statuses' colors, checked with the dataviz palette validator

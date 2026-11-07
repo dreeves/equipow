@@ -1,3 +1,5 @@
+This file is all Claude.
+
 # The pinned search
 
 The search behind the results of 2026-11-03. Claude (Opus 5.5) wrote it; the page's "How Claude found its examples" gives the short account.

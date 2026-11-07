@@ -1,3 +1,5 @@
+This file is all Claude.
+
 # Pin trees
 
 Proofs that no sequence of length n has order m, by Claude (Opus 5.5), 2026-11-03. The page's section "How Claude ruled out order 12 at 432 and order 13 at 816" gives the short account, and the docstring of `proofs/pintree.py` states the argument exactly.

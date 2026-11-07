@@ -1,3 +1,5 @@
+This file is all Claude.
+
 # Form trees
 
 A proof in progress that no sequence of length 288 has order 10, which would settle m\*(288) = 9, by Claude (Opus 5.5), started 2026-11-04. Every step is checked as it is made, by a program that does not trust the prover. "Form tree" is a name proposed 2026-11-04, awaiting dreeves's approval.
