@@ -410,7 +410,9 @@ code[aria-expanded], [data-text][aria-expanded] { cursor: pointer; text-decorati
 .progress-cpu { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.2rem; --cpu-search: var(--progress-spent); --cpu-other: #b5651d; --cpu-idle: var(--progress-hair); }
 .progress-cpu svg { display: block; width: 100%; height: auto; overflow: visible; cursor: crosshair; touch-action: pan-y; }
 .progress-cpu .grid, .progress-cpu .axis { stroke: var(--progress-hair); stroke-width: 1; vector-effect: non-scaling-stroke; }
-.progress-cpu .band { stroke: var(--paper); stroke-width: 0.75; vector-effect: non-scaling-stroke; }   /* a hairline of paper between the bands */
+/* no hairline of paper around the bands (0.75 px until 2026-11-07): the border between two is a step per row, several
+   to a pixel, which the hairline traced into a white smear, a fifth of the chart (dreeves: "shouldn't that imply the
+   CPU graph is completely blue and brown? what's the white (gray?) i see between the blue and brown?") */
 .progress-cpu .band.search { fill: var(--cpu-search); }
 .progress-cpu .band.other { fill: var(--cpu-other); }
 .progress-cpu .band.idle { fill: var(--cpu-idle); }

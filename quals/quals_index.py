@@ -5161,6 +5161,54 @@ def q_progress_draws_cpu_aligned_with_the_eta_chart():
     assert c['readout'] == f'{stamp(1792200000)}: search 25% · other processes 25% · idle 50%', c['readout']
 
 
+def q_progress_cpu_chart_shows_no_paper_between_its_bands():
+    # Replicata: index.html with one running run as progress.js, its fold open, 6 h along: its ETA records at 0 and 6
+    # h, its CPU rows 480 one-minute-wide steps... over its first hour, so several to a pixel, the search's share
+    # zigzagging between 45% and 85% (1 - 0.4 |sin|, a row apart), other processes' the rest, idle none; a screenshot
+    # of its CPU chart alone, everything else hidden, at device scales 1 and 2.
+    # Expectata (dreeves, 2026-11-07, of 288:10's CPU chart, idle 0% in its readout: "shouldn't that imply the CPU graph
+    # is completely blue and brown? what's the white (gray?) i see between the blue and brown?"): in every column the
+    # search's blue reaches, every pixel from the bands' lowest to their highest is the search's blue, other
+    # processes' brown or a blend of the two (within 40 of one in RGB): no paper between them.
+    # Resultata before: each band outlined by a hairline of paper (0.75 px), which traced every step of the border
+    # between blue and brown, several to a pixel: about a fifth of those pixels paper or near it.
+    made, base = PROGRESS_DATA['made'], PROGRESS_DATA['runs'][0]
+    search = [1 - 0.4 * abs(math.sin(i)) for i in range(480)]
+    cpu = [[i / 480, (i + 1) / 480, made - 5 * HOURS + 7.5 * (i + 1), s, 1 - s, 0.0] for i, s in enumerate(search)]
+    run = dict(base, so_far=6 * HOURS, etas=[[made - 6 * HOURS, 0.0, 6 * HOURS, 3 * HOURS, 9 * HOURS], [made, 6 * HOURS, 1800.0, 900.0, 3600.0]],
+               to_go=dict(median=1800.0, lo=900.0, hi=3600.0), cpu=cpu)
+    color = lambda name: rgb(re.search(rf'{name}: (#[0-9a-f]{{6}});', page_css()).group(1))
+    blue, brown = color('--progress-spent'), color('--cpu-other')         # the search's (--cpu-search) and other processes'
+    def apart(p):                                  # how far the color p is from every blend of the blue and the brown
+        d = [b - a for a, b in zip(blue, brown)]
+        t = max(0.0, min(1.0, sum((x - a) * e for x, a, e in zip(p, blue, d)) / sum(e * e for e in d)))
+        return math.dist(p, [a + t * e for a, e in zip(blue, d)])
+    from PIL import Image
+    for scale in (1, 2):
+        d = tempfile.mkdtemp(prefix='index-quals-')
+        keep = ('<script>localStorage.setItem("progress-open", "1"); localStorage.setItem("progress-fold overnight_v5.py 64 7", "1");</script>\n'
+                '<style>main > *:not(section.progress) { display: none !important; } body * { visibility: hidden !important; } '
+                '.progress-cpu svg, .progress-cpu svg * { visibility: visible !important; } .progress-cpu .cross { visibility: hidden !important; }</style>\n')
+        open(os.path.join(d, 'index.html'), 'w', encoding='utf-8').write(page().replace('<head>\n', '<head>\n' + keep))
+        copy_page_dir(d)
+        open(os.path.join(d, 'progress.js'), 'w', encoding='utf-8').write('progressData(' + json.dumps({'made': made, 'runs': [run]}) + ');\n')
+        shutil.copy(DATA, os.path.join(d, 'mstar.js'))
+        shutil.copy(POW2, os.path.join(d, 'pow2.js'))
+        shot = os.path.join(d, 'shot.png')
+        chrome(d, ['--window-size=1000,1400', f'--force-device-scale-factor={scale}', '--virtual-time-budget=8000',
+                   '--run-all-compositor-stages-before-draw', f'--screenshot={shot}', 'file://' + os.path.join(d, 'index.html')])
+        img = Image.open(shot).convert('RGB')
+        shutil.rmtree(d)
+        px, (w, h), bad, total = img.load(), img.size, 0, 0
+        for x in range(w):
+            ys = [y for y in range(h) if apart(px[x, y]) <= 40]
+            if not any(px[x, y][2] > 150 for y in ys): continue        # no blue in this column
+            span = range(min(ys), max(ys) + 1)
+            total += len(span)
+            bad += sum(apart(px[x, y]) > 40 for y in span)
+        assert total > 2000 * scale * scale and bad == 0, (scale, bad, total)
+
+
 def q_progress_breaks_the_y_axis_above_the_projected_finish():
     # Replicata: the ETA charts of progress_run('long') (480:14's bands, thousands of hours above its projected
     # finish), of progress_run('eta') (its purple band's top 0.6 h above the cap) and of progress_run('narrow') (bands
