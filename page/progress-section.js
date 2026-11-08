@@ -6,7 +6,8 @@
 // 2026-10-17: reloads, as Live Server's when files change, kept closing it); likewise each run's fold (FOLD, 2026-10-25;
 // see remember).  Every word
 // it shows is in the section's HTML (its templates); this script writes numbers, times and marks, durations with their
-// units, h, d or y (dreeves, 2026-10-23).
+// units, h, d or y (dreeves, 2026-10-23), each to its uncertainty, and times so far in days, hours, minutes and seconds,
+// the running ones going on with the clock (HMSFORMAT, 2026-11-07).
 // Per run: for a run with a work model, a bar of its work, its nodes checked and their rate and the interval of its
 // total nodes when its tree is exhausted, the median a tick (bar, 2026-11-06; a bar of hours so far and to go before,
 // and that day a time ruler); the sea, one dot per sub-case of the data's
@@ -34,10 +35,14 @@
   const poolLine = section.querySelector('template.progress-pool-line');   // the pool chart's tip: a moment's line
   const missing = section.querySelector('.progress-missing');
   const POLL = window.PROGRESS_POLL_MS || 60000;
+  const wall = window.PROGRESS_CLOCK || (() => Date.now() / 1000);   // the clock, in seconds: Date's, or the quals' (as POLL)
   const KEPT = 'progress-open';                // localStorage: "1" while this browser last left the section open
   const FOLD = 'progress-fold ';               // localStorage: "1" under this, a run's program, n and order while its fold is open
   const view = window.progressView = {loads: 0, renders: 0, data: null, layouts: []};
   let poll = null, ticker = null, made = null, resizing = null, clips = 0;   // clips: the charts' clip paths made, for their ids
+  // each status line's running form's time so far, as [its element, the clock time it counts from], which tick writes
+  // each second as the clock goes on (statusLine; dreeves, 2026-11-07: "make it update second by second")
+  let live = [];
 
   const pad = x => String(x).padStart(2, '0');
   const local = t => {
@@ -45,53 +50,78 @@
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
   };
   const stamp = t => `${local(t)}:${pad(new Date(t * 1000).getSeconds())}`;
-  const ampm = d => `${d.getHours() % 12 || 12}:${pad(d.getMinutes())}${d.getHours() < 12 ? 'am' : 'pm'}`;   // "6:27am"
-  const WEEK = 7 * 86400;                // seconds
-  const day = d => ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()];
-  // A finish time of a snapshot at t, local, as "Mon 6:27am"; but a week or more after t as its date, as "2027-03-15"
-  // (dreeves, 2026-10-23: "the parenthetical needs disambiguation when >1week").
-  const moment = (t, t1) => t1 - t < WEEK ? `${day(new Date(t1 * 1000))} ${ampm(new Date(t1 * 1000))}` : local(t1).slice(0, 10);
-  // The finish times of a snapshot at t, local, as "Mon 6:27am – 10:58pm": the first a moment, the second's weekday only
-  // when its date differs, and an end a week or more after t as its date.
-  const finish = (t, t1, t2) => {
-    const a = new Date(t1 * 1000), b = new Date(t2 * 1000);
-    const second = t2 - t < WEEK ? `${a.toDateString() === b.toDateString() ? '' : day(b) + ' '}${ampm(b)}` : local(t2).slice(0, 10);
-    return `${moment(t, t1)} – ${second}`;
+  // HMSFORMAT (dreeves, 2026-11-07: "show elapsed time with full granularity like so: 3d 4h 5m 6s with spacing exactly
+  // like that but the spaces are Narrow No-Break Spaces (unicode 8239)", "i do like the explicit hms better than colons,
+  // to help distinguish from times-of-day", and "mark this with "HMSFORMAT" in the code so i can find it and fuss with it
+  // myself later"): an elapsed time, known to the second, as "3d 4h 5m 6s": its days, hours, minutes and seconds from
+  // the largest unit it reaches down to the second, the zeros between shown (so that the form holds still as it ticks),
+  // each number with its unit's letter, and a narrow no-break space (U+202F) between them.  Unicode's CLDR has "3d 4h 5m
+  // 6s" for English, Intl.DurationFormat's narrow style, with plain spaces and no zero units; in Latin Modern a thin
+  // space (U+2009, &thinsp;) is as wide as U+202F (0.20 and 0.19 em, bold), but a line may break at it.
+  const hms = sec => {
+    assert(Number.isFinite(sec) && sec >= 0, 'an elapsed time', sec);
+    const s = Math.floor(sec), parts = [[Math.floor(s / 86400), 'd'], [Math.floor(s / 3600) % 24, 'h'], [Math.floor(s / 60) % 60, 'm'], [s % 60, 's']];
+    return parts.slice([86400, 3600, 60, 0].findIndex(k => s >= k)).map(([v, u]) => `${v}${u}`).join('\u202f');
   };
-  const duration = sec => {
-    const s = Math.max(0, Math.floor(sec)), d = Math.floor(s / 86400);
-    return (d ? `${d} d ` : '') + `${Math.floor(s / 3600) % 24}:${pad(Math.floor(s / 60) % 60)}:${pad(s % 60)}`;
-  };
-  const tenth = v => v.toFixed(1);
-  const hrs = h => h < 10 ? h.toFixed(1) : h.toFixed(0);             // progress.py's hrs: a tenth below 10, whole from 10
+  // Every other figure of time to its uncertainty (dreeves, 2026-11-07: "sane number of sigfigs for everything else based
+  // in a principled way on the amount of uncertainty", e.g. "15.6h - 3.1d" as "16h - 3d" and "Sun 11:39am - Tue 10:17pm"
+  // as "Sun 12pm - Tue 10pm"): u, the uncertainty, half the width of an estimate's interval (spread), the one to go,
+  // which the time in all and the finish times share; a duration in its unit (unitOf) to the place of the first
+  // significant digit of u, but no coarser than a whole unit (places); a clock time to the largest of the hour, ten
+  // minutes and the minute (STEPS) that u reaches, the hour with no minutes, "12pm".  Nothing here is known to better
+  // than a second (u at least 1 s), nor a clock time to better than its minute.
+  const spread = g => (g.hi - g.lo) / 2;
   // A duration's unit (dreeves, 2026-10-23: "more helpful as days or years when over like 48 or maybe 72h"): hours below
   // 72 h, days below a year of 365.25 d, years from there; each [seconds, symbol, the bound below which it serves].
   const UNITS = [[3600, 'h', 72], [86400, 'd', 365.25], [31557600, 'y', Infinity]];
   const unitOf = sec => UNITS.find(([s, , top]) => sec / s < top);
-  const dur = (sec, fmt) => `${fmt(sec / unitOf(sec)[0])}\u202f${unitOf(sec)[1]}`;   // fmt's number, a narrow no-break space, the unit
-  // a range of durations, its unit once when both ends share it: "0.5–3.0 h", "149.9 d–6.4 y"
-  const range = (lo, hi, fmt) => unitOf(lo) === unitOf(hi) ? `${fmt(lo / unitOf(lo)[0])}–${dur(hi, fmt)}` : `${dur(lo, fmt)}–${dur(hi, fmt)}`;
-  const ranged = g => g ? range(g.lo, g.hi, tenth) : '—';             // an estimate's range ({lo, hi}), or — with none
+  const places = (u, s) => Math.max(0, -Math.floor(Math.log10(Math.max(u, 1) / s)));   // decimals, in a unit of s seconds
+  const figure = (sec, u) => (sec / unitOf(sec)[0]).toFixed(places(u, unitOf(sec)[0]));
+  const about = (sec, u) => `${figure(sec, u)}\u202f${unitOf(sec)[1]}`;   // the figure, a narrow no-break space, the unit
+  // a range of durations, its unit once when both ends share it: "1–3 h", "16 h–3 d"
+  const range = (lo, hi, u) => unitOf(lo) === unitOf(hi) ? `${figure(lo, u)}–${about(hi, u)}` : `${about(lo, u)}–${about(hi, u)}`;
+  const ranged = g => g ? range(g.lo, g.hi, spread(g)) : '—';         // an estimate's range ({lo, hi}), or — with none
+  const hrs = h => h < 10 ? h.toFixed(1) : h.toFixed(0);             // progress.py's hrs: a tenth below 10, whole from 10
+  const STEPS = [3600, 600, 60];                                      // a clock time's, in seconds: the hour, ten minutes, the minute
+  const stepOf = u => STEPS.find(s => s <= Math.max(u, 60));
+  const rounded = (t, step) => {                                      // the clock time t, local, to the nearest step: a Date
+    const d = new Date((t + step / 2) * 1000);
+    d.setMinutes(Math.floor(d.getMinutes() * 60 / step) * step / 60, 0, 0);
+    return d;
+  };
+  const ampm = (d, step) => `${d.getHours() % 12 || 12}${step < 3600 ? ':' + pad(d.getMinutes()) : ''}${d.getHours() < 12 ? 'am' : 'pm'}`;   // "6:27am", "6pm"
+  const WEEK = 7 * 86400;                // seconds
+  const day = d => ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()];
+  // A finish time of a snapshot at t, local, as "Mon 6:27am", to its uncertainty u; but a week or more after t as its
+  // date, as "2027-03-15" (dreeves, 2026-10-23: "the parenthetical needs disambiguation when >1week").
+  const moment = (t, t1, u) => t1 - t < WEEK ? `${day(rounded(t1, stepOf(u)))} ${ampm(rounded(t1, stepOf(u)), stepOf(u))}` : local(t1).slice(0, 10);
+  // The finish times of a snapshot at t, local, as "Mon 6:27am – 10:58pm", to their uncertainty u: the first a moment,
+  // the second's weekday only when its date differs, and an end a week or more after t as its date.
+  const finish = (t, t1, t2, u) => {
+    const step = stepOf(u), a = rounded(t1, step), b = rounded(t2, step);
+    const second = t2 - t < WEEK ? `${a.toDateString() === b.toDateString() ? '' : day(b) + ' '}${ampm(b, step)}` : local(t2).slice(0, 10);
+    return `${moment(t, t1, u)} – ${second}`;
+  };
   // A snapshot's line (template.progress-line), into el's fields: the snapshot's time t, its seconds of running so far
   // x and its estimate g of the seconds to go ({lo, hi}; null: none), as the frozen, paused, completed and aborted forms
   // take them too.
   const fill = (el, field, text) => { for (const e of el.querySelectorAll(`[data-${field}]`)) e.textContent = text; };
   const snapshot = (el, t, x, g) => {
     fill(el, 'when', stamp(t));
-    fill(el, 'so-far', dur(x, tenth));
+    fill(el, 'so-far', hms(x));
     fill(el, 'to-go', ranged(g));
-    fill(el, 'sum', g ? range(x + g.lo, x + g.hi, hrs) : '—');
-    fill(el, 'done', g ? finish(t, t + g.lo, t + g.hi) : '—');
+    fill(el, 'sum', g ? range(x + g.lo, x + g.hi, spread(g)) : '—');
+    fill(el, 'done', g ? finish(t, t + g.lo, t + g.hi, spread(g)) : '—');
   };
   // A point on the median's course past a run's last record, the dashed line its ETA chart draws there, into el's
   // fields as snapshot writes a record's: the clock t, the seconds of running x and the median's seconds to go m, so
-  // that the hours in all and the finish time are the median's.
-  const course = (el, t, x, m) => {
+  // that the time in all and the finish time are the median's, each to the record's uncertainty u.
+  const course = (el, t, x, m, u) => {
     fill(el, 'when', stamp(t));
-    fill(el, 'so-far', dur(x, tenth));
-    fill(el, 'to-go', dur(m, tenth));
-    fill(el, 'sum', dur(x + m, hrs));
-    fill(el, 'done', moment(t, t + m));
+    fill(el, 'so-far', hms(x));
+    fill(el, 'to-go', about(m, u));
+    fill(el, 'sum', about(x + m, u));
+    fill(el, 'done', moment(t, t + m, u));
   };
   const num = v => String(Number(v.toPrecision(12)));
   const pct = v => `${+(100 * v).toFixed(4)}%`;
@@ -163,12 +193,18 @@
     bar(box, run);
     const measured = workView(box, run);
     said.append(...box.querySelector('summary h3').childNodes, ' ', ...box.querySelector('summary').querySelectorAll(':scope > span'),
-                ' ', dur(run.so_far, tenth));
+                ' ', hms(run.so_far));
     return [said, ...measured];
   }
 
+  // Each second while the section is open: the snapshot's age, and each running form's time so far (live) still on the
+  // page, from the clock (wall); none before the first snapshot
   function tick() {
-    if (made !== null) section.querySelector('[data-age]').textContent = duration(Date.now() / 1000 - made);
+    if (made === null) return;
+    const now = wall();
+    section.querySelector('[data-age]').textContent = hms(now - made);
+    live = live.filter(([e]) => e.isConnected);
+    for (const [e, since] of live) e.textContent = hms(now - since);
   }
 
   window.progressData = data => {
@@ -188,7 +224,6 @@
     const data = view.data;
     view.renders += 1;
     section.querySelector('[data-made]').textContent = stamp(data.made);
-    tick();
     // the new runs are built beside the old ones, then swapped in at once, so no layout in between sees a shorter page
     // (dreeves, 2026-10-26: "Every time the graph updates the page scrolls itself": sea's width read had laid out the
     // page with only the runs rebuilt so far, and the browser pulled the scroll position up to fit it)
@@ -231,18 +266,22 @@
       return L;
     });
     runsBox.replaceChildren(...boxes);
+    tick();                                    // the age and the times so far as of now, not the snapshot's, at once
   }
 
   // A run's status line (p.progress-status), below its ETA chart, and in a chart's box as its brief's row (brief): only
   // its state's form shown, naming the state as its fold's summary does (dreeves, 2026-10-26: "can you change those
   // instances of "ended" to "aborted" or "completed" as appropriate?"), the running form a snapshot's line
   // (template.progress-line); its fields a snapshot's at the run's stale time or else made, the snapshot's time, its
-  // time so far and its estimate to go (render's lines until 2026-11-06, when brief came to brief it too)
+  // time so far and its estimate to go (render's lines until 2026-11-06, when brief came to brief it too); the running
+  // form's time so far live (dreeves, 2026-11-07: "make it update second by second"), counted from the clock time the
+  // run would have started at, as of its data, the form shown only for a running run
   function statusLine(box, run, made) {
     const status = box.querySelector('.progress-status');
     for (const e of status.querySelectorAll('[data-state]')) e.hidden = e.dataset.state !== labelOf(run);
     status.querySelector('[data-state="running"]').replaceChildren(line.content.cloneNode(true));
     snapshot(status, run.stale ?? made, run.so_far, run.to_go);
+    live.push([status.querySelector('[data-state="running"] [data-so-far]'), (run.stale ?? made) - run.so_far]);
   }
 
   // a run whose survey failed or ran past its limit (progress.py's snapshot, 2026-10-30) shows its last good data,
@@ -286,7 +325,7 @@
     for (const e of display.querySelectorAll('[data-attempt-count]')) e.textContent = run.work[e.dataset.attemptCount].toLocaleString('en-US');
     for (const e of display.querySelectorAll('[data-attempt-phase]')) e.hidden = e.dataset.attemptPhase !== run.phase;
     for (const e of display.querySelectorAll('[data-attempt-outcome]')) e.hidden = e.dataset.attemptOutcome !== String(run.outcome);
-    display.querySelector('[data-elapsed]').textContent = duration(run.so_far);
+    fill(display, 'elapsed', hms(run.so_far));     // a batch's; a tracked search's counts have none (its status line's)
     display.querySelector('[data-search-state]').textContent = run.state;
     box.querySelector('.progress-status').replaceChildren(display);
     box.querySelector('.progress-key').hidden = true;
@@ -559,7 +598,7 @@
     // be done by then), so that the hours in all and the finish time stay the median's
     const at = (k, s) => {
       const [t, x, median, lo, hi] = run.etas[k];
-      if (s > 0) course(tip, t + s, x + s, Math.max(0, median - s));
+      if (s > 0) course(tip, t + s, x + s, Math.max(0, median - s), spread({lo, hi}));
       else snapshot(tip, t, x, {lo, hi});
       tip.classList.toggle('projected', s > 0);
     };
@@ -643,7 +682,7 @@
     const at = k => {                          // point k's line, with its stretch's net change per job ended, or — with no job
       const [t, x, count, b] = points[k], [jobs, net] = buckets[b];
       fill(tip, 'when', stamp(t));
-      fill(tip, 'so-far', dur(x, tenth));
+      fill(tip, 'so-far', hms(x));
       fill(tip, 'pool-count', count.toLocaleString('en-US'));
       fill(tip, 'pool-net', jobs ? minus(signedNet.format(net / jobs)) : '—');
     };

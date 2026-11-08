@@ -21,8 +21,8 @@ const elapsed = {}, state = {}, status = {replaceChildren(x) { this.child = x; }
 const readout = {replaceChildren(x) { this.child = x; }};
 const canvas = {setAttribute(k, v) { this[k] = v; }};
 const display = {
-  querySelectorAll(s) { return {'[data-attempt-count]': fields, '[data-attempt-phase]': phases, '[data-attempt-outcome]': outcomes}[s]; },
-  querySelector(s) { return {'[data-elapsed]': elapsed, '[data-search-state]': state}[s]; },
+  querySelectorAll(s) { return {'[data-attempt-count]': fields, '[data-attempt-phase]': phases, '[data-attempt-outcome]': outcomes, '[data-elapsed]': [elapsed]}[s]; },
+  querySelector(s) { return {'[data-search-state]': state}[s]; },
 };
 const hint = {textContent: 'Astra: "One dot per attempt."', cloneNode() { return this; }};
 const section = {querySelector(s) { return {
@@ -33,9 +33,14 @@ const box = {querySelector(s) { return {
   '.progress-status': status, '.progress-key': key, '.progress-eta': eta,
   '[data-readout]': readout, canvas,
 }[s]; }};
-const context = {section, duration: seconds => 'duration:' + seconds};
+// Fixture change (Claude, 2026-11-07; dreeves: "redundant elapsed time here. let's keep the one in blue and nix the
+// one in black", and "show elapsed time with full granularity like so: 3d 4h 5m 6s"): the renderer writes the
+// elapsed time with the page's own fill (run here from its source), through hms, in place of duration, since a
+// tracked search's counts, from the same renderer, have none.
+const fill = script.match(/  const fill = \(el, field, text\) => \{[^\n]*\};/)[0];
+const context = {section, hms: seconds => 'hms:' + seconds};
 vm.createContext(context);
-vm.runInContext(source[0] + '\nthis.draw = attemptView;', context);
+vm.runInContext(fill + '\n' + source[0] + '\nthis.draw = attemptView;', context);
 const work = {control_attempted: 2, control_total: 32, control_empty: 0, control_timeout: 1,
   control_witnesses: 1, attempted: 5, total: 32, empty: 2, timeout: 3};
 for (const outcome of [null, 'budget', 'control_failed', 'witness', 'failed']) {
@@ -44,7 +49,7 @@ for (const outcome of [null, 'budget', 'control_failed', 'witness', 'failed']) {
   for (const field of fields) assert.equal(field.textContent, work[field.dataset.attemptCount].toLocaleString('en-US'));
   assert.deepEqual(phases.filter(x => !x.hidden).map(x => x.dataset.attemptPhase), ['search']);
   assert.deepEqual(outcomes.filter(x => !x.hidden).map(x => x.dataset.attemptOutcome), [String(outcome)]);
-  assert.equal(elapsed.textContent, 'duration:125');
+  assert.equal(elapsed.textContent, 'hms:125');
   assert.equal(state.textContent, 'running');
   // the ETA chart left as every run's, shown (dreeves, 2026-11-04: "shouldn't there always be an ETA graph, even when
   // it's just based on the lindy effect? death to if-statements, remember?"); until then hidden

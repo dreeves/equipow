@@ -4,6 +4,7 @@ import json
 import math
 import os
 from pathlib import Path
+import re
 import sys
 import tempfile
 import unittest
@@ -64,11 +65,21 @@ class FocusProgressQuals(unittest.TestCase):
         # Replicata: the page's "Search progress" section (dreeves, 2026-10-23: "i don't want a bunch of prose and
         # numbers, i want the blue/red/purple graphs").
         # Expectata: no per-search prose templates or work counters remain, only the shared run template.
+        # Spec change (Claude, 2026-11-07; dreeves: "yes, that qual change sounds acceptable"): the work bar and the rate
+        # in its caption, which dreeves asked for on 2026-11-06 ("should that progress bar be measuring amount of work,
+        # not time?" and "1. add nodes/s to the blue/purple line"), are the section's only work fields: of its elements'
+        # attributes (its comments left out), the data-work-* ones exactly data-work-measure, the bar's container, and
+        # data-work-rate, its nodes/s; and none of the removed templates' four, data-scope, data-work, data-phase and
+        # data-outcome, as whole names.  Until then any text "data-work" in the section failed it: rightly from 2026-11-04
+        # (6000eaa, a line of prose with the work model's samples, nodes checked, rate and source, which dreeves cut on
+        # 2026-11-06: "2. kill the whole line with number of samples"), and from then on for the bar he asked for.
         page = (ROOT / 'index.html').read_text()
         script = (ROOT / 'page' / 'progress-section.js').read_text()   # in the page until 2026-10-31
         section = page.split('<section class="progress"')[1].split('</section>')[0]
-        for attribute in ('data-scope', 'data-work', 'data-phase', 'data-outcome'):
-            self.assertNotIn(attribute, section)
+        tags = re.findall(r'<[a-z][^>]*>', re.sub(r'<!--.*?-->', '', section, flags=re.S))
+        names = {name for tag in tags for name in re.findall(r'\sdata-([a-z0-9-]+)', tag)}
+        self.assertFalse(names & {'scope', 'work', 'phase', 'outcome'}, names)
+        self.assertEqual({name for name in names if name.startswith('work-')}, {'work-measure', 'work-rate'})
         self.assertNotIn("[data-work]", page + script)
         self.assertNotIn("[data-scope]", page + script)
 

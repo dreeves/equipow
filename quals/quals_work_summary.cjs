@@ -46,7 +46,9 @@ const context = {
   heading() {}, staleView() {},
   statusLine: (box, run, made) => { lines.push([box, run, made]); },
   bar: (box, run) => { drawn.push([box, run]); },
-  dur: x => String(x), tenth: x => x, stamp: t => `stamp:${t}`,
+  // (2026-11-07: the summary line's time so far through hms, in place of dur and tenth; dreeves: "show elapsed time with
+  // full granularity like so: 3d 4h 5m 6s")
+  hms: x => String(x), stamp: t => `stamp:${t}`,
   fill: (el, key, text) => { for (const e of el.querySelectorAll(`[data-${key}]`)) e.textContent = text; },
 };
 vm.createContext(context);

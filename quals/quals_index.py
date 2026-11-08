@@ -4189,6 +4189,10 @@ def q_black_box_shows_both_bounds_and_the_searches():
     # every other run brief its status line (time so far + to go)"): each run's status line, in place of the campaign's
     # chance line (within 6 h 0.91%, within 24 h 2.8%, 2.1 CPU-hours) and nothing for the other run.
     # Resultata before: the column's panel, with its status sentence and no searches.
+    # Spec change (Claude, 2026-11-07; dreeves: "1. show elapsed time with full granularity like so: 3d 4h 5m 6s ... 3. no
+    # need for the "so far" ... 4. sane number of sigfigs for everything else based in a principled way on the amount of
+    # uncertainty"): the times so far 10m 0s and 2h 0m 0s, with no "so far", and the campaign's figures to its band's
+    # uncertainty, half its width, 1.58 h: 0–3 h to go, 0–3 h in all, and its finish times to the hour.
     R, B = boxes_run()
     cols = mstar_data()['cols']
     S = R['searched']
@@ -4197,9 +4201,9 @@ def q_black_box_shows_both_bounds_and_the_searches():
     assert 'Claude: “\\(m^*(528) \\le 12\\): residue condition mod \\(M = 5\\)' in S['said'], S['said']
     flat = lambda t: ' '.join(t.split())                         # its spaces, the narrow no-break ones before a unit among them, as one
     made, to_go = BOX_PROGRESS['made'], PROGRESS_CAMPAIGN['to_go']
-    status = f'0.2 h so far + 0.0–3.2 h to go = 0.2–3.3 h ({finish(made, made + to_go["lo"], made + to_go["hi"])})'
-    assert [flat(t) for t in S['searches']] == [f'Search progress m*(528) ≥ 12? probe_seed.py running 0.2 h {status} m*(528) ≥ 12? '
-                                                'overnight_v5.py aborted 2.0 h Aborted after running for 2.0 h.'], S['searches']
+    status = f'10m 0s + 0–3 h to go = 0–3 h ({finish(made, made + to_go["lo"], made + to_go["hi"], (to_go["hi"] - to_go["lo"]) / 2)})'
+    assert [flat(t) for t in S['searches']] == [f'Search progress m*(528) ≥ 12? probe_seed.py running 10m 0s {status} m*(528) ≥ 12? '
+                                                'overnight_v5.py aborted 2h 0m 0s Aborted after running for 2h 0m 0s.'], S['searches']
     assert B[(480, 13)]['whys'] == box_parts(cols, 480, 13) and [flat(t) for t in B[(480, 13)]['searches']] == ['Search progress —'], B[(480, 13)]
 
 
@@ -4368,6 +4372,9 @@ PROGRESS_NARROW = {'made': 1792200000, 'runs': [dict(PROGRESS_DATA['runs'][0], s
     to_go={'median': 2 * HOURS, 'lo': 1.5 * HOURS, 'hi': 2.5 * HOURS},
     etas=[[1792196400, 9 * HOURS, 2 * HOURS, 1.5 * HOURS, 2.5 * HOURS], [1792200000, 10 * HOURS, 2 * HOURS, 1.5 * HOURS, 2.5 * HOURS]])]}
 PROGRESS_EARLY = '<script>window.PROGRESS_POLL_MS = 1000;</script>\n'      # a 1 s poll, for the quals
+# the page's clock standing at its snapshot's time, so that a running run's time so far, which goes on with the clock
+# (2026-11-07; dreeves: "make it update second by second"), is its data's, and the snapshot's age 0s, in the quals
+PROGRESS_FROZEN = '<script>window.PROGRESS_CLOCK = () => window.progressView.data.made;</script>\n'
 # a browser that last left the section open (dreeves, 2026-10-17: "i keep having to re-expand the search progress
 # section", Live Server reloading the page as files change), set before the page's scripts run
 PROGRESS_REMEMBERED = '<script>localStorage.setItem("progress-open", "1");</script>\n'
@@ -4380,28 +4387,49 @@ def stamp(t):
     return time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(t))
 
 
-def ampm(t):
-    """A time as the section's status line gives it: local 12-hour hours without a leading zero, minutes, am or pm."""
-    lt = time.localtime(t)
-    return f'{lt.tm_hour % 12 or 12}:{lt.tm_min:02d}{"am" if lt.tm_hour < 12 else "pm"}'
+def hms(sec):
+    """An elapsed time as the section gives it (HMSFORMAT, dreeves, 2026-11-07: "3d 4h 5m 6s"): its days, hours, minutes
+    and seconds from the largest unit it reaches down to the second, each number with its letter, narrow no-break
+    spaces between them."""
+    s = int(sec // 1)
+    parts = [(s // 86400, 'd'), (s // 3600 % 24, 'h'), (s // 60 % 60, 'm'), (s % 60, 's')]
+    return NNBSP.join(f'{v}{u}' for v, u in parts[next(i for i, k in enumerate((86400, 3600, 60, 0)) if s >= k):])
+
+
+def step_of(u):
+    """The step a clock time is rounded to for an uncertainty of u seconds (2026-11-07): the largest of the hour, ten
+    minutes and the minute that u reaches, the minute at least."""
+    return next(s for s in (3600, 600, 60) if s <= max(u, 60))
+
+
+def ampm(t, u):
+    """A time as the section's status line gives it, for an uncertainty of u seconds: local, to the nearest step
+    (step_of), 12-hour hours without a leading zero, the minutes but to the hour, am or pm."""
+    step = step_of(u)
+    lt = time.localtime(t + step / 2)
+    minutes = f':{lt.tm_min // (step // 60) * (step // 60):02d}' if step < 3600 else ''
+    return f'{lt.tm_hour % 12 or 12}{minutes}{"am" if lt.tm_hour < 12 else "pm"}'
 
 
 WEEK = 7 * 86400                               # seconds; a finish time a week or more on is a date (dreeves, 2026-10-23)
 
 
-def moment(t, t1):
-    """A finish time of a snapshot at t: its weekday and its 12-hour time; but a week or more after t its local date,
-    YYYY-MM-DD (dreeves, 2026-10-23: "the parenthetical needs disambiguation when >1week")."""
-    return f'{time.strftime("%a", time.localtime(t1))} {ampm(t1)}' if t1 - t < WEEK else time.strftime('%Y-%m-%d', time.localtime(t1))
+def moment(t, t1, u):
+    """A finish time of a snapshot at t, for an uncertainty of u seconds: its weekday and its 12-hour time (ampm); but a
+    week or more after t its local date, YYYY-MM-DD (dreeves, 2026-10-23: "the parenthetical needs disambiguation when
+    >1week")."""
+    return f'{time.strftime("%a", time.localtime(t1 + step_of(u) / 2))} {ampm(t1, u)}' if t1 - t < WEEK else time.strftime('%Y-%m-%d', time.localtime(t1))
 
 
-def finish(t, t1, t2):
-    """The status line's finish times, of a snapshot at t: the first (moment), a spaced en dash, the second's weekday
-    only when its date differs, the second; but an end a week or more after t as its local date."""
-    day = lambda s: time.strftime('%a', time.localtime(s))
-    date = lambda s: time.strftime('%Y-%m-%d', time.localtime(s))
-    second = f'{"" if date(t1) == date(t2) else day(t2) + " "}{ampm(t2)}' if t2 - t < WEEK else date(t2)
-    return f'{moment(t, t1)} – {second}'
+def finish(t, t1, t2, u):
+    """The status line's finish times, of a snapshot at t, for an uncertainty of u seconds: the first (moment), a spaced
+    en dash, the second's weekday only when its date differs, the second; but an end a week or more after t as its local
+    date."""
+    near = lambda s: s + step_of(u) / 2            # a time's rounding falls within the step it is in, past its half
+    day = lambda s: time.strftime('%a', time.localtime(near(s)))
+    date = lambda s: time.strftime('%Y-%m-%d', time.localtime(near(s)))
+    second = f'{"" if date(t1) == date(t2) else day(t2) + " "}{ampm(t2, u)}' if t2 - t < WEEK else time.strftime('%Y-%m-%d', time.localtime(t2))
+    return f'{moment(t, t1, u)} – {second}'
 # The harness: notes what has loaded, opens the section, waits 3.5 s, reads each dot's middle pixel, the key's counts,
 # the state line and the times, the subtrees' blocks and the ETA chart (its markup at rest), hovers over the third
 # group's first dot and over the ETA chart's second record, gives progressData a changed snapshot (one dot running ->
@@ -4510,7 +4538,7 @@ def progress_run(case='main'):
     if case not in PROGRESS_RUNS:
         data = {'main': PROGRESS_DATA, 'eta': PROGRESS_ETA_DATA, 'two': PROGRESS_TWO, 'long': PROGRESS_LONG,
                 'narrow': PROGRESS_NARROW, 'remembered': PROGRESS_DATA}[case]
-        early = PROGRESS_EARLY + (PROGRESS_REMEMBERED if case == 'remembered' else '')
+        early = PROGRESS_EARLY + PROGRESS_FROZEN + (PROGRESS_REMEMBERED if case == 'remembered' else '')
         d = tempfile.mkdtemp(prefix='index-quals-')
         text = page()
         assert text.count('<head>\n') == 1 and text.count('</body>') == 1
@@ -4932,18 +4960,27 @@ def q_progress_states_times_and_hours():
     # search progress line above the progress bar shows the freshness"): the line's text is checked as its template
     # gives it (its textContent), which the ETA chart's tip shows whole; the status line hides its @, its time and the
     # em space (q_progress_status_line_has_no_time_but_its_tip_does), so the time's ink is read in the tip.
+    # Spec change (Claude, 2026-11-07; dreeves: "1. show elapsed time with full granularity like so: 3d 4h 5m 6s ... 3. no
+    # need for the "so far" ... 4. sane number of sigfigs for everything else based in a principled way on the amount of
+    # uncertainty"): the time so far 2h 0m 0s, with no "so far" (hms; q_progress_elapsed_is_days_hours_minutes_seconds_and_ticks),
+    # and the rest to the band's uncertainty, half its width, 1.25 h (q_progress_rounds_figures_to_their_uncertainty):
+    # 1–3 h to go, 3–5 h in all, and the finish times to the hour; the age in the same form, 0s, the page's clock in
+    # the quals standing at the snapshot's time (PROGRESS_FROZEN).
     R = progress_run()
     made, go, h = PROGRESS_DATA['made'], PROGRESS_DATA['runs'][0]['to_go'], NNBSP + 'h'
-    want = f'@{stamp(made)}{EMSP}2.0{h} so far + 0.5–3.0{h} to go = 2.5–5.0{h} ({finish(made, made + go["lo"], made + go["hi"])})'
+    want = f'@{stamp(made)}{EMSP}{hms(7200)} + 1–3{h} to go = 3–5{h} ({finish(made, made + go["lo"], made + go["hi"], 4500)})'
     assert R['state'] == [want], (R['state'], want)
     at = lambda d, hh, mm: time.mktime((2026, 10, d, hh, mm, 0, 0, 0, -1))        # local times; 2026-10-19 is a Monday
-    assert finish(at(19, 6, 0), at(19, 6, 27), at(19, 17, 38)) == 'Mon 6:27am – 5:38pm', finish(at(19, 6, 0), at(19, 6, 27), at(19, 17, 38))
-    assert finish(at(19, 6, 0), at(19, 6, 27), at(20, 0, 18)) == 'Mon 6:27am – Tue 12:18am', finish(at(19, 6, 0), at(19, 6, 27), at(20, 0, 18))
+    assert finish(at(19, 6, 0), at(19, 6, 27), at(19, 17, 38), 0) == 'Mon 6:27am – 5:38pm', finish(at(19, 6, 0), at(19, 6, 27), at(19, 17, 38), 0)
+    assert finish(at(19, 6, 0), at(19, 6, 27), at(20, 0, 18), 0) == 'Mon 6:27am – Tue 12:18am', finish(at(19, 6, 0), at(19, 6, 27), at(20, 0, 18), 0)
+    # to ten minutes and to the hour (2026-11-07)
+    assert finish(at(19, 6, 0), at(19, 6, 27), at(19, 17, 38), 600) == 'Mon 6:30am – 5:40pm', finish(at(19, 6, 0), at(19, 6, 27), at(19, 17, 38), 600)
+    assert finish(at(19, 6, 0), at(19, 6, 27), at(19, 17, 38), 3600) == 'Mon 6am – 6pm', finish(at(19, 6, 0), at(19, 6, 27), at(19, 17, 38), 3600)
     # a week on, a weekday is ambiguous: a date (dreeves, 2026-10-23; 'Mon 12:05pm – Mon 12:05pm' until then)
-    assert finish(at(19, 12, 5), at(19, 12, 5), at(26, 12, 5)) == 'Mon 12:05pm – 2026-10-26'
+    assert finish(at(19, 12, 5), at(19, 12, 5), at(26, 12, 5), 0) == 'Mon 12:05pm – 2026-10-26'
     want = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(PROGRESS_DATA['made']))
     assert R['made'] == want, (R['made'], want)
-    assert re.fullmatch(r'(\d+ d )?\d+:\d\d:\d\d', R['age']), R['age']
+    assert R['age'] == '0s', R['age']
     assert R['status']['afterChart'] is True, R['status']
     assert R['status']['colors'] == [['spent', 'rgb(42, 120, 214)'], ['togo', 'rgb(227, 73, 72)'], ['total', 'rgb(123, 31, 162)']], R['status']
     assert R['status']['ink'] == R['status']['when'] == 'rgb(27, 29, 34)', R['status']
@@ -4960,6 +4997,11 @@ def q_progress_status_line_has_no_time_but_its_tip_does():
     # space, then the status line's text; the stale run's summary still shows its stale time as the section's stamp
     # writes it, the time its status line gave until then; and the section's line above the runs, the snapshot's time.
     # Resultata before: each status line began with an @, its time (the stale run's its stale time) and an em space.
+    # Spec change (Claude, 2026-11-07; dreeves: "1. show elapsed time with full granularity like so: 3d 4h 5m 6s", "2.
+    # make it update second by second", "3. no need for the "so far"" and "4. sane number of sigfigs for everything else
+    # based in a principled way on the amount of uncertainty"): the lines in that form (q_progress_states_times_and_hours),
+    # each running run's time so far going on with the clock from its data's time: the stale run's 3h 0m 0s at the
+    # snapshot's time, an hour after its data's, where the fresh run's is 2h 0m 0s.
     made, go, h = PROGRESS_DATA['made'], PROGRESS_DATA['runs'][0]['to_go'], NNBSP + 'h'
     old = made - 3600
     got = progress_harness({'made': made, 'runs': [PROGRESS_DATA['runs'][0], dict(PROGRESS_DATA['runs'][0], stale=old)]}, """
@@ -4972,8 +5014,8 @@ def q_progress_status_line_has_no_time_but_its_tip_does():
   out({status: [shown(fresh), shown(stale)], tip: squeeze(fresh.querySelector('[data-tip]').innerText),
        mark: stale.querySelector('[data-stale]').checkVisibility() && stale.querySelector('[data-stale-at]').textContent,
        made: document.querySelector('section.progress [data-made]').textContent});""")
-    line = lambda t: f'2.0{h} so far + 0.5–3.0{h} to go = 2.5–5.0{h} ({finish(t, t + go["lo"], t + go["hi"])})'
-    assert got == dict(status=[line(made), line(old)], tip=f'@{stamp(made)}{EMSP}{line(made)}', mark=stamp(old),
+    line = lambda t, x: f'{hms(x)} + 1–3{h} to go = 3–5{h} ({finish(t, t + go["lo"], t + go["hi"], 4500)})'
+    assert got == dict(status=[line(made, 7200), line(old, 10800)], tip=f'@{stamp(made)}{EMSP}{line(made, 7200)}', mark=stamp(old),
                        made=stamp(made)), got
 
 
@@ -4991,18 +5033,100 @@ def q_progress_writes_days_and_years_past_72_h_and_dates_past_a_week():
     # search progress line above the progress bar shows the freshness"): the lines' text as their template gives it (its
     # textContent), its @, time and em space shown in the ETA chart's tip alone
     # (q_progress_status_line_has_no_time_but_its_tip_does).
+    # Spec change (Claude, 2026-11-07; dreeves: "1. show elapsed time with full granularity like so: 3d 4h 5m 6s ... 3. no
+    # need for the "so far" ... 4. sane number of sigfigs for everything else based in a principled way on the amount of
+    # uncertainty"): the times so far 14h 12m 0s and 4d 4h 0m 0s, and every other figure to the uncertainty of its run's
+    # band to go, half its width (q_progress_rounds_figures_to_their_uncertainty): the first's 3.0 y, so 150 d–6 y to go
+    # and in all, the second's 1.25 h, so 1–3 h to go, 4.19–4.29 d in all (an hour is 0.04 d) and its finish times to
+    # the hour; the dates as before.
     R = progress_run('long')
     made, (a, b) = PROGRESS_LONG['made'], [r['to_go'] for r in PROGRESS_LONG['runs']]
     h, d, y = NNBSP + 'h', NNBSP + 'd', NNBSP + 'y'
     date = lambda s: time.strftime('%Y-%m-%d', time.localtime(s))
-    want = [f'@{stamp(made)}{EMSP}14.2{h} so far + 149.9{d}–6.4{y} to go = 150{d}–6.4{y} ({date(made + a["lo"])} – {date(made + a["hi"])})',
-            f'@{stamp(made)}{EMSP}4.2{d} so far + 0.5–3.0{h} to go = 4.2–4.3{d} ({finish(made, made + b["lo"], made + b["hi"])})']
+    want = [f'@{stamp(made)}{EMSP}{hms(14.2 * HOURS)} + 150{d}–6{y} to go = 150{d}–6{y} ({date(made + a["lo"])} – {date(made + a["hi"])})',
+            f'@{stamp(made)}{EMSP}{hms(100 * HOURS)} + 1–3{h} to go = 4.19–4.29{d} ({finish(made, made + b["lo"], made + b["hi"], 1.25 * HOURS)})']
     assert R['state'] == want, (R['state'], want)
     parts = SvgParts()
     parts.feed(R['etaSvg'])
     ticks = lambda k: [text for tag, at, text in parts.items if at.get('class') == k]
     assert ticks('xtick') == ['0', '100', '200', '300', f'400{d}'], ticks('xtick')
     assert ticks('ytick') == ['0', '100', '200', f'300{d}', '6', f'8{y}'], ticks('ytick')   # then the top panel's
+
+
+def q_progress_elapsed_is_days_hours_minutes_seconds_and_ticks():
+    # Replicata: index.html with three runs as progress.js, each fold open, the page's clock (window.PROGRESS_CLOCK)
+    # standing at the snapshot's time: PROGRESS_DATA's run, running, 273,905 s along, its last ETA record the snapshot's;
+    # the same as a tracked search's (two runs, one running and one ended); and the same ended, 86,405 s along.  Then the
+    # clock a second on, and then on to 4 d of running for the first two, each followed by a wait of 1.1 s, as the page
+    # ticks each second; then a hover over the first run's ETA chart at its last record.
+    # Expectata (dreeves, 2026-11-07, of 288:10's box: "redundant elapsed time here. let's keep the one in blue and nix
+    # the one in black", "1. show elapsed time with full granularity like so: 3d 4h 5m 6s with spacing exactly like that
+    # but the spaces are Narrow No-Break Spaces (unicode 8239)", "2. make it update second by second", "3. no need for
+    # the "so far" -- the liveness make that obvious"; and "i do like the explicit hms better than colons, to help
+    # distinguish from times-of-day"): each status line's time so far in days, hours, minutes and seconds, from the
+    # largest unit it reaches down to the second, zeros between them shown, each number with its letter and a narrow no-
+    # break space between them, and no "so far" in the line: 3d 4h 5m 5s for the running runs and 1d 0h 0m 5s for the
+    # ended one; a second on, the running runs' 3d 4h 5m 6s, and at 4 d 4d 0h 0m 0s, the ended run's unchanged; the
+    # snapshot's age in the same form, 0s, 1s, then 19h 54m 55s; the tip over the last record the snapshot's line, its
+    # time so far 3d 4h 5m 5s however the clock goes on; and the tracked search's line of its runs with no time of its own.
+    made, base = PROGRESS_DATA['made'], PROGRESS_DATA['runs'][0]
+    running = dict(base, so_far=273905.0, etas=[[made - 3600, 270305.0, 7200.0, 3600.0, 14400.0], [made, 273905.0, 3600.0, 1800.0, 10800.0]])
+    tracked = dict(running, tracked=True, work=dict(runs=2, running=1, frozen=0, ended=1, aborted=0, found=0))
+    ended = dict(base, state='ended', outcome=None, so_far=86405.0, to_go=None)
+    got = progress_harness({'made': made, 'runs': [running, tracked, ended]}, """
+  for (const r of runs()) r.querySelector('details').open = true;
+  await sleep(200);
+  const shown = r => [...r.querySelectorAll('.progress-status [data-state]')].filter(e => !e.hidden)[0];
+  const read = () => ({lines: runs().map(r => shown(r).innerText), soFar: runs().map(r => shown(r).querySelector('[data-so-far]').textContent),
+                       age: document.querySelector('section.progress [data-age]').textContent});
+  const first = read();
+  window.clockAt = 1;
+  await sleep(1100);
+  const second = read();
+  window.clockAt = 4 * 86400 - 273905;
+  await sleep(1100);
+  const third = read();
+  const [r] = runs(), L = window.progressView.layouts[0], svg = r.querySelector('.progress-eta svg'), sb = svg.getBoundingClientRect();
+  svg.dispatchEvent(new MouseEvent('mousemove', {clientX: sb.left + L.etaXs[L.etaXs.length - 1] * sb.width / 640, clientY: sb.top + sb.height / 2, bubbles: true}));
+  out({first, second, third, tip: r.querySelector('[data-tip] [data-so-far]').textContent,
+       track: runs()[1].querySelector('[data-track-line]').textContent.replace(/\\s+/g, ' ').trim(),
+       trackElapsed: runs()[1].querySelectorAll('[data-track-line] [data-elapsed]').length});""",
+        before='<script>window.clockAt = 0; window.PROGRESS_CLOCK = () => window.progressView.data.made + window.clockAt;</script>\n')
+    N = NNBSP
+    assert got['first']['soFar'] == [f'3d{N}4h{N}5m{N}5s', f'3d{N}4h{N}5m{N}5s', f'1d{N}0h{N}0m{N}5s'], got['first']
+    assert got['second']['soFar'] == [f'3d{N}4h{N}5m{N}6s', f'3d{N}4h{N}5m{N}6s', f'1d{N}0h{N}0m{N}5s'], got['second']
+    assert got['third']['soFar'] == [f'4d{N}0h{N}0m{N}0s', f'4d{N}0h{N}0m{N}0s', f'1d{N}0h{N}0m{N}5s'], got['third']
+    assert [got[k]['age'] for k in ('first', 'second', 'third')] == ['0s', '1s', f'19h{N}54m{N}55s'], got
+    assert not any('so far' in line for k in ('first', 'second', 'third') for line in got[k]['lines']), got
+    assert got['tip'] == f'3d{N}4h{N}5m{N}5s', got['tip']
+    assert got['trackElapsed'] == 0 and got['track'] == '2 runs: 1 running, 0 frozen, 1 ended, 0 aborted; 0 found; running.', got['track']
+
+
+def q_progress_rounds_figures_to_their_uncertainty():
+    # Replicata: index.html with three running runs as progress.js, made at 8:03pm on Saturday 2026-11-07, local time,
+    # each fold open: the first 3d 4h 48m 0s along with 15.6 h to 74.2 h to go (to finish between 11:39am on Sunday
+    # and 10:17pm on Tuesday: dreeves's example of that day); the second 2 h along with 2.3 to 2.6 h to go; the third 2 h
+    # along with 40 to 100 min to go.
+    # Expectata (dreeves, 2026-11-07: "4. sane number of sigfigs for everything else based in a principled way on the
+    # amount of uncertainty. for example: * "Sun 11:39am - Tue 10:17pm" should instead be "Sun 12pm - Tue 10pm" *
+    # "15.6h - 3.1d" should instead be "16h - 3d""): each figure but the time so far rounded to its uncertainty u, half
+    # the width of the interval to go, which the time in all and the finish times share: a duration in its unit to the
+    # place of u's first significant digit, but no coarser than a whole unit; a clock time to the largest of the hour,
+    # ten minutes and the minute that u reaches, to the hour without its minutes.  The first run's u is 29.3 h: 16 h–3 d
+    # to go, 4–6 d in all, Sun 12pm – Tue 10pm; the second's 9 min: 2.3–2.6 h to go, 4.3–4.6 h in all and its finish
+    # times to the minute; the third's 30 min: 0.7–1.7 h to go, 2.7–3.7 h in all and its finish times to ten minutes.
+    made, base, h = time.mktime((2026, 11, 7, 20, 3, 0, 0, 0, -1)), PROGRESS_DATA['runs'][0], 3600
+    run = lambda x, lo, hi: dict(base, so_far=float(x), to_go=dict(median=(lo + hi) / 2, lo=float(lo), hi=float(hi)),
+                                 etas=[[made, float(x), (lo + hi) / 2, float(lo), float(hi)]])
+    data = {'made': made, 'runs': [run(3 * 86400 + 4 * h + 48 * 60, 15.6 * h, 74 * h + 14 * 60), run(2 * h, 2.3 * h, 2.6 * h), run(2 * h, 2400, 6000)]}
+    got = progress_harness(data, """
+  for (const r of runs()) r.querySelector('details').open = true;
+  await sleep(200);
+  out(runs().map(r => [...r.querySelectorAll('.progress-status [data-state]')].filter(e => !e.hidden)[0].innerText.replace(/[ \\t\\n\\r]+/g, ' ').trim()));""")
+    N = NNBSP
+    assert got == [f'3d{N}4h{N}48m{N}0s + 16{N}h–3{N}d to go = 4–6{N}d (Sun 12pm – Tue 10pm)',
+                   f'2h{N}0m{N}0s + 2.3–2.6{N}h to go = 4.3–4.6{N}h (Sat 10:21pm – 10:39pm)',
+                   f'2h{N}0m{N}0s + 0.7–1.7{N}h to go = 2.7–3.7{N}h (Sat 8:40pm – 9:40pm)'], got
 
 
 def q_progress_draws_cpu_aligned_with_the_eta_chart():
@@ -5172,7 +5296,7 @@ FOLD_LOOK = """
 def progress_harness(data, harness, before=''):
     d = tempfile.mkdtemp(prefix='index-quals-')
     script = '<script>\n(async () => {' + FOLD_LOOK + '  await sleep(1500);\n' + harness + '\n})();\n</script>\n'
-    text = page().replace('<head>\n', '<head>\n' + PROGRESS_REMEMBERED + before).replace('</body>', script + '</body>')
+    text = page().replace('<head>\n', '<head>\n' + PROGRESS_REMEMBERED + PROGRESS_FROZEN + before).replace('</body>', script + '</body>')
     open(os.path.join(d, 'index.html'), 'w', encoding='utf-8').write(text)
     copy_page_dir(d)
     open(os.path.join(d, 'progress.js'), 'w', encoding='utf-8').write('progressData(' + json.dumps(data) + ');\n')
@@ -5308,6 +5432,8 @@ def q_progress_shows_a_tracked_search():
     # Resultata before (2026-10-28's tracked view): its ETA chart hidden and its status line its counts alone.
     # Fixture change (Claude, 2026-11-06; dreeves: "go with 50% as the ignorant prior when there's no model or whatever",
     # and "for anti-magic i don't want to conditionally include or exclude graphs"): odds, as every run's data carries them.
+    # Spec change (Claude, 2026-11-07; dreeves, of 288:10's box: "redundant elapsed time here. let's keep the one in blue
+    # and nix the one in black"): the counts have no elapsed time of their own, the status line above them having it.
     base, made = PROGRESS_DATA['runs'][0], PROGRESS_DATA['made']
     plain = dict(program='w12.py', n=768, order=12, state='running', outcome=None, so_far=600,
                  to_go=dict(median=600, lo=600 / 19, hi=19 * 600),
@@ -5335,7 +5461,7 @@ def q_progress_shows_a_tracked_search():
     assert got['hidden'] == [False, False] and got['same'] is True and got['drawn'] > 0, got
     assert got['lines'][0] == got['lines'][1] and len(got['lines'][1]) == 1 and got['lines'][1][0].strip(), got
     assert got['counts'] == dict(runs='4', running='3', frozen='0', ended='1', aborted='0', found='0'), got
-    assert got['elapsed'] != '' and got['hint'] is not None and got['readout'] == got['hint'] and got['key'] is True, got
+    assert got['elapsed'] == '' and got['hint'] is not None and got['readout'] == got['hint'] and got['key'] is True, got
 
 
 STAGES_LOOK = """
@@ -5359,6 +5485,9 @@ def q_progress_names_a_run_s_later_stages():
     # line of stages shown, naming the program its chart covers (fanout.py), each later stage in order with the range
     # of its time to go, 7.0–9.0 d, or — with no estimate, and the range to a recordable result, 10.0–14.0 d, or —.
     # Resultata before: no line of stages; the ETA chart's stage alone, unnamed as one stage of more.
+    # Spec change (Claude, 2026-11-07; dreeves: "sane number of sigfigs for everything else based in a principled way on
+    # the amount of uncertainty"): each range to its own uncertainty, half its width (q_progress_rounds_figures_to_their_uncertainty),
+    # a day for reprove.py's and two for the total, so whole days: 7–9 d and 10–14 d.
     base, d = dict(PROGRESS_DATA['runs'][0], program='fanout.py', n=432, order=12), 86400.0
     reprove = dict(name='reprove.py', to_go=dict(median=8 * d, lo=7 * d, hi=9 * d))
     one = dict(base, stages=[dict(name='fanout.py', to_go=base['to_go']), reprove],
@@ -5366,8 +5495,8 @@ def q_progress_names_a_run_s_later_stages():
     two = dict(base, stages=[dict(name='fanout.py', to_go=base['to_go']), dict(name='fanout.assemble', to_go=None), reprove],
                total=None)
     got = progress_harness({'made': PROGRESS_DATA['made'], 'runs': [one, two]}, STAGES_LOOK)
-    days = '7.0–9.0' + NNBSP + 'd'
-    assert got == [dict(shown=True, now='fanout.py', total='10.0–14.0' + NNBSP + 'd', later=[['reprove.py', days]], after=True),
+    days = '7–9' + NNBSP + 'd'
+    assert got == [dict(shown=True, now='fanout.py', total='10–14' + NNBSP + 'd', later=[['reprove.py', days]], after=True),
                    dict(shown=True, now='fanout.py', total='—', later=[['fanout.assemble', '—'], ['reprove.py', days]],
                         after=True)], got
 
@@ -5479,6 +5608,8 @@ def q_progress_draws_a_fanout_run_s_pool():
     # point is a pool record); and after the pointer leaves, the latest's again, the cross hidden.  The third run's
     # chart its axes alone, with no line and no tip.
     # Resultata before: no pool chart.
+    # Spec change (Claude, 2026-11-07; dreeves: "1. show elapsed time with full granularity like so: 3d 4h 5m 6s"): each
+    # point's time so far in that form (hms), 3h 54m 0s at the latest.
     empty = dict(PROGRESS_POOL, n=480, pool=dict(points=[], buckets=[[0, 0]] * 100))
     got = progress_harness({'made': PROGRESS_DATA['made'], 'runs': [PROGRESS_POOL, PROGRESS_DATA['runs'][0], empty]}, POOL_LOOK)
     assert got['hidden'] == [False, True, False] and got['after'] is True, got
@@ -5502,7 +5633,7 @@ def q_progress_draws_a_fanout_run_s_pool():
     assert got['titles'] == ['boxes pending or running', 'net change per job ended'], got['titles']
     def said(k, net):
         t, x = POOL_POINTS[k][0], POOL_POINTS[k][1]
-        return f'@{stamp(t)}{EMSP}{x / 3600:.1f}{h} so far: {POOL_POINTS[k][2]:,} boxes pending or running, net {net} per job ended'
+        return f'@{stamp(t)}{EMSP}{hms(x)} so far: {POOL_POINTS[k][2]:,} boxes pending or running, net {net} per job ended'
     assert got['rest'] == said(5, '−0.05') and got['left'] == got['rest'], (got['rest'], got['left'])
     assert got['third'] == said(2, '+0.20') and got['first'] == said(0, '—'), (got['third'], got['first'])
     assert got['crossAt'][0] == 'visible' and abs(got['crossAt'][1] - got['crossAt'][2]) < 0.05, got['crossAt']
@@ -5660,6 +5791,8 @@ def q_progress_brief_of_a_run_without_a_work_model_is_its_status_line():
     # first's running one with its time so far, its range to go, in all and its finish times as in the section, the
     # second's aborted one with its 2.0 h.
     # Resultata before: the first run's second row was its chance line, and the second run had no second row.
+    # Spec change (Claude, 2026-11-07; dreeves: "1. show elapsed time with full granularity like so: 3d 4h 5m 6s"): the
+    # times so far 10m 0s and 2h 0m 0s (hms).
     got = progress_harness(BOX_PROGRESS, """
   const rows = await new Promise(put => window.progressView.want(528n, 12, put));
   const shown = row => [...row.querySelectorAll('[data-state]')].filter(e => !e.hidden);
@@ -5670,8 +5803,8 @@ def q_progress_brief_of_a_run_without_a_work_model_is_its_status_line():
        aborted: shown(rows[3])[0].textContent});""")
     assert got['rows'] == 4 and got['status'] == [False, True, False, True], got
     assert got['states'] == [[], ['running'], [], ['aborted']], got['states']
-    assert got['running'] == got['section'] and got['running']['so-far'] == f'0.2{NNBSP}h', (got['running'], got['section'])
-    assert got['aborted'] == f'Aborted after running for 2.0{NNBSP}h.', got['aborted']
+    assert got['running'] == got['section'] and got['running']['so-far'] == hms(600), (got['running'], got['section'])
+    assert got['aborted'] == f'Aborted after running for {hms(7200)}.', got['aborted']
 
 
 def q_progress_status_line_names_an_ended_run_s_outcome():
@@ -5893,6 +6026,10 @@ def q_progress_draws_the_eta_chart():
     # search progress line above the progress bar shows the freshness"): the status line's markup and text still the
     # tip's, but the status line hides the @, the time and the em space, which the tip shows
     # (q_progress_status_line_has_no_time_but_its_tip_does).
+    # Spec change (Claude, 2026-11-07; dreeves: "1. show elapsed time with full granularity like so: 3d 4h 5m 6s ... 3. no
+    # need for the "so far" ... 4. sane number of sigfigs for everything else based in a principled way on the amount of
+    # uncertainty"): over the second record 1h 0m 0s + 1–3 h to go = 2–4 h, its band's uncertainty an hour, so its finish
+    # times to the hour.
     R = progress_run()
     E = R['eta']
     assert not E['hidden'] and E['togo'] == 3 and abs(E['widths'][0] - E['widths'][1]) <= 1, E
@@ -5904,7 +6041,7 @@ def q_progress_draws_the_eta_chart():
     parts.feed(R['etaSvg'])
     assert [text for tag, a, text in parts.items if a.get('class') == 'xtick'] == ['0', '1', '2', f'3{h}'], R['etaSvg']
     t = PROGRESS_DATA['runs'][0]['etas'][1][0]
-    assert E['tip'] == f'@{stamp(t)}{EMSP}1.0{h} so far + 1.0–3.0{h} to go = 2.0–4.0{h} ({finish(t, t + 3600, t + 10800)})', E['tip']
+    assert E['tip'] == f'@{stamp(t)}{EMSP}{hms(3600)} + 1–3{h} to go = 2–4{h} ({finish(t, t + 3600, t + 10800, 3600)})', E['tip']
     assert E['tipLast'] == R['state'][0] and E['sameMarkup'] is True, (E['tipLast'], R['state'], E['sameMarkup'])
     assert R['tipRest']['visibility'] == 'hidden' and R['tipRest']['height'] > 0 and R['jump'] == 0, (R['tipRest'], R['jump'])
 
@@ -5921,10 +6058,14 @@ def q_progress_tip_projects_past_the_last_record():
     # lower than 0, 0.5 h to go, so 3.0 h in all and the median's finish time, the record's time plus its median
     # (moment); the cross line at the pointer; over a record, no italics; and the status line below the chart did not
     # move.  (From 2026-10-18 until then the band, carried on the same way.)
+    # Spec change (Claude, 2026-11-07; dreeves: "1. show elapsed time with full granularity like so: 3d 4h 5m 6s ... 3. no
+    # need for the "so far" ... 4. sane number of sigfigs for everything else based in a principled way on the amount of
+    # uncertainty"): 2h 30m 0s, and the median's figures to the uncertainty of the last record's band, half its width,
+    # 1.25 h: 1 h to go (0.5 h rounded), 3 h in all, and its finish time to the hour.
     R = progress_run()
     E, h = R['eta'], NNBSP + 'h'
     t = PROGRESS_DATA['made'] + 1800
-    want = f'@{stamp(t)}{EMSP}2.5{h} so far + 0.5{h} to go = 3.0{h} ({moment(t, t + 1800)})'
+    want = f'@{stamp(t)}{EMSP}{hms(9000)} + 1{h} to go = 3{h} ({moment(t, t + 1800, 4500)})'
     assert E['tipAhead'] == want, (E['tipAhead'], want)
     A = E['ahead']
     assert A['projected'] is True and A['style'] == 'italic' and abs(A['cross'] - A['want']) < 0.05, A
