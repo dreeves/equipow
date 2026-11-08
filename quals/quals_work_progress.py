@@ -111,6 +111,10 @@ class Integration(unittest.TestCase):
         # settled; b's 500 settled, then the model's median of its nodes left in pending dots; once the search stopped,
         # b's 500 settled and one open dot. Keys '288:10 0' and '288:10 1'; the counts over every dot.
         # Resultata before: the sea held the runs' dots alone.
+        # Spec change (Claude, 2026-11-08; dreeves, of the key that listed 288:10's blocks' "split 0" and "running 0",
+        # which no block can be: "is that as dumb and wrong as it sounds?"): the sea names its own statuses, settled and
+        # pending, or settled and open once the search stopped, its dots' digits indexing them, and counts them alone;
+        # until then it used SEA_STATUSES's digits (pending '3') and counted all five.
         import formtree_eta,numpy as np
         self.assertEqual(progress.SEA_ROOT_DOTS,1000)
         s=self.survey()
@@ -118,13 +122,15 @@ class Integration(unittest.TestCase):
         left=x['trees'][:,1]-50;o=np.argsort(left)
         med=float(np.interp(.5,np.cumsum(x['weight'][o]),left[o]));k=round(med/.1)
         self.assertGreater(k,1)
-        self.assertEqual(s['sea']['groups'],['0'*170,'0'*500+'3'*k])
+        self.assertEqual(s['sea']['statuses'],['settled','pending'])
+        self.assertEqual(s['sea']['groups'],['0'*170,'0'*500+'1'*k])
         self.assertEqual(s['sea']['keys'],['288:10 0','288:10 1'])
-        self.assertEqual(s['sea']['counts'],dict(settled=670,open=0,split=0,pending=k,running=0))
+        self.assertEqual(s['sea']['counts'],dict(settled=670,pending=k))
         self.assertNotIn('roots',s)
         self.procs=[];stopped=self.survey(5260.)
         self.assertEqual(stopped['state'],'ended')
-        self.assertEqual((stopped['sea']['groups'],stopped['sea']['keys']),(['0'*170,'0'*500+'1'],['288:10 0','288:10 1']))
+        self.assertEqual((stopped['sea']['statuses'],stopped['sea']['groups'],stopped['sea']['keys'],stopped['sea']['counts']),
+                         (['settled','open'],['0'*170,'0'*500+'1'],['288:10 0','288:10 1'],dict(settled=670,open=1)))
 
     def test_lost_model_or_changed_frozen_source_fails_loudly(self):
         # Replicata: activate a model, then lose its file; separately alter its pinned source.

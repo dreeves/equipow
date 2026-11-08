@@ -98,12 +98,15 @@ class AllocationProgressQuals(unittest.TestCase):
         # Replicata: 480 runs until 110, is recorded paused, and remains stopped at 200 and 300.
         # Expectata: ten seconds elapsed, paused state, no ETA or running dot, and unchanged historical observations.
         # Resultata before the fix: stopped-process sightings continued increasing elapsed time.
+        # Spec change (Claude, 2026-11-08; dreeves, of a key that listed statuses a sea's dots can't take: "is that as
+        # dumb and wrong as it sounds?", then "is that a can-opener question?"): a focus.py sea names its own statuses,
+        # all but split, so a pending case is '2', '3' of SEA_STATUSES's until then.
         observations, launches = {'110.0': [1, 0.5, 2]}, {}
         pauses = [pause('pause', 110)]
         for now in (200, 300):
             run = focus(initial(), pauses, now=now, observations=observations, launches=launches)
             self.assertEqual((run['state'], run['so_far'], run['to_go']), ('paused', 10, None))
-            self.assertEqual(run['sea']['groups'], ['33'])
+            self.assertEqual(run['sea']['groups'], ['22'])
             self.assertEqual(list(observations), ['110.0'])
             self.assertEqual(sum(b - a for a, b in run['passes']), 10)
             self.assertAlmostEqual(progress.eta_records(run)[0][1], 10 / progress.HOUR)

@@ -2704,13 +2704,18 @@ def survey_focus(path, procs, now=None, observations=None, launches=None, pauses
            if status == 'running' and max([*walls, *ages], default=0.0) > 0 else None)
     if status == 'running':
         observations[str(float(now))] = eta
-    codes = ''.join('0' if i in snap['completed'] else '4' if i == active else
-                    '1' if status == 'ended' else '3' for i in range(total))
-    counts = {name: codes.count(str(i)) for i, name in enumerate(SEA_STATUSES)}
+    # its sea's own statuses, all but split, which no root case can be, its digits indexing them, so that its key names no
+    # other (dreeves, 2026-11-08, of a key that listed statuses a sea's dots can't take: "is that as dumb and wrong as it
+    # sounds?", then "is that a can-opener question?"; in SEA_STATUSES's digits until then)
+    statuses = ['settled', 'open', 'pending', 'running']
+    codes = ''.join('0' if i in snap['completed'] else '3' if i == active else
+                    '1' if status == 'ended' else '2' for i in range(total))
+    counts = {name: codes.count(str(i)) for i, name in enumerate(statuses)}
     return dict(program='focus.py', n=header['n'], order=header['order'], made=now,
                 state=status, outcome=state['outcome'], so_far=sum(b - a for a, b in spans), to_go=to_go_of(eta),
                 etas=observations, passes=spans,
-                sea=dict(depth=0, keys=[f'{header["n"]}:{header["order"]}'], groups=[codes], counts=counts))
+                sea=dict(depth=0, keys=[f'{header["n"]}:{header["order"]}'], groups=[codes], statuses=statuses,
+                         counts=counts))
 
 
 def pool_series(sessions, spans):
@@ -3114,16 +3119,20 @@ def rooted(s):
     the root's nodes checked in settled dots, at least one once it is complete, then unless complete the posterior's
     weighted median of its nodes left (none while the model makes no forecast) in at least one dot, pending, or open once
     the search has ended; each keyed by the target and the root's number; the counts over every dot.  The runs' dots go
-    (the runs' line below the CPU chart counts them), and so do its roots and posterior."""
+    (the runs' line below the CPU chart counts them), and so do its roots and posterior.  Its statuses are its own, those
+    two alone, the dots' digits indexing them, and its counts theirs, so that its key names no other (dreeves,
+    2026-11-08, of a key that listed the blocks' "split 0" and "running 0": "is that as dumb and wrong as it sounds?"; in
+    SEA_STATUSES's digits, all five counted, until then): a node that splits is checked like any other, and the work in
+    flight is unknown until its task ends, and under one dot in all (ten tasks of at most 240 s each)."""
     unit = 10 ** round(math.log10(s['display']['work_eta']['nodes'] / SEA_ROOT_DOTS))
-    checked, rest = (str(SEA_STATUSES.index(x)) for x in ('settled', 'open' if s['state'] == 'ended' else 'pending'))
+    statuses = ['settled', 'open' if s['state'] == 'ended' else 'pending']
     p = s['posterior']
     left = [0. if p is None else weighted_median(p['trees'][:, i] - r['done'], p['weight']) for i, r in enumerate(s['roots'])]
-    groups = [checked * max(int(r['complete']), round(r['done'] / unit))
-              + rest * ((not r['complete']) * max(1, round(m / unit))) for r, m in zip(s['roots'], left)]
+    groups = ['0' * max(int(r['complete']), round(r['done'] / unit))
+              + '1' * ((not r['complete']) * max(1, round(m / unit))) for r, m in zip(s['roots'], left)]
     every = ''.join(groups)
     sea = dict(depth=0, keys=[f'{s["n"]}:{s["order"]} {i}' for i in range(len(groups))], groups=groups,
-               counts={name: every.count(str(i)) for i, name in enumerate(SEA_STATUSES)})
+               statuses=statuses, counts={name: every.count(str(i)) for i, name in enumerate(statuses)})
     return {k: v for k, v in s.items() if k not in ('roots', 'posterior')} | dict(sea=sea)
 
 
@@ -3187,7 +3196,7 @@ def js_text(surveys, now):
     one; dreeves, 2026-10-25: the section names a run's state, an ended one completed or aborted by it), so_far (its passes' seconds of running), to_go ({median, lo, hi}, seconds of
     running: the estimate's median and band; null without one), etas (its record of ETAs, eta_records, as [time,
     running seconds before it, median (mean before 2026-10-19), lo, hi], the time in whole seconds and the rest in seconds to a tenth, evenly thinned to at most ETA_POINTS, the last kept), statuses
-    (SEA_STATUSES), its sea (depth, keys, groups, counts), and stale: null, or for a run whose survey failed or ran past
+    (SEA_STATUSES, or its sea's own, as rooted's, since 2026-11-08), its sea (depth, keys, groups, counts), and stale: null, or for a run whose survey failed or ran past
     LIMIT the time (whole seconds) of the snapshot its data are from (see snapshot; 2026-10-30); and for a run in a chain,
     not ended (2026-10-31), its stages (see the vocabulary), [{name, to_go}], its own first, each to_go as the run's
     or null, and total, the time to go to a recordable result in the same form, or null; and for a fanout.py run
@@ -3222,6 +3231,7 @@ def run_data(s):
         rs = eta_records(s)
         keep = sorted(set(range(0, len(rs), max(1, -(-len(rs) // ETA_POINTS)))) | {len(rs) - 1}) if rs else []
         return [[int(rs[i][0])] + [round(HOUR * v, 1) for v in rs[i][1:]] for i in keep]
+    # a sea's own statuses (rooted's) take SEA_STATUSES's place, as its other fields do
     return ({'program': s['program'], 'n': s['n'], 'order': s['order'], 'state': s['state'], 'outcome': s['outcome'],
              'so_far': s['so_far'], 'to_go': s['to_go'],
              'etas': etas(s), 'statuses': list(SEA_STATUSES)} | s['sea'] | s.get('display', {}) |

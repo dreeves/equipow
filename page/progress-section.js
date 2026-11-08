@@ -241,7 +241,11 @@
       box.querySelector('[data-tip]').replaceChildren(line.content.cloneNode(true));   // the ETA chart's tip: a snapshot's line
       staleView(box, run);
       statusLine(box, run, data.made);
-      for (const e of box.querySelectorAll('[data-count]')) e.textContent = run.counts[e.dataset.count].toLocaleString('en-US');
+      // the sea's key: an entry for each status its dots can take (run.statuses), with its count, the others hidden
+      // (dreeves, 2026-11-08, of a key that listed 288:10's root blocks' "split 0" and "running 0", which no block can
+      // be: "is that as dumb and wrong as it sounds?"; every key listed all five until then)
+      for (const li of box.querySelectorAll('.progress-key li')) li.hidden = !run.statuses.includes(li.querySelector('[data-count]').dataset.count);
+      for (const s of run.statuses) box.querySelector(`.progress-key [data-count="${s}"]`).textContent = run.counts[s].toLocaleString('en-US');
       bar(box, run);
       if (run.program === 'search288.py') search288View(box, run);
       if (run.program === 'sweep288.py') search288View(box, run);
@@ -340,10 +344,14 @@
   // though"; until then the counts followed it in the same paragraph)
   // A search with a work model's dots are its tree's roots, a block of each one's nodes (progress.rooted), with no hint in
   // their readout (dreeves, 2026-11-07: "the words you're adding on the page are not helping. it needs to just be clear
-  // from the visualization"): template progress-roots-hint holds only their label, for a screen reader.
+  // from the visualization"): template progress-roots-hint holds only their label, for a screen reader. Being in the
+  // sea's own statuses, they have the sea's key, which a search's runs, a dot each, have in their hint's swatches
+  // (dreeves, 2026-11-08, of 288:10's roots: "we used to have a legend for this; why don't we have one here?"; hidden for
+  // every tracked search until then, by attemptView).
   function trackView(box, run) {
     const status = box.querySelector('.progress-status'), line = [...status.childNodes];
     attemptView(box, run, 'progress-track', run.work_eta ? 'progress-roots-hint' : 'progress-track-hint');
+    box.querySelector('.progress-key').hidden = !run.work_eta;
     box.querySelector('[data-track-line]').replaceChildren(...status.childNodes);
     status.replaceChildren(...line);
   }

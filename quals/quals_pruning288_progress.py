@@ -160,12 +160,14 @@ class Pruning288ProgressQuals(unittest.TestCase):
 
     def test_page_reports_paired_results_without_an_eta(self):
         # Replicata: paired-study templates and renderer, with no browser.
-        # Expectata: attributed labels, baseline/wider counts and elapsed time, and unresolved empty results.
+        # Expectata: baseline/wider counts and elapsed time, and unresolved empty results.
+        # Spec change (Claude, 2026-11-08): no check of the template's words, which dreeves edited in c57cae6
+        # (2026-11-05, its "Astra: “" removed; red from then until now), by his rule (2026-11-07: "if i wrote something,
+        # that shouldn't make a qual fail, right?", then "quals like that never made any dang sense"); its count fields
+        # and the renderer's harness are still checked.
         html = Path(progress.HERE, 'index.html').read_text()
         body = re.search(r'<template class="progress-pruning288">(.*?)</template>', html, re.S)
         self.assertIsNotNone(body)
-        for text in ('Astra: “', 'baseline', 'wider', 'no completion estimate', 'completed attempts'):
-            self.assertIn(text, body[1])
         for field in ('baseline_attempted', 'wider_attempted', 'baseline_empty', 'wider_empty',
                       'baseline_timeout', 'wider_timeout', 'baseline_seconds', 'wider_seconds'):
             self.assertIn('data-attempt-count="' + field + '"', body[1])

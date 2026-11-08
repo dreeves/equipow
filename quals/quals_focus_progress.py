@@ -86,8 +86,13 @@ class FocusProgressQuals(unittest.TestCase):
     def test_running_counts_do_not_pretend_a_profile_is_closed(self):
         # Replicata: twenty LP solves and eight certified leaves, first root case active.
         # Expectata: two root cases still unresolved; actual node work is shown separately.
+        # Spec change (Claude, 2026-11-08; dreeves, of a key that listed statuses a sea's dots can't take: "is that as
+        # dumb and wrong as it sounds?", then "is that a can-opener question?"): the sea names its own statuses, all
+        # but split, which no root case can be, its digits indexing them (running '3', pending '2'); until then
+        # SEA_STATUSES's digits ('4' and '3').
         run = survey(initial())
-        self.assertEqual(run['sea']['groups'], ['43'])
+        self.assertEqual(run['sea']['statuses'], ['settled', 'open', 'pending', 'running'])
+        self.assertEqual(run['sea']['groups'], ['32'])
         self.assertEqual(run['sea']['counts']['settled'], 0)
         self.assertNotIn('display', run)
 
@@ -144,6 +149,8 @@ class FocusProgressQuals(unittest.TestCase):
     def test_budget_stop_and_resumption_preserve_completed_work(self):
         # Replicata: the first root closed, budget exhausted, then a resumed session.
         # Expectata: only that root is settled, the other is open; no exclusion.
+        # Spec change (Claude, 2026-11-08; as in test_running_counts_do_not_pretend_a_profile_is_closed): the resumed
+        # session's running case is '3' of the sea's own statuses, '4' of SEA_STATUSES's until then.
         stop = dict(initial()[-1], event='finish', time=120, lp=100, closed=51,
                     split=49, pending=1, case=None, completed=[0], outcome='budget')
         records = initial() + [stop]
@@ -153,7 +160,7 @@ class FocusProgressQuals(unittest.TestCase):
         records += [dict(event='session', time=200, pid=123),
                     dict(stop, event='update', time=201, case=1, outcome=None)]
         resumed = survey(records, now=205)
-        self.assertEqual(resumed['sea']['groups'], ['04'])
+        self.assertEqual(resumed['sea']['groups'], ['03'])
         self.assertEqual(resumed['so_far'], 25)
 
     def test_complete_exclusion_requires_every_root_closed(self):

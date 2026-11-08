@@ -5977,6 +5977,9 @@ def q_progress_shows_runs_and_dots_for_every_run():
     # Resultata before: the first showed neither the line of its runs nor its dots, their key or their readout.
     # Fixture change (Claude, 2026-11-06; dreeves: "go with 50% as the ignorant prior when there's no model or
     # whatever"): odds, as every run's data carries them.
+    # Spec change (Claude, 2026-11-08; dreeves, of 288:10's dots, its tree's roots since 2026-11-07: "we used to have a
+    # legend for this; why don't we have one here?"): the first shows its key, its hint having no swatches of its own
+    # (q_progress_keys_a_search_s_roots); until then every tracked search's key was hidden.
     base, made = PROGRESS_DATA['runs'][0], PROGRESS_DATA['made']
     tracked = dict(program='w12.py', n=768, order=12, state='running', outcome=None, so_far=600,
                    to_go=dict(median=600, lo=600 / 9, hi=9 * 600),
@@ -5995,7 +5998,7 @@ def q_progress_shows_runs_and_dots_for_every_run():
   out(runs().map(r => ({program: r.querySelector('[data-program]').textContent,
     runs: shows(r, '.progress-status [data-attempt-count="runs"]'), dots: shows(r, 'canvas'), key: shows(r, '.progress-key'),
     readout: shows(r, '[data-readout]'), status: shows(r, '.progress-status [data-state="running"]'), bar: shows(r, '.progress-work')})));""")
-    want = [dict(program='ftree.py', runs=True, dots=True, key=False, readout=True, status=True, bar=True),
+    want = [dict(program='ftree.py', runs=True, dots=True, key=True, readout=True, status=True, bar=True),
             dict(program='w12.py', runs=True, dots=True, key=False, readout=True, status=True, bar=False),
             dict(program='overnight_v5.py', runs=None, dots=True, key=True, readout=True, status=True, bar=False)]
     assert got == want, got
@@ -6012,6 +6015,8 @@ def q_progress_shows_a_search_s_roots_without_words():
     # for a screen reader; the second's readout and label are its runs' hint (template progress-track-hint); the hovered
     # block's readout its key and its counts, 5 settled and 2 pending.
     # Resultata before: the first's readout and label its runs' hint, "One dot per run", which its dots are not.
+    # Fixture change (Claude, 2026-11-08): the first's sea in its own statuses, settled and pending, as progress.rooted
+    # now gives it (q_progress_keys_a_search_s_roots); until then in SEA_STATUSES, pending '3'.
     base, made = PROGRESS_DATA['runs'][0], PROGRESS_DATA['made']
     tracked = dict(program='w12.py', n=768, order=12, state='running', outcome=None, so_far=600,
                    to_go=dict(median=600, lo=600 / 9, hi=9 * 600),
@@ -6020,8 +6025,8 @@ def q_progress_shows_a_search_s_roots_without_words():
                    counts=dict(settled=1, open=0, split=0, pending=0, running=3), stale=None, tracked=True,
                    work=dict(runs=4, running=3, frozen=0, ended=1, aborted=0, found=0), lindy=True, odds=ODDS_IGNORANT,
                    cpu=[])
-    worked = dict(tracked, program='ftree.py', n=288, order=10, keys=['288:10 0', '288:10 1'], groups=['000', '0000033'],
-                  counts=dict(settled=8, open=0, split=0, pending=2, running=0), lindy=False,
+    worked = dict(tracked, program='ftree.py', n=288, order=10, statuses=['settled', 'pending'],
+                  keys=['288:10 0', '288:10 1'], groups=['000', '0000011'], counts=dict(settled=8, pending=2), lindy=False,
                   work=dict(runs=4, running=1, frozen=0, ended=3, aborted=0, found=0), work_eta=PROGRESS_WORK['work_eta'])
     got = progress_harness({'made': made, 'runs': [worked, tracked]}, """
   for (const r of runs()) r.querySelector('details').open = true;
@@ -6043,6 +6048,42 @@ def q_progress_shows_a_search_s_roots_without_words():
     assert got['first'] == '' and got['labels'][0] == got['roots'], got
     assert got['second'] == got['runs'] and got['labels'][1] == got['runs'], got
     assert got['code'] == '288:10 1' and got['counts'] == [['settled', '5'], ['pending', '2']], got
+
+
+def q_progress_keys_a_search_s_roots():
+    # Replicata: index.html with two running tracked searches and an overnight_v5.py run as progress.js, each fold open:
+    # ftree.py's 288:10 with a work model, its sea a block per root of its tree in its own statuses, settled and pending,
+    # as progress.rooted gives them (root 0, 3 dots checked; root 1, 5 checked and 2 left); w12.py's 768:12 with none,
+    # a dot per run; and PROGRESS_DATA's overnight_v5.py run, its sub-cases in all five of SEA_STATUSES.
+    # Expectata (dreeves, 2026-11-08, of 288:10's blocks: "we used to have a legend for this; why don't we have one
+    # here?", then, of a key that listed their "split 0" and "running 0", which no block can be: "is that as dumb and
+    # wrong as it sounds?"): the first shows a key of its own statuses alone, each swatch with its count over the dots
+    # (settled 8, pending 2); the second's key stays hidden, the swatches in its runs' hint (template
+    # progress-track-hint) being its legend; the third's key lists all five, with their counts.
+    # Resultata before: both tracked searches' keys hidden, so the first's dots had no legend at all, its hint (template
+    # progress-roots-hint) a label for a screen reader alone; then every key listed all five statuses.
+    base, made = PROGRESS_DATA['runs'][0], PROGRESS_DATA['made']
+    tracked = dict(program='w12.py', n=768, order=12, state='running', outcome=None, so_far=600,
+                   to_go=dict(median=600, lo=600 / 9, hi=9 * 600),
+                   etas=[[made - 60, 540.0, 540.0, 60.0, 4860.0], [made, 600.0, 600.0, 66.7, 5400.0]],
+                   statuses=base['statuses'], depth=0, keys=['768:12'], groups=['4440'],
+                   counts=dict(settled=1, open=0, split=0, pending=0, running=3), stale=None, tracked=True,
+                   work=dict(runs=4, running=3, frozen=0, ended=1, aborted=0, found=0), lindy=True, odds=ODDS_IGNORANT,
+                   cpu=[])
+    worked = dict(tracked, program='ftree.py', n=288, order=10, statuses=['settled', 'pending'],
+                  keys=['288:10 0', '288:10 1'], groups=['000', '0000011'], counts=dict(settled=8, pending=2), lindy=False,
+                  work=dict(runs=4, running=1, frozen=0, ended=3, aborted=0, found=0), work_eta=PROGRESS_WORK['work_eta'])
+    got = progress_harness({'made': made, 'runs': [worked, tracked, base]}, """
+  for (const r of runs()) r.querySelector('details').open = true;
+  await sleep(200);
+  out(runs().map(r => {
+    const key = r.querySelector('.progress-key');
+    return {shown: key.checkVisibility(),
+            items: [...key.querySelectorAll('li')].filter(li => li.checkVisibility()).map(li => [li.querySelector('.progress-sw').dataset.status, li.querySelector('[data-count]').textContent])};
+  }));""")
+    assert got[0] == dict(shown=True, items=[['settled', '8'], ['pending', '2']]), got
+    assert got[1]['shown'] is False, got
+    assert got[2] == dict(shown=True, items=[[s, f'{base["counts"][s]:,}'] for s in STATUSES]), got
 
 
 def q_progress_lays_out_each_subtree_as_a_block():
