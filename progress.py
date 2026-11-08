@@ -3098,25 +3098,33 @@ def survey_track(target, records, procs, now, etas=None, cpu=()):
                          counts={name: codes.count(str(i)) for i, name in enumerate(SEA_STATUSES)}))
 
 
+def weighted_median(x, weight):
+    """The median of the values x under the masses weight (summing to 1), interpolated between the values in increasing
+    order at their cumulative masses, as formtree_eta.attach's quantiles of its scatter are."""
+    o = np.argsort(x)
+    return float(np.interp(.5, np.cumsum(weight[o]), x[o]))
+
+
 def rooted(s):
-    """The survey s of a search with a work model (formtree_eta.attach's, with its roots), its sea its tree's roots, each
-    a block of its nodes (dreeves, 2026-11-07: "remind me why we aren't doing the sea-of-dots visualization of that kind
-    of thing?", of the ETA's plunge as 288:10's root 8 finished; then "the words you're adding on the page are not
-    helping. it needs to just be clear from the visualization"), in the model's order: a dot per unit of nodes (the power
-    of 10 nearest the model's prior of the tree's nodes over SEA_ROOT_DOTS, so fixed for a model), the root's nodes
-    checked in settled dots, at least one once it is complete, then unless complete the median of its nodes left while the
-    model forecasts (none otherwise) in at least one dot, pending, or open once the search has ended; each keyed by the
-    target and the root's number; the counts over every dot.  The runs' dots go (the runs' line below the CPU chart
-    counts them), and so do its roots."""
+    """The survey s of a search with a work model (formtree_eta.attach's, with its roots and posterior), its sea its
+    tree's roots, each a block of its nodes (dreeves, 2026-11-07: "remind me why we aren't doing the sea-of-dots
+    visualization of that kind of thing?", of the ETA's plunge as 288:10's root 8 finished; then "the words you're adding
+    on the page are not helping. it needs to just be clear from the visualization"), in the model's order: a dot per unit
+    of nodes (the power of 10 nearest the model's prior of the tree's nodes over SEA_ROOT_DOTS, so fixed for a model),
+    the root's nodes checked in settled dots, at least one once it is complete, then unless complete the posterior's
+    weighted median of its nodes left (none while the model makes no forecast) in at least one dot, pending, or open once
+    the search has ended; each keyed by the target and the root's number; the counts over every dot.  The runs' dots go
+    (the runs' line below the CPU chart counts them), and so do its roots and posterior."""
     unit = 10 ** round(math.log10(s['display']['work_eta']['nodes'] / SEA_ROOT_DOTS))
     checked, rest = (str(SEA_STATUSES.index(x)) for x in ('settled', 'open' if s['state'] == 'ended' else 'pending'))
+    p = s['posterior']
+    left = [0. if p is None else weighted_median(p['trees'][:, i] - r['done'], p['weight']) for i, r in enumerate(s['roots'])]
     groups = [checked * max(int(r['complete']), round(r['done'] / unit))
-              + rest * ((not r['complete']) * max(1, round((0. if r['left'] is None else r['left'][1]) / unit)))
-              for r in s['roots']]
+              + rest * ((not r['complete']) * max(1, round(m / unit))) for r, m in zip(s['roots'], left)]
     every = ''.join(groups)
     sea = dict(depth=0, keys=[f'{s["n"]}:{s["order"]} {i}' for i in range(len(groups))], groups=groups,
                counts={name: every.count(str(i)) for i, name in enumerate(SEA_STATUSES)})
-    return {k: v for k, v in s.items() if k != 'roots'} | dict(sea=sea)
+    return {k: v for k, v in s.items() if k not in ('roots', 'posterior')} | dict(sea=sea)
 
 
 def clock(t): return '—' if t is None else time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(t))

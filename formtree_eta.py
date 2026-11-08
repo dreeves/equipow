@@ -210,7 +210,7 @@ def attach(s, root, model_path, p_exists, now, cache):
     assert set(legacy)=={'since','exists'},set(legacy)
     zero=dict(median=0.,lo=0.,hi=0.)
     uncertainty=dict(root_log_sd_posterior=None,effective_samples=None,forecast_samples=0)
-    left=[None]*len(w['roots'])   # each root's nodes left, [lo, median, hi] of chance.BANDS['work'], while forecasting
+    samples=None   # the weighted draws, while the model forecasts
     if complete:
         exists=0.
         to_go=zero if active else None
@@ -227,9 +227,6 @@ def attach(s, root, model_path, p_exists, now, cache):
         order=np.argsort(samples['root_log_sd'])
         lo,hi=chance.BANDS['work']
         quantiles=np.interp([lo,.5,hi],np.cumsum(samples['weight'][order]),samples['root_log_sd'][order])
-        rest=samples['trees']-np.array([r['done'] for r in w['roots']],dtype=float)
-        left=[None if r['complete'] else np.interp([lo,.5,hi],np.cumsum(samples['weight'][o]),rest[o,i]).tolist()
-              for i,r in enumerate(w['roots']) for o in [np.argsort(rest[:,i])]]
         uncertainty=dict(root_log_sd_posterior=dict(zip(('lo','median','hi'),quantiles.tolist())),
                          effective_samples=float(1/(samples['weight']@samples['weight'])),
                          forecast_samples=len(samples['weight']))
@@ -264,7 +261,7 @@ def attach(s, root, model_path, p_exists, now, cache):
                   coverage=chance.COVERAGE,total=total,**uncertainty)
     if to_go is not None:
         s['etas'][str(float(now))]=[to_go[k]/3600 for k in ('median','lo','hi')]
-    # roots (2026-11-07), for the sea's dots of the roots (progress.rooted): each root's nodes checked, whether complete,
-    # and its nodes left while the model forecasts (left)
-    roots=[dict(done=r['done'],complete=r['complete'],left=x) for r,x in zip(w['roots'],left)]
-    return s | dict(to_go=to_go,display=s['display'] | dict(lindy=False,work_eta=metadata),odds=odds,roots=roots)
+    # roots and posterior (2026-11-07), for the sea's blocks of the roots (progress.rooted): each root's name, nodes
+    # checked and whether complete, and the weighted draws (draws's) while the model forecasts, else None
+    return s | dict(to_go=to_go,display=s['display'] | dict(lindy=False,work_eta=metadata),odds=odds,roots=w['roots'],
+                    posterior=samples)

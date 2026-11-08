@@ -268,8 +268,9 @@
     // the model's numbers into their fields (its other fields, objects or null, have none: a null among them threw here
     // until 2026-11-06, as a search stopped short of its end gives them)
     for (const [key, value] of Object.entries(run.work_eta ?? {}).filter(([, v]) => typeof v === 'number')) fill(box, `work-${key}`, value.toLocaleString('en-US', {maximumFractionDigits: 1}));
-    // (the status line, not a tracked search's counts below the CPU chart, [data-track-line], since 2026-11-07)
-    return box.querySelectorAll({work: '[data-work-measure="work"] .progress-bar-caption', cpu: '.progress-status:not([data-track-line])'}[basis]);
+    // the first match: the status line as statusLine finds it, before a tracked search's counts below the CPU chart
+    // ([data-track-line], since 2026-11-07, also a p.progress-status)
+    return [...box.querySelectorAll({work: '[data-work-measure="work"] .progress-bar-caption', cpu: '.progress-status'}[basis])].slice(0, 1);
   }
 
   function search288View(box, run) {
