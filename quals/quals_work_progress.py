@@ -100,6 +100,32 @@ class Integration(unittest.TestCase):
         a=self.survey();self.work['rate']*=2;b=self.survey(5260.)
         for k in ('median','lo','hi'):self.assertAlmostEqual(b['to_go'][k],a['to_go'][k]/2)
 
+    def test_each_root_is_a_block_of_its_nodes(self):
+        # Replicata: the live target (one run, running; root a complete at 17 nodes, root b with 50 checked), surveyed
+        # with its model, whose prior holds 220 nodes in all (a's blocks' mean 20, b's 200); then with the run's process
+        # gone (the search stopped short).
+        # Expectata (dreeves, 2026-11-07: "remind me why we aren't doing the sea-of-dots visualization of that kind of
+        # thing?", of the ETA's plunge as 288:10's root 8 finished; then "the words you're adding on the page are not
+        # helping. it needs to just be clear from the visualization"): the sea holds no runs' dots but a block per root
+        # in the model's order, a dot per 0.1 node (the power of 10 nearest 220 / progress.SEA_ROOT_DOTS): a's 170
+        # settled; b's 500 settled, then the model's median of its nodes left in pending dots; once the search stopped,
+        # b's 500 settled and one open dot. Keys '288:10 0' and '288:10 1'; the counts over every dot.
+        # Resultata before: the sea held the runs' dots alone.
+        import formtree_eta,numpy as np
+        self.assertEqual(progress.SEA_ROOT_DOTS,1000)
+        s=self.survey()
+        x=formtree_eta.draws(self.model,self.work,count=4096)
+        left=x['trees'][:,1]-50;o=np.argsort(left)
+        med=float(np.interp(.5,np.cumsum(x['weight'][o]),left[o]));k=round(med/.1)
+        self.assertGreater(k,1)
+        self.assertEqual(s['sea']['groups'],['0'*170,'0'*500+'3'*k])
+        self.assertEqual(s['sea']['keys'],['288:10 0','288:10 1'])
+        self.assertEqual(s['sea']['counts'],dict(settled=670,open=0,split=0,pending=k,running=0))
+        self.assertNotIn('roots',s)
+        self.procs=[];stopped=self.survey(5260.)
+        self.assertEqual(stopped['state'],'ended')
+        self.assertEqual((stopped['sea']['groups'],stopped['sea']['keys']),(['0'*170,'0'*500+'1'],['288:10 0','288:10 1']))
+
     def test_lost_model_or_changed_frozen_source_fails_loudly(self):
         # Replicata: activate a model, then lose its file; separately alter its pinned source.
         # Expectata: refuse the survey, preserving the watcher's stale-data path, not Lindy.

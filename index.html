@@ -1951,6 +1951,8 @@ of them with m ≡ 0, 1, 2 mod 3) and two exceptional signs, and d_0 ≡ d_3 (mo
       </template>
       <!-- Says each dot is one run of the search, with the colors of ended, running, frozen and aborted runs -->
       <template class="progress-track-hint">One dot per run: <span class="progress-sw" data-status="settled"></span> ended; <span class="progress-sw" data-status="running"></span> running; <span class="progress-sw" data-status="pending"></span> frozen; <span class="progress-sw" data-status="open"></span> aborted.</template>
+      <!-- TODO: label for a screen reader, not shown: says each root of the search's tree is a block of dots in proportion to its nodes, those checked first, then the model's median of those left -->
+      <template class="progress-roots-hint"><span hidden>Claude: “Each root of the search’s tree, as a block of dots in proportion to its nodes: those checked, then the model’s median of those left.”</span></template>
     </details>
 </section>
 

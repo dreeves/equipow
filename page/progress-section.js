@@ -298,9 +298,12 @@
   // ([data-track-line]) and the status line every run has kept right under the ETA chart (dreeves, 2026-11-07: "let's keep
   // the blue/red/purple line of numbers directly below the ETA graph, not below the CPU graph", "not the black text line
   // though"; until then the counts followed it in the same paragraph)
+  // A search with a work model's dots are its tree's roots, a block of each one's nodes (progress.rooted), with no hint in
+  // their readout (dreeves, 2026-11-07: "the words you're adding on the page are not helping. it needs to just be clear
+  // from the visualization"): template progress-roots-hint holds only their label, for a screen reader.
   function trackView(box, run) {
     const status = box.querySelector('.progress-status'), line = [...status.childNodes];
-    attemptView(box, run, 'progress-track', 'progress-track-hint');
+    attemptView(box, run, 'progress-track', run.work_eta ? 'progress-roots-hint' : 'progress-track-hint');
     box.querySelector('[data-track-line]').replaceChildren(...status.childNodes);
     status.replaceChildren(...line);
   }

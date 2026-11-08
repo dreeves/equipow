@@ -5821,6 +5821,49 @@ def q_progress_shows_runs_and_dots_for_every_run():
 
 
 
+def q_progress_shows_a_search_s_roots_without_words():
+    # Replicata: index.html with two running tracked searches as progress.js, each fold open: ftree.py's 288:10 with a
+    # work model (PROGRESS_WORK's), its sea a block per root of its tree as progress.rooted gives them (root 0, 3 dots
+    # checked; root 1, 5 checked and 2 left); and w12.py's 768:12 with none; then root 1's block hovered.
+    # Expectata (dreeves, 2026-11-07: "remind me why we aren't doing the sea-of-dots visualization of that kind of
+    # thing?"; then "the words you're adding on the page are not helping. it needs to just be clear from the
+    # visualization"): the first's readout shows no text, while its dots' label (template progress-roots-hint) is there
+    # for a screen reader; the second's readout and label are its runs' hint (template progress-track-hint); the hovered
+    # block's readout its key and its counts, 5 settled and 2 pending.
+    # Resultata before: the first's readout and label its runs' hint, "One dot per run", which its dots are not.
+    base, made = PROGRESS_DATA['runs'][0], PROGRESS_DATA['made']
+    tracked = dict(program='w12.py', n=768, order=12, state='running', outcome=None, so_far=600,
+                   to_go=dict(median=600, lo=600 / 9, hi=9 * 600),
+                   etas=[[made - 60, 540.0, 540.0, 60.0, 4860.0], [made, 600.0, 600.0, 66.7, 5400.0]],
+                   statuses=base['statuses'], depth=0, keys=['768:12'], groups=['4440'],
+                   counts=dict(settled=1, open=0, split=0, pending=0, running=3), stale=None, tracked=True,
+                   work=dict(runs=4, running=3, frozen=0, ended=1, aborted=0, found=0), lindy=True, odds=ODDS_IGNORANT,
+                   cpu=[])
+    worked = dict(tracked, program='ftree.py', n=288, order=10, keys=['288:10 0', '288:10 1'], groups=['000', '0000033'],
+                  counts=dict(settled=8, open=0, split=0, pending=2, running=0), lindy=False,
+                  work=dict(runs=4, running=1, frozen=0, ended=3, aborted=0, found=0), work_eta=PROGRESS_WORK['work_eta'])
+    got = progress_harness({'made': made, 'runs': [worked, tracked]}, """
+  for (const r of runs()) r.querySelector('details').open = true;
+  await sleep(200);
+  const squeeze = t => t.replace(/\\s+/g, ' ').trim();
+  const tpl = name => document.querySelector('template.' + name);
+  const hint = name => tpl(name) ? squeeze(tpl(name).content.textContent) : null;
+  const [first, second] = runs();
+  const read = r => squeeze(r.querySelector('[data-readout]').innerText);
+  const label = r => squeeze(r.querySelector('canvas').getAttribute('aria-label'));
+  const before = {first: read(first), second: read(second), labels: [label(first), label(second)]};
+  const canvas = first.querySelector('canvas'), L = window.progressView.layouts[0], [hx, hy] = L.place(1, 0);
+  const box = canvas.getBoundingClientRect(), dpr = canvas.width / box.width;
+  canvas.dispatchEvent(new MouseEvent('mousemove', {clientX: box.left + (hx + L.size / 2) / dpr, clientY: box.top + (hy + L.size / 2) / dpr, bubbles: true}));
+  const readout = first.querySelector('[data-readout]'), code = readout.querySelector('code');
+  out({...before, runs: hint('progress-track-hint'), roots: hint('progress-roots-hint'), code: code ? code.textContent : null,
+       counts: [...readout.querySelectorAll('.progress-sw')].map(e => [e.dataset.status, squeeze(e.nextSibling.textContent)])});""")
+    assert got['runs'] and got['roots'], got
+    assert got['first'] == '' and got['labels'][0] == got['roots'], got
+    assert got['second'] == got['runs'] and got['labels'][1] == got['runs'], got
+    assert got['code'] == '288:10 1' and got['counts'] == [['settled', '5'], ['pending', '2']], got
+
+
 def q_progress_lays_out_each_subtree_as_a_block():
     # Replicata: progress_run's layout of the sea: a rectangle of cells per group (x, y, w, h), in a grid cols wide.
     # Expectata: each group's rectangle holds its dots (w h at least its count) inside the grid; no two rectangles
