@@ -407,7 +407,11 @@ code[aria-expanded], [data-text][aria-expanded] { cursor: pointer; text-decorati
 /* the CPU chart under the ETA chart (2026-11-07): the search in the elapsed time's blue, other processes in a rust that
    no other mark of a run uses, idle in the bar's empty gray; the dataviz validator, the blue and the rust against the
    paper: worst color-blind ΔE 26.1 (protan), normal-vision 28.9, both at least 3:1; idle, a background, labeled in the key */
-.progress-cpu { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.2rem; --cpu-search: var(--progress-spent); --cpu-other: #b5651d; --cpu-idle: var(--progress-hair); }
+/* other processes in magenta, the dataviz palette's slot 5 (dreeves, 2026-11-08: "pick a nicer color than brown"; #b5651d
+   until then): its slot 2, orange, would sit beside the running dots' orange and the time to go's red, its aqua by the
+   settled dots' green, its violet by the search's blue and the total's purple. Beside the blue it passes every check of
+   the skill's validator but contrast on white (2.69:1), which the key's labels and shares relieve. */
+.progress-cpu { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.2rem; --cpu-search: var(--progress-spent); --cpu-other: #e87ba4; --cpu-idle: var(--progress-hair); }
 .progress-cpu svg { display: block; width: 100%; height: auto; overflow: visible; cursor: crosshair; touch-action: pan-y; }
 .progress-cpu .grid, .progress-cpu .axis { stroke: var(--progress-hair); stroke-width: 1; vector-effect: non-scaling-stroke; }
 /* no hairline of paper around the bands (0.75 px until 2026-11-07): the border between two is a step per row, several
@@ -424,6 +428,7 @@ code[aria-expanded], [data-text][aria-expanded] { cursor: pointer; text-decorati
 .progress-cpu-key .other::before { background: var(--cpu-other); }
 .progress-cpu-key .idle::before { background: var(--cpu-idle); box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--muted) 45%, transparent); }
 .progress-cpu-readout { margin-left: 0.8em; color: var(--ink); }
+.progress-cpu-key [data-cpu-share] { color: var(--ink); }
 .progress-status:empty { display: none; }   /* the counts' line of a run that is no tracked search (2026-11-07) */
 .progress-tip, .progress-status { font-variant-numeric: tabular-nums lining-nums; }
 .progress-stages { font-variant-numeric: tabular-nums lining-nums; }   /* a run's later stages, under its status line (2026-10-31) */

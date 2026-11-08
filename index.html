@@ -1860,13 +1860,14 @@ of them with m ≡ 0, 1, 2 mod 3) and two exceptional signs, and d_0 ≡ d_3 (mo
             Claude: “These ranges assume measured CPU costs, today's share of a core for every process, and perfect overlap where parts run at once; pipeline waits, storage waits and changes in the machine's load are not in them, so the time to a proof is less certain than they show.”</p>
           <!-- the machine's CPU below the ETA chart and its lines, on its x axis (the status line stays right under the ETA chart: dreeves, 2026-11-07, "let's keep the blue/red/purple line of numbers directly below the ETA graph, not below the CPU graph"; and dreeves, 2026-11-07: "could we get a nice CPU usage graph on the search page? similar to what activity monitor shows. three colors: one for the search, one for all other processes on the machine, and one for idle, if any", then "maybe aligned with the ETA graph"); its words are his -->
           <div class="progress-cpu">
-            <svg viewBox="0 0 640 72" role="img" aria-label="CPU usage: search, other processes, idle">
+            <svg viewBox="0 0 640 72" role="img" aria-label="CPU usage: this search, other processes, idle">
               <g data-cpu-grid></g>
               <g data-cpu-bands></g>
               <g data-cpu-ticks></g>
               <line class="cross" visibility="hidden" data-cpu-cross></line>
             </svg>
-            <p class="progress-cpu-key">CPU usage: <span class="search">search</span> <span class="other">other processes</span> <span class="idle">idle</span> <span class="progress-cpu-readout" data-cpu-readout></span></p>
+            <!-- each entry of the key holds its share of the latest row, or of the row under the pointer, and the readout after them that row's time (dreeves, 2026-11-08: "might as well combine the percentages with the legend here", and "change "search" to "this search""; until then the readout gave the time and the three shares) -->
+            <p class="progress-cpu-key">CPU usage: <span class="search">this search <span data-cpu-share="search"></span></span> <span class="other">other processes <span data-cpu-share="other"></span></span> <span class="idle">idle <span data-cpu-share="idle"></span></span> <span class="progress-cpu-readout" data-cpu-readout></span></p>
           </div>
           <!-- a tracked search's counts of its runs (template progress-track), below the CPU chart; the status line above, its blue/red/purple numbers, stays right under the ETA chart (dreeves, 2026-11-07: "let's keep the blue/red/purple line of numbers directly below the ETA graph, not below the CPU graph", "not the black text line though"); empty for any other run -->
           <p class="progress-status" data-track-line></p>

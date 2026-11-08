@@ -727,8 +727,9 @@
   // start, at its end, its end's time, the search's share, other processes', idle] (progress.py's cpu_series), stacked
   // from the bottom in that order on 0 to 100%, each band one polygon per stretch of contiguous rows (a gap where the
   // watcher sampled nothing); other processes' share at least 0 where reading the ticks and ps a moment apart left it
-  // below (cpu.py's SKEW).  Its key's readout is the latest row's shares at its time, or at the pointer the row under
-  // it, and empty with no rows, when the chart shows its grid alone.
+  // below (cpu.py's SKEW).  Its key's entries hold the latest row's shares, and its readout that row's time, or at the
+  // pointer the row under it's (dreeves, 2026-11-08: "might as well combine the percentages with the legend here";
+  // the readout gave both until then), all empty with no rows, when the chart shows its grid alone.
   function cpuChart(fig, run) {
     assert(Array.isArray(run.cpu), run.program, run.n, run.order);
     const {xticks, X} = etaX(run), H = 72, T = 4, B = 4, Y = f => H - B - (H - B - T) * f;
@@ -744,7 +745,11 @@
       return make('polygon', {class: `band ${name}`, points: xy(edge(r => tops(r)[j]).concat(edge(r => j && tops(r)[j - 1]).reverse()))});
     }));
     q('[data-cpu-bands]').replaceChildren(...bands);
-    const say = r => { readout.textContent = r ? `${stamp(r[2])}: search ${Math.round(100 * r[3])}% · other processes ${Math.round(100 * Math.max(0, r[4]))}% · idle ${Math.round(100 * r[5])}%` : ''; };
+    const shares = {search: r => r[3], other: r => Math.max(0, r[4]), idle: r => r[5]};
+    const say = r => {
+      for (const e of fig.querySelectorAll('[data-cpu-share]')) e.textContent = r ? `${Math.round(100 * shares[e.dataset.cpuShare](r))}%` : '';
+      readout.textContent = r ? `@${stamp(r[2])}` : '';
+    };
     const rest = run.cpu[run.cpu.length - 1];
     say(rest);
     svg.onmousemove = ev => {                   // the row under the pointer, or the nearest, and a crosshair through it

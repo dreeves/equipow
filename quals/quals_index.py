@@ -4504,6 +4504,7 @@ PROGRESS_HARNESS = """<script>
     const cfig = section.querySelector('.progress-run .progress-cpu');
     out.cpu = cfig && {bands: [...cfig.querySelectorAll('[data-cpu-bands] polygon')].map(p => [p.getAttribute('class'), p.getAttribute('points')]),
                        readout: squeeze(cfig.querySelector('[data-cpu-readout]').textContent),
+                       shares: Object.fromEntries([...cfig.querySelectorAll('[data-cpu-share]')].map(e => [e.dataset.cpuShare, squeeze(e.textContent)])),
                        after: !!(fig.compareDocumentPosition(cfig) & Node.DOCUMENT_POSITION_FOLLOWING),
                        afterStatus: !!(status.compareDocumentPosition(cfig) & Node.DOCUMENT_POSITION_FOLLOWING),
                        afterStages: !!(section.querySelector('.progress-run [data-stages]').compareDocumentPosition(cfig) & Node.DOCUMENT_POSITION_FOLLOWING),
@@ -5143,6 +5144,9 @@ def q_progress_draws_cpu_aligned_with_the_eta_chart():
     # other processes' at 80% then 50%, idle's at 100%; and its key's readout, at rest, the latest row's shares at its
     # time: "search 25% · other processes 25% · idle 50%".
     # Resultata before: no CPU chart.
+    # Spec change (Claude, 2026-11-08; dreeves: "might as well combine the percentages with the legend here"): the
+    # latest row's shares are in the key's entries, search 25%, other processes 25%, idle 50%
+    # (q_progress_cpu_key_carries_each_share), and the readout names its time; until then the readout gave both.
     R = progress_run()
     c = R['cpu']
     assert c is not None, 'no CPU chart'
@@ -5158,7 +5162,39 @@ def q_progress_draws_cpu_aligned_with_the_eta_chart():
         upper = [y for x, y in ps[:4]]
         want = [Y(tops[0]), Y(tops[0]), Y(tops[1]), Y(tops[1])]
         assert all(abs(a - b) < 0.02 for a, b in zip(upper, want)), (upper, want)
-    assert c['readout'] == f'{stamp(1792200000)}: search 25% · other processes 25% · idle 50%', c['readout']
+    assert c['shares'] == dict(search='25%', other='25%', idle='50%') and stamp(1792200000) in c['readout'], c
+
+
+def q_progress_cpu_key_carries_each_share():
+    # Replicata: index.html with PROGRESS_DATA's run as progress.js, its fold open: its CPU rows the search, other
+    # processes and idle over 0-1 h (0.5, 0.3, 0.2, ending an hour before the snapshot) and 1-2 h (0.25, 0.25, 0.5,
+    # ending at it); the CPU chart's key at rest, then with the pointer over the first hour.
+    # Expectata (dreeves, 2026-11-08: "might as well combine the percentages with the legend here"): each of the key's
+    # entries (search, other, idle) holds its own share of the latest row, 25%, 25% and 50%, and the readout after them
+    # that row's time and no share; with the pointer over the first hour, the first row's shares, 50%, 30% and 20%, and
+    # its time.
+    # Resultata before: the key's entries held no shares; the readout gave the time and all three shares, in a line of
+    # its own after the key.
+    made = PROGRESS_DATA['made']
+    got = progress_harness(PROGRESS_DATA, """
+  for (const r of runs()) r.querySelector('details').open = true;
+  await sleep(200);
+  const fig = runs()[0].querySelector('.progress-cpu'), svg = fig.querySelector('svg');
+  const read = () => {
+    const shares = [...fig.querySelectorAll('[data-cpu-share]')];
+    return {shares: Object.fromEntries(shares.map(e => [e.dataset.cpuShare, e.textContent.trim()])),
+            inEntries: shares.length === 3 && shares.every(e => { const entry = e.closest('.progress-cpu-key > span'); return !!entry && entry.classList.contains(e.dataset.cpuShare); }),
+            readout: fig.querySelector('[data-cpu-readout]').textContent};
+  };
+  const rest = read();
+  const L = window.progressView.layouts[0], sb = svg.getBoundingClientRect(), x = L.etaXs[0] + 0.5 * (L.etaXs[1] - L.etaXs[0]);
+  svg.dispatchEvent(new MouseEvent('mousemove', {clientX: sb.left + x * sb.width / 640, clientY: sb.top + sb.height / 2, bubbles: true}));
+  out({rest, hover: read()});""")
+    rest, hover = got['rest'], got['hover']
+    assert rest['shares'] == dict(search='25%', other='25%', idle='50%') and rest['inEntries'], got
+    assert stamp(made) in rest['readout'] and '%' not in rest['readout'], got
+    assert hover['shares'] == dict(search='50%', other='30%', idle='20%') and hover['inEntries'], got
+    assert stamp(made - 3600) in hover['readout'] and '%' not in hover['readout'], got
 
 
 def q_progress_cpu_chart_shows_no_paper_between_its_bands():
@@ -5169,7 +5205,8 @@ def q_progress_cpu_chart_shows_no_paper_between_its_bands():
     # Expectata (dreeves, 2026-11-07, of 288:10's CPU chart, idle 0% in its readout: "shouldn't that imply the CPU graph
     # is completely blue and brown? what's the white (gray?) i see between the blue and brown?"): in every column the
     # search's blue reaches, every pixel from the bands' lowest to their highest is the search's blue, other
-    # processes' brown or a blend of the two (within 40 of one in RGB): no paper between them.
+    # processes' color (--cpu-other: brown until 2026-11-08, magenta since) or a blend of the two (within 40 of one in
+    # RGB): no paper between them.
     # Resultata before: each band outlined by a hairline of paper (0.75 px), which traced every step of the border
     # between blue and brown, several to a pixel: about a fifth of those pixels paper or near it.
     made, base = PROGRESS_DATA['made'], PROGRESS_DATA['runs'][0]
@@ -5178,9 +5215,9 @@ def q_progress_cpu_chart_shows_no_paper_between_its_bands():
     run = dict(base, so_far=6 * HOURS, etas=[[made - 6 * HOURS, 0.0, 6 * HOURS, 3 * HOURS, 9 * HOURS], [made, 6 * HOURS, 1800.0, 900.0, 3600.0]],
                to_go=dict(median=1800.0, lo=900.0, hi=3600.0), cpu=cpu)
     color = lambda name: rgb(re.search(rf'{name}: (#[0-9a-f]{{6}});', page_css()).group(1))
-    blue, brown = color('--progress-spent'), color('--cpu-other')         # the search's (--cpu-search) and other processes'
-    def apart(p):                                  # how far the color p is from every blend of the blue and the brown
-        d = [b - a for a, b in zip(blue, brown)]
+    blue, other = color('--progress-spent'), color('--cpu-other')         # the search's (--cpu-search) and other processes'
+    def apart(p):                                  # how far the color p is from every blend of the blue and the other
+        d = [b - a for a, b in zip(blue, other)]
         t = max(0.0, min(1.0, sum((x - a) * e for x, a, e in zip(p, blue, d)) / sum(e * e for e in d)))
         return math.dist(p, [a + t * e for a, e in zip(blue, d)])
     from PIL import Image
@@ -5202,7 +5239,9 @@ def q_progress_cpu_chart_shows_no_paper_between_its_bands():
         px, (w, h), bad, total = img.load(), img.size, 0, 0
         for x in range(w):
             ys = [y for y in range(h) if apart(px[x, y]) <= 40]
-            if not any(px[x, y][2] > 150 for y in ys): continue        # no blue in this column
+            # no search's blue in this column (until 2026-11-08 any blue channel above 150, which other processes' magenta
+            # has too: the gray of the "100%" label's glyphs, near the blends of blue and magenta, then made a column)
+            if not any(math.dist(px[x, y], blue) <= 40 for y in ys): continue
             span = range(min(ys), max(ys) + 1)
             total += len(span)
             bad += sum(apart(px[x, y]) > 40 for y in span)
