@@ -12,17 +12,11 @@ Potential tasks:
   [ ] n>2 is an odd multiple of 2 => `m*(n) = 1`
   [ ] n>4 is an odd multilple of 4 => `m*(n) = 3`
   [ ] n>=200 is an odd multiple of 8 => `m*(n) = 7`
-* [CER] BGPW never gave certified proofs (just triple-checked ILP runs) for n = 168, 176, 184, and 272. Claude thinks it can properly certify them with short proofs.
 * [MAI] Let's get more things as expandable sections of the main equipow page instead of linking to separate pages. Proofs currently in txt files for starters.
 * [CLU] Are there past searches we don't care about anymore that we don't need on the page? Some are interesting for posterity.
-* [SYM] What's currently the most promising way to prove or disprove the Symmetry Conjecture?
-  Astra suggests:
-  1. Prove symmetric order 10 impossible at 288, using the symmetry-restricted lattice, residue constraints, and exact infeasibility certificates. This is substantially smaller than the unrestricted problem.
-  2. If excluded, attack unrestricted order 10 at 288 using lattice searches without imposing symmetry.
-  3. Systematically repeat this at other (n,m) with m>=9, prioritizing cases where modular constraints eliminate the symmetry-restricted problem cheaply.
-* [REO] See the notes in the index.html comments tagged [REO].
+* [REO] See the notes in the index.html comments tagged [REO]. Better organization / less redundancy.
 * [CRO] This might be fun: Let people contribute computation by just having the equipow page open in their browser. Claude thinks this could work. (More boringly, Claude is estimating we could bring the next two searches down from a total of 90 days on my laptop to about 4 days on cloud compute costing around $300.)
-* [TRE] We now have a time series of the number of pending nodes in the search. Seeing when that plateaus or starts to actually go down should improve our ETA. Can we incorporate that in the ETA graph?
+* [TRE] We now have a time series of the number of pending nodes in the search. Seeing when that plateaus or starts to actually go down should improve our ETA. Can we incorporate that in the ETA graph? (Also this was missing from the 288:10 search for some reason.)
 
 
 Stan notes:
