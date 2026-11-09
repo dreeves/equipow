@@ -1359,3 +1359,19 @@ Order-13 witness agent, 2026-10-31 from 06:05 (Claude; `scratch/w13-1008-912/`):
   - **README** file list updated.
   - **Qual:** new quals_symmetry q_symmetry_cited_bounds_have_form_tree_proofs. It requires exactly these five linked, each assembled to VERIFIED, every verdict py true, and the chart's hi at n equal to m − 1. Red first (`red.log`: no links), now green.
   - **Still running in the agent:** 152:7 (150M+ nodes after 7 h; its dive estimate of 5.7M was far too low). 168:7's dives say about 4.9e9 nodes and 184:7's about 1.8e12. Those three, and so orders up to 8, still rest on BGPW's integer programs and earlier work.
+- **State of the certification work** (Claude, 2026-11-09 11:40 PST):
+  - **The agent:** it ended its turn with "waiting" and left no report.
+  - **152:7:** still running. Driver 92513, process group 92484, 7 workers, `scratch/certify-20261109/152_7/run.log`.
+    - Since 01:23: 2.07e8 nodes, 0 refused, about 5,200 nodes/s.
+    - Of 1,264 start cases: 114 complete, 7 in progress, 1,143 untouched. Root 1151 alone holds 1.82e8 nodes with 759 tasks still pending, and the queue grew from 1,778 to 2,079 over 6 h.
+    - A bootstrap of the untouched cases from the touched ones (`scratch/eta152-20261109/boot.py`) gives 4.2 days at the median (2.5–6.6). It ignores the giant's unknown remainder and assumes the touched cases are a fair sample, so weeks are possible.
+    - A sample of 24 untouched cases (`bench/152_7_untouched.log`): 23 finished within 120 s, one did not.
+  - **Controls** (a known sequence of order m − 1 must never be closed):
+    - passed: 96:7, 144:8 (`real_controls.log`) and 272:8;
+    - stopped before the sequence reached an open node: 176:7 (`ctl_176_7/control.json`) and 752:10. 752:10 got as far as fkernel refusing step 6 with "too many values" (its MAX_VALUES limit), which is conservative; no witness errors.
+    - Two 152:6 controls (real_controls.py and ctl_follow2.py) ran 10 h inside a single prover call that ignored its 3 s and 240 s limits (at 152:6 the root node is the whole cell); stopped by SIGTERM at 11:28.
+  - **Changelog:** two Claude-worded lines, each with a TODO comment:
+    - 2026-11-09, the five form-tree proofs of known bounds;
+    - 2026-11-08, "BGPW's Symmetry Conjecture holds through order 11", after the 288 line.
+    - Statements like m*(96) ≤ 7 can't go in: statements() requires an entry with statements to hold nothing else, and q_changelog_brings_every_new_result_up_to_date requires every n stated to be a colored cell; 96, 144, 176 and 272 are uncolored copies of Table 2.
+  - **Step 3** (form-tree cost estimates for 528:12, 720:14, 480:14, 864:14 and 1440:17, plus 480:13 and 864:13 if cheap) runs in an agent in `scratch/costs-20261109/`, at most 3 heavy processes beside 152:7.
