@@ -225,10 +225,11 @@ def q_page_parse():
     # at 1024; 74 from 2026-10-27, when 1008 joined them, as the chart and the table reached 1024; 75 from 2026-10-28,
     # when 2^29 joined them, once 912 reached order 12; 76 from that evening, when 2^39 joined them, once 768 reached
     # order 12; 79 from 2026-11-03, when 2^28, 2^36 and 2^47 joined them, once that day's examples moved their firsts;
-    # 81 since later that day, when 2^56 and 2^58 joined them, once the search found firsts there among those examples).
+    # 81 from later that day, when 2^56 and 2^58 joined them, once the search found firsts there among those examples;
+    # 82 since 2026-11-08, when 288 joined them, settled at 9 by the form-tree proof).
     src = mstar.page_sources(open(os.path.join(HERE, 'index.html'), encoding='utf-8').read())
     assert src['table2'] == mstar.TABLE2 and len(mstar.TABLE2) == 39
-    assert src['new'] == mstar.NEW and len(mstar.NEW) == 81
+    assert src['new'] == mstar.NEW and len(mstar.NEW) == 82
     assert set(who for _, _, who in mstar.NEW.values()) == {'BGPW', 'Claude alone', 'Claude and BGPW', 'Astra alone',
                                                              'Claude and Astra'}
     assert [(m, h) for _, m, h in mstar.PAGE_CODES] == [(m, h) for m, h in src['codes']]
@@ -267,7 +268,8 @@ def q_page_parse_is_strict():
     # and -> 49:6; the first block table dropped.
     # Expectata: AssertionError from mstar.page_sources for each (the parse must equal the hand copy).
     html = open(os.path.join(HERE, 'index.html'), encoding='utf-8').read()
-    for old, new in (('<td class="j">9</td>', '<td class="j">9–10</td>'),
+    # (496's "9" found beside 512's since 2026-11-08, when 288's cell became a class j 9 too.)
+    for old, new in (('<td class="j">9</td><td class="c">9</td>', '<td class="j">9–10</td><td class="c">9</td>'),
                      ("<td class=\"s\" title='BGPW'>320</td>", "<td class=\"s\" title='Claude alone'>320</td>"),
                      ('<code id="48:6">C27D8C</code>', '<code id="48:6">C27D8D</code>'),
                      ('<code id="48:6">C27D8C</code>', '<code>C27D8C</code>'),
@@ -284,7 +286,8 @@ def q_page_parse_is_strict():
     # And in the new results' table, which subsumes Table 2 since 2026-10-27 (dreeves: "how about making our
     # color-coded table totally subsume the BGPW table?"): Table 2's copy of 136 -> 7; 256 dropped; 512's value -> 10,
     # 2^9's left at 9; 312 inserted after 304; 1008 dropped; the copy of 288 colored c and titled Claude alone; 2^3
-    # moved after 2^4.
+    # moved after 2^4.  (288's cell is no copy since 2026-11-08, but the class j's 9 of the new results: that edit now
+    # retitles it Claude alone and widens it to 9–10, which page_sources must refuse all the same.)
     paper = "<td title='The published paper (2021)'>"
     for n, f in (('136', lambda ps, i: ps[:i] + [(ps[i][0], '<td>7</td>')] + ps[i + 1:]),
                  ('256', lambda ps, i: ps[:i] + ps[i + 1:]),
@@ -544,7 +547,8 @@ def q_gray_columns():
     tens, elevens = (592, 608, 656, 688, 752, 784), (832, 848, 880, 896, 928, 944, 976, 992)
     # 768 settled at 13 on 2026-11-03 (the beam campaign's plan 6), and left the gray columns.
     # 672 settled at 13 on 2026-11-04 (searches/tilted/: q_example_at_672_reaches_order_13), and left them too.
-    assert gray == tuple(n for n in USER_GRAY if n not in (240, 384, 560, 640, 704, 736, 800) + tens + elevens + (432, 544, 576, 624, 672, 768, 816, 912, 960, 1008)), gray
+    # 288 settled at 9 on 2026-11-08 (the form-tree proof: q_288_is_settled_at_9), and left them too.
+    assert gray == tuple(n for n in USER_GRAY if n not in (240, 384, 560, 640, 704, 736, 800) + tens + elevens + (288, 432, 544, 576, 624, 672, 768, 816, 912, 960, 1008)), gray
     assert [got['m']['cols'][n - 1][:2] for n in (240, 384, 560, 640, 704, 736, 800)] == [[10, 10]] * 6 + [[11, 11]]
     assert [got['m']['cols'][n - 1][:3] for n in tens + elevens] == [[10, 10, ['example', f'equipow p{n}']] for n in tens] \
         + [[11, 11, ['example', f'equipow p{n}']] for n in elevens]
@@ -567,7 +571,8 @@ def q_results_of_2026_10_25():
     for n in (848, 880, 896, 928, 944, 976, 992):
         assert mstar.NEW[n] == (11, 11, 'Claude alone') and cs[n - 1][2] == ['example', f'equipow p{n}'], n
     assert mstar.NEW[752][1:] == (10, 'Claude and Astra') and cs[752 - 1][1::2] == [10, ['page', 'Claude and Astra']]
-    assert 288 not in mstar.NEW and cs[288 - 1][:2] == [9, 10] and cs[288 - 1][3] == ['table2'], cs[288 - 1]
+    # Spec change (Claude, 2026-11-08): no clause for 288, which the form-tree proof settled at 9 that day
+    # (q_288_is_settled_at_9); until then this qual held it at Table 2's 9 to 10.
 
 
 def q_results_of_2026_10_26():
@@ -784,6 +789,18 @@ def q_example_at_672_reaches_order_13():
     _, got = disk()
     cs = got['m']['cols']
     assert mstar.NEW[672] == (13, 13, 'Claude alone') and cs[672 - 1] == [13, 13, ['example', 'equipow p672'], ['residue', 5]], cs[672 - 1]
+
+
+def q_288_is_settled_at_9():
+    # Replicata: mstar.NEW and mstar.js's column at 288.
+    # Expectata (2026-11-08: the form-tree proof, searches/formtree/ and proofs/formtree.py, finished with no open
+    # node, and proofs/formtree.py assemble accepted its verdicts: no sequence of length 288 has order 10): 288 is 9 to
+    # 9, Claude and BGPW, its lo as before (the product 2 · 144 of BGPW's example, ['product', 2, 144]) and its hi the
+    # page's (['page', 'Claude and BGPW']).
+    # Resultata before: 288 was 9 to 10, not among the new results, its hi BGPW's Table 2 (['table2']).
+    _, got = disk()
+    cs = got['m']['cols']
+    assert mstar.NEW[288] == (9, 9, 'Claude and BGPW') and cs[288 - 1] == [9, 9, ['product', 2, 144], ['page', 'Claude and BGPW']], cs[288 - 1]
 
 
 def q_past_lists_the_example_of_order_16_at_1440():

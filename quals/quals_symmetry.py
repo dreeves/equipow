@@ -226,7 +226,7 @@ def q_symmetry_bounds_agree_with_the_chart():
     assert within == [], within
 
 
-def q_symmetry_conjecture_holds_through_order_11_but_at_288_10():
+def q_symmetry_conjecture_holds_through_order_11():
     # Replicata: the reduction (reduction()) from the page's own sequences, Thue-Morse and BGPW's Tables 4 and 5 (the
     # closure, by joins and wraps, every claim built and checked), and the chart's upper bounds; and the account's math:
     # its A = ..., b = ..., n \ge ... and its stated upper bounds.
@@ -237,10 +237,13 @@ def q_symmetry_conjecture_holds_through_order_11_but_at_288_10():
     # own tests (own_hi), at their chart values.
     # Resultata before: the page had no section of class symmetry; the reduction alone left 560 and 592 at order 9, 432
     # and 848 at order 10, and 816, 1040, 1072, 1136, 1168, 1232 and 1264 at order 11 (q_symmetry_red_cases).
+    # Spec change (Claude, 2026-11-08; until then this qual was q_symmetry_conjecture_holds_through_order_11_but_at_288_10):
+    # no case uncovered, not even 288 at m = 10, since the chart's upper bound there is 9 by the form-tree proof
+    # (quals_mstar's q_288_is_settled_at_9), a bound the account now states.
     sec = account()
     got = reduction()
     open_ = [(n, m) for m, (*_, uncovered, _) in got.items() for n in uncovered]
-    assert open_ == [(288, 10)], open_
+    assert open_ == [], open_
     said = math(sec)
     tails = [got[m] for m in range(9, MAXM + 1)]
     assert sorted({int(x) for f in said for x in re.findall(r'^A = (\d+)$', f.strip())}) == sorted({A for A, *_ in tails}), said
@@ -252,17 +255,19 @@ def q_symmetry_conjecture_holds_through_order_11_but_at_288_10():
 
 
 def q_symmetry_red_cases():
-    # Replicata: the reduction of q_symmetry_conjecture_holds_through_order_11_but_at_288_10 on the page with the
-    # account's codes left out (each <code id> of the section dropped from the page's text): its positive control.
-    # Expectata: the reduction finds the cases those codes fill and only those, besides 288 at m = 10: each code's
-    # (n, m) uncovered without it, so that no code of the account is idle, and the reduction can fail.
+    # Replicata: the reduction of q_symmetry_conjecture_holds_through_order_11 on the page with the account's codes left
+    # out (each <code id> of the section dropped from the page's text): its positive control.
+    # Expectata: the reduction finds the cases those codes fill and only those: each code's (n, m) uncovered without
+    # it, so that no code of the account is idle, and the reduction can fail.
+    # Spec change (Claude, 2026-11-08): no longer besides 288 at m = 10, which the chart's upper bound 9 covers since
+    # the form-tree proof.
     text = qi.page()
     sec = account(text)
     keys = [(n, m) for n, m, _ in codes(sec)]
     bare = SECTION.sub(lambda x: CODE.sub('', x.group(0)), text)
     got = reduction(bare)
     open_ = sorted((n, m) for m, (*_, uncovered, _) in got.items() for n in uncovered)
-    assert open_ == sorted(keys + [(288, 10)]), (open_, keys)
+    assert open_ == sorted(keys), (open_, keys)
 
 
 # In the page, as it loads: for each code of the account, [its id, its computed hyphens, and its paragraph's computed

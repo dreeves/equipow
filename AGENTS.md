@@ -1322,3 +1322,20 @@ Order-13 witness agent, 2026-10-31 from 06:05 (Claude; `scratch/w13-1008-912/`):
     - spec change, dated: q_progress_draws_cpu_aligned_with_the_eta_chart (shares by data attribute, time in the readout);
     - q_progress_cpu_chart_shows_no_paper_between_its_bands now finds a column by the search's own blue (within 40). It had used any blue channel above 150, which the magenta also has, and the "100%" label's gray glyphs, near the blue–magenta blends, then counted as a band column. Positive control: with the paper hairline put back it still fails with 1,107 of 4,423 pixels (`scratch/cpu-key-20261108/control.py`).
   - **Suites:** quals_index 168/168, all 11 Node harnesses. Screenshot `scratch/cpu-key-20261108/shot_cpu_key.png`.
+- **288:10 settled: m*(288) = 9** (Claude, 2026-11-08 23:24 PST, recorded that night; plan stated to dreeves beforehand: "check it with proofs/formtree.py assemble, then record m*(288) = 9").
+  - **The run:** the form-tree run finished: `finished: 9.81148e+08 nodes, closed 9.81148e+08, OPEN 0, … REJECTED 0, wrong names 0, python 1841 sampled 0 differ; wall 103.93 h` (scratch/formtree/run288v.log).
+  - **The check:** `proofs/formtree.py assemble top_288_10.json.gz verdicts.jsonl` printed VERIFIED: 205,491 tasks, 981,147,930 nodes, 4,902,209,550 certificates (`scratch/assemble288-20261108/assemble.log`, with the sha256 of the verdicts, the top and formtree.py).
+  - **The artifact:** `searches/formtree/handoff.py save` replaced the committed snapshot (Logan's early old-checker state, kept in `scratch/assemble288-20261108/before/`) with the final one: `run288v_snapshot.tar.gz`, 9.7 MB, sha256 e23b6324…, and `run288v_progress.json`. Restored into an empty directory it assembles to VERIFIED again, with byte-identical verdicts.
+  - **Recorded:** mstar.NEW 288 (9, 9, 'Claude and BGPW'); mstar.js changed at column 288 only, to `[9, 9, ["product", 2, 144], ["page", "Claude and BGPW"]]`.
+  - **Page:**
+    - Table 1's cell is class j, 9; the remarks entry is an `<li class="j">` marked ◆●, "m* = 9", with a new Claude paragraph (TODO above it) linking searches/formtree, fkernel.cpp, formtree.py and the snapshot, ahead of the old "not a new result: ≤ 10" paragraph, kept byte for byte.
+    - The changelog's own line "2026-11-08: m*(288) = 9" (NOTEWORTHY: the last entry of BGPW's Table 2 that gave two values; 2^51's "≥ 52" stays open).
+    - The A306248 note: 144 more, through n = 239, m*(480) open.
+    - The Symmetry section, by `scratch/record288-20261108/apply_symmetry.py`: holds for every m ≤ 11 given the bounds; eleven exceptions; m*(288) ≤ 9 among the stated bounds (orders 10 and 11), m*(288) ≤ 10 dropped from the residue list.
+    - preview.png rebuilt (`scratch/record-20261025/page/preview.py 0.40`).
+  - **README:** searches/formtree/README.md states the result and the finished run (`scratch/record288-20261108/apply_readme.py`).
+  - **Quals:**
+    - New, red first (`scratch/record288-20261108/red.log`): quals_mstar q_288_is_settled_at_9.
+    - Spec changes, dated: q_288_bound_is_proved_here; NOTEWORTHY's 288 row; q_gray_columns; q_results_of_2026_10_25 (288 clause gone); quals_symmetry's q_symmetry_conjecture_holds_through_order_11 (was …_but_at_288_10) and q_symmetry_red_cases.
+    - Counts and sets moved with the data: q_page_parse (82), q_citations_match_the_page (2 + 44 + 35 + 1), q_new_results_subsume_table2 ({240, 288, 304, 2^51}); q_page_parse_is_strict's 496 anchor now includes 512's cell.
+  - **Trust basis:** each certificate was checked once by fkernel as it was made, and about 1% of tasks also by the Python checker. The certificates were not stored (about 3 TB), so a full recheck is a rerun.

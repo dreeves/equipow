@@ -328,7 +328,9 @@ NOTEWORTHY = (('2026-10-04', 2 ** 24, (25, None), 'the first power of 2 known to
                'before'),
               ('2026-11-03', 960, (15, 15), 'the smallest length known with order 15, down from 3840, and the first allowed it: '
                'settles a(14) = 960 of OEIS A323395'),
-              ('2026-11-04', 672, (13, 13), 'the smallest length known with order 13, down from 720'))
+              ('2026-11-04', 672, (13, 13), 'the smallest length known with order 13, down from 720'),
+              ('2026-11-08', 288, (9, 9), "settles the paper's Table 2 entry, 9 or 10, the last of its entries that gave two "
+               'values'))
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -1782,8 +1784,10 @@ def q_new_results_subsume_table2():
                for n, c, a, va, v in cells), [cell for cell in cells if cell[2] != paper and not cell[3]]
     assert set(copies) <= set(t2) and all(copies[n] == t2[n] for n in copies), {n: (copies[n], t2.get(n)) for n in copies}
     classed = {n: bounds(v) for n, c, a, va, v in cells if a != paper}
-    assert set(t2) <= set(copies) | set(classed) and set(t2) - set(copies) == {240, 304, 2 ** 51}, set(t2) - set(copies)
-    assert all(t2[n][0] <= classed[n][0] <= classed[n][1] <= t2[n][1] for n in (240, 304, 2 ** 51)), classed
+    # Spec change (Claude, 2026-11-08): 288 among the classed cells, settled at 9 by the form-tree proof (quals_mstar's
+    # q_288_is_settled_at_9); until then a copy of Table 2's 9 or 10.
+    assert set(t2) <= set(copies) | set(classed) and set(t2) - set(copies) == {240, 288, 304, 2 ** 51}, set(t2) - set(copies)
+    assert all(t2[n][0] <= classed[n][0] <= classed[n][1] <= t2[n][1] for n in (240, 288, 304, 2 ** 51)), classed
     twice = {n for n, *_ in cells if sum(m == n for m, *_ in cells) > 1}
     assert twice == {2 ** k for k in range(3, 11)}, sorted(twice)
     assert all(len({(a, va, v) for m, c, a, va, v in cells if m == n}) == 1 for n in twice), sorted(twice)
@@ -1943,7 +1947,7 @@ def q_citations_match_the_page():
     titled = {value(n): (cls, who) for cls, who, n in
               re.findall(r"<td(?: class=\"(a|c|ca|j|s)\")? title='([^']*)'>([^<]*)</td>", new)}
     titles = {n: who for n, (cls, who) in titled.items() if cls}      # the rest, unclassed, copy Table 2's powers of 2
-    # 240 (since 2026-10-20), the 44 multiples of 16 from 304 to 992 (512 written 2^9) and 32 larger powers of 2,
+    # 240 (since 2026-10-20) and 288 (since 2026-11-08, the form-tree proof), the 44 multiples of 16 from 304 to 992 (512 written 2^9) and 32 larger powers of 2,
     # 2^17 to 2^72 (6 until 560 reached order 10 on 2026-10-12, 11 until 800 reached order 11 on 2026-10-17, 18
     # until 592, 608 and 656 reached order 10 and 848, 880, 896, 928, 944, 976 and 992 order 11 on 2026-10-25, 23
     # until 752 and 784 reached order 10 and 832 order 11 on 2026-10-26, 25 until 912 reached order 12 on 2026-10-28,
@@ -1951,11 +1955,13 @@ def q_citations_match_the_page():
     # until later that day, when 2^56 and 2^58 joined them); and since 1024 reached
     # order 11, later that
     # day, 2^10, 2^11 and 2^12; and since 2026-10-27, when the block reached 1024, 1008.  The unclassed cells, Table
-    # 2's powers of 2 (2^3 to 2^8) until then, copy every entry of Table 2 that stands: up to 304 but 240 and 304.
-    assert len(titles) == 1 + 44 + 35 + 1, len(titles)    # 1 + 44 + 33 + 1 until 2^56 and 2^58 joined them, later on 2026-11-03
-    assert sorted(n for n in titled if n not in titles) == [n for n in range(8, 305, 8) if n not in (240, 304)], titled
+    # 2's powers of 2 (2^3 to 2^8) until then, copy every entry of Table 2 that stands: up to 304 but 240, 288 and 304.
+    # (1 + 44 + 33 + 1 until 2^56 and 2^58 joined them, later on 2026-11-03; 1 + 44 + 35 + 1 until 288 joined them,
+    # on 2026-11-08.)
+    assert len(titles) == 2 + 44 + 35 + 1, len(titles)
+    assert sorted(n for n in titled if n not in titles) == [n for n in range(8, 305, 8) if n not in (240, 288, 304)], titled
     table2 = {n for n, *_ in table_entries()} - set(titles)
-    assert len(table2) == 36, sorted(table2)          # 240 and 304 are in both
+    assert len(table2) == 35, sorted(table2)          # 240, 288 and 304 are in both (36 until 288 joined them, 2026-11-08)
     cited = 0
     for n, (lo, hi, lw, hw) in enumerate(mstar_data()['cols'], 1):
         for w in (lw, hw):
@@ -2056,17 +2062,26 @@ def q_288_bound_is_proved_here():
     # before 304's, in an <li> without a class and with an empty marker, as 288's cell in the new results has no
     # provenance class (the paper's value), and it links proof288.py at its GitHub address; mstar.js's column 288
     # cites Table 2, [9, 10, …, ["table2"]]; and proof288.py is in the working directory.
+    # Spec change (Claude, 2026-11-08: the form-tree proof settled m*(288) = 9, quals_mstar's q_288_is_settled_at_9):
+    # the entry, still right after 240's and before 304's, is a new result, "m* = 9", in an <li> of class j with the
+    # marker ◆●, as its cell is Claude's and BGPW's; it still links proof288.py, and links the form-tree proof too: its
+    # Python checker proofs/formtree.py, its checker fkernel.cpp and its saved verdicts
+    # searches/formtree/run288v_snapshot.tar.gz, each at its GitHub address and in the working directory, and the
+    # search's directory searches/formtree; mstar.js's column 288 is [9, 9, ["product", 2, 144], ["page", "Claude and
+    # BGPW"]].  Until then the entry read "m* ∈ {9, 10}" in an <li> without a class, and the column cited Table 2.
     text = page()
     fig = re.search(r'<figure>.*?</figure>', text, re.S).group(0)
     assert 'proof288' not in fig, fig[:600]
-    li = re.search(r'<li>\n      <span class="mk" aria-hidden="true"></span>\n      <p class="entry">\\\(n = 288\\\): &nbsp;'
-                   r'\\\(m\^\* \\in \\\{9, 10\\\}\\\)</p>\n(.*?)\n    </li>', text, re.S)
-    assert li and 'href="https://github.com/dreeves/equipow/blob/main/proofs/proof288.py"' in li.group(1), li and li.group(1)
+    li = re.search(r'<li class="j">\n      <span class="mk" aria-hidden="true">◆●</span>\n      <p class="entry">\\\(n = 288\\\): &nbsp;'
+                   r'\\\(m\^\* = 9\\\)</p>\n(.*?)\n    </li>', text, re.S)
+    files = ('proofs/proof288.py', 'proofs/formtree.py', 'proofs/fkernel.cpp', 'searches/formtree/run288v_snapshot.tar.gz')
+    assert li and all(f'href="https://github.com/dreeves/equipow/blob/main/{f}"' in li.group(1) for f in files) \
+        and 'href="https://github.com/dreeves/equipow/tree/main/searches/formtree"' in li.group(1), li and li.group(1)
     listed = re.findall(r'<p class="entry">\\\(n = (.*?)\\\): ', text)
     assert listed[listed.index('288') - 1:listed.index('288') + 2] == ['240', '288', '304'], listed
     col = mstar_data()['cols'][288 - 1]
-    assert col[:2] == [9, 10] and col[3] == ['table2'], col
-    assert os.path.isfile(os.path.join(HERE, 'proofs', 'proof288.py'))       # in proofs/ since [FAC] stage 3a
+    assert col == [9, 9, ['product', 2, 144], ['page', 'Claude and BGPW']], col
+    assert all(os.path.isfile(os.path.join(HERE, *f.split('/'))) for f in files), files
 
 
 def q_examples_of_2026_10_26_have_entries_and_codes():

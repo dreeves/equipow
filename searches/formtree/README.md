@@ -2,15 +2,15 @@ This file is all Claude.
 
 # Form trees
 
-A proof in progress that no sequence of length 288 has order 10, which would settle m\*(288) = 9, by Claude (Opus 5.5), started 2026-11-04. Every step is checked as it is made, by a program that does not trust the prover. "Form tree" is a name proposed 2026-11-04, awaiting dreeves's approval.
+A proof that no sequence of length 288 has order 10, which settles m\*(288) = 9, by Claude (Opus 5.5), started 2026-11-04 and finished 2026-11-08. Every step is checked as it is made, by a program that does not trust the prover. "Form tree" is a name proposed 2026-11-04, awaiting dreeves's approval.
 
-**This is not yet a result.** Until the run finishes and `proofs/formtree.py assemble` accepts it, nothing here says that 288:10 is impossible, and the chart must not change. A real sequence would show up as an open node.
+**The result.** The run finished on 2026-11-08 with no open node and no refused task, and `proofs/formtree.py assemble` accepted its verdicts: `VERIFIED: no sequence of length 288 has order 10`, over 205,491 tasks, 981,147,930 nodes and 4,902,209,550 certificates, each certificate checked by `fkernel` as it was made. 1,841 of the tasks went to the Python checker as well, and the two checkers agreed on every one. A real sequence would have shown up as an open node.
 
-## Where the run stands
+## The finished run
 
-`run288v_progress.json` holds the state at the last save: tasks done and pending, nodes, certificates, open nodes, rejected tasks. `run288v_snapshot.tar.gz` is that state itself.
+`run288v_progress.json` holds the final state: 205,491 tasks done and none pending, nodes, certificates, no open node and no rejected task. `run288v_snapshot.tar.gz` (9.7 MB) is that state itself, every task's verdict: `handoff.py restore` it into an empty directory and run `assemble` on its `verdicts.jsonl` (below) to see `VERIFIED` again.
 
-The tree is estimated at 9.3e8 nodes (standard error 0.3e8), from importance-sampled dives that read 5 to 23% low on the two small starts tried and have not been checked on large ones. On an i7-1260P with 16 threads the checked run made about 3,000 nodes/s in its first 10 minutes, so about 4 days in all if that holds.
+The tree is estimated at 9.3e8 nodes (standard error 0.3e8), from importance-sampled dives that read 5 to 23% low on the two small starts tried and have not been checked on large ones. On an i7-1260P with 16 threads the checked run made about 3,000 nodes/s in its first 10 minutes, so about 4 days in all if that holds. The tree held 9.81e8 nodes, 5.5% more than the estimate. The finished run took 104 hours on dreeves's Mac with 10 workers, from 2026-11-04 15:09 PST to 2026-11-08 23:24. It began then from no verdicts, after Astra had found two holes in the `fkernel` of the time, both fixed before it began: two nodes could share a name, and a refused task could leave state behind that let a later forged closure pass. The run before the fix was set aside, not used. This run sent about one task in 100 to the Python checker as well (`PY_SAMPLE=100`), against the one in 2,000 described below.
 
 ## To pick up the run
 
@@ -118,5 +118,5 @@ The engine is bigger than it needs to be: `pex.cpp` still holds the options that
 - `proofs/formtree.py`: the check, standard library only, integers only, and the statement of the argument. `proofs/fkernel.cpp`: the second check, sharing no code with it.
 - `pex.cpp`, `pex.py`: the prover, which only suggests. `ftree.py`: the driver. `run.sh`: build and run. `handoff.py`: save and restore a state. `audit.py`: spot check. `top_make.py`: makes a top. `cellconfig.py`: makes a cell's `.cfg`. `stopall.py`: stops processes by command line.
 - `top_288_10.json.gz`, `top_432_12.json.gz`: the tops. `pex_*.cfg`, `pex_*.cfg.Q.npy`: lattice data and the prover's list of forms; a bad entry would be refused by the checkers.
-- `run288v_snapshot.tar.gz`, `run288v_progress.json`: the run's state.
+- `run288v_snapshot.tar.gz`, `run288v_progress.json`: the finished run's state, every task's verdict.
 - `fixtures/`: small real streams for the quals. `quals/quals_formtree.py`: the quals.
