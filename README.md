@@ -8,11 +8,10 @@ LittlewoodPolynomialsReprint.pdf is the published version of the paper this is e
 Potential tasks: 
 * [COM] Be more principled about what to omit from Figure 1. Idea: checkboxes for what's omitted:
   [ ] Nothing
-  [ ] n>0 is odd => `m*(n) = 1`
+  [ ] n>0 is odd => `m*(n) = 0`
   [ ] n>2 is an odd multiple of 2 => `m*(n) = 1`
   [ ] n>4 is an odd multilple of 4 => `m*(n) = 3`
   [ ] n>=200 is an odd multiple of 8 => `m*(n) = 7`
-  Double-check those are all true and proven. Are there more? Is there a generalization? n>a is an odd multiple of 2^k => `m*(n) = x`?
 * [CER] BGPW never gave certified proofs (just triple-checked ILP runs) for n = 168, 176, 184, and 272. Claude thinks it can properly certify them with short proofs.
 * [MAI] Let's get more things as expandable sections of the main equipow page instead of linking to separate pages. Proofs currently in txt files for starters.
 * [CLU] Are there past searches we don't care about anymore that we don't need on the page? Some are interesting for posterity.

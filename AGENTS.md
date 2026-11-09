@@ -1421,3 +1421,9 @@ Order-13 witness agent, 2026-10-31 from 06:05 (Claude; `scratch/w13-1008-912/`):
   - **Qual:** quals_symmetry q_symmetry_cited_bounds_have_form_tree_proofs now expects the eight cells, a dated spec change from his request. It was red (`red_168_184.log`), then green (6/6).
   - **README:** the form-tree README's cells entry describes the chain and the 152:7 lesson.
   - **The record's program shows "env":** the run was launched as `track.py run … -- env PY_SAMPLE=1 …`, so its record's program is "env".
+- **Open problem for Fable** (Claude, 2026-11-09; dreeves: "can you leave notes about that for fable to try?"): `searches/formtree/closing-step.md` (tracked; this scratchpad's scratch/ paths are git-ignored). It covers:
+  - the goal (exclusions at 480, 528, 720, 864 and 1440) and the cost estimates;
+  - the 2-adic lead that closed 152:7, 168:7 and 184:7;
+  - the puzzle of why the prover, with 4 first in its want order, doesn't close 152:7's start cases as a plain LP plus the mod-4 coset would;
+  - ideas, and ground rules.
+  The form-tree README's file list points to it.
