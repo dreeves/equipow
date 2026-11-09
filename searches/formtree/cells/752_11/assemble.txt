@@ -1,0 +1,1 @@
+Claude: "VERIFIED: no sequence of length 752 has order 11.  Top {'vectors': 6066, 'passed_over': 2953, 'closed': 3106, 'kept': 4}; tasks {'tasks': 217, 'nodes': 36262, 'closed': 36262, 'fixes': 21811, 'splits': 15497, 'certs': 99130}"

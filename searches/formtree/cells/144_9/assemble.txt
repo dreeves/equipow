@@ -1,0 +1,1 @@
+Claude: "VERIFIED: no sequence of length 144 has order 9.  Top {'vectors': 67, 'passed_over': 26, 'closed': 37, 'kept': 0}; tasks {'tasks': 0, 'nodes': 0, 'closed': 0, 'fixes': 0, 'splits': 0, 'certs': 0}"

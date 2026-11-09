@@ -1,0 +1,1 @@
+Claude: "VERIFIED: no sequence of length 176 has order 8.  Top {'vectors': 256, 'passed_over': 114, 'closed': 135, 'kept': 5}; tasks {'tasks': 5, 'nodes': 240, 'closed': 240, 'fixes': 558, 'splits': 111, 'certs': 1596}"

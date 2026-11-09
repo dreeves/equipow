@@ -1,0 +1,26 @@
+{
+ "cell": "752:11",
+ "claim": "no sequence of length 752 has order 11, so m*(752) <= 10",
+ "run": "scratch/certify-20261109/752_11/run_py",
+ "starts": [
+  "2026-11-09 00:25:52 start: 752:11 procs 2 limit 240 want 11,8,13,4,9,17,19,23,16,25,27,29,31,37 mods 3,4,5,7,8,9,11,13,16,17,19,23,25,27,29,31,37 PY_SAMPLE 100",
+  "2026-11-09 01:42:01 start: 752:11 procs 2 limit 5 want 11,8,13,4,9,17,19,23,16,25,27,29,31,37 mods 3,4,5,7,8,9,11,13,16,17,19,23,25,27,29,31,37 PY_SAMPLE 1"
+ ],
+ "tasks": 217,
+ "python_checked": 217,
+ "nodes": 36262,
+ "certificates": 99130,
+ "open": 0,
+ "refused": 0,
+ "fkernel_source_sha256": "4715f2278f5cdb05be488a75e41c5cb4ad66a39435225d252df966b31914ee9f",
+ "fkernel_binary_sha256": "0ac6df04166896bb19b7b1676c515191a75d4250cea49d02b40308cf162f5f0f",
+ "formtree_py_sha256": "36acd880c7134d6c4d2dda34b9386b35100f5371de4e86f6f813981c3f4327a4",
+ "files": {
+  "assemble.txt": "9f65edcbd20bfb51673560b100e58fd7438f969843b8ffa4a11ce1392f538d24",
+  "audit.txt": "0929ed686af076cb227716cc8c4a68fa2d9107bc81b136f58441bd0d69e29127",
+  "pex_752_11_3_4_5_7_8_9_11_13_16_17_19_23_25_27_29_31_37.cfg": "1703cbc0c4fb23cd858ce848ae058c766d0804dc8486fd9ce59808a035e5d6e2",
+  "pex_752_11_3_4_5_7_8_9_11_13_16_17_19_23_25_27_29_31_37.cfg.Q.npy": "08baa16f06380517575ffae8dc409bb84dfd1a30b550c7f681b5333893c049c1",
+  "top_752_11.json.gz": "228db36b6c4a9b9868dd877db819d2df934fe90492b0271e42dc2a5aec17b419",
+  "verdicts.jsonl": "e7cf59ba30ee6a862252530f3495c7ea448e79f52d1fd11e33b4e261905a4dd1"
+ }
+}

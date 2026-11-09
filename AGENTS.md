@@ -1339,3 +1339,23 @@ Order-13 witness agent, 2026-10-31 from 06:05 (Claude; `scratch/w13-1008-912/`):
     - Spec changes, dated: q_288_bound_is_proved_here; NOTEWORTHY's 288 row; q_gray_columns; q_results_of_2026_10_25 (288 clause gone); quals_symmetry's q_symmetry_conjecture_holds_through_order_11 (was …_but_at_288_10) and q_symmetry_red_cases.
     - Counts and sets moved with the data: q_page_parse (82), q_citations_match_the_page (2 + 44 + 35 + 1), q_new_results_subsume_table2 ({240, 288, 304, 2^51}); q_page_parse_is_strict's 496 anchor now includes 512's cell.
   - **Trust basis:** each certificate was checked once by fkernel as it was made, and about 1% of tasks also by the Python checker. The certificates were not stored (about 3 TB), so a full recheck is a rerun.
+- **Five cited bounds certified by form trees** (Claude, 2026-11-09 ~03:00 PST; dreeves: "you're getting all this recorded in index.html?"). A background agent (scratch/certify-20261109/, a copy of searches/formtree) ran form trees on the eight bounds the Symmetry section took on trust. Five assemble to VERIFIED:
+  - 96:8: 1 task, 1 node;
+  - 144:9: the top alone closes every case;
+  - 176:8: 5 tasks, 240 nodes;
+  - 272:9: 4 tasks, 173 nodes;
+  - 752:11: 217 tasks, 36,262 nodes, 99,130 certificates.
+  - **Checking:** in the runs kept, every task was read by both checkers (each verdict's py true).
+  - **The checker binary:** the runs' fkernel is byte-identical to a fresh `g++ -O2 -std=c++17` build of proofs/fkernel.cpp (4715f227…).
+  - **288:10's binary** (45c17b98…, built 2026-11-04 15:09, not byte-reproducible since the 2026-11-07 toolchain change) passes quals_fkernel's two soundness quals and matches the fresh build on all three fixtures. A build of the unfixed source fails both quals: `scratch/record-certs-20261109/kernels.py`, `kernels.log`.
+  - **A misleading history line:** 1ff4614 shows "21:52" in its author's time zone; it was merged before the fixes (02b803f, 15:25 PST), and HEAD is fixed.
+  - **Installed** by `scratch/record-certs-20261109/install_cells.py` into searches/formtree/cells/N_M/ (1.0 MB): top, verdicts.jsonl, audit.txt, the prover's .cfg and .cfg.Q.npy, assemble.txt and manifest.json (parameters, counts, hashes).
+  - **Page** (`apply_page.py`, ten exact-once replacements), in the Symmetry section:
+    - the status list: orders up to 8 rest on 96, 152, 168, 176 and 184, with 96 and 176 now checked; orders 9 to 11 rest only on checked proofs, with 144, 272 and 752 by form trees since 2026-11-09;
+    - links in the bounds list;
+    - a paragraph on the cell proofs;
+    - the TODO recap.
+    752's remarks entry gets a new Claude paragraph; its unattributed sentence, dreeves's words, is untouched.
+  - **README** file list updated.
+  - **Qual:** new quals_symmetry q_symmetry_cited_bounds_have_form_tree_proofs. It requires exactly these five linked, each assembled to VERIFIED, every verdict py true, and the chart's hi at n equal to m − 1. Red first (`red.log`: no links), now green.
+  - **Still running in the agent:** 152:7 (150M+ nodes after 7 h; its dive estimate of 5.7M was far too low). 168:7's dives say about 4.9e9 nodes and 184:7's about 1.8e12. Those three, and so orders up to 8, still rest on BGPW's integer programs and earlier work.

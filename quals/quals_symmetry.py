@@ -27,7 +27,7 @@ Vocabulary, each term defined once here:
 """
 import sys
 sys.dont_write_bytecode = True
-import os, re, json, html, time, shutil, tempfile, traceback
+import os, re, json, html, time, shutil, tempfile, traceback, subprocess
 sys.setrecursionlimit(10000)                  # built()'s recipes nest a join or a wrap per level
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # the repository's root, above quals/
 sys.path.insert(0, HERE)                                              # for its modules
@@ -307,6 +307,33 @@ def q_symmetry_code_lines_are_ragged_and_unhyphenated():
     assert [i for i, *_ in looks] == [f'{n}:{k}' for n, k, _ in codes(account())], looks
     bad = [look for look in looks if look[1:] != ['manual', 'start', 'manual']]
     assert bad == [], bad
+
+
+CELLS = re.compile(r'href="https://github\.com/dreeves/equipow/tree/main/searches/formtree/cells/(\d+)_(\d+)"')
+
+
+def q_symmetry_cited_bounds_have_form_tree_proofs():
+    # Replicata: the account's links to form-tree proofs of single cells (searches/formtree/cells/N_M), each linked
+    # directory's top and verdicts in the repository, proofs/formtree.py assemble run on them, and mstar.js's columns.
+    # Expectata (dreeves, 2026-11-09, of the form-tree proofs of the bounds the account cites: "you're getting all this
+    # recorded in index.html?"): the account links a proof for exactly the cells 96:8, 144:9, 176:8, 272:9 and 752:11
+    # (m*(96) <= 7, m*(144) <= 8, m*(176) <= 7, m*(272) <= 8 and m*(752) <= 10, until then taken from earlier work, from
+    # BGPW's integer linear programs and from a meet in the middle with no certificate); each assembles to "VERIFIED: no
+    # sequence of length N has order M"; every task in it was read by the Python checker as well as by fkernel (each
+    # verdict's py is true); and each proves the chart's upper bound at N, M - 1.
+    # Resultata before: the account linked no such proof, and the proofs were in scratch/certify-20261109/ alone.
+    sec, cols = account(), qi.mstar_data()['cols']
+    cells = sorted((int(n), int(m)) for n, m in set(CELLS.findall(sec)))
+    assert cells == [(96, 8), (144, 9), (176, 8), (272, 9), (752, 11)], cells
+    for n, m in cells:
+        d = os.path.join(HERE, 'searches', 'formtree', 'cells', f'{n}_{m}')
+        top, verdicts = os.path.join(d, f'top_{n}_{m}.json.gz'), os.path.join(d, 'verdicts.jsonl')
+        out = subprocess.run([sys.executable, '-B', '-I', '-S', os.path.join(HERE, 'proofs', 'formtree.py'), 'assemble', top, verdicts],
+                             capture_output=True, text=True, timeout=600)
+        assert f'VERIFIED: no sequence of length {n} has order {m}.' in out.stdout, (n, m, out.stdout[-300:], out.stderr[-300:])
+        lines = [json.loads(line) for line in open(verdicts) if line.strip()]
+        assert all(v['py'] is True for v in lines), (n, m, [v['start'] for v in lines if v['py'] is not True])
+        assert cols[n - 1][1] == m - 1, (n, m, cols[n - 1])
 
 
 def main():

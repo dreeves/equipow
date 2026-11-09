@@ -1,0 +1,25 @@
+{
+ "cell": "272:9",
+ "claim": "no sequence of length 272 has order 9, so m*(272) <= 8",
+ "run": "scratch/certify-20261109/272_9/run",
+ "starts": [
+  "2026-11-09 00:23:00 start: 272:9 procs 4 limit 240 want 11,8,13,4,9,17,19,23,16,25,27,29,31,37 mods 3,4,5,7,8,9,11,13,16,17,19,23,25,27,29,31,37 PY_SAMPLE 1"
+ ],
+ "tasks": 4,
+ "python_checked": 4,
+ "nodes": 173,
+ "certificates": 942,
+ "open": 0,
+ "refused": 0,
+ "fkernel_source_sha256": "4715f2278f5cdb05be488a75e41c5cb4ad66a39435225d252df966b31914ee9f",
+ "fkernel_binary_sha256": "0ac6df04166896bb19b7b1676c515191a75d4250cea49d02b40308cf162f5f0f",
+ "formtree_py_sha256": "36acd880c7134d6c4d2dda34b9386b35100f5371de4e86f6f813981c3f4327a4",
+ "files": {
+  "assemble.txt": "e61b4957f23f65e4e36d7c95f869e823cac2a2c38b2ab2c680eb77c63b7fa34a",
+  "audit.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "pex_272_9_3_4_5_7_8_9_11_13_16_17_19_23_25_27_29_31_37.cfg": "3b06d7418cf96c522f942bdb004758d2fcf2800ce4c92cae5bf55b26667e973d",
+  "pex_272_9_3_4_5_7_8_9_11_13_16_17_19_23_25_27_29_31_37.cfg.Q.npy": "25eeef94d22663bc484558c0d1ecac8d72a359cc1793a57822e9590aa1af98b4",
+  "top_272_9.json.gz": "aebccc9e5f6c6e83476a00f89d163c530b83adc6a1df34ed2ed2ce05871b8806",
+  "verdicts.jsonl": "d5cd143fe94e42cd10d0fd0578de43405ba93a379bef71c1e0b77159dd49c404"
+ }
+}

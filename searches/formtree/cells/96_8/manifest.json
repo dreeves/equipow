@@ -1,0 +1,23 @@
+{
+ "cell": "96:8",
+ "claim": "no sequence of length 96 has order 8, so m*(96) <= 7",
+ "run": "scratch/certify-20261109/96_8/run",
+ "starts": [],
+ "tasks": 1,
+ "python_checked": 1,
+ "nodes": 1,
+ "certificates": 46,
+ "open": 0,
+ "refused": 0,
+ "fkernel_source_sha256": "4715f2278f5cdb05be488a75e41c5cb4ad66a39435225d252df966b31914ee9f",
+ "fkernel_binary_sha256": "0ac6df04166896bb19b7b1676c515191a75d4250cea49d02b40308cf162f5f0f",
+ "formtree_py_sha256": "36acd880c7134d6c4d2dda34b9386b35100f5371de4e86f6f813981c3f4327a4",
+ "files": {
+  "assemble.txt": "e475c89655435924c6ec1c0ac549999e30806820869d920f376d69cf55794e16",
+  "audit.txt": "349da4d284cd604ccfd28784f2cf510fcf3d2df7d8fa2eedc3f5c46b4771acdf",
+  "pex_96_8_3_4_5_7_8_9_11_13_16_17_19_23_25_27_29_31_37.cfg": "ce2859830be66a01f17c2bb489639c1b3f77012c4a3a0e1b4c23372d0d1b1340",
+  "pex_96_8_3_4_5_7_8_9_11_13_16_17_19_23_25_27_29_31_37.cfg.Q.npy": "d04a705e0a120ee04a94c453455925edfce1051fc404f2f47cb26e8ccefcd753",
+  "top_96_8.json.gz": "eff67681a8a0a0593c930a2ce4ad83826faf05de4ee026a453eb13650661e15c",
+  "verdicts.jsonl": "f0937d42977be889d748a5780043e9ad016506f1a12a0c294580bc9bcbfa364d"
+ }
+}

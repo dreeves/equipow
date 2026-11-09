@@ -1,0 +1,1 @@
+Claude: "VERIFIED: no sequence of length 272 has order 9.  Top {'vectors': 868, 'passed_over': 401, 'closed': 460, 'kept': 4}; tasks {'tasks': 4, 'nodes': 173, 'closed': 173, 'fixes': 298, 'splits': 79, 'certs': 942}"

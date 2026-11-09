@@ -1,0 +1,1 @@
+Claude: "VERIFIED: no sequence of length 96 has order 8.  Top {'vectors': 31, 'passed_over': 10, 'closed': 18, 'kept': 1}; tasks {'tasks': 1, 'nodes': 1, 'closed': 1, 'fixes': 22, 'splits': 0, 'certs': 46}"
