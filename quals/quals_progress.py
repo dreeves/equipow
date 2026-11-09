@@ -1158,8 +1158,9 @@ def q_watch_rewrites_and_sleeps():
     # Replicata: progress.main(['--watch']) with the tiny closed run as its only run, its data file (progress.js) and
     # cache in a temporary directory, and time.sleep replaced by a stub that stops the loop at its second call; then
     # main(['--bogus']).
-    # Expectata: the data file is written twice with the run in it (2026-10-17: index.html's section reads it, in place
-    # of the page progress.html), the stub sees 60 s each time, the cache (a directory since 2026-10-30, a file per
+    # Expectata: the data file is written with the run in it (2026-10-17: index.html's section reads it, in place of
+    # the page progress.html): twice until 2026-11-09, once since, as the second snapshot's runs are the first's
+    # (q_watch_rewrites_only_when_its_runs_change; this qual only counts the stub's calls), the stub sees 60 s each time, the cache (a directory since 2026-10-30, a file per
     # entry) holds the run's splits and its record of ETAs, keyed by its geometry (2026-10-30; by overnight_v5.CODE
     # before), and this process now runs at nice 15 or more; a bad argument fails with AssertionError.
     d = tempfile.mkdtemp(prefix='progress-quals-')
@@ -1195,6 +1196,80 @@ def q_watch_rewrites_and_sleeps():
     assert sorted(os.listdir(os.path.join(d, 'c.json'))) == [key + '.json', key + '_etas.json']
     assert os.nice(0) >= 15
     expect_assertion(progress.main, ['--bogus'])
+
+
+def q_watch_rewrites_only_when_its_runs_change():
+    # Replicata: progress.main(['--watch']) as in q_watch_rewrites_and_sleeps, with the tiny closed run (40@6) as its only
+    # run and a stub of time.sleep that waits 1.1 s for real, so that each snapshot is made in a later second, reads the
+    # data file at each call, and at its second call adds the tiny open run (64@7) to RUNS; stopped at its third call.
+    # Expectata (dreeves, 2026-11-09: "i guess it could be a little smarter and not update a file that's in version
+    # control with a new as-of time that isn't meaningful", then "those changes to the watcher sound reasonable"): the
+    # second snapshot, whose runs are the first's, leaves the data file byte for byte as it was, its made included; the
+    # third, with the open run added, rewrites it, its made later than the first's and both runs in it.
+    # Resultata before: every snapshot rewrote the data file, its made the snapshot's own time.
+    d = tempfile.mkdtemp(prefix='progress-quals-')
+    saved = (progress.RUNS, progress.EXTENDED, progress.JS, progress.CACHE, progress.HERE,
+             progress.files, progress.run_context, time.sleep)
+    real_sleep, texts = time.sleep, []
+    class Stop(Exception): pass
+    def stub(s):
+        texts.append(open(progress.JS, encoding='utf-8').read())
+        if len(texts) == 2: progress.RUNS = ((40, 6), (64, 7))
+        if len(texts) == 3: raise Stop
+        real_sleep(1.1)
+    progress.RUNS, progress.EXTENDED = ((40, 6),), ()
+    progress.JS, progress.CACHE = os.path.join(d, 'p.js'), os.path.join(d, 'c.json')
+    progress.HERE = d
+    progress.files = lambda n, order: tiny({(40, 6): 'closed', (64, 7): 'open'}[n, order])
+    progress.run_context = lambda n, order: progress.run_modules.context(progress,
+        progress.run_modules.load(ENGINE, progress.ROOT_V5, progress.ROOT_BX))
+    time.sleep = stub
+    try:
+        progress.main(['--watch'])
+    except Stop:
+        pass
+    finally:
+        (progress.RUNS, progress.EXTENDED, progress.JS, progress.CACHE, progress.HERE,
+         progress.files, progress.run_context, time.sleep) = saved
+        shutil.rmtree(d)
+    first, second, third = (progress_data(t) for t in texts)
+    assert texts[1] == texts[0], (first['made'], second['made'])
+    assert third['made'] > first['made'] and [r['n'] for r in third['runs']] == [40, 64], (third['made'], [r['n'] for r in third['runs']])
+
+
+def q_a_stopped_target_s_odds_stand_at_its_last_event():
+    # Replicata: progress.journal_surveys at times 20000 and 30000, with no process running, in quals_chance's campaign
+    # of q_shown_keeps_the_history_once_the_search_stops (one seed at a time at 528:12 from 1400, stopped at 10300) as
+    # HERE, its runs/ holding a tracked run of 528:12 that started at 1000 and ended at 10250, before the campaign's own
+    # journal ends at 10300 (as the real campaign journals its seeds' last work after their trackers end), and
+    # progress.CAMPAIGNS naming camp for (528, 12).
+    # Expectata (dreeves, 2026-11-09, as in q_watch_rewrites_only_when_its_runs_change): the target's runs have all
+    # ended, so its odds are chance.shown's as of its last event, the latest time on its records and its campaign's
+    # journal, 10300, at both times: the same odds, their last point at 10300, so that a stopped search's entry in the
+    # data file no longer changes from one snapshot to the next.
+    # Resultata before: chance.shown's at each snapshot's own time, their last point stamped 20000, then 30000.
+    import chance, quals_chance
+    journal = ([dict(time=1000.0, event='start')] + quals_chance.life(1100.0, 1400.0, 'probe', 1, 900.0)
+               + [x for k in range(2, 31) for x in quals_chance.life(1400.0 + 300.0 * (k - 2), 1400.0 + 300.0 * (k - 1), 'plain', k, 300.0)]
+               + [quals_chance.begun(10100.0, 'plain', 31), quals_chance.seed(10300.0, 'plain', 31, 200.0, cancelled=True),
+                  dict(time=10300.0, event='end', reason='signal')])
+    d = quals_chance.campaign(journal=journal, cells=('528:12',))
+    os.makedirs(os.path.join(d, 'runs'))
+    lines = track_record('r0', 300, 0, None, 1000.0)
+    lines[0]['target'], lines[-1]['time'] = '528:12', 10250.0
+    open(os.path.join(d, 'runs', 'r0.jsonl'), 'w').write(''.join(json.dumps(x) + '\n' for x in lines))
+    missing = object()
+    saved = {name: getattr(progress, name, missing) for name in ('HERE', 'CAMPAIGNS')}
+    try:
+        progress.HERE, progress.CAMPAIGNS = d, {(528, 12): 'camp'}
+        odds = [s['odds'] for t in (20000.0, 30000.0) for _, thunk in progress.journal_surveys([], t, {}, {}, {}) for s in thunk()]
+        at_stop = chance.shown(d, 'camp', '528:12', 10300.0)
+    finally:
+        for name, value in saved.items():
+            setattr(progress, name, value) if value is not missing else delattr(progress, name)
+        shutil.rmtree(d)
+    assert len(odds) == 2 and odds[0] == odds[1] == at_stop, [o['exists'][-1:] for o in odds]
+    assert at_stop['exists'][-1][0] == 10300.0, at_stop['exists'][-1:]
 
 
 # ---------- the data file of index.html's section "Search progress" (dreeves, 2026-10-17) ----------

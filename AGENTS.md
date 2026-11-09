@@ -63,7 +63,9 @@ The current state, kept short, since every session loads this file. Update it in
 
 ## Live processes on dreeves's Mac
 
-- **Progress watcher:** exactly one `search592_progress.py --watch` (a wrapper of `progress.py`) rewrites progress.js every minute.
+- **Progress watcher:** exactly one `search592_progress.py --watch` (a wrapper of `progress.py`) surveys every minute.
+  - Since 2026-11-09 it rewrites progress.js only when some run's data change, so the page's "As of" time is the last change.
+  - A stopped search's odds stand at its last event, which is the latest time on its tracked records or its campaign's journal.
   - Start or restart it with `scratch/watcher-20261030/launch.py`, which refuses while another runs and records its pid in `scratch/watcher-20261030/launched.json`.
   - Restart it after editing `progress.py`. Stop it by that pid, not by pgrep: a shell whose command line names it matches too.
 - **CPU sampler:** `nohup nice -n 15 /opt/homebrew/bin/python3 -B cpu.py --watch >> runs/cpu/sampler.log 2>&1 &`, from the repo root. Only one runs at a time (lock `runs/cpu/lock`); relaunch it after a reboot.

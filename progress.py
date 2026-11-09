@@ -3246,6 +3246,11 @@ def data_text(runs, now):
     return 'progressData(' + json.dumps({'made': int(now), 'runs': runs}, separators=(',', ':'), ensure_ascii=False) + ');\n'
 
 
+def runs_text(runs):
+    """The runs' entries as data_text writes them, JSON with no spaces: what main compares to tell whether they changed."""
+    return json.dumps(runs, separators=(',', ':'), ensure_ascii=False)
+
+
 def read_data(path):
     """The data file at path, as JSON (asserted to be one progressData(...); call)."""
     text = open(path, encoding='utf-8').read()
@@ -3542,6 +3547,13 @@ def journal_surveys(procs, now, cache, readings, idle):
                                         # its ETA, Gott's rule as every tracked search's (dreeves, 2026-11-04:
                                         # "shouldn't there always be an ETA graph, even when it's just based on the
                                         # lindy effect?"; from 2026-11-03, README [CON], its to_go was null)
+        # the time its odds stand at: now while a run of it lives, else its last event, the latest time on its records
+        # and, for a campaign's target, on its campaign's journal, which records its seeds' last work after their
+        # trackers end; so a stopped search's entry stops changing with the clock (dreeves, 2026-11-09: "i guess it
+        # could be a little smarter and not update a file that's in version control with a new as-of time that isn't
+        # meaningful")
+        journal = [r['time'] for _, _, rs in chance.plans(HERE, CAMPAIGNS[key]) for r in rs] if key in CAMPAIGNS else []
+        at = max([line['time'] for lines in records for line in lines] + journal) if s['state'] == 'ended' else now
         # A frozen work model replaces the age-only estimate and gives the odds
         # (dreeves, 2026-11-04: "can you take over for a while?").
         # The presence branch allows legacy runs without a model to retain Lindy.
@@ -3549,7 +3561,7 @@ def journal_surveys(procs, now, cache, readings, idle):
         if present:
             assert key in EXHAUSTIVE and s['program'] == 'ftree.py', (target, s['program'])
             work_cache = copy.deepcopy(cache.get(work_key, {}))
-            result = rooted(formtree_eta.attach(s, HERE, model, EXHAUSTIVE[key], now, work_cache))   # with its roots' dots
+            result = rooted(formtree_eta.attach(s, HERE, model, EXHAUSTIVE[key], at, work_cache))   # with its roots' dots
             cache[eta_key], cache[work_key] = etas, work_cache
             return [result]
         # its odds (see the vocabulary), as the page reads them: a campaign's from chance.shown; an exhaustive search's
@@ -3558,7 +3570,7 @@ def journal_surveys(procs, now, cache, readings, idle):
         # argument for salvaging anything")
         # TODO: error copy; says a target an exhaustive search covers needs its work model, naming the target and the model's file
         assert key not in EXHAUSTIVE, f'Claude: "{target} is covered by an exhaustive search, but its work model {model} is missing"'
-        return [s | ({'odds': chance.shown(HERE, CAMPAIGNS[key], target, now)} if key in CAMPAIGNS else {})]
+        return [s | ({'odds': chance.shown(HERE, CAMPAIGNS[key], target, at)} if key in CAMPAIGNS else {})]
     return units + [(identities[target], functools.partial(track, target, records)) for target, records in sorted(tracked.items())]
 
 
@@ -3571,13 +3583,18 @@ def main(argv, extra=()):
     assert argv in ([], ['--watch']), 'Claude: "usage: python3 -B progress.py [--watch]"'
     os.nice(max(0, NICE - os.nice(0)))
     cache, kept, readings, overruns, idle = load_cache(CACHE), seeded(JS), {}, {}, {}
+    # the runs the data file holds, as their JSON: it is rewritten only when they change, so that its made says when
+    # they last did (dreeves, 2026-11-09: "i guess it could be a little smarter and not update a file that's in
+    # version control with a new as-of time that isn't meaningful")
+    said = runs_text(read_data(JS)['runs']) if os.path.exists(JS) else None
     while True:
         try:
             procs, now = processes(), time.time()
             units = (run_surveys(procs, now, cache, readings, idle) + journal_surveys(procs, now, cache, readings, idle)
                      + [u for make in extra for u in make(procs, now)])
             runs, made = snapshot(units, kept, readings, now, overruns)
-            write_atomic(JS, data_text(runs, made))
+            if runs_text(runs) != said: write_atomic(JS, data_text(runs, made))
+            said = runs_text(runs)
             save_cache(CACHE, cache)
         except Exception:               # outside every run's survey: the watcher goes on, its data file as last written
             # TODO: log line; says this snapshot failed outside any run's survey, so the data file stays as last written
