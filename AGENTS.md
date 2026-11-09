@@ -1404,3 +1404,20 @@ Order-13 witness agent, 2026-10-31 from 06:05 (Claude; `scratch/w13-1008-912/`):
     - **The cut:** at N:7 with N = 8 × odd, Lemma 4.5 and Prop. 4.6 force f(−1) = ±128. Then one LP per sign over [−1, 1]^N with the start node's class sums mod 3, 5 and 7.
     - **Results:** 152:7 closes all 1,264 start cases; 168:7 closes 3,461 of 3,484 (23 left, with the moment rows); 184:7 closes 10,029 of 10,030 (1 left). Those two are BGPW's remaining ILP cells, which dives had put at 4.9e9 and 1.8e12 nodes.
     - **The prover's gap:** the form tree's parity coset at modulus 4 already holds f(−1)'s grid 128 + 256Z, yet its 152:7 run never closed start cases this way. With 4 first in the want order, 10 of 20 sampled start cases still took over 60 s (`scratch/eta152-20261109/order_B_4first.json`). Why is not yet known.
+- **168:7 and 184:7 certified** (Claude, 2026-11-09 13:30–13:45 PST; dreeves: "sounds good, certify 168 and 184 next"):
+  - **Method:** tops made by `scratch/certify-20261109/formtree/top_make.py` with the chain 4,3,5,7 (pintree's enumerator, whose parity coset at modulus 4 forces f(−1) = ±128 at a length 8 × odd and order 7):
+    - 184:7: 1,796 vectors, 1,038 closed, 747 passed over by symmetry, 0 kept;
+    - 152:7: 4 vectors, 2 closed, 0 kept;
+    - 168:7: 839 vectors, 440 closed, 8 kept, which the tracked run `formtree_168_7c` closed in seconds (8 tasks, 720 nodes, 3,254 certificates, every task also read by the Python checker, 0 differ).
+  - **Assembly:** `proofs/formtree.py assemble` prints VERIFIED for all three (152 and 184 from their tops with an empty verdicts file).
+  - **Positive controls,** with the same chain:
+    - 200:7: 287 start nodes;
+    - 216:7: 20,160 start nodes;
+    - in both, mstar.build's order-7 sequence (f(−1) = −128) and its reversed negation are among the kept start nodes (`scratch/bg-20261109/seq_in_top4.py`).
+  - **Installed** by `scratch/bg-20261109/install_cells2.py` into searches/formtree/cells/{152_7,168_7,184_7}: top, verdicts, audit.txt (168 only), configuration, assemble.txt, and a manifest with the chain, the top's counts and the controls.
+  - **Page** (`apply_168_184.py`; backup `index.before-168-184.html`):
+    - the Symmetry section's status line, bounds-list links, the cell-proof paragraph (also correcting who checks a top's certificates: proofs/formtree.py, not fkernel) and the TODO recap;
+    - a Claude changelog line after dreeves's 2026-11-09 line.
+  - **Qual:** quals_symmetry q_symmetry_cited_bounds_have_form_tree_proofs now expects the eight cells, a dated spec change from his request. It was red (`red_168_184.log`), then green (6/6).
+  - **README:** the form-tree README's cells entry describes the chain and the 152:7 lesson.
+  - **The record's program shows "env":** the run was launched as `track.py run … -- env PY_SAMPLE=1 …`, so its record's program is "env".

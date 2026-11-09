@@ -322,9 +322,13 @@ def q_symmetry_cited_bounds_have_form_tree_proofs():
     # sequence of length N has order M"; every task in it was read by the Python checker as well as by fkernel (each
     # verdict's py is true); and each proves the chart's upper bound at N, M - 1.
     # Resultata before: the account linked no such proof, and the proofs were in scratch/certify-20261109/ alone.
+    # Spec change (dreeves, 2026-11-09: "sounds good, certify 168 and 184 next"): also 152:7, 168:7 and 184:7, by
+    # tops whose chain starts with modulus 4 (the parity coset pins f(-1) = +-128); 168 and 184 were BGPW's last two
+    # integer-linear-program bounds, and 152's, which Berend and Golan proved by hand, gets a second proof.
+    # Resultata before that: the account linked the five cells above alone.
     sec, cols = account(), qi.mstar_data()['cols']
     cells = sorted((int(n), int(m)) for n, m in set(CELLS.findall(sec)))
-    assert cells == [(96, 8), (144, 9), (176, 8), (272, 9), (752, 11)], cells
+    assert cells == [(96, 8), (144, 9), (152, 7), (168, 7), (176, 8), (184, 7), (272, 9), (752, 11)], cells
     for n, m in cells:
         d = os.path.join(HERE, 'searches', 'formtree', 'cells', f'{n}_{m}')
         top, verdicts = os.path.join(d, f'top_{n}_{m}.json.gz'), os.path.join(d, 'verdicts.jsonl')

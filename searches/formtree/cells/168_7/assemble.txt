@@ -1,0 +1,1 @@
+Claude: "VERIFIED: no sequence of length 168 has order 7.  Top {'vectors': 839, 'passed_over': 387, 'closed': 440, 'kept': 8}; tasks {'tasks': 8, 'nodes': 720, 'closed': 720, 'fixes': 907, 'splits': 337, 'certs': 3254}"

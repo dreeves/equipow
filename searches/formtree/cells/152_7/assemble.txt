@@ -1,0 +1,1 @@
+Claude: "VERIFIED: no sequence of length 152 has order 7.  Top {'vectors': 4, 'passed_over': 1, 'closed': 2, 'kept': 0}; tasks {'tasks': 0, 'nodes': 0, 'closed': 0, 'fixes': 0, 'splits': 0, 'certs': 0}"

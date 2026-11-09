@@ -1,0 +1,1 @@
+Claude: "VERIFIED: no sequence of length 184 has order 7.  Top {'vectors': 1796, 'passed_over': 747, 'closed': 1038, 'kept': 0}; tasks {'tasks': 0, 'nodes': 0, 'closed': 0, 'fixes': 0, 'splits': 0, 'certs': 0}"

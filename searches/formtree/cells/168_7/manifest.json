@@ -1,0 +1,44 @@
+{
+ "cell": "168:7",
+ "claim": "no sequence of length 168 has order 7, so m*(168) <= 6",
+ "chain": [
+  4,
+  3,
+  5,
+  7
+ ],
+ "run": "scratch/certify-20261109/168_7c",
+ "log": [
+  "2026-11-09 13:36:55 start: 168:7 procs 7 limit 240 want 11,8,13,4,9,17,19,23,16,25,27,29,31,37 mods 3,4,5,7,8,9,11,13,16,17,19,23,25,27,29,31,37 PY_SAMPLE 1",
+  "finished: 720 nodes, closed 720, OPEN 0, LPs 7164, CPU 0.00 h; certificates 3254, REJECTED 0, wrong names 0, python 8 sampled 0 differ; wall 0.00 h"
+ ],
+ "tasks": 8,
+ "python_checked": 8,
+ "nodes": 720,
+ "certificates": 3254,
+ "open": 0,
+ "refused": 0,
+ "positive_controls": {
+  "200:7": "images a and -rev of mstar.build(200), order 7, f(-1) = -128, among the 287 start nodes",
+  "216:7": "images a and -rev of mstar.build(216), order 7, f(-1) = -128, among the 20,160 start nodes"
+ },
+ "fkernel_source_sha256": "4715f2278f5cdb05be488a75e41c5cb4ad66a39435225d252df966b31914ee9f",
+ "fkernel_binary_sha256": "0ac6df04166896bb19b7b1676c515191a75d4250cea49d02b40308cf162f5f0f",
+ "formtree_py_sha256": "36acd880c7134d6c4d2dda34b9386b35100f5371de4e86f6f813981c3f4327a4",
+ "pintree_py_sha256": "265a626c1dd73c51c727845c028f329ace9b9c453539b26719c5357b9e0ba785",
+ "top": {
+  "vectors": 839,
+  "passed_over": 387,
+  "closed": 440,
+  "kept": 8,
+  "start_nodes": 8
+ },
+ "files": {
+  "assemble.txt": "c37a9c2e71831448e4ed85969335f5c7858acc3205f16cc515139a533cb982b2",
+  "audit.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "pex_168_7_3_4_5_7_8_9_11_13_16_17_19_23_25_27_29_31_37.cfg": "7621ba9590e80f21d78753227daea7e19cde8203227851d1053be09ca230aca1",
+  "pex_168_7_3_4_5_7_8_9_11_13_16_17_19_23_25_27_29_31_37.cfg.Q.npy": "6e06e148ca79285bea0bf4c208542511a37f74c89f5537fa73c375d2fb5ac1b2",
+  "top_168_7.json.gz": "89fb6ff04cb29533044409dd30d1b9e79284471d5843d32ca7018a0f7b351ed9",
+  "verdicts.jsonl": "a1bcd871b45a448b5671dea9cc1750c82ba3491b5669db6f5b2c787932df78e0"
+ }
+}

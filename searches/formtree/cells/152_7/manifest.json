@@ -1,0 +1,40 @@
+{
+ "cell": "152:7",
+ "claim": "no sequence of length 152 has order 7, so m*(152) <= 6",
+ "chain": [
+  4,
+  3,
+  5,
+  7
+ ],
+ "run": "scratch/certify-20261109/152_7c",
+ "log": [],
+ "tasks": 0,
+ "python_checked": 0,
+ "nodes": 0,
+ "certificates": 0,
+ "open": 0,
+ "refused": 0,
+ "positive_controls": {
+  "200:7": "images a and -rev of mstar.build(200), order 7, f(-1) = -128, among the 287 start nodes",
+  "216:7": "images a and -rev of mstar.build(216), order 7, f(-1) = -128, among the 20,160 start nodes"
+ },
+ "fkernel_source_sha256": "4715f2278f5cdb05be488a75e41c5cb4ad66a39435225d252df966b31914ee9f",
+ "fkernel_binary_sha256": "0ac6df04166896bb19b7b1676c515191a75d4250cea49d02b40308cf162f5f0f",
+ "formtree_py_sha256": "36acd880c7134d6c4d2dda34b9386b35100f5371de4e86f6f813981c3f4327a4",
+ "pintree_py_sha256": "265a626c1dd73c51c727845c028f329ace9b9c453539b26719c5357b9e0ba785",
+ "top": {
+  "vectors": 4,
+  "passed_over": 1,
+  "closed": 2,
+  "kept": 0,
+  "start_nodes": 0
+ },
+ "files": {
+  "assemble.txt": "adef8d27ce9190bb0375c57a9b48c5b4a42941437685009d744dd583bf29f96a",
+  "pex_152_7_3_4_5_7_8_9_11_13_16_17_19_23_25_27_29_31_37.cfg": "a1eb6fd47813bb74bffa4abbde7cdacc736eab83657b76995a9fc0f198c1c7cb",
+  "pex_152_7_3_4_5_7_8_9_11_13_16_17_19_23_25_27_29_31_37.cfg.Q.npy": "7391ed6a14a36be68a1af0fcf1ffa004a13cbda385ccafe7691693b0536373ae",
+  "top_152_7.json.gz": "fbe7bf1b166dcb9b449521c6055e3dcccb3327a2af6bb1cd1aaaf2e869572149",
+  "verdicts.jsonl": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+ }
+}
