@@ -1375,3 +1375,32 @@ Order-13 witness agent, 2026-10-31 from 06:05 (Claude; `scratch/w13-1008-912/`):
     - 2026-11-08, "BGPW's Symmetry Conjecture holds through order 11", after the 288 line.
     - Statements like m*(96) ≤ 7 can't go in: statements() requires an entry with statements to hold nothing else, and q_changelog_brings_every_new_result_up_to_date requires every n stated to be a colored cell; 96, 144, 176 and 272 are uncolored copies of Table 2.
   - **Step 3** (form-tree cost estimates for 528:12, 720:14, 480:14, 864:14 and 1440:17, plus 480:13 and 864:13 if cheap) runs in an agent in `scratch/costs-20261109/`, at most 3 heavy processes beside 152:7.
+- **152:7 on the progress page** (Claude, 2026-11-09 13:00 PST; dreeves: "should there be an ETA graph in the search progress section for this?"):
+  - **Adoption:** the run was launched by cell.sh, not track.py, so the page didn't show it. `track.py adopt formtree_152_7 152:7 92513` (tracker PID 61658, log `scratch/eta152-20261109/adopt.log`) records it in `runs/formtree_152_7.jsonl`.
+  - **What the page shows:** "m*(152) ≥ 7?", with a Lindy's-rule ETA chart, the CPU chart, one dot, and the ignorant 50% prior (no work model; IGNORANT in progress.py).
+  - **Its start:** the driver's own start, 01:23. The first launch (00:23–01:23, 4 workers) isn't counted.
+  - **Screenshot:** `scratch/eta152-20261109/shot152.py`.
+  - **Root 1151:** it spawns 1.07 new tasks per finished task, with no downward trend over 16,000 tasks (`branching.py`). So Lindy's 1 h–4 d is likely optimistic.
+- **152:7 stopped** (Claude, 2026-11-09 13:07 PST; after dreeves asked whether its little value meant "BGPW already established it, without proof, via ILP?"):
+  - **Why:** 152 is not one of BGPW's ILP cases. Those are 168, 176, 184 and 272 (scratch/oeis/reprint.txt line 583, in §5 after the proof that 272 ∉ L9: "When n = 168, 176, 184, and 272 we used ILP, which cannot be certified correct").
+  - **The hand proof:** Berend and Golan (Math. Comp. 75, 2006; `scratch/app-20261105/sources/berendgolan2006/bg2006.txt`, case 1.e) proved m*(152) = 6 by hand in six lines:
+    - |P(−1)| ≥ 128 forces the mod-2 sums to ±(64, −64), so 70 of the 76 even positions are in A;
+    - mod 3 forces (−27, 27, 0), so exactly 12 of the 51 multiples of 3 are in A;
+    - but the multiples of 6 already put more of them in A than that. (They count 25 multiples of 6 in [0, 151]; there are 26. The contradiction holds either way, and with the opposite sign too.)
+  - **The other "earlier work" bounds:** they say their negative results are by hand except N = 160, so 96 and 144 were not rigor gaps either. Their form-tree proofs are independent second proofs.
+  - **The stop:** tracker 61658 first, then process group 92484 by SIGTERM; then `track.end` wrote status −15, so the page shows it aborted.
+  - **State at the stop:** 2.319e8 nodes, 0 refused; 18,300 verdicts and 2,459 pending tasks kept in `scratch/certify-20261109/152_7/run/`.
+  - **To resume:** `scratch/certify-20261109/cell.sh 152:7 152_7 7`.
+- **Postmortem and Berend–Golan follow-up** (Claude, 2026-11-09 afternoon; dreeves: "oops, what's your postmortem on almost wasting so many CPU hours? what else needs to be double-checked in light of this? how much further can we take the techniques in Berend & Golan?"):
+  - **Waste:** about 110 CPU-hours (152:7 about 90, two stuck 152:6 controls about 20). Memory `read-sources-before-computing` records the lesson.
+  - **Table 2 citations for upper bounds:** the chart takes exactly eight from Table 2: 56, 96, 144, 152, 168, 176, 184, 272.
+    - 56, 96, 144 and 152 have printed proofs by hand: Boyd, and Berend and Golan's §4 and cases 3.a and 1.e.
+    - 168, 176, 184 and 272 come from BGPW's ILPs. Form trees now prove 176 and 272, so only 168 and 184 lack a checked proof.
+    - Berend and Golan's one computer-dependent bound, m*(160) ≤ 7, the chart proves itself (residue mod 9).
+  - **Page:** `scratch/bg-20261109/apply_handproofs.py` corrected the Symmetry section and its TODO recap to say so (backup `index.before-handproofs.html`).
+    - dreeves had rewritten the two new changelog lines and removed "TODO:" from their comments. quals_index's changelog() then refused them, since it skipped only TODO comments; it now skips any one-line comment. That is a spec change, with a dated comment in q_changelog_sits_under_the_authors_as_in_freshat.
+    - Checks: red on his edit, green after. A junk line in the changelog is still refused, and an arbitrary comment is accepted.
+  - **Berend and Golan's 152 argument as an LP screen** (`scratch/bg-20261109/bg_lp.py`, float HiGHS, a screen, not a proof):
+    - **The cut:** at N:7 with N = 8 × odd, Lemma 4.5 and Prop. 4.6 force f(−1) = ±128. Then one LP per sign over [−1, 1]^N with the start node's class sums mod 3, 5 and 7.
+    - **Results:** 152:7 closes all 1,264 start cases; 168:7 closes 3,461 of 3,484 (23 left, with the moment rows); 184:7 closes 10,029 of 10,030 (1 left). Those two are BGPW's remaining ILP cells, which dives had put at 4.9e9 and 1.8e12 nodes.
+    - **The prover's gap:** the form tree's parity coset at modulus 4 already holds f(−1)'s grid 128 + 256Z, yet its 152:7 run never closed start cases this way. With 4 first in the want order, 10 of 20 sampled start cases still took over 60 s (`scratch/eta152-20261109/order_B_4first.json`). Why is not yet known.

@@ -1316,9 +1316,10 @@ def q_changelog_sits_under_the_authors_as_in_freshat():
     # doc.bmndr.co/freshat"): as FreshAt's changelog follows its byline, a <details class="changelog"> follows the
     # byline, the lede lines next after the title, whatever his words there (one or more since 2026-10-29, dreeves:
     # "yes to allowing 2 lines for the byline"), with only comments between,
-    # and has no open attribute, so it starts closed; a summary, and the rest entries, and TODO comments, for entries
-    # in Claude's words; each entry a <p> on its own line, "YYYY-MM-DD: what changed" as in FreshAt, a real date,
-    # newest first.
+    # and has no open attribute, so it starts closed; a summary, and the rest entries and one-line comments (TODO
+    # comments for entries in Claude's words, and, since 2026-11-09, whatever comments dreeves keeps: he rewrote two
+    # entries and dropped their comments' "TODO:", which the parser had required); each entry a <p> on its own line,
+    # "YYYY-MM-DD: what changed" as in FreshAt, a real date, newest first.
     # Resultata before: no changelog.
     dates = [d for d, _ in changelog()]
     assert dates and all(datetime.date.fromisoformat(d).isoformat() == d for d in dates), dates
@@ -1334,7 +1335,7 @@ def changelog():
                  r'  <details class="changelog">\n    <summary>[^\n]*</summary>\n(.*?)\n  </details>\n',
                  head.group(1) + '\n', re.S)
     assert m, head.group(1)[:800]
-    lines = [l.strip() for l in m.group(1).split('\n') if not re.fullmatch(r'\s*<!-- TODO:.*-->', l)]
+    lines = [l.strip() for l in m.group(1).split('\n') if not re.fullmatch(r'\s*<!--.*-->', l)]
     entries = [re.fullmatch(r'<p>(\d{4}-\d{2}-\d{2}): (\S.*)</p>', l) for l in lines]
     assert entries and all(entries), lines
     return [e.groups() for e in entries]
