@@ -2705,6 +2705,112 @@ def q_pin_trees_are_on_the_page():
     assert smallest_table()[11] == ['12', '480', '480', '✓'], smallest_table()[11]
 
 
+def formtree_checker():
+    """proofs/formtree.py, the form trees' Python checker, as a module (it loads proofs/pintree.py itself)."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location('formtree', os.path.join(HERE, 'proofs', 'formtree.py'))
+    module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
+    return module
+
+
+def bound_steps(ft, path):
+    """A form-tree stream's bound steps, in order, as proofs/formtree.py's checker (ft) reads them: (the form's modulus,
+    its grid's step, the grid's offset, the lower bound and the upper bound that the step's two certificates prove,
+    the grid's values within them).  The checker then takes each line itself, so a stream it refuses stops this."""
+    out, task = [], None
+    for parts in (line.split() for line in ft.open_text(path)):
+        kind, numbers = parts[0], [int(x) for x in parts[1:]]
+        if kind == 'T':
+            task = ft.Task(ft.Cell(numbers[0], numbers[1]))
+            continue
+        if kind == 'E':
+            assert task.done, 'a task of the stream did not close'
+            continue
+        if kind == 'B':
+            i, sym = numbers[0], numbers[1]
+            U = ft.Certificate(numbers, 3, task.cell.m); D = ft.Certificate(numbers, U.end, task.cell.m)
+            M, w, st, c0 = task.forms[i]
+            hi, lo = task.bound(U, M, w, 1), -task.bound(D, M, w, -1)
+            first, count = ft.grid_count(max(lo, 0) if sym else lo, hi, c0, st)
+            out.append((M, st, c0 % st, lo, hi, [first + st * j for j in range(count)]))
+        task.feed(kind, numbers)
+    return out
+
+
+def q_form_trees_have_their_exposition():
+    # Replicata: the page's section on form-tree proofs, without its comment; the paths and ids its links name; the
+    # finished proof at 288 for order 10 (its top, searches/formtree/top_288_10.json.gz, and its tasks' verdicts, in
+    # run288v_snapshot.tar.gz, assembled by proofs/formtree.py; the run's counts, run288v_progress.json); the
+    # manifests of the single cells' proofs (searches/formtree/cells/*/manifest.json); and the bound steps of
+    # searches/formtree/fixtures/small.txt, a small real stream, as proofs/formtree.py's checker reads them.
+    # Expectata (dreeves's README, [FTP], 2026-11-10: "add exposition, attributed to Claude, that defines and describes
+    # form-tree proofs"): the page has a <section class="formtree" aria-labelledby="formtree-title"> with a block quote
+    # and an <h2 id="formtree-title">.  What it says holds on the data, whatever its words: every link in it is into
+    # the repository, to a file (blob) or a folder (tree) that is there, or into the page, to an id that is there;
+    # every number in it with a thousands separator is one of the proofs' counts (the assembled proof at 288: tasks,
+    # nodes, splits, the splits' children, pins without a split, certificates, and the tasks the Python checker read
+    # too, their nodes in all and the most in one of them; a single cell's tasks, nodes or certificates); and each
+    # <li data-step="k"> holds the numbers of the
+    # stream's k-th bound step: the form's modulus, its grid's step and (when not 0) offset, its two bounds and the
+    # values left.  No sentence, number or item has to be there.
+    # Resultata before: the page cited form-tree proofs (the changelog, the entries of 288 and 752, the Symmetry
+    # section) and said nowhere what one is.
+    import glob, io, tarfile
+    text = page()
+    sec = re.search(r'<section class="formtree" aria-labelledby="formtree-title">(.*?)</section>', text, re.S)
+    assert sec, 'no section of the form trees'
+    assert '<blockquote class="claude">' in sec.group(1) and '<h2 id="formtree-title">' in sec.group(1), sec.group(1)[:300]
+    said = re.sub(r'<!--.*?-->', '', sec.group(1), flags=re.S)
+    hrefs = re.findall(r'href="([^"]*)"', said)
+    assert all(f'id="{h[1:]}"' in text for h in hrefs if h.startswith('#')), hrefs
+    repo = [re.fullmatch(r'https://github\.com/dreeves/equipow/(blob|tree)/main/([^#?]+)', h) for h in hrefs if not h.startswith('#')]
+    assert all(repo), hrefs
+    there = {'blob': os.path.isfile, 'tree': os.path.isdir}
+    assert all(there[r.group(1)](os.path.join(HERE, *r.group(2).split('/'))) for r in repo), hrefs
+    ft = formtree_checker()
+    FT = os.path.join(HERE, 'searches', 'formtree')
+    n, m, starts, stats = ft.check_top(os.path.join(FT, 'top_288_10.json.gz'))
+    with tarfile.open(os.path.join(FT, 'run288v_snapshot.tar.gz'), 'r:gz') as t:
+        member = t.getmember('verdicts.jsonl')
+        assert member.size < 200e6, member.size                 # 46 MB as saved: nothing larger is read into memory
+        verdicts = [json.loads(line) for line in io.TextIOWrapper(t.extractfile(member), encoding='ascii') if line.strip()]
+    total = ft.assemble([s['name'] for s in starts], verdicts)
+    progress = json.load(open(os.path.join(FT, 'run288v_progress.json')))
+    read_twice = sum(v['py'] is True for v in verdicts)
+    assert (n, m, total['tasks'], total['nodes'], total['certs'], read_twice) == \
+        (288, 10, progress['tasks_done'], progress['nodes'], progress['certificates'], progress['python_sampled']), (total, progress)
+    cells = [json.load(open(f)) for f in sorted(glob.glob(os.path.join(FT, 'cells', '*', 'manifest.json')))]
+    assert cells, 'no single cell has a manifest'
+    counts = {total[k] for k in ('tasks', 'nodes', 'splits', 'fixes', 'certs')} | {total['nodes'] - total['tasks'], read_twice}
+    counts |= {sum(v['nodes'] for v in verdicts if v['py'] is True), max(v['nodes'] for v in verdicts if v['py'] is True)}
+    counts |= {c[k] for c in cells for k in ('tasks', 'nodes', 'certificates')}
+    plain = re.sub(r'<[^>]*>', ' ', said)
+    big = [int(s.replace(',', '')) for s in re.findall(r'(?<![\d,.])\d{1,3}(?:,\d{3})+(?![\d,])', plain)]
+    assert all(b in counts for b in big), ([b for b in big if b not in counts], sorted(counts))
+    steps = bound_steps(ft, os.path.join(FT, 'fixtures', 'small.txt'))
+    for k, li in re.findall(r'<li data-step="(\d+)">(.*?)</li>', said, re.S):
+        M, st, c0, lo, hi, values = steps[int(k) - 1]
+        numbers = {int(x) for x in re.findall(r'-?\d+', re.sub(r'<[^>]*>', ' ', li).replace('−', '-'))}
+        need = {M, st, lo, hi, *values} | ({c0} if c0 else set())
+        assert need <= numbers, (k, sorted(need - numbers), li)
+
+
+def q_form_trees_section_is_styled_as_the_pin_trees_is():
+    # Replicata: page/style.css without its comments: each rule's list of selectors.
+    # Expectata: the form trees' section, a block quote like the pin trees' right above it, is laid out as that one is
+    # (the text's measure, the quote's rule and the space between its parts, its lists, its attribution's color): in
+    # every list of selectors that names .pintree, each selector with .pintree stands with .formtree in its place too,
+    # and .formtree is named nowhere else.
+    # Resultata before: no rule named .formtree, so the section's text ended 40 px past the measure
+    # (q_prose_has_one_measure: 776 px for 736) and its quote had neither rule nor spacing.
+    style = re.sub(r'/\*.*?\*/', '', page_css(), flags=re.S)
+    lists = [[s.strip() for s in selectors.split(',')] for selectors in re.findall(r'([^{}]+)\{[^{}]*\}', style)]
+    pin = [(s, l) for l in lists for s in l if '.pintree' in s]
+    form = [(s, l) for l in lists for s in l if '.formtree' in s]
+    assert pin and all(s.replace('.pintree', '.formtree') in l for s, l in pin), [s for s, l in pin if s.replace('.pintree', '.formtree') not in l]
+    assert all(s.replace('.formtree', '.pintree') in l for s, l in form), [s for s, l in form if s.replace('.formtree', '.pintree') not in l]
+
+
 def q_example_at_768_has_its_code_of_order_13():
     # Replicata: the remarks' entry naming 768, its codes decoded by the paper's Table 5 convention (the left half of the signs, 1 = +1, then the
     # rest by (-1)^m symmetry), the new results' cell of 768, the changelog's statements of 2026-11-03, and mstar.js's column.

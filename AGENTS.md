@@ -44,12 +44,15 @@ I'm tentatively retiring the following rules that seem unncessary for Fable and 
 
 The current state, kept short, since every session loads this file. Update it in place and keep it to a page or two. Dated notes on finished work go at the end of `AGENTS-history.md`. That file holds this scratchpad as it stood on 2026-11-09 (387 KB), byte for byte; grep it for any search, run, deployment or decision. Paths under `scratch/` exist only on dreeves's Mac, since git ignores `scratch/`.
 
-## Where things stand (2026-11-09)
+## Where things stand (2026-11-10)
 
 - **The project and page:**
   - The project began as a claude.ai chat (2026-10-03 to 06), whose prompts and replies are in sourcery.html.
   - The page is index.html, at https://equipow.dreev.es; dreeves pushes.
   - Its m*(n) chart (Figure 1) runs to n = 1024 and comes from `mstar.py` → `mstar.js`. Its powers-of-2 chart (Figure 2) runs to 2^72 and comes from `pow2.py` → `pow2.js`.
+- **The README's tasks:** taken one at a time, in its order (dreeves, 2026-11-10), each left for his review before the next, since they edit the same page.
+  - [FTP] is done (2026-11-10): the page's section "Form-tree proofs", after the pin trees'. `quals_index.q_form_trees_have_their_exposition` holds its links and numbers to the proofs' data.
+  - Next is [SYM]. The page links no .txt file ([MAI], quals_codes).
 - **Open cells:** 480 (12–14), 528 (11–12), 720 (13–14) and 864 (12–14), plus 1440 (16–17) past the chart. OEIS A323395:
   - a(12) ∈ {480, 672};
   - a(13) ∈ {480, 720, 864, 960};
@@ -61,6 +64,7 @@ The current state, kept short, since every session loads this file. Update it in
   - Form-tree cost estimates (2026-11-06, 2026-11-09) put every open cell out of reach. 480:14, the one exception, takes about 3–4 weeks of the Mac and settles nothing alone.
   - The 528:12 witness campaign stopped after 124 CPU-hours, with its model's P(exists) down to about 4%.
 - **Open problem for the next model:** `searches/formtree/closing-step.md`, a stronger way for the form tree to close nodes.
+  - Its first puzzle is answered (2026-11-10): at the moduli 4, 8, 9, 16, 25 and 27 the prover reads its forms with their classes permuted (`pex.write_config` writes the digits order, `pex.cpp` reads weights by class). With the weights put by class, 152:7's start cases close in one node; the first levels of the 480 trees change by a few percent at most, so the estimates stand. `write_config` is not fixed yet (a prover change, a qual first; the kept `.cfg` files stay). Notes: `scratch/forms-20261110/NOTES.md`.
 
 ## Live processes on dreeves's Mac
 
@@ -78,7 +82,7 @@ The current state, kept short, since every session loads this file. Update it in
 
 - **Environment:** run everything from the repo root with `/opt/homebrew/bin/python3` (3.13).
   - fpylll needs `PYTHONPATH=scratch/lower24-design/beyond1000/pylib`.
-  - highspy is not in this Python (2026-11-10). `searches/pintree/pintree_prove.py` and quals_pintree's two prover quals need it. pip installs it only with `--break-system-packages`, which Claude Code's auto mode refuses, so the install is dreeves's to run. `scratch/green-20261109/venv/bin/python` sees the system's packages and has highspy.
+  - highspy 1.15.1 is in the user site since 2026-11-10, beside ortools, sympy, mpmath and PIL (numpy and scipy are Homebrew's). `searches/pintree/pintree_prove.py` and quals_pintree's two prover quals need it. A new package goes there too, on Python's own path, so that no code and no qual depends on `PYTHONPATH`. pip installs there only with `--user --break-system-packages`, which Claude Code's auto mode refuses, so the install is dreeves's to run.
   - Plain `g++ -std=c++17` builds C++ since 2026-11-07.
 - **Layout:**
   - quals in `quals/`, run as `python3 -B quals/quals_X.py` (a few suites only run that way);
@@ -97,7 +101,7 @@ The current state, kept short, since every session loads this file. Update it in
   - After changing a chart's data, rerun `python3 -B mstar.py` and rebuild preview.png with `scratch/record-20261025/page/preview.py 0.40`.
   - Changelog entries are math statements per day (`quals_index.statement`), with noteworthy results on lines of their own (`NOTEWORTHY`).
 - **Quals:** red first, then green. No qual reads dreeves's words. A spec change needs his OK and a dated comment.
-  - `scratch/green-20261109/run.py NAME` runs all 87 suites in turn, in about 85 minutes, and lists the red ones. On 2026-11-10 all are green except quals_pintree's two prover quals, which need highspy.
+  - `scratch/green-20261109/run.py NAME` runs all 87 suites in turn, in about an hour and a half, and lists the red ones. On 2026-11-10 all are green.
   - dreeves, 2026-11-09, after a rename on the page cost an evening: "we need more quals for substantive things and fewer quals enforcing words on the page." A qual protects a number, a sequence, a link, a structure or a behavior, not wording.
   - The page's words live only on the page (2026-11-09). A credit of the new results is its cells' class (c, j, ca, a, s) in mstar.py's NEW and in mstar.js's ["page", who]; the boxes and readouts take its label from the page's legend (`credit` in page/shared.js). Renaming a cell's title or a legend label needs no other edit.
   - When a prose edit turns a qual red because the qual pins wording, cut that check and nothing more. A sweep of every suite for such quals, with a script made for it, was "drastic overkill" (dreeves, 2026-11-09: "we could've just nixed quals that failed due to wording as they arose"); what it found is fixed, and the script is in `scratch/keys-20261109/`, not in the tree. A qual that holds a sentence compares its figures, the text without its words (`figures`, `among` in quals_index).

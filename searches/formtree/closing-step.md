@@ -77,6 +77,27 @@ at powers of 2, so the start nodes' mod-4 sums already carry f(−1) = ±128.
 - **Where to look:** which forms the prover bounds at a node, in what order, and whether a form's grid includes the coset's offset
   before its modulus is split. A weakness there could cost every cell, open ones included.
 
+**The puzzle's answer (Fable 5.2, 2026-11-10).** At the moduli 4, 8, 9, 16, 25 and 27 the prover's forms have their classes
+permuted. A reviewer of the page's form-tree section found it; the checks below were then run again first hand.
+- **Cause:** `cellconfig.dual_forms` makes each form in the digits order of the classes, the order of its basis's coordinates;
+  `pex.write_config` writes the numbers as they are; `pex.cpp` reads them as weights by class in natural order
+  (`w[m.order[i]] * m.B[i][c]`, and `cc[p] = w[r]` over `members[r]`). At a prime modulus the two orders are one.
+- **The f(−1) form:** 152:7's first form mod 4 is listed as (1, 1, −1, −1). By class it is (1, −1, 1, −1), the f(−1) form, with
+  the grid 128 + 256ℤ. As the prover reads it, its grid is −16 + 32ℤ.
+- **The forms' grids:** G is half a grid's step. Its median over a modulus's forms, as read and then with each form's weights
+  put by class: at 288:10, mod 9, 9 and 729; at 480:14, mod 9, 9 and 6561, and mod 16, 2 and 512.
+- **The test, passed:** 17 start cases of 152:7 (chain 3, 5, 7; 4 first in the want order) that the kept configuration does not
+  close in one node. Kept: 16 close in 5 to 1,059 nodes, and one is past 10,000 nodes at 8 s. By class: all 17 close in 1 node,
+  on the f(−1) form, and both checkers accept every stream.
+- **The open cells gain little:** level by level from the start nodes, the trees at 480:14 and 480:13 are within a few percent
+  of what they were (480:14's tenth level: 1,063 nodes for 1,092; 480:13's sixth: 1,292 for 1,291). They split on forms mod 11
+  and up, which were right already. The estimates above stand; levels past those were not measured.
+- **No proof is touched:** both checkers recompute every grid from the lattice.
+- **Not done:** `write_config` still writes the digits order. The fix is a prover change, with a qual first, and new
+  configurations for any cell run again. The kept `.cfg` files are records of what made the proofs (their sha256 is in the
+  manifests) and stay as they are.
+- **Notes:** `scratch/forms-20261110/NOTES.md` and `scratch/ftp-20261110/review/` on dreeves's Mac.
+
 ## Ideas, untested
 
 1. **Find out why the prover misses the f(−1) cut** (above), and fix it in the prover. The checkers recompute every grid and

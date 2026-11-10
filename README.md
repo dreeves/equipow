@@ -6,13 +6,16 @@ LittlewoodPolynomialsReprint.pdf is the published version of the paper this is e
 ---
 
 Potential tasks: 
-* [SYM] i think i'd rather have this symlarge proof in index.html, but default collapsed. i think there are a lot of other things i'd rather bring inline as well. see tasks [REO] and [REF] in the README
-* [COM] Be more principled about what to omit from Figure 1. Idea: checkboxes for what's omitted:
+* [FTP] add exposition, attributed to Claude, that defines and describes form-tree proofs
+* [SYM] i think i'd rather have this symlarge proof in index.html, but default collapsed. i think there are a lot of other things i'd rather bring inline as well. see tasks [REO] and [REF] here in the README
+* [COM] Be more principled about what to omit from Figure 1. Idea: checkboxes for what's omitted, in terms of the biggest power of two factor:
   [ ] Nothing
   [ ] n>0 is odd => `m*(n) = 0`
   [ ] n>2 is an odd multiple of 2 => `m*(n) = 1`
   [ ] n>4 is an odd multilple of 4 => `m*(n) = 3`
   [ ] n>=200 is an odd multiple of 8 => `m*(n) = 7`
+  (Do we have or can we get a similar result when the biggest power of two factor is 16?)
+* [BOU] Let's try having Figure 1 go up to 2048. Actually, let's try this: replace the reset-zoom button with "cap:" and then buttons for 2^6, 2^7, 2^8, 2^9, 2^10, 2^11.
 * [MAI] Let's get more things as expandable sections of the main equipow page instead of linking to separate pages. Proofs currently in txt files for starters.
 * [CLU] Are there past searches we don't care about anymore that we don't need on the page? Some are interesting for posterity.
 * [REO] See the notes in the index.html comments tagged [REO]. Better organization / less redundancy.
