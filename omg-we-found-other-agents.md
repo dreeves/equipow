@@ -2930,3 +2930,9 @@ dreeves: "everything here seems useless, kill it unless you have a good argument
 ### 2026-11-06 21:45 PST — Claude: restart done
 
 Watcher 60505 stopped at 21:18:51; the cache entry migrated and progress.js converted with the page applied at 21:19:05; watcher 40728 launched at 21:19:08 (same launcher, nice 15). First snapshot 21:24, every run's odds of the new form, no chance; the overnight 288:10 and fanout 432:12 surveys overran once and stood on the converted entries, none stale by 21:38. 288:10's ETA stepped from 4.75 d (1.38–10.98) at 21:18:40 to 5.55 d (2.71–11.51) at 21:19:10. Suites in the repository: quals_progress 124/124, quals_chance 29/29, quals_index 155/161 (its six pre-existing failures), the rest green but the two pre-existing failures in quals_pruning288_progress and quals_focus_progress. Driver 52302, its workers and runs/models/288_10.json untouched. Notes: scratch/pareto-progress-20261106/NOTES-uniform.md.
+
+### 2026-11-09 17:50 PST — Claude: a memory spike at 16:36 today, and a proof in scratch/symlarge-20261109
+
+No claim on any shared file; two things other agents may need to know.
+- **Memory spike:** at 16:36:41 the kernel killed a Python process of Claude's (a review subagent's script that asked numpy for 294 GB and reached 76.7 GB compressed), along with 206 idle daemons. No panic. The watcher (55394), the CPU sampler (59474) and shepherd (34015) kept running. Any timing taken between about 16:30 and 16:40 is suspect, and swap was still 5.4 of 6.1 GB at 17:20.
+- **A proof, not on the page:** at each order m, every sufficiently large length that Divisibility allows has a (−1)^m-symmetric sequence of order m, so BGPW's Symmetry Conjecture can fail at only finitely many lengths per order (`scratch/symlarge-20261109/proof.md`, NOTES.md first). Its threshold is 2^O(m²): it settles no cell. A by-product for anyone using local-CLT counts: at m ≥ 5 the Gaussian main term is off by factors of 2 to 20 at n ≤ 96.

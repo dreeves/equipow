@@ -40,10 +40,10 @@
   <details class="changelog">
     <summary><i>Changelog</i></summary>
     <!-- Form-tree proofs now back five upper bounds the page already had, each certificate checked by fkernel as it was made and every task read again by the Python checker: at 96, 144, 176 and 272 (BGPW's, from their integer linear programs and earlier work) and at 752 (Claude and Astra's, from a computation with no certificate) -->
-    <p>2026-11-09: Claude adds form-tree proofs of known upper bounds: 96, 144, 176, 272, 752</p>
+    <p>2026-11-09: Claude Opus 5.5 adds form-tree proofs of known upper bounds: 96, 144, 176, 272, 752</p>
     <!-- Form-tree proofs at 168 and 184 check the last two of the bounds BGPW computed by integer linear programming, which they wrote cannot be certified, so every upper bound under their descriptions of the lengths of orders 7 and 8 now has a checked proof; and that one at 152 checks Berend and Golan's proof by hand -->
-    <p>2026-11-09: Claude adds form-tree proofs at 168 and 184 (not certified in BGPW)</p>
-    <p>2026-11-09: Claude adds form-tree proof at 152 (Berend and Golan's proof by hand)</p>
+    <p>2026-11-09: Claude Opus 5.5 adds form-tree proofs at 168 and 184 (not certified in BGPW)</p>
+    <p>2026-11-09: Claude Opus 5.5 adds form-tree proof at 152 (Berend and Golan's proof by hand)</p>
     <!-- With m*(288) = 9, BGPW's Symmetry Conjecture holds for every order up to 11 at every length, given the upper bounds the Symmetry section lists: their Theorem 3.2 for orders up to 8, the page's proof for orders 9 to 11 -->
     <p>2026-11-08: Established that BGPW's Symmetry Conjecture holds through order 11</p>
     <p>2026-11-08: \(m^*(288) = 9\)</p>
@@ -98,8 +98,8 @@
     <p>2026-10-04: \(m^*(2^{24}) \ge 25\)</p>
     <p>2026-10-04: \(m^*(432) \ge 11\)</p>
     <p>2026-10-04: \(m^*(320) = 9\), \(m^*(336) \ge 9\), \(m^*(352) = 9\), \(m^*(368) \ge 9\), \(m^*(400) \ge 9\), \(m^*(416) \ge 9\), \(m^*(464) \ge 9\), \(m^*(496) \ge 9\), \(m^*(528) \ge 10\)</p>
-    <p>2026-10-04: Claude gets first wholly new result: m*(2^38) >= 39</p>
-    <p>2026-10-03: Claude Opus 5.5 finds a new order-10 partition for n=240</p>
+    <p>2026-10-04: Claude Opus 5.5 gets first wholly new result: \(m^*(2^{38}) \ge 39\)</p>
+    <p>2026-10-03: Claude Opus 5.5 finds a new order-10 partition for \(n=240\)</p>
   </details>
   <p>
     We extend the results of Table 2 of the paper by Buhler, Golan, Pratt, and Wagon (<i>Math. Comp.</i> 90, 2021) aka BGPW.</p>
@@ -177,19 +177,19 @@
           <tr class="vals"><th scope="row">\(m^*(n)\)</th><td>6</td><td>8</td><td>6</td><td>7</td><td>6</td><td>7</td><td>6</td><td>9</td><td>7</td><td>8</td><td>7</td><td>8</td><td>7</td></tr>
         </table>
         <table class="block">
-          <tr class="ns"><th scope="row">\(n\)</th><td class="c" title='Claude alone'>240</td><td title='The published paper (2021)'>248</td><td title='The published paper (2021)'>256</td><td title='The published paper (2021)'>264</td><td title='The published paper (2021)'>272</td><td title='The published paper (2021)'>280</td><td class="j" title='Claude and BGPW'>288</td><td title='The published paper (2021)'>296</td><td class="c" title='Claude alone'>304</td><td class="s" title='BGPW'>320</td><td class="j" title='Claude and BGPW'>336</td><td class="s" title='BGPW'>352</td><td class="s" title='BGPW'>368</td><td class="a" title='Astra alone'>384</td><td class="s" title='BGPW'>400</td><td class="s" title='BGPW'>416</td><td class="c" title='Claude alone'>432</td><td class="c" title='Claude alone'>448</td><td class="s" title='BGPW'>464</td></tr>
+          <tr class="ns"><th scope="row">\(n\)</th><td class="c" title='Opus 5.5 alone'>240</td><td title='The published paper (2021)'>248</td><td title='The published paper (2021)'>256</td><td title='The published paper (2021)'>264</td><td title='The published paper (2021)'>272</td><td title='The published paper (2021)'>280</td><td class="j" title='Opus 5.5 and BGPW'>288</td><td title='The published paper (2021)'>296</td><td class="c" title='Opus 5.5 alone'>304</td><td class="s" title='BGPW'>320</td><td class="j" title='Opus 5.5 and BGPW'>336</td><td class="s" title='BGPW'>352</td><td class="s" title='BGPW'>368</td><td class="a" title='Astra alone'>384</td><td class="s" title='BGPW'>400</td><td class="s" title='BGPW'>416</td><td class="c" title='Opus 5.5 alone'>432</td><td class="c" title='Opus 5.5 alone'>448</td><td class="s" title='BGPW'>464</td></tr>
           <tr class="vals"><th scope="row">\(m^*(n)\)</th><td class="c">10</td><td>7</td><td>8</td><td>7</td><td>8</td><td>7</td><td class="j">9</td><td>7</td><td class="c">8</td><td class="s">9</td><td class="j">10</td><td class="s">9</td><td class="s">9</td><td class="a">10</td><td class="s">9</td><td class="s">9</td><td class="c">11</td><td class="c">9</td><td class="s">9</td></tr>
         </table>
         <table class="block">
-          <tr class="ns"><th scope="row">\(n\)</th><td class="c" title='Claude alone'>480</td><td class="j" title='Claude and BGPW'>496</td><td class="c" title='Claude alone'>512</td><td class="c" title='Claude alone'>528</td><td class="c" title='Claude alone'>544</td><td class="c" title='Claude alone'>560</td><td class="c" title='Claude alone'>576</td><td class="ca" title='Claude and Astra'>592</td><td class="ca" title='Claude and Astra'>608</td><td class="c" title='Claude alone'>624</td><td class="c" title='Claude alone'>640</td><td class="ca" title='Claude and Astra'>656</td></tr>
+          <tr class="ns"><th scope="row">\(n\)</th><td class="c" title='Opus 5.5 alone'>480</td><td class="j" title='Opus 5.5 and BGPW'>496</td><td class="c" title='Opus 5.5 alone'>512</td><td class="c" title='Opus 5.5 alone'>528</td><td class="c" title='Opus 5.5 alone'>544</td><td class="c" title='Opus 5.5 alone'>560</td><td class="c" title='Opus 5.5 alone'>576</td><td class="ca" title='Opus 5.5 and Astra'>592</td><td class="ca" title='Opus 5.5 and Astra'>608</td><td class="c" title='Opus 5.5 alone'>624</td><td class="c" title='Opus 5.5 alone'>640</td><td class="ca" title='Opus 5.5 and Astra'>656</td></tr>
           <tr class="vals"><th scope="row">\(m^*(n)\)</th><td class="c">12–14</td><td class="j">9</td><td class="c">9</td><td class="c">11–12</td><td class="c">10</td><td class="c">10</td><td class="c">12</td><td class="ca">10</td><td class="ca">10</td><td class="c">12</td><td class="c">10</td><td class="ca">10</td></tr>
         </table>
         <table class="block">
-          <tr class="ns"><th scope="row">\(n\)</th><td class="c" title='Claude alone'>672</td><td class="c" title='Claude alone'>688</td><td class="c" title='Claude alone'>704</td><td class="c" title='Claude alone'>720</td><td class="c" title='Claude alone'>736</td><td class="ca" title='Claude and Astra'>752</td><td class="c" title='Claude alone'>768</td><td class="ca" title='Claude and Astra'>784</td><td class="c" title='Claude alone'>800</td><td class="c" title='Claude alone'>816</td><td class="c" title='Claude alone'>832</td></tr>
+          <tr class="ns"><th scope="row">\(n\)</th><td class="c" title='Opus 5.5 alone'>672</td><td class="c" title='Opus 5.5 alone'>688</td><td class="c" title='Opus 5.5 alone'>704</td><td class="c" title='Opus 5.5 alone'>720</td><td class="c" title='Opus 5.5 alone'>736</td><td class="ca" title='Opus 5.5 and Astra'>752</td><td class="c" title='Opus 5.5 alone'>768</td><td class="ca" title='Opus 5.5 and Astra'>784</td><td class="c" title='Opus 5.5 alone'>800</td><td class="c" title='Opus 5.5 alone'>816</td><td class="c" title='Opus 5.5 alone'>832</td></tr>
           <tr class="vals"><th scope="row">\(m^*(n)\)</th><td class="c">13</td><td class="c">10</td><td class="c">10</td><td class="c">13–14</td><td class="c">10</td><td class="ca">10</td><td class="c">13</td><td class="ca">10</td><td class="c">11</td><td class="c">12</td><td class="c">11</td></tr>
         </table>
         <table class="block">
-          <tr class="ns"><th scope="row">\(n\)</th><td class="c" title='Claude alone'>848</td><td class="c" title='Claude alone'>864</td><td class="c" title='Claude alone'>880</td><td class="c" title='Claude alone'>896</td><td class="c" title='Claude alone'>912</td><td class="c" title='Claude alone'>928</td><td class="c" title='Claude alone'>944</td><td class="c" title='Claude alone'>960</td><td class="c" title='Claude alone'>976</td><td class="c" title='Claude alone'>992</td><td class="c" title='Claude alone'>1008</td><td class="c" title='Claude alone'>1024</td></tr>
+          <tr class="ns"><th scope="row">\(n\)</th><td class="c" title='Opus 5.5 alone'>848</td><td class="c" title='Opus 5.5 alone'>864</td><td class="c" title='Opus 5.5 alone'>880</td><td class="c" title='Opus 5.5 alone'>896</td><td class="c" title='Opus 5.5 alone'>912</td><td class="c" title='Opus 5.5 alone'>928</td><td class="c" title='Opus 5.5 alone'>944</td><td class="c" title='Opus 5.5 alone'>960</td><td class="c" title='Opus 5.5 alone'>976</td><td class="c" title='Opus 5.5 alone'>992</td><td class="c" title='Opus 5.5 alone'>1008</td><td class="c" title='Opus 5.5 alone'>1024</td></tr>
           <tr class="vals"><th scope="row">\(m^*(n)\)</th><td class="c">11</td><td class="c">12–14</td><td class="c">11</td><td class="c">11</td><td class="c">13</td><td class="c">11</td><td class="c">11</td><td class="c">15</td><td class="c">11</td><td class="c">11</td><td class="c">13</td><td class="c">11</td></tr>
         </table>
       </div>
@@ -202,15 +202,15 @@
       <p class="float-caption"><span class="sc">Table 2.</span>&ensp;Extended results since BGPW &mdash; powers of two</p>
       <div class="scroll">
         <table class="block">
-          <tr class="ns"><th scope="row">\(n\)</th><td title='The published paper (2021)'>\(2^3\)</td><td title='The published paper (2021)'>\(2^4\)</td><td title='The published paper (2021)'>\(2^5\)</td><td title='The published paper (2021)'>\(2^6\)</td><td title='The published paper (2021)'>\(2^7\)</td><td title='The published paper (2021)'>\(2^8\)</td><td class="c" title='Claude alone'>\(2^9\)</td><td class="c" title='Claude alone'>\(2^{10}\)</td><td class="c" title='Claude alone'>\(2^{11}\)</td><td class="c" title='Claude alone'>\(2^{12}\)</td><td class="c" title='Claude alone'>\(2^{17}\)</td><td class="c" title='Claude alone'>\(2^{18}\)</td><td class="c" title='Claude alone'>\(2^{20}\)</td><td class="j" title='Claude and BGPW'>\(2^{24}\)</td></tr>
+          <tr class="ns"><th scope="row">\(n\)</th><td title='The published paper (2021)'>\(2^3\)</td><td title='The published paper (2021)'>\(2^4\)</td><td title='The published paper (2021)'>\(2^5\)</td><td title='The published paper (2021)'>\(2^6\)</td><td title='The published paper (2021)'>\(2^7\)</td><td title='The published paper (2021)'>\(2^8\)</td><td class="c" title='Opus 5.5 alone'>\(2^9\)</td><td class="c" title='Opus 5.5 alone'>\(2^{10}\)</td><td class="c" title='Opus 5.5 alone'>\(2^{11}\)</td><td class="c" title='Opus 5.5 alone'>\(2^{12}\)</td><td class="c" title='Opus 5.5 alone'>\(2^{17}\)</td><td class="c" title='Opus 5.5 alone'>\(2^{18}\)</td><td class="c" title='Opus 5.5 alone'>\(2^{20}\)</td><td class="j" title='Opus 5.5 and BGPW'>\(2^{24}\)</td></tr>
           <tr class="vals"><th scope="row">\(m^*(n)\)</th><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td><td>8</td><td class="c">9</td><td class="c">11</td><td class="c">12</td><td class="c">13</td><td class="c">18–20</td><td class="c">19–21</td><td class="c">22–23</td><td class="j">26–29</td></tr>
         </table>
         <table class="block">
-          <tr class="ns"><th scope="row">\(n\)</th><td class="c" title='Claude alone'>\(2^{27}\)</td><td class="c" title='Claude alone'>\(2^{28}\)</td><td class="c" title='Claude alone'>\(2^{29}\)</td><td class="c" title='Claude alone'>\(2^{30}\)</td><td class="c" title='Claude alone'>\(2^{33}\)</td><td class="c" title='Claude alone'>\(2^{34}\)</td><td class="c" title='Claude alone'>\(2^{36}\)</td><td class="c" title='Claude alone'>\(2^{37}\)</td><td class="c" title='Claude alone'>\(2^{38}\)</td><td class="c" title='Claude alone'>\(2^{39}\)</td><td class="c" title='Claude alone'>\(2^{41}\)</td><td class="c" title='Claude alone'>\(2^{43}\)</td><td class="c" title='Claude alone'>\(2^{46}\)</td><td class="c" title='Claude alone'>\(2^{47}\)</td></tr>
+          <tr class="ns"><th scope="row">\(n\)</th><td class="c" title='Opus 5.5 alone'>\(2^{27}\)</td><td class="c" title='Opus 5.5 alone'>\(2^{28}\)</td><td class="c" title='Opus 5.5 alone'>\(2^{29}\)</td><td class="c" title='Opus 5.5 alone'>\(2^{30}\)</td><td class="c" title='Opus 5.5 alone'>\(2^{33}\)</td><td class="c" title='Opus 5.5 alone'>\(2^{34}\)</td><td class="c" title='Opus 5.5 alone'>\(2^{36}\)</td><td class="c" title='Opus 5.5 alone'>\(2^{37}\)</td><td class="c" title='Opus 5.5 alone'>\(2^{38}\)</td><td class="c" title='Opus 5.5 alone'>\(2^{39}\)</td><td class="c" title='Opus 5.5 alone'>\(2^{41}\)</td><td class="c" title='Opus 5.5 alone'>\(2^{43}\)</td><td class="c" title='Opus 5.5 alone'>\(2^{46}\)</td><td class="c" title='Opus 5.5 alone'>\(2^{47}\)</td></tr>
           <tr class="vals"><th scope="row">\(m^*(n)\)</th><td class="c">29–33</td><td class="c">31–34</td><td class="c">32–35</td><td class="c">33–36</td><td class="c">36–40</td><td class="c">37–41</td><td class="c">40–44</td><td class="c">41–45</td><td class="c">42–46</td><td class="c">44–47</td><td class="c">46–50</td><td class="c">48–53</td><td class="c">51–57</td><td class="c">53–58</td></tr>
         </table>
         <table class="block">
-          <tr class="ns"><th scope="row">\(n\)</th><td class="c" title='Claude alone'>\(2^{48}\)</td><td class="c" title='Claude alone'>\(2^{49}\)</td><td class="j" title='Claude and BGPW'>\(2^{51}\)</td><td class="c" title='Claude alone'>\(2^{52}\)</td><td class="c" title='Claude alone'>\(2^{56}\)</td><td class="c" title='Claude alone'>\(2^{57}\)</td><td class="c" title='Claude alone'>\(2^{58}\)</td><td class="c" title='Claude alone'>\(2^{61}\)</td><td class="c" title='Claude alone'>\(2^{65}\)</td><td class="c" title='Claude alone'>\(2^{66}\)</td><td class="c" title='Claude alone'>\(2^{67}\)</td><td class="c" title='Claude alone'>\(2^{68}\)</td><td class="c" title='Claude alone'>\(2^{71}\)</td><td class="c" title='Claude alone'>\(2^{72}\)</td></tr>
+          <tr class="ns"><th scope="row">\(n\)</th><td class="c" title='Opus 5.5 alone'>\(2^{48}\)</td><td class="c" title='Opus 5.5 alone'>\(2^{49}\)</td><td class="j" title='Opus 5.5 and BGPW'>\(2^{51}\)</td><td class="c" title='Opus 5.5 alone'>\(2^{52}\)</td><td class="c" title='Opus 5.5 alone'>\(2^{56}\)</td><td class="c" title='Opus 5.5 alone'>\(2^{57}\)</td><td class="c" title='Opus 5.5 alone'>\(2^{58}\)</td><td class="c" title='Opus 5.5 alone'>\(2^{61}\)</td><td class="c" title='Opus 5.5 alone'>\(2^{65}\)</td><td class="c" title='Opus 5.5 alone'>\(2^{66}\)</td><td class="c" title='Opus 5.5 alone'>\(2^{67}\)</td><td class="c" title='Opus 5.5 alone'>\(2^{68}\)</td><td class="c" title='Opus 5.5 alone'>\(2^{71}\)</td><td class="c" title='Opus 5.5 alone'>\(2^{72}\)</td></tr>
           <tr class="vals"><th scope="row">\(m^*(n)\)</th><td class="c">54–59</td><td class="c">55–60</td><td class="j">57–63</td><td class="c">58–64</td><td class="c">63–69</td><td class="c">64–70</td><td class="c">66–71</td><td class="c">69–75</td><td class="c">73–81</td><td class="c">74–82</td><td class="c">75–83</td><td class="c">77–84</td><td class="c">80–88</td><td class="c">81–89</td></tr>
         </table>
       </div>
@@ -218,10 +218,10 @@
   </div>
 
   <ul class="legend">
-    <li><span class="key c" aria-hidden="true">◆</span>Claude alone</li>
+    <li><span class="key c" aria-hidden="true">◆</span>Opus 5.5 alone</li>
     <li><span class="key a" aria-hidden="true">✦</span>Astra alone</li>
-    <li><span class="key ca" aria-hidden="true"><span>◆✦</span></span>Claude and Astra</li>
-    <li><span class="key j" aria-hidden="true"><span>◆●</span></span>Claude and BGPW</li>
+    <li><span class="key ca" aria-hidden="true"><span>◆✦</span></span>Opus 5.5 and Astra</li>
+    <li><span class="key j" aria-hidden="true"><span>◆●</span></span>Opus 5.5 and BGPW</li>
     <li><span class="key s" aria-hidden="true">●</span>BGPW</li>
     <li><span class="key" aria-hidden="true"></span>The published paper (2021)</li>
   </ul>
@@ -264,8 +264,8 @@
       <li><span class="swatch exists record proven" aria-hidden="true"></span><span>the smallest \(n\) for a given \(m\)</span></li>
     </ul>
     <div class="zoom">
-      <button type="button" id="mstar-zoom-out" aria-label='zoom out' title='Claude: “zoom out”'>−</button>
-      <button type="button" id="mstar-zoom-in" aria-label='zoom in' title='Claude: “zoom in”'>+</button>
+      <button type="button" id="mstar-zoom-out" aria-label='zoom out' title='zoom out'>−</button>
+      <button type="button" id="mstar-zoom-in" aria-label='zoom in' title='zoom in'>+</button>
       <!-- zooms back out to every column, n = 2 to 1024 -->
       <button type="button" id="mstar-reset" aria-label='reset zoom' title='reset zoom'>↺</button>
     </div>
@@ -327,7 +327,7 @@
   <!-- Says where the table's smallest known lengths beyond the chart come from: if f has length n and order a, and g has order b, then f(x) g(x^n) has order at least a + b, so the product of two lesser orders' lengths reaches their sum -->
   <p>Values of \(n\) beyond what the chart shows are from products: if \(f\) has length \(n\) and order \(a\), and \(g\) has order \(b\), then \(f(x)\,g(x^n)\) has order at least \(a + b\).</p>
   <!-- TODO: says that order 16's smallest n, 1440, is no product: it is the least length past 1024 that the chart's own tests leave open at order 16, every shorter one failing the 2-adic bound, a norm bound or a residue condition; that a symmetric example of order 16, found by a lattice search on 2026-11-04, reaches it, which settles a(15) = 1440 of OEIS A323395; and that order 18 at 1440 is ruled out by the residue condition mod 7, so m*(1440) is 16 or 17 -->
-  <p>Claude: “Order 16's smallest \(n\), 1440, is no product: it is the least length past 1024 that the chart's own tests leave open at order 16. 
+  <p>Opus 5.5: “Order 16's smallest \(n\), 1440, is no product: it is the least length past 1024 that the chart's own tests leave open at order 16. 
     Each shorter one fails the 2-adic bound, a norm bound or a residue condition. 
     The symmetric example below, found by a lattice search, reaches it, which settles \(a(15) = 1440\) of OEIS <a href="https://oeis.org/A323395">A323395</a>. 
     Order 18 is ruled out at 1440 by the residue condition mod 7, so \(m^*(1440) \in \{16, 17\}\).”</p>
@@ -337,7 +337,7 @@
   </p>
 </section>
 
-<!-- Claude's chart of what is known about m*(2^k) − k, the excess over Thue–Morse, for every k up to 72, drawn by the script at the end from pow2.js -->
+<!-- Chart of what is known about m*(2^k) − k, the excess over Thue–Morse, for every k up to 72, drawn by the script at the end from pow2.js -->
 <section class="pow2" aria-labelledby="pow2-title">
   <h2 id="pow2-title">Bounds on \(m^*(2^k) - k\) for every \(k\) up to 72</h2>
   <!-- Column k is n = 2^k, where Thue–Morse has order k, an excess of 0, and row δ is order k + δ, an excess of δ; that cell (k, δ) is green when m*(2^k) ≥ k + δ is known, red when m*(2^k) < k + δ is proven, and black when neither is; and that in a cell's details, τ_j is Thue–Morse of length 2^j and p_n is the best known sequence of length n -->
@@ -361,8 +361,8 @@
     <li><span class="swatch exists record proven" aria-hidden="true"></span><span>proven smallest</span></li>
   </ul>
     <div class="zoom">
-      <button type="button" id="pow2-zoom-out" aria-label='zoom out' title='Claude: “zoom out”'>−</button>
-      <button type="button" id="pow2-zoom-in" aria-label='zoom in' title='Claude: “zoom in”'>+</button>
+      <button type="button" id="pow2-zoom-out" aria-label='zoom out' title='zoom out'>−</button>
+      <button type="button" id="pow2-zoom-in" aria-label='zoom in' title='zoom in'>+</button>
       <!-- zooms back out to every column, k = 1 to 72 -->
       <button type="button" id="pow2-reset" aria-label='reset zoom' title='reset zoom'>↺</button>
     </div>
@@ -418,7 +418,7 @@ Currently the best we have is
 1440:16 <span class="nw">(\(\href{#1440:16}{p_{1440}}\)).</span> 
 So \(16/\log_2 1440 \approx 1.525\) is the newest bound on the upper envelope.
 </p>
-More from Claude:
+More from Claude Opus 5.5:
   <!-- TODO: a block quote by Claude, the corrections that take words and the answer to the question above. The limit c exists: Multiplication makes m*(2^k) superadditive in k, so by Fekete's lemma m*(2^k)/k converges to its supremum; its upper end is Boyd's bound (1997, Theorem 1), which the norm bound below sharpens: if a prime p does not divide n, then m*(n) ≤ ((p − 1)/log2 p) log2 n; at p = 3 that is 2/log2 3 ≈ 1.262, so only a multiple of 3, as 1440 = 2^5·3^2·5 is, can beat that ratio, and only a multiple of 15 can beat 4/log2 5 ≈ 1.723. m*(n)/log2 n has no limit: m*(n) is 1 for every n ≡ 2 mod 4 and at most 3 for every n ≡ 4 mod 8 (Divisibility); its limit superior is the upper envelope's ratio U, which Multiplication makes equal to the supremum of m*(n)/log2 n, so U ≥ 1.525. Claude conjectures c = 2/log2 3, the most the norm bound allows: for every k from 2 to 12 the upper bound from residue sums mod 3, 9 or 27 is attained at 2^k, as at 39 of the 43 multiples of 16 up to 1024 that are not multiples of 3; that pattern's first test is 2^13, where 14 ≤ m* ≤ 15, the 15 from the norm bound; and the lower end 66/58 is no evidence against it, since at 2^k a join of products of Thue–Morse sequences and blocks up to 1024 can show at most 11/log2 800 ≈ 1.141 times k: 2^k is not a multiple of 3, so one of the join's parts and all of that part's factors are not, and every such factor's ratio of order to log2 of its length is at most 11/log2 800, with equality at 800 among the blocks, by the chart's upper bounds, and 1 for Thue–Morse. Whether U is finite is open: U is finite exactly when the least length of order m is at least a^m for some a > 1, BGPW's last question (§7) being how that length grows; they place it between e^((1 + o(1))√m) and O(192^(m/9)), and 1440:16 lowers the latter to O(1440^(m/16)), from about 1.793^m to about 1.575^m; Boyd's bound m*(n) ≤ (1 + o(1))(ln n)^2/ln ln n (1997, Remark 1) allows either. Then, before that last paragraph (2026-11-07): past 1024, 1456 at order 12 would beat 800's ratio (12/log2 1456 ≈ 1.142), but no sequence of length 1456 has order 12: order 12 makes every sign at i ≡ 0 mod 3 the same, since 729 must divide the differences of the residue sums mod 3; P(i) = Σ_{k<12} ψ_k C(i, k), with the ψ given, is a multiple of 729 at every other i < 1456 while its values at i ≡ 0 mod 3 sum to 243 mod 729; order 12 makes Σ f_i P(i) = 0, so that sum would have to be a multiple of 729; proof1456.py (linked) checks it; so m*(1456) = 11, from the join of p432 and p1024, each name linked to its code -->
   <blockquote class="claude">
     <p>The limit \(c\) exists: Multiplication gives \(m^*(2^{a+b}) \ge m^*(2^a) + m^*(2^b)\), so by Fekete's lemma \(m^*(2^k)/k\) converges to its supremum. Its upper end is Boyd's bound (1997, Theorem 1), which the norm bound below sharpens: if a prime \(p\) does not divide \(n\), then \(m^*(n) \le \frac{p-1}{\log_2 p}\log_2 n\). At \(p = 3\) that is \(2/\log_2 3 \approx 1.262\). So only a multiple of 3, as \(1440 = 2^5 \cdot 3^2 \cdot 5\) is, can beat that ratio, and only a multiple of 15 can beat \(4/\log_2 5 \approx 1.723\).</p>
@@ -447,7 +447,7 @@ Or just start identifying redundancies and repetition on the page and fix them o
   <h2>Where the new results come from</h2>
   <!-- TODO: says how the upper bounds are proven: a partition written as signs f_0, ..., f_(n−1) and f(x) = sum f_i x^i has order m when (x − 1)^m divides f(x); for a modulus M the residue sum D_r is the number of +1s minus the number of −1s at the positions i ≡ r (mod M); f(x) reduced modulo x^M − 1 is sum D_r x^r and must still be a multiple of (x − 1)^m modulo x^M − 1, each D_r having its class size's parity and being at most that size in absolute value; and the residue condition mod M rules out order m when an exhaustive search finds no residue sums meeting all that -->
   <p>
-    Claude: “How the upper bounds are proven. 
+    Claude Opus 5.5: “How the upper bounds are proven. 
     Write a partition of \(0, 1, \ldots, n - 1\) as signs \(f_0, \ldots, f_{n-1}\), \(+1\) on one half and \(-1\) on the other, and let \(f(x) = f_0 + f_1x + \cdots + f_{n-1}x^{n-1}\). 
     Order \(m\) means that \((x - 1)^m\) divides \(f(x)\). 
     For a modulus \(M\), the residue sum \(D_r\) is the number of \(+1\)s minus the number of \(-1\)s at the positions \(i \equiv r \pmod{M}\). 
@@ -457,7 +457,7 @@ Or just start identifying redundancies and repetition on the page and fix them o
   </p>
   <!-- TODO: says the norm bound for a prime p not dividing n: with M = p and zeta a primitive pth root of unity, f(zeta) = sum D_r zeta^r is not 0 (else the D_r would all be equal, hence 0, as they sum to f(1) = 0, while some class has an odd size and so an odd D_r); it is a multiple of (zeta − 1)^m, whose norm is p^m, so its norm, a positive integer, is at least p^m; by the inequality of arithmetic and geometric means that norm is at most (p sum D_r^2 / (p − 1))^((p − 1)/2); and with s_r the size of class r and |D_r| ≤ s_r, order m needs p^(2m) (p − 1)^(p − 1) ≤ (p sum s_r^2)^(p − 1) -->
   <p>
-    Claude: “The norm bound for a prime \(p\) that does not divide \(n\) uses the same sums with \(M = p\). 
+    Claude Opus 5.5: “The norm bound for a prime \(p\) that does not divide \(n\) uses the same sums with \(M = p\). 
     Let \(\zeta\) be a primitive \(p\)th root of unity. 
     Then \(f(\zeta) = D_0 + D_1\zeta + \cdots + D_{p-1}\zeta^{p-1}\) is not 0: if it were, the \(D_r\) would all be equal, hence all 0, as they sum to \(f(1) = 0\); but since \(p\) does not divide \(n\), some class has an odd size and so an odd \(D_r\). 
     It is a multiple of \((\zeta - 1)^m\), whose norm is \(p^m\), so the norm of \(f(\zeta)\), a positive integer, is at least \(p^m\). 
@@ -466,7 +466,7 @@ Or just start identifying redundancies and repetition on the page and fix them o
   </p>
   <!-- TODO: says mstar.py and pow2.py (linked) repeat the search behind every residue claim each time they run, and that certificates that can be checked on their own, like proof512.wl for 512, are still to be done -->
   <p>
-    Claude: “<a href="https://github.com/dreeves/equipow/blob/main/mstar.py">mstar.py</a> and 
+    Claude Opus 5.5: “<a href="https://github.com/dreeves/equipow/blob/main/mstar.py">mstar.py</a> and 
     <a href="https://github.com/dreeves/equipow/blob/main/pow2.py">pow2.py</a> 
     repeat the search behind every residue claim each time they run. 
     Certificates that can be checked on their own, like proof512.wl for 512, are still to be done.”
@@ -510,19 +510,19 @@ Or just start identifying redundancies and repetition on the page and fix them o
   <!-- The entries, the list's source text, in one fold closed until clicked ([REO] step 2, the main session's design of 2026-11-03, after dreeves's "how can we reduce the redundancy and clutter? we want everything to appear in this box ... but also it would be nice to be able to grep the page and find everything?"), which find in page opens at a match; a click on a column of a chart above moves its length's entry into the column's panel, and back here when the panel closes (page/shared.js) -->
   <details>
   <!-- TODO: the fold's summary line; says the fold holds each length's entry, with its examples, codes, proofs and credits, the same entry that a click on that length's column in a chart above shows in the column's panel -->
-  <summary>Claude: “Each length's entry: its examples, codes, proofs and credits, as a click on its column in a chart above shows it”</summary>
+  <summary>Opus 5.5: “Each length's entry: its examples, codes, proofs and credits, as a click on its column in a chart above shows it”</summary>
   <ul>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 240\): &nbsp;\(m^* = 10\)</p>
       <!-- TODO: says a computer search rules out order 11: it splits the question by how many +1's fall in each residue class mod 3, 5, 7, 4, 8, 11, 13 and 9, closes every case with linear-programming certificates checked in exact integer arithmetic, and needed splitting further mod 17 for the last 606 cases and mod 19 for 4 of those -->
       <p>
-        Claude: “Order 11 is ruled out by a computer search. 
+        Opus 5.5: “Order 11 is ruled out by a computer search. 
         It splits the question by how many \(+1\)'s fall in each residue class mod 3, 5, 7, 4, 8, 11, 13 and 9, and closes every case with linear-programming certificates checked in exact integer arithmetic; the last 606 cases needed splitting further, mod 17, and 4 of those mod 19 as well.”
       </p>
       <!-- TODO: names the code of the search, with links, and says its journals hold every verdict with the hash of its proof -->
       <p>
-        Claude: “The code is 
+        Opus 5.5: “The code is 
         <a href="https://github.com/dreeves/equipow/blob/main/engine/overnight_v5.py">overnight_v5.py</a> with 
         <a href="https://github.com/dreeves/equipow/blob/main/engine/certbb.py">certbb.py</a>, and 
         <a href="https://github.com/dreeves/equipow/blob/main/engine/boxsplit.py">boxsplit.py</a> 
@@ -534,7 +534,7 @@ Or just start identifying redundancies and repetition on the page and fix them o
       <p class="entry">\(n = 288\): &nbsp;\(m^* = 9\)</p>
       <!-- TODO: says that order 10 is ruled out too, so m* = 9: the last entry of BGPW's Table 2 that gave two values, at the value they computed assuming their Symmetry Conjecture; that a form-tree search (searches/formtree, linked) examined 981,147,930 cases, every branch ending in a contradiction, while fkernel.cpp (linked), a checker that does not trust the search, checked each of its 4,902,209,550 certificates in exact integer arithmetic as it was made; that formtree.py (linked), a second checker sharing no code with fkernel, checked 1,841 of the search's 205,491 tasks again and agreed on every one, and its assemble command confirms that the tasks' verdicts, saved in run288v_snapshot.tar.gz (linked), fit together into a whole proof; and that the certificates were not kept, so checking everything again means rerunning the search, which took 104 hours on a ten-core laptop (dreeves's Mac, 2026-11-04 to 2026-11-08, shared with other work) -->
       <p>
-        Claude: “Order 10 is ruled out too, so \(m^* = 9\): the last entry of BGPW's Table 2 that gave two values, at the value they computed assuming their Symmetry Conjecture.
+        Opus 5.5: “Order 10 is ruled out too, so \(m^* = 9\): the last entry of BGPW's Table 2 that gave two values, at the value they computed assuming their Symmetry Conjecture.
         A form-tree search (<a href="https://github.com/dreeves/equipow/tree/main/searches/formtree">searches/formtree</a>) examined 981,147,930 cases, every branch ending in a contradiction, and
         <a href="https://github.com/dreeves/equipow/blob/main/proofs/fkernel.cpp">fkernel.cpp</a>, a checker that does not trust the search, checked each of its 4,902,209,550 certificates in exact integer arithmetic as it was made.
         <a href="https://github.com/dreeves/equipow/blob/main/proofs/formtree.py">formtree.py</a>, a second checker that shares no code with the first, checked 1,841 of the search's 205,491 tasks again and agreed on every one, and its assemble command confirms that the tasks' verdicts, saved in
@@ -543,7 +543,7 @@ Or just start identifying redundancies and repetition on the page and fix them o
       </p>
       <!-- TODO: says this entry is not a new result: m*(288) ≤ 10, the upper value of BGPW's Table 2 for 288, is rederived here; proof288.py (linked) checks exactly that no partition of {0, …, 287} into two parts has equal power sums for every exponent from 0 to 10, so the bound no longer has to be taken from BGPW -->
       <p>
-        Claude: “Not a new result: \(m^*(288) \le 10\), the upper value of BGPW's Table 2 for 288, is rederived here. 
+        Opus 5.5: “Not a new result: \(m^*(288) \le 10\), the upper value of BGPW's Table 2 for 288, is rederived here. 
         <a href="https://github.com/dreeves/equipow/blob/main/proofs/proof288.py">proof288.py</a> 
         checks exactly that no partition of \(\{0, \ldots, 287\}\) into two parts has equal power sums for every exponent from 0 to 10, so the bound no longer has to be taken from BGPW.”
       </p>
@@ -553,14 +553,14 @@ Or just start identifying redundancies and repetition on the page and fix them o
       <p class="entry">\(n = 304\): &nbsp;\(m^* = 8\)</p>
       <!-- TODO: says a computer search rules out order 9: it splits the question by how many +1's fall in each residue class mod 3, 5, 4, 7, 8 and 9, closes every case with linear-programming certificates checked in exact integer arithmetic, and needed splitting further mod 11 and 13 for the last 8 cases; and that this closes the route to order 21 for 2^20 through 8·304·368 + 320·480, which needed 304 to have order 9, though 2^20 now has order 22 another way, the 2^20 entry below -->
       <p>
-        Claude: “Order 9 is ruled out by a computer search. 
+        Opus 5.5: “Order 9 is ruled out by a computer search. 
         It splits the question by how many \(+1\)'s fall in each residue class mod 3, 5, 4, 7, 8 and 9, and closes every case with linear-programming certificates checked in exact integer arithmetic; the last 8 cases needed splitting further, mod 11 and then mod 13. 
         That closes the route to order 21 for \(2^{20}\) through \(8\cdot 304\cdot 368 + 320\cdot 480 = 2^{20}\), which needed 304 to have order 9. 
         \(2^{20}\) now has order 22 another way: the \(2^{20}\) entry below.”
       </p>
       <!-- TODO: names the code of the search, with links, and says its journals hold every verdict with the hash of its proof -->
       <p>
-        Claude: “The code is 
+        Opus 5.5: “The code is 
         <a href="https://github.com/dreeves/equipow/blob/main/engine/overnight_v5.py">overnight_v5.py</a> with 
         <a href="https://github.com/dreeves/equipow/blob/main/engine/certbb.py">certbb.py</a>, and 
         <a href="https://github.com/dreeves/equipow/blob/main/engine/boxsplit.py">boxsplit.py</a> 
@@ -588,7 +588,7 @@ Or just start identifying redundancies and repetition on the page and fix them o
         <code id="464:9">93C96596CB2586DB1C965964E69975A207755BE209CE5E28F2C35A92BA</code>
       </p>
       <p class="code">
-        <span>\(p_{320}\), a second example, found independently by Claude \((m = 9)\):</span>
+        <span>\(p_{320}\), a second example, found independently by Claude Opus 5.5 \((m = 9)\):</span>
         <code id="320:9">B24B649ED92CD2C36496CB2DB6295D974138BA41</code>
       </p>
       <div id="proof416" lang="en">
@@ -605,42 +605,42 @@ Or just start identifying redundancies and repetition on the page and fix them o
       <span class="mk" aria-hidden="true">◆●</span>
       <p class="entry">\(n = 336\): &nbsp;\(m^* = 10\)</p>
       <p>An example of order 10 that the BGPW authors had before Claude's work; it is not in BGPW.</p>
-      <p>Order 11 is ruled out by the residue condition mod 5 (Claude's proof).</p>
+      <p>Order 11 is ruled out by the residue condition mod 5 (Opus 5.5's proof).</p>
       <p class="code">
         <span>BGPW's example \((m = 10)\):</span>
         <code id="336:10">C87695B43E0ED258AB29C7793D8521DB227C0B746D</code>
       </p>
       <p class="code">
-        <!-- Labels this code q336 (not p336, which the powers-of-2 chart uses for the order-10 example above): an antisymmetric example found independently by Claude, the second part of the 528 example below, of order 9 -->
-        <span>\(q_{336}\), an antisymmetric example found independently by Claude; it is the second part of the 528 example below \((m = 9)\):</span>
+        <!-- Labels this code q336 (not p336, which the powers-of-2 chart uses for the order-10 example above): an antisymmetric example found independently by Opus 5.5, the second part of the 528 example below, of order 9 -->
+        <span>\(q_{336}\), an antisymmetric example found independently by Opus 5.5; it is the second part of the 528 example below \((m = 9)\):</span>
         <code id="336:9">9C5479E2669C97071E731A62EBC06F28E87B4961DF</code>
       </p>
     </li>
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 432\): &nbsp;\(m^* = 11\)</p>
-      <p>An antisymmetric example of order 11 found by Claude. BGPW also showed order 10.</p>
+      <p>An antisymmetric example of order 11 found by Opus 5.5. BGPW also showed order 10.</p>
       <!-- Says order 13 at 432 is ruled out by the residue condition mod 5 -->
       <p>Order 13 is ruled out by the residue condition mod 5.</p>
       <!-- TODO: says order 12 at 432 is ruled out as well, by a proof that two separate programs check in exact integer arithmetic (the proof file linked, the method explained in the pin trees section below), so m*(432) = 11, and a(11) = 480 of OEIS A323395 -->
-      <p>Claude: “Order 12 is ruled out too, by <a href="https://github.com/dreeves/equipow/blob/main/proofs/pintree_432_12.json.gz">a proof</a> that two separate programs check in exact integer arithmetic; the section ‘How Claude ruled out order 12 at 432 and order 13 at 816’ says how it works. So \(m^* = 11\), and \(a(11) = 480\) of OEIS <a href="https://oeis.org/A323395">A323395</a>.”</p>
+      <p>Opus 5.5: “Order 12 is ruled out too, by <a href="https://github.com/dreeves/equipow/blob/main/proofs/pintree_432_12.json.gz">a proof</a> that two separate programs check in exact integer arithmetic; the section ‘How Opus 5.5 ruled out order 12 at 432 and order 13 at 816’ says how it works. So \(m^* = 11\), and \(a(11) = 480\) of OEIS <a href="https://oeis.org/A323395">A323395</a>.”</p>
       <p class="code">
         <span>\(p_{432}\) \((m = 11)\):</span>
         <code id="432:11">5A56B0EE234E8794ADE3D0C384F72A5C63A8BD65035EF015B78B46</code>
       </p>
       <div id="lemma432">
         <!-- TODO: says what follows is the other route to the same answer, the exhaustive search in the Search progress section, which came first and was still running on 2026-11-03, and that its lemma holds at any length -->
-        <p>Claude: “What follows is the other route to the same answer: the exhaustive search in the Search progress section, which came first and was still running on 2026-11-03. Its lemma holds at any length.”</p>
+        <p>Opus 5.5: “What follows is the other route to the same answer: the exhaustive search in the Search progress section, which came first and was still running on 2026-11-03. Its lemma holds at any length.”</p>
         <!-- TODO: says that whether order 12 is possible at 432 decides a(11) of OEIS A323395, the smallest n allowing order 12 (432 if so, 480 if not); that the residue condition allows 1200 combinations of residue sums mod 3, 4, 5 and 7, and linear-programming certificates checked in exact integer arithmetic rule out all but two; that a search can split each by the value of f'(-1) = sum of (-1)^(i-1) i f_i, a linear function of the signs like the power sums; that this value is an odd multiple of 8192, so never 0; and the idea in one sentence: mod 2, where every sign is 1, every sequence of length 432 is the same polynomial, with exactly 15 factors x + 1, and the factors forced on f use all 15, so the rest of f is odd at -1 -->
-        <p>Claude: “Whether order 12 is possible at 432 decides \(a(11)\) of OEIS <a href="https://oeis.org/A323395">A323395</a>, the smallest \(n\) allowing order 12: 432 if so, 480 if not. The residue condition allows 1200 combinations of residue sums mod 3, 4, 5 and 7, and linear-programming certificates checked in exact integer arithmetic rule out all but two. A search can split each by the value of \(f'(-1) = \sum (-1)^{i-1} i f_i\), a linear function of the signs like the power sums. That value is an odd multiple of 8192, so never 0. The idea: mod 2, where every sign is 1, every sequence of length 432 is the same polynomial, with exactly 15 factors \(x + 1\); the factors forced on \(f\) use all 15, so the rest of \(f\) is odd at \(-1\).”</p>
+        <p>Opus 5.5: “Whether order 12 is possible at 432 decides \(a(11)\) of OEIS <a href="https://oeis.org/A323395">A323395</a>, the smallest \(n\) allowing order 12: 432 if so, 480 if not. The residue condition allows 1200 combinations of residue sums mod 3, 4, 5 and 7, and linear-programming certificates checked in exact integer arithmetic rule out all but two. A search can split each by the value of \(f'(-1) = \sum (-1)^{i-1} i f_i\), a linear function of the signs like the power sums. That value is an odd multiple of 8192, so never 0. The idea: mod 2, where every sign is 1, every sequence of length 432 is the same polynomial, with exactly 15 factors \(x + 1\); the factors forced on \(f\) use all 15, so the rest of \(f\) is odd at \(-1\).”</p>
         <!-- TODO: says why 8192 divides f'(-1): in both combinations the residue sums mod 4 are all 0, so reducing f(x) modulo x^4 - 1 leaves 0 and x^4 - 1 = (x - 1)(x + 1)(x^2 + 1) divides f(x); so does (x - 1)^12, by order 12, and as x + 1 and x^2 + 1 share no root with x - 1, f = Fh for F = (x - 1)^12 (x + 1)(x^2 + 1) and h with integer coefficients, F having leading coefficient 1; then f = (x + 1)g with g = (x - 1)^12 (x^2 + 1)h, and the product rule f' = g + (x + 1)g' gives f'(-1) = g(-1) = (-2)^12 * 2 * h(-1) = 8192 h(-1) -->
-        <p>Claude: “In both combinations the residue sums mod 4 are all 0, so reducing \(f(x)\) modulo \(x^4 - 1\) leaves 0: \(x^4 - 1 = (x - 1)(x + 1)(x^2 + 1)\) divides \(f(x)\). So does \((x - 1)^{12}\), by order 12, and as \(x + 1\) and \(x^2 + 1\) share no root with \(x - 1\), \(f = Fh\) with \(F = (x - 1)^{12}(x + 1)(x^2 + 1)\), where \(h\) has integer coefficients because \(F\) has leading coefficient 1. Then \(f = (x + 1)g\) with \(g = (x - 1)^{12}(x^2 + 1)h\), and \(f' = g + (x + 1)g'\) gives \(f'(-1) = g(-1) = (-2)^{12} \cdot 2 \cdot h(-1) = 8192 h(-1)\).”</p>
+        <p>Opus 5.5: “In both combinations the residue sums mod 4 are all 0, so reducing \(f(x)\) modulo \(x^4 - 1\) leaves 0: \(x^4 - 1 = (x - 1)(x + 1)(x^2 + 1)\) divides \(f(x)\). So does \((x - 1)^{12}\), by order 12, and as \(x + 1\) and \(x^2 + 1\) share no root with \(x - 1\), \(f = Fh\) with \(F = (x - 1)^{12}(x + 1)(x^2 + 1)\), where \(h\) has integer coefficients because \(F\) has leading coefficient 1. Then \(f = (x + 1)g\) with \(g = (x - 1)^{12}(x^2 + 1)h\), and \(f' = g + (x + 1)g'\) gives \(f'(-1) = g(-1) = (-2)^{12} \cdot 2 \cdot h(-1) = 8192 h(-1)\).”</p>
         <!-- TODO: says why h(-1) is odd: mod 2, keeping only the parity of each coefficient, every sign is 1, so (x + 1)f = (x + 1)(1 + x + ... + x^431) = x^432 + 1, which is (x^27 + 1)^16 = (x + 1)^16 S^16 with S = 1 + x + ... + x^26, since (a + b)^2 = a^2 + b^2 mod 2; so f = (x + 1)^15 S^16 mod 2; F is (x + 1)^(12+1+2) mod 2 too, as x - 1 = x + 1 and x^2 + 1 = (x + 1)^2 there, so cancelling (x + 1)^15 leaves h = S^16 mod 2; so h(1) has the parity of 27^16, odd, and so does h(-1), which differs from h(1) by an even number -->
-        <p>Claude: “And \(h(-1)\) is odd. Mod 2, keeping only the parity of each coefficient, every sign is 1, so \((x + 1)f = (x + 1)(1 + x + \cdots + x^{431}) = x^{432} + 1\). As \((a + b)^2 = a^2 + b^2\), \(x^{432} + 1 = (x^{27} + 1)^{16} = (x + 1)^{16}S^{16}\), with \(S = 1 + x + \cdots + x^{26}\), so \(f = (x + 1)^{15}S^{16}\). And as \(x - 1 = x + 1\) and \(x^2 + 1 = (x + 1)^2\), \(F = (x + 1)^{12+1+2}\) too, so cancelling \((x + 1)^{15}\) from \(Fh = f\) leaves \(h = S^{16}\). Then \(h(1)\) has the parity of \(S(1)^{16} = 27^{16}\): odd, and so does \(h(-1)\), which differs from \(h(1)\) by an even number.”</p>
+        <p>Opus 5.5: “And \(h(-1)\) is odd. Mod 2, keeping only the parity of each coefficient, every sign is 1, so \((x + 1)f = (x + 1)(1 + x + \cdots + x^{431}) = x^{432} + 1\). As \((a + b)^2 = a^2 + b^2\), \(x^{432} + 1 = (x^{27} + 1)^{16} = (x + 1)^{16}S^{16}\), with \(S = 1 + x + \cdots + x^{26}\), so \(f = (x + 1)^{15}S^{16}\). And as \(x - 1 = x + 1\) and \(x^2 + 1 = (x + 1)^2\), \(F = (x + 1)^{12+1+2}\) too, so cancelling \((x + 1)^{15}\) from \(Fh = f\) leaves \(h = S^{16}\). Then \(h(1)\) has the parity of \(S(1)^{16} = 27^{16}\): odd, and so does \(h(-1)\), which differs from \(h(1)\) by an even number.”</p>
         <!-- TODO: says what follows: x + 1 divides f, so f(-1) = 0 and the numbers (-1)^(i-1) f_i are half +1 and half -1, which bounds |f'(-1)| by (216 + ... + 431) - (0 + ... + 215) = 216^2 = 46,656 and leaves +-8192, +-24,576 and +-40,960; further certificates rule out all but +-8192 in both combinations; flipping every sign swaps the two combinations and negates f'(-1), so the search needs only f'(-1) = 8192, in both; and without the oddness of h(-1) it would also have to search f'(-1) = 0, where random root-to-leaf paths estimate a lower bound on the search tree's size about 12 times those for +-8192 combined -->
-        <p>Claude: “As \(x + 1\) divides \(f\), \(f(-1) = 0\): the numbers \((-1)^{i-1}f_i\) are half \(+1\) and half \(-1\), so \(|f'(-1)| \le (216 + \cdots + 431) - (0 + \cdots + 215) = 216^2 = 46{,}656\). That leaves \(\pm 8192\), \(\pm 24{,}576\) and \(\pm 40{,}960\), and further certificates rule out all but \(\pm 8192\) in both combinations. Flipping every sign swaps the two combinations and negates \(f'(-1)\), so the search needs only \(f'(-1) = 8192\), in both. Without the oddness of \(h(-1)\), it would also have to search \(f'(-1) = 0\), where random root-to-leaf paths estimate a lower bound on the search tree's size about 12 times those for \(\pm 8192\) combined.”</p>
+        <p>Opus 5.5: “As \(x + 1\) divides \(f\), \(f(-1) = 0\): the numbers \((-1)^{i-1}f_i\) are half \(+1\) and half \(-1\), so \(|f'(-1)| \le (216 + \cdots + 431) - (0 + \cdots + 215) = 216^2 = 46{,}656\). That leaves \(\pm 8192\), \(\pm 24{,}576\) and \(\pm 40{,}960\), and further certificates rule out all but \(\pm 8192\) in both combinations. Flipping every sign swaps the two combinations and negates \(f'(-1)\), so the search needs only \(f'(-1) = 8192\), in both. Without the oddness of \(h(-1)\), it would also have to search \(f'(-1) = 0\), where random root-to-leaf paths estimate a lower bound on the search tree's size about 12 times those for \(\pm 8192\) combined.”</p>
         <!-- TODO: says the general form: at length n = t u, with t a power of 2 and u odd, the same steps give f = (x + 1)^(t-1) S^t mod 2 with S = 1 + x + ... + x^(u-1), which is u at 1, odd, while multiples of x + 1 are even at 1, so f has exactly t - 1 factors x + 1 mod 2, a fixed budget; that BGPW's Theorem 4.1 (Divisibility) and their Proposition 4.6, due to Berend and Golan, both linked, bound the order by it (m < t, and m < t - 1 if x + 1 divides f); and states the lemma: a divisor of f with leading coefficient 1 that uses the whole budget, as F does at 432, leaves a quotient odd at 1 and -1 -->
-        <p>Claude: “At any length \(n = t\cdot u\), with \(t\) a power of 2 and \(u\) odd, the same steps give \(f = (x + 1)^{t-1}S^t\) mod 2, where now \(S = 1 + x + \cdots + x^{u-1}\) is \(u\) at 1, odd; as multiples of \(x + 1\) are even at 1, \(f\) has exactly \(t - 1\) factors \(x + 1\) mod 2: a fixed budget. BGPW's <a href="https://arxiv.org/html/1912.03491v1#S4.Thmthm1">Theorem 4.1</a> (Divisibility) and their <a href="https://arxiv.org/html/1912.03491v1#S4.Thmthm6">Proposition 4.6</a>, due to Berend and Golan, bound the order by it: <span class="nw">\(m < t\)</span>, and <span class="nw">\(m < t - 1\)</span> if \(x + 1\) divides \(f\). The lemma: a divisor of \(f\) with leading coefficient 1 that uses the whole budget, as \(F\) does at 432, leaves a quotient odd at 1 and \(-1\).”</p>
+        <p>Opus 5.5: “At any length \(n = t\cdot u\), with \(t\) a power of 2 and \(u\) odd, the same steps give \(f = (x + 1)^{t-1}S^t\) mod 2, where now \(S = 1 + x + \cdots + x^{u-1}\) is \(u\) at 1, odd; as multiples of \(x + 1\) are even at 1, \(f\) has exactly \(t - 1\) factors \(x + 1\) mod 2: a fixed budget. BGPW's <a href="https://arxiv.org/html/1912.03491v1#S4.Thmthm1">Theorem 4.1</a> (Divisibility) and their <a href="https://arxiv.org/html/1912.03491v1#S4.Thmthm6">Proposition 4.6</a>, due to Berend and Golan, bound the order by it: <span class="nw">\(m < t\)</span>, and <span class="nw">\(m < t - 1\)</span> if \(x + 1\) divides \(f\). The lemma: a divisor of \(f\) with leading coefficient 1 that uses the whole budget, as \(F\) does at 432, leaves a quotient odd at 1 and \(-1\).”</p>
       </div>
     </li>
     <li class="c">
@@ -655,7 +655,7 @@ Or just start identifying redundancies and repetition on the page and fix them o
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 480\): &nbsp;\(m^* \in \{12, 13, 14\}\)</p>
-      <p>A symmetric example of order 12 found by Claude.</p>
+      <p>A symmetric example of order 12 found by Opus 5.5.</p>
       <p class="code">
         <span>\(p_{480}\) \((m = 12)\):</span>
         <code id="480:12">B0CBC94F1E2C68D1E3A6371C357C4B1347952BB968236CF6C82CD9CE01F3</code>
@@ -674,11 +674,11 @@ Or just start identifying redundancies and repetition on the page and fix them o
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 512\): &nbsp;\(m^* = 9\)</p>
       <p>Order 10 is ruled out by the residue conditions mod 3, 9 and 27.</p>
-      <!-- TODO: a typeset, tightened presentation of Claude's manual proof for 512 and 496; retains its residue profile, monic-LCM step, mod-9 polynomial congruence and contradiction. Credits the proof to Claude and the revision to Astra. Original proof texts and certificate checker remain available. -->
+      <!-- TODO: a typeset, tightened presentation of Opus 5.5's manual proof for 512 and 496; retains its residue profile, monic-LCM step, mod-9 polynomial congruence and contradiction. Credits the proof to Opus 5.5 and the revision to Astra. Original proof texts and certificate checker remain available. -->
       <details class="proof-exposition" id="proof512-exposition">
         <summary>Astra: “A typeset proof for 512 and 496”</summary>
         <div class="proof-body">
-          <p>Astra: “Claude’s manual proof, with notation and exposition tightened.</p>
+          <p>Astra: “Claude Opus 5.5’s manual proof, with notation and exposition tightened.</p>
           <p><strong>Theorem.</strong> No sequence of 512 or 496 signs has order at least 10. Consequently \(m^*(512)=m^*(496)=9\).</p>
           <p><strong>Proof.</strong> Suppose \(f(x)=\sum_{i=0}^{n-1}a_ix^i\), with \(a_i\in\{-1,+1\}\), has order at least 10. The first ten power moments vanish exactly when the first ten binomial moments vanish, so</p>
           <p class="proof-equation">\(\displaystyle f=(x-1)^{10}g,\qquad g\in\mathbb Z[x].\)</p>
@@ -726,11 +726,11 @@ Or just start identifying redundancies and repetition on the page and fix them o
           <p>Finally, order 9 is attained at 512 by \(\prod_{j=0}^{8}(1-x^{2^j})\): binary expansion gives its 512 coefficients \(\pm1\), and its nine factors vanish simply at 1. BGPW’s order-9 example at 496, \(\href{#496:9}{p_{496}}\), supplies the other lower bound. \(\square\)”</p>
         </div>
       </details>
-      <p>A short proof by Claude, which also covers 496: <span data-text="proof512">proof512.txt</span>. 
+      <p>A short proof by Opus 5.5, which also covers 496: <span data-text="proof512">proof512.txt</span>. 
         The Mathematica script <a href="https://raw.githubusercontent.com/dreeves/equipow/main/proofs/proof512.wl">proof512.wl</a> checks its computations.</p>
-      <!-- The texts of the entry's two proofs, each right after the paragraph that holds its name, which page/codes.js makes a button that shows and hides it (dreeves's README, [MAI]): each a pre whose data-text-box is its name's data-text, hidden until found as the page loads, so that find in page reaches its text and opens it (dreeves, 2026-11-05: a template, which find in page does not search, defeated part of the point).  Until 2026-11-05 they were the files proofs/proof512.txt and proofs/proof512_short.txt, whose text each holds character for character, but for the curly quotes of its quotation of Claude ([CUR]), HTML-escaped -->
+      <!-- The texts of the entry's two proofs, each right after the paragraph that holds its name, which page/codes.js makes a button that shows and hides it (dreeves's README, [MAI]): each a pre whose data-text-box is its name's data-text, hidden until found as the page loads, so that find in page reaches its text and opens it (dreeves, 2026-11-05: a template, which find in page does not search, defeated part of the point).  Until 2026-11-05 they were the files proofs/proof512.txt and proofs/proof512_short.txt, whose text each holds character for character, but for the curly quotes of its quotation of Opus 5.5 ([CUR]), HTML-escaped -->
       <pre class="verbatim" data-text-box="proof512" hidden="until-found">
-This proof is all Claude -- residue argument mod 3, 9 and 27.
+This proof is all Claude Opus 5.5 -- residue argument mod 3, 9 and 27.
 
 512 and 496 are not in L_10
 (so m*(512) = 9, and with BGPW's order-9 example also m*(496) = 9)
@@ -842,7 +842,8 @@ Cross-checks done separately in Python, all exact, none needed for the proof:
       <p>A shorter “manual” proof, also covering 496: <span data-text="proof512_short">proof512_short.txt</span>.</p>
       <pre class="verbatim" data-text-box="proof512_short" hidden="until-found">
 This file is all Claude.
-Claude: “Written on 2026-10-08 by a Claude Fable 5.1 subagent in Claude Code. The same day, three Claude Opus 5.5 subagents found the same argument independently, an Opus 5.5 referee confirmed each, and Claude Opus 5.5 checked this text by hand.”
+Claude: “Written on 2026-10-08 by a Claude Fable 5.1 subagent in Claude Code. 
+The same day, three Claude Opus 5.5 subagents found the same argument independently, an Opus 5.5 referee confirmed each, and Claude Opus 5.5 checked this text by hand.”
 
 512 is not in L_10: no sequence of 512 signs has order 10. (Hence m*(512) = 9, since Thue–Morse has order 9.)
 
@@ -937,7 +938,7 @@ of them with m ≡ 0, 1, 2 mod 3) and two exceptional signs, and d_0 ≡ d_3 (mo
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 528\): &nbsp;\(m^* \in \{11, 12\}\)</p>
-      <p>BGPW had an example of order 10 before Claude's work. Claude found another independently, by joining an example of length 192 and order 9 to an antisymmetric piece of length 336 and order 9, chosen so that their 9th power sums cancel.</p>
+      <p>BGPW had an example of order 10 before Claude's work. Claude Opus 5.5 found another independently, by joining an example of length 192 and order 9 to an antisymmetric piece of length 336 and order 9, chosen so that their 9th power sums cancel.</p>
       <!-- The join f = p192 ∨ q336 (data-join: its codes' ids; data-order: its order), which page/codes.js expands as it does a code: p192's signs, then q336's -->
       <p class="code">
         <span>\(f\) \((m = 10)\):</span>
@@ -951,8 +952,8 @@ of them with m ≡ 0, 1, 2 mod 3) and two exceptional signs, and d_0 ≡ d_3 (mo
         <span>\(p_{528}\) \((m = 10)\):</span>
         <code id="528:10">D920BDA31A6FDC8423BEC528AE51365BB4A6C36E419CCEF94C45BB00D13EE1EAA5</code>
       </p>
-      <!-- TODO: says this is an antisymmetric example of order 11, found by a lattice search on 2026-10-31, so m*(528) is 11 or 12 -->
-      <p>Claude: “An antisymmetric example of order 11, found by a lattice search.”</p>
+      <!-- Says this is an antisymmetric example of order 11, found by a lattice search on 2026-10-31, so m*(528) is 11 or 12 -->
+      <p>An antisymmetric example of order 11, found by a lattice search.</p>
       <p class="code">
         <span>\(p_{528}\) \((m = 11)\):</span>
         <code id="528:11">9CA5A87A325DAF0ACC5936B5E14A70858F78E1DA867AADD8939CB718429D151737</code>
@@ -961,8 +962,8 @@ of them with m ≡ 0, 1, 2 mod 3) and two exceptional signs, and d_0 ≡ d_3 (mo
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 544\): &nbsp;\(m^* = 10\)</p>
-      <!-- TODO: says this is a symmetric example of order 10, found by a lattice search on 2026-11-03 -->
-      <p>Claude: “A symmetric example of order 10, found by a lattice search.”</p>
+      <!-- Says this is a symmetric example of order 10, found by a lattice search on 2026-11-03 -->
+      <p>A symmetric example of order 10, found by a lattice search.</p>
       <p class="code">
         <span>\(p_{544}\) \((m = 10)\):</span>
         <code id="544:10">936976914B665A49A4F8E93CD6F9248349AE9349269B5DE486693CFECD24D2D924B2</code>
@@ -987,8 +988,8 @@ of them with m ≡ 0, 1, 2 mod 3) and two exceptional signs, and d_0 ≡ d_3 (mo
         <span>\(p_{576}\) \((m = 11)\):</span>
         <code id="576:11">9A4D54D7952F107A62ACE35B02B6A76B2B4EDE8C0968F255A481BA53F0B7E54B5DD08C39</code>
       </p>
-      <!-- TODO: says this is a symmetric example of order 12, found by a lattice search on 2026-11-03, so m*(576) = 12 -->
-      <p>Claude: “A symmetric example of order 12, found by a lattice search.”</p>
+      <!-- Says this is a symmetric example of order 12, found by a lattice search on 2026-11-03, so m*(576) = 12 -->
+      <p>A symmetric example of order 12, found by a lattice search.</p>
       <p class="code">
         <span>\(p_{576}\) \((m = 12)\):</span>
         <code id="576:12">E4272B599D2669CC47DAD42928E293EF770C121A76FD494E1D9CB1AC42338EA10FD3F8C5</code>
@@ -997,8 +998,8 @@ of them with m ≡ 0, 1, 2 mod 3) and two exceptional signs, and d_0 ≡ d_3 (mo
     <li class="ca">
       <span class="mk" aria-hidden="true">◆✦</span>
       <p class="entry">\(n = 592\): &nbsp;\(m^* = 10\)</p>
-      <!-- Says this is a symmetric example of order 10, found by Claude's lattice search, which used Astra's residue sums mod 27 for 592 and Astra's lattice code -->
-      <p>A symmetric example of order 10. Claude's lattice search found it in the residue sums mod 27 that Astra chose for 592, with Astra's lattice code.</p>
+      <!-- Says this is a symmetric example of order 10, found by Opus 5.5's lattice search, which used Astra's residue sums mod 27 for 592 and Astra's lattice code -->
+      <p>A symmetric example of order 10. Opus 5.5's lattice search found it in the residue sums mod 27 that Astra chose for 592, with Astra's lattice code.</p>
       <p class="code">
         <span>\(p_{592}\) \((m = 10)\):</span>
         <code id="592:10">93CC6790EA26876D2DDA793492C92EB24C3B934525B66DADF25926920BA79E4D21B2CB359A</code>
@@ -1007,7 +1008,7 @@ of them with m ≡ 0, 1, 2 mod 3) and two exceptional signs, and d_0 ≡ d_3 (mo
     <li class="ca">
       <span class="mk" aria-hidden="true">◆✦</span>
       <p class="entry">\(n = 608\): &nbsp;\(m^* = 10\)</p>
-      <!-- Says this is a symmetric example of order 10, found by Claude's lattice search with Astra's lattice code, in residue sums mod 27 that Claude chose by Astra's method for 592 -->
+      <!-- Says this is a symmetric example of order 10, found by Opus 5.5's lattice search with Astra's lattice code, in residue sums mod 27 that Opus 5.5 chose by Astra's method for 592 -->
       <p>A symmetric example of order 10. Claude's lattice search found it with Astra's lattice code, in residue sums mod 27 that Claude chose by Astra's method for 592.</p>
       <p class="code">
         <span>\(p_{608}\) \((m = 10)\):</span>
@@ -1023,8 +1024,8 @@ of them with m ≡ 0, 1, 2 mod 3) and two exceptional signs, and d_0 ≡ d_3 (mo
         <span>\(p_{624}\) \((m = 11)\):</span>
         <code id="624:11">8F5508E59DDE388857B94A274173BA87E1DA2F19563A50E398A0F9DC6295E65B9E06B09E398F54</code>
       </p>
-      <!-- TODO: says this is a symmetric example of order 12, found by a lattice search on 2026-11-03, so m*(624) = 12 -->
-      <p>Claude: “A symmetric example of order 12, found by a lattice search.”</p>
+      <!-- Says this is a symmetric example of order 12, found by a lattice search on 2026-11-03, so m*(624) = 12 -->
+      <p>A symmetric example of order 12, found by a lattice search.</p>
       <p class="code">
         <span>\(p_{624}\) \((m = 12)\):</span>
         <code id="624:12">95AE444B9EF58585519694BD6A7BF40311C6399A5399EA5356D2AFC56392B48816726C63E4AC7B</code>
@@ -1043,14 +1044,14 @@ of them with m ≡ 0, 1, 2 mod 3) and two exceptional signs, and d_0 ≡ d_3 (mo
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 672\): &nbsp;\(m^* = 13\)</p>
-      <!-- TODO: says this is a symmetric example of order 12 -->
-      <p>Claude: “A symmetric example of order 12.”</p>
+      <!-- Says this is a symmetric example of order 12 -->
+      <p>A symmetric example of order 12.</p>
       <p class="code">
         <span>\(p_{672}\) \((m = 12)\):</span>
         <code id="672:12">A9D2518FC721CF719C870CD87698C3A1EEE1C5C739CC62983F91646AA8EF30EE2791C5AA4F470CCD05EE</code>
       </p>
-      <!-- TODO: says this is an antisymmetric example of order 13, found by a lattice search on 2026-11-04; and that it makes 672 the smallest length known with order 13, so a(12) <= 672 in OEIS A323395 -->
-      <p>Claude: “An antisymmetric example of order 13, found by a lattice search. It is the shortest known of that order.”</p>
+      <!-- Says this is an antisymmetric example of order 13, found by a lattice search on 2026-11-04; and that it makes 672 the smallest length known with order 13, so a(12) <= 672 in OEIS A323395 -->
+      <p>An antisymmetric example of order 13, found by a lattice search, the shortest known of that order.</p>
       <p class="code">
         <span>\(p_{672}\) \((m = 13)\):</span>
         <code id="672:13">94E71B4AB0A5E5785A33AC2F58C2778C2D699A17D467584AD5B4297A4EB48D2BCAD2B3C5255AE612A567</code>
@@ -1059,8 +1060,8 @@ of them with m ≡ 0, 1, 2 mod 3) and two exceptional signs, and d_0 ≡ d_3 (mo
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 688\): &nbsp;\(m^* = 10\)</p>
-      <!-- TODO: says this is a symmetric example of order 10 -->
-      <p>Claude: “A symmetric example of order 10.”</p>
+      <!-- Says this is a symmetric example of order 10 -->
+      <p>A symmetric example of order 10.</p>
       <p class="code">
         <span>\(p_{688}\) \((m = 10)\):</span>
         <code id="688:10">D609A6FA4D82B3217696DF35964D0CA3453DB3C145B8DD259279308669FE96DDE4F249A212296FBA493457</code>
@@ -1089,7 +1090,7 @@ of them with m ≡ 0, 1, 2 mod 3) and two exceptional signs, and d_0 ≡ d_3 (mo
       <!-- TODO: says how proof752.py rules out order 11 at 752: the residue sums mod 3 leave just four +1s in class 0 and four −1s in class 1, or the reverse; with the signs of class 2 relaxed to arbitrary integers the power sums then require ten congruences modulo powers of 3; a meet in the middle checks all 2·C(251, 4)^2 ≈ 5.2·10^16 placements of those eight signs, and none meets them; and that this is Astra's method for 384 (place the few exceptional signs, then test congruences), made feasible here by Claude's meet in the middle -->
       <p>Claude: “For order 11, the residue sums mod 3 leave just four \(+1\)s in class 0 and four \(-1\)s in class 1, or the reverse. Even with the signs of class 2 relaxed to arbitrary integers, the power sums then require ten congruences modulo powers of 3. A meet in the middle checks all \(2\cdot \mathrm{C}(251, 4)^2 \approx 5.2\cdot 10^{16}\) placements of those eight signs, and none meets them. This is Astra's method for 384, placing the few exceptional signs and testing congruences, made feasible here by Claude's meet in the middle.”</p>
       <!-- TODO: says that a form-tree proof (linked) now rules out order 11 at 752 with certificates too: 36,262 cases, fkernel checking each of their 99,130 certificates as it was made, and the Python checker, which shares no code with fkernel, reading all 217 of its tasks again -->
-      <p>Claude: “A form-tree proof (<a href="https://github.com/dreeves/equipow/tree/main/searches/formtree/cells/752_11">searches/formtree/cells/752_11</a>) now rules out order 11 with certificates too: 36,262 cases, fkernel checking each of their 99,130 certificates as it was made, and the Python checker, which shares no code with fkernel, reading all 217 of its tasks again.”</p>
+      <p>Opus 5.5: “A form-tree proof (<a href="https://github.com/dreeves/equipow/tree/main/searches/formtree/cells/752_11">searches/formtree/cells/752_11</a>) now rules out order 11 with certificates too: 36,262 cases, fkernel checking each of their 99,130 certificates as it was made, and the Python checker, which shares no code with fkernel, reading all 217 of its tasks again.”</p>
       <p class="code">
         <span>\(p_{752}\) \((m = 10)\):</span>
         <code id="752:10">D1C7951270B6456FBEC039A7FA05A459E422DB6416E76D06DB2D90D32FD010FBB30A6DB6D80DBAC3059EDB5826CB4C</code>
@@ -1104,8 +1105,8 @@ of them with m ≡ 0, 1, 2 mod 3) and two exceptional signs, and d_0 ≡ d_3 (mo
         <span>\(p_{768}\) \((m = 12)\):</span>
         <code id="768:12">AB5186723E74399FC150E3179F7008E728787ABA4678EAF3C4C73E033113ADA98C721D7131CE439DA5FECD734DE50904</code>
       </p>
-      <!-- TODO: says this is an antisymmetric example of order 13, found by a lattice search on 2026-11-03, so m*(768) = 13 -->
-      <p>Claude: “An antisymmetric example of order 13, found by a lattice search.”</p>
+      <!-- Says this is an antisymmetric example of order 13, found by a lattice search on 2026-11-03, so m*(768) = 13 -->
+      <p>An antisymmetric example of order 13, found by a lattice search.</p>
       <p class="code">
         <span>\(p_{768}\) \((m = 13)\):</span>
         <code id="768:13">959CE12B46B3BC272BC27489A56ACED0B5657AC652AC2B714AD49E2B8D5E35AC305B4E35D5A5235893AD277894A4FDEF</code>
@@ -1137,7 +1138,7 @@ of them with m ≡ 0, 1, 2 mod 3) and two exceptional signs, and d_0 ≡ d_3 (mo
       <!-- Says this is a symmetric example of order 12, and that order 15 at 816 is ruled out by the norm bound for the residue sums mod 5 -->
       <p>A symmetric example of order 12. Order 15 is ruled out by the norm bound for the residue sums mod 5.</p>
       <!-- TODO: says order 13 at 816, and so order 14, is ruled out as well, by a proof that two separate programs check in exact integer arithmetic (the proof file linked, the method explained in the pin trees section below), so m*(816) = 12 -->
-      <p>Claude: “Order 13, and so order 14, is ruled out too, by <a href="https://github.com/dreeves/equipow/blob/main/proofs/pintree_816_13.json.gz">a proof</a> that two separate programs check in exact integer arithmetic; the section ‘How Claude ruled out order 12 at 432 and order 13 at 816’ says how it works.”</p>
+      <p>Opus 5.5: “Order 13, and so order 14, is ruled out too, by <a href="https://github.com/dreeves/equipow/blob/main/proofs/pintree_816_13.json.gz">a proof</a> that two separate programs check in exact integer arithmetic; the section ‘How Opus 5.5 ruled out order 12 at 432 and order 13 at 816’ says how it works.”</p>
       <p class="code">
         <span>\(p_{816}\) \((m = 12)\):</span>
         <code id="816:12">9DA92A11F804FDEB7EBC4021CB6722C67D282BD35624BCF238A1E1DD66DC9D496BC238EF6CB84018A2D7854A72C535DDF61A9C</code>
@@ -1192,8 +1193,8 @@ of them with m ≡ 0, 1, 2 mod 3) and two exceptional signs, and d_0 ≡ d_3 (mo
         <span>\(p_{912}\) \((m = 12)\):</span>
         <code id="912:12">CC89A4F3BCE43B44239C97C2E14F0BA7BB0F72385611B5C017EDB6E00B8BE67C9C6A7D4932882758827785E78ECF3D0CE8FC8777896911C683</code>
       </p>
-      <!-- TODO: says this is an antisymmetric example of order 13, found by a lattice search on 2026-11-03, so m*(912) = 13 -->
-      <p>Claude: “An antisymmetric example of order 13, found by a lattice search.”</p>
+      <!-- Says this is an antisymmetric example of order 13, found by a lattice search on 2026-11-03, so m*(912) = 13 -->
+      <p>An antisymmetric example of order 13, found by a lattice search.</p>
       <p class="code">
         <span>\(p_{912}\) \((m = 13)\):</span>
         <code id="912:13">9CA178CEDC15EC48CC9784AF5D4F62844F4ACEF28CAC69CA9688C5EBCAD39469CCD6941CE548CEAC9E3D45CC45ADEBD8075C8D296C5A90B865</code>
@@ -1222,8 +1223,10 @@ of them with m ≡ 0, 1, 2 mod 3) and two exceptional signs, and d_0 ≡ d_3 (mo
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 960\): &nbsp;\(m^* = 15\)</p>
-      <!-- TODO: says this is an antisymmetric example of order 15, found by a lattice search on 2026-11-03; and that no length below 960 allows order 15, which settles a(14) = 960 of OEIS A323395 -->
-      <p>Claude: “An antisymmetric example of order 15, found by a lattice search. No length below 960 allows order 15, so this also settles \(a(14) = 960\) of OEIS <a href="https://oeis.org/A323395">A323395</a>.”</p>
+      <!-- Says this is an antisymmetric example of order 15, found by a lattice search on 2026-11-03; and that no length below 960 allows order 15, which settles a(14) = 960 of OEIS A323395 -->
+      <p>An antisymmetric example of order 15, found by a lattice search. 
+        No length below 960 has order 15, so this also settles \(a(14) = 960\) of OEIS 
+        <a href="https://oeis.org/A323395">A323395</a>.</p>
       <p class="code">
         <span>\(p_{960}\) \((m = 15)\):</span>
         <code id="960:15">9725C8B86EC3C3B435D8B91E458B1D0E1FCD60E5CB463A599D60ADAB329C5C65B2C73312DC259A6AD8ABB02A7B33E9EDA1643E0624D6F93D11C49414</code>
@@ -1258,8 +1261,8 @@ of them with m ≡ 0, 1, 2 mod 3) and two exceptional signs, and d_0 ≡ d_3 (mo
         <span>\(p_{1008}\) \((m = 12)\):</span>
         <code id="1008:12">E5154C71ABE24D5C4FB0A2B9CB519E2C7CA61813D6DCC264974FBB8DB408B511DE62BC3738CE671CE23696059CE54D0CD2B085F5EFABC2A3B1AE172FF12850</code>
       </p>
-      <!-- TODO: says this is an antisymmetric example of order 13, found by a lattice search on 2026-11-03, so m*(1008) = 13 -->
-      <p>Claude: “An antisymmetric example of order 13, found by a lattice search.”</p>
+      <!-- Says this is an antisymmetric example of order 13, found by a lattice search on 2026-11-03, so m*(1008) = 13 -->
+      <p>An antisymmetric example of order 13, found by a lattice search.</p>
       <p class="code">
         <span>\(p_{1008}\) \((m = 13)\):</span>
         <code id="1008:13">E181F56CCED68481CACADC8FEC6C5C158C6D7B5AC6C409888F729E5D1C5E97A86D0B4E8E6DEB78C270962448CEB9C9E518CAD4ECA54E9CB59CE748DA4D9C3D</code>
@@ -1728,7 +1731,7 @@ of them with m ≡ 0, 1, 2 mod 3) and two exceptional signs, and d_0 ≡ d_3 (mo
   <!-- TODO: a block quote by Claude (the user, 2026-11-03: "including an explanation of how the new stuff works"), on how order 12 at 432 and order 13 at 816 were ruled out. A proof of impossibility must cover every sequence, symmetric or not. It pins residue sums and shows the pins impossible, in a tree. Three parts: the parity coset, a condition on residue sums mod powers of 2 that follows from every sequence being the same polynomial mod 2, with the counts at 432 (186,309 vectors mod 8 without it, 5,450 with it); certificates, a polynomial of degree below m plus a weight per class, whose weighted sum over the signs is known from the pins and yet too large to be reached, which is what a linear program's infeasibility gives, in integers; and splitting, the linear program bounding the residue sums of a further modulus, by certificates too, and the vectors inside those bounds each becoming a child. Why it works at these lengths: 5 and 7 do not divide them, so large residue sums are forced, with 432's sums mod 5 as the example, and such periodic patterns soon ask more of the signs than any can give. The sizes of the two proofs and the times. What to trust: the linear program runs in floating point and only suggests; two programs that share no code check every certificate in exact integers, using only Python's standard library; the checks done on known sequences; the files linked. Where it stops: other open cells have loose nodes, and estimated costs of hundreds of CPU-days and up -->
   <p>Yet more Claude yadda-yadda:</p>
   <blockquote class="claude">
-    <h2 id="pintree-title">How Claude ruled out order 12 at 432 and order 13 at 816</h2>
+    <h2 id="pintree-title">How Opus 5.5 ruled out order 12 at 432 and order 13 at 816</h2>
     <p>Finding an example needs one sequence, and can look only at symmetric ones. Ruling an order out must cover every sequence, about \(2^n\) of them. These proofs do it with a tree, a <i>pin tree</i>: each node <i>pins</i> some residue sums \(D_r\) to given values, standing for the sequences with those sums; the root pins nothing; and every leaf is shown impossible. Three things make the tree small.</p>
     <p><b>The parity coset.</b> The residue condition says that the residue sums mod \(M\), as a polynomial mod \(x^M - 1\), are a multiple of \((x - 1)^m\): they lie in a lattice \(L(M, m)\), with each \(D_r\) of the parity of its class's size. But mod 2 every sign is 1, so every sequence of length \(n\) is the same polynomial, \(S = (x^n - 1)/(x - 1)\). Dividing \(f\) by \((x - 1)^m\) therefore gives one fixed quotient mod 2, and so, mod a power of 2, the residue sums lie in a single coset of \(2L(M, m)\), which is far smaller. For order 12 at 432, mod 8, that leaves 5,450 vectors of 186,309. It holds for every sequence, symmetric or not.</p>
     <p><b>Certificates.</b> Take a polynomial \(g\) of degree below \(m\) and a weight \(c_M(r)\) for each class of each pinned modulus, and let \(w(i) = g(i) + \sum_M c_M(i \bmod M)\). For a sequence of order \(m\) with those pins, \(\sum_i w(i) f_i\) is a number \(K\) known from the pins alone, \(\sum_M \sum_r c_M(r) D^{(M)}_r\), because \(\sum_i g(i) f_i = 0\). But \(|\sum_i w(i) f_i| \le \sum_i |w(i)|\). So if \(|K| > \sum_i |w(i)|\), no sequence has those pins. A linear program over \(-1 \le f_i \le 1\) finds such weights whenever the pins are impossible even for real numbers.</p>
@@ -1748,7 +1751,7 @@ of them with m ≡ 0, 1, 2 mod 3) and two exceptional signs, and d_0 ≡ d_3 (mo
   <!-- TODO: a block quote by Claude (dreeves, 2026-11-06, of the result of 2026-11-03: on the page, "attributed to claude as usual"), on BGPW's Symmetry Conjecture (their §6: if some sequence of length n has order m, some (−1)^m-symmetric one does), which they proved for m ≤ 8 (their Theorem 3.2); that Claude has shown it for every m ≤ 11 and every n, given the upper bounds listed, and that a second Claude, writing its own code to look for an error, confirmed it and corrected that list. The argument's three facts: Divisibility, so that orders 9 to 11 need 16 | n; Symmetry, a symmetric sequence's exact order even and an antisymmetric one's odd, so that p ∨ q ∨ s p*, with s = (−1)^m, p of order m − 1 and q empty or s-symmetric of order m, is s-symmetric of order m; and a tail, from lengths A to 2A − 16 of order m − 1 and a q whose length b is an odd multiple of 16, to every multiple of 16 from 2A + b on. For orders 9, 10 and 11: A = 192, 320 and 528, the orders read off the m*(n) chart but at 1040, a join of 240 and 800; b = 240 (BGPW's antisymmetric example of order 9), 240 (their symmetric one of order 10) and 432 (p432); so every n from 624, 880 and 1488 on. Below those lengths, an upper bound below m or a (−1)^m-symmetric sequence of order m, from BGPW's Tables 4 and 5, Thue–Morse, the page's codes or built from them, with eleven exceptions: ten that the pinned search filled in 9 to 93 CPU seconds each, and 816 at order 11, filled by the antisymmetric example the page showed before it found order 12 there; then those eleven codes. The upper bounds it rests on, by order, with where each comes from: orders 7 and 8, 96 and 152 proved by hand by Berend and Golan, building on Boyd's work, whom BGPW cite, and 168, 176 and 184 from BGPW's integer linear programs, which they say cannot be certified correct, bounds BGPW's Table 1 rests on too, form-tree proofs here checking all five since 2026-11-09; order 9, 144 also proved by hand by Berend and Golan, 272 from BGPW's integer linear programs, 304 from Claude's search with certificates checked in exact integer arithmetic, form-tree proofs here checking 144 and 272 too since 2026-11-09; order 10, 144 by hand as for order 9, and 288 from Claude's form-tree proof (2026-11-08), each step checked as it was made, its certificates not kept; order 11, 240 from Claude's search as at 304, 288 as for order 10 (residue sums mod 5 and 7 together, BGPW's own proof, rule out order 11 there anyway), and 752 from Claude and Astra's meet in the middle, proof752.py, which has no certificate, and since 2026-11-09 from a form-tree proof too. Then a paragraph on those form-tree proofs of single cells (searches/formtree/cells, linked): small, from a top that closes every case, at 144, 152 and 184, to 36,262 cases at 752; the tops at 152, 168 and 184 start from the residue sums mod 4, whose parity forces f(-1) = ±128 at these lengths, 8 times an odd number, as in Berend and Golan's proof at 152, and the same tops at 200 and 216, where order 7 exists, keep the known sequences; proofs/formtree.py checking the tops' certificates, fkernel each task's as they were made, and the Python checker, sharing no code with fkernel, reading every task again. Every other bound from the norm bound or residue sums, as the review checked with its own code, among them two the chart takes from elsewhere: 56 (residue sums mod 9 and 25 together) and 384 (mod 25). Then 288 at order 10: BGPW's computation assuming the conjecture (m*(240) = 10, m*(288) = 9, m*(304) = 8, all three since proved by Claude's searches without it) found no symmetric sequence of order 10 at 288 and has no certificate, so a sequence of length 288 and order 10 would have disproved the conjecture; the form-tree proof (searches/formtree) showed on 2026-11-08 that none exists, after 981,147,930 cases, each step checked as it was made, so m*(288) = 9 and the conjecture holds for every m ≤ 11 at every n, given the bounds. Also (2026-11-07, dreeves: "can you be clearer in the symmetry conjecture section about how close we are to proving it?"), right after the opening paragraph, a list of where that leaves the conjecture: orders up to 8 proved by BGPW (Theorem 3.2), from the bounds at 96, 152, 168, 176 and 184, those at 96 and 152 proved by hand by Berend and Golan, and all five checked by form-tree proofs here since 2026-11-09, those at 168, 176 and 184 for the first time; orders 9 to 11 proved here at every length, every bound they use having a checked proof, those at 272 (from BGPW's integer linear programs) and 752 (from a computation with no certificate) by form trees since 2026-11-09, and 144 (proved by hand by Berend and Golan) given a second proof by form tree that day; order 10 at 288 settled on 2026-11-08 by the form-tree proof, no sequence of length 288 having order 10, so that orders 9 to 11 are done, given the bounds; and orders 12 and up open, each order needing its own computation by the argument here and nothing covering every order. Then (2026-11-07, dreeves: "sure", to adding Claude's theorem on large lengths): that last item says orders 12, 13 and 16 hold at every sufficiently large length and 14, 15 and 17 and up would from one more example each; and, before the attribution, three paragraphs: given Freiman and Litsyn's theorem (1999, quoted in BGPW's §3, not read by Claude) that every sufficiently large length Divisibility allows has a sequence of each order, for fixed m, s = (−1)^m and 2^a the least power of 2 above m, the conjecture holds at every sufficiently large length if and only if some s-symmetric sequence of order m has length b equal to 2^a times an odd number; the proof by p ∨ s p* at lengths divisible by 2^(a+1) and p ∨ q ∨ s p* at 2^a times odd lengths, and the converse; and the page's 912:12, 1008:13 and 1440:16 supply such q for orders 12, 13 and 16, while orders 14 and 15 lack one, the explicit sequences of order 14 or more and their joins and products all having lengths that are multiples of 32, and what remains at each order is finitely many small lengths, where, as at 288 for order 10, the conjecture can amount to a claim that no sequence of the order exists -->
   <blockquote class="claude">
     <h2 id="symmetry-title">BGPW's Symmetry Conjecture through order 11</h2>
-    <p>BGPW conjecture (their §6) that if some sequence of length \(n\) has order \(m\), then some \((-1)^m\)-symmetric one does, with \(f_{n-1-i} = (-1)^m f_i\): symmetric for even \(m\), antisymmetric for odd \(m\). They proved it for \(m \le 8\) (their Theorem 3.2). Claude has shown that it holds for every \(m \le 11\) and every \(n\), given the upper bounds listed below. A second Claude, writing its own code to look for an error, confirmed this and corrected that list.</p>
+    <p>BGPW conjecture (their §6) that if some sequence of length \(n\) has order \(m\), then some \((-1)^m\)-symmetric one does, with \(f_{n-1-i} = (-1)^m f_i\): symmetric for even \(m\), antisymmetric for odd \(m\). They proved it for \(m \le 8\) (their Theorem 3.2). Opus 5.5 has shown that it holds for every \(m \le 11\) and every \(n\), given the upper bounds listed below. A second Claude, writing its own code to look for an error, confirmed this and corrected that list.</p>
     <p>Where that leaves the conjecture:</p>
     <ul>
       <li><b>Orders up to 8:</b> proved by BGPW (their Theorem 3.2), from the upper bounds at 96, 152, 168, 176 and 184 listed below. Berend and Golan proved those at 96 and 152 by hand, and since 2026-11-09 form-tree proofs here check all five, those at 168, 176 and 184 for the first time.</li>
@@ -1785,13 +1788,13 @@ of them with m ≡ 0, 1, 2 mod 3) and two exceptional signs, and d_0 ≡ d_3 (mo
     <p>The upper bounds it rests on, by order:</p>
     <ul>
       <li><b>Orders 7 and 8:</b> \(m^*(96) \le 7\) and \(m^*(152) \le 6\), which Berend and Golan, building on Boyd's work, proved by hand (BGPW cite them), and \(m^*(168) \le 6\), \(m^*(176) \le 7\) and \(m^*(184) \le 6\), from BGPW's integer linear programs, which, they write, “cannot be certified correct”. BGPW's Table 1, of the lengths of each order up to 8, rests on these too. Form-tree proofs here now check all five: <a href="https://github.com/dreeves/equipow/tree/main/searches/formtree/cells/96_8">at 96</a>, <a href="https://github.com/dreeves/equipow/tree/main/searches/formtree/cells/152_7">at 152</a>, <a href="https://github.com/dreeves/equipow/tree/main/searches/formtree/cells/168_7">at 168</a>, <a href="https://github.com/dreeves/equipow/tree/main/searches/formtree/cells/176_8">at 176</a> and <a href="https://github.com/dreeves/equipow/tree/main/searches/formtree/cells/184_7">at 184</a>.</li>
-      <li><b>Order 9:</b> \(m^*(144) \le 8\), which Berend and Golan also proved by hand; \(m^*(272) \le 8\), from BGPW's integer linear programs; and \(m^*(304) \le 8\), from Claude's computer search, whose certificates are checked in exact integer arithmetic. Form-tree proofs here now check the first two as well, <a href="https://github.com/dreeves/equipow/tree/main/searches/formtree/cells/144_9">at 144</a> and <a href="https://github.com/dreeves/equipow/tree/main/searches/formtree/cells/272_9">at 272</a>.</li>
-      <li><b>Order 10:</b> \(m^*(144) \le 8\), by hand, as for order 9, and \(m^*(288) \le 9\), from Claude's form-tree proof, below, each step of which a separate checker verified in exact integer arithmetic as it was made; its certificates were not kept, so checking it again means rerunning it.</li>
-      <li><b>Order 11:</b> \(m^*(240) \le 10\), from Claude's computer search, as at 304; \(m^*(288) \le 9\), as for order 10, though residue sums mod 5 and 7 together, BGPW's own proof, rule out order 11 there without it; and \(m^*(752) \le 10\), from Claude and Astra's meet in the middle, <a href="https://github.com/dreeves/equipow/blob/main/proofs/proof752.py">proof752.py</a>, which has no certificate, and now from <a href="https://github.com/dreeves/equipow/tree/main/searches/formtree/cells/752_11">a form-tree proof</a> too, which has.</li>
+      <li><b>Order 9:</b> \(m^*(144) \le 8\), which Berend and Golan also proved by hand; \(m^*(272) \le 8\), from BGPW's integer linear programs; and \(m^*(304) \le 8\), from Opus 5.5's computer search, whose certificates are checked in exact integer arithmetic. Form-tree proofs here now check the first two as well, <a href="https://github.com/dreeves/equipow/tree/main/searches/formtree/cells/144_9">at 144</a> and <a href="https://github.com/dreeves/equipow/tree/main/searches/formtree/cells/272_9">at 272</a>.</li>
+      <li><b>Order 10:</b> \(m^*(144) \le 8\), by hand, as for order 9, and \(m^*(288) \le 9\), from Opus 5.5's form-tree proof, below, each step of which a separate checker verified in exact integer arithmetic as it was made; its certificates were not kept, so checking it again means rerunning it.</li>
+      <li><b>Order 11:</b> \(m^*(240) \le 10\), from Opus 5.5's computer search, as at 304; \(m^*(288) \le 9\), as for order 10, though residue sums mod 5 and 7 together, BGPW's own proof, rule out order 11 there without it; and \(m^*(752) \le 10\), from Claude and Astra's meet in the middle, <a href="https://github.com/dreeves/equipow/blob/main/proofs/proof752.py">proof752.py</a>, which has no certificate, and now from <a href="https://github.com/dreeves/equipow/tree/main/searches/formtree/cells/752_11">a form-tree proof</a> too, which has.</li>
     </ul>
     <p>Those form-tree proofs of single cells (<a href="https://github.com/dreeves/equipow/tree/main/searches/formtree/cells">searches/formtree/cells</a>) are small, from a top that closes every case, at 144, 152 and 184, to 36,262 cases at 752. The tops at 152, 168 and 184 start from the residue sums mod 4, whose parity forces \(f(-1) = \pm 128\) at these lengths, each 8 times an odd number, as in Berend and Golan's proof at 152. Tops made the same way at 200 and 216, where sequences of order 7 exist, keep the known ones. proofs/formtree.py checks the certificates of each top, fkernel checked those of each task as they were made, and the Python checker, which shares no code with fkernel, read every task again.</p>
     <p>Every other bound it uses follows from the norm bound or from residue sums, as the review checked with its own code. That includes two that the chart takes from elsewhere: \(m^*(56) \le 5\), from residue sums mod 9 and 25 together, and \(m^*(384) \le 10\), from those mod 25.</p>
-    <p>That left 288 at order 10. Assuming the conjecture, BGPW computed \(m^*(240) = 10\), \(m^*(288) = 9\) and \(m^*(304) = 8\); Claude's searches have since proved all three without it. At 288 their computation found no symmetric sequence of order 10, and it has no certificate, so a sequence of length 288 and order 10 would have disproved the conjecture. The form-tree proof (<a href="https://github.com/dreeves/equipow/tree/main/searches/formtree">searches/formtree</a>) shows that there is none: it finished on 2026-11-08, after 981,147,930 cases, each step checked in exact integer arithmetic as it was made. So \(m^*(288) = 9\), and the conjecture holds for every \(m \le 11\) at every \(n\), given the bounds above.</p>
+    <p>That left 288 at order 10. Assuming the conjecture, BGPW computed \(m^*(240) = 10\), \(m^*(288) = 9\) and \(m^*(304) = 8\); Opus 5.5's searches have since proved all three without it. At 288 their computation found no symmetric sequence of order 10, and it has no certificate, so a sequence of length 288 and order 10 would have disproved the conjecture. The form-tree proof (<a href="https://github.com/dreeves/equipow/tree/main/searches/formtree">searches/formtree</a>) shows that there is none: it finished on 2026-11-08, after 981,147,930 cases, each step checked in exact integer arithmetic as it was made. So \(m^*(288) = 9\), and the conjecture holds for every \(m \le 11\) at every \(n\), given the bounds above.</p>
     <p><b>Every large length.</b> One more statement holds past some length at every order, given a theorem of Freiman and Litsyn (1999) that BGPW quote in their §3, which Claude has not read: for each order \(k\), every sufficiently large length that Divisibility allows has a sequence of order \(k\). Fix \(m\), let \(s = (-1)^m\), and let \(2^a\) be the least power of 2 above \(m\), so that every length of order \(m\) is a multiple of \(2^a\). Then the conjecture holds at every sufficiently large length if and only if some \(s\)-symmetric sequence of order \(m\) has a length \(b\) that is \(2^a\) times an odd number.</p>
     <p>At a length \(n\) divisible by \(2^{a+1}\), take \(p\) of order \(m - 1\) and length \(n/2\): \(p \vee s p^*\) is \(s\)-symmetric of order \(m - 1\), and so, by Symmetry, of order \(m\). At a length \(n\) that is \(2^a\) times an odd number, \(n - b\) is divisible by \(2^{a+1}\), and \(p \vee q \vee s p^*\), with \(q\) that sequence of length \(b\) and \(p\) of order \(m - 1\) and length \((n - b)/2\), is \(s\)-symmetric of order \(m\) in the same way. Conversely, the theorem gives sequences of order \(m\) at every large length that is \(2^a\) times an odd number, so there the conjecture needs such a \(q\).</p>
     <p>The page's codes are all \((-1)^m\)-symmetric, and three of them are such sequences: 912:12 for order 12 (\(912 = 16 \cdot 57\)), 1008:13 for order 13 (\(1008 = 16 \cdot 63\)) and 1440:16 for order 16 (\(1440 = 32 \cdot 45\)). So orders 12, 13 and 16 hold at every sufficiently large length, though how large is not explicit. Orders 14 and 15 would follow from one such sequence each, at a length 16 times an odd number, and none is known: the explicit sequences of order 14 or more, and their joins and products, all have lengths that are multiples of 32. Below those lengths, each order leaves finitely many lengths, and where no symmetric sequence exists, as BGPW found at 288 for order 10, the conjecture there says that no sequence of that order exists at all.</p>

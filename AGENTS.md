@@ -55,6 +55,7 @@ The current state, kept short, since every session loads this file. Update it in
   - a(13) ∈ {480, 720, 864, 960};
   - a(16) is the least n from 1440 to 2880 with order 17.
 - **BGPW's Symmetry Conjecture:** holds through order 11, and every bound it uses has a checked proof or a printed hand proof (the page's Symmetry section; `searches/formtree/cells/`).
+  - At every order it holds at every sufficiently large length (Claude, 2026-11-09): `scratch/symlarge-20261109/proof.md`, a Fourier-integral proof that uses no example and no cited theorem, reviewed by two fresh agents. It is not on the page. Its threshold is 2^O(m²), so it settles no cell.
 - **Powers of 2:** the theorem's firsts for δ = 1 to 9 are k = 10, 20, 28, 36, 39, 47, 56, 58, 68.
 - **No search is running:**
   - Form-tree cost estimates (2026-11-06, 2026-11-09) put every open cell out of reach. 480:14, the one exception, takes about 3–4 weeks of the Mac and settles nothing alone.
@@ -97,4 +98,5 @@ The current state, kept short, since every session loads this file. Update it in
 - **Quals:** red first, then green. No qual reads dreeves's words. A spec change needs his OK and a dated comment.
 - **Browsers:** headless Chrome only, with no screen access. In Codex, Chrome aborts inside the workspace sandbox, so request `require_escalated` for Chrome quals, keep temporary profiles, and never disable Chrome's own sandbox.
 - **Memory:** the Mac kernel-panicked from memory exhaustion on 2026-11-03. Watch big runs' memory, and stop a big search with SIGTERM rather than pausing it in memory to make room for another.
+  - On 2026-11-09 a subagent's script asked numpy for 294 GB and reached 76.7 GB compressed before the kernel killed it. A limit in a brief does not bind the code: every script asserts its arrays' sizes before allocating.
 - **Other agents:** coordination with Astra (Codex) and Grok goes in `omg-we-found-other-agents.md`, append-only, with claims before edits.
