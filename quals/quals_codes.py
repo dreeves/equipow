@@ -140,10 +140,11 @@ DRIVER = r"""
 import { spawn } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 """ + qp.GROUP_JS + r"""
-const C = JSON.parse(readFileSync(0, 'utf8'));   // chrome, dir (the page's copy and the profile), viewport, steps
-const chrome = spawn(C.chrome, ['--headless=new', '--remote-debugging-port=0', `--user-data-dir=${C.dir}/profile`,
-  '--no-first-run', '--no-default-browser-check', '--disable-extensions', '--hide-scrollbars', '--allow-file-access-from-files',
-  'about:blank'], {stdio: 'ignore', detached: true});
+// chrome, headless (quals_index's HEADLESS, the flags every headless Chrome of the quals starts with; until 2026-11-10
+// this list had its own), dir (the page's copy and the profile), viewport, steps
+const C = JSON.parse(readFileSync(0, 'utf8'));
+const chrome = spawn(C.chrome, [...C.headless, '--remote-debugging-port=0', `--user-data-dir=${C.dir}/profile`,
+  '--hide-scrollbars', 'about:blank'], {stdio: 'ignore', detached: true});
 const watchdog = setTimeout(() => { groupSignal(chrome.pid, 'SIGTERM'); process.exit(3); }, 500000);
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
@@ -437,8 +438,8 @@ def drive(viewport, steps, text=None, items=CODES_AND_JOINS, fragment=''):
         open(os.path.join(d, 'index.html'), 'w', encoding='utf-8').write(qi.page() if text is None else text)
         qi.copy_page_dir(d)
         for f in ('mstar.js', 'pow2.js') + qp.ICONS: shutil.copy(os.path.join(HERE, f), d)
-        cfg = viewport | dict(chrome=qi.CHROME, dir=d, url='file://' + os.path.join(d, 'index.html'), steps=steps,
-                              items=items, fragment=fragment)
+        cfg = viewport | dict(chrome=qi.CHROME, headless=qi.HEADLESS, dir=d, url='file://' + os.path.join(d, 'index.html'),
+                              steps=steps, items=items, fragment=fragment)
         p = subprocess.run(['node', '--input-type=module', '-e', DRIVER], input=json.dumps(cfg), capture_output=True,
                            text=True, timeout=600)
         path = os.path.join(d, 'report.json')

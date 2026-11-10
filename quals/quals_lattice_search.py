@@ -130,22 +130,13 @@ def results():
 
 # ---------------------------------------------------------------------------------------------------------------------
 # The section of index.html
-
-def q_section_follows_counts_and_precedes_progress():
-    # Replicata: index.html.
-    # Expectata: the section on partitions at powers of 2 (<section class="counts">) is followed, with only blank
-    # lines and comments between, by <section class="lattice" aria-labelledby="lattice-title">, and that by
-    # <section class="progress" aria-labelledby="progress-title"> (by <section class="sets"> until it left the page on
-    # 2026-10-31); the page has one of each.
-    t = page()
-    for tag in ('<section class="counts">', '<section class="lattice"', '<section class="progress"'):
-        assert t.count(tag) == 1, (tag, t.count(tag))
-    filler = r'(?:\s|<!--.*?-->)*'
-    inside = r'(?:(?!</?section).)*</section>'          # a section's body and its end, holding no other section's tag
-    assert re.search(r'<section class="counts">' + inside + filler +
-                     r'<section class="lattice" aria-labelledby="lattice-title">' + inside + filler +
-                     r'<section class="progress" aria-labelledby="progress-title">', t, re.S)
-
+#
+# Removed on 2026-11-09: q_section_follows_counts_and_precedes_progress, which held the section right after the one on
+# partitions at powers of 2 (counts) and right before Search progress.  It had been red since 2026-11-03, when the
+# pin-tree section went in between.  dreeves, 2026-11-09: "that sounds like a stupid qual, right? i might rearrange
+# sections and there's no reason to cry wolf about that, is there?"  There is none: no style and no script depends on
+# the order of the page's sections, and where they stand is his.  That the section is on the page is asserted by
+# section(), which the quals below read.
 
 def q_section_links_the_wl():
     # Replicata: the section's links, and the repository's files.

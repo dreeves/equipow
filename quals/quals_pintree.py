@@ -344,9 +344,12 @@ def q_the_prover_keeps_real_sequences():
     seqs.sort(key=lambda s: (s[3], s[0]))
     jobs = [s[:3] for s in seqs[:9] + seqs[-9:]]
     with tempfile.NamedTemporaryFile('w', suffix='.json', delete=False) as f: json.dump(jobs, f)
-    p = subprocess.run([sys.executable, '-B', '-c', FOLLOW, f.name, os.path.dirname(PROVE)], capture_output=True, text=True, timeout=3000,
+    # FOLLOW runs from a file of its own, not from -c (Fable 5.2, 2026-11-10; the qual asks what it asked).  Where processes are spawned, as on macOS, a pool's workers import the main module anew to find follow(), and a -c script has no file to
+    # import: each worker died on "Can't get attribute 'follow'" and the pool waited for ever.  On Linux, which forks, -c worked.
+    with tempfile.NamedTemporaryFile('w', suffix='.py', delete=False) as g: g.write(FOLLOW)
+    p = subprocess.run([sys.executable, '-B', g.name, f.name, os.path.dirname(PROVE)], capture_output=True, text=True, timeout=3000,
                        env=dict(os.environ, PYTHONPATH=os.pathsep.join([PROOFS, HERE]), OMP_NUM_THREADS='1', OPENBLAS_NUM_THREADS='1'))
-    os.unlink(f.name)
+    os.unlink(f.name); os.unlink(g.name)
     assert p.returncode == 0, p.stderr[-1500:]
     out = json.loads(p.stdout.strip().splitlines()[-1])
     assert len(out) == 18 and all(r[3] == [] and r[2] >= 5 for r in out), out

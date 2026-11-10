@@ -78,6 +78,7 @@ The current state, kept short, since every session loads this file. Update it in
 
 - **Environment:** run everything from the repo root with `/opt/homebrew/bin/python3` (3.13).
   - fpylll needs `PYTHONPATH=scratch/lower24-design/beyond1000/pylib`.
+  - highspy is not in this Python (2026-11-10). `searches/pintree/pintree_prove.py` and quals_pintree's two prover quals need it. pip installs it only with `--break-system-packages`, which Claude Code's auto mode refuses, so the install is dreeves's to run. `scratch/green-20261109/venv/bin/python` sees the system's packages and has highspy.
   - Plain `g++ -std=c++17` builds C++ since 2026-11-07.
 - **Layout:**
   - quals in `quals/`, run as `python3 -B quals/quals_X.py` (a few suites only run that way);
@@ -96,10 +97,12 @@ The current state, kept short, since every session loads this file. Update it in
   - After changing a chart's data, rerun `python3 -B mstar.py` and rebuild preview.png with `scratch/record-20261025/page/preview.py 0.40`.
   - Changelog entries are math statements per day (`quals_index.statement`), with noteworthy results on lines of their own (`NOTEWORTHY`).
 - **Quals:** red first, then green. No qual reads dreeves's words. A spec change needs his OK and a dated comment.
+  - `scratch/green-20261109/run.py NAME` runs all 87 suites in turn, in about 85 minutes, and lists the red ones. On 2026-11-10 all are green except quals_pintree's two prover quals, which need highspy.
   - dreeves, 2026-11-09, after a rename on the page cost an evening: "we need more quals for substantive things and fewer quals enforcing words on the page." A qual protects a number, a sequence, a link, a structure or a behavior, not wording.
   - The page's words live only on the page (2026-11-09). A credit of the new results is its cells' class (c, j, ca, a, s) in mstar.py's NEW and in mstar.js's ["page", who]; the boxes and readouts take its label from the page's legend (`credit` in page/shared.js). Renaming a cell's title or a legend label needs no other edit.
   - When a prose edit turns a qual red because the qual pins wording, cut that check and nothing more. A sweep of every suite for such quals, with a script made for it, was "drastic overkill" (dreeves, 2026-11-09: "we could've just nixed quals that failed due to wording as they arose"); what it found is fixed, and the script is in `scratch/keys-20261109/`, not in the tree. A qual that holds a sentence compares its figures, the text without its words (`figures`, `among` in quals_index).
 - **Browsers:** headless Chrome only, with no screen access. In Codex, Chrome aborts inside the workspace sandbox, so request `require_escalated` for Chrome quals, keep temporary profiles, and never disable Chrome's own sandbox.
+  - Start every headless Chrome with quals_index's `HEADLESS` flags (2026-11-10). When the Mac's display goes to sleep, Chrome hides its pages, which then draw no frame; one flag of `HEADLESS` prevents that. Without it, a run that the display's sleep catches waits to its watchdog.
 - **Memory:** the Mac kernel-panicked from memory exhaustion on 2026-11-03. Watch big runs' memory, and stop a big search with SIGTERM rather than pausing it in memory to make room for another.
   - On 2026-11-09 a subagent's script asked numpy for 294 GB and reached 76.7 GB compressed before the kernel killed it. A limit in a brief does not bind the code: every script asserts its arrays' sizes before allocating.
 - **Other agents:** coordination with Astra (Codex) and Grok goes in `omg-we-found-other-agents.md`, append-only, with claims before edits.

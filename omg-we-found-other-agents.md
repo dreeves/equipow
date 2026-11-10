@@ -2959,3 +2959,19 @@ dreeves, on seeing the audit's script at the root: "is this not drastic overkill
 - **What the sweep had found is fixed and stays**, uncommitted, for dreeves's review. In Astra's suites: quals_416_page no longer asks for the word "BGPW" in the 416 proof (its link to BGPW's Table 5 is the credit); quals_search288_progress and quals_search592_progress no longer ask for "calibration", "search" and "no completion estimate" in their templates (the cells, 240:10, 288:10, 560:10 and 592:10, are still asked for). Each has a dated comment. Also quals_derivations (the Thue–Morse label is read from the page's template) and quals_lattice_search (a call's number of sequences as a number).
 - **For quotations in boxes:** quals_index no longer names the writer; a box's quotation is a name, a colon and “ (`OPENING`). `WRITERS` remains only for the curly-quotes qual.
 - **Found red, not caused by this:** quals_lattice_search.q_section_follows_counts_and_precedes_progress, since the pin-tree and Symmetry sections went in after the lattice section.
+
+### 2026-11-10 01:01 PST — Claude: every suite was run once; three are red; claim on quals/quals_focus.py
+
+dreeves, 2026-11-09: "ok, let's get the quals green (never by just deleting or weakening a qual unless we know absolutely the qual is wrong)". All 87 suites ran in turn from 23:30 to 00:53 (`scratch/green-20261109/first.out`); 84 exit 0.
+- **quals_lattice_search:** q_section_follows_counts_and_precedes_progress, the red qual of the 23:25 entry, is removed, with a dated comment in its place. dreeves: "i might rearrange sections and there's no reason to cry wolf about that". The suite is green.
+- **Claim, quals/quals_focus.py (Astra's):** test_known_witnesses_survive_exact_rows_and_lp asks that mstar.build(672) have order 11. It has had order 13 since the 672:13 sequence went into mstar.py, which the exact power sums confirm. One change: the pair (672,11) becomes (672,13), with a dated comment. Nothing else in the file is touched.
+- **quals_pintree:** its two prover quals need highspy, which this Mac lacks (the note of 2026-11-03). It goes into the user site, where ortools and sympy are.
+- **quals_codes:** q_boxes_open_after_their_blocks hit its driver's 500 s watchdog once and passes alone in 32 s. The display turned off at 23:35:59, within seconds of that browser's start. Being looked into.
+
+### 2026-11-10 01:32 PST — Claude: the claim of 01:01 is released; what changed in the suites
+
+All of it is uncommitted, for dreeves's review. Notes: `scratch/green-20261109/NOTES.md`.
+- **quals_focus (Astra's):** the pair (672,11) is (672,13), with a dated comment, and nothing else. 10 of 10.
+- **Starting headless Chrome, for anyone who writes a browser qual:** take the flags from quals_index's `HEADLESS` (chrome() does; the node drivers of quals_pow2_page and quals_codes get them as `C.headless`). When the Mac's display goes to sleep, a running headless Chrome hides its pages, which then draw no frame, and a driver waiting on requestAnimationFrame waits to its watchdog. `--disable-backgrounding-occluded-windows`, in `HEADLESS`, prevents it. quals_index.q_every_headless_chrome_starts_with_the_same_flags is red when a second place in quals/ names the headless flag.
+- **quals_pintree:** q_the_prover_keeps_real_sequences runs FOLLOW from a file, not from `python -c`, whose pool hangs where processes are spawned (macOS). Its two prover quals still need highspy, which this Python lacks; the install is dreeves's (pip's `--break-system-packages` was refused to Claude). Both pass from `scratch/green-20261109/venv/bin/python`.
+- **State:** all 87 suites green but for those two quals.

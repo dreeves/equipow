@@ -318,12 +318,13 @@ import { spawn } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 """ + GROUP_JS + r"""
 const C = JSON.parse(readFileSync(0, 'utf8'));
-// --allow-file-access-from-files (2026-10-31): the page's scripts are files of page/, and plain file:// gives each file
-// an origin of its own, so an uncaught error thrown in them came through only as text, with no exception object; over
-// http(s), where the page is served, they share its origin, as they do here with the flag (quals_index's chrome)
-const chrome = spawn(C.chrome, ['--headless=new', '--remote-debugging-port=0', `--user-data-dir=${C.dir}/profile`,
-  '--no-first-run', '--no-default-browser-check', '--disable-extensions', '--hide-scrollbars', '--allow-file-access-from-files',
-  '--disable-ipc-flooding-protection', 'about:blank'],
+// C.headless: quals_index's HEADLESS, the flags every headless Chrome of the quals starts with (2026-11-10; until then
+// this list had its own).  Among them --allow-file-access-from-files (2026-10-31): the page's scripts are files of page/,
+// and plain file:// gives each file an origin of its own, so an uncaught error thrown in them came through only as text,
+// with no exception object; over http(s), where the page is served, they share its origin, as they do here with the flag
+// (quals_index's chrome)
+const chrome = spawn(C.chrome, [...C.headless, '--remote-debugging-port=0', `--user-data-dir=${C.dir}/profile`,
+  '--hide-scrollbars', '--disable-ipc-flooding-protection', 'about:blank'],
   {stdio: 'ignore', detached: true});
 const watchdog = setTimeout(() => { groupSignal(chrome.pid, 'SIGTERM'); process.exit(3); }, 400000);
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -814,7 +815,7 @@ def run(name):
         cfg = {k: c[k] for k in ('width', 'height', 'dpr', 'mobile', 'theme', 'drawn', 'hover', 'tap', 'swipe', 'zoom')} | dict(
             panels=c.get('panels', False), fragment=c.get('fragment', ''), boxes=BOX_TARGETS,
             zoomView=ZOOM_VIEW,
-            chrome=CHROME, dir=d, urls=urls, K=K, E=data['etop'] if data else 0, ROW=ROW, GAP=gap(c['dpr']), outline=OUTLINE,
+            chrome=CHROME, headless=qi.HEADLESS, dir=d, urls=urls, K=K, E=data['etop'] if data else 0, ROW=ROW, GAP=gap(c['dpr']), outline=OUTLINE,
             swipeFrom=SWIPE, shots=shots, mstarCells=mstar, mstarLayout=MSTAR_LAYOUT, mstarCols=MSTAR_COLUMNS)
         try:
             p = subprocess.run(['node', '--input-type=module', '-e', DRIVER], input=json.dumps(cfg),

@@ -6,6 +6,7 @@ LittlewoodPolynomialsReprint.pdf is the published version of the paper this is e
 ---
 
 Potential tasks: 
+* [SYM] i think i'd rather have this symlarge proof in index.html, but default collapsed. i think there are a lot of other things i'd rather bring inline as well. see tasks [REO] and [REF] in the README
 * [COM] Be more principled about what to omit from Figure 1. Idea: checkboxes for what's omitted:
   [ ] Nothing
   [ ] n>0 is odd => `m*(n) = 0`

@@ -42,6 +42,15 @@ DATA = os.path.join(HERE, 'mstar.js')         # made by mstar.py; the chart's da
 POW2 = os.path.join(HERE, 'pow2.js')          # made by pow2.py; the data of the chart of powers of 2, also on the page
 PAGE_DIR = os.path.join(HERE, 'page')         # the page's stylesheet and scripts, which index.html links (2026-10-31)
 CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+# The flags every headless Chrome of the quals starts with: chrome() here, and the node drivers of quals_pow2_page and
+# quals_codes, which get them as C.headless.  chrome()'s docstring explains --allow-file-access-from-files.
+# --disable-backgrounding-occluded-windows (2026-11-10): when the Mac's display goes to sleep, Chrome takes its pages
+# for hidden, a headless Chrome's too: document.visibilityState turns "hidden", requestAnimationFrame stops, and timers
+# tick once a second.  A run caught by the display's sleep then waited on a frame to its watchdog (2026-11-09 23:36,
+# quals_codes's forward run, 500 s).  With the flag the page stays visible and keeps drawing
+# (scratch/green-20261109/display.py: no frame after the sleep without it, 60 a second with it).
+HEADLESS = ['--headless=new', '--no-first-run', '--no-default-browser-check', '--disable-extensions',
+            '--allow-file-access-from-files', '--disable-backgrounding-occluded-windows']
 TOKENS = ('--exists', '--open', '--impossible')                    # the chart's three colors, in the order of kind
 PROVENANCE = ('--claude', '--stan')
 NMAX, MIN_SPAN = 1024, 12                     # 1000 until 2026-10-27, when the chart reached 1024
@@ -1159,8 +1168,7 @@ def chrome(d, args, stderr=subprocess.DEVNULL):
     scripts left index.html for page/): plain file:// gives each file an origin of its own, so an uncaught error thrown
     in page/ reached the page's error listeners only as "Script error.", with no error object; over http(s), where the
     page is served, its files share its origin and the error comes through whole, as it does here with the flag."""
-    p = subprocess.Popen([CHROME, '--headless=new', f'--user-data-dir={d}/profile', '--no-first-run',
-                          '--no-default-browser-check', '--disable-extensions', '--allow-file-access-from-files', *args],
+    p = subprocess.Popen([CHROME, *HEADLESS, f'--user-data-dir={d}/profile', *args],
                          stdout=subprocess.PIPE, stderr=stderr, text=True, start_new_session=True)
     stop = lambda: os.killpg(p.pid, signal.SIGTERM)
     watchdog = threading.Timer(600, stop)
@@ -1571,6 +1579,24 @@ def q_chrome_s_whole_process_group_ends_before_its_folder_goes():
     assert alive(zombie.pid), 'a zombie is no member'
     end_group(zombie)
     assert not alive(zombie.pid)
+
+
+def q_every_headless_chrome_starts_with_the_same_flags():
+    # Replicata: the files of quals/ (the suites and their node harnesses), read as text: each line that names Chrome's
+    # flag for running headless; and HEADLESS, the flags that chrome() and the two drivers (quals_pow2_page's and
+    # quals_codes's, as C.headless) start Chrome with.
+    # Expectata: one line names that flag, HEADLESS's own in this file, so that no Chrome of the quals runs headless
+    # without the rest of HEADLESS; and HEADLESS has --disable-backgrounding-occluded-windows.
+    # Resultata before (2026-11-09 23:36, quals_codes's forward run): three places started Chrome, each with flags of
+    # its own and none with that one.  The Mac's display went to sleep during the run.  Chrome then took the page for
+    # hidden (document.visibilityState "hidden", no animation frame, timers once a second), and the driver waited on a
+    # frame for 500 s, to its watchdog.  scratch/green-20261109/display.py counts the frames through a display's sleep:
+    # none after it without the flag, 60 a second with it.
+    flag = '--head' + 'less'                              # in two pieces, so that this line is no such line
+    lines = [(f, i + 1) for f in sorted(os.listdir(os.path.join(HERE, 'quals'))) if f.endswith(('.py', '.cjs'))
+             for i, line in enumerate(open(os.path.join(HERE, 'quals', f), encoding='utf-8')) if flag in line]
+    assert [f for f, _ in lines] == ['quals_index.py'], lines
+    assert flag + '=new' in HEADLESS and '--disable-backgrounding-occluded-windows' in HEADLESS, HEADLESS
 
 
 def q_page_links_its_stylesheet_after_katex_s():

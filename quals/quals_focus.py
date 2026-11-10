@@ -30,7 +30,11 @@ class FocusQuals(unittest.TestCase):
     def test_known_witnesses_survive_exact_rows_and_lp(self):
         # Replicata: checked constructions at both target lengths.
         # Expectata: all exact equations hold and the relaxation accepts them.
-        for n,m in ((480,12),(672,11)):
+        # Spec change (Fable 5.2, 2026-11-10): 672's order here was 11.  mstar.build(672) has had order 13 since
+        # 2026-11-04 (ced8c1b, the 672:13 sequence), as its exact power sums confirm, so this qual had been red since
+        # then.  dreeves, 2026-11-09: "never by just deleting or weakening a qual unless we know absolutely the qual is
+        # wrong".  The order asked for is the construction's own, so the equations checked are now those of order 13.
+        for n,m in ((480,12),(672,13)):
             a=mstar.build(n);self.assertEqual(mstar.order(a),m)
             moments=focus.moments(n,m)
             x=[(s+1)//2 for s in a]
