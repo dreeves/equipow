@@ -159,9 +159,12 @@ class Search288ProgressQuals(unittest.TestCase):
         templates = dict(re.findall(r'<template class="(progress-search288|progress-attempt-hint)">(.*?)</template>',
                                     html, re.S))
         self.assertEqual(set(templates), {'progress-search288', 'progress-attempt-hint'})
-        self.assertIn('240:10 calibration', templates['progress-search288'])
-        self.assertIn('288:10 search', templates['progress-search288'])
-        self.assertIn('no completion estimate', templates['progress-search288'])
+        # Spec change (Claude, 2026-11-09; dreeves that day: "we need more quals for substantive things and fewer quals
+        # enforcing words on the page", and "i stand by the point about quals enforcing specific prose on the page
+        # being pretty useless"): the template names both cells; until then also the words "calibration", "search" and
+        # "no completion estimate".
+        self.assertIn('240:10', templates['progress-search288'])
+        self.assertIn('288:10', templates['progress-search288'])
         self.assertTrue(re.sub(r'<[^>]*>', '', templates['progress-attempt-hint']).strip(), templates)   # it holds a message
         self.assertEqual(set(re.findall(r'data-attempt-outcome="([^"]*)"', templates['progress-search288'])),
                          {'null', 'control_failed', 'budget', 'witness', 'failed'})

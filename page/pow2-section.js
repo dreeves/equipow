@@ -11,7 +11,6 @@ const chart = document.getElementById('pow2-chart'), ro = document.getElementByI
 try {
   const D = POW2, K = 72, ROW = 14, GAP = 1 / devicePixelRatio, NS = 'http://www.w3.org/2000/svg';
   const assert = (ok, ...what) => { if (!ok) throw new Error(JSON.stringify(what).replace(/"/g, "'")); };
-  const WHO = ['BGPW', 'Opus 5.5 alone', 'Opus 5.5 and BGPW', 'Astra alone', 'Opus 5.5 and Astra'];   // the provenance labels of the new results above (Opus 5.5 for Claude since dreeves's rename of 2026-11-09)
   const prime = p => { for (let d = 2; d * d <= p; d++) if (p % d === 0) return false; return p >= 2; };
   const sub = k => String(k).replace(/\d/g, d => '₀₁₂₃₄₅₆₇₈₉'[d]);
   // The norm lemma's bound at n = 2^k for an odd prime p, in exact integers (mstar.py's norm): the largest m with
@@ -87,9 +86,9 @@ try {
       proof: (n, hi) => PROOF.table2(BigInt(n), `${n}`, hi),
     },
     page: {
-      ok: (n, hi, who) => WHO.includes(who),
+      ok: (n, hi, who) => credit(who).length === 1,              // who is a class of the new results' cells, which their legend words
       // readout reason; says order hi + 1 is ruled out in this page's new results, naming whose they are
-      text: (n, hi, who) => `order ${hi + 1} ruled out in the new results above (${who})`,
+      text: (n, hi, who) => `order ${hi + 1} ruled out in the new results above (${credit(who)[0]})`,
       proof: (n, hi, who) => PROOF.page(BigInt(n), `${n}`, hi, who),
     },
   };

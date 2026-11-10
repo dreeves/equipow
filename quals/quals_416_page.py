@@ -73,7 +73,10 @@ class Quals(unittest.TestCase):
     def test_proof_links_the_primary_source_and_preserves_seed_credit(self):
         proof, = re.findall(r'<div id="proof416"[^>]*>(.*?)</div>', self.page, re.S)
         self.assertIn('https://arxiv.org/html/1912.03491v1#S6.T5', proof)
-        self.assertIn('BGPW', proof)
+        # Spec change (Claude, 2026-11-09; dreeves that day: "we need more quals for substantive things and fewer quals
+        # enforcing words on the page", and "i stand by the point about quals enforcing specific prose on the page
+        # being pretty useless"): the seed's credit is its link to BGPW's Table 5, above; until then also the word
+        # "BGPW" in the proof.
         self.assertIn('lang="en"', self.page[self.page.index('<div id="proof416"'):][:60])
         # no TODO comment: dreeves removed Astra's when he committed the proof (2026-10-24, b475924; 2026-10-25: "i
         # changed those astra lines intentionally")

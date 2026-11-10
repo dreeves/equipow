@@ -16,7 +16,6 @@ try {
   // axis below.
   const LEFT = 44, RIGHT = 16, TOP = 2, ROW = 14, AXIS = 30;
   const assert = (ok, ...what) => { if (!ok) throw new Error(JSON.stringify(what).replace(/"/g, "'")); };
-  const WHO = ['BGPW', 'Opus 5.5 alone', 'Opus 5.5 and BGPW', 'Astra alone', 'Opus 5.5 and Astra'];   // the provenance labels of the new results above (Opus 5.5 for Claude since dreeves's rename of 2026-11-09)
   const prime = p => { for (let d = 2; d * d <= p; d++) if (p % d === 0) return false; return p >= 2; };
   const sub = k => String(k).replace(/\d/g, d => '₀₁₂₃₄₅₆₇₈₉'[d]);
   const loOf = n => D.cols[n - 1][0];
@@ -53,10 +52,10 @@ try {
       witness: (n, lo) => shown([filled('witness-table2', {bound: bound(n, 'ge', lo)})]),
     },
     page: {
-      ok: (n, lo, who) => WHO.includes(who),
+      ok: (n, lo, who) => credit(who).length === 1,              // who is a class of the new results' cells, which their legend words
       // readout reason; says order lo is known from this page's new results, naming whose they are
-      text: (n, lo, who) => `order ${lo} from the new results above (${who})`,
-      witness: (n, lo, who) => shown([filled('witness-page', {bound: bound(n, 'ge', lo), who})], [BigInt(n)]),
+      text: (n, lo, who) => `order ${lo} from the new results above (${credit(who)[0]})`,
+      witness: (n, lo, who) => shown([filled('witness-page', {bound: bound(n, 'ge', lo), who: credit(who)[0]})], [BigInt(n)]),
     },
   };
   const HI = {
@@ -86,9 +85,9 @@ try {
       proof: (n, hi) => PROOF.table2(BigInt(n), `${n}`, hi),
     },
     page: {
-      ok: (n, hi, who) => WHO.includes(who),
+      ok: (n, hi, who) => credit(who).length === 1,
       // readout reason; says order hi + 1 is ruled out in this page's new results, naming whose they are
-      text: (n, hi, who) => `order ${hi + 1} ruled out in the new results above (${who})`,
+      text: (n, hi, who) => `order ${hi + 1} ruled out in the new results above (${credit(who)[0]})`,
       proof: (n, hi, who) => PROOF.page(BigInt(n), `${n}`, hi, who),
     },
   };

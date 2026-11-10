@@ -156,17 +156,36 @@ def q_section_links_the_wl():
     assert os.path.isfile(WL)
 
 
+def call_items():
+    """{call: what its item says after it} for the items of the section's list of calls (<ul class="calls">), each
+    starting with its call in <code>, in the list's order."""
+    items = re.findall(r'<li>(.*?)</li>', re.search(r'<ul class="calls">(.*?)</ul>', section(), re.S).group(1), re.S)
+    found = [re.match(r'<code>(.*?)</code>(.*)', item, re.S) for item in items]
+    assert all(found), items
+    return {html.unescape(m.group(1)): m.group(2) for m in found}
+
+
+def numbers(text):
+    """The numbers that stand alone in text (HTML): outside its math, its codes and its tags, as whole tokens, a
+    sentence's mark after one or not."""
+    bare = re.sub(r'\\\(.*?\\\)|<code>.*?</code>|<[^>]+>', ' ', text, flags=re.S)
+    return [int(t.rstrip('.,;:')) for t in bare.split() if t.rstrip('.,;:').isdigit()]
+
+
 def q_section_lists_the_calls_and_their_results():
     # Replicata: the items of the section's list of calls (<ul class="calls">).
-    # Expectata: one item per call of CALLS, in order: the call in <code>, then ": complete, " when the run is
-    # exhaustive, then the number of sequences ("no sequences", "1 sequence" or "N sequences"), as CALLS has them.
-    items = re.findall(r'<li>(.*?)</li>', re.search(r'<ul class="calls">(.*?)</ul>', section(), re.S).group(1), re.S)
-    assert len(items) == len(CALLS), items
-    for item, (call, count, complete) in zip(items, CALLS):
-        m = re.match(r'<code>(.*?)</code>: (complete, )?(no|\d+) sequences?\b', item)
-        assert m, item
-        assert html.unescape(m.group(1)) == call, (m.group(1), call)
-        assert bool(m.group(2)) == complete and (0 if m.group(3) == 'no' else int(m.group(3))) == count, (item, count)
+    # Expectata: one item per call of CALLS, in order: the call in <code>, then what it returned; where CALLS has
+    # sequences for it, their number stands in the item, as a number alone.
+    # Spec change (Claude, 2026-11-09; dreeves that day: "we need more quals for substantive things and fewer quals
+    # enforcing words on the page", and "i stand by the point about quals enforcing specific prose on the page being
+    # pretty useless"): until then each item had to read ": complete, " when its run is exhaustive, and then "no
+    # sequences", "1 sequence" or "N sequences".  That the page calls an exhaustive run complete, and a run without
+    # sequences so, is said in words alone and is no longer checked here; q_wl_calls_return_what_the_section_says
+    # still holds CALLS itself to what lattice_search.wl returns.
+    said = call_items()
+    assert list(said) == [call for call, _, _ in CALLS], list(said)
+    for call, count, _ in CALLS:
+        assert count == 0 or count in numbers(said[call]), (call, count, said[call])
 
 
 def q_section_states_the_dimensions():
@@ -205,7 +224,8 @@ def q_wl_calls_return_what_the_section_says():
     R = results()
     assert R['latticeSearch[320, 11, -1, "Want" -> Infinity]'][5] <= 100, R['latticeSearch[320, 11, -1, "Want" -> Infinity]'][5]
     n112 = R['latticeSearch[112, 7, -1, "Want" -> Infinity, "MaxNodes" -> 10^9]'][5]
-    assert round(n112 / 10 ** 6) == 285 and '285 million nodes' in section(), n112
+    # (the 285 as a number alone in the call's item; the words "285 million nodes" until 2026-11-09)
+    assert round(n112 / 10 ** 6) == 285 and 285 in numbers(call_items()['latticeSearch[112, 7, -1, "Want" -> Infinity, "MaxNodes" -> 10^9]']), n112
     for call, count, complete in CALLS:
         sols, sets, comp, dim, trials, nodes, secs = R[call]
         assert len(sols) == count and len({tuple(f) for f in sols}) == count, (call, len(sols))

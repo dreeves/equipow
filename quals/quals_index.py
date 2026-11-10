@@ -16,11 +16,21 @@ The harness locates the chart only by its pixels, reads the view only through th
 synthetic pointer) and finds the n labels by where their strings were drawn, so the quals hold the chart to what a
 reader sees.
 
-Spec change (dreeves, 2026-11-09, his commit b5ce25c and, asked: "yes, the "Claude" -> "Opus 5.5" rename was
-intentional"): the page says Opus 5.5 where it said Claude, in the new results' titles and legend (Opus 5.5 alone, Opus
-5.5 and BGPW, Opus 5.5 and Astra), which mstar.js's ["page", who] and the chart scripts' WHO follow, and in its
-quotations (Opus 5.5: “…”, the boxes' among them); Fable 5.2's words are quoted under its own name.  The quals' code
-asks for the new names.  Their comments, written before, still say Claude, as do the names of some quals.
+Spec changes (dreeves, 2026-11-09).  His rename of Claude to Opus 5.5 on the page ("yes, the "Claude" -> "Opus 5.5"
+rename was intentional") stopped mstar.py and turned 45 quals red, and he wrote: "it seems dumb that me tweaking the
+prose in index.html has yielded this much work from you. we need more quals for substantive things and fewer quals
+enforcing words on the page", then "probably yes to the decoupling" and "i stand by the point about quals enforcing
+specific prose on the page being pretty useless".  So:
+- a credit of the new results is the class of its cells (CREDITS: c, the model alone, which the comments here written
+  before call "Claude alone"; j, with BGPW; ca, with Astra; a, Astra alone; s, BGPW), in mstar.js's ["page", who] too;
+  what a class is called is the page's, in its legend, where the boxes look it up (reworded, legend_labels,
+  q_boxes_word_a_credit_as_the_legend_does);
+- a quotation is one of any writer the page quotes (WRITERS), Fable 5.2's words under its own name; a box's quotation
+  is told by its form, a name, a colon and “ (OPENING), whoever the writer;
+- no qual asks for words to be on the page, be they index.html's or a script's (a readout's sentences): where a
+  qual's comment quotes a sentence, the qual holds the sentence's figures, its numbers, math, codes and marks
+  (figures, among).  A qual found to fail because the page's words changed gets that check cut (dreeves, 2026-11-09:
+  "we could've just nixed quals that failed due to wording as they arose").
 """
 import sys
 sys.dont_write_bytecode = True
@@ -74,8 +84,8 @@ def the_theorem(text):
     """The text of the powers-of-2 section's theorem in text (index.html), after its label, "Theorem 1." (dreeves's
     README, 2026-11-04: "[THM] Call the theorem in equipow Theorem 1"; it was "Theorem 1." from 819936b, 2026-10-17,
     and "Theorem." from 699517e, 2026-10-27, until then)."""
-    [t] = re.findall(r'<p><b>Theorem 1\.</b>(.*?)</p>', text, re.S)
-    return t
+    [t] = re.findall(r'<p><b>[^<]*</b>(.*?)</p>', re.search(r'<section class="pow2".*?</section>', text, re.S).group(0), re.S)
+    return t                                      # found by its place since 2026-11-09, not by the words of its label
 
 
 def section():
@@ -1046,8 +1056,8 @@ def kinds_data(violation=None):
                     [1, two, ['example', 'a made-up label'], ['two']] if two <= 7 else
                     [1, 7, ['example', 'a made-up label'], ['residue', 3]])
     for n, c in ((4, [2, 2, ['product', 2, 2], ['norm', 3]]), (8, [3, 3, ['table2'], ['table2']]),
-                 (12, [2, 3, ['join', 4, 8], ['two']]), (16, [4, 4, ['page', 'BGPW'], ['page', 'Opus 5.5 and BGPW']]),
-                 (20, [3, 3, ['page', 'Opus 5.5 alone'], ['two']]), (24, [4, 5, ['example', 'BGPW Table 5'], ['residue', 9]]),
+                 (12, [2, 3, ['join', 4, 8], ['two']]), (16, [4, 4, ['page', 's'], ['page', 'j']]),
+                 (20, [3, 3, ['page', 'c'], ['two']]), (24, [4, 5, ['example', 'BGPW Table 5'], ['residue', 9]]),
                  (32, [5, 7, ['product', 16, 2], ['norm', 5]]), (48, [6, 7, ['table2'], ['norm', 7]])):
         cols[n - 1] = c
     data = {'nmax': NMAX, 'mtop': max(c[1] for c in cols) + 1, 'mtopAt': [NMAX + 2], 'past': [], 'cols': cols}
@@ -1744,6 +1754,32 @@ def new_frames(text):
     return re.findall(r'<div class="scroll">(.*?)</div>', block, re.S)
 
 
+# The classes of the new results' cells, their credits, which the page's own legend words: the data and the scripts
+# name a credit by its class alone (2026-11-09; dreeves, after his rename of Claude to Opus 5.5 on the page stopped
+# mstar.py and turned 45 quals red: "it seems dumb that me tweaking the prose in index.html has yielded this much work
+# from you", then "probably yes to the decoupling").
+CREDITS = ('s', 'c', 'j', 'a', 'ca')
+TITLED = r"(<td(?: class=\"\w+\")? title=')([^']*)(')"                                              # a cell's title
+LABELED = r'(<li><span class="key[^"]*" aria-hidden="true">(?:<span>)?[^<]*(?:</span>)?</span>)([^<]*)(</li>)'   # a legend label
+
+
+def reworded(text):
+    """index.html's text with the words of the new results' credits changed and nothing else: each title of a cell and
+    each label of their legend, with every run of letters reversed (Opus 5.5 alone: supO 5.5 enola)."""
+    turn = lambda x: x.group(1) + re.sub(r'[A-Za-z]+', lambda w: w.group(0)[::-1], x.group(2)) + x.group(3)
+    text, cells = re.subn(TITLED, turn, text)
+    text, labels = re.subn(LABELED, turn, text)
+    assert cells > 100 and labels == len(CREDITS) + 1, (cells, labels)         # the legend's last label is the paper's
+    return text
+
+
+def legend_labels(text):
+    """{class: label} for the new results' legend in text: each item whose key has a class of its own."""
+    found = re.findall(r'<li><span class="key (\w+)" aria-hidden="true">(?:<span>)?[^<]*(?:</span>)?</span>([^<]*)</li>', text)
+    assert sorted(k for k, _ in found) == sorted(CREDITS), found
+    return dict(found)
+
+
 def new_block_cells():
     """The new results' tables, frame by frame (new_frames), each table as a list of (n, its n cell as the page writes
     it, the n cell's attributes, the value cell's attributes, the value), in page order."""
@@ -1788,12 +1824,12 @@ def q_new_results_subsume_table2():
         t2 |= {cell_n(c): bounds(v) for c, v in zip(ns, vs)}
     assert len(t2) == 39 and 2 ** 51 in t2, sorted(t2)
     cells = [cell for r in rows for cell in r]
-    paper = " title='The published paper (2021)'"
-    copies = {n: bounds(v) for n, c, a, va, v in cells if a == paper}
-    assert all(a == paper and va == '' or re.fullmatch(r' class="(\w+)" title=\'[^\']+\'', a) and va == a.split(' title')[0]
-               for n, c, a, va, v in cells), [cell for cell in cells if cell[2] != paper and not cell[3]]
+    bare = lambda a: bool(re.fullmatch(r" title='[^']+'", a))   # a cell with no class, whatever its title says (2026-11-09)
+    copies = {n: bounds(v) for n, c, a, va, v in cells if bare(a)}
+    assert all(bare(a) and va == '' or re.fullmatch(r' class="(\w+)" title=\'[^\']+\'', a) and va == a.split(' title')[0]
+               for n, c, a, va, v in cells), [cell for cell in cells if not bare(cell[2]) and not cell[3]]
     assert set(copies) <= set(t2) and all(copies[n] == t2[n] for n in copies), {n: (copies[n], t2.get(n)) for n in copies}
-    classed = {n: bounds(v) for n, c, a, va, v in cells if a != paper}
+    classed = {n: bounds(v) for n, c, a, va, v in cells if not bare(a)}
     # Spec change (Claude, 2026-11-08): 288 among the classed cells, settled at 9 by the form-tree proof (quals_mstar's
     # q_288_is_settled_at_9); until then a copy of Table 2's 9 or 10.
     assert set(t2) <= set(copies) | set(classed) and set(t2) - set(copies) == {240, 288, 304, 2 ** 51}, set(t2) - set(copies)
@@ -1813,14 +1849,9 @@ def q_new_results_say_which_lengths():
     # Theorem 4.1, linked) allows an odd multiple of 8 at most, and 200, the least n from which every odd multiple of
     # 8 up to NMAX has lo = hi = 7 in mstar.js (so that none of them, past 304, has anything to show); and it links
     # Theorem 4.1.
-    block = page()[page().index('<div class="new-block">'):page().index('</figure>')]
-    # (Since 2026-11-03 the powers-of-2 frame has its own caption, Table 2, between this paragraph and it: README [NUM].)
-    m = re.search(r'<div class="scroll">(?:(?!</div>).)*</div>\s*(?:<!--(?:(?!-->).)*-->\s*)*<p>((?:(?!</p>).)*)</p>\s*'
-                  r'<p class="float-caption"><span class="sc">Table 2\.</span>[^\n]*</p>\s*<div class="scroll">', block, re.S)   # its words: d66ad09
-    assert m, 'no paragraph between the new results\' frames'
-    # numbers as words: not part of another word or of a decimal like the 4.1 of Theorem 4.1, but a sentence's final
-    # period may follow one (dreeves's rewording of 2026-10-27 ends a sentence with "304.")
-    said = {int(t) for t in re.findall(r'(?<![\w.])\d+(?!\w)(?!\.\d)', re.sub(r'<[^>]+>', '', m.group(1)))}
+    # Spec change (2026-11-09; dreeves: "we need more quals for substantive things and fewer quals enforcing words on
+    # the page"): the paragraph is his and is no longer read (until then it had to name 8, 304, 16, 7 and 200 and to
+    # link Theorem 4.1); what it says is still held true of the table and the chart.
     lengths = [n for r in new_block_cells()[0] for n, *_ in r]
     steps = [b - a for a, b in zip(lengths, lengths[1:])]
     turn = lengths[steps.index(16)]
@@ -1829,8 +1860,6 @@ def q_new_results_say_which_lengths():
     sevens = [n for n in range(8, NMAX + 1, 16) if cols[n - 1][:2] != [7, 7]]
     least = max(sevens) + 16
     assert (turn, least, (8 & -8) - 1) == (304, 200, 7) and all(cols[n - 1][1] <= 7 for n in range(8, NMAX + 1, 16)), sevens
-    assert {8, turn, 16, (8 & -8) - 1, least} <= said, (said, m.group(1))
-    assert 'https://arxiv.org/html/1912.03491v1#S4.Thmthm1' in m.group(1), m.group(1)
 
 
 def q_remarks_name_the_chart_s_constructions():
@@ -1950,13 +1979,14 @@ def q_citations_match_the_page():
     # Replicata: mstar.js's reasons that cite the page: ["table2"] and ["page", who], as loWhy or hiWhy; and the new
     # results' cells, their provenance classes and titles.
     # Expectata: a ["table2"] column is one of Table 2's n; a ["page", who] column is one of the new results' n.  As
-    # hiWhy, who is its cell's title (whose proof).
+    # hiWhy, who is its cell's class (whose proof; the cell's title until 2026-11-09, when the credits became the
+    # classes and the titles' words the page's alone).
     fig = re.search(r'<figure>.*?</figure>', page(), re.S).group(0)
     new = ''.join(new_frames(page()))
     value = lambda cell: int(cell) if cell.isdigit() else 2 ** int(re.fullmatch(r'\\\(2\^\{?(\d+)\}?\\\)', cell).group(1))
     titled = {value(n): (cls, who) for cls, who, n in
               re.findall(r"<td(?: class=\"(a|c|ca|j|s)\")? title='([^']*)'>([^<]*)</td>", new)}
-    titles = {n: who for n, (cls, who) in titled.items() if cls}      # the rest, unclassed, copy Table 2's powers of 2
+    classes = {n: cls for n, (cls, who) in titled.items() if cls}      # their classes; the rest, unclassed, copy Table 2's powers of 2
     # 240 (since 2026-10-20) and 288 (since 2026-11-08, the form-tree proof), the 44 multiples of 16 from 304 to 992 (512 written 2^9) and 32 larger powers of 2,
     # 2^17 to 2^72 (6 until 560 reached order 10 on 2026-10-12, 11 until 800 reached order 11 on 2026-10-17, 18
     # until 592, 608 and 656 reached order 10 and 848, 880, 896, 928, 944, 976 and 992 order 11 on 2026-10-25, 23
@@ -1968,16 +1998,16 @@ def q_citations_match_the_page():
     # 2's powers of 2 (2^3 to 2^8) until then, copy every entry of Table 2 that stands: up to 304 but 240, 288 and 304.
     # (1 + 44 + 33 + 1 until 2^56 and 2^58 joined them, later on 2026-11-03; 1 + 44 + 35 + 1 until 288 joined them,
     # on 2026-11-08.)
-    assert len(titles) == 2 + 44 + 35 + 1, len(titles)
-    assert sorted(n for n in titled if n not in titles) == [n for n in range(8, 305, 8) if n not in (240, 288, 304)], titled
-    table2 = {n for n, *_ in table_entries()} - set(titles)
+    assert len(classes) == 2 + 44 + 35 + 1, len(classes)
+    assert sorted(n for n in titled if n not in classes) == [n for n in range(8, 305, 8) if n not in (240, 288, 304)], titled
+    table2 = {n for n, *_ in table_entries()} - set(classes)
     assert len(table2) == 35, sorted(table2)          # 240, 288 and 304 are in both (36 until 288 joined them, 2026-11-08)
     cited = 0
     for n, (lo, hi, lw, hw) in enumerate(mstar_data()['cols'], 1):
         for w in (lw, hw):
             if w[0] == 'table2': assert n in table2 | {304}, (n, w); cited += 1
-            if w[0] == 'page': assert n in titles, (n, w); cited += 1
-        if hw[0] == 'page': assert titles[n] == hw[1], (n, hw, titles[n])
+            if w[0] == 'page': assert n in classes, (n, w); cited += 1
+        if hw[0] == 'page': assert classes[n] == hw[1], (n, hw, classes[n])
     assert cited, 'mstar.js cites neither table'
 
 
@@ -2058,7 +2088,7 @@ def q_752_bound_cites_proof752():
                    page(), re.S)
     assert li, 'no entry for 752 alone'
     assert 'href="https://github.com/dreeves/equipow/blob/main/proofs/proof752.py"' in li.group(1), li.group(1)[:600]
-    assert mstar_data()['cols'][752 - 1] == [10, 10, ['example', 'equipow p752'], ['page', 'Opus 5.5 and Astra']]
+    assert mstar_data()['cols'][752 - 1] == [10, 10, ['example', 'equipow p752'], ['page', 'ca']]
     assert os.path.isfile(os.path.join(HERE, 'proofs', 'proof752.py'))       # in proofs/ since [FAC] stage 3a
 
 
@@ -2090,7 +2120,7 @@ def q_288_bound_is_proved_here():
     listed = re.findall(r'<p class="entry">\\\(n = (.*?)\\\): ', text)
     assert listed[listed.index('288') - 1:listed.index('288') + 2] == ['240', '288', '304'], listed
     col = mstar_data()['cols'][288 - 1]
-    assert col == [9, 9, ['product', 2, 144], ['page', 'Opus 5.5 and BGPW']], col
+    assert col == [9, 9, ['product', 2, 144], ['page', 'j']], col
     assert all(os.path.isfile(os.path.join(HERE, *f.split('/'))) for f in files), files
 
 
@@ -2157,7 +2187,7 @@ def q_example_at_1024_has_its_entry_code_and_cell():
     assert len(a) == 1024 and k == 11 and all(a[1023 - i] == -a[i] for i in range(1024)), (len(a), k)
     listed = [ns.split(', ') for ns in re.findall(r'<p class="entry">\\\(n = (.*?)\\\): ', text)]
     assert listed[listed.index(['992']) + 1:listed.index(['992']) + 3] == [['1008'], ['1024']], listed
-    row = re.search(r'<td title=\'The published paper \(2021\)\'>\\\(2\^3\\\)</td>.*?</tr>\s*<tr class="vals">.*?</tr>',
+    row = re.search(r'<td title=\'[^\']*\'>\\\(2\^3\\\)</td>.*?</tr>\s*<tr class="vals">.*?</tr>',
                     text, re.S).group(0)
     ns = re.findall(r'<td([^>]*)>\\\(2\^\{?(\d+)\}?\\\)</td>', row)
     vals = re.findall(r'<td([^>]*)>([^<]*)</td>', row.split('<tr class="vals">')[1])
@@ -2199,7 +2229,7 @@ def q_1024_doubled_settles_2_11_and_2_12():
     cols, text = pow2_data()['cols'], page()
     assert cols[10] == [12, 12, ['joins', [[[1024, 11], [2, 1]]]], ['residue', [3]]], cols[10]
     assert cols[11] == [13, 13, ['joins', [[[1024, 11], [4, 2]]]], ['residue', [3]]], cols[11]
-    row = re.search(r'<td title=\'The published paper \(2021\)\'>\\\(2\^3\\\)</td>.*?</tr>\s*<tr class="vals">.*?</tr>',
+    row = re.search(r'<td title=\'[^\']*\'>\\\(2\^3\\\)</td>.*?</tr>\s*<tr class="vals">.*?</tr>',
                     text, re.S).group(0)
     ns = re.findall(r'<td([^>]*)>\\\(2\^\{?(\d+)\}?\\\)</td>', row)
     vals = re.findall(r'<td([^>]*)>([^<]*)</td>', row.split('<tr class="vals">')[1])
@@ -2248,7 +2278,7 @@ def q_example_at_816_has_its_entry_and_code():
     i = listed.index(['816'])
     assert listed[i - 1:i + 2] == [['800'], ['816'], ['832']] and ['720'] in listed, listed
     assert new_cells(text)[816] == (12, 12), new_cells(text)[816]
-    assert mstar_data()['cols'][816 - 1] == [12, 12, ['example', 'equipow p816'], ['page', 'Opus 5.5 alone']], mstar_data()['cols'][816 - 1]
+    assert mstar_data()['cols'][816 - 1] == [12, 12, ['example', 'equipow p816'], ['page', 'c']], mstar_data()['cols'][816 - 1]
 
 
 def q_examples_at_720_and_1008_have_their_entries_and_codes():
@@ -2533,13 +2563,14 @@ def first_entry(cols, text, k, lo, hi):
         return '\\cdot '.join(('2' if power[n] == 1 else f'2^{power[n]}') if n in power else f'{n}' if c == 1 else f'{n}^{c}' for n, c in runs)
     assert f'\\(2^{{{k}}} = ' + ' + '.join(factors(p) for p in products) + '\\)' in li, li
     orders = [sum(m for n, m in p) for p in products]
-    assert min(orders) == lo and f'of orders {", ".join(map(str, orders[:-1]))} and {orders[-1]}.' in li, (orders, li)
+    said = re.sub(r'<!--.*?-->|<[^>]+>', ' ', li, flags=re.S)                # the entry's text: "of orders 33, 31 and 31."
+    assert min(orders) == lo and among(f'of orders {", ".join(map(str, orders[:-1]))} and {orders[-1]}.', said), (orders, li)
 
 
 def names_base(text, k, base, t, order):
     """Asserts that 2^k's entry names the 2^base entry, each product times tau_t, and order."""
     li = re.search(r'<p class="entry">\\\(n = 2\^\{%d\}\\\): .*?</li>' % k, text, re.S).group(0)
-    assert f'\\(2^{{{base}}}\\) entry' in li and f'\\tau_{t}\\)' in li and f'order {order}' in li, li
+    assert f'\\(2^{{{base}}}\\)' in li and f'\\tau_{t}\\)' in li and re.search(rf'(?<![\d.]){order}(?![\d.])', li), li
 
 
 def q_firsts_of_2026_11_03():
@@ -2558,7 +2589,7 @@ def q_firsts_of_2026_11_03():
     theorem = the_theorem(text)
     for k, lo in ((28, 31), (36, 40), (47, 53)): assert f'(2^{{{k}}}) \\ge {lo}' in theorem, theorem
     for k in (29, 37, 48): assert f'(2^{{{k}}})' not in theorem, theorem
-    assert ' are 10, 20, 28, 36, 39, 47, ' in text      # ' are 10, 20, 28, 36, 39, 47, 57, 65, 68.</p>' until later on 2026-11-03
+    assert re.search(r'(?<![\d.])10, 20, 28, 36, 39, 47, ', text)      # '10, 20, 28, 36, 39, 47, 57, 65, 68' until later on 2026-11-03
     for k, base, t, order in ((29, 28, 1, 32), (30, 28, 2, 33), (33, 28, 5, 36), (34, 28, 6, 37), (37, 36, 1, 41), (38, 36, 2, 42), (48, 47, 1, 54), (49, 47, 2, 55), (52, 47, 5, 58)):
         names_base(text, k, base, t, order)
 
@@ -2585,7 +2616,7 @@ def q_firsts_move_to_2_56_and_2_58():
     theorem = the_theorem(text)
     for k, lo in ((56, 63), (58, 66)): assert f'(2^{{{k}}}) \\ge {lo}' in theorem, theorem
     for k in (57, 65): assert f'(2^{{{k}}})' not in theorem, theorem
-    assert ' are 10, 20, 28, 36, 39, 47, 56, 58, 68.</p>' in text
+    assert re.search(r'(?<![\d.])10, 20, 28, 36, 39, 47, 56, 58, 68(?![\d,])', text)      # the list, whole
     for k, base, t, order in ((57, 56, 1, 64), (61, 58, 3, 69), (65, 58, 7, 73), (66, 58, 8, 74), (67, 58, 9, 75)):
         names_base(text, k, base, t, order)
 
@@ -2632,7 +2663,7 @@ def q_pin_trees_are_on_the_page():
         li = re.search(r'<li class="c">\n      <span class="mk" aria-hidden="true">◆</span>\n      <p class="entry">\\\(n = %d\\\): &nbsp;\\\(m\^\* = %d\\\)</p>\n(.*?)\n    </li>' % (n, M), text, re.S)
         assert li, f'no entry of {n} alone, m* = {M}'
         assert f'<code id="{n}:{M}">' in li.group(1), n
-        assert f'{GH}proofs/{proof}' in li.group(1) and re.search(WRITERS + ': “', li.group(1)), li.group(1)[:400]
+        assert f'{GH}proofs/{proof}' in li.group(1), li.group(1)[:400]
         assert new_cells(text)[n] == (M, M), new_cells(text)[n]
         assert changelog_by_day().get('2026-11-03', {}).get(n) == (M, M), changelog_by_day().get('2026-11-03')
     sec = re.search(r'<section class="pintree" aria-labelledby="pintree-title">(.*?)</section>', text, re.S)
@@ -2858,6 +2889,62 @@ def q_768_moves_excess_5_to_2_39():
 # 2026-11-09 (the rename in this file's header); Claude until then, and still where the page says so.
 WRITERS = r'(?:Opus 5\.5|Fable 5\.2|Claude|Astra)'
 QUOTED = WRITERS + r': ["“”]'
+# A plain word: a token of letters alone, with hyphens, dashes or apostrophes inside and punctuation around, that has
+# two letters or more together: what the page's prose is made of.  No qual asks for one to be on the page (dreeves,
+# 2026-11-09: "i stand by the point about quals enforcing specific prose on the page being pretty useless").
+# figures(text) is a text without them: its numbers, times, math, codes and marks, in order, one space between.  A qual
+# that used to ask for a sentence of the page asks for its figures, with the sentence left in the qual to read.
+PLAIN = re.compile(r'''[("“‘'\[]*[A-Za-z]+(?:[-–—'’][A-Za-z]+)*[)"”’'\].,;:!?…]*''')
+
+
+def figures(text):
+    return ' '.join(t for t in text.split() if not (PLAIN.fullmatch(t) and re.search('[A-Za-z]{2}', t)))
+
+
+def among(said, text):
+    """Whether said's figures stand among text's, in a row: from the start of one of text's figures to the end of one,
+    or to the marks that close it (a colon, a quotation mark)."""
+    assert figures(said), said
+    return re.search(r'(?<!\S)' + re.escape(figures(said)) + r'(?!\S*[A-Za-z0-9])', figures(text)) is not None
+
+
+# How a quotation opens: a writer's name (at most 40 characters, with no colon and no quotation mark), a colon and “.
+# A box's is page/shared.js's.  Which name it is is not a qual's business: every qual that named Claude turned red
+# when the page's writer became Opus 5.5 (2026-11-09).
+OPENING = r'[^:“”"]{1,40}: “'
+
+
+def unquoted(part):
+    """A box's part without its quotation's marks: the opening (OPENING) at its start and the ” at its end."""
+    return re.sub('^' + OPENING + '|”$', '', part)
+
+
+def q_figures_are_a_text_without_its_words():
+    # Replicata: figures and among, by which a qual holds a sentence of the page without its words, on fixed texts: a
+    # line of the progress section, a box of the m*(n) chart, an entry's sentence, a tracked search's counts.
+    # Expectata (dreeves, 2026-11-09: "we need more quals for substantive things and fewer quals enforcing words on the
+    # page"): a text's figures are its tokens that are not plain words, in order (numbers, times, math, codes, marks,
+    # single letters); they are the same for a text and for it with other words in the words' places; said's figures
+    # stand among text's when they stand there in a row and whole: a number changed, a number cut short or another
+    # order does not pass, a mark closing the last figure (a colon, a quotation mark) does; and a said of words alone
+    # is refused.
+    N = '\u202f'
+    line = f'2h{N}0m{N}0s + 1–3{N}h to go = 3–5{N}h (Fri 7pm – 9pm)'
+    assert figures(line) == '2h 0m 0s + 1–3 h = 3–5 h 7pm – 9pm)', figures(line)
+    box = ('Opus 5.5: “\\(m^*(1024) \\le 11\\): norm bound, \\(p = 3 \\nmid n\\): for \\(s_r\\) = 342, 341, 341 and '
+           '\\(\\sum s_r^2 =\\) 349,526; at \\(m = 12\\)”')
+    assert figures(f'2h{N}0m{N}0s + 1–3{N}h left = 3–5{N}h (Friday 7pm – 9pm)') == figures(line)
+    assert figures('2 runs: 1 running, 0 frozen, 1 ended, 0 aborted; 0 found; running.') == '2 1 0 1 0 0' == figures('2 sessions: 1 live, 0 held, 1 over, 0 killed; 0 hits; live.')
+    assert among('\\(p = 3 \\nmid n\\)', box) and among('= 342, 341, 341 and \\(\\sum s_r^2 =\\) 349,526;', box) and among('\\(m = 12\\)', box)
+    assert not among('= 342, 341, 34 and', box) and not among('= 342, 342, 341 and', box) and not among('341, 342', box)
+    assert among('of orders 33, 31 and 31.', 'a join of orders 33, 31 and 31. More')
+    assert not among('of orders 33, 31 and 31.', 'a join of orders 33, 32 and 31. More')
+    refused = False
+    try:
+        among('words alone', box)
+    except AssertionError:
+        refused = True
+    assert refused, 'among took a said of words alone'
 
 
 def visible_text():
@@ -3335,8 +3422,10 @@ def q_hover_reads_out_cells():
         for n, m, text in R['hovers']:
             lo, hi = cols[n - 1][:2]
             bounds = f'm*({n}) = {lo}' if lo == hi else f'{lo} ≤ m*({n}) ≤ {hi}'
-            note = {1: rf'\border {m}\b', 2: rf'\border {m}\b', 3: rf'\border {m}\b.*{re.escape(f"a({m - 1})")}'}
-            reasons = ([rf'\border {lo}\b'] * (m <= hi) + [rf'\border {hi + 1}\b'] * (m > lo)
+            # (spec change, 2026-11-09: an order named is its number, whole; until then the word "order" before it)
+            named = lambda k: rf'(?<![\d.]){k}(?![\d.])'
+            note = {1: named(m), 2: named(m), 3: rf'{named(m)}.*{re.escape(f"a({m - 1})")}'}
+            reasons = ([named(lo)] * (m <= hi) + [named(hi + 1)] * (m > lo)
                        + [note[r] for r in [rings.get((n, m), 0)] if r])
             got = re.fullmatch(r'n = (\d+), m = (\d+) · (.*?) · (.*)', text)
             assert got and (int(got[1]), int(got[2]), got[3]) == (n, m, bounds), (name, n, m, text)
@@ -3624,6 +3713,9 @@ def panel_entries(n):
     return [e for e in [entry_lengths().get(n)] if e]
 
 
+TABLE2 = 'https://arxiv.org/html/1912.03491v1#S3.T2'       # BGPW's Table 2, which a box that cites it links (its words until 2026-11-09)
+
+
 def panel_says(cols, n, P):
     """What the box of the m*(n) chart's column n, P, must say, by its reasons' arguments, as [(what, found)].  Spec change
     (2026-11-04, [CEL]; dreeves: "so many pointless words in the implementation so far"): its bounds as math, each
@@ -3642,12 +3734,12 @@ def panel_says(cols, n, P):
     says += {'example': [('label', f'\\(m^*({n}) \\ge {lo}\\): {arg}' in t)],
              'join': [('construction', built(f'p_{{{a}}} \\vee p_{{{b}}}'))],
              'product': [('construction', built(f'p_{{{a}}} \\mathbin{{\\#}} p_{{{b}}}'))],
-             'table2': [('cited', f'\\(m^*({n}) \\ge {lo}\\): BGPW, Table 2' in t)], 'page': [('who', f'found by {arg}' in t)]}[lw[0]]
+             'table2': [('cited', TABLE2 in P['links'])], 'page': [('who', legend_labels(page()).get(arg, '\0') in t)]}[lw[0]]
     t2 = (n & -n).bit_length() - 1
     says += {'two': [('t', f'\\(n = 2^{{{t2}}} \\cdot {n >> t2}\\)' in t and f'\\(m \\le 2^{{{t2}}} - 1 = {hi}\\)' in t)],
              'norm': [('p', f'\\(p = {harg} \\nmid n\\)' in t)],
-             'residue': [('M', f'residue condition mod \\(M = {harg}\\)' in t and 'mstar.py' in t)],
-             'table2': [('cited', f'\\(m^*({n}) \\le {hi}\\): BGPW, Table 2' in t)], 'page': [('who', f'proven by {harg}' in t)]}[hw[0]]
+             'residue': [('M', f'\\(M = {harg}\\)' in t and 'mstar.py' in t)],
+             'table2': [('cited', TABLE2 in P['links'])], 'page': [('who', legend_labels(page()).get(harg, '\0') in t)]}[hw[0]]
     copies = [[c, str(lo), 'button', code_digits(c)] for c in [f'{n}:{lo}'] if c in code_ids() and c not in entry_codes(n)]
     says += [('copy', P['copies'] == copies)]
     says += [('entry', P['entries'] == panel_entries(n))]      # the entry itself since [REO] step 2 (2026-11-03), not its link
@@ -3678,7 +3770,7 @@ def q_panel_works_out_the_norm_bound_at_1024():
     assert 342 ** 2 + 2 * 341 ** 2 == 349526 and 3 * 349526 // 2 == 524289 == 2 ** 19 + 1 and 3 ** 12 == 531441
     for said in ('\\(p = 3 \\nmid n\\)', '= 342, 341, 341 and \\(\\sum s_r^2 =\\) 349,526;',
                  'at \\(m = 12\\), \\(p^m = 3^{12} =\\) 531,441 \\(>\\) 524,289'):
-        assert said in t, (said, t)
+        assert among(said, t), (said, t)
 
 
 def q_every_column_s_panel_shows_exactly_its_reasons():
@@ -3728,7 +3820,7 @@ def q_norm_panels_hold_their_claims():
         assert p ** m > cap, (n, p, m)
         for said in ('= ' + ', '.join(f'{x:,}' for x in sizes) + ' and', f'\\(\\sum s_r^2 =\\) {S:,};',
                      f'\\(p^m = {p}^{{{m}}} =\\) {p ** m:,} \\(>\\) {cap:,}'):
-            assert said in P['text'], (n, said, P['text'])
+            assert among(said, P['text']), (n, said, P['text'])
         found += 1
     assert found == sum(1 for n in COLUMNS if cols[n - 1][3][0] == 'norm') > 10, found
 
@@ -3926,7 +4018,7 @@ def q_remarks_list_folds_closed_under_its_summary():
     before, summary, inside, after = remarks_fold()
     assert re.sub(r'<[^>]+>|\s+', ' ', summary).strip(), summary
     assert re.fullmatch(r'\s*<ul>\n.*\n  </ul>\s*', inside, re.S) and inside.count('<p class="entry">') == page().count('<p class="entry">'), inside[:300]
-    assert 'How the upper bounds are proven.' in before and 'The norm bound for a prime' in before, before[:300]
+    assert before.count('<p>') >= 2, before[:300]      # the paragraphs on the upper bounds' proofs, whatever their words (2026-11-09)
     assert after.strip() == '', after
     assert '.remarks summary { cursor: pointer; }' in page_css(), 'no pointer on the summary'
     assert valid_run('light')['fold'] == {'there': True, 'open': False, 'summary': True, 'list': False}, valid_run('light')['fold']
@@ -4007,7 +4099,13 @@ def q_find_in_page_opens_the_fold():
     # (Chrome's find bar has no headless form; a text fragment is Chrome's other text search that reveals what it finds.
     # window.find finds the words in the fold but opens nothing: scratch/reo-step2-20261103/findprobe/.)
     # Resultata before: no fold.
-    for frag in ('#:~:text=Berend%20and%20Golan', '#lemma432'):
+    # words to search for, taken from the page (until 2026-11-09: "Berend and Golan"): three plain words in a row of
+    # the lemma that stand nowhere else in the page's text
+    seen = ' '.join(re.sub(r'<!--.*?-->|<script\b.*?</script>|<[^>]+>', ' ', page(), flags=re.S).split())
+    start = page().index('<div id="lemma432">')                 # the lemma, up to the first element that closes inside it
+    lemma = ' '.join(re.sub(r'<!--.*?-->|<[^>]+>', ' ', page()[start:page().index('</div>', start)], flags=re.S).split())
+    phrase = next(p for p in re.findall(r'(?<![^ ])[A-Za-z]{3,} [A-Za-z]{3,} [A-Za-z]{3,}(?![^ ])', lemma) if seen.count(p) == 1)
+    for frag in ('#:~:text=' + phrase.replace(' ', '%20'), '#lemma432'):
         d = tempfile.mkdtemp(prefix='index-quals-')
         probe = ('<script>addEventListener("load", () => setTimeout(() => { const f = document.querySelector("section.remarks details"),'
                  ' t = document.getElementById("lemma432"); document.documentElement.dataset.fold = JSON.stringify({there: f !== null,'
@@ -4162,7 +4260,7 @@ def q_green_box_gives_the_witness_and_its_code():
         n, m = t
         P, (lo, hi, lw, hw) = B[t], cols[n - 1]
         assert kind_of(cols, n, m) == 'exists' and P['whys'] == box_parts(cols, n, m), (t, P['whys'], box_parts(cols, n, m))
-        assert P['said'].startswith(f'\\(m^*({n}) \\ge {lo}\\):') and 'Claude' not in P['said'], (t, P['said'])   # no English to attribute
+        assert P['said'].startswith(f'\\(m^*({n}) \\ge {lo}\\):') and '“' not in P['said'], (t, P['said'])   # no English to attribute
         copies = [[c, str(lo), 'button', code_digits(c)] for c in [f'{n}:{lo}'] if c in code_ids()]
         assert P['copies'] == copies, (t, P['copies'])
     assert B[(1024, 8)]['said'].startswith('\\(m^*(1024) \\ge 11\\): equipow p1024'), B[(1024, 8)]['said']
@@ -4189,17 +4287,17 @@ def q_red_box_works_out_the_proof():
     cols = mstar_data()['cols']
     for t, quoted in (((1024, 12), True), ((1020, 4), True), ((56, 6), False), ((240, 11), True)):   # BGPW's, cited, no English
         assert kind_of(cols, *t) == 'impossible' and B[t]['whys'] == box_parts(cols, *t), (t, B[t]['whys'])
-        opened = re.match(WRITERS + ': “', B[t]['said'])                 # a quotation of the page's writer, whatever its name
+        opened = re.match(OPENING, B[t]['said'])                         # a quotation of the page's writer, whatever its name
         assert bool(opened) == quoted and B[t]['said'][opened.end() if opened else 0:].startswith(
             f'\\(m^*({t[0]}) \\le {cols[t[0] - 1][1]}\\):'), (t, B[t]['said'])
     assert 3 ** 12 == 531441 > 3 * (342 ** 2 + 2 * 341 ** 2) // 2 == 524289 and 342 ** 2 + 2 * 341 ** 2 == 349526
     for said in ('\\(p = 3 \\nmid n\\)', '= 342, 341, 341 and \\(\\sum s_r^2 =\\) 349,526;',
                  'at \\(m = 12\\), \\(p^m = 3^{12} =\\) 531,441 \\(>\\) 524,289'):
-        assert said in B[(1024, 12)]['said'], (said, B[(1024, 12)]['said'])
+        assert among(said, B[(1024, 12)]['said']), (said, B[(1024, 12)]['said'])
     assert '\\(n = 2^{2} \\cdot 255\\)' in B[(1020, 4)]['said'] and '\\(m \\le 2^{2} - 1 = 3\\)' in B[(1020, 4)]['said'], B[(1020, 4)]['said']
     assert 'https://arxiv.org/html/1912.03491v1#S4.Thmthm1' in B[(1020, 4)]['links'], B[(1020, 4)]['links']
-    assert 'BGPW, Table 2' in B[(56, 6)]['said'] and 'https://arxiv.org/html/1912.03491v1#S3.T2' in B[(56, 6)]['links'], B[(56, 6)]
-    assert f'proven by {cols[240 - 1][3][1]}' in B[(240, 11)]['said'] and B[(240, 11)]['entries'] == ['entry-240'], B[(240, 11)]
+    assert TABLE2 in B[(56, 6)]['links'], B[(56, 6)]
+    assert legend_labels(page())[cols[240 - 1][3][1]] in B[(240, 11)]['said'] and B[(240, 11)]['entries'] == ['entry-240'], B[(240, 11)]
     assert all(B[t]['entries'] == [] for t in ((1024, 12), (1020, 4), (56, 6))), [B[t]['entries'] for t in B]
 
 
@@ -4227,14 +4325,13 @@ def q_black_box_shows_both_bounds_and_the_searches():
     cols = mstar_data()['cols']
     S = R['searched']
     assert S['whys'] == box_parts(cols, 528, 12) == ['witness-example', 'witness-code', 'proof-residue', 'searches'], S['whys']
-    assert S['said'].startswith('\\(m^*(528) \\ge 11\\): equipow p528') and S['said'].endswith('finds none”'), S['said']
-    assert re.search(WRITERS + ': “' + re.escape('\\(m^*(528) \\le 12\\): residue condition mod \\(M = 5\\)'), S['said']), S['said']
-    flat = lambda t: ' '.join(t.split())                         # its spaces, the narrow no-break ones before a unit among them, as one
+    assert S['said'].startswith('\\(m^*(528) \\ge 11\\): equipow p528') and S['said'].endswith('”'), S['said']
+    assert '\\(m^*(528) \\le 12\\):' in S['said'] and '\\(M = 5\\)' in S['said'], S['said']
     made, to_go = BOX_PROGRESS['made'], PROGRESS_CAMPAIGN['to_go']
     status = f'10m 0s + 0–3 h to go = 0–3 h ({finish(made, made + to_go["lo"], made + to_go["hi"], (to_go["hi"] - to_go["lo"]) / 2)})'
-    assert [flat(t) for t in S['searches']] == [f'Search progress m*(528) ≥ 12? probe_seed.py running 10m 0s {status} m*(528) ≥ 12? '
-                                                'overnight_v5.py aborted 2h 0m 0s Aborted after running for 2h 0m 0s.'], S['searches']
-    assert B[(480, 13)]['whys'] == box_parts(cols, 480, 13) and [flat(t) for t in B[(480, 13)]['searches']] == ['Search progress —'], B[(480, 13)]
+    assert [figures(t) for t in S['searches']] == [figures(f'Search progress m*(528) ≥ 12? probe_seed.py running 10m 0s {status} m*(528) ≥ 12? '
+                                                           'overnight_v5.py aborted 2h 0m 0s Aborted after running for 2h 0m 0s.')], S['searches']
+    assert B[(480, 13)]['whys'] == box_parts(cols, 480, 13) and [figures(t) for t in B[(480, 13)]['searches']] == ['—'], B[(480, 13)]
 
 
 def q_column_box_opens_from_its_n_label():
@@ -4266,7 +4363,32 @@ def q_row_box_is_its_row_of_the_smallest_lengths():
         P = B[(None, m)]
         assert not P['hidden'] and P['hash'] == f'#m{m}' and P['kind'] == 'row' and P['heading'] == f'\\(m = {m}\\)', (m, P)
         assert P['whys'] == ['row-smallest'] and P['tables'] == [[table[0], table[m]]], (m, P['tables'], table[0], table[m])
-        assert P['links'] == ['https://oeis.org/A323395'] and P['text'].endswith(f'OEIS A323395: {term}'), (m, P['links'], P['text'])
+        assert P['links'] == ['https://oeis.org/A323395'] and P['text'].endswith(f'A323395: {term}'), (m, P['links'], P['text'])
+
+
+def q_boxes_word_a_credit_as_the_legend_does():
+    # Replicata: a copy of the page reworded (reworded: the titles of the new results' cells and the labels of their
+    # legend, each word's letters reversed), beside the real page/, mstar.js and pow2.js, loaded at #n240m11: the box of
+    # the cell (240, 11), whose upper bound mstar.js cites from the page, ["page", who].
+    # Expectata (dreeves, 2026-11-09: "probably yes to the decoupling"): the box opens, and its proof's part names the
+    # credit by the reworded label of the legend's item of the cell's class, which is no label of the real page.  So a
+    # credit is renamed on the page alone: mstar.py, mstar.js, the scripts and the quals hold none of its words.
+    # Resultata before: the box named the credit by mstar.js's words, the real page's label, whatever the legend said.
+    text = page()
+    [cls] = re.findall(r'<td class="(\w+)" title=\'[^\']*\'>240</td>', text)
+    assert mstar_data()['cols'][240 - 1][3] == ['page', cls], mstar_data()['cols'][240 - 1]
+    d = tempfile.mkdtemp(prefix='index-quals-')
+    try:
+        open(os.path.join(d, 'index.html'), 'w', encoding='utf-8').write(reworded(text))
+        copy_page_dir(d)
+        for src, name in ((DATA, 'mstar.js'), (POW2, 'pow2.js')): shutil.copy(src, os.path.join(d, name))
+        dom = chrome(d, ['--window-size=1280,1000', '--virtual-time-budget=10000', '--dump-dom',
+                         'file://' + os.path.join(d, 'index.html') + '#n240m11'])
+    finally:
+        shutil.rmtree(d)
+    said = [w for w in re.findall(r'<span data-slot="who">([^<]*)</span>', dom) if w]
+    want = legend_labels(reworded(text))[cls]
+    assert said == [html.unescape(want)] and want not in legend_labels(text).values(), (said, want)
 
 
 def q_box_fragments_name_cells_and_rows():
@@ -4308,8 +4430,8 @@ def quoted_right(parts):
     word budget leaves them out."""
     parts = [p for p in parts if p[0] != 'searches']
     claude, text = [i for i, (_, _, c) in enumerate(parts) if c], ''.join(t for _, t, _ in parts)
-    return (len(re.findall(WRITERS + ': “', text)) == text.count('”') == min(1, len(claude))
-            and all(re.match(WRITERS + ': “', parts[i][1]) for i in claude[:1]) and all(parts[i][1].endswith('”') for i in claude[-1:]))
+    return (text.count('“') == text.count('”') == min(1, len(claude))
+            and all(re.match(OPENING, parts[i][1]) for i in claude[:1]) and all(parts[i][1].endswith('”') for i in claude[-1:]))
 
 
 def q_box_quotes_claude_around_its_english_alone():
@@ -4346,7 +4468,7 @@ def q_cell_box_words_stay_within_budget():
     for P in valid_run('panels')['panels']:
         n, parts = P['n'], P['parts']
         lo, hi = cols[n - 1][:2]
-        text = {k: re.sub(WRITERS + ': “|”', '', ' '.join(t for why, t, _ in parts if why.startswith(k))) for k in ('witness', 'proof')}
+        text = {k: ' '.join(unquoted(t) for why, t, _ in parts if why.startswith(k)) for k in ('witness', 'proof')}
         claude = {k: any(c for why, _, c in parts if why.startswith(k)) for k in ('witness', 'proof')}
         for kind in [k for k, present in (('exists', lo >= 1), ('open', hi > lo), ('impossible', hi < mstar_data()['mtop'])) if present]:
             shows = SHOWS[kind]                    # the attribution, Claude, is a word where the box has one
@@ -4775,8 +4897,7 @@ def q_smallest_columns_follow_the_chart():
     # Resultata before: the smallest known n second, the check mark third, the n not ruled out last.
     head = re.search(r'<section class="smallest".*?<thead><tr>(.*?)</tr></thead>', page(), re.S)
     assert head, 'no header for the table of smallest lengths'
-    assert re.findall(r'<th>(.*?)</th>', head.group(1)) == [
-        'order \\(m\\)', 'smallest \\(n\\) not ruled out', 'smallest known \\(n\\)', 'proven smallest'], head.group(1)
+    assert len(re.findall(r'<th>(.*?)</th>', head.group(1))) == 4, head.group(1)       # four columns, whatever their headers' words (2026-11-09)
     rows = smallest_table()
     assert all(int(r[1]) <= int(r[2]) and r[3] == ('✓' if r[1] == r[2] else '') for r in rows), rows
 
@@ -4800,23 +4921,27 @@ def q_tables_and_figures_are_numbered():
     # before it) or right after it ("of BGPW", "of the paper", as in dreeves's "Table 2 of the paper by Buhler, ...").
     # Resultata before: no labels; and Claude's "the upper value in Table 2's entry for 288" named BGPW's Table 2 bare.
     text, seen = page(), visible_text()
-    LABELS = (('Table 1', r'<div class="new-block">\s*<p class="float-caption"><span class="sc">'),
-              ('Table 2', r'<p class="float-caption"><span class="sc">'),
-              ('Figure 1', r'<p id="mstar-readout" aria-live="polite">[^\n]*</p>\n  <p class="float-caption"><span class="sc">'),
-              ('Table 3', r'<h2 id="smallest-title">[^\n]*</h2>.*?<table>\s*<caption><span class="sc">'),
-              ('Figure 2', r'<p id="pow2-readout" aria-live="polite">[^\n]*</p>\n  <p class="float-caption"><span class="sc">'),
-              ('Table 4', r'<table class="pow2-gaps" data-record-gaps>\s*<caption><span class="sc">'))
-    at = []
-    assert not re.search(r'<h2[^>]*>[^\n]*<span class="sc">(?:Table|Figure)', text), 'a label in a section heading'
-    for label, lead in LABELS:
-        m = re.search(lead + re.escape(label) + r'\.</span>', text, re.S)
-        assert m, label
-        at.append(m.end() - len(label + '.</span>'))
+    # Spec change (2026-11-09): a label is one word and a number in small capitals, and what the word is ("Table",
+    # "Figure") is the page's.  The six floats are found by their places, the second right above the frame of the powers
+    # of 2; the tables' labels share a word, the figures' another, and each kind is numbered from 1 in the page's
+    # order.  Until then the six labels were asked for by their words.
+    LABEL = r'([^<\d\s]+) (\d+)\.</span>'
+    LEADS = (r'<div class="new-block">\s*<p class="float-caption"><span class="sc">',
+             r'<p class="float-caption"><span class="sc">(?=[^<]*</span>[^\n]*</p>\s*<div class="scroll">\s*<table class="block">\s*'
+             r'<tr class="ns"><th scope="row">\\\(n\\\)</th><td[^>]*>\\\(2\^)',
+             r'<p id="mstar-readout" aria-live="polite">[^\n]*</p>\n  <p class="float-caption"><span class="sc">',
+             r'<h2 id="smallest-title">[^\n]*</h2>.*?<table>\s*<caption><span class="sc">',
+             r'<p id="pow2-readout" aria-live="polite">[^\n]*</p>\n  <p class="float-caption"><span class="sc">',
+             r'<table class="pow2-gaps" data-record-gaps>\s*<caption><span class="sc">')
+    assert not re.search(r'<h2[^>]*>[^\n]*<span class="sc">' + LABEL, text), 'a label in a section heading'
+    found = [re.search(lead + LABEL, text, re.S) for lead in LEADS]
+    assert all(found), [lead for lead, m in zip(LEADS, found) if not m]
+    # (A caption may go on past its label, as the first table's does and, since dreeves's d66ad09, the second's.)
+    at, kinds, numbers = [m.start(1) for m in found], [m.group(1) for m in found], [m.group(2) for m in found]
     assert at == sorted(at), at
-    # (A caption may go on past its label, as Table 1's does and, since dreeves's d66ad09, Table 2's.)
-    assert re.search(r'<p class="float-caption"><span class="sc">Table 2\.</span>[^\n]*</p>\s*<div class="scroll">\s*<table class="block">\s*'
-                     r'<tr class="ns"><th scope="row">\\\(n\\\)</th><td[^>]*>\\\(2\^', text), 'Table 2 is not right above the powers of 2'
-    assert re.findall(r'<span class="sc">((?:Table|Figure) \d+)\.</span>', text) == [label for label, _ in LABELS]
+    assert kinds[0] == kinds[1] == kinds[3] == kinds[5] != kinds[2] == kinds[4], kinds                 # four tables, two figures
+    assert numbers == ['1', '2', '1', '3', '2', '4'], numbers
+    assert re.findall(r'<span class="sc">' + LABEL, text) == list(zip(kinds, numbers)), 'a label twice, or another'
     mention, after = r'\b(?:Tables?|Figures?) \d+', r' of (?:BGPW|the paper)\b'
     bare = [seen[m.start():m.end()] for m in re.finditer(mention, seen) if m.start() not in at
             and not re.search(r"BGPW|paper's", seen[:m.start()].replace('\0', '')[-40:])
@@ -5001,7 +5126,7 @@ def q_progress_states_times_and_hours():
     R = progress_run()
     made, go, h = PROGRESS_DATA['made'], PROGRESS_DATA['runs'][0]['to_go'], NNBSP + 'h'
     want = f'@{stamp(made)}{EMSP}{hms(7200)} + 1–3{h} to go = 3–5{h} ({finish(made, made + go["lo"], made + go["hi"], 4500)})'
-    assert R['state'] == [want], (R['state'], want)
+    assert [figures(s) for s in R['state']] == [figures(want)], (R['state'], want)
     at = lambda d, hh, mm: time.mktime((2026, 10, d, hh, mm, 0, 0, 0, -1))        # local times; 2026-10-19 is a Monday
     assert finish(at(19, 6, 0), at(19, 6, 27), at(19, 17, 38), 0) == 'Mon 6:27am – 5:38pm', finish(at(19, 6, 0), at(19, 6, 27), at(19, 17, 38), 0)
     assert finish(at(19, 6, 0), at(19, 6, 27), at(20, 0, 18), 0) == 'Mon 6:27am – Tue 12:18am', finish(at(19, 6, 0), at(19, 6, 27), at(20, 0, 18), 0)
@@ -5047,8 +5172,9 @@ def q_progress_status_line_has_no_time_but_its_tip_does():
        mark: stale.querySelector('[data-stale]').checkVisibility() && stale.querySelector('[data-stale-at]').textContent,
        made: document.querySelector('section.progress [data-made]').textContent});""")
     line = lambda t, x: f'{hms(x)} + 1–3{h} to go = 3–5{h} ({finish(t, t + go["lo"], t + go["hi"], 4500)})'
-    assert got == dict(status=[line(made, 7200), line(old, 10800)], tip=f'@{stamp(made)}{EMSP}{line(made, 7200)}', mark=stamp(old),
-                       made=stamp(made)), got
+    assert dict(got, status=[figures(s) for s in got['status']], tip=figures(got['tip'])) == dict(
+        status=[figures(line(made, 7200)), figures(line(old, 10800))], tip=figures(f'@{stamp(made)}{EMSP}{line(made, 7200)}'),
+        mark=stamp(old), made=stamp(made)), got
 
 
 def q_progress_writes_days_and_years_past_72_h_and_dates_past_a_week():
@@ -5077,7 +5203,7 @@ def q_progress_writes_days_and_years_past_72_h_and_dates_past_a_week():
     date = lambda s: time.strftime('%Y-%m-%d', time.localtime(s))
     want = [f'@{stamp(made)}{EMSP}{hms(14.2 * HOURS)} + 150{d}–6{y} to go = 150{d}–6{y} ({date(made + a["lo"])} – {date(made + a["hi"])})',
             f'@{stamp(made)}{EMSP}{hms(100 * HOURS)} + 1–3{h} to go = 4.19–4.29{d} ({finish(made, made + b["lo"], made + b["hi"], 1.25 * HOURS)})']
-    assert R['state'] == want, (R['state'], want)
+    assert [figures(s) for s in R['state']] == [figures(w) for w in want], (R['state'], want)
     parts = SvgParts()
     parts.feed(R['etaSvg'])
     ticks = lambda k: [text for tag, at, text in parts.items if at.get('class') == k]
@@ -5131,7 +5257,7 @@ def q_progress_elapsed_is_days_hours_minutes_seconds_and_ticks():
     assert [got[k]['age'] for k in ('first', 'second', 'third')] == ['0s', '1s', f'19h{N}54m{N}55s'], got
     assert not any('so far' in line for k in ('first', 'second', 'third') for line in got[k]['lines']), got
     assert got['tip'] == f'3d{N}4h{N}5m{N}5s', got['tip']
-    assert got['trackElapsed'] == 0 and got['track'] == '2 runs: 1 running, 0 frozen, 1 ended, 0 aborted; 0 found; running.', got['track']
+    assert got['trackElapsed'] == 0 and figures(got['track']) == figures('2 runs: 1 running, 0 frozen, 1 ended, 0 aborted; 0 found; running.'), got['track']
 
 
 def q_progress_rounds_figures_to_their_uncertainty():
@@ -5156,9 +5282,10 @@ def q_progress_rounds_figures_to_their_uncertainty():
   await sleep(200);
   out(runs().map(r => [...r.querySelectorAll('.progress-status [data-state]')].filter(e => !e.hidden)[0].innerText.replace(/[ \\t\\n\\r]+/g, ' ').trim()));""")
     N = NNBSP
-    assert got == [f'3d{N}4h{N}48m{N}0s + 16{N}h–3{N}d to go = 4–6{N}d (Sun 12pm – Tue 10pm)',
-                   f'2h{N}0m{N}0s + 2.3–2.6{N}h to go = 4.3–4.6{N}h (Sat 10:21pm – 10:39pm)',
-                   f'2h{N}0m{N}0s + 0.7–1.7{N}h to go = 2.7–3.7{N}h (Sat 8:40pm – 9:40pm)'], got
+    assert [figures(s) for s in got] == [figures(s) for s in (
+        f'3d{N}4h{N}48m{N}0s + 16{N}h–3{N}d to go = 4–6{N}d (Sun 12pm – Tue 10pm)',
+        f'2h{N}0m{N}0s + 2.3–2.6{N}h to go = 4.3–4.6{N}h (Sat 10:21pm – 10:39pm)',
+        f'2h{N}0m{N}0s + 0.7–1.7{N}h to go = 2.7–3.7{N}h (Sat 8:40pm – 9:40pm)')], got
 
 
 def q_progress_draws_cpu_aligned_with_the_eta_chart():
@@ -5748,12 +5875,12 @@ def q_progress_draws_a_fanout_run_s_pool():
     nets = [(X(14400 * (b + 0.5) / 100), net / jobs) for b, (jobs, net) in sorted(POOL_JOBS.items())]
     assert near(got['net'], [(x, Y2(v)) for x, v in nets]), (got['net'], nets)
     assert len(got['zero']) == 1 and abs(got['zero'][0] - Y2(0)) < 0.05, got['zero']
-    assert got['titles'] == ['boxes pending or running', 'net change per job ended'], got['titles']
+    assert len(got['titles']) == 2 and all(got['titles']), got['titles']      # two titles, whatever their words (2026-11-09)
     def said(k, net):
         t, x = POOL_POINTS[k][0], POOL_POINTS[k][1]
         return f'@{stamp(t)}{EMSP}{hms(x)} so far: {POOL_POINTS[k][2]:,} boxes pending or running, net {net} per job ended'
-    assert got['rest'] == said(5, '−0.05') and got['left'] == got['rest'], (got['rest'], got['left'])
-    assert got['third'] == said(2, '+0.20') and got['first'] == said(0, '—'), (got['third'], got['first'])
+    assert figures(got['rest']) == figures(said(5, '−0.05')) and got['left'] == got['rest'], (got['rest'], got['left'])
+    assert figures(got['third']) == figures(said(2, '+0.20')) and figures(got['first']) == figures(said(0, '—')), (got['third'], got['first'])
     assert got['crossAt'][0] == 'visible' and abs(got['crossAt'][1] - got['crossAt'][2]) < 0.05, got['crossAt']
     assert got['crossLeft'] == 'hidden', got['crossLeft']
     assert got['empty'] == dict(lines=[0, 0], tip='', xticks=['0', '1', '2', '3', f'4{h}']), got['empty']
@@ -5922,7 +6049,7 @@ def q_progress_brief_of_a_run_without_a_work_model_is_its_status_line():
     assert got['rows'] == 4 and got['status'] == [False, True, False, True], got
     assert got['states'] == [[], ['running'], [], ['aborted']], got['states']
     assert got['running'] == got['section'] and got['running']['so-far'] == hms(600), (got['running'], got['section'])
-    assert got['aborted'] == f'Aborted after running for {hms(7200)}.', got['aborted']
+    assert figures(got['aborted']) == figures(f'Aborted after running for {hms(7200)}.'), got['aborted']
 
 
 def q_progress_status_line_names_an_ended_run_s_outcome():
@@ -6200,7 +6327,7 @@ def q_progress_draws_the_eta_chart():
     parts.feed(R['etaSvg'])
     assert [text for tag, a, text in parts.items if a.get('class') == 'xtick'] == ['0', '1', '2', f'3{h}'], R['etaSvg']
     t = PROGRESS_DATA['runs'][0]['etas'][1][0]
-    assert E['tip'] == f'@{stamp(t)}{EMSP}{hms(3600)} + 1–3{h} to go = 2–4{h} ({finish(t, t + 3600, t + 10800, 3600)})', E['tip']
+    assert figures(E['tip']) == figures(f'@{stamp(t)}{EMSP}{hms(3600)} + 1–3{h} to go = 2–4{h} ({finish(t, t + 3600, t + 10800, 3600)})'), E['tip']
     assert E['tipLast'] == R['state'][0] and E['sameMarkup'] is True, (E['tipLast'], R['state'], E['sameMarkup'])
     assert R['tipRest']['visibility'] == 'hidden' and R['tipRest']['height'] > 0 and R['jump'] == 0, (R['tipRest'], R['jump'])
 
@@ -6225,7 +6352,7 @@ def q_progress_tip_projects_past_the_last_record():
     E, h = R['eta'], NNBSP + 'h'
     t = PROGRESS_DATA['made'] + 1800
     want = f'@{stamp(t)}{EMSP}{hms(9000)} + 1{h} to go = 3{h} ({moment(t, t + 1800, 4500)})'
-    assert E['tipAhead'] == want, (E['tipAhead'], want)
+    assert figures(E['tipAhead']) == figures(want), (E['tipAhead'], want)
     A = E['ahead']
     assert A['projected'] is True and A['style'] == 'italic' and abs(A['cross'] - A['want']) < 0.05, A
     assert E['projectedAtRecord'] is False and R['jumpAhead'] == 0, (E['projectedAtRecord'], R['jumpAhead'])

@@ -68,11 +68,11 @@ not ruled out at those orders.  past (since 2026-11-04) lists the explicit seque
   loWhy  ["none"] (lo = 0, n odd); ["example", label] (an explicit sequence of length n, label saying where it is
          from); ["join", a, b] (the sequence for a, then the one for b; lo is the lesser of theirs); ["product", a, b]
          (f_a(x) f_b(x^a); lo is the sum of theirs); ["table2"] (BGPW's Table 2, cited); ["page", who] (the page's new
-         results, cited; who found the example, as the page's remarks credit it: EXAMPLE_BY).  Every example, join and
+         results, cited; who the credit for the example, a class of the page's cells, c, j, ca, a or s: EXAMPLE_BY).  Every example, join and
          product is a sequence built here from explicit sequences only and checked with exact power sums; a join's or
          product's parts are themselves columns with such reasons.
   hiWhy  ["odd"] (n odd: hi = 0); ["two"]; ["norm", p]; ["residue", M] (the claim in RESIDUE: no admissible vector mod
-         M at order hi + 1); ["table2"]; ["page", who] (who proved it: that cell's title).
+         M at order hi + 1); ["table2"]; ["page", who] (who the credit for the proof: that cell's class).
   When sources tie, a reason checked here wins over a citation, and the simpler one among those: example, join,
   product; odd, two, norm (the least p), residue.
 
@@ -145,72 +145,74 @@ def from_rp(h, m, n):
 
 # ---------- citations and sequences on index.html ----------
 # Hand copies of the page, which page_sources() must match exactly: TABLE2[n] = (lo, hi) for BGPW's Table 2, hi None
-# for "≥"; NEW[n] = (lo, hi, who) for the new results, who the cell's title.
-# The titles say Opus 5.5 where they said Claude until 2026-11-09 (dreeves's rename on the page, commit b5ce25c: "yes,
-# the "Claude" -> "Opus 5.5" rename was intentional"); mstar.js's ["page", who] and the chart scripts' WHO follow.
+# for "≥"; NEW[n] = (lo, hi, who) for the new results, who the cell's credit: its class on the page, c, j, ca, a or s
+# (the classes of the legend's keys, in the legend's order: c, a, ca, j, s).  What a class is called is the page's
+# alone, in its legend and its cells' titles: no word of those is here, in mstar.js or in the chart scripts, which look
+# the legend's label up (page/shared.js's credit).  Until 2026-11-09 who was the title's words; when dreeves renamed
+# Claude to Opus 5.5 on the page, page_sources stopped at its assertion and mstar.js could not be made ("it seems dumb
+# that me tweaking the prose in index.html has yielded this much work from you").
 TABLE2 = {8: (3, 3), 16: (4, 4), 24: (4, 4), 32: (5, 5), 40: (5, 5), 48: (6, 6), 56: (5, 5), 64: (6, 6), 72: (6, 6),
           80: (6, 6), 88: (6, 6), 96: (7, 7), 104: (6, 6), 112: (7, 7), 120: (6, 6), 128: (7, 7),
           136: (6, 6), 144: (8, 8), 152: (6, 6), 160: (7, 7), 168: (6, 6), 176: (7, 7), 184: (6, 6), 192: (9, 9),
           200: (7, 7), 208: (8, 8), 216: (7, 7), 224: (8, 8), 232: (7, 7),
           240: (10, 11), 248: (7, 7), 256: (8, 8), 264: (7, 7), 272: (8, 8), 280: (7, 7), 288: (9, 10), 296: (7, 7),
           304: (8, 9), 2 ** 51: (52, None)}
-NEW = {240: (10, 10, 'Opus 5.5 alone'), 288: (9, 9, 'Opus 5.5 and BGPW'),
-       304: (8, 8, 'Opus 5.5 alone'), 320: (9, 9, 'BGPW'), 336: (10, 10, 'Opus 5.5 and BGPW'), 352: (9, 9, 'BGPW'),
-       368: (9, 9, 'BGPW'), 400: (9, 9, 'BGPW'), 416: (9, 9, 'BGPW'), 432: (11, 11, 'Opus 5.5 alone'),
-       448: (9, 9, 'Opus 5.5 alone'), 464: (9, 9, 'BGPW'), 480: (12, 14, 'Opus 5.5 alone'),
-       496: (9, 9, 'Opus 5.5 and BGPW'), 512: (9, 9, 'Opus 5.5 alone'), 528: (11, 12, 'Opus 5.5 alone'),
-       576: (12, 12, 'Opus 5.5 alone'),
-       384: (10, 10, 'Astra alone'),
-       544: (10, 10, 'Opus 5.5 alone'),
-       560: (10, 10, 'Opus 5.5 alone'),
-       592: (10, 10, 'Opus 5.5 and Astra'),
-       608: (10, 10, 'Opus 5.5 and Astra'),
-       624: (12, 12, 'Opus 5.5 alone'),
-       640: (10, 10, 'Opus 5.5 alone'),
-       656: (10, 10, 'Opus 5.5 and Astra'),
-       672: (13, 13, 'Opus 5.5 alone'),
-       688: (10, 10, 'Opus 5.5 alone'),
-       704: (10, 10, 'Opus 5.5 alone'),
-       720: (13, 14, 'Opus 5.5 alone'),
-       736: (10, 10, 'Opus 5.5 alone'),
-       752: (10, 10, 'Opus 5.5 and Astra'),
-       768: (13, 13, 'Opus 5.5 alone'),
-       784: (10, 10, 'Opus 5.5 and Astra'),
-       800: (11, 11, 'Opus 5.5 alone'),
-       816: (12, 12, 'Opus 5.5 alone'),
-       832: (11, 11, 'Opus 5.5 alone'),
-       848: (11, 11, 'Opus 5.5 alone'),
-       864: (12, 14, 'Opus 5.5 alone'),
-       880: (11, 11, 'Opus 5.5 alone'),
-       896: (11, 11, 'Opus 5.5 alone'),
-       912: (13, 13, 'Opus 5.5 alone'),
-       928: (11, 11, 'Opus 5.5 alone'),
-       944: (11, 11, 'Opus 5.5 alone'),
-       960: (15, 15, 'Opus 5.5 alone'),
-       976: (11, 11, 'Opus 5.5 alone'),
-       992: (11, 11, 'Opus 5.5 alone'),
-       1008: (13, 13, 'Opus 5.5 alone'),
-       2 ** 10: (11, 11, 'Opus 5.5 alone'), 2 ** 11: (12, 12, 'Opus 5.5 alone'), 2 ** 12: (13, 13, 'Opus 5.5 alone'),
-       2 ** 17: (18, 20, 'Opus 5.5 alone'), 2 ** 18: (19, 21, 'Opus 5.5 alone'),
-       2 ** 20: (22, 23, 'Opus 5.5 alone'), 2 ** 24: (26, 29, 'Opus 5.5 and BGPW'),
-       2 ** 27: (29, 33, 'Opus 5.5 alone'), 2 ** 28: (31, 34, 'Opus 5.5 alone'), 2 ** 29: (32, 35, 'Opus 5.5 alone'),
-       2 ** 30: (33, 36, 'Opus 5.5 alone'),
-       2 ** 33: (36, 40, 'Opus 5.5 alone'), 2 ** 34: (37, 41, 'Opus 5.5 alone'), 2 ** 36: (40, 44, 'Opus 5.5 alone'),
-       2 ** 37: (41, 45, 'Opus 5.5 alone'), 2 ** 38: (42, 46, 'Opus 5.5 alone'),
-       2 ** 39: (44, 47, 'Opus 5.5 alone'),
-       2 ** 41: (46, 50, 'Opus 5.5 alone'), 2 ** 43: (48, 53, 'Opus 5.5 alone'),
-       2 ** 46: (51, 57, 'Opus 5.5 alone'), 2 ** 47: (53, 58, 'Opus 5.5 alone'), 2 ** 48: (54, 59, 'Opus 5.5 alone'),
-       2 ** 49: (55, 60, 'Opus 5.5 alone'), 2 ** 51: (57, 63, 'Opus 5.5 and BGPW'),
-       2 ** 52: (58, 64, 'Opus 5.5 alone'), 2 ** 56: (63, 69, 'Opus 5.5 alone'), 2 ** 57: (64, 70, 'Opus 5.5 alone'),
-       2 ** 58: (66, 71, 'Opus 5.5 alone'), 2 ** 61: (69, 75, 'Opus 5.5 alone'), 2 ** 65: (73, 81, 'Opus 5.5 alone'),
-       2 ** 66: (74, 82, 'Opus 5.5 alone'), 2 ** 67: (75, 83, 'Opus 5.5 alone'),
-       2 ** 68: (77, 84, 'Opus 5.5 alone'), 2 ** 71: (80, 88, 'Opus 5.5 alone'),
-       2 ** 72: (81, 89, 'Opus 5.5 alone')}
+NEW = {240: (10, 10, 'c'), 288: (9, 9, 'j'),
+       304: (8, 8, 'c'), 320: (9, 9, 's'), 336: (10, 10, 'j'), 352: (9, 9, 's'),
+       368: (9, 9, 's'), 400: (9, 9, 's'), 416: (9, 9, 's'), 432: (11, 11, 'c'),
+       448: (9, 9, 'c'), 464: (9, 9, 's'), 480: (12, 14, 'c'),
+       496: (9, 9, 'j'), 512: (9, 9, 'c'), 528: (11, 12, 'c'),
+       576: (12, 12, 'c'),
+       384: (10, 10, 'a'),
+       544: (10, 10, 'c'),
+       560: (10, 10, 'c'),
+       592: (10, 10, 'ca'),
+       608: (10, 10, 'ca'),
+       624: (12, 12, 'c'),
+       640: (10, 10, 'c'),
+       656: (10, 10, 'ca'),
+       672: (13, 13, 'c'),
+       688: (10, 10, 'c'),
+       704: (10, 10, 'c'),
+       720: (13, 14, 'c'),
+       736: (10, 10, 'c'),
+       752: (10, 10, 'ca'),
+       768: (13, 13, 'c'),
+       784: (10, 10, 'ca'),
+       800: (11, 11, 'c'),
+       816: (12, 12, 'c'),
+       832: (11, 11, 'c'),
+       848: (11, 11, 'c'),
+       864: (12, 14, 'c'),
+       880: (11, 11, 'c'),
+       896: (11, 11, 'c'),
+       912: (13, 13, 'c'),
+       928: (11, 11, 'c'),
+       944: (11, 11, 'c'),
+       960: (15, 15, 'c'),
+       976: (11, 11, 'c'),
+       992: (11, 11, 'c'),
+       1008: (13, 13, 'c'),
+       2 ** 10: (11, 11, 'c'), 2 ** 11: (12, 12, 'c'), 2 ** 12: (13, 13, 'c'),
+       2 ** 17: (18, 20, 'c'), 2 ** 18: (19, 21, 'c'),
+       2 ** 20: (22, 23, 'c'), 2 ** 24: (26, 29, 'j'),
+       2 ** 27: (29, 33, 'c'), 2 ** 28: (31, 34, 'c'), 2 ** 29: (32, 35, 'c'),
+       2 ** 30: (33, 36, 'c'),
+       2 ** 33: (36, 40, 'c'), 2 ** 34: (37, 41, 'c'), 2 ** 36: (40, 44, 'c'),
+       2 ** 37: (41, 45, 'c'), 2 ** 38: (42, 46, 'c'),
+       2 ** 39: (44, 47, 'c'),
+       2 ** 41: (46, 50, 'c'), 2 ** 43: (48, 53, 'c'),
+       2 ** 46: (51, 57, 'c'), 2 ** 47: (53, 58, 'c'), 2 ** 48: (54, 59, 'c'),
+       2 ** 49: (55, 60, 'c'), 2 ** 51: (57, 63, 'j'),
+       2 ** 52: (58, 64, 'c'), 2 ** 56: (63, 69, 'c'), 2 ** 57: (64, 70, 'c'),
+       2 ** 58: (66, 71, 'c'), 2 ** 61: (69, 75, 'c'), 2 ** 65: (73, 81, 'c'),
+       2 ** 66: (74, 82, 'c'), 2 ** 67: (75, 83, 'c'),
+       2 ** 68: (77, 84, 'c'), 2 ** 71: (80, 88, 'c'),
+       2 ** 72: (81, 89, 'c')}
 # EXAMPLE_BY[n]: who found the example of order NEW[n][0] at n, as the page's remarks credit it, for each n whose lo
 # is that cited value (no sequence of that order is here; columns() asserts that these are exactly those n).  A cited
-# lo's ["page", who] names whose example it is, and a cited hi's whose proof, the cell's title.  At 496 they differ:
-# the title is 'Opus 5.5 and BGPW', for the proof of the upper bound, and the remark reads "An example of order 9 found
-# by BGPW."  Empty since 2026-10-12: FOUND made every such lo explicit (352, 368, 400, 464 and 496 had been cited).
+# lo's ["page", who] names whose example it is, and a cited hi's whose proof, the cell's class.  At 496 they differ:
+# the class is j, for the proof of the upper bound, and the remark credits the example of order 9 to BGPW (class s).  Empty since 2026-10-12: FOUND made every such lo explicit (352, 368, 400, 464 and 496 had been cited).
 EXAMPLE_BY = {}
 # CITED[n]: the page's values at n as (lo, hi, hiWhy), Table 2's first, then the new results'
 CITED = {}
@@ -306,7 +308,6 @@ def page_value(s):
     raise AssertionError(s)
 
 
-PAPER = 'The published paper (2021)'      # the legend's label, and the title, of the paper's values
 # The lengths of the new results' upper rows, in order, since 2026-10-27, when the block came to subsume Table 2
 # (dreeves: "how about making our color-coded table totally subsume the BGPW table?"; Stan Wagon, by dreeves: the upper
 # part "should include 256, 512, and 1024 for completeness"; dreeves: "multiples of 16 with one-sentence explanation
@@ -320,10 +321,10 @@ def page_sources(html):
     copies above.  Returns {'table2': {n: (lo, hi)}, 'new': {n: (lo, hi, who)}, 'codes': [(m, hex)],
     'joins': [(m, ids)]}.  The page's tables of class "block" are Table 2's three, then the new results', which since
     2026-10-27 subsume Table 2: their upper rows, of the lengths UPPER in order, written in digits, then their powers
-    of 2, written \\(2^{k}\\), k rising from 3.  Every cell of the new results has a title; a cell titled as the legend's "The
-    published paper (2021)" has no provenance class and copies Table 2's entry at its n, and every entry of Table 2
+    of 2, written \\(2^{k}\\), k rising from 3.  Every cell of the new results has a title, whose words are the page's
+    alone and are not read; a cell with no class copies Table 2's entry at its n, and every entry of Table 2
     that is not a new result is so copied; every other cell has a class, its value cell the same class, and is a new
-    result.  A length shown twice, in the upper rows and as a power of 2 (8 to 1024), is the same cell both times.  Each
+    result, the class its credit (who).  A length shown twice, in the upper rows and as a power of 2 (8 to 1024), is the same cell both times.  Each
     code of a code block is <code id="N:M">, an anchor that the page's names of it link to, N its length and M its order
     (2026-10-31, [IND]), the ids distinct; each join of a code block, <span data-join="IDS" data-order="M"> (since
     2026-10-31, when the page's sets left it), joins codes of the code blocks, IDS their ids, M its order; and each code
@@ -347,12 +348,11 @@ def page_sources(html):
     cells = [cell for row in rows[3:] for cell in row]
     for n in {n for c, n, *_ in cells}:
         assert len({(attr, va, v) for c, m, attr, va, v in cells if m == n}) == 1, n
-    paper = f" title='{PAPER}'"
-    assert all(attr == paper and va == '' or re.fullmatch(r' class="(\w+)" title=\'[^\']+\'', attr) and attr.startswith(va + ' ')
-               and attr != va + paper for c, n, attr, va, v in cells), [cell for cell in cells if not cell[3] and cell[2] != paper]
-    copies = {n: page_value(v) for c, n, attr, va, v in cells if attr == paper}
+    titled = [re.fullmatch(r'( class="(\w+)")? title=\'[^\']+\'', attr) for c, n, attr, va, v in cells]
+    assert all(t and va == (t[1] or '') for t, (c, n, attr, va, v) in zip(titled, cells)), [cell for t, cell in zip(titled, cells) if not (t and cell[3] == (t[1] or ''))]
+    copies = {n: page_value(v) for t, (c, n, attr, va, v) in zip(titled, cells) if not t[2]}
     assert set(copies) <= set(table2) and all(table2[n] == v for n, v in copies.items()), copies
-    new = {n: page_value(v) + (re.search(r"title='([^']*)'", attr)[1],) for c, n, attr, va, v in cells if attr != paper}
+    new = {n: page_value(v) + (t[2],) for t, (c, n, attr, va, v) in zip(titled, cells) if t[2]}
     assert set(table2) - set(new) == set(copies), set(table2) - set(new) - set(copies)
     codes, ids, joins = [], [], []
     for block in re.findall(r'<p class="code">(.*?)</p>', html, re.S):

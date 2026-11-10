@@ -13,6 +13,13 @@ and swipes, and screenshots whose pixels are checked against the data.  DRIVER f
 plot is the svg in #pow2-chart, K columns of equal width, and rows ROW CSS px apart from the top (row E) down to row 1,
 the bottom device pixel of each row and one between every two columns page surface: a hairline grid (since 2026-10-29;
 the bottom 2 CSS px before).
+
+Spec changes (dreeves, 2026-11-09: "we need more quals for substantive things and fewer quals enforcing words on the
+page", and "i stand by the point about quals enforcing specific prose on the page being pretty useless";
+quals_index.py's header has the whole of it): a credit of the new results is the class of its cells, worded by the
+page's legend; and no qual here asks for words to be on the page, index.html's or a script's (a readout's sentences).
+Where a comment quotes a sentence, the qual holds the sentence's figures, its numbers, math and codes
+(quals_index.figures, among).
 """
 import sys
 sys.dont_write_bytecode = True
@@ -46,7 +53,6 @@ SWIPE = (29, 8)                               # the cell a phone's swipe starts 
 MSTAR_LAYOUT = (44, 16, 2, 14)                # the m*(n) chart's plot: left and right gutters, top, row pitch (CSS px)
 NMAX = int(re.search(r'"nmax": (\d+)', open(MSTAR, encoding='utf-8').read()).group(1))   # the m*(n) chart's last n (1024)
 MSTAR_COLUMNS = [2] + list(range(4, NMAX + 1, 4))   # the m*(n) chart's columns' n since 2026-10-29 (every even n before)
-WHO = ('BGPW', 'Opus 5.5 alone', 'Opus 5.5 and BGPW', 'Astra alone', 'Opus 5.5 and Astra')   # provenance labels of the page's new results (Opus 5.5 for Claude since dreeves's rename of 2026-11-09)
 RUNS = {}                                     # DRIVER's reports by configuration name, made once per process (see run)
 
 
@@ -105,22 +111,34 @@ def join_text(products): return ' ∨ '.join('(' + ' # '.join(map(block, p)) + '
 
 
 def reason_math(k, why):
-    """The math that a reason's Claude: "…" must hold: what tells that reason apart, as the readout writes it."""
+    """What tells a reason apart in the readout: its math, as the readout writes it; for a result of the page's own, its
+    credit in parentheses, as the legend words it.  (Until 2026-11-09 a residue condition's was "mod M" and the paper's
+    table's "Table 2", words of the readout's sentences; since then their numbers.)"""
     kind, *args = why
-    mstar = {'two': lambda: str(2 ** k), 'norm': lambda p: f'p\xa0=\xa0{p}', 'residue': lambda M: f'mod {M}',
-             'table2': lambda: 'Table 2', 'page': lambda who: f'({who})'}
+    mstar = {'two': lambda: str(2 ** k), 'norm': lambda p: f'p\xa0=\xa0{p}', 'residue': lambda M: str(M),
+             'table2': lambda: '2', 'page': lambda who: f'({qi.legend_labels(qi.page())[who]})'}   # a credit, the class of its cells, as the legend words it
     return {'thue-morse': lambda: f'τ{sub(k)}', 'joins': join_text, 'mstar': lambda w: mstar[w[0]](*w[1:]), 'norm': lambda p: f'p\xa0=\xa0{p}',
-            'residue': lambda chain: 'mod ' + ', '.join(map(str, chain))}[kind](*args)
+            'residue': lambda chain: ', '.join(map(str, chain))}[kind](*args)
+
+
+def reason_holds(p, k, order, why):
+    """Whether p, a reason in the readout of column k, names its order first (its first number, after a quotation's
+    opening if it has one) and then holds what tells it apart (reason_math): a credit as it stands, anything else by
+    its figures (quals_index.among).  (Until 2026-11-09: whether it started "order N" and held the math as written.)"""
+    m = re.match(rf'(?:{qi.OPENING})?\D*?(\d+)', p)
+    credit = why[0] == 'mstar' and why[1][0] == 'page'
+    return bool(m) and int(m.group(1)) == order and (reason_math(k, why) in p if credit else qi.among(reason_math(k, why), p[m.end():]))
 
 
 # A readout's text, each <sup> written ^(…) and each <sub> _(…): the cell, its meaning, the column's bounds, then the
 # reasons.
-READOUT = re.compile(r'k = (\d+), n = 2\^\((\d+)\), m = (\d+) \+ (\d+) = (\d+) · (known|open|impossible) · '
+READOUT = re.compile(r'k = (\d+), n = 2\^\((\d+)\), m = (\d+) \+ (\d+) = (\d+) · ([^·]+) · '
                      r'(\d+) ≤ m\^\(\*\)\(2\^\((\d+)\)\) ≤ (\d+) · (.*)')
 
 
 def kind_of(col, k, e): return (k + e > col[0]) + (k + e > col[1])     # 0 exists, 1 open, 2 impossible
-MEANINGS = ('known', 'open', 'impossible')    # each kind's word in the readout, dreeves's (approved 2026-10-12)
+# (Until 2026-11-09 each kind's word in the readout was asked for: known, open and impossible, dreeves's of 2026-10-12.
+# Since then: the cells of a kind say one thing, and the three kinds three things: check_readouts.)
 
 
 def ring_cells(data):
@@ -153,14 +171,13 @@ def check_readouts(data, reads):
         g = READOUT.fullmatch(r['text'])
         assert g and [int(g[i]) for i in (1, 2, 3, 4, 5, 7, 8, 9)] == [k, k, k, e, k + e, lo, k, hi], (k, e, r)
         assert r['children'][:1] == [f'swatch {KINDS[kind]}' + ' record' * (role > 0) + ' proven' * (role == 3)], (k, e, r)
-        assert g[6] == MEANINGS[kind], (k, e, r)
         meaning.setdefault(kind, set()).add(g[6])
         parts = g[10].split(' · ')       # each reason names its order and holds its math (pinned as Claude: "order …" until 2026-10-30)
-        want = [(lo, reason_math(k, lw)), (hi + 1, reason_math(k, hw))]
+        want = [(lo, lw), (hi + 1, hw)]
         want = [want[:1], want, want[1:]][kind]
         extra = NOTES.get(role, 0)       # a gold cell's notes after its reasons, each naming its δ
         assert len(parts) == len(want) + extra, (k, e, r, want)
-        assert all(re.match(rf'(?:{qi.WRITERS}: “)?order {o}\b', p, re.I) and b in p for p, (o, b) in zip(parts, want)), (k, e, r, want)
+        assert all(reason_holds(p, k, o, why) for p, (o, why) in zip(parts, want)), (k, e, r, want)
         assert all(re.search(rf'\b{e}\b', p) for p in parts[len(want):]), (k, e, r)
         if extra: notes.setdefault(role, set()).add(' · '.join(re.sub(r'\d+', '#', p) for p in parts[len(want):]))
     assert all(len(v) == 1 for v in meaning.values()) and len(set.union(*meaning.values())) == len(meaning), meaning
@@ -205,8 +222,8 @@ def kinds_cols():
     for k in range(1, K + 1):
         L, j = divmod(k, 24)
         cols.append([k + L, norm(2 ** k, 3), ['joins', f_power(L, j)] if L else ['thue-morse'], ['norm', 3]])
-    whys = {1: ['two'], 2: ['norm', 3], 3: ['table2'], 4: ['page', 'BGPW'], 5: ['residue', 9],
-            6: ['page', 'Opus 5.5 alone'], 7: ['residue', 3], 8: ['table2'], 9: ['page', 'Opus 5.5 and BGPW']}
+    whys = {1: ['two'], 2: ['norm', 3], 3: ['table2'], 4: ['page', 's'], 5: ['residue', 9],
+            6: ['page', 'c'], 7: ['residue', 3], 8: ['table2'], 9: ['page', 'j']}
     for k, why in whys.items(): cols[k - 1] = [k, k, ['thue-morse'], ['mstar', why]]
     joins = {34: [p + [[1024, 10]] for p in JOIN24], 35: [[[1024, 11], [2 ** 25, 25]]], 51: STONG}
     for k, ps in joins.items():
@@ -850,10 +867,17 @@ def theorem_cells():
     """The cells (k, e) of the chart whose bounds the theorem on the page states, from its text: m*(2^k) >= v, or = v
     (since dreeves's 6000eaa, 2026-11-04, m*(2^{10}) = 11), as (k, v - k).  Its m*(2^9) = 9 has no cell of its own: the
     chart has no row 0."""
-    t = qi.the_theorem(page())   # labeled "Theorem 1." since 2026-11-04 ([THM]), "Theorem." before
+    t = qi.the_theorem(page())   # found by its place since 2026-11-09; labeled "Theorem 1." since 2026-11-04 ([THM])
     pairs = re.findall(r'\(2\^\{?(\d+)\}?\) (?:\\ge|=) (\d+)', t)
     assert pairs, t
     return sorted((int(k), int(v) - int(k)) for k, v in pairs if int(v) > int(k))
+
+
+def swatch_words(classes):
+    """The words of the chart's legend beside the swatch of the classes given, as the page has them."""
+    section = re.search(r'<section class="pow2" aria-labelledby="pow2-title">.*?</section>', page(), re.S).group(0)
+    [words] = re.findall(rf'<li><span class="{classes}" aria-hidden="true"></span>(.*?)</li>', section, re.S)
+    return re.sub(r'<[^>]+>', '', words)
 
 
 def ringed(R, x, y):
@@ -894,7 +918,7 @@ def q_section_follows_mstar_chart():
              r'<button type="button" id="pow2-zoom-out" ', r'<button type="button" id="pow2-zoom-in" ',
              r'<button type="button" id="pow2-reset" ',
              r"<div id=\"pow2-chart\" tabindex=\"0\" role=\"img\" aria-label='[^']+'></div>", r'<p id="pow2-readout" aria-live="polite">',
-             r'<p><b>Theorem 1\.</b>', r'href="https://raw\.githubusercontent\.com/dreeves/equipow/main/proofs/record_gaps\.wl"',
+             r'<p><b>[^<]*</b>', r'href="https://raw\.githubusercontent\.com/dreeves/equipow/main/proofs/record_gaps\.wl"',
              r'<div class="scroll">', r'<table class="pow2-gaps" data-record-gaps>']
     assert re.search('.*?'.join(parts), s.group(1), re.S), s.group(1)
 
@@ -1103,9 +1127,10 @@ def q_hover_reads_out_every_cell():
     # Replicata: the 1280 px light configuration: a real mouse move to the middle of every cell, column by column.
     # Expectata: after each, the readout is that cell's: its first child is a swatch of the cell's kind, and its text
     # (each <sup> written ^(…)) is "k = K, n = 2^(K), m = K + E = M · MEANING · lo ≤ m^(*)(2^(K)) ≤ hi · REASONS":
-    # MEANING dreeves's word for the cell's kind (MEANINGS: known, open, impossible); REASONS the
+    # MEANING the word for the cell's kind (dreeves's known, open and impossible; since 2026-11-09 any one word per
+    # kind, the three different); REASONS the
     # Claude: "…" of lo's reason for a green cell, of hi's for a red one and both for a gray one, joined by " · ", lo's
-    # starting "order lo " and hi's "order hi + 1 ", each holding its reason's math (reason_math).  A cell ringed in
+    # naming order lo first and hi's order hi + 1, each holding its reason's math (reason_holds).  A cell ringed in
     # gold (ring_cells, q_gold_trim_rings_the_smallest_cells) has its swatch ringed too (swatch … record, and … proven
     # with its dot where it is proven the least) and notes after its reasons, as the m*(n) chart's readout does for its
     # rings (dreeves, 2026-10-28: "don't forget the gold trim on the hover version"): NOTES of them by its role, each
@@ -1446,12 +1471,12 @@ def pow2_says(data, k, P):
         tex = ' \\vee '.join('(' + ' \\mathbin{\\#} '.join(f'\\tau_{{{m}}}' if n == 2 ** m else f'p_{{{n}}}' for n, m in p) + ')' for p in lw[1])
         says += [('construction', [f'{2 ** k}:{lo}', 'button', f'\\({tex}\\)'] in P['constructions'])]
     else:
-        says += [('tau', f'Thue–Morse \\(\\tau_{{{k}}}\\)' in t)]
+        says += [('tau', f'\\(\\tau_{{{k}}}\\)' in t)]
     moduli = ', '.join(map(str, args[0] if args and isinstance(args[0], list) else args))
     says += {'two': [('t', f'\\(n = 2^{{{k}}} \\cdot 1\\)' in t)],
              'norm': [('p', f'\\(p = {args and args[0]} \\nmid n\\)' in t)],
-             'residue': [('M', f'residue condition mod \\(M = {moduli}\\)' in t and source in t)],
-             'table2': [('cited', 'BGPW, Table 2' in t)], 'page': [('who', f'proven by {args and args[0]}' in t)]}[kind]
+             'residue': [('M', f'\\(M = {moduli}\\)' in t and source in t)],
+             'table2': [('cited', qi.TABLE2 in P['links'])], 'page': [('who', qi.legend_labels(qi.page()).get(str(args and args[0]), '\0') in t)]}[kind]
     says += [('entry', P['entries'] == qi.panel_entries(2 ** k))]   # the entry itself since [REO] step 2 (2026-11-03), not its link
     return says
 
@@ -1497,7 +1522,7 @@ def q_norm_panels_hold_at_powers_of_2():
         assert p ** m > cap, (k, p, m)
         for said in ('= ' + ', '.join(f'{x:,}' for x in sizes) + ' and', f'\\(\\sum s_r^2 =\\) {S:,};',
                      f'\\(p^m = {p}^{{{m}}} =\\) {p ** m:,} \\(>\\) {cap:,}'):
-            assert said in P['text'], (k, said, P['text'])
+            assert qi.among(said, P['text']), (k, said, P['text'])
         found += 1
     assert found > 30, found
 
@@ -1513,7 +1538,7 @@ def q_click_opens_its_cell_s_box():
     R = valid('light')
     P, (k, e) = R['clickPanel'], OUTLINE
     assert not P['hidden'] and P['hash'] == f'#k{k}d{e}' and P['focus'] and P['kind'] == 'open', P
-    assert P['heading'] == f'\\(k = {k}\\), \\(\\delta = {e}\\): open', P['heading']
+    assert P['heading'] == f'\\(k = {k}\\), \\(\\delta = {e}\\): ' + swatch_words('swatch open'), P['heading']
     assert P['whys'] == pow2_whys(R['data'], k, [e]), P['whys']
 
 
@@ -1652,12 +1677,12 @@ def q_pow2_boxes_show_witness_proof_and_searches_by_kind():
     assert B[(30, 2)]['constructions'] == [['1073741824:33', 'button', '\\((p_{960} \\mathbin{\\#} p_{768} \\mathbin{\\#} \\tau_{7}) \\vee '
                                             '(p_{576} \\mathbin{\\#} p_{576} \\mathbin{\\#} p_{48} \\mathbin{\\#} \\tau_{3}) \\vee '
                                             '(p_{800} \\mathbin{\\#} p_{832} \\mathbin{\\#} p_{320} \\mathbin{\\#} \\tau_{2})\\)']], B[(30, 2)]['constructions']
-    assert cols[29][3] == ['residue', [3]] and 'residue condition mod \\(M = 3\\)' in B[(30, 8)]['said'] and 'pow2.py' in B[(30, 8)]['said'], B[(30, 8)]['said']
-    assert re.match(qi.WRITERS + ': “' + re.escape('\\(m^*(2^{30}) \\le 36\\):'), B[(30, 8)]['said']), B[(30, 8)]['said']
-    assert cols[8][3] == ['mstar', ['residue', 27]] and re.match(qi.WRITERS + ': “' + re.escape('\\(m^*(512) \\le 9\\): residue condition mod \\(M = 27\\)'), B[(9, 1)]['said']), B[(9, 1)]['said']
-    flat = lambda t: ' '.join(t.split())
-    for t in ((30, 5), (13, 2)):
-        assert [flat(x) for x in B[t]['searches']] == ['Search progress —'], (t, B[t].get('searches'))
+    assert cols[29][3] == ['residue', [3]] and '\\(M = 3\\)' in B[(30, 8)]['said'] and 'pow2.py' in B[(30, 8)]['said'], B[(30, 8)]['said']
+    assert re.match(qi.OPENING + re.escape('\\(m^*(2^{30}) \\le 36\\):'), B[(30, 8)]['said']), B[(30, 8)]['said']
+    assert cols[8][3] == ['mstar', ['residue', 27]] and re.match(qi.OPENING + re.escape('\\(m^*(512) \\le 9\\):'), B[(9, 1)]['said']), B[(9, 1)]['said']
+    assert '\\(M = 27\\)' in B[(9, 1)]['said'], B[(9, 1)]['said']
+    for t in ((30, 5), (13, 2)):          # a dash under the section's heading, whatever the heading says (2026-11-09)
+        assert [qi.figures(x) for x in B[t]['searches']] == ['—'], (t, B[t].get('searches'))
 
 
 def q_column_and_row_boxes_open_from_their_labels():
@@ -1718,7 +1743,7 @@ def q_pow2_cell_boxes_are_brief_and_quote_claude_right():
     for P in R['panels']:
         k, parts = P['k'], P['parts']
         lo, hi = cols[k - 1][:2]
-        text = {w: re.sub(qi.WRITERS + ': “|”', '', ' '.join(t for why, t, _ in parts if why.startswith(w))) for w in ('witness', 'proof')}
+        text = {w: ' '.join(qi.unquoted(t) for why, t, _ in parts if why.startswith(w)) for w in ('witness', 'proof')}
         claude = {w: any(c for why, _, c in parts if why.startswith(w)) for w in ('witness', 'proof')}
         for kind in [x for x, present in (('exists', lo > k), ('open', hi > lo), ('impossible', hi < k + top)) if present]:
             shows = qi.SHOWS[kind]

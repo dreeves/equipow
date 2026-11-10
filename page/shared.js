@@ -193,6 +193,13 @@ const entries = n => [...HOMES.keys()].filter(li => li.querySelector('p.entry').
 // shows, after them.  together(...xs) shows all of xs, in order.  bound(name, rel, v) is the bound m*(name) ≥ v (rel
 // ge) or ≤ v (le), in TeX.
 const shown = (parts = [], entries = []) => ({parts, entries});
+// The words for a credit of the new results, which the data names only by the class of its cells (c, j, ca, a or s:
+// mstar.py's who): the page's own, the label of the item of the new results' legend whose key has that class, in a
+// list, empty for a class the legend lacks, which the charts refuse.  No script holds such words (2026-11-09: dreeves
+// renamed Claude to Opus 5.5 on the page, the scripts' lists of the old names no longer matched it, and "it seems dumb
+// that me tweaking the prose in index.html has yielded this much work from you").
+const credit = key => [...document.querySelectorAll('.legend .key')].filter(k => k.classList.contains(key))
+  .map(k => [...k.parentNode.childNodes].filter(x => x !== k).map(x => x.textContent).join('').trim());
 const together = (...xs) => shown(xs.flatMap(x => x.parts), xs.flatMap(x => x.entries));
 const bound = (name, rel, v) => `\\(m^*(${name}) \\${rel} ${v}\\)`;
 
@@ -244,7 +251,7 @@ const PROOF = {
     M: `\\(M = ${moduli.join(', ')}\\)`, m: `\\(m = ${hi + 1}\\)`,
     source: linked(`https://github.com/dreeves/equipow/blob/main/${source}`, source)})]),
   table2: (n, name, hi) => shown([filled('proof-table2', {bound: bound(name, 'le', hi)})]),
-  page: (n, name, hi, who) => shown([filled('proof-page', {bound: bound(name, 'le', hi), who})], [n]),
+  page: (n, name, hi, who) => shown([filled('proof-page', {bound: bound(name, 'le', hi), who: credit(who)[0]})], [n]),
 };
 
 // The legend's item for a cell of the kind (exists, open or impossible) and the role of its gold ring (0, none; 1, the

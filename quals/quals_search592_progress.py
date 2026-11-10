@@ -222,7 +222,8 @@ class Search592ProgressQuals(unittest.TestCase):
         for body in templates.values():
             self.assertIn('560:10', body)
             self.assertIn('592:10', body)
-        self.assertIn('no completion estimate', templates['progress-search592'])
+        # Spec change (Claude, 2026-11-09; dreeves that day: "i stand by the point about quals enforcing specific prose
+        # on the page being pretty useless"): until then also the words "no completion estimate" in the first template.
         result = subprocess.run(['node', str(Path(progress.HERE, 'quals', 'quals_search592_progress.cjs'))],
                                 cwd=progress.HERE, capture_output=True, text=True, timeout=20)
         self.assertEqual(result.returncode, 0, result.stderr)

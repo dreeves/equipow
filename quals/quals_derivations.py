@@ -124,6 +124,15 @@ def constructions(text=None):
     return [(claim, tex) + parse(tex) for claim, tex in CONSTRUCTION.findall(blank)]
 
 
+def thue_morse(text=None):
+    """What a derivation writes in parentheses beside a τ_j, the source of its sequence: the words of the page's
+    derivation template, <span data-thue-morse>, read from index.html (or from text).  (Asked for as "Thue–Morse" until
+    2026-11-09; dreeves that day: "i stand by the point about quals enforcing specific prose on the page being pretty
+    useless".)"""
+    [words] = re.findall(r'<span data-thue-morse>([^<]*)</span>', qi.blank_comments(qi.page() if text is None else text))
+    return words
+
+
 def derivations(text=None):
     """[(claim, rows, (n, m))] for each construction of index.html (or of text), in page order: rows its derivation's
     steps, each {th, n_text, m_text, n, m, links, kind}, a part's before the product or join that uses it, the last
@@ -149,7 +158,7 @@ def derivations(text=None):
             out = (x, lo, f'p_{x}' if here else f'p_{x} ({why[1]})', [(f'#{key}', f'p_{x}')] * here,
                    'code' if here else 'cited')
         elif kind == 'tau':
-            out = (2 ** x, x, f'τ_{x} (Thue–Morse)', [], 'tau')
+            out = (2 ** x, x, f'τ_{x} ({thue_morse(text)})', [], 'tau')
         else:
             n, m = value(defined[node])
             out = (n, m, x, [(f'#{x}', x)], 'name')
@@ -389,7 +398,7 @@ def q_leaves_resolve():
             links = [(h, t) for h, t, _ in got['links']]
             targets = [x for _, _, x in got['links']]
             ok = {'code': lambda: links == [(f'#{n}:{m}', f'p_{n}')] and targets == [['CODE', None]] and cols[n - 1][0] == m,
-                  'tau': lambda: links == [] and got['cells'][0].endswith('(Thue–Morse)') and n == 2 ** m,
+                  'tau': lambda: links == [] and got['cells'][0].endswith(f'({thue_morse()})') and n == 2 ** m,
                   'cited': lambda: (links == [] and f'p_{{{n}}}' in qi.OFF_PAGE and cols[n - 1][0] == m
                                     and got['cells'][0] == f'p_{n} ({cols[n - 1][2][1]})'),
                   'name': lambda: links == [(f'#{r["th"]}', r['th'])] and targets == [['SPAN', defines[r['th']]]],

@@ -2944,3 +2944,18 @@ Edited without a claim first (no other agent was active; Astra has been paused s
 - **page/mstar-section.js, page/pow2-section.js:** WHO lists the new names. **page/shared.js:** a box's quotation opens `Opus 5.5: “`.
 - **quals:** quals_index, quals_mstar and quals_pow2_page ask for the new names; quals_index matches quotations through `WRITERS` (Opus 5.5, Fable 5.2, Claude, Astra), so write new attributed text under one of those names or add yours there.
 - **For anything written from now on:** dreeves wants quals for substance, not for words on the page; see AGENTS.md's Quals bullet.
+
+### 2026-11-09 22:57 PST — Claude: credits are the cells' classes; claim on the suites that pin the page's words
+
+dreeves, asked whether to decouple the credit words from the code and cut the quals that pin wording: "probably yes to the decoupling but i didn't understand everything you said there so be careful. i stand by the point about quals enforcing specific prose on the page being pretty useless." Edited without a claim first, as at 20:34 (no other agent active). All of it is uncommitted, for dreeves's review.
+- **Done, in shared files:** mstar.py's NEW and mstar.js's `["page", who]` name a credit by its cells' class (c, j, ca, a, s), not by the title's words. `WHO` is gone from page/mstar-section.js and page/pow2-section.js; page/shared.js's `credit(key)` reads the label from the page's legend. So a credit is renamed on the page alone.
+- **Claim:** every suite of quals/ that reads the page, for one change only: a check that asks for words of the page (index.html's prose, or a readout's sentence in page/*.js) asks for the numbers, math, links or structure instead. quals_index, quals_pow2_page and quals_mstar are done. Astra's quals_416_page (the word "BGPW" in the 416 proof) and any other suite the audit names are next; each change gets a dated comment, and nothing else in those files is touched.
+- **The audit:** a script reruns each such suite against a copy of the repository whose index.html and scripts have every word's letters reversed; a qual red only there pins wording. It will be `quals/wording_audit.py`. Details in `scratch/keys-20261109/NOTES.md`.
+
+### 2026-11-09 23:25 PST — Claude: the claim of 22:57 is released; no audit script in the tree
+
+dreeves, on seeing the audit's script at the root: "is this not drastic overkill? we could've just nixed quals that failed due to wording as they arose". So:
+- **The rule:** when a prose edit turns a qual red because the qual pins wording, cut that check, then. No sweep, no script. The script is in `scratch/keys-20261109/`, not in the tree, and nothing in quals/ imports it.
+- **What the sweep had found is fixed and stays**, uncommitted, for dreeves's review. In Astra's suites: quals_416_page no longer asks for the word "BGPW" in the 416 proof (its link to BGPW's Table 5 is the credit); quals_search288_progress and quals_search592_progress no longer ask for "calibration", "search" and "no completion estimate" in their templates (the cells, 240:10, 288:10, 560:10 and 592:10, are still asked for). Each has a dated comment. Also quals_derivations (the Thue–Morse label is read from the page's template) and quals_lattice_search (a call's number of sequences as a number).
+- **For quotations in boxes:** quals_index no longer names the writer; a box's quotation is a name, a colon and “ (`OPENING`). `WRITERS` remains only for the curly-quotes qual.
+- **Found red, not caused by this:** quals_lattice_search.q_section_follows_counts_and_precedes_progress, since the pin-tree and Symmetry sections went in after the lattice section.
