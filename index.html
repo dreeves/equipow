@@ -405,10 +405,13 @@
   <h2 id="asymptotics-title">Asymptotics</h2>
   <!-- dreeves's words, from README.md's [APP] item, with Claude's corrections at his request (2026-11-06: "Can you add an "Asymptotics" section that uses my words with your corrections?"): the math typeset; m*(2^k) = c*log2(n) became m*(2^k)/k → c; "c is at least 77/68 and at most 2/log2(3)" became "c is at most 2/log2(3)", joined to his later sentence "Also 2^58 gives us 66/58 ≈ 1.138 as the lower bound" without its "Also"; "~= 1.347" became ≈ 1.347 log2 n; "Currently the best we have is 480:12. The following would beat that: 432:12, 672:13, 720: 13, 960:14. Update: We got 960:15! So 15/log2(960) ≈ 1.514 is the new bound on the upper envelope." became the two sentences with 1440:16 and 1.525 -->
 <p>
-Eyeballing the charts it looks like maybe \(m^*(n) \approx 1.2\log_2 n\).
+Eyeballing the Figures 1 and 2, it looks like maybe \(m^*(n) \approx 1.2\log_2 n\).
 What can we say about the asymptotics?
 For powers of two we already have this: 
-\(m^*(2^k)/k \to c\) where \(c\) is at most \(2/\log_2 3\), and \(2^{58}\) gives us \(66/58 \approx 1.138\) as the lower bound.
+\(m^*(2^k)/k \to c\) where \(c\) is at most 
+\(2/\log_2 3 \approx 1.262\) and at least
+\(66/58      \approx 1.138\)
+based on the bounds we have for \(n=2^{58}\).
 </p><p>
 Relatedly, the upper envelope of \(m^*(n)\) is at least 
 \(\frac{12}{\log_2 480}\log_2 n \approx 1.347\log_2 n\) 
@@ -416,9 +419,9 @@ which we get from Theorem 4.1 (Multiplication) of BGPW which tells us that
 \(m^*(n^k) \ge k\,m^*(n)\). 
 Namely, \(m^*(480^k) \ge 12k\) so for certain \(n\), 
 \(m^*(n) \ge 12\log_{480} n = 12\log_2 n/\log_2 480 = \frac{12}{\log_2 480}\log_2 n\). 
-So whenever we find a new high watermark for \(m^*(n)/\log_2 n\) 
+So whenever we find a new high watermark for \(m^*(n)/\log_2 n\), 
 that bumps up the upper envelope for the \(m^*\) function. 
-Currently the best we have is 
+UPDATE: The new best we have is 
 1440:16 <span class="nw">(\(\href{#1440:16}{p_{1440}}\)).</span> 
 So \(16/\log_2 1440 \approx 1.525\) is the newest bound on the upper envelope.
 </p>
@@ -1652,21 +1655,24 @@ of them with m ≡ 0, 1, 2 mod 3) and two exceptional signs, and d_0 ≡ d_3 (mo
       We have at least one additional term to add to it:
       \(a(11) = 480\), i.e., the smallest \(n\) of order 12 is 480.
       See the chart above for the latest.</li>
-      <li><a href="https://oeis.org/A306248">A306248</a>, \(m^*(2n)\). Claude: Its 95 terms agree, and this page settles 144 more, through \(n = 239\) (\(2n = 478\)); \(m^*(480)\) is open.</li>
-      <li><a href="https://oeis.org/A323610">A323610</a>, the lengths \(n\) with \(m^*(n) \ge 6\) \((L_6)\). Claude: Its terms agree, and so does its comment's description through 1024.</li>
-      <li><a href="https://oeis.org/A323629">A323629</a>, \(L_7\). The omission of 112 and the generating function have been corrected.</li>
+      <li><a href="https://oeis.org/A306248">A306248</a>, \(m^*(2n)\). 
+        Claude: “Its 95 terms agree, and this page settles 144 more, through \(n = 239\) (\(2n = 478\)); \(m^*(480)\) is open.”</li>
+      <li><a href="https://oeis.org/A323610">A323610</a>, the lengths \(n\) with \(m^*(n) \ge 6\) \((L_6)\). 
+        Claude: “Its terms agree, and so does its comment's description through 1024.</li>
+      <li><a href="https://oeis.org/A323629">A323629</a>, \(L_7\). Stan Wagon corrected the omission of 112 and the generating function.</li>
       <li><a href="https://oeis.org/A323614">A323614</a>, \(L_8\).</li>
     </ul>
     <p>Additional related OEIS entries:</p>
     <ul>
-      <li><a href="https://oeis.org/A382832">A382832</a>. Claude: The question of A323395 for two distinct subsets of \(\{0, \ldots, k-1\}\), which need not form a partition; its \(a(m - 1)\), the least such \(k\) for order \(m\), is at most A323395's.</li>
-      <li><a href="https://oeis.org/A382833">A382833</a>. Claude: The number of distinct vectors of power sums, for exponents 0 through \(m - 1\), among the subsets of \(\{0, \ldots, n - 1\}\).</li>
-      <li><a href="https://oeis.org/A362039">A362039</a>. Claude: The least common sum of two different sets of \(m\) primes each whose power sums agree for exponents 0 through \(m - 1\).</li>
-      <li><a href="https://oeis.org/A010060">A010060</a>. Claude: The Thue–Morse sequence, whose partition of \(\{0, \ldots, 2^k - 1\}\) has order \(k\).</li>
-      <li><a href="https://oeis.org/A106400">A106400</a>. Claude: The Thue–Morse sequence as signs, starting with \(+1\).</li>
-      <li><a href="https://oeis.org/A001969">A001969</a>. Claude: The evil numbers, the part of the Thue–Morse partition that holds 0.</li>
-      <li><a href="https://oeis.org/A000069">A000069</a>. Claude: The odious numbers, its other part.</li>
-      <li><a href="https://oeis.org/A140047">A140047</a>. Claude: The power sums, for exponents 0 through \(k - 1\), of each part of a partition of \(\{0, \ldots, 2^k - 1\}\) of order \(k\), such as Thue–Morse's, which are half those of the whole set.</li>
+      <li><a href="https://oeis.org/A382832">A382832</a>. 
+        Claude: “The question of A323395 for two distinct subsets of \(\{0, \ldots, k-1\}\), which need not form a partition; its \(a(m - 1)\), the least such \(k\) for order \(m\), is at most A323395's.”</li>
+      <li><a href="https://oeis.org/A382833">A382833</a>. Claude: “The number of distinct vectors of power sums, for exponents 0 through \(m - 1\), among the subsets of \(\{0, \ldots, n - 1\}\).”</li>
+      <li><a href="https://oeis.org/A362039">A362039</a>. Claude: “The least common sum of two different sets of \(m\) primes each whose power sums agree for exponents 0 through \(m - 1\).”</li>
+      <li><a href="https://oeis.org/A010060">A010060</a>. Claude: “The Thue–Morse sequence, whose partition of \(\{0, \ldots, 2^k - 1\}\) has order \(k\).”</li>
+      <li><a href="https://oeis.org/A106400">A106400</a>. Claude: “The Thue–Morse sequence as signs, starting with \(+1\).”</li>
+      <li><a href="https://oeis.org/A001969">A001969</a>. Claude: “The evil numbers, the part of the Thue–Morse partition that holds 0.”</li>
+      <li><a href="https://oeis.org/A000069">A000069</a>. Claude: “The odious numbers, its other part.”</li>
+      <li><a href="https://oeis.org/A140047">A140047</a>. Claude: “The power sums, for exponents 0 through \(k - 1\), of each part of a partition of \(\{0, \ldots, 2^k - 1\}\) of order \(k\), such as Thue–Morse's, which are half those of the whole set.”</li>
     </ul>
 </section>
 
@@ -1776,8 +1782,11 @@ of them with m ≡ 0, 1, 2 mod 3) and two exceptional signs, and d_0 ≡ d_3 (mo
 
 <section class="symmetry" aria-labelledby="symmetry-title">
   <!-- TODO: a block quote by Claude (dreeves, 2026-11-06, of the result of 2026-11-03: on the page, "attributed to claude as usual"), on BGPW's Symmetry Conjecture (their §6: if some sequence of length n has order m, some (−1)^m-symmetric one does), which they proved for m ≤ 8 (their Theorem 3.2); that Claude has shown it for every m ≤ 11 and every n, given the upper bounds listed, and that a second Claude, writing its own code to look for an error, confirmed it and corrected that list. The argument's three facts: Divisibility, so that orders 9 to 11 need 16 | n; Symmetry, a symmetric sequence's exact order even and an antisymmetric one's odd, so that p ∨ q ∨ s p*, with s = (−1)^m, p of order m − 1 and q empty or s-symmetric of order m, is s-symmetric of order m; and a tail, from lengths A to 2A − 16 of order m − 1 and a q whose length b is an odd multiple of 16, to every multiple of 16 from 2A + b on. For orders 9, 10 and 11: A = 192, 320 and 528, the orders read off the m*(n) chart but at 1040, a join of 240 and 800; b = 240 (BGPW's antisymmetric example of order 9), 240 (their symmetric one of order 10) and 432 (p432); so every n from 624, 880 and 1488 on. Below those lengths, an upper bound below m or a (−1)^m-symmetric sequence of order m, from BGPW's Tables 4 and 5, Thue–Morse, the page's codes or built from them, with eleven exceptions: ten that the pinned search filled in 9 to 93 CPU seconds each, and 816 at order 11, filled by the antisymmetric example the page showed before it found order 12 there; then those eleven codes. The upper bounds it rests on, by order, with where each comes from: orders 7 and 8, 96 and 152 proved by hand by Berend and Golan, building on Boyd's work, whom BGPW cite, and 168, 176 and 184 from BGPW's integer linear programs, which they say cannot be certified correct, bounds BGPW's Table 1 rests on too, form-tree proofs here checking all five since 2026-11-09; order 9, 144 also proved by hand by Berend and Golan, 272 from BGPW's integer linear programs, 304 from Claude's search with certificates checked in exact integer arithmetic, form-tree proofs here checking 144 and 272 too since 2026-11-09; order 10, 144 by hand as for order 9, and 288 from Claude's form-tree proof (2026-11-08), each step checked as it was made, its certificates not kept; order 11, 240 from Claude's search as at 304, 288 as for order 10 (residue sums mod 5 and 7 together, BGPW's own proof, rule out order 11 there anyway), and 752 from Claude and Astra's meet in the middle, proof752.py, which has no certificate, and since 2026-11-09 from a form-tree proof too. Then a paragraph on those form-tree proofs of single cells (searches/formtree/cells, linked): small, from a top that closes every case, at 144, 152 and 184, to 36,262 cases at 752; the tops at 152, 168 and 184 start from the residue sums mod 4, whose parity forces f(-1) = ±128 at these lengths, 8 times an odd number, as in Berend and Golan's proof at 152, and the same tops at 200 and 216, where order 7 exists, keep the known sequences; proofs/formtree.py checking the tops' certificates, fkernel each task's as they were made, and the Python checker, sharing no code with fkernel, reading every task again. Every other bound from the norm bound or residue sums, as the review checked with its own code, among them two the chart takes from elsewhere: 56 (residue sums mod 9 and 25 together) and 384 (mod 25). Then 288 at order 10: BGPW's computation assuming the conjecture (m*(240) = 10, m*(288) = 9, m*(304) = 8, all three since proved by Claude's searches without it) found no symmetric sequence of order 10 at 288 and has no certificate, so a sequence of length 288 and order 10 would have disproved the conjecture; the form-tree proof (searches/formtree) showed on 2026-11-08 that none exists, after 981,147,930 cases, each step checked as it was made, so m*(288) = 9 and the conjecture holds for every m ≤ 11 at every n, given the bounds. Also (2026-11-07, dreeves: "can you be clearer in the symmetry conjecture section about how close we are to proving it?"), right after the opening paragraph, a list of where that leaves the conjecture: orders up to 8 proved by BGPW (Theorem 3.2), from the bounds at 96, 152, 168, 176 and 184, those at 96 and 152 proved by hand by Berend and Golan, and all five checked by form-tree proofs here since 2026-11-09, those at 168, 176 and 184 for the first time; orders 9 to 11 proved here at every length, every bound they use having a checked proof, those at 272 (from BGPW's integer linear programs) and 752 (from a computation with no certificate) by form trees since 2026-11-09, and 144 (proved by hand by Berend and Golan) given a second proof by form tree that day; order 10 at 288 settled on 2026-11-08 by the form-tree proof, no sequence of length 288 having order 10, so that orders 9 to 11 are done, given the bounds; and orders 12 and up open, each order needing its own computation by the argument here and nothing covering every order. Then (2026-11-07, dreeves: "sure", to adding Claude's theorem on large lengths): that last item says orders 12, 13 and 16 hold at every sufficiently large length and 14, 15 and 17 and up would from one more example each; and, before the attribution, three paragraphs: given Freiman and Litsyn's theorem (1999, quoted in BGPW's §3, not read by Claude) that every sufficiently large length Divisibility allows has a sequence of each order, for fixed m, s = (−1)^m and 2^a the least power of 2 above m, the conjecture holds at every sufficiently large length if and only if some s-symmetric sequence of order m has length b equal to 2^a times an odd number; the proof by p ∨ s p* at lengths divisible by 2^(a+1) and p ∨ q ∨ s p* at 2^a times odd lengths, and the converse; and the page's 912:12, 1008:13 and 1440:16 supply such q for orders 12, 13 and 16, while orders 14 and 15 lack one, the explicit sequences of order 14 or more and their joins and products all having lengths that are multiples of 32, and what remains at each order is finitely many small lengths, where, as at 288 for order 10, the conjecture can amount to a claim that no sequence of the order exists -->
-  <blockquote class="claude">
     <h2 id="symmetry-title">BGPW's Symmetry Conjecture through order 11</h2>
+<p>
+The following is mostly Claude Opus 5.5 and maybe some Fable 5.1, before Fable 5.2:
+</p>
+<blockquote class="claude">
 <p>
 BGPW conjecture (their §6) that if some sequence of length \(n\) has order \(m\), then some \((-1)^m\)-symmetric one does, with \(f_{n-1-i} = (-1)^m f_i\): 
 symmetric for even \(m\), antisymmetric for odd \(m\). 
@@ -1880,6 +1889,7 @@ Below those lengths, each order leaves finitely many lengths, and where no symme
 <p class="attrib">— Claude</p>
 </blockquote>
   <!-- TODO: a block quote by Fable 5.2 (dreeves, 2026-11-09: "yes to putting it in index.html attributed clearly to Fable 5.2"), on its theorem of that day and where it leaves the conjecture: for every order m there is an n_0(m) such that every length n ≥ n_0(m) that is a multiple of 2^a, the least power of 2 above m, has a (−1)^m-symmetric sequence of order m; with Divisibility, the conjecture then holds at each order from n_0(m) on and can fail at only finitely many lengths; the proof uses no example and not Freiman and Litsyn's theorem, so what the three paragraphs above give for orders 12, 13 and 16 it gives for every order, and that theorem's statement about lengths follows from it; the idea: a (−1)^m-symmetric sequence of length 2N is its right half, N signs under d = ⌊m/2⌋ linear conditions with integer coefficients; the number of solutions is 2^(N−d) times the integral of a product of N cosines over a cube of side 2, one period of the product in each coordinate, which holds 2^d integer points; a lemma, by finite differences, that the product is below any power of 1/N unless θ is near an integer point; near each integer point the same Gaussian bump up to sign, the signs agreeing exactly when 2^a divides n (Lucas's theorem) and the bumps cancelling otherwise, so that only Divisibility survives at large lengths; the count's formula, and that nearly all of the sequences counted have exact order m; the proof's page (linked), its quals and code (linked), and what checked it: the quals for its finite steps, two more instances of Fable 5.2 with their own code for the text, no human; what it does not do: its constants give n_0(2) ≤ 2^32 and n_0(12) ≤ 2^1063, so it settles no open cell, and below n_0(m) each length still needs a symmetric sequence or a proof that none of that order exists, as at 288 for order 10; and a by-product: at order 5 the true count is between 0.55 and 3.6 times the formula at each of the nine multiples of 8 from 32 to 96, because at one θ every factor of the product is ±cos(π/16), which leaves 0.39 at N = 48 -->
+<p>Now Fable 5.2 claims to have proved a weak version of the Symmetry Conjecture:</p>
 <blockquote class="claude">
 <p>
 <b>Every order, every sufficiently large length.</b> 
