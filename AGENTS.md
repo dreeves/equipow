@@ -52,13 +52,14 @@ The current state, kept short, since every session loads this file. Update it in
   - Its m*(n) chart (Figure 1) runs to n = 1024 and comes from `mstar.py` → `mstar.js`. Its powers-of-2 chart (Figure 2) runs to 2^72 and comes from `pow2.py` → `pow2.js`.
 - **The README's tasks:** taken one at a time, in its order (dreeves, 2026-11-10), each left for his review before the next, since they edit the same page.
   - [FTP] is done (2026-11-10): the page's section "Form-tree proofs", after the pin trees'. `quals_index.q_form_trees_have_their_exposition` holds its links and numbers to the proofs' data.
-  - Next is [SYM]. The page links no .txt file ([MAI], quals_codes).
+  - [SYM] is done (2026-11-10): the symlarge proof is in the page, in a fold of the Symmetry section that starts closed. quals_symlarge's last five quals hold the fold.
+  - Next is [COM]. In the Symmetry section a `<code>` is a sequence's code (quals_symmetry counts them), so a file name there is a link.
 - **Open cells:** 480 (12–14), 528 (11–12), 720 (13–14) and 864 (12–14), plus 1440 (16–17) past the chart. OEIS A323395:
   - a(12) ∈ {480, 672};
   - a(13) ∈ {480, 720, 864, 960};
   - a(16) is the least n from 1440 to 2880 with order 17.
 - **BGPW's Symmetry Conjecture:** holds through order 11, and every bound it uses has a checked proof or a printed hand proof (the page's Symmetry section; `searches/formtree/cells/`).
-  - At every order it holds at every sufficiently large length (Fable 5.2, 2026-11-09): `proofs/symlarge.html`, a Fourier-integral proof that uses no example and no cited theorem, reviewed by two fresh agents. The Symmetry section's last block quote states it. `quals/quals_symlarge.py` checks its finite parts with `proofs/symlarge.py`. Its threshold is 2^O(m²), so it settles no cell.
+  - At every order it holds at every sufficiently large length (Fable 5.2, 2026-11-09): a Fourier-integral proof, in a fold of the page's Symmetry section since 2026-11-10 (`#symlarge`; `proofs/symlarge.html` only sends its old address there), that uses no example and no cited theorem, reviewed by two fresh agents. The Symmetry section's last block quote states it. `quals/quals_symlarge.py` checks its finite parts with `proofs/symlarge.py`. Its threshold is 2^O(m²), so it settles no cell.
 - **Powers of 2:** the theorem's firsts for δ = 1 to 9 are k = 10, 20, 28, 36, 39, 47, 56, 58, 68.
 - **No search is running:**
   - Form-tree cost estimates (2026-11-06, 2026-11-09) put every open cell out of reach. 480:14, the one exception, takes about 3–4 weeks of the Mac and settles nothing alone.
@@ -101,6 +102,7 @@ The current state, kept short, since every session loads this file. Update it in
   - After changing a chart's data, rerun `python3 -B mstar.py` and rebuild preview.png with `scratch/record-20261025/page/preview.py 0.40`.
   - Changelog entries are math statements per day (`quals_index.statement`), with noteworthy results on lines of their own (`NOTEWORTHY`).
 - **Quals:** red first, then green. No qual reads dreeves's words. A spec change needs his OK and a dated comment.
+  - A qual prevents a regression that could happen by accident (dreeves, 2026-11-10, of a qual that forbade links to .txt files: "if we link to a .txt then ipso facto we did it on purpose, right?"). A check that only something done on purpose can fail is a ban: none is written, and one that bites is cut with a dated comment, not worked around on the page.
   - `scratch/green-20261109/run.py NAME` runs all 87 suites in turn, in about an hour and a half, and lists the red ones. On 2026-11-10 all are green.
   - dreeves, 2026-11-09, after a rename on the page cost an evening: "we need more quals for substantive things and fewer quals enforcing words on the page." A qual protects a number, a sequence, a link, a structure or a behavior, not wording.
   - The page's words live only on the page (2026-11-09). A credit of the new results is its cells' class (c, j, ca, a, s) in mstar.py's NEW and in mstar.js's ["page", who]; the boxes and readouts take its label from the page's legend (`credit` in page/shared.js). Renaming a cell's title or a legend label needs no other edit.

@@ -343,37 +343,38 @@ def q_symmetry_cited_bounds_have_form_tree_proofs():
         assert cols[n - 1][1] == m - 1, (n, m, cols[n - 1])
 
 
-# The theorem on every sufficiently large length (Fable 5.2, 2026-11-09): its proof's page, and the repository's files
-# as the page links them
-PROOF = 'proofs/symlarge.html'
+# The theorem on every sufficiently large length (Fable 5.2, 2026-11-09): its proof, a fold of the account's block
+# quote since 2026-11-10 (until then a page of its own, proofs/symlarge.html, which the quote linked), and the
+# repository's files as the page links them.  quals_symlarge holds the fold itself.
+FOLD = r'<details class="proof-exposition" id="symlarge">.*?</details>'
 HUB = 'https://github.com/dreeves/equipow/blob/main/'
 
 
 def large_lengths(sec):
-    """The account's block quote that links the proof of the theorem on every sufficiently large length: exactly one."""
-    found = [q for q in re.findall(r'<blockquote class="claude">(.*?)</blockquote>', sec, re.S) if f'href="{PROOF}"' in q]
+    """The account's block quote that holds the proof of the theorem on every sufficiently large length, of which there
+    is exactly one, without the proof's fold: the statement and what is said about it."""
+    found = [q for q in re.findall(r'<blockquote class="claude">(.*?)</blockquote>', sec, re.S) if re.search(FOLD, q, re.S)]
     assert len(found) == 1, len(found)
-    return found[0]
+    return re.sub(FOLD, '', found[0], flags=re.S)
 
 
-def q_symmetry_large_lengths_links_its_proof():
-    # Replicata: the account's block quote that links proofs/symlarge.html, its links, and that page's link back.
+def q_symmetry_large_lengths_holds_its_proof():
+    # Replicata: the account's block quote that holds the proof's fold, and its links outside the fold.
     # Expectata (dreeves, 2026-11-09, of Fable 5.2's theorem that at each order m every sufficiently large length that
     # Divisibility allows has a (-1)^m-symmetric sequence of order m: "yes to putting it in index.html attributed
-    # clearly to Fable 5.2"): one block quote of the account links the proof, a file of the repository; each of its
-    # links into github.com/dreeves/equipow names a file of the repository; and the proof's page links back to the
-    # account's title.
+    # clearly to Fable 5.2"): one block quote of the account holds the proof, in its fold; and each of the quote's
+    # links into github.com/dreeves/equipow names a file of the repository, of which there is at least one.
+    # Spec change, 2026-11-10 (dreeves's README, [SYM]: "i think i'd rather have this symlarge proof in index.html,
+    # but default collapsed"): until then this qual, q_symmetry_large_lengths_links_its_proof, asked that the quote link
+    # the proof's page, proofs/symlarge.html, and that the page link back to the account's title.
     # Resultata before: the account had no such block quote, and the proof was in scratch/symlarge-20261109/ alone.
     quote = large_lengths(account())
-    assert os.path.isfile(os.path.join(HERE, PROOF)), PROOF
     linked = re.findall('href="' + re.escape(HUB) + '([^"#]+)"', quote)
-    assert all(os.path.isfile(os.path.join(HERE, path)) for path in linked), linked
-    back = open(os.path.join(HERE, PROOF), encoding='utf-8').read()
-    assert 'href="../index.html#symmetry-title"' in back and 'id="symmetry-title"' in account(), 'no link back'
+    assert linked and all(os.path.isfile(os.path.join(HERE, path)) for path in linked), linked
 
 
 def q_symmetry_large_lengths_states_the_proof_s_numbers():
-    # Replicata: that block quote's math: each bound n_0(M) \le 2^{E} it states, and each decimal number; and
+    # Replicata: that block quote's math outside the proof's fold: each bound n_0(M) \le 2^{E} it states, and each decimal number; and
     # proofs/symlarge.py: threshold_log2(M), the least L such that the conditions of the proof's section 5 hold at
     # every N >= 2^L, and count and gauss at order 5.
     # Expectata: each stated bound is the proof's, E = threshold_log2(M) + 1 (a length n = 2N with N >= 2^L); and each

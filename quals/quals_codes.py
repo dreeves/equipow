@@ -824,12 +824,12 @@ def q_boxes_of_one_block_keep_their_buttons_order():
 
 def q_texts_show_their_boxes():
     # Replicata: index.html outside its comments: its texts' names (texts: each data-text), its texts' boxes (text_boxes:
-    # each <pre> with data-text-box, its text as the HTML parser reads it) and every href; and the texts run (1280 px
+    # each <pre> with data-text-box, its text as the HTML parser reads it); and the texts run (1280 px
     # wide): at load (after ROOM) each text's button and its box read (TEXT_READ), then each button clicked twice (a real
     # mouse click at the middle of its first line) and read after each click.
     # Expectata (dreeves's README, 2026-11-05: "[MAI] Let's get more things as expandable sections of the main equipow
     # page instead of linking to separate pages. Proofs currently in txt files for starters"): the 512 entry's two
-    # proofs, proof512 and proof512_short, are texts, and the page links no .txt file; at load each text is a button
+    # proofs, proof512 and proof512_short, are texts; at load each text is a button
     # (role button, in the tab order, aria-expanded false) whose aria-controls names its box, the <pre> whose
     # data-text-box is its name, right after its block (its nearest p or li), inside no p, and closed; its first click
     # shows the box (aria-expanded true); the box's text is, character for character, the text index.html holds in it,
@@ -841,11 +841,14 @@ def q_texts_show_their_boxes():
     # and a closed box was plainly hidden.
     # Resultata before: no element with data-text; the 512 entry linked its proofs as files, proofs/proof512.txt and
     # proofs/proof512_short.txt.  Then (the template design) no box existed before the first click.
+    # Cut, 2026-11-10: this qual also asked that the page link no .txt file, which turned it red on a link made on
+    # purpose, to a recorded stream (searches/formtree/fixtures/small.txt).  dreeves: "what's the problem with linking
+    # to .txt files? ... are we clear on what the point of quals is? it's to prevent regressions that could happen
+    # accidentally. if we link to a .txt then ipso facto we did it on purpose, right?"  A link is made on purpose; what
+    # could go wrong by accident here, the two proofs' texts and their boxes, the rest of this qual holds.
     names, R = texts(), run('texts')
     assert R['errors'] == [], R['errors'][:5]
     assert {'proof512', 'proof512_short'} <= set(names), names
-    hrefs = re.findall(r'\shref="([^"]*\.txt)(?:[#?][^"]*)?"', qi.blank_comments(qi.page()))
-    assert hrefs == [], hrefs
     text = {name: t for name, _, t in text_boxes()}
     loads, clicks = R['steps'][2:2 + len(names)], R['steps'][2 + len(names):]
     assert [s['name'] for s in loads] == names and len(clicks) == 4 * len(names), ([s['name'] for s in loads], len(clicks))

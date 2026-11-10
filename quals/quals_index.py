@@ -2745,8 +2745,9 @@ def q_form_trees_have_their_exposition():
     # searches/formtree/fixtures/small.txt, a small real stream, as proofs/formtree.py's checker reads them.
     # Expectata (dreeves's README, [FTP], 2026-11-10: "add exposition, attributed to Claude, that defines and describes
     # form-tree proofs"): the page has a <section class="formtree" aria-labelledby="formtree-title"> with a block quote
-    # and an <h2 id="formtree-title">.  What it says holds on the data, whatever its words: every link in it is into
-    # the repository, to a file (blob) or a folder (tree) that is there, or into the page, to an id that is there;
+    # and an <h2 id="formtree-title">.  What it says holds on the data, whatever its words: every link in it into the
+    # repository names a file (blob) or a folder (tree) that is there, and every link into the page an id that is
+    # there (a link elsewhere is not read: until 2026-11-10 it was refused, a ban on something done on purpose);
     # every number in it with a thousands separator is one of the proofs' counts (the assembled proof at 288: tasks,
     # nodes, splits, the splits' children, pins without a split, certificates, and the tasks the Python checker read
     # too, their nodes in all and the most in one of them; a single cell's tasks, nodes or certificates); and each
@@ -2763,8 +2764,7 @@ def q_form_trees_have_their_exposition():
     said = re.sub(r'<!--.*?-->', '', sec.group(1), flags=re.S)
     hrefs = re.findall(r'href="([^"]*)"', said)
     assert all(f'id="{h[1:]}"' in text for h in hrefs if h.startswith('#')), hrefs
-    repo = [re.fullmatch(r'https://github\.com/dreeves/equipow/(blob|tree)/main/([^#?]+)', h) for h in hrefs if not h.startswith('#')]
-    assert all(repo), hrefs
+    repo = [m for m in (re.fullmatch(r'https://github\.com/dreeves/equipow/(blob|tree)/main/([^#?]+)', h) for h in hrefs) if m]
     there = {'blob': os.path.isfile, 'tree': os.path.isdir}
     assert all(there[r.group(1)](os.path.join(HERE, *r.group(2).split('/'))) for r in repo), hrefs
     ft = formtree_checker()
@@ -2799,16 +2799,14 @@ def q_form_trees_section_is_styled_as_the_pin_trees_is():
     # Replicata: page/style.css without its comments: each rule's list of selectors.
     # Expectata: the form trees' section, a block quote like the pin trees' right above it, is laid out as that one is
     # (the text's measure, the quote's rule and the space between its parts, its lists, its attribution's color): in
-    # every list of selectors that names .pintree, each selector with .pintree stands with .formtree in its place too,
-    # and .formtree is named nowhere else.
+    # every list of selectors that names .pintree, each selector with .pintree stands with .formtree in its place too.
+    # (A rule for the form trees' section alone is made on purpose and is not read; until 2026-11-10 it was refused.)
     # Resultata before: no rule named .formtree, so the section's text ended 40 px past the measure
     # (q_prose_has_one_measure: 776 px for 736) and its quote had neither rule nor spacing.
     style = re.sub(r'/\*.*?\*/', '', page_css(), flags=re.S)
     lists = [[s.strip() for s in selectors.split(',')] for selectors in re.findall(r'([^{}]+)\{[^{}]*\}', style)]
     pin = [(s, l) for l in lists for s in l if '.pintree' in s]
-    form = [(s, l) for l in lists for s in l if '.formtree' in s]
     assert pin and all(s.replace('.pintree', '.formtree') in l for s, l in pin), [s for s, l in pin if s.replace('.pintree', '.formtree') not in l]
-    assert all(s.replace('.formtree', '.pintree') in l for s, l in form), [s for s, l in form if s.replace('.formtree', '.pintree') not in l]
 
 
 def q_example_at_768_has_its_code_of_order_13():
@@ -5075,13 +5073,20 @@ def q_tables_and_figures_are_numbered():
     assert numbers == ['1', '2', '1', '3', '2', '4'], numbers
     assert re.findall(r'<span class="sc">' + LABEL, text) == list(zip(kinds, numbers)), 'a label twice, or another'
     mention, after = r'\b(?:Tables?|Figures?) \d+', r' of (?:BGPW|the paper)\b'
-    bare = [seen[m.start():m.end()] for m in re.finditer(mention, seen) if m.start() not in at
+    # Spec change (2026-11-10): dreeves's own "Eyeballing the Figures 1 and 2, it looks like maybe" (d67f6dd) names the
+    # page's two charts bare, and this qual took every bare mention for the paper's without its prefix.  By his rule
+    # above ("always be clear about the BGPW prefix and have our own tables/figures/charts numbered normally from 1") a
+    # bare mention is one of the page's own, so it passes when the page has that float (own: its kind, in the singular,
+    # and its number); a bare mention of a float the page lacks still fails.  No qual reads his words (2026-11-07).
+    own = {f'{kind} {number}' for kind, number in zip(kinds, numbers)}
+    lacks = lambda said: re.sub(r's(?= \d)', '', said) not in own
+    bare = [seen[m.start():m.end()] for m in re.finditer(mention, seen) if m.start() not in at and lacks(m.group(0))
             and not re.search(r"BGPW|paper's", seen[:m.start()].replace('\0', '')[-40:])
             and not re.match(after, seen[m.end():].replace('\0', ''))]
     tags = [v for t in re.findall(r'<[a-zA-Z][^>]*>', text) for v in re.findall(r"""=(?:'([^']*)'|"([^"]*)")""", t) for v in v if v]
     others = tags + page_scripts(text) + [open(DATA, encoding='utf-8').read()]
-    bare += [o[max(0, m.start() - 40):m.end()] for o in others for m in re.finditer(mention, o)
-             if not re.search(r"BGPW|paper's", o[max(0, m.start() - 40):m.start()]) and not re.match(after, o[m.end():])]
+    bare += [o[max(0, m.start() - 40):m.end()] for o in others for m in re.finditer(mention, o) if lacks(m.group(0))
+             and not re.search(r"BGPW|paper's", o[max(0, m.start() - 40):m.start()]) and not re.match(after, o[m.end():])]
     assert not bare, bare
 
 

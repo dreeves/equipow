@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""symlarge.py: the objects of the proof in proofs/symlarge.html, computed exactly, for quals/quals_symlarge.py.
+"""symlarge.py: the objects of the proof in index.html's Symmetry section (its fold, #symlarge; until 2026-11-10 the
+page proofs/symlarge.html), computed exactly, for quals/quals_symlarge.py.
 This file is all Claude (Fable 5.2).
 
 The proof shows that at each order m every sufficiently large admissible length has a (-1)^m-symmetric sequence of

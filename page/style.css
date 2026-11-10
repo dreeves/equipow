@@ -311,7 +311,7 @@ code[aria-expanded], [data-text][aria-expanded] { cursor: pointer; text-decorati
 /* Claude's account of its lattice search, at Stan Wagon's request (2026-10-14): one block quote, ruled in Claude's hue */
 .lattice, .pintree, .formtree, .symmetry, .asymptotics { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; max-width: var(--measure); }
 .lattice blockquote, .pintree blockquote, .formtree blockquote, .symmetry blockquote, .asymptotics blockquote { margin: 0; padding-left: 1.1rem; border-left: 3px solid var(--claude); display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; }
-.lattice ul, .pintree ul, .formtree ul, .symmetry ul { margin: 0; padding-left: 1.2rem; display: grid; gap: 0.6rem; }
+.lattice ul, .pintree ul, .formtree ul, .symmetry ul, .symmetry ol { margin: 0; padding-left: 1.2rem; display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.6rem; }   /* one column no wider than the list, so that a displayed formula in an item scrolls alone (2026-11-10) */
 .lattice .attrib, .pintree .attrib, .formtree .attrib, .symmetry .attrib, .asymptotics .attrib { color: var(--muted); }
 .symmetry li > p { text-align: start; hyphens: manual; -webkit-hyphens: manual; }   /* its code lines, ragged and unhyphenated, as p.code's are */
 

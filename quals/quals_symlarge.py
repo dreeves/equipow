@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Quals for proofs/symlarge.html, the proof (Fable 5.2, 2026-11-09) that at each order m every sufficiently large
-length that Divisibility allows has a (-1)^m-symmetric sequence of order m, so that BGPW's Symmetry Conjecture holds at
-every sufficiently large length, at each order: the proof's finite, checkable parts, the numbers its remarks state, and
-the page itself (its math drawn, its width on a phone, its links).
+"""Quals for the proof (Fable 5.2, 2026-11-09) that at each order m every sufficiently large length that Divisibility
+allows has a (-1)^m-symmetric sequence of order m, so that BGPW's Symmetry Conjecture holds at every sufficiently large
+length, at each order: the proof's finite, checkable parts, the numbers its remarks state, and the proof as the page
+shows it, in a fold of index.html's Symmetry section (closed at first, its math drawn, its width on a phone, its links).
 Run: python3 -B quals/quals_symlarge.py [name ...]   (no arguments: all quals).
 
 Each qual is a function q_*: a passing qual returns, a failing one raises.  Each qual's comment gives its replicata (the
@@ -28,6 +28,14 @@ Vocabulary, each term defined once here:
 
 History: written in scratch/symlarge-20261109 (git-ignored), red against stubs before proofs/symlarge.py existed, and
 moved here with the proof on 2026-11-09 (dreeves: "yes to putting it in index.html attributed clearly to Fable 5.2").
+
+Spec change, 2026-11-10 (dreeves's README, [SYM]: "i think i'd rather have this symlarge proof in index.html, but
+default collapsed"): the proof was a page of its own, proofs/symlarge.html, which the Symmetry section linked, and the
+last three quals here held that page (q_proof_page_draws_all_its_math, q_proof_page_fits_a_phone,
+q_proof_page_links_resolve).  They now hold the proof where it is, the fold <details class="proof-exposition"
+id="symlarge"> of index.html, as q_proof_draws_all_its_math, q_proof_fits_a_phone and q_proof_links_resolve, and
+q_proof_is_a_closed_fold_of_the_symmetry_section is new.  The proof is in one place: proofs/symlarge.html only sends
+its old address to the fold.
 """
 import sys
 sys.dont_write_bytecode = True
@@ -38,7 +46,9 @@ from math import comb
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # the repository's root, above quals/
 sys.path.insert(0, os.path.join(HERE, 'proofs'))
 import symlarge as sl                         # the code under test
-PROOF = os.path.join(HERE, 'proofs', 'symlarge.html')
+INDEX = os.path.join(HERE, 'index.html')      # the page, whose Symmetry section holds the proof in a fold
+FOLD = r'<details class="proof-exposition" id="symlarge">(.*?)</details>'      # the fold, closed: it has no open attribute
+OLD = os.path.join(HERE, 'proofs', 'symlarge.html')                            # the proof's page until 2026-11-10
 
 
 def order(a):
@@ -375,10 +385,10 @@ def q_log_cosine_bounds():
 # The proof's page
 
 # Headless Chrome's window is at least 500 px wide, so the page runs in an iframe of the width asked for and posts its
-# report to this host page, which writes it into its own DOM for --dump-dom (quals_index's HOST, for this page).
+# report to this host page, which writes it into its own DOM for --dump-dom (quals_index's HOST, with this report).
 HOST = """<!doctype html>
 <html><head><meta charset="utf-8"></head><body style="margin: 0">
-<iframe src="proofs/symlarge.html" style="display: block; border: 0; width: __WIDTH__px; height: 1000px"></iframe>
+<iframe src="index.html" style="display: block; border: 0; width: __WIDTH__px; height: 1000px"></iframe>
 <script>
 addEventListener('message', e => {
   const pre = document.createElement('pre'); pre.id = 'symlarge-out'; pre.textContent = e.data; document.body.append(pre);
@@ -386,41 +396,62 @@ addEventListener('message', e => {
 </script>
 </body></html>
 """
-# In the page, once its fonts are in and KaTeX has drawn: the formulas drawn, KaTeX's errors, any \( or \) left in the
-# text, the window's and the document's widths, and the paragraphs, list items, headings and drawn pieces of formulas
-# (KaTeX's .base spans, between which a line may break) outside a displayed formula that reach past the window
+# In the page, once its fonts are in and KaTeX has drawn: whether the proof's fold is open as the page loads and how
+# tall the fold is then; then, with the fold opened: its height, the formulas drawn in the fold, KaTeX's errors
+# there, any \( or \) left in its text, the window's and the document's widths, and the fold's paragraphs, list items,
+# headings, summary and drawn pieces of formulas (KaTeX's .base spans, between which a line may break) outside a
+# displayed formula that reach past the window, the number of its displayed formulas, and, for each of its lists, the
+# least space between one item's bottom and the next one's top
 LOOK = """<script>
 addEventListener('load', () => document.fonts.ready.then(() => setTimeout(() => {
-  const reach = e => e.getBoundingClientRect().right > document.documentElement.clientWidth + 1;
-  parent.postMessage(JSON.stringify({
-    drawn: document.querySelectorAll('.katex').length,
-    errors: [...document.querySelectorAll('.katex-error')].map(e => e.textContent.slice(0, 80)),
-    raw: (document.body.textContent.match(/\\\\[()]/g) || []).length,
-    innerW: innerWidth, scrollW: document.documentElement.scrollWidth,
-    past: [...document.querySelectorAll('main p, main li, main h1, main h2, main .katex-html .base')].filter(e => reach(e) && !e.closest('.display')).length,
-    fonts: getComputedStyle(document.querySelector('main p')).fontFamily,
-  }), '*');
+  const fold = document.getElementById('symlarge');
+  const openAtLoad = fold.open, closedHeight = fold.getBoundingClientRect().height;
+  fold.open = true;
+  setTimeout(() => {
+    const reach = e => e.getBoundingClientRect().right > document.documentElement.clientWidth + 1;
+    parent.postMessage(JSON.stringify({
+      openAtLoad, closedHeight, openHeight: fold.getBoundingClientRect().height,
+      drawn: fold.querySelectorAll('.katex').length,
+      errors: [...fold.querySelectorAll('.katex-error')].map(e => e.textContent.slice(0, 80)),
+      raw: (fold.textContent.match(/\\\\[()]/g) || []).length,
+      innerW: innerWidth, scrollW: document.documentElement.scrollWidth,
+      past: [...fold.querySelectorAll('p, li, h4, summary, .katex-html .base')].filter(e => reach(e) && !e.closest('.proof-equation')).length,
+      equations: fold.querySelectorAll('.proof-equation').length,
+      listGaps: [...fold.querySelectorAll('ul, ol')].map(list => [list.tagName, Math.min(...[...list.children].slice(1).map(
+        item => item.getBoundingClientRect().top - item.previousElementSibling.getBoundingClientRect().bottom))]),
+      fonts: getComputedStyle(fold.querySelector('p')).fontFamily,
+    }), '*');
+  }, 400);
 }, 800)));
 </script>
 """
 LOOKS = {}                                    # the page's report by width, made once per process
 
 
+def page_text():
+    return open(INDEX, encoding='utf-8').read()
+
+
 def proof_text():
-    return open(PROOF, encoding='utf-8').read()
+    """The proof as index.html holds it: the inside of its fold, of which the page has exactly one."""
+    found = re.findall(FOLD, page_text(), re.S)
+    assert len(found) == 1, f'index.html has {len(found)} folds of the proof'
+    return found[0]
 
 
 def look(width):
-    """The proof's page as headless Chrome draws it in a frame width px wide, beside a copy of page/."""
+    """The proof's fold as headless Chrome draws it in the page, in a frame width px wide, beside copies of page/ and
+    of the charts' data."""
     if width not in LOOKS:
         import quals_index as qi              # read only: copy_page_dir and chrome
+        proof_text()                          # no fold, no look
         d = tempfile.mkdtemp(prefix='symlarge-quals-')
         try:
-            os.mkdir(os.path.join(d, 'proofs'))
-            text = proof_text()
+            text = page_text()
             assert text.count('</body>') == 1
-            open(os.path.join(d, 'proofs', 'symlarge.html'), 'w', encoding='utf-8').write(text.replace('</body>', LOOK + '</body>'))
+            open(os.path.join(d, 'index.html'), 'w', encoding='utf-8').write(text.replace('</body>', LOOK + '</body>'))
             qi.copy_page_dir(d)
+            for data in ('mstar.js', 'pow2.js'): shutil.copy(os.path.join(HERE, data), d)
             open(os.path.join(d, 'host.html'), 'w').write(HOST.replace('__WIDTH__', str(width)))
             dom = qi.chrome(d, [f'--window-size={max(width, 500) + 40},1100', '--virtual-time-budget=10000', '--dump-dom',
                                 'file://' + os.path.join(d, 'host.html')])
@@ -432,45 +463,83 @@ def look(width):
     return LOOKS[width]
 
 
-def q_proof_page_draws_all_its_math():
-    # Replicata: proofs/symlarge.html beside page/, in headless Chrome 1280 px wide, once KaTeX has drawn it.
-    # Expectata: KaTeX reports no error; it has drawn as many formulas as the file has \( outside its comments; no \(
-    # or \) is left in the text; and there are more than 300 of them (the proof is there, not a stub).
+def q_proof_is_a_closed_fold_of_the_symmetry_section():
+    # Replicata: index.html: its Symmetry section, the block quotes there and the proof's fold; proofs/symlarge.html,
+    # the proof's page until 2026-11-10; and the page in headless Chrome 1280 px wide, as it loads and with the fold
+    # then opened.
+    # Expectata (dreeves's README, [SYM], 2026-11-10: "i think i'd rather have this symlarge proof in index.html, but
+    # default collapsed"): the page holds the proof once, in a <details class="proof-exposition" id="symlarge"> with no
+    # open attribute, inside one block quote of the Symmetry section: a summary, then a <div class="proof-body"> whose
+    # only headings are seven h4, with the ids symlarge-s0 to symlarge-s6 in that order (the proof's sections 0 to 6);
+    # as the page loads the fold is closed and under 100 px tall, and opened it is over 1000 px tall; and the proof's
+    # old address still leads to it: proofs/symlarge.html sends its reader to ../index.html#symlarge, by a refresh at
+    # once and by a link.
+    # Resultata before: the Symmetry section linked the proof, a page of its own, and index.html had no such fold.
+    # (Two checks written with this qual were cut the same day: that the page link no symlarge.html, and that the old
+    # page hold no formula.  Each could only fail by something done on purpose, and dreeves, of another such check:
+    # "the point of quals ... it's to prevent regressions that could happen accidentally".)
+    text = page_text()
+    sec = re.search(r'<section class="symmetry" aria-labelledby="symmetry-title">(.*?)</section>', text, re.S)
+    assert sec, 'no Symmetry section'
+    fold = proof_text()
+    quotes = [q for q in re.findall(r'<blockquote class="claude">(.*?)</blockquote>', sec.group(1), re.S) if 'id="symlarge"' in q]
+    assert len(quotes) == 1 and len(re.findall(FOLD, quotes[0], re.S)) == 1 and text.count('id="symlarge"') == 1, (len(quotes), text.count('id="symlarge"'))
+    assert re.match(r'\s*<summary>[^<]+</summary>\s*<div class="proof-body">', fold), fold[:300]
+    assert re.findall(r'<h(\d)\b', fold) == ['4'] * 7, re.findall(r'<h\d[^>]*>', fold)
+    assert re.findall(r'<h4 id="([^"]*)">', fold) == [f'symlarge-s{k}' for k in range(7)], re.findall(r'<h4[^>]*>', fold)
+    old = re.sub(r'<!--.*?-->', '', open(OLD, encoding='utf-8').read(), flags=re.S)
+    assert '<meta http-equiv="refresh" content="0; url=../index.html#symlarge">' in old and 'href="../index.html#symlarge"' in old, old[:600]
+    R = look(1280)
+    assert R['openAtLoad'] is False and R['closedHeight'] < 100 and R['openHeight'] > 1000, R
+
+
+def q_proof_draws_all_its_math():
+    # Replicata: index.html beside page/ and the charts' data, in headless Chrome 1280 px wide, once KaTeX has drawn it
+    # and the proof's fold is opened.
+    # Expectata: in the fold, KaTeX reports no error; it has drawn as many formulas as the fold's source has \( outside
+    # its comments; no \( or \) is left in its text; and there are more than 300 of them (the proof is there, not a stub).
     R = look(1280)
     want = len(re.findall(r'\\\(', re.sub(r'<!--.*?-->', '', proof_text(), flags=re.S)))
     assert R['errors'] == [] and R['raw'] == 0, R
     assert R['drawn'] == want > 300, (R['drawn'], want)
 
 
-def q_proof_page_fits_a_phone():
-    # Replicata: the same page in a frame 390 px wide.
-    # Expectata: the frame is 390 px wide; the page is no wider than it; and nothing outside a displayed formula
-    # reaches past it (a displayed formula wider than a phone scrolls sideways alone, in its own paragraph).
+def q_proof_fits_a_phone():
+    # Replicata: the same page in a frame 390 px wide, the proof's fold opened.
+    # Expectata: the frame is 390 px wide; the page is no wider than it; nothing of the fold outside a displayed formula
+    # reaches past it (a displayed formula wider than a phone scrolls sideways alone, in its own paragraph, of class
+    # proof-equation, as the page's other inline proofs have them); and the fold has as many such paragraphs drawn as
+    # its source has, more than 10.
     R = look(390)
     assert R['innerW'] == 390 and R['scrollW'] <= R['innerW'] and R['past'] == 0, R
     assert R['errors'] == [], R
+    assert R['equations'] == proof_text().count('<p class="proof-equation">') > 10, (R['equations'], proof_text().count('<p class="proof-equation">'))
 
 
-def q_proof_page_links_resolve():
-    # Replicata: every href and src of proofs/symlarge.html.
-    # Expectata: each relative one names a file of the repository, from proofs/; each link into github.com/dreeves/equipow
-    # names a file or directory of the repository; the page links the main page's Symmetry section, this file and
-    # proofs/symlarge.py; and its other links are the fonts' and KaTeX's hosts alone.
+def q_proof_s_lists_space_their_items():
+    # Replicata: the page 1280 px wide, the proof's fold opened: each list of the fold (a ul in section 4, the ol of
+    # the remarks), and the space between each of its items and the next.
+    # Expectata: the fold has both lists, and in each the items stand at least 8 px apart, as the Symmetry section's
+    # other lists do (0.6rem, 9.6 px) and as both did on the proof's own page.
+    # Resultata before (2026-11-10, the proof just moved into the fold): the remarks' items ran together, 0 px apart,
+    # since the section's stylesheet spaced only a ul.
+    R = look(1280)
+    assert sorted(tag for tag, _ in R['listGaps']) == ['OL', 'UL'] and all(gap >= 8 for _, gap in R['listGaps']), R['listGaps']
+
+
+def q_proof_links_resolve():
+    # Replicata: every href and src of the proof's fold, outside its comments.
+    # Expectata: each link into github.com/dreeves/equipow names a file of the repository, and each link into the page
+    # an id it has.  (Until 2026-11-10 this also refused any other link and asked for two links to be there: bans on
+    # what is only done on purpose, cut with the others of that day.)
     text = re.sub(r'<!--.*?-->', '', proof_text(), flags=re.S)
     refs = re.findall(r'\b(?:href|src)="([^"]+)"', text)
     assert refs, 'no links'
-    hub, other = 'https://github.com/dreeves/equipow/blob/main/', []
-    for ref in refs:
-        if ref.startswith(hub):
-            assert os.path.exists(os.path.join(HERE, ref[len(hub):])), ref
-        elif not re.match(r'[a-z]+:', ref):
-            assert os.path.exists(os.path.normpath(os.path.join(HERE, 'proofs', ref.split('#')[0]))), ref
-        else:
-            other.append(ref)
-    assert all(ref.startswith(('https://fonts.googleapis.com', 'https://fonts.gstatic.com', 'https://cdn.jsdelivr.net/npm/katex@'))
-               for ref in other), other
-    assert {'../index.html#symmetry-title', hub + 'quals/quals_symlarge.py', hub + 'proofs/symlarge.py'} <= set(refs), refs
-    assert 'id="symmetry-title"' in open(os.path.join(HERE, 'index.html'), encoding='utf-8').read()
+    hub, page = 'https://github.com/dreeves/equipow/blob/main/', page_text()
+    files = [ref[len(hub):] for ref in refs if ref.startswith(hub)]
+    ids = [ref[1:] for ref in refs if ref.startswith('#')]
+    assert all(os.path.isfile(os.path.join(HERE, f)) for f in files), files
+    assert all(f'id="{i}"' in page for i in ids), ids
 
 
 def main():
