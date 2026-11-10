@@ -16,7 +16,7 @@ try {
   // axis below.
   const LEFT = 44, RIGHT = 16, TOP = 2, ROW = 14, AXIS = 30;
   const assert = (ok, ...what) => { if (!ok) throw new Error(JSON.stringify(what).replace(/"/g, "'")); };
-  const WHO = ['BGPW', 'Claude alone', 'Claude and BGPW', 'Astra alone', 'Claude and Astra'];         // the provenance labels of the new results above
+  const WHO = ['BGPW', 'Opus 5.5 alone', 'Opus 5.5 and BGPW', 'Astra alone', 'Opus 5.5 and Astra'];   // the provenance labels of the new results above (Opus 5.5 for Claude since dreeves's rename of 2026-11-09)
   const prime = p => { for (let d = 2; d * d <= p; d++) if (p % d === 0) return false; return p >= 2; };
   const sub = k => String(k).replace(/\d/g, d => '₀₁₂₃₄₅₆₇₈₉'[d]);
   const loOf = n => D.cols[n - 1][0];

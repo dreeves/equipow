@@ -11,7 +11,7 @@ const chart = document.getElementById('pow2-chart'), ro = document.getElementByI
 try {
   const D = POW2, K = 72, ROW = 14, GAP = 1 / devicePixelRatio, NS = 'http://www.w3.org/2000/svg';
   const assert = (ok, ...what) => { if (!ok) throw new Error(JSON.stringify(what).replace(/"/g, "'")); };
-  const WHO = ['BGPW', 'Claude alone', 'Claude and BGPW', 'Astra alone', 'Claude and Astra'];         // the provenance labels of the new results above
+  const WHO = ['BGPW', 'Opus 5.5 alone', 'Opus 5.5 and BGPW', 'Astra alone', 'Opus 5.5 and Astra'];   // the provenance labels of the new results above (Opus 5.5 for Claude since dreeves's rename of 2026-11-09)
   const prime = p => { for (let d = 2; d * d <= p; d++) if (p % d === 0) return false; return p >= 2; };
   const sub = k => String(k).replace(/\d/g, d => '₀₁₂₃₄₅₆₇₈₉'[d]);
   // The norm lemma's bound at n = 2^k for an odd prime p, in exact integers (mstar.py's norm): the largest m with

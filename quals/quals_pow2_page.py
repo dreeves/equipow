@@ -46,7 +46,7 @@ SWIPE = (29, 8)                               # the cell a phone's swipe starts 
 MSTAR_LAYOUT = (44, 16, 2, 14)                # the m*(n) chart's plot: left and right gutters, top, row pitch (CSS px)
 NMAX = int(re.search(r'"nmax": (\d+)', open(MSTAR, encoding='utf-8').read()).group(1))   # the m*(n) chart's last n (1024)
 MSTAR_COLUMNS = [2] + list(range(4, NMAX + 1, 4))   # the m*(n) chart's columns' n since 2026-10-29 (every even n before)
-WHO = ('BGPW', 'Claude alone', 'Claude and BGPW', 'Astra alone', 'Claude and Astra')   # provenance labels of the page's new results
+WHO = ('BGPW', 'Opus 5.5 alone', 'Opus 5.5 and BGPW', 'Astra alone', 'Opus 5.5 and Astra')   # provenance labels of the page's new results (Opus 5.5 for Claude since dreeves's rename of 2026-11-09)
 RUNS = {}                                     # DRIVER's reports by configuration name, made once per process (see run)
 
 
@@ -160,7 +160,7 @@ def check_readouts(data, reads):
         want = [want[:1], want, want[1:]][kind]
         extra = NOTES.get(role, 0)       # a gold cell's notes after its reasons, each naming its δ
         assert len(parts) == len(want) + extra, (k, e, r, want)
-        assert all(re.match(rf'(?:Claude: “)?order {o}\b', p, re.I) and b in p for p, (o, b) in zip(parts, want)), (k, e, r, want)
+        assert all(re.match(rf'(?:{qi.WRITERS}: “)?order {o}\b', p, re.I) and b in p for p, (o, b) in zip(parts, want)), (k, e, r, want)
         assert all(re.search(rf'\b{e}\b', p) for p in parts[len(want):]), (k, e, r)
         if extra: notes.setdefault(role, set()).add(' · '.join(re.sub(r'\d+', '#', p) for p in parts[len(want):]))
     assert all(len(v) == 1 for v in meaning.values()) and len(set.union(*meaning.values())) == len(meaning), meaning
@@ -206,7 +206,7 @@ def kinds_cols():
         L, j = divmod(k, 24)
         cols.append([k + L, norm(2 ** k, 3), ['joins', f_power(L, j)] if L else ['thue-morse'], ['norm', 3]])
     whys = {1: ['two'], 2: ['norm', 3], 3: ['table2'], 4: ['page', 'BGPW'], 5: ['residue', 9],
-            6: ['page', 'Claude alone'], 7: ['residue', 3], 8: ['table2'], 9: ['page', 'Claude and BGPW']}
+            6: ['page', 'Opus 5.5 alone'], 7: ['residue', 3], 8: ['table2'], 9: ['page', 'Opus 5.5 and BGPW']}
     for k, why in whys.items(): cols[k - 1] = [k, k, ['thue-morse'], ['mstar', why]]
     joins = {34: [p + [[1024, 10]] for p in JOIN24], 35: [[[1024, 11], [2 ** 25, 25]]], 51: STONG}
     for k, ps in joins.items():
@@ -1653,8 +1653,8 @@ def q_pow2_boxes_show_witness_proof_and_searches_by_kind():
                                             '(p_{576} \\mathbin{\\#} p_{576} \\mathbin{\\#} p_{48} \\mathbin{\\#} \\tau_{3}) \\vee '
                                             '(p_{800} \\mathbin{\\#} p_{832} \\mathbin{\\#} p_{320} \\mathbin{\\#} \\tau_{2})\\)']], B[(30, 2)]['constructions']
     assert cols[29][3] == ['residue', [3]] and 'residue condition mod \\(M = 3\\)' in B[(30, 8)]['said'] and 'pow2.py' in B[(30, 8)]['said'], B[(30, 8)]['said']
-    assert B[(30, 8)]['said'].startswith('Claude: “\\(m^*(2^{30}) \\le 36\\):'), B[(30, 8)]['said']
-    assert cols[8][3] == ['mstar', ['residue', 27]] and B[(9, 1)]['said'].startswith('Claude: “\\(m^*(512) \\le 9\\): residue condition mod \\(M = 27\\)'), B[(9, 1)]['said']
+    assert re.match(qi.WRITERS + ': “' + re.escape('\\(m^*(2^{30}) \\le 36\\):'), B[(30, 8)]['said']), B[(30, 8)]['said']
+    assert cols[8][3] == ['mstar', ['residue', 27]] and re.match(qi.WRITERS + ': “' + re.escape('\\(m^*(512) \\le 9\\): residue condition mod \\(M = 27\\)'), B[(9, 1)]['said']), B[(9, 1)]['said']
     flat = lambda t: ' '.join(t.split())
     for t in ((30, 5), (13, 2)):
         assert [flat(x) for x in B[t]['searches']] == ['Search progress —'], (t, B[t].get('searches'))
@@ -1718,7 +1718,7 @@ def q_pow2_cell_boxes_are_brief_and_quote_claude_right():
     for P in R['panels']:
         k, parts = P['k'], P['parts']
         lo, hi = cols[k - 1][:2]
-        text = {w: ' '.join(t for why, t, _ in parts if why.startswith(w)).replace('Claude: “', '').replace('”', '') for w in ('witness', 'proof')}
+        text = {w: re.sub(qi.WRITERS + ': “|”', '', ' '.join(t for why, t, _ in parts if why.startswith(w))) for w in ('witness', 'proof')}
         claude = {w: any(c for why, _, c in parts if why.startswith(w)) for w in ('witness', 'proof')}
         for kind in [x for x, present in (('exists', lo > k), ('open', hi > lo), ('impossible', hi < k + top)) if present]:
             shows = qi.SHOWS[kind]

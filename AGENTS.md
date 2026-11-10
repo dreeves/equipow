@@ -96,6 +96,8 @@ The current state, kept short, since every session loads this file. Update it in
   - After changing a chart's data, rerun `python3 -B mstar.py` and rebuild preview.png with `scratch/record-20261025/page/preview.py 0.40`.
   - Changelog entries are math statements per day (`quals_index.statement`), with noteworthy results on lines of their own (`NOTEWORTHY`).
 - **Quals:** red first, then green. No qual reads dreeves's words. A spec change needs his OK and a dated comment.
+  - dreeves, 2026-11-09, after a rename on the page cost an evening: "we need more quals for substantive things and fewer quals enforcing words on the page." A qual protects a number, a sequence, a link, a structure or a behavior, not wording.
+  - The new results' credit words (cell titles, legend) are still data: mstar.py's NEW, mstar.js's ["page", who] and the chart scripts' WHO repeat them, so renaming one on the page needs all four and `python3 -B mstar.py`. Keys for labels (the cells' classes) were proposed to dreeves that evening.
 - **Browsers:** headless Chrome only, with no screen access. In Codex, Chrome aborts inside the workspace sandbox, so request `require_escalated` for Chrome quals, keep temporary profiles, and never disable Chrome's own sandbox.
 - **Memory:** the Mac kernel-panicked from memory exhaustion on 2026-11-03. Watch big runs' memory, and stop a big search with SIGTERM rather than pausing it in memory to make room for another.
   - On 2026-11-09 a subagent's script asked numpy for 294 GB and reached 76.7 GB compressed before the kernel killed it. A limit in a brief does not bind the code: every script asserts its arrays' sizes before allocating.

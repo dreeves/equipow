@@ -137,7 +137,7 @@ function raised(cols, shift) {
 // heading names the target, a cell's after the cell's own swatch, with the legend's words for that swatch, cloned.
 // Its parts come from the templates of the page, one per kind, template[data-panel="NAME"], filled with the column's
 // own numbers (filled), as LMFDB's knowls fill one text per kind of invariant; its parts of Claude's English, those of
-// a template marked data-claude, in one quote, Claude: “…”, the box's one attribution, and a box with none of them
+// a template marked data-claude, in one quote, Opus 5.5: “…” (Claude: “…” until 2026-11-09), the box's one attribution, and a box with none of them
 // with none (dreeves, 2026-11-04: "we don't need claude attribution for blurbs without words like these").  Every target has a fragment (#n1024, #m12,
 // #n1024m12; #k30, #d5, #k30d5), which the box puts in the page's address as it opens, and the page opens that box when
 // it loads with that fragment or moves to it, as the Stacks project's tags name their results.  The box is a
@@ -334,7 +334,7 @@ function chartPanel({region, chart, ncol, nrow, fragment, fill, pin}) {
     shelf.append(...lengths.flatMap(entries));
     const held = [...shelf.querySelectorAll('code[id]')].map(c => c.id), kept = parts.filter(p => !held.includes(p.dataset.copy));
     const ps = kept.filter(p => p.hasAttribute('data-claude')).flatMap(e => [...e.querySelectorAll('p')]);   // Claude's English, quoted
-    ps.slice(0, 1).forEach(p => p.prepend('Claude: “'));
+    ps.slice(0, 1).forEach(p => p.prepend('Opus 5.5: “'));   // Opus 5.5 for Claude since dreeves's rename of 2026-11-09, as in the page's own text
     ps.slice(-1).forEach(p => p.append('”'));
     region.dataset.kind = kind;
     title.replaceChildren(...heading);

@@ -15,6 +15,12 @@ writes it into the DOM that --dump-dom returns.
 The harness locates the chart only by its pixels, reads the view only through the readout (the cell under a
 synthetic pointer) and finds the n labels by where their strings were drawn, so the quals hold the chart to what a
 reader sees.
+
+Spec change (dreeves, 2026-11-09, his commit b5ce25c and, asked: "yes, the "Claude" -> "Opus 5.5" rename was
+intentional"): the page says Opus 5.5 where it said Claude, in the new results' titles and legend (Opus 5.5 alone, Opus
+5.5 and BGPW, Opus 5.5 and Astra), which mstar.js's ["page", who] and the chart scripts' WHO follow, and in its
+quotations (Opus 5.5: “…”, the boxes' among them); Fable 5.2's words are quoted under its own name.  The quals' code
+asks for the new names.  Their comments, written before, still say Claude, as do the names of some quals.
 """
 import sys
 sys.dont_write_bytecode = True
@@ -1040,8 +1046,8 @@ def kinds_data(violation=None):
                     [1, two, ['example', 'a made-up label'], ['two']] if two <= 7 else
                     [1, 7, ['example', 'a made-up label'], ['residue', 3]])
     for n, c in ((4, [2, 2, ['product', 2, 2], ['norm', 3]]), (8, [3, 3, ['table2'], ['table2']]),
-                 (12, [2, 3, ['join', 4, 8], ['two']]), (16, [4, 4, ['page', 'BGPW'], ['page', 'Claude and BGPW']]),
-                 (20, [3, 3, ['page', 'Claude alone'], ['two']]), (24, [4, 5, ['example', 'BGPW Table 5'], ['residue', 9]]),
+                 (12, [2, 3, ['join', 4, 8], ['two']]), (16, [4, 4, ['page', 'BGPW'], ['page', 'Opus 5.5 and BGPW']]),
+                 (20, [3, 3, ['page', 'Opus 5.5 alone'], ['two']]), (24, [4, 5, ['example', 'BGPW Table 5'], ['residue', 9]]),
                  (32, [5, 7, ['product', 16, 2], ['norm', 5]]), (48, [6, 7, ['table2'], ['norm', 7]])):
         cols[n - 1] = c
     data = {'nmax': NMAX, 'mtop': max(c[1] for c in cols) + 1, 'mtopAt': [NMAX + 2], 'past': [], 'cols': cols}
@@ -1351,8 +1357,11 @@ def statements(rest):
     """{n: (low, high)} for an entry's rest: empty for an entry of his words; for one in math, its statements, joined by
     ', ' (nothing else), as statement() makes them: m*(n) = v (v, v), m*(n) ≥ a (a, None), m*(n) ≤ b (None, b) and
     a ≤ m*(n) ≤ b (a, b)."""
-    found = re.findall(STATEMENT, rest)
-    assert not found or re.fullmatch(f'{STATEMENT}(?:, {STATEMENT})*', rest), rest
+    # Spec change (2026-11-09): an entry that is not statements alone is one of his words, whatever math it holds, and
+    # gives none (his "Claude Opus 5.5 gets first wholly new result: \\(m^*(2^{38}) \\ge 39\\)", in LaTeX since his
+    # commit b5ce25c, had failed an assertion here that a statement stands only among statements; no qual reads his
+    # words, 2026-11-07).
+    found = re.findall(STATEMENT, rest) if re.fullmatch(f'{STATEMENT}(?:, {STATEMENT})*', rest) else []
     assert all(op == '\\le' for lo, _, op, _ in found if lo), rest
     out = {cell_n(n if n.isdigit() else f'\\({n}\\)'): (int(lo), int(v)) if lo else
            {'=': (int(v), int(v)), '\\ge': (int(v), None), '\\le': (None, int(v))}[op]
@@ -1831,7 +1840,7 @@ def q_remarks_name_the_chart_s_constructions():
     # as their TODOs say ("how the m*(n) chart gets these").  (On 2026-10-12 the example at 560 made the chart's joins
     # 240 + 560, 336 + 560 and 432 + 560 win its ties at 800, 896 and 992, which a remark still called doublings.)
     cols = mstar_data()['cols']
-    for s in re.findall(r'Claude: “Order \d+ from examples above, (.*?); order', page()):
+    for s in re.findall(WRITERS + r': “Order \d+ from examples above, (.*?); order', page()):
         for kind, body in re.findall(r'(doubled|joined) \(([^)]*)\)', s):
             for a, b, c in re.findall(r'(\d+) = (?:2·(\d+)|(\d+ \+ \d+))', body):
                 want = ['product', 2, int(b)] if kind == 'doubled' else ['join', *map(int, c.split(' + '))]
@@ -2001,7 +2010,7 @@ def q_claude_and_astra_is_a_category_like_claude_and_bgpw():
         vs = re.findall(r'<td([^>]*)>(.*?)</td>', re.search(r'<tr class="vals">.*?</tr>', t, re.S).group(0))
         assert len(ns) == len(vs), t
         for (a, n), (b, v) in zip(ns, vs):
-            assert ("title='Claude and Astra'" in a) == (a == ' class="ca" title=\'Claude and Astra\'') == (b == ' class="ca"'), (n, a, b)
+            assert bool(re.fullmatch(r' class="ca" title=\'[^\']+\'', a)) == (b == ' class="ca"'), (n, a, b)   # the class, whatever its title's words (2026-11-09)
             if b == ' class="ca"': ca.append((n, v))
     assert ca == [('592', '10'), ('608', '10'), ('656', '10'), ('752', '10'), ('784', '10')], ca
     for n in (592, 608, 656, 752, 784):
@@ -2049,7 +2058,7 @@ def q_752_bound_cites_proof752():
                    page(), re.S)
     assert li, 'no entry for 752 alone'
     assert 'href="https://github.com/dreeves/equipow/blob/main/proofs/proof752.py"' in li.group(1), li.group(1)[:600]
-    assert mstar_data()['cols'][752 - 1] == [10, 10, ['example', 'equipow p752'], ['page', 'Claude and Astra']]
+    assert mstar_data()['cols'][752 - 1] == [10, 10, ['example', 'equipow p752'], ['page', 'Opus 5.5 and Astra']]
     assert os.path.isfile(os.path.join(HERE, 'proofs', 'proof752.py'))       # in proofs/ since [FAC] stage 3a
 
 
@@ -2081,7 +2090,7 @@ def q_288_bound_is_proved_here():
     listed = re.findall(r'<p class="entry">\\\(n = (.*?)\\\): ', text)
     assert listed[listed.index('288') - 1:listed.index('288') + 2] == ['240', '288', '304'], listed
     col = mstar_data()['cols'][288 - 1]
-    assert col == [9, 9, ['product', 2, 144], ['page', 'Claude and BGPW']], col
+    assert col == [9, 9, ['product', 2, 144], ['page', 'Opus 5.5 and BGPW']], col
     assert all(os.path.isfile(os.path.join(HERE, *f.split('/'))) for f in files), files
 
 
@@ -2153,7 +2162,7 @@ def q_example_at_1024_has_its_entry_code_and_cell():
     ns = re.findall(r'<td([^>]*)>\\\(2\^\{?(\d+)\}?\\\)</td>', row)
     vals = re.findall(r'<td([^>]*)>([^<]*)</td>', row.split('<tr class="vals">')[1])
     i = [k for _, k in ns].index('10')
-    assert ns[i - 1][1] == '9' and ns[i][0] == ' class="c" title=\'Claude alone\'' and vals[i] == (' class="c"', '11'), (ns, vals)
+    assert ns[i - 1][1] == '9' and re.fullmatch(r' class="c" title=\'[^\']+\'', ns[i][0]) and vals[i] == (' class="c"', '11'), (ns, vals)
     assert pow2_data()['cols'][9] == [11, 11, ['joins', [[[1024, 11]]]], ['mstar', ['norm', 3]]], pow2_data()['cols'][9]
 
 
@@ -2196,7 +2205,7 @@ def q_1024_doubled_settles_2_11_and_2_12():
     vals = re.findall(r'<td([^>]*)>([^<]*)</td>', row.split('<tr class="vals">')[1])
     i = [k for _, k in ns].index('10')
     assert [k for _, k in ns[i:i + 4]] == ['10', '11', '12', '17'], ns
-    assert all(a == ' class="c" title=\'Claude alone\'' for a, _ in ns[i + 1:i + 3]), ns
+    assert all(re.fullmatch(r' class="c" title=\'[^\']+\'', a) for a, _ in ns[i + 1:i + 3]), ns
     assert vals[i + 1:i + 3] == [(' class="c"', '12'), (' class="c"', '13')], vals
     listed = re.findall(r'<p class="entry">\\\(n = (.*?)\\\): ', text)
     j = listed.index('2^{11}')
@@ -2239,7 +2248,7 @@ def q_example_at_816_has_its_entry_and_code():
     i = listed.index(['816'])
     assert listed[i - 1:i + 2] == [['800'], ['816'], ['832']] and ['720'] in listed, listed
     assert new_cells(text)[816] == (12, 12), new_cells(text)[816]
-    assert mstar_data()['cols'][816 - 1] == [12, 12, ['example', 'equipow p816'], ['page', 'Claude alone']], mstar_data()['cols'][816 - 1]
+    assert mstar_data()['cols'][816 - 1] == [12, 12, ['example', 'equipow p816'], ['page', 'Opus 5.5 alone']], mstar_data()['cols'][816 - 1]
 
 
 def q_examples_at_720_and_1008_have_their_entries_and_codes():
@@ -2623,7 +2632,7 @@ def q_pin_trees_are_on_the_page():
         li = re.search(r'<li class="c">\n      <span class="mk" aria-hidden="true">◆</span>\n      <p class="entry">\\\(n = %d\\\): &nbsp;\\\(m\^\* = %d\\\)</p>\n(.*?)\n    </li>' % (n, M), text, re.S)
         assert li, f'no entry of {n} alone, m* = {M}'
         assert f'<code id="{n}:{M}">' in li.group(1), n
-        assert f'{GH}proofs/{proof}' in li.group(1) and 'Claude: “' in li.group(1), li.group(1)[:400]
+        assert f'{GH}proofs/{proof}' in li.group(1) and re.search(WRITERS + ': “', li.group(1)), li.group(1)[:400]
         assert new_cells(text)[n] == (M, M), new_cells(text)[n]
         assert changelog_by_day().get('2026-11-03', {}).get(n) == (M, M), changelog_by_day().get('2026-11-03')
     sec = re.search(r'<section class="pintree" aria-labelledby="pintree-title">(.*?)</section>', text, re.S)
@@ -2845,7 +2854,10 @@ def q_768_moves_excess_5_to_2_39():
 # ---------------------------------------------------------------------------------------------------------------------
 # Browser quals
 
-QUOTED = r'(?:Claude|Astra): ["“”]'          # Claude: or Astra: and then a quotation mark: a quotation of its words
+# A writer's name, a colon and then a quotation mark: a quotation of its words.  Opus 5.5 and Fable 5.2 since
+# 2026-11-09 (the rename in this file's header); Claude until then, and still where the page says so.
+WRITERS = r'(?:Opus 5\.5|Fable 5\.2|Claude|Astra)'
+QUOTED = WRITERS + r': ["“”]'
 
 
 def visible_text():
@@ -2877,13 +2889,13 @@ def q_quotes_of_claude_and_astra_are_curly():
            if m.group(0)[-1] != '“' or (re.compile(r'["“”]').search(s, m.end()) or [''])[0] != '”']
     assert bad == [], (len(bad), bad[:5])
     scripts = page_scripts(page())
-    assert not any(re.search(r'(?:Claude|Astra): "', js) for js in scripts), [re.findall(r'.{30}(?:Claude|Astra): ".{30}', js) for js in scripts]
+    assert not any(re.search(WRITERS + ': "', js) for js in scripts), [re.findall('.{30}' + WRITERS + ': ".{30}', js) for js in scripts]
     R = valid_run('light')
     rings = set(a323395_cells(mstar_data()['cols']))
     notes = [t for n, m, t in R['hovers'] if (n, m) in rings]
     # A note may or may not quote Claude (dreeves's 6220ea2, 2026-10-30, dropped Claude: “…” from the m*(n) chart's
     # ring notes); one that does uses “ and ”.
-    assert notes and all('Claude: "' not in t and t.count('“') == t.count('”') for t in notes), notes[:3]
+    assert notes and all(not re.search(WRITERS + ': "', t) and t.count('“') == t.count('”') for t in notes), notes[:3]
 
 
 # The page's codes as anchors, and no "index.html" for its readers (dreeves's README, 2026-10-31: "[IND] Find a better
@@ -4175,9 +4187,11 @@ def q_red_box_works_out_the_proof():
     # "below".
     R, B = boxes_run()
     cols = mstar_data()['cols']
-    for t, quote in (((1024, 12), 'Claude: “'), ((1020, 4), 'Claude: “'), ((56, 6), ''), ((240, 11), 'Claude: “')):   # BGPW's, cited, no English
+    for t, quoted in (((1024, 12), True), ((1020, 4), True), ((56, 6), False), ((240, 11), True)):   # BGPW's, cited, no English
         assert kind_of(cols, *t) == 'impossible' and B[t]['whys'] == box_parts(cols, *t), (t, B[t]['whys'])
-        assert B[t]['said'].startswith(f'{quote}\\(m^*({t[0]}) \\le {cols[t[0] - 1][1]}\\):'), (t, B[t]['said'])
+        opened = re.match(WRITERS + ': “', B[t]['said'])                 # a quotation of the page's writer, whatever its name
+        assert bool(opened) == quoted and B[t]['said'][opened.end() if opened else 0:].startswith(
+            f'\\(m^*({t[0]}) \\le {cols[t[0] - 1][1]}\\):'), (t, B[t]['said'])
     assert 3 ** 12 == 531441 > 3 * (342 ** 2 + 2 * 341 ** 2) // 2 == 524289 and 342 ** 2 + 2 * 341 ** 2 == 349526
     for said in ('\\(p = 3 \\nmid n\\)', '= 342, 341, 341 and \\(\\sum s_r^2 =\\) 349,526;',
                  'at \\(m = 12\\), \\(p^m = 3^{12} =\\) 531,441 \\(>\\) 524,289'):
@@ -4185,7 +4199,7 @@ def q_red_box_works_out_the_proof():
     assert '\\(n = 2^{2} \\cdot 255\\)' in B[(1020, 4)]['said'] and '\\(m \\le 2^{2} - 1 = 3\\)' in B[(1020, 4)]['said'], B[(1020, 4)]['said']
     assert 'https://arxiv.org/html/1912.03491v1#S4.Thmthm1' in B[(1020, 4)]['links'], B[(1020, 4)]['links']
     assert 'BGPW, Table 2' in B[(56, 6)]['said'] and 'https://arxiv.org/html/1912.03491v1#S3.T2' in B[(56, 6)]['links'], B[(56, 6)]
-    assert 'proven by Claude alone' in B[(240, 11)]['said'] and B[(240, 11)]['entries'] == ['entry-240'], B[(240, 11)]
+    assert f'proven by {cols[240 - 1][3][1]}' in B[(240, 11)]['said'] and B[(240, 11)]['entries'] == ['entry-240'], B[(240, 11)]
     assert all(B[t]['entries'] == [] for t in ((1024, 12), (1020, 4), (56, 6))), [B[t]['entries'] for t in B]
 
 
@@ -4214,7 +4228,7 @@ def q_black_box_shows_both_bounds_and_the_searches():
     S = R['searched']
     assert S['whys'] == box_parts(cols, 528, 12) == ['witness-example', 'witness-code', 'proof-residue', 'searches'], S['whys']
     assert S['said'].startswith('\\(m^*(528) \\ge 11\\): equipow p528') and S['said'].endswith('finds none”'), S['said']
-    assert 'Claude: “\\(m^*(528) \\le 12\\): residue condition mod \\(M = 5\\)' in S['said'], S['said']
+    assert re.search(WRITERS + ': “' + re.escape('\\(m^*(528) \\le 12\\): residue condition mod \\(M = 5\\)'), S['said']), S['said']
     flat = lambda t: ' '.join(t.split())                         # its spaces, the narrow no-break ones before a unit among them, as one
     made, to_go = BOX_PROGRESS['made'], PROGRESS_CAMPAIGN['to_go']
     status = f'10m 0s + 0–3 h to go = 0–3 h ({finish(made, made + to_go["lo"], made + to_go["hi"], (to_go["hi"] - to_go["lo"]) / 2)})'
@@ -4294,8 +4308,8 @@ def quoted_right(parts):
     word budget leaves them out."""
     parts = [p for p in parts if p[0] != 'searches']
     claude, text = [i for i, (_, _, c) in enumerate(parts) if c], ''.join(t for _, t, _ in parts)
-    return (text.count('Claude: “') == text.count('”') == min(1, len(claude))
-            and all(parts[i][1].startswith('Claude: “') for i in claude[:1]) and all(parts[i][1].endswith('”') for i in claude[-1:]))
+    return (len(re.findall(WRITERS + ': “', text)) == text.count('”') == min(1, len(claude))
+            and all(re.match(WRITERS + ': “', parts[i][1]) for i in claude[:1]) and all(parts[i][1].endswith('”') for i in claude[-1:]))
 
 
 def q_box_quotes_claude_around_its_english_alone():
@@ -4311,7 +4325,8 @@ def q_box_quotes_claude_around_its_english_alone():
     templates = re.findall(r'(<!--(?:(?!-->).)*-->)\n  <template data-panel="([^"]+)"( data-claude)?>', page(), re.S)
     assert len(templates) == len(re.findall(r'<template data-panel=', page())) >= 14, len(templates)
     assert {name for _, name, claude in templates if claude} == CLAUDE_TEMPLATES, [(name, claude) for _, name, claude in templates]
-    assert all(comment.startswith('<!-- TODO: ') == bool(claude) for comment, _, claude in templates), [(c[:30], n) for c, n, _ in templates]
+    # Spec change (2026-11-09): no longer that each of those templates, and no other, has a TODO recap right above it:
+    # dreeves took the "TODO:" off those comments in his commit b5ce25c, and the comments are his to word.
     boxes = [(P['target'], P['parts']) for P in valid_run('boxes')['boxes']] + [(P['n'], P['parts']) for P in valid_run('panels')['panels']]
     bad = [(t, parts) for t, parts in boxes if not quoted_right(parts)]
     assert bad == [], bad[:3]
@@ -4331,7 +4346,7 @@ def q_cell_box_words_stay_within_budget():
     for P in valid_run('panels')['panels']:
         n, parts = P['n'], P['parts']
         lo, hi = cols[n - 1][:2]
-        text = {k: ' '.join(t for why, t, _ in parts if why.startswith(k)).replace('Claude: “', '').replace('”', '') for k in ('witness', 'proof')}
+        text = {k: re.sub(WRITERS + ': “|”', '', ' '.join(t for why, t, _ in parts if why.startswith(k))) for k in ('witness', 'proof')}
         claude = {k: any(c for why, _, c in parts if why.startswith(k)) for k in ('witness', 'proof')}
         for kind in [k for k, present in (('exists', lo >= 1), ('open', hi > lo), ('impossible', hi < mstar_data()['mtop'])) if present]:
             shows = SHOWS[kind]                    # the attribution, Claude, is a word where the box has one

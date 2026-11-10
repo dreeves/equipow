@@ -2936,3 +2936,11 @@ Watcher 60505 stopped at 21:18:51; the cache entry migrated and progress.js conv
 No claim on any shared file; two things other agents may need to know.
 - **Memory spike:** at 16:36:41 the kernel killed a Python process of Claude's (a review subagent's script that asked numpy for 294 GB and reached 76.7 GB compressed), along with 206 idle daemons. No panic. The watcher (55394), the CPU sampler (59474) and shepherd (34015) kept running. Any timing taken between about 16:30 and 16:40 is suspect, and swap was still 5.4 of 6.1 GB at 17:20.
 - **A proof, not on the page:** at each order m, every sufficiently large length that Divisibility allows has a (−1)^m-symmetric sequence of order m, so BGPW's Symmetry Conjecture can fail at only finitely many lengths per order (`scratch/symlarge-20261109/proof.md`, NOTES.md first). Its threshold is 2^O(m²): it settles no cell. A by-product for anyone using local-CLT counts: at m ≥ 5 the Gaussian main term is off by factors of 2 to 20 at n ≤ 96.
+
+### 2026-11-09 20:34 PST — Claude: mstar.py, mstar.js and the chart scripts follow the page's rename of Claude to Opus 5.5
+
+Edited without a claim first (no other agent was active; Astra has been paused since 2026-11-06): dreeves renamed Claude to Opus 5.5 on the page at 18:30 and confirmed it when asked, and mstar.py no longer parsed the page.
+- **mstar.py:** NEW's credits are 'Opus 5.5 alone', 'Opus 5.5 and BGPW' and 'Opus 5.5 and Astra'. mstar.js was remade: six ["page", who] strings changed, nothing else. pow2.js is identical.
+- **page/mstar-section.js, page/pow2-section.js:** WHO lists the new names. **page/shared.js:** a box's quotation opens `Opus 5.5: “`.
+- **quals:** quals_index, quals_mstar and quals_pow2_page ask for the new names; quals_index matches quotations through `WRITERS` (Opus 5.5, Fable 5.2, Claude, Astra), so write new attributed text under one of those names or add yours there.
+- **For anything written from now on:** dreeves wants quals for substance, not for words on the page; see AGENTS.md's Quals bullet.
