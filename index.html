@@ -169,7 +169,7 @@
     <p>Note: \(m^*(2^{51}) \ge 52\) is due to Richard Stong.</p>
 
     <div class="new-block">
-      <p class="float-caption"><span class="sc">Table 1.</span>&ensp;Extended results since BGPW</p>
+      <p class="float-caption" id="results-table"><span class="sc">Table 1.</span>&ensp;Extended results since BGPW</p>
       <div class="scroll">
         <!-- Cell titles reuse the legend's labels below -->
         <table class="block">
@@ -203,7 +203,7 @@
         odd multiples of 8 have \(m^*(n) \le 7\) and 
         for all \(n\ge 200\) it turns out the order is exactly 7.
         (There's a short proof of this; not sure if it's interesting.)</p>
-      <p class="float-caption"><span class="sc">Table 2.</span>&ensp;Extended results since BGPW &mdash; powers of two</p>
+      <p class="float-caption" id="pow2-table"><span class="sc">Table 2.</span>&ensp;Extended results since BGPW &mdash; powers of two</p>
       <div class="scroll">
         <table class="block">
           <tr class="ns"><th scope="row">\(n\)</th><td title='The published paper (2021)'>\(2^3\)</td><td title='The published paper (2021)'>\(2^4\)</td><td title='The published paper (2021)'>\(2^5\)</td><td title='The published paper (2021)'>\(2^6\)</td><td title='The published paper (2021)'>\(2^7\)</td><td title='The published paper (2021)'>\(2^8\)</td><td class="c" title='Opus 5.5 alone'>\(2^9\)</td><td class="c" title='Opus 5.5 alone'>\(2^{10}\)</td><td class="c" title='Opus 5.5 alone'>\(2^{11}\)</td><td class="c" title='Opus 5.5 alone'>\(2^{12}\)</td><td class="c" title='Opus 5.5 alone'>\(2^{17}\)</td><td class="c" title='Opus 5.5 alone'>\(2^{18}\)</td><td class="c" title='Opus 5.5 alone'>\(2^{20}\)</td><td class="j" title='Opus 5.5 and BGPW'>\(2^{24}\)</td></tr>
@@ -276,7 +276,7 @@
   </div>
   <canvas id="mstar-chart" height="0" tabindex="0" role="img" aria-label='chart of the bounds on m*(n) for even n up to 1024; the arrow keys pan, and + and − zoom'></canvas>
   <p id="mstar-readout" aria-live="polite">Hover over a cell for details. Drag or swipe sideways to pan; zoom with the − and + buttons, pinching, or ctrl-scroll.</p>
-  <p class="float-caption"><span class="sc">Figure 1.</span></p>
+  <p class="float-caption" id="mstar-figure"><span class="sc">Figure 1.</span></p>
   <!-- The box under the chart above (dreeves's spec [REO], above the remarks below; Claude's design of 2026-11-03, which dreeves approved; since 2026-11-04 his README items [CEL] and [ROC]), which page/mstar-section.js fills at a tap or a click on a cell, on a column's n label or on a row's m label, or as the page loads with a fragment, #nN, #mM or #nNmM: a heading, and the box's parts from the templates below, framed in the color of the cell clicked (data-kind) with a caret under its column; then, in its div of class remarks, the remarks' entry of its n, for a column's box (or a cell's whose bound rests on a proof of the page's own), the entry itself moved in from the list below until the box closes or shows another target ([REO] step 2, 2026-11-03: page/shared.js); the button closes it; its label is the zoom buttons' kind, a symbol with its word as aria-label and title -->
   <div class="column-panel" id="mstar-panel" role="region" aria-labelledby="mstar-panel-title" hidden>
     <div class="column-panel-bar">
@@ -324,7 +324,7 @@
     (See again OEIS <a href="https://oeis.org/A323395">A323395</a>.)
   </p>
   <table>
-  <caption><span class="sc">Table 3.</span></caption>
+  <caption id="smallest-table"><span class="sc">Table 3.</span></caption>
   <thead><tr><th>order \(m\)</th><th>smallest \(n\) not ruled out</th><th>smallest known \(n\)</th><th>proven smallest</th></tr></thead>
   <tbody data-smallest></tbody>
   </table>
@@ -374,7 +374,7 @@
   <!-- the clause after the semicolon and the readout's second sentence are the m*(n) chart's, word for word (2026-10-30: the same controls) -->
   <div id="pow2-chart" tabindex="0" role="img" aria-label='Chart of the bounds on m*(2^k) − k, the excess over Thue–Morse, for k from 1 to 72; the arrow keys pan, and + and − zoom'></div>
   <p id="pow2-readout" aria-live="polite">Hover over a cell for details. Drag or swipe sideways to pan; zoom with the − and + buttons, pinching, or ctrl-scroll.</p>
-  <p class="float-caption"><span class="sc">Figure 2.</span></p>
+  <p class="float-caption" id="pow2-figure"><span class="sc">Figure 2.</span></p>
   <!-- The box under the chart above, as the m*(n) chart's, which page/pow2-section.js fills from the same templates at a tap or a click on a cell, on a column's k label or on a row's δ label, or as the page loads with a fragment, #kK, #dD or #kKdD, and which shows the remarks' entry of its 2^k as the m*(n) chart's shows its n's -->
   <div class="column-panel" id="pow2-panel" role="region" aria-labelledby="pow2-panel-title" hidden>
     <div class="column-panel-bar">
@@ -395,7 +395,7 @@
     generates this table and checks all the arithmetic.</p>
   <div class="scroll">
     <table class="pow2-gaps" data-record-gaps>
-      <caption><span class="sc">Table 4.</span></caption>
+      <caption id="gaps-table"><span class="sc">Table 4.</span></caption>
       <thead><tr><th>Record gaps</th><th>The power of 2</th><th>The order</th></tr></thead>
     </table>
   </div>
@@ -405,7 +405,7 @@
   <h2 id="asymptotics-title">Asymptotics</h2>
   <!-- dreeves's words, from README.md's [APP] item, with Claude's corrections at his request (2026-11-06: "Can you add an "Asymptotics" section that uses my words with your corrections?"): the math typeset; m*(2^k) = c*log2(n) became m*(2^k)/k → c; "c is at least 77/68 and at most 2/log2(3)" became "c is at most 2/log2(3)", joined to his later sentence "Also 2^58 gives us 66/58 ≈ 1.138 as the lower bound" without its "Also"; "~= 1.347" became ≈ 1.347 log2 n; "Currently the best we have is 480:12. The following would beat that: 432:12, 672:13, 720: 13, 960:14. Update: We got 960:15! So 15/log2(960) ≈ 1.514 is the new bound on the upper envelope." became the two sentences with 1440:16 and 1.525 -->
 <p>
-Eyeballing the Figures 1 and 2, it looks like maybe \(m^*(n) \approx 1.2\log_2 n\).
+Eyeballing the Figures <a href="#mstar-figure">1</a> and <a href="#pow2-figure">2</a>, it looks like maybe \(m^*(n) \approx 1.2\log_2 n\).
 What can we say about the asymptotics?
 For powers of two we already have this: 
 \(m^*(2^k)/k \to c\) where \(c\) is at most 
@@ -1292,7 +1292,7 @@ of them with m ≡ 0, 1, 2 mod 3) and two exceptional signs, and d_0 ≡ d_3 (mo
       <p>Astra: “Order 10 comes from doubling the order-9 example at 192. For order 11, congruences on the signed sums mod 5 leave only four possible vectors of \(+1\) counts in residue classes \(0, \ldots, 4\): \((1, 26, 51, 76, 38)\), \((26, 76, 1, 51, 38)\), \((51, 1, 76, 26, 38)\), and \((76, 51, 26, 1, 38)\).”</p>
       <!-- TODO: explains the exhaustive finite exclusion, without any assumption of symmetry, and links the standalone exact verifier. -->
       <p>Astra: “Each vector has a class with just one \(+1\) and a class with just one \(-1\). Choosing their positions leaves \(4\cdot 77^2 = 23{,}716\) cases. Every case contradicts at least one exact integer congruence mod 25, 125, or 625. This rules out order 11 without assuming symmetry. The <a href="#proof384-complete">complete proof</a> gives the witness, every certificate coefficient, the remaining cases, and reproduction commands. The standalone verifier <a href="proof384.py">proof384.py</a> checks every congruence and case, and checks an order-10 example; it uses only Python's standard library. Mathematica: <a href="proof384.wl">proof384.wl</a>.”</p>
-      <!-- The canonical proof384.html main is copied verbatim below, except its two code IDs become data-proof-id so codes.js does not turn them into partition buttons. quals_inline384 checks exact agreement. -->
+      <!-- Astra's complete proof.  Until 2026-11-10 it was the page proof384.html, whose main element was copied here; since then this is its one copy (dreeves: "following DRY for the 384 proof is the right thing to do"), and proof384.html only sends its old address here.  Its two codes carry data-proof-id, not id, so that codes.js does not turn them into partition buttons. -->
       <details class="proof-exposition">
         <summary>Astra: “\(m^*(384) = 10\)”</summary>
         <div class="proof-body" id="proof384-complete">
@@ -1408,7 +1408,10 @@ of them with m ≡ 0, 1, 2 mod 3) and two exceptional signs, and d_0 ≡ d_3 (mo
     <pre><code>m*(384) = 10; 4 vectores, 23716 casus, 0 superstites.</code></pre>
     <p>Its proof obligations remain active under <code>python3 -O proof384.py</code>. A failed obligation raises an error; an incomplete run is not a proof.</p>
 <!-- proof384: end canonical main -->
-          <p><a href="proof384.html" download>proof384.html</a></p>
+          <!-- TODO: says how a reader reruns the quals that check the numbers this proof prints: clone the repository (linked) and run the command below.  The old page told its reader to save it beside the two quals and index.html; cloning needs no file saved or named.  Then Astra's own sentences about those quals, from the foot of the old page, byte for byte. -->
+          <p>Fable 5.2: “To rerun the quals that check the numbers printed in this proof, clone <a href="https://github.com/dreeves/equipow">the repository</a> and run:”</p>
+          <pre><code>python3 -m unittest quals_proof384 quals_proof384_page</code></pre>
+          <p>Astra: “The publication quals read the displayed hexadecimal witness and certificate tables from this HTML file and independently recompute the integer checks. They do not import the verifier's arithmetic or certificate constants. The verifier's own quals also reject corrupted certificates and missing coverage.”</p>
         </div>
       </details>
     </li>

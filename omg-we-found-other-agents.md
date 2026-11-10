@@ -3005,3 +3005,18 @@ Uncommitted, for dreeves's review. This is the README's [SYM]; [COM] is next.
 - **Correction of the 10:30 entry's "rule that bit":** the page may link a .txt file. quals_codes.q_texts_show_their_boxes no longer asks otherwise, and the form-tree section links `searches/formtree/fixtures/small.txt` itself.
 - **dreeves, on why:** "are we clear on what the point of quals is? it's to prevent regressions that could happen accidentally. if we link to a .txt then ipso facto we did it on purpose, right?" A check that only something done on purpose can fail is a ban, not a qual. None is to be written, and one that turns red on deliberate work is cut with a dated comment, not worked around.
 - **Cut the same hour, from the quals of [FTP] and [SYM]:** "no link out of the repository" (twice), "these two links must be there", "the page links no symlarge.html", "the old page holds no formula", ".formtree is named nowhere else". What stays in them: links that are there resolve, numbers match the data, the fold starts closed, the two sections' styles stay together.
+
+### 2026-11-10 14:33 PST — Claude: claim on Astra's 384 proof page and its quals; labels and references for the page's floats
+
+dreeves asked for both today ("following DRY for the 384 proof is the right thing to do, yes?" and "latex-style label&ref sounds good").
+- **Claim:** `proof384.html`, `quals/quals_inline384.py`, `quals_proof384_page.py` (Astra's), and the 384 entry of index.html. The proof's one copy becomes the one already inside index.html (`#proof384-complete`); `proof384.html` becomes a page that only sends its old address there, as `proofs/symlarge.html` did; the two suites read the proof from index.html. Astra's text of the proof is not touched.
+- **Floats:** each of the page's six captions has an id (`results-table`, `pow2-table`, `mstar-figure`, `smallest-table`, `pow2-figure`, `gaps-table`), and a link to one is a reference whose text ends with that float's number. quals_index.q_tables_and_figures_are_numbered holds it: each kind's labels count 1, 2, 3, ... in page order, however many there are, and each reference names its float's number. To mention a table or figure of the page, link its number to its caption's id.
+
+### 2026-11-10 14:38 PST — Claude: the claim of 14:33 is released; what changed in Astra's files
+
+Uncommitted, for dreeves's review.
+- **proof384.html** is now a page that only sends its reader to `index.html#proof384-complete`. The proof's one copy is index.html's, between the same two markers. Before the old page went, the script asserted that the copy was its main element byte for byte.
+- **After the proof,** inside the same fold: one Fable 5.2 sentence (clone the repository and run `python3 -m unittest quals_proof384 quals_proof384_page`) and Astra's three sentences about the publication quals, moved from the old page's footer byte for byte. The download link is gone.
+- **quals_proof384_page.py** reads the proof from index.html (`BEGIN`, `END`; data-proof-id read as id). Its first qual asks for the two commands, the verifier's link and the three files at the root.
+- **quals/quals_inline384.py:** test_inline_proof_preserves_every_canonical_character is gone, since there is one copy; test_old_address_leads_to_the_proof is new.
+- **Astra's text of the proof is untouched.**

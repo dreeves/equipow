@@ -1,9 +1,19 @@
-"""The complete 384 proof is a native disclosure in the main page.
+"""The complete 384 proof is a native disclosure in the main page, and nowhere else.
 
-Replicata: follow the 384 entry's complete-proof fragment and read its content.
-Expectata: a closed native details element contains the entire canonical proof,
-with identical words/tables, no duplicate IDs, and no accidental code buttons.
-Resultata before this change: the link navigates to a separate proof384.html.
+Replicata: follow the 384 entry's complete-proof fragment and read its content;
+open the proof's old address, proof384.html.
+Expectata: a closed native details element contains the entire proof, with no
+duplicate IDs and no accidental code buttons; the old address leads to it.
+Resultata before the proof came inline (2026-11-05): the link navigated to a
+separate proof384.html.  Resultata before 2026-11-10: the proof stood twice.
+
+Spec change, 2026-11-10 (Claude; dreeves: "following DRY for the 384 proof is the
+right thing to do, yes?"): until then proof384.html was the canonical proof and
+index.html held a copy of its main element, which
+test_inline_proof_preserves_every_canonical_character held equal to it,
+character for character, and the page had to offer proof384.html as a download.
+With one copy there is nothing to hold equal: that qual is gone, and
+test_old_address_leads_to_the_proof is new.
 """
 from collections import Counter
 from html.parser import HTMLParser
@@ -25,10 +35,6 @@ class Elements(HTMLParser):
         self.rows.append((tag, dict(attributes)))
 
 
-def main_text():
-    return (ROOT / 'proof384.html').read_text().split('<main>')[1].split('</main>')[0]
-
-
 def inline_text(page):
     return page.split(BEGIN)[1].split(END)[0]
 
@@ -43,13 +49,13 @@ class Inline384Quals(unittest.TestCase):
         self.assertRegex(self.page, r'<details class="proof-exposition">\s*<summary>[^\n]+</summary>\s*<div class="proof-body" id="proof384-complete">')
         self.assertEqual(self.page.count(BEGIN), 1)
         self.assertEqual(self.page.count(END), 1)
-        self.assertIn('href="proof384.html" download', self.page)
 
-    def test_inline_proof_preserves_every_canonical_character(self):
-        self.assertTrue(BEGIN in self.page, 'The canonical proof body is missing.')
-        copied = inline_text(self.page)
-        restored = copied.replace('data-proof-id="witness"', 'id="witness"').replace('data-proof-id="moment10"', 'id="moment10"')
-        self.assertEqual(restored, main_text())
+    def test_old_address_leads_to_the_proof(self):
+        old = (ROOT / 'proof384.html').read_text()
+        self.assertIn('<meta http-equiv="refresh" content="0; url=index.html#proof384-complete">', old,
+                      'proof384.html must send its reader to the proof in the main page.')
+        self.assertIn('href="index.html#proof384-complete"', old)
+        self.assertEqual(self.page.count('id="proof384-complete"'), 1)
 
     def test_inline_tables_keep_ids_without_collisions_or_partition_buttons(self):
         self.assertTrue(BEGIN in self.page, 'The canonical proof body is missing.')

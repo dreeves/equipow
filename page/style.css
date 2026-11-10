@@ -116,6 +116,7 @@ figure {
 figcaption { text-align: center; }
 /* A table's or chart's numbered caption ([NUM]), as LaTeX sets one: centered, above a table and below a chart. */
 .float-caption { text-align: center; max-width: none; }
+p[aria-live] + .float-caption { scroll-margin-top: 75vh; }   /* a caption below its chart, right after the chart's readout: a reference to it lands with the chart in view above it (2026-11-10) */
 .sc { font-variant-caps: small-caps; letter-spacing: 0.04em; }
 
 /* BGPW's three blocks share one scroll frame so they stay aligned on

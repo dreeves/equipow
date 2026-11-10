@@ -53,6 +53,7 @@ The current state, kept short, since every session loads this file. Update it in
 - **The README's tasks:** taken one at a time, in its order (dreeves, 2026-11-10), each left for his review before the next, since they edit the same page.
   - [FTP] is done (2026-11-10): the page's section "Form-tree proofs", after the pin trees'. `quals_index.q_form_trees_have_their_exposition` holds its links and numbers to the proofs' data.
   - [SYM] is done (2026-11-10): the symlarge proof is in the page, in a fold of the Symmetry section that starts closed. quals_symlarge's last five quals hold the fold.
+  - Also done that day, at his word after [SYM]: the 384 proof has one copy, the page's (`#proof384-complete`; `proof384.html` only sends its old address there), and the page's tables and figures have labels and references as LaTeX has them. Programs stay files that the page links (dreeves: "if a file needs to be separate to run it then we should link to -- no DRY violations").
   - Next is [COM]. In the Symmetry section a `<code>` is a sequence's code (quals_symmetry counts them), so a file name there is a link.
 - **Open cells:** 480 (12–14), 528 (11–12), 720 (13–14) and 864 (12–14), plus 1440 (16–17) past the chart. OEIS A323395:
   - a(12) ∈ {480, 672};
@@ -99,6 +100,8 @@ The current state, kept short, since every session loads this file. Update it in
   - Math goes in LaTeX for KaTeX, `\( … \)`.
   - New English is written under the model's name, `Fable 5.2: “…”` or `Astra: “…”`, with a TODO comment above that recaps it. On 2026-11-09 dreeves renamed the earlier `Claude: “…”` to `Opus 5.5: “…”`. Unattributed text is human and byte-sacred.
   - A code is `<code id="N:M">`, with an "equipow pN" label in mstar.py.
+  - A table or figure of the page is mentioned by a link from its number to its caption's id (`results-table`, `pow2-table`, `mstar-figure`, `smallest-table`, `pow2-figure`, `gaps-table`), as `Figures <a href="#mstar-figure">1</a>`. `quals_index.q_tables_and_figures_are_numbered` holds each kind's labels to 1, 2, 3, … in page order and each such link to its float's number. BGPW's tables keep their prefix.
+  - A proof or exposition has one copy, in index.html, in a fold that starts closed (`<details class="proof-exposition">`, `<div class="proof-body">`); an address it had before sends its reader to the fold.
   - After changing a chart's data, rerun `python3 -B mstar.py` and rebuild preview.png with `scratch/record-20261025/page/preview.py 0.40`.
   - Changelog entries are math statements per day (`quals_index.statement`), with noteworthy results on lines of their own (`NOTEWORTHY`).
 - **Quals:** red first, then green. No qual reads dreeves's words. A spec change needs his OK and a dated comment.

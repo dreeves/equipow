@@ -14,8 +14,10 @@ import os, re, subprocess, tempfile, time, traceback, urllib.parse
 from concurrent.futures import ThreadPoolExecutor
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # the repository's root, above quals/
 QUALS = os.path.join(HERE, 'quals')
-# The two quals that proof384.html links, telling its reader to save them beside it, and whose own qual checks that
-# they are there (quals_proof384_page's test_sources_and_reproduction_commands_are_published): they stay at the root.
+# The two quals that the page's proof of m*(384) = 10 tells its reader to run from a clone's root (python3 -m unittest
+# quals_proof384 quals_proof384_page), and whose own qual checks that they are there (quals_proof384_page's
+# test_sources_and_reproduction_commands_are_published): they stay at the root.  (Until 2026-11-10 the proof's own
+# page, proof384.html, linked them, telling its reader to save them beside it.)
 STAY = ('quals_proof384.py', 'quals_proof384_page.py')
 PYLIB = os.path.join(HERE, 'scratch', 'lower24-design', 'beyond1000', 'pylib')   # fpylll, as the suites run with it
 # A qual's module-level code run as `python3 FILE` runs it (its own directory first on sys.path), but under a name other

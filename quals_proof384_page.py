@@ -1,9 +1,19 @@
 """Quals for the independently checkable publication of m*(384) = 10.
 
-Replicata: read the witness, counts, and certificates from proof384.html.
+Replicata: read the witness, counts, and certificates from the proof as the
+main page displays it (index.html, between its proof384 markers).
 Expectata: exact arithmetic proves the lower bound and excludes every
 order-11 case using the data actually displayed to the reader.
 Resultata before publication: proof384.html is absent, so these quals are red.
+
+Spec change, 2026-11-10 (Claude; dreeves: "following DRY for the 384 proof is the
+right thing to do, yes?"): the proof's one copy is the main page's.  Until then
+these quals read the page proof384.html, of which the main page held a copy,
+and test_sources_and_reproduction_commands_are_published asked that page for
+links to index.html and to these two quals, beside which its reader was to
+save it.  The reader is now told to clone the repository and run the same
+command, so that qual asks for the command, the verifier's link and the
+three files.
 """
 
 from html import unescape
@@ -15,6 +25,8 @@ import unittest
 
 
 ROOT = Path(__file__).resolve().parent
+BEGIN = '<!-- proof384: begin canonical main -->'     # the proof in index.html stands between these two
+END = '<!-- proof384: end canonical main -->'
 N = 384
 SIZES = (77, 77, 77, 77, 76)
 
@@ -53,15 +65,19 @@ def necessary_counts():
 
 class Proof384PageQuals(unittest.TestCase):
     def setUp(self):
-        self.page = (ROOT / 'proof384.html').read_text()
+        whole = (ROOT / 'index.html').read_text()
+        self.assertEqual((whole.count(BEGIN), whole.count(END)), (1, 1))
+        # The proof's two codes carry data-proof-id in the main page, where a code with an id is a partition button
+        # (page/codes.js); the quals below find them by id, as they did on the proof's own page.
+        self.page = whole.split(BEGIN)[1].split(END)[0].replace('data-proof-id="', 'id="')
+        # The whole fold: the proof and, after it, how to rerun these quals.
+        self.fold = whole.split('<div class="proof-body" id="proof384-complete">')[1].split('</details>')[0]
 
     def test_sources_and_reproduction_commands_are_published(self):
-        for target in ('index.html', 'proof384.py', 'quals_proof384.py',
-                       'quals_proof384_page.py'):
-            self.assertRegex(self.page, rf'href="{re.escape(target)}"')
+        for target in ('proof384.py', 'quals_proof384.py', 'quals_proof384_page.py'):
             self.assertTrue((ROOT / target).is_file())
-        visible = text(self.page)
-        self.assertIn('href="proof384.html"', (ROOT / 'index.html').read_text())
+        self.assertRegex(self.fold, r'href="proof384\.py"')
+        visible = text(self.fold)
         self.assertIn('python3 proof384.py', visible)
         self.assertIn('python3 -m unittest quals_proof384 quals_proof384_page',
                       visible)

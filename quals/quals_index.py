@@ -5056,22 +5056,25 @@ def q_tables_and_figures_are_numbered():
     # of 2; the tables' labels share a word, the figures' another, and each kind is numbered from 1 in the page's
     # order.  Until then the six labels were asked for by their words.
     LABEL = r'([^<\d\s]+) (\d+)\.</span>'
-    LEADS = (r'<div class="new-block">\s*<p class="float-caption"><span class="sc">',
-             r'<p class="float-caption"><span class="sc">(?=[^<]*</span>[^\n]*</p>\s*<div class="scroll">\s*<table class="block">\s*'
-             r'<tr class="ns"><th scope="row">\\\(n\\\)</th><td[^>]*>\\\(2\^)',
-             r'<p id="mstar-readout" aria-live="polite">[^\n]*</p>\n  <p class="float-caption"><span class="sc">',
-             r'<h2 id="smallest-title">[^\n]*</h2>.*?<table>\s*<caption><span class="sc">',
-             r'<p id="pow2-readout" aria-live="polite">[^\n]*</p>\n  <p class="float-caption"><span class="sc">',
-             r'<table class="pow2-gaps" data-record-gaps>\s*<caption><span class="sc">')
-    assert not re.search(r'<h2[^>]*>[^\n]*<span class="sc">' + LABEL, text), 'a label in a section heading'
-    found = [re.search(lead + LABEL, text, re.S) for lead in LEADS]
-    assert all(found), [lead for lead, m in zip(LEADS, found) if not m]
-    # (A caption may go on past its label, as the first table's does and, since dreeves's d66ad09, the second's.)
-    at, kinds, numbers = [m.start(1) for m in found], [m.group(1) for m in found], [m.group(2) for m in found]
-    assert at == sorted(at), at
-    assert kinds[0] == kinds[1] == kinds[3] == kinds[5] != kinds[2] == kinds[4], kinds                 # four tables, two figures
-    assert numbers == ['1', '2', '1', '3', '2', '4'], numbers
-    assert re.findall(r'<span class="sc">' + LABEL, text) == list(zip(kinds, numbers)), 'a label twice, or another'
+    # Spec change (2026-11-10; dreeves: "quals that don't let Figure and Table numbers get out of sync sounds valuable.
+    # are we doing that the sensible way?", then "latex-style label&ref sounds good"): as LaTeX's \label and \ref.
+    #   label      a small-caps "Word N." (LABEL); each kind's labels count 1, 2, 3, ... in the page's order, however
+    #              many there are.
+    #   float id   the id of a caption that holds a label: <p class="float-caption" id="..."> or <caption id="...">.
+    #   reference  a link to a float id; its text ends with its float's number.
+    # So a float added, dropped or moved turns this red until the labels count again and every reference names its
+    # float's number.  Until then the six floats were found by their places and their kinds by position, which made
+    # adding a float on purpose red, no label could stand in a section heading, and a mention was tied to no float.
+    labels = list(re.finditer(r'<span class="sc">' + LABEL, text))
+    assert labels, 'no label'
+    at, kinds, numbers = [m.start(1) for m in labels], [m.group(1) for m in labels], [m.group(2) for m in labels]
+    counted = {kind: [n for k, n in zip(kinds, numbers) if k == kind] for kind in kinds}
+    assert all(ns == [str(i + 1) for i in range(len(ns))] for ns in counted.values()), counted
+    number_of = dict(re.findall(r'<(?:p class="float-caption"|caption) id="([^"]+)"><span class="sc">[^<\d\s]+ (\d+)\.</span>', text))
+    references = [(i, re.sub(r'<[^>]*>', '', said).strip()) for i, said in re.findall(r'<a href="#([^"]+)"[^>]*>(.*?)</a>', blank_comments(text), re.S)
+                  if i in number_of]
+    stale = [(i, said, number_of[i]) for i, said in references if not re.search(r'(?<!\d)' + number_of[i] + '$', said)]
+    assert not stale, stale
     mention, after = r'\b(?:Tables?|Figures?) \d+', r' of (?:BGPW|the paper)\b'
     # Spec change (2026-11-10): dreeves's own "Eyeballing the Figures 1 and 2, it looks like maybe" (d67f6dd) names the
     # page's two charts bare, and this qual took every bare mention for the paper's without its prefix.  By his rule
@@ -5088,6 +5091,44 @@ def q_tables_and_figures_are_numbered():
     bare += [o[max(0, m.start() - 40):m.end()] for o in others for m in re.finditer(mention, o) if lacks(m.group(0))
              and not re.search(r"BGPW|paper's", o[max(0, m.start() - 40):m.start()]) and not re.match(after, o[m.end():])]
     assert not bare, bare
+
+
+# In the page, loaded at a caption's id, once its fonts are in: where the caption and the chart of its section (the
+# section's element of role img: a canvas, or a div that a script fills) stand in the window, and the window's height
+LANDING = """<script>
+addEventListener('load', () => document.fonts.ready.then(() => setTimeout(() => {
+  const caption = document.getElementById(location.hash.slice(1)), chart = caption.closest('section').querySelector('[role="img"]');
+  const c = caption.getBoundingClientRect(), f = chart.getBoundingClientRect();
+  parent.postMessage(JSON.stringify({captionTop: c.top, captionBottom: c.bottom, chartTop: f.top, innerH: innerHeight}), '*');
+}, 1200)));
+</script>
+"""
+
+
+def q_a_reference_to_a_figure_lands_with_the_figure_in_view():
+    # Replicata: each caption of index.html that stands below its float, right after a chart's readout (the two
+    # figures'), and the page 1280 px wide in a frame 1000 px tall, loaded at that caption's id, as a click on a
+    # reference to it loads it.
+    # Expectata (dreeves, 2026-11-10: "latex-style label&ref sounds good"): the window then holds the figure: its
+    # chart's top is at or below the window's top, and its caption's bottom at or above the window's bottom.
+    # Resultata before: the caption stood at the window's top, with its chart above it, out of sight.
+    text = page()
+    below = re.findall(r'<p id="[^"]+" aria-live="polite">[^\n]*</p>\n\s*<p class="float-caption" id="([^"]+)">', text)
+    for i in below:
+        d = tempfile.mkdtemp(prefix='index-quals-')
+        try:
+            assert text.count('</body>') == 1
+            open(os.path.join(d, 'index.html'), 'w', encoding='utf-8').write(text.replace('</body>', LANDING + '</body>'))
+            copy_page_dir(d)
+            for data in (DATA, POW2): shutil.copy(data, d)
+            open(os.path.join(d, 'host.html'), 'w').write(HOST.replace('__WIDTH__', '1280').replace('src="index.html"', f'src="index.html#{i}"'))
+            dom = chrome(d, ['--window-size=1320,1100', '--virtual-time-budget=10000', '--dump-dom', 'file://' + os.path.join(d, 'host.html')])
+        finally:
+            shutil.rmtree(d)
+        m = re.search(r'<pre id="harness-out">(.*?)</pre>', dom, re.S)
+        assert m, (i, dom[-1500:])
+        R = json.loads(html.unescape(m.group(1)))
+        assert R['chartTop'] >= 0 and R['captionBottom'] <= R['innerH'], (i, R)
 
 
 def q_smallest_script_passes_node_check():
