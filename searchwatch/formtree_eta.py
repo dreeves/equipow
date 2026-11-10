@@ -174,7 +174,7 @@ def _legacy(s, root, now):
     """Capture the actually plotted P(exists) once, from the page's snapshot (progress.js: its run's odds), its history's
     origin and its points; a cold start without a snapshot has plotted none, its origin the run's start.  (Until
     2026-11-06 it captured the chance's history and the curves too, and a cold start took its former Lindy model's.)"""
-    path=Path(root)/'progress.js'
+    path=Path(root)/'pagedata'/'progress.js'
     if path.exists():
         text=path.read_text();assert text.startswith('progressData(') and text.rstrip().endswith(');')
         saved=json.loads(text[len('progressData('):].rstrip()[:-2])

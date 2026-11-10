@@ -11,7 +11,7 @@ import unittest
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parent.parent   # the repository's root, above quals/
-sys.path.insert(0, str(ROOT))                    # for its modules
+sys.path.insert(0, str(ROOT / 'searchwatch'))   # progress.py's directory since 2026-11-10 ([REF]); the root until then
 import progress
 
 

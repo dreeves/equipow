@@ -12,7 +12,7 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))   # the repository's root, for its modules
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'searchwatch'))   # run_modules.py's directory since 2026-11-10 ([REF]); the root until then
 # the engine's modules, in engine/ since [FAC] stage 3b (2026-11-04)
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'engine'))
 import run_modules

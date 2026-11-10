@@ -451,7 +451,7 @@ def look(width):
             assert text.count('</body>') == 1
             open(os.path.join(d, 'index.html'), 'w', encoding='utf-8').write(text.replace('</body>', LOOK + '</body>'))
             qi.copy_page_dir(d)
-            for data in ('mstar.js', 'pow2.js'): shutil.copy(os.path.join(HERE, data), d)
+            for data in (qi.DATA, qi.POW2): shutil.copy(data, qi.data_file(d, os.path.basename(data)))
             open(os.path.join(d, 'host.html'), 'w').write(HOST.replace('__WIDTH__', str(width)))
             dom = qi.chrome(d, [f'--window-size={max(width, 500) + 40},1100', '--virtual-time-budget=10000', '--dump-dom',
                                 'file://' + os.path.join(d, 'host.html')])

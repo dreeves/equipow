@@ -10,7 +10,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))   # the repository's root, for its modules
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'searchwatch'))   # progress.py, sweep288_progress.py's directory since 2026-11-10 ([REF]); the root until then
 import progress
 import sweep288_progress
 import quals_search288_progress as prior

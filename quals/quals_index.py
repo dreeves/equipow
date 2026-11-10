@@ -38,8 +38,11 @@ import os, re, json, html, html.parser, math, time, shutil, signal, datetime, zo
 
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # the repository's root, above quals/
 INDEX = os.path.join(HERE, 'index.html')
-DATA = os.path.join(HERE, 'mstar.js')         # made by mstar.py; the chart's data
-POW2 = os.path.join(HERE, 'pow2.js')          # made by pow2.py; the data of the chart of powers of 2, also on the page
+# The data files the page loads are in pagedata/, beside index.html, since 2026-11-10 (dreeves's README, [REF]; at the
+# root, beside index.html, until then): mstar.js, pow2.js and the watcher's progress.js.
+PAGEDATA = 'pagedata'
+DATA = os.path.join(HERE, PAGEDATA, 'mstar.js')         # made by mstar.py; the chart's data
+POW2 = os.path.join(HERE, PAGEDATA, 'pow2.js')          # made by pow2.py; the data of the chart of powers of 2, also on the page
 PAGE_DIR = os.path.join(HERE, 'page')         # the page's stylesheet and scripts, which index.html links (2026-10-31)
 CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
 # The flags every headless Chrome of the quals starts with: chrome() here, and the node drivers of quals_pow2_page and
@@ -82,6 +85,13 @@ def page_scripts(text):
     <script>)."""
     return [open(os.path.join(HERE, src), encoding='utf-8').read()
             for src in re.findall(r'<script src="(page/[^"]+)"></script>', text)]
+
+
+def data_file(d, name):
+    """Where a copy of the page in directory d loads its data file name from: d/pagedata/name, pagedata/ made at its
+    first use."""
+    os.makedirs(os.path.join(d, PAGEDATA), exist_ok=True)
+    return os.path.join(d, PAGEDATA, name)
 
 
 def copy_page_dir(d):
@@ -131,7 +141,7 @@ def mstar_of(src):
 
 def pow2_data():
     """POW2 as the browser sees it: node runs pow2.js (beside index.html, made by pow2.py) and prints POW2 as JSON."""
-    path = os.path.join(HERE, 'pow2.js')
+    path = POW2
     p = subprocess.run(['node', '-e', open(path, encoding='utf-8').read() + '\nprocess.stdout.write(JSON.stringify(POW2))'],
                        capture_output=True, text=True, timeout=60)
     assert p.returncode == 0, p.stderr[-2000:]
@@ -1145,10 +1155,10 @@ def run(name):
         if theme: text = text.replace('<html lang="en">', f'<html lang="en" data-theme="{theme}">')
         open(os.path.join(d, 'index.html'), 'w', encoding='utf-8').write(text)
         copy_page_dir(d)
-        if data is not None: open(os.path.join(d, 'mstar.js'), 'w', encoding='utf-8').write(SOURCES[data]())
-        shutil.copy(POW2, os.path.join(d, 'pow2.js'))
+        if data is not None: open(data_file(d, 'mstar.js'), 'w', encoding='utf-8').write(SOURCES[data]())
+        shutil.copy(POW2, data_file(d, 'pow2.js'))
         if name in BOXES or name in BOX_LOADS:
-            open(os.path.join(d, 'progress.js'), 'w', encoding='utf-8').write('progressData(' + json.dumps(BOX_PROGRESS) + ');\n')
+            open(data_file(d, 'progress.js'), 'w', encoding='utf-8').write('progressData(' + json.dumps(BOX_PROGRESS) + ');\n')
         open(os.path.join(d, 'host.html'), 'w').write(HOST.replace('__WIDTH__', str(width)).replace(
             'src="index.html"', f'src="index.html{(FRAGMENTS | BOX_LOADS).get(name, "")}"'))
         dom = chrome(d, ['--disable-ipc-flooding-protection'] * (name in PANELS) + [f'--window-size={max(width, 500) + 40},1100', f'--force-device-scale-factor={dpr}',
@@ -1216,8 +1226,8 @@ def console_lines():
     d = tempfile.mkdtemp(prefix='index-quals-')
     shutil.copy(INDEX, os.path.join(d, 'index.html'))
     copy_page_dir(d)
-    shutil.copy(DATA, os.path.join(d, 'mstar.js'))
-    shutil.copy(POW2, os.path.join(d, 'pow2.js'))
+    shutil.copy(DATA, data_file(d, 'mstar.js'))
+    shutil.copy(POW2, data_file(d, 'pow2.js'))
     with open(os.path.join(d, 'stderr.txt'), 'w') as f:
         chrome(d, ['--enable-logging=stderr', '--v=0', '--window-size=1280,1000', '--virtual-time-budget=10000',
                    '--dump-dom', 'file://' + os.path.join(d, 'index.html')], stderr=f)
@@ -1304,7 +1314,7 @@ def q_384_proof_is_linked():
     assert re.search(r'<td class="a"[^>]*>384</td>', text)
     remark = re.search(r'<li class="a" id="proof384">(.*?)</li>', text, re.S)
     assert remark, 'no remark for 384'
-    assert 'href="proof384.py"' in remark.group(1) and '\\(m^* = 10\\)' in remark.group(1), remark.group(1)[:300]
+    assert 'href="proofs/proof384.py"' in remark.group(1) and '\\(m^* = 10\\)' in remark.group(1), remark.group(1)[:300]
     assert smallest_rows(mstar_data())[10] == ['11', '432', '432', '✓']
 
 
@@ -1502,8 +1512,8 @@ def framed(width, harness):
     assert text.count('</body>') == 1
     open(os.path.join(d, 'index.html'), 'w', encoding='utf-8').write(text.replace('</body>', script + '</body>'))
     copy_page_dir(d)
-    shutil.copy(DATA, os.path.join(d, 'mstar.js'))
-    shutil.copy(POW2, os.path.join(d, 'pow2.js'))
+    shutil.copy(DATA, data_file(d, 'mstar.js'))
+    shutil.copy(POW2, data_file(d, 'pow2.js'))
     open(os.path.join(d, 'host.html'), 'w').write(HOST.replace('__WIDTH__', str(width)))
     dom = chrome(d, [f'--window-size={max(width, 500) + 40},1100', '--virtual-time-budget=5000', '--dump-dom',
                      'file://' + os.path.join(d, 'host.html')])
@@ -1665,13 +1675,13 @@ def q_scripts_load_data_then_draw():
     [math_js] = page_scripts(katex[0])
     assert re.search(rf'^function {katex[2]}\(\) \{{$', math_js, re.M), math_js[:300]
     assert re.findall(r'<script\b[^>]*>', body) == [
-        '<script src="page/shared.js">', '<script src="mstar.js">', '<script src="page/mstar-section.js">',
-        '<script src="pow2.js">', '<script src="page/pow2-section.js">', '<script src="page/smallest-section.js">',
+        '<script src="page/shared.js">', '<script src="pagedata/mstar.js">', '<script src="page/mstar-section.js">',
+        '<script src="pagedata/pow2.js">', '<script src="page/pow2-section.js">', '<script src="page/smallest-section.js">',
         '<script src="page/codes.js">', '<script src="page/progress-section.js">'], re.findall(r'<script\b[^>]*>', body)
     own = page_scripts(body)
     assert 'function panZoom(' in own[0] and '[data-smallest]' in own[3] and 'template[data-partition]' in own[4] \
         and 'progressData' in own[5], [js[:60] for js in own]
-    assert text.index('</main>') < text.index('<script src="page/shared.js">', len(head)) < text.index('<script src="mstar.js"></script>') < \
+    assert text.index('</main>') < text.index('<script src="page/shared.js">', len(head)) < text.index('<script src="pagedata/mstar.js"></script>') < \
         text.index('</script>\n</body>')
     math = valid_run('light')['math']
     assert math['formulas'] > 800 and math['errors'] == 0 and math['raw'] == [], math
@@ -1756,7 +1766,7 @@ def q_new_results_fit_unscrolled_at_945_px():
     # wider than its frame, so neither frame scrolls.
     d = tempfile.mkdtemp(prefix='index-quals-')
     try:
-        for name in ('mstar.js', 'pow2.js', 'progress.js'): shutil.copy(os.path.join(HERE, name), d)
+        for name in ('mstar.js', 'pow2.js', 'progress.js'): shutil.copy(os.path.join(HERE, PAGEDATA, name), data_file(d, name))
         copy_page_dir(d)
         script = ("<script>addEventListener('load', () => setTimeout(() => { const p = document.createElement('pre'); p.id = 'fit'; "
                   "p.textContent = JSON.stringify([...document.querySelectorAll('.new-block .scroll')].map(f => ({frame: f.clientWidth, "
@@ -4244,8 +4254,8 @@ def q_find_in_page_opens_the_fold():
         assert text.count('</body>') == 1
         open(os.path.join(d, 'index.html'), 'w', encoding='utf-8').write(text.replace('</body>', probe + '</body>'))
         copy_page_dir(d)
-        shutil.copy(DATA, os.path.join(d, 'mstar.js'))
-        shutil.copy(POW2, os.path.join(d, 'pow2.js'))
+        shutil.copy(DATA, data_file(d, 'mstar.js'))
+        shutil.copy(POW2, data_file(d, 'pow2.js'))
         dom = chrome(d, ['--window-size=1280,1000', '--virtual-time-budget=10000', '--dump-dom', 'file://' + os.path.join(d, 'index.html') + frag])
         shutil.rmtree(d)
         m = re.search(r'<html[^>]* data-fold="([^"]*)"', dom)
@@ -4511,7 +4521,7 @@ def q_boxes_word_a_credit_as_the_legend_does():
     try:
         open(os.path.join(d, 'index.html'), 'w', encoding='utf-8').write(reworded(text))
         copy_page_dir(d)
-        for src, name in ((DATA, 'mstar.js'), (POW2, 'pow2.js')): shutil.copy(src, os.path.join(d, name))
+        for src, name in ((DATA, 'mstar.js'), (POW2, 'pow2.js')): shutil.copy(src, data_file(d, name))
         dom = chrome(d, ['--window-size=1280,1000', '--virtual-time-budget=10000', '--dump-dom',
                          'file://' + os.path.join(d, 'index.html') + '#n240m11'])
     finally:
@@ -4829,9 +4839,9 @@ def progress_run(case='main'):
         text = text.replace('<head>\n', '<head>\n' + early).replace('</body>', PROGRESS_HARNESS + '</body>')
         open(os.path.join(d, 'index.html'), 'w', encoding='utf-8').write(text)
         copy_page_dir(d)
-        open(os.path.join(d, 'progress.js'), 'w', encoding='utf-8').write('progressData(' + json.dumps(data) + ');\n')
-        shutil.copy(DATA, os.path.join(d, 'mstar.js'))
-        shutil.copy(POW2, os.path.join(d, 'pow2.js'))
+        open(data_file(d, 'progress.js'), 'w', encoding='utf-8').write('progressData(' + json.dumps(data) + ');\n')
+        shutil.copy(DATA, data_file(d, 'mstar.js'))
+        shutil.copy(POW2, data_file(d, 'pow2.js'))
         dom = chrome(d, ['--window-size=1000,1100', '--force-device-scale-factor=2', '--virtual-time-budget=20000',
                          '--dump-dom', 'file://' + os.path.join(d, 'index.html')])
         m = re.search(r'<pre id="harness-out">(.*?)</pre>', dom, re.S)
@@ -4899,7 +4909,8 @@ def smallest_table():
     page/, mstar.js and pow2.js, its DOM dumped once its scripts ran; made once per process."""
     if not SMALLEST_TABLE:
         d = tempfile.mkdtemp(prefix='index-quals-')
-        for src, name in ((INDEX, 'index.html'), (DATA, 'mstar.js'), (POW2, 'pow2.js')): shutil.copy(src, os.path.join(d, name))
+        shutil.copy(INDEX, os.path.join(d, 'index.html'))
+        for src, name in ((DATA, 'mstar.js'), (POW2, 'pow2.js')): shutil.copy(src, data_file(d, name))
         copy_page_dir(d)
         dom = chrome(d, ['--virtual-time-budget=5000', '--dump-dom', 'file://' + os.path.join(d, 'index.html')])
         shutil.rmtree(d)
@@ -5120,7 +5131,7 @@ def q_a_reference_to_a_figure_lands_with_the_figure_in_view():
             assert text.count('</body>') == 1
             open(os.path.join(d, 'index.html'), 'w', encoding='utf-8').write(text.replace('</body>', LANDING + '</body>'))
             copy_page_dir(d)
-            for data in (DATA, POW2): shutil.copy(data, d)
+            for data in (DATA, POW2): shutil.copy(data, data_file(d, os.path.basename(data)))
             open(os.path.join(d, 'host.html'), 'w').write(HOST.replace('__WIDTH__', '1280').replace('src="index.html"', f'src="index.html#{i}"'))
             dom = chrome(d, ['--window-size=1320,1100', '--virtual-time-budget=10000', '--dump-dom', 'file://' + os.path.join(d, 'host.html')])
         finally:
@@ -5564,9 +5575,9 @@ def q_progress_cpu_chart_shows_no_paper_between_its_bands():
                 '.progress-cpu svg, .progress-cpu svg * { visibility: visible !important; } .progress-cpu .cross { visibility: hidden !important; }</style>\n')
         open(os.path.join(d, 'index.html'), 'w', encoding='utf-8').write(page().replace('<head>\n', '<head>\n' + keep))
         copy_page_dir(d)
-        open(os.path.join(d, 'progress.js'), 'w', encoding='utf-8').write('progressData(' + json.dumps({'made': made, 'runs': [run]}) + ');\n')
-        shutil.copy(DATA, os.path.join(d, 'mstar.js'))
-        shutil.copy(POW2, os.path.join(d, 'pow2.js'))
+        open(data_file(d, 'progress.js'), 'w', encoding='utf-8').write('progressData(' + json.dumps({'made': made, 'runs': [run]}) + ');\n')
+        shutil.copy(DATA, data_file(d, 'mstar.js'))
+        shutil.copy(POW2, data_file(d, 'pow2.js'))
         shot = os.path.join(d, 'shot.png')
         chrome(d, ['--window-size=1000,1400', f'--force-device-scale-factor={scale}', '--virtual-time-budget=8000',
                    '--run-all-compositor-stages-before-draw', f'--screenshot={shot}', 'file://' + os.path.join(d, 'index.html')])
@@ -5687,9 +5698,9 @@ def q_progress_reloads_on_returning_to_the_tab():
     text = page().replace('<head>\n', '<head>\n' + PROGRESS_REMEMBERED).replace('</body>', harness + '</body>')
     open(os.path.join(d, 'index.html'), 'w', encoding='utf-8').write(text)
     copy_page_dir(d)
-    open(os.path.join(d, 'progress.js'), 'w', encoding='utf-8').write('progressData(' + json.dumps(PROGRESS_DATA) + ');\n')
-    shutil.copy(DATA, os.path.join(d, 'mstar.js'))
-    shutil.copy(POW2, os.path.join(d, 'pow2.js'))
+    open(data_file(d, 'progress.js'), 'w', encoding='utf-8').write('progressData(' + json.dumps(PROGRESS_DATA) + ');\n')
+    shutil.copy(DATA, data_file(d, 'mstar.js'))
+    shutil.copy(POW2, data_file(d, 'pow2.js'))
     dom = chrome(d, ['--virtual-time-budget=5000', '--dump-dom', 'file://' + os.path.join(d, 'index.html')])
     shutil.rmtree(d)
     m = re.search(r'<pre id="harness-out">(.*?)</pre>', dom, re.S)
@@ -5722,9 +5733,9 @@ def progress_harness(data, harness, before=''):
     text = page().replace('<head>\n', '<head>\n' + PROGRESS_REMEMBERED + PROGRESS_FROZEN + before).replace('</body>', script + '</body>')
     open(os.path.join(d, 'index.html'), 'w', encoding='utf-8').write(text)
     copy_page_dir(d)
-    open(os.path.join(d, 'progress.js'), 'w', encoding='utf-8').write('progressData(' + json.dumps(data) + ');\n')
-    shutil.copy(DATA, os.path.join(d, 'mstar.js'))
-    shutil.copy(POW2, os.path.join(d, 'pow2.js'))
+    open(data_file(d, 'progress.js'), 'w', encoding='utf-8').write('progressData(' + json.dumps(data) + ');\n')
+    shutil.copy(DATA, data_file(d, 'mstar.js'))
+    shutil.copy(POW2, data_file(d, 'pow2.js'))
     dom = chrome(d, ['--window-size=1000,1100', '--virtual-time-budget=5000', '--dump-dom', 'file://' + os.path.join(d, 'index.html')])
     shutil.rmtree(d)
     m = re.search(r'<pre id="harness-out">(.*?)</pre>', dom, re.S)

@@ -14,7 +14,7 @@ from fpylll import (IntegerMatrix, LLL, BKZ, Enumeration, EnumerationError,
 import sympy as sp
 ROOT = Path(__file__).resolve().parents[2]   # the repository's root, above searches/search288/ ([FAC] stage 3a)
 # for mstar; overnight_v5 and lattice288, in engine/ since [FAC] stage 3b (2026-11-04); join720
-sys.path[:0] = [str(ROOT), str(ROOT / 'engine'), str(ROOT / 'searches' / 'join720')]
+sys.path[:0] = [str(ROOT / 'pagegen'), str(ROOT / 'engine'), str(ROOT / 'searches' / 'join720')]   # pagegen/: mstar.py's directory since 2026-11-10 ([REF])
 import mstar
 import overnight_v5 as ov
 from lattice288 import IntegerSystem, moment_rows, count_rows, valid

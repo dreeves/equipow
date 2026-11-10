@@ -24,12 +24,13 @@ const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
   const previous = settings.filter(p => p !== '.lattice288_work/**');
   const outputs = ['lattice288.log', 'lattice288_journal.jsonl',
     '.lattice288_prepared.json', '.lattice288_work/job.json',
-    '.lattice288_work/progress.log', 'progress.js', '.progress_cache.json',
+    '.lattice288_work/progress.log', 'pagedata/progress.js', '.progress_cache.json',
     'AGENTS.md',    // agents' notes, no part of the page (dreeves, 2026-10-23: "ignoring AGENTS.md specifically makes sense")
     'AGENTS-history.md'];   // the same notes' history, moved out of AGENTS.md on 2026-11-09 (dreeves: "ok, yes, decruft AGENTS.md")
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'powersums-live-server-'));
   try {
     await fs.mkdir(path.join(root, '.lattice288_work'));
+    await fs.mkdir(path.join(root, 'pagedata'));   // progress.js's directory since 2026-11-10 ([REF])
     for (const name of [...outputs, 'index.html']) await fs.writeFile(path.join(root, name), '0');
     for (const ignore of [previous, settings]) {
       // These are Live Server 5.7.10's own filter and relative-path resolution.

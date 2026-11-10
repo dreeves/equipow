@@ -8,7 +8,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'searchwatch'))   # chance.py, formtree_eta.py, formtree_work.py, progress.py's directory since 2026-11-10 ([REF]); the root until then
 import progress
 import formtree_work
 import chance

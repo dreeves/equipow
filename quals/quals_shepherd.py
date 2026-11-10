@@ -8,7 +8,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))   # the repository's root, for its modules
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'searchwatch'))   # shepherd.py's directory since 2026-11-10 ([REF]); the root until then
 import shepherd
 
 UNBOUNDED = ('--seconds', 'inf', '--lp-budget', '1000000000000000000')

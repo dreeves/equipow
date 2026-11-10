@@ -2,10 +2,11 @@
 """How far the certified searches of overnight_v5.py have got: the data file of index.html's section "Search progress"
 (dreeves, 2026-10-17, in place of the page progress.html this file used to write).
 
-Run:   python3 -B progress.py            writes progress.js once
-       python3 -B progress.py --watch    rewrites it every REFRESH seconds until stopped
-Either way the process first lowers its priority to nice NICE.  progress.js, next to this file and index.html, is
-replaced atomically (see write_atomic), so a reader never sees half of it.  Quals: python3 -B quals_progress.py
+Run:   python3 -B searchwatch/progress.py            writes pagedata/progress.js once
+       python3 -B searchwatch/progress.py --watch    rewrites it every REFRESH seconds until stopped
+Either way the process first lowers its priority to nice NICE.  progress.js, in pagedata/ beside index.html (this file is in
+searchwatch/ since 2026-11-10; both were at the root), is replaced atomically (see write_atomic), so a reader never sees
+half of it.  Quals: python3 -B quals/quals_progress.py
 
 For each run (N, ORDER) in RUNS it reads overnight_v5_N_ORDER_journal.jsonl and overnight_v5_N_ORDER.log in the run's
 directory (DIRS; see
@@ -270,7 +271,7 @@ import numpy as np
 # The engine's directory, relative to HERE (since [FAC] stage 3b, 2026-11-04): the modules this imports, and the
 # runs of the engine's own overnight_v5.py, which names their files beside itself (see DIRS).
 ENGINE = 'engine'
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ENGINE))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ENGINE))
 import overnight_v5 as v5
 import boxsplit as bx
 import fanout
@@ -282,8 +283,8 @@ import cpu
 
 ROOT_V5, ROOT_BX = v5, bx
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-JS = os.path.join(HERE, 'progress.js')         # the data file of index.html's section "Search progress" (see the vocabulary)
+HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # the repository's root, above searchwatch/ (this file was at the root until 2026-11-10, dreeves's README [REF])
+JS = os.path.join(HERE, 'pagedata', 'progress.js')         # the data file of index.html's section "Search progress" (see the vocabulary)
 CACHE = os.path.join(HERE, '.progress_cache.json')    # a directory since 2026-10-30 (see save_cache), git-ignored
 # The completed 240@11 proof and its boxsplit pass, and the 384@11 search
 # superseded by proof384.py, left the live display on 2026-10-20. Their journals remain.  So did the finished 288:10
@@ -332,7 +333,7 @@ POOL_BUCKETS = 100                     # the stretches of a fanout run's running
 LIMIT = 120                            # seconds a run's survey may take in a snapshot, before overruns (see snapshot)
 STEP = 20000                           # lines, records or keys a reading takes in one atomic block (see atomic)
 DRAWS = 1 << 28                        # the most numbers an urn may hold (see Urn): 2 GiB of float64
-STAGES_FILE = os.path.join(HERE, 'stages.json')   # the searches' chains (see the vocabulary), read once as this loads
+STAGES_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'stages.json')   # the searches' chains (see the vocabulary), read once as this loads
 UNITS = ('token', 'open leaf')         # what a part's cpu can be per (see chain): a fanout's token, a pass's open leaf
 SPAWNED = 'from multiprocessing.spawn import spawn_main'   # in the command of a worker multiprocessing spawned (see share)
 MEASURED = (0.05, 0.95)                # the quantiles of every cpu band in STAGES_FILE (its about: "the 5% and 95%
@@ -3580,7 +3581,7 @@ def main(argv, extra=()):
     of units, each called with (procs, now) for its units after progress.py's own (the wrappers sweep288_progress and
     search592_progress)."""
     # TODO: error copy; says how to run the script: with no argument to write the data file once, or with --watch to keep rewriting it
-    assert argv in ([], ['--watch']), 'Claude: "usage: python3 -B progress.py [--watch]"'
+    assert argv in ([], ['--watch']), 'Claude: "usage: python3 -B searchwatch/progress.py [--watch]"'
     os.nice(max(0, NICE - os.nice(0)))
     cache, kept, readings, overruns, idle = load_cache(CACHE), seeded(JS), {}, {}, {}
     # the runs the data file holds, as their JSON: it is rewritten only when they change, so that its made says when

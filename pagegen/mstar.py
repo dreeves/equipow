@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Bounds on m*(n) for every n = 1..NMAX, for the chart on index.html: computes them with their reasons and writes
-mstar.js beside this file.
+pagedata/mstar.js (this file is in pagegen/ and the data file in pagedata/ since 2026-11-10; both were at the root).
 
 The question is that of Buhler, Golan, Pratt and Wagon (BGPW), "Littlewood polynomials, spectral-null codes, and
 equipowerful partitions", Math. Comp. 90 (2021) 1435-1453, arXiv:1912.03491: how large can the order of a +-1
@@ -76,8 +76,8 @@ not ruled out at those orders.  past (since 2026-11-04) lists the explicit seque
   When sources tie, a reason checked here wins over a citation, and the simpler one among those: example, join,
   product; odd, two, norm (the least p), residue.
 
-Run:   python3 mstar.py   (writes mstar.js)
-Quals: python3 quals_mstar.py
+Run:   python3 -B pagegen/mstar.py   (writes pagedata/mstar.js)
+Quals: python3 -B quals/quals_mstar.py
 """
 import sys
 sys.dont_write_bytecode = True
@@ -87,7 +87,7 @@ from operator import mul
 import numpy as np
 import sympy as sp
 # the engine's modules, overnight_v5 and residues, in engine/ since [FAC] stage 3b (2026-11-04)
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'engine'))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'engine'))
 import overnight_v5 as v5                    # read only: EXAMPLES and from_hex
 # The residue enumeration, moved verbatim to residues.py on 2026-10-26 so that focus.fingerprint, the proof
 # searches' continuation identity, covers it and not this file (see residues.py); imported back for the claims
@@ -108,9 +108,9 @@ MMAX = 17                                    # the table of smallest lengths' la
                                              # from mtop to it (dreeves's README, 2026-11-04: "[M17] Let's add m=17 to
                                              # the "smallest length known" table; no need for much search, just
                                              # whatever bounds we can find quickly"; the table stopped at mtop before)
-HERE = os.path.dirname(os.path.abspath(__file__))
+HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # the repository's root, above pagegen/ (this file was at the root until 2026-11-10, dreeves's README [REF])
 PAGE = os.path.join(HERE, 'index.html')
-JS = os.path.join(HERE, 'mstar.js')
+JS = os.path.join(HERE, 'pagedata', 'mstar.js')   # the page's data files are in pagedata/ since 2026-11-10 ([REF])
 
 
 # ---------- sequences ----------

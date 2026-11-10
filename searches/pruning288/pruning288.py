@@ -19,7 +19,7 @@ import time
 
 ROOT = Path(__file__).resolve().parents[2]   # the repository's root, above searches/pruning288/ ([FAC] stage 3a)
 # for progress; lattice288, in engine/ since [FAC] stage 3b (2026-11-04); search288
-sys.path[:0] = [str(ROOT), str(ROOT / 'engine'), str(ROOT / 'searches' / 'search288')]
+sys.path[:0] = [str(ROOT / 'searchwatch'), str(ROOT / 'engine'), str(ROOT / 'searches' / 'search288')]   # searchwatch/: progress.py's directory since 2026-11-10 ([REF])
 import progress
 import pruning288_geometry as G
 import search288 as S
@@ -33,7 +33,7 @@ INDICES = dict(calibration=[2], search=list(range(7)))
 SCHEDULE = {phase: [(case, width) for case in cases for width in WIDTHS]
             for phase, cases in INDICES.items()}
 SOURCES = ('searches/pruning288/pruning288.py', 'searches/pruning288/pruning288_geometry.py',
-           'progress.py') + S.SOURCES
+           'searchwatch/progress.py') + S.SOURCES
 CODE = hashlib.sha256(b''.join((ROOT / name).read_bytes() for name in SOURCES)).hexdigest()
 INPUT_PATHS = ('searches/search288/search288_journal.jsonl', 'scratch/search288/calibration.json',
                'scratch/search288/search.json', 'engine/.lattice288_prepared.json')

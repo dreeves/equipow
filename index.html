@@ -473,8 +473,8 @@ Or just start identifying redundancies and repetition on the page and fix them o
   </p>
   <!-- TODO: says mstar.py and pow2.py (linked) repeat the search behind every residue claim each time they run, and that certificates that can be checked on their own, like proof512.wl for 512, are still to be done -->
   <p>
-    Claude Opus 5.5: “<a href="https://github.com/dreeves/equipow/blob/main/mstar.py">mstar.py</a> and 
-    <a href="https://github.com/dreeves/equipow/blob/main/pow2.py">pow2.py</a> 
+    Claude Opus 5.5: “<a href="https://github.com/dreeves/equipow/blob/main/pagegen/mstar.py">mstar.py</a> and 
+    <a href="https://github.com/dreeves/equipow/blob/main/pagegen/pow2.py">pow2.py</a> 
     repeat the search behind every residue claim each time they run. 
     Certificates that can be checked on their own, like proof512.wl for 512, are still to be done.”
   </p>
@@ -1291,7 +1291,7 @@ of them with m ≡ 0, 1, 2 mod 3) and two exceptional signs, and d_0 ≡ d_3 (mo
       <!-- TODO: credits the existing doubled construction for order 10 and explains the four residue-count patterns forced by order 11. -->
       <p>Astra: “Order 10 comes from doubling the order-9 example at 192. For order 11, congruences on the signed sums mod 5 leave only four possible vectors of \(+1\) counts in residue classes \(0, \ldots, 4\): \((1, 26, 51, 76, 38)\), \((26, 76, 1, 51, 38)\), \((51, 1, 76, 26, 38)\), and \((76, 51, 26, 1, 38)\).”</p>
       <!-- TODO: explains the exhaustive finite exclusion, without any assumption of symmetry, and links the standalone exact verifier. -->
-      <p>Astra: “Each vector has a class with just one \(+1\) and a class with just one \(-1\). Choosing their positions leaves \(4\cdot 77^2 = 23{,}716\) cases. Every case contradicts at least one exact integer congruence mod 25, 125, or 625. This rules out order 11 without assuming symmetry. The <a href="#proof384-complete">complete proof</a> gives the witness, every certificate coefficient, the remaining cases, and reproduction commands. The standalone verifier <a href="proof384.py">proof384.py</a> checks every congruence and case, and checks an order-10 example; it uses only Python's standard library. Mathematica: <a href="proof384.wl">proof384.wl</a>.”</p>
+      <p>Astra: “Each vector has a class with just one \(+1\) and a class with just one \(-1\). Choosing their positions leaves \(4\cdot 77^2 = 23{,}716\) cases. Every case contradicts at least one exact integer congruence mod 25, 125, or 625. This rules out order 11 without assuming symmetry. The <a href="#proof384-complete">complete proof</a> gives the witness, every certificate coefficient, the remaining cases, and reproduction commands. The standalone verifier <a href="proofs/proof384.py">proof384.py</a> checks every congruence and case, and checks an order-10 example; it uses only Python's standard library. Mathematica: <a href="proofs/proof384.wl">proof384.wl</a>.”</p>
       <!-- Astra's complete proof.  Until 2026-11-10 it was the page proof384.html, whose main element was copied here; since then this is its one copy (dreeves: "following DRY for the 384 proof is the right thing to do"), and proof384.html only sends its old address here.  Its two codes carry data-proof-id, not id, so that codes.js does not turn them into partition buttons. -->
       <details class="proof-exposition">
         <summary>Astra: “\(m^*(384) = 10\)”</summary>
@@ -1399,10 +1399,10 @@ of them with m ≡ 0, 1, 2 mod 3) and two exceptional signs, and d_0 ≡ d_3 (mo
     <p>Every possible order-11 partition would have appeared in one of these cases, and every case is impossible. An order greater than 11 would also satisfy all the order-11 equations, so it is excluded as well. Combined with the explicit witness, this proves <i>m</i><sup>*</sup>(384) = 10.</p>
 
     <h2>6. Reproduce the checks</h2>
-    <p>Save <a href="proof384.py">proof384.py</a> and run it with Python 3.8 or later. It uses only the standard library, contains the witness and all certificate coefficients, and checks the generator congruences, complete count coverage, all free columns, all 23,716 cases, and the witness's exact moments.</p>
+    <p>Save <a href="proofs/proof384.py">proof384.py</a> and run it with Python 3.8 or later. It uses only the standard library, contains the witness and all certificate coefficients, and checks the generator congruences, complete count coverage, all free columns, all 23,716 cases, and the witness's exact moments.</p>
     <pre><code>python3 proof384.py</code></pre>
     <!-- Link the Mathematica verifier and give its command. -->
-    <p>Mathematica: <a href="proof384.wl">proof384.wl</a></p>
+    <p>Mathematica: <a href="proofs/proof384.wl">proof384.wl</a></p>
     <pre><code>wolframscript -file proof384.wl</code></pre>
     <p>The expected output is:</p>
     <pre><code>m*(384) = 10; 4 vectores, 23716 casus, 0 superstites.</code></pre>
@@ -1410,7 +1410,7 @@ of them with m ≡ 0, 1, 2 mod 3) and two exceptional signs, and d_0 ≡ d_3 (mo
 <!-- proof384: end canonical main -->
           <!-- TODO: says how a reader reruns the quals that check the numbers this proof prints: clone the repository (linked) and run the command below.  The old page told its reader to save it beside the two quals and index.html; cloning needs no file saved or named.  Then Astra's own sentences about those quals, from the foot of the old page, byte for byte. -->
           <p>Fable 5.2: “To rerun the quals that check the numbers printed in this proof, clone <a href="https://github.com/dreeves/equipow">the repository</a> and run:”</p>
-          <pre><code>python3 -m unittest quals_proof384 quals_proof384_page</code></pre>
+          <pre><code>python3 -m unittest quals/quals_proof384.py quals/quals_proof384_page.py</code></pre>
           <p>Astra: “The publication quals read the displayed hexadecimal witness and certificate tables from this HTML file and independently recompute the integer checks. They do not import the verifier's arithmetic or certificate constants. The verifier's own quals also reject corrupted certificates and missing coverage.”</p>
         </div>
       </details>
@@ -2195,9 +2195,9 @@ at one \(\theta\) every factor is \(\pm\cos(\pi/16)\), which leaves \(0.39\) at 
 
 </main>
 <script src="page/shared.js"></script>
-<script src="mstar.js"></script>
+<script src="pagedata/mstar.js"></script>
 <script src="page/mstar-section.js"></script>
-<script src="pow2.js"></script>
+<script src="pagedata/pow2.js"></script>
 <script src="page/pow2-section.js"></script>
 <script src="page/smallest-section.js"></script>
 <script src="page/codes.js"></script>

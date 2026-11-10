@@ -11,11 +11,16 @@ sys.dont_write_bytecode = True
 import os, json, time, shutil, signal, subprocess, tempfile, traceback
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # the repository's root, above quals/
 PY = sys.executable
+TRACK = os.path.join('searchwatch', 'track.py')     # the sandbox's copy, as a command names it from the sandbox
+IMPORTS = dict(os.environ, PYTHONPATH='searchwatch')   # for a -c script run in the sandbox that imports its track.py
 
 
 def sandbox():
     d = tempfile.mkdtemp(prefix='track-quals-')
-    shutil.copy(os.path.join(HERE, 'track.py'), d)
+    # track.py keeps its records in runs/ of the directory above its own (the repository's root; in searchwatch/ since
+    # 2026-11-10, [REF]), so the copy goes into a searchwatch/ of the sandbox and its records into the sandbox's runs/.
+    os.mkdir(os.path.join(d, 'searchwatch'))
+    shutil.copy(os.path.join(HERE, 'searchwatch', 'track.py'), os.path.join(d, 'searchwatch'))
     return d
 
 
@@ -47,7 +52,7 @@ def q_run_writes_its_start_and_end():
     d = sandbox()
     try:
         cmd = [PY, '-c', 'import sys; sys.exit(3)']
-        p = subprocess.run([PY, '-B', 'track.py', 'run', 'q1', '16:4', '--found', 'F', '--', *cmd], cwd=d)
+        p = subprocess.run([PY, '-B', TRACK, 'run', 'q1', '16:4', '--found', 'F', '--', *cmd], cwd=d)
         assert p.returncode == 3, p.returncode
         start, end = record(d, 'q1')
         assert {k: start[k] for k in ('event', 'name', 'target', 'program', 'command', 'found', 'adopted')} == dict(
@@ -66,7 +71,7 @@ def q_run_names_the_script_as_its_program():
     d = sandbox()
     try:
         open(os.path.join(d, 'job.py'), 'w').write('pass\n')
-        assert subprocess.run([PY, '-B', 'track.py', 'run', 'q2', '16:4', '--', PY, '-B', 'job.py'], cwd=d).returncode == 0
+        assert subprocess.run([PY, '-B', TRACK, 'run', 'q2', '16:4', '--', PY, '-B', 'job.py'], cwd=d).returncode == 0
         start, end = record(d, 'q2')
         assert (start['program'], start['found'], end['status']) == ('job.py', None, 0), (start, end)
     finally:
@@ -97,7 +102,7 @@ def q_run_names_its_record_to_its_command():
     # status 0, in that order.
     d = sandbox()
     try:
-        p = subprocess.run([PY, '-B', 'track.py', 'run', 'q8', '16:4', '--', PY, '-c', ETA], cwd=d, capture_output=True,
+        p = subprocess.run([PY, '-B', TRACK, 'run', 'q8', '16:4', '--', PY, '-c', ETA], cwd=d, capture_output=True,
                            text=True, timeout=60)
         assert p.returncode == 0, p.stderr
         assert p.stdout.strip() == os.path.join(os.path.realpath(d), 'runs', 'q8.jsonl'), p.stdout
@@ -116,7 +121,7 @@ def q_run_passes_sigterm_to_its_command():
     # process is gone.
     d = sandbox()
     try:
-        tr = subprocess.Popen([PY, '-B', 'track.py', 'run', 'q3', '16:4', '--', PY, '-c', 'import time; time.sleep(60)'], cwd=d)
+        tr = subprocess.Popen([PY, '-B', TRACK, 'run', 'q3', '16:4', '--', PY, '-c', 'import time; time.sleep(60)'], cwd=d)
         until(lambda: os.path.exists(os.path.join(d, 'runs', 'q3.jsonl')), 20)
         tr.send_signal(signal.SIGTERM)
         tr.wait(timeout=30)
@@ -143,7 +148,7 @@ def q_adopt_writes_the_end_when_the_process_is_gone():
         began = time.mktime(time.strptime(subprocess.run(['ps', '-o', 'lstart=', '-p', str(s.pid)], capture_output=True,
                                                          text=True).stdout.strip(), '%a %b %d %H:%M:%S %Y'))
         time.sleep(1.5)
-        tr = subprocess.Popen([PY, '-B', 'track.py', 'adopt', 'q4', '16:4', str(s.pid), '--found', 'W'], cwd=d)
+        tr = subprocess.Popen([PY, '-B', TRACK, 'adopt', 'q4', '16:4', str(s.pid), '--found', 'W'], cwd=d)
         s.wait()
         s.stdout.close()
         assert tr.wait(timeout=60) == 0
@@ -163,16 +168,16 @@ def q_refuses_a_name_used_before_a_bad_target_and_a_dead_pid():
     # was (two lines); the bad target and the dead pid each exit nonzero and write no record.
     d = sandbox()
     try:
-        cmd = [PY, '-B', 'track.py', 'run', 'q5', '16:4', '--', PY, '-c', 'pass']
+        cmd = [PY, '-B', TRACK, 'run', 'q5', '16:4', '--', PY, '-c', 'pass']
         assert subprocess.run(cmd, cwd=d).returncode == 0
         again = subprocess.run(cmd, cwd=d, capture_output=True, text=True)
         assert again.returncode != 0 and 'q5' in again.stderr, again
         assert len(record(d, 'q5')) == 2
-        bad = subprocess.run([PY, '-B', 'track.py', 'run', 'q6', '16', '--', PY, '-c', 'pass'], cwd=d, capture_output=True, text=True)
+        bad = subprocess.run([PY, '-B', TRACK, 'run', 'q6', '16', '--', PY, '-c', 'pass'], cwd=d, capture_output=True, text=True)
         assert bad.returncode != 0 and not os.path.exists(os.path.join(d, 'runs', 'q6.jsonl')), bad
         s = subprocess.Popen([PY, '-c', 'pass'])
         s.wait()
-        dead = subprocess.run([PY, '-B', 'track.py', 'adopt', 'q7', '16:4', str(s.pid)], cwd=d, capture_output=True, text=True)
+        dead = subprocess.run([PY, '-B', TRACK, 'adopt', 'q7', '16:4', str(s.pid)], cwd=d, capture_output=True, text=True)
         assert dead.returncode != 0 and not os.path.exists(os.path.join(d, 'runs', 'q7.jsonl')), dead
     finally:
         shutil.rmtree(d)
@@ -184,7 +189,7 @@ def q_refusal_never_launches_the_command():
     d = sandbox()
     try:
         cmd = [PY, '-c', "open('launched', 'a').write('x'); import time; time.sleep(.1)"]
-        base = [PY, '-B', 'track.py', 'run']
+        base = [PY, '-B', TRACK, 'run']
         assert subprocess.run([*base, 'used', '16:4', '--', PY, '-c', 'pass'], cwd=d).returncode == 0
         for name, target in [('used', '16:4'), ('bad', '16'), ('bad/name', '16:4')]:
             p = subprocess.run([*base, name, target, '--', *cmd], cwd=d, capture_output=True, timeout=10)
@@ -216,7 +221,7 @@ def q_owned_descendants_end_on_exit_and_signal():
         d, tr, grand = sandbox(), None, None
         try:
             open(os.path.join(d, 'family.py'), 'w').write(FAMILY)
-            tr = subprocess.Popen([PY, '-B', 'track.py', 'run', 'family', '16:4', '--', PY, 'family.py', delay,
+            tr = subprocess.Popen([PY, '-B', TRACK, 'run', 'family', '16:4', '--', PY, 'family.py', delay,
                                    str(max(code, 0))], cwd=d, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             marker = os.path.join(d, 'family')
             until(lambda: os.path.exists(marker) and os.path.getsize(marker) > 0, 10)
@@ -269,7 +274,7 @@ def q_cleanup_passes_over_a_group_of_zombies():
         try:
             open(os.path.join(d, 'zombie.py'), 'w').write(ZOMBIE)
             with open(os.path.join(d, 'tracker.err'), 'w') as log:      # C keeps a pipe's write end open
-                tr = subprocess.Popen([PY, '-B', 'track.py', 'run', 'zombie', '16:4', '--', PY, 'zombie.py', delay,
+                tr = subprocess.Popen([PY, '-B', TRACK, 'run', 'zombie', '16:4', '--', PY, 'zombie.py', delay,
                                        str(max(code, 0))], cwd=d, stdout=subprocess.DEVNULL, stderr=log)
             marker = os.path.join(d, 'zombie')
             until(lambda: os.path.exists(marker) and os.path.exists(os.path.join(d, 'runs', 'zombie.jsonl')), 10)
@@ -316,7 +321,7 @@ track.group_signal(s.pid, signal.SIGKILL)
 assert s.wait(timeout=10) == -signal.SIGKILL
 print('ok', flush=True)
 '''
-        p = subprocess.run([PY, '-B', '-c', code], cwd=d, capture_output=True, text=True, timeout=30)
+        p = subprocess.run([PY, '-B', '-c', code], cwd=d, env=IMPORTS, capture_output=True, text=True, timeout=30)
         assert p.returncode == 0 and p.stdout == 'ok\n', (p.returncode, p.stdout, p.stderr)
     finally:
         shutil.rmtree(d)
@@ -327,7 +332,7 @@ def q_spawn_failure_preserves_a_failure_record():
     # has a terminal failure record, so another launch cannot silently reuse it.
     d = sandbox()
     try:
-        p = subprocess.run([PY, '-B', 'track.py', 'run', 'missing', '16:4', '--', './no-such-command'], cwd=d,
+        p = subprocess.run([PY, '-B', TRACK, 'run', 'missing', '16:4', '--', './no-such-command'], cwd=d,
                            capture_output=True, timeout=10)
         assert p.returncode != 0
         start, end = record(d, 'missing')
@@ -337,7 +342,7 @@ def failed_spawn(*a, **kw): raise OSError('injected spawn failure')
 track.subprocess.Popen = failed_spawn
 track.run('nospawn', '16:4', None, ['unused'])
 '''
-        p = subprocess.run([PY, '-B', '-c', code], cwd=d, capture_output=True, timeout=10)
+        p = subprocess.run([PY, '-B', '-c', code], cwd=d, env=IMPORTS, capture_output=True, timeout=10)
         start, end = record(d, 'nospawn')
         assert p.returncode != 0 and start['pid'] is None and end['status'] == 1, (start, end)
     finally:
@@ -350,7 +355,7 @@ def q_sighup_is_forwarded_before_cleanup():
     d, tr = sandbox(), None
     try:
         code = "import signal,time;signal.signal(signal.SIGHUP,lambda *a:(open('hup','w').write('yes'),exit(0)));open('ready','w').write('yes');time.sleep(60)"
-        tr = subprocess.Popen([PY, '-B', 'track.py', 'run', 'hup', '16:4', '--', PY, '-c', code], cwd=d)
+        tr = subprocess.Popen([PY, '-B', TRACK, 'run', 'hup', '16:4', '--', PY, '-c', code], cwd=d)
         until(lambda: os.path.exists(os.path.join(d, 'ready')), 10)
         tr.send_signal(signal.SIGHUP)
         tr.wait(timeout=10)
@@ -375,7 +380,7 @@ def broken(*a,**kw):
 track.start = broken
 track.run('writefail', '16:4', None, [sys.executable, 'family.py', '60', '0'])
 '''
-        tr = subprocess.Popen([PY, '-B', '-c', code], cwd=d, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        tr = subprocess.Popen([PY, '-B', '-c', code], cwd=d, env=IMPORTS, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         tr.wait(timeout=10)
         pids = [int(open(os.path.join(d, name)).read()) for name in ('family', 'parent')]
         until(lambda: all(gone(pid) for pid in pids), 2)

@@ -13,13 +13,13 @@ Vocabulary:
             each run's share, its group's CPU seconds over the capacity's (a process new in the later sample counted
             from 0: it started between them); other processes' share is the rest, 1 - idle - the shares.  A process that
             ended between the samples loses its last seconds to other processes'.
-  sampler   this file run as `python3 -B cpu.py --watch` from the repository's root: a sample every EVERY seconds, each
+  sampler   this file run as `python3 -B searchwatch/cpu.py --watch` from the repository's root: a sample every EVERY seconds, each
             interval from the last appended to FILE, which the progress watcher reads (progress.cpu_file) and does not
             write; one at a time (a lock beside FILE).  Kept apart from the watcher, whose snapshots take from seconds to
             minutes, so that the samples keep a steady minute."""
 import ctypes, ctypes.util, fcntl, glob, json, os, re, subprocess, sys, time, traceback
 
-ROOT = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # the repository's root, above searchwatch/ (this file was at the root until 2026-11-10, dreeves's README [REF])
 FILE = os.path.join(ROOT, 'runs', 'cpu', 'intervals.jsonl')   # the intervals, a line each (apart from runs/*.jsonl, the records)
 EVERY = 60          # seconds between samples
 
@@ -123,6 +123,6 @@ def watch(root=ROOT, path=FILE, every=EVERY):
 
 
 if __name__ == '__main__':
-    # TODO: error copy; says how to run the sampler: python3 -B cpu.py --watch
-    assert sys.argv[1:] == ['--watch'], 'Claude: "usage: python3 -B cpu.py --watch"'
+    # TODO: error copy; says how to run the sampler: python3 -B searchwatch/cpu.py --watch
+    assert sys.argv[1:] == ['--watch'], 'Claude: "usage: python3 -B searchwatch/cpu.py --watch"'
     watch()

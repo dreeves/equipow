@@ -7,7 +7,7 @@ sys.dont_write_bytecode = True
 import os, time
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, ROOT)
+sys.path.insert(0, os.path.join(ROOT, 'searchwatch'))   # cpu.py's directory since 2026-11-10 ([REF]); the root until then
 
 
 def cpu():

@@ -19,7 +19,7 @@ HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # the repos
 INDEX = os.path.join(HERE, 'index.html')
 WL = os.path.join(HERE, 'proofs', 'record_gaps.wl')       # in proofs/ since [FAC] stage 3a (2026-10-31)
 WL_URL = 'https://raw.githubusercontent.com/dreeves/equipow/main/proofs/record_gaps.wl'
-POW2_JS = os.path.join(HERE, 'pow2.js')
+POW2_JS = os.path.join(HERE, 'pagedata', 'pow2.js')   # in pagedata/ since 2026-11-10 ([REF])
 HEADER = ['Record gaps', 'The power of 2', 'The order']        # Stan Wagon's, which record_gaps.wl's table heads
 THEOREM_KS = [10, 20, 28, 36, 39, 47, 56, 58, 68]              # the theorem's alternative form on index.html
 # the table as text: each cell, superscripts as a^b and styles dropped, in OutputForm on one line
@@ -193,9 +193,10 @@ def page_table(pow2_text, cols):
     form, as rows of cell texts (a superscript as ^)."""
     d = tempfile.mkdtemp(prefix='record-gaps-quals-')
     try:
-        for name in ('index.html', 'mstar.js'): shutil.copy(os.path.join(HERE, name), d)
+        shutil.copy(os.path.join(HERE, 'index.html'), d)
+        shutil.copy(qi.DATA, qi.data_file(d, 'mstar.js'))
         qi.copy_page_dir(d)
-        open(os.path.join(d, 'pow2.js'), 'w', encoding='utf-8').write(pow2_text)
+        open(qi.data_file(d, 'pow2.js'), 'w', encoding='utf-8').write(pow2_text)
         dom = qi.chrome(d, ['--virtual-time-budget=5000', '--dump-dom', 'file://' + os.path.join(d, 'index.html')])
     finally:
         shutil.rmtree(d)

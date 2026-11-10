@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 import numpy as np
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))   # the repository's root, for its modules
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'searchwatch'))   # progress.py's directory since 2026-11-10 ([REF]); the root until then
 import progress
 
 def phase(nodes=(), **changes):

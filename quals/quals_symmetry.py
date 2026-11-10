@@ -30,7 +30,7 @@ sys.dont_write_bytecode = True
 import os, re, json, html, time, shutil, tempfile, traceback, subprocess
 sys.setrecursionlimit(10000)                  # built()'s recipes nest a join or a wrap per level
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # the repository's root, above quals/
-sys.path.insert(0, HERE)                                              # for its modules
+sys.path.insert(0, os.path.join(HERE, 'pagegen'))   # mstar.py's directory since 2026-11-10 ([REF]); the root until then
 import mstar
 import quals_index as qi                      # read only: page, blank_comments, mstar_data, copy_page_dir, chrome, DATA, POW2
 from math import cos, pi                      # by name: math, below, is the account's formulas
@@ -299,7 +299,7 @@ def q_symmetry_code_lines_are_ragged_and_unhyphenated():
     try:
         open(os.path.join(d, 'index.html'), 'w', encoding='utf-8').write(qi.page().replace('</body>', LOOK + '</body>'))
         qi.copy_page_dir(d)
-        for src, name in ((qi.DATA, 'mstar.js'), (qi.POW2, 'pow2.js')): shutil.copy(src, os.path.join(d, name))
+        for src, name in ((qi.DATA, 'mstar.js'), (qi.POW2, 'pow2.js')): shutil.copy(src, qi.data_file(d, name))
         dom = qi.chrome(d, ['--window-size=1280,1000', '--virtual-time-budget=10000', '--dump-dom',
                             'file://' + os.path.join(d, 'index.html')])
     finally:

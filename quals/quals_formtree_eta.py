@@ -8,7 +8,7 @@ import tempfile
 import unittest
 from unittest import mock
 
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / 'searchwatch'))   # formtree_eta.py's directory since 2026-11-10 ([REF]); the root until then
 import numpy as np
 import formtree_eta as eta
 
@@ -181,7 +181,8 @@ class Attachment(unittest.TestCase):
                     display=dict(lindy=True,tracked=True))
         # the page's snapshot, in the odds' form of 2026-11-06 (its chance and curves until then)
         self.old=dict(program='ftree.py',n=288,order=10,odds=dict(prior=.01,since=1000.,exists=[[1500.,.01],[1900.,.009]]))
-        (self.root/'progress.js').write_text('progressData('+json.dumps({'runs':[self.old]})+');\n')
+        (self.root/'pagedata').mkdir()   # the page's data files' directory since 2026-11-10 ([REF])
+        (self.root/'pagedata'/'progress.js').write_text('progressData('+json.dumps({'runs':[self.old]})+');\n')
         self.w=work(5,50);self.w.update(source_time=1990.,source_age=10.)
 
     def test_load_binds_schema_samples_and_sources(self):
@@ -211,7 +212,7 @@ class Attachment(unittest.TestCase):
         self.assertEqual(got['odds']['exists'][:2],old['odds']['exists'])
         self.assertEqual((got['odds']['prior'],got['odds']['since']),(.01,old['odds']['since']))
         first=copy.deepcopy(cache['points'])
-        (self.root/'progress.js').write_text('invalid on purpose')
+        (self.root/'pagedata'/'progress.js').write_text('invalid on purpose')
         self.model['log_bias']=.5;self.path.write_text(json.dumps(self.model))
         with mock.patch.object(eta.formtree_work,'read',return_value=self.w):
             again=eta.attach(copy.deepcopy(self.s),self.root,self.path,.01,2100.,cache)
@@ -373,7 +374,7 @@ class Attachment(unittest.TestCase):
         # argument for salvaging anything. the up-to-date probability that a bipartition exists is great."): until
         # then the cold start took Lindy points from before now, from its former Lindy model (chance.lindy_shown, gone
         # with the graphs it drew), and the odds a basis, work; this qual test_cold_fixture_seeds_legacy_only_before_activation.
-        (self.root/'progress.js').unlink();cache={}
+        (self.root/'pagedata'/'progress.js').unlink();cache={}
         with mock.patch.object(eta.formtree_work,'read',return_value=self.w):
             got=eta.attach(copy.deepcopy(self.s),self.root,self.path,.01,2000.,cache)
         self.assertEqual(cache['legacy'],dict(since=1000,exists=[]))

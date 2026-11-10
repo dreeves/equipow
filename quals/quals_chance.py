@@ -16,7 +16,7 @@ sys.dont_write_bytecode = True
 import os, json, math, time, shutil, tempfile, traceback
 import numpy as np
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # the repository's root, above quals/
-sys.path.insert(0, HERE)                                              # for its modules
+sys.path.insert(0, os.path.join(HERE, 'searchwatch'))   # chance.py, formtree_eta.py, progress.py's directory since 2026-11-10 ([REF]); the root until then
 import chance
 
 BANDIT = os.path.join(HERE, 'scratch', 'bandit-20261103b')            # the bandit's rerun (rerun.py, analysis.py, ranking.json)
@@ -838,7 +838,7 @@ def q_reprior_gives_the_posterior_under_another_prior_exactly():
 BAND_PROBE = r"""
 import sys, os, json, copy, hashlib, pathlib, tempfile
 from unittest import mock
-sys.path[:0] = sys.argv[1:3]
+sys.path[:0] = [sys.argv[1], os.path.join(sys.argv[2], 'searchwatch')]   # the chance.py under test; progress.py and formtree_eta.py's directory (2026-11-10, [REF])
 import numpy as np
 import chance, progress, formtree_eta
 assert pathlib.Path(chance.__file__).parent == pathlib.Path(sys.argv[1]), chance.__file__
@@ -874,7 +874,8 @@ model = dict(version=2, kind='formtree', target='288:10', seed=28810, log_bias=0
              assumptions=dict(discrepancy='qual', rate='qual', witness='qual', interval='qual'))
 (root / 'model.json').write_text(json.dumps(model))
 old = dict(program='ftree.py', n=288, order=10, odds=dict(prior=.01, since=1000., exists=[[1500., .01]]))
-(root / 'progress.js').write_text('progressData(' + json.dumps({'runs': [old]}) + ');\n')
+(root / 'pagedata').mkdir()
+(root / 'pagedata' / 'progress.js').write_text('progressData(' + json.dumps({'runs': [old]}) + ');\n')
 s = dict(n=288, order=10, program='ftree.py', state='running', passes=[[1000, 2000]], to_go=dict(median=1000, lo=10, hi=19000),
          etas={}, display=dict(lindy=True, tracked=True))
 w = dict(done=55, rate=10., roots=[dict(name='a', done=5, complete=False), dict(name='b', done=50, complete=False)], source_time=1990., source_age=10.)
@@ -918,7 +919,7 @@ def q_each_band_and_the_coverage_are_set_in_one_place():
     # chance.work's to_go and total checked against exhaust, in place of brute_work's mixture; the probe's progress.js
     # in the odds' form of that night, {prior, since, exists}.
     import re, subprocess, statistics
-    source = open(os.path.join(HERE, 'chance.py'), encoding='utf-8').read()
+    source = open(os.path.join(HERE, 'searchwatch', 'chance.py'), encoding='utf-8').read()   # in searchwatch/ since 2026-11-10 ([REF])
     names = list(CALIBRATED['bands'])
     assert re.findall(r'^COVERAGE = (\S+) ', source, re.M) == ['0.8'], re.findall(r'^COVERAGE = .*', source, re.M)
     assert all(len(re.findall(rf'^ +{name}=\(0\.1, 0\.9\)', source, re.M)) == 1 for name in names), names

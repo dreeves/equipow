@@ -158,7 +158,7 @@
   function load() {
     view.loads += 1;
     const s = document.createElement('script');
-    s.src = 'progress.js?' + Date.now();
+    s.src = 'pagedata/progress.js?' + Date.now();
     s.onload = () => s.remove();
     s.onerror = () => { s.remove(); missing.hidden = false; answer(() => [missing.cloneNode(true)]); };
     document.head.appendChild(s);

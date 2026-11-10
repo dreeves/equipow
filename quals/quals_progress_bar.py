@@ -58,7 +58,7 @@ HARNESS = r"""<script>
     let quiet = 0;
     for (let n = 0; quiet < 2 && n < 80; n++) {
       await sleep(50);
-      quiet = window.progressView.data && !document.head.querySelector('script[src^="progress.js?"]') ? quiet + 1 : 0;
+      quiet = window.progressView.data && !document.head.querySelector('script[src^="pagedata/progress.js?"]') ? quiet + 1 : 0;
     }
     if (quiet < 2) throw Error('snapshot');
     const data = JSON.parse(JSON.stringify(window.progressView.data)), base = data.runs[0];
@@ -110,9 +110,9 @@ def render(width):
         source = source.replace('</body>', HARNESS.replace('__CASES__', json.dumps(CASES)) + '</body>')
         Path(d, 'index.html').write_text(source)
         page.copy_page_dir(d)
-        shutil.copy(page.DATA, Path(d, 'mstar.js'))
-        shutil.copy(page.POW2, Path(d, 'pow2.js'))
-        Path(d, 'progress.js').write_text('progressData(' + json.dumps(copy.deepcopy(page.PROGRESS_DATA)) + ');\n')
+        shutil.copy(page.DATA, page.data_file(d, 'mstar.js'))
+        shutil.copy(page.POW2, page.data_file(d, 'pow2.js'))
+        Path(page.data_file(d, 'progress.js')).write_text('progressData(' + json.dumps(copy.deepcopy(page.PROGRESS_DATA)) + ');\n')
         Path(d, 'host.html').write_text(page.HOST.replace('__WIDTH__', str(width)))
         args = [f'--window-size={max(width, 500) + 40},1100', '--force-device-scale-factor=1', '--virtual-time-budget=10000', '--dump-dom']
         if artifacts:

@@ -11,7 +11,7 @@ import ast, copy, gzip, itertools, json, math, os, random, re, subprocess, tempf
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # the repository's root, above quals/
 PROOFS = os.path.join(HERE, 'proofs')
 PROVE = os.path.join(HERE, 'searches', 'pintree', 'pintree_prove.py')
-sys.path.insert(0, HERE); sys.path.insert(0, PROOFS)
+sys.path.insert(0, os.path.join(HERE, 'pagegen')); sys.path.insert(0, PROOFS)   # pagegen/: mstar.py's directory since 2026-11-10 ([REF]); the root until then
 # residues, in engine/ since [FAC] stage 3b (2026-11-04)
 sys.path.insert(0, os.path.join(HERE, 'engine'))
 COUNTS = {(432, 12): {'closed': 7561, 'splits': 101, 'vectors': 7672, 'skipped': 11, 'bounds': 2860, 'certificates': 3119},

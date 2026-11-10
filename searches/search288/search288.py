@@ -33,7 +33,7 @@ JOURNAL = ROOT / 'searches' / 'search288' / 'search288_journal.jsonl'
 VERSION, CONTROL_TOTAL, TOTAL, SECONDS = 1, 12, 16, 30
 SOURCES = ('searches/search288/search288.py', 'searches/search288/search288_geometry.py',
            'searches/search288/target288.py', 'searches/join720/join720.py',
-           'engine/lattice288.py', 'mstar.py', 'engine/overnight_v5.py', 'engine/certbb.py')
+           'engine/lattice288.py', 'pagegen/mstar.py', 'engine/overnight_v5.py', 'engine/certbb.py')
 CODE = hashlib.sha256(b''.join((ROOT / p).read_bytes() for p in SOURCES)).hexdigest()
 INPUT = hashlib.sha256(target288.PREPARED.read_bytes()).hexdigest()
 LIBRARIES = dict(fpylll=fpylll.__version__, sympy=G.sp.__version__)

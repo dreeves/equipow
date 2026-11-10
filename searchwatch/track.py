@@ -22,11 +22,11 @@ which progress.py's watcher reads (survey_track); the search itself is not chang
            command appends each line whole, opening the record to append without creating it (os.O_APPEND without
            os.O_CREAT), so that a line written before the start is linked into place fails rather than taking the
            start's place.  An adopted process has no such variable.
-  run      python3 -B track.py run NAME N:M [--found FILE] -- COMMAND ...: starts COMMAND, writes the start, waits,
+  run      python3 -B searchwatch/track.py run NAME N:M [--found FILE] -- COMMAND ...: starts COMMAND, writes the start, waits,
             writes the end and exits with COMMAND's status.  A hidden exclusive reservation precedes the launch.
             The command owns a new process group, cleaned even after a normal exit. SIGTERM, SIGINT and SIGHUP
             cancel that group and are recorded as negative statuses; other launcher failures record status 1.
-  adopt    python3 -B track.py adopt NAME N:M PID [--found FILE]: for a process started without track.py: writes the
+  adopt    python3 -B searchwatch/track.py adopt NAME N:M PID [--found FILE]: for a process started without track.py: writes the
            start (its command as ps prints it, and "started", its start time as ps prints it, which with its pid
            identifies it), polls it every POLL seconds and writes the end once no live process has that pid and
            start time.  A SIGKILL'd or crashed tracker writes no end: the watcher then shows the run aborted once its
@@ -40,7 +40,7 @@ sys.dont_write_bytecode = True
 # TODO: error copy; says the script refuses to run under python -O, which would strip its assertions
 if not __debug__: raise SystemExit('Claude: "refusing to run without assertions (python -O)"')
 import os, re, json, time, shlex, signal, subprocess
-HERE = os.path.dirname(os.path.abspath(__file__))
+HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # the repository's root, above searchwatch/ (this file was at the root until 2026-11-10, dreeves's README [REF])
 RUNS = os.path.join(HERE, 'runs')
 POLL = 10                                              # seconds between an adopted process's checks
 GRACE = 2                                             # seconds before killing remaining owned processes

@@ -4,7 +4,7 @@ import sys
 sys.dont_write_bytecode = True
 import html, json, os, re, shutil, tempfile, unittest
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # the repository's root, above quals/
-sys.path.insert(0, HERE)                                              # for its modules
+sys.path.insert(0, os.path.join(HERE, 'searchwatch'))   # progress.py's directory since 2026-11-10 ([REF]); the root until then
 import progress
 
 PID = 12345
@@ -206,7 +206,7 @@ const out = document.createElement('pre'); out.id = 'lattice-qual'; out.textCont
         text = open(os.path.join(HERE, 'index.html')).read().replace('</body>', harness + '</body>')
         open(os.path.join(d, 'index.html'), 'w').write(text)
         for name in ('mstar.js', 'pow2.js'):
-            shutil.copy(os.path.join(HERE, name), os.path.join(d, name))
+            shutil.copy(os.path.join(HERE, q.PAGEDATA, name), q.data_file(d, name))
         q.copy_page_dir(d)
         dom = q.chrome(d, ['--window-size=1000,1100', '--virtual-time-budget=5000', '--dump-dom',
                            'file://' + os.path.join(d, 'index.html')])

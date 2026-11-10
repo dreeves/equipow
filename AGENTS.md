@@ -49,11 +49,12 @@ The current state, kept short, since every session loads this file. Update it in
 - **The project and page:**
   - The project began as a claude.ai chat (2026-10-03 to 06), whose prompts and replies are in sourcery.html.
   - The page is index.html, at https://equipow.dreev.es; dreeves pushes.
-  - Its m*(n) chart (Figure 1) runs to n = 1024 and comes from `mstar.py` → `mstar.js`. Its powers-of-2 chart (Figure 2) runs to 2^72 and comes from `pow2.py` → `pow2.js`.
+  - Its m*(n) chart (Figure 1) runs to n = 1024 and comes from `pagegen/mstar.py` → `pagedata/mstar.js`. Its powers-of-2 chart (Figure 2) runs to 2^72 and comes from `pagegen/pow2.py` → `pagedata/pow2.js`.
 - **The README's tasks:** taken one at a time, in its order (dreeves, 2026-11-10), each left for his review before the next, since they edit the same page.
   - [FTP] is done (2026-11-10): the page's section "Form-tree proofs", after the pin trees'. `quals_index.q_form_trees_have_their_exposition` holds its links and numbers to the proofs' data.
   - [SYM] is done (2026-11-10): the symlarge proof is in the page, in a fold of the Symmetry section that starts closed. quals_symlarge's last five quals hold the fold.
   - Also done that day, at his word after [SYM]: the 384 proof has one copy, the page's (`#proof384-complete`; `proof384.html` only sends its old address there), and the page's tables and figures have labels and references as LaTeX has them. Programs stay files that the page links (dreeves: "if a file needs to be separate to run it then we should link to -- no DRY violations").
+  - [REF] is done (2026-11-10): no script is left at the root. dreeves's names: `pagegen/` (mstar.py, pow2.py), `searchwatch/` (the watcher, tracker, shepherd, sampler and their modules); `pagedata/` holds the three data files the page loads.
   - Next is [COM]. In the Symmetry section a `<code>` is a sequence's code (quals_symmetry counts them), so a file name there is a link.
 - **Open cells:** 480 (12–14), 528 (11–12), 720 (13–14) and 864 (12–14), plus 1440 (16–17) past the chart. OEIS A323395:
   - a(12) ∈ {480, 672};
@@ -70,15 +71,16 @@ The current state, kept short, since every session loads this file. Update it in
 
 ## Live processes on dreeves's Mac
 
-- **Progress watcher:** exactly one `search592_progress.py --watch` (a wrapper of `progress.py`) surveys every minute.
-  - Since 2026-11-09 it rewrites progress.js only when some run's data change, so the page's "As of" time is the last change.
+- **Progress watcher:** exactly one `searchwatch/search592_progress.py --watch` (a wrapper of `searchwatch/progress.py`) surveys every minute.
+  - Since 2026-11-09 it rewrites `pagedata/progress.js` only when some run's data change, so the page's "As of" time is the last change.
   - A stopped search's odds stand at its last event, which is the latest time on its tracked records or its campaign's journal.
   - Start or restart it with `scratch/watcher-20261030/launch.py`, which refuses while another runs and records its pid in `scratch/watcher-20261030/launched.json`.
-  - Restart it after editing `progress.py`. Stop it by that pid, not by pgrep: a shell whose command line names it matches too.
-- **CPU sampler:** `nohup nice -n 15 /opt/homebrew/bin/python3 -B cpu.py --watch >> runs/cpu/sampler.log 2>&1 &`, from the repo root. Only one runs at a time (lock `runs/cpu/lock`); relaunch it after a reboot.
-- **Shepherd:** `shepherd.py` still runs. All four of its registered searches are stopped, so it launches nothing.
+  - Restart it after editing `searchwatch/progress.py`. Stop it by that pid, not by pgrep: a shell whose command line names it matches too.
+- **CPU sampler:** `nohup nice -n 15 /opt/homebrew/bin/python3 -B searchwatch/cpu.py --watch >> runs/cpu/sampler.log 2>&1 &`, from the repo root. Only one runs at a time (lock `runs/cpu/lock`); relaunch it after a reboot.
+- **Shepherd:** `searchwatch/shepherd.py` still runs (`PYTHONPATH=scratch/lower24-design/beyond1000/pylib nohup nice -n 15 /opt/homebrew/bin/python3 -B searchwatch/shepherd.py >> searchwatch/shepherd.err 2>&1 &`, from the repo root). All four of its registered searches are stopped, so it launches nothing.
+- All three were restarted from `searchwatch/` on 2026-11-10 15:41.
 - **Live Server:** serves the page on port 5501 (VS Code's "Go Live"). If the progress section looks stale, check that first.
-  - `.vscode/settings.json` keeps it from reloading on progress.js, logs, journals, `scratch/`, AGENTS.md and AGENTS-history.md.
+  - `.vscode/settings.json` keeps it from reloading on pagedata/progress.js, logs, journals, `scratch/`, AGENTS.md and AGENTS-history.md.
 
 ## How work is done here
 
@@ -89,12 +91,14 @@ The current state, kept short, since every session loads this file. Update it in
 - **Layout:**
   - quals in `quals/`, run as `python3 -B quals/quals_X.py` (a few suites only run that way);
   - the search engine in `engine/` (overnight_v5, boxsplit, focus, fanout, certbb, …);
-  - the page's CSS and JS in `page/`;
+  - the page's CSS and JS in `page/`, the data files it loads in `pagedata/` (mstar.js, pow2.js, progress.js), and the two scripts that make the first two in `pagegen/`;
+  - what runs and watches the searches in `searchwatch/` (progress.py and its two wrappers, track.py, shepherd.py, cpu.py, chance.py, the form-tree ETA modules, run_modules.py, stages.json);
+  - a script finds the repository's root as the directory above its own, and an importer puts the script's directory on sys.path, as for `engine/`;
   - proofs and checkers in `proofs/`;
   - finished searches in `searches/NAME/`;
-  - track.py records in `runs/` (git-ignored);
+  - `searchwatch/track.py`'s records in `runs/` (git-ignored);
   - work in dated `scratch/NAME-YYYYMMDD/` directories, each with a NOTES.md.
-- **Long runs:** launch every one through `track.py run NAME N:M [--found FILE] -- COMMAND` (or `track.py adopt NAME N:M PID`), so the page's Search progress section shows it with an ETA chart.
+- **Long runs:** launch every one through `python3 -B searchwatch/track.py run NAME N:M [--found FILE] -- COMMAND` (or `… adopt NAME N:M PID`), from the repo root, so the page's Search progress section shows it with an ETA chart.
 - **Sources:** before computing a cited result, read its primary source and classify its proof. Sources are in `scratch/app-20261105/sources/`, and BGPW's paper is in `scratch/oeis/reprint.txt`. On 2026-11-09, about 110 CPU-hours went into re-proving m*(152) ≤ 6, which had a six-line hand proof.
 - **Page edits:**
   - Math goes in LaTeX for KaTeX, `\( … \)`.
@@ -102,7 +106,7 @@ The current state, kept short, since every session loads this file. Update it in
   - A code is `<code id="N:M">`, with an "equipow pN" label in mstar.py.
   - A table or figure of the page is mentioned by a link from its number to its caption's id (`results-table`, `pow2-table`, `mstar-figure`, `smallest-table`, `pow2-figure`, `gaps-table`), as `Figures <a href="#mstar-figure">1</a>`. `quals_index.q_tables_and_figures_are_numbered` holds each kind's labels to 1, 2, 3, … in page order and each such link to its float's number. BGPW's tables keep their prefix.
   - A proof or exposition has one copy, in index.html, in a fold that starts closed (`<details class="proof-exposition">`, `<div class="proof-body">`); an address it had before sends its reader to the fold.
-  - After changing a chart's data, rerun `python3 -B mstar.py` and rebuild preview.png with `scratch/record-20261025/page/preview.py 0.40`.
+  - After changing a chart's data, rerun `python3 -B pagegen/mstar.py` and rebuild preview.png with `scratch/record-20261025/page/preview.py 0.40`.
   - Changelog entries are math statements per day (`quals_index.statement`), with noteworthy results on lines of their own (`NOTEWORTHY`).
 - **Quals:** red first, then green. No qual reads dreeves's words. A spec change needs his OK and a dated comment.
   - A qual prevents a regression that could happen by accident (dreeves, 2026-11-10, of a qual that forbade links to .txt files: "if we link to a .txt then ipso facto we did it on purpose, right?"). A check that only something done on purpose can fail is a ban: none is written, and one that bites is cut with a dated comment, not worked around on the page.

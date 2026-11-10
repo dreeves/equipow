@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Claude's shepherd (named 2026-10-23, dreeves: "chef's-kiss"): keeps the searches running by the principles dreeves
-decided that day (AGENTS.md's scratchpad has them).  Run from this directory, once, in the background:
+decided that day (AGENTS.md's scratchpad has them).  Run from the repository's root, once, in the background:
 
-    PYTHONPATH=scratch/lower24-design/beyond1000/pylib /opt/homebrew/bin/python3 -B shepherd.py
+    PYTHONPATH=scratch/lower24-design/beyond1000/pylib /opt/homebrew/bin/python3 -B searchwatch/shepherd.py
 
 Every REFRESH seconds it reads the process list, each search's journal and data and the free disk, logs each status
 it has not logged before, and acts by the floors: it launches every launchable search at or above the floor, stops the
@@ -49,8 +49,8 @@ import time
 
 from progress import processes, runs
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-LOG = os.path.join(HERE, 'shepherd.log')
+HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # the repository's root, above searchwatch/ (this file was at the root until 2026-11-10, dreeves's README [REF])
+LOG = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'shepherd.log')   # beside this file
 LOCK = os.path.join(HERE, 'scratch', 'shepherd.lock')     # held while a shepherd runs: never two at once
 PYTHON = '/opt/homebrew/bin/python3'
 PYLIB = 'scratch/lower24-design/beyond1000/pylib'          # the searches' PYTHONPATH, relative to HERE
@@ -221,7 +221,7 @@ def lock(path):
 
 def main(argv):
     # TODO: error copy; says how to run the shepherd: with no arguments
-    assert argv == [], 'Claude: "usage: python3 -B shepherd.py"'
+    assert argv == [], 'Claude: "usage: python3 -B searchwatch/shepherd.py"'
     held = lock(LOCK)
     os.nice(max(0, NICE - os.nice(0)))
     named = {s.name: s for s in SEARCHES}

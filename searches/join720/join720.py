@@ -24,7 +24,7 @@ from fpylll import IntegerMatrix, LLL, BKZ, GSO, Enumeration, EnumerationError, 
 import sympy as sp
 
 ROOT = Path(__file__).resolve().parents[2]   # the repository's root, above searches/join720/ ([FAC] stage 3a)
-sys.path[:0] = [str(ROOT), str(ROOT / 'engine')]   # for mstar; lattice288 and overnight_v5, in engine/ (stage 3b)
+sys.path[:0] = [str(ROOT / 'pagegen'), str(ROOT / 'engine')]   # for mstar, in pagegen/ since 2026-11-10 ([REF]); the root until then; lattice288 and overnight_v5, in engine/ (stage 3b)
 import mstar
 from lattice288 import IntegerSystem, atomic_json, valid
 from overnight_v5 import gbinom
@@ -35,7 +35,7 @@ VERSION, TOTAL, CONTROL_TOTAL, SECONDS, SEED = 1, 16, 14, 30, 20261021
 FIXED = {'calibration': (mstar.explicit()[192, 'equipow p192'], 336, 9),
          'search': (mstar.build(336), 384, 10)}
 CODE = hashlib.sha256(b''.join((ROOT / p).read_bytes() for p in
-    ('searches/join720/join720.py', 'engine/lattice288.py', 'mstar.py', 'engine/overnight_v5.py', 'engine/certbb.py'))
+    ('searches/join720/join720.py', 'engine/lattice288.py', 'pagegen/mstar.py', 'engine/overnight_v5.py', 'engine/certbb.py'))
     + json.dumps(FIXED, sort_keys=True).encode()).hexdigest()
 LIBRARIES = dict(fpylll=fpylll.__version__, sympy=sp.__version__)
 

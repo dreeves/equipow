@@ -15,7 +15,7 @@ import os, re, json, math, time, subprocess, traceback, itertools
 from functools import lru_cache
 import sympy as sp
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # the repository's root, above quals/
-sys.path.insert(0, HERE)                                              # for its modules
+sys.path.insert(0, os.path.join(HERE, 'pagegen'))   # mstar.py, pow2.py's directory since 2026-11-10 ([REF]); the root until then
 import mstar
 import pow2
 
@@ -41,13 +41,13 @@ def node_global(path, name):
 @lru_cache(maxsize=None)
 def mstar_disk():
     """mstar.js's columns as node sees them, cols[n-1] for n = 1..mstar.NMAX."""
-    return node_global(os.path.join(HERE, 'mstar.js'), 'MSTAR')[2]['cols']
+    return node_global(os.path.join(HERE, 'pagedata', 'mstar.js'), 'MSTAR')[2]['cols']
 
 
 @lru_cache(maxsize=None)
 def pow2_disk():
     """pow2.js as node sees it: (text, globals, POW2)."""
-    return node_global(os.path.join(HERE, 'pow2.js'), 'POW2')
+    return node_global(os.path.join(HERE, 'pagedata', 'pow2.js'), 'POW2')
 
 
 def cols(): return pow2_disk()[2]['cols']
@@ -396,15 +396,17 @@ def q_assertions_fire():
 
 
 def q_refuses_without_assertions():
-    # Replicata: python3 -O pow2.py, in a copy of the repo's pow2.py run from a scratch directory.
+    # Replicata: python3 -O pow2.py, in a copy of the repo's pagegen/pow2.py run from a scratch directory, in a pagegen/
+    # there (pow2.py takes the directory above its own for the repository's root, where it writes; 2026-11-10, [REF]).
     # Expectata: it exits with an error naming the refusal and writes no pow2.js there.
     with __import__('tempfile').TemporaryDirectory() as d:
-        src = open(os.path.join(HERE, 'pow2.py'), encoding='utf-8').read()
-        open(os.path.join(d, 'pow2.py'), 'w', encoding='utf-8').write(src)
-        out = subprocess.run([sys.executable, '-O', '-B', os.path.join(d, 'pow2.py')], capture_output=True, text=True,
-                             timeout=600, cwd=d, env={**os.environ, 'PYTHONPATH': HERE})
+        src = open(os.path.join(HERE, 'pagegen', 'pow2.py'), encoding='utf-8').read()
+        os.mkdir(os.path.join(d, 'pagegen'))
+        open(os.path.join(d, 'pagegen', 'pow2.py'), 'w', encoding='utf-8').write(src)
+        out = subprocess.run([sys.executable, '-O', '-B', os.path.join(d, 'pagegen', 'pow2.py')], capture_output=True, text=True,
+                             timeout=600, cwd=d, env={**os.environ, 'PYTHONPATH': os.path.join(HERE, 'pagegen')})
         assert out.returncode != 0 and 'refusing to run without assertions' in out.stderr, (out.returncode, out.stderr)
-        assert not os.path.exists(os.path.join(d, 'pow2.js'))
+        assert not os.path.exists(os.path.join(d, 'pagedata', 'pow2.js')) and not os.path.exists(os.path.join(d, 'pow2.js'))
 
 
 def main():

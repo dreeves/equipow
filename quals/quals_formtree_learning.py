@@ -6,7 +6,7 @@ from pathlib import Path
 import sys
 import unittest
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'searchwatch'))   # formtree_eta.py's directory since 2026-11-10 ([REF]); the root until then
 import numpy as np
 from scipy.integrate import quad
 from scipy.special import ndtr

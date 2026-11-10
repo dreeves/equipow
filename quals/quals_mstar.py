@@ -21,7 +21,7 @@ import os, re, json, time, random, itertools, subprocess, tempfile, traceback, m
 from functools import lru_cache
 import sympy as sp
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # the repository's root, above quals/
-sys.path.insert(0, HERE)                                              # for its modules
+sys.path.insert(0, os.path.join(HERE, 'pagegen'))   # mstar.py's directory since 2026-11-10 ([REF]); the root until then
 ENGINE = os.path.join(HERE, 'engine')                                 # the engine's, since [FAC] stage 3b (2026-11-04)
 sys.path.insert(0, ENGINE)                                            # for its modules
 import mstar
@@ -44,7 +44,7 @@ def cols():
 def disk():
     """mstar.js on disk, as the page's script sees it: run as a classic script by node in a fresh context; returns
     the file's text and {'keys': the enumerable globals it created, 'm': MSTAR}."""
-    path = os.path.join(HERE, 'mstar.js')
+    path = os.path.join(HERE, 'pagedata', 'mstar.js')
     js = open(path, encoding='utf-8').read()
     code = ("const vm = require('vm'); const ctx = vm.createContext({});"
             "vm.runInContext(require('fs').readFileSync(process.argv[1], 'utf8'), ctx);"

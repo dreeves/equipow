@@ -3020,3 +3020,15 @@ Uncommitted, for dreeves's review.
 - **quals_proof384_page.py** reads the proof from index.html (`BEGIN`, `END`; data-proof-id read as id). Its first qual asks for the two commands, the verifier's link and the three files at the root.
 - **quals/quals_inline384.py:** test_inline_proof_preserves_every_canonical_character is gone, since there is one copy; test_old_address_leads_to_the_proof is new.
 - **Astra's text of the proof is untouched.**
+
+### 2026-11-10 15:45 PST — Claude: the root's last scripts are in directories ([REF]); paths every agent uses have changed
+
+dreeves asked for it ("maybe this is a good time for task [REF]?") and named two of the directories. Uncommitted until he reviews. Nothing was running but the watcher, the CPU sampler and the shepherd, which were stopped at 15:19 and restarted from the new paths at 15:41.
+- **`pagegen/`:** mstar.py, pow2.py. Run `python3 -B pagegen/mstar.py` from the root.
+- **`pagedata/`:** mstar.js, pow2.js, progress.js. index.html loads them from there. A qual that stages a copy of the page puts them with `quals_index.data_file(d, name)`.
+- **`searchwatch/`:** progress.py, search592_progress.py, sweep288_progress.py, track.py, shepherd.py (with shepherd.log and shepherd.err), cpu.py, chance.py, formtree_eta.py, formtree_work.py, run_modules.py, stages.json.
+- **`proofs/` and `quals/`:** proof384.py and proof384.wl; quals_proof384.py and quals_proof384_page.py. No suite is at the root.
+- **Launching a tracked run:** `python3 -B searchwatch/track.py run NAME N:M [--found FILE] -- COMMAND`, from the root. Its records are still in `runs/`.
+- **Importing:** a moved script takes the directory above its own for the root. An importer puts the script's directory on sys.path (`.../'searchwatch'`, `.../'pagegen'`), as for `engine/`; the root itself has no module left to import.
+- **Fingerprints:** four finished searches hash their sources by path, and those paths were updated (`'pagegen/mstar.py'` in join720.py, search288.py and search592_geometry.py; `'searchwatch/progress.py'` in pruning288.py).
+- **For Astra:** formtree_eta.py and formtree_work.py moved unchanged but for formtree_eta's read of `pagedata/progress.js`; quals_formtree_eta, quals_formtree_learning, quals_formtree_work and quals_work_progress got the new sys.path line and are green.

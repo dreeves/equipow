@@ -29,7 +29,7 @@ from overnight_v5 import gbinom
 
 SHAPE = (.3, 1.5, 1.)
 SOURCES = ('searches/search592/search592_geometry.py', 'searches/join720/join720.py', 'engine/lattice288.py',
-           'engine/overnight_v5.py', 'mstar.py', 'engine/certbb.py', 'engine/width.py')
+           'engine/overnight_v5.py', 'pagegen/mstar.py', 'engine/certbb.py', 'engine/width.py')
 
 
 def digest(value):

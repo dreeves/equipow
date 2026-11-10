@@ -13,7 +13,8 @@ and test_sources_and_reproduction_commands_are_published asked that page for
 links to index.html and to these two quals, beside which its reader was to
 save it.  The reader is now told to clone the repository and run the same
 command, so that qual asks for the command, the verifier's link and the
-three files.
+three files.  The same day (dreeves's README, [REF]) the verifier moved to
+proofs/ and these two quals to quals/.
 """
 
 from html import unescape
@@ -24,7 +25,7 @@ import re
 import unittest
 
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parent.parent     # the repository's root, above quals/ (this file was at the root until 2026-11-10)
 BEGIN = '<!-- proof384: begin canonical main -->'     # the proof in index.html stands between these two
 END = '<!-- proof384: end canonical main -->'
 N = 384
@@ -74,12 +75,12 @@ class Proof384PageQuals(unittest.TestCase):
         self.fold = whole.split('<div class="proof-body" id="proof384-complete">')[1].split('</details>')[0]
 
     def test_sources_and_reproduction_commands_are_published(self):
-        for target in ('proof384.py', 'quals_proof384.py', 'quals_proof384_page.py'):
+        for target in ('proofs/proof384.py', 'quals/quals_proof384.py', 'quals/quals_proof384_page.py'):
             self.assertTrue((ROOT / target).is_file())
-        self.assertRegex(self.fold, r'href="proof384\.py"')
+        self.assertRegex(self.fold, r'href="proofs/proof384\.py"')
         visible = text(self.fold)
         self.assertIn('python3 proof384.py', visible)
-        self.assertIn('python3 -m unittest quals_proof384 quals_proof384_page',
+        self.assertIn('python3 -m unittest quals/quals_proof384.py quals/quals_proof384_page.py',
                       visible)
 
     def test_published_witness_proves_the_lower_bound(self):

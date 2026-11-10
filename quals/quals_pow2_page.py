@@ -30,8 +30,8 @@ import quals_index as qi                      # read only: page_css, page_script
 
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # the repository's root, above quals/
 INDEX = os.path.join(HERE, 'index.html')
-DATA = os.path.join(HERE, 'pow2.js')          # made by pow2.py; the chart's data
-MSTAR = os.path.join(HERE, 'mstar.js')        # made by mstar.py; the m*(n) chart's data, which the page also loads
+DATA = qi.POW2                                # made by pow2.py; the chart's data (in pagedata/ since 2026-11-10, [REF])
+MSTAR = qi.DATA                               # made by mstar.py; the m*(n) chart's data, which the page also loads
 ICONS = ('favicon.ico', 'favicon.svg', 'apple-touch-icon.png')   # the page's icons, which it also loads
 CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
 K, ROW = 72, 14                               # columns k = 1..K; rows ROW CSS px apart, the bottom gap() of each surface
@@ -799,12 +799,13 @@ def run(name):
         for i, source in enumerate(c['data']):
             p = os.path.join(d, str(i))
             os.mkdir(p)
-            for f in (INDEX, MSTAR) + tuple(os.path.join(HERE, icon) for icon in ICONS): shutil.copy(f, p)
+            for f in (INDEX,) + tuple(os.path.join(HERE, icon) for icon in ICONS): shutil.copy(f, p)
+            shutil.copy(MSTAR, qi.data_file(p, 'mstar.js'))
             qi.copy_page_dir(p)
             # a progress.js with no runs (2026-11-04): an open cell's box loads it to show the searches at its cell
-            open(os.path.join(p, 'progress.js'), 'w', encoding='utf-8').write('progressData(' + json.dumps(NO_RUNS) + ');\n')
+            open(qi.data_file(p, 'progress.js'), 'w', encoding='utf-8').write('progressData(' + json.dumps(NO_RUNS) + ');\n')
             js = SOURCES[source]() if source else None
-            if js: open(os.path.join(p, 'pow2.js'), 'w', encoding='utf-8').write(js)
+            if js: open(qi.data_file(p, 'pow2.js'), 'w', encoding='utf-8').write(js)
             urls.append('file://' + os.path.join(p, 'index.html') + c.get('fragment', ''))
             datas.append(pow2_of(js) if c['drawn'] else None)
         data = datas[0]
@@ -936,11 +937,11 @@ def q_scripts_load_pow2_after_mstar():
     # classic <script src> (inline scripts until 2026-10-31).
     text = page()
     tags = re.findall(r'<script\b[^>]*>', text[text.index('</head>'):])
-    assert tags == ['<script src="page/shared.js">', '<script src="mstar.js">', '<script src="page/mstar-section.js">',
-                    '<script src="pow2.js">', '<script src="page/pow2-section.js">', '<script src="page/smallest-section.js">',
+    assert tags == ['<script src="page/shared.js">', '<script src="pagedata/mstar.js">', '<script src="page/mstar-section.js">',
+                    '<script src="pagedata/pow2.js">', '<script src="page/pow2-section.js">', '<script src="page/smallest-section.js">',
                     '<script src="page/codes.js">', '<script src="page/progress-section.js">'], tags
-    assert text.index('</main>') < text.index('<script src="mstar.js"></script>')
-    assert text.count('<script src="page/mstar-section.js"></script>\n<script src="pow2.js"></script>\n'
+    assert text.index('</main>') < text.index('<script src="pagedata/mstar.js"></script>')
+    assert text.count('<script src="page/mstar-section.js"></script>\n<script src="pagedata/pow2.js"></script>\n'
                       '<script src="page/pow2-section.js"></script>\n') == 1
     assert text.endswith('</script>\n</body>\n</html>\n')
 

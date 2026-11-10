@@ -13,7 +13,7 @@ import os, re, io, json, time, bisect, shutil, tempfile, threading, traceback, s
 import types, gc, weakref
 import numpy as np
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # the repository's root, above quals/
-sys.path.insert(0, HERE)                                              # for its modules
+sys.path.insert(0, os.path.join(HERE, 'searchwatch'))   # chance.py, progress.py, track.py's directory since 2026-11-10 ([REF]); the root until then
 ENGINE = os.path.join(HERE, 'engine')                                 # the engine's, since [FAC] stage 3b (2026-11-04)
 sys.path.insert(0, ENGINE)                                            # for its modules
 import overnight_v5 as v5

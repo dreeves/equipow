@@ -14,11 +14,6 @@ import os, re, subprocess, tempfile, time, traceback, urllib.parse
 from concurrent.futures import ThreadPoolExecutor
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # the repository's root, above quals/
 QUALS = os.path.join(HERE, 'quals')
-# The two quals that the page's proof of m*(384) = 10 tells its reader to run from a clone's root (python3 -m unittest
-# quals_proof384 quals_proof384_page), and whose own qual checks that they are there (quals_proof384_page's
-# test_sources_and_reproduction_commands_are_published): they stay at the root.  (Until 2026-11-10 the proof's own
-# page, proof384.html, linked them, telling its reader to save them beside it.)
-STAY = ('quals_proof384.py', 'quals_proof384_page.py')
 PYLIB = os.path.join(HERE, 'scratch', 'lower24-design', 'beyond1000', 'pylib')   # fpylll, as the suites run with it
 # A qual's module-level code run as `python3 FILE` runs it (its own directory first on sys.path), but under a name other
 # than __main__, so that its quals do not run: its imports among that code.
@@ -29,11 +24,13 @@ IMPORT = ('import runpy, os, sys\n'
 
 def q_quals_are_in_quals():
     # Replicata: the names in the repository's root and in its quals/.
-    # Expectata (2026-10-31): no file at the root named quals_* but the two of STAY; in quals/ only quals: the suites
+    # Expectata (2026-10-31): no file at the root named quals_*; in quals/ only quals: the suites
     # (*.py), the Node harnesses (*.cjs) and the data the stall quals read (quals_case_lp_stall.json), all named quals_*.
     # Resultata before the move: 66 more quals_* files at the root, and no quals/.
+    # (2026-11-10, dreeves's README, [REF]: until then two stayed at the root, quals_proof384.py and
+    # quals_proof384_page.py, which the 384 proof's own page linked beside it; that page is now a redirect.)
     root = sorted(n for n in os.listdir(HERE) if n.startswith('quals_'))
-    assert root == sorted(STAY), root
+    assert root == [], root
     there = sorted(n for n in os.listdir(QUALS) if not n.startswith('.') and n != '__pycache__')
     assert len(there) > 60 and all(n.startswith('quals_') and n.endswith(('.py', '.cjs', '.json')) for n in there), there
 
@@ -133,6 +130,29 @@ def q_engine_imports_from_anywhere():
         with ThreadPoolExecutor(4) as pool:
             done = list(pool.map(run, names))
     bad = [(n, p.returncode, p.stderr[-1500:]) for n, p in zip(names, done) if p.returncode]
+    assert not bad, bad
+
+
+def q_pagegen_and_searchwatch_import_from_anywhere():
+    # Replicata (dreeves's README, [REF], 2026-11-10: "probably all the python scripts belong in a directory"; his names:
+    # pagegen/ for what makes the page's data, searchwatch/ for what runs and watches the searches): each Python module
+    # of those two directories, imported in a fresh Python whose working directory and TMPDIR are an empty temporary
+    # directory, PYTHONPATH its own directory and PYLIB: not the root, and not the other directory.
+    # Expectata: both directories hold modules, and every one imports: each finds the engine and the repository's root
+    # by its own location, and its neighbours beside it, wherever it is run from.
+    # Resultata before the move: neither directory; their fifteen scripts stood at the root.
+    with tempfile.TemporaryDirectory() as d:
+        runs = []
+        for name in ('pagegen', 'searchwatch'):
+            where = os.path.join(HERE, name)
+            modules = sorted(n[:-len('.py')] for n in os.listdir(where) if n.endswith('.py'))
+            assert modules, name
+            env = dict(os.environ, PYTHONPATH=os.pathsep.join([where, PYLIB]), TMPDIR=d)
+            runs += [(f'{name}/{m}', [sys.executable, '-B', '-c', f'import {m}'], env) for m in modules]
+        run = lambda r: subprocess.run(r[1], cwd=d, env=r[2], capture_output=True, text=True, timeout=600)
+        with ThreadPoolExecutor(4) as pool:
+            done = list(pool.map(run, runs))
+    bad = [(r[0], p.returncode, p.stderr[-1500:]) for r, p in zip(runs, done) if p.returncode]
     assert not bad, bad
 
 

@@ -431,7 +431,7 @@ def order(a):
 
 def sequences(nmax):
     """mstar.py's sequences of order >= 7 and length at most nmax."""
-    sys.path.insert(0, ROOT)
+    sys.path.insert(0, os.path.join(ROOT, 'pagegen'))   # mstar.py's directory since 2026-11-10 ([REF]); the root until then
     import mstar
     out, seen = [], set()
     for a in itertools.chain(mstar.explicit().values(), (mstar.build(n) for n in range(96, nmax + 1, 8))):

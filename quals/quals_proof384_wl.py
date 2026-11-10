@@ -22,11 +22,11 @@ import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parent.parent   # the repository's root, above quals/
-sys.path.insert(0, str(ROOT))                    # for its modules
+sys.path.insert(0, str(ROOT / 'proofs'))         # proof384.py's directory since 2026-11-10 ([REF]); the root until then
 import proof384 as proof
 
 
-SOURCE = ROOT / 'proof384.wl'
+SOURCE = ROOT / 'proofs' / 'proof384.wl'
 ANCHOR = ('  (* Validate all supplied certificate data before constructing '
           'the moment equations. *)')
 MARKER = 'QUALS384='

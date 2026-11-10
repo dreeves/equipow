@@ -7,7 +7,7 @@ import sys
 import tempfile
 import unittest
 from unittest.mock import patch
-sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'searchwatch'))   # formtree_work.py's directory since 2026-11-10 ([REF]); the root until then
 import formtree_work as fw
 
 def verdict(name,nodes,spills):

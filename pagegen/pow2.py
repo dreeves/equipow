@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Bounds on m*(2^k) for k = 1..KMAX, for the powers-of-2 chart on index.html: computes them with their reasons and
-writes pow2.js beside this file.  The chart shows them as excesses over Thue-Morse.
+writes pagedata/pow2.js (this file is in pagegen/ and the data file in pagedata/ since 2026-11-10).  The chart shows them as excesses over Thue-Morse.
 
 mstar.py's docstring defines sequence, order, m*(n), lo, hi, column, join, product, size(M, r), residue sums, chain,
 sweep and claim, and states the two lemmas; this file uses them in its sense, and these besides:
@@ -38,8 +38,8 @@ lo < k + e <= hi, and red when k + e > hi; E = max over k of (hi - k) + 1, so ro
          moduli finds no admissible vector at order hi + 1).
   When reasons tie, the first of each list wins.
 
-Run:   python3 pow2.py   (writes pow2.js)
-Quals: python3 quals_pow2.py
+Run:   python3 -B pagegen/pow2.py   (writes pagedata/pow2.js)
+Quals: python3 -B quals/quals_pow2.py
 """
 import sys
 sys.dont_write_bytecode = True
@@ -55,9 +55,9 @@ import mstar                                 # read only: the residue enumeratio
 KMAX = 72
 NORM_PRIMES = tuple(sp.primerange(3, 32))    # the odd primes the norm lemma is tried with (weak_norm: no larger one
                                              # can do better at any 2^k, k >= 10)
-HERE = os.path.dirname(os.path.abspath(__file__))
-MSTAR_JS = os.path.join(HERE, 'mstar.js')
-JS = os.path.join(HERE, 'pow2.js')
+HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # the repository's root, above pagegen/ (this file was at the root until 2026-11-10, dreeves's README [REF])
+MSTAR_JS = os.path.join(HERE, 'pagedata', 'mstar.js')   # the page's data files are in pagedata/ since 2026-11-10 ([REF])
+JS = os.path.join(HERE, 'pagedata', 'pow2.js')
 RESIDUE_CAP = 10 ** 8                        # nodes allowed to the enumeration of one claim
 # RESIDUE[k] = (m, chain, sweep): the claims at n = 2^k, each checked by mstar.chain_none on every run.  Since
 # 2026-10-12 (found by the verification of that day's update, scratch/w560/verify/upper/): at these 32 k the residue

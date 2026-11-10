@@ -13,7 +13,7 @@ import time
 
 
 HERE = Path(__file__).resolve().parents[2]   # the repository's root, above searches/fanout_672/ ([FAC] stage 3a)
-sys.path.insert(0, str(HERE))                # for the modules main imports
+sys.path.insert(0, str(HERE / 'searchwatch'))   # for the modules main imports: progress.py, shepherd.py's directory since 2026-11-10 ([REF]); the root until then
 LEASE = HERE / 'scratch/search288/lease.py'
 assert hashlib.sha256(LEASE.read_bytes()).hexdigest() == '15081e570df339105a52600e63c7adcf814b8aea09cc5c52d31308bd153df285'
 spec = importlib.util.spec_from_file_location('qualified_lease', LEASE)

@@ -20,7 +20,7 @@ from pathlib import Path
 import sys
 
 import sympy as sp
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))   # the repository's root, for mstar ([FAC] stage 3a)
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'pagegen'))   # mstar.py's directory since 2026-11-10 ([REF]); the root until then
 import mstar
 
 

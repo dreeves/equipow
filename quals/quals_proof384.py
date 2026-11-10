@@ -13,6 +13,8 @@ import subprocess
 import sys
 import unittest
 
+# proof384.py is in proofs/ since 2026-11-10 (dreeves's README, [REF]); until then it and this file were at the root.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'proofs'))
 import proof384 as proof
 
 

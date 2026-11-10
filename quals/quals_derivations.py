@@ -22,7 +22,7 @@ import sys
 sys.dont_write_bytecode = True
 import os, re, math, time, traceback
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # the repository's root, above quals/
-sys.path.insert(0, HERE)                                              # for its modules
+sys.path.insert(0, os.path.join(HERE, 'pagegen'))   # mstar.py's directory since 2026-11-10 ([REF]); the root until then
 import mstar
 import quals_index as qi                      # read only: page, blank_comments, mstar_data, pow2_data, NMAX, OFF_PAGE
 import quals_codes as qc                      # read only: drive, DESKTOP, PHONE and CODE

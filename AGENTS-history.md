@@ -1476,3 +1476,23 @@ After [SYM], the same day (Claude, Fable 5.2, 2026-11-10; dreeves: "nice work on
 - **A reference to a figure lands with the figure in view:** a figure's caption is below its chart, so the link landed with the chart out of sight above. One rule in page/style.css (`p[aria-live] + .float-caption { scroll-margin-top: 75vh; }`) and q_a_reference_to_a_figure_lands_with_the_figure_in_view, red first (the chart's top 356 px above the window).
 - **Suites:** `scratch/green-20261109/dry1.out`.
 - **Branches added:** none on the page or in its scripts. In the quals: the filter that keeps, among the page's links, those to a float id.
+
+The README's [REF]: the last scripts out of the root (Claude, Fable 5.2, 2026-11-10; dreeves: "maybe this is a good time for task [REF]? and anything else we can identify for task [REO]?", then, of the layout proposed: "name ideas: searchwatch/ instead of watch/; pagegen/ instead of page/; for data files, does a data/ directory make sense? let me know if i'm thinking of any of those wrong."). Notes: `scratch/ref-20261110/NOTES.md`.
+- **Names:** `searchwatch/` and `pagegen/` are his. For the data files he asked whether a `data/` directory makes sense; answered yes, as `pagedata/` (greps cleanly, sits beside `pagegen/`, and a bare `data/` would look like the searches' data too), one rename from `data/` if he prefers that.
+- **Moved, with plain mv (no git):**
+  - `proofs/`: proof384.py, proof384.wl. `quals/`: quals_proof384.py, quals_proof384_page.py (they had stayed at the root for the 384 proof's own page, now a redirect).
+  - `pagegen/`: mstar.py, pow2.py.
+  - `pagedata/`: mstar.js, pow2.js, progress.js. index.html loads them from there.
+  - `searchwatch/`: progress.py, search592_progress.py, sweep288_progress.py, track.py, shepherd.py, shepherd.log, shepherd.err, cpu.py, chance.py, formtree_eta.py, formtree_work.py, run_modules.py, stages.json.
+- **How a moved script finds things:** HERE (cpu.py's ROOT) is the directory above its own, the repository's root, so every path built from it is as before; stages.json and shepherd.log are found beside the script.
+- **Importers:** `scratch/ref-20261110/rewrite_imports.py` turned the line that put the root on sys.path into one line per directory needed, in 38 files; six more by hand. The root has no module left to import.
+- **By path, not by import** (what a move like this breaks without an import error):
+  - four code fingerprints of finished searches named a moved file by its old path (join720.py, search288.py, search592_geometry.py: `'pagegen/mstar.py'`; pruning288.py: `'searchwatch/progress.py'`);
+  - quals that copy a script into a sandbox: quals_track (the copy goes into the sandbox's searchwatch/, so that its records land in the sandbox's runs/ and not in the directory above it), quals_pow2's -O qual, quals_chance's band probe, quals_progress_modules (it took progress.py's directory for the root);
+  - the watcher's launcher and the preview builder, in scratch; `.vscode/settings.json`'s Live Server list (`pagedata/progress.js`) with quals_live_server.cjs.
+- **Staging the page in quals:** quals_index has `PAGEDATA`, `DATA`, `POW2` and `data_file(d, name)`, the place of a data file beside a copy of the page; 30 lines of quals_index and eleven other suites use it (`scratch/ref-20261110/pagedata.py`, each replacement exact, its count asserted).
+- **The page:** its two script tags and page/progress-section.js's loader name `pagedata/`; its links to mstar.py, pow2.py, proof384.py and proof384.wl name their new places; the reader's command for the 384 quals is `python3 -m unittest quals/quals_proof384.py quals/quals_proof384_page.py`.
+- **Checks:** both makers, run from pagegen/, wrote pagedata/mstar.js and pagedata/pow2.js byte for byte as committed. New qual: quals_layout.q_pagegen_and_searchwatch_import_from_anywhere; q_quals_are_in_quals now asks that no quals_* be at the root (red first on the two).
+- **Live processes:** the watcher, the CPU sampler and the shepherd were stopped by pid at 15:19:41 and restarted from `searchwatch/` at 15:41 (the watcher again at 15:44, pid 48554; sampler 46186; shepherd 46189). The shepherd wrote its statuses to searchwatch/shepherd.log; no file reappeared at the root.
+- **Suites:** `scratch/green-20261109/refall.out`.
+- **Branches added:** none.

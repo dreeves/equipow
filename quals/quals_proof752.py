@@ -19,7 +19,7 @@ import subprocess
 import sys
 import unittest
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))   # the repository's root, for its modules
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'pagegen'))   # mstar.py's directory since 2026-11-10 ([REF]); the root until then
 # proof752.py's directory, since [FAC] stage 3a (2026-10-31)
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'proofs'))
 import mstar

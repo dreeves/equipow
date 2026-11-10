@@ -32,7 +32,7 @@ import sys
 sys.dont_write_bytecode = True
 import os, re, html, json, time, shutil, tempfile, traceback, subprocess, urllib.parse
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # the repository's root, above quals/
-sys.path.insert(0, HERE)                                              # for its modules
+sys.path.insert(0, os.path.join(HERE, 'pagegen'))   # mstar.py's directory since 2026-11-10 ([REF]); the root until then
 import mstar
 import quals_index as qi                      # read only: page, blank_comments, page_codes, copy_page_dir, CHROME
 import quals_pow2_page as qp                  # read only: GROUP_JS (ending Chrome's whole process group) and ICONS
@@ -437,7 +437,8 @@ def drive(viewport, steps, text=None, items=CODES_AND_JOINS, fragment=''):
     try:
         open(os.path.join(d, 'index.html'), 'w', encoding='utf-8').write(qi.page() if text is None else text)
         qi.copy_page_dir(d)
-        for f in ('mstar.js', 'pow2.js') + qp.ICONS: shutil.copy(os.path.join(HERE, f), d)
+        for f in qp.ICONS: shutil.copy(os.path.join(HERE, f), d)
+        for f in (qi.DATA, qi.POW2): shutil.copy(f, qi.data_file(d, os.path.basename(f)))
         cfg = viewport | dict(chrome=qi.CHROME, headless=qi.HEADLESS, dir=d, url='file://' + os.path.join(d, 'index.html'),
                               steps=steps, items=items, fragment=fragment)
         p = subprocess.run(['node', '--input-type=module', '-e', DRIVER], input=json.dumps(cfg), capture_output=True,
