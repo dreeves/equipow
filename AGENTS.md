@@ -55,7 +55,7 @@ The current state, kept short, since every session loads this file. Update it in
   - a(13) ∈ {480, 720, 864, 960};
   - a(16) is the least n from 1440 to 2880 with order 17.
 - **BGPW's Symmetry Conjecture:** holds through order 11, and every bound it uses has a checked proof or a printed hand proof (the page's Symmetry section; `searches/formtree/cells/`).
-  - At every order it holds at every sufficiently large length (Claude, 2026-11-09): `scratch/symlarge-20261109/proof.md`, a Fourier-integral proof that uses no example and no cited theorem, reviewed by two fresh agents. It is not on the page. Its threshold is 2^O(m²), so it settles no cell.
+  - At every order it holds at every sufficiently large length (Fable 5.2, 2026-11-09): `proofs/symlarge.html`, a Fourier-integral proof that uses no example and no cited theorem, reviewed by two fresh agents. The Symmetry section's last block quote states it. `quals/quals_symlarge.py` checks its finite parts with `proofs/symlarge.py`. Its threshold is 2^O(m²), so it settles no cell.
 - **Powers of 2:** the theorem's firsts for δ = 1 to 9 are k = 10, 20, 28, 36, 39, 47, 56, 58, 68.
 - **No search is running:**
   - Form-tree cost estimates (2026-11-06, 2026-11-09) put every open cell out of reach. 480:14, the one exception, takes about 3–4 weeks of the Mac and settles nothing alone.
@@ -91,7 +91,7 @@ The current state, kept short, since every session loads this file. Update it in
 - **Sources:** before computing a cited result, read its primary source and classify its proof. Sources are in `scratch/app-20261105/sources/`, and BGPW's paper is in `scratch/oeis/reprint.txt`. On 2026-11-09, about 110 CPU-hours went into re-proving m*(152) ≤ 6, which had a six-line hand proof.
 - **Page edits:**
   - Math goes in LaTeX for KaTeX, `\( … \)`.
-  - New English is written as `Claude: “…”` or `Astra: “…”`, with a TODO comment above that recaps it. Unattributed text is human and byte-sacred.
+  - New English is written under the model's name, `Fable 5.2: “…”` or `Astra: “…”`, with a TODO comment above that recaps it. On 2026-11-09 dreeves renamed the earlier `Claude: “…”` to `Opus 5.5: “…”`. Unattributed text is human and byte-sacred.
   - A code is `<code id="N:M">`, with an "equipow pN" label in mstar.py.
   - After changing a chart's data, rerun `python3 -B mstar.py` and rebuild preview.png with `scratch/record-20261025/page/preview.py 0.40`.
   - Changelog entries are math statements per day (`quals_index.statement`), with noteworthy results on lines of their own (`NOTEWORTHY`).

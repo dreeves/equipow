@@ -33,6 +33,9 @@ HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # the repos
 sys.path.insert(0, HERE)                                              # for its modules
 import mstar
 import quals_index as qi                      # read only: page, blank_comments, mstar_data, copy_page_dir, chrome, DATA, POW2
+from math import cos, pi                      # by name: math, below, is the account's formulas
+sys.path.insert(0, os.path.join(HERE, 'proofs'))
+import symlarge                               # the objects of the proof of every sufficiently large length (2026-11-09)
 
 SECTION = re.compile(r'<section class="symmetry" aria-labelledby="symmetry-title">(.*?)</section>', re.S)
 CODE = re.compile(r'<code id="(\d+):(\d+)">([0-9A-F]+)</code>')
@@ -338,6 +341,54 @@ def q_symmetry_cited_bounds_have_form_tree_proofs():
         lines = [json.loads(line) for line in open(verdicts) if line.strip()]
         assert all(v['py'] is True for v in lines), (n, m, [v['start'] for v in lines if v['py'] is not True])
         assert cols[n - 1][1] == m - 1, (n, m, cols[n - 1])
+
+
+# The theorem on every sufficiently large length (Fable 5.2, 2026-11-09): its proof's page, and the repository's files
+# as the page links them
+PROOF = 'proofs/symlarge.html'
+HUB = 'https://github.com/dreeves/equipow/blob/main/'
+
+
+def large_lengths(sec):
+    """The account's block quote that links the proof of the theorem on every sufficiently large length: exactly one."""
+    found = [q for q in re.findall(r'<blockquote class="claude">(.*?)</blockquote>', sec, re.S) if f'href="{PROOF}"' in q]
+    assert len(found) == 1, len(found)
+    return found[0]
+
+
+def q_symmetry_large_lengths_links_its_proof():
+    # Replicata: the account's block quote that links proofs/symlarge.html, its links, and that page's link back.
+    # Expectata (dreeves, 2026-11-09, of Fable 5.2's theorem that at each order m every sufficiently large length that
+    # Divisibility allows has a (-1)^m-symmetric sequence of order m: "yes to putting it in index.html attributed
+    # clearly to Fable 5.2"): one block quote of the account links the proof, a file of the repository; each of its
+    # links into github.com/dreeves/equipow names a file of the repository; and the proof's page links back to the
+    # account's title.
+    # Resultata before: the account had no such block quote, and the proof was in scratch/symlarge-20261109/ alone.
+    quote = large_lengths(account())
+    assert os.path.isfile(os.path.join(HERE, PROOF)), PROOF
+    linked = re.findall('href="' + re.escape(HUB) + '([^"#]+)"', quote)
+    assert all(os.path.isfile(os.path.join(HERE, path)) for path in linked), linked
+    back = open(os.path.join(HERE, PROOF), encoding='utf-8').read()
+    assert 'href="../index.html#symmetry-title"' in back and 'id="symmetry-title"' in account(), 'no link back'
+
+
+def q_symmetry_large_lengths_states_the_proof_s_numbers():
+    # Replicata: that block quote's math: each bound n_0(M) \le 2^{E} it states, and each decimal number; and
+    # proofs/symlarge.py: threshold_log2(M), the least L such that the conditions of the proof's section 5 hold at
+    # every N >= 2^L, and count and gauss at order 5.
+    # Expectata: each stated bound is the proof's, E = threshold_log2(M) + 1 (a length n = 2N with N >= 2^L); and each
+    # decimal is one of three: 0.55 and 3.6, which bracket count / gauss at order 5 at every admissible N from 16 to 48
+    # (n from 32 to 96) while 0.56 and 3.5 do not, and 0.39, cos(pi/16)^48 to two places.  It asks for none of them to
+    # be there (a number dreeves cuts turns nothing red).
+    # Resultata before: the account had no such block quote.
+    said = math(large_lengths(account()))
+    bounds = [(int(m), int(e)) for f in said for m, e in re.findall(r'n_0\((\d+)\) \\le 2\^\{(\d+)\}', f)]
+    assert all(e == symlarge.threshold_log2(m) + 1 for m, e in bounds), bounds
+    ratios = [symlarge.count(5, n) / symlarge.gauss(5, n) for n in range(16, 49, 4)]
+    assert 0.55 <= min(ratios) < 0.56 and 3.5 < max(ratios) <= 3.6, ratios
+    allowed = {'0.55', '3.6', f'{cos(pi / 16) ** 48:.2f}'}
+    decimals = [x for f in said for x in re.findall(r'\d+\.\d+', f)]
+    assert set(decimals) <= allowed, (decimals, allowed)
 
 
 def main():
