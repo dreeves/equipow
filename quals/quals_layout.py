@@ -29,10 +29,15 @@ def q_quals_are_in_quals():
     # Resultata before the move: 66 more quals_* files at the root, and no quals/.
     # (2026-11-10, dreeves's README, [REF]: until then two stayed at the root, quals_proof384.py and
     # quals_proof384_page.py, which the 384 proof's own page linked beside it; that page is now a redirect.)
+    # (2026-11-10, dreeves: "can you put READMEs in each directory": quals/ holds its README.md, which "in quals/ only
+    # quals" made an error.  A file that is not a qual gets into quals/ on purpose, and a check that only something
+    # done on purpose can fail is cut when it bites (dreeves, the same day, of a qual that forbade links to .txt files:
+    # "if we link to a .txt then ipso facto we did it on purpose, right?").  What can happen by accident stays: a suite
+    # or a harness whose name does not start with quals_, which whoever runs quals_* would never run.)
     root = sorted(n for n in os.listdir(HERE) if n.startswith('quals_'))
     assert root == [], root
-    there = sorted(n for n in os.listdir(QUALS) if not n.startswith('.') and n != '__pycache__')
-    assert len(there) > 60 and all(n.startswith('quals_') and n.endswith(('.py', '.cjs', '.json')) for n in there), there
+    there = sorted(n for n in os.listdir(QUALS) if n.endswith(('.py', '.cjs')))
+    assert len(there) > 60 and all(n.startswith('quals_') for n in there), there
 
 
 def q_python_quals_import_from_anywhere():
@@ -154,6 +159,64 @@ def q_pagegen_and_searchwatch_import_from_anywhere():
             done = list(pool.map(run, runs))
     bad = [(r[0], p.returncode, p.stderr[-1500:]) for r, p in zip(runs, done) if p.returncode]
     assert not bad, bad
+
+
+def directories():
+    """The directories below the root that hold the repository's files, each as its path from the root, in order.
+    The repository's files are those git has or would take (tracked, or untracked and not ignored) that are on disk:
+    a file that was moved away stays in git's index until it is staged, and is not here."""
+    listed = subprocess.run(['git', '-C', HERE, 'ls-files', '--cached', '--others', '--exclude-standard', '-z'],
+                            capture_output=True, text=True, check=True).stdout.split('\0')
+    files = [f for f in listed if f and os.path.isfile(os.path.join(HERE, f))]
+    dirs = sorted({'/'.join(f.split('/')[:i]) for f in files for i in range(1, len(f.split('/')))})
+    assert 'quals' in dirs, dirs          # the directory this suite is in
+    return dirs
+
+
+def readmes():
+    """{directory: the text of its README.md}, for the directories below the root that have one.  The root's README
+    is dreeves's, and no qual reads it."""
+    return {d: open(os.path.join(HERE, d, 'README.md'), encoding='utf-8').read()
+            for d in directories() if os.path.isfile(os.path.join(HERE, d, 'README.md'))}
+
+
+def q_top_level_directories_have_a_readme():
+    # Replicata (dreeves, 2026-11-10: "can you put READMEs in each directory, stating at the top that they're all you,
+    # and documenting the directory's purpose?"; and, of a README in every subdirectory as well: "this looks idiotic;
+    # we don't want a README for every single subdirectory, do we?"): the directories at the repository's root that
+    # hold its files, hidden ones (.vscode) aside.
+    # Expectata: each holds a README.md, so that a directory added there later does not go without one.
+    # Resultata before: none of the eight did.
+    top = [d for d in directories() if '/' not in d and not d.startswith('.')]
+    missing = [d for d in top if d not in readmes()]
+    assert top and not missing, (top, missing)
+
+
+def q_readmes_name_their_subdirectories():
+    # Replicata: each README.md below the root, and the directories of the repository's files right below its own.
+    # Expectata (dreeves, 2026-11-10: "can't searches/README just list the subdirectories with one line each"): the
+    # README names each of them, by its name and a slash at the start of a path ("cells/", not the end of
+    # "x/cells/"), so that a directory added later, as a new search, does not go missing from the list.
+    # Resultata before: searches/ and proofs/ had no README, so nothing listed the 19 searches.
+    dirs, texts = directories(), readmes()
+    unnamed = [(d, os.path.basename(e)) for d in texts for e in dirs if os.path.dirname(e) == d
+               and not re.search(r'(?<![\w./-])' + re.escape(os.path.basename(e)) + '/', texts[d])]
+    assert texts and not unnamed, unnamed
+
+
+def q_readme_links_resolve():
+    # Replicata: each README.md below the root, and its markdown links, [text](target), whose target has no scheme
+    # (as https:) and is not a fragment of the README itself.
+    # Expectata: each target, its fragment left out and its path percent-decoded, is a file or a directory here, from
+    # the README's own directory, as GitHub resolves it: a file that a README lists as a link cannot be moved,
+    # renamed or removed without the README following.
+    # Resultata before: no README below the root held a link.
+    links = [(d, t) for d, text in readmes().items() for t in re.findall(r'\]\(([^)\s]+)\)', text)
+             if not re.match(r'[a-z]+:|#', t)]
+    assert links, 'no README below the root links a file'
+    missing = [(d, t) for d, t in links
+               if not os.path.exists(os.path.join(HERE, d, urllib.parse.unquote(t.split('#')[0])))]
+    assert not missing, missing
 
 
 def main():

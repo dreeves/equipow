@@ -1629,15 +1629,23 @@ def q_page_links_its_stylesheet_after_katex_s():
     assert len(got) > 800 and all(a == b for a, b in got), (len(got), [s for s in got if s[0] != s[1]][:5])
 
 
+def page_files():
+    """The names of page/'s stylesheets and scripts, in order: the files there that index.html can link."""
+    return sorted(n for n in os.listdir(PAGE_DIR) if n.endswith(('.css', '.js')))
+
+
 def q_page_dir_holds_what_index_links():
     # Replicata: the files in page/, and the files of page/ that index.html links, as its stylesheet or as scripts.
     # Expectata (dreeves's README, 2026-10-30: "[FAC] ... getting css and javascript out of index.html"): page/ holds
     # exactly those files, hidden files aside (as Finder's .DS_Store, which git ignores), each linked once: none is
     # missing and none unused.
+    # (2026-11-10, dreeves: "can you put READMEs in each directory": page/ holds its README.md too, so "exactly those
+    # files" is now said of page/'s stylesheets and scripts (page_files), the kinds index.html links there: one that
+    # the page does not load still fails, and so does a linked one that is missing.)
     # Resultata before: no page/; the page's CSS and scripts were inline.
     linked = [a or b for a, b in re.findall(r'<link rel="stylesheet" href="page/([^"]+)">|<script src="page/([^"]+)"></script>',
                                             page())]
-    there = sorted(n for n in os.listdir(PAGE_DIR) if not n.startswith('.'))
+    there = page_files()
     assert linked and len(linked) == len(set(linked)) and sorted(linked) == there, (linked, there)
 
 
@@ -3232,7 +3240,7 @@ def q_readers_never_see_index_html():
     # Resultata before: 34 of mstar.js's example labels ("index.html p320", "index.html BGPW 352", ...), and so the
     # light run's readouts of their columns.
     assert 'index.html' not in blank_comments(page())
-    for name in sorted(os.listdir(PAGE_DIR)):
+    for name in page_files():          # the stylesheet and the scripts, as the replicata says: not page/'s README.md (2026-11-10)
         src = re.sub(r'/\*.*?\*/', '', open(os.path.join(PAGE_DIR, name), encoding='utf-8').read(), flags=re.S)
         code = re.sub(r'(^|(?<=\s))//[^\n]*', '', src, flags=re.M) if name.endswith('.js') else src
         assert 'index.html' not in code, (name, re.findall(r'.{0,40}index\.html.{0,20}', code)[:3])
