@@ -47,7 +47,9 @@ USER_GRAY = (240, 288, 384, 432, 480) + tuple(range(528, 993, 16)) + (1008,)
 # Less 2016 since 10:32 that day (scratch/q1920-20261111/NOTES.md, "Round three"), settled at 15 by an antisymmetric
 # sequence of order 15 that the tilted search found in a wider window (the upper bound 15 is the residue condition
 # mod 5).  Five are left.
-PAST_GRAY = (1056, 1104, 1248, 1440, 1920)
+# Less 1248 since 13:25 that day, settled at 13 by Codex's proof that neither order 14 nor order 15 is possible there
+# (proofs/proof1248.py: q_1248_is_settled_by_its_proof).  Four are left.
+PAST_GRAY = (1056, 1104, 1440, 1920)
 
 
 @lru_cache(maxsize=None)
@@ -252,7 +254,9 @@ def q_page_parse():
     src = mstar.page_sources(open(os.path.join(HERE, 'index.html'), encoding='utf-8').read())
     assert src['table2'] == mstar.TABLE2 and len(mstar.TABLE2) == 39
     assert src['new'] == mstar.NEW and len(mstar.NEW) == 82
-    assert set(who for _, _, who in mstar.NEW.values()) == {'s', 'c', 'j', 'a', 'ca'}
+    # Spec change (Fable 5.2, 2026-11-11; dreeves, of the cells whose lower bounds Fable 5.2 raised that day: "yes, please make the legend accurate"): the class
+    # cf, Opus 5.5 and Fable 5.2, is among NEW's credits (quals_index's q_opus_and_fable_is_a_category_of_its_own); the set was {'s', 'c', 'j', 'a', 'ca'}.
+    assert set(who for _, _, who in mstar.NEW.values()) == {'s', 'c', 'j', 'a', 'ca', 'cf'}
     assert [(m, h) for _, m, h in mstar.PAGE_CODES] == [(m, h) for m, h in src['codes']]
     # since 2026-10-31 the joins of codes, in place of the section "Claude's examples as sets" (dreeves: "every
     # bipartition we give should be presented the same way as an expandable hex code"): the 528 entry's f = p192 ∨
@@ -441,8 +445,9 @@ def q_schema():
             assert type(why) is list and why and why[0] in forms, (n, why)
             assert tuple(type(x) for x in why[1:]) == forms[why[0]], (n, why)
         assert (lw == ['none']) == (n % 2 == 1) == (hw == ['odd']), (n, c)
-        assert lw[0] != 'page' or lw[1] in ('s', 'c', 'j', 'a', 'ca'), (n, lw)
-        assert hw[0] != 'page' or hw[1] in ('s', 'c', 'j', 'a', 'ca'), (n, hw)
+        # the cells' classes; cf among them since 2026-11-11 (q_page_parse's spec change of that day)
+        assert lw[0] != 'page' or lw[1] in ('s', 'c', 'j', 'a', 'ca', 'cf'), (n, lw)
+        assert hw[0] != 'page' or hw[1] in ('s', 'c', 'j', 'a', 'ca', 'cf'), (n, hw)
 
 
 def q_mstar_js_is_current():
@@ -872,12 +877,33 @@ def q_1456_is_settled_by_its_proof():
     # 1024], ["proof", "proofs/proof1456.py"]]; and proved refuses the same file for another length or bound.
     # Resultata before: [11, 12, ["join", 432, 1024], ["norm", 3]]: the chart knew no proof outside the page's tables.
     _, got = disk()
-    assert mstar.PROOFS == {1456: (11, 'proofs/proof1456.py')}, mstar.PROOFS
+    # (mstar.PROOFS == {1456: ...} until 2026-11-11, when 1248 got a proof of its own: q_1248_is_settled_by_its_proof)
+    assert mstar.PROOFS[1456] == (11, 'proofs/proof1456.py'), mstar.PROOFS
     assert all(os.path.isfile(os.path.join(HERE, file)) for _, file in mstar.PROOFS.values())
     assert got['m']['cols'][1455] == [11, 11, ['join', 432, 1024], ['proof', 'proofs/proof1456.py']], got['m']['cols'][1455]
     mstar.proved(1456, 11, 'proofs/proof1456.py')
     for n, hi in ((1456, 10), (1472, 11)):
         try: mstar.proved(n, hi, 'proofs/proof1456.py')
+        except AssertionError: continue
+        raise AssertionError((n, hi))
+
+
+def q_1248_is_settled_by_its_proof():
+    # 2026-11-11 (Codex's proof, proofs/proof1248.py, checked by two more programs of Codex's and a third time by Fable 5.2, scratch/rec1248-20261111/check14.py,
+    # which derives the residue profiles from the definition of order and takes from the file only its certificates' numbers; Codex: "The recording request is
+    # ready: PROOFS[1248]=(13,'proofs/proof1248.py')").
+    # Replicata: mstar.PROOFS, mstar.js's column 1248, and proofs/proof1248.py.
+    # Expectata: PROOFS gives 1248 the upper bound 13 by proofs/proof1248.py, a file here whose length and order are 1248 and 14 and whose check of its
+    # certificates passes (mstar.proved, which columns() runs); mstar.js's column 1248 is [13, 13, ["product", 2, 624], ["proof", "proofs/proof1248.py"]], its
+    # lower bound the product tau_1 # p624 as before; and proved refuses the same file for another length or bound.
+    # Resultata before: [13, 15, ["product", 2, 624], ["norm", 5]]: the chart left orders 14 and 15 open at 1248.
+    _, got = disk()
+    assert mstar.PROOFS[1248] == (13, 'proofs/proof1248.py'), mstar.PROOFS
+    assert os.path.isfile(os.path.join(HERE, 'proofs/proof1248.py'))
+    assert got['m']['cols'][1247] == [13, 13, ['product', 2, 624], ['proof', 'proofs/proof1248.py']], got['m']['cols'][1247]
+    mstar.proved(1248, 13, 'proofs/proof1248.py')
+    for n, hi in ((1248, 12), (1264, 13)):
+        try: mstar.proved(n, hi, 'proofs/proof1248.py')
         except AssertionError: continue
         raise AssertionError((n, hi))
 

@@ -578,7 +578,11 @@ RESIDUE = {24: (5, (5, 25), 'digits'), 40: (6, (3,), 'digits'), 48: (7, (5, 25),
 # reach 1456 (dreeves's README, [BOU]) and showed it open at order 12, which the two and norm lemmas allow and no chain
 # of CHAINS kills within MTOP_CAP nodes, against the page's m*(1456) = 11 of 2026-11-07 (dreeves: "first get the chart
 # in sync with all the known results").  columns() runs each one (proved).
-PROOFS = {1456: (11, 'proofs/proof1456.py')}
+# 1248 since 2026-11-11: Codex's proof that no sequence of length 1248 has order 14 (three certificates, one for each
+# pair of residue profiles mod 5 that order 14 allows; checked again by Codex's review programs and by Fable 5.2's
+# scratch/rec1248-20261111/check14.py), which with the product tau_1 # p624 settles m*(1248) = 13.  The norm bound for 5
+# had left orders 14 and 15 open there.
+PROOFS = {1248: (13, 'proofs/proof1248.py'), 1456: (11, 'proofs/proof1456.py')}
 
 
 def proved(n, hi, file):

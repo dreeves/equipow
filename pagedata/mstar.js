@@ -1247,7 +1247,7 @@ const MSTAR = {"nmax": 2048, "mtop": 19, "mtopAt": [2400], "past": [[2096, 12, "
 [0, 0, ["none"], ["odd"]],
 [1, 1, ["join", 2, 1244], ["two"]],
 [0, 0, ["none"], ["odd"]],
-[13, 15, ["product", 2, 624], ["norm", 5]],
+[13, 13, ["product", 2, 624], ["proof", "proofs/proof1248.py"]],
 [0, 0, ["none"], ["odd"]],
 [1, 1, ["join", 2, 1248], ["two"]],
 [0, 0, ["none"], ["odd"]],
