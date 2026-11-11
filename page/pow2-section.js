@@ -27,7 +27,7 @@ try {
   // 2026-10-27, when the m*(n) chart reached the one there was, at 1024).  name gives its symbol in the readout, and ''
   // for anything else, which the contract rules out: f, the 2^24 construction of the remarks below, among them since
   // 2026-10-29 (dreeves: "ok", to dropping f, which no reason had used since 2026-10-25).
-  const NMAX = 1024;                                                // the m*(n) chart's last n, as its script has it
+  const NMAX = MSTAR.nmax;                                          // the m*(n) chart's last n, as its data have it (1024, a number here, until 2026-11-10: 2048 since, [BOU])
   const LONG = [];
   const name = ([n, m]) => n === 2 ** m ? `τ${sub(m)}`
     : n <= NMAX || LONG.some(b => b[0] === n && b[1] === m) ? `p${sub(n)}` : '';
@@ -284,7 +284,7 @@ try {
       return {kind, heading: HEADINGS[kind](k, e), ...SAYS[kind](k, e)};
     }});
   const view = panZoom({el: chart, out: document.getElementById('pow2-zoom-out'), in: document.getElementById('pow2-zoom-in'),
-    reset: document.getElementById('pow2-reset'), ncol: () => K, plot: plotBox, targetAt, readout, draw, open});
+    resets: [document.getElementById('pow2-reset')], ncol: () => K, plot: plotBox, targetAt, readout, draw, open});
   view.redraw();
 } catch (e) {
   ro.textContent = `Error drawing this chart: ${e}`;

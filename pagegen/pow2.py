@@ -32,7 +32,8 @@ best known order at 2^k, hi the best proven upper bound.  Cell (k, e), e = 1..E,
 lo < k + e <= hi, and red when k + e > hi; E = max over k of (hi - k) + 1, so row E is red in every column.
   loWhy  ["thue-morse"] (lo = k, tau_k); ["joins", [[[n, m], ...], ...]] (a join of products, each product a list of blocks: 2^k is the sum of the
          products' lengths, and lo the least product order).
-  hiWhy  ["mstar", why] (2^k <= mstar.NMAX, so k <= 10 since 2026-10-27, k <= 9 before: mstar.js's hiWhy for n = 2^k,
+  hiWhy  ["mstar", why] (2^k <= mstar.NMAX, so k <= 11 since 2026-11-10, when the m*(n) chart came to reach 2048, k <= 10
+         from 2026-10-27, k <= 9 before: mstar.js's hiWhy for n = 2^k,
          verbatim); ["norm", p] (the norm lemma for the odd
          prime p); ["residue", chain] (the claim RESIDUE[k]: mstar.py's exhaustive enumeration through the chain of
          moduli finds no admissible vector at order hi + 1).
@@ -62,7 +63,8 @@ RESIDUE_CAP = 10 ** 8                        # nodes allowed to the enumeration 
 # RESIDUE[k] = (m, chain, sweep): the claims at n = 2^k, each checked by mstar.chain_none on every run.  Since
 # 2026-10-12 (found by the verification of that day's update, scratch/w560/verify/upper/): at these 32 k the residue
 # condition mod 3 leaves no admissible vector at m = norm(2^k, 3), the order the norm bound for 3 allows, so hi is one
-# less there.
+# less there.  (At k = 11 mstar.js's column 2048 has the same bound by the same condition since 2026-11-10, and comes
+# first among the reasons, so pow2.js gives ["mstar", ["residue", 3]] there; the claim here is still checked.)
 # Tried (scratch/pow2/res/) at 1024, order 11 (the norm bound for 3 allows 11): the chains (3), (3, 9), (4, 8),
 # (4, 8, 16), (5), (7), (11) and (13) each have an admissible vector (mod 3 exactly +-(0, 243, -243), which is
 # x^2 (x-1)^11 mod x^3 - 1); (3, 9, 27) in the sweep 'digits' passed 3 * 10^7 nodes unfinished (660654 admissible

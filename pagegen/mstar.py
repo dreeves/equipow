@@ -58,9 +58,10 @@ The two lemmas behind hi (each checked against brute force by quals_mstar.py):
         <= p sum_r size(p, r)^2 (f(1) = 0 for m >= 1), and by AM-GM, N^2 <= (p sum_r size(p, r)^2 / (p-1))^(p-1).
 
 The data contract.  mstar.js is a classic script (no modules, so the page also works from file://) defining one global:
-    const MSTAR = {"nmax": 1024, "mtop": T, "mtopAt": [N, ...], "past": [[n, m, label], ...], "cols": [[lo, hi, loWhy, hiWhy], ...]};
+    const MSTAR = {"nmax": 2048, "mtop": T, "mtopAt": [N, ...], "past": [[n, m, label], ...], "cols": [[lo, hi, loWhy, hiWhy], ...]};
 cols[n-1] is column n.  0 <= lo <= hi < T = max hi + 1.  Cell (n, m), m = 1..T, is green when m <= lo, gray when
-lo < m <= hi, and red when m > hi; row T is red in every column.  mtopAt lists, for each order from T to MMAX, the
+lo < m <= hi, and red when m > hi; row T is red in every column.  mtopAt lists, for each order from T to MMAX (T's
+alone where T is past MMAX), the
 least n past nmax that the chart's own upper-bound tests leave open at that order (mtop_at; T's alone, a number, from
 2026-11-03, a list since 2026-11-04), even integers above nmax that never fall: the table of smallest lengths' least n
 not ruled out at those orders.  past (since 2026-11-04) lists the explicit sequences longer than nmax, each
@@ -94,8 +95,10 @@ import overnight_v5 as v5                    # read only: EXAMPLES and from_hex
 # below and for the other callers of mstar.residue_vectors.
 from residues import digits, SWEEPS, lattice, basis, Capped, Budget, residue_vectors
 
-NMAX = 1024                                  # 1000 until 2026-10-27 (dreeves, relaying Stan Wagon: "could the table and
-                                             # the chart go up to 1024 as the natural stopping point, instead of 1000?")
+NMAX = 2048                                  # 1000 until 2026-10-27 (dreeves, relaying Stan Wagon: "could the table and
+                                             # the chart go up to 1024 as the natural stopping point, instead of 1000?"),
+                                             # then 1024 until 2026-11-10 (dreeves's README: "[BOU] Let's try having
+                                             # Figure 1 go up to 2048"); the page's tables stay at 1024 (UPPER)
 BRUTE_MAX = 32                               # brute force decides m*(n) for n up to this
 PRIMES = tuple(sp.primerange(2, 32))         # the norm lemma's primes (the least prime not dividing a given n <= NMAX
                                              # is at most 11, since 2 * 3 * 5 * 7 * 11 = 2310)
@@ -107,7 +110,8 @@ MTOP_CAP = 300000                            # nodes per chain past NMAX (mtop_a
 MMAX = 17                                    # the table of smallest lengths' last order, so mstar.js's mtopAt runs
                                              # from mtop to it (dreeves's README, 2026-11-04: "[M17] Let's add m=17 to
                                              # the "smallest length known" table; no need for much search, just
-                                             # whatever bounds we can find quickly"; the table stopped at mtop before)
+                                             # whatever bounds we can find quickly"; the table stopped at mtop before),
+                                             # or to mtop alone where mtop is past it, as since 2026-11-10 (mtop 19)
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # the repository's root, above pagegen/ (this file was at the root until 2026-11-10, dreeves's README [REF])
 PAGE = os.path.join(HERE, 'index.html')
 JS = os.path.join(HERE, 'pagedata', 'mstar.js')   # the page's data files are in pagedata/ since 2026-11-10 ([REF])
@@ -313,7 +317,7 @@ def page_value(s):
 # part "should include 256, 512, and 1024 for completeness"; dreeves: "multiples of 16 with one-sentence explanation
 # sounds good"): Table 2's, every multiple of 8 up to 304, then every multiple of 16 up to NMAX.  An odd multiple of 8
 # has order at most 7 (the two lemma), and from 200 on every one has 7, so past 304 none has anything to show.
-UPPER = tuple(range(8, 305, 8)) + tuple(range(320, NMAX + 1, 16))
+UPPER = tuple(range(8, 305, 8)) + tuple(range(320, 1025, 16))   # to 1024, the chart's NMAX until 2026-11-10 ([BOU])
 
 
 def page_sources(html):
@@ -434,14 +438,26 @@ def brute(n):
     return m, best
 
 
+def symmetry_codes(html):
+    """The codes of the page's Symmetry section, as [(n, m, hex)] in page order: each <code id="N:M">HEX</code> of its
+    section of class symmetry, where a code is a sequence's (quals_symmetry), of length N and order M, in
+    overnight_v5.from_hex's convention.  Sources of the chart since 2026-11-10, when it came to reach the lengths of
+    six of them ([BOU]): 1040, 1072, 1136 and 1168 have their lower bound, 11, from theirs, which settles them."""
+    [sec] = re.findall(r'<section class="symmetry"[^>]*>.*?</section>', html, re.S)
+    found = [(int(n), int(m), h) for n, m, h in re.findall(r'<code id="(\d+):(\d+)">([0-9A-F]+)</code>', sec)]
+    assert found and len(found) == sec.count('<code') and all(len(v5.from_hex(h, m)) == n for n, m, h in found), sec.count('<code')
+    return found
+
+
 @lru_cache(maxsize=None)
 def explicit():
     """Every explicit sequence, as {(n, label): sequence}, in this order of preference: Thue-Morse, BGPW's Table 4,
     BGPW's Table 5 (arXiv v1, and the published one through overnight_v5.EXAMPLES), the page's codes, the page's joins
-    of them, the rest of overnight_v5.EXAMPLES, brute force ("found here", order >= 1 only) and FOUND ("found
-    here").  Each sequence's exact order is asserted equal to what its source says; at a repeated (n, label) the one of
-    higher order stays."""
-    page_sources(open(PAGE, encoding='utf-8').read())       # the page as PAGE_CODES and PAGE_JOINS have it
+    of them, the codes of the page's Symmetry section (symmetry_codes), the rest of overnight_v5.EXAMPLES, brute force
+    ("found here", order >= 1 only) and FOUND ("found here").  Each sequence's exact order is asserted equal to what
+    its source says; at a repeated (n, label) the one of higher order stays."""
+    html = open(PAGE, encoding='utf-8').read()
+    page_sources(html)                                      # the page as PAGE_CODES and PAGE_JOINS have it
     coded = {f'{len(v5.from_hex(h, m))}:{m}': v5.from_hex(h, m) for _, m, h in PAGE_CODES}   # by the codes' ids
     v5_bgpw = [(k, h) for k, h in v5.EXAMPLES.items() if EXAMPLE_LABELS[k] == 'BGPW Table 5']
     v5_rest = [(k, h) for k, h in v5.EXAMPLES.items() if EXAMPLE_LABELS[k] != 'BGPW Table 5']
@@ -453,6 +469,7 @@ def explicit():
                + [('BGPW Table 5', m, v5.from_hex(h, m)) for (n, m), h in v5_bgpw]
                + [(label, m, v5.from_hex(h, m)) for label, m, h in PAGE_CODES]
                + [(label, m, reduce(join, (coded[i] for i in ids))) for label, m, ids in PAGE_JOINS]
+               + [(f'equipow p{n}', m, v5.from_hex(h, m)) for n, m, h in symmetry_codes(html)]
                + [(EXAMPLE_LABELS[n, m], m, v5.from_hex(h, m)) for (n, m), h in v5_rest]
                + [('found here', *brute(n)) for n in range(1, BRUTE_MAX + 1) if brute(n)[0] >= 1]
                + [('found here', m, v5.from_hex(h, m)) for n, m, h in FOUND])
@@ -501,8 +518,8 @@ def chain_none(n, m, chain, sweep, cap):
 # again with larger caps, and in the sweep 'digits', where CP-SAT (as a guide only) found no vector or the page cites a
 # proof by residues: 120 and 136 mod 8, 624 at order 13 mod 25, 512 mod 27.  720's, at order 15 mod 16, is BGPW's
 # Prop. 4.4 (q = 4) in residue form, from the check of mstar.js; it settles at once in L+(16, 15).  Each claim's sweep
-# is 'digits' (the same as 'natural' for a prime) but 624's, which takes 670000 nodes in 'natural' and 3.1 million in
-# 'digits'.  Claims that do not set hi (where a citation is lower: 96, 240, 288) are left out.  1008's, at order 14 mod
+# up to 1024 is 'digits' (the same as 'natural' for a prime) but 624's, which takes 670000 nodes in 'natural' and 3.1
+# million in 'digits'.  Claims that do not set hi (where a citation is lower: 96, 240, 288) are left out.  1008's, at order 14 mod
 # 5, by scratch/upto1024/residue1008.py when the chart reached 1024 (2026-10-27), in both sweeps; at order 13 the
 # chains (5, 25), (7, 49) and (4, 8, 16, 32) capped there at 300000 nodes, and at 10^7 too in both sweeps
 # (scratch/upto1024/order13.py), and every other chain found an admissible vector.
@@ -518,7 +535,26 @@ RESIDUE = {24: (5, (5, 25), 'digits'), 40: (6, (3,), 'digits'), 48: (7, (5, 25),
            640: (11, (3,), 'digits'), 656: (11, (3,), 'digits'), 672: (14, (5,), 'digits'), 688: (11, (3,), 'digits'),
            704: (11, (3,), 'digits'), 720: (15, (16,), 'digits'), 736: (11, (3, 9), 'digits'),
            768: (14, (5,), 'digits'), 784: (11, (3, 9, 27), 'digits'), 864: (15, (5,), 'digits'),
-           912: (14, (5,), 'digits'), 960: (16, (7,), 'digits'), 1008: (14, (5,), 'digits')}
+           912: (14, (5,), 'digits'), 960: (16, (7,), 'digits'), 1008: (14, (5,), 'digits'),
+           # Past 1024 (2026-11-10, [BOU]; scratch/bou-20261110/search.py): for each of the 60 even n from 1026 to 2048
+           # whose two and norm bound exceeds its explicit lo, the orders from that bound down, each chain of CHAINS
+           # in each sweep of SWEEPS, capped at MTOP_CAP nodes, which are mtop_at's tests; the claim is the least order
+           # killed, in the sweep that killed it.  The other 16 of the 60 keep their two and norm bound.
+           1040: (12, (3,), 'natural'), 1056: (15, (5,), 'natural'), 1072: (12, (3,), 'natural'),
+           1088: (12, (3,), 'natural'), 1104: (15, (5,), 'natural'), 1120: (12, (3,), 'natural'),
+           1136: (12, (3,), 'natural'), 1152: (14, (5,), 'natural'), 1168: (12, (3,), 'natural'),
+           1184: (12, (3,), 'natural'), 1216: (12, (3,), 'natural'), 1232: (12, (3,), 'natural'),
+           1264: (12, (3,), 'natural'), 1280: (12, (3,), 'natural'), 1296: (15, (5,), 'natural'),
+           1312: (12, (3,), 'natural'), 1328: (12, (3,), 'natural'), 1344: (15, (5,), 'natural'),
+           1360: (12, (3,), 'natural'), 1376: (12, (3,), 'natural'), 1408: (12, (3,), 'natural'),
+           1424: (12, (3,), 'natural'), 1440: (18, (7,), 'natural'), 1472: (12, (3, 9), 'natural'),
+           1536: (15, (5,), 'natural'), 1584: (15, (5,), 'natural'), 1632: (16, (5,), 'natural'),
+           1728: (16, (5,), 'natural'), 1776: (15, (5,), 'natural'), 1792: (13, (3,), 'natural'),
+           1808: (13, (3,), 'natural'), 1824: (15, (5,), 'natural'), 1840: (13, (3,), 'natural'),
+           1856: (13, (3,), 'natural'), 1888: (13, (3,), 'natural'), 1904: (13, (3,), 'natural'),
+           1920: (19, (7,), 'natural'), 1936: (13, (3,), 'natural'), 1952: (13, (3,), 'natural'),
+           1984: (13, (3,), 'natural'), 2000: (13, (3,), 'natural'), 2016: (16, (5,), 'natural'),
+           2032: (13, (3,), 'natural'), 2048: (13, (3,), 'natural')}
 
 
 def ruled_out(n, m, chain, sweep):
@@ -546,8 +582,9 @@ def mtop_at(m):
 
 def open_past(T):
     """mstar.js's mtopAt: mtop_at(m) for each order m from T, the chart's top row, to MMAX (since 2026-11-04, [M17]; T's
-    alone from 2026-11-03).  Order m + 1 at n has order m there, so the list cannot fall."""
-    at = [mtop_at(m) for m in range(T, MMAX + 1)]
+    alone from 2026-11-03, and again where T is past MMAX, as since 2026-11-10, [BOU]: the top row keeps its row in
+    the table of smallest lengths).  Order m + 1 at n has order m there, so the list cannot fall."""
+    at = [mtop_at(m) for m in range(T, max(T, MMAX) + 1)]
     assert at and at == sorted(at), at
     return at
 

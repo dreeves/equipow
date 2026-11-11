@@ -56,7 +56,10 @@ HEADLESS = ['--headless=new', '--no-first-run', '--no-default-browser-check', '-
             '--allow-file-access-from-files', '--disable-backgrounding-occluded-windows']
 TOKENS = ('--exists', '--open', '--impossible')                    # the chart's three colors, in the order of kind
 PROVENANCE = ('--claude', '--stan')
-NMAX, MIN_SPAN = 1024, 12                     # 1000 until 2026-10-27, when the chart reached 1024
+NMAX, MIN_SPAN = 1024, 12                     # 1000 until 2026-10-27, when the chart reached 1024; since 2026-11-10 the
+                                              # cap pressed as the page loads, the chart's last n then, and the tables'
+DATA_NMAX = 2048                              # mstar.js's last n since 2026-11-10 (dreeves's README: "[BOU] Let's try
+                                              # having Figure 1 go up to 2048"), the largest of the chart's caps
 # The chart's columns (dreeves, 2026-10-29: "can we make my "odd multiple of 2" bullet point be true?"): n = 2 and the
 # multiples of 4.  An odd n has no partition at any m, and every other n = 2 mod 4 has m*(n) = 1 (the two lemma), so
 # those are left out.  (Every even n until 2026-10-29.)
@@ -422,7 +425,23 @@ for (const k of ['error', 'warn']) {
 }
 const __fillText = CanvasRenderingContext2D.prototype.fillText;
 CanvasRenderingContext2D.prototype.fillText = function (t, x, y, ...rest) {
+  if (this.canvas.id === 'mstar-chart' && this.textAlign === 'right' && /^\d+$/.test(t)) __rows.push(y);
   __texts.push(String(t)); __fills.push([String(t), x, y, this.fillStyle]); return __fillText.call(this, t, x, y, ...rest); };
+// The rows of the m*(n) chart as its last draw left them.  Since 2026-11-10 they follow the view (dreeves: "however the
+// chart is zoomed, make there always be exactly one fully pink row, ie, zoom in the y direction automatically as a
+// function of the x zoom"): rows 1 to one more than the largest upper bound among the columns in view, sharing the
+// plot's 224 CSS px under its top 2.  A draw fills the whole canvas with paper and then labels its rows from 1 up,
+// right-aligned (__rows: the labels' y).  T is their number, and rows their device px as the harnesses measured them
+// at load while they were fixed: rows[T - m] = [row m's first device px, the device px of paper under it].
+window.__rows = [];
+const __fillRect = CanvasRenderingContext2D.prototype.fillRect;
+CanvasRenderingContext2D.prototype.fillRect = function (x, y, w, h) {
+  if (this.canvas.id === 'mstar-chart' && x === 0 && y === 0 && w === this.canvas.width && h === this.canvas.height) __rows.length = 0;
+  return __fillRect.call(this, x, y, w, h); };
+Object.defineProperty(window, 'T', {get: () => __rows.length});
+Object.defineProperty(window, 'rows', {get: () => { const dpr = devicePixelRatio, T = __rows.length, top = Math.round(2 * dpr),
+  tall = Math.round(224 * dpr), Y = m => top + Math.round((T - m) * tall / T);
+  return Array.from({length: T}, (_, i) => [Y(T - i), Y(T - i - 1) - 1]); }});
 Element.prototype.setPointerCapture = function () {};     // synthetic pointers are never active, so capture would throw
 </script>
 """
@@ -432,7 +451,8 @@ HARNESS = r"""<script>
 const OPTS = __OPTS__;
 function battery(R) {
   const cv = document.getElementById('mstar-chart'), ro = document.getElementById('mstar-readout');
-  const reset = document.getElementById('mstar-reset'), rect = () => cv.getBoundingClientRect();
+  // the cap pressed as the page loads: a click on it shows every column, as the reset button did until 2026-11-10 ([BOU])
+  const reset = document.querySelector('#mstar-caps button[aria-pressed="true"]'), rect = () => cv.getBoundingClientRect();
   R.readout0 = ro.textContent;
   // The fold of the remarks' list ([REO] step 2, 2026-11-03), as the page loads: whether it is there and open, and
   // whether its summary and its list are shown
@@ -490,7 +510,7 @@ function battery(R) {
   const C = {exists: tok('--exists'), open: tok('--open'), impossible: tok('--impossible'), paper: tok('--paper'), ink: tok('--ink'),
              record: tok('--record')};
   R.tokens = C;
-  const dpr = devicePixelRatio, ctx = cv.getContext('2d'), T = MSTAR.mtop, cols = MSTAR.cols;
+  const dpr = devicePixelRatio, ctx = cv.getContext('2d'), cols = MSTAR.cols;   // T and rows: the last draw's (EARLY)
   const colorOf = (n, m) => m <= cols[n - 1][0] ? C.exists : m <= cols[n - 1][1] ? C.open : C.impossible;
   // The cells ringed in gold, as the table of smallest lengths has them (dreeves's README, 2026-10-30, [GLT]; the proven
   // ones alone, a(m − 1) of OEIS A323395, since 2026-10-19): for each order m that some n reaches, [n, m, role] for the
@@ -502,7 +522,8 @@ function battery(R) {
   const RINGS = [];
   for (let m = 1; least(c => c[1] >= m); m++) {
     const known = least(c => c[0] >= m), possible = least(c => c[1] >= m);
-    for (const n of [...new Set([known, possible])].filter(n => n > 0)) RINGS.push([n, m, (n === known) + 2 * (n === possible)]);
+    // those of the chart as it loads, up to its cap (since 2026-11-10 mstar.js goes on past it, [BOU])
+    for (const n of [...new Set([known, possible])].filter(n => n > 0 && n <= COLS.at(-1))) RINGS.push([n, m, (n === known) + 2 * (n === possible)]);
   }
   R.rings = RINGS; R.ringChecks = 0; R.ringBad = []; R.ringed = {}; R.rowOneSkips = 0;
   const colOf = new Map(COLS.map((n, i) => [n, i + 1]));          // the column j of each n with one, from 1
@@ -520,8 +541,7 @@ function battery(R) {
     if (on && s < 0) s = Y;
     if (!on && s >= 0) { runs.push([s, Y]); s = -1; }
   }
-  const rows = runs.slice(0, T);
-  R.rows = rows;
+  R.rows = runs.slice(0, T); R.rowsDrawn = rows;     // as measured here, and as the last draw laid them out (EARLY)
   const rowY = m => (rows[T - m][0] + rows[T - m][1]) / 2;        // device px, the middle of row m
   const Yt = Math.floor(rowY(T));
   let PL = 0, PR = cv.width - 1;
@@ -808,7 +828,7 @@ function battery(R) {
   // (the first's middle out of view, the last's in), then its first whole column in row 2; then (tagAway) that view
   // panned right by a whole view with the keys alone, from the draw of the last press.
   R.tagHovers = [];
-  const tagHover = (v, x, m) => { __fills.length = 0; const text = hover(x, rowY(m) / dpr); R.tagHovers.push({v, text, ...tags()}); };
+  const tagHover = (v, x, m) => { __fills.length = 0; const text = hover(x, rowY(m) / dpr); R.tagHovers.push({v, text, rows, ...tags()}); };
   const tagCorners = v => [[L + 0.25, 1], [L + 0.25, T], [L + W - 0.25, T], [L + W - 0.25, 1], [L + W / 2, 3]]
     .forEach(([x, m]) => tagHover(v, x, m));
   reset.click();
@@ -823,7 +843,7 @@ function battery(R) {
     __fills.length = 0;
     key('ArrowRight');
     const text = ro.textContent, t = tags();
-    R.tagAway = {before: R.tagHovers.at(-1).text, text, ...t, v: view()};
+    R.tagAway = {before: R.tagHovers.at(-1).text, text, rows, ...t, v: view()};
   }
 }
 // The panel of the m*(n) chart's columns ([REO], 2026-11-03), or of the chart of powers of 2's (id), as it stands:
@@ -931,7 +951,7 @@ async function boxes(R) {
   const C = {exists: tok('--exists'), open: tok('--open'), impossible: tok('--impossible'), paper: tok('--paper'), ink: tok('--ink'),
              rule: tok('--rule')};
   R.tokens = C;
-  const dpr = devicePixelRatio, ctx = cv.getContext('2d'), T = MSTAR.mtop;
+  const dpr = devicePixelRatio, ctx = cv.getContext('2d');           // T and rows: the last draw's (EARLY)
   let img = null;
   const snap = () => { img = ctx.getImageData(0, 0, cv.width, cv.height); };
   const pix = (X, Y) => { const i = (Math.floor(Y) * img.width + Math.floor(X)) * 4, d = img.data;
@@ -944,7 +964,8 @@ async function boxes(R) {
     if (on && s < 0) s = Y;
     if (!on && s >= 0) { runs.push([s, Y]); s = -1; }
   }
-  const rows = runs.slice(0, T), rowY = m => (rows[T - m][0] + rows[T - m][1]) / 2;   // device px
+  const measured = runs.slice(0, T), rowY = m => (rows[T - m][0] + rows[T - m][1]) / 2;   // device px
+  if (JSON.stringify(measured) !== JSON.stringify(rows)) throw new Error('rows ' + JSON.stringify([measured, rows]));
   let PL = 0, PR = cv.width - 1;                   // the plot: the run of impossible pixels across row T
   while (pix(PL, rowY(T)) !== C.impossible) PL++;
   while (pix(PR, rowY(T)) !== C.impossible) PR--;
@@ -1069,7 +1090,7 @@ def kinds_data(violation=None):
     n has lo = 1 from an example and hi = 2^v - 1 ("two") if that is at most 7, else 7 by the residue condition mod 3;
     a few columns use the other kinds.  violation, if given, names the change in VIOLATIONS that breaks it."""
     cols = []
-    for n in range(1, NMAX + 1):
+    for n in range(1, DATA_NMAX + 1):
         two = (n & -n) - 1
         cols.append([0, 0, ['none'], ['odd']] if n % 2 else
                     [1, two, ['example', 'a made-up label'], ['two']] if two <= 7 else
@@ -1079,7 +1100,7 @@ def kinds_data(violation=None):
                  (20, [3, 3, ['page', 'c'], ['two']]), (24, [4, 5, ['example', 'BGPW Table 5'], ['residue', 9]]),
                  (32, [5, 7, ['product', 16, 2], ['norm', 5]]), (48, [6, 7, ['table2'], ['norm', 7]])):
         cols[n - 1] = c
-    data = {'nmax': NMAX, 'mtop': max(c[1] for c in cols) + 1, 'mtopAt': [NMAX + 2], 'past': [], 'cols': cols}
+    data = {'nmax': DATA_NMAX, 'mtop': max(c[1] for c in cols) + 1, 'mtopAt': [DATA_NMAX + 2], 'past': [], 'cols': cols}
     VIOLATIONS.get(violation, (lambda data: None,))[0](data)
     return 'const MSTAR = ' + json.dumps(data) + ';\n'
 
@@ -1338,7 +1359,7 @@ def q_section_follows_table2():
     parts = [r'<p>', r'<ul class="legend">', r'<span class="swatch exists" aria-hidden="true">',
              r'<span class="swatch open" aria-hidden="true">', r'<span class="swatch impossible" aria-hidden="true">',
              r'<span class="swatch exists record" aria-hidden="true">',
-             r'</ul>', r'<button type="button" id="mstar-reset" ',
+             r'</ul>', r'<span class="caps" id="mstar-caps">',     # the reset button until 2026-11-10 ([BOU])
              r'<canvas id="mstar-chart" height="0" tabindex="0" role="img" aria-label=',
              r'<p id="mstar-readout" aria-live="polite">']
     assert re.search('.*?'.join(parts), section(), re.S), section()
@@ -2272,8 +2293,10 @@ def q_1024_doubled_settles_2_11_and_2_12():
     # class c titled Claude alone, values 12 and 13, right after 2^10's; each has an entry of its own, "m* = 12" and
     # "m* = 13", right before 2^17's (its wording unpinned since 2026-10-30); and the
     # changelog states m*(2^11) = 12 and m*(2^12) = 13 on 2026-10-26, together on a line of their own.
+    # Since 2026-11-10 the m*(n) chart's data reach 2048 ([BOU]), so 2^11 is one of its columns and pow2.js takes its
+    # upper bound from there, the same bound by the same residue condition: ["mstar", ["residue", 3]].
     cols, text = pow2_data()['cols'], page()
-    assert cols[10] == [12, 12, ['joins', [[[1024, 11], [2, 1]]]], ['residue', [3]]], cols[10]
+    assert cols[10] == [12, 12, ['joins', [[[1024, 11], [2, 1]]]], ['mstar', ['residue', 3]]], cols[10]
     assert cols[11] == [13, 13, ['joins', [[[1024, 11], [4, 2]]]], ['residue', [3]]], cols[11]
     row = re.search(r'<td title=\'[^\']*\'>\\\(2\^3\\\)</td>.*?</tr>\s*<tr class="vals">.*?</tr>',
                     text, re.S).group(0)
@@ -2914,8 +2937,11 @@ def q_example_at_1440_settles_a_15():
     listed = [ns.split(', ') for ns in re.findall(r'<p class="entry">\\\(n = (.*?)\\\): ', text)]
     assert not any('1440' in ns for ns in listed) and 1440 not in new_cells(text), listed
     assert smallest_table()[15] == ['16', '1440', '1440', '✓'], smallest_table()[15]
-    # (mtopAt is a list since 2026-11-04, [M17], order 16's n first)
-    assert mstar_data()['mtopAt'][0] == 1440 and mstar_data()['past'] == [[1440, 16, 'equipow p1440']], mstar_data()['past']
+    # Since 2026-11-10 mstar.js reaches 2048 ([BOU]) and 1440 is one of its columns, the example its lower bound, and
+    # no column before it allows order 16 (until then: mtopAt's first n was 1440, and past held the example).
+    cols = mstar_data()['cols']
+    assert cols[1439][:3] == [16, 17, ['example', 'equipow p1440']] and max(c[1] for c in cols[:1439]) == 15, cols[1439]
+    assert mstar_data()['past'] == [], mstar_data()['past']
     assert any(d == '2026-11-04' and '\\(a(15) = 1440\\)' in rest for d, rest in changelog()), changelog()[:3]
     # Spec change (2026-11-07; dreeves, of quals that failed on his rewrite of the OEIS notes: "if i wrote something, that
     # shouldn't make a qual fail, right?"): this qual no longer asks the OEIS note on A323395 to state a(15) = 1440.
@@ -3302,7 +3328,10 @@ def q_prose_has_one_measure():
 def q_drawn_cells_match_data():
     # Replicata: the light and phone runs: the full view, and a sweep of the 257 columns, n = 2, 4, 8, 12, …, 1024,
     # zoomed in, so every column is at least 3 device px wide.
-    # Expectata: every column is checked, in every row: its middle pixel has its color from mstar.js (exists up
+    # Expectata: every column is checked, in every row of its view (since 2026-11-10 the rows follow the view, at
+    # dreeves's word: rows 1 to one more than the largest upper bound among the view's columns, so each column is
+    # checked from row 1 to the row above its upper bound at least; the full view has the rows it had, one more than
+    # the largest upper bound up to 1024, laid out as the harness measures them): its middle pixel has its color from mstar.js (exists up
     # to lo, open up to hi, impossible above) as the page's tokens give it, and the pixel below each row is paper.  In
     # the full view and every view of the sweep, every pixel of row 1 is exists, from the plot's left edge to its
     # right: no odd column (impossible in every row, since lo = hi = 0) is drawn, not even mixed into a pixel; but for
@@ -3316,8 +3345,8 @@ def q_drawn_cells_match_data():
         R = valid_run(name)
         assert R['pixelBad'] == [], (name, R['pixelBad'][:10])
         assert R['pixelColumns'] == COLUMNS, (name, sorted(set(COLUMNS) ^ set(R['pixelColumns']))[:20])
-        assert R['pixelChecks'] >= NCOL * len(R['rows']), (name, R['pixelChecks'])
-        assert len(R['rows']) == data['mtop'], (name, len(R['rows']))
+        assert R['pixelChecks'] >= sum(data['cols'][n - 1][1] + 1 for n in COLUMNS), (name, R['pixelChecks'])
+        assert len(R['rows']) == max(data['cols'][n - 1][1] for n in COLUMNS) + 1 and R['rows'] == R['rowsDrawn'], (name, R['rows'], R['rowsDrawn'])
         assert R['rowOneBad'] == [], (name, len(R['rowOneBad']), R['rowOneBad'][:10])
         assert R['rowOneChecks'] + R['rowOneSkips'] + R['rowOneLines'] == len(R['views']) * (R['plot'][1] - R['plot'][0]), (name, R['rowOneChecks'])
         assert R['rowOneSkips'] <= len(R['views']) * (4 * R['dpr'] + 6), (name, R['rowOneSkips'])
@@ -3407,13 +3436,149 @@ def q_omit_boxes_state_what_the_data_holds():
     assert shown == COLUMNS, (len(shown), shown[:6])
 
 
+def caps():
+    """The caps of the m*(n) chart ([BOU], 2026-11-10): its buttons in page order, each (cap, k of its label 2^k,
+    pressed as the page loads).  A click on one makes its cap the chart's last column."""
+    listed = re.findall(r'<span class="caps" id="mstar-caps">(.*?)</span>', blank_comments(section()), re.S)
+    assert len(listed) == 1, len(listed)
+    found = re.findall(r'<button type="button" data-cap="(\d+)" aria-pressed="(true|false)">\\\(2\^\{?(\d+)\}?\\\)</button>', listed[0])
+    assert found and len(found) == listed[0].count('<button'), listed[0]
+    return [(int(c), int(k), p == 'true') for c, p, k in found]
+
+
+def q_caps_follow_the_zoom_buttons():
+    # Replicata: the chart's section, and mstar.js.
+    # Expectata (dreeves's README, [BOU], 2026-11-10: "Let's try having Figure 1 go up to 2048. Actually, let's try
+    # this: replace the reset-zoom button with "cap:" and then buttons for 2^6, 2^7, 2^8, 2^9, 2^10, 2^11"): right
+    # after the zoom-in button, with only blank space and comments between, the caps: six buttons, their caps 64, 128,
+    # ..., 2048, each labelled the power of 2 that its cap is; one of them pressed as the page loads, 1024's, so that
+    # the chart opens as it was; the largest cap is mstar.js's nmax; and the section has no reset button.
+    # Resultata before: a reset button, ↺, and a chart that ended at 1024.
+    s = section()
+    zin = re.search(r'<button type="button" id="mstar-zoom-in"[^>]*>[^<]*</button>', s)
+    group = re.search(r'<span class="caps" id="mstar-caps">', s)
+    assert zin and group and re.fullmatch(r'(?:\s|<!--.*?-->)*', s[zin.end():group.start()], re.S), s[zin.end():zin.end() + 300]
+    assert [c for c, _, _ in caps()] == [2 ** k for k in range(6, 12)] and all(c == 2 ** k for c, k, _ in caps()), caps()
+    assert [c for c, _, on in caps() if on] == [NMAX], caps()
+    assert max(c for c, _, _ in caps()) == mstar_data()['nmax'] == len(mstar_data()['cols']), mstar_data()['nmax']
+    assert 'mstar-reset' not in page()
+
+
+# The boxes to click, 15 times, for every state of the four boxes once, from any state.
+GRAY = [2, 3, 2, 1, 2, 3, 2, 0, 2, 3, 2, 1, 2, 3, 2]
+
+
+def columns_follow_the_controls(width, order):
+    """What the m*(n) chart shows, the page width px wide, as its controls are clicked: each cap of order in turn, and
+    under each the boxes one at a time through all 16 of their states (GRAY) and back to the state as loaded.  In each
+    state (states): hovers in row 1 at the middle of 30 columns' places (the first three, the last three and 24 spread
+    evenly), were the columns the n up to the cap that no checked box leaves out, side by side over the whole plot
+    (bad: the probes that read out another n); the caps pressed; the zoom buttons; the chart's height; and the n
+    labels of one draw.  Then, with none checked: a hover and a click on the column of n = 7, and a click on the first
+    box of the list, which has the focus (odd, opened, closed, focus); a click on the column of n = 8 and one on the
+    cap pressed (capClosed, capFocus); a click on + and one on the cap pressed (zoomed, reset); and the boxes back to
+    the state as loaded (the last of states)."""
+    got = framed(width, """
+  const errors = []; addEventListener('error', e => errors.push(String(e.message)));
+  Element.prototype.setPointerCapture = function () {};     // synthetic pointers are never active, so capture would throw
+  const cv = document.getElementById('mstar-chart'), ro = document.getElementById('mstar-readout');
+  const panel = document.getElementById('mstar-panel'), boxes = [...document.querySelectorAll('#mstar-omit input')];
+  const caps = [...document.querySelectorAll('#mstar-caps button')];
+  const out = document.getElementById('mstar-zoom-out'), zin = document.getElementById('mstar-zoom-in');
+  const LEFT = 44, RIGHT = 16, TOP = 2, PLOT = 224, y1 = TOP + PLOT - 3;        // y1: in row 1, the plot's lowest
+  const fills = [], fillText = CanvasRenderingContext2D.prototype.fillText;
+  CanvasRenderingContext2D.prototype.fillText = function (t, x, y, ...rest) { fills.push([String(t), x, y, this.textAlign]); return fillText.call(this, t, x, y, ...rest); };
+  const pressed = () => caps.filter(b => b.getAttribute('aria-pressed') === 'true');
+  const expected = () => Array.from({length: +pressed()[0].dataset.cap}, (_, i) => i + 1).filter(n =>
+    !boxes.some(b => b.checked && n >= +b.dataset.from && n % (2 * b.dataset.factor) === +b.dataset.factor));
+  const ptr = (type, x, y) => { const r = cv.getBoundingClientRect(); cv.dispatchEvent(new PointerEvent(type,
+    {clientX: r.left + x, clientY: r.top + y, pointerId: 1, pointerType: 'mouse', buttons: 0, bubbles: true, cancelable: true})); };
+  const nAt = x => { ptr('pointermove', x, y1); const m = ro.textContent.match(/^n = (\\d+), m = (\\d+)/); return m ? +m[1] : null; };
+  const place = (E, c) => LEFT + (c + 0.5) * (cv.getBoundingClientRect().width - LEFT - RIGHT) / E.length;
+  function look() {
+    const E = expected(), dpr = devicePixelRatio, base = (TOP + PLOT) * dpr;
+    const probes = [...new Set([0, 1, 2, E.length - 3, E.length - 2, E.length - 1,
+      ...Array.from({length: 24}, (_, i) => Math.floor((i + 0.5) * E.length / 24))])];
+    const bad = probes.map(c => [c, E[c], nAt(place(E, c))]).filter(([, want, got]) => want !== got);
+    fills.length = 0;
+    nAt(place(E, 0));                                         // a change of the cell read out draws the chart again
+    const labels = fills.filter(([t, x, y]) => /^\\d+$/.test(t) && Math.abs(y - (base + 7 * dpr)) < 1).map(([t, x]) => [+t, x / dpr]);
+    R.states.push({caps: pressed().map(b => +b.dataset.cap), checked: boxes.map(b => b.checked), ncol: E.length, bad,
+      rows: fills.filter(([t, , , align]) => align === 'right').map(([t]) => +t),
+      out: out.disabled, zin: zin.disabled, height: cv.getBoundingClientRect().height, labels, strangers: labels.filter(([n]) => !E.includes(n))});
+  }
+  const set = want => boxes.forEach((b, i) => { if (b.checked !== want[i]) b.click(); });
+  const start = boxes.map(b => b.checked), R = {states: []};
+  for (const c of ORDER) {
+    caps.find(b => +b.dataset.cap === c).click();
+    look();
+    for (const b of GRAY) { boxes[b].click(); look(); }
+    set(start);
+  }
+  set([false, false, false, false]);
+  const E = expected(), at = n => place(E, E.indexOf(n));
+  R.odd = nAt(at(7));
+  ptr('pointerdown', at(7), y1); ptr('pointerup', at(7), y1);
+  await sleep(100);
+  R.opened = !panel.hidden;
+  boxes[0].focus(); boxes[0].click();
+  R.closed = panel.hidden; R.focus = document.activeElement === boxes[0];
+  boxes[0].click();
+  ptr('pointerdown', at(8), y1); ptr('pointerup', at(8), y1);
+  await sleep(100);
+  R.capOpened = !panel.hidden;
+  pressed()[0].focus(); pressed()[0].click();
+  R.capClosed = panel.hidden; R.capFocus = document.activeElement === pressed()[0];
+  zin.click();
+  R.zoomed = !out.disabled;
+  pressed()[0].click();
+  R.reset = out.disabled;
+  set(start); look();
+  // The views: 8 clicks on +, then 40 presses of ArrowLeft and 80 of ArrowRight, an eighth of the view each: in each,
+  // the n read out just inside the plot's two edges, and the rows that the draw labelled.
+  const W = cv.getBoundingClientRect().width - LEFT - RIGHT;
+  const seen = () => { const ends = [nAt(LEFT + 0.01), nAt(LEFT + W - 0.01)]; fills.length = 0; nAt(LEFT + W / 2);
+    R.views.push({ends, rows: fills.filter(([t, , , align]) => align === 'right').map(([t]) => +t)}); };
+  R.views = [];
+  for (let i = 0; i < 8; i++) { zin.click(); seen(); }
+  for (const [key, times] of [['ArrowLeft', 40], ['ArrowRight', 80]]) for (let i = 0; i < times; i++) {
+    cv.dispatchEvent(new KeyboardEvent('keydown', {key, bubbles: true, cancelable: true})); seen(); }
+  R.errors = errors;
+  parent.postMessage(JSON.stringify(R), '*');""".replace('ORDER', json.dumps(order)).replace('GRAY', json.dumps(GRAY)))
+    assert got['errors'] == [], (width, got['errors'][:3])
+    return got
+
+
+def columns_as_stated(got, width, order, least):
+    """columns_follow_the_controls's states, as they must be: 17 per cap of order, all 16 states of the boxes under
+    it; in each, one cap pressed, the chart showing all its columns, exactly the n up to that cap that no checked box
+    leaves out (every probe reads out the n expected there, − is disabled, and + exactly when the columns are at most
+    the 12 of the closest view); its rows 1 to one more than the largest upper bound among its columns; its n labels the multiples of one step, all of them up to the cap, each a column, at
+    least `least` of them, each two at least 48 CSS px apart; and the chart as tall in every state."""
+    boxes, states, cols = omit_boxes(), got['states'], mstar_data()['cols']
+    start = [b[3] for b in boxes]
+    assert len(boxes) == 4 and len(states) == 16 * len(order) + 1 and states[-1]['checked'] == start, (len(states), states[-1]['checked'])
+    for i, cap in enumerate(order):
+        under = states[16 * i:16 * i + 16]
+        assert all(s['caps'] == [cap] for s in under) and under[0]['checked'] == start, (width, cap, [s['caps'] for s in under])
+        assert len({tuple(s['checked']) for s in under}) == 16, (width, cap)
+    for s in states:
+        [cap] = s['caps']
+        want = [n for n in range(1, cap + 1) if not any(c and n >= b[1] and n % (2 * b[0]) == b[0] for b, c in zip(boxes, s['checked']))]
+        assert s['ncol'] == len(want) and s['bad'] == [] and s['out'] and s['zin'] == (len(want) <= MIN_SPAN), (
+            width, cap, s['checked'], s['ncol'], len(want), s['bad'][:5], s['out'], s['zin'])
+        assert s['rows'] == list(range(1, max(cols[n - 1][1] for n in want) + 2)), (width, cap, s['checked'], s['rows'])
+        ns, xs = [n for n, _ in s['labels']], [x for _, x in s['labels']]
+        assert len(ns) >= least and ns == list(range(ns[0], cap + 1, ns[0])), (width, cap, s['checked'], ns)
+        assert s['strangers'] == [] and all(b - a >= 48 for a, b in zip(xs, xs[1:])), (width, cap, s['checked'], s['labels'])
+    assert len({s['height'] for s in states}) == 1, sorted({s['height'] for s in states})
+    return {(s['caps'][0], tuple(s['checked'])): s['ncol'] for s in states}
+
+
 def q_omit_boxes_change_the_columns():
-    # Replicata: the page 1280 px wide, and again 390 px wide, a phone's width; the boxes of its list clicked one at a
-    # time through all 16 of their states, from the state as loaded, then to none checked, then back to the state as
-    # loaded.  In each state: hovers in row 1 at the middle of 30 columns' places (the first three, the last three and
-    # 24 spread evenly), were the columns the n that no checked box leaves out, side by side over the whole plot; the −
-    # button; and the n labels of one draw.  With none checked: a hover and a click on the column of n = 7, and then a
-    # click on the first box of the list, which has the focus.
+    # Replicata: the page 1280 px wide, and again 390 px wide, a phone's width; a click on the cap pressed as it loads,
+    # 1024's; the boxes of its list clicked one at a time through all 16 of their states, from the state as loaded,
+    # then to none checked, then back to the state as loaded (columns_follow_the_controls).
     # Expectata: in each state the chart shows all its columns, exactly those n (every probe reads out the n expected
     # there, and − is disabled); its n labels are the multiples of one step, all of them up to 1024, each a column, at
     # least three of them (two at 390 px), each two at least 48 CSS px apart; the odd column reads out n = 7 and the
@@ -3425,63 +3590,53 @@ def q_omit_boxes_change_the_columns():
     # its labels; and where few multiples of a step were columns the labels were few: at 1280 px, 400 and 800 alone
     # with only the first box unchecked, or only the second.
     for width, least in ((1280, 3), (390, 2)):
-        omit_boxes_change_the_columns(width, least)
+        got = columns_follow_the_controls(width, [NMAX])
+        ncol = columns_as_stated(got, width, [NMAX], least)
+        assert ncol[NMAX, tuple(b[3] for b in omit_boxes())] == NCOL and ncol[NMAX, (False,) * 4] == NMAX, ncol
+        assert got['odd'] == 7 and got['opened'] and got['closed'] and got['focus'], (got['odd'], got['opened'], got['closed'], got['focus'])
 
 
-def omit_boxes_change_the_columns(width, least):
-    got = framed(width, """
-  const errors = []; addEventListener('error', e => errors.push(String(e.message)));
-  Element.prototype.setPointerCapture = function () {};     // synthetic pointers are never active, so capture would throw
-  const cv = document.getElementById('mstar-chart'), ro = document.getElementById('mstar-readout');
-  const panel = document.getElementById('mstar-panel'), boxes = [...document.querySelectorAll('#mstar-omit input')];
-  const NMAX = MSTAR.nmax, T = MSTAR.mtop, LEFT = 44, RIGHT = 16, TOP = 2, ROW = 14, y1 = TOP + (T - 1) * ROW + ROW / 2;
-  const fills = [], fillText = CanvasRenderingContext2D.prototype.fillText;
-  CanvasRenderingContext2D.prototype.fillText = function (t, x, y, ...rest) { fills.push([String(t), x, y]); return fillText.call(this, t, x, y, ...rest); };
-  const expected = () => Array.from({length: NMAX}, (_, i) => i + 1).filter(n =>
-    !boxes.some(b => b.checked && n >= +b.dataset.from && n % (2 * b.dataset.factor) === +b.dataset.factor));
-  const ptr = (type, x, y) => { const r = cv.getBoundingClientRect(); cv.dispatchEvent(new PointerEvent(type,
-    {clientX: r.left + x, clientY: r.top + y, pointerId: 1, pointerType: 'mouse', buttons: 0, bubbles: true, cancelable: true})); };
-  const nAt = x => { ptr('pointermove', x, y1); const m = ro.textContent.match(/^n = (\\d+), m = (\\d+)/); return m ? +m[1] : null; };
-  const place = (E, c) => LEFT + (c + 0.5) * (cv.getBoundingClientRect().width - LEFT - RIGHT) / E.length;
-  function look() {
-    const E = expected(), dpr = devicePixelRatio, base = (TOP + T * ROW) * dpr;
-    const probes = [...new Set([0, 1, 2, E.length - 3, E.length - 2, E.length - 1,
-      ...Array.from({length: 24}, (_, i) => Math.floor((i + 0.5) * E.length / 24))])];
-    const bad = probes.map(c => [c, E[c], nAt(place(E, c))]).filter(([, want, got]) => want !== got);
-    fills.length = 0;
-    nAt(place(E, 0));                                         // a change of the cell read out draws the chart again
-    const labels = fills.filter(([t, x, y]) => /^\\d+$/.test(t) && Math.abs(y - (base + 7 * dpr)) < 1).map(([t, x]) => [+t, x / dpr]);
-    return {ncol: E.length, bad, out: document.getElementById('mstar-zoom-out').disabled, labels, strangers: labels.filter(([n]) => !E.includes(n))};
-  }
-  const set = want => boxes.forEach((b, i) => { if (b.checked !== want[i]) b.click(); });
-  const start = boxes.map(b => b.checked), R = {states: []};
-  const state = () => R.states.push({checked: boxes.map(b => b.checked), ...look()});
-  state();
-  for (const b of [2, 3, 2, 1, 2, 3, 2, 0, 2, 3, 2, 1, 2, 3, 2]) { boxes[b].click(); state(); }       // every state once
-  set([false, false, false, false]);
-  const E = expected(), x7 = place(E, E.indexOf(7));
-  R.odd = nAt(x7);
-  ptr('pointerdown', x7, y1); ptr('pointerup', x7, y1);
-  await sleep(100);
-  R.opened = !panel.hidden;
-  boxes[0].focus(); boxes[0].click();
-  R.closed = panel.hidden; R.focus = document.activeElement === boxes[0];
-  set(start); state();
-  R.errors = errors;
-  parent.postMessage(JSON.stringify(R), '*');""")
-    assert got['errors'] == [], (width, got['errors'][:3])
-    boxes = omit_boxes()
-    seen, start = [tuple(s['checked']) for s in got['states']], tuple(b[3] for b in boxes)
-    assert len(boxes) == 4 and len(seen) == 17 and len(set(seen[:16])) == 16 and seen[0] == seen[16] == start, seen
-    for s in got['states']:
-        want = [n for n in range(1, NMAX + 1) if not any(c and n >= b[1] and n % (2 * b[0]) == b[0] for b, c in zip(boxes, s['checked']))]
-        assert s['ncol'] == len(want) and s['bad'] == [] and s['out'], (width, s['checked'], s['ncol'], len(want), s['bad'][:5], s['out'])
-        ns, xs = [n for n, _ in s['labels']], [x for _, x in s['labels']]
-        assert len(ns) >= least and ns == list(range(ns[0], NMAX + 1, ns[0])), (width, s['checked'], ns)
-        assert s['strangers'] == [] and all(b - a >= 48 for a, b in zip(xs, xs[1:])), (width, s['checked'], s['labels'])
-    ncol = {tuple(s['checked']): s['ncol'] for s in got['states']}
-    assert ncol[start] == NCOL and ncol[(False,) * 4] == NMAX, ncol
-    assert got['odd'] == 7 and got['opened'] and got['closed'] and got['focus'], (got['odd'], got['opened'], got['closed'], got['focus'])
+def q_rows_follow_the_view():
+    # Replicata: the page 1280 px wide, as it loads but for a click on the cap pressed; then 8 clicks on +, 40 presses
+    # of ArrowLeft and 80 of ArrowRight on the chart, an eighth of the view each (columns_follow_the_controls's
+    # views): after each, the n read out just inside the plot's left and right edges, and the rows that the draw
+    # labelled.
+    # Expectata (dreeves, 2026-11-10: "however the chart is zoomed, make there always be exactly one fully pink row, ie,
+    # zoom in the y direction automatically as a function of the x zoom"): in every view the rows are 1 to one more
+    # than the largest upper bound among the columns from the one n to the other, so that the top row is impossible
+    # in each of them and the row under it is not; the 128 views have five or more different numbers of rows; and the
+    # chart is as tall in all of them (columns_as_stated, of the states).
+    # Resultata before: 16 rows in every view (19 with mstar.js to 2048), most of them impossible in every column of
+    # a view of small n.
+    got, cols = columns_follow_the_controls(1280, [NMAX]), mstar_data()['cols']
+    assert len(got['views']) == 128, len(got['views'])
+    for v in got['views']:
+        a, b = v['ends']
+        assert v['rows'] == list(range(1, max(cols[n - 1][1] for n in COLUMNS if a <= n <= b) + 2)), v
+    assert len({len(v['rows']) for v in got['views']}) >= 5, sorted({len(v['rows']) for v in got['views']})
+
+
+def q_caps_change_the_columns():
+    # Replicata: the page 1280 px wide, and again 390 px wide; a click on each cap in turn, 64, 128, 256, 512, 2048 and
+    # then 1024, the one pressed as the page loads; under each, the boxes through all 16 of their states; then, with
+    # none checked, a click on the column of n = 8 and one on the cap pressed, which has the focus; a click on + and
+    # one more on the cap pressed (columns_follow_the_controls).
+    # Expectata (dreeves's README, [BOU], 2026-11-10: "replace the reset-zoom button with "cap:" and then buttons"): a
+    # click on a cap presses it alone and makes it the chart's last column: in each state the chart shows all its
+    # columns, exactly the n up to the cap that no checked box leaves out, with − disabled, and + too where they are
+    # at most 12; its n labels are the multiples of one step, all of them up to the cap, each a column, each two at
+    # least 48 CSS px apart, three or more at 1280 px and one or more at 390 px; the chart is as tall under every cap;
+    # the click on the cap closes the box that the click on the column opened, the focus staying on the cap; the click
+    # on the cap pressed shows every column again, as the reset button did; and no script error anywhere.
+    # Resultata before: no caps: the chart ended at 1024 and a reset button showed every column.
+    order = [64, 128, 256, 512, 2048, 1024]
+    assert sorted(order) == [c for c, _, _ in caps()], caps()
+    for width, least in ((1280, 3), (390, 1)):
+        got = columns_follow_the_controls(width, order)
+        ncol = columns_as_stated(got, width, order, least)
+        assert all(ncol[cap, (False,) * 4] == cap for cap in order), ncol
+        assert got['capOpened'] and got['capClosed'] and got['capFocus'] and got['zoomed'] and got['reset'], (
+            got['capOpened'], got['capClosed'], got['capFocus'], got['zoomed'], got['reset'])
 
 
 def q_a_box_whose_statement_fails_says_so():
@@ -3540,7 +3695,7 @@ def q_chart_rings_the_smallest_lengths_in_gold():
     # and every one is checked; at its middle a proven one is gold, a dot (Claude's proposal for when the two coincide),
     # and the others keep their cell's color.  (Their readouts' notes: q_hover_reads_out_cells.)
     # Resultata before: only the 11 proven cells were ringed.
-    cols = mstar_data()['cols']
+    cols = mstar_data()['cols'][:NMAX]            # the chart as it loads, up to its cap (mstar.js reaches 2048 since 2026-11-10)
     want = smallest_rings(cols)
     assert [c for c, role in want.items() if role == 3] == a323395_cells(cols) == PROVEN_CELLS, want
     for name in ('light', 'phone'):
@@ -3590,19 +3745,24 @@ def q_n_labels_are_round_multiples_of_4():
 
 def q_zoom_buttons_sit_beside_show_all():
     # Replicata: the chart's section.
-    # Expectata: right before the reset button, with only blank space and comments between, a zoom-out button labelled
-    # − and then a zoom-in button labelled + (math, not English), each with an aria-label.
+    # Expectata: a zoom-out button labelled − and then, with only blank space and comments between, a zoom-in button
+    # labelled + (math, not English), each with an aria-label.  Until 2026-11-10 they stood right before the reset
+    # button, whose place the caps took (dreeves's README, [BOU]: q_caps_follow_the_zoom_buttons).
     s = section()
     tags = {i: re.search(rf'<button type="button" id="{i}"([^>]*)>([^<]*)</button>', s)
-            for i in ('mstar-zoom-out', 'mstar-zoom-in', 'mstar-reset')}
+            for i in ('mstar-zoom-out', 'mstar-zoom-in')}
     assert all(tags.values()), {i: bool(t) for i, t in tags.items()}
-    out, zin, reset = tags.values()
-    for a, b in ((out, zin), (zin, reset)):
-        assert re.fullmatch(r'(?:\s|<!--.*?-->)*', s[a.end():b.start()], re.S), s[a.end():b.start()]
+    out, zin = tags.values()
+    assert re.fullmatch(r'(?:\s|<!--.*?-->)*', s[out.end():zin.start()], re.S), s[out.end():zin.start()]
     for t, label in ((out, '−'), (zin, '+')):
         attrs, text = t.groups()
         assert text == label, (t.group(0), label)
         assert re.search(r"\baria-label='[^']+'", attrs), attrs
+
+
+# The reset buttons that each chart's script hands to panZoom, as its source has them: the chart of powers of 2 its ↺,
+# the m*(n) chart none since 2026-11-10, when its caps took that button's place ([BOU]).
+RESETS = {'mstar': '', 'pow2': "document.getElementById('pow2-reset')"}
 
 
 def q_both_charts_share_one_pan_and_zoom():
@@ -3611,8 +3771,11 @@ def q_both_charts_share_one_pan_and_zoom():
     # Expectata (dreeves's README, 2026-10-30: "[ZOO] For anti-magic/consistency, have the same zoom controls on both
     # charts"): one script, the first after </main>, defines function panZoom, the pan and zoom of both charts,
     # and nothing else; each chart's script calls it once, with its own chart (#mstar-chart, #pow2-chart) and its own
-    # buttons; each section holds a div of class zoom with the same three buttons, −, + and ↺, the same but for their
-    # ids' prefixes (mstar- and pow2-); one rule styles those buttons, .zoom button (and one their grayed-out look); and
+    # buttons; each section holds a div of class zoom that starts with the same two buttons, − and +, the same but for
+    # their ids' prefixes (mstar- and pow2-), and then has the reset button ↺ (the chart of powers of 2) or the caps
+    # (the m*(n) chart, since 2026-11-10 at dreeves's word, README [BOU]: "replace the reset-zoom button with "cap:" and
+    # then buttons"; the same three buttons in both until then), the reset buttons that each chart hands to panZoom being
+    # those; one rule styles those buttons, .zoom button (one their grayed-out look, and one the cap pressed); and
     # each chart takes the keys (tabindex 0).  Which of the two charts each zooms is quals_pow2_page's
     # q_zoom_controls_zoom_their_own_chart; how the m*(n) chart pans and zooms is the browser quals here.
     # Resultata before: only the m*(n) chart could zoom, from code of its own.
@@ -3624,9 +3787,9 @@ def q_both_charts_share_one_pan_and_zoom():
     for chart, prefix in (('mstar-chart', 'mstar'), ('pow2-chart', 'pow2')):
         [js] = [s for s in own if f"getElementById('{chart}')" in s]
         calls = re.findall(r'panZoom\(\{el: (\w+), out: document\.getElementById\(\'([\w-]+)\'\), in: document\.getElementById\(\'([\w-]+)\'\),\s*'
-                           r'reset: document\.getElementById\(\'([\w-]+)\'\)', js)
+                           r'resets: \[([^\]]*)\]', js)
         assert js.count('panZoom(') == 1 and len(calls) == 1, (chart, calls)
-        assert calls[0][1:] == (f'{prefix}-zoom-out', f'{prefix}-zoom-in', f'{prefix}-reset'), (chart, calls)
+        assert calls[0][1:] == (f'{prefix}-zoom-out', f'{prefix}-zoom-in', RESETS[prefix]), (chart, calls)
         assert re.search(rf'\b{calls[0][0]} = document\.getElementById\(\'{chart}\'\)', js), (chart, calls)
     groups = []
     for prefix in ('mstar', 'pow2'):
@@ -3634,13 +3797,14 @@ def q_both_charts_share_one_pan_and_zoom():
         [z] = re.findall(r'<div class="zoom">(.*?)</div>', sec, re.S)
         z = ' '.join(re.sub(r'<!--.*?-->', '', z, flags=re.S).split()).replace(f'id="{prefix}-', 'id="')
         assert re.findall(r'<button type="button" id="([\w-]+)"[^>]*>([^<]*)</button>', z) == [
-            ('zoom-out', '−'), ('zoom-in', '+'), ('reset', '↺')], (prefix, z)
-        groups.append(z)
+            ('zoom-out', '−'), ('zoom-in', '+')] + [('reset', '↺')] * (prefix == 'pow2'), (prefix, z)
+        groups.append(z[:z.index('</button>', z.index('zoom-in'))])
         assert re.search(rf'<(?:canvas|div) id="{prefix}-chart"[^>]* tabindex="0"', sec), prefix
     assert groups[0] == groups[1], groups
     style = re.sub(r'/\*.*?\*/', '', page_css(), flags=re.S)
     selectors = [s.strip() for sel in re.findall(r'([^{}]+)\{', style) for s in sel.split(',')]
-    assert [s for s in selectors if re.search(r'\bbutton\b', s)] == ['.zoom button', '.zoom button:disabled'], selectors
+    assert [s for s in selectors if re.search(r'\bbutton\b', s)] == [
+        '.zoom button', '.zoom button:disabled', '.zoom button[aria-pressed="true"]'], selectors
 
 
 def q_zoom_buttons_zoom_about_the_middle():
@@ -3721,11 +3885,11 @@ def q_hover_swatch_matches_gold_trim():
     # persist after leaving one.
     # Resultata: each assertion reports the hovered cell and its expected and computed CSS values.
     rgb = lambda h: 'rgb(' + ', '.join(str(int(h[i:i + 2], 16)) for i in (1, 3, 5)) + ')'
-    assert a323395_cells(mstar_data()['cols']) == PROVEN_CELLS
+    assert a323395_cells(mstar_data()['cols'][:NMAX]) == PROVEN_CELLS       # the chart as it loads, up to its cap
     for name in ('light', 'kinds'):
         R = valid_run(name)
         cols = json.loads(kinds_data()[len('const MSTAR = '):-2])['cols'] if name == 'kinds' else mstar_data()['cols']
-        rings = smallest_rings(cols)
+        rings = smallest_rings(cols[:NMAX])                        # the chart as it loads, up to its cap
         swatches = R['swatches']
         assert set(rings) <= {(n, m) for n, m, *_ in swatches}, (name, rings, swatches)
         assert {(False, True), (True, False)} <= {
@@ -3869,8 +4033,7 @@ def q_axes_tag_the_cell_read_out():
     # Resultata before: no tags.
     for name in ('light', 'phone'):
         R = valid_run(name)
-        (PL, PR), dpr, rows = R['plot'], R['dpr'], R['rows']
-        T = len(rows)
+        (PL, PR), dpr = R['plot'], R['dpr']
         assert R['tags0'] == {'paper': [], 'left': None, 'below': None}, (name, R['tags0'])
         seen = []
         for s in R['tagHovers'] + [R['tagAway']]:
@@ -3879,16 +4042,22 @@ def q_axes_tag_the_cell_read_out():
             mid = PL + (j - 0.5 - v['u0']) * (PR - PL) / v['span']
             shown = v['u0'] - 1e-6 <= j - 0.5 <= v['u0'] + v['span'] + 1e-6
             seen.append((n, m, shown))
-            top, bottom = rows[T - m]                              # row m's colored part, in device px: [top, bottom)
+            # Row m's colored part, in device px: [top, bottom), among the rows of the view of this hover (since
+            # 2026-11-10 the rows follow the view); the m tag is as tall as the colored part of a row 14 CSS px tall,
+            # which the rows of a view of 16 rows are, on its row's middle (as tall as its row, whatever the view, until then).
+            top, bottom = s['rows'][len(s['rows']) - m]
+            tall = math.floor(14 * dpr + 0.5) - 1
+            first = math.floor((top + bottom) / 2 - tall / 2 + 0.5)
             ms = [(t, x, y) for t, x, y in s['paper'] if y < R['axisTop']]
             ns = [(t, x, y) for t, x, y in s['paper'] if y >= R['axisTop']]
             assert [t for t, _, _ in ms] == [str(m)] and ms[0][1] < PL and close(ms[0][2], (top + bottom) / 2, 1), (name, n, m, s['paper'])
             assert [t for t, _, _ in ns] == [str(n)] * shown and all(close(x, mid, 1) for _, x, _ in ns), (name, n, m, mid, s['paper'])
             assert s['left'] is not None, (name, n, m, s['left'])
             X0, X1, Y0, Y1 = s['left']
-            assert (Y0, Y1 + 1) == (top, bottom) and PL - 7 * dpr <= X1, (name, n, m, s['left'], top, bottom)
+            assert (Y0, Y1 + 1) == (first, first + tall) and PL - 7 * dpr <= X1, (name, n, m, s['left'], top, bottom)
             assert (s['below'] is not None) == shown, (name, n, m, shown, s['below'])
             assert not shown or close((s['below'][0] + s['below'][1] + 1) / 2, mid, 2), (name, n, m, mid, s['below'])
+        T = len(R['rows'])                                         # the full view's rows
         corners = {(2, 1, True), (2, T, True), (COLUMNS[-1], T, True), (COLUMNS[-1], 1, True)}
         assert corners <= set(seen) and {True, False} <= {shown for *_, shown in seen[5:-1]}, (name, seen)
         away = R['tagAway']
@@ -3929,15 +4098,19 @@ def q_contract_violations_fail_loudly():
     # arguments; a join of lengths that do not add up to n; a join or product claiming more than its parts give; "two"
     # with the wrong hi; "norm" for a prime dividing n, and for a composite; "table2" at an n not in Table 2; "page" for
     # a provenance the page does not use; an example with an empty label; "none" or "odd" at an even n; an example at
-    # an odd n; a column of five entries; hi at mtop; mtop above max hi + 1; nmax not 1024; mtopAt not past nmax, or falling
+    # an odd n; a column of five entries; hi at mtop; mtop above max hi + 1; nmax not the number of columns; mtopAt not past nmax, or falling
     # (since 2026-11-04); a row of past not past nmax.
     # Expectata: in each case the canvas stays 0 px tall and the readout ends with the error, which quotes the
-    # offending column as JSON (or mtop, or nmax and mtop), and the error is uncaught.
+    # offending column as JSON (or mtop, or nmax and mtop), and the error is uncaught.  It is the page's one error,
+    # but with nmax broken (999): since 2026-11-10 the chart of powers of 2 reads the m*(n) chart's last n from
+    # mstar.js (page/pow2-section.js; a number of its own until then), and 2^10, whose upper bound it takes from the
+    # m*(n) chart's column 1024, is past 999, so that chart fails loudly too, quoting its column 10.
     for v, (_, quoted) in VIOLATIONS.items():
         R = run(f'violates {v}')
         assert 'harnessError' not in R and R['canvasDev'][1] == 0 and R['canvasCss'][1] == 0, (v, R)
         assert R['readout0'].endswith(f'Error: {quoted}'), (v, R['readout0'])
-        assert R['errors'] == [f'error: Uncaught Error: {quoted}'], (v, R['errors'])
+        assert R['errors'][0] == f'error: Uncaught Error: {quoted}' and len(R['errors']) == 1 + (v == 'nmax'), (v, R['errors'])
+        assert all(e.startswith('error: Uncaught Error: [10,') for e in R['errors'][1:]), (v, R['errors'])
 
 
 def q_made_up_data_draws():
@@ -5124,10 +5297,14 @@ def q_smallest_lengths_go_past_the_chart():
     # search, just whatever bounds we can find quickly"), order 17: not ruled out first at 1440 either (mstar.js's
     # mtopAt; quals_mstar's q_order_17_is_open_first_at_1440), and reached at 2880 = 1440 · 2, the example of order 16
     # times Thue–Morse's of order 1 at 2, not proven least.  (Resultata before: the table stopped at order 16.)
+    # And since 2026-11-10 (dreeves's README: "[BOU] Let's try having Figure 1 go up to 2048") the orders 16 to 18 are
+    # the chart's own, 1440 and 1920 being columns: order 18 is not ruled out first at 1920 and reached at 5760 =
+    # 1440 · 4; and order 19, which no n up to 2048 allows, is not ruled out first at 2400 (mstar.js's mtopAt) and
+    # reached at 11520 = 1440 · 8.  (Resultata before: the table stopped at order 17.)
     rows = smallest_table()
     assert all(re.fullmatch(r'\d+', r[2]) for r in rows), rows
     assert rows[13:] == [['14', '480', '960', ''], ['15', '960', '960', '✓'], ['16', '1440', '1440', '✓'],
-                         ['17', '1440', '2880', '']], rows[13:]
+                         ['17', '1440', '2880', ''], ['18', '1920', '5760', ''], ['19', '2400', '11520', '']], rows[13:]
 
 
 def q_smallest_known_is_the_least_product_of_the_chart_s_lengths():
@@ -5137,9 +5314,11 @@ def q_smallest_known_is_the_least_product_of_the_chart_s_lengths():
     # Resultata before: — at orders 14 and 15, whose least products are 1920 and 3840.
     # Since 2026-11-04 an example past the chart (mstar.js's past) competes with them: order 16's 1440 against its least product, 1920.
     # Since 2026-11-04 ([M17]) its length is a factor too: order 17's 2880 = 1440 · 2 against the chart's own 3840 = 960 · 4.
+    # Since 2026-11-10 ([BOU]) 1440 is a column of the chart, which reaches 2048, and past is empty: the columns up to
+    # 1024 and the example at 1440 give what they gave.
     cols, past = mstar_data()['cols'], mstar_data()['past']
     rows = smallest_table()
-    assert [products_least(cols, m, p) for m in (16, 17) for p in ((), past)] == [1920, 1440, 3840, 2880]
+    assert [products_least(cols[:NMAX], m, p) for m in (16, 17) for p in ((), [[1440, 16, 'equipow p1440']])] == [1920, 1440, 3840, 2880]
     assert [r[2] for r in rows] == [str(products_least(cols, m, past)) for m in range(1, len(rows) + 1)], rows
 
 

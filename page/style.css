@@ -497,7 +497,10 @@ code[aria-expanded], [data-text][aria-expanded] { cursor: pointer; text-decorati
 .swatch.impossible { --hue: var(--impossible); }
 .swatch.record { box-shadow: 0 0 0 2px var(--record); }   /* a smallest cell, ringed in gold as in the charts */
 .swatch.proven { background-image: radial-gradient(circle closest-side, var(--record) 50%, transparent 50%); }   /* and proven the least: a gold dot, half its smaller side across */
-.zoom { display: flex; gap: 0.5rem; }
+.zoom { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+/* The m*(n) chart's caps ([BOU], 2026-11-10): the word and its six buttons, one group of the zoom row, which goes to a
+   row of its own where the row is too narrow */
+.caps { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
 .zoom button {
   font: inherit;
   font-size: 0.9375rem;
@@ -508,6 +511,7 @@ code[aria-expanded], [data-text][aria-expanded] { cursor: pointer; text-decorati
   cursor: pointer;
 }
 .zoom button:disabled { opacity: 0.4; cursor: default; }  /* a zoom button at its limit, grayed out */
+.zoom button[aria-pressed="true"] { color: var(--paper); background: var(--ink); }   /* the cap in force, in ink */
 #mstar-chart, #pow2-chart { touch-action: pan-y; cursor: grab; }
 #mstar-chart:active, #pow2-chart:active { cursor: grabbing; }
 #mstar-chart:focus-visible, #pow2-chart:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }

@@ -39,6 +39,7 @@
   <!-- The changelog, newest first, as in dreeves's spec FreshAt (doc.bmndr.co/freshat) -->
   <details class="changelog">
     <summary><i>Changelog</i></summary>
+    <p>2026-11-10: More interactive chart, extends to 2048</p>
     <!-- Says that the page now explains what a form-tree proof is (the section "Form-tree proofs"), modeled on dreeves's entry of 2026-11-06, "Exposition on symmetry and asymptotics" -->
     <p>2026-11-10: Fable 5.2 explains form-tree proofs</p>
     <!-- Fable 5.2 proved that at each order BGPW's Symmetry Conjecture holds at every sufficiently large length: for every order m, every large enough length that the least power of 2 above m divides has a (−1)^m-symmetric sequence of order m (the Symmetry section's last block quote, which holds the proof in a fold) -->
@@ -233,9 +234,10 @@
 
 <!-- Chart of what is known about m*(n) for every n up to 1024, drawn by the script at the end from mstar.js -->
 <section class="mstar" aria-labelledby="mstar-title">
-  <h2 id="mstar-title">Bounds on \(m^*(n)\) for every \(n\) up to 1024</h2>
+  <h2 id="mstar-title">Bounds on \(m^*(n)\) for every \(n\) up to 2048</h2>
   <p>
-    The following chart shows \(m^*(n)\) for every \(n\) up to 1024, with the specified exceptions.</p>
+    The following chart shows \(m^*(n)\) for every \(n\) up to the specified cap, with the specified exceptions.
+  </p>
   <p>
     See the introduction for why odd numbers have order 0.
     A short proof for why odd multiples of 2 have order 1 is as follows.
@@ -276,8 +278,15 @@
     <div class="zoom">
       <button type="button" id="mstar-zoom-out" aria-label='zoom out' title='zoom out'>−</button>
       <button type="button" id="mstar-zoom-in" aria-label='zoom in' title='zoom in'>+</button>
-      <!-- zooms back out to every column, n = 2 to 1024 -->
-      <button type="button" id="mstar-reset" aria-label='reset zoom' title='reset zoom'>↺</button>
+      <!-- The caps (dreeves's README, [BOU], 2026-11-10: "Let's try having Figure 1 go up to 2048. Actually, let's try this: replace the reset-zoom button with "cap:" and then buttons for 2^6, 2^7, 2^8, 2^9, 2^10, 2^11"): a click on a cap makes its n (data-cap) the chart's last column and shows every column up to it, as the reset button showed every column up to 1024; the cap pressed as the page loads (aria-pressed) is 2^10, the chart as it was -->
+      <span class="caps" id="mstar-caps">cap:
+        <button type="button" data-cap="64" aria-pressed="false">\(2^6\)</button>
+        <button type="button" data-cap="128" aria-pressed="false">\(2^7\)</button>
+        <button type="button" data-cap="256" aria-pressed="false">\(2^8\)</button>
+        <button type="button" data-cap="512" aria-pressed="false">\(2^9\)</button>
+        <button type="button" data-cap="1024" aria-pressed="true">\(2^{10}\)</button>
+        <button type="button" data-cap="2048" aria-pressed="false">\(2^{11}\)</button>
+      </span>
     </div>
   </div>
   <canvas id="mstar-chart" height="0" tabindex="0" role="img" aria-label='chart of the bounds on m*(n) for even n up to 1024; the arrow keys pan, and + and − zoom'></canvas>

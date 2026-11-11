@@ -220,8 +220,9 @@ def q_base_blocks_and_their_sources():
     short = {K0: {(n, m) for n, m in bs if n <= mstar.NMAX} for K0, bs in blocks.items()}
     assert all(mstar_disk()[n - 1][0] == m for bs in short.values() for n, m in bs), short
     # Since 2026-11-04 the page has one example longer than NMAX, 1440:16, which beside the table of smallest lengths moves no first, so no base uses it (searches/tilted/README.md).
-    assert set().union(*blocks.values()) - set().union(*short.values()) == set() and long_examples() == {(1440, 16)}, blocks
-    assert (1024, 11) in short[10] and mstar.NMAX == 1024
+    # Since 2026-11-10 NMAX is 2048 (dreeves's README, [BOU]), so 1440:16 is a column's block and no example is longer.
+    assert set().union(*blocks.values()) - set().union(*short.values()) == set() and long_examples() == set(), blocks
+    assert (1024, 11) in short[10] and mstar.NMAX == 2048
     assert {(n, m) for n, m in pow2.blocks() if n > mstar.NMAX and n != 2 ** m} == long_examples()
     cited = {K0: {(n, m) for n, m in bs if mstar_disk()[n - 1][2] == ['page', 'BGPW']} for K0, bs in short.items()}
     assert cited == {K0: set() for K0 in pow2.BASES}, cited
@@ -236,13 +237,16 @@ def q_small_k_agree_with_mstar():
     # Expectata: the same lo and hi in both, and hiWhy ["mstar", mstar.js's hiWhy for 2^k, verbatim]; lo = hi = k and
     # loWhy ["thue-morse"] for k <= 9; and at 2^10, lo = hi = 11, loWhy the join of one product, the page's example of
     # order 11 at 1024 (["joins", [[[1024, 11]]]]), and mstar.js's hiWhy the norm bound for 3.
+    # Since 2026-11-10 the m*(n) chart reaches 2048 ([BOU]): k = 1..11, and at 2^11 lo = hi = 12 as pow2.js had them,
+    # its hiWhy now mstar.js's, the residue condition mod 3 (pow2.py's own claim there until then).
     ks = [k for k in range(1, KMAX + 1) if 2 ** k <= mstar.NMAX]
-    assert ks == list(range(1, 11)), ks
+    assert ks == list(range(1, 12)), ks
     for k in ks:
         lo, hi, lw, hw = mstar_disk()[2 ** k - 1]
         assert cols()[k - 1][:2] == [lo, hi] and cols()[k - 1][3] == ['mstar', hw], (k, cols()[k - 1], mstar_disk()[2 ** k - 1])
-        assert k == 10 or (lo == hi == k and cols()[k - 1][2] == ['thue-morse']), (k, lo, hi)
+        assert k >= 10 or (lo == hi == k and cols()[k - 1][2] == ['thue-morse']), (k, lo, hi)
     assert cols()[9] == [11, 11, ['joins', [[[1024, 11]]]], ['mstar', ['norm', 3]]], cols()[9]
+    assert cols()[10] == [12, 12, ['joins', [[[1024, 11], [2, 1]]]], ['mstar', ['residue', 3]]], cols()[10]
 
 
 # ---------- the upper bounds ----------

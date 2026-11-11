@@ -7,16 +7,18 @@
 // row of the column); the strip of row labels left of it, [null, row] (every column of the row); or null, elsewhere;
 // readout(column, row) reads a cell out; and draw(u0, span, picked, pinned) draws the view, outlining the cell read
 // out, picked (none or one), and the target of the box open, pinned (none or one).  The buttons out and in do what the
-// - and + keys do, each grayed out at its limit, and reset shows every column.  A tap or a click on a cell reads it
+// - and + keys do, each grayed out at its limit (with fewer than MIN_SPAN columns the one view is both limits), and each
+// button of resets shows every column (the chart of powers of 2 has one; the m*(n) chart none since 2026-11-10, when
+// its caps took the reset button's place, dreeves's README, [BOU]).  A tap or a click on a cell reads it
 // out, and on a cell or a strip's label calls open(target), which opens its box (chartPanel, below; a column's panel
 // on a cell's click since 2026-11-03, and since 2026-11-04 a cell's box, a column's or a row's, dreeves's README
 // items [CEL] and [ROC]).  It returns redraw(), which draws the view again, uAt(x), the u at CSS x of el, and
 // pin(targets), which outlines targets (none or one) until the next pin.
-function panZoom({el, out: zoomOut, in: zoomIn, reset, ncol, plot, targetAt, readout, draw, open}) {
+function panZoom({el, out: zoomOut, in: zoomIn, resets, ncol, plot, targetAt, readout, draw, open}) {
   const MIN_SPAN = 12, TAP = 6;
   let u0 = 0, span = ncol(), picked = [], pinned = [];
   function redraw() {
-    zoomIn.disabled = span === MIN_SPAN;                           // each zoom button grays out at its limit
+    zoomIn.disabled = span === clampSpan(0);                       // each zoom button grays out at its limit
     zoomOut.disabled = span === ncol();
     draw(u0, span, picked, pinned);
   }
@@ -101,7 +103,7 @@ function panZoom({el, out: zoomOut, in: zoomIn, reset, ncol, plot, targetAt, rea
   });
   zoomIn.addEventListener('click', KEYS.get('+'));                 // the zoom buttons do what the + and - keys do
   zoomOut.addEventListener('click', KEYS.get('-'));
-  reset.addEventListener('click', () => setView(0, ncol()));
+  resets.forEach(b => b.addEventListener('click', () => setView(0, ncol())));
   const pin = ts => { pinned = ts; redraw(); };
   // the chart's columns changed (the m*(n) chart's, with a box of its list): no cell is read out and none pinned, and
   // the view is every column

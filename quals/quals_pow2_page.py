@@ -51,8 +51,11 @@ BOX_TARGETS = [[30, 2], [30, 8], [30, 5], [10, 1], [9, 1], [20, 2], [13, 2], [30
 NO_RUNS = {'made': 1792200000, 'runs': []}
 SWIPE = (29, 8)                               # the cell a phone's swipe starts on, after the outline's tap
 MSTAR_LAYOUT = (44, 16, 2, 14)                # the m*(n) chart's plot: left and right gutters, top, row pitch (CSS px)
-NMAX = int(re.search(r'"nmax": (\d+)', open(MSTAR, encoding='utf-8').read()).group(1))   # the m*(n) chart's last n (1024)
-MSTAR_COLUMNS = [2] + list(range(4, NMAX + 1, 4))   # the m*(n) chart's columns' n since 2026-10-29 (every even n before)
+NMAX = int(re.search(r'"nmax": (\d+)', open(MSTAR, encoding='utf-8').read()).group(1))   # the m*(n) chart's data's last n (2048 since 2026-11-10, [BOU]; 1024 before)
+# The m*(n) chart's last n as the page loads, its cap pressed then (1024; the data's last n until 2026-11-10, when the
+# caps came, dreeves's README [BOU]), and its columns' n then, since 2026-10-29 (every even n before).
+MSTAR_CAP = int(re.search(r'data-cap="(\d+)" aria-pressed="true"', open(os.path.join(HERE, 'index.html'), encoding='utf-8').read()).group(1))
+MSTAR_COLUMNS = [2] + list(range(4, MSTAR_CAP + 1, 4))
 RUNS = {}                                     # DRIVER's reports by configuration name, made once per process (see run)
 
 
@@ -261,9 +264,10 @@ VIOLATIONS = {   # name: (a change that breaks the contract, what the page's err
     'joins length': column(30, [31, 37, ['joins', [[[2 ** 24, 24], [32, 5]]]], ['norm', 3]]),
     'joins lo': column(30, [32, 37, ['joins', [[[2 ** 24, 24], [64, 6]]]], ['norm', 3]]),
     'joins f': column(30, [31, 37, ['joins', [[F, [64, 6]]]], ['norm', 3]]),       # f, a block until 2026-10-29
-    'joins block': column(30, [31, 37, ['joins', [[[2048, 12], [524288, 19]]]], ['norm', 3]]),
+    # [4096, 13] since 2026-11-10: [2048, 12], the block here until then, is a column of the m*(n) chart since it reaches 2048 ([BOU])
+    'joins block': column(30, [31, 37, ['joins', [[[4096, 13], [262144, 18]]]], ['norm', 3]]),
     'joins empty': column(30, [31, 37, ['joins', []], ['norm', 3]]),
-    'mstar above 10': column(11, [11, 11, ['thue-morse'], ['mstar', ['residue', 3]]]),
+    'mstar above 11': column(12, [12, 12, ['thue-morse'], ['mstar', ['residue', 3]]]),   # above 10, at k = 11, until 2026-11-10 ([BOU])
     'mstar kind': column(5, [5, 5, ['thue-morse'], ['mstar', ['guess']]]),
     'mstar two': column(2, [2, 2, ['thue-morse'], ['mstar', ['two']]]),
     'norm composite': column(30, [31, 37, C30[2], ['norm', 9]]),
@@ -465,7 +469,7 @@ const GAPS = () => [...document.querySelector('[data-record-gaps]').querySelecto
   return x.textContent.replace(/\s+/g, ' ').trim(); }));
 // Each zoom button of the two charts, mstar's and pow2's side by side: what of its look its computed style and box give,
 // and its text, title and label (2026-10-30).
-const LOOKS = () => ['zoom-out', 'zoom-in', 'reset'].map(b => ['mstar', 'pow2'].map(p => {
+const LOOKS = () => ['zoom-out', 'zoom-in'].map(b => ['mstar', 'pow2'].map(p => {     // and 'reset' until 2026-11-10, when the m*(n) chart's gave way to its caps ([BOU])
   const e = document.getElementById(`${p}-${b}`), s = getComputedStyle(e), r = e.getBoundingClientRect();
   return [s.fontFamily, s.fontSize, s.color, s.backgroundColor, s.borderTopWidth, s.borderTopStyle, s.borderTopColor,
     s.paddingTop, s.paddingLeft, s.cursor, s.opacity, Math.round(r.width * 10) / 10, Math.round(r.height * 10) / 10,
@@ -623,7 +627,7 @@ async function main() {
     R.mstar = [];
     await ev(() => document.getElementById('mstar-chart').scrollIntoView({block: 'center'}));
     await ev(FRAMES);
-    const [cl, ct, cw] = (await ev(GEOMETRY)).canvas, T2 = await ev(() => MSTAR.mtop), [ML, MR, MT, MP] = C.mstarLayout;
+    const [cl, ct, cw] = (await ev(GEOMETRY)).canvas, T2 = await ev(cols => 1 + Math.max(...cols.map(n => MSTAR.cols[n - 1][1])), C.mstarCols), [ML, MR, MT, MP] = C.mstarLayout;
     for (const [k, m] of C.mstarCells) {        // cell (2^k, m) of the m*(n) chart in its full view of the columns C.mstarCols
       await input.mouse(cl + ML + (C.mstarCols.indexOf(2 ** k) + 0.5) * (cw - ML - MR) / C.mstarCols.length,
                         ct + MT + (T2 - m) * MP + (MP - 2) / 2);
@@ -666,7 +670,7 @@ async function main() {
           pow2Tags.push(r.tags);
         }
         await show('mstar-chart');
-        const [cl, ct, cw] = (await ev(GEOMETRY)).canvas, T2 = await ev(() => MSTAR.mtop), [ML, MR, MT, MP] = C.mstarLayout, mstar = [];
+        const [cl, ct, cw] = (await ev(GEOMETRY)).canvas, T2 = await ev(cols => 1 + Math.max(...cols.map(n => MSTAR.cols[n - 1][1])), C.mstarCols), [ML, MR, MT, MP] = C.mstarLayout, mstar = [];
         for (const x of [cl + ML + 0.5, cl + cw - MR - 0.5]) {
           await input.mouse(x, ct + MT + (T2 - 1) * MP + (MP - 2) / 2);
           mstar.push(await ev(() => document.getElementById('mstar-readout').textContent));
@@ -693,7 +697,10 @@ async function main() {
         return {clicks: n, geo: g, dom: await ev(DOM, inView)};
       });
       await step('pow2 ↺', () => click('pow2-reset'));
-      await step('mstar ↺', () => click('mstar-reset'));
+      // the m*(n) chart's cap pressed, a click on which shows every column as its ↺ did until 2026-11-10 (dreeves's
+      // README, [BOU]: "replace the reset-zoom button with "cap:" and then buttons"); it gets an id here for click
+      await ev(() => { document.querySelector('#mstar-caps button[aria-pressed="true"]').id = 'mstar-cap-pressed'; });
+      await step('mstar cap', () => click('mstar-cap-pressed'));
       // A corner of a zoomed view read out, then that view panned by the keys alone until the corner's column is out of
       // view (2026-11-02, [HOV], q_axes_tag_the_cell_read_out): a click of this chart's + from the full view that its ↺
       // left, (12, 48); a click on the chart, for the keys; a mouse move to the top-left cell, k = 13 and δ = E; eight
@@ -1053,8 +1060,9 @@ def q_long_blocks_are_the_remarks_examples():
     codes = re.findall(r'\\\(p_\{(\d+)\}\\\) \\\(\(m = (\d+)\)\\\):</span>\n\s*<code id="\d+:\d+">([0-9A-F]+)</code>',
                        page())
     long = [(int(n), int(m), h) for n, m, h in codes if int(n) > NMAX]
-    assert long_blocks() == [] and [[n, m] for n, m, _ in long] == [[1440, 16]], (long_blocks(), long)
-    assert NMAX == 1024 and [n for n, *_ in codes].count('1024') == 1, (NMAX, [n for n, *_ in codes])
+    # Since 2026-11-10 the m*(n) chart's data reach 2048 ([BOU]), so 1440 is one of its columns and no example is longer.
+    assert long_blocks() == [] and [[n, m] for n, m, _ in long] == [], (long_blocks(), long)
+    assert NMAX == 2048 and [n for n, *_ in codes].count('1024') == 1, (NMAX, [n for n, *_ in codes])
     for n, m, h in long:
         left = [2 * int(b) - 1 for b in bin(int(h, 16))[2:].zfill(4 * len(h))]
         c, k = left + [(-1) ** m * s for s in reversed(left)], 0
@@ -1353,7 +1361,7 @@ def q_zoom_controls_zoom_their_own_chart():
     # did (+ and − by 1.5 about the middle, an arrow by an eighth of the view, from 12 columns to all) and leaves the
     # other chart's view as it was: this chart's k at its ends 1 and 72, 13 and 60 twice, 21 and 52, 25 and 56, 17 and
     # 64, 35 and 46 after 4 clicks (ZOOM_VIEW), 1 and 72 twice; the m*(n) chart's n 2 and 1024, then 168 and 856 until
-    # its ↺; a + is disabled exactly at 12 columns and a − exactly at all; in that view of 12 columns each cell in view is
+    # the click on its cap pressed (its ↺ until 2026-11-10, [BOU]); a + is disabled exactly at 12 columns and a − exactly at all; in that view of 12 columns each cell in view is
     # its rect, of its kind's color; and each ring (ring_cells, since 2026-10-30) is around its cell, as at the full
     # view, where that cell is in view, and wholly beyond the plot's ends, which clip it, where it is not (no ringed
     # cell was next to that view, where a ring shows its edge, as the m*(n) chart's rings do, until 2026-11-03, when (47, 6) became one, around its cell there too).
@@ -1361,7 +1369,7 @@ def q_zoom_controls_zoom_their_own_chart():
     R = valid('light')
     Z, cols, tok = R['zoom'], R['data']['cols'], R['load']['tokens']
     assert all(a == b for a, b in Z['looks']), Z['looks']
-    names = ['load', 'pow2 +', 'mstar +', 'pow2 + key', 'pow2 → key', 'pow2 − key', 'pow2 + to its limit', 'pow2 ↺', 'mstar ↺']
+    names = ['load', 'pow2 +', 'mstar +', 'pow2 + key', 'pow2 → key', 'pow2 − key', 'pow2 + to its limit', 'pow2 ↺', 'mstar cap']
     ks = [(1, 72), (13, 60), (13, 60), (21, 52), (25, 56), (17, 64), (35, 46), (1, 72), (1, 72)]
     ns = [(2, 1024)] * 2 + [(168, 856)] * 6 + [(2, 1024)]
     disabled = [[False, True, False, True], [False, False, False, True]] + [[False] * 4] * 4 + [
@@ -1774,9 +1782,10 @@ def q_contract_violations_fail_loudly():
     # Replicata: made-up data broken in one way each (VIOLATIONS): a lo below k or above hi; hi at etop; a column of
     # five entries; an unknown kind of loWhy or hiWhy, or one of the wrong arity; Thue-Morse not at lo = k; a power
     # whose 24 L + j is not k, or whose lo is not k + L; joins whose lengths do not add up to 2^k, whose lo is not the
-    # least product's order, with a block that is none of f, τ_j and a column n <= NMAX ([2048, 12]; until 2026-10-27,
-    # when the m*(n) chart reached 1024, also [1024, 12], beside the page's example of order 11 at 1024), or with no
-    # product; an "mstar" hiWhy above k = 10 (k = 9 until then), of an unknown kind, or breaking its own rule; a norm
+    # least product's order, with a block that is none of f, τ_j and a column n <= NMAX ([4096, 13]; [2048, 12] until
+    # 2026-11-10, when the m*(n) chart reached 2048; until 2026-10-27, when it reached 1024, also [1024, 12], beside
+    # the page's example of order 11 at 1024), or with no product; an "mstar" hiWhy above k = 11 (k = 10 until
+    # 2026-11-10, k = 9 until 2026-10-27), of an unknown kind, or breaking its own rule; a norm
     # bound for a composite p, for
     # p = 2, or not the bound; a residue chain whose moduli do not divide in turn, or with a modulus below 2; an etop
     # above max(hi - k) + 1; kmax not 72; 71 columns; a key beyond kmax, etop and cols.

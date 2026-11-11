@@ -32,6 +32,12 @@ CHECKED_HI = ('odd', 'two', 'norm', 'residue')            # hiWhy kinds proved h
 # The gray columns of the user's count (multiples of 16 whose m* the sources here leave open), and 1008, the one gray
 # column of the lengths the chart gained on 2026-10-27, when it reached 1024
 USER_GRAY = (240, 288, 384, 432, 480) + tuple(range(528, 993, 16)) + (1008,)
+# The gray columns past 1024, since 2026-11-10, when the chart came to reach 2048 (dreeves's README: "[BOU] Let's try
+# having Figure 1 go up to 2048"): 32 multiples of 16, those of the 60 columns there whose two and norm bound exceeds
+# their explicit lo that neither the chart's residue tests (the claims of mstar.RESIDUE past 1024, found by
+# scratch/bou-20261110/search.py) nor the page's Symmetry section's sequences (1040, 1072, 1136 and 1168, at 11) settle.
+PAST_GRAY = (1056, 1104, 1200, 1248, 1296, 1392, 1440, 1456, 1488, 1504, 1520, 1552, 1568, 1584, 1616, 1632, 1648, 1680,
+             1712, 1728, 1744, 1776, 1808, 1840, 1872, 1904, 1920, 1936, 1968, 2000, 2016, 2032)
 
 
 @lru_cache(maxsize=None)
@@ -406,7 +412,8 @@ def q_schema():
     assert body.startswith('const MSTAR = ') and body.endswith('};\n') and body.count(';') == 1, body[:80]
     assert json.loads(body[len('const MSTAR = '):-2]) == got['m'] and got['keys'] == [], got['keys']
     M = got['m']
-    assert list(M) == ['nmax', 'mtop', 'mtopAt', 'past', 'cols'] and M['nmax'] == 1024 == mstar.NMAX and len(M['cols']) == 1024
+    # nmax: 2048 since 2026-11-10 ([BOU]), 1024 from 2026-10-27 until then
+    assert list(M) == ['nmax', 'mtop', 'mtopAt', 'past', 'cols'] and M['nmax'] == 2048 == mstar.NMAX and len(M['cols']) == 2048
     assert all(type(n) is int and n > M['nmax'] and type(m) is int and type(label) is str for n, m, label in M['past']), M['past']
     at = M['mtopAt']
     assert type(at) is list and at and all(type(n) is int and n > M['nmax'] and n % 2 == 0 for n in at), at
@@ -542,7 +549,7 @@ def q_known_shape():
     # Replicata: mstar.js's columns, by n mod 16.
     # Expectata: odd n: lo = hi = 0; n = 2 mod 4: 1; n = 4: 2; n = 4 mod 8 from 12: 3; n = 8 mod 16: lo = hi, and 7 from
     # 200 on; every gray column (lo < hi) is among the user's 35 multiples of 16, or is 1008 (since 2026-10-27, when the
-    # chart reached 1024).
+    # chart reached 1024), or one of PAST_GRAY (since 2026-11-10, when it reached 2048).
     _, got = disk()
     cs = got['m']['cols']
     for n, (lo, hi, _, _) in enumerate(cs, 1):
@@ -550,7 +557,7 @@ def q_known_shape():
         elif n % 4 == 2: assert lo == hi == 1, n
         elif n % 8 == 4: assert lo == hi == (2 if n == 4 else 3), n
         elif n % 16 == 8: assert lo == hi and (n < 200 or lo == 7), n
-        else: assert lo == hi or n in USER_GRAY, n
+        else: assert lo == hi or n in USER_GRAY + PAST_GRAY, n
 
 
 def q_gray_columns():
@@ -574,7 +581,10 @@ def q_gray_columns():
     # condition mod 3); and less 544, settled at 10, 576 and 624 at 12, 912 and 1008 at 13 and 960 at 15 on 2026-11-03 (lo from the page's examples, found by
     # searches/pinned/: q_results_of_2026_11_03; hi as before); and less 432, settled at 11, and 816, settled at 12, later that day (lo as before; hi by their pin trees: q_pin_trees_settle_432_and_816).
     _, got = disk()
-    gray = tuple(n for n, c in enumerate(got['m']['cols'], 1) if c[0] < c[1])
+    # Since 2026-11-10 the chart reaches 2048 ([BOU]): up to 1024 the gray columns are as before, and past it PAST_GRAY.
+    grays = tuple(n for n, c in enumerate(got['m']['cols'], 1) if c[0] < c[1])
+    gray = tuple(n for n in grays if n <= 1024)
+    assert tuple(n for n in grays if n > 1024) == PAST_GRAY, grays
     tens, elevens = (592, 608, 656, 688, 752, 784), (832, 848, 880, 896, 928, 944, 976, 992)
     # 768 settled at 13 on 2026-11-03 (the beam campaign's plan 6), and left the gray columns.
     # 672 settled at 13 on 2026-11-04 (searches/tilted/: q_example_at_672_reaches_order_13), and left them too.
@@ -841,13 +851,17 @@ def q_past_lists_the_example_of_order_16_at_1440():
     # each explicit sequence longer than NMAX, whose exact order is m; mtop and mtopAt as before, 16 and 1440, so the least n known
     # to reach order mtop is the least n not ruled out.
     # Resultata before: mstar.js had no past, and the page's least n known to reach order 16 was the product 1920 = 960 * 2.
+    # Since 2026-11-10 the chart reaches 2048 ([BOU]): 1440 is one of its columns, the example its lower bound, and no
+    # explicit sequence is longer than NMAX, so past is empty; the least n known to reach order 16 is still the least
+    # not ruled out, as columns now: no column before 1440 allows order 16.
     _, got = disk()
     M = got['m']
-    assert M['past'] == [[1440, 16, 'equipow p1440']], M['past']
-    assert (M['mtop'], M['mtopAt'][0]) == (16, 1440), (M['mtop'], M['mtopAt'])   # mtop's, first of mtopAt since 2026-11-04 ([M17])
+    assert M['past'] == [] and M['cols'][1439][:3] == [16, 17, ['example', 'equipow p1440']], (M['past'], M['cols'][1439])
+    assert max(c[1] for c in M['cols'][:1439]) == 15, max(c[1] for c in M['cols'][:1439])
     far = {key: a for key, a in mstar.explicit().items() if key[0] > mstar.NMAX}
     assert [[n, mstar.order(a), label] for (n, label), a in far.items()] == M['past'], list(far)
-    assert all(mstar.order(a) == 16 and len(a) == 1440 and a == a[::-1] for a in far.values()), list(far)
+    at = [a for (n, label), a in mstar.explicit().items() if (n, label) == (1440, 'equipow p1440')]
+    assert len(at) == 1 and all(mstar.order(a) == 16 and len(a) == 1440 and a == a[::-1] for a in at), len(at)
 
 
 # ---------- residue tests ----------
@@ -881,7 +895,11 @@ def q_mtop_is_open_first_at_1440_past_the_chart():
     _, got = disk()
     M = got['m']
     # (mtopAt is a list since 2026-11-04, [M17], mtop's first: q_order_17_is_open_first_at_1440.)
-    assert M['mtop'] == 16 and M['mtopAt'][0] == 1440 == mstar.mtop_at(16), (M['mtop'], M['mtopAt'])
+    # Since 2026-11-10 the chart reaches 2048 ([BOU]) and the columns say it: none before 1440 allows order 16, 1440
+    # does, and mtop is 19, the order that no n up to 2048 allows, first left open at 2400, past the chart, as
+    # mtop_at(19) finds it (mtop_at searches past NMAX, so no longer from 1026).
+    assert max(c[1] for c in M['cols'][:1439]) == 15 and M['cols'][1439][1] >= 16, M['cols'][1439]
+    assert M['mtop'] == 19 and M['mtopAt'] == [2400] == [mstar.mtop_at(19)], (M['mtop'], M['mtopAt'])
     tests = lambda n: min([mstar.two(n)] + [mstar.norm(n, p) for p in mstar.PRIMES if n % p])
     assert [mstar.norm(n, 5) for n in (1056, 1152, 1248)] == [15, 15, 15]
     assert tests(1344) >= 16 and mstar.chain_none(1344, 16, (5,), 'digits', mstar.MTOP_CAP)
@@ -898,8 +916,10 @@ def q_order_17_is_open_first_at_1440():
     # Resultata before: mtopAt was 1440 alone, mtop's, and the table stopped at order 16.
     _, got = disk()
     M = got['m']
-    assert mstar.MMAX == 17 and M['mtop'] == 16, (mstar.MMAX, M['mtop'])
-    assert M['mtopAt'] == [1440, 1440] == [mstar.mtop_at(m) for m in (16, 17)], M['mtopAt']
+    # Since 2026-11-10 the chart reaches 2048 ([BOU]), so order 17 is one of its rows: no column before 1440 allows
+    # order 16, and so none order 17, and 1440's upper bound is 17 (order 18 falls to the residue condition mod 7).
+    assert mstar.MMAX == 17 and M['mtop'] == 19, (mstar.MMAX, M['mtop'])
+    assert max(c[1] for c in M['cols'][:1439]) == 15 and M['cols'][1439][1] == 17, M['cols'][1439]
     assert min([mstar.two(1440)] + [mstar.norm(1440, p) for p in mstar.PRIMES if 1440 % p]) >= 17
 
 
@@ -982,7 +1002,9 @@ def q_residue_controls():
     done = 0
     for n, (m, chain, sweep) in mstar.RESIDUE.items():
         lo, hi, why, _ = got['m']['cols'][n - 1]
-        if [lo, hi] != [m - 1, m - 1] or why[0] not in EXPLICIT or n in (512, 784): continue
+        # 1472 (since 2026-11-10, [BOU]): at order 11 the enumeration mod 9 under its join's own vector mod 3 passes
+        # 2*10^6 nodes (measured that day); the other 27 claims past 1024 at settled columns find theirs within 18 nodes
+        if [lo, hi] != [m - 1, m - 1] or why[0] not in EXPLICIT or n in (512, 784, 1472): continue
         assert mstar.order(mstar.build(n)) >= m - 1, n
         control(mstar.build(n), m - 1, chain[:1] if n == 624 else chain, sweep)
         if n == 624: walk(mstar.build(n), m - 1, 25, 5, sweep)
