@@ -17050,7 +17050,7 @@ Do we have or can we get a similar result when the biggest power of two factor i
 <header><p class="speaker">dreev</p></header>
 <pre class="prompt">yes, good qual. can you add more like that?</pre>
 <details>
-<summary><a class="anchor" href="#p849"><time datetime="2026-11-11T21:26:59.700000+00:00">21:26</time></a> <span class="chip"></span> <span class="agent">Claude Code</span> <span class="model">claude-fable-5-2</span> <span class="effort">(max)</span> <span class="elapsed">thought for 9m47s · 37m44s wall-clock time</span></summary>
+<summary><a class="anchor" href="#p849"><time datetime="2026-11-11T21:26:59.700000+00:00">21:26</time></a> <span class="chip"></span> <span class="agent">Claude Code</span> <span class="model">claude-fable-5-2</span> <span class="effort">(max)</span> <span class="elapsed">thought for 12m48s · 44m31s wall-clock time</span></summary>
 <div class="reply machine"><p>Status: before writing more quals of that kind, testing three candidate invariants on the current data, since a violation of any would be a new result on the chart for free.</p>
 <p>Status: the chart now has 1248 settled at 13 (2040 of 2048 columns) and its quals pass; the changelog step did not apply, checking why.</p>
 <p>Yes. Four more are drafted and tested in scratch; all pass on today&#x27;s data. They go into the tracked suites once the current run ends (about 14:05), since that run reads the same files.</p>
@@ -17058,7 +17058,10 @@ Do we have or can we get a similar result when the biggest power of two factor i
 <p>Also since the last message:</p>
 <ul><li><strong>m*(1248) = 13.</strong> Astra first ruled out order 15 at 1248, then order 14 as well, with a checked proof in [proofs/proof1248.py](proofs/proof1248.py). Fable verified both a third way, from the definition of order rather than the cited proposition. It is recorded in the working tree: the chart has 2040 of 2048 columns settled, the changelog line says so, and the two cells&#x27; boxes link Astra&#x27;s checker. The gray-columns qual and a new one for 1248 were red first and are green. Eight columns remain open: 480, 528, 720, 864, 1056, 1104, 1440, 1920.</li><li><strong>No proof fold on the page for 1248</strong> (Astra asked for one): its text has one copy, in the checker&#x27;s docstring, and the task of moving proofs into folds is on hold.</li><li><strong>The legend run</strong> ended with two reds, both diagnosed: the stale class list in quals_mstar (fixed, reported earlier), and one qual that failed because a KaTeX script did not download in that run; it passes on rerun.</li><li><strong>26 suites are running</strong> on the state with 1248 recorded.</li></ul>
 <p>Status: the four new quals are in the suites and pass; running the three suites they belong to in full, then the notes and the report.</p>
-<p>The four new quals are in the tracked suites and each passes on its own; quals_pow2 passes in full (18 quals), and quals_mstar and quals_symmetry are still running, about four minutes more. Astra has been asked which open cells it has already tried with the method that settled 1248, so the next black-cell work is not doubled.</p></div>
+<p>The four new quals are in the tracked suites and each passes on its own; quals_pow2 passes in full (18 quals), and quals_mstar and quals_symmetry are still running, about four minutes more. Astra has been asked which open cells it has already tried with the method that settled 1248, so the next black-cell work is not doubled.</p>
+<p>Status: the four quals are in and green. Now applying Astra&#x27;s 1248 method to the other open cells in scratch, starting with a general exact test and controls on known cases.</p>
+<p>The four new quals are in the suites, and those three suites pass in full: quals_pow2 18, quals_mstar 53, quals_symmetry 11. They are uncommitted, in [quals/quals_pow2.py](quals/quals_pow2.py), [quals/quals_mstar.py](quals/quals_mstar.py) and [quals/quals_symmetry.py](quals/quals_symmetry.py). Commit 7ea4b05 holds 1248 = 13, and the 26 suites that read the page or the proof pass on it.</p>
+<p>Next, on the black cells: Astra says the method that settled 1248 has been fully tried on only one other open cell (1440:17, where it excluded nothing). Fable has written a general exact version of that test, which reproduces Astra&#x27;s result at 1248 (orders 14 and 15 ruled out) and correctly rules nothing out where sequences are known (1248 at order 13, 960 at order 15). It is now running on every open cell at five moduli; results follow when it ends.</p></div>
 </details>
 </article>
 <article class="exchange codex" id="p850" data-login="dreeves">
@@ -17066,8 +17069,13 @@ Do we have or can we get a similar result when the biggest power of two factor i
 <pre class="prompt">anything else currently open?
 </pre>
 <details>
-<summary><a class="anchor" href="#p850"><time datetime="2026-11-11T22:07:08.059000+00:00">22:07</time></a> <span class="chip"></span> <span class="agent">Codex</span> <span class="model">gpt-6-astra</span> <span class="effort">(ultra)</span> <span class="elapsed">thought for 58s</span></summary>
-<div class="reply machine"><p>The latest chart data and Fable’s coordination notes will be checked for the remaining open cells and pending work.</p></div>
+<summary><a class="anchor" href="#p850"><time datetime="2026-11-11T22:07:08.059000+00:00">22:07</time></a> <span class="chip"></span> <span class="agent">Codex</span> <span class="model">gpt-6-astra</span> <span class="effort">(ultra)</span> <span class="elapsed">thought for 1m5s · 1m7s wall-clock time</span></summary>
+<div class="reply machine"><p>The latest chart data and Fable’s coordination notes will be checked for the remaining open cells and pending work.</p>
+<p><strong>11 black cells remain at eight lengths in Figure 1:</strong></p>
+<p>| Length \(n\) | Current range for \(m^*(n)\) |<br>|---:|:---|<br>| 480 | 12–14 |<br>| 528 | 11–12 |<br>| 720 | 13–14 |<br>| 864 | 12–14 |<br>| 1056 | 13–14 |<br>| 1104 | 13–14 |<br>| 1440 | 16–17 |<br>| 1920 | 16–18 |</p>
+<p>1248 is now recorded and committed; Fable independently verified the proof.</p>
+<p>The main research follow-up is applying the strengthened residue-count method to the remaining cells. Only 1440 has received that full follow-up so far, without resolving it. Fable asked about coverage and has now received the details.</p>
+<p>The full Symmetry Conjecture also remains open; <strong>528:12 is the sole remaining obstacle at order 12</strong>.</p></div>
 </details>
 </article>
 </main>
