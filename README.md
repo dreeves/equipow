@@ -6,13 +6,11 @@ LittlewoodPolynomialsReprint.pdf is the published version of the paper this is e
 ---
 
 Potential tasks: 
-* [BOU] Let's try having Figure 1 go up to 2048. Actually, let's try this: replace the reset-zoom button with "cap:" and then buttons for 2^6, 2^7, 2^8, 2^9, 2^10, 2^11.
+* [REO] See the notes in the index.html comments tagged [REO]. Better organization / less redundancy.
 * [MAI] Let's get more things as expandable sections of the main equipow page instead of linking to separate pages. Proofs currently in txt files for starters.
 * [CLU] Are there past searches we don't care about anymore that we don't need on the page? Some are interesting for posterity.
-* [REO] See the notes in the index.html comments tagged [REO]. Better organization / less redundancy.
 * [CRO] This might be fun: Let people contribute computation by just having the equipow page open in their browser. Claude thinks this could work. (More boringly, Claude is estimating we could bring the next two searches down from a total of 90 days on my laptop to about 4 days on cloud compute costing around $300.)
 * [TRE] We now have a time series of the number of pending nodes in the search. Seeing when that plateaus or starts to actually go down should improve our ETA. Can we incorporate that in the ETA graph? (Also this was missing from the 288:10 search for some reason.)
-* [REF] Refactor the directory structure, like probably all the python scripts belong in a directory.
 
 
 Stan notes:

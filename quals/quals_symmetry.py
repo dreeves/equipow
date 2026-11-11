@@ -104,7 +104,7 @@ def period(m): return 1 << m.bit_length()
 def bump(k, s): return k if (-1) ** k == s else k + 1
 
 
-def sources(text=None):
+def sources(text=None, N=N):
     """[(label, signs, order)]: Thue-Morse; the examples of BGPW's Tables 4 and 5 (mstar's copies, and the published
     Table 5's rows that overnight_v5.EXAMPLES holds); every code of the page (code blocks and sentences, the account's
     among them, decoded as page/codes.js decodes them); and the page's joins.  Each asserted of exactly its order."""
@@ -123,7 +123,7 @@ def sources(text=None):
     return out
 
 
-def closure(src):
+def closure(src, N=N):
     """(lo, sym, built): lo[n] the best order of the sources and their joins at n (wraps included, a symmetric
     sequence being a sequence), sym[s][n] that of the s-symmetric ones by sources and wraps, -1 when none; and
     built(kind, n), the sequence behind lo (kind None) or sym (kind s), built from its recipe."""
@@ -160,14 +160,15 @@ def own_hi(n):
                + [m - 1 for k, (m, _, _) in mstar.RESIDUE.items() if k == n])
 
 
-def reduction(text=None):
-    """For each m from 1 to MAXM: (A, b, threshold, uncovered, needed), uncovered the multiples of period(m) below the
+def reduction(text=None, MAXM=MAXM, N=N):
+    """For each m from 1 to MAXM (the account's 11, or 12 for its paragraph on order 12, with N the closure's lengths
+    to match: q_order_12_is_down_to_18_lengths): (A, b, threshold, uncovered, needed), uncovered the multiples of period(m) below the
     threshold with neither a (-1)^m-symmetric sequence of order m in the closure (each one built and checked) nor a
     chart bound below m, and needed the (n, hi) of the excluded ones whose bound is not the chart's own (own_hi);
     the sequences of order m - 1 from A to 2A, and every multiple of period(m) from the threshold to N, built by the
     closure too, and checked."""
     cols = qi.mstar_data()['cols']
-    lo, sym, built = closure(sources(text))
+    lo, sym, built = closure(sources(text, N), N)
     out = {}
     for m in range(1, MAXM + 1):
         s, g0, g = (-1) ** m, period(m - 1), period(m)
@@ -229,6 +230,35 @@ def q_symmetry_bounds_agree_with_the_chart():
     assert within == [], within
 
 
+# The account's paragraph on order 12 (Fable 5.2, 2026-11-11): its A, b and threshold, and the lengths it leaves.
+ORDER_12 = (800, 624, 2224)
+LEFT_12 = [528, 1504, 1520, 1552, 1568, 1616, 1648, 1712, 1744, 1808, 1840, 1904, 1936, 2000, 2032, 2096, 2128, 2192]
+OWED_12 = [1104, 1200, 1296, 1392]             # where joins give order 12 and the account's own codes the symmetric one
+
+
+def q_order_12_is_down_to_18_lengths():
+    # Replicata: the reduction carried on to order 12, with the closure's lengths to 2400 (reduction(MAXM=12, N=2400)),
+    # on the page, and on the page without the account's four symmetric codes of order 12; and the account's paragraph
+    # that states A = 800.
+    # Expectata (Fable 5.2 with Codex, 2026-11-10 and 11; dreeves: "can you keep collaborating with codex (aka astra)
+    # to see if you can make progress on the symmetry conjecture?"): at order 12 the reduction's A, b and threshold are
+    # 800, 624 and 2224 (ORDER_12); the multiples of 16 it leaves uncovered, each with neither a symmetric sequence of
+    # order 12, built and checked, nor a chart bound below 12, are the 18 of LEFT_12, which the paragraph lists; and
+    # without those four codes it leaves 1104, 1200, 1296 and 1392 as well, so that each of them is needed.
+    # Resultata before: the account said that orders 12 and up are open, and no symmetric sequence of order 12 was
+    # known at those four lengths.
+    text = qi.page()
+    got = reduction(text, MAXM=12, N=2400)[12]
+    assert got[:3] == ORDER_12 and got[3] == LEFT_12, got[:4]
+    drop = [f'<code id="{n}:12">' for n in OWED_12]
+    assert all(text.count(d) == 1 for d in drop), drop
+    bare = SECTION.sub(lambda x: re.sub(r'<code id="(?:%s):12">[0-9A-F]+</code>' % '|'.join(map(str, OWED_12)), '', x.group(0)), text)
+    assert reduction(bare, MAXM=12, N=2400)[12][3] == sorted(LEFT_12 + OWED_12), reduction(bare, MAXM=12, N=2400)[12][3]
+    [para] = [p for p in re.findall(r'<p>(.*?)</p>', account(text), re.S) if 'A = 800' in p]
+    listed = [int(x) for x in re.findall(r'(?<![\d(^{=.-])\b(\d{3,4})\b(?![\d}-])', re.sub(r'\\\(.*?\\\)', '', para))]
+    assert set(LEFT_12) <= set(listed) and set(OWED_12) <= set(listed), listed
+
+
 def q_symmetry_conjecture_holds_through_order_11():
     # Replicata: the reduction (reduction()) from the page's own sequences, Thue-Morse and BGPW's Tables 4 and 5 (the
     # closure, by joins and wraps, every claim built and checked), and the chart's upper bounds; and the account's math:
@@ -249,6 +279,9 @@ def q_symmetry_conjecture_holds_through_order_11():
     assert open_ == [], open_
     said = math(sec)
     tails = [got[m] for m in range(9, MAXM + 1)]
+    # Since 2026-11-11 the account also states order 12's A, b and threshold (ORDER_12, Fable 5.2's paragraph), which
+    # q_order_12_is_down_to_18_lengths holds to the reduction carried one order on.
+    tails.append(ORDER_12)
     assert sorted({int(x) for f in said for x in re.findall(r'^A = (\d+)$', f.strip())}) == sorted({A for A, *_ in tails}), said
     assert sorted({int(x) for f in said for x in re.findall(r'^b = (\d+)$', f.strip())}) == sorted({b for _, b, *_ in tails}), said
     assert sorted({int(x) for f in said for x in re.findall(r'^n \\ge (\d+)$', f.strip())}) == sorted({t for _, _, t, *_ in tails}), said
@@ -266,7 +299,10 @@ def q_symmetry_red_cases():
     # the form-tree proof.
     text = qi.page()
     sec = account(text)
-    keys = [(n, m) for n, m, _ in codes(sec)]
+    # Since 2026-11-11 the section also lists sequences of orders 12 to 14 (Fable 5.2's paragraph on order 12 and the
+    # lower bounds found with it), which the reduction through order 11 does not need: its codes are those of order
+    # at most 11.
+    keys = [(n, m) for n, m, _ in codes(sec) if m <= 11]
     bare = SECTION.sub(lambda x: CODE.sub('', x.group(0)), text)
     got = reduction(bare)
     open_ = sorted((n, m) for m, (*_, uncovered, _) in got.items() for n in uncovered)

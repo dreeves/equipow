@@ -39,6 +39,7 @@
   <!-- The changelog, newest first, as in dreeves's spec FreshAt (doc.bmndr.co/freshat) -->
   <details class="changelog">
     <summary><i>Changelog</i></summary>
+    <p>2026-11-11: \(m^*(1104) \ge 13\), \(m^*(1200) \ge 13\), \(m^*(1296) \ge 13\), \(m^*(1584) = 14\), \(m^*(1632) \ge 14\), \(m^*(1776) = 14\)</p>
     <p>2026-11-10: More interactive chart, extends to 2048</p>
     <!-- Says that the page now explains what a form-tree proof is (the section "Form-tree proofs"), modeled on dreeves's entry of 2026-11-06, "Exposition on symmetry and asymptotics" -->
     <p>2026-11-10: Fable 5.2 explains form-tree proofs</p>
@@ -1863,6 +1864,22 @@ At 816, order 11 needs the antisymmetric example that this page showed before it
   <li><p>\(n = 1168\), \(m = 11\): <code id="1168:11">CB2496D92DB2CB6592C92D925B64B6CB2E965924B34B65944B6D925B65964B2CF6D06CB2FA43B6196C16D16607CB3076C9A5368F2CB4B571A66C74E74A9E08EC533B985A8A51BD9EC1</code></p></li>
   <li><p>\(n = 1232\), \(m = 11\): <code id="1232:11">B6496C925B25B64B64B6CB2D925B64B6496D92D825B6C92DB4493DC25B6CB25A49B60B6D12DB7496F925B24BE4B4C92E13C1B89E0F98E469665B38D5339D471CF04CB3CD0E206FDE73A43C28E3</code></p></li>
   <li><p>\(n = 1264\), \(m = 11\): <code id="1264:11">A6936D24DB49B4916D34D26DB6926936D24DA4DB49B4936D2CD24DB4CB496692E92CDA4BA4966DA85B64BD826D36D27C27897A1F8361499A6D11F33C3F93586C558AD2A4A2E99BA6441F3F267C6991</code></p></li>
+</ul>
+<!-- TODO: a paragraph by Fable 5.2 (2026-11-11), with ten codes after it: where order 12 stands. Given the chart's upper bounds, the conjecture holds at order 12 at every length but 18. The tail above works with A = 800 and b = 624, so it holds for every n from 2224 on; below that each multiple of 16 has an upper bound below 12 or a symmetric sequence of order 12 built as above, with 22 exceptions. At four of them, 1104, 1200, 1296 and 1392, joins give order 12, and the pinned search found a symmetric sequence of order 12 on 2026-11-10, in under three minutes each. At the other 18, order 12 is neither known nor ruled out: 528, and 17 lengths that are not multiples of 3. The same search then raised six lower bounds: antisymmetric sequences of order 13 at 1104, 1200 and 1296, where order 12 was the most known, and symmetric sequences of order 14 at 1584, 1632 and 1776, where order 13 was; that settles m*(1584) = 14 and m*(1776) = 14, since the residue condition mod 5 rules out order 15 at both. Astra (Codex) checked the list of lengths and the first seven sequences independently -->
+<p>
+Fable 5.2: “Order 12 holds at every length but 18, given the chart's upper bounds. The tail above works with \(A = 800\) and \(b = 624\), so order 12 holds for every \(n \ge 2224\). Below that, each multiple of 16 has an upper bound below 12 or a symmetric sequence of order 12 built as above, with 22 exceptions. At four of them, 1104, 1200, 1296 and 1392, joins give order 12, and the pinned search found a symmetric sequence of order 12 on 2026-11-10, in under three minutes each. At the other 18, order 12 is neither known nor ruled out: 528, and 17 lengths that are not multiples of 3: 1504, 1520, 1552, 1568, 1616, 1648, 1712, 1744, 1808, 1840, 1904, 1936, 2000, 2032, 2096, 2128 and 2192. The same search then raised six lower bounds. It found antisymmetric sequences of order 13 at 1104, 1200 and 1296, where order 12 was the most known, and symmetric sequences of order 14 at 1584, 1632 and 1776, where order 13 was. That settles \(m^*(1584) = 14\) and \(m^*(1776) = 14\), since the residue condition mod 5 rules out order 15 at both. Astra checked the list of lengths and the first seven sequences independently. Those ten codes:”
+</p>
+<ul>
+  <li><p>\(n = 1104\), \(m = 12\): <code id="1104:12">986F238F49AA52F9B8A90FC0C71463BA7E83C4B18AC7C8E7FA9F3415EC164A4B120E49385FDD94EBAA68C2F26109FBB875707C46AF3560E899B183B78351AEE461AC1E36E6</code></p></li>
+  <li><p>\(n = 1200\), \(m = 12\): <code id="1200:12">E18A5B35B554E1CD427883BDF5A9531511DE002D3F87CF625E561B359BF3003E8E237440CE2F74741BEE60EFF01E34E014E96E8157C2E9F46D6899581C2AF896BFB72D4AAD79D012EB808D</code></p></li>
+  <li><p>\(n = 1296\), \(m = 12\): <code id="1296:12">B8E38A8A78A5E0EA983BC2FF075F2BC88E5A331294E82A3F38B237888FAE85140E67FBA731EE6BEE8C32855E128C0E161E97C7AABB3230F3A248AA1C179D56F730B471ED72BF012B36D0B787CD8DD2208E</code></p></li>
+  <li><p>\(n = 1392\), \(m = 12\): <code id="1392:12">D588E685BB33035539C35A7F3E0C7B8886771465118AF784BCB718671DE2B1C675CC50BEAA6D0AEC291EC2A2AE836931BF4BB39D1D8CB3026E3E1CB8B9AB9254D262E556587F32E84364B680DEE890C72B4B3B0EED2D4D</code></p></li>
+  <li><p>\(n = 1104\), \(m = 13\): <code id="1104:13">AC695A53B066B94AF63D29291AB6B3A7019B53903F6B527A9231F832D237AD2F8A5295312B7A53B695B1627295B12B5253B7A5695A603D913B5646262D7F9A5315B56A3B50</code></p></li>
+  <li><p>\(n = 1200\), \(m = 13\): <code id="1200:13">CE4CC21FD813C2BE54DA9E7CE181CC0C7C6CF1DC873CAA1A3E448AA5C45D472F76AFE078C2DC652CCDD06CCE5E5E0953C1C14CDD38D6A8B9550E216E2D8A59CF8F9DD46DA8D2E88ECCAA46</code></p></li>
+  <li><p>\(n = 1296\), \(m = 13\): <code id="1296:13">9CAE388C62CCE6BD5C478C66E86F1684EC3BCC640A8E3D5CBA78C438CEE71CCB30CCEF8C2E5C8C6BD8D254CEC0D4C6718C479EC599CA65D85761E8FB55C30B174B8CA5785743BCE4B98CE184C7230D5B08</code></p></li>
+  <li><p>\(n = 1584\), \(m = 14\): <code id="1584:14">94E70D4E76946721CE569467794A7386E6294E31B6A42B4E7714E569C66796273C6870F4E70F0E525467E48E473C6479C243F40FE84E74F1863B64F646C727C57817695B48CB96928E1B31D1676D673C6A79003BA848DCD545D57416E92CC2BCA7F187</code></p></li>
+  <li><p>\(n = 1632\), \(m = 14\): <code id="1632:14">857B9C631CA4729C67B58A31CCF23D4E314E56B9C2338AB5B8C4335EE718CF2854E390ED3B84671CE853CC739CCE7186D2A1EF190E7538C72B0AF51C472BC2B781AF18D0F5CC2C73CA669D8B619B2790CB0AF9067CBBD401F0EFB4560E4EB4DBA0FE4F448079</code></p></li>
+  <li><p>\(n = 1776\), \(m = 14\): <code id="1776:14">9D8C4B18DBB1AF0B18D6B5A8630BD6399C7199C4B58F4B589C39876B1A9C31AD6B50C7919D7B18C2B18FDA8A86B9D863CB1E899D293AD394871B9A8CB89CB4CC9B6D0ECA96EA278B2B28CF89945CCC538E6CCCED8B98EC3E9A628C513728BEA39D266A2A651686FF9BC689CD4C80EB</code></p></li>
 </ul>
 <p>
 The upper bounds it rests on, by order:

@@ -37,8 +37,10 @@ USER_GRAY = (240, 288, 384, 432, 480) + tuple(range(528, 993, 16)) + (1008,)
 # their explicit lo that neither the chart's residue tests (the claims of mstar.RESIDUE past 1024, found by
 # scratch/bou-20261110/search.py), nor the page's Symmetry section's sequences (1040, 1072, 1136 and 1168, at 11), nor
 # the page's proof at 1456 (mstar.PROOFS: q_1456_is_settled_by_its_proof) settle.
-PAST_GRAY = (1056, 1104, 1200, 1248, 1296, 1392, 1440, 1488, 1504, 1520, 1552, 1568, 1584, 1616, 1632, 1648, 1680,
-             1712, 1728, 1744, 1776, 1808, 1840, 1872, 1904, 1920, 1936, 1968, 2000, 2016, 2032)
+# Less 1584 and 1776 since 2026-11-11, settled at 14 by symmetric sequences of order 14 that the pinned search found
+# (scratch/sym12-20261110/; the page's Symmetry section lists them): 29 are left.
+PAST_GRAY = (1056, 1104, 1200, 1248, 1296, 1392, 1440, 1488, 1504, 1520, 1552, 1568, 1616, 1632, 1648, 1680,
+             1712, 1728, 1744, 1808, 1840, 1872, 1904, 1920, 1936, 1968, 2000, 2016, 2032)
 
 
 @lru_cache(maxsize=None)
