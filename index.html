@@ -108,6 +108,11 @@
     <p>2026-10-04: Claude Opus 5.5 gets first wholly new result: \(m^*(2^{38}) \ge 39\)</p>
     <p>2026-10-03: Claude Opus 5.5 finds a new order-10 partition for \(n=240\)</p>
   </details>
+  <nav class="contents" aria-labelledby="contents-title">
+    <!-- TODO: title of the table of contents; its links use the section headings verbatim. -->
+    <h2 id="contents-title" lang="la">Index</h2>
+    <ol></ol>
+  </nav>
   <p>
     We extend the results of Table 2 of the paper by Buhler, Golan, Pratt, and Wagon (<i>Math. Comp.</i> 90, 2021) aka BGPW.</p>
   <p>Background: \(m^*(n)\) 
@@ -476,7 +481,7 @@ Or just start identifying redundancies and repetition on the page and fix them o
 
 
 <section class="remarks">
-  <h2>Where the new results come from</h2>
+  <h2 id="remarks-title">Where the new results come from</h2>
   <!-- TODO: says how the upper bounds are proven: a partition written as signs f_0, ..., f_(n−1) and f(x) = sum f_i x^i has order m when (x − 1)^m divides f(x); for a modulus M the residue sum D_r is the number of +1s minus the number of −1s at the positions i ≡ r (mod M); f(x) reduced modulo x^M − 1 is sum D_r x^r and must still be a multiple of (x − 1)^m modulo x^M − 1, each D_r having its class size's parity and being at most that size in absolute value; and the residue condition mod M rules out order m when an exhaustive search finds no residue sums meeting all that -->
   <p>
     Claude Opus 5.5: “How the upper bounds are proven. 
@@ -1705,7 +1710,7 @@ of them with m ≡ 0, 1, 2 mod 3) and two exceptional signs, and d_0 ≡ d_3 (mo
 </section>
 
 <section class="counts">
-  <h2>Partitions at powers of 2</h2>
+  <h2 id="counts-title">Partitions at powers of 2</h2>
   <p>Claude: “The partitions of \(\{0, \ldots, 2^k - 1\}\) into two parts with equal power sums for exponents \(0, \ldots, k - 1\): Thue–Morse is the only one for \(k \le 5\) (<a href="https://doi.org/10.1109/18.340458">Roth, Siegel and Vardy 1994</a>; <a href="https://doi.org/10.1090/S0025-5718-97-00892-2">Boyd 1997</a>), there are 3 for \(k = 6\) (<a href="https://doi.org/10.1090/S0025-5718-01-01360-6">Boyd 2002</a>), and there are 431 for \(k = 7\), or 367 counting a partition and its reversal once.”</p>
   <p>Claude: “The count for \(k = 7\) is new, from an exhaustive search by Claude (<a href="https://github.com/dreeves/equipow/tree/main/proofs/count128">code and the 431 sets</a>). Of the 431, 303 are antisymmetric, Thue–Morse among them, and the other 128 come in reversed pairs. The same search method shows that the order-7 partition of \(\{0, \ldots, 111\}\) is unique.”</p>
 </section>
@@ -1931,9 +1936,9 @@ Fable 5.2: “Five more sequences, each of the order below the best known at its
   <li><p>\(n = 1776\), \(m = 13\): <code id="1776:13">88C6F99EE25AAE988E0B986F41C7518D8619A5FB7CC2754C771EE446A2E39CE2B40C60CEBC5D1C6368671CEB81DFC67CCC4E1CAE31CC1BBC54B4A8D32463718057BCCCE1CEC1EC5620D8F5D4CAA7D7AB9EE2254E2F6C8568C976B54337C5C80E1D1D8A207C095DCA6BCFC6A588CF59</code></p></li>
   <li><p>\(n = 1728\), \(m = 14\): <code id="1728:14">B0EA318E773D4A31CA7389463B5CF1A8C423DEE118A57BCC671CAC7994E314EA3B8C723D6A338A43BDC6394C56A9C53B48972CC5735607DCC42BD4A1BC6B239CE395C672D87634CF91DC4CCC4F40F984F0CD6358E73B2D539949554069A7AAA4A3D1B2453E786917BC5170DF</code></p></li>
 </ul>
-<!-- TODO: a fourth paragraph by Fable 5.2 (2026-11-11), with two codes after it: two more sequences of that kind, at lengths whose best sequences are older: a symmetric one of order 14 at 960, where the sequence of order 15 is antisymmetric, and an antisymmetric one of order 15 at 1440, where the sequence of order 16 is symmetric; the tilted search found each within three minutes; with them, at every length up to 2048 and every order m up to the best known there, an (-1)^m-symmetric sequence of order m is an example in BGPW's Tables 4 and 5, Thue–Morse, a code of this page, or a sequence built from those as above, each one built and checked; so within the chart the conjecture is undecided only at a length and order where that order is neither known nor ruled out -->
+<!-- TODO: a fourth paragraph by Fable 5.2 (2026-11-11), with two codes after it: two more sequences of that kind, at lengths whose best sequences are older: a symmetric one of order 14 at 960, where the sequence of order 15 is antisymmetric, and an antisymmetric one of order 15 at 1440, where the sequence of order 16 is symmetric; the tilted search found each within three minutes; with them, at every length up to 2048 and every order m up to the best known there, an (-1)^m-symmetric sequence of order m is an example in BGPW's Tables 4 and 5, Thue–Morse, a code of this page, or a sequence built from those as above, each one built and checked; so within the chart, given its upper bounds, the conjecture is undecided only at a length and order where that order is neither known nor ruled out -->
 <p>
-Fable 5.2: “Two more of that kind, at lengths whose best sequences are older: a symmetric one of order 14 at 960, where the sequence of order 15 is antisymmetric, and an antisymmetric one of order 15 at 1440, where the sequence of order 16 is symmetric. The tilted search found each within three minutes, on 2026-11-11. With them, at every length \(n \le 2048\) and every order \(m\) up to the best known at \(n\), an \((-1)^m\)-symmetric sequence of order \(m\) is an example in BGPW's Tables 4 and 5, Thue–Morse, a code of this page, or a sequence built from those as above; each was built and checked. So within the chart the conjecture is undecided only at a length and order where that order is neither known nor ruled out. Those two codes:”
+Fable 5.2: “Two more of that kind, at lengths whose best sequences are older: a symmetric one of order 14 at 960, where the sequence of order 15 is antisymmetric, and an antisymmetric one of order 15 at 1440, where the sequence of order 16 is symmetric. The tilted search found each within three minutes, on 2026-11-11. With them, at every length \(n \le 2048\) and every order \(m\) up to the best known at \(n\), an \((-1)^m\)-symmetric sequence of order \(m\) is an example in BGPW's Tables 4 and 5, Thue–Morse, a code of this page, or a sequence built from those as above; each was built and checked. So within the chart, given its upper bounds, the conjecture is undecided only at a length and order where that order is neither known nor ruled out. Those two codes:”
 </p>
 <ul>
   <li><p>\(n = 960\), \(m = 14\): <code id="960:14">8D72758991A6CCD33B4E4D17A658992675C897A6CA93127CC9BF264AAC3B45CE9B26CAD02B2749949E47D5715A813EBA6B989F2D0F05746F2DA3622C</code></p></li>

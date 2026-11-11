@@ -92,6 +92,9 @@ p { margin: 0; }
 .changelog summary { cursor: pointer; }
 .changelog p { font: 0.8125rem/1.5 var(--mono); padding-left: 12ch; text-indent: -12ch; }
 .changelog summary + p { margin-top: 0.3rem; }
+.contents { padding-block: 0.75rem; }
+.contents ol { margin: 0.4rem 0 0; padding-inline-start: 1.5rem; columns: 2 18rem; column-gap: 2.5rem; font-size: 1.0625rem; }
+.contents li { break-inside: avoid; margin-bottom: 0.35rem; text-align: start; hyphens: manual; -webkit-hyphens: manual; }
 sup, sub { line-height: 0; }
 .nw { white-space: nowrap; }
 /* KaTeX's math at the text's own size (2026-10-29): KaTeX's fonts are Computer Modern, the design of the text's

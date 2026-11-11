@@ -395,3 +395,13 @@ function chartPanel({region, chart, ncol, nrow, fragment, fill, pin}) {
   addEventListener('DOMContentLoaded', visit);
   return open;
 }
+
+// The contents links use each main section's first heading, before deferred KaTeX renders its math. Nested proof
+// headings stay within their section. The labels have one source, and navigation uses the browser's native anchors.
+for (const section of document.querySelectorAll('main > section')) {
+  const heading = section.querySelector('h2'), item = document.createElement('li'), link = document.createElement('a');
+  link.href = `#${heading.id}`;
+  link.innerHTML = heading.innerHTML;
+  item.append(link);
+  document.querySelector('.contents ol').append(item);
+}

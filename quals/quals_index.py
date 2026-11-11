@@ -5537,6 +5537,54 @@ def q_a_reference_to_a_figure_lands_with_the_figure_in_view():
         assert R['chartTop'] >= 0 and R['captionBottom'] <= R['innerH'], (i, R)
 
 
+def q_contents_links_reach_every_main_section():
+    # Replicata: the real page at desktop and phone widths; click each link in the header's navigation.
+    # Expectata (dreeves, 2026-11-11): a contents list above the introduction, one link per main section in page
+    # order, using that section's own heading. Each click brings its heading into view; links fit the viewport,
+    # formulas render, and visiting the progress summary does not open its fold or load its data.
+    # Resultata before: no navigation in the header, hence no links to the page's twelve main sections.
+    harness = r'''<script>
+addEventListener('load', async () => {
+  await document.fonts.ready;
+  const nav = document.querySelector('header nav'), links = [...(nav?.querySelectorAll('a') ?? [])];
+  const headings = [...document.querySelectorAll('main > section')].map(s => s.querySelector('h2'));
+  const intro = document.querySelector('header > p:not(.lede)'), landed = [];
+  const fits = links.every(a => [...a.getClientRects()].every(r => r.left >= 0 && r.right <= innerWidth));
+  for (const a of links) {
+    a.click();
+    await new Promise(resolve => setTimeout(resolve, 100));
+    const target = document.getElementById(a.hash.slice(1)), r = target?.getBoundingClientRect();
+    landed.push({hash: location.hash, visible: !!r && r.top >= -1 && r.bottom <= innerHeight});
+  }
+  parent.postMessage(JSON.stringify({
+    headings: headings.map(h => [h.id, h.textContent]),
+    links: links.map(a => [a.getAttribute('href'), a.textContent]), landed, fits,
+    named: !!nav && !!document.getElementById(nav.getAttribute('aria-labelledby'))?.textContent.trim(),
+    above: !!nav && !!(nav.compareDocumentPosition(intro) & Node.DOCUMENT_POSITION_FOLLOWING),
+    unique: headings.every(h => h.id && document.querySelectorAll(`[id="${h.id}"]`).length === 1),
+    math: nav?.querySelectorAll('.katex').length ?? 0, errors: nav?.querySelectorAll('.katex-error').length ?? 0,
+    progressOpen: document.querySelector('section.progress > details').open, loads: progressView.loads
+  }), '*');
+});
+</script>'''
+    for width in (320, 390, 1280):
+        with tempfile.TemporaryDirectory(prefix='contents-quals-') as d:
+            open(os.path.join(d, 'index.html'), 'w', encoding='utf-8').write(page().replace('</body>', harness + '</body>'))
+            copy_page_dir(d)
+            for data in (DATA, POW2): shutil.copy(data, data_file(d, os.path.basename(data)))
+            open(os.path.join(d, 'host.html'), 'w').write(HOST.replace('__WIDTH__', str(width)))
+            dom = chrome(d, ['--window-size=1320,1100', '--virtual-time-budget=10000', '--dump-dom',
+                             'file://' + os.path.join(d, 'host.html')])
+        match = re.search(r'<pre id="harness-out">(.*?)</pre>', dom, re.S)
+        assert match, (width, dom[-1500:])
+        got = json.loads(html.unescape(match[1]))
+        assert got['links'] == [['#' + i, label] for i, label in got['headings']], (width, got)
+        assert got['unique'] and got['named'] and got['above'] and got['fits'], (width, got)
+        assert all(r['visible'] and r['hash'] == link[0] for r, link in zip(got['landed'], got['links'])), (width, got)
+        assert got['math'] > 0 and got['errors'] == 0, (width, got)
+        assert not got['progressOpen'] and got['loads'] == 0, (width, got)
+
+
 def q_smallest_script_passes_node_check():
     # Replicata: the script that fills the table of smallest lengths (page/smallest-section.js since 2026-10-31, an
     # inline script before), saved as a .js file, through node --check.
