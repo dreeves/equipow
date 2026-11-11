@@ -10,8 +10,11 @@ Each run works in scratch/pintree/n_m/: results are saved per node, so that a st
 The tree it makes.  Phase 0 pins the residue sums mod 3, 5, 7 and 4 in turn, closing what it can, one node per orbit of the symmetries.  Phase 1 takes each node left through its vectors mod 8.  Phase 2 takes each node left in turn: the
 LP bounds the residue sums of a candidate modulus, the vectors inside those bounds are listed, and the first candidate with at most ENOUGH vectors (else the one with the fewest, at most CAP) splits the node, each child closed or split again.
 
-estimate runs phase 0 and phase 1 and then Knuth's estimator on phase 2: it dives from random nodes through random children, multiplying the numbers of children, and reports the mean tree size and the CPU it implies.  Tree sizes are heavy
-tailed, so that the estimate is rough, and low until a dive has hit a large tree.
+estimate runs phase 0 and phase 1, then one random path from EACH remaining root, a fixed stratified sample
+(Codex, 2026-11-11). It sums Knuth-weighted node counts and process CPU costs for phase 2. SECONDS is a wall-time
+deadline for that whole sample, after phase 1; a timeout or an unsplittable open node prevents a runtime projection.
+The projections are not bounds: heavy tails and differences in LP state and certificate reuse between a sampled
+path and the full proof traversal can make them inaccurate in either direction.
 """
 import collections, gzip, hashlib, json, os, random, sys, time
 from multiprocessing import Pool
@@ -377,27 +380,42 @@ def prove(n, m, procs, cap):
 
 
 def dive(args):
+    """Weighted node count, open leaves, visited nodes and CPU seconds for one full random path.
+
+    Every child, including an immediately closed one, can be sampled. A node with inverse path probability w
+    contributes w to the size and w times its measured process CPU cost. An unfinished path is never a sample.
+    """
     n, m, xs, cap, pins, seed, limit = args
     rng = random.Random(seed)
+    deadline, started = time.monotonic() + limit, time.process_time()
     P = Prover(n, m, xs, cap, DEPTH)
     pins = {int(k): tuple(v) for k, v in pins.items()}
-    size, weight, opened, nodes, t0 = 1.0, 1.0, 0.0, 0, time.time()
-    while time.time() - t0 < limit:
+    size, weight, opened, nodes, cpu = 0.0, 1.0, 0.0, 0, time.process_time() - started
+    while time.monotonic() < deadline:
+        size += weight
         nodes += 1
-        if P.close(pins) is not None: break
-        ch = P.split_choice(pins)
-        if ch is None:
-            opened = weight
-            break
-        M, vs, _ = ch
-        kids = [v for v in vs if P.close({**pins, M: v}) is None]
-        if not kids: break
-        weight *= len(kids); size += weight
-        pins = {**pins, M: rng.choice(kids)}
-    return size, opened, nodes, time.time() - t0
+        started = time.process_time()
+        try:
+            if P.close(pins) is not None: break
+            ch = P.split_choice(pins)
+            if ch is None:
+                opened = weight
+                break
+            M, vs, _ = ch
+            if not vs: break
+        finally:
+            cpu += weight * (time.process_time() - started)
+        weight *= len(vs)
+        pins = {**pins, M: rng.choice(vs)}
+    else:
+        # TODO: says this path exceeded its deadline and no complete estimate is available.
+        raise TimeoutError('Iter imperfectum: tempus exhaustum; aestimatio nulla.')
+    return size, opened, nodes, cpu
 
 
 def estimate(n, m, procs, seconds, cap=CAP):
+    # TODO: says the worker count and wall-time limit must both be positive.
+    assert procs > 0 and seconds > 0, 'Processus et tempus positiva sint.'
     xs = chebyshev_nodes(n, m)
     d = workdir(n, m)
     sys.setrecursionlimit(100000)
@@ -406,16 +424,14 @@ def estimate(n, m, procs, seconds, cap=CAP):
         paths = pool.map(phase1, jobs, chunksize=1)
         left = [c for path in paths for c in load(path)['left']]
         rng = random.Random(n * 1000 + m)
-        res, t0 = [], time.time()
-        for r in pool.imap_unordered(dive, ((n, m, xs, cap, rng.choice(left), rng.randrange(10 ** 9), seconds / 2) for _ in range(10 ** 6))):
-            res.append(r)
-            if time.time() - t0 > seconds: break
-        pool.terminate()
-    sizes = sorted(r[0] for r in res)
-    mean = sum(sizes) / len(sizes)
-    per = sum(r[3] for r in res) / max(1, sum(r[2] for r in res))
-    print(f'Claude: "{n}:{m}: {len(left)} nodes after phase 1; {len(res)} dives; tree size per node: mean {mean:.3g}, median {sizes[len(sizes)//2]:.3g}, largest {sizes[-1]:.3g}; open leaves per node {sum(r[1] for r in res)/len(res):.3g}; '
-          f'{per:.1f} s per tree node; about {mean*per*len(left)/86400:.1f} CPU days"', flush=True)
+        cohort = [(n, m, xs, cap, c, rng.randrange(10 ** 9), seconds) for c in left]
+        res = pool.map_async(dive, cohort, chunksize=1).get(timeout=seconds)
+    # TODO: says every root must have a completed sample, and no sampled leaf may remain open.
+    assert len(res) == len(left) and all(r[1] == 0 for r in res), 'Radix imperfecta vel folium apertum; aestimatio nulla.'
+    size, cpu = sum(r[0] for r in res), sum(r[3] for r in res)
+    # TODO: reports the fixed number of roots/paths, projected phase-2 nodes and CPU cost; these are guesses, not bounds.
+    print(f'{n}:{m}: radices {len(left)}; itinera {len(res)}; nodi {size:.6g}; '
+          f'CPU secunda {cpu:.6g}; CPU horae {cpu/3600:.6g} (coniectura, non terminus).', flush=True)
 
 
 if __name__ == '__main__':

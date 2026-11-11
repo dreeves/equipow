@@ -6,6 +6,7 @@ LittlewoodPolynomialsReprint.pdf is the published version of the paper this is e
 ---
 
 Potential tasks: 
+* [SYC] Should we / can we get a different styling on the chart (like striped or half-and-half black vs red, split diagonally) for cells for which we know they're red conditional on the Symmetry Conjecture being true, i.e., we've proven there's no symmetric or antisymmetric bipartition?
 * [REO] See the notes in the index.html comments tagged [REO]. Better organization / less redundancy.
 * [MAI] Let's get more things as expandable sections of the main equipow page instead of linking to separate pages. Proofs currently in txt files for starters.
 * [CLU] Are there past searches we don't care about anymore that we don't need on the page? Some are interesting for posterity.

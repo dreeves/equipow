@@ -146,7 +146,9 @@ RESIDUE = {11: (13, (3,), 'digits'), 12: (14, (3,), 'digits'), 14: (17, (3,), 'd
 # check written apart from it (decide.py there) splits a sum of coins equal to 2^K into its coins prime to 3, of
 # which there is at least one since 2^K is prime to 3 and every other coin a multiple of 3, and the rest.  For e = 7
 # no product of blocks prime to 3 has order K + 7 within 2^K at any K <= 50: none at K <= 49 by the ratio alone (the
-# best is 800's, 11 / log2 800 = 1.14062 < 56/49), none at K = 50 by its walk over all 675 such blocks of the chart.
+# best is 800's, 11 / log2 800 = 1.14062 < 56/49), none at K = 50 by its walk over all 677 such blocks of the chart
+# (1024 at its order 11 and 2048 at 12 among them, and the walk's cuts decided in integers: Codex's review of that
+# day, whose own integer-only checks agree at 2^50 and 2^51 and on the fewest products).
 # So 51 is the first.  The same check keeps the firsts of e = 4, 5, 6 and 8 with that day's blocks (2^29: the one
 # rest that is a multiple of 3 is no sum of coins; K = 36 to 38, 43 to 46, 56 and 57: no product prime to 3).
 # BASES[51] has three products, the fewest that joins of products of the page's example columns allow at 2^51

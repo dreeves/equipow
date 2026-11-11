@@ -154,12 +154,14 @@ table.block th {
    glyph centered above its n (in every n cell of the new results a line for it, blank
    where there is none, so they all line up). Text stays in ink. */
 td.c { --hue: var(--claude); --glyph: "◆"; }
+/* Opus 5.5 and Fable 5.2 (2026-11-11): both Claude, so Claude's hue, with a glyph of its own */
+td.cf { --hue: var(--claude); --glyph: "◆◇"; }
 td.a { --hue: var(--astra); --glyph: "✦"; }
 td.j { --glyph: "◆●"; }
 td.ca { --glyph: "◆✦"; }
 td.s { --hue: var(--stan); --glyph: "●"; }
-td.a, td.c, td.j, td.s { background: color-mix(in oklab, var(--hue) var(--tint), var(--paper)); }
-tr.vals td.a, tr.vals td.c, tr.vals td.j, tr.vals td.s { box-shadow: inset 0 -3px 0 var(--hue); }
+td.a, td.c, td.cf, td.j, td.s { background: color-mix(in oklab, var(--hue) var(--tint), var(--paper)); }
+tr.vals td.a, tr.vals td.c, tr.vals td.cf, tr.vals td.j, tr.vals td.s { box-shadow: inset 0 -3px 0 var(--hue); }
 .new-block tr.ns td::before {
   content: var(--glyph, "\a0");
   display: block;
@@ -200,6 +202,7 @@ tr.ns td.ca::before, .key.ca > span, .remarks li.ca .mk { background: linear-gra
   box-shadow: inset 0 -3px 0 var(--hue, transparent);
 }
 .key.c { --hue: var(--claude); }
+.key.cf { --hue: var(--claude); }
 .key.a { --hue: var(--astra); }
 .key.s { --hue: var(--stan); }
 
@@ -222,6 +225,7 @@ tr.ns td.ca::before, .key.ca > span, .remarks li.ca .mk { background: linear-gra
   letter-spacing: 0.08em;
 }
 .remarks li.c .mk { color: var(--claude); }
+.remarks li.cf .mk { color: var(--claude); }
 .remarks li.a .mk { color: var(--astra); }
 .remarks li.s .mk { color: var(--stan); }
 /* The list of entries in one fold, closed until clicked ([REO] step 2, 2026-11-03), as the Search progress section's

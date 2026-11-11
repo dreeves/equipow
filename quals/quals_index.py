@@ -1834,7 +1834,9 @@ def new_frames(text):
 # name a credit by its class alone (2026-11-09; dreeves, after his rename of Claude to Opus 5.5 on the page stopped
 # mstar.py and turned 45 quals red: "it seems dumb that me tweaking the prose in index.html has yielded this much work
 # from you", then "probably yes to the decoupling").
-CREDITS = ('s', 'c', 'j', 'a', 'ca')
+# cf since 2026-11-11 (dreeves, of the cells whose lower bounds Fable 5.2 raised that day and which still carried Opus 5.5's marks: "yes, please make the legend
+# accurate"; q_opus_and_fable_is_a_category_of_its_own).
+CREDITS = ('s', 'c', 'j', 'a', 'ca', 'cf')
 TITLED = r"(<td(?: class=\"\w+\")? title=')([^']*)(')"                                              # a cell's title
 LABELED = r'(<li><span class="key[^"]*" aria-hidden="true">(?:<span>)?[^<]*(?:</span>)?</span>)([^<]*)(</li>)'   # a legend label
 
@@ -2061,7 +2063,7 @@ def q_citations_match_the_page():
     new = ''.join(new_frames(page()))
     value = lambda cell: int(cell) if cell.isdigit() else 2 ** int(re.fullmatch(r'\\\(2\^\{?(\d+)\}?\\\)', cell).group(1))
     titled = {value(n): (cls, who) for cls, who, n in
-              re.findall(r"<td(?: class=\"(a|c|ca|j|s)\")? title='([^']*)'>([^<]*)</td>", new)}
+              re.findall(r"<td(?: class=\"(a|c|ca|cf|j|s)\")? title='([^']*)'>([^<]*)</td>", new)}
     classes = {n: cls for n, (cls, who) in titled.items() if cls}      # their classes; the rest, unclassed, copy Table 2's powers of 2
     # 240 (since 2026-10-20) and 288 (since 2026-11-08, the form-tree proof), the 44 multiples of 16 from 304 to 992 (512 written 2^9) and 32 larger powers of 2,
     # 2^17 to 2^72 (6 until 560 reached order 10 on 2026-10-12, 11 until 800 reached order 11 on 2026-10-17, 18
@@ -2123,6 +2125,38 @@ def q_claude_and_astra_is_a_category_like_claude_and_bgpw():
         li = re.search(r'<li class="(\w+)">\n      <span class="mk" aria-hidden="true">([^<]*)</span>\n      <p class="entry">\\\(n = '
                        + str(n) + r'\\\): ', text)
         assert li and li.groups() == ('ca', '◆✦'), (n, li and li.groups())
+
+
+def q_opus_and_fable_is_a_category_of_its_own():
+    # Replicata: the page's CSS, its legend, the new results' cells and the remarks' entries of 2^30, 2^33, 2^34, 2^51 and 2^52.
+    # Expectata (dreeves, 2026-11-11, of the cells whose lower bounds Fable 5.2 raised that day and which still carried Opus 5.5's marks: "yes, please make the
+    # legend accurate"): a class cf, as ca is one (q_claude_and_astra_is_a_category_like_claude_and_bgpw).  Both models being Claude, it has --claude's hue, as c
+    # has, and a glyph of its own, ◆◇; the legend has its key right after c's (a comment line may stand between them), with a label, so that the charts'
+    # credit('cf') has its words; the cells of class cf are 2^30, 2^33, 2^34, 2^51 and 2^52 (each lower bound from the joins at 2^30 and 2^51, which are Fable
+    # 5.2's, each upper bound older), both rows of each; and each of their remarks is an <li class="cf"> marked ◆◇.
+    # Resultata before: those cells were of class c, and 2^51's of class j, the classes of the legend lines for Opus 5.5 alone and for Opus 5.5 and BGPW.
+    css = page_css()
+    assert 'td.cf { --hue: var(--claude); --glyph: "◆◇"; }' in css
+    assert 'td.a, td.c, td.cf, td.j, td.s { background: color-mix(in oklab, var(--hue) var(--tint), var(--paper)); }' in css
+    assert 'tr.vals td.a, tr.vals td.c, tr.vals td.cf, tr.vals td.j, tr.vals td.s { box-shadow: inset 0 -3px 0 var(--hue); }' in css
+    assert '.key.cf { --hue: var(--claude); }' in css and '.remarks li.cf .mk { color: var(--claude); }' in css
+    text = page()
+    assert re.search(r'<li><span class="key c" aria-hidden="true">◆</span>[^\n]*</li>\n(?:    <!--[^\n]*-->\n)?'
+                     r'    <li><span class="key cf" aria-hidden="true">◆◇</span>[^\n]*</li>\n', text)
+    assert legend_labels(text)['cf'].strip()
+    new = ''.join(new_frames(text))
+    cf = []
+    for t in re.findall(r'<table class="block">.*?</table>', new, re.S):
+        ns = re.findall(r'<td([^>]*)>(.*?)</td>', re.search(r'<tr class="ns">.*?</tr>', t, re.S).group(0))
+        vs = re.findall(r'<td([^>]*)>(.*?)</td>', re.search(r'<tr class="vals">.*?</tr>', t, re.S).group(0))
+        assert len(ns) == len(vs), t
+        for (a, n), (b, v) in zip(ns, vs):
+            assert bool(re.fullmatch(r' class="cf" title=\'[^\']+\'', a)) == (b == ' class="cf"'), (n, a, b)
+            if b == ' class="cf"': cf.append(n)
+    assert cf == [f'\\(2^{{{k}}}\\)' for k in (30, 33, 34, 51, 52)], cf
+    for k in (30, 33, 34, 51, 52):
+        li = re.search(r'<li class="(\w+)">\n      <span class="mk" aria-hidden="true">([^<]*)</span>\n      <p class="entry">\\\(n = 2\^\{%d\}\\\): ' % k, text)
+        assert li and li.groups() == ('cf', '◆◇'), (k, li and li.groups())
 
 
 def q_examples_of_2026_10_25_have_entries_and_codes():

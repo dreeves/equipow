@@ -199,7 +199,7 @@ const entries = n => [...HOMES.keys()].filter(li => li.querySelector('p.entry').
 // shows, after them.  together(...xs) shows all of xs, in order.  bound(name, rel, v) is the bound m*(name) ≥ v (rel
 // ge) or ≤ v (le), in TeX.
 const shown = (parts = [], entries = []) => ({parts, entries});
-// The words for a credit of the new results, which the data names only by the class of its cells (c, j, ca, a or s:
+// The words for a credit of the new results, which the data names only by the class of its cells (c, cf, j, ca, a or s:
 // mstar.py's who): the page's own, the label of the item of the new results' legend whose key has that class, in a
 // list, empty for a class the legend lacks, which the charts refuse.  No script holds such words (2026-11-09: dreeves
 // renamed Claude to Opus 5.5 on the page, the scripts' lists of the old names no longer matched it, and "it seems dumb

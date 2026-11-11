@@ -69,7 +69,7 @@ not ruled out at those orders.  past (since 2026-11-04) lists the explicit seque
   loWhy  ["none"] (lo = 0, n odd); ["example", label] (an explicit sequence of length n, label saying where it is
          from); ["join", a, b] (the sequence for a, then the one for b; lo is the lesser of theirs); ["product", a, b]
          (f_a(x) f_b(x^a); lo is the sum of theirs); ["table2"] (BGPW's Table 2, cited); ["page", who] (the page's new
-         results, cited; who the credit for the example, a class of the page's cells, c, j, ca, a or s: EXAMPLE_BY).  Every example, join and
+         results, cited; who the credit for the example, a class of the page's cells, c, cf, j, ca, a or s: EXAMPLE_BY).  Every example, join and
          product is a sequence built here from explicit sequences only and checked with exact power sums; a join's or
          product's parts are themselves columns with such reasons.
   hiWhy  ["odd"] (n odd: hi = 0); ["two"]; ["norm", p]; ["residue", M] (the claim in RESIDUE: no admissible vector mod
@@ -154,8 +154,9 @@ def from_rp(h, m, n):
 
 # ---------- citations and sequences on index.html ----------
 # Hand copies of the page, which page_sources() must match exactly: TABLE2[n] = (lo, hi) for BGPW's Table 2, hi None
-# for "≥"; NEW[n] = (lo, hi, who) for the new results, who the cell's credit: its class on the page, c, j, ca, a or s
-# (the classes of the legend's keys, in the legend's order: c, a, ca, j, s).  What a class is called is the page's
+# for "≥"; NEW[n] = (lo, hi, who) for the new results, who the cell's credit: its class on the page, c, cf, j, ca, a or s
+# (the classes of the legend's keys, in the legend's order: c, cf, a, ca, j, s; cf, Opus 5.5 and Fable 5.2, since
+# 2026-11-11: the five cells of powers of 2 whose lower bounds are Fable 5.2's joins of that day).  What a class is called is the page's
 # alone, in its legend and its cells' titles: no word of those is here, in mstar.js or in the chart scripts, which look
 # the legend's label up (page/shared.js's credit).  Until 2026-11-09 who was the title's words; when dreeves renamed
 # Claude to Opus 5.5 on the page, page_sources stopped at its assertion and mstar.js could not be made ("it seems dumb
@@ -206,14 +207,14 @@ NEW = {240: (10, 10, 'c'), 288: (9, 9, 'j'),
        2 ** 17: (18, 20, 'c'), 2 ** 18: (19, 21, 'c'),
        2 ** 20: (22, 23, 'c'), 2 ** 24: (26, 29, 'j'),
        2 ** 27: (29, 33, 'c'), 2 ** 28: (31, 34, 'c'), 2 ** 29: (32, 35, 'c'),
-       2 ** 30: (34, 36, 'c'),                # 33 to 36 until 2026-11-11, when that day's sequences made 2^30 the first power of 2 known to beat Thue-Morse by 4
-       2 ** 33: (37, 40, 'c'), 2 ** 34: (38, 41, 'c'), 2 ** 36: (40, 44, 'c'),   # 2^33 and 2^34: 36 and 37 below until then
+       2 ** 30: (34, 36, 'cf'),               # 33 to 36 until 2026-11-11, when that day's sequences made 2^30 the first power of 2 known to beat Thue-Morse by 4
+       2 ** 33: (37, 40, 'cf'), 2 ** 34: (38, 41, 'cf'), 2 ** 36: (40, 44, 'c'),   # 2^33 and 2^34: 36 and 37 below until then
        2 ** 37: (41, 45, 'c'), 2 ** 38: (42, 46, 'c'),
        2 ** 39: (44, 47, 'c'),
        2 ** 41: (46, 50, 'c'), 2 ** 43: (48, 53, 'c'),
        2 ** 46: (51, 57, 'c'), 2 ** 47: (53, 58, 'c'), 2 ** 48: (54, 59, 'c'),
-       2 ** 49: (55, 60, 'c'), 2 ** 51: (58, 63, 'j'),                # 57 to 63 until later on 2026-11-11, when that day's sequences made 2^51 the first power of 2 known to beat Thue-Morse by 7
-       2 ** 52: (59, 64, 'c'), 2 ** 56: (63, 69, 'c'), 2 ** 57: (64, 70, 'c'),   # 2^52: 58 below until then
+       2 ** 49: (55, 60, 'c'), 2 ** 51: (58, 63, 'cf'),               # 57 to 63 until later on 2026-11-11, when that day's sequences made 2^51 the first power of 2 known to beat Thue-Morse by 7
+       2 ** 52: (59, 64, 'cf'), 2 ** 56: (63, 69, 'c'), 2 ** 57: (64, 70, 'c'),   # 2^52: 58 below until then
        2 ** 58: (66, 71, 'c'), 2 ** 61: (69, 75, 'c'), 2 ** 65: (73, 81, 'c'),
        2 ** 66: (74, 82, 'c'), 2 ** 67: (75, 83, 'c'),
        2 ** 68: (77, 84, 'c'), 2 ** 71: (80, 88, 'c'),
