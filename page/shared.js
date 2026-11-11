@@ -1,5 +1,6 @@
 // The pan and zoom of both charts (dreeves's README, 2026-10-30: "[ZOO] For anti-magic/consistency, have the same zoom
-// controls on both charts"), the m*(n) chart's own until then.  A chart of ncol columns shows the view [u0, u0 + span)
+// controls on both charts"), the m*(n) chart's own until then.  A chart of ncol() columns (a function since 2026-11-10: the m*(n) chart's change
+// with the boxes of its list) shows the view [u0, u0 + span)
 // of u, column c (from 0) spanning u from c to c + 1, span from MIN_SPAN columns to all ncol.  el takes the pointer,
 // wheel, gesture and key events; plot() gives the plot's left edge and width in CSS px from el's left; targetAt(x, y)
 // what is at CSS x, y of el: a cell, [column, row]; the strip of column labels under the plot, [column, null] (every
@@ -13,10 +14,10 @@
 // pin(targets), which outlines targets (none or one) until the next pin.
 function panZoom({el, out: zoomOut, in: zoomIn, reset, ncol, plot, targetAt, readout, draw, open}) {
   const MIN_SPAN = 12, TAP = 6;
-  let u0 = 0, span = ncol, picked = [], pinned = [];
+  let u0 = 0, span = ncol(), picked = [], pinned = [];
   function redraw() {
     zoomIn.disabled = span === MIN_SPAN;                           // each zoom button grays out at its limit
-    zoomOut.disabled = span === ncol;
+    zoomOut.disabled = span === ncol();
     draw(u0, span, picked, pinned);
   }
   const at = e => { const r = el.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };   // CSS px
@@ -28,10 +29,10 @@ function panZoom({el, out: zoomOut, in: zoomIn, reset, ncol, plot, targetAt, rea
     readout(...c);
     redraw();
   }
-  const clampSpan = s => Math.min(Math.max(s, MIN_SPAN), ncol);
+  const clampSpan = s => Math.min(Math.max(s, MIN_SPAN), ncol());
   function setView(a, s) {
     span = clampSpan(s);
-    u0 = Math.min(Math.max(a, 0), ncol - span);
+    u0 = Math.min(Math.max(a, 0), ncol() - span);
     redraw();
   }
   function zoomAbout(x, s) {                                       // to span s, the u at CSS x staying put
@@ -100,9 +101,12 @@ function panZoom({el, out: zoomOut, in: zoomIn, reset, ncol, plot, targetAt, rea
   });
   zoomIn.addEventListener('click', KEYS.get('+'));                 // the zoom buttons do what the + and - keys do
   zoomOut.addEventListener('click', KEYS.get('-'));
-  reset.addEventListener('click', () => setView(0, ncol));
+  reset.addEventListener('click', () => setView(0, ncol()));
   const pin = ts => { pinned = ts; redraw(); };
-  return {redraw, uAt, pin};
+  // the chart's columns changed (the m*(n) chart's, with a box of its list): no cell is read out and none pinned, and
+  // the view is every column
+  const recolumn = () => { picked = []; pinned = []; setView(0, ncol()); };
+  return {redraw, uAt, pin, recolumn};
 }
 
 // The rows each column raises, for both charts' gold rings and the table of smallest lengths (dreeves's README,
@@ -234,6 +238,7 @@ const copies = (N, lo) => shown([...document.querySelectorAll(`code[id="${N}:${l
 // passes.  A proof of the page's own (page) is in the length's entry, which the box shows after it.  A box shows the
 // numbers of a claim, which mstar.py and pow2.py assert as they make the data; it does not decide the claim itself.
 const PROOF = {
+  odd: (n, name, hi) => shown([filled('proof-odd', {bound: bound(name, 'le', hi), n: `\\(${name} \\equiv 1 \\pmod 2\\)`})]),
   two: (n, name, hi) => {
     const two = n & -n, t = two.toString(2).length - 1, u = n / two;
     return shown([filled('proof-two', {bound: bound(name, 'le', hi), n: `\\(n = 2^{${t}} \\cdot ${u}\\)`,
@@ -324,7 +329,7 @@ const searches = (n, m) => {
 };
 
 // The box of a chart: region, its element (hidden until it opens); chart, the chart's element, which gets the focus
-// back; ncol columns and nrow rows; fragment(column, row), a target's fragment; fill(column, row), what its box shows:
+// back; ncol() columns and nrow rows; fragment(column, row), a target's fragment; fill(column, row), what its box shows:
 // {kind, heading, parts, entries}; and pin(targets), which has the chart outline the targets, none or one.  The
 // entries it shows go below its parts, in its [data-panel-entries], each moved there from wherever it is: its place in
 // the list or the other chart's box, which then shows none; a copy of a code goes when the box shows the code itself,
@@ -371,8 +376,8 @@ function chartPanel({region, chart, ncol, nrow, fragment, fill, pin}) {
   // The fragment of the page's address, as it loads (once KaTeX is there) and as it changes: the box of the target that
   // it names, if any, opens and shows.  The targets: every cell, every column (row null) and every row (column null).
   const all = (k, from) => [null, ...Array.from({length: k}, (_, i) => i + from)];
-  const targets = all(ncol, 0).flatMap(c => all(nrow, 1).map(r => [c, r])).filter(t => !t.every(x => x === null));
-  const visit = () => targets.filter(t => location.hash === `#${fragment(...t)}`).forEach(t => { open(t); region.scrollIntoView(); });
+  const targets = () => all(ncol(), 0).flatMap(c => all(nrow, 1).map(r => [c, r])).filter(t => !t.every(x => x === null));
+  const visit = () => targets().filter(t => location.hash === `#${fragment(...t)}`).forEach(t => { open(t); region.scrollIntoView(); });
   addEventListener('hashchange', visit);
   addEventListener('DOMContentLoaded', visit);
   return open;

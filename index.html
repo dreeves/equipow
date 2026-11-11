@@ -235,11 +235,7 @@
 <section class="mstar" aria-labelledby="mstar-title">
   <h2 id="mstar-title">Bounds on \(m^*(n)\) for every \(n\) up to 1024</h2>
   <p>
-    The following chart shows \(m^*(n)\) for every \(n\) up to 1024, with the following exceptions:</p>
-    <ul>
-      <li>Odd \(n\) are left out; for odd \(n\), \(m^*(n) = 0\)</li>
-      <li>Odd multiples of 2 except 2 itself (6, 10, 14, ...) are left out; for all such \(n\), \(m^*(n) = 1\)</li>
-    </ul>
+    The following chart shows \(m^*(n)\) for every \(n\) up to 1024, with the specified exceptions.</p>
   <p>
     See the introduction for why odd numbers have order 0.
     A short proof for why odd multiples of 2 have order 1 is as follows.
@@ -267,6 +263,16 @@
       <li><span class="swatch open record" aria-hidden="true"></span><span>the smallest \(n\) not ruled out for a given \(m\)</span></li>
       <li><span class="swatch exists record proven" aria-hidden="true"></span><span>the smallest \(n\) for a given \(m\)</span></li>
     </ul>
+
+    <!-- What the chart leaves out, each a box (dreeves's README, [COM], 2026-11-10, whose statements these are, their math typeset: "Be more principled about what to omit from Figure 1. Idea: checkboxes for what's omitted, in terms of the biggest power of two factor"): a checked box leaves out the columns of the odd multiples of its factor (data-factor) from data-from on, each of which has the order it states (data-order), as page/mstar-section.js asserts of the data; until then two bullets said that odd n and the odd multiples of 2 but 2 are left out, which the first two boxes, checked as the page loads, still do -->
+    <p>Omit the following boring values of \(n\) from the chart:</p>
+    <ul class="omit" id="mstar-omit">
+      <li><label><input type="checkbox" data-factor="1" data-from="1" data-order="0" checked> \(n>0\) is odd \(\Rightarrow m^*(n) = 0\)</label></li>
+      <li><label><input type="checkbox" data-factor="2" data-from="3" data-order="1" checked> \(n>2\) is an odd multiple of 2 \(\Rightarrow m^*(n) = 1\)</label></li>
+      <li><label><input type="checkbox" data-factor="4" data-from="5" data-order="3"> \(n>4\) is an odd multiple of 4 \(\Rightarrow m^*(n) = 3\)</label></li>
+      <li><label><input type="checkbox" data-factor="8" data-from="200" data-order="7"> \(n\ge 200\) is an odd multiple of 8 \(\Rightarrow m^*(n) = 7\)</label></li>
+    </ul>
+
     <div class="zoom">
       <button type="button" id="mstar-zoom-out" aria-label='zoom out' title='zoom out'>−</button>
       <button type="button" id="mstar-zoom-in" aria-label='zoom in' title='zoom in'>+</button>
@@ -299,6 +305,8 @@
   <template data-panel="witness-page" data-claude><p><span data-slot="bound"></span>: found by <span data-slot="who"></span></p></template>
   <!-- a lower bound's witness, Thue–Morse τ_k, whose sign at i is (−1)^s(i), s(i) the number of 1s among the binary digits of i (Prouhet) -->
   <template data-panel="witness-thue-morse" data-claude><p><span data-slot="bound"></span>: Thue–Morse <span data-slot="tau"></span>, \(f_i = (-1)^{s(i)}\) with \(s(i)\) the number of 1s in \(i\) in binary (Prouhet)</p></template>
+  <!-- The upper bound of an odd n, whose column the chart has while the box of the odd n is unchecked ([COM], 2026-11-10): the bound, then that n is 1 mod 2, the math alone: an odd number of integers has no two parts of the same size -->
+  <template data-panel="proof-odd"><p><span data-slot="bound"></span>: <span data-slot="n"></span></p></template>
   <!-- The proof of the 2-adic bound (BGPW's Theorem 4.1, linked), for the column's n = 2^t u, u odd: mod 2 every sign is 1, so f(x) is (x^u + 1)^(2^t)/(x + 1), and x + 1 divides x^u + 1 only once, so (x − 1)^m, which is (x + 1)^m mod 2, divides f only for m ≤ 2^t − 1 -->
   <template data-panel="proof-two" data-claude><p><span data-slot="bound"></span>: 2-adic bound (BGPW, <a href="https://arxiv.org/html/1912.03491v1#S4.Thmthm1">Theorem 4.1</a>): <span data-slot="n"></span>, and mod 2 <span data-slot="f"></span>, where <span data-slot="once"></span>, so \((x - 1)^m \mid f\) only for <span data-slot="m"></span></p></template>
   <!-- The proof of the norm bound for the prime p, which does not divide n: order m needs p^m ≤ the norm of f(ζ_p), an integer, which is at most the floor of (p Σ s_r² / (p − 1))^((p − 1)/2), s_r the number of i < n with i ≡ r mod p; the column's s_r and Σ s_r²; at m = hi + 1, p^m, in digits, is more than that floor, in digits -->

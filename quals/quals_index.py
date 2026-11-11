@@ -1504,7 +1504,9 @@ def q_changelog_keeps_powers_of_2_on_lines_of_their_own():
 
 # The page in an iframe width px wide (Chrome's window is at least 500 px wide), with harness (a script, which may
 # await sleep) run last in it, once the page has had half a second: what the harness posted to the host page, as JSON.
-def framed(width, harness):
+def framed(width, harness, mstar=None):
+    """What harness, a script run in the page width px wide, posts to its parent.  The page has its own data, or for
+    the m*(n) chart the text mstar in place of mstar.js (made-up data, as kinds_data's)."""
     d = tempfile.mkdtemp(prefix='index-quals-')
     script = ('<script>\n(async () => {\n  const sleep = ms => new Promise(r => setTimeout(r, ms));\n  await sleep(500);\n'
               + harness + '\n})();\n</script>\n')
@@ -1512,7 +1514,7 @@ def framed(width, harness):
     assert text.count('</body>') == 1
     open(os.path.join(d, 'index.html'), 'w', encoding='utf-8').write(text.replace('</body>', script + '</body>'))
     copy_page_dir(d)
-    shutil.copy(DATA, data_file(d, 'mstar.js'))
+    open(data_file(d, 'mstar.js'), 'w', encoding='utf-8').write(mstar or open(DATA, encoding='utf-8').read())
     shutil.copy(POW2, data_file(d, 'pow2.js'))
     open(os.path.join(d, 'host.html'), 'w').write(HOST.replace('__WIDTH__', str(width)))
     dom = chrome(d, [f'--window-size={max(width, 500) + 40},1100', '--virtual-time-budget=5000', '--dump-dom',
@@ -3373,6 +3375,132 @@ def q_mstar_leaves_out_odd_multiples_of_2():
         assert R['rowTwoBad'] == [], (name, len(R['rowTwoBad']), R['rowTwoBad'][:10])
         total = len(R['views']) * (R['plot'][1] - R['plot'][0])
         assert R['rowTwoChecks'] + R['rowTwoSkips'] == total and R['rowTwoSkips'] <= total / 5, (name, R['rowTwoSkips'], total)
+
+
+def omit_boxes():
+    """The boxes of the page's list of what the m*(n) chart leaves out ([COM]), in page order, each (factor, start,
+    order, checked): a checked box leaves out the odd multiples of its factor from its start on, each of which has
+    m*(n) = its order."""
+    listed = re.findall(r'<ul [^>]*id="mstar-omit"[^>]*>(.*?)</ul>', blank_comments(page()), re.S)
+    assert len(listed) == 1, len(listed)
+    boxes = [(int(f), int(a), int(o), c == ' checked') for f, a, o, c in re.findall(
+        r'<input type="checkbox" data-factor="(\d+)" data-from="(\d+)" data-order="(\d+)"( checked)?>', listed[0])]
+    assert boxes and len(boxes) == listed[0].count('<input'), listed[0]
+    return boxes
+
+
+def q_omit_boxes_state_what_the_data_holds():
+    # Replicata (dreeves's README, [COM], 2026-11-10: "Be more principled about what to omit from Figure 1. Idea:
+    # checkboxes for what's omitted, in terms of the biggest power of two factor"): the boxes of the page's list of
+    # what the m*(n) chart leaves out, each with its factor, the n its class starts from and the order it states; and
+    # mstar.js.
+    # Expectata: every n up to NMAX that a box would leave out, the odd multiples of its factor from its start on, has
+    # lo = hi = the order the box states, and each box has such n; and the n that the boxes checked as the page loads
+    # do not leave out are COLUMNS, the columns that the other quals of this chart measure.
+    # Resultata before: no box; the chart left out the odd n and the odd multiples of 2 but 2, whatever the reader wanted.
+    boxes, cols = omit_boxes(), mstar_data()['cols']
+    left_out = lambda n, box: n >= box[1] and n % (2 * box[0]) == box[0]
+    for box in boxes:
+        ns = [n for n in range(1, NMAX + 1) if left_out(n, box)]
+        assert ns and all(cols[n - 1][:2] == [box[2], box[2]] for n in ns), (box, [n for n in ns if cols[n - 1][:2] != [box[2], box[2]]][:5])
+    shown = [n for n in range(1, NMAX + 1) if not any(b[3] and left_out(n, b) for b in boxes)]
+    assert shown == COLUMNS, (len(shown), shown[:6])
+
+
+def q_omit_boxes_change_the_columns():
+    # Replicata: the page 1280 px wide, and again 390 px wide, a phone's width; the boxes of its list clicked one at a
+    # time through all 16 of their states, from the state as loaded, then to none checked, then back to the state as
+    # loaded.  In each state: hovers in row 1 at the middle of 30 columns' places (the first three, the last three and
+    # 24 spread evenly), were the columns the n that no checked box leaves out, side by side over the whole plot; the −
+    # button; and the n labels of one draw.  With none checked: a hover and a click on the column of n = 7, and then a
+    # click on the first box of the list, which has the focus.
+    # Expectata: in each state the chart shows all its columns, exactly those n (every probe reads out the n expected
+    # there, and − is disabled); its n labels are the multiples of one step, all of them up to 1024, each a column, at
+    # least three of them (two at 390 px), each two at least 48 CSS px apart; the odd column reads out n = 7 and the
+    # click opens its box; the click on a box of the list closes that box and leaves the focus on the checkbox; and no
+    # script error anywhere.
+    # Resultata before: no boxes.  Then (2026-11-10, found by clicking through the 16 states at eight widths), with the
+    # label steps 1 to 125 times the spacing of the last two columns: at 390 px the six states with the first box
+    # unchecked stopped the chart with "Error drawing the chart: Error: [298,1024]", since no step left 48 px between
+    # its labels; and where few multiples of a step were columns the labels were few: at 1280 px, 400 and 800 alone
+    # with only the first box unchecked, or only the second.
+    for width, least in ((1280, 3), (390, 2)):
+        omit_boxes_change_the_columns(width, least)
+
+
+def omit_boxes_change_the_columns(width, least):
+    got = framed(width, """
+  const errors = []; addEventListener('error', e => errors.push(String(e.message)));
+  Element.prototype.setPointerCapture = function () {};     // synthetic pointers are never active, so capture would throw
+  const cv = document.getElementById('mstar-chart'), ro = document.getElementById('mstar-readout');
+  const panel = document.getElementById('mstar-panel'), boxes = [...document.querySelectorAll('#mstar-omit input')];
+  const NMAX = MSTAR.nmax, T = MSTAR.mtop, LEFT = 44, RIGHT = 16, TOP = 2, ROW = 14, y1 = TOP + (T - 1) * ROW + ROW / 2;
+  const fills = [], fillText = CanvasRenderingContext2D.prototype.fillText;
+  CanvasRenderingContext2D.prototype.fillText = function (t, x, y, ...rest) { fills.push([String(t), x, y]); return fillText.call(this, t, x, y, ...rest); };
+  const expected = () => Array.from({length: NMAX}, (_, i) => i + 1).filter(n =>
+    !boxes.some(b => b.checked && n >= +b.dataset.from && n % (2 * b.dataset.factor) === +b.dataset.factor));
+  const ptr = (type, x, y) => { const r = cv.getBoundingClientRect(); cv.dispatchEvent(new PointerEvent(type,
+    {clientX: r.left + x, clientY: r.top + y, pointerId: 1, pointerType: 'mouse', buttons: 0, bubbles: true, cancelable: true})); };
+  const nAt = x => { ptr('pointermove', x, y1); const m = ro.textContent.match(/^n = (\\d+), m = (\\d+)/); return m ? +m[1] : null; };
+  const place = (E, c) => LEFT + (c + 0.5) * (cv.getBoundingClientRect().width - LEFT - RIGHT) / E.length;
+  function look() {
+    const E = expected(), dpr = devicePixelRatio, base = (TOP + T * ROW) * dpr;
+    const probes = [...new Set([0, 1, 2, E.length - 3, E.length - 2, E.length - 1,
+      ...Array.from({length: 24}, (_, i) => Math.floor((i + 0.5) * E.length / 24))])];
+    const bad = probes.map(c => [c, E[c], nAt(place(E, c))]).filter(([, want, got]) => want !== got);
+    fills.length = 0;
+    nAt(place(E, 0));                                         // a change of the cell read out draws the chart again
+    const labels = fills.filter(([t, x, y]) => /^\\d+$/.test(t) && Math.abs(y - (base + 7 * dpr)) < 1).map(([t, x]) => [+t, x / dpr]);
+    return {ncol: E.length, bad, out: document.getElementById('mstar-zoom-out').disabled, labels, strangers: labels.filter(([n]) => !E.includes(n))};
+  }
+  const set = want => boxes.forEach((b, i) => { if (b.checked !== want[i]) b.click(); });
+  const start = boxes.map(b => b.checked), R = {states: []};
+  const state = () => R.states.push({checked: boxes.map(b => b.checked), ...look()});
+  state();
+  for (const b of [2, 3, 2, 1, 2, 3, 2, 0, 2, 3, 2, 1, 2, 3, 2]) { boxes[b].click(); state(); }       // every state once
+  set([false, false, false, false]);
+  const E = expected(), x7 = place(E, E.indexOf(7));
+  R.odd = nAt(x7);
+  ptr('pointerdown', x7, y1); ptr('pointerup', x7, y1);
+  await sleep(100);
+  R.opened = !panel.hidden;
+  boxes[0].focus(); boxes[0].click();
+  R.closed = panel.hidden; R.focus = document.activeElement === boxes[0];
+  set(start); state();
+  R.errors = errors;
+  parent.postMessage(JSON.stringify(R), '*');""")
+    assert got['errors'] == [], (width, got['errors'][:3])
+    boxes = omit_boxes()
+    seen, start = [tuple(s['checked']) for s in got['states']], tuple(b[3] for b in boxes)
+    assert len(boxes) == 4 and len(seen) == 17 and len(set(seen[:16])) == 16 and seen[0] == seen[16] == start, seen
+    for s in got['states']:
+        want = [n for n in range(1, NMAX + 1) if not any(c and n >= b[1] and n % (2 * b[0]) == b[0] for b, c in zip(boxes, s['checked']))]
+        assert s['ncol'] == len(want) and s['bad'] == [] and s['out'], (width, s['checked'], s['ncol'], len(want), s['bad'][:5], s['out'])
+        ns, xs = [n for n, _ in s['labels']], [x for _, x in s['labels']]
+        assert len(ns) >= least and ns == list(range(ns[0], NMAX + 1, ns[0])), (width, s['checked'], ns)
+        assert s['strangers'] == [] and all(b - a >= 48 for a, b in zip(xs, xs[1:])), (width, s['checked'], s['labels'])
+    ncol = {tuple(s['checked']): s['ncol'] for s in got['states']}
+    assert ncol[start] == NCOL and ncol[(False,) * 4] == NMAX, ncol
+    assert got['odd'] == 7 and got['opened'] and got['closed'] and got['focus'], (got['odd'], got['opened'], got['closed'], got['focus'])
+
+
+def q_a_box_whose_statement_fails_says_so():
+    # Replicata: the page 1280 px wide with made-up data (kinds_data), in which the odd n and the odd multiples of 2
+    # have the orders their boxes state, and n = 12, an odd multiple of 4, has lo = 2 and hi = 3, not the 3 its box
+    # states; then that box, the third, clicked.
+    # Expectata: the page loads with no error, since the boxes checked then leave out only n whose orders are as
+    # stated; the click fails loudly, as broken data does when the page loads: the readout ends with the error, which
+    # quotes column 12 as JSON, and the error is uncaught.
+    # Resultata before: no boxes.
+    got = framed(1280, """
+  const errors = []; addEventListener('error', e => errors.push(String(e.message)));
+  const ro = document.getElementById('mstar-readout'), R = {before: ro.textContent, tall: document.getElementById('mstar-chart').height > 0};
+  document.querySelectorAll('#mstar-omit input')[2].click();
+  await sleep(50);
+  parent.postMessage(JSON.stringify({...R, after: ro.textContent, errors}), '*');""", kinds_data())
+    quoted = "[12,[2,3,['join',4,8],['two']]]"
+    assert got['tall'] and 'Error' not in got['before'], got['before']
+    assert got['after'].endswith(f'Error: {quoted}') and got['errors'] == [f'Uncaught Error: {quoted}'], (got['after'], got['errors'])
 
 
 def q_mstar_grid_lines_come_with_zoom():

@@ -277,14 +277,14 @@ try {
     const [lo, hi] = D.cols[k - 1];
     return [`\\(k = ${k}\\)`, ', ', `\\(n = 2^{${k}}\\)`, ': ', `\\(${lo === hi ? `m^*(2^{${k}}) = ${lo}` : `${lo} \\le m^*(2^{${k}}) \\le ${hi}`}\\)`];
   }};
-  const open = chartPanel({region: panel, chart, ncol: K, nrow: E, pin: ts => view.pin(ts),
+  const open = chartPanel({region: panel, chart, ncol: () => K, nrow: E, pin: ts => view.pin(ts),
     fragment: (c, e) => `${c === null ? '' : `k${c + 1}`}${e === null ? '' : `d${e}`}`,
     fill: (c, e) => {
       const k = c + 1, kind = c === null ? 'row' : e === null ? 'column' : KIND[kindOf(k, e)];
       return {kind, heading: HEADINGS[kind](k, e), ...SAYS[kind](k, e)};
     }});
   const view = panZoom({el: chart, out: document.getElementById('pow2-zoom-out'), in: document.getElementById('pow2-zoom-in'),
-    reset: document.getElementById('pow2-reset'), ncol: K, plot: plotBox, targetAt, readout, draw, open});
+    reset: document.getElementById('pow2-reset'), ncol: () => K, plot: plotBox, targetAt, readout, draw, open});
   view.redraw();
 } catch (e) {
   ro.textContent = `Error drawing this chart: ${e}`;

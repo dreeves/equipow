@@ -1,17 +1,27 @@
 // Claude's chart of m*(n) for n up to 1024, drawn from MSTAR, which mstar.js defines (mstar.py makes it and states its
 // contract).  Column n is green (exists) in rows m = 1 to lo, gray (open) up to hi and red (impossible) above, up to row
-// MSTAR.mtop.  The columns are NS, n = 2 and the multiples of 4 (dreeves, 2026-10-29: "can we make my "odd multiple of
-// 2" bullet point be true?"; every even n before): an odd n has no partition at any m, and every other n = 2 mod 4 has
-// m*(n) = 1, as the data contract asserts.  Pan and zoom (panZoom, which the chart of powers of 2 shares since
+// MSTAR.mtop.  The columns are NS: every n but those that a checked box of the page's list leaves out (dreeves's
+// README, [COM], 2026-11-10: "checkboxes for what's omitted, in terms of the biggest power of two factor").  As the page
+// loads its first two boxes are checked, so NS is n = 2 and the multiples of 4 (dreeves, 2026-10-29: "can we make my
+// "odd multiple of 2" bullet point be true?"; every even n before): an odd n has no partition at any m, and every
+// other n = 2 mod 4 has m*(n) = 1, as the data contract asserts of every box's n.  Pan and zoom (panZoom, which the chart of powers of 2 shares since
 // 2026-10-30) act on n only: the view is the interval [u0, u0 + span) of u,
 // column c (from 0), n = NS[c], spanning u from c to c + 1.  Each device pixel of the plot mixes the colors of the
-// cells it covers, weighted by how much of it each covers, so all NCOL = 257 columns can show at once even where they
-// are narrower than a pixel.
+// cells it covers, weighted by how much of it each covers, so all the columns (257 as the page loads) can show at once
+// even where they are narrower than a pixel.
 (() => {
 const cv = document.getElementById('mstar-chart'), ro = document.getElementById('mstar-readout');
+const fail = e => { ro.textContent = `Error drawing the chart: ${e}`; throw e; };   // loudly: in the readout, and uncaught
 try {
   const D = MSTAR, NMAX = 1024;
-  const NS = [2, ...Array.from({length: NMAX / 4}, (_, i) => 4 * i + 4)], NCOL = NS.length;
+  // A box of the list leaves out, while checked, the odd multiples of its factor from its start on, each of which
+  // has m*(n) = the order it states.
+  const OMIT = [...document.querySelectorAll('#mstar-omit input')].map(box =>
+    ({box, factor: +box.dataset.factor, from: +box.dataset.from, order: +box.dataset.order}));
+  const leftOut = (n, {factor, from}) => n >= from && n % (2 * factor) === factor;
+  const stated = (n, [lo, hi], o) => !o.box.checked || !leftOut(n, o) || (lo === o.order && hi === o.order);
+  const columns = () => Array.from({length: NMAX}, (_, i) => i + 1).filter(n => !OMIT.some(o => o.box.checked && leftOut(n, o)));
+  let NS = columns();                                             // it changes when a box does (the end of this file)
   // Layout in CSS px: the m labels left of the plot, room right of it for the last n label, rows ROW tall, and the n
   // axis below.
   const LEFT = 44, RIGHT = 16, TOP = 2, ROW = 14, AXIS = 30;
@@ -23,10 +33,10 @@ try {
   // Claude's words, starting "order lo" or "order hi + 1"; and witness(n, lo, ...) or proof(n, hi, ...) what a box
   // shows of it (since 2026-11-04, [CEL]; an explanation in the panel of column n from 2026-11-03), from the templates
   // of the page (page/shared.js): an example's label, a join's or a product's construction, which page/codes.js
-  // expands into its derivation, and the proof of an upper bound worked out for n.  Odd n get no column, so "none" and
-  // "odd" have no text and no box.
+  // expands into its derivation, and the proof of an upper bound worked out for n.  An odd n has a column only while
+  // its box is unchecked, and every cell of it is impossible: "none" shows no witness, and "odd" that n is odd.
   const LO = {
-    none: {ok: (n, lo) => lo === 0 && n % 2 === 1},
+    none: {ok: (n, lo) => lo === 0 && n % 2 === 1, witness: () => shown()},
     example: {
       ok: (n, lo, label) => typeof label === 'string' && label !== '',
       // readout reason; says order lo is known from an example, naming where the example comes from
@@ -59,7 +69,12 @@ try {
     },
   };
   const HI = {
-    odd: {ok: (n, hi) => hi === 0 && n % 2 === 1},
+    odd: {
+      ok: (n, hi) => hi === 0 && n % 2 === 1,
+      // readout reason; says order 1 is ruled out because n is odd
+      text: (n, hi) => `order ${hi + 1} ruled out: ${n} is odd`,
+      proof: (n, hi) => PROOF.odd(BigInt(n), `${n}`, hi),
+    },
     two: {
       ok: (n, hi) => n % 2 === 0 && hi === (n & -n) - 1,
       // readout reason; says order hi + 1 is ruled out because hi + 1 is the largest power of 2 dividing n
@@ -91,6 +106,7 @@ try {
       proof: (n, hi, who) => PROOF.page(BigInt(n), `${n}`, hi, who),
     },
   };
+  assert(OMIT.length > 0, OMIT.length);                           // the page's list has its boxes
   assert(D.nmax === NMAX && Number.isInteger(D.mtop) && Array.isArray(D.cols) && D.cols.length === NMAX, D.nmax, D.mtop);
   D.cols.forEach((c, i) => {
     const n = i + 1, [lo, hi, lw, hw] = c;
@@ -99,7 +115,7 @@ try {
       assert(Object.hasOwn(K, w[0]) && K[w[0]].ok.length === w.length + 1 && K[w[0]].ok(n, v, ...w.slice(1)), n, c);
     }
     assert((lw[0] === 'none') === (n % 2 === 1) && (hw[0] === 'odd') === (n % 2 === 1), n, c);
-    assert(n % 4 !== 2 || (lo === 1 && hi === 1), n, c);           // why such n, but 2, need no column
+    OMIT.forEach(o => assert(stated(n, c, o), n, c));              // why a checked box may leave n out
   });
   assert(D.mtop === Math.max(...D.cols.map(c => c[1])) + 1, D.mtop);
   // the least n not ruled out at each order from mtop on, past the chart ([LIN], 2026-11-03; a list since 2026-11-04,
@@ -126,7 +142,24 @@ try {
   // also gets a gold dot (Claude's proposal for the indicator, 2026-10-30).
   const RINGS = raised(D.cols, () => 0).flatMap(([known, possible], i) => [...new Set([...known, ...possible])]
     .sort((x, y) => x - y).map(m => ({n: i + 1, m, role: known.includes(m) + 2 * possible.includes(m)})));
-  assert(RINGS.every(({n, m}) => NS.includes(n) && m <= T), RINGS);
+  const ringed = () => assert(RINGS.every(({n, m}) => NS.includes(n) && m <= T), RINGS);   // no box leaves a ringed n out
+  ringed();
+  // The steps of the n labels: 1, 5, 10, 25, 50, 125, 250 and 500 times the least n all of whose multiples are columns
+  // (4 for n = 2 and the multiples of 4), those of them with two labels or more (4, 20, 40, 100, 200 and 500 there),
+  // each with the columns it labels, its multiples, and the least distance between two of them next to each other, in
+  // columns.  Until 2026-11-10 the steps were 1 to 125 times the spacing of the last two columns: with every n a
+  // column none of them left room for its labels on a phone, and where few multiples of a step were columns the labels
+  // were few (400 and 800 alone, 1280 px wide, with the odd n shown and the other three boxes checked).
+  const ladder = () => {
+    const shown = new Set(NS);
+    const base = NS.find(b => Array.from({length: Math.floor(NMAX / b)}, (_, i) => (i + 1) * b).every(n => shown.has(n)));
+    assert(base, NS.length);
+    return [1, 5, 10, 25, 50, 125, 250, 500].map(x => {
+      const at = NS.flatMap((n, c) => n % (x * base) === 0 ? [c] : []);
+      return {step: x * base, at, gap: Math.min(...at.slice(1).map((c, i) => c - at[i]))};
+    }).filter(r => r.at.length > 1);
+  };
+  let LADDER = ladder();
   cv.style.height = `${cssH}px`;
   const ctx = cv.getContext('2d'), strip = document.createElement('canvas'), sctx = strip.getContext('2d');
   let geo = null;                                                  // the last draw's layout
@@ -155,14 +188,14 @@ try {
     const [lo, hi] = D.cols[n - 1];
     return [`\\(n = ${n}\\)`, ': ', `\\(${lo === hi ? `m^*(${n}) = ${lo}` : `${lo} \\le m^*(${n}) \\le ${hi}`}\\)`];
   }};
-  const open = chartPanel({region: panel, chart: cv, ncol: NCOL, nrow: T, pin: ts => view.pin(ts),
+  const open = chartPanel({region: panel, chart: cv, ncol: () => NS.length, nrow: T, pin: ts => view.pin(ts),
     fragment: (c, m) => `${c === null ? '' : `n${NS[c]}`}${m === null ? '' : `m${m}`}`,
     fill: (c, m) => {
       const n = NS[c], kind = c === null ? 'row' : m === null ? 'column' : KIND[kindOf(n, m)];
       return {kind, heading: HEADINGS[kind](n, m), ...SAYS[kind](n, m)};
     }});
   const view = panZoom({el: cv, out: document.getElementById('mstar-zoom-out'), in: document.getElementById('mstar-zoom-in'),
-    reset: document.getElementById('mstar-reset'), ncol: NCOL, plot: () => ({left: geo.L / geo.dpr, width: geo.W / geo.dpr}),
+    reset: document.getElementById('mstar-reset'), ncol: () => NS.length, plot: () => ({left: geo.L / geo.dpr, width: geo.W / geo.dpr}),
     targetAt, readout, draw, open});
 
   // the view [u0, u0 + span), the cell read out (picked) and the target of the box open (pinned)
@@ -179,7 +212,7 @@ try {
     const colors = KIND.map(t => rgb(`--${t}`)), k = span / W, img = sctx.createImageData(W, T);
     const mix = new Float64Array(3 * T);
     for (let x = 0; x < W; x++) {
-      const a = u0 + x * k, b = Math.min(a + k, NCOL);
+      const a = u0 + x * k, b = Math.min(a + k, NS.length);
       mix.fill(0);
       for (let c = Math.floor(a); c < b; c++) {                   // u from c to c + 1: column n = NS[c]
         const w = (Math.min(b, c + 1) - Math.max(a, c)) / k;
@@ -209,23 +242,23 @@ try {
     ctx.globalAlpha = Math.min(Math.max((1 / k / dpr - 4) / 4, 0), 1);
     for (let c = Math.floor(u0) + 1; c < u0 + span; c++) ctx.fillRect(L + Math.floor((c - u0) / k), top, 1, T * pitch);
     ctx.globalAlpha = 1;
-    // Axes: every m on the left; below, n under the middle of its column, at the first of 4, 20, 40, 100, 200, 500 (the
-    // round multiples of 4, so every label has a column, n / 4) that leaves room for each label.
+    // Axes: every m on the left; below, n under the middle of its column, for the columns of the first step of LADDER
+    // that leaves room for each label: 48 CSS px or more between any two of its columns next to each other.
     const serif = token('--serif'), base = top + T * pitch;
     ctx.fillStyle = token('--muted');
     ctx.font = `${12 * dpr}px ${serif}`;
     ctx.textAlign = 'right';
     ctx.textBaseline = 'middle';
     for (let m = 1; m <= T; m++) ctx.fillText(String(m), L - 7 * dpr, top + (T - m) * pitch + (pitch - gap) / 2);
-    const step = [4, 20, 40, 100, 200, 500].find(s => s / 4 / k >= 48 * dpr);
-    assert(step, W, span);
+    const rung = LADDER.find(r => r.gap / k >= 48 * dpr);
+    assert(rung, W, span);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
-    for (let n = Math.max(step, Math.ceil((4 * u0 - 2) / step) * step); n / 4 + 0.5 <= u0 + span; n += step) {
-      const x = L + (n / 4 + 0.5 - u0) / k;
+    rung.at.filter(c => u0 <= c + 0.5 && c + 0.5 <= u0 + span).forEach(c => {
+      const x = L + (c + 0.5 - u0) / k;
       ctx.fillRect(Math.round(x - dpr / 2), base, dpr, 4 * dpr);
-      ctx.fillText(String(n), x, base + 7 * dpr);
-    }
+      ctx.fillText(String(NS[c]), x, base + 7 * dpr);
+    });
     ctx.fillStyle = token('--ink');
     ctx.font = `italic ${15 * dpr}px ${serif}`;
     ctx.textAlign = 'left';
@@ -236,7 +269,7 @@ try {
     // across in each proven the least, then the cell read out in ink, and the target of the box open, its cell, column
     // or row (since 2026-11-04: [c, m], null for every column or every row).
     const ring = ([c, m]) => {
-      const [c0, c1] = c === null ? [0, NCOL] : [c, c + 1], [m0, m1] = m === null ? [1, T] : [m, m];
+      const [c0, c1] = c === null ? [0, NS.length] : [c, c + 1], [m0, m1] = m === null ? [1, T] : [m, m];
       const x0 = L + (c0 - u0) / k, x1 = L + (c1 - u0) / k, y0 = top + (T - m1) * pitch;
       ctx.strokeRect(x0 - dpr, y0 - dpr, x1 - x0 + 2 * dpr, (m1 - m0 + 1) * pitch - gap + 2 * dpr);
     };
@@ -314,11 +347,28 @@ try {
       [[why[0]], why, [why[1]]][kind].map(f => f()).join(' · '));
     ro.append(...rings.map(r => ` · ${NOTES[r.role](m)}`));
   }
+  // A box of the list changed ([COM]): the data must hold what the checked boxes state, as when the page loaded, or
+  // the change fails as that does; the box open under the chart, whose target is a column of the columns that were,
+  // closes as its close button closes it, the focus staying on the checkbox; then the columns are the new ones, the
+  // readout the words it had as the page loaded, and the view every column.
+  const hint = [...ro.childNodes];
+  OMIT.forEach(({box}) => box.addEventListener('change', () => {
+    try {
+      D.cols.forEach((c, i) => OMIT.forEach(o => assert(stated(i + 1, c, o), i + 1, c)));
+      if (!panel.hidden) { panel.querySelector('[data-panel-close]').click(); box.focus(); }
+      NS = columns();
+      LADDER = ladder();
+      ringed();
+      ro.replaceChildren(...hint);
+      view.recolumn();
+    } catch (e) {
+      fail(e);
+    }
+  }));
   view.redraw();
   new ResizeObserver(() => view.redraw()).observe(cv);
   document.fonts.ready.then(() => view.redraw());
 } catch (e) {
-  ro.textContent = `Error drawing the chart: ${e}`;
-  throw e;
+  fail(e);
 }
 })();
