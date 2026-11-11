@@ -12,7 +12,7 @@ enumerated again.  Quals marked "regression" pin numbers found earlier rather th
 import sys
 sys.dont_write_bytecode = True
 import os, re, json, math, time, subprocess, traceback, itertools
-from functools import lru_cache
+from functools import lru_cache, cmp_to_key, reduce
 import sympy as sp
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # the repository's root, above quals/
 sys.path.insert(0, os.path.join(HERE, 'pagegen'))   # mstar.py, pow2.py's directory since 2026-11-10 ([REF]); the root until then
@@ -211,6 +211,119 @@ def q_new_lower_bounds():
     pairs = ((10, 10), (19, 10), (20, 20), (27, 20), (28, 28), (29, 28), (30, 30), (38, 30), (39, 39), (46, 39), (47, 47),
              (50, 47), (51, 51), (57, 51), (58, 58), (67, 58), (68, 68), (72, 68))      # (55, 47), (56, 56), (57, 56) until 2026-11-11
     assert [cols()[k - 1][2][1] == pow2.lifted(pow2.BASES[K0], k - K0) for k, K0 in pairs] == [True] * len(pairs)
+
+
+# ---------- each first is the least (2026-11-11) ----------
+
+def firsts_blocks():
+    """{n: m}: every block that a join's products may use: each column of mstar.js that is above Thue-Morse, at its
+    lo, and the sequences past the chart (mstar.js's past).  tau_j = (2^j, j) is coins_of's own factor."""
+    M = node_global(os.path.join(HERE, 'pagedata', 'mstar.js'), 'MSTAR')[2]
+    is_tau = lambda n, m: n & (n - 1) == 0 and m == n.bit_length() - 1
+    blocks = {n: c[0] for n, c in enumerate(M['cols'], 1) if c[0] >= 1 and not is_tau(n, c[0])}
+    for n, m, _ in M['past']: blocks[n] = max(blocks.get(n, 0), m)
+    return blocks
+
+
+def coins_of(blocks, need, cap, threes=None, limit=10 ** 6):
+    """The set of coins: the lengths, at most cap, of the products of blocks (a multiset of blocks times one tau_j) of
+    order at least need; with threes = v, only the products whose blocks have at most v factors 3 among them.  A
+    depth-first walk over the blocks, best ratio order / log2(length) first, decided in integers alone (Codex's
+    reviews of 2026-11-11: no float decides a cut): a branch is cut when the d orders still missing cannot be bought
+    in the length cap / L left, d > r log2(cap / L) with r the best ratio left (at least tau's 1), that is
+    2^d L > cap for r = 1 and n^d L^m > cap^m for the block (n, m)."""
+    by_ratio = cmp_to_key(lambda a, b: (b[0] ** a[1] < a[0] ** b[1]) - (b[0] ** a[1] > a[0] ** b[1]))
+    B = sorted(blocks.items(), key=by_ratio)
+    tauish = [n >= 2 ** m for n, m in B]
+    capm = {m: cap ** m for _, m in B}
+    three = [next(v for v in range(64) if n % 3 ** (v + 1)) for n, _ in B]
+    out = set()
+    def walk(i, L, order, budget):
+        j = max(0, need - order)
+        while L << j <= cap:
+            out.add(L << j); j += 1
+        assert len(out) <= limit, 'too many coins'
+        for k in range(i, len(B)):
+            n, m = B[k]
+            if L * n > cap or three[k] > budget: continue
+            d = need - order - m
+            if d > 0 and ((L * n) << d > cap if tauish[k] else n ** d * (L * n) ** m > capm[m]): continue
+            walk(k, L * n, order + m, budget - three[k])
+    walk(0, 1, 0, 10 ** 9 if threes is None else threes)
+    return out
+
+
+def excess_reached(e, K, blocks, units=2 ** 27):
+    """'yes', 'no' or 'undecided': whether 2^K is a sum of coins of order at least K + e, that is, a join of products
+    of the blocks that beats Thue-Morse by e (by distributivity: pow2.py's docstring).  yes and no are exact.
+    A block that is not prime to 3 has length divisible by 3, so a coin is prime to 3 iff all its blocks are, and a
+    sum equal to 2^K, which is prime to 3, has such coins: a nonempty multiset S of them, with the rest R = 2^K -
+    sum(S) a sum of coins that are multiples of 3.  So: no S with 3 | R: no.  R = 0: yes.  Otherwise, with 3^v the
+    power of 3 in R: if every coin up to R that is a multiple of 3 has more than v factors 3, R is no sum of them;
+    else one bit set over all those coins, in units of their common divisor, decides R when it has at most `units`
+    units, and the answer is undecided when it has more."""
+    need, N = K + e, 2 ** K
+    p3 = sorted(coins_of({n: m for n, m in blocks.items() if n % 3}, need, N))
+    rests = set()
+    def multisets(i, total):
+        if total and (N - total) % 3 == 0: rests.add(N - total)
+        assert len(rests) <= 10 ** 4
+        for k in range(i, len(p3)):
+            if total + p3[k] > N: break
+            multisets(k, total + p3[k])
+    multisets(0, 0)
+    verdict = 'no'
+    for R in sorted(rests):
+        if R == 0: return 'yes'
+        v = next(v for v in range(64) if R % 3 ** (v + 1))
+        if not any(c % 3 == 0 for c in coins_of(blocks, need, R, threes=v)): continue
+        al = sorted(c for c in coins_of(blocks, need, R) if c % 3 == 0)
+        G = reduce(math.gcd, al)
+        if R % G: continue
+        T = R // G
+        if T > units: verdict = 'undecided'; continue
+        reach, mask = 1, (1 << (T + 1)) - 1
+        for c in al:
+            step = c // G
+            if (reach >> step) & 1: continue                # a sum of smaller coins: it adds nothing
+            while step <= T:
+                reach |= (reach << step) & mask
+                step *= 2
+        if (reach >> T) & 1: return 'yes'
+    return verdict
+
+
+def q_each_first_is_the_least():
+    # 2026-11-11 (Fable 5.2; dreeves, of quals_symmetry's q_every_known_order_has_its_symmetric_sequence: "yes, good qual. can you add more like that?").
+    # Replicata: pow2.BASES, whose keys are the page's firsts (the least k at which m*(2^k) - k is known to reach e, e = 1 to 9; the page's Theorem 1 and its list
+    # under it); mstar.js's columns and its sequences past the chart, each a block; and excess_reached, an exact decider written apart from pow2.py, from
+    # searches/pinned/coins and from the search that found the bases.
+    # Expectata: at the power of 2 just below each first, no join of products of the chart's blocks beats Thue-Morse by that first's e: excess_reached says no,
+    # exactly.  That covers every smaller power too: a join at 2^K with excess e, each product times tau_1, is one at 2^(K + 1).  So each first is the least that
+    # the chart's sequences allow, and a new sequence on the chart that makes an earlier one possible turns this red until the page's theorem says so (the
+    # sequences of 2026-11-11 moved two firsts, 36 to 30 and 56 to 51, which a search of five hours found; this decides all nine in a second).  The decider
+    # answers yes where a join exists: at the firsts of e = 4 and 5; and at 2^29 for e = 4 if 1504 had order 13 instead of 12.
+    # Resultata before: no qual asked whether a first is the least.
+    blocks = firsts_blocks()
+    firsts = {pow2.join_lo(K0, ps) - K0: K0 for K0, ps in pow2.BASES.items()}
+    assert sorted(firsts) == list(range(1, len(firsts) + 1)), firsts
+    early = {e: excess_reached(e, K0 - 1, blocks) for e, K0 in firsts.items()}
+    assert set(early.values()) == {'no'}, early
+    assert [excess_reached(e, firsts[e], blocks) for e in (4, 5)] == ['yes', 'yes']
+    assert excess_reached(4, firsts[4] - 1, {**blocks, 1504: 13}) == 'yes'
+
+
+def q_bounds_are_closed_under_products():
+    # 2026-11-11 (Fable 5.2; the same request of dreeves's).
+    # Replicata: pow2.js's columns, [lo, hi] at each k.
+    # Expectata: the chart of powers of 2 has every bound that two of its columns imply by the product rule, m*(2^(j + k)) >= m*(2^j) + m*(2^k): the lower
+    # bounds, lo(j) + lo(k) <= lo(j + k), and, read backwards, the upper bounds, m*(2^j) <= hi(j + k) - lo(k), so hi(j) + lo(k) <= hi(j + k).  A pair that
+    # breaks one has a better bound for free.
+    # Resultata before: no qual held the upper bounds to this.
+    c = cols(); K = len(c)
+    lo = [0] + [x[0] for x in c]; hi = [0] + [x[1] for x in c]
+    bad = [(j, k) for j in range(1, K) for k in range(1, K - j + 1) if lo[j] + lo[k] > lo[j + k] or hi[j] + lo[k] > hi[j + k]]
+    assert not bad, bad[:10]
 
 
 def q_base_blocks_and_their_sources():

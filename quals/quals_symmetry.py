@@ -292,6 +292,20 @@ def q_every_known_order_has_its_symmetric_sequence():
     assert not missing, missing
 
 
+def q_closure_gives_the_chart_no_new_lower_bound():
+    # 2026-11-11 (Fable 5.2; dreeves, of the qual above: "yes, good qual. can you add more like that?").
+    # Replicata: the chart's columns (mstar.js) and the closure of the page's sequences up to the chart's last length: joins, and wraps with the parity bump of
+    # a symmetric sequence's order, which the chart's generator does not use.
+    # Expectata: at no length does the closure reach a higher order than the chart's lower bound: what this section builds, the chart already shows.  It does
+    # report a chart that lags: with column 2016's lower bound taken as 13, the closure's 15 there is above it.
+    # Resultata before: no qual compared the two; a wrap that beat the chart would have gone unseen.
+    cols = qi.mstar_data()['cols']
+    lo, sym, built = closure(sources(None, len(cols)), len(cols))
+    above = lambda los: [(n, lo[n], los[n - 1]) for n in range(1, len(cols) + 1) if lo[n] > los[n - 1]]
+    assert above([c[0] for c in cols]) == []
+    assert above([13 if n == 2016 else c[0] for n, c in enumerate(cols, 1)]) == [(2016, 15, 13)]
+
+
 def q_symmetry_conjecture_holds_through_order_11():
     # Replicata: the reduction (reduction()) from the page's own sequences, Thue-Morse and BGPW's Tables 4 and 5 (the
     # closure, by joins and wraps, every claim built and checked), and the chart's upper bounds; and the account's math:

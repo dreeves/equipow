@@ -940,6 +940,35 @@ def q_proposition_44_keeps_odd_multiples_of_16_at_14_or_less():
     assert seen == {1, 3, 7}, seen
 
 
+def implied_bounds_missing(lo, hi):
+    """[(rule, a, b)]: where the columns lo and hi (index n, from 1) lack a bound that two of them imply.  The product
+    of sequences of lengths a and b has length ab and at least the sum of their orders: lo(a) + lo(b) <= lo(ab), and,
+    read backwards, m*(a) <= hi(ab) - lo(b), so hi(a) + lo(b) <= hi(ab).  Their join has length a + b and at least
+    the lesser order: min(lo(a), lo(b)) <= lo(a + b), and where lo(b) > hi(a + b) the lesser is a's, so
+    hi(a) <= hi(a + b)."""
+    N = len(lo) - 1
+    return ([('product', a, b) for a in range(1, N + 1) for b in range(1, N // a + 1)
+             if lo[a] + lo[b] > lo[a * b] or hi[a] + lo[b] > hi[a * b]]
+            + [('join', a, b) for a in range(1, N) for b in range(1, N - a + 1)
+               if min(lo[a], lo[b]) > lo[a + b] or lo[b] > hi[a + b] < hi[a]])
+
+
+def q_bounds_are_closed_under_products_and_joins():
+    # 2026-11-11 (Fable 5.2; dreeves, of quals_symmetry's q_every_known_order_has_its_symmetric_sequence: "yes, good qual. can you add more like that?").
+    # Replicata: mstar.js's columns, [lo, hi] at every n; and four made-up columns.
+    # Expectata: the chart has every bound that two of its columns imply by the product and join rules (q_join_and_product_rules), the upper bounds too, which
+    # the rules give read backwards (implied_bounds_missing): a column that lacks one has a better bound for free, which the generator missed.  On made-up
+    # columns for n = 1 to 4 with m* = 0, 1, 0, 2 nothing is missing; with the upper bound at 2 raised to 2 the product 2 x 2 reports it; with both bounds at
+    # 4 lowered to 0 the product and the join of 2 and 2 do.
+    # Resultata before: no qual held the upper bounds to these rules.
+    _, got = disk()
+    cols = got['m']['cols']
+    assert implied_bounds_missing([None] + [c[0] for c in cols], [None] + [c[1] for c in cols]) == []
+    assert implied_bounds_missing([None, 0, 1, 0, 2], [None, 0, 1, 0, 2]) == []
+    assert implied_bounds_missing([None, 0, 1, 0, 2], [None, 0, 2, 0, 2]) == [('product', 2, 2)]
+    assert implied_bounds_missing([None, 0, 1, 0, 0], [None, 0, 1, 0, 0]) == [('product', 2, 2), ('join', 2, 2)]
+
+
 def q_past_lists_the_example_of_order_16_at_1440():
     # Replicata: mstar.js's past, its mtop and mtopAt, and mstar.explicit()'s sequences past NMAX.
     # Expectata (2026-11-04: the tilted search, searches/tilted/, found a symmetric example of order 16 at 1440, the least n past the chart
