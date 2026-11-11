@@ -1098,7 +1098,8 @@ def kinds_data(violation=None):
     for n, c in ((4, [2, 2, ['product', 2, 2], ['norm', 3]]), (8, [3, 3, ['table2'], ['table2']]),
                  (12, [2, 3, ['join', 4, 8], ['two']]), (16, [4, 4, ['page', 's'], ['page', 'j']]),
                  (20, [3, 3, ['page', 'c'], ['two']]), (24, [4, 5, ['example', 'BGPW Table 5'], ['residue', 9]]),
-                 (32, [5, 7, ['product', 16, 2], ['norm', 5]]), (48, [6, 7, ['table2'], ['norm', 7]])):
+                 (32, [5, 7, ['product', 16, 2], ['norm', 5]]), (48, [6, 7, ['table2'], ['norm', 7]]),
+                 (40, [1, 6, ['example', 'a made-up label'], ['prop44']])):   # prop44: since 2026-11-11 (40 = 2^3 · 5 < 2^7)
         cols[n - 1] = c
     data = {'nmax': DATA_NMAX, 'mtop': max(c[1] for c in cols) + 1, 'mtopAt': [DATA_NMAX + 2], 'past': [], 'cols': cols}
     VIOLATIONS.get(violation, (lambda data: None,))[0](data)
@@ -1122,6 +1123,8 @@ VIOLATIONS = {   # name: (a change that breaks the contract, what the page's err
     'two': (column(100, [1, 2, ['example', 'x'], ['two']]), "[100,[1,2,['example','x'],['two']]]"),
     'norm divisor': (column(100, [1, 3, ['example', 'x'], ['norm', 5]]), "[100,[1,3,['example','x'],['norm',5]]]"),
     'norm composite': (column(100, [1, 3, ['example', 'x'], ['norm', 9]]), "[100,[1,3,['example','x'],['norm',9]]]"),
+    # (2026-11-11) BGPW's Proposition 4.4 at a length it does not reach: 136 = 2^3 · 17 is not below 2^7
+    'prop44 n': (column(136, [1, 6, ['example', 'x'], ['prop44']]), "[136,[1,6,['example','x'],['prop44']]]"),
     'table2 n': (column(100, [1, 3, ['table2'], ['two']]), "[100,[1,3,['table2'],['two']]]"),
     'page who': (column(100, [1, 3, ['page', 'Stan'], ['two']]), "[100,[1,3,['page','Stan'],['two']]]"),
     'empty label': (column(100, [1, 3, ['example', ''], ['two']]), "[100,[1,3,['example',''],['two']]]"),
@@ -1435,7 +1438,8 @@ def q_changelog_brings_every_new_result_up_to_date():
     # Expectata (dreeves, 2026-10-26: "yes please", to a changelog entry with each update of the new results; and, of
     # its first 112 statements, "if there's an excuse to trim it down, we should"): each statement tightens its n's
     # bounds, raising the low, lowering the high, or both, and is still true, the block's bounds for n lying within the
-    # statements'; every n stated is in the block; and every entry of the block whose lower bound is a partition of its
+    # statements'; every n stated is in the block, or since 2026-11-11 a length of the chart past the block's, where the
+    # chart's bounds lie within the statements'; and every entry of the block whose lower bound is a partition of its
     # own length (up to NMAX, not BUILT; past it, a power of 2 whose pow2.js loWhy is the join of one block of length
     # n, since 1024 got its example of order 11 on 2026-10-26) is up to date, its bounds exactly the statements', as
     # is every upper bound proved on the page (reason 'page') and the low of each power of 2 that sets a threshold of
@@ -1449,8 +1453,13 @@ def q_changelog_brings_every_new_result_up_to_date():
         assert all(a != b and b[0] <= a[0] <= a[1] <= b[1] for _, b, a in moved), (d, moved)
         state = after
     cells, cols = new_cells(page()), mstar_data()['cols']
-    assert set(state) <= set(cells), set(state) - set(cells)
-    false = {n: (state[n], cells[n]) for n in state if not state[n][0] <= cells[n][0] <= cells[n][1] <= state[n][1]}
+    # Since 2026-11-11 the changelog also states new bounds at lengths of the chart past the block's 1024 (the chart
+    # reaches 2048 since 2026-11-10, and the first such bounds came that night: 1104 to 1776): those are held to the
+    # chart's columns, as the block's are to the block.
+    past = {n: tuple(cols[n - 1][:2]) for n in state if n not in cells and NMAX < n <= DATA_NMAX}
+    assert set(state) <= set(cells) | set(past), set(state) - set(cells) - set(past)
+    known = cells | past
+    false = {n: (state[n], known[n]) for n in state if not state[n][0] <= known[n][0] <= known[n][1] <= state[n][1]}
     assert not false, false
     pows = pow2_data()['cols']
     own = ({n for n in cells if n <= NMAX and cols[n - 1][2][0] not in BUILT} |
@@ -2941,7 +2950,10 @@ def q_example_at_1440_settles_a_15():
     # no column before it allows order 16 (until then: mtopAt's first n was 1440, and past held the example).
     cols = mstar_data()['cols']
     assert cols[1439][:3] == [16, 17, ['example', 'equipow p1440']] and max(c[1] for c in cols[:1439]) == 15, cols[1439]
-    assert mstar_data()['past'] == [], mstar_data()['past']
+    # Since 2026-11-11 past is not empty: the Symmetry section has symmetric sequences of order 12 at 2096, 2128 and
+    # 2192, longer than the chart (quals_mstar's q_past_lists_the_example_of_order_16_at_1440 holds the list).  What
+    # this qual needs of past is that none of them reaches order 16, so that 1440 stays the least length known there.
+    assert all(m < 16 for _, m, _ in mstar_data()['past']), mstar_data()['past']
     assert any(d == '2026-11-04' and '\\(a(15) = 1440\\)' in rest for d, rest in changelog()), changelog()[:3]
     # Spec change (2026-11-07; dreeves, of quals that failed on his rewrite of the OEIS notes: "if i wrote something, that
     # shouldn't make a qual fail, right?"): this qual no longer asks the OEIS note on A323395 to state a(15) = 1440.
@@ -4163,6 +4175,7 @@ def panel_entries(n):
 
 
 TABLE2 = 'https://arxiv.org/html/1912.03491v1#S3.T2'       # BGPW's Table 2, which a box that cites it links (its words until 2026-11-09)
+PROP44 = 'https://arxiv.org/html/1912.03491v1#S4.Thmthm4'  # BGPW's Proposition 4.4, which a box that cites it links (2026-11-11)
 
 
 def panel_says(cols, n, P):
@@ -4188,6 +4201,9 @@ def panel_says(cols, n, P):
     says += {'two': [('t', f'\\(n = 2^{{{t2}}} \\cdot {n >> t2}\\)' in t and f'\\(m \\le 2^{{{t2}}} - 1 = {hi}\\)' in t)],
              'norm': [('p', f'\\(p = {harg} \\nmid n\\)' in t)],
              'residue': [('M', f'\\(M = {harg}\\)' in t and 'mstar.py' in t)],
+             # (2026-11-11) n factored, the power of 2 that order hi + 1 would need of |f(-1)|, and the citation's link
+             'prop44': [('t', f'\\(n = 2^{{{t2}}} \\cdot {n >> t2}\\)' in t and f'2^{{{hi + 1}}} = ' in t),
+                        ('cited', PROP44 in P['links'])],
              'table2': [('cited', TABLE2 in P['links'])], 'page': [('who', legend_labels(page()).get(harg, '\0') in t)]}[hw[0]]
     copies = [[c, str(lo), 'button', code_digits(c)] for c in [f'{n}:{lo}'] if c in code_ids() and c not in entry_codes(n)]
     says += [('copy', P['copies'] == copies)]
@@ -4336,7 +4352,12 @@ def q_made_up_data_opens_every_kind_of_panel():
         assert not P['hidden'] and P['errors'] == 0 and P['whys'] == panel_whys(cols, P['n']), (P['n'], P)
     kinds = {w for P in R['panels'] for w in P['whys']}
     # (spec change, 2026-11-04, [CEL]: the parts' kinds are a witness's and a proof's, lo-KIND and hi-KIND until then)
-    assert set(WITNESSES.values()) | {f'proof-{k}' for k in ('two', 'norm', 'residue', 'table2', 'page')} <= kinds, kinds
+    # ('prop44' since 2026-11-11: BGPW's Proposition 4.4, the made-up column 40)
+    assert set(WITNESSES.values()) | {f'proof-{k}' for k in ('two', 'norm', 'residue', 'prop44', 'table2', 'page')} <= kinds, kinds
+    for P in R['panels']:
+        bad = [what for what, found in panel_says(cols, P['n'], P) if not found and what in ('t', 'cited')]
+        assert cols[P['n'] - 1][3] != ['prop44'] or bad == [], (P['n'], bad, P['text'], P['links'])
+    assert [n for n, c in enumerate(cols, 1) if c[3] == ['prop44']] == [40]
 
 
 # ---------------------------------------------------------------------------------------------------------------------

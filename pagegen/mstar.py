@@ -75,9 +75,12 @@ not ruled out at those orders.  past (since 2026-11-04) lists the explicit seque
   hiWhy  ["odd"] (n odd: hi = 0); ["two"]; ["norm", p]; ["residue", M] (the claim in RESIDUE: no admissible vector mod
          M at order hi + 1); ["proof", file] (PROOFS: a program of proofs/ that checks a proof of its own that no
          sequence of length n has order hi + 1, at a length outside the page's tables; since 2026-11-10, 1456's);
+         ["prop44"] (since 2026-11-11: BGPW's Proposition 4.4, prop44(n): hi + 1 is the power of 2 in n less 1, an
+         order at which the alternating sum would be 2^(hi + 1) or more, which is more than n);
          ["table2"]; ["page", who] (who the credit for the proof: that cell's class).
   When sources tie, a reason checked here wins over a citation, and the simpler one among those: example, join,
-  product; odd, two, norm (the least p), residue, proof.
+  product; odd, two, norm (the least p), residue, proof, prop44 (last, as the newest: it gives no column a reason
+  that an older test gave it).
 
 Run:   python3 -B pagegen/mstar.py   (writes pagedata/mstar.js)
 Quals: python3 -B quals/quals_mstar.py
@@ -489,6 +492,16 @@ def explicit():
 def two(n): return 2 ** ((n & -n).bit_length() - 1) - 1
 
 
+def prop44(n):
+    """BGPW's Proposition 4.4 as a bound (2026-11-11): with t the power of 2 in n, a sequence of length n and order
+    t - 1 has |f(-1)| >= 2^(t-1), f(-1) being its alternating sum (mod 2, f is (x - 1)^(t-1) S^t with S = 1 + x + ... +
+    x^(n/t - 1), odd at 1, so f/(x - 1)^(t-1) is odd at -1 and f(-1) an odd multiple of 2^(t-1)).  As |f(-1)| <= n,
+    order t - 1, the most that two(n) allows, needs n >= 2^(t-1): t - 2 below that, t - 1 from there on.  At t = 16
+    that is 14 for every odd multiple of 16 below 32784."""
+    t = n & -n
+    return t - 2 if n < 2 ** (t - 1) else t - 1
+
+
 def norm(n, p):
     """The norm lemma's bound for the prime p, which must not divide n: the largest m >= 0 with
     p^(2m) (p-1)^(p-1) <= (p sum_r size(p, r)^2)^(p-1)."""
@@ -658,6 +671,7 @@ def columns():
         his = ([(0, ['odd'])] * (n % 2) + [(two(n), ['two'])] + [(norm(n, p), ['norm', p]) for p in PRIMES if n % p]
                + [(m - 1, ['residue', chain[-1]]) for k, (m, chain, _) in RESIDUE.items() if k == n]
                + [(hi, ['proof', file]) for k, (hi, file) in PROOFS.items() if k == n]
+               + [(prop44(n), ['prop44'])]
                + [(c[1], c[2]) for c in cited if c[1] is not None])
         hi, hw = min(his, key=lambda c: c[0])
         assert lo <= hi, (n, lo, hi, lw, hw)

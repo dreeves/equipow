@@ -259,6 +259,15 @@ const PROOF = {
   residue: (n, name, hi, source, ...moduli) => shown([filled('proof-residue', {bound: bound(name, 'le', hi),
     M: `\\(M = ${moduli.join(', ')}\\)`, m: `\\(m = ${hi + 1}\\)`, source: repoFile(source)})]),
   file: (n, name, hi, path) => shown([filled('proof-file', {bound: bound(name, 'le', hi), file: repoFile(path)})]),
+  // BGPW's Proposition 4.4 (2026-11-11), for the length n = 2^t u, u odd, below 2^(2^t - 1): order m = 2^t - 1, which is
+  // hi + 1, would make |f(-1)|, the alternating sum's absolute value, at least 2^m, which is more than n, and |f(-1)| is
+  // at most n; the box shows n so factored and that chain of inequalities, the math alone
+  prop44: (n, name, hi) => {
+    const two = n & -n, t = two.toString(2).length - 1, u = n / two, m = hi + 1;
+    const pow = (2n ** BigInt(m)).toLocaleString('en-US').replaceAll(',', '{,}');
+    return shown([filled('proof-prop44', {bound: bound(name, 'le', hi), n: `\\(n = 2^{${t}} \\cdot ${u}\\)`,
+      f: `\\(m = 2^{${t}} - 1 = ${m} \\Rightarrow |f(-1)| \\ge 2^{${m}} = ${pow} > n \\ge |f(-1)|\\)`})]);
+  },
   table2: (n, name, hi) => shown([filled('proof-table2', {bound: bound(name, 'le', hi)})]),
   page: (n, name, hi, who) => shown([filled('proof-page', {bound: bound(name, 'le', hi), who: credit(who)[0]})], [n]),
 };

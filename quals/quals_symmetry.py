@@ -162,7 +162,7 @@ def own_hi(n):
 
 def reduction(text=None, MAXM=MAXM, N=N):
     """For each m from 1 to MAXM (the account's 11, or 12 for its paragraph on order 12, with N the closure's lengths
-    to match: q_order_12_is_down_to_18_lengths): (A, b, threshold, uncovered, needed), uncovered the multiples of period(m) below the
+    to match: q_order_12_is_down_to_528): (A, b, threshold, uncovered, needed), uncovered the multiples of period(m) below the
     threshold with neither a (-1)^m-symmetric sequence of order m in the closure (each one built and checked) nor a
     chart bound below m, and needed the (n, hi) of the excluded ones whose bound is not the chart's own (own_hi);
     the sequences of order m - 1 from A to 2A, and every multiple of period(m) from the threshold to N, built by the
@@ -230,33 +230,43 @@ def q_symmetry_bounds_agree_with_the_chart():
     assert within == [], within
 
 
-# The account's paragraph on order 12 (Fable 5.2, 2026-11-11): its A, b and threshold, and the lengths it leaves.
+# The account's paragraphs on order 12 (Fable 5.2, 2026-11-11): its A, b and threshold, and the lengths it leaves.
 ORDER_12 = (800, 624, 2224)
-LEFT_12 = [528, 1504, 1520, 1552, 1568, 1616, 1648, 1712, 1744, 1808, 1840, 1904, 1936, 2000, 2032, 2096, 2128, 2192]
-OWED_12 = [1104, 1200, 1296, 1392]             # where joins give order 12 and the account's own codes the symmetric one
+# 528 alone since the second round of 2026-11-11, when the tilted search found a symmetric sequence of order 12 at each
+# of the 17 lengths prime to 3 that the first round had left (1504 to 2192); the 18 of them until then
+LEFT_12 = [528]
+# What the reduction leaves without the account's codes of order 12 or more, the 22 exceptions of its paragraph: 528,
+# the four lengths where joins give order 12 (OWED_12 until the second round) and the 17 prime to 3
+BARE_12 = [528, 1104, 1200, 1296, 1392, 1504, 1520, 1552, 1568, 1616, 1648, 1712, 1744, 1808, 1840, 1904, 1936, 2000,
+           2032, 2096, 2128, 2192]
 
 
-def q_order_12_is_down_to_18_lengths():
+def q_order_12_is_down_to_528():
     # Replicata: the reduction carried on to order 12, with the closure's lengths to 2400 (reduction(MAXM=12, N=2400)),
-    # on the page, and on the page without the account's four symmetric codes of order 12; and the account's paragraph
+    # on the page, and on the page without the account's codes of order 12 or more; and the account's paragraph
     # that states A = 800.
     # Expectata (Fable 5.2 with Codex, 2026-11-10 and 11; dreeves: "can you keep collaborating with codex (aka astra)
     # to see if you can make progress on the symmetry conjecture?"): at order 12 the reduction's A, b and threshold are
     # 800, 624 and 2224 (ORDER_12); the multiples of 16 it leaves uncovered, each with neither a symmetric sequence of
-    # order 12, built and checked, nor a chart bound below 12, are the 18 of LEFT_12, which the paragraph lists; and
-    # without those four codes it leaves 1104, 1200, 1296 and 1392 as well, so that each of them is needed.
+    # order 12, built and checked, nor a chart bound below 12, are LEFT_12, which is 528 alone; without the account's
+    # codes of order 12 or more it leaves the 22 of BARE_12, so those codes are what covers the other 21; and the
+    # paragraph lists all 22.
+    # Spec change (Fable 5.2, 2026-11-11, the day's second round; q_order_12_is_down_to_18_lengths until then): LEFT_12
+    # was 528 and the 17 lengths prime to 3 from 1504 to 2192, and the control dropped only the four codes of order 12
+    # at 1104, 1200, 1296 and 1392, each of them then needed.  Since the round, the symmetric sequences of order 14 at
+    # 1200 and 1296 cover those two lengths as well, so the control drops every code of order 12 or more.
     # Resultata before: the account said that orders 12 and up are open, and no symmetric sequence of order 12 was
-    # known at those four lengths.
+    # known at those 21 lengths.
     text = qi.page()
     got = reduction(text, MAXM=12, N=2400)[12]
     assert got[:3] == ORDER_12 and got[3] == LEFT_12, got[:4]
-    drop = [f'<code id="{n}:12">' for n in OWED_12]
-    assert all(text.count(d) == 1 for d in drop), drop
-    bare = SECTION.sub(lambda x: re.sub(r'<code id="(?:%s):12">[0-9A-F]+</code>' % '|'.join(map(str, OWED_12)), '', x.group(0)), text)
-    assert reduction(bare, MAXM=12, N=2400)[12][3] == sorted(LEFT_12 + OWED_12), reduction(bare, MAXM=12, N=2400)[12][3]
+    high = r'<code id="\d+:1[2-9]">[0-9A-F]+</code>'
+    assert len(re.findall(high, account(text))) >= len(BARE_12) - len(LEFT_12)
+    bare = SECTION.sub(lambda x: re.sub(high, '', x.group(0)), text)
+    assert reduction(bare, MAXM=12, N=2400)[12][3] == BARE_12, reduction(bare, MAXM=12, N=2400)[12][3]
     [para] = [p for p in re.findall(r'<p>(.*?)</p>', account(text), re.S) if 'A = 800' in p]
     listed = [int(x) for x in re.findall(r'(?<![\d(^{=.-])\b(\d{3,4})\b(?![\d}-])', re.sub(r'\\\(.*?\\\)', '', para))]
-    assert set(LEFT_12) <= set(listed) and set(OWED_12) <= set(listed), listed
+    assert set(BARE_12) <= set(listed), listed
 
 
 def q_symmetry_conjecture_holds_through_order_11():
@@ -280,7 +290,7 @@ def q_symmetry_conjecture_holds_through_order_11():
     said = math(sec)
     tails = [got[m] for m in range(9, MAXM + 1)]
     # Since 2026-11-11 the account also states order 12's A, b and threshold (ORDER_12, Fable 5.2's paragraph), which
-    # q_order_12_is_down_to_18_lengths holds to the reduction carried one order on.
+    # q_order_12_is_down_to_528 holds to the reduction carried one order on.
     tails.append(ORDER_12)
     assert sorted({int(x) for f in said for x in re.findall(r'^A = (\d+)$', f.strip())}) == sorted({A for A, *_ in tails}), said
     assert sorted({int(x) for f in said for x in re.findall(r'^b = (\d+)$', f.strip())}) == sorted({b for _, b, *_ in tails}), said

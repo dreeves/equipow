@@ -109,6 +109,13 @@ try {
       text: (n, hi, file) => `order ${hi + 1} ruled out by ${file}`,
       proof: (n, hi, file) => PROOF.file(BigInt(n), `${n}`, hi, file),
     },
+    prop44: {
+      // (2026-11-11) hi + 1 is the power of 2 in n less 1, and n is below 2^(hi + 1): BGPW's Proposition 4.4 applies
+      ok: (n, hi) => n % 2 === 0 && hi === (n & -n) - 2 && n < 2 ** (hi + 1),
+      // TODO: readout reason by Fable 5.2 (2026-11-11); says order hi + 1 is ruled out by BGPW's Proposition 4.4
+      text: (n, hi) => `order ${hi + 1} ruled out by BGPW's Proposition 4.4`,
+      proof: (n, hi) => PROOF.prop44(BigInt(n), `${n}`, hi),
+    },
     table2: {
       ok: (n, hi) => n % 8 === 0 && n <= 304,
       // readout reason; says order hi + 1 is ruled out by BGPW's Table 2

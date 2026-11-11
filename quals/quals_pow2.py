@@ -85,6 +85,9 @@ def long_examples():
     codes = re.findall(r'\\\(p_\{(\d+)\}\\\) \\\(\(m = (\d+)\)\\\):</span>\n\s*<code id="\d+:\d+">([0-9A-F]+)</code>',
                        page)
     long = [(int(n), int(m), h) for n, m, h in codes if int(n) > mstar.NMAX]
+    # Since 2026-11-11 the page's Symmetry section has codes longer than mstar.NMAX too (2096, 2128 and 2192 at order
+    # 12, the day's second round), which mstar.explicit() reads as examples (mstar.symmetry_codes): the same decoding.
+    long += [(n, m, h) for n, m, h in mstar.symmetry_codes(page) if n > mstar.NMAX]
     for n, m, h in long:
         left = [2 * int(b) - 1 for b in bin(int(h, 16))[2:].zfill(4 * len(h))]
         a = left + [(-1) ** m * s for s in reversed(left)]
@@ -221,7 +224,10 @@ def q_base_blocks_and_their_sources():
     assert all(mstar_disk()[n - 1][0] == m for bs in short.values() for n, m in bs), short
     # Since 2026-11-04 the page has one example longer than NMAX, 1440:16, which beside the table of smallest lengths moves no first, so no base uses it (searches/tilted/README.md).
     # Since 2026-11-10 NMAX is 2048 (dreeves's README, [BOU]), so 1440:16 is a column's block and no example is longer.
-    assert set().union(*blocks.values()) - set().union(*short.values()) == set() and long_examples() == set(), blocks
+    # Since 2026-11-11 the page has three examples longer than NMAX, the Symmetry section's symmetric sequences of
+    # order 12 at 2096, 2128 and 2192; no base uses them.
+    assert set().union(*blocks.values()) - set().union(*short.values()) == set(), blocks
+    assert long_examples() == {(2096, 12), (2128, 12), (2192, 12)}, long_examples()
     assert (1024, 11) in short[10] and mstar.NMAX == 2048
     assert {(n, m) for n, m in pow2.blocks() if n > mstar.NMAX and n != 2 ** m} == long_examples()
     cited = {K0: {(n, m) for n, m in bs if mstar_disk()[n - 1][2] == ['page', 'BGPW']} for K0, bs in short.items()}

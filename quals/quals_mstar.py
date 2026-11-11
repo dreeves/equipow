@@ -28,7 +28,7 @@ import mstar
 import overnight_v5 as v5
 
 EXPLICIT = ('example', 'join', 'product', 'none')        # loWhy kinds backed by a sequence built here
-CHECKED_HI = ('odd', 'two', 'norm', 'residue', 'proof')   # hiWhy kinds proved here ('proof' since 2026-11-10: mstar.PROOFS)
+CHECKED_HI = ('odd', 'two', 'norm', 'residue', 'proof', 'prop44')   # hiWhy kinds proved here ('proof' since 2026-11-10: mstar.PROOFS; 'prop44' since 2026-11-11: mstar.prop44)
 # The gray columns of the user's count (multiples of 16 whose m* the sources here leave open), and 1008, the one gray
 # column of the lengths the chart gained on 2026-10-27, when it reached 1024
 USER_GRAY = (240, 288, 384, 432, 480) + tuple(range(528, 993, 16)) + (1008,)
@@ -38,9 +38,13 @@ USER_GRAY = (240, 288, 384, 432, 480) + tuple(range(528, 993, 16)) + (1008,)
 # scratch/bou-20261110/search.py), nor the page's Symmetry section's sequences (1040, 1072, 1136 and 1168, at 11), nor
 # the page's proof at 1456 (mstar.PROOFS: q_1456_is_settled_by_its_proof) settle.
 # Less 1584 and 1776 since 2026-11-11, settled at 14 by symmetric sequences of order 14 that the pinned search found
-# (scratch/sym12-20261110/; the page's Symmetry section lists them): 29 are left.
-PAST_GRAY = (1056, 1104, 1200, 1248, 1296, 1392, 1440, 1488, 1504, 1520, 1552, 1568, 1616, 1632, 1648, 1680,
-             1712, 1728, 1744, 1808, 1840, 1872, 1904, 1920, 1936, 1968, 2000, 2016, 2032)
+# (scratch/sym12-20261110/; the page's Symmetry section lists them): 29 were left.
+# Less 23 more since that day's second round (scratch/q1920-20261111/; the Symmetry section's third list): the 14
+# lengths prime to 3 from 1504 to 2032, settled at 12 by symmetric sequences of order 12 that the tilted search found;
+# 1200, 1296, 1392, 1488, 1680, 1872 and 1968, settled at 14 by symmetric sequences of order 14 (the upper bound 14 at
+# all but 1296 is BGPW's Proposition 4.4, q_proposition_44_keeps_odd_multiples_of_16_at_14_or_less); and 1632 and
+# 1728, settled at 15 by antisymmetric sequences of order 15.  Six are left.
+PAST_GRAY = (1056, 1104, 1248, 1440, 1920, 2016)
 
 
 @lru_cache(maxsize=None)
@@ -425,7 +429,7 @@ def q_schema():
     assert type(T) is int and T == max(c[1] for c in M['cols']) + 1
     forms_lo = {'none': (), 'example': (str,), 'join': (int, int), 'product': (int, int), 'table2': (),
                 'page': (str,)}
-    forms_hi = {'odd': (), 'two': (), 'norm': (int,), 'residue': (int,), 'proof': (str,), 'table2': (), 'page': (str,)}   # proof: since 2026-11-10 (mstar.PROOFS)
+    forms_hi = {'odd': (), 'two': (), 'norm': (int,), 'residue': (int,), 'proof': (str,), 'prop44': (), 'table2': (), 'page': (str,)}   # proof: since 2026-11-10 (mstar.PROOFS); prop44: since 2026-11-11 (mstar.prop44)
     for n, c in enumerate(M['cols'], 1):
         assert len(c) == 4, n
         lo, hi, lw, hw = c
@@ -508,15 +512,20 @@ def q_hi_reasons():
     # Replicata: every column's hi and hiWhy.
     # Expectata: odd at odd n with hi 0; two with hi = 2^v - 1; norm p with p prime, p not dividing n and hi =
     # norm(n, p); residue M with mstar.RESIDUE[n] = (hi + 1, a chain ending at M, a sweep); proof FILE with
-    # mstar.PROOFS[n] = (hi, FILE) (since 2026-11-10: q_1456_is_settled_by_its_proof); a citation equal to the
+    # mstar.PROOFS[n] = (hi, FILE) (since 2026-11-10: q_1456_is_settled_by_its_proof); prop44 with hi = prop44(n),
+    # one less than two(n), at an n below 2^two(n) (since 2026-11-11, a spec change of that day, Fable 5.2's, on
+    # dreeves's "first get the chart in sync with all the known results": BGPW's Proposition 4.4, which the chart did
+    # not apply; q_proposition_44_keeps_odd_multiples_of_16_at_14_or_less); a citation equal to the
     # cited upper value; and hi is the least of all these candidates, the reason the first least in the order odd,
-    # two, norm (by p), residue, proof, table2, page (so a checked one wins every tie with a citation).
+    # two, norm (by p), residue, proof, prop44, table2, page (so a checked one wins every tie with a citation, and
+    # prop44, the newest, takes no column from an older test).
     _, got = disk()
     for n, (lo, hi, _, why) in enumerate(got['m']['cols'], 1):
         ranked = ([(0, ['odd'])] * (n % 2) + [(mstar.two(n), ['two'])]
                   + [(mstar.norm(n, p), ['norm', p]) for p in mstar.PRIMES if n % p]
                   + [(m - 1, ['residue', ch[-1]]) for k, (m, ch, _) in mstar.RESIDUE.items() if k == n]
                   + [(h, ['proof', file]) for k, (h, file) in mstar.PROOFS.items() if k == n]
+                  + [(mstar.prop44(n), ['prop44'])]
                   + [(h, ['table2']) for k, (_, h) in mstar.TABLE2.items() if k == n and h is not None]
                   + [(h, ['page', who]) for k, (_, h, who) in mstar.NEW.items() if k == n and h is not None])
         assert hi == min(h for h, _ in ranked) and why == next(w for h, w in ranked if h == hi), (n, why, ranked)
@@ -526,6 +535,7 @@ def q_hi_reasons():
         if k == 'norm': assert sp.isprime(why[1]) and n % why[1] and hi == mstar.norm(n, why[1])
         if k == 'residue': assert mstar.RESIDUE[n][0] == hi + 1 and mstar.RESIDUE[n][1][-1] == why[1], n
         if k == 'proof': assert mstar.PROOFS[n] == (hi, why[1]), n
+        if k == 'prop44': assert hi == mstar.prop44(n) == 2 ** v2(n) - 2 and n < 2 ** (2 ** v2(n) - 1), n
         if k == 'table2': assert mstar.TABLE2[n][1] == hi
         if k == 'page': assert mstar.NEW[n][1] == hi and mstar.NEW[n][2] == why[1]
 
@@ -869,6 +879,38 @@ def q_1456_is_settled_by_its_proof():
         raise AssertionError((n, hi))
 
 
+def q_proposition_44_keeps_odd_multiples_of_16_at_14_or_less():
+    # 2026-11-11 (Fable 5.2).
+    # Replicata: mstar.prop44 at lengths n = t u, t the power of 2 in n and u odd; mstar.js's columns at the odd
+    # multiples of 16; every explicit sequence whose order is t - 1.
+    # Expectata: BGPW's Proposition 4.4 (their section 4; from Berend and Golan): a sequence of length n and order
+    # t - 1 has |f(-1)| >= 2^(t-1), f(-1) its alternating sum, which is at most n; so order t - 1 needs n >= 2^(t-1),
+    # and prop44(n) is t - 2 below that and t - 1, Divisibility's bound, from there on: 2 at 4 and 3 at 12; 6 at 8, 24
+    # and 120, and 7 at 136; 14 at 16, 1200 and 32752, and 15 at 32784, the least odd multiple of 16 that could have
+    # order 15.  No column of an odd multiple of 16 has hi above 14, and the six where no other test gives 14 (1200,
+    # 1392, 1488, 1680, 1872 and 1968) have hi 14 with the reason ["prop44"].  What the proposition rests on is seen in
+    # every explicit sequence of order t - 1 (orders 1, 3 and 7 here; none of order 15): f(-1) is an odd multiple of
+    # 2^(t-1).
+    # Resultata before: mstar.py had no prop44, and those six columns were [13, 15, ..., ["two"]]: the chart left order
+    # 15 open where the paper it cites rules it out.
+    want = {2: 1, 6: 1, 4: 2, 12: 3, 8: 6, 24: 6, 120: 6, 136: 7, 16: 14, 1200: 14, 32752: 14, 32784: 15}
+    assert {n: mstar.prop44(n) for n in want} == want
+    assert all(mstar.prop44(n) in (mstar.two(n) - 1, mstar.two(n)) for n in range(2, 4097, 2))
+    cols = disk()[1]['m']['cols']
+    odd16 = range(16, mstar.NMAX + 1, 32)
+    assert all(cols[n - 1][1] <= 14 for n in odd16), [(n, cols[n - 1]) for n in odd16 if cols[n - 1][1] > 14]
+    by = [n for n, c in enumerate(cols, 1) if c[3] == ['prop44']]
+    assert by == [1200, 1392, 1488, 1680, 1872, 1968] and all(cols[n - 1][1] == 14 for n in by), by
+    seen = set()
+    for (n, label), a in mstar.explicit().items():
+        t = n & -n
+        if mstar.order(a) == t - 1:
+            alt = sum(v if i % 2 == 0 else -v for i, v in enumerate(a))
+            assert alt % 2 ** (t - 1) == 0 and (alt // 2 ** (t - 1)) % 2 == 1 and n >= 2 ** (t - 1), (n, label, alt)
+            seen.add(t - 1)
+    assert seen == {1, 3, 7}, seen
+
+
 def q_past_lists_the_example_of_order_16_at_1440():
     # Replicata: mstar.js's past, its mtop and mtopAt, and mstar.explicit()'s sequences past NMAX.
     # Expectata (2026-11-04: the tilted search, searches/tilted/, found a symmetric example of order 16 at 1440, the least n past the chart
@@ -879,9 +921,13 @@ def q_past_lists_the_example_of_order_16_at_1440():
     # Since 2026-11-10 the chart reaches 2048 ([BOU]): 1440 is one of its columns, the example its lower bound, and no
     # explicit sequence is longer than NMAX, so past is empty; the least n known to reach order 16 is still the least
     # not ruled out, as columns now: no column before 1440 allows order 16.
+    # Since 2026-11-11 (the day's second round) the page's Symmetry section has symmetric sequences of order 12 at
+    # 2096, 2128 and 2192, the lengths prime to 3 past the chart that BGPW's conjecture at order 12 still owed; each is
+    # longer than NMAX, so past lists those three.
     _, got = disk()
     M = got['m']
-    assert M['past'] == [] and M['cols'][1439][:3] == [16, 17, ['example', 'equipow p1440']], (M['past'], M['cols'][1439])
+    assert M['past'] == [[2096, 12, 'equipow p2096'], [2128, 12, 'equipow p2128'], [2192, 12, 'equipow p2192']], M['past']
+    assert M['cols'][1439][:3] == [16, 17, ['example', 'equipow p1440']], M['cols'][1439]
     assert max(c[1] for c in M['cols'][:1439]) == 15, max(c[1] for c in M['cols'][:1439])
     far = {key: a for key, a in mstar.explicit().items() if key[0] > mstar.NMAX}
     assert [[n, mstar.order(a), label] for (n, label), a in far.items()] == M['past'], list(far)
