@@ -139,6 +139,18 @@ RESIDUE = {11: (13, (3,), 'digits'), 12: (14, (3,), 'digits'), 14: (17, (3,), 'd
 # order / log2(length) that e = 4 needs (the best is 800's, 11 / log2 800), and a join summing to 2^K needs such a
 # product.  BASES[30] has three products, the fewest that joins of products of the page's example columns allow at
 # 2^30 (base30.py there: none of two, three of three), and keeps two products of coins' witness.
+# Later that day the same search, with the day's sequences of order 12 at 1504, 1520 and 1808 and of order 15 at
+# 1728, moved the first K0 for e = 7 from 56 to 51: BASES[51], which lifted gives 2^56 and 2^57 the orders that the
+# superseded BASES[56] gave them, (832 # 800^4 # 208) v (992 # 960^2 # 832 # 800) v (912^2 # 672 # 576^2 # tau_1) v
+# (960^2 # 848 # 576 # 432) and its lift.  coins found a join at 2^51 (17 equal products and four more).  An exact
+# check written apart from it (decide.py there) splits a sum of coins equal to 2^K into its coins prime to 3, of
+# which there is at least one since 2^K is prime to 3 and every other coin a multiple of 3, and the rest.  For e = 7
+# no product of blocks prime to 3 has order K + 7 within 2^K at any K <= 50: none at K <= 49 by the ratio alone (the
+# best is 800's, 11 / log2 800 = 1.14062 < 56/49), none at K = 50 by its walk over all 675 such blocks of the chart.
+# So 51 is the first.  The same check keeps the firsts of e = 4, 5, 6 and 8 with that day's blocks (2^29: the one
+# rest that is a multiple of 3 is no sum of coins; K = 36 to 38, 43 to 46, 56 and 57: no product prime to 3).
+# BASES[51] has three products, the fewest that joins of products of the page's example columns allow at 2^51
+# (fewest.py and decide.py there: none of two, one of three).
 # (The examples of order 10 at 592, 608 and 656 and of order 11 at 848, 880, 896, 928, 944, 976 and 992, 2026-10-25,
 # had moved the first K0 for e = 2 from 27 to 20 (BASES[20] is 848 # 992 joined to 240 # 432 # tau_1), for e = 3 from
 # 34 to 30, for e = 4 from 38 to 37, for e = 6 from 52 to 49 and for e = 8 from 66 to 65, and given e = 9 at 72; the
@@ -163,10 +175,9 @@ BASES = {10: [[[1024, 11]]],
               [[576, 12], [576, 12], [576, 12], [1008, 13], [16, 4]],
               [[960, 15], [960, 15], [800, 11], [880, 11], [8, 3]],
               [[800, 11], [800, 11], [800, 11], [800, 11], [320, 9]]],
-         56: [[[832, 11], [800, 11], [800, 11], [800, 11], [800, 11], [208, 8]],
-              [[992, 11], [960, 15], [960, 15], [832, 11], [800, 11]],
-              [[912, 13], [912, 13], [672, 13], [576, 12], [576, 12], [2, 1]],
-              [[960, 15], [960, 15], [848, 11], [576, 12], [432, 11]]],
+         51: [[[1520, 12], [1504, 12], [1504, 12], [800, 11], [800, 11]],
+              [[1808, 12], [1520, 12], [960, 15], [960, 15], [16, 4]],
+              [[1728, 15], [1728, 15], [672, 13], [672, 13], [8, 3]]],
          58: [[[848, 11], [800, 11], [800, 11], [800, 11], [800, 11], [800, 11]],
               [[960, 15], [960, 15], [800, 11], [800, 11], [800, 11], [8, 3]],
               [[912, 13], [624, 12], [624, 12], [576, 12], [576, 12], [32, 5]],

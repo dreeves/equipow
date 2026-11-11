@@ -167,11 +167,12 @@ def q_new_lower_bounds():
     # Expectata: 0 by Thue-Morse for k <= 9; 1 for 10..19 (joins from pow2.BASES[10], the example of order 11 at 1024
     # alone); 2 for 20..27 (BASES[20], which beats f # tau_j at 24..26); 3 for 28..29 (BASES[28], with the example of
     # order 15 at 960); 4 for 30..38 (BASES[30], with the sequences of 2026-11-11 of order 12 at 1504, 14 at 1488 and 15 at 1632); 5 for 39..46 (BASES[39], with the example of order 12 at 768); 6 for
-    # 47..55 (BASES[47]); 7 for 56..57 (BASES[56]); 8 for 58..67 (BASES[58]); 9 for 68..72 (BASES[68]); every lo above
+    # 47..50 (BASES[47]); 7 for 51..57 (BASES[51], with the sequences of 2026-11-11 of order 12 at 1504, 1520 and 1808 and 15 at 1728); 8 for 58..67 (BASES[58]); 9 for 68..72 (BASES[68]); every lo above
     # Thue-Morse's a join.  The bases are at 2^10 order 11, 2^20 order 22, 2^28 order 31, 2^30 order 34, 2^39 order 44,
-    # 2^47 order 53, 2^56 order 63, 2^58 order 66 and 2^68 order 77, each lifted by tau_(k - K0) above.  And lo = hi
+    # 2^47 order 53, 2^51 order 58, 2^58 order 66 and 2^68 order 77, each lifted by tau_(k - K0) above.  And lo = hi
     # exactly for k <= 12: m*(2^k) is k up to 9, then 11, 12 and 13.  (Spec change, Fable 5.2, 2026-11-11, on dreeves's "go ahead": before that day's sequences, 3 for 28..35 and
-    # 4 for 36..38 from BASES[36], with the example of order 13 at 912.  Before the firsts at 2^56 and 2^58, later on 2026-11-03, which the search found with the
+    # 4 for 36..38 from BASES[36], with the example of order 13 at 912; and, before the join at 2^51 found later that day, 6 for 47..55 and 7 for 56..57 from
+    # BASES[56].  Before the firsts at 2^56 and 2^58, later on 2026-11-03, which the search found with the
     # examples of that day among its blocks: 6 for 47..56, 7 for 57..64 from BASES[57] and 8 for 65..67 from BASES[65].
     # Before 2026-11-03's examples: 2 for 20..28, 3 for 29..36 from BASES[29], with the example of
     # order 12 at 912, 4 for 37..38 from BASES[37], 5 for 39..47 and 6 from 48, BASES[48].  Before 768's example of order 12, on the evening
@@ -188,25 +189,27 @@ def q_new_lower_bounds():
     # 41, 4 from 48, 5 from 61 and 6 from 71; before 2026-10-12's of order 10 at 560: 1 from 24 by f, 2 from 33, 3 from
     # 49, 4 from 57 and 5 from 67.)
     want = {k: 0 if k < 10 else 1 if k < 20 else 2 if k < 28 else 3 if k < 30 else 4 if k < 39 else 5 if k < 47 else 6
-            if k < 56 else 7 if k < 58 else 8 if k < 68 else 9 for k in range(1, KMAX + 1)}      # 6 if k < 57 else 7 if k < 65 until later on 2026-11-03
+            if k < 51 else 7 if k < 58 else 8 if k < 68 else 9 for k in range(1, KMAX + 1)}      # 6 if k < 56 until 2026-11-11; 6 if k < 57 else 7 if k < 65 until later on 2026-11-03
     kind = {k: 'thue-morse' if k < 10 else 'joins' for k in range(1, KMAX + 1)}
     for k, (lo, hi, lw, hw) in enumerate(cols(), 1): assert (lo - k, lw[0]) == (want[k], kind[k]), (k, lo, lw[0])
     orders = {K0: pow2.join_lo(K0, ps) for K0, ps in pow2.BASES.items()}
-    assert orders == {10: 11, 20: 22, 28: 31, 30: 34, 39: 44, 47: 53, 56: 63, 58: 66, 68: 77}, orders   # 36: 40 until 2026-11-11; 57: 64, 65: 73 until later on 2026-11-03
+    assert orders == {10: 11, 20: 22, 28: 31, 30: 34, 39: 44, 47: 53, 51: 58, 58: 66, 68: 77}, orders   # 36: 40 and 56: 63 until 2026-11-11; 57: 64, 65: 73 until later on 2026-11-03
     # 768 is a block of order 13 since 2026-11-03 (the beam campaign's plan 6 found an example of order 13; 12 before):
     # its products in BASES[28], [39] and [58] gain 1, and no join's least product changes, so no lo moves.
     assert [768, 13] in (b for p in pow2.BASES[39] for b in p), pow2.BASES[39]
     assert [960, 15] in (b for p in pow2.BASES[28] for b in p), pow2.BASES[28]
     # ([912, 13] in BASES[36] until 2026-11-11) the base at 2^30 is built on that day's sequences
     assert all(b in [b for p in pow2.BASES[30] for b in p] for b in ([1504, 12], [1488, 14], [1632, 15])), pow2.BASES[30]
-    assert all([960, 15] in (b for p in pow2.BASES[K0] for b in p) for K0 in (56, 58)), (pow2.BASES[56], pow2.BASES[58])
+    assert all([960, 15] in (b for p in pow2.BASES[K0] for b in p) for K0 in (51, 58)), (pow2.BASES[51], pow2.BASES[58])   # K0 56 for 51 until 2026-11-11
+    # the base at 2^51 is built on that day's sequences
+    assert all(b in [b for p in pow2.BASES[51] for b in p] for b in ([1504, 12], [1520, 12], [1808, 12], [1728, 15])), pow2.BASES[51]
     assert pow2.BASES[10] == [[[1024, 11]]], pow2.BASES[10]
     # lo = hi through k = 12 (the norm bound for 3 at 2^10, the residue condition mod 3 at 2^11 and 2^12), and not at 13
     assert [k for k, (lo, hi, lw, hw) in enumerate(cols(), 1) if lo == hi] == list(range(1, 13)), cols()[9:13]
     # (56, 47), (57, 57), (64, 57), (65, 65), (67, 65) until later on 2026-11-03
     # (35, 28), (36, 36), (38, 36) until 2026-11-11
     pairs = ((10, 10), (19, 10), (20, 20), (27, 20), (28, 28), (29, 28), (30, 30), (38, 30), (39, 39), (46, 39), (47, 47),
-             (55, 47), (56, 56), (57, 56), (58, 58), (67, 58), (68, 68), (72, 68))
+             (50, 47), (51, 51), (57, 51), (58, 58), (67, 58), (68, 68), (72, 68))      # (55, 47), (56, 56), (57, 56) until 2026-11-11
     assert [cols()[k - 1][2][1] == pow2.lifted(pow2.BASES[K0], k - K0) for k, K0 in pairs] == [True] * len(pairs)
 
 

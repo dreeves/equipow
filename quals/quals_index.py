@@ -2672,7 +2672,9 @@ def q_firsts_of_2026_11_03():
     for k in (29, 37, 48): assert f'(2^{{{k}}})' not in theorem, theorem
     assert re.search(r'(?<![\d.])10, 20, 28, 30, 39, 47, ', text)      # '10, 20, 28, 36, 39, 47, ' until 2026-11-11; '10, 20, 28, 36, 39, 47, 57, 65, 68' until later on 2026-11-03
     # and (30, 28, 2, 33), (33, 28, 5, 36), (34, 28, 6, 37), (37, 36, 1, 41), (38, 36, 2, 42) until 2026-11-11
-    for k, base, t, order in ((29, 28, 1, 32), (48, 47, 1, 54), (49, 47, 2, 55), (52, 47, 5, 58)):
+    # Spec change (Fable 5.2, later on 2026-11-11; q_first_for_excess_7_moves_to_2_51): excess 7 is first at 2^51 since then, so 2^52's entry names the base at
+    # 2^51, not the one at 2^47: (52, 47, 5, 58) left this list.
+    for k, base, t, order in ((29, 28, 1, 32), (48, 47, 1, 54), (49, 47, 2, 55)):
         names_base(text, k, base, t, order)
 
 
@@ -2688,19 +2690,24 @@ def q_firsts_move_to_2_56_and_2_58():
     # undecided at its time limit: the new entries say so, each linking searches/pinned and naming those powers (main session, 2026-11-03: "Say so on the page in
     # the same way the README does"; their wording unpinned).
     # Resultata before: the firsts were 10, 20, 28, 36, 39, 47, 57, 65, 68, and the cell of 2^61 read 68–75.
+    # Spec change (Fable 5.2, later on 2026-11-11; q_first_for_excess_7_moves_to_2_51): excess 7 is first at 2^51 since then, so 2^56 is no first: its entry and
+    # 2^57's name the base at 2^51, the theorem states 2^51's bound in place of 2^56's, and the list is 10, 20, 28, 30, 39, 47, 51, 58, 68.  What stands here:
+    # 2^58, its entry's link and powers, its lifts at 2^61 and 2^65 to 2^67, and the cells.
     cols, text = pow2_data()['cols'], page()
-    for k, lo, hi in ((56, 63, 69), (58, 66, 71)): first_entry(cols, text, k, lo, hi)
-    for k, ks in ((56, (56,)), (58, (58, 60, 62))):
+    for k, lo, hi in ((58, 66, 71),): first_entry(cols, text, k, lo, hi)       # and (56, 63, 69) until 2026-11-11
+    for k, ks in ((58, (58, 60, 62)),):                                         # and (56, (56,)) until 2026-11-11
         li = re.search(r'<p class="entry">\\\(n = 2\^\{%d\}\\\): .*?</li>' % k, text, re.S).group(0)
         assert 'href="https://github.com/dreeves/equipow/tree/main/searches/pinned"' in li and all(f'\\(2^{{{j}}}\\)' in li for j in ks), li
     cells = new_cells(text)
     assert [cells[2 ** k] for k in (57, 61, 65)] == [(64, 70), (69, 75), (73, 81)], [cells.get(2 ** k) for k in (57, 61, 65)]
     theorem = the_theorem(text)
-    for k, lo in ((56, 63), (58, 66)): assert f'(2^{{{k}}}) \\ge {lo}' in theorem, theorem
+    for k, lo in ((58, 66),): assert f'(2^{{{k}}}) \\ge {lo}' in theorem, theorem       # and (56, 63) until 2026-11-11
     for k in (57, 65): assert f'(2^{{{k}}})' not in theorem, theorem
-    # (10, 20, 28, 36, 39, 47, 56, 58, 68 until 2026-11-11, when excess 4 came to be first at 2^30: q_first_for_excess_4_moves_to_2_30)
-    assert re.search(r'(?<![\d.])10, 20, 28, 30, 39, 47, 56, 58, 68(?![\d,])', text)      # the list, whole
-    for k, base, t, order in ((57, 56, 1, 64), (61, 58, 3, 69), (65, 58, 7, 73), (66, 58, 8, 74), (67, 58, 9, 75)):
+    # (10, 20, 28, 36, 39, 47, 56, 58, 68 until 2026-11-11, when excess 4 came to be first at 2^30: q_first_for_excess_4_moves_to_2_30;
+    #  10, 20, 28, 30, 39, 47, 56, 58, 68 until later that day, when excess 7 came to be first at 2^51: q_first_for_excess_7_moves_to_2_51)
+    assert re.search(r'(?<![\d.])10, 20, 28, 30, 39, 47, 51, 58, 68(?![\d,])', text)      # the list, whole
+    # and (57, 56, 1, 64) until 2026-11-11
+    for k, base, t, order in ((61, 58, 3, 69), (65, 58, 7, 73), (66, 58, 8, 74), (67, 58, 9, 75)):
         names_base(text, k, base, t, order)
 
 
@@ -2725,9 +2732,39 @@ def q_first_for_excess_4_moves_to_2_30():
     assert [cells[2 ** k] for k in (30, 33, 34, 36, 37, 38)] == [(34, 36), (37, 40), (38, 41), (40, 44), (41, 45), (42, 46)], [cells.get(2 ** k) for k in (30, 33, 34, 36, 37, 38)]
     theorem = the_theorem(text)
     assert '(2^{30}) \\ge 34' in theorem and '(2^{36})' not in theorem, theorem
-    assert re.search(r'(?<![\d.])10, 20, 28, 30, 39, 47, 56, 58, 68(?![\d,])', text)      # the list, whole
+    # (10, 20, 28, 30, 39, 47, 56, 58, 68 until later that day, when excess 7 came to be first at 2^51: q_first_for_excess_7_moves_to_2_51)
+    assert re.search(r'(?<![\d.])10, 20, 28, 30, 39, 47, 51, 58, 68(?![\d,])', text)      # the list, whole
     for k, t, order in ((33, 3, 37), (34, 4, 38), (36, 6, 40), (37, 7, 41), (38, 8, 42)): names_base(text, k, 30, t, order)
     assert changelog_by_day().get('2026-11-11', {}).get(2 ** 30) == (34, None), changelog_by_day().get('2026-11-11', {}).get(2 ** 30)
+
+
+def q_first_for_excess_7_moves_to_2_51():
+    # 2026-11-11, later (Fable 5.2; recorded as the first at 2^30 was that morning, dreeves then: "go ahead, with a TODO comment each place where you tamper with my
+    # words so i can review it").
+    # Replicata: pow2.js's columns 2^47 to 2^58, the new results' cells of the powers of 2, the remarks' entries, the theorem's statement and its list of firsts, and
+    # the changelog.
+    # Expectata (searches/pinned/coins over the atoms of 2026-11-06 and the sequences of 2026-11-11 found a join at 2^51; scratch/q1920-20261111/firsts/decide.py, an
+    # exact check written apart from it: a sum of coins equal to 2^K has a coin prime to 3, and for K <= 50 no product of blocks prime to 3 has order K + 7 within
+    # 2^K): excess 7 first at 2^51, a join of three products, 1520 # 1504^2 # 800^2, 1808 # 1520 # 960^2 # tau_4 and 1728^2 # 672^2 # tau_3, of orders 58, 58 and 59
+    # (1504, 1520 and 1808 at order 12 and 1728 at 15 are sequences of that day): lo is 58 at 2^51, one more than the lift of the base of 2^47 gave it, and k + 7
+    # from there to 2^57, each column that join's lift (the base at 2^56 is gone); the cells read 2^51 58–63 and 2^52 59–64, and 2^56 63–69 and 2^57 64–70 as
+    # before; 2^51's entry writes its join out, as pow2.js has it, with its products' orders; the entries of 2^52, 2^56 and 2^57 name the 2^51 entry, each product
+    # times τ1, τ5 and τ6; the theorem states m*(2^51) >= 58 in place of 2^56's bound, and its list of firsts is 10, 20, 28, 30, 39, 47, 51, 58, 68; and the
+    # changelog states m*(2^51) >= 58 on 2026-11-11.
+    # Resultata before: the firsts were 10, 20, 28, 30, 39, 47, 56, 58, 68, and the cell of 2^51 read 57–63.
+    cols, text = pow2_data()['cols'], page()
+    first_entry(cols, text, 51, 58, 63)
+    base = [[[1520, 12], [1504, 12], [1504, 12], [800, 11], [800, 11]], [[1808, 12], [1520, 12], [960, 15], [960, 15], [16, 4]],
+            [[1728, 15], [1728, 15], [672, 13], [672, 13], [8, 3]]]
+    assert cols[50][2] == ['joins', base], cols[50][2]
+    assert [c[0] - k for k, c in enumerate(cols[46:58], 47)] == [6] * 4 + [7] * 7 + [8], [c[:2] for c in cols[46:58]]
+    cells = new_cells(text)
+    assert [cells[2 ** k] for k in (51, 52, 56, 57)] == [(58, 63), (59, 64), (63, 69), (64, 70)], [cells.get(2 ** k) for k in (51, 52, 56, 57)]
+    theorem = the_theorem(text)
+    assert '(2^{51}) \\ge 58' in theorem and '(2^{56})' not in theorem, theorem
+    assert re.search(r'(?<![\d.])10, 20, 28, 30, 39, 47, 51, 58, 68(?![\d,])', text)      # the list, whole
+    for k, t, order in ((52, 1, 59), (56, 5, 63), (57, 6, 64)): names_base(text, k, 51, t, order)
+    assert changelog_by_day().get('2026-11-11', {}).get(2 ** 51) == (58, None), changelog_by_day().get('2026-11-11', {}).get(2 ** 51)
 
 
 def q_example_at_720_has_its_code_of_order_13():
