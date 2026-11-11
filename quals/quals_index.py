@@ -4195,10 +4195,17 @@ def panel_says(cols, n, P):
     return says
 
 
+REPO = 'https://github.com/dreeves/equipow/blob/main/'       # where the page links the repository's files
+
+
 def panel_link_lands(href):
     """Whether a panel's link lands: on a column's panel (#nN, N a column of the m*(n) chart), a code (#N:M), an entry
-    of the remarks (#entry-N, as the page's script names them) or a page outside (https)."""
-    return (href.startswith('https://') or href[1:] in code_ids() or href[1:] in set(entry_lengths().values())
+    of the remarks (#entry-N, as the page's script names them), a file of this repository, which must be one here
+    (since 2026-11-10: the residue panels' links to mstar.py and pow2.py still went to the repository's root, where
+    [REF] had left neither that day), or another page outside (https)."""
+    return (href.startswith(REPO) and os.path.isfile(os.path.join(HERE, href[len(REPO):]))
+            or href.startswith('https://') and not href.startswith(REPO)
+            or href[1:] in code_ids() or href[1:] in set(entry_lengths().values())
             or re.fullmatch(r'#n(\d+)', href) is not None and int(href[2:]) in COLUMNS)
 
 
@@ -5228,6 +5235,24 @@ def smallest_table():
         SMALLEST_TABLE.extend([html.unescape(re.sub(r'<[^>]+>', '', c)) for c in re.findall(r'<td>(.*?)</td>', tr, re.S)]
                               for tr in re.findall(r'<tr>(.*?)</tr>', body.group(1), re.S))
     return SMALLEST_TABLE
+
+
+def q_page_statements_agree_with_the_chart():
+    # Replicata: the page's math, its comments aside: every statement m^*(N) = V, \le V, \ge V or \in \{A, ..., B\}
+    # with N in digits or 2^k, N up to mstar.js's last n; and mstar.js's column [lo, hi] at N.
+    # Expectata (dreeves, 2026-11-10, of the chart's column 1456, open at order 12 while the changelog and the section
+    # on asymptotics state m*(1456) = 11: "first get the chart in sync with all the known results"): the chart knows
+    # what the page states: lo = hi = V, hi <= V, lo >= V, or A <= lo and hi <= B (a range of an earlier day may be
+    # wider than the chart's); and the statements are a hundred or more.
+    # Resultata before: at 1456 the chart had [11, 12], its upper bound the norm lemma's.
+    cols, said = mstar_data()['cols'], []
+    for n, rel, v in re.findall(r'm\^\*\((\d+|2\^\{?\d+\}?)\)\s*(=|\\le|\\ge|\\in)\s*(\\\{[\d, ]+\\\}|\d+)', blank_comments(page())):
+        n = int(n) if n.isdigit() else 2 ** int(re.sub(r'\D', '', n[1:]))
+        if n <= DATA_NMAX: said.append((n, rel, [int(x) for x in re.findall(r'\d+', v)]))
+    holds = {'=': lambda lo, hi, vs: lo == hi == vs[0], '\\le': lambda lo, hi, vs: hi <= vs[0],
+             '\\ge': lambda lo, hi, vs: lo >= vs[0], '\\in': lambda lo, hi, vs: min(vs) <= lo and hi <= max(vs)}
+    bad = [(n, rel, vs, cols[n - 1][:2]) for n, rel, vs in said if not holds[rel](*cols[n - 1][:2], vs)]
+    assert len(said) >= 100 and bad == [], (len(said), bad)
 
 
 def q_smallest_table_matches_mstar():

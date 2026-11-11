@@ -101,7 +101,13 @@ try {
       ok: (n, hi, M) => Number.isInteger(M) && M >= 2,
       // readout reason; says order hi + 1 is ruled out by the residue condition mod M
       text: (n, hi, M) => `order ${hi + 1} ruled out by the residue condition mod ${M}`,
-      proof: (n, hi, M) => PROOF.residue(BigInt(n), `${n}`, hi, 'mstar.py', M),
+      proof: (n, hi, M) => PROOF.residue(BigInt(n), `${n}`, hi, 'pagegen/mstar.py', M),
+    },
+    proof: {
+      ok: (n, hi, file) => /^proofs\/[\w.]+\.py$/.test(file),
+      // readout reason; says order hi + 1 is ruled out by the proof that the named program of proofs/ checks
+      text: (n, hi, file) => `order ${hi + 1} ruled out by ${file}`,
+      proof: (n, hi, file) => PROOF.file(BigInt(n), `${n}`, hi, file),
     },
     table2: {
       ok: (n, hi) => n % 8 === 0 && n <= 304,

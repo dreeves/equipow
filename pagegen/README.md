@@ -9,7 +9,7 @@ The two programs that compute the bounds [the page](https://equipow.dreev.es) ch
 
 Both run from any directory. They need numpy, sympy, scipy and ortools, the last two through [../engine/](../engine/), which mstar.py imports.
 
-- [mstar.py](mstar.py): the bounds on m\*(n) for n = 1, …, 1024, each with its reason.
+- [mstar.py](mstar.py): the bounds on m\*(n) for n = 1, …, 2048, each with its reason.
   - A lower bound is a sequence in hand: an example whose hex code is on the page, or a join or product of such, its order checked by exact power sums.
   - An upper bound is a test that every sequence of that order would have to pass and none can: the 2-adic bound, a norm bound, or an enumeration of residue sums that comes up empty; or a proof that the page gives or cites.
   - It reads the examples and the cited values from [../index.html](../index.html), and asserts that every example has the order claimed for it.

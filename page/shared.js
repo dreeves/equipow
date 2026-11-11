@@ -237,8 +237,10 @@ const copies = (N, lo) => shown([...document.querySelectorAll(`code[id="${N}:${l
 // is named for, with its arguments, that order hi + 1 is ruled out, after its bound, m*(n) ≤ hi.  The norm bound is
 // worked out in exact integers: the class sizes s_r of 0..n-1 mod p and the sum of their squares; and as the norm of
 // f(zeta) is an integer at least p^m and at most (p sum s_r^2 / (p-1))^((p-1)/2), that floor, which p^m at m = hi + 1
-// passes.  A proof of the page's own (page) is in the length's entry, which the box shows after it.  A box shows the
+// passes.  A proof of the page's own (page) is in the length's entry, which the box shows after it; one that a program
+// of proofs/ checks, at a length with no entry (file; since 2026-11-10, 1456's), is that program, linked.  A box shows the
 // numbers of a claim, which mstar.py and pow2.py assert as they make the data; it does not decide the claim itself.
+const repoFile = path => linked(`https://github.com/dreeves/equipow/blob/main/${path}`, path);   // a file of the repository, by its path in it
 const PROOF = {
   odd: (n, name, hi) => shown([filled('proof-odd', {bound: bound(name, 'le', hi), n: `\\(${name} \\equiv 1 \\pmod 2\\)`})]),
   two: (n, name, hi) => {
@@ -255,8 +257,8 @@ const PROOF = {
       pm: `\\(p^m = ${p}^{${m}} =\\)`, pmv: bigNum(P ** BigInt(m)), cap: bigNum((P * squares) ** h / (P - 1n) ** h)})]);
   },
   residue: (n, name, hi, source, ...moduli) => shown([filled('proof-residue', {bound: bound(name, 'le', hi),
-    M: `\\(M = ${moduli.join(', ')}\\)`, m: `\\(m = ${hi + 1}\\)`,
-    source: linked(`https://github.com/dreeves/equipow/blob/main/${source}`, source)})]),
+    M: `\\(M = ${moduli.join(', ')}\\)`, m: `\\(m = ${hi + 1}\\)`, source: repoFile(source)})]),
+  file: (n, name, hi, path) => shown([filled('proof-file', {bound: bound(name, 'le', hi), file: repoFile(path)})]),
   table2: (n, name, hi) => shown([filled('proof-table2', {bound: bound(name, 'le', hi)})]),
   page: (n, name, hi, who) => shown([filled('proof-page', {bound: bound(name, 'le', hi), who: credit(who)[0]})], [n]),
 };

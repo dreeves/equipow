@@ -73,16 +73,18 @@ not ruled out at those orders.  past (since 2026-11-04) lists the explicit seque
          product is a sequence built here from explicit sequences only and checked with exact power sums; a join's or
          product's parts are themselves columns with such reasons.
   hiWhy  ["odd"] (n odd: hi = 0); ["two"]; ["norm", p]; ["residue", M] (the claim in RESIDUE: no admissible vector mod
-         M at order hi + 1); ["table2"]; ["page", who] (who the credit for the proof: that cell's class).
+         M at order hi + 1); ["proof", file] (PROOFS: a program of proofs/ that checks a proof of its own that no
+         sequence of length n has order hi + 1, at a length outside the page's tables; since 2026-11-10, 1456's);
+         ["table2"]; ["page", who] (who the credit for the proof: that cell's class).
   When sources tie, a reason checked here wins over a citation, and the simpler one among those: example, join,
-  product; odd, two, norm (the least p), residue.
+  product; odd, two, norm (the least p), residue, proof.
 
 Run:   python3 -B pagegen/mstar.py   (writes pagedata/mstar.js)
 Quals: python3 -B quals/quals_mstar.py
 """
 import sys
 sys.dont_write_bytecode = True
-import os, re, json
+import os, re, json, runpy
 from functools import lru_cache, reduce
 from operator import mul
 import numpy as np
@@ -557,6 +559,22 @@ RESIDUE = {24: (5, (5, 25), 'digits'), 40: (6, (3,), 'digits'), 48: (7, (5, 25),
            2032: (13, (3,), 'natural'), 2048: (13, (3,), 'natural')}
 
 
+# PROOFS[n] = (hi, file): the upper bounds that a program of proofs/ proves with a proof of its own, at lengths outside
+# the page's tables, whose bounds are citations (the block of new results).  Since 2026-11-10, when the chart came to
+# reach 1456 (dreeves's README, [BOU]) and showed it open at order 12, which the two and norm lemmas allow and no chain
+# of CHAINS kills within MTOP_CAP nodes, against the page's m*(1456) = 11 of 2026-11-07 (dreeves: "first get the chart
+# in sync with all the known results").  columns() runs each one (proved).
+PROOFS = {1456: (11, 'proofs/proof1456.py')}
+
+
+def proved(n, hi, file):
+    """Runs the program file, of the repository, as the proof that no sequence of length n has order hi + 1: its
+    length N and order M are those, and its check of its certificate PSI, which asserts every step, passes."""
+    proof = runpy.run_path(os.path.join(HERE, file))
+    assert (proof['N'], proof['M']) == (n, hi + 1), (n, hi, proof['N'], proof['M'])
+    proof['check'](proof['PSI'])
+
+
 def ruled_out(n, m, chain, sweep):
     """Does chain_none finish with no admissible vector at order m, within MTOP_CAP nodes?  A capped enumeration rules
     nothing out."""
@@ -623,12 +641,13 @@ def build(n):
 
 @lru_cache(maxsize=None)
 def columns():
-    """[lo, hi, loWhy, hiWhy] for n = 1..NMAX (index n-1), asserting along the way: every claim of RESIDUE, every
-    built sequence's order, lo <= hi, the page's exact values and ranges, brute force, that no join or product
+    """[lo, hi, loWhy, hiWhy] for n = 1..NMAX (index n-1), asserting along the way: every claim of RESIDUE, every proof
+    of PROOFS, every built sequence's order, lo <= hi, the page's exact values and ranges, brute force, that no join or product
     leans on a column whose lo is a citation, and that EXAMPLE_BY names exactly the columns whose lo is the new
     results'."""
     lo_x, why_x = explicit_lo()
     for n, (m, chain, sweep) in RESIDUE.items(): assert chain_none(n, m, chain, sweep, RESIDUE_CAP), (n, m, chain)
+    for n, (hi, file) in PROOFS.items(): proved(n, hi, file)
     out = []
     for n in range(1, NMAX + 1):
         a = build(n)
@@ -638,6 +657,7 @@ def columns():
                      + [(NEW[k][0], ['page', who]) for k, who in EXAMPLE_BY.items() if k == n], key=lambda c: c[0])
         his = ([(0, ['odd'])] * (n % 2) + [(two(n), ['two'])] + [(norm(n, p), ['norm', p]) for p in PRIMES if n % p]
                + [(m - 1, ['residue', chain[-1]]) for k, (m, chain, _) in RESIDUE.items() if k == n]
+               + [(hi, ['proof', file]) for k, (hi, file) in PROOFS.items() if k == n]
                + [(c[1], c[2]) for c in cited if c[1] is not None])
         hi, hw = min(his, key=lambda c: c[0])
         assert lo <= hi, (n, lo, hi, lw, hw)

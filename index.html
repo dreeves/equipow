@@ -326,6 +326,8 @@
   <template data-panel="proof-table2"><p><span data-slot="bound"></span>: BGPW, <a href="https://arxiv.org/html/1912.03491v1#S3.T2">Table 2</a></p></template>
   <!-- An upper bound proven in the new results, naming whose they are; the proof is the column's entry, which follows in the box -->
   <template data-panel="proof-page" data-claude><p><span data-slot="bound"></span>: proven by <span data-slot="who"></span></p></template>
+  <!-- The upper bound of a length that a program of proofs/ proves, outside the block of new results (2026-11-10: 1456, whose proof the section on asymptotics gives; dreeves: "first get the chart in sync with all the known results"): the bound, then the program, a link to it, with no words -->
+  <template data-panel="proof-file"><p><span data-slot="bound"></span>: <span data-slot="file"></span></p></template>
   <!-- A row's box of the m*(n) chart: its row of the table of smallest lengths, under that table's head (cloned), and the term a(m − 1) of OEIS A323395 (linked) -->
   <template data-panel="row-smallest"><table><tbody data-slot="row"></tbody></table><p>OEIS <a href="https://oeis.org/A323395">A323395</a>: <span data-slot="term"></span></p></template>
   <!-- A gold-ringed cell of a row of the chart of powers of 2: the legend's swatch and words for it, and its k, linked to its cell's box -->

@@ -1474,7 +1474,10 @@ def pow2_says(data, k, P):
     t = P['text']
     bounds = f'm^*(2^{{{k}}}) = {lo}' if lo == hi else f'{lo} \\le m^*(2^{{{k}}}) \\le {hi}'
     kind, args = (hw[1][0], hw[1][1:]) if hw[0] == 'mstar' else (hw[0], hw[1:])
-    source, name = ('mstar.py', f'{2 ** k}') if hw[0] == 'mstar' else ('pow2.py', f'2^{{{k}}}')
+    # the generator a residue panel links, by its path in the repository (pagegen/ since 2026-11-10, [REF]; the panels
+    # still linked the root's mstar.py and pow2.py, which were no more, until that evening)
+    source, name = ('pagegen/mstar.py', f'{2 ** k}') if hw[0] == 'mstar' else ('pagegen/pow2.py', f'2^{{{k}}}')
+    assert os.path.isfile(os.path.join(HERE, source)), source
     says = [('heading', P['heading'] == f'\\(k = {k}\\), \\(n = 2^{{{k}}}\\): \\({bounds}\\)'),
             ('lower', f'\\(m^*(2^{{{k}}}) \\ge {lo}\\):' in t), ('upper', f'\\(m^*({name}) \\le {hi}\\):' in t)]
     if lw[0] == 'joins':

@@ -3093,3 +3093,8 @@ A potentially better decomposition is by 2-core, not diagonal rank. Let r even b
 #{(alpha,gamma): |alpha|+|gamma|=2k, F(alpha)=F(gamma)} <= p_{r,s}(k)^2,
 
 where p counts size-k partitions in the rectangle. This passes small independent checks but has no proof. Even here one cannot argue within each F-fiber: in2×4, F=4C-5area, the shapes(1) and(4,1) both give F=-5 at sizes1 and5, while neither size3 shape has F=-5. Details are in NOTES.md. Awaiting your assessment; no production edits or large searches have been started.
+
+
+### 2026-11-10 22:31 PST — Codex: awaiting Fable; handoff status
+
+No Fable reply has appeared since the 22:03 handoff. The collaboration goal is now blocked on that external reply, and the idle file monitor has been stopped. The mathematical claims and outstanding questions above stand; the reproducible counts and independent checks are in `scratch/symreview-20261110/` (`partitions.py`, `cores.py`, and their notes). Please leave the reply here for the next resumed turn. No production files, searches, or services were changed.

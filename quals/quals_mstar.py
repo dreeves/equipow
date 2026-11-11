@@ -28,15 +28,16 @@ import mstar
 import overnight_v5 as v5
 
 EXPLICIT = ('example', 'join', 'product', 'none')        # loWhy kinds backed by a sequence built here
-CHECKED_HI = ('odd', 'two', 'norm', 'residue')            # hiWhy kinds proved here
+CHECKED_HI = ('odd', 'two', 'norm', 'residue', 'proof')   # hiWhy kinds proved here ('proof' since 2026-11-10: mstar.PROOFS)
 # The gray columns of the user's count (multiples of 16 whose m* the sources here leave open), and 1008, the one gray
 # column of the lengths the chart gained on 2026-10-27, when it reached 1024
 USER_GRAY = (240, 288, 384, 432, 480) + tuple(range(528, 993, 16)) + (1008,)
 # The gray columns past 1024, since 2026-11-10, when the chart came to reach 2048 (dreeves's README: "[BOU] Let's try
-# having Figure 1 go up to 2048"): 32 multiples of 16, those of the 60 columns there whose two and norm bound exceeds
+# having Figure 1 go up to 2048"): 31 multiples of 16, those of the 60 columns there whose two and norm bound exceeds
 # their explicit lo that neither the chart's residue tests (the claims of mstar.RESIDUE past 1024, found by
-# scratch/bou-20261110/search.py) nor the page's Symmetry section's sequences (1040, 1072, 1136 and 1168, at 11) settle.
-PAST_GRAY = (1056, 1104, 1200, 1248, 1296, 1392, 1440, 1456, 1488, 1504, 1520, 1552, 1568, 1584, 1616, 1632, 1648, 1680,
+# scratch/bou-20261110/search.py), nor the page's Symmetry section's sequences (1040, 1072, 1136 and 1168, at 11), nor
+# the page's proof at 1456 (mstar.PROOFS: q_1456_is_settled_by_its_proof) settle.
+PAST_GRAY = (1056, 1104, 1200, 1248, 1296, 1392, 1440, 1488, 1504, 1520, 1552, 1568, 1584, 1616, 1632, 1648, 1680,
              1712, 1728, 1744, 1776, 1808, 1840, 1872, 1904, 1920, 1936, 1968, 2000, 2016, 2032)
 
 
@@ -504,14 +505,16 @@ def q_cited_lo_credits_whose_example():
 def q_hi_reasons():
     # Replicata: every column's hi and hiWhy.
     # Expectata: odd at odd n with hi 0; two with hi = 2^v - 1; norm p with p prime, p not dividing n and hi =
-    # norm(n, p); residue M with mstar.RESIDUE[n] = (hi + 1, a chain ending at M, a sweep); a citation equal to the
+    # norm(n, p); residue M with mstar.RESIDUE[n] = (hi + 1, a chain ending at M, a sweep); proof FILE with
+    # mstar.PROOFS[n] = (hi, FILE) (since 2026-11-10: q_1456_is_settled_by_its_proof); a citation equal to the
     # cited upper value; and hi is the least of all these candidates, the reason the first least in the order odd,
-    # two, norm (by p), residue, table2, page (so a checked one wins every tie with a citation).
+    # two, norm (by p), residue, proof, table2, page (so a checked one wins every tie with a citation).
     _, got = disk()
     for n, (lo, hi, _, why) in enumerate(got['m']['cols'], 1):
         ranked = ([(0, ['odd'])] * (n % 2) + [(mstar.two(n), ['two'])]
                   + [(mstar.norm(n, p), ['norm', p]) for p in mstar.PRIMES if n % p]
                   + [(m - 1, ['residue', ch[-1]]) for k, (m, ch, _) in mstar.RESIDUE.items() if k == n]
+                  + [(h, ['proof', file]) for k, (h, file) in mstar.PROOFS.items() if k == n]
                   + [(h, ['table2']) for k, (_, h) in mstar.TABLE2.items() if k == n and h is not None]
                   + [(h, ['page', who]) for k, (_, h, who) in mstar.NEW.items() if k == n and h is not None])
         assert hi == min(h for h, _ in ranked) and why == next(w for h, w in ranked if h == hi), (n, why, ranked)
@@ -520,6 +523,7 @@ def q_hi_reasons():
         if k == 'two': assert hi == 2 ** v2(n) - 1
         if k == 'norm': assert sp.isprime(why[1]) and n % why[1] and hi == mstar.norm(n, why[1])
         if k == 'residue': assert mstar.RESIDUE[n][0] == hi + 1 and mstar.RESIDUE[n][1][-1] == why[1], n
+        if k == 'proof': assert mstar.PROOFS[n] == (hi, why[1]), n
         if k == 'table2': assert mstar.TABLE2[n][1] == hi
         if k == 'page': assert mstar.NEW[n][1] == hi and mstar.NEW[n][2] == why[1]
 
@@ -842,6 +846,25 @@ def q_288_is_settled_at_9():
     _, got = disk()
     cs = got['m']['cols']
     assert mstar.NEW[288] == (9, 9, 'j') and cs[288 - 1] == [9, 9, ['product', 2, 144], ['page', 'j']], cs[288 - 1]
+
+
+def q_1456_is_settled_by_its_proof():
+    # Replicata: mstar.PROOFS, mstar.js's column 1456, and proofs/proof1456.py.
+    # Expectata (dreeves, 2026-11-10, when the chart had come to reach 1456 and showed it open at order 12, against the
+    # page's m*(1456) = 11 of 2026-11-07: "first get the chart in sync with all the known results"): PROOFS gives 1456
+    # the upper bound 11 by proofs/proof1456.py, a file here whose length and order are 1456 and 12 and whose check of
+    # its certificate passes (mstar.proved, which columns() runs); mstar.js's column 1456 is [11, 11, ["join", 432,
+    # 1024], ["proof", "proofs/proof1456.py"]]; and proved refuses the same file for another length or bound.
+    # Resultata before: [11, 12, ["join", 432, 1024], ["norm", 3]]: the chart knew no proof outside the page's tables.
+    _, got = disk()
+    assert mstar.PROOFS == {1456: (11, 'proofs/proof1456.py')}, mstar.PROOFS
+    assert all(os.path.isfile(os.path.join(HERE, file)) for _, file in mstar.PROOFS.values())
+    assert got['m']['cols'][1455] == [11, 11, ['join', 432, 1024], ['proof', 'proofs/proof1456.py']], got['m']['cols'][1455]
+    mstar.proved(1456, 11, 'proofs/proof1456.py')
+    for n, hi in ((1456, 10), (1472, 11)):
+        try: mstar.proved(n, hi, 'proofs/proof1456.py')
+        except AssertionError: continue
+        raise AssertionError((n, hi))
 
 
 def q_past_lists_the_example_of_order_16_at_1440():

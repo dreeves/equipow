@@ -77,7 +77,7 @@ try {
       ok: (n, hi, M) => Number.isInteger(M) && M >= 2,
       // readout reason; says order hi + 1 is ruled out by the residue condition mod M
       text: (n, hi, M) => `order ${hi + 1} ruled out by the residue condition mod ${M}`,
-      proof: (n, hi, M) => PROOF.residue(BigInt(n), `${n}`, hi, 'mstar.py', M),
+      proof: (n, hi, M) => PROOF.residue(BigInt(n), `${n}`, hi, 'pagegen/mstar.py', M),
     },
     table2: {
       ok: (n, hi) => n % 8 === 0 && n <= 304,
@@ -109,7 +109,7 @@ try {
         && chain.slice(1).every((M, i) => M > chain[i] && M % chain[i] === 0),
       // readout reason; says order hi + 1 is ruled out by the residue conditions mod each modulus of the chain
       text: (k, hi, chain) => `order ${hi + 1} ruled out by the residue conditions mod ${chain.join(', ')}`,
-      proof: (k, hi, chain) => PROOF.residue(2n ** BigInt(k), `2^{${k}}`, hi, 'pow2.py', ...chain),
+      proof: (k, hi, chain) => PROOF.residue(2n ** BigInt(k), `2^{${k}}`, hi, 'pagegen/pow2.py', ...chain),
     },
   };
   assert(Object.keys(D).sort().join() === 'cols,etop,kmax', Object.keys(D));
