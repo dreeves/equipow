@@ -2015,7 +2015,7 @@ const MSTAR = {"nmax": 2048, "mtop": 19, "mtopAt": [2400], "past": [[2096, 12, "
 [0, 0, ["none"], ["odd"]],
 [1, 1, ["join", 2, 2012], ["two"]],
 [0, 0, ["none"], ["odd"]],
-[14, 15, ["product", 2, 1008], ["residue", 5]],
+[15, 15, ["example", "equipow p2016"], ["residue", 5]],
 [0, 0, ["none"], ["odd"]],
 [1, 1, ["join", 2, 2016], ["two"]],
 [0, 0, ["none"], ["odd"]],

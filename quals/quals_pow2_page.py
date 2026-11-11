@@ -1687,9 +1687,11 @@ def q_pow2_boxes_show_witness_proof_and_searches_by_kind():
         assert B[t]['whys'] == pow2_whys(R['data'], *t[:1], [t[1]]), (t, B[t]['whys'], pow2_whys(R['data'], t[0], [t[1]]))
     assert B[(10, 1)]['constructions'] == [['1024:11', 'button', '\\((p_{1024})\\)']], B[(10, 1)]['constructions']
     assert B[(10, 1)]['copies'] == [['1024:11', '11', 'button', qi.code_digits('1024:11')]], B[(10, 1)]['copies']
-    assert B[(30, 2)]['constructions'] == [['1073741824:33', 'button', '\\((p_{960} \\mathbin{\\#} p_{768} \\mathbin{\\#} \\tau_{7}) \\vee '
-                                            '(p_{576} \\mathbin{\\#} p_{576} \\mathbin{\\#} p_{48} \\mathbin{\\#} \\tau_{3}) \\vee '
-                                            '(p_{800} \\mathbin{\\#} p_{832} \\mathbin{\\#} p_{320} \\mathbin{\\#} \\tau_{2})\\)']], B[(30, 2)]['constructions']
+    # Since 2026-11-11 the join at 2^30 is the base of excess 4, of order 34 (pow2.BASES[30]; dreeves, of recording it: "go ahead"); until then the lift of the base
+    # at 2^28, a button claiming '1073741824:33' with (p_960 # p_768 # tau_7) v (p_576 # p_576 # p_48 # tau_3) v (p_800 # p_832 # p_320 # tau_2)
+    assert B[(30, 2)]['constructions'] == [['1073741824:34', 'button', '\\((p_{1504} \\mathbin{\\#} p_{800} \\mathbin{\\#} p_{800}) \\vee '
+                                            '(p_{1488} \\mathbin{\\#} p_{1440} \\mathbin{\\#} \\tau_{5}) \\vee '
+                                            '(p_{1632} \\mathbin{\\#} p_{1632} \\mathbin{\\#} \\tau_{4})\\)']], B[(30, 2)]['constructions']
     assert cols[29][3] == ['residue', [3]] and '\\(M = 3\\)' in B[(30, 8)]['said'] and 'pow2.py' in B[(30, 8)]['said'], B[(30, 8)]['said']
     assert re.match(qi.OPENING + re.escape('\\(m^*(2^{30}) \\le 36\\):'), B[(30, 8)]['said']), B[(30, 8)]['said']
     assert cols[8][3] == ['mstar', ['residue', 27]] and re.match(qi.OPENING + re.escape('\\(m^*(512) \\le 9\\):'), B[(9, 1)]['said']), B[(9, 1)]['said']

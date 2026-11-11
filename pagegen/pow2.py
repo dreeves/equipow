@@ -7,8 +7,9 @@ sweep and claim, and states the two lemmas; this file uses them in its sense, an
   excess   order - log2(length).  Thue-Morse tau_k (length 2^k, order k, Prouhet) has excess 0 at every k; a
            product's excess is the sum of its factors'.
   block    a length and an order known at that length, written [n, m]: a column n <= mstar.NMAX of mstar.js at its
-           lo, an explicit sequence of mstar.py longer than that at its order (none since 2026-10-27, when NMAX
-           reached 1024: from 2026-10-26, [1024, 11], index.html's p1024, was one), or tau_j as [2^j, j].  (Until
+           lo, an explicit sequence of mstar.py longer than that at its order (none from 2026-10-27, when NMAX
+           reached 1024: from 2026-10-26, [1024, 11], index.html's p1024, was one; since 2026-11-11 the Symmetry
+           section's sequences of order 12 at 2096, 2128 and 2192), or tau_j as [2^j, j].  (Until
            2026-10-29 f, the 2^24 construction (320 # 320 # 112) v (432 # 48 # tau_8) of index.html's remarks, of
            order 25, was one too, with the reason f^{#L} # tau_j; no lower bound had used f since 2026-10-25.)
   atom     a block (n, lo(n)), n <= mstar.NMAX, that no single join or product of shorter columns' closure values
@@ -127,6 +128,17 @@ RESIDUE = {11: (13, (3,), 'digits'), 12: (14, (3,), 'digits'), 14: (17, (3,), 'd
 # coin whose odd part is prime to 3, and 1008, a multiple of 3, adds none.  Each new base has four products, the fewest
 # that joins of products of the search's atoms allow at its K (scratch/firsts-56-58/fewer.py: none of three), and keeps two
 # products of the search's witness (scratch/firsts-56-58/NOTES.md).
+# The sequences of 2026-11-11 (of order 12 at 1504, 14 at 1488 and 15 at 1632, the tilted search's, in the page's
+# Symmetry section) moved the first K0 for e = 4 from 36 to 30: BASES[30], which lifted matches the superseded
+# BASES[36], (960^2 # 480 # tau_2) v (960^2 # 480) v (912 # 576 # 816 # tau_3) v (800^2 # 880 # 112), at every
+# k >= 36.  searches/pinned/coins over the 57 atoms of 2026-11-06 and the example columns past 1024
+# (scratch/q1920-20261111/firsts/) finds no K <= 29 reaching e = 4, and the firsts of e = 1, 2, 3, 5 and 6 again.
+# An exact check written apart from it (k29.py there: every column of mstar.js a block, the coins by a walk over
+# products, then one subset sum) agrees: 2^29 is no join of products of order 33 or more, 2^30 is one of order 34,
+# and its controls give the firsts of e = 1, 2 and 3.  Below 2^29 no product of blocks prime to 3 has the ratio
+# order / log2(length) that e = 4 needs (the best is 800's, 11 / log2 800), and a join summing to 2^K needs such a
+# product.  BASES[30] has three products, the fewest that joins of products of the page's example columns allow at
+# 2^30 (base30.py there: none of two, three of three), and keeps two products of coins' witness.
 # (The examples of order 10 at 592, 608 and 656 and of order 11 at 848, 880, 896, 928, 944, 976 and 992, 2026-10-25,
 # had moved the first K0 for e = 2 from 27 to 20 (BASES[20] is 848 # 992 joined to 240 # 432 # tau_1), for e = 3 from
 # 34 to 30, for e = 4 from 38 to 37, for e = 6 from 52 to 49 and for e = 8 from 66 to 65, and given e = 9 at 72; the
@@ -140,10 +152,9 @@ BASES = {10: [[[1024, 11]]],
          28: [[[960, 15], [768, 13], [32, 5]],
               [[576, 12], [576, 12], [48, 6], [2, 1]],
               [[800, 11], [832, 11], [320, 9]]],
-         36: [[[960, 15], [960, 15], [480, 12], [4, 2]],
-              [[960, 15], [960, 15], [480, 12]],
-              [[912, 13], [576, 12], [816, 12], [8, 3]],
-              [[800, 11], [800, 11], [880, 11], [112, 7]]],
+         30: [[[1504, 12], [800, 11], [800, 11]],
+              [[1488, 14], [1440, 16], [32, 5]],
+              [[1632, 15], [1632, 15], [16, 4]]],
          39: [[[800, 11], [832, 11], [832, 11], [832, 11]],
               [[192, 9], [432, 11], [432, 11], [768, 13], [2, 1]],
               [[48, 6], [480, 12], [480, 12], [768, 13], [4, 2]]],

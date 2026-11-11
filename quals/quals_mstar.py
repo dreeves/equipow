@@ -44,7 +44,10 @@ USER_GRAY = (240, 288, 384, 432, 480) + tuple(range(528, 993, 16)) + (1008,)
 # 1200, 1296, 1392, 1488, 1680, 1872 and 1968, settled at 14 by symmetric sequences of order 14 (the upper bound 14 at
 # all but 1296 is BGPW's Proposition 4.4, q_proposition_44_keeps_odd_multiples_of_16_at_14_or_less); and 1632 and
 # 1728, settled at 15 by antisymmetric sequences of order 15.  Six are left.
-PAST_GRAY = (1056, 1104, 1248, 1440, 1920, 2016)
+# Less 2016 since 10:32 that day (scratch/q1920-20261111/NOTES.md, "Round three"), settled at 15 by an antisymmetric
+# sequence of order 15 that the tilted search found in a wider window (the upper bound 15 is the residue condition
+# mod 5).  Five are left.
+PAST_GRAY = (1056, 1104, 1248, 1440, 1920)
 
 
 @lru_cache(maxsize=None)

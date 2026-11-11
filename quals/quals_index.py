@@ -2659,16 +2659,20 @@ def q_firsts_of_2026_11_03():
     # bases at 2^29, 2^37 and 2^48 name the new ones; the theorem states m*(2^28) >= 31, m*(2^36) >= 40 and m*(2^47) >= 53 in place of 2^29's, 2^37's and 2^48's, and
     # its list of firsts is 10, 20, 28, 36, 39, 47, 57, 65, 68.  (Since later on 2026-11-03, q_firsts_move_to_2_56_and_2_58, the list ends 56, 58, 68; what stands
     # of it here: its first six, 10, 20, 28, 36, 39, 47.)
+    # Spec change (Fable 5.2, 2026-11-11, on dreeves's "go ahead"; q_first_for_excess_4_moves_to_2_30): excess 4 is first at 2^30 since that day, so 2^36 is no first:
+    # its entry and those of 2^37 and 2^38 name the base at 2^30, the theorem states 2^30's bound in place of 2^36's, and the list is 10, 20, 28, 30, 39, 47, ...; the
+    # entries of 2^30, 2^33 and 2^34 name no base at 2^28 any more.  What stands here: 2^28 and 2^47, their lifts at 2^29, 2^48, 2^49 and 2^52, and those cells.
     # Resultata before: the firsts were 10, 20, 29, 37, 39, 48, 57, 65, 68.
     cols, text = pow2_data()['cols'], page()
-    for k, lo, hi in ((28, 31, 34), (36, 40, 44), (47, 53, 58)): first_entry(cols, text, k, lo, hi)
+    for k, lo, hi in ((28, 31, 34), (47, 53, 58)): first_entry(cols, text, k, lo, hi)       # and (36, 40, 44) until 2026-11-11
     cells = new_cells(text)
     assert [cells[2 ** k] for k in (29, 37, 48)] == [(32, 35), (41, 45), (54, 59)]
     theorem = the_theorem(text)
-    for k, lo in ((28, 31), (36, 40), (47, 53)): assert f'(2^{{{k}}}) \\ge {lo}' in theorem, theorem
+    for k, lo in ((28, 31), (47, 53)): assert f'(2^{{{k}}}) \\ge {lo}' in theorem, theorem       # and (36, 40) until 2026-11-11
     for k in (29, 37, 48): assert f'(2^{{{k}}})' not in theorem, theorem
-    assert re.search(r'(?<![\d.])10, 20, 28, 36, 39, 47, ', text)      # '10, 20, 28, 36, 39, 47, 57, 65, 68' until later on 2026-11-03
-    for k, base, t, order in ((29, 28, 1, 32), (30, 28, 2, 33), (33, 28, 5, 36), (34, 28, 6, 37), (37, 36, 1, 41), (38, 36, 2, 42), (48, 47, 1, 54), (49, 47, 2, 55), (52, 47, 5, 58)):
+    assert re.search(r'(?<![\d.])10, 20, 28, 30, 39, 47, ', text)      # '10, 20, 28, 36, 39, 47, ' until 2026-11-11; '10, 20, 28, 36, 39, 47, 57, 65, 68' until later on 2026-11-03
+    # and (30, 28, 2, 33), (33, 28, 5, 36), (34, 28, 6, 37), (37, 36, 1, 41), (38, 36, 2, 42) until 2026-11-11
+    for k, base, t, order in ((29, 28, 1, 32), (48, 47, 1, 54), (49, 47, 2, 55), (52, 47, 5, 58)):
         names_base(text, k, base, t, order)
 
 
@@ -2694,9 +2698,36 @@ def q_firsts_move_to_2_56_and_2_58():
     theorem = the_theorem(text)
     for k, lo in ((56, 63), (58, 66)): assert f'(2^{{{k}}}) \\ge {lo}' in theorem, theorem
     for k in (57, 65): assert f'(2^{{{k}}})' not in theorem, theorem
-    assert re.search(r'(?<![\d.])10, 20, 28, 36, 39, 47, 56, 58, 68(?![\d,])', text)      # the list, whole
+    # (10, 20, 28, 36, 39, 47, 56, 58, 68 until 2026-11-11, when excess 4 came to be first at 2^30: q_first_for_excess_4_moves_to_2_30)
+    assert re.search(r'(?<![\d.])10, 20, 28, 30, 39, 47, 56, 58, 68(?![\d,])', text)      # the list, whole
     for k, base, t, order in ((57, 56, 1, 64), (61, 58, 3, 69), (65, 58, 7, 73), (66, 58, 8, 74), (67, 58, 9, 75)):
         names_base(text, k, base, t, order)
+
+
+def q_first_for_excess_4_moves_to_2_30():
+    # 2026-11-11 (Fable 5.2; dreeves, of recording it: "go ahead, with a TODO comment each place where you tamper with my words so i can review it").
+    # Replicata: pow2.js's columns 2^28 to 2^39, the new results' cells of the powers of 2, the remarks' entries, the theorem's statement and its list of firsts, and
+    # the changelog.
+    # Expectata (searches/pinned/coins over the atoms of 2026-11-06 and the sequences of 2026-11-11, and scratch/q1920-20261111/firsts/k29.py, an exact check written
+    # apart from it): excess 4 first at 2^30, a join of three products, 1504 # 800^2, 1488 # 1440 # tau_5 and 1632^2 # tau_4, of orders 34, 35 and 34 (1504 at order 12,
+    # 1488 at 14 and 1632 at 15 are sequences of that day): lo is 34 at 2^30, one more than the lift of the base of 2^28 gave it, and k + 4 from there to 2^38, each
+    # column that join's lift (the base at 2^36 is gone); the cells read 2^30 34–36, 2^33 37–40 and 2^34 38–41, and 2^36 40–44, 2^37 41–45 and 2^38 42–46 as before;
+    # 2^30's entry writes its join out, as pow2.js has it, with its products' orders; the entries of 2^33, 2^34, 2^36, 2^37 and 2^38 name the 2^30 entry, each product
+    # times τ3, τ4, τ6, τ7 and τ8; the theorem states m*(2^30) >= 34 in place of 2^36's bound, and its list of firsts is 10, 20, 28, 30, 39, 47, 56, 58, 68; and the
+    # changelog states m*(2^30) >= 34 on 2026-11-11.
+    # Resultata before: the firsts were 10, 20, 28, 36, 39, 47, 56, 58, 68, and the cell of 2^30 read 33–36.
+    cols, text = pow2_data()['cols'], page()
+    first_entry(cols, text, 30, 34, 36)
+    base = [[[1504, 12], [800, 11], [800, 11]], [[1488, 14], [1440, 16], [32, 5]], [[1632, 15], [1632, 15], [16, 4]]]
+    assert cols[29][2] == ['joins', base], cols[29][2]
+    assert [c[0] - k for k, c in enumerate(cols[27:39], 28)] == [3, 3] + [4] * 9 + [5], [c[:2] for c in cols[27:39]]
+    cells = new_cells(text)
+    assert [cells[2 ** k] for k in (30, 33, 34, 36, 37, 38)] == [(34, 36), (37, 40), (38, 41), (40, 44), (41, 45), (42, 46)], [cells.get(2 ** k) for k in (30, 33, 34, 36, 37, 38)]
+    theorem = the_theorem(text)
+    assert '(2^{30}) \\ge 34' in theorem and '(2^{36})' not in theorem, theorem
+    assert re.search(r'(?<![\d.])10, 20, 28, 30, 39, 47, 56, 58, 68(?![\d,])', text)      # the list, whole
+    for k, t, order in ((33, 3, 37), (34, 4, 38), (36, 6, 40), (37, 7, 41), (38, 8, 42)): names_base(text, k, 30, t, order)
+    assert changelog_by_day().get('2026-11-11', {}).get(2 ** 30) == (34, None), changelog_by_day().get('2026-11-11', {}).get(2 ** 30)
 
 
 def q_example_at_720_has_its_code_of_order_13():
@@ -3034,12 +3065,15 @@ def q_912_moves_excess_3_to_2_29():
     # 2^29 entry, each product times τ1, τ4 and τ5, of orders 33, 36 and 37; the theorem states m*(2^29) ≥ 32 in place
     # of m*(2^30) ≥ 33, and its list of firsts is 10, 20, 29, 37, 41, 48, 57, 65, 68.  Since 2026-11-03 (q_firsts_of_2026_11_03) excess 3 is first at 2^28 and column 29 is
     # that join's lift; what stands of this qual: lo is k + 3 from 2^29 to 2^35, those cells, and no K below 2^28 beating Thue-Morse by 3.
+    # Spec change (Fable 5.2, 2026-11-11, on dreeves's "go ahead"; q_first_for_excess_4_moves_to_2_30): excess 4 is first at 2^30 since that day, so lo is k + 3 at
+    # 2^28 and 2^29 only, the cells of 2^30, 2^33 and 2^34 read 34–36, 37–40 and 38–41, and the theorem states 2^30's bound.  What stands of this qual: 2^29's
+    # column and cell, and no K below 2^28 beating Thue-Morse by 3.
     cols, text = pow2_data()['cols'], page()
-    assert cols[26][0] == 29 and [c[0] - k for k, c in enumerate(cols[28:35], 29)] == [3] * 7, [c[:2] for c in cols[26:35]]
+    assert cols[26][0] == 29 and [c[0] - k for k, c in enumerate(cols[27:29], 28)] == [3] * 2, [c[:2] for c in cols[26:29]]
     cells = new_cells(text)
-    assert [cells[2 ** k] for k in (29, 30, 33, 34)] == [(32, 35), (33, 36), (36, 40), (37, 41)], [cells.get(2 ** k) for k in (29, 30, 33, 34)]
+    assert cells[2 ** 29] == (32, 35), cells.get(2 ** 29)
     theorem = the_theorem(text)
-    assert '(2^{29})' not in theorem and '(2^{30})' not in theorem, theorem   # 2^29's bound in it until 2026-11-03
+    assert '(2^{29})' not in theorem, theorem   # 2^29's bound in it until 2026-11-03
 
 
 def q_768_moves_excess_5_to_2_39():

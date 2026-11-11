@@ -269,6 +269,29 @@ def q_order_12_is_down_to_528():
     assert set(BARE_12) <= set(listed), listed
 
 
+def q_every_known_order_has_its_symmetric_sequence():
+    # Replicata: the chart's columns (mstar.js, every n it has) and the closure of the page's sequences up to the
+    # chart's last length; at each n, the chart's lower bound there and the order below it, those of them that are
+    # at least 1 (the conjecture has no order 0), each order m with its sign s = (-1)^m.
+    # Expectata (Fable 5.2, 2026-11-11, the paragraph of the codes 960:14 and 1440:15, after Codex's review of that
+    # morning: "Preserve both parities when maintaining symmetry coverage"): the closure has an s-symmetric sequence of
+    # order m at n, which, built, has length n, symmetry s and order m.  An s-symmetric sequence of order m has every
+    # lower order too, so this is the conjecture at n at every order up to the best known there: where the chart
+    # knows a sequence of an order, a symmetric one of that order is on the page or built from the page.
+    # Resultata before: 960 at order 14 and 1440 at order 15 had none; the sequences of order 15 at 960 and of order
+    # 16 at 1440 have the other symmetry.
+    cols = qi.mstar_data()['cols']
+    lo, sym, built = closure(sources(None, len(cols)), len(cols))
+    missing = []
+    for n, col in enumerate(cols, 1):
+        for m in range(max(1, col[0] - 1), col[0] + 1):
+            s = (-1) ** m
+            if sym[s][n] < m: missing.append((n, m)); continue
+            a = built(s, n)
+            assert len(a) == n and symmetry(a) == s and holds(a, m), (n, m)
+    assert not missing, missing
+
+
 def q_symmetry_conjecture_holds_through_order_11():
     # Replicata: the reduction (reduction()) from the page's own sequences, Thue-Morse and BGPW's Tables 4 and 5 (the
     # closure, by joins and wraps, every claim built and checked), and the chart's upper bounds; and the account's math:
