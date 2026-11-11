@@ -423,7 +423,7 @@ def q_schema():
     assert type(T) is int and T == max(c[1] for c in M['cols']) + 1
     forms_lo = {'none': (), 'example': (str,), 'join': (int, int), 'product': (int, int), 'table2': (),
                 'page': (str,)}
-    forms_hi = {'odd': (), 'two': (), 'norm': (int,), 'residue': (int,), 'table2': (), 'page': (str,)}
+    forms_hi = {'odd': (), 'two': (), 'norm': (int,), 'residue': (int,), 'proof': (str,), 'table2': (), 'page': (str,)}   # proof: since 2026-11-10 (mstar.PROOFS)
     for n, c in enumerate(M['cols'], 1):
         assert len(c) == 4, n
         lo, hi, lw, hw = c

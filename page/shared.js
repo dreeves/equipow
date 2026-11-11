@@ -280,7 +280,7 @@ function legendItem(legend, kind, role) {
 // and ✓ where they agree, the order's smallest length proven.  The orders run from 1 to the largest some n up to
 // MSTAR.nmax is not ruled out for (dreeves, 2026-10-30: "why isn't 480:14 highlighted in the chart?"), and those past
 // it, each with its least n not ruled out in MSTAR.mtopAt (one more from 2026-11-03, [LIN]; through order 17 since
-// 2026-11-04, [M17]).  best[m] is the least n whose lower bound is at least m, or the product of two lesser orders' best
+// 2026-11-04, [M17]; since 2026-11-10, when the data came to reach 2048 and its orders 18, the one more alone, 19).  best[m] is the least n whose lower bound is at least m, or the product of two lesser orders' best
 // lengths where that is less, since f(x) g(x^n), n the length of f, has order at least the sum of theirs (dreeves's
 // README, 2026-10-31: "[MIN] In the "smallest length known for each order" table, we currently have no entries for the
 // smallest known n for orders 14 and 15"; the table showed — where no n up to MSTAR.nmax was known to reach m).  An
