@@ -353,6 +353,8 @@ code[aria-expanded], [data-text][aria-expanded] { cursor: pointer; text-decorati
    column; the caption in the status line's colors. */
 .progress-work { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.2rem; }
 .progress-work[hidden], .progress-work [hidden] { display: none; }
+.progress-searches { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.6rem; }   /* the tracked searches' boxes, as .progress-runs (2026-11-11) */
+.progress-run:not([data-run-state="running"]) .progress-lindy { display: none; }   /* the note on a search's ETA shows while it runs (2026-11-11) */
 .progress-bar { position: relative; height: 0.7rem; border-radius: 2px; background: var(--progress-hair); }
 .progress-bar > * { position: absolute; top: 0; bottom: 0; }
 .progress-bar [data-bar="done"] { left: 0; border-radius: 2px 0 0 2px; background: var(--progress-spent); }

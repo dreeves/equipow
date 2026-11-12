@@ -5,6 +5,15 @@ always happens easily and automatically?", then "those names are fine, go ahead"
 Each qual is a function q_*: a passing qual returns, a failing one raises; each comment gives its replicata and
 expectata; a failure's message or traceback gives the resultata.  Each copies track.py into a temporary directory and
 runs it there, so that its records go to that directory's runs/.
+
+Spec change, 2026-11-11 (dreeves, of whether different searches on one cell should show separately: "sounds like
+obviously yes"; of the page's bar and probability graph, which one search alone had: "the search progress code seems
+like a shitshow; can you revamp it? ... anti-magic anti-magic anti-magic"): a run is launched with the label of its
+search and with its estimator, both required, `track.py run NAME SEARCH N:M [--found FILE] ESTIMATOR ... -- COMMAND ...`
+and `track.py adopt NAME SEARCH N:M [--found FILE] ESTIMATOR ... -- PID`.  Every launch below names the search S and
+the sandbox's estimator (EST), which appends one estimate each time the tracker runs it; so a record holds estimates
+between its start and its end, and the quals that read a record's two lines read its first and its last.  The start
+names the search and the estimator and no longer a program (the page showed a search under its first run's program).
 """
 import sys
 sys.dont_write_bytecode = True
@@ -12,6 +21,15 @@ import os, json, time, shutil, signal, subprocess, tempfile, traceback
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # the repository's root, above quals/
 PY = sys.executable
 TRACK = os.path.join('searchwatch', 'track.py')     # the sandbox's copy, as a command names it from the sandbox
+EST = 'est.py'                                      # the sandbox's estimator, as a launch names it from the sandbox
+# what an estimator does: appends one estimate to the record TRACK_RECORD names (opened to append, never created)
+ESTIMATE = dict(event='estimate', basis='lindy', unit='seconds', done=1.0, rate=1.0, total=dict(median=2.0, lo=1.5, hi=10.0),
+                to_go=dict(median=1.0, lo=0.5, hi=9.0), prior=0.5, exists=0.5)
+ESTIMATOR = f'''import json, os, time
+fd = os.open(os.environ['TRACK_RECORD'], os.O_WRONLY | os.O_APPEND)
+os.write(fd, (json.dumps(dict({ESTIMATE!r}, time=time.time())) + '\\n').encode())
+os.close(fd)
+'''
 IMPORTS = dict(os.environ, PYTHONPATH='searchwatch')   # for a -c script run in the sandbox that imports its track.py
 
 
@@ -21,6 +39,7 @@ def sandbox():
     # 2026-11-10, [REF]), so the copy goes into a searchwatch/ of the sandbox and its records into the sandbox's runs/.
     os.mkdir(os.path.join(d, 'searchwatch'))
     shutil.copy(os.path.join(HERE, 'searchwatch', 'track.py'), os.path.join(d, 'searchwatch'))
+    open(os.path.join(d, EST), 'w').write(ESTIMATOR)
     return d
 
 
@@ -44,36 +63,46 @@ def gone(pid):
 
 
 def q_run_writes_its_start_and_end():
-    # Replicata: track.py run q1 16:4 --found F -- python3 -c "import sys; sys.exit(3)", in a temporary directory.
-    # Expectata: track.py exits 3, its command's status; runs/q1.jsonl holds two lines: the start (event start, name
-    # q1, target 16:4, program the interpreter's name (no argument ends in .py), the command as a shell would write it,
-    # found F's absolute path, adopted false, the command's pid and track.py's own as tracker, a time) and the end
-    # (event end, status 3, a time no earlier than the start's).
+    # Replicata: track.py run q1 S 16:4 --found F est.py -- python3 -c "import sys; sys.exit(3)", in a temporary
+    # directory.
+    # Expectata: track.py exits 3, its command's status; runs/q1.jsonl holds the start (event start, name q1, search
+    # S, target 16:4, the estimator and the command as a shell would write them, found F's absolute path, adopted
+    # false, the command's pid and track.py's own as tracker, a time, and no other field), then the estimator's
+    # estimate, as it wrote it (one at least: the tracker runs it when the run starts and lets it finish), and the end
+    # (event end, status 3, a time no earlier than the start's).  (2026-11-11: the search, the estimator and the
+    # estimate; no program.)
     d = sandbox()
     try:
         cmd = [PY, '-c', 'import sys; sys.exit(3)']
-        p = subprocess.run([PY, '-B', TRACK, 'run', 'q1', '16:4', '--found', 'F', '--', *cmd], cwd=d)
+        p = subprocess.run([PY, '-B', TRACK, 'run', 'q1', 'S', '16:4', '--found', 'F', EST, '--', *cmd], cwd=d)
         assert p.returncode == 3, p.returncode
-        start, end = record(d, 'q1')
-        assert {k: start[k] for k in ('event', 'name', 'target', 'program', 'command', 'found', 'adopted')} == dict(
-            event='start', name='q1', target='16:4', program=os.path.basename(PY),
+        start, *estimates, end = record(d, 'q1')
+        assert {k: v for k, v in start.items() if k not in ('pid', 'tracker', 'time', 'cwd')} == dict(
+            event='start', name='q1', search='S', target='16:4', estimator=EST,
             command=f"{PY} -c 'import sys; sys.exit(3)'", found=os.path.join(os.path.realpath(d), 'F'), adopted=False), start
         assert start['pid'] > 0 and start['tracker'] > 0 and start['pid'] != start['tracker'], start
+        assert estimates and all(dict(e, time=0) == dict(ESTIMATE, time=0) for e in estimates), estimates
+        assert start['time'] <= estimates[0]['time'] <= estimates[-1]['time'] <= end['time'], (start, estimates, end)
         assert end['event'] == 'end' and end['status'] == 3 and end['time'] >= start['time'], end
     finally:
         shutil.rmtree(d)
 
 
-def q_run_names_the_script_as_its_program():
-    # Replicata: track.py run q2 16:4 -- python3 -B job.py, job.py exiting 0, in a temporary directory.
-    # Expectata: the start's program is job.py (the command's first argument ending in .py) and its found null; the
-    # end's status 0.
+def q_run_names_its_search_and_its_estimator():
+    # Replicata: track.py run q2 form-tree.2 16:4 est.py --prior 0.5 -- python3 -B job.py, job.py exiting 0, in a
+    # temporary directory; est.py there writes its arguments to the file args before its estimate.
+    # Expectata (2026-11-11, in place of the start's program, the command's script): the start's search is
+    # form-tree.2, its estimator "est.py --prior 0.5", as a shell would write it, and its found null; the tracker ran
+    # the estimator with those arguments (args holds --prior 0.5); the end's status 0.
     d = sandbox()
     try:
         open(os.path.join(d, 'job.py'), 'w').write('pass\n')
-        assert subprocess.run([PY, '-B', TRACK, 'run', 'q2', '16:4', '--', PY, '-B', 'job.py'], cwd=d).returncode == 0
-        start, end = record(d, 'q2')
-        assert (start['program'], start['found'], end['status']) == ('job.py', None, 0), (start, end)
+        open(os.path.join(d, EST), 'w').write("import sys\nopen('args', 'w').write(' '.join(sys.argv[1:]))\n" + ESTIMATOR)
+        assert subprocess.run([PY, '-B', TRACK, 'run', 'q2', 'form-tree.2', '16:4', EST, '--prior', '0.5', '--', PY, '-B', 'job.py'],
+                              cwd=d).returncode == 0
+        start, *_, end = record(d, 'q2')
+        assert (start['search'], start['estimator'], start['found'], end['status']) == ('form-tree.2', 'est.py --prior 0.5', None, 0), (start, end)
+        assert open(os.path.join(d, 'args')).read() == '--prior 0.5'
     finally:
         shutil.rmtree(d)
 
@@ -85,30 +114,32 @@ while not os.path.exists(path):
     assert time.time() < until, path
     time.sleep(0.01)
 fd = os.open(path, os.O_WRONLY | os.O_APPEND)      # appended to, never created
-os.write(fd, (json.dumps(dict(event='eta', time=time.time(), median=60.0, lo=6.0, hi=600.0)) + '\\n').encode())
+os.write(fd, (json.dumps(dict(event='estimate', time=time.time(), basis='own', unit='seconds', done=60.0, rate=1.0,
+                              total=dict(median=120.0, lo=66.0, hi=660.0), to_go=dict(median=60.0, lo=6.0, hi=600.0),
+                              prior=0.5, exists=0.5)) + '\\n').encode())
 os.close(fd)
 print(path, flush=True)
 '''
 
 
 def q_run_names_its_record_to_its_command():
-    # Replicata: track.py run q8 16:4 -- python3 -c ETA, in a temporary directory: ETA waits for the record named by
-    # the environment variable TRACK_RECORD, appends to it (opened without creating it) the line {"event": "eta",
-    # "time", "median": 60, "lo": 6, "hi": 600}, as a search appends its own estimate of its seconds to go, and prints
-    # the record's name.
+    # Replicata: track.py run q8 S 16:4 est.py -- python3 -c ETA, in a temporary directory: ETA waits for the record
+    # named by the environment variable TRACK_RECORD, appends to it (opened without creating it) an estimate of basis
+    # "own", as a search may append an estimate of its own, and prints the record's name.
     # Expectata (the coordinator, 2026-10-31: track.py exports its record path to the command through an environment
-    # variable, so that a search may append eta lines, which the watcher prefers to Gott's rule): the name printed is
-    # runs/q8.jsonl's absolute path; the record holds the start, the command's line as it wrote it, and the end, with
-    # status 0, in that order.
+    # variable, so that a search may append lines; 2026-11-11: an estimate, in place of the eta line the watcher
+    # preferred to Gott's rule): the name printed is runs/q8.jsonl's absolute path; the record holds the start, the
+    # command's line as it wrote it among the estimator's, and the end, with status 0, in that order.
     d = sandbox()
     try:
-        p = subprocess.run([PY, '-B', TRACK, 'run', 'q8', '16:4', '--', PY, '-c', ETA], cwd=d, capture_output=True,
+        p = subprocess.run([PY, '-B', TRACK, 'run', 'q8', 'S', '16:4', EST, '--', PY, '-c', ETA], cwd=d, capture_output=True,
                            text=True, timeout=60)
         assert p.returncode == 0, p.stderr
         assert p.stdout.strip() == os.path.join(os.path.realpath(d), 'runs', 'q8.jsonl'), p.stdout
-        start, eta, end = record(d, 'q8')
+        start, *between, end = record(d, 'q8')
         assert (start['event'], end['event'], end['status']) == ('start', 'end', 0), (start, end)
-        assert {k: eta[k] for k in ('event', 'median', 'lo', 'hi')} == dict(event='eta', median=60.0, lo=6.0, hi=600.0), eta
+        [eta] = [x for x in between if x['basis'] == 'own']
+        assert (eta['event'], eta['to_go']) == ('estimate', dict(median=60.0, lo=6.0, hi=600.0)), eta
         assert start['time'] <= eta['time'] <= end['time'], (start, eta, end)
     finally:
         shutil.rmtree(d)
@@ -121,11 +152,11 @@ def q_run_passes_sigterm_to_its_command():
     # process is gone.
     d = sandbox()
     try:
-        tr = subprocess.Popen([PY, '-B', TRACK, 'run', 'q3', '16:4', '--', PY, '-c', 'import time; time.sleep(60)'], cwd=d)
+        tr = subprocess.Popen([PY, '-B', TRACK, 'run', 'q3', 'S', '16:4', EST, '--', PY, '-c', 'import time; time.sleep(60)'], cwd=d)
         until(lambda: os.path.exists(os.path.join(d, 'runs', 'q3.jsonl')), 20)
         tr.send_signal(signal.SIGTERM)
         tr.wait(timeout=30)
-        start, end = record(d, 'q3')
+        start, *_, end = record(d, 'q3')
         assert end['status'] == -signal.SIGTERM, end
         assert gone(start['pid']), start
     finally:
@@ -133,8 +164,8 @@ def q_run_passes_sigterm_to_its_command():
 
 
 def q_adopt_writes_the_end_when_the_process_is_gone():
-    # Replicata: a process sleeping 2 s, started here; track.py adopt q4 16:4 PID --found W; the sleeper reaped here
-    # once it exits.
+    # Replicata: a process sleeping 2 s, started here; track.py adopt q4 S 16:4 --found W est.py -- PID; the sleeper
+    # reaped here once it exits.
     # Expectata: the start names the sleeper's pid, track.py's own as tracker, adopted true, found W's absolute path and
     # the sleeper's command as ps prints it, and as its time the sleeper's own start (ps's start time, to the second:
     # the run began then, not when track.py adopted it); track.py exits 0 after the sleeper is gone, its end's status
@@ -148,11 +179,11 @@ def q_adopt_writes_the_end_when_the_process_is_gone():
         began = time.mktime(time.strptime(subprocess.run(['ps', '-o', 'lstart=', '-p', str(s.pid)], capture_output=True,
                                                          text=True).stdout.strip(), '%a %b %d %H:%M:%S %Y'))
         time.sleep(1.5)
-        tr = subprocess.Popen([PY, '-B', TRACK, 'adopt', 'q4', '16:4', str(s.pid), '--found', 'W'], cwd=d)
+        tr = subprocess.Popen([PY, '-B', TRACK, 'adopt', 'q4', 'S', '16:4', '--found', 'W', EST, '--', str(s.pid)], cwd=d)
         s.wait()
         s.stdout.close()
         assert tr.wait(timeout=60) == 0
-        start, end = record(d, 'q4')
+        start, *_, end = record(d, 'q4')
         assert (start['pid'], start['tracker'], start['adopted'], start['found'], start['command']) == (
             s.pid, tr.pid, True, os.path.join(os.path.realpath(d), 'W'), ps), start
         assert end['event'] == 'end' and end['status'] is None and end['time'] >= start['time'], end
@@ -162,41 +193,45 @@ def q_adopt_writes_the_end_when_the_process_is_gone():
 
 
 def q_refuses_a_name_used_before_a_bad_target_and_a_dead_pid():
-    # Replicata: track.py run q5 16:4 -- python3 -c pass, twice; track.py run q6 16 -- ...; track.py adopt q7 16:4
-    # with the pid of a process already reaped.
+    # Replicata: track.py run q5 S 16:4 est.py -- python3 -c pass, twice; track.py run q6 S 16 est.py -- ...;
+    # track.py adopt q7 S 16:4 est.py -- with the pid of a process already reaped.
     # Expectata: the first run ends with status 0; the second exits nonzero, naming q5, and leaves q5's record as it
-    # was (two lines); the bad target and the dead pid each exit nonzero and write no record.
+    # was; the bad target and the dead pid each exit nonzero and write no record.
     d = sandbox()
     try:
-        cmd = [PY, '-B', TRACK, 'run', 'q5', '16:4', '--', PY, '-c', 'pass']
+        cmd = [PY, '-B', TRACK, 'run', 'q5', 'S', '16:4', EST, '--', PY, '-c', 'pass']
         assert subprocess.run(cmd, cwd=d).returncode == 0
+        before = record(d, 'q5')
         again = subprocess.run(cmd, cwd=d, capture_output=True, text=True)
         assert again.returncode != 0 and 'q5' in again.stderr, again
-        assert len(record(d, 'q5')) == 2
-        bad = subprocess.run([PY, '-B', TRACK, 'run', 'q6', '16', '--', PY, '-c', 'pass'], cwd=d, capture_output=True, text=True)
+        assert record(d, 'q5') == before and before[-1]['event'] == 'end'
+        bad = subprocess.run([PY, '-B', TRACK, 'run', 'q6', 'S', '16', EST, '--', PY, '-c', 'pass'], cwd=d, capture_output=True, text=True)
         assert bad.returncode != 0 and not os.path.exists(os.path.join(d, 'runs', 'q6.jsonl')), bad
         s = subprocess.Popen([PY, '-c', 'pass'])
         s.wait()
-        dead = subprocess.run([PY, '-B', TRACK, 'adopt', 'q7', '16:4', str(s.pid)], cwd=d, capture_output=True, text=True)
+        dead = subprocess.run([PY, '-B', TRACK, 'adopt', 'q7', 'S', '16:4', EST, '--', str(s.pid)], cwd=d, capture_output=True, text=True)
         assert dead.returncode != 0 and not os.path.exists(os.path.join(d, 'runs', 'q7.jsonl')), dead
     finally:
         shutil.rmtree(d)
 
 
 def q_refusal_never_launches_the_command():
-    # Replicata: rejected names and targets, and two concurrent launchers using the same fresh name; each command
-    # appends to a marker. Expectata: rejected commands append nothing; exactly one concurrent command starts.
+    # Replicata: rejected names and targets, and (2026-11-11) a rejected search label and an estimator that is no
+    # file, and two concurrent launchers using the same fresh name; each command appends to a marker. Expectata:
+    # rejected commands append nothing and leave no record; exactly one concurrent command starts.
     d = sandbox()
     try:
         cmd = [PY, '-c', "open('launched', 'a').write('x'); import time; time.sleep(.1)"]
         base = [PY, '-B', TRACK, 'run']
-        assert subprocess.run([*base, 'used', '16:4', '--', PY, '-c', 'pass'], cwd=d).returncode == 0
-        for name, target in [('used', '16:4'), ('bad', '16'), ('bad/name', '16:4')]:
-            p = subprocess.run([*base, name, target, '--', *cmd], cwd=d, capture_output=True, timeout=10)
+        assert subprocess.run([*base, 'used', 'S', '16:4', EST, '--', PY, '-c', 'pass'], cwd=d).returncode == 0
+        for name, search, target, estimator in [('used', 'S', '16:4', EST), ('bad', 'S', '16', EST), ('bad/name', 'S', '16:4', EST),
+                                                ('label', 'a b', '16:4', EST), ('noest', 'S', '16:4', 'no-such-estimator.py')]:
+            p = subprocess.run([*base, name, search, target, estimator, '--', *cmd], cwd=d, capture_output=True, timeout=10)
             assert p.returncode != 0
         time.sleep(.3)
+        assert sorted(os.listdir(os.path.join(d, 'runs'))) == ['used.jsonl'], os.listdir(os.path.join(d, 'runs'))
         assert not os.path.exists(os.path.join(d, 'launched')), 'a rejected command ran'
-        contenders = [subprocess.Popen([*base, 'race', '16:4', '--', *cmd], cwd=d,
+        contenders = [subprocess.Popen([*base, 'race', 'S', '16:4', EST, '--', *cmd], cwd=d,
                                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) for _ in range(2)]
         codes = [p.wait(timeout=10) for p in contenders]
         assert codes.count(0) == 1 and open(os.path.join(d, 'launched')).read() == 'x', codes
@@ -221,7 +256,7 @@ def q_owned_descendants_end_on_exit_and_signal():
         d, tr, grand = sandbox(), None, None
         try:
             open(os.path.join(d, 'family.py'), 'w').write(FAMILY)
-            tr = subprocess.Popen([PY, '-B', TRACK, 'run', 'family', '16:4', '--', PY, 'family.py', delay,
+            tr = subprocess.Popen([PY, '-B', TRACK, 'run', 'family', 'S', '16:4', EST, '--', PY, 'family.py', delay,
                                    str(max(code, 0))], cwd=d, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             marker = os.path.join(d, 'family')
             until(lambda: os.path.exists(marker) and os.path.getsize(marker) > 0, 10)
@@ -231,7 +266,7 @@ def q_owned_descendants_end_on_exit_and_signal():
                 time.sleep(.02)
                 if tr.poll() is None: tr.send_signal(signal.SIGTERM)
             tr.wait(timeout=10)
-            start, end = record(d, 'family')
+            start, *_, end = record(d, 'family')
             until(lambda: gone(grand), 2)
             assert gone(start['pid']) and end['status'] == code, (start, end)
         finally:
@@ -274,7 +309,7 @@ def q_cleanup_passes_over_a_group_of_zombies():
         try:
             open(os.path.join(d, 'zombie.py'), 'w').write(ZOMBIE)
             with open(os.path.join(d, 'tracker.err'), 'w') as log:      # C keeps a pipe's write end open
-                tr = subprocess.Popen([PY, '-B', TRACK, 'run', 'zombie', '16:4', '--', PY, 'zombie.py', delay,
+                tr = subprocess.Popen([PY, '-B', TRACK, 'run', 'zombie', 'S', '16:4', EST, '--', PY, 'zombie.py', delay,
                                        str(max(code, 0))], cwd=d, stdout=subprocess.DEVNULL, stderr=log)
             marker = os.path.join(d, 'zombie')
             until(lambda: os.path.exists(marker) and os.path.exists(os.path.join(d, 'runs', 'zombie.jsonl')), 10)
@@ -329,18 +364,20 @@ print('ok', flush=True)
 
 def q_spawn_failure_preserves_a_failure_record():
     # Replicata: launch a nonexistent command. Expectata: no command runs, the tracker fails, and its reserved name
-    # has a terminal failure record, so another launch cannot silently reuse it.
+    # has a terminal failure record, so another launch cannot silently reuse it.  Then a launch whose process cannot
+    # be made at all (subprocess.Popen raising): its record is its start, with pid null, and its end, status 1, with no
+    # estimate between them (2026-11-11: the estimator runs for a run that has a process).
     d = sandbox()
     try:
-        p = subprocess.run([PY, '-B', TRACK, 'run', 'missing', '16:4', '--', './no-such-command'], cwd=d,
+        p = subprocess.run([PY, '-B', TRACK, 'run', 'missing', 'S', '16:4', EST, '--', './no-such-command'], cwd=d,
                            capture_output=True, timeout=10)
         assert p.returncode != 0
-        start, end = record(d, 'missing')
+        start, *_, end = record(d, 'missing')
         assert end['status'] != 0, (start, end)
         code = '''import track
 def failed_spawn(*a, **kw): raise OSError('injected spawn failure')
 track.subprocess.Popen = failed_spawn
-track.run('nospawn', '16:4', None, ['unused'])
+track.run('nospawn', 'S', '16:4', None, ['est.py'], ['unused'])
 '''
         p = subprocess.run([PY, '-B', '-c', code], cwd=d, env=IMPORTS, capture_output=True, timeout=10)
         start, end = record(d, 'nospawn')
@@ -355,7 +392,7 @@ def q_sighup_is_forwarded_before_cleanup():
     d, tr = sandbox(), None
     try:
         code = "import signal,time;signal.signal(signal.SIGHUP,lambda *a:(open('hup','w').write('yes'),exit(0)));open('ready','w').write('yes');time.sleep(60)"
-        tr = subprocess.Popen([PY, '-B', TRACK, 'run', 'hup', '16:4', '--', PY, '-c', code], cwd=d)
+        tr = subprocess.Popen([PY, '-B', TRACK, 'run', 'hup', 'S', '16:4', EST, '--', PY, '-c', code], cwd=d)
         until(lambda: os.path.exists(os.path.join(d, 'ready')), 10)
         tr.send_signal(signal.SIGHUP)
         tr.wait(timeout=10)
@@ -378,7 +415,7 @@ def broken(*a,**kw):
     while not os.path.exists('parent'): time.sleep(.01)
     raise OSError('injected record write failure')
 track.start = broken
-track.run('writefail', '16:4', None, [sys.executable, 'family.py', '60', '0'])
+track.run('writefail', 'S', '16:4', None, ['est.py'], [sys.executable, 'family.py', '60', '0'])
 '''
         tr = subprocess.Popen([PY, '-B', '-c', code], cwd=d, env=IMPORTS, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         tr.wait(timeout=10)
@@ -393,6 +430,210 @@ track.run('writefail', '16:4', None, [sys.executable, 'family.py', '60', '0'])
                 except ProcessLookupError: pass
         if tr is not None and tr.poll() is None: tr.kill()
         if tr is not None: tr.wait(timeout=5)
+        shutil.rmtree(d)
+
+
+PERIODIC = "import sys, track; track.PERIOD, track.EST_GRACE = 0.3, 0.5; track.main(sys.argv[1:])"   # the tracker, its estimates 0.3 s apart
+
+
+def q_run_estimates_at_once_and_every_period():
+    # Replicata: in a sandbox, the tracker with its period set to 0.3 s (PERIODIC), run p1 S 16:4 est.py -- python3 -c
+    # "import time; time.sleep(2)".
+    # Expectata (2026-11-11; dreeves, of the bar and the probability graph that one search alone had: "can you revamp
+    # it?"): the record holds the start, then the estimator's estimates, one written when the run started (within the
+    # run's first second) and one more each period (4 at least in the 2 s, in time order), then the end, status 0:
+    # every run gets its estimates from its launch, with no code of the search's own.
+    d = sandbox()
+    try:
+        p = subprocess.run([PY, '-B', '-c', PERIODIC, 'run', 'p1', 'S', '16:4', EST, '--', PY, '-c', 'import time; time.sleep(2)'],
+                           cwd=d, env=IMPORTS, capture_output=True, text=True, timeout=60)
+        assert p.returncode == 0, p.stderr
+        start, *estimates, end = record(d, 'p1')
+        assert (start['event'], end['event'], end['status']) == ('start', 'end', 0), (start, end)
+        assert len(estimates) >= 4 and all(e['event'] == 'estimate' for e in estimates), estimates
+        times = [e['time'] for e in estimates]
+        assert times == sorted(times) and start['time'] <= times[0] < start['time'] + 1 and times[-1] <= end['time'], (start, times, end)
+    finally:
+        shutil.rmtree(d)
+
+
+def q_an_estimator_that_fails_or_hangs_leaves_the_run_alone():
+    # Replicata: in a sandbox, the tracker with its period set to 0.3 s and its last estimator given 0.5 s (PERIODIC),
+    # run NAME S 16:4 ESTIMATOR -- python3 -c "import time, sys; time.sleep(1.5); sys.exit(3)", with two estimators:
+    # fail.py, which exits 1 at once, and hang.py, which appends its pid to the file hung and sleeps a minute.
+    # Expectata: each tracker exits 3, its command's status, within 10 s; each record is the start and the end, status
+    # 3, with no estimate; hang.py ran more than once (one a period), and none of its processes is left: one still
+    # running when the next is due, or when the run has ended, is killed.  An estimator's trouble is its own.
+    d = sandbox()
+    try:
+        open(os.path.join(d, 'fail.py'), 'w').write('raise SystemExit(1)\n')
+        open(os.path.join(d, 'hang.py'), 'w').write("import os, time\nopen('hung', 'a').write(f'{os.getpid()}\\n')\ntime.sleep(60)\n")
+        for name, estimator in [('fails', 'fail.py'), ('hangs', 'hang.py')]:
+            t0 = time.time()
+            p = subprocess.run([PY, '-B', '-c', PERIODIC, 'run', name, 'S', '16:4', estimator, '--', PY, '-c',
+                                'import time, sys; time.sleep(1.5); sys.exit(3)'], cwd=d, env=IMPORTS, capture_output=True, text=True, timeout=60)
+            assert p.returncode == 3 and time.time() - t0 < 10, (p.returncode, time.time() - t0, p.stderr)
+            start, end = record(d, name)
+            assert (start['event'], end['event'], end['status']) == ('start', 'end', 3), (start, end)
+        pids = [int(x) for x in open(os.path.join(d, 'hung')).read().split()]
+        assert len(pids) >= 2, pids
+        until(lambda: all(gone(pid) for pid in pids), 5)
+    finally:
+        shutil.rmtree(d)
+
+
+def q_adopt_estimates_while_its_process_lives():
+    # Replicata: a process sleeping 3 s, started here; in a sandbox, the tracker with its period set to 0.3 s
+    # (PERIODIC), adopt a1 S 16:4 est.py -- PID; the sleeper reaped here once it exits.
+    # Expectata: the record holds the start (adopted true), then 3 estimates at least, then the end, status null: an
+    # adopted process gets its estimates as a launched one does.
+    d = sandbox()
+    try:
+        s = subprocess.Popen([PY, '-c', 'import time; print("ready", flush=True); time.sleep(3)'], stdout=subprocess.PIPE, text=True)
+        assert s.stdout.readline() == 'ready\n'
+        tr = subprocess.Popen([PY, '-B', '-c', PERIODIC, 'adopt', 'a1', 'S', '16:4', EST, '--', str(s.pid)], cwd=d, env=IMPORTS)
+        s.wait()
+        s.stdout.close()
+        assert tr.wait(timeout=60) == 0
+        start, *estimates, end = record(d, 'a1')
+        assert (start['adopted'], end['event'], end['status']) == (True, 'end', None), (start, end)
+        assert len(estimates) >= 3 and all(e['event'] == 'estimate' for e in estimates), estimates
+    finally:
+        shutil.rmtree(d)
+
+
+def inside(d, code):
+    """Runs code in the sandbox d with its track.py importable; its output, which must end with ok."""
+    p = subprocess.run([PY, '-B', '-c', code], cwd=d, env=IMPORTS, capture_output=True, text=True, timeout=60)
+    assert p.returncode == 0 and p.stdout.endswith('ok\n'), (p.returncode, p.stdout, p.stderr)
+    return p.stdout
+
+
+RECORD = f"""import json, track
+START = dict(event='start', name='r', search='S', target='16:4', estimator='est.py', command='job', cwd='/', found=None,
+             adopted=False, pid=7, tracker=8, time=100.0)
+EST = dict({ESTIMATE!r}, time=110.0)
+END = dict(event='end', time=120.0, status=0)
+def refused(record):
+    try: track.checked(record)
+    except AssertionError: return True
+    return False
+"""
+
+
+def q_a_record_holds_to_its_form():
+    # Replicata: track.checked on handmade records: a start alone; a start, two estimates in time order and an end;
+    # an adopted run's start (with its started field); then, each a change of the second: a line of another event
+    # between; an estimate after the end; an estimate dated before the start; estimates out of time order; an estimate
+    # missing its prior, and one with a field more; a band out of order (to_go's lo above its median; total's median
+    # above its hi); a total's lo below the work done; a rate of 0; a P(exists) above 1; a negative work done; a to_go
+    # that is no number; a start missing its search, and one with a field more; no start.
+    # Expectata: the first three come back as given; each of the others is refused (an AssertionError): the watcher
+    # and the estimators read a record through this one check, so a malformed line fails loudly where it is read.
+    d = sandbox()
+    try:
+        inside(d, RECORD + """
+good = [START, EST, dict(EST, time=115.0), END]
+assert track.checked([START]) == [START] and track.checked(good) == good
+adopted = [dict(START, adopted=True, started='Wed Nov 11 10:00:00 2026'), EST]
+assert track.checked(adopted) == adopted
+bad = dict(
+    other=[START, EST, dict(event='eta', time=112.0, median=1.0, lo=0.5, hi=2.0), END],
+    after=[START, EST, END, dict(EST, time=130.0)],
+    early=[START, dict(EST, time=99.0), END],
+    order=[START, dict(EST, time=115.0), EST, END],
+    missing=[START, {k: v for k, v in EST.items() if k != 'prior'}, END],
+    extra=[START, dict(EST, more=1), END],
+    togo=[START, dict(EST, to_go=dict(median=1.0, lo=2.0, hi=9.0)), END],
+    total=[START, dict(EST, total=dict(median=20.0, lo=1.5, hi=10.0)), END],
+    below=[START, dict(EST, total=dict(median=2.0, lo=0.5, hi=10.0)), END],
+    rate=[START, dict(EST, rate=0.0), END],
+    exists=[START, dict(EST, exists=1.5), END],
+    done=[START, dict(EST, done=-1.0), END],
+    number=[START, dict(EST, to_go=dict(median='1', lo=0.5, hi=9.0)), END],
+    nosearch=[{k: v for k, v in START.items() if k != 'search'}, EST, END],
+    startmore=[dict(START, program='job.py'), EST, END],
+    nostart=[EST, END])
+kept = [name for name, record in bad.items() if not refused(record)]
+assert not kept, kept
+print('ok')
+""")
+    finally:
+        shutil.rmtree(d)
+
+
+def q_a_run_s_state_and_span_follow_its_record_and_its_process():
+    # Replicata: track.state and track.span on handmade records, with the live processes given as {pid: ps's stat}
+    # and now 500: a run with an end of status 0 at 120; one with an end of status null (an adopted run's); one with an
+    # end of status 3; one with an end of status -15; one with no end, its last line an estimate at 110, and its pid
+    # among the processes as S; the same with its pid's stat T (stopped); the same with its pid not among them.
+    # Expectata: ended, ended, aborted, aborted, running, frozen, aborted; and their spans [100, 120] for the four
+    # with an end, [100, 500] (to now) for the two whose process lives, and [100, 110] (to its last line) for the one
+    # whose process is gone with no end written.
+    d = sandbox()
+    try:
+        inside(d, RECORD + """
+cases = [([START, EST, END], {}, 'ended', [100.0, 120.0]),
+         ([START, EST, dict(END, status=None)], {}, 'ended', [100.0, 120.0]),
+         ([START, EST, dict(END, status=3)], {}, 'aborted', [100.0, 120.0]),
+         ([START, EST, dict(END, status=-15)], {7: 'S'}, 'aborted', [100.0, 120.0]),
+         ([START, EST], {7: 'S'}, 'running', [100.0, 500.0]),
+         ([START, EST], {7: 'T+'}, 'frozen', [100.0, 500.0]),
+         ([START, EST], {9: 'S'}, 'aborted', [100.0, 110.0])]
+got = [(track.state(r, procs), track.span(r, procs, 500.0)) for r, procs, _, _ in cases]
+assert got == [(s, span) for _, _, s, span in cases], got
+print('ok')
+""")
+    finally:
+        shutil.rmtree(d)
+
+
+def q_passes_join_the_spans_and_running_counts_their_seconds():
+    # Replicata: track.passes on the spans [30, 40], [0, 10], [5, 20], [20, 25] and [32, 35], and track.running on its
+    # result at the times -5, 0, 7, 25, 28, 35 and 100; then both on no span at all.
+    # Expectata: the passes are [0, 25] and [30, 40], the stretches during which some run was going, in order (spans
+    # that overlap or touch are one stretch); the seconds of running before those times are 0, 0, 7, 25, 25, 30 and
+    # 35; with no span, no pass and 0 seconds.
+    d = sandbox()
+    try:
+        inside(d, """import track
+p = track.passes([[30, 40], [0, 10], [5, 20], [20, 25], [32, 35]])
+assert p == [[0, 25], [30, 40]], p
+got = [track.running(p, t) for t in (-5, 0, 7, 25, 28, 35, 100)]
+assert got == [0, 0, 7, 25, 25, 30, 35], got
+assert track.passes([]) == [] and track.running([], 50) == 0
+print('ok')
+""")
+    finally:
+        shutil.rmtree(d)
+
+
+def q_searches_gather_the_runs_of_a_label_at_a_target():
+    # Replicata: in a sandbox, six runs launched in turn, the first five python3 -c pass: a1 and a2 of the search tilt
+    # at 16:4, b1 of the search tree at 16:4, c1 of tilt at 32:5, a3 of tilt at 16:4, and bad of tilt at 16:4, a
+    # command that does not exist; then a file runs/notes.txt and a directory runs/cpu; then track.searches() there.
+    # Expectata (dreeves, 2026-11-11, of different searches on one cell: "sounds like obviously yes, that we want to
+    # see different searches on the same cell separately"): three searches, keyed (label, target): (tilt, 16:4) with
+    # the records of a1, a2, a3 and bad in the order they started (a run whose command failed is a run of its search
+    # like any other), (tree, 16:4) with b1's and (tilt, 32:5) with c1's, each record its lines as track.checked
+    # returns them; the other files are in none.
+    d = sandbox()
+    try:
+        for name, search, target in [('a1', 'tilt', '16:4'), ('a2', 'tilt', '16:4'), ('b1', 'tree', '16:4'), ('c1', 'tilt', '32:5'),
+                                     ('a3', 'tilt', '16:4')]:
+            assert subprocess.run([PY, '-B', TRACK, 'run', name, search, target, EST, '--', PY, '-c', 'pass'], cwd=d).returncode == 0
+        assert subprocess.run([PY, '-B', TRACK, 'run', 'bad', 'tilt', '16:4', EST, '--', './no-such-command'], cwd=d,
+                              capture_output=True).returncode != 0
+        open(os.path.join(d, 'runs', 'notes.txt'), 'w').write('x\n')
+        os.mkdir(os.path.join(d, 'runs', 'cpu'))
+        out = inside(d, """import json, track
+found = track.searches()
+print(json.dumps([[list(key), [r[0]['name'] for r in runs], all(track.checked(r) == r for r in runs)] for key, runs in sorted(found.items())]))
+print('ok')
+""")
+        got = json.loads(out.splitlines()[0])
+        assert got == [[['tilt', '16:4'], ['a1', 'a2', 'a3', 'bad'], True], [['tilt', '32:5'], ['c1'], True], [['tree', '16:4'], ['b1'], True]], got
+    finally:
         shutil.rmtree(d)
 
 

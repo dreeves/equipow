@@ -2,56 +2,76 @@
 """The launcher every search runs under, so that the Search progress section on index.html shows it with no code of
 its own (dreeves, 2026-10-28: "can we rearchitect things so that always happens easily and automatically?", then,
 of the names track.py and runs/<name>.jsonl, "those names are fine, go ahead").  track.py writes the run's record,
-which progress.py's watcher reads (survey_track); the search itself is not changed.
+which the watcher reads (watch.py); the search itself is not changed.  This file is the one home of the record's form:
+the watcher and the estimators read records through its functions (lines, checked, searches, state, span, passes,
+running).
 
-  record   runs/NAME.jsonl, JSON lines.  The first, {"event": "start", "name", "target", "program", "command", "cwd",
-           "found", "adopted", "pid", "tracker", "time"}: target "N:M", the question m*(N) >= M?; program the
-           command's script (its first argument ending in .py, else its first word's name); command as a shell would
-           write it; found the absolute path of a file whose lines count the search's results (a witness file), or
-           null; pid the run's process and tracker track.py's own; time when the run's process began (epoch seconds;
-           for an adopted one, its start time as ps prints it, to the second).  It appears whole (written aside, then
-            linked into place).  A command that could not start has pid null.  The last, once the run's process ends: {"event": "end", "time", "status"}, its exit status (a
-           negative one a signal's), or null for an adopted process, whose status track.py cannot read.  Between
-           them, any lines the command appends itself (2026-10-31): {"event": "eta", "time", "median", "lo", "hi"},
-           its own estimate, at time (epoch seconds), of its target's seconds to go, the median and the 90% band from
-           lo to hi, which the watcher prefers to Gott's rule (progress.survey_track, which asserts their form).  A
-           command that appends them appends one at least every ETA_EVERY seconds while its run is running: past that,
-           survey_track refuses the latest one, and the watcher shows the search stale (dreeves, 2026-11-04, of an
-           estimate left standing by a dead or stalled producer: "can we be more anti-postel than that?").  run
-           names the record, by its absolute path, to its command in the environment variable TRACK_RECORD; the
-           command appends each line whole, opening the record to append without creating it (os.O_APPEND without
-           os.O_CREAT), so that a line written before the start is linked into place fails rather than taking the
-           start's place.  An adopted process has no such variable.
-  run      python3 -B searchwatch/track.py run NAME N:M [--found FILE] -- COMMAND ...: starts COMMAND, writes the start, waits,
-            writes the end and exits with COMMAND's status.  A hidden exclusive reservation precedes the launch.
-            The command owns a new process group, cleaned even after a normal exit. SIGTERM, SIGINT and SIGHUP
-            cancel that group and are recorded as negative statuses; other launcher failures record status 1.
-  adopt    python3 -B searchwatch/track.py adopt NAME N:M PID [--found FILE]: for a process started without track.py: writes the
-           start (its command as ps prints it, and "started", its start time as ps prints it, which with its pid
-           identifies it), polls it every POLL seconds and writes the end once no live process has that pid and
-           start time.  A SIGKILL'd or crashed tracker writes no end: the watcher then shows the run aborted once its
-           process is gone.
-Refuses, writing nothing: a NAME of other than letters, digits, '.', '_' and '-'; a NAME whose record exists (a name
-is one run); a target not N:M; an adopted PID with no live process.
+Since 2026-11-11 (Fable 5.2; dreeves, of whether different searches on one cell should show separately: "sounds like
+obviously yes"; of the bar and the probability graph that one search alone had: "the search progress code seems like a
+shitshow; can you revamp it? ... anti-magic anti-magic anti-magic") a launch names its search and its estimator, both
+required, and the record carries everything the page shows of the search, so that the watcher holds no model and no
+table of searches.
+
+  search    the runs launched under one label at one target: one box of the page.  A label is the launcher's word for
+            what is being tried (form-tree, tilted, ...): a restart of a search takes its label, another kind of search
+            at the same target another.
+  record    runs/NAME.jsonl, JSON lines.  The first, {"event": "start", "name", "search", "target", "estimator",
+            "command", "cwd", "found", "adopted", "pid", "tracker", "time"}: search the label; target "N:M", the question
+            m*(N) >= M?; estimator and command as a shell would write them; found the absolute path of a file whose
+            lines count the search's results (a witness file), or null; pid the run's process and tracker track.py's
+            own; time when the run's process began (epoch seconds; for an adopted one, its start time as ps prints it,
+            to the second, also kept as "started").  It appears whole (written aside, then linked into place).  A
+            run whose process could not be made has pid null.  Then the run's estimates, a line each.  The last, once the run's process ends: {"event": "end", "time", "status"},
+            its exit status (a negative one a signal's), or null for an adopted process, whose status track.py cannot
+            read.
+  estimate  {"event": "estimate", "time", "basis", "unit", "done", "rate", "total": {"median", "lo", "hi"}, "to_go":
+            {"median", "lo", "hi"}, "prior", "exists"}: what is known of the run's search as of time (epoch seconds), by
+            its estimator: basis, the estimator's key (lindy, formtree), by which the page picks its words about it;
+            unit, what the search's work is counted in (seconds, nodes); done, the work done so far, and rate, the work
+            a second of running; total, the work done when the search has run its course, and to_go, the seconds of
+            running until then, each its median and the ends of its band (chance.COVERAGE's); prior, the probability
+            that what is searched for exists, before the search, and exists, that probability given none found so far.
+  estimator a Python script, named at launch with its arguments: the tracker runs it (python3 -B SCRIPT ARGS ..., in the
+            tracker's directory, the record's absolute path in the environment variable TRACK_RECORD) once when the
+            run starts and again every PERIOD seconds while it runs.  Each time it appends one estimate to the record,
+            whole, opening it to append without creating it (os.O_APPEND without os.O_CREAT), and exits.  One still
+            running when the next is due is killed, and the last one EST_GRACE seconds after the run ended, before the
+            end is written.  Its exit status is not read: an estimator that fails writes no estimate and says why on the
+            tracker's stderr, and the watcher shows a running search whose latest estimate is older than STALE seconds
+            stale (dreeves, 2026-11-04, of an estimate left standing by a dead or stalled producer: "can we be more
+            anti-postel than that?").  The command may append estimates too (its record is named to it the same way).
+            searchwatch/lindy.py is the estimator of a search that knows nothing but its age.
+  run       python3 -B searchwatch/track.py run NAME SEARCH N:M [--found FILE] ESTIMATOR ... -- COMMAND ...: starts
+            COMMAND, writes the start, runs the estimator while it waits, writes the end and exits with COMMAND's
+            status.  A hidden exclusive reservation precedes the launch.  The command owns a new process group, cleaned
+            even after a normal exit. SIGTERM, SIGINT and SIGHUP cancel that group and are recorded as negative
+            statuses; other launcher failures record status 1.
+  adopt     python3 -B searchwatch/track.py adopt NAME SEARCH N:M [--found FILE] ESTIMATOR ... -- PID: for a process
+            started without track.py: writes the start (its command as ps prints it, and "started", its start time as
+            ps prints it, which with its pid identifies it), polls it every POLL seconds, running the estimator as for
+            a launched one, and writes the end once no live process has that pid and start time.  A SIGKILL'd or
+            crashed tracker writes no end: the watcher then shows the run aborted once its process is gone.
+Refuses, writing nothing: a NAME or a SEARCH of other than letters, digits, '.', '_' and '-'; a NAME whose record
+exists (a name is one run); a target not N:M; an ESTIMATOR that is no file; an adopted PID with no live process.
 Quals: quals_track.py
 """
 import sys
 sys.dont_write_bytecode = True
 # TODO: error copy; says the script refuses to run under python -O, which would strip its assertions
 if not __debug__: raise SystemExit('Claude: "refusing to run without assertions (python -O)"')
-import os, re, json, time, shlex, signal, subprocess
+import os, re, json, math, time, glob, shlex, signal, contextlib, subprocess
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # the repository's root, above searchwatch/ (this file was at the root until 2026-11-10, dreeves's README [REF])
 RUNS = os.path.join(HERE, 'runs')
 POLL = 10                                              # seconds between an adopted process's checks
 GRACE = 2                                             # seconds before killing remaining owned processes
 CANCEL = (signal.SIGTERM, signal.SIGINT, signal.SIGHUP)
 RECORD = 'TRACK_RECORD'                               # the environment variable naming the record to its command
-ETA_EVERY = 1200.0                                    # seconds: the oldest a running search's latest eta line may be
-
-
-def program(cmd):
-    """The command's script: its first argument ending in .py, else its first word's name."""
-    return os.path.basename(next((a for a in cmd if a.endswith('.py')), cmd[0]))
+PERIOD = 300.0                                        # seconds between a run's estimates
+EST_GRACE = 30.0                                      # seconds a run's last estimator has to finish once the run ended
+STALE = 1200.0                                        # seconds: the oldest a running search's latest estimate may be
+START = {'event', 'name', 'search', 'target', 'estimator', 'command', 'cwd', 'found', 'adopted', 'pid', 'tracker', 'time'}
+ESTIMATE = {'event', 'time', 'basis', 'unit', 'done', 'rate', 'total', 'to_go', 'prior', 'exists'}
+BAND = {'median', 'lo', 'hi'}
 
 
 def identity(pid):
@@ -62,12 +82,16 @@ def identity(pid):
     return None if m is None or m[1].startswith('Z') else (m[1], m[2], m[3])
 
 
-def reserve(name, target):
+def reserve(name, search, target, estimator):
     """Validate and exclusively reserve a name before any command starts. A crash leaves its reservation for review."""
     # TODO: error copy; says the run's name may hold only letters, digits, dots, underscores and hyphens
     assert re.fullmatch(r'[\w.-]+', name), f'Claude: "a run name of letters, digits, ., _ and - only, not {name!r}"'
+    # TODO: error copy; says the search's label may hold only letters, digits, dots, underscores and hyphens
+    assert re.fullmatch(r'[\w.-]+', search), f'Fable 5.2: "a search label of letters, digits, ., _ and - only, not {search!r}"'
     # TODO: error copy; says the target must be N:M, the question m*(N) >= M?
     assert re.fullmatch(r'\d+:\d+', target), f'Claude: "a target of the form N:M, not {target!r}"'
+    # TODO: error copy; says the estimator named at launch is no file, so nothing was launched
+    assert os.path.isfile(estimator[0]), f'Fable 5.2: "the estimator {estimator[0]!r} is no file"'
     os.makedirs(RUNS, exist_ok=True)
     path, reservation = os.path.join(RUNS, name + '.jsonl'), os.path.join(RUNS, '.' + name + '.reserved')
     with open(reservation, 'x', encoding='utf-8'): pass
@@ -131,6 +155,45 @@ def cleanup(child, signum=signal.SIGTERM):
         child.wait()
 
 
+def estimate(estimator, path, ests):
+    """Starts the run's estimator on its record at path, and lists its process in ests: with the cancellation signals
+    blocked, so that none is started and not listed (it inherits the block; settle kills it with SIGKILL), and in a
+    session of its own, so that no signal to the tracker's or the run's group reaches it."""
+    mask = signal.pthread_sigmask(signal.SIG_BLOCK, CANCEL)
+    ests.append(subprocess.Popen([sys.executable, '-B', *estimator], env=dict(os.environ, **{RECORD: path}), start_new_session=True))
+    signal.pthread_sigmask(signal.SIG_SETMASK, mask)
+
+
+def settle(proc, seconds):
+    """Waits up to seconds for proc to end, then kills it (nothing to kill once it has ended) and reaps it."""
+    with contextlib.suppress(subprocess.TimeoutExpired): proc.wait(timeout=seconds)
+    proc.kill()
+    proc.wait()
+
+
+def follow(estimator, path, ests, going):
+    """A run's estimates while it runs: its estimator started now, and again each time going(PERIOD) says the run goes on
+    (going waits up to that many seconds for the run's end), the one before, if still running, killed first."""
+    estimate(estimator, path, ests)
+    while going(PERIOD):
+        settle(ests[-1], 0)
+        estimate(estimator, path, ests)
+
+
+def waited(child, seconds):
+    """Whether child ended within seconds."""
+    with contextlib.suppress(subprocess.TimeoutExpired): child.wait(timeout=seconds)
+    return child.returncode is not None
+
+
+def lasted(pid, started, seconds):
+    """Whether the process pid, started then (as ps prints it), still lives after seconds, polled every POLL seconds;
+    said as soon as it is gone."""
+    until = time.time() + seconds
+    while (alive := (identity(pid) or (None, None))[1] == started) and time.time() < until: time.sleep(min(POLL, seconds))
+    return alive
+
+
 class Cancelled(BaseException):
     """A cancellation signal, handled after the owned group has been cleaned."""
 
@@ -139,10 +202,11 @@ def cancel(signum, frame):
     raise Cancelled(signum)
 
 
-def run(name, target, found, cmd):
-    reservation = reserve(name, target)
-    fields = dict(program=program(cmd), command=shlex.join(cmd), cwd=os.getcwd(), adopted=False, pid=None, time=time.time())
-    child, path, status, signum = None, None, 1, signal.SIGTERM
+def run(name, search, target, found, estimator, cmd):
+    reservation = reserve(name, search, target, estimator)
+    fields = dict(search=search, estimator=shlex.join(estimator), command=shlex.join(cmd), cwd=os.getcwd(), adopted=False,
+                  pid=None, time=time.time())
+    child, path, status, signum, ests = None, None, 1, signal.SIGTERM, []
     handlers = {s: signal.getsignal(s) for s in CANCEL}
     mask = signal.pthread_sigmask(signal.SIG_BLOCK, CANCEL)
     try:
@@ -155,7 +219,8 @@ def run(name, target, found, cmd):
         fields['pid'] = child.pid
         path = start(name, target, found, fields)
         signal.pthread_sigmask(signal.SIG_SETMASK, mask)
-        status = child.wait()
+        follow(estimator, path, ests, lambda seconds: not waited(child, seconds))
+        status = child.returncode
     except Cancelled as exc:
         signum = exc.args[0]
         status = -signum
@@ -165,6 +230,7 @@ def run(name, target, found, cmd):
         try:
             if child is not None: cleanup(child, signum)
             if path is None: path = start(name, target, found, fields)
+            for est in ests[-1:]: settle(est, EST_GRACE)       # the last estimator, if any, before the end is written
             end(path, status)
             os.unlink(reservation)
         finally:
@@ -173,32 +239,130 @@ def run(name, target, found, cmd):
     raise SystemExit(status)
 
 
-def adopt(name, target, found, pid):
+def adopt(name, search, target, found, estimator, pid):
     me = identity(pid)
     # TODO: error copy; says no live process has this pid, so nothing was written
     assert me is not None, f'Claude: "no live process {pid}"'
-    reservation = reserve(name, target)
+    reservation = reserve(name, search, target, estimator)
     cmd = me[2]
     began = time.mktime(time.strptime(me[1], '%a %b %d %H:%M:%S %Y'))
-    path = start(name, target, found, dict(program=program(shlex.split(cmd)), command=cmd, cwd=os.getcwd(),
+    path = start(name, target, found, dict(search=search, estimator=shlex.join(estimator), command=cmd, cwd=os.getcwd(),
                                            adopted=True, pid=pid, started=me[1], time=began))
     os.unlink(reservation)
-    while (identity(pid) or (None, None))[1] == me[1]: time.sleep(POLL)
+    ests = []
+    follow(estimator, path, ests, lambda seconds: lasted(pid, me[1], seconds))
+    settle(ests[-1], EST_GRACE)
     end(path, None)
 
 
+def append(path, line):
+    """Appends line, a JSON object, to the record at path, whole (one write), never creating the record: as an
+    estimator writes its estimate."""
+    fd = os.open(path, os.O_WRONLY | os.O_APPEND)
+    try: os.write(fd, (json.dumps(line) + '\n').encode())
+    finally: os.close(fd)
+
+
+def lines(path):
+    """The record at path: its whole lines, as JSON (a last line still being written left out)."""
+    with open(path, 'rb') as f: data = f.read()
+    return [json.loads(x) for x in data[:data.rfind(b'\n') + 1].splitlines()]
+
+
+def number(x): return type(x) in (int, float) and math.isfinite(x)
+
+
+def band(b):
+    """Whether b is an estimate's median and band: {median, lo, hi}, numbers, 0 <= lo <= median <= hi."""
+    return type(b) is dict and set(b) == BAND and all(number(v) for v in b.values()) and 0 <= b['lo'] <= b['median'] <= b['hi']
+
+
+def checked(record):
+    """record, a record's lines, once they hold to the record's form (see the docstring; asserted): its start, then
+    its estimates in time order, none before the start, then at most its end."""
+    events = [x.get('event') for x in record]
+    # TODO: error copy; says a record holds other than its start, then estimates, then at most its end, giving its lines' events
+    assert re.fullmatch(r'start(,estimate)*(,end)?', ','.join(map(str, events))), f'Fable 5.2: "a record runs {events}"'
+    first, estimates = record[0], [x for x in record if x['event'] == 'estimate']
+    assert set(first) - {'started'} == START and ('started' in first) == first['adopted'], first
+    assert type(first['search']) is str and re.fullmatch(r'\d+:\d+', first['target']) and number(first['time']), first
+    for x in estimates:
+        assert set(x) == ESTIMATE and type(x['basis']) is str and type(x['unit']) is str, x
+        assert all(number(x[k]) for k in ('time', 'done', 'rate', 'prior', 'exists')) and band(x['total']) and band(x['to_go']), x
+        assert 0 <= x['done'] <= x['total']['lo'] and x['rate'] > 0 and 0 <= x['prior'] <= 1 and 0 <= x['exists'] <= 1, x
+    times = [first['time']] + [x['time'] for x in estimates]
+    assert times == sorted(times), times
+    return record
+
+
+def searches(runs=RUNS):
+    """The searches of the directory runs: {(label, target): its runs' records, in the order the runs started}, of
+    every record there, by their start lines alone: whoever reads a search checks its records (checked), so that a
+    record that does not hold to its form fails its own search and no other."""
+    records = sorted((lines(path) for path in glob.glob(os.path.join(runs, '*.jsonl'))), key=lambda r: (r[0]['time'], r[0]['name']))
+    return {key: [r for r in records if (r[0]['search'], r[0]['target']) == key]
+            for key in sorted({(r[0]['search'], r[0]['target']) for r in records})}
+
+
+def search_of(path, now):
+    """The search of the record at path, as an estimator reads it at time now: (its runs' records, by the records
+    beside that one, and its passes then)."""
+    first, procs = lines(path)[0], processes()
+    runs = [checked(r) for r in searches(os.path.dirname(path))[first['search'], first['target']]]
+    return runs, passes([span(r, procs, now) for r in runs])
+
+
+def processes():
+    """{pid: its stat as ps prints it} of the live processes, zombies left out."""
+    out = subprocess.run(['ps', '-A', '-o', 'pid=,stat='], capture_output=True, text=True, check=True).stdout
+    return {int(pid): stat for pid, stat in (line.split() for line in out.splitlines()) if not stat.startswith('Z')}
+
+
+def state(record, procs):
+    """A run's state by its record and the live processes (processes): with an end, ended if its status is 0 or null,
+    else aborted; with none, running while its process lives, frozen while that is stopped (stat T), and aborted once
+    it is gone (its tracker died before writing the end)."""
+    last, stat = record[-1], procs.get(record[0]['pid'], 'gone')
+    closed = 'ended' if last.get('status') in (0, None) else 'aborted'
+    open_ = 'aborted' if stat == 'gone' else 'frozen' if stat.startswith('T') else 'running'
+    return closed if last['event'] == 'end' else open_
+
+
+def span(record, procs, now):
+    """[when the run started, when it stopped]: at its end's time; with no end, now while its process lives, else at
+    its last line's time."""
+    going = record[-1]['event'] != 'end' and record[0]['pid'] in procs
+    return [record[0]['time'], now if going else record[-1]['time']]
+
+
+def passes(spans):
+    """The stretches during which some run was going: the spans' union, as disjoint [start, end]s in order (spans that
+    overlap or touch are one stretch)."""
+    out = []
+    for a, b in sorted(spans):
+        out += [[a, b]] * (not out or a > out[-1][1])           # a new stretch, unless this span starts within the last
+        out[-1][1] = max(out[-1][1], b)
+    return out
+
+
+def running(passes, t):
+    """The seconds of running before time t: the passes' seconds before it."""
+    return sum(max(0, min(b, t) - a) for a, b in passes)
+
+
 def main(argv):
-    # TODO: error copy; says how to run the script, in its two modes
-    usage = 'Claude: "usage: track.py run NAME N:M [--found FILE] -- COMMAND ...  |  track.py adopt NAME N:M PID [--found FILE]"'
-    assert len(argv) >= 3 and argv[0] in ('run', 'adopt'), usage
-    mode, name, target, rest = argv[0], argv[1], argv[2], argv[3:]
-    if mode == 'run':
-        assert '--' in rest, usage
-        opts, cmd = rest[:rest.index('--')], rest[rest.index('--') + 1:]
-        assert cmd and len(opts) in (0, 2) and opts[:1] in ([], ['--found']), usage
-        run(name, target, opts[1] if opts else None, cmd)
-    assert len(rest) in (1, 3) and rest[0].isdigit() and rest[1:2] in ([], ['--found']), usage
-    adopt(name, target, rest[2] if len(rest) == 3 else None, int(rest[0]))
+    # TODO: error copy; says how to run the script, in its two modes: run and adopt, each with the run's name, its search's label, its target, an optional file of results, the estimator and its arguments, then -- and the command or the process's pid
+    usage = ('Fable 5.2: "usage: track.py run NAME SEARCH N:M [--found FILE] ESTIMATOR ... -- COMMAND ...  |  '
+             'track.py adopt NAME SEARCH N:M [--found FILE] ESTIMATOR ... -- PID"')
+    assert len(argv) >= 7 and argv[0] in ('run', 'adopt') and '--' in argv[4:], usage
+    (mode, name, search, target), cut = argv[:4], argv.index('--', 4)
+    opts, subject = argv[4:cut], argv[cut + 1:]
+    k = 2 * (opts[:1] == ['--found'])                  # the words of --found FILE, if given
+    found, estimator = (opts[1:k] + [None])[0], opts[k:]
+    assert estimator and subject, usage
+    assert mode == 'run' or (len(subject) == 1 and subject[0].isdigit()), usage
+    {'run': lambda: run(name, search, target, found, estimator, subject),
+     'adopt': lambda: adopt(name, search, target, found, estimator, int(subject[0]))}[mode]()
 
 
 if __name__ == '__main__':

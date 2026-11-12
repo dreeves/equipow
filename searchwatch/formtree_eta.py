@@ -1,5 +1,15 @@
 """Work-based uncertainty model for the checked form-tree search.
 
+Since 2026-11-11 (Fable 5.2) also the estimator (see track.py's vocabulary) of a form-tree search, which the tracker
+runs beside it:
+
+    python3 -B searchwatch/track.py run NAME SEARCH N:M searchwatch/formtree_eta.py VERDICTS MODEL PRIOR -- COMMAND ...
+
+VERDICTS is the search's verdicts.jsonl (the driver's, searches/formtree/ftree.py), MODEL the file of its work model
+(read_model) and PRIOR the probability, before the search, that what it searches for exists.  Each time it is run it
+appends one estimate (estimate, below) to the record that TRACK_RECORD names, of that record's search; with no work
+done yet, with an open node among the verdicts, or with every root complete it fails and appends nothing.
+
 The frozen model stores independent eight-dive blocks for each initial root.
 A shared multiplicative discrepancy represents errors that more root samples
 cannot average away. Remaining roots condition that factor jointly on their
@@ -13,10 +23,14 @@ import copy
 import hashlib
 import json
 import math
+import os
 from pathlib import Path
 import re
+import sys
+import time
 import chance
 import formtree_work
+import track
 import numpy as np
 from scipy.special import ndtr, ndtri, log_ndtr, ndtri_exp
 
@@ -109,6 +123,62 @@ def draws(model, work, count=4096):
     return dict(total=trees.sum(axis=1),rate=rate,weight=weight,trees=trees,base=base,proposal=proposal,
                 bias_mean=bias_mean,bias_sd=bias_sd,completed_log_likelihood=log_likelihood,
                 root_log_sd=np.broadcast_to(local_sd,(len(weight),)))
+
+
+def rate(points):
+    """A search's nodes checked a second of running, from points, [(seconds of running, nodes checked by then), ...]
+    in order from (0, 0): each interval between them weighted by exp(-age / formtree_work.TAU), its age measured
+    between middles back from the newest interval, whose weight is then exactly 1 (as formtree_work.read's of a log's
+    intervals; dreeves, 2026-11-07: "maybe 3 hours at least, or just do an exponentially weighted moving average of
+    rates")."""
+    pairs = list(zip(points, points[1:]))
+    newest = (pairs[-1][0][0] + pairs[-1][1][0]) / 2
+    weights = [math.exp(((a[0] + b[0]) / 2 - newest) / formtree_work.TAU) for a, b in pairs]
+    return (sum(w * (b[1] - a[1]) for w, (a, b) in zip(weights, pairs))
+            / sum(w * (b[0] - a[0]) for w, (a, b) in zip(weights, pairs)))
+
+
+FLOOR, DRAWS = 1000, 65536      # the effective draws a forecast needs, and the proposals it starts with (attach's, for a version-2 model)
+
+
+def sampled(model, work):
+    """draws of the model given the work, the proposals doubled from DRAWS until their effective draws reach FLOOR, at
+    most PROPOSALS_CAP of them (asserted: a concentrated proposal must not publish an apparently precise forecast)."""
+    count = DRAWS
+    samples = draws(model, work, count=count)
+    while float(1 / (samples['weight'] @ samples['weight'])) < FLOOR and count < PROPOSALS_CAP:
+        count *= 2
+        samples = draws(model, work, count=count)
+    assert float(1 / (samples['weight'] @ samples['weight'])) >= FLOOR, count
+    return samples
+
+
+MODEL = {'kind', 'seed', 'roots', 'log_bias', 'discrepancy_log_sd', 'rate_log_sd', 'root_log_sd', 'root_log_sd_uncertainty',
+         'provenance', 'assumptions'}
+
+
+def read_model(path):
+    """The work model in the file at path, as draws reads it: {kind: formtree, seed, roots: [{name, blocks}, ...] (each
+    root's dive estimates of its tree's nodes, in blocks of eight), log_bias, discrepancy_log_sd, rate_log_sd,
+    root_log_sd, root_log_sd_uncertainty (draws's docstring), and provenance and assumptions, which say in words where
+    the dives and the parameters came from and what is assumed of them}."""
+    model = json.loads(Path(path).read_text())
+    assert set(model) == MODEL and model['kind'] == 'formtree', sorted(model)
+    assert model['roots'] and all(set(r) == {'name', 'blocks'} for r in model['roots']), path
+    return model
+
+
+def estimate(model, roots, points, prior):
+    """A form-tree search's estimate (track.py's vocabulary), without its time: of basis formtree, in nodes; done the
+    nodes checked (roots, formtree_work._roots's rows: each root's exact count and whether it is complete), their rate
+    by points (rate); the total nodes when the tree is exhausted and the seconds of running until then, and
+    P(exists | none found so far) from the prior, by the model's draws given that work (sampled) and chance.work."""
+    done = sum(r['done'] for r in roots)
+    work = dict(roots=roots, done=done, rate=rate(points))
+    samples = sampled(model, work)
+    forecast = chance.work(prior, samples['total'], done, samples['rate'] * 3600, samples['weight'])
+    return dict(event='estimate', basis='formtree', unit='nodes', done=done, rate=work['rate'], total=forecast['total'],
+                to_go=forecast['to_go'], prior=prior, exists=forecast['exists'])
 
 
 def history(points, current, now, period=900):
@@ -265,3 +335,15 @@ def attach(s, root, model_path, p_exists, now, cache):
     # checked and whether complete, and the weighted draws (draws's) while the model forecasts, else None
     return s | dict(to_go=to_go,display=s['display'] | dict(lindy=False,work_eta=metadata),odds=odds,roots=w['roots'],
                     posterior=samples)
+
+
+if __name__ == '__main__':
+    verdicts, model, prior = sys.argv[1], read_model(sys.argv[2]), float(sys.argv[3])
+    path, now = os.environ[track.RECORD], time.time()
+    runs, passes = track.search_of(path, now)
+    roots = formtree_work._roots([json.loads(x) for x in formtree_work._prefix(Path(verdicts))[0].splitlines()], [r['name'] for r in model['roots']])
+    # the search's nodes checked against its seconds of running: none at its start, then as each of its estimates of
+    # this basis found them, then now
+    before = sorted((x['time'], x['done']) for r in runs for x in r if x['event'] == 'estimate' and x['basis'] == 'formtree')
+    points = [(0.0, 0)] + [(track.running(passes, t), done) for t, done in before] + [(track.running(passes, now), sum(r['done'] for r in roots))]
+    track.append(path, dict(estimate(model, roots, points, prior), time=now))

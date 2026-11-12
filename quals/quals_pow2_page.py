@@ -811,6 +811,7 @@ def run(name):
             qi.copy_page_dir(p)
             # a progress.js with no runs (2026-11-04): an open cell's box loads it to show the searches at its cell
             open(qi.data_file(p, 'progress.js'), 'w', encoding='utf-8').write('progressData(' + json.dumps(NO_RUNS) + ');\n')
+            qi.no_searches(p)                         # the page's fourth data file, since 2026-11-11
             js = SOURCES[source]() if source else None
             if js: open(qi.data_file(p, 'pow2.js'), 'w', encoding='utf-8').write(js)
             urls.append('file://' + os.path.join(p, 'index.html') + c.get('fragment', ''))

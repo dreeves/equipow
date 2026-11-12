@@ -102,6 +102,15 @@ def copy_page_dir(d):
     shutil.copytree(PAGE_DIR, os.path.join(d, 'page'))
 
 
+def no_searches(d):
+    """The data file of the tracked searches (pagedata/searches.js, searchwatch/watch.py's), with no search, for the copy
+    of the page in directory d.  Since 2026-11-11 the section "Search progress" loads that file before progress.js
+    (Fable 5.2; dreeves: "the search progress code seems like a shitshow; can you revamp it?"), so a copy of the page
+    that gets a progress.js gets this beside it: without it the page logs a file that failed to load, as it would for
+    any of its data files."""
+    open(data_file(d, 'searches.js'), 'w', encoding='utf-8').write('searchesData(' + json.dumps({'made': 1792200000, 'runs': []}) + ');\n')
+
+
 def the_theorem(text):
     """The text of the powers-of-2 section's theorem in text (index.html), after its label, "Theorem 1." (dreeves's
     README, 2026-11-04: "[THM] Call the theorem in equipow Theorem 1"; it was "Theorem 1." from 819936b, 2026-10-17,
@@ -1211,6 +1220,7 @@ def run(name):
         shutil.copy(POW2, data_file(d, 'pow2.js'))
         if name in BOXES or name in BOX_LOADS:
             open(data_file(d, 'progress.js'), 'w', encoding='utf-8').write('progressData(' + json.dumps(BOX_PROGRESS) + ');\n')
+            no_searches(d)
         open(os.path.join(d, 'host.html'), 'w').write(HOST.replace('__WIDTH__', str(width)).replace(
             'src="index.html"', f'src="index.html{(FRAGMENTS | BOX_LOADS).get(name, "")}"'))
         dom = chrome(d, ['--disable-ipc-flooding-protection'] * (name in PANELS) + [f'--window-size={max(width, 500) + 40},1100', f'--force-device-scale-factor={dpr}',
@@ -1836,7 +1846,7 @@ def q_new_results_fit_unscrolled_at_945_px():
     # wider than its frame, so neither frame scrolls.
     d = tempfile.mkdtemp(prefix='index-quals-')
     try:
-        for name in ('mstar.js', 'pow2.js', 'progress.js'): shutil.copy(os.path.join(HERE, PAGEDATA, name), data_file(d, name))
+        for name in ('mstar.js', 'pow2.js', 'progress.js', 'searches.js'): shutil.copy(os.path.join(HERE, PAGEDATA, name), data_file(d, name))   # searches.js since 2026-11-11: the page's fourth data file
         copy_page_dir(d)
         script = ("<script>addEventListener('load', () => setTimeout(() => { const p = document.createElement('pre'); p.id = 'fit'; "
                   "p.textContent = JSON.stringify([...document.querySelectorAll('.new-block .scroll')].map(f => ({frame: f.clientWidth, "
@@ -5306,7 +5316,8 @@ PROGRESS_HARNESS = """<script>
   try {
     window.harnessMarker = 'kept';
     out.before = {open: details.open, loads: view().loads, renders: view().renders,
-                  scripts: [...document.scripts].filter(s => /progress[.]js/.test(s.getAttribute('src') || '')).length};
+                  // the section's data scripts in flight: searches.js, which it loads first since 2026-11-11, or progress.js after it
+                  scripts: [...document.scripts].filter(s => /(?:searches|progress)[.]js/.test(s.getAttribute('src') || '')).length};
     out.stored = {before: localStorage.getItem('progress-open')};
     details.open = true;
     await sleep(3500);
@@ -5404,6 +5415,7 @@ def progress_run(case='main'):
         open(os.path.join(d, 'index.html'), 'w', encoding='utf-8').write(text)
         copy_page_dir(d)
         open(data_file(d, 'progress.js'), 'w', encoding='utf-8').write('progressData(' + json.dumps(data) + ');\n')
+        no_searches(d)
         shutil.copy(DATA, data_file(d, 'mstar.js'))
         shutil.copy(POW2, data_file(d, 'pow2.js'))
         dom = chrome(d, ['--window-size=1000,1100', '--force-device-scale-factor=2', '--virtual-time-budget=20000',
@@ -5905,6 +5917,9 @@ def q_progress_remembers_it_was_left_open():
     # Expectata (dreeves, 2026-10-17: reloads kept closing the section; "2": remember it in the browser): main starts
     # closed with nothing stored, stores "1" once opened and nothing once closed; remembered starts open, its data
     # loading already (a progress.js script and at least one load before the harness touched it), then the same.
+    # Spec change (Fable 5.2, 2026-11-11; dreeves: "the search progress code seems like a shitshow; can you revamp
+    # it?"): the section loads the tracked searches' data file, searches.js, first, and progress.js once that has
+    # come, so the script in flight before the harness touches the page is either of the two.
     main, kept = progress_run(), progress_run('remembered')
     assert main['before']['open'] is False and main['stored'] == {'before': None, 'opened': '1', 'closed': None}, main['stored']
     assert kept['before']['open'] is True and kept['before']['loads'] >= 1 and kept['before']['scripts'] >= 1, kept['before']
@@ -6212,6 +6227,7 @@ def q_progress_cpu_chart_shows_no_paper_between_its_bands():
         open(os.path.join(d, 'index.html'), 'w', encoding='utf-8').write(page().replace('<head>\n', '<head>\n' + keep))
         copy_page_dir(d)
         open(data_file(d, 'progress.js'), 'w', encoding='utf-8').write('progressData(' + json.dumps({'made': made, 'runs': [run]}) + ');\n')
+        no_searches(d)
         shutil.copy(DATA, data_file(d, 'mstar.js'))
         shutil.copy(POW2, data_file(d, 'pow2.js'))
         shot = os.path.join(d, 'shot.png')
@@ -6335,6 +6351,7 @@ def q_progress_reloads_on_returning_to_the_tab():
     open(os.path.join(d, 'index.html'), 'w', encoding='utf-8').write(text)
     copy_page_dir(d)
     open(data_file(d, 'progress.js'), 'w', encoding='utf-8').write('progressData(' + json.dumps(PROGRESS_DATA) + ');\n')
+    no_searches(d)
     shutil.copy(DATA, data_file(d, 'mstar.js'))
     shutil.copy(POW2, data_file(d, 'pow2.js'))
     dom = chrome(d, ['--virtual-time-budget=5000', '--dump-dom', 'file://' + os.path.join(d, 'index.html')])
@@ -6370,6 +6387,7 @@ def progress_harness(data, harness, before=''):
     open(os.path.join(d, 'index.html'), 'w', encoding='utf-8').write(text)
     copy_page_dir(d)
     open(data_file(d, 'progress.js'), 'w', encoding='utf-8').write('progressData(' + json.dumps(data) + ');\n')
+    no_searches(d)
     shutil.copy(DATA, data_file(d, 'mstar.js'))
     shutil.copy(POW2, data_file(d, 'pow2.js'))
     dom = chrome(d, ['--window-size=1000,1100', '--virtual-time-budget=5000', '--dump-dom', 'file://' + os.path.join(d, 'index.html')])

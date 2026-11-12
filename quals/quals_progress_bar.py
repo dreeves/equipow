@@ -113,6 +113,7 @@ def render(width):
         shutil.copy(page.DATA, page.data_file(d, 'mstar.js'))
         shutil.copy(page.POW2, page.data_file(d, 'pow2.js'))
         Path(page.data_file(d, 'progress.js')).write_text('progressData(' + json.dumps(copy.deepcopy(page.PROGRESS_DATA)) + ');\n')
+        page.no_searches(d)                     # the page's fourth data file, since 2026-11-11
         Path(d, 'host.html').write_text(page.HOST.replace('__WIDTH__', str(width)))
         args = [f'--window-size={max(width, 500) + 40},1100', '--force-device-scale-factor=1', '--virtual-time-budget=10000', '--dump-dom']
         if artifacts:

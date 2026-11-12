@@ -3060,7 +3060,7 @@ def survey_track(target, records, procs, now, etas=None, cpu=()):
     should say if it's just using lindy").  Each
     record is its start line, then its eta lines, each {event, time, median, lo, hi}, lo <= median <= hi, finite from 0,
     in time order, none before the start, then its end line once it ended (all asserted); and while it runs, its latest
-    eta line, if any, at most track.ETA_EVERY seconds old (asserted: past that, the watcher shows it stale rather than an
+    eta line, if any, at most track.STALE seconds old (asserted: past that, the watcher shows it stale rather than an
     old estimate as current; dreeves, 2026-11-04: "can we be more anti-postel than that?").  Its cpu (2026-11-07) is cpu_series of
     cpu, the machine's intervals (cpu.py), within its time, for its records' names."""
     n, order = map(int, target.split(':'))
@@ -3089,9 +3089,9 @@ def survey_track(target, records, procs, now, etas=None, cpu=()):
     codes = ''.join(str(SEA_STATUSES.index(dots[st])) for st in states)
     work = dict(runs=len(states), **{st: states.count(st) for st in ('running', 'frozen', 'ended', 'aborted')}, found=found)
     latest = max((x for r in records for x in r if x['event'] == 'eta'), key=lambda x: x['time'], default=None)
-    # TODO: error copy; says a running search's latest estimate is older than its producer promised (track.py's ETA_EVERY), naming the target and the estimate's time
-    assert state != 'running' or latest is None or now - latest['time'] <= track.ETA_EVERY, \
-        f'Claude: "the latest estimate of {target}, made at {clock(latest["time"])}, is more than {track.ETA_EVERY:.0f} s old"'
+    # TODO: error copy; says a running search's latest estimate is older than its producer promised (track.py's STALE), naming the target and the estimate's time
+    assert state != 'running' or latest is None or now - latest['time'] <= track.STALE, \
+        f'Claude: "the latest estimate of {target}, made at {clock(latest["time"])}, is more than {track.STALE:.0f} s old"'
     eta = ((gott(t1 - t0) if latest is None else [latest[k] / HOUR for k in ('median', 'lo', 'hi')])
            if state == 'running' else None)
     if state == 'running':

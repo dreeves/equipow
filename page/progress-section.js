@@ -34,12 +34,22 @@
   const stage = section.querySelector('template.progress-stage');    // one later stage in a run's line of stages
   const poolLine = section.querySelector('template.progress-pool-line');   // the pool chart's tip: a moment's line
   const missing = section.querySelector('.progress-missing');
+  // The tracked searches (Fable 5.2, 2026-11-11; dreeves: "the search progress code seems like a shitshow; can you revamp
+  // it? ... anti-magic anti-magic anti-magic"): searches.js, one call, searchesData({made, runs}), which
+  // searchwatch/watch.py copies from the searches' records: every entry the same fields (watch.py's docstring), so
+  // every box the same parts, drawn by one path (searchBox): the work bar, in the unit the search counts its work in;
+  // the ETA chart; the status line; the CPU chart; its runs' counts and dots; and its prior and its graph of
+  // P(exists).  Their boxes go above the earlier runs' (progress.js, which no watcher writes any more), under a line
+  // of their own snapshot's time.
+  const searchesBox = section.querySelector('.progress-searches');
+  const missingSearches = section.querySelector('.progress-missing-searches');
   const POLL = window.PROGRESS_POLL_MS || 60000;
   const wall = window.PROGRESS_CLOCK || (() => Date.now() / 1000);   // the clock, in seconds: Date's, or the quals' (as POLL)
   const KEPT = 'progress-open';                // localStorage: "1" while this browser last left the section open
   const FOLD = 'progress-fold ';               // localStorage: "1" under this, a run's program, n and order while its fold is open
-  const view = window.progressView = {loads: 0, renders: 0, data: null, layouts: []};
+  const view = window.progressView = {loads: 0, renders: 0, data: null, layouts: [], searches: {made: null, runs: []}, searchLayouts: []};
   let poll = null, ticker = null, made = null, resizing = null, clips = 0;   // clips: the charts' clip paths made, for their ids
+  let redraw = () => {};                       // draws the tracked searches' boxes again (a resize), once they have data
   // each status line's running form's time so far, as [its element, the clock time it counts from], which tick writes
   // each second as the clock goes on (statusLine; dreeves, 2026-11-07: "make it update second by second")
   let live = [];
@@ -155,8 +165,16 @@
   const signedNet = new Intl.NumberFormat('en-US', {signDisplay: 'exceptZero', minimumFractionDigits: 2, maximumFractionDigits: 2});
   const minus = text => text.replace('-', '\u2212');
 
+  // the tracked searches' data first, then the earlier runs', whose arrival answers the charts' boxes with both
   function load() {
     view.loads += 1;
+    const s = document.createElement('script');
+    s.src = 'pagedata/searches.js?' + Date.now();
+    s.onload = () => { s.remove(); loadRuns(); };
+    s.onerror = () => { s.remove(); missingSearches.hidden = false; loadRuns(); };
+    document.head.appendChild(s);
+  }
+  function loadRuns() {
     const s = document.createElement('script');
     s.src = 'pagedata/progress.js?' + Date.now();
     s.onload = () => s.remove();
@@ -200,9 +218,8 @@
   // Each second while the section is open: the snapshot's age, and each running form's time so far (live) still on the
   // page, from the clock (wall); none before the first snapshot
   function tick() {
-    if (made === null) return;
     const now = wall();
-    section.querySelector('[data-age]').textContent = hms(now - made);
+    for (const [field, t] of [['age', made], ['searches-age', view.searches.made]].filter(([, t]) => t !== null)) fill(section, field, hms(now - t));
     live = live.filter(([e]) => e.isConnected);
     for (const [e, since] of live) e.textContent = hms(now - since);
   }
@@ -210,8 +227,9 @@
   window.progressData = data => {
     missing.hidden = true;
     answer((n, m) => {
-      const here = data.runs.filter(r => BigInt(r.n) === n && r.order === m);
-      return here.length ? here.flatMap(run => brief(run, data.made)) : ['—'];
+      const at = r => BigInt(r.n) === n && r.order === m, here = data.runs.filter(at);
+      const briefs = [...view.searches.runs.filter(at).flatMap(run => searchBrief(run, view.searches.made)), ...here.flatMap(run => brief(run, data.made))];
+      return briefs.length ? briefs : ['—'];
     });
     if (data.made === made) return;
     made = data.made;
@@ -219,6 +237,105 @@
     view.data = {...data, runs: [...data.runs.filter(r => r.state === 'running'), ...data.runs.filter(r => r.state !== 'running')]};
     render();
   };
+
+  // The tracked searches' snapshot: its runs' boxes, the running ones first, the rest in the data's order (as the
+  // earlier runs' below), drawn when the snapshot's time changed
+  window.searchesData = data => {
+    missingSearches.hidden = true;
+    const fresh = data.made !== view.searches.made;
+    view.searches = {...data, runs: [...data.runs.filter(r => r.state === 'running'), ...data.runs.filter(r => r.state !== 'running')]};
+    redraw = renderSearches;
+    if (fresh) renderSearches();
+  };
+
+  function renderSearches() {
+    const data = view.searches, drawn = data.runs.map(run => searchBox(run, data.made));
+    fill(section, 'searches-made', stamp(data.made));
+    view.searchLayouts = drawn.map(d => d.layout);
+    searchesBox.replaceChildren(...drawn.map(d => d.box));   // swapped in at once, as render's
+    tick();
+  }
+
+  // A tracked search's box, every search's the same (see the top): the run box's template with the parts every
+  // search has, filled from its entry; the pool chart, the stages' line and the statuses' key of the earlier
+  // engines' runs are no part of it.  Its dots are its runs, a dot each, under the line of their counts, and the note
+  // that its ETA is Lindy's rule alone is its basis's (lindy.py's), shown while it runs (the stylesheet's).
+  function searchBox(run, made) {
+    const box = template.content.firstElementChild.cloneNode(true);
+    box.dataset.runState = run.state;
+    remember(box.querySelector('details'), `${FOLD}${run.search} ${run.n} ${run.order}`);
+    heading(box, {...run, program: run.search});
+    box.querySelector('[data-tip]').replaceChildren(line.content.cloneNode(true));
+    staleView(box, run);
+    statusLine(box, run, made);
+    for (const e of box.querySelectorAll('.progress-pool, [data-stages], .progress-key')) e.remove();
+    workBar(box, run.work);
+    runsLine(box, run);
+    const layout = sea(box, run);
+    layout.etaXs = etaChart(box.querySelector('.progress-eta'), run);
+    cpuChart(box.querySelector('.progress-cpu'), run);
+    box.querySelector('[data-lindy]').hidden = run.basis !== 'lindy';
+    oddsChart(box.querySelector('.progress-odds'), run);
+    return {box, layout};
+  }
+
+  // A tracked search's brief, for a chart's box (want): its heading, its state and its time so far, then the row its
+  // work's unit picks: the bar's caption where it counts nodes, the status line where its work is its time (which the
+  // caption would say twice)
+  const BRIEF_ROW = {nodes: '.progress-bar-caption', seconds: '.progress-status'};
+  function searchBrief(run, made) {
+    const {box} = searchBox(run, made), said = document.createElement('p');
+    said.append(...box.querySelector('summary h3').childNodes, ' ', ...box.querySelector('summary').querySelectorAll(':scope > span'),
+                ' ', hms(run.so_far));
+    return [said, box.querySelector(BRIEF_ROW[run.work.unit])];
+  }
+
+  // A tracked search's runs: the line of their counts by state and of what they found, below the CPU chart, and the
+  // dots' hint, a dot per run (the templates progress-track and progress-track-hint)
+  function runsLine(box, run) {
+    const counts = section.querySelector('template.progress-track').content.cloneNode(true);
+    for (const e of counts.querySelectorAll('[data-attempt-count]')) e.textContent = run.runs[e.dataset.attemptCount].toLocaleString('en-US');
+    counts.querySelector('[data-search-state]').textContent = run.state;
+    box.querySelector('[data-track-line]').replaceChildren(counts);
+    const hint = section.querySelector('template.progress-track-hint').content;
+    box.querySelector('[data-readout]').replaceChildren(hint.cloneNode(true));
+    box.querySelector('canvas').setAttribute('aria-label', hint.textContent.trim());
+  }
+
+  // A tracked search's work bar (the bar below's design, dreeves's of 2026-11-06), every search's, from its latest
+  // estimate's work, {unit, done, rate, total: {median, lo, hi}}: a track from 0 to the last of its round ticks, PAST
+  // times the total's upper end at least; blue up to the work done; the total's band purple, its median a tick; the
+  // caption's blue part its unit's (template.progress-unit), with the work done, exact, and its rate, then the
+  // total's range.  How a unit's numbers read: nodes as counts, the ticks and the range compact (500M, 1B); seconds
+  // as times, the work done as the time so far is written (hms) and the ticks and the range as the ETA chart's.
+  const WORK = {
+    nodes: {ticks: top => { const t = countTicks(top); return [t, t.map(v => compact.format(v))]; },
+            done: v => v.toLocaleString('en-US'), range: t => `${compact.format(t.lo)}–${compact.format(t.hi)}`},
+    seconds: {ticks: top => { const [t, labels] = axis(top / 3600, Math.ceil); return [t.map(h => 3600 * h), labels]; },
+              done: v => hms(v), range: t => range(t.lo, t.hi, spread(t))},
+  };
+  function workBar(box, work) {
+    const PAST = 1.1, {unit, done, rate, total} = work, form = WORK[unit];
+    assert(form && [done, rate, total.lo, total.median, total.hi].every(Number.isFinite) && 0 <= done && done <= total.lo &&
+           total.lo <= total.median && total.median <= total.hi, work);
+    box.querySelector('.progress-work').hidden = false;
+    box.querySelector('.progress-bar-caption .spent').replaceWith(section.querySelector(`template.progress-unit[data-unit="${unit}"]`).content.cloneNode(true));
+    const [ticks, labels] = form.ticks(Math.max(1, PAST * total.hi)), end = ticks[ticks.length - 1];
+    const part = name => box.querySelector(`[data-bar="${name}"]`);
+    part('done').style.width = pct(done / end);
+    part('band').style.left = pct(total.lo / end);
+    part('band').style.width = pct((total.hi - total.lo) / end);
+    part('median').style.left = pct(total.median / end);
+    part('ticks').replaceChildren(...ticks.map((v, i) => {
+      const tick = document.createElement('span');
+      tick.style.left = pct(v / end);
+      tick.textContent = labels[i];
+      return tick;
+    }));
+    fill(box, 'bar-done', form.done(done));
+    fill(box, 'work-rate', rate.toLocaleString('en-US', {maximumFractionDigits: 1}));
+    fill(box, 'bar-range', form.range(total));
+  }
 
   function render() {
     const data = view.data;
@@ -814,6 +931,6 @@
   sync();                                      // in case it is open already: its toggle may have fired before this ran
   window.addEventListener('resize', () => {
     clearTimeout(resizing);
-    resizing = setTimeout(() => { if (details.open && view.data) render(); }, 200);
+    resizing = setTimeout(() => { if (details.open && view.data) render(); if (details.open) redraw(); }, 200);
   });
 })();
