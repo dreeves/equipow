@@ -99,6 +99,7 @@ HARNESS = r"""<script>
     const none = await new Promise(done => window.progressView.want(7n, 3, nodes => done(nodes)));
     result.none = none.map(e => typeof e === 'string' ? e : e.textContent);
     result.etaXs = window.progressView.layouts.map(L => L.etaXs);
+    result.figureText = getComputedStyle(document.getElementById('mstar-readout')).fontSize;   // Figure 1's readout, as its legend's
     // the words of each graph, with where they sit against it and their size (2026-11-12)
     const after = (a, b) => !!(a && b && (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING));
     const size = e => e && getComputedStyle(e).fontSize;
@@ -138,7 +139,7 @@ HARNESS = r"""<script>
       return read;
     };
     result.hovers = box && {eta: hover('.progress-eta', L.etaXs[1]), cpu: hover('.progress-cpu', (L.etaXs[0] + L.etaXs[1]) / 2),
-                            pending: hover('.progress-pending', L.pendingXs[1])};   // none on a page with no box
+                            pending: hover('.progress-pending', L.pendingXs[1]), odds: hover('.progress-odds', L.oddsXs[1])};   // none on a page with no box
     result.width = document.documentElement.scrollWidth;
   } catch (e) { result.error = String(e.stack || e); }
   parent.postMessage(JSON.stringify(result), '*');
@@ -238,36 +239,40 @@ def q_each_graph_s_title_is_above_it_its_numbers_below_in_one_size():
     # title over theirs, the runs' counts over the dots, the prior and the title over the probability graph; each
     # graph's numbers under it: the bar's caption under the bar, the status line under the ETA chart, the dots' hint
     # under the dots; and the tip, which reads out the estimate under the pointer, over the ETA chart.  All of them, and
-    # the note on Lindy's rule, in one font size, the bar caption's (the status line, the tip, the runs' counts, the
-    # hint, the titles and the note were in the body's size until then); the tip, its time gone to the x axis, one line,
-    # as high as the status line.  The ETA, CPU and pending charts' x axes labeled alike, the same hours (they share the
-    # axis), in one size (the CPU and pending charts' were unlabeled until then).
+    # the note on Lindy's rule, in one font size, that of the page's other figures' words, Figure 1's readout and legend
+    # (dreeves, that afternoon, of the bar caption's size, 0.85rem, which they had taken that noon: "the fonts seem overly
+    # shrunk compared to the rest of the page's text"; until that noon the status line, the tip, the runs' counts, the
+    # hint, the titles and the note were in the body's size); the tip, its time gone to the x axis, one line, as high
+    # as the status line.  The ETA, CPU and pending charts' x axes labeled alike, the same hours (they share the axis);
+    # the axis labels of all of them and of the bar in one size (the CPU and pending charts' were unlabeled until then).
     for width in (1280, 390):
         r = report(width)
         for b, w in zip(r['boxes'], r['words']):
             assert all(w['below'].values()) and all(w['above'].values()), (width, b['label'], w['below'], w['above'])
-            assert len(set(w['sizes'].values())) == 1 and w['sizes']['bar'] is not None, (width, b['label'], w['sizes'])
+            assert set(w['sizes'].values()) == {r['figureText']}, (width, b['label'], w['sizes'], r['figureText'])
             assert w['ticks'][1] == w['ticks'][2] == w['ticks'][3] and len(w['ticks'][1]) >= 2, (width, b['label'], w['ticks'])
-            assert len(set(w['tickSizes'][1:])) == 1, (width, b['label'], w['tickSizes'])
+            assert len(set(w['tickSizes'])) == 1, (width, b['label'], w['tickSizes'])
         assert all(abs(w['tipHeight'] - w['statusHeight']) < 1 for w in r['words'][:1]), (width, r['words'][0]['tipHeight'], r['words'][0]['statusHeight'])
 
 
 def q_hovering_floats_the_time_on_the_x_axis():
     # Replicata: the same page at 1280 px; the pointer over the running form tree's ETA chart at its second estimate,
-    # then away; over its CPU chart in its first row, then away; over its nodes pending at their second point, then away.
+    # then away; over its CPU chart in its first row, then away; over its nodes pending at their second point, then away;
+    # over its probability graph at its second point, then away.
     # Expectata (dreeves, 2026-11-12: "the wrapping in this screenshot is a little awkward; what if we showed the
     # timestamp more subtly and showed it floating on the x-axis matched up with the dashed vertical line on the graph
     # marking the timestamp in question that we're hovering over?"): in each chart the time under the pointer shows on
     # its x axis, on the row of its hour labels, centered on the dashed line (a box under it, the paper's color, as wide
     # as the text, so that it covers the labels it sits on): over the ETA chart the estimate's clock time, over the CPU
-    # chart its row's end, over the nodes pending their point's, each local, to the minute (YYYY-MM-DD HH:MM); and away,
-    # none shows.  The tip over the ETA chart reads out the estimate without its time (no @, not the time on the
+    # chart its row's end, over the nodes pending and over the probability graph their point's (the probability graph
+    # since that afternoon; dreeves: "should we have the same hover effect on all graphs consistently? it's missing on
+    # the probability graph"), each local, to the minute (YYYY-MM-DD HH:MM); and away, none shows.  The tip over the ETA chart reads out the estimate without its time (no @, not the time on the
     # axis; its finish times stay, the later a date, as every line gives them), from its time so far on; the CPU key
     # has no time.
     r = report(1280)
     local = lambda t: time.strftime('%Y-%m-%d %H:%M', time.localtime(t))
     h = r['hovers']
-    want = dict(eta=local(TREE['etas'][1][0]), cpu=local(TREE['cpu'][0][2]), pending=local(TREE['pending'][1][0]))
+    want = dict(eta=local(TREE['etas'][1][0]), cpu=local(TREE['cpu'][0][2]), pending=local(TREE['pending'][1][0]), odds=local(TREE['odds']['exists'][1][0]))
     for name, got in h.items():
         assert got['shown'] and got['text'] == want[name], (name, got, want[name])
         assert abs(got['x'] - got['cross']) < 0.5 and abs(got['y'] - got['tickY']) < 0.5, (name, got)

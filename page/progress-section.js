@@ -232,7 +232,7 @@
     cpuChart(box.querySelector('.progress-cpu'), run);
     layout.pendingXs = pendingChart(box.querySelector('.progress-pending'), run);
     box.querySelector('[data-lindy]').hidden = run.basis !== 'lindy';
-    oddsChart(box.querySelector('.progress-odds'), run);
+    layout.oddsXs = oddsChart(box.querySelector('.progress-odds'), run);
     return {box, layout};
   }
 
@@ -424,7 +424,7 @@
     text.textContent = local(t);
     const w = text.getComputedTextLength() + 8, cx = Math.min(ETA_W - w / 2, Math.max(w / 2, x));
     set(text, {x: cx, y});
-    set(g.querySelector('rect'), {x: cx - w / 2, y: y - 10, width: w, height: 13});
+    set(g.querySelector('rect'), {x: cx - w / 2, y: y - 11, width: w, height: 15});
     g.setAttribute('visibility', 'visible');
   }
 
@@ -629,17 +629,26 @@
     set(q('[data-pending-line]'), {points: xy(line)});
     set(q('[data-pending-wash]'), {points: xy([...ends[0].map(([x]) => [x, Y(0)]), ...line, ...ends[1].map(([x]) => [x, Y(0)])])});
     q('[data-pending-marks]').replaceChildren(...ends[1].map(([cx, cy]) => make('circle', {class: 'mark', r: 3, cx, cy})));
-    const rows = run.pending, xs = line.map(([x]) => x), svg = fig.querySelector('svg'), cross = q('[data-pending-cross]'), stampG = q('[data-stamp]');
+    const xs = line.map(([x]) => x);
+    hoverPoints(fig, xs, run.pending.map(r => r[0]), T, H - B, H - 8);
+    return xs;
+  }
+
+  // The hover of a chart of points over time (the nodes pending, the probability graph; dreeves, 2026-11-12: "should we
+  // have the same hover effect on all graphs consistently? it's missing on the probability graph"): under the pointer the
+  // dashed line at the nearest point, from y1 to y2, whose time floats on the x axis's row y (stampAt); away, neither.
+  // xs the points' x positions, in the chart's viewBox, and times their clock times; with no point, nothing.
+  function hoverPoints(fig, xs, times, y1, y2, y) {
+    const svg = fig.querySelector('svg'), cross = fig.querySelector('line.cross'), stampG = fig.querySelector('[data-stamp]');
     svg.onmousemove = ev => {
       const b = svg.getBoundingClientRect(), x = (ev.clientX - b.left) * ETA_W / b.width;
-      const k = xs.reduce((best, v, i) => Math.abs(v - x) < Math.abs(xs[best] - x) ? i : best, rows.length - 1);   // -1 with no point
-      for (const r of rows.slice(k, k + 1)) {
-        set(cross, {x1: xs[k], y1: T, x2: xs[k], y2: H - B}).setAttribute('visibility', 'visible');
-        stampAt(stampG, xs[k], H - 8, r[0]);
+      const k = xs.reduce((best, v, i) => Math.abs(v - x) < Math.abs(xs[best] - x) ? i : best, xs.length - 1);   // -1 with no point
+      for (const t of times.slice(k, k + 1)) {
+        set(cross, {x1: xs[k], y1, x2: xs[k], y2}).setAttribute('visibility', 'visible');
+        stampAt(stampG, xs[k], y, t);
       }
     };
     svg.onmouseleave = () => { cross.setAttribute('visibility', 'hidden'); stampG.setAttribute('visibility', 'hidden'); };
-    return xs;
   }
 
   function oddsChart(fig, run) {
@@ -666,6 +675,9 @@
     set(q('[data-exists-line]'), {points: xy(line)});
     set(q('[data-exists-wash]'), {points: xy([...ends[0].map(([x]) => [x, Y(0)]), ...line, ...ends[1].map(([x]) => [x, Y(0)])])});
     q('[data-exists-marks]').replaceChildren(...ends[1].map(([cx, cy]) => make('circle', {class: 'mark', r: 4, cx, cy})));
+    const xs = line.map(([x]) => x);
+    hoverPoints(fig, xs, exists.map(([t]) => t), T, Y(0), H - 8);   // the hover of the pending chart (2026-11-12)
+    return xs;
   }
 
   function sync() {

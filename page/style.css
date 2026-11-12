@@ -358,11 +358,11 @@ code[aria-expanded], [data-text][aria-expanded] { cursor: pointer; text-decorati
 .progress-bar [data-bar="done"] { left: 0; border-radius: 2px 0 0 2px; background: var(--progress-spent); }
 .progress-bar [data-bar="band"] { background: color-mix(in oklab, var(--progress-total) 26%, var(--paper)); }
 .progress-bar [data-bar="median"] { top: -0.2rem; bottom: -0.2rem; width: 2px; margin-left: -1px; background: var(--progress-total); }
-.progress-bar-axis { position: relative; height: 0.9rem; font-size: 11px; line-height: 0.9rem; color: var(--muted); font-variant-numeric: tabular-nums lining-nums; }
+.progress-bar-axis { position: relative; height: 0.9rem; line-height: 0.9rem; color: var(--muted); font-variant-numeric: tabular-nums lining-nums; }
 .progress-bar-axis > span { position: absolute; top: 0; transform: translateX(-50%); white-space: nowrap; }
 .progress-bar-axis > span:first-child { transform: none; }
 .progress-bar-axis > span:last-child { transform: translateX(-100%); }
-.progress-bar-caption { font-size: 0.85rem; color: var(--muted); font-variant-numeric: tabular-nums lining-nums; }
+.progress-bar-caption { color: var(--muted); font-variant-numeric: tabular-nums lining-nums; }
 .progress-bar-caption .spent { color: var(--progress-spent); }
 .progress-bar-caption .total { color: var(--progress-total); }
 .progress-bar-caption [data-bar-range] { white-space: nowrap; }   /* lo–hi in one piece: at 390 px it split after the en dash (2026-11-06) */
@@ -402,7 +402,7 @@ code[aria-expanded], [data-text][aria-expanded] { cursor: pointer; text-decorati
 .progress-run:not([data-run-state="running"]) summary { color: var(--muted); }   /* a run not running, grayed (2026-10-23) */
 .progress-run-state { margin-left: 0.6em; }   /* the word for a run's state, after its heading (2026-10-25) */
 .progress-stale { margin-left: 0.6em; color: var(--progress-open); }   /* a run's data a snapshot could not renew (2026-10-30) */
-.progress-eta text { font-size: 11px; fill: var(--muted); stroke: none; font-variant-numeric: tabular-nums lining-nums; }
+.progress-eta text { fill: var(--muted); stroke: none; font-variant-numeric: tabular-nums lining-nums; }
 /* The labels at the latest record, commented out with them (dreeves, 2026-10-17: "comment it out for now"):
 .progress-eta text.label { font-size: 12px; font-weight: 600; stroke: var(--paper); stroke-width: 4px; stroke-linejoin: round; paint-order: stroke; }
 .progress-eta .label.togo { fill: var(--progress-togo); }
@@ -427,20 +427,24 @@ code[aria-expanded], [data-text][aria-expanded] { cursor: pointer; text-decorati
 .progress-cpu .band.other { fill: var(--cpu-other); }
 .progress-cpu .band.idle { fill: var(--cpu-idle); }
 .progress-cpu .cross { stroke: var(--ink); stroke-width: 1; stroke-dasharray: 2 3; vector-effect: non-scaling-stroke; }
-.progress-cpu text { font-size: 11px; fill: var(--muted); stroke: none; font-variant-numeric: tabular-nums lining-nums; }
-.progress-cpu-key { margin: 0; font-size: 0.85rem; color: var(--muted); font-variant-numeric: tabular-nums lining-nums; }
+.progress-cpu text { fill: var(--muted); stroke: none; font-variant-numeric: tabular-nums lining-nums; }
+.progress-cpu-key { margin: 0; color: var(--muted); font-variant-numeric: tabular-nums lining-nums; }
 .progress-cpu-key > span::before { content: ''; display: inline-block; width: 0.75em; height: 0.75em; border-radius: 2px; margin: 0 0.3em 0 0.5em; vertical-align: -0.05em; }
 .progress-cpu-key .search::before { background: var(--cpu-search); }
 .progress-cpu-key .other::before { background: var(--cpu-other); }
 .progress-cpu-key .idle::before { background: var(--cpu-idle); box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--muted) 45%, transparent); }
 .progress-cpu-key [data-cpu-share] { color: var(--ink); }
 .progress-status:empty { display: none; }   /* the counts' line of a run that is no tracked search (2026-11-07) */
-/* the words of every graph in one size, the bar caption's (Opus 5.5, 2026-11-12; dreeves: "could you improve the consistency
-   of the graphs a little? font sizes and whether graphs are labeled above or below the graph"): each graph's title over it
-   (the CPU key, the nodes pending's title, the runs' counts over the dots, the probability graph's prior and title), its
-   numbers under it (the status line, the dots' hint), the tip and the note on Lindy's rule; the bar's caption and the CPU
-   key have it in their own rules.  Until then all but those two in the body's size. */
-.progress-tip, .progress-status, .progress-lindy, .progress-readout, .progress-pending-title, .progress-odds > p { font-size: 0.85rem; }
+/* the words of every graph in one size, that of the page's other figures' words, Figure 1's readout and legend, and its
+   axis labels in the size of Figure 1's (Opus 5.5, 2026-11-12; dreeves: "could you improve the consistency of the graphs
+   a little? font sizes and whether graphs are labeled above or below the graph", then of 0.85rem and 11px: "the fonts
+   seem overly shrunk compared to the rest of the page's text"): each graph's title over it (the CPU key, the nodes
+   pending's title, the runs' counts over the dots, the probability graph's prior and title), its numbers under it (the
+   bar's caption, the status line, the dots' hint), the tip and the note on Lindy's rule; the ticks of the bar and of
+   every chart, and the time under the pointer.  Until that day all but the bar's caption and the CPU key in the body's
+   size, those two at 0.85rem, and the charts' ticks at 11px. */
+.progress-bar-caption, .progress-cpu-key, .progress-tip, .progress-status, .progress-lindy, .progress-readout, .progress-pending-title, .progress-odds > p { font-size: 0.9375rem; }
+.progress svg text, .progress-bar-axis { font-size: 12px; }
 .progress-tip, .progress-status { font-variant-numeric: tabular-nums lining-nums; }
 .progress-tip { visibility: hidden; }
 /* (Until 2026-11-12, when no line had a time of its own) the status line without its snapshot's time and the em space after it, which the tip above the chart keeps
@@ -605,15 +609,15 @@ footer {
 /* every run's prior and its graph of P(exists) (progress-section.js's oddsChart, 2026-11-04; every run's since 2026-11-06, when the two graphs below it went): a single series, in ink over a wash of the sea's pending gray, multiplied, so that its gridlines show through, its last point a dot ringed in the paper (dreeves, 2026-11-06: "for anti-magic i don't want to conditionally include or exclude graphs"; until 2026-11-11 a graph with no point was grayed, and since then every search has one) */
 .progress-odds, .progress-pending { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.3rem; margin: 0.4rem 0 0; }
 .progress-odds svg, .progress-pending svg { display: block; width: 100%; height: auto; overflow: visible; }
-.progress-pending svg { cursor: crosshair; touch-action: pan-y; }
-.progress-pending .cross { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 2 3; vector-effect: non-scaling-stroke; }
+.progress-odds svg, .progress-pending svg { cursor: crosshair; touch-action: pan-y; }
+.progress-odds .cross, .progress-pending .cross { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 2 3; vector-effect: non-scaling-stroke; }
 /* the time under the pointer on an aligned chart's x axis (progress-section.js's stampAt, 2026-11-12): in the hour labels'
    size and color, over a box of the paper's color that hides the labels under it */
-.progress .stamp text { font-size: 11px; fill: var(--muted); stroke: none; font-variant-numeric: tabular-nums lining-nums; }
+.progress .stamp text { fill: var(--muted); stroke: none; font-variant-numeric: tabular-nums lining-nums; }
 .progress .stamp rect { fill: var(--paper); stroke: none; }
 .progress-odds polyline, .progress-pending polyline { fill: none; stroke: var(--ink); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
 .progress-odds .wash, .progress-pending .wash { fill: color-mix(in oklab, var(--progress-pending) 45%, var(--paper)); stroke: none; mix-blend-mode: multiply; }
 .progress-odds .axis, .progress-odds .grid, .progress-pending .axis, .progress-pending .grid { stroke: var(--progress-hair); stroke-width: 1; vector-effect: non-scaling-stroke; }
 .progress-odds .yaxis { stroke: var(--muted); stroke-width: 1; vector-effect: non-scaling-stroke; }
-.progress-odds text, .progress-pending text { font-size: 11px; fill: var(--muted); stroke: none; font-variant-numeric: tabular-nums lining-nums; }
+.progress-odds text, .progress-pending text { fill: var(--muted); stroke: none; font-variant-numeric: tabular-nums lining-nums; }
 .progress-odds .mark, .progress-pending .mark { fill: var(--ink); stroke: var(--paper); stroke-width: 2; vector-effect: non-scaling-stroke; }
