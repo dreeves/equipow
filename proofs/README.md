@@ -12,6 +12,7 @@ A *sequence* is n signs, +1 or −1. It *has order m* when its power sums vanish
 |---|---|
 | [formtree.py](formtree.py), [fkernel.cpp](fkernel.cpp) | A form tree. The two checkers, in Python and in C++, share no code. Their proofs are in [../searches/formtree/](../searches/formtree/): no 288:10, and eight other cells. |
 | [pintree.py](pintree.py), [pintree_second.py](pintree_second.py) | A pin tree. The two checkers share no code. Their proofs are [pintree_432_12.json.gz](pintree_432_12.json.gz) (no 432:12, so m\*(432) = 11) and [pintree_816_13.json.gz](pintree_816_13.json.gz) (no 816:13, so m\*(816) = 12). The prover is in [../searches/pintree/](../searches/pintree/). |
+| [symtree.py](symtree.py) | A symmetric-only form tree (2026-11-11): no symmetric (or antisymmetric) sequence of a length has an order. It checks that the proof's start nodes are what the symmetry gives and then runs formtree.py's check of the trees under them. Its one proof so far is [../searches/formtree/cells/480_14_sym/](../searches/formtree/cells/480_14_sym/): no symmetric sequence of length 480 has order 14, so m\*(480) ≤ 13 if BGPW's Symmetry Conjecture holds. It settles no upper bound without that conjecture. |
 | [proof288.py](proof288.py) | m\*(288) ≤ 10 (2026-10-25). The form tree has since shown m\*(288) = 9. |
 | [proof384.py](proof384.py), [proof384.wl](proof384.wl) | Astra's certificate that m\*(384) = 10 (2026-10-20), in Python and in Mathematica. |
 | [proof752.py](proof752.py) | m\*(752) ≤ 10 (2026-10-25). |

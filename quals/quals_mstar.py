@@ -421,13 +421,20 @@ def q_schema():
     # the chart reached 1024 at dreeves's and Stan Wagon's request); 1024 columns, each
     # [lo, hi, loWhy, hiWhy] with integers 0 <= lo <= hi < mtop = max hi + 1 (so row mtop is red in every column);
     # every reason has its contract form; ["none"] and ["odd"] exactly at odd n.
+    # Spec change (Fable 5.2, 2026-11-11, for dreeves's README item [SYC]: "a different styling on the chart ... for
+    # cells for which we know they're red conditional on the Symmetry Conjecture being true"): one more key, ifsym,
+    # before cols: a list of [n, hi, file], rising in n, one per n: m*(n) <= hi if BGPW's Symmetry Conjecture holds,
+    # hi from the column's lo to one below its own hi, file the program of proofs/ that checks the proofs it rests on.
     js, got = disk()
     body = ''.join(line for line in js.splitlines(True) if not line.startswith('//'))
     assert body.startswith('const MSTAR = ') and body.endswith('};\n') and body.count(';') == 1, body[:80]
     assert json.loads(body[len('const MSTAR = '):-2]) == got['m'] and got['keys'] == [], got['keys']
     M = got['m']
     # nmax: 2048 since 2026-11-10 ([BOU]), 1024 from 2026-10-27 until then
-    assert list(M) == ['nmax', 'mtop', 'mtopAt', 'past', 'cols'] and M['nmax'] == 2048 == mstar.NMAX and len(M['cols']) == 2048
+    assert list(M) == ['nmax', 'mtop', 'mtopAt', 'past', 'ifsym', 'cols'] and M['nmax'] == 2048 == mstar.NMAX and len(M['cols']) == 2048
+    assert all(type(n) is int and 2 <= n <= M['nmax'] and n % 2 == 0 and type(hi) is int and M['cols'][n - 1][0] <= hi < M['cols'][n - 1][1]
+               and re.fullmatch(r'proofs/[\w.]+\.py', file) and os.path.isfile(os.path.join(HERE, file)) for n, hi, file in M['ifsym']), M['ifsym']
+    assert [n for n, _, _ in M['ifsym']] == sorted({n for n, _, _ in M['ifsym']}), M['ifsym']
     assert all(type(n) is int and n > M['nmax'] and type(m) is int and type(label) is str for n, m, label in M['past']), M['past']
     at = M['mtopAt']
     assert type(at) is list and at and all(type(n) is int and n > M['nmax'] and n % 2 == 0 for n in at), at
@@ -448,6 +455,46 @@ def q_schema():
         # the cells' classes; cf among them since 2026-11-11 (q_page_parse's spec change of that day)
         assert lw[0] != 'page' or lw[1] in ('s', 'c', 'j', 'a', 'ca', 'cf'), (n, lw)
         assert hw[0] != 'page' or hw[1] in ('s', 'c', 'j', 'a', 'ca', 'cf'), (n, hw)
+
+
+def q_ifsym_follows_from_the_symmetric_only_proofs():
+    # Replicata: mstar.ifsym_of on made-up columns and made-up sets of cells (n, m), each standing for a proof that no
+    # (-1)^m-symmetric sequence of length n has order m, which rules out the (-1)^k-symmetric sequences of exact order
+    # k = m, m + 2, ...; then mstar.js's ifsym on disk, mstar.symtrees() (the kept proofs that proofs/symtree.py
+    # lists, each checked) and the directories of those proofs.
+    # Expectata (the README's [SYC]; BGPW's conjecture: a sequence of exact order k has a (-1)^k-symmetric one of
+    # exact order k beside it): for a column with bounds lo and hi, the bound if the conjecture holds is the least h
+    # from lo up such that every k from h + 1 to hi is ruled out, listed as [n, h, mstar.SYMTREE] only where h < hi.
+    # A proof at the column's hi alone lowers it by one; with the proof at hi - 1 too, by two; the proof at hi - 1
+    # alone, by none (order hi is still open); a proof at hi - 2 covers hi but not hi - 1; proofs at orders above hi
+    # or at other lengths change nothing; and a set of proofs that rules out the (-1)^lo-symmetric sequences of exact
+    # order lo, where a sequence of order lo is known, refutes the conjecture (or is wrong), which is not data for
+    # the chart: an assertion fails.
+    # On disk: [[480, 13, 'proofs/symtree.py']], from the one kept proof, searches/formtree/cells/480_14_sym (no
+    # symmetric sequence of length 480 has order 14; 2026-11-11, scratch/s480-20261111): 480:14 is the chart's first
+    # cell red if the conjecture holds, and the column's own bounds are as they were, 12 to 14.
+    # Resultata before: mstar.py had no ifsym_of, and mstar.js no such key.
+    made = [[0, 0, ['none'], ['odd']]] * 100
+    def column(n, lo, hi): made[n - 1] = [lo, hi, ['example', 'x'], ['two']]
+    column(48, 12, 14); column(64, 5, 9); column(80, 3, 3)
+    f = mstar.SYMTREE
+    assert mstar.ifsym_of(made, set()) == []
+    assert mstar.ifsym_of(made, {(48, 14)}) == [[48, 13, f]]
+    assert mstar.ifsym_of(made, {(48, 14), (48, 13)}) == [[48, 12, f]]
+    assert mstar.ifsym_of(made, {(48, 13)}) == []
+    assert mstar.ifsym_of(made, {(48, 16), (50, 14), (80, 4)}) == []
+    assert mstar.ifsym_of(made, {(64, 9), (64, 8), (64, 7), (48, 14)}) == [[48, 13, f], [64, 6, f]]
+    assert mstar.ifsym_of(made, {(64, 6), (64, 9)}) == [[64, 7, f]]      # 8 by the proof at 6, 9 by its own; 7 is open
+    for trees in ({(64, 5), (64, 6)}, {(48, 12)}, {(64, 3)}, {(80, 3)}, {(80, 1)}):   # each rules out exact order lo: 5, 12, 5, 3, 3
+        try:
+            mstar.ifsym_of(made, trees)
+        except AssertionError as e:
+            assert 'Symmetry Conjecture' in str(e), e
+        else:
+            raise AssertionError(('a set of proofs that refutes the conjecture gave a bound', trees))
+    _, got = disk()
+    assert got['m']['ifsym'] == mstar.ifsym_of(cols(), mstar.symtrees()) == [[480, 13, 'proofs/symtree.py']], got['m']['ifsym']
+    assert mstar.symtrees() == {(480, 14)} and got['m']['cols'][480 - 1][:2] == [12, 14], (mstar.symtrees(), got['m']['cols'][480 - 1])
 
 
 def q_mstar_js_is_current():

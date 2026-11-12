@@ -39,6 +39,7 @@
   <!-- The changelog, newest first, as in dreeves's spec FreshAt (doc.bmndr.co/freshat) -->
   <details class="changelog">
     <summary><i>Changelog</i></summary>
+    <p>2026-11-11: New result for 480:14 conditional on Symmetry Conjecture</p>
     <p>2026-11-11: \(m^*(2^{30}) \ge 34\)</p>
     <p>2026-11-11: \(m^*(2^{51}) \ge 58\)</p>
     <p>2026-11-11: \(m^*(1056) \ge 13\), \(m^*(1104) \ge 13\), \(m^*(1200) = 14\), \(m^*(1248) = 13\), \(m^*(1296) = 14\), \(m^*(1392) = 14\), \(m^*(1488) = 14\), \(m^*(1504) = 12\), \(m^*(1520) = 12\), \(m^*(1552) = 12\), \(m^*(1568) = 12\), \(m^*(1584) = 14\), \(m^*(1616) = 12\), \(m^*(1632) = 15\), \(m^*(1648) = 12\), \(m^*(1680) = 14\), \(m^*(1712) = 12\), \(m^*(1728) = 15\), \(m^*(1744) = 12\), \(m^*(1776) = 14\), \(m^*(1808) = 12\), \(m^*(1840) = 12\), \(m^*(1872) = 14\), \(m^*(1904) = 12\), \(m^*(1936) = 12\), \(m^*(1968) = 14\), \(m^*(2000) = 12\), \(m^*(2016) = 15\), \(m^*(2032) = 12\)</p>
@@ -270,11 +271,15 @@
     <ul class="legend">
       <li><span class="swatch exists" aria-hidden="true"></span>\(m \le m^*(n)\)</li>
       <li><span class="swatch open" aria-hidden="true"></span>open</li>
+      <!-- says the cell is open, and above m*(n) if BGPW's Symmetry Conjecture holds: no symmetric (even m) or antisymmetric (odd m) sequence of length n has that order or any from it to the column's upper bound -->
+      <li><span class="swatch ifsym" aria-hidden="true"></span><span class="nw">Symmetry Conjecture \(\Rightarrow m > m^*(n)\)</span></li>
       <li><span class="swatch impossible" aria-hidden="true"></span><span class="nw">\(m > m^*(n)\)</span></li>
       <!-- legend label; says a green cell ringed in gold is the smallest n known to reach a given order m -->
       <li><span class="swatch exists record" aria-hidden="true"></span><span>the smallest \(n\) known for a given \(m\)</span></li>
       <!-- legend label; says a black cell ringed in gold is the smallest n not ruled out for a given order m -->
       <li><span class="swatch open record" aria-hidden="true"></span><span>the smallest \(n\) not ruled out for a given \(m\)</span></li>
+      <!-- says both: the smallest n not ruled out for its m, and above m*(n) if BGPW's Symmetry Conjecture holds -->
+      <li><span class="swatch ifsym record" aria-hidden="true"></span><span>the smallest \(n\) not ruled out for a given \(m\) (unless Symmetry Conjecture true)</span></li>
       <li><span class="swatch exists record proven" aria-hidden="true"></span><span>the smallest \(n\) for a given \(m\)</span></li>
     </ul>
 
@@ -342,6 +347,8 @@
   <template data-panel="proof-file"><p><span data-slot="bound"></span>: <span data-slot="file"></span></p></template>
   <!-- TODO: an upper bound cited from BGPW's Proposition 4.4 (linked), put here by Fable 5.2 (2026-11-11; dreeves, 2026-11-10: "first get the chart in sync with all the known results"), with no words but the citation: for the column's n = 2^t u, u odd, order m = 2^t − 1 would make |f(−1)|, the absolute value of the sequence's alternating sum, at least 2^m, which is more than n, while |f(−1)| is at most n; at t = 4 that rules out order 15 at every odd multiple of 16 below 32784 -->
   <template data-panel="proof-prop44"><p><span data-slot="bound"></span>: BGPW, <a href="https://arxiv.org/html/1912.03491v1#S4.Thmthm4">Proposition 4.4</a>: <span data-slot="n"></span>, <span data-slot="f"></span></p></template>
+  <!-- the bound of a length that holds if BGPW's Symmetry Conjecture does, put here by Fable 5.2 (2026-11-11; dreeves's README, [SYC]), with no words but the conjecture's name, linked to the page's section on it: then the bound, itself the link to the program that checks the proofs it rests on (no symmetric or antisymmetric sequence of the length has an order above the bound) -->
+  <template data-panel="proof-ifsym"><p><a href="#symmetry-title">Symmetry Conjecture</a> \(\Rightarrow\) <span data-slot="bound"></span></p></template>
   <!-- A row's box of the m*(n) chart: its row of the table of smallest lengths, under that table's head (cloned), and the term a(m − 1) of OEIS A323395 (linked) -->
   <template data-panel="row-smallest"><table><tbody data-slot="row"></tbody></table><p>OEIS <a href="https://oeis.org/A323395">A323395</a>: <span data-slot="term"></span></p></template>
   <!-- A gold-ringed cell of a row of the chart of powers of 2: the legend's swatch and words for it, and its k, linked to its cell's box -->

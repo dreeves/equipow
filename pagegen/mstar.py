@@ -58,7 +58,7 @@ The two lemmas behind hi (each checked against brute force by quals_mstar.py):
         <= p sum_r size(p, r)^2 (f(1) = 0 for m >= 1), and by AM-GM, N^2 <= (p sum_r size(p, r)^2 / (p-1))^(p-1).
 
 The data contract.  mstar.js is a classic script (no modules, so the page also works from file://) defining one global:
-    const MSTAR = {"nmax": 2048, "mtop": T, "mtopAt": [N, ...], "past": [[n, m, label], ...], "cols": [[lo, hi, loWhy, hiWhy], ...]};
+    const MSTAR = {"nmax": 2048, "mtop": T, "mtopAt": [N, ...], "past": [[n, m, label], ...], "ifsym": [[n, hi, file], ...], "cols": [[lo, hi, loWhy, hiWhy], ...]};
 cols[n-1] is column n.  0 <= lo <= hi < T = max hi + 1.  Cell (n, m), m = 1..T, is green when m <= lo, gray when
 lo < m <= hi, and red when m > hi; row T is red in every column.  mtopAt lists, for each order from T to MMAX (T's
 alone where T is past MMAX), the
@@ -66,6 +66,12 @@ least n past nmax that the chart's own upper-bound tests leave open at that orde
 2026-11-03, a list since 2026-11-04), even integers above nmax that never fall: the table of smallest lengths' least n
 not ruled out at those orders.  past (since 2026-11-04) lists the explicit sequences longer than nmax, each
 [n, m, label] with m its exact order: the table of smallest lengths' lengths known past the chart, which has no column for them.
+ifsym (since 2026-11-11; dreeves's README, [SYC]: "a different styling on the chart ... for cells for which we know they're
+red conditional on the Symmetry Conjecture being true, i.e., we've proven there's no symmetric or antisymmetric
+bipartition") lists the columns whose upper bound is lower if BGPW's Symmetry Conjecture holds, each [n, hi, file], rising
+in n: m*(n) <= hi then, hi from the column's lo to one below its own hi, by the proofs that the program file checks
+(ifsym_of).  The cells (n, m) with that hi < m <= the column's own hi are the page's fourth kind: open, and red if the
+conjecture holds.
   loWhy  ["none"] (lo = 0, n odd); ["example", label] (an explicit sequence of length n, label saying where it is
          from); ["join", a, b] (the sequence for a, then the one for b; lo is the lesser of theirs); ["product", a, b]
          (f_a(x) f_b(x^a); lo is the sum of theirs); ["table2"] (BGPW's Table 2, cited); ["page", who] (the page's new
@@ -593,6 +599,41 @@ def proved(n, hi, file):
     proof['check'](proof['PSI'])
 
 
+# The symmetric-only proofs (2026-11-11; dreeves's README, [SYC]).  BGPW's Symmetry Conjecture: if some sequence of
+# length n has exact order k, then some (-1)^k-symmetric one has (symmetric for even k, antisymmetric for odd k).  A
+# kept proof of proofs/symtree.py says that no (-1)^m-symmetric sequence of length n has order m; such a sequence has
+# an exact order of m's parity (BGPW's symmetry lemma), so the proof rules out the (-1)^k-symmetric sequences of exact
+# order k = m, m + 2, m + 4, ....  ifsym: the name of the conditional bound here and in mstar.js, "if the Symmetry
+# Conjecture holds" (Fable 5.2's, 2026-11-11, for dreeves to rename).
+SYMTREE = 'proofs/symtree.py'                # the program that lists the kept symmetric-only proofs (TREES) and checks one
+
+
+@lru_cache(maxsize=None)
+def symtrees():
+    """The cells (n, m) of the kept proofs that SYMTREE lists, each checked here by its check: no (-1)^m-symmetric
+    sequence of length n has order m."""
+    st = runpy.run_path(os.path.join(HERE, SYMTREE))
+    return frozenset(st['check'](os.path.join(HERE, d))[:2] for d in st['TREES'])
+
+
+def ifsym_of(cols, trees):
+    """mstar.js's ifsym for the columns cols and the cells trees, each (n, m) a proof that no (-1)^m-symmetric sequence
+    of length n has order m: [n, h, SYMTREE] for each length n of trees whose h is below its column's hi, rising in n,
+    h being the least order from the column's lo up such that every exact order k from h + 1 to hi is ruled out for
+    (-1)^k-symmetric sequences, so that m*(n) <= h if BGPW's Symmetry Conjecture holds.  A sequence of order lo is
+    known, so proofs that rule out the (-1)^lo-symmetric sequences of exact order lo would refute the conjecture, or
+    be wrong: that is no bound, and the assertion fails."""
+    out = []
+    for n in sorted({n for n, _ in trees}):
+        lo, hi = cols[n - 1][:2]
+        ruled = lambda k: any(t == n and m <= k and (k - m) % 2 == 0 for t, m in trees)
+        # TODO: error copy; says the kept proofs leave no (-1)^lo-symmetric sequence of exact order lo at length n, where a sequence of order lo is known: BGPW's Symmetry Conjecture would be refuted there, or a proof is wrong
+        assert not ruled(lo), f'Fable 5.2: "the Symmetry Conjecture fails at n = {n}, order {lo}, or a symmetric-only proof is wrong"'
+        h = next(k for k in range(hi, lo - 1, -1) if not ruled(k))       # the largest order not ruled out: lo at the least
+        out += [[n, h, SYMTREE]] * (h < hi)
+    return out
+
+
 def ruled_out(n, m, chain, sweep):
     """Does chain_none finish with no admissible vector at order m, within MTOP_CAP nodes?  A capped enumeration rules
     nothing out."""
@@ -699,7 +740,8 @@ def js_text(cols):
     T = max(c[1] for c in cols) + 1
     rows = ',\n'.join(json.dumps(c) for c in cols)
     return ('// Generated by mstar.py from index.html and the sources it names; edit mstar.py, not this file.\n'
-            f'const MSTAR = {{"nmax": {NMAX}, "mtop": {T}, "mtopAt": {json.dumps(open_past(T))}, "past": {json.dumps(past())}, "cols": [\n{rows}\n]}};\n')
+            f'const MSTAR = {{"nmax": {NMAX}, "mtop": {T}, "mtopAt": {json.dumps(open_past(T))}, "past": {json.dumps(past())}, '
+            f'"ifsym": {json.dumps(ifsym_of(cols, symtrees()))}, "cols": [\n{rows}\n]}};\n')
 
 
 def main():

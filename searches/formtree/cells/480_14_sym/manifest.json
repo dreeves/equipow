@@ -1,0 +1,53 @@
+{
+ "cell": "480:14",
+ "symmetry": 1,
+ "claim": "no symmetric sequence of length 480 has order 14",
+ "chain": [
+  3,
+  5,
+  7
+ ],
+ "pins": [
+  11,
+  13,
+  17,
+  19,
+  23,
+  29
+ ],
+ "run": "scratch/s480-20261111/runs/480_14_sym_b3",
+ "log": [
+  "# 2026-11-11 16:10:37 start: 480:14 nodeset sets/480_14_p29 procs 2 limit 240 PY_SAMPLE 1 BUILD build3 NICE 5",
+  "# 2026-11-11 16:50:28 start: 480:14 nodeset sets/480_14_p29 procs 10 limit 240 PY_SAMPLE 1 BUILD build3 NICE 5",
+  "finished: 145427 nodes, closed 145427, OPEN 0, LPs 2.50101e+06, CPU 2.56 h; certificates 1.12364e+06, REJECTED 0, wrong names 0, python 285 sampled 0 differ; wall 0.31 h"
+ ],
+ "tasks": 289,
+ "python_checked": 285,
+ "nodes": 145427,
+ "certificates": 1123645,
+ "open": 0,
+ "refused": 0,
+ "start_nodes": 1,
+ "positive_controls": {
+  "the lemma": "scratch/s480-20261111/control1.py: the page's (-1)^m-symmetric sequences at 480 (order 12), 672 (13), 432 (11), 288 (9), 240 (10), 384 (10), 528 (11), 720 (13), 768 (13), 912 (13), 1008 (13) and 544 (10), or their negatives, each in exactly one start node of its own cell's node set",
+  "the pipeline": "scratch/s480-20261111/runs/288_10_p19: 288:10 symmetric-only, 894,356 nodes, assembled"
+ },
+ "prover": {
+  "source": "scratch/s480-20261111/prover/pex.cpp (searches/formtree/pex.cpp with exact_bound_form changed: the finest of the scales 2^90, 2^82, 2^74 that fkernel's ranges admit, and no certificate where it proves no more than the trivial bound)",
+  "source_sha256": "929741e9642f2cc33eb1fff58f337cba374e30233f04eb3cfa4b16af674fdde4",
+  "binary_sha256": "a00540a4eb5ac6be1a47449e51ec87aceca7c8a1d6d3411de22bd77de3b05163",
+  "kept_source_sha256": "49a0852aabc7074d3ffbc5d223a0dc0365bf3d8efa64609b151c6e4a96db6f2b"
+ },
+ "fkernel_source_sha256": "4715f2278f5cdb05be488a75e41c5cb4ad66a39435225d252df966b31914ee9f",
+ "fkernel_binary_sha256": "0ac6df04166896bb19b7b1676c515191a75d4250cea49d02b40308cf162f5f0f",
+ "formtree_py_sha256": "36acd880c7134d6c4d2dda34b9386b35100f5371de4e86f6f813981c3f4327a4",
+ "pintree_py_sha256": "265a626c1dd73c51c727845c028f329ace9b9c453539b26719c5357b9e0ba785",
+ "symtree_py_sha256": "dd62cd40bed5542955cf830d9592fef450ba7b4c77f236be35affe52dac77124",
+ "files": {
+  "assemble.txt": "f61394e9cf1fe15480dc211c8a61d600a3edfbb96c88e2cb9ee9458969a3e482",
+  "nodes.json": "981667a5b2b4165b0412b75d9c1ad9f89e637f712c2b57239116198b8aee9bfa",
+  "pex_480_14_3_4_5_7_8_9_11_13_16_17_19_23_25_27_29_31_37.cfg": "1c28e7d85312039018bbce49f05e4693cb26cdd36b800790657af9ce879f2d86",
+  "pex_480_14_3_4_5_7_8_9_11_13_16_17_19_23_25_27_29_31_37.cfg.Q.npy": "348001efab58a52e65b9bf5c0d5ce6a30347dd948f24e8f04fbcee66f55d6060",
+  "verdicts.jsonl": "8cbffd9d35632eff4db9a4213429e1eba93731103a66279e33c39d394761d081"
+ }
+}

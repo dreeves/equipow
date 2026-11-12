@@ -502,6 +502,7 @@ code[aria-expanded], [data-text][aria-expanded] { cursor: pointer; text-decorati
 .swatch.exists { --hue: var(--exists); }
 .swatch.open { --hue: var(--open); }
 .swatch.impossible { --hue: var(--impossible); }
+.swatch.ifsym { --hue: var(--open); background-image: linear-gradient(to top right, transparent 50%, var(--impossible) 50%); }   /* a cell red if the Symmetry Conjecture holds ([SYC], 2026-11-11): an open cell with its upper right triangle in the red of an impossible one, as the chart draws it */
 .swatch.record { box-shadow: 0 0 0 2px var(--record); }   /* a smallest cell, ringed in gold as in the charts */
 .swatch.proven { background-image: radial-gradient(circle closest-side, var(--record) 50%, transparent 50%); }   /* and proven the least: a gold dot, half its smaller side across */
 .zoom { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
@@ -587,6 +588,7 @@ code[aria-expanded], [data-text][aria-expanded] { cursor: pointer; text-decorati
 .column-panel[data-kind="exists"] { --frame: var(--exists); }
 .column-panel[data-kind="open"] { --frame: var(--open); }
 .column-panel[data-kind="impossible"] { --frame: var(--impossible); }
+.column-panel[data-kind="ifsym"] { --frame: var(--open); }   /* an open cell's frame: the cell is open, with a corner */
 .column-panel::before { content: ""; position: absolute; top: -14px; left: clamp(0px, calc(var(--caret, 50%) - 9px), calc(100% - 18px));
                         border: solid transparent; border-width: 0 9px 11px; border-bottom-color: var(--frame); }
 .column-panel > :not(.column-panel-bar) { max-width: var(--measure); }

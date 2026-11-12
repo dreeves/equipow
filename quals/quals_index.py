@@ -512,6 +512,14 @@ function battery(R) {
   R.tokens = C;
   const dpr = devicePixelRatio, ctx = cv.getContext('2d'), cols = MSTAR.cols;   // T and rows: the last draw's (EARLY)
   const colorOf = (n, m) => m <= cols[n - 1][0] ? C.exists : m <= cols[n - 1][1] ? C.open : C.impossible;
+  // The cells that are red if BGPW's Symmetry Conjecture holds (MSTAR.ifsym; dreeves's README, [SYC], 2026-11-11):
+  // cell (n, m) with the column's ifsym bound < m <= its upper bound, an open cell with its upper right triangle in
+  // the color of an impossible one.  So down its middle column it is impossible above its middle and open below:
+  // samplesOf(n, m) lists a cell's samples, each [the fraction of its row's colored height down, the color there],
+  // one at its middle for a cell of one color, two for such a cell, a quarter and three quarters down.
+  const ifhi = cols.map(c => c[1]); MSTAR.ifsym.forEach(([n, h]) => { ifhi[n - 1] = h; });
+  const isIfsym = (n, m) => ifhi[n - 1] < m && m <= cols[n - 1][1];
+  const samplesOf = (n, m) => isIfsym(n, m) ? [[0.25, C.impossible], [0.75, C.open]] : [[0.5, colorOf(n, m)]];
   // The cells ringed in gold, as the table of smallest lengths has them (dreeves's README, 2026-10-30, [GLT]; the proven
   // ones alone, a(m − 1) of OEIS A323395, since 2026-10-19): for each order m that some n reaches, [n, m, role] for the
   // least n known to reach m and the least n whose upper bound allows m, role 1 known, 2 not ruled out, 3 both (proven
@@ -543,6 +551,7 @@ function battery(R) {
   }
   R.rows = runs.slice(0, T); R.rowsDrawn = rows;     // as measured here, and as the last draw laid them out (EARLY)
   const rowY = m => (rows[T - m][0] + rows[T - m][1]) / 2;        // device px, the middle of row m
+  const yAt = (m, f) => rows[T - m][0] + (rows[T - m][1] - rows[T - m][0]) * f;   // the fraction f down row m (rowY: f = 1/2)
   const Yt = Math.floor(rowY(T));
   let PL = 0, PR = cv.width - 1;
   while (pix(PL, Yt) !== C.impossible) PL++;
@@ -605,9 +614,12 @@ function battery(R) {
         const X = PL + Math.floor((j - 0.5 - v.u0) / k);
         for (let m = 1; m <= T; m++) {
           if (nearRing(j, m)) continue;
-          const want = colorOf(COLS[j - 1], m), got = pix(X, Math.floor(rowY(m))), gap = pix(X, rows[T - m][1]);
-          R.pixelChecks++;
-          if (got !== want || gap !== C.paper) R.pixelBad.push([COLS[j - 1], m, want, got, gap]);
+          const gap = pix(X, rows[T - m][1]);
+          R.pixelChecks++; R.ifsymChecks += isIfsym(COLS[j - 1], m);
+          for (const [f, want] of samplesOf(COLS[j - 1], m)) {      // one sample, or an ifsym cell's two (2026-11-11)
+            const got = pix(X, Math.floor(yAt(m, f)));
+            if (got !== want || gap !== C.paper) R.pixelBad.push([COLS[j - 1], m, want, got, gap]);
+          }
         }
         R.pixelColumns[COLS[j - 1]] = 1;
       }
@@ -615,9 +627,11 @@ function battery(R) {
         const j = colOf.get(n);              // it, and at its middle gold where it is proven the least, else its color
         if (j < from || j > to) continue;
         const Y = Math.floor(rowY(r)), x0 = PL + (j - 1 - v.u0) / k, x1 = PL + (j - v.u0) / k, xm = PL + Math.floor((j - 0.5 - v.u0) / k);
-        const got = [pix(Math.floor(x0 - dpr), Y), pix(Math.floor(x1 + dpr), Y), pix(xm, rows[T - r][1]), pix(xm, Y)];
-        const want = [C.record, C.record, C.record, role === 3 ? C.record : colorOf(n, r)];
-        R.ringChecks++; R.ringed[`${n},${r}`] = 1;
+        // inside it: gold at its middle where it is proven the least, else its own samples (an ifsym cell's two, 2026-11-11)
+        const inside = role === 3 ? [[0.5, C.record]] : samplesOf(n, r);
+        const got = [pix(Math.floor(x0 - dpr), Y), pix(Math.floor(x1 + dpr), Y), pix(xm, rows[T - r][1]), ...inside.map(([f]) => pix(xm, Math.floor(yAt(r, f))))];
+        const want = [C.record, C.record, C.record, ...inside.map(([, c]) => c)];
+        R.ringChecks++; R.ringed[`${n},${r}`] = 1; R.ifsymChecks += isIfsym(n, r);
         if (got.some((c, i) => c !== want[i])) R.ringBad.push([n, r, role, got, want]);
       }
     }
@@ -719,6 +733,7 @@ function battery(R) {
   R.readouts = 0; R.hiddenReadouts = [];
   R.views = [view()];
   R.hovers = []; R.swatches = []; R.pixelChecks = 0; R.pixelBad = []; R.pixelColumns = {}; R.steps = {}; R.rowOneChecks = 0; R.rowOneBad = [];
+  R.ifsymChecks = 0;                                              // the checks above that fell on an ifsym cell
   R.rowOneLines = 0; R.lineZones = 0; R.lineBad = []; R.rowTwoChecks = 0; R.rowTwoSkips = 0; R.rowTwoBad = [];
   R.labelDraws = [labels(R.views[0])];
   checkRowOne(R.views[0], 0);
@@ -943,7 +958,7 @@ async function fragment(R) {
 // (36, 2) and a click on its construction (derived: the derivation's rows and bound); the box of cell (528, 12) once
 // its searches have loaded (searched); its close button (closed, with the pixels of its outline then); and the page's
 // fragment set to #m16 and then #n1024m12 (hashed).
-const BOX_TARGETS = [[1024, 8], [1024, 12], [528, 12], [480, 12], [480, 13], [672, 13], [240, 11], [1020, 4], [56, 6],
+const BOX_TARGETS = [[1024, 8], [1024, 12], [528, 12], [480, 12], [480, 13], [480, 14], [672, 13], [240, 11], [1020, 4], [56, 6],
                      [36, 2], [80, 3], [1024, null], [null, 12], [null, 13], [null, 16]];
 async function boxes(R) {
   const cv = document.getElementById('mstar-chart'), region = document.getElementById('mstar-panel');
@@ -1085,6 +1100,9 @@ addEventListener('message', e => {
 """
 
 
+IFSYM_FILE = 'proofs/symtree.py'              # the program that checks the symmetric-only proofs (mstar.SYMTREE), for made-up data
+
+
 def kinds_data(violation=None):
     """Made-up data that follows the contract and uses every kind of reason: odd columns are ["none"] and ["odd"]; an even
     n has lo = 1 from an example and hi = 2^v - 1 ("two") if that is at most 7, else 7 by the residue condition mod 3;
@@ -1101,7 +1119,10 @@ def kinds_data(violation=None):
                  (32, [5, 7, ['product', 16, 2], ['norm', 5]]), (48, [6, 7, ['table2'], ['norm', 7]]),
                  (40, [1, 6, ['example', 'a made-up label'], ['prop44']])):   # prop44: since 2026-11-11 (40 = 2^3 · 5 < 2^7)
         cols[n - 1] = c
-    data = {'nmax': DATA_NMAX, 'mtop': max(c[1] for c in cols) + 1, 'mtopAt': [DATA_NMAX + 2], 'past': [], 'cols': cols}
+    # ifsym (2026-11-11, [SYC]): the columns 24 and 48 each have their top open cell red if the Symmetry Conjecture
+    # holds: (24, 5), which is ringed (24 is the least n whose upper bound allows 5), and (48, 7), which is not
+    data = {'nmax': DATA_NMAX, 'mtop': max(c[1] for c in cols) + 1, 'mtopAt': [DATA_NMAX + 2], 'past': [],
+            'ifsym': [[24, 4, IFSYM_FILE], [48, 6, IFSYM_FILE]], 'cols': cols}
     VIOLATIONS.get(violation, (lambda data: None,))[0](data)
     return 'const MSTAR = ' + json.dumps(data) + ';\n'
 
@@ -1139,6 +1160,13 @@ VIOLATIONS = {   # name: (a change that breaks the contract, what the page's err
     # since 2026-11-04 ([M17]) a list, one n per order from mtop on, which cannot fall: order m + 1 at n has order m there
     'mtopAt falls': (lambda data: data.update(mtopAt=[NMAX + 4, NMAX + 2]), f'[[{NMAX + 4},{NMAX + 2}]]'),
     'past': (lambda data: data.update(past=[[NMAX, 3, 'x']]), f"[[[{NMAX},3,'x']]]"),   # an example not past the chart (since 2026-11-04)
+    # ifsym (since 2026-11-11, [SYC]): the key missing; a bound not below the column's own (48: 6 to 7); one below its
+    # lower bound; a file that is no program of proofs/; and the columns not rising
+    'ifsym missing': (lambda data: data.pop('ifsym'), "['ifsym',null]"),
+    'ifsym hi': (lambda data: data.update(ifsym=[[48, 7, IFSYM_FILE]]), f"['ifsym',[48,7,'{IFSYM_FILE}']]"),
+    'ifsym lo': (lambda data: data.update(ifsym=[[48, 5, IFSYM_FILE]]), f"['ifsym',[48,5,'{IFSYM_FILE}']]"),
+    'ifsym file': (lambda data: data.update(ifsym=[[48, 6, 'symtree.py']]), "['ifsym',[48,6,'symtree.py']]"),
+    'ifsym order': (lambda data: data.update(ifsym=[[48, 6, IFSYM_FILE], [24, 4, IFSYM_FILE]]), f"['ifsym',[24,4,'{IFSYM_FILE}']]"),
 }
 
 
@@ -1359,8 +1387,10 @@ def q_section_follows_table2():
     filler = r'(?:\s|<!--.*?-->)*'
     m = re.match(filler + r'<section class="mstar" aria-labelledby="mstar-title">.*?</section>', after, re.S)
     assert m, after[:400]
+    # Since 2026-11-11 ([SYC]) the swatch ifsym follows open's: q_legend_has_an_item_for_every_kind_of_cell has the whole list.
     parts = [r'<p>', r'<ul class="legend">', r'<span class="swatch exists" aria-hidden="true">',
-             r'<span class="swatch open" aria-hidden="true">', r'<span class="swatch impossible" aria-hidden="true">',
+             r'<span class="swatch open" aria-hidden="true">', r'<span class="swatch ifsym" aria-hidden="true">',
+             r'<span class="swatch impossible" aria-hidden="true">',
              r'<span class="swatch exists record" aria-hidden="true">',
              r'</ul>', r'<span class="caps" id="mstar-caps">',     # the reset button until 2026-11-10 ([BOU])
              r'<canvas id="mstar-chart" height="0" tabindex="0" role="img" aria-label=',
@@ -3973,7 +4003,8 @@ def q_hover_reads_out_cells():
     # "order …", and the gold one as ring_note.)  Every column, n = 2, 4, 8, 12, …, 1024, is read out in both runs.
     for name in ('kinds', 'light'):                                 # light last: its notes are checked after the loop
         R = valid_run(name)
-        cols = json.loads(kinds_data()[len('const MSTAR = '):-2])['cols'] if name == 'kinds' else mstar_data()['cols']
+        data = json.loads(kinds_data()[len('const MSTAR = '):-2]) if name == 'kinds' else mstar_data()
+        cols, ifsym = data['cols'], data['ifsym']
         assert {n for n, _, _ in R['hovers']} == set(COLUMNS), name
         rings, notes = smallest_rings(cols), {}
         for n, m, text in R['hovers']:
@@ -3982,7 +4013,12 @@ def q_hover_reads_out_cells():
             # (spec change, 2026-11-09: an order named is its number, whole; until then the word "order" before it)
             named = lambda k: rf'(?<![\d.]){k}(?![\d.])'
             note = {1: named(m), 2: named(m), 3: rf'{named(m)}.*{re.escape(f"a({m - 1})")}'}
+            # (spec change, Fable 5.2, 2026-11-11, for dreeves's README item [SYC]: a cell red if BGPW's Symmetry
+            # Conjecture holds, above its column's ifsym bound h and at or below hi, is a gray cell with a third reason,
+            # after its two, that names the order h + 1 and the program that checks the proofs)
+            h = {k: v for k, v, _ in ifsym}.get(n, hi)
             reasons = ([named(lo)] * (m <= hi) + [named(hi + 1)] * (m > lo)
+                       + [rf'{named(h + 1)}.*{re.escape(IFSYM_FILE)}'] * (h < m <= hi)
                        + [note[r] for r in [rings.get((n, m), 0)] if r])
             got = re.fullmatch(r'n = (\d+), m = (\d+) · (.*?) · (.*)', text)
             assert got and (int(got[1]), int(got[2]), got[3]) == (n, m, bounds), (name, n, m, text)
@@ -4014,13 +4050,18 @@ def q_hover_swatch_matches_gold_trim():
         assert {0, 1, 2} == {(m <= cols[n - 1][0]) + (m <= cols[n - 1][1])
                             for n, m, *_ in swatches if (n, m) not in rings}, name
         shadows = {False: 'none', True: rgb(R['tokens']['record']) + ' 0px 0px 0px 2px'}
+        # Since 2026-11-11 ([SYC]): a cell red if the Symmetry Conjecture holds (kind ifsym) has an open cell's fill under
+        # a gradient that holds the impossible color and no gold: its swatch as the chart draws the cell.
+        ifsym = json.loads(kinds_data()[len('const MSTAR = '):-2])['ifsym'] if name == 'kinds' else mstar_data()['ifsym']
+        split = {(n, m) for n, m, *_ in swatches if kind_of(cols, n, m, ifsym) == 'ifsym'}
+        assert split, (name, ifsym)                                  # some such cell is hovered: the ringed one at the least
         for n, m, fill, shadow, image in swatches:
-            lo, hi = cols[n - 1][:2]
-            kind = ('impossible', 'open', 'exists')[(m <= lo) + (m <= hi)]
+            kind = kind_of(cols, n, m, ifsym)
             dot = rings.get((n, m)) == 3
-            want = (rgb(R['tokens'][kind]), shadows[(n, m) in rings], dot)
+            want = (rgb(R['tokens'][UNDER[kind]]), shadows[(n, m) in rings], dot)
             got = (fill, shadow, image.startswith('radial-gradient(') and rgb(R['tokens']['record']) in image)
-            assert got == want and (dot or image == 'none'), (name, n, m, 'expected', want, 'computed', (fill, shadow, image))
+            corner = image.startswith('linear-gradient(') and rgb(R['tokens']['impossible']) in image and rgb(R['tokens']['record']) not in image
+            assert got == want and (dot or corner or image == 'none') and corner == ((n, m) in split), (name, n, m, 'expected', want, 'computed', (fill, shadow, image))
 
 
 def q_canvas_draws_only_numbers():
@@ -4719,8 +4760,11 @@ def q_find_in_page_opens_the_fold():
 
 WITNESSES = {'example': 'witness-example', 'join': 'witness-construction', 'product': 'witness-construction',
              'table2': 'witness-table2', 'page': 'witness-page'}    # a box's part of a lower bound, by its reason's kind
-SHOWS = {'exists': (True, False), 'open': (True, True), 'impossible': (False, True), None: (True, True)}   # (witness, proof),
+SHOWS = {'exists': (True, False), 'open': (True, True), 'ifsym': (True, True), 'impossible': (False, True), None: (True, True)}   # (witness, proof),
 # by the kind of cell of a box, None for a column's
+# The token of a cell's own color, by its kind: an ifsym cell (2026-11-11, [SYC]: red if BGPW's Symmetry Conjecture
+# holds) is an open cell with a corner in the impossible color, and its box's frame and its swatch's fill are open's
+UNDER = {'exists': 'exists', 'open': 'open', 'ifsym': 'open', 'impossible': 'impossible'}
 BOX_WORDS = 24    # a cell's box's words of Claude's English, at most (q_cell_box_words_stay_within_budget)
 # The boxes' templates of Claude's English (dreeves, 2026-11-04: "we don't need claude attribution for blurbs without
 # words like these"): the others hold math, codes, the data's labels and citations alone
@@ -4737,25 +4781,29 @@ def code_digits(id_):
     return re.search(rf'<code id="{id_}">([0-9A-F]+)</code>', page()).group(1)
 
 
-def kind_of(cols, n, m):
-    """The kind of the m*(n) chart's cell (n, m): exists, open or impossible."""
+def kind_of(cols, n, m, ifsym=()):
+    """The kind of the m*(n) chart's cell (n, m): exists, open or impossible; or, with the data's ifsym given
+    (2026-11-11, [SYC]), ifsym: open, and above the column's upper bound if BGPW's Symmetry Conjecture holds."""
     lo, hi = cols[n - 1][:2]
-    return 'exists' if m <= lo else 'open' if m <= hi else 'impossible'
+    h = {k: v for k, v, _ in ifsym}.get(n, hi)
+    return 'exists' if m <= lo else 'open' if m <= h else 'ifsym' if m <= hi else 'impossible'
 
 
-def box_parts(cols, n, m=None):
+def box_parts(cols, n, m=None, ifsym=()):
     """The kinds of the parts of the box of the m*(n) chart's cell (n, m), or of its column n's (m None), in order (since
     2026-11-04): of its column's lower bound, its witness (WITNESSES, then a copy of the page's code of the length n and
     the order lo, where the page has one: witness-code), for a green cell, a black one and a column; of its upper bound,
     its proof (proof-KIND), for a red cell, a black one and a column; and a black cell's searches.  A copy goes where the
     box shows the code itself, in the entry that lists n, which a column's box shows, and a cell's whose bound shown is
-    one of the page's own (page)."""
+    one of the page's own (page).  An ifsym cell's (2026-11-11, [SYC]; kind_of with the data's ifsym) is a black cell's
+    with, after the proof, the bound that holds if the Symmetry Conjecture does (proof-ifsym)."""
     lo, hi, lw, hw = cols[n - 1]
-    kind = None if m is None else kind_of(cols, n, m)
+    kind = None if m is None else kind_of(cols, n, m, ifsym)
     witness, proof = SHOWS[kind]
     entry = kind is None or (witness and lw[0] == 'page') or (proof and hw[0] == 'page')
     copy = f'{n}:{lo}' in code_ids() and not (entry and f'{n}:{lo}' in entry_codes(n))
-    return ([WITNESSES[lw[0]]] + ['witness-code'] * copy) * witness + [f'proof-{hw[0]}'] * proof + ['searches'] * (kind == 'open')
+    return (([WITNESSES[lw[0]]] + ['witness-code'] * copy) * witness + [f'proof-{hw[0]}'] * proof + ['proof-ifsym'] * (kind == 'ifsym')
+            + ['searches'] * (kind in ('open', 'ifsym')))
 
 
 def words(text):
@@ -4781,17 +4829,21 @@ def q_cell_box_takes_its_cell_s_color():
     # legend's item whose words follow it; a column's and a row's box framed in ink, its heading without a swatch.
     # Resultata before: each click on a cell opened its column's panel, in a frame of ink whatever the cell, with no
     # swatch; a click on a strip opened nothing.
+    # Since 2026-11-11 ([SYC]): a cell red if the Symmetry Conjecture holds (kind ifsym; (480, 14) among the targets) is
+    # an open cell with a corner: its frame and its swatch's fill are open's (UNDER), which is its pixel's color three
+    # quarters down its middle, and its swatch's classes are its own kind's.
     R, B = boxes_run()
-    cols, rings = mstar_data()['cols'], smallest_rings(mstar_data()['cols'])
+    cols, rings, ifsym = mstar_data()['cols'], smallest_rings(mstar_data()['cols']), mstar_data()['ifsym']
     cells = [t for t in B if None not in t]
     assert len(cells) >= 10, cells
     for n, m in cells:
-        P, kind, role = B[(n, m)], kind_of(cols, n, m), rings.get((n, m), 0)
+        P, kind, role = B[(n, m)], kind_of(cols, n, m, ifsym), rings.get((n, m), 0)
         assert not P['hidden'] and P['hash'] == f'#n{n}m{m}' and P['kind'] == kind, (n, m, P['hidden'], P['hash'], P['kind'])
-        assert P['own'] == R['tokens'][kind] and P['frame'] == P['own'] and P['swatch']['color'] == P['own'], (n, m, P['own'], P['frame'], P['swatch'])
+        assert P['own'] == R['tokens'][UNDER[kind]] and P['frame'] == P['own'] and P['swatch']['color'] == P['own'], (n, m, P['own'], P['frame'], P['swatch'])
         assert P['swatch']['cls'] == f"swatch {kind}{['', ' record', ' record', ' record proven'][role]}", (n, m, P['swatch'])
         assert (P['swatch']['ring'] != 'none') == (role > 0), (n, m, P['swatch'])
     assert {rings.get(t, 0) for t in cells} == {0, 1, 2, 3}, 'not every role of ring among the cells clicked'
+    assert {kind_of(cols, n, m, ifsym) for n, m in cells} == set(UNDER), 'not every kind of cell among the cells clicked'
     for t in [t for t in B if None in t]:
         P = B[t]
         assert not P['hidden'] and P['kind'] == ('row' if t[0] is None else 'column') and P['frame'] == R['tokens']['rule'], (t, P['kind'], P['frame'])
@@ -5035,6 +5087,76 @@ def q_box_quotes_claude_around_its_english_alone():
     bad = [(t, parts) for t, parts in boxes if not quoted_right(parts)]
     assert bad == [], bad[:3]
     assert {bool(sum(c for _, _, c in parts)) for _, parts in boxes} == {True, False}, 'boxes with and without English'
+
+
+def q_legend_has_an_item_for_every_kind_of_cell():
+    # Replicata: the legend of the m*(n) chart's section; mstar.js and the made-up data; the kinds panels run's boxes.
+    # Expectata (dreeves, 2026-11-11, of a cell that is ringed in gold and also red if the Symmetry Conjecture holds:
+    # "can we just have a legend entry for every combination?"): the legend's swatches are, in order, a cell's four
+    # kinds, exists, open, ifsym and impossible, and then each kind that a gold ring can be on, with its ring: exists
+    # (the smallest n known for its m), open and ifsym (the smallest n not ruled out), and exists proven the least,
+    # dotted.  Those are all the combinations a cell can be: a ring of role 1 or 3 is on a cell at or below its
+    # column's lower bound, one of role 2 on a cell above it and at or below its upper bound, which is open or ifsym.
+    # And every cell of the real chart and of the made-up one is one of them.
+    # Resultata before: six items, none for ifsym, which no cell was.
+    legend = re.search(r'<ul class="legend">(.*?)</ul>', section(), re.S).group(1)
+    want = ['swatch exists', 'swatch open', 'swatch ifsym', 'swatch impossible', 'swatch exists record', 'swatch open record',
+            'swatch ifsym record', 'swatch exists record proven']
+    assert re.findall(r'<span class="(swatch[^"]*)" aria-hidden="true">', legend) == want, re.findall(r'<span class="(swatch[^"]*)"', legend)
+    assert legend.count('<li>') == len(want) and all(re.search(r'<li><span class="swatch[^"]*" aria-hidden="true"></span>\s*\S', x)
+                                                     for x in legend.split('</li>')[:-1]), legend       # each with words after its swatch
+    suffix = ['', ' record', ' record', ' record proven']
+    seen = set()
+    for data in (mstar_data(), json.loads(kinds_data()[len('const MSTAR = '):-2])):
+        rings = smallest_rings(data['cols'])
+        for n in range(1, len(data['cols']) + 1):
+            for m in range(1, data['mtop'] + 1):
+                seen.add(f"swatch {kind_of(data['cols'], n, m, data['ifsym'])}{suffix[rings.get((n, m), 0)]}")
+    assert seen == set(want), (seen - set(want), set(want) - seen)
+
+
+def q_ifsym_cells_are_open_with_an_impossible_corner():
+    # Replicata: the light run (the real chart, whose ifsym is [[480, 13, ...]]: the cell (480, 14), ringed) and the
+    # kinds run (made-up: (24, 5), ringed, and (48, 7), not ringed): the harness's checks of every cell's pixels down
+    # its middle column, zoomed in, and of every ringed cell's.
+    # Expectata (dreeves's README, [SYC]: "a different styling on the chart (like striped or half-and-half black vs
+    # red, split diagonally) for cells for which we know they're red conditional on the Symmetry Conjecture being
+    # true"; the prototype he saw, scratch/syc-20261111): such a cell is an open cell with its upper right triangle in
+    # the color of an impossible one, so down its middle column it is impossible a quarter of the way down and open
+    # three quarters down, under any gold ring it has; no check of either run finds another color, and each run's
+    # checks fell on such a cell.
+    # Resultata before: every cell was of one color; with the data's ifsym in place and the page as it was, the cell
+    # (480, 14) was open all over.
+    for name, least in (('light', 1), ('kinds', 2)):
+        R = valid_run(name)
+        assert R['pixelBad'] == [] and R['ringBad'] == [], (name, R['pixelBad'][:5], R['ringBad'][:5])
+        assert R['ifsymChecks'] >= least, (name, R['ifsymChecks'])
+
+
+def q_box_of_a_cell_red_if_the_conjecture_holds():
+    # Replicata: the boxes run: a click on the cell (480, 14), which mstar.js's ifsym makes red if BGPW's Symmetry
+    # Conjecture holds (m*(480) <= 13 then, by the kept proof that no symmetric sequence of length 480 has order 14).
+    # Expectata: its box is a black cell's (the witness of the lower bound 12, the proof of the upper bound 14, the
+    # searches) with one more part after the proof, proof-ifsym: the bound m*(480) <= 13, the conjecture named and
+    # linked to the page's section on it, and the program that checks the proof, linked, a file of the repository; no
+    # English of a model's in that part.  Its kind is ifsym, its fragment n480m14, its swatch the legend's item for a
+    # ringed ifsym cell.  The readout of that cell, hovered, says so too and names the program.
+    # Resultata before: the cell was open and its box a black cell's.
+    R, B = boxes_run()
+    data = mstar_data(); cols, ifsym = data['cols'], data['ifsym']
+    assert ifsym == [[480, 13, IFSYM_FILE]] and kind_of(cols, 480, 14, ifsym) == 'ifsym' and kind_of(cols, 480, 13, ifsym) == 'open', ifsym
+    P = B[(480, 14)]
+    assert not P['hidden'] and P['hash'] == '#n480m14' and P['kind'] == 'ifsym', (P['hidden'], P['hash'], P['kind'])
+    assert P['whys'] == box_parts(cols, 480, 14, ifsym) and P['whys'][-2:] == ['proof-ifsym', 'searches'], P['whys']
+    assert '\\(m^*(480) \\le 13\\)' in P['said'] and '\\(m^*(480) \\le 14\\)' in P['said'] and '\\(m^*(480) \\ge 12\\)' in P['said'], P['said']
+    files = [href for href in P['links'] if href.endswith('/' + IFSYM_FILE)]
+    assert files and all(panel_link_lands(href) for href in files), P['links']               # the program: a file of the repository that is here
+    assert '#symmetry-title' in P['links'] and page().count('id="symmetry-title"') == 1, P['links']   # the conjecture's section: an anchor of the page
+    assert P['swatch']['cls'] == 'swatch ifsym record', P['swatch']
+    assert B[(480, 13)]['kind'] == 'open' and 'proof-ifsym' not in B[(480, 13)]['whys'], B[(480, 13)]['whys']
+    hovers = valid_run('light')['hovers']
+    hovered, below = [t for n, m, t in hovers if (n, m) == (480, 14)], [t for n, m, t in hovers if (n, m) == (480, 13)]
+    assert hovered and all(IFSYM_FILE in t for t in hovered) and below and not any(IFSYM_FILE in t for t in below), (hovered, below)
 
 
 def q_cell_box_words_stay_within_budget():

@@ -2,7 +2,11 @@
 // up to the cap, the one pressed of the page's caps (dreeves's README, [BOU], 2026-11-10: "Let's try having Figure 1
 // go up to 2048. Actually, let's try this: replace the reset-zoom button with "cap:" and then buttons for 2^6, 2^7,
 // 2^8, 2^9, 2^10, 2^11"; n up to 1024 until then, which is the cap pressed as the page loads).  Column n is green (exists) in rows m = 1 to lo, gray (open) up to hi and red (impossible) above, up to row
-// MSTAR.mtop.  The columns are NS: every n up to the cap but those that a checked box of the page's list leaves out (dreeves's
+// MSTAR.mtop.  Since 2026-11-11 (dreeves's README, [SYC]: "a different styling on the chart (like striped or half-and-half
+// black vs red, split diagonally) for cells for which we know they're red conditional on the Symmetry Conjecture being
+// true") a column that MSTAR.ifsym lists has a lower upper bound if BGPW's Symmetry Conjecture holds, and its cells
+// above that bound, up to hi, are of a fourth kind, ifsym: open, with the upper right triangle in the red of an
+// impossible cell.  The columns are NS: every n up to the cap but those that a checked box of the page's list leaves out (dreeves's
 // README, [COM], 2026-11-10: "checkboxes for what's omitted, in terms of the biggest power of two factor").  As the page
 // loads its first two boxes are checked, so NS is n = 2 and the multiples of 4 (dreeves, 2026-10-29: "can we make my
 // "odd multiple of 2" bullet point be true?"; every even n before): an odd n has no partition at any m, and every
@@ -144,6 +148,12 @@ try {
     OMIT.forEach(o => assert(stated(n, c, o), n, c));              // why a checked box may leave n out
   });
   assert(D.mtop === Math.max(...D.cols.map(c => c[1])) + 1, D.mtop);
+  // ifsym ([SYC], 2026-11-11): [n, hi, file], rising in n: m*(n) <= hi if BGPW's Symmetry Conjecture holds, hi from the
+  // column's lower bound to one below its upper bound, by the proofs that the program file, of proofs/, checks
+  assert(Array.isArray(D.ifsym), 'ifsym', D.ifsym);
+  D.ifsym.forEach((e, i) => assert(Array.isArray(e) && e.length === 3 && Number.isInteger(e[0]) && 1 <= e[0] && e[0] <= D.nmax
+    && (i === 0 || D.ifsym[i - 1][0] < e[0]) && Number.isInteger(e[1]) && D.cols[e[0] - 1][0] <= e[1] && e[1] < D.cols[e[0] - 1][1]
+    && /^proofs\/[\w.]+\.py$/.test(e[2]), 'ifsym', e));
   // the least n not ruled out at each order from mtop on, past the chart ([LIN], 2026-11-03; a list since 2026-11-04,
   // [M17]), which cannot fall: order m + 1 at n has order m there
   assert(Array.isArray(D.mtopAt) && D.mtopAt.length > 0 && D.mtopAt.every(n => Number.isInteger(n) && n > D.nmax && n % 2 === 0), D.mtopAt);
@@ -151,8 +161,11 @@ try {
   // the explicit sequences longer than the chart reaches, for the table of smallest lengths (since 2026-11-04: 1440:16)
   assert(Array.isArray(D.past) && D.past.every(([n, m, label]) => Number.isInteger(n) && n > D.nmax && n % 2 === 0 && Number.isInteger(m) && m > 0 && label), D.past);
 
-  const KIND = ['exists', 'open', 'impossible'];                  // the colors' tokens, by kind of cell
-  const kindOf = (n, m) => m <= D.cols[n - 1][0] ? 0 : m <= D.cols[n - 1][1] ? 1 : 2;
+  const KIND = ['exists', 'open', 'impossible', 'ifsym'];         // the kinds of cell
+  const UNDER = ['exists', 'open', 'impossible', 'open'];         // the token of a cell's color, by kind: an ifsym cell is an open one with a triangle over it
+  const IFHI = D.cols.map(c => c[1]);                             // each column's upper bound if the Symmetry Conjecture holds: its own, or ifsym's
+  D.ifsym.forEach(([n, hi]) => { IFHI[n - 1] = hi; });
+  const kindOf = (n, m) => m <= D.cols[n - 1][0] ? 0 : m <= IFHI[n - 1] ? 1 : m <= D.cols[n - 1][1] ? 3 : 2;
   const style = getComputedStyle(cv), token = name => style.getPropertyValue(name).trim();
   const rgb = name => {
     const h = token(name);
@@ -206,13 +219,15 @@ try {
   const panel = document.getElementById('mstar-panel'), legend = [...cv.closest('section').querySelectorAll('.legend li')];
   const witness = n => { const [lo, , lw] = D.cols[n - 1]; return together(LO[lw[0]].witness(n, lo, ...lw.slice(1)), copies(BigInt(n), lo)); };
   const proof = n => { const [, hi, , hw] = D.cols[n - 1]; return HI[hw[0]].proof(n, hi, ...hw.slice(1)); };
+  const ifproof = n => PROOF.ifsym(BigInt(n), `${n}`, IFHI[n - 1], D.ifsym.find(e => e[0] === n)[2]);   // of a column that ifsym lists
   const SAYS = {exists: witness, impossible: proof, open: (n, m) => together(witness(n), proof(n), searches(BigInt(n), m)),
+                ifsym: (n, m) => together(witness(n), proof(n), ifproof(n), searches(BigInt(n), m)),   // an open cell's, with the bound if the conjecture holds
                 column: n => together(witness(n), proof(n), shown([], [BigInt(n)])), row: (n, m) => smallestBox(m)};
   const cell = (n, m) => {
     const [swatch, ...words] = legendItem(legend, KIND[kindOf(n, m)], Math.max(0, ...RINGS.filter(r => r.n === n && r.m === m).map(r => r.role)));
     return [swatch, linked(`#n${n}`, `\\(n = ${n}\\)`), ', ', linked(`#m${m}`, `\\(m = ${m}\\)`), ': ', ...words];
   };
-  const HEADINGS = {exists: cell, open: cell, impossible: cell, row: (n, m) => [`\\(m = ${m}\\)`], column: n => {
+  const HEADINGS = {exists: cell, open: cell, impossible: cell, ifsym: cell, row: (n, m) => [`\\(m = ${m}\\)`], column: n => {
     const [lo, hi] = D.cols[n - 1];
     return [`\\(n = ${n}\\)`, ': ', `\\(${lo === hi ? `m^*(${n}) = ${lo}` : `${lo} \\le m^*(${n}) \\le ${hi}`}\\)`];
   }};
@@ -242,7 +257,7 @@ try {
     geo = {dpr, L, W, top, tall, rows};
     // The plot as a strip one device pixel per row, each row then stretched to its height: pixel x covers u from
     // u0 + x k to u0 + (x + 1) k.
-    const colors = KIND.map(t => rgb(`--${t}`)), k = span / W, img = sctx.createImageData(W, rows);
+    const colors = UNDER.map(t => rgb(`--${t}`)), k = span / W, img = sctx.createImageData(W, rows);
     const mix = new Float64Array(3 * rows);
     for (let x = 0; x < W; x++) {
       const a = u0 + x * k, b = Math.min(a + k, NS.length);
@@ -270,6 +285,26 @@ try {
       ctx.drawImage(strip, 0, rows - m, W, 1, L, Y(m), W, Y(m - 1) - Y(m));
       ctx.fillRect(L, Y(m - 1) - gap, W, gap);
     }
+    // The ifsym cells ([SYC], 2026-11-11): over each, an open cell in the strip, its upper right triangle in the color
+    // of an impossible cell, within the plot: every cell from the column's ifsym bound up to its upper bound, in the
+    // view's rows, of the columns shown.
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(L, top, W, tall);
+    ctx.clip();
+    ctx.fillStyle = token('--impossible');
+    D.ifsym.filter(([n]) => NS.includes(n)).forEach(([n, hi]) => {
+      const c = NS.indexOf(n), x0 = L + (c - u0) / k, x1 = L + (c + 1 - u0) / k;
+      for (let m = hi + 1; m <= Math.min(D.cols[n - 1][1], rows); m++) {
+        ctx.beginPath();
+        ctx.moveTo(x0, Y(m));
+        ctx.lineTo(x1, Y(m));
+        ctx.lineTo(x1, Y(m - 1) - gap);
+        ctx.closePath();
+        ctx.fill();
+      }
+    });
+    ctx.restore();
     // A hairline grid (dreeves, 2026-10-29: "maybe when zoomed in enough the full grid could become visible", then of
     // the powers-of-2 chart's: "this with hairline grid looks great to me"): with the rows' gaps, a line of page
     // surface one device px wide at each boundary of whole columns, fading in as columns widen from 4 CSS px to 8, so
@@ -377,6 +412,8 @@ try {
   function readout(c, m) {                                         // read out the cell of column c, n = NS[c], and row m
     const n = NS[c], [lo, hi, lw, hw] = D.cols[n - 1], kind = kindOf(n, m);
     const why = [() => LO[lw[0]].text(n, lo, ...lw.slice(1)), () => HI[hw[0]].text(n, hi, ...hw.slice(1))];
+    // TODO: readout reason by Fable 5.2 (2026-11-11, [SYC]), of an ifsym cell; says the order above the column's bound under BGPW's Symmetry Conjecture is ruled out if that conjecture holds, naming the program that checks the proofs
+    const ifwhy = () => `order ${IFHI[n - 1] + 1} ruled out if the Symmetry Conjecture holds (${D.ifsym.find(e => e[0] === n)[2]})`;
     const mstar = [el('i', 'm'), el('sup', '*'), `(${n})`];
     const rings = RINGS.filter(r => r.n === n && r.m === m);        // none or one
     swatch.className = `swatch ${KIND[kind]}`;
@@ -384,7 +421,7 @@ try {
     swatch.classList.toggle('proven', rings.some(r => r.role === 3));
     ro.replaceChildren(swatch, nw(el('i', 'n'), ` = ${n}, `, el('i', 'm'), ` = ${m}`), ' · ',
       nw(...(lo === hi ? [...mstar, ` = ${lo}`] : [`${lo} ≤ `, ...mstar, ` ≤ ${hi}`])), ' · ',
-      [[why[0]], why, [why[1]]][kind].map(f => f()).join(' · '));
+      [[why[0]], why, [why[1]], [...why, ifwhy]][kind].map(f => f()).join(' · '));
     ro.append(...rings.map(r => ` · ${NOTES[r.role](m)}`));
   }
   // The columns changed, with a box of the list ([COM]) or with the cap ([BOU]), at the control clicked: the data must

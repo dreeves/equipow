@@ -240,7 +240,8 @@ const copies = (N, lo) => shown([...document.querySelectorAll(`code[id="${N}:${l
 // passes.  A proof of the page's own (page) is in the length's entry, which the box shows after it; one that a program
 // of proofs/ checks, at a length with no entry (file; since 2026-11-10, 1456's), is that program, linked.  A box shows the
 // numbers of a claim, which mstar.py and pow2.py assert as they make the data; it does not decide the claim itself.
-const repoFile = path => linked(`https://github.com/dreeves/equipow/blob/main/${path}`, path);   // a file of the repository, by its path in it
+const repoURL = path => `https://github.com/dreeves/equipow/blob/main/${path}`;   // where a file of the repository is, by its path in it
+const repoFile = path => linked(repoURL(path), path);             // a link to it, worded by its path
 const PROOF = {
   odd: (n, name, hi) => shown([filled('proof-odd', {bound: bound(name, 'le', hi), n: `\\(${name} \\equiv 1 \\pmod 2\\)`})]),
   two: (n, name, hi) => {
@@ -270,6 +271,10 @@ const PROOF = {
   },
   table2: (n, name, hi) => shown([filled('proof-table2', {bound: bound(name, 'le', hi)})]),
   page: (n, name, hi, who) => shown([filled('proof-page', {bound: bound(name, 'le', hi), who: credit(who)[0]})], [n]),
+  // The bound that holds if BGPW's Symmetry Conjecture does (2026-11-11; dreeves's README, [SYC]), for a length that
+  // mstar.js's ifsym lists: m*(n) <= hi then, by the proofs that the program path checks, to which the bound itself is
+  // the link (the program's path as the link's words would take a black cell's box past its budget of words)
+  ifsym: (n, name, hi, path) => shown([filled('proof-ifsym', {bound: linked(repoURL(path), bound(name, 'le', hi))})]),
 };
 
 // The legend's item for a cell of the kind (exists, open or impossible) and the role of its gold ring (0, none; 1, the
