@@ -1778,7 +1778,10 @@ def q_scripts_load_data_then_draw():
                       r'<script defer src="https://cdn\.jsdelivr\.net/npm/katex@0\.16\.47/dist/contrib/auto-render\.min\.js" '
                       r'integrity="sha256-[A-Za-z0-9+/]{43}=" crossorigin="anonymous" onload="(\w+)\(\)"></script>\n', head, re.S)
     tags = re.findall(r'<script\b[^>]*>', head)
-    assert katex and len(tags) == 3 and not any('&' in t for t in tags), tags
+    # Spec change (Opus 5.5, 2026-11-12; dreeves: "is there something simpler we can do to make it fail louder? see
+    # anti-postel in AGENTS.md"): four in the head, page/errors.js first of all the page's scripts, so that it hears
+    # every other's errors and shows them (q_an_error_shows_at_the_top_of_the_window); then the three as before.
+    assert katex and len(tags) == 4 and tags[0] == '<script src="page/errors.js">' and not any('&' in t for t in tags), tags
     [math_js] = page_scripts(katex[0])
     assert re.search(rf'^function {katex[2]}\(\) \{{$', math_js, re.M), math_js[:300]
     assert re.findall(r'<script\b[^>]*>', body) == [
@@ -5763,6 +5766,68 @@ def q_a_reference_to_a_figure_lands_with_the_figure_in_view():
         assert R['chartTop'] >= 0 and R['captionBottom'] <= R['innerH'], (i, R)
 
 
+ERRORS_LOOK = """<script>
+addEventListener('load', () => setTimeout(() => {
+  const b = document.getElementById('page-errors'), r = b && b.getBoundingClientRect(), css = b && getComputedStyle(b);
+  const pre = document.createElement('pre'); pre.id = 'harness-out';
+  pre.textContent = JSON.stringify(b && {shown: b.checkVisibility(), text: b.textContent, role: b.getAttribute('role'), position: css.position,
+                                         top: r.top, width: r.width, height: r.height, color: css.backgroundColor, viewport: document.documentElement.clientWidth});   // the width inside the scrollbar
+  document.body.appendChild(pre);
+}, 1500));
+</script>
+"""
+
+
+def error_run(case):
+    """What the page shows of its errors (ERRORS_LOOK) in case: load, an inline script at the end of the body throwing an
+    Error as the page loads; later, one throwing a TypeError 300 ms after; promise, a promise rejected and never handled;
+    stale, the Search progress section's script replaced by one that sets the text of an element the page does not have
+    (as an old script cached with a new page did on 2026-11-12); nostyle, load without page/style.css; clean, nothing."""
+    inject = dict(load="<script>throw new Error('qual: thrown as the page loads')</script>\n",
+                  later="<script>setTimeout(() => { throw new TypeError('qual: thrown later'); }, 300)</script>\n",
+                  promise="<script>Promise.reject(new Error('qual: rejected'))</script>\n",
+                  nostyle="<script>throw new Error('qual: thrown as the page loads')</script>\n").get(case, '')
+    d = tempfile.mkdtemp(prefix='index-quals-')
+    try:
+        open(os.path.join(d, 'index.html'), 'w', encoding='utf-8').write(page().replace('</body>', inject + ERRORS_LOOK + '</body>'))
+        copy_page_dir(d)
+        for name, path in (('mstar.js', DATA), ('pow2.js', POW2)): shutil.copy(path, data_file(d, name))
+        open(data_file(d, 'progress.js'), 'w', encoding='utf-8').write(progress_text(PROGRESS_DATA))
+        if case == 'stale':
+            open(os.path.join(d, 'page', 'progress-section.js'), 'w').write("document.querySelector('[data-no-such-element]').textContent = 'x';\n")
+        if case == 'nostyle':
+            os.remove(os.path.join(d, 'page', 'style.css'))
+        dom = chrome(d, ['--window-size=390,800', '--virtual-time-budget=8000', '--dump-dom', 'file://' + os.path.join(d, 'index.html')])
+        m = re.search(r'<pre id="harness-out">(.*?)</pre>', dom, re.S)
+        assert m, dom[-2000:]
+        return json.loads(html.unescape(m.group(1)))
+    finally:
+        shutil.rmtree(d)
+
+
+def q_an_error_shows_at_the_top_of_the_window():
+    # Replicata: index.html at 390 px in each of error_run's cases: an Error thrown by an inline script as the page
+    # loads; a TypeError thrown 300 ms after; a promise rejected and never handled; the Search progress section's script
+    # replaced by one that sets the text of an element the page does not have; the first case with no page/style.css;
+    # and the page as it is.
+    # Expectata (Opus 5.5, 2026-11-12; dreeves: "is there something simpler we can do to make it fail louder? see
+    # anti-postel in AGENTS.md", after his phone ran an old cached script with the new page and the Search progress
+    # section stayed silently empty): every error the page's scripts do not catch shows at once, at the top of the
+    # window, over the page, across its width (a box with the role alert, fixed, its top at 0, in the impossible red):
+    # its message, and for a script's error the file it came from ("index.html", "progress-section.js"); with no
+    # stylesheet the same, its look its own; and with no error, nothing (the box hidden, empty).  Resultata before: no
+    # box; the stale case's section empty, and the other errors only in the console.
+    want = dict(load=('qual: thrown as the page loads', 'index.html'), later=('qual: thrown later', 'index.html'),
+                promise=('qual: rejected', ''), stale=('textContent', 'progress-section.js'), nostyle=('qual: thrown as the page loads', 'index.html'))
+    for case, (message, source) in want.items():
+        got = error_run(case)
+        assert got is not None and got['shown'] and got['role'] == 'alert' and got['position'] == 'fixed' and got['top'] == 0, (case, got)
+        assert abs(got['width'] - got['viewport']) < 1 and got['height'] > 10 and got['color'] == 'rgb(168, 40, 63)', (case, got)
+        assert message in got['text'] and source in got['text'], (case, got['text'])
+    clean = error_run('clean')
+    assert clean is not None and not clean['shown'] and clean['text'] == '', clean
+
+
 def q_contents_links_reach_every_main_section():
     # Replicata: the real page at desktop and phone widths; click each link in the header's navigation.
     # Expectata (dreeves, 2026-11-11): a contents list above the introduction, one link per main section in page
@@ -6271,7 +6336,10 @@ def q_progress_cpu_chart_shows_no_paper_between_its_bands():
                 '<style>main > *:not(section.progress) { display: none !important; } body * { visibility: hidden !important; } '
                 '.progress-cpu svg, .progress-cpu svg * { visibility: visible !important; } .progress-cpu .cross { visibility: hidden !important; } '
                 # its hour labels (2026-11-12) and the time's box, which the rule above would show, hidden as the cross is
-                '.progress-cpu text, .progress-cpu .stamp, .progress-cpu .stamp * { visibility: hidden !important; }</style>\n')
+                '.progress-cpu text, .progress-cpu .stamp, .progress-cpu .stamp * { visibility: hidden !important; } '
+                # and the page's error box (2026-11-12), outside the body: the m*(n) chart, hidden here, fails its own assert of
+                # a width above 0, which the box shows; this qual is of the CPU chart's pixels alone
+                '#page-errors { display: none !important; }</style>\n')
         open(os.path.join(d, 'index.html'), 'w', encoding='utf-8').write(page().replace('<head>\n', '<head>\n' + keep))
         copy_page_dir(d)
         open(data_file(d, 'progress.js'), 'w', encoding='utf-8').write(progress_text({'made': made, 'runs': [run]}))
