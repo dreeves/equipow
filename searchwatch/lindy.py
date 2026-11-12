@@ -18,6 +18,7 @@ Each time it is run it appends one estimate to the record that TRACK_RECORD name
             total its age more than its time to go.
   IGNORANT  the probability that what is searched for exists, before the search and at every moment of it: a search
             that knows only its age learns nothing of that.
+  pending   none that it can count: null (2026-11-12).
 
 Quals: quals_lindy.py
 """
@@ -35,7 +36,7 @@ def estimate(age):
     lo, median, hi = (age * q / (1 - q) for q in (chance.BANDS['gott'][0], 0.5, chance.BANDS['gott'][1]))
     return dict(event='estimate', basis='lindy', unit='seconds', done=age, rate=1.0,
                 total=dict(median=age + median, lo=age + lo, hi=age + hi), to_go=dict(median=median, lo=lo, hi=hi),
-                prior=IGNORANT, exists=IGNORANT)
+                prior=IGNORANT, exists=IGNORANT, pending=None)
 
 
 if __name__ == '__main__':

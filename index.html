@@ -2208,6 +2208,17 @@ at one \(\theta\) every factor is \(\pm\cos(\pi/16)\), which leaves \(0.39\) at 
             <!-- each entry of the key holds its share of the latest row, or of the row under the pointer, and the readout after them that row's time (dreeves, 2026-11-08: "might as well combine the percentages with the legend here", and "change "search" to "this search""; until then the readout gave the time and the three shares) -->
             <p class="progress-cpu-key">CPU usage: <span class="search">this search <span data-cpu-share="search"></span></span> <span class="other">other processes <span data-cpu-share="other"></span></span> <span class="idle">idle <span data-cpu-share="idle"></span></span> <span class="progress-cpu-readout" data-cpu-readout></span></p>
           </div>
+          <!-- The title of a search's graph of its nodes pending: the nodes it has named and not yet checked (those being checked and those waiting), plotted against its hours of running, under the CPU chart and on the same x axis; grayed, with no line, for a search that counts none -->
+          <div class="progress-pending">
+            <p class="progress-pending-title">Pending nodes vs time:</p>
+            <svg viewBox="0 0 640 110" role="img" aria-label="Pending nodes vs time">
+              <g data-pending-grid></g>
+              <polygon class="wash" data-pending-wash></polygon>
+              <polyline data-pending-line></polyline>
+              <g data-pending-marks></g>
+              <g data-pending-ticks></g>
+            </svg>
+          </div>
           <!-- a tracked search's counts of its runs (template progress-track), below the CPU chart; the status line above, its blue/red/purple numbers, stays right under the ETA chart (dreeves, 2026-11-07: "let's keep the blue/red/purple line of numbers directly below the ETA graph, not below the CPU graph", "not the black text line though"); empty for any other run -->
           <p class="progress-status" data-track-line></p>
           </div>

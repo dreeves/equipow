@@ -26,6 +26,14 @@ def _prefix(path):
 
 
 def _roots(verdicts, roots):
+    return walk(verdicts, roots)[0]
+
+
+def walk(verdicts, roots):
+    """(rows, waiting): each root's row, {name, done: its nodes checked, complete: whether every node under it has a
+    verdict}, and waiting, the nodes named (a root, or a spill of a node checked) that have no verdict yet: the nodes
+    pending, as searches/formtree/ftree.py's remaining() finds them and its log counts them ("left") (the pending count
+    since 2026-11-12, Opus 5.5)."""
     assert roots and len(set(roots)) == len(roots) and all(type(n) is str and n for n in roots)
     assert all(v['ok'] is True and type(v['open']) is int and v['open'] == 0 and v.get('py') is not False for v in verdicts)
     assert all(type(v['nodes']) is int and v['nodes'] > len(v['spills']) and
@@ -33,7 +41,7 @@ def _roots(verdicts, roots):
     have = {v['start']: v for v in verdicts}
     assert len(have) == len(verdicts)
     result = [dict(name=n, done=0, complete=True) for n in roots]
-    seen, todo = set(), [(n, i) for i, n in enumerate(roots)]
+    seen, todo, waiting = set(), [(n, i) for i, n in enumerate(roots)], []
     while todo:
         name, i = todo.pop()
         assert name not in seen
@@ -44,8 +52,9 @@ def _roots(verdicts, roots):
             todo.extend((c, i) for c in v['spills'])
         else:
             result[i]['complete'] = False
+            waiting.append(name)
     assert set(have) <= seen
-    return result
+    return result, waiting
 
 
 def _driver(root):

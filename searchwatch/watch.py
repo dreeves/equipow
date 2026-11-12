@@ -35,6 +35,9 @@ CPU intervals (cpu.py): a search's estimator says how far along it is, and this 
                                   lo, hi] of each, thinned evenly to at most ETA_POINTS, the last kept;
                odds               {prior: its latest estimate's, since: its first start, exists: [time, P(exists)] of
                                   the same estimates as etas};
+               pending            [time, its seconds of running before then, nodes pending] of the same estimates
+                                  as etas that count them (2026-11-12, Opus 5.5; dreeves: "we used to have number of
+                                  open nodes as a graph"; none for a search that counts none, lindy.py's);
                cpu                its CPU series (cpu_series);
                stale              null, or the time of the snapshot its data are from (snapshot).
              A search shows from its first estimate: one whose runs have none yet is in no snapshot.  A running
@@ -121,6 +124,7 @@ def entry(key, runs, procs, now, rows):
         to_go=latest['to_go'], basis=latest['basis'], work={k: latest[k] for k in ('unit', 'done', 'rate', 'total')},
         etas=[[int(x['time']), round(track.running(passes, x['time']), 1)] + [round(x['to_go'][k], 1) for k in ('median', 'lo', 'hi')] for x in history],
         odds=dict(prior=latest['prior'], since=runs[0][0]['time'], exists=[[int(x['time']), x['exists']] for x in history]),
+        pending=[[int(x['time']), round(track.running(passes, x['time']), 1), x['pending']] for x in history if x['pending'] is not None],
         cpu=cpu_series(rows, passes, {r[0]['name'] for r in runs}), stale=None)
 
 

@@ -73,22 +73,24 @@ print('ok')
 
 def q_a_tree_two_fifths_checked_has_its_estimate():
     # Replicata: formtree_eta.estimate with MODEL made of one root (its dives all say 1000 nodes, next to no spread),
-    # that root with 400 nodes checked and not complete, the points (0, 0), (100, 200), (200, 400), and the prior 0.5.
+    # that root with 400 nodes checked and not complete, the points (0, 0), (100, 200), (200, 400), the prior 0.5, and
+    # 3 nodes pending (2026-11-12).
     # Expectata: basis formtree, unit nodes, done 400, rate 2 nodes a second; the total 1000 nodes and the time to go
     # (1000 - 400) / 2 = 300 s, each band at its median (the model has no spread); the prior 0.5, and P(exists | none
     # found) 0.375: a witness is as likely anywhere in the tree (chance.work), so with 3/5 of the tree unsearched
-    # 0.5 (3/5) / (0.5 + 0.5 (3/5)).  With the prior 0.01: 0.006 / (0.99 + 0.006).  The line holds to the record's form.
+    # 0.5 (3/5) / (0.5 + 0.5 (3/5)).  With the prior 0.01: 0.006 / (0.99 + 0.006).  Its pending is the 3 given.  The
+    # line holds to the record's form.
     d = sandbox()
     try:
         inside(d, f"""import formtree_eta as eta, track
 model = dict({MODEL!r}, roots={MODEL['roots'][:1]!r})
 roots, points = [dict(name='a', done=400, complete=False)], [(0, 0), (100, 200), (200, 400)]
-e = eta.estimate(model, roots, points, 0.5)
+e = eta.estimate(model, roots, points, 0.5, 3)
 near = lambda a, b: abs(a - b) <= 1e-3 * b
 assert (e['event'], e['basis'], e['unit'], e['done'], e['rate'], e['prior']) == ('estimate', 'formtree', 'nodes', 400, 2, 0.5), e
 assert all(near(e['total'][k], 1000) and near(e['to_go'][k], 300) for k in ('median', 'lo', 'hi')), e
-assert near(e['exists'], 0.375), e
-assert near(eta.estimate(model, roots, points, 0.01)['exists'], 0.006 / 0.996)
+assert near(e['exists'], 0.375) and e['pending'] == 3, e
+assert near(eta.estimate(model, roots, points, 0.01, 3)['exists'], 0.006 / 0.996)
 start = dict(event='start', name='r', search='S', target='16:4', estimator='e', command='job', cwd='/', found=None, adopted=False, pid=7, tracker=8, time=100.0)
 track.checked([start, dict(e, time=300.0)])
 print('ok')
@@ -116,13 +118,13 @@ def q_the_estimator_appends_the_search_s_estimate():
     # w), w = exp(-400 / 10800): 1.566 nodes a second (within 2%).  a is done at 1000 nodes, as its dives said (so
     # the model's shared factor is 1), and b's tree is the model's 1000, so the total is 2000 nodes, the time to go
     # (2000 - 1249) / rate, and P(exists | none found), as a witness is as likely anywhere in the tree, 0.5 q / (0.5 +
-    # 0.5 q) with q = 751 / 2000: 0.273.
+    # 0.5 q) with q = 751 / 2000: 0.273.  Its pending is 1, d, the one node named with no verdict (2026-11-12).
     d = sandbox()
     try:
         now = time.time()
         write(os.path.join(d, 'verdicts.jsonl'), [verdict('a', 600, ['c']), verdict('c', 401, []), verdict('b', 250, ['d'])])
         old = dict(event='estimate', time=now - 800, basis='formtree', unit='nodes', done=200, rate=1.0, total=dict(median=2000.0, lo=2000.0, hi=2000.0),
-                   to_go=dict(median=1800.0, lo=1800.0, hi=1800.0), prior=0.5, exists=0.47)
+                   to_go=dict(median=1800.0, lo=1800.0, hi=1800.0), prior=0.5, exists=0.47, pending=2)
         write(os.path.join(d, 'runs', 't1.jsonl'), [start('t1', now - 1000, 11), old, dict(event='end', time=now - 600, status=0)])
         write(os.path.join(d, 'runs', 't2.jsonl'), [start('t2', now - 400, os.getpid())])
         before = record(d, 't1')
@@ -138,7 +140,7 @@ def q_the_estimator_appends_the_search_s_estimate():
         assert near(e['rate'], rate), (e['rate'], rate)
         assert all(near(e['total'][k], 2000, 1e-3) and near(e['to_go'][k], 751 / e['rate'], 1e-3) for k in ('median', 'lo', 'hi')), e
         q = 751 / 2000
-        assert near(e['exists'], 0.5 * q / (0.5 + 0.5 * q), 1e-3), e
+        assert near(e['exists'], 0.5 * q / (0.5 + 0.5 * q), 1e-3) and e['pending'] == 1, e
         inside(d, "import track\ntrack.checked(track.lines('runs/t2.jsonl'))\nprint('ok')\n")
     finally:
         shutil.rmtree(d)
@@ -166,6 +168,31 @@ def q_no_estimate_before_any_work_or_with_an_open_node():
         shutil.rmtree(d)
 
 
+def q_pending_counts_the_nodes_named_without_a_verdict():
+    # Replicata: formtree_work.walk on the roots a and b and the verdicts: a's task spilled c and d; c's spilled e; d's
+    # spilled nothing; neither b, e nor f (no node names f) has a verdict.  Then the same with b's verdict, spilling
+    # nothing, and e's, spilling nothing.
+    # Expectata (2026-11-12; dreeves: "we used to have number of open nodes as a graph"): the rows are _roots's (a not
+    # complete, b not complete), and the nodes pending are b and e, those named (a root, or a spill of a node checked)
+    # that have no verdict, as searches/formtree/ftree.py's remaining() finds them and its log counts them ("left");
+    # with the two verdicts more, none, and both roots complete.
+    d = sandbox()
+    try:
+        inside(d, """import formtree_work as fw
+v = [dict(ok=True, start='a', nodes=5, open=0, spills=['c', 'd']), dict(ok=True, start='c', nodes=3, open=0, spills=['e']),
+     dict(ok=True, start='d', nodes=2, open=0, spills=[])]
+rows, waiting = fw.walk(v, ['a', 'b'])
+assert rows == fw._roots(v, ['a', 'b']) == [dict(name='a', done=3 + 2 + 2, complete=False), dict(name='b', done=0, complete=False)], rows
+assert sorted(waiting) == ['b', 'e'], waiting
+more = v + [dict(ok=True, start='b', nodes=1, open=0, spills=[]), dict(ok=True, start='e', nodes=1, open=0, spills=[])]
+rows, waiting = fw.walk(more, ['a', 'b'])
+assert waiting == [] and all(r['complete'] for r in rows), (rows, waiting)
+print('ok')
+""")
+    finally:
+        shutil.rmtree(d)
+
+
 SEARCH = '''import json, time
 for i in range(8):
     time.sleep(0.4)
@@ -182,7 +209,9 @@ def q_the_tracker_runs_it_beside_a_search():
     # Expectata: the tracker exits 0; the record is the start, estimates, and the end, and holds to the record's form;
     # there are three estimates at least, all of basis formtree with prior 0.01, their done never falling and the
     # last's at least 200 above the first's; each one's P(exists | none found) is below the prior, and falls as the
-    # work goes on (the last below the first).
+    # work goes on (the last below the first); and (2026-11-12) its pending is the spilled nodes not yet checked, 8
+    # less one per task ended, so that done + 50 pending is 412 in every estimate (a's and b's 6 nodes each, then 50 a
+    # task).
     d = sandbox()
     try:
         write(os.path.join(d, 'verdicts.jsonl'), [verdict('a', 10, ['a0', 'a2', 'a4', 'a6']), verdict('b', 10, ['b1', 'b3', 'b5', 'b7'])])
@@ -196,6 +225,7 @@ def q_the_tracker_runs_it_beside_a_search():
         done, exists = [e['done'] for e in estimates], [e['exists'] for e in estimates]
         assert done == sorted(done) and done[-1] >= done[0] + 200, done
         assert all(x < 0.01 for x in exists) and exists[-1] < exists[0], exists
+        assert all(e['done'] + 50 * e['pending'] == 412 for e in estimates), [(e['done'], e['pending']) for e in estimates]
         inside(d, "import track\ntrack.checked(track.lines('runs/t1.jsonl'))\nprint('ok')\n")
     finally:
         shutil.rmtree(d)

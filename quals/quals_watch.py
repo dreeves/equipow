@@ -21,12 +21,12 @@ def start(name, search, target, t, pid, found=None):
                 adopted=False, pid=pid, tracker=1, time=t)
 
 
-def estimate(t, done, total, to_go, exists=0.4, basis='formtree', unit='nodes', prior=0.5, rate=2.0):
+def estimate(t, done, total, to_go, exists=0.4, basis='formtree', unit='nodes', prior=0.5, rate=2.0, pending=None):
     """An estimate at time t: done, the total's and to_go's medians (their bands 10% below and 50% above, the total's
     lower end no lower than done)."""
     band = lambda m, floor=0.0: dict(median=m, lo=max(floor, 0.9 * m), hi=1.5 * m)
     return dict(event='estimate', time=t, basis=basis, unit=unit, done=done, rate=rate, total=band(total, done), to_go=band(to_go),
-                prior=prior, exists=exists)
+                prior=prior, exists=exists, pending=pending)
 
 
 def end(t, status=0): return dict(event='end', time=t, status=status)
@@ -47,7 +47,7 @@ def q_an_entry_is_its_search_s_records():
     # Replicata: watch.entry of the search tree at 480:14, at now = 3500, with the live processes {77: S}: its runs r1,
     # from 1000 to its end (status 0) at 2000, with estimates at 1100 and 1900, and r2, started at 3000 with pid 77 and
     # no end, with estimates at 3100 and 3400, the last of basis formtree, in nodes, done 700, rate 2, total 5000,
-    # to_go 2150, prior 0.5, exists 0.31; and no CPU interval.
+    # to_go 2150, prior 0.5, exists 0.31; and no CPU interval.  Their pending (2026-11-12): 30, 40, none (null), 50.
     # Expectata: the entry holds exactly the fields search, n, order, state, outcome, so_far, to_go, etas, basis, work,
     # odds, runs, statuses, depth, keys, groups, counts, cpu and stale, and each is the records': search tree, n 480,
     # order 14; state running (a run runs) and outcome null; so_far 1500 (r1's 1000 s, then r2's 500 so far); to_go,
@@ -56,20 +56,23 @@ def q_an_entry_is_its_search_s_records():
     # estimate's prior, since 1000 (the search's first start) and [time, exists] of each estimate; runs the counts 2
     # runs, 1 running, 0 frozen, 1 ended, 0 aborted, 0 found; one block of dots, a dot per run in the order they
     # started, "03" in the statuses settled, open, pending, running (ended, aborted, frozen, running), keyed by the
-    # target, with those statuses' counts; cpu empty and stale null.  Nothing in it comes from anywhere but the records.
+    # target, with those statuses' counts; cpu empty and stale null; pending [time, seconds of running, nodes
+    # pending] of each estimate that counts them (dreeves, 2026-11-12: "we used to have number of open nodes as a
+    # graph"), [[1100, 100, 30], [1900, 900, 40], [3400, 1400, 50]].  Nothing in it comes from anywhere but the records.
     import watch
-    last = estimate(3400, 700, 5000, 2150, exists=0.31)
-    r1 = [start('r1', 'tree', '480:14', 1000, 55), estimate(1100, 100, 4000, 3000, exists=0.49), estimate(1900, 400, 4500, 2500, exists=0.45), end(2000)]
+    last = estimate(3400, 700, 5000, 2150, exists=0.31, pending=50)
+    r1 = [start('r1', 'tree', '480:14', 1000, 55), estimate(1100, 100, 4000, 3000, exists=0.49, pending=30), estimate(1900, 400, 4500, 2500, exists=0.45, pending=40), end(2000)]
     r2 = [start('r2', 'tree', '480:14', 3000, 77), estimate(3100, 450, 4800, 2400, exists=0.44), last]
     e = watch.entry(('tree', '480:14'), [r1, r2], {77: 'S'}, 3500, [])
     assert set(e) == {'search', 'n', 'order', 'state', 'outcome', 'so_far', 'to_go', 'etas', 'basis', 'work', 'odds', 'runs', 'statuses',
-                      'depth', 'keys', 'groups', 'counts', 'cpu', 'stale'}, sorted(e)
+                      'depth', 'keys', 'groups', 'counts', 'cpu', 'stale', 'pending'}, sorted(e)
     assert (e['search'], e['n'], e['order'], e['state'], e['outcome'], e['so_far'], e['stale'], e['cpu']) == ('tree', 480, 14, 'running', None, 1500, None, []), e
     assert e['to_go'] == last['to_go'] and e['basis'] == 'formtree', e
     assert e['work'] == dict(unit='nodes', done=700, rate=2.0, total=last['total']), e['work']
     assert [row[:2] for row in e['etas']] == [[1100, 100], [1900, 900], [3100, 1100], [3400, 1400]], e['etas']
     assert e['etas'][-1][2:] == [2150, 0.9 * 2150, 1.5 * 2150], e['etas'][-1]
     assert e['odds'] == dict(prior=0.5, since=1000, exists=[[1100, 0.49], [1900, 0.45], [3100, 0.44], [3400, 0.31]]), e['odds']
+    assert e['pending'] == [[1100, 100, 30], [1900, 900, 40], [3400, 1400, 50]], e['pending']
     assert e['runs'] == dict(runs=2, running=1, frozen=0, ended=1, aborted=0, found=0), e['runs']
     assert (e['statuses'], e['depth'], e['keys'], e['groups']) == (['settled', 'open', 'pending', 'running'], 0, ['480:14'], ['03']), e
     assert e['counts'] == dict(settled=1, open=0, pending=0, running=1), e['counts']
@@ -134,15 +137,16 @@ def q_a_running_search_s_old_estimate_fails_loudly():
 
 def q_a_long_history_is_thinned_evenly():
     # Replicata: watch.entry of a search whose one ended run has 1001 estimates, a minute apart from 1060 on, the
-    # k-th with done k and exists 1 - k / 2000.
-    # Expectata: etas and the odds' exists each hold at most watch.ETA_POINTS (400) rows, the same estimates' in both:
+    # k-th with done k, exists 1 - k / 2000 and 1000 - k pending.
+    # Expectata: etas, the odds' exists and pending each hold at most watch.ETA_POINTS (400) rows, the same estimates' in all:
     # every third estimate from the first, and the last; so the first, the last, and gaps of 3 minutes but for the
     # last's.  The latest estimate's fields (to_go, work) are the last's whatever the thinning.
     import watch
-    ests = [estimate(1060 + 60 * k, k, 5000, 100, exists=1 - k / 2000) for k in range(1001)]
+    ests = [estimate(1060 + 60 * k, k, 5000, 100, exists=1 - k / 2000, pending=1000 - k) for k in range(1001)]
     e = watch.entry(('S', '16:4'), [[start('x', 'S', '16:4', 1000, 9), *ests, end(70000)]], {}, 80000, [])
     times = [row[0] for row in e['etas']]
-    assert len(times) <= watch.ETA_POINTS == 400 and times == [t for t, _ in e['odds']['exists']], len(times)
+    assert len(times) <= watch.ETA_POINTS == 400 and times == [t for t, _ in e['odds']['exists']] == [row[0] for row in e['pending']], len(times)
+    assert e['pending'][-1][2] == 0 and e['pending'][0][2] == 1000, (e['pending'][0], e['pending'][-1])
     assert times == [1060 + 60 * k for k in list(range(0, 1001, 3)) + [1000]], times[-3:]
     assert e['work']['done'] == 1000 and e['odds']['exists'][-1] == [61060, 0.5], (e['work'], e['odds']['exists'][-1])
 

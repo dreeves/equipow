@@ -18,8 +18,8 @@ MADE = 1794450000
 band = lambda m, lo, hi: dict(median=m, lo=lo, hi=hi)
 
 
-def entry(search, n, order, state, outcome, basis, work, so_far, to_go, runs, dots, exists):
-    """An entry as watch.py writes it: three estimates, the last at MADE."""
+def entry(search, n, order, state, outcome, basis, work, so_far, to_go, runs, dots, exists, pending):
+    """An entry as watch.py writes it: three estimates, the last at MADE, with these nodes pending (None: none counted)."""
     times = [MADE - 600, MADE - 300, MADE]
     return dict(search=search, n=n, order=order, state=state, outcome=outcome, so_far=so_far, runs=runs,
                 statuses=['settled', 'open', 'pending', 'running'], depth=0, keys=[f'{n}:{order}'], groups=[dots],
@@ -28,17 +28,21 @@ def entry(search, n, order, state, outcome, basis, work, so_far, to_go, runs, do
                 etas=[[t, so_far - (MADE - t), to_go['median'] + (MADE - t), to_go['lo'] + (MADE - t), to_go['hi'] + (MADE - t)] for t in times],
                 odds=dict(prior=0.5, since=MADE - so_far, exists=[[t, p] for t, p in zip(times, exists)]),
                 cpu=[[(so_far - 120) / 3600, (so_far - 60) / 3600, MADE - 60, 0.6, 0.3, 0.1], [(so_far - 60) / 3600, so_far / 3600, MADE, 0.7, 0.2, 0.1]],
-                stale=None)
+                pending=[[t, so_far - (MADE - t), k] for t, k in zip(times, pending) if k is not None], stale=None)
 
 
 TREE = entry('formtree', 480, 14, 'running', None, 'formtree', dict(unit='nodes', done=4200000, rate=510.25, total=band(9.1e7, 2.2e7, 4.1e8)),
-             11000.0, band(170000.0, 35000.0, 800000.0), dict(runs=4, running=1, frozen=0, ended=2, aborted=1, found=0), '0103', [0.49, 0.485, 0.48])
+             11000.0, band(170000.0, 35000.0, 800000.0), dict(runs=4, running=1, frozen=0, ended=2, aborted=1, found=0), '0103', [0.49, 0.485, 0.48],
+             [700, 740, 760])
 TILT = entry('tilt', 2016, 15, 'running', None, 'lindy', dict(unit='seconds', done=3600.0, rate=1.0, total=band(7200.0, 4000.0, 36000.0)),
-             3600.0, band(3600.0, 400.0, 32400.0), dict(runs=2, running=2, frozen=0, ended=0, aborted=0, found=0), '33', [0.5, 0.5, 0.5])
+             3600.0, band(3600.0, 400.0, 32400.0), dict(runs=2, running=2, frozen=0, ended=0, aborted=0, found=0), '33', [0.5, 0.5, 0.5],
+             [None] * 3)
 SYM = entry('formtree-sym', 480, 14, 'ended', 'none', 'formtree', dict(unit='nodes', done=145427, rate=35.5, total=band(145427, 145427, 145427)),
-            4100.0, band(0.0, 0.0, 0.0), dict(runs=4, running=0, frozen=0, ended=2, aborted=2, found=0), '1100', [0.3, 0.1, 0.0])
+            4100.0, band(0.0, 0.0, 0.0), dict(runs=4, running=0, frozen=0, ended=2, aborted=2, found=0), '1100', [0.3, 0.1, 0.0],
+            [30, 10, 0])
 OLDTILT = dict(entry('tilt', 1104, 14, 'ended', None, 'lindy', dict(unit='seconds', done=1500.0, rate=1.0, total=band(3000.0, 1666.0, 15000.0)),
-                     1500.0, band(1500.0, 166.0, 13500.0), dict(runs=3, running=0, frozen=0, ended=2, aborted=1, found=0), '001', [0.5, 0.5, 0.5]))
+                     1500.0, band(1500.0, 166.0, 13500.0), dict(runs=3, running=0, frozen=0, ended=2, aborted=1, found=0), '001', [0.5, 0.5, 0.5],
+                     [None] * 3))
 SEARCHES = dict(made=MADE, runs=[SYM, TREE, OLDTILT, TILT])           # as the watcher lists them: not by state
 
 HARNESS = r"""<script>
@@ -67,7 +71,11 @@ HARNESS = r"""<script>
         label: q('[data-program]').textContent, n: q('[data-n]').textContent, order: q('[data-order]').textContent,
         state: [...box.querySelectorAll('.progress-run-state [data-label]')].filter(shown).map(e => e.dataset.label),
         parts: {bar: shown(q('.progress-work')), eta: shown(q('.progress-eta svg')), status: shown(q('.progress-status')), cpu: shown(q('.progress-cpu svg')),
-                runs: shown(q('[data-track-line]')), dots: shown(q('canvas')), odds: shown(q('.progress-odds svg'))},
+                pending: shown(q('.progress-pending svg')), runs: shown(q('[data-track-line]')), dots: shown(q('canvas')), odds: shown(q('.progress-odds svg'))},
+        pending: {empty: q('.progress-pending').hasAttribute('data-empty'), opacity: +getComputedStyle(q('.progress-pending svg')).opacity,
+                  line: (q('[data-pending-line]').getAttribute('points') || '').trim().split(/\s+/).filter(Boolean).map(p => p.split(',').map(Number)),
+                  ticks: [...box.querySelectorAll('[data-pending-ticks] text')].map(t => [t.textContent, +t.getAttribute('y')]),
+                  axis: +(q('[data-pending-grid] line.axis') || {getAttribute: () => NaN}).getAttribute('y1')},
         extras: box.querySelectorAll('.progress-pool, [data-stages], .progress-key, [data-pool-tip]').length,
         lindy: shown(q('[data-lindy]')),
         caption: q('.progress-bar-caption').textContent.replace(/\s+/g, ' ').trim(),
@@ -90,6 +98,7 @@ HARNESS = r"""<script>
     result.briefs = wants.map(e => typeof e === 'string' ? e : words(e));
     const none = await new Promise(done => window.progressView.want(7n, 3, nodes => done(nodes)));
     result.none = none.map(e => typeof e === 'string' ? e : e.textContent);
+    result.etaXs = window.progressView.layouts.map(L => L.etaXs);
     result.width = document.documentElement.scrollWidth;
   } catch (e) { result.error = String(e.stack || e); }
   parent.postMessage(JSON.stringify(result), '*');
@@ -147,6 +156,31 @@ def q_every_search_has_its_box_and_every_box_the_same_parts():
         assert all(b['parts'].values()) and b['extras'] == 0, (b['label'], b['parts'], b['extras'])
         assert (b['etaPoints'], b['oddsPoints'], b['oddsEmpty'], b['prior'], b['canvas']) == (3, 3, False, '0.5', True) and b['cpuBands'] >= 3, b
     assert r['width'] <= 1280, r['width']
+
+
+def q_each_box_graphs_its_nodes_pending():
+    # Replicata: the same page, at 1280 px: formtree's estimates count 700, 740 and 760 nodes pending; the completed
+    # formtree-sym's 30, 10 and 0; the two tilt searches' none (lindy.py's estimates count no nodes).
+    # Expectata (dreeves, 2026-11-12: "we used to have number of open nodes as a graph. is there a reason we can't have
+    # that on the currently running 480:14 search?"; a fanout run's pool chart showed its boxes pending or running from
+    # 2026-11-03 until the page's revamp of 2026-11-11): every box has the graph, under its CPU chart; the two form
+    # trees' a line through their three points, each at the x of the ETA chart's record of the same estimate (the
+    # graphs share their x axis, hours of running, as the CPU chart does), formtree-sym's last point on the axis (0
+    # pending: its tree closed), on round count ticks from 0 whose last is at least the most pending; the tilt
+    # searches' with no line and no point, grayed (data-empty, its svg's opacity below 1), as a graph without data is.
+    r = report(1280)
+    tree, tilt, sym, old = r['boxes']
+    xs = dict(zip(('tree', 'tilt', 'sym', 'old'), r['etaXs']))
+    for name, b, most in (('tree', tree, 760), ('sym', sym, 30)):
+        p = b['pending']
+        assert not p['empty'] and p['opacity'] == 1 and len(p['line']) == 3, (name, p)
+        assert all(abs(x - want) < 0.05 for (x, _), want in zip(p['line'], xs[name])), (name, p['line'], xs[name])
+        ticks = [float(t.replace(',', '')) if t[-1].isdigit() else t for t, _ in p['ticks']]
+        assert p['ticks'][0][0] == '0', (name, p['ticks'])
+    assert abs(sym['pending']['line'][-1][1] - sym['pending']['axis']) < 0.05, (sym['pending']['line'], sym['pending']['axis'])
+    assert tree['pending']['line'][0][1] > tree['pending']['line'][-1][1], tree['pending']['line']   # 700 below 760: lower on the page is fewer
+    for b in (tilt, old):
+        assert b['pending']['empty'] and b['pending']['opacity'] < 1 and b['pending']['line'] == [], (b['label'], b['pending'])
 
 
 def q_the_bar_measures_each_search_s_work_in_its_unit():

@@ -12,7 +12,8 @@
 // the running ones going on with the clock (HMSFORMAT, 2026-11-07).
 // Per search, by one path whatever the search (searchBox): a bar of its work, in the unit it counts its work in
 // (workBar); progress.html's ETA chart (eta_chart there: dreeves's design), from its estimates; its status line; the
-// machine's CPU under the chart; its runs' counts; the sea, one dot per run of the data's groups, each group a block of
+// machine's CPU under the chart; its nodes pending under that (pendingChart, 2026-11-12); its runs' counts; the sea,
+// one dot per run of the data's groups, each group a block of
 // cells (strips below), cells of pitch px, chosen from 10 down to 2 px so that the sea is at most about 560 px tall, a
 // dot a device px short of its cell (none short below 3 device px); and last its prior and its graph of P(exists)
 // (oddsChart).  Which words and which number forms a box gets is a lookup by its entry's unit and basis, never a test
@@ -22,7 +23,8 @@
 // cell's gap between blocks and between strips; h is the least at which the strip's blocks fit across, and a strip
 // takes the next group unless that worsens its worst block's aspect ratio.
 // window.progressView holds the loads, renders, data and, per run, its layout (rects, cols, rows, pitch;
-// place(group, dot): device px) and the ETA chart's record x positions (etaXs, in its viewBox), for the quals.
+// place(group, dot): device px), the ETA chart's record x positions (etaXs, in its viewBox) and the pending chart's
+// point x positions (pendingXs), for the quals.
 (() => {
   const section = document.querySelector('section.progress');
   const details = section.querySelector('details');
@@ -230,6 +232,7 @@
     const layout = sea(box, run);
     layout.etaXs = etaChart(box.querySelector('.progress-eta'), run);
     cpuChart(box.querySelector('.progress-cpu'), run);
+    layout.pendingXs = pendingChart(box.querySelector('.progress-pending'), run);
     box.querySelector('[data-lindy]').hidden = run.basis !== 'lindy';
     oddsChart(box.querySelector('.progress-odds'), run);
     return {box, layout};
@@ -581,6 +584,29 @@
       set(cross, {x1: x, y1: T, x2: x, y2: H - B}).setAttribute('visibility', rest ? 'visible' : 'hidden');
     };
     svg.onmouseleave = () => { say(rest); cross.setAttribute('visibility', 'hidden'); };
+  }
+
+  // A search's nodes pending (Opus 5.5, 2026-11-12; dreeves: "we used to have number of open nodes as a graph. is there
+  // a reason we can't have that on the currently running 480:14 search?"; a fanout run's pool chart showed its boxes
+  // pending or running from 2026-11-03 until the page's revamp of 2026-11-11): run.pending's rows, [time, seconds of
+  // running, nodes pending], over its hours of running on the ETA chart's x axis (etaX), under the CPU chart, so that
+  // the three line up: a line over a wash down to 0, a dot on its last point, on round count ticks from 0 to past the
+  // most pending.  With no row (a search that counts none: lindy.py's), its axes alone, grayed (data-empty), as a graph
+  // without data is.  Returns its points' x positions, in its viewBox, for the quals.
+  function pendingChart(fig, run) {
+    assert(Array.isArray(run.pending) && run.pending.every(r => r.length === 3 && r.every(Number.isFinite)), 'malformed pending', run.search, run.n, run.order);
+    const {xticks, X} = etaX(run), H = 110, T = 8, B = 4, q = sel => fig.querySelector(sel);
+    const yticks = countTicks(Math.max(1, ...run.pending.map(r => r[2]))), Y = v => H - B - (H - B - T) * v / yticks[yticks.length - 1];
+    fig.toggleAttribute('data-empty', !run.pending.length);
+    q('[data-pending-grid]').replaceChildren(...xticks.map(v => make('line', {class: 'grid', x1: X(v), y1: T, x2: X(v), y2: H - B})),
+                                             ...yticks.slice(1).map(v => make('line', {class: 'grid', x1: ETA_L, y1: Y(v), x2: ETA_W - ETA_R, y2: Y(v)})),
+                                             make('line', {class: 'axis', x1: ETA_L, y1: Y(0), x2: ETA_W - ETA_R, y2: Y(0)}));
+    q('[data-pending-ticks]').replaceChildren(...yticks.map(v => make('text', {class: 'ytick', x: ETA_L - 6, y: Y(v) + 4, 'text-anchor': 'end'}, compact.format(v))));
+    const line = run.pending.map(([, x, k]) => [X(x / 3600), Y(k)]), ends = [line.slice(0, 1), line.slice(-1)];   // none with no point
+    set(q('[data-pending-line]'), {points: xy(line)});
+    set(q('[data-pending-wash]'), {points: xy([...ends[0].map(([x]) => [x, Y(0)]), ...line, ...ends[1].map(([x]) => [x, Y(0)])])});
+    q('[data-pending-marks]').replaceChildren(...ends[1].map(([cx, cy]) => make('circle', {class: 'mark', r: 3, cx, cy})));
+    return line.map(([x]) => x);
   }
 
   function oddsChart(fig, run) {

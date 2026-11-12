@@ -113,7 +113,8 @@ def uniform(r, made):
     with no total), or with no work model its time: seconds, its time so far, 1 a second, and in all its time to go
     more; basis formtree with a work model, lindy for an entry that said its ETA was Lindy's rule, else the program,
     whose own estimate it was; runs a tracked search's counts of its runs, else the one run it was; odds its own, with
-    its history's origin and, where it had no history, its prior at each estimate's time (what lindy.py states)."""
+    its history's origin and, where it had no history, its prior at each estimate's time (what lindy.py states); and
+    pending none (2026-11-12: the older form counted no nodes pending but in a fanout run's pool)."""
     lindy = [made, r['so_far'], r['so_far'], r['so_far'] / 9, 9 * r['so_far']]
     etas = r['etas'] or [lindy]
     to_go = r['to_go'] or dict(zip(('median', 'lo', 'hi'), etas[-1][2:]))
@@ -130,7 +131,7 @@ def uniform(r, made):
                 to_go=to_go, basis='formtree' if model else 'lindy' if r.get('lindy') else r['program'], work=(nodes + [seconds])[0],
                 etas=etas, odds=dict(prior=odds['prior'], since=odds['since'] if odds['since'] is not None else etas[0][0] - etas[0][1],
                                      exists=odds['exists'] or [[row[0], odds['prior']] for row in etas]),
-                cpu=r['cpu'], stale=r.get('stale'))
+                pending=[], cpu=r['cpu'], stale=r.get('stale'))
 
 
 def progress_text(data):
