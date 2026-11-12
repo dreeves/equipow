@@ -5374,7 +5374,6 @@ PROGRESS_HARNESS = """<script>
     out.status = {afterChart: !fig.contains(status) && !!(fig.compareDocumentPosition(status) & Node.DOCUMENT_POSITION_FOLLOWING),
                   colors: [...shown.querySelectorAll('.spent, .togo, .total')].map(e => [e.className, getComputedStyle(e).color]),
                   ink: getComputedStyle(shown).color,
-                  when: getComputedStyle(section.querySelector('.progress-run [data-tip] [data-when]')).color,
                   legends: section.querySelectorAll('.progress-eta-keys').length};
     const tipEl = fig.querySelector('[data-tip]');
     out.tipRest = {visibility: getComputedStyle(tipEl).visibility, height: tipEl.getBoundingClientRect().height};
@@ -5390,12 +5389,12 @@ PROGRESS_HARNESS = """<script>
     const xAt = h => L.etaXs[0] + h * (L.etaXs[1] - L.etaXs[0]);      // viewBox x at h hours: PROGRESS_DATA's records sit at 0, 1, 2 h
     svg.dispatchEvent(new MouseEvent('mousemove', {clientX: sb.left + xAt(2.5) * sb.width / 640, clientY: sb.top + sb.height / 2, bubbles: true}));
     out.eta.tipAhead = text('[data-tip]');
+    out.eta.stampAhead = fig.querySelector('[data-stamp] text').textContent;   // the time on the x axis (2026-11-12)
     out.eta.ahead = {projected: tipEl.classList.contains('projected'), style: getComputedStyle(tipEl).fontStyle,
                      cross: Number(fig.querySelector('[data-cross]').getAttribute('x1')), want: xAt(2.5)};
     out.jumpAhead = status.getBoundingClientRect().top - top0;
     const cfig = section.querySelector('.progress-run .progress-cpu');
     out.cpu = cfig && {bands: [...cfig.querySelectorAll('[data-cpu-bands] polygon')].map(p => [p.getAttribute('class'), p.getAttribute('points')]),
-                       readout: squeeze(cfig.querySelector('[data-cpu-readout]').textContent),
                        shares: Object.fromEntries([...cfig.querySelectorAll('[data-cpu-share]')].map(e => [e.dataset.cpuShare, squeeze(e.textContent)])),
                        after: !!(fig.compareDocumentPosition(cfig) & Node.DOCUMENT_POSITION_FOLLOWING),
                        afterStatus: !!(status.compareDocumentPosition(cfig) & Node.DOCUMENT_POSITION_FOLLOWING),
@@ -5922,9 +5921,13 @@ def q_progress_eta_text_is_not_outlined():
     # for now") the labels are commented out, so there are only ticks; the labels' checks stay for their return.
     R = progress_run()
     strokes = R['etaTextStrokes']
+    # Spec change (Opus 5.5, 2026-11-12; dreeves: "what if we showed the timestamp more subtly and showed it floating on
+    # the x-axis matched up with the dashed vertical line on the graph marking the timestamp in question that we're
+    # hovering over?"): the chart's
+    # texts are its ticks and one more, the time under the pointer (class time), none outlined.
     labels = [s for s in strokes if s[0].split()[0] == 'label']
-    ticks = [s for s in strokes if s[0] in ('ytick', 'xtick')]
-    assert len(labels) == 0 and len(ticks) == len(strokes), strokes
+    ticks = [s for s in strokes if s[0] in ('ytick', 'xtick', 'time')]
+    assert len(labels) == 0 and len(ticks) == len(strokes) and [s[0] for s in strokes].count('time') == 1, strokes
     # With the labels (until 2026-10-17; back with them):
     # assert len(labels) == 3 and len(labels) + len(ticks) == len(strokes), strokes
     assert all(stroke == 'rgb(255, 255, 255)' and order.startswith('stroke') for _, _, stroke, order in labels), labels
@@ -5982,7 +5985,13 @@ def q_progress_states_times_and_hours():
     # the quals standing at the snapshot's time (PROGRESS_FROZEN).
     R = progress_run()
     made, go, h = PROGRESS_DATA['made'], PROGRESS_DATA['runs'][0]['to_go'], NNBSP + 'h'
-    want = f'@{stamp(made)}{EMSP}{hms(7200)} + 1–3{h} to go = 3–5{h} ({finish(made, made + go["lo"], made + go["hi"], 4500)})'
+    # Spec change (Opus 5.5, 2026-11-12; dreeves: "could you improve the consistency of the graphs a little? font sizes
+    # and whether graphs are labeled above or below the graph. ... what if we showed the timestamp more subtly and showed
+    # it floating on the x-axis matched up with the dashed vertical line on the graph marking the timestamp in question
+    # that we're hovering over?"): the line has no
+    # time of its own, which floats on the ETA chart's x axis while the pointer is over it
+    # (q_progress_lines_have_no_time_the_axis_does).
+    want = f'{hms(7200)} + 1–3{h} to go = 3–5{h} ({finish(made, made + go["lo"], made + go["hi"], 4500)})'
     assert [figures(s) for s in R['state']] == [figures(want)], (R['state'], want)
     at = lambda d, hh, mm: time.mktime((2026, 10, d, hh, mm, 0, 0, 0, -1))        # local times; 2026-10-19 is a Monday
     assert finish(at(19, 6, 0), at(19, 6, 27), at(19, 17, 38), 0) == 'Mon 6:27am – 5:38pm', finish(at(19, 6, 0), at(19, 6, 27), at(19, 17, 38), 0)
@@ -5997,10 +6006,10 @@ def q_progress_states_times_and_hours():
     assert R['age'] == '0s', R['age']
     assert R['status']['afterChart'] is True, R['status']
     assert R['status']['colors'] == [['spent', 'rgb(42, 120, 214)'], ['togo', 'rgb(227, 73, 72)'], ['total', 'rgb(123, 31, 162)']], R['status']
-    assert R['status']['ink'] == R['status']['when'] == 'rgb(27, 29, 34)', R['status']
+    assert R['status']['ink'] == 'rgb(27, 29, 34)', R['status']
 
 
-def q_progress_status_line_has_no_time_but_its_tip_does():
+def q_progress_lines_have_no_time_the_axis_does():
     # Replicata: index.html with two running runs as progress.js, each fold open: PROGRESS_DATA's, its data fresh, and
     # the same with its data stale, from an hour before the snapshot; then a hover over the first run's ETA chart at its
     # last record.
@@ -6026,12 +6035,20 @@ def q_progress_status_line_has_no_time_but_its_tip_does():
   const L = window.progressView.layouts[0], svg = fresh.querySelector('.progress-eta svg'), sb = svg.getBoundingClientRect();
   svg.dispatchEvent(new MouseEvent('mousemove', {clientX: sb.left + L.etaXs[L.etaXs.length - 1] * sb.width / 640, clientY: sb.top + sb.height / 2, bubbles: true}));
   out({status: [shown(fresh), shown(stale)], tip: squeeze(fresh.querySelector('[data-tip]').innerText),
+       axis: fresh.querySelector('.progress-eta [data-stamp] text').textContent,
        mark: stale.querySelector('[data-stale]').checkVisibility() && stale.querySelector('[data-stale-at]').textContent,
        made: document.querySelector('section.progress [data-made]').textContent});""")
     line = lambda t, x: f'{hms(x)} + 1–3{h} to go = 3–5{h} ({finish(t, t + go["lo"], t + go["hi"], 4500)})'
+    # Spec change (Opus 5.5, 2026-11-12; dreeves: "could you improve the consistency of the graphs a little? font sizes
+    # and whether graphs are labeled above or below the graph. ... what if we showed the timestamp more subtly and showed
+    # it floating on the x-axis matched up with the dashed vertical line on the graph marking the timestamp in question
+    # that we're hovering over?"):
+    # the tip has no time either, its line now the status line's; the time floats on the chart's x axis, the record's,
+    # local, to the minute.  (Until then this qual was q_progress_status_line_has_no_time_but_its_tip_does: the tip
+    # began with the @, the snapshot's time and an em space.)
     assert dict(got, status=[figures(s) for s in got['status']], tip=figures(got['tip'])) == dict(
-        status=[figures(line(made, 7200)), figures(line(old, 10800))], tip=figures(f'@{stamp(made)}{EMSP}{line(made, 7200)}'),
-        mark=stamp(old), made=stamp(made)), got
+        status=[figures(line(made, 7200)), figures(line(old, 10800))], tip=figures(line(made, 7200)),
+        axis=time.strftime('%Y-%m-%d %H:%M', time.localtime(made)), mark=stamp(old), made=stamp(made)), got
 
 
 def q_progress_writes_days_and_years_past_72_h_and_dates_past_a_week():
@@ -6058,8 +6075,11 @@ def q_progress_writes_days_and_years_past_72_h_and_dates_past_a_week():
     made, (a, b) = PROGRESS_LONG['made'], [r['to_go'] for r in PROGRESS_LONG['runs']]
     h, d, y = NNBSP + 'h', NNBSP + 'd', NNBSP + 'y'
     date = lambda s: time.strftime('%Y-%m-%d', time.localtime(s))
-    want = [f'@{stamp(made)}{EMSP}{hms(14.2 * HOURS)} + 150{d}–6{y} to go = 150{d}–6{y} ({date(made + a["lo"])} – {date(made + a["hi"])})',
-            f'@{stamp(made)}{EMSP}{hms(100 * HOURS)} + 1–3{h} to go = 4.19–4.29{d} ({finish(made, made + b["lo"], made + b["hi"], 1.25 * HOURS)})']
+    # Spec change (Opus 5.5, 2026-11-12; dreeves: "what if we showed the timestamp more subtly and showed it floating on
+    # the x-axis matched up with the dashed vertical line on the graph marking the timestamp in question that we're
+    # hovering over?"): the lines have no time of their own before them.
+    want = [f'{hms(14.2 * HOURS)} + 150{d}–6{y} to go = 150{d}–6{y} ({date(made + a["lo"])} – {date(made + a["hi"])})',
+            f'{hms(100 * HOURS)} + 1–3{h} to go = 4.19–4.29{d} ({finish(made, made + b["lo"], made + b["hi"], 1.25 * HOURS)})']
     assert [figures(s) for s in R['state']] == [figures(w) for w in want], (R['state'], want)
     parts = SvgParts()
     parts.feed(R['etaSvg'])
@@ -6168,7 +6188,9 @@ def q_progress_draws_cpu_aligned_with_the_eta_chart():
     assert c['after'] and c['afterStatus'] and c['trackLineAfter'] and abs(c['widths'][0] - c['widths'][1]) < 0.5, c
     assert [k for k, _ in c['bands']] == ['band search', 'band other', 'band idle'], c['bands']
     x0, x2 = c['etaXs'][0], c['etaXs'][2]
-    H, T, B = 72, 4, 4
+    # (2026-11-12: its x axis labeled as the ETA chart's, the hours in a band at its foot as tall as that chart's, so
+    # that the time under the pointer can float there: 98 high, 30 at the foot; 72 and 4 until then)
+    H, T, B = 98, 4, 30
     Y = lambda f: H - B - (H - B - T) * f
     for (_, points), tops in zip(c['bands'], ([0.5, 0.25], [0.8, 0.5], [1.0, 1.0])):
         ps = [tuple(map(float, p.split(','))) for p in points.split()]
@@ -6177,7 +6199,7 @@ def q_progress_draws_cpu_aligned_with_the_eta_chart():
         upper = [y for x, y in ps[:4]]
         want = [Y(tops[0]), Y(tops[0]), Y(tops[1]), Y(tops[1])]
         assert all(abs(a - b) < 0.02 for a, b in zip(upper, want)), (upper, want)
-    assert c['shares'] == dict(search='25%', other='25%', idle='50%') and stamp(1792200000) in c['readout'], c
+    assert c['shares'] == dict(search='25%', other='25%', idle='50%'), c
 
 
 def q_progress_cpu_key_carries_each_share():
@@ -6199,7 +6221,8 @@ def q_progress_cpu_key_carries_each_share():
     const shares = [...fig.querySelectorAll('[data-cpu-share]')];
     return {shares: Object.fromEntries(shares.map(e => [e.dataset.cpuShare, e.textContent.trim()])),
             inEntries: shares.length === 3 && shares.every(e => { const entry = e.closest('.progress-cpu-key > span'); return !!entry && entry.classList.contains(e.dataset.cpuShare); }),
-            readout: fig.querySelector('[data-cpu-readout]').textContent};
+            stamp: fig.querySelector('[data-stamp]').getAttribute('visibility') === 'visible' ? fig.querySelector('[data-stamp] text').textContent : null,
+            key: fig.querySelector('.progress-cpu-key').textContent};
   };
   const rest = read();
   const L = window.progressView.layouts[0], sb = svg.getBoundingClientRect(), x = L.etaXs[0] + 0.5 * (L.etaXs[1] - L.etaXs[0]);
@@ -6207,9 +6230,15 @@ def q_progress_cpu_key_carries_each_share():
   out({rest, hover: read()});""")
     rest, hover = got['rest'], got['hover']
     assert rest['shares'] == dict(search='25%', other='25%', idle='50%') and rest['inEntries'], got
-    assert stamp(made) in rest['readout'] and '%' not in rest['readout'], got
+    # Spec change (Opus 5.5, 2026-11-12; dreeves: "could you improve the consistency of the graphs a little? font sizes
+    # and whether graphs are labeled above or below the graph. ... what if we showed the timestamp more subtly and showed
+    # it floating on the x-axis matched up with the dashed vertical line on the graph marking the timestamp in question
+    # that we're hovering over?"): the key has no
+    # time; the row's floats on the chart's x axis at the cross while the pointer is over it, its end's, local, to the
+    # minute, and at rest none shows.  (Until then the readout after the key gave the row's time, at rest the latest's.)
+    assert rest['stamp'] is None and '@' not in rest['key'], got
     assert hover['shares'] == dict(search='50%', other='30%', idle='20%') and hover['inEntries'], got
-    assert stamp(made - 3600) in hover['readout'] and '%' not in hover['readout'], got
+    assert hover['stamp'] == time.strftime('%Y-%m-%d %H:%M', time.localtime(made - 3600)) and '@' not in hover['key'], got
 
 
 def q_progress_cpu_chart_shows_no_paper_between_its_bands():
@@ -6240,7 +6269,9 @@ def q_progress_cpu_chart_shows_no_paper_between_its_bands():
         d = tempfile.mkdtemp(prefix='index-quals-')
         keep = ('<script>localStorage.setItem("progress-open", "1"); localStorage.setItem("progress-fold overnight_v5.py 64 7", "1");</script>\n'
                 '<style>main > *:not(section.progress) { display: none !important; } body * { visibility: hidden !important; } '
-                '.progress-cpu svg, .progress-cpu svg * { visibility: visible !important; } .progress-cpu .cross { visibility: hidden !important; }</style>\n')
+                '.progress-cpu svg, .progress-cpu svg * { visibility: visible !important; } .progress-cpu .cross { visibility: hidden !important; } '
+                # its hour labels (2026-11-12) and the time's box, which the rule above would show, hidden as the cross is
+                '.progress-cpu text, .progress-cpu .stamp, .progress-cpu .stamp * { visibility: hidden !important; }</style>\n')
         open(os.path.join(d, 'index.html'), 'w', encoding='utf-8').write(page().replace('<head>\n', '<head>\n' + keep))
         copy_page_dir(d)
         open(data_file(d, 'progress.js'), 'w', encoding='utf-8').write(progress_text({'made': made, 'runs': [run]}))
@@ -6294,7 +6325,9 @@ def q_progress_breaks_the_y_axis_above_the_projected_finish():
         seg = lambda a: tuple(float(a[k]) for k in ('x1', 'y1', 'x2', 'y2'))
         [axis] = [float(a['y1']) for tag, a, _ in parts.items if tag == 'line' and a.get('class') == 'axis']
         [guide] = [pts(a) for tag, a, _ in parts.items if tag == 'polyline' and a.get('class') == 'guide']
-        rects = [tuple(float(a[k]) for k in ('x', 'y', 'width', 'height')) for tag, a, _ in parts.items if tag == 'rect']
+        clip = SvgParts()                                    # the clip path's rects (the time's box, since 2026-11-12, is none of them)
+        clip.feed(re.search(r'<clipPath.*?</clipPath>', progress_run(case)['etaSvg'], re.S).group(0))
+        rects = [tuple(float(a[k]) for k in ('x', 'y', 'width', 'height')) for tag, a, _ in clip.items if tag == 'rect']
         yt, yb = rects[0][3], rects[1][1]                     # the top panel's bottom edge, the main panel's top
         assert abs((axis - yb) - ratio * (axis - guide[0][1])) < 0.05, (case, axis, yb, guide[0])
         assert not [a for tag, a, _ in parts.items if a.get('class') == 'cap'], case
@@ -6934,7 +6967,10 @@ def q_progress_draws_the_eta_chart():
     parts.feed(R['etaSvg'])
     assert [text for tag, a, text in parts.items if a.get('class') == 'xtick'] == ['0', '1', '2', f'3{h}'], R['etaSvg']
     t = PROGRESS_DATA['runs'][0]['etas'][1][0]
-    assert figures(E['tip']) == figures(f'@{stamp(t)}{EMSP}{hms(3600)} + 1–3{h} to go = 2–4{h} ({finish(t, t + 3600, t + 10800, 3600)})'), E['tip']
+    # Spec change (Opus 5.5, 2026-11-12; dreeves: "what if we showed the timestamp more subtly and showed it floating on
+    # the x-axis matched up with the dashed vertical line on the graph marking the timestamp in question that we're
+    # hovering over?"): the tip has no time before its line.
+    assert figures(E['tip']) == figures(f'{hms(3600)} + 1–3{h} to go = 2–4{h} ({finish(t, t + 3600, t + 10800, 3600)})'), E['tip']
     assert E['tipLast'] == R['state'][0] and E['sameMarkup'] is True, (E['tipLast'], R['state'], E['sameMarkup'])
     assert R['tipRest']['visibility'] == 'hidden' and R['tipRest']['height'] > 0 and R['jump'] == 0, (R['tipRest'], R['jump'])
 
@@ -6958,8 +6994,14 @@ def q_progress_tip_projects_past_the_last_record():
     R = progress_run()
     E, h = R['eta'], NNBSP + 'h'
     t = PROGRESS_DATA['made'] + 1800
-    want = f'@{stamp(t)}{EMSP}{hms(9000)} + 1{h} to go = 3{h} ({moment(t, t + 1800, 4500)})'
+    # Spec change (Opus 5.5, 2026-11-12; dreeves: "could you improve the consistency of the graphs a little? font sizes
+    # and whether graphs are labeled above or below the graph. ... what if we showed the timestamp more subtly and showed
+    # it floating on the x-axis matched up with the dashed vertical line on the graph marking the timestamp in question
+    # that we're hovering over?"): the tip
+    # without its time, which floats on the x axis at the cross: the projected clock time, local, to the minute.
+    want = f'{hms(9000)} + 1{h} to go = 3{h} ({moment(t, t + 1800, 4500)})'
     assert figures(E['tipAhead']) == figures(want), (E['tipAhead'], want)
+    assert E['stampAhead'] == time.strftime('%Y-%m-%d %H:%M', time.localtime(t)), (E['stampAhead'], t)
     A = E['ahead']
     assert A['projected'] is True and A['style'] == 'italic' and abs(A['cross'] - A['want']) < 0.05, A
     assert E['projectedAtRecord'] is False and R['jumpAhead'] == 0, (E['projectedAtRecord'], R['jumpAhead'])

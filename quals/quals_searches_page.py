@@ -99,6 +99,46 @@ HARNESS = r"""<script>
     const none = await new Promise(done => window.progressView.want(7n, 3, nodes => done(nodes)));
     result.none = none.map(e => typeof e === 'string' ? e : e.textContent);
     result.etaXs = window.progressView.layouts.map(L => L.etaXs);
+    // the words of each graph, with where they sit against it and their size (2026-11-12)
+    const after = (a, b) => !!(a && b && (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING));
+    const size = e => e && getComputedStyle(e).fontSize;
+    result.words = [...section.querySelectorAll('.progress-runs .progress-run')].map(box => {
+      const q = s => box.querySelector(s);
+      const below = {bar: [q('.progress-bar'), q('.progress-bar-caption')], eta: [q('.progress-eta svg'), q('.progress-status')],
+                     hint: [q('canvas'), q('[data-readout]')]};
+      const above = {tip: [q('.progress-tip'), q('.progress-eta svg')], cpu: [q('.progress-cpu-key'), q('.progress-cpu svg')],
+                     pending: [q('.progress-pending-title'), q('.progress-pending svg')], runs: [q('[data-track-line]'), q('canvas')],
+                     prior: [q('.progress-odds > p'), q('.progress-odds svg')], title: [q('.progress-odds-title'), q('.progress-odds svg')]};
+      return {below: Object.fromEntries(Object.entries(below).map(([k, [g, w]]) => [k, after(g, w)])),
+              above: Object.fromEntries(Object.entries(above).map(([k, [w, g]]) => [k, after(w, g)])),
+              sizes: Object.fromEntries(Object.entries({bar: q('.progress-bar-caption'), tip: q('.progress-tip'), status: q('.progress-status'),
+                                                         lindy: q('[data-lindy]'), cpu: q('.progress-cpu-key'), pending: q('.progress-pending-title'),
+                                                         runs: q('[data-track-line]'), hint: q('[data-readout]'), prior: q('.progress-odds > p'),
+                                                         title: q('.progress-odds-title')}).map(([k, e]) => [k, size(e)])),
+              ticks: ['.progress-bar-axis > span', '.progress-eta text.xtick', '.progress-cpu text.xtick', '.progress-pending text.xtick',
+                      '.progress-odds text.xtick'].map(s => [...box.querySelectorAll(s)].map(e => e.textContent)),
+              tickSizes: ['.progress-bar-axis > span', '.progress-eta text.xtick', '.progress-cpu text.xtick', '.progress-pending text.xtick']
+                         .map(s => size(q(s))),
+              tipHeight: q('.progress-tip').getBoundingClientRect().height, statusHeight: q('.progress-status').getBoundingClientRect().height};
+    });
+    // hovers over the running form tree's three aligned charts: each at its second point, then away
+    const box = section.querySelector('.progress-runs .progress-run'), L = window.progressView.layouts[0];
+    const hover = (sel, x) => {
+      const svg = box.querySelector(sel + ' svg'), b = svg.getBoundingClientRect();
+      svg.dispatchEvent(new MouseEvent('mousemove', {clientX: b.left + x * b.width / 640, clientY: b.top + b.height / 2, bubbles: true}));
+      const g = box.querySelector(sel + ' [data-stamp]'), text = g.querySelector('text'), cross = box.querySelector(sel + ' line.cross');
+      const ticks = [...box.querySelectorAll(sel + ' text.xtick')];
+      const read = {shown: g.getAttribute('visibility') === 'visible', text: text.textContent, x: +text.getAttribute('x'), y: +text.getAttribute('y'),
+                    cross: +cross.getAttribute('x1'), tickY: ticks.length ? +ticks[0].getAttribute('y') : null,
+                    box: (r => [+r.getAttribute('x'), +r.getAttribute('width')])(g.querySelector('rect')),
+                    tip: box.querySelector('[data-tip]').innerText.replace(/\s+/g, ' ').trim(),
+                    cpu: box.querySelector('.progress-cpu-key').innerText.replace(/\s+/g, ' ').trim()};
+      svg.dispatchEvent(new MouseEvent('mouseleave', {bubbles: true}));
+      read.after = {shown: g.getAttribute('visibility') === 'visible'};
+      return read;
+    };
+    result.hovers = box && {eta: hover('.progress-eta', L.etaXs[1]), cpu: hover('.progress-cpu', (L.etaXs[0] + L.etaXs[1]) / 2),
+                            pending: hover('.progress-pending', L.pendingXs[1])};   // none on a page with no box
     result.width = document.documentElement.scrollWidth;
   } catch (e) { result.error = String(e.stack || e); }
   parent.postMessage(JSON.stringify(result), '*');
@@ -124,6 +164,12 @@ def render(width, searches=SEARCHES):
         result = json.loads(html.unescape(found[1]))
         assert 'error' not in result, result['error']
         return result
+
+
+def numbers(text):
+    """A caption's numbers, in order (a range, lo–hi, one), its words left out: what a qual holds a caption to, since its words
+    are dreeves's to change (2026-11-12)."""
+    return re.findall(r'\d[\d,.]*[KMBT]?(?:–\d[\d,.]*[KMBT]?)?', text)
 
 
 REPORTS = {}
@@ -183,6 +229,54 @@ def q_each_box_graphs_its_nodes_pending():
         assert b['pending']['empty'] and b['pending']['opacity'] < 1 and b['pending']['line'] == [], (b['label'], b['pending'])
 
 
+def q_each_graph_s_title_is_above_it_its_numbers_below_in_one_size():
+    # Replicata: the same page, at 1280 px and at 390 px: every box's words of its graphs.
+    # Expectata (dreeves, 2026-11-12: "could you improve the consistency of the graphs a little? font sizes and whether
+    # graphs are labeled above or below the graph"; that day he titled the nodes pending's graph "Pending nodes vs
+    # time:", over it, as the probability graph's title is): each graph's title over it, ending in a colon that points
+    # down to it: the CPU key ("CPU usage: ..."; under its chart until then) over the CPU chart, the nodes pending's
+    # title over theirs, the runs' counts over the dots, the prior and the title over the probability graph; each
+    # graph's numbers under it: the bar's caption under the bar, the status line under the ETA chart, the dots' hint
+    # under the dots; and the tip, which reads out the estimate under the pointer, over the ETA chart.  All of them, and
+    # the note on Lindy's rule, in one font size, the bar caption's (the status line, the tip, the runs' counts, the
+    # hint, the titles and the note were in the body's size until then); the tip, its time gone to the x axis, one line,
+    # as high as the status line.  The ETA, CPU and pending charts' x axes labeled alike, the same hours (they share the
+    # axis), in one size (the CPU and pending charts' were unlabeled until then).
+    for width in (1280, 390):
+        r = report(width)
+        for b, w in zip(r['boxes'], r['words']):
+            assert all(w['below'].values()) and all(w['above'].values()), (width, b['label'], w['below'], w['above'])
+            assert len(set(w['sizes'].values())) == 1 and w['sizes']['bar'] is not None, (width, b['label'], w['sizes'])
+            assert w['ticks'][1] == w['ticks'][2] == w['ticks'][3] and len(w['ticks'][1]) >= 2, (width, b['label'], w['ticks'])
+            assert len(set(w['tickSizes'][1:])) == 1, (width, b['label'], w['tickSizes'])
+        assert all(abs(w['tipHeight'] - w['statusHeight']) < 1 for w in r['words'][:1]), (width, r['words'][0]['tipHeight'], r['words'][0]['statusHeight'])
+
+
+def q_hovering_floats_the_time_on_the_x_axis():
+    # Replicata: the same page at 1280 px; the pointer over the running form tree's ETA chart at its second estimate,
+    # then away; over its CPU chart in its first row, then away; over its nodes pending at their second point, then away.
+    # Expectata (dreeves, 2026-11-12: "the wrapping in this screenshot is a little awkward; what if we showed the
+    # timestamp more subtly and showed it floating on the x-axis matched up with the dashed vertical line on the graph
+    # marking the timestamp in question that we're hovering over?"): in each chart the time under the pointer shows on
+    # its x axis, on the row of its hour labels, centered on the dashed line (a box under it, the paper's color, as wide
+    # as the text, so that it covers the labels it sits on): over the ETA chart the estimate's clock time, over the CPU
+    # chart its row's end, over the nodes pending their point's, each local, to the minute (YYYY-MM-DD HH:MM); and away,
+    # none shows.  The tip over the ETA chart reads out the estimate without its time (no @, not the time on the
+    # axis; its finish times stay, the later a date, as every line gives them), from its time so far on; the CPU key
+    # has no time.
+    r = report(1280)
+    local = lambda t: time.strftime('%Y-%m-%d %H:%M', time.localtime(t))
+    h = r['hovers']
+    want = dict(eta=local(TREE['etas'][1][0]), cpu=local(TREE['cpu'][0][2]), pending=local(TREE['pending'][1][0]))
+    for name, got in h.items():
+        assert got['shown'] and got['text'] == want[name], (name, got, want[name])
+        assert abs(got['x'] - got['cross']) < 0.5 and abs(got['y'] - got['tickY']) < 0.5, (name, got)
+        assert abs(got['box'][0] + got['box'][1] / 2 - got['x']) < 0.5 and got['box'][1] > 40, (name, got)
+        assert not got['after']['shown'], (name, got)
+    assert re.match(r'\d+h\s\d+m\s\d+s \+ ', h['eta']['tip']) and '@' not in h['eta']['tip'] and want['eta'] not in h['eta']['tip'], h['eta']['tip']
+    assert '@' not in h['cpu']['cpu'] and want['cpu'] not in h['cpu']['cpu'], h['cpu']['cpu']
+
+
 def q_the_bar_measures_each_search_s_work_in_its_unit():
     # Replicata: the same page, at 1280 px and at 390 px (a phone's).
     # Expectata: formtree's bar counts nodes: its caption reads "4,200,000 nodes checked (510.3 nodes/s) / ~22M–410M"
@@ -197,9 +291,9 @@ def q_the_bar_measures_each_search_s_work_in_its_unit():
         r = report(width)
         tree, tilt, sym, old = r['boxes']
         text = lambda s: s.replace(' ', ' ')
-        assert text(tree['caption']) == '4,200,000 nodes checked (510.3 nodes/s) / ~22M–410M', tree['caption']
-        assert text(tilt['caption']).startswith('1h 0m 0s time spent / ~') and 'nodes' not in tilt['caption'], tilt['caption']
-        assert re.fullmatch(r'1h 0m 0s time spent / ~1(\.1)?–10 h', text(tilt['caption'])), tilt['caption']
+        # (2026-11-12: the captions' numbers, not their words, which are dreeves's to change: he made "/ ~" "of ~" that day)
+        assert numbers(tree['caption']) == ['4,200,000', '510.3', '22M–410M'], tree['caption']
+        assert 'nodes' not in tilt['caption'] and numbers(tilt['caption']) in (['1', '0', '0', '1–10'], ['1', '0', '0', '1.1–10']), tilt['caption']
         assert tree['ticks'][0] == '0' and tree['ticks'][1] == '100M' and tilt['ticks'][0] == '0' and text(tilt['ticks'][-1]).endswith(' h'), (tree['ticks'], tilt['ticks'])
         value = lambda label: float(re.fullmatch(r'([0-9.]+)([KMBT]?)', label)[1]) * {'': 1, 'K': 1e3, 'M': 1e6, 'B': 1e9, 'T': 1e12}[re.fullmatch(r'([0-9.]+)([KMBT]?)', label)[2]]
         hours = lambda label: float(text(label).removesuffix(' h')) * 3600
@@ -245,7 +339,7 @@ def q_a_cell_s_box_briefs_its_searches():
     text = [s.replace(' ', ' ') for s in r['briefs']]
     assert re.fullmatch(r'm\*\(480\) ≥ 14\? formtree-sym completed 1h 8m 20s', text[0]) and text[1].startswith('145,427 nodes checked'), text
     assert re.fullmatch(r'm\*\(480\) ≥ 14\? formtree running 3h 3m 20s', text[2]), text
-    assert text[3] == '4,200,000 nodes checked (510.3 nodes/s) / ~22M–410M', text
+    assert numbers(text[3]) == ['4,200,000', '510.3', '22M–410M'], text   # its numbers, not its words (2026-11-12)
     assert len(text) == 4, text
     assert r['none'] == ['—'], r['none']
 

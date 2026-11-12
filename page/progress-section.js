@@ -105,7 +105,6 @@
   // take them too.
   const fill = (el, field, text) => { for (const e of el.querySelectorAll(`[data-${field}]`)) e.textContent = text; };
   const snapshot = (el, t, x, g) => {
-    fill(el, 'when', stamp(t));
     fill(el, 'so-far', hms(x));
     fill(el, 'to-go', ranged(g));
     fill(el, 'sum', g ? range(x + g.lo, x + g.hi, spread(g)) : '—');
@@ -115,7 +114,6 @@
   // fields as snapshot writes a record's: the clock t, the seconds of running x and the median's seconds to go m, so
   // that the time in all and the finish time are the median's, each to the record's uncertainty u.
   const course = (el, t, x, m, u) => {
-    fill(el, 'when', stamp(t));
     fill(el, 'so-far', hms(x));
     fill(el, 'to-go', about(m, u));
     fill(el, 'sum', about(x + m, u));
@@ -266,8 +264,9 @@
   // bar be measuring amount of work, not time? the ETA graph is for time. we can still have a 90% CI for amount of work
   // remaining, right?"), every search's since 2026-11-11, from its latest estimate's work, {unit, done, rate, total:
   // {median, lo, hi}}: a track from 0 to the last of its round ticks, PAST times the total's upper end at least; blue up
-  // to the work done; the total's band purple, its median a tick; the caption's blue part its unit's
-  // (template.progress-unit), with the work done, exact, and its rate, then the total's range.  How a unit's numbers read: nodes as counts, the ticks and the range compact (500M, 1B); seconds
+  // to the work done; the total's band purple, its median a tick; the caption's blue part and (since 2026-11-12) its
+  // purple part its unit's (template.progress-unit), with the work done, exact, and its rate, then the total's range.
+  // How a unit's numbers read: nodes as counts, the ticks and the range compact (500M, 1B); seconds
   // as times, the work done as the time so far is written (hms) and the ticks and the range as the ETA chart's.
   const WORK = {
     nodes: {ticks: top => { const t = countTicks(top); return [t, t.map(v => compact.format(v))]; },
@@ -279,7 +278,8 @@
     const PAST = 1.1, {unit, done, rate, total} = work, form = WORK[unit];
     assert(form && [done, rate, total.lo, total.median, total.hi].every(Number.isFinite) && 0 <= done && done <= total.lo &&
            total.lo <= total.median && total.median <= total.hi, work);
-    box.querySelector('.progress-bar-caption .spent').replaceChildren(section.querySelector(`template.progress-unit[data-unit="${unit}"]`).content.cloneNode(true));
+    for (const part of ['spent', 'total'])
+      box.querySelector(`.progress-bar-caption .${part}`).replaceChildren(section.querySelector(`template.progress-unit[data-unit="${unit}"][data-part="${part}"]`).content.cloneNode(true));
     const [ticks, labels] = form.ticks(Math.max(1, PAST * total.hi)), end = ticks[ticks.length - 1];
     const part = name => box.querySelector(`[data-bar="${name}"]`);
     part('done').style.width = pct(done / end);
@@ -413,6 +413,21 @@
     return {xmax, xticks, xlabels, X: x => ETA_L + (ETA_W - ETA_L - ETA_R) * x / xticks[xticks.length - 1]};
   }
 
+  // The time under the pointer, floating on an aligned chart's x axis (the ETA, CPU and pending charts'), on the dashed
+  // line through the pointer (dreeves, 2026-11-12: "what if we showed the timestamp more subtly and showed it floating
+  // on the x-axis matched up with the dashed vertical line on the graph marking the timestamp in question that we're
+  // hovering over?"; until then the ETA chart's tip and the CPU key gave it in words): the group g's text the clock time
+  // t, local, to the minute, on the row y of the hour labels, centered on x but within the chart, over a box of the
+  // paper's color a little wider than the text, which covers the labels it sits on.
+  function stampAt(g, x, y, t) {
+    const text = g.querySelector('text');
+    text.textContent = local(t);
+    const w = text.getComputedTextLength() + 8, cx = Math.min(ETA_W - w / 2, Math.max(w / 2, x));
+    set(text, {x: cx, y});
+    set(g.querySelector('rect'), {x: cx - w / 2, y: y - 10, width: w, height: 13});
+    g.setAttribute('visibility', 'visible');
+  }
+
   function etaChart(fig, run) {
     const pts = run.etas.map(([t, x, m, lo, hi]) => [t, x / 3600, m / 3600, lo / 3600, hi / 3600]);
     const W = ETA_W, H = 240, L = ETA_L, R = ETA_R, T = 14, B = 30, CROWD = 44, HEAD = 1.1, TOP = 40, GAP = 10;
@@ -524,13 +539,14 @@
       for (let i = 1; i < xsvg.length; i++) if (Math.abs(xsvg[i] - near) <= Math.abs(xsvg[k] - near)) k = i;
       const cx = xsvg[k] + hour * s / 3600;
       set(cross, {x1: cx, y1: T, x2: cx, y2: Y(0)}).setAttribute('visibility', 'visible');
+      stampAt(q('[data-stamp]'), cx, H - 8, run.etas[k][0] + s);
       // the tip keeps the height of its line at rest, the latest record's, measured at the first hover after a draw
       // (laid out by then): the median's line past the last record is shorter, and the status line below must not move
       tip.style.minHeight = tip.style.minHeight || `${tip.getBoundingClientRect().height}px`;
       at(k, s);
       tip.style.visibility = 'visible';           // laid out at rest (the CSS hides it), so showing it moves nothing
     });
-    svg.addEventListener('mouseleave', () => { cross.setAttribute('visibility', 'hidden'); tip.style.visibility = ''; });
+    svg.addEventListener('mouseleave', () => { cross.setAttribute('visibility', 'hidden'); q('[data-stamp]').setAttribute('visibility', 'hidden'); tip.style.visibility = ''; });
     return xsvg;
   }
 
@@ -557,12 +573,13 @@
   // the readout gave both until then), all empty with no rows, when the chart shows its grid alone.
   function cpuChart(fig, run) {
     assert(Array.isArray(run.cpu), run.search, run.n, run.order);
-    const {xticks, X} = etaX(run), H = 72, T = 4, B = 4, Y = f => H - B - (H - B - T) * f;
-    const q = sel => fig.querySelector(sel), readout = q('[data-cpu-readout]'), cross = q('[data-cpu-cross]'), svg = fig.querySelector('svg');
+    const {xticks, xlabels, X} = etaX(run), H = 98, T = 4, B = 30, Y = f => H - B - (H - B - T) * f;   // the foot, B, the ETA chart's (2026-11-12)
+    const q = sel => fig.querySelector(sel), cross = q('[data-cpu-cross]'), svg = fig.querySelector('svg'), stampG = q('[data-stamp]');
     q('[data-cpu-grid]').replaceChildren(...xticks.map(v => make('line', {class: 'grid', x1: X(v), y1: T, x2: X(v), y2: H - B})),
                                          make('line', {class: 'axis', x1: ETA_L, y1: Y(0), x2: ETA_W - ETA_R, y2: Y(0)}));
     q('[data-cpu-ticks]').replaceChildren(make('text', {class: 'ytick', x: ETA_L - 6, y: Y(1) + 8, 'text-anchor': 'end'}, '100%'),
-                                          make('text', {class: 'ytick', x: ETA_L - 6, y: Y(0), 'text-anchor': 'end'}, '0'));
+                                          make('text', {class: 'ytick', x: ETA_L - 6, y: Y(0), 'text-anchor': 'end'}, '0'),
+                                          ...xticks.map((v, i) => make('text', {class: 'xtick', x: X(v), y: H - 8, 'text-anchor': 'middle'}, xlabels[i])));
     const tops = r => [r[3], r[3] + Math.max(0, r[4]), r[3] + Math.max(0, r[4]) + r[5]];   // the bands' tops, bottom up
     const stretches = run.cpu.reduce((s, r, i) => (i && run.cpu[i - 1][1] === r[0] ? s[s.length - 1].push(r) : s.push([r]), s), []);
     const bands = ['search', 'other', 'idle'].flatMap((name, j) => stretches.map(rows => {
@@ -573,7 +590,6 @@
     const shares = {search: r => r[3], other: r => Math.max(0, r[4]), idle: r => r[5]};
     const say = r => {
       for (const e of fig.querySelectorAll('[data-cpu-share]')) e.textContent = r ? `${Math.round(100 * shares[e.dataset.cpuShare](r))}%` : '';
-      readout.textContent = r ? `@${stamp(r[2])}` : '';
     };
     const rest = run.cpu[run.cpu.length - 1];
     say(rest);
@@ -581,9 +597,13 @@
       const b = svg.getBoundingClientRect(), x = (ev.clientX - b.left) * ETA_W / b.width;
       const row = run.cpu.reduce((best, r) => Math.abs((X(r[0]) + X(r[1])) / 2 - x) < Math.abs((X(best[0]) + X(best[1])) / 2 - x) ? r : best, rest ?? [0, 0]);
       say(rest && row);
-      set(cross, {x1: x, y1: T, x2: x, y2: H - B}).setAttribute('visibility', rest ? 'visible' : 'hidden');
+      // the dashed line at the row's end, whose time floats on the x axis (2026-11-12; at the pointer until then)
+      for (const r of [row].slice(0, rest ? 1 : 0)) {
+        set(cross, {x1: X(r[1]), y1: T, x2: X(r[1]), y2: H - B}).setAttribute('visibility', 'visible');
+        stampAt(stampG, X(r[1]), H - 8, r[2]);
+      }
     };
-    svg.onmouseleave = () => { say(rest); cross.setAttribute('visibility', 'hidden'); };
+    svg.onmouseleave = () => { say(rest); cross.setAttribute('visibility', 'hidden'); stampG.setAttribute('visibility', 'hidden'); };
   }
 
   // A search's nodes pending (Opus 5.5, 2026-11-12; dreeves: "we used to have number of open nodes as a graph. is there
@@ -591,22 +611,35 @@
   // pending or running from 2026-11-03 until the page's revamp of 2026-11-11): run.pending's rows, [time, seconds of
   // running, nodes pending], over its hours of running on the ETA chart's x axis (etaX), under the CPU chart, so that
   // the three line up: a line over a wash down to 0, a dot on its last point, on round count ticks from 0 to past the
-  // most pending.  With no row (a search that counts none: lindy.py's), its axes alone, grayed (data-empty), as a graph
-  // without data is.  Returns its points' x positions, in its viewBox, for the quals.
+  // most pending, its hours labeled at its foot as the ETA chart's are (2026-11-12); under the pointer the dashed line at
+  // the nearest point, whose time floats on the x axis (stampAt).  With no row (a search that counts none: lindy.py's),
+  // its axes alone, grayed (data-empty), as a graph without data is.  Returns its points' x positions, in its viewBox,
+  // for the quals.
   function pendingChart(fig, run) {
     assert(Array.isArray(run.pending) && run.pending.every(r => r.length === 3 && r.every(Number.isFinite)), 'malformed pending', run.search, run.n, run.order);
-    const {xticks, X} = etaX(run), H = 110, T = 8, B = 4, q = sel => fig.querySelector(sel);
+    const {xticks, xlabels, X} = etaX(run), H = 136, T = 8, B = 30, q = sel => fig.querySelector(sel);
     const yticks = countTicks(Math.max(1, ...run.pending.map(r => r[2]))), Y = v => H - B - (H - B - T) * v / yticks[yticks.length - 1];
     fig.toggleAttribute('data-empty', !run.pending.length);
     q('[data-pending-grid]').replaceChildren(...xticks.map(v => make('line', {class: 'grid', x1: X(v), y1: T, x2: X(v), y2: H - B})),
                                              ...yticks.slice(1).map(v => make('line', {class: 'grid', x1: ETA_L, y1: Y(v), x2: ETA_W - ETA_R, y2: Y(v)})),
                                              make('line', {class: 'axis', x1: ETA_L, y1: Y(0), x2: ETA_W - ETA_R, y2: Y(0)}));
-    q('[data-pending-ticks]').replaceChildren(...yticks.map(v => make('text', {class: 'ytick', x: ETA_L - 6, y: Y(v) + 4, 'text-anchor': 'end'}, compact.format(v))));
+    q('[data-pending-ticks]').replaceChildren(...yticks.map(v => make('text', {class: 'ytick', x: ETA_L - 6, y: Y(v) + 4, 'text-anchor': 'end'}, compact.format(v))),
+                                              ...xticks.map((v, i) => make('text', {class: 'xtick', x: X(v), y: H - 8, 'text-anchor': 'middle'}, xlabels[i])));
     const line = run.pending.map(([, x, k]) => [X(x / 3600), Y(k)]), ends = [line.slice(0, 1), line.slice(-1)];   // none with no point
     set(q('[data-pending-line]'), {points: xy(line)});
     set(q('[data-pending-wash]'), {points: xy([...ends[0].map(([x]) => [x, Y(0)]), ...line, ...ends[1].map(([x]) => [x, Y(0)])])});
     q('[data-pending-marks]').replaceChildren(...ends[1].map(([cx, cy]) => make('circle', {class: 'mark', r: 3, cx, cy})));
-    return line.map(([x]) => x);
+    const rows = run.pending, xs = line.map(([x]) => x), svg = fig.querySelector('svg'), cross = q('[data-pending-cross]'), stampG = q('[data-stamp]');
+    svg.onmousemove = ev => {
+      const b = svg.getBoundingClientRect(), x = (ev.clientX - b.left) * ETA_W / b.width;
+      const k = xs.reduce((best, v, i) => Math.abs(v - x) < Math.abs(xs[best] - x) ? i : best, rows.length - 1);   // -1 with no point
+      for (const r of rows.slice(k, k + 1)) {
+        set(cross, {x1: xs[k], y1: T, x2: xs[k], y2: H - B}).setAttribute('visibility', 'visible');
+        stampAt(stampG, xs[k], H - 8, r[0]);
+      }
+    };
+    svg.onmouseleave = () => { cross.setAttribute('visibility', 'hidden'); stampG.setAttribute('visibility', 'hidden'); };
+    return xs;
   }
 
   function oddsChart(fig, run) {
