@@ -486,6 +486,39 @@ for i, (n, m, a) in enumerate(json.load(open(d + '/seqs.json'))):
     assert done >= 15 and tot['followed'] > 100
 
 
+# replicata (engine): a child process with the prover on two start nodes of 480:14, each for 3 seconds with the stream on, spilling what is left: the plain one, the residue sums mod 3, 5, 7 of the cell's one start case; and the start node of the kept symmetric-only proof (searches/formtree/cells/480_14_sym: its configuration, and its rows written as a node file, symmetry's rows after the chain's).  expectata (Fable 5.2, 2026-11-11; dreeves: "yes to moving in the better prover"; red against the prover as it was that day): both checkers accept each stream with one verdict, the same one, with nodes closed and none open.  resultata before: both checkers refused the first claim of each, "the certificates give another number of values": at n = 480 a bound's certificate, rounded at the one scale 2^74, proved less than the trivial bound that the prover counted with (rounding costs a bound up to C(n, m)/2^75: 8,640 at 480:14, 2e-5 at 288:10), so no form-tree run at 480 could pass.
+def q_engine_bounds_at_480_pass_the_checkers():
+    if importlib.util.find_spec('numpy') is None: print('  skipped: this python has no numpy'); return
+    cell = os.path.join(PROVER, 'cells', '480_14_sym')
+    with tempfile.TemporaryDirectory() as d:
+        env = dict(os.environ, PE_LIB=build_engine(), PYTHONPATH=PROVER, OMP_NUM_THREADS='1', OPENBLAS_NUM_THREADS='1', WORK=d, CELL=cell)
+        code = """
+import json, os
+import pex as pe
+d, cell = os.environ['WORK'], os.environ['CELL']
+mods = [3, 4, 5, 7, 8, 9, 11, 13, 16, 17, 19, 23, 25, 27, 29, 31, 37]
+pe.init(480, 14, mods, [11, 8, 13, 4, 9, 17, 19, 23, 16, 25, 27, 29, 31, 37], path=cell + '/pex_480_14_' + '_'.join(map(str, mods)) + '.cfg', **pe.RUN_INIT); pe.run_settings()
+rows = json.load(open(cell + '/nodes.json'))['nodes'][0]['rows']
+chain = {M: [v for K, v, w in rows if K == M] for M in (3, 5, 7)}
+assert all(len(chain[M]) == M for M in chain), chain
+pe.start_file({str(M): chain[M] for M in (3, 5, 7)}, d + '/plain')
+# the symmetric-only start node, as the prover reads a node (write_node's v2): no symmetry of the node claimed, the chain's moduli full, a class's row as C, a form's as F
+lines = ['v2 0 %d' % sum(1 << mods.index(M) for M in (3, 5, 7)), ' '.join(['-99'] * len(mods)) + ' '] + ['%d %s' % (M, ' '.join(map(str, chain[M]))) for M in (3, 5, 7)]
+lines += [str(len(rows))] + ['%d C %d %d' % (M, w.index(1), v) if sorted(w) == [0] * (M - 1) + [1] else '%d F %d %s' % (M, v, ' '.join(map(str, w))) for M, v, w in rows] + ['0', '0', '', '']
+open(d + '/sym', 'w').write('\\n'.join(lines))
+for name in ('plain', 'sym'):
+    pe.lib.pe_certfd(os.open(d + '/stream_' + name, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644))
+    pe.run_file(d + '/' + name, 3.0, None, d + '/' + name + '_s'); pe.lib.pe_certfd(-1)
+"""
+        subprocess.run([sys.executable, '-B', '-c', code], env=env, check=True, cwd=PROVER)
+        for name in ('plain', 'sym'):
+            lines = open(os.path.join(d, 'stream_' + name)).read().splitlines()
+            a_, b_ = both(lines)
+            assert a_['ok'] and b_['ok'], (name, a_['why'], b_['why'])
+            assert a_ == b_ and a_['closed'] > 10 and a_['open'] == 0, (name, a_, b_)
+            print(f'  {name}: {a_["nodes"]} nodes, {a_["certs"]} certificates, {len(a_["spills"])} spilled')
+
+
 # replicata (engine): the whole road on 432:12, which proofs/pintree_432_12.json.gz proves another way: the top checked, the driver run with a short limit so that tasks spill and with every task's stream also given to the Python checker, killed outright at random moments and resumed.  expectata: formtree.py assemble accepts the verdicts; before the end it refuses them; no rejection, no disagreement.
 def q_engine_whole_proof_through_kills():
     if importlib.util.find_spec('numpy') is None: print('  skipped: this python has no numpy'); return

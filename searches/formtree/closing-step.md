@@ -38,6 +38,8 @@ ran on dreeves's Mac, and their notes are in `scratch/` there, which git ignores
 | 720:14 | 4 | about 3.7e44; ≥ 8.5e42 | out of reach |
 | 1440:17 | 1 | about 2.6e129 | cannot finish |
 
+**These sizes predate a repair of the prover (Fable 5.2, 2026-11-11).** Until that day a bound's certificate was rounded at the one scale 2^74, which at 480 proved less than the trivial bound, and both checkers refused the first claim of every 480 task (README.md, "The scale of a bound's certificate"): the dives above ran with the stream to /dev/null and counted unchecked claims. With the repair, dives (alpha 0.25) read the 480:14 tree at 9e7 nodes, and a checked run of it began that day (`scratch/s480-20261111` on dreeves's Mac); 480:13 reads 5.8e12, still out of reach. The other rows were not measured again, and at 720:14, 864:14 and 1440:17 the rounding stays large even at the finest scale the checkers admit.
+
 What the estimates show:
 - **Where the nodes stay open:** everywhere, the trees grow on forms mod 17, 19, 23 and 29, where the LP over [−1, 1]^n with the
   pinned rows stops closing nodes.

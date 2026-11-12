@@ -636,14 +636,47 @@ static int USE_SYM = 1;
 static int CERTPOOL = 0;
 struct FormCert { vector<int> rows; vector<ll> c; LL tot; };
 static FormCert LASTCERT;
+// A form's bound from the LP's multipliers, as an integer certificate (2026-11-11, Fable 5.2; until then one certificate at the scale 2^74, taken for the stream
+// whatever it proved).  Rounding a certificate's binomial coefficients at the scale T costs the bound up to C(n, m)/(2T): nothing at 288:10, 259 at 480:13 and
+// 8,640 at 480:14 for T = 2^74, where the callers, who start from the trivial bound, sum |w_r| size_r, then counted with that bound while the stream carried the
+// weaker certificate, and both checkers refused the task.  Now the certificate is made at each of three scales, 2^74, 2^82 and 2^90, whose numbers stay inside
+// fkernel's ranges (cert_fits mirrors proofs/fkernel.cpp's weights and bound), and the one that proves the least bound is taken, the coarsest of them on a tie, so
+// that where 2^74 loses nothing the stream is what it was; and none is taken where the least is above the trivial bound: the bound returned is then the trivial
+// one and the stream gets the null certificate, which the checkers read as the trivial bound.
+static const LL CERT_BIG = ((LL)1) << 113;          // fkernel's BIG is 2^114: one bit of margin
+static bool cert_fits(const vector<int> &rows, const vector<double> &vals, const vector<ll> &ints, int dd, const vector<int> &w, LL T) {
+    for (int p = 0; p < N_; p++) { LL s = 0; const LL *bp = BINOM[p].data(); for (int t = 0; t < M_; t++) s += LASTB[t] * bp[t]; if (labs128(s) >= CERT_BIG) return false; }   // fkernel's "a moment value too large"
+    LL s2 = 0, s3 = 0;
+    for (int q = 0; q < (int)rows.size(); q++) {
+        if (!ints[q]) continue;
+        int row = rows[q]; int mi = rowform[row].first; Mod &m = mods[mi]; LL mw = 1;
+        if (!(row >= m.pos && row < m.pos + m.M)) { mw = 0; for (int v : rowform[row].second) mw = max<LL>(mw, llabs((ll)v)); }
+        LL c = ints[q] < 0 ? -(LL)ints[q] : (LL)ints[q]; LL val = raw_of(row, vals[q]); if (val < 0) val = -val;
+        s2 += c * mw; s3 += c * val; if (s2 >= CERT_BIG || s3 >= CERT_BIG) return false;         // c < 2^54, mw and val < 2^32: no overflow before the test
+    }
+    if (s2 >= (CERT_BIG >> dd) || s3 >= (CERT_BIG >> dd)) return false;                         // fkernel's "a certificate's numbers are too large"
+    LL mw = 0; for (int v : w) mw = max<LL>(mw, llabs((ll)v)); if (mw >= (CERT_BIG / T)) return false;   // fkernel's "T w too large"
+    return true;
+}
 static bool exact_bound_form(int mi, const vector<int> &w, int s_, const vector<int> &rows, const vector<double> &vals, ll &bound) {
     static vector<double> y; y.resize(rows.size()); for (int q = 0; q < (int)rows.size(); q++) y[q] = L.y[q];
-    static vector<ll> ints; if (!build_w(rows, y.data(), 1.0L, DD0, SS0, ints)) return false;
-    if (CERTF) cert_take(s_ > 0 ? CUP : CDN, mi, &w, rows, ints);
-    Mod &m = mods[mi]; LL T = DD0 * (LL)SS0; LL K = 0; for (int q = 0; q < (int)rows.size(); q++) if (ints[q]) K += DD0 * ints[q] * raw_of(rows[q], vals[q]);
-    LL tot = 0; for (int r = 0; r < m.M; r++) { LL e = T * s_ * w[r]; for (int p : m.members[r]) { LL e_ = e - Wx[p]; tot += FZ[p] ? e_ * FZ[p] : labs128(e_); } }
-    if (CERTPOOL) { LASTCERT.rows.clear(); LASTCERT.c.clear(); for (int q = 0; q < (int)rows.size(); q++) if (ints[q]) { LASTCERT.rows.push_back(rows[q]); LASTCERT.c.push_back(ints[q]); } LASTCERT.tot = tot; }
-    LL b = tot + K; LL f = b >= 0 ? b / T : -((-b + T - 1) / T); bound = (ll)f; return true;
+    Mod &m = mods[mi]; ll triv = 0; for (int r = 0; r < m.M; r++) triv += llabs((ll)w[r]) * m.sz[r];
+    static const int CERT_DD[3] = {50, 54, 58}; static const double CERT_SS[3] = {16777216.0, 268435456.0, 4294967296.0};   // T = 2^74, 2^82, 2^90
+    static vector<ll> ints, best_ints; static vector<LL> best_B; ll best = triv + 1; int best_a = -1; LL best_tot = 0;
+    for (int a = 0; a < 3; a++) {
+        LL DD = ((LL)1) << CERT_DD[a]; double SS = CERT_SS[a]; LL T = DD * (LL)SS;
+        if (!build_w(rows, y.data(), 1.0L, DD, SS, ints) || !cert_fits(rows, vals, ints, CERT_DD[a], w, T)) continue;
+        LL K = 0; for (int q = 0; q < (int)rows.size(); q++) if (ints[q]) K += DD * ints[q] * raw_of(rows[q], vals[q]);
+        LL tot = 0; for (int r = 0; r < m.M; r++) { LL e = T * s_ * w[r]; for (int p : m.members[r]) { LL e_ = e - Wx[p]; tot += FZ[p] ? e_ * FZ[p] : labs128(e_); } }
+        if (tot >= (((LL)1) << 125)) continue;                                                  // fkernel's "a bound too large", with a bit of margin
+        LL b = tot + K; LL f = b >= 0 ? b / T : -((-b + T - 1) / T);
+        if (f < best) { best = (ll)f; best_a = a; best_ints = ints; best_B = LASTB; best_tot = tot; }
+    }
+    if (best_a < 0) { bound = triv; return true; }                                              // no certificate proves the trivial bound or less
+    LASTB = best_B; LASTDD = ((LL)1) << CERT_DD[best_a]; LASTSS = CERT_SS[best_a];              // the certificate taken: cert_take reads these
+    if (CERTF) cert_take(s_ > 0 ? CUP : CDN, mi, &w, rows, best_ints);
+    if (CERTPOOL) { LASTCERT.rows.clear(); LASTCERT.c.clear(); for (int q = 0; q < (int)rows.size(); q++) if (best_ints[q]) { LASTCERT.rows.push_back(rows[q]); LASTCERT.c.push_back(best_ints[q]); } LASTCERT.tot = best_tot; }
+    bound = best; return true;
 }
 static void cert_grid(int mi, const vector<int> &w, ll &st, ll &c) {
     Mod &m = mods[mi]; LL g = 0; for (int a = 0; a < m.nb; a++) { LL t = 0; for (int i = 0; i < m.M; i++) t += (LL)w[m.order[i]] * m.B[i][a]; if (t < 0) t = -t; while (t) { LL u = g % t; g = t; t = u; } }
