@@ -25,7 +25,6 @@ const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
   const outputs = ['lattice288.log', 'lattice288_journal.jsonl',
     '.lattice288_prepared.json', '.lattice288_work/job.json',
     '.lattice288_work/progress.log', 'pagedata/progress.js', '.progress_cache.json',
-    'pagedata/searches.js',   // the tracked searches' data file, which searchwatch/watch.py rewrites each minute a search runs (2026-11-11)
     'AGENTS.md',    // agents' notes, no part of the page (dreeves, 2026-10-23: "ignoring AGENTS.md specifically makes sense")
     'AGENTS-history.md'];   // the same notes' history, moved out of AGENTS.md on 2026-11-09 (dreeves: "ok, yes, decruft AGENTS.md")
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'powersums-live-server-'));

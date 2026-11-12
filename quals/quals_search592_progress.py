@@ -1,4 +1,7 @@
-"""Quals for the calibrated 592:10 pilot and its chained progress watcher."""
+"""Quals for the calibrated 592:10 pilot and its chained progress watcher.
+
+Spec change (Fable 5.2, 2026-11-11; dreeves: "the search progress code seems like a shitshow; can you revamp it? ... anti-magic anti-magic anti-magic", then "I don't want to spend a lot of effort converting old searches"): the page draws every search with one box (searchwatch/watch.py writes its data), so the attempt batches' own view is gone from it, and with it this suite's qual of that view (its .cjs).
+"""
 import hashlib
 import importlib
 import json
@@ -210,24 +213,6 @@ class Search592ProgressQuals(unittest.TestCase):
             with self.assertRaises(AssertionError):
                 self.pilot.main([])
         self.assertIs(progress.js_text, serialize)
-
-    def test_page_labels_and_renderer_use_560_and_592_without_eta(self):
-        # Replicata: the new templates and actual attempt renderer, without a browser.
-        # Expectata: 560/592 labels, counts, elapsed and all terminal states, with no ETA.  (Until 2026-10-31 both
-        # templates had to carry Astra's attribution, which dreeves's d45e11e removed that day; quals don't pin wording,
-        # dreeves, 2026-10-26.)
-        html = Path(progress.HERE, 'index.html').read_text()
-        templates = dict(re.findall(r'<template class="(progress-search592|progress-592-hint)">(.*?)</template>', html, re.S))
-        self.assertEqual(set(templates), {'progress-search592', 'progress-592-hint'})
-        for body in templates.values():
-            self.assertIn('560:10', body)
-            self.assertIn('592:10', body)
-        # Spec change (Claude, 2026-11-09; dreeves that day: "i stand by the point about quals enforcing specific prose
-        # on the page being pretty useless"): until then also the words "no completion estimate" in the first template.
-        result = subprocess.run(['node', str(Path(progress.HERE, 'quals', 'quals_search592_progress.cjs'))],
-                                cwd=progress.HERE, capture_output=True, text=True, timeout=20)
-        self.assertEqual(result.returncode, 0, result.stderr)
-
 
 if __name__ == '__main__':
     unittest.main()

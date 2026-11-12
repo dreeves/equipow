@@ -214,13 +214,14 @@ def sandbox():
     d = tempfile.mkdtemp(prefix='watch-quals-')
     for sub in ('searchwatch', 'runs', 'pagedata'): os.mkdir(os.path.join(d, sub))
     for name in ('track.py', 'watch.py', 'cpu.py'): shutil.copy(os.path.join(HERE, 'searchwatch', name), os.path.join(d, 'searchwatch'))
+    open(os.path.join(d, 'pagedata', 'progress-earlier.json'), 'w').write('[]\n')       # no earlier search, unless a qual writes some
     return d
 
 
 def data(d):
-    text = open(os.path.join(d, 'pagedata', 'searches.js'), encoding='utf-8').read()
-    assert text.startswith('searchesData(') and text.endswith(');\n'), text[:80]
-    return json.loads(text.removeprefix('searchesData(').removesuffix(');\n'))
+    text = open(os.path.join(d, 'pagedata', 'progress.js'), encoding='utf-8').read()
+    assert text.startswith('progressData(') and text.endswith(');\n'), text[:80]
+    return json.loads(text.removeprefix('progressData(').removesuffix(');\n'))
 
 
 def q_the_watcher_writes_the_data_file_when_a_search_changes():
@@ -228,7 +229,7 @@ def q_the_watcher_writes_the_data_file_when_a_search_changes():
     # an estimate, and its CPU intervals' file with one interval naming that run.  python3 -B searchwatch/watch.py
     # there, once; then once more, a second later; then, after the record of a second run of that search is written (a
     # live process's, this qual's, with an estimate as old as now), once more.
-    # Expectata: the first writes pagedata/searches.js, one call searchesData({"made", "runs"}); with made the time it
+    # Expectata: the first writes pagedata/progress.js, one call progressData({"made", "runs"}); with made the time it
     # ran, in whole seconds, and runs the one entry, tilt 16 4, ended, its cpu the interval's one row.  The second
     # leaves the file as it was, byte for byte (nothing of its runs changed: dreeves, 2026-11-09, "i guess it could be
     # a little smarter and not update a file that's in version control with a new as-of time that isn't meaningful").
@@ -242,13 +243,13 @@ def q_the_watcher_writes_the_data_file_when_a_search_changes():
         once = lambda: subprocess.run([PY, '-B', os.path.join('searchwatch', 'watch.py')], cwd=d, capture_output=True, text=True, timeout=60)
         p = once()
         assert p.returncode == 0, p.stderr
-        first, text = data(d), open(os.path.join(d, 'pagedata', 'searches.js')).read()
+        first, text = data(d), open(os.path.join(d, 'pagedata', 'progress.js')).read()
         assert set(first) == {'made', 'runs'} and type(first['made']) is int and abs(first['made'] - now) < 30, first
         [e] = first['runs']
         assert (e['search'], e['n'], e['order'], e['state'], e['runs']['runs']) == ('tilt', 16, 4, 'ended', 1), e
         assert len(e['cpu']) == 1 and e['cpu'][0][3:] == [0.5, 0.25, 0.25], e['cpu']
         time.sleep(1.1)
-        assert once().returncode == 0 and open(os.path.join(d, 'pagedata', 'searches.js')).read() == text
+        assert once().returncode == 0 and open(os.path.join(d, 'pagedata', 'progress.js')).read() == text
         write(d, 'b', [start('b', 'tilt', '16:4', time.time() - 5, os.getpid()), estimate(time.time(), 6, 50, 100)])
         assert once().returncode == 0
         third = data(d)
@@ -270,7 +271,7 @@ def q_one_watcher_at_a_time_keeps_the_file_current():
         code = "import sys, watch; watch.REFRESH = 0.3; watch.main(['--watch'])"
         env = dict(os.environ, PYTHONPATH='searchwatch')
         w = subprocess.Popen([PY, '-B', '-c', code], cwd=d, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        js = os.path.join(d, 'pagedata', 'searches.js')
+        js = os.path.join(d, 'pagedata', 'progress.js')
         t0 = time.time()
         while not os.path.exists(js):
             assert time.time() - t0 < 20 and w.poll() is None, 'no data file'
@@ -286,6 +287,35 @@ def q_one_watcher_at_a_time_keeps_the_file_current():
         if w is not None:
             w.kill()
             w.wait()
+        shutil.rmtree(d)
+
+
+def q_the_earlier_searches_follow_the_live_ones():
+    # Replicata: a sandbox with an ended run's record of the search tilt at 16:4, and in its pagedata/ the file
+    # progress-earlier.json holding two made-up entries, in the form the watcher writes (searches of before 2026-11-11,
+    # frozen); the watcher there, once.  Then the same sandbox without progress-earlier.json, and without the data
+    # file, the watcher once more.
+    # Expectata (dreeves, 2026-11-11: "I don't want to spend a lot of effort converting old searches"): the data file's
+    # runs are the live search's entry, then the two earlier entries exactly as the file holds them: the watcher adds
+    # them to every snapshot and makes nothing of them.  Without the file the watcher exits nonzero and writes no
+    # data file: the earlier searches are part of the page's data, and a snapshot without them would drop them.
+    d = sandbox()
+    try:
+        now = time.time()
+        write(d, 'a', [start('a', 'tilt', '16:4', now - 500, 11), estimate(now - 400, 5, 50, 100), end(now - 300)])
+        earlier = [dict(search='old.py', n=288, order=10, state='ended', outcome='none', anything=[1, 2, {'x': None}]),
+                   dict(search='older.py', n=64, order=7, state='ended', outcome=None)]
+        json.dump(earlier, open(os.path.join(d, 'pagedata', 'progress-earlier.json'), 'w'))
+        once = lambda: subprocess.run([PY, '-B', os.path.join('searchwatch', 'watch.py')], cwd=d, capture_output=True, text=True, timeout=60)
+        p = once()
+        assert p.returncode == 0, p.stderr
+        runs = data(d)['runs']
+        assert [e['search'] for e in runs] == ['tilt', 'old.py', 'older.py'] and runs[1:] == earlier, runs
+        os.remove(os.path.join(d, 'pagedata', 'progress-earlier.json'))
+        os.remove(os.path.join(d, 'pagedata', 'progress.js'))
+        p = once()
+        assert p.returncode != 0 and not os.path.exists(os.path.join(d, 'pagedata', 'progress.js')), (p.returncode, p.stderr)
+    finally:
         shutil.rmtree(d)
 
 

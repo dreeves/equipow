@@ -1,4 +1,7 @@
-"""Quals for the revised 288:10 search's journal and progress display."""
+"""Quals for the revised 288:10 search's journal and progress display.
+
+Spec change (Fable 5.2, 2026-11-11; dreeves: "the search progress code seems like a shitshow; can you revamp it? ... anti-magic anti-magic anti-magic", then "I don't want to spend a lot of effort converting old searches"): the page draws every search with one box (searchwatch/watch.py writes its data), so the attempt batches' own view is gone from it, and with it this suite's qual of that view (its .cjs).  The surveys quals stay: searches/pruning288/pruning288.py reads its journal through them.
+"""
 import json
 from pathlib import Path
 import re
@@ -149,31 +152,6 @@ class Search288ProgressQuals(unittest.TestCase):
             self.assertEqual(data['runs'][0]['groups'], ['33', '333'])
             self.assertEqual(data['runs'][0]['so_far'], 20)
             self.assertEqual(data['runs'][0]['etas'], [])
-
-    def test_page_distinguishes_attempts_and_has_a_hint(self):
-        # Replicata: the revised-search templates and their actual JS renderer, without a browser.
-        # Expectata: separate counts, all terminal states, elapsed time, no ETA, a hint.  (Until 2026-10-31 this qual,
-        # then test_page_distinguishes_attempts_and_attributes_new_copy, also required Astra's attribution in the hint,
-        # which dreeves's d45e11e removed that day; quals don't pin wording, dreeves, 2026-10-26.)
-        html = Path(progress.HERE, 'index.html').read_text()
-        templates = dict(re.findall(r'<template class="(progress-search288|progress-attempt-hint)">(.*?)</template>',
-                                    html, re.S))
-        self.assertEqual(set(templates), {'progress-search288', 'progress-attempt-hint'})
-        # Spec change (Claude, 2026-11-09; dreeves that day: "we need more quals for substantive things and fewer quals
-        # enforcing words on the page", and "i stand by the point about quals enforcing specific prose on the page
-        # being pretty useless"): the template names both cells; until then also the words "calibration", "search" and
-        # "no completion estimate".
-        self.assertIn('240:10', templates['progress-search288'])
-        self.assertIn('288:10', templates['progress-search288'])
-        self.assertTrue(re.sub(r'<[^>]*>', '', templates['progress-attempt-hint']).strip(), templates)   # it holds a message
-        self.assertEqual(set(re.findall(r'data-attempt-outcome="([^"]*)"', templates['progress-search288'])),
-                         {'null', 'control_failed', 'budget', 'witness', 'failed'})
-        script = Path(progress.HERE, 'page', 'progress-section.js').read_text()   # the section's script, in the page until 2026-10-31
-        self.assertIn('if (run.program === \'search288.py\') search288View(box, run);', script)
-        result = subprocess.run(['node', str(Path(progress.HERE, 'quals', 'quals_search288_progress.cjs'))],
-                                cwd=progress.HERE, capture_output=True, text=True, timeout=20)
-        self.assertEqual(result.returncode, 0, result.stderr)
-
 
 if __name__ == '__main__':
     unittest.main()

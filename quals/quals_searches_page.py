@@ -5,8 +5,8 @@ cell separately", "what happened to the probability graph?", "we used to have a 
 progress code seems like a shitshow; can you revamp it? ... anti-magic anti-magic anti-magic").  Run from the repo:
     python3 -B quals/quals_searches_page.py [name ...]
 Each qual is a function q_*: a passing qual returns, a failing one raises; each comment gives its replicata and
-expectata; a failure's message or traceback gives the resultata.  The page is given a made-up pagedata/searches.js
-(SEARCHES: entries as searchwatch/watch.py writes them) beside the earlier runs' progress.js (quals_index's).
+expectata; a failure's message or traceback gives the resultata.  The page is given a made-up pagedata/progress.js
+(SEARCHES: entries as searchwatch/watch.py writes them).
 """
 import sys
 sys.dont_write_bytecode = True
@@ -50,27 +50,25 @@ HARNESS = r"""<script>
     let quiet = 0;
     for (let n = 0; quiet < 3 && n < 120; n++) {
       await sleep(50);
-      const settled = window.progressView.searches.made || !section.querySelector('.progress-missing-searches').hidden;
-      quiet = window.progressView.data && settled && !document.head.querySelector('script[src^="pagedata/"]') ? quiet + 1 : 0;
+      const settled = window.progressView.data || !section.querySelector('.progress-missing').hidden;
+      quiet = settled && !document.head.querySelector('script[src^="pagedata/progress.js"]') ? quiet + 1 : 0;
     }
     if (quiet < 3) throw Error('snapshot');
-    for (const d of section.querySelectorAll('.progress-searches .progress-run details')) d.open = true;
+    for (const d of section.querySelectorAll('.progress-runs .progress-run details')) d.open = true;
     await sleep(100);
     const shown = e => !!e && e.checkVisibility();
     const rect = e => { const r = e.getBoundingClientRect(); return {x: r.x, width: r.width, right: r.right}; };
-    result.made = section.querySelector('[data-searches-made]').textContent;
-    result.age = section.querySelector('[data-searches-age]').textContent;
-    result.missing = shown(section.querySelector('.progress-missing-searches'));
-    result.before = !!(section.querySelector('.progress-searches').compareDocumentPosition(section.querySelector('.progress-runs')) & Node.DOCUMENT_POSITION_FOLLOWING);
-    result.earlier = section.querySelectorAll('.progress-runs .progress-run').length;
-    result.boxes = [...section.querySelectorAll('.progress-searches .progress-run')].map(box => {
+    result.made = section.querySelector('[data-made]').textContent;
+    result.age = section.querySelector('[data-age]').textContent;
+    result.missing = shown(section.querySelector('.progress-missing'));
+    result.boxes = [...section.querySelectorAll('.progress-runs .progress-run')].map(box => {
       const q = s => box.querySelector(s), part = name => q(`[data-bar="${name}"]`);
       return {
         label: q('[data-program]').textContent, n: q('[data-n]').textContent, order: q('[data-order]').textContent,
         state: [...box.querySelectorAll('.progress-run-state [data-label]')].filter(shown).map(e => e.dataset.label),
         parts: {bar: shown(q('.progress-work')), eta: shown(q('.progress-eta svg')), status: shown(q('.progress-status')), cpu: shown(q('.progress-cpu svg')),
                 runs: shown(q('[data-track-line]')), dots: shown(q('canvas')), odds: shown(q('.progress-odds svg'))},
-        extras: box.querySelectorAll('.progress-pool, [data-stages], .progress-key').length,
+        extras: box.querySelectorAll('.progress-pool, [data-stages], .progress-key, [data-pool-tip]').length,
         lindy: shown(q('[data-lindy]')),
         caption: q('.progress-bar-caption').textContent.replace(/\s+/g, ' ').trim(),
         bar: rect(q('.progress-bar')), done: rect(part('done')), band: rect(part('band')), median: rect(part('median')),
@@ -100,7 +98,7 @@ HARNESS = r"""<script>
 
 
 def render(width, searches=SEARCHES):
-    """The harness's report on the page at width (CSS px), in an iframe (page.HOST), with searches as its searches.js
+    """The harness's report on the page at width (CSS px), in an iframe (page.HOST), with searches as its progress.js
     (None: no such file)."""
     with tempfile.TemporaryDirectory(prefix='searches-page-quals-') as d:
         source = page.page().replace('<head>\n', '<head>\n' + page.PROGRESS_REMEMBERED + f'<script>window.PROGRESS_CLOCK = () => {MADE + 75};</script>\n')
@@ -108,8 +106,7 @@ def render(width, searches=SEARCHES):
         page.copy_page_dir(d)
         shutil.copy(page.DATA, page.data_file(d, 'mstar.js'))
         shutil.copy(page.POW2, page.data_file(d, 'pow2.js'))
-        Path(page.data_file(d, 'progress.js')).write_text('progressData(' + json.dumps(copy.deepcopy(page.PROGRESS_DATA)) + ');\n')
-        if searches is not None: Path(page.data_file(d, 'searches.js')).write_text('searchesData(' + json.dumps(searches) + ');\n')
+        if searches is not None: Path(page.data_file(d, 'progress.js')).write_text('progressData(' + json.dumps(searches) + ');\n')
         Path(d, 'host.html').write_text(page.HOST.replace('__WIDTH__', str(width)))
         dom = page.chrome(d, [f'--window-size={max(width, 500) + 40},1100', '--force-device-scale-factor=1', '--virtual-time-budget=15000',
                               '--dump-dom', 'file://' + str(Path(d, 'host.html'))])
@@ -127,15 +124,14 @@ def report(width):
 
 
 def q_every_search_has_its_box_and_every_box_the_same_parts():
-    # Replicata: the page, 1280 px wide, its section "Search progress" open, with SEARCHES as pagedata/searches.js,
+    # Replicata: the page, 1280 px wide, its section "Search progress" open, with SEARCHES as pagedata/progress.js,
     # four searches as the watcher lists them (by label and target): formtree-sym at 480:14, ended with outcome none;
     # formtree at 480:14, running, of basis formtree, its work in nodes; tilt at 1104:14, ended with no outcome, of
-    # basis lindy, its work in seconds; tilt at 2016:15, running, of basis lindy; and quals_index's data of the
-    # earlier runs as progress.js; the clock 75 s after the searches' snapshot.
+    # basis lindy, its work in seconds; tilt at 2016:15, running, of basis lindy; the clock 75 s after the snapshot.
     # Expectata (dreeves, 2026-11-11: "sounds like obviously yes, that we want to see different searches on the same
-    # cell separately"; "what happened to the probability graph?"; "we used to have a progress bar"): the searches'
-    # line gives their snapshot's time and its age, 1m 15s; their boxes come before the earlier runs', which are
-    # still there; one box per search, the running ones first, else in the data's order: formtree 480 14, tilt 2016
+    # cell separately"; "what happened to the probability graph?"; "we used to have a progress bar"): the section's
+    # line gives the snapshot's time and its age, 1m 15s; one box per search, the running ones first, else in the
+    # data's order: formtree 480 14, tilt 2016
     # 15, formtree-sym 480 14, tilt 1104 14, so the two searches at 480:14 each have their own; their states read
     # running, running, completed, aborted.  Every box shows the same parts: the work bar, the ETA chart, the status
     # line, the CPU chart, the runs' line, the dots and the probability graph; none has a pool chart, a stages line
@@ -143,7 +139,6 @@ def q_every_search_has_its_box_and_every_box_the_same_parts():
     # line through its three points (none grayed for want of a history), under the prior 0.5.
     r = report(1280)
     assert r['made'] == page.stamp(MADE) and r['age'].replace(' ', ' ') == '1m 15s' and not r['missing'], (r['made'], r['age'], r['missing'])
-    assert r['before'] and r['earlier'] == len(page.PROGRESS_DATA['runs']) > 0, (r['before'], r['earlier'])
     boxes = r['boxes']
     assert [(b['label'], b['n'], b['order']) for b in boxes] == [('formtree', '480', '14'), ('tilt', '2016', '15'), ('formtree-sym', '480', '14'),
                                                                 ('tilt', '1104', '14')], boxes
@@ -208,26 +203,25 @@ def q_each_box_s_words_follow_its_search_s_data():
 def q_a_cell_s_box_briefs_its_searches():
     # Replicata: the same page; then what the section answers when a chart's box asks for the runs at 480:14
     # (progressView.want(480n, 14, put)), and at 7:3, where there is none.
-    # Expectata: at 480:14 a brief of each of the two tracked searches there, formtree first (it runs), each its
-    # heading, its state and its time so far, then, their work being counted in nodes, the bar's caption: "m*(480) ≥
-    # 14? formtree running 3h 3m 20s" and "4,200,000 nodes checked (510.3 nodes/s) / ~22M–410M", then formtree-sym's;
-    # then the earlier runs' briefs there, if quals_index's data has any.  At 7:3, an em dash alone.
+    # Expectata: at 480:14 a brief of each of the two searches there, in the data's order, each its heading, its
+    # state and its time so far, then, their work being counted in nodes, the bar's caption: formtree-sym's, then
+    # "m*(480) ≥ 14? formtree running 3h 3m 20s" and "4,200,000 nodes checked (510.3 nodes/s) / ~22M–410M", and no
+    # more.  At 7:3, an em dash alone.
     r = report(1280)
     text = [s.replace(' ', ' ') for s in r['briefs']]
-    assert re.fullmatch(r'm\*\(480\) ≥ 14\? formtree running 3h 3m 20s', text[0]), text
-    assert text[1] == '4,200,000 nodes checked (510.3 nodes/s) / ~22M–410M', text
-    assert re.fullmatch(r'm\*\(480\) ≥ 14\? formtree-sym completed 1h 8m 20s', text[2]) and text[3].startswith('145,427 nodes checked'), text
-    earlier = [e for e in page.PROGRESS_DATA['runs'] if (e['n'], e['order']) == (480, 14)]
-    assert (len(text) > 4) == bool(earlier), (text, len(earlier))
+    assert re.fullmatch(r'm\*\(480\) ≥ 14\? formtree-sym completed 1h 8m 20s', text[0]) and text[1].startswith('145,427 nodes checked'), text
+    assert re.fullmatch(r'm\*\(480\) ≥ 14\? formtree running 3h 3m 20s', text[2]), text
+    assert text[3] == '4,200,000 nodes checked (510.3 nodes/s) / ~22M–410M', text
+    assert len(text) == 4, text
     assert r['none'] == ['—'], r['none']
 
 
-def q_a_page_without_the_searches_file_says_so():
-    # Replicata: the page at 1280 px with no pagedata/searches.js, the earlier runs' progress.js as before.
-    # Expectata: the line that says the searches' file did not load shows, the searches' line has no time, there is
-    # no search's box, and the earlier runs' boxes are all there as before.
+def q_a_page_without_the_data_file_says_so():
+    # Replicata: the page at 1280 px with no pagedata/progress.js.
+    # Expectata: the line that says the data file did not load shows, the snapshot's line has no time, and there is
+    # no search's box.
     r = render(1280, None)
-    assert r['missing'] and r['made'] == '—' and r['boxes'] == [] and r['earlier'] == len(page.PROGRESS_DATA['runs']), r
+    assert r['missing'] and r['made'] == '—' and r['boxes'] == [], r
 
 
 def main():

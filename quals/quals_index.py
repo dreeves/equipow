@@ -102,13 +102,40 @@ def copy_page_dir(d):
     shutil.copytree(PAGE_DIR, os.path.join(d, 'page'))
 
 
-def no_searches(d):
-    """The data file of the tracked searches (pagedata/searches.js, searchwatch/watch.py's), with no search, for the copy
-    of the page in directory d.  Since 2026-11-11 the section "Search progress" loads that file before progress.js
-    (Fable 5.2; dreeves: "the search progress code seems like a shitshow; can you revamp it?"), so a copy of the page
-    that gets a progress.js gets this beside it: without it the page logs a file that failed to load, as it would for
-    any of its data files."""
-    open(data_file(d, 'searches.js'), 'w', encoding='utf-8').write('searchesData(' + json.dumps({'made': 1792200000, 'runs': []}) + ');\n')
+def uniform(r, made):
+    """An entry of the section "Search progress"'s data in the form searchwatch/watch.py writes (its docstring), from
+    r, one in the form of the watcher before 2026-11-11, whose snapshot was made at made.  The fixtures below were
+    written in that older form and reach the page through this (progress_text); and pagedata/progress-earlier.json,
+    the searches of before that day, was made with it (scratch/revamp-20261111/convert.py).  Field by field: search,
+    the older entry's program; n, order, state, outcome, so_far, cpu, stale and the sea (statuses, depth, keys, groups,
+    counts) as they are; etas as they are, or, with none recorded, the one estimate Lindy's rule gives at its time so
+    far; to_go its own, or with none its last estimate's; work its work model's nodes, rate and total (the nodes checked,
+    with no total), or with no work model its time: seconds, its time so far, 1 a second, and in all its time to go
+    more; basis formtree with a work model, lindy for an entry that said its ETA was Lindy's rule, else the program,
+    whose own estimate it was; runs a tracked search's counts of its runs, else the one run it was; odds its own, with
+    its history's origin and, where it had no history, its prior at each estimate's time (what lindy.py states)."""
+    lindy = [made, r['so_far'], r['so_far'], r['so_far'] / 9, 9 * r['so_far']]
+    etas = r['etas'] or [lindy]
+    to_go = r['to_go'] or dict(zip(('median', 'lo', 'hi'), etas[-1][2:]))
+    model = r.get('work_eta')
+    nodes = [dict(unit='nodes', done=m['done'], rate=m['rate'], total=m['total'] or dict(median=m['done'], lo=m['done'], hi=m['done'])) for m in [model] if m]
+    seconds = dict(unit='seconds', done=r['so_far'], rate=1.0, total={k: r['so_far'] + v for k, v in to_go.items()})
+    ended = r['state'] == 'ended'
+    one = dict(runs=1, running=int(r['state'] == 'running'), frozen=int(r['state'] in ('frozen', 'paused')),
+               ended=int(ended and r['outcome'] is not None), aborted=int(ended and r['outcome'] is None), found=0)
+    odds = r['odds']
+    return dict(search=r['program'], n=r['n'], order=r['order'], state=r['state'], outcome=r['outcome'], so_far=r['so_far'],
+                runs=r['work'] if r.get('tracked') else one,
+                statuses=r['statuses'], depth=r['depth'], keys=r['keys'], groups=r['groups'], counts=r['counts'],
+                to_go=to_go, basis='formtree' if model else 'lindy' if r.get('lindy') else r['program'], work=(nodes + [seconds])[0],
+                etas=etas, odds=dict(prior=odds['prior'], since=odds['since'] if odds['since'] is not None else etas[0][0] - etas[0][1],
+                                     exists=odds['exists'] or [[row[0], odds['prior']] for row in etas]),
+                cpu=r['cpu'], stale=r.get('stale'))
+
+
+def progress_text(data):
+    """The text of progress.js for data, {made, runs}, its runs in the older form (uniform)."""
+    return 'progressData(' + json.dumps({'made': data['made'], 'runs': [uniform(r, data['made']) for r in data['runs']]}) + ');\n'
 
 
 def the_theorem(text):
@@ -1219,8 +1246,7 @@ def run(name):
         if data is not None: open(data_file(d, 'mstar.js'), 'w', encoding='utf-8').write(SOURCES[data]())
         shutil.copy(POW2, data_file(d, 'pow2.js'))
         if name in BOXES or name in BOX_LOADS:
-            open(data_file(d, 'progress.js'), 'w', encoding='utf-8').write('progressData(' + json.dumps(BOX_PROGRESS) + ');\n')
-            no_searches(d)
+            open(data_file(d, 'progress.js'), 'w', encoding='utf-8').write(progress_text(BOX_PROGRESS))
         open(os.path.join(d, 'host.html'), 'w').write(HOST.replace('__WIDTH__', str(width)).replace(
             'src="index.html"', f'src="index.html{(FRAGMENTS | BOX_LOADS).get(name, "")}"'))
         dom = chrome(d, ['--disable-ipc-flooding-protection'] * (name in PANELS) + [f'--window-size={max(width, 500) + 40},1100', f'--force-device-scale-factor={dpr}',
@@ -1846,7 +1872,7 @@ def q_new_results_fit_unscrolled_at_945_px():
     # wider than its frame, so neither frame scrolls.
     d = tempfile.mkdtemp(prefix='index-quals-')
     try:
-        for name in ('mstar.js', 'pow2.js', 'progress.js', 'searches.js'): shutil.copy(os.path.join(HERE, PAGEDATA, name), data_file(d, name))   # searches.js since 2026-11-11: the page's fourth data file
+        for name in ('mstar.js', 'pow2.js', 'progress.js'): shutil.copy(os.path.join(HERE, PAGEDATA, name), data_file(d, name))
         copy_page_dir(d)
         script = ("<script>addEventListener('load', () => setTimeout(() => { const p = document.createElement('pre'); p.id = 'fit'; "
                   "p.textContent = JSON.stringify([...document.querySelectorAll('.new-block .scroll')].map(f => ({frame: f.clientWidth, "
@@ -5312,12 +5338,10 @@ PROGRESS_HARNESS = """<script>
     const p = section.querySelector('canvas').getContext('2d').getImageData(x + (size >> 1), y + (size >> 1), 1, 1).data;
     return [p[0], p[1], p[2]];
   };
-  const counts = () => Object.fromEntries([...section.querySelectorAll('[data-count]')].map(e => [e.dataset.count, e.textContent]));
   try {
     window.harnessMarker = 'kept';
     out.before = {open: details.open, loads: view().loads, renders: view().renders,
-                  // the section's data scripts in flight: searches.js, which it loads first since 2026-11-11, or progress.js after it
-                  scripts: [...document.scripts].filter(s => /(?:searches|progress)[.]js/.test(s.getAttribute('src') || '')).length};
+                  scripts: [...document.scripts].filter(s => /progress[.]js/.test(s.getAttribute('src') || '')).length};
     out.stored = {before: localStorage.getItem('progress-open')};
     details.open = true;
     await sleep(3500);
@@ -5327,7 +5351,6 @@ PROGRESS_HARNESS = """<script>
     out.dots = run.groups.flatMap((g, gi) => [...g].map((c, j) => [+c, pixel(gi, j)]));
     const css = getComputedStyle(section);
     out.colors = run.statuses.map(s => css.getPropertyValue('--progress-' + s).trim());
-    out.counts = counts();
     const squeeze = t => t.replace(/[ \\t\\n\\r]+/g, ' ').trim();       // ASCII whitespace only: U+202F, before a unit, is text
     out.state = [...section.querySelectorAll('[data-state]')].filter(e => !e.hidden).map(e => squeeze(e.textContent));
     out.made = section.querySelector('[data-made]').textContent;
@@ -5375,14 +5398,13 @@ PROGRESS_HARNESS = """<script>
                        shares: Object.fromEntries([...cfig.querySelectorAll('[data-cpu-share]')].map(e => [e.dataset.cpuShare, squeeze(e.textContent)])),
                        after: !!(fig.compareDocumentPosition(cfig) & Node.DOCUMENT_POSITION_FOLLOWING),
                        afterStatus: !!(status.compareDocumentPosition(cfig) & Node.DOCUMENT_POSITION_FOLLOWING),
-                       afterStages: !!(section.querySelector('.progress-run [data-stages]').compareDocumentPosition(cfig) & Node.DOCUMENT_POSITION_FOLLOWING),
                        trackLineAfter: !!(cfig.compareDocumentPosition(section.querySelector('.progress-run [data-track-line]')) & Node.DOCUMENT_POSITION_FOLLOWING),
                        widths: [cfig.querySelector('svg').getBoundingClientRect().width, svg.getBoundingClientRect().width],
                        etaXs: L.etaXs};
     const d2 = JSON.parse(JSON.stringify(view().data));
     d2.made += 60; d2.runs[0].groups[1] = '1'; d2.runs[0].counts.running -= 1; d2.runs[0].counts.open += 1;
     window.progressData(d2);
-    out.changed = {renders: view().renders, pixel: pixel(1, 0), counts: counts(), marker: window.harnessMarker};
+    out.changed = {renders: view().renders, pixel: pixel(1, 0), marker: window.harnessMarker};
     details.open = false;
     await sleep(100);
     const atClose = view().loads;
@@ -5414,8 +5436,7 @@ def progress_run(case='main'):
         text = text.replace('<head>\n', '<head>\n' + early).replace('</body>', PROGRESS_HARNESS + '</body>')
         open(os.path.join(d, 'index.html'), 'w', encoding='utf-8').write(text)
         copy_page_dir(d)
-        open(data_file(d, 'progress.js'), 'w', encoding='utf-8').write('progressData(' + json.dumps(data) + ');\n')
-        no_searches(d)
+        open(data_file(d, 'progress.js'), 'w', encoding='utf-8').write(progress_text(data))
         shutil.copy(DATA, data_file(d, 'mstar.js'))
         shutil.copy(POW2, data_file(d, 'pow2.js'))
         dom = chrome(d, ['--window-size=1000,1100', '--force-device-scale-factor=2', '--virtual-time-budget=20000',
@@ -5821,7 +5842,6 @@ def q_progress_section_starts_closed():
     run = re.search(r'<template class="progress-run">(.*?)</template>', body, re.S).group(1)
     assert run.count('<details>') == 1 and run.count('</details>') == 1, run[:300]
     assert '<summary><h2 id="progress-title">' in body
-    assert [s for s in re.findall(r'data-count="(\w+)"', body)] == list(STATUSES)
     assert not re.search(r'<script[^>]*progress\.js', text)
 
 
@@ -5917,9 +5937,6 @@ def q_progress_remembers_it_was_left_open():
     # Expectata (dreeves, 2026-10-17: reloads kept closing the section; "2": remember it in the browser): main starts
     # closed with nothing stored, stores "1" once opened and nothing once closed; remembered starts open, its data
     # loading already (a progress.js script and at least one load before the harness touched it), then the same.
-    # Spec change (Fable 5.2, 2026-11-11; dreeves: "the search progress code seems like a shitshow; can you revamp
-    # it?"): the section loads the tracked searches' data file, searches.js, first, and progress.js once that has
-    # come, so the script in flight before the harness touches the page is either of the two.
     main, kept = progress_run(), progress_run('remembered')
     assert main['before']['open'] is False and main['stored'] == {'before': None, 'opened': '1', 'closed': None}, main['stored']
     assert kept['before']['open'] is True and kept['before']['loads'] >= 1 and kept['before']['scripts'] >= 1, kept['before']
@@ -5936,7 +5953,6 @@ def q_progress_draws_each_dot_in_its_status_color():
     assert [s for s, _ in R['dots']] == [s for s, _ in want], R['dots']
     assert all(len(c) == 7 and c.startswith('#') for c in R['colors']), R['colors']
     assert all(px == rgb(R['colors'][s]) for s, px in R['dots']), (R['dots'], R['colors'])
-    assert R['counts'] == {s: str(PROGRESS_DATA['runs'][0]['counts'][s]) for s in STATUSES}, R['counts']
 
 
 def q_progress_states_times_and_hours():
@@ -6148,7 +6164,7 @@ def q_progress_draws_cpu_aligned_with_the_eta_chart():
     R = progress_run()
     c = R['cpu']
     assert c is not None, 'no CPU chart'
-    assert c['after'] and c['afterStatus'] and c['afterStages'] and c['trackLineAfter'] and abs(c['widths'][0] - c['widths'][1]) < 0.5, c
+    assert c['after'] and c['afterStatus'] and c['trackLineAfter'] and abs(c['widths'][0] - c['widths'][1]) < 0.5, c
     assert [k for k, _ in c['bands']] == ['band search', 'band other', 'band idle'], c['bands']
     x0, x2 = c['etaXs'][0], c['etaXs'][2]
     H, T, B = 72, 4, 4
@@ -6226,8 +6242,7 @@ def q_progress_cpu_chart_shows_no_paper_between_its_bands():
                 '.progress-cpu svg, .progress-cpu svg * { visibility: visible !important; } .progress-cpu .cross { visibility: hidden !important; }</style>\n')
         open(os.path.join(d, 'index.html'), 'w', encoding='utf-8').write(page().replace('<head>\n', '<head>\n' + keep))
         copy_page_dir(d)
-        open(data_file(d, 'progress.js'), 'w', encoding='utf-8').write('progressData(' + json.dumps({'made': made, 'runs': [run]}) + ');\n')
-        no_searches(d)
+        open(data_file(d, 'progress.js'), 'w', encoding='utf-8').write(progress_text({'made': made, 'runs': [run]}))
         shutil.copy(DATA, data_file(d, 'mstar.js'))
         shutil.copy(POW2, data_file(d, 'pow2.js'))
         shot = os.path.join(d, 'shot.png')
@@ -6350,8 +6365,7 @@ def q_progress_reloads_on_returning_to_the_tab():
     text = page().replace('<head>\n', '<head>\n' + PROGRESS_REMEMBERED).replace('</body>', harness + '</body>')
     open(os.path.join(d, 'index.html'), 'w', encoding='utf-8').write(text)
     copy_page_dir(d)
-    open(data_file(d, 'progress.js'), 'w', encoding='utf-8').write('progressData(' + json.dumps(PROGRESS_DATA) + ');\n')
-    no_searches(d)
+    open(data_file(d, 'progress.js'), 'w', encoding='utf-8').write(progress_text(PROGRESS_DATA))
     shutil.copy(DATA, data_file(d, 'mstar.js'))
     shutil.copy(POW2, data_file(d, 'pow2.js'))
     dom = chrome(d, ['--virtual-time-budget=5000', '--dump-dom', 'file://' + os.path.join(d, 'index.html')])
@@ -6386,8 +6400,7 @@ def progress_harness(data, harness, before=''):
     text = page().replace('<head>\n', '<head>\n' + PROGRESS_REMEMBERED + PROGRESS_FROZEN + before).replace('</body>', script + '</body>')
     open(os.path.join(d, 'index.html'), 'w', encoding='utf-8').write(text)
     copy_page_dir(d)
-    open(data_file(d, 'progress.js'), 'w', encoding='utf-8').write('progressData(' + json.dumps(data) + ');\n')
-    no_searches(d)
+    open(data_file(d, 'progress.js'), 'w', encoding='utf-8').write(progress_text(data))
     shutil.copy(DATA, data_file(d, 'mstar.js'))
     shutil.copy(POW2, data_file(d, 'pow2.js'))
     dom = chrome(d, ['--window-size=1000,1100', '--virtual-time-budget=5000', '--dump-dom', 'file://' + os.path.join(d, 'index.html')])
@@ -6543,50 +6556,13 @@ def q_progress_shows_a_tracked_search():
        counts: Object.fromEntries([...r.querySelectorAll('.progress-status [data-attempt-count]')].map(e => [e.dataset.attemptCount, e.textContent])),
        elapsed: (r.querySelector('.progress-status [data-elapsed]') || {}).textContent || '',
        readout: r.querySelector('[data-readout]').textContent.trim(),
-       hint: tpl('progress-track-hint') ? tpl('progress-track-hint').content.textContent.trim() : null,
-       key: r.querySelector('.progress-key').hidden});""")
+       hint: tpl('progress-track-hint') ? tpl('progress-track-hint').content.textContent.trim() : null});""")
     assert got['head'] == 'm*(768) ≥ 12? w12.py' and got['label'] == ['running'], got
     assert got['hidden'] == [False, False] and got['same'] is True and got['drawn'] > 0, got
     assert got['lines'][0] == got['lines'][1] and len(got['lines'][1]) == 1 and got['lines'][1][0].strip(), got
     assert got['counts'] == dict(runs='4', running='3', frozen='0', ended='1', aborted='0', found='0'), got
-    assert got['elapsed'] == '' and got['hint'] is not None and got['readout'] == got['hint'] and got['key'] is True, got
-
-
-STAGES_LOOK = """
-  out(runs().map(r => {
-    const p = r.querySelector('[data-stages]'), text = sel => (p.querySelector(sel) || {}).textContent;
-    return {shown: !p.hidden, now: text('[data-stage-now]'), total: text('[data-stages-total]'),
-            later: [...p.querySelectorAll('[data-stages-later] > span')].map(s =>
-              [s.querySelector('[data-stage-name]').textContent, s.querySelector('[data-stage-to-go]').textContent]),
-            after: !!(r.querySelector('.progress-status').compareDocumentPosition(p) & Node.DOCUMENT_POSITION_FOLLOWING)};
-  }));"""
-
-
-def q_progress_names_a_run_s_later_stages():
-    # Replicata: index.html with two runs of 432:12 by fanout.py as progress.js, each in the form progress.js_text gives
-    # a run in a chain (2026-10-31): the first with one later stage, reprove.py, 7 to 9 days to go (median 8), and in
-    # all 10 to 14 days to a recordable result (median 12); the second with two, fanout.assemble with no estimate and
-    # then reprove.py as the first's, and no total.
-    # Expectata (the coordinator, 2026-10-31, after the page's ETA had covered only the stage running, twice in two
-    # days: "the current stage's ETA chart stays as it is, labeled as that stage's; under it, one compact line naming
-    # the later stages with their estimates, and the total to a recordable result"): below each run's status line, its
-    # line of stages shown, naming the program its chart covers (fanout.py), each later stage in order with the range
-    # of its time to go, 7.0–9.0 d, or — with no estimate, and the range to a recordable result, 10.0–14.0 d, or —.
-    # Resultata before: no line of stages; the ETA chart's stage alone, unnamed as one stage of more.
-    # Spec change (Claude, 2026-11-07; dreeves: "sane number of sigfigs for everything else based in a principled way on
-    # the amount of uncertainty"): each range to its own uncertainty, half its width (q_progress_rounds_figures_to_their_uncertainty),
-    # a day for reprove.py's and two for the total, so whole days: 7–9 d and 10–14 d.
-    base, d = dict(PROGRESS_DATA['runs'][0], program='fanout.py', n=432, order=12), 86400.0
-    reprove = dict(name='reprove.py', to_go=dict(median=8 * d, lo=7 * d, hi=9 * d))
-    one = dict(base, stages=[dict(name='fanout.py', to_go=base['to_go']), reprove],
-               total=dict(median=12 * d, lo=10 * d, hi=14 * d))
-    two = dict(base, stages=[dict(name='fanout.py', to_go=base['to_go']), dict(name='fanout.assemble', to_go=None), reprove],
-               total=None)
-    got = progress_harness({'made': PROGRESS_DATA['made'], 'runs': [one, two]}, STAGES_LOOK)
-    days = '7–9' + NNBSP + 'd'
-    assert got == [dict(shown=True, now='fanout.py', total='10–14' + NNBSP + 'd', later=[['reprove.py', days]], after=True),
-                   dict(shown=True, now='fanout.py', total='—', later=[['fanout.assemble', '—'], ['reprove.py', days]],
-                        after=True)], got
+    # (2026-11-11: the statuses' key, hidden for a tracked search, is gone from every box: the hint names the dots)
+    assert got['elapsed'] == '' and got['hint'] is not None and got['readout'] == got['hint'], got
 
 
 def q_asymptotics_states_the_records_in_the_data():
@@ -6624,109 +6600,6 @@ def q_progress_lists_running_runs_first():
     got = progress_harness(data, """
   out(runs().map(r => [r.querySelector('[data-program]').textContent, r.dataset.runState]));""")
     assert got == [['b.py', 'running'], ['a.py', 'ended'], ['c.py', 'ended']], got
-
-
-def q_progress_shows_no_stages_for_a_run_of_one_stage():
-    # Replicata: index.html with two runs as progress.js: PROGRESS_DATA's (no stages, as progress.js_text gives a run in
-    # no chain, or as a data file written before 2026-10-31 has none), and the same with stages its own alone.
-    # Expectata (the coordinator, 2026-10-31: "Runs with a single stage show nothing extra"): neither shows a line of
-    # stages.
-    base = PROGRESS_DATA['runs'][0]
-    alone = dict(base, stages=[dict(name=base['program'], to_go=base['to_go'])], total=base['to_go'])
-    got = progress_harness({'made': PROGRESS_DATA['made'], 'runs': [base, alone]}, STAGES_LOOK)
-    assert [r['shown'] for r in got] == [False, False], got
-
-
-# A running fanout run with a pool series, in the form progress.js_text gives it (progress.pool_series; dreeves,
-# 2026-11-03, README [TRE]): 4 h of running in 100 stretches of 144 s; six points, [time, seconds of running, boxes
-# pending or running, stretch]: a pool record's 30,000 boxes at 0.5 h, then 100,000 at 1 h, 180,000 at 2 h, a drop to
-# 90,000 at 2.03 h (as the lex cut's), 150,000 at 3 h and 210,000 at 3.89 h; and four stretches with jobs ended, [jobs,
-# net change], whose net change per job is +0.5, +0.2, +0.1 and -0.05.
-POOL_POINTS = [[PROGRESS_DATA['made'] - 14400 + x, float(x), c, b] for x, c, b in
-               ((1800, 30000, 12), (3600, 100000, 25), (7200, 180000, 50), (7300, 90000, 50), (10800, 150000, 75),
-                (14000, 210000, 97))]
-POOL_JOBS = {25: [1000, 500], 50: [2000, 400], 75: [3000, 300], 97: [4000, -200]}
-PROGRESS_POOL = dict(PROGRESS_DATA['runs'][0], program='fanout.py', n=432, order=12, so_far=4 * HOURS,
-                     pool=dict(points=POOL_POINTS, buckets=[POOL_JOBS.get(b, [0, 0]) for b in range(100)]))
-POOL_LOOK = """
-  const all = runs(), [r, other, empty] = all;
-  r.querySelector('details').open = true;            // laid out, so that the pointer has somewhere to be
-  await sleep(50);
-  const fig = box => box.querySelector('.progress-pool');
-  const f = fig(r), svg = f.querySelector('svg'), cross = svg.querySelector('[data-pool-cross]');
-  const vertices = (box, sel) => (fig(box).querySelector(sel).getAttribute('points') || '').trim().split(/\\s+/)
-    .filter(Boolean).map(p => p.split(',').map(Number));
-  const ticks = (box, which) => [...fig(box).querySelectorAll(`[data-pool-ticks="${which}"] text`)]
-    .map(t => [t.textContent, +t.getAttribute('x'), +t.getAttribute('y')]);
-  const tip = box => fig(box).querySelector('[data-pool-tip]').textContent.replace(/[ \\t\\n\\r]+/g, ' ').trim();
-  const L = window.progressView.layouts[0], sb = svg.getBoundingClientRect();
-  const hover = k => svg.dispatchEvent(new MouseEvent('mousemove', {clientX: sb.left + L.poolXs[k] * sb.width / 640,
-                                                                    clientY: sb.top + sb.height / 2, bubbles: true}));
-  const rest = tip(r);
-  hover(2);
-  const third = tip(r), crossAt = [cross.getAttribute('visibility'), +cross.getAttribute('x1'), L.poolXs[2]];
-  hover(0);
-  const first = tip(r);
-  svg.dispatchEvent(new MouseEvent('mouseleave'));
-  out({hidden: all.map(b => fig(b).hidden),
-       after: !!(r.querySelector('[data-stages]').compareDocumentPosition(f) & Node.DOCUMENT_POSITION_FOLLOWING),
-       count: vertices(r, '[data-pool-line="count"]'), wash: vertices(r, '[data-pool-wash]'),
-       net: vertices(r, '[data-pool-line="net"]'), zero: [...f.querySelectorAll('line.zero')].map(l => +l.getAttribute('y1')),
-       xticks: ticks(r, 'x'), counts: ticks(r, 'count'), nets: ticks(r, 'net'),
-       titles: [...f.querySelectorAll('[data-pool-title]')].map(t => t.textContent),
-       rest, third, first, left: tip(r), crossAt, crossLeft: cross.getAttribute('visibility'),
-       empty: {lines: [vertices(empty, '[data-pool-line="count"]').length, vertices(empty, '[data-pool-line="net"]').length],
-               tip: tip(empty), xticks: ticks(empty, 'x').map(t => t[0])}});"""
-
-
-def q_progress_draws_a_fanout_run_s_pool():
-    # Replicata: index.html with three runs as progress.js: PROGRESS_POOL, a fanout run with a pool series; PROGRESS_DATA's
-    # overnight_v5.py run, whose entry has no pool; and PROGRESS_POOL with a pool of no point and no job (a fanout run
-    # before its first pool record).  The first run's fold opened, its pool chart hovered at its third point, then at
-    # its first, then left.
-    # Expectata (dreeves, 2026-11-03, README [TRE]: "Could we see a time series of the number of pending nodes? If we
-    # could see the growth of that slow down, or when it starts to actually go down, we can better infer the ETA."):
-    # the first and third runs' pool charts shown, after the line of stages, and the second's hidden.  The first's
-    # upper line a vertex per point, at its seconds of running on the x ticks' scale (0 to 4 h, labeled 0, 1, 2, 3, 4 h)
-    # and its boxes on the count ticks' (0 to 250K by 50K), over a wash down to 0 at its ends; its lower line a vertex
-    # per stretch with jobs, at the stretch's middle and its net change per job ended, on the net ticks' scale (−0.5, 0,
-    # +0.5), with a line at 0; the panels' titles; the tip at rest the latest point's line: @ its time, an em space, 3.9 h
-    # so far: 210,000 boxes pending or running, net −0.05 per job ended; over the third point the third's (2.0 h,
-    # 180,000, +0.20), the cross at it; over the first the first's (0.5 h, 30,000, and — for its stretch, whose only
-    # point is a pool record); and after the pointer leaves, the latest's again, the cross hidden.  The third run's
-    # chart its axes alone, with no line and no tip.
-    # Resultata before: no pool chart.
-    # Spec change (Claude, 2026-11-07; dreeves: "1. show elapsed time with full granularity like so: 3d 4h 5m 6s"): each
-    # point's time so far in that form (hms), 3h 54m 0s at the latest.
-    empty = dict(PROGRESS_POOL, n=480, pool=dict(points=[], buckets=[[0, 0]] * 100))
-    got = progress_harness({'made': PROGRESS_DATA['made'], 'runs': [PROGRESS_POOL, PROGRESS_DATA['runs'][0], empty]}, POOL_LOOK)
-    assert got['hidden'] == [False, True, False] and got['after'] is True, got
-    h = NNBSP + 'h'
-    assert [t[0] for t in got['xticks']] == ['0', '1', '2', '3', f'4{h}'], got['xticks']
-    assert [t[0] for t in got['counts']] == ['0', '50K', '100K', '150K', '200K', '250K'], got['counts']
-    assert [t[0] for t in got['nets']] == ['−0.5', '0', '+0.5'], got['nets']
-    x0, x4 = got['xticks'][0][1], got['xticks'][-1][1]
-    def X(s): return x0 + (x4 - x0) * s / 14400
-    def scale(ticks, lo, hi):                     # the y of a value on a panel's scale, from its end ticks' (4 below)
-        (_, _, ya), (_, _, yb) = ticks[0], ticks[-1]
-        return lambda v: ya - 4 + (yb - ya) * (v - lo) / (hi - lo)
-    Y1, Y2 = scale(got['counts'], 0, 250000), scale(got['nets'], -0.5, 0.5)
-    def near(got_pts, want): return len(got_pts) == len(want) and all(abs(a - c) < 0.05 and abs(b - d) < 0.05 for (a, b), (c, d) in zip(got_pts, want))
-    line = [(X(x), Y1(c)) for _, x, c, _ in POOL_POINTS]
-    assert near(got['count'], line), (got['count'], line)
-    assert near(got['wash'], [(line[0][0], Y1(0))] + line + [(line[-1][0], Y1(0))]), got['wash']
-    nets = [(X(14400 * (b + 0.5) / 100), net / jobs) for b, (jobs, net) in sorted(POOL_JOBS.items())]
-    assert near(got['net'], [(x, Y2(v)) for x, v in nets]), (got['net'], nets)
-    assert len(got['zero']) == 1 and abs(got['zero'][0] - Y2(0)) < 0.05, got['zero']
-    assert len(got['titles']) == 2 and all(got['titles']), got['titles']      # two titles, whatever their words (2026-11-09)
-    def said(k, net):
-        t, x = POOL_POINTS[k][0], POOL_POINTS[k][1]
-        return f'@{stamp(t)}{EMSP}{hms(x)} so far: {POOL_POINTS[k][2]:,} boxes pending or running, net {net} per job ended'
-    assert figures(got['rest']) == figures(said(5, '−0.05')) and got['left'] == got['rest'], (got['rest'], got['left'])
-    assert figures(got['third']) == figures(said(2, '+0.20')) and figures(got['first']) == figures(said(0, '—')), (got['third'], got['first'])
-    assert got['crossAt'][0] == 'visible' and abs(got['crossAt'][1] - got['crossAt'][2]) < 0.05, got['crossAt']
-    assert got['crossLeft'] == 'hidden', got['crossLeft']
-    assert got['empty'] == dict(lines=[0, 0], tip='', xticks=['0', '1', '2', '3', f'4{h}']), got['empty']
 
 
 # A run's odds as progress.js carries them (progress.py's odds; since 2026-11-06 {prior, since, exists}): a campaign
@@ -6801,11 +6674,17 @@ def q_progress_every_run_has_one_probability_graph():
             pticks: ticks(f, 'p', 'y'), tticks: ticks(f, 't', 'x')}; }));""")
     assert [g['program'] for g in got] == ['probe_seed.py', 'overnight_v5.py', 'ftree.py', 'probe_seed.py'], got
     assert [(g['graphs'], g['shown']) for g in got] == [(1, True)] * 4, [(g['graphs'], g['shown']) for g in got]
-    assert [len(g['line']) for g in got] == [9, 0, 3, 0] and [len(g['marks']) for g in got] == [1, 0, 1, 0], [(len(g['line']), g['marks']) for g in got]
-    assert [g['empty'] for g in got] == [False, True, False, True], [g['empty'] for g in got]
-    assert [g['opacity'] < 1 for g in got] == [False, True, False, True] and got[0]['opacity'] == got[2]['opacity'] == 1, [g['opacity'] for g in got]
+    # Spec change (Fable 5.2, 2026-11-11; dreeves: "the search progress code seems like a shitshow; can you revamp it?
+    # ... anti-magic anti-magic anti-magic"): every search has a history, since each of its estimates states its
+    # P(exists) (a search that knows only its age its prior, each time: lindy.py), so no graph is grayed for want of
+    # one: the run without a model has a point per recorded ETA, three, flat at its prior 0.5, on percent ticks to 50%,
+    # and the campaign target before its first measurement its prior at its estimates' times; until then those two
+    # drew no line, their graphs grayed (data-empty).
+    assert [len(g['line']) for g in got] == [9, 3, 3, len(got[3]['line'])] and len(got[3]['line']) >= 1, [len(g['line']) for g in got]
+    assert [len(g['marks']) for g in got] == [1, 1, 1, 1] and not any(g['empty'] for g in got) and all(g['opacity'] == 1 for g in got), got
     h = NNBSP + 'h'
-    assert [t for t, _ in got[1]['tticks']] == ['0', '0.5', '1', '1.5', f'2{h}'] and [t for t, _ in got[1]['pticks']] == ['0', '0.2', '0.4', '0.6', '0.8', '1%'], got[1]
+    assert [t for t, _ in got[1]['tticks']] == ['0', '0.5', '1', '1.5', f'2{h}'] and [t for t, _ in got[1]['pticks']] == ['0', '10', '20', '30', '40', '50%'], got[1]
+    assert len({y for _, y in got[1]['line']}) == 1, got[1]['line']
     camp = got[0]
     assert [t for t, _ in camp['tticks']] == ['0', '2', '4', f'6{h}'] and [t for t, _ in camp['pticks']] == ['0', '10', '20', '30%'], (camp['tticks'], camp['pticks'])
     (_, x0), (_, x6) = camp['tticks'][0], camp['tticks'][-1]
@@ -6933,7 +6812,6 @@ def q_progress_redraws_in_place_and_reads_out_a_subtree():
     c = R['changed']
     assert c['marker'] == 'kept' and c['renders'] == 2, c
     assert c['pixel'] == rgb(R['colors'][STATUSES.index('open')]), (c['pixel'], R['colors'])
-    assert c['counts']['open'] == '4' and c['counts']['running'] == '0', c['counts']
 
 
 
@@ -6944,43 +6822,6 @@ PROGRESS_WORK = dict(PROGRESS_DATA['runs'][0], program='ftree.py', n=288, order=
     model='importance', interval='conditional', discrepancy_factor=2.117, root_discrepancy_factor=2.117, rate_log_sd=0.35,
     coverage=0.9, root_log_sd_posterior=dict(lo=0.35, median=0.52, hi=0.83), effective_samples=2273.9,
     forecast_samples=65536, total=dict(median=1270000000.0, lo=780000000.0, hi=2500000000.0)))
-
-
-def q_progress_draws_work_to_scale():
-    # Spec change (Claude, 2026-11-06; dreeves: "i don't like how that progress bar looks. can you revamp it in a way
-    # that makes sense to you? also bring back a subtle tick for the median finish time. bigger picture: should that
-    # progress bar be measuring amount of work, not time? the ETA graph is for time. we can still have a 90% CI for
-    # amount of work remaining, right?"), in place of q_progress_draws_time_to_scale (Astra's time ruler of that day).
-    # Spec change (Claude, 2026-11-06; dreeves: "479M nodes checked" above and "479,017,754 nodes checked" below, "the
-    # exact number seems better"; then "1. add nodes/s to the blue/purple line" and "2. kill the whole line with number
-    # of samples"): the caption's nodes checked exact and followed by the rate, and no work paragraph (its samples,
-    # nodes checked, rate and source time), shown with the bar until then.
-    # Replicata: index.html with two runs, both folds open: PROGRESS_WORK, which has a work model, and
-    # PROGRESS_DATA's, which has none.
-    # Expectata: the first shows its work bar; the bar's blue part 15.625% of the track (done over the track's end, 3B,
-    # the round tick past 1.1 x 2.5B), its band from 26% to 83.333%, its median tick at 42.333%, its ticks 0, 1B, 2B
-    # and 3B at 0, 33.333, 66.667 and 100%, and its caption's numbers 468,750,102, then the rate 1,884.1 in its blue
-    # part, and 780M–2.5B (dreeves's caption since f6d809b, 2026-11-06, its percent and median commented out); the
-    # second shows no bar; neither run's box has a field of the samples or the source time.
-    # Resultata before: the bar was a time ruler, shown for every run, its blue part elapsed time.
-    got = progress_harness({'made': PROGRESS_DATA['made'], 'runs': [PROGRESS_WORK, PROGRESS_DATA['runs'][0]]}, """
-  for (const r of runs()) r.querySelector('details').open = true;
-  await sleep(200);
-  out(runs().map(r => ({bar: r.querySelector('.progress-work').checkVisibility(),
-    unshown: r.querySelectorAll('[data-work-eta], [data-work-samples], [data-work-source_time]').length,
-    styles: Object.fromEntries([...r.querySelectorAll('.progress-bar [data-bar]')].map(e => [e.dataset.bar, [e.style.left, e.style.width]])),
-    ticks: [...r.querySelector('[data-bar="ticks"]').children].map(e => [e.textContent, e.style.left]),
-    fields: {...Object.fromEntries(['done', 'range'].map(f => [f, r.querySelector(`[data-bar-${f}]`).textContent])),
-             rate: (r.querySelector('.progress-bar-caption .spent [data-work-rate]') || {}).textContent}})));""")
-    work, plain = got
-    assert (work['bar'], plain['bar'], work['unshown'], plain['unshown']) == (True, False, 0, 0), got
-    near = lambda s, v: abs(float(s.rstrip('%')) - v) < 0.001
-    styles = work['styles']
-    assert near(styles['done'][1], 15.625) and near(styles['band'][0], 26) and near(styles['band'][1], 57.3333), styles
-    assert near(styles['median'][0], 42.3333), styles
-    assert [t for t, _ in work['ticks']] == ['0', '1B', '2B', '3B'], work['ticks']
-    assert all(near(left, v) for (_, left), v in zip(work['ticks'], (0, 33.3333, 66.6667, 100))), work['ticks']
-    assert work['fields'] == dict(done='468,750,102', range='780M–2.5B', rate='1,884.1'), work['fields']
 
 
 def q_progress_brief_of_a_work_model_run_is_its_bar_caption():
@@ -7036,94 +6877,16 @@ def q_progress_shows_runs_and_dots_for_every_run():
   await sleep(200);
   const shows = (r, sel) => { const e = r.querySelector(sel); return e && e.checkVisibility(); };
   out(runs().map(r => ({program: r.querySelector('[data-program]').textContent,
-    runs: shows(r, '.progress-status [data-attempt-count="runs"]'), dots: shows(r, 'canvas'), key: shows(r, '.progress-key'),
+    runs: shows(r, '.progress-status [data-attempt-count="runs"]'), dots: shows(r, 'canvas'),
     readout: shows(r, '[data-readout]'), status: shows(r, '.progress-status [data-state="running"]'), bar: shows(r, '.progress-work')})));""")
-    want = [dict(program='ftree.py', runs=True, dots=True, key=True, readout=True, status=True, bar=True),
-            dict(program='w12.py', runs=True, dots=True, key=False, readout=True, status=True, bar=False),
-            dict(program='overnight_v5.py', runs=None, dots=True, key=True, readout=True, status=True, bar=False)]
+    # Spec change (Fable 5.2, 2026-11-11; dreeves: "we used to have a progress bar. the search progress code seems like
+    # a shitshow; can you revamp it? ... anti-magic anti-magic anti-magic"): every search's box has the same parts,
+    # whatever the search: the line of its runs, its dots and their readout, its status line and its bar; until then
+    # the bar showed for a search with a work model alone, the runs' line for a tracked one, and the statuses' key (gone
+    # now: the hint names the dots) for the others.
+    want = [dict(program=name, runs=True, dots=True, readout=True, status=True, bar=True) for name in ('ftree.py', 'w12.py', 'overnight_v5.py')]
     assert got == want, got
 
-
-
-def q_progress_shows_a_search_s_roots_without_words():
-    # Replicata: index.html with two running tracked searches as progress.js, each fold open: ftree.py's 288:10 with a
-    # work model (PROGRESS_WORK's), its sea a block per root of its tree as progress.rooted gives them (root 0, 3 dots
-    # checked; root 1, 5 checked and 2 left); and w12.py's 768:12 with none; then root 1's block hovered.
-    # Expectata (dreeves, 2026-11-07: "remind me why we aren't doing the sea-of-dots visualization of that kind of
-    # thing?"; then "the words you're adding on the page are not helping. it needs to just be clear from the
-    # visualization"): the first's readout shows no text, while its dots' label (template progress-roots-hint) is there
-    # for a screen reader; the second's readout and label are its runs' hint (template progress-track-hint); the hovered
-    # block's readout its key and its counts, 5 settled and 2 pending.
-    # Resultata before: the first's readout and label its runs' hint, "One dot per run", which its dots are not.
-    # Fixture change (Claude, 2026-11-08): the first's sea in its own statuses, settled and pending, as progress.rooted
-    # now gives it (q_progress_keys_a_search_s_roots); until then in SEA_STATUSES, pending '3'.
-    base, made = PROGRESS_DATA['runs'][0], PROGRESS_DATA['made']
-    tracked = dict(program='w12.py', n=768, order=12, state='running', outcome=None, so_far=600,
-                   to_go=dict(median=600, lo=600 / 9, hi=9 * 600),
-                   etas=[[made - 60, 540.0, 540.0, 60.0, 4860.0], [made, 600.0, 600.0, 66.7, 5400.0]],
-                   statuses=base['statuses'], depth=0, keys=['768:12'], groups=['4440'],
-                   counts=dict(settled=1, open=0, split=0, pending=0, running=3), stale=None, tracked=True,
-                   work=dict(runs=4, running=3, frozen=0, ended=1, aborted=0, found=0), lindy=True, odds=ODDS_IGNORANT,
-                   cpu=[])
-    worked = dict(tracked, program='ftree.py', n=288, order=10, statuses=['settled', 'pending'],
-                  keys=['288:10 0', '288:10 1'], groups=['000', '0000011'], counts=dict(settled=8, pending=2), lindy=False,
-                  work=dict(runs=4, running=1, frozen=0, ended=3, aborted=0, found=0), work_eta=PROGRESS_WORK['work_eta'])
-    got = progress_harness({'made': made, 'runs': [worked, tracked]}, """
-  for (const r of runs()) r.querySelector('details').open = true;
-  await sleep(200);
-  const squeeze = t => t.replace(/\\s+/g, ' ').trim();
-  const tpl = name => document.querySelector('template.' + name);
-  const hint = name => tpl(name) ? squeeze(tpl(name).content.textContent) : null;
-  const [first, second] = runs();
-  const read = r => squeeze(r.querySelector('[data-readout]').innerText);
-  const label = r => squeeze(r.querySelector('canvas').getAttribute('aria-label'));
-  const before = {first: read(first), second: read(second), labels: [label(first), label(second)]};
-  const canvas = first.querySelector('canvas'), L = window.progressView.layouts[0], [hx, hy] = L.place(1, 0);
-  const box = canvas.getBoundingClientRect(), dpr = canvas.width / box.width;
-  canvas.dispatchEvent(new MouseEvent('mousemove', {clientX: box.left + (hx + L.size / 2) / dpr, clientY: box.top + (hy + L.size / 2) / dpr, bubbles: true}));
-  const readout = first.querySelector('[data-readout]'), code = readout.querySelector('code');
-  out({...before, runs: hint('progress-track-hint'), roots: hint('progress-roots-hint'), code: code ? code.textContent : null,
-       counts: [...readout.querySelectorAll('.progress-sw')].map(e => [e.dataset.status, squeeze(e.nextSibling.textContent)])});""")
-    assert got['runs'] and got['roots'], got
-    assert got['first'] == '' and got['labels'][0] == got['roots'], got
-    assert got['second'] == got['runs'] and got['labels'][1] == got['runs'], got
-    assert got['code'] == '288:10 1' and got['counts'] == [['settled', '5'], ['pending', '2']], got
-
-
-def q_progress_keys_a_search_s_roots():
-    # Replicata: index.html with two running tracked searches and an overnight_v5.py run as progress.js, each fold open:
-    # ftree.py's 288:10 with a work model, its sea a block per root of its tree in its own statuses, settled and pending,
-    # as progress.rooted gives them (root 0, 3 dots checked; root 1, 5 checked and 2 left); w12.py's 768:12 with none,
-    # a dot per run; and PROGRESS_DATA's overnight_v5.py run, its sub-cases in all five of SEA_STATUSES.
-    # Expectata (dreeves, 2026-11-08, of 288:10's blocks: "we used to have a legend for this; why don't we have one
-    # here?", then, of a key that listed their "split 0" and "running 0", which no block can be: "is that as dumb and
-    # wrong as it sounds?"): the first shows a key of its own statuses alone, each swatch with its count over the dots
-    # (settled 8, pending 2); the second's key stays hidden, the swatches in its runs' hint (template
-    # progress-track-hint) being its legend; the third's key lists all five, with their counts.
-    # Resultata before: both tracked searches' keys hidden, so the first's dots had no legend at all, its hint (template
-    # progress-roots-hint) a label for a screen reader alone; then every key listed all five statuses.
-    base, made = PROGRESS_DATA['runs'][0], PROGRESS_DATA['made']
-    tracked = dict(program='w12.py', n=768, order=12, state='running', outcome=None, so_far=600,
-                   to_go=dict(median=600, lo=600 / 9, hi=9 * 600),
-                   etas=[[made - 60, 540.0, 540.0, 60.0, 4860.0], [made, 600.0, 600.0, 66.7, 5400.0]],
-                   statuses=base['statuses'], depth=0, keys=['768:12'], groups=['4440'],
-                   counts=dict(settled=1, open=0, split=0, pending=0, running=3), stale=None, tracked=True,
-                   work=dict(runs=4, running=3, frozen=0, ended=1, aborted=0, found=0), lindy=True, odds=ODDS_IGNORANT,
-                   cpu=[])
-    worked = dict(tracked, program='ftree.py', n=288, order=10, statuses=['settled', 'pending'],
-                  keys=['288:10 0', '288:10 1'], groups=['000', '0000011'], counts=dict(settled=8, pending=2), lindy=False,
-                  work=dict(runs=4, running=1, frozen=0, ended=3, aborted=0, found=0), work_eta=PROGRESS_WORK['work_eta'])
-    got = progress_harness({'made': made, 'runs': [worked, tracked, base]}, """
-  for (const r of runs()) r.querySelector('details').open = true;
-  await sleep(200);
-  out(runs().map(r => {
-    const key = r.querySelector('.progress-key');
-    return {shown: key.checkVisibility(),
-            items: [...key.querySelectorAll('li')].filter(li => li.checkVisibility()).map(li => [li.querySelector('.progress-sw').dataset.status, li.querySelector('[data-count]').textContent])};
-  }));""")
-    assert got[0] == dict(shown=True, items=[['settled', '8'], ['pending', '2']]), got
-    assert got[1]['shown'] is False, got
-    assert got[2] == dict(shown=True, items=[[s, f'{base["counts"][s]:,}'] for s in STATUSES]), got
 
 
 def q_progress_lays_out_each_subtree_as_a_block():

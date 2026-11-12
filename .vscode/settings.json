@@ -2,7 +2,7 @@
     "liveServer.settings.port": 5501,
     "liveServer.settings.ignoreFiles": [
         ".vscode/**", "**/*.scss", "**/*.sass", "**/*.ts", "node_modules/**", "venv/**", ".venv/**",
-        "**/*.log", "**/*.err", "**/*.jsonl", "**/*.tmp", "pagedata/progress.js", "pagedata/searches.js", ".progress_cache.json",
+        "**/*.log", "**/*.err", "**/*.jsonl", "**/*.tmp", "pagedata/progress.js", ".progress_cache.json",
         "scratch/**", ".lattice288_work/**", "**/__pycache__/**", "**/*.py", "AGENTS.md", "AGENTS-history.md"
     ],
     "python.analysis.exclude": ["scratch/**", "**/node_modules", "**/__pycache__", "**/.*"]

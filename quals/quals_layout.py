@@ -63,7 +63,9 @@ def q_harnesses_run_from_anywhere():
     # Expectata: each passes (exit 0): each reads the page's files from the root, above its own directory.
     # Resultata before the move: the harnesses read index.html and page/ from the working directory.
     names = sorted(n for n in os.listdir(QUALS) if n.endswith('.cjs'))
-    assert len(names) > 4, names
+    # (four since 2026-11-11, when the seven harnesses of the page's older views of a search went with those views;
+    # eleven until then)
+    assert len(names) >= 4, names
     with tempfile.TemporaryDirectory() as d:
         done = [subprocess.run(['node', os.path.join(QUALS, n)], cwd=d, capture_output=True, text=True, timeout=120)
                 for n in names]

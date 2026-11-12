@@ -25,7 +25,7 @@ The launcher, the estimators and the watcher of the long searches, behind the se
 
 ## Watching
 
-- [watch.py](watch.py): copies the searches' records into [../pagedata/searches.js](../pagedata/searches.js), the data of the section "Search progress": every search the same fields. It holds no model and no list of searches. The watcher to run:
+- [watch.py](watch.py): copies the searches' records into [../pagedata/progress.js](../pagedata/progress.js), the data of the section "Search progress": every search the same fields. After the live searches it adds the earlier ones, from [../pagedata/progress-earlier.json](../pagedata/progress-earlier.json). It holds no model and no list of searches. The watcher to run:
 
       nohup nice -n 15 python3 -B searchwatch/watch.py --watch >> runs/watch.log 2>&1 &
 
@@ -34,7 +34,7 @@ The launcher, the estimators and the watcher of the long searches, behind the se
 
 ## Before 2026-11-11
 
-Until then the watcher surveyed each kind of search with code of its own. Its data file, [../pagedata/progress.js](../pagedata/progress.js), is no longer written: it holds the boxes of the searches up to that day as they were, and the page still draws them below the new ones. The records of those searches are in `runs/archive-20261111/`. The code is still here, and nothing runs it:
+Until then the watcher surveyed each kind of search with code of its own. Nothing runs it as a watcher any more. Of its boxes, the 26 searches that ran an hour or more are on the page in the new form; the records of that time are in `runs/archive-20261111/`. The code stays as a library: [../searches/pruning288/pruning288.py](../searches/pruning288/pruning288.py) reads its journal through it, and [shepherd.py](shepherd.py) and [../searches/fanout_672/fanout_lease.py](../searches/fanout_672/fanout_lease.py) take two helpers from it.
 
 - [progress.py](progress.py), with [sweep288_progress.py](sweep288_progress.py) and [search592_progress.py](search592_progress.py): the old watcher and its two wrappers.
 - [run_modules.py](run_modules.py): loads a run's own solver modules beside the repository's, so that a run made by older code can still be read.

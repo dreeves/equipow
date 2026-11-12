@@ -12,8 +12,8 @@ It holds no model of any search and no table of searches.  What it writes of a s
 (track.py, whose vocabulary this uses: search, record, estimate, estimator, state, span, passes) and in the machine's
 CPU intervals (cpu.py): a search's estimator says how far along it is, and this file says it again in the page's form.
 
-  data file  pagedata/searches.js: one call, searchesData({"made", "runs"});, made the snapshot's time in whole seconds
-             and runs the searches' entries, by label and target.  Rewritten only when an entry changed (dreeves,
+  data file  pagedata/progress.js: one call, progressData({"made", "runs"});, made the snapshot's time in whole seconds
+             and runs the searches' entries, by label and target, then the earlier searches'.  Rewritten only when an entry changed (dreeves,
              2026-11-09: "i guess it could be a little smarter and not update a file that's in version control with a
              new as-of time that isn't meaningful").
   entry      a search's part of the data file (entry), every search's the same fields:
@@ -39,6 +39,10 @@ CPU intervals (cpu.py): a search's estimator says how far along it is, and this 
                stale              null, or the time of the snapshot its data are from (snapshot).
              A search shows from its first estimate: one whose runs have none yet is in no snapshot.  A running
              search's latest estimate is at most track.STALE seconds old (asserted).
+  earlier    the searches of before 2026-11-11 that ran an hour or more, whose records are of another form: their
+             entries, in this form, in pagedata/progress-earlier.json, a list, frozen (made once, from the last data
+             file of the watcher before this one: scratch/revamp-20261111/convert.py).  The watcher adds them to every
+             snapshot after the live searches' and makes nothing of them.
 
 Quals: quals_watch.py
 """
@@ -48,7 +52,8 @@ import os, json, time, glob, fcntl, traceback, collections
 import cpu, track
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # the repository's root, above searchwatch/
-JS = os.path.join(ROOT, 'pagedata', 'searches.js')
+JS = os.path.join(ROOT, 'pagedata', 'progress.js')
+EARLIER = os.path.join(ROOT, 'pagedata', 'progress-earlier.json')
 REFRESH = 60                    # seconds between snapshots under --watch (the page reloads the data file as often)
 NICE = 15                       # the niceness the process lowers itself to
 ETA_POINTS = 400                # the most estimates an entry's history carries
@@ -164,18 +169,18 @@ def text_of(entries): return json.dumps(entries, separators=(',', ':'), ensure_a
 
 
 def read(path):
-    """The data file at path, as JSON (asserted to be one searchesData(...); call)."""
+    """The data file at path, as JSON (asserted to be one progressData(...); call)."""
     text = open(path, encoding='utf-8').read()
-    assert text.startswith('searchesData(') and text.endswith(');\n'), path
-    return json.loads(text.removeprefix('searchesData(').removesuffix(');\n'))
+    assert text.startswith('progressData(') and text.endswith(');\n'), path
+    return json.loads(text.removeprefix('progressData(').removesuffix(');\n'))
 
 
-def once(js, runs, intervals, kept, said):
-    """One snapshot: the data file at js rewritten if its entries are no longer those last written, whose text said
-    is; returns the entries' text."""
+def once(js, runs, intervals, earlier, kept, said):
+    """One snapshot: the data file at js rewritten if its entries, the live searches' and then the earlier ones, are
+    no longer those last written, whose text said is; returns the entries' text."""
     now = time.time()
-    text = text_of(snapshot(runs, intervals, track.processes(), now, kept))
-    if text != said: write_atomic(js, f'searchesData({{"made":{int(now)},"runs":{text}}});\n')
+    text = text_of(snapshot(runs, intervals, track.processes(), now, kept) + earlier)
+    if text != said: write_atomic(js, f'progressData({{"made":{int(now)},"runs":{text}}});\n')
     return text
 
 
@@ -187,13 +192,14 @@ def main(argv):
     fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)             # one watcher at a time: refused at once if another holds it
     lock.truncate(0)
     print(os.getpid(), file=lock, flush=True)                    # the lock file names its holder: stop the watcher by that pid
+    earlier = json.load(open(EARLIER, encoding='utf-8'))        # the earlier searches' entries: the file is part of the page's data
     was = [read(path) for path in glob.glob(JS)]                 # the data file as it stands, if there is one
     kept = {(e['search'], f'{e["n"]}:{e["order"]}'): ([dict(e, stale=None)], e['stale'] or data['made']) for data in was for e in data['runs']}
-    said = once(JS, track.RUNS, cpu.FILE, kept, ''.join(text_of(data['runs']) for data in was))   # a first snapshot that fails says so and ends the watcher
+    said = once(JS, track.RUNS, cpu.FILE, earlier, kept, ''.join(text_of(data['runs']) for data in was))   # a first snapshot that fails says so and ends the watcher
     while argv:
         time.sleep(REFRESH)
         try:
-            said = once(JS, track.RUNS, cpu.FILE, kept, said)
+            said = once(JS, track.RUNS, cpu.FILE, earlier, kept, said)
         except Exception:               # outside every search's entry: the watcher goes on, its data file as last written
             # TODO: log line; says this snapshot failed outside any search's entry, so the data file stays as last written
             report('the snapshot failed; the data file stays as it was')

@@ -1,55 +1,41 @@
-// Claude's section "Search progress" (dreeves, 2026-10-17).  progress.py writes its data file, progress.js: one call,
-// progressData({made, runs}) (its contract: progress.js_text).  While the section is open a script element loads
-// progress.js, again every POLL ms (a minute, or window.PROGRESS_POLL_MS, which the quals set), skipped while the tab
-// is hidden; the section draws only when the snapshot changed, in place, and loads nothing while closed.  This browser
-// keeps whether it last left the section open (localStorage, KEPT), and the section opens itself on load if so (dreeves,
-// 2026-10-17: reloads, as Live Server's when files change, kept closing it); likewise each run's fold (FOLD, 2026-10-25;
-// see remember).  Every word
+// The section "Search progress" (Claude's, at dreeves's request, 2026-10-17; one box, the same for every search, since
+// 2026-11-11, Fable 5.2: dreeves, "the search progress code seems like a shitshow; can you revamp it? ... anti-magic
+// anti-magic anti-magic").  searchwatch/watch.py writes its data file, progress.js: one call, progressData({made, runs}),
+// every entry of runs a search with the same fields (watch.py's docstring).  While the section is open a script element
+// loads progress.js, again every POLL ms (a minute, or window.PROGRESS_POLL_MS, which the quals set), skipped while the
+// tab is hidden; the section draws only when the snapshot changed, in place, and loads nothing while closed.  This
+// browser keeps whether it last left the section open (localStorage, KEPT), and the section opens itself on load if so
+// (dreeves, 2026-10-17: reloads, as Live Server's when files change, kept closing it); likewise each run's fold (FOLD,
+// 2026-10-25; see remember).  Every word
 // it shows is in the section's HTML (its templates); this script writes numbers, times and marks, durations with their
 // units, h, d or y (dreeves, 2026-10-23), each to its uncertainty, and times so far in days, hours, minutes and seconds,
 // the running ones going on with the clock (HMSFORMAT, 2026-11-07).
-// Per run: for a run with a work model, a bar of its work, its nodes checked and their rate and the interval of its
-// total nodes when its tree is exhausted, the median a tick (bar, 2026-11-06; a bar of hours so far and to go before,
-// and that day a time ruler); the sea, one dot per sub-case of the data's
-// groups, each group a block of cells (strips below), cells
-// of pitch px, chosen from 10 down to 2 px so that the sea is at most about 560 px tall, a dot a device px short of its
-// cell (none short below 3 device px); and progress.html's ETA chart
-// (eta_chart there: dreeves's design), from the run's recorded ETAs; and below the status line, for a run with stages
-// after its own, those stages to a recordable result (stagesView, 2026-10-31); then, for a fanout run, its pool chart
-// (poolChart, 2026-11-03); and last, for every run, its prior and its graph of P(exists) (oddsChart, 2026-11-04; every
-// run's since 2026-11-06, when the two graphs below it went, the chance chart among them, chanceChart, from 2026-11-03).
+// Per search, by one path whatever the search (searchBox): a bar of its work, in the unit it counts its work in
+// (workBar); progress.html's ETA chart (eta_chart there: dreeves's design), from its estimates; its status line; the
+// machine's CPU under the chart; its runs' counts; the sea, one dot per run of the data's groups, each group a block of
+// cells (strips below), cells of pitch px, chosen from 10 down to 2 px so that the sea is at most about 560 px tall, a
+// dot a device px short of its cell (none short below 3 device px); and last its prior and its graph of P(exists)
+// (oddsChart).  Which words and which number forms a box gets is a lookup by its entry's unit and basis, never a test
+// of the kind of search.
 // Strips: an ordered strip layout (Bederson, Shneiderman and Wattenberg 2002) on whole cells.  The groups, in order,
 // fill strips across the cols; a strip's blocks share its height h, each as wide as its count needs at that height, a
 // cell's gap between blocks and between strips; h is the least at which the strip's blocks fit across, and a strip
 // takes the next group unless that worsens its worst block's aspect ratio.
 // window.progressView holds the loads, renders, data and, per run, its layout (rects, cols, rows, pitch;
-// place(group, dot): device px), the ETA chart's record x positions (etaXs, in its viewBox) and the pool chart's point x
-// positions (poolXs, in its viewBox), for the quals.
+// place(group, dot): device px) and the ETA chart's record x positions (etaXs, in its viewBox), for the quals.
 (() => {
   const section = document.querySelector('section.progress');
   const details = section.querySelector('details');
   const runsBox = section.querySelector('.progress-runs');
   const template = section.querySelector('template.progress-run');
   const line = section.querySelector('template.progress-line');      // a snapshot's line: the status line's running form, and the tip
-  const stage = section.querySelector('template.progress-stage');    // one later stage in a run's line of stages
-  const poolLine = section.querySelector('template.progress-pool-line');   // the pool chart's tip: a moment's line
   const missing = section.querySelector('.progress-missing');
-  // The tracked searches (Fable 5.2, 2026-11-11; dreeves: "the search progress code seems like a shitshow; can you revamp
-  // it? ... anti-magic anti-magic anti-magic"): searches.js, one call, searchesData({made, runs}), which
-  // searchwatch/watch.py copies from the searches' records: every entry the same fields (watch.py's docstring), so
-  // every box the same parts, drawn by one path (searchBox): the work bar, in the unit the search counts its work in;
-  // the ETA chart; the status line; the CPU chart; its runs' counts and dots; and its prior and its graph of
-  // P(exists).  Their boxes go above the earlier runs' (progress.js, which no watcher writes any more), under a line
-  // of their own snapshot's time.
-  const searchesBox = section.querySelector('.progress-searches');
-  const missingSearches = section.querySelector('.progress-missing-searches');
   const POLL = window.PROGRESS_POLL_MS || 60000;
   const wall = window.PROGRESS_CLOCK || (() => Date.now() / 1000);   // the clock, in seconds: Date's, or the quals' (as POLL)
   const KEPT = 'progress-open';                // localStorage: "1" while this browser last left the section open
   const FOLD = 'progress-fold ';               // localStorage: "1" under this, a run's program, n and order while its fold is open
-  const view = window.progressView = {loads: 0, renders: 0, data: null, layouts: [], searches: {made: null, runs: []}, searchLayouts: []};
+  const view = window.progressView = {loads: 0, renders: 0, data: null, layouts: []};
   let poll = null, ticker = null, made = null, resizing = null, clips = 0;   // clips: the charts' clip paths made, for their ids
-  let redraw = () => {};                       // draws the tracked searches' boxes again (a resize), once they have data
   // each status line's running form's time so far, as [its element, the clock time it counts from], which tick writes
   // each second as the clock goes on (statusLine; dreeves, 2026-11-07: "make it update second by second")
   let live = [];
@@ -158,23 +144,11 @@
   const set = (el, attrs) => { for (const k in attrs) el.setAttribute(k, typeof attrs[k] === 'number' ? attrs[k].toFixed(2) : attrs[k]); return el; };
   const make = (tag, attrs, text) => { const e = set(document.createElementNS(NS, tag), attrs); if (text !== undefined) e.textContent = text; return e; };
   const xy = ps => ps.map(([x, y]) => `${x.toFixed(2)},${y.toFixed(2)}`).join(' ');   // a polyline's or polygon's points
-  // the pool chart's numbers (2026-11-03): a count tick compact, "250K"; a net change signed, a tick's as it is, "+0.5",
-  // and a stretch's per job to a hundredth, "+0.35"; each with the minus sign in place of the hyphen Intl writes
+  // a count compact, "250K" (the work bar's ticks and its total's range)
   const compact = new Intl.NumberFormat('en-US', {notation: 'compact'});
-  const signedTick = new Intl.NumberFormat('en-US', {signDisplay: 'exceptZero', maximumFractionDigits: 3});
-  const signedNet = new Intl.NumberFormat('en-US', {signDisplay: 'exceptZero', minimumFractionDigits: 2, maximumFractionDigits: 2});
-  const minus = text => text.replace('-', '\u2212');
 
-  // the tracked searches' data first, then the earlier runs', whose arrival answers the charts' boxes with both
   function load() {
     view.loads += 1;
-    const s = document.createElement('script');
-    s.src = 'pagedata/searches.js?' + Date.now();
-    s.onload = () => { s.remove(); loadRuns(); };
-    s.onerror = () => { s.remove(); missingSearches.hidden = false; loadRuns(); };
-    document.head.appendChild(s);
-  }
-  function loadRuns() {
     const s = document.createElement('script');
     s.src = 'pagedata/progress.js?' + Date.now();
     s.onload = () => s.remove();
@@ -191,35 +165,20 @@
   // A run's state as its fold's summary names it: running, paused or frozen, or, ended, completed if it recorded an
   // outcome, else aborted (dreeves, 2026-10-25)
   const labelOf = run => run.state !== 'ended' ? run.state : run.outcome === null ? 'aborted' : 'completed';
-  // Into a run's box (box) its fold's summary: its question, its program and its state
+  // Into a search's box (box) its fold's summary: its question, its label and its state
   function heading(box, run) {
     for (const e of box.querySelectorAll('[data-label]')) e.hidden = e.dataset.label !== labelOf(run);
     box.querySelector('[data-n]').textContent = run.n;
     box.querySelector('[data-order]').textContent = run.order;
-    box.querySelector('[data-program]').textContent = run.program;
-  }
-  // A run's brief, for want: a line of its fold's summary, as heading fills it (its stale mark as staleView sets it),
-  // then its time so far; then the row workView picks, as the section draws it: a run with a work model's bar caption,
-  // as bar and workView fill it, every other run's status line, as statusLine fills it at made, the snapshot's time (the
-  // coordinator, 2026-11-06, with the chance line gone: "Make every other run brief its status line (time so far + to
-  // go)"; until then a target a witness campaign searches had its chance line there, and the others nothing)
-  function brief(run, made) {
-    const box = template.content.firstElementChild.cloneNode(true), said = document.createElement('p');
-    heading(box, run);
-    staleView(box, run);
-    statusLine(box, run, made);
-    bar(box, run);
-    const measured = workView(box, run);
-    said.append(...box.querySelector('summary h3').childNodes, ' ', ...box.querySelector('summary').querySelectorAll(':scope > span'),
-                ' ', hms(run.so_far));
-    return [said, ...measured];
+    box.querySelector('[data-program]').textContent = run.search;
   }
 
   // Each second while the section is open: the snapshot's age, and each running form's time so far (live) still on the
   // page, from the clock (wall); none before the first snapshot
   function tick() {
+    if (made === null) return;
     const now = wall();
-    for (const [field, t] of [['age', made], ['searches-age', view.searches.made]].filter(([, t]) => t !== null)) fill(section, field, hms(now - t));
+    section.querySelector('[data-age]').textContent = hms(now - made);
     live = live.filter(([e]) => e.isConnected);
     for (const [e, since] of live) e.textContent = hms(now - since);
   }
@@ -227,9 +186,8 @@
   window.progressData = data => {
     missing.hidden = true;
     answer((n, m) => {
-      const at = r => BigInt(r.n) === n && r.order === m, here = data.runs.filter(at);
-      const briefs = [...view.searches.runs.filter(at).flatMap(run => searchBrief(run, view.searches.made)), ...here.flatMap(run => brief(run, data.made))];
-      return briefs.length ? briefs : ['—'];
+      const here = data.runs.filter(r => BigInt(r.n) === n && r.order === m);
+      return here.length ? here.flatMap(run => brief(run, data.made)) : ['—'];
     });
     if (data.made === made) return;
     made = data.made;
@@ -238,37 +196,35 @@
     render();
   };
 
-  // The tracked searches' snapshot: its runs' boxes, the running ones first, the rest in the data's order (as the
-  // earlier runs' below), drawn when the snapshot's time changed
-  window.searchesData = data => {
-    missingSearches.hidden = true;
-    const fresh = data.made !== view.searches.made;
-    view.searches = {...data, runs: [...data.runs.filter(r => r.state === 'running'), ...data.runs.filter(r => r.state !== 'running')]};
-    redraw = renderSearches;
-    if (fresh) renderSearches();
-  };
-
-  function renderSearches() {
-    const data = view.searches, drawn = data.runs.map(run => searchBox(run, data.made));
-    fill(section, 'searches-made', stamp(data.made));
-    view.searchLayouts = drawn.map(d => d.layout);
-    searchesBox.replaceChildren(...drawn.map(d => d.box));   // swapped in at once, as render's
-    tick();
+  function render() {
+    const data = view.data;
+    view.renders += 1;
+    section.querySelector('[data-made]').textContent = stamp(data.made);
+    // the new runs are built beside the old ones, then swapped in at once, so no layout in between sees a shorter page
+    // (dreeves, 2026-10-26: "Every time the graph updates the page scrolls itself": sea's width read had laid out the
+    // page with only the runs rebuilt so far, and the browser pulled the scroll position up to fit it)
+    const drawn = data.runs.map(run => searchBox(run, data.made));
+    view.layouts = drawn.map(d => d.layout);
+    runsBox.replaceChildren(...drawn.map(d => d.box));
+    tick();                                    // the age and the times so far as of now, not the snapshot's, at once
   }
 
-  // A tracked search's box, every search's the same (see the top): the run box's template with the parts every
-  // search has, filled from its entry; the pool chart, the stages' line and the statuses' key of the earlier
-  // engines' runs are no part of it.  Its dots are its runs, a dot each, under the line of their counts, and the note
-  // that its ETA is Lindy's rule alone is its basis's (lindy.py's), shown while it runs (the stylesheet's).
+  // A search's box, every search's the same (see the top): the box's template, filled from the search's entry.  Its
+  // dots are its runs, a dot each, under the line of their counts, and the note that its ETA is Lindy's rule alone is
+  // its basis's (lindy.py's), shown while it runs (the stylesheet's).
   function searchBox(run, made) {
     const box = template.content.firstElementChild.cloneNode(true);
+    // a run's charts and status line fold under its heading (dreeves, 2026-10-23: "i don't want to see frozen
+    // graphs" and "i don't want graphs to magically disappear"), the fold as this browser last left it, whatever the
+    // run's state (remember; dreeves, 2026-10-25); a run not running grayed; the summary names the state, an ended
+    // run completed if it recorded an outcome, else aborted (dreeves, 2026-10-25: "can these be clearer when
+    // collapsed about what's paused/completed/aborted/running?")
     box.dataset.runState = run.state;
     remember(box.querySelector('details'), `${FOLD}${run.search} ${run.n} ${run.order}`);
-    heading(box, {...run, program: run.search});
-    box.querySelector('[data-tip]').replaceChildren(line.content.cloneNode(true));
+    heading(box, run);
+    box.querySelector('[data-tip]').replaceChildren(line.content.cloneNode(true));   // the ETA chart's tip: a snapshot's line
     staleView(box, run);
     statusLine(box, run, made);
-    for (const e of box.querySelectorAll('.progress-pool, [data-stages], .progress-key')) e.remove();
     workBar(box, run.work);
     runsLine(box, run);
     const layout = sea(box, run);
@@ -279,18 +235,18 @@
     return {box, layout};
   }
 
-  // A tracked search's brief, for a chart's box (want): its heading, its state and its time so far, then the row its
-  // work's unit picks: the bar's caption where it counts nodes, the status line where its work is its time (which the
-  // caption would say twice)
+  // A search's brief, for a chart's box (want): its heading, its state and its time so far, then the row its work's
+  // unit picks: the bar's caption where it counts nodes, the status line where its work is its time (which the caption
+  // would say twice)
   const BRIEF_ROW = {nodes: '.progress-bar-caption', seconds: '.progress-status'};
-  function searchBrief(run, made) {
+  function brief(run, made) {
     const {box} = searchBox(run, made), said = document.createElement('p');
     said.append(...box.querySelector('summary h3').childNodes, ' ', ...box.querySelector('summary').querySelectorAll(':scope > span'),
                 ' ', hms(run.so_far));
     return [said, box.querySelector(BRIEF_ROW[run.work.unit])];
   }
 
-  // A tracked search's runs: the line of their counts by state and of what they found, below the CPU chart, and the
+  // A search's runs: the line of their counts by state and of what they found, below the CPU chart, and the
   // dots' hint, a dot per run (the templates progress-track and progress-track-hint)
   function runsLine(box, run) {
     const counts = section.querySelector('template.progress-track').content.cloneNode(true);
@@ -302,11 +258,13 @@
     box.querySelector('canvas').setAttribute('aria-label', hint.textContent.trim());
   }
 
-  // A tracked search's work bar (the bar below's design, dreeves's of 2026-11-06), every search's, from its latest
-  // estimate's work, {unit, done, rate, total: {median, lo, hi}}: a track from 0 to the last of its round ticks, PAST
-  // times the total's upper end at least; blue up to the work done; the total's band purple, its median a tick; the
-  // caption's blue part its unit's (template.progress-unit), with the work done, exact, and its rate, then the
-  // total's range.  How a unit's numbers read: nodes as counts, the ticks and the range compact (500M, 1B); seconds
+  // A search's work bar (dreeves, 2026-11-06: "i don't like how that progress bar looks. can you revamp it in a way that
+  // makes sense to you? also bring back a subtle tick for the median finish time. bigger picture: should that progress
+  // bar be measuring amount of work, not time? the ETA graph is for time. we can still have a 90% CI for amount of work
+  // remaining, right?"), every search's since 2026-11-11, from its latest estimate's work, {unit, done, rate, total:
+  // {median, lo, hi}}: a track from 0 to the last of its round ticks, PAST times the total's upper end at least; blue up
+  // to the work done; the total's band purple, its median a tick; the caption's blue part its unit's
+  // (template.progress-unit), with the work done, exact, and its rate, then the total's range.  How a unit's numbers read: nodes as counts, the ticks and the range compact (500M, 1B); seconds
   // as times, the work done as the time so far is written (hms) and the ticks and the range as the ETA chart's.
   const WORK = {
     nodes: {ticks: top => { const t = countTicks(top); return [t, t.map(v => compact.format(v))]; },
@@ -318,8 +276,7 @@
     const PAST = 1.1, {unit, done, rate, total} = work, form = WORK[unit];
     assert(form && [done, rate, total.lo, total.median, total.hi].every(Number.isFinite) && 0 <= done && done <= total.lo &&
            total.lo <= total.median && total.median <= total.hi, work);
-    box.querySelector('.progress-work').hidden = false;
-    box.querySelector('.progress-bar-caption .spent').replaceWith(section.querySelector(`template.progress-unit[data-unit="${unit}"]`).content.cloneNode(true));
+    box.querySelector('.progress-bar-caption .spent').replaceChildren(section.querySelector(`template.progress-unit[data-unit="${unit}"]`).content.cloneNode(true));
     const [ticks, labels] = form.ticks(Math.max(1, PAST * total.hi)), end = ticks[ticks.length - 1];
     const part = name => box.querySelector(`[data-bar="${name}"]`);
     part('done').style.width = pct(done / end);
@@ -335,59 +292,6 @@
     fill(box, 'bar-done', form.done(done));
     fill(box, 'work-rate', rate.toLocaleString('en-US', {maximumFractionDigits: 1}));
     fill(box, 'bar-range', form.range(total));
-  }
-
-  function render() {
-    const data = view.data;
-    view.renders += 1;
-    section.querySelector('[data-made]').textContent = stamp(data.made);
-    // the new runs are built beside the old ones, then swapped in at once, so no layout in between sees a shorter page
-    // (dreeves, 2026-10-26: "Every time the graph updates the page scrolls itself": sea's width read had laid out the
-    // page with only the runs rebuilt so far, and the browser pulled the scroll position up to fit it)
-    const boxes = data.runs.map(() => template.content.firstElementChild.cloneNode(true));
-    view.layouts = data.runs.map((run, i) => {
-      const box = boxes[i];
-      // a run's charts and status line fold under its heading (dreeves, 2026-10-23: "i don't want to see frozen
-      // graphs" and "i don't want graphs to magically disappear"), the fold as this browser last left it, whatever the
-      // run's state (remember; dreeves, 2026-10-25); a run not running grayed; the summary names the state, an ended
-      // run completed if it recorded an outcome, else aborted (dreeves, 2026-10-25: "can these be clearer when
-      // collapsed about what's paused/completed/aborted/running?")
-      box.dataset.runState = run.state;
-      remember(box.querySelector('details'), `${FOLD}${run.program} ${run.n} ${run.order}`);
-      heading(box, run);
-      box.querySelector('[data-tip]').replaceChildren(line.content.cloneNode(true));   // the ETA chart's tip: a snapshot's line
-      staleView(box, run);
-      statusLine(box, run, data.made);
-      // the sea's key: an entry for each status its dots can take (run.statuses), with its count, the others hidden
-      // (dreeves, 2026-11-08, of a key that listed 288:10's root blocks' "split 0" and "running 0", which no block can
-      // be: "is that as dumb and wrong as it sounds?"; every key listed all five until then)
-      for (const li of box.querySelectorAll('.progress-key li')) li.hidden = !run.statuses.includes(li.querySelector('[data-count]').dataset.count);
-      for (const s of run.statuses) box.querySelector(`.progress-key [data-count="${s}"]`).textContent = run.counts[s].toLocaleString('en-US');
-      bar(box, run);
-      if (run.program === 'search288.py') search288View(box, run);
-      if (run.program === 'sweep288.py') search288View(box, run);
-      if (run.program === 'search592.py') attemptView(box, run, 'progress-search592', 'progress-592-hint');
-      if (run.program === 'pruning288.py') {
-        attemptView(box, run, 'progress-pruning288', 'progress-pruning-hint');
-        // Attribute the generated baseline/wider labels in the hover readout.
-        run = {...run, keys: run.keys.map(k => `${k}`)};
-      }
-      // a search run under track.py, whatever its program: one dot per run, its runs counted by state (dreeves,
-      // 2026-10-28: "can we rearchitect things so that always happens easily and automatically?"), with the status line
-      // and the ETA chart of every run (2026-10-31: "Every run gets an ETA graph")
-      if (run.tracked) trackView(box, run);
-      const L = sea(box, run);
-      L.etaXs = etaChart(box.querySelector('.progress-eta'), run);
-      cpuChart(box.querySelector('.progress-cpu'), run);
-      box.querySelector('[data-lindy]').hidden = !run.lindy;   // a tracked search on Lindy's rule alone says so (dreeves, 2026-11-04)
-      workView(box, run);
-      stagesView(box, run);
-      L.poolXs = poolChart(box.querySelector('.progress-pool'), run);
-      oddsChart(box.querySelector('.progress-odds'), run);
-      return L;
-    });
-    runsBox.replaceChildren(...boxes);
-    tick();                                    // the age and the times so far as of now, not the snapshot's, at once
   }
 
   // A run's status line (p.progress-status), below its ETA chart, and in a chart's box as its brief's row (brief): only
@@ -412,124 +316,6 @@
     const mark = box.querySelector('[data-stale]');
     mark.hidden = run.stale == null;
     mark.querySelector('[data-stale-at]').textContent = run.stale == null ? '' : stamp(run.stale);
-  }
-
-  // The measured work model's basis and units: each part of the box marked with a basis (data-work-measure) shown
-  // exactly for the run's, the work bar for a run with a work model (and from that evening until that night the sea and
-  // a tracked search's line of its runs for any other: dreeves, 2026-11-06, of 288:10's, "sounds like noise?", then "for
-  // anti-magic i don't want to conditionally include or exclude graphs"); returns the row used in a popup brief: the
-  // bar's caption, its nodes checked and rate (dreeves, 2026-11-06: "1. add nodes/s to the blue/purple line"; the work
-  // paragraph until then, gone with "2. kill the whole line with number of samples"), or else the status line (the
-  // chance line until that night, gone with it: the coordinator, "Make every other run brief its status line (time so
-  // far + to go)").
-  function workView(box, run) {
-    const basis = run.work_eta ? 'work' : 'cpu';
-    for (const e of box.querySelectorAll('[data-work-measure]')) e.hidden = e.dataset.workMeasure !== basis;
-    // the model's numbers into their fields (its other fields, objects or null, have none: a null among them threw here
-    // until 2026-11-06, as a search stopped short of its end gives them)
-    for (const [key, value] of Object.entries(run.work_eta ?? {}).filter(([, v]) => typeof v === 'number')) fill(box, `work-${key}`, value.toLocaleString('en-US', {maximumFractionDigits: 1}));
-    // the first match: the status line as statusLine finds it, before a tracked search's counts below the CPU chart
-    // ([data-track-line], since 2026-11-07, also a p.progress-status)
-    return [...box.querySelectorAll({work: '[data-work-measure="work"] .progress-bar-caption', cpu: '.progress-status'}[basis])].slice(0, 1);
-  }
-
-  function search288View(box, run) {
-    attemptView(box, run, 'progress-search288', 'progress-attempt-hint');
-  }
-
-  // a run of attempts' view: its counts and state in place of the status line, its key hidden, and its hint in the
-  // readout; its ETA chart as every run's (dreeves, 2026-11-04: "shouldn't there always be an ETA graph, even when it's
-  // just based on the lindy effect? death to if-statements, remember?"; until then this view hid it, and a tracked
-  // search's showed it again, but for a target a witness campaign searches, from 2026-11-03)
-  function attemptView(box, run, templateName, hintName) {
-    const display = section.querySelector('template.' + templateName).content.cloneNode(true);
-    for (const e of display.querySelectorAll('[data-attempt-count]')) e.textContent = run.work[e.dataset.attemptCount].toLocaleString('en-US');
-    for (const e of display.querySelectorAll('[data-attempt-phase]')) e.hidden = e.dataset.attemptPhase !== run.phase;
-    for (const e of display.querySelectorAll('[data-attempt-outcome]')) e.hidden = e.dataset.attemptOutcome !== String(run.outcome);
-    fill(display, 'elapsed', hms(run.so_far));     // a batch's; a tracked search's counts have none (its status line's)
-    display.querySelector('[data-search-state]').textContent = run.state;
-    box.querySelector('.progress-status').replaceChildren(display);
-    box.querySelector('.progress-key').hidden = true;
-    const hint = section.querySelector('template.' + hintName).content;
-    box.querySelector('[data-readout]').replaceChildren(hint.cloneNode(true));
-    box.querySelector('canvas').setAttribute('aria-label', hint.textContent.trim());
-  }
-
-  // a tracked search's view: the attempt view of its runs' counts and its hint, the counts below the CPU chart
-  // ([data-track-line]) and the status line every run has kept right under the ETA chart (dreeves, 2026-11-07: "let's keep
-  // the blue/red/purple line of numbers directly below the ETA graph, not below the CPU graph", "not the black text line
-  // though"; until then the counts followed it in the same paragraph)
-  // A search with a work model's dots are its tree's roots, a block of each one's nodes (progress.rooted), with no hint in
-  // their readout (dreeves, 2026-11-07: "the words you're adding on the page are not helping. it needs to just be clear
-  // from the visualization"): template progress-roots-hint holds only their label, for a screen reader. Being in the
-  // sea's own statuses, they have the sea's key, which a search's runs, a dot each, have in their hint's swatches
-  // (dreeves, 2026-11-08, of 288:10's roots: "we used to have a legend for this; why don't we have one here?"; hidden for
-  // every tracked search until then, by attemptView).
-  function trackView(box, run) {
-    const status = box.querySelector('.progress-status'), line = [...status.childNodes];
-    attemptView(box, run, 'progress-track', run.work_eta ? 'progress-roots-hint' : 'progress-track-hint');
-    box.querySelector('.progress-key').hidden = !run.work_eta;
-    box.querySelector('[data-track-line]').replaceChildren(...status.childNodes);
-    status.replaceChildren(...line);
-  }
-
-  // A run's stages to a recordable result, under its status line (progress.py's stages; the coordinator, 2026-10-31,
-  // after the page's ETA had covered only the stage running, twice in two days): the program its chart covers, each
-  // later stage with the range of its time to go, and the range to a recordable result, each — with no estimate.
-  // Shown for a run with a stage after its own; a run of one stage has none (no stages in its entry, as in a data file
-  // written before then).
-  function stagesView(box, run) {
-    const p = box.querySelector('[data-stages]'), later = (run.stages ?? []).slice(1);
-    p.hidden = !later.length;
-    fill(p, 'stage-now', run.program);
-    const items = later.map(s => {
-      const item = stage.content.firstElementChild.cloneNode(true);
-      fill(item, 'stage-name', s.name);
-      fill(item, 'stage-to-go', ranged(s.to_go));
-      return item;
-    });
-    items.slice(1).forEach(item => item.prepend(', '));
-    p.querySelector('[data-stages-later]').replaceChildren(...items);
-    fill(p, 'stages-total', ranged(run.total));
-  }
-
-  // A run's work bar (dreeves, 2026-11-06: "i don't like how that progress bar looks. can you revamp it in a way that
-  // makes sense to you? also bring back a subtle tick for the median finish time. bigger picture: should that progress
-  // bar be measuring amount of work, not time? the ETA graph is for time. we can still have a 90% CI for amount of work
-  // remaining, right?"), from its work model (its work_eta: formtree_eta.py's, for an exhaustive search): a track of
-  // nodes from 0 to the last of its round ticks (countTicks), PAST times the larger of the nodes checked and the total's
-  // upper end at least; blue up to the nodes checked (done); the total, the nodes checked when the tree is exhausted
-  // (every node checked; when the search ends, by a witness or so, until 2026-11-06, when dreeves accepted the
-  // coordinator's analysis that a witness is found only when the search reaches it), its interval (lo to hi: the work
-  // model's band, chance.py's BANDS) a purple band,
-  // its median a tick; the ticks labeled below, compact (500M, 1B); and the caption's numbers, compact, with the
-  // coverage the page claims for its intervals (chance.py's COVERAGE, which work_eta carries).  A search stopped
-  // short of its end makes no forecast (total null): no band, tick or purple caption.  workView shows the bar with the
-  // model's other figures (data-work-measure); a run with no model draws an empty bar there, hidden.
-  function bar(box, run) {
-    const PAST = 1.1;
-    const {done, total, coverage} = run.work_eta ?? {done: 0, total: null, coverage: null};
-    const t = total ?? {lo: done, median: done, hi: done};          // the total's marks, hidden without a total
-    assert(total !== undefined && [done, t.lo, t.median, t.hi].every(Number.isFinite) && 0 <= done && done <= t.lo &&
-           t.lo <= t.median && t.median <= t.hi, done, total);     // a model gives its total, null for no forecast
-    assert(coverage === null || (typeof coverage === 'number' && coverage > 0 && coverage < 1 && run.work_eta.interval === 'conditional'), coverage);
-    const ticks = countTicks(Math.max(1, PAST * t.hi)), end = ticks[ticks.length - 1];
-    const part = name => box.querySelector(`[data-bar="${name}"]`);
-    part('done').style.width = pct(done / end);
-    part('band').style.left = pct(t.lo / end);
-    part('band').style.width = pct((t.hi - t.lo) / end);
-    part('median').style.left = pct(t.median / end);
-    for (const e of box.querySelectorAll('[data-bar-total]')) e.hidden = !total;
-    part('ticks').replaceChildren(...ticks.map(v => {
-      const tick = document.createElement('span');
-      tick.style.left = pct(v / end);
-      tick.textContent = compact.format(v);
-      return tick;
-    }));
-    fill(box, 'bar-done', done.toLocaleString('en-US'));   // exact, as the work paragraph's count was (dreeves, 2026-11-06)
-    fill(box, 'bar-range', `${compact.format(t.lo)}–${compact.format(t.hi)}`);
-    fill(box, 'bar-median', compact.format(t.median));
-    fill(box, 'bar-percent', coverage === null ? '' : pct(coverage));
   }
 
   function strips(sizes, W) {
@@ -693,10 +479,6 @@
       ...xticks.map((v, i) => [v, xlabels[i]])
                // .filter(([v]) => Math.abs(X(v) - X(now)) >= CROWD)      // room for the elapsed time's label, commented out with it
                .map(([v, label]) => make('text', {class: 'xtick', x: X(v), y: H - 8, 'text-anchor': 'middle'}, label)));
-    // The chart always shows (dreeves, 2026-10-23: "the search progress section should always be clear about what's
-    // been running for how long"): with no recorded ETA yet, its axes and the elapsed time alone, the marks at the last
-    // record hidden (data-marks), and no tip.
-    if (!pts.length) return [];
     const fin = last[1] + last[2];               // the projected finish: hours of running when elapsed time meets elapsed + ETA
     set(q('[data-ahead]'), {x1: X(last[1]), y1: Y(last[1]), x2: X(fin), y2: Y(fin)});
     set(q('[data-guide]'), {points: P([[last[1], fin], [fin, fin], [fin, 0]])});      // across from the purple marker, then down
@@ -749,94 +531,17 @@
     return xsvg;
   }
 
-  // A fanout run's pool chart (progress.py's pool series; dreeves, 2026-11-03, README [TRE]: "Could we see a time
-  // series of the number of pending nodes? If we could see the growth of that slow down, or when it starts to actually
-  // go down, we can better infer the ETA."), from its data's pool: two panels on one x axis of running time, 0 to the
-  // run's so far as the ETA chart's, each with a y axis of its own (two measures: never two scales on one plot).  Above,
-  // the boxes pending or running at each point, each an actual moment of the series (a stretch's first, last, lowest
-  // and highest), a line over a wash down to 0.  Below, through 0, each stretch's net change per job ended (its jobs'
-  // open boxes less one, over its jobs) at the stretch's middle, a stretch with no job ended left out.  Per job ended,
-  // not per hour: a stretch's change per hour moves with the jobs' pace too (the machine's load, the solver's speed),
-  // its change per job only with how the pool grows, which slows as that line falls and turns the pool down once it is
-  // below 0.  The tip above them reads out the latest point at rest and the point nearest the pointer on hover, the
-  // cross at it (its height kept as the ETA chart's tip's is).  Shown for a run whose data has a pool (fanout.py's):
-  // with no point yet, its axes alone and no tip; hidden for the other programs'.  Returns the points' x positions (in
-  // its viewBox), for the quals.
-  function poolChart(fig, run) {
-    fig.hidden = !run.pool;
-    const {points, buckets} = run.pool ?? {points: [], buckets: []};
-    const W = 640, H = 230, L = 48, R = 72, T = 18, B = 30, GAP = 22, LOW = 52;   // LOW: the lower panel's height
-    const top1 = T, bot1 = H - B - LOW - GAP, top2 = H - B - LOW, bot2 = H - B;  // the panels' edges
-    const [xticks, xlabels] = axis(Math.max(run.so_far / 3600, 1 / 3600), Math.ceil);
-    const X = h => L + (W - L - R) * h / xticks[xticks.length - 1];
-    const cticks = countTicks(Math.max(1, ...points.map(p => p[2])));   // whole boxes
-    const Y1 = c => bot1 - (bot1 - top1) * c / cticks[cticks.length - 1];
-    // each stretch with a job ended: [its middle, hours of running; its net change per job]
-    const nets = buckets.flatMap(([jobs, net], b) => jobs ? [[run.so_far * (b + 0.5) / buckets.length / 3600, net / jobs]] : []);
-    const lo = Math.min(0, ...nets.map(n => n[1])), hi = Math.max(0, ...nets.map(n => n[1]));
-    // the lower panel's round ticks, 0 among them, about 3 (its 52 units hold no more labels): a 1 in place of the
-    // span of a panel with no stretch yet, whose values are all 0
-    const nstep = tickStep(2 * (hi - lo || 1)), first = Math.floor(lo / nstep), last = Math.max(Math.ceil(hi / nstep), first + 1);
-    const nticks = Array.from({length: last - first + 1}, (_, i) => (first + i) * nstep);
-    const Y2 = v => bot2 - (bot2 - top2) * (v - nticks[0]) / (nticks[nticks.length - 1] - nticks[0]);
-    const q = sel => fig.querySelector(sel);
-    q('[data-pool-grid]').replaceChildren(
-      ...cticks.slice(1).map(c => make('line', {class: 'grid', x1: L, y1: Y1(c), x2: W - R, y2: Y1(c)})),
-      ...nticks.map(v => make('line', {class: 'grid', x1: L, y1: Y2(v), x2: W - R, y2: Y2(v)})),
-      make('line', {class: 'axis', x1: L, y1: Y1(0), x2: W - R, y2: Y1(0)}),
-      make('line', {class: 'zero', x1: L, y1: Y2(0), x2: W - R, y2: Y2(0)}),
-      make('line', {class: 'yaxis', x1: L, y1: bot1, x2: L, y2: top1}),
-      make('line', {class: 'yaxis', x1: L, y1: bot2, x2: L, y2: top2}));
-    q('[data-pool-ticks="count"]').replaceChildren(...cticks.map(c =>
-      make('text', {class: 'ytick', x: L - 6, y: Y1(c) + 4, 'text-anchor': 'end'}, compact.format(c))));
-    q('[data-pool-ticks="net"]').replaceChildren(...nticks.map(v =>
-      make('text', {class: 'ytick', x: L - 6, y: Y2(v) + 4, 'text-anchor': 'end'}, minus(signedTick.format(v)))));
-    q('[data-pool-ticks="x"]').replaceChildren(...xticks.map((v, i) =>
-      make('text', {class: 'xtick', x: X(v), y: H - 8, 'text-anchor': 'middle'}, xlabels[i])));
-    set(q('[data-pool-title="count"]'), {x: L, y: top1 - 6});
-    set(q('[data-pool-title="net"]'), {x: L, y: top2 - 6});
-    const line = points.map(p => [X(p[1] / 3600), Y1(p[2])]);
-    set(q('[data-pool-line="count"]'), {points: xy(line)});
-    set(q('[data-pool-wash]'), {points: xy([...line.slice(0, 1).map(([x]) => [x, Y1(0)]), ...line,
-                                            ...line.slice(-1).map(([x]) => [x, Y1(0)])])});
-    set(q('[data-pool-line="net"]'), {points: xy(nets.map(([h, v]) => [X(h), Y2(v)]))});
-    const tip = q('[data-pool-tip]'), cross = q('[data-pool-cross]'), svg = fig.querySelector('svg');
-    tip.style.minHeight = '';                   // its height at rest, measured again at the next hover (below)
-    if (!points.length) { tip.replaceChildren(); return []; }        // no pool record yet: the axes alone, as the ETA chart's
-    tip.replaceChildren(poolLine.content.cloneNode(true));
-    const at = k => {                          // point k's line, with its stretch's net change per job ended, or — with no job
-      const [t, x, count, b] = points[k], [jobs, net] = buckets[b];
-      fill(tip, 'when', stamp(t));
-      fill(tip, 'so-far', hms(x));
-      fill(tip, 'pool-count', count.toLocaleString('en-US'));
-      fill(tip, 'pool-net', jobs ? minus(signedNet.format(net / jobs)) : '—');
-    };
-    at(points.length - 1);
-    const xs = line.map(([x]) => x);
-    svg.addEventListener('mousemove', ev => {
-      const b = svg.getBoundingClientRect(), x = (ev.clientX - b.left) * W / b.width;
-      let k = 0;                                 // the nearest point, the latest of equals
-      for (let i = 1; i < xs.length; i++) if (Math.abs(xs[i] - x) <= Math.abs(xs[k] - x)) k = i;
-      set(cross, {x1: xs[k], y1: top1, x2: xs[k], y2: bot2}).setAttribute('visibility', 'visible');
-      tip.style.minHeight = tip.style.minHeight || `${tip.getBoundingClientRect().height}px`;
-      at(k);
-    });
-    svg.addEventListener('mouseleave', () => { cross.setAttribute('visibility', 'hidden'); at(points.length - 1); });
-    return xs;
-  }
-
   // A run's prior P(exists) and its graph of P(exists) given none found so far, every run's (dreeves, 2026-11-04: "1.
   // probability a partition exists, starting from whatever prior and going down as the search proceeds and doesn't find
   // one"; 2026-11-06: "for anti-magic i don't want to conditionally include or exclude graphs", "after the ETA graph,
   // explicitly state the prior probability a bipartition exists ... then show the first probability graph, even though
   // for 288:10 it's uninteresting. then kill everything below that", and "go with 50% as the ignorant prior when there's
   // no model or whatever"; until then, for a run with odds alone, two more graphs, P(found by t | exists) and the
-  // chance of a find within 24 h, and a note on their basis), from its odds (progress.py's), {prior, since, exists}:
+  // chance of a find within 24 h, and a note on their basis), from its odds (watch.py's), {prior, since, exists}:
   // the prior stated as the page writes numbers, and P(exists) at each [t, p] of exists over the hours since since, a
   // line over a wash down to 0, a dot on its last point, on round ticks of percent up to 1% at least and of hours up to
-  // the run's time so far or its last point, a quarter hour at least.  With no point to draw (a run with no model of its
-  // search, which states the ignorant prior with no history, since null, or a modeled one before its first
-  // measurement), its axes alone, grayed (data-empty).
+  // the run's time so far or its last point, a quarter hour at least.  Every search has a point at least: it shows from
+  // its first estimate (until 2026-11-11 a run with no model of its search had none, and its graph was grayed axes).
   // The machine's CPU over the run's hours of running, under its ETA chart and on its x axis (etaX), so that a dip lines
   // up with the ETA it moved (dreeves, 2026-11-07: "could we get a nice CPU usage graph on the search page? similar to
   // what activity monitor shows. three colors: one for the search, one for all other processes on the machine, and one
@@ -848,7 +553,7 @@
   // pointer the row under it's (dreeves, 2026-11-08: "might as well combine the percentages with the legend here";
   // the readout gave both until then), all empty with no rows, when the chart shows its grid alone.
   function cpuChart(fig, run) {
-    assert(Array.isArray(run.cpu), run.program, run.n, run.order);
+    assert(Array.isArray(run.cpu), run.search, run.n, run.order);
     const {xticks, X} = etaX(run), H = 72, T = 4, B = 4, Y = f => H - B - (H - B - T) * f;
     const q = sel => fig.querySelector(sel), readout = q('[data-cpu-readout]'), cross = q('[data-cpu-cross]'), svg = fig.querySelector('svg');
     q('[data-cpu-grid]').replaceChildren(...xticks.map(v => make('line', {class: 'grid', x1: X(v), y1: T, x2: X(v), y2: H - B})),
@@ -879,12 +584,11 @@
   }
 
   function oddsChart(fig, run) {
-    assert(run.odds, 'a run without odds', run.program, run.n, run.order);
+    assert(run.odds, 'a run without odds', run.search, run.n, run.order);
     const {prior, since, exists} = run.odds;
     assert(typeof prior === 'number' && 0 <= prior && prior <= 1 && Array.isArray(exists) && (Number.isFinite(since) || (since === null && !exists.length))
            && exists.every(([t, p]) => Number.isFinite(t) && 0 <= p && p <= 1), 'malformed odds', run.odds);
     fill(fig, 'odds-prior', num(prior));
-    fig.toggleAttribute('data-empty', !exists.length);
     const W = 640, H = 160, L = 48, R = 72, T = 14, B = 30, q = sel => fig.querySelector(sel);
     const pts = exists.map(([t, p]) => [(t - since) / 3600, p]);
     const top = Math.max(0.01, ...pts.map(([, p]) => p)), step = tickStep(top);
@@ -931,6 +635,6 @@
   sync();                                      // in case it is open already: its toggle may have fired before this ran
   window.addEventListener('resize', () => {
     clearTimeout(resizing);
-    resizing = setTimeout(() => { if (details.open && view.data) render(); if (details.open) redraw(); }, 200);
+    resizing = setTimeout(() => { if (details.open && view.data) render(); }, 200);
   });
 })();

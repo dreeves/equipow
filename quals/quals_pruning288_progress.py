@@ -1,4 +1,7 @@
-"""Quals for the paired pruning-width study's progress."""
+"""Quals for the paired pruning-width study's progress.
+
+Spec change (Fable 5.2, 2026-11-11; dreeves: "the search progress code seems like a shitshow; can you revamp it? ... anti-magic anti-magic anti-magic", then "I don't want to spend a lot of effort converting old searches"): the page draws every search with one box (searchwatch/watch.py writes its data), so the attempt batches' own view is gone from it, and with it this suite's qual of that view (its .cjs).
+"""
 import json
 from pathlib import Path
 import re
@@ -157,24 +160,6 @@ class Pruning288ProgressQuals(unittest.TestCase):
             self.assertEqual(runs['search288.py']['groups'], ['33', '333'])
             self.assertEqual(runs['pruning288.py']['groups'], ['3', '3', '3333333', '3333333'])
             self.assertEqual(runs['pruning288.py']['etas'], [])
-
-    def test_page_reports_paired_results_without_an_eta(self):
-        # Replicata: paired-study templates and renderer, with no browser.
-        # Expectata: baseline/wider counts and elapsed time, and unresolved empty results.
-        # Spec change (Claude, 2026-11-08): no check of the template's words, which dreeves edited in c57cae6
-        # (2026-11-05, its "Astra: “" removed; red from then until now), by his rule (2026-11-07: "if i wrote something,
-        # that shouldn't make a qual fail, right?", then "quals like that never made any dang sense"); its count fields
-        # and the renderer's harness are still checked.
-        html = Path(progress.HERE, 'index.html').read_text()
-        body = re.search(r'<template class="progress-pruning288">(.*?)</template>', html, re.S)
-        self.assertIsNotNone(body)
-        for field in ('baseline_attempted', 'wider_attempted', 'baseline_empty', 'wider_empty',
-                      'baseline_timeout', 'wider_timeout', 'baseline_seconds', 'wider_seconds'):
-            self.assertIn('data-attempt-count="' + field + '"', body[1])
-        result = subprocess.run(['node', str(Path(progress.HERE, 'quals', 'quals_pruning288_progress.cjs'))],
-                                cwd=progress.HERE, capture_output=True, text=True, timeout=20)
-        self.assertEqual(result.returncode, 0, result.stderr)
-
 
 if __name__ == '__main__':
     unittest.main()

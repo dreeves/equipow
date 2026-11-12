@@ -1,4 +1,7 @@
-"""Quals for the full wider-pruning sweep and its immutable-progress watcher wrapper."""
+"""Quals for the full wider-pruning sweep and its immutable-progress watcher wrapper.
+
+Spec change (Fable 5.2, 2026-11-11; dreeves: "the search progress code seems like a shitshow; can you revamp it? ... anti-magic anti-magic anti-magic", then "I don't want to spend a lot of effort converting old searches"): the page draws every search with one box (searchwatch/watch.py writes its data), so the attempt batches' own view is gone from it, and with it this suite's qual of that view (its .cjs).
+"""
 import hashlib
 import importlib
 import json
@@ -199,16 +202,6 @@ class Sweep288ProgressQuals(unittest.TestCase):
             with self.assertRaises(AssertionError):
                 self.sweep.main([])
         self.assertIs(progress.js_text, original)
-
-    def test_page_reuses_attributed_attempt_display_without_eta(self):
-        # Replicata: the sweep UI dispatch and actual common renderer, without a browser.
-        # Expectata: counts of 1 and 2,736, terminal states and elapsed time, with no ETA.
-        script = Path(progress.HERE, 'page', 'progress-section.js').read_text()   # the section's script, in the page until 2026-10-31
-        self.assertIn("if (run.program === 'sweep288.py') search288View(box, run);", script)
-        result = subprocess.run(['node', str(Path(progress.HERE, 'quals', 'quals_sweep288_progress.cjs'))],
-                                cwd=progress.HERE, capture_output=True, text=True, timeout=20)
-        self.assertEqual(result.returncode, 0, result.stderr)
-
 
 if __name__ == '__main__':
     unittest.main()

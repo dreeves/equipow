@@ -57,7 +57,7 @@ table { font-size: 1.0625rem; }
 main p, main li { hyphens: auto; -webkit-hyphens: auto; }
 main p, main ul:not(.legend) { max-width: var(--measure); }
 @media (min-width: 40rem) { main p, main li { text-align: justify; } }
-.changelog p, .progress p, .progress li, p.code, #mstar-readout, #pow2-readout, .column-panel-body p { text-align: start; hyphens: manual; -webkit-hyphens: manual; }
+.changelog p, .progress p, p.code, #mstar-readout, #pow2-readout, .column-panel-body p { text-align: start; hyphens: manual; -webkit-hyphens: manual; }
 header h1 { text-align: center; font-weight: 400; font-size: 2.1rem; }
 header .lede { text-align: center; }
 main {
@@ -352,8 +352,6 @@ code[aria-expanded], [data-text][aria-expanded] { cursor: pointer; text-decorati
    labeled below in the chart's muted gray, the first flush left and the last flush right, so that none overhangs the
    column; the caption in the status line's colors. */
 .progress-work { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.2rem; }
-.progress-work[hidden], .progress-work [hidden] { display: none; }
-.progress-searches { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.6rem; }   /* the tracked searches' boxes, as .progress-runs (2026-11-11) */
 .progress-run:not([data-run-state="running"]) .progress-lindy { display: none; }   /* the note on a search's ETA shows while it runs (2026-11-11) */
 .progress-bar { position: relative; height: 0.7rem; border-radius: 2px; background: var(--progress-hair); }
 .progress-bar > * { position: absolute; top: 0; bottom: 0; }
@@ -368,8 +366,6 @@ code[aria-expanded], [data-text][aria-expanded] { cursor: pointer; text-decorati
 .progress-bar-caption .spent { color: var(--progress-spent); }
 .progress-bar-caption .total { color: var(--progress-total); }
 .progress-bar-caption [data-bar-range] { white-space: nowrap; }   /* lo–hi in one piece: at 390 px it split after the en dash (2026-11-06) */
-.progress-key { display: flex; flex-wrap: wrap; gap: 0.3rem 1.2rem; margin: 0; padding: 0; list-style: none; }
-.progress-key[hidden] { display: none; }
 .progress-sw { display: inline-block; width: 0.7rem; height: 0.7rem; margin-right: 0.35rem; border-radius: 2px; vertical-align: -0.05rem; }
 .progress-sw[data-status="settled"] { background: var(--progress-settled); }
 .progress-sw[data-status="open"] { background: var(--progress-open); }
@@ -441,7 +437,6 @@ code[aria-expanded], [data-text][aria-expanded] { cursor: pointer; text-decorati
 .progress-cpu-key [data-cpu-share] { color: var(--ink); }
 .progress-status:empty { display: none; }   /* the counts' line of a run that is no tracked search (2026-11-07) */
 .progress-tip, .progress-status { font-variant-numeric: tabular-nums lining-nums; }
-.progress-stages { font-variant-numeric: tabular-nums lining-nums; }   /* a run's later stages, under its status line (2026-10-31) */
 .progress-tip { visibility: hidden; }
 /* The status line without its snapshot's time and the em space after it, which the tip above the chart keeps
    (dreeves, 2026-11-06: "i don't think we need "@2026-11-06 19:12:49" under the graph since the search progress line
@@ -451,23 +446,6 @@ code[aria-expanded], [data-text][aria-expanded] { cursor: pointer; text-decorati
 .progress-tip .spent, .progress-status .spent { color: var(--progress-spent); stroke: none; }
 .progress-tip .togo, .progress-status .togo { color: var(--progress-togo); stroke: none; }
 .progress-tip .total, .progress-status .total { color: var(--progress-total); stroke: none; }
-/* A fanout run's pool chart (2026-11-03, README [TRE]): the boxes pending or running over the hours of running, and
-   below, the net change per job ended, each a single series, so in the page's ink, no hue (blue, red and purple are the
-   ETA chart's, just above); the upper one over a wash of the sea's pending gray, multiplied, so that its gridlines show
-   through; 0 in the muted y axes' color.  The dataviz validator on ink and muted against the white: contrast 3:1 and
-   up, CVD ΔE 25.7 between them (its lightness and chroma checks are for categorical hues, which these are not).  The
-   ETA chart's hairlines, ticks and cross.  Its tip shows at rest (the latest moment's line), unlike the ETA chart's,
-   which a status line repeats. */
-.progress-pool { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.3rem; margin: 0.4rem 0 0; }
-.progress-pool[hidden] { display: none; }
-.progress-pool svg { display: block; width: 100%; height: auto; overflow: visible; cursor: crosshair; touch-action: pan-y; }
-.progress-pool polyline { fill: none; stroke: var(--ink); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
-.progress-pool .wash { fill: color-mix(in oklab, var(--progress-pending) 45%, var(--paper)); stroke: none; mix-blend-mode: multiply; }
-.progress-pool .axis, .progress-pool .grid { stroke: var(--progress-hair); stroke-width: 1; vector-effect: non-scaling-stroke; }
-.progress-pool .yaxis, .progress-pool .zero { stroke: var(--muted); stroke-width: 1; vector-effect: non-scaling-stroke; }
-.progress-pool .cross { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 2 3; vector-effect: non-scaling-stroke; }
-.progress-pool text { font-size: 11px; fill: var(--muted); stroke: none; font-variant-numeric: tabular-nums lining-nums; }
-.progress-pool-tip { font-variant-numeric: tabular-nums lining-nums; }
 
 /* Claude's table of the smallest length known for each order (Stan Wagon's suggestion, 2026-10-17), its table drawn as
    BGPW's (table.block) but not of that class, which mstar.py reads as Table 2's and the new results'; its body filled
@@ -618,10 +596,9 @@ footer {
   font-size: 0.9375rem;
   color: var(--muted);
 }
-/* every run's prior and its graph of P(exists) (progress-section.js's oddsChart, 2026-11-04; every run's since 2026-11-06, when the two graphs below it went): a single series, drawn as the pool chart's are, in ink over its wash, its last point a dot ringed in the paper; a graph with no point to draw (data-empty) grayed, its axes alone, as an element without data is (dreeves, 2026-11-06: "for anti-magic i don't want to conditionally include or exclude graphs") */
+/* every run's prior and its graph of P(exists) (progress-section.js's oddsChart, 2026-11-04; every run's since 2026-11-06, when the two graphs below it went): a single series, in ink over a wash of the sea's pending gray, multiplied, so that its gridlines show through, its last point a dot ringed in the paper (dreeves, 2026-11-06: "for anti-magic i don't want to conditionally include or exclude graphs"; until 2026-11-11 a graph with no point was grayed, and since then every search has one) */
 .progress-odds { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.3rem; margin: 0.4rem 0 0; }
 .progress-odds svg { display: block; width: 100%; height: auto; overflow: visible; }
-.progress-odds[data-empty] svg { opacity: 0.4; }
 .progress-odds polyline { fill: none; stroke: var(--ink); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
 .progress-odds .wash { fill: color-mix(in oklab, var(--progress-pending) 45%, var(--paper)); stroke: none; mix-blend-mode: multiply; }
 .progress-odds .axis, .progress-odds .grid { stroke: var(--progress-hair); stroke-width: 1; vector-effect: non-scaling-stroke; }

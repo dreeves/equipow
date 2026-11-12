@@ -1,6 +1,8 @@
 """Replicata: inspect the run template used by the actual progress renderer.
 Expectata: each recap belongs to its run's collapsible content, below its charts.
 Resultata before repair: the status paragraph follows the closing details tag.
+
+Spec change (Fable 5.2, 2026-11-11; dreeves: "the search progress code seems like a shitshow; can you revamp it? ... anti-magic anti-magic anti-magic", then "I don't want to spend a lot of effort converting old searches"): the page draws every search with one box (searchwatch/watch.py writes its data), so the attempt batches' templates are gone from it, and with them the qual of their recaps.
 """
 from html.parser import HTMLParser
 from pathlib import Path
@@ -42,11 +44,6 @@ class RecapQuals(unittest.TestCase):
         self.assertFalse(any(n['tag'] == 'summary' for n in self.status['parents']))
         self.assertNotIn('open', self.fold['attrs'])
         self.assertLess(self.source.index('class="progress-eta"'), self.source.index('class="progress-status"'))
-
-    def test_attempt_recaps_continue_to_use_the_same_folded_status_container(self):
-        renderer = re.search(r'  function attemptView\(box, run, templateName, hintName\) \{.*?\n  \}', self.script, re.S).group(0)
-        self.assertIn("box.querySelector('.progress-status').replaceChildren(display);", renderer)
-        self.assertIn(self.fold, self.status['parents'])
 
     def test_paused_status_has_elapsed_time_without_an_eta(self):
         paused = [n for n in self.tree.nodes if n['attrs'].get('data-state') == 'paused']

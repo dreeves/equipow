@@ -1,4 +1,7 @@
-"""Quals for progress snapshots using each run's isolated solver and explicit journal provenance."""
+"""Quals for progress snapshots using each run's isolated solver and explicit journal provenance.
+
+Spec change (Fable 5.2, 2026-11-11; dreeves: "the search progress code seems like a shitshow; can you revamp it? ... anti-magic anti-magic anti-magic", then "I don't want to spend a lot of effort converting old searches"): the page draws every search with one box (searchwatch/watch.py writes its data), so progress.py is no longer the watcher and pagedata/progress.js is no longer its file: the qual that ran its main loop on the repository's data file is gone.  Its surveys stay as a library that archived searches read their journals with.
+"""
 from contextlib import ExitStack
 import hashlib
 import json
@@ -217,32 +220,6 @@ class NativeTrackQuals(unittest.TestCase):
             self.assertFalse(progress.native288(record[0]))
         with patch.object(progress, 'RUNS', ()):
             self.assertFalse(progress.native288(self.record()[0]))
-
-    def test_snapshot_filters_individual_native_records_before_grouping(self):
-        # Replicata: native and heuristic 288 records plus a 432 record appear in the same snapshot.
-        # Expectata: only the native duplicate is removed; both unrelated records retain their normal surveys.
-        with tempfile.TemporaryDirectory() as d:
-            root = Path(d)
-            (root / 'runs').mkdir()
-            captured = []
-            with patch.object(progress, 'HERE', d):
-                native = self.record()
-                heuristic = self.record(command='python3 -B heuristic.py 288 10')
-                other = self.record(target='432:12')
-                for name, lines in (('native', native), ('heuristic', heuristic), ('other', other)):
-                    lines[0]['name'] = name
-                    (root / 'runs' / (name + '.jsonl')).write_text(''.join(json.dumps(line) + '\n' for line in lines))
-                def observe(target, records, procs, now, *rest):
-                    captured.append((target, [lines[0]['name'] for lines in records]))
-                    return {'program': 'qual'}
-                with patch.object(progress, 'CACHE', str(root / 'cache.json')), \
-                        patch.object(progress, 'processes', lambda: []), patch.object(progress.os, 'nice', lambda n: 0), \
-                        patch.object(progress, 'survey_runs', lambda *args: []), \
-                        patch.object(progress, 'survey_track', observe), patch.object(progress, 'js_text', lambda *args: ''), \
-                        patch.object(progress, 'write_atomic', lambda *args: None):
-                    progress.main([])
-            self.assertEqual(captured, [('288:10', ['heuristic']), ('432:12', ['other'])])
-
 
 if __name__ == '__main__':
     unittest.main()

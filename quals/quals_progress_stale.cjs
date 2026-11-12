@@ -22,7 +22,9 @@ assert.ok(source, 'the renderer must have staleView');
 // Spec change (Claude, 2026-11-06; the coordinator, with the chance line gone: "Make every other run brief its status
 // line (time so far + to go)"): the status line is filled by statusLine, which render and brief share, at the run's
 // stale time or else the snapshot's; until then render filled it itself, right after staleView.
-assert.ok(script.includes("      staleView(box, run);\n      statusLine(box, run, data.made);"),
+// (2026-11-11, Fable 5.2: one path draws every search's box, searchBox, which render and brief share: the mark and the
+// status line are filled there)
+assert.ok(script.includes("    staleView(box, run);\n    statusLine(box, run, made);"),
   'each run must be marked, then its status line filled');
 assert.ok(script.includes("    snapshot(status, run.stale ?? made, run.so_far, run.to_go);"),
   'its status line at its own data\'s time');

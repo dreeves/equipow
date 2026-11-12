@@ -79,7 +79,9 @@ class FocusProgressQuals(unittest.TestCase):
         tags = re.findall(r'<[a-z][^>]*>', re.sub(r'<!--.*?-->', '', section, flags=re.S))
         names = {name for tag in tags for name in re.findall(r'\sdata-([a-z0-9-]+)', tag)}
         self.assertFalse(names & {'scope', 'work', 'phase', 'outcome'}, names)
-        self.assertEqual({name for name in names if name.startswith('work-')}, {'work-measure', 'work-rate'})
+        # (2026-11-11, Fable 5.2: every search's box has the bar now, so its container needs no data-work-measure; the
+        # rate's field is the one work field left)
+        self.assertEqual({name for name in names if name.startswith('work-')}, {'work-rate'})
         self.assertNotIn("[data-work]", page + script)
         self.assertNotIn("[data-scope]", page + script)
 
