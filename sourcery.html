@@ -17264,7 +17264,7 @@ Do we have or can we get a similar result when the biggest power of two factor i
 <header><p class="speaker">dreev</p></header>
 <pre class="prompt">Would it make sense to throw away all the stopped and aborted search progress graphs that only ran for minutes or less? I don't want to spend a lot of effort converting old searches. The witnesses and proof certs are the important thing.</pre>
 <details>
-<summary><a class="anchor" href="#p859"><time datetime="2026-11-12T04:45:27.767000+00:00">04:45</time></a> <span class="chip"></span> <span class="agent">Claude Code</span> <span class="model">claude-fable-5-2</span> <span class="effort">(max)</span> <span class="elapsed">thought for 19m40s · 47m11s wall-clock time</span></summary>
+<summary><a class="anchor" href="#p859"><time datetime="2026-11-12T04:45:27.767000+00:00">04:45</time></a> <span class="chip"></span> <span class="agent">Claude Code</span> <span class="model">claude-fable-5-2</span> <span class="effort">(max)</span> <span class="elapsed">thought for 20m25s · 2h32m31s wall-clock time</span></summary>
 <div class="reply machine"><p>Page script is down from 937 to 642 lines with one drawing path. Now the template, styles, and data side.</p>
 <p>Mapping from the old entry form is in place for the page quals&#x27; fixtures. Now converting the 26 earlier boxes and switching the live watcher to the single file.</p>
 <p>Live page verified on the single path: 31 boxes (5 live, 26 earlier), one data file of 400 KB instead of 3.1 MB. Now porting the page quals to it and deleting the old suites and code.</p>
@@ -17277,7 +17277,10 @@ Do we have or can we get a similar result when the biggest power of two factor i
 <p><strong>Not done:</strong> <code>searchwatch/progress.py</code>, the old watcher, is still in the tree, and nothing runs it. Deleting it would mean editing archived search programs:</p>
 <ul><li><code>pruning288.py</code> validates its journal through it;</li><li><code>fanout_lease.py</code> and the shepherd import two helpers from it;</li><li>three other suites share its quals&#x27; fixtures.</li></ul>
 <p>That is effort on old searches, so it stays as a library with its Python quals (128 pass) unless you want it gone.</p>
-<p>The 480:14 run at 21:27 had 7.8M nodes done and read 2.7 days to go (0.5 to 13).</p></div>
+<p>The 480:14 run at 21:27 had 7.8M nodes done and read 2.7 days to go (0.5 to 13).</p>
+<p>The full run finished green: all 93 suites exit 0, 1,484 quals counted as passed (<code>scratch/green-20261109/stage2all.out</code>).</p>
+<p>The tree is clean apart from <code>pagedata/progress.js</code>, which the watcher rewrites each minute; stage 2 is in your commits <code>06e035b</code> and <code>13ba29c</code>.</p>
+<p>The 480:14 run at 23:12 had 10.8M nodes done and read 2.5 days to go (0.4 to 12.6). The watcher has been up 2 h 20 min with nothing in its log since its start.</p></div>
 </details>
 </article>
 </main>
