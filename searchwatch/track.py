@@ -25,7 +25,7 @@ table of searches.
             its exit status (a negative one a signal's), or null for an adopted process, whose status track.py cannot
             read.
   estimate  {"event": "estimate", "time", "basis", "unit", "done", "rate", "total": {"median", "lo", "hi"}, "to_go":
-            {"median", "lo", "hi"}, "prior", "exists", "pending"}: what is known of the run's search as of time (epoch seconds), by
+            {"median", "lo", "hi"}, "prior", "exists", "pending", "finished"}: what is known of the run's search as of time (epoch seconds), by
             its estimator: basis, the estimator's key (lindy, formtree), by which the page picks its words about it;
             unit, what the search's work is counted in (seconds, nodes); done, the work done so far, and rate, the work
             a second of running; total, the work done when the search has run its course, and to_go, the seconds of
@@ -34,7 +34,10 @@ table of searches.
             and pending (Opus 5.5, 2026-11-12; dreeves: "we used to have number of open nodes as a graph"), the number of
             pieces of work the search has named and not yet finished, a whole number (a form tree's: its nodes named, a
             start node or one a task spilled, with no verdict yet, those being checked among them: its driver's "left"),
-            or null for a search that counts none (lindy.py's).
+            or null for a search that counts none (lindy.py's); and finished (Opus 5.5, that evening; dreeves: "sure,
+            let's get the count of finished tasks over time"), the number of pieces of work the search has finished, a
+            whole number (a form tree's: its tasks with a verdict, each ended with its subtree closed or its unfinished
+            branches spilled), or null for a search that counts none (lindy.py's).
   estimator a Python script, named at launch with its arguments: the tracker runs it (python3 -B SCRIPT ARGS ..., in the
             tracker's directory, the record's absolute path in the environment variable TRACK_RECORD) once when the
             run starts and again every PERIOD seconds while it runs.  Each time it appends one estimate to the record,
@@ -74,7 +77,7 @@ PERIOD = 300.0                                        # seconds between a run's 
 EST_GRACE = 30.0                                      # seconds a run's last estimator has to finish once the run ended
 STALE = 1200.0                                        # seconds: the oldest a running search's latest estimate may be
 START = {'event', 'name', 'search', 'target', 'estimator', 'command', 'cwd', 'found', 'adopted', 'pid', 'tracker', 'time'}
-ESTIMATE = {'event', 'time', 'basis', 'unit', 'done', 'rate', 'total', 'to_go', 'prior', 'exists', 'pending'}
+ESTIMATE = {'event', 'time', 'basis', 'unit', 'done', 'rate', 'total', 'to_go', 'prior', 'exists', 'pending', 'finished'}
 BAND = {'median', 'lo', 'hi'}
 
 
@@ -294,7 +297,7 @@ def checked(record):
         assert set(x) == ESTIMATE and type(x['basis']) is str and type(x['unit']) is str, x
         assert all(number(x[k]) for k in ('time', 'done', 'rate', 'prior', 'exists')) and band(x['total']) and band(x['to_go']), x
         assert 0 <= x['done'] <= x['total']['lo'] and x['rate'] > 0 and 0 <= x['prior'] <= 1 and 0 <= x['exists'] <= 1, x
-        assert x['pending'] is None or (type(x['pending']) is int and x['pending'] >= 0), x
+        assert all(x[k] is None or (type(x[k]) is int and x[k] >= 0) for k in ('pending', 'finished')), x
     times = [first['time']] + [x['time'] for x in estimates]
     assert times == sorted(times), times
     return record

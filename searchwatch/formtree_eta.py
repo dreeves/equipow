@@ -168,18 +168,19 @@ def read_model(path):
     return model
 
 
-def estimate(model, roots, points, prior, pending):
+def estimate(model, roots, points, prior, pending, finished):
     """A form-tree search's estimate (track.py's vocabulary), without its time: of basis formtree, in nodes; done the
     nodes checked (roots, formtree_work._roots's rows: each root's exact count and whether it is complete), their rate
     by points (rate); the total nodes when the tree is exhausted and the seconds of running until then, and
-    P(exists | none found so far) from the prior, by the model's draws given that work (sampled) and chance.work; and
-    pending, the nodes named with no verdict yet (formtree_work.walk's), as given."""
+    P(exists | none found so far) from the prior, by the model's draws given that work (sampled) and chance.work;
+    pending, the nodes named with no verdict yet (formtree_work.walk's), as given; and finished, the tasks with a
+    verdict, as given (2026-11-12)."""
     done = sum(r['done'] for r in roots)
     work = dict(roots=roots, done=done, rate=rate(points))
     samples = sampled(model, work)
     forecast = chance.work(prior, samples['total'], done, samples['rate'] * 3600, samples['weight'])
     return dict(event='estimate', basis='formtree', unit='nodes', done=done, rate=work['rate'], total=forecast['total'],
-                to_go=forecast['to_go'], prior=prior, exists=forecast['exists'], pending=pending)
+                to_go=forecast['to_go'], prior=prior, exists=forecast['exists'], pending=pending, finished=finished)
 
 
 def history(points, current, now, period=900):
@@ -342,9 +343,10 @@ if __name__ == '__main__':
     verdicts, model, prior = sys.argv[1], read_model(sys.argv[2]), float(sys.argv[3])
     path, now = os.environ[track.RECORD], time.time()
     runs, passes = track.search_of(path, now)
-    roots, waiting = formtree_work.walk([json.loads(x) for x in formtree_work._prefix(Path(verdicts))[0].splitlines()], [r['name'] for r in model['roots']])
+    told = [json.loads(x) for x in formtree_work._prefix(Path(verdicts))[0].splitlines()]      # the tasks with a verdict
+    roots, waiting = formtree_work.walk(told, [r['name'] for r in model['roots']])
     # the search's nodes checked against its seconds of running: none at its start, then as each of its estimates of
     # this basis found them, then now
     before = sorted((x['time'], x['done']) for r in runs for x in r if x['event'] == 'estimate' and x['basis'] == 'formtree')
     points = [(0.0, 0)] + [(track.running(passes, t), done) for t, done in before] + [(track.running(passes, now), sum(r['done'] for r in roots))]
-    track.append(path, dict(estimate(model, roots, points, prior, len(waiting)), time=now))
+    track.append(path, dict(estimate(model, roots, points, prior, len(waiting), len(told)), time=now))

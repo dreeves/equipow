@@ -12,7 +12,8 @@
 // the running ones going on with the clock (HMSFORMAT, 2026-11-07).
 // Per search, by one path whatever the search (searchBox): a bar of its work, in the unit it counts its work in
 // (workBar); progress.html's ETA chart (eta_chart there: dreeves's design), from its estimates; its status line; the
-// machine's CPU under the chart; its nodes pending under that (pendingChart, 2026-11-12); its runs' counts; the sea,
+// machine's CPU under the chart; its nodes pending under that, and its tasks finished under those (countChart,
+// 2026-11-12); its runs' counts; the sea,
 // one dot per run of the data's groups, each group a block of
 // cells (strips below), cells of pitch px, chosen from 10 down to 2 px so that the sea is at most about 560 px tall, a
 // dot a device px short of its cell (none short below 3 device px); and last its prior and its graph of P(exists)
@@ -23,8 +24,8 @@
 // cell's gap between blocks and between strips; h is the least at which the strip's blocks fit across, and a strip
 // takes the next group unless that worsens its worst block's aspect ratio.
 // window.progressView holds the loads, renders, data and, per run, its layout (rects, cols, rows, pitch;
-// place(group, dot): device px), the ETA chart's record x positions (etaXs, in its viewBox) and the pending chart's
-// point x positions (pendingXs), for the quals.
+// place(group, dot): device px), the ETA chart's record x positions (etaXs, in its viewBox) and the count charts'
+// point x positions (pendingXs, finishedXs), for the quals.
 (() => {
   const section = document.querySelector('section.progress');
   const details = section.querySelector('details');
@@ -232,7 +233,8 @@
     const layout = sea(box, run);
     layout.etaXs = etaChart(box.querySelector('.progress-eta'), run);
     cpuChart(box.querySelector('.progress-cpu'), run);
-    layout.pendingXs = pendingChart(box.querySelector('.progress-pending'), run);
+    layout.pendingXs = countChart(box.querySelector('.progress-pending'), run, run.pending);
+    layout.finishedXs = countChart(box.querySelector('.progress-finished'), run, run.finished);
     box.querySelector('[data-lindy]').hidden = run.basis !== 'lindy';
     layout.oddsXs = oddsChart(box.querySelector('.progress-odds'), run);
     return {box, layout};
@@ -627,31 +629,32 @@
     svg.onmouseleave = () => { say(rest); cross.setAttribute('visibility', 'hidden'); stampG.setAttribute('visibility', 'hidden'); };
   }
 
-  // A search's nodes pending (Opus 5.5, 2026-11-12; dreeves: "we used to have number of open nodes as a graph. is there
-  // a reason we can't have that on the currently running 480:14 search?"; a fanout run's pool chart showed its boxes
-  // pending or running from 2026-11-03 until the page's revamp of 2026-11-11): run.pending's rows, [time, seconds of
-  // running, nodes pending], over its hours of running on the ETA chart's x axis (etaX), under the CPU chart, so that
-  // the three line up: a line over a wash down to 0, a dot on its last point, on round count ticks from 0 to past the
-  // most pending, its hours labeled at its foot as the ETA chart's are (2026-11-12); under the pointer the dashed line at
-  // the nearest point, whose time floats on the x axis (stampAt).  With no row (a search that counts none: lindy.py's),
-  // its axes alone, grayed (data-empty), as a graph without data is.  Returns its points' x positions, in its viewBox,
-  // for the quals.
-  function pendingChart(fig, run) {
-    assert(Array.isArray(run.pending) && run.pending.every(r => r.length === 3 && r.every(Number.isFinite)), 'malformed pending', run.search, run.n, run.order);
+  // A graph of a count over a search's hours of running: its nodes pending (Opus 5.5, 2026-11-12; dreeves: "we used to
+  // have number of open nodes as a graph. is there a reason we can't have that on the currently running 480:14
+  // search?"; a fanout run's pool chart showed its boxes pending or running from 2026-11-03 until the page's revamp of
+  // 2026-11-11), and its tasks finished, under that (that evening; dreeves: "sure, let's get the count of finished tasks
+  // over time"), each by this one path: rows, the entry's rows of that count, [time, seconds of running, count], on the
+  // ETA chart's x axis (etaX), under the CPU chart, so that they line up: a line over a wash down to 0, a dot on its
+  // last point, on round count ticks from 0 to past the largest count, its hours labeled at its foot as the ETA chart's
+  // are (2026-11-12); under the pointer the dashed line at the nearest point, whose time floats on the x axis (stampAt).
+  // With no row (a search that counts none: lindy.py's), its axes alone, grayed (data-empty), as a graph without data
+  // is.  Returns its points' x positions, in its viewBox, for the quals.
+  function countChart(fig, run, rows) {
+    assert(Array.isArray(rows) && rows.every(r => r.length === 3 && r.every(Number.isFinite)), 'malformed counts', fig.className, run.search, run.n, run.order);
     const W = chartWidth(), {xticks, xlabels, X} = etaX(run, W), H = 144, T = 16, B = 30, q = sel => fig.querySelector(sel);   // T room for the top value's label (2026-11-12)
     sized(fig.querySelector('svg'), W, H);
-    const yticks = countTicks(Math.max(1, ...run.pending.map(r => r[2]))), Y = v => H - B - (H - B - T) * v / yticks[yticks.length - 1];
-    fig.toggleAttribute('data-empty', !run.pending.length);
-    q('[data-pending-grid]').replaceChildren(...xticks.map(v => make('line', {class: 'grid', x1: X(v), y1: T, x2: X(v), y2: H - B})),
-                                             ...yticks.slice(1).map(v => make('line', {class: 'grid', x1: ETA_L, y1: Y(v), x2: W - ETA_R, y2: Y(v)})),
-                                             make('line', {class: 'axis', x1: ETA_L, y1: Y(0), x2: W - ETA_R, y2: Y(0)}), yAxis(Y(0), T));
-    q('[data-pending-ticks]').replaceChildren(...yLabels(yticks, yticks.map(v => compact.format(v)), Y), ...xLabels(xticks, xlabels, X, H - 8));
-    const line = run.pending.map(([, x, k]) => [X(x / 3600), Y(k)]), ends = [line.slice(0, 1), line.slice(-1)];   // none with no point
-    set(q('[data-pending-line]'), {points: xy(line)});
-    set(q('[data-pending-wash]'), {points: xy([...ends[0].map(([x]) => [x, Y(0)]), ...line, ...ends[1].map(([x]) => [x, Y(0)])])});
-    q('[data-pending-marks]').replaceChildren(...ends[1].map(([cx, cy]) => make('circle', {class: 'mark', r: 3, cx, cy})));
+    const yticks = countTicks(Math.max(1, ...rows.map(r => r[2]))), Y = v => H - B - (H - B - T) * v / yticks[yticks.length - 1];
+    fig.toggleAttribute('data-empty', !rows.length);
+    q('[data-count-grid]').replaceChildren(...xticks.map(v => make('line', {class: 'grid', x1: X(v), y1: T, x2: X(v), y2: H - B})),
+                                           ...yticks.slice(1).map(v => make('line', {class: 'grid', x1: ETA_L, y1: Y(v), x2: W - ETA_R, y2: Y(v)})),
+                                           make('line', {class: 'axis', x1: ETA_L, y1: Y(0), x2: W - ETA_R, y2: Y(0)}), yAxis(Y(0), T));
+    q('[data-count-ticks]').replaceChildren(...yLabels(yticks, yticks.map(v => compact.format(v)), Y), ...xLabels(xticks, xlabels, X, H - 8));
+    const line = rows.map(([, x, k]) => [X(x / 3600), Y(k)]), ends = [line.slice(0, 1), line.slice(-1)];   // none with no point
+    set(q('[data-count-line]'), {points: xy(line)});
+    set(q('[data-count-wash]'), {points: xy([...ends[0].map(([x]) => [x, Y(0)]), ...line, ...ends[1].map(([x]) => [x, Y(0)])])});
+    q('[data-count-marks]').replaceChildren(...ends[1].map(([cx, cy]) => make('circle', {class: 'mark', r: 3, cx, cy})));
     const xs = line.map(([x]) => x);
-    hoverPoints(fig, xs, run.pending.map(r => r[0]), T, H - B, H - 8);
+    hoverPoints(fig, xs, rows.map(r => r[0]), T, H - B, H - 8);
     return xs;
   }
 

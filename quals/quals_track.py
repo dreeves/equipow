@@ -19,6 +19,10 @@ Spec change (Opus 5.5, 2026-11-12; dreeves: "we used to have number of open node
 can't have that on the currently running 480:14 search?"): an estimate also states pending, the number of pieces of
 work its search has named and not yet finished (a form tree's nodes with no verdict yet), or null for a search
 that has no such count; the page graphs it.
+
+Spec change (Opus 5.5, 2026-11-12, evening; dreeves: "sure, let's get the count of finished tasks over time"): an
+estimate also states finished, the number of pieces of work its search has finished (a form tree's tasks with a
+verdict), or null for a search that has no such count; the page graphs it under pending.
 """
 import sys
 sys.dont_write_bytecode = True
@@ -29,7 +33,7 @@ TRACK = os.path.join('searchwatch', 'track.py')     # the sandbox's copy, as a c
 EST = 'est.py'                                      # the sandbox's estimator, as a launch names it from the sandbox
 # what an estimator does: appends one estimate to the record TRACK_RECORD names (opened to append, never created)
 ESTIMATE = dict(event='estimate', basis='lindy', unit='seconds', done=1.0, rate=1.0, total=dict(median=2.0, lo=1.5, hi=10.0),
-                to_go=dict(median=1.0, lo=0.5, hi=9.0), prior=0.5, exists=0.5, pending=None)
+                to_go=dict(median=1.0, lo=0.5, hi=9.0), prior=0.5, exists=0.5, pending=None, finished=None)
 ESTIMATOR = f'''import json, os, time
 fd = os.open(os.environ['TRACK_RECORD'], os.O_WRONLY | os.O_APPEND)
 os.write(fd, (json.dumps(dict({ESTIMATE!r}, time=time.time())) + '\\n').encode())
@@ -121,7 +125,7 @@ while not os.path.exists(path):
 fd = os.open(path, os.O_WRONLY | os.O_APPEND)      # appended to, never created
 os.write(fd, (json.dumps(dict(event='estimate', time=time.time(), basis='own', unit='seconds', done=60.0, rate=1.0,
                               total=dict(median=120.0, lo=66.0, hi=660.0), to_go=dict(median=60.0, lo=6.0, hi=600.0),
-                              prior=0.5, exists=0.5, pending=7)) + '\\n').encode())
+                              prior=0.5, exists=0.5, pending=7, finished=3)) + '\\n').encode())
 os.close(fd)
 print(path, flush=True)
 '''
@@ -533,8 +537,9 @@ def q_a_record_holds_to_its_form():
     # missing its prior, and one with a field more; a band out of order (to_go's lo above its median; total's median
     # above its hi); a total's lo below the work done; a rate of 0; a P(exists) above 1; a negative work done; a to_go
     # that is no number; a start missing its search, and one with a field more; no start; and (2026-11-12) an estimate
-    # with 12 pending, one with 0, then, refused, one missing its pending, one with -1, 1.5 and '3' pending.
-    # Expectata: the first three, and the two with a count pending, come back as given; each of the others is refused
+    # with 12 pending, one with 0, then, refused, one missing its pending, one with -1, 1.5 and '3' pending; and (that
+    # evening) one with 40 finished, one with 0, then, refused, one missing its finished, one with -1, 2.5 and '4'.
+    # Expectata: the first three, and those with a count pending or finished, come back as given; each of the others is refused
     # (an AssertionError): the watcher and the estimators read a record through this one check, so a malformed line
     # fails loudly where it is read.
     d = sandbox()
@@ -546,6 +551,8 @@ adopted = [dict(START, adopted=True, started='Wed Nov 11 10:00:00 2026'), EST]
 assert track.checked(adopted) == adopted
 counted = [START, dict(EST, pending=12), dict(EST, time=115.0, pending=0), END]
 assert track.checked(counted) == counted
+tallied = [START, dict(EST, finished=40), dict(EST, time=115.0, finished=0), END]
+assert track.checked(tallied) == tallied
 bad = dict(
     other=[START, EST, dict(event='eta', time=112.0, median=1.0, lo=0.5, hi=2.0), END],
     after=[START, EST, END, dict(EST, time=130.0)],
@@ -566,7 +573,11 @@ bad = dict(
     nopending=[START, {k: v for k, v in EST.items() if k != 'pending'}, END],
     negative=[START, dict(EST, pending=-1), END],
     fraction=[START, dict(EST, pending=1.5), END],
-    text=[START, dict(EST, pending='3'), END])
+    text=[START, dict(EST, pending='3'), END],
+    nofinished=[START, {k: v for k, v in EST.items() if k != 'finished'}, END],
+    unfinished=[START, dict(EST, finished=-1), END],
+    halved=[START, dict(EST, finished=2.5), END],
+    written=[START, dict(EST, finished='4'), END])
 kept = [name for name, record in bad.items() if not refused(record)]
 assert not kept, kept
 print('ok')

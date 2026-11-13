@@ -18,10 +18,10 @@ MADE = 1794450000
 band = lambda m, lo, hi: dict(median=m, lo=lo, hi=hi)
 
 
-def entry(search, n, order, state, outcome, basis, work, so_far, to_go, runs, dots, exists, pending):
+def entry(search, n, order, state, outcome, basis, work, so_far, to_go, runs, dots, exists, pending, finished):
     """An entry as watch.py writes it: three estimates, a third of its time so far apart, the last at MADE, with these nodes
-    pending (None: none counted).  (Until 2026-11-12 five minutes apart: a pixel or two on a chart of tens of hours, too
-    close for a pointer to tell apart.)"""
+    pending and these tasks finished (None: none counted).  (Until 2026-11-12 five minutes apart: a pixel or two on a
+    chart of tens of hours, too close for a pointer to tell apart.)"""
     times = [MADE - round(2 * so_far / 3), MADE - round(so_far / 3), MADE]
     return dict(search=search, n=n, order=order, state=state, outcome=outcome, so_far=so_far, runs=runs,
                 statuses=['settled', 'open', 'pending', 'running'], depth=0, keys=[f'{n}:{order}'], groups=[dots],
@@ -30,21 +30,22 @@ def entry(search, n, order, state, outcome, basis, work, so_far, to_go, runs, do
                 etas=[[t, so_far - (MADE - t), to_go['median'] + (MADE - t), to_go['lo'] + (MADE - t), to_go['hi'] + (MADE - t)] for t in times],
                 odds=dict(prior=0.5, since=MADE - so_far, exists=[[t, p] for t, p in zip(times, exists)]),
                 cpu=[[(so_far - 120) / 3600, (so_far - 60) / 3600, MADE - 60, 0.6, 0.3, 0.1], [(so_far - 60) / 3600, so_far / 3600, MADE, 0.7, 0.2, 0.1]],
-                pending=[[t, so_far - (MADE - t), k] for t, k in zip(times, pending) if k is not None], stale=None)
+                pending=[[t, so_far - (MADE - t), k] for t, k in zip(times, pending) if k is not None],
+                finished=[[t, so_far - (MADE - t), k] for t, k in zip(times, finished) if k is not None], stale=None)
 
 
 TREE = entry('formtree', 480, 14, 'running', None, 'formtree', dict(unit='nodes', done=4200000, rate=510.25, total=band(9.1e7, 2.2e7, 4.1e8)),
              11000.0, band(170000.0, 35000.0, 800000.0), dict(runs=4, running=1, frozen=0, ended=2, aborted=1, found=0), '0103', [0.49, 0.485, 0.48],
-             [700, 740, 760])
+             [700, 740, 760], [3000, 3600, 4100])
 TILT = entry('tilt', 2016, 15, 'running', None, 'lindy', dict(unit='seconds', done=3600.0, rate=1.0, total=band(7200.0, 4000.0, 36000.0)),
              3600.0, band(3600.0, 400.0, 32400.0), dict(runs=2, running=2, frozen=0, ended=0, aborted=0, found=0), '33', [0.5, 0.5, 0.5],
-             [None] * 3)
+             [None] * 3, [None] * 3)
 SYM = entry('formtree-sym', 480, 14, 'ended', 'none', 'formtree', dict(unit='nodes', done=145427, rate=35.5, total=band(145427, 145427, 145427)),
             4100.0, band(0.0, 0.0, 0.0), dict(runs=4, running=0, frozen=0, ended=2, aborted=2, found=0), '1100', [0.3, 0.1, 0.0],
-            [30, 10, 0])
+            [30, 10, 0], [120, 160, 170])
 OLDTILT = dict(entry('tilt', 1104, 14, 'ended', None, 'lindy', dict(unit='seconds', done=1500.0, rate=1.0, total=band(3000.0, 1666.0, 15000.0)),
                      1500.0, band(1500.0, 166.0, 13500.0), dict(runs=3, running=0, frozen=0, ended=2, aborted=1, found=0), '001', [0.5, 0.5, 0.5],
-                     [None] * 3))
+                     [None] * 3, [None] * 3))
 SEARCHES = dict(made=MADE, runs=[SYM, TREE, OLDTILT, TILT])           # as the watcher lists them: not by state
 
 HARNESS = r"""<script>
@@ -69,15 +70,19 @@ HARNESS = r"""<script>
     result.missing = shown(section.querySelector('.progress-missing'));
     result.boxes = [...section.querySelectorAll('.progress-runs .progress-run')].map(box => {
       const q = s => box.querySelector(s), part = name => q(`[data-bar="${name}"]`);
+      // a graph of a count over time (the nodes pending, the tasks finished: 2026-11-12), by the parts each has alike
+      const count = sel => { const f = q(sel), c = s => f.querySelector(s);
+        return {empty: f.hasAttribute('data-empty'), opacity: +getComputedStyle(c('svg')).opacity,
+                line: (c('[data-count-line]').getAttribute('points') || '').trim().split(/\s+/).filter(Boolean).map(p => p.split(',').map(Number)),
+                ticks: [...f.querySelectorAll('[data-count-ticks] text.ytick')].map(t => [t.textContent, +t.getAttribute('y')]),
+                axis: +(c('[data-count-grid] line.axis') || {getAttribute: () => NaN}).getAttribute('y1')}; };
       return {
         label: q('[data-program]').textContent, n: q('[data-n]').textContent, order: q('[data-order]').textContent,
         state: [...box.querySelectorAll('.progress-run-state [data-label]')].filter(shown).map(e => e.dataset.label),
         parts: {bar: shown(q('.progress-work')), eta: shown(q('.progress-eta svg')), status: shown(q('.progress-status')), cpu: shown(q('.progress-cpu svg')),
-                pending: shown(q('.progress-pending svg')), runs: shown(q('[data-track-line]')), dots: shown(q('canvas')), odds: shown(q('.progress-odds svg'))},
-        pending: {empty: q('.progress-pending').hasAttribute('data-empty'), opacity: +getComputedStyle(q('.progress-pending svg')).opacity,
-                  line: (q('[data-pending-line]').getAttribute('points') || '').trim().split(/\s+/).filter(Boolean).map(p => p.split(',').map(Number)),
-                  ticks: [...box.querySelectorAll('[data-pending-ticks] text')].map(t => [t.textContent, +t.getAttribute('y')]),
-                  axis: +(q('[data-pending-grid] line.axis') || {getAttribute: () => NaN}).getAttribute('y1')},
+                pending: shown(q('.progress-pending svg')), finished: shown(q('.progress-finished svg')), runs: shown(q('[data-track-line]')),
+                dots: shown(q('canvas')), odds: shown(q('.progress-odds svg'))},
+        pending: count('.progress-pending'), finished: count('.progress-finished'),
         extras: box.querySelectorAll('.progress-pool, [data-stages], .progress-key, [data-pool-tip]').length,
         lindy: shown(q('[data-lindy]')),
         caption: q('.progress-bar-caption').textContent.replace(/\s+/g, ' ').trim(),
@@ -101,19 +106,20 @@ HARNESS = r"""<script>
     const none = await new Promise(done => window.progressView.want(7n, 3, nodes => done(nodes)));
     result.none = none.map(e => typeof e === 'string' ? e : e.textContent);
     result.etaXs = window.progressView.layouts.map(L => L.etaXs);
+    result.finishedXs = window.progressView.layouts.map(L => L.finishedXs);
     // each graph's span (2026-11-12): its axis line's ends, its y labels' places, the ETA chart's purple guide, and the column
     const tree = section.querySelector('.progress-runs .progress-run'), one = (sel, a) => +tree.querySelector(sel).getAttribute(a);
     result.span = tree && {column: document.querySelector('section.mstar').getBoundingClientRect().width, svg: tree.querySelector('.progress-eta svg').getBoundingClientRect().width,
-                   axes: Object.fromEntries(['eta', 'cpu', 'pending', 'odds'].map(k => [k, [one(`.progress-${k} line.axis`, 'x1'), one(`.progress-${k} line.axis`, 'x2')]])),
+                   axes: Object.fromEntries(['eta', 'cpu', 'pending', 'finished', 'odds'].map(k => [k, [one(`.progress-${k} line.axis`, 'x1'), one(`.progress-${k} line.axis`, 'x2')]])),
                    // each graph's y axis line or lines, [x1, x2], and the ETA chart's slashes at its break, [x1, x2, visibility]
-                   yaxes: Object.fromEntries(['eta', 'cpu', 'pending', 'odds'].map(k => [k, [...tree.querySelectorAll(`.progress-${k} line.yaxis`)].map(l => [+l.getAttribute('x1'), +l.getAttribute('x2')])])),
+                   yaxes: Object.fromEntries(['eta', 'cpu', 'pending', 'finished', 'odds'].map(k => [k, [...tree.querySelectorAll(`.progress-${k} line.yaxis`)].map(l => [+l.getAttribute('x1'), +l.getAttribute('x2')])])),
                    breaks: [...tree.querySelectorAll('.progress-eta line.break')].map(l => [+l.getAttribute('x1'), +l.getAttribute('x2'), l.getAttribute('visibility')]),
                    // each value label's x, its anchor, and its ink's left and right edges as drawn; each hour label's anchor
                    ylabels: [...tree.querySelectorAll('svg text.ytick')].map(t => { const b = t.getBBox(); return [+t.getAttribute('x'), t.getAttribute('text-anchor'), b.x, b.x + b.width]; }),
                    xanchors: [...tree.querySelectorAll('svg text.xtick')].map(t => t.getAttribute('text-anchor')),
                    guide: tree.querySelector('.progress-eta [data-guide]').getAttribute('points').trim().split(/\s+/).map(p => p.split(',').map(Number)),
                    // each chart's drawing against its size as it shows: [viewBox width, shown width, viewBox height, shown height]
-                   scale: ['eta', 'cpu', 'pending', 'odds'].map(k => { const v = tree.querySelector(`.progress-${k} svg`), b = v.getBoundingClientRect();
+                   scale: ['eta', 'cpu', 'pending', 'finished', 'odds'].map(k => { const v = tree.querySelector(`.progress-${k} svg`), b = v.getBoundingClientRect();
                                                                        return [v.viewBox.baseVal.width, b.width, v.viewBox.baseVal.height, b.height]; })};
     result.figureText = getComputedStyle(document.getElementById('mstar-readout')).fontSize;   // Figure 1's readout, as its legend's
     // the words of each graph, with where they sit against it and their size (2026-11-12)
@@ -124,18 +130,20 @@ HARNESS = r"""<script>
       const below = {bar: [q('.progress-bar'), q('.progress-bar-caption')], eta: [q('.progress-eta svg'), q('.progress-status')],
                      hint: [q('canvas'), q('[data-readout]')]};
       const above = {tip: [q('.progress-tip'), q('.progress-eta svg')], cpu: [q('.progress-cpu-key'), q('.progress-cpu svg')],
-                     pending: [q('.progress-pending-title'), q('.progress-pending svg')], runs: [q('[data-track-line]'), q('canvas')],
+                     pending: [q('.progress-pending-title'), q('.progress-pending svg')], finished: [q('.progress-finished-title'), q('.progress-finished svg')],
+                     runs: [q('[data-track-line]'), q('canvas')],
                      prior: [q('.progress-odds > p'), q('.progress-odds svg')], title: [q('.progress-odds-title'), q('.progress-odds svg')]};
       return {below: Object.fromEntries(Object.entries(below).map(([k, [g, w]]) => [k, after(g, w)])),
               above: Object.fromEntries(Object.entries(above).map(([k, [w, g]]) => [k, after(w, g)])),
               sizes: Object.fromEntries(Object.entries({bar: q('.progress-bar-caption'), tip: q('.progress-tip'), status: q('.progress-status'),
                                                          lindy: q('[data-lindy]'), cpu: q('.progress-cpu-key'), pending: q('.progress-pending-title'),
+                                                         finished: q('.progress-finished-title'),
                                                          runs: q('[data-track-line]'), hint: q('[data-readout]'), prior: q('.progress-odds > p'),
                                                          title: q('.progress-odds-title')}).map(([k, e]) => [k, size(e)])),
               ticks: ['.progress-bar-axis > span', '.progress-eta text.xtick', '.progress-cpu text.xtick', '.progress-pending text.xtick',
-                      '.progress-odds text.xtick'].map(s => [...box.querySelectorAll(s)].map(e => e.textContent)),
-              tickSizes: ['.progress-bar-axis > span', '.progress-eta text.xtick', '.progress-cpu text.xtick', '.progress-pending text.xtick']
-                         .map(s => size(q(s))),
+                      '.progress-finished text.xtick', '.progress-odds text.xtick'].map(s => [...box.querySelectorAll(s)].map(e => e.textContent)),
+              tickSizes: ['.progress-bar-axis > span', '.progress-eta text.xtick', '.progress-cpu text.xtick', '.progress-pending text.xtick',
+                          '.progress-finished text.xtick'].map(s => size(q(s))),
               tipHeight: q('.progress-tip').getBoundingClientRect().height, statusHeight: q('.progress-status').getBoundingClientRect().height};
     });
     // hovers over the running form tree's three aligned charts: each at its second point, then away
@@ -155,7 +163,8 @@ HARNESS = r"""<script>
       return read;
     };
     result.hovers = box && {eta: hover('.progress-eta', L.etaXs[1]), cpu: hover('.progress-cpu', (L.etaXs[0] + L.etaXs[1]) / 2),
-                            pending: hover('.progress-pending', L.pendingXs[1]), odds: hover('.progress-odds', L.oddsXs[1])};   // none on a page with no box
+                            pending: hover('.progress-pending', L.pendingXs[1]), finished: hover('.progress-finished', L.finishedXs[1]),
+                            odds: hover('.progress-odds', L.oddsXs[1])};   // none on a page with no box
     result.width = document.documentElement.scrollWidth;
   } catch (e) { result.error = String(e.stack || e); }
   parent.postMessage(JSON.stringify(result), '*');
@@ -208,7 +217,9 @@ def q_every_search_has_its_box_and_every_box_the_same_parts():
     # running, running, completed, aborted.  Every box shows the same parts: the work bar, the ETA chart, the status
     # line, the CPU chart, the runs' line, the dots and the probability graph; none has a pool chart, a stages line
     # or a status key.  Every ETA chart has its three estimates, every CPU chart its bands, every probability graph a
-    # line through its three points (none grayed for want of a history), under the prior 0.5.
+    # line through its three points (none grayed for want of a history), under the prior 0.5.  (The graphs of nodes
+    # pending and, since 2026-11-12, evening, of tasks finished are among the parts too: dreeves, "sure, let's get the
+    # count of finished tasks over time".)
     r = report(1280)
     assert r['made'] == page.stamp(MADE) and r['age'].replace(' ', ' ') == '1m 15s' and not r['missing'], (r['made'], r['age'], r['missing'])
     boxes = r['boxes']
@@ -246,6 +257,32 @@ def q_each_box_graphs_its_nodes_pending():
         assert b['pending']['empty'] and b['pending']['opacity'] < 1 and b['pending']['line'] == [], (b['label'], b['pending'])
 
 
+def q_each_box_graphs_its_tasks_finished():
+    # Replicata: the same page, at 1280 px: formtree's estimates count 3000, 3600 and 4100 tasks finished; the completed
+    # formtree-sym's 120, 160 and 170; the two tilt searches' none (lindy.py's estimates count no tasks).
+    # Expectata (Opus 5.5, 2026-11-12, evening; dreeves, of the form tree's tasks, each ended with its subtree closed or
+    # its unfinished branches spilled to the queue: "sure, let's get the count of finished tasks over time"): every box
+    # has the graph, under its graph of nodes pending, drawn as that one is: the two form trees' a line through their
+    # three points, each at the x of the ETA chart's record of the same estimate (the graphs share their x axis), rising
+    # (more tasks are higher on the page), on round count ticks from 0 whose last is at least the most finished; the
+    # tilt searches' with no line and no point, grayed (data-empty, its svg's opacity below 1), as a graph without data
+    # is.  Its points' x positions are the layout's finishedXs.
+    # Resultata before: no such graph.
+    r = report(1280)
+    tree, tilt, sym, old = r['boxes']
+    xs = dict(zip(('tree', 'tilt', 'sym', 'old'), r['etaXs']))
+    for name, b, most in (('tree', tree, 4100), ('sym', sym, 170)):
+        f = b['finished']
+        assert not f['empty'] and f['opacity'] == 1 and len(f['line']) == 3, (name, f)
+        assert all(abs(x - want) < 0.05 for (x, _), want in zip(f['line'], xs[name])), (name, f['line'], xs[name])
+        assert f['line'][0][1] > f['line'][1][1] > f['line'][2][1], (name, f['line'])       # rising: lower on the page is fewer
+        values = [float(t.replace(',', '').replace('K', 'e3')) for t, _ in f['ticks']]
+        assert f['ticks'][0][0] == '0' and values[-1] >= most, (name, f['ticks'])
+    assert [[round(x, 2) for x, _ in b['finished']['line']] for b in (tree, sym)] == [[round(x, 2) for x in r['finishedXs'][i]] for i in (0, 2)], r['finishedXs']
+    for b in (tilt, old):
+        assert b['finished']['empty'] and b['finished']['opacity'] < 1 and b['finished']['line'] == [], (b['label'], b['finished'])
+
+
 def q_each_graph_s_title_is_above_it_its_numbers_below_in_one_size():
     # Replicata: the same page, at 1280 px and at 390 px: every box's words of its graphs.
     # Expectata (dreeves, 2026-11-12: "could you improve the consistency of the graphs a little? font sizes and whether
@@ -261,12 +298,14 @@ def q_each_graph_s_title_is_above_it_its_numbers_below_in_one_size():
     # hint, the titles and the note were in the body's size); the tip, its time gone to the x axis, one line, as high
     # as the status line.  The ETA, CPU and pending charts' x axes labeled alike, the same hours (they share the axis);
     # the axis labels of all of them and of the bar in one size (the CPU and pending charts' were unlabeled until then).
+    # And (that evening) the graph of tasks finished as the pending one: its title over it, in that size, and its x axis
+    # labeled with the same hours, in the same size.
     for width in (1280, 390):
         r = report(width)
         for b, w in zip(r['boxes'], r['words']):
             assert all(w['below'].values()) and all(w['above'].values()), (width, b['label'], w['below'], w['above'])
             assert set(w['sizes'].values()) == {r['figureText']}, (width, b['label'], w['sizes'], r['figureText'])
-            assert w['ticks'][1] == w['ticks'][2] == w['ticks'][3] and len(w['ticks'][1]) >= 2, (width, b['label'], w['ticks'])
+            assert w['ticks'][1] == w['ticks'][2] == w['ticks'][3] == w['ticks'][4] and len(w['ticks'][1]) >= 2, (width, b['label'], w['ticks'])
             assert len(set(w['tickSizes'])) == 1, (width, b['label'], w['tickSizes'])
         assert all(abs(w['tipHeight'] - w['statusHeight']) < 1 for w in r['words'][:1]), (width, r['words'][0]['tipHeight'], r['words'][0]['statusHeight'])
 
@@ -291,7 +330,9 @@ def q_graphs_span_the_column_and_end_at_the_projected_finish():
     # margin's edge, m, where its x axis starts, the same in all four graphs (the CPU and nodes pending graphs had none
     # until then); the ETA chart's slashes, shown (this box's bands break its axis), each across that line; and every
     # hour label centered on its tick, the first too.  Until then each plot started at x 0, its value labels inside it,
-    # each starting 2 right of its left edge, and the first hour label started at its tick.
+    # each starting 2 right of its left edge, and the first hour label started at its tick.  (And that evening the
+    # graph of tasks finished, the fifth, as the others: its axes, labels and scale, and its x axis ending with the CPU
+    # and pending charts' at the projected finish.)
     for width in (1280, 390):
         r = report(width)
         sp = r['span']
@@ -303,7 +344,7 @@ def q_graphs_span_the_column_and_end_at_the_projected_finish():
         assert sp['ylabels'] and all(anchor == 'end' and x <= m - 6 and left >= 0 and right <= m for x, anchor, left, right in sp['ylabels']), (width, sp['ylabels'])
         assert sp['xanchors'] and set(sp['xanchors']) == {'middle'}, (width, sp['xanchors'])
         right = sp['axes']['eta'][1]
-        assert [x for x, _ in sp['guide'][1:]] == [right, right] and sp['axes']['cpu'][1] == sp['axes']['pending'][1] == right, (width, sp['guide'], sp['axes'])
+        assert [x for x, _ in sp['guide'][1:]] == [right, right] and sp['axes']['cpu'][1] == sp['axes']['pending'][1] == sp['axes']['finished'][1] == right, (width, sp['guide'], sp['axes'])
         assert all(abs(vw - w) < 1 and abs(vh - h) < 1 for vw, w, vh, h in sp['scale']), (width, sp['scale'])
 
 
@@ -321,11 +362,14 @@ def q_hovering_floats_the_time_on_the_x_axis():
     # since that afternoon; dreeves: "should we have the same hover effect on all graphs consistently? it's missing on
     # the probability graph"), each local, to the minute (YYYY-MM-DD HH:MM); and away, none shows.  The tip over the ETA chart reads out the estimate without its time (no @, not the time on the
     # axis; its finish times stay, the later a date, as every line gives them), from its time so far on; the CPU key
-    # has no time.
+    # has no time.  (And that evening, over the graph of tasks finished at its second point, its point's time, as the
+    # pending one's.)
     r = report(1280)
     local = lambda t: time.strftime('%Y-%m-%d %H:%M', time.localtime(t))
     h = r['hovers']
-    want = dict(eta=local(TREE['etas'][1][0]), cpu=local(TREE['cpu'][0][2]), pending=local(TREE['pending'][1][0]), odds=local(TREE['odds']['exists'][1][0]))
+    want = dict(eta=local(TREE['etas'][1][0]), cpu=local(TREE['cpu'][0][2]), pending=local(TREE['pending'][1][0]),
+                finished=local(TREE['finished'][1][0]), odds=local(TREE['odds']['exists'][1][0]))
+    assert sorted(h) == sorted(want), sorted(h)
     for name, got in h.items():
         assert got['shown'] and got['text'] == want[name], (name, got, want[name])
         x0, w = got['box']

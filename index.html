@@ -2236,12 +2236,25 @@ such that the Symmetry Conjecture holds for lengths \(n \ge N\).
           <div class="progress-pending">
             <p class="progress-pending-title">Pending nodes vs time:</p>
             <svg viewBox="0 0 640 144" role="img" aria-label="Pending nodes vs time">
-              <g data-pending-grid></g>
-              <polygon class="wash" data-pending-wash></polygon>
-              <polyline data-pending-line></polyline>
-              <g data-pending-marks></g>
-              <g data-pending-ticks></g>
-              <line class="cross" visibility="hidden" data-pending-cross></line>
+              <g data-count-grid></g>
+              <polygon class="wash" data-count-wash></polygon>
+              <polyline data-count-line></polyline>
+              <g data-count-marks></g>
+              <g data-count-ticks></g>
+              <line class="cross" visibility="hidden"></line>
+              <g class="stamp" data-stamp visibility="hidden"><rect></rect><text class="time" text-anchor="middle"></text></g>
+            </svg>
+          </div>
+          <!-- The tasks of its search that have ended, each with its subtree closed or its unfinished branches spilled back to the queue, plotted against its hours of running, under the graph of nodes pending and on the same x axis; grayed, with no line, for a search that counts none -->
+          <div class="progress-finished">
+            <p class="progress-finished-title">Finished tasks vs time:</p>
+            <svg viewBox="0 0 640 144" role="img" aria-label="Finished tasks vs time">
+              <g data-count-grid></g>
+              <polygon class="wash" data-count-wash></polygon>
+              <polyline data-count-line></polyline>
+              <g data-count-marks></g>
+              <g data-count-ticks></g>
+              <line class="cross" visibility="hidden"></line>
               <g class="stamp" data-stamp visibility="hidden"><rect></rect><text class="time" text-anchor="middle"></text></g>
             </svg>
           </div>

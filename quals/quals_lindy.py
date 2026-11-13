@@ -54,14 +54,15 @@ def q_an_hour_old_search_has_gott_s_estimate():
     # the total the age more than to_go, 7200 (4000 to 36000); the prior that what is searched for exists and that
     # probability now both 0.5, lindy.IGNORANT (dreeves, 2026-11-06: "go with 50% as the ignorant prior when there's no
     # model or whatever"), since a search that knows only its age learns nothing of it; basis lindy; nothing pending
-    # that it can count (null; 2026-11-12); and with a time the line holds to the record's form (track.checked).
+    # that it can count (null; 2026-11-12), nor finished (null; that evening, dreeves: "sure, let's get the count of
+    # finished tasks over time"); and with a time the line holds to the record's form (track.checked).
     d = sandbox()
     try:
         inside(d, """import lindy, track
 e = lindy.estimate(3600.0)
 close = lambda a, b: abs(a - b) < 1e-6
 assert (e['event'], e['basis'], e['unit'], e['done'], e['rate'], e['prior'], e['exists'], lindy.IGNORANT) == ('estimate', 'lindy', 'seconds', 3600.0, 1.0, 0.5, 0.5, 0.5), e
-assert e['pending'] is None, e
+assert e['pending'] is None and e['finished'] is None, e
 assert all(close(e['to_go'][k], v) for k, v in dict(median=3600, lo=400, hi=32400).items()), e['to_go']
 assert all(close(e['total'][k], v) for k, v in dict(median=7200, lo=4000, hi=36000).items()), e['total']
 start = dict(event='start', name='r', search='S', target='16:4', estimator='lindy.py', command='job', cwd='/', found=None, adopted=False, pid=7, tracker=8, time=100.0)
