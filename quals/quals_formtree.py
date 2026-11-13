@@ -552,6 +552,118 @@ def q_engine_whole_proof_through_kills():
         print(f'  {kills} kills; {r.stdout.strip()[:150]}')
 
 
+# The prover's fold mode (Opus 5.5, 2026-11-13; dreeves: "ok, build the folded LP thing"; scratch/fold-20261113/NOTES.md):
+# with PEX_FOLD = s, +1 or -1, the prover works over the s-symmetric sequences alone (a[n-1-p] = s a[p]): its LP's
+# columns are the positions p < n/2, about 60 times faster a solve at the antisymmetric 480:13 start nodes, and every
+# certificate it writes is of the node's unfolded rows, so that the checkers, unchanged, read it.  Its start nodes pin,
+# beside the chain's vectors, every symmetric row at every modulus of the configuration (fold_rows), which the certificates
+# use to cancel the part of a residual that the reflection reverses.
+MODS = [3, 4, 5, 7, 8, 9, 11, 13, 16, 17, 19, 23, 25, 27, 29, 31, 37]
+WANT = [11, 8, 13, 4, 9, 17, 19, 23, 16, 25, 27, 29, 31, 37]
+FOLD_CELLS = {'480:14': (os.path.join(PROVER, 'cells', '480_14_sym'), 1), '480:13': (os.path.join(FIX, 'antisym_480_13'), -1)}
+
+
+def fold_rows(n, rows, s):
+    """A start node's rows for fold mode: those of rows at the chain's moduli 3, 5 and 7, and at every other modulus of MODS
+    every symmetric row of proofs/symtree.py's lemma: e_r - s e_sigma(r) for each pair of classes r < sigma(r) =
+    (n-1-r) mod M, and e_r where sigma(r) = r and s = -1, each at 0."""
+    out = [list(r) for r in rows if r[0] in (3, 5, 7)]
+    for M in (M for M in MODS if M not in (3, 5, 7)):
+        for r in range(M):
+            t = (n - 1 - r) % M
+            if t > r: w = [0] * M; w[r] = 1; w[t] = -s; out.append([M, 0, w])
+            if t == r and s == -1: out.append([M, 0, [int(c == r) for c in range(M)]])
+    return out
+
+
+def node_text(rows):
+    """A start node as the prover reads one (write_node's v2): no symmetry of the node claimed, the chain's moduli full, a
+    class's row as C, a form's as F (as q_engine_bounds_at_480_pass_the_checkers writes it)."""
+    chain = {M: [v for K, v, w in rows if K == M] for M in (3, 5, 7)}
+    assert all(len(chain[M]) == M for M in chain), chain
+    lines = ['v2 0 %d' % sum(1 << MODS.index(M) for M in (3, 5, 7)), ' '.join(['-99'] * len(MODS)) + ' '] + ['%d %s' % (M, ' '.join(map(str, chain[M]))) for M in (3, 5, 7)]
+    lines += [str(len(rows))] + ['%d C %d %d' % (M, w.index(1), v) if sorted(w) == [0] * (M - 1) + [1] else '%d F %d %s' % (M, v, ' '.join(map(str, w))) for M, v, w in rows] + ['0', '0', '', '']
+    return '\n'.join(lines)
+
+
+def fold_child(code, cell, d, fold, check=True):
+    """code run in a child process with the prover built from pex.cpp, initialized for cell with its kept configuration and
+    the real run's settings, in fold mode fold (None: unfolded), in the directory d; the child's completed process."""
+    where, _ = FOLD_CELLS[cell]; n, m = map(int, cell.split(':'))
+    env = dict(os.environ, PE_LIB=build_engine(), PYTHONPATH=PROVER, OMP_NUM_THREADS='1', OPENBLAS_NUM_THREADS='1', WORK=d, CELL=cell,
+               CFG=os.path.join(where, f'pex_{n}_{m}_' + '_'.join(map(str, MODS)) + '.cfg'))
+    env.pop('PEX_FOLD', None); env.update({'PEX_FOLD': str(fold)} if fold is not None else {})
+    head = ('import ctypes, json, os\nimport pex as pe\nd = os.environ["WORK"]; n, m = map(int, os.environ["CELL"].split(":"))\n'
+            f'pe.init(n, m, {MODS!r}, {WANT!r}, path=os.environ["CFG"], **pe.RUN_INIT); pe.run_settings()\n')
+    r = subprocess.run([sys.executable, '-B', '-c', head + code], env=env, cwd=PROVER, capture_output=True, text=True, timeout=900)
+    assert not check or r.returncode == 0, (cell, fold, r.returncode, r.stderr[-1500:])
+    return r
+
+
+# replicata (engine): for the symmetric 480:14 cell (s = +1) and the antisymmetric 480:13 cell (s = -1), a start node of fold
+# mode (fold_rows on the kept node's chain), a task of 3 s in fold mode with the stream on.  expectata: the prover says it
+# is in fold mode with that sign; both checkers accept the stream with one verdict, the same; more than 10 nodes closed, none
+# left open.  resultata before: no fold mode (pe_fold missing).
+def q_engine_fold_streams_pass_the_checkers():
+    if importlib.util.find_spec('numpy') is None: print('  skipped: this python has no numpy'); return
+    for cell, (where, s) in FOLD_CELLS.items():
+        meta = json.load(open(os.path.join(where, 'nodes.json')))
+        assert meta['s'] == s and meta['cell'] == cell, meta['cell']
+        with tempfile.TemporaryDirectory() as d:
+            open(os.path.join(d, 'node'), 'w').write(node_text(fold_rows(int(cell.split(':')[0]), meta['nodes'][0]['rows'], s)))
+            fold_child('assert pe.lib.pe_fold() == int(os.environ["PEX_FOLD"]), pe.lib.pe_fold()\n'
+                       'pe.lib.pe_certfd(os.open(d + "/stream", os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644))\n'
+                       'pe.run_file(d + "/node", 3.0, None, d + "/node_s"); pe.lib.pe_certfd(-1)\n', cell, d, s)
+            a_, b_ = both(open(os.path.join(d, 'stream')).read().splitlines())
+            assert a_['ok'] and b_['ok'], (cell, a_['why'], b_['why'])
+            assert a_ == b_ and a_['closed'] > 10 and a_['open'] == 0, (cell, a_, b_)
+            print(f'  {cell}, s = {s}: {a_["nodes"]} nodes, {a_["certs"]} certificates, {len(a_["spills"])} spilled')
+
+
+# replicata (engine): the antisymmetric 480:13 cell's first start node as kept (symmetric rows at 11 to 29, pruned to the
+# independent ones) in the prover as it was, and that node's fold mode node in fold mode: for each form of the
+# configuration at 11, 13, 17, 19, 23 and 29, and at 31 and 37, its grid values at the node (pe_values: two LPs and their
+# exact bounds).  expectata: at 11 to 29, where the kept node pins the symmetry, the same values, form by form (the fold
+# changes no bound there: scratch/fold-20261113/NOTES.md); at 31 and 37 the fold mode's values among the others.
+def q_engine_fold_values_match_unfolded():
+    if importlib.util.find_spec('numpy') is None: print('  skipped: this python has no numpy'); return
+    cell = '480:13'; where, s = FOLD_CELLS[cell]; meta = json.load(open(os.path.join(where, 'nodes.json')))
+    code = ('lib = pe.lib; lib.pe_values.argtypes = [ctypes.c_char_p, ctypes.c_int, ctypes.c_int, ctypes.POINTER(ctypes.c_longlong), ctypes.c_int]\n'
+            'out = {}; buf = (ctypes.c_longlong * 64)()\n'
+            'for M in (11, 13, 17, 19, 23, 29, 31, 37):\n'
+            '    for wi in range(lib.pe_nforms(M)):\n'
+            '        k = lib.pe_values((d + "/node").encode(), M, wi, buf, 64); assert 0 <= k <= 64, (M, wi, k)\n'
+            '        out[f"{M} {wi}"] = list(buf[:k])\n'
+            'json.dump(out, open(d + "/values.json", "w"))\n')
+    got = {}
+    for fold, rows in ((None, meta['nodes'][0]['rows']), (s, fold_rows(480, meta['nodes'][0]['rows'], s))):
+        with tempfile.TemporaryDirectory() as d:
+            open(os.path.join(d, 'node'), 'w').write(node_text(rows))
+            fold_child(code if fold is None else 'assert pe.lib.pe_fold() == int(os.environ["PEX_FOLD"])\n' + code, cell, d, fold)
+            got[fold] = json.load(open(os.path.join(d, 'values.json')))
+    plain, folded = got[None], got[s]
+    assert plain.keys() == folded.keys() and len(plain) == 100 + 144 + 4 * 200 + 2 * 200, len(plain)
+    same = [k for k in plain if int(k.split()[0]) <= 29 and plain[k] != folded[k]]
+    assert same == [], [(k, plain[k], folded[k]) for k in same[:5]]
+    wider = [k for k in plain if int(k.split()[0]) > 29 and not set(folded[k]) <= set(plain[k])]
+    assert wider == [], [(k, plain[k], folded[k]) for k in wider[:5]]
+    print(f'  {len(plain)} forms; at 31 and 37 the fold drops {sum(len(plain[k]) - len(folded[k]) for k in plain)} values of {sum(map(len, plain.values()))}')
+
+
+# replicata (engine): the prover with PEX_FOLD = 2; and in fold mode, a task at the kept (pruned) 480:13 node, which lacks
+# the symmetric rows of the moduli 4, 8, 9, 16, 25, 27, 31 and 37.  expectata: each child aborts, saying why: a fold sign
+# must be +1 or -1, and a certificate in fold mode needs the node's symmetric rows at every modulus it touches.
+def q_engine_fold_fails_loudly():
+    if importlib.util.find_spec('numpy') is None: print('  skipped: this python has no numpy'); return
+    cell = '480:13'; where, s = FOLD_CELLS[cell]; meta = json.load(open(os.path.join(where, 'nodes.json')))
+    with tempfile.TemporaryDirectory() as d:
+        r = fold_child('', cell, d, 2, check=False)
+        assert r.returncode != 0 and 'PEX_FOLD' in r.stderr, (r.returncode, r.stderr[-300:])
+        open(os.path.join(d, 'node'), 'w').write(node_text(meta['nodes'][0]['rows']))
+        r = fold_child('pe.run_file(d + "/node", 3.0, None, d + "/node_s")\n', cell, d, s, check=False)
+        assert r.returncode != 0 and 'no symmetric row' in r.stderr, (r.returncode, r.stderr[-300:])
+
+
 if __name__ == '__main__':
     names = sys.argv[1:] or [k for k in list(globals()) if k.startswith('q_')]
     bad = 0

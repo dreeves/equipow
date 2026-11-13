@@ -68,7 +68,37 @@ static void lp_init(int n) { L.basis.clear(); L.act.clear(); L.xB.clear(); L.Bin
 struct SpRow { bool dense = true; vector<int> idx; vector<double> val; int period = 0; vector<double> tile; vector<float> tilef, af; };
 static vector<SpRow> SR;
 static void sr_clear() { SR.clear(); }
-static int lp_add_row(const double *row) {
+// Fold mode (Opus 5.5, 2026-11-13; dreeves: "ok, build the folded LP thing"; scratch/fold-20261113/NOTES.md).  With PEX_FOLD
+// = s, +1 or -1, read by pe_init, the prover works over the s-symmetric sequences alone, a[N_-1-p] = s a[p]: its LP's columns
+// are the positions p < N_/2.  Rows and objectives come in over the N_ positions, as in the unfolded prover, and are folded
+// here: row[p] + s row[N_-1-p]; lp_point gives a point back over the N_ positions.  A row that folds to 0 (a symmetric row, an
+// anti-invariant form, half the moment rows) is never active, and of rows that fold to one row up to sign (a class's row and
+// its mirror's, a form and its mirror) only the first: FOLDTO and FOLDSGN, which base_rows reads.  Certificates stay of the
+// unfolded rows (fold_cert), so the checkers read them as they read any.  With PEX_FOLD unset every step here is the identity.
+static int FOLD = 0, N_FULL = 0;
+static vector<double> FOLDED;
+static vector<int> FOLDTO;              // per LP row: -1 if it folds to 0, else the first row folding to the same row up to sign
+static vector<signed char> FOLDSGN;     // per LP row: the sign that makes its folded row's first entry positive
+static unordered_map<string, int> FOLDSEEN;
+static vector<double> UA;              // every LP row as it came, over the N_ positions: the node's geometry reads these (make_q, rank_forms)
+static const double *folded(const double *row) {
+    if (!FOLD) return row;
+    FOLDED.assign(L.n, 0.0); for (int p = 0; p < L.n; p++) FOLDED[p] = row[p] + FOLD * row[N_FULL - 1 - p];
+    return FOLDED.data();
+}
+static void fold_register(const double *row, int id) {
+    int f = -1; for (int j = 0; j < L.n; j++) if (fabs(row[j]) > 1e-12) { f = j; break; }
+    if (f < 0) { FOLDTO.push_back(-1); FOLDSGN.push_back(0); return; }
+    signed char g = row[f] > 0 ? 1 : -1; string key((size_t)L.n * sizeof(double), '\0'); double *kp = (double *)&key[0];
+    for (int j = 0; j < L.n; j++) { double v = g * row[j]; kp[j] = fabs(v) <= 1e-12 ? 0.0 : v; }
+    auto it = FOLDSEEN.find(key);
+    FOLDTO.push_back(it == FOLDSEEN.end() ? (FOLDSEEN[key] = id) : it->second); FOLDSGN.push_back(g);
+}
+static void abort_fold(const char *what) { fprintf(stderr, "fold mode: %s\n", what); abort(); }
+static int lp_add_row(const double *row_) {
+    const double *row = folded(row_);
+    if (FOLD) fold_register(row, L.K);
+    UA.insert(UA.end(), row_, row_ + N_FULL);
     L.A.insert(L.A.end(), row, row + L.n); L.K++; L.lo.push_back(0); L.hi.push_back(0); L.atl.push_back(0); L.ray.push_back(0); L.inact.push_back(0);
     SpRow sr; int nz = 0; for (int j = 0; j < L.n; j++) if (row[j] != 0.0) nz++;
     if (nz < L.n / 2) { sr.dense = false; sr.idx.reserve(nz); sr.val.reserve(nz); for (int j = 0; j < L.n; j++) if (row[j] != 0.0) { sr.idx.push_back(j); sr.val.push_back(row[j]); } }
@@ -126,7 +156,27 @@ static inline void ftran(int q, vector<double> &c) {
     for (int a = 0; a < k; a++) { const double *__restrict__ b = B_ + (size_t)a * k; double s_ = 0; for (int e = 0; e < k; e++) s_ += b[e] * v[e]; cp[a] = s_; }
 }
 static int INCROW = 0; static ll inc_rows = 0;
+// The node's symmetric rows, noted by base_rows in fold mode for fold_cert: per modulus index and class r <= sigma(r) = (N_-1-r) mod M,
+// the rows and coefficients whose raw class vectors add up to e_r - s e_sigma(r) (e_r alone where sigma(r) = r and s = -1), at
+// value 0: a symmetric row of the start node (proofs/symtree.py's lemma), or a class's row and its mirror's.
+struct FoldPart { int row; double coef, val; };   // a row, its coefficient in the pair, its value in the LP's units
+static map<pair<int, int>, vector<FoldPart>> FOLDPAIR;
+static void lp_rows_(const vector<int> &rows, const vector<double> &vals);
+// In fold mode the LP takes of a list of rows none that folds to 0 (its value must be 0) and, of rows folding to one row up to
+// sign, the first (their values must agree, or the node holds no s-symmetric sequence: that has not been seen, and stops
+// here).  Every row's value is kept in L.lo and L.hi, where fold_cert reads it.
 static void lp_rows(const vector<int> &rows, const vector<double> &vals) {
+    if (!FOLD) { lp_rows_(rows, vals); return; }
+    static vector<int> r2, first; static vector<double> v2; r2.clear(); v2.clear(); first.assign(L.K, -1);
+    for (size_t q = 0; q < rows.size(); q++) {
+        int i = rows[q], c = FOLDTO[i]; L.lo[i] = L.hi[i] = vals[q];
+        if (c < 0) { if (fabs(vals[q]) > 1e-9) abort_fold("a row that folds to 0 has a value other than 0"); continue; }
+        if (first[c] >= 0) { int j = rows[first[c]]; if (fabs(vals[q] * FOLDSGN[i] - vals[first[c]] * FOLDSGN[j]) > 1e-9 * max(1.0, fabs(vals[q]))) abort_fold("two rows fold to one with values that disagree"); continue; }
+        first[c] = q; r2.push_back(i); v2.push_back(vals[q]);
+    }
+    lp_rows_(r2, v2);
+}
+static void lp_rows_(const vector<int> &rows, const vector<double> &vals) {
     int k = rows.size(); bool same = (k == L.k);
     if (same) for (int q = 0; q < k; q++) if (L.act[q] != rows[q]) { same = false; break; }
     for (int q = 0; q < k; q++) { L.lo[rows[q]] = vals[q]; L.hi[rows[q]] = vals[q]; }
@@ -276,7 +326,7 @@ static int lp_feasible(int maxit = 20000) {
 // max of the sum over a class: cls_idx lists the columns with cost 1, sign s
 static vector<double> cc;
 static int lp_maximize_core(double *val, int maxit);
-static int lp_maximize(const vector<int> &cols, double s, double *val, int maxit = 20000) { cc.assign(L.n, 0.0); for (int j : cols) cc[j] = s; return lp_maximize_core(val, maxit); }
+static int lp_maximize(const vector<int> &cols, double s, double *val, int maxit = 20000) { cc.assign(N_FULL, 0.0); for (int j : cols) cc[j] = s; return lp_maximize_core(val, maxit); }
 static double LP_STOP = 1e300; static bool lp_stopped = false; static ll scan_stops = 0; static int DEVEX = 1;
 static int lp_maximize_old(double *val, int maxit);
 static inline void price_exact() {
@@ -311,7 +361,14 @@ static bool bcache_load() {
     L.basis = e.basis; L.at = e.at; for (int j : FZlist) { int p = abs(j) - 1; if (L.at[p]) L.at[p] = j > 0 ? 1 : -1; } for (int q = 0; q < L.k; q++) L.atl[L.act[q]] = e.atl[q];
     if (!refactor()) return false; compute_xB(); return true;
 }
+// The objective cc comes in over the N_ positions; in fold mode it is folded for the LP and given back as it came.
+static int lp_maximize_core__(double *val, int maxit);
 static int lp_maximize_core(double *val, int maxit) {
+    if ((int)cc.size() != N_FULL) abort_fold("an objective not over the positions");
+    static vector<double> whole; whole = cc; const double *f = folded(whole.data()); cc.assign(f, f + L.n);
+    int rc = lp_maximize_core__(val, maxit); cc = whole; return rc;
+}
+static int lp_maximize_core__(double *val, int maxit) {
     if (BCACHE_ON && BKEY) {
         unsigned long long key = BKEY; ll i0 = L.iters; prim_calls++;
         if (bcache_load()) {
@@ -476,7 +533,8 @@ static int lp_maximize_old(double *val, int maxit) {
     }
     return 2;
 }
-static void lp_point(vector<double> &x) { int n = L.n; x.assign(n, 0.0); for (int j = 0; j < n; j++) if (L.at[j]) x[j] = L.at[j]; for (int a = 0; a < L.k; a++) if (L.basis[a] < n) x[L.basis[a]] = L.xB[a]; }
+static void lp_point(vector<double> &x) { int n = L.n; x.assign(N_FULL, 0.0); for (int j = 0; j < n; j++) if (L.at[j]) x[j] = L.at[j]; for (int a = 0; a < L.k; a++) if (L.basis[a] < n) x[L.basis[a]] = L.xB[a];
+    for (int p = n; p < N_FULL; p++) x[p] = FOLD * x[N_FULL - 1 - p]; }   // in fold mode the mirror half; unfolded, n = N_FULL
 // ------------------------------------------------------------------ the problem
 struct Mod { vector<int> antiW; vector<ll> Wstep, Wc0; int M, nb; ll mult; vector<LL> rep; vector<ll> sz; vector<int> order, piv; vector<vector<LL>> B; int pos; vector<double> norm; vector<vector<int>> members; vector<vector<int>> W; vector<int> divisors; };
 static int N_, M_; static vector<Mod> mods; static map<int, int> modidx; static vector<double> rownorm;
@@ -586,9 +644,49 @@ static void cert_define(int id) {
 }
 static void cert_bounds(int mi, const vector<int> &w, int sym, long k, const CertRec &U, const CertRec &D);
 static long double y_scale(const vector<int> &rows, const double *y) { long double mx = 0; for (int q = 0; q < (int)rows.size(); q++) { if (y[q] == 0.0) continue; long double a = fabsl((long double)y[q]) / row_norm(rows[q]); if (a > mx) mx = a; } return mx > 0 ? 1 / mx : 1; }
+// Fold mode's certificates.  The folded LP's multipliers y on its active rows prove its bound for the s-symmetric points; as
+// multipliers on the same rows unfolded they leave a residual (objective minus their combination) whose part reversed by the
+// reflection p -> N_-1-p costs the unfolded bound.  So that part, at each modulus a class vector D with D[sigma r] = -s D[r],
+// is cancelled with the node's symmetric rows (FOLDPAIR, value 0): then the residual is s-symmetric and its sum of absolute
+// values over the N_ positions is the folded one's, and the certificate proves for every sequence of the node what the
+// folded LP proved.  The moment rows the LP keeps are s-symmetric already.  rows and y are the LP's list; vals are read anew
+// from L.lo (the callers' vals belong to the list before the fold); the objective is os times ow at the modulus index omi
+// (omi < 0: none, as for a ray); rows added go before the last row if keep_last.  Unfolded, nothing changes.
+static void fold_cert(vector<int> &rows, vector<double> &vals, vector<double> &y, int omi, const vector<int> *ow, double os, bool keep_last) {
+    if (!FOLD) return;
+    vals.resize(rows.size()); for (size_t q = 0; q < rows.size(); q++) vals[q] = L.lo[rows[q]];
+    static vector<vector<double>> R; R.assign(mods.size(), {});
+    auto add = [&](int mi, int r, double v) { if (R[mi].empty()) R[mi].assign(mods[mi].M, 0.0); R[mi][r] += v; };
+    for (size_t q = 0; q < rows.size(); q++) {
+        int i = rows[q]; if (i < M_ || y[q] == 0.0) continue;
+        int mi = rowform[i].first; Mod &m = mods[mi]; double rho = y[q] / row_norm(i);
+        if (i >= m.pos && i < m.pos + m.M) add(mi, i - m.pos, -rho);
+        else { const vector<int> &w = rowform[i].second; for (int r = 0; r < m.M; r++) if (w[r]) add(mi, r, -rho * w[r]); }
+    }
+    if (omi >= 0) for (int r = 0; r < mods[omi].M; r++) if ((*ow)[r]) add(omi, r, os * (*ow)[r]);
+    static map<int, double> extra, extraval; extra.clear(); extraval.clear();      // row -> its y added, its value
+    for (size_t mi = 0; mi < mods.size(); mi++) {
+        if (R[mi].empty()) continue; int M = mods[mi].M; double big = 0; for (double v : R[mi]) big = max(big, fabs(v));
+        for (int r = 0; r < M; r++) {
+            int t = (N_FULL - 1 - r) % M; if (t < r) continue;
+            double c = (R[mi][r] - FOLD * R[mi][t]) / 2;
+            if (fabs(c) <= 1e-12 * max(big, 1.0)) continue;
+            auto it = FOLDPAIR.find({(int)mi, r});
+            if (it == FOLDPAIR.end()) { fprintf(stderr, "fold mode: no symmetric row for class %d mod %d at this node\n", r, M); abort(); }
+            double v0 = 0; for (auto &pt : it->second) v0 += pt.coef * pt.val * row_norm(pt.row);
+            if (fabs(v0) > 1e-9) abort_fold("a symmetric pair of rows whose values do not cancel");
+            for (auto &pt : it->second) { extra[pt.row] += c * pt.coef * row_norm(pt.row); extraval[pt.row] = pt.val; }
+        }
+    }
+    for (size_t q = 0; q < rows.size(); q++) { auto it = extra.find(rows[q]); if (it != extra.end()) { y[q] += it->second; extra.erase(it); } }
+    size_t at = keep_last && !rows.empty() ? rows.size() - 1 : rows.size();
+    for (auto &kv : extra) { rows.insert(rows.begin() + at, kv.first); vals.insert(vals.begin() + at, extraval[kv.first]); y.insert(y.begin() + at, kv.second); at++; }
+}
 // Does the ray close a node with these rows and normalised values?  A second try with finer scales before saying no.
-static bool exact_close(const vector<int> &rows, const vector<double> &vals) {
+static bool exact_close(const vector<int> &rows_, const vector<double> &vals_) {
+    static vector<int> rows; static vector<double> vals; rows = rows_; vals = vals_;   // copies: fold_cert extends them
     static vector<double> y; y.resize(rows.size()); for (int q = 0; q < (int)rows.size(); q++) y[q] = L.ray[rows[q]];
+    fold_cert(rows, vals, y, -1, nullptr, 0.0, false);
     long double sc = y_scale(rows, y.data()); static vector<ll> ints;
     const LL DD1 = ((LL)1) << 58; const double SS1 = 4294967296.0;
     for (int attempt = 0; attempt < 2; attempt++) {
@@ -600,8 +698,10 @@ static bool exact_close(const vector<int> &rows, const vector<double> &vals) {
     exact_fail++; return false;
 }
 // After lp_maximize with s on class r of m: a proved bound s D_r <= the value returned.  None if the numbers fail: the trivial bound then.
-static bool exact_bound(int mi, int r, int s_, const vector<int> &rows, const vector<double> &vals, ll &bound) {
+static bool exact_bound(int mi, int r, int s_, const vector<int> &rows_, const vector<double> &vals_, ll &bound) {
+    static vector<int> rows; static vector<double> vals; rows = rows_; vals = vals_;   // copies: fold_cert extends them
     static vector<double> y; y.resize(rows.size()); for (int q = 0; q < (int)rows.size(); q++) y[q] = L.y[q];
+    { static vector<int> er; er.assign(mods[mi].M, 0); er[r] = 1; fold_cert(rows, vals, y, mi, &er, s_, false); }
     static vector<ll> ints; if (!build_w(rows, y.data(), 1.0L, DD0, SS0, ints)) return false;
     Mod &m = mods[mi]; LL T = DD0 * (LL)SS0; LL K = 0; for (int q = 0; q < (int)rows.size(); q++) if (ints[q]) K += DD0 * ints[q] * raw_of(rows[q], vals[q]);
     LL tot = 0; vector<char> inc(N_, 0); for (int p : m.members[r]) inc[p] = 1;
@@ -658,8 +758,10 @@ static bool cert_fits(const vector<int> &rows, const vector<double> &vals, const
     LL mw = 0; for (int v : w) mw = max<LL>(mw, llabs((ll)v)); if (mw >= (CERT_BIG / T)) return false;   // fkernel's "T w too large"
     return true;
 }
-static bool exact_bound_form(int mi, const vector<int> &w, int s_, const vector<int> &rows, const vector<double> &vals, ll &bound) {
+static bool exact_bound_form(int mi, const vector<int> &w, int s_, const vector<int> &rows_, const vector<double> &vals_, ll &bound) {
+    static vector<int> rows; static vector<double> vals; rows = rows_; vals = vals_;   // copies: fold_cert extends them
     static vector<double> y; y.resize(rows.size()); for (int q = 0; q < (int)rows.size(); q++) y[q] = L.y[q];
+    fold_cert(rows, vals, y, mi, &w, s_, false);
     Mod &m = mods[mi]; ll triv = 0; for (int r = 0; r < m.M; r++) triv += llabs((ll)w[r]) * m.sz[r];
     static const int CERT_DD[3] = {50, 54, 58}; static const double CERT_SS[3] = {16777216.0, 268435456.0, 4294967296.0};   // T = 2^74, 2^82, 2^90
     static vector<ll> ints, best_ints; static vector<LL> best_B; ll best = triv + 1; int best_a = -1; LL best_tot = 0;
@@ -692,8 +794,10 @@ static void cert_bounds(int mi, const vector<int> &w, int sym, long k, const Cer
     fputc('\n', CERTF);
     if (k == 0) CLOSE_DONE = true;
 }
-static bool exact_bound_form_scaled(int mi, const vector<int> &w, const vector<int> &rows, const vector<double> &vals, ll &bound) {
+static bool exact_bound_form_scaled(int mi, const vector<int> &w, const vector<int> &rows_, const vector<double> &vals_, ll &bound) {
+    static vector<int> rows; static vector<double> vals; rows = rows_; vals = vals_;   // copies: fold_cert extends them
     static vector<double> y; y.resize(rows.size()); for (int q = 0; q < (int)rows.size(); q++) y[q] = L.y[q];
+    fold_cert(rows, vals, y, mi, &w, 0.001, false);                                     // the objective T/1000 w, below
     static vector<ll> ints; if (!build_w(rows, y.data(), 1.0L, DD0, SS0, ints)) return false;
     Mod &m = mods[mi]; LL T = DD0 * (LL)SS0; LL K = 0; for (int q = 0; q < (int)rows.size(); q++) if (ints[q]) K += DD0 * ints[q] * raw_of(rows[q], vals[q]);
     // T/1000 per unit of w: use T' = T / 1000 exact by making T a multiple of 1000
@@ -703,9 +807,10 @@ static bool exact_bound_form_scaled(int mi, const vector<int> &w, const vector<i
 static vector<double> xbuf;
 static vector<int> wit; static ll wit_err = 0, wit_closed = 0, wit_nodes = 0;
 static bool holds_witness(const Node &nd) {
+    if (FOLD && !wit.empty()) abort_fold("a witness (holds_witness)");
     if (wit.empty()) return false;
     for (int v : nd.sgn) { int p = abs(v) - 1; if ((v > 0 ? 1 : -1) != wit[p]) return false; }
-    for (auto &f : nd.fixed) { const double *Ai = &L.A[(size_t)f.first * N_]; double s = 0; for (int j = 0; j < N_; j++) s += Ai[j] * wit[j]; if (fabs(s - f.second) > 1e-7) return false; }
+    for (auto &f : nd.fixed) { const double *Ai = &UA[(size_t)f.first * N_]; double s = 0; for (int j = 0; j < N_; j++) s += Ai[j] * wit[j]; if (fabs(s - f.second) > 1e-7) return false; }
     return true;
 }
 static bool wit_in_dom(const Dom &D) {
@@ -715,6 +820,26 @@ static bool wit_in_dom(const Dom &D) {
 }
 static int DROPLAST = 0;
 static int DROPDEP = 0;
+// The node's symmetric rows among all its pinned rows (base_rows drops some from the LP's list, implied by others, but a
+// certificate may use any), for fold_cert: a symmetric row of the start node at value 0 (a form e_r - s e_sigma(r), or e_r alone
+// where sigma(r) = r and s = -1), or else a class's row and its mirror's.
+static void fold_note_pairs(const Node &nd) {
+    static map<pair<int, int>, pair<int, double>> cls; cls.clear(); FOLDPAIR.clear();
+    for (auto &f : nd.fixed) {
+        int i = f.first; double v = f.second; if (i < M_) continue;
+        int mi = rowform[i].first; Mod &m = mods[mi]; int M = m.M;
+        if (i >= m.pos && i < m.pos + M) { cls[{mi, i - m.pos}] = {i, v}; continue; }
+        const vector<int> &w = rowform[i].second; int a = -1, b = -1, nz = 0; for (int r = 0; r < M; r++) if (w[r]) { nz++; (a < 0 ? a : b) = r; }
+        int sa = a >= 0 ? (N_FULL - 1 - a) % M : -1;
+        if (fabs(v) < 1e-12 && ((nz == 2 && sa == b && w[b] == -FOLD * w[a]) || (nz == 1 && sa == a && FOLD == -1))) FOLDPAIR[{mi, a}] = {{i, 1.0 / w[a], v}};
+    }
+    for (auto &kv : cls) {
+        int mi = kv.first.first, r = kv.first.second, M = mods[mi].M, t = (N_FULL - 1 - r) % M;
+        if (t < r || FOLDPAIR.count({mi, r})) continue;
+        if (t == r) { if (FOLD == -1) FOLDPAIR[{mi, r}] = {{kv.second.first, 1.0, kv.second.second}}; continue; }
+        auto it = cls.find({mi, t}); if (it != cls.end()) FOLDPAIR[{mi, r}] = {{kv.second.first, 1.0, kv.second.second}, {it->second.first, (double)-FOLD, it->second.second}};
+    }
+}
 static void base_rows(const Node &nd, vector<int> &rows, vector<double> &vals, int skipmi) {
     // the moments; fixed rows; rows of a modulus with a fully pinned multiple are implied.  skipmi: during a test of that modulus, its forms and its divisors' classes go too.
     rows.clear(); vals.clear();
@@ -735,10 +860,11 @@ static void base_rows(const Node &nd, vector<int> &rows, vector<double> &vals, i
         if (skipmi >= 0 && fm == skipmi) continue;
         rows.push_back(f.first); vals.push_back(f.second); drop[f.first] = 1;   // once only: a class pinned by a split and then by its whole modulus would make the basis singular
     }
+    if (FOLD) fold_note_pairs(nd);
 }
 static ll rayfail = 0, unproved = 0;
 static bool ray_valid(const vector<int> &rows, const vector<double> &vals) {
-    int n = N_; static vector<double> c; c.assign(n, 0.0); double K = 0;
+    int n = L.n; static vector<double> c; c.assign(n, 0.0); double K = 0;
     for (int q = 0; q < (int)rows.size(); q++) { double yq = L.ray[rows[q]]; if (yq == 0.0) continue; const double *Ai = &L.A[(size_t)rows[q] * n]; for (int j = 0; j < n; j++) c[j] += yq * Ai[j]; K += yq * vals[q]; }
     double budget = 0; for (int j = 0; j < n; j++) budget += fabs(c[j]);
     return fabs(K) > budget * (1 + 1e-9) + 1e-7;
@@ -800,6 +926,7 @@ static int feasible_base_(const Node &nd);
 static int BK = 2, NEXTBK = 0; static ll BKI[3], BKN[3]; static double BKT[3];
 static int feasible_base(const Node &nd) { double t0 = now(); ll i0 = L.iters; int st = feasible_base_(nd); PHI[0] += L.iters - i0; PHN[0]++; PHT[0] += now() - t0; ST.tBase += now() - t0; BKI[BK] += L.iters - i0; BKN[BK]++; BKT[BK] += now() - t0; BK = 2; return st; }
 static void set_signs(const Node &nd) {
+    if (FOLD && !nd.sgn.empty()) abort_fold("a node with known signs (set_signs)");
     if (FZlist == nd.sgn) return;
     for (int v : FZlist) FZ[abs(v) - 1] = 0;
     FZlist = nd.sgn;
@@ -885,6 +1012,7 @@ static void filter_domain(const Node &nd, Dom &D, int tm, int fm) { PT pt_(0);
     int mi_ = D.mi; ll i0 = L.iters, s0 = L.solves; int N0 = D.N; filter_domain_(nd, D, tm, fm); if (mi_ >= 0 && mi_ < 64) { double *o = FDS[mi_]; o[0] += 1; o[1] += L.iters - i0; o[2] += L.solves - s0; o[3] += N0; o[4] += N0 - D.N; o[5] += D.N == 0; o[6] += D.N == 1 && N0 > 1; o[7] += N0 == 1; }
 }
 static void filter_domain_(const Node &nd, Dom &D, int tm, int fm) {
+    if (FOLD) abort_fold("a node's lists of residue vectors (filter_domain_)");
     if (D.N == 0) return; double t0 = now();
     if (FMODE == 1) { filter_support(nd, D, tm, fm); ST.tFilter += now() - t0; return; }
     pool_apply(nd, D); if (D.N == 0) { ST.tFilter += now() - t0; return; }
@@ -1040,7 +1168,7 @@ static void make_q(const vector<int> &rows) {
     int same = 0, lim = min<int>(k, Qrows.size()); while (same < lim && Qrows[same] == rows[same]) same++;
     Qrows.resize(same); Qcount.resize(same); int kk = same ? Qcount[same - 1] : 0;
     for (int q = same; q < k; q++) {
-        double *__restrict__ v = &Qcache[(size_t)kk * n]; memcpy(v, &L.A[(size_t)rows[q] * n], n * sizeof(double));
+        double *__restrict__ v = &Qcache[(size_t)kk * n]; memcpy(v, &UA[(size_t)rows[q] * n], n * sizeof(double));
         if (rows[q] >= M_) for (int a = 0; a < kk; a++) { const double *__restrict__ qa = &Qcache[(size_t)a * n]; double c = 0; for (int j = 0; j < n; j++) c += qa[j] * v[j]; for (int j = 0; j < n; j++) v[j] -= c * qa[j]; }
         double nr = 0; for (int j = 0; j < n; j++) nr += v[j] * v[j]; nr = sqrt(nr); if (nr >= 1e-8) { nr = 1 / nr; for (int j = 0; j < n; j++) v[j] *= nr; kk++; }
         Qrows.push_back(rows[q]); Qcount.push_back(kk);
@@ -1101,7 +1229,7 @@ static void rank_forms(const Node &nd, const vector<int> &rows) {
     double t0 = now(); FR.clear(); int n = N_, k = rows.size();
     static vector<double> Q, X, C, mu, xp; Q.resize((size_t)k * n); int kk = 0;
     for (int q = 0; q < k; q++) {
-        double *v = &Q[(size_t)kk * n]; memcpy(v, &L.A[(size_t)rows[q] * n], n * sizeof(double));
+        double *v = &Q[(size_t)kk * n]; memcpy(v, &UA[(size_t)rows[q] * n], n * sizeof(double));
         if (rows[q] >= M_) for (int a = 0; a < kk; a++) { const double *qa = &Q[(size_t)a * n]; double c = 0; for (int j = 0; j < n; j++) c += qa[j] * v[j]; for (int j = 0; j < n; j++) v[j] -= c * qa[j]; }
         double nr = 0; for (int j = 0; j < n; j++) nr += v[j] * v[j]; nr = sqrt(nr); if (nr < 1e-8) continue; nr = 1 / nr; for (int j = 0; j < n; j++) v[j] *= nr; kk++;
     }
@@ -1200,8 +1328,10 @@ static int RTDUAL = 0; static int RT2_MI = -1, RT2_WI = -1; static ll RT2_A = 0,
 static inline LL fdiv128(LL a, LL b) { LL q = a / b; if ((a % b != 0) && ((a < 0) != (b < 0))) q--; return q; }
 static inline LL cdiv128(LL a, LL b) { LL q = a / b; if ((a % b != 0) && ((a < 0) == (b < 0))) q++; return q; }
 // After lp_feasible said infeasible on rows whose last is the form's: what the ray proves about the form on every point of the node, in exact integers.  closed: the rows without the form already have no point.
-static bool exact_range_ray(const vector<int> &rows, const vector<double> &vals, ll target, ll &lo_, ll &hi_, bool &closed) {
+static bool exact_range_ray(const vector<int> &rows_, const vector<double> &vals_, ll target, ll &lo_, ll &hi_, bool &closed) {
+    static vector<int> rows; static vector<double> vals; rows = rows_; vals = vals_;   // copies: fold_cert extends them
     static vector<double> y; int nr = rows.size(); y.resize(nr); for (int q = 0; q < nr; q++) y[q] = L.ray[rows[q]];
+    fold_cert(rows, vals, y, -1, nullptr, 0.0, true); nr = rows.size();               // the form's row stays last
     long double sc = y_scale(rows, y.data()); static vector<ll> ints; const LL DD1 = ((LL)1) << 58; const double SS1 = 4294967296.0;
     for (int attempt = 0; attempt < 2; attempt++) {
         LL DD = attempt ? DD1 : DD0; double SS = attempt ? SS1 : SS0;
@@ -1388,6 +1518,7 @@ static int scan6(Node &nd, Split &sp, int maxfail, int limitk) {
 static int PROBE = 0, PROBE_MAXP = 400, PROBE_ROUNDS = 8; static ll probe_calls = 0, probe_fix = 0, probe_close = 0, probe_lps = 0, probe_fail = 0, probe_pass_nofix = 0; static double tProbe = 0;
 static mt19937_64 PR_rng(777);
 static bool exact_bound_pos(int p, int s_, const vector<int> &rows, const vector<double> &vals, ll &bound) {
+    if (FOLD) abort_fold("sign probing (exact_bound_pos)");
     static vector<double> y; y.resize(rows.size()); for (int q = 0; q < (int)rows.size(); q++) y[q] = L.y[q];
     static vector<ll> ints; if (!build_w(rows, y.data(), 1.0L, DD0, SS0, ints)) return false;
     LL T = DD0 * (LL)SS0; LL K = 0; for (int q = 0; q < (int)rows.size(); q++) if (ints[q]) K += DD0 * ints[q] * raw_of(rows[q], vals[q]);
@@ -1396,6 +1527,7 @@ static bool exact_bound_pos(int p, int s_, const vector<int> &rows, const vector
 }
 // a proved upper bound on the sum over G of d[p] a_p, using the multipliers of the LP just solved
 static bool exact_bound_group(const vector<int> &G, const vector<signed char> &dirs, const vector<int> &rows, const vector<double> &vals, ll &bound) {
+    if (FOLD) abort_fold("sign probing (exact_bound_group)");
     static vector<double> y; y.resize(rows.size()); for (int q = 0; q < (int)rows.size(); q++) y[q] = L.y[q];
     static vector<ll> ints; if (!build_w(rows, y.data(), 1.0L, DD0, SS0, ints)) return false;
     LL T = DD0 * (LL)SS0; LL K = 0; for (int q = 0; q < (int)rows.size(); q++) if (ints[q]) K += DD0 * ints[q] * raw_of(rows[q], vals[q]);
@@ -1881,7 +2013,7 @@ static void dump_node(const Node &nd, int depth) {
     char name[512]; snprintf(name, sizeof name, "%s_%d.txt", dump_prefix.c_str(), dump_written++);
     FILE *f = fopen(name, "w"); if (!f) return;
     fprintf(f, "%d %d %d\n", N_, (int)rows.size(), depth);
-    for (size_t q = 0; q < rows.size(); q++) { const double *Ai = &L.A[(size_t)rows[q] * N_]; fprintf(f, "%.17g", vals[q]); for (int j = 0; j < N_; j++) fprintf(f, " %.17g", Ai[j]); fprintf(f, "\n"); }
+    for (size_t q = 0; q < rows.size(); q++) { const double *Ai = &UA[(size_t)rows[q] * N_]; fprintf(f, "%.17g", vals[q]); for (int j = 0; j < N_; j++) fprintf(f, " %.17g", Ai[j]); fprintf(f, "\n"); }
     int cnt = 0; for (int M : want) { int mi = modidx[M]; if (nd.full >> mi & 1) continue; bool listed = false; for (auto &D : nd.dom) if (D.mi == mi) listed = true; if (!listed) cnt++; }
     fprintf(f, "%d\n", cnt);
     for (int M : want) { int mi = modidx[M]; if (nd.full >> mi & 1) continue; bool listed = false; for (auto &D : nd.dom) if (D.mi == mi) listed = true; if (listed) continue;
@@ -1898,7 +2030,7 @@ static int expand(Node &nd, int depth, Split &sp) {
     int st = expand_(nd, depth, sp);
     if (st == 1 && SDPCB && depth <= SDPMAXD) {
         static vector<int> rows; static vector<double> vals; static vector<double> AA; base_rows(nd, rows, vals, -1); AA.resize(rows.size() * N_);
-        for (size_t q = 0; q < rows.size(); q++) memcpy(&AA[q * N_], &L.A[(size_t)rows[q] * N_], N_ * sizeof(double));
+        for (size_t q = 0; q < rows.size(); q++) memcpy(&AA[q * N_], &UA[(size_t)rows[q] * N_], N_ * sizeof(double));
         sdp_calls++; if (SDPCB(N_, (int)rows.size(), AA.data(), vals.data(), depth)) { sdp_closed++; return 0; }
     }
     return st;
@@ -2139,6 +2271,7 @@ void write_node(const Node &nd, const char *path) {
 }
 static bool read_node(Node &nd, const char *path) {
     ifstream in(path); if (!in) return false; nd = Node(); nd.tried.assign(mods.size(), -99); nd.fullval.assign(mods.size(), {}); { string tok; in >> tok; if (tok == "v2") in >> nd.G >> nd.full; else nd.full = (unsigned)stoul(tok); }
+    if (FOLD && nd.G) abort_fold("a node marked closed under reversal (G)");
     for (int a = 0; a < (PM >= 0 ? PM : (int)mods.size()); a++) in >> nd.tried[a];
     int nf = __builtin_popcount(nd.full);
     for (int b = 0; b < nf; b++) { int M; in >> M; int mi = modidx[M]; nd.fullval[mi].resize(M); for (auto &v : nd.fullval[mi]) in >> v; }
@@ -2157,7 +2290,12 @@ static LL rdLL(istream &in) { string s; in >> s; LL v = 0; size_t i = 0; bool ne
 extern "C" {
 // config: text: n m nmods; then for each modulus: M nb mult; rep[order]; sizes by class; order; piv; B (M rows of nb) ; nW; W rows
 int pe_init(const char *path, const double *moments) {
-    ifstream in(path); int nm; in >> N_ >> M_ >> nm; lp_init(N_); mods.clear(); modidx.clear(); forms.clear(); rowform.clear();
+    ifstream in(path); int nm; in >> N_ >> M_ >> nm;
+    { const char *e = getenv("PEX_FOLD"); N_FULL = N_;   // fold mode, set or unset: see FOLD
+      FOLD = !e ? 0 : string(e) == "1" ? 1 : string(e) == "-1" ? -1 : 2;
+      if (FOLD == 2 || (FOLD && N_ % 2)) { fprintf(stderr, "PEX_FOLD=%s: it must be 1 or -1, with n even, or unset\n", e); abort(); } }
+    FOLDTO.clear(); FOLDSGN.clear(); FOLDSEEN.clear(); UA.clear();
+    lp_init(FOLD ? N_ / 2 : N_); FZ.assign(N_, 0); mods.clear(); modidx.clear(); forms.clear(); rowform.clear();
     BINOM.assign(N_, vector<LL>(M_, 0)); for (int p = 0; p < N_; p++) { LL c = 1; for (int t = 0; t < M_; t++) { BINOM[p][t] = c; c = c * (p - t) / (t + 1); if (p - t <= 0) c = 0; } }
     for (int i = 0; i < M_; i++) { lp_add_row(moments + (size_t)i * N_); rowform.push_back({-1, {}}); }
     for (int a = 0; a < nm; a++) {
@@ -2268,6 +2406,9 @@ int pe_run_file(const char *path, double limit, double *stats, const char *logpa
 long long pe_exact_ok() { return exact_ok; }
 long long pe_unproved() { return unproved; }
 long long pe_exact_fail() { return exact_fail; }
+// fold mode's sign, 0 when unfolded (PEX_FOLD, read by pe_init); and the number of forms the configuration lists at a modulus, -1 for none of its moduli
+int pe_fold() { return FOLD; }
+int pe_nforms(int M) { auto it = modidx.find(M); return it == modidx.end() ? -1 : (int)mods[it->second].W.size(); }
 // Knuth's estimate of a task's subtree: est nodes, cost seconds
 int pe_dive_file(const char *path, double limit, unsigned long long seed, double *stats) {
     Node nd; if (!read_node(nd, path)) return -1;
