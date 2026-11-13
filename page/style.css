@@ -334,7 +334,10 @@ code[aria-expanded], [data-text][aria-expanded] { cursor: pointer; text-decorati
    their range lines, so all four multiply onto what lies under them; the bands at 40% and 26% since 2026-10-23 (dreeves: "shouldn't
    we be able to visually distinguish between a region that both red and purple confidence bands cover vs just the purple"), so
    the three regions they make sit ΔE 14.0, 11.9 and 7.8 apart (OKLab x 100; 6.0, 8.5 and 4.6 at 16% and 16%). */
-.progress { display: grid; grid-template-columns: minmax(0, 1fr); max-width: var(--measure); --progress-settled: #3a9f7a; --progress-open: #a8283f; --progress-split: #4a73d0; --progress-pending: #bfc3c8; --progress-running: #e09a1c; --progress-spent: #2a78d6; --progress-togo: #e34948; --progress-total: #7b1fa2; --progress-hair: #e1e0d9; }
+.progress { display: grid; grid-template-columns: minmax(0, 1fr); --progress-settled: #3a9f7a; --progress-open: #a8283f; --progress-split: #4a73d0; --progress-pending: #bfc3c8; --progress-running: #e09a1c; --progress-spent: #2a78d6; --progress-togo: #e34948; --progress-total: #7b1fa2; --progress-hair: #e1e0d9; }
+/* (since 2026-11-12 the section spans the page's column, as Figures 1 and 2 do, so that its graphs do; its paragraphs keep the
+   measure, as main's do: dreeves, "could the graphs use more of the available horizontal space?"; until then the whole section
+   stopped at the measure) */
 .progress summary { cursor: pointer; }
 .progress summary h2 { display: inline; }
 .progress details > * + * { margin-top: 0.8rem; }
@@ -618,6 +621,6 @@ footer {
 .progress-odds polyline, .progress-pending polyline { fill: none; stroke: var(--ink); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
 .progress-odds .wash, .progress-pending .wash { fill: color-mix(in oklab, var(--progress-pending) 45%, var(--paper)); stroke: none; mix-blend-mode: multiply; }
 .progress-odds .axis, .progress-odds .grid, .progress-pending .axis, .progress-pending .grid { stroke: var(--progress-hair); stroke-width: 1; vector-effect: non-scaling-stroke; }
-.progress-odds .yaxis { stroke: var(--muted); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.progress-odds .yaxis, .progress-cpu .yaxis, .progress-pending .yaxis { stroke: var(--muted); stroke-width: 1; vector-effect: non-scaling-stroke; }
 .progress-odds text, .progress-pending text { fill: var(--muted); stroke: none; font-variant-numeric: tabular-nums lining-nums; }
 .progress-odds .mark, .progress-pending .mark { fill: var(--ink); stroke: var(--paper); stroke-width: 2; vector-effect: non-scaling-stroke; }

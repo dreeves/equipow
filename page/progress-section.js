@@ -206,7 +206,9 @@
     const drawn = data.runs.map(run => searchBox(run, data.made));
     view.layouts = drawn.map(d => d.layout);
     runsBox.replaceChildren(...drawn.map(d => d.box));
-    tick();                                    // the age and the times so far as of now, not the snapshot's, at once
+    // every y label laid out within its margin (ETA_L), or an error: not a label cut off at its chart's edge (2026-11-12)
+    for (const t of runsBox.querySelectorAll('text.ytick')) assert(t.getComputedTextLength() <= ETA_L - 6, 'a y label wider than its margin', t.textContent);
+    tick();                                   // the age and the times so far as of now, not the snapshot's, at once
   }
 
   // A search's box, every search's the same (see the top): the box's template, filled from the search's entry.  Its
@@ -402,16 +404,37 @@
     return L;
   }
 
-  // The ETA chart's x axis: hours of running, from 0 to past the projected finish (the last record's elapsed + ETA, or
-  // the time so far), its round ticks and labels, and its scale across the chart's width; the CPU chart under it shares
-  // them, so that the two line up (2026-11-07)
-  const ETA_W = 640, ETA_L = 48, ETA_R = 72;
-  function etaX(run) {
+  // The ETA chart's x axis: hours of running, from 0 to the projected finish (the last record's elapsed + ETA, the purple
+  // dashed line, or the time so far if later), its round ticks within that, and its scale across the chart's width, from
+  // the margin ETA_L, which holds the y labels (dreeves, 2026-11-12: "could the graphs use more of the available
+  // horizontal space? no indenting, for one thing. ... how about end the x-axis range right at the purple dashed
+  // vertical line?"; until then from a margin of 48 of 640 units to the round tick past the projected finish, and a
+  // margin of 72 on the right, for the labels at the latest record commented out on 2026-10-17; then, that afternoon,
+  // from the chart's left edge, the y labels inside the plot, until dreeves asked "is that standard at all to put the
+  // [y]-axis annotations to the right of the [y]-axis?" and said, of dropping the y axis line, "i'm guessing the axis
+  // break slashes will make no visual sense without an axis line"): ETA_L 40 CSS px, for the widest y label drawn that
+  // day, "0.04 h", 30 px, and 6 between it and the axis; the CPU and pending charts under it share them, so that they
+  // line up (2026-11-07), and the probability graph has the same margins.  ETA_R: room for the
+  // last hour label's half.  A chart's width W (chartWidth): each chart draws in CSS px, its viewBox as wide and as high
+  // as it shows (sized), so that its text and margins are the sizes they say at every width (since 2026-11-12; until then
+  // every chart drew 640 units across, so that its 12px text showed at 18px once the charts went as wide as the page's
+  // column that day, and at 7px on a phone); a pointer's place in a chart, svgX.
+  const ETA_L = 40, ETA_R = 16;
+  const chartWidth = () => { const W = section.clientWidth; assert(W > 0, 'a chart with no width', W); return W; };
+  const sized = (svg, W, H) => svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  const svgX = (svg, ev) => { const b = svg.getBoundingClientRect(); return (ev.clientX - b.left) * svg.viewBox.baseVal.width / b.width; };
+  function etaX(run, W) {
     const last = run.etas[run.etas.length - 1];
     const xmax = Math.max(run.so_far / 3600, 1 / 3600, ...(last ? [(last[1] + last[2]) / 3600] : []));
-    const [xticks, xlabels] = axis(xmax, Math.ceil);
-    return {xmax, xticks, xlabels, X: x => ETA_L + (ETA_W - ETA_L - ETA_R) * x / xticks[xticks.length - 1]};
+    const [xticks, xlabels] = axis(xmax, Math.floor);
+    return {xmax, xticks, xlabels, X: x => ETA_L + (W - ETA_L - ETA_R) * x / xmax};
   }
+  // A chart's hour labels along its foot, on the row y, each centered on its tick; its value labels in the margin left
+  // of its y axis, each right-aligned 6 short of it, 4 below its value, so centered on its gridline (2026-11-12); and its
+  // y axis's line, at the margin's edge, from y1 to y2 (every chart's since that day: the CPU and pending charts' had none)
+  const xLabels = (ticks, labels, X, y) => ticks.map((v, i) => make('text', {class: 'xtick', x: X(v), y, 'text-anchor': 'middle'}, labels[i]));
+  const yLabels = (ticks, labels, Y) => ticks.map((v, i) => make('text', {class: 'ytick', x: ETA_L - 6, y: Y(v) + 4, 'text-anchor': 'end'}, labels[i]));
+  const yAxis = (y1, y2) => make('line', {class: 'yaxis', x1: ETA_L, y1, x2: ETA_L, y2});
 
   // The time under the pointer, floating on an aligned chart's x axis (the ETA, CPU and pending charts'), on the dashed
   // line through the pointer (dreeves, 2026-11-12: "what if we showed the timestamp more subtly and showed it floating
@@ -422,7 +445,7 @@
   function stampAt(g, x, y, t) {
     const text = g.querySelector('text');
     text.textContent = local(t);
-    const w = text.getComputedTextLength() + 8, cx = Math.min(ETA_W - w / 2, Math.max(w / 2, x));
+    const W = g.ownerSVGElement.viewBox.baseVal.width, w = text.getComputedTextLength() + 8, cx = Math.min(W - w / 2, Math.max(w / 2, x));
     set(text, {x: cx, y});
     set(g.querySelector('rect'), {x: cx - w / 2, y: y - 11, width: w, height: 15});
     g.setAttribute('visibility', 'visible');
@@ -430,9 +453,10 @@
 
   function etaChart(fig, run) {
     const pts = run.etas.map(([t, x, m, lo, hi]) => [t, x / 3600, m / 3600, lo / 3600, hi / 3600]);
-    const W = ETA_W, H = 240, L = ETA_L, R = ETA_R, T = 14, B = 30, CROWD = 44, HEAD = 1.1, TOP = 40, GAP = 10;
+    const W = chartWidth(), H = 240, L = ETA_L, R = ETA_R, T = 14, B = 30, CROWD = 44, HEAD = 1.1, TOP = 40, GAP = 10;
     const now = run.so_far / 3600, last = pts[pts.length - 1];
-    const {xmax, xticks, xlabels, X} = etaX(run);
+    const {xmax, xticks, xlabels, X} = etaX(run, W);
+    sized(fig.querySelector('svg'), W, H);
     // the y axis's cap: a bit above the projected finish, the guide's level, and the elapsed time (dreeves, 2026-10-23:
     // "truncate the y-axis a bit above the horizontal purple dashed line"); anything taller goes to the top panel where
     // that gives the main panel a larger scale than one axis up to the tallest value would, i.e. where the tallest is
@@ -476,8 +500,7 @@
                                      // the y axis's line (dreeves, 2026-10-23: "i think we need a visible y-axis line for
                                      // that to look reasonable"), broken at the gap: the top panel's part has no length
                                      // without one
-                                     make('line', {class: 'yaxis', x1: L, y1: Y(0), x2: L, y2: yb}),
-                                     make('line', {class: 'yaxis', x1: L, y1: yt, x2: L, y2: T}));
+                                     yAxis(Y(0), yb), yAxis(yt, T));
     // a slash across each end of the y axis's break: the canonical mark of a broken axis
     q('[data-breaks]').replaceChildren(...[yt, yb].map(y =>
       make('line', {class: 'break', x1: L - 4, y1: y + 4, x2: L + 4, y2: y - 4, visibility: over ? 'visible' : 'hidden'})));
@@ -493,10 +516,9 @@
     set(q('[data-togo]'), {points: P(pts.map(p => [p[1], p[2]]))});
     set(q('[data-total]'), {points: P(pts.map(p => [p[1], p[1] + p[2]]))});
     q('[data-ticks]').replaceChildren(
-      ...yticks.concat(t2).map((v, i) => make('text', {class: 'ytick', x: L - 6, y: Y(v) + 4, 'text-anchor': 'end'}, ylabels.concat(l2)[i])),
-      ...xticks.map((v, i) => [v, xlabels[i]])
-               // .filter(([v]) => Math.abs(X(v) - X(now)) >= CROWD)      // room for the elapsed time's label, commented out with it
-               .map(([v, label]) => make('text', {class: 'xtick', x: X(v), y: H - 8, 'text-anchor': 'middle'}, label)));
+      ...yLabels(yticks.concat(t2), ylabels.concat(l2), Y),
+      // (the x labels kept out of the elapsed time's label's way until it was commented out: .filter(([v]) => Math.abs(X(v) - X(now)) >= CROWD))
+      ...xLabels(xticks, xlabels, X, H - 8));
     const fin = last[1] + last[2];               // the projected finish: hours of running when elapsed time meets elapsed + ETA
     set(q('[data-ahead]'), {x1: X(last[1]), y1: Y(last[1]), x2: X(fin), y2: Y(fin)});
     set(q('[data-guide]'), {points: P([[last[1], fin], [fin, fin], [fin, 0]])});      // across from the purple marker, then down
@@ -531,7 +553,7 @@
     at(pts.length - 1, 0);                      // laid out at rest, invisible, as the latest record's line
     set(cross, {x1: X(last[1]), y1: T, x2: X(last[1]), y2: Y(0)});   // hidden at rest; up through the strip
     svg.addEventListener('mousemove', ev => {
-      const b = svg.getBoundingClientRect(), x = Math.min((ev.clientX - b.left) * W / b.width, W - R);   // not past the axis
+      const x = Math.min(svgX(svg, ev), W - R);   // not past the axis
       // left of the last record, the nearest record (the latest of equals); right of it, the last record carried on to
       // the pointer, in whole minutes (the records' cadence)
       const near = Math.min(x, end), s = 60 * Math.round(60 * (Math.max(x, end) - end) / hour);
@@ -573,13 +595,12 @@
   // the readout gave both until then), all empty with no rows, when the chart shows its grid alone.
   function cpuChart(fig, run) {
     assert(Array.isArray(run.cpu), run.search, run.n, run.order);
-    const {xticks, xlabels, X} = etaX(run), H = 98, T = 4, B = 30, Y = f => H - B - (H - B - T) * f;   // the foot, B, the ETA chart's (2026-11-12)
+    const W = chartWidth(), {xticks, xlabels, X} = etaX(run, W), H = 110, T = 16, B = 30, Y = f => H - B - (H - B - T) * f;   // the foot, B, the ETA chart's; T room for "100%" (2026-11-12)
     const q = sel => fig.querySelector(sel), cross = q('[data-cpu-cross]'), svg = fig.querySelector('svg'), stampG = q('[data-stamp]');
+    sized(svg, W, H);
     q('[data-cpu-grid]').replaceChildren(...xticks.map(v => make('line', {class: 'grid', x1: X(v), y1: T, x2: X(v), y2: H - B})),
-                                         make('line', {class: 'axis', x1: ETA_L, y1: Y(0), x2: ETA_W - ETA_R, y2: Y(0)}));
-    q('[data-cpu-ticks]').replaceChildren(make('text', {class: 'ytick', x: ETA_L - 6, y: Y(1) + 8, 'text-anchor': 'end'}, '100%'),
-                                          make('text', {class: 'ytick', x: ETA_L - 6, y: Y(0), 'text-anchor': 'end'}, '0'),
-                                          ...xticks.map((v, i) => make('text', {class: 'xtick', x: X(v), y: H - 8, 'text-anchor': 'middle'}, xlabels[i])));
+                                         make('line', {class: 'axis', x1: ETA_L, y1: Y(0), x2: W - ETA_R, y2: Y(0)}), yAxis(Y(0), T));
+    q('[data-cpu-ticks]').replaceChildren(...yLabels([1, 0], ['100%', '0'], Y), ...xLabels(xticks, xlabels, X, H - 8));
     const tops = r => [r[3], r[3] + Math.max(0, r[4]), r[3] + Math.max(0, r[4]) + r[5]];   // the bands' tops, bottom up
     const stretches = run.cpu.reduce((s, r, i) => (i && run.cpu[i - 1][1] === r[0] ? s[s.length - 1].push(r) : s.push([r]), s), []);
     const bands = ['search', 'other', 'idle'].flatMap((name, j) => stretches.map(rows => {
@@ -594,7 +615,7 @@
     const rest = run.cpu[run.cpu.length - 1];
     say(rest);
     svg.onmousemove = ev => {                   // the row under the pointer, or the nearest, and a crosshair through it
-      const b = svg.getBoundingClientRect(), x = (ev.clientX - b.left) * ETA_W / b.width;
+      const x = svgX(svg, ev);
       const row = run.cpu.reduce((best, r) => Math.abs((X(r[0]) + X(r[1])) / 2 - x) < Math.abs((X(best[0]) + X(best[1])) / 2 - x) ? r : best, rest ?? [0, 0]);
       say(rest && row);
       // the dashed line at the row's end, whose time floats on the x axis (2026-11-12; at the pointer until then)
@@ -617,14 +638,14 @@
   // for the quals.
   function pendingChart(fig, run) {
     assert(Array.isArray(run.pending) && run.pending.every(r => r.length === 3 && r.every(Number.isFinite)), 'malformed pending', run.search, run.n, run.order);
-    const {xticks, xlabels, X} = etaX(run), H = 136, T = 8, B = 30, q = sel => fig.querySelector(sel);
+    const W = chartWidth(), {xticks, xlabels, X} = etaX(run, W), H = 144, T = 16, B = 30, q = sel => fig.querySelector(sel);   // T room for the top value's label (2026-11-12)
+    sized(fig.querySelector('svg'), W, H);
     const yticks = countTicks(Math.max(1, ...run.pending.map(r => r[2]))), Y = v => H - B - (H - B - T) * v / yticks[yticks.length - 1];
     fig.toggleAttribute('data-empty', !run.pending.length);
     q('[data-pending-grid]').replaceChildren(...xticks.map(v => make('line', {class: 'grid', x1: X(v), y1: T, x2: X(v), y2: H - B})),
-                                             ...yticks.slice(1).map(v => make('line', {class: 'grid', x1: ETA_L, y1: Y(v), x2: ETA_W - ETA_R, y2: Y(v)})),
-                                             make('line', {class: 'axis', x1: ETA_L, y1: Y(0), x2: ETA_W - ETA_R, y2: Y(0)}));
-    q('[data-pending-ticks]').replaceChildren(...yticks.map(v => make('text', {class: 'ytick', x: ETA_L - 6, y: Y(v) + 4, 'text-anchor': 'end'}, compact.format(v))),
-                                              ...xticks.map((v, i) => make('text', {class: 'xtick', x: X(v), y: H - 8, 'text-anchor': 'middle'}, xlabels[i])));
+                                             ...yticks.slice(1).map(v => make('line', {class: 'grid', x1: ETA_L, y1: Y(v), x2: W - ETA_R, y2: Y(v)})),
+                                             make('line', {class: 'axis', x1: ETA_L, y1: Y(0), x2: W - ETA_R, y2: Y(0)}), yAxis(Y(0), T));
+    q('[data-pending-ticks]').replaceChildren(...yLabels(yticks, yticks.map(v => compact.format(v)), Y), ...xLabels(xticks, xlabels, X, H - 8));
     const line = run.pending.map(([, x, k]) => [X(x / 3600), Y(k)]), ends = [line.slice(0, 1), line.slice(-1)];   // none with no point
     set(q('[data-pending-line]'), {points: xy(line)});
     set(q('[data-pending-wash]'), {points: xy([...ends[0].map(([x]) => [x, Y(0)]), ...line, ...ends[1].map(([x]) => [x, Y(0)])])});
@@ -641,7 +662,7 @@
   function hoverPoints(fig, xs, times, y1, y2, y) {
     const svg = fig.querySelector('svg'), cross = fig.querySelector('line.cross'), stampG = fig.querySelector('[data-stamp]');
     svg.onmousemove = ev => {
-      const b = svg.getBoundingClientRect(), x = (ev.clientX - b.left) * ETA_W / b.width;
+      const x = svgX(svg, ev);
       const k = xs.reduce((best, v, i) => Math.abs(v - x) < Math.abs(xs[best] - x) ? i : best, xs.length - 1);   // -1 with no point
       for (const t of times.slice(k, k + 1)) {
         set(cross, {x1: xs[k], y1, x2: xs[k], y2}).setAttribute('visibility', 'visible');
@@ -657,20 +678,20 @@
     assert(typeof prior === 'number' && 0 <= prior && prior <= 1 && Array.isArray(exists) && (Number.isFinite(since) || (since === null && !exists.length))
            && exists.every(([t, p]) => Number.isFinite(t) && 0 <= p && p <= 1), 'malformed odds', run.odds);
     fill(fig, 'odds-prior', num(prior));
-    const W = 640, H = 160, L = 48, R = 72, T = 14, B = 30, q = sel => fig.querySelector(sel);
+    const W = chartWidth(), H = 160, L = ETA_L, R = ETA_R, T = 14, B = 30, q = sel => fig.querySelector(sel);   // the ETA chart's margins (2026-11-12)
+    sized(fig.querySelector('svg'), W, H);
     const pts = exists.map(([t, p]) => [(t - since) / 3600, p]);
     const top = Math.max(0.01, ...pts.map(([, p]) => p)), step = tickStep(top);
     const pticks = Array.from({length: Math.ceil(top / step - 1e-9) + 1}, (_, i) => i * step);
-    const [tticks, tlabels] = axis(Math.max(1 / 4, run.so_far / 3600, ...pts.map(([h]) => h)), Math.ceil);
-    const X = h => L + (W - L - R) * h / tticks[tticks.length - 1], Y = v => H - B - (H - B - T) * v / pticks[pticks.length - 1];
+    // its x axis ending at its last point, or the time so far if later, its round ticks within that (2026-11-12, as the ETA chart's)
+    const end = Math.max(1 / 4, run.so_far / 3600, ...pts.map(([h]) => h)), [tticks, tlabels] = axis(end, Math.floor);
+    const X = h => L + (W - L - R) * h / end, Y = v => H - B - (H - B - T) * v / pticks[pticks.length - 1];
     q('[data-exists-grid]').replaceChildren(
       ...pticks.slice(1).map(v => make('line', {class: 'grid', x1: L, y1: Y(v), x2: W - R, y2: Y(v)})),
       make('line', {class: 'axis', x1: L, y1: Y(0), x2: W - R, y2: Y(0)}),
-      make('line', {class: 'yaxis', x1: L, y1: Y(0), x2: L, y2: T}));
-    q('[data-exists-ticks="p"]').replaceChildren(...pticks.map((v, i) =>
-      make('text', {class: 'ytick', x: L - 6, y: Y(v) + 4, 'text-anchor': 'end'}, num(100 * v) + (i === pticks.length - 1 ? '%' : ''))));
-    q('[data-exists-ticks="t"]').replaceChildren(...tticks.map((h, i) =>
-      make('text', {class: 'xtick', x: X(h), y: H - 8, 'text-anchor': 'middle'}, tlabels[i])));
+      yAxis(Y(0), T));
+    q('[data-exists-ticks="p"]').replaceChildren(...yLabels(pticks, pticks.map((v, i) => num(100 * v) + (i === pticks.length - 1 ? '%' : '')), Y));
+    q('[data-exists-ticks="t"]').replaceChildren(...xLabels(tticks, tlabels, X, H - 8));
     const line = pts.map(([h, p]) => [X(h), Y(p)]), ends = [line.slice(0, 1), line.slice(-1)];   // none with no point
     set(q('[data-exists-line]'), {points: xy(line)});
     set(q('[data-exists-wash]'), {points: xy([...ends[0].map(([x]) => [x, Y(0)]), ...line, ...ends[1].map(([x]) => [x, Y(0)])])});

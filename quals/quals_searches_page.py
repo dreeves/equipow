@@ -19,8 +19,10 @@ band = lambda m, lo, hi: dict(median=m, lo=lo, hi=hi)
 
 
 def entry(search, n, order, state, outcome, basis, work, so_far, to_go, runs, dots, exists, pending):
-    """An entry as watch.py writes it: three estimates, the last at MADE, with these nodes pending (None: none counted)."""
-    times = [MADE - 600, MADE - 300, MADE]
+    """An entry as watch.py writes it: three estimates, a third of its time so far apart, the last at MADE, with these nodes
+    pending (None: none counted).  (Until 2026-11-12 five minutes apart: a pixel or two on a chart of tens of hours, too
+    close for a pointer to tell apart.)"""
+    times = [MADE - round(2 * so_far / 3), MADE - round(so_far / 3), MADE]
     return dict(search=search, n=n, order=order, state=state, outcome=outcome, so_far=so_far, runs=runs,
                 statuses=['settled', 'open', 'pending', 'running'], depth=0, keys=[f'{n}:{order}'], groups=[dots],
                 counts={s: dots.count(str(i)) for i, s in enumerate(['settled', 'open', 'pending', 'running'])},
@@ -99,6 +101,20 @@ HARNESS = r"""<script>
     const none = await new Promise(done => window.progressView.want(7n, 3, nodes => done(nodes)));
     result.none = none.map(e => typeof e === 'string' ? e : e.textContent);
     result.etaXs = window.progressView.layouts.map(L => L.etaXs);
+    // each graph's span (2026-11-12): its axis line's ends, its y labels' places, the ETA chart's purple guide, and the column
+    const tree = section.querySelector('.progress-runs .progress-run'), one = (sel, a) => +tree.querySelector(sel).getAttribute(a);
+    result.span = tree && {column: document.querySelector('section.mstar').getBoundingClientRect().width, svg: tree.querySelector('.progress-eta svg').getBoundingClientRect().width,
+                   axes: Object.fromEntries(['eta', 'cpu', 'pending', 'odds'].map(k => [k, [one(`.progress-${k} line.axis`, 'x1'), one(`.progress-${k} line.axis`, 'x2')]])),
+                   // each graph's y axis line or lines, [x1, x2], and the ETA chart's slashes at its break, [x1, x2, visibility]
+                   yaxes: Object.fromEntries(['eta', 'cpu', 'pending', 'odds'].map(k => [k, [...tree.querySelectorAll(`.progress-${k} line.yaxis`)].map(l => [+l.getAttribute('x1'), +l.getAttribute('x2')])])),
+                   breaks: [...tree.querySelectorAll('.progress-eta line.break')].map(l => [+l.getAttribute('x1'), +l.getAttribute('x2'), l.getAttribute('visibility')]),
+                   // each value label's x, its anchor, and its ink's left and right edges as drawn; each hour label's anchor
+                   ylabels: [...tree.querySelectorAll('svg text.ytick')].map(t => { const b = t.getBBox(); return [+t.getAttribute('x'), t.getAttribute('text-anchor'), b.x, b.x + b.width]; }),
+                   xanchors: [...tree.querySelectorAll('svg text.xtick')].map(t => t.getAttribute('text-anchor')),
+                   guide: tree.querySelector('.progress-eta [data-guide]').getAttribute('points').trim().split(/\s+/).map(p => p.split(',').map(Number)),
+                   // each chart's drawing against its size as it shows: [viewBox width, shown width, viewBox height, shown height]
+                   scale: ['eta', 'cpu', 'pending', 'odds'].map(k => { const v = tree.querySelector(`.progress-${k} svg`), b = v.getBoundingClientRect();
+                                                                       return [v.viewBox.baseVal.width, b.width, v.viewBox.baseVal.height, b.height]; })};
     result.figureText = getComputedStyle(document.getElementById('mstar-readout')).fontSize;   // Figure 1's readout, as its legend's
     // the words of each graph, with where they sit against it and their size (2026-11-12)
     const after = (a, b) => !!(a && b && (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING));
@@ -126,10 +142,10 @@ HARNESS = r"""<script>
     const box = section.querySelector('.progress-runs .progress-run'), L = window.progressView.layouts[0];
     const hover = (sel, x) => {
       const svg = box.querySelector(sel + ' svg'), b = svg.getBoundingClientRect();
-      svg.dispatchEvent(new MouseEvent('mousemove', {clientX: b.left + x * b.width / 640, clientY: b.top + b.height / 2, bubbles: true}));
+      svg.dispatchEvent(new MouseEvent('mousemove', {clientX: b.left + x * b.width / svg.viewBox.baseVal.width, clientY: b.top + b.height / 2, bubbles: true}));
       const g = box.querySelector(sel + ' [data-stamp]'), text = g.querySelector('text'), cross = box.querySelector(sel + ' line.cross');
       const ticks = [...box.querySelectorAll(sel + ' text.xtick')];
-      const read = {shown: g.getAttribute('visibility') === 'visible', text: text.textContent, x: +text.getAttribute('x'), y: +text.getAttribute('y'),
+      const read = {width: svg.viewBox.baseVal.width, shown: g.getAttribute('visibility') === 'visible', text: text.textContent, x: +text.getAttribute('x'), y: +text.getAttribute('y'),
                     cross: +cross.getAttribute('x1'), tickY: ticks.length ? +ticks[0].getAttribute('y') : null,
                     box: (r => [+r.getAttribute('x'), +r.getAttribute('width')])(g.querySelector('rect')),
                     tip: box.querySelector('[data-tip]').innerText.replace(/\s+/g, ' ').trim(),
@@ -255,6 +271,42 @@ def q_each_graph_s_title_is_above_it_its_numbers_below_in_one_size():
         assert all(abs(w['tipHeight'] - w['statusHeight']) < 1 for w in r['words'][:1]), (width, r['words'][0]['tipHeight'], r['words'][0]['statusHeight'])
 
 
+def q_graphs_span_the_column_and_end_at_the_projected_finish():
+    # Replicata: the same page, at 1280 px and at 390 px: the running form tree's box.
+    # Expectata (dreeves, 2026-11-12: "could the graphs use more of the available horizontal space? no indenting, for one
+    # thing. and we could see a bit more detail if we weren't as zoomed out on the x-axis. how about end the x-axis range
+    # right at the purple dashed vertical line?"): its graphs as wide as Figure 1, the page's column (until then the
+    # section stopped at the text's measure, 46rem of 62rem); every graph's plot from its left edge, with no indent: its
+    # axis line from 0, its y labels inside it, starting at its left edge (until then they stood in a margin of 48 of its
+    # 640 units); the ETA chart's x axis ending at the purple dashed line, the projected finish: the guide's vertical at
+    # the axis's right end (until then the axis ran on to the next round tick), and the CPU and pending charts, which
+    # share that axis, ending there too.  And each chart drawn in CSS px, its drawing as wide and as high as it shows, so
+    # that its text and margins are the sizes they say at every width (until then 640 units across: once the charts were
+    # as wide as the column, its 12px labels showed at 18px, and on a phone at 7px).
+    # Spec change (Opus 5.5, 2026-11-12, later; dreeves, of the value labels inside the plot: "is that standard at all to
+    # put the [y]-axis annotations to the right of the [y]-axis? or were you just taking me extremely literally?", then,
+    # of a proposal to drop the y axis line: "i'm guessing the axis break slashes will make no visual sense without an axis
+    # line"): every graph's value labels outside its plot again, right-aligned in a margin at its left no wider than 40,
+    # their right ends 6 short of its y axis, none cut off at the chart's left edge; each graph's y axis line at the
+    # margin's edge, m, where its x axis starts, the same in all four graphs (the CPU and nodes pending graphs had none
+    # until then); the ETA chart's slashes, shown (this box's bands break its axis), each across that line; and every
+    # hour label centered on its tick, the first too.  Until then each plot started at x 0, its value labels inside it,
+    # each starting 2 right of its left edge, and the first hour label started at its tick.
+    for width in (1280, 390):
+        r = report(width)
+        sp = r['span']
+        assert abs(sp['svg'] - sp['column']) < 1, (width, sp['svg'], sp['column'])
+        m = sp['axes']['eta'][0]
+        assert 0 < m <= 40 and all(x1 == m for x1, _ in sp['axes'].values()), (width, sp['axes'])
+        assert all(ys and all(a == b == m for a, b in ys) for ys in sp['yaxes'].values()), (width, sp['yaxes'])
+        assert len(sp['breaks']) == 2 and all(a < m < b and shown == 'visible' for a, b, shown in sp['breaks']), (width, sp['breaks'])
+        assert sp['ylabels'] and all(anchor == 'end' and x <= m - 6 and left >= 0 and right <= m for x, anchor, left, right in sp['ylabels']), (width, sp['ylabels'])
+        assert sp['xanchors'] and set(sp['xanchors']) == {'middle'}, (width, sp['xanchors'])
+        right = sp['axes']['eta'][1]
+        assert [x for x, _ in sp['guide'][1:]] == [right, right] and sp['axes']['cpu'][1] == sp['axes']['pending'][1] == right, (width, sp['guide'], sp['axes'])
+        assert all(abs(vw - w) < 1 and abs(vh - h) < 1 for vw, w, vh, h in sp['scale']), (width, sp['scale'])
+
+
 def q_hovering_floats_the_time_on_the_x_axis():
     # Replicata: the same page at 1280 px; the pointer over the running form tree's ETA chart at its second estimate,
     # then away; over its CPU chart in its first row, then away; over its nodes pending at their second point, then away;
@@ -262,8 +314,9 @@ def q_hovering_floats_the_time_on_the_x_axis():
     # Expectata (dreeves, 2026-11-12: "the wrapping in this screenshot is a little awkward; what if we showed the
     # timestamp more subtly and showed it floating on the x-axis matched up with the dashed vertical line on the graph
     # marking the timestamp in question that we're hovering over?"): in each chart the time under the pointer shows on
-    # its x axis, on the row of its hour labels, centered on the dashed line (a box under it, the paper's color, as wide
-    # as the text, so that it covers the labels it sits on): over the ETA chart the estimate's clock time, over the CPU
+    # its x axis, on the row of its hour labels, on the dashed line: centered on it, but within the chart, where a point
+    # is near its edge (since that day the plot starts at the chart's left edge); a box under it, the paper's color, a
+    # little wider than the text, so that it covers the labels it sits on: over the ETA chart the estimate's clock time, over the CPU
     # chart its row's end, over the nodes pending and over the probability graph their point's (the probability graph
     # since that afternoon; dreeves: "should we have the same hover effect on all graphs consistently? it's missing on
     # the probability graph"), each local, to the minute (YYYY-MM-DD HH:MM); and away, none shows.  The tip over the ETA chart reads out the estimate without its time (no @, not the time on the
@@ -275,8 +328,9 @@ def q_hovering_floats_the_time_on_the_x_axis():
     want = dict(eta=local(TREE['etas'][1][0]), cpu=local(TREE['cpu'][0][2]), pending=local(TREE['pending'][1][0]), odds=local(TREE['odds']['exists'][1][0]))
     for name, got in h.items():
         assert got['shown'] and got['text'] == want[name], (name, got, want[name])
-        assert abs(got['x'] - got['cross']) < 0.5 and abs(got['y'] - got['tickY']) < 0.5, (name, got)
-        assert abs(got['box'][0] + got['box'][1] / 2 - got['x']) < 0.5 and got['box'][1] > 40, (name, got)
+        x0, w = got['box']
+        assert abs(got['y'] - got['tickY']) < 0.5 and abs(x0 + w / 2 - got['x']) < 0.5 and w > 40, (name, got)
+        assert x0 <= got['cross'] <= x0 + w and 0 <= x0 and x0 + w <= got['width'], (name, got)   # on the line, within the chart
         assert not got['after']['shown'], (name, got)
     assert re.match(r'\d+h\s\d+m\s\d+s \+ ', h['eta']['tip']) and '@' not in h['eta']['tip'] and want['eta'] not in h['eta']['tip'], h['eta']['tip']
     assert '@' not in h['cpu']['cpu'] and want['cpu'] not in h['cpu']['cpu'], h['cpu']['cpu']

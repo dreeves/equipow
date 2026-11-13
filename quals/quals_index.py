@@ -5382,15 +5382,15 @@ PROGRESS_HARNESS = """<script>
     out.tipRest = {visibility: getComputedStyle(tipEl).visibility, height: tipEl.getBoundingClientRect().height};
     const top0 = status.getBoundingClientRect().top;
     const sb = svg.getBoundingClientRect();
-    svg.dispatchEvent(new MouseEvent('mousemove', {clientX: sb.left + L.etaXs[1] * sb.width / 640, clientY: sb.top + sb.height / 2, bubbles: true}));
+    svg.dispatchEvent(new MouseEvent('mousemove', {clientX: sb.left + L.etaXs[1] * sb.width / svg.viewBox.baseVal.width, clientY: sb.top + sb.height / 2, bubbles: true}));
     out.eta.tip = getComputedStyle(tipEl).visibility === 'visible' ? text('[data-tip]') : null;
     out.jump = status.getBoundingClientRect().top - top0;
-    svg.dispatchEvent(new MouseEvent('mousemove', {clientX: sb.left + L.etaXs[L.etaXs.length - 1] * sb.width / 640, clientY: sb.top + sb.height / 2, bubbles: true}));
+    svg.dispatchEvent(new MouseEvent('mousemove', {clientX: sb.left + L.etaXs[L.etaXs.length - 1] * sb.width / svg.viewBox.baseVal.width, clientY: sb.top + sb.height / 2, bubbles: true}));
     out.eta.tipLast = text('[data-tip]');
     out.eta.sameMarkup = tipEl.innerHTML === status.querySelector('[data-state="running"]').innerHTML;
     out.eta.projectedAtRecord = tipEl.classList.contains('projected');
     const xAt = h => L.etaXs[0] + h * (L.etaXs[1] - L.etaXs[0]);      // viewBox x at h hours: PROGRESS_DATA's records sit at 0, 1, 2 h
-    svg.dispatchEvent(new MouseEvent('mousemove', {clientX: sb.left + xAt(2.5) * sb.width / 640, clientY: sb.top + sb.height / 2, bubbles: true}));
+    svg.dispatchEvent(new MouseEvent('mousemove', {clientX: sb.left + xAt(2.5) * sb.width / svg.viewBox.baseVal.width, clientY: sb.top + sb.height / 2, bubbles: true}));
     out.eta.tipAhead = text('[data-tip]');
     out.eta.stampAhead = fig.querySelector('[data-stamp] text').textContent;   // the time on the x axis (2026-11-12)
     out.eta.ahead = {projected: tipEl.classList.contains('projected'), style: getComputedStyle(tipEl).fontStyle,
@@ -6098,7 +6098,7 @@ def q_progress_lines_have_no_time_the_axis_does():
   const [fresh, stale] = runs(), squeeze = t => t.replace(/[ \\t\\n\\r]+/g, ' ').trim();
   const shown = r => squeeze(r.querySelector('.progress-status [data-state="running"]').innerText);
   const L = window.progressView.layouts[0], svg = fresh.querySelector('.progress-eta svg'), sb = svg.getBoundingClientRect();
-  svg.dispatchEvent(new MouseEvent('mousemove', {clientX: sb.left + L.etaXs[L.etaXs.length - 1] * sb.width / 640, clientY: sb.top + sb.height / 2, bubbles: true}));
+  svg.dispatchEvent(new MouseEvent('mousemove', {clientX: sb.left + L.etaXs[L.etaXs.length - 1] * sb.width / svg.viewBox.baseVal.width, clientY: sb.top + sb.height / 2, bubbles: true}));
   out({status: [shown(fresh), shown(stale)], tip: squeeze(fresh.querySelector('[data-tip]').innerText),
        axis: fresh.querySelector('.progress-eta [data-stamp] text').textContent,
        mark: stale.querySelector('[data-stale]').checkVisibility() && stale.querySelector('[data-stale-at]').textContent,
@@ -6149,7 +6149,10 @@ def q_progress_writes_days_and_years_past_72_h_and_dates_past_a_week():
     parts = SvgParts()
     parts.feed(R['etaSvg'])
     ticks = lambda k: [text for tag, at, text in parts.items if at.get('class') == k]
-    assert ticks('xtick') == ['0', '100', '200', '300', f'400{d}'], ticks('xtick')
+    # (2026-11-12; dreeves: "could the graphs use more of the available horizontal space? no indenting, for one thing. ... how about end
+    # the x-axis range right at the purple dashed vertical line?"): the x axis ends at the projected finish, 313 d, its round
+    # ticks within it, the last with the unit; until then to the round tick past it, 400 d.
+    assert ticks('xtick') == ['0', '100', '200', f'300{d}'], ticks('xtick')
     assert ticks('ytick') == ['0', '100', '200', f'300{d}', '6', f'8{y}'], ticks('ytick')   # then the top panel's
 
 
@@ -6187,7 +6190,7 @@ def q_progress_elapsed_is_days_hours_minutes_seconds_and_ticks():
   await sleep(1100);
   const third = read();
   const [r] = runs(), L = window.progressView.layouts[0], svg = r.querySelector('.progress-eta svg'), sb = svg.getBoundingClientRect();
-  svg.dispatchEvent(new MouseEvent('mousemove', {clientX: sb.left + L.etaXs[L.etaXs.length - 1] * sb.width / 640, clientY: sb.top + sb.height / 2, bubbles: true}));
+  svg.dispatchEvent(new MouseEvent('mousemove', {clientX: sb.left + L.etaXs[L.etaXs.length - 1] * sb.width / svg.viewBox.baseVal.width, clientY: sb.top + sb.height / 2, bubbles: true}));
   out({first, second, third, tip: r.querySelector('[data-tip] [data-so-far]').textContent,
        track: runs()[1].querySelector('[data-track-line]').textContent.replace(/\\s+/g, ' ').trim(),
        trackElapsed: runs()[1].querySelectorAll('[data-track-line] [data-elapsed]').length});""",
@@ -6255,7 +6258,10 @@ def q_progress_draws_cpu_aligned_with_the_eta_chart():
     x0, x2 = c['etaXs'][0], c['etaXs'][2]
     # (2026-11-12: its x axis labeled as the ETA chart's, the hours in a band at its foot as tall as that chart's, so
     # that the time under the pointer can float there: 98 high, 30 at the foot; 72 and 4 until then)
-    H, T, B = 98, 4, 30
+    # (2026-11-12; dreeves: "could the graphs use more of the available horizontal space? no indenting, for one thing. ... how about end
+    # the x-axis range right at the purple dashed vertical line?"): its value labels inside it, "100%" over its top, so 16 at
+    # the top (4 until then) and 110 high, the plot as tall as before.
+    H, T, B = 110, 16, 30
     Y = lambda f: H - B - (H - B - T) * f
     for (_, points), tops in zip(c['bands'], ([0.5, 0.25], [0.8, 0.5], [1.0, 1.0])):
         ps = [tuple(map(float, p.split(','))) for p in points.split()]
@@ -6291,7 +6297,7 @@ def q_progress_cpu_key_carries_each_share():
   };
   const rest = read();
   const L = window.progressView.layouts[0], sb = svg.getBoundingClientRect(), x = L.etaXs[0] + 0.5 * (L.etaXs[1] - L.etaXs[0]);
-  svg.dispatchEvent(new MouseEvent('mousemove', {clientX: sb.left + x * sb.width / 640, clientY: sb.top + sb.height / 2, bubbles: true}));
+  svg.dispatchEvent(new MouseEvent('mousemove', {clientX: sb.left + x * sb.width / svg.viewBox.baseVal.width, clientY: sb.top + sb.height / 2, bubbles: true}));
   out({rest, hover: read()});""")
     rest, hover = got['rest'], got['hover']
     assert rest['shares'] == dict(search='25%', other='25%', idle='50%') and rest['inEntries'], got
@@ -6391,7 +6397,7 @@ def q_progress_breaks_the_y_axis_above_the_projected_finish():
         parts.feed(progress_run(case)['etaSvg'])
         pts = lambda a: [tuple(map(float, xy.split(','))) for xy in a['points'].split()]
         seg = lambda a: tuple(float(a[k]) for k in ('x1', 'y1', 'x2', 'y2'))
-        [axis] = [float(a['y1']) for tag, a, _ in parts.items if tag == 'line' and a.get('class') == 'axis']
+        [(x0, axis)] = [(float(a['x1']), float(a['y1'])) for tag, a, _ in parts.items if tag == 'line' and a.get('class') == 'axis']   # where the x axis starts, and its height
         [guide] = [pts(a) for tag, a, _ in parts.items if tag == 'polyline' and a.get('class') == 'guide']
         clip = SvgParts()                                    # the clip path's rects (the time's box, since 2026-11-12, is none of them)
         clip.feed(re.search(r'<clipPath.*?</clipPath>', progress_run(case)['etaSvg'], re.S).group(0))
@@ -6403,13 +6409,24 @@ def q_progress_breaks_the_y_axis_above_the_projected_finish():
         assert all(b - a >= 4 for a, b in zip(rows, rows[1:])), (case, rows)
         assert (yt, yb) == ((54.0, 64.0) if over else (14.0, 14.0)), (case, yt, yb)
         breaks = [(seg(a), a.get('visibility')) for tag, a, _ in parts.items if tag == 'line' and a.get('class') == 'break']
-        assert sorted(s for s, _ in breaks) == sorted((48 - 4, y + 4, 48 + 4, y - 4) for y in (yt, yb)), (case, breaks)
+        # (2026-11-12; dreeves: "could the graphs use more of the available horizontal space? no indenting, for one thing. ... how about end
+    # the x-axis range right at the purple dashed vertical line?"): the y axis at the chart's left edge, x 0 (48 until then),
+        # and its value labels inside, 3 above their gridlines (4 below their values until then).
+        # Spec change (Opus 5.5, 2026-11-12, later; dreeves, of those labels: "is that standard at all to put the [y]-axis
+        # annotations to the right of the [y]-axis? or were you just taking me extremely literally?", then, of a proposal to
+        # drop the y axis line: "i'm guessing the axis break slashes will make no visual sense without an axis line"): the y
+        # axis's line where the x axis starts, x0, past a margin that holds the value labels, outside the plot again, each
+        # right-aligned 6 short of the line and 4 below its value; the slashes across the line.
+        assert x0 > 0 and sorted(s for s, _ in breaks) == sorted((x0 - 4, y + 4, x0 + 4, y - 4) for y in (yt, yb)), (case, x0, breaks)
         spine = sorted(seg(a) for tag, a, _ in parts.items if tag == 'line' and a.get('class') == 'yaxis')
-        assert spine == sorted([(48, axis, 48, yb), (48, yt, 48, 14)]), (case, spine)
+        assert spine == sorted([(x0, axis, x0, yb), (x0, yt, x0, 14)]), (case, spine)
         assert all(v == ('visible' if over else 'hidden') for _, v in breaks), (case, breaks)
+        ticks = [a for tag, a, _ in parts.items if tag == 'text' and a.get('class') == 'ytick']
+        assert ticks and all(a.get('text-anchor') == 'end' and float(a['x']) == x0 - 6 for a in ticks), (case, ticks)
         top = [(float(a['y']) - 4, t) for tag, a, t in parts.items if tag == 'text' and a.get('class') == 'ytick' and float(a['y']) - 4 < yb - 0.05]
         assert [t for _, t in top] == labels and all(14 - 0.05 <= y <= yt + 0.05 for y, _ in top), (case, top)
-        assert rects == [(0, 0, 640, yt), (0, yb, 640, 240 - yb)], (case, rects)
+        W = float(re.search(r'viewBox="0 0 ([0-9.]+) 240"', progress_run(case)['etaSvg']).group(1))   # its width in CSS px (2026-11-12; 640 units until then)
+        assert rects == [(0, 0, W, yt), (0, yb, W, 240 - yb)], (case, rects)
         bands = [y for tag, a, _ in parts.items if tag == 'polygon' for _, y in pts(a)]
         assert all(14 - 0.05 <= y <= yt + 0.05 or yb - 0.05 <= y for y in bands), (case, sorted(bands))
         assert any(y < yb - 0.05 for y in bands) == over, case
@@ -6792,7 +6809,9 @@ def q_progress_every_run_has_one_probability_graph():
     (_, x0), (_, x6) = camp['tticks'][0], camp['tticks'][-1]
     (_, y0), (_, y3) = camp['pticks'][0], camp['pticks'][-1]
     X = lambda hours: x0 + (x6 - x0) * hours / 6
-    Y = lambda v: y0 - 4 + (y3 - y0) * v / 0.3                    # a tick label sits 4 below its value's line
+    # a tick label sits 3 above its value's line, inside the chart (2026-11-12; dreeves: "could the graphs use more of the available horizontal space? no indenting, for one thing. ... how about end the x-axis range right at the purple dashed vertical line?"); 4 below it until then
+    # and 4 below it again, in the margin left of the plot, later that day (Opus 5.5; dreeves: "i'm guessing the axis break slashes will make no visual sense without an axis line")
+    Y = lambda v: y0 - 4 + (y3 - y0) * v / 0.3
     want = [(X((t - ODDS_SINCE) / 3600), Y(p)) for t, p in ODDS_CAMPAIGN['exists']]
     assert all(abs(a - c) < 0.05 and abs(b - d) < 0.05 for (a, b), (c, d) in zip(camp['line'], want)), (camp['line'][:3], want[:3])
     assert all(abs(a - c) < 0.05 for a, c in zip(camp['marks'][0], want[-1])), (camp['marks'], want[-1])
@@ -7169,9 +7188,16 @@ def q_progress_eta_chart_keeps_progress_html_s_spec():
     cross = next(a for c, _, a in lines if c == 'cross')
     assert cross.get('visibility') == 'hidden', cross
     yt = [(float(a['y']), text) for tag, a, text in els if tag == 'text' and a.get('class') == 'ytick']
+    # (2026-11-12; dreeves: "could the graphs use more of the available horizontal space? no indenting, for one thing. ... how about end
+    # the x-axis range right at the purple dashed vertical line?"): the value labels inside the chart, 3 above their
+    # gridlines (4 below them until then); the x axis ends at the projected finish, 14.2 h, its round ticks within it, so
+    # its labels 0, 5 and 10 h (to 15 h until then).  And later that day (Opus 5.5; dreeves, of those labels: "is that
+    # standard at all to put the [y]-axis annotations to the right of the [y]-axis?", then "i'm guessing the axis break
+    # slashes will make no visual sense without an axis line"): the value labels in a margin left of the plot again, 4
+    # below their values.
     assert [v for _, v in yt] == ['0', '5', '10', '15\u202fh'] and all(abs(y - 4 - Ys(int(v.split()[0]))) < 0.05 for y, v in yt), yt   # up to the cap, 16.2 h (2026-11-04; to the cap 15.62 h, then the top panel's 20 h, from 2026-10-23; to 20 h before)
     xt = [(float(a['x']), text) for tag, a, text in els if tag == 'text' and a.get('class') == 'xtick']
-    assert [v for _, v in xt] == ['0', '5', '10', '15\u202fh'] and all(abs(x - X(int(v.split()[0]))) < 0.05 for x, v in xt), xt
+    assert [v for _, v in xt] == ['0', '5', '10\u202fh'] and all(abs(x - X(int(v.split()[0]))) < 0.05 for x, v in xt), xt
     now = {a['class'].split()[1]: (float(a['cx']), float(a['cy'])) for tag, a, _ in els if tag == 'circle'}
     assert sorted(now) == ['spent', 'togo', 'total'], now
     check([now['spent'], now['togo'], now['total']], [(13.2, 13.2), (13.2, 1), (13.2, 14.2)], 'now')
