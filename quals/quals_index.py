@@ -44,9 +44,12 @@ PAGEDATA = 'pagedata'
 DATA = os.path.join(HERE, PAGEDATA, 'mstar.js')         # made by mstar.py; the chart's data
 POW2 = os.path.join(HERE, PAGEDATA, 'pow2.js')          # made by pow2.py; the data of the chart of powers of 2, also on the page
 PAGE_DIR = os.path.join(HERE, 'page')         # the page's stylesheet and scripts, which index.html links (2026-10-31)
+PREVIEW = os.path.join(HERE, 'preview.png')   # the picture a shared link shows (index.html's og:image), pagegen/preview.py's
+sys.path.insert(0, os.path.join(HERE, 'pagegen'))   # preview.py's directory (q_preview_png_is_current)
 CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
 # The flags every headless Chrome of the quals starts with: chrome() here, and the node drivers of quals_pow2_page and
-# quals_codes, which get them as C.headless.  chrome()'s docstring explains --allow-file-access-from-files.
+# quals_codes, which get them as C.headless; pagegen/preview.py's FLAGS begin with them too (q_preview_png_is_current).
+# chrome()'s docstring explains --allow-file-access-from-files.
 # --disable-backgrounding-occluded-windows (2026-11-10): when the Mac's display goes to sleep, Chrome takes its pages
 # for hidden, a headless Chrome's too: document.visibilityState turns "hidden", requestAnimationFrame stops, and timers
 # tick once a second.  A run caught by the display's sleep then waited on a frame to its watchdog (2026-11-09 23:36,
@@ -7370,6 +7373,33 @@ def q_ai_text_starts_folded():
     bqs = re.findall(r'<blockquote class="claude">.*?</blockquote>', s, re.S)
     unsigned = [b[:120] for b in bqs if not re.search(r'<p class="attrib">— (Opus 5\.5|Fable 5\.2|Astra|Claude)</p>\s*</blockquote>$', b)]
     assert bqs and unsigned == [], unsigned
+
+
+def q_preview_png_is_current():
+    # Replicata: preview.png as it is, and the image pagegen/preview.py draws now from the page (index.html, page/ and
+    # the data files the page loads, as they are), into a directory of the qual's.
+    # Expectata (dreeves, 2026-11-13: "i guess that would be a reasonable qual, sure, to keep the preview image from
+    # getting stale"): the two are the same, pixel for pixel, so that a shared link shows the page as it is.  When they
+    # differ, rerun `python3 -B pagegen/preview.py` and look at the image.  The builder draws the same pixels run after
+    # run (2026-11-13: renders in parallel and in turn, byte for byte); a new Chrome or new fonts from Google could move
+    # pixels too, and the same rerun answers that.  When the page does not load whole (without the network its fonts and
+    # KaTeX are missing), the builder fails on its own and leaves preview.png as it is.  preview.png's pixels are those
+    # of dreeves's Mac, its Chrome and fonts, so elsewhere this fails.  The builder's Chrome is the quals' (CHROME) and
+    # starts with the quals' flags (HEADLESS), in their order.
+    # Resultata before: the preview.png of 2026-11-09 (rebuilt 2026-11-13) differed from the page in the cells of 2^30,
+    # 2^33, 2^34, 2^51 and 2^52 and in the legend.
+    from PIL import Image, ImageChops
+    import preview
+    assert preview.CHROME == CHROME and preview.FLAGS[:len(HEADLESS)] == HEADLESS, (preview.CHROME, preview.FLAGS, HEADLESS)
+    d = tempfile.mkdtemp(prefix='index-quals-')
+    try:
+        fresh = Image.open(preview.render(os.path.join(d, 'preview.png'))).convert('RGB')
+        held = Image.open(PREVIEW).convert('RGB')
+        assert held.size == fresh.size == preview.SIZE, (held.size, fresh.size, preview.SIZE)
+        where = ImageChops.difference(held, fresh).getbbox()
+        assert where is None, ('preview.png is not what pagegen/preview.py draws now: rerun it and look at the image', where)
+    finally:
+        shutil.rmtree(d)
 
 
 def main():
