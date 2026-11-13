@@ -269,6 +269,56 @@ def q_order_12_is_down_to_528():
     assert set(BARE_12) <= set(listed), listed
 
 
+# The account's table of lengths from which each order holds (Opus 5.5, 2026-11-12), found by its caption's id: the
+# tails of orders 13 and 14 that its paragraph states, A, b and threshold, order 14's A from order 13's tail (every
+# multiple of 16 from 3696 on, and 3680, the wrap of 1840:12, has an antisymmetric sequence of order 13); and the
+# closure's lengths for it, one multiple of 16 past order 14's threshold.
+ORDER_13 = (1488, 720, 3696)
+ORDER_14 = (3680, 1200, 8560)
+FROM = 8576
+FROM_TABLE = re.compile(r'<table>\s*<caption id="symmetry-table">.*?</table>', re.S)
+
+
+def from_table(sec):
+    """The rows of the account's table of lengths, [(a, z, N)]: the orders a to z of a row's first cell (an order, a
+    range a–z, or \\(\\ge a\\), whose z is None), and its second cell's N, a whole number written out or as \\(2^{E}\\),
+    or None for any other."""
+    [table] = FROM_TABLE.findall(sec)
+    rows = re.findall(r'<tr><td>(.*?)</td><td>(.*?)</td></tr>', table, re.S)
+    assert rows, table
+    cell = lambda t: re.fullmatch(r'\\\(2\^\{(\d+)\}\\\)|([\d,]+)', t.strip())
+    value = lambda c: c and (2 ** int(c[1]) if c[1] else int(c[2].replace(',', '')))
+    return [(int(re.findall(r'\d+', a)[0]), None if '\\ge' in a else int(re.findall(r'\d+', a)[-1]), value(cell(n))) for a, n in rows]
+
+
+def q_symmetry_table_gives_each_order_s_length():
+    # Replicata: the account's table of lengths (its caption's id symmetry-table): each row's orders and its N; the
+    # reduction carried to order 14 with the closure's lengths to FROM (reduction(MAXM=14, N=FROM)), on the page; the
+    # proof's threshold_log2 (symlarge); and, as a control, the reduction to order 12 (lengths to 2240) on the page
+    # without the account's code 2192:12.
+    # Expectata (Opus 5.5, 2026-11-12; dreeves: "can you add a table to the end of the Symmetry Conjecture that gives,
+    # for each order m, the N such that the symmetry conjecture holds for lengths n>=N"): the rows take the orders 1 to
+    # 19 in turn, then every order from 20 on; for each order m up to 14, N is one more than the largest multiple of
+    # period(m) that the reduction leaves uncovered, or 1 if it leaves none: 1 through order 11, 529 at 12 (528 left),
+    # 3665 at 13 and 7329 at 14, the tails of 13 and 14 being ORDER_13 and ORDER_14; for each order from 15 to 19, which
+    # have no tail from the page's sequences, N is 2^(threshold_log2(m) + 1), from which Fable 5.2's theorem gives a
+    # (-1)^m-symmetric sequence of order m at every length that Divisibility allows.  Without 2192:12, 2192 is left at
+    # order 12 too, and order 12's N would be 2193: the table's numbers follow the page's sequences.
+    # Resultata before: the account had no such table; it stated where orders 9 to 12 hold from, and for orders 13 and
+    # up only that they hold at every sufficiently large length.
+    text = qi.page()
+    got = reduction(text, MAXM=14, N=FROM)
+    assert (got[13][:3], got[14][:3]) == (ORDER_13, ORDER_14), (got[13][:3], got[14][:3])
+    want = [(m, max(got[m][3], default=0) + 1) for m in range(1, 15)] + [(m, 2 ** (symlarge.threshold_log2(m) + 1)) for m in range(15, 20)]
+    assert [w for m, w in want[11:14]] == [529, 3665, 7329], want[11:14]
+    rows = from_table(account(text))
+    said = [(m, n) for a, z, n in rows[:-1] for m in range(a, z + 1)]
+    assert said == want, ([(m, n, w) for (m, n), (_, w) in zip(said, want) if n != w], said[:3], len(said))
+    assert rows[-1][:2] == (20, None), rows[-1]
+    bare = re.sub(r'<code id="2192:12">[0-9A-F]+</code>', '', text)
+    assert bare != text and reduction(bare, MAXM=12, N=2240)[12][3] == [528, 2192]
+
+
 def q_every_known_order_has_its_symmetric_sequence():
     # Replicata: the chart's columns (mstar.js, every n it has) and the closure of the page's sequences up to the
     # chart's last length; at each n, the chart's lower bound there and the order below it, those of them that are
@@ -329,6 +379,11 @@ def q_symmetry_conjecture_holds_through_order_11():
     # Since 2026-11-11 the account also states order 12's A, b and threshold (ORDER_12, Fable 5.2's paragraph), which
     # q_order_12_is_down_to_528 holds to the reduction carried one order on.
     tails.append(ORDER_12)
+    # Since 2026-11-12 (Opus 5.5; dreeves: "can you add a table to the end of the Symmetry Conjecture that gives, for
+    # each order m, the N such that the symmetry conjecture holds for lengths n>=N"), its paragraph before that table
+    # states order 13's and order 14's too, which q_symmetry_table_gives_each_order_s_length holds to the reduction
+    # carried to order 14.
+    tails += [ORDER_13, ORDER_14]
     assert sorted({int(x) for f in said for x in re.findall(r'^A = (\d+)$', f.strip())}) == sorted({A for A, *_ in tails}), said
     assert sorted({int(x) for f in said for x in re.findall(r'^b = (\d+)$', f.strip())}) == sorted({b for _, b, *_ in tails}), said
     assert sorted({int(x) for f in said for x in re.findall(r'^n \\ge (\d+)$', f.strip())}) == sorted({t for _, _, t, *_ in tails}), said

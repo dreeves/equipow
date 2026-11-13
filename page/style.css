@@ -463,9 +463,10 @@ code[aria-expanded], [data-text][aria-expanded] { cursor: pointer; text-decorati
    from mstar.js.  It and the OEIS section were block quotes in Claude's hue, like the lattice section's, until
    dreeves's edits of 2026-10-29, and now space their parts as the other sections do. */
 .smallest, .oeis { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; max-width: var(--measure); }
-.smallest table, [data-why="row-smallest"] table { justify-self: start; border-collapse: collapse; font-variant-numeric: tabular-nums lining-nums; }
-.smallest th, .smallest td, [data-why="row-smallest"] th, [data-why="row-smallest"] td { border: 1px solid var(--rule); padding: 0.3rem 0.7rem; text-align: center; }
-.smallest th, [data-why="row-smallest"] th { font-weight: 400; }   /* and a row's box of the m*(n) chart, a row of the table (2026-11-04) */
+/* And the Symmetry section's table of the length from which each order holds (Opus 5.5, 2026-11-12), ruled as this one. */
+.smallest table, [data-why="row-smallest"] table, .symmetry > table { justify-self: start; border-collapse: collapse; font-variant-numeric: tabular-nums lining-nums; }
+.smallest th, .smallest td, [data-why="row-smallest"] th, [data-why="row-smallest"] td, .symmetry > table th, .symmetry > table td { border: 1px solid var(--rule); padding: 0.3rem 0.7rem; text-align: center; }
+.smallest th, [data-why="row-smallest"] th, .symmetry > table th { font-weight: 400; }   /* and a row's box of the m*(n) chart, a row of the table (2026-11-04) */
 .oeis ul, .mstar > ul { margin: 0; padding-left: 1.25rem; display: grid; gap: 0.35rem; }   /* lists of text */
 /* What the m*(n) chart leaves out ([COM], 2026-11-10): a list of boxes, each in the place of its item's bullet.
    dreeves moved it into the chart's bar that day, under a sentence of his: there each of the two takes a row of the
