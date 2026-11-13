@@ -270,7 +270,7 @@ def q_order_12_is_down_to_528():
 
 
 # The account's table of lengths from which each order holds (Opus 5.5, 2026-11-12), found by its caption's id: the
-# tails of orders 13 and 14 that its paragraph states, A, b and threshold, order 14's A from order 13's tail (every
+# tails of orders 13 and 14 behind its values, A, b and threshold, order 14's A from order 13's tail (every
 # multiple of 16 from 3696 on, and 3680, the wrap of 1840:12, has an antisymmetric sequence of order 13); and the
 # closure's lengths for it, one multiple of 16 past order 14's threshold.
 ORDER_13 = (1488, 720, 3696)
@@ -379,11 +379,9 @@ def q_symmetry_conjecture_holds_through_order_11():
     # Since 2026-11-11 the account also states order 12's A, b and threshold (ORDER_12, Fable 5.2's paragraph), which
     # q_order_12_is_down_to_528 holds to the reduction carried one order on.
     tails.append(ORDER_12)
-    # Since 2026-11-12 (Opus 5.5; dreeves: "can you add a table to the end of the Symmetry Conjecture that gives, for
-    # each order m, the N such that the symmetry conjecture holds for lengths n>=N"), its paragraph before that table
-    # states order 13's and order 14's too, which q_symmetry_table_gives_each_order_s_length holds to the reduction
-    # carried to order 14.
-    tails += [ORDER_13, ORDER_14]
+    # (2026-11-12: for an hour that evening Opus 5.5's paragraph before the table of lengths stated order 13's and order
+    # 14's too, and this qual held them; dreeves replaced it with a sentence of his own as he committed the table, so the
+    # account states none past order 12.  q_symmetry_table_gives_each_order_s_length holds the table to those tails.)
     assert sorted({int(x) for f in said for x in re.findall(r'^A = (\d+)$', f.strip())}) == sorted({A for A, *_ in tails}), said
     assert sorted({int(x) for f in said for x in re.findall(r'^b = (\d+)$', f.strip())}) == sorted({b for _, b, *_ in tails}), said
     assert sorted({int(x) for f in said for x in re.findall(r'^n \\ge (\d+)$', f.strip())}) == sorted({t for _, _, t, *_ in tails}), said
