@@ -56,16 +56,30 @@ HEADLESS = ['--headless=new', '--no-first-run', '--no-default-browser-check', '-
             '--allow-file-access-from-files', '--disable-backgrounding-occluded-windows']
 TOKENS = ('--exists', '--open', '--impossible')                    # the chart's three colors, in the order of kind
 PROVENANCE = ('--claude', '--stan')
-NMAX, MIN_SPAN = 1024, 12                     # 1000 until 2026-10-27, when the chart reached 1024; since 2026-11-10 the
-                                              # cap pressed as the page loads, the chart's last n then, and the tables'
+NMAX, MIN_SPAN = 1024, 12                     # 1000 until 2026-10-27, when the chart reached 1024; the tables' last n, and
+                                              # from 2026-11-10 to 2026-11-12 the cap pressed as the page loads (CAP since)
 DATA_NMAX = 2048                              # mstar.js's last n since 2026-11-10 (dreeves's README: "[BOU] Let's try
                                               # having Figure 1 go up to 2048"), the largest of the chart's caps
-# The chart's columns (dreeves, 2026-10-29: "can we make my "odd multiple of 2" bullet point be true?"): n = 2 and the
-# multiples of 4.  An odd n has no partition at any m, and every other n = 2 mod 4 has m*(n) = 1 (the two lemma), so
-# those are left out.  (Every even n until 2026-10-29.)
-COLUMNS = [2] + list(range(4, NMAX + 1, 4))
+CAP = 2048                                    # the cap pressed as the page loads, the chart's last n then (dreeves,
+                                              # 2026-11-12: "let's default to all checkboxes checked and cap=2^11 for
+                                              # figure 1"; NMAX, 1024, from 2026-11-10 until then)
+# The chart's columns as the page loads, every box of its list of what it leaves out checked (dreeves, 2026-11-12, as
+# above): n = 2 and 4, the multiples of 8 below 200, and the multiples of 16 from 208 to CAP.  An odd n has no
+# partition at any m, every other n = 2 mod 4 has m*(n) = 1 (the two lemma), every other odd multiple of 4 has 3, and
+# every odd multiple of 8 from 200 on has 7, so those are left out.  (Every even n until 2026-10-29; then n = 2 and the
+# multiples of 4 up to 1024, dreeves: "can we make my "odd multiple of 2" bullet point be true?", until 2026-11-12.)
+COLUMNS = [2, 4] + list(range(8, 200, 8)) + list(range(208, CAP + 1, 16))
 NCOL = len(COLUMNS)
-STEPS = (4, 20, 40, 100, 200, 500)            # the steps of the n labels: round multiples of 4 (2, 10, 20, 50, ... before)
+
+
+def ladder(columns, cap):
+    """The steps of the m*(n) chart's n labels for the columns `columns` under the cap `cap`, as page/mstar-section.js
+    states them (since 2026-11-10, [COM]): 1, 5, 10, 25, 50, 125, 250 and 500 times the least column all of whose
+    multiples up to the cap are columns, those that label a column; each (step, the indices of its columns, the least
+    number of columns between two of them next to each other, or infinity for a step with one label)."""
+    base = next(b for b in columns if all(n in columns for n in range(b, cap + 1, b)))
+    rungs = [(x * base, [c for c, n in enumerate(columns) if n % (x * base) == 0]) for x in (1, 5, 10, 25, 50, 125, 250, 500)]
+    return [(s, at, min((b - a for a, b in zip(at, at[1:])), default=math.inf)) for s, at in rungs if at]
 RUNS = {}                                     # browser runs by configuration name, made once per process (see run)
 
 
@@ -877,17 +891,19 @@ function battery(R) {
   } catch (e) { R.buttonsError = String(e && e.stack || e); }
   // The tags (q_axes_tag_the_cell_read_out), each from the draw of a hover, with the view and the readout then: in the
   // full view, its four corners (its first and last columns, in rows 1 and T) and a cell in the middle; in a view
-  // zoomed in 5 steps and panned right an eighth of it, the same at the plot's very ends, where its columns are cut
+  // zoomed in 3 steps and panned right three eighths of it, the same at the plot's very ends, where its columns are cut
   // (the first's middle out of view, the last's in), then its first whole column in row 2; then (tagAway) that view
-  // panned right by a whole view with the keys alone, from the draw of the last press.
+  // panned right by a whole view with the keys alone, from the draw of the last press.  (5 steps and an eighth until
+  // 2026-11-12, when the chart came to open with 142 columns: that view's first column showed a hundredth of itself,
+  // under a device px on a phone, and 3 steps and three eighths cut it at 0.74 and the last at 0.82.)
   R.tagHovers = [];
   const tagHover = (v, x, m) => { __fills.length = 0; const text = hover(x, rowY(m) / dpr); R.tagHovers.push({v, text, rows, ...tags()}); };
   const tagCorners = v => [[L + 0.25, 1], [L + 0.25, T], [L + W - 0.25, T], [L + W - 0.25, 1], [L + W / 2, 3]]
     .forEach(([x, m]) => tagHover(v, x, m));
   reset.click();
   tagCorners(view());
-  for (let i = 0; i < 5; i++) key('+');
-  key('ArrowRight');
+  for (let i = 0; i < 3; i++) key('+');
+  for (let i = 0; i < 3; i++) key('ArrowRight');
   {
     const v = view();
     tagCorners(v);
@@ -1117,7 +1133,7 @@ const go = async () => {
   R.texts = [...new Set(window.__texts)];
   parent.postMessage(JSON.stringify(R), '*');
 };
-const NCOL = __NCOL__, COLS = __COLUMNS__;                         // the columns' n: 2, then the multiples of 4 to NMAX
+const NCOL = __NCOL__, COLS = __COLUMNS__;                         // the columns' n as the page loads (COLUMNS)
 addEventListener('load', () => document.fonts.ready.then(() => setTimeout(go, 50)));
 })();
 </script>
@@ -1208,20 +1224,45 @@ VIOLATIONS = {   # name: (a change that breaks the contract, what the page's err
 }
 
 
-CONFIGS = {   # name: (mstar.js, window width, device pixel ratio, theme, hover every this many columns)
-    'light': ('real', 1280, 2, None, 1),
-    'phone': ('real', 390, 3, None, 5),
-    'kinds': ('kinds', 1280, 2, None, 1),
-    'missing': (None, 1280, 2, None, 1),
-    'fragment': ('real', 1280, 2, None, 1),
-    'phone fragment': ('real', 390, 3, None, 5),
-    'panels': ('real', 1280, 2, None, 1),
-    'phone panels': ('real', 390, 3, None, 5),
-    'kinds panels': ('kinds', 1280, 2, None, 1),
-    'boxes': ('real', 1280, 2, None, 1),
-    'phone boxes': ('real', 390, 3, None, 5),
-    'box fragment': ('real', 1280, 2, None, 1),
-} | {f'violates {v}': (v, 1280, 1, None, 1) for v in VIOLATIONS}
+# The state a configuration's page loads the m*(n) chart in (2026-11-12): (its cap, its columns, the edits to the page
+# that make it).  NOW is the page as it is: every box of the chart's list checked and the cap 2048 pressed (dreeves:
+# "let's default to all checkboxes checked and cap=2^11 for figure 1").  BEFORE is every page until then, the first two
+# boxes checked and the cap 1024, the state that made-up data and the boxes' targets were made for: kinds_data's odd
+# multiples of 4 and of 8 have the orders that the bound 'two' allows, not the 3 and 7 that the third and fourth boxes
+# state, so that the page refuses it as it loads under NOW; and the targets (36, 2) and (1020, 4) are cells of odd
+# multiples of 4, which the third box leaves out.
+NOW = (CAP, COLUMNS, ())
+BEFORE = (NMAX, [2] + list(range(4, NMAX + 1, 4)), (
+    (' data-order="3" checked>', ' data-order="3">'), (' data-order="7" checked>', ' data-order="7">'),
+    ('data-cap="1024" aria-pressed="false"', 'data-cap="1024" aria-pressed="true"'),
+    ('data-cap="2048" aria-pressed="true"', 'data-cap="2048" aria-pressed="false"')))
+CONFIGS = {   # name: (mstar.js, window width, device pixel ratio, theme, hover every this many columns, state)
+    'light': ('real', 1280, 2, None, 1, NOW),
+    'phone': ('real', 390, 3, None, 5, NOW),
+    'kinds': ('kinds', 1280, 2, None, 1, BEFORE),
+    'missing': (None, 1280, 2, None, 1, NOW),
+    'fragment': ('real', 1280, 2, None, 1, NOW),
+    'phone fragment': ('real', 390, 3, None, 5, NOW),
+    'panels': ('real', 1280, 2, None, 1, NOW),
+    'phone panels': ('real', 390, 3, None, 5, NOW),
+    'kinds panels': ('kinds', 1280, 2, None, 1, BEFORE),
+    'boxes': ('real', 1280, 2, None, 1, BEFORE),
+    'phone boxes': ('real', 390, 3, None, 5, BEFORE),
+    'box fragment': ('real', 1280, 2, None, 1, NOW),
+} | {f'violates {v}': (v, 1280, 1, None, 1, BEFORE) for v in VIOLATIONS}
+
+
+def state(name):
+    """(The cap, the columns) of the m*(n) chart as the configuration name's page loads."""
+    return CONFIGS[name][5][:2]
+
+
+def edited(text, edits):
+    """The page's text with each (old, new) of edits made, each old found exactly once."""
+    for a, b in edits:
+        assert text.count(a) == 1, a
+        text = text.replace(a, b)
+    return text
 PANELS = ('panels', 'phone panels', 'kinds panels')   # the configurations that open every column's panel in turn ([REO], 2026-11-03)
 FRAGMENTS = {'fragment': '#n1024', 'phone fragment': '#n1024'}   # the configurations that load the page with a fragment
 # the configurations that click the boxes' targets (the harness's boxes) and that load the page with a cell's fragment,
@@ -1234,14 +1275,14 @@ SOURCES = {'real': lambda: open(DATA, encoding='utf-8').read(), 'kinds': kinds_d
 def run(name):
     """The harness's report for one configuration, made on first use."""
     if name not in RUNS:
-        data, width, dpr, theme, every = CONFIGS[name]
+        data, width, dpr, theme, every, (_, cols, edits) = CONFIGS[name]
         d = tempfile.mkdtemp(prefix='index-quals-')
-        text = page()
+        text = edited(page(), edits)
         assert text.count('<head>\n') == 1 and text.count('</body>') == 1 and text.count('<html lang="en">') == 1
         opts = {'hoverEvery': every, 'panels': name in PANELS, 'fragment': name in FRAGMENTS, 'boxes': name in BOXES,
                 'boxFragment': name in BOX_LOADS}
         text = text.replace('<head>\n', '<head>\n' + EARLY).replace('</body>', HARNESS.replace(
-            '__OPTS__', json.dumps(opts)).replace('__NCOL__', str(NCOL)).replace('__COLUMNS__', json.dumps(COLUMNS)) + '</body>')
+            '__OPTS__', json.dumps(opts)).replace('__NCOL__', str(len(cols))).replace('__COLUMNS__', json.dumps(cols)) + '</body>')
         if theme: text = text.replace('<html lang="en">', f'<html lang="en" data-theme="{theme}">')
         open(os.path.join(d, 'index.html'), 'w', encoding='utf-8').write(text)
         copy_page_dir(d)
@@ -1341,7 +1382,9 @@ def close(a, b, tol): return abs(a - b) <= tol
 # table that shows the first n that gives 1,2,3,4,5,…,12"; dreeves: "yeah").  Orders 1 to 11 have their smallest
 # lengths proven: OEIS A323395's a(0) to a(8), 240 as a(9), and (2026-10-20) 432 as a(10), after proof384.py; and order 12 too, since 2026-11-03: 480 as a(11), after the pin tree of 432:12.
 SMALLEST_PROVEN = (2, 4, 8, 16, 32, 48, 96, 144, 192, 240, 432, 480)
-PROVEN_CELLS = [(n, m) for m, n in enumerate(SMALLEST_PROVEN, 1)] + [(960, 15)]   # the cells (n, m) proven least: (960, 15) since 2026-11-03
+# The cells (n, m) proven least in the m*(n) chart as it loads: (960, 15) since 2026-11-03; (1440, 16) since 2026-11-12,
+# when the chart came to open up to 2048 (dreeves: "cap=2^11 for figure 1"), 1440 being past its cap before.
+PROVEN_CELLS = [(n, m) for m, n in enumerate(SMALLEST_PROVEN, 1)] + [(960, 15), (1440, 16)]
 
 
 def smallest_rows(data):
@@ -1602,13 +1645,14 @@ def q_changelog_keeps_powers_of_2_on_lines_of_their_own():
 
 # The page in an iframe width px wide (Chrome's window is at least 500 px wide), with harness (a script, which may
 # await sleep) run last in it, once the page has had half a second: what the harness posted to the host page, as JSON.
-def framed(width, harness, mstar=None):
+def framed(width, harness, mstar=None, edits=()):
     """What harness, a script run in the page width px wide, posts to its parent.  The page has its own data, or for
-    the m*(n) chart the text mstar in place of mstar.js (made-up data, as kinds_data's)."""
+    the m*(n) chart the text mstar in place of mstar.js (made-up data, as kinds_data's), and the edits (old, new) made
+    (as BEFORE's, since 2026-11-12)."""
     d = tempfile.mkdtemp(prefix='index-quals-')
     script = ('<script>\n(async () => {\n  const sleep = ms => new Promise(r => setTimeout(r, ms));\n  await sleep(500);\n'
               + harness + '\n})();\n</script>\n')
-    text = page()
+    text = edited(page(), edits)
     assert text.count('</body>') == 1
     open(os.path.join(d, 'index.html'), 'w', encoding='utf-8').write(text.replace('</body>', script + '</body>'))
     copy_page_dir(d)
@@ -3475,7 +3519,8 @@ def q_page_loads_clean():
     # Replicata: index.html with the real mstar.js in headless Chrome, 1280 px wide at 2 device px per CSS px; and the
     # page loaded as is (nothing added), with Chrome logging its console to stderr.
     # Expectata: no errors, console errors or warnings; the canvas is drawn (nonzero height, as wide as main's content);
-    # the chart opens showing all NCOL = 257 columns, n = 2 and the multiples of 4 up to 1024.  The plain
+    # the chart opens showing all NCOL = 142 columns, COLUMNS, up to 2048 (since 2026-11-12; 257 before, n = 2 and the
+    # multiples of 4 up to 1024).  The plain
     # load logs nothing at all to the console.
     assert console_lines() == [], console_lines()
     R = valid_run('light')
@@ -3514,12 +3559,13 @@ def q_prose_has_one_measure():
 
 
 def q_drawn_cells_match_data():
-    # Replicata: the light and phone runs: the full view, and a sweep of the 257 columns, n = 2, 4, 8, 12, …, 1024,
-    # zoomed in, so every column is at least 3 device px wide.
+    # Replicata: the light and phone runs: the full view, and a sweep of the NCOL columns, COLUMNS (142 of them, n = 2,
+    # 4, 8, 16, …, 2048, since 2026-11-12; 257, n = 2, 4, 8, 12, …, 1024, before), zoomed in, so every column is at
+    # least 3 device px wide.
     # Expectata: every column is checked, in every row of its view (since 2026-11-10 the rows follow the view, at
     # dreeves's word: rows 1 to one more than the largest upper bound among the view's columns, so each column is
     # checked from row 1 to the row above its upper bound at least; the full view has the rows it had, one more than
-    # the largest upper bound up to 1024, laid out as the harness measures them): its middle pixel has its color from mstar.js (exists up
+    # the largest upper bound up to its cap, laid out as the harness measures them): its middle pixel has its color from mstar.js (exists up
     # to lo, open up to hi, impossible above) as the page's tokens give it, and the pixel below each row is paper.  In
     # the full view and every view of the sweep, every pixel of row 1 is exists, from the plot's left edge to its
     # right: no odd column (impossible in every row, since lo = hi = 0) is drawn, not even mixed into a pixel; but for
@@ -3579,14 +3625,15 @@ def q_mstar_leaves_out_odd_multiples_of_2():
     # Replicata: mstar.js; the light and phone runs: row 2 of the full view and of every view of the sweep.
     # Expectata (dreeves, 2026-10-29: "can we make my "odd multiple of 2" bullet point be true?", of his "Odd multiples
     # of 2 except 2 itself are left out; for all n=4k+2 for some k ≥ 0, m*(4k+2) = 1"): every n = 2 mod 4 has lo = hi =
-    # 1 in mstar.js and every multiple of 4 lo >= 2; the chart's columns are n = 2 and the multiples of 4, NCOL = 257
-    # (q_page_loads_clean measures the full view's); and row 2, impossible at every n = 2 mod 4, is exists in every pixel
+    # 1 in mstar.js and every multiple of 4 lo >= 2; the chart's columns as the page loads are COLUMNS, NCOL = 142 of
+    # them (n = 2 and the multiples of 4 up to 1024, 257, until 2026-11-12, when dreeves asked for every box checked and
+    # the cap 2^11 as the page loads; q_page_loads_clean measures the full view's); and row 2, impossible at every n = 2 mod 4, is exists in every pixel
     # right of n = 2's column, so no other n = 2 mod 4 is drawn, not even mixed into a pixel: but for a device px past
     # n = 2's column, the ring of row 2 and its gold dot (since 2026-10-30: (4, 2) is proven the least) and the zones of
     # the column lines (rowTwoSkips), at most a fifth of the pixels.
     cols = mstar_data()['cols']
-    assert all(cols[n - 1][:2] == [1, 1] for n in range(2, NMAX + 1, 4)) and all(cols[n - 1][0] >= 2 for n in COLUMNS[1:])
-    assert COLUMNS[:4] == [2, 4, 8, 12] and NCOL == 257
+    assert all(cols[n - 1][:2] == [1, 1] for n in range(2, CAP + 1, 4)) and all(cols[n - 1][0] >= 2 for n in COLUMNS[1:])
+    assert COLUMNS[:4] == [2, 4, 8, 16] and NCOL == 142
     for name in ('light', 'phone'):
         R = valid_run(name)
         assert R['rowTwoBad'] == [], (name, len(R['rowTwoBad']), R['rowTwoBad'][:10])
@@ -3611,16 +3658,18 @@ def q_omit_boxes_state_what_the_data_holds():
     # checkboxes for what's omitted, in terms of the biggest power of two factor"): the boxes of the page's list of
     # what the m*(n) chart leaves out, each with its factor, the n its class starts from and the order it states; and
     # mstar.js.
-    # Expectata: every n up to NMAX that a box would leave out, the odd multiples of its factor from its start on, has
+    # Expectata: every n up to CAP that a box would leave out, the odd multiples of its factor from its start on, has
     # lo = hi = the order the box states, and each box has such n; and the n that the boxes checked as the page loads
-    # do not leave out are COLUMNS, the columns that the other quals of this chart measure.
+    # do not leave out are COLUMNS, the columns that the other quals of this chart measure (since 2026-11-12, when
+    # dreeves asked for every box checked and the cap 2^11 as the page loads, up to CAP, 2048; up to NMAX, 1024, with
+    # the first two boxes checked, before).
     # Resultata before: no box; the chart left out the odd n and the odd multiples of 2 but 2, whatever the reader wanted.
     boxes, cols = omit_boxes(), mstar_data()['cols']
     left_out = lambda n, box: n >= box[1] and n % (2 * box[0]) == box[0]
     for box in boxes:
-        ns = [n for n in range(1, NMAX + 1) if left_out(n, box)]
+        ns = [n for n in range(1, CAP + 1) if left_out(n, box)]
         assert ns and all(cols[n - 1][:2] == [box[2], box[2]] for n in ns), (box, [n for n in ns if cols[n - 1][:2] != [box[2], box[2]]][:5])
-    shown = [n for n in range(1, NMAX + 1) if not any(b[3] and left_out(n, b) for b in boxes)]
+    shown = [n for n in range(1, CAP + 1) if not any(b[3] and left_out(n, b) for b in boxes)]
     assert shown == COLUMNS, (len(shown), shown[:6])
 
 
@@ -3639,15 +3688,16 @@ def q_caps_follow_the_zoom_buttons():
     # Expectata (dreeves's README, [BOU], 2026-11-10: "Let's try having Figure 1 go up to 2048. Actually, let's try
     # this: replace the reset-zoom button with "cap:" and then buttons for 2^6, 2^7, 2^8, 2^9, 2^10, 2^11"): right
     # after the zoom-in button, with only blank space and comments between, the caps: six buttons, their caps 64, 128,
-    # ..., 2048, each labelled the power of 2 that its cap is; one of them pressed as the page loads, 1024's, so that
-    # the chart opens as it was; the largest cap is mstar.js's nmax; and the section has no reset button.
+    # ..., 2048, each labelled the power of 2 that its cap is; one of them pressed as the page loads, CAP's, 2048's
+    # since 2026-11-12 (dreeves: "let's default to all checkboxes checked and cap=2^11 for figure 1"; 1024's before,
+    # so that the chart opened as it was); the largest cap is mstar.js's nmax; and the section has no reset button.
     # Resultata before: a reset button, ↺, and a chart that ended at 1024.
     s = section()
     zin = re.search(r'<button type="button" id="mstar-zoom-in"[^>]*>[^<]*</button>', s)
     group = re.search(r'<span class="caps" id="mstar-caps">', s)
     assert zin and group and re.fullmatch(r'(?:\s|<!--.*?-->)*', s[zin.end():group.start()], re.S), s[zin.end():zin.end() + 300]
     assert [c for c, _, _ in caps()] == [2 ** k for k in range(6, 12)] and all(c == 2 ** k for c, k, _ in caps()), caps()
-    assert [c for c, _, on in caps() if on] == [NMAX], caps()
+    assert [c for c, _, on in caps() if on] == [CAP], caps()
     assert max(c for c, _, _ in caps()) == mstar_data()['nmax'] == len(mstar_data()['cols']), mstar_data()['nmax']
     assert 'mstar-reset' not in page()
 
@@ -3765,10 +3815,10 @@ def columns_as_stated(got, width, order, least):
 
 def q_omit_boxes_change_the_columns():
     # Replicata: the page 1280 px wide, and again 390 px wide, a phone's width; a click on the cap pressed as it loads,
-    # 1024's; the boxes of its list clicked one at a time through all 16 of their states, from the state as loaded,
-    # then to none checked, then back to the state as loaded (columns_follow_the_controls).
+    # CAP's (2048's since 2026-11-12, 1024's before); the boxes of its list clicked one at a time through all 16 of their
+    # states, from the state as loaded, then to none checked, then back to the state as loaded (columns_follow_the_controls).
     # Expectata: in each state the chart shows all its columns, exactly those n (every probe reads out the n expected
-    # there, and − is disabled); its n labels are the multiples of one step, all of them up to 1024, each a column, at
+    # there, and − is disabled); its n labels are the multiples of one step, all of them up to the cap, each a column, at
     # least three of them (two at 390 px), each two at least 48 CSS px apart; the odd column reads out n = 7 and the
     # click opens its box; the click on a box of the list closes that box and leaves the focus on the checkbox; and no
     # script error anywhere.
@@ -3778,9 +3828,9 @@ def q_omit_boxes_change_the_columns():
     # its labels; and where few multiples of a step were columns the labels were few: at 1280 px, 400 and 800 alone
     # with only the first box unchecked, or only the second.
     for width, least in ((1280, 3), (390, 2)):
-        got = columns_follow_the_controls(width, [NMAX])
-        ncol = columns_as_stated(got, width, [NMAX], least)
-        assert ncol[NMAX, tuple(b[3] for b in omit_boxes())] == NCOL and ncol[NMAX, (False,) * 4] == NMAX, ncol
+        got = columns_follow_the_controls(width, [CAP])
+        ncol = columns_as_stated(got, width, [CAP], least)
+        assert ncol[CAP, tuple(b[3] for b in omit_boxes())] == NCOL and ncol[CAP, (False,) * 4] == CAP, ncol
         assert got['odd'] == 7 and got['opened'] and got['closed'] and got['focus'], (got['odd'], got['opened'], got['closed'], got['focus'])
 
 
@@ -3796,7 +3846,7 @@ def q_rows_follow_the_view():
     # chart is as tall in all of them (columns_as_stated, of the states).
     # Resultata before: 16 rows in every view (19 with mstar.js to 2048), most of them impossible in every column of
     # a view of small n.
-    got, cols = columns_follow_the_controls(1280, [NMAX]), mstar_data()['cols']
+    got, cols = columns_follow_the_controls(1280, [CAP]), mstar_data()['cols']
     assert len(got['views']) == 128, len(got['views'])
     for v in got['views']:
         a, b = v['ends']
@@ -3805,8 +3855,9 @@ def q_rows_follow_the_view():
 
 
 def q_caps_change_the_columns():
-    # Replicata: the page 1280 px wide, and again 390 px wide; a click on each cap in turn, 64, 128, 256, 512, 2048 and
-    # then 1024, the one pressed as the page loads; under each, the boxes through all 16 of their states; then, with
+    # Replicata: the page 1280 px wide, and again 390 px wide; a click on each cap in turn, 64, 128, 256, 512, 1024 and
+    # then 2048, the one pressed as the page loads (since 2026-11-12; 2048 and then 1024 before); under each, the boxes
+    # through all 16 of their states; then, with
     # none checked, a click on the column of n = 8 and one on the cap pressed, which has the focus; a click on + and
     # one more on the cap pressed (columns_follow_the_controls).
     # Expectata (dreeves's README, [BOU], 2026-11-10: "replace the reset-zoom button with "cap:" and then buttons"): a
@@ -3817,8 +3868,8 @@ def q_caps_change_the_columns():
     # the click on the cap closes the box that the click on the column opened, the focus staying on the cap; the click
     # on the cap pressed shows every column again, as the reset button did; and no script error anywhere.
     # Resultata before: no caps: the chart ended at 1024 and a reset button showed every column.
-    order = [64, 128, 256, 512, 2048, 1024]
-    assert sorted(order) == [c for c, _, _ in caps()], caps()
+    order = [64, 128, 256, 512, 1024, 2048]               # the one pressed as the page loads last: 1024 until 2026-11-12
+    assert sorted(order) == [c for c, _, _ in caps()] and order[-1] == CAP, caps()
     for width, least in ((1280, 3), (390, 1)):
         got = columns_follow_the_controls(width, order)
         ncol = columns_as_stated(got, width, order, least)
@@ -3840,7 +3891,7 @@ def q_a_box_whose_statement_fails_says_so():
   const ro = document.getElementById('mstar-readout'), R = {before: ro.textContent, tall: document.getElementById('mstar-chart').height > 0};
   document.querySelectorAll('#mstar-omit input')[2].click();
   await sleep(50);
-  parent.postMessage(JSON.stringify({...R, after: ro.textContent, errors}), '*');""", kinds_data())
+  parent.postMessage(JSON.stringify({...R, after: ro.textContent, errors}), '*');""", kinds_data(), BEFORE[2])
     quoted = "[12,[2,3,['join',4,8],['two']]]"
     assert got['tall'] and 'Error' not in got['before'], got['before']
     assert got['after'].endswith(f'Error: {quoted}') and got['errors'] == [f'Uncaught Error: {quoted}'], (got['after'], got['errors'])
@@ -3883,7 +3934,7 @@ def q_chart_rings_the_smallest_lengths_in_gold():
     # and every one is checked; at its middle a proven one is gold, a dot (Claude's proposal for when the two coincide),
     # and the others keep their cell's color.  (Their readouts' notes: q_hover_reads_out_cells.)
     # Resultata before: only the 11 proven cells were ringed.
-    cols = mstar_data()['cols'][:NMAX]            # the chart as it loads, up to its cap (mstar.js reaches 2048 since 2026-11-10)
+    cols = mstar_data()['cols'][:CAP]             # the chart as it loads, up to its cap (1024 until 2026-11-12)
     want = smallest_rings(cols)
     assert [c for c, role in want.items() if role == 3] == a323395_cells(cols) == PROVEN_CELLS, want
     for name in ('light', 'phone'):
@@ -3912,21 +3963,23 @@ def q_n_labels_are_round_multiples_of_4():
     # column in view; in the light and phone runs.
     # Expectata: the n labels, and then (since 2026-11-02, dreeves's README: "[HOV] ...") the tag of the cell read out,
     # the n of that first column, centered on its middle to within a device px (q_axes_tag_the_cell_read_out).  The
-    # labels are the multiples of one step s, from 4, 20, 40, 100, 200, 500 (so every label is an n with a column, n / 4
-    # from 1 on; until 2026-10-29 the steps were 2, 10, 20, 50, ... and every even n had a column), whose columns'
-    # middles are in view, in order, each centered on its column's middle to within a device px; s is the first of
-    # those steps that puts the labels at least 48 CSS px apart.
+    # labels are the multiples of one step s of ladder(COLUMNS, CAP) (so every label is an n with a column), whose
+    # columns' middles are in view, in order, each centered on its column's middle to within a device px; s is the
+    # first of those steps that puts any two of its columns next to each other at least 48 CSS px apart.  (Until
+    # 2026-10-29 the steps were 2, 10, 20, 50, ... and every even n had a column; then 4, 20, 40, 100, 200, 500 with
+    # the columns n = 2 and the multiples of 4; since 2026-11-12, every box checked as the page loads, 16, 80, 160,
+    # 400, 800 and 2000.)
     for name in ('light', 'phone'):
         R = valid_run(name)
         (PL, PR), dpr = R['plot'], R['dpr']
         assert len(R['labelDraws']) == len(R['views']) + 1, (name, len(R['labelDraws']))
         for d in R['labelDraws']:
             v, (*got, tag) = d['v'], d['labels']
-            s = next(s for s in STEPS if s / 4 * (PR - PL) / dpr / v['span'] >= 48)
-            want = [n for n in range(s, NMAX + 1, s) if v['u0'] - 1e-6 <= n / 4 + 0.5 <= v['u0'] + v['span'] + 1e-6]
+            s, at = next((s, at) for s, at, gap in ladder(COLUMNS, CAP) if gap * (PR - PL) / dpr / v['span'] >= 48)
+            want = [COLUMNS[c] for c in at if v['u0'] - 1e-6 <= c + 0.5 <= v['u0'] + v['span'] + 1e-6]
             assert [t for t, _ in got] == [str(n) for n in want], (name, v, s, got)
             for t, x in got:
-                assert close(x, PL + (int(t) / 4 + 0.5 - v['u0']) * (PR - PL) / v['span'], 1), (name, v, t, x)
+                assert close(x, PL + (COLUMNS.index(int(t)) + 0.5 - v['u0']) * (PR - PL) / v['span'], 1), (name, v, t, x)
             j = math.ceil(v['u0'] - 1e-3) + 1                      # the first whole column in view, the harness's first(v)
             assert tag[0] == str(COLUMNS[j - 1]) and close(tag[1], PL + (j - 0.5 - v['u0']) * (PR - PL) / v['span'], 1), (name, v, tag)
 
@@ -4000,8 +4053,9 @@ def q_zoom_buttons_zoom_about_the_middle():
     # full view, clicks of + until it is disabled and then of − until it is disabled, the view measured after each; and
     # the buttons after every interaction step (keys, wheels, drags, pinches, gestures, reset).
     # Expectata: + zooms in by 1.5 and − out by 1.5 about the middle (the u at the middle stays), as the + and − keys do,
-    # stopping at 12 and 257 columns: 8 clicks each way (10 with 512 columns, before 2026-10-29).  + is disabled
-    # exactly when the view is 12 columns and − exactly when it is all 257: at load (− only), after every click and after every step (so − after the reset
+    # stopping at 12 and NCOL columns: 7 clicks each way with the 142 columns as the page loads since 2026-11-12 (8 with
+    # 257 before, 10 with 512 before 2026-10-29).  + is disabled
+    # exactly when the view is 12 columns and − exactly when it is all NCOL: at load (− only), after every click and after every step (so − after the reset
     # button).  A disabled button is grayed out, not hidden: opacity at most 0.5 but displayed, visible and as big as
     # the other, whose opacity is 1.
     R = valid_run('light')
@@ -4011,7 +4065,8 @@ def q_zoom_buttons_zoom_about_the_middle():
         a, b = S[name]['a'], S[name]['b']
         assert close(b['span'], a['span'] * f, 1e-3) and close(b['u0'] + b['span'] / 2, a['u0'] + a['span'] / 2, 1e-3), (name, S[name])
     clicks = R['clicks']
-    assert [k for k, *_ in clicks] == ['start'] + ['in'] * 8 + ['out'] * 8, [k for k, *_ in clicks]
+    zooms = math.ceil(math.log(NCOL / MIN_SPAN, 1.5))           # the clicks from all the columns to 12 of them
+    assert zooms == 7 and [k for k, *_ in clicks] == ['start'] + ['in'] * zooms + ['out'] * zooms, [k for k, *_ in clicks]
     for (_, a, _), (kind, b, _) in zip(clicks, clicks[1:]):
         want = min(max(a['span'] * (1 / 1.5 if kind == 'in' else 1.5), MIN_SPAN), NCOL)
         assert close(b['span'], want, 1e-3) and close(b['u0'] + b['span'] / 2, a['u0'] + a['span'] / 2, 1e-3), (a, kind, b)
@@ -4046,7 +4101,7 @@ def q_hover_reads_out_cells():
         R = valid_run(name)
         data = json.loads(kinds_data()[len('const MSTAR = '):-2]) if name == 'kinds' else mstar_data()
         cols, ifsym = data['cols'], data['ifsym']
-        assert {n for n, _, _ in R['hovers']} == set(COLUMNS), name
+        assert {n for n, _, _ in R['hovers']} == set(state(name)[1]), name
         rings, notes = smallest_rings(cols), {}
         for n, m, text in R['hovers']:
             lo, hi = cols[n - 1][:2]
@@ -4079,11 +4134,11 @@ def q_hover_swatch_matches_gold_trim():
     # persist after leaving one.
     # Resultata: each assertion reports the hovered cell and its expected and computed CSS values.
     rgb = lambda h: 'rgb(' + ', '.join(str(int(h[i:i + 2], 16)) for i in (1, 3, 5)) + ')'
-    assert a323395_cells(mstar_data()['cols'][:NMAX]) == PROVEN_CELLS       # the chart as it loads, up to its cap
+    assert a323395_cells(mstar_data()['cols'][:CAP]) == PROVEN_CELLS        # the chart as it loads, up to its cap
     for name in ('light', 'kinds'):
         R = valid_run(name)
         cols = json.loads(kinds_data()[len('const MSTAR = '):-2])['cols'] if name == 'kinds' else mstar_data()['cols']
-        rings = smallest_rings(cols[:NMAX])                        # the chart as it loads, up to its cap
+        rings = smallest_rings(cols[:state(name)[0]])              # the chart as it loads, up to its cap
         swatches = R['swatches']
         assert set(rings) <= {(n, m) for n, m, *_ in swatches}, (name, rings, swatches)
         assert {(False, True), (True, False)} <= {
@@ -4186,8 +4241,9 @@ def q_safari_gestures_zoom_unless_touching():
 def q_view_stays_within_limits():
     # Replicata: from a view zoomed in 3 steps: 40 presses of +; of -; 300 of ArrowRight; ctrl + wheel down 5000 px;
     # and (separately) ArrowRight, +, then the reset button.
-    # Expectata: zooming in stops at 12 columns and out at all 257; panning stops with n = 1024 at the right edge; the
-    # reset button shows all 257 columns, n = 2 to 1024.
+    # Expectata: zooming in stops at 12 columns and out at all NCOL; panning stops with the last column, n = CAP, at the
+    # right edge; the reset button (the cap pressed) shows all NCOL columns (142 up to 2048 since 2026-11-12; 257 up to
+    # 1024 before).
     S = valid_run('light')['steps']
     assert close(S['zoomInFar']['b']['span'], MIN_SPAN, 0.01), S['zoomInFar']
     for name in ('zoomOutFar', 'wheelOutFar', 'reset'):
@@ -4215,8 +4271,9 @@ def q_tap_and_outline():
 
 def q_axes_tag_the_cell_read_out():
     # Replicata: the light and phone runs: the canvas at load; then hovers, each with the draw it makes: in the full
-    # view, its four corners (n = 2 and 1024, in rows 1 and T) and a cell in the middle; in a view zoomed in 5 steps and
-    # panned right an eighth of it, its corners at the plot's very ends, where its columns are cut (the first's middle
+    # view, its four corners (n = 2 and 2048, in rows 1 and T; 1024 until 2026-11-12) and a cell in the middle; in a
+    # view zoomed in 3 steps and panned right three eighths of it (5 steps and an eighth until 2026-11-12, as the
+    # harness says), its corners at the plot's very ends, where its columns are cut (the first's middle
     # out of view, the last's in), a cell in the middle and its first whole column in row 2; then that view panned
     # right by a whole view with the keys alone, the last press's draw.
     # Expectata (dreeves's README, 2026-11-02: "[HOV] When hovering/clicking on cells in the charts it'd be nice to
@@ -4243,9 +4300,12 @@ def q_axes_tag_the_cell_read_out():
             seen.append((n, m, shown))
             # Row m's colored part, in device px: [top, bottom), among the rows of the view of this hover (since
             # 2026-11-10 the rows follow the view); the m tag is as tall as the colored part of a row 14 CSS px tall,
-            # which the rows of a view of 16 rows are, on its row's middle (as tall as its row, whatever the view, until then).
+            # which the rows of a view of 16 rows are, or as its own row's where that is shorter, on its row's middle (as
+            # tall as its row, whatever the view, until 2026-11-10; then 14 CSS px tall whatever its row, until
+            # 2026-11-12, when the chart came to open with 19 rows, under 14 CSS px each, and the tag of row 1 reached
+            # past the plot's bottom).
             top, bottom = s['rows'][len(s['rows']) - m]
-            tall = math.floor(14 * dpr + 0.5) - 1
+            tall = min(math.floor(14 * dpr + 0.5) - 1, bottom - top)
             first = math.floor((top + bottom) / 2 - tall / 2 + 0.5)
             ms = [(t, x, y) for t, x, y in s['paper'] if y < R['axisTop']]
             ns = [(t, x, y) for t, x, y in s['paper'] if y >= R['axisTop']]
@@ -4391,6 +4451,8 @@ def panel_says(cols, n, P):
              # (2026-11-11) n factored, the power of 2 that order hi + 1 would need of |f(-1)|, and the citation's link
              'prop44': [('t', f'\\(n = 2^{{{t2}}} \\cdot {n >> t2}\\)' in t and f'2^{{{hi + 1}}} = ' in t),
                         ('cited', PROP44 in P['links'])],
+             # (2026-11-12, when the chart came to open up to 2048, with 1248 and 1456 in it) the program, linked
+             'proof': [('file', f'{REPO}{harg}' in P['links'])],
              'table2': [('cited', TABLE2 in P['links'])], 'page': [('who', legend_labels(page()).get(harg, '\0') in t)]}[hw[0]]
     copies = [[c, str(lo), 'button', code_digits(c)] for c in [f'{n}:{lo}'] if c in code_ids() and c not in entry_codes(n)]
     says += [('copy', P['copies'] == copies)]
@@ -4433,7 +4495,8 @@ def q_panel_works_out_the_norm_bound_at_1024():
 
 
 def q_every_column_s_panel_shows_exactly_its_reasons():
-    # Replicata: the panel of each of the m*(n) chart's 257 columns, opened in turn by its fragment, nN (the panels run).
+    # Replicata: the panel of each of the m*(n) chart's NCOL columns as the page loads (142 since 2026-11-12, 257 before),
+    # opened in turn by its fragment, nN (the panels run).
     # Expectata: each opens (not hidden, the fragment its own, the focus on its heading) with no error and no KaTeX
     # error mark; it shows exactly the data's reasons, the kinds of its texts in order (panel_whys: the lower bound's,
     # the code's where the page shows the example's code, the upper bound's; the entry's link where the remarks list n
@@ -4455,9 +4518,11 @@ def q_every_column_s_panel_shows_exactly_its_reasons():
     # Spec change (2026-11-04, [CEL] and [ROC]): the parts' kinds are a witness's and a proof's; until then the
     # explanations lo-example, lo-code, lo-join, lo-product, hi-two, hi-norm, hi-residue, hi-table2 and hi-page (and
     # 'entry', the link to the remarks' entry, until [REO] step 2, 2026-11-03, when the entry moved into the panel)
+    # (2026-11-12: with the chart open up to 2048, its columns 1200, 1392, … by Proposition 4.4 and 1248 and 1456 by a
+    # program, proof-prop44 and proof-file too)
     assert {'witness-example', 'witness-construction', 'proof-two', 'proof-norm', 'proof-residue', 'proof-table2',
-            'proof-page'} <= kinds <= {*WITNESSES.values(), 'witness-code', 'proof-two', 'proof-norm', 'proof-residue',
-                                      'proof-table2', 'proof-page'}, kinds
+            'proof-page', 'proof-prop44', 'proof-file'} <= kinds <= {*WITNESSES.values(), 'witness-code',
+                                                                     *PROOF_PARTS.values()} - {'proof-odd'}, kinds
 
 
 def q_norm_panels_hold_their_claims():
@@ -4534,7 +4599,7 @@ def q_made_up_data_opens_every_kind_of_panel():
     # lower and upper bound of the data contract (but none and odd, which odd n have, with no column).
     R = valid_run('kinds panels')
     cols = json.loads(kinds_data()[len('const MSTAR = '):-2])['cols']
-    assert len(R['panels']) == NCOL, len(R['panels'])
+    assert len(R['panels']) == len(state('kinds panels')[1]), len(R['panels'])
     for P in R['panels']:
         assert not P['hidden'] and P['errors'] == 0 and P['whys'] == panel_whys(cols, P['n']), (P['n'], P)
     kinds = {w for P in R['panels'] for w in P['whys']}
@@ -4801,6 +4866,9 @@ def q_find_in_page_opens_the_fold():
 
 WITNESSES = {'example': 'witness-example', 'join': 'witness-construction', 'product': 'witness-construction',
              'table2': 'witness-table2', 'page': 'witness-page'}    # a box's part of a lower bound, by its reason's kind
+# A box's part of an upper bound, by its reason's kind: proof-KIND, but proof-file for a program of proofs/ (the kind
+# proof, since 2026-11-10; written down here on 2026-11-12, when the chart came to open up to 2048, with 1248 and 1456)
+PROOF_PARTS = {k: f'proof-{k}' for k in ('odd', 'two', 'norm', 'residue', 'table2', 'page', 'prop44')} | {'proof': 'proof-file'}
 SHOWS = {'exists': (True, False), 'open': (True, True), 'ifsym': (True, True), 'impossible': (False, True), None: (True, True)}   # (witness, proof),
 # by the kind of cell of a box, None for a column's
 # The token of a cell's own color, by its kind: an ifsym cell (2026-11-11, [SYC]: red if BGPW's Symmetry Conjecture
@@ -4843,7 +4911,7 @@ def box_parts(cols, n, m=None, ifsym=()):
     witness, proof = SHOWS[kind]
     entry = kind is None or (witness and lw[0] == 'page') or (proof and hw[0] == 'page')
     copy = f'{n}:{lo}' in code_ids() and not (entry and f'{n}:{lo}' in entry_codes(n))
-    return (([WITNESSES[lw[0]]] + ['witness-code'] * copy) * witness + [f'proof-{hw[0]}'] * proof + ['proof-ifsym'] * (kind == 'ifsym')
+    return (([WITNESSES[lw[0]]] + ['witness-code'] * copy) * witness + [PROOF_PARTS[hw[0]]] * proof + ['proof-ifsym'] * (kind == 'ifsym')
             + ['searches'] * (kind in ('open', 'ifsym')))
 
 

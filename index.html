@@ -285,26 +285,26 @@
       <li><span class="swatch exists record proven" aria-hidden="true"></span><span>the smallest \(n\) for a given \(m\)</span></li>
     </ul>
 
-    <!-- What the chart leaves out, each a box (dreeves's README, [COM], 2026-11-10, whose statements these are, their math typeset: "Be more principled about what to omit from Figure 1. Idea: checkboxes for what's omitted, in terms of the biggest power of two factor"): a checked box leaves out the columns of the odd multiples of its factor (data-factor) from data-from on, each of which has the order it states (data-order), as page/mstar-section.js asserts of the data; until then two bullets said that odd n and the odd multiples of 2 but 2 are left out, which the first two boxes, checked as the page loads, still do -->
+    <!-- What the chart leaves out, each a box (dreeves's README, [COM], 2026-11-10, whose statements these are, their math typeset: "Be more principled about what to omit from Figure 1. Idea: checkboxes for what's omitted, in terms of the biggest power of two factor"): a checked box leaves out the columns of the odd multiples of its factor (data-factor) from data-from on, each of which has the order it states (data-order), as page/mstar-section.js asserts of the data; until then two bullets said that odd n and the odd multiples of 2 but 2 are left out, which the first two boxes still do; every box is checked as the page loads since 2026-11-12 (dreeves: "let's default to all checkboxes checked and cap=2^11 for figure 1"; the first two alone before) -->
     <p>Omit the following boring values of \(n\) from the chart:</p>
     <ul class="omit" id="mstar-omit">
       <li><label><input type="checkbox" data-factor="1" data-from="1" data-order="0" checked> \(n>0\) is odd \(\Rightarrow m^*(n) = 0\)</label></li>
       <li><label><input type="checkbox" data-factor="2" data-from="3" data-order="1" checked> \(n>2\) is an odd multiple of 2 \(\Rightarrow m^*(n) = 1\)</label></li>
-      <li><label><input type="checkbox" data-factor="4" data-from="5" data-order="3"> \(n>4\) is an odd multiple of 4 \(\Rightarrow m^*(n) = 3\)</label></li>
-      <li><label><input type="checkbox" data-factor="8" data-from="200" data-order="7"> \(n\ge 200\) is an odd multiple of 8 \(\Rightarrow m^*(n) = 7\)</label></li>
+      <li><label><input type="checkbox" data-factor="4" data-from="5" data-order="3" checked> \(n>4\) is an odd multiple of 4 \(\Rightarrow m^*(n) = 3\)</label></li>
+      <li><label><input type="checkbox" data-factor="8" data-from="200" data-order="7" checked> \(n\ge 200\) is an odd multiple of 8 \(\Rightarrow m^*(n) = 7\)</label></li>
     </ul>
 
     <div class="zoom">
       <button type="button" id="mstar-zoom-out" aria-label='zoom out' title='zoom out'>−</button>
       <button type="button" id="mstar-zoom-in" aria-label='zoom in' title='zoom in'>+</button>
-      <!-- The caps (dreeves's README, [BOU], 2026-11-10: "Let's try having Figure 1 go up to 2048. Actually, let's try this: replace the reset-zoom button with "cap:" and then buttons for 2^6, 2^7, 2^8, 2^9, 2^10, 2^11"): a click on a cap makes its n (data-cap) the chart's last column and shows every column up to it, as the reset button showed every column up to 1024; the cap pressed as the page loads (aria-pressed) is 2^10, the chart as it was -->
+      <!-- The caps (dreeves's README, [BOU], 2026-11-10: "Let's try having Figure 1 go up to 2048. Actually, let's try this: replace the reset-zoom button with "cap:" and then buttons for 2^6, 2^7, 2^8, 2^9, 2^10, 2^11"): a click on a cap makes its n (data-cap) the chart's last column and shows every column up to it, as the reset button showed every column up to 1024; the cap pressed as the page loads (aria-pressed) is 2^11 since 2026-11-12 (dreeves: "cap=2^11 for figure 1"; 2^10, the chart as it was, before) -->
       <span class="caps" id="mstar-caps">cap:
         <button type="button" data-cap="64" aria-pressed="false">\(2^6\)</button>
         <button type="button" data-cap="128" aria-pressed="false">\(2^7\)</button>
         <button type="button" data-cap="256" aria-pressed="false">\(2^8\)</button>
         <button type="button" data-cap="512" aria-pressed="false">\(2^9\)</button>
-        <button type="button" data-cap="1024" aria-pressed="true">\(2^{10}\)</button>
-        <button type="button" data-cap="2048" aria-pressed="false">\(2^{11}\)</button>
+        <button type="button" data-cap="1024" aria-pressed="false">\(2^{10}\)</button>
+        <button type="button" data-cap="2048" aria-pressed="true">\(2^{11}\)</button>
       </span>
     </div>
   </div>

@@ -1,22 +1,24 @@
 // Claude's chart of m*(n), drawn from MSTAR, which mstar.js defines (mstar.py makes it and states its contract), for n
 // up to the cap, the one pressed of the page's caps (dreeves's README, [BOU], 2026-11-10: "Let's try having Figure 1
 // go up to 2048. Actually, let's try this: replace the reset-zoom button with "cap:" and then buttons for 2^6, 2^7,
-// 2^8, 2^9, 2^10, 2^11"; n up to 1024 until then, which is the cap pressed as the page loads).  Column n is green (exists) in rows m = 1 to lo, gray (open) up to hi and red (impossible) above, up to row
+// 2^8, 2^9, 2^10, 2^11"; n up to 1024 until then, which was the cap pressed as the page loads until 2026-11-12, when
+// dreeves asked for 2^11: "let's default to all checkboxes checked and cap=2^11 for figure 1").  Column n is green (exists) in rows m = 1 to lo, gray (open) up to hi and red (impossible) above, up to row
 // MSTAR.mtop.  Since 2026-11-11 (dreeves's README, [SYC]: "a different styling on the chart (like striped or half-and-half
 // black vs red, split diagonally) for cells for which we know they're red conditional on the Symmetry Conjecture being
 // true") a column that MSTAR.ifsym lists has a lower upper bound if BGPW's Symmetry Conjecture holds, and its cells
 // above that bound, up to hi, are of a fourth kind, ifsym: open, with the upper right triangle in the red of an
 // impossible cell.  The columns are NS: every n up to the cap but those that a checked box of the page's list leaves out (dreeves's
 // README, [COM], 2026-11-10: "checkboxes for what's omitted, in terms of the biggest power of two factor").  As the page
-// loads its first two boxes are checked, so NS is n = 2 and the multiples of 4 (dreeves, 2026-10-29: "can we make my
-// "odd multiple of 2" bullet point be true?"; every even n before): an odd n has no partition at any m, and every
-// other n = 2 mod 4 has m*(n) = 1, as the data contract asserts of every box's n.  Pan and zoom (panZoom, which the chart of powers of 2 shares since
+// loads every box is checked (since 2026-11-12, as above), so NS is n = 2 and 4, the multiples of 8 below 200 and the
+// multiples of 16 from 208 on (until then the first two alone, so n = 2 and the multiples of 4, as dreeves asked on
+// 2026-10-29: "can we make my "odd multiple of 2" bullet point be true?"; every even n before): an odd n has no
+// partition at any m, every other n = 2 mod 4 has m*(n) = 1, and so on, as the data contract asserts of every box's n.  Pan and zoom (panZoom, which the chart of powers of 2 shares since
 // 2026-10-30) act on n only: the view is the interval [u0, u0 + span) of u,
 // column c (from 0), n = NS[c], spanning u from c to c + 1.  The rows follow the view (dreeves, 2026-11-10: "however
 // the chart is zoomed, make there always be exactly one fully pink row, ie, zoom in the y direction automatically as a
 // function of the x zoom"): rows 1 to one more than the largest upper bound among the columns in view, sharing the
 // plot's height, so that the top row, and it alone, is impossible in every column of the view.  Each device pixel of the plot mixes the colors of the
-// cells it covers, weighted by how much of it each covers, so all the columns (257 as the page loads) can show at once
+// cells it covers, weighted by how much of it each covers, so all the columns (142 as the page loads) can show at once
 // even where they are narrower than a pixel.
 (() => {
 const cv = document.getElementById('mstar-chart'), ro = document.getElementById('mstar-readout');
@@ -184,8 +186,9 @@ try {
   const ringed = () => assert(RINGS.every(({n, m}) => (n > CAP || NS.includes(n)) && m <= T), RINGS);   // no box leaves a ringed n out
   ringed();
   // The steps of the n labels: 1, 5, 10, 25, 50, 125, 250 and 500 times the least n all of whose multiples up to the cap
-  // are columns (4 for n = 2 and the multiples of 4), those of them that label a column (4, 20, 40, 100, 200, 500 and
-  // 1000 there, up to 1024), each with the columns it labels, its multiples, and the least distance between two of
+  // are columns (4 for n = 2 and the multiples of 4, 16 for the columns as the page loads), those of them that label
+  // a column (4, 20, 40, 100, 200, 500 and 1000 there, up to 1024; 16, 80, 160, 400, 800 and 2000 as the page loads,
+  // up to 2048), each with the columns it labels, its multiples, and the least distance between two of
   // them next to each other, in columns (none for a step with one label, which so has room wherever it is: under the
   // cap 64 with the multiples of 8 for columns, a phone has room for no two labels of the step 8, and the step 40 has
   // the one).  Until 2026-11-10 the steps were 1 to 125 times the spacing of the last two columns: with every n a
@@ -370,22 +373,24 @@ try {
     // it'd be nice to highlight the values of m and n (resp., delta and k) on the axes of the chart"): its m and its n,
     // each in paper on a box of ink as tall as the colored part of a row ROW tall and 3 px wider than the number on
     // either side, the m over its row's m label, while its row is one of the view's, and the n on the n labels' line,
-    // under its column's middle while that is in view, as a label's must be, over any label there.  The chart of
-    // powers of 2 tags its δ and k the same way.
+    // under its column's middle while that is in view, as a label's must be, over any label there.  The m's box is
+    // no taller than its row's colored part (since 2026-11-12, when the chart came to open with 19 rows, under ROW
+    // each, and a box ROW tall reached past the plot's bottom).  The chart of powers of 2 tags its δ and k the same way.
     ctx.font = `${12 * dpr}px ${serif}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     const pitch = Math.round(ROW * dpr);
-    const tag = (t, x, y) => {                                     // the number t, centered at x, y
+    const tag = (t, x, y, h) => {                                  // the number t, centered at x, y, on a box h tall
       const w = ctx.measureText(t).width + 6 * dpr;
       ctx.fillStyle = token('--ink');
-      ctx.fillRect(Math.round(x - w / 2), Math.round(y - (pitch - gap) / 2), Math.round(w), pitch - gap);
+      ctx.fillRect(Math.round(x - w / 2), Math.round(y - h / 2), Math.round(w), h);
       ctx.fillStyle = token('--paper');
       ctx.fillText(t, x, y);
     };
-    picked.filter(inRows).forEach(([, m]) => tag(String(m), L - 7 * dpr - ctx.measureText(String(m)).width / 2, mid(m)));
+    picked.filter(inRows).forEach(([, m]) => tag(String(m), L - 7 * dpr - ctx.measureText(String(m)).width / 2, mid(m),
+                                                 Math.min(pitch, Y(m - 1) - Y(m)) - gap));
     picked.filter(([c]) => u0 <= c + 0.5 && c + 0.5 <= u0 + span)    // 13 px down: the n labels' middle, 7 + 12 / 2
-      .forEach(([c]) => tag(String(NS[c]), L + (c + 0.5 - u0) / k, base + 13 * dpr));
+      .forEach(([c]) => tag(String(NS[c]), L + (c + 0.5 - u0) / k, base + 13 * dpr, pitch - gap));
   }
 
   // What is at CSS x, y (panZoom's targetAt): a cell, [column, m]; the strip of the n labels under the plot, [column,

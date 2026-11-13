@@ -26,7 +26,7 @@ sys.dont_write_bytecode = True
 import os, re, json, html, time, shutil, tempfile, traceback, subprocess, itertools
 from math import prod, floor
 from PIL import Image
-import quals_index as qi                      # read only: page_css, page_scripts, copy_page_dir (the page's files, page/)
+import quals_index as qi                      # read only: page_css, page_scripts, copy_page_dir (the page's files, page/), COLUMNS
 
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # the repository's root, above quals/
 INDEX = os.path.join(HERE, 'index.html')
@@ -50,12 +50,15 @@ OUTLINE = (36, 5)                             # the cell whose outline the scree
 BOX_TARGETS = [[30, 2], [30, 8], [30, 5], [10, 1], [9, 1], [20, 2], [13, 2], [30, None], [None, 3], [None, 12]]
 NO_RUNS = {'made': 1792200000, 'runs': []}
 SWIPE = (29, 8)                               # the cell a phone's swipe starts on, after the outline's tap
-MSTAR_LAYOUT = (44, 16, 2, 14)                # the m*(n) chart's plot: left and right gutters, top, row pitch (CSS px)
+# The m*(n) chart's plot: left and right gutters, top, and height, which its rows share (CSS px; since 2026-11-10 the rows
+# follow the view, [BOU]; until 2026-11-12 the fourth number was the row pitch, 14, true while the chart opened with 16
+# rows, and false once it opened with 19, every box checked and the cap 2^11 pressed)
+MSTAR_LAYOUT = (44, 16, 2, 224)
 NMAX = int(re.search(r'"nmax": (\d+)', open(MSTAR, encoding='utf-8').read()).group(1))   # the m*(n) chart's data's last n (2048 since 2026-11-10, [BOU]; 1024 before)
-# The m*(n) chart's last n as the page loads, its cap pressed then (1024; the data's last n until 2026-11-10, when the
-# caps came, dreeves's README [BOU]), and its columns' n then, since 2026-10-29 (every even n before).
-MSTAR_CAP = int(re.search(r'data-cap="(\d+)" aria-pressed="true"', open(os.path.join(HERE, 'index.html'), encoding='utf-8').read()).group(1))
-MSTAR_COLUMNS = [2] + list(range(4, MSTAR_CAP + 1, 4))
+# The m*(n) chart's columns' n as the page loads, quals_index's statement of them (since 2026-11-12, when dreeves asked
+# for every box checked and the cap 2^11 then; until then n = 2 and the multiples of 4 up to the cap pressed, 1024,
+# since 2026-10-29, and every even n before).
+MSTAR_COLUMNS = qi.COLUMNS
 RUNS = {}                                     # DRIVER's reports by configuration name, made once per process (see run)
 
 
@@ -627,7 +630,7 @@ async function main() {
     R.mstar = [];
     await ev(() => document.getElementById('mstar-chart').scrollIntoView({block: 'center'}));
     await ev(FRAMES);
-    const [cl, ct, cw] = (await ev(GEOMETRY)).canvas, T2 = await ev(cols => 1 + Math.max(...cols.map(n => MSTAR.cols[n - 1][1])), C.mstarCols), [ML, MR, MT, MP] = C.mstarLayout;
+    const [cl, ct, cw] = (await ev(GEOMETRY)).canvas, T2 = await ev(cols => 1 + Math.max(...cols.map(n => MSTAR.cols[n - 1][1])), C.mstarCols), [ML, MR, MT, MH] = C.mstarLayout, MP = MH / T2;
     for (const [k, m] of C.mstarCells) {        // cell (2^k, m) of the m*(n) chart in its full view of the columns C.mstarCols
       await input.mouse(cl + ML + (C.mstarCols.indexOf(2 ** k) + 0.5) * (cw - ML - MR) / C.mstarCols.length,
                         ct + MT + (T2 - m) * MP + (MP - 2) / 2);
@@ -670,7 +673,7 @@ async function main() {
           pow2Tags.push(r.tags);
         }
         await show('mstar-chart');
-        const [cl, ct, cw] = (await ev(GEOMETRY)).canvas, T2 = await ev(cols => 1 + Math.max(...cols.map(n => MSTAR.cols[n - 1][1])), C.mstarCols), [ML, MR, MT, MP] = C.mstarLayout, mstar = [];
+        const [cl, ct, cw] = (await ev(GEOMETRY)).canvas, T2 = await ev(cols => 1 + Math.max(...cols.map(n => MSTAR.cols[n - 1][1])), C.mstarCols), [ML, MR, MT, MH] = C.mstarLayout, MP = MH / T2, mstar = [];
         for (const x of [cl + ML + 0.5, cl + cw - MR - 0.5]) {
           await input.mouse(x, ct + MT + (T2 - 1) * MP + (MP - 2) / 2);
           mstar.push(await ev(() => document.getElementById('mstar-readout').textContent));
@@ -1360,8 +1363,9 @@ def q_zoom_controls_zoom_their_own_chart():
     # charts"): each pair of buttons looks the same; each control zooms or pans its own chart as the m*(n) chart's always
     # did (+ and − by 1.5 about the middle, an arrow by an eighth of the view, from 12 columns to all) and leaves the
     # other chart's view as it was: this chart's k at its ends 1 and 72, 13 and 60 twice, 21 and 52, 25 and 56, 17 and
-    # 64, 35 and 46 after 4 clicks (ZOOM_VIEW), 1 and 72 twice; the m*(n) chart's n 2 and 1024, then 168 and 856 until
-    # the click on its cap pressed (its ↺ until 2026-11-10, [BOU]); a + is disabled exactly at 12 columns and a − exactly at all; in that view of 12 columns each cell in view is
+    # 64, 35 and 46 after 4 clicks (ZOOM_VIEW), 1 and 72 twice; the m*(n) chart's n 2 and 2048, then 176 and 1680 until
+    # the click on its cap pressed (its ↺ until 2026-11-10, [BOU]; 2 and 1024, then 168 and 856, until 2026-11-12, when it
+    # came to open with every box checked and the cap 2^11); a + is disabled exactly at 12 columns and a − exactly at all; in that view of 12 columns each cell in view is
     # its rect, of its kind's color; and each ring (ring_cells, since 2026-10-30) is around its cell, as at the full
     # view, where that cell is in view, and wholly beyond the plot's ends, which clip it, where it is not (no ringed
     # cell was next to that view, where a ring shows its edge, as the m*(n) chart's rings do, until 2026-11-03, when (47, 6) became one, around its cell there too).
@@ -1371,7 +1375,7 @@ def q_zoom_controls_zoom_their_own_chart():
     assert all(a == b for a, b in Z['looks']), Z['looks']
     names = ['load', 'pow2 +', 'mstar +', 'pow2 + key', 'pow2 → key', 'pow2 − key', 'pow2 + to its limit', 'pow2 ↺', 'mstar cap']
     ks = [(1, 72), (13, 60), (13, 60), (21, 52), (25, 56), (17, 64), (35, 46), (1, 72), (1, 72)]
-    ns = [(2, 1024)] * 2 + [(168, 856)] * 6 + [(2, 1024)]
+    ns = [(2, 2048)] * 2 + [(176, 1680)] * 6 + [(2, 2048)]      # (2, 1024) and (168, 856) until 2026-11-12, with 257 columns
     disabled = [[False, True, False, True], [False, False, False, True]] + [[False] * 4] * 4 + [
         [True, False, False, False], [False, True, False, False], [False, True, False, True]]
     got = [(s['name'], tuple(int(re.match(r'k = (\d+),', t)[1]) for t in s['pow2']),
