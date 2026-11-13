@@ -17883,11 +17883,18 @@ and minor request: let's default to all checkboxes checked and cap=2^11 for figu
 <header><p class="speaker">dreev</p></header>
 <pre class="prompt">ok, sounds find. can you reread everything and identify the first pareto improvement (in anything -- code, math, prose, UI) you come across and if you're sure, proceed with it and then tell me what you did?</pre>
 <details>
-<summary><a class="anchor" href="#p890"><time datetime="2026-11-13T21:14:42.011000+00:00">21:14</time></a> <span class="chip"></span> <span class="agent">Claude Code</span> <span class="model">claude-opus-5-5</span> <span class="effort">(max)</span> <span class="elapsed">thought for 1m33s</span></summary>
+<summary><a class="anchor" href="#p890"><time datetime="2026-11-13T21:14:42.011000+00:00">21:14</time></a> <span class="chip"></span> <span class="agent">Claude Code</span> <span class="model">claude-opus-5-5</span> <span class="effort">(max)</span> <span class="elapsed">thought for 3m9s · 3m22s wall-clock time</span></summary>
 <div class="reply machine"><p>Starting with the rules at the top of AGENTS.md, then the page from the top, stopping at the first change that improves something and makes nothing worse:</p>
 <p>Rules reread. Now the page, from the top:</p>
 <p>The head and the top of the changelog have nothing to fix: dreeves&#x27;s own lines, and history that later entries supersede. Continuing:</p>
-<p>The script writes only into its own scratch folder; copying over preview.png is a separate step. Rendering the current page at the documented zoom of 0.40 to compare:</p></div>
+<p>The script writes only into its own scratch folder; copying over preview.png is a separate step. Rendering the current page at the documented zoom of 0.40 to compare:</p>
+<p>Both data files match the commit, and no qual checks the preview. Viewing AGENTS.md:105, which claims the preview needed no rebuild, to see which change it was written about:</p>
+<p>I replaced the page&#x27;s link-preview image, which was two days out of date. That was the first improvement in reading order: it sits at line 16 of [index.html](index.html#L16), above anything else I found.</p>
+<p><strong>What was wrong:</strong> <code>preview.png</code> is the image shown when someone shares the page&#x27;s link. Its powers-of-2 table predated the 2026-11-11 results, so 2^30, 2^33, 2^34, 2^51 and 2^53 showed their old ranges. For example, 2^51 read 57–63 where the page now has 58–63.</p>
+<p><strong>What I did:</strong> rebuilt it with the documented tool, <code>scratch/record-20261025/page/preview.py 0.40</code>. A pixel comparison with the old image shows differences only in those five cells and in the legend, which gains the &quot;Opus 5.5 and Fable 5.2&quot; entry those cells now carry. The layout is unchanged. It was drawn from <code>pow2.js</code> and <code>mstar.js</code> exactly as committed. <code>preview.png</code> now shows as modified for you to review.</p>
+<p><strong>Why it was missed:</strong> AGENTS.md&#x27;s note on the 2026-11-11 round said &quot;preview.png is unchanged: no cell of the view it shows moved&quot;. That view includes the powers-of-2 table, whose cells did move. I corrected that line, and my memory&#x27;s rebuild rule now says powers-of-2 results also require a rebuild.</p>
+<p>Next in line was [index.html:131](index.html#L131): <code>\(1^2 + 4^2~= 17~\ne~…\)</code> is spaced unevenly around its &quot;=&quot;, unlike the intro&#x27;s other equations, which use <code>~=~</code>. The fix is one character in your text, so I left it for you.</p>
+<p>Want a qual that re-renders the preview and fails when <code>preview.png</code> no longer matches it?</p></div>
 </details>
 </article>
 </main>
