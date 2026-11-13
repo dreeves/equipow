@@ -259,8 +259,16 @@ const OPS = {
     await ev(() => document.fonts.ready.then(() => 0));
     const katex = await ev(KATEX);
     await ev(FRAMES);
-    await press('section.remarks details > summary');
-    if (!await ev(() => document.querySelector('section.remarks details').open)) throw new Error('the fold of the remarks did not open');
+    await press('section.remarks details:not(.ai) > summary');
+    if (!await ev(() => document.querySelector('section.remarks details:not(.ai)').open)) throw new Error('the fold of the remarks did not open');
+    // (2026-11-13, when every model's text came to start folded, dreeves: "all ai-generated text should be default
+    // collapsed": the Symmetry section's codes among it) a real click on the line of each such fold that holds a code,
+    // which must open it, as a reader opens it to reach the codes
+    const folds = await ev(() => [...document.querySelectorAll('details.ai')].filter(d => d.querySelector('code[id]')).map((d, i) => (d.querySelector(':scope > summary').dataset.qualsFold = i, i)));
+    for (const i of folds) {
+      await press(`summary[data-quals-fold="${i}"]`);
+      if (!await ev(i => document.querySelector(`summary[data-quals-fold="${i}"]`).parentElement.open, i)) throw new Error(`the fold of a model's text ${i} did not open`);
+    }
     // then a real click on the page's title, which moves the start of the tab order back to the top: the click on the
     // summary had moved it there, past the codes above the fold (2026-11-04: since PR 4, 1440:16 beside Table 3)
     await press('h1');
@@ -424,7 +432,7 @@ ROOM = """() => {
   return {boxes: boxes.length, heights: [asTheyAre, without]};
 }"""
 # In the page: whether the remarks' fold is open
-FOLD = """() => document.querySelector('section.remarks details').open"""
+FOLD = """() => document.querySelector('section.remarks details:not(.ai)').open"""
 
 
 def drive(viewport, steps, text=None, items=CODES_AND_JOINS, fragment=''):

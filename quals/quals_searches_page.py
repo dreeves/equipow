@@ -92,6 +92,9 @@ HARNESS = r"""<script>
         runsLine: q('[data-track-line]').textContent.replace(/\s+/g, ' ').trim(),
         hint: q('[data-readout]').textContent.replace(/\s+/g, ' ').trim(),
         prior: q('[data-odds-prior]').textContent,
+        now: q('[data-odds-now]')?.textContent ?? null,
+        // the prior line from the prior's number on, its words before it left unread (2026-11-13)
+        oddsTail: (() => { let t = '', e = q('[data-odds-prior]'); for (; e; e = e.nextSibling) t += e.textContent; return t.replace(/\s+/g, ' ').trim(); })(),
         oddsPoints: q('[data-exists-line]').getAttribute('points').trim().split(/\s+/).length,
         oddsEmpty: q('.progress-odds').hasAttribute('data-empty'),
         etaPoints: q('[data-togo]').getAttribute('points').trim().split(/\s+/).length,
@@ -157,14 +160,16 @@ HARNESS = r"""<script>
                     cross: +cross.getAttribute('x1'), tickY: ticks.length ? +ticks[0].getAttribute('y') : null,
                     box: (r => [+r.getAttribute('x'), +r.getAttribute('width')])(g.querySelector('rect')),
                     tip: box.querySelector('[data-tip]').innerText.replace(/\s+/g, ' ').trim(),
-                    cpu: box.querySelector('.progress-cpu-key').innerText.replace(/\s+/g, ' ').trim()};
+                    cpu: box.querySelector('.progress-cpu-key').innerText.replace(/\s+/g, ' ').trim(),
+                    now: box.querySelector('[data-odds-now]')?.textContent ?? null};
       svg.dispatchEvent(new MouseEvent('mouseleave', {bubbles: true}));
-      read.after = {shown: g.getAttribute('visibility') === 'visible'};
+      read.after = {shown: g.getAttribute('visibility') === 'visible', now: box.querySelector('[data-odds-now]')?.textContent ?? null};
       return read;
     };
     result.hovers = box && {eta: hover('.progress-eta', L.etaXs[1]), cpu: hover('.progress-cpu', (L.etaXs[0] + L.etaXs[1]) / 2),
                             pending: hover('.progress-pending', L.pendingXs[1]), finished: hover('.progress-finished', L.finishedXs[1]),
                             odds: hover('.progress-odds', L.oddsXs[1])};   // none on a page with no box
+    result.oddsFirst = box && hover('.progress-odds', L.oddsXs[0]);   // the probability graph's first point, for its readout
     result.width = document.documentElement.scrollWidth;
   } catch (e) { result.error = String(e.stack || e); }
   parent.postMessage(JSON.stringify(result), '*');
@@ -378,6 +383,26 @@ def q_hovering_floats_the_time_on_the_x_axis():
         assert not got['after']['shown'], (name, got)
     assert re.match(r'\d+h\s\d+m\s\d+s \+ ', h['eta']['tip']) and '@' not in h['eta']['tip'] and want['eta'] not in h['eta']['tip'], h['eta']['tip']
     assert '@' not in h['cpu']['cpu'] and want['cpu'] not in h['cpu']['cpu'], h['cpu']['cpu']
+
+
+def q_the_prior_line_says_the_probability_now():
+    # Replicata: the page 1280 px wide with SEARCHES: each box's prior line, from its prior's number on; then a hover over
+    # the running form tree's probability graph at its first point, then away.
+    # Expectata (dreeves, 2026-11-13: "for "Prior probability a bipartition exists: 0.5" append a right arrow and then the
+    # current probability, and have it update on hover for the graph"): each line ends with its prior, an arrow and its
+    # search's latest P(exists), to 2 significant figures (its prior where it has no point); over a point of the graph,
+    # that point's P(exists); away, the latest again.  The line's words before the prior are not read.
+    # Resultata before: the line ended with the prior.  (The numbers are compared as numbers: JS and Python write some
+    # differently, 0.000012 and 1.2e-05.)
+    r = report(1280)
+    two = lambda p: float(format(p, '.2g'))   # to 2 significant figures
+    runs = [x for x in SEARCHES['runs'] if x['state'] == 'running'] + [x for x in SEARCHES['runs'] if x['state'] != 'running']   # the boxes' order
+    tails = [b['oddsTail'].split(' → ') for b in r['boxes']]
+    assert len(tails) == len(runs) and all(len(t) == 2 for t in tails), tails
+    want = [(e['odds']['prior'], two([e['odds']['prior'], *[p for _, p in e['odds']['exists']]][-1])) for e in runs]
+    assert [(float(a), float(b)) for a, b in tails] == want, (tails, want)
+    first, last, h = two(TREE['odds']['exists'][0][1]), two(TREE['odds']['exists'][-1][1]), r['oddsFirst']   # TREE: the first box
+    assert first != last and (float(h['now']), float(h['after']['now'])) == (first, last), (first, last, h['now'], h['after']['now'])
 
 
 def q_the_bar_measures_each_search_s_work_in_its_unit():

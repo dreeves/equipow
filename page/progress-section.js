@@ -661,8 +661,10 @@
   // The hover of a chart of points over time (the nodes pending, the probability graph; dreeves, 2026-11-12: "should we
   // have the same hover effect on all graphs consistently? it's missing on the probability graph"): under the pointer the
   // dashed line at the nearest point, from y1 to y2, whose time floats on the x axis's row y (stampAt); away, neither.
-  // xs the points' x positions, in the chart's viewBox, and times their clock times; with no point, nothing.
-  function hoverPoints(fig, xs, times, y1, y2, y) {
+  // xs the points' x positions, in the chart's viewBox, and times their clock times; with no point, nothing.  say(k),
+  // if given, hears the point under the pointer, k, and away the last, xs.length - 1 (-1 with no point), so that a
+  // readout can follow (the probability graph's, 2026-11-13).
+  function hoverPoints(fig, xs, times, y1, y2, y, say = () => {}) {
     const svg = fig.querySelector('svg'), cross = fig.querySelector('line.cross'), stampG = fig.querySelector('[data-stamp]');
     svg.onmousemove = ev => {
       const x = svgX(svg, ev);
@@ -670,9 +672,10 @@
       for (const t of times.slice(k, k + 1)) {
         set(cross, {x1: xs[k], y1, x2: xs[k], y2}).setAttribute('visibility', 'visible');
         stampAt(stampG, xs[k], y, t);
+        say(k);
       }
     };
-    svg.onmouseleave = () => { cross.setAttribute('visibility', 'hidden'); stampG.setAttribute('visibility', 'hidden'); };
+    svg.onmouseleave = () => { cross.setAttribute('visibility', 'hidden'); stampG.setAttribute('visibility', 'hidden'); say(xs.length - 1); };
   }
 
   function oddsChart(fig, run) {
@@ -681,6 +684,11 @@
     assert(typeof prior === 'number' && 0 <= prior && prior <= 1 && Array.isArray(exists) && (Number.isFinite(since) || (since === null && !exists.length))
            && exists.every(([t, p]) => Number.isFinite(t) && 0 <= p && p <= 1), 'malformed odds', run.odds);
     fill(fig, 'odds-prior', num(prior));
+    // after the prior, an arrow and P(exists) now, the last point's, to 2 significant figures, or over the graph the point
+    // under the pointer's (2026-11-13; dreeves: "append a right arrow and then the current probability, and have it update
+    // on hover for the graph"): of the prior and the points, the (k + 1)th, k the point heard (hoverPoints), -1 the prior
+    const series = [prior, ...exists.map(([, p]) => p)], now = k => fill(fig, 'odds-now', String(Number(series[k + 1].toPrecision(2))));
+    now(exists.length - 1);
     const W = chartWidth(), H = 160, L = ETA_L, R = ETA_R, T = 14, B = 30, q = sel => fig.querySelector(sel);   // the ETA chart's margins (2026-11-12)
     sized(fig.querySelector('svg'), W, H);
     const pts = exists.map(([t, p]) => [(t - since) / 3600, p]);
@@ -700,7 +708,7 @@
     set(q('[data-exists-wash]'), {points: xy([...ends[0].map(([x]) => [x, Y(0)]), ...line, ...ends[1].map(([x]) => [x, Y(0)])])});
     q('[data-exists-marks]').replaceChildren(...ends[1].map(([cx, cy]) => make('circle', {class: 'mark', r: 4, cx, cy})));
     const xs = line.map(([x]) => x);
-    hoverPoints(fig, xs, exists.map(([t]) => t), T, Y(0), H - 8);   // the hover of the pending chart (2026-11-12)
+    hoverPoints(fig, xs, exists.map(([t]) => t), T, Y(0), H - 8, now);   // the hover of the pending chart (2026-11-12), and the readout above
     return xs;
   }
 

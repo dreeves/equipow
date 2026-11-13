@@ -508,7 +508,7 @@ function battery(R) {
   R.readout0 = ro.textContent;
   // The fold of the remarks' list ([REO] step 2, 2026-11-03), as the page loads: whether it is there and open, and
   // whether its summary and its list are shown
-  const fold = document.querySelector('section.remarks details');
+  const fold = document.querySelector('section.remarks details:not(.ai)');
   R.fold = {there: fold !== null, open: fold?.open ?? null, summary: fold?.querySelector(':scope > summary')?.checkVisibility() ?? null,
             list: fold?.querySelector(':scope > ul')?.checkVisibility() ?? null};
   R.canvasCss = [rect().width, rect().height];
@@ -933,7 +933,7 @@ function panelReport(id = 'mstar-panel') {
   c.querySelectorAll('.katex').forEach(k => k.replaceWith(`\\(${k.querySelector('annotation').textContent}\\)`));
   const held = [...c.querySelectorAll(HELD)];
   held.forEach(li => li.remove());
-  const ids = [...document.querySelectorAll('[id]')].map(e => e.id), fold = document.querySelector('section.remarks details');
+  const ids = [...document.querySelectorAll('[id]')].map(e => e.id), fold = document.querySelector('section.remarks details:not(.ai)');
   return {hidden: region.hidden, hash: location.hash, focus: document.activeElement === region.querySelector('h3'),
           active: document.activeElement.id, whys: [...region.querySelectorAll('[data-why]')].map(e => e.dataset.why),
           heading: c.querySelector('h3').textContent, text: c.textContent.replace(/\s+/g, ' ').trim(),
@@ -4724,6 +4724,10 @@ def remarks_fold():
         else:
             (top.append([x]) if depth == 0 else nested.append(x))
             depth += 1
+    # Spec change (2026-11-13; dreeves: "i'm thinking maybe all ai-generated text should be default collapsed?"): the
+    # paragraphs on how the upper bounds are proven, Opus 5.5's, sit in a fold of their own (details.ai) before the list's
+    # fold, which is the section's one outermost <details> that is no such fold; until then it was its one outermost one.
+    top = [f for f in top if 'class="ai"' not in f[0].group(1)]
     assert depth == 0 and len(top) == 1 and len(top[0]) == 2, [len(f) for f in top]
     opening, closing = top[0]
     assert 'open' not in opening.group(1) and not any('open' in x.group(1) for x in nested), (opening.group(1), [x.group(1) for x in nested])
@@ -4836,7 +4840,7 @@ def q_find_in_page_opens_the_fold():
     phrase = next(p for p in re.findall(r'(?<![^ ])[A-Za-z]{3,} [A-Za-z]{3,} [A-Za-z]{3,}(?![^ ])', lemma) if seen.count(p) == 1)
     for frag in ('#:~:text=' + phrase.replace(' ', '%20'), '#lemma432'):
         d = tempfile.mkdtemp(prefix='index-quals-')
-        probe = ('<script>addEventListener("load", () => setTimeout(() => { const f = document.querySelector("section.remarks details"),'
+        probe = ('<script>addEventListener("load", () => setTimeout(() => { const f = document.querySelector("section.remarks details:not(.ai)"),'
                  ' t = document.getElementById("lemma432"); document.documentElement.dataset.fold = JSON.stringify({there: f !== null,'
                  ' open: f?.open ?? null, shown: t.checkVisibility()}); }, 1500));</script>')
         text = page()
@@ -7296,6 +7300,77 @@ def q_progress_eta_chart_keeps_progress_html_s_spec():
     assert re.search(r'\.progress-eta \.guide \{ stroke: var\(--progress-total\);', style), 'the guide not purple'
     assert all(re.search(rf'\.progress-eta \.{k} \{{[^}}]*mix-blend-mode: multiply;', style) for k in ('band', 'range')), 'an overlap hidden'
     assert R['status']['legends'] == 0, R['status']
+
+AI_QUOTE = re.compile(r'(?:Claude )?(?:Opus 5\.5|Fable 5\.2|Astra|Claude): “')
+
+
+def q_ai_text_starts_folded():
+    # Replicata: index.html as written: every passage a model wrote, each quote "Model: “…”" outside an HTML comment and
+    # each <blockquote class="claude">, with the folds and fold lines around it.
+    # Expectata (dreeves, 2026-11-13: "i'm thinking maybe all ai-generated text should be default collapsed?", and of
+    # folding each behind the model's name: "we want more context than just the model's name, so the reader knows what
+    # they're expanding"): each is inside a <details> that starts closed (no open attribute), or is a fold's line itself
+    # (inside a <summary>, as the remarks' list's and the proof expositions' lines are); and each fold made for such text
+    # (details.ai) has a line that names a model and says more than the name, or is its section's heading (the contents
+    # links' target, moved out of the quote).
+    # Spec change (that afternoon; dreeves, of the OEIS notes' folds: "small anti-magic/consistency violation but this is
+    # too annoying to click to expand something that's a single line. with that exception can we get more consistency with
+    # all this?"): a one-line note, a quote "Model: “…”" that shares its line with other words (each OEIS note follows its
+    # entry's number), stays in its line, in no fold; every other passage is folded as before, and each fold made for a
+    # model's text holds one thing past its line, a block quote (class claude) whose last paragraph signs it "— Model",
+    # the model its line names where the line is "Model on …" (a heading line is not read: dreeves's words).  Every block
+    # quote of a model's is signed so.
+    # Resultata before: 19 passages shown as the page opens, from Opus 5.5's account of the upper bounds to Fable 5.2's
+    # proof for large lengths.  Before the spec change: the ten OEIS notes each in a fold; two folds holding paragraphs
+    # "Model: “…”" (the 1440 note, the partitions' counts), one an unsigned block quote (the asymptotics'), one signed
+    # "— Claude Opus 5.5" under the line "Opus 5.5 on …".
+    s = blank_comments(page())
+    def around(pos):
+        stack, summary = [], 0
+        for m in re.finditer(r'<details\b[^>]*>|</details>|<summary\b[^>]*>|</summary>', s[:pos]):
+            t = m.group()
+            if t.startswith('<details'): stack.append(t)
+            elif t == '</details>': stack.pop()
+            else: summary += 1 if t.startswith('<summary') else -1
+        return stack, summary > 0
+    BLOCK = r'<(?:p|li|td|th|dd|dt|h[1-6]|div|blockquote|details|summary|figcaption|section)\b[^>]*>'
+    def note(text, pos):
+        """whether the quote at pos in text shares its line with other words: words since the block that holds it began"""
+        start = [m.end() for m in re.finditer(BLOCK, text[:pos])][-1]
+        return re.sub(r'<[^>]+>|\s', '', text[start:pos]) != ''
+    # the control: a quote after an entry's number is a note; one that begins its paragraph is not
+    li, para = '<ul><li><a href="#">A000069</a>. Claude: “Its other part.”</li></ul>', '<p>Claude: “Its other part.”</p>'
+    assert note(li, li.index('Claude')) and not note(para, para.index('Claude'))
+    quotes = [m.start() for m in AI_QUOTE.finditer(s)]
+    places = quotes + [m.start() for m in re.finditer(r'<blockquote class="claude"', s)]
+    shown, notes = [], []
+    for pos in places:
+        stack, in_line = around(pos)
+        if in_line or any(not re.search(r'\sopen\b', d) for d in stack): continue
+        (notes if pos in quotes and note(s, pos) else shown).append(re.sub(r'<[^>]+>', ' ', s[pos:pos + 90]).strip())
+    assert len(places) > 50 and shown == [], (len(shown), shown[:5])
+    # each details.ai: its line, and what it holds past its line, to its own </details> (folds may nest)
+    folds = []
+    for m in re.finditer(r'<details class="ai"[^>]*>\s*<summary>(.*?)</summary>', s, re.S):
+        depth, i = 1, m.end()
+        for t in re.finditer(r'<details\b[^>]*>|</details>', s[m.end():]):
+            depth += 1 if t.group().startswith('<details') else -1
+            if depth == 0: i = m.end() + t.start(); break
+        folds.append((m.group(1), s[m.end():i].strip()))
+    named = [l for l, _ in folds if re.match(r'(Opus 5\.5|Fable 5\.2|Astra|Claude) \S+ \S+', l) or re.fullmatch(r'\s*<h2 id="[^"]+">[^<].*</h2>\s*', l, re.S)]
+    assert folds and named == [l for l, _ in folds], [l for l, _ in folds if l not in named][:5]
+    SIGNED = r'<blockquote class="claude">.*<p class="attrib">— (Opus 5\.5|Fable 5\.2|Astra|Claude)</p>\s*</blockquote>'
+    unlike = []
+    for line, held in folds:
+        q = re.fullmatch(SIGNED, held, re.S)
+        one = q and held.count('<blockquote') == 1
+        label = re.match(r'(Opus 5\.5|Fable 5\.2|Astra|Claude) on ', line)
+        if not one or (label and label.group(1) != q.group(1)): unlike.append((re.sub(r'<[^>]+>', ' ', line).strip()[:60], held[:70]))
+    assert unlike == [], (len(unlike), unlike[:4])
+    bqs = re.findall(r'<blockquote class="claude">.*?</blockquote>', s, re.S)
+    unsigned = [b[:120] for b in bqs if not re.search(r'<p class="attrib">— (Opus 5\.5|Fable 5\.2|Astra|Claude)</p>\s*</blockquote>$', b)]
+    assert bqs and unsigned == [], unsigned
+
 
 def main():
     names = sys.argv[1:] or [n for n in globals() if n.startswith('q_')]

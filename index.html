@@ -373,10 +373,15 @@
   <!-- Says where the table's smallest known lengths beyond the chart come from: if f has length n and order a, and g has order b, then f(x) g(x^n) has order at least a + b, so the product of two lesser orders' lengths reaches their sum -->
   <p>Values of \(n\) beyond what the chart shows are from products: if \(f\) has length \(n\) and order \(a\), and \(g\) has order \(b\), then \(f(x)\,g(x^n)\) has order at least \(a + b\).</p>
   <!-- TODO: says that order 16's smallest n, 1440, is no product: it is the least length past 1024 that the chart's own tests leave open at order 16, every shorter one failing the 2-adic bound, a norm bound or a residue condition; that a symmetric example of order 16, found by a lattice search on 2026-11-04, reaches it, which settles a(15) = 1440 of OEIS A323395; and that order 18 at 1440 is ruled out by the residue condition mod 7, so m*(1440) is 16 or 17 -->
-  <p>Opus 5.5: “Order 16's smallest \(n\), 1440, is no product: it is the least length past 1024 that the chart's own tests leave open at order 16. 
+  <details class="ai"><!-- TODO: the fold's line, Opus 5.5's words: says it holds Opus 5.5's block quote on why 1440 is the least length of order 16 --><summary>Opus 5.5 on why 1440 is the least length of order 16</summary>
+  <blockquote class="claude">
+  <p>Order 16's smallest \(n\), 1440, is no product: it is the least length past 1024 that the chart's own tests leave open at order 16. 
     Each shorter one fails the 2-adic bound, a norm bound or a residue condition. 
     The symmetric example below, found by a lattice search, reaches it, which settles \(a(15) = 1440\) of OEIS <a href="https://oeis.org/A323395">A323395</a>. 
-    Order 18 is ruled out at 1440 by the residue condition mod 7, so \(m^*(1440) \in \{16, 17\}\).”</p>
+    Order 18 is ruled out at 1440 by the residue condition mod 7, so \(m^*(1440) \in \{16, 17\}\).</p>
+  <p class="attrib">— Opus 5.5</p>
+  </blockquote>
+  </details>
   <p class="code">
     <span>\(p_{1440}\) \((m = 16)\):</span>
     <code id="1440:16">9E21C6F54B340E3CAF46C59F362A518761CD3896A8DAB346DC58D731D72B46AC9A3630DAA94E91D235364CD316F68A7B8AF8E336A449B12CD9E0D6D51AA55C49AC65CCCB90F2D5EA2A166DB9936D0369D05CF5A95CA006EF87B2</code>
@@ -470,15 +475,17 @@ UPDATE: The new best we have is
 1440:16 <span class="nw">(\(\href{#1440:16}{p_{1440}}\)).</span> 
 So \(16/\log_2 1440 \approx 1.525\) is the newest bound on the upper envelope.
 </p>
-More from Claude Opus 5.5:
   <!-- TODO: a block quote by Claude, the corrections that take words and the answer to the question above. The limit c exists: Multiplication makes m*(2^k) superadditive in k, so by Fekete's lemma m*(2^k)/k converges to its supremum; its upper end is Boyd's bound (1997, Theorem 1), which the norm bound below sharpens: if a prime p does not divide n, then m*(n) ≤ ((p − 1)/log2 p) log2 n; at p = 3 that is 2/log2 3 ≈ 1.262, so only a multiple of 3, as 1440 = 2^5·3^2·5 is, can beat that ratio, and only a multiple of 15 can beat 4/log2 5 ≈ 1.723. m*(n)/log2 n has no limit: m*(n) is 1 for every n ≡ 2 mod 4 and at most 3 for every n ≡ 4 mod 8 (Divisibility); its limit superior is the upper envelope's ratio U, which Multiplication makes equal to the supremum of m*(n)/log2 n, so U ≥ 1.525. Claude conjectures c = 2/log2 3, the most the norm bound allows: for every k from 2 to 12 the upper bound from residue sums mod 3, 9 or 27 is attained at 2^k, as at 39 of the 43 multiples of 16 up to 1024 that are not multiples of 3; that pattern's first test is 2^13, where 14 ≤ m* ≤ 15, the 15 from the norm bound; and the lower end 66/58 is no evidence against it, since at 2^k a join of products of Thue–Morse sequences and blocks up to 1024 can show at most 11/log2 800 ≈ 1.141 times k: 2^k is not a multiple of 3, so one of the join's parts and all of that part's factors are not, and every such factor's ratio of order to log2 of its length is at most 11/log2 800, with equality at 800 among the blocks, by the chart's upper bounds, and 1 for Thue–Morse. Whether U is finite is open: U is finite exactly when the least length of order m is at least a^m for some a > 1, BGPW's last question (§7) being how that length grows; they place it between e^((1 + o(1))√m) and O(192^(m/9)), and 1440:16 lowers the latter to O(1440^(m/16)), from about 1.793^m to about 1.575^m; Boyd's bound m*(n) ≤ (1 + o(1))(ln n)^2/ln ln n (1997, Remark 1) allows either. Then, before that last paragraph (2026-11-07): past 1024, 1456 at order 12 would beat 800's ratio (12/log2 1456 ≈ 1.142), but no sequence of length 1456 has order 12: order 12 makes every sign at i ≡ 0 mod 3 the same, since 729 must divide the differences of the residue sums mod 3; P(i) = Σ_{k<12} ψ_k C(i, k), with the ψ given, is a multiple of 729 at every other i < 1456 while its values at i ≡ 0 mod 3 sum to 243 mod 729; order 12 makes Σ f_i P(i) = 0, so that sum would have to be a multiple of 729; proof1456.py (linked) checks it; so m*(1456) = 11, from the join of p432 and p1024, each name linked to its code -->
-  <blockquote class="claude">
+  <details class="ai"><!-- TODO: the fold's line, Opus 5.5's words: says it holds Claude's block quote on why the limit c exists and its conjecture that c = 2/log_2 3 --><summary>Claude on why the limit \(c\) exists, and its conjecture that \(c = 2/\log_2 3\)</summary>
+<blockquote class="claude">
     <p>The limit \(c\) exists: Multiplication gives \(m^*(2^{a+b}) \ge m^*(2^a) + m^*(2^b)\), so by Fekete's lemma \(m^*(2^k)/k\) converges to its supremum. Its upper end is Boyd's bound (1997, Theorem 1), which the norm bound below sharpens: if a prime \(p\) does not divide \(n\), then \(m^*(n) \le \frac{p-1}{\log_2 p}\log_2 n\). At \(p = 3\) that is \(2/\log_2 3 \approx 1.262\). So only a multiple of 3, as \(1440 = 2^5 \cdot 3^2 \cdot 5\) is, can beat that ratio, and only a multiple of 15 can beat \(4/\log_2 5 \approx 1.723\).</p>
     <p>\(m^*(n)/\log_2 n\) has no limit: \(m^*(n)\) is 1 for every \(n \equiv 2 \pmod 4\) and at most 3 for every \(n \equiv 4 \pmod 8\) (BGPW's Theorem 4.1, Divisibility). Its limit superior is the upper envelope's ratio, \(U\), which Multiplication makes equal to \(\sup_n m^*(n)/\log_2 n\), so \(U \ge 1.525\).</p>
     <p>Claude conjectures that \(c = 2/\log_2 3\), the most the norm bound allows. For every \(k\) from 2 to 12, the upper bound from residue sums mod 3, 9 or 27 is attained at \(2^k\), as it is at 39 of the 43 multiples of 16 up to 1024 that are not multiples of 3. That pattern's first test is \(2^{13}\), where \(14 \le m^*(2^{13}) \le 15\), the 15 from the norm bound. The lower end, \(66/58\), is no evidence against the conjecture: at \(2^k\), a join of products of Thue–Morse sequences and blocks up to 1024 can show at most \(\frac{11}{\log_2 800}k \approx 1.141k\). Since \(2^k\) is not a multiple of 3, one of the join's parts is not, nor is any of that part's factors. By the chart's upper bounds, each such factor's order is at most \(\frac{11}{\log_2 800}\) times \(\log_2\) of its length, with equality at 800 among the blocks, and Thue–Morse's is exactly that logarithm.</p>
     <p>Past 1024, 1456 at order 12 would beat 800's ratio: \(12/\log_2 1456 \approx 1.142\). No sequence of length 1456 has order 12. Order 12 there makes every sign \(f_i\) with \(i \equiv 0 \pmod 3\) the same, since 729 must divide the differences of the residue sums mod 3. And \(P(i) = \sum_{k=0}^{11} \psi_k \binom{i}{k}\), with \(\psi = (659,\allowbreak 70,\allowbreak 659,\allowbreak 333,\allowbreak 336,\allowbreak 513,\allowbreak 216,\allowbreak 342,\allowbreak 522,\allowbreak 486,\allowbreak 81,\allowbreak 0)\), is a multiple of 729 at every other \(i < 1456\), while its values at the \(i \equiv 0 \pmod 3\) sum to 243 mod 729. Order 12 makes \(\sum_i f_i P(i) = 0\), so that sum would have to be a multiple of 729 (<a href="https://github.com/dreeves/equipow/blob/main/proofs/proof1456.py">proof1456.py</a> checks all of this). So \(m^*(1456) = 11\), the 11 from the join of \(\href{#432:11}{p_{432}}\) and \(\href{#1024:11}{p_{1024}}\).</p>
     <p>Whether \(U\) is finite is open. It is finite exactly when the least length of order \(m\) is at least \(a^m\) for some \(a > 1\), and how that length grows is BGPW's last question (§7). They place it between \(e^{(1+o(1))\sqrt m}\) and \(O(192^{m/9})\); 1440:16 lowers the latter to \(O(1440^{m/16})\), from about \(1.793^m\) to about \(1.575^m\). Boyd's bound \(m^*(n) \le (1+o(1))(\ln n)^2/\ln\ln n\) (1997, Remark 1) allows either.</p>
+    <p class="attrib">— Claude</p>
   </blockquote>
+</details>
 </section>
 
 
@@ -498,31 +505,36 @@ Or just start identifying redundancies and repetition on the page and fix them o
 <section class="remarks">
   <h2 id="remarks-title">Where the new results come from</h2>
   <!-- TODO: says how the upper bounds are proven: a partition written as signs f_0, ..., f_(n−1) and f(x) = sum f_i x^i has order m when (x − 1)^m divides f(x); for a modulus M the residue sum D_r is the number of +1s minus the number of −1s at the positions i ≡ r (mod M); f(x) reduced modulo x^M − 1 is sum D_r x^r and must still be a multiple of (x − 1)^m modulo x^M − 1, each D_r having its class size's parity and being at most that size in absolute value; and the residue condition mod M rules out order m when an exhaustive search finds no residue sums meeting all that -->
+  <details class="ai"><!-- TODO: the fold's line, Opus 5.5's words: says it holds Opus 5.5's block quote on how the residue condition and the norm bound prove the chart's upper bounds --><summary>Opus 5.5 on how the residue condition and the norm bound prove upper bounds</summary>
+  <blockquote class="claude">
   <p>
-    Claude Opus 5.5: “How the upper bounds are proven. 
+    How the upper bounds are proven. 
     Write a partition of \(0, 1, \ldots, n - 1\) as signs \(f_0, \ldots, f_{n-1}\), \(+1\) on one half and \(-1\) on the other, and let \(f(x) = f_0 + f_1x + \cdots + f_{n-1}x^{n-1}\). 
     Order \(m\) means that \((x - 1)^m\) divides \(f(x)\). 
     For a modulus \(M\), the residue sum \(D_r\) is the number of \(+1\)s minus the number of \(-1\)s at the positions \(i \equiv r \pmod{M}\). 
     Reducing \(f(x)\) modulo \(x^M - 1\) leaves \(D_0 + D_1x + \cdots + D_{M-1}x^{M-1}\), which must still be a multiple of \((x - 1)^m\) modulo \(x^M - 1\). 
     Each \(D_r\) also has the parity of its class's size and is at most that size in absolute value. 
-    The residue condition mod \(M\) rules out order \(m\) when an exhaustive search finds no residue sums that meet all of this.”
+    The residue condition mod \(M\) rules out order \(m\) when an exhaustive search finds no residue sums that meet all of this.
   </p>
   <!-- TODO: says the norm bound for a prime p not dividing n: with M = p and zeta a primitive pth root of unity, f(zeta) = sum D_r zeta^r is not 0 (else the D_r would all be equal, hence 0, as they sum to f(1) = 0, while some class has an odd size and so an odd D_r); it is a multiple of (zeta − 1)^m, whose norm is p^m, so its norm, a positive integer, is at least p^m; by the inequality of arithmetic and geometric means that norm is at most (p sum D_r^2 / (p − 1))^((p − 1)/2); and with s_r the size of class r and |D_r| ≤ s_r, order m needs p^(2m) (p − 1)^(p − 1) ≤ (p sum s_r^2)^(p − 1) -->
   <p>
-    Claude Opus 5.5: “The norm bound for a prime \(p\) that does not divide \(n\) uses the same sums with \(M = p\). 
+    The norm bound for a prime \(p\) that does not divide \(n\) uses the same sums with \(M = p\). 
     Let \(\zeta\) be a primitive \(p\)th root of unity. 
     Then \(f(\zeta) = D_0 + D_1\zeta + \cdots + D_{p-1}\zeta^{p-1}\) is not 0: if it were, the \(D_r\) would all be equal, hence all 0, as they sum to \(f(1) = 0\); but since \(p\) does not divide \(n\), some class has an odd size and so an odd \(D_r\). 
     It is a multiple of \((\zeta - 1)^m\), whose norm is \(p^m\), so the norm of \(f(\zeta)\), a positive integer, is at least \(p^m\). 
     By the inequality of arithmetic and geometric means, that norm is also at most \((p \sum D_r^2 / (p - 1))^{(p-1)/2}\). 
-    With \(s_r\) the size of class \(r\) and \(|D_r| \le s_r\), order \(m\) needs \(p^{2m} (p - 1)^{p-1} \le (p \sum s_r^2)^{p-1}\).”
+    With \(s_r\) the size of class \(r\) and \(|D_r| \le s_r\), order \(m\) needs \(p^{2m} (p - 1)^{p-1} \le (p \sum s_r^2)^{p-1}\).
   </p>
   <!-- TODO: says mstar.py and pow2.py (linked) repeat the search behind every residue claim each time they run, and that certificates that can be checked on their own, like proof512.wl for 512, are still to be done -->
   <p>
-    Claude Opus 5.5: “<a href="https://github.com/dreeves/equipow/blob/main/pagegen/mstar.py">mstar.py</a> and 
+    <a href="https://github.com/dreeves/equipow/blob/main/pagegen/mstar.py">mstar.py</a> and 
     <a href="https://github.com/dreeves/equipow/blob/main/pagegen/pow2.py">pow2.py</a> 
     repeat the search behind every residue claim each time they run. 
-    Certificates that can be checked on their own, like proof512.wl for 512, are still to be done.”
+    Certificates that can be checked on their own, like proof512.wl for 512, are still to be done.
   </p>
+  <p class="attrib">— Opus 5.5</p>
+  </blockquote>
+  </details>
   <p>
     The hex codes shown below follow Table 5 of BGPW: 
     the left half of the signs \((1 = +1, 0 = -1)\), then the rest by \((-1)^m\) symmetry.
@@ -1722,17 +1734,20 @@ of them with m ≡ 0, 1, 2 mod 3) and two exceptional signs, and d_0 ≡ d_3 (mo
 
 <section class="counts">
   <h2 id="counts-title">Partitions at powers of 2</h2>
-  <p>Claude: “The partitions of \(\{0, \ldots, 2^k - 1\}\) into two parts with equal power sums for exponents \(0, \ldots, k - 1\): Thue–Morse is the only one for \(k \le 5\) (<a href="https://doi.org/10.1109/18.340458">Roth, Siegel and Vardy 1994</a>; <a href="https://doi.org/10.1090/S0025-5718-97-00892-2">Boyd 1997</a>), there are 3 for \(k = 6\) (<a href="https://doi.org/10.1090/S0025-5718-01-01360-6">Boyd 2002</a>), and there are 431 for \(k = 7\), or 367 counting a partition and its reversal once.”</p>
-  <p>Claude: “The count for \(k = 7\) is new, from an exhaustive search by Claude (<a href="https://github.com/dreeves/equipow/tree/main/proofs/count128">code and the 431 sets</a>). Of the 431, 303 are antisymmetric, Thue–Morse among them, and the other 128 come in reversed pairs. The same search method shows that the order-7 partition of \(\{0, \ldots, 111\}\) is unique.”</p>
+  <details class="ai"><!-- TODO: the fold's line, Opus 5.5's words: says it holds Claude's block quote, two paragraphs, on the count of these partitions for each k up to 7, the count at 7 new --><summary>Claude on how many such partitions each \(k\) up to 7 has, new at 7</summary>
+  <blockquote class="claude">
+  <p>The partitions of \(\{0, \ldots, 2^k - 1\}\) into two parts with equal power sums for exponents \(0, \ldots, k - 1\): Thue–Morse is the only one for \(k \le 5\) (<a href="https://doi.org/10.1109/18.340458">Roth, Siegel and Vardy 1994</a>; <a href="https://doi.org/10.1090/S0025-5718-97-00892-2">Boyd 1997</a>), there are 3 for \(k = 6\) (<a href="https://doi.org/10.1090/S0025-5718-01-01360-6">Boyd 2002</a>), and there are 431 for \(k = 7\), or 367 counting a partition and its reversal once.</p>
+  <p>The count for \(k = 7\) is new, from an exhaustive search by Claude (<a href="https://github.com/dreeves/equipow/tree/main/proofs/count128">code and the 431 sets</a>). Of the 431, 303 are antisymmetric, Thue–Morse among them, and the other 128 come in reversed pairs. The same search method shows that the order-7 partition of \(\{0, \ldots, 111\}\) is unique.</p>
+  <p class="attrib">— Claude</p>
+  </blockquote>
+  </details>
 </section>
 
 <section class="lattice" aria-labelledby="lattice-title">
   <!-- TODO: a block quote by Claude, at Stan Wagon's request (2026-10-14), on how Claude found its examples: the order-m conditions as linear equations in the signs, halved by symmetry; their solutions with entries ±1 as exactly the shortest vectors of a translate t + 2K of a lattice; basis reduction and Schnorr–Euchner enumeration, exhaustive when unpruned and pruned for speed; the searches behind 144, 240, 320, q336, 432, 480, 560 and 800, with their lattice dimensions and times; and lattice_search.wl, a plain Mathematica version, with when an empty result proves there are none (only when "complete" is True; a search cut off by "MaxNodes" proves nothing) and calls whose results are known, to time against other search code -->
-<p>
-  Still Claude:
-</p>
+  <details class="ai"><!-- the fold's line is the section's heading, moved out of the quote below it (2026-11-13), so that the contents link it targets stays in view -->
+  <summary><h2 id="lattice-title">Claude explains how it found its examples</h2></summary>
   <blockquote class="claude">
-    <h2 id="lattice-title">How Claude found its examples</h2>
     <p>The examples Claude found by searching, in the remarks above (\(\href{#320:9}{p_{320}}\), \(\href{#336:9}{q_{336}}\), \(\href{#432:11}{p_{432}}\), \(\href{#560:10}{p_{560}}\) and \(\href{#800:11}{p_{800}}\)) and in early runs at 144 and 240, came from one method: a search for the shortest vectors of a lattice, run with the C++ library <a href="https://github.com/fplll/fplll">fplll</a>.</p>
     <p>Write a sequence as signs \(f_0, \ldots, f_{n-1}\) and let \(x_i = 2i - n + 1\), the positions centered on 0 and doubled. Order \(m\) means \(\sum f_i x_i^k = 0\) for \(k = 0, \ldots, m - 1\): by the fun fact above, these positions give the same order as \(0, \ldots, n - 1\), with smaller numbers. These are \(m\) linear equations in the signs. Claude looked only at symmetric sequences \((f_{n-1-i} = f_i)\) for even \(m\) and antisymmetric ones \((f_{n-1-i} = -f_i)\) for odd \(m\), BGPW's \((-1)^m\) convention. Since \(x_{n-1-i} = -x_i\), that leaves \(h = n/2\) unknown signs \(a_i = f_i\) <span class="nw">\((i < h)\)</span> and \(\lfloor m/2\rfloor\) equations, those with \(k\) of the same parity as \(m\); the others hold for every such sequence.</p>
     <p>Put \(a = 2y - 1\). The integer vectors \(y\) for which \(a\) solves the equations form a translate \(y_0 + K\) of the lattice \(K\) of integer solutions of the equations themselves, whose dimension is \(d = h - \lfloor m/2\rfloor\). (If there is no such \(y\), there is no such sequence.) So \(a\) ranges over the translate \(t + 2K\), where \(t = 2y_0 - 1\). Every vector in it has odd entries, so its squared length is at least \(h\), with equality exactly when every entry is \(\pm 1\); any other vector in it has an entry of absolute value at least 3, so its squared length is at least \(h + 8\). So the sequences sought are exactly the shortest vectors of \(t + 2K\), and finding them is a closest-vector problem: find the vectors of the lattice \(2K\) at distance \(\sqrt{h}\) from \(-t\).</p>
@@ -1779,13 +1794,14 @@ of them with m ≡ 0, 1, 2 mod 3) and two exceptional signs, and d_0 ≡ d_3 (mo
     <p>The runs that found them took 532 seconds at 672 and 709 seconds at 1440, each on one core. The README in that directory has the commands.</p>
     <p class="attrib">— Claude</p>
   </blockquote>
+</details>
 </section>
 
 <section class="pintree" aria-labelledby="pintree-title">
   <!-- TODO: a block quote by Claude (the user, 2026-11-03: "including an explanation of how the new stuff works"), on how order 12 at 432 and order 13 at 816 were ruled out. A proof of impossibility must cover every sequence, symmetric or not. It pins residue sums and shows the pins impossible, in a tree. Three parts: the parity coset, a condition on residue sums mod powers of 2 that follows from every sequence being the same polynomial mod 2, with the counts at 432 (186,309 vectors mod 8 without it, 5,450 with it); certificates, a polynomial of degree below m plus a weight per class, whose weighted sum over the signs is known from the pins and yet too large to be reached, which is what a linear program's infeasibility gives, in integers; and splitting, the linear program bounding the residue sums of a further modulus, by certificates too, and the vectors inside those bounds each becoming a child. Why it works at these lengths: 5 and 7 do not divide them, so large residue sums are forced, with 432's sums mod 5 as the example, and such periodic patterns soon ask more of the signs than any can give. The sizes of the two proofs and the times. What to trust: the linear program runs in floating point and only suggests; two programs that share no code check every certificate in exact integers, using only Python's standard library; the checks done on known sequences; the files linked. Where it stops: other open cells have loose nodes, and estimated costs of hundreds of CPU-days and up -->
-  <p>Yet more Claude yadda-yadda:</p>
+  <details class="ai"><!-- the fold's line is the section's heading, moved out of the quote below it (2026-11-13), so that the contents link it targets stays in view -->
+  <summary><h2 id="pintree-title">How Opus 5.5 ruled out order 12 at 432 and order 13 at 816</h2></summary>
   <blockquote class="claude">
-    <h2 id="pintree-title">How Opus 5.5 ruled out order 12 at 432 and order 13 at 816</h2>
     <p>Finding an example needs one sequence, and can look only at symmetric ones. Ruling an order out must cover every sequence, about \(2^n\) of them. These proofs do it with a tree, a <i>pin tree</i>: each node <i>pins</i> some residue sums \(D_r\) to given values, standing for the sequences with those sums; the root pins nothing; and every leaf is shown impossible. Three things make the tree small.</p>
     <p><b>The parity coset.</b> The residue condition says that the residue sums mod \(M\), as a polynomial mod \(x^M - 1\), are a multiple of \((x - 1)^m\): they lie in a lattice \(L(M, m)\), with each \(D_r\) of the parity of its class's size. But mod 2 every sign is 1, so every sequence of length \(n\) is the same polynomial, \(S = (x^n - 1)/(x - 1)\). Dividing \(f\) by \((x - 1)^m\) therefore gives one fixed quotient mod 2, and so, mod a power of 2, the residue sums lie in a single coset of \(2L(M, m)\), which is far smaller. For order 12 at 432, mod 8, that leaves 5,450 vectors of 186,309. It holds for every sequence, symmetric or not.</p>
     <p><b>Certificates.</b> Take a polynomial \(g\) of degree below \(m\) and a weight \(c_M(r)\) for each class of each pinned modulus, and let \(w(i) = g(i) + \sum_M c_M(i \bmod M)\). For a sequence of order \(m\) with those pins, \(\sum_i w(i) f_i\) is a number \(K\) known from the pins alone, \(\sum_M \sum_r c_M(r) D^{(M)}_r\), because \(\sum_i g(i) f_i = 0\). But \(|\sum_i w(i) f_i| \le \sum_i |w(i)|\). So if \(|K| > \sum_i |w(i)|\), no sequence has those pins. A linear program over \(-1 \le f_i \le 1\) finds such weights whenever the pins are impossible even for real numbers.</p>
@@ -1797,15 +1813,16 @@ of them with m ≡ 0, 1, 2 mod 3) and two exceptional signs, and d_0 ≡ d_3 (mo
     </ul>
     <p>The linear program runs in floating point and only suggests. <a href="https://github.com/dreeves/equipow/blob/main/proofs/pintree.py">pintree.py</a> replays a proof in exact integers with nothing but Python's standard library, and its docstring states the whole argument. <a href="https://github.com/dreeves/equipow/blob/main/proofs/pintree_second.py">pintree_second.py</a> checks the same file with no code in common, enumerating and evaluating by other routes. Both accept <a href="https://github.com/dreeves/equipow/blob/main/proofs/pintree_432_12.json.gz">the proof at 432</a> and <a href="https://github.com/dreeves/equipow/blob/main/proofs/pintree_816_13.json.gz">the proof at 816</a>, with the same counts. Each known sequence tried, asymmetric ones among them, survives the whole procedure at its own order.</p>
     <p>Other open cells have nodes where the residue sums are small and the linear program stays loose. Estimates for those run from hundreds of CPU-days to far more, so this method does not reach them yet. <a href="https://github.com/dreeves/equipow/tree/main/searches/pintree">searches/pintree</a> has the code that makes the proofs, the estimates and more of the details.</p>
-    <p class="attrib">— Claude</p>
+    <p class="attrib">— Opus 5.5</p>
   </blockquote>
+</details>
 </section>
 
 <section class="formtree" aria-labelledby="formtree-title">
-<p>Fable 5.2 explains form-tree proofs:</p>
   <!-- TODO: a block quote by Fable 5.2 (dreeves's README, [FTP], 2026-11-10: "add exposition, attributed to Claude, that defines and describes form-tree proofs"), on what a form-tree proof is: Opus 5.5's method of 2026-11-04, which settled m*(288) = 9, working as a pin tree does in finer steps, a node splitting on one number, mostly into two children, where a pin tree's splits on a modulus into a child per vector of residue sums. Forms: a linear form in the residue sums of one modulus, an integer weight per class mod a prime power M, its value Σ w_r D_r. Grids: the residue sums of a sequence of order m lie in the lattice L of the multiples of (x − 1)^m mod x^M − 1 (of (x − 1)^m (x + 1) when n < 2^m, since f(−1) = 0 then) and, by the parity coset's argument at every M, in one coset of 2L, so a form's value is c mod 2G, G the gcd of its values on L and c its value on a vector of the coset; a residue sum mod a prime p > m has G = 1, the Legendre symbol's weights have G a multiple of p once m > (p − 1)/2 (Gauss's sum), at order 10 every odd prime up to 19; at prime moduli the prover takes its forms from short vectors of L's dual, weights small for their G (the text says "at prime moduli" because at 4, 8, 9, 16, 25 and 27 the prover's lists hold those vectors with their classes permuted). The tree: a node pins forms to values; a form not pinned is bounded above and below by certificates; no grid value within the bounds closes the node, one pins the form in the same node, several split it; the top is a pin tree, splitting on 3, 5 and 7 in turn (on 4 first at 152, 168 and 184), with one vector of residue sums from each orbit under negation and reversal, closing what it can by certificates, the vectors left being the start nodes; at a node closed under reversal, a form whose value reversal negates gets children only for v ≥ 0; the proof is complete when every node is closed. Three steps of the first task of searches/formtree/fixtures/small.txt, a stream from an earlier run at 288 kept to test the checkers (linked), each li's data-step the step's number among the stream's bound steps: a split (mod 13, grid 13 + 26ℤ, between −11 and 61: 13 or 39), a pin (mod 8, grid 256ℤ, between −224 and 245: 0) and a closed node (mod 13, grid 26ℤ, between 27 and 46: none). Certificates: a pin tree's with the node's forms for classes, W(i) = g(i) + Σ c_q w^(q)(i mod M_q), Σ W(i) f_i = K = Σ c_q v_q, closing when |K| > Σ|W(i)|, and bounding a form w by T v ≤ K + Σ|T w(i mod M) − W(i)|; any such numbers give a true bound, a linear program finds good ones, and the prover stops it once a tighter bound could exclude no further value of the grid. What checks it: the prover pex.cpp only suggests; fkernel, a separate program in exact integers, recomputes grids, bounds and children and keeps its own list of open nodes; formtree.py, Python's standard library only, sharing no code with it, checks the same steps and states the argument; each start node begins a task, a task past its time limit (four minutes in the run at 288) spills its unfinished nodes as new tasks named by a hash of their pins, fkernel gives each task a verdict (accepted or refused, with the names of the nodes it spilled), and assemble checks the top, whose certificates are kept, and confirms that every start node and every spilled node has an accepted verdict with none left open. Sizes: at 288, 16 start nodes, 205,491 tasks, 981,147,930 nodes (a spilled node counting in both of its tasks), 466,813,767 of them split, into a little over two children each on average, 1,470,167,061 pins without a split, the tasks' 4,902,209,550 certificates checked as made and not kept (terabytes), so that checking again means making them again, 104 hours with ten prover processes on Danny Reeves's Mac; the verdicts kept (run288v_snapshot.tar.gz), formtree.py having read 1,841 of the tasks too, each of at most 14,448 nodes and 1,569,215 nodes in all, and agreed on each; the single cells' proofs small, at most 36,262 nodes, every task read by both checkers; the open cells' trees estimated at about 10^10 nodes for order 14 at 480 and 10^14 or more elsewhere (closing-step.md) -->
+  <details class="ai"><!-- the fold's line is the section's heading, moved out of the quote below it (2026-11-13), so that the contents link it targets stays in view -->
+  <summary><h2 id="formtree-title">Fable 5.2 explains form-tree proofs</h2></summary>
   <blockquote class="claude">
-    <h2 id="formtree-title">Form-tree proofs</h2>
     <p>A form-tree proof shows that no sequence of length \(n\) has order \(m\). It is Opus 5.5's method of 2026-11-04, which settled \(m^*(288) = 9\), and it works as a <a href="#pintree-title">pin tree</a> does, in finer steps. A pin tree's node splits on a modulus, into a child for every vector of residue sums that the node allows. A form tree's node splits on one number, mostly into two children.</p>
     <p><b>Forms.</b> A <i>form</i> is a linear form in the residue sums of one modulus: an integer weight \(w_r\) for each class \(r\) mod \(M\), a prime power. Its value on a sequence is \(v = \sum_r w_r D_r\), which is \(\sum_i w_{i \bmod M}\, f_i\). A single residue sum is a form.</p>
     <p><b>Grids.</b> On sequences of order \(m\), a form's values are spread thin. Let \(L\) be the lattice of the multiples of \((x - 1)^m\) mod \(x^M - 1\), the \(L(M, m)\) above, or, when \(n < 2^m\), of the multiples of \((x - 1)^m (x + 1)\): then \(2^m\) divides \(f(-1)\), which is at most \(n\) in absolute value, so \(f(-1) = 0\). The residue sums mod \(M\) of a sequence of order \(m\) lie in \(L\), and in one coset of \(2L\), since the parity coset's argument holds at every \(M\), not only at powers of 2. So \(v \equiv c \pmod{2G}\), where \(G\) is the greatest common divisor of the form's values on \(L\), and \(c\) is its value on any vector of the coset. The values \(c + 2G\mathbb{Z}\) are the form's <i>grid</i>.</p>
@@ -1822,6 +1839,7 @@ of them with m ≡ 0, 1, 2 mod 3) and two exceptional signs, and d_0 ≡ d_3 (mo
     <p><b>Sizes.</b> The proof at 288 has 16 start nodes, 205,491 tasks and 981,147,930 nodes, a spilled node counting in both of its tasks. Of those nodes, 466,813,767 split, into a little over two children each on average, and 1,470,167,061 times a form was pinned without a split. fkernel checked the tasks' 4,902,209,550 certificates as they were made. They would fill terabytes and were not kept, so checking them again means making them again, which took 104 hours with ten prover processes on Danny Reeves's Mac. The tasks' verdicts are kept, in <a href="https://github.com/dreeves/equipow/blob/main/searches/formtree/run288v_snapshot.tar.gz">run288v_snapshot.tar.gz</a>. formtree.py read 1,841 of the tasks too, each of at most 14,448 nodes and 1,569,215 nodes in all, and agreed with fkernel on each. The <a href="https://github.com/dreeves/equipow/tree/main/searches/formtree/cells">proofs of single cells</a> are small, 36,262 nodes at most, and both checkers read every task of theirs. For the chart's open cells, the same trees are estimated at about \(10^{10}\) nodes for order 14 at 480 and at \(10^{14}\) or more elsewhere; <a href="https://github.com/dreeves/equipow/blob/main/searches/formtree/closing-step.md">closing-step.md</a> has the estimates, and ideas for closing nodes sooner.</p>
     <p class="attrib">— Fable 5.2</p>
   </blockquote>
+</details>
 </section>
 
 <section class="symmetry" aria-labelledby="symmetry-title">
@@ -1830,6 +1848,7 @@ of them with m ≡ 0, 1, 2 mod 3) and two exceptional signs, and d_0 ≡ d_3 (mo
 <p>
 The following is mostly Claude Opus 5.5 and maybe some Fable 5.1, before Fable 5.2:
 </p>
+<details class="ai"><!-- TODO: the fold's line, Opus 5.5's words: says it holds Claude's block quote, with Fable 5.2's parentheses, on the conjecture through order 11 and at orders 12 to 16 --><summary>Claude on how the conjecture holds through order 11, and how far it reaches at orders 12 to 16</summary>
 <blockquote class="claude">
 <p>
 BGPW conjecture (their §6) that if some sequence of length \(n\) has order \(m\), then some \((-1)^m\)-symmetric one does, with \(f_{n-1-i} = (-1)^m f_i\): 
@@ -2003,8 +2022,10 @@ Below those lengths, each order leaves finitely many lengths, and where no symme
 </p>
 <p class="attrib">— Claude</p>
 </blockquote>
+</details>
   <!-- TODO: a block quote by Fable 5.2 (dreeves, 2026-11-09: "yes to putting it in index.html attributed clearly to Fable 5.2"), on its theorem of that day and where it leaves the conjecture: for every order m there is an n_0(m) such that every length n ≥ n_0(m) that is a multiple of 2^a, the least power of 2 above m, has a (−1)^m-symmetric sequence of order m; with Divisibility, the conjecture then holds at each order from n_0(m) on and can fail at only finitely many lengths; the proof uses no example and not Freiman and Litsyn's theorem, so what the three paragraphs above give for orders 12, 13 and 16 it gives for every order, and that theorem's statement about lengths follows from it; the idea: a (−1)^m-symmetric sequence of length 2N is its right half, N signs under d = ⌊m/2⌋ linear conditions with integer coefficients; the number of solutions is 2^(N−d) times the integral of a product of N cosines over a cube of side 2, one period of the product in each coordinate, which holds 2^d integer points; a lemma, by finite differences, that the product is below any power of 1/N unless θ is near an integer point; near each integer point the same Gaussian bump up to sign, the signs agreeing exactly when 2^a divides n (Lucas's theorem) and the bumps cancelling otherwise, so that only Divisibility survives at large lengths; the count's formula, and that nearly all of the sequences counted have exact order m; the proof, in a fold of the quote (the comment above the fold recaps it), its quals and code (linked), and what checked it: the quals for its finite steps, two more instances of Fable 5.2 with their own code for the text, no human; what it does not do: its constants give n_0(2) ≤ 2^32 and n_0(12) ≤ 2^1063, so it settles no open cell, and below n_0(m) each length still needs a symmetric sequence or a proof that none of that order exists, as at 288 for order 10; and a by-product: at order 5 the true count is between 0.55 and 3.6 times the formula at each of the nine multiples of 8 from 32 to 96, because at one θ every factor of the product is ±cos(π/16), which leaves 0.39 at N = 48 -->
 <p>Now Fable 5.2 claims to have proved a weak version of the Symmetry Conjecture:</p>
+<details class="ai"><!-- TODO: the fold's line, Opus 5.5's words: says it holds Fable 5.2's block quote, its theorem and proof that each order holds at every sufficiently large length --><summary>Fable 5.2 on its proof that every order holds at every sufficiently large length</summary>
 <blockquote class="claude">
 <p>
 <b>Every order, every sufficiently large length.</b> 
@@ -2122,6 +2143,7 @@ at one \(\theta\) every factor is \(\pm\cos(\pi/16)\), which leaves \(0.39\) at 
 </p>
 <p class="attrib">— Fable 5.2</p>
 </blockquote>
+</details>
 <p>
 Assuming the above proof is correct, Table <a href="#symmetry-table">5</a>
 gives, for each order \(m\), the smallest known \(N\) 
@@ -2266,7 +2288,8 @@ such that the Symmetry Conjecture holds for lengths \(n \ge N\).
           <p class="progress-readout" data-readout></p>
           <!-- every run's prior P(exists), then its graph of P(exists) given none found so far (progress.py's odds; dreeves, 2026-11-06: "for anti-magic i don't want to conditionally include or exclude graphs", and "after the ETA graph, explicitly state the prior probability a bipartition exists. we can go back to 1% or whatever makes sense for 288:10. then show the first probability graph, even though for 288:10 it's uninteresting. then kill everything below that"; until then three graphs and a note on their basis, for a search with a model of its odds alone): the prior, in dreeves's words, then the chance that a bipartition exists, given none found so far, over the hours of the search; for a run with no model of its search the ignorant prior (progress.py's IGNORANT, 0.5: dreeves, 2026-11-06, "go with 50% as the ignorant prior when there's no model or whatever") -->
           <div class="progress-odds">
-            <p>Prior probability a bipartition exists: <b data-odds-prior></b></p>
+            <!-- after the prior, an arrow and P(exists) now, or at the point under the pointer on the graph below (2026-11-13; dreeves: "append a right arrow and then the current probability, and have it update on hover for the graph") -->
+            <p>Prior probability a bipartition exists: <b data-odds-prior></b> → <b data-odds-now></b></p>
             <!-- title; says the graph below is the chance that a bipartition exists, given that the search has found none so far -->
             <p class="progress-odds-title">Probability a bipartition exists, given none found so far, plotted vs time:</p>
             <!-- aria label; says the chart shows the chance that a bipartition exists, given none found so far, over the hours of the search -->

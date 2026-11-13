@@ -299,6 +299,12 @@ code[aria-expanded], [data-text][aria-expanded] { cursor: pointer; text-decorati
 
 /* Typeset proofs in native disclosures retain ordinary prose and let wide mathematics scroll within the entry. */
 .proof-exposition { min-width: 0; margin-block: 0.5rem; }
+/* A fold of a model's text, closed as the page opens (2026-11-13; dreeves: "i'm thinking maybe all ai-generated text should
+   be default collapsed?"): its line a pointer, and a section's heading, where that is its line, on the marker's line. */
+details.ai { min-width: 0; margin-block: 0.5rem; }
+details.ai > summary { cursor: pointer; }
+details.ai > summary h2 { display: inline; }
+details.ai > * + * { margin-top: 0.8rem; }
 .proof-body { min-width: 0; padding-left: 0.75rem; border-left: 1px solid var(--muted); }
 .proof-body p { margin-block: 0.7rem; }
 .proof-body h4 { font-size: 1em; margin-block: 1.1rem 0.4rem; }
@@ -316,11 +322,12 @@ code[aria-expanded], [data-text][aria-expanded] { cursor: pointer; text-decorati
 /* The section on partitions at powers of 2 */
 .counts { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; max-width: var(--measure); }
 
-/* Claude's account of its lattice search, at Stan Wagon's request (2026-10-14): one block quote, ruled in Claude's hue */
+/* Claude's account of its lattice search, at Stan Wagon's request (2026-10-14): one block quote, ruled in Claude's hue; since
+   2026-11-13 every model's block quote, wherever it stands (the remarks' own since then), by one rule: until then a list of sections */
 .lattice, .pintree, .formtree, .symmetry, .asymptotics { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; max-width: var(--measure); }
-.lattice blockquote, .pintree blockquote, .formtree blockquote, .symmetry blockquote, .asymptotics blockquote { margin: 0; padding-left: 1.1rem; border-left: 3px solid var(--claude); display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; }
+blockquote.claude { margin: 0; padding-left: 1.1rem; border-left: 3px solid var(--claude); display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; }
 .lattice ul, .pintree ul, .formtree ul, .symmetry ul, .symmetry ol { margin: 0; padding-left: 1.2rem; display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.6rem; }   /* one column no wider than the list, so that a displayed formula in an item scrolls alone (2026-11-10) */
-.lattice .attrib, .pintree .attrib, .formtree .attrib, .symmetry .attrib, .asymptotics .attrib { color: var(--muted); }
+blockquote.claude .attrib { color: var(--muted); }
 .symmetry li > p { text-align: start; hyphens: manual; -webkit-hyphens: manual; }   /* its code lines, ragged and unhyphenated, as p.code's are */
 
 /* The search's progress (dreeves, 2026-10-17: a collapsible section of index.html in place of progress.html).
