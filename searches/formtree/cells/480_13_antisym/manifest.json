@@ -1,0 +1,61 @@
+{
+ "cell": "480:13",
+ "symmetry": -1,
+ "claim": "no antisymmetric sequence of length 480 has order 13",
+ "chain": [
+  3,
+  5,
+  7
+ ],
+ "pins": [
+  4,
+  8,
+  9,
+  11,
+  13,
+  16,
+  17,
+  19,
+  23,
+  25,
+  27,
+  29,
+  31,
+  37
+ ],
+ "run": "scratch/s480-20261111/runs/480_13_antisym_fold",
+ "log": [
+  "# 2026-11-13 09:29:56 start: 480:13 nodeset sets/480_13_fold procs 10 limit 240 PY_SAMPLE 100 BUILD build_fold NICE 5",
+  "finished: 7.23788e+07 nodes, closed 7.23788e+07, OPEN 0, LPs 1.11814e+09, CPU 121.07 h; certificates 4.84228e+08, REJECTED 0, wrong names 0, python 211 sampled 0 differ; wall 12.27 h"
+ ],
+ "tasks": 25529,
+ "python_checked": 211,
+ "nodes": 72378773,
+ "certificates": 484228449,
+ "open": 0,
+ "refused": 0,
+ "start_nodes": 2,
+ "positive_controls": {
+  "the lemma": "proofs/symtree.py's steps (1) and (2), checked exactly on nodes.json here; scratch/s480-20261111/control1.py: the page's (-1)^m-symmetric sequences at 12 lengths, each in exactly one start node of its own cell's node set",
+  "the pipeline": "scratch/s480-20261111/runs/288_10_p19: 288:10 symmetric-only, 894,356 nodes, assembled",
+  "the fold mode": "quals/quals_formtree.py's q_engine_fold_streams_pass_the_checkers (480:14 symmetric and 480:13 antisymmetric streams, both checkers accept), q_engine_fold_values_match_unfolded and q_engine_fold_fails_loudly"
+ },
+ "prover": {
+  "source": "searches/formtree/pex.cpp in its fold mode, PEX_FOLD=-1: its LPs over the antisymmetric points alone (the positions below n/2), each certificate written on the node's unfolded rows, so that fkernel and proofs/formtree.py read the stream as they read any other",
+  "fold": -1,
+  "source_sha256": "700f5b76fca3515527d70736fdde0a503325674b145f77b8837e0ad52afa5849",
+  "binary_sha256": "bb34850e041ad3a2e0238c96011d8ab3ed46972dc281bb72ca50c0d8de0063ef"
+ },
+ "fkernel_source_sha256": "4715f2278f5cdb05be488a75e41c5cb4ad66a39435225d252df966b31914ee9f",
+ "fkernel_binary_sha256": "0ac6df04166896bb19b7b1676c515191a75d4250cea49d02b40308cf162f5f0f",
+ "formtree_py_sha256": "36acd880c7134d6c4d2dda34b9386b35100f5371de4e86f6f813981c3f4327a4",
+ "pintree_py_sha256": "265a626c1dd73c51c727845c028f329ace9b9c453539b26719c5357b9e0ba785",
+ "symtree_py_sha256": "fafff151f7b67b441dca4e00072bf94e2c0f667bd90a3dd1ae33439210cdf7ed",
+ "files": {
+  "assemble.txt": "4fea284893a4311c6709925933b51db2f60bc188f7bae4ca12ec179133a571a2",
+  "nodes.json": "551319cd4102f35d52d953cbcf025e1563f5f3bc962e019ce45af20d0d56334e",
+  "pex_480_13_3_4_5_7_8_9_11_13_16_17_19_23_25_27_29_31_37.cfg": "8af182a21d1eaf17d4c5512f4e6905eb2aa2d1f3a143dad2cc20ff5d74104cf7",
+  "pex_480_13_3_4_5_7_8_9_11_13_16_17_19_23_25_27_29_31_37.cfg.Q.npy": "39e2b2277d255169ec1d07fa89f7c6967b61f3e896929eece776a4e87240b10e",
+  "verdicts.jsonl": "3efdd2cea47dad61600fcf72ed88916dc578ed20853aa5bab5e0bc53c22e8fd3"
+ }
+}

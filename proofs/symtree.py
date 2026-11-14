@@ -53,7 +53,7 @@ CHAIN = (3, 5, 7)
 # The kept proofs, by their directories in the repository: each a claim "no (-1)^m-symmetric sequence of length n has
 # order m" that check accepts.  quals_symtree.q_every_kept_proof_is_accepted_and_named holds this list to the
 # directories that are there.
-TREES = ['searches/formtree/cells/480_14_sym']
+TREES = ['searches/formtree/cells/480_14_sym', 'searches/formtree/cells/480_13_antisym']
 
 
 def _load(name):

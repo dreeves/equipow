@@ -5081,7 +5081,9 @@ def q_black_box_shows_both_bounds_and_the_searches():
     status = f'10m 0s + 0–3 h to go = 0–3 h ({finish(made, made + to_go["lo"], made + to_go["hi"], (to_go["hi"] - to_go["lo"]) / 2)})'
     assert [figures(t) for t in S['searches']] == [figures(f'Search progress m*(528) ≥ 12? probe_seed.py running 10m 0s {status} m*(528) ≥ 12? '
                                                            'overnight_v5.py aborted 2h 0m 0s Aborted after running for 2h 0m 0s.')], S['searches']
-    assert B[(480, 13)]['whys'] == box_parts(cols, 480, 13) and [figures(t) for t in B[(480, 13)]['searches']] == ['—'], B[(480, 13)]
+    # Since 2026-11-13 (480:13 is red if the Symmetry Conjecture holds, by the kept proof cells/480_13_antisym): the
+    # parts of (480, 13)'s box are those of such a cell (box_parts with the data's ifsym), its searches as before.
+    assert B[(480, 13)]['whys'] == box_parts(cols, 480, 13, mstar_data()['ifsym']) and [figures(t) for t in B[(480, 13)]['searches']] == ['—'], B[(480, 13)]
 
 
 def q_column_box_opens_from_its_n_label():
@@ -5232,7 +5234,8 @@ def q_legend_has_an_item_for_every_kind_of_cell():
 
 
 def q_ifsym_cells_are_open_with_an_impossible_corner():
-    # Replicata: the light run (the real chart, whose ifsym is [[480, 13, ...]]: the cell (480, 14), ringed) and the
+    # Replicata: the light run (the real chart, whose ifsym is [[480, 12, ...]] since 2026-11-13: the cells (480, 13) and
+    # (480, 14), both ringed; [[480, 13, ...]] and (480, 14) alone until then) and the
     # kinds run (made-up: (24, 5), ringed, and (48, 7), not ringed): the harness's checks of every cell's pixels down
     # its middle column, zoomed in, and of every ringed cell's.
     # Expectata (dreeves's README, [SYC]: "a different styling on the chart (like striped or half-and-half black vs
@@ -5258,21 +5261,27 @@ def q_box_of_a_cell_red_if_the_conjecture_holds():
     # English of a model's in that part.  Its kind is ifsym, its fragment n480m14, its swatch the legend's item for a
     # ringed ifsym cell.  The readout of that cell, hovered, says so too and names the program.
     # Resultata before: the cell was open and its box a black cell's.
+    # Spec change (Fable 5.2, 2026-11-13: the antisymmetric search at 480:13 closed, and its proof is kept as
+    # searches/formtree/cells/480_13_antisym): mstar.js's ifsym is [[480, 12, ...]], so the cell (480, 13) is of that
+    # kind too, and each of the two boxes states m*(480) <= 12 in its part proof-ifsym.  The cell below them, (480, 12),
+    # is green, and its box and readout have nothing of the conjecture.  Until then: ifsym [[480, 13, ...]], the
+    # bound m*(480) <= 13 in the box of (480, 14), and (480, 13) open, with no such part.
     R, B = boxes_run()
     data = mstar_data(); cols, ifsym = data['cols'], data['ifsym']
-    assert ifsym == [[480, 13, IFSYM_FILE]] and kind_of(cols, 480, 14, ifsym) == 'ifsym' and kind_of(cols, 480, 13, ifsym) == 'open', ifsym
-    P = B[(480, 14)]
-    assert not P['hidden'] and P['hash'] == '#n480m14' and P['kind'] == 'ifsym', (P['hidden'], P['hash'], P['kind'])
-    assert P['whys'] == box_parts(cols, 480, 14, ifsym) and P['whys'][-2:] == ['proof-ifsym', 'searches'], P['whys']
-    assert '\\(m^*(480) \\le 13\\)' in P['said'] and '\\(m^*(480) \\le 14\\)' in P['said'] and '\\(m^*(480) \\ge 12\\)' in P['said'], P['said']
-    files = [href for href in P['links'] if href.endswith('/' + IFSYM_FILE)]
-    assert files and all(panel_link_lands(href) for href in files), P['links']               # the program: a file of the repository that is here
-    assert '#symmetry-title' in P['links'] and page().count('id="symmetry-title"') == 1, P['links']   # the conjecture's section: an anchor of the page
-    assert P['swatch']['cls'] == 'swatch ifsym record', P['swatch']
-    assert B[(480, 13)]['kind'] == 'open' and 'proof-ifsym' not in B[(480, 13)]['whys'], B[(480, 13)]['whys']
+    assert ifsym == [[480, 12, IFSYM_FILE]] and [kind_of(cols, 480, m, ifsym) for m in (12, 13, 14, 15)] == ['exists', 'ifsym', 'ifsym', 'impossible'], ifsym
+    for m in (13, 14):
+        P = B[(480, m)]
+        assert not P['hidden'] and P['hash'] == f'#n480m{m}' and P['kind'] == 'ifsym', (m, P['hidden'], P['hash'], P['kind'])
+        assert P['whys'] == box_parts(cols, 480, m, ifsym) and P['whys'][-2:] == ['proof-ifsym', 'searches'], (m, P['whys'])
+        assert '\\(m^*(480) \\le 12\\)' in P['said'] and '\\(m^*(480) \\le 14\\)' in P['said'] and '\\(m^*(480) \\ge 12\\)' in P['said'], (m, P['said'])
+        files = [href for href in P['links'] if href.endswith('/' + IFSYM_FILE)]
+        assert files and all(panel_link_lands(href) for href in files), (m, P['links'])        # the program: a file of the repository that is here
+        assert '#symmetry-title' in P['links'] and page().count('id="symmetry-title"') == 1, (m, P['links'])   # the conjecture's section: an anchor of the page
+        assert P['swatch']['cls'] == 'swatch ifsym record', (m, P['swatch'])
+    assert B[(480, 12)]['kind'] == 'exists' and 'proof-ifsym' not in B[(480, 12)]['whys'], B[(480, 12)]['whys']
     hovers = valid_run('light')['hovers']
-    hovered, below = [t for n, m, t in hovers if (n, m) == (480, 14)], [t for n, m, t in hovers if (n, m) == (480, 13)]
-    assert hovered and all(IFSYM_FILE in t for t in hovered) and below and not any(IFSYM_FILE in t for t in below), (hovered, below)
+    hovered, below = [(m, t) for n, m, t in hovers if n == 480 and m in (13, 14)], [t for n, m, t in hovers if (n, m) == (480, 12)]
+    assert {m for m, _ in hovered} == {13, 14} and all(IFSYM_FILE in t for _, t in hovered) and below and not any(IFSYM_FILE in t for t in below), (hovered, below)
 
 
 def q_cell_box_words_stay_within_budget():

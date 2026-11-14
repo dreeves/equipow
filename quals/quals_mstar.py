@@ -474,6 +474,11 @@ def q_ifsym_follows_from_the_symmetric_only_proofs():
     # symmetric sequence of length 480 has order 14; 2026-11-11, scratch/s480-20261111): 480:14 is the chart's first
     # cell red if the conjecture holds, and the column's own bounds are as they were, 12 to 14.
     # Resultata before: mstar.py had no ifsym_of, and mstar.js no such key.
+    # Spec change (Fable 5.2, 2026-11-13: the antisymmetric search at 480:13, in the prover's fold mode, closed that
+    # evening with no open node, 25,529 tasks and 72,378,773 nodes; its proof is kept as
+    # searches/formtree/cells/480_13_antisym, the second line of symtree.TREES): on disk [[480, 12, 'proofs/symtree.py']],
+    # from the two kept proofs (no symmetric sequence of length 480 has order 14, no antisymmetric one order 13), so
+    # 480:13 is red if the conjecture holds too, and m*(480) = 12 then; the column's own bounds stay 12 to 14.
     made = [[0, 0, ['none'], ['odd']]] * 100
     def column(n, lo, hi): made[n - 1] = [lo, hi, ['example', 'x'], ['two']]
     column(48, 12, 14); column(64, 5, 9); column(80, 3, 3)
@@ -493,8 +498,8 @@ def q_ifsym_follows_from_the_symmetric_only_proofs():
         else:
             raise AssertionError(('a set of proofs that refutes the conjecture gave a bound', trees))
     _, got = disk()
-    assert got['m']['ifsym'] == mstar.ifsym_of(cols(), mstar.symtrees()) == [[480, 13, 'proofs/symtree.py']], got['m']['ifsym']
-    assert mstar.symtrees() == {(480, 14)} and got['m']['cols'][480 - 1][:2] == [12, 14], (mstar.symtrees(), got['m']['cols'][480 - 1])
+    assert got['m']['ifsym'] == mstar.ifsym_of(cols(), mstar.symtrees()) == [[480, 12, 'proofs/symtree.py']], got['m']['ifsym']
+    assert mstar.symtrees() == {(480, 14), (480, 13)} and got['m']['cols'][480 - 1][:2] == [12, 14], (mstar.symtrees(), got['m']['cols'][480 - 1])
 
 
 def q_mstar_js_is_current():
