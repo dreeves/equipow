@@ -148,23 +148,73 @@ def q_the_estimator_appends_the_search_s_estimate():
 
 
 def q_no_estimate_before_any_work_or_with_an_open_node():
-    # Replicata: as the qual above, the search's one record a living run started at now - 400, with three verdicts
-    # files in turn: an empty one (no task has ended yet); one whose only verdict, a's, left 1 node open; one in
-    # which every root is complete (a's 300 nodes and b's 250, no spill).
+    # Replicata: as the qual above, the search's one record a living run started at now - 400, with two verdicts
+    # files in turn: an empty one (no task has ended yet); one whose only verdict, a's, left 1 node open.
     # Expectata: each time the estimator exits nonzero, says why on its stderr and leaves the record as it was: with
-    # no work done there is no rate yet; an open node is no checked work but a find to look at; and a finished tree
-    # has no forecast (its tracker writes the end).  The tracker reads no status, so the run goes on either way
-    # (quals_track's q_an_estimator_that_fails_or_hangs_leaves_the_run_alone).
+    # no work done there is no rate yet; and an open node is no checked work but a find to look at.  The tracker reads
+    # no status, so the run goes on either way (quals_track's q_an_estimator_that_fails_or_hangs_leaves_the_run_alone).
+    # Spec change (Fable 5.2, 2026-11-13, night; dreeves: "sure, that sounds cleaner to get exact counts and
+    # probability 0 when we completed a proof"): until then a third file, in which every root is complete (a's 300
+    # nodes and b's 250, no spill), was refused the same way ("a finished tree has no forecast (its tracker writes the
+    # end)"); it now has its estimate, exact: q_a_finished_tree_s_estimate_is_exact.
     d = sandbox()
     try:
         now = time.time()
         write(os.path.join(d, 'runs', 't2.jsonl'), [start('t2', now - 400, os.getpid())])
         before = record(d, 't2')
-        for verdicts in ([], [dict(verdict('a', 300, []), open=1)], [verdict('a', 300, []), verdict('b', 250, [])]):
+        for verdicts in ([], [dict(verdict('a', 300, []), open=1)]):
             write(os.path.join(d, 'verdicts.jsonl'), verdicts)
             p = subprocess.run([PY, '-B', ESTIMATOR, 'verdicts.jsonl', 'model.json', '0.5'], cwd=d,
                                env=dict(os.environ, TRACK_RECORD=os.path.join(d, 'runs', 't2.jsonl')), capture_output=True, text=True, timeout=120)
             assert p.returncode != 0 and 'AssertionError' in p.stderr and record(d, 't2') == before, (verdicts, p.returncode, p.stderr)
+    finally:
+        shutil.rmtree(d)
+
+
+def q_a_finished_tree_s_estimate_is_exact():
+    # Replicata: formtree_eta.estimate with MODEL (its dives say 1000 nodes a root) and both roots complete, a with
+    # 300 nodes and b with 250, the points (0, 0), (100, 200), (275, 550), no node pending and 2 tasks finished, with
+    # the priors 0.5 and 0.01.  Then the program, as the tracker runs it at a run's end: a verdicts file with a's task
+    # (300 nodes, no spill) and b's (250, no spill); the search's two records as in
+    # q_the_estimator_appends_the_search_s_estimate (an ended run from now - 1000 to now - 600 with one estimate, done
+    # 200 at now - 800, and a living run started at now - 400), the prior 0.5.
+    # Expectata (dreeves, 2026-11-13, of the fold search at 480:13, whose box read "0.5 → 0.25" and "72,267,232 nodes
+    # checked … of ~76M–241M nodes total" under "completed": "sure, that sounds cleaner to get exact counts and
+    # probability 0 when we completed a proof"): a tree whose every root is complete (formtree_work.walk has asserted
+    # that no verdict left a node open) is exhausted, and its estimate is no forecast: done 550, the total 550 at
+    # its median and both ends, nothing to go, and P(exists | none found) 0 whatever the prior, which the estimate
+    # still states; the rate by the points as ever (2 nodes a second there); pending 0 and finished 2, as given.  The
+    # program appends that estimate to the living run's record alone, its rate (350 + 200 w) / (600 + 200 w), w =
+    # exp(-400 / 10800), within 2%, and the record holds to its form.
+    # Resultata before: an AssertionError (the model's draws need a root not complete), and no estimate.
+    d = sandbox()
+    try:
+        inside(d, f"""import formtree_eta as eta
+roots, points = [dict(name='a', done=300, complete=True), dict(name='b', done=250, complete=True)], [(0, 0), (100, 200), (275, 550)]
+for prior in (0.5, 0.01):
+    e = eta.estimate({MODEL!r}, roots, points, prior, 0, 2)
+    assert (e['event'], e['basis'], e['unit'], e['done'], e['rate'], e['prior'], e['exists']) == ('estimate', 'formtree', 'nodes', 550, 2, prior, 0), e
+    assert e['total'] == dict(median=550, lo=550, hi=550) and e['to_go'] == dict(median=0, lo=0, hi=0) and (e['pending'], e['finished']) == (0, 2), e
+print('ok')
+""")
+        now = time.time()
+        write(os.path.join(d, 'verdicts.jsonl'), [verdict('a', 300, []), verdict('b', 250, [])])
+        old = dict(event='estimate', time=now - 800, basis='formtree', unit='nodes', done=200, rate=1.0, total=dict(median=2000.0, lo=2000.0, hi=2000.0),
+                   to_go=dict(median=1800.0, lo=1800.0, hi=1800.0), prior=0.5, exists=0.47, pending=2, finished=1)
+        write(os.path.join(d, 'runs', 't1.jsonl'), [start('t1', now - 1000, 11), old, dict(event='end', time=now - 600, status=0)])
+        write(os.path.join(d, 'runs', 't2.jsonl'), [start('t2', now - 400, os.getpid())])
+        before = record(d, 't1')
+        p = subprocess.run([PY, '-B', ESTIMATOR, 'verdicts.jsonl', 'model.json', '0.5'], cwd=d,
+                           env=dict(os.environ, TRACK_RECORD=os.path.join(d, 'runs', 't2.jsonl')), capture_output=True, text=True, timeout=120)
+        assert p.returncode == 0, p.stderr
+        assert record(d, 't1') == before
+        first, e = record(d, 't2')
+        import math
+        w = math.exp(-400 / 10800)
+        assert (e['event'], e['basis'], e['unit'], e['done'], e['prior'], e['exists']) == ('estimate', 'formtree', 'nodes', 550, 0.5, 0) and abs(e['time'] - now) < 30, e
+        assert e['total'] == dict(median=550, lo=550, hi=550) and e['to_go'] == dict(median=0, lo=0, hi=0) and (e['pending'], e['finished']) == (0, 2), e
+        assert abs(e['rate'] - (350 + 200 * w) / (600 + 200 * w)) <= 0.02 * e['rate'], e['rate']
+        inside(d, "import track\ntrack.checked(track.lines('runs/t2.jsonl'))\nprint('ok')\n")
     finally:
         shutil.rmtree(d)
 
@@ -214,6 +264,10 @@ def q_the_tracker_runs_it_beside_a_search():
     # less one per task ended, so that done + 50 pending is 412 in every estimate (a's and b's 6 nodes each, then 50 a
     # task); and (that evening) its finished is the tasks with a verdict, a's and b's and one more per task ended, so
     # that finished + pending is 10 in every estimate.
+    # Spec change (Fable 5.2, 2026-11-13, night; dreeves: "sure, that sounds cleaner to get exact counts and
+    # probability 0 when we completed a proof"): the last estimate, which the tracker takes once the search has ended,
+    # is the finished tree's: done 412 and the total 412, nothing to go, P(exists | none found) 0, no node pending
+    # and 10 tasks finished.  Until then the record's last estimate was one taken while tasks were still to come.
     d = sandbox()
     try:
         write(os.path.join(d, 'verdicts.jsonl'), [verdict('a', 10, ['a0', 'a2', 'a4', 'a6']), verdict('b', 10, ['b1', 'b3', 'b5', 'b7'])])
@@ -227,6 +281,9 @@ def q_the_tracker_runs_it_beside_a_search():
         done, exists = [e['done'] for e in estimates], [e['exists'] for e in estimates]
         assert done == sorted(done) and done[-1] >= done[0] + 200, done
         assert all(x < 0.01 for x in exists) and exists[-1] < exists[0], exists
+        last = estimates[-1]
+        assert (last['done'], last['total'], last['to_go'], last['exists'], last['pending'], last['finished']) == (
+            412, dict(median=412, lo=412, hi=412), dict(median=0, lo=0, hi=0), 0, 0, 10), last
         assert all(e['done'] + 50 * e['pending'] == 412 for e in estimates), [(e['done'], e['pending']) for e in estimates]
         assert all(e['finished'] + e['pending'] == 10 for e in estimates), [(e['finished'], e['pending']) for e in estimates]
         inside(d, "import track\ntrack.checked(track.lines('runs/t1.jsonl'))\nprint('ok')\n")

@@ -32,9 +32,9 @@ def write(d, name, lines):
     with open(os.path.join(d, 'runs', name + '.jsonl'), 'w', encoding='utf-8') as f: f.write(''.join(json.dumps(x) + '\n' for x in lines))
 
 
-def start(name, search, target, t, pid):
+def start(name, search, target, t, pid, tracker=1):
     return dict(event='start', name=name, search=search, target=target, estimator=LINDY, command='job', cwd='/', found=None,
-                adopted=False, pid=pid, tracker=1, time=t)
+                adopted=False, pid=pid, tracker=tracker, time=t)
 
 
 def inside(d, code):
@@ -102,15 +102,19 @@ def q_the_age_is_the_search_s_seconds_of_running():
     # and whose done is the seconds some run of ITS search was going, 2000 + 1000 (the two overlapping runs' stretch,
     # then the living run's; the dead run, with no end and no later line, adds nothing; the other searches' runs are
     # none of its) within 30 s; and to_go's median equals its done.
+    # Since 2026-11-13 (Fable 5.2; quals_track's docstring, its last spec change: a run with no end goes on while its
+    # process or, that gone, its tracker lives) the dead run's tracker is a pid of no live process too, as its
+    # replicata always said ("its tracker died"); until then every record here named the tracker 1, a live process.
     d = sandbox()
     try:
         now = time.time()
         gone = subprocess.Popen([PY, '-c', 'pass']); gone.wait()             # a pid of no live process
+        dead = subprocess.Popen([PY, '-c', 'pass']); dead.wait()             # another: the dead run's tracker
         end = lambda t: dict(event='end', time=t, status=0)
         write(d, 'a1', [start('a1', 'tilt', '16:4', now - 5000, 11), end(now - 4000)])
         write(d, 'a2', [start('a2', 'tilt', '16:4', now - 4500, 12), end(now - 3000)])
         write(d, 'a3', [start('a3', 'tilt', '16:4', now - 1000, os.getpid())])
-        write(d, 'a4', [start('a4', 'tilt', '16:4', now - 2500, gone.pid)])
+        write(d, 'a4', [start('a4', 'tilt', '16:4', now - 2500, gone.pid, dead.pid)])
         write(d, 'b1', [start('b1', 'tree', '16:4', now - 9000, 13), end(now - 100)])
         write(d, 'c1', [start('c1', 'tilt', '32:5', now - 9000, 14), end(now - 100)])
         before = {name: record(d, name) for name in ('a1', 'a2', 'a4', 'b1', 'c1')}

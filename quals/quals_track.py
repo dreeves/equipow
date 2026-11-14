@@ -23,6 +23,14 @@ that has no such count; the page graphs it.
 Spec change (Opus 5.5, 2026-11-12, evening; dreeves: "sure, let's get the count of finished tasks over time"): an
 estimate also states finished, the number of pieces of work its search has finished (a form tree's tasks with a
 verdict), or null for a search that has no such count; the page graphs it under pending.
+
+Spec change (Fable 5.2, 2026-11-13, night; dreeves, of a finished search whose box kept its last periodic estimate, "0.5 →
+0.25" and a projected total above its count: "sure, that sounds cleaner to get exact counts and probability 0 when we
+completed a proof"): the tracker runs the estimator once more when the run's process has ended, before it writes the
+end, so that a record's last estimate is of the search as it ended; and a run with no end goes on while its process
+or, that gone, its tracker lives (the tracker is then taking that last estimate), so that it reads running, its span to
+now, until its end is written.  Until then: an estimate at the start and every period while the run went, and a run
+whose process was gone with no end read aborted, its span to its last line, whether or not its tracker lived.
 """
 import sys
 sys.dont_write_bytecode = True
@@ -511,6 +519,52 @@ def q_adopt_estimates_while_its_process_lives():
         shutil.rmtree(d)
 
 
+# the tracker with its periodic estimates a minute apart, so that a run of a second or two gets none of them, and an
+# adopted process's checks 0.2 s apart
+LASTLY = "import sys, track; track.PERIOD, track.POLL = 60.0, 0.2; track.main(sys.argv[1:])"
+# an estimator that says in its estimate's done whether the file over is there: 1.0, or 0.0
+SEES = f'''import json, os, time
+fd = os.open(os.environ['TRACK_RECORD'], os.O_WRONLY | os.O_APPEND)
+os.write(fd, (json.dumps(dict({ESTIMATE!r}, done=float(os.path.exists('over')), time=time.time())) + '\\n').encode())
+os.close(fd)
+'''
+
+
+def q_a_run_s_last_estimate_is_taken_once_its_process_has_ended():
+    # Replicata: in a sandbox, sees.py (SEES), an estimator whose estimate's done is 1.0 if the file over is in the
+    # sandbox and 0.0 if not; the tracker with its period set to a minute (LASTLY), run l1 S 16:4 sees.py -- python3 -c
+    # "import time; time.sleep(1); open('over', 'w').close()", a command whose last act writes that file.  Then, in a
+    # second sandbox, a process doing the same, started here, and the same tracker's adopt l2 S 16:4 sees.py -- PID.
+    # Expectata (dreeves, 2026-11-13, of a finished search whose box kept the estimate of 81 s before its end: "sure,
+    # that sounds cleaner to get exact counts and probability 0 when we completed a proof"): each record is its start,
+    # two estimates and its end (status 0; null for the adopted one): the first estimate, taken as the run started,
+    # found no file (done 0.0); the second found it (done 1.0), so it was taken once the process had ended, and its
+    # time is no later than the end's.  A record's last estimate is of the search as it ended.
+    # Resultata before: one estimate, the start's: the tracker ran the estimator at the start and every period while
+    # the run went, never at its end.
+    for mode in ('run', 'adopt'):
+        d, s, tr = sandbox(), None, None
+        try:
+            open(os.path.join(d, 'sees.py'), 'w').write(SEES)
+            job = [PY, '-c', "import time; time.sleep(1); open('over', 'w').close()"]
+            if mode == 'run':
+                p = subprocess.run([PY, '-B', '-c', LASTLY, 'run', 'l1', 'S', '16:4', 'sees.py', '--', *job], cwd=d, env=IMPORTS, capture_output=True, text=True, timeout=60)
+                assert p.returncode == 0, p.stderr
+            else:
+                s = subprocess.Popen(job, cwd=d)
+                tr = subprocess.Popen([PY, '-B', '-c', LASTLY, 'adopt', 'l2', 'S', '16:4', 'sees.py', '--', str(s.pid)], cwd=d, env=IMPORTS)
+                s.wait()
+                assert tr.wait(timeout=60) == 0
+            start, first, last, end = record(d, dict(run='l1', adopt='l2')[mode])
+            assert (start['event'], first['event'], last['event'], end['event'], end['status']) == ('start', 'estimate', 'estimate', 'end', dict(run=0, adopt=None)[mode]), (mode, start, end)
+            assert (first['done'], last['done']) == (0.0, 1.0) and first['time'] <= last['time'] <= end['time'], (mode, first, last, end)
+            inside(d, f"import track\ntrack.checked(track.lines('runs/{dict(run='l1', adopt='l2')[mode]}.jsonl'))\nprint('ok')\n")
+        finally:
+            if s is not None and s.poll() is None: s.kill()
+            if tr is not None and tr.poll() is None: tr.kill()
+            shutil.rmtree(d)
+
+
 def inside(d, code):
     """Runs code in the sandbox d with its track.py importable; its output, which must end with ok."""
     p = subprocess.run([PY, '-B', '-c', code], cwd=d, env=IMPORTS, capture_output=True, text=True, timeout=60)
@@ -594,6 +648,10 @@ def q_a_run_s_state_and_span_follow_its_record_and_its_process():
     # Expectata: ended, ended, aborted, aborted, running, frozen, aborted; and their spans [100, 120] for the four
     # with an end, [100, 500] (to now) for the two whose process lives, and [100, 110] (to its last line) for the one
     # whose process is gone with no end written.
+    # Spec change (Fable 5.2, 2026-11-13, the docstring's last): one more, with no end, its process (7) gone and its
+    # tracker (8) among the processes: running, its span to now, since that tracker has yet to write the end (it is
+    # taking the run's last estimate); and the same with the tracker stopped (T): frozen.  The seventh case, aborted,
+    # has neither among them.
     d = sandbox()
     try:
         inside(d, RECORD + """
@@ -603,7 +661,9 @@ cases = [([START, EST, END], {}, 'ended', [100.0, 120.0]),
          ([START, EST, dict(END, status=-15)], {7: 'S'}, 'aborted', [100.0, 120.0]),
          ([START, EST], {7: 'S'}, 'running', [100.0, 500.0]),
          ([START, EST], {7: 'T+'}, 'frozen', [100.0, 500.0]),
-         ([START, EST], {9: 'S'}, 'aborted', [100.0, 110.0])]
+         ([START, EST], {9: 'S'}, 'aborted', [100.0, 110.0]),
+         ([START, EST], {8: 'S'}, 'running', [100.0, 500.0]),
+         ([START, EST], {8: 'T'}, 'frozen', [100.0, 500.0])]
 got = [(track.state(r, procs), track.span(r, procs, 500.0)) for r, procs, _, _ in cases]
 assert got == [(s, span) for _, _, s, span in cases], got
 print('ok')
@@ -651,6 +711,8 @@ def q_a_paused_run_reads_paused_once_it_stops():
     # with status 0 finished, so ended; while its process lives it is running, or frozen while stopped; once gone with
     # no end, paused.  Spans as ever: [100, 120] with an end, to now while the process lives, to the last line (the
     # pause) once gone.
+    # Spec change (Fable 5.2, 2026-11-13, night, the docstring's last): with no end, the process gone and the tracker
+    # (8) living, running, its span to now: a marked run too goes on until its tracker has written its end.
     d = sandbox()
     try:
         inside(d, RECORD + PAUSED + """
@@ -660,7 +722,8 @@ cases = [([START, EST, PAUSE, dict(END, status=-15)], {}, 'paused', [100.0, 120.
          ([START, EST, PAUSE, END], {}, 'ended', [100.0, 120.0]),
          ([START, EST, PAUSE], {7: 'S'}, 'running', [100.0, 500.0]),
          ([START, EST, PAUSE], {7: 'T+'}, 'frozen', [100.0, 500.0]),
-         ([START, EST, PAUSE], {9: 'S'}, 'paused', [100.0, 115.0])]
+         ([START, EST, PAUSE], {9: 'S'}, 'paused', [100.0, 115.0]),
+         ([START, EST, PAUSE], {8: 'S'}, 'running', [100.0, 500.0])]
 got = [(track.state(r, procs), track.span(r, procs, 500.0)) for r, procs, _, _ in cases]
 assert got == [(s, span) for _, _, s, span in cases], got
 print('ok')

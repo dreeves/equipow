@@ -41,13 +41,18 @@ table of searches.
             branches spilled), or null for a search that counts none (lindy.py's).
   estimator a Python script, named at launch with its arguments: the tracker runs it (python3 -B SCRIPT ARGS ..., in the
             tracker's directory, the record's absolute path in the environment variable TRACK_RECORD) once when the
-            run starts and again every PERIOD seconds while it runs.  Each time it appends one estimate to the record,
-            whole, opening it to append without creating it (os.O_APPEND without os.O_CREAT), and exits.  One still
-            running when the next is due is killed, and the last one EST_GRACE seconds after the run ended, before the
-            end is written.  Its exit status is not read: an estimator that fails writes no estimate and says why on the
-            tracker's stderr, and the watcher shows a running search whose latest estimate is older than STALE seconds
-            stale (dreeves, 2026-11-04, of an estimate left standing by a dead or stalled producer: "can we be more
-            anti-postel than that?").  The command may append estimates too (its record is named to it the same way).
+            run starts, again every PERIOD seconds while it runs, and once more when the run's process has ended
+            (Fable 5.2, 2026-11-13; dreeves: "sure, that sounds cleaner to get exact counts and probability 0 when we
+            completed a proof"), so that a record's last estimate is of the search as it ended.  Each time it appends
+            one estimate to the record, whole, opening it to append without creating it (os.O_APPEND without
+            os.O_CREAT), and exits.  One still running when the next is due is killed, and the last one EST_GRACE
+            seconds after the run ended, before the end is written.  The estimator's exit status is not read: one that
+            fails writes no estimate and says why on the tracker's stderr, and the watcher shows a running search
+            whose latest estimate is older than STALE seconds stale (dreeves, 2026-11-04, of an estimate left standing
+            by a dead or stalled producer: "can we be more anti-postel than that?").  A run goes on until its end is
+            written: with no end in its record, while its process or, that gone, its tracker lives (stat_of), so that
+            its last estimate is taken of a run still going.  The command may append estimates too (its record is
+            named to it the same way).
             searchwatch/lindy.py is the estimator of a search that knows nothing but its age.
   run       python3 -B searchwatch/track.py run NAME SEARCH N:M [--found FILE] ESTIMATOR ... -- COMMAND ...: starts
             COMMAND, writes the start, runs the estimator while it waits, writes the end and exits with COMMAND's
@@ -190,10 +195,16 @@ def settle(proc, seconds):
 
 
 def follow(estimator, path, ests, going):
-    """A run's estimates while it runs: its estimator started now, and again each time going(PERIOD) says the run goes on
-    (going waits up to that many seconds for the run's end), the one before, if still running, killed first."""
+    """A run's estimates: its estimator started now, and again after each going(PERIOD), which waits up to that many
+    seconds for the run's end and says whether the run goes on: so every period while it runs, and once more when it
+    has ended (2026-11-13; dreeves, of a finished search whose box kept the estimate of 81 s before its end: "sure,
+    that sounds cleaner to get exact counts and probability 0 when we completed a proof"): the run's last estimate, of
+    the search as it ended, which the caller settles before it writes the end.  The one before, if still running, is
+    killed first each time."""
     estimate(estimator, path, ests)
-    while going(PERIOD):
+    on = True
+    while on:
+        on = going(PERIOD)
         settle(ests[-1], 0)
         estimate(estimator, path, ests)
 
@@ -356,12 +367,20 @@ def processes():
     return {int(pid): stat for pid, stat in (line.split() for line in out.splitlines()) if not stat.startswith('Z')}
 
 
+def stat_of(record, procs):
+    """How a run stands among the live processes procs (processes): its process's stat as ps prints it; that gone, its
+    tracker's, which outlives the run's process by its closing steps (the run's last estimate, then the end;
+    2026-11-13); 'gone' with neither, the tracker dead before it wrote the end."""
+    return procs.get(record[0]['pid']) or procs.get(record[0]['tracker'], 'gone')
+
+
 def state(record, procs):
     """A run's state by its record and the live processes (processes): with an end, ended if its status is 0, else
     paused if the record holds a pause, else ended if its status is null (an adopted run's, not known), else aborted;
-    with none, running while its process lives, frozen while that is stopped (stat T), and once it is gone (its tracker
-    died before writing the end) paused if the record holds a pause, else aborted."""
-    last, stat = record[-1], procs.get(record[0]['pid'], 'gone')
+    with none, by stat_of: running while its process or, that gone, its tracker lives, frozen while that one is
+    stopped (stat T), and once both are gone (its tracker died before writing the end) paused if the record holds a
+    pause, else aborted."""
+    last, stat = record[-1], stat_of(record, procs)
     stopped = 'paused' if any(x['event'] == 'pause' for x in record) else 'aborted'   # a stop short of finishing, by the record
     closed = 'ended' if last.get('status') == 0 or (last.get('status') is None and stopped == 'aborted') else stopped
     open_ = stopped if stat == 'gone' else 'frozen' if stat.startswith('T') else 'running'
@@ -369,9 +388,9 @@ def state(record, procs):
 
 
 def span(record, procs, now):
-    """[when the run started, when it stopped]: at its end's time; with no end, now while its process lives, else at
-    its last line's time."""
-    going = record[-1]['event'] != 'end' and record[0]['pid'] in procs
+    """[when the run started, when it stopped]: at its end's time; with no end, now while its process or, that gone,
+    its tracker lives (stat_of), else at its last line's time."""
+    going = record[-1]['event'] != 'end' and stat_of(record, procs) != 'gone'
     return [record[0]['time'], now if going else record[-1]['time']]
 
 

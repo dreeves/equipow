@@ -8,7 +8,8 @@ runs beside it:
 VERDICTS is the search's verdicts.jsonl (the driver's, searches/formtree/ftree.py), MODEL the file of its work model
 (read_model) and PRIOR the probability, before the search, that what it searches for exists.  Each time it is run it
 appends one estimate (estimate, below) to the record that TRACK_RECORD names, of that record's search; with no work
-done yet, with an open node among the verdicts, or with every root complete it fails and appends nothing.
+done yet or with an open node among the verdicts it fails and appends nothing.  With every root complete its estimate
+is exact (2026-11-13; the tracker runs it once more when the search has ended): the tree is exhausted.
 
 The frozen model stores independent eight-dive blocks for each initial root.
 A shared multiplicative discrepancy represents errors that more root samples
@@ -174,11 +175,19 @@ def estimate(model, roots, points, prior, pending, finished):
     by points (rate); the total nodes when the tree is exhausted and the seconds of running until then, and
     P(exists | none found so far) from the prior, by the model's draws given that work (sampled) and chance.work;
     pending, the nodes named with no verdict yet (formtree_work.walk's), as given; and finished, the tasks with a
-    verdict, as given (2026-11-12)."""
+    verdict, as given (2026-11-12).
+    A tree whose every root is complete is exhausted with nothing found (walk has asserted that no verdict left a node
+    open), which is no forecast: the total is the nodes checked, exactly, nothing is to go, and P(exists | none found)
+    is 0 whatever the prior (Fable 5.2, 2026-11-13; dreeves: "sure, that sounds cleaner to get exact counts and
+    probability 0 when we completed a proof").  chance.work infers no such verdict (its caller supplies it), and the
+    model's draws need a root not complete: so the one branch here."""
     done = sum(r['done'] for r in roots)
     work = dict(roots=roots, done=done, rate=rate(points))
-    samples = sampled(model, work)
-    forecast = chance.work(prior, samples['total'], done, samples['rate'] * 3600, samples['weight'])
+    if all(r['complete'] for r in roots):
+        forecast = dict(exists=0.0, to_go=dict(median=0.0, lo=0.0, hi=0.0), total=dict(median=done, lo=done, hi=done))
+    else:
+        samples = sampled(model, work)
+        forecast = chance.work(prior, samples['total'], done, samples['rate'] * 3600, samples['weight'])
     return dict(event='estimate', basis='formtree', unit='nodes', done=done, rate=work['rate'], total=forecast['total'],
                 to_go=forecast['to_go'], prior=prior, exists=forecast['exists'], pending=pending, finished=finished)
 

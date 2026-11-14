@@ -12,7 +12,7 @@ The launcher, the estimators and the watcher of the long searches, behind the se
       python3 -B searchwatch/track.py adopt NAME SEARCH N:M [--found FILE] ESTIMATOR ... -- PID
       python3 -B searchwatch/track.py pause NAME
 
-  N:M is the question the search asks: has some sequence of length N order M? SEARCH is a label for what is being tried (`formtree`, `tilt`): the runs of one label at one N:M are one search, one box of the page, so a restart takes its search's label and another kind of search at the same N:M takes another. ESTIMATOR is a Python script with its arguments. The tracker runs it when the run starts and every 5 minutes after, and each time it appends one estimate to the record: the time to go, the work done and the total work, and the probability that what is searched for exists, given none found so far. The page draws a search from those lines alone. track.py's docstring defines the record, and its functions are how the estimators and the watcher read one.
+  N:M is the question the search asks: has some sequence of length N order M? SEARCH is a label for what is being tried (`formtree`, `tilt`): the runs of one label at one N:M are one search, one box of the page, so a restart takes its search's label and another kind of search at the same N:M takes another. ESTIMATOR is a Python script with its arguments. The tracker runs it when the run starts, every 5 minutes after, and once more when the run's command has ended (2026-11-13), so that a record's last estimate is of the search as it ended; each time it appends one estimate to the record: the time to go, the work done and the total work, and the probability that what is searched for exists, given none found so far. The page draws a search from those lines alone. track.py's docstring defines the record, and its functions are how the estimators and the watcher read one.
 
   `pause` marks a run's stop a pause: the run is stopped on purpose and its search goes on in a later run, from the work it kept. It appends one line to the run's record and stops nothing, so mark the run first, then stop it (SIGTERM to its tracker, whose pid is in the record's first line). The page then calls the search paused where it would say aborted, and counts the run among its paused ones. A run that has ended cannot be marked.
 
@@ -22,7 +22,7 @@ The launcher, the estimators and the watcher of the long searches, behind the se
 
       python3 -B searchwatch/track.py run NAME SEARCH N:M searchwatch/lindy.py -- COMMAND ...
 
-- [formtree_eta.py](formtree_eta.py): for a form-tree search. It counts the nodes checked in the search's verdicts, measures their rate from its own earlier estimates, and draws the tree's size from a work model made from dives. [formtree_work.py](formtree_work.py) counts the work, and [chance.py](chance.py) turns the draws into the time to go and the probability.
+- [formtree_eta.py](formtree_eta.py): for a form-tree search. It counts the nodes checked in the search's verdicts, measures their rate from its own earlier estimates, and draws the tree's size from a work model made from dives. Of a finished tree (every start node's tree checked, nothing found) its estimate is exact: the total is the nodes checked, nothing is to go, and the probability is 0. [formtree_work.py](formtree_work.py) counts the work, and [chance.py](chance.py) turns the draws into the time to go and the probability.
 
       python3 -B searchwatch/track.py run NAME SEARCH N:M searchwatch/formtree_eta.py VERDICTS MODEL PRIOR -- COMMAND ...
 
