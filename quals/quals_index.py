@@ -141,7 +141,7 @@ def uniform(r, made):
     seconds = dict(unit='seconds', done=r['so_far'], rate=1.0, total={k: r['so_far'] + v for k, v in to_go.items()})
     ended = r['state'] == 'ended'
     one = dict(runs=1, running=int(r['state'] == 'running'), frozen=int(r['state'] in ('frozen', 'paused')),
-               ended=int(ended and r['outcome'] is not None), aborted=int(ended and r['outcome'] is None), found=0)
+               ended=int(ended and r['outcome'] is not None), aborted=int(ended and r['outcome'] is None), paused=0, found=0)   # an old 'paused' was a stop in place: frozen (paused, 2026-11-13: track.py pause)
     odds = r['odds']
     return dict(search=r['program'], n=r['n'], order=r['order'], state=r['state'], outcome=r['outcome'], so_far=r['so_far'],
                 runs=r['work'] if r.get('tracked') else one,
@@ -6250,7 +6250,7 @@ def q_progress_elapsed_is_days_hours_minutes_seconds_and_ticks():
     # time so far 3d 4h 5m 5s however the clock goes on; and the tracked search's line of its runs with no time of its own.
     made, base = PROGRESS_DATA['made'], PROGRESS_DATA['runs'][0]
     running = dict(base, so_far=273905.0, etas=[[made - 3600, 270305.0, 7200.0, 3600.0, 14400.0], [made, 273905.0, 3600.0, 1800.0, 10800.0]])
-    tracked = dict(running, tracked=True, work=dict(runs=2, running=1, frozen=0, ended=1, aborted=0, found=0))
+    tracked = dict(running, tracked=True, work=dict(runs=2, running=1, frozen=0, ended=1, aborted=0, paused=0, found=0))
     ended = dict(base, state='ended', outcome=None, so_far=86405.0, to_go=None)
     got = progress_harness({'made': made, 'runs': [running, tracked, ended]}, """
   for (const r of runs()) r.querySelector('details').open = true;
@@ -6278,7 +6278,8 @@ def q_progress_elapsed_is_days_hours_minutes_seconds_and_ticks():
     assert [got[k]['age'] for k in ('first', 'second', 'third')] == ['0s', '1s', f'19h{N}54m{N}55s'], got
     assert not any('so far' in line for k in ('first', 'second', 'third') for line in got[k]['lines']), got
     assert got['tip'] == f'3d{N}4h{N}5m{N}5s', got['tip']
-    assert got['trackElapsed'] == 0 and figures(got['track']) == figures('2 runs: 1 running, 0 frozen, 1 ended, 0 aborted; 0 found; running.'), got['track']
+    # (Spec change, 2026-11-13: the line counts the paused runs too, after the aborted; track.py pause.)
+    assert got['trackElapsed'] == 0 and figures(got['track']) == figures('2 runs: 1 running, 0 frozen, 1 ended, 0 aborted, 0 paused; 0 found; running.'), got['track']
 
 
 def q_progress_rounds_figures_to_their_uncertainty():
@@ -6705,7 +6706,7 @@ def q_progress_says_when_an_eta_is_lindy():
                  statuses=base['statuses'], depth=0, keys=['768:12'], groups=['4'],
                  counts=dict(settled=0, open=0, split=0, pending=0, running=1), stale=None, odds=ODDS_IGNORANT,
                  cpu=[])   # (2026-11-07: every run's data carry its CPU series, none here)
-    work = dict(runs=1, running=1, frozen=0, ended=0, aborted=0, found=0)
+    work = dict(runs=1, running=1, frozen=0, ended=0, aborted=0, paused=0, found=0)   # paused: a count of the form since 2026-11-13 (track.py pause)
     lindy, own = dict(plain, tracked=True, work=work, lindy=True), dict(plain, tracked=True, work=work, lindy=False)
     got = progress_harness({'made': made, 'runs': [lindy, own, plain]}, """
   const notes = runs().map(box => box.querySelector('[data-lindy]'));
@@ -6737,7 +6738,7 @@ def q_progress_shows_a_tracked_search():
                  statuses=base['statuses'], depth=0, keys=['768:12'], groups=['4440'],
                  counts=dict(settled=1, open=0, split=0, pending=0, running=3), stale=None, odds=ODDS_IGNORANT,
                  cpu=[])   # (2026-11-07: every run's data carry its CPU series, none here)
-    tracked = dict(plain, tracked=True, work=dict(runs=4, running=3, frozen=0, ended=1, aborted=0, found=0))
+    tracked = dict(plain, tracked=True, work=dict(runs=4, running=3, frozen=0, ended=1, aborted=0, paused=0, found=0))
     got = progress_harness({'made': made, 'runs': [plain, tracked]}, """
   const [plain, r] = runs();
   const tpl = name => document.querySelector('template.' + name);
@@ -6755,7 +6756,9 @@ def q_progress_shows_a_tracked_search():
     assert got['head'] == 'm*(768) ≥ 12? w12.py' and got['label'] == ['running'], got
     assert got['hidden'] == [False, False] and got['same'] is True and got['drawn'] > 0, got
     assert got['lines'][0] == got['lines'][1] and len(got['lines'][1]) == 1 and got['lines'][1][0].strip(), got
-    assert got['counts'] == dict(runs='4', running='3', frozen='0', ended='1', aborted='0', found='0'), got
+    # (Spec change, 2026-11-13: the counts hold the paused runs too; dreeves: "go ahead and generalize track.py to record
+    # pause vs abort or whatever".)
+    assert got['counts'] == dict(runs='4', running='3', frozen='0', ended='1', aborted='0', paused='0', found='0'), got
     # (2026-11-11: the statuses' key, hidden for a tracked search, is gone from every box: the hint names the dots)
     assert got['elapsed'] == '' and got['hint'] is not None and got['readout'] == got['hint'], got
 
@@ -6815,7 +6818,7 @@ PROGRESS_CAMPAIGN = dict(program='probe_seed.py', n=528, order=12, state='runnin
                          to_go=dict(median=600, lo=600 / 19, hi=19 * 600), etas=[[PROGRESS_DATA['made'], 600.0, 600.0, 31.6, 11400.0]],
                          statuses=list(STATUSES), depth=0, keys=['528:12'], groups=['4440'],
                          counts=dict(settled=1, open=0, split=0, pending=0, running=3), stale=None, tracked=True,
-                         work=dict(runs=4, running=3, frozen=0, ended=1, aborted=0, found=0), odds=ODDS_CAMPAIGN,
+                         work=dict(runs=4, running=3, frozen=0, ended=1, aborted=0, paused=0, found=0), odds=ODDS_CAMPAIGN,
                          cpu=[])   # (2026-11-07: every run's data carry its CPU series, none here)
 # The boxes runs' progress.js (2026-11-04, [CEL]: a black cell's box summarizes the searches at its cell): two runs at
 # 528:12, PROGRESS_CAMPAIGN and an overnight_v5.py run that ended with no outcome (aborted), and one at 64:7.
@@ -7064,11 +7067,11 @@ def q_progress_shows_runs_and_dots_for_every_run():
                    etas=[[made - 60, 540.0, 540.0, 60.0, 4860.0], [made, 600.0, 600.0, 66.7, 5400.0]],
                    statuses=base['statuses'], depth=0, keys=['768:12'], groups=['4440'],
                    counts=dict(settled=1, open=0, split=0, pending=0, running=3), stale=None, tracked=True,
-                   work=dict(runs=4, running=3, frozen=0, ended=1, aborted=0, found=0), lindy=True, odds=ODDS_IGNORANT,
+                   work=dict(runs=4, running=3, frozen=0, ended=1, aborted=0, paused=0, found=0), lindy=True, odds=ODDS_IGNORANT,
                    cpu=[])   # (2026-11-07: every run's data carry its CPU series, none here)
     worked = dict(tracked, program='ftree.py', n=288, order=10, keys=['288:10'], groups=['0004'],
                   counts=dict(settled=3, open=0, split=0, pending=0, running=1), lindy=False,
-                  work=dict(runs=4, running=1, frozen=0, ended=3, aborted=0, found=0), work_eta=PROGRESS_WORK['work_eta'])
+                  work=dict(runs=4, running=1, frozen=0, ended=3, aborted=0, paused=0, found=0), work_eta=PROGRESS_WORK['work_eta'])
     got = progress_harness({'made': made, 'runs': [worked, tracked, base]}, """
   for (const r of runs()) r.querySelector('details').open = true;
   await sleep(200);
@@ -7399,6 +7402,50 @@ def q_preview_png_is_current():
         where = ImageChops.difference(held, fresh).getbbox()
         assert where is None, ('preview.png is not what pagegen/preview.py draws now: rerun it and look at the image', where)
     finally:
+        shutil.rmtree(d)
+
+
+def q_preview_is_judged_by_what_chrome_wrote():
+    # Replicata: pagegen/preview.py's render, its Chrome replaced by a wrapper that (a) runs the real Chrome with the
+    # arguments it was given and then exits 2; (b) runs it and then cuts the screenshot it wrote to half its bytes,
+    # exiting 0; (c) runs nothing and exits 0.  Each into a file that holds "as it was".
+    # Expectata (Fable 5.2, 2026-11-13): (a) render returns its image, preview.png's pixels: Chrome's exit status is not
+    # read.  Under load its teardown watchdog fires after the shot and the page's dump are written, whole (that day: 7 of
+    # 8 renders run at once exited 2, "Teardown watchdog expired", each shot preview.png's bytes; and
+    # q_preview_png_is_current failed so in the suite's own run, where it passes alone), with the display-sleep flag too.
+    # What Chrome wrote is what render checks: the page's dump with CHECK's mark, nothing on it, and a whole PNG.  So (b)
+    # and (c) fail (AssertionError), and leave the file as it was.
+    # Resultata before: (a) failed on the status ('Chrome failed', 2, ...).
+    from PIL import Image, ImageChops
+    import preview
+    d = tempfile.mkdtemp(prefix='index-quals-')
+    real = preview.CHROME
+    try:
+        wrapper = os.path.join(d, 'chrome')
+        open(wrapper, 'w').write(f"""#!{sys.executable}
+import os, sys, subprocess
+mode = os.environ['PREVIEW_QUAL_MODE']
+shot = next(a.split('=', 1)[1] for a in sys.argv[1:] if a.startswith('--screenshot='))
+if mode != 'nothing': subprocess.run([{real!r}, *sys.argv[1:]])
+if mode == 'cut': open(shot, 'r+b').truncate(os.path.getsize(shot) // 2)
+sys.exit(2 if mode == 'exit2' else 0)
+""")
+        os.chmod(wrapper, 0o755)
+        preview.CHROME = wrapper
+        out = os.path.join(d, 'out.png')
+        said = {}
+        for mode in ('exit2', 'cut', 'nothing'):
+            open(out, 'w').write('as it was')
+            os.environ['PREVIEW_QUAL_MODE'] = mode
+            try: preview.render(out); how = 'drawn'
+            except AssertionError: how = 'refused'
+            kept = open(out, 'rb').read() == b'as it was'
+            same = how == 'drawn' and ImageChops.difference(Image.open(out).convert('RGB'), Image.open(PREVIEW).convert('RGB')).getbbox() is None
+            said[mode] = (how, kept, same)
+        assert said == dict(exit2=('drawn', False, True), cut=('refused', True, False), nothing=('refused', True, False)), said
+    finally:
+        preview.CHROME = real
+        os.environ.pop('PREVIEW_QUAL_MODE', None)
         shutil.rmtree(d)
 
 

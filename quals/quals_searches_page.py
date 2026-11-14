@@ -35,16 +35,16 @@ def entry(search, n, order, state, outcome, basis, work, so_far, to_go, runs, do
 
 
 TREE = entry('formtree', 480, 14, 'running', None, 'formtree', dict(unit='nodes', done=4200000, rate=510.25, total=band(9.1e7, 2.2e7, 4.1e8)),
-             11000.0, band(170000.0, 35000.0, 800000.0), dict(runs=4, running=1, frozen=0, ended=2, aborted=1, found=0), '0103', [0.49, 0.485, 0.48],
+             11000.0, band(170000.0, 35000.0, 800000.0), dict(runs=4, running=1, frozen=0, ended=2, aborted=1, paused=0, found=0), '0103', [0.49, 0.485, 0.48],
              [700, 740, 760], [3000, 3600, 4100])
 TILT = entry('tilt', 2016, 15, 'running', None, 'lindy', dict(unit='seconds', done=3600.0, rate=1.0, total=band(7200.0, 4000.0, 36000.0)),
-             3600.0, band(3600.0, 400.0, 32400.0), dict(runs=2, running=2, frozen=0, ended=0, aborted=0, found=0), '33', [0.5, 0.5, 0.5],
+             3600.0, band(3600.0, 400.0, 32400.0), dict(runs=2, running=2, frozen=0, ended=0, aborted=0, paused=0, found=0), '33', [0.5, 0.5, 0.5],
              [None] * 3, [None] * 3)
 SYM = entry('formtree-sym', 480, 14, 'ended', 'none', 'formtree', dict(unit='nodes', done=145427, rate=35.5, total=band(145427, 145427, 145427)),
-            4100.0, band(0.0, 0.0, 0.0), dict(runs=4, running=0, frozen=0, ended=2, aborted=2, found=0), '1100', [0.3, 0.1, 0.0],
+            4100.0, band(0.0, 0.0, 0.0), dict(runs=4, running=0, frozen=0, ended=2, aborted=2, paused=0, found=0), '1100', [0.3, 0.1, 0.0],
             [30, 10, 0], [120, 160, 170])
 OLDTILT = dict(entry('tilt', 1104, 14, 'ended', None, 'lindy', dict(unit='seconds', done=1500.0, rate=1.0, total=band(3000.0, 1666.0, 15000.0)),
-                     1500.0, band(1500.0, 166.0, 13500.0), dict(runs=3, running=0, frozen=0, ended=2, aborted=1, found=0), '001', [0.5, 0.5, 0.5],
+                     1500.0, band(1500.0, 166.0, 13500.0), dict(runs=3, running=0, frozen=0, ended=2, aborted=1, paused=0, found=0), '001', [0.5, 0.5, 0.5],
                      [None] * 3, [None] * 3))
 SEARCHES = dict(made=MADE, runs=[SYM, TREE, OLDTILT, TILT])           # as the watcher lists them: not by state
 
@@ -405,6 +405,31 @@ def q_the_prior_line_says_the_probability_now():
     assert first != last and (float(h['now']), float(h['after']['now'])) == (first, last), (first, last, h['now'], h['after']['now'])
 
 
+# a search whose last run to stop was paused (track.py pause, 2026-11-13), as the watcher writes it: 480:14's form tree of
+# four runs, each stopped to be resumed
+PAUSED = entry('formtree-p', 480, 14, 'paused', None, 'formtree', dict(unit='nodes', done=4200000, rate=510.25, total=band(9.1e7, 2.2e7, 4.1e8)),
+               11000.0, band(170000.0, 35000.0, 800000.0), dict(runs=4, running=0, frozen=0, ended=0, aborted=0, paused=4, found=0), '2222',
+               [0.49, 0.485, 0.48], [700, 740, 760], [3000, 3600, 4100])
+
+
+def q_a_paused_search_says_paused():
+    # Replicata: the page 1280 px wide with SEARCHES and a fifth search, PAUSED: formtree-p at 480:14, as the watcher
+    # writes a search whose last run to stop was paused (track.py pause): state paused, outcome null, its four runs
+    # paused, its dots "2222".
+    # Expectata (dreeves, 2026-11-13, of the 480:14 form tree, stopped that morning to free the cores and queued to
+    # resume: "should 480:14 formtree say "paused" rather than "aborted"?", then "go ahead and generalize track.py to
+    # record pause vs abort or whatever"): its box's state reads paused; its status line is the paused form, "Paused
+    # after running for" its time; its runs line counts its paused runs, 4, so that its counts add up to its runs; and
+    # the dots' hint, which names each color, names the paused runs beside the frozen ones, the color they share.
+    # Resultata before: the runs line had no count of paused runs, and the hint named the pending color frozen alone.
+    r = render(1280, dict(SEARCHES, runs=SEARCHES['runs'] + [PAUSED]))
+    box = next(b for b in r['boxes'] if b['label'] == 'formtree-p')
+    assert box['state'] == ['paused'], box['state']
+    assert len(box['status']) == 1 and box['status'][0].startswith('Paused after running for '), box['status']
+    assert re.search(r'\b4 runs: 0 running, 0 frozen, 0 ended, 0 aborted, 4 paused; 0 found\b', box['runsLine']), box['runsLine']
+    assert re.search(r'frozen or paused', box['hint']), box['hint']
+
+
 def q_the_bar_measures_each_search_s_work_in_its_unit():
     # Replicata: the same page, at 1280 px and at 390 px (a phone's).
     # Expectata: formtree's bar counts nodes: its caption reads "4,200,000 nodes checked (510.3 nodes/s) / ~22M–410M"
@@ -450,8 +475,10 @@ def q_each_box_s_words_follow_its_search_s_data():
     assert len(tree['status']) == len(tilt['status']) == len(sym['status']) == len(old['status']) == 1, [b['status'] for b in r['boxes']]
     assert text(tree['status'][0]).startswith('3h 4m 35s + ') and 'to go' in tree['status'][0], tree['status']
     assert text(sym['status'][0]).startswith('Completed after running for 1h 8m 20s') and text(old['status'][0]).startswith('Aborted after running for 25m 0s'), (sym['status'], old['status'])
-    assert re.match(r'4 runs: 1 running, 0 frozen, 2 ended, 1 aborted; 0 found; running\.', tree['runsLine']), tree['runsLine']
-    assert re.match(r'2 runs: 2 running, 0 frozen, 0 ended, 0 aborted; 0 found; running\.', tilt['runsLine']), tilt['runsLine']
+    # (Spec change, Fable 5.2, 2026-11-13: the line counts the paused runs too, after the aborted; searchwatch/track.py pause;
+    # dreeves: "go ahead and generalize track.py to record pause vs abort or whatever".)
+    assert re.match(r'4 runs: 1 running, 0 frozen, 2 ended, 1 aborted, 0 paused; 0 found; running\.', tree['runsLine']), tree['runsLine']
+    assert re.match(r'2 runs: 2 running, 0 frozen, 0 ended, 0 aborted, 0 paused; 0 found; running\.', tilt['runsLine']), tilt['runsLine']
     assert all(b['hint'].startswith('One dot per run') for b in r['boxes']), [b['hint'] for b in r['boxes']]
     assert [b['lindy'] for b in r['boxes']] == [False, True, False, False], [b['lindy'] for b in r['boxes']]
 

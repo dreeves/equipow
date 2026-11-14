@@ -15,7 +15,7 @@ main's figures. HEARD, ahead of every link and script, hears each one that fails
 from another origin shows no other sign: Chrome gives it a sheet either way, 2026-11-13), and CHECK writes on <html> what
 did not load: those, a font, or the figures' math, which KaTeX draws. The page's fonts and
 KaTeX come from Google Fonts and jsDelivr, so without the network the shot shows raw TeX in fallback fonts; render
-asserts that everything loaded, and only then copies the shot to where it was asked to. The shot is the same pixels run
+asserts that everything loaded and that the shot is a whole PNG, and only then copies it to where it was asked to. The shot is the same pixels run
 after run (2026-11-13: renders in parallel and in turn, byte for byte).
 
 History. Until 2026-11-13 this was scratch/record-20261025/page/preview.py, which wrote a shot per zoom given and left
@@ -29,8 +29,11 @@ in Table 2 and reached 1024; 0.43 that night, when dreeves's note between the tw
 had grown to five lines. Its top padding: 1.6rem until 2026-11-13, when 1.4rem moved the shot up a pixel, so that the
 legend's second row keeps its bottom row of pixels (y 629 had cut its keys' lower edges). It hides #page-errors since 2026-11-12 (page/errors.js's box: the hidden m*(n) chart fails its
 own assert of a width above 0, which the box would show over the shot). Twice its Chrome wrote a good shot and then
-exited 2 (2026-10-27, 2026-11-03): "Teardown watchdog expired" while the display slept, for want of
---disable-backgrounding-occluded-windows (found in review, 2026-11-13), which FLAGS has."""
+exited 2 (2026-10-27, 2026-11-03): "Teardown watchdog expired", which a sleeping display brings on without
+--disable-backgrounding-occluded-windows (found in review, 2026-11-13; FLAGS has it) and a loaded machine brings on with
+it: that afternoon 7 of 8 renders run at once exited 2, each having written the page's dump and a shot of preview.png's
+bytes, and the qual failed so in its suite's run. So render does not read Chrome's exit status: it checks what Chrome
+wrote (quals_index.q_preview_is_judged_by_what_chrome_wrote)."""
 import sys
 sys.dont_write_bytecode = True
 import os, re, html, json, shutil, subprocess, tempfile
@@ -58,13 +61,14 @@ addEventListener('load', async () => {
 </script>"""
 CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
 # quals_index.HEADLESS's flags, in its order (its comment gives the reasons for the last two), then the shot's own
+IEND = b'\x00\x00\x00\x00IEND\xaeB`\x82'                            # a PNG's last 12 bytes: its closing chunk, whole
 FLAGS = ['--headless=new', '--no-first-run', '--no-default-browser-check', '--disable-extensions', '--allow-file-access-from-files',
          '--disable-backgrounding-occluded-windows', '--hide-scrollbars', f'--window-size={SIZE[0]},{SIZE[1]}', '--virtual-time-budget=8000']
 
 
 def render(out):
-    """Draws the preview of the page as it is into out, a PNG of SIZE, and returns out. When Chrome fails or the page did
-    not load whole (CHECK), it fails and leaves out as it was."""
+    """Draws the preview of the page as it is into out, a PNG of SIZE, and returns out. When the page did not load whole
+    (CHECK) or Chrome wrote no whole screenshot, it fails and leaves out as it was."""
     page = open(os.path.join(ROOT, 'index.html'), encoding='utf-8').read()
     data = re.findall(r'<script src="pagedata/([^"/]+)"></script>', page)
     assert page.count('<head>') == page.count('</head>') == 1 and data, ('index.html has no single <head>, or loads no data file', data)
@@ -77,12 +81,12 @@ def render(out):
         for name in data: shutil.copy(os.path.join(ROOT, 'pagedata', name), os.path.join(d, 'pagedata', name))
         r = subprocess.run([CHROME, *FLAGS, f'--user-data-dir={d}/profile', f'--screenshot={shot}', '--dump-dom', 'file://' + src],
                            capture_output=True, text=True, timeout=120)
-        assert r.returncode == 0, ('Chrome failed', r.returncode, r.stderr[-2000:])
+        # Chrome is judged by what it wrote, not by its exit status (see History): the page's dump with CHECK's mark, and a whole PNG
         mark = re.search(r'<html[^>]*\sdata-preview-wrong="([^"]*)"', r.stdout)
-        assert mark, ('the page never ran CHECK', r.stderr[-2000:])
+        assert mark, ('the page never ran CHECK', r.returncode, r.stderr[-2000:])
         wrong = json.loads(html.unescape(mark.group(1)))
         assert wrong == [], ('the page did not load whole (is the network down?)', wrong)
-        assert os.path.getsize(shot) > 0, shot
+        assert os.path.isfile(shot) and open(shot, 'rb').read()[-len(IEND):] == IEND, ('Chrome wrote no whole screenshot', r.returncode, r.stderr[-2000:])
         shutil.copyfile(shot, out)
     finally:
         shutil.rmtree(d)

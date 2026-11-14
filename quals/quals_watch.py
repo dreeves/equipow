@@ -61,7 +61,8 @@ def q_an_entry_is_its_search_s_records():
     # graph"), [[1100, 100, 30], [1900, 900, 40], [3400, 1400, 50]]; and finished, the same rows of tasks finished
     # (dreeves, that evening: "sure, let's get the count of finished tasks over time"), of the same estimates, which
     # count 4, 9 and 12 of them: [[1100, 100, 4], [1900, 900, 9], [3400, 1400, 12]].  Nothing in it comes from
-    # anywhere but the records.
+    # anywhere but the records.  (Spec change, 2026-11-13: the counts hold 0 paused too, a run's state since that day;
+    # dreeves: "go ahead and generalize track.py to record pause vs abort or whatever".)
     import watch
     last = estimate(3400, 700, 5000, 2150, exists=0.31, pending=50, finished=12)
     r1 = [start('r1', 'tree', '480:14', 1000, 55), estimate(1100, 100, 4000, 3000, exists=0.49, pending=30, finished=4),
@@ -78,7 +79,7 @@ def q_an_entry_is_its_search_s_records():
     assert e['etas'][-1][2:] == [2150, 0.9 * 2150, 1.5 * 2150], e['etas'][-1]
     assert e['odds'] == dict(prior=0.5, since=1000, exists=[[1100, 0.49], [1900, 0.45], [3100, 0.44], [3400, 0.31]]), e['odds']
     assert e['pending'] == [[1100, 100, 30], [1900, 900, 40], [3400, 1400, 50]], e['pending']
-    assert e['runs'] == dict(runs=2, running=1, frozen=0, ended=1, aborted=0, found=0), e['runs']
+    assert e['runs'] == dict(runs=2, running=1, frozen=0, ended=1, aborted=0, paused=0, found=0), e['runs']
     assert (e['statuses'], e['depth'], e['keys'], e['groups']) == (['settled', 'open', 'pending', 'running'], 0, ['480:14'], ['03']), e
     assert e['counts'] == dict(settled=1, open=0, pending=0, running=1), e['counts']
     json.dumps(e)
@@ -123,6 +124,34 @@ def q_a_search_s_state_and_outcome_follow_its_runs():
         assert (got['d']['runs']['ended'], got['d']['runs']['aborted'], got['f']['runs']['aborted']) == (1, 1, 1), (got['d']['runs'], got['f']['runs'])
     finally:
         shutil.rmtree(d)
+
+
+def q_a_search_whose_last_run_paused_reads_paused():
+    # Replicata: watch.entry at now 5000 of searches whose runs' records hold a pause (track.py pause), each run with an
+    # estimate: (p) one run, paused and stopped (status -15); (q) two runs, each paused and stopped; (r) a paused run,
+    # then one whose process runs; (s) a paused run, then one that finished (status 0); (t) a run that finished, then a
+    # paused one; (u) a paused run, then one stopped with no pause (status -15).
+    # Expectata (dreeves, 2026-11-13, of the 480:14 form tree, stopped that morning to free the cores and queued to
+    # resume: "should 480:14 formtree say "paused" rather than "aborted"?", then "go ahead and generalize track.py to
+    # record pause vs abort or whatever"): a search whose last run to stop was paused is paused, with no outcome,
+    # where it would be ended with none (the page's aborted): (p) paused, (q) paused, (t) paused; one that runs is
+    # running (r); one whose last run finished is ended, outcome none (s); one whose last run aborted is ended, outcome
+    # null (u).  The runs' counts hold paused: (p) 1, (q) 2, (r) 1, (s) 1, (t) 1, (u) 1 paused and 1 aborted.
+    # A paused run's dot is pending, a frozen one's color (its search goes on): (p) "2", (q) "22", (r) "23", (s) "20",
+    # (t) "02", (u) "21".
+    import watch
+    run = lambda name, t, pid, close=(): [start(name, 'S', '16:4', t, pid), estimate(t + 10, 5, 50, 100), *close]
+    paused = lambda name, t, pid, status=-15: run(name, t, pid, [dict(event='pause', time=t + 400), end(t + 500, status)])
+    cases = dict(p=([paused('x', 1000, 1)], {}),
+                 q=([paused('x', 1000, 1), paused('y', 2000, 2)], {}),
+                 r=([paused('x', 1000, 1), run('y', 4000, 2)], {2: 'R'}),
+                 s=([paused('x', 1000, 1), run('y', 2000, 2, [end(2500)])], {}),
+                 t=([run('x', 1000, 1, [end(1500)]), paused('y', 2000, 2)], {}),
+                 u=([paused('x', 1000, 1), run('y', 2000, 2, [end(2500, -15)])], {}))
+    got = {k: watch.entry(('S', '16:4'), runs, procs, 5000, []) for k, (runs, procs) in cases.items()}
+    said = {k: (e['state'], e['outcome'], e['runs']['paused'], e['runs']['aborted'], e['groups']) for k, e in got.items()}
+    assert said == dict(p=('paused', None, 1, 0, ['2']), q=('paused', None, 2, 0, ['22']), r=('running', None, 1, 0, ['23']),
+                        s=('ended', 'none', 1, 0, ['20']), t=('paused', None, 1, 0, ['02']), u=('ended', None, 1, 1, ['21'])), said
 
 
 def q_a_running_search_s_old_estimate_fails_loudly():

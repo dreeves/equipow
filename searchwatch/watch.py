@@ -18,18 +18,20 @@ CPU intervals (cpu.py): a search's estimator says how far along it is, and this 
              new as-of time that isn't meaningful").
   entry      a search's part of the data file (entry), every search's the same fields:
                search, n, order   its label and its target N:M;
-               state              running while a run of it runs, else frozen while one is stopped, else ended;
+               state              running while a run of it runs, else frozen while one is stopped, else paused if
+                                  the last of its runs to stop was paused (track.py pause; 2026-11-13), else ended;
                outcome            found if its runs' found files hold a line; else none if the last of its runs to
-                                  stop ended with status 0 or null, however the runs before it went (a search that
+                                  stop is ended (track.state: status 0, or null with no pause), however the runs before it went (a search that
                                   finishes in its fourth run finished); else null (the page calls an ended search with
                                   no outcome aborted);
                so_far             its seconds of running: its passes';
-               runs               how many runs it has, and how many running, frozen, ended and aborted, and found, the
+               runs               how many runs it has, and how many running, frozen, ended, aborted and paused, and found, the
                                   lines of its found files (each file once; a file not there yet holds none);
                statuses, depth, keys, groups, counts
                                   its dots, as the page's sea reads them: one block, keyed by the target, a dot per run
                                   in the order they started, its digit the index in statuses of settled (an ended run),
-                                  open (aborted), pending (frozen) or running, and the count of each;
+                                  open (aborted), pending (frozen or paused: its search goes on) or running, and the
+                                  count of each;
                to_go, basis, work its latest estimate's time to go, basis, and unit, done, rate and total;
                etas               its estimates' history, [time, its seconds of running before then, to_go's median,
                                   lo, hi] of each, thinned evenly to at most ETA_POINTS, the last kept;
@@ -64,7 +66,7 @@ NICE = 15                       # the niceness the process lowers itself to
 ETA_POINTS = 400                # the most estimates an entry's history carries
 CPU_POINTS = 480                # the most rows an entry's CPU series carries: about a pixel of its chart each
 STATUSES = ['settled', 'open', 'pending', 'running']                              # a dot's status, by its digit
-DIGIT = dict(ended='0', aborted='1', frozen='2', running='3')                     # a run's dot, by its state
+DIGIT = dict(ended='0', aborted='1', frozen='2', paused='2', running='3')         # a run's dot, by its state
 
 
 def thin(rows, most):
@@ -111,7 +113,7 @@ def entry(key, runs, procs, now, rows):
     passes, last = track.passes(spans), max(zip(spans, states), key=lambda x: x[0][1])[1]      # last: the state of the last run to stop
     estimates = sorted((x for r in runs for x in r if x['event'] == 'estimate'), key=lambda x: x['time'])
     latest, history = estimates[-1], thin(estimates, ETA_POINTS)
-    state = next((s for s in ('running', 'frozen') if s in states), 'ended')
+    state = next((s for s in ('running', 'frozen') if s in states), 'paused' if last == 'paused' else 'ended')
     # TODO: error copy; says a running search's latest estimate is older than its estimator promised (track.py's STALE), naming the search and the estimate's time
     assert state != 'running' or now - latest['time'] <= track.STALE, \
         f'Fable 5.2: "the latest estimate of {" ".join(key)}, made at {time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(latest["time"]))}, is more than {track.STALE:.0f} s old"'
@@ -121,7 +123,7 @@ def entry(key, runs, procs, now, rows):
         search=key[0], n=n, order=order, state=state,
         outcome='found' if hits else 'none' if last == 'ended' else None,
         so_far=track.running(passes, now),
-        runs=dict(runs=len(runs), **{s: states.count(s) for s in ('running', 'frozen', 'ended', 'aborted')}, found=hits),
+        runs=dict(runs=len(runs), **{s: states.count(s) for s in ('running', 'frozen', 'ended', 'aborted', 'paused')}, found=hits),
         statuses=STATUSES, depth=0, keys=[key[1]], groups=[dots], counts={s: dots.count(str(i)) for i, s in enumerate(STATUSES)},
         to_go=latest['to_go'], basis=latest['basis'], work={k: latest[k] for k in ('unit', 'done', 'rate', 'total')},
         etas=[[int(x['time']), round(track.running(passes, x['time']), 1)] + [round(x['to_go'][k], 1) for k in ('median', 'lo', 'hi')] for x in history],

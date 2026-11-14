@@ -23,7 +23,8 @@ table of searches.
             to the second, also kept as "started").  It appears whole (written aside, then linked into place).  A
             run whose process could not be made has pid null.  Then the run's estimates, a line each.  The last, once the run's process ends: {"event": "end", "time", "status"},
             its exit status (a negative one a signal's), or null for an adopted process, whose status track.py cannot
-            read.
+            read.  And, anywhere between the start and the end, at most one {"event": "pause", "time"} (track.py pause):
+            the run's stop, then or later, is a pause, not an abort.
   estimate  {"event": "estimate", "time", "basis", "unit", "done", "rate", "total": {"median", "lo", "hi"}, "to_go":
             {"median", "lo", "hi"}, "prior", "exists", "pending", "finished"}: what is known of the run's search as of time (epoch seconds), by
             its estimator: basis, the estimator's key (lindy, formtree), by which the page picks its words about it;
@@ -53,12 +54,21 @@ table of searches.
             status.  A hidden exclusive reservation precedes the launch.  The command owns a new process group, cleaned
             even after a normal exit. SIGTERM, SIGINT and SIGHUP cancel that group and are recorded as negative
             statuses; other launcher failures record status 1.
+  pause     python3 -B searchwatch/track.py pause NAME (Opus 5.5, 2026-11-13; dreeves, of the 480:14 form tree stopped
+            that morning to free the cores for another search and queued to resume: "should 480:14 formtree say
+            "paused" rather than "aborted"?", then "go ahead and generalize track.py to record pause vs abort or
+            whatever"): marks the run's stop a pause, its search to go on in a later run from the work it kept, by
+            appending the pause line to its record.  It stops nothing: stop the run as ever (SIGTERM to its tracker,
+            the start line's tracker), after.  A run's stop is a pause if its record holds a pause and it did not
+            finish (status 0): the watcher calls the run, and a search whose last run to stop is one, paused, where it
+            would say aborted.  Refuses, writing nothing: no record of that NAME, or one that holds an end or a pause
+            already (a run's stop is marked before it ends, so that its end stays its record's last line).
   adopt     python3 -B searchwatch/track.py adopt NAME SEARCH N:M [--found FILE] ESTIMATOR ... -- PID: for a process
             started without track.py: writes the start (its command as ps prints it, and "started", its start time as
             ps prints it, which with its pid identifies it), polls it every POLL seconds, running the estimator as for
             a launched one, and writes the end once no live process has that pid and start time.  A SIGKILL'd or
             crashed tracker writes no end: the watcher then shows the run aborted once its process is gone.
-Refuses, writing nothing: a NAME or a SEARCH of other than letters, digits, '.', '_' and '-'; a NAME whose record
+run and adopt refuse, writing nothing: a NAME or a SEARCH of other than letters, digits, '.', '_' and '-'; a NAME whose record
 exists (a name is one run); a target not N:M; an ESTIMATOR that is no file; an adopted PID with no live process.
 Quals: quals_track.py
 """
@@ -77,6 +87,7 @@ PERIOD = 300.0                                        # seconds between a run's 
 EST_GRACE = 30.0                                      # seconds a run's last estimator has to finish once the run ended
 STALE = 1200.0                                        # seconds: the oldest a running search's latest estimate may be
 START = {'event', 'name', 'search', 'target', 'estimator', 'command', 'cwd', 'found', 'adopted', 'pid', 'tracker', 'time'}
+PAUSE = {'event', 'time'}
 ESTIMATE = {'event', 'time', 'basis', 'unit', 'done', 'rate', 'total', 'to_go', 'prior', 'exists', 'pending', 'finished'}
 BAND = {'median', 'lo', 'hi'}
 
@@ -262,6 +273,22 @@ def adopt(name, search, target, found, estimator, pid):
     end(path, None)
 
 
+def pause(name):
+    """Marks the run name's stop a pause (see the docstring): appends {"event": "pause", "time"} to its record, which
+    holds no end and no pause yet, whole and never creating it (append).  A run that ends as it is marked would leave
+    the pause after its end: the record is checked again after, and fails loudly then."""
+    # TODO: error copy; says the run's name may hold only letters, digits, dots, underscores and hyphens
+    assert re.fullmatch(r'[\w.-]+', name), f'Opus 5.5: "a run name of letters, digits, ., _ and - only, not {name!r}"'
+    path = os.path.join(RUNS, name + '.jsonl')
+    # TODO: error copy; says there is no run of that name to mark paused
+    assert os.path.isfile(path), f'Opus 5.5: "no run {name}: no record {path}"'
+    events = [x['event'] for x in checked(lines(path))]
+    # TODO: error copy; says the run has ended or is marked paused already, so it cannot be marked paused now
+    assert 'end' not in events and 'pause' not in events, f'Opus 5.5: "the run {name} has ended or is paused already: {events[-3:]}"'
+    append(path, dict(event='pause', time=time.time()))
+    checked(lines(path))
+
+
 def append(path, line):
     """Appends line, a JSON object, to the record at path, whole (one write), never creating the record: as an
     estimator writes its estimate."""
@@ -286,11 +313,14 @@ def band(b):
 
 def checked(record):
     """record, a record's lines, once they hold to the record's form (see the docstring; asserted): its start, then
-    its estimates in time order, none before the start, then at most its end."""
+    its estimates in time order, none before the start, then at most its end; and between the start and the end at
+    most one pause, not before the start."""
     events = [x.get('event') for x in record]
-    # TODO: error copy; says a record holds other than its start, then estimates, then at most its end, giving its lines' events
-    assert re.fullmatch(r'start(,estimate)*(,end)?', ','.join(map(str, events))), f'Fable 5.2: "a record runs {events}"'
+    # TODO: error copy; says a record holds other than its start, then estimates and at most one pause, then at most its end, giving its lines' events
+    assert re.fullmatch(r'start(,estimate)*(,pause)?(,estimate)*(,end)?', ','.join(map(str, events))), f'Fable 5.2: "a record runs {events}"'
     first, estimates = record[0], [x for x in record if x['event'] == 'estimate']
+    for x in record[1:]:
+        assert x['event'] != 'pause' or (set(x) == PAUSE and number(x['time']) and x['time'] >= first['time']), x
     assert set(first) - {'started'} == START and ('started' in first) == first['adopted'], first
     assert type(first['search']) is str and re.fullmatch(r'\d+:\d+', first['target']) and number(first['time']), first
     for x in estimates:
@@ -327,12 +357,14 @@ def processes():
 
 
 def state(record, procs):
-    """A run's state by its record and the live processes (processes): with an end, ended if its status is 0 or null,
-    else aborted; with none, running while its process lives, frozen while that is stopped (stat T), and aborted once
-    it is gone (its tracker died before writing the end)."""
+    """A run's state by its record and the live processes (processes): with an end, ended if its status is 0, else
+    paused if the record holds a pause, else ended if its status is null (an adopted run's, not known), else aborted;
+    with none, running while its process lives, frozen while that is stopped (stat T), and once it is gone (its tracker
+    died before writing the end) paused if the record holds a pause, else aborted."""
     last, stat = record[-1], procs.get(record[0]['pid'], 'gone')
-    closed = 'ended' if last.get('status') in (0, None) else 'aborted'
-    open_ = 'aborted' if stat == 'gone' else 'frozen' if stat.startswith('T') else 'running'
+    stopped = 'paused' if any(x['event'] == 'pause' for x in record) else 'aborted'   # a stop short of finishing, by the record
+    closed = 'ended' if last.get('status') == 0 or (last.get('status') is None and stopped == 'aborted') else stopped
+    open_ = stopped if stat == 'gone' else 'frozen' if stat.startswith('T') else 'running'
     return closed if last['event'] == 'end' else open_
 
 
@@ -361,7 +393,10 @@ def running(passes, t):
 def main(argv):
     # TODO: error copy; says how to run the script, in its two modes: run and adopt, each with the run's name, its search's label, its target, an optional file of results, the estimator and its arguments, then -- and the command or the process's pid
     usage = ('Fable 5.2: "usage: track.py run NAME SEARCH N:M [--found FILE] ESTIMATOR ... -- COMMAND ...  |  '
-             'track.py adopt NAME SEARCH N:M [--found FILE] ESTIMATOR ... -- PID"')
+             'track.py adopt NAME SEARCH N:M [--found FILE] ESTIMATOR ... -- PID  |  track.py pause NAME"')
+    if argv[:1] == ['pause']:
+        assert len(argv) == 2, usage
+        return pause(argv[1])
     assert len(argv) >= 7 and argv[0] in ('run', 'adopt') and '--' in argv[4:], usage
     (mode, name, search, target), cut = argv[:4], argv.index('--', 4)
     opts, subject = argv[4:cut], argv[cut + 1:]

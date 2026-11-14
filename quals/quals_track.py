@@ -612,6 +612,101 @@ print('ok')
         shutil.rmtree(d)
 
 
+PAUSED = """
+PAUSE = dict(event='pause', time=115.0)
+"""
+
+
+def q_a_record_may_hold_one_pause_before_its_end():
+    # Replicata: track.checked on handmade records: a start, an estimate, a pause, an end; a start, a pause, then an
+    # estimate (the estimator still running after the mark) and an end; a start, an estimate and a pause (marked, not
+    # yet stopped); then, refused: a pause after the end; two pauses; a pause dated before the start; a pause with a
+    # field more; a pause whose time is no number; a pause with no start.
+    # Expectata (dreeves, 2026-11-13: "go ahead and generalize track.py to record pause vs abort or whatever"): a record
+    # may hold one pause, anywhere after its start and before its end, which stays its last line (every reader of a run's
+    # end reads its last line); the first three come back as given, and each of the others is refused.
+    d = sandbox()
+    try:
+        inside(d, RECORD + PAUSED + """
+good = [[START, EST, PAUSE, END], [START, dict(PAUSE, time=105.0), EST, END], [START, EST, PAUSE]]
+assert [track.checked(r) for r in good] == good
+bad = dict(after=[START, EST, END, dict(PAUSE, time=130.0)], twice=[START, PAUSE, dict(PAUSE, time=116.0), END],
+           early=[START, dict(PAUSE, time=99.0), END], more=[START, dict(PAUSE, why='x'), END],
+           number=[START, dict(PAUSE, time='115'), END], nostart=[PAUSE, END])
+kept = [name for name, record in bad.items() if not refused(record)]
+assert not kept, kept
+print('ok')
+""")
+    finally:
+        shutil.rmtree(d)
+
+
+def q_a_paused_run_reads_paused_once_it_stops():
+    # Replicata: track.state and track.span, now 500, on records that hold a pause at 115: with an end of status -15 at
+    # 120; with an end of status null (an adopted run's); with an end of status 3; with an end of status 0; with no
+    # end and the pid among the live processes as S; the same as T (stopped); the same with the pid gone.
+    # Expectata (dreeves, 2026-11-13, as above; of the 480:14 form tree stopped at 09:29 that day to free the cores and
+    # queued to resume: "should 480:14 formtree say "paused" rather than "aborted"?"): a run stopped short of finishing
+    # whose record holds a pause is paused, not aborted, whatever its status: paused, paused, paused; one that ended
+    # with status 0 finished, so ended; while its process lives it is running, or frozen while stopped; once gone with
+    # no end, paused.  Spans as ever: [100, 120] with an end, to now while the process lives, to the last line (the
+    # pause) once gone.
+    d = sandbox()
+    try:
+        inside(d, RECORD + PAUSED + """
+cases = [([START, EST, PAUSE, dict(END, status=-15)], {}, 'paused', [100.0, 120.0]),
+         ([START, EST, PAUSE, dict(END, status=None)], {}, 'paused', [100.0, 120.0]),
+         ([START, EST, PAUSE, dict(END, status=3)], {}, 'paused', [100.0, 120.0]),
+         ([START, EST, PAUSE, END], {}, 'ended', [100.0, 120.0]),
+         ([START, EST, PAUSE], {7: 'S'}, 'running', [100.0, 500.0]),
+         ([START, EST, PAUSE], {7: 'T+'}, 'frozen', [100.0, 500.0]),
+         ([START, EST, PAUSE], {9: 'S'}, 'paused', [100.0, 115.0])]
+got = [(track.state(r, procs), track.span(r, procs, 500.0)) for r, procs, _, _ in cases]
+assert got == [(s, span) for _, _, s, span in cases], got
+print('ok')
+""")
+    finally:
+        shutil.rmtree(d)
+
+
+def q_pause_marks_a_live_run_and_refuses_the_rest():
+    # Replicata: in a sandbox, track.py run q11 S 16:4 est.py -- a command that sleeps 30 s, in the background; once its
+    # start is written, track.py pause q11; then track.py pause q11 again; then SIGTERM to its tracker; then track.py
+    # pause q11 once more; and track.py pause q12, of which there is no record, and track.py pause with a bad name.
+    # Expectata (dreeves, 2026-11-13, as above): the first pause exits 0 and appends one line, {"event": "pause",
+    # "time"}, its time that moment's (an estimate may follow it); it stops nothing (the command still runs).  The second is refused (exit nonzero),
+    # the record as it was: one pause a run.  Stopped, the run's record ends with its end (status -15) after the pause,
+    # and track.state reads it paused.  Pausing it then is refused: a run's stop is marked before it ends, so that its
+    # end stays its record's last line.  No record, no pause: refused, no file made; a bad name refused.
+    d = sandbox()
+    try:
+        tracker = subprocess.Popen([PY, '-B', TRACK, 'run', 'q11', 'S', '16:4', EST, '--', PY, '-c', 'import time; time.sleep(30)'], cwd=d)
+        until(lambda: os.path.exists(os.path.join(d, 'runs', 'q11.jsonl')), 10)
+        t0 = time.time()
+        first = subprocess.run([PY, '-B', TRACK, 'pause', 'q11'], cwd=d, capture_output=True, text=True)
+        assert first.returncode == 0, first
+        lines = record(d, 'q11')
+        pauses = [x for x in lines if x['event'] == 'pause']          # an estimate may come after it: the estimator runs on
+        assert len(pauses) == 1 and set(pauses[0]) == {'event', 'time'} and t0 <= pauses[0]['time'] <= time.time(), lines
+        assert tracker.poll() is None and not gone(lines[0]['pid'])                       # it stops nothing
+        again = subprocess.run([PY, '-B', TRACK, 'pause', 'q11'], cwd=d, capture_output=True, text=True)
+        assert again.returncode != 0 and [x['event'] for x in record(d, 'q11')].count('pause') == 1, again
+        tracker.send_signal(signal.SIGTERM)
+        tracker.wait(timeout=30)
+        lines = record(d, 'q11')
+        events = [x['event'] for x in lines]
+        assert events[-1] == 'end' and events.count('pause') == 1 and lines[-1]['status'] == -signal.SIGTERM, events
+        inside(d, f"import track; r = track.checked(track.lines('runs/q11.jsonl')); assert track.state(r, track.processes()) == 'paused', r; print('ok')")
+        late = subprocess.run([PY, '-B', TRACK, 'pause', 'q11'], cwd=d, capture_output=True, text=True)
+        assert late.returncode != 0 and record(d, 'q11') == lines, late
+        none = subprocess.run([PY, '-B', TRACK, 'pause', 'q12'], cwd=d, capture_output=True, text=True)
+        assert none.returncode != 0 and not os.path.exists(os.path.join(d, 'runs', 'q12.jsonl')), none
+        bad = subprocess.run([PY, '-B', TRACK, 'pause', '../q11'], cwd=d, capture_output=True, text=True)
+        assert bad.returncode != 0 and record(d, 'q11') == lines, bad
+    finally:
+        shutil.rmtree(d)
+
+
 def q_passes_join_the_spans_and_running_counts_their_seconds():
     # Replicata: track.passes on the spans [30, 40], [0, 10], [5, 20], [20, 25] and [32, 35], and track.running on its
     # result at the times -5, 0, 7, 25, 28, 35 and 100; then both on no span at all.
