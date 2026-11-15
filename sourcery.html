@@ -18909,11 +18909,14 @@ Uncaught Error: ['a y label wider than its margin','0.015 h'] (progress-sectio
 <pre class="prompt">i no longer see that error; maybe that was just temporary, from what you were in the middle of with ETA stuff, which is fine; i should've waited till you were finished
 </pre>
 <details>
-<summary><span class="chip"></span> <span class="agent">Codex</span> <span class="model">gpt-6-astra</span> <span class="effort">(ultra)</span> <span class="elapsed">thought for 8m58s</span> <span class="diffstat">+84 −7 <span class="blocks" aria-hidden="true"><span class="add"></span><span class="add"></span><span class="add"></span><span class="add"></span><span class="del"></span></span></span></summary>
+<summary><span class="chip"></span> <span class="agent">Codex</span> <span class="model">gpt-6-astra</span> <span class="effort">(ultra)</span> <span class="elapsed">thought for 10m1s · 10m45s wall-clock time</span> <span class="diffstat">+84 −7 <span class="blocks" aria-hidden="true"><span class="add"></span><span class="add"></span><span class="add"></span><span class="add"></span><span class="del"></span></span></span></summary>
 <div class="reply machine"><p>It may depend on which searches are expanded or on font loading. The chart still has a fixed 40-pixel margin, so the reported label is worth checking even though the error has disappeared.</p>
 <p>The short validation jobs can produce <code>0.015 h</code>, then age into shorter labels that fit the margin. That explains how the error could disappear without a code change. The regression check will cover short runs and keep the five charts aligned when a wider label needs more space.</p>
 <p>The browser qual reproduced it: <code>0.015 h</code> needs about <strong>36 pixels</strong>, but the margin allows <strong>34</strong>. Shorter-duration ticks need even more room. The fix will size the shared margin from the labels and recalculate it when fonts finish loading.</p>
-<p>The reported label now fits. Existing quals caught an unnecessary redraw whenever any font finished loading. That will be limited to font changes that actually change the required margin, preserving the current refresh behavior.</p></div>
+<p>The reported label now fits. Existing quals caught an unnecessary redraw whenever any font finished loading. That will be limited to font changes that actually change the required margin, preserving the current refresh behavior.</p>
+<p>The short-run regression and all 26 existing chart quals pass. The usual margin remains 40 pixels; longer labels get the space they need, and all five graphs stay aligned. No new <code>if</code> statements were added.</p>
+<p>It was a real chart bug that short runs could temporarily trigger. Fixed: margins now accommodate the labels while keeping all five graphs aligned.</p>
+<p>All <strong>27 relevant quals pass</strong>, including mobile widths, collapsed graphs, and font changes. The search and ETA model were unaffected.</p></div>
 </details>
 </article>
 </main>
