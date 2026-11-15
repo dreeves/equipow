@@ -742,7 +742,8 @@ static void sym_reduce(vector<int16_t> &out, int M, unsigned G) {
 }
 static int USE_SYM = 1;
 static int CERTPOOL = 0;
-struct FormCert { vector<int> rows; vector<ll> c; LL tot; };
+// Cached upper and lower bounds retain their own scales and the signed pins used in their residual totals.
+struct FormCert { vector<int> rows, sgn; vector<ll> c; LL tot = 0, dd = 0, scale = 0; };
 static FormCert LASTCERT;
 // A form's bound from the LP's multipliers, as an integer certificate (2026-11-11, Fable 5.2; until then one certificate at the scale 2^74, taken for the stream
 // whatever it proved).  Rounding a certificate's binomial coefficients at the scale T costs the bound up to C(n, m)/(2T): nothing at 288:10, 259 at 480:13 and
@@ -786,10 +787,14 @@ static bool exact_bound_form(int mi, const vector<int> &w, int s_, const vector<
         LL b = tot + K; LL f = b >= 0 ? b / T : -((-b + T - 1) / T);
         if (f < best) { best = (ll)f; best_a = a; best_ints = ints; best_B = LASTB; best_tot = tot; }
     }
-    if (best_a < 0) { bound = triv; return true; }                                              // no certificate proves the trivial bound or less
+    if (best_a < 0) {                                                                        // no certificate proves the trivial bound or less
+        // The trivial bound has a zero-row certificate; no previous bound belongs to this call.
+        if (CERTPOOL) { LASTCERT.rows.clear(); LASTCERT.sgn.clear(); LASTCERT.c.clear(); LASTCERT.dd = LASTCERT.scale = 1; LASTCERT.tot = triv; }
+        bound = triv; return true;
+    }
     LASTB = best_B; LASTDD = ((LL)1) << CERT_DD[best_a]; LASTSS = CERT_SS[best_a];              // the certificate taken: cert_take reads these
     if (CERTF) cert_take(s_ > 0 ? CUP : CDN, mi, &w, rows, best_ints);
-    if (CERTPOOL) { LASTCERT.rows.clear(); LASTCERT.c.clear(); for (int q = 0; q < (int)rows.size(); q++) if (best_ints[q]) { LASTCERT.rows.push_back(rows[q]); LASTCERT.c.push_back(best_ints[q]); } LASTCERT.tot = best_tot; }
+    if (CERTPOOL) { LASTCERT.rows.clear(); LASTCERT.c.clear(); for (int q = 0; q < (int)rows.size(); q++) if (best_ints[q]) { LASTCERT.rows.push_back(rows[q]); LASTCERT.c.push_back(best_ints[q]); } LASTCERT.sgn = FZlist; LASTCERT.tot = best_tot; LASTCERT.dd = LASTDD; LASTCERT.scale = LASTDD * (LL)LASTSS; }
     bound = best; return true;
 }
 static void cert_grid(int mi, const vector<int> &w, ll &st, ll &c) {
@@ -1306,15 +1311,17 @@ static bool cpool_close(const Node &nd) {
     cp_known.assign(L.K, 0); cp_raw.resize(L.K);
     for (int i = 0; i < M_; i++) { cp_known[i] = 1; cp_raw[i] = 0; }
     for (auto &f : nd.fixed) { cp_known[f.first] = 1; cp_raw[f.first] = raw_of(f.first, f.second); }
-    LL T = DD0 * (LL)SS0;
+    auto known_pin = [&](int s) { return find(nd.sgn.begin(), nd.sgn.end(), s) != nd.sgn.end(); };
     for (auto &E : CPOOL) {
-        bool ok = true; LL Kh = 0, Kl = 0;
+        bool ok = all_of(E.hi.sgn.begin(), E.hi.sgn.end(), known_pin) && all_of(E.lo.sgn.begin(), E.lo.sgn.end(), known_pin); LL Kh = 0, Kl = 0;
         for (size_t i = 0; i < E.hi.rows.size(); i++) { int rw = E.hi.rows[i]; if (rw >= (int)cp_known.size() || !cp_known[rw]) { ok = false; break; } Kh += (LL)E.hi.c[i] * cp_raw[rw]; }
         if (!ok) continue;
         for (size_t i = 0; i < E.lo.rows.size(); i++) { int rw = E.lo.rows[i]; if (rw >= (int)cp_known.size() || !cp_known[rw]) { ok = false; break; } Kl += (LL)E.lo.c[i] * cp_raw[rw]; }
         if (!ok) continue;
         cpool_tests++;
-        LL bh = E.hi.tot + DD0 * Kh, bl = E.lo.tot + DD0 * Kl; ll hi = (ll)(bh >= 0 ? bh / T : -((-bh + T - 1) / T)), lo = -(ll)(bl >= 0 ? bl / T : -((-bl + T - 1) / T));
+        LL bh = E.hi.tot + E.hi.dd * Kh, bl = E.lo.tot + E.lo.dd * Kl;
+        ll hi = (ll)(bh >= 0 ? bh / E.hi.scale : -((-bh + E.hi.scale - 1) / E.hi.scale));
+        ll lo = -(ll)(bl >= 0 ? bl / E.lo.scale : -((-bl + E.lo.scale - 1) / E.lo.scale));
         ll v0 = lo + (((E.c0 - lo) % E.st) + E.st) % E.st;
         if (v0 > hi) { cpool_hits++; exact_ok++; tCpool += now() - t0_; return true; }
     }
@@ -2307,6 +2314,7 @@ int pe_init(const char *path, const double *moments) {
       FOLD = !e ? 0 : string(e) == "1" ? 1 : string(e) == "-1" ? -1 : 2;
       if (FOLD == 2 || (FOLD && N_ % 2)) { fprintf(stderr, "PEX_FOLD=%s: it must be 1 or -1, with n even, or unset\n", e); abort(); } }
     FOLDTO.clear(); FOLDSGN.clear(); FOLDSEEN.clear(); UA.clear();
+    CPOOL.clear(); CPOOL_next = 0;
     lp_init(FOLD ? N_ / 2 : N_); FZ.assign(N_, 0); mods.clear(); modidx.clear(); forms.clear(); rowform.clear();
     BINOM.assign(N_, vector<LL>(M_, 0)); for (int p = 0; p < N_; p++) { LL c = 1; for (int t = 0; t < M_; t++) { BINOM[p][t] = c; c = c * (p - t) / (t + 1); if (p - t <= 0) c = 0; } }
     for (int i = 0; i < M_; i++) { lp_add_row(moments + (size_t)i * N_); rowform.push_back({-1, {}}); }

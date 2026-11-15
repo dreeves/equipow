@@ -213,23 +213,29 @@
     tick();                                   // the age and the times so far as of now, not the snapshot's, at once
   }
 
+  // The heading and summary rows shared by a cell's brief and the full search box; no charts are drawn here.
+  function summaryBox(run, made) {
+    const box = template.content.firstElementChild.cloneNode(true);
+    box.dataset.runState = run.state;
+    heading(box, run);
+    staleView(box, run);
+    statusLine(box, run, made);
+    workBar(box, run.work);
+    return box;
+  }
+
   // A search's box, every search's the same (see the top): the box's template, filled from the search's entry.  Its
   // dots are its runs, a dot each, under the line of their counts, and the note that its ETA is Lindy's rule alone is
   // its basis's (lindy.py's), shown while it runs (the stylesheet's).
   function searchBox(run, made) {
-    const box = template.content.firstElementChild.cloneNode(true);
+    const box = summaryBox(run, made);
     // a run's charts and status line fold under its heading (dreeves, 2026-10-23: "i don't want to see frozen
     // graphs" and "i don't want graphs to magically disappear"), the fold as this browser last left it, whatever the
     // run's state (remember; dreeves, 2026-10-25); a run not running grayed; the summary names the state, an ended
     // run completed if it recorded an outcome, else aborted (dreeves, 2026-10-25: "can these be clearer when
     // collapsed about what's paused/completed/aborted/running?")
-    box.dataset.runState = run.state;
     remember(box.querySelector('details'), `${FOLD}${run.search} ${run.n} ${run.order}`);
-    heading(box, run);
     box.querySelector('[data-tip]').replaceChildren(line.content.cloneNode(true));   // the ETA chart's tip: a snapshot's line
-    staleView(box, run);
-    statusLine(box, run, made);
-    workBar(box, run.work);
     runsLine(box, run);
     const layout = sea(box, run);
     const axes = {eta: etaAxis(run), cpu: {ticks: [1, 0], labels: ['100%', '0']},
@@ -251,7 +257,7 @@
   // would say twice)
   const BRIEF_ROW = {nodes: '.progress-bar-caption', seconds: '.progress-status'};
   function brief(run, made) {
-    const {box} = searchBox(run, made), said = document.createElement('p');
+    const box = summaryBox(run, made), said = document.createElement('p');
     said.append(...box.querySelector('summary h3').childNodes, ' ', ...box.querySelector('summary').querySelectorAll(':scope > span'),
                 ' ', hms(run.so_far));
     return [said, box.querySelector(BRIEF_ROW[run.work.unit])];
@@ -453,10 +459,10 @@
   function chartMargin(labels) {
     const svg = make('svg', {class: 'progress-eta', width: 0, height: 0, 'aria-hidden': 'true',
                              style: 'position:absolute;visibility:hidden;pointer-events:none'});
-    const text = make('text', {});
-    svg.append(text);
+    const texts = labels.map(label => make('text', {}, label));
+    svg.append(...texts);
     section.append(svg);
-    const widths = labels.map(label => { text.textContent = label; return text.getComputedTextLength(); });
+    const widths = texts.map(text => text.getComputedTextLength());
     svg.remove();
     const L = Math.max(ETA_L, Math.ceil(Math.max(...widths) + 6));
     // TODO: the labels must leave positive horizontal room for the chart.
