@@ -36,7 +36,8 @@ def write_config(n, m, mods, path, wmax=200):
         for i in range(M): out.append(' '.join(str(B[i][c]) for c in range(nb)))
         W = dual_forms(n, m, M)[:wmax]
         out.append(str(len(W)))
-        for w in W: out.append(' '.join(map(str, map(int, w))))
+        # Dual vectors use basis coordinates (order); the engine reads weights by natural residue class.
+        for w in W[:, np.argsort(order)]: out.append(' '.join(map(str, map(int, w))))
     Q, U = moment_rows(n, m)
     for row in U: out.append(' '.join(mp.nstr(a, 30) for a in row))
     open(path, 'w').write('\n'.join(out) + '\n')

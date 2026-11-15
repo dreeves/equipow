@@ -132,7 +132,7 @@ def uniform(r, made):
     whose own estimate it was; runs a tracked search's counts of its runs, else the one run it was; odds its own, with
     its history's origin and, where it had no history, its prior at each estimate's time (what lindy.py states); and
     pending none (2026-11-12: the older form counted no nodes pending but in a fanout run's pool); and finished none
-    (that evening: it counted no tasks finished)."""
+    (that evening: it counted no tasks finished); rates none (2026-11-14: no historical node rates were retained)."""
     lindy = [made, r['so_far'], r['so_far'], r['so_far'] / 9, 9 * r['so_far']]
     etas = r['etas'] or [lindy]
     to_go = r['to_go'] or dict(zip(('median', 'lo', 'hi'), etas[-1][2:]))
@@ -143,13 +143,16 @@ def uniform(r, made):
     one = dict(runs=1, running=int(r['state'] == 'running'), frozen=int(r['state'] in ('frozen', 'paused')),
                ended=int(ended and r['outcome'] is not None), aborted=int(ended and r['outcome'] is None), paused=0, found=0)   # an old 'paused' was a stop in place: frozen (paused, 2026-11-13: track.py pause)
     odds = r['odds']
+    # Spec change, 2026-11-14: the old independently sampled fixtures explicitly use seconds since their origin;
+    # synthesized prior points take the ETA's active seconds directly, preserving gaps already in that history.
+    exists = [[t, t - odds['since'], p] for t, p in odds['exists']] or [[row[0], row[1], odds['prior']] for row in etas]
     return dict(search=r['program'], n=r['n'], order=r['order'], state=r['state'], outcome=r['outcome'], so_far=r['so_far'],
                 runs=r['work'] if r.get('tracked') else one,
                 statuses=r['statuses'], depth=r['depth'], keys=r['keys'], groups=r['groups'], counts=r['counts'],
                 to_go=to_go, basis='formtree' if model else 'lindy' if r.get('lindy') else r['program'], work=(nodes + [seconds])[0],
                 etas=etas, odds=dict(prior=odds['prior'], since=odds['since'] if odds['since'] is not None else etas[0][0] - etas[0][1],
-                                     exists=odds['exists'] or [[row[0], odds['prior']] for row in etas]),
-                pending=[], finished=[], cpu=r['cpu'], stale=r.get('stale'))
+                                     exists=exists),
+                pending=[], finished=[], rates=[], cpu=r['cpu'], stale=r.get('stale'))
 
 
 def progress_text(data):
@@ -6816,10 +6819,12 @@ def q_progress_lists_running_runs_first():
 # (Until 2026-11-06 odds carried a basis, the hours ahead and curves, and came with a chance, whose history the chance
 # chart drew: dreeves, that day, "everything here seems useless, kill it unless you have a good argument for salvaging
 # anything. the up-to-date probability that a bipartition exists is great.")
-ODDS_SINCE = PROGRESS_DATA['made'] - 6 * 3600
-ODDS_CAMPAIGN = dict(prior=0.3, since=ODDS_SINCE, exists=[[PROGRESS_DATA['made'] - 900 * (8 - k), 0.3 * math.exp(-k / 20)] for k in range(9)])
+# Fixture correction, 2026-11-14: comparable graphs require one clock. The campaign is 600 s old and WORK is 2 h
+# old, so their independent probability samples now lie within those same histories (previously 6 h and 3 h).
+ODDS_SINCE = PROGRESS_DATA['made'] - 600
+ODDS_CAMPAIGN = dict(prior=0.3, since=ODDS_SINCE, exists=[[PROGRESS_DATA['made'] - 75 * (8 - k), 0.3 * math.exp(-k / 20)] for k in range(9)])
 ODDS_NONE = dict(prior=0.3, since=ODDS_SINCE, exists=[])
-ODDS_WORK = dict(prior=0.01, since=PROGRESS_DATA['made'] - 3 * 3600,
+ODDS_WORK = dict(prior=0.01, since=PROGRESS_DATA['made'] - 2 * 3600,
                  exists=[[PROGRESS_DATA['made'] - 3600 * (2 - k), 0.01 - 0.002 * k] for k in range(3)])
 # PROGRESS_CAMPAIGN: a tracked target a campaign searches, with its odds (PROGRESS_CHANCE until 2026-11-06, with its
 # chance too).
@@ -6854,6 +6859,20 @@ def odds_runs():
 # line; in their place q_progress_has_none_of_the_removed_graphs_or_lines).
 
 
+def q_progress_old_fixtures_preserve_their_probability_clock():
+    # Replicata: the independently sampled campaign history and a run with no measured odds, whose ETA records
+    # include a stopped gap (wall timestamps 0, 1, 3 h apart; active time 0, 1, 2 h).
+    # Expectata: campaign times/probabilities retained with its explicit elapsed clock; synthesized prior points
+    # use each ETA's own active seconds, so conversion never silently interpolates a stopped gap.
+    # Resultata before: neither kind of probability row carried an active-time coordinate.
+    campaign = uniform(PROGRESS_CAMPAIGN, PROGRESS_DATA['made'])
+    assert campaign['odds']['exists'] == [[t, 75 * k, p] for k, (t, p) in enumerate(ODDS_CAMPAIGN['exists'])], campaign['odds']
+    source = json.loads(json.dumps(PROGRESS_DATA['runs'][0]))
+    source['etas'][-1][0] += 3600
+    converted = uniform(source, PROGRESS_DATA['made'] + 3600)
+    assert converted['odds']['exists'] == [[row[0], row[1], 0.5] for row in source['etas']], converted['odds']
+
+
 def q_progress_every_run_has_one_probability_graph():
     # Replicata: index.html with odds_runs() as progress.js, every fold opened.
     # Expectata (dreeves, 2026-11-06: "for anti-magic i don't want to conditionally include or exclude graphs"; then
@@ -6869,6 +6888,8 @@ def q_progress_every_run_has_one_probability_graph():
     # P(exists) on the percent ticks' (0 to 30%, every 10).
     # Resultata before: the section threw at the first run with odds but no chance ("odds without a chance"); with
     # chances, a run without odds had its odds' figure hidden and a run with odds three graphs.
+    # Spec change, 2026-11-14; dreeves: "yes, comparable graphs sounds good": each probability graph now shares
+    # its ETA graph's running-time scale and projected-finish horizon, including the ticks and their positions.
     got = progress_harness({'made': PROGRESS_DATA['made'], 'runs': odds_runs()}, """
   for (const r of runs()) r.querySelector('details').open = true;
   await sleep(200);
@@ -6878,7 +6899,9 @@ def q_progress_every_run_has_one_probability_graph():
     return {program: box.querySelector('[data-program]').textContent, graphs: f.querySelectorAll('svg').length, shown: f.checkVisibility(),
             empty: f.hasAttribute('data-empty'), opacity: +getComputedStyle(f.querySelector('svg')).opacity, line: vertices(f.querySelector('[data-exists-line]')),
             marks: [...f.querySelectorAll('[data-exists-marks] circle')].map(c => [+c.getAttribute('cx'), +c.getAttribute('cy')]),
-            pticks: ticks(f, 'p', 'y'), tticks: ticks(f, 't', 'x')}; }));""")
+            pticks: ticks(f, 'p', 'y'), tticks: ticks(f, 't', 'x'),
+            etaTicks: [...box.querySelectorAll('.progress-eta text.xtick')].map(t => [t.textContent, +t.getAttribute('x')]),
+            axis: ['x1', 'x2'].map(a => +f.querySelector('line.axis').getAttribute(a))}; }));""")
     assert [g['program'] for g in got] == ['probe_seed.py', 'overnight_v5.py', 'ftree.py', 'probe_seed.py'], got
     assert [(g['graphs'], g['shown']) for g in got] == [(1, True)] * 4, [(g['graphs'], g['shown']) for g in got]
     # Spec change (Fable 5.2, 2026-11-11; dreeves: "the search progress code seems like a shitshow; can you revamp it?
@@ -6889,18 +6912,18 @@ def q_progress_every_run_has_one_probability_graph():
     # drew no line, their graphs grayed (data-empty).
     assert [len(g['line']) for g in got] == [9, 3, 3, len(got[3]['line'])] and len(got[3]['line']) >= 1, [len(g['line']) for g in got]
     assert [len(g['marks']) for g in got] == [1, 1, 1, 1] and not any(g['empty'] for g in got) and all(g['opacity'] == 1 for g in got), got
-    h = NNBSP + 'h'
-    assert [t for t, _ in got[1]['tticks']] == ['0', '0.5', '1', '1.5', f'2{h}'] and [t for t, _ in got[1]['pticks']] == ['0', '10', '20', '30', '40', '50%'], got[1]
+    assert all(g['tticks'] == g['etaTicks'] for g in got), [(g['tticks'], g['etaTicks']) for g in got]
+    assert [t for t, _ in got[1]['pticks']] == ['0', '10', '20', '30', '40', '50%'], got[1]
     assert len({y for _, y in got[1]['line']}) == 1, got[1]['line']
     camp = got[0]
-    assert [t for t, _ in camp['tticks']] == ['0', '2', '4', f'6{h}'] and [t for t, _ in camp['pticks']] == ['0', '10', '20', '30%'], (camp['tticks'], camp['pticks'])
-    (_, x0), (_, x6) = camp['tticks'][0], camp['tticks'][-1]
+    assert [t for t, _ in camp['pticks']] == ['0', '10', '20', '30%'], camp['pticks']
+    x0, xend = camp['axis']
     (_, y0), (_, y3) = camp['pticks'][0], camp['pticks'][-1]
-    X = lambda hours: x0 + (x6 - x0) * hours / 6
+    X = lambda seconds: x0 + (xend - x0) * seconds / 1200  # 600 s elapsed + 600 s forecast, the ETA's horizon
     # a tick label sits 3 above its value's line, inside the chart (2026-11-12; dreeves: "could the graphs use more of the available horizontal space? no indenting, for one thing. ... how about end the x-axis range right at the purple dashed vertical line?"); 4 below it until then
     # and 4 below it again, in the margin left of the plot, later that day (Opus 5.5; dreeves: "i'm guessing the axis break slashes will make no visual sense without an axis line")
     Y = lambda v: y0 - 4 + (y3 - y0) * v / 0.3
-    want = [(X((t - ODDS_SINCE) / 3600), Y(p)) for t, p in ODDS_CAMPAIGN['exists']]
+    want = [(X(t - ODDS_SINCE), Y(p)) for t, p in ODDS_CAMPAIGN['exists']]
     assert all(abs(a - c) < 0.05 and abs(b - d) < 0.05 for (a, b), (c, d) in zip(camp['line'], want)), (camp['line'][:3], want[:3])
     assert all(abs(a - c) < 0.05 for a, c in zip(camp['marks'][0], want[-1])), (camp['marks'], want[-1])
 

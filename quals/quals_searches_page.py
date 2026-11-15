@@ -18,9 +18,9 @@ MADE = 1794450000
 band = lambda m, lo, hi: dict(median=m, lo=lo, hi=hi)
 
 
-def entry(search, n, order, state, outcome, basis, work, so_far, to_go, runs, dots, exists, pending, finished):
+def entry(search, n, order, state, outcome, basis, work, so_far, to_go, runs, dots, exists, pending, finished, rates):
     """An entry as watch.py writes it: three estimates, a third of its time so far apart, the last at MADE, with these nodes
-    pending and these tasks finished (None: none counted).  (Until 2026-11-12 five minutes apart: a pixel or two on a
+    pending and these recorded nodes/s rates (None: none measured).  (Until 2026-11-12 five minutes apart: a pixel or two on a
     chart of tens of hours, too close for a pointer to tell apart.)"""
     times = [MADE - round(2 * so_far / 3), MADE - round(so_far / 3), MADE]
     return dict(search=search, n=n, order=order, state=state, outcome=outcome, so_far=so_far, runs=runs,
@@ -28,24 +28,25 @@ def entry(search, n, order, state, outcome, basis, work, so_far, to_go, runs, do
                 counts={s: dots.count(str(i)) for i, s in enumerate(['settled', 'open', 'pending', 'running'])},
                 to_go=to_go, basis=basis, work=work,
                 etas=[[t, so_far - (MADE - t), to_go['median'] + (MADE - t), to_go['lo'] + (MADE - t), to_go['hi'] + (MADE - t)] for t in times],
-                odds=dict(prior=0.5, since=MADE - so_far, exists=[[t, p] for t, p in zip(times, exists)]),
+                odds=dict(prior=0.5, since=MADE - so_far, exists=[[t, so_far - (MADE - t), p] for t, p in zip(times, exists)]),
                 cpu=[[(so_far - 120) / 3600, (so_far - 60) / 3600, MADE - 60, 0.6, 0.3, 0.1], [(so_far - 60) / 3600, so_far / 3600, MADE, 0.7, 0.2, 0.1]],
                 pending=[[t, so_far - (MADE - t), k] for t, k in zip(times, pending) if k is not None],
-                finished=[[t, so_far - (MADE - t), k] for t, k in zip(times, finished) if k is not None], stale=None)
+                finished=[[t, so_far - (MADE - t), k] for t, k in zip(times, finished) if k is not None],
+                rates=[[t, so_far - (MADE - t), k] for t, k in zip(times, rates) if k is not None], stale=None)
 
 
 TREE = entry('formtree', 480, 14, 'running', None, 'formtree', dict(unit='nodes', done=4200000, rate=510.25, total=band(9.1e7, 2.2e7, 4.1e8)),
              11000.0, band(170000.0, 35000.0, 800000.0), dict(runs=4, running=1, frozen=0, ended=2, aborted=1, paused=0, found=0), '0103', [0.49, 0.485, 0.48],
-             [700, 740, 760], [3000, 3600, 4100])
+             [700, 740, 760], [3000, 3600, 4100], [250.5, 780.75, 510.25])
 TILT = entry('tilt', 2016, 15, 'running', None, 'lindy', dict(unit='seconds', done=3600.0, rate=1.0, total=band(7200.0, 4000.0, 36000.0)),
              3600.0, band(3600.0, 400.0, 32400.0), dict(runs=2, running=2, frozen=0, ended=0, aborted=0, paused=0, found=0), '33', [0.5, 0.5, 0.5],
-             [None] * 3, [None] * 3)
+             [None] * 3, [None] * 3, [None] * 3)
 SYM = entry('formtree-sym', 480, 14, 'ended', 'none', 'formtree', dict(unit='nodes', done=145427, rate=35.5, total=band(145427, 145427, 145427)),
             4100.0, band(0.0, 0.0, 0.0), dict(runs=4, running=0, frozen=0, ended=2, aborted=2, paused=0, found=0), '1100', [0.3, 0.1, 0.0],
-            [30, 10, 0], [120, 160, 170])
+            [30, 10, 0], [120, 160, 170], [10.25, 50.75, 35.5])
 OLDTILT = dict(entry('tilt', 1104, 14, 'ended', None, 'lindy', dict(unit='seconds', done=1500.0, rate=1.0, total=band(3000.0, 1666.0, 15000.0)),
                      1500.0, band(1500.0, 166.0, 13500.0), dict(runs=3, running=0, frozen=0, ended=2, aborted=1, paused=0, found=0), '001', [0.5, 0.5, 0.5],
-                     [None] * 3, [None] * 3))
+                     [None] * 3, [None] * 3, [None] * 3))
 SEARCHES = dict(made=MADE, runs=[SYM, TREE, OLDTILT, TILT])           # as the watcher lists them: not by state
 
 HARNESS = r"""<script>
@@ -70,7 +71,7 @@ HARNESS = r"""<script>
     result.missing = shown(section.querySelector('.progress-missing'));
     result.boxes = [...section.querySelectorAll('.progress-runs .progress-run')].map(box => {
       const q = s => box.querySelector(s), part = name => q(`[data-bar="${name}"]`);
-      // a graph of a count over time (the nodes pending, the tasks finished: 2026-11-12), by the parts each has alike
+      // a graph of a count over time (the nodes pending, the node rates: 2026-11-14), by the parts each has alike
       const count = sel => { const f = q(sel), c = s => f.querySelector(s);
         return {empty: f.hasAttribute('data-empty'), opacity: +getComputedStyle(c('svg')).opacity,
                 line: (c('[data-count-line]').getAttribute('points') || '').trim().split(/\s+/).filter(Boolean).map(p => p.split(',').map(Number)),
@@ -80,9 +81,9 @@ HARNESS = r"""<script>
         label: q('[data-program]').textContent, n: q('[data-n]').textContent, order: q('[data-order]').textContent,
         state: [...box.querySelectorAll('.progress-run-state [data-label]')].filter(shown).map(e => e.dataset.label),
         parts: {bar: shown(q('.progress-work')), eta: shown(q('.progress-eta svg')), status: shown(q('.progress-status')), cpu: shown(q('.progress-cpu svg')),
-                pending: shown(q('.progress-pending svg')), finished: shown(q('.progress-finished svg')), runs: shown(q('[data-track-line]')),
+                pending: shown(q('.progress-pending svg')), rates: shown(q('.progress-rates svg')), runs: shown(q('[data-track-line]')),
                 dots: shown(q('canvas')), odds: shown(q('.progress-odds svg'))},
-        pending: count('.progress-pending'), finished: count('.progress-finished'),
+        pending: count('.progress-pending'), rates: count('.progress-rates'),
         extras: box.querySelectorAll('.progress-pool, [data-stages], .progress-key, [data-pool-tip]').length,
         lindy: shown(q('[data-lindy]')),
         caption: q('.progress-bar-caption').textContent.replace(/\s+/g, ' ').trim(),
@@ -109,20 +110,21 @@ HARNESS = r"""<script>
     const none = await new Promise(done => window.progressView.want(7n, 3, nodes => done(nodes)));
     result.none = none.map(e => typeof e === 'string' ? e : e.textContent);
     result.etaXs = window.progressView.layouts.map(L => L.etaXs);
-    result.finishedXs = window.progressView.layouts.map(L => L.finishedXs);
+    result.rateXs = window.progressView.layouts.map(L => L.rateXs);
+    result.oddsXs = window.progressView.layouts.map(L => L.oddsXs);
     // each graph's span (2026-11-12): its axis line's ends, its y labels' places, the ETA chart's purple guide, and the column
     const tree = section.querySelector('.progress-runs .progress-run'), one = (sel, a) => +tree.querySelector(sel).getAttribute(a);
     result.span = tree && {column: document.querySelector('section.mstar').getBoundingClientRect().width, svg: tree.querySelector('.progress-eta svg').getBoundingClientRect().width,
-                   axes: Object.fromEntries(['eta', 'cpu', 'pending', 'finished', 'odds'].map(k => [k, [one(`.progress-${k} line.axis`, 'x1'), one(`.progress-${k} line.axis`, 'x2')]])),
+                   axes: Object.fromEntries(['eta', 'cpu', 'pending', 'rates', 'odds'].map(k => [k, [one(`.progress-${k} line.axis`, 'x1'), one(`.progress-${k} line.axis`, 'x2')]])),
                    // each graph's y axis line or lines, [x1, x2], and the ETA chart's slashes at its break, [x1, x2, visibility]
-                   yaxes: Object.fromEntries(['eta', 'cpu', 'pending', 'finished', 'odds'].map(k => [k, [...tree.querySelectorAll(`.progress-${k} line.yaxis`)].map(l => [+l.getAttribute('x1'), +l.getAttribute('x2')])])),
+                   yaxes: Object.fromEntries(['eta', 'cpu', 'pending', 'rates', 'odds'].map(k => [k, [...tree.querySelectorAll(`.progress-${k} line.yaxis`)].map(l => [+l.getAttribute('x1'), +l.getAttribute('x2')])])),
                    breaks: [...tree.querySelectorAll('.progress-eta line.break')].map(l => [+l.getAttribute('x1'), +l.getAttribute('x2'), l.getAttribute('visibility')]),
                    // each value label's x, its anchor, and its ink's left and right edges as drawn; each hour label's anchor
                    ylabels: [...tree.querySelectorAll('svg text.ytick')].map(t => { const b = t.getBBox(); return [+t.getAttribute('x'), t.getAttribute('text-anchor'), b.x, b.x + b.width]; }),
                    xanchors: [...tree.querySelectorAll('svg text.xtick')].map(t => t.getAttribute('text-anchor')),
                    guide: tree.querySelector('.progress-eta [data-guide]').getAttribute('points').trim().split(/\s+/).map(p => p.split(',').map(Number)),
                    // each chart's drawing against its size as it shows: [viewBox width, shown width, viewBox height, shown height]
-                   scale: ['eta', 'cpu', 'pending', 'finished', 'odds'].map(k => { const v = tree.querySelector(`.progress-${k} svg`), b = v.getBoundingClientRect();
+                   scale: ['eta', 'cpu', 'pending', 'rates', 'odds'].map(k => { const v = tree.querySelector(`.progress-${k} svg`), b = v.getBoundingClientRect();
                                                                        return [v.viewBox.baseVal.width, b.width, v.viewBox.baseVal.height, b.height]; })};
     result.figureText = getComputedStyle(document.getElementById('mstar-readout')).fontSize;   // Figure 1's readout, as its legend's
     // the words of each graph, with where they sit against it and their size (2026-11-12)
@@ -133,25 +135,25 @@ HARNESS = r"""<script>
       const below = {bar: [q('.progress-bar'), q('.progress-bar-caption')], eta: [q('.progress-eta svg'), q('.progress-status')],
                      hint: [q('canvas'), q('[data-readout]')]};
       const above = {tip: [q('.progress-tip'), q('.progress-eta svg')], cpu: [q('.progress-cpu-key'), q('.progress-cpu svg')],
-                     pending: [q('.progress-pending-title'), q('.progress-pending svg')], finished: [q('.progress-finished-title'), q('.progress-finished svg')],
+                     pending: [q('.progress-pending-title'), q('.progress-pending svg')], rates: [q('.progress-rates-title'), q('.progress-rates svg')],
                      runs: [q('[data-track-line]'), q('canvas')],
                      prior: [q('.progress-odds > p'), q('.progress-odds svg')], title: [q('.progress-odds-title'), q('.progress-odds svg')]};
       return {below: Object.fromEntries(Object.entries(below).map(([k, [g, w]]) => [k, after(g, w)])),
               above: Object.fromEntries(Object.entries(above).map(([k, [w, g]]) => [k, after(w, g)])),
               sizes: Object.fromEntries(Object.entries({bar: q('.progress-bar-caption'), tip: q('.progress-tip'), status: q('.progress-status'),
                                                          lindy: q('[data-lindy]'), cpu: q('.progress-cpu-key'), pending: q('.progress-pending-title'),
-                                                         finished: q('.progress-finished-title'),
+                                                         rates: q('.progress-rates-title'),
                                                          runs: q('[data-track-line]'), hint: q('[data-readout]'), prior: q('.progress-odds > p'),
                                                          title: q('.progress-odds-title')}).map(([k, e]) => [k, size(e)])),
               ticks: ['.progress-bar-axis > span', '.progress-eta text.xtick', '.progress-cpu text.xtick', '.progress-pending text.xtick',
-                      '.progress-finished text.xtick', '.progress-odds text.xtick'].map(s => [...box.querySelectorAll(s)].map(e => e.textContent)),
+                      '.progress-rates text.xtick', '.progress-odds text.xtick'].map(s => [...box.querySelectorAll(s)].map(e => e.textContent)),
               tickSizes: ['.progress-bar-axis > span', '.progress-eta text.xtick', '.progress-cpu text.xtick', '.progress-pending text.xtick',
-                          '.progress-finished text.xtick'].map(s => size(q(s))),
+                          '.progress-rates text.xtick'].map(s => size(q(s))),
               tipHeight: q('.progress-tip').getBoundingClientRect().height, statusHeight: q('.progress-status').getBoundingClientRect().height};
     });
     // hovers over the running form tree's three aligned charts: each at its second point, then away
     const box = section.querySelector('.progress-runs .progress-run'), L = window.progressView.layouts[0];
-    const hover = (sel, x) => {
+    const hover = (sel, x = 0) => {   // an empty series is probed at the left margin
       const svg = box.querySelector(sel + ' svg'), b = svg.getBoundingClientRect();
       svg.dispatchEvent(new MouseEvent('mousemove', {clientX: b.left + x * b.width / svg.viewBox.baseVal.width, clientY: b.top + b.height / 2, bubbles: true}));
       const g = box.querySelector(sel + ' [data-stamp]'), text = g.querySelector('text'), cross = box.querySelector(sel + ' line.cross');
@@ -161,13 +163,19 @@ HARNESS = r"""<script>
                     box: (r => [+r.getAttribute('x'), +r.getAttribute('width')])(g.querySelector('rect')),
                     tip: box.querySelector('[data-tip]').innerText.replace(/\s+/g, ' ').trim(),
                     cpu: box.querySelector('.progress-cpu-key').innerText.replace(/\s+/g, ' ').trim(),
-                    now: box.querySelector('[data-odds-now]')?.textContent ?? null};
+                    now: box.querySelector('[data-odds-now]')?.textContent ?? null,
+                    counts: ['pending', 'rates'].map(k => box.querySelector(`.progress-${k} [data-count-now]`)?.textContent ?? null),
+                    otherVisible: [...section.querySelectorAll('.progress-run')].filter(b => b !== box).reduce((n,b) => n + b.querySelectorAll('svg line.cross[visibility="visible"]').length, 0),
+                    linked: [...box.querySelectorAll('.progress-eta svg, .progress-cpu svg, .progress-pending svg, .progress-rates svg, .progress-odds svg')].map(s => {
+                      const c = s.querySelector('line.cross'); return [c.getAttribute('visibility'), +c.getAttribute('x1')]; })};
       svg.dispatchEvent(new MouseEvent('mouseleave', {bubbles: true}));
-      read.after = {shown: g.getAttribute('visibility') === 'visible', now: box.querySelector('[data-odds-now]')?.textContent ?? null};
+      read.after = {shown: g.getAttribute('visibility') === 'visible', now: box.querySelector('[data-odds-now]')?.textContent ?? null,
+                    counts: ['pending', 'rates'].map(k => box.querySelector(`.progress-${k} [data-count-now]`)?.textContent ?? null),
+                    visible: box.querySelectorAll('svg line.cross[visibility="visible"]').length};
       return read;
     };
     result.hovers = box && {eta: hover('.progress-eta', L.etaXs[1]), cpu: hover('.progress-cpu', (L.etaXs[0] + L.etaXs[1]) / 2),
-                            pending: hover('.progress-pending', L.pendingXs[1]), finished: hover('.progress-finished', L.finishedXs[1]),
+                            pending: hover('.progress-pending', L.pendingXs[1]), rates: hover('.progress-rates', L.rateXs[1]),
                             odds: hover('.progress-odds', L.oddsXs[1])};   // none on a page with no box
     result.oddsFirst = box && hover('.progress-odds', L.oddsXs[0]);   // the probability graph's first point, for its readout
     result.width = document.documentElement.scrollWidth;
@@ -225,6 +233,7 @@ def q_every_search_has_its_box_and_every_box_the_same_parts():
     # line through its three points (none grayed for want of a history), under the prior 0.5.  (The graphs of nodes
     # pending and, since 2026-11-12, evening, of tasks finished are among the parts too: dreeves, "sure, let's get the
     # count of finished tasks over time".)
+    # Spec change, 2026-11-14: nodes/s replaces tasks finished at dreeves's request; the common layout stays.
     r = report(1280)
     assert r['made'] == page.stamp(MADE) and r['age'].replace(' ', ' ') == '1m 15s' and not r['missing'], (r['made'], r['age'], r['missing'])
     boxes = r['boxes']
@@ -262,31 +271,95 @@ def q_each_box_graphs_its_nodes_pending():
         assert b['pending']['empty'] and b['pending']['opacity'] < 1 and b['pending']['line'] == [], (b['label'], b['pending'])
 
 
-def q_each_box_graphs_its_tasks_finished():
-    # Replicata: the same page, at 1280 px: formtree's estimates count 3000, 3600 and 4100 tasks finished; the completed
-    # formtree-sym's 120, 160 and 170; the two tilt searches' none (lindy.py's estimates count no tasks).
-    # Expectata (Opus 5.5, 2026-11-12, evening; dreeves, of the form tree's tasks, each ended with its subtree closed or
-    # its unfinished branches spilled to the queue: "sure, let's get the count of finished tasks over time"): every box
-    # has the graph, under its graph of nodes pending, drawn as that one is: the two form trees' a line through their
-    # three points, each at the x of the ETA chart's record of the same estimate (the graphs share their x axis), rising
-    # (more tasks are higher on the page), on round count ticks from 0 whose last is at least the most finished; the
-    # tilt searches' with no line and no point, grayed (data-empty, its svg's opacity below 1), as a graph without data
-    # is.  Its points' x positions are the layout's finishedXs.
-    # Resultata before: no such graph.
-    r = report(1280)
-    tree, tilt, sym, old = r['boxes']
-    xs = dict(zip(('tree', 'tilt', 'sym', 'old'), r['etaXs']))
-    for name, b, most in (('tree', tree, 4100), ('sym', sym, 170)):
-        f = b['finished']
-        assert not f['empty'] and f['opacity'] == 1 and len(f['line']) == 3, (name, f)
-        assert all(abs(x - want) < 0.05 for (x, _), want in zip(f['line'], xs[name])), (name, f['line'], xs[name])
-        assert f['line'][0][1] > f['line'][1][1] > f['line'][2][1], (name, f['line'])       # rising: lower on the page is fewer
-        values = [float(t.replace(',', '').replace('K', 'e3')) for t, _ in f['ticks']]
-        assert f['ticks'][0][0] == '0' and values[-1] >= most, (name, f['ticks'])
-    assert [[round(x, 2) for x, _ in b['finished']['line']] for b in (tree, sym)] == [[round(x, 2) for x in r['finishedXs'][i]] for i in (0, 2)], r['finishedXs']
-    for b in (tilt, old):
-        assert b['finished']['empty'] and b['finished']['opacity'] < 1 and b['finished']['line'] == [], (b['label'], b['finished'])
+def q_each_box_graphs_its_nodes_per_second():
+    # Spec change, 2026-11-14, dreeves: "nodes/s vs time might be interesting to see".
+    # Replicata: the same page at desktop and phone widths, with recorded rates rising then falling;
+    # the completed tree retains its final measured rate, and the two tilt searches have no node rates.
+    # Expectata: each recorded rate at its ETA timestamp, at the correct height on a zero-based scale;
+    # the maximum is the middle point, fractional rates survive, and absent data leaves grayed axes.
+    # Resultata before: a graph of cumulative tasks finished instead, always rising in this fixture.
+    for width in (1280, 390):
+        r = report(width)
+        tree, tilt, sym, old = r['boxes']
+        for i, b, expected in ((0, tree, [250.5, 780.75, 510.25]), (2, sym, [10.25, 50.75, 35.5])):
+            f = b['rates']
+            assert not f['empty'] and f['opacity'] == 1 and len(f['line']) == 3, (width, b['label'], f)
+            assert all(abs(x - want) < 0.05 for (x, _), want in zip(f['line'], r['etaXs'][i])), (width, f['line'], r['etaXs'][i])
+            assert f['line'][0][1] > f['line'][1][1] < f['line'][2][1], (width, f['line'])
+            ticks = [(float(t.replace(',', '').replace('K', 'e3')), y - 4) for t, y in f['ticks']]
+            top, ytop = ticks[-1]
+            assert ticks[0][0] == 0 and top >= max(expected), (width, f['ticks'])
+            actual = [(f['axis'] - y) * top / (f['axis'] - ytop) for _, y in f['line']]
+            assert all(abs(a - e) < top / 1000 for a, e in zip(actual, expected)), (width, actual, expected)
+            assert [round(x, 2) for x, _ in f['line']] == [round(x, 2) for x in r['rateXs'][i]], r['rateXs']
+        for b in (tilt, old):
+            assert b['rates']['empty'] and b['rates']['opacity'] < 1 and b['rates']['line'] == [], (width, b['label'], b['rates'])
 
+
+
+def q_all_graphs_use_the_same_clock_across_a_pause():
+    # Replicata: TREE's estimates at their original active times, with a two-hour pause before the second.
+    # Expectata (dreeves, 2026-11-14: "yes, comparable graphs sounds good"): probability, pending and rate points
+    # have the same x as ETA, including after the gap; every graph has the same time ticks and forecast horizon.
+    # Resultata before: probability counted the pause and used its own horizon, so aligned borders hid unlike clocks.
+    data = copy.deepcopy(SEARCHES)
+    for run in data['runs']:
+        for key in ('etas', 'pending', 'rates'):
+            for row in run[key][1:]: row[0] += 7200
+        for row in run['odds']['exists'][1:]: row[0] += 7200
+    r = render(1280, data)
+    for eta, odds in zip(r['etaXs'], r['oddsXs']):
+        assert all(abs(a-b) < 0.01 for a,b in zip(eta, odds)), (eta, odds)
+    for w in r['words']:
+        assert all(t == w['ticks'][1] for t in w['ticks'][2:]), w['ticks']
+
+
+def q_hovering_any_graph_reads_all_graphs_together():
+    # Replicata: hover each of the five graphs, then leave it, at desktop and phone widths.
+    # Expectata: every crosshair follows the selected x; count readouts show recorded numbers, then restore
+    # the latest numbers when the pointer leaves. The sample timestamps remain those of the actual measurements.
+    # Resultata before: only the hovered graph reacted, and pending/rate values had no numeric readout.
+    for width in (1280, 390):
+        r = report(width)
+        for name, h in r['hovers'].items():
+            assert all(shown == 'visible' and abs(x-h['cross']) < .01 for shown,x in h['linked']), (width, name, h)
+            assert h['otherVisible'] == 0, (width, name, h)
+            assert h['after']['visible'] == 0 and h['after']['counts'] == ['760', '510.3'], (width, name, h)
+        assert r['hovers']['rates']['counts'] == ['740', '780.8'], r['hovers']['rates']
+        assert r['hovers']['rates']['now'] == '0.48', r['hovers']['rates']
+
+
+def q_linked_hover_keeps_empty_sources_within_the_plot():
+    # Replicata: TREE has no rate history; hovering its empty rate chart at the left window edge.
+    # Expectata: its readout stays an em dash and other graphs' crosshairs stay within the common plot.
+    # Resultata: the raw pointer coordinate from an empty graph put every crosshair left of the y axis.
+    data = copy.deepcopy(SEARCHES)
+    data['runs'][1]['rates'] = []
+    r = render(390, data)
+    h = r['hovers']['rates']; left, right = r['span']['axes']['eta']
+    assert h['counts'][1] == '—' and h['after']['counts'][1] == '—', h
+    assert all(left <= x <= right for visible,x in h['linked'] if visible == 'visible'), (left, right, h)
+
+
+def q_cpu_hover_selects_the_interval_containing_its_time():
+    # Replicata: CPU intervals [0,5501] and [5501,5502] seconds, with shares60% and70%; pointer at5500s.
+    # Expectata:60%, the interval containing the selected instant.
+    # Resultata: nearest-midpoint selection chose the one-second interval beginning after the pointer.
+    data = copy.deepcopy(SEARCHES)
+    data['runs'][1]['cpu'] = [[0, 5501/3600, MADE-5499, .6, .3, .1], [5501/3600, 5502/3600, MADE-5498, .7, .2, .1]]
+    h = render(1280, data)['hovers']['cpu']
+    assert re.findall(r'\d+%', h['cpu']) == ['60%', '30%', '10%'], h
+
+
+def q_linked_hover_chooses_the_latest_record_at_a_tied_active_time():
+    # Replicata: the first two estimates have the same active time but different wall times and measured values.
+    # Expectata: ETA, counts and odds consistently choose the later record at that x.
+    # Resultata: ETA chose the later one but count/odds hover could choose the earlier one.
+    data = copy.deepcopy(SEARCHES); run = data['runs'][1]
+    for rows in [run['etas'], run['pending'], run['rates'], run['odds']['exists']]: rows[1][1] = rows[0][1]
+    h = render(1280, data)['hovers']
+    for name in ('eta', 'pending', 'rates', 'odds'):
+        assert h[name]['counts'] == ['740', '780.8'] and h[name]['now'] == '0.48', (name, h[name])
 
 def q_each_graph_s_title_is_above_it_its_numbers_below_in_one_size():
     # Replicata: the same page, at 1280 px and at 390 px: every box's words of its graphs.
@@ -349,7 +422,7 @@ def q_graphs_span_the_column_and_end_at_the_projected_finish():
         assert sp['ylabels'] and all(anchor == 'end' and x <= m - 6 and left >= 0 and right <= m for x, anchor, left, right in sp['ylabels']), (width, sp['ylabels'])
         assert sp['xanchors'] and set(sp['xanchors']) == {'middle'}, (width, sp['xanchors'])
         right = sp['axes']['eta'][1]
-        assert [x for x, _ in sp['guide'][1:]] == [right, right] and sp['axes']['cpu'][1] == sp['axes']['pending'][1] == sp['axes']['finished'][1] == right, (width, sp['guide'], sp['axes'])
+        assert [x for x, _ in sp['guide'][1:]] == [right, right] and sp['axes']['cpu'][1] == sp['axes']['pending'][1] == sp['axes']['rates'][1] == right, (width, sp['guide'], sp['axes'])
         assert all(abs(vw - w) < 1 and abs(vh - h) < 1 for vw, w, vh, h in sp['scale']), (width, sp['scale'])
 
 
@@ -373,7 +446,7 @@ def q_hovering_floats_the_time_on_the_x_axis():
     local = lambda t: time.strftime('%Y-%m-%d %H:%M', time.localtime(t))
     h = r['hovers']
     want = dict(eta=local(TREE['etas'][1][0]), cpu=local(TREE['cpu'][0][2]), pending=local(TREE['pending'][1][0]),
-                finished=local(TREE['finished'][1][0]), odds=local(TREE['odds']['exists'][1][0]))
+                rates=local(TREE['rates'][1][0]), odds=local(TREE['odds']['exists'][1][0]))
     assert sorted(h) == sorted(want), sorted(h)
     for name, got in h.items():
         assert got['shown'] and got['text'] == want[name], (name, got, want[name])
@@ -399,9 +472,9 @@ def q_the_prior_line_says_the_probability_now():
     runs = [x for x in SEARCHES['runs'] if x['state'] == 'running'] + [x for x in SEARCHES['runs'] if x['state'] != 'running']   # the boxes' order
     tails = [b['oddsTail'].split(' → ') for b in r['boxes']]
     assert len(tails) == len(runs) and all(len(t) == 2 for t in tails), tails
-    want = [(e['odds']['prior'], two([e['odds']['prior'], *[p for _, p in e['odds']['exists']]][-1])) for e in runs]
+    want = [(e['odds']['prior'], two([e['odds']['prior'], *[p for _, _, p in e['odds']['exists']]][-1])) for e in runs]
     assert [(float(a), float(b)) for a, b in tails] == want, (tails, want)
-    first, last, h = two(TREE['odds']['exists'][0][1]), two(TREE['odds']['exists'][-1][1]), r['oddsFirst']   # TREE: the first box
+    first, last, h = two(TREE['odds']['exists'][0][2]), two(TREE['odds']['exists'][-1][2]), r['oddsFirst']   # TREE: the first box
     assert first != last and (float(h['now']), float(h['after']['now'])) == (first, last), (first, last, h['now'], h['after']['now'])
 
 
@@ -409,7 +482,7 @@ def q_the_prior_line_says_the_probability_now():
 # four runs, each stopped to be resumed
 PAUSED = entry('formtree-p', 480, 14, 'paused', None, 'formtree', dict(unit='nodes', done=4200000, rate=510.25, total=band(9.1e7, 2.2e7, 4.1e8)),
                11000.0, band(170000.0, 35000.0, 800000.0), dict(runs=4, running=0, frozen=0, ended=0, aborted=0, paused=4, found=0), '2222',
-               [0.49, 0.485, 0.48], [700, 740, 760], [3000, 3600, 4100])
+               [0.49, 0.485, 0.48], [700, 740, 760], [3000, 3600, 4100], [250.5, 780.75, 510.25])
 
 
 def q_a_paused_search_says_paused():

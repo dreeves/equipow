@@ -12,8 +12,8 @@
 // the running ones going on with the clock (HMSFORMAT, 2026-11-07).
 // Per search, by one path whatever the search (searchBox): a bar of its work, in the unit it counts its work in
 // (workBar); progress.html's ETA chart (eta_chart there: dreeves's design), from its estimates; its status line; the
-// machine's CPU under the chart; its nodes pending under that, and its tasks finished under those (countChart,
-// 2026-11-12); its runs' counts; the sea,
+// machine's CPU under the chart; its nodes pending under that, and its recorded nodes/s under those (countChart,
+// 2026-11-14); its runs' counts; the sea,
 // one dot per run of the data's groups, each group a block of
 // cells (strips below), cells of pitch px, chosen from 10 down to 2 px so that the sea is at most about 560 px tall, a
 // dot a device px short of its cell (none short below 3 device px); and last its prior and its graph of P(exists)
@@ -25,7 +25,7 @@
 // takes the next group unless that worsens its worst block's aspect ratio.
 // window.progressView holds the loads, renders, data and, per run, its layout (rects, cols, rows, pitch;
 // place(group, dot): device px), the ETA chart's record x positions (etaXs, in its viewBox) and the count charts'
-// point x positions (pendingXs, finishedXs), for the quals.
+// point x positions (pendingXs, rateXs), for the quals.
 (() => {
   const section = document.querySelector('section.progress');
   const details = section.querySelector('details');
@@ -234,9 +234,10 @@
     layout.etaXs = etaChart(box.querySelector('.progress-eta'), run);
     cpuChart(box.querySelector('.progress-cpu'), run);
     layout.pendingXs = countChart(box.querySelector('.progress-pending'), run, run.pending);
-    layout.finishedXs = countChart(box.querySelector('.progress-finished'), run, run.finished);
+    layout.rateXs = countChart(box.querySelector('.progress-rates'), run, run.rates);
     box.querySelector('[data-lindy]').hidden = run.basis !== 'lindy';
     layout.oddsXs = oddsChart(box.querySelector('.progress-odds'), run);
+    linkCharts(box);
     return {box, layout};
   }
 
@@ -446,6 +447,7 @@
   // paper's color a little wider than the text, which covers the labels it sits on.
   function stampAt(g, x, y, t) {
     const text = g.querySelector('text');
+    g.dataset.time = t;                     // retained for the linked cursor; each label names its actual sample
     text.textContent = local(t);
     const W = g.ownerSVGElement.viewBox.baseVal.width, w = text.getComputedTextLength() + 8, cx = Math.min(W - w / 2, Math.max(w / 2, x));
     set(text, {x: cx, y});
@@ -554,7 +556,7 @@
     tip.style.minHeight = '';                   // its height at rest, measured again at the next hover (below)
     at(pts.length - 1, 0);                      // laid out at rest, invisible, as the latest record's line
     set(cross, {x1: X(last[1]), y1: T, x2: X(last[1]), y2: Y(0)});   // hidden at rest; up through the strip
-    svg.addEventListener('mousemove', ev => {
+    svg.onmousemove = ev => {
       const x = Math.min(svgX(svg, ev), W - R);   // not past the axis
       // left of the last record, the nearest record (the latest of equals); right of it, the last record carried on to
       // the pointer, in whole minutes (the records' cadence)
@@ -569,8 +571,8 @@
       tip.style.minHeight = tip.style.minHeight || `${tip.getBoundingClientRect().height}px`;
       at(k, s);
       tip.style.visibility = 'visible';           // laid out at rest (the CSS hides it), so showing it moves nothing
-    });
-    svg.addEventListener('mouseleave', () => { cross.setAttribute('visibility', 'hidden'); q('[data-stamp]').setAttribute('visibility', 'hidden'); tip.style.visibility = ''; });
+    };
+    svg.onmouseleave = () => { cross.setAttribute('visibility', 'hidden'); q('[data-stamp]').setAttribute('visibility', 'hidden'); tip.style.visibility = ''; };
     return xsvg;
   }
 
@@ -581,9 +583,9 @@
   // for 288:10 it's uninteresting. then kill everything below that", and "go with 50% as the ignorant prior when there's
   // no model or whatever"; until then, for a run with odds alone, two more graphs, P(found by t | exists) and the
   // chance of a find within 24 h, and a note on their basis), from its odds (watch.py's), {prior, since, exists}:
-  // the prior stated as the page writes numbers, and P(exists) at each [t, p] of exists over the hours since since, a
+  // the prior stated as the page writes numbers, and P(exists) at each [t, running seconds, p] of exists, a
   // line over a wash down to 0, a dot on its last point, on round ticks of percent up to 1% at least and of hours up to
-  // the run's time so far or its last point, a quarter hour at least.  Every search has a point at least: it shows from
+  // the projected finish, on the same scale as every other chart.  Every search has a point at least: it shows from
   // its first estimate (until 2026-11-11 a run with no model of its search had none, and its graph was grayed axes).
   // The machine's CPU over the run's hours of running, under its ETA chart and on its x axis (etaX), so that a dip lines
   // up with the ETA it moved (dreeves, 2026-11-07: "could we get a nice CPU usage graph on the search page? similar to
@@ -618,7 +620,8 @@
     say(rest);
     svg.onmousemove = ev => {                   // the row under the pointer, or the nearest, and a crosshair through it
       const x = svgX(svg, ev);
-      const row = run.cpu.reduce((best, r) => Math.abs((X(r[0]) + X(r[1])) / 2 - x) < Math.abs((X(best[0]) + X(best[1])) / 2 - x) ? r : best, rest ?? [0, 0]);
+      const distance = r => Math.max(X(r[0]) - x, 0, x - X(r[1]));
+      const row = run.cpu.reduce((best, r) => distance(r) < distance(best) ? r : best, rest ?? [0, 0]);
       say(rest && row);
       // the dashed line at the row's end, whose time floats on the x axis (2026-11-12; at the pointer until then)
       for (const r of [row].slice(0, rest ? 1 : 0)) {
@@ -629,16 +632,13 @@
     svg.onmouseleave = () => { say(rest); cross.setAttribute('visibility', 'hidden'); stampG.setAttribute('visibility', 'hidden'); };
   }
 
-  // A graph of a count over a search's hours of running: its nodes pending (Opus 5.5, 2026-11-12; dreeves: "we used to
-  // have number of open nodes as a graph. is there a reason we can't have that on the currently running 480:14
-  // search?"; a fanout run's pool chart showed its boxes pending or running from 2026-11-03 until the page's revamp of
-  // 2026-11-11), and its tasks finished, under that (that evening; dreeves: "sure, let's get the count of finished tasks
-  // over time"), each by this one path: rows, the entry's rows of that count, [time, seconds of running, count], on the
-  // ETA chart's x axis (etaX), under the CPU chart, so that they line up: a line over a wash down to 0, a dot on its
-  // last point, on round count ticks from 0 to past the largest count, its hours labeled at its foot as the ETA chart's
-  // are (2026-11-12); under the pointer the dashed line at the nearest point, whose time floats on the x axis (stampAt).
-  // With no row (a search that counts none: lindy.py's), its axes alone, grayed (data-empty), as a graph without data
-  // is.  Returns its points' x positions, in its viewBox, for the quals.
+  // A numeric series over a search's hours of running: nodes pending, then recorded nodes/s (2026-11-14;
+  // dreeves: "nodes/s vs time might be interesting to see", replacing the cumulative finished-task plot).
+  // rows are [time, seconds of running, value], on the ETA chart's x axis (etaX), under the CPU chart so they
+  // line up. Node rates are the estimator's recorded rates, already exponentially weighted over three hours
+  // for form trees (formtree_eta.rate); this renderer adds no smoothing. A line over a wash down to zero, a
+  // dot on its last point, and under the pointer the nearest point's time on the x axis (stampAt).
+  // No rows leave grayed axes (data-empty). Returns the points' x positions in the viewBox for the quals.
   function countChart(fig, run, rows) {
     assert(Array.isArray(rows) && rows.every(r => r.length === 3 && r.every(Number.isFinite)), 'malformed counts', fig.className, run.search, run.n, run.order);
     const W = chartWidth(), {xticks, xlabels, X} = etaX(run, W), H = 144, T = 16, B = 30, q = sel => fig.querySelector(sel);   // T room for the top value's label (2026-11-12)
@@ -654,7 +654,9 @@
     set(q('[data-count-wash]'), {points: xy([...ends[0].map(([x]) => [x, Y(0)]), ...line, ...ends[1].map(([x]) => [x, Y(0)])])});
     q('[data-count-marks]').replaceChildren(...ends[1].map(([cx, cy]) => make('circle', {class: 'mark', r: 3, cx, cy})));
     const xs = line.map(([x]) => x);
-    hoverPoints(fig, xs, rows.map(r => r[0]), T, H - B, H - 8);
+    const values = ['—', ...rows.map(r => r[2].toLocaleString('en-US', {maximumFractionDigits: 1}))], say = k => { q('[data-count-now]').textContent = values[k + 1]; };
+    say(rows.length - 1);
+    hoverPoints(fig, xs, rows.map(r => r[0]), T, H - B, H - 8, say);
     return xs;
   }
 
@@ -668,7 +670,7 @@
     const svg = fig.querySelector('svg'), cross = fig.querySelector('line.cross'), stampG = fig.querySelector('[data-stamp]');
     svg.onmousemove = ev => {
       const x = svgX(svg, ev);
-      const k = xs.reduce((best, v, i) => Math.abs(v - x) < Math.abs(xs[best] - x) ? i : best, xs.length - 1);   // -1 with no point
+      const k = xs.reduce((best, v, i) => Math.abs(v - x) <= Math.abs(xs[best] - x) ? i : best, xs.length - 1);   // -1 with no point
       for (const t of times.slice(k, k + 1)) {
         set(cross, {x1: xs[k], y1, x2: xs[k], y2}).setAttribute('visibility', 'visible');
         stampAt(stampG, xs[k], y, t);
@@ -678,25 +680,52 @@
     svg.onmouseleave = () => { cross.setAttribute('visibility', 'hidden'); stampG.setAttribute('visibility', 'hidden'); say(xs.length - 1); };
   }
 
+  // One selection for all five graphs (dreeves, 2026-11-14: "yes, comparable graphs sounds good").
+  // The source selects its recorded point, or the ETA's projected minute, as before. Each other chart reads its
+  // nearest recorded sample; timestamps still name those samples, so sparse CPU readings are not interpolated.
+  // Every visible crosshair shares the selected x. Leaving any graph restores every readout to its latest value.
+  function linkCharts(box) {
+    const charts = [...box.querySelectorAll('.progress-eta svg, .progress-cpu svg, .progress-pending svg, .progress-rates svg, .progress-odds svg')]
+      .map(svg => ({svg, move: svg.onmousemove, leave: svg.onmouseleave}));
+    for (const source of charts) {
+      source.svg.onmousemove = ev => {
+        source.move(ev);
+        // An empty source has no selected sample; its pointer still selects an instant in the other charts.
+        const selected = [...source.svg.querySelectorAll('line.cross[visibility="visible"]')].map(c => +c.getAttribute('x1'));
+        const x = Math.max(ETA_L, Math.min(source.svg.viewBox.baseVal.width - ETA_R, [...selected, svgX(source.svg, ev)][0]));
+        for (const c of charts.filter(c => c !== source)) {
+          const b = c.svg.getBoundingClientRect();
+          c.move({clientX: b.left + x * b.width / c.svg.viewBox.baseVal.width});
+        }
+        for (const cross of box.querySelectorAll('svg line.cross[visibility="visible"]')) {
+          set(cross, {x1: x, x2: x});
+          const g = cross.ownerSVGElement.querySelector('[data-stamp]');
+          stampAt(g, x, +g.querySelector('text').getAttribute('y'), +g.dataset.time);
+        }
+      };
+      source.svg.onmouseleave = () => { for (const c of charts) c.leave(); };
+    }
+  }
+
   function oddsChart(fig, run) {
     assert(run.odds, 'a run without odds', run.search, run.n, run.order);
     const {prior, since, exists} = run.odds;
     assert(typeof prior === 'number' && 0 <= prior && prior <= 1 && Array.isArray(exists) && (Number.isFinite(since) || (since === null && !exists.length))
-           && exists.every(([t, p]) => Number.isFinite(t) && 0 <= p && p <= 1), 'malformed odds', run.odds);
+           && exists.every(r => r.length === 3 && r.every(Number.isFinite) && r[1] >= 0 && 0 <= r[2] && r[2] <= 1), 'malformed odds', run.odds);
     fill(fig, 'odds-prior', num(prior));
     // after the prior, an arrow and P(exists) now, the last point's, to 2 significant figures, or over the graph the point
     // under the pointer's (2026-11-13; dreeves: "append a right arrow and then the current probability, and have it update
     // on hover for the graph"): of the prior and the points, the (k + 1)th, k the point heard (hoverPoints), -1 the prior
-    const series = [prior, ...exists.map(([, p]) => p)], now = k => fill(fig, 'odds-now', String(Number(series[k + 1].toPrecision(2))));
+    const series = [prior, ...exists.map(([, , p]) => p)], now = k => fill(fig, 'odds-now', String(Number(series[k + 1].toPrecision(2))));
     now(exists.length - 1);
     const W = chartWidth(), H = 160, L = ETA_L, R = ETA_R, T = 14, B = 30, q = sel => fig.querySelector(sel);   // the ETA chart's margins (2026-11-12)
     sized(fig.querySelector('svg'), W, H);
-    const pts = exists.map(([t, p]) => [(t - since) / 3600, p]);
+    const pts = exists.map(([, x, p]) => [x / 3600, p]);
     const top = Math.max(0.01, ...pts.map(([, p]) => p)), step = tickStep(top);
     const pticks = Array.from({length: Math.ceil(top / step - 1e-9) + 1}, (_, i) => i * step);
-    // its x axis ending at its last point, or the time so far if later, its round ticks within that (2026-11-12, as the ETA chart's)
-    const end = Math.max(1 / 4, run.so_far / 3600, ...pts.map(([h]) => h)), [tticks, tlabels] = axis(end, Math.floor);
-    const X = h => L + (W - L - R) * h / end, Y = v => H - B - (H - B - T) * v / pticks[pticks.length - 1];
+    // Every graph shares the recorded running-time coordinate and the ETA's projected-finish horizon.
+    const {xticks: tticks, xlabels: tlabels, X} = etaX(run, W);
+    const Y = v => H - B - (H - B - T) * v / pticks[pticks.length - 1];
     q('[data-exists-grid]').replaceChildren(
       ...pticks.slice(1).map(v => make('line', {class: 'grid', x1: L, y1: Y(v), x2: W - R, y2: Y(v)})),
       make('line', {class: 'axis', x1: L, y1: Y(0), x2: W - R, y2: Y(0)}),

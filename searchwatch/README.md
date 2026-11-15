@@ -26,6 +26,20 @@ The launcher, the estimators and the watcher of the long searches, behind the se
 
       python3 -B searchwatch/track.py run NAME SEARCH N:M searchwatch/formtree_eta.py VERDICTS MODEL PRIOR -- COMMAND ...
 
+## Replaying completed forecasts (Codex, 2026-11-14)
+
+[eta_replay.py](eta_replay.py) scores saved forecasts against completed form-tree verdict graphs. It does not rerun the prover, fit a model, or change live estimates.
+
+    python3 -B searchwatch/eta_replay.py MANIFEST.json > REPORT.json
+
+The module's docstring specifies the version-1 manifest and forecast fields. Prepare one manifest entry per completed search, including all its restart intervals. Normalize current tracker records by copying their `estimate` objects unchanged into a JSONL file, in timestamp order; take each interval from its recorded `start` and `end`. Read records through `track.checked`, require every interval's end, and use the configured model's original `roots`. Include SHA-256 hashes of the normalized forecasts, verdicts, models and source records. Paths resolve from the repository root. The evaluator verifies those hashes before scoring. An unfinished verdict graph cannot supply a completion result.
+
+For older archives, convert only documented units and preserve the original timestamps and values. Unavailable total-work bands are `null`; they cannot be recovered by multiplying time quantiles by a rate. Historical band quantiles are explicit metadata, or `null` if unknown. `finished`, when available, must identify a verdict prefix whose accounted node count equals the forecast's `done`. Optional extra fields, including recorded model hashes and old elapsed-time coordinates, survive unchanged in the report. Candidate forecasts can use the same format, but must be generated from their historical prefixes without consulting the later verdicts that supply the outcome.
+
+The report includes every observation and a separate summary for each search. Total-work and remaining-work errors have the same signed difference but different multiplicative denominators. Time errors use active wall seconds: overlapping runs count once and restart gaps do not count. The rate comparison is against future accounted work per active second, which includes work already spent inside unreported tasks. Recorded termination can include tracking and cleanup; it is not an independently measured final-node time. Exact terminal observations stay in the report but are excluded from forecast summaries. Undefined ratios are `null`. Band hits and widths describe these correlated observations; they are not independent calibration trials.
+
+The first replay's source normalization recipe, manifest and report are in `scratch/eta-replay-20261114/` on dreeves's machine. It covers folded 480:13 and unrestricted 288:10; the latter retains 365 observations with both work and time measurements, and has no saved total-work bands. The evaluator itself needs only Python's standard library. Its quals are [../quals/quals_eta_replay.py](../quals/quals_eta_replay.py).
+
 ## Watching
 
 - [watch.py](watch.py): copies the searches' records into [../pagedata/progress.js](../pagedata/progress.js), the data of the section "Search progress": every search the same fields. After the live searches it adds the earlier ones, from [../pagedata/progress-earlier.json](../pagedata/progress-earlier.json). It holds no model and no list of searches. The watcher to run:

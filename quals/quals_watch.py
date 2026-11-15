@@ -69,20 +69,109 @@ def q_an_entry_is_its_search_s_records():
           estimate(1900, 400, 4500, 2500, exists=0.45, pending=40, finished=9), end(2000)]
     r2 = [start('r2', 'tree', '480:14', 3000, 77), estimate(3100, 450, 4800, 2400, exists=0.44), last]
     e = watch.entry(('tree', '480:14'), [r1, r2], {77: 'S'}, 3500, [])
+    # Spec change, 2026-11-14: dreeves requested nodes/s over time; rates holds the recorded node rates.
     assert set(e) == {'search', 'n', 'order', 'state', 'outcome', 'so_far', 'to_go', 'etas', 'basis', 'work', 'odds', 'runs', 'statuses',
-                      'depth', 'keys', 'groups', 'counts', 'cpu', 'stale', 'pending', 'finished'}, sorted(e)
+                      'depth', 'keys', 'groups', 'counts', 'cpu', 'stale', 'pending', 'finished', 'rates'}, sorted(e)
     assert e['finished'] == [[1100, 100, 4], [1900, 900, 9], [3400, 1400, 12]], e['finished']
     assert (e['search'], e['n'], e['order'], e['state'], e['outcome'], e['so_far'], e['stale'], e['cpu']) == ('tree', 480, 14, 'running', None, 1500, None, []), e
     assert e['to_go'] == last['to_go'] and e['basis'] == 'formtree', e
     assert e['work'] == dict(unit='nodes', done=700, rate=2.0, total=last['total']), e['work']
     assert [row[:2] for row in e['etas']] == [[1100, 100], [1900, 900], [3100, 1100], [3400, 1400]], e['etas']
     assert e['etas'][-1][2:] == [2150, 0.9 * 2150, 1.5 * 2150], e['etas'][-1]
-    assert e['odds'] == dict(prior=0.5, since=1000, exists=[[1100, 0.49], [1900, 0.45], [3100, 0.44], [3400, 0.31]]), e['odds']
+    # Spec change, 2026-11-14: dreeves approved comparable graphs; odds shares the ETA's active-time coordinate.
+    assert e['odds'] == dict(prior=0.5, since=1000, exists=[[1100, 100, 0.49], [1900, 900, 0.45], [3100, 1100, 0.44], [3400, 1400, 0.31]]), e['odds']
     assert e['pending'] == [[1100, 100, 30], [1900, 900, 40], [3400, 1400, 50]], e['pending']
     assert e['runs'] == dict(runs=2, running=1, frozen=0, ended=1, aborted=0, paused=0, found=0), e['runs']
     assert (e['statuses'], e['depth'], e['keys'], e['groups']) == (['settled', 'open', 'pending', 'running'], 0, ['480:14'], ['03']), e
     assert e['counts'] == dict(settled=1, open=0, pending=0, running=1), e['counts']
     json.dumps(e)
+
+
+def q_odds_use_active_time_across_pauses_restarts_and_overlap():
+    # Replicata: estimates before and after a paused run's 1000-second gap, plus an overlapping second run.
+    # Expectata: unchanged probabilities and timestamps, with exactly the ETA/rate active seconds between them;
+    # the stopped gap contributes nothing and concurrent runs contribute wall time only once.
+    # Resultata: odds had only timestamps, so the renderer counted the gap and disagreed with the other graphs.
+    import watch
+    r1 = [start('r1', 'tree', '480:14', 1000, 55), estimate(1100, 100, 4000, 3000, exists=0.49),
+          estimate(1900, 400, 4500, 2500, exists=0.45), dict(event='pause', time=1950), end(2000, -15)]
+    r2 = [start('r2', 'tree', '480:14', 3000, 77), estimate(3100, 450, 4800, 2400, exists=0.44)]
+    r3 = [start('r3', 'tree', '480:14', 3200, 88), estimate(3400, 700, 5000, 2150, exists=0.31)]
+    e = watch.entry(('tree', '480:14'), [r1, r2, r3], {77: 'S', 88: 'S'}, 3500, [])
+    assert e['odds']['exists'] == [[1100, 100, 0.49], [1900, 900, 0.45], [3100, 1100, 0.44], [3400, 1400, 0.31]], e['odds']
+    assert [r[:2] for r in e['odds']['exists']] == [r[:2] for r in e['etas']] == [r[:2] for r in e['rates']], e
+    assert (e['odds']['prior'], e['odds']['since']) == (0.5, 1000), e['odds']
+
+
+def q_earlier_odds_share_their_established_eta_clock():
+    # Replicata: the frozen entries, whose probability samples either coincide with ETA samples or whose ETA
+    # clock runs continuously from odds.since (the two independently sampled historical histories).
+    # Expectata: each odds point carries that same running-time coordinate; no probability point is lost.
+    # Resultata: historical odds rows lacked active seconds, forcing the renderer onto another clock.
+    with open(os.path.join(HERE, 'pagedata', 'progress-earlier.json'), encoding='utf-8') as f:
+        entries = json.load(f)
+    for e in entries:
+        eta = {r[0]: r[1] for r in e['etas']}
+        rows = e['odds']['exists']
+        assert all(len(r) == 3 for r in rows), (e['search'], e['n'], e['order'])
+        assert all(0 <= p <= 1 and seconds >= 0 for _, seconds, p in rows), rows
+        assert all(seconds == eta[t] for t, seconds, _ in rows if t in eta), e['search']
+        unmatched = [(t, seconds) for t, seconds, _ in rows if t not in eta]
+        assert not unmatched or (max(abs(t - seconds - e['odds']['since']) for t, seconds in eta.items()) <= 1
+                                 and all(abs(seconds - (t - e['odds']['since'])) <= 0.1 for t, seconds in unmatched)), e['search']
+
+
+def q_node_rates_keep_recorded_values_across_restarts_and_overlap():
+    # Replicata: one search runs from 1000 to 2000, restarts at 3000, and has another run overlapping from 3200.
+    # Its four estimates report rates 3.5, 1.25, 8.75 and 4.125 at 1100, 1900, 3100 and 3400.
+    # Expectata: those values unchanged, placed at 100, 900, 1100 and 1400 seconds of active wall time: the gap
+    # contributes nothing, and overlapping runs count time once. The last rate equals the work bar's recorded rate.
+    # Resultata: no rates history was published; only the latest work rate survived into the page's data.
+    import watch
+    r1 = [start('r1', 'tree', '480:14', 1000, 55), estimate(1100, 100, 4000, 3000, rate=3.5),
+          estimate(1900, 400, 4500, 2500, rate=1.25), end(2000)]
+    r2 = [start('r2', 'tree', '480:14', 3000, 77), estimate(3100, 450, 4800, 2400, rate=8.75)]
+    r3 = [start('r3', 'tree', '480:14', 3200, 88), estimate(3400, 700, 5000, 2150, rate=4.125)]
+    e = watch.entry(('tree', '480:14'), [r1, r2, r3], {77: 'S', 88: 'S'}, 3500, [])
+    assert e['rates'] == [[1100, 100, 3.5], [1900, 900, 1.25], [3100, 1100, 8.75], [3400, 1400, 4.125]], e['rates']
+    assert e['rates'][-1][2] == e['work']['rate'], (e['rates'], e['work'])
+
+
+def q_node_rates_follow_units_without_inventing_measurements():
+    # Replicata: a search whose estimates all have the same arbitrary basis: first seconds, then nodes, then
+    # seconds again; separately a search with only seconds-unit estimates.
+    # Expectata: only the node estimate supplies a nodes/s point; the seconds-only search has an empty history.
+    # Resultata: no rates history existed; copying every estimate's rate would label seconds/second as nodes/s.
+    import watch
+    ests = [estimate(1100, 100, 4000, 3000, basis='probe', unit='seconds', rate=1),
+            estimate(1200, 200, 4000, 3000, basis='probe', unit='nodes', rate=0.625),
+            estimate(1300, 300, 4000, 3000, basis='probe', unit='seconds', rate=1)]
+    entries = [watch.entry(('probe', '16:4'), [[start('x', 'probe', '16:4', 1000, 9), *rows, end(1400)]], {}, 1500, [])
+               for rows in (ests, [ests[0], ests[2]])]
+    assert [e['rates'] for e in entries] == [[[1200, 200, 0.625]], []], entries
+
+
+def q_node_rates_are_thinned_with_the_other_histories():
+    # Replicata: 1001 estimates a minute apart, with alternating high and low node rates, from an ended run.
+    # Expectata: rates uses exactly the estimates and x coordinates kept for the ETA, including first and last;
+    # every rate remains its recorded value and the last equals work.rate, with no averaging or interpolation.
+    # Resultata: no rates history was published, so fluctuations could not be drawn.
+    import watch
+    ests = [estimate(1060 + 60 * k, k, 5000, 100, rate=0.25 + 8 * (k % 2)) for k in range(1001)]
+    e = watch.entry(('S', '16:4'), [[start('x', 'S', '16:4', 1000, 9), *ests, end(70000)]], {}, 80000, [])
+    kept = list(range(0, 1001, 3)) + [1000]
+    assert e['rates'] == [[1060 + 60 * k, 60 + 60 * k, ests[k]['rate']] for k in kept], e['rates']
+    assert [r[:2] for r in e['rates']] == [r[:2] for r in e['etas']], e['rates']
+    assert e['rates'][-1][2] == e['work']['rate'], (e['rates'][-1], e['work'])
+
+
+def q_earlier_searches_do_not_invent_node_rate_history():
+    # Replicata: the frozen earlier searches, whose old snapshots retain only their latest work.rate.
+    # Expectata: an empty rates array for each; a latest rate is insufficient to reconstruct its history.
+    # Resultata: the entries had no rates field, which the new chart needs even without measurements.
+    with open(os.path.join(HERE, 'pagedata', 'progress-earlier.json'), encoding='utf-8') as f:
+        entries = json.load(f)
+    assert entries and all(e['rates'] == [] for e in entries), [(e['search'], e.get('rates')) for e in entries]
 
 
 def q_a_search_s_state_and_outcome_follow_its_runs():
@@ -179,11 +268,13 @@ def q_a_long_history_is_thinned_evenly():
     ests = [estimate(1060 + 60 * k, k, 5000, 100, exists=1 - k / 2000, pending=1000 - k, finished=k) for k in range(1001)]
     e = watch.entry(('S', '16:4'), [[start('x', 'S', '16:4', 1000, 9), *ests, end(70000)]], {}, 80000, [])
     times = [row[0] for row in e['etas']]
-    assert len(times) <= watch.ETA_POINTS == 400 and times == [t for t, _ in e['odds']['exists']] == [row[0] for row in e['pending']] == [row[0] for row in e['finished']], len(times)
+    # Spec change, 2026-11-14: comparable graphs retain the same thinned timestamps and active seconds.
+    assert len(times) <= watch.ETA_POINTS == 400 and times == [row[0] for row in e['odds']['exists']] == [row[0] for row in e['pending']] == [row[0] for row in e['finished']], len(times)
+    assert [row[:2] for row in e['odds']['exists']] == [row[:2] for row in e['etas']], e['odds']
     assert e['finished'][-1][2] == 1000 and e['finished'][0][2] == 0, (e['finished'][0], e['finished'][-1])
     assert e['pending'][-1][2] == 0 and e['pending'][0][2] == 1000, (e['pending'][0], e['pending'][-1])
     assert times == [1060 + 60 * k for k in list(range(0, 1001, 3)) + [1000]], times[-3:]
-    assert e['work']['done'] == 1000 and e['odds']['exists'][-1] == [61060, 0.5], (e['work'], e['odds']['exists'][-1])
+    assert e['work']['done'] == 1000 and e['odds']['exists'][-1] == [61060, 60060, 0.5], (e['work'], e['odds']['exists'][-1])
 
 
 def q_a_search_s_cpu_is_its_runs_shares_on_its_running_time():

@@ -603,21 +603,29 @@ static inline LL labs128(LL v) { return v < 0 ? -v : v; }
 static inline ll raw_of(int row, double val) { if (row < M_) return 0; int mi = rowform[row].first; Mod &m = mods[mi]; double nr; if (row >= m.pos && row < m.pos + m.M) nr = m.norm[row - m.pos]; else nr = forms[FormKey{mi, rowform[row].second}].second; return llround(val * nr); }
 static inline double row_norm(int row) { if (row < M_) return 1.0; int mi = rowform[row].first; Mod &m = mods[mi]; if (row >= m.pos && row < m.pos + m.M) return m.norm[row - m.pos]; return forms[FormKey{mi, rowform[row].second}].second; }
 static vector<LL> LASTB; static LL LASTDD = 0; static double LASTSS = 0;
-// Build W from multipliers y on rows (y[q] for rows[q]); ints[q] receives c_i.  scale multiplies y first.  DD, SS are the scales.  Returns false when numbers would be too large.
-static bool build_w(const vector<int> &rows, const double *y, long double scale, LL DD, double SS, vector<ll> &ints) {
+// Build the moment contribution first; its values also supply the certificate-size check.
+static bool build_moments(const vector<int> &rows, const double *y, long double scale, LL DD, double SS, vector<ll> &ints) {
     int n = N_; static vector<LL> B; B.assign(M_, 0); ints.assign(rows.size(), 0);
     long double DS = (long double)DD * (long double)SS;
     for (int t = 0; t < M_; t++) { long double a = 0; for (int q = 0; q < (int)rows.size(); q++) if (rows[q] < M_ && y[q] != 0.0) a += (long double)y[q] * UU[rows[q]][t]; a *= scale * DS; if (fabsl(a) > 1.0e36L) return false; B[t] = (LL)roundl(a); }
     Wx.assign(n, 0);
     for (int p = 0; p < n; p++) { LL s = 0; const LL *bp = BINOM[p].data(); for (int t = 0; t < M_; t++) s += B[t] * bp[t]; Wx[p] = s; }
+    LASTB = B; LASTDD = DD; LASTSS = SS;
+    return true;
+}
+// Wx initially holds the moment polynomial; add the residue-row contribution.
+static bool build_rows(const vector<int> &rows, const double *y, long double scale, LL DD, double SS, vector<ll> &ints) {
     for (int q = 0; q < (int)rows.size(); q++) {
         int row = rows[q]; if (row < M_ || y[q] == 0.0) continue;
         int mi = rowform[row].first; Mod &m = mods[mi]; long double v = (long double)y[q] / row_norm(row) * scale * SS; if (fabsl(v) > 9.0e15L) return false; ll c = llroundl(v); ints[q] = c; if (!c) continue;
         if (row >= m.pos && row < m.pos + m.M) { for (int p : m.members[row - m.pos]) Wx[p] += DD * c; }
         else { const vector<int> &cf = rowform[row].second; for (int r = 0; r < m.M; r++) if (cf[r]) { LL e = DD * c * cf[r]; for (int p : m.members[r]) Wx[p] += e; } }
     }
-    LASTB = B; LASTDD = DD; LASTSS = SS;
     return true;
+}
+// Build W from multipliers y on rows (y[q] for rows[q]); ints[q] receives c_i.  scale multiplies y first.  DD, SS are the scales.  Returns false when numbers would be too large.
+static bool build_w(const vector<int> &rows, const double *y, long double scale, LL DD, double SS, vector<ll> &ints) {
+    return build_moments(rows, y, scale, DD, SS, ints) && build_rows(rows, y, scale, DD, SS, ints);
 }
 static const LL WMAX = ((LL)1) << 117;
 static bool exact_bound_form(int mi, const vector<int> &w, int s_, const vector<int> &rows, const vector<double> &vals, ll &bound);
@@ -744,8 +752,12 @@ static FormCert LASTCERT;
 // that where 2^74 loses nothing the stream is what it was; and none is taken where the least is above the trivial bound: the bound returned is then the trivial
 // one and the stream gets the null certificate, which the checkers read as the trivial bound.
 static const LL CERT_BIG = ((LL)1) << 113;          // fkernel's BIG is 2^114: one bit of margin
+// Before build_rows changes Wx, these are exactly the moment values fkernel checks.
+static bool cert_moments_fit() {
+    for (LL v : Wx) if (labs128(v) >= CERT_BIG) return false;   // fkernel's "a moment value too large"
+    return true;
+}
 static bool cert_fits(const vector<int> &rows, const vector<double> &vals, const vector<ll> &ints, int dd, const vector<int> &w, LL T) {
-    for (int p = 0; p < N_; p++) { LL s = 0; const LL *bp = BINOM[p].data(); for (int t = 0; t < M_; t++) s += LASTB[t] * bp[t]; if (labs128(s) >= CERT_BIG) return false; }   // fkernel's "a moment value too large"
     LL s2 = 0, s3 = 0;
     for (int q = 0; q < (int)rows.size(); q++) {
         if (!ints[q]) continue;
@@ -767,7 +779,7 @@ static bool exact_bound_form(int mi, const vector<int> &w, int s_, const vector<
     static vector<ll> ints, best_ints; static vector<LL> best_B; ll best = triv + 1; int best_a = -1; LL best_tot = 0;
     for (int a = 0; a < 3; a++) {
         LL DD = ((LL)1) << CERT_DD[a]; double SS = CERT_SS[a]; LL T = DD * (LL)SS;
-        if (!build_w(rows, y.data(), 1.0L, DD, SS, ints) || !cert_fits(rows, vals, ints, CERT_DD[a], w, T)) continue;
+        if (!build_moments(rows, y.data(), 1.0L, DD, SS, ints) || !cert_moments_fit() || !build_rows(rows, y.data(), 1.0L, DD, SS, ints) || !cert_fits(rows, vals, ints, CERT_DD[a], w, T)) continue;
         LL K = 0; for (int q = 0; q < (int)rows.size(); q++) if (ints[q]) K += DD * ints[q] * raw_of(rows[q], vals[q]);
         LL tot = 0; for (int r = 0; r < m.M; r++) { LL e = T * s_ * w[r]; for (int p : m.members[r]) { LL e_ = e - Wx[p]; tot += FZ[p] ? e_ * FZ[p] : labs128(e_); } }
         if (tot >= (((LL)1) << 125)) continue;                                                  // fkernel's "a bound too large", with a bit of margin

@@ -35,13 +35,17 @@ CPU intervals (cpu.py): a search's estimator says how far along it is, and this 
                to_go, basis, work its latest estimate's time to go, basis, and unit, done, rate and total;
                etas               its estimates' history, [time, its seconds of running before then, to_go's median,
                                   lo, hi] of each, thinned evenly to at most ETA_POINTS, the last kept;
-               odds               {prior: its latest estimate's, since: its first start, exists: [time, P(exists)] of
-                                  the same estimates as etas};
+               odds               {prior: its latest estimate's, since: its first start, exists: [time, seconds of
+                                  running, P(exists)] of the same estimates as etas}; the common active-time clock
+                                  (2026-11-14; dreeves: "yes, comparable graphs sounds good");
                pending            [time, its seconds of running before then, nodes pending] of the same estimates
                                   as etas that count them (2026-11-12, Opus 5.5; dreeves: "we used to have number of
                                   open nodes as a graph"; none for a search that counts none, lindy.py's);
                finished           the same of tasks finished (that evening; dreeves: "sure, let's get the count of
                                   finished tasks over time"; none for a search that counts none, lindy.py's);
+               rates              [time, its seconds of running before then, recorded nodes/s] of the same estimates
+                                  as etas whose unit is nodes (2026-11-14; dreeves: "nodes/s vs time might be
+                                  interesting to see"); the estimator's rates, with no further smoothing;
                cpu                its CPU series (cpu_series);
                stale              null, or the time of the snapshot its data are from (snapshot).
              A search shows from its first estimate: one whose runs have none yet is in no snapshot.  A running
@@ -127,8 +131,9 @@ def entry(key, runs, procs, now, rows):
         statuses=STATUSES, depth=0, keys=[key[1]], groups=[dots], counts={s: dots.count(str(i)) for i, s in enumerate(STATUSES)},
         to_go=latest['to_go'], basis=latest['basis'], work={k: latest[k] for k in ('unit', 'done', 'rate', 'total')},
         etas=[[int(x['time']), round(track.running(passes, x['time']), 1)] + [round(x['to_go'][k], 1) for k in ('median', 'lo', 'hi')] for x in history],
-        odds=dict(prior=latest['prior'], since=runs[0][0]['time'], exists=[[int(x['time']), x['exists']] for x in history]),
+        odds=dict(prior=latest['prior'], since=runs[0][0]['time'], exists=[[int(x['time']), round(track.running(passes, x['time']), 1), x['exists']] for x in history]),
         **{k: [[int(x['time']), round(track.running(passes, x['time']), 1), x[k]] for x in history if x[k] is not None] for k in ('pending', 'finished')},
+        rates=[[int(x['time']), round(track.running(passes, x['time']), 1), x['rate']] for x in history if x['unit'] == 'nodes'],
         cpu=cpu_series(rows, passes, {r[0]['name'] for r in runs}), stale=None)
 
 

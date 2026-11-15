@@ -95,15 +95,14 @@ permuted. A reviewer of the page's form-tree section found it; the checks below 
   of what they were (480:14's tenth level: 1,063 nodes for 1,092; 480:13's sixth: 1,292 for 1,291). They split on forms mod 11
   and up, which were right already. The estimates above stand; levels past those were not measured.
 - **No proof is touched:** both checkers recompute every grid from the lattice.
-- **Not done:** `write_config` still writes the digits order. The fix is a prover change, with a qual first, and new
-  configurations for any cell run again. The kept `.cfg` files are records of what made the proofs (their sha256 is in the
-  manifests) and stay as they are.
+- **Fixed (Codex, 2026-11-14):** `write_config` now permutes dual-form weights from digit coordinates to natural residue
+  classes. `quals_formtree_config.py` covers the exact grids, three checked 152:7 closures and a genuine 128:7 sequence.
+  The live 480:14 run already uses a manually corrected configuration. Kept `.cfg` files and proof manifests are unchanged.
 - **Notes:** `scratch/forms-20261110/NOTES.md` and `scratch/ftp-20261110/review/` on dreeves's Mac.
 
 ## Ideas, untested
 
-1. **Find out why the prover misses the f(−1) cut** (above), and fix it in the prover. The checkers recompute every grid and
-   certificate, so a prover change needs no new trust; a checker change does, and needs dreeves's approval.
+1. **The missed f(−1) cut is fixed** (2026-11-14, above). The checkers recompute every grid and certificate; neither checker changed.
 2. **Higher 2-adic facts at the open cells.** There f(−1) = 0 is forced (2^m > n), so the step above gives nothing. Congruences on
    derivatives at −1 might. At 288:10 (2026-10-30), Lemma A said f'(−1) ≡ 4096·(D_1 + D_3)/8 mod 8192 with |f'(−1)| ≤ 20736. In the
    class of open leaves with 4096 there (189,000 of them, in the earlier overnight_v5 search, not the form tree), that allows only
