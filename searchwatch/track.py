@@ -75,13 +75,23 @@ table of searches.
             crashed tracker writes no end: the watcher then shows the run aborted once its process is gone.
 run and adopt refuse, writing nothing: a NAME or a SEARCH of other than letters, digits, '.', '_' and '-'; a NAME whose record
 exists (a name is one run); a target not N:M; an ESTIMATOR that is no file; an adopted PID with no live process.
+
+  model     python3 -B searchwatch/track.py model NAME PATH: explicitly activates the model file PATH for a run that
+            has not ended (Codex, 2026-11-15; dreeves: "can we update the live ETA model too?"). It appends
+            {"event": "model", "time", "path", "sha256"}, with an absolute path and the SHA-256 of the file's bytes.
+            It neither restarts the tracker/search nor changes earlier estimates. An estimator reads model_of at its
+            observation time; it must verify the selected file's recorded hash. Without an eligible event it uses
+            its explicit launch argument, not an inferred replacement. This is a recorded activation, not a setting.
+            An estimate already running when activation occurs may append afterward with an earlier observation
+            time: estimate times and model times are separately ordered. Like pause, a concurrent run end is checked
+            again after append and fails loudly if it races. Restart the watcher after changing this record schema.
 Quals: quals_track.py
 """
 import sys
 sys.dont_write_bytecode = True
 # TODO: error copy; says the script refuses to run under python -O, which would strip its assertions
 if not __debug__: raise SystemExit('Claude: "refusing to run without assertions (python -O)"')
-import os, re, json, math, time, glob, shlex, signal, contextlib, subprocess
+import os, re, json, math, time, glob, shlex, signal, contextlib, subprocess, hashlib
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # the repository's root, above searchwatch/ (this file was at the root until 2026-11-10, dreeves's README [REF])
 RUNS = os.path.join(HERE, 'runs')
 POLL = 10                                              # seconds between an adopted process's checks
@@ -93,6 +103,7 @@ EST_GRACE = 30.0                                      # seconds a run's last est
 STALE = 1200.0                                        # seconds: the oldest a running search's latest estimate may be
 START = {'event', 'name', 'search', 'target', 'estimator', 'command', 'cwd', 'found', 'adopted', 'pid', 'tracker', 'time'}
 PAUSE = {'event', 'time'}
+MODEL = {'event', 'time', 'path', 'sha256'}
 ESTIMATE = {'event', 'time', 'basis', 'unit', 'done', 'rate', 'total', 'to_go', 'prior', 'exists', 'pending', 'finished'}
 BAND = {'median', 'lo', 'hi'}
 
@@ -300,6 +311,37 @@ def pause(name):
     checked(lines(path))
 
 
+def model(name, path):
+    """Append an explicit, hash-bound model activation; preserve every earlier record byte and model file."""
+    # TODO: error copy; the run name must contain only letters, digits, dots, underscores and hyphens.
+    assert type(name) is str and re.fullmatch(r'[\w.-]+', name), f'Nomen cursus invalidum: {name!r}'
+    record_path = os.path.join(RUNS, name + '.jsonl')
+    # TODO: error copy; the run must have an existing record and the model must be an existing file.
+    assert os.path.isfile(record_path) and os.path.isfile(path), f'Acta vel exemplar desunt: {record_path!r}, {path!r}'
+    record = checked(lines(record_path))
+    # TODO: error copy; a model cannot be activated for a run that has ended.
+    assert record[-1]['event'] != 'end', f'Cursus iam finitus: {name}'
+    path = os.path.abspath(path)
+    with open(path, 'rb') as f: digest = hashlib.sha256(f.read()).hexdigest()
+    event = dict(event='model', time=time.time(), path=path, sha256=digest)
+    checked(record + [event])
+    append(record_path, event)
+    checked(lines(record_path))
+
+
+def model_of(record, initial_path, now):
+    """The explicit model selected as of a forecast's observation time: {path, sha256}.
+
+    No file is read here. The estimator verifies a recorded hash against the bytes it reads; None identifies the
+    explicit launch model for which older records contain no hash. A later activation never rewrites an earlier
+    forecast, including one whose estimator process appended it after that activation.
+    """
+    checked(record)
+    assert type(initial_path) is str and initial_path and number(now) and now >= record[0]['time']
+    choices = [dict(path=x['path'], sha256=x['sha256']) for x in record if x['event'] == 'model' and x['time'] <= now]
+    return ([dict(path=initial_path, sha256=None)] + choices)[-1]
+
+
 def append(path, line):
     """Appends line, a JSON object, to the record at path, whole (one write), never creating the record: as an
     estimator writes its estimate."""
@@ -325,11 +367,16 @@ def band(b):
 def checked(record):
     """record, a record's lines, once they hold to the record's form (see the docstring; asserted): its start, then
     its estimates in time order, none before the start, then at most its end; and between the start and the end at
-    most one pause, not before the start."""
+    most one pause, not before the start.
+    Model activations may interleave with estimates. Each stream's times are ordered separately: an estimator can
+    start before activation and append its saved observation after activation. Models require absolute paths and
+    SHA-256 identifiers, but their files are not read while checking historical records.
+    """
     events = [x.get('event') for x in record]
     # TODO: error copy; says a record holds other than its start, then estimates and at most one pause, then at most its end, giving its lines' events
-    assert re.fullmatch(r'start(,estimate)*(,pause)?(,estimate)*(,end)?', ','.join(map(str, events))), f'Fable 5.2: "a record runs {events}"'
+    assert re.fullmatch(r'start(,(estimate|model))*(,pause)?(,(estimate|model))*(,end)?', ','.join(map(str, events))), f'Fable 5.2: "a record runs {events}"'
     first, estimates = record[0], [x for x in record if x['event'] == 'estimate']
+    models = [x for x in record if x['event'] == 'model']
     for x in record[1:]:
         assert x['event'] != 'pause' or (set(x) == PAUSE and number(x['time']) and x['time'] >= first['time']), x
     assert set(first) - {'started'} == START and ('started' in first) == first['adopted'], first
@@ -339,8 +386,13 @@ def checked(record):
         assert all(number(x[k]) for k in ('time', 'done', 'rate', 'prior', 'exists')) and band(x['total']) and band(x['to_go']), x
         assert 0 <= x['done'] <= x['total']['lo'] and x['rate'] > 0 and 0 <= x['prior'] <= 1 and 0 <= x['exists'] <= 1, x
         assert all(x[k] is None or (type(x[k]) is int and x[k] >= 0) for k in ('pending', 'finished')), x
-    times = [first['time']] + [x['time'] for x in estimates]
-    assert times == sorted(times), times
+    for x in models:
+        assert set(x) == MODEL and number(x['time']), x
+        assert type(x['path']) is str and os.path.isabs(x['path']), x
+        assert type(x['sha256']) is str and re.fullmatch('[0-9a-f]{64}', x['sha256']), x
+    for rows in (estimates, models):
+        times = [first['time']] + [x['time'] for x in rows]
+        assert times == sorted(times), times
     return record
 
 
@@ -416,6 +468,10 @@ def main(argv):
     if argv[:1] == ['pause']:
         assert len(argv) == 2, usage
         return pause(argv[1])
+    if argv[:1] == ['model']:
+        # TODO: usage: activate the named model file for the named run.
+        assert len(argv) == 3, 'Usus: track.py model NAME PATH'
+        return model(argv[1], argv[2])
     assert len(argv) >= 7 and argv[0] in ('run', 'adopt') and '--' in argv[4:], usage
     (mode, name, search, target), cut = argv[:4], argv.index('--', 4)
     opts, subject = argv[4:cut], argv[cut + 1:]

@@ -26,6 +26,26 @@ The launcher, the estimators and the watcher of the long searches, behind the se
 
       python3 -B searchwatch/track.py run NAME SEARCH N:M searchwatch/formtree_eta.py VERDICTS MODEL PRIOR -- COMMAND ...
 
+## Updating a form-tree model (Codex, 2026-11-15)
+
+An explicit model-change event can activate a new immutable file for a running search:
+
+    python3 -B searchwatch/track.py model RUN_NAME MODEL.json
+
+The record keeps the activation time, absolute path and SHA-256 hash. `formtree_eta.py` selects the model valid at its observation time and verifies those bytes. Earlier forecast lines and model files are preserved. The prover and tracker need no restart. A newly launched run must name the desired model in its estimator arguments; activation belongs to its recorded run. Restart the watcher after changing tracker code, before introducing a new event type.
+
+[frontier_sample.py](frontier_sample.py) takes an explicitly frozen snapshot of unfinished node files, their prover library/wrapper/configuration, and hashes. It probes every node eight times, partitioned into at most sixteen balanced groups. Each group-round runs in a fresh process; solver caches may be shared within that block. A block's mean of scaled member estimates is the estimated sum for that group. All blocks must finish without censoring or OPEN results. The module's docstring specifies its snapshot contract.
+
+    python3 -B searchwatch/frontier_sample.py SNAPSHOT.json NEW_OUTPUT_DIRECTORY WORKERS
+
+Run a substantial sampling job through `track.py` with its own search label and `lindy.py` estimator. Sampling uses copies and supplies no proof verdicts. Grouping limits posterior memory and assigns shared local discrepancy within each group; the original global discrepancy and other priors remain. Grouping therefore changes modeling assumptions as well as computation. These conditional bands have no empirical coverage guarantee.
+
+[formtree_frontier.py](formtree_frontier.py) assembles verified probes and an exact checkpoint into a new model:
+
+    python3 -B searchwatch/formtree_frontier.py SNAPSHOT.json OUTPUT_DIRECTORY NEW_MODEL.json
+
+The snapshot also names its original unanchored model, includes `verdicts.prefix` among its hashed sources, and records the original roots, prefix byte/hash and task counts, and accounted nodes in `base`. At each estimate, only subsequent verdicts count beneath the new frontier; the old work is added exactly once. The groups must cover the checkpoint's entire unfinished frontier without overlap. The original cumulative rate history and original completion condition remain intact. Recheck sampling stability and posterior effective sample size before activation. A future refresh can repeat this procedure from another frozen frontier; one rebase does not permanently solve late-tail prediction when a large group has only one branch left.
+
 ## Replaying completed forecasts (Codex, 2026-11-14)
 
 [eta_replay.py](eta_replay.py) scores saved forecasts against completed form-tree verdict graphs. It does not rerun the prover, fit a model, or change live estimates.

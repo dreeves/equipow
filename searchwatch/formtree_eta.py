@@ -19,6 +19,12 @@ log discrepancies allow a root-specific miss without imposing it on every root.
 Version 1 fixes the local scatter. Version 2 gives it a lognormal prior and
 learns it from exact completions and unfinished-root survival together.
 The shared-bias prior and exchangeability across roots remain assumptions.
+
+Since 2026-11-15, a model may carry an explicit frozen-frontier checkpoint.
+Its roots are groups of unfinished subtrees; each bootstrap block is a complete
+stratified sampling round, and its mean estimates that group's total work.
+The older eight-dive block representation remains unchanged. Model activations
+are recorded by path/hash in the run; earlier forecasts retain their old values.
 """
 import copy
 import hashlib
@@ -158,18 +164,23 @@ MODEL = {'kind', 'seed', 'roots', 'log_bias', 'discrepancy_log_sd', 'rate_log_sd
          'provenance', 'assumptions'}
 
 
-def read_model(path):
+def read_model(path, expected_sha256=None):
     """The work model in the file at path, as draws reads it: {kind: formtree, seed, roots: [{name, blocks}, ...] (each
     root's dive estimates of its tree's nodes, in blocks of eight), log_bias, discrepancy_log_sd, rate_log_sd,
     root_log_sd, root_log_sd_uncertainty (draws's docstring), and provenance and assumptions, which say in words where
-    the dives and the parameters came from and what is assumed of them}."""
-    model = json.loads(Path(path).read_text())
-    assert set(model) == MODEL and model['kind'] == 'formtree', sorted(model)
+    the dives and the parameters came from and what is assumed of them}.
+    An optional checkpoint uses formtree_frontier's explicit prefix/group contract.
+    Its blocks contain scaled member probes; their means are complete group-round
+    estimates. An activation's expected_sha256 binds the exact bytes read here."""
+    data = Path(path).read_bytes()
+    assert expected_sha256 is None or hashlib.sha256(data).hexdigest() == expected_sha256
+    model = json.loads(data)
+    assert set(model) - {'checkpoint'} == MODEL and model['kind'] == 'formtree', sorted(model)
     assert model['roots'] and all(set(r) == {'name', 'blocks'} for r in model['roots']), path
     return model
 
 
-def estimate(model, roots, points, prior, pending, finished):
+def estimate(model, roots, points, prior, pending, finished, offset=0):
     """A form-tree search's estimate (track.py's vocabulary), without its time: of basis formtree, in nodes; done the
     nodes checked (roots, formtree_work._roots's rows: each root's exact count and whether it is complete), their rate
     by points (rate); the total nodes when the tree is exhausted and the seconds of running until then, and
@@ -180,14 +191,18 @@ def estimate(model, roots, points, prior, pending, finished):
     open), which is no forecast: the total is the nodes checked, exactly, nothing is to go, and P(exists | none found)
     is 0 whatever the prior (Fable 5.2, 2026-11-13; dreeves: "sure, that sounds cleaner to get exact counts and
     probability 0 when we completed a proof").  chance.work infers no such verdict (its caller supplies it), and the
-    model's draws need a root not complete: so the one branch here."""
-    done = sum(r['done'] for r in roots)
-    work = dict(roots=roots, done=done, rate=rate(points))
+    model's draws need a root not complete: so the one branch here.
+    offset is the exact accounted work before a frozen frontier. Posterior roots
+    describe only the suffix; offset is added once to total and done. Rate points
+    remain the original search's cumulative counts and running-time coordinates."""
+    assert type(offset) is int and offset >= 0
+    work = dict(roots=roots, done=sum(r['done'] for r in roots), rate=rate(points))
+    done = offset + work['done']
     if all(r['complete'] for r in roots):
         forecast = dict(exists=0.0, to_go=dict(median=0.0, lo=0.0, hi=0.0), total=dict(median=done, lo=done, hi=done))
     else:
         samples = sampled(model, work)
-        forecast = chance.work(prior, samples['total'], done, samples['rate'] * 3600, samples['weight'])
+        forecast = chance.work(prior, offset + samples['total'], done, samples['rate'] * 3600, samples['weight'])
     return dict(event='estimate', basis='formtree', unit='nodes', done=done, rate=work['rate'], total=forecast['total'],
                 to_go=forecast['to_go'], prior=prior, exists=forecast['exists'], pending=pending, finished=finished)
 
@@ -349,13 +364,19 @@ def attach(s, root, model_path, p_exists, now, cache):
 
 
 if __name__ == '__main__':
-    verdicts, model, prior = sys.argv[1], read_model(sys.argv[2]), float(sys.argv[3])
+    import formtree_frontier
+    verdicts, initial_model, prior = sys.argv[1], sys.argv[2], float(sys.argv[3])
     path, now = os.environ[track.RECORD], time.time()
     runs, passes = track.search_of(path, now)
-    told = [json.loads(x) for x in formtree_work._prefix(Path(verdicts))[0].splitlines()]      # the tasks with a verdict
-    roots, waiting = formtree_work.walk(told, [r['name'] for r in model['roots']])
+    record = track.checked(track.lines(path))
+    selected = track.model_of(record, initial_model, now)
+    model = read_model(selected['path'], selected['sha256'])
+    assert 'checkpoint' not in model or model['checkpoint']['target'] == record[0]['target']
+    state = formtree_frontier.observed(model, formtree_work._prefix(Path(verdicts))[0])
+    roots, waiting = state['roots'], state['waiting']
+    done = state['offset'] + sum(r['done'] for r in roots)
     # the search's nodes checked against its seconds of running: none at its start, then as each of its estimates of
     # this basis found them, then now
     before = sorted((x['time'], x['done']) for r in runs for x in r if x['event'] == 'estimate' and x['basis'] == 'formtree')
-    points = [(0.0, 0)] + [(track.running(passes, t), done) for t, done in before] + [(track.running(passes, now), sum(r['done'] for r in roots))]
-    track.append(path, dict(estimate(model, roots, points, prior, len(waiting), len(told)), time=now))
+    points = [(0.0, 0)] + [(track.running(passes, t), done) for t, done in before] + [(track.running(passes, now), done)]
+    track.append(path, dict(estimate(model, roots, points, prior, len(waiting), state['finished'], state['offset']), time=now))

@@ -26,7 +26,7 @@ def sandbox():
     d = tempfile.mkdtemp(prefix='formtree-estimator-quals-')
     os.mkdir(os.path.join(d, 'searchwatch'))
     os.mkdir(os.path.join(d, 'runs'))
-    for name in ('track.py', 'chance.py', 'formtree_work.py', 'formtree_eta.py'):
+    for name in ('track.py', 'chance.py', 'formtree_work.py', 'formtree_frontier.py', 'formtree_eta.py'):
         shutil.copy(os.path.join(HERE, 'searchwatch', name), os.path.join(d, 'searchwatch'))
     json.dump(MODEL, open(os.path.join(d, 'model.json'), 'w'))
     return d

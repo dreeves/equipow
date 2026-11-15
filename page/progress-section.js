@@ -208,7 +208,8 @@
     view.layouts = drawn.map(d => d.layout);
     runsBox.replaceChildren(...drawn.map(d => d.box));
     // every y label laid out within its margin (ETA_L), or an error: not a label cut off at its chart's edge (2026-11-12)
-    for (const t of runsBox.querySelectorAll('text.ytick')) assert(t.getComputedTextLength() <= ETA_L - 6, 'a y label wider than its margin', t.textContent);
+    // ETA_L is now the minimum; each label's right-aligned x is its actual measured slot (2026-11-15).
+    for (const t of runsBox.querySelectorAll('text.ytick')) assert(t.getComputedTextLength() <= +t.getAttribute('x'), 'a y label wider than its margin', t.textContent);
     tick();                                   // the age and the times so far as of now, not the snapshot's, at once
   }
 
@@ -231,13 +232,17 @@
     workBar(box, run.work);
     runsLine(box, run);
     const layout = sea(box, run);
-    layout.etaXs = etaChart(box.querySelector('.progress-eta'), run);
-    cpuChart(box.querySelector('.progress-cpu'), run);
-    layout.pendingXs = countChart(box.querySelector('.progress-pending'), run, run.pending);
-    layout.rateXs = countChart(box.querySelector('.progress-rates'), run, run.rates);
+    const axes = {eta: etaAxis(run), cpu: {ticks: [1, 0], labels: ['100%', '0']},
+                  pending: countAxis(run.pending), rates: countAxis(run.rates), odds: oddsAxis(run)};
+    layout.labels = Object.values(axes).flatMap(a => a.labels);
+    const L = layout.left = chartMargin(layout.labels);
+    layout.etaXs = etaChart(box.querySelector('.progress-eta'), run, L, axes.eta);
+    cpuChart(box.querySelector('.progress-cpu'), run, L, axes.cpu);
+    layout.pendingXs = countChart(box.querySelector('.progress-pending'), run, run.pending, L, axes.pending);
+    layout.rateXs = countChart(box.querySelector('.progress-rates'), run, run.rates, L, axes.rates);
     box.querySelector('[data-lindy]').hidden = run.basis !== 'lindy';
-    layout.oddsXs = oddsChart(box.querySelector('.progress-odds'), run);
-    linkCharts(box);
+    layout.oddsXs = oddsChart(box.querySelector('.progress-odds'), run, L, axes.odds);
+    linkCharts(box, L);
     return {box, layout};
   }
 
@@ -422,22 +427,52 @@
   // as it shows (sized), so that its text and margins are the sizes they say at every width (since 2026-11-12; until then
   // every chart drew 640 units across, so that its 12px text showed at 18px once the charts went as wide as the page's
   // column that day, and at 7px on a phone); a pointer's place in a chart, svgX.
+  // Since 2026-11-15, ETA_L is a minimum: a search's five charts share the margin measured from all their labels.
   const ETA_L = 40, ETA_R = 16;
   const chartWidth = () => { const W = section.clientWidth; assert(W > 0, 'a chart with no width', W); return W; };
   const sized = (svg, W, H) => svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
   const svgX = (svg, ev) => { const b = svg.getBoundingClientRect(); return (ev.clientX - b.left) * svg.viewBox.baseVal.width / b.width; };
-  function etaX(run, W) {
+  function etaMax(run) {
     const last = run.etas[run.etas.length - 1];
-    const xmax = Math.max(run.so_far / 3600, 1 / 3600, ...(last ? [(last[1] + last[2]) / 3600] : []));
+    return Math.max(run.so_far / 3600, 1 / 3600, ...(last ? [(last[1] + last[2]) / 3600] : []));
+  }
+  function etaX(run, W, L) {
+    const xmax = etaMax(run);
     const [xticks, xlabels] = axis(xmax, Math.floor);
-    return {xmax, xticks, xlabels, X: x => ETA_L + (W - ETA_L - ETA_R) * x / xmax};
+    return {xmax, xticks, xlabels, X: x => L + (W - L - ETA_R) * x / xmax};
   }
   // A chart's hour labels along its foot, on the row y, each centered on its tick; its value labels in the margin left
   // of its y axis, each right-aligned 6 short of it, 4 below its value, so centered on its gridline (2026-11-12); and its
   // y axis's line, at the margin's edge, from y1 to y2 (every chart's since that day: the CPU and pending charts' had none)
   const xLabels = (ticks, labels, X, y) => ticks.map((v, i) => make('text', {class: 'xtick', x: X(v), y, 'text-anchor': 'middle'}, labels[i]));
-  const yLabels = (ticks, labels, Y) => ticks.map((v, i) => make('text', {class: 'ytick', x: ETA_L - 6, y: Y(v) + 4, 'text-anchor': 'end'}, labels[i]));
-  const yAxis = (y1, y2) => make('line', {class: 'yaxis', x1: ETA_L, y1, x2: ETA_L, y2});
+  const yLabels = (ticks, labels, Y, L) => ticks.map((v, i) => make('text', {class: 'ytick', x: L - 6, y: Y(v) + 4, 'text-anchor': 'end'}, labels[i]));
+  const yAxis = (y1, y2, L) => make('line', {class: 'yaxis', x1: L, y1, x2: L, y2});
+
+  // Measure actual axis strings with the chart's text style, outside every fold so closed graphs have widths too.
+  // The hidden SVG is connected only for measurement and contributes no page space. Every chart keeps this same L.
+  function chartMargin(labels) {
+    const svg = make('svg', {class: 'progress-eta', width: 0, height: 0, 'aria-hidden': 'true',
+                             style: 'position:absolute;visibility:hidden;pointer-events:none'});
+    const text = make('text', {});
+    svg.append(text);
+    section.append(svg);
+    const widths = labels.map(label => { text.textContent = label; return text.getComputedTextLength(); });
+    svg.remove();
+    const L = Math.max(ETA_L, Math.ceil(Math.max(...widths) + 6));
+    // TODO: the labels must leave positive horizontal room for the chart.
+    assert(L < chartWidth() - ETA_R, 'Spatium graphici insufficiens', L);
+    return L;
+  }
+
+  const countAxis = rows => {
+    const ticks = countTicks(Math.max(1, ...rows.map(r => r[2])));
+    return {ticks, labels: ticks.map(v => compact.format(v))};
+  };
+  const oddsAxis = run => {
+    const top = Math.max(0.01, ...run.odds.exists.map(([, , p]) => p)), step = tickStep(top);
+    const ticks = Array.from({length: Math.ceil(top / step - 1e-9) + 1}, (_, i) => i * step);
+    return {ticks, labels: ticks.map((v, i) => num(100 * v) + (i === ticks.length - 1 ? '%' : ''))};
+  };
 
   // The time under the pointer, floating on an aligned chart's x axis (the ETA, CPU and pending charts'), on the dashed
   // line through the pointer (dreeves, 2026-11-12: "what if we showed the timestamp more subtly and showed it floating
@@ -455,12 +490,11 @@
     g.setAttribute('visibility', 'visible');
   }
 
-  function etaChart(fig, run) {
+  // The ETA's axis geometry and labels are computed once, for measurement and drawing together.
+  function etaAxis(run) {
     const pts = run.etas.map(([t, x, m, lo, hi]) => [t, x / 3600, m / 3600, lo / 3600, hi / 3600]);
-    const W = chartWidth(), H = 240, L = ETA_L, R = ETA_R, T = 14, B = 30, CROWD = 44, HEAD = 1.1, TOP = 40, GAP = 10;
-    const now = run.so_far / 3600, last = pts[pts.length - 1];
-    const {xmax, xticks, xlabels, X} = etaX(run, W);
-    sized(fig.querySelector('svg'), W, H);
+    const H = 240, T = 14, B = 30, HEAD = 1.1, TOP = 40, GAP = 10;
+    const now = run.so_far / 3600, last = pts[pts.length - 1], xmax = etaMax(run);
     // the y axis's cap: a bit above the projected finish, the guide's level, and the elapsed time (dreeves, 2026-10-23:
     // "truncate the y-axis a bit above the horizontal purple dashed line"); anything taller goes to the top panel where
     // that gives the main panel a larger scale than one axis up to the tallest value would, i.e. where the tallest is
@@ -489,6 +523,14 @@
     // the top panel's round ticks at its ends, as few labels as fit its TOP units (none without it), the last with its unit
     const t2 = [...new Set([Math.ceil(lo2 / step2 - 1e-9), Math.floor(hi2 / step2 + 1e-9)])].slice(0, 2 * over).map(j => j * step2);
     const l2 = t2.map((v, i) => num(v / k2) + (i === t2.length - 1 ? '\u202f' + u2 : ''));
+    return {pts, H, T, now, last, cap, yticks, t2, over, lo2, yt, yb, Y, ticks: yticks.concat(t2), labels: ylabels.concat(l2)};
+  }
+
+  function etaChart(fig, run, L, a) {
+    const W = chartWidth(), R = ETA_R, CROWD = 44;
+    const {pts, H, T, now, last, cap, yticks, t2, over, lo2, yt, yb, Y} = a;
+    const {xticks, xlabels, X} = etaX(run, W, L);
+    sized(fig.querySelector('svg'), W, H);
     // a polyline's or polygon's points through the break: where a segment crosses the cap or lo2, the crossing on that
     // edge of the gap, so that each panel draws its part to its own scale and the gap clips the rest away
     const edges = [[cap, yb], [lo2, yt]];
@@ -504,7 +546,7 @@
                                      // the y axis's line (dreeves, 2026-10-23: "i think we need a visible y-axis line for
                                      // that to look reasonable"), broken at the gap: the top panel's part has no length
                                      // without one
-                                     yAxis(Y(0), yb), yAxis(yt, T));
+                                     yAxis(Y(0), yb, L), yAxis(yt, T, L));
     // a slash across each end of the y axis's break: the canonical mark of a broken axis
     q('[data-breaks]').replaceChildren(...[yt, yb].map(y =>
       make('line', {class: 'break', x1: L - 4, y1: y + 4, x2: L + 4, y2: y - 4, visibility: over ? 'visible' : 'hidden'})));
@@ -520,7 +562,7 @@
     set(q('[data-togo]'), {points: P(pts.map(p => [p[1], p[2]]))});
     set(q('[data-total]'), {points: P(pts.map(p => [p[1], p[1] + p[2]]))});
     q('[data-ticks]').replaceChildren(
-      ...yLabels(yticks.concat(t2), ylabels.concat(l2), Y),
+      ...yLabels(a.ticks, a.labels, Y, L),
       // (the x labels kept out of the elapsed time's label's way until it was commented out: .filter(([v]) => Math.abs(X(v) - X(now)) >= CROWD))
       ...xLabels(xticks, xlabels, X, H - 8));
     const fin = last[1] + last[2];               // the projected finish: hours of running when elapsed time meets elapsed + ETA
@@ -597,14 +639,14 @@
   // below (cpu.py's SKEW).  Its key's entries hold the latest row's shares, and its readout that row's time, or at the
   // pointer the row under it's (dreeves, 2026-11-08: "might as well combine the percentages with the legend here";
   // the readout gave both until then), all empty with no rows, when the chart shows its grid alone.
-  function cpuChart(fig, run) {
+  function cpuChart(fig, run, L, a) {
     assert(Array.isArray(run.cpu), run.search, run.n, run.order);
-    const W = chartWidth(), {xticks, xlabels, X} = etaX(run, W), H = 110, T = 16, B = 30, Y = f => H - B - (H - B - T) * f;   // the foot, B, the ETA chart's; T room for "100%" (2026-11-12)
+    const W = chartWidth(), {xticks, xlabels, X} = etaX(run, W, L), H = 110, T = 16, B = 30, Y = f => H - B - (H - B - T) * f;   // the foot, B, the ETA chart's; T room for "100%" (2026-11-12)
     const q = sel => fig.querySelector(sel), cross = q('[data-cpu-cross]'), svg = fig.querySelector('svg'), stampG = q('[data-stamp]');
     sized(svg, W, H);
     q('[data-cpu-grid]').replaceChildren(...xticks.map(v => make('line', {class: 'grid', x1: X(v), y1: T, x2: X(v), y2: H - B})),
-                                         make('line', {class: 'axis', x1: ETA_L, y1: Y(0), x2: W - ETA_R, y2: Y(0)}), yAxis(Y(0), T));
-    q('[data-cpu-ticks]').replaceChildren(...yLabels([1, 0], ['100%', '0'], Y), ...xLabels(xticks, xlabels, X, H - 8));
+                                         make('line', {class: 'axis', x1: L, y1: Y(0), x2: W - ETA_R, y2: Y(0)}), yAxis(Y(0), T, L));
+    q('[data-cpu-ticks]').replaceChildren(...yLabels(a.ticks, a.labels, Y, L), ...xLabels(xticks, xlabels, X, H - 8));
     const tops = r => [r[3], r[3] + Math.max(0, r[4]), r[3] + Math.max(0, r[4]) + r[5]];   // the bands' tops, bottom up
     const stretches = run.cpu.reduce((s, r, i) => (i && run.cpu[i - 1][1] === r[0] ? s[s.length - 1].push(r) : s.push([r]), s), []);
     const bands = ['search', 'other', 'idle'].flatMap((name, j) => stretches.map(rows => {
@@ -639,16 +681,16 @@
   // for form trees (formtree_eta.rate); this renderer adds no smoothing. A line over a wash down to zero, a
   // dot on its last point, and under the pointer the nearest point's time on the x axis (stampAt).
   // No rows leave grayed axes (data-empty). Returns the points' x positions in the viewBox for the quals.
-  function countChart(fig, run, rows) {
+  function countChart(fig, run, rows, L, a) {
     assert(Array.isArray(rows) && rows.every(r => r.length === 3 && r.every(Number.isFinite)), 'malformed counts', fig.className, run.search, run.n, run.order);
-    const W = chartWidth(), {xticks, xlabels, X} = etaX(run, W), H = 144, T = 16, B = 30, q = sel => fig.querySelector(sel);   // T room for the top value's label (2026-11-12)
+    const W = chartWidth(), {xticks, xlabels, X} = etaX(run, W, L), H = 144, T = 16, B = 30, q = sel => fig.querySelector(sel);   // T room for the top value's label (2026-11-12)
     sized(fig.querySelector('svg'), W, H);
-    const yticks = countTicks(Math.max(1, ...rows.map(r => r[2]))), Y = v => H - B - (H - B - T) * v / yticks[yticks.length - 1];
+    const yticks = a.ticks, Y = v => H - B - (H - B - T) * v / yticks[yticks.length - 1];
     fig.toggleAttribute('data-empty', !rows.length);
     q('[data-count-grid]').replaceChildren(...xticks.map(v => make('line', {class: 'grid', x1: X(v), y1: T, x2: X(v), y2: H - B})),
-                                           ...yticks.slice(1).map(v => make('line', {class: 'grid', x1: ETA_L, y1: Y(v), x2: W - ETA_R, y2: Y(v)})),
-                                           make('line', {class: 'axis', x1: ETA_L, y1: Y(0), x2: W - ETA_R, y2: Y(0)}), yAxis(Y(0), T));
-    q('[data-count-ticks]').replaceChildren(...yLabels(yticks, yticks.map(v => compact.format(v)), Y), ...xLabels(xticks, xlabels, X, H - 8));
+                                           ...yticks.slice(1).map(v => make('line', {class: 'grid', x1: L, y1: Y(v), x2: W - ETA_R, y2: Y(v)})),
+                                           make('line', {class: 'axis', x1: L, y1: Y(0), x2: W - ETA_R, y2: Y(0)}), yAxis(Y(0), T, L));
+    q('[data-count-ticks]').replaceChildren(...yLabels(yticks, a.labels, Y, L), ...xLabels(xticks, xlabels, X, H - 8));
     const line = rows.map(([, x, k]) => [X(x / 3600), Y(k)]), ends = [line.slice(0, 1), line.slice(-1)];   // none with no point
     set(q('[data-count-line]'), {points: xy(line)});
     set(q('[data-count-wash]'), {points: xy([...ends[0].map(([x]) => [x, Y(0)]), ...line, ...ends[1].map(([x]) => [x, Y(0)])])});
@@ -684,7 +726,7 @@
   // The source selects its recorded point, or the ETA's projected minute, as before. Each other chart reads its
   // nearest recorded sample; timestamps still name those samples, so sparse CPU readings are not interpolated.
   // Every visible crosshair shares the selected x. Leaving any graph restores every readout to its latest value.
-  function linkCharts(box) {
+  function linkCharts(box, L) {
     const charts = [...box.querySelectorAll('.progress-eta svg, .progress-cpu svg, .progress-pending svg, .progress-rates svg, .progress-odds svg')]
       .map(svg => ({svg, move: svg.onmousemove, leave: svg.onmouseleave}));
     for (const source of charts) {
@@ -692,7 +734,7 @@
         source.move(ev);
         // An empty source has no selected sample; its pointer still selects an instant in the other charts.
         const selected = [...source.svg.querySelectorAll('line.cross[visibility="visible"]')].map(c => +c.getAttribute('x1'));
-        const x = Math.max(ETA_L, Math.min(source.svg.viewBox.baseVal.width - ETA_R, [...selected, svgX(source.svg, ev)][0]));
+        const x = Math.max(L, Math.min(source.svg.viewBox.baseVal.width - ETA_R, [...selected, svgX(source.svg, ev)][0]));
         for (const c of charts.filter(c => c !== source)) {
           const b = c.svg.getBoundingClientRect();
           c.move({clientX: b.left + x * b.width / c.svg.viewBox.baseVal.width});
@@ -707,7 +749,7 @@
     }
   }
 
-  function oddsChart(fig, run) {
+  function oddsChart(fig, run, L, a) {
     assert(run.odds, 'a run without odds', run.search, run.n, run.order);
     const {prior, since, exists} = run.odds;
     assert(typeof prior === 'number' && 0 <= prior && prior <= 1 && Array.isArray(exists) && (Number.isFinite(since) || (since === null && !exists.length))
@@ -718,19 +760,18 @@
     // on hover for the graph"): of the prior and the points, the (k + 1)th, k the point heard (hoverPoints), -1 the prior
     const series = [prior, ...exists.map(([, , p]) => p)], now = k => fill(fig, 'odds-now', String(Number(series[k + 1].toPrecision(2))));
     now(exists.length - 1);
-    const W = chartWidth(), H = 160, L = ETA_L, R = ETA_R, T = 14, B = 30, q = sel => fig.querySelector(sel);   // the ETA chart's margins (2026-11-12)
+    const W = chartWidth(), H = 160, R = ETA_R, T = 14, B = 30, q = sel => fig.querySelector(sel);   // the ETA chart's margins (2026-11-12)
     sized(fig.querySelector('svg'), W, H);
     const pts = exists.map(([, x, p]) => [x / 3600, p]);
-    const top = Math.max(0.01, ...pts.map(([, p]) => p)), step = tickStep(top);
-    const pticks = Array.from({length: Math.ceil(top / step - 1e-9) + 1}, (_, i) => i * step);
+    const pticks = a.ticks;
     // Every graph shares the recorded running-time coordinate and the ETA's projected-finish horizon.
-    const {xticks: tticks, xlabels: tlabels, X} = etaX(run, W);
+    const {xticks: tticks, xlabels: tlabels, X} = etaX(run, W, L);
     const Y = v => H - B - (H - B - T) * v / pticks[pticks.length - 1];
     q('[data-exists-grid]').replaceChildren(
       ...pticks.slice(1).map(v => make('line', {class: 'grid', x1: L, y1: Y(v), x2: W - R, y2: Y(v)})),
       make('line', {class: 'axis', x1: L, y1: Y(0), x2: W - R, y2: Y(0)}),
-      yAxis(Y(0), T));
-    q('[data-exists-ticks="p"]').replaceChildren(...yLabels(pticks, pticks.map((v, i) => num(100 * v) + (i === pticks.length - 1 ? '%' : '')), Y));
+      yAxis(Y(0), T, L));
+    q('[data-exists-ticks="p"]').replaceChildren(...yLabels(pticks, a.labels, Y, L));
     q('[data-exists-ticks="t"]').replaceChildren(...xLabels(tticks, tlabels, X, H - 8));
     const line = pts.map(([h, p]) => [X(h), Y(p)]), ends = [line.slice(0, 1), line.slice(-1)];   // none with no point
     set(q('[data-exists-line]'), {points: xy(line)});
@@ -765,8 +806,17 @@
   // auto-refresh yet again?": a tab long hidden had polled nothing); sync loads nothing while the section is closed
   document.addEventListener('visibilitychange', sync);
   sync();                                      // in case it is open already: its toggle may have fired before this ran
-  window.addEventListener('resize', () => {
+  let resized = false;                         // a font event must not cancel a pending width change
+  const redraw = event => {
+    resized ||= event.type === 'resize';
     clearTimeout(resizing);
-    resizing = setTimeout(() => { if (details.open && view.data) render(); }, 200);
-  });
+    // Font completion changes layout only when the measured margin changes; unrelated fonts need no rebuild.
+    resizing = setTimeout(() => {
+      if (details.open && view.data && (resized || view.layouts.some(l => chartMargin(l.labels) !== l.left))) render();
+      resized = false;
+    }, 200);
+  };
+  window.addEventListener('resize', redraw);
+  // Re-measure after web fonts replace their temporary faces, with the same redraw guard as resizing.
+  document.fonts.addEventListener('loadingdone', redraw);
 })();
