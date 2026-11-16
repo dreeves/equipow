@@ -7260,7 +7260,13 @@ def q_progress_eta_chart_keeps_progress_html_s_spec():
     # (dreeves, of a break only where it gives the main panel a larger scale than one axis up to the tallest value
     # would: "sounds like your principled fix should work. updating the quals is fine."), no break here: the band top,
     # 16.2 h, is only 1.04 times that cap, so one axis runs up to it, gridlines at 5, 10 and 15 h, labeled to 15 h, its top
-    # edge at 16.2 h, with nothing in a top panel, the slashes hidden and the y axis's line whole.
+    # edge at 16.2 h, with nothing in a top panel, the slashes hidden and the y axis's line whole.  And since 2026-11-15
+    # (Opus 5.5; dreeves, of the strip the range lines made at the live 480:14 chart's end: "what's up with this darker
+    # vertical band slightly to the left of the purple/blue/red dots?", then "what makes most logical sense?"), no range
+    # lines: they drew the last record's ranges, which the bands' right edges already draw (DRY), and since the bands
+    # went past the lines' 30% tints (2026-10-23) the two copies could not match, the half of each line over the bands
+    # multiplying to that strip.  A run with one record draws its range in the status line alone, as its lines too are
+    # dots alone.
     R = progress_run('eta')
     parts = SvgParts()
     parts.feed(R['etaSvg'])
@@ -7283,13 +7289,11 @@ def q_progress_eta_chart_keeps_progress_html_s_spec():
     check(bands['band togo'], [(0, 4), (13.2, 3), (13.2, 0.5), (0, 1)], 'band togo')
     check(bands['band total'], [(0, 4), (13.2, 16.2), (13.2, 13.7), (0, 1)], 'band total')   # within the one panel (2026-11-04)
     lines = [(a['class'], tuple(float(a[k]) for k in ('x1', 'y1', 'x2', 'y2')), a) for tag, a, _ in els if tag == 'line']
-    assert sorted(c for c, _, _ in lines) == sorted(['axis', 'ahead', 'ideal', 'range togo', 'range total', 'cross'] + ['grid'] * 3 + ['break'] * 2 + ['yaxis'] * 2), [c for c, _, _ in lines]
+    assert sorted(c for c, _, _ in lines) == sorted(['axis', 'ahead', 'ideal', 'cross'] + ['grid'] * 3 + ['break'] * 2 + ['yaxis'] * 2), [c for c, _, _ in lines]   # no range lines since 2026-11-15
     assert all(a.get('visibility') == 'hidden' for c, _, a in lines if c == 'break'), lines
     seg = {c: s for c, s, _ in lines if c not in ('grid', 'break', 'yaxis')}
     check([seg['ahead'][:2], seg['ahead'][2:]], [(13.2, 13.2), (14.2, 14.2)], 'ahead')
     check([seg['ideal'][:2], seg['ideal'][2:]], [(13.2, 1), (14.2, 0)], 'ideal')
-    check([seg['range togo'][:2], seg['range togo'][2:]], [(13.2, 0.5), (13.2, 3)], 'range togo')
-    check([seg['range total'][:2], seg['range total'][2:]], [(13.2, 13.7), (13.2, 16.2)], 'range total')
     assert abs(seg['axis'][1] - Y(0)) < 0.05 and seg['axis'][1] == seg['axis'][3], seg['axis']
     grid = [s for c, s, _ in lines if c == 'grid' and s[1] > YB]       # the main panel's
     hours = sorted((y0 - g[1]) / (y0 - Y(1)) for g in grid)              # to 0.01 h: positions are written to 0.01 units
@@ -7330,13 +7334,13 @@ def q_progress_eta_chart_keeps_progress_html_s_spec():
     assert fills == {}, fills
     # With the labels (until 2026-10-17; back with them):
     # assert fills == {'togo': 'progress-togo', 'total': 'progress-total', 'spent': 'progress-spent'}, fills
-    tints = {(b, s): c for b, s, c in re.findall(r'\.progress-eta \.(band|range)\.(togo|total) \{ [\w-]+: color-mix\(in oklab, var\(--progress-(togo|total)\) \d+%', style)}
-    assert tints == {(b, s): s for b in ('band', 'range') for s in ('togo', 'total')}, tints
+    tints = dict(re.findall(r'\.progress-eta \.band\.(togo|total) \{ fill: color-mix\(in oklab, var\(--progress-(togo|total)\) \d+%', style))
+    assert tints == {'togo': 'togo', 'total': 'total'}, tints
     dots = dict(re.findall(r'\.progress-eta \.now\.(spent|togo|total) \{ fill: var\(--progress-([\w-]+)\);', style))
     assert dots == {'spent': 'spent', 'togo': 'togo', 'total': 'total'}, dots
     assert not re.search(r'\.finish\b', style), 'a rule for the finish marker'
     assert re.search(r'\.progress-eta \.guide \{ stroke: var\(--progress-total\);', style), 'the guide not purple'
-    assert all(re.search(rf'\.progress-eta \.{k} \{{[^}}]*mix-blend-mode: multiply;', style) for k in ('band', 'range')), 'an overlap hidden'
+    assert re.search(r'\.progress-eta \.band \{[^}]*mix-blend-mode: multiply;', style), 'an overlap hidden'
     assert R['status']['legends'] == 0, R['status']
 
 AI_QUOTE = re.compile(r'(?:Claude )?(?:Opus 5\.5|Fable 5\.2|Astra|Claude): “')

@@ -575,8 +575,8 @@
     set(q('[data-ahead]'), {x1: X(last[1]), y1: Y(last[1]), x2: X(fin), y2: Y(fin)});
     set(q('[data-guide]'), {points: P([[last[1], fin], [fin, fin], [fin, 0]])});      // across from the purple marker, then down
     set(q('[data-ideal]'), {x1: X(last[1]), y1: Y(last[2]), x2: X(fin), y2: Y(0)});    // the ETA's ideal course: an hour less each hour
-    set(q('[data-range-togo]'), {x1: X(last[1]), y1: Y(last[3]), x2: X(last[1]), y2: Y(last[4])});
-    set(q('[data-range-total]'), {x1: X(last[1]), y1: Y(last[1] + last[3]), x2: X(last[1]), y2: Y(last[1] + last[4])});
+    // (no range lines at the last record since 2026-11-15: the bands' right edges are its ranges; quals_index's
+    // q_progress_eta_chart_keeps_progress_html_s_spec)
     set(q('[data-now-spent]'), {cx: X(last[1]), cy: Y(last[1])});
     set(q('[data-now-togo]'), {cx: X(last[1]), cy: Y(last[2])});
     set(q('[data-now-total]'), {cx: X(last[1]), cy: Y(last[1] + last[2])});
