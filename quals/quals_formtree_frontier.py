@@ -154,35 +154,9 @@ print('ok')
         # A fully hashed frozen prefix and probe log build a new model, never alter the old one;
         # an altered block or censored observation cannot be published.
         import formtree_frontier as f
-        import frontier_sample as sampling
-        from quals_frontier_sample import fixture as sampling_fixture
         with tempfile.TemporaryDirectory() as d:
-            root=Path(d); snapshot_path=sampling_fixture(root)
-            snapshot=json.loads(snapshot_path.read_text())
-            original,_,_=fixture(); original['roots'][0]['name']='root'
-            prefix=encoded([verdict('root',15,list('abcde'))])
-            (root/'verdicts.prefix').write_bytes(prefix)
-            (root/'original-model.json').write_text(json.dumps(original))
-            for name in ('verdicts.prefix','original-model.json'):
-                snapshot['sources'][name]=hashlib.sha256((root/name).read_bytes()).hexdigest()
-            snapshot['original_model']='original-model.json'
-            snapshot['base']=dict(finished=1,done=10,prefix_bytes=len(prefix),
-                prefix_sha256=hashlib.sha256(prefix).hexdigest(),roots=['root'],verdicts='unused-live-path')
-            snapshot_path.write_text(json.dumps(snapshot))
-            groups=sampling.groups(list('abcde'))
-            rows=[dict(name=n,round=i,seed=sampling.seed('16:2',n,i),rc=0,open=0,censored=False,
-                       estimate=2.,weighted_wall_cost=.1,engine_wall=.1,cpu=.1,wall=.1)
-                  for i in range(8) for n in 'abcde']
-            out=root/'sampled'; out.mkdir()
-            (out/'sampler.py').write_bytes(b'frozen sampler')
-            def write():
-                (out/'draws.jsonl').write_bytes(encoded(rows))
-                blocks=dict(snapshot_sha256=hashlib.sha256(snapshot_path.read_bytes()).hexdigest(),
-                            protocol='fresh-group-round-v1',
-                            sampler_sha256=hashlib.sha256((out/'sampler.py').read_bytes()).hexdigest(),
-                            draws_sha256=hashlib.sha256((out/'draws.jsonl').read_bytes()).hexdigest(),
-                            rounds=8,groups=sampling.blocks(groups,rows))
-                (out/'model-blocks.json').write_text(json.dumps(blocks)); return blocks
+            snapshot_path,out,rows,write,original,prefix=sampled_frontier(Path(d))
+            root=Path(d)
             blocks=write(); model=f.assemble(snapshot_path,out)
             self.assertEqual(json.loads((root/'original-model.json').read_text()),original)
             self.assertEqual(model['checkpoint']['done'],10)
@@ -193,6 +167,61 @@ print('ok')
             with self.assertRaises(AssertionError): f.assemble(snapshot_path,out)
             rows[0]['censored']=True; write()
             with self.assertRaises(AssertionError): f.assemble(snapshot_path,out)
+
+    def test_assembly_makes_each_member_its_own_unit(self):
+        # Opus 5.5, 2026-11-16 (dreeves: "ok, go ahead and fix", after the live 480:14 frontier's groups of about 40
+        # hid 468 finished members from the ETA model: a group counted as finished only when all its members were).
+        # Replicata: five frontier members a-e, each probed in 8 rounds, member n's estimate in round i being
+        # (i+1)*(1+'abcde'.index(n)).
+        # Expectata: the model has one unit per member, in the snapshot's order, its blocks that member's 8 round
+        # estimates; the checkpoint's groups are those members one each; nothing is done yet past the offset.
+        # Resultata until that day: units were the sampling's process groups, their blocks the groups' sums.
+        import formtree_frontier as f
+        with tempfile.TemporaryDirectory() as d:
+            snapshot_path,out,rows,write,original,prefix=sampled_frontier(Path(d),lambda n,i:(i+1)*(1+'abcde'.index(n)))
+            write(); model=f.assemble(snapshot_path,out)
+            self.assertEqual([r['name'] for r in model['roots']],list('abcde'))
+            for k,r in enumerate(model['roots']):
+                self.assertEqual(r['blocks'],[[float((i+1)*(k+1))] for i in range(8)])
+            self.assertEqual(model['checkpoint']['groups'],[dict(name=n,members=[n]) for n in 'abcde'])
+            state=f.observed(model,prefix)
+            self.assertEqual(state['roots'],[dict(name=n,done=0,complete=False) for n in 'abcde'])
+            self.assertEqual(state['offset'],10)
+
+
+def sampled_frontier(root,estimate=lambda n,i:2.):
+    """A frozen frontier of five members a-e under one root, its source-hashed snapshot, an original model, and a
+    sampling directory whose probe rows have these estimates; returns (snapshot path, sampling directory, rows, write,
+    original model, verdict prefix), write() (re)writing the probe log and blocks from rows."""
+    import frontier_sample as sampling
+    from quals_frontier_sample import fixture as sampling_fixture
+    snapshot_path=sampling_fixture(root)
+    snapshot=json.loads(snapshot_path.read_text())
+    original,_,_=fixture(); original['roots'][0]['name']='root'
+    prefix=encoded([verdict('root',15,list('abcde'))])
+    (root/'verdicts.prefix').write_bytes(prefix)
+    (root/'original-model.json').write_text(json.dumps(original))
+    for name in ('verdicts.prefix','original-model.json'):
+        snapshot['sources'][name]=hashlib.sha256((root/name).read_bytes()).hexdigest()
+    snapshot['original_model']='original-model.json'
+    snapshot['base']=dict(finished=1,done=10,prefix_bytes=len(prefix),
+        prefix_sha256=hashlib.sha256(prefix).hexdigest(),roots=['root'],verdicts='unused-live-path')
+    snapshot_path.write_text(json.dumps(snapshot))
+    groups=sampling.groups(list('abcde'))
+    rows=[dict(name=n,round=i,seed=sampling.seed('16:2',n,i),rc=0,open=0,censored=False,
+               estimate=float(estimate(n,i)),weighted_wall_cost=.1,engine_wall=.1,cpu=.1,wall=.1)
+          for i in range(8) for n in 'abcde']
+    out=root/'sampled'; out.mkdir()
+    (out/'sampler.py').write_bytes(b'frozen sampler')
+    def write():
+        (out/'draws.jsonl').write_bytes(encoded(rows))
+        blocks=dict(snapshot_sha256=hashlib.sha256(snapshot_path.read_bytes()).hexdigest(),
+                    protocol='fresh-group-round-v1',
+                    sampler_sha256=hashlib.sha256((out/'sampler.py').read_bytes()).hexdigest(),
+                    draws_sha256=hashlib.sha256((out/'draws.jsonl').read_bytes()).hexdigest(),
+                    rounds=8,groups=sampling.blocks(groups,rows))
+        (out/'model-blocks.json').write_text(json.dumps(blocks)); return blocks
+    return snapshot_path,out,rows,write,original,prefix
 
 
 if __name__ == '__main__': unittest.main()

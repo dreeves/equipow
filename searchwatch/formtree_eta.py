@@ -45,91 +45,121 @@ from scipy.special import ndtr, ndtri, log_ndtr, ndtri_exp
 PROPOSALS_CAP=2**20   # the most proposals attach draws to reach a model's floor of effective draws (2026-11-07)
 
 
-def draws(model, work, count=4096):
-    """Weighted total-work/rate draws, conditioned on exact and unfinished roots.
+# (2026-11-16) the floats in each draws x units array (64 MB); a bounded unit's bootstrap means per draw and the pool
+# they come from; the floats each pass over the draws holds; the points of the grid of the local sd's posterior
+BUDGET, CANDIDATES, POOL, CELLS, GRID = 2**23, 64, 2**14, 2**20, 8001
 
-    base resamples whole eight-dive blocks independently within each root.
-    Independent lognormal local discrepancies first scale the bootstrap bases.
-    Completed log ratios update the normal shared log discrepancy analytically;
-    their integrated likelihood reweights each bootstrap row. Pending-root lower
-    bounds then multiply that weight by the updated shared-factor survival, and
-    its conditional inverse CDF samples the remaining uncertainty without rejection.
-    With zero local noise, one completed root fixes the shared factor exactly;
-    multiple zero-noise completed observations are explicitly unsupported.
-    Rates are nodes per wall second, with shared persistent log uncertainty.
+
+def draws(model, work, count=4096):
+    """Weighted total-work/rate draws, conditioned on exact and unfinished units (the model's roots).
+
+    A unit's total is its blocks' bootstrap mean (base) times a shared factor F and a local factor L of its own: log F
+    is normal (log_bias, discrepancy_log_sd), log L normal with sd s = root_log_sd exp(root_log_sd_uncertainty
+    N(0, 1)), one s per draw (version 2 learns it; version 1 fixes it).  Since 2026-11-16 (Opus 5.5; dreeves, of the
+    live 480:14 ETA, whose 16 frontier groups had let one member's 8.5x overrun set a 4.4x floor under every group:
+    "ok, go ahead and fix"), the draws are made this way:
+    - a complete unit's exact size updates log F's normal against its point base, the mean of its block means, and s is
+      drawn from its posterior given the complete units, on a grid of GRID points.  Until then s came from its prior
+      and each row's bootstrap draw of every complete unit entered the row's weight, and the product over hundreds of
+      complete units left about one effective draw;
+    - log F is drawn from that normal, half the time truncated below at a, the least value at which every bounded
+      unit could reach its work with no local noise, and the mixture's density is divided out of the weight, so that
+      zero local noise still works;
+    - a bounded unit (unfinished, with work done) weights its draw by the probability that it reaches that work,
+      averaged over CANDIDATES bootstrap means drawn from a POOL of its own, takes one of them in proportion to that
+      probability, and draws its local noise from its prior truncated at what reaching the work requires.  Its overrun
+      raises its own total, and F only as far as that probability does.  Until then F had to exceed every unit's
+      work over its base and local noise, which set a floor under F for every unit;
+    - an unfinished unit with nothing done keeps its row's bootstrap mean and an untruncated local noise; a complete
+      unit's base is its point base.
+    proposal is base times L, so trees = proposal F for an unfinished unit; root_log_sd is each draw's s.  With zero
+    local noise, one completed unit fixes F exactly; multiple zero-noise completed units are unsupported.  Rates are
+    nodes per wall second, with shared persistent log uncertainty.
     """
-    assert isinstance(count,int) and count>0
-    assert [r['name'] for r in model['roots']]==[r['name'] for r in work['roots']]
-    done=np.array([r['done'] for r in work['roots']],dtype=float)
-    pending=np.array([not r['complete'] for r in work['roots']])
-    assert pending.any() and np.isfinite(done).all() and (done>=0).all()
-    assert work['done']==sum(r['done'] for r in work['roots'])
-    assert np.isfinite(work['rate']) and work['rate']>0
-    mu,sd,rsd,local_sd=(model[k] for k in ('log_bias','discrepancy_log_sd','rate_log_sd','root_log_sd'))
-    assert np.isfinite([mu,sd,rsd,local_sd]).all() and sd>0 and rsd>=0 and local_sd>=0
-    scatter_uncertainty=model.get('root_log_sd_uncertainty',0.)
-    assert np.isfinite(scatter_uncertainty) and scatter_uncertainty>=0
-    assert scatter_uncertainty==0 or local_sd>0
-    rng=np.random.default_rng(model['seed'])
-    base=[]
-    for root in model['roots']:
-        blocks=np.asarray(root['blocks'],dtype=float)
-        assert blocks.ndim==2 and min(blocks.shape)>0
-        assert np.isfinite(blocks).all() and (blocks>0).all()
-        means=blocks.mean(axis=1)
-        base.append(means[rng.integers(len(means),size=(count,len(means)))].mean(axis=1))
-    base=np.stack(base,axis=1)
-    # A prior on log scatter lets exact AND unfinished roots learn its size;
-    # retaining the draws integrates that uncertainty rather than plugging in a fit.
-    if scatter_uncertainty>0:
-        local_sd=local_sd*np.exp(scatter_uncertainty*rng.standard_normal(count))
-    completed=~pending
-    bias_mean=np.full(count,mu);bias_sd=sd;log_likelihood=np.zeros(count)
+    assert isinstance(count, int) and count > 0
+    assert [r['name'] for r in model['roots']] == [r['name'] for r in work['roots']]
+    done = np.array([r['done'] for r in work['roots']], dtype=float)
+    pending = np.array([not r['complete'] for r in work['roots']])
+    assert pending.any() and np.isfinite(done).all() and (done >= 0).all()
+    assert work['done'] == sum(r['done'] for r in work['roots'])
+    assert np.isfinite(work['rate']) and work['rate'] > 0
+    mu, sd, rsd, local_sd = (model[k] for k in ('log_bias', 'discrepancy_log_sd', 'rate_log_sd', 'root_log_sd'))
+    assert np.isfinite([mu, sd, rsd, local_sd]).all() and sd > 0 and rsd >= 0 and local_sd >= 0
+    scatter_uncertainty = model.get('root_log_sd_uncertainty', 0.)
+    assert np.isfinite(scatter_uncertainty) and scatter_uncertainty >= 0
+    assert scatter_uncertainty == 0 or local_sd > 0
+    units = len(model['roots'])
+    assert count * units <= BUDGET, (count, units)
+    rng = np.random.default_rng(model['seed'])
+    means = [np.asarray(root['blocks'], dtype=float) for root in model['roots']]
+    assert all(b.ndim == 2 and min(b.shape) > 0 and np.isfinite(b).all() and (b > 0).all() for b in means)
+    means = [b.mean(axis=1) for b in means]                  # each block's mean, the unit's bootstrap resamples blocks
+    boot = lambda m, size: m[rng.integers(len(m), size=(size, len(m)))].mean(axis=1)
+    point = np.array([m.mean() for m in means])              # a unit's point base: the mean of its block means
+    base = np.tile(point, (count, 1))
+    for j in np.flatnonzero(pending):
+        base[:, j] = boot(means[j], count)
+    completed = ~pending
+    y = np.log(done[completed]) - np.log(point[completed])
+    n = len(y)
+    grid = np.linspace(-8., 8., GRID)                        # z, s = root_log_sd exp(root_log_sd_uncertainty z)
+    log_post = -.5 * grid**2
+    bias_mean, bias_sd = np.full(count, float(mu)), np.full(count, float(sd))
+    def likelihood(local):
+        # the complete units' marginal likelihood given the local sd: det(sigma^2 I + sd^2 11') varies with sigma and
+        # must not disappear from it
+        den = local**2 + n * sd**2
+        quad = ((y - y.mean())**2).sum() / local**2 + n * (y.mean() - mu)**2 / den
+        return -.5 * quad - .5 * ((n - 1) * np.log(local**2) + np.log(den)), den
     if completed.any():
-        assert (done[completed]>0).all()
-        y=np.log(done[completed])-np.log(base[:,completed])
-        n=y.shape[1]
-        if np.all(local_sd==0):
-            assert n==1
-            bias_mean=y[:,0];bias_sd=0.
-            log_likelihood=-.5*((bias_mean-mu)/sd)**2
+        if local_sd == 0:
+            assert n == 1
+            bias_mean, bias_sd = np.full(count, y[0]), np.zeros(count)
         else:
-            ybar=y.mean(axis=1);den=local_sd**2+n*sd**2
-            bias_mean=mu+n*sd**2*(ybar-mu)/den
-            bias_sd=sd*local_sd/np.sqrt(den)
-            quad=((y-ybar[:,None])**2).sum(axis=1)/local_sd**2+n*(ybar-mu)**2/den
-            log_likelihood=-.5*quad
-            # det(sigma^2 I + sd^2 11') varies with sampled sigma and must not
-            # disappear from its likelihood. For fixed sigma this is constant.
-            log_likelihood-=.5*((n-1)*np.log(local_sd**2)+np.log(den))
-    proposal=base.copy()
-    proposal[:,pending]*=np.exp(np.broadcast_to(local_sd,(count,))[:,None]*
-                               rng.standard_normal((count,int(pending.sum()))))
-    assert np.isfinite(proposal).all() and (proposal>0).all()
-    threshold=(done[pending]/proposal[:,pending]).max(axis=1)
-    if np.all(bias_sd==0):
-        factor=np.exp(bias_mean);keep=factor>threshold
-        assert keep.any()
-        base,proposal,bias_mean,log_likelihood,factor=(x[keep] for x in
-            (base,proposal,bias_mean,log_likelihood,factor))
-        log_weight=log_likelihood
-    else:
-        with np.errstate(divide='ignore'):
-            z=(np.log(threshold)-bias_mean)/bias_sd
-        log_survival=log_ndtr(-z)
-        u=rng.uniform(np.finfo(float).eps,1.,count)
-        factor=np.exp(bias_mean-bias_sd*ndtri_exp(np.log(u)+log_survival))
-        log_weight=log_likelihood+log_survival
-    assert np.isfinite(log_weight).any() and not np.isnan(log_weight).any()
-    weight=np.exp(log_weight-log_weight.max());weight/=weight.sum()
-    trees=np.broadcast_to(done,proposal.shape).copy()
-    trees[:,pending]=proposal[:,pending]*factor[:,None]
-    rate=work['rate']*np.exp(rsd*rng.standard_normal(len(factor)))
-    assert np.isfinite(trees).all() and (trees[:,pending]>done[pending]).all()
-    assert np.isfinite(rate).all() and (rate>0).all()
-    return dict(total=trees.sum(axis=1),rate=rate,weight=weight,trees=trees,base=base,proposal=proposal,
-                bias_mean=bias_mean,bias_sd=bias_sd,completed_log_likelihood=log_likelihood,
-                root_log_sd=np.broadcast_to(local_sd,(len(weight),)))
+            log_post = log_post + likelihood(local_sd * np.exp(scatter_uncertainty * grid))[0]
+    cdf = np.cumsum(np.exp(log_post - log_post.max())); cdf /= cdf[-1]
+    local = local_sd * np.exp(scatter_uncertainty * np.interp(rng.uniform(size=count), cdf, grid))
+    log_likelihood = np.zeros(count)
+    if completed.any() and local_sd > 0:
+        log_likelihood, den = likelihood(local)
+        bias_mean = mu + n * sd**2 * (y.mean() - mu) / den
+        bias_sd = sd * local / np.sqrt(den)
+    bounded = np.flatnonzero(pending & (done > 0))
+    pools = np.array([boot(means[j], POOL) for j in bounded]).reshape(len(bounded), POOL).T
+    a = (np.log(done[bounded]) - np.log(pools)).min(axis=0).max(initial=-np.inf)
+    with np.errstate(divide='ignore', invalid='ignore'):
+        log_tail = log_ndtr((bias_mean - a) / bias_sd)        # log P(log F > a) under the normal
+        truncated = bias_mean - bias_sd * ndtri_exp(np.log(rng.uniform(np.finfo(float).eps, 1., count)) + log_tail)
+    free = bias_mean + bias_sd * rng.standard_normal(count)
+    logf = np.where((rng.uniform(size=count) < .5) & np.isfinite(log_tail), truncated, free)
+    log_weight = -np.log(.5) - np.logaddexp(0., np.where(logf > a, -log_tail, -np.inf))
+    noise = np.zeros((count, units))
+    noise[:, pending] = rng.standard_normal((count, int(pending.sum())))
+    rows = max(1, CELLS // (CANDIDATES * max(len(bounded), 1)))
+    for lo in range(0, count, rows):
+        r = slice(lo, min(lo + rows, count))
+        cand = pools[rng.integers(POOL, size=(r.stop - r.start, CANDIDATES, len(bounded))), np.arange(len(bounded))]
+        with np.errstate(divide='ignore', invalid='ignore'):
+            t = (np.log(done[bounded]) - np.log(cand) - logf[r, None, None]) / local[r, None, None]
+        log_s = log_ndtr(-np.where(np.isnan(t), -np.inf, t))   # log P(local noise reaches the work), per candidate
+        log_weight[r] += (np.logaddexp.reduce(log_s, axis=1) - np.log(CANDIDATES)).sum(axis=1)
+        choice = (log_s + rng.gumbel(size=log_s.shape)).argmax(axis=1)[:, None]   # one in proportion to it
+        taken = np.take_along_axis(log_s, choice, axis=1)[:, 0]
+        base[r, bounded] = np.take_along_axis(cand, choice, axis=1)[:, 0]
+        noise[r, bounded] = -ndtri_exp(np.log(rng.uniform(np.finfo(float).eps, 1., taken.shape)) + taken)
+    with np.errstate(invalid='ignore', over='ignore'):
+        proposal = np.where(pending, base * np.exp(local[:, None] * noise), base)
+        trees = np.where(pending, proposal * np.exp(logf)[:, None], done)
+    rate = work['rate'] * np.exp(rsd * rng.standard_normal(count))
+    keep = np.isfinite(log_weight)
+    assert keep.any()
+    weight = np.exp(log_weight[keep] - log_weight[keep].max()); weight /= weight.sum()
+    trees, proposal, base = trees[keep], proposal[keep], base[keep]
+    assert np.isfinite(trees).all() and (trees[:, pending] > done[pending]).all()
+    assert np.isfinite(rate).all() and (rate > 0).all()
+    return dict(total=trees.sum(axis=1), rate=rate[keep], weight=weight, trees=trees, base=base, proposal=proposal,
+                factor=np.exp(logf[keep]), bias_mean=bias_mean[keep], bias_sd=bias_sd[keep],
+                completed_log_likelihood=log_likelihood[keep], root_log_sd=local[keep])
 
 
 def rate(points):
@@ -145,15 +175,20 @@ def rate(points):
             / sum(w * (b[0] - a[0]) for w, (a, b) in zip(weights, pairs)))
 
 
-FLOOR, DRAWS = 1000, 65536      # the effective draws a forecast needs, and the proposals it starts with (attach's, for a version-2 model)
+FLOOR, DRAWS = 1000, 16384      # the effective draws a forecast needs, and the proposals it starts with (65536, attach's
+                                # for a version-2 model, until 2026-11-16, when the local sd's draw from its posterior left
+                                # half the draws or more effective and each draw grew dearer)
 
 
 def sampled(model, work):
     """draws of the model given the work, the proposals doubled from DRAWS until their effective draws reach FLOOR, at
-    most PROPOSALS_CAP of them (asserted: a concentrated proposal must not publish an apparently precise forecast)."""
-    count = DRAWS
+    most PROPOSALS_CAP of them (asserted: a concentrated proposal must not publish an apparently precise forecast).
+    Since 2026-11-16 both bounds are also at most the greatest power of 2 that keeps a draws x units array within
+    BUDGET: 8192 for the live 480:14 frontier's 626 members, on a Mac with 16 GB."""
+    most = min(PROPOSALS_CAP, 1 << (BUDGET // len(model['roots'])).bit_length() - 1)
+    count = min(DRAWS, most)
     samples = draws(model, work, count=count)
-    while float(1 / (samples['weight'] @ samples['weight'])) < FLOOR and count < PROPOSALS_CAP:
+    while float(1 / (samples['weight'] @ samples['weight'])) < FLOOR and count < most:
         count *= 2
         samples = draws(model, work, count=count)
     assert float(1 / (samples['weight'] @ samples['weight'])) >= FLOOR, count

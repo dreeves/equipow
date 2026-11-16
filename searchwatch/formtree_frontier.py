@@ -48,9 +48,12 @@ def assemble(snapshot_path, sampled):
 
 The snapshot adds base (finished, done, prefix_bytes, prefix_sha256, roots),
 original_model (a source path), and the source verdicts.prefix to the sampler's
-contract. Groups change prior correlations: local discrepancy is shared within
-each group, plus the original common discrepancy. This is a declared coarsening
-assumption, not merely a memory optimization. Nothing is fitted to final outcomes.
+contract. Each frontier member is its own unit, its blocks its 8 round estimates
+(Opus 5.5, 2026-11-16; dreeves: "ok, go ahead and fix"): until then a unit was a
+sampling group of about 40 members, which counted as finished only when all its
+members were, so the members that finished never reached the model. The groups
+remain the probes' process partition, checked against the blocks. Nothing is
+fitted to final outcomes.
 """
     import frontier_sample as sampler
     from formtree_eta import read_model
@@ -66,22 +69,24 @@ assumption, not merely a memory optimization. Nothing is fitted to final outcome
     assert all(r['seed'] == sampler.seed(snapshot['target'], r['name'], r['round']) for r in rows)
     groups = sampler.groups(list(snapshot['nodes']))
     assert result['groups'] == sampler.blocks(groups, rows)
+    estimate = {(r['name'], r['round']): r['estimate'] for r in rows}
+    members = list(snapshot['nodes'])
     original_path = paths[snapshot['original_model']]
     model = read_model(original_path, snapshot['sources'][snapshot['original_model']])
     assert 'checkpoint' not in model
     base = snapshot['base']
     model['checkpoint'] = {k: base[k] for k in ('finished', 'done', 'prefix_bytes', 'prefix_sha256', 'roots')}
-    model['checkpoint'].update(target=snapshot['target'], groups=groups)
-    model['roots'] = [dict(name=g['name'], blocks=g['blocks']) for g in result['groups']]
+    model['checkpoint'].update(target=snapshot['target'], groups=[dict(name=n, members=[n]) for n in members])
+    model['roots'] = [dict(name=n, blocks=[[estimate[n, i]] for i in range(sampler.ROUNDS)]) for n in members]
     model['provenance'] = dict(previous=model['provenance'], original_model=str(original_path.resolve()),
                                original_sha256=snapshot['sources'][snapshot['original_model']],
                                snapshot=str(Path(snapshot_path).resolve()), snapshot_sha256=snapshot_sha,
                                samples=str(sampled.resolve()), draws_sha256=result['draws_sha256'],
                                sampler_sha256=result['sampler_sha256'], protocol=result['protocol'],
-                               groups=len(groups), rounds=result['rounds'])
+                               groups=len(groups), units=len(members), rounds=result['rounds'])
     model['assumptions'] = dict(previous=model['assumptions'],
                                frontier=dict(shared_global_discrepancy=True,
-                                             shared_local_discrepancy_within_group=True,
+                                             local_discrepancy_per_member=True,
                                              fresh_process_per_group_round=True,
                                              solver_cache_within_block=True,
                                              calibrated_coverage=False))

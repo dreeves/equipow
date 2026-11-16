@@ -38,13 +38,13 @@ The record keeps the activation time, absolute path and SHA-256 hash. `formtree_
 
     python3 -B searchwatch/frontier_sample.py SNAPSHOT.json NEW_OUTPUT_DIRECTORY WORKERS
 
-Run a substantial sampling job through `track.py` with its own search label and `lindy.py` estimator. Sampling uses copies and supplies no proof verdicts. Grouping limits posterior memory and assigns shared local discrepancy within each group; the original global discrepancy and other priors remain. Grouping therefore changes modeling assumptions as well as computation. These conditional bands have no empirical coverage guarantee.
+Run a substantial sampling job through `track.py` with its own search label and `lindy.py` estimator. Sampling uses copies and supplies no proof verdicts. The groups are the probes' process partition only. Since 2026-11-16 each member is a unit of the model, with its own local discrepancy; until then the groups were the units, and a group finished only when all of its members did, which hid finished members from the model (`scratch/eta-fix-20261116/NOTES.md`). The original global discrepancy and other priors remain. These conditional bands have no empirical coverage guarantee.
 
 [formtree_frontier.py](formtree_frontier.py) assembles verified probes and an exact checkpoint into a new model:
 
     python3 -B searchwatch/formtree_frontier.py SNAPSHOT.json OUTPUT_DIRECTORY NEW_MODEL.json
 
-The snapshot also names its original unanchored model, includes `verdicts.prefix` among its hashed sources, and records the original roots, prefix byte/hash and task counts, and accounted nodes in `base`. At each estimate, only subsequent verdicts count beneath the new frontier; the old work is added exactly once. The groups must cover the checkpoint's entire unfinished frontier without overlap. The original cumulative rate history and original completion condition remain intact. Recheck sampling stability and posterior effective sample size before activation. A future refresh can repeat this procedure from another frozen frontier; one rebase does not permanently solve late-tail prediction when a large group has only one branch left.
+The snapshot also names its original unanchored model, includes `verdicts.prefix` among its hashed sources, and records the original roots, prefix byte/hash and task counts, and accounted nodes in `base`. At each estimate, only subsequent verdicts count beneath the new frontier; the old work is added exactly once. The checkpoint's groups, one member each since 2026-11-16, must cover its entire unfinished frontier without overlap. The original cumulative rate history and original completion condition remain intact. Recheck sampling stability and posterior effective sample size before activation. A future refresh can repeat this procedure from another frozen frontier; one rebase does not permanently solve late-tail prediction when a large member has only one branch left.
 
 ## Replaying completed forecasts (Codex, 2026-11-14)
 

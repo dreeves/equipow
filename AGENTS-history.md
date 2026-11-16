@@ -1636,3 +1636,39 @@ Follow-up at dreeves's “optional qual?”: the known-sequence qual required ex
 ## 2026-11-15 — Opus 5.5: no range lines at the ETA chart's last record
 
 dreeves, of the live 480:14 chart: "what's up with this darker vertical band slightly to the left of the purple/blue/red dots?", then "what makes most logical sense?". The strip was the two range lines at the last record (to go and total, 6 px strokes since 2026-10-17, multiplied like the bands): centered on the dots, they straddled the bands' right edge, so their left halves multiplied over the bands and their right halves lay pale on white. They drew the same ranges as the bands' right edges (DRY), and since the bands went past the lines' 30% tints (2026-10-23) the two copies could not match. Removed: the two SVG lines, their two `set` calls and three CSS rules. Lost: a search with one record (w12.py 720:12 today; any new search for its first 5 minutes) draws its range in the status line alone, as its median lines are dots alone. `quals_index.q_progress_eta_chart_keeps_progress_html_s_spec` lost the range lines with a dated comment (red on the page as it was, then green). Rendering and crops: `scratch/etaband-20261115/` (`probe.py`, `crop_end.png` before, `crop_end_after.png` after).
+
+## 2026-11-16 — Opus 5.5: why the live 480:14 ETA keeps climbing
+
+dreeves, of the live 480:14 chart: "does this ETA graph suggest a flaw in our ETA model?" Yes. Since the frontier model went live (2026-11-15 12:46), the total's median went from 5.1 to 9.7 days, 2.9 of them in the last 10 hours. In `formtree_eta.draws` one shared factor multiplies every group's sampled size, and it must exceed the largest done/proposal among unfinished groups. One g02 member, sampled at 0.38M nodes, has run 3.24M (8.5×) and is still open, so the factor's posterior median is 4.4 (prior 1.2) and the frontier is predicted at 388M nodes against 73M sampled. A group completes only when all of its 39 or 40 members do, and none has, so the 468 finished members of 626 (1.33× their samples in sum, the median exactly 1) never reach the model, while an unfinished group can only raise the factor. As a crude contrast, open members at 1.33× their samples would leave about 53M nodes (about 21 h). Read-only scripts: `scratch/eta-drift-20261116/groups.py`, `members.py` and `old_model.py`. The last, run after dreeves asked "did codex screw up?", gives the original model 70 h to go (9–437 h) beside the frontier model's 151 h (63–406 h) on the same verdicts. Nothing was changed; a fix would be scored with Codex's replay (`scratch/eta-replay-20261114/`) before the live run switched to it.
+
+## 2026-11-16 — Opus 5.5: the form-tree ETA learns from finished members; the newer prover checked
+
+dreeves: "ok, go ahead and fix. can you also make sure it didn't make the prover worse?"
+
+**ETA.**
+- `formtree_frontier.assemble` makes each frontier member its own unit. Until today a unit was a sampling group of about 40, finished only when all of its members were.
+- `formtree_eta.draws` keeps the model and changes its inference:
+  - finished units enter through their point base;
+  - the local sd is drawn from its posterior on a grid;
+  - each bounded unit's local noise is truncated at its own bound, with its bootstrap averaged over candidates, so an overrun raises its own total instead of setting a floor under every unit's;
+  - a half-truncated mixture for the shared factor keeps zero local noise working.
+- `sampled` starts at 16384 draws (was 65536) and doubles at most to `BUDGET`: each draws × units array is at most 64 MB, on a 16 GB Mac.
+- Quals:
+  - red first: an overrun moves only its own total; hundreds of finished units leave effective draws; the assembly makes members units;
+  - four specs changed in `quals_formtree_eta.py`, each with a dated comment;
+  - 115 quals in the nine suites that reach the estimator are green.
+- Codex's replay of the finished searches, as deployed: 480:13 unchanged (4.59× median, 74/147 in band); 288:10 better (1.50× against 1.63×, 96/122 against 95/122, and its work band 116/122 against 101/122).
+- Live: model event at 09:37:19 for `scratch/s480-20261111/models/480_14_members_20261116.json`. The first estimate, at 09:39:27, says 21.3 h to go (11.8–40.0), against 177 h under the group model. It recomputes exactly, and the page showed it 15 s later.
+- In the hindcast, the member model's end time slipped 10 h over the 20 h since the switch, against about 4.5 days for the group model. Details, evidence and caveats: `scratch/eta-fix-20261116/NOTES.md`.
+
+**Prover** (a fork's check, `scratch/prover-ab-20261116/NOTES.md`):
+- build_current_20261115 is correct: none of the 63,316 tasks since the switch was rejected, left a node open or produced a checker disagreement. The checkers are unchanged, and the 125,930 earlier verdicts are byte-intact.
+- It builds the same tree: node, certificate and LP counts were equal in 24 of 24 paired real tasks (31 to 10,275 nodes). Both checkers accepted all 48 streams.
+- It is about 2.4% slower: aggregate CPU new/old 1.024, median 1.032, slower in 23 of 24 tasks, with the builds run side by side.
+- Where the 2.4% goes (a profile, after dreeves's "are you sure?"): all of it is in `exact_bound_form`. Its share of the engine doubles, from 3.2–3.4% to 6.8–7.4%, because it builds each form's certificate at all three scales. Nothing else grows, fold mode included. The three-scale rule is Fable 5.2's of 2026-11-11, which remade 432:12 in 445 nodes for 455. Codex made it cheaper on 2026-11-14. At 480:14 it changed no tree in 26 tasks.
+- At first not switched back: about 2.4% of the roughly one day left is about 35 minutes, set against a restart that repeats the tasks in flight and a third build in the proof's manifest. That was a misweighing (dreeves: "tasks in flight is just a few minutes, isn't it? are you reasoning about the tradeoffs correctly?").
+  - The tasks in flight cost a minute or two of the run.
+  - build3 is already in the manifest, so a switch back adds a boundary, not a build.
+  - A switch back gains about half an hour.
+  - Prepared in `scratch/prover-switchback-20261116/NOTES.md`. Its stop step was at first refused by the session's auto-mode permission classifier, and nothing ran. The report then asked "Should I go ahead with the switch back?"; dreeves: "is that a can-opener question?".
+  - Switched back at 12:19. `top-480-14-b3-20261116` (tracker 70461, driver 70494, build3) resumed from 195,413 checked tasks, 249,014,528 nodes and 418 pending. The restart audit passed, and the first 75 tasks were checked with nothing open or refused.

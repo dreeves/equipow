@@ -30,42 +30,56 @@ class Model(unittest.TestCase):
         # prior shared log bias N(0,1) and local log SD 1; another root is censored.
         # Expectata: shared log bias is N(log(2)/2,1/2) before censoring; pending
         # survival uses that posterior, and completed roots draw no local error.
+        # Spec change, 2026-11-16 (Opus 5.5; dreeves: "ok, go ahead and fix", of the live 480:14 ETA): the weights
+        # are no longer the shared factor's survival above one threshold (draws now truncate each unfinished unit's
+        # own local noise), so the pending root's posterior is checked instead: its total is m F L with m 100, 200 or
+        # 300 (masses 1/4, 1/2, 1/4), log F + log L ~ N(log(2)/2, 3/2), conditioned on exceeding 200; the weighted
+        # draws' P(total <= x) must match that exact mixture at 400, 800 and 1600. bias_sd is now one per draw.
         from scipy.special import ndtr
         m=model();m['root_log_sd']=1.;m['roots'][0]['blocks']=[[10]*8,[10]*8]
-        x=eta.draws(m,work(20,200,True),4096)
+        x=eta.draws(m,work(20,200,True),50000)
         mu=np.log(2)/2;sd=np.sqrt(.5)
         np.testing.assert_allclose(x['bias_mean'],mu)
-        self.assertAlmostEqual(x['bias_sd'],sd)
+        np.testing.assert_allclose(x['bias_sd'],sd)
         np.testing.assert_array_equal(x['proposal'][:,0],x['base'][:,0])
-        survival=ndtr((mu-np.log(200/x['proposal'][:,1]))/sd)
-        np.testing.assert_allclose(x['weight'],survival/survival.sum(),rtol=1e-12)
         self.assertTrue(np.all(x['trees'][:,1]>200))
+        bases=np.array([100.,200.,300.]);prior=np.array([.25,.5,.25]);scale=np.sqrt(1.5)
+        above=lambda v:prior@ndtr((np.log(bases)+mu-np.log(v))/scale)
+        for v in (400.,800.,1600.):
+            exact=(above(200.)-above(v))/above(200.)
+            self.assertAlmostEqual(float(x['weight']@(x['trees'][:,1]<=v)),exact,delta=.015)
 
     def test_completed_marginal_likelihood_reweights_bootstrap_rows(self):
         # Replicata: the exact completed root is 20; bootstrap bases 10,20,30
         # have masses1/4,1/2,1/4. Shared and local log variances are each1.
-        # Expectata: row masses multiply the N(0,2) density at log(20/base),
-        # even without any pending-root floor; fixing totals alone misses this.
+        # Spec change, 2026-11-16 (Opus 5.5; dreeves: "ok, go ahead and fix", of the live 480:14 ETA): a complete
+        # unit's evidence now enters through its point base, the mean of its block means (20 here), not through each
+        # row's bootstrap draw, whose joint reweighting over the live frontier's hundreds of finished members left about
+        # one effective draw (test_hundreds_of_complete_units_leave_effective_draws).
+        # Expectata: the complete root's base is its point base, 20, in every row; the shared log bias is
+        # N(log(20/20)/2, 1/2) = N(0, 1/2) in every row; the weights are equal. Until that day: row masses multiplied
+        # the N(0,2) density at log(20/base), base each row's bootstrap draw.
         m=model();m['root_log_sd']=1.
         x=eta.draws(m,work(20,0,True),50000)
-        base=np.array([10.,20.,30.]);prior=np.array([.25,.5,.25])
-        density=np.exp(-np.log(20/base)**2/4)
-        expected=prior*density/(prior@density)
-        actual=np.array([x['weight'][x['base'][:,0]==b].sum() for b in base])
-        np.testing.assert_allclose(actual,expected,atol=.01,rtol=0)
-        np.testing.assert_allclose(x['bias_mean'],np.log(20/x['base'][:,0])/2)
+        np.testing.assert_array_equal(x['base'][:,0],20.)
+        np.testing.assert_allclose(x['weight'],1/len(x['weight']))
+        np.testing.assert_allclose(x['bias_mean'],0.,atol=1e-12)
+        np.testing.assert_allclose(x['bias_sd'],np.sqrt(.5))
 
     def test_zero_local_noise_one_exact_root_pins_shared_bias(self):
         # Replicata: one completed root and zero local noise; then two exact
         # roots under the same singular observation model.
         # Expectata: the first fixes B=17/base, with normal-prior density weights;
         # multiple zero-noise observations are explicitly unsupported, not jittered.
+        # Spec change, 2026-11-16 (Opus 5.5; dreeves: "ok, go ahead and fix"): base here is the complete root's point
+        # base, the mean of its block means (10 and 30: 20), the same in every row, so B = 17/20 and the weights are
+        # equal; until that day each row's bootstrap draw of it (10, 20 or 30) set B and weighted the row. bias_sd is
+        # one per draw.
         m=model();x=eta.draws(m,work(17,0,True),1024)
-        y=np.log(17/x['base'][:,0])
+        y=np.log(17/20)
         np.testing.assert_allclose(x['trees'][:,1]/x['proposal'][:,1],np.exp(y))
-        expected=np.exp(-y*y/2);expected/=expected.sum()
-        np.testing.assert_allclose(x['weight'],expected)
-        self.assertEqual(x['bias_sd'],0.)
+        np.testing.assert_allclose(x['weight'],np.full(len(x['weight']),1/len(x['weight'])))
+        np.testing.assert_array_equal(x['bias_sd'],0.)
         m['roots'].append(dict(name='c',blocks=[[100]*8,[300]*8]))
         w=dict(done=187,rate=10.,roots=[dict(name='a',done=17,complete=True),
                dict(name='b',done=170,complete=True),dict(name='c',done=0,complete=False)])
@@ -162,6 +176,43 @@ class Model(unittest.TestCase):
         eta.history(p,current,1900.)
         self.assertEqual(p,saved+[[1900.,current]])
         with self.assertRaises(AssertionError):eta.history(p,current,1800.)
+
+    def test_an_overrun_moves_its_own_total_not_the_others(self):
+        # Opus 5.5, 2026-11-16 (dreeves, of the live 480:14 ETA after one frontier member's 8.5x overrun had set a
+        # 4.4x floor under every group's total: "ok, go ahead and fix").
+        # Replicata: 200 complete units each finished at its sampled 100 nodes; one unfinished unit sampled at 100 has
+        # run 800; two more sampled at 100 have none done. Local log sd .5, fixed.
+        # Expectata: the overrun's total exceeds 800 in every draw; the idle units' weighted median totals stay near
+        # their 100 (70 to 140); a tenth of the draws stay effective.
+        # Resultata until that day: the shared factor had to cover the overrun's 8x, scaling every unit by it, and the
+        # rare draws that let it collapsed the weights.
+        roots=[dict(name=f'c{i}',blocks=[[100.]]*8) for i in range(200)]+[dict(name=n,blocks=[[100.]]*8) for n in ('big','idle1','idle2')]
+        m=dict(seed=7,log_bias=0.,discrepancy_log_sd=1.,root_log_sd=.5,rate_log_sd=.35,roots=roots)
+        w=dict(done=200*100+800,rate=10.,roots=[dict(name=f'c{i}',done=100,complete=True) for i in range(200)]
+               +[dict(name='big',done=800,complete=False),dict(name='idle1',done=0,complete=False),dict(name='idle2',done=0,complete=False)])
+        x=eta.draws(m,w,4096)
+        self.assertTrue(np.all(x['trees'][:,200]>800))
+        def median(v):
+            o=np.argsort(v);return v[o][np.searchsorted(np.cumsum(x['weight'][o]),.5)]
+        for i in (201,202):
+            self.assertTrue(70<median(x['trees'][:,i])<140,median(x['trees'][:,i]))
+        self.assertGreater(1/(x['weight']@x['weight']),4096/10)
+
+    def test_hundreds_of_complete_units_leave_effective_draws(self):
+        # Opus 5.5, 2026-11-16 (dreeves: "ok, go ahead and fix"; the live 480:14 frontier has 468 finished members).
+        # Replicata: 300 complete units whose two blocks, 50 and 150, bootstrap to 50, 100 or 150, each finished near
+        # 100; one unfinished unit with nothing done. Local log sd .75, fixed.
+        # Expectata: half the draws or more stay effective.
+        # Resultata until that day: each row's bootstrap draw of all 300 complete units entered its weight, and the
+        # product of 300 such likelihoods left about one effective draw.
+        rng=np.random.default_rng(3)
+        done=[int(100*np.exp(.75*z)) for z in rng.standard_normal(300)]
+        roots=[dict(name=f'c{i}',blocks=[[50.]*8,[150.]*8]) for i in range(300)]+[dict(name='p',blocks=[[100.]*8])]
+        m=dict(seed=7,log_bias=0.,discrepancy_log_sd=1.,root_log_sd=.75,rate_log_sd=.35,roots=roots)
+        w=dict(done=sum(done),rate=10.,roots=[dict(name=f'c{i}',done=d,complete=True) for i,d in enumerate(done)]
+               +[dict(name='p',done=0,complete=False)])
+        x=eta.draws(m,w,4096)
+        self.assertGreater(1/(x['weight']@x['weight']),4096/2)
 
 
 class Attachment(unittest.TestCase):
