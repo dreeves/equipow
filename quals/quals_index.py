@@ -2424,7 +2424,10 @@ def q_example_at_1024_has_its_entry_code_and_cell():
     vals = re.findall(r'<td([^>]*)>([^<]*)</td>', row.split('<tr class="vals">')[1])
     i = [k for _, k in ns].index('10')
     assert ns[i - 1][1] == '9' and re.fullmatch(r' class="c" title=\'[^\']+\'', ns[i][0]) and vals[i] == (' class="c"', '11'), (ns, vals)
-    assert pow2_data()['cols'][9] == [11, 11, ['joins', [[[1024, 11]]]], ['mstar', ['norm', 3]]], pow2_data()['cols'][9]
+    # (2026-11-16; dreeves: "ok, go ahead with breaking ties in favor of the mod-3 argument": the m*(n) chart's reason
+    # at 1024 is the residue condition mod 3, which comes before the norm bound since that day and gives the same 11;
+    # ["mstar", ["norm", 3]] until then)
+    assert pow2_data()['cols'][9] == [11, 11, ['joins', [[[1024, 11]]]], ['mstar', ['residue', 3]]], pow2_data()['cols'][9]
 
 
 def q_symmetric_example_at_528():
@@ -4480,24 +4483,30 @@ def panel_link_lands(href):
             or re.fullmatch(r'#n(\d+)', href) is not None and int(href[2:]) in COLUMNS)
 
 
-def q_panel_works_out_the_norm_bound_at_1024():
-    # Replicata: the page loaded with the fragment #n1024, which opens the panel of n = 1024; its upper bound is the norm
-    # bound for p = 3 (mstar.js: [11, 11, ["example", "equipow p1024"], ["norm", 3]]).
-    # Expectata (the coordinator's spec, 2026-11-03: "For n = 1024, p = 3, a qual must find classes 342, 341, 341,
-    # 3^12 = 531,441 and the cap 524,289 (= 2^19 + 1), so order 12 fails by 1.4%"): the box gives the class sizes mod
-    # 3, 342, 341 and 341, and their squares' sum, 349,526; and at m = 12 the norm's floor 3^12 = 531,441, more than its
-    # cap 524,289.
-    # Spec change (2026-11-04, [CEL]; dreeves: "so many pointless words in the implementation so far"): the box shows the
-    # norm bound's one inequality, p^m <= the cap, with these numbers; until then it also gave both sides of
-    # 3^(2m) 2^2 <= (3 sum s_r^2)^2 at m = 12, the same inequality squared, 1,129,718,145,924 = 3^24 * 4 and
-    # 1,099,515,822,084 = 1,048,578^2, and that 3^12 exceeds the cap by 1.4%.
+def q_panel_works_out_the_mod_3_argument_at_1024():
+    # Replicata: the page loaded with the fragment #n1024, which opens the panel of n = 1024; its upper bound is the
+    # residue condition mod 3 (mstar.js: [11, 11, ["example", "equipow p1024"], ["residue", 3]]).
+    # Expectata (Fable 5.2, 2026-11-16; dreeves, of Stan Wagon's "standard mod-3 argument" that m*(1024) <= 11, with no
+    # root of unity: "ok, go ahead with breaking ties in favor of the mod-3 argument", then "i approve the
+    # corresponding qual changes"): the box gives the class sizes mod 3, 342, 341 and 341, and at m = 12 the condition
+    # in closed form, D_0 + D_1 + D_2 = 0, D_0 = D_1 = D_2 mod 3^6 and 3^5 dividing each D_r, with 3^6 = 729 and
+    # 3^5 = 243 in digits.  That is Stan's argument: two sums differ by 342 + 341 = 683 at most, which is below 729, so
+    # the congruence makes them equal, and the classes of 342 and of 341 have sums of different parities.
+    # Spec change (that day): until then q_panel_works_out_the_norm_bound_at_1024, for the norm bound for p = 3, which
+    # held column 1024 (the coordinator's spec, 2026-11-03: "For n = 1024, p = 3, a qual must find classes 342, 341,
+    # 341, 3^12 = 531,441 and the cap 524,289 (= 2^19 + 1), so order 12 fails by 1.4%"; since 2026-11-04, [CEL], the
+    # one inequality p^m <= the cap with those numbers).  The norm bound gives the same 11 there, and the residue
+    # condition mod 3, which implies it, now comes first.
     # Resultata before: no panel.
     R = valid_run('fragment')
     t = R['fragment']['text']
-    assert 342 ** 2 + 2 * 341 ** 2 == 349526 and 3 * 349526 // 2 == 524289 == 2 ** 19 + 1 and 3 ** 12 == 531441
-    for said in ('\\(p = 3 \\nmid n\\)', '= 342, 341, 341 and \\(\\sum s_r^2 =\\) 349,526;',
-                 'at \\(m = 12\\), \\(p^m = 3^{12} =\\) 531,441 \\(>\\) 524,289'):
+    assert mstar_data()['cols'][1024 - 1][3] == ['residue', 3]
+    assert 342 + 341 == 683 < 3 ** 6 == 729 and 3 ** 5 == 243 and (342 - 341) % 2 == 1 and mod3_sums(1024, 12) == [] != mod3_sums(1024, 11)
+    for said in ('= 342, 341, 341;', '\\(m = 12\\) (\\(\\Leftrightarrow D_0 + D_1 + D_2 = 0\\), \\(D_0 \\equiv D_1 \\equiv D_2 \\pmod{3^{6}}\\), '
+                 '\\(3^{5} \\mid D_r\\); \\(3^{6} =\\) 729, \\(3^{5} =\\) 243)'):
         assert among(said, t), (said, t)
+    assert mod3_said(1024, 12) == ['= 342, 341, 341;', '\\(m = 12\\) (\\(\\Leftrightarrow D_0 + D_1 + D_2 = 0\\), \\(D_0 \\equiv D_1 \\equiv D_2 \\pmod{3^{6}}\\), '
+                                    '\\(3^{5} \\mid D_r\\); \\(3^{6} =\\) 729, \\(3^{5} =\\) 243)']
 
 
 def q_every_column_s_panel_shows_exactly_its_reasons():
@@ -4526,19 +4535,27 @@ def q_every_column_s_panel_shows_exactly_its_reasons():
     # 'entry', the link to the remarks' entry, until [REO] step 2, 2026-11-03, when the entry moved into the panel)
     # (2026-11-12: with the chart open up to 2048, its columns 1200, 1392, … by Proposition 4.4 and 1248 and 1456 by a
     # program, proof-prop44 and proof-file too)
-    assert {'witness-example', 'witness-construction', 'proof-two', 'proof-norm', 'proof-residue', 'proof-table2',
+    # (2026-11-16: proof-norm no longer among them: the residue condition mod 3 comes before the norm bound since that
+    # day and holds every column that the norm bound for 3 held, the only norm bound the page's columns used)
+    assert {'witness-example', 'witness-construction', 'proof-two', 'proof-residue', 'proof-table2',
             'proof-page', 'proof-prop44', 'proof-file'} <= kinds <= {*WITNESSES.values(), 'witness-code',
                                                                      *PROOF_PARTS.values()} - {'proof-odd'}, kinds
 
 
-def q_norm_panels_hold_their_claims():
-    # Replicata: the panels run: the panel of each column whose upper bound is the norm bound for a prime p.
-    # Expectata: at m = hi + 1, p^m, in digits, is more than the cap, in digits, each the exact integer its formula says
-    # (Python's own arithmetic), and so are the class sizes and their squares' sum.  Spec change (2026-11-04, [CEL]): until
-    # then also both sides of p^(2m) (p - 1)^(p - 1) <= (p sum s_r^2)^(p - 1), the left more than the right.
-    R = valid_run('panels')
-    cols = mstar_data()['cols']
-    found = 0
+def q_norm_panels_work_out_their_numbers():
+    # Replicata: the kinds panels run, on made-up data (kinds_data): the panel of each column whose upper bound is the
+    # norm bound for a prime p (4 for p = 3, 32 for 5, 48 for 7).
+    # Expectata: at m = hi + 1 the box gives p^m and the cap, each the exact integer its formula says (Python's own
+    # arithmetic), and so are the class sizes and their squares' sum.
+    # Spec change (2026-11-16; q_panel_works_out_the_mod_3_argument_at_1024 has dreeves's words): until then
+    # q_norm_panels_hold_their_claims, on the page's own data (the panels run), which also held p^m to be more than
+    # the cap at each such column.  No column of the page's data has the norm bound as its reason any more, since the
+    # residue condition mod 3 comes before it, so the box's arithmetic is held on the made-up columns, whose bounds
+    # are made up (at 48 the cap is the larger).  Spec change (2026-11-04, [CEL]): until then also both sides of
+    # p^(2m) (p - 1)^(p - 1) <= (p sum s_r^2)^(p - 1), the left more than the right.
+    R = valid_run('kinds panels')
+    cols = json.loads(kinds_data()[len('const MSTAR = '):-2])['cols']
+    found = []
     for P in R['panels']:
         n = P['n']
         lo, hi, lw, hw = cols[n - 1]
@@ -4547,12 +4564,11 @@ def q_norm_panels_hold_their_claims():
         sizes = [len(range(r, n, p)) for r in range(p)]
         S = sum(x * x for x in sizes)
         cap = (p * S) ** ((p - 1) // 2) // (p - 1) ** ((p - 1) // 2)
-        assert p ** m > cap, (n, p, m)
         for said in ('= ' + ', '.join(f'{x:,}' for x in sizes) + ' and', f'\\(\\sum s_r^2 =\\) {S:,};',
                      f'\\(p^m = {p}^{{{m}}} =\\) {p ** m:,} \\(>\\) {cap:,}'):
             assert among(said, P['text']), (n, said, P['text'])
-        found += 1
-    assert found == sum(1 for n in COLUMNS if cols[n - 1][3][0] == 'norm') > 10, found
+        found.append((n, p))
+    assert found == [(4, 3), (32, 5), (48, 7)], found
 
 
 def mod3_form(n, a, b):
@@ -4876,7 +4892,10 @@ def q_no_entry_repeats_its_panel_s_reasons():
             found += [(n, f.pattern) for r in reasons[n] for f in repeated_reasons(r, n) if f.search(li)]
     assert found == [], (len(found), found[:8])
     assert all(reasons[n] for n in reasons), [n for n in reasons if not reasons[n]]
-    controls = {544: 'Claude: “A symmetric example of order 10, found by a lattice search. Order 11 is ruled out by the norm bound for the residue sums mod 3.”',
+    # (2026-11-16: 544's panel states the residue condition mod 3, which comes before the norm bound since that day, so
+    # the sentence that would repeat it is of that form; its entry said "... ruled out by the norm bound for the
+    # residue sums mod 3." until 2026-11-03, the control here until now)
+    controls = {544: 'Claude: “A symmetric example of order 10, found by a lattice search. Order 11 is ruled out by the residue condition mod 3.”',
                 864: 'Order 12 from examples above, doubled (\\(864 = 2\\cdot 432\\)); order 15 is ruled out by the residue condition mod 5.',
                 512: 'The Thue–Morse polynomial \\(\\tau_9\\) has order 9.',
                 2 ** 30: 'That beats Thue–Morse by 3. The upper bound is the residue condition mod 3, as in the powers-of-2 chart above.'}
@@ -5081,12 +5100,14 @@ def q_green_box_gives_the_witness_and_its_code():
 
 
 def q_red_box_works_out_the_proof():
-    # Replicata: the boxes run: the boxes of the red cells (1024, 12), a norm bound for p = 3; (1020, 4), the 2-adic
+    # Replicata: the boxes run: the boxes of the red cells (1024, 12), the residue condition mod 3; (1020, 4), the 2-adic
     # bound; (56, 6), BGPW's Table 2; and (240, 11), a proof of the page's own.
     # Expectata ([CEL]: "If the cell is red, show the proof for the lowest red cell in that cell's column"): each shows
-    # its column's proof alone (box_parts), its bound m*(n) <= hi, worked out with n's numbers: for 1024, p = 3, the
-    # class sizes 342, 341 and 341 and their squares' sum 349,526, and at m = 12, p^m = 3^12 = 531,441, more than the
-    # floor 524,289; for 1020 = 2^2 * 255, m <= 2^2 - 1 = 3, with BGPW's Theorem 4.1 linked; for 56, BGPW's Table 2,
+    # its column's proof alone (box_parts), its bound m*(n) <= hi, worked out with n's numbers: for 1024, the class
+    # sizes 342, 341 and 341 and, at m = 12, the condition's closed form with 3^6 = 729 and 3^5 = 243 (mod3_said;
+    # since 2026-11-16, when the residue condition mod 3 came before the norm bound, whose numbers they were until
+    # then: p = 3, the squares' sum 349,526, and 3^12 = 531,441, more than the floor 524,289:
+    # q_panel_works_out_the_mod_3_argument_at_1024 has dreeves's words); for 1020 = 2^2 * 255, m <= 2^2 - 1 = 3, with BGPW's Theorem 4.1 linked; for 56, BGPW's Table 2,
     # linked; for 240, who proved it, and the remarks' entry of 240 shown in the box, which holds the proof; no witness
     # and no searches.
     # Resultata before: the column's panel, its status sentence, both bounds' sentences and the norm bound's paragraph
@@ -5098,9 +5119,8 @@ def q_red_box_works_out_the_proof():
         opened = re.match(OPENING, B[t]['said'])                         # a quotation of the page's writer, whatever its name
         assert bool(opened) == quoted and B[t]['said'][opened.end() if opened else 0:].startswith(
             f'\\(m^*({t[0]}) \\le {cols[t[0] - 1][1]}\\):'), (t, B[t]['said'])
-    assert 3 ** 12 == 531441 > 3 * (342 ** 2 + 2 * 341 ** 2) // 2 == 524289 and 342 ** 2 + 2 * 341 ** 2 == 349526
-    for said in ('\\(p = 3 \\nmid n\\)', '= 342, 341, 341 and \\(\\sum s_r^2 =\\) 349,526;',
-                 'at \\(m = 12\\), \\(p^m = 3^{12} =\\) 531,441 \\(>\\) 524,289'):
+    assert cols[1024 - 1][3] == ['residue', 3] and mod3_sums(1024, 12) == [] != mod3_sums(1024, 11)
+    for said in mod3_said(1024, 12):
         assert among(said, B[(1024, 12)]['said']), (said, B[(1024, 12)]['said'])
     assert '\\(n = 2^{2} \\cdot 255\\)' in B[(1020, 4)]['said'] and '\\(m \\le 2^{2} - 1 = 3\\)' in B[(1020, 4)]['said'], B[(1020, 4)]['said']
     assert 'https://arxiv.org/html/1912.03491v1#S4.Thmthm1' in B[(1020, 4)]['links'], B[(1020, 4)]['links']
@@ -5209,11 +5229,11 @@ def q_box_fragments_name_cells_and_rows():
     # box of row 16 after #m16; the box of cell (1024, 12) again after #n1024m12.
     # Resultata before: only a column's fragment opened anything.
     F = valid_run('box fragment')['atLoad']
-    assert not F['hidden'] and F['hash'] == '#n1024m12' and F['focus'] and F['kind'] == 'impossible' and F['whys'] == ['proof-norm'], F
+    assert not F['hidden'] and F['hash'] == '#n1024m12' and F['focus'] and F['kind'] == 'impossible' and F['whys'] == ['proof-residue'], F   # (proof-norm until 2026-11-16)
     R, _ = boxes_run()
     row, cell = R['hashed']
     assert not row['hidden'] and row['kind'] == 'row' and row['heading'] == '\\(m = 16\\)', row
-    assert not cell['hidden'] and cell['kind'] == 'impossible' and cell['whys'] == ['proof-norm'] and cell['hash'] == '#n1024m12', cell
+    assert not cell['hidden'] and cell['kind'] == 'impossible' and cell['whys'] == ['proof-residue'] and cell['hash'] == '#n1024m12', cell
 
 
 def q_boxes_say_nothing_about_elsewhere():

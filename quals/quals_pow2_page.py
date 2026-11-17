@@ -1519,13 +1519,19 @@ def q_panels_show_exactly_each_column_s_reasons():
 
 
 def q_norm_panels_hold_at_powers_of_2():
-    # Replicata: the light run: the panel of each column whose upper bound is the norm bound for a prime p, at
-    # n = 2^k, up to 2^72, so in numbers of up to 90 digits.
+    # Replicata: the kinds run, on made-up data (kinds_cols, whose norm bounds are the norm lemma's own): the panel of
+    # each column whose upper bound is the norm bound for a prime p, at n = 2^k, up to 2^72, so in numbers of up to
+    # 90 digits.
     # Expectata: at m = hi + 1, p^m is more than the floor of (p sum s_r^2 / (p - 1))^((p - 1)/2); the box gives both
     # in digits, and the class sizes s_r and their squares' sum, exactly as Python's integers have them.  Spec change
     # (2026-11-04, [CEL]): until then also both sides of p^(2m) (p - 1)^(p - 1) <= (p sum s_r^2)^(p - 1), the same
     # inequality squared, the left more than the right.
-    R = valid('light')
+    # Spec change (Fable 5.2, 2026-11-16; dreeves: "ok, go ahead with breaking ties in favor of the mod-3 argument",
+    # then "i approve the corresponding qual changes"): until then the light run, on the page's own data, where the
+    # norm bound for 3 held 36 columns.  No column of pow2.js has a norm bound as its reason any more (the residue
+    # condition mod 3 comes before it: q_residue_panels_at_3_give_the_closed_form_at_powers_of_2), so the box's
+    # arithmetic is held on the made-up data's columns.
+    R = valid('kinds')
     found = 0
     for P in R['panels']:
         k = P['k']

@@ -78,15 +78,19 @@ conjecture holds.
          results, cited; who the credit for the example, a class of the page's cells, c, cf, j, ca, a or s: EXAMPLE_BY).  Every example, join and
          product is a sequence built here from explicit sequences only and checked with exact power sums; a join's or
          product's parts are themselves columns with such reasons.
-  hiWhy  ["odd"] (n odd: hi = 0); ["two"]; ["norm", p]; ["residue", M] (the claim in RESIDUE: no admissible vector mod
-         M at order hi + 1); ["proof", file] (PROOFS: a program of proofs/ that checks a proof of its own that no
+  hiWhy  ["odd"] (n odd: hi = 0); ["two"]; ["norm", p]; ["residue", M] (no admissible vector mod M at order hi + 1:
+         for M = 3, since 2026-11-16, by the residue condition mod 3 in closed form, residue3, at any even n that 3
+         does not divide; for any other M, the claim in RESIDUE, whose chain ends at M); ["proof", file] (PROOFS: a program of proofs/ that checks a proof of its own that no
          sequence of length n has order hi + 1, at a length outside the page's tables; since 2026-11-10, 1456's);
          ["prop44"] (since 2026-11-11: BGPW's Proposition 4.4, prop44(n): hi + 1 is the power of 2 in n less 1, an
          order at which the alternating sum would be 2^(hi + 1) or more, which is more than n);
          ["table2"]; ["page", who] (who the credit for the proof: that cell's class).
   When sources tie, a reason checked here wins over a citation, and the simpler one among those: example, join,
-  product; odd, two, norm (the least p), residue, proof, prop44 (last, as the newest: it gives no column a reason
-  that an older test gave it).
+  product; odd, two, residue 3 (the closed form), norm (the least p), residue (a claim), proof, prop44 (last, as the
+  newest: it gives no column a reason that an older test gave it).  The residue condition mod 3 comes before the norm
+  bound since 2026-11-16 (dreeves, of Stan Wagon's "standard mod-3 argument" that m*(1024) <= 11, which needs no root
+  of unity: "ok, go ahead with breaking ties in favor of the mod-3 argument"): in closed form it is a check by hand,
+  and at p = 3 it implies the norm bound, so it took the 32 columns that the norm bound for 3 held, 1024 among them.
 
 Run:   python3 -B pagegen/mstar.py   (writes pagedata/mstar.js)
 Quals: python3 -B quals/quals_mstar.py
@@ -519,6 +523,45 @@ def norm(n, p):
     return m
 
 
+def residue_sums3(n, m):
+    """The admissible residue sums mod 3 of length n at order m >= 1, (D_0, D_1, D_2), by the closed form of residue3:
+    of zero sum, D_r = size(3, r) mod 2 and |D_r| <= size(3, r), D_0 = D_1 = D_2 mod 3^floor(m/2), and every D_r a
+    multiple of 3^floor((m - 1)/2), which are tried in turn."""
+    assert m >= 1, m
+    q, Q = 3 ** ((m - 1) // 2), 3 ** (m // 2)
+    s = [(n - r + 2) // 3 for r in range(3)]                # size(3, r); len(range(r, n, 3)) overflows past 2^63
+    d0s, d1s = ([d for d in range(-(x // q) * q, x + 1, q) if (d - x) % 2 == 0] for x in s[:2])
+    return [(d0, d1, -d0 - d1) for d0 in d0s for d1 in d1s
+            if abs(d0 + d1) <= s[2] and (d0 + d1 - s[2]) % 2 == 0 and (d0 - d1) % Q == 0 and (d0 + 2 * d1) % Q == 0]
+
+
+def residue3(n):
+    """The residue condition mod 3 as a bound, in closed form (Fable 5.2, 2026-11-16; dreeves: "yes to mod-3 boxes",
+    then "ok, go ahead with breaking ties in favor of the mod-3 argument"), for an even n that 3 does not divide (an
+    odd n has no sums at all, the sizes' sum being odd): the largest m >= 1 at which admissible residue sums mod 3
+    exist (residue_sums3), so that m*(n) <= it.
+    The closed form: L(3, m) is the vectors D of zero sum with D_0 = D_1 = D_2 mod 3^floor(m/2) and every D_r a
+    multiple of 3^floor((m - 1)/2).  For (x - 1)^2 = (1 + x + x^2) - 3x, and mod x^3 - 1 the first term times x - 1 is
+    0 and times x is itself: so (x - 1)^(2k) = (-3)^(k-1) (1 + x + x^2) + (-3)^k x^k and (x - 1)^(2k+1) =
+    (-3x)^k (x - 1) there, whose multiples are the zero-sum vectors that are equal mod 3^k, or multiples of 3^k.  (At
+    an even m the divisibility follows from the congruence and the zero sum, at an odd m the congruence from the
+    divisibility; both are tested, as the page's box states both.)  This is BGPW's Proposition 4.3 at p = 3, with
+    Proposition 4.2's sizes, parities and zero sum; quals_mstar's q_residue_condition_mod_3_has_its_closed_form holds
+    it to the lattice by brute force and to residue_vectors' enumeration.
+    It implies the norm bound for 3: admissible D have D_0 + D_1 w + D_2 w^2 (w a primitive cube root of 1) a nonzero
+    multiple of (1 - w)^m, of norm 3^m at least, and that norm is at most the norm lemma's cap.  So residue3(n) <=
+    norm(n, 3), and it comes before it among a column's reasons.
+    No admissible sums exist once 3^floor((m - 1)/2) exceeds every class size: all three would be 0, and since 3 does
+    not divide n the sizes are two consecutive numbers, one of them odd, whose sum is odd.  Order m implies order
+    m - 1, so the bound is the first m below that with sums, going down."""
+    assert n >= 2 and n % 2 == 0 and n % 3, n
+    m = 1
+    while 3 ** ((m - 1) // 2) <= (n + 2) // 3: m += 1      # (n + 2) // 3 is size(3, 0), the largest class
+    assert residue_sums3(n, m) == [], (n, m)
+    while not residue_sums3(n, m): m -= 1                  # ends at 1 or above: an even n has sums at order 1
+    return m
+
+
 def chain_none(n, m, chain, sweep, cap):
     """Is there no admissible vector at order m mod chain[-1], each level enumerated (in the given sweep) under each
     admissible vector of the level before?  True only on a finished enumeration; False as soon as one is found; Capped
@@ -545,38 +588,29 @@ def chain_none(n, m, chain, sweep, cap):
 # 5, by scratch/upto1024/residue1008.py when the chart reached 1024 (2026-10-27), in both sweeps; at order 13 the
 # chains (5, 25), (7, 49) and (4, 8, 16, 32) capped there at 300000 nodes, and at 10^7 too in both sweeps
 # (scratch/upto1024/order13.py), and every other chain found an admissible vector.
-RESIDUE = {24: (5, (5, 25), 'digits'), 40: (6, (3,), 'digits'), 48: (7, (5, 25), 'digits'),
-           72: (7, (4, 8), 'digits'), 80: (7, (3, 9), 'digits'), 88: (7, (3, 9), 'digits'), 104: (7, (4, 8), 'digits'),
-           120: (7, (4, 8), 'digits'), 128: (8, (3,), 'digits'), 136: (7, (4, 8), 'digits'),
-           160: (8, (3, 9), 'digits'), 192: (10, (5,), 'digits'), 208: (9, (3,), 'digits'), 224: (9, (3,), 'digits'),
-           256: (9, (3, 9), 'digits'), 336: (11, (5,), 'digits'), 352: (10, (3,), 'digits'),
-           368: (10, (3,), 'digits'), 384: (12, (5,), 'digits'), 400: (10, (3,), 'digits'), 416: (10, (3,), 'digits'),
-           432: (13, (5,), 'digits'), 448: (10, (3,), 'digits'), 464: (10, (3,), 'digits'), 480: (15, (7,), 'digits'),
+# Since 2026-11-16 no claim has the chain (3): the residue condition mod 3 is computed in closed form (residue3) at
+# every n that 3 does not divide, with no enumeration, and comes before the norm bound.  The 44 claims that had it
+# (40, 128, 208, 224, 352, 368, 400, 416, 448, 464, 608, 640, 656, 688, 704, and 29 past 1024) gave the same bounds.
+RESIDUE = {24: (5, (5, 25), 'digits'), 48: (7, (5, 25), 'digits'), 72: (7, (4, 8), 'digits'),
+           80: (7, (3, 9), 'digits'), 88: (7, (3, 9), 'digits'), 104: (7, (4, 8), 'digits'),
+           120: (7, (4, 8), 'digits'), 136: (7, (4, 8), 'digits'), 160: (8, (3, 9), 'digits'),
+           192: (10, (5,), 'digits'), 256: (9, (3, 9), 'digits'), 336: (11, (5,), 'digits'),
+           384: (12, (5,), 'digits'), 432: (13, (5,), 'digits'), 480: (15, (7,), 'digits'),
            496: (10, (3, 9), 'digits'), 512: (10, (3, 9, 27), 'digits'), 528: (13, (5,), 'digits'),
-           576: (13, (5,), 'digits'), 608: (11, (3,), 'digits'), 624: (13, (5, 25), 'natural'),
-           640: (11, (3,), 'digits'), 656: (11, (3,), 'digits'), 672: (14, (5,), 'digits'), 688: (11, (3,), 'digits'),
-           704: (11, (3,), 'digits'), 720: (15, (16,), 'digits'), 736: (11, (3, 9), 'digits'),
-           768: (14, (5,), 'digits'), 784: (11, (3, 9, 27), 'digits'), 864: (15, (5,), 'digits'),
-           912: (14, (5,), 'digits'), 960: (16, (7,), 'digits'), 1008: (14, (5,), 'digits'),
+           576: (13, (5,), 'digits'), 624: (13, (5, 25), 'natural'), 672: (14, (5,), 'digits'),
+           720: (15, (16,), 'digits'), 736: (11, (3, 9), 'digits'), 768: (14, (5,), 'digits'),
+           784: (11, (3, 9, 27), 'digits'), 864: (15, (5,), 'digits'), 912: (14, (5,), 'digits'),
+           960: (16, (7,), 'digits'), 1008: (14, (5,), 'digits'),
            # Past 1024 (2026-11-10, [BOU]; scratch/bou-20261110/search.py): for each of the 60 even n from 1026 to 2048
            # whose two and norm bound exceeds its explicit lo, the orders from that bound down, each chain of CHAINS
            # in each sweep of SWEEPS, capped at MTOP_CAP nodes, which are mtop_at's tests; the claim is the least order
-           # killed, in the sweep that killed it.  The other 16 of the 60 keep their two and norm bound.
-           1040: (12, (3,), 'natural'), 1056: (15, (5,), 'natural'), 1072: (12, (3,), 'natural'),
-           1088: (12, (3,), 'natural'), 1104: (15, (5,), 'natural'), 1120: (12, (3,), 'natural'),
-           1136: (12, (3,), 'natural'), 1152: (14, (5,), 'natural'), 1168: (12, (3,), 'natural'),
-           1184: (12, (3,), 'natural'), 1216: (12, (3,), 'natural'), 1232: (12, (3,), 'natural'),
-           1264: (12, (3,), 'natural'), 1280: (12, (3,), 'natural'), 1296: (15, (5,), 'natural'),
-           1312: (12, (3,), 'natural'), 1328: (12, (3,), 'natural'), 1344: (15, (5,), 'natural'),
-           1360: (12, (3,), 'natural'), 1376: (12, (3,), 'natural'), 1408: (12, (3,), 'natural'),
-           1424: (12, (3,), 'natural'), 1440: (18, (7,), 'natural'), 1472: (12, (3, 9), 'natural'),
-           1536: (15, (5,), 'natural'), 1584: (15, (5,), 'natural'), 1632: (16, (5,), 'natural'),
-           1728: (16, (5,), 'natural'), 1776: (15, (5,), 'natural'), 1792: (13, (3,), 'natural'),
-           1808: (13, (3,), 'natural'), 1824: (15, (5,), 'natural'), 1840: (13, (3,), 'natural'),
-           1856: (13, (3,), 'natural'), 1888: (13, (3,), 'natural'), 1904: (13, (3,), 'natural'),
-           1920: (19, (7,), 'natural'), 1936: (13, (3,), 'natural'), 1952: (13, (3,), 'natural'),
-           1984: (13, (3,), 'natural'), 2000: (13, (3,), 'natural'), 2016: (16, (5,), 'natural'),
-           2032: (13, (3,), 'natural'), 2048: (13, (3,), 'natural')}
+           # killed, in the sweep that killed it.  The other 16 of the 60 keep their two and norm bound.  (29 of these
+           # claims had the chain (3) and left on 2026-11-16, for residue3.)
+           1056: (15, (5,), 'natural'), 1104: (15, (5,), 'natural'), 1152: (14, (5,), 'natural'),
+           1296: (15, (5,), 'natural'), 1344: (15, (5,), 'natural'), 1440: (18, (7,), 'natural'),
+           1472: (12, (3, 9), 'natural'), 1536: (15, (5,), 'natural'), 1584: (15, (5,), 'natural'),
+           1632: (16, (5,), 'natural'), 1728: (16, (5,), 'natural'), 1776: (15, (5,), 'natural'),
+           1824: (15, (5,), 'natural'), 1920: (19, (7,), 'natural'), 2016: (16, (5,), 'natural')}
 
 
 # PROOFS[n] = (hi, file): the upper bounds that a program of proofs/ proves with a proof of its own, at lengths outside
@@ -714,7 +748,9 @@ def columns():
         cited = CITED.get(n, [])
         lo, lw = max([(lo_x[n], list(why_x[n]))] + [(v[0], ['table2']) for k, v in TABLE2.items() if k == n]
                      + [(NEW[k][0], ['page', who]) for k, who in EXAMPLE_BY.items() if k == n], key=lambda c: c[0])
-        his = ([(0, ['odd'])] * (n % 2) + [(two(n), ['two'])] + [(norm(n, p), ['norm', p]) for p in PRIMES if n % p]
+        his = ([(0, ['odd'])] * (n % 2) + [(two(n), ['two'])]
+               + [(residue3(n), ['residue', 3]) for _ in [0] if n % 2 == 0 and n % 3]
+               + [(norm(n, p), ['norm', p]) for p in PRIMES if n % p]
                + [(m - 1, ['residue', chain[-1]]) for k, (m, chain, _) in RESIDUE.items() if k == n]
                + [(hi, ['proof', file]) for k, (hi, file) in PROOFS.items() if k == n]
                + [(prop44(n), ['prop44'])]

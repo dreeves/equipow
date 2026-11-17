@@ -370,7 +370,9 @@ def q_small_k_agree_with_mstar():
         lo, hi, lw, hw = mstar_disk()[2 ** k - 1]
         assert cols()[k - 1][:2] == [lo, hi] and cols()[k - 1][3] == ['mstar', hw], (k, cols()[k - 1], mstar_disk()[2 ** k - 1])
         assert k >= 10 or (lo == hi == k and cols()[k - 1][2] == ['thue-morse']), (k, lo, hi)
-    assert cols()[9] == [11, 11, ['joins', [[[1024, 11]]]], ['mstar', ['norm', 3]]], cols()[9]
+    # (2026-11-16: the m*(n) chart's reason at 1024 is the residue condition mod 3, which comes before the norm bound
+    # since that day; ['mstar', ['norm', 3]] until then)
+    assert cols()[9] == [11, 11, ['joins', [[[1024, 11]]]], ['mstar', ['residue', 3]]], cols()[9]
     assert cols()[10] == [12, 12, ['joins', [[[1024, 11], [2, 1]]]], ['mstar', ['residue', 3]]], cols()[10]
 
 
@@ -397,18 +399,19 @@ def q_every_hi_recomputes():
     # and hi = norm_here(2^k, p), the least over those primes (ties to the least p); ["residue", chain]: the claim
     # pow2.RESIDUE[k] = (hi + 1, chain, sweep), its order below every norm bound (it lowers hi), and its chain run by
     # q_residue_claims.
+    # Spec change (Fable 5.2, 2026-11-16; dreeves: "ok, go ahead with breaking ties in favor of the mod-3 argument",
+    # then "i approve the corresponding qual changes"): past the m*(n) chart every column's reason is
+    # ["residue", [3]], the residue condition mod 3 in closed form (mstar.residue3), which comes before the norm
+    # bound and is at most every norm bound here (it implies the one for 3, the least of them); its enumeration is
+    # q_residue_condition_mod_3_matches_the_enumeration's.  Until then: ["norm", p] with the least norm bound, or
+    # ["residue", chain], a claim of pow2.RESIDUE, where that gave less.
     for k, (lo, hi, lw, hw) in enumerate(cols(), 1):
         norms = [(norm_here(2 ** k, p), p) for p in pow2.NORM_PRIMES]
         assert (hw[0] == 'mstar') == (2 ** k <= mstar.NMAX), (k, hw)
         if hw[0] == 'mstar':
             assert [hi, hw[1]] == [mstar_disk()[2 ** k - 1][1], mstar_disk()[2 ** k - 1][3]], (k, hw)
-        elif hw[0] == 'norm':
-            assert len(hw) == 2 and (hi, hw[1]) == min(norms), (k, hw, min(norms))
-            assert k not in pow2.RESIDUE, k
         else:
-            assert hw[0] == 'residue' and len(hw) == 2, (k, hw)
-            m, chain, sweep = pow2.RESIDUE[k]
-            assert m == hi + 1 and list(chain) == hw[1] and hi < min(norms)[0], (k, hw, pow2.RESIDUE[k])
+            assert hw == ['residue', [3]] and hi == mstar.residue3(2 ** k) <= min(norms)[0] == norm_here(2 ** k, 3), (k, hw, hi, min(norms))
 
 
 def q_larger_primes_weaker():
@@ -435,27 +438,33 @@ def q_norm_never_below_a_known_order():
 
 
 def q_mod3_residue_lowers_hi_at_32_columns():
-    # Replicata (regression): pow2.RESIDUE and pow2.js's hiWhy and hi.
-    # Expectata: the residue condition mod 3 at the order the norm bound for 3 allows, pow2.norm(2^k, 3), leaves no
-    # admissible vector at exactly these 32 k (found by the verification of the 2026-10-12 update; q_residue_claims
-    # enumerates each), so there hi is one less, with hiWhy ["residue", [3]]; elsewhere past the m*(n) chart's columns
-    # (2^k > mstar.NMAX) it stays the norm bound.
+    # Replicata (regression): pow2.js's hiWhy and hi past the m*(n) chart's columns (2^k > mstar.NMAX).
+    # Expectata: the residue condition mod 3 leaves no admissible vector at the order the norm bound for 3 allows,
+    # pow2.norm(2^k, 3), at exactly these 32 k (found by the verification of the 2026-10-12 update), so there hi is one
+    # less; elsewhere hi is the norm bound's own value.
+    # Spec change (2026-11-16; q_every_hi_recomputes has dreeves's words): the reason is ["residue", [3]] at every such
+    # k, the closed form (mstar.residue3) coming before the norm bound; until then ["residue", [3]] at these 32 k,
+    # each a claim of pow2.RESIDUE, which is gone, and ["norm", 3] elsewhere.
     K = (11, 12, 14, 15, 18, 19, 20, 22, 23, 26, 30, 31, 33, 34, 37, 38, 39, 41, 42, 45, 49, 50, 53, 56, 57, 58, 60, 61,
          64, 68, 69, 72)
-    assert sorted(pow2.RESIDUE) == list(K), sorted(pow2.RESIDUE)
-    assert all(pow2.RESIDUE[k] == (pow2.norm(2 ** k, 3), (3,), 'digits') for k in K)
     for k, (lo, hi, lw, hw) in enumerate(cols(), 1):
+        assert mstar.residue3(2 ** k) == pow2.norm(2 ** k, 3) - (k in K) or k < 11, (k, mstar.residue3(2 ** k))
         if 2 ** k <= mstar.NMAX: continue
-        assert (hw, hi) == ((['residue', [3]], pow2.norm(2 ** k, 3) - 1) if k in K else (['norm', 3], pow2.norm(2 ** k, 3))), (k, hw, hi)
+        assert (hw, hi) == (['residue', [3]], pow2.norm(2 ** k, 3) - (k in K)), (k, hw, hi)
 
 
-def q_residue_claims():
-    # Replicata: every claim (m, chain, sweep) of pow2.RESIDUE at n = 2^k, enumerated by mstar.chain_none to the end
-    # (cap 10^9 nodes): the 32 claims mod 3 of q_mod3_residue_lowers_hi_at_32_columns, since 2026-10-12.
-    # Expectata: no admissible vector at the last modulus; m - 1 >= lo.
-    for k, (m, chain, sweep) in pow2.RESIDUE.items():
-        assert sweep in mstar.SWEEPS and mstar.chain_none(2 ** k, m, chain, sweep, 10 ** 9), (k, m, chain)
-        assert m - 1 >= cols()[k - 1][0], k
+def q_residue_condition_mod_3_matches_the_enumeration():
+    # Replicata: at every k from 10 to KMAX, mstar.residue3(2^k), the closed form's bound, against mstar.chain_none,
+    # the exhaustive enumeration of the residue lattice mod 3 (cap 10^9 nodes), at that order and at the next.
+    # Expectata: an admissible vector at the bound and none above it, so the bound is the enumeration's too; and it
+    # is at least the column's lo.
+    # Spec change (2026-11-16; q_every_hi_recomputes has dreeves's words): until then q_residue_claims, which ran the
+    # 32 claims of pow2.RESIDUE, each at the order above its bound; the closed form has their place, at every k.
+    for k in range(10, KMAX + 1):
+        hi = mstar.residue3(2 ** k)
+        assert mstar.chain_none(2 ** k, hi + 1, (3,), 'digits', 10 ** 9) is True, (k, hi)
+        assert mstar.chain_none(2 ** k, hi, (3,), 'digits', 10 ** 9) is False, (k, hi)
+        assert hi >= cols()[k - 1][0], k
 
 
 # ---------- the file ----------
@@ -508,6 +517,9 @@ def q_assertions_fire():
     # 1024), ["norm", 2] and ["norm", 9], and ["residue", chain] at a k with no claim.
     # Expectata: AssertionError for each; and the unbroken forms give their orders, ["mstar", ["norm", 3]] at k = 10
     # among them.
+    # Spec change (2026-11-16; q_every_hi_recomputes has dreeves's words): the m*(n) chart's reason at k = 10 is
+    # ["residue", 3], so ["mstar", ["norm", 3]] there is a broken form too; and a residue reason is the closed form of
+    # the single modulus 3, at any k, so the broken one is any other chain.
     assert pow2.join_lo(10, [[[1024, 10]]]) == 10 and pow2.join_lo(10, [[[512, 9]], [[512, 9]]]) == 9
     assert pow2.join_lo(10, [[[1024, 11]]]) == 11 and pow2.join_lo(11, [[[1024, 11], [2, 1]]]) == 12
     for ps in ([[[512, 9]], [[511, 0]]], [[[512, 9]], [[513, 0]]], [[[480, 13], [2, 1]], [[64, 6]]], [[[256, 9], [4, 2]]],
@@ -516,12 +528,13 @@ def q_assertions_fire():
     expect_assertion(lambda: pow2.join_lo(24, [[list(F)]]))
     for w in (['power', 1, 1], ['guess']):
         expect_assertion(lambda: pow2.lo_of(25, w))
-    assert pow2.hi_of(10, ['mstar', ['norm', 3]]) == 11
+    assert pow2.hi_of(10, ['mstar', ['residue', 3]]) == 11 and pow2.hi_of(13, ['residue', [3]]) == 15
+    expect_assertion(lambda: pow2.hi_of(10, ['mstar', ['norm', 3]]))
     expect_assertion(lambda: pow2.hi_of(11, ['mstar', ['norm', 3]]))
     expect_assertion(lambda: pow2.hi_of(10, ['norm', 2]))
     expect_assertion(lambda: pow2.hi_of(10, ['norm', 9]))
-    k = min(set(range(10, KMAX + 1)) - set(pow2.RESIDUE))
-    expect_assertion(lambda: pow2.hi_of(k, ['residue', [3, 9, 27]]))
+    for chain in ([3, 9, 27], [9], [5], []):
+        expect_assertion(lambda: pow2.hi_of(13, ['residue', chain]))
 
 
 def q_refuses_without_assertions():

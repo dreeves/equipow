@@ -35,9 +35,11 @@ lo < k + e <= hi, and red when k + e > hi; E = max over k of (hi - k) + 1, so ro
          products' lengths, and lo the least product order).
   hiWhy  ["mstar", why] (2^k <= mstar.NMAX, so k <= 11 since 2026-11-10, when the m*(n) chart came to reach 2048, k <= 10
          from 2026-10-27, k <= 9 before: mstar.js's hiWhy for n = 2^k,
-         verbatim); ["norm", p] (the norm lemma for the odd
-         prime p); ["residue", chain] (the claim RESIDUE[k]: mstar.py's exhaustive enumeration through the chain of
-         moduli finds no admissible vector at order hi + 1).
+         verbatim); ["residue", [3]] (the residue condition mod 3 in closed form, mstar.residue3, which has no
+         admissible residue sums at order hi + 1: since 2026-11-16 the reason of every column past the m*(n) chart,
+         as it comes before the norm bound, which it implies; until then ["residue", chain] was a claim RESIDUE[k],
+         run through mstar.py's enumeration, at the 32 k where it gave less than the norm bound); ["norm", p] (the
+         norm lemma for the odd prime p).
   When reasons tie, the first of each list wins.
 
 Run:   python3 -B pagegen/pow2.py   (writes pagedata/pow2.js)
@@ -51,7 +53,7 @@ import os, json
 from functools import lru_cache
 from math import prod
 import sympy as sp
-import mstar                                 # read only: the residue enumeration (chain_none), its lemmas, and the
+import mstar                                 # read only: the residue condition mod 3 (residue3), its lemmas, and the
                                              # explicit sequences longer than mstar.js's columns
 
 KMAX = 72
@@ -60,25 +62,19 @@ NORM_PRIMES = tuple(sp.primerange(3, 32))    # the odd primes the norm lemma is 
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # the repository's root, above pagegen/ (this file was at the root until 2026-11-10, dreeves's README [REF])
 MSTAR_JS = os.path.join(HERE, 'pagedata', 'mstar.js')   # the page's data files are in pagedata/ since 2026-11-10 ([REF])
 JS = os.path.join(HERE, 'pagedata', 'pow2.js')
-RESIDUE_CAP = 10 ** 8                        # nodes allowed to the enumeration of one claim
-# RESIDUE[k] = (m, chain, sweep): the claims at n = 2^k, each checked by mstar.chain_none on every run.  Since
-# 2026-10-12 (found by the verification of that day's update, scratch/w560/verify/upper/): at these 32 k the residue
-# condition mod 3 leaves no admissible vector at m = norm(2^k, 3), the order the norm bound for 3 allows, so hi is one
-# less there.  (At k = 11 mstar.js's column 2048 has the same bound by the same condition since 2026-11-10, and comes
-# first among the reasons, so pow2.js gives ["mstar", ["residue", 3]] there; the claim here is still checked.)
+# The residue condition mod 3 at n = 2^k is mstar.residue3's closed form since 2026-11-16 (dreeves, of Stan Wagon's
+# "standard mod-3 argument" for m*(1024) <= 11: "ok, go ahead with breaking ties in favor of the mod-3 argument"), and
+# it comes before the norm bound, as in mstar.py.  Until then RESIDUE[k] = (m, chain, sweep) held 32 claims of the
+# chain (3), each run through mstar.chain_none (found by the verification of 2026-10-12's update,
+# scratch/w560/verify/upper/): at k = 11, 12, 14, 15, 18, 19, 20, 22, 23, 26, 30, 31, 33, 34, 37, 38, 39, 41, 42, 45,
+# 49, 50, 53, 56, 57, 58, 60, 61, 64, 68, 69 and 72 the condition leaves no admissible vector at m = norm(2^k, 3), the
+# order the norm bound for 3 allows, so hi is one less there; at every other k it gives the norm bound's own value.
+# quals_pow2's q_residue_condition_mod_3_matches_the_enumeration still enumerates each column.
 # Tried (scratch/pow2/res/) at 1024, order 11 (the norm bound for 3 allows 11): the chains (3), (3, 9), (4, 8),
 # (4, 8, 16), (5), (7), (11) and (13) each have an admissible vector (mod 3 exactly +-(0, 243, -243), which is
 # x^2 (x-1)^11 mod x^3 - 1); (3, 9, 27) in the sweep 'digits' passed 3 * 10^7 nodes unfinished (660654 admissible
 # vectors mod 9, and each of the first 58 of them alone passed 3 * 10^5 nodes mod 27); (31) and (5, 25) passed
 # 2 * 10^6 nodes unfinished.
-RESIDUE = {11: (13, (3,), 'digits'), 12: (14, (3,), 'digits'), 14: (17, (3,), 'digits'), 15: (18, (3,), 'digits'),
-           18: (22, (3,), 'digits'), 19: (23, (3,), 'digits'), 20: (24, (3,), 'digits'), 22: (27, (3,), 'digits'),
-           23: (28, (3,), 'digits'), 26: (32, (3,), 'digits'), 30: (37, (3,), 'digits'), 31: (38, (3,), 'digits'),
-           33: (41, (3,), 'digits'), 34: (42, (3,), 'digits'), 37: (46, (3,), 'digits'), 38: (47, (3,), 'digits'),
-           39: (48, (3,), 'digits'), 41: (51, (3,), 'digits'), 42: (52, (3,), 'digits'), 45: (56, (3,), 'digits'),
-           49: (61, (3,), 'digits'), 50: (62, (3,), 'digits'), 53: (66, (3,), 'digits'), 56: (70, (3,), 'digits'),
-           57: (71, (3,), 'digits'), 58: (72, (3,), 'digits'), 60: (75, (3,), 'digits'), 61: (76, (3,), 'digits'),
-           64: (80, (3,), 'digits'), 68: (85, (3,), 'digits'), 69: (86, (3,), 'digits'), 72: (90, (3,), 'digits')}
 # BASES[K0]: for each excess e = 1..9, a join of products at 2^K0, each product a list of blocks, of order K0 + e, at
 # the first K0 known to reach e: the docstring's search, over all of mstar.js's blocks (each with a sequence in hand),
 # finds that no K below K0 reaches e = 1..7, exhaustively (scratch/record-20261025/page2/pow2/rescan_e*.out,
@@ -284,17 +280,14 @@ def mstar_hi(k, why):
     return mstar_cols()[2 ** k - 1][1]
 
 
-@lru_cache(maxsize=None)
 def residue_hi(k, chain):
-    """hi from the claim RESIDUE[k], whose chain must be chain: asserts that the enumeration finds no admissible
-    vector, and returns its order minus 1."""
-    assert k in RESIDUE, k
-    m, ch, sweep = RESIDUE[k]
-    assert ch == chain and mstar.chain_none(2 ** k, m, chain, sweep, RESIDUE_CAP), (k, m, chain)
-    return m - 1
+    """hi from the residue condition of the chain, which must be the single modulus 3: mstar.residue3 at 2^k, the
+    closed form (since 2026-11-16; a claim of RESIDUE, enumerated, until then)."""
+    assert chain == [3], (k, chain)
+    return mstar.residue3(2 ** k)
 
 
-HI_RULES = {'mstar': mstar_hi, 'norm': lambda k, p: norm(2 ** k, p), 'residue': lambda k, chain: residue_hi(k, tuple(chain))}
+HI_RULES = {'mstar': mstar_hi, 'residue': residue_hi, 'norm': lambda k, p: norm(2 ** k, p)}
 
 
 def hi_of(k, why): return HI_RULES[why[0]](k, *why[1:])
@@ -305,14 +298,15 @@ def hi_of(k, why): return HI_RULES[why[0]](k, *why[1:])
 @lru_cache(maxsize=None)
 def columns():
     """[lo, hi, loWhy, hiWhy] for k = 1..KMAX (index k-1): lo the best of Thue-Morse and BASES lifted; hi the least of
-    mstar.js's column 2^k (2^k <= mstar.NMAX), the norm lemma for each of NORM_PRIMES and the claim RESIDUE[k].
+    mstar.js's column 2^k (2^k <= mstar.NMAX), the residue condition mod 3 (mstar.residue3) and the norm lemma for
+    each of NORM_PRIMES, the first of them in that order.
     Asserts k <= lo <= hi, that no prime beyond NORM_PRIMES gives a lower norm bound, lo =
     hi = k for k <= 9, and lo and hi equal to mstar.js's wherever 2^k is one of its columns."""
     out = []
     for k in range(1, KMAX + 1):
         los = [['thue-morse']] + [['joins', lifted(ps, k - K0)] for K0, ps in BASES.items() if K0 <= k]
-        his = ([['mstar', c[3]] for n, c in enumerate(mstar_cols(), 1) if n == 2 ** k] + [['norm', p] for p in NORM_PRIMES]
-               + [['residue', list(ch)] for q, (_, ch, _) in RESIDUE.items() if q == k])
+        his = ([['mstar', c[3]] for n, c in enumerate(mstar_cols(), 1) if n == 2 ** k] + [['residue', [3]]]
+               + [['norm', p] for p in NORM_PRIMES])
         lw, hw = max(los, key=lambda w: lo_of(k, w)), min(his, key=lambda w: hi_of(k, w))
         lo, hi = lo_of(k, lw), hi_of(k, hw)
         assert k <= lo <= hi < weak_norm(k), (k, lo, hi, lw, hw)
@@ -333,9 +327,9 @@ def js_text(cols):
 def main():
     cols = columns()
     open(JS, 'w', encoding='utf-8').write(js_text(cols))
-    better = [k for k, c in enumerate(cols, 1) if c[2][0] == 'joins' or c[3][0] == 'residue']
-    # TODO: summary line; says pow2.js was written, its top row, and the columns whose lo is a join or whose hi a residue claim
-    print(f'Claude: "wrote pow2.js: etop {max(c[1] - k for k, c in enumerate(cols, 1)) + 1}; joins or residue at k = {better}"')
+    better = [k for k, c in enumerate(cols, 1) if c[2][0] == 'joins' or c[1] < norm(2 ** k, 3)]
+    # TODO: summary line; says pow2.js was written, its top row, and the columns whose lo is a join or whose hi is below the norm bound for 3
+    print(f'Claude: "wrote pow2.js: etop {max(c[1] - k for k, c in enumerate(cols, 1)) + 1}; joins or below the norm bound for 3 at k = {better}"')
 
 
 if __name__ == '__main__':

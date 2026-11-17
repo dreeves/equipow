@@ -579,9 +579,17 @@ def q_hi_reasons():
     # cited upper value; and hi is the least of all these candidates, the reason the first least in the order odd,
     # two, norm (by p), residue, proof, prop44, table2, page (so a checked one wins every tie with a citation, and
     # prop44, the newest, takes no column from an older test).
+    # Spec change (Fable 5.2, 2026-11-16; dreeves, of Stan Wagon's "standard mod-3 argument" for m*(1024) <= 11, which
+    # needs no root of unity: "ok, go ahead with breaking ties in favor of the mod-3 argument", then "i approve the
+    # corresponding qual changes"): the residue condition mod 3, in closed form (mstar.residue3, at every even n that 3
+    # does not divide), comes right after two and before the norm bound, which at p = 3 it implies; residue 3 is that
+    # closed form's own bound, and no claim of mstar.RESIDUE has the chain (3,) any more (44 had it; one now would be
+    # dead weight, which q_residue_claims refuses).  Until then the
+    # order was odd, two, norm (by p), residue, ..., and every residue M was a claim of mstar.RESIDUE.
     _, got = disk()
     for n, (lo, hi, _, why) in enumerate(got['m']['cols'], 1):
         ranked = ([(0, ['odd'])] * (n % 2) + [(mstar.two(n), ['two'])]
+                  + [(mstar.residue3(n), ['residue', 3]) for _ in [0] if n % 2 == 0 and n % 3]
                   + [(mstar.norm(n, p), ['norm', p]) for p in mstar.PRIMES if n % p]
                   + [(m - 1, ['residue', ch[-1]]) for k, (m, ch, _) in mstar.RESIDUE.items() if k == n]
                   + [(h, ['proof', file]) for k, (h, file) in mstar.PROOFS.items() if k == n]
@@ -593,7 +601,8 @@ def q_hi_reasons():
         if k == 'odd': assert n % 2 and hi == 0
         if k == 'two': assert hi == 2 ** v2(n) - 1
         if k == 'norm': assert sp.isprime(why[1]) and n % why[1] and hi == mstar.norm(n, why[1])
-        if k == 'residue': assert mstar.RESIDUE[n][0] == hi + 1 and mstar.RESIDUE[n][1][-1] == why[1], n
+        if k == 'residue' and why[1] == 3: assert n % 3 and hi == mstar.residue3(n) <= mstar.norm(n, 3), n
+        if k == 'residue' and why[1] != 3: assert mstar.RESIDUE[n][0] == hi + 1 and mstar.RESIDUE[n][1][-1] == why[1], n
         if k == 'proof': assert mstar.PROOFS[n] == (hi, why[1]), n
         if k == 'prop44': assert hi == mstar.prop44(n) == 2 ** v2(n) - 2 and n < 2 ** (2 ** v2(n) - 1), n
         if k == 'table2': assert mstar.TABLE2[n][1] == hi
@@ -671,7 +680,9 @@ def q_gray_columns():
         + [[11, 11, ['example', f'equipow p{n}']] for n in elevens]
     assert got['m']['cols'][240 - 1][2:] == [['example', 'BGPW Table 5'], ['page', 'c']]
     assert got['m']['cols'][560 - 1][2] == ['example', 'equipow p560']
-    assert got['m']['cols'][800 - 1][2:] == [['example', 'equipow p800'], ['norm', 3]]
+    # (2026-11-16: 800's hi by the residue condition mod 3, which comes before the norm bound since that day, a spec
+    # change that q_hi_reasons records; ['norm', 3] until then)
+    assert got['m']['cols'][800 - 1][2:] == [['example', 'equipow p800'], ['residue', 3]]
     assert gray[-1] == 864 and got['m']['cols'][1008 - 1] == [13, 13, ['example', 'equipow p1008'], ['residue', 5]]   # 1008 the last, at 12 to 13, until 2026-11-03
 
 
@@ -703,7 +714,8 @@ def q_results_of_2026_10_26():
     cs = got['m']['cols']
     assert mstar.NEW[752] == (10, 10, 'ca') and cs[752 - 1] == [10, 10, ['example', 'equipow p752'], ['page', 'ca']]
     assert mstar.NEW[784] == (10, 10, 'ca') and cs[784 - 1] == [10, 10, ['example', 'equipow p784'], ['residue', 27]]
-    assert mstar.NEW[832] == (11, 11, 'c') and cs[832 - 1] == [11, 11, ['example', 'equipow p832'], ['norm', 3]]
+    # (2026-11-16: 832's reason is the residue condition mod 3, ahead of the norm bound since that day: q_hi_reasons)
+    assert mstar.NEW[832] == (11, 11, 'c') and cs[832 - 1] == [11, 11, ['example', 'equipow p832'], ['residue', 3]]
 
 
 def q_example_at_1024_is_checked():
@@ -718,11 +730,13 @@ def q_example_at_1024_is_checked():
     ex = {label: a for (n, label), a in mstar.explicit().items() if n == 1024}
     assert set(ex) == {'equipow p1024', 'Thue–Morse'}, sorted(ex)
     assert ex['Thue–Morse'] == mstar.thue_morse(10) and exact_order_div(ex['Thue–Morse']) == 10
-    assert disk()[1]['m']['cols'][1024 - 1] == [11, 11, ['example', 'equipow p1024'], ['norm', 3]]
+    # (2026-11-16: column 1024's reason is the residue condition mod 3, ahead of the norm bound since that day, which
+    # gives the same 11: q_hi_reasons; ["norm", 3] until then)
+    assert disk()[1]['m']['cols'][1024 - 1] == [11, 11, ['example', 'equipow p1024'], ['residue', 3]]
     a = ex['equipow p1024']
     assert exact_order_div(a) == 11 and a[0] == 1, a[:8]
     assert all(a[1023 - i] == -a[i] for i in range(1024))
-    assert mstar.NEW[2 ** 10] == (11, 11, 'c') and mstar.norm(1024, 3) == 11, mstar.NEW.get(2 ** 10)
+    assert mstar.NEW[2 ** 10] == (11, 11, 'c') and mstar.norm(1024, 3) == mstar.residue3(1024) == 11, mstar.NEW.get(2 ** 10)
     assert [mstar.NEW.get(2 ** k) for k in (11, 12)] == [(12, 12, 'c'), (13, 13, 'c')]
 
 
@@ -857,7 +871,8 @@ def q_results_of_2026_11_03():
     # Resultata before: 544 was 9 to 10 (the join 192 + 352), 576 and 624 were 11 to 12, 912 and 1008 were 12 to 13, and 960 was 13 to 15 (2 * 480).
     _, got = disk()
     cs = got['m']['cols']
-    for n, m, hw in ((544, 10, ['norm', 3]), (576, 12, ['residue', 5]), (624, 12, ['residue', 25]), (912, 13, ['residue', 5]),
+    # (2026-11-16: 544's reason is the residue condition mod 3, ahead of the norm bound since that day: q_hi_reasons)
+    for n, m, hw in ((544, 10, ['residue', 3]), (576, 12, ['residue', 5]), (624, 12, ['residue', 25]), (912, 13, ['residue', 5]),
                      (960, 15, ['residue', 7]), (1008, 13, ['residue', 5])):
         assert mstar.NEW[n] == (m, m, 'c'), (n, mstar.NEW[n])
         assert cs[n - 1] == [m, m, ['example', f'equipow p{n}'], hw], (n, cs[n - 1])
@@ -1181,7 +1196,12 @@ def q_residue_controls():
             part[q] += di
         assert part == W and j == -1, (n, M, part, j)
     done = 0
-    for n, (m, chain, sweep) in mstar.RESIDUE.items():
+    # (2026-11-16: the columns whose hi is the residue condition mod 3 in closed form, 44 of them claims (m, (3,), a
+    # sweep) of mstar.RESIDUE until that day, are controlled as the claim (hi + 1, (3,), 'natural'): the enumeration
+    # that q_residue_condition_mod_3_has_its_closed_form holds the closed form to finds each such column's own
+    # sequence at its order)
+    claims = {n: (c[1] + 1, (3,), 'natural') for n, c in enumerate(got['m']['cols'], 1) if c[3] == ['residue', 3]} | mstar.RESIDUE
+    for n, (m, chain, sweep) in claims.items():
         lo, hi, why, _ = got['m']['cols'][n - 1]
         # 1472 (since 2026-11-10, [BOU]): at order 11 the enumeration mod 9 under its join's own vector mod 3 passes
         # 2*10^6 nodes (measured that day); the other 27 claims past 1024 at settled columns find theirs within 18 nodes
@@ -1191,7 +1211,7 @@ def q_residue_controls():
         if n == 624: walk(mstar.build(n), m - 1, 25, 5, sweep)
         done += 1
     assert done >= 15, done
-    for chain, sweep in sorted(set((chain, sweep) for _, chain, sweep in mstar.RESIDUE.values())):
+    for chain, sweep in sorted(set((chain, sweep) for _, chain, sweep in claims.values())):
         for (n, label), a in mstar.explicit().items():
             if n <= 32 and mstar.order(a) >= 3: control(a, mstar.order(a), chain, sweep)
 
@@ -1215,6 +1235,7 @@ def q_residue_claims():
             level = [D for W in level for D in v5_admissible(n, m, M, ((P, counts(n, P, W)),))]
         assert level == [], (n, m, chain)
         assert m - 1 < min([mstar.two(n)] + [mstar.norm(n, p) for p in mstar.PRIMES if n % p]), n
+        assert n % 3 == 0 or m - 1 < mstar.residue3(n), n     # (2026-11-16) nor does the closed form mod 3 give it
         assert m - 1 >= got['m']['cols'][n - 1][0], n
 
 
@@ -1265,15 +1286,21 @@ def q_plus_lattice_keeps_every_vector():
 
 
 def q_residue_condition_mod_3_has_its_closed_form():
-    # Replicata: the closed form that the page's boxes give the residue condition of the single modulus 3
+    # Replicata: (a) the closed form that the page's boxes give the residue condition of the single modulus 3
     # (quals_index.mod3_sums: zero sum, each class's size and parity, D_0 = D_1 = D_2 mod 3^floor(m/2), and
     # 3^floor((m - 1)/2) dividing each D_r), against the plain lattice L(3, m) by brute force (box_in_plain_lattice) at
-    # every n from 2 to 60 and at 124, 126, 128, 244, 250, 256, 488 and 512, at the orders m = 1 to 10; and against
-    # mstar.residue_vectors at every column whose upper bound is ["residue", 3], at its hi and at hi + 1.
-    # Expectata (2026-11-16; dreeves, of the boxes that state it: "yes to mod-3 boxes"): the same vectors every time,
-    # so the closed form is the condition, no weaker and no stronger; at each such column (44 that day) none at hi + 1
-    # and some at hi.  Control: with either exponent one more, or one less, the closed form differs from the lattice
-    # somewhere among the small cases.
+    # every n from 2 to 60 and at 124, 126, 128, 244, 250, 256, 488 and 512, at the orders m = 1 to 10; (b)
+    # mstar.residue3(n), the generator's bound by its own copy of the closed form, at every even n up to NMAX that 3
+    # does not divide, against the bound of quals_index's copy, found here going down from one past the norm bound for
+    # 3; (c) at every column whose upper bound is ["residue", 3], at its hi and at hi + 1, the
+    # closed form's sums against two enumerations of the lattice, mstar.residue_vectors and overnight_v5.admissible.
+    # Expectata (2026-11-16; dreeves, of the boxes that state the closed form: "yes to mod-3 boxes"; and, of that
+    # condition coming before the norm bound: "ok, go ahead with breaking ties in favor of the mod-3 argument"): (a)
+    # the same vectors every time, so the closed form is the condition, no weaker and no stronger; control: with
+    # either exponent one more, or one less, it differs from the lattice somewhere among the small cases; (b) the same
+    # bound, never above the norm bound for 3, which the condition implies; (c) the same vectors by
+    # all three, none at hi + 1 and some at hi, at 76 columns that day (44 were claims of mstar.RESIDUE with the chain
+    # (3,) until then, and the norm bound for 3 held the other 32).
     import quals_index as qi              # read only: mod3_sums, mod3_form (the page's closed form, as its quals have it)
     small = [(n, m) for n in [*range(2, 61), 124, 126, 128, 244, 250, 256, 488, 512] for m in range(1, 11)]
     lattice = {c: box_in_plain_lattice(c[0], 3, c[1]) for c in small}
@@ -1283,13 +1310,20 @@ def q_residue_condition_mod_3_has_its_closed_form():
         differ = [(n, m) for n, m in small if min(m // 2 + da, (m - 1) // 2 + db) >= 0
                   and sorted(qi.mod3_form(n, m // 2 + da, (m - 1) // 2 + db)) != lattice[n, m]]
         assert len(differ) > 10, (da, db, differ)
+    for n in range(2, mstar.NMAX + 1, 2):
+        if n % 3 == 0: continue
+        m = mstar.norm(n, 3) + 1
+        assert qi.mod3_sums(n, m) == [], (n, m)
+        while m and not qi.mod3_sums(n, m): m -= 1
+        assert mstar.residue3(n) == m <= mstar.norm(n, 3), (n, m, mstar.residue3(n))
     _, got = disk()
     claimed = [n for n, c in enumerate(got['m']['cols'], 1) if c[3] == ['residue', 3]]
-    assert len(claimed) > 30, len(claimed)
+    assert len(claimed) > 60, len(claimed)
     for n in claimed:
         hi = got['m']['cols'][n - 1][1]
         for m in (hi, hi + 1):
-            assert sorted(qi.mod3_sums(n, m)) == sorted(mstar.residue_vectors(n, 3, m, None, mstar.Budget(10 ** 7), 'natural')), (n, m)
+            sums = sorted(qi.mod3_sums(n, m))
+            assert sums == sorted(mstar.residue_vectors(n, 3, m, None, mstar.Budget(10 ** 7), 'natural')) == v5_admissible(n, m, 3, ()), (n, m)
         assert qi.mod3_sums(n, hi + 1) == [] and qi.mod3_sums(n, hi) != [], (n, hi)
 
 

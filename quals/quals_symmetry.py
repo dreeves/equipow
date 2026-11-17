@@ -22,8 +22,12 @@ Vocabulary, each term defined once here:
                least (-1)^m-symmetric length of order m that is an odd multiple of period(m - 1), or 0 when period(m)
                is twice period(m - 1); threshold 2A + b, from which wraps give every multiple of period(m).
   excluded     a multiple of period(m) below the threshold whose upper bound on the chart (mstar.js) is below m.
-  own tests    the chart's own proofs of upper bounds: the two lemma, the norm lemma and its residue claims (mstar's
-               two, norm and RESIDUE, which mstar.py reruns as it makes mstar.js).
+  own tests    the chart's own proofs of upper bounds: the two lemma, the residue condition mod 3 in closed form, the
+               norm lemma and its residue claims (mstar's two, residue3, norm and RESIDUE, which mstar.py reruns as it
+               makes mstar.js).  residue3 since 2026-11-16, when it took the place of RESIDUE's 44 claims of the chain
+               (3,) (quals_mstar's q_hi_reasons has dreeves's words); it holds at every even length that 3 does not
+               divide, so past the chart it rules out more lengths than the norm lemma did (orders 13 and 14 keep
+               their largest uncovered lengths, 3664 and 7328: scratch/mod3box-20261116/symtable.py).
 """
 import sys
 sys.dont_write_bytecode = True
@@ -155,8 +159,10 @@ def closure(src, N=N):
 
 
 def own_hi(n):
-    """The chart's own upper bound at n, without its citations: two, norm and the RESIDUE claim at n."""
-    return min([mstar.two(n)] + [mstar.norm(n, p) for p in mstar.PRIMES if n % p]
+    """The chart's own upper bound at n, without its citations: two, the residue condition mod 3 (at an even n that 3
+    does not divide), norm and the RESIDUE claim at n."""
+    return min([mstar.two(n)] + [mstar.residue3(n) for _ in [0] if n % 2 == 0 and n % 3]
+               + [mstar.norm(n, p) for p in mstar.PRIMES if n % p]
                + [m - 1 for k, (m, _, _) in mstar.RESIDUE.items() if k == n])
 
 
