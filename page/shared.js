@@ -244,26 +244,67 @@ const repoURL = path => `https://github.com/dreeves/equipow/blob/main/${path}`; 
 const repoFile = path => linked(repoURL(path), path);             // a link to it, worded by its path
 // The class sizes s_r of 0..n-1 mod M, r = 0..M-1, for a BigInt n: BigInts.
 const classSizes = (n, M) => Array.from({length: M}, (_, r) => (n - BigInt(r) + BigInt(M) - 1n) / BigInt(M));
-// The math that a residue box gains where its chain's condition has a closed form, by the chain's moduli, joined
-// (Fable 5.2, 2026-11-16; dreeves: "yes to mod-3 boxes"), so that the box can be checked by hand, as the norm bound's
-// can.  The single modulus 3 has one: (x - 1)^m divides sum D_r x^r mod x^3 - 1 exactly when D_0 + D_1 + D_2 = 0,
+// A template's content filled, without filled's frame: words that end one part differently by case, for a slot of
+// another template, kept in the page's templates as every part's words are (2026-11-16).
+const phrase = (name, values) => [...filled(name, values).childNodes];
+// A residue box's part, by its chain's moduli, joined.  A chain with no closed form gets the residue template with its
+// end check-search: an exhaustive search, by the program that made the claim, linked (searchedPart).  The single
+// modulus 3 has a closed form (Fable 5.2, 2026-11-16; dreeves: "yes to mod-3 boxes"), so that its box can be checked by
+// hand, as the norm bound's can: (x - 1)^m divides sum D_r x^r mod x^3 - 1 exactly when D_0 + D_1 + D_2 = 0,
 // D_0 = D_1 = D_2 mod 3^a and 3^b divides each D_r, for a = floor(m/2) and b = floor((m - 1)/2).  (From (x - 1)^2 =
 // (1 + x + x^2) - 3x: mod x^3 - 1 the first term times x - 1 is 0, so each factor (x - 1)^2 past the first is a
 // factor -3x; quals_mstar's q_residue_condition_mod_3_has_its_closed_form holds the two to each other.)  At the
-// length n and the order m the box then gets sizes, the three class sizes in digits, and closed, in parentheses,
-// that closed form with its exponents, then each power of 3 once in digits (a = b at an odd m).  No words.  Every
-// other chain gets neither (NO_CLOSED_FORM), and its box reads as it did: the one branch here.
-const CLOSED_FORM = {
-  3: (n, m) => {
-    const a = Math.floor(m / 2), b = Math.floor((m - 1) / 2);
-    return {
-      sizes: [' = ', bigNum(classSizes(n, 3).map(s => s.toLocaleString('en-US')).join(', '))],
-      closed: [` (\\(\\Leftrightarrow D_0 + D_1 + D_2 = 0\\), \\(D_0 \\equiv D_1 \\equiv D_2 \\pmod{3^{${a}}}\\), \\(3^{${b}} \\mid D_r\\); `,
-        ...[...new Set([a, b])].flatMap((e, i) => [`${i ? ', ' : ''}\\(3^{${e}} =\\) `, bigNum(3n ** BigInt(e))]), ')'],
-    };
-  },
+// length n and the order m its box gets sizes, the three class sizes in digits, and closed, in parentheses, that
+// closed form with its exponents, then each power of 3 once in digits (a = b at an odd m); and since that evening
+// (Opus 5.5; dreeves: "are you still referring to "an exhaustive search" and linking to a python program when you
+// could instead give a couple lines of mathematica like stan did?", then "ok go") its end check-mathematica, a line of
+// Mathematica that tries every triple the closed form allows, in place of the search (closedPart).  Where Stan
+// Wagon's argument rules that order out (stanHolds), the box is his words instead, then his check of all pairs as a
+// line of Mathematica (stanPart): the one branch the lines and his words added, besides this table's.  Each gives
+// its box's parts, a list.
+const RESIDUE_PART = {3: (n, name, hi) => (stanHolds(n, hi + 1) ? stanPart : closedPart)(n, name, hi)};
+const residueSlots = (name, hi, moduli) => ({bound: bound(name, 'le', hi), M: `\\(M = ${moduli.join(', ')}\\)`, m: `\\(m = ${hi + 1}\\)`});
+const searchedPart = (n, name, hi, source, moduli) => [filled('proof-residue', {...residueSlots(name, hi, moduli), sizes: '', closed: '',
+  check: phrase('check-search', {source: repoFile(source)})})];
+const closedPart = (n, name, hi) => {
+  const m = hi + 1, a = Math.floor(m / 2), b = Math.floor((m - 1) / 2), sizes = classSizes(n, 3);
+  return [filled('proof-residue', {...residueSlots(name, hi, [3]),
+    sizes: [' = ', bigNum(sizes.map(s => s.toLocaleString('en-US')).join(', '))],
+    closed: [` (\\(\\Leftrightarrow D_0 + D_1 + D_2 = 0\\), \\(D_0 \\equiv D_1 \\equiv D_2 \\pmod{3^{${a}}}\\), \\(3^{${b}} \\mid D_r\\); `,
+      ...[...new Set([a, b])].flatMap((e, i) => [`${i ? ', ' : ''}\\(3^{${e}} =\\) `, bigNum(3n ** BigInt(e))]), ')'],
+    check: phrase('check-mathematica', {line: mod3Line(sizes, a, b)})})];
 };
-const NO_CLOSED_FORM = () => ({sizes: '', closed: ''});
+// The line of Mathematica for the class sizes mod 3, sizes (BigInts), and the exponents a and b: the multiples of 3^b
+// within each size, every triple of them, and of those the ones of zero sum, each of its size's parity, all congruent
+// to the first mod 3^a: the closed form's triples (quals_index's mod3_line, whose quals run it: {} at each box's order,
+// and one order lower the sums Python finds).
+const mod3Line = (sizes, a, b) => `s = {${sizes.join(', ')}}; Select[Tuples[3^${b} Range[-Quotient[s, 3^${b}], Quotient[s, 3^${b}]]], ` +
+  `Total[#] == 0 && Mod[# - s, 2] == {0, 0, 0} && Mod[# - #[[1]], 3^${a}] == {0, 0, 0} &]`;
+// Whether Stan Wagon's argument (his note of 2026-11-16, that m*(1024) <= 11) rules out the order m at the length n, a
+// BigInt: m even, so that BGPW's Proposition 4.3 (r = 0) makes the three class sums congruent mod 3^(m/2); the classes
+// 0 and 2 of sizes of different parities, so of sums of different parities; and those sizes adding to less than
+// 3^(m/2), the most the two sums can differ by, so that the congruence makes them equal (quals_index's stan_holds).
+const stanHolds = (n, m) => { const [s0, , s2] = classSizes(n, 3); return m % 2 === 0 && (s0 + s2) % 2n === 1n && s0 + s2 < 3n ** BigInt(m / 2); };
+// His words, the template proof-stan, with the length's numbers where his hold 1024's (dreeves: "could you use stan's
+// exact words (mutatis mutandis)", then "ok go"): m*(n) >= m supposed, m = s(p - 1) + r = 2s + r, s = m/2, the
+// modulus 3^s, the range [0, n - 1], the class sizes, and the even of the classes 0 and 2 with its size, then the odd
+// one.  His numbers are digits, as his are, with no commas: in "[0, 1023]" and "(342, 341, 341)" a comma separates.
+// His part is marked data-quote, a quotation of someone else's, where the box's quote of Claude stops (chartPanel).
+// Then (dreeves: "why no mathematica code for the 1024:12 cell?", then "yeah, add the mathematica line") the
+// template proof-pairs, Claude's English: his check of all pairs, which his note gave as a list of every pair of the
+// two ranges, asked of Mathematica as integer constraints, so that it runs at every size (stanLine).
+const stanPart = (n, name, hi) => {
+  const m = hi + 1, s = m / 2, sizes = classSizes(n, 3), e = 2 * Number(sizes[0] % 2n), digits = x => bigNum(String(x));
+  const his = filled('proof-stan', {bound: bound(name, 'le', hi), suppose: `\\(m^*(${name}) \\ge ${m}\\)`,
+    split: `\\(${m} = s(p - 1) + r\\)`, two: `\\(${m} = 2s + r\\)`, s: `\\(s = ${s}\\)`, mod: [`\\(3^{${s}} =\\) `, digits(3n ** BigInt(s))],
+    last: digits(n - 1n), sizes: digits(`(${sizes.join(', ')})`), even: `\\(d_{3,${e}}\\)`, size: digits(sizes[e]), odd: `\\(d_{3,${2 - e}}\\)`});
+  his.toggleAttribute('data-quote', true);
+  return [his, filled('proof-pairs', {line: stanLine(s, sizes[e], sizes[2 - e])})];
+};
+// The line: no x within the even class's size a and y within the odd class's size b, distinct and congruent mod 3^s,
+// that is x - y = 3^s k with k not 0; Reduce gives False exactly when there are none (quals_index's stan_line, whose
+// quals run it, and one power of 3 lower, where it gives pairs).
+const stanLine = (s, a, b) => `Reduce[{x - y == 3^${s} k, k != 0, -${a} <= x <= ${a}, -${b} <= y <= ${b}}, {x, y, k}, Integers]`;
 const PROOF = {
   odd: (n, name, hi) => shown([filled('proof-odd', {bound: bound(name, 'le', hi), n: `\\(${name} \\equiv 1 \\pmod 2\\)`})]),
   two: (n, name, hi) => {
@@ -279,9 +320,7 @@ const PROOF = {
       sizes: bigNum(sizes.map(s => s.toLocaleString('en-US')).join(', ')), squares: bigNum(squares), m: `\\(m = ${m}\\)`,
       pm: `\\(p^m = ${p}^{${m}} =\\)`, pmv: bigNum(P ** BigInt(m)), cap: bigNum((P * squares) ** h / (P - 1n) ** h)})]);
   },
-  residue: (n, name, hi, source, ...moduli) => shown([filled('proof-residue', {bound: bound(name, 'le', hi),
-    M: `\\(M = ${moduli.join(', ')}\\)`, m: `\\(m = ${hi + 1}\\)`, source: repoFile(source),
-    ...(CLOSED_FORM[moduli.join()] ?? NO_CLOSED_FORM)(n, hi + 1)})]),
+  residue: (n, name, hi, source, ...moduli) => shown((RESIDUE_PART[moduli.join()] ?? searchedPart)(n, name, hi, source, moduli)),
   file: (n, name, hi, path) => shown([filled('proof-file', {bound: bound(name, 'le', hi), file: repoFile(path)})]),
   // BGPW's Proposition 4.4 (2026-11-11), for the length n = 2^t u, u odd, below 2^(2^t - 1): order m = 2^t - 1, which is
   // hi + 1, would make |f(-1)|, the alternating sum's absolute value, at least 2^m, which is more than n, and |f(-1)| is
@@ -374,7 +413,8 @@ const searches = (n, m) => {
 // {kind, heading, parts, entries}; and pin(targets), which has the chart outline the targets, none or one.  The
 // entries it shows go below its parts, in its [data-panel-entries], each moved there from wherever it is: its place in
 // the list or the other chart's box, which then shows none; a copy of a code goes when the box shows the code itself,
-// in an entry; and its quote of Claude opens at its first part of Claude's English and closes at its last.  It returns
+// in an entry; and its quote of Claude opens at its first part of Claude's English and closes at its last (since
+// 2026-11-16, in each run of parts between parts that quote someone else, data-quote: Stan Wagon's).  It returns
 // open(target), which opens the box of the target, as panZoom's open does.
 function chartPanel({region, chart, ncol, nrow, fragment, fill, pin}) {
   const title = region.querySelector('[data-panel-title]'), body = region.querySelector('[data-panel-body]');
@@ -386,9 +426,15 @@ function chartPanel({region, chart, ncol, nrow, fragment, fill, pin}) {
     back();
     shelf.append(...lengths.flatMap(entries));
     const held = [...shelf.querySelectorAll('code[id]')].map(c => c.id), kept = parts.filter(p => !held.includes(p.dataset.copy));
-    const ps = kept.filter(p => p.hasAttribute('data-claude')).flatMap(e => [...e.querySelectorAll('p')]);   // Claude's English, quoted
-    ps.slice(0, 1).forEach(p => p.prepend('Opus 5.5: “'));   // Opus 5.5 for Claude since dreeves's rename of 2026-11-09, as in the page's own text
-    ps.slice(-1).forEach(p => p.append('”'));
+    // Claude's English, quoted: one quote from the first paragraph of its parts to the last, in each run of parts between
+    // parts that quote someone else (data-quote: Stan Wagon's words, since 2026-11-16), so that no quote of Claude's
+    // holds another's; a box with no such part is one run, as every box was until then
+    const runs = [[]];
+    kept.forEach(p => p.hasAttribute('data-quote') ? runs.push([]) : runs.at(-1).push(p));
+    for (const ps of runs.map(run => run.filter(p => p.hasAttribute('data-claude')).flatMap(e => [...e.querySelectorAll('p')]))) {
+      ps.slice(0, 1).forEach(p => p.prepend('Opus 5.5: “'));   // Opus 5.5 for Claude since dreeves's rename of 2026-11-09, as in the page's own text
+      ps.slice(-1).forEach(p => p.append('”'));
+    }
     region.dataset.kind = kind;
     title.replaceChildren(...heading);
     body.replaceChildren(...kept);

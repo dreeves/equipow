@@ -952,6 +952,7 @@ function panelReport(id = 'mstar-panel') {
           kind: region.dataset.kind ?? null,
           parts: [...c.querySelectorAll('[data-panel-body] > [data-why]')].map(e => [e.dataset.why, e.textContent.replace(/\s+/g, ' ').trim(),
                                                                                     e.hasAttribute('data-claude')]),
+          codes: [...c.querySelectorAll('[data-panel-body] code')].map(e => e.textContent.replace(/\s+/g, ' ').trim()),   // its code elements' texts (2026-11-16)
           copies: [...c.querySelectorAll('[data-panel-body] [data-join]')].map(e => [e.dataset.join, e.dataset.order, e.getAttribute('role'), e.textContent]),
           constructions: [...c.querySelectorAll('[data-panel-body] [data-construction]')].map(e => [e.dataset.construction, e.getAttribute('role'),
                                                                                                     e.textContent.trim()])};
@@ -4456,7 +4457,9 @@ def panel_says(cols, n, P):
     t2 = (n & -n).bit_length() - 1
     says += {'two': [('t', f'\\(n = 2^{{{t2}}} \\cdot {n >> t2}\\)' in t and f'\\(m \\le 2^{{{t2}}} - 1 = {hi}\\)' in t)],
              'norm': [('p', f'\\(p = {harg} \\nmid n\\)' in t)],
-             'residue': [('M', f'\\(M = {harg}\\)' in t and 'mstar.py' in t)],
+             # (spec change, 2026-11-16 evening, dreeves's "ok go": until then the modulus and mstar.py, linked, in
+             # every residue box; since, at the single modulus 3, Stan Wagon's numbers or the line of Mathematica)
+             'residue': [('M', residue_said(n, str(n), hi, str(harg), 'mstar.py', t))],
              # (2026-11-11) n factored, the power of 2 that order hi + 1 would need of |f(-1)|, and the citation's link
              'prop44': [('t', f'\\(n = 2^{{{t2}}} \\cdot {n >> t2}\\)' in t and f'2^{{{hi + 1}}} = ' in t),
                         ('cited', PROP44 in P['links'])],
@@ -4497,16 +4500,27 @@ def q_panel_works_out_the_mod_3_argument_at_1024():
     # 341, 3^12 = 531,441 and the cap 524,289 (= 2^19 + 1), so order 12 fails by 1.4%"; since 2026-11-04, [CEL], the
     # one inequality p^m <= the cap with those numbers).  The norm bound gives the same 11 there, and the residue
     # condition mod 3, which implies it, now comes first.
+    # Spec change (2026-11-16 evening; dreeves, of Stan's note: "could you use stan's exact words (mutatis mutandis)
+    # from the screenshot above?", then "ok go"): the box gives Stan's own argument, his numbers: m*(1024) >= 12 supposed
+    # (his "= 12", a bound above, as his argument needs only order 12), 12 = s(p - 1) + r = 2s + r with s = 6 and
+    # r = 0, the modulus 3^6 = 729, the range [0, 1023], the sizes (342, 341, 341), d_3,0 even as a + b = 342, and
+    # d_3,2 odd.  Until then the closed form's numbers: the sizes and, at m = 12, D_0 + D_1 + D_2 = 0,
+    # D_0 = D_1 = D_2 mod 3^6 and 3^5 dividing each D_r, with 3^6 = 729 and 3^5 = 243.
     # Resultata before: no panel.
     R = valid_run('fragment')
     t = R['fragment']['text']
-    assert mstar_data()['cols'][1024 - 1][3] == ['residue', 3]
-    assert 342 + 341 == 683 < 3 ** 6 == 729 and 3 ** 5 == 243 and (342 - 341) % 2 == 1 and mod3_sums(1024, 12) == [] != mod3_sums(1024, 11)
-    for said in ('= 342, 341, 341;', '\\(m = 12\\) (\\(\\Leftrightarrow D_0 + D_1 + D_2 = 0\\), \\(D_0 \\equiv D_1 \\equiv D_2 \\pmod{3^{6}}\\), '
-                 '\\(3^{5} \\mid D_r\\); \\(3^{6} =\\) 729, \\(3^{5} =\\) 243)'):
-        assert among(said, t), (said, t)
-    assert mod3_said(1024, 12) == ['= 342, 341, 341;', '\\(m = 12\\) (\\(\\Leftrightarrow D_0 + D_1 + D_2 = 0\\), \\(D_0 \\equiv D_1 \\equiv D_2 \\pmod{3^{6}}\\), '
-                                    '\\(3^{5} \\mid D_r\\); \\(3^{6} =\\) 729, \\(3^{5} =\\) 243)']
+    assert mstar_data()['cols'][1024 - 1][3] == ['residue', 3] and stan_holds(1024, 12)
+    assert 342 + 341 == 683 < 3 ** 6 == 729 and (342 - 341) % 2 == 1 and mod3_sums(1024, 12) == [] != mod3_sums(1024, 11)
+    said = ['\\(m^*(1024) \\ge 12\\)', '\\(12 = s(p - 1) + r\\) gives \\(12 = 2s + r\\), so \\(s = 6\\) and \\(r = 0\\)',
+            '(mod \\(3^{6} =\\) 729)', '[0, 1023] are (342, 341, 341), so \\(d_{3,0}\\), being a difference \\(a - b\\) '
+            'where \\(a + b =\\) 342, is even; similarly \\(d_{3,2}\\) is odd']
+    for x in said:
+        assert among(x, t), (x, t)
+    assert stan_said(1024, 12, '1024') == said
+    # (later that evening, dreeves: "why no mathematica code for the 1024:12 cell?", then "yeah, add the mathematica
+    # line": his check of all pairs, asked as integer constraints, follows his words)
+    line = 'Reduce[{x - y == 3^6 k, k != 0, -342 <= x <= 342, -341 <= y <= 341}, {x, y, k}, Integers]'
+    assert stan_line(1024, 12) == line and line in t, t
 
 
 def q_every_column_s_panel_shows_exactly_its_reasons():
@@ -4537,9 +4551,11 @@ def q_every_column_s_panel_shows_exactly_its_reasons():
     # program, proof-prop44 and proof-file too)
     # (2026-11-16: proof-norm no longer among them: the residue condition mod 3 comes before the norm bound since that
     # day and holds every column that the norm bound for 3 held, the only norm bound the page's columns used)
-    assert {'witness-example', 'witness-construction', 'proof-two', 'proof-residue', 'proof-table2',
+    # (2026-11-16 evening, dreeves's "ok go": proof-stan, Stan Wagon's words, at the residue condition mod 3 where his
+    # argument holds, box_parts; and after it proof-pairs, his check of all pairs in Mathematica)
+    assert {'witness-example', 'witness-construction', 'proof-two', 'proof-residue', 'proof-stan', 'proof-pairs', 'proof-table2',
             'proof-page', 'proof-prop44', 'proof-file'} <= kinds <= {*WITNESSES.values(), 'witness-code',
-                                                                     *PROOF_PARTS.values()} - {'proof-odd'}, kinds
+                                                                     *PROOF_PARTS.values(), 'proof-stan', 'proof-pairs'} - {'proof-odd'}, kinds
 
 
 def q_norm_panels_work_out_their_numbers():
@@ -4602,6 +4618,152 @@ def mod3_said(n, m):
             f'\\(3^{{{b}}} \\mid D_r\\); ' + ', '.join(f'\\(3^{{{e}}} =\\) {3 ** e:,}' for e in dict.fromkeys([a, b])) + ')']
 
 
+def mod3_line(n, m):
+    """The line of Mathematica that a residue box of the single modulus 3 ends with where Stan Wagon's argument does not
+    decide its order (2026-11-16; dreeves: "are you still referring to "an exhaustive search" and linking to a python
+    program when you could instead give a couple lines of mathematica like stan did?"), for the length n at the order
+    m: s the class sizes; the multiples of 3^b within each size, every triple of them, and of those the triples of zero
+    sum, each of its class size's parity, all congruent to the first mod 3^a, for a = floor(m/2) and b = floor((m - 1)/2):
+    mod3_said's closed form, so that it gives {} exactly when mod3_sums(n, m) is empty, as mathematica_sums runs it."""
+    a, b = m // 2, (m - 1) // 2
+    s = [(n - r + 2) // 3 for r in range(3)]
+    return (f's = {{{s[0]}, {s[1]}, {s[2]}}}; Select[Tuples[3^{b} Range[-Quotient[s, 3^{b}], Quotient[s, 3^{b}]]], '
+            f'Total[#] == 0 && Mod[# - s, 2] == {{0, 0, 0}} && Mod[# - #[[1]], 3^{a}] == {{0, 0, 0}} &]')
+
+
+def mathematica_values(lines):
+    """What each line of Mathematica in lines gives, as InputForm text, all in one wolframscript run (a licensed local
+    kernel; about 2 s for 290 lines)."""
+    with tempfile.NamedTemporaryFile('w', suffix='.wl', delete=False) as f:
+        f.write(''.join(f'Print[ToString[InputForm[({line})]]]\n' for line in lines))
+    try:
+        p = subprocess.run(['wolframscript', '-file', f.name], capture_output=True, text=True, timeout=600)
+    finally:
+        os.unlink(f.name)
+    assert p.returncode == 0 and p.stderr.strip() == '', (p.returncode, p.stderr[-2000:])
+    out = p.stdout.splitlines()
+    assert len(out) == len(lines), (len(out), len(lines), out[:3])
+    return out
+
+
+def mathematica_sums(cases):
+    """What mod3_line(n, m) gives in Mathematica for each (n, m) of cases (mathematica_values): for each, its triples,
+    as a sorted list of tuples."""
+    return [sorted(tuple(t) for t in json.loads(line.replace('{', '[').replace('}', ']')))
+            for line in mathematica_values([mod3_line(n, m) for n, m in cases])]
+
+
+def stan_line(n, m):
+    """The line of Mathematica after Stan Wagon's words in a box his argument settles (2026-11-16; dreeves, of the box of
+    1024:12: "why no mathematica code for the 1024:12 cell?", then "yeah, add the mathematica line"): his check of all
+    pairs (his line selects, from the even class's range and the odd class's, the distinct pairs congruent mod 3^s),
+    asked as integer constraints, so that it runs at every size: x - y = 3^s k with k not 0, x within the even class's
+    size and y within the odd class's.  Reduce gives False exactly when no such pair exists (mathematica_values runs it;
+    at m - 2, one power of 3 lower, it does not)."""
+    s, sizes = m // 2, [(n - r + 2) // 3 for r in range(3)]
+    e = 2 * (sizes[0] % 2)
+    a, b = sizes[e], sizes[2 - e]
+    return f'Reduce[{{x - y == 3^{s} k, k != 0, -{a} <= x <= {a}, -{b} <= y <= {b}}}, {{x, y, k}}, Integers]'
+
+
+def stan_holds(n, m):
+    """Whether Stan Wagon's argument (his note of 2026-11-16 that m*(1024) <= 11) rules out the order m at the length n,
+    as the page's boxes take it (dreeves: "could you use stan's exact words (mutatis mutandis)", then "ok go" to them
+    where they hold): m even, so that BGPW's Proposition 4.3 (r = 0) makes the three class sums congruent mod 3^(m/2);
+    classes 0 and 2 of sizes of different parities, so sums of different parities; and those sizes adding to less
+    than 3^(m/2), the most the two sums can differ by, so that the congruence makes them equal."""
+    s0, s2 = (n + 2) // 3, n // 3
+    return m % 2 == 0 and (s0 + s2) % 2 == 1 and s0 + s2 < 3 ** (m // 2)
+
+
+def stan_said(n, m, name):
+    """The numbers of Stan Wagon's argument for the length n, named name in TeX, at the order m, which a box that gives
+    his words holds (among, so his words themselves are not held): the supposition m*(n) >= m (his = 12 at 1024, a
+    bound above, as his argument needs only order m); m split as s(p - 1) + r = 2s + r, s = m/2 and r = 0; the modulus
+    3^s in digits; the range [0, n - 1], the class sizes, and the even one of the classes 0 and 2 with its size, then
+    the odd one."""
+    s, sizes = m // 2, [(n - r + 2) // 3 for r in range(3)]
+    e = 2 * (sizes[0] % 2)
+    return [f'\\(m^*({name}) \\ge {m}\\)',
+            f'\\({m} = s(p - 1) + r\\) gives \\({m} = 2s + r\\), so \\(s = {s}\\) and \\(r = 0\\)',
+            f'(mod \\(3^{{{s}}} =\\) {3 ** s})',
+            f'[0, {n - 1}] are ({sizes[0]}, {sizes[1]}, {sizes[2]}), so \\(d_{{3,{e}}}\\), being a difference \\(a - b\\) '
+            f'where \\(a + b =\\) {sizes[e]}, is even; similarly \\(d_{{3,{2 - e}}}\\) is odd']
+
+
+def residue_said(n, name, hi, moduli, source, t):
+    """Whether a residue box's text t says its proof's arguments, for the length n named name in TeX, the bound hi, the
+    chain's moduli (as the box writes them, '3' or '3, 9') and its program, source: since 2026-11-16, Stan Wagon's
+    argument with n's numbers where it holds (stan_said), else for the single modulus 3 the modulus and the closed
+    form's line of Mathematica (mod3_line), else the moduli and the program that searched them."""
+    m = hi + 1
+    return (all(among(x, t) for x in stan_said(n, m, name)) and stan_line(n, m) in t if moduli == '3' and stan_holds(n, m)
+            else f'\\(M = {moduli}\\)' in t and (mod3_line(n, m) if moduli == '3' else source) in t)
+
+
+def q_residue_panels_at_3_give_stan_s_words_where_they_hold():
+    # Replicata: the panels run: the panel of each column whose upper bound is the residue condition of the single
+    # modulus 3 and whose order hi + 1 Stan Wagon's argument rules out (stan_holds).
+    # Expectata (dreeves, 2026-11-16, of Stan's note proving m*(1024) <= 11: "could you use stan's exact words (mutatis
+    # mutandis) from the screenshot above?", then "ok go" to his words where they hold and a line of Mathematica
+    # elsewhere): the box's proof is one part, proof-stan, not of Claude's English, a quotation (OPENING): his argument
+    # with its column's numbers (stan_said).  And the argument holds there: m = hi + 1 is even, so the class sums are
+    # congruent mod 3^(m/2); the classes 0 and 2 differ in size by 1, so their sums differ in parity; and their sizes add
+    # to less than 3^(m/2), the most those sums can differ by, so the congruence makes them equal.  The control: every
+    # other column of that modulus fails one of those (q_residue_panels_at_3_give_a_mathematica_line_elsewhere).
+    # Spec change (2026-11-16, later that evening; dreeves: "why no mathematica code for the 1024:12 cell?", then
+    # "yeah, add the mathematica line"): after his part, a part of Claude's English, proof-pairs, quoted by itself, gives
+    # his check of all pairs as a line of Mathematica (stan_line), which, run, gives False; the control: one power of 3
+    # lower, the same line does not.
+    # Resultata before: each such box gave the closed form and "an exhaustive search (pagegen/mstar.py) finds none".
+    R = valid_run('panels')
+    cols = mstar_data()['cols']
+    stan = []
+    for P in R['panels']:
+        n = P['n']
+        lo, hi, lw, hw = cols[n - 1]
+        if hw != ['residue', 3] or not stan_holds(n, hi + 1): continue
+        m, s0, s2 = hi + 1, (n + 2) // 3, n // 3
+        assert m % 2 == 0 and s0 - s2 == 1 and s0 + s2 < 3 ** (m // 2), (n, m)
+        part = [(why, t, c) for why, t, c in P['parts'] if why in ('proof-stan', 'proof-pairs')]
+        assert [(why, c) for why, _, c in part] == [('proof-stan', False), ('proof-pairs', True)], (n, P['parts'])
+        assert all(re.match(OPENING, t) and t.endswith('”') for _, t, _ in part) and stan_line(n, m) in part[1][1], (n, part)
+        for said in stan_said(n, m, str(n)):
+            assert among(said, P['text']), (n, said, P['text'])
+        stan.append((n, m))
+    assert [n for n, _ in stan] == [n for n in COLUMNS if cols[n - 1][3] == ['residue', 3] and stan_holds(n, cols[n - 1][1] + 1)], stan
+    assert (1024, 12) in stan, stan
+    got = mathematica_values([stan_line(n, m) for n, m in stan] + [stan_line(n, m - 2) for n, m in stan])
+    assert got[:len(stan)] == ['False'] * len(stan) and 'False' not in got[len(stan):], got
+
+
+def q_residue_panels_at_3_give_a_mathematica_line_elsewhere():
+    # Replicata: the panels run: the panel of each column whose upper bound is the residue condition of the single
+    # modulus 3 and whose order hi + 1 Stan Wagon's argument does not rule out; and Mathematica (wolframscript), which
+    # runs each box's line.
+    # Expectata (dreeves, 2026-11-16: "are you still referring to "an exhaustive search" and linking to a python program
+    # when you could instead give a couple lines of mathematica like stan did?", then "ok go"): the box ends with the
+    # line of Mathematica for its length at hi + 1 (mod3_line), which gives {} when run; and the control: the same line
+    # at hi gives exactly the residue sums that Python's enumeration of the closed form finds (mod3_sums), never none.
+    # Stan's argument fails at each of these: an odd hi + 1, or classes 0 and 2 of sizes adding to 3^((hi + 1)/2) or
+    # more (at 40, order 6: 14 + 13 = 27).
+    # Resultata before: those boxes ended "an exhaustive search (pagegen/mstar.py) finds none".
+    R = valid_run('panels')
+    cols = mstar_data()['cols']
+    lines = []
+    for P in R['panels']:
+        n = P['n']
+        lo, hi, lw, hw = cols[n - 1]
+        if hw != ['residue', 3] or stan_holds(n, hi + 1): continue
+        assert (hi + 1) % 2 or (n + 2) // 3 + n // 3 >= 3 ** ((hi + 1) // 2), (n, hi)
+        assert mod3_line(n, hi + 1) in P['text'], (n, mod3_line(n, hi + 1), P['text'])
+        lines.append((n, hi))
+    assert len(lines) > 20 and 40 in [n for n, _ in lines], lines
+    got = mathematica_sums([(n, m) for n, hi in lines for m in (hi + 1, hi)])
+    for i, (n, hi) in enumerate(lines):
+        assert got[2 * i] == [] and got[2 * i + 1] == sorted(mod3_sums(n, hi)) != [], (n, hi, got[2 * i:2 * i + 2])
+
+
 def q_residue_panels_at_3_give_the_closed_form():
     # Replicata: the panels run: the panel of each column whose upper bound is the residue condition of the single
     # modulus 3 (mstar.js: ["residue", 3]; 44 of the chart's columns as the page loads).
@@ -4612,18 +4774,21 @@ def q_residue_panels_at_3_give_the_closed_form():
     # (Python's enumeration, mod3_sums): no residue sums meet it at hi + 1, and some do at hi.
     # Resultata before: the condition as (x - 1)^m dividing sum D_r x^r mod x^M - 1 alone and no class sizes, which
     # leaves a reader the search to repeat.
+    # Spec change (2026-11-16, later; dreeves: "could you use stan's exact words (mutatis mutandis)", then "ok go"): only
+    # the boxes whose order Stan Wagon's argument does not rule out (stan_holds) give the closed form; the others give
+    # his words (q_residue_panels_at_3_give_stan_s_words_where_they_hold).
     R = valid_run('panels')
     cols = mstar_data()['cols']
     found = 0
     for P in R['panels']:
         n = P['n']
         lo, hi, lw, hw = cols[n - 1]
-        if hw != ['residue', 3]: continue
+        if hw != ['residue', 3] or stan_holds(n, hi + 1): continue
         assert mod3_sums(n, hi + 1) == [] and mod3_sums(n, hi) != [], (n, hi)
         for said in mod3_said(n, hi + 1):
             assert among(said, P['text']), (n, said, P['text'])
         found += 1
-    assert found == sum(1 for n in COLUMNS if cols[n - 1][3] == ['residue', 3]) > 30, found
+    assert found == sum(1 for n in COLUMNS if cols[n - 1][3] == ['residue', 3] and not stan_holds(n, cols[n - 1][1] + 1)) > 20, found
 
 
 def q_tap_opens_its_cell_s_box():
@@ -4961,7 +5126,11 @@ UNDER = {'exists': 'exists', 'open': 'open', 'ifsym': 'open', 'impossible': 'imp
 BOX_WORDS = 24    # a cell's box's words of Claude's English, at most (q_cell_box_words_stay_within_budget)
 # The boxes' templates of Claude's English (dreeves, 2026-11-04: "we don't need claude attribution for blurbs without
 # words like these"): the others hold math, codes, the data's labels and citations alone
-CLAUDE_TEMPLATES = {'witness-page', 'witness-thue-morse', 'proof-two', 'proof-norm', 'proof-residue', 'proof-page'}
+# (since 2026-11-16 evening, dreeves's "ok go", also the residue box's two endings: an exhaustive search by the chain's
+# program, and the line of Mathematica of the single modulus 3; proof-stan holds Stan Wagon's words, not Claude's; and
+# later that evening proof-pairs, the line of Mathematica after his words)
+CLAUDE_TEMPLATES = {'witness-page', 'witness-thue-morse', 'proof-two', 'proof-norm', 'proof-residue', 'proof-page',
+                    'check-search', 'check-mathematica', 'proof-pairs'}
 
 
 def entry_codes(n):
@@ -4989,18 +5158,27 @@ def box_parts(cols, n, m=None, ifsym=()):
     its proof (proof-KIND), for a red cell, a black one and a column; and a black cell's searches.  A copy goes where the
     box shows the code itself, in the entry that lists n, which a column's box shows, and a cell's whose bound shown is
     one of the page's own (page).  An ifsym cell's (2026-11-11, [SYC]; kind_of with the data's ifsym) is a black cell's
-    with, after the proof, the bound that holds if the Symmetry Conjecture does (proof-ifsym)."""
+    with, after the proof, the bound that holds if the Symmetry Conjecture does (proof-ifsym).  Spec change (2026-11-16
+    evening; dreeves: "could you use stan's exact words (mutatis mutandis)", then "ok go"): the proof of the residue
+    condition of the single modulus 3 is Stan Wagon's words, proof-stan, where his argument holds (stan_holds), and
+    after them (later that evening: "yeah, add the mathematica line") his check of all pairs as a line of Mathematica,
+    proof-pairs."""
     lo, hi, lw, hw = cols[n - 1]
     kind = None if m is None else kind_of(cols, n, m, ifsym)
     witness, proof = SHOWS[kind]
     entry = kind is None or (witness and lw[0] == 'page') or (proof and hw[0] == 'page')
     copy = f'{n}:{lo}' in code_ids() and not (entry and f'{n}:{lo}' in entry_codes(n))
-    return (([WITNESSES[lw[0]]] + ['witness-code'] * copy) * witness + [PROOF_PARTS[hw[0]]] * proof + ['proof-ifsym'] * (kind == 'ifsym')
+    upper = ['proof-stan', 'proof-pairs'] if hw == ['residue', 3] and stan_holds(n, hi + 1) else [PROOF_PARTS[hw[0]]]
+    return (([WITNESSES[lw[0]]] + ['witness-code'] * copy) * witness + upper * proof + ['proof-ifsym'] * (kind == 'ifsym')
             + ['searches'] * (kind in ('open', 'ifsym')))
 
 
-def words(text):
-    """The words of a box's text outside its math, its codes and its numbers: its runs of letters."""
+def words(text, codes=()):
+    """The words of a box's text outside its math, its codes and its numbers: its runs of letters.  Its codes are the
+    page's hex codes and, since 2026-11-16 evening (the residue boxes' line of Mathematica), the texts of its code
+    elements, given as codes (the harness's codes)."""
+    for code in codes:
+        text = text.replace(code, ' ')
     return re.findall(r'[A-Za-z]+', re.sub(r'[0-9A-F]{16,}', ' ', re.sub(r'\\\(.*?\\\)', ' ', text)))
 
 
@@ -5107,7 +5285,8 @@ def q_red_box_works_out_the_proof():
     # sizes 342, 341 and 341 and, at m = 12, the condition's closed form with 3^6 = 729 and 3^5 = 243 (mod3_said;
     # since 2026-11-16, when the residue condition mod 3 came before the norm bound, whose numbers they were until
     # then: p = 3, the squares' sum 349,526, and 3^12 = 531,441, more than the floor 524,289:
-    # q_panel_works_out_the_mod_3_argument_at_1024 has dreeves's words); for 1020 = 2^2 * 255, m <= 2^2 - 1 = 3, with BGPW's Theorem 4.1 linked; for 56, BGPW's Table 2,
+    # q_panel_works_out_the_mod_3_argument_at_1024 has dreeves's words; since 2026-11-16 evening Stan Wagon's argument,
+    # its numbers stan_said, in his words: dreeves's "ok go"); for 1020 = 2^2 * 255, m <= 2^2 - 1 = 3, with BGPW's Theorem 4.1 linked; for 56, BGPW's Table 2,
     # linked; for 240, who proved it, and the remarks' entry of 240 shown in the box, which holds the proof; no witness
     # and no searches.
     # Resultata before: the column's panel, its status sentence, both bounds' sentences and the norm bound's paragraph
@@ -5119,8 +5298,8 @@ def q_red_box_works_out_the_proof():
         opened = re.match(OPENING, B[t]['said'])                         # a quotation of the page's writer, whatever its name
         assert bool(opened) == quoted and B[t]['said'][opened.end() if opened else 0:].startswith(
             f'\\(m^*({t[0]}) \\le {cols[t[0] - 1][1]}\\):'), (t, B[t]['said'])
-    assert cols[1024 - 1][3] == ['residue', 3] and mod3_sums(1024, 12) == [] != mod3_sums(1024, 11)
-    for said in mod3_said(1024, 12):
+    assert cols[1024 - 1][3] == ['residue', 3] and mod3_sums(1024, 12) == [] != mod3_sums(1024, 11) and stan_holds(1024, 12)
+    for said in stan_said(1024, 12, '1024'):
         assert among(said, B[(1024, 12)]['said']), (said, B[(1024, 12)]['said'])
     assert '\\(n = 2^{2} \\cdot 255\\)' in B[(1020, 4)]['said'] and '\\(m \\le 2^{2} - 1 = 3\\)' in B[(1020, 4)]['said'], B[(1020, 4)]['said']
     assert 'https://arxiv.org/html/1912.03491v1#S4.Thmthm1' in B[(1020, 4)]['links'], B[(1020, 4)]['links']
@@ -5229,11 +5408,13 @@ def q_box_fragments_name_cells_and_rows():
     # box of row 16 after #m16; the box of cell (1024, 12) again after #n1024m12.
     # Resultata before: only a column's fragment opened anything.
     F = valid_run('box fragment')['atLoad']
-    assert not F['hidden'] and F['hash'] == '#n1024m12' and F['focus'] and F['kind'] == 'impossible' and F['whys'] == ['proof-residue'], F   # (proof-norm until 2026-11-16)
+    # (proof-norm until 2026-11-16, then proof-residue until that evening, when Stan Wagon's words took the box, and
+    # then his check of all pairs in Mathematica after them: box_parts)
+    assert not F['hidden'] and F['hash'] == '#n1024m12' and F['focus'] and F['kind'] == 'impossible' and F['whys'] == ['proof-stan', 'proof-pairs'], F
     R, _ = boxes_run()
     row, cell = R['hashed']
     assert not row['hidden'] and row['kind'] == 'row' and row['heading'] == '\\(m = 16\\)', row
-    assert not cell['hidden'] and cell['kind'] == 'impossible' and cell['whys'] == ['proof-residue'] and cell['hash'] == '#n1024m12', cell
+    assert not cell['hidden'] and cell['kind'] == 'impossible' and cell['whys'] == ['proof-stan', 'proof-pairs'] and cell['hash'] == '#n1024m12', cell
 
 
 def q_boxes_say_nothing_about_elsewhere():
@@ -5257,8 +5438,21 @@ def quoted_right(parts):
     English, from the start of the first to the end of the last, and not at all without any.  Spec change (Claude,
     2026-11-05): a box's searches, its copy of the Search progress section's runs, are left out, since they carry that
     section's own quotations (Astra's in the chance line, from 2026-11-05 until that line went on 2026-11-06), as the
-    word budget leaves them out."""
-    parts = [p for p in parts if p[0] != 'searches']
+    word budget leaves them out.  Spec change (2026-11-16 evening; dreeves: "ok go" to Stan Wagon's words in the boxes
+    where his argument holds, which carry his name): a box's part proof-stan, his quotation, is left out too.  And
+    (later that evening; "yeah, add the mathematica line" after his words, a part of Claude's English) his part ends
+    a run: the parts before it and those after it each quote Claude once, as above, so that no quote of Claude's holds
+    his; a box without his part is one run, as before."""
+    runs = [[]]
+    for p in parts:
+        if p[0] == 'proof-stan': runs.append([])
+        elif p[0] != 'searches': runs[-1].append(p)
+    return all(quoted_run_right(run) for run in runs)
+
+
+def quoted_run_right(parts):
+    """Whether parts, [(kind, text, whether of Claude's English)], quote Claude once around their parts of Claude's
+    English, from the start of the first to the end of the last, and not at all without any (quoted_right's runs)."""
     claude, text = [i for i, (_, _, c) in enumerate(parts) if c], ''.join(t for _, t, _ in parts)
     return (text.count('“') == text.count('”') == min(1, len(claude))
             and all(re.match(OPENING, parts[i][1]) for i in claude[:1]) and all(parts[i][1].endswith('”') for i in claude[-1:]))
@@ -5371,17 +5565,22 @@ def q_cell_box_words_stay_within_budget():
     # numbers (words), the attribution "Claude", where it has one, and the data's labels among them; the most on
     # 2026-11-04, 19, is a black cell's at 480, 528 and 720, an example's label and the residue condition's proof.
     # Resultata before: the panel that a click on (1024, 12) opened had 121 such words (scratch/reo-step3-20261103/red/).
+    # Spec change (2026-11-16 evening; dreeves: "ok go" to a line of Mathematica in the residue boxes of the modulus 3
+    # and Stan Wagon's words in those his argument settles, both proposed with this change): the words of a box's code
+    # elements are not counted (words' codes), which the budget's "codes" already meant of the hex codes, and nor are
+    # Stan's, his part proof-stan, a person's words and not Claude's English, as its searches are not.  The line alone
+    # has 12 runs of letters (Select, Tuples, …), which took the box of (1024, 12) to 27.
     cols, most = mstar_data()['cols'], []
     for P in valid_run('panels')['panels']:
         n, parts = P['n'], P['parts']
         lo, hi = cols[n - 1][:2]
-        text = {k: ' '.join(unquoted(t) for why, t, _ in parts if why.startswith(k)) for k in ('witness', 'proof')}
+        text = {k: ' '.join(unquoted(t) for why, t, _ in parts if why.startswith(k) and why != 'proof-stan') for k in ('witness', 'proof')}
         claude = {k: any(c for why, _, c in parts if why.startswith(k)) for k in ('witness', 'proof')}
         for kind in [k for k, present in (('exists', lo >= 1), ('open', hi > lo), ('impossible', hi < mstar_data()['mtop'])) if present]:
             shows = SHOWS[kind]                    # the attribution, Claude, is a word where the box has one
-            count = ((claude['witness'] and shows[0]) or (claude['proof'] and shows[1])) + len(words(text['witness'])) * shows[0] + len(words(text['proof'])) * shows[1]
+            count = ((claude['witness'] and shows[0]) or (claude['proof'] and shows[1])) + len(words(text['witness'], P['codes'])) * shows[0] + len(words(text['proof'], P['codes'])) * shows[1]
             most.append((count, n, kind))
-    most += [(len(words(' '.join(text for why, text, _ in P['parts'] if why != 'searches'))), tuple(P['target']), 'clicked')
+    most += [(len(words(' '.join(text for why, text, _ in P['parts'] if why not in ('searches', 'proof-stan')), P['codes'])), tuple(P['target']), 'clicked')
              for P in valid_run('boxes')['boxes'] if None not in P['target']]
     assert max(c for c, *_ in most) <= BOX_WORDS, sorted(most, key=lambda x: x[0])[-5:]
 

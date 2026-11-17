@@ -417,6 +417,7 @@ const PANEL = () => {
     kind: region.dataset.kind ?? null,
     parts: [...c.querySelectorAll('[data-panel-body] > [data-why]')].map(e => [e.dataset.why, e.textContent.replace(/\s+/g, ' ').trim(),
                                                                               e.hasAttribute('data-claude')]),
+    codes: [...c.querySelectorAll('[data-panel-body] code')].map(e => e.textContent.replace(/\s+/g, ' ').trim()),   // its code elements' texts (2026-11-16)
     copies: [...c.querySelectorAll('[data-panel-body] [data-join]')].map(e => [e.dataset.join, e.dataset.order, e.getAttribute('role'), e.textContent]),
     constructions: [...c.querySelectorAll('[data-panel-body] [data-construction]')].map(e => [e.dataset.construction, e.getAttribute('role'),
                                                                                               e.textContent.trim()])};
@@ -1455,15 +1456,20 @@ def pow2_whys(data, k, rows=()):
     red cell, a black one and a column; and a black cell's searches.  Spec change (2026-11-04, dreeves's README items
     [CEL] and [ROC]): until then the kinds of text of the column's one panel: a status per cell clicked, its lower
     bound's reason, and its upper bound's (and its entry's link, the template "entry", until [REO] step 2, 2026-11-03,
-    which moved the entry itself into the panel: quals_index.panel_entries)."""
+    which moved the entry itself into the panel: quals_index.panel_entries).  Spec change (2026-11-16 evening; dreeves:
+    "ok go"): the proof of the residue condition of the single modulus 3 is Stan Wagon's words, proof-stan, where his
+    argument holds (quals_index.stan_holds), as quals_index.box_parts has it, and after it (later that evening: "yeah,
+    add the mathematica line") his check of all pairs as a line of Mathematica, proof-pairs."""
     lo, hi, lw, hw = data['cols'][k - 1]
     kind = KINDS[kind_of(data['cols'][k - 1], k, rows[0])] if rows else None
     witness, proof = qi.SHOWS[kind]
     upper, code = hw[1][0] if hw[0] == 'mstar' else hw[0], f'{2 ** k}:{lo}'
     entry = kind is None or (proof and upper == 'page')
     copy = code in qi.code_ids() and not (entry and code in qi.entry_codes(2 ** k))
+    parts = (['proof-stan', 'proof-pairs'] if hw in (['residue', [3]], ['mstar', ['residue', 3]]) and qi.stan_holds(2 ** k, hi + 1)
+             else [f'proof-{upper}'])
     return (([{'thue-morse': 'witness-thue-morse', 'joins': 'witness-construction'}[lw[0]]] + ['witness-code'] * copy) * witness
-            + [f'proof-{upper}'] * proof + ['searches'] * (kind == 'open'))
+            + parts * proof + ['searches'] * (kind == 'open'))
 
 
 def pow2_says(data, k, P):
@@ -1492,7 +1498,9 @@ def pow2_says(data, k, P):
     moduli = ', '.join(map(str, args[0] if args and isinstance(args[0], list) else args))
     says += {'two': [('t', f'\\(n = 2^{{{k}}} \\cdot 1\\)' in t)],
              'norm': [('p', f'\\(p = {args and args[0]} \\nmid n\\)' in t)],
-             'residue': [('M', f'\\(M = {moduli}\\)' in t and source in t)],
+             # (spec change, 2026-11-16 evening, dreeves's "ok go": until then the moduli and the program in every
+             # residue box; since, at the single modulus 3, Stan Wagon's numbers or the line of Mathematica)
+             'residue': [('M', qi.residue_said(2 ** k, name, hi, moduli, source, t))],
              'table2': [('cited', qi.TABLE2 in P['links'])], 'page': [('who', qi.legend_labels(qi.page()).get(str(args and args[0]), '\0') in t)]}[kind]
     says += [('entry', P['entries'] == qi.panel_entries(2 ** k))]   # the entry itself since [REO] step 2 (2026-11-03), not its link
     return says
@@ -1559,17 +1567,78 @@ def q_residue_panels_at_3_give_the_closed_form_at_powers_of_2():
     # its powers of 3 in digits (qi.mod3_said), exactly as Python's integers have them; and the bound is that closed
     # form's own (qi.mod3_sums): no residue sums meet it at hi + 1, and some do at hi.
     # Resultata before: the condition as a divisibility of polynomials alone, with no class sizes.
+    # Spec change (2026-11-16 evening; dreeves: "could you use stan's exact words (mutatis mutandis)", then "ok go"):
+    # only the boxes whose order Stan Wagon's argument does not rule out (qi.stan_holds) give the closed form; the others
+    # give his words (q_residue_panels_at_3_give_stan_s_words_where_they_hold_at_powers_of_2).
     R = valid('light')
     found = 0
     for P in R['panels']:
         k = P['k']
         lo, hi, lw, hw = R['data']['cols'][k - 1]
-        if hw not in (['residue', [3]], ['mstar', ['residue', 3]]): continue
+        if hw not in (['residue', [3]], ['mstar', ['residue', 3]]) or qi.stan_holds(2 ** k, hi + 1): continue
         assert qi.mod3_sums(2 ** k, hi + 1) == [] and qi.mod3_sums(2 ** k, hi) != [], (k, hi)
         for said in qi.mod3_said(2 ** k, hi + 1):
             assert qi.among(said, P['text']), (k, said, P['text'])
         found += 1
     assert found > 30, found
+
+
+def q_residue_panels_at_3_give_stan_s_words_where_they_hold_at_powers_of_2():
+    # Replicata: the light run: the panel of each column whose upper bound is the residue condition of the single
+    # modulus 3, its own (["residue", [3]]) or the m*(n) chart's (["mstar", ["residue", 3]]), at n = 2^k up to 2^72,
+    # whose order hi + 1 Stan Wagon's argument rules out (qi.stan_holds).
+    # Expectata (dreeves, 2026-11-16: "could you use stan's exact words (mutatis mutandis)", then "ok go";
+    # quals_index's q_residue_panels_at_3_give_stan_s_words_where_they_hold, whose box this is): the proof is one part,
+    # proof-stan, not of Claude's English, a quotation, with its column's numbers in digits (qi.stan_said), up to 22 of
+    # them; and the argument holds: hi + 1 even, the sizes of classes 0 and 2 one apart and adding to less than
+    # 3^((hi + 1)/2), so the congruence makes their sums equal, against their parities.
+    # Spec change (2026-11-16, later that evening; dreeves: "why no mathematica code for the 1024:12 cell?", then "yeah,
+    # add the mathematica line"): after his part, a part of Claude's English, proof-pairs, quoted by itself, gives his
+    # check of all pairs as a line of Mathematica (qi.stan_line), in numbers of up to 22 digits, which gives False when
+    # run, and one power of 3 lower does not.  At 2^3, whose witness is Claude's English (Thue–Morse), the column's box
+    # quotes Claude twice, before his quotation and after it (qi.quoted_right's runs).
+    # Resultata before: each such box gave the closed form and "an exhaustive search (pagegen/pow2.py) finds none".
+    R = valid('light')
+    stan = []
+    for P in R['panels']:
+        k = P['k']
+        lo, hi, lw, hw = R['data']['cols'][k - 1]
+        if hw not in (['residue', [3]], ['mstar', ['residue', 3]]) or not qi.stan_holds(2 ** k, hi + 1): continue
+        n, m = 2 ** k, hi + 1
+        assert m % 2 == 0 and (n + 2) // 3 - n // 3 == 1 and (n + 2) // 3 + n // 3 < 3 ** (m // 2), (k, m)
+        part = [(why, t, c) for why, t, c in P['parts'] if why in ('proof-stan', 'proof-pairs')]
+        assert [(why, c) for why, _, c in part] == [('proof-stan', False), ('proof-pairs', True)], (k, P['parts'])
+        assert all(re.match(qi.OPENING, t) and t.endswith('”') for _, t, _ in part) and qi.stan_line(n, m) in part[1][1], (k, part)
+        for said in qi.stan_said(n, m, f'{n}' if hw[0] == 'mstar' else f'2^{{{k}}}'):
+            assert qi.among(said, P['text']), (k, said, P['text'])
+        stan.append((k, m))
+    assert len(stan) > 20 and (10, 12) in stan and 72 not in [k for k, _ in stan], stan
+    three = next(P for P in R['panels'] if P['k'] == 3)
+    assert [c for _, _, c in three['parts']] == [True, False, True] and three['text'].count('“') == 3 and qi.quoted_right(three['parts']), three['parts']
+    got = qi.mathematica_values([qi.stan_line(2 ** k, m) for k, m in stan] + [qi.stan_line(2 ** k, m - 2) for k, m in stan])
+    assert got[:len(stan)] == ['False'] * len(stan) and 'False' not in got[len(stan):], got
+
+
+def q_residue_panels_at_3_give_a_mathematica_line_elsewhere_at_powers_of_2():
+    # Replicata: the light run: the panel of each column whose upper bound is the residue condition of the single
+    # modulus 3 (as above) whose order hi + 1 Stan Wagon's argument does not rule out; and Mathematica (wolframscript).
+    # Expectata (dreeves, 2026-11-16: "are you still referring to "an exhaustive search" and linking to a python program
+    # when you could instead give a couple lines of mathematica like stan did?", then "ok go"; quals_index's
+    # q_residue_panels_at_3_give_a_mathematica_line_elsewhere): the box ends with its line (qi.mod3_line) at hi + 1, in
+    # numbers of up to 22 digits, which gives {} when run; the control: at hi it gives exactly qi.mod3_sums, never none.
+    # Resultata before: those boxes ended "an exhaustive search (pagegen/pow2.py) finds none", or mstar.py's.
+    R = valid('light')
+    lines = []
+    for P in R['panels']:
+        k = P['k']
+        lo, hi, lw, hw = R['data']['cols'][k - 1]
+        if hw not in (['residue', [3]], ['mstar', ['residue', 3]]) or qi.stan_holds(2 ** k, hi + 1): continue
+        assert qi.mod3_line(2 ** k, hi + 1) in P['text'], (k, qi.mod3_line(2 ** k, hi + 1), P['text'])
+        lines.append((2 ** k, hi))
+    assert len(lines) > 30 and 2 ** 72 in [n for n, _ in lines], [n.bit_length() - 1 for n, _ in lines]
+    got = qi.mathematica_sums([(n, m) for n, hi in lines for m in (hi + 1, hi)])
+    for i, (n, hi) in enumerate(lines):
+        assert got[2 * i] == [] and got[2 * i + 1] == sorted(qi.mod3_sums(n, hi)) != [], (n, hi, got[2 * i:2 * i + 2])
 
 
 def q_click_opens_its_cell_s_box():
@@ -1724,7 +1793,10 @@ def q_pow2_boxes_show_witness_proof_and_searches_by_kind():
     assert B[(30, 2)]['constructions'] == [['1073741824:34', 'button', '\\((p_{1504} \\mathbin{\\#} p_{800} \\mathbin{\\#} p_{800}) \\vee '
                                             '(p_{1488} \\mathbin{\\#} p_{1440} \\mathbin{\\#} \\tau_{5}) \\vee '
                                             '(p_{1632} \\mathbin{\\#} p_{1632} \\mathbin{\\#} \\tau_{4})\\)']], B[(30, 2)]['constructions']
-    assert cols[29][3] == ['residue', [3]] and '\\(M = 3\\)' in B[(30, 8)]['said'] and 'pow2.py' in B[(30, 8)]['said'], B[(30, 8)]['said']
+    # (spec change, 2026-11-16 evening, dreeves's "ok go": the line of Mathematica at 2^30's order 37, odd, so not
+    # Stan Wagon's argument, where the box named pow2.py until then)
+    assert cols[29][3] == ['residue', [3]] and not qi.stan_holds(2 ** 30, 37) and '\\(M = 3\\)' in B[(30, 8)]['said'], B[(30, 8)]['said']
+    assert qi.mod3_line(2 ** 30, cols[29][1] + 1) in B[(30, 8)]['said'] and cols[29][1] == 36, B[(30, 8)]['said']
     assert re.match(qi.OPENING + re.escape('\\(m^*(2^{30}) \\le 36\\):'), B[(30, 8)]['said']), B[(30, 8)]['said']
     assert cols[8][3] == ['mstar', ['residue', 27]] and re.match(qi.OPENING + re.escape('\\(m^*(512) \\le 9\\):'), B[(9, 1)]['said']), B[(9, 1)]['said']
     assert '\\(M = 27\\)' in B[(9, 1)]['said'], B[(9, 1)]['said']
@@ -1785,19 +1857,22 @@ def q_pow2_cell_boxes_are_brief_and_quote_claude_right():
     # numbers; no box says below, above, this page, paragraph or remarks; each box quotes Claude once around its parts of
     # Claude's English, and not at all without any.
     # Resultata before: the panel of 2^30 alone had over 100 words, "at the top of this page" among them.
+    # Spec change (2026-11-16 evening, with quals_index's q_cell_box_words_stay_within_budget; dreeves: "ok go"): the
+    # words of a box's code elements (the residue boxes' line of Mathematica) are not counted, nor are Stan Wagon's, his
+    # part proof-stan; both are still searched for the words that point elsewhere.
     R = valid('light')
     cols, top, most, elsewhere = R['data']['cols'], R['data']['etop'], [], re.compile(r'\b(?:below|above|this page|paragraph|remarks)\b', re.I)
     for P in R['panels']:
         k, parts = P['k'], P['parts']
         lo, hi = cols[k - 1][:2]
-        text = {w: ' '.join(qi.unquoted(t) for why, t, _ in parts if why.startswith(w)) for w in ('witness', 'proof')}
+        text = {w: ' '.join(qi.unquoted(t) for why, t, _ in parts if why.startswith(w) and why != 'proof-stan') for w in ('witness', 'proof')}
         claude = {w: any(c for why, _, c in parts if why.startswith(w)) for w in ('witness', 'proof')}
         for kind in [x for x, present in (('exists', lo > k), ('open', hi > lo), ('impossible', hi < k + top)) if present]:
             shows = qi.SHOWS[kind]
-            most.append((((claude['witness'] and shows[0]) or (claude['proof'] and shows[1])) + len(qi.words(text['witness'])) * shows[0]
-                         + len(qi.words(text['proof'])) * shows[1], k, kind))
-        assert not elsewhere.search(text['witness'] + text['proof']) and qi.quoted_right(parts), (k, parts)
-    most += [(len(qi.words(' '.join(text for why, text, _ in P['parts'] if why != 'searches'))), tuple(P['target']), 'clicked')
+            most.append((((claude['witness'] and shows[0]) or (claude['proof'] and shows[1])) + len(qi.words(text['witness'], P['codes'])) * shows[0]
+                         + len(qi.words(text['proof'], P['codes'])) * shows[1], k, kind))
+        assert not elsewhere.search(' '.join(t for why, t, _ in parts if why.startswith(('witness', 'proof')))) and qi.quoted_right(parts), (k, parts)
+    most += [(len(qi.words(' '.join(text for why, text, _ in P['parts'] if why not in ('searches', 'proof-stan')), P['codes'])), tuple(P['target']), 'clicked')
              for P in R['boxes'] if None not in P['target']]
     assert max(c for c, *_ in most) <= qi.BOX_WORDS, sorted(most, key=lambda x: x[0])[-5:]
     assert all(qi.quoted_right(P['parts']) for P in R['boxes']), [P['target'] for P in R['boxes'] if not qi.quoted_right(P['parts'])]
