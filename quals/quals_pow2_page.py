@@ -1544,6 +1544,28 @@ def q_norm_panels_hold_at_powers_of_2():
     assert found > 30, found
 
 
+def q_residue_panels_at_3_give_the_closed_form_at_powers_of_2():
+    # Replicata: the light run: the panel of each column whose upper bound is the residue condition of the single
+    # modulus 3, its own (["residue", [3]], pow2.py's claims) or the m*(n) chart's (["mstar", ["residue", 3]]), at
+    # n = 2^k, up to 2^72, so in numbers of up to 22 digits.
+    # Expectata (dreeves, 2026-11-16: "yes to mod-3 boxes"; quals_index's q_residue_panels_at_3_give_the_closed_form,
+    # whose box this is): the box gives the three class sizes and, at m = hi + 1, the condition in closed form with
+    # its powers of 3 in digits (qi.mod3_said), exactly as Python's integers have them; and the bound is that closed
+    # form's own (qi.mod3_sums): no residue sums meet it at hi + 1, and some do at hi.
+    # Resultata before: the condition as a divisibility of polynomials alone, with no class sizes.
+    R = valid('light')
+    found = 0
+    for P in R['panels']:
+        k = P['k']
+        lo, hi, lw, hw = R['data']['cols'][k - 1]
+        if hw not in (['residue', [3]], ['mstar', ['residue', 3]]): continue
+        assert qi.mod3_sums(2 ** k, hi + 1) == [] and qi.mod3_sums(2 ** k, hi) != [], (k, hi)
+        for said in qi.mod3_said(2 ** k, hi + 1):
+            assert qi.among(said, P['text']), (k, said, P['text'])
+        found += 1
+    assert found > 30, found
+
+
 def q_click_opens_its_cell_s_box():
     # Replicata: the light run: a real mouse click on cell OUTLINE (k = 36, δ = 5), in the full view.
     # Expectata: the box of the cell opens, its fragment k36d5 set and its heading focused, a black cell's (its kind

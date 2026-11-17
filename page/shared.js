@@ -242,6 +242,28 @@ const copies = (N, lo) => shown([...document.querySelectorAll(`code[id="${N}:${l
 // numbers of a claim, which mstar.py and pow2.py assert as they make the data; it does not decide the claim itself.
 const repoURL = path => `https://github.com/dreeves/equipow/blob/main/${path}`;   // where a file of the repository is, by its path in it
 const repoFile = path => linked(repoURL(path), path);             // a link to it, worded by its path
+// The class sizes s_r of 0..n-1 mod M, r = 0..M-1, for a BigInt n: BigInts.
+const classSizes = (n, M) => Array.from({length: M}, (_, r) => (n - BigInt(r) + BigInt(M) - 1n) / BigInt(M));
+// The math that a residue box gains where its chain's condition has a closed form, by the chain's moduli, joined
+// (Fable 5.2, 2026-11-16; dreeves: "yes to mod-3 boxes"), so that the box can be checked by hand, as the norm bound's
+// can.  The single modulus 3 has one: (x - 1)^m divides sum D_r x^r mod x^3 - 1 exactly when D_0 + D_1 + D_2 = 0,
+// D_0 = D_1 = D_2 mod 3^a and 3^b divides each D_r, for a = floor(m/2) and b = floor((m - 1)/2).  (From (x - 1)^2 =
+// (1 + x + x^2) - 3x: mod x^3 - 1 the first term times x - 1 is 0, so each factor (x - 1)^2 past the first is a
+// factor -3x; quals_mstar's q_residue_condition_mod_3_has_its_closed_form holds the two to each other.)  At the
+// length n and the order m the box then gets sizes, the three class sizes in digits, and closed, in parentheses,
+// that closed form with its exponents, then each power of 3 once in digits (a = b at an odd m).  No words.  Every
+// other chain gets neither (NO_CLOSED_FORM), and its box reads as it did: the one branch here.
+const CLOSED_FORM = {
+  3: (n, m) => {
+    const a = Math.floor(m / 2), b = Math.floor((m - 1) / 2);
+    return {
+      sizes: [' = ', bigNum(classSizes(n, 3).map(s => s.toLocaleString('en-US')).join(', '))],
+      closed: [` (\\(\\Leftrightarrow D_0 + D_1 + D_2 = 0\\), \\(D_0 \\equiv D_1 \\equiv D_2 \\pmod{3^{${a}}}\\), \\(3^{${b}} \\mid D_r\\); `,
+        ...[...new Set([a, b])].flatMap((e, i) => [`${i ? ', ' : ''}\\(3^{${e}} =\\) `, bigNum(3n ** BigInt(e))]), ')'],
+    };
+  },
+};
+const NO_CLOSED_FORM = () => ({sizes: '', closed: ''});
 const PROOF = {
   odd: (n, name, hi) => shown([filled('proof-odd', {bound: bound(name, 'le', hi), n: `\\(${name} \\equiv 1 \\pmod 2\\)`})]),
   two: (n, name, hi) => {
@@ -251,14 +273,15 @@ const PROOF = {
       m: `\\(m \\le 2^{${t}} - 1 = ${hi}\\)`})]);
   },
   norm: (n, name, hi, p) => {
-    const P = BigInt(p), m = hi + 1, sizes = Array.from({length: p}, (_, r) => (n - BigInt(r) + P - 1n) / P);
+    const P = BigInt(p), m = hi + 1, sizes = classSizes(n, p);
     const squares = sizes.reduce((s, x) => s + x * x, 0n), h = (P - 1n) / 2n;
     return shown([filled('proof-norm', {bound: bound(name, 'le', hi), p: `\\(p = ${p} \\nmid n\\)`,
       sizes: bigNum(sizes.map(s => s.toLocaleString('en-US')).join(', ')), squares: bigNum(squares), m: `\\(m = ${m}\\)`,
       pm: `\\(p^m = ${p}^{${m}} =\\)`, pmv: bigNum(P ** BigInt(m)), cap: bigNum((P * squares) ** h / (P - 1n) ** h)})]);
   },
   residue: (n, name, hi, source, ...moduli) => shown([filled('proof-residue', {bound: bound(name, 'le', hi),
-    M: `\\(M = ${moduli.join(', ')}\\)`, m: `\\(m = ${hi + 1}\\)`, source: repoFile(source)})]),
+    M: `\\(M = ${moduli.join(', ')}\\)`, m: `\\(m = ${hi + 1}\\)`, source: repoFile(source),
+    ...(CLOSED_FORM[moduli.join()] ?? NO_CLOSED_FORM)(n, hi + 1)})]),
   file: (n, name, hi, path) => shown([filled('proof-file', {bound: bound(name, 'le', hi), file: repoFile(path)})]),
   // BGPW's Proposition 4.4 (2026-11-11), for the length n = 2^t u, u odd, below 2^(2^t - 1): order m = 2^t - 1, which is
   // hi + 1, would make |f(-1)|, the alternating sum's absolute value, at least 2^m, which is more than n, and |f(-1)| is

@@ -1264,6 +1264,35 @@ def q_plus_lattice_keeps_every_vector():
             assert A.shape[1] == M - 1 and B.shape[1] == M - 1 - (M % 2 == 0) and (A == B) == (M % 2 == 1), (M, m)
 
 
+def q_residue_condition_mod_3_has_its_closed_form():
+    # Replicata: the closed form that the page's boxes give the residue condition of the single modulus 3
+    # (quals_index.mod3_sums: zero sum, each class's size and parity, D_0 = D_1 = D_2 mod 3^floor(m/2), and
+    # 3^floor((m - 1)/2) dividing each D_r), against the plain lattice L(3, m) by brute force (box_in_plain_lattice) at
+    # every n from 2 to 60 and at 124, 126, 128, 244, 250, 256, 488 and 512, at the orders m = 1 to 10; and against
+    # mstar.residue_vectors at every column whose upper bound is ["residue", 3], at its hi and at hi + 1.
+    # Expectata (2026-11-16; dreeves, of the boxes that state it: "yes to mod-3 boxes"): the same vectors every time,
+    # so the closed form is the condition, no weaker and no stronger; at each such column (44 that day) none at hi + 1
+    # and some at hi.  Control: with either exponent one more, or one less, the closed form differs from the lattice
+    # somewhere among the small cases.
+    import quals_index as qi              # read only: mod3_sums, mod3_form (the page's closed form, as its quals have it)
+    small = [(n, m) for n in [*range(2, 61), 124, 126, 128, 244, 250, 256, 488, 512] for m in range(1, 11)]
+    lattice = {c: box_in_plain_lattice(c[0], 3, c[1]) for c in small}
+    assert all(sorted(qi.mod3_sums(n, m)) == lattice[n, m] for n, m in small)
+    assert sum(1 for v in lattice.values() if v) > 100 and sum(1 for (n, m), v in lattice.items() if not v and n % 2 == 0) > 100
+    for da, db in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+        differ = [(n, m) for n, m in small if min(m // 2 + da, (m - 1) // 2 + db) >= 0
+                  and sorted(qi.mod3_form(n, m // 2 + da, (m - 1) // 2 + db)) != lattice[n, m]]
+        assert len(differ) > 10, (da, db, differ)
+    _, got = disk()
+    claimed = [n for n, c in enumerate(got['m']['cols'], 1) if c[3] == ['residue', 3]]
+    assert len(claimed) > 30, len(claimed)
+    for n in claimed:
+        hi = got['m']['cols'][n - 1][1]
+        for m in (hi, hi + 1):
+            assert sorted(qi.mod3_sums(n, m)) == sorted(mstar.residue_vectors(n, 3, m, None, mstar.Budget(10 ** 7), 'natural')), (n, m)
+        assert qi.mod3_sums(n, hi + 1) == [] and qi.mod3_sums(n, hi) != [], (n, hi)
+
+
 def q_720_order_15_is_ruled_out():
     # Replicata: column 720 of mstar.js (720 = 16 * 45); mstar.RESIDUE[720], enumerated by chain_none with a cap of 10
     # nodes; the generators x^k (x-1)^15 mod x^16 - 1 of L(16, 15), and the class sizes of 720 mod 16.

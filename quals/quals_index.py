@@ -4555,6 +4555,61 @@ def q_norm_panels_hold_their_claims():
     assert found == sum(1 for n in COLUMNS if cols[n - 1][3][0] == 'norm') > 10, found
 
 
+def mod3_form(n, a, b):
+    """The residue sums mod 3, (D_0, D_1, D_2), of a length n that meet a closed form with the exponents a and b:
+    D_0 + D_1 + D_2 = 0, |D_r| at most its class's size s_r and of its parity, D_0 = D_1 = D_2 mod 3^a, and 3^b
+    dividing each D_r; sorted."""
+    q, Q = 3 ** b, 3 ** a
+    s = [(n - r + 2) // 3 for r in range(3)]          # len(range(r, n, 3)), which overflows past 2^63
+    d0s, d1s = ([d for d in range(-(x // q) * q, x + 1, q) if (d - x) % 2 == 0] for x in s[:2])
+    assert len(d0s) * len(d1s) <= 10 ** 7, (n, a, b)  # the multiples of 3^b within the sizes: few near a bound
+    return [(d0, d1, -d0 - d1) for d0 in d0s for d1 in d1s
+            if abs(d0 + d1) <= s[2] and (d0 + d1 - s[2]) % 2 == 0 and (d0 - d1) % Q == 0 and (d0 + 2 * d1) % Q == 0]
+
+
+def mod3_sums(n, m):
+    """The residue sums mod 3 that the closed form of the page's residue boxes allows a sequence of length n and order
+    m (2026-11-16): mod3_form with a = floor(m/2) and b = floor((m - 1)/2).  For an even m the divisibility follows
+    from the congruence and the zero sum, for an odd m the congruence from the divisibility; both are in the box at
+    every m, so that it has one form.  quals_mstar's q_residue_condition_mod_3_has_its_closed_form holds this to the
+    lattice L(3, m) that the generators enumerate."""
+    return mod3_form(n, m // 2, (m - 1) // 2)
+
+
+def mod3_said(n, m):
+    """What a residue box of the single modulus 3 says past the words it shares with every residue box, for the length
+    n at the order m, as [its class sizes, its closed form]: after s_r's definition the three sizes, in digits, and
+    after m, in parentheses, the closed form with its powers of 3 as exponents, and then each of them once in digits."""
+    a, b = m // 2, (m - 1) // 2
+    return ['= ' + ', '.join(f'{(n - r + 2) // 3:,}' for r in range(3)) + ';',
+            f'\\(m = {m}\\) (\\(\\Leftrightarrow D_0 + D_1 + D_2 = 0\\), \\(D_0 \\equiv D_1 \\equiv D_2 \\pmod{{3^{{{a}}}}}\\), '
+            f'\\(3^{{{b}}} \\mid D_r\\); ' + ', '.join(f'\\(3^{{{e}}} =\\) {3 ** e:,}' for e in dict.fromkeys([a, b])) + ')']
+
+
+def q_residue_panels_at_3_give_the_closed_form():
+    # Replicata: the panels run: the panel of each column whose upper bound is the residue condition of the single
+    # modulus 3 (mstar.js: ["residue", 3]; 44 of the chart's columns as the page loads).
+    # Expectata (dreeves, 2026-11-16, of that condition in closed form, each such box then a check by hand as the norm
+    # bound's is: "yes to mod-3 boxes"): the box gives the three class sizes s_r, in digits, and at m = hi + 1 the
+    # condition in closed form, the math alone (mod3_said): D_0 + D_1 + D_2 = 0, D_0 = D_1 = D_2 mod 3^floor(m/2) and
+    # 3^floor((m - 1)/2) dividing each D_r, with those powers of 3 in digits.  And the bound is that closed form's own
+    # (Python's enumeration, mod3_sums): no residue sums meet it at hi + 1, and some do at hi.
+    # Resultata before: the condition as (x - 1)^m dividing sum D_r x^r mod x^M - 1 alone and no class sizes, which
+    # leaves a reader the search to repeat.
+    R = valid_run('panels')
+    cols = mstar_data()['cols']
+    found = 0
+    for P in R['panels']:
+        n = P['n']
+        lo, hi, lw, hw = cols[n - 1]
+        if hw != ['residue', 3]: continue
+        assert mod3_sums(n, hi + 1) == [] and mod3_sums(n, hi) != [], (n, hi)
+        for said in mod3_said(n, hi + 1):
+            assert among(said, P['text']), (n, said, P['text'])
+        found += 1
+    assert found == sum(1 for n in COLUMNS if cols[n - 1][3] == ['residue', 3]) > 30, found
+
+
 def q_tap_opens_its_cell_s_box():
     # Replicata: the light run's mouse click on a cell of row 1 (R.click), in a view zoomed in 3 steps.
     # Expectata: the box of the clicked cell opens, its fragment nNm1 set and its heading focused, a green cell's (its
