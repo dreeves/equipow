@@ -1,0 +1,77 @@
+{
+ "cell": "480:14",
+ "claim": "no sequence of length 480 has order 14, so m*(480) <= 13",
+ "run": "scratch/s480-20261111/runs/480_14_top_b3",
+ "top": "scratch/costs-20261109/cells/480_14/top_480_14.json.gz",
+ "log": [
+  "# 2026-11-11 16:11:49 start: 480:14 top /Users/dreeves/lab/powersums/scratch/costs-20261109/cells/480_14/top_480_14.json.gz procs 3 limit 240 PY_SAMPLE 100 BUILD build3 NICE 5",
+  "# 2026-11-11 17:09:24 start: 480:14 top /Users/dreeves/lab/powersums/scratch/costs-20261109/cells/480_14/top_480_14.json.gz procs 10 limit 240 PY_SAMPLE 100 BUILD build3 NICE 5",
+  "# 2026-11-11 18:36:19 start: 480:14 top /Users/dreeves/lab/powersums/scratch/costs-20261109/cells/480_14/top_480_14.json.gz procs 10 limit 240 PY_SAMPLE 100 BUILD build3 NICE 5",
+  "# 2026-11-11 19:47:49 start: 480:14 top /Users/dreeves/lab/powersums/scratch/costs-20261109/cells/480_14/top_480_14.json.gz procs 10 limit 240 PY_SAMPLE 100 BUILD build3 NICE 5",
+  "# 2026-11-13 21:46:20 start: 480:14 top /Users/dreeves/lab/powersums/scratch/costs-20261109/cells/480_14/top_480_14.json.gz procs 10 limit 240 PY_SAMPLE 100 BUILD build3 NICE 5",
+  "# 2026-11-15 00:19:20 start: 480:14 top /Users/dreeves/lab/powersums/scratch/costs-20261109/cells/480_14/top_480_14.json.gz procs 10 limit 240 PY_SAMPLE 100 BUILD build_current_20261115 NICE 5",
+  "# 2026-11-16 12:19:15 start: 480:14 top /Users/dreeves/lab/powersums/scratch/costs-20261109/cells/480_14/top_480_14.json.gz procs 10 limit 240 PY_SAMPLE 100 BUILD build3 NICE 5",
+  "finished: 3.06491e+08 nodes, closed 3.06491e+08, OPEN 0, LPs 4.12879e+09, CPU 1349.47 h; certificates 1.79315e+09, REJECTED 0, wrong names 0, python 2404 sampled 0 differ; wall 32.38 h"
+ ],
+ "tasks": 253906,
+ "python_checked": 2404,
+ "nodes": 306490694,
+ "certificates": 1793148312,
+ "open": 0,
+ "refused": 0,
+ "provers": [
+  {
+   "build": "build3",
+   "source": "scratch/s480-20261111/prover/pex.cpp",
+   "source_sha256": "929741e9642f2cc33eb1fff58f337cba374e30233f04eb3cfa4b16af674fdde4",
+   "binary_sha256": "a00540a4eb5ac6be1a47449e51ec87aceca7c8a1d6d3411de22bd77de3b05163",
+   "verdicts": [
+    [
+     1,
+     125930
+    ],
+    [
+     195414,
+     253906
+    ]
+   ]
+  },
+  {
+   "build": "build_current_20261115",
+   "source": "scratch/s480-20261111/build_current_20261115/source/searches/formtree/pex.cpp",
+   "source_sha256": "4a5222608e1e2a31d830efeda42abdbd47a700e9912928631290ce0984842d04",
+   "binary_sha256": "8c7c1427f02dc783b8be8e90814ed07dc4efa24ef5390448b309b70f4c952d6c",
+   "verdicts": [
+    [
+     125931,
+     195413
+    ]
+   ]
+  }
+ ],
+ "boundaries": [
+  {
+   "after_verdict": 125930,
+   "prefix_bytes": 28117085,
+   "prefix_sha256": "969b26f4ef707722c6a9f09dc229e636559d72ca389a2723432d25d9752e6585",
+   "checkpoint": "scratch/prover-switch-20261115/before.json"
+  },
+  {
+   "after_verdict": 195413,
+   "prefix_bytes": 43588892,
+   "prefix_sha256": "d1851b862b567e4648a4e5d99861ef661ca471e8a9f26ae37d4308679e7d3934",
+   "checkpoint": "scratch/prover-switchback-20261116/before.json"
+  }
+ ],
+ "fkernel_source_sha256": "4715f2278f5cdb05be488a75e41c5cb4ad66a39435225d252df966b31914ee9f",
+ "fkernel_binary_sha256": "0ac6df04166896bb19b7b1676c515191a75d4250cea49d02b40308cf162f5f0f",
+ "formtree_py_sha256": "36acd880c7134d6c4d2dda34b9386b35100f5371de4e86f6f813981c3f4327a4",
+ "pintree_py_sha256": "265a626c1dd73c51c727845c028f329ace9b9c453539b26719c5357b9e0ba785",
+ "files": {
+  "assemble.txt": "a818c55e58242d32bc1626b6714bad21fc9e9c969b66dd1e141e82f555898c87",
+  "pex_480_14_3_4_5_7_8_9_11_13_16_17_19_23_25_27_29_31_37.cfg": "1c28e7d85312039018bbce49f05e4693cb26cdd36b800790657af9ce879f2d86",
+  "pex_480_14_3_4_5_7_8_9_11_13_16_17_19_23_25_27_29_31_37.cfg.Q.npy": "348001efab58a52e65b9bf5c0d5ce6a30347dd948f24e8f04fbcee66f55d6060",
+  "top_480_14.json.gz": "9bc3e09ccbd9d2ff80dbc984e328875032ee08ff99442a6a535ed9b4c8d05868",
+  "verdicts.jsonl.gz": "3b4e6a5666170ff325ff04f3e778f7722402c34a8b833377183452560488b585"
+ }
+}

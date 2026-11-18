@@ -17,7 +17,7 @@ alone, as the comments here written before say "Claude alone"), j (with BGPW), c
 """
 import sys
 sys.dont_write_bytecode = True
-import os, re, json, time, random, itertools, subprocess, tempfile, traceback, math
+import os, re, json, gzip, time, random, itertools, subprocess, tempfile, traceback, math
 from functools import lru_cache
 import sympy as sp
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # the repository's root, above quals/
@@ -479,6 +479,9 @@ def q_ifsym_follows_from_the_symmetric_only_proofs():
     # searches/formtree/cells/480_13_antisym, the second line of symtree.TREES): on disk [[480, 12, 'proofs/symtree.py']],
     # from the two kept proofs (no symmetric sequence of length 480 has order 14, no antisymmetric one order 13), so
     # 480:13 is red if the conjecture holds too, and m*(480) = 12 then; the column's own bounds stay 12 to 14.
+    # Spec change (Opus 5.5, 2026-11-17: the unconditional form tree at 480:14 closed, kept as
+    # searches/formtree/cells/480_14, q_kept_form_trees_bound_the_chart): the column's own bounds are 12 to 13, so
+    # 480:14 is red with no conjecture, and ifsym is still [[480, 12, 'proofs/symtree.py']], for 480:13 alone.
     made = [[0, 0, ['none'], ['odd']]] * 100
     def column(n, lo, hi): made[n - 1] = [lo, hi, ['example', 'x'], ['two']]
     column(48, 12, 14); column(64, 5, 9); column(80, 3, 3)
@@ -499,7 +502,7 @@ def q_ifsym_follows_from_the_symmetric_only_proofs():
             raise AssertionError(('a set of proofs that refutes the conjecture gave a bound', trees))
     _, got = disk()
     assert got['m']['ifsym'] == mstar.ifsym_of(cols(), mstar.symtrees()) == [[480, 12, 'proofs/symtree.py']], got['m']['ifsym']
-    assert mstar.symtrees() == {(480, 14), (480, 13)} and got['m']['cols'][480 - 1][:2] == [12, 14], (mstar.symtrees(), got['m']['cols'][480 - 1])
+    assert mstar.symtrees() == {(480, 14), (480, 13)} and got['m']['cols'][480 - 1][:2] == [12, 13], (mstar.symtrees(), got['m']['cols'][480 - 1])
 
 
 def q_mstar_js_is_current():
@@ -973,6 +976,38 @@ def q_1248_is_settled_by_its_proof():
         try: mstar.proved(n, hi, 'proofs/proof1248.py')
         except AssertionError: continue
         raise AssertionError((n, hi))
+
+
+def q_kept_form_trees_bound_the_chart():
+    # 2026-11-17 (Opus 5.5; the unconditional form tree at 480:14 closed that evening, 253,906 tasks with no open node
+    # and none refused, and is kept as searches/formtree/cells/480_14 by scratch/cell48014-20261117/manifest.py).
+    # Replicata: each directory N_M of searches/formtree/cells, an unconditional proof (those named with _sym or
+    # _antisym are proofs/symtree.py's: quals_symtree), proofs/formtree.py assemble on its top and its verdicts, and
+    # mstar.js's column N; then the verdicts of 480_14 less their last line.
+    # Expectata: 480_14 is among them; each assembles to "VERIFIED: no sequence of length N has order M", and the
+    # chart's upper bound at N is below M, so no kept proof says more than the chart.  The control does not assemble:
+    # the last task's start, spilled by an earlier task, then has no verdict.
+    # Resultata before: the chart had 480 at 12 to 14 (the residue condition mod 7 at order 15).
+    _, got = disk()
+    cells = os.path.join(HERE, 'searches', 'formtree', 'cells')
+    def assemble(top, verdicts):
+        return subprocess.run([sys.executable, '-B', '-I', '-S', os.path.join(HERE, 'proofs', 'formtree.py'), 'assemble', top, verdicts],
+                              capture_output=True, text=True, timeout=600)
+    kept = sorted(tuple(map(int, d.split('_'))) for d in os.listdir(cells) if re.fullmatch(r'\d+_\d+', d))
+    assert (480, 14) in kept, kept
+    for n, m in kept:
+        d = os.path.join(cells, f'{n}_{m}')
+        [verdicts] = [os.path.join(d, f) for f in os.listdir(d) if f.startswith('verdicts.jsonl')]
+        out = assemble(os.path.join(d, f'top_{n}_{m}.json.gz'), verdicts)
+        assert f'VERIFIED: no sequence of length {n} has order {m}.' in out.stdout, (n, m, out.stdout[-300:], out.stderr[-300:])
+        assert got['m']['cols'][n - 1][1] < m, (n, m, got['m']['cols'][n - 1])
+    d = os.path.join(cells, '480_14'); path = os.path.join(d, 'verdicts.jsonl.gz')
+    assert os.path.getsize(path) < 50e6, os.path.getsize(path)   # 11.4 MB as kept, 56.6 MB unpacked: nothing larger is read into memory
+    with gzip.open(path, 'rt', encoding='ascii') as f: lines = f.readlines()
+    with tempfile.TemporaryDirectory() as t:
+        with open(os.path.join(t, 'verdicts.jsonl'), 'w', encoding='ascii') as f: f.writelines(lines[:-1])
+        out = assemble(os.path.join(d, 'top_480_14.json.gz'), os.path.join(t, 'verdicts.jsonl'))
+    assert out.returncode != 0 and 'no verdict for node' in out.stderr, (out.stdout[-300:], out.stderr[-300:])
 
 
 def q_proposition_44_keeps_odd_multiples_of_16_at_14_or_less():

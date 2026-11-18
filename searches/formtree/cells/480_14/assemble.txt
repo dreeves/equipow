@@ -1,0 +1,1 @@
+Claude: "VERIFIED: no sequence of length 480 has order 14.  Top {'vectors': 4, 'passed_over': 1, 'closed': 0, 'kept': 1}; tasks {'tasks': 253906, 'nodes': 306490694, 'closed': 306490694, 'fixes': 591735471, 'splits': 140214380, 'certs': 1793148312}"

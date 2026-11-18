@@ -2257,6 +2257,8 @@ def q_opus_and_fable_is_a_category_of_its_own():
     # credit('cf') has its words; the cells of class cf are 2^30, 2^33, 2^34, 2^51 and 2^52 (each lower bound from the joins at 2^30 and 2^51, which are Fable
     # 5.2's, each upper bound older), both rows of each; and each of their remarks is an <li class="cf"> marked ◆◇.
     # Resultata before: those cells were of class c, and 2^51's of class j, the classes of the legend lines for Opus 5.5 alone and for Opus 5.5 and BGPW.
+    # Spec change (Opus 5.5, 2026-11-17): 480 is of class cf too, the other way around, its lower bound Opus 5.5's example and its upper bound 13 Fable 5.2's
+    # run of a form-tree proof (searches/formtree/cells/480_14), its remark an <li class="cf"> marked ◆◇; of class c until then, at 12 to 14.
     css = page_css()
     assert 'td.cf { --hue: var(--claude); --glyph: "◆◇"; }' in css
     assert 'td.a, td.c, td.cf, td.j, td.s { background: color-mix(in oklab, var(--hue) var(--tint), var(--paper)); }' in css
@@ -2275,10 +2277,10 @@ def q_opus_and_fable_is_a_category_of_its_own():
         for (a, n), (b, v) in zip(ns, vs):
             assert bool(re.fullmatch(r' class="cf" title=\'[^\']+\'', a)) == (b == ' class="cf"'), (n, a, b)
             if b == ' class="cf"': cf.append(n)
-    assert cf == [f'\\(2^{{{k}}}\\)' for k in (30, 33, 34, 51, 52)], cf
-    for k in (30, 33, 34, 51, 52):
-        li = re.search(r'<li class="(\w+)">\n      <span class="mk" aria-hidden="true">([^<]*)</span>\n      <p class="entry">\\\(n = 2\^\{%d\}\\\): ' % k, text)
-        assert li and li.groups() == ('cf', '◆◇'), (k, li and li.groups())
+    assert cf == ['480'] + [f'\\(2^{{{k}}}\\)' for k in (30, 33, 34, 51, 52)], cf
+    for name in ['480'] + [f'2\\^\\{{{k}\\}}' for k in (30, 33, 34, 51, 52)]:
+        li = re.search(r'<li class="(\w+)">\n      <span class="mk" aria-hidden="true">([^<]*)</span>\n      <p class="entry">\\\(n = %s\\\): ' % name, text)
+        assert li and li.groups() == ('cf', '◆◇'), (name, li and li.groups())
 
 
 def q_examples_of_2026_10_25_have_entries_and_codes():
@@ -5538,22 +5540,27 @@ def q_box_of_a_cell_red_if_the_conjecture_holds():
     # kind too, and each of the two boxes states m*(480) <= 12 in its part proof-ifsym.  The cell below them, (480, 12),
     # is green, and its box and readout have nothing of the conjecture.  Until then: ifsym [[480, 13, ...]], the
     # bound m*(480) <= 13 in the box of (480, 14), and (480, 13) open, with no such part.
+    # Spec change (Opus 5.5, 2026-11-17: the unconditional form tree at 480:14 closed, kept as
+    # searches/formtree/cells/480_14; quals_mstar's q_kept_form_trees_bound_the_chart): the column is 12 to 13, so the
+    # cell (480, 14) is impossible with no conjecture and its box has no part proof-ifsym, nor does its readout name the
+    # program; (480, 13) alone is of the kind, its box stating m*(480) <= 12 if the conjecture holds and the chart's
+    # m*(480) <= 13.  Until then both cells were of the kind, their boxes stating the chart's m*(480) <= 14.
     R, B = boxes_run()
     data = mstar_data(); cols, ifsym = data['cols'], data['ifsym']
-    assert ifsym == [[480, 12, IFSYM_FILE]] and [kind_of(cols, 480, m, ifsym) for m in (12, 13, 14, 15)] == ['exists', 'ifsym', 'ifsym', 'impossible'], ifsym
-    for m in (13, 14):
+    assert ifsym == [[480, 12, IFSYM_FILE]] and [kind_of(cols, 480, m, ifsym) for m in (12, 13, 14, 15)] == ['exists', 'ifsym', 'impossible', 'impossible'], ifsym
+    for m in (13,):
         P = B[(480, m)]
         assert not P['hidden'] and P['hash'] == f'#n480m{m}' and P['kind'] == 'ifsym', (m, P['hidden'], P['hash'], P['kind'])
         assert P['whys'] == box_parts(cols, 480, m, ifsym) and P['whys'][-2:] == ['proof-ifsym', 'searches'], (m, P['whys'])
-        assert '\\(m^*(480) \\le 12\\)' in P['said'] and '\\(m^*(480) \\le 14\\)' in P['said'] and '\\(m^*(480) \\ge 12\\)' in P['said'], (m, P['said'])
+        assert '\\(m^*(480) \\le 12\\)' in P['said'] and '\\(m^*(480) \\le 13\\)' in P['said'] and '\\(m^*(480) \\ge 12\\)' in P['said'], (m, P['said'])
         files = [href for href in P['links'] if href.endswith('/' + IFSYM_FILE)]
         assert files and all(panel_link_lands(href) for href in files), (m, P['links'])        # the program: a file of the repository that is here
         assert '#symmetry-title' in P['links'] and page().count('id="symmetry-title"') == 1, (m, P['links'])   # the conjecture's section: an anchor of the page
         assert P['swatch']['cls'] == 'swatch ifsym record', (m, P['swatch'])
-    assert B[(480, 12)]['kind'] == 'exists' and 'proof-ifsym' not in B[(480, 12)]['whys'], B[(480, 12)]['whys']
+    assert [(B[(480, m)]['kind'], 'proof-ifsym' in B[(480, m)]['whys']) for m in (12, 14)] == [('exists', False), ('impossible', False)], [B[(480, m)]['whys'] for m in (12, 14)]
     hovers = valid_run('light')['hovers']
-    hovered, below = [(m, t) for n, m, t in hovers if n == 480 and m in (13, 14)], [t for n, m, t in hovers if (n, m) == (480, 12)]
-    assert {m for m, _ in hovered} == {13, 14} and all(IFSYM_FILE in t for _, t in hovered) and below and not any(IFSYM_FILE in t for t in below), (hovered, below)
+    hovered = [(m, t) for n, m, t in hovers if n == 480 and m in (12, 13, 14)]
+    assert {m for m, _ in hovered} == {12, 13, 14} and {m for m, t in hovered if IFSYM_FILE in t} == {13}, hovered
 
 
 def q_cell_box_words_stay_within_budget():
@@ -5972,9 +5979,11 @@ def q_smallest_lengths_go_past_the_chart():
     # the chart's own, 1440 and 1920 being columns: order 18 is not ruled out first at 1920 and reached at 5760 =
     # 1440 · 4; and order 19, which no n up to 2048 allows, is not ruled out first at 2400 (mstar.js's mtopAt) and
     # reached at 11520 = 1440 · 8.  (Resultata before: the table stopped at order 17.)
+    # Spec change (Opus 5.5, 2026-11-17: the unconditional form tree at 480:14 closed, m*(480) <= 13): order 14 is not
+    # ruled out first at 720, so 720 <= a(13) <= 960 in OEIS A323395 (480 until then).
     rows = smallest_table()
     assert all(re.fullmatch(r'\d+', r[2]) for r in rows), rows
-    assert rows[13:] == [['14', '480', '960', ''], ['15', '960', '960', '✓'], ['16', '1440', '1440', '✓'],
+    assert rows[13:] == [['14', '720', '960', ''], ['15', '960', '960', '✓'], ['16', '1440', '1440', '✓'],
                          ['17', '1440', '2880', ''], ['18', '1920', '5760', ''], ['19', '2400', '11520', '']], rows[13:]
 
 

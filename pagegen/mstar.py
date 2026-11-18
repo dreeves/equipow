@@ -180,7 +180,7 @@ TABLE2 = {8: (3, 3), 16: (4, 4), 24: (4, 4), 32: (5, 5), 40: (5, 5), 48: (6, 6),
 NEW = {240: (10, 10, 'c'), 288: (9, 9, 'j'),
        304: (8, 8, 'c'), 320: (9, 9, 's'), 336: (10, 10, 'j'), 352: (9, 9, 's'),
        368: (9, 9, 's'), 400: (9, 9, 's'), 416: (9, 9, 's'), 432: (11, 11, 'c'),
-       448: (9, 9, 'c'), 464: (9, 9, 's'), 480: (12, 14, 'c'),
+       448: (9, 9, 'c'), 464: (9, 9, 's'), 480: (12, 13, 'cf'),   # 12 to 14 (c) until 2026-11-17, when the unconditional form tree at 480:14 closed (searches/formtree/cells/480_14): Fable 5.2's run of Opus 5.5's method
        496: (9, 9, 'j'), 512: (9, 9, 'c'), 528: (11, 12, 'c'),
        576: (12, 12, 'c'),
        384: (10, 10, 'a'),
@@ -584,7 +584,7 @@ def chain_none(n, m, chain, sweep, cap):
 # proof by residues: 120 and 136 mod 8, 624 at order 13 mod 25, 512 mod 27.  720's, at order 15 mod 16, is BGPW's
 # Prop. 4.4 (q = 4) in residue form, from the check of mstar.js; it settles at once in L+(16, 15).  Each claim's sweep
 # up to 1024 is 'digits' (the same as 'natural' for a prime) but 624's, which takes 670000 nodes in 'natural' and 3.1
-# million in 'digits'.  Claims that do not set hi (where a citation is lower: 96, 240, 288) are left out.  1008's, at order 14 mod
+# million in 'digits'.  Claims that do not set hi (where a citation is lower: 96, 240, 288, and 480 since 2026-11-17, whose claim at order 15 mod 7 the form-tree proof of order 14 replaced) are left out.  1008's, at order 14 mod
 # 5, by scratch/upto1024/residue1008.py when the chart reached 1024 (2026-10-27), in both sweeps; at order 13 the
 # chains (5, 25), (7, 49) and (4, 8, 16, 32) capped there at 300000 nodes, and at 10^7 too in both sweeps
 # (scratch/upto1024/order13.py), and every other chain found an admissible vector.
@@ -595,7 +595,7 @@ RESIDUE = {24: (5, (5, 25), 'digits'), 48: (7, (5, 25), 'digits'), 72: (7, (4, 8
            80: (7, (3, 9), 'digits'), 88: (7, (3, 9), 'digits'), 104: (7, (4, 8), 'digits'),
            120: (7, (4, 8), 'digits'), 136: (7, (4, 8), 'digits'), 160: (8, (3, 9), 'digits'),
            192: (10, (5,), 'digits'), 256: (9, (3, 9), 'digits'), 336: (11, (5,), 'digits'),
-           384: (12, (5,), 'digits'), 432: (13, (5,), 'digits'), 480: (15, (7,), 'digits'),
+           384: (12, (5,), 'digits'), 432: (13, (5,), 'digits'),
            496: (10, (3, 9), 'digits'), 512: (10, (3, 9, 27), 'digits'), 528: (13, (5,), 'digits'),
            576: (13, (5,), 'digits'), 624: (13, (5, 25), 'natural'), 672: (14, (5,), 'digits'),
            720: (15, (16,), 'digits'), 736: (11, (3, 9), 'digits'), 768: (14, (5,), 'digits'),

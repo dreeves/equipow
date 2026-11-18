@@ -479,7 +479,7 @@ const MSTAR = {"nmax": 2048, "mtop": 19, "mtopAt": [2400], "past": [[2096, 12, "
 [0, 0, ["none"], ["odd"]],
 [1, 1, ["join", 2, 476], ["two"]],
 [0, 0, ["none"], ["odd"]],
-[12, 14, ["example", "equipow p480"], ["residue", 7]],
+[12, 13, ["example", "equipow p480"], ["page", "cf"]],
 [0, 0, ["none"], ["odd"]],
 [1, 1, ["join", 2, 480], ["two"]],
 [0, 0, ["none"], ["odd"]],
