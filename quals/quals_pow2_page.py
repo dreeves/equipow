@@ -1461,14 +1461,15 @@ def pow2_whys(data, k, rows=()):
     which moved the entry itself into the panel: quals_index.panel_entries).  Spec change (2026-11-16 evening; dreeves:
     "ok go"): the proof of the residue condition of the single modulus 3 is Stan Wagon's words, proof-stan, where his
     argument holds (quals_index.stan_holds), as quals_index.box_parts has it, and after it (later that evening: "yeah,
-    add the mathematica line") his check of all pairs as a line of Mathematica, proof-pairs."""
+    add the mathematica line") his check of all pairs as a line of Mathematica, proof-pairs, until 2026-11-18 (Opus 5.5;
+    his shorter proof, relayed by dreeves: "No need for any Mathematica code"): since then his words alone."""
     lo, hi, lw, hw = data['cols'][k - 1]
     kind = KINDS[kind_of(data['cols'][k - 1], k, rows[0])] if rows else None
     witness, proof = qi.SHOWS[kind]
     upper, code = hw[1][0] if hw[0] == 'mstar' else hw[0], f'{2 ** k}:{lo}'
     entry = kind is None or (proof and upper == 'page')
     copy = code in qi.code_ids() and not (entry and code in qi.entry_codes(2 ** k))
-    parts = (['proof-stan', 'proof-pairs'] if hw in (['residue', [3]], ['mstar', ['residue', 3]]) and qi.stan_holds(2 ** k, hi + 1)
+    parts = (['proof-stan'] if hw in (['residue', [3]], ['mstar', ['residue', 3]]) and qi.stan_holds(2 ** k, hi + 1)
              else [f'proof-{upper}'])
     return (([{'thue-morse': 'witness-thue-morse', 'joins': 'witness-construction'}[lw[0]]] + ['witness-code'] * copy) * witness
             + parts * proof + ['searches'] * (kind == 'open'))
@@ -1599,6 +1600,10 @@ def q_residue_panels_at_3_give_stan_s_words_where_they_hold_at_powers_of_2():
     # check of all pairs as a line of Mathematica (qi.stan_line), in numbers of up to 22 digits, which gives False when
     # run, and one power of 3 lower does not.  At 2^3, whose witness is Claude's English (Thue–Morse), the column's box
     # quotes Claude twice, before his quotation and after it (qi.quoted_right's runs).
+    # Spec change (Opus 5.5, 2026-11-18; his shorter proof, relayed by dreeves: "For web page.  Here it is, shorter now.
+    # No need for any Mathematica code."; quals_index's twin changed with it): his one part again, with his new numbers
+    # (qi.stan_said), and no line of Mathematica; the control: the numbers one power of 3 lower are not in the box, and
+    # there the argument fails.  So the box of 2^3 quotes Claude once, before his quotation.
     # Resultata before: each such box gave the closed form and "an exhaustive search (pagegen/pow2.py) finds none".
     R = valid('light')
     stan = []
@@ -1607,18 +1612,18 @@ def q_residue_panels_at_3_give_stan_s_words_where_they_hold_at_powers_of_2():
         lo, hi, lw, hw = R['data']['cols'][k - 1]
         if hw not in (['residue', [3]], ['mstar', ['residue', 3]]) or not qi.stan_holds(2 ** k, hi + 1): continue
         n, m = 2 ** k, hi + 1
-        assert m % 2 == 0 and (n + 2) // 3 - n // 3 == 1 and (n + 2) // 3 + n // 3 < 3 ** (m // 2), (k, m)
-        part = [(why, t, c) for why, t, c in P['parts'] if why in ('proof-stan', 'proof-pairs')]
-        assert [(why, c) for why, _, c in part] == [('proof-stan', False), ('proof-pairs', True)], (k, P['parts'])
-        assert all(re.match(qi.OPENING, t) and t.endswith('”') for _, t, _ in part) and qi.stan_line(n, m) in part[1][1], (k, part)
-        for said in qi.stan_said(n, m, f'{n}' if hw[0] == 'mstar' else f'2^{{{k}}}'):
+        name = f'{n}' if hw[0] == 'mstar' else f'2^{{{k}}}'
+        assert m % 2 == 0 and (n + 2) // 3 - n // 3 == 1 and (n + 2) // 3 + n // 3 < 3 ** (m // 2) and not qi.stan_holds(n, m - 2), (k, m)
+        part = [(why, t, c) for why, t, c in P['parts'] if why == 'proof-stan']
+        assert [(why, c) for why, _, c in part] == [('proof-stan', False)], (k, P['parts'])
+        assert re.match(qi.OPENING, part[0][1]) and part[0][1].endswith('”'), (k, part)
+        for said in qi.stan_said(n, m, name):
             assert qi.among(said, P['text']), (k, said, P['text'])
+        assert not any(qi.among(said, P['text']) for said in qi.stan_said(n, m - 2, name)), (k, P['text'])
         stan.append((k, m))
     assert len(stan) > 20 and (10, 12) in stan and 72 not in [k for k, _ in stan], stan
     three = next(P for P in R['panels'] if P['k'] == 3)
-    assert [c for _, _, c in three['parts']] == [True, False, True] and three['text'].count('“') == 3 and qi.quoted_right(three['parts']), three['parts']
-    got = qi.mathematica_values([qi.stan_line(2 ** k, m) for k, m in stan] + [qi.stan_line(2 ** k, m - 2) for k, m in stan])
-    assert got[:len(stan)] == ['False'] * len(stan) and 'False' not in got[len(stan):], got
+    assert [c for _, _, c in three['parts']] == [True, False] and three['text'].count('“') == 2 and qi.quoted_right(three['parts']), three['parts']
 
 
 def q_residue_panels_at_3_give_a_mathematica_line_elsewhere_at_powers_of_2():

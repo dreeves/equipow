@@ -6,6 +6,7 @@ LittlewoodPolynomialsReprint.pdf is the published version of the paper this is e
 ---
 
 Potential tasks: 
+* [SYM] For the remaining searches, would it make sense to first get the conditional-on-the-Symmetry-Conjecture versions?
 * [POL] Can all the polynomial algebra be streamlined or improved or clarified?
 * [SPL] There's a 240s threshold for "spilling" ie handing off an unfinished task; has that threshold been tuned to minimize total search time?
 * [REO] See the notes in the index.html comments tagged [REO]. Better organization / less redundancy.

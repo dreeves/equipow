@@ -259,9 +259,8 @@ const phrase = (name, values) => [...filled(name, values).childNodes];
 // (Opus 5.5; dreeves: "are you still referring to "an exhaustive search" and linking to a python program when you
 // could instead give a couple lines of mathematica like stan did?", then "ok go") its end check-mathematica, a line of
 // Mathematica that tries every triple the closed form allows, in place of the search (closedPart).  Where Stan
-// Wagon's argument rules that order out (stanHolds), the box is his words instead, then his check of all pairs as a
-// line of Mathematica (stanPart): the one branch the lines and his words added, besides this table's.  Each gives
-// its box's parts, a list.
+// Wagon's argument rules that order out (stanHolds), the box is his words instead (stanPart): the one branch the lines
+// and his words added, besides this table's.  Each gives its box's parts, a list.
 const RESIDUE_PART = {3: (n, name, hi) => (stanHolds(n, hi + 1) ? stanPart : closedPart)(n, name, hi)};
 const residueSlots = (name, hi, moduli) => ({bound: bound(name, 'le', hi), M: `\\(M = ${moduli.join(', ')}\\)`, m: `\\(m = ${hi + 1}\\)`});
 const searchedPart = (n, name, hi, source, moduli) => [filled('proof-residue', {...residueSlots(name, hi, moduli), sizes: '', closed: '',
@@ -285,26 +284,23 @@ const mod3Line = (sizes, a, b) => `s = {${sizes.join(', ')}}; Select[Tuples[3^${
 // 0 and 2 of sizes of different parities, so of sums of different parities; and those sizes adding to less than
 // 3^(m/2), the most the two sums can differ by, so that the congruence makes them equal (quals_index's stan_holds).
 const stanHolds = (n, m) => { const [s0, , s2] = classSizes(n, 3); return m % 2 === 0 && (s0 + s2) % 2n === 1n && s0 + s2 < 3n ** BigInt(m / 2); };
-// His words, the template proof-stan, with the length's numbers where his hold 1024's (dreeves: "could you use stan's
-// exact words (mutatis mutandis)", then "ok go"): m*(n) >= m supposed, m = s(p - 1) + r = 2s + r, s = m/2, the
-// modulus 3^s, the range [0, n - 1], the class sizes, and the even of the classes 0 and 2 with its size, then the odd
-// one.  His numbers are digits, as his are, with no commas: in "[0, 1023]" and "(342, 341, 341)" a comma separates.
-// His part is marked data-quote, a quotation of someone else's, where the box's quote of Claude stops (chartPanel).
-// Then (dreeves: "why no mathematica code for the 1024:12 cell?", then "yeah, add the mathematica line") the
-// template proof-pairs, Claude's English: his check of all pairs, which his note gave as a list of every pair of the
-// two ranges, asked of Mathematica as integer constraints, so that it runs at every size (stanLine).
+// His words, the template proof-stan, with the length's numbers where his hold 1024's (dreeves, of his first version:
+// "could you use stan's exact words (mutatis mutandis)", then "ok go"; since 2026-11-18 his shorter version: "For web
+// page.  Here it is, shorter now. No need for any Mathematica code."): m*(n) >= m supposed, s = m/2, the congruence of
+// the classes 0 and j mod 3^s, the range [0, n - 1], the two classes' sizes, and class 0's, the largest, as the bound
+// on every |d_3,i|.  His j is 1 at 1024; here it is n mod 3 (1 there, 2 where n = 2 mod 3, whose classes 0 and 1
+// have sizes of one parity), so that his own words come out at 1024 with no branch.  His numbers are digits, as his
+// are, with no commas.  His part is marked data-quote, a quotation of someone else's, where the box's quote of Claude
+// stops (chartPanel).  Until that day his note of 2026-11-16, and after it a line of Mathematica (proof-pairs,
+// stanLine) that checked every pair of sums, which his bound now does in words.
 const stanPart = (n, name, hi) => {
-  const m = hi + 1, s = m / 2, sizes = classSizes(n, 3), e = 2 * Number(sizes[0] % 2n), digits = x => bigNum(String(x));
-  const his = filled('proof-stan', {bound: bound(name, 'le', hi), suppose: `\\(m^*(${name}) \\ge ${m}\\)`,
-    split: `\\(${m} = s(p - 1) + r\\)`, two: `\\(${m} = 2s + r\\)`, s: `\\(s = ${s}\\)`, mod: [`\\(3^{${s}} =\\) `, digits(3n ** BigInt(s))],
-    last: digits(n - 1n), sizes: digits(`(${sizes.join(', ')})`), even: `\\(d_{3,${e}}\\)`, size: digits(sizes[e]), odd: `\\(d_{3,${2 - e}}\\)`});
+  const m = hi + 1, s = m / 2, sizes = classSizes(n, 3), j = Number(n % 3n), digits = x => bigNum(String(x));
+  const his = filled('proof-stan', {bound: bound(name, 'le', hi), suppose: `\\(m^*(${name}) \\ge ${m}\\)`, s: `\\(s = ${s}\\)`,
+    congruence: `\\(d_{3,0} \\equiv d_{3,${j}}\\)`, mod: digits(3n ** BigInt(s)), j: String(j), last: digits(n - 1n),
+    size0: digits(sizes[0]), sizej: digits(sizes[j]), dj: `\\(d_{3,${j}}\\)`});
   his.toggleAttribute('data-quote', true);
-  return [his, filled('proof-pairs', {line: stanLine(s, sizes[e], sizes[2 - e])})];
+  return [his];
 };
-// The line: no x within the even class's size a and y within the odd class's size b, distinct and congruent mod 3^s,
-// that is x - y = 3^s k with k not 0; Reduce gives False exactly when there are none (quals_index's stan_line, whose
-// quals run it, and one power of 3 lower, where it gives pairs).
-const stanLine = (s, a, b) => `Reduce[{x - y == 3^${s} k, k != 0, -${a} <= x <= ${a}, -${b} <= y <= ${b}}, {x, y, k}, Integers]`;
 const PROOF = {
   odd: (n, name, hi) => shown([filled('proof-odd', {bound: bound(name, 'le', hi), n: `\\(${name} \\equiv 1 \\pmod 2\\)`})]),
   two: (n, name, hi) => {
