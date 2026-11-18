@@ -58,7 +58,7 @@ The two lemmas behind hi (each checked against brute force by quals_mstar.py):
         <= p sum_r size(p, r)^2 (f(1) = 0 for m >= 1), and by AM-GM, N^2 <= (p sum_r size(p, r)^2 / (p-1))^(p-1).
 
 The data contract.  mstar.js is a classic script (no modules, so the page also works from file://) defining one global:
-    const MSTAR = {"nmax": 2048, "mtop": T, "mtopAt": [N, ...], "past": [[n, m, label], ...], "ifsym": [[n, hi, file], ...], "cols": [[lo, hi, loWhy, hiWhy], ...]};
+    const MSTAR = {"nmax": 2048, "mtop": T, "mtopAt": [N, ...], "past": [[n, m, label], ...], "ifsym": [[n, hi, file], ...], "codes": [[n, code], ...], "cols": [[lo, hi, loWhy, hiWhy], ...]};
 cols[n-1] is column n.  0 <= lo <= hi < T = max hi + 1.  Cell (n, m), m = 1..T, is green when m <= lo, gray when
 lo < m <= hi, and red when m > hi; row T is red in every column.  mtopAt lists, for each order from T to MMAX (T's
 alone where T is past MMAX), the
@@ -72,6 +72,10 @@ bipartition") lists the columns whose upper bound is lower if BGPW's Symmetry Co
 in n: m*(n) <= hi then, hi from the column's lo to one below its own hi, by the proofs that the program file checks
 (ifsym_of).  The cells (n, m) with that hi < m <= the column's own hi are the page's fourth kind: open, and red if the
 conjecture holds.
+codes (since 2026-11-18; dreeves: "there should be no "found here". what does "here" mean? totally ambiguous. show the
+expandable hex code for everything") lists [n, code] for each column whose loWhy is an example, rising in n: the code of
+its sequence (to_hex), which is (-1)^lo-symmetric, in BGPW's Table 5 convention: the bits of its left half, 1 = +1,
+padded on the right with 0 to whole hex digits, ceil(n/8) of them; page/codes.js expands it.
   loWhy  ["none"] (lo = 0, n odd); ["example", label] (an explicit sequence of length n, label saying where it is
          from); ["join", a, b] (the sequence for a, then the one for b; lo is the lesser of theirs); ["product", a, b]
          (f_a(x) f_b(x^a); lo is the sum of theirs); ["table2"] (BGPW's Table 2, cited); ["page", who] (the page's new
@@ -162,6 +166,18 @@ def from_rp(h, m, n):
     return left + [(-1) ** m * t for t in reversed(left)]
 
 
+def to_hex(a, m):
+    """The code of a sequence a of length n and order m that is (-1)^m-symmetric (2026-11-18, for mstar.js's codes):
+    the bits of its left half, 1 for +1, padded on the right with 0 to whole hex digits, ceil(n/8) of them, as from_rp
+    reads them; from_rp of the code asserted to give a back, which holds exactly when a is (-1)^m-symmetric."""
+    n = len(a)
+    bits = ''.join('1' if t == 1 else '0' for t in a[:n // 2])
+    bits += '0' * (-len(bits) % 4)
+    h = ''.join(f'{int(bits[i:i + 4], 2):X}' for i in range(0, len(bits), 4))
+    assert len(h) == -(-n // 8) and from_rp(h, m, n) == a, (n, m)
+    return h
+
+
 # ---------- citations and sequences on index.html ----------
 # Hand copies of the page, which page_sources() must match exactly: TABLE2[n] = (lo, hi) for BGPW's Table 2, hi None
 # for "≥"; NEW[n] = (lo, hi, who) for the new results, who the cell's credit: its class on the page, c, cf, j, ca, a or s
@@ -238,21 +254,22 @@ EXAMPLE_BY = {}
 CITED = {}
 for _n, (_lo, _hi) in TABLE2.items(): CITED.setdefault(_n, []).append((_lo, _hi, ['table2']))
 for _n, (_lo, _hi, _who) in NEW.items(): CITED.setdefault(_n, []).append((_lo, _hi, ['page', _who]))
-# The hex codes in the page's remarks, in page order, as (label, m, hex) in the paper's Table 5 convention
+# The hex codes in the page's code blocks, in page order (since 2026-11-18 the appendix's entries in order of their
+# lengths, and so this list), as (label, m, hex) in the paper's Table 5 convention
 # (overnight_v5.from_hex).  The label names the page and the code's name there.  It names the page by its site,
 # equipow.dreev.es, since the chart's readout shows it (dreeves's README, 2026-10-31: "[IND] ... we should never refer to
 # "index.html" in user-facing copy ... If that doesn't work for hovertext, we could just say "equipow p320" instead of
 # "index.html p320""); "index.html" until then.  On the page each code is <code id="N:M">, N its length and M its order.
 PAGE_CODES = (('equipow p1440', 16, '9E21C6F54B340E3CAF46C59F362A518761CD3896A8DAB346DC58D731D72B46AC9A3630DAA94E91D235364CD316F68A7B8AF8E336A449B12CD9E0D6D51AA55C49AC65CCCB90F2D5EA2A166DB9936D0369D05CF5A95CA006EF87B2'),
-              ('equipow BGPW 352', 9, 'A4DB4926DB4D36584B26936D2CFA54B6F04B2C13D4A2'),
-              ('equipow BGPW 368', 9, '96C965925B75B0CB249E583CF26B2E836C31DAC874B67D'),
-              ('equipow BGPW 400', 9, '34DB69269A69269A6D379A8D1C57459C5B45E5100DBAF7EAAA'),
-              ('equipow BGPW 464', 9, '93C96596CB2586DB1C965964E69975A207755BE209CE5E28F2C35A92BA'),
               ('equipow p320', 9, 'B24B649ED92CD2C36496CB2DB6295D974138BA41'),
               ('equipow BGPW 336', 10, 'C87695B43E0ED258AB29C7793D8521DB227C0B746D'),
               ('equipow q336', 9, '9C5479E2669C97071E731A62EBC06F28E87B4961DF'),
+              ('equipow BGPW 352', 9, 'A4DB4926DB4D36584B26936D2CFA54B6F04B2C13D4A2'),
+              ('equipow BGPW 368', 9, '96C965925B75B0CB249E583CF26B2E836C31DAC874B67D'),
+              ('equipow BGPW 400', 9, '34DB69269A69269A6D379A8D1C57459C5B45E5100DBAF7EAAA'),
               ('equipow p432', 11, '5A56B0EE234E8794ADE3D0C384F72A5C63A8BD65035EF015B78B46'),
               ('equipow p448', 9, 'A5994DB29B45A0FA5D26B24D665A5A66B24D64BA5F05A2D94DB299A5'),
+              ('equipow BGPW 464', 9, '93C96596CB2586DB1C965964E69975A207755BE209CE5E28F2C35A92BA'),
               ('equipow p480', 12, 'B0CBC94F1E2C68D1E3A6371C357C4B1347952BB968236CF6C82CD9CE01F3'),
               ('equipow BGPW 496', 9, 'C96992D92DB24B7596496D1A530DB5994EA699A9ACE072BDC57403B339A4CE'),
               ('equipow p192', 9, 'C1BE1E21CD63D295A7887A59'),
@@ -297,7 +314,8 @@ PAGE_CODES = (('equipow p1440', 16, '9E21C6F54B340E3CAF46C59F362A518761CD3896A8D
 # Claude's own examples of order 9 at the lengths where the page credits BGPW's (352, 368, 400, 464 and 496), found on
 # 2026-10-12 by a CP-SAT search (scratch/lower24-design/wider/), as (n, m, hex) in overnight_v5.from_hex's convention;
 # BGPW's examples came first, as the page says, and since 2026-10-12 the page shows theirs (PAGE_CODES), which win
-# the tie, so these are an independent check.  Their label is 'found here', as brute force's.
+# the tie, so these are an independent check.  Their label is pagegen/mstar.py, this file, as brute force's ('found
+# here' until 2026-11-18; dreeves: "there should be no "found here". what does "here" mean? totally ambiguous").
 FOUND = ((352, 9, '969E4C06F693B61B683699E934D241A6DB4936D7CDA6'),
          (368, 9, 'B449E6A1DB4AB5A123D2DB84B7592CB2496596DB64B4C9'),
          (400, 9, 'A70B2F45D60B4BE22CD2DE51B49B4924DB6D26D349A6926DB4'),
@@ -419,12 +437,13 @@ BGPW_T5 = ((5, 40, 'C1EC9'), (6, 48, 'C27D8C'), (6, 72, '998EAA3C5'), (6, 88, '9
            (9, 240, '9666995C93C3AA5935E81CB7C2938D'))
 # Where each of overnight_v5.EXAMPLES comes from, by its comments there: the published paper's Table 5, the page, or
 # Thue-Morse; the rest were found with CP-SAT for overnight_v5's quals.
+# (Those CP-SAT ones labeled 'overnight_v5 EXAMPLES' until 2026-11-18, then by the file that holds them.)
 EXAMPLE_LABELS = {(240, 10): 'BGPW Table 5', (432, 11): 'equipow p432', (192, 9): 'BGPW Table 5',
-                  (384, 10): 'overnight_v5 EXAMPLES',
+                  (384, 10): 'engine/overnight_v5.py',
                   (320, 9): 'equipow p320', (336, 9): 'equipow q336', (48, 6): 'BGPW Table 5',
                   (112, 7): 'BGPW Table 5', (304, 8): 'BGPW Table 5', (64, 6): 'Thue–Morse',
-                  (40, 5): 'overnight_v5 EXAMPLES', (48, 5): 'overnight_v5 EXAMPLES', (56, 5): 'overnight_v5 EXAMPLES',
-                  (104, 6): 'overnight_v5 EXAMPLES'}
+                  (40, 5): 'engine/overnight_v5.py', (48, 5): 'engine/overnight_v5.py', (56, 5): 'engine/overnight_v5.py',
+                  (104, 6): 'engine/overnight_v5.py'}
 
 
 def mitm(n, m):
@@ -454,6 +473,25 @@ def brute(n):
     return m, best
 
 
+@lru_cache(maxsize=None)
+def symmetric(n):
+    """A (-1)^m-symmetric sequence of length n and order m = m*(n) (brute), for even n <= BRUTE_MAX, so that it has a
+    code (to_hex; 2026-11-18: brute's own witness need not be symmetric): of the 2^(n/2) left halves, each read as a
+    binary number, f_0 its first bit, 1 for +1, the greatest whose sequence has order m.  One exists: BGPW's Symmetry
+    Conjecture holds through order 11 (the page's Symmetry section)."""
+    m, h = brute(n)[0], n // 2
+    assert n % 2 == 0 and m >= 1 and 2 ** h * n * 8 <= 2 ** 27, n            # the arrays below: 16 MiB at n = 32
+    x = np.arange(2 ** h - 1, -1, -1, dtype=np.int64)[:, None]
+    left = 2 * ((x >> np.arange(h - 1, -1, -1, dtype=np.int64)[None, :]) & 1) - 1
+    full = np.concatenate([left, (-1) ** m * left[:, ::-1]], axis=1)
+    sums = full @ (np.arange(n, dtype=np.int64)[:, None] ** np.arange(m, dtype=np.int64)[None, :])
+    found = np.flatnonzero((sums == 0).all(axis=1))
+    assert len(found) > 0, (n, m)
+    a = [int(t) for t in full[found[0]]]
+    assert order(a) == m, (n, m)
+    return a
+
+
 def symmetry_codes(html):
     """The codes of the page's Symmetry section, as [(n, m, hex)] in page order: each <code id="N:M">HEX</code> of its
     section of class symmetry, where a code is a sequence's (quals_symmetry), of length N and order M, in
@@ -469,9 +507,10 @@ def symmetry_codes(html):
 def explicit():
     """Every explicit sequence, as {(n, label): sequence}, in this order of preference: Thue-Morse, BGPW's Table 4,
     BGPW's Table 5 (arXiv v1, and the published one through overnight_v5.EXAMPLES), the page's codes, the page's joins
-    of them, the codes of the page's Symmetry section (symmetry_codes), the rest of overnight_v5.EXAMPLES, brute force
-    ("found here", order >= 1 only) and FOUND ("found here").  Each sequence's exact order is asserted equal to what
-    its source says; at a repeated (n, label) the one of higher order stays."""
+    of them, the codes of the page's Symmetry section (symmetry_codes), the rest of overnight_v5.EXAMPLES, brute
+    force's orders with a symmetric sequence of each (symmetric, order >= 1 only) and FOUND, both labeled
+    pagegen/mstar.py, the file that makes or holds them ("found here" until 2026-11-18).  Each sequence's exact order is
+    asserted equal to what its source says; at a repeated (n, label) the one of higher order stays."""
     html = open(PAGE, encoding='utf-8').read()
     page_sources(html)                                      # the page as PAGE_CODES and PAGE_JOINS have it
     coded = {f'{len(v5.from_hex(h, m))}:{m}': v5.from_hex(h, m) for _, m, h in PAGE_CODES}   # by the codes' ids
@@ -487,8 +526,8 @@ def explicit():
                + [(label, m, reduce(join, (coded[i] for i in ids))) for label, m, ids in PAGE_JOINS]
                + [(f'equipow p{n}', m, v5.from_hex(h, m)) for n, m, h in symmetry_codes(html)]
                + [(EXAMPLE_LABELS[n, m], m, v5.from_hex(h, m)) for (n, m), h in v5_rest]
-               + [('found here', *brute(n)) for n in range(1, BRUTE_MAX + 1) if brute(n)[0] >= 1]
-               + [('found here', m, v5.from_hex(h, m)) for n, m, h in FOUND])
+               + [('pagegen/mstar.py', brute(n)[0], symmetric(n)) for n in range(1, BRUTE_MAX + 1) if brute(n)[0] >= 1]
+               + [('pagegen/mstar.py', m, v5.from_hex(h, m)) for n, m, h in FOUND])
     assert all(len(v5.from_hex(h, m)) == n for n, m, h in FOUND)
     out, orders = {}, {}
     for label, m, a in entries:
@@ -771,13 +810,20 @@ def past():
     return [[n, order(a), label] for (n, label), a in sorted(explicit().items(), key=lambda item: item[0]) if n > NMAX]
 
 
+def codes_of(cols):
+    """mstar.js's codes (2026-11-18): [n, code] for each column whose lower bound is an example, rising in n, the code
+    of the sequence behind it (build), which to_hex asserts (-1)^lo-symmetric."""
+    return [[n, to_hex(build(n), lo)] for n, (lo, _, lw, _) in enumerate(cols, 1) if lw[0] == 'example']
+
+
 def js_text(cols):
-    """mstar.js: a comment line, then const MSTAR = {...}; with one column per line."""
+    """mstar.js: a comment line, then const MSTAR = {...}; with one code and one column per line."""
     T = max(c[1] for c in cols) + 1
     rows = ',\n'.join(json.dumps(c) for c in cols)
+    codes = ',\n'.join(json.dumps(c) for c in codes_of(cols))
     return ('// Generated by mstar.py from index.html and the sources it names; edit mstar.py, not this file.\n'
             f'const MSTAR = {{"nmax": {NMAX}, "mtop": {T}, "mtopAt": {json.dumps(open_past(T))}, "past": {json.dumps(past())}, '
-            f'"ifsym": {json.dumps(ifsym_of(cols, symtrees()))}, "cols": [\n{rows}\n]}};\n')
+            f'"ifsym": {json.dumps(ifsym_of(cols, symtrees()))}, "codes": [\n{codes}\n], "cols": [\n{rows}\n]}};\n')
 
 
 def main():

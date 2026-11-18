@@ -48,8 +48,9 @@ try {
   // The reasons of the data contract.  ok(n, lo or hi, ...its arguments) checks one; text(n, lo or hi, ...) gives it in
   // Claude's words, starting "order lo" or "order hi + 1"; and witness(n, lo, ...) or proof(n, hi, ...) what a box
   // shows of it (since 2026-11-04, [CEL]; an explanation in the panel of column n from 2026-11-03), from the templates
-  // of the page (page/shared.js): an example's label, a join's or a product's construction, which page/codes.js
-  // expands into its derivation, and the proof of an upper bound worked out for n.  An odd n has a column only while
+  // of the page (page/shared.js): an example's label and its code (since 2026-11-18, mstar.js's codes: coded), a join's
+  // or a product's construction, which page/codes.js expands into its derivation, and a copy of each code of the page of
+  // the length and the order of a lower bound not an example's (copies); and the proof of an upper bound worked out for n.  An odd n has a column only while
   // its box is unchecked, and every cell of it is impossible: "none" shows no witness, and "odd" that n is odd.
   const LO = {
     none: {ok: (n, lo) => lo === 0 && n % 2 === 1, witness: () => shown()},
@@ -57,31 +58,32 @@ try {
       ok: (n, lo, label) => typeof label === 'string' && label !== '',
       // readout reason; says order lo is known from an example, naming where the example comes from
       text: (n, lo, label) => `order ${lo} from an example (${label})`,
-      witness: (n, lo, label) => example(n, lo, label),
+      witness: (n, lo, label) => together(example(n, lo, label), coded(BigInt(n), lo, CODES.get(n))),   // its code, the data's (2026-11-18)
     },
     join: {
       ok: (n, lo, a, b) => [a, b].every(Number.isInteger) && a >= 1 && b >= 1 && a + b === n && lo <= Math.min(loOf(a), loOf(b)),
       // readout reason; says order lo is known from the join of the examples of lengths a and b
       text: (n, lo, a, b) => `order ${lo} from the join p${sub(a)}\u00a0∨\u00a0p${sub(b)}`,
-      witness: (n, lo, a, b) => construction(BigInt(n), n, lo, `p_{${a}} \\vee p_{${b}}`),
+      witness: (n, lo, a, b) => together(construction(BigInt(n), n, lo, `p_{${a}} \\vee p_{${b}}`), copies(BigInt(n), lo)),
     },
     product: {
       ok: (n, lo, a, b) => [a, b].every(Number.isInteger) && a >= 2 && b >= 2 && a * b === n && lo <= loOf(a) + loOf(b),
       // readout reason; says order lo is known from the expanded product of the examples of lengths a and b
       text: (n, lo, a, b) => `order ${lo} from the product p${sub(a)}\u00a0#\u00a0p${sub(b)}`,
-      witness: (n, lo, a, b) => construction(BigInt(n), n, lo, `p_{${a}} \\mathbin{\\#} p_{${b}}`),
+      witness: (n, lo, a, b) => together(construction(BigInt(n), n, lo, `p_{${a}} \\mathbin{\\#} p_{${b}}`), copies(BigInt(n), lo)),
     },
     table2: {
       ok: (n, lo) => n % 8 === 0 && n <= 304,
       // readout reason; says order lo is known from BGPW's Table 2
       text: (n, lo) => `order ${lo} from BGPW's Table 2`,
-      witness: (n, lo) => shown([filled('witness-table2', {bound: bound(n, 'ge', lo)})]),
+      witness: (n, lo) => together(shown([filled('witness-table2', {bound: bound(n, 'ge', lo)})]), copies(BigInt(n), lo)),
     },
     page: {
       ok: (n, lo, who) => credit(who).length === 1,              // who is a class of the new results' cells, which their legend words
       // readout reason; says order lo is known from this page's new results, naming whose they are
       text: (n, lo, who) => `order ${lo} from the new results above (${credit(who)[0]})`,
-      witness: (n, lo, who) => shown([filled('witness-page', {bound: bound(n, 'ge', lo), who: credit(who)[0]})], [BigInt(n)]),
+      witness: (n, lo, who) => together(shown([filled('witness-page', {bound: bound(n, 'ge', lo), who: credit(who)[0]})], [BigInt(n)]),
+                                        copies(BigInt(n), lo)),
     },
   };
   const HI = {
@@ -162,6 +164,13 @@ try {
   assert(D.mtopAt.slice(1).every((n, i) => D.mtopAt[i] <= n), D.mtopAt);
   // the explicit sequences longer than the chart reaches, for the table of smallest lengths (since 2026-11-04: 1440:16)
   assert(Array.isArray(D.past) && D.past.every(([n, m, label]) => Number.isInteger(n) && n > D.nmax && n % 2 === 0 && Number.isInteger(m) && m > 0 && label), D.past);
+  // codes (2026-11-18; dreeves: "show the expandable hex code for everything"): [n, code], rising in n, for exactly the
+  // columns whose lower bound is an example, each the code of that example, ceil(n/8) hex digits (page/codes.js
+  // checks its bits as it expands it)
+  assert(Array.isArray(D.codes) && D.codes.every(([n, code], i) => Number.isInteger(n) && (i === 0 || D.codes[i - 1][0] < n)
+    && typeof code === 'string' && /^[0-9A-F]+$/.test(code) && code.length === Math.ceil(n / 8)), 'codes');
+  assert(D.codes.map(([n]) => n).join() === D.cols.flatMap(([, , lw], i) => lw[0] === 'example' ? [i + 1] : []).join(), 'codes of the examples');
+  const CODES = new Map(D.codes);                                 // each example's column: its code
 
   const KIND = ['exists', 'open', 'impossible', 'ifsym'];         // the kinds of cell
   const UNDER = ['exists', 'open', 'impossible', 'open'];         // the token of a cell's color, by kind: an ifsym cell is an open one with a triangle over it
@@ -209,25 +218,40 @@ try {
   let geo = null;                                                  // the last draw's layout
   // The boxes under the chart (chartPanel, in page/shared.js; dreeves's README, 2026-11-03, [CEL] and [ROC]): the target
   // [c, m] is the cell of column c, n = NS[c], and row m; [c, null] the column, at its n label; [null, m] the row, at
-  // its m label; their fragments nN, mM and nNmM.  A cell's box shows, by its kind, the witness of its column's lower
+  // its m label; their fragments nN, mM and nNmM.  A cell's box shows that cell's facts, by its kind (dreeves,
+  // 2026-11-18, when for an afternoon every cell's box showed its whole column's entry: "the whole point was to show just
+  // the information for the cell (unless you click the number for the whole column)"): the witness of its column's lower
   // bound (green: "just give the partition (expandable hex code) for the highest green cell in that cell's column"),
   // the proof of its upper bound (red: "show the proof for the lowest red cell"), or both, with the searches of its n
-  // and m (black: "maybe just summarize the search efforts so far?"); a column's box, both, and the entry of its n
-  // ("both the witness for the highest green cell in the column and the proof for the lowest red cell"); a row's, the
-  // row of the order m in the table of smallest lengths, as that table has it (smallestRow), and the term a(m - 1) of
-  // OEIS A323395, which is that order's smallest length ("like a row in [the table of smallest lengths], giving the
-  // smallest n not ruled out and the smallest known n, mention the A323395 sequence").  A cell's heading leads with its swatch, kind and gold ring
-  // alike, and the legend's words for that swatch, the legend's own item cloned; its n and m link to the boxes of its
-  // column and its row.
+  // and m (black: "maybe just summarize the search efforts so far?"), and an ifsym cell's the bound that holds if the
+  // Symmetry Conjecture does too; a cell whose bound shown is the page's own also shows the entry of n, for its proof
+  // (its facts there hidden in a cell's box, page/style.css, as the box's own parts state them).  A column's box shows
+  // the entry of n in the appendix, its facts and all (since 2026-11-18: page/appendix.js; until then both bounds' parts
+  // and the remarks' entry of n).  The facts are FACTS.mstar's, which the appendix puts in each entry: one code for both.
+  // A row's box shows the row of the order m in the table of smallest lengths, as that table has it (smallestRow), and
+  // the term a(m - 1) of OEIS A323395, which is that order's smallest length ("like a row in [the table of smallest
+  // lengths], giving the smallest n not ruled out and the smallest known n, mention the A323395 sequence"); since
+  // 2026-11-18 also that term if BGPW's Symmetry Conjecture holds, the order's row of Table 5 (smallestBox, in
+  // page/shared.js), and the row's open cells (opened, below), each linked to its box.  A cell's
+  // heading leads with its swatch, kind and gold ring alike, and the legend's words for that swatch, the legend's own
+  // item cloned; its n and m link to the boxes of its column and its row.
   const panel = document.getElementById('mstar-panel'), legend = [...cv.closest('section').querySelectorAll('.legend li')];
-  const witness = n => { const [lo, , lw] = D.cols[n - 1]; return together(LO[lw[0]].witness(n, lo, ...lw.slice(1)), copies(BigInt(n), lo)); };
+  const witness = n => { const [lo, , lw] = D.cols[n - 1]; return LO[lw[0]].witness(n, lo, ...lw.slice(1)); };
   const proof = n => { const [, hi, , hw] = D.cols[n - 1]; return HI[hw[0]].proof(n, hi, ...hw.slice(1)); };
   const ifproof = n => PROOF.ifsym(BigInt(n), `${n}`, IFHI[n - 1], D.ifsym.find(e => e[0] === n)[2]);   // of a column that ifsym lists
+  FACTS.mstar = {witness, proof, ifproofs: n => D.ifsym.filter(e => e[0] === n).map(() => ifproof(n))};
+  // The legend's item of the cell (n, m), by its kind and the role of its gold ring, if any
+  const item = (n, m) => legendItem(legend, KIND[kindOf(n, m)], Math.max(0, ...RINGS.filter(r => r.n === n && r.m === m).map(r => r.role)));
+  // A row's open cells (2026-11-18; dreeves: "clicking the m for a whole row in a chart should gather up all the relevant
+  // things for that row"): each column shown whose cell of the row is above its lower bound and at or below its upper
+  // bound, open or ifsym, in order of n: the legend's item for the cell, and n, linked to the cell's box
+  const opened = m => shown(NS.filter(n => D.cols[n - 1][0] < m && m <= D.cols[n - 1][1])
+    .map(n => filled('row-cell', {item: item(n, m), at: linked(`#n${n}m${m}`, `\\(n = ${n}\\)`)})));
   const SAYS = {exists: witness, impossible: proof, open: (n, m) => together(witness(n), proof(n), searches(BigInt(n), m)),
                 ifsym: (n, m) => together(witness(n), proof(n), ifproof(n), searches(BigInt(n), m)),   // an open cell's, with the bound if the conjecture holds
-                column: n => together(witness(n), proof(n), shown([], [BigInt(n)])), row: (n, m) => smallestBox(m)};
+                column: n => shown([], [BigInt(n)]), row: (n, m) => together(smallestBox(m), opened(m))};
   const cell = (n, m) => {
-    const [swatch, ...words] = legendItem(legend, KIND[kindOf(n, m)], Math.max(0, ...RINGS.filter(r => r.n === n && r.m === m).map(r => r.role)));
+    const [swatch, ...words] = item(n, m);
     return [swatch, linked(`#n${n}`, `\\(n = ${n}\\)`), ', ', linked(`#m${m}`, `\\(m = ${m}\\)`), ': ', ...words];
   };
   const HEADINGS = {exists: cell, open: cell, impossible: cell, ifsym: cell, row: (n, m) => [`\\(m = ${m}\\)`], column: n => {

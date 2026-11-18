@@ -10,4 +10,4 @@
 // well (MSTAR.past).
 // Since 2026-11-04 the rows come from smallest() and smallestRow() (page/shared.js), which a row's box of the m*(n)
 // chart shows too ([ROC]), and which hold this table's rules and its history.
-document.querySelector('[data-smallest]').replaceChildren(...smallest().map(smallestRow));
+document.querySelector('[data-smallest]').replaceChildren(...smallest(MSTAR.cols).map(smallestRow));

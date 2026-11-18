@@ -39,7 +39,8 @@ try {
   // Claude's words, starting "order lo" or "order hi + 1"; and witness(k, lo, ...) or proof(k, hi, ...) what a box
   // shows of it, as the m*(n) chart's do (page/shared.js; since 2026-11-04, [CEL]): Thue–Morse's signs, or a join's
   // construction, its products in parentheses as the readout writes them, each block τ_j or p_n, which page/codes.js
-  // expands into its derivation; and the proof of an upper bound worked out for 2^k.
+  // expands into its derivation; and the proof of an upper bound worked out for 2^k, of each reason that can stand past
+  // the m*(n) chart's last n (a box of a 2^k up to it shows that chart's facts: mstar has no proof here).
   const blockTex = ([n, m]) => n === 2 ** m ? `\\tau_{${m}}` : `p_{${n}}`;
   const LO = {
     'thue-morse': {
@@ -58,38 +59,34 @@ try {
         ps.map(p => `(${p.map(blockTex).join(' \\mathbin{\\#} ')})`).join(' \\vee ')),
     },
   };
-  // The m*(n) chart's reasons of an upper bound at an even n, copied line for line from its script: the reasons of
-  // ["mstar", why], 2^k <= NMAX.
+  // The m*(n) chart's reasons of an upper bound at an even n, copied from its script, each its check and its words for
+  // the readout: the reasons of ["mstar", why], 2^k <= NMAX.  No proof: a box of such a 2^k shows the m*(n) chart's
+  // facts (FACTS.mstar, below), since 2026-11-18.
   const MSTAR_HI = {
     two: {
       ok: (n, hi) => n % 2 === 0 && hi === (n & -n) - 1,
       // readout reason; says order hi + 1 is ruled out because hi + 1 is the largest power of 2 dividing n
       text: (n, hi) => `order ${hi + 1} ruled out: ${hi + 1} is the power of 2 in ${n}`,
-      proof: (n, hi) => PROOF.two(BigInt(n), `${n}`, hi),
     },
     norm: {
       ok: (n, hi, p) => Number.isInteger(p) && prime(p) && n % p !== 0,
       // readout reason; says order hi + 1 is ruled out by the norm bound for the prime p
       text: (n, hi, p) => `order ${hi + 1} ruled out by the norm bound for p\u00a0=\u00a0${p}`,
-      proof: (n, hi, p) => PROOF.norm(BigInt(n), `${n}`, hi, p),
     },
     residue: {
       ok: (n, hi, M) => Number.isInteger(M) && M >= 2,
       // readout reason; says order hi + 1 is ruled out by the residue condition mod M
       text: (n, hi, M) => `order ${hi + 1} ruled out by the residue condition mod ${M}`,
-      proof: (n, hi, M) => PROOF.residue(BigInt(n), `${n}`, hi, 'pagegen/mstar.py', M),
     },
     table2: {
       ok: (n, hi) => n % 8 === 0 && n <= 304,
       // readout reason; says order hi + 1 is ruled out by BGPW's Table 2
       text: (n, hi) => `order ${hi + 1} ruled out by BGPW's Table 2`,
-      proof: (n, hi) => PROOF.table2(BigInt(n), `${n}`, hi),
     },
     page: {
       ok: (n, hi, who) => credit(who).length === 1,              // who is a class of the new results' cells, which their legend words
       // readout reason; says order hi + 1 is ruled out in this page's new results, naming whose they are
       text: (n, hi, who) => `order ${hi + 1} ruled out in the new results above (${credit(who)[0]})`,
-      proof: (n, hi, who) => PROOF.page(BigInt(n), `${n}`, hi, who),
     },
   };
   const HI = {
@@ -97,7 +94,6 @@ try {
       ok: (k, hi, why) => 2 ** k <= NMAX && Array.isArray(why) && Object.hasOwn(MSTAR_HI, why[0])
         && MSTAR_HI[why[0]].ok.length === why.length + 1 && MSTAR_HI[why[0]].ok(2 ** k, hi, ...why.slice(1)),
       text: (k, hi, why) => MSTAR_HI[why[0]].text(2 ** k, hi, ...why.slice(1)),
-      proof: (k, hi, why) => MSTAR_HI[why[0]].proof(2 ** k, hi, ...why.slice(1)),
     },
     norm: {
       ok: (k, hi, p) => Number.isInteger(p) && p > 2 && prime(p) && hi === normBound(k, p),
@@ -252,23 +248,30 @@ try {
   }
   // The boxes under the chart (chartPanel, in page/shared.js), as the m*(n) chart's: the target [c, e] is the cell of
   // column c, k = c + 1, and row e, order k + e; [c, null] the column, at its k label; [null, e] the row, at its δ
-  // label; their fragments kK, dD and kKdD.  A cell's box and a column's show what the m*(n) chart's do, the searches
-  // at n = 2^k and m = k + e; a row's (e), the legend's words for each gold-ringed cell of the row, with its k, linked to
+  // label; their fragments kK, dD and kKdD.  A cell's box and a column's show what the m*(n) chart's do: a cell's its
+  // facts by its kind, with the searches at n = 2^k and m = k + e for a black one; a column's the entry of n = 2^k in the
+  // appendix (since 2026-11-18); the facts the m*(n) chart's up to its last n (FACTS.mstar) and this chart's past it
+  // (FACTS.pow2, below); a row's (e), the legend's words for each gold-ringed cell of the row, with its k, linked to
   // its cell's box: the least k known to beat Thue–Morse by e and the least not ruled out to, or the one cell, proven,
   // where they agree; and, where e is a record gap, its row of the table of record gaps, under that table's own head
   // (recordGaps, below; the main session's design of 2026-11-04 for [ROC], whose rows dreeves named for the m*(n) chart).
   const legend = [...chart.closest('section').querySelectorAll('.legend li')];
   const witness = k => { const [lo, , lw] = D.cols[k - 1]; return together(LO[lw[0]].witness(k, lo, ...lw.slice(1)), copies(2n ** BigInt(k), lo)); };
   const proof = k => { const [, hi, , hw] = D.cols[k - 1]; return HI[hw[0]].proof(k, hi, ...hw.slice(1)); };
-  const rowBox = e => shown([...trims.filter(([, te]) => te === e).map(([k, , role]) => filled('row-ring',
-    {item: legendItem(legend, ['', 'exists', 'open', 'exists'][role], role), k: linked(`#k${k}d${e}`, `\\(k = ${k}\\)`)})),
+  const rowBox = e => shown([...trims.filter(([, te]) => te === e).map(([k, , role]) => filled('row-cell',
+    {item: legendItem(legend, ['', 'exists', 'open', 'exists'][role], role), at: linked(`#k${k}d${e}`, `\\(k = ${k}\\)`)})),
     ...recordGaps().slice(e - 1, e).map(body => {
       const part = filled('row-gaps', {});
       part.querySelector('table').append(document.querySelector('[data-record-gaps] thead').cloneNode(true), body);
       return part;
     })]);
-  const SAYS = {exists: witness, impossible: proof, open: (k, e) => together(witness(k), proof(k), searches(2n ** BigInt(k), k + e)),
-                column: k => together(witness(k), proof(k), shown([], [2n ** BigInt(k)])), row: (k, e) => rowBox(e)};
+  FACTS.pow2 = {witness, proof};
+  // a cell's facts are those of the length 2^k: the m*(n) chart's up to its last n, this chart's past it, as the
+  // appendix's entries have them (page/appendix.js)
+  const facts = k => 2 ** k <= MSTAR.nmax ? [FACTS.mstar, 2 ** k] : [FACTS.pow2, k];
+  const factWitness = k => { const [F, x] = facts(k); return F.witness(x); }, factProof = k => { const [F, x] = facts(k); return F.proof(x); };
+  const SAYS = {exists: factWitness, impossible: factProof, open: (k, e) => together(factWitness(k), factProof(k), searches(2n ** BigInt(k), k + e)),
+                column: k => shown([], [2n ** BigInt(k)]), row: (k, e) => rowBox(e)};
   const cell = (k, e) => {
     const [swatch, ...words] = legendItem(legend, KIND[kindOf(k, e)], Math.max(0, ...trims.filter(([tk, te]) => tk === k && te === e).map(([, , role]) => role)));
     return [swatch, linked(`#k${k}`, `\\(k = ${k}\\)`), ', ', linked(`#d${e}`, `\\(\\delta = ${e}\\)`), ': ', ...words];

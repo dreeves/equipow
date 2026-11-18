@@ -398,29 +398,38 @@ const FRAMES = () => new Promise(r => requestAnimationFrame(() => requestAnimati
 // Since [REO] step 2 (2026-11-03) a panel also shows the remarks' entry of its length, the li that holds its p.entry,
 // moved in: the text and links leave out the entries it shows, and the panel gives their p.entry ids (entries) and texts
 // (entryText) apart, with the ids of the p.entry still in the remarks' list, in order (listed), and the ids that two
-// elements of the page share (dups), as quals_index's panelReport does.
-const PANEL = () => {
+// elements of the page share (dups), as quals_index's panelReport does.  Since 2026-11-18 (the appendix), as that one
+// too: a box's parts are its entry's facts, the li's own [data-why] children, then its body's (PARTS), those it shows
+// (showing: a cell's box hides its entry's facts, page/style.css); the text keeps the facts it shows and leaves out the
+// rest of the entry; the list is the appendix's.
+const PANEL = () => {                              // (each function here is evaluated in the page from its text: ev)
+  const PARTS = '[data-panel-entries] > li > [data-why], [data-panel-body] > [data-why]', showing = e => getComputedStyle(e).display !== 'none';
   const region = document.getElementById('pow2-panel'), c = region.cloneNode(true), HELD = 'li:has(> p.entry)';
+  const hid = [...region.querySelectorAll('[data-why]')].map(e => !showing(e));   // in document order, as the clone's
   c.querySelectorAll('.katex').forEach(k => k.replaceWith(`\\(${k.querySelector('annotation').textContent}\\)`));
   const held = [...c.querySelectorAll(HELD)], ids = [...document.querySelectorAll('[id]')].map(e => e.id);
-  held.forEach(li => li.remove());
+  const entries = held.map(li => li.querySelector('p.entry').id), entryText = held.map(li => li.textContent.replace(/\s+/g, ' ').trim());
+  [...c.querySelectorAll('[data-why]')].filter((_, i) => hid[i]).forEach(e => e.remove());
+  held.forEach(li => [...li.children].filter(e => !e.hasAttribute('data-why')).forEach(e => e.remove()));
+  c.querySelectorAll(PARTS).forEach(e => e.append(' '));         // parts are blocks: their texts apart, as on the page
+  const parts = [...c.querySelectorAll(PARTS)];
   return {hidden: region.hidden, hash: location.hash, focus: document.activeElement === region.querySelector('h3'),
-    active: document.activeElement.id, whys: [...region.querySelectorAll('[data-why]')].map(e => e.dataset.why),
+    active: document.activeElement.id, whys: [...region.querySelectorAll('[data-why]')].filter(showing).map(e => e.dataset.why),
     heading: c.querySelector('h3').textContent, text: c.textContent.replace(/\s+/g, ' ').trim(),
-    links: [...region.querySelectorAll('a[href]')].filter(a => !a.closest(HELD)).map(a => a.getAttribute('href')),
+    links: [...c.querySelectorAll('a[href]')].map(a => a.getAttribute('href')),   // the clone's: no heading or note of an entry, no part hidden
     errors: region.querySelectorAll('.katex-error').length, scrollW: document.documentElement.scrollWidth, innerWidth,
-    entries: held.map(li => li.querySelector('p.entry').id), entryText: held.map(li => li.textContent.replace(/\s+/g, ' ').trim()),
-    listed: [...document.querySelectorAll('section.remarks ul > li > p.entry')].map(p => p.id),
+    entries, entryText,
+    listed: [...document.querySelectorAll('section.appendix ul.entries > li > p.entry')].map(p => p.id),
     dups: ids.filter((x, i) => ids.indexOf(x) !== i),
     // since 2026-11-04 ([CEL], [ROC]), as quals_index's panelReport: the box's kind, its parts as [kind, text, whether of
     // Claude's English], its copies of codes and its constructions
     kind: region.dataset.kind ?? null,
-    parts: [...c.querySelectorAll('[data-panel-body] > [data-why]')].map(e => [e.dataset.why, e.textContent.replace(/\s+/g, ' ').trim(),
-                                                                              e.hasAttribute('data-claude')]),
-    codes: [...c.querySelectorAll('[data-panel-body] code')].map(e => e.textContent.replace(/\s+/g, ' ').trim()),   // its code elements' texts (2026-11-16)
-    copies: [...c.querySelectorAll('[data-panel-body] [data-join]')].map(e => [e.dataset.join, e.dataset.order, e.getAttribute('role'), e.textContent]),
-    constructions: [...c.querySelectorAll('[data-panel-body] [data-construction]')].map(e => [e.dataset.construction, e.getAttribute('role'),
-                                                                                              e.textContent.trim()])};
+    parts: parts.map(e => [e.dataset.why, e.textContent.replace(/\s+/g, ' ').trim(), e.hasAttribute('data-claude')]),
+    codes: parts.flatMap(e => [...e.querySelectorAll('code')]).map(e => e.textContent.replace(/\s+/g, ' ').trim()),   // its code elements' texts (2026-11-16)
+    copies: parts.flatMap(e => [...e.querySelectorAll('[data-join], code[data-code]')]).map(e => [e.dataset.join ?? e.dataset.code,   // and examples' codes, 2026-11-18
+      e.dataset.order ?? e.dataset.code.split(':')[1], e.getAttribute('role'), e.textContent]),
+    constructions: parts.flatMap(e => [...e.querySelectorAll('[data-construction]')]).map(e => [e.dataset.construction, e.getAttribute('role'),
+                                                                                               e.textContent.trim()])};
 };
 const HASHED = h => new Promise(r => { addEventListener('hashchange', () => r(), {once: true}); location.hash = h; });
 // The boxes of the chart's cells, columns and rows (2026-11-04, dreeves's README items [CEL] and [ROC]).  PLACE(t): where
@@ -455,14 +464,15 @@ const BOX = (t, PLACE, PANEL) => {                 // PLACE and PANEL passed in,
     want: [s.left + c0 * s.width / 72 - 2, s.top + (E - e1) * ROW - 2, s.left + c1 * s.width / 72 + 2, s.top + (E - e0) * ROW + ROW - GAP + 2],
     swatch: sw && {cls: sw.className, color: hex(getComputedStyle(sw).backgroundColor), ring: getComputedStyle(sw).boxShadow},
     fill: under && hex(getComputedStyle(under).fill),
-    said: [...body.querySelectorAll(':scope > [data-why^="witness"], :scope > [data-why^="proof"]')].map(tex).join(' '),
+    said: [...region.querySelectorAll('[data-panel-entries] > li > [data-why], [data-panel-body] > [data-why]')]
+      .filter(e => /^(witness|proof)/.test(e.dataset.why) && getComputedStyle(e).display !== 'none').map(tex).join(' '),   // the parts it shows (2026-11-18)
     searches: [...body.querySelectorAll('[data-why="searches"]')].map(e => e.innerText),
     tables: [...body.querySelectorAll('table')].map(table => [...table.rows].map(tr => [...tr.cells].map(tex)))};
 };
 const LOADED = () => new Promise(r => { const t0 = Date.now(); const f = () => {
   const d = [...document.querySelectorAll('#pow2-panel [data-why="searches"] > div')];
   if (d.every(x => x.childNodes.length) || Date.now() - t0 > 3000) r(); else setTimeout(f, 50); }; f(); });
-const DERIVED = () => [...document.querySelectorAll('#pow2-panel [data-panel-body] [data-construction]')].map(e => {
+const DERIVED = () => [...document.querySelectorAll('#pow2-panel [data-panel-entries] > li > [data-why] [data-construction], #pow2-panel [data-panel-body] > [data-why] [data-construction]')].map(e => {
   e.click();
   const box = document.getElementById(e.getAttribute('aria-controls'));
   return [e.dataset.construction, box.querySelector('[data-bound]').textContent.replace(/\s+/g, ' ').trim(), box.checkVisibility()];
@@ -952,7 +962,7 @@ def q_scripts_load_pow2_after_mstar():
     tags = re.findall(r'<script\b[^>]*>', text[text.index('</head>'):])
     assert tags == ['<script src="page/shared.js">', '<script src="pagedata/mstar.js">', '<script src="page/mstar-section.js">',
                     '<script src="pagedata/pow2.js">', '<script src="page/pow2-section.js">', '<script src="page/smallest-section.js">',
-                    '<script src="page/codes.js">', '<script src="page/progress-section.js">'], tags
+                    '<script src="page/appendix.js">', '<script src="page/codes.js">', '<script src="page/progress-section.js">'], tags   # (the appendix's since 2026-11-18)
     assert text.index('</main>') < text.index('<script src="pagedata/mstar.js"></script>')
     assert text.count('<script src="page/mstar-section.js"></script>\n<script src="pagedata/pow2.js"></script>\n'
                       '<script src="page/pow2-section.js"></script>\n') == 1
@@ -1462,12 +1472,21 @@ def pow2_whys(data, k, rows=()):
     "ok go"): the proof of the residue condition of the single modulus 3 is Stan Wagon's words, proof-stan, where his
     argument holds (quals_index.stan_holds), as quals_index.box_parts has it, and after it (later that evening: "yeah,
     add the mathematica line") his check of all pairs as a line of Mathematica, proof-pairs, until 2026-11-18 (Opus 5.5;
-    his shorter proof, relayed by dreeves: "No need for any Mathematica code"): since then his words alone."""
+    his shorter proof, relayed by dreeves: "No need for any Mathematica code"): since then his words alone.  Spec change
+    (Opus 5.5, 2026-11-18; dreeves: "Appendix: Everything Known About Every Length", and of that afternoon's version, in
+    which every cell's box showed its column's entry whole: "the whole point was to show just the information for the
+    cell (unless you click the number for the whole column)"): up to the m*(n) chart's last n a box of this chart shows
+    what that chart's box of n = 2^k and the order k + e shows (quals_index.box_parts: a column's, its entry's facts; a
+    cell's, by its kind), the same facts for one length in both charts; past it a column's box shows the appendix's
+    entry of 2^k, its facts this chart's (quals_index.pow2_fact_kinds), and a cell's, as before, its parts by its kind."""
+    m = qi.mstar_data()
+    if 2 ** k <= qi.DATA_NMAX: return qi.box_parts(m['cols'], 2 ** k, *(k + e for e in rows), ifsym=m['ifsym'])
+    if not rows: return qi.pow2_fact_kinds(data['cols'], k)
     lo, hi, lw, hw = data['cols'][k - 1]
-    kind = KINDS[kind_of(data['cols'][k - 1], k, rows[0])] if rows else None
+    kind = KINDS[kind_of(data['cols'][k - 1], k, rows[0])]
     witness, proof = qi.SHOWS[kind]
     upper, code = hw[1][0] if hw[0] == 'mstar' else hw[0], f'{2 ** k}:{lo}'
-    entry = kind is None or (proof and upper == 'page')
+    entry = proof and upper == 'page'
     copy = code in qi.code_ids() and not (entry and code in qi.entry_codes(2 ** k))
     parts = (['proof-stan'] if hw in (['residue', [3]], ['mstar', ['residue', 3]]) and qi.stan_holds(2 ** k, hi + 1)
              else [f'proof-{upper}'])
@@ -1486,13 +1505,17 @@ def pow2_says(data, k, P):
     lo, hi, lw, hw = data['cols'][k - 1]
     t = P['text']
     bounds = f'm^*(2^{{{k}}}) = {lo}' if lo == hi else f'{lo} \\le m^*(2^{{{k}}}) \\le {hi}'
+    heading = ('heading', P['heading'] == f'\\(k = {k}\\), \\(n = 2^{{{k}}}\\): \\({bounds}\\)')
+    # Spec change (Opus 5.5, 2026-11-18): up to the m*(n) chart's last n the box shows that chart's entry of n = 2^k,
+    # which says what that chart's column box says (quals_index.panel_says, its heading this chart's)
+    if 2 ** k <= qi.DATA_NMAX:
+        return [heading] + [x for x in qi.panel_says(qi.mstar_data(), 2 ** k, P) if x[0] != 'heading']
     kind, args = (hw[1][0], hw[1][1:]) if hw[0] == 'mstar' else (hw[0], hw[1:])
     # the generator a residue panel links, by its path in the repository (pagegen/ since 2026-11-10, [REF]; the panels
     # still linked the root's mstar.py and pow2.py, which were no more, until that evening)
     source, name = ('pagegen/mstar.py', f'{2 ** k}') if hw[0] == 'mstar' else ('pagegen/pow2.py', f'2^{{{k}}}')
     assert os.path.isfile(os.path.join(HERE, source)), source
-    says = [('heading', P['heading'] == f'\\(k = {k}\\), \\(n = 2^{{{k}}}\\): \\({bounds}\\)'),
-            ('lower', f'\\(m^*(2^{{{k}}}) \\ge {lo}\\):' in t), ('upper', f'\\(m^*({name}) \\le {hi}\\):' in t)]
+    says = [heading, ('lower', f'\\(m^*(2^{{{k}}}) \\ge {lo}\\):' in t), ('upper', f'\\(m^*({name}) \\le {hi}\\):' in t)]
     if lw[0] == 'joins':
         tex = ' \\vee '.join('(' + ' \\mathbin{\\#} '.join(f'\\tau_{{{m}}}' if n == 2 ** m else f'p_{{{n}}}' for n, m in p) + ')' for p in lw[1])
         says += [('construction', [f'{2 ** k}:{lo}', 'button', f'\\({tex}\\)'] in P['constructions'])]
@@ -1548,7 +1571,7 @@ def q_norm_panels_hold_at_powers_of_2():
         k = P['k']
         lo, hi, lw, hw = R['data']['cols'][k - 1]
         why = hw[1] if hw[0] == 'mstar' else hw
-        if why[0] != 'norm': continue
+        if why[0] != 'norm' or 2 ** k <= qi.DATA_NMAX: continue   # (since 2026-11-18 a box shows this chart's facts from 2^12)
         n, p, m = 2 ** k, why[1], hi + 1
         sizes = [(n - r + p - 1) // p for r in range(p)]
         S = sum(x * x for x in sizes)
@@ -1612,7 +1635,7 @@ def q_residue_panels_at_3_give_stan_s_words_where_they_hold_at_powers_of_2():
         lo, hi, lw, hw = R['data']['cols'][k - 1]
         if hw not in (['residue', [3]], ['mstar', ['residue', 3]]) or not qi.stan_holds(2 ** k, hi + 1): continue
         n, m = 2 ** k, hi + 1
-        name = f'{n}' if hw[0] == 'mstar' else f'2^{{{k}}}'
+        name = f'{n}' if n <= qi.DATA_NMAX else f'2^{{{k}}}'   # (the m*(n) chart's entry up to its last n, since 2026-11-18)
         assert m % 2 == 0 and (n + 2) // 3 - n // 3 == 1 and (n + 2) // 3 + n // 3 < 3 ** (m // 2) and not qi.stan_holds(n, m - 2), (k, m)
         part = [(why, t, c) for why, t, c in P['parts'] if why == 'proof-stan']
         assert [(why, c) for why, _, c in part] == [('proof-stan', False)], (k, P['parts'])
@@ -1623,7 +1646,9 @@ def q_residue_panels_at_3_give_stan_s_words_where_they_hold_at_powers_of_2():
         stan.append((k, m))
     assert len(stan) > 20 and (10, 12) in stan and 72 not in [k for k, _ in stan], stan
     three = next(P for P in R['panels'] if P['k'] == 3)
-    assert [c for _, _, c in three['parts']] == [True, False] and three['text'].count('“') == 2 and qi.quoted_right(three['parts']), three['parts']
+    # (since 2026-11-18 the box of 2^3 is 8's entry of the m*(n) chart: its witness the label Thue–Morse, no English;
+    # since that evening with its code, mstar.js's, then Stan's words)
+    assert [c for _, _, c in three['parts']] == [False, False, False] and three['text'].count('“') == 1 and qi.quoted_right(three['parts']), three['parts']
 
 
 def q_residue_panels_at_3_give_a_mathematica_line_elsewhere_at_powers_of_2():
@@ -1700,7 +1725,11 @@ def q_made_up_panels_use_every_kind():
         assert bad == [], (P['k'], bad, P['text'])
     kinds = {w for P in R['panels'] for w in P['whys']}
     # (spec change, 2026-11-04, [CEL]: the parts' kinds are a witness's and a proof's, lo-KIND and hi-KIND until then)
-    assert {'witness-thue-morse', 'witness-construction', 'proof-two', 'proof-norm', 'proof-residue', 'proof-table2', 'proof-page'} <= kinds, kinds
+    # Spec change (Opus 5.5, 2026-11-18): up to 2^11 the boxes show the m*(n) chart's entries (that chart's real data,
+    # beside this made-up pow2.js), so this data's kinds show from 2^12 on (Thue–Morse, joins, the norm bound), and
+    # the m*(n) chart's below; its kinds two, table2, page and residue stand only below 2^12 and so show in no box.
+    assert {'witness-thue-morse', 'witness-construction', 'proof-norm', 'witness-example', 'witness-alternating', 'proof-two',
+            'proof-residue', 'proof-stan'} <= kinds, kinds
 
 
 def q_panels_show_their_entries_and_give_them_back():
@@ -1793,7 +1822,10 @@ def q_pow2_boxes_show_witness_proof_and_searches_by_kind():
     cols = R['data']['cols']
     for t in ((30, 2), (20, 2), (10, 1), (30, 8), (9, 1), (30, 5), (13, 2)):
         assert B[t]['whys'] == pow2_whys(R['data'], *t[:1], [t[1]]), (t, B[t]['whys'], pow2_whys(R['data'], t[0], [t[1]]))
-    assert B[(10, 1)]['constructions'] == [['1024:11', 'button', '\\((p_{1024})\\)']], B[(10, 1)]['constructions']
+    # (Spec change, Opus 5.5, 2026-11-18: the box of the cell (10, 1) shows the m*(n) chart's witness of 1024, the example
+    # and a copy of its code 1024:11, as that chart's box of (1024, 11) does; until then this chart's construction
+    # (p_1024) and the copy.)
+    assert B[(10, 1)]['constructions'] == [] and B[(10, 1)]['entries'] == [], B[(10, 1)]
     assert B[(10, 1)]['copies'] == [['1024:11', '11', 'button', qi.code_digits('1024:11')]], B[(10, 1)]['copies']
     # Since 2026-11-11 the join at 2^30 is the base of excess 4, of order 34 (pow2.BASES[30]; dreeves, of recording it: "go ahead"); until then the lift of the base
     # at 2^28, a button claiming '1073741824:33' with (p_960 # p_768 # tau_7) v (p_576 # p_576 # p_48 # tau_3) v (p_800 # p_832 # p_320 # tau_2)
@@ -1829,7 +1861,9 @@ def q_column_and_row_boxes_open_from_their_labels():
     for e in (3, 12):
         P, mine = B[(None, e)], [(k, role) for k, g, role in rings if g == e]
         assert not P['hidden'] and P['hash'] == f'#d{e}' and P['kind'] == 'row' and P['heading'] == f'\\(\\delta = {e}\\)', (e, P['hash'], P['heading'])
-        assert P['whys'] == ['row-ring'] * len(mine) + ['row-gaps'] * (e == 3), (e, P['whys'])
+        # (the template row-ring was renamed row-cell on 2026-11-18, Opus 5.5, when the m*(n) chart's row boxes came to
+        # list their open cells by it too)
+        assert P['whys'] == ['row-cell'] * len(mine) + ['row-gaps'] * (e == 3), (e, P['whys'])
         assert [f'#k{k}d{e}' for k, _ in mine] == [h for h in P['links'] if h.startswith('#k')], (e, P['links'])
         assert all(f'\\(k = {k}\\)' in P['text'] for k, _ in mine), (e, P['text'])
     assert [k for k, g, _ in rings if g == 3] == [16, 28], rings
@@ -1846,13 +1880,20 @@ def q_every_column_s_construction_derives_its_bound():
     # its derivation shows, its bound m*(2^k) >= lo; a column of Thue–Morse has none; so pow2.js's blocks agree with
     # mstar.js's orders.
     # Resultata before: no construction in the panels.
+    # Spec change (Opus 5.5, 2026-11-18): up to 2^11 the box shows the m*(n) chart's entry of n = 2^k, whose witness is
+    # a construction where that chart's lower bound is a join or a product (2048's), claiming n:lo there.
     R = valid('light')
-    cols = R['data']['cols']
+    cols, mcols = R['data']['cols'], qi.mstar_data()['cols']
+    want = {}
+    for k, (lo, _, lw, _) in enumerate(cols, 1):
+        n = 2 ** k
+        mine = mcols[n - 1] if n <= qi.DATA_NMAX else None
+        bound = (lambda x: f'm*(2{k}) ≥ {x}' if k > 1 else f'm*(2) ≥ {x}')   # codes.js writes a power of 2 as 2^k
+        want[k] = ([[f'{n}:{mine[0]}', bound(mine[0]), True]] if mine[2][0] in ('join', 'product') else []) if mine \
+            else [[f'{n}:{lo}', bound(lo), True]] if lw[0] == 'joins' else []
     for D in R['derived']:
-        k, (lo, _, lw, _) = D['k'], cols[D['k'] - 1]
-        want = [[f'{2 ** k}:{lo}', f'm*(2{k}) ≥ {lo}' if k > 1 else f'm*(2) ≥ {lo}', True]] if lw[0] == 'joins' else []
-        assert D['derived'] == want, (k, D['derived'], want)
-    assert sum(1 for D in R['derived'] if D['derived']) == sum(1 for c in cols if c[2][0] == 'joins') > 50
+        assert D['derived'] == want[D['k']], (D['k'], D['derived'], want[D['k']])
+    assert sum(1 for D in R['derived'] if D['derived']) == sum(1 for w in want.values() if w) > 50
 
 
 def q_pow2_cell_boxes_are_brief_and_quote_claude_right():
@@ -1892,7 +1933,9 @@ def q_missing_data_fails_loudly():
     [R] = run('missing')
     error = next(e[len('exception: Uncaught '):] for e in R['errors'] if e.startswith('exception: Uncaught '))
     assert R['load']['chartNodes'] == 0 and 'POW2' in error and R['load']['readout'].endswith(error), R['load']
-    assert len(R['errors']) == 2, R['errors']
+    # (Spec change, Opus 5.5, 2026-11-18: and the appendix's, which takes this chart's facts too and so fails loudly
+    # too, naming the charts that gave theirs: the m*(n) chart's alone.)
+    assert len(R['errors']) == 3 and R['errors'][-1] == "exception: Uncaught Error: ['the facts of each chart',['mstar']]", R['errors']
     assert [x for x in R['errors'] if x.startswith('log error network: ') and x.endswith('/pow2.js')], R['errors']
     assert R['load']['canvasH'] > 0, R['load']
 
@@ -1914,7 +1957,9 @@ def q_contract_violations_fail_loudly():
     for v, R in zip(VIOLATIONS, run('violations')):
         q = VIOLATIONS[v][1]
         assert R['load']['chartNodes'] == 0 and R['load']['readout'].endswith(f'Error: {q}'), (v, R['load']['readout'])
-        assert R['errors'] == [f'exception: Uncaught Error: {q}'], (v, R['errors'])
+        # (Spec change, Opus 5.5, 2026-11-18: then the appendix's, which takes this chart's facts too, naming the
+        # charts that gave theirs: the m*(n) chart's alone.)
+        assert R['errors'] == [f'exception: Uncaught Error: {q}', "exception: Uncaught Error: ['the facts of each chart',['mstar']]"], (v, R['errors'])
 
 
 def main():

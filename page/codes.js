@@ -18,10 +18,12 @@
 // narrow, with k and the mark = or ≠ beside both (cells data-k, data-relation, data-sum "+1" and "-1").  A code's signs
 // are overnight_v5.from_hex's, as mstar.py reads the page's codes (BGPW's Table 5 convention): each hex digit's four
 // bits, the most significant first, 1 as +1 and 0 as -1, make the left half, and the right half is the left half
-// reversed, times (-1)^M.  A join's signs are its codes' one after the other, as the page's join puts them
-// (f ∨ g = f(x) + x^{n_f} g(x)).  It throws, as the page loads, on a code's id other than N:M, a code other than hex
-// digits, an N other than 8 times its number of digits, or a join of an id that no code has, and, at a click, on power
-// sums other than order exactly M's (equal below M, unequal at M).
+// reversed, times (-1)^M; since 2026-11-18, for N not a multiple of 8 (the codes of mstar.js's examples, such as
+// Thue–Morse's of length 4), the first N/2 bits make the left half and the rest, fewer than four, are 0, as BGPW's
+// Table 4 pads its codes (mstar.py's from_rp).  A join's signs are its codes' one after the other, as the page's join
+// puts them (f ∨ g = f(x) + x^{n_f} g(x)).  It throws, as the page loads, on a code's id other than N:M, a code other
+// than hex digits, a number of digits other than N/8 rounded up, a padding bit other than 0, or a join of an id that
+// no code has, and, at a click, on power sums other than order exactly M's (equal below M, unequal at M).
 //
 // A construction is data-construction, "N:M", the length N and the order M that the page states for its formula, a
 // formula over sequences in the page's math: names joined by # (\mathbin{\#}) or ∨ (\vee), one of the two in each pair
@@ -32,7 +34,8 @@
 // (rows data-n and data-m), the whole formula last, and below them the bound m*(N) ≥ M.  A part p_N is the best known
 // sequence of length N, as the powers-of-2 chart's caption says: its order is mstar.js's lower bound at N, and its row
 // links to its code on the page, <code id="N:M">, or, when the page does not show that code, cites mstar.js's label of
-// the example; τ_j is Thue–Morse, of length 2^j and order j; a letter is the construction of the page that names it,
+// the example, or links to N's entry in the appendix where that lower bound is a join or a product (since 2026-11-18);
+// τ_j is Thue–Morse, of length 2^j and order j; a letter is the construction of the page that names it,
 // whose row links to it (the construction takes the letter as its id).  A product multiplies its parts' lengths and adds
 // their orders; a join adds the lengths and has the least of the orders (its order is at least that: (x - 1)^m divides
 // f ∨ g when it divides f and g).  It throws, as the page loads, on a formula outside that form or a letter that two
@@ -55,8 +58,10 @@
 
   // ---------- codes and joins ----------
   const template = document.querySelector('template[data-partition]').content.firstElementChild;
-  const signs = (hex, m) => {                                      // a code's signs f_0, f_1, ..., +1 or -1
-    const left = [...hex].flatMap(d => [...parseInt(d, 16).toString(2).padStart(4, '0')].map(b => 2 * Number(b) - 1));
+  const signs = (hex, m, n) => {                                   // a code's signs f_0, f_1, ..., +1 or -1
+    const bits = [...hex].flatMap(d => [...parseInt(d, 16).toString(2).padStart(4, '0')].map(Number));
+    assert(n % 2 === 0 && hex.length === Math.ceil(n / 8) && bits.slice(n / 2).every(b => b === 0), hex, n);   // its padding 0
+    const left = bits.slice(0, n / 2).map(b => 2 * b - 1);
     return [...left, ...left.toReversed().map(t => (-1) ** m * t)];
   };
   // An element's order and signs: a code's M and its digits' signs; a join's data-order and its codes' signs, one
@@ -69,8 +74,8 @@
     }
     assert((e.id === '') === ('code' in e.dataset), e.outerHTML.slice(0, 80));   // its N:M in its id or in data-code
     const nm = e.id || e.dataset.code, [n, m] = nm.split(':').map(Number);
-    assert(/^\d+:\d+$/.test(nm) && /^[0-9A-F]+$/.test(e.textContent) && n === 8 * e.textContent.length, nm, e.textContent);
-    return [m, signs(e.textContent, m)];
+    assert(/^\d+:\d+$/.test(nm) && /^[0-9A-F]+$/.test(e.textContent) && e.textContent.length === Math.ceil(n / 8), nm, e.textContent);
+    return [m, signs(e.textContent, m, n)];
   }
   const cell = (tag, text, data, rowSpan) => {                    // a cell of the power sums
     const c = Object.assign(document.createElement(tag), {textContent: text, rowSpan});
@@ -149,12 +154,17 @@
   const sequences = new Map([...document.querySelectorAll('code[id], code[data-code], [data-join]')].map(e => [e, sequence(e)]));
   // The parts, by kind: their length n, order m, link (the href of the code or construction they are, or null) and
   // citation (the source they cite, or null)
+  // (Since 2026-11-18, when every length came to have an entry in the appendix, which holds its witness: a p_N whose
+  // code the page does not show and whose lower bound is a join or a product links to N's entry, where that construction
+  // is, in place of nothing it could cite; until then such a part threw, and only the boxes of such columns showed one.)
   const PARTS = {
     p: (N, claim) => {                                             // the best known sequence of length N
       assert(1n <= N && N <= BigInt(MSTAR.nmax), claim, String(N));
       const [lo, , why] = MSTAR.cols[Number(N) - 1], code = document.getElementById(`${N}:${lo}`);
-      assert(code === null ? why[0] === 'example' : sequences.has(code), claim, String(N), why);
-      return {n: N, m: lo, link: code && `#${code.id}`, cite: code ? null : why[1]};
+      assert(code === null ? ['example', 'join', 'product'].includes(why[0]) : sequences.has(code), claim, String(N), why);
+      const built = code === null && why[0] !== 'example';
+      return {n: N, m: lo, link: code ? `#${code.id}` : built ? `#${entries(N)[0].querySelector('p.entry').id}` : null,
+              cite: code || built ? null : why[1]};
     },
     tau: j => ({n: 2n ** BigInt(j), m: j, link: null, cite: THUE_MORSE}),
     name: (x, claim) => {                                          // a construction of the page, which x names

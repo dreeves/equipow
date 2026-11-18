@@ -201,7 +201,12 @@ const BLOCK = i => { const b = qualsItems()[i].parentElement.getBoundingClientRe
 const SCAN = () => {
   const main = document.querySelector('main').cloneNode(true);
   main.querySelectorAll('.partition').forEach(p => p.remove());
-  return {hex: [...document.querySelectorAll('code')].filter(c => /^[0-9A-F]{2,}$/.test(c.textContent))
+  // (and since 2026-11-18 the facts that page/appendix.js puts in the appendix's entries, generated as the boxes' parts
+  // were, which this scan never saw open: past 2^60 their class sizes, with their thousands separators, read as runs)
+  main.querySelectorAll('[data-why]').forEach(p => p.remove());
+  // (a code inside a join is that join's: a copy of a code, a join of one code, which the appendix's facts hold since
+  // 2026-11-18 as the boxes' did, so the joins' check covers it)
+  return {hex: [...document.querySelectorAll('code')].filter(c => /^[0-9A-F]{2,}$/.test(c.textContent) && !c.closest('[data-join]'))
                  .map(c => [c.textContent, c.id, c.getAttribute('role'), c.getAttribute('aria-expanded')]),
           joins: [...document.querySelectorAll('[data-join]')].map(e => [e.dataset.join, e.getAttribute('role'), e.getAttribute('aria-expanded')]),
           runs: (main.textContent.match(/\d+(?:\s*,\s*\d+)+/g) || []).map(r => r.split(',').length).sort((a, b) => b - a).slice(0, 5)};
@@ -259,8 +264,9 @@ const OPS = {
     await ev(() => document.fonts.ready.then(() => 0));
     const katex = await ev(KATEX);
     await ev(FRAMES);
-    await press('section.remarks details:not(.ai) > summary');
-    if (!await ev(() => document.querySelector('section.remarks details:not(.ai)').open)) throw new Error('the fold of the remarks did not open');
+    // (the appendix's fold since 2026-11-18, which holds the entries: the remarks' until then)
+    await press('section.appendix > details > summary');
+    if (!await ev(() => document.querySelector('section.appendix > details').open)) throw new Error('the fold of the appendix did not open');
     // (2026-11-13, when every model's text came to start folded, dreeves: "all ai-generated text should be default
     // collapsed": the Symmetry section's codes among it) a real click on the line of each such fold that holds a code,
     // which must open it, as a reader opens it to reach the codes
@@ -379,10 +385,13 @@ process.exit(code);
 
 DESKTOP = dict(width=1280, height=900, dpr=2, mobile=False)
 PHONE = dict(width=390, height=844, dpr=3, mobile=True)
-CODES_AND_JOINS = 'code[id], [data-join]'     # the selector of the items of this file's quals: the codes and joins
+# the selector of the items of this file's quals: the codes and joins written in the page, not the copies of codes in
+# the facts that page/appendix.js puts in the appendix's entries (Opus 5.5, 2026-11-18; quals_index holds those)
+CODES_AND_JOINS = 'code[id], [data-join]:not([data-why] *)'
 TEXTS = '[data-text]'                         # the selector of the texts' buttons (since 2026-11-05)
-# every button of the page: codes, joins, constructions and (since 2026-11-05) texts
-BUTTONS = 'code[id], [data-join], [data-construction], [data-text]'
+# every button of the page: codes, joins, constructions and (since 2026-11-05) texts; written in the page, not those of the
+# facts that page/appendix.js puts in the appendix's entries (2026-11-18; quals_index and quals_derivations hold those)
+BUTTONS = 'code[id], [data-join]:not([data-why] *), [data-construction]:not([data-why] *), [data-text]'
 # In the page, after the placed run's clicks: each button, in page order, as [its tag, its key (a code's id, a join's
 # data-join, a construction's data-construction, a text's data-text), the index of its block (its nearest p or li)
 # among the buttons' blocks, aria-expanded, aria-controls]; each box (class partition, derivation or, a text's,
@@ -390,7 +399,7 @@ BUTTONS = 'code[id], [data-join], [data-construction], [data-text]'
 # it shows]; and for each block, the indexes of the buttons whose boxes come right after it, one after the other (null
 # for a button without a block)
 PLACE = """() => {
-  const buttons = [...document.querySelectorAll('code[id], [data-join], [data-construction], [data-text]')];
+  const buttons = [...document.querySelectorAll('code[id], [data-join]:not([data-why] *), [data-construction]:not([data-why] *), [data-text]')];   // BUTTONS
   const blocks = [...new Set(buttons.map(b => b.closest('p, li')))];
   const owner = new Map(buttons.map((b, i) => [document.getElementById(b.getAttribute('aria-controls')), i]));
   owner.delete(null);
@@ -433,8 +442,8 @@ ROOM = """() => {
   boxes.forEach(b => { b.style.display = ''; });
   return {boxes: boxes.length, heights: [asTheyAre, without]};
 }"""
-# In the page: whether the remarks' fold is open
-FOLD = """() => document.querySelector('section.remarks details:not(.ai)').open"""
+# In the page: whether the entries' fold is open (the appendix's since 2026-11-18, the remarks' until then)
+FOLD = """() => document.querySelector('section.appendix > details').open"""
 
 
 def drive(viewport, steps, text=None, items=CODES_AND_JOINS, fragment=''):

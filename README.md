@@ -6,6 +6,7 @@ LittlewoodPolynomialsReprint.pdf is the published version of the paper this is e
 ---
 
 Potential tasks: 
+* [TIL] How does the "tilted" search work? Is there a reason we can't see a count of nodes checked, etc? Relatedly, does it ever make sense for the ETA to be strictly based on Lindy's rule? I guess Lindy makes sense if the search space is effectively infinite and we just take stabs in the dark that have a fixed probability of succeeding but we have no idea what that probability is, just that it stays fixed. That doesn't seem like it's ever a good model of our searches here, is it?
 * [SYM] For the remaining searches, would it make sense to first get the conditional-on-the-Symmetry-Conjecture versions?
 * [POL] Can all the polynomial algebra be streamlined or improved or clarified?
 * [SPL] There's a 240s threshold for "spilling" ie handing off an unfinished task; has that threshold been tuned to minimize total search time?
@@ -15,6 +16,8 @@ Potential tasks:
 * [CRO] This might be fun: Let people contribute computation by just having the equipow page open in their browser. Claude thinks this could work. (More boringly, Claude is estimating we could bring the next two searches down from a total of 90 days on my laptop to about 4 days on cloud compute costing around $300.)
 * [TRE] We now have a time series of the number of pending nodes in the search. Seeing when that plateaus or starts to actually go down should improve our ETA. Can we incorporate that in the ETA graph? (Also this was missing from the 288:10 search for some reason.)
 
+Human to rewrite:
+Click a formula built with those to see its derivation. A product multiplies the lengths of its parts and adds their orders; a join adds the lengths, and its order is at least the smallest of its parts.
 
 Stan notes:
 

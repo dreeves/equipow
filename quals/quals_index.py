@@ -512,11 +512,11 @@ function battery(R) {
   // the cap pressed as the page loads: a click on it shows every column, as the reset button did until 2026-11-10 ([BOU])
   const reset = document.querySelector('#mstar-caps button[aria-pressed="true"]'), rect = () => cv.getBoundingClientRect();
   R.readout0 = ro.textContent;
-  // The fold of the remarks' list ([REO] step 2, 2026-11-03), as the page loads: whether it is there and open, and
-  // whether its summary and its list are shown
-  const fold = document.querySelector('section.remarks details:not(.ai)');
+  // The fold of the entries' list ([REO] step 2, 2026-11-03; the appendix's since 2026-11-18, the remarks' until then), as
+  // the page loads: whether it is there and open, and whether its summary and its list are shown
+  const fold = document.querySelector('section.appendix details');
   R.fold = {there: fold !== null, open: fold?.open ?? null, summary: fold?.querySelector(':scope > summary')?.checkVisibility() ?? null,
-            list: fold?.querySelector(':scope > ul')?.checkVisibility() ?? null};
+            list: fold?.querySelector('ul.entries')?.checkVisibility() ?? null};
   R.canvasCss = [rect().width, rect().height];
   R.canvasDev = [cv.width, cv.height];
   R.dpr = devicePixelRatio; R.innerW = innerWidth; R.scrollW = document.documentElement.scrollWidth;
@@ -932,30 +932,42 @@ function battery(R) {
 // box's kind (data-kind: the kind of the cell clicked, column or row), its parts as [kind, text, whether it is of
 // Claude's English: data-claude] (parts), its copies of
 // codes (copies: [data-join, data-order, role, digits]) and its constructions (constructions: [data-construction,
-// role, TeX]).
-const HELD = 'li:has(> p.entry)';                                  // an entry of the remarks, wherever it is
+// role, TeX]).  Since 2026-11-18 (the appendix: "Appendix: Everything Known About Every Length"; dreeves: "i see that
+// many of the boxes that pop up when you click a cell are missing witnesses. so make everything consistent and
+// complete") a box's parts are its entry's facts, the li's own [data-why] children, then its body's (PARTS): the
+// generated text keeps the facts and leaves out the rest of the entry, its heading and its notes by hand; the entries'
+// list and fold are the appendix's.  Later that day (dreeves: "the whole point was to show just the information for the
+// cell (unless you click the number for the whole column)") a cell's box hides its entry's facts (page/style.css), so
+// that its parts, kinds (whys), text and links are those it shows (showing).
+const HELD = 'li:has(> p.entry)';                                  // an entry, wherever it is
+const PARTS = '[data-panel-entries] > li > [data-why], [data-panel-body] > [data-why]';   // a box's parts, in order, shown or not
+const showing = e => getComputedStyle(e).display !== 'none';       // a part the box shows (a closed box's too)
 function panelReport(id = 'mstar-panel') {
   const region = document.getElementById(id), c = region.cloneNode(true);
+  const hid = [...region.querySelectorAll('[data-why]')].map(e => !showing(e));   // in document order, as the clone's
   c.querySelectorAll('.katex').forEach(k => k.replaceWith(`\\(${k.querySelector('annotation').textContent}\\)`));
-  const held = [...c.querySelectorAll(HELD)];
-  held.forEach(li => li.remove());
-  const ids = [...document.querySelectorAll('[id]')].map(e => e.id), fold = document.querySelector('section.remarks details:not(.ai)');
+  const held = [...c.querySelectorAll(HELD)], entryText = held.map(li => li.textContent.replace(/\s+/g, ' ').trim());
+  const entries = held.map(li => li.querySelector('p.entry').id);   // before the headings go
+  [...c.querySelectorAll('[data-why]')].filter((_, i) => hid[i]).forEach(e => e.remove());
+  held.forEach(li => [...li.children].filter(e => !e.hasAttribute('data-why')).forEach(e => e.remove()));
+  c.querySelectorAll(PARTS).forEach(e => e.append(' '));         // parts are blocks: their texts apart, as on the page
+  const ids = [...document.querySelectorAll('[id]')].map(e => e.id), fold = document.querySelector('section.appendix details');
+  const parts = [...c.querySelectorAll(PARTS)];
   return {hidden: region.hidden, hash: location.hash, focus: document.activeElement === region.querySelector('h3'),
-          active: document.activeElement.id, whys: [...region.querySelectorAll('[data-why]')].map(e => e.dataset.why),
+          active: document.activeElement.id, whys: [...region.querySelectorAll('[data-why]')].filter(showing).map(e => e.dataset.why),
           heading: c.querySelector('h3').textContent, text: c.textContent.replace(/\s+/g, ' ').trim(),
-          links: [...region.querySelectorAll('a[href]')].filter(a => !a.closest(HELD)).map(a => a.getAttribute('href')),
+          links: [...c.querySelectorAll('a[href]')].map(a => a.getAttribute('href')),   // the clone's: no heading or note of an entry, no part hidden
           errors: region.querySelectorAll('.katex-error').length, scrollW: document.documentElement.scrollWidth,
-          entries: held.map(li => li.querySelector('p.entry').id), entryText: held.map(li => li.textContent.replace(/\s+/g, ' ').trim()),
-          listed: [...document.querySelectorAll('section.remarks ul > li > p.entry')].map(p => p.id),
+          entries, entryText,
+          listed: [...document.querySelectorAll('section.appendix ul.entries > li > p.entry')].map(p => p.id),
           dups: ids.filter((x, i) => ids.indexOf(x) !== i),
           fold: {there: fold !== null, open: fold?.open ?? null, shown: fold?.checkVisibility() ?? null},
           kind: region.dataset.kind ?? null,
-          parts: [...c.querySelectorAll('[data-panel-body] > [data-why]')].map(e => [e.dataset.why, e.textContent.replace(/\s+/g, ' ').trim(),
-                                                                                    e.hasAttribute('data-claude')]),
-          codes: [...c.querySelectorAll('[data-panel-body] code')].map(e => e.textContent.replace(/\s+/g, ' ').trim()),   // its code elements' texts (2026-11-16)
-          copies: [...c.querySelectorAll('[data-panel-body] [data-join]')].map(e => [e.dataset.join, e.dataset.order, e.getAttribute('role'), e.textContent]),
-          constructions: [...c.querySelectorAll('[data-panel-body] [data-construction]')].map(e => [e.dataset.construction, e.getAttribute('role'),
-                                                                                                    e.textContent.trim()])};
+          parts: parts.map(e => [e.dataset.why, e.textContent.replace(/\s+/g, ' ').trim(), e.hasAttribute('data-claude')]),
+          codes: parts.flatMap(e => [...e.querySelectorAll('code')]).map(e => e.textContent.replace(/\s+/g, ' ').trim()),   // its code elements' texts (2026-11-16)
+          copies: parts.flatMap(e => [...e.querySelectorAll('[data-join], code[data-code]')]).map(e => [e.dataset.join ?? e.dataset.code, e.dataset.order ?? e.dataset.code.split(':')[1], e.getAttribute('role'), e.textContent]),   // copies, and since 2026-11-18 examples' codes (data-code)
+          constructions: parts.flatMap(e => [...e.querySelectorAll('[data-construction]')]).map(e => [e.dataset.construction, e.getAttribute('role'),
+                                                                                                         e.textContent.trim()])};
 }
 // Every column's panel, opened by its fragment, nN, in turn (OPTS.panels; the run lifts Chrome's limit of 200 changes
 // of a frame's address per 10 s, which these 514 changes pass in about 2 s), then the last one closed by its button
@@ -1020,7 +1032,7 @@ async function fragment(R) {
 // its searches have loaded (searched); its close button (closed, with the pixels of its outline then); and the page's
 // fragment set to #m16 and then #n1024m12 (hashed).
 const BOX_TARGETS = [[1024, 8], [1024, 12], [528, 12], [480, 12], [480, 13], [480, 14], [672, 13], [240, 11], [1020, 4], [56, 6],
-                     [36, 2], [80, 3], [1024, null], [null, 12], [null, 13], [null, 16]];
+                     [36, 2], [80, 3], [16, 4], [1024, null], [null, 12], [null, 13], [null, 16]];   // [16, 4] since 2026-11-18
 async function boxes(R) {
   const cv = document.getElementById('mstar-chart'), region = document.getElementById('mstar-panel');
   const tok = name => getComputedStyle(cv).getPropertyValue(name).trim().toLowerCase();
@@ -1068,7 +1080,8 @@ async function boxes(R) {
   const body = () => region.querySelector('[data-panel-body]');
   function boxReport(t) {
     const before = getComputedStyle(region, '::before'), b = region.getBoundingClientRect(), r = cv.getBoundingClientRect();
-    const sw = region.querySelector('h3 .swatch'), said = [...body().querySelectorAll(':scope > [data-why^="witness"], :scope > [data-why^="proof"]')];
+    const parts = [...region.querySelectorAll(PARTS)].filter(showing);   // its entry's facts, then its body's parts, as it shows them (2026-11-18)
+    const sw = region.querySelector('h3 .swatch'), said = parts.filter(e => /^(witness|proof)/.test(e.dataset.why));
     snap();
     return {target: t, ...panelReport(), frame: hex(getComputedStyle(region).borderTopColor),
       caret: b.left + region.clientLeft + parseFloat(before.left) + parseFloat(before.borderLeftWidth),
@@ -1076,14 +1089,17 @@ async function boxes(R) {
       own: t.includes(null) ? null : pix(placeOf(t)[0], rows[T - t[1]][0] + (rows[T - t[1]][1] - rows[T - t[1]][0]) * 3 / 4),   // clear of rings and dots
       swatch: sw && {cls: sw.className, color: hex(getComputedStyle(sw).backgroundColor), ring: getComputedStyle(sw).boxShadow},
       said: said.map(tex).join(' '),
-      claude: [...body().children].map(e => e.hasAttribute('data-claude')),
-      copies: [...body().querySelectorAll('[data-join]')].map(e => [e.dataset.join, e.dataset.order, e.getAttribute('role'), e.textContent]),
-      constructions: [...body().querySelectorAll('[data-construction]')].map(e => [e.dataset.construction, e.getAttribute('role'), tex(e)]),
+      claude: parts.map(e => e.hasAttribute('data-claude')),
+      copies: parts.flatMap(e => [...e.querySelectorAll('[data-join], code[data-code]')]).map(e => [e.dataset.join ?? e.dataset.code, e.dataset.order ?? e.dataset.code.split(':')[1], e.getAttribute('role'), e.textContent]),
+      constructions: parts.flatMap(e => [...e.querySelectorAll('[data-construction]')]).map(e => [e.dataset.construction, e.getAttribute('role'), tex(e)]),
       searches: [...body().querySelectorAll('[data-why="searches"]')].map(e => e.innerText),
       tables: [...body().querySelectorAll('table')].map(table => [...table.rows].map(tr => [...tr.cells].map(tex))),
+      cells: [...body().querySelectorAll('[data-why="row-cell"]')].map(p => [p.querySelector('.swatch').className,   // a row's cells (2026-11-18)
+                                                                                [...p.querySelectorAll('a[href]')].at(-1).getAttribute('href')]),
       outline: outlinePixels(t)};
   }
   R.table3 = [...document.querySelector('section.smallest table').rows].map(tr => [...tr.cells].map(tex));
+  R.table5 = [...document.getElementById('symmetry-table').closest('table').rows].map(tr => [...tr.cells].map(tex));   // (2026-11-18)
   R.table4 = [...document.querySelector('[data-record-gaps]').querySelectorAll('thead tr, tbody tr')].map(tr => [...tr.cells].map(tex));
   // until the box's searches, if it has any, have loaded (at most 5 s)
   const loaded = async () => { for (let i = 0; i < 100 && [...body().querySelectorAll('[data-why="searches"] > div')].some(d => !d.childNodes.length); i++) await new Promise(r => setTimeout(r, 50)); };
@@ -1096,7 +1112,7 @@ async function boxes(R) {
   }
   // the first target's code copy, expanded (each of these two reports null where the box has no such button)
   click(BOX_TARGETS[0]);
-  R.expanded = [...body().querySelectorAll('[data-join]')].slice(0, 1).map(copy => {
+  R.expanded = [...body().querySelectorAll('[data-join], code[data-code]')].slice(0, 1).map(copy => {   // or a code, 2026-11-18
     copy.click();
     const shown = document.getElementById(copy.getAttribute('aria-controls'));
     return {expanded: copy.getAttribute('aria-expanded'), inBox: region.contains(shown), shown: shown.checkVisibility(),
@@ -1128,9 +1144,50 @@ async function boxes(R) {
 async function boxFragment(R) {
   R.atLoad = {...panelReport(), kind: document.getElementById('mstar-panel').dataset.kind};
 }
+// The appendix (2026-11-18; dreeves: "Appendix: Everything Known About Every Length"), as the page loads, before anything
+// is clicked (OPTS.appendix): the classes of the sections right before and after it, whether its fold is open, its
+// title, the entries left in the section "Where the new results come from" (remarks), and each entry of its list in
+// order: the lengths its heading lists (data-lengths), its heading (its math as TeX), its facts, [data-why, data-n], and
+// how many of its children are neither its heading, its mark nor a fact: notes, by hand
+function appendixReport() {
+  const s = document.querySelector('section.appendix');
+  if (s === null) return null;
+  const tex = e => { const c = e.cloneNode(true);
+    c.querySelectorAll('.katex').forEach(x => x.replaceWith(`\\(${x.querySelector('annotation').textContent}\\)`));
+    return c.textContent.replace(/\s+/g, ' ').trim(); };
+  return {prev: s.previousElementSibling?.className ?? null, next: s.nextElementSibling?.className ?? null,
+    open: s.querySelector('details').open, title: tex(s.querySelector('h2')),
+    remarks: document.querySelectorAll('section.remarks p.entry').length,
+    entries: [...s.querySelectorAll('ul.entries > li')].map(li => {
+      const p = li.querySelector(':scope > p.entry');
+      return {lengths: p?.dataset.lengths ?? null, heading: p && tex(p),
+        facts: [...li.querySelectorAll(':scope > [data-why]')].map(e => [e.dataset.why, e.dataset.n ?? null]),
+        notes: [...li.children].filter(e => e !== p && !e.hasAttribute('data-why') && !e.classList.contains('mk')).length};
+    })};
+}
+// The appendix opened, then closed again (OPTS.appendix): KaTeX's drawing of its entries' math, which waits for the
+// fold's first opening (page/math.js): the formulas drawn in its list before and after, and KaTeX's errors there
+async function openAppendix() {
+  const d = document.querySelector('section.appendix details'), list = d.querySelector('ul.entries');
+  const before = list.querySelectorAll('.katex').length;
+  d.open = true;
+  await new Promise(r => d.addEventListener('toggle', r, {once: true}));
+  const out = {before, after: list.querySelectorAll('.katex').length, errors: list.querySelectorAll('.katex-error').length};
+  // (2026-11-18) the code of 12:3 in its entry, BGPW's Table 4 example, clicked: its digits and its partition's parts,
+  // power sums' k and marks
+  const twelve = list.querySelector('#entry-12').closest('li').querySelector('code[data-code="12:3"]');
+  twelve.click();
+  const shown = document.getElementById(twelve.getAttribute('aria-controls'));
+  out.twelve = {digits: twelve.textContent, expanded: twelve.getAttribute('aria-expanded'), shown: shown.checkVisibility(),
+    parts: [...shown.querySelectorAll('[data-part]')].map(e => e.textContent), ks: [...shown.querySelectorAll('[data-k]')].map(e => e.textContent),
+    relations: [...shown.querySelectorAll('[data-relation]')].map(e => e.textContent)};
+  d.open = false;
+  return out;
+}
 const R = {errors: window.__errors, opts: OPTS};
 const go = async () => {
   try {
+    if (OPTS.appendix) { R.appendix = appendixReport(); R.appendixOpened = R.appendix && await openAppendix(); }
     if (OPTS.fragment) await fragment(R);
     else if (OPTS.panels) await panels(R);
     else if (OPTS.boxes) await boxes(R);
@@ -1182,8 +1239,12 @@ def kinds_data(violation=None):
         cols[n - 1] = c
     # ifsym (2026-11-11, [SYC]): the columns 24 and 48 each have their top open cell red if the Symmetry Conjecture
     # holds: (24, 5), which is ringed (24 is the least n whose upper bound allows 5), and (48, 7), which is not
+    # codes (2026-11-18): one for each example, of its form: n/8 hex digits rounded up, the left half all +1, the padding
+    # 0 (page/codes.js checks the form as the page loads, the power sums only at a click, which no run of this data makes)
     data = {'nmax': DATA_NMAX, 'mtop': max(c[1] for c in cols) + 1, 'mtopAt': [DATA_NMAX + 2], 'past': [],
-            'ifsym': [[24, 4, IFSYM_FILE], [48, 6, IFSYM_FILE]], 'cols': cols}
+            'ifsym': [[24, 4, IFSYM_FILE], [48, 6, IFSYM_FILE]],
+            'codes': [[n, f"{int('1' * (n // 2) + '0' * (-(n // 2) % 4), 2):0{-(-n // 8)}X}"] for n, c in enumerate(cols, 1) if c[2][0] == 'example'],
+            'cols': cols}
     VIOLATIONS.get(violation, (lambda data: None,))[0](data)
     return 'const MSTAR = ' + json.dumps(data) + ';\n'
 
@@ -1287,7 +1348,7 @@ def run(name):
         text = edited(page(), edits)
         assert text.count('<head>\n') == 1 and text.count('</body>') == 1 and text.count('<html lang="en">') == 1
         opts = {'hoverEvery': every, 'panels': name in PANELS, 'fragment': name in FRAGMENTS, 'boxes': name in BOXES,
-                'boxFragment': name in BOX_LOADS}
+                'boxFragment': name in BOX_LOADS, 'appendix': name == 'light'}
         text = text.replace('<head>\n', '<head>\n' + EARLY).replace('</body>', HARNESS.replace(
             '__OPTS__', json.dumps(opts)).replace('__NCOL__', str(len(cols))).replace('__COLUMNS__', json.dumps(cols)) + '</body>')
         if theme: text = text.replace('<html lang="en">', f'<html lang="en" data-theme="{theme}">')
@@ -1836,13 +1897,17 @@ def q_scripts_load_data_then_draw():
     assert katex and len(tags) == 4 and tags[0] == '<script src="page/errors.js">' and not any('&' in t for t in tags), tags
     [math_js] = page_scripts(katex[0])
     assert re.search(rf'^function {katex[2]}\(\) \{{$', math_js, re.M), math_js[:300]
+    # Spec change (Opus 5.5, 2026-11-18): the appendix's script, page/appendix.js, between the table of smallest lengths'
+    # and the codes', after both charts' scripts have given their facts and before page/codes.js makes buttons of the
+    # codes and constructions it adds; its math is drawn when the appendix opens, which the light run's harness does
+    # before it looks at the page's math (OPTS.appendix), so that the math looked at is the appendix's too.
     assert re.findall(r'<script\b[^>]*>', body) == [
         '<script src="page/shared.js">', '<script src="pagedata/mstar.js">', '<script src="page/mstar-section.js">',
         '<script src="pagedata/pow2.js">', '<script src="page/pow2-section.js">', '<script src="page/smallest-section.js">',
-        '<script src="page/codes.js">', '<script src="page/progress-section.js">'], re.findall(r'<script\b[^>]*>', body)
+        '<script src="page/appendix.js">', '<script src="page/codes.js">', '<script src="page/progress-section.js">'], re.findall(r'<script\b[^>]*>', body)
     own = page_scripts(body)
-    assert 'function panZoom(' in own[0] and '[data-smallest]' in own[3] and 'template[data-partition]' in own[4] \
-        and 'progressData' in own[5], [js[:60] for js in own]
+    assert 'function panZoom(' in own[0] and '[data-smallest]' in own[3] and 'section.appendix' in own[4] \
+        and 'template[data-partition]' in own[5] and 'progressData' in own[6], [js[:60] for js in own]
     assert text.index('</main>') < text.index('<script src="page/shared.js">', len(head)) < text.index('<script src="pagedata/mstar.js"></script>') < \
         text.index('</script>\n</body>')
     math = valid_run('light')['math']
@@ -2536,9 +2601,11 @@ def q_examples_at_720_and_1008_have_their_entries_and_codes():
     # entry names 720 or 1008 (their joins' entries are gone); the cells 13–14 and 13 (12–14 and 12–13 until 2026-11-03);
     # and mstar.js's columns [13, 14, ["example", "equipow p720"], ["residue", 16]] and [13, 13, ["example",
     # "equipow p1008"], ["residue", 5]].
+    # (Spec change, Opus 5.5, 2026-11-18: the entries are in the appendix, one length each, in order, since the entry of
+    # 640, 704 and 736 was split; so 720's entry comes between 704's and 736's.)
     text = page()
     listed = [ns.split(', ') for ns in re.findall(r'<p class="entry">\\\(n = (.*?)\\\): ', text)]
-    for n, m, values, before, after, cell, more in ((720, 12, '\\\\in \\\\\\{13, 14\\\\\\}', '688', '752', (13, 14), ('13',)),
+    for n, m, values, before, after, cell, more in ((720, 12, '\\\\in \\\\\\{13, 14\\\\\\}', '704', '736', (13, 14), ('13',)),
                                                     (1008, 12, '= 13', '992', '1024', (13, 13), ('13',))):
         li = re.search(r'<li class="c">\n      <span class="mk" aria-hidden="true">◆</span>\n      <p class="entry">\\\(n = '
                        rf'{n}\\\): &nbsp;\\\(m\^\* {values}\\\)</p>\n(.*?)\n    </li>', text, re.S)
@@ -2636,7 +2703,9 @@ def q_examples_at_576_and_624_have_their_entries_and_codes():
     text = page()
     listed = [ns.split(', ') for ns in re.findall(r'<p class="entry">\\\(n = (.*?)\\\): ', text)]
     said = changelog_by_day().get('2026-10-31', {})
-    for n, before, after, M in ((576, 560, 592, 5), (624, 608, 656, 25)):
+    # (Spec change, Opus 5.5, 2026-11-18: the entries are in the appendix, one length each, in order, so 624's is followed
+    # by 640's, which until then shared an entry with 704 and 736 after 1024's, and no longer by 656's.)
+    for n, before, after, M in ((576, 560, 592, 5), (624, 608, 640, 25)):
         li = re.search(r'<li class="c">\n      <span class="mk" aria-hidden="true">◆</span>\n      <p class="entry">\\\(n = '
                        + str(n) + r'\\\): &nbsp;\\\(m\^\* = 12\\\)</p>\n(.*?)\n    </li>', text, re.S)
         assert li, f'no entry of {n} alone'
@@ -2745,7 +2814,9 @@ def q_example_at_688_has_its_entry_and_code():
     assert len(a) == 688 and k == 10 and a == a[::-1] and a[0] == 1, (len(a), k)
     listed = [ns.split(', ') for ns in re.findall(r'<p class="entry">\\\(n = (.*?)\\\): ', text)]
     i = listed.index(['688'])
-    assert listed[i - 1:i + 2] == [['672'], ['688'], ['720']], listed[i - 1:i + 2]
+    # (Spec change, Opus 5.5, 2026-11-18: the entries are in the appendix, one length each, in order, since the entry of
+    # 640, 704 and 736 was split; so 688's entry comes before 704's, not 720's.)
+    assert listed[i - 1:i + 2] == [['672'], ['688'], ['704']], listed[i - 1:i + 2]
     assert sum('688' in ns for ns in listed) == 1, [ns for ns in listed if '688' in ns]
     assert ['544'] in listed, [ns for ns in listed if '544' in ns]
     assert (new_cells(text)[688], new_cells(text)[544]) == ((10, 10), (10, 10)), (new_cells(text)[688], new_cells(text)[544])   # 544 9 to 10 until 2026-11-03
@@ -2763,7 +2834,9 @@ def q_results_of_2026_11_03_have_entries_and_codes():
     # Resultata before: 544's and 960's entries gave only joins or doubling, and 576's, 624's, 912's and 1008's codes had order one less.
     text = page()
     listed = [ns.split(', ') for ns in re.findall(r'<p class="entry">\\\(n = (.*?)\\\): ', text)]
-    for n, M, before, after in ((544, 10, '528', '560'), (576, 12, '560', '592'), (624, 12, '608', '656'), (912, 13, '896', '928'),
+    # (Spec change, Opus 5.5, 2026-11-18: the entries are in the appendix, one length each, in order, so 624's is followed
+    # by 640's, which until then shared an entry with 704 and 736 after 1024's, and no longer by 656's.)
+    for n, M, before, after in ((544, 10, '528', '560'), (576, 12, '560', '592'), (624, 12, '608', '640'), (912, 13, '896', '928'),
                                 (960, 15, '944', '976'), (1008, 13, '992', '1024')):
         li = re.search(r'<li class="c">\n      <span class="mk" aria-hidden="true">◆</span>\n      <p class="entry">\\\(n = %d\\\): &nbsp;\\\(m\^\* = %d\\\)</p>\n(.*?)\n    </li>' % (n, M), text, re.S)
         assert li, f'no entry of {n} alone, m* = {M}'
@@ -2951,7 +3024,9 @@ def q_example_at_720_has_its_code_of_order_13():
     assert len(a) == 720 and k == 13 and a[0] == 1 and all(a[720 - 1 - i] == -a[i] for i in range(720)), (len(a), k)
     listed = [ns.split(', ') for ns in re.findall(r'<p class="entry">\\\(n = (.*?)\\\): ', text)]
     i = listed.index(['720'])
-    assert listed[i - 1:i + 2] == [['688'], ['720'], ['752']], listed[i - 1:i + 2]
+    # (Spec change, Opus 5.5, 2026-11-18: the entries are in the appendix, one length each, in order, since the entry of
+    # 640, 704 and 736 was split; so 720's entry comes between 704's and 736's.)
+    assert listed[i - 1:i + 2] == [['704'], ['720'], ['736']], listed[i - 1:i + 2]
     assert sum('720' in ns for ns in listed) == 1, [ns for ns in listed if '720' in ns]
     assert new_cells(text)[720] == (13, 14), new_cells(text)[720]
     assert changelog_by_day().get('2026-11-03', {}).get(720) == (13, None), changelog_by_day().get('2026-11-03')
@@ -4375,13 +4450,17 @@ def q_contract_violations_fail_loudly():
     # offending column as JSON (or mtop, or nmax and mtop), and the error is uncaught.  It is the page's one error,
     # but with nmax broken (999): since 2026-11-10 the chart of powers of 2 reads the m*(n) chart's last n from
     # mstar.js (page/pow2-section.js; a number of its own until then), and 2^10, whose upper bound it takes from the
-    # m*(n) chart's column 1024, is past 999, so that chart fails loudly too, quoting its column 10.
+    # m*(n) chart's column 1024, is past 999, so that chart fails loudly too, quoting its column 10.  Spec change (Opus
+    # 5.5, 2026-11-18): the appendix, which takes every length's facts from both charts' scripts (page/appendix.js),
+    # fails loudly too, last, naming the charts that gave theirs: the powers-of-2 chart's alone, or none with nmax broken.
     for v, (_, quoted) in VIOLATIONS.items():
         R = run(f'violates {v}')
         assert 'harnessError' not in R and R['canvasDev'][1] == 0 and R['canvasCss'][1] == 0, (v, R)
         assert R['readout0'].endswith(f'Error: {quoted}'), (v, R['readout0'])
-        assert R['errors'][0] == f'error: Uncaught Error: {quoted}' and len(R['errors']) == 1 + (v == 'nmax'), (v, R['errors'])
-        assert all(e.startswith('error: Uncaught Error: [10,') for e in R['errors'][1:]), (v, R['errors'])
+        assert R['errors'][0] == f'error: Uncaught Error: {quoted}' and len(R['errors']) == 2 + (v == 'nmax'), (v, R['errors'])
+        assert all(e.startswith('error: Uncaught Error: [10,') for e in R['errors'][1:-1]), (v, R['errors'])
+        facts = '[]' if v == 'nmax' else "['pow2']"
+        assert R['errors'][-1] == f"error: Uncaught Error: ['the facts of each chart',{facts}]", (v, R['errors'])
 
 
 def q_made_up_data_draws():
@@ -4412,43 +4491,63 @@ def code_ids():
 
 
 def entry_order():
-    """The ids of the remarks' entries in the page's order, as the page's script names them (entry-N, N the first length
-    each lists): the order of the list, to which every entry a panel showed goes back ([REO] step 2, 2026-11-03)."""
-    return [f'entry-{2 ** int(x[3:-1]) if x.startswith("2^{") else int(x)}'
-            for x in (ns.split(', ')[0] for ns in re.findall(r'<p class="entry">\\\(n = (.*?)\\\): ', page()))]
+    """The ids of the entries in the list's order, as the page's script names them (entry-N, N the first length each
+    lists): the order of the list, to which every entry a panel showed goes back ([REO] step 2, 2026-11-03).  Since
+    2026-11-18 the appendix's list, an entry for every length (panel_entries' id of each length, at its first length);
+    until then the remarks' list, the entries by hand alone, in the page's order."""
+    hand = entry_lengths()
+    return list(dict.fromkeys(hand.get(n) or f'entry-{CLASS_FIRST.get(class_of(n), n)}'
+                              for n in appendix_lengths(len(pow2_data()['cols']))))
 
 
-def panel_whys(cols, n, rows=()):
+def panel_whys(cols, n, rows=(), ifsym=()):
     """The kinds of the parts of the box of the m*(n) chart's column n, in order, or of its cell (n, m) for rows [m]
     (box_parts).  Spec change (2026-11-04, dreeves's README items [CEL] and [ROC]): until then the kinds of text of the
     column's one panel, for the cells clicked in rows: a status per cell, its lower bound's reason and, for an example,
     its code where the page shows it, and its upper bound's (and its entry's link, the template "entry", until [REO]
     step 2, 2026-11-03, which moved the entry itself into the panel: panel_entries)."""
-    return box_parts(cols, n, *rows)
+    return box_parts(cols, n, *rows, ifsym=ifsym)
 
 
 def panel_entries(n):
-    """The ids of the remarks' entries that the panel of the length n shows ([REO] step 2, 2026-11-03): the entry that
-    lists n, if any."""
-    return [e for e in [entry_lengths().get(n)] if e]
+    """The ids of the entries that the panel of the length n shows ([REO] step 2, 2026-11-03): until 2026-11-18 the
+    remarks' entry that lists n, if any; since, its entry in the appendix, which every length has (Opus 5.5; dreeves:
+    "we want an entry for every n"), entry-N, N the first length of that entry: its class's first (CLASS_FIRST), its
+    entry by hand's first (entry_lengths), or n itself."""
+    return [entry_lengths().get(n) or f'entry-{CLASS_FIRST.get(class_of(n), n)}']
+
+
+CLASS_FIRST = {'odd': 1, 'singly-even': 2}                  # each class's first length, whose id its entry takes
+# What a class's entry says (Opus 5.5, 2026-11-18), its facts stated for any n: that n is odd; alternating signs, and
+# the 2-adic bound with n = 2^1 u
+CLASS_SAID = {'odd': ['\\(m^*(n) \\le 0\\): \\(n \\equiv 1 \\pmod 2\\)'],
+              'singly-even': ['\\(m^*(n) \\ge 1\\): \\(f_i = (-1)^i\\)', '\\(m^*(n) \\le 1\\):', '\\(n = 2^{1} \\cdot u\\)',
+                              '\\(m \\le 2^{1} - 1 = 1\\)']}
 
 
 TABLE2 = 'https://arxiv.org/html/1912.03491v1#S3.T2'       # BGPW's Table 2, which a box that cites it links (its words until 2026-11-09)
 PROP44 = 'https://arxiv.org/html/1912.03491v1#S4.Thmthm4'  # BGPW's Proposition 4.4, which a box that cites it links (2026-11-11)
 
 
-def panel_says(cols, n, P):
-    """What the box of the m*(n) chart's column n, P, must say, by its reasons' arguments, as [(what, found)].  Spec change
+def panel_says(data, n, P):
+    """What the box of the m*(n) chart's column n, P, must say, by data (mstar.js's, or made up: since 2026-11-18 its
+    cols and its codes), by its reasons' arguments, as [(what, found)].  Spec change
     (2026-11-04, [CEL]; dreeves: "so many pointless words in the implementation so far"): its bounds as math, each
     leading its part; an example's label; a join's or a product's construction, a button claiming n:lo; each proof's
     numbers; and the copy of the page's code of the length n and the order lo, unless its entry, which the box shows,
-    holds that code.  Until then: the sentences of 2026-11-03, each part linked to its own column's panel and an
-    example to its code."""
+    holds that code (since 2026-11-18 an example's code, mstar.js's, page code or not: witness_codes).  Until then: the
+    sentences of 2026-11-03, each part linked to its own column's panel and an example to its code."""
+    cols = data['cols']
     lo, hi, lw, hw = cols[n - 1]
     t = P['text']
-    says = [('heading', P['heading'] == (f'\\(n = {n}\\): \\(m^*({n}) = {lo}\\)' if lo == hi else
-                                          f'\\(n = {n}\\): \\({lo} \\le m^*({n}) \\le {hi}\\)')),
-            ('lower', f'\\(m^*({n}) \\ge {lo}\\):' in t), ('upper', f'\\(m^*({n}) \\le {hi}\\):' in t)]
+    heading = ('heading', P['heading'] == (f'\\(n = {n}\\): \\(m^*({n}) = {lo}\\)' if lo == hi else
+                                            f'\\(n = {n}\\): \\({lo} \\le m^*({n}) \\le {hi}\\)'))
+    # Spec change (Opus 5.5, 2026-11-18): a length of a class shows its class's entry, its facts stated for any n
+    # (CLASS_SAID), and no copy of a code
+    if class_of(n):
+        return [heading, ('class', all(x in t for x in CLASS_SAID[class_of(n)])), ('copy', P['copies'] == []),
+                ('entry', P['entries'] == panel_entries(n))]
+    says = [heading, ('lower', f'\\(m^*({n}) \\ge {lo}\\):' in t), ('upper', f'\\(m^*({n}) \\le {hi}\\):' in t)]
     a, b = (lw + [0, 0])[1:3]
     arg, harg = (lw + [None])[1], (hw + [None])[1]                  # the first argument of each reason, if any
     built = lambda tex: [f'{n}:{lo}', 'button', f'\\({tex}\\)'] in P['constructions']
@@ -4468,7 +4567,7 @@ def panel_says(cols, n, P):
              # (2026-11-12, when the chart came to open up to 2048, with 1248 and 1456 in it) the program, linked
              'proof': [('file', f'{REPO}{harg}' in P['links'])],
              'table2': [('cited', TABLE2 in P['links'])], 'page': [('who', legend_labels(page()).get(harg, '\0') in t)]}[hw[0]]
-    copies = [[c, str(lo), 'button', code_digits(c)] for c in [f'{n}:{lo}'] if c in code_ids() and c not in entry_codes(n)]
+    copies = [x for x in witness_codes(data, n) if x[0] not in entry_codes(n)]
     says += [('copy', P['copies'] == copies)]
     says += [('entry', P['entries'] == panel_entries(n))]      # the entry itself since [REO] step 2 (2026-11-03), not its link
     return says
@@ -4481,10 +4580,13 @@ def panel_link_lands(href):
     """Whether a panel's link lands: on a column's panel (#nN, N a column of the m*(n) chart), a code (#N:M), an entry
     of the remarks (#entry-N, as the page's script names them), a file of this repository, which must be one here
     (since 2026-11-10: the residue panels' links to mstar.py and pow2.py still went to the repository's root, where
-    [REF] had left neither that day), or another page outside (https)."""
+    [REF] had left neither that day), or another page outside (https); since 2026-11-18, when every box of 480 shows its
+    entry with the bound that holds if the Symmetry Conjecture does, also an element of the page by an id it has in
+    index.html (that part's #symmetry-title)."""
     return (href.startswith(REPO) and os.path.isfile(os.path.join(HERE, href[len(REPO):]))
             or href.startswith('https://') and not href.startswith(REPO)
             or href[1:] in code_ids() or href[1:] in set(entry_lengths().values())
+            or href.startswith('#') and page().count(f' id="{href[1:]}"') == 1
             or re.fullmatch(r'#n(\d+)', href) is not None and int(href[2:]) in COLUMNS)
 
 
@@ -4543,13 +4645,13 @@ def q_every_column_s_panel_shows_exactly_its_reasons():
     # the entry that lists n shown (q_panel_shows_its_entry_and_gives_it_back).
     # Resultata before: no panel.
     R = valid_run('panels')
-    cols = mstar_data()['cols']
+    cols, ifsym = mstar_data()['cols'], mstar_data()['ifsym']
     assert [P['n'] for P in R['panels']] == COLUMNS, [P['n'] for P in R['panels']][:5]
     for P in R['panels']:
         n = P['n']
         assert not P['hidden'] and P['hash'] == f'#n{n}' and P['focus'] and P['errors'] == 0, (n, P)
-        assert P['whys'] == panel_whys(cols, n), (n, P['whys'], panel_whys(cols, n))
-        bad = [what for what, found in panel_says(cols, n, P) if not found]
+        assert P['whys'] == panel_whys(cols, n, ifsym=ifsym), (n, P['whys'], panel_whys(cols, n, ifsym=ifsym))   # (ifsym since 2026-11-18: box_parts)
+        bad = [what for what, found in panel_says(mstar_data(), n, P) if not found]
         assert bad == [], (n, bad, P['text'])
         assert all(panel_link_lands(href) for href in P['links']), (n, P['links'])
     kinds = {w for P in R['panels'] for w in P['whys']}
@@ -4563,9 +4665,11 @@ def q_every_column_s_panel_shows_exactly_its_reasons():
     # (2026-11-16 evening, dreeves's "ok go": proof-stan, Stan Wagon's words, at the residue condition mod 3 where his
     # argument holds, box_parts; and after it proof-pairs, his check of all pairs in Mathematica, until 2026-11-18, when
     # his shorter proof took its place: "No need for any Mathematica code")
-    assert {'witness-example', 'witness-construction', 'proof-two', 'proof-residue', 'proof-stan', 'proof-table2',
-            'proof-page', 'proof-prop44', 'proof-file'} <= kinds <= {*WITNESSES.values(), 'witness-code',
-                                                                     *PROOF_PARTS.values(), 'proof-stan'} - {'proof-odd'}, kinds
+    # (2026-11-18, Opus 5.5: the appendix's entries in the boxes: at 2 the singly even n's, witness-alternating; at 480
+    # the bound if the Symmetry Conjecture holds, proof-ifsym, which only an ifsym cell's box had until then)
+    assert {'witness-example', 'witness-construction', 'witness-alternating', 'proof-two', 'proof-residue', 'proof-stan', 'proof-table2',
+            'proof-page', 'proof-prop44', 'proof-file', 'proof-ifsym'} <= kinds <= {*WITNESSES.values(), 'witness-code', 'witness-alternating',
+                                                                                   *PROOF_PARTS.values(), 'proof-stan', 'proof-ifsym'} - {'proof-odd'}, kinds
 
 
 def q_norm_panels_work_out_their_numbers():
@@ -4846,16 +4950,17 @@ def q_made_up_data_opens_every_kind_of_panel():
     # Expectata: no errors; each panel opens and shows exactly its data's reasons; between them they use every kind of
     # lower and upper bound of the data contract (but none and odd, which odd n have, with no column).
     R = valid_run('kinds panels')
-    cols = json.loads(kinds_data()[len('const MSTAR = '):-2])['cols']
+    made = json.loads(kinds_data()[len('const MSTAR = '):-2])
+    cols = made['cols']
     assert len(R['panels']) == len(state('kinds panels')[1]), len(R['panels'])
     for P in R['panels']:
-        assert not P['hidden'] and P['errors'] == 0 and P['whys'] == panel_whys(cols, P['n']), (P['n'], P)
+        assert not P['hidden'] and P['errors'] == 0 and P['whys'] == panel_whys(cols, P['n'], ifsym=made['ifsym']), (P['n'], P)   # (ifsym since 2026-11-18)
     kinds = {w for P in R['panels'] for w in P['whys']}
     # (spec change, 2026-11-04, [CEL]: the parts' kinds are a witness's and a proof's, lo-KIND and hi-KIND until then)
     # ('prop44' since 2026-11-11: BGPW's Proposition 4.4, the made-up column 40)
     assert set(WITNESSES.values()) | {f'proof-{k}' for k in ('two', 'norm', 'residue', 'prop44', 'table2', 'page')} <= kinds, kinds
     for P in R['panels']:
-        bad = [what for what, found in panel_says(cols, P['n'], P) if not found and what in ('t', 'cited')]
+        bad = [what for what, found in panel_says(made, P['n'], P) if not found and what in ('t', 'cited')]
         assert cols[P['n'] - 1][3] != ['prop44'] or bad == [], (P['n'], bad, P['text'], P['links'])
     assert [n for n, c in enumerate(cols, 1) if c[3] == ['prop44']] == [40]
 
@@ -4885,9 +4990,11 @@ def q_panel_shows_its_entry_and_gives_it_back():
     # their order (entry_order); the powers-of-2 chart's panel of 2^10 takes 1024's entry from the m*(n) chart's, which
     # stays open, showing none; once a panel closes or switches, every entry it showed is back in its place, and with
     # both panels closed the list is whole, in order.
+    # Spec change (Opus 5.5, 2026-11-18): the list is the appendix's, with an entry for every length (entry_order), so
+    # every panel shows one (panel_entries); the rest as before.
     # Resultata before: panels linked their entries ("Its entry in the remarks below"), which stayed in the list.
     order = entry_order()
-    assert len(order) == len(set(order)) > 70 and 'entry-1024' in order and 'entry-512' in order, order
+    assert len(order) == len(set(order)) > 500 and 'entry-1024' in order and 'entry-512' in order, order[:10]
     for name in ('fragment', 'phone fragment'):
         R = valid_run(name)
         steps = [('fragment', R['fragment'], ['entry-1024']), ('escaped', R['escaped'], []), ('reopened', R['reopened'], ['entry-512']),
@@ -4954,15 +5061,15 @@ def q_no_panel_mentions_the_remarks_below():
     assert not [t for t, body in templates if 'remarks below' in body], [t for t, body in templates if 'remarks below' in body]
 
 
-def remarks_fold():
-    """The remarks section's fold, from index.html: (the section's text before it, its summary's text, the text it
-    holds after the summary, the section's text after it), asserting it is one <details> without open whose first
-    element is a <summary> (comments may come before it: its TODO recap)."""
+def appendix_fold():
+    """The appendix's fold, from index.html (2026-11-18; until then the remarks section's, which this read the same way):
+    (its summary's text, the text it holds after the summary), asserting it is the section's one outermost <details>,
+    without open, with nothing else in the section, and that its first element is a <summary>."""
     # Spec change (2026-11-07; dreeves chose "Allow nested disclosures" over moving the inline proofs out of the remarks):
     # the fold is the section's one outermost <details>; closed disclosures nested inside its entries (Astra's typeset
     # 512 proof and complete 384 proof, which quals_inline384 and quals_proof_layout require to be native <details>) are
     # allowed.  Before, the section had to hold exactly one <details>, and its first </details> closed the fold.
-    section = re.search(r'<section class="remarks">(.*?)</section>', page(), re.S)[1]
+    section = re.search(r'<section class="appendix"[^>]*>(.*?)</section>', page(), re.S)[1]
     tags = list(re.finditer(r'<details([^>]*)>|</details>', section))
     depth, top, nested = 0, [], []
     for x in tags:
@@ -4972,36 +5079,38 @@ def remarks_fold():
         else:
             (top.append([x]) if depth == 0 else nested.append(x))
             depth += 1
-    # Spec change (2026-11-13; dreeves: "i'm thinking maybe all ai-generated text should be default collapsed?"): the
-    # paragraphs on how the upper bounds are proven, Opus 5.5's, sit in a fold of their own (details.ai) before the list's
-    # fold, which is the section's one outermost <details> that is no such fold; until then it was its one outermost one.
-    top = [f for f in top if 'class="ai"' not in f[0].group(1)]
     assert depth == 0 and len(top) == 1 and len(top[0]) == 2, [len(f) for f in top]
     opening, closing = top[0]
     assert 'open' not in opening.group(1) and not any('open' in x.group(1) for x in nested), (opening.group(1), [x.group(1) for x in nested])
-    fold = re.fullmatch(r'\s*(?:<!--.*?-->\s*)*<summary>(.*?)</summary>(.*)', section[opening.end():closing.start()], re.S)
+    assert section[:opening.start()].strip() == '' and section[closing.end():].strip() == '', 'the fold is the whole section'
+    fold = re.fullmatch(r'\s*<summary>(.*?)</summary>(.*)', section[opening.end():closing.start()], re.S)
     assert fold, section[opening.end():opening.end() + 300]
-    return section[:opening.start()], fold.group(1), fold.group(2), section[closing.end():]
+    return fold.group(1), fold.group(2)
 
 
-def q_remarks_list_folds_closed_under_its_summary():
-    # Replicata: index.html's section "Where the new results come from"; and the light run, as the page loads.
-    # Expectata (the design, 2026-11-03: "The remarks list ... stays in the HTML exactly as written, as the source text.
-    # Fold it into one closed <details> with a summary line ... styled like the Search progress section's folds";
-    # "Keep the section's introduction (the paragraphs that explain the upper-bound methods: the residue condition and
-    # the norm bound) visible above the fold"; "Without JavaScript the page reads as before, with the list foldable"):
-    # the list of entries, every <p class="entry"> of the page with it, is in one <details> without open, after its
-    # <summary>, which has words; the paragraphs on how the upper bounds are proven and on the norm bound come before it,
-    # outside (the panels' templates cite them by those words); nothing but the closing of the section follows it.  As
-    # the page loads the fold is closed, its summary shown
-    # and its list not.  A summary is a pointer in the stylesheet, as the Search progress section's are.
+def q_appendix_list_folds_closed_under_its_summary():
+    # Replicata: index.html's section "Appendix: Everything Known About Every Length"; and the light run, as the page loads.
+    # Expectata (the design, 2026-11-03, for the list of entries, then in the section "Where the new results come
+    # from": "The remarks list ... stays in the HTML exactly as written, as the source text. Fold it into one closed
+    # <details> with a summary line ... styled like the Search progress section's folds"; "Without JavaScript the page
+    # reads as before, with the list foldable"): the list of entries, every <p class="entry"> of the page with it, is in
+    # one <details> without open, after its <summary>, which has words.  As the page loads the fold is closed, its summary
+    # shown and its list not.  A summary is a pointer in the stylesheet, as the Search progress section's are.
+    # Spec change (Opus 5.5, 2026-11-18; dreeves: "how about an appendix section right above Search Progress: Appendix:
+    # Everything Known About Every Length ... move that section to the appendix, default collapsed"): the fold is the
+    # appendix section, its summary the section's heading, his words (held by q_appendix_has_an_entry_for_every_length),
+    # its list in a div.remarks, styled as the boxes' entries are, last, after what the codes and constructions of its
+    # entries use (that evening: "the human text starting "The hex codes shown below" also belongs somewhere else, right?
+    # the top of the appendix?").  Until then it was in the section "Where the new
+    # results come from", its summary Opus 5.5's words, after that section's paragraphs on how the upper bounds are
+    # proven, which stay there, visible ("Keep the section's introduction ... visible above the fold").
     # Resultata before: the list stood open, with no fold.
-    before, summary, inside, after = remarks_fold()
-    assert re.sub(r'<[^>]+>|\s+', ' ', summary).strip(), summary
-    assert re.fullmatch(r'\s*<ul>\n.*\n  </ul>\s*', inside, re.S) and inside.count('<p class="entry">') == page().count('<p class="entry">'), inside[:300]
-    assert before.count('<p>') >= 2, before[:300]      # the paragraphs on the upper bounds' proofs, whatever their words (2026-11-09)
-    assert after.strip() == '', after
-    assert '.remarks summary { cursor: pointer; }' in page_css(), 'no pointer on the summary'
+    summary, inside = appendix_fold()
+    assert re.fullmatch(r'<h2 id="appendix-title">[^<]+</h2>', summary), summary
+    top, list_, rest = inside.partition('<div class="remarks"><ul class="entries">\n')
+    assert list_ and '<p class="entry">' not in top and re.fullmatch(r'.*\n    </ul></div>\s*', rest, re.S) \
+        and rest.count('<p class="entry">') == page().count('<p class="entry">'), inside[:300]
+    assert '.appendix > details > summary { cursor: pointer; }' in page_css(), 'no pointer on the summary'
     assert valid_run('light')['fold'] == {'there': True, 'open': False, 'summary': True, 'list': False}, valid_run('light')['fold']
 
 
@@ -5032,9 +5141,9 @@ def repeated_reasons(reasons, n):
 
 
 def entry_lis():
-    """[(the lengths it lists, its HTML with comments blanked)] for each entry, an li of the remarks' list, in page
-    order."""
-    section = blank_comments(re.search(r'<section class="remarks">(.*?)</section>', page(), re.S)[1])
+    """[(the lengths it lists, its HTML with comments blanked)] for each entry written by hand, an li of the appendix's
+    list (the remarks' list until 2026-11-18), in page order."""
+    section = blank_comments(re.search(r'<section class="appendix"[^>]*>(.*?)</section>', page(), re.S)[1])
     lis = re.findall(r'<li[ >].*?</li>', section, re.S)
     lengths = [re.search(r'<p class="entry">\\\(n = (.*?)\\\): ', li)[1].split(', ') for li in lis]
     return [([2 ** int(x[3:-1]) if x.startswith('2^{') else int(x) for x in ns], li) for ns, li in zip(lengths, lis)]
@@ -5055,7 +5164,9 @@ def q_no_entry_repeats_its_panel_s_reasons():
     # panel's norm bound worked out does, and so did 63 other sentences, one in each of 63 other entries.
     reasons, cols, pcols = {}, mstar_data()['cols'], pow2_data()['cols']
     lis = entry_lis()
-    assert len(lis) == len(entry_order()), len(lis)
+    # (Spec change, Opus 5.5, 2026-11-18: the entries by hand are some of the appendix's, which has one for every length,
+    # 82 of them since the two that listed several lengths, 320 to 464 and 640 to 736, were split, one length each.)
+    assert len(lis) == 82 and {f'entry-{lengths[0]}' for lengths, _ in lis} <= set(entry_order()), len(lis)
     found = []
     for lengths, li in lis:
         for n in lengths:
@@ -5081,7 +5192,9 @@ def q_find_in_page_opens_the_fold():
     # still works"): Chrome opens the fold to show the match, as the HTML standard's ancestor revealing algorithm has
     # it for find in page, text fragments and fragments: each load ends with the fold open and the entry's lemma shown.
     # (Chrome's find bar has no headless form; a text fragment is Chrome's other text search that reveals what it finds.
-    # window.find finds the words in the fold but opens nothing: scratch/reo-step2-20261103/findprobe/.)
+    # window.find finds the words in the fold but opens nothing: scratch/reo-step2-20261103/findprobe/.)  Spec change
+    # (Opus 5.5, 2026-11-18; dreeves: "part of the point of having everything fully spelled out in the appendix is so
+    # that you can grep for anything on the page"): the fold is the appendix's, which holds the entries since that day.
     # Resultata before: no fold.
     # words to search for, taken from the page (until 2026-11-09: "Berend and Golan"): three plain words in a row of
     # the lemma that stand nowhere else in the page's text
@@ -5091,7 +5204,7 @@ def q_find_in_page_opens_the_fold():
     phrase = next(p for p in re.findall(r'(?<![^ ])[A-Za-z]{3,} [A-Za-z]{3,} [A-Za-z]{3,}(?![^ ])', lemma) if seen.count(p) == 1)
     for frag in ('#:~:text=' + phrase.replace(' ', '%20'), '#lemma432'):
         d = tempfile.mkdtemp(prefix='index-quals-')
-        probe = ('<script>addEventListener("load", () => setTimeout(() => { const f = document.querySelector("section.remarks details:not(.ai)"),'
+        probe = ('<script>addEventListener("load", () => setTimeout(() => { const f = document.querySelector("section.appendix details"),'
                  ' t = document.getElementById("lemma432"); document.documentElement.dataset.fold = JSON.stringify({there: f !== null,'
                  ' open: f?.open ?? null, shown: t.checkVisibility()}); }, 1500));</script>')
         text = page()
@@ -5124,8 +5237,8 @@ WITNESSES = {'example': 'witness-example', 'join': 'witness-construction', 'prod
 # A box's part of an upper bound, by its reason's kind: proof-KIND, but proof-file for a program of proofs/ (the kind
 # proof, since 2026-11-10; written down here on 2026-11-12, when the chart came to open up to 2048, with 1248 and 1456)
 PROOF_PARTS = {k: f'proof-{k}' for k in ('odd', 'two', 'norm', 'residue', 'table2', 'page', 'prop44')} | {'proof': 'proof-file'}
-SHOWS = {'exists': (True, False), 'open': (True, True), 'ifsym': (True, True), 'impossible': (False, True), None: (True, True)}   # (witness, proof),
-# by the kind of cell of a box, None for a column's
+SHOWS = {'exists': (True, False), 'open': (True, True), 'ifsym': (True, True), 'impossible': (False, True)}   # (witness, proof),
+# by the kind of cell of a box (a column's, None, until 2026-11-18: box_parts)
 # The token of a cell's own color, by its kind: an ifsym cell (2026-11-11, [SYC]: red if BGPW's Symmetry Conjecture
 # holds) is an open cell with a corner in the impossible color, and its box's frame and its swatch's fill are open's
 UNDER = {'exists': 'exists', 'open': 'open', 'ifsym': 'open', 'impossible': 'impossible'}
@@ -5170,15 +5283,126 @@ def box_parts(cols, n, m=None, ifsym=()):
     condition of the single modulus 3 is Stan Wagon's words, proof-stan, where his argument holds (stan_holds), and
     after them (later that evening: "yeah, add the mathematica line") his check of all pairs as a line of Mathematica,
     proof-pairs, until 2026-11-18 (Opus 5.5; his shorter proof, relayed by dreeves: "No need for any Mathematica
-    code"): since then his words alone."""
+    code"): since then his words alone.  Spec change (Opus 5.5, 2026-11-18; dreeves: "Appendix: Everything Known About
+    Every Length", and of that afternoon's version, in which every cell's box showed its column's entry whole: "the
+    whole point was to show just the information for the cell (unless you click the number for the whole column)"): a
+    column's box shows its length's entry of the appendix, with its facts (fact_kinds: a class's for a length of a
+    class, and the bound that holds if the Symmetry Conjecture does where ifsym lists the length); a cell's box is as
+    before, the entry it shows for a bound of the page's own with its facts hidden (page/style.css)."""
+    if m is None: return fact_kinds(cols, n, ifsym)
     lo, hi, lw, hw = cols[n - 1]
-    kind = None if m is None else kind_of(cols, n, m, ifsym)
+    kind = kind_of(cols, n, m, ifsym)
     witness, proof = SHOWS[kind]
-    entry = kind is None or (witness and lw[0] == 'page') or (proof and hw[0] == 'page')
-    copy = f'{n}:{lo}' in code_ids() and not (entry and f'{n}:{lo}' in entry_codes(n))
+    entry = (witness and lw[0] == 'page') or (proof and hw[0] == 'page')
+    copy = coded(lw, n, lo) and not (entry and f'{n}:{lo}' in entry_codes(n))
     upper = ['proof-stan'] if hw == ['residue', 3] and stan_holds(n, hi + 1) else [PROOF_PARTS[hw[0]]]
     return (([WITNESSES[lw[0]]] + ['witness-code'] * copy) * witness + upper * proof + ['proof-ifsym'] * (kind == 'ifsym')
             + ['searches'] * (kind in ('open', 'ifsym')))
+
+
+def coded(lw, n, lo):
+    """Whether a witness of the lower bound lo of the length n, of the reason lw, shows a code (witness-code): an
+    example's, always, its code from mstar.js's codes (Opus 5.5, 2026-11-18; dreeves: "there should be no "found
+    here". what does "here" mean? totally ambiguous. show the expandable hex code for everything"); any other's, a
+    copy of the page's code n:lo where the page has one (until that day every witness's, examples' too)."""
+    return lw[0] == 'example' or f'{n}:{lo}' in code_ids()
+
+
+def witness_codes(data, n):
+    """The codes the witness of column n's lower bound shows, by data (mstar.js's, or made up), as the harness reports
+    them (copies): [n:lo, lo, the role button, its digits], the data's code for an example (2026-11-18), the page's for
+    any other reason."""
+    lo, _, lw, _ = data['cols'][n - 1]
+    if not coded(lw, n, lo): return []
+    digits = dict(data['codes'])[n] if lw[0] == 'example' else code_digits(f'{n}:{lo}')
+    return [[f'{n}:{lo}', str(lo), 'button', digits]]
+
+
+def class_of(n):
+    """The class of lengths whose one entry of the appendix holds the length n, or None (Opus 5.5, 2026-11-18; dreeves:
+    "combine entries for odd n", then "odd multiples of 2 are all essentially the same"): odd, or singly-even, n = 2
+    mod 4; with each class's facts, stated for any n (CLASS_FACTS): that n is odd; alternating signs and the 2-adic bound
+    at t = 1."""
+    return 'odd' if n % 2 else 'singly-even' if n % 4 == 2 else None
+
+
+CLASS_FACTS = {'odd': ['proof-odd'], 'singly-even': ['witness-alternating', 'proof-two']}
+
+
+def fact_kinds(cols, n, ifsym=()):
+    """The kinds of the facts of the length n of the m*(n) chart in its entry of the appendix, in order (Opus 5.5,
+    2026-11-18): its class's (CLASS_FACTS) for a length of a class; else the witness of its lower bound (WITNESSES), then
+    a copy of the page's code of the length n and the order lo where the page has one and the entry does not hold it
+    itself (witness-code); the proof of its upper bound (PROOF_PARTS, or Stan Wagon's words, proof-stan, where his
+    argument holds); and where ifsym (the data's) lists n, the bound that holds if BGPW's Symmetry Conjecture does."""
+    lo, hi, lw, hw = cols[n - 1]
+    copy = coded(lw, n, lo) and f'{n}:{lo}' not in entry_codes(n)
+    upper = ['proof-stan'] if hw == ['residue', 3] and stan_holds(n, hi + 1) else [PROOF_PARTS[hw[0]]]
+    return CLASS_FACTS.get(class_of(n)) or ([WITNESSES[lw[0]]] + ['witness-code'] * copy + upper
+                                            + ['proof-ifsym'] * any(x == n for x, _, _ in ifsym))
+
+
+def pow2_fact_kinds(pcols, k):
+    """The kinds of the facts of the length 2^k past the m*(n) chart (k from 12) in its entry of the appendix, as the
+    powers-of-2 chart has them (pow2.js's cols, pcols, or made-up ones): the witness of its lower bound, Thue–Morse or a
+    construction of joins and products, then a copy of the page's code of that length and order where the page has one
+    and the entry does not hold it; and the proof of its upper bound, proof-KIND, but Stan Wagon's words where his
+    argument holds at the residue condition of the single modulus 3 (the page's data: joins and that residue condition
+    at every such k)."""
+    lo, hi, lw, hw = pcols[k - 1]
+    upper, code = hw[1][0] if hw[0] == 'mstar' else hw[0], f'{2 ** k}:{lo}'
+    return ([{'thue-morse': 'witness-thue-morse', 'joins': 'witness-construction'}[lw[0]]]
+            + ['witness-code'] * (code in code_ids() and code not in entry_codes(2 ** k))
+            + ['proof-stan' if hw in (['residue', [3]], ['mstar', ['residue', 3]]) and stan_holds(2 ** k, hi + 1) else f'proof-{upper}'])
+
+
+def appendix_lengths(kmax):
+    """The lengths the appendix has an entry for (dreeves, 2026-11-18: "we want an entry for every n from 1 thru 2048,
+    plus 2^12 thru 2^72"): every n of the m*(n) chart, 1 to DATA_NMAX, then each 2^k past it up to 2^kmax, the
+    powers-of-2 chart's last."""
+    return list(range(1, DATA_NMAX + 1)) + [2 ** k for k in range(DATA_NMAX.bit_length(), kmax + 1)]
+
+
+def q_appendix_has_an_entry_for_every_length():
+    # Replicata: the light run: the page as it loads, before anything is clicked, its section "Appendix: Everything
+    # Known About Every Length" (the harness's appendixReport).
+    # Expectata (Opus 5.5, 2026-11-18; dreeves: "how about an appendix section right above Search Progress: Appendix:
+    # Everything Known About Every Length ... move that section to the appendix, default collapsed, and extend and
+    # consitent-ify it so that the title of the appendix is true. this means we want an entry for every n from 1 thru
+    # 2048, plus 2^12 thru 2^72. combine entries for odd n since there's literally no witness for any odd n and the
+    # proof that m*(n)=0 is exactly the same for all odd n. for even n, i believe every even n should have a separate
+    # entry because the witnesses are different", and "part of the point of having everything fully spelled out in the
+    # appendix is so that you can grep for anything on the page"): the section right before the Search progress
+    # section, its fold closed, its title his words; at load, so that find in page reaches every one, one entry for the
+    # odd n, first, its one fact the proof that n is odd, and one for the singly even n, n = 2 mod 4, second (that
+    # afternoon: "odd multiples of 2 are all essentially the same: same exact proof that the order is 1 ... and the
+    # witness ... is just any bipartition with 2 equal-sized sets"; CLASS_FACTS), then every other length
+    # (appendix_lengths) in an entry of its own, in order (that evening: "no multi-length entries. just duplicate them
+    # and add TODOs for me to consider how to change the human words accordingly"); each length's facts in its entry
+    # (fact_kinds, pow2_fact_kinds); and no entry left in the section "Where
+    # the new results come from".  Its math is drawn when the fold first opens, not as the page loads (page/math.js):
+    # none drawn at load, then at least the two formulas of each entry's heading, with no error of KaTeX's.
+    # Resultata before: no such section; 75 entries in a fold of "Where the new results come from", which a column's
+    # box alone showed.
+    O = valid_run('light')['appendixOpened']
+    A = valid_run('light')['appendix']
+    assert A is not None, 'no section.appendix'
+    assert (A['prev'], A['next'], A['open'], A['remarks']) == ('symmetry', 'progress', False, 0), {k: A[k] for k in ('prev', 'next', 'open', 'remarks')}
+    assert A['title'] == 'Appendix: Everything Known About Every Length', A['title']
+    data, pcols = mstar_data(), pow2_data()['cols']
+    cols, ifsym, kmax = data['cols'], data['ifsym'], len(pcols)
+    lengths = [[int(x) for x in e['lengths'].split()] for e in A['entries']]
+    classes = [[n for n in appendix_lengths(kmax) if class_of(n) == c] for c in CLASS_FACTS]
+    assert lengths[:2] == classes and [e['facts'] for e in A['entries'][:2]] == [[[k, c] for k in CLASS_FACTS[c]] for c in CLASS_FACTS], \
+        ([ls[:4] for ls in lengths[:2]], [e['facts'] for e in A['entries'][:2]])
+    assert sorted(n for ls in lengths for n in ls) == appendix_lengths(kmax), 'each length in exactly one entry'
+    assert [ls[0] for ls in lengths] == sorted(ls[0] for ls in lengths), [ls[0] for ls in lengths][:20]
+    assert all(len(ls) == 1 for ls in lengths[2:]), [ls for ls in lengths[2:] if len(ls) > 1]
+    for ls, e in zip(lengths[2:], A['entries'][2:]):
+        want = [[kind, str(n)] for n in ls
+                for kind in (fact_kinds(cols, n, ifsym) if n <= DATA_NMAX else pow2_fact_kinds(pcols, n.bit_length() - 1))]
+        assert e['facts'] == want, (ls, e['facts'], want)
+    assert O['before'] == 0 and O['after'] >= 2 * len(A['entries']) and O['errors'] == 0, O
 
 
 def words(text, codes=()):
@@ -5265,17 +5489,22 @@ def q_green_box_gives_the_witness_and_its_code():
     # a button with the code's digits, which, clicked, opens in the box the code's partition, its power sums for k = 0
     # to 11, equal below 11 and unequal at 11; a join's or a product's with its construction, a button claiming n:lo,
     # whose derivation, clicked, opens in the box: p_8 and p_28, then the join of length 36 and order 3.
+    # Spec change (Opus 5.5, 2026-11-18; dreeves: "there should be no "found here". what does "here" mean? totally
+    # ambiguous. show the expandable hex code for everything"): an example's code is mstar.js's, data-code n:lo, a
+    # button, whether or not the page shows that code (witness_codes); (16, 4), Thue–Morse's, whose code the page shows
+    # nowhere else, among them.  Until then a copy of the page's code alone, so that an example the page did not show,
+    # such as Thue–Morse's or BGPW's Table 4's, had its label alone.
     # Resultata before: a click opened the column's panel: the cell's status, both bounds' sentences, and a link to the
     # code, in the list below.
     R, B = boxes_run()
     cols = mstar_data()['cols']
-    for t in ((1024, 8), (672, 13), (480, 12), (36, 2), (80, 3)):
+    for t in ((1024, 8), (672, 13), (480, 12), (36, 2), (80, 3), (16, 4)):
         n, m = t
         P, (lo, hi, lw, hw) = B[t], cols[n - 1]
         assert kind_of(cols, n, m) == 'exists' and P['whys'] == box_parts(cols, n, m), (t, P['whys'], box_parts(cols, n, m))
         assert P['said'].startswith(f'\\(m^*({n}) \\ge {lo}\\):') and '“' not in P['said'], (t, P['said'])   # no English to attribute
-        copies = [[c, str(lo), 'button', code_digits(c)] for c in [f'{n}:{lo}'] if c in code_ids()]
-        assert P['copies'] == copies, (t, P['copies'])
+        assert P['copies'] == witness_codes(mstar_data(), n), (t, P['copies'], witness_codes(mstar_data(), n))
+    assert cols[16 - 1][2][0] == 'example' and '16:4' not in code_ids() and B[(16, 4)]['copies'][0][3] == '96', B[(16, 4)]['copies']
     assert B[(1024, 8)]['said'].startswith('\\(m^*(1024) \\ge 11\\): equipow p1024'), B[(1024, 8)]['said']
     assert R['expanded'] == {'expanded': 'true', 'inBox': True, 'shown': True, 'ks': [str(k) for k in range(12)],
                              'relations': ['='] * 11 + ['≠']}, R['expanded']
@@ -5283,6 +5512,25 @@ def q_green_box_gives_the_witness_and_its_code():
     assert B[(80, 3)]['constructions'] == [['80:6', 'button', '\\(p_{2} \\mathbin{\\#} p_{40}\\)']], B[(80, 3)]['constructions']
     assert R['derived'] == {'expanded': 'true', 'inBox': True, 'shown': True, 'rows': [['8', '3'], ['28', '3'], ['36', '3']],
                             'bound': 'm*(36) ≥ 3'}, R['derived']
+
+
+def q_example_codes_expand_in_the_appendix():
+    # Replicata: the light run: the appendix opened, and in the entry of 12 its code 12:3, BGPW's Table 4 example, 12
+    # not a multiple of 8, clicked (the harness's openAppendix).
+    # Expectata (Opus 5.5, 2026-11-18; dreeves: "show the expandable hex code for everything"): the code is mstar.js's
+    # code of 12, two digits, the first 6 bits the left half and the last 2 bits 0, padding, as BGPW's Table 4 pads its
+    # codes; it expands into its partition: the positions of +1 and of −1 in the signs that convention gives it, the
+    # left half then its mirror times (−1)^3, with power sums equal for k = 0 to 2 and unequal at 3.
+    # Resultata before: the entry of 12 had no code, its witness the label BGPW Table 4 alone.
+    T = valid_run('light')['appendixOpened']['twelve']
+    code = dict(mstar_data()['codes'])[12]
+    bits = bin(int(code, 16))[2:].zfill(4 * len(code))
+    left = [1 if b == '1' else -1 for b in bits[:6]]
+    a = left + [-t for t in reversed(left)]
+    assert mstar_data()['cols'][12 - 1][:2] == [3, 3] and len(code) == 2 and bits[6:] == '00', code
+    assert T['digits'] == code and T['expanded'] == 'true' and T['shown'], T
+    assert T['parts'] == [', '.join(str(i) for i in range(12) if a[i] == s) for s in (1, -1)], (T['parts'], a)
+    assert T['ks'] == ['0', '1', '2', '3'] and T['relations'] == ['=', '=', '=', '≠'], T
 
 
 def q_red_box_works_out_the_proof():
@@ -5367,20 +5615,41 @@ def q_column_box_opens_from_its_n_label():
 
 def q_row_box_is_its_row_of_the_smallest_lengths():
     # Replicata: the boxes run: clicks on the strip of the m labels, left of the plot, at rows 12, 13 and 16; and the
-    # page's own table of smallest lengths as drawn.
+    # page's own table of smallest lengths and its Table 5, as drawn.
     # Expectata ([ROC]: "For a row, it would be like a row in [the table of smallest lengths], giving the smallest n not
     # ruled out and the smallest known n, mention the A323395 sequence"): the box of the row opens, its fragment mM,
-    # its heading m = M; its one part a table, that table's head and its row for the order M, as the page's table
+    # its heading m = M; its first part a table, that table's head and its row for the order M, as the page's table
     # has them, and the term a(M − 1) of OEIS A323395, linked, the order's smallest length: a(11) = 480, proven; 480 <=
     # a(12) <= 672; a(15) = 1440, proven.
+    # Spec change (Opus 5.5, 2026-11-18; dreeves: "clicking the m for a whole row in a chart should gather up all the
+    # relevant things for that row, including what we know conditional on the symmetry conjecture being true", and of
+    # the design: "for the rows: i think that's right, if you can't think of anything else relevant"): then the term
+    # a(M − 1) if BGPW's Symmetry Conjecture holds, after a link to the conjecture's section (the chart's upper bounds
+    # lowered where mstar.js's ifsym lowers them: a(12) = 672); Table 5's head and its row of the order M, the last
+    # whose first order is at most M, its caption a link to it; and each open cell of the row, above its column's lower
+    # bound and at or below its upper bound, in order of n: its swatch, of its kind (ifsym, red if the conjecture holds,
+    # where it is) and gold ring, as its own box's heading has it, and n, linked to its box.  Until then the first part
+    # alone.
     # Resultata before: nothing opened.
     R, B = boxes_run()
-    table = R['table3']
-    for m, term in ((12, '\\(a(11) = 480\\)'), (13, '\\(480 \\le a(12) \\le 672\\)'), (16, '\\(a(15) = 1440\\)')):
+    table, table5, data = R['table3'], R['table5'], mstar_data()
+    cols = data['cols']
+    firsts = [int(re.search(r'\d+', row[0])[0]) for row in table5[1:]]
+    assert firsts[0] == 1 and firsts == sorted(set(firsts)), firsts         # the orders of Table 5's rows, from 1 up
+    for m, term, ifterm in ((12, '\\(a(11) = 480\\)', '\\(a(11) = 480\\)'), (13, '\\(480 \\le a(12) \\le 672\\)', '\\(a(12) = 672\\)'),
+                            (16, '\\(a(15) = 1440\\)', '\\(a(15) = 1440\\)')):
         P = B[(None, m)]
+        opened = [n for n in range(1, DATA_NMAX + 1) if cols[n - 1][0] < m <= cols[n - 1][1]]
+        five = [row for row, first in zip(table5[1:], firsts) if first <= m][-1]
         assert not P['hidden'] and P['hash'] == f'#m{m}' and P['kind'] == 'row' and P['heading'] == f'\\(m = {m}\\)', (m, P)
-        assert P['whys'] == ['row-smallest'] and P['tables'] == [[table[0], table[m]]], (m, P['tables'], table[0], table[m])
-        assert P['links'] == ['https://oeis.org/A323395'] and P['text'].endswith(f'A323395: {term}'), (m, P['links'], P['text'])
+        assert P['whys'] == ['row-smallest', 'row-ifsym', 'row-symmetry'] + ['row-cell'] * len(opened), (m, P['whys'], opened)
+        assert P['tables'] == [[table[0], table[m]], [table5[0], five]], (m, P['tables'], table[0], table[m], five)
+        said = {why: t for why, t, _ in P['parts']}
+        assert said['row-smallest'].endswith(f'A323395: {term}') and said['row-ifsym'].endswith(ifterm), (m, said)
+        assert P['links'] == ['https://oeis.org/A323395', '#symmetry-title', '#symmetry-table'] + [f'#n{n}m{m}' for n in opened], (m, P['links'])
+        assert [(cls.split()[1], href) for cls, href in P['cells']] == [(kind_of(cols, n, m, data['ifsym']), f'#n{n}m{m}') for n in opened], (m, P['cells'])
+    assert [n for n in range(1, DATA_NMAX + 1) if cols[n - 1][0] < 13 <= cols[n - 1][1]] == [480, 864], 'the open cells of row 13'
+    assert B[(None, 13)]['cells'][0] == [B[(480, 13)]['swatch']['cls'], '#n480m13'] and B[(480, 13)]['swatch']['cls'] == 'swatch ifsym record', B[(None, 13)]['cells']
 
 
 def q_boxes_word_a_credit_as_the_legend_does():
@@ -5390,6 +5659,9 @@ def q_boxes_word_a_credit_as_the_legend_does():
     # Expectata (dreeves, 2026-11-09: "probably yes to the decoupling"): the box opens, and its proof's part names the
     # credit by the reworded label of the legend's item of the cell's class, which is no label of the real page.  So a
     # credit is renamed on the page alone: mstar.py, mstar.js, the scripts and the quals hold none of its words.
+    # Spec change (Opus 5.5, 2026-11-18): every length's entry in the appendix holds its facts, each marked with its
+    # length (data-n), so the page names a credit wherever a length's bound is the page's own; the words looked at are
+    # those of the box's own parts, the parts with no data-n.
     # Resultata before: the box named the credit by mstar.js's words, the real page's label, whatever the legend said.
     text = page()
     [cls] = re.findall(r'<td class="(\w+)" title=\'[^\']*\'>240</td>', text)
@@ -5403,7 +5675,7 @@ def q_boxes_word_a_credit_as_the_legend_does():
                          'file://' + os.path.join(d, 'index.html') + '#n240m11'])
     finally:
         shutil.rmtree(d)
-    said = [w for w in re.findall(r'<span data-slot="who">([^<]*)</span>', dom) if w]
+    said = [w for w in re.findall(r'<div data-why="(?:witness|proof)-page"(?![^>]*data-n=)[^>]*>.*?<span data-slot="who">([^<]*)</span>', dom, re.S) if w]
     want = legend_labels(reworded(text))[cls]
     assert said == [html.unescape(want)] and want not in legend_labels(text).values(), (said, want)
 

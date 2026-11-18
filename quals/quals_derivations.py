@@ -28,7 +28,9 @@ import quals_index as qi                      # read only: page, blank_comments,
 import quals_codes as qc                      # read only: drive, DESKTOP, PHONE and CODE
 
 RUNS = {}                                     # drive's reports by configuration name, made once per process (see run)
-CONSTRUCTIONS = '[data-construction]'         # the selector of this file's items: the page's constructions
+# the selector of this file's items: the constructions written in the page, not those of the facts that page/appendix.js
+# puts in the appendix's entries (Opus 5.5, 2026-11-18; q_every_construction_of_the_appendix_derives_its_claim)
+CONSTRUCTIONS = '[data-construction]:not([data-why] *)'
 CONSTRUCTION = re.compile(r'<span data-construction="([^"]*)">\\\((.*?)\\\)</span>', re.S)
 # The page's constructions whose orders are less than the lower bounds that the data and the new results give at their
 # lengths, by their claims N:M: f, the 2^24 construction of the remarks ("Joint construction", order 25, where the join
@@ -233,7 +235,9 @@ READ = """i => {
 }"""
 # Every formula KaTeX drew, as [its TeX (KaTeX's annotation), and of the construction or join it is in, if any: its
 # role, and its data-construction or "join " and its data-join]
-SCAN = """() => [...document.querySelectorAll('.katex annotation[encoding="application/x-tex"]')].map(a => {
+# (since 2026-11-18 not those of the facts that page/appendix.js puts in the appendix's entries, drawn when the appendix
+# opens: q_every_construction_of_the_appendix_derives_its_claim holds those)
+SCAN = """() => [...document.querySelectorAll('.katex annotation[encoding="application/x-tex"]')].filter(a => !a.closest('[data-why]')).map(a => {
   const b = a.closest('[data-construction], [data-join]');
   return [a.textContent, b && b.getAttribute('role'), b && (b.dataset.construction ?? 'join ' + b.dataset.join)];
 })"""
@@ -304,6 +308,43 @@ def opened(R):
 
 # ---------------------------------------------------------------------------------------------------------------------
 # Quals
+
+def q_every_construction_of_the_appendix_derives_its_claim():
+    # Replicata: index.html loaded on its own (headless Chrome, its own profile), and in the page, once it has loaded, a
+    # click (the element's click()) on each construction of the facts that page/appendix.js puts in the appendix's
+    # entries, one after another, each read: its claim, and the bound of the derivation it shows.
+    # Expectata (Opus 5.5, 2026-11-18; dreeves, of the appendix: "make everything consistent and complete and
+    # anti-magic"): one construction for each length whose lower bound is a join or a product, by mstar.js up to its
+    # last n and by pow2.js past it; each derives its claim, the bound n:m of its derivation; nothing is thrown.  A part
+    # p_N with no code on the page whose own lower bound is a join or a product links to N's entry (page/codes.js).
+    # Resultata before: a click on 356's construction, p_8 ∨ p_348, threw ['356:3','348',['join',8,340]]: codes.js
+    # could only cite an example for a part with no code, and 348's lower bound is a join.
+    import json, html, shutil, tempfile
+    probe = ('<script>addEventListener("load", () => setTimeout(() => { const errs = []; addEventListener("error", e => errs.push(String(e.message)));'
+             ' const out = [...document.querySelectorAll("section.appendix [data-why] [data-construction]")].map(e => { e.click();'
+             ' const box = document.getElementById(e.getAttribute("aria-controls") || "");'
+             ' return [e.dataset.construction, box ? box.querySelector("[data-bound-n]").textContent + ":" + box.querySelector("[data-bound-m]").textContent : null]; });'
+             ' document.documentElement.dataset.derived = JSON.stringify({out, errs}); }, 1500));</script>')
+    d = tempfile.mkdtemp(prefix='derivations-quals-')
+    try:
+        open(os.path.join(d, 'index.html'), 'w', encoding='utf-8').write(qi.page().replace('</body>', probe + '</body>'))
+        qi.copy_page_dir(d)
+        shutil.copy(qi.DATA, qi.data_file(d, 'mstar.js'))
+        shutil.copy(qi.POW2, qi.data_file(d, 'pow2.js'))
+        dom = qi.chrome(d, ['--window-size=1280,1000', '--virtual-time-budget=20000', '--dump-dom', 'file://' + os.path.join(d, 'index.html')])
+    finally:
+        shutil.rmtree(d)
+    m = re.search(r'<html[^>]* data-derived="([^"]*)"', dom)
+    assert m, dom[:300]
+    got = json.loads(html.unescape(m[1]))
+    cols, pcols = qi.mstar_data()['cols'], qi.pow2_data()['cols']
+    want = ([f'{n}:{c[0]}' for n, c in enumerate(cols, 1) if c[2][0] in ('join', 'product') and n % 4 == 0]
+            + [f'{2 ** k}:{c[0]}' for k, c in enumerate(pcols, 1) if 2 ** k > qi.DATA_NMAX and c[2][0] == 'joins'])
+    power = lambda n: f'2{n.bit_length() - 1}' if n > 2 and n & (n - 1) == 0 else str(n)    # codes.js writes 2^k past 2
+    assert got['errs'] == [] and sorted(c for c, _ in got['out']) == sorted(want), (got['errs'][:3], len(got['out']), len(want))   # (an entry by hand of several lengths holds their facts at its first)
+    bad = [(c, b) for c, b in got['out'] if b != f'{power(int(c.split(":")[0]))}:{c.split(":")[1]}']
+    assert bad == [], bad[:5]
+
 
 def q_every_construction_formula_is_expandable():
     # Replicata: index.html outside its comments: every formula \( ... \) that builds sequences of the page with # and ∨

@@ -7,9 +7,12 @@
 // The page trusts exactly its links to its codes' anchors, # and an id N:M (dreeves's README, 2026-10-31, [IND]: "make
 // the 'p320' or whatever be a hyperlink / anchor link"), so that any other \href still shows in red.
 // MATH holds auto-render's options, which the charts' panels use too, for the math they add to the page later
-// (page/shared.js, 2026-11-03).
+// (page/shared.js, 2026-11-03).  The appendix's entries (ul.entries) are left for later (2026-11-18, Opus 5.5): they
+// hold most of the page's math (11,460 of 13,596 formulas that day, which took the drawing from 108 ms to 702 ms on
+// dreeves's Mac), so KaTeX draws them when the appendix first opens, by a click or by find in page, which searches their
+// TeX meanwhile (page/appendix.js); a box draws the entry it shows (chartPanel).
 const MATH = {delimiters: [{left: '\\(', right: '\\)', display: false}], throwOnError: false,
               trust: ({command, url}) => command === '\\href' && /^#\d+:\d+$/.test(url)};
 function renderMath() {
-  renderMathInElement(document.body, MATH);
+  renderMathInElement(document.body, {...MATH, ignoredClasses: ['entries']});
 }

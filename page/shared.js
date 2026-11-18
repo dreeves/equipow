@@ -178,27 +178,53 @@ function filled(name, values) {
   return box;
 }
 
-// The entries of the remarks below the charts ("Where the new results come from"), each an li of the list there that
-// holds a p.entry: each p.entry gets the lengths it lists, in decimal digits, as data-lengths, and the id entry-N, N the
-// first of them, from its TeX before KaTeX draws it, \(n = 320, 352, ...\): or \(n = 2^{11}\):.  HOMES keeps each
-// entry's place in the list, a comment right before its li, where the li goes back when a box that showed it is done
-// with it (chartPanel, below).  entries(n) gives the entry that lists the length n (a BigInt), none or one.
-const HOMES = new Map([...document.querySelectorAll('section.remarks p.entry')].map(p => {
-  const x = /^\\\(n = (.+?)\\\):/.exec(p.textContent), li = p.parentElement;
-  if (x === null || li.tagName !== 'LI') throw new Error(`an entry outside the form: ${p.textContent.slice(0, 80)}`);
-  const ns = x[1].split(', ').map(s => BigInt(s.replace(/^2\^\{(\d+)\}$/, (_, k) => String(2n ** BigInt(k)))));
+// The entries of the appendix (Opus 5.5, 2026-11-18; dreeves: "Appendix: Everything Known About Every Length"; until
+// then the list of the remarks, "Where the new results come from"), each an li of its list that holds a p.entry, its
+// heading.  page/appendix.js, as the page loads, puts them in order, makes the entry of every length that no entry by
+// hand lists, puts each length's facts in its entry (FACTS, below), and enters each (enter).  An entry by hand lists its
+// lengths in its heading's TeX, read before KaTeX draws it, \(n = 320, 352, ...\): or \(n = 2^{11}\): (listed).  Every
+// entry gets its lengths in decimal digits as its p.entry's data-lengths, and the id entry-N, N the first of them.
+// HOMES keeps each entry's place in the list, a comment right before its li, where the li goes back when a box that
+// showed it is done with it (chartPanel, below); ENTRY, the entry of each length, by its digits.  entries(n) gives the
+// entry of the length n (a BigInt), a list of one; it throws for a length that has none, as enter does for a length
+// entered twice.
+const HOMES = new Map(), ENTRY = new Map();
+const listed = p => {
+  const x = /^\\\(n = (.+?)\\\):/.exec(p.textContent);
+  if (x === null || p.parentElement.tagName !== 'LI') throw new Error(`an entry outside the form: ${p.textContent.slice(0, 80)}`);
+  return x[1].split(', ').map(s => BigInt(s.replace(/^2\^\{(\d+)\}$/, (_, k) => String(2n ** BigInt(k)))));
+};
+const enter = (li, ns) => {
+  const p = li.querySelector(':scope > p.entry'), home = document.createComment(` the place of entry-${ns[0]} in the list, where it goes back from a box `);
   p.dataset.lengths = ns.join(' ');
   p.id = `entry-${ns[0]}`;
-  const home = document.createComment(` the place of ${p.id} in the list, where it goes back from a box `);
   li.before(home);
-  return [li, home];
-}));
-const entries = n => [...HOMES.keys()].filter(li => li.querySelector('p.entry').dataset.lengths.split(' ').includes(String(n)));
+  HOMES.set(li, home);
+  ns.forEach(n => { if (ENTRY.has(String(n))) throw new Error(`two entries of ${n}`); ENTRY.set(String(n), li); });
+};
+const entries = n => { const li = ENTRY.get(String(n)); if (li === undefined) throw new Error(`no entry of ${n}`); return [li]; };
 
-// What a box shows (2026-11-04): parts, its parts, in order; and entries, the lengths whose entries of the remarks it
-// shows, after them.  together(...xs) shows all of xs, in order.  bound(name, rel, v) is the bound m*(name) ≥ v (rel
-// ge) or ≤ v (le), in TeX.
+// What a box shows (2026-11-04): parts, its parts, in order; and entries, the lengths whose entries it shows (above its
+// parts since 2026-11-18: a column's box shows its length's entry, a cell's where its bound shown is the page's own).
+// together(...xs) shows all of xs, in order.  bound(name, rel, v) is the bound m*(name) ≥ v (rel ge) or ≤ v (le), in TeX.
 const shown = (parts = [], entries = []) => ({parts, entries});
+// The facts of a length (Opus 5.5, 2026-11-18; dreeves: "make everything consistent and complete"), by the chart whose
+// data covers the length, each registered by its chart's script, as functions that give what shown gives: its witness
+// and its proof, FACTS.mstar.witness(n) and .proof(n) for n up to MSTAR's nmax, with .ifproofs(n), the bound that holds
+// if BGPW's Symmetry Conjecture does where the data lists one, and FACTS.pow2.witness(k) and .proof(k) for each 2^k past
+// it.  page/appendix.js puts them in the lengths' entries; the charts' boxes of cells show them by the cell's kind.
+const FACTS = {};
+// Claude's English, quoted (2026-11-04; in runs since 2026-11-16): one quote from the first paragraph of the parts of
+// Claude's English (data-claude) to the last, in each run of parts between parts that quote someone else (data-quote:
+// Stan Wagon's words), so that no quote of Claude's holds another's; parts with no such part are one run.
+const quoteRuns = parts => {
+  const runs = [[]];
+  parts.forEach(p => p.hasAttribute('data-quote') ? runs.push([]) : runs.at(-1).push(p));
+  for (const ps of runs.map(run => run.filter(p => p.hasAttribute('data-claude')).flatMap(e => [...e.querySelectorAll('p')]))) {
+    ps.slice(0, 1).forEach(p => p.prepend('Opus 5.5: “'));   // Opus 5.5 for Claude since dreeves's rename of 2026-11-09, as in the page's own text
+    ps.slice(-1).forEach(p => p.append('”'));
+  }
+};
 // The words for a credit of the new results, which the data names only by the class of its cells (c, cf, j, ca, a or s:
 // mstar.py's who): the page's own, the label of the item of the new results' legend whose key has that class, in a
 // list, empty for a class the legend lacks, which the charts refuse.  No script holds such words (2026-11-09: dreeves
@@ -230,6 +256,18 @@ const copies = (N, lo) => shown([...document.querySelectorAll(`code[id="${N}:${l
   part.dataset.copy = c.id;
   return part;
 }));
+// The code of an example of the length N (a BigInt) and the order lo, hex, as the data give it (since 2026-11-18, every
+// example of the m*(n) chart's: mstar.js's codes; dreeves: "there should be no "found here". what does "here" mean?
+// totally ambiguous. show the expandable hex code for everything"), in the part a copy has: the code itself, its N:lo
+// its data-code, which page/codes.js expands as it does a code of the page; and like a copy, data-copy its N:lo, so that
+// a box or an entry that holds the page's code of that id drops it.  An example's witness shows its code so, in place
+// of a copy (page/mstar-section.js).
+const coded = (N, lo, hex) => {
+  const part = filled('witness-code', {code: Object.assign(document.createElement('code'), {textContent: hex})});
+  part.querySelector('code').dataset.code = `${N}:${lo}`;
+  part.dataset.copy = `${N}:${lo}`;
+  return shown([part]);
+};
 
 // The proofs of the upper bounds, which both charts' boxes show (since 2026-11-04 the math alone, with the length's own
 // numbers and the method's name; [CEL]: "If the cell is red, show the proof for the lowest red cell in that cell's
@@ -301,13 +339,16 @@ const stanPart = (n, name, hi) => {
   his.toggleAttribute('data-quote', true);
   return [his];
 };
+// The 2-adic bound's part for n = 2^t u, u odd, two = 2^t (a BigInt): mod 2 f(x) is (x^u + 1)^two/(x + 1), and
+// (x + 1)^2 does not divide x^u + 1, so (x - 1)^m divides f only for m up to 2^t - 1.  u may be a name, for a class of
+// lengths (page/appendix.js, the singly even n: t = 1, u the name u).
+const twoPart = (name, t, two, u, hi) => filled('proof-two', {bound: bound(name, 'le', hi), n: `\\(n = 2^{${t}} \\cdot ${u}\\)`,
+  f: `\\(f(x) \\equiv (x^{${u}} + 1)^{${two}}/(x + 1)\\)`, once: `\\((x + 1)^2 \\nmid x^{${u}} + 1\\)`, m: `\\(m \\le 2^{${t}} - 1 = ${hi}\\)`});
 const PROOF = {
   odd: (n, name, hi) => shown([filled('proof-odd', {bound: bound(name, 'le', hi), n: `\\(${name} \\equiv 1 \\pmod 2\\)`})]),
   two: (n, name, hi) => {
-    const two = n & -n, t = two.toString(2).length - 1, u = n / two;
-    return shown([filled('proof-two', {bound: bound(name, 'le', hi), n: `\\(n = 2^{${t}} \\cdot ${u}\\)`,
-      f: `\\(f(x) \\equiv (x^{${u}} + 1)^{${two}}/(x + 1)\\)`, once: `\\((x + 1)^2 \\nmid x^{${u}} + 1\\)`,
-      m: `\\(m \\le 2^{${t}} - 1 = ${hi}\\)`})]);
+    const two = n & -n;
+    return shown([twoPart(name, two.toString(2).length - 1, two, n / two, hi)]);
   },
   norm: (n, name, hi, p) => {
     const P = BigInt(p), m = hi + 1, sizes = classSizes(n, p);
@@ -347,8 +388,9 @@ function legendItem(legend, kind, role) {
 
 // The smallest length of each order, as the table of smallest lengths (Claude's table, Stan Wagon's suggestion,
 // 2026-10-17; page/smallest-section.js) has it and a row's box of the m*(n) chart shows it (since 2026-11-04, [ROC]),
-// from mstar.js: smallest() gives for each order m, from 1, [m, the least n whose upper bound is at least m (order m is
-// not ruled out), the least length known to reach m, best]; and smallestRow(row) its row of the table: m, those two,
+// from mstar.js: smallest(cols) gives for each order m, from 1, [m, the least n whose upper bound is at least m (order m
+// is not ruled out), the least length known to reach m, best], by the chart's columns cols, [lo, hi] each (MSTAR.cols,
+// or since 2026-11-18 ifsymCols, below); and smallestRow(row) its row of the table: m, those two,
 // and ✓ where they agree, the order's smallest length proven.  The orders run from 1 to the largest some n up to
 // MSTAR.nmax is not ruled out for (dreeves, 2026-10-30: "why isn't 480:14 highlighted in the chart?"), and those past
 // it, each with its least n not ruled out in MSTAR.mtopAt (one more from 2026-11-03, [LIN]; through order 17 since
@@ -357,9 +399,9 @@ function legendItem(legend, kind, role) {
 // README, 2026-10-31: "[MIN] In the "smallest length known for each order" table, we currently have no entries for the
 // smallest known n for orders 14 and 15"; the table showed — where no n up to MSTAR.nmax was known to reach m).  An
 // example longer than the chart counts as well (MSTAR.past).
-function smallest() {
+function smallest(cols) {
   const knownAt = [], possibleAt = [];                             // order m: its least n known, its least n not ruled out
-  raised(MSTAR.cols, () => 0).forEach(([known, possible], i) => {
+  raised(cols, () => 0).forEach(([known, possible], i) => {
     known.forEach(m => { knownAt[m] = i + 1; });
     possible.forEach(m => { possibleAt[m] = i + 1; });
   });
@@ -383,14 +425,42 @@ function smallestRow([m, possible, best]) {
   row.append(...[m, possible, best, best === possible ? '✓' : ''].map(text => Object.assign(document.createElement('td'), {textContent: text})));
   return row;
 }
-// A row's box of the m*(n) chart: its row of the table of smallest lengths, under that table's own head, and the term
-// a(m - 1) of OEIS A323395, the smallest length of order m: that length where it is proven, else between the two.
-const smallestBox = m => shown(smallest().filter(([r]) => r === m).map(([r, possible, best]) => {
-  const part = filled('row-smallest', {row: smallestRow([r, possible, best]),
-    term: `\\(${possible === best ? `a(${r - 1}) = ${best}` : `${possible} \\le a(${r - 1}) \\le ${best}`}\\)`});
-  part.querySelector('table').prepend(document.querySelector('section.smallest thead').cloneNode(true));
+// The m*(n) chart's columns if BGPW's Symmetry Conjecture holds (2026-11-18): each upper bound that mstar.js's ifsym
+// lowers, lowered.
+const ifsymCols = () => MSTAR.cols.map(([lo, hi], i) => [lo, Math.min(hi, ...MSTAR.ifsym.filter(([n]) => n === i + 1).map(([, h]) => h))]);
+// The term a(r - 1) of OEIS A323395, the smallest length of order r, by the least length not ruled out and the least
+// known: that length where they agree, else between the two.
+const term = (r, possible, best) => `\\(${possible === best ? `a(${r - 1}) = ${best}` : `${possible} \\le a(${r - 1}) \\le ${best}`}\\)`;
+// The row of the order m of a table of rows of orders, rows (smallest's, or ifsymCols's), which has exactly one.
+const orderRow = (rows, m) => {
+  const mine = rows.filter(([r]) => r === m);
+  if (mine.length !== 1) throw new Error(`the rows of order ${m}: ${mine.length}`);
+  return mine[0];
+};
+// The row of the order m of Table 5, the Symmetry section's (for each order, the least N known from which BGPW's
+// Symmetry Conjecture holds at every length): the last of its rows whose first order, the first number of its first
+// cell, is at most m; under that table's head, and its caption, cloned, a link to the table.  It throws unless the
+// rows' first orders rise from 1.
+const symmetryRow = m => {
+  const table = document.getElementById('symmetry-table').closest('table'), rows = [...table.tBodies[0].rows];
+  const firsts = rows.map(r => Number(/\d+/.exec(r.cells[0].textContent)[0]));
+  if (firsts[0] !== 1 || !firsts.every((x, i) => i === 0 || x > firsts[i - 1])) throw new Error(`Table 5's orders: ${firsts}`);
+  const part = filled('row-symmetry', {caption: linked('#symmetry-table', ...table.caption.cloneNode(true).childNodes),
+                                       row: rows.filter((_, i) => firsts[i] <= m).at(-1)});
+  part.querySelector('tbody').before(table.tHead.cloneNode(true));
   return part;
-}));
+};
+// A row's box of the m*(n) chart: its row of the table of smallest lengths, under that table's own head, and the term
+// a(m - 1) of OEIS A323395; then (Opus 5.5, 2026-11-18; dreeves: "clicking the m for a whole row in a chart should
+// gather up all the relevant things for that row, including what we know conditional on the symmetry conjecture being
+// true") that term if BGPW's Symmetry Conjecture holds (ifsymCols), and its order's row of Table 5 (symmetryRow).  The
+// chart's script adds the row's open cells (page/mstar-section.js).
+const smallestBox = m => {
+  const [r, possible, best] = orderRow(smallest(MSTAR.cols), m), [, ifPossible] = orderRow(smallest(ifsymCols()), m);
+  const part = filled('row-smallest', {row: smallestRow([r, possible, best]), term: term(r, possible, best)});
+  part.querySelector('table').prepend(document.querySelector('section.smallest thead').cloneNode(true));
+  return shown([part, filled('row-ifsym', {term: term(r, ifPossible, best)}), symmetryRow(m)]);
+};
 
 // The runs at a box's target, for an open cell's box ([CEL]: "If the cell is black... maybe just summarize the search
 // efforts so far?"): the heading of the Search progress section, and under it that section's runs of the order m at
@@ -407,11 +477,10 @@ const searches = (n, m) => {
 // The box of a chart: region, its element (hidden until it opens); chart, the chart's element, which gets the focus
 // back; ncol() columns and nrow rows; fragment(column, row), a target's fragment; fill(column, row), what its box shows:
 // {kind, heading, parts, entries}; and pin(targets), which has the chart outline the targets, none or one.  The
-// entries it shows go below its parts, in its [data-panel-entries], each moved there from wherever it is: its place in
-// the list or the other chart's box, which then shows none; a copy of a code goes when the box shows the code itself,
-// in an entry; and its quote of Claude opens at its first part of Claude's English and closes at its last (since
-// 2026-11-16, in each run of parts between parts that quote someone else, data-quote: Stan Wagon's).  It returns
-// open(target), which opens the box of the target, as panZoom's open does.
+// entries it shows go in its [data-panel-entries], above its parts since 2026-11-18 (below them until then), each moved
+// there from wherever it is: its place in the appendix's list or the other chart's box, which then shows none; a copy
+// of a code goes when the box shows the code itself, in an entry; and its parts' Claude's English is quoted
+// (quoteRuns).  It returns open(target), which opens the box of the target, as panZoom's open does.
 function chartPanel({region, chart, ncol, nrow, fragment, fill, pin}) {
   const title = region.querySelector('[data-panel-title]'), body = region.querySelector('[data-panel-body]');
   const shelf = region.querySelector('[data-panel-entries]');
@@ -422,24 +491,16 @@ function chartPanel({region, chart, ncol, nrow, fragment, fill, pin}) {
     back();
     shelf.append(...lengths.flatMap(entries));
     const held = [...shelf.querySelectorAll('code[id]')].map(c => c.id), kept = parts.filter(p => !held.includes(p.dataset.copy));
-    // Claude's English, quoted: one quote from the first paragraph of its parts to the last, in each run of parts between
-    // parts that quote someone else (data-quote: Stan Wagon's words, since 2026-11-16), so that no quote of Claude's
-    // holds another's; a box with no such part is one run, as every box was until then
-    const runs = [[]];
-    kept.forEach(p => p.hasAttribute('data-quote') ? runs.push([]) : runs.at(-1).push(p));
-    for (const ps of runs.map(run => run.filter(p => p.hasAttribute('data-claude')).flatMap(e => [...e.querySelectorAll('p')]))) {
-      ps.slice(0, 1).forEach(p => p.prepend('Opus 5.5: “'));   // Opus 5.5 for Claude since dreeves's rename of 2026-11-09, as in the page's own text
-      ps.slice(-1).forEach(p => p.append('”'));
-    }
+    quoteRuns(kept);                                               // the entry's facts were quoted as the page loaded
     region.dataset.kind = kind;
     title.replaceChildren(...heading);
     body.replaceChildren(...kept);
-    body.querySelectorAll('[data-join]').forEach(e => expandable.partition(e));       // its copies of codes, and its
+    body.querySelectorAll('[data-join], code[data-code]').forEach(e => expandable.partition(e));   // its copies of codes and codes, and its
     body.querySelectorAll('[data-construction]').forEach(e => expandable.derivation(e));   // constructions, buttons
     region.hidden = false;
     last = t;
     history.replaceState(null, '', `#${fragment(...t)}`);
-    [title, body].forEach(e => renderMathInElement(e, MATH));      // KaTeX draws its math, with the page's options
+    [title, shelf, body].forEach(e => renderMathInElement(e, MATH));   // KaTeX draws its math, with the page's options (its entry's too, since 2026-11-18: page/math.js)
     pin([t]);
     title.focus({preventScroll: true});
   }

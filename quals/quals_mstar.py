@@ -425,13 +425,15 @@ def q_schema():
     # cells for which we know they're red conditional on the Symmetry Conjecture being true"): one more key, ifsym,
     # before cols: a list of [n, hi, file], rising in n, one per n: m*(n) <= hi if BGPW's Symmetry Conjecture holds,
     # hi from the column's lo to one below its own hi, file the program of proofs/ that checks the proofs it rests on.
+    # Spec change (Opus 5.5, 2026-11-18; dreeves: "there should be no "found here" ... show the expandable hex code for
+    # everything"): one more key, codes, before cols (q_every_example_has_its_code).
     js, got = disk()
     body = ''.join(line for line in js.splitlines(True) if not line.startswith('//'))
     assert body.startswith('const MSTAR = ') and body.endswith('};\n') and body.count(';') == 1, body[:80]
     assert json.loads(body[len('const MSTAR = '):-2]) == got['m'] and got['keys'] == [], got['keys']
     M = got['m']
     # nmax: 2048 since 2026-11-10 ([BOU]), 1024 from 2026-10-27 until then
-    assert list(M) == ['nmax', 'mtop', 'mtopAt', 'past', 'ifsym', 'cols'] and M['nmax'] == 2048 == mstar.NMAX and len(M['cols']) == 2048
+    assert list(M) == ['nmax', 'mtop', 'mtopAt', 'past', 'ifsym', 'codes', 'cols'] and M['nmax'] == 2048 == mstar.NMAX and len(M['cols']) == 2048
     assert all(type(n) is int and 2 <= n <= M['nmax'] and n % 2 == 0 and type(hi) is int and M['cols'][n - 1][0] <= hi < M['cols'][n - 1][1]
                and re.fullmatch(r'proofs/[\w.]+\.py', file) and os.path.isfile(os.path.join(HERE, file)) for n, hi, file in M['ifsym']), M['ifsym']
     assert [n for n, _, _ in M['ifsym']] == sorted({n for n, _, _ in M['ifsym']}), M['ifsym']
@@ -455,6 +457,29 @@ def q_schema():
         # the cells' classes; cf among them since 2026-11-11 (q_page_parse's spec change of that day)
         assert lw[0] != 'page' or lw[1] in ('s', 'c', 'j', 'a', 'ca', 'cf'), (n, lw)
         assert hw[0] != 'page' or hw[1] in ('s', 'c', 'j', 'a', 'ca', 'cf'), (n, hw)
+
+
+def q_every_example_has_its_code():
+    # Replicata: mstar.js on disk, its codes and its columns; mstar.explicit().
+    # Expectata (Opus 5.5, 2026-11-18; dreeves: "there should be no "found here". what does "here" mean? totally
+    # ambiguous. show the expandable hex code for everything"): codes lists [n, code] for exactly the columns whose lower
+    # bound is an example, rising in n; each code has n/8 hex digits rounded up, its bits past the left half's n/2 are
+    # 0, and read in BGPW's convention at the column's lo (mstar.from_rp: the left half, then its mirror times
+    # (-1)^lo) it is that example, mstar.explicit()'s sequence of length n under its label, of order exactly lo
+    # (synthetic division here).  So brute force's examples are (-1)^m-symmetric (mstar.symmetric), and every example's
+    # code is one the page can expand.
+    # Resultata before: no codes: of the 124 examples, the 47 that the page did not show (BGPW's Tables 4 and 5,
+    # Thue–Morse, brute force's and one of overnight_v5's) had a label alone.
+    _, got = disk()
+    M = got['m']
+    cols, ex = M['cols'], mstar.explicit()
+    examples = [n for n, c in enumerate(cols, 1) if c[2][0] == 'example']
+    assert [n for n, _ in M['codes']] == examples and len(examples) == 124, (len(M['codes']), len(examples))
+    for n, code in M['codes']:
+        lo, label = cols[n - 1][0], cols[n - 1][2][1]
+        bits = bin(int(code, 16))[2:].zfill(4 * len(code))
+        a = mstar.from_rp(code, lo, n)
+        assert len(code) == -(-n // 8) and set(bits[n // 2:]) <= {'0'} and a == ex[n, label] and exact_order_div(a) == lo, (n, code)
 
 
 def q_ifsym_follows_from_the_symmetric_only_proofs():

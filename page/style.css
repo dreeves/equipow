@@ -349,6 +349,10 @@ blockquote.claude .attrib { color: var(--muted); }
 .progress summary { cursor: pointer; }
 .progress summary h2 { display: inline; }
 .progress details > * + * { margin-top: 0.8rem; }
+/* The appendix (2026-11-18), folded as the Search progress section is: its heading the fold's summary */
+.appendix > details > summary { cursor: pointer; }
+.appendix > details > summary h2 { display: inline; }
+.appendix > details > * + * { margin-top: 0.8rem; }
 .progress-runs, .progress-run { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.6rem; }
 .progress h3 { margin: 0; font-size: 1.05rem; }
 .progress h3 code { font-family: var(--mono); font-size: 0.8rem; font-weight: 400; color: var(--muted); }
@@ -603,6 +607,9 @@ blockquote.claude .attrib { color: var(--muted); }
    from the explanations above it by a hairline; gone, gap and all, when the panel shows no entry. */
 .column-panel .remarks { padding-top: 0.75rem; border-top: 1px solid color-mix(in oklab, var(--rule) 30%, var(--paper)); }
 .column-panel .remarks:not(:has(li)) { display: none; }
+/* A cell's box shows its own facts (2026-11-18): an entry it shows, for a proof of the page's own, shows its notes, its
+   facts being the box's parts already; a column's box shows its entry whole */
+.column-panel:not([data-kind="column"]) [data-panel-entries] [data-why] { display: none; }
 
 footer {
   display: grid;
