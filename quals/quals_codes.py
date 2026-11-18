@@ -345,7 +345,9 @@ const OPS = {
 
 async function main() {
   const portFile = `${C.dir}/profile/DevToolsActivePort`;
-  for (let i = 0; i < 300 && !existsSync(portFile); i++) await sleep(100);
+  // 2026-11-17 (Opus 5.5), a harness fix, not a spec change: wait for the port's whole line, not for the file, which Chrome
+  // makes before it writes the port in it (read empty in 9 of 30 launches, scratch/portrace-20261117)
+  for (let i = 0; i < 300 && !(existsSync(portFile) && readFileSync(portFile, 'utf8').includes('\n')); i++) await sleep(100);
   const port = readFileSync(portFile, 'utf8').split('\n')[0];
   const target = (await (await fetch(`http://127.0.0.1:${port}/json/list`)).json()).find(t => t.type === 'page');
   ws = new WebSocket(target.webSocketDebuggerUrl);

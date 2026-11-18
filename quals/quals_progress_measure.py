@@ -41,7 +41,10 @@ const metrics=async()=>Object.fromEntries((await send('Performance.getMetrics'))
 const watchdog=setTimeout(()=>{groupSignal(chrome.pid,'SIGTERM');process.exit(3);},60000);
 try {
   const file=`${C.dir}/profile/DevToolsActivePort`;
-  while(!existsSync(file))await sleep(20);
+  // 2026-11-17 (Opus 5.5), a harness fix, not a spec change: wait for the port's whole line, not for the file, which Chrome
+  // makes before it writes the port in it (read empty in 9 of 30 launches, scratch/portrace-20261117); an empty port sent
+  // this fetch to port 80 once in the full run of that day
+  while(!(existsSync(file)&&readFileSync(file,'utf8').includes('\n')))await sleep(20);
   const port=readFileSync(file,'utf8').split('\n')[0];
   const targets=await(await fetch(`http://localhost:${port}/json/list`)).json();
   ws=new WebSocket(targets.find(t=>t.type==='page').webSocketDebuggerUrl);
