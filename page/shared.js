@@ -6,7 +6,8 @@
 // what is at CSS x, y of el: a cell, [column, row]; the strip of column labels under the plot, [column, null] (every
 // row of the column); the strip of row labels left of it, [null, row] (every column of the row); or null, elsewhere;
 // readout(column, row) reads a cell out; and draw(u0, span, picked, pinned) draws the view, outlining the cell read
-// out, picked (none or one), and the target of the box open, pinned (none or one).  The buttons out and in do what the
+// out, picked (none or one; none once the mouse has left el, since 2026-11-19), and the target of the box open, pinned
+// (none or one).  The buttons out and in do what the
 // - and + keys do, each grayed out at its limit (with fewer than MIN_SPAN columns the one view is both limits), and each
 // button of resets shows every column (the chart of powers of 2 has one; the m*(n) chart none since 2026-11-10, when
 // its caps took the reset button's place, dreeves's README, [BOU]).  A tap or a click on a cell reads it
@@ -74,6 +75,12 @@ function panZoom({el, out: zoomOut, in: zoomIn, resets, ncol, plot, targetAt, re
     }
   });
   el.addEventListener('pointercancel', lift);
+  // The mouse off the chart: no cell is outlined or tagged as read out (Opus 5.5, 2026-11-19; dreeves: "closing the
+  // popup box should also remove the black-rim highlighting from the figure. relatedly: when you move the mouse away
+  // from the figure, the black-rim highlighting should go away"), and on its way to a box's close button, outside el, it
+  // leaves el.  The readout keeps its words.  mouseleave, not pointerleave, which a finger sends as it lifts from a tap:
+  // a tapped cell keeps its outline and tags, until a later tap lands outside el.
+  el.addEventListener('mouseleave', () => { picked = []; redraw(); });
   // Wheel: with ctrl or cmd (a trackpad pinch sends ctrl) it zooms about the pointer; mostly sideways, it pans; mostly
   // down or up it is left alone, so the page scrolls.
   el.addEventListener('wheel', e => {

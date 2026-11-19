@@ -15,8 +15,8 @@ Potential tasks:
 * [MAI] Let's get more things as expandable sections of the main equipow page instead of linking to separate pages. Proofs currently in txt files for starters.
 * [CLU] Are there past searches we don't care about anymore that we don't need on the page? Some are interesting for posterity.
 * [CRO] This might be fun: Let people contribute computation by just having the equipow page open in their browser. Claude thinks this could work. (More boringly, Claude is estimating we could bring the next two searches down from a total of 90 days on my laptop to about 4 days on cloud compute costing around $300.)
-* [TRE] We now have a time series of the number of pending nodes in the search. Seeing when that plateaus or starts to actually go down should improve our ETA. Can we incorporate that in the ETA graph? (Also this was missing from the 288:10 search for some reason.)
-* [SOG] Row box revamp, ie, the box you see when you click on a row in the chart. What if we had an actual checkbox for "Assume the Symmetry Conjecture is true"? You could toggle it and see what changes. I'm not sure if that's a good idea yet but the status quo with "unless Symmetry Conjecture true" etc is more confusing than it should be.
+* [TRE] We now have a time series of the number of pending nodes in the search. Seeing when that plateaus or starts to actually go down should improve our search ETAs. Can we incorporate that in the ETA graph? (Also this time series was missing from the 288:10 search for some reason.)
+* [SOG] Row box revamp, ie, the box you see when you click on a row in the chart. What if we had a checkbox for "Assume the Symmetry Conjecture is true"? You could toggle it and see what changes. I'm not sure if that's a good idea yet but the status quo with "unless Symmetry Conjecture true" etc is more confusing than it should be.
 
 ---
 

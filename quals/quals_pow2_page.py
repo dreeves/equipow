@@ -516,7 +516,16 @@ const errors = {                     // the lines that each kind of event logs (
     ? `log ${x.level} ${x.source}: ${x.text} ${x.url || ''}` : null,
 };
 const shot = async path => {
+  // 2026-11-19 (Opus 5.5), a harness fix, not a spec change: under the device scale factor's override, Chrome's
+  // screenshot sends the page a trusted mouse move at the mouse's position divided by that factor (with the mouse at
+  // (647.75, 484.09) at dpr 2, a mouseleave of #pow2-chart at (323, 242), over a span outside it; with
+  // captureBeyondViewport false and fromSurface true too; scratch/pastrows-20261119), which the charts take, since that
+  // day, for the mouse leaving them.  A capturing listener on window keeps any mouseleave from the page's elements
+  // while the screenshot is taken, and a frame after it.
+  await ev(() => { window.qualsShotHold = e => e.stopPropagation(); addEventListener('mouseleave', window.qualsShotHold, true); });
   const {data} = await send('Page.captureScreenshot', {format: 'png'});
+  await ev(FRAMES);
+  await ev(() => removeEventListener('mouseleave', window.qualsShotHold, true));
   writeFileSync(path, Buffer.from(data, 'base64'));
 };
 const settle = async () => {          // until the page's scroll position has held still for 100 ms (at most 5 s)
@@ -630,6 +639,18 @@ async function main() {
     R.outlineDom = await ev(DOM, [[0, 0, x, y], [0, 0, x - W / C.K / 2 - 1, y]]);   // its middle; 1 px left of it
     R.subFonts = await subFonts();
     await shot(C.shots[1]);
+    if (C.hover) {                    // (2026-11-19) the mouse onto cell OUTLINE again (back), then off the chart, 12 px above it (left)
+      const marks = () => ({outlines: [...document.querySelectorAll('#pow2-chart .pow2-frame > .pow2-outline')].map(o => o.hidden),
+        tags: [...document.querySelectorAll('#pow2-chart .pow2-tag')].map(t => t.checkVisibility()),
+        panel: document.getElementById('pow2-panel').hidden});
+      const [lx, ly] = await ev(() => { const r = document.getElementById('pow2-chart').getBoundingClientRect(); return [r.left + r.width / 2, r.top - 12]; });
+      await input.mouse(x, y);
+      await ev(FRAMES);
+      R.back = await ev(marks);
+      await input.mouse(lx, ly);
+      await ev(FRAMES);
+      R.left = await ev(marks);
+    }
     if (C.swipe) {                    // a finger's swipe up 200 px that starts on cell C.swipeFrom, then the readout
       const [, , sx, sy] = cells.find(([k, e]) => k === C.swipeFrom[0] && e === C.swipeFrom[1]);
       const from = await ev(() => scrollY);
@@ -1214,6 +1235,22 @@ def q_readout_subscripts_in_page_font():
         assert lw[0] == 'joins' and not re.search('[₀-₉]', text), (name, lw[0], text)
         assert len(fonts['subs']) == text.count('_(') >= sum(map(len, lw[1])), (name, text, fonts)
         assert all(f == first for f in fonts['subs']), (name, first, fonts['subs'])
+
+
+def q_outline_goes_when_the_mouse_leaves_the_chart():
+    # Replicata: each configuration with a mouse ('light', 'kinds'; 1280 px), after its mouse move to cell OUTLINE and
+    # its screenshot: real mouse moves (DevTools) onto that cell again (back), then off the chart, to 12 px above it
+    # (left); after each, the chart's two outlines, the cell read out's and a box's target's, hidden or not; its two tags,
+    # showing or not; and its box, hidden or not.
+    # Expectata (dreeves, 2026-11-19: "closing the popup box should also remove the black-rim highlighting from the
+    # figure. relatedly: when you move the mouse away from the figure, the black-rim highlighting should go away"): with
+    # the mouse on the cell, the cell read out is outlined and tagged (the control); once the mouse has left the chart,
+    # it has no outline and no tags.  No box is open (the mouse only moved), so the box's outline is hidden throughout.
+    # Resultata before: the cell read out kept its outline and its tags after the mouse left the chart.
+    for name in [n for n in CONFIGS if CONFIGS[n]['hover']]:
+        R = valid(name)
+        assert R['back'] == {'outlines': [False, True], 'tags': [True, True], 'panel': True}, (name, R['back'])
+        assert R['left'] == {'outlines': [True, True], 'tags': [False, False], 'panel': True}, (name, R['left'])
 
 
 def q_outline_marks_the_cell():

@@ -1145,6 +1145,22 @@ async function boxes(R) {
   R.searched = boxReport([528, 12]);
   region.querySelector('[data-panel-close]').click();
   R.closed = {...panelReport(), outline: outlinePixels([528, 12])};
+  // (2026-11-19) the mouse off the chart: the events a browser sends as it leaves the canvas, after a hover on (1024, 8),
+  // and after a click on (528, 12), as on its way to the close button of the box that opened, which is then clicked;
+  // the pixels where the cell's outline goes after each step (left)
+  const leave = () => { const r = cv.getBoundingClientRect(), at = {clientX: r.left + r.width / 2, clientY: r.top - 12};
+    ['pointerout', 'pointerleave'].forEach(type => cv.dispatchEvent(new PointerEvent(type, {...at, pointerId: 1, pointerType: 'mouse'})));
+    ['mouseout', 'mouseleave'].forEach(type => cv.dispatchEvent(new MouseEvent(type, at))); };
+  ptr('pointermove', ...placeOf([1024, 8]), {});
+  R.left = {hovered: outlinePixels([1024, 8])};
+  leave();
+  R.left.left = outlinePixels([1024, 8]);
+  click([528, 12]);
+  await loaded();
+  leave();
+  R.left.open = outlinePixels([528, 12]);
+  region.querySelector('[data-panel-close]').click();
+  R.left.closed = outlinePixels([528, 12]);
   await hashed('#m16');
   R.hashed = [boxReport([null, 16])];
   await hashed('#n1024m12');
@@ -5621,6 +5637,23 @@ def q_cell_box_takes_its_cell_s_color():
         P = B[t]
         assert not P['hidden'] and P['kind'] == ('row' if t[0] is None else 'column') and P['frame'] == R['tokens']['rule'], (t, P['kind'], P['frame'])
         assert P['swatch'] is None, (t, P['swatch'])
+
+
+def q_outline_goes_when_the_mouse_leaves_the_chart():
+    # Replicata: the boxes run (1280 px), after the box of (528, 12) is closed: the mouse onto cell (1024, 8), then off the
+    # chart (the events a browser sends as a mouse leaves the canvas: pointerout, pointerleave, mouseout, mouseleave);
+    # then a click on cell (528, 12), the mouse off the chart again, as on its way to the close button of the box that
+    # opened, and a click on that button: after each step, the pixels where that cell's outline goes.
+    # Expectata (dreeves, 2026-11-19: "closing the popup box should also remove the black-rim highlighting from the
+    # figure. relatedly: when you move the mouse away from the figure, the black-rim highlighting should go away"): the
+    # hovered cell is outlined in ink until the mouse leaves the chart, and then not; the clicked cell stays outlined
+    # while its box is open, the mouse gone (the box's target, q_box_outline_stays_while_open_and_goes_with_it), and not
+    # once its box is closed.
+    # Resultata before: the cell read out kept its outline once the mouse had left the chart, and so after its box closed.
+    R, _ = boxes_run()
+    ink, L = R['tokens']['ink'], R['left']
+    assert L['hovered'] == [ink, ink] and L['open'] == [ink, ink], L
+    assert ink not in L['left'] and ink not in L['closed'], L
 
 
 def q_box_outline_stays_while_open_and_goes_with_it():
