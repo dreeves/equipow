@@ -1078,6 +1078,10 @@ async function boxes(R) {
     : m === null ? [pix(x0(colOf(n)) - dpr, rowY(1)), pix(x0(colOf(n)) - dpr, rowY(T))]
     : [pix(x0(colOf(n)) - dpr, rowY(m)), pix(x1(colOf(n)) + dpr, rowY(m))]; };
   const body = () => region.querySelector('[data-panel-body]');
+  // A table's look (2026-11-18, when Table 5's row in a row's box came out unruled and stretched): how it collapses
+  // its borders and sits in its grid, and its first th's and td's border, padding, alignment and weight
+  const look = t => { const cell = c => { const z = getComputedStyle(c); return [z.borderTopWidth, z.borderTopStyle, z.borderTopColor, z.paddingTop, z.paddingLeft, z.textAlign, z.fontWeight]; };
+    return [getComputedStyle(t).borderCollapse, getComputedStyle(t).justifySelf, cell(t.querySelector('th')), cell(t.querySelector('td'))]; };
   function boxReport(t) {
     const before = getComputedStyle(region, '::before'), b = region.getBoundingClientRect(), r = cv.getBoundingClientRect();
     const parts = [...region.querySelectorAll(PARTS)].filter(showing);   // its entry's facts, then its body's parts, as it shows them (2026-11-18)
@@ -1094,12 +1098,14 @@ async function boxes(R) {
       constructions: parts.flatMap(e => [...e.querySelectorAll('[data-construction]')]).map(e => [e.dataset.construction, e.getAttribute('role'), tex(e)]),
       searches: [...body().querySelectorAll('[data-why="searches"]')].map(e => e.innerText),
       tables: [...body().querySelectorAll('table')].map(table => [...table.rows].map(tr => [...tr.cells].map(tex))),
+      looks: [...body().querySelectorAll('table')].map(look),       // its tables' looks (2026-11-18)
       cells: [...body().querySelectorAll('[data-why="row-cell"]')].map(p => [p.querySelector('.swatch').className,   // a row's cells (2026-11-18)
                                                                                 [...p.querySelectorAll('a[href]')].at(-1).getAttribute('href')]),
       outline: outlinePixels(t)};
   }
   R.table3 = [...document.querySelector('section.smallest table').rows].map(tr => [...tr.cells].map(tex));
   R.table5 = [...document.getElementById('symmetry-table').closest('table').rows].map(tr => [...tr.cells].map(tex));   // (2026-11-18)
+  R.looks = {smallest: look(document.querySelector('section.smallest table')), symmetry: look(document.getElementById('symmetry-table').closest('table'))};
   R.table4 = [...document.querySelector('[data-record-gaps]').querySelectorAll('thead tr, tbody tr')].map(tr => [...tr.cells].map(tex));
   // until the box's searches, if it has any, have loaded (at most 5 s)
   const loaded = async () => { for (let i = 0; i < 100 && [...body().querySelectorAll('[data-why="searches"] > div')].some(d => !d.childNodes.length); i++) await new Promise(r => setTimeout(r, 50)); };
@@ -5650,6 +5656,21 @@ def q_row_box_is_its_row_of_the_smallest_lengths():
         assert [(cls.split()[1], href) for cls, href in P['cells']] == [(kind_of(cols, n, m, data['ifsym']), f'#n{n}m{m}') for n in opened], (m, P['cells'])
     assert [n for n in range(1, DATA_NMAX + 1) if cols[n - 1][0] < 13 <= cols[n - 1][1]] == [480, 864], 'the open cells of row 13'
     assert B[(None, 13)]['cells'][0] == [B[(480, 13)]['swatch']['cls'], '#n480m13'] and B[(480, 13)]['swatch']['cls'] == 'swatch ifsym record', B[(None, 13)]['cells']
+
+
+def q_row_box_tables_look_as_their_tables_do():
+    # Replicata: the boxes run: the boxes of the rows 12, 13 and 16 of the m*(n) chart; and the page's own table of
+    # smallest lengths and its Table 5, as drawn (the harness's look of each).
+    # Expectata (dreeves, 2026-11-18, of the box of row 15 with Table 5's row unruled and stretched across the box:
+    # "this box looks terrible. i guess the borders for table 5 are missing? got quals for that?"): each table of a row's
+    # box looks as the page's table it is a row of: its borders collapsed, it set at the start of its grid, its head's
+    # and its body's cells ruled, padded, aligned and weighted alike, the first the table of smallest lengths' and the
+    # second Table 5's.
+    # Resultata before: Table 5's row in the box had no rules, and spread across the box's width.
+    R, B = boxes_run()
+    for m in (12, 13, 16):
+        assert B[(None, m)]['looks'] == [R['looks']['smallest'], R['looks']['symmetry']], (m, B[(None, m)]['looks'], R['looks'])
+    assert R['looks']['symmetry'][2][1] == 'solid' and R['looks']['symmetry'][1] == 'start', R['looks']
 
 
 def q_boxes_word_a_credit_as_the_legend_does():

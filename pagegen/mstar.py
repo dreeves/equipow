@@ -58,7 +58,7 @@ The two lemmas behind hi (each checked against brute force by quals_mstar.py):
         <= p sum_r size(p, r)^2 (f(1) = 0 for m >= 1), and by AM-GM, N^2 <= (p sum_r size(p, r)^2 / (p-1))^(p-1).
 
 The data contract.  mstar.js is a classic script (no modules, so the page also works from file://) defining one global:
-    const MSTAR = {"nmax": 2048, "mtop": T, "mtopAt": [N, ...], "past": [[n, m, label], ...], "ifsym": [[n, hi, file], ...], "codes": [[n, code], ...], "cols": [[lo, hi, loWhy, hiWhy], ...]};
+    const MSTAR = {"nmax": 2048, "mtop": T, "mtopAt": [N, ...], "past": [[n, m, label], ...], "ifsym": [[n, hi, file], ...], "examples": [[n, code, source], ...], "cols": [[lo, hi, loWhy, hiWhy], ...]};
 cols[n-1] is column n.  0 <= lo <= hi < T = max hi + 1.  Cell (n, m), m = 1..T, is green when m <= lo, gray when
 lo < m <= hi, and red when m > hi; row T is red in every column.  mtopAt lists, for each order from T to MMAX (T's
 alone where T is past MMAX), the
@@ -72,10 +72,11 @@ bipartition") lists the columns whose upper bound is lower if BGPW's Symmetry Co
 in n: m*(n) <= hi then, hi from the column's lo to one below its own hi, by the proofs that the program file checks
 (ifsym_of).  The cells (n, m) with that hi < m <= the column's own hi are the page's fourth kind: open, and red if the
 conjecture holds.
-codes (since 2026-11-18; dreeves: "there should be no "found here". what does "here" mean? totally ambiguous. show the
-expandable hex code for everything") lists [n, code] for each column whose loWhy is an example, rising in n: the code of
-its sequence (to_hex), which is (-1)^lo-symmetric, in BGPW's Table 5 convention: the bits of its left half, 1 = +1,
-padded on the right with 0 to whole hex digits, ceil(n/8) of them; page/codes.js expands it.
+examples (since 2026-11-18; dreeves: "there should be no "found here". what does "here" mean? totally ambiguous. show
+the expandable hex code for everything"; codes, [n, code], until his point 10 of that night) lists [n, code, source] for
+each column whose loWhy is an example, rising in n: the code of its sequence (to_hex), which is (-1)^lo-symmetric, in
+BGPW's Table 5 convention: the bits of its left half, 1 = +1, padded on the right with 0 to whole hex digits, ceil(n/8)
+of them, which page/codes.js expands; and where it comes from, to which its label links (source_of).
   loWhy  ["none"] (lo = 0, n odd); ["example", label] (an explicit sequence of length n, label saying where it is
          from); ["join", a, b] (the sequence for a, then the one for b; lo is the lesser of theirs); ["product", a, b]
          (f_a(x) f_b(x^a); lo is the sum of theirs); ["table2"] (BGPW's Table 2, cited); ["page", who] (the page's new
@@ -810,20 +811,38 @@ def past():
     return [[n, order(a), label] for (n, label), a in sorted(explicit().items(), key=lambda item: item[0]) if n > NMAX]
 
 
-def codes_of(cols):
-    """mstar.js's codes (2026-11-18): [n, code] for each column whose lower bound is an example, rising in n, the code
-    of the sequence behind it (build), which to_hex asserts (-1)^lo-symmetric."""
-    return [[n, to_hex(build(n), lo)] for n, (lo, _, lw, _) in enumerate(cols, 1) if lw[0] == 'example']
+# Where the examples of each label not of this page come from (2026-11-18, dreeves's point 10: every source linked):
+# BGPW's Tables 4 and 5 in the paper, Thue–Morse in the OEIS, and the files of this repository that make or hold theirs.
+SOURCES = {'BGPW Table 4': 'https://arxiv.org/html/1912.03491v1#S6.T4', 'BGPW Table 5': 'https://arxiv.org/html/1912.03491v1#S6.T5',
+           'Thue–Morse': 'https://oeis.org/A010060',
+           'pagegen/mstar.py': 'https://github.com/dreeves/equipow/blob/main/pagegen/mstar.py',
+           'engine/overnight_v5.py': 'https://github.com/dreeves/equipow/blob/main/engine/overnight_v5.py'}
+
+
+def source_of(n, lo, label, ids):
+    """Where the example of the length n and the order lo, labeled label, comes from: SOURCES's page for the label, or,
+    for an example of this page (every other label, equipow ...), its code there, #n:lo, which ids, the page's codes'
+    ids, must hold."""
+    href = SOURCES.get(label, f'#{n}:{lo}')
+    assert href in SOURCES.values() or f'{n}:{lo}' in ids, (n, lo, label)
+    return href
+
+
+def examples_of(cols):
+    """mstar.js's examples (2026-11-18): [n, code, source] for each column whose lower bound is an example, rising in
+    n: the code of the sequence behind it (build), which to_hex asserts (-1)^lo-symmetric, and where it comes from."""
+    ids = set(re.findall(r'<code id="(\d+:\d+)">', open(PAGE, encoding='utf-8').read()))
+    return [[n, to_hex(build(n), lo), source_of(n, lo, lw[1], ids)] for n, (lo, _, lw, _) in enumerate(cols, 1) if lw[0] == 'example']
 
 
 def js_text(cols):
-    """mstar.js: a comment line, then const MSTAR = {...}; with one code and one column per line."""
+    """mstar.js: a comment line, then const MSTAR = {...}; with one example and one column per line."""
     T = max(c[1] for c in cols) + 1
     rows = ',\n'.join(json.dumps(c) for c in cols)
-    codes = ',\n'.join(json.dumps(c) for c in codes_of(cols))
+    examples = ',\n'.join(json.dumps(c, ensure_ascii=False) for c in examples_of(cols))
     return ('// Generated by mstar.py from index.html and the sources it names; edit mstar.py, not this file.\n'
             f'const MSTAR = {{"nmax": {NMAX}, "mtop": {T}, "mtopAt": {json.dumps(open_past(T))}, "past": {json.dumps(past())}, '
-            f'"ifsym": {json.dumps(ifsym_of(cols, symtrees()))}, "codes": [\n{codes}\n], "cols": [\n{rows}\n]}};\n')
+            f'"ifsym": {json.dumps(ifsym_of(cols, symtrees()))}, "examples": [\n{examples}\n], "cols": [\n{rows}\n]}};\n')
 
 
 def main():
