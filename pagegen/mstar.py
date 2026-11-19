@@ -819,20 +819,20 @@ SOURCES = {'BGPW Table 4': 'https://arxiv.org/html/1912.03491v1#S6.T4', 'BGPW Ta
            'engine/overnight_v5.py': 'https://github.com/dreeves/equipow/blob/main/engine/overnight_v5.py'}
 
 
-def source_of(n, lo, label, ids):
-    """Where the example of the length n and the order lo, labeled label, comes from: SOURCES's page for the label, or,
-    for an example of this page (every other label, equipow ...), its code there, #n:lo, which ids, the page's codes'
-    ids, must hold."""
-    href = SOURCES.get(label, f'#{n}:{lo}')
-    assert href in SOURCES.values() or f'{n}:{lo}' in ids, (n, lo, label)
+def source_of(n, label):
+    """Where the example of the length n, labeled label, comes from: SOURCES's page for the label, or, for an example
+    of this page (every other label, equipow ...), its entry in the appendix, #entry-n, which every n not of a class of
+    lengths (odd, or 2 mod 4) has as its own (its code there, #n:lo, until later that night: a link to a code is the
+    code's name in math, dreeves's rule of 2026-11-07)."""
+    href = SOURCES.get(label, f'#entry-{n}')
+    assert href in SOURCES.values() or n % 4 == 0, (n, label)
     return href
 
 
 def examples_of(cols):
     """mstar.js's examples (2026-11-18): [n, code, source] for each column whose lower bound is an example, rising in
     n: the code of the sequence behind it (build), which to_hex asserts (-1)^lo-symmetric, and where it comes from."""
-    ids = set(re.findall(r'<code id="(\d+:\d+)">', open(PAGE, encoding='utf-8').read()))
-    return [[n, to_hex(build(n), lo), source_of(n, lo, lw[1], ids)] for n, (lo, _, lw, _) in enumerate(cols, 1) if lw[0] == 'example']
+    return [[n, to_hex(build(n), lo), source_of(n, lw[1])] for n, (lo, _, lw, _) in enumerate(cols, 1) if lw[0] == 'example']
 
 
 def js_text(cols):

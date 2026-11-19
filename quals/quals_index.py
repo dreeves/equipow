@@ -1105,6 +1105,7 @@ async function boxes(R) {
   }
   R.table3 = [...document.querySelector('section.smallest table').rows].map(tr => [...tr.cells].map(tex));
   R.table5 = [...document.getElementById('symmetry-table').closest('table').rows].map(tr => [...tr.cells].map(tex));   // (2026-11-18)
+  R.table5proofs = [...document.getElementById('symmetry-table').closest('table').tBodies[0].rows].map(tr => tr.dataset.proof ?? null);
   R.looks = {smallest: look(document.querySelector('section.smallest table')), symmetry: look(document.getElementById('symmetry-table').closest('table'))};
   R.table4 = [...document.querySelector('[data-record-gaps]').querySelectorAll('thead tr, tbody tr')].map(tr => [...tr.cells].map(tex));
   // until the box's searches, if it has any, have loaded (at most 5 s)
@@ -1249,7 +1250,8 @@ def kinds_data(violation=None):
     # 0 (page/codes.js checks the form as the page loads, the power sums only at a click, which no run of this data makes)
     data = {'nmax': DATA_NMAX, 'mtop': max(c[1] for c in cols) + 1, 'mtopAt': [DATA_NMAX + 2], 'past': [],
             'ifsym': [[24, 4, IFSYM_FILE], [48, 6, IFSYM_FILE]],
-            'codes': [[n, f"{int('1' * (n // 2) + '0' * (-(n // 2) % 4), 2):0{-(-n // 8)}X}"] for n, c in enumerate(cols, 1) if c[2][0] == 'example'],
+            'examples': [[n, f"{int('1' * (n // 2) + '0' * (-(n // 2) % 4), 2):0{-(-n // 8)}X}", 'https://oeis.org/A010060']
+                         for n, c in enumerate(cols, 1) if c[2][0] == 'example'],   # (codes, [n, code], until point 10 that night)
             'cols': cols}
     VIOLATIONS.get(violation, (lambda data: None,))[0](data)
     return 'const MSTAR = ' + json.dumps(data) + ';\n'
@@ -3413,11 +3415,15 @@ def among(said, text):
 # A box's is page/shared.js's.  Which name it is is not a qual's business: every qual that named Claude turned red
 # when the page's writer became Opus 5.5 (2026-11-09).
 OPENING = r'[^:“”"]{1,40}: “'
+# A part's bound as the boxes' text writes it, \(m^*(N) \ge V\) or \le, and its colon (2026-11-18, dreeves's point 10:
+# every part starts with its bound, and a quotation opens after it, at the part's words)
+BOUND = r'\\\(m\^\*\([^)]*\) \\(?:ge|le) \d+\\\): '
 
 
 def unquoted(part):
-    """A box's part without its quotation's marks: the opening (OPENING) at its start and the ” at its end."""
-    return re.sub('^' + OPENING + '|”$', '', part)
+    """A box's part without its quotation's marks: the opening (OPENING) after its bound (BOUND; at its start until
+    2026-11-18) and the ” at its end."""
+    return re.sub('^(' + BOUND + ')' + OPENING + '|”$', r'\1', part)
 
 
 def q_figures_are_a_text_without_its_words():
@@ -4593,6 +4599,7 @@ def panel_link_lands(href):
             or href.startswith('https://') and not href.startswith(REPO)
             or href[1:] in code_ids() or href[1:] in set(entry_lengths().values())
             or href.startswith('#') and page().count(f' id="{href[1:]}"') == 1
+            or re.fullmatch(r'#entry-(\d+)', href) is not None and int(href[7:]) in appendix_lengths(len(pow2_data()['cols']))   # (2026-11-18: an example's label)
             or re.fullmatch(r'#n(\d+)', href) is not None and int(href[2:]) in COLUMNS)
 
 
@@ -4844,7 +4851,7 @@ def q_residue_panels_at_3_give_stan_s_words_where_they_hold():
         assert m % 2 == 0 and s0 - s2 == 1 and s0 + s2 < 3 ** (m // 2) and not stan_holds(n, m - 2), (n, m)
         part = [(why, t, c) for why, t, c in P['parts'] if why == 'proof-stan']
         assert [(why, c) for why, _, c in part] == [('proof-stan', False)], (n, P['parts'])
-        assert re.match(OPENING, part[0][1]) and part[0][1].endswith('”'), (n, part)
+        assert re.match(BOUND + OPENING, part[0][1]) and part[0][1].endswith('”'), (n, part)   # (Spec change, Opus 5.5, 2026-11-18; dreeves: "so many formatting and other inconsistencies": every part starts with its bound, its quotation after it.)
         for said in stan_said(n, m, str(n)):
             assert among(said, P['text']), (n, said, P['text'])
         assert not any(among(said, P['text']) for said in stan_said(n, m - 2, str(n))), (n, P['text'])
@@ -5299,10 +5306,10 @@ def box_parts(cols, n, m=None, ifsym=()):
     lo, hi, lw, hw = cols[n - 1]
     kind = kind_of(cols, n, m, ifsym)
     witness, proof = SHOWS[kind]
-    entry = (witness and lw[0] == 'page') or (proof and hw[0] == 'page')
-    copy = coded(lw, n, lo) and not (entry and f'{n}:{lo}' in entry_codes(n))
     upper = ['proof-stan'] if hw == ['residue', 3] and stan_holds(n, hi + 1) else [PROOF_PARTS[hw[0]]]
-    return (([WITNESSES[lw[0]]] + ['witness-code'] * copy) * witness + upper * proof + ['proof-ifsym'] * (kind == 'ifsym')
+    # (Spec change, Opus 5.5, 2026-11-18, dreeves's point 10: a witness's codes are in its part, on its line, and no part
+    # of their own, witness-code, as they were; the copies report holds them: witness_codes.)
+    return ([WITNESSES[lw[0]]] * witness + upper * proof + ['proof-ifsym'] * (kind == 'ifsym')
             + ['searches'] * (kind in ('open', 'ifsym')))
 
 
@@ -5320,7 +5327,7 @@ def witness_codes(data, n):
     any other reason."""
     lo, _, lw, _ = data['cols'][n - 1]
     if not coded(lw, n, lo): return []
-    digits = dict(data['codes'])[n] if lw[0] == 'example' else code_digits(f'{n}:{lo}')
+    digits = {x: code for x, code, _ in data['examples']}[n] if lw[0] == 'example' else code_digits(f'{n}:{lo}')
     return [[f'{n}:{lo}', str(lo), 'button', digits]]
 
 
@@ -5342,9 +5349,8 @@ def fact_kinds(cols, n, ifsym=()):
     itself (witness-code); the proof of its upper bound (PROOF_PARTS, or Stan Wagon's words, proof-stan, where his
     argument holds); and where ifsym (the data's) lists n, the bound that holds if BGPW's Symmetry Conjecture does."""
     lo, hi, lw, hw = cols[n - 1]
-    copy = coded(lw, n, lo) and f'{n}:{lo}' not in entry_codes(n)
     upper = ['proof-stan'] if hw == ['residue', 3] and stan_holds(n, hi + 1) else [PROOF_PARTS[hw[0]]]
-    return CLASS_FACTS.get(class_of(n)) or ([WITNESSES[lw[0]]] + ['witness-code'] * copy + upper
+    return CLASS_FACTS.get(class_of(n)) or ([WITNESSES[lw[0]]] + upper   # (no witness-code since 2026-11-18: its codes in its part)
                                             + ['proof-ifsym'] * any(x == n for x, _, _ in ifsym))
 
 
@@ -5358,7 +5364,6 @@ def pow2_fact_kinds(pcols, k):
     lo, hi, lw, hw = pcols[k - 1]
     upper, code = hw[1][0] if hw[0] == 'mstar' else hw[0], f'{2 ** k}:{lo}'
     return ([{'thue-morse': 'witness-thue-morse', 'joins': 'witness-construction'}[lw[0]]]
-            + ['witness-code'] * (code in code_ids() and code not in entry_codes(2 ** k))
             + ['proof-stan' if hw in (['residue', [3]], ['mstar', ['residue', 3]]) and stan_holds(2 ** k, hi + 1) else f'proof-{upper}'])
 
 
@@ -5529,7 +5534,7 @@ def q_example_codes_expand_in_the_appendix():
     # left half then its mirror times (−1)^3, with power sums equal for k = 0 to 2 and unequal at 3.
     # Resultata before: the entry of 12 had no code, its witness the label BGPW Table 4 alone.
     T = valid_run('light')['appendixOpened']['twelve']
-    code = dict(mstar_data()['codes'])[12]
+    code = {x: c for x, c, _ in mstar_data()['examples']}[12]
     bits = bin(int(code, 16))[2:].zfill(4 * len(code))
     left = [1 if b == '1' else -1 for b in bits[:6]]
     a = left + [-t for t in reversed(left)]
@@ -5557,9 +5562,9 @@ def q_red_box_works_out_the_proof():
     cols = mstar_data()['cols']
     for t, quoted in (((1024, 12), True), ((1020, 4), True), ((56, 6), False), ((240, 11), True)):   # BGPW's, cited, no English
         assert kind_of(cols, *t) == 'impossible' and B[t]['whys'] == box_parts(cols, *t), (t, B[t]['whys'])
-        opened = re.match(OPENING, B[t]['said'])                         # a quotation of the page's writer, whatever its name
-        assert bool(opened) == quoted and B[t]['said'][opened.end() if opened else 0:].startswith(
-            f'\\(m^*({t[0]}) \\le {cols[t[0] - 1][1]}\\):'), (t, B[t]['said'])
+        # (Spec change, Opus 5.5, 2026-11-18; dreeves: "so many formatting and other inconsistencies": every part starts with its bound, its quotation after it.)
+        said, start = B[t]['said'], f'\\(m^*({t[0]}) \\le {cols[t[0] - 1][1]}\\): '
+        assert said.startswith(start) and bool(re.match(re.escape(start) + OPENING, said)) == quoted, (t, said)
     assert cols[1024 - 1][3] == ['residue', 3] and mod3_sums(1024, 12) == [] != mod3_sums(1024, 11) and stan_holds(1024, 12)
     for said in stan_said(1024, 12, '1024'):
         assert among(said, B[(1024, 12)]['said']), (said, B[(1024, 12)]['said'])
@@ -5593,7 +5598,10 @@ def q_black_box_shows_both_bounds_and_the_searches():
     R, B = boxes_run()
     cols = mstar_data()['cols']
     S = R['searched']
-    assert S['whys'] == box_parts(cols, 528, 12) == ['witness-example', 'witness-code', 'proof-residue', 'searches'], S['whys']
+    # (Spec change, Opus 5.5, 2026-11-18, dreeves's point 10: 528's code in its witness's part, on its line, not a part
+    # of its own, witness-code.)
+    assert S['whys'] == box_parts(cols, 528, 12) == ['witness-example', 'proof-residue', 'searches'], S['whys']
+    assert S['copies'] == witness_codes(mstar_data(), 528), S['copies']
     assert S['said'].startswith('\\(m^*(528) \\ge 11\\): equipow p528') and S['said'].endswith('”'), S['said']
     assert '\\(m^*(528) \\le 12\\):' in S['said'] and '\\(M = 5\\)' in S['said'], S['said']
     made, to_go = BOX_PROGRESS['made'], PROGRESS_CAMPAIGN['to_go']
@@ -5635,13 +5643,19 @@ def q_row_box_is_its_row_of_the_smallest_lengths():
     # whose first order is at most M, its caption a link to it; and each open cell of the row, above its column's lower
     # bound and at or below its upper bound, in order of n: its swatch, of its kind (ifsym, red if the conjecture holds,
     # where it is) and gold ring, as its own box's heading has it, and n, linked to its box.  Until then the first part
-    # alone.
+    # alone.  Spec change (that night; dreeves: "for the box when it's quoting table 5, can we have the following
+    # webcopy, using m=13 as an example: The Symmetry Conjecture is proven to hold for n>=3665. "proven" can be an
+    # anchor link to the proof ... i think the above sentence can be instead of that"): in place of Table 5's head and
+    # row, a sentence that ends with that row's N, its link the proof that the row names (data-proof: the Symmetry
+    # section's first quote, symsmall, through order 14; Fable 5.2's proof, symlarge, from 15).
     # Resultata before: nothing opened.
     R, B = boxes_run()
     table, table5, data = R['table3'], R['table5'], mstar_data()
     cols = data['cols']
     firsts = [int(re.search(r'\d+', row[0])[0]) for row in table5[1:]]
     assert firsts[0] == 1 and firsts == sorted(set(firsts)), firsts         # the orders of Table 5's rows, from 1 up
+    # each row's proof: the first quote of the Symmetry section through order 14, Fable 5.2's proof from 15 (2026-11-18)
+    assert R['table5proofs'] == ['symsmall' if first <= 14 else 'symlarge' for first in firsts], R['table5proofs']
     for m, term, ifterm in ((12, '\\(a(11) = 480\\)', '\\(a(11) = 480\\)'), (13, '\\(480 \\le a(12) \\le 672\\)', '\\(a(12) = 672\\)'),
                             (16, '\\(a(15) = 1440\\)', '\\(a(15) = 1440\\)')):
         P = B[(None, m)]
@@ -5649,10 +5663,12 @@ def q_row_box_is_its_row_of_the_smallest_lengths():
         five = [row for row, first in zip(table5[1:], firsts) if first <= m][-1]
         assert not P['hidden'] and P['hash'] == f'#m{m}' and P['kind'] == 'row' and P['heading'] == f'\\(m = {m}\\)', (m, P)
         assert P['whys'] == ['row-smallest', 'row-ifsym', 'row-symmetry'] + ['row-cell'] * len(opened), (m, P['whys'], opened)
-        assert P['tables'] == [[table[0], table[m]], [table5[0], five]], (m, P['tables'], table[0], table[m], five)
+        proof = [p for p, first in zip(R['table5proofs'], firsts) if first <= m][-1]
+        assert P['tables'] == [[table[0], table[m]]], (m, P['tables'], table[0], table[m])
         said = {why: t for why, t, _ in P['parts']}
         assert said['row-smallest'].endswith(f'A323395: {term}') and said['row-ifsym'].endswith(ifterm), (m, said)
-        assert P['links'] == ['https://oeis.org/A323395', '#symmetry-title', '#symmetry-table'] + [f'#n{n}m{m}' for n in opened], (m, P['links'])
+        assert figures(said['row-symmetry']) == figures(f'\\(n \\ge\\) {five[1]}.'), (m, said['row-symmetry'], five)   # n >= N, N Table 5's
+        assert P['links'] == ['https://oeis.org/A323395', '#symmetry-title', f'#{proof}'] + [f'#n{n}m{m}' for n in opened], (m, P['links'])
         assert [(cls.split()[1], href) for cls, href in P['cells']] == [(kind_of(cols, n, m, data['ifsym']), f'#n{n}m{m}') for n in opened], (m, P['cells'])
     assert [n for n in range(1, DATA_NMAX + 1) if cols[n - 1][0] < 13 <= cols[n - 1][1]] == [480, 864], 'the open cells of row 13'
     assert B[(None, 13)]['cells'][0] == [B[(480, 13)]['swatch']['cls'], '#n480m13'] and B[(480, 13)]['swatch']['cls'] == 'swatch ifsym record', B[(None, 13)]['cells']
@@ -5665,11 +5681,12 @@ def q_row_box_tables_look_as_their_tables_do():
     # "this box looks terrible. i guess the borders for table 5 are missing? got quals for that?"): each table of a row's
     # box looks as the page's table it is a row of: its borders collapsed, it set at the start of its grid, its head's
     # and its body's cells ruled, padded, aligned and weighted alike, the first the table of smallest lengths' and the
-    # second Table 5's.
+    # second Table 5's.  Spec change (later that night; dreeves: "i think the above sentence can be instead of that"):
+    # Table 5's row gave way to his sentence (q_row_box_is_its_row_of_the_smallest_lengths), so the box has one table.
     # Resultata before: Table 5's row in the box had no rules, and spread across the box's width.
     R, B = boxes_run()
     for m in (12, 13, 16):
-        assert B[(None, m)]['looks'] == [R['looks']['smallest'], R['looks']['symmetry']], (m, B[(None, m)]['looks'], R['looks'])
+        assert B[(None, m)]['looks'] == [R['looks']['smallest']], (m, B[(None, m)]['looks'], R['looks'])
     assert R['looks']['symmetry'][2][1] == 'solid' and R['looks']['symmetry'][1] == 'start', R['looks']
 
 
@@ -5756,8 +5773,8 @@ def quoted_run_right(parts):
     """Whether parts, [(kind, text, whether of Claude's English)], quote Claude once around their parts of Claude's
     English, from the start of the first to the end of the last, and not at all without any (quoted_right's runs)."""
     claude, text = [i for i, (_, _, c) in enumerate(parts) if c], ''.join(t for _, t, _ in parts)
-    return (text.count('“') == text.count('”') == min(1, len(claude))
-            and all(re.match(OPENING, parts[i][1]) for i in claude[:1]) and all(parts[i][1].endswith('”') for i in claude[-1:]))
+    return (text.count('“') == text.count('”') == min(1, len(claude))   # (the opening after the bound since 2026-11-18)
+            and all(re.match(BOUND + OPENING, parts[i][1]) for i in claude[:1]) and all(parts[i][1].endswith('”') for i in claude[-1:]))
 
 
 def q_box_quotes_claude_around_its_english_alone():

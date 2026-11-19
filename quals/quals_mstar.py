@@ -426,14 +426,15 @@ def q_schema():
     # before cols: a list of [n, hi, file], rising in n, one per n: m*(n) <= hi if BGPW's Symmetry Conjecture holds,
     # hi from the column's lo to one below its own hi, file the program of proofs/ that checks the proofs it rests on.
     # Spec change (Opus 5.5, 2026-11-18; dreeves: "there should be no "found here" ... show the expandable hex code for
-    # everything"): one more key, codes, before cols (q_every_example_has_its_code).
+    # everything"): one more key, codes, before cols (q_every_example_has_its_code); examples in its place since that
+    # night (his point 10: every example's source linked).
     js, got = disk()
     body = ''.join(line for line in js.splitlines(True) if not line.startswith('//'))
     assert body.startswith('const MSTAR = ') and body.endswith('};\n') and body.count(';') == 1, body[:80]
     assert json.loads(body[len('const MSTAR = '):-2]) == got['m'] and got['keys'] == [], got['keys']
     M = got['m']
     # nmax: 2048 since 2026-11-10 ([BOU]), 1024 from 2026-10-27 until then
-    assert list(M) == ['nmax', 'mtop', 'mtopAt', 'past', 'ifsym', 'codes', 'cols'] and M['nmax'] == 2048 == mstar.NMAX and len(M['cols']) == 2048
+    assert list(M) == ['nmax', 'mtop', 'mtopAt', 'past', 'ifsym', 'examples', 'cols'] and M['nmax'] == 2048 == mstar.NMAX and len(M['cols']) == 2048
     assert all(type(n) is int and 2 <= n <= M['nmax'] and n % 2 == 0 and type(hi) is int and M['cols'][n - 1][0] <= hi < M['cols'][n - 1][1]
                and re.fullmatch(r'proofs/[\w.]+\.py', file) and os.path.isfile(os.path.join(HERE, file)) for n, hi, file in M['ifsym']), M['ifsym']
     assert [n for n, _, _ in M['ifsym']] == sorted({n for n, _, _ in M['ifsym']}), M['ifsym']
@@ -468,14 +469,22 @@ def q_every_example_has_its_code():
     # (-1)^lo) it is that example, mstar.explicit()'s sequence of length n under its label, of order exactly lo
     # (synthetic division here).  So brute force's examples are (-1)^m-symmetric (mstar.symmetric), and every example's
     # code is one the page can expand.
+    # Spec change (that night; dreeves's point 10: "so many formatting and other inconsistencies"): examples, [n, code,
+    # source], in place of codes, [n, code]: each example's source too, where its label links: the paper's table for
+    # BGPW's, the OEIS for Thue–Morse, the repository's file for those made or held by a program, and for one of this
+    # page, its entry in the appendix, #entry-n, for n not of a class (its code there, #n:lo, until later that night,
+    # when that turned out to break dreeves's rule of 2026-11-07 that a link to a code is its name in math).
     # Resultata before: no codes: of the 124 examples, the 47 that the page did not show (BGPW's Tables 4 and 5,
     # Thue–Morse, brute force's and one of overnight_v5's) had a label alone.
     _, got = disk()
     M = got['m']
     cols, ex = M['cols'], mstar.explicit()
     examples = [n for n, c in enumerate(cols, 1) if c[2][0] == 'example']
-    assert [n for n, _ in M['codes']] == examples and len(examples) == 124, (len(M['codes']), len(examples))
-    for n, code in M['codes']:
+    assert [n for n, _, _ in M['examples']] == examples and len(examples) == 124, (len(M['examples']), len(examples))
+    for n, _, source in M['examples']:
+        label = cols[n - 1][2][1]
+        assert source == mstar.SOURCES.get(label, f'#entry-{n}') and (label in mstar.SOURCES or n % 4 == 0), (n, label, source)
+    for n, code, _ in M['examples']:
         lo, label = cols[n - 1][0], cols[n - 1][2][1]
         bits = bin(int(code, 16))[2:].zfill(4 * len(code))
         a = mstar.from_rp(code, lo, n)

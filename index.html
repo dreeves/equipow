@@ -329,15 +329,15 @@
   </div>
   <!-- The boxes' templates, one per kind of part, for both charts (since 2026-11-04, dreeves's README items [CEL] and [ROC]: the math alone, with the column's own numbers, in place of 2026-11-03's sentences): page/shared.js's filled() puts a copy of one into a box, each data-slot holding the column's own value, and KaTeX draws its math then; a box sets its parts of Claude's English, those of the templates marked data-claude, each with its TO-DO recap, in one quote, Claude: “…”, its one attribution, and a box with none has none (dreeves, 2026-11-04: "we don't need claude attribution for blurbs without words like these"). -->
   <!-- A lower bound's witness, an example: the bound, then the example's source as the data names it, its label, linked to where it comes from (since 2026-11-18); and after it, in the slot codes of every witness, the codes of the witness, on its line (since 2026-11-18; until then each copy a part of its own under it, witness-code) -->
-  <template data-panel="witness-example"><p><span data-slot="bound"></span>: <span data-slot="label"></span><span class="codes" data-slot="codes"></span></p></template>
+  <template data-panel="witness-example"><p><span data-slot="bound"></span>: <span data-slot="label"></span> <span class="codes" data-slot="codes"></span></p></template>
   <!-- A lower bound's witness, a construction (a join or a product of examples), which page/codes.js expands into its derivation -->
-  <template data-panel="witness-construction"><p><span data-slot="bound"></span>: <span data-construction data-slot="formula"></span><span class="codes" data-slot="codes"></span></p></template>
+  <template data-panel="witness-construction"><p><span data-slot="bound"></span>: <span data-construction data-slot="formula"></span> <span class="codes" data-slot="codes"></span></p></template>
   <!-- A lower bound's witness cited from BGPW's Table 2 (linked) -->
-  <template data-panel="witness-table2"><p><span data-slot="bound"></span>: BGPW, <a href="https://arxiv.org/html/1912.03491v1#S3.T2">Table 2</a><span class="codes" data-slot="codes"></span></p></template>
+  <template data-panel="witness-table2"><p><span data-slot="bound"></span>: BGPW, <a href="https://arxiv.org/html/1912.03491v1#S3.T2">Table 2</a> <span class="codes" data-slot="codes"></span></p></template>
   <!-- a lower bound found in the new results, naming whose they are; its entry follows in the box.  In this template and every one of Claude's English, the words after the bound are its data-words, which the box quotes (since 2026-11-18, so that every part starts with its bound) -->
-  <template data-panel="witness-page" data-claude><p><span data-slot="bound"></span>: <span data-words>found by <span data-slot="who"></span></span><span class="codes" data-slot="codes"></span></p></template>
+  <template data-panel="witness-page" data-claude><p><span data-slot="bound"></span>: <span data-words>found by <span data-slot="who"></span></span> <span class="codes" data-slot="codes"></span></p></template>
   <!-- a lower bound's witness, Thue–Morse τ_k, whose sign at i is (−1)^s(i), s(i) the number of 1s among the binary digits of i (Prouhet) -->
-  <template data-panel="witness-thue-morse" data-claude><p><span data-slot="bound"></span>: <span data-words>Thue–Morse <span data-slot="tau"></span>, \(f_i = (-1)^{s(i)}\) with \(s(i)\) the number of 1s in \(i\) in binary (Prouhet)</span><span class="codes" data-slot="codes"></span></p></template>
+  <template data-panel="witness-thue-morse" data-claude><p><span data-slot="bound"></span>: <span data-words>Thue–Morse <span data-slot="tau"></span>, \(f_i = (-1)^{s(i)}\) with \(s(i)\) the number of 1s in \(i\) in binary (Prouhet)</span> <span class="codes" data-slot="codes"></span></p></template>
   <!-- a lower bound's witness of order 1 at every even n, the math alone (Opus 5.5, 2026-11-18, for the appendix's entry of the singly even n; dreeves: "the witness ... is just any bipartition with 2 equal-sized sets"): alternating signs, as many +1s as −1s -->
   <template data-panel="witness-alternating"><p><span data-slot="bound"></span>: \(f_i = (-1)^i\)</p></template>
   <!-- The upper bound of an odd n, whose column the chart has while the box of the odd n is unchecked ([COM], 2026-11-10): the bound, then that n is 1 mod 2, the math alone: an odd number of integers has no two parts of the same size -->
@@ -369,8 +369,8 @@
   <template data-panel="row-smallest"><table><tbody data-slot="row"></tbody></table><p>OEIS <a href="https://oeis.org/A323395">A323395</a>: <span data-slot="term"></span></p></template>
   <!-- A row's box of the m*(n) chart, then (2026-11-18): that term if BGPW's Symmetry Conjecture holds, after the conjecture's name, linked to the page's section on it, as proof-ifsym has it -->
   <template data-panel="row-ifsym"><p><a href="#symmetry-title">Symmetry Conjecture</a> \(\Rightarrow\) <span data-slot="term"></span></p></template>
-  <!-- A row's box of the m*(n) chart, then (2026-11-18): its order's row of Table 5, under that table's head (cloned), its caption cloned and linked to the table -->
-  <template data-panel="row-symmetry"><table><caption data-slot="caption"></caption><tbody data-slot="row"></tbody></table></template>
+  <!-- A row's box of the m*(n) chart, then (2026-11-18): from which length the Symmetry Conjecture holds at its order, Table 5's N for it, in dreeves's words ("for the box when it's quoting table 5, can we have the following webcopy, using m=13 as an example: The Symmetry Conjecture is proven to hold for n>=3665. "proven" can be an anchor link to the proof"; until then Table 5's head and row), "proven" linked to the proof that Table 5's row names (data-proof) -->
+  <template data-panel="row-symmetry"><p>The Symmetry Conjecture is <a data-proven>proven</a> to hold for \(n \ge\) <span data-slot="from"></span>.</p></template>
   <!-- A cell of a row of a chart: the legend's swatch and words for it, and its column (k, or n), linked to its cell's box; the gold-ringed cells of a row of the chart of powers of 2, and since 2026-11-18 the open cells of a row of the m*(n) chart (row-ring until then) -->
   <template data-panel="row-cell"><p><span data-slot="item"></span>: <span class="nw" data-slot="at"></span></p></template>
   <!-- A row's row of the table of record gaps, under that table's head (cloned) -->
@@ -710,7 +710,8 @@ Or just start identifying redundancies and repetition on the page and fix them o
 The following is mostly Claude Opus 5.5 and maybe some Fable 5.1, before Fable 5.2:
 </p>
 <details class="ai"><!-- TODO: the fold's line, Opus 5.5's words: says it holds Claude's block quote, with Fable 5.2's parentheses, on the conjecture through order 11 and at orders 12 to 16 --><summary>Claude on how the conjecture holds through order 11, and how far it reaches at orders 12 to 16</summary>
-<blockquote class="claude">
+<!-- symsmall (2026-11-18): the proof of Table 5's rows through order 14 (data-proof), to which a row's box of the m*(n) chart links; inside the fold, so that the link opens it -->
+<blockquote class="claude" id="symsmall">
 <p>
 BGPW conjecture (their §6) that if some sequence of length \(n\) has order \(m\), then some \((-1)^m\)-symmetric one does, with \(f_{n-1-i} = (-1)^m f_i\): 
 symmetric for even \(m\), antisymmetric for odd \(m\). 
@@ -1014,16 +1015,16 @@ such that the Symmetry Conjecture holds for lengths \(n \ge N\).
 <caption id="symmetry-table"><span class="sc">Table 5.</span></caption>
 <thead><tr><th>\(m\)</th><th>\(N\)</th></tr></thead>
 <tbody>
-<tr><td>1–11</td><td>1</td></tr>
-<tr><td>12</td><td>529</td></tr>
-<tr><td>13</td><td>3665</td></tr>
-<tr><td>14</td><td>7329</td></tr>
-<tr><td>15</td><td>\(2^{1579}\)</td></tr>
-<tr><td>16</td><td>\(2^{1773}\)</td></tr>
-<tr><td>17</td><td>\(2^{1974}\)</td></tr>
-<tr><td>18</td><td>\(2^{2188}\)</td></tr>
-<tr><td>19</td><td>\(2^{2409}\)</td></tr>
-<tr><td>\(\ge 20\)</td><td>\(2^{O(m^2)}\)</td></tr>
+<tr data-proof="symsmall"><td>1–11</td><td>1</td></tr>
+<tr data-proof="symsmall"><td>12</td><td>529</td></tr>
+<tr data-proof="symsmall"><td>13</td><td>3665</td></tr>
+<tr data-proof="symsmall"><td>14</td><td>7329</td></tr>
+<tr data-proof="symlarge"><td>15</td><td>\(2^{1579}\)</td></tr>
+<tr data-proof="symlarge"><td>16</td><td>\(2^{1773}\)</td></tr>
+<tr data-proof="symlarge"><td>17</td><td>\(2^{1974}\)</td></tr>
+<tr data-proof="symlarge"><td>18</td><td>\(2^{2188}\)</td></tr>
+<tr data-proof="symlarge"><td>19</td><td>\(2^{2409}\)</td></tr>
+<tr data-proof="symlarge"><td>\(\ge 20\)</td><td>\(2^{O(m^2)}\)</td></tr>
 </tbody>
 </table>
 </section>

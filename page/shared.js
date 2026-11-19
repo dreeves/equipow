@@ -241,10 +241,12 @@ const bound = (name, rel, v) => `\\(m^*(${name}) \\${rel} ${v}\\)`;
 // The witnesses of the lower bounds, as both charts' boxes show them (dreeves's README, [CEL]: "If the cell is green,
 // just give the partition (expandable hex code) for the highest green cell in that cell's column"): its bound, and its
 // source as the data has it, a label (example), or a construction of the page's form, tex, of the length N (a BigInt),
-// named name, which page/codes.js expands into its derivation (construction); and then copies(N, lo), each code of the
-// page of the length N and the order lo, copied, as a join of that one code (data-join its id, data-order its order),
-// which page/codes.js expands into its partition as it does the code itself (the code keeps its id, which no other
-// element of the page may have; a box that shows the code itself, in an entry, drops its copy: chartPanel).
+// named name, which page/codes.js expands into its derivation (construction); and its codes, in its part's slot codes,
+// at the end of its line (since 2026-11-18, dreeves's point 10; until then each a part of its own, witness-code, under
+// it): copies(N, lo), each code of the page of the length N and the order lo, copied, as a join of that one code
+// (data-join its id, data-order its order), which page/codes.js expands into its partition as it does the code itself
+// (the code keeps its id, which no other element of the page may have), or an example's own code, coded (below).  An
+// entry or a box that holds a code itself, of the page, drops each copy or code of it from its parts (dropHeld).
 const example = (name, lo, label, codes) => shown([filled('witness-example', {bound: bound(name, 'ge', lo), label, codes})]);
 const construction = (N, name, lo, tex, codes) => {
   const part = filled('witness-construction', {bound: bound(name, 'ge', lo), formula: `\\(${tex}\\)`, codes});
@@ -259,10 +261,10 @@ const copies = (N, lo) => [...document.querySelectorAll(`code[id="${N}:${lo}"]`)
 });
 // The code of an example of the length N (a BigInt) and the order lo, hex, as the data give it (since 2026-11-18, every
 // example of the m*(n) chart's: mstar.js's codes; dreeves: "there should be no "found here". what does "here" mean?
-// totally ambiguous. show the expandable hex code for everything"), in the part a copy has: the code itself, its N:lo
-// its data-code, which page/codes.js expands as it does a code of the page; and like a copy, data-copy its N:lo, so that
-// a box or an entry that holds the page's code of that id drops it.  An example's witness shows its code so, in place
-// of a copy (page/mstar-section.js).
+// totally ambiguous. show the expandable hex code for everything"), for a witness's slot codes: the code itself, its
+// N:lo its data-code, which page/codes.js expands as it does a code of the page; and like a copy, data-copy its N:lo,
+// so that a box or an entry that holds the page's code of that id drops it.  An example's witness shows its code so, in
+// place of a copy (page/mstar-section.js).
 const coded = (N, lo, hex) => {
   const code = Object.assign(document.createElement('code'), {textContent: hex});
   Object.assign(code.dataset, {code: `${N}:${lo}`, copy: `${N}:${lo}`});
@@ -440,17 +442,20 @@ const orderRow = (rows, m) => {
   if (mine.length !== 1) throw new Error(`the rows of order ${m}: ${mine.length}`);
   return mine[0];
 };
-// The row of the order m of Table 5, the Symmetry section's (for each order, the least N known from which BGPW's
-// Symmetry Conjecture holds at every length): the last of its rows whose first order, the first number of its first
-// cell, is at most m; under that table's head, and its caption, cloned, a link to the table.  It throws unless the
-// rows' first orders rise from 1.
+// From which length the Symmetry Conjecture holds at the order m, by the row of the order m of Table 5, the Symmetry
+// section's (for each order, the least N known from which it holds at every length): the last of its rows whose
+// first order, the first number of its first cell, is at most m; its N, cloned, in dreeves's sentence (row-symmetry),
+// whose "proven" links to the proof that the row names (data-proof, an id of the page).  It throws unless the rows'
+// first orders rise from 1, or where the row's proof is no element of the page.  (Until later on 2026-11-18 the row
+// itself, under Table 5's head; dreeves: "i think the above sentence can be instead of that".)
 const symmetryRow = m => {
   const table = document.getElementById('symmetry-table').closest('table'), rows = [...table.tBodies[0].rows];
   const firsts = rows.map(r => Number(/\d+/.exec(r.cells[0].textContent)[0]));
   if (firsts[0] !== 1 || !firsts.every((x, i) => i === 0 || x > firsts[i - 1])) throw new Error(`Table 5's orders: ${firsts}`);
-  const part = filled('row-symmetry', {caption: linked('#symmetry-table', ...table.caption.cloneNode(true).childNodes),
-                                       row: rows.filter((_, i) => firsts[i] <= m).at(-1)});
-  part.querySelector('tbody').before(table.tHead.cloneNode(true));
+  const row = rows.filter((_, i) => firsts[i] <= m).at(-1);
+  if (document.getElementById(row.dataset.proof ?? '') === null) throw new Error(`Table 5's row ${m}: no proof ${row.dataset.proof}`);
+  const part = filled('row-symmetry', {from: [...row.cells[1].cloneNode(true).childNodes]});
+  part.querySelector('[data-proven]').setAttribute('href', `#${row.dataset.proof}`);
   return part;
 };
 // A row's box of the m*(n) chart: its row of the table of smallest lengths, under that table's own head, and the term

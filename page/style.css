@@ -251,9 +251,9 @@ code {
 /* A code's anchor (2026-10-31, [IND]): a link to it scrolls its label into view too, the lines above it in its block;
    and a construction's, which the derivations that name it link to, the lines above it */
 .code code[id], [data-construction][id] { scroll-margin-top: 6rem; }
-/* A witness's codes (2026-11-18), at the end of its line, each after a space's width (until then on a line of their
-   own under it, between it and the next part, where a short one looked like no one's) */
-.codes > * { margin-left: 0.5rem; }
+/* A witness's codes (2026-11-18), at the end of its line, after a space, where the line may break before a long one
+   (until then on a line of their own under it, between it and the next part, where a short one looked like no one's) */
+.codes > * + * { margin-left: 0.5rem; }
 /* The codes and joins as buttons (2026-10-31, dreeves's [REO] item 2; page/codes.js marks each with aria-expanded): a
    click shows its partition below it, after the block that holds it (page/codes.js), ruled at its left; each part's
    numbers wrap in a box four and a half lines
@@ -479,11 +479,9 @@ blockquote.claude .attrib { color: var(--muted); }
    dreeves's edits of 2026-10-29, and now space their parts as the other sections do. */
 .smallest, .oeis { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; max-width: var(--measure); }
 /* And the Symmetry section's table of the length from which each order holds (Opus 5.5, 2026-11-12), ruled as this one. */
-/* (And since 2026-11-18 Table 5's row in a row's box of the m*(n) chart, row-symmetry, as Table 5 itself.) */
-.smallest table, [data-why="row-smallest"] table, .symmetry > table, [data-why="row-symmetry"] table { justify-self: start; border-collapse: collapse; font-variant-numeric: tabular-nums lining-nums; }
-.smallest th, .smallest td, [data-why="row-smallest"] th, [data-why="row-smallest"] td, .symmetry > table th, .symmetry > table td,
-[data-why="row-symmetry"] th, [data-why="row-symmetry"] td { border: 1px solid var(--rule); padding: 0.3rem 0.7rem; text-align: center; }
-.smallest th, [data-why="row-smallest"] th, .symmetry > table th, [data-why="row-symmetry"] th { font-weight: 400; }   /* and a row's box of the m*(n) chart, a row of the table (2026-11-04) */
+.smallest table, [data-why="row-smallest"] table, .symmetry > table { justify-self: start; border-collapse: collapse; font-variant-numeric: tabular-nums lining-nums; }
+.smallest th, .smallest td, [data-why="row-smallest"] th, [data-why="row-smallest"] td, .symmetry > table th, .symmetry > table td { border: 1px solid var(--rule); padding: 0.3rem 0.7rem; text-align: center; }
+.smallest th, [data-why="row-smallest"] th, .symmetry > table th { font-weight: 400; }   /* and a row's box of the m*(n) chart, a row of the table (2026-11-04) */
 .oeis ul, .mstar > ul { margin: 0; padding-left: 1.25rem; display: grid; gap: 0.35rem; }   /* lists of text */
 /* What the m*(n) chart leaves out ([COM], 2026-11-10): a list of boxes, each in the place of its item's bullet.
    dreeves moved it into the chart's bar that day, under a sentence of his: there each of the two takes a row of the

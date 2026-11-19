@@ -1485,12 +1485,11 @@ def pow2_whys(data, k, rows=()):
     lo, hi, lw, hw = data['cols'][k - 1]
     kind = KINDS[kind_of(data['cols'][k - 1], k, rows[0])]
     witness, proof = qi.SHOWS[kind]
-    upper, code = hw[1][0] if hw[0] == 'mstar' else hw[0], f'{2 ** k}:{lo}'
-    entry = proof and upper == 'page'
-    copy = code in qi.code_ids() and not (entry and code in qi.entry_codes(2 ** k))
+    upper = hw[1][0] if hw[0] == 'mstar' else hw[0]
     parts = (['proof-stan'] if hw in (['residue', [3]], ['mstar', ['residue', 3]]) and qi.stan_holds(2 ** k, hi + 1)
              else [f'proof-{upper}'])
-    return (([{'thue-morse': 'witness-thue-morse', 'joins': 'witness-construction'}[lw[0]]] + ['witness-code'] * copy) * witness
+    # (no witness-code since 2026-11-18, dreeves's point 10: a witness's codes in its part)
+    return ([{'thue-morse': 'witness-thue-morse', 'joins': 'witness-construction'}[lw[0]]] * witness
             + parts * proof + ['searches'] * (kind == 'open'))
 
 
@@ -1639,7 +1638,7 @@ def q_residue_panels_at_3_give_stan_s_words_where_they_hold_at_powers_of_2():
         assert m % 2 == 0 and (n + 2) // 3 - n // 3 == 1 and (n + 2) // 3 + n // 3 < 3 ** (m // 2) and not qi.stan_holds(n, m - 2), (k, m)
         part = [(why, t, c) for why, t, c in P['parts'] if why == 'proof-stan']
         assert [(why, c) for why, _, c in part] == [('proof-stan', False)], (k, P['parts'])
-        assert re.match(qi.OPENING, part[0][1]) and part[0][1].endswith('”'), (k, part)
+        assert re.match(qi.BOUND + qi.OPENING, part[0][1]) and part[0][1].endswith('”'), (k, part)   # (Spec change, Opus 5.5, 2026-11-18; dreeves: "so many formatting and other inconsistencies": every part starts with its bound, its quotation after it.)
         for said in qi.stan_said(n, m, name):
             assert qi.among(said, P['text']), (k, said, P['text'])
         assert not any(qi.among(said, P['text']) for said in qi.stan_said(n, m - 2, name)), (k, P['text'])
@@ -1647,8 +1646,9 @@ def q_residue_panels_at_3_give_stan_s_words_where_they_hold_at_powers_of_2():
     assert len(stan) > 20 and (10, 12) in stan and 72 not in [k for k, _ in stan], stan
     three = next(P for P in R['panels'] if P['k'] == 3)
     # (since 2026-11-18 the box of 2^3 is 8's entry of the m*(n) chart: its witness the label Thue–Morse, no English;
-    # since that evening with its code, mstar.js's, then Stan's words)
-    assert [c for _, _, c in three['parts']] == [False, False, False] and three['text'].count('“') == 1 and qi.quoted_right(three['parts']), three['parts']
+    # since that evening with its code, mstar.js's, then Stan's words; since that night its code in its witness's part,
+    # dreeves's point 10)
+    assert [c for _, _, c in three['parts']] == [False, False] and three['text'].count('“') == 1 and qi.quoted_right(three['parts']), three['parts']
 
 
 def q_residue_panels_at_3_give_a_mathematica_line_elsewhere_at_powers_of_2():
@@ -1836,8 +1836,9 @@ def q_pow2_boxes_show_witness_proof_and_searches_by_kind():
     # Stan Wagon's argument, where the box named pow2.py until then)
     assert cols[29][3] == ['residue', [3]] and not qi.stan_holds(2 ** 30, 37) and '\\(M = 3\\)' in B[(30, 8)]['said'], B[(30, 8)]['said']
     assert qi.mod3_line(2 ** 30, cols[29][1] + 1) in B[(30, 8)]['said'] and cols[29][1] == 36, B[(30, 8)]['said']
-    assert re.match(qi.OPENING + re.escape('\\(m^*(2^{30}) \\le 36\\):'), B[(30, 8)]['said']), B[(30, 8)]['said']
-    assert cols[8][3] == ['mstar', ['residue', 27]] and re.match(qi.OPENING + re.escape('\\(m^*(512) \\le 9\\):'), B[(9, 1)]['said']), B[(9, 1)]['said']
+    # (Spec change, Opus 5.5, 2026-11-18; dreeves: "so many formatting and other inconsistencies": every part starts with its bound, its quotation after it.)
+    assert re.match(re.escape('\\(m^*(2^{30}) \\le 36\\): ') + qi.OPENING, B[(30, 8)]['said']), B[(30, 8)]['said']
+    assert cols[8][3] == ['mstar', ['residue', 27]] and re.match(re.escape('\\(m^*(512) \\le 9\\): ') + qi.OPENING, B[(9, 1)]['said']), B[(9, 1)]['said']
     assert '\\(M = 27\\)' in B[(9, 1)]['said'], B[(9, 1)]['said']
     for t in ((30, 5), (13, 2)):          # a dash under the section's heading, whatever the heading says (2026-11-09)
         assert [qi.figures(x) for x in B[t]['searches']] == ['—'], (t, B[t].get('searches'))

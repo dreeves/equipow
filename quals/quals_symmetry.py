@@ -290,7 +290,7 @@ def from_table(sec):
     range a–z, or \\(\\ge a\\), whose z is None), and its second cell's N, a whole number written out or as \\(2^{E}\\),
     or None for any other."""
     [table] = FROM_TABLE.findall(sec)
-    rows = re.findall(r'<tr><td>(.*?)</td><td>(.*?)</td></tr>', table, re.S)
+    rows = re.findall(r'<tr[^>]*><td>(.*?)</td><td>(.*?)</td></tr>', table, re.S)   # (a row's attributes since 2026-11-18: its proof, data-proof)
     assert rows, table
     cell = lambda t: re.fullmatch(r'\\\(2\^\{(\d+)\}\\\)|([\d,]+)', t.strip())
     value = lambda c: c and (2 ** int(c[1]) if c[1] else int(c[2].replace(',', '')))

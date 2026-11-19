@@ -166,10 +166,10 @@ try {
   // examples (2026-11-18; dreeves: "show the expandable hex code for everything"; codes, [n, code], until point 10 of
   // his that night): [n, code, source], rising in n, for exactly the columns whose lower bound is an example, each the
   // code of that example, ceil(n/8) hex digits (page/codes.js checks its bits as it expands it), and where it comes
-  // from, a page (https) or a code of this page (#N:M), to which its label links
+  // from, a page (https) or, for one of this page, its entry in the appendix (#entry-N), to which its label links
   assert(Array.isArray(D.examples) && D.examples.every(([n, code, source], i) => Number.isInteger(n) && (i === 0 || D.examples[i - 1][0] < n)
     && typeof code === 'string' && /^[0-9A-F]+$/.test(code) && code.length === Math.ceil(n / 8)
-    && typeof source === 'string' && /^(https:\/\/|#\d+:\d+$)/.test(source)), 'examples');
+    && typeof source === 'string' && /^(https:\/\/|#entry-\d+$)/.test(source)), 'examples');
   assert(D.examples.map(([n]) => n).join() === D.cols.flatMap(([, , lw], i) => lw[0] === 'example' ? [i + 1] : []).join(), 'examples of the columns');
   const CODES = new Map(D.examples.map(([n, code]) => [n, code])), SOURCES = new Map(D.examples.map(([n, , source]) => [n, source]));
 
