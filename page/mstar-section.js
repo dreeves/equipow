@@ -193,6 +193,8 @@ try {
   const IFHI = D.cols.map(c => c[1]);                             // each column's upper bound if the Symmetry Conjecture holds: its own, or ifsym's
   D.ifsym.forEach(([n, hi]) => { IFHI[n - 1] = hi; });
   const kindOf = (n, m) => m <= D.cols[n - 1][0] ? 0 : m <= IFHI[n - 1] ? 1 : m <= D.cols[n - 1][1] ? 3 : 2;
+  // A target's kind, its box's and since 2026-11-19 its readout's: a cell's by its column's bounds, a column's or a row's
+  const kindAt = (c, m) => c === null ? 'row' : m === null ? 'column' : KIND[kindOf(NS[c], m)];
   const style = getComputedStyle(cv), token = name => style.getPropertyValue(name).trim();
   const rgb = name => {
     const h = token(name);
@@ -277,7 +279,7 @@ try {
   const open = chartPanel({region: panel, chart: cv, ncol: () => NS.length, nrow: T, pin: ts => view.pin(ts),
     fragment: (c, m) => `${c === null ? '' : `n${NS[c]}`}${m === null ? '' : `m${m}`}`,
     fill: (c, m) => {
-      const n = NS[c], kind = c === null ? 'row' : m === null ? 'column' : KIND[kindOf(n, m)];
+      const n = NS[c], kind = kindAt(c, m);
       return {kind, heading: HEADINGS[kind](n, m), length: c === null ? null : BigInt(n), ...SAYS[kind](n, m)};   // (length since 2026-11-18)
     }});
   const view = panZoom({el: cv, out: document.getElementById('mstar-zoom-out'), in: document.getElementById('mstar-zoom-in'),
@@ -427,10 +429,12 @@ try {
       ctx.fillStyle = token('--paper');
       ctx.fillText(t, x, y);
     };
-    picked.filter(inRows).forEach(([, m]) => tag(String(m), L - 7 * dpr - ctx.measureText(String(m)).width / 2, mid(m),
-                                                 Math.min(pitch, Y(m - 1) - Y(m)) - gap));
-    picked.filter(([c]) => u0 <= c + 0.5 && c + 0.5 <= u0 + span)    // 13 px down: the n labels' middle, 7 + 12 / 2
-      .forEach(([c]) => tag(String(NS[c]), L + (c + 0.5 - u0) / k, base + 13 * dpr, pitch - gap));
+    // (since 2026-11-19, when a hover on a strip came to read out its column or its row: each number the target read
+    // out has, a cell's m and n, a column's n, a row's m)
+    picked.map(([, m]) => m).filter(m => Number.isInteger(m) && m <= rows)
+      .forEach(m => tag(String(m), L - 7 * dpr - ctx.measureText(String(m)).width / 2, mid(m), Math.min(pitch, Y(m - 1) - Y(m)) - gap));
+    picked.map(([c]) => c).filter(c => Number.isInteger(c) && u0 <= c + 0.5 && c + 0.5 <= u0 + span)   // 13 px down: the n labels' middle, 7 + 12 / 2
+      .forEach(c => tag(String(NS[c]), L + (c + 0.5 - u0) / k, base + 13 * dpr, pitch - gap));
   }
 
   // What is at CSS x, y (panZoom's targetAt): a cell, [column, m]; the strip of the n labels under the plot, [column,
@@ -454,20 +458,29 @@ try {
     // Readout note on a cell ringed in gold; says its n is the least of order m: the term a(m − 1) of OEIS A323395
     3: m => `the smallest n of order ${m}: a(${m - 1}) of OEIS A323395`,
   };
-  function readout(c, m) {                                         // read out the cell of column c, n = NS[c], and row m
-    const n = NS[c], [lo, hi, lw, hw] = D.cols[n - 1], kind = kindOf(n, m);
+  const bounds = n => {                                            // m*(n)'s bounds as the readout writes them
+    const [lo, hi] = D.cols[n - 1], mstar = [el('i', 'm'), el('sup', '*'), `(${n})`];
+    return nw(...(lo === hi ? [...mstar, ` = ${lo}`] : [`${lo} ≤ `, ...mstar, ` ≤ ${hi}`]));
+  };
+  function cellOut(n, m) {                                         // the readout of the cell of n and m
+    const [lo, hi, lw, hw] = D.cols[n - 1], kind = kindOf(n, m);
     const why = [() => LO[lw[0]].text(n, lo, ...lw.slice(1)), () => HI[hw[0]].text(n, hi, ...hw.slice(1))];
     // TODO: readout reason by Fable 5.2 (2026-11-11, [SYC]), of an ifsym cell; says the order above the column's bound under BGPW's Symmetry Conjecture is ruled out if that conjecture holds, naming the program that checks the proofs
     const ifwhy = () => `order ${IFHI[n - 1] + 1} ruled out if the Symmetry Conjecture holds (${D.ifsym.find(e => e[0] === n)[2]})`;
-    const mstar = [el('i', 'm'), el('sup', '*'), `(${n})`];
     const rings = RINGS.filter(r => r.n === n && r.m === m);        // none or one
     swatch.className = `swatch ${KIND[kind]}`;
     swatch.classList.toggle('record', rings.length > 0);
     swatch.classList.toggle('proven', rings.some(r => r.role === 3));
-    ro.replaceChildren(swatch, nw(el('i', 'n'), ` = ${n}, `, el('i', 'm'), ` = ${m}`), ' · ',
-      nw(...(lo === hi ? [...mstar, ` = ${lo}`] : [`${lo} ≤ `, ...mstar, ` ≤ ${hi}`])), ' · ',
-      [[why[0]], why, [why[1]], [...why, ifwhy]][kind].map(f => f()).join(' · '));
-    ro.append(...rings.map(r => ` · ${NOTES[r.role](m)}`));
+    return [swatch, nw(el('i', 'n'), ` = ${n}, `, el('i', 'm'), ` = ${m}`), ' · ', bounds(n), ' · ',
+      [[why[0]], why, [why[1]], [...why, ifwhy]][kind].map(f => f()).join(' · '), ...rings.map(r => ` · ${NOTES[r.role](m)}`)];
+  }
+  // What the readout says of the target read out, by its kind (since 2026-11-19, when a hover on a strip came to read out
+  // its column or its row, what a click there opens): a cell's n and m, bounds, reasons and ring's note; a column's n and
+  // bounds, and a row's m, as their boxes' headings have them
+  const READS = {exists: cellOut, open: cellOut, impossible: cellOut, ifsym: cellOut,
+                column: n => [nw(el('i', 'n'), ` = ${n}`), ' · ', bounds(n)], row: (n, m) => [nw(el('i', 'm'), ` = ${m}`)]};
+  function readout(c, m) {                                         // read out the target of column c, n = NS[c], and row m
+    ro.replaceChildren(...READS[kindAt(c, m)](NS[c], m));
   }
   // The columns changed, with a box of the list ([COM]) or with the cap ([BOU]), at the control clicked: the data must
   // hold what the checked boxes state, as when the page loaded, or the change fails as that does; the box open under

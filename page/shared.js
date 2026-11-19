@@ -5,16 +5,16 @@
 // wheel, gesture and key events; plot() gives the plot's left edge and width in CSS px from el's left; targetAt(x, y)
 // what is at CSS x, y of el: a cell, [column, row]; the strip of column labels under the plot, [column, null] (every
 // row of the column); the strip of row labels left of it, [null, row] (every column of the row); or null, elsewhere;
-// readout(column, row) reads a cell out; and draw(u0, span, picked, pinned) draws the view, outlining the cell read
-// out, picked (none or one; none once the mouse has left el, since 2026-11-19), and the target of the box open, pinned
-// (none or one).  The buttons out and in do what the
+// readout(column, row) reads a target out, a cell, a column (row null) or a row (column null); and draw(u0, span,
+// picked, pinned) draws the view, outlining the target read out, picked (none or one; none once the mouse has left el,
+// since 2026-11-19), and the target of the box open, pinned (none or one).  The buttons out and in do what the
 // - and + keys do, each grayed out at its limit (with fewer than MIN_SPAN columns the one view is both limits), and each
 // button of resets shows every column (the chart of powers of 2 has one; the m*(n) chart none since 2026-11-10, when
-// its caps took the reset button's place, dreeves's README, [BOU]).  A tap or a click on a cell reads it
-// out, and on a cell or a strip's label calls open(target), which opens its box (chartPanel, below; a column's panel
-// on a cell's click since 2026-11-03, and since 2026-11-04 a cell's box, a column's or a row's, dreeves's README
-// items [CEL] and [ROC]).  It returns redraw(), which draws the view again, uAt(x), the u at CSS x of el, and
-// pin(targets), which outlines targets (none or one) until the next pin.
+// its caps took the reset button's place, dreeves's README, [BOU]).  A hover, a tap or a click reads out its target (a
+// cell's alone until 2026-11-19), and a tap or a click on a cell or a strip's label calls open(target), which opens its
+// box (chartPanel, below; a column's panel on a cell's click since 2026-11-03, and since 2026-11-04 a cell's box, a
+// column's or a row's, dreeves's README items [CEL] and [ROC]).  It returns redraw(), which draws the view again,
+// uAt(x), the u at CSS x of el, and pin(targets), which outlines targets (none or one) until the next pin.
 function panZoom({el, out: zoomOut, in: zoomIn, resets, ncol, plot, targetAt, readout, draw, open}) {
   const MIN_SPAN = 12, TAP = 6;
   let u0 = 0, span = ncol(), picked = [], pinned = [];
@@ -25,9 +25,12 @@ function panZoom({el, out: zoomOut, in: zoomIn, resets, ncol, plot, targetAt, re
   }
   const at = e => { const r = el.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };   // CSS px
   const uAt = x => { const p = plot(); return u0 + (x - p.left) * span / p.width; };
-  function pick(x, y) {                                            // read out the cell at CSS x, y and outline it
+  // read out what is at CSS x, y, a cell, a column or a row, and outline it: what a click there opens (a cell alone until
+  // 2026-11-19; dreeves, of clicks on the strips: "you have to first get the mouse in the interior and then carefully
+  // move it left or down before clicking for row or column")
+  function pick(x, y) {
     const c = targetAt(x, y);
-    if (c === null || c.includes(null) || picked.some(p => p[0] === c[0] && p[1] === c[1])) return;
+    if (c === null || picked.some(p => p[0] === c[0] && p[1] === c[1])) return;
     picked = [c];
     readout(...c);
     redraw();

@@ -920,6 +920,26 @@ function battery(R) {
     const text = ro.textContent, t = tags();
     R.tagAway = {before: R.tagHovers.at(-1).text, text, rows, ...t, v: view()};
   }
+  // (2026-11-19) The strips: in the full view, a hover on the cell in row 3 at the plot's middle, then straight down
+  // onto the strip of the n labels, 10 CSS px below the plot's bottom (strips.column), then onto the strip of the m
+  // labels at row 12, 10 CSS px left of the plot (strips.row): after each, the readout, the tags, and the pixels where
+  // the outlines go: the cell's top edge, above it in its column, and its left edge, left of it in its row; its
+  // column's left edge, left of it in rows 1 and T; and row 12's top edge, above it at the plot's middle and a quarter
+  // of the way in.
+  if (OPTS.strips) {                                               // (the real data's runs: made-up data has 8 rows)
+    reset.click();
+    const v = view(), x = L + W / 2, text = hover(x, rowY(3) / dpr), [n0] = cellOf(text), j = colOf.get(n0);
+    const x0 = PL + (j - 1 - v.u0) * (PR - PL) / v.span, xm = PL + (j - 0.5 - v.u0) * (PR - PL) / v.span;
+    const rings = () => { snap(); return {
+      cell: [pix(Math.floor(xm), rows[T - 3][0] - dpr), pix(Math.floor(x0 - dpr), Math.floor(rowY(3)))],   // (pix here takes whole px)
+      column: [pix(Math.floor(x0 - dpr), Math.floor(rowY(1))), pix(Math.floor(x0 - dpr), Math.floor(rowY(T)))],
+      row: [pix(Math.floor((PL + PR) / 2), rows[T - 12][0] - dpr), pix(Math.floor(PL + (PR - PL) / 4), rows[T - 12][0] - dpr)]}; };
+    R.strips = {n: n0, cell: {text, ...rings()}};
+    __fills.length = 0;
+    R.strips.column = {text: hover(x, axisTop / dpr + 10), ...tags(), ...rings()};
+    __fills.length = 0;
+    R.strips.row = {text: hover(PL / dpr - 10, rowY(12) / dpr), ...tags(), ...rings()};
+  }
 }
 // The panel of the m*(n) chart's columns ([REO], 2026-11-03), or of the chart of powers of 2's (id), as it stands:
 // whether it is hidden, the page's fragment, whether its heading has the focus and which element has it, the kinds of
@@ -1398,7 +1418,7 @@ def run(name):
         text = edited(page(), edits)
         assert text.count('<head>\n') == 1 and text.count('</body>') == 1 and text.count('<html lang="en">') == 1
         opts = {'hoverEvery': every, 'panels': name in PANELS, 'fragment': name in FRAGMENTS, 'boxes': name in BOXES,
-                'boxFragment': name in BOX_LOADS, 'appendix': name == 'light'}
+                'boxFragment': name in BOX_LOADS, 'appendix': name == 'light', 'strips': name in ('light', 'phone')}
         text = text.replace('<head>\n', '<head>\n' + EARLY).replace('</body>', HARNESS.replace(
             '__OPTS__', json.dumps(opts)).replace('__NCOL__', str(len(cols))).replace('__COLUMNS__', json.dumps(cols)) + '</body>')
         if theme: text = text.replace('<html lang="en">', f'<html lang="en" data-theme="{theme}">')
@@ -4544,6 +4564,35 @@ def q_axes_tag_the_cell_read_out():
         assert corners <= set(seen) and {True, False} <= {shown for *_, shown in seen[5:-1]}, (name, seen)
         away = R['tagAway']
         assert away['text'] == away['before'] and not seen[-1][2], (name, away['text'], away['before'], seen[-1])
+
+
+def q_strips_read_out_their_column_or_row():
+    # Replicata: the light and phone runs, in the full view: a hover on the cell in row 3 at the plot's middle, of column
+    # N; then straight down onto the strip of the n labels, 10 CSS px below the plot; then onto the strip of the m labels
+    # at row 12, 10 CSS px left of the plot.  After each, the readout, the tags (what each draw wrote in paper, and the
+    # boxes of ink left of the plot and below it: q_axes_tag_the_cell_read_out's), and the pixels where the outlines go:
+    # above the cell in its column, left of column N in rows 1 and T, and above row 12 across the plot.
+    # Expectata (dreeves, 2026-11-19, of clicks on the strips: "you have to first get the mouse in the interior and then
+    # carefully move it left or down before clicking for row or column"): a hover reads out what a click at the same
+    # place opens.  On the strip of the n labels, column N: the readout "n = N · BOUNDS", BOUNDS as a cell's readout
+    # writes them (its box's heading in the readout's words, no new words); N alone tagged, below the plot; the column
+    # outlined from row 1 to row T, and the cell no longer.  On the strip of the m labels, row 12: the readout "m = 12";
+    # 12 alone tagged, left of the plot; the row outlined across the plot, and the column no longer.  Control: on the
+    # cell, its outline is drawn, and the column's and the row's are not.
+    # Resultata before: a hover on a strip changed nothing: the cell first hovered stayed read out, outlined and tagged,
+    # so the mouse had to cross the plot to show which column or row a click on a strip would open.
+    for name in ('light', 'phone'):
+        R = valid_run(name)
+        S, ink, cols = R['strips'], R['tokens']['ink'], mstar_data()['cols']
+        n, (lo, hi) = S['n'], cols[S['n'] - 1][:2]
+        assert S['cell']['cell'] == [ink, ink] and ink not in S['cell']['column'] + S['cell']['row'], (name, S['cell'])
+        C, W = S['column'], S['row']
+        assert C['text'] == f'n = {n} · ' + (f'm*({n}) = {lo}' if lo == hi else f'{lo} ≤ m*({n}) ≤ {hi}'), (name, C['text'])
+        assert [p[0] for p in C['paper']] == [str(n)] and C['left'] is None and C['below'] is not None, (name, C)
+        assert C['column'] == [ink, ink] and C['cell'][0] != ink and ink not in C['row'], (name, C)
+        assert W['text'] == 'm = 12', (name, W['text'])
+        assert [p[0] for p in W['paper']] == ['12'] and W['left'] is not None and W['below'] is None, (name, W)
+        assert W['row'] == [ink, ink] and W['cell'][0] != ink and ink not in W['column'], (name, W)
 
 
 def q_phone_has_no_sideways_scroll():

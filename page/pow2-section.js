@@ -124,6 +124,8 @@ try {
 
   const E = D.etop, KIND = ['exists', 'open', 'impossible'];       // the kinds of cell, by the tokens of their colors
   const kindOf = (k, e) => (k + e > D.cols[k - 1][0]) + (k + e > D.cols[k - 1][1]);
+  // A target's kind, its box's and since 2026-11-19 its readout's: a cell's by its column's bounds, a column's or a row's
+  const kindAt = (c, e) => c === null ? 'row' : e === null ? 'column' : KIND[kindOf(c + 1, e)];
   const MEANING = ['known', 'open', 'impossible'];                 // what a cell of each kind says, in the readout (dreeves's words)
   const el = (tag, cls, text) => Object.assign(document.createElement(tag), {className: cls, textContent: text});
   const at = (node, style) => { Object.assign(node.style, style); return node; };
@@ -155,20 +157,26 @@ try {
     2: [e => `the smallest k not ruled out to beat Thue–Morse by ${e}`],
     // Readout note on a cell dotted in gold; says no smaller k beats Thue–Morse by δ, as proven
     3: [knownNote, e => `proven as the smallest k to beat Thue–Morse by ${e}`]};
-  function readout(c, e) {                                         // read out the cell of column c, k = c + 1, and row e
-    const k = c + 1, [lo, hi, lw, hw] = D.cols[k - 1], kind = kindOf(k, e);
+  const two = k => ['2', el('sup', '', String(k))];                // 2^k
+  const kn = k => [el('i', '', 'k'), ` = ${k}, `, el('i', '', 'n'), ' = ', ...two(k)];   // k = K, n = 2^K
+  const bounds = k => { const [lo, hi] = D.cols[k - 1]; return nw(`${lo} ≤ `, el('i', '', 'm'), el('sup', '', '*'), '(', ...two(k), `) ≤ ${hi}`); };
+  function cellOut(k, e) {                                         // the readout of the cell of k and e
+    const [lo, hi, lw, hw] = D.cols[k - 1], kind = kindOf(k, e);
     const gold = trims.filter(([tk, te]) => tk === k && te === e);  // none or one
     const why = [() => LO[lw[0]].text(k, lo, ...lw.slice(1)), () => HI[hw[0]].text(k, hi, ...hw.slice(1))];
-    const two = () => ['2', el('sup', '', String(k))];           // 2^k
     swatch.className = `swatch ${KIND[kind]}`;
     swatch.classList.toggle('record', gold.length > 0);
     swatch.classList.toggle('proven', gold.some(([, , role]) => role === 3));
-    ro.replaceChildren(swatch,
-      nw(el('i', '', 'k'), ` = ${k}, `, el('i', '', 'n'), ' = ', ...two(), ', ', el('i', '', 'm'),
-         ` = ${k} + ${e} = ${k + e}`),
-      ' · ', MEANING[kind], ' · ', nw(`${lo} ≤ `, el('i', '', 'm'), el('sup', '', '*'), '(', ...two(), `) ≤ ${hi}`),
-      ' · ', ...subbed([[why[0]], why, [why[1]]][kind].map(f => f()).join(' · ')));
-    ro.append(...gold.flatMap(([, , role]) => NOTES[role].map(f => ` · ${f(e)}`)));
+    return [swatch, nw(...kn(k), ', ', el('i', '', 'm'), ` = ${k} + ${e} = ${k + e}`), ' · ', MEANING[kind], ' · ', bounds(k),
+      ' · ', ...subbed([[why[0]], why, [why[1]]][kind].map(f => f()).join(' · ')), ...gold.flatMap(([, , role]) => NOTES[role].map(f => ` · ${f(e)}`))];
+  }
+  // What the readout says of the target read out, by its kind (since 2026-11-19, when a hover on a strip came to read out
+  // its column or its row, what a click there opens): a cell's k, n and m, meaning, bounds, reasons and ring's notes; a
+  // column's k, n and bounds, and a row's δ, as their boxes' headings have them
+  const READS = {exists: cellOut, open: cellOut, impossible: cellOut,
+                column: k => [nw(...kn(k)), ' · ', bounds(k)], row: (k, e) => [nw(el('i', '', 'δ'), ` = ${e}`)]};
+  function readout(c, e) {                                         // read out the target of column c, k = c + 1, and row e
+    ro.replaceChildren(...READS[kindAt(c, e)](c + 1, e));
   }
   for (let k = 1; k <= K; k++) for (let e = 1; e <= E; e++) {
     const r = document.createElementNS(NS, 'rect');
@@ -218,8 +226,12 @@ try {
     trims.forEach(([k, e], i) => place(rings[i], [k - 1, e], 1, u0, span));
     proven.forEach(([k, e], i) => at(dots[i], {left: `calc(${(k - 0.5 - u0) / span} * (100% - 4px) + 2px)`,   // its middle,
       top: `${(E - e) * ROW + 2 + (ROW - GAP) / 2}px`, width: `min(${0.5 / span} * (100% - 4px), ${(ROW - GAP) / 2}px)`}));
-    outline.hidden = etag.hidden = picked.length === 0;
-    ktag.hidden = !picked.some(([c]) => shows(c + 1));
+    // the target read out, outlined, and each number it has tagged: a cell's δ and k, a column's k, a row's δ (since
+    // 2026-11-19, when a hover on a strip came to read out its column or its row)
+    const tagged = {e: picked.map(([, e]) => e).filter(Number.isInteger), c: picked.map(([c]) => c).filter(c => Number.isInteger(c) && shows(c + 1))};
+    outline.hidden = picked.length === 0;
+    etag.hidden = tagged.e.length === 0;
+    ktag.hidden = tagged.c.length === 0;
     pin.hidden = pinned.length === 0;
     pinned.forEach(t => place(pin, t, 2, u0, span));
     // The box's caret under its target's column's middle, kept within the plot, or under its row's δ label (--caret, in
@@ -227,11 +239,9 @@ try {
     const p = plotBox(), left = chart.getBoundingClientRect().left - panel.getBoundingClientRect().left - panel.clientLeft;
     pinned.forEach(([c]) => panel.style.setProperty('--caret', `${left + (c === null ? p.left / 2
       : p.left + Math.min(Math.max((c + 0.5 - u0) / span, 0), 1) * p.width)}px`));
-    picked.forEach(([c, e]) => {
-      place(outline, [c, e], 2, u0, span);
-      at(etag, {top: `${(E - e) * ROW}px`}).textContent = String(e);
-      at(ktag, {left: `${(c + 0.5 - u0) / span * 100}%`}).textContent = String(c + 1);
-    });
+    picked.forEach(t => place(outline, t, 2, u0, span));
+    tagged.e.forEach(e => { at(etag, {top: `${(E - e) * ROW}px`}).textContent = String(e); });
+    tagged.c.forEach(c => { at(ktag, {left: `${(c + 0.5 - u0) / span * 100}%`}).textContent = String(c + 1); });
     ks.replaceChildren(...TENS.filter(shows).flatMap(k => {
       const left = `${(k - 0.5 - u0) / span * 100}%`;              // under the middle of column k
       return [at(el('span', 'pow2-tick', ''), {left}), at(el('span', 'pow2-klabel', String(k)), {left})];
@@ -284,7 +294,7 @@ try {
   const open = chartPanel({region: panel, chart, ncol: () => K, nrow: E, pin: ts => view.pin(ts),
     fragment: (c, e) => `${c === null ? '' : `k${c + 1}`}${e === null ? '' : `d${e}`}`,
     fill: (c, e) => {
-      const k = c + 1, kind = c === null ? 'row' : e === null ? 'column' : KIND[kindOf(k, e)];
+      const k = c + 1, kind = kindAt(c, e);
       return {kind, heading: HEADINGS[kind](k, e), length: c === null ? null : 2n ** BigInt(k), ...SAYS[kind](k, e)};   // (length since 2026-11-18)
     }});
   const view = panZoom({el: chart, out: document.getElementById('pow2-zoom-out'), in: document.getElementById('pow2-zoom-in'),

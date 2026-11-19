@@ -650,6 +650,21 @@ async function main() {
       await input.mouse(lx, ly);
       await ev(FRAMES);
       R.left = await ev(marks);
+      // (2026-11-19) the mouse onto cell OUTLINE, then straight down onto the strip of the k labels, 10 px below the
+      // plot, then onto the strip of the δ labels at row 3, 10 px left of the plot: after each (strips.cell, .column,
+      // .row), the readout, the outline of what is read out (its box from the plot's top left corner) and the tags
+      const strip = () => { const o = document.querySelector('#pow2-chart .pow2-frame > .pow2-outline'), r = o.getBoundingClientRect(),
+          s = document.querySelector('#pow2-chart svg').getBoundingClientRect();
+        return {text: document.getElementById('pow2-readout').textContent, hidden: o.hidden,
+          outline: [r.left - s.left, r.top - s.top, r.width, r.height], plot: [s.width, s.height],
+          tags: [...document.querySelectorAll('#pow2-chart .pow2-tag')].map(t => [t.textContent, t.checkVisibility()])}; };
+      const [PL, PT, , PH] = (await ev(GEOMETRY)).plot;
+      R.strips = {};
+      for (const [part, sx, sy] of [['cell', x, y], ['column', x, PT + PH + 10], ['row', PL - 10, PT + (C.E - 3) * C.ROW + (C.ROW - C.GAP) / 2]]) {
+        await input.mouse(sx, sy);
+        await ev(FRAMES);
+        R.strips[part] = await ev(strip);
+      }
     }
     if (C.swipe) {                    // a finger's swipe up 200 px that starts on cell C.swipeFrom, then the readout
       const [, , sx, sy] = cells.find(([k, e]) => k === C.swipeFrom[0] && e === C.swipeFrom[1]);
@@ -1251,6 +1266,39 @@ def q_outline_goes_when_the_mouse_leaves_the_chart():
         R = valid(name)
         assert R['back'] == {'outlines': [False, True], 'tags': [True, True], 'panel': True}, (name, R['back'])
         assert R['left'] == {'outlines': [True, True], 'tags': [False, False], 'panel': True}, (name, R['left'])
+
+
+def q_strips_read_out_their_column_or_row():
+    # Replicata: each configuration with a mouse ('light', 'kinds'; 1280 px), after its mouse off the chart: real mouse
+    # moves (DevTools) onto cell OUTLINE, (k, δ) = (36, 6), then straight down onto the strip of the k labels, 10 px below
+    # the plot, then onto the strip of the δ labels at row 3, 10 px left of the plot; after each, the readout, the
+    # outline of what is read out (its box from the plot's top left corner), the plot's size and the tags.
+    # Expectata (dreeves, 2026-11-19, of clicks on the strips: "you have to first get the mouse in the interior and then
+    # carefully move it left or down before clicking for row or column"): a hover reads out what a click at the same
+    # place opens.  On the strip of the k labels, column 36: the readout "k = 36, n = 2^36 · BOUNDS", BOUNDS as a cell's
+    # readout writes them (its box's heading in the readout's words, no new words); 36 alone tagged; the outline around
+    # the whole column, one column wide and the plot's height, 2 px out on every side.  On the strip of the δ labels,
+    # row 3: the readout "δ = 3"; 3 alone tagged; the outline around the whole row, the plot's width.  Control: on the
+    # cell, the outline around the cell alone, both tags.
+    # Resultata before: a hover on a strip changed nothing: the cell stayed read out, outlined and tagged.
+    k, e = OUTLINE
+    for name in [n for n in CONFIGS if CONFIGS[n]['hover']]:
+        R = valid(name)
+        S, (lo, hi) = R['strips'], R['data']['cols'][k - 1][:2]
+        W, H = S['cell']['plot']
+        near = lambda a, b: all(abs(x - y) <= 1 for x, y in zip(a, b))
+        g = gap(CONFIGS[name]['dpr'])
+        one, row = W / K, ROW - g + 4                                # a column's width; an outlined row's height
+        assert S['cell']['tags'] == [[str(e), True], [str(k), True]] and not S['cell']['hidden'], (name, S['cell'])
+        assert near(S['cell']['outline'], [(k - 1) * one - 2, (R['data']['etop'] - e) * ROW - 2, one + 4, row]), (name, S['cell'])
+        C = S['column']
+        assert C['text'] == f'k = {k}, n = 2{k} · {lo} ≤ m*(2{k}) ≤ {hi}', (name, C['text'])
+        assert [v for _, v in C['tags']] == [False, True] and C['tags'][1][0] == str(k), (name, C['tags'])
+        assert near(C['outline'], [(k - 1) * one - 2, -2, one + 4, H - g + 4]), (name, C['outline'], H)
+        Rw = S['row']
+        assert Rw['text'] == 'δ = 3', (name, Rw['text'])
+        assert [v for _, v in Rw['tags']] == [True, False] and Rw['tags'][0][0] == '3', (name, Rw['tags'])
+        assert near(Rw['outline'], [-2, (R['data']['etop'] - 3) * ROW - 2, W + 4, row]), (name, Rw['outline'])
 
 
 def q_outline_marks_the_cell():
