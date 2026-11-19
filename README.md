@@ -16,30 +16,20 @@ Potential tasks:
 * [CLU] Are there past searches we don't care about anymore that we don't need on the page? Some are interesting for posterity.
 * [CRO] This might be fun: Let people contribute computation by just having the equipow page open in their browser. Claude thinks this could work. (More boringly, Claude is estimating we could bring the next two searches down from a total of 90 days on my laptop to about 4 days on cloud compute costing around $300.)
 * [TRE] We now have a time series of the number of pending nodes in the search. Seeing when that plateaus or starts to actually go down should improve our ETA. Can we incorporate that in the ETA graph? (Also this was missing from the 288:10 search for some reason.)
+* [SOG] Row box tweak or revamp:
 
-Human to rewrite:
-Click a formula built with those to see its derivation. A product multiplies the lengths of its parts and adds their orders; a join adds the lengths, and its order is at least the smallest of its parts.
+I noticed a problem with the box you see when you click on a row in the chart. Especially this line:
 
-A product 
+The Symmetry Conjecture is proven to hold for n>=3665.
 
-
---
-
-edit to my line for the row boxes:
+It should be clearer that that's specific to the order. So like this:
 
 For order 13, the Symmetry Conjecture is proven to hold for n>=3665.
 
-and let's reorganize this further:
+And let's reorganize this box further... What if we had an actual checkbox for "Assume the Symmetry Conjecture is true"? You could toggle it and see what changes.
+I'm not sure if that's a good idea yet but the status quo with "unless Symmetry Conjecture true" etc is more confusing than it should be.
 
-m=13
-[excerpt from table 3]
-OEIS blah blah
-For order 13, the Symmetry Conjecture is proven to hold for n>=3665.
-
-and then have two sections, side-by-side or however looks best:
-Assuming Symmetry Conjecture
-
-
+---
 
 Stan notes:
 
