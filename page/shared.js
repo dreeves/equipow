@@ -216,13 +216,16 @@ const shown = (parts = [], entries = []) => ({parts, entries});
 const FACTS = {};
 // Claude's English, quoted (2026-11-04; in runs since 2026-11-16): one quote from the first paragraph of the parts of
 // Claude's English (data-claude) to the last, in each run of parts between parts that quote someone else (data-quote:
-// Stan Wagon's words), so that no quote of Claude's holds another's; parts with no such part are one run.
+// Stan Wagon's words), so that no quote of Claude's holds another's; parts with no such part are one run.  Since
+// 2026-11-18 (dreeves: "so many formatting and other inconsistencies") the quote opens at the words after the first
+// part's bound and closes after the last part's words, each template's data-words, so that every part starts with its
+// bound, as the parts with no English do, and the bound, the data's, is outside the quote.
 const quoteRuns = parts => {
   const runs = [[]];
   parts.forEach(p => p.hasAttribute('data-quote') ? runs.push([]) : runs.at(-1).push(p));
-  for (const ps of runs.map(run => run.filter(p => p.hasAttribute('data-claude')).flatMap(e => [...e.querySelectorAll('p')]))) {
-    ps.slice(0, 1).forEach(p => p.prepend('Opus 5.5: “'));   // Opus 5.5 for Claude since dreeves's rename of 2026-11-09, as in the page's own text
-    ps.slice(-1).forEach(p => p.append('”'));
+  for (const ws of runs.map(run => run.filter(p => p.hasAttribute('data-claude')).flatMap(e => [...e.querySelectorAll('[data-words]')]))) {
+    ws.slice(0, 1).forEach(w => w.prepend('Opus 5.5: “'));   // Opus 5.5 for Claude since dreeves's rename of 2026-11-09, as in the page's own text
+    ws.slice(-1).forEach(w => w.append('”'));
   }
 };
 // The words for a credit of the new results, which the data names only by the class of its cells (c, cf, j, ca, a or s:
@@ -242,20 +245,18 @@ const bound = (name, rel, v) => `\\(m^*(${name}) \\${rel} ${v}\\)`;
 // page of the length N and the order lo, copied, as a join of that one code (data-join its id, data-order its order),
 // which page/codes.js expands into its partition as it does the code itself (the code keeps its id, which no other
 // element of the page may have; a box that shows the code itself, in an entry, drops its copy: chartPanel).
-const example = (name, lo, label) => shown([filled('witness-example', {bound: bound(name, 'ge', lo), label})]);
-const construction = (N, name, lo, tex) => {
-  const part = filled('witness-construction', {bound: bound(name, 'ge', lo), formula: `\\(${tex}\\)`});
+const example = (name, lo, label, codes) => shown([filled('witness-example', {bound: bound(name, 'ge', lo), label, codes})]);
+const construction = (N, name, lo, tex, codes) => {
+  const part = filled('witness-construction', {bound: bound(name, 'ge', lo), formula: `\\(${tex}\\)`, codes});
   part.querySelector('[data-construction]').dataset.construction = `${N}:${lo}`;
   return shown([part]);
 };
-const copies = (N, lo) => shown([...document.querySelectorAll(`code[id="${N}:${lo}"]`)].map(c => {
+const copies = (N, lo) => [...document.querySelectorAll(`code[id="${N}:${lo}"]`)].map(c => {
   const join = document.createElement('span');
-  Object.assign(join.dataset, {join: c.id, order: String(lo)});
+  Object.assign(join.dataset, {join: c.id, order: String(lo), copy: c.id});
   join.append(Object.assign(document.createElement('code'), {textContent: c.textContent}));
-  const part = filled('witness-code', {code: join});
-  part.dataset.copy = c.id;
-  return part;
-}));
+  return join;
+});
 // The code of an example of the length N (a BigInt) and the order lo, hex, as the data give it (since 2026-11-18, every
 // example of the m*(n) chart's: mstar.js's codes; dreeves: "there should be no "found here". what does "here" mean?
 // totally ambiguous. show the expandable hex code for everything"), in the part a copy has: the code itself, its N:lo
@@ -263,11 +264,13 @@ const copies = (N, lo) => shown([...document.querySelectorAll(`code[id="${N}:${l
 // a box or an entry that holds the page's code of that id drops it.  An example's witness shows its code so, in place
 // of a copy (page/mstar-section.js).
 const coded = (N, lo, hex) => {
-  const part = filled('witness-code', {code: Object.assign(document.createElement('code'), {textContent: hex})});
-  part.querySelector('code').dataset.code = `${N}:${lo}`;
-  part.dataset.copy = `${N}:${lo}`;
-  return shown([part]);
+  const code = Object.assign(document.createElement('code'), {textContent: hex});
+  Object.assign(code.dataset, {code: `${N}:${lo}`, copy: `${N}:${lo}`});
+  return [code];
 };
+// The codes that an entry or a box holds itself, of the page, by its id: each copy or code of the data in parts whose
+// N:M (data-copy) is one of them goes, a code being shown once (appendix.js and chartPanel).
+const dropHeld = (parts, held) => parts.flatMap(p => [...p.querySelectorAll('[data-copy]')]).filter(c => held.has(c.dataset.copy)).forEach(c => c.remove());
 
 // The proofs of the upper bounds, which both charts' boxes show (since 2026-11-04 the math alone, with the length's own
 // numbers and the method's name; [CEL]: "If the cell is red, show the proof for the lowest red cell in that cell's
@@ -490,7 +493,8 @@ function chartPanel({region, chart, ncol, nrow, fragment, fill, pin}) {
     const {kind, heading, parts, entries: lengths} = fill(...t);
     back();
     shelf.append(...lengths.flatMap(entries));
-    const held = [...shelf.querySelectorAll('code[id]')].map(c => c.id), kept = parts.filter(p => !held.includes(p.dataset.copy));
+    const kept = parts;
+    dropHeld(kept, new Set([...shelf.querySelectorAll('code[id]')].map(c => c.id)));
     quoteRuns(kept);                                               // the entry's facts were quoted as the page loaded
     region.dataset.kind = kind;
     title.replaceChildren(...heading);

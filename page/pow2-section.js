@@ -47,7 +47,7 @@ try {
       ok: (k, lo) => lo === k,
       // readout reason; says order lo, which is k, is known from Thue–Morse, τ_k
       text: (k, lo) => `order ${lo} from Thue–Morse, τ${sub(k)}`,
-      witness: (k, lo) => shown([filled('witness-thue-morse', {bound: bound(`2^{${k}}`, 'ge', lo), tau: `\\(\\tau_{${k}}\\)`})]),
+      witness: (k, lo) => shown([filled('witness-thue-morse', {bound: bound(`2^{${k}}`, 'ge', lo), tau: `\\(\\tau_{${k}}\\)`, codes: copies(2n ** BigInt(k), lo)})]),
     },
     joins: {
       ok: (k, lo, ps) => Array.isArray(ps) && ps.length >= 1 && ps.every(p => Array.isArray(p) && p.length >= 1
@@ -56,7 +56,7 @@ try {
       // readout reason; says order lo is known from the join of these expanded products
       text: (k, lo, ps) => `order ${lo} from the join ${joined(ps)}`,
       witness: (k, lo, ps) => construction(2n ** BigInt(k), `2^{${k}}`, lo,
-        ps.map(p => `(${p.map(blockTex).join(' \\mathbin{\\#} ')})`).join(' \\vee ')),
+        ps.map(p => `(${p.map(blockTex).join(' \\mathbin{\\#} ')})`).join(' \\vee '), copies(2n ** BigInt(k), lo)),
     },
   };
   // The m*(n) chart's reasons of an upper bound at an even n, copied from its script, each its check and its words for
@@ -256,7 +256,7 @@ try {
   // where they agree; and, where e is a record gap, its row of the table of record gaps, under that table's own head
   // (recordGaps, below; the main session's design of 2026-11-04 for [ROC], whose rows dreeves named for the m*(n) chart).
   const legend = [...chart.closest('section').querySelectorAll('.legend li')];
-  const witness = k => { const [lo, , lw] = D.cols[k - 1]; return together(LO[lw[0]].witness(k, lo, ...lw.slice(1)), copies(2n ** BigInt(k), lo)); };
+  const witness = k => { const [lo, , lw] = D.cols[k - 1]; return LO[lw[0]].witness(k, lo, ...lw.slice(1)); };
   const proof = k => { const [, hi, , hw] = D.cols[k - 1]; return HI[hw[0]].proof(k, hi, ...hw.slice(1)); };
   const rowBox = e => shown([...trims.filter(([, te]) => te === e).map(([k, , role]) => filled('row-cell',
     {item: legendItem(legend, ['', 'exists', 'open', 'exists'][role], role), at: linked(`#k${k}d${e}`, `\\(k = ${k}\\)`)})),

@@ -6,6 +6,7 @@ LittlewoodPolynomialsReprint.pdf is the published version of the paper this is e
 ---
 
 Potential tasks: 
+* [TYP] Don't say "a typeset proof"; that goes without saying. Are there any non-typeset proofs here?
 * [TIL] How does the "tilted" search work? Is there a reason we can't see a count of nodes checked, etc? Relatedly, does it ever make sense for the ETA to be strictly based on Lindy's rule? I guess Lindy makes sense if the search space is effectively infinite and we just take stabs in the dark that have a fixed probability of succeeding but we have no idea what that probability is, just that it stays fixed. That doesn't seem like it's ever a good model of our searches here, is it?
 * [SYM] For the remaining searches, would it make sense to first get the conditional-on-the-Symmetry-Conjecture versions?
 * [POL] Can all the polynomial algebra be streamlined or improved or clarified?

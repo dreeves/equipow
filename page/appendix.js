@@ -70,11 +70,11 @@
   order.sort(([, a], [, b]) => (a[0] > b[0]) - (a[0] < b[0]));
   assert(order.reduce((s, [, ns]) => s + ns.length, 0) === lengths.length, 'each length in one entry');
   for (const [li, ns, facts] of order) {
-    const held = new Set([...li.querySelectorAll('code[id]')].map(c => c.id));
-    const kept = facts.flatMap(([n, parts]) => parts.filter(part => !held.has(part.dataset.copy)).map(part => {
+    const kept = facts.flatMap(([n, parts]) => parts.map(part => {
       part.dataset.n = n;
       return part;
     }));
+    dropHeld(kept, new Set([...li.querySelectorAll('code[id]')].map(c => c.id)));   // the entry's own codes once
     quoteRuns(kept);                                               // one quote per run of the entry's facts, as a box's parts had
     li.querySelector(':scope > p.entry').after(...kept);
     list.append(li);

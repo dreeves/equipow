@@ -209,21 +209,24 @@ tr.ns td.ca::before, .key.ca > span, .remarks li.ca .mk { background: linear-gra
 /* Remarks: one per new entry or group, marked like its cells */
 .remarks { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; max-width: var(--measure); }
 .remarks ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 1.15rem; }
+/* (Since 2026-11-18 its mark inline, before its heading, and no column for marks: dreeves, "why this indentation?", then
+   "sure, if inline marks would look better, go with that".  Two columns: the mark's, as wide as the mark and none
+   where there is none, and the heading's; every other child across both.) */
 .remarks li {
   display: grid;
-  grid-template-columns: 2rem minmax(0, 1fr);
-  column-gap: 0.4rem;
+  grid-template-columns: auto minmax(0, 1fr);
   row-gap: 0.25rem;
 }
-.remarks li > * { grid-column: 2; min-width: 0; }
-.remarks .mk {
+.remarks li > * { grid-column: 1 / -1; min-width: 0; }
+.remarks li > .mk {
   grid-column: 1;
   grid-row: 1;
-  justify-self: center;
+  margin-right: 0.45rem;
   font-size: 0.85rem;
   line-height: 1.85;
   letter-spacing: 0.08em;
 }
+.remarks li > .entry { grid-column: 2; grid-row: 1; }
 .remarks li.c .mk { color: var(--claude); }
 .remarks li.cf .mk { color: var(--claude); }
 .remarks li.a .mk { color: var(--astra); }
@@ -248,6 +251,9 @@ code {
 /* A code's anchor (2026-10-31, [IND]): a link to it scrolls its label into view too, the lines above it in its block;
    and a construction's, which the derivations that name it link to, the lines above it */
 .code code[id], [data-construction][id] { scroll-margin-top: 6rem; }
+/* A witness's codes (2026-11-18), at the end of its line, each after a space's width (until then on a line of their
+   own under it, between it and the next part, where a short one looked like no one's) */
+.codes > * { margin-left: 0.5rem; }
 /* The codes and joins as buttons (2026-10-31, dreeves's [REO] item 2; page/codes.js marks each with aria-expanded): a
    click shows its partition below it, after the block that holds it (page/codes.js), ruled at its left; each part's
    numbers wrap in a box four and a half lines

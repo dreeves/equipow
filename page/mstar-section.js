@@ -58,32 +58,31 @@ try {
       ok: (n, lo, label) => typeof label === 'string' && label !== '',
       // readout reason; says order lo is known from an example, naming where the example comes from
       text: (n, lo, label) => `order ${lo} from an example (${label})`,
-      witness: (n, lo, label) => together(example(n, lo, label), coded(BigInt(n), lo, CODES.get(n))),   // its code, the data's (2026-11-18)
+      witness: (n, lo, label) => example(n, lo, linked(SOURCES.get(n), label), coded(BigInt(n), lo, CODES.get(n))),   // its code and source, the data's (2026-11-18)
     },
     join: {
       ok: (n, lo, a, b) => [a, b].every(Number.isInteger) && a >= 1 && b >= 1 && a + b === n && lo <= Math.min(loOf(a), loOf(b)),
       // readout reason; says order lo is known from the join of the examples of lengths a and b
       text: (n, lo, a, b) => `order ${lo} from the join p${sub(a)}\u00a0∨\u00a0p${sub(b)}`,
-      witness: (n, lo, a, b) => together(construction(BigInt(n), n, lo, `p_{${a}} \\vee p_{${b}}`), copies(BigInt(n), lo)),
+      witness: (n, lo, a, b) => construction(BigInt(n), n, lo, `p_{${a}} \\vee p_{${b}}`, copies(BigInt(n), lo)),
     },
     product: {
       ok: (n, lo, a, b) => [a, b].every(Number.isInteger) && a >= 2 && b >= 2 && a * b === n && lo <= loOf(a) + loOf(b),
       // readout reason; says order lo is known from the expanded product of the examples of lengths a and b
       text: (n, lo, a, b) => `order ${lo} from the product p${sub(a)}\u00a0#\u00a0p${sub(b)}`,
-      witness: (n, lo, a, b) => together(construction(BigInt(n), n, lo, `p_{${a}} \\mathbin{\\#} p_{${b}}`), copies(BigInt(n), lo)),
+      witness: (n, lo, a, b) => construction(BigInt(n), n, lo, `p_{${a}} \\mathbin{\\#} p_{${b}}`, copies(BigInt(n), lo)),
     },
     table2: {
       ok: (n, lo) => n % 8 === 0 && n <= 304,
       // readout reason; says order lo is known from BGPW's Table 2
       text: (n, lo) => `order ${lo} from BGPW's Table 2`,
-      witness: (n, lo) => together(shown([filled('witness-table2', {bound: bound(n, 'ge', lo)})]), copies(BigInt(n), lo)),
+      witness: (n, lo) => shown([filled('witness-table2', {bound: bound(n, 'ge', lo), codes: copies(BigInt(n), lo)})]),
     },
     page: {
       ok: (n, lo, who) => credit(who).length === 1,              // who is a class of the new results' cells, which their legend words
       // readout reason; says order lo is known from this page's new results, naming whose they are
       text: (n, lo, who) => `order ${lo} from the new results above (${credit(who)[0]})`,
-      witness: (n, lo, who) => together(shown([filled('witness-page', {bound: bound(n, 'ge', lo), who: credit(who)[0]})], [BigInt(n)]),
-                                        copies(BigInt(n), lo)),
+      witness: (n, lo, who) => shown([filled('witness-page', {bound: bound(n, 'ge', lo), who: credit(who)[0], codes: copies(BigInt(n), lo)})], [BigInt(n)]),
     },
   };
   const HI = {
@@ -164,13 +163,15 @@ try {
   assert(D.mtopAt.slice(1).every((n, i) => D.mtopAt[i] <= n), D.mtopAt);
   // the explicit sequences longer than the chart reaches, for the table of smallest lengths (since 2026-11-04: 1440:16)
   assert(Array.isArray(D.past) && D.past.every(([n, m, label]) => Number.isInteger(n) && n > D.nmax && n % 2 === 0 && Number.isInteger(m) && m > 0 && label), D.past);
-  // codes (2026-11-18; dreeves: "show the expandable hex code for everything"): [n, code], rising in n, for exactly the
-  // columns whose lower bound is an example, each the code of that example, ceil(n/8) hex digits (page/codes.js
-  // checks its bits as it expands it)
-  assert(Array.isArray(D.codes) && D.codes.every(([n, code], i) => Number.isInteger(n) && (i === 0 || D.codes[i - 1][0] < n)
-    && typeof code === 'string' && /^[0-9A-F]+$/.test(code) && code.length === Math.ceil(n / 8)), 'codes');
-  assert(D.codes.map(([n]) => n).join() === D.cols.flatMap(([, , lw], i) => lw[0] === 'example' ? [i + 1] : []).join(), 'codes of the examples');
-  const CODES = new Map(D.codes);                                 // each example's column: its code
+  // examples (2026-11-18; dreeves: "show the expandable hex code for everything"; codes, [n, code], until point 10 of
+  // his that night): [n, code, source], rising in n, for exactly the columns whose lower bound is an example, each the
+  // code of that example, ceil(n/8) hex digits (page/codes.js checks its bits as it expands it), and where it comes
+  // from, a page (https) or a code of this page (#N:M), to which its label links
+  assert(Array.isArray(D.examples) && D.examples.every(([n, code, source], i) => Number.isInteger(n) && (i === 0 || D.examples[i - 1][0] < n)
+    && typeof code === 'string' && /^[0-9A-F]+$/.test(code) && code.length === Math.ceil(n / 8)
+    && typeof source === 'string' && /^(https:\/\/|#\d+:\d+$)/.test(source)), 'examples');
+  assert(D.examples.map(([n]) => n).join() === D.cols.flatMap(([, , lw], i) => lw[0] === 'example' ? [i + 1] : []).join(), 'examples of the columns');
+  const CODES = new Map(D.examples.map(([n, code]) => [n, code])), SOURCES = new Map(D.examples.map(([n, , source]) => [n, source]));
 
   const KIND = ['exists', 'open', 'impossible', 'ifsym'];         // the kinds of cell
   const UNDER = ['exists', 'open', 'impossible', 'open'];         // the token of a cell's color, by kind: an ifsym cell is an open one with a triangle over it
