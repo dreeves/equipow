@@ -78,11 +78,12 @@ each column whose loWhy is an example, rising in n: the code of its sequence (to
 BGPW's Table 5 convention: the bits of its left half, 1 = +1, padded on the right with 0 to whole hex digits, ceil(n/8)
 of them, which page/codes.js expands; and where it comes from, to which its label links (source_of).
   loWhy  ["none"] (lo = 0, n odd); ["example", label] (an explicit sequence of length n, label saying where it is
-         from); ["join", a, b] (the sequence for a, then the one for b; lo is the lesser of theirs); ["product", a, b]
+         from); ["join", a, b, ...] (the sequences for a, b, ... one after the other; lo is the least of theirs; since
+         2026-11-18 a, b, a, whose sequence is (-1)^lo-symmetric when theirs are, and a, b until then); ["product", a, b]
          (f_a(x) f_b(x^a); lo is the sum of theirs); ["table2"] (BGPW's Table 2, cited); ["page", who] (the page's new
          results, cited; who the credit for the example, a class of the page's cells, c, cf, j, ca, a or s: EXAMPLE_BY).  Every example, join and
-         product is a sequence built here from explicit sequences only and checked with exact power sums; a join's or
-         product's parts are themselves columns with such reasons.
+         product is a sequence built here from explicit sequences only and checked with exact power sums, and since
+         2026-11-18 asserted (-1)^lo-symmetric; a join's or product's parts are themselves columns with such reasons.
   hiWhy  ["odd"] (n odd: hi = 0); ["two"]; ["norm", p]; ["residue", M] (no admissible vector mod M at order hi + 1:
          for M = 3, since 2026-11-16, by the residue condition mod 3 in closed form, residue3, at any even n that 3
          does not divide; for any other M, the claim in RESIDUE, whose chain ends at M); ["proof", file] (PROOFS: a program of proofs/ that checks a proof of its own that no
@@ -321,7 +322,19 @@ FOUND = ((352, 9, '969E4C06F693B61B683699E934D241A6DB4936D7CDA6'),
          (368, 9, 'B449E6A1DB4AB5A123D2DB84B7592CB2496596DB64B4C9'),
          (400, 9, 'A70B2F45D60B4BE22CD2DE51B49B4924DB6D26D349A6926DB4'),
          (464, 9, '8EA4DC62B3DF10709957C395683E3A4D369A6F30DA6984D36D86934C26'),
-         (496, 9, 'C2BAD83D5017FA285E3D82ED96135DA2394EB48A6D349E6994D349B6D34DA7'))
+         (496, 9, 'C2BAD83D5017FA285E3D82ED96135DA2394EB48A6D349E6994D349B6D34DA7'),
+         # Since 2026-11-18 (dreeves, of every witness made (-1)^lo-symmetric: "making all witnesses conforming sounds
+         # great"), the six columns that products and joins p_a v p_b v p_a of conforming columns leave one order short
+         # (scratch/witness-20261118/): each the Symmetry section's p v q v s p*, here p_a v p_b v -p_a, of order
+         # min(lo(a), lo(b)) and, by BGPW's Symmetry (Theorem 4.1), one more; each code that sequence's, made by
+         # scratch/witness-20261118/six.py, as an example, so that the page's constructions need no minus sign and no
+         # parity step.
+         (136, 6, '96696996998EAA3C5'),                    # p_32 v p_72 v -p_32
+         (152, 6, '9669699696C362DE4A3'),                  # p_32 v p_88 v -p_32
+         (1328, 11, 'C394E65AB989457A86B7D0D921636E76C6849B0BED615EA2919D5A6729C396B905B25BADB2496D32C924B74B6C96596CF25964B28925B25B6DAA5B6D96C965164B14B2C92F52D12596C97CB6CBEC86592CB2C9'),   # p_240 v p_848 v -p_240
+         (1360, 11, 'C394E65AB989457A86B7D0D921636E76C6849B0BED615EA2919D5A6729C3C965B1C92D925B6C92D964BE4D2FB20B6592492D16D9259ADB6FD64926964925A64B6E62EF60D2CB24B6D925B2CB05960B6CB6CB75B74F'),   # p_240 v p_880 v -p_240
+         (1424, 11, 'C394E65AB989457A86B7D0D921636E76C6849B0BED615EA2919D5A6729C3B2D920F6C32D8A4A75B6E965D2D964B44968F291A432D97C96F964B2586CB47B64965B2DBE4934929B4C125B6D93494F92CB2DBA436596896D7ADA'),   # p_240 v p_944 v -p_240
+         (1456, 11, 'C394E65AB989457A86B7D0D921636E76C6849B0BED615EA2919D5A6729C3A69A48B5DB6B269A6D14CA1936324D74DB6833DB6DB4DB4134921D949A68E6986F25DA6D348F4994935D86BB49E69ACC27D067268769B4D219B67249A4'))   # p_240 v p_976 v -p_240
 # The joins of the page's codes, in page order, as (label, m, ids): each <span data-join="IDS" data-order="M"> of a code
 # block, IDS the ids N:M of codes of the code blocks, separated by spaces, whose signs one after the other are the
 # join's (join() above, the paper's ∨), and M its order.  The label names the page and the join as the page writes it.
@@ -745,18 +758,23 @@ def open_past(T):
 @lru_cache(maxsize=None)
 def explicit_lo():
     """lo and loWhy from explicit sequences alone, for n = 1..NMAX (index n; index 0 unused): the best of the examples
-    at n, the joins a + b and the products a b (a, b >= 2), each part valued at its own explicit lo; the first best in
-    that order, so an example beats a join and a join a product, the least a first, and ["none"] (lo 0) stays only
-    when nothing beats it, which is exactly at odd n.  A column whose explicit lo a citation beats (its final lo is
-    the citation's, with no sequence behind it) is no part of any join or product."""
+    at n, the products a b (a, b >= 2) and the joins a + b + a whose parts' lo have one parity, each part valued at its
+    own explicit lo; the first best in that order, so an example beats a product and a product a join, the least a
+    first, and ["none"] (lo 0) stays only when nothing beats it, which is exactly at odd n.  A column whose explicit lo
+    a citation beats (its final lo is the citation's, with no sequence behind it) is no part of any join or product.
+    So every column's sequence is (-1)^lo-symmetric, as BGPW's Symmetry Conjecture has them (since 2026-11-18; dreeves:
+    "making all witnesses conforming sounds great"; until then the joins a + b, neither symmetric nor antisymmetric):
+    an example's is its code's, a product of such sequences is one, of its order's parity, and a join p_a v p_b v p_a
+    whose parts are of one symmetry is of it too, its order the least of theirs."""
     ex = explicit()
     orders = {key: order(a) for key, a in ex.items()}
     lo, why, part = [0] * (NMAX + 1), [['none']] * (NMAX + 1), [False] * (NMAX + 1)
     for n in range(1, NMAX + 1):
         cands = ([(0, ['none'])] + [(o, ['example', label]) for (k, label), o in orders.items() if k == n]
-                 + [(min(lo[a], lo[n - a]), ['join', a, n - a]) for a in range(1, n) if part[a] and part[n - a]]
                  + [(lo[a] + lo[n // a], ['product', a, n // a]) for a in range(2, n // 2 + 1)
-                    if n % a == 0 and part[a] and part[n // a]])
+                    if n % a == 0 and part[a] and part[n // a]]
+                 + [(min(lo[a], lo[n - 2 * a]), ['join', a, n - 2 * a, a]) for a in range(1, (n - 1) // 2 + 1)
+                    if part[a] and part[n - 2 * a] and (lo[a] - lo[n - 2 * a]) % 2 == 0])
         lo[n], why[n] = max(cands, key=lambda c: c[0])
         part[n] = all(c[0] <= lo[n] for c in CITED.get(n, []))
     return tuple(lo), tuple(map(tuple, why))
@@ -767,7 +785,7 @@ def build(n):
     """The sequence behind column n's explicit lo, built from the explicit sequences by its joins and products."""
     why = explicit_lo()[1][n]
     rule = {'none': lambda: [1] * n, 'example': lambda: explicit()[n, why[1]],
-            'join': lambda: join(build(why[1]), build(why[2])),
+            'join': lambda: reduce(join, map(build, why[1:])),
             'product': lambda: product(build(why[1]), build(why[2]))}
     return rule[why[0]]()
 
@@ -785,6 +803,7 @@ def columns():
     for n in range(1, NMAX + 1):
         a = build(n)
         assert len(a) == n and order(a) >= lo_x[n], n
+        assert all(a[-1 - i] == (-1) ** lo_x[n] * t for i, t in enumerate(a)), n      # (-1)^lo-symmetric (2026-11-18)
         cited = CITED.get(n, [])
         lo, lw = max([(lo_x[n], list(why_x[n]))] + [(v[0], ['table2']) for k, v in TABLE2.items() if k == n]
                      + [(NEW[k][0], ['page', who]) for k, who in EXAMPLE_BY.items() if k == n], key=lambda c: c[0])

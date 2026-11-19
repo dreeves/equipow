@@ -254,6 +254,14 @@ code {
 /* A witness's codes (2026-11-18), at the end of its line, after a space, where the line may break before a long one
    (until then on a line of their own under it, between it and the next part, where a short one looked like no one's) */
 .codes > * + * { margin-left: 0.5rem; }
+/* and set apart from the witness's label or formula before them (2026-11-18; dreeves: "formula and witness squished
+   together"), as one code is from the next: by a margin after what comes before them, which stays at the end of the
+   line when a long code goes to the next (a margin on the codes went with them and indented the code's first line) */
+[data-why^="witness-"] :has(+ .codes) { margin-right: 0.5rem; }
+/* A witness's line flush left, not justified as the page's prose is (2026-11-18; dreeves, of 1904's: "whatever you did
+   to try to space out the formulas and witnesses went a bit wrong"): a long code goes to the next line, and justifying
+   the line it leaves stretched its few spaces across the column, "equipow" at one end and "p1904" at the other */
+[data-why^="witness-"] p { text-align: start; }
 /* The codes and joins as buttons (2026-10-31, dreeves's [REO] item 2; page/codes.js marks each with aria-expanded): a
    click shows its partition below it, after the block that holds it (page/codes.js), ruled at its left; each part's
    numbers wrap in a box four and a half lines
@@ -271,20 +279,36 @@ code[aria-expanded], [data-text][aria-expanded] { cursor: pointer; text-decorati
 .partition, .derivation { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.35rem; margin-block: 0.3rem 0.5rem; padding-left: 0.75rem; border-left: 1px solid var(--muted);
              font-size: 0.875rem; color: var(--muted); text-align: start; hyphens: manual; -webkit-hyphens: manual; }
 .partition[hidden], .derivation[hidden] { display: none; }
-.partition-part { max-height: 6.75em; overflow-y: auto; overflow-wrap: anywhere; }
+/* (padding since 2026-11-18, dreeves: "the partitions have some kind of faint scrollbars and in fact scroll very
+   slightly": a subscript, the i of f_i, reached below the line and the part's box, which then scrolled by a pixel) */
+.partition-part { max-height: 6.75em; overflow-y: auto; overflow-wrap: anywhere; padding-bottom: 0.25em; }
 .partition-part [data-part], .power-sums td { font-family: var(--mono); font-size: 0.8125rem; color: var(--ink); }
 /* The power sums scroll past 60% of the viewport's height (2026-11-03), so that a partition is no taller than a phone's viewport at orders 13 and 15 too */
 .power-sums { display: block; max-height: 60vh; overflow-y: auto; justify-self: start; border-collapse: collapse; font-size: inherit; line-height: 1.3; }
 .power-sums th { font-weight: 400; text-align: end; white-space: nowrap; padding-inline: 0.25rem; }
 .power-sums td { text-align: end; overflow-wrap: anywhere; padding-inline: 0.25rem; }
-/* A derivation's steps (2026-10-31): each step's formula at the left, then its length n and its order m, each with the
-   arithmetic that gives it, at the right, so that the results line up; the bound below them */
-.derivation-steps { justify-self: start; border-collapse: collapse; font-size: inherit; line-height: 1.3; }
-.derivation-steps th { font-weight: 400; text-align: start; padding-inline: 0 0.5rem; color: var(--ink); }
-.derivation-steps thead th { text-align: end; color: var(--muted); }
-.derivation-steps td { text-align: end; padding-inline: 0.5rem 0; color: var(--ink); }
-.derivation-steps a { text-underline-offset: 0.45em; }      /* below a name's subscript, as KaTeX underlines its links */
-[data-bound] { color: var(--ink); }
+/* The marks = and ≠, after the sums (2026-11-18; dreeves: "how about putting them to the right of the powersums. and
+   make them green and the not-equal sign red ... or maybe that's too garish, idk, use judgment"; then, of the marks on
+   the charts' full colors: "i don't know about the color contrast here. and maybe the table should have borders?"):
+   the mark in ink on a pale tint of the chart's green, = as a cell that exists, and on the chart's red, ≠ as one ruled
+   out, so that the marks read as the partition's column of the chart does, green up to its order and red at it, the ≠
+   the darker (ink on them 14.4:1 and 10.4:1; ink on the full green was 5.5:1, and the green was the loudest thing in
+   the table); and booktabs' rules, no vertical one: one above and one below the head and one at the foot, in ink, and
+   a hairline between the k's, each k's sums padded off it; k as it was
+   (scratch/table-design-20261118/: two subagents' research and prototypes) */
+.power-sums thead { border-block: 1px solid var(--rule); }
+.power-sums thead tr + tr > th { padding-bottom: 0.25em; }     /* the head's rule clear of the subscript of B */
+.power-sums tbody { border-bottom: 1px solid var(--rule); }
+.power-sums tbody tr + tr:has(> [data-k]) { border-top: 1px solid color-mix(in oklab, var(--rule) 30%, var(--paper)); }
+.power-sums [data-sum="+1"] { padding-top: 0.2em; }
+.power-sums [data-sum="-1"] { padding-bottom: 0.2em; }
+.power-sums [data-relation] { text-align: center; color: var(--ink); padding-inline: 0.35rem; }
+.power-sums [data-relation="="] { background: color-mix(in oklab, var(--exists) var(--tint), var(--paper)); }
+.power-sums [data-relation="≠"] { background: var(--impossible); }
+/* A derivation's lines (2026-11-18, in place of the table of steps and the bound under it, dreeves: "the first table is
+   confusing and looks misaligned"): its parts' orders, its length, its order, each a line in ink */
+.derivation > p { margin: 0; color: var(--ink); line-height: 1.4; }
+.derivation a { text-underline-offset: 0.45em; }            /* below a name's subscript, as KaTeX underlines its links */
 /* A text (2026-11-05, dreeves's README: "[MAI] Let's get more things as expandable sections of the main equipow page
    instead of linking to separate pages. Proofs currently in txt files for starters"): its name a button, ruled as a
    code is (above), and its box (page/codes.js), a <pre> of every character as written, framed as a partition is, in the

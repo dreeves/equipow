@@ -45,6 +45,7 @@ try {
   const prime = p => { for (let d = 2; d * d <= p; d++) if (p % d === 0) return false; return p >= 2; };
   const sub = k => String(k).replace(/\d/g, d => '₀₁₂₃₄₅₆₇₈₉'[d]);
   const loOf = n => D.cols[n - 1][0];
+  const EXPLICIT = new Set(['none', 'example', 'join', 'product']);   // the kinds of lower bound with a sequence behind them (2026-11-18)
   // The reasons of the data contract.  ok(n, lo or hi, ...its arguments) checks one; text(n, lo or hi, ...) gives it in
   // Claude's words, starting "order lo" or "order hi + 1"; and witness(n, lo, ...) or proof(n, hi, ...) what a box
   // shows of it (since 2026-11-04, [CEL]; an explanation in the panel of column n from 2026-11-03), from the templates
@@ -52,6 +53,10 @@ try {
   // or a product's construction, which page/codes.js expands into its derivation, and a copy of each code of the page of
   // the length and the order of a lower bound not an example's (copies); and the proof of an upper bound worked out for n.  An odd n has a column only while
   // its box is unchecked, and every cell of it is impossible: "none" shows no witness, and "odd" that n is odd.
+  // (Since 2026-11-18, when every witness came to be (-1)^lo-symmetric, dreeves: "making all witnesses conforming
+  // sounds great": a join is of three parts, a, b, a, and a join's or a product's witness shows the code of the
+  // sequence it builds (codeOf, columnSigns), as an example's shows its own; its parts are columns with a sequence
+  // behind their lower bounds, EXPLICIT, as quals_mstar names them.)
   const LO = {
     none: {ok: (n, lo) => lo === 0 && n % 2 === 1, witness: () => shown()},
     example: {
@@ -61,16 +66,18 @@ try {
       witness: (n, lo, label) => example(n, lo, linked(SOURCES.get(n), label), coded(BigInt(n), lo, CODES.get(n))),   // its code and source, the data's (2026-11-18)
     },
     join: {
-      ok: (n, lo, a, b) => [a, b].every(Number.isInteger) && a >= 1 && b >= 1 && a + b === n && lo <= Math.min(loOf(a), loOf(b)),
-      // readout reason; says order lo is known from the join of the examples of lengths a and b
-      text: (n, lo, a, b) => `order ${lo} from the join p${sub(a)}\u00a0∨\u00a0p${sub(b)}`,
-      witness: (n, lo, a, b) => construction(BigInt(n), n, lo, `p_{${a}} \\vee p_{${b}}`, copies(BigInt(n), lo)),
+      ok: (n, lo, a, b, c) => [a, b, c].every(k => Number.isInteger(k) && 1 <= k && EXPLICIT.has(D.cols[k - 1]?.[2][0])) && a + b + c === n
+        && lo <= Math.min(loOf(a), loOf(b), loOf(c)),
+      // readout reason; says order lo is known from the join of the examples of lengths a, b and c
+      text: (n, lo, a, b, c) => `order ${lo} from the join p${sub(a)}\u00a0∨\u00a0p${sub(b)}\u00a0∨\u00a0p${sub(c)}`,
+      witness: (n, lo, a, b, c) => construction(BigInt(n), n, lo, `p_{${a}} \\vee p_{${b}} \\vee p_{${c}}`, coded(BigInt(n), lo, codeOf(columnSigns(n), lo))),
     },
     product: {
-      ok: (n, lo, a, b) => [a, b].every(Number.isInteger) && a >= 2 && b >= 2 && a * b === n && lo <= loOf(a) + loOf(b),
+      ok: (n, lo, a, b) => [a, b].every(k => Number.isInteger(k) && 2 <= k && EXPLICIT.has(D.cols[k - 1]?.[2][0])) && a * b === n
+        && lo <= loOf(a) + loOf(b),
       // readout reason; says order lo is known from the expanded product of the examples of lengths a and b
       text: (n, lo, a, b) => `order ${lo} from the product p${sub(a)}\u00a0#\u00a0p${sub(b)}`,
-      witness: (n, lo, a, b) => construction(BigInt(n), n, lo, `p_{${a}} \\mathbin{\\#} p_{${b}}`, copies(BigInt(n), lo)),
+      witness: (n, lo, a, b) => construction(BigInt(n), n, lo, `p_{${a}} \\mathbin{\\#} p_{${b}}`, coded(BigInt(n), lo, codeOf(columnSigns(n), lo))),
     },
     table2: {
       ok: (n, lo) => n % 8 === 0 && n <= 304,

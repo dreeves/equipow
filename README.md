@@ -20,6 +20,27 @@ Potential tasks:
 Human to rewrite:
 Click a formula built with those to see its derivation. A product multiplies the lengths of its parts and adds their orders; a join adds the lengths, and its order is at least the smallest of its parts.
 
+A product 
+
+
+--
+
+edit to my line for the row boxes:
+
+For order 13, the Symmetry Conjecture is proven to hold for n>=3665.
+
+and let's reorganize this further:
+
+m=13
+[excerpt from table 3]
+OEIS blah blah
+For order 13, the Symmetry Conjecture is proven to hold for n>=3665.
+
+and then have two sections, side-by-side or however looks best:
+Assuming Symmetry Conjecture
+
+
+
 Stan notes:
 
 ---

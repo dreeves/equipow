@@ -109,9 +109,9 @@ def rebuild(n, cs, ex):
     assert kind in EXPLICIT, (n, why)
     if kind == 'none': return [1] * n
     if kind == 'example': return ex[n, why[1]]
-    a, b = why[1], why[2]
-    if kind == 'join': return rebuild(a, cs, ex) + rebuild(b, cs, ex)
-    fa, fb = rebuild(a, cs, ex), rebuild(b, cs, ex)
+    # a join of any number of parts, one after the other (2026-11-18: a, b, a since that day, a, b until then)
+    if kind == 'join': return [t for k in why[1:] for t in rebuild(k, cs, ex)]
+    fa, fb = rebuild(why[1], cs, ex), rebuild(why[2], cs, ex)
     return [s * t for t in fb for s in fa]
 
 
@@ -444,7 +444,8 @@ def q_schema():
     assert at == sorted(at), at                  # order m + 1 at n has order m there
     T = M['mtop']
     assert type(T) is int and T == max(c[1] for c in M['cols']) + 1
-    forms_lo = {'none': (), 'example': (str,), 'join': (int, int), 'product': (int, int), 'table2': (),
+    # (a join a, b, a since 2026-11-18, whose sequence is (-1)^lo-symmetric: mstar.explicit_lo; a, b until then)
+    forms_lo = {'none': (), 'example': (str,), 'join': (int, int, int), 'product': (int, int), 'table2': (),
                 'page': (str,)}
     forms_hi = {'odd': (), 'two': (), 'norm': (int,), 'residue': (int,), 'proof': (str,), 'prop44': (), 'table2': (), 'page': (str,)}   # proof: since 2026-11-10 (mstar.PROOFS); prop44: since 2026-11-11 (mstar.prop44)
     for n, c in enumerate(M['cols'], 1):
@@ -476,11 +477,14 @@ def q_every_example_has_its_code():
     # when that turned out to break dreeves's rule of 2026-11-07 that a link to a code is its name in math).
     # Resultata before: no codes: of the 124 examples, the 47 that the page did not show (BGPW's Tables 4 and 5,
     # Thue–Morse, brute force's and one of overnight_v5's) had a label alone.
+    # Spec change (later that night, for dreeves's sign-off; his "making all witnesses conforming sounds great"): 130
+    # examples, not 124: the six of mstar.FOUND that no product or join of conforming columns reaches (136, 152, 1328,
+    # 1360, 1424, 1456).
     _, got = disk()
     M = got['m']
     cols, ex = M['cols'], mstar.explicit()
     examples = [n for n, c in enumerate(cols, 1) if c[2][0] == 'example']
-    assert [n for n, _, _ in M['examples']] == examples and len(examples) == 124, (len(M['examples']), len(examples))
+    assert [n for n, _, _ in M['examples']] == examples and len(examples) == 130, (len(M['examples']), len(examples))
     for n, _, source in M['examples']:
         label = cols[n - 1][2][1]
         assert source == mstar.SOURCES.get(label, f'#entry-{n}') and (label in mstar.SOURCES or n % 4 == 0), (n, label, source)
@@ -561,10 +565,34 @@ def q_columns_rebuilt():
         a = rebuild(n, cs, ex)
         assert len(a) == n and set(a) <= {1, -1} and divides_order(a, lo), (n, why)
         if why[0] in ('join', 'product'):
-            x, y = why[1], why[2]
-            assert cs[x - 1][2][0] in EXPLICIT and cs[y - 1][2][0] in EXPLICIT, (n, why)
-            rule = {'join': (x + y, min(cs[x - 1][0], cs[y - 1][0])), 'product': (x * y, cs[x - 1][0] + cs[y - 1][0])}
-            assert rule[why[0]] == (n, lo), (n, why)
+            # (2026-11-18: a join's parts any number, a, b, a since that day; its lengths' sum and its parts' least lo)
+            parts = why[1:]
+            assert all(cs[k - 1][2][0] in EXPLICIT for k in parts), (n, why)
+            rule = {'join': lambda: (sum(parts), min(cs[k - 1][0] for k in parts)),
+                    'product': lambda: (parts[0] * parts[1], cs[parts[0] - 1][0] + cs[parts[1] - 1][0])}
+            assert rule[why[0]]() == (n, lo), (n, why)
+
+
+def q_every_witness_is_conforming():
+    # 2026-11-18 (Opus 5.5; dreeves, of a witness neither symmetric nor antisymmetric: "for now let's call such a
+    # witness "nonconforming", as in not conforming to the symmetry conjecture", and then: "making all witnesses
+    # conforming sounds great").
+    # Replicata: every column of mstar.js whose lower bound has a sequence behind it (none, example, join or product),
+    # that sequence rebuilt from mstar.js's columns alone (rebuild); and, for a control, the join p_8 v p_44 of the
+    # chart's own sequences, 52's witness until that day.
+    # Expectata: each one (-1)^lo-symmetric, f_(n-1-i) = (-1)^lo f_i, as BGPW's Symmetry Conjecture has its sequences,
+    # so that its code in BGPW's convention, its left half, holds it whole, and of exact order lo, as the page's click
+    # on that code demands (page/codes.js: power sums equal below lo, unequal at lo); the control neither symmetric nor
+    # antisymmetric, and 36's sequence, of exact order 3, not taken for one of order 2.
+    # Resultata before: the joins of 871 columns (34, 36, 38, ...) were neither.
+    _, got = disk()
+    cs, ex = got['m']['cols'], mstar.explicit()
+    mirrored = lambda a, s: all(a[-1 - i] == s * t for i, t in enumerate(a))
+    holds = lambda a, lo: mirrored(a, (-1) ** lo) and exact_order_div(a) == lo
+    bad = [n for n, (lo, _, why, _) in enumerate(cs, 1) if why[0] in EXPLICIT and not holds(rebuild(n, cs, ex), lo)]
+    assert bad == [], (len(bad), bad[:12])
+    control = rebuild(8, cs, ex) + rebuild(44, cs, ex)
+    assert not mirrored(control, 1) and not mirrored(control, -1) and holds(rebuild(36, cs, ex), 3) and not holds(rebuild(36, cs, ex), 2)
 
 
 def q_lo_reasons():
@@ -984,7 +1012,10 @@ def q_1456_is_settled_by_its_proof():
     # (mstar.PROOFS == {1456: ...} until 2026-11-11, when 1248 got a proof of its own: q_1248_is_settled_by_its_proof)
     assert mstar.PROOFS[1456] == (11, 'proofs/proof1456.py'), mstar.PROOFS
     assert all(os.path.isfile(os.path.join(HERE, file)) for _, file in mstar.PROOFS.values())
-    assert got['m']['cols'][1455] == [11, 11, ['join', 432, 1024], ['proof', 'proofs/proof1456.py']], got['m']['cols'][1455]
+    # Spec change (Opus 5.5, 2026-11-18, for dreeves's sign-off; his "making all witnesses conforming sounds great"): the
+    # lower bound's reason an example, the code of the antisymmetric p_240 v p_976 v -p_240 (mstar.FOUND), in place of
+    # the join 432 + 1024, neither symmetric nor antisymmetric; the upper bound's, this qual's point, unchanged.
+    assert got['m']['cols'][1455] == [11, 11, ['example', 'pagegen/mstar.py'], ['proof', 'proofs/proof1456.py']], got['m']['cols'][1455]
     mstar.proved(1456, 11, 'proofs/proof1456.py')
     for n, hi in ((1456, 10), (1472, 11)):
         try: mstar.proved(n, hi, 'proofs/proof1456.py')

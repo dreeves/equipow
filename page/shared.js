@@ -270,6 +270,44 @@ const coded = (N, lo, hex) => {
   Object.assign(code.dataset, {code: `${N}:${lo}`, copy: `${N}:${lo}`});
   return [code];
 };
+// The code of the sequence behind a join's or a product's lower bound in the m*(n) chart (Opus 5.5, 2026-11-18;
+// dreeves: "witnesses are a top-level thing, conceptually", and, of every witness made (-1)^lo-symmetric so that a code
+// in BGPW's convention holds it whole: "making all witnesses conforming sounds great"), which its witness shows, coded,
+// as an example's shows its own: a code's signs (decode), a column's (columnSigns), and a symmetric sequence's code
+// (codeOf).
+//
+// decode(hex, m, n): f_0 to f_(n-1), +1 or -1, as overnight_v5.from_hex and mstar.py's from_rp read a code: each hex
+// digit's four bits, the most significant first, 1 as +1 and 0 as -1, begin the left half, whose n/2 bits they are,
+// the code's other bits 0; the right half is the left half reversed, times (-1)^m.  It throws on an odd n, a number of
+// digits other than n/8 rounded up, or a padding bit other than 0.
+const decode = (hex, m, n) => {
+  const bits = [...hex].flatMap(d => [...parseInt(d, 16).toString(2).padStart(4, '0')].map(Number));
+  if (!(n % 2 === 0 && hex.length === Math.ceil(n / 8) && bits.slice(n / 2).every(b => b === 0))) throw new Error(JSON.stringify([hex, n]));
+  const left = bits.slice(0, n / 2).map(b => 2 * b - 1);
+  return [...left, ...left.toReversed().map(t => (-1) ** m * t)];
+};
+// The join and the expanded product of two sequences, as the page defines them: f ∨ g = f(x) + x^{n_f} g(x), the signs
+// of f and then g's; f # g = f(x) g(x^{n_f}), block j f times g_j.
+const COMBINE = {'∨': (f, g) => [...f, ...g], '#': (f, g) => g.flatMap(t => f.map(s => s * t))};
+// columnSigns(N): the signs of the sequence behind column N's lower bound, as mstar.py's build makes it: an example's,
+// its code's (mstar.js's examples); a join's, its parts' joined; a product's, its parts' multiplied; none's, N ones.
+// Each column's once.
+const SIGNED = new Map();
+const columnSigns = N => {
+  const [lo, , why] = MSTAR.cols[N - 1];
+  const RULE = {none: () => Array(N).fill(1), example: () => decode(MSTAR.examples.find(([n]) => n === N)[1], lo, N),
+                join: (...parts) => parts.map(columnSigns).reduce(COMBINE['∨']), product: (a, b) => COMBINE['#'](columnSigns(a), columnSigns(b))};
+  if (!SIGNED.has(N)) SIGNED.set(N, RULE[why[0]](...why.slice(1)));
+  return SIGNED.get(N);
+};
+// codeOf(f, m): the bits of f's left half, 1 for +1, padded with 0 to whole hex digits, n/8 of them rounded up; it
+// throws unless f is (-1)^m-symmetric, f_(n-1-i) = (-1)^m f_i, so that the code holds f whole.
+const codeOf = (f, m) => {
+  const n = f.length;
+  if (!(n % 2 === 0 && f.every((t, i) => f[n - 1 - i] === (-1) ** m * t))) throw new Error(JSON.stringify([n, m]));
+  const bits = f.slice(0, n / 2).map(t => (t + 1) / 2).join('').padEnd(4 * Math.ceil(n / 8), '0');
+  return bits.match(/..../g).map(b => parseInt(b, 2).toString(16).toUpperCase()).join('');
+};
 // The codes that an entry or a box holds itself, of the page, by its id: each copy or code of the data in parts whose
 // N:M (data-copy) is one of them goes, a code being shown once (appendix.js and chartPanel).
 const dropHeld = (parts, held) => parts.flatMap(p => [...p.querySelectorAll('[data-copy]')]).filter(c => held.has(c.dataset.copy)).forEach(c => c.remove());

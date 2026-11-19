@@ -22,6 +22,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono&family=STIX+Two+Text:ital,wght@0,400;0,600;1,400&display=swap">
+<!-- IBM Plex Mono's ≠ (2026-11-18): none of the subsets that the link above gets has it, so the power sums' ≠ was drawn in another font (Menlo on a Mac) -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono&text=%E2%89%A0&display=swap">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.47/dist/katex.min.css" integrity="sha256-AomgLPRRpE3XOt1oOglkQlI2OHGsEXE6ZHtzLO6LHuM=" crossorigin="anonymous">
 <link rel="stylesheet" href="page/style.css">
 <!-- Every error the page's scripts do not catch, shown at once at the top of the window (page/errors.js, 2026-11-12): first of the page's scripts, so that it hears every other's -->
@@ -1037,37 +1039,46 @@ such that the Symmetry Conjecture holds for lengths \(n \ge N\).
       The hex codes shown below follow Table 5 of BGPW: 
       the left half of the signs \((1 = +1, 0 = -1)\), then the rest by \((-1)^m\) symmetry.
       Click to expand them into the actual bipartitions.
+      We also refer to such a bipartition as a <i>witness</i> becauses it establishes that a given length \(n\) has at least a certain order \(m\).
     </p>
+    <p>
+      The symbols \(\mathbin{\#}\) and \(\vee\) denote the expanded product and the join operation on Littlewood polynomials:<br>
+      \(f \mathbin{\#} g = f(x)\cdot g(x^{n_f})\)<br>
+      \(f \vee g = f(x) + x^{n_f} g(x)\),<br>
+      where \(n_f\) is the length of \(f\). 
+    </p>
+    <p>
+      The length of a Littlewood polynomial refers to the the number of terms and the order is the multiplicity of the \(x=1\) root, i.e., the largest power of \(x-1\) that can be factored out of the polynomial.
+      The expanded product and the join have these properties:
+    </p>
+    <ul>
+      <li>\(\operatorname{length}(f \mathbin{\#} g) = \operatorname{length}(f)\operatorname{length}(g)\)</li>
+      <li>\(\operatorname{order}(f \mathbin{\#} g) = \operatorname{order}(f)+\operatorname{order}(g)\)</li>
+      <li>\(\operatorname{length}(f \vee g) = \operatorname{length}(f)+\operatorname{length}(g)\)</li>
+      <li>\(\operatorname{order}(f \vee g) \ge \min(\operatorname{order}(f),\operatorname{order}(g))\)</li>
+    </ul>
+    <p>In the formulas below you can click a formula to see its derivation.</p>
     <!-- A code's or a join's partition (dreeves's [REO] item 2), which page/codes.js puts right below it at its first click and fills in with numbers and the marks = and ≠: its two parts as sets, and their power sums -->
     <template data-partition>
       <div class="partition">
         <div class="partition-part"><i>A</i> = {<i>i</i> : <i>f<sub>i</sub></i> = +1} = {<span data-part="+1"></span>}</div>
         <div class="partition-part"><i>B</i> = {<i>i</i> : <i>f<sub>i</sub></i> = −1} = {<span data-part="-1"></span>}</div>
         <table class="power-sums">
-          <thead><tr><th rowspan="2"><i>k</i></th><th rowspan="2"></th><th>∑<sub><i>i</i> ∈ <i>A</i></sub> <i>i<sup>k</sup></i></th></tr><tr><th>∑<sub><i>i</i> ∈ <i>B</i></sub> <i>i<sup>k</sup></i></th></tr></thead>
+          <thead><tr><th rowspan="2"><i>k</i></th><th>∑<sub><i>i</i> ∈ <i>A</i></sub> <i>i<sup>k</sup></i></th><th rowspan="2"></th></tr><tr><th>∑<sub><i>i</i> ∈ <i>B</i></sub> <i>i<sup>k</sup></i></th></tr></thead>
           <tbody data-power-sums></tbody>
         </table>
       </div>
     </template>
-    <!-- A construction's derivation (2026-10-31), which page/codes.js puts right below it at its first click and fills in with names, numbers and the signs of arithmetic: a row per step, each part (p_N, τ_j, or a letter that names a construction) and then the product or join that uses it, with its length n and its order m, the whole formula last; then the bound m*(N) ≥ M.  A part τ_j cites Thue–Morse, as the powers-of-2 chart's caption calls it -->
+    <!-- A construction's derivation (2026-10-31; since 2026-11-18, dreeves: "the first table is confusing and looks misaligned", "it seems to have redundancies like repeating the formula and m* inequality", "just make every one a link"), which page/codes.js puts right below it at its first click and fills in with names, numbers and the signs of arithmetic: its parts' orders, each part (p_N, τ_j, or a letter that names a construction) a link to where the page says what it is; then its length and its order worked out a level of the formula at a time, in dreeves's notation, length and order, by the rules above the appendix's entries (data-part-order: one part's; data-name: where its name goes; data-thue-morse: where a τ_j links, Thue–Morse at the OEIS) -->
     <template data-derivation>
       <div class="derivation">
-        <table class="derivation-steps">
-          <thead><tr><th></th><th><i>n</i></th><th><i>m</i></th></tr></thead>
-          <tbody data-steps></tbody>
-        </table>
-        <div data-bound><i>m</i><sup>*</sup>(<span data-bound-n></span>) ≥ <span data-bound-m></span></div>
+        <p data-parts></p>
+        <p>length<span data-length></span></p>
+        <p>order<span data-order></span></p>
       </div>
-      <span data-thue-morse>Thue–Morse</span>
+      <span data-part-order>order(<span data-name></span>) = <span data-m></span></span>
+      <a data-thue-morse href="https://oeis.org/A010060"></a>
     </template>
-    <p>
-      Finally, the symbols \(\mathbin{\#}\) and \(\vee\) denote the expanded product and the join operation on Littlewood polynomials:<br>
-      \(f \mathbin{\#} g = f(x)\cdot g(x^{n_f})\)<br>
-      \(f \vee g = f(x) + x^{n_f} g(x)\),<br>
-      where \(n_f\) is the length of \(f\). 
-    </p>
-    <!-- Says that a click on a formula built with # and ∨ shows its derivation, and gives the rules that the derivation uses: a product multiplies the lengths of its parts and adds their orders, and a join adds the lengths and has at least the smallest of their orders -->
-    <p>Click a formula built with those to see its derivation. A product multiplies the lengths of its parts and adds their orders; a join adds the lengths, and its order is at least the smallest of its parts.</p>
     <div class="remarks"><ul class="entries">
     <li class="c">
       <span class="mk" aria-hidden="true">◆</span>

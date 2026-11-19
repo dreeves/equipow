@@ -1132,8 +1132,8 @@ async function boxes(R) {
     built.click();
     const steps = document.getElementById(built.getAttribute('aria-controls'));
     return {expanded: built.getAttribute('aria-expanded'), inBox: region.contains(steps), shown: steps.checkVisibility(),
-            rows: [...steps.querySelectorAll('[data-steps] tr')].map(tr => [tr.dataset.n, tr.dataset.m]),
-            bound: steps.querySelector('[data-bound]').textContent.replace(/\s+/g, ' ').trim()};
+            parts: [...steps.querySelectorAll('[data-part-order]')].map(x => [x.dataset.n, x.dataset.m]),   // (2026-11-18: its rows and bound until then)
+            lines: [...steps.querySelectorAll(':scope > p')].map(x => x.textContent.replace(/\s+/g, ' ').trim()), claim: [steps.dataset.n, steps.dataset.m]};
   })[0] ?? null;
   // the searches of an open cell, once loaded
   click([528, 12]);
@@ -1187,7 +1187,8 @@ async function openAppendix() {
   const shown = document.getElementById(twelve.getAttribute('aria-controls'));
   out.twelve = {digits: twelve.textContent, expanded: twelve.getAttribute('aria-expanded'), shown: shown.checkVisibility(),
     parts: [...shown.querySelectorAll('[data-part]')].map(e => e.textContent), ks: [...shown.querySelectorAll('[data-k]')].map(e => e.textContent),
-    relations: [...shown.querySelectorAll('[data-relation]')].map(e => e.textContent)};
+    relations: [...shown.querySelectorAll('[data-relation]')].map(e => e.textContent),
+    heights: [...shown.querySelectorAll('.partition-part')].map(e => [e.clientHeight, e.scrollHeight])};   // (2026-11-18)
   d.open = false;
   return out;
 }
@@ -1239,13 +1240,16 @@ def kinds_data(violation=None):
                     [1, two, ['example', 'a made-up label'], ['two']] if two <= 7 else
                     [1, 7, ['example', 'a made-up label'], ['residue', 3]])
     for n, c in ((4, [2, 2, ['product', 2, 2], ['norm', 3]]), (8, [3, 3, ['table2'], ['table2']]),
-                 (12, [2, 3, ['join', 4, 8], ['two']]), (16, [4, 4, ['page', 's'], ['page', 'j']]),
+                 (12, [2, 3, ['join', 4, 4, 4], ['two']]), (16, [4, 4, ['page', 's'], ['page', 'j']]),
                  (20, [3, 3, ['page', 'c'], ['two']]), (24, [4, 5, ['example', 'BGPW Table 5'], ['residue', 9]]),
-                 (32, [5, 7, ['product', 16, 2], ['norm', 5]]), (48, [6, 7, ['table2'], ['norm', 7]]),
+                 (32, [5, 7, ['example', 'a made-up label'], ['norm', 5]]), (48, [6, 7, ['table2'], ['norm', 7]]),
                  (40, [1, 6, ['example', 'a made-up label'], ['prop44']])):   # prop44: since 2026-11-11 (40 = 2^3 · 5 < 2^7)
         cols[n - 1] = c
     # ifsym (2026-11-11, [SYC]): the columns 24 and 48 each have their top open cell red if the Symmetry Conjecture
     # holds: (24, 5), which is ringed (24 is the least n whose upper bound allows 5), and (48, 7), which is not
+    # (Since 2026-11-18, when the chart's joins came to be of three parts and the page to require a join's or a
+    # product's parts to have a sequence behind them, as mstar.py does: 12 is the join 4 + 4 + 4, not 4 + 8, and 32 an
+    # example, not the product of 16, cited, and 2.)
     # codes (2026-11-18): one for each example, of its form: n/8 hex digits rounded up, the left half all +1, the padding
     # 0 (page/codes.js checks the form as the page loads, the power sums only at a click, which no run of this data makes)
     data = {'nmax': DATA_NMAX, 'mtop': max(c[1] for c in cols) + 1, 'mtopAt': [DATA_NMAX + 2], 'past': [],
@@ -1268,8 +1272,11 @@ VIOLATIONS = {   # name: (a change that breaks the contract, what the page's err
                     "[100,[5,3,['example','a made-up label'],['two']]]"),
     'unknown kind': (column(100, [1, 3, ['guess'], ['two']]), "[100,[1,3,['guess'],['two']]]"),
     'arity': (column(100, [1, 3, ['join', 50], ['two']]), "[100,[1,3,['join',50],['two']]]"),
-    'join lengths': (column(100, [1, 3, ['join', 40, 50], ['two']]), "[100,[1,3,['join',40,50],['two']]]"),
-    'join order': (column(100, [3, 3, ['join', 50, 50], ['two']]), "[100,[3,3,['join',50,50],['two']]]"),
+    # (the joins of three parts since 2026-11-18; of two until then, 40 + 50 and 50 + 50)
+    'join lengths': (column(100, [1, 3, ['join', 40, 10, 40], ['two']]), "[100,[1,3,['join',40,10,40],['two']]]"),
+    'join order': (column(100, [3, 3, ['join', 25, 50, 25], ['two']]), "[100,[3,3,['join',25,50,25],['two']]]"),
+    # (2026-11-18) a join's part with no sequence behind it: 8, whose lower bound is cited (table2)
+    'join part': (column(100, [1, 3, ['join', 8, 84, 8], ['two']]), "[100,[1,3,['join',8,84,8],['two']]]"),
     'product order': (column(100, [3, 3, ['product', 50, 2], ['two']]), "[100,[3,3,['product',50,2],['two']]]"),
     'two': (column(100, [1, 2, ['example', 'x'], ['two']]), "[100,[1,2,['example','x'],['two']]]"),
     'norm divisor': (column(100, [1, 3, ['example', 'x'], ['norm', 5]]), "[100,[1,3,['example','x'],['norm',5]]]"),
@@ -2141,10 +2148,16 @@ def q_remarks_name_the_chart_s_constructions():
     # Expectata: every item is the chart's own construction: a = 2·b is ["product", 2, b], a = b + c is ["join", b, c],
     # as their TODOs say ("how the m*(n) chart gets these").  (On 2026-10-12 the example at 560 made the chart's joins
     # 240 + 560, 336 + 560 and 432 + 560 win its ties at 800, 896 and 992, which a remark still called doublings.)
+    # (2026-11-18, Opus 5.5: at least one such sentence, a check the qual lacked; since its sentences lost the writer
+    # and the quotation mark that opened them, in the folds of model's text (2026-11-13), and came to write their
+    # items in LaTeX, \(a = 2\cdot b\), it had found none, and so passed checking nothing.  Now each sentence with or
+    # without its writer, its items in LaTeX, a join of any number of parts.)
     cols = mstar_data()['cols']
-    for s in re.findall(WRITERS + r': “Order \d+ from examples above, (.*?); order', page()):
-        for kind, body in re.findall(r'(doubled|joined) \(([^)]*)\)', s):
-            for a, b, c in re.findall(r'(\d+) = (?:2·(\d+)|(\d+ \+ \d+))', body):
+    sentences = re.findall(r'Order \d+ from examples above, (.*?); order', page())
+    assert sentences, 'no remark sentence of that form'
+    for s in sentences:
+        for kind, body in re.findall(r'(doubled|joined) \((.*?\\\))\)', s):
+            for a, b, c in re.findall(r'(\d+) = (?:2\\cdot (\d+)|(\d+(?: \+ \d+)+))', body):
                 want = ['product', 2, int(b)] if kind == 'doubled' else ['join', *map(int, c.split(' + '))]
                 assert (kind == 'doubled') == bool(b), (kind, a, b, c)
                 assert cols[int(a) - 1][2] == want, (a, cols[int(a) - 1][2], want)
@@ -3991,7 +4004,7 @@ def q_a_box_whose_statement_fails_says_so():
   document.querySelectorAll('#mstar-omit input')[2].click();
   await sleep(50);
   parent.postMessage(JSON.stringify({...R, after: ro.textContent, errors}), '*');""", kinds_data(), BEFORE[2])
-    quoted = "[12,[2,3,['join',4,8],['two']]]"
+    quoted = "[12,[2,3,['join',4,4,4],['two']]]"   # (the join 4 + 8 until 2026-11-18)
     assert got['tall'] and 'Error' not in got['before'], got['before']
     assert got['after'].endswith(f'Error: {quoted}') and got['errors'] == [f'Uncaught Error: {quoted}'], (got['after'], got['errors'])
 
@@ -4564,7 +4577,7 @@ def panel_says(data, n, P):
     arg, harg = (lw + [None])[1], (hw + [None])[1]                  # the first argument of each reason, if any
     built = lambda tex: [f'{n}:{lo}', 'button', f'\\({tex}\\)'] in P['constructions']
     says += {'example': [('label', f'\\(m^*({n}) \\ge {lo}\\): {arg}' in t)],
-             'join': [('construction', built(f'p_{{{a}}} \\vee p_{{{b}}}'))],
+             'join': [('construction', built(' \\vee '.join(f'p_{{{k}}}' for k in lw[1:])))],   # (any parts since 2026-11-18)
              'product': [('construction', built(f'p_{{{a}}} \\mathbin{{\\#}} p_{{{b}}}'))],
              'table2': [('cited', TABLE2 in P['links'])], 'page': [('who', legend_labels(page()).get(arg, '\0') in t)]}[lw[0]]
     t2 = (n & -n).bit_length() - 1
@@ -5157,7 +5170,9 @@ def entry_lis():
     """[(the lengths it lists, its HTML with comments blanked)] for each entry written by hand, an li of the appendix's
     list (the remarks' list until 2026-11-18), in page order."""
     section = blank_comments(re.search(r'<section class="appendix"[^>]*>(.*?)</section>', page(), re.S)[1])
-    lis = re.findall(r'<li[ >].*?</li>', section, re.S)
+    # (the entries' own list, ul.entries, since 2026-11-18, when dreeves's list of the product's and the join's
+    # properties came to be in the appendix's opening; every li of the section until then)
+    lis = re.findall(r'<li[ >].*?</li>', section[section.index('<ul class="entries">'):], re.S)
     lengths = [re.search(r'<p class="entry">\\\(n = (.*?)\\\): ', li)[1].split(', ') for li in lis]
     return [([2 ** int(x[3:-1]) if x.startswith('2^{') else int(x) for x in ns], li) for ns, li in zip(lengths, lis)]
 
@@ -5316,18 +5331,52 @@ def box_parts(cols, n, m=None, ifsym=()):
 def coded(lw, n, lo):
     """Whether a witness of the lower bound lo of the length n, of the reason lw, shows a code (witness-code): an
     example's, always, its code from mstar.js's codes (Opus 5.5, 2026-11-18; dreeves: "there should be no "found
-    here". what does "here" mean? totally ambiguous. show the expandable hex code for everything"); any other's, a
-    copy of the page's code n:lo where the page has one (until that day every witness's, examples' too)."""
-    return lw[0] == 'example' or f'{n}:{lo}' in code_ids()
+    here". what does "here" mean? totally ambiguous. show the expandable hex code for everything"); a join's or a
+    product's, always, the code of the sequence it builds (that night; dreeves: "witnesses are a top-level thing,
+    conceptually", and, of every witness made (-1)^lo-symmetric so that a code in BGPW's convention holds it: "making
+    all witnesses conforming sounds great"; until then such a witness's code was behind its construction, in its
+    derivation's box); any other's, a copy of the page's code n:lo where the page has one (until 2026-11-18 every
+    witness's, examples' too)."""
+    return lw[0] in ('example', 'join', 'product') or f'{n}:{lo}' in code_ids()
+
+
+def column_signs(data, n, memo=None):
+    """The signs of the sequence behind column n's lower bound, by data (mstar.js's, or made up), built as its reason
+    says (2026-11-18): an example's from its code (the data's examples, BGPW's convention: the code's bits, 1 as +1,
+    begin the left half, and the left half reversed, times (-1)^lo, is the right half); a join's, its parts' one after
+    the other; a product f # g's, block j f times g_j; none's, n ones."""
+    memo = {} if memo is None else memo
+    if n not in memo:
+        lo, _, lw, _ = data['cols'][n - 1]
+        part = lambda k: column_signs(data, k, memo)
+        rule = {'none': lambda: [1] * n,
+                'example': lambda: (lambda left: left + [(-1) ** lo * t for t in reversed(left)])(
+                    [2 * int(b) - 1 for b in bin(int({x: c for x, c, _ in data['examples']}[n], 16))[2:].zfill(4 * -(-n // 8))[:n // 2]]),
+                'join': lambda: [t for k in lw[1:] for t in part(k)],
+                'product': lambda: [s * t for t in part(lw[2]) for s in part(lw[1])]}
+        memo[n] = rule[lw[0]]()
+    return memo[n]
+
+
+def code_of(signs, lo):
+    """The code, in BGPW's convention, of a (-1)^lo-symmetric sequence (asserted): the bits of its left half, 1 for +1,
+    padded with 0 to whole hex digits."""
+    n = len(signs)
+    assert n % 2 == 0 and all(signs[-1 - i] == (-1) ** lo * t for i, t in enumerate(signs)), (n, lo)
+    bits = ''.join('1' if t == 1 else '0' for t in signs[:n // 2])
+    bits += '0' * (-len(bits) % 4)
+    return f'{int(bits, 2):0{len(bits) // 4}X}'
 
 
 def witness_codes(data, n):
     """The codes the witness of column n's lower bound shows, by data (mstar.js's, or made up), as the harness reports
-    them (copies): [n:lo, lo, the role button, its digits], the data's code for an example (2026-11-18), the page's for
-    any other reason."""
+    them (copies): [n:lo, lo, the role button, its digits], the data's code for an example (2026-11-18), the code of
+    the sequence it builds for a join or a product (that night: code_of), the page's for any other reason."""
     lo, _, lw, _ = data['cols'][n - 1]
     if not coded(lw, n, lo): return []
-    digits = {x: code for x, code, _ in data['examples']}[n] if lw[0] == 'example' else code_digits(f'{n}:{lo}')
+    digits = {'example': lambda: {x: code for x, code, _ in data['examples']}[n],
+              'join': lambda: code_of(column_signs(data, n), lo), 'product': lambda: code_of(column_signs(data, n), lo)
+              }.get(lw[0], lambda: code_digits(f'{n}:{lo}'))()
     return [[f'{n}:{lo}', str(lo), 'button', digits]]
 
 
@@ -5505,6 +5554,11 @@ def q_green_box_gives_the_witness_and_its_code():
     # button, whether or not the page shows that code (witness_codes); (16, 4), Thue–Morse's, whose code the page shows
     # nowhere else, among them.  Until then a copy of the page's code alone, so that an example the page did not show,
     # such as Thue–Morse's or BGPW's Table 4's, had its label alone.
+    # Spec change (that night, for dreeves's sign-off; his "witnesses are a top-level thing, conceptually" and "making all
+    # witnesses conforming sounds great"): a join's or a product's witness shows the code of the sequence it builds too
+    # (witness_codes), every witness being (-1)^lo-symmetric; and 36's is the product p_3 # p_12 (each sign of p_12
+    # three times), not the join p_8 v p_28, neither symmetric nor antisymmetric, so its derivation's rows are p_3 and
+    # p_12, then the product of length 36 and order 3.
     # Resultata before: a click opened the column's panel: the cell's status, both bounds' sentences, and a link to the
     # code, in the list below.
     R, B = boxes_run()
@@ -5519,10 +5573,25 @@ def q_green_box_gives_the_witness_and_its_code():
     assert B[(1024, 8)]['said'].startswith('\\(m^*(1024) \\ge 11\\): equipow p1024'), B[(1024, 8)]['said']
     assert R['expanded'] == {'expanded': 'true', 'inBox': True, 'shown': True, 'ks': [str(k) for k in range(12)],
                              'relations': ['='] * 11 + ['≠']}, R['expanded']
-    assert B[(36, 2)]['constructions'] == [['36:3', 'button', '\\(p_{8} \\vee p_{28}\\)']], B[(36, 2)]['constructions']
+    assert B[(36, 2)]['constructions'] == [['36:3', 'button', '\\(p_{3} \\mathbin{\\#} p_{12}\\)']], B[(36, 2)]['constructions']
     assert B[(80, 3)]['constructions'] == [['80:6', 'button', '\\(p_{2} \\mathbin{\\#} p_{40}\\)']], B[(80, 3)]['constructions']
-    assert R['derived'] == {'expanded': 'true', 'inBox': True, 'shown': True, 'rows': [['8', '3'], ['28', '3'], ['36', '3']],
-                            'bound': 'm*(36) ≥ 3'}, R['derived']
+    # (Spec change, 2026-11-18, the derivation redone at dreeves's word, "the first table is confusing and looks
+    # misaligned": its parts' n and m, its three lines and its own n and m, in place of its rows and its bound)
+    assert R['derived'] == {'expanded': 'true', 'inBox': True, 'shown': True, 'parts': [['3', '0'], ['12', '3']],
+                            'lines': ['order(p3) = 0, order(p12) = 3', 'length = 3 · 12 = 36', 'order = 0 + 3 = 3'],
+                            'claim': ['36', '3']}, R['derived']
+
+
+def q_a_partition_that_fits_does_not_scroll():
+    # 2026-11-18 (Opus 5.5; dreeves, of 36's partition in the appendix: "the partitions have some kind of faint
+    # scrollbars and in fact scroll very slightly").
+    # Replicata: the light run (1280 px): the appendix opened and the code 12:3 in the entry of 12 clicked (the
+    # harness's openAppendix): its partition's two parts, six numbers each, one line, and their boxes' heights, client
+    # and scroll (CSS px).
+    # Expectata: each part's box, which scrolls only past four and a half lines, as tall as its numbers: no scroll.
+    # Resultata before: each scrolled by a pixel, with a faint scrollbar: the line's text stood a pixel below its box.
+    T = valid_run('light')['appendixOpened']['twelve']
+    assert len(T['heights']) == 2 and all(0 < client == scroll for client, scroll in T['heights']), T['heights']
 
 
 def q_example_codes_expand_in_the_appendix():

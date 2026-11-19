@@ -30,13 +30,16 @@
 // of parentheses, or one name alone, in parentheses or not (since 2026-11-04, for the boxes under the charts, whose
 // constructions of powers of 2 write every product of a join in parentheses, as the readout does, (p_{1024}) among them),
 // and, in front, a name and = or nothing (the name names it).  Its box, from template[data-derivation], is its
-// derivation: a row per step, each part and then the product or join that uses it, with its length n and order m
-// (rows data-n and data-m), the whole formula last, and below them the bound m*(N) ≥ M.  A part p_N is the best known
-// sequence of length N, as the powers-of-2 chart's caption says: its order is mstar.js's lower bound at N, and its row
-// links to its code on the page, <code id="N:M">, or, when the page does not show that code, cites mstar.js's label of
-// the example, or links to N's entry in the appendix where that lower bound is a join or a product (since 2026-11-18);
-// τ_j is Thue–Morse, of length 2^j and order j; a letter is the construction of the page that names it,
-// whose row links to it (the construction takes the letter as its id).  A product multiplies its parts' lengths and adds
+// derivation (since 2026-11-18, dreeves, of the table of a row per step, with the bound under it: "the first table is
+// confusing and looks misaligned", "it seems to have redundancies like repeating the formula and m* inequality", "just
+// make every one a link. the entry linked to can say where it came from"): its parts' orders, each part linked
+// (data-part-order, with data-n and data-m), then its length and its order worked out a level of the formula at a time, as
+// the page's rules have them, to the length N and the order M (the box's data-n and data-m).  A part p_N is the best
+// known sequence of length N, as the powers-of-2 chart's caption says: its order is mstar.js's lower bound at N, and it
+// links to N's entry in the appendix (its class's, for an odd N or N = 2 mod 4), which says where it comes from (until
+// that day to its code on the page, or, the code not shown, a citation of mstar.js's label of the example); τ_j is
+// Thue–Morse, of length 2^j and order j, linked to the OEIS; a letter is the construction of the page that names it,
+// linked to it (the construction takes the letter as its id).  A product multiplies its parts' lengths and adds
 // their orders; a join adds the lengths and has the least of the orders (its order is at least that: (x - 1)^m divides
 // f ∨ g when it divides f and g).  It throws, as the page loads, on a formula outside that form or a letter that two
 // constructions name, and, at a click, on a name it cannot resolve, a construction that depends on itself, and a
@@ -58,12 +61,7 @@
 
   // ---------- codes and joins ----------
   const template = document.querySelector('template[data-partition]').content.firstElementChild;
-  const signs = (hex, m, n) => {                                   // a code's signs f_0, f_1, ..., +1 or -1
-    const bits = [...hex].flatMap(d => [...parseInt(d, 16).toString(2).padStart(4, '0')].map(Number));
-    assert(n % 2 === 0 && hex.length === Math.ceil(n / 8) && bits.slice(n / 2).every(b => b === 0), hex, n);   // its padding 0
-    const left = bits.slice(0, n / 2).map(b => 2 * b - 1);
-    return [...left, ...left.toReversed().map(t => (-1) ** m * t)];
-  };
+  const signs = decode;                                            // a code's signs f_0, f_1, ..., +1 or -1 (page/shared.js's since 2026-11-18)
   // An element's order and signs: a code's M and its digits' signs; a join's data-order and its codes' signs, one
   // after the other
   function sequence(e) {
@@ -91,7 +89,11 @@
     box.querySelector('[data-part="-1"]').textContent = parts[1].join(', ');
     box.querySelector('[data-power-sums]').append(...sums.flatMap(([a, b], k) => {
       const first = document.createElement('tr'), second = document.createElement('tr');
-      first.append(cell('th', k, {k}, 2), cell('td', a === b ? '=' : '≠', {relation: ''}, 2), cell('td', a, {sum: '+1'}, 1));
+      // (the mark after the sums since 2026-11-18, dreeves: "the equal signs look like they're saying what the k values
+      // equal. how about putting them to the right of the powersums", its data-relation the mark, which the stylesheet
+      // colors as the charts color a cell: = as one that exists, ≠ as one ruled out; before k until then)
+      const mark = a === b ? '=' : '≠';
+      first.append(cell('th', k, {k}, 2), cell('td', a, {sum: '+1'}, 1), cell('td', mark, {relation: mark}, 2));
       second.append(cell('td', b, {sum: '-1'}, 1));
       return [first, second];
     }));
@@ -100,7 +102,7 @@
 
   // ---------- constructions ----------
   const steps = document.querySelector('template[data-derivation]').content;
-  const THUE_MORSE = steps.querySelector('[data-thue-morse]').textContent;     // what a part τ_j cites
+  const THUE_MORSE = steps.querySelector('[data-thue-morse]').getAttribute('href');   // where a part τ_j links (2026-11-18; its citation until then)
   const OPERATORS = {'\\mathbin{\\#}': '#', '\\vee': '∨'};
   // A token that names a sequence, as a part: [p, N] for p_{N} (N a BigInt), [tau, j] for \tau_j, [name, x] for a
   // letter x (not p)
@@ -140,11 +142,15 @@
     assert(i === ts.length, claim, tex);
     return [lhs, tree];
   }
-  // The rules: a product's length and order, and a join's, from their parts', and how a step writes them (a no-break
-  // space after the commas of min and after =, so that a narrow column wraps before = and not inside min)
+  // The rules: a product's length and order, and a join's, from their parts', and how a derivation writes each, its
+  // operands' already written: a product's length as theirs times each other (a join among them in parentheses), its
+  // order as their sum; a join's length as their sum, its order as their min (a no-break space after its commas, so
+  // that a line wraps outside a min)
   const RULES = {
-    '#': {n: ns => ns.reduce((a, b) => a * b), m: ms => ms.reduce((a, b) => a + b), ns: ' · ', ms: ms => ms.join(' + ')},
-    '∨': {n: ns => ns.reduce((a, b) => a + b), m: ms => Math.min(...ms), ns: ' + ', ms: ms => `min(${ms.join(',\u00a0')})`},
+    '#': {n: ns => ns.reduce((a, b) => a * b), m: ms => ms.reduce((a, b) => a + b),
+          wn: ks => ks.flatMap((k, i) => [...(i ? [' · '] : []), ...k]), wm: ks => ks.flatMap((k, i) => [...(i ? [' + '] : []), ...k]), paren: '∨'},
+    '∨': {n: ns => ns.reduce((a, b) => a + b), m: ms => Math.min(...ms),
+          wn: ks => ks.flatMap((k, i) => [...(i ? [' + '] : []), ...k]), wm: ks => ['min(', ...ks.flatMap((k, i) => [...(i ? [',\u00a0'] : []), ...k]), ')'], paren: null},
   };
   const built = [...document.querySelectorAll('[data-construction]')];
   const parsed = new Map(built.map(e => [e, parse(e)]));          // as the page loads, before KaTeX draws them
@@ -152,27 +158,25 @@
   const defined = new Map(naming.map(e => [parsed.get(e)[0], e])); // each such name: its construction
   assert(defined.size === naming.length, naming.map(e => parsed.get(e)[0]));
   const sequences = new Map([...document.querySelectorAll('code[id], code[data-code], [data-join]')].map(e => [e, sequence(e)]));
-  // The parts, by kind: their length n, order m, link (the href of the code or construction they are, or null) and
-  // citation (the source they cite, or null)
-  // (Since 2026-11-18, when every length came to have an entry in the appendix, which holds its witness: a p_N whose
-  // code the page does not show and whose lower bound is a join or a product links to N's entry, where that construction
-  // is, in place of nothing it could cite; until then such a part threw, and only the boxes of such columns showed one.)
+  // The parts, by kind: their length n, order m and link, where the page says what they are (since 2026-11-18; dreeves:
+  // "just make every one a link. the entry linked to can say where it came from. consistency/anti-magic"): a p_N, a
+  // sequence behind its column's lower bound (none, the N ones of an odd N, among them), links to N's entry in the
+  // appendix; τ_j to Thue–Morse at the OEIS; a letter to its construction.  (Until that day a p_N linked to its code on
+  // the page, or to its entry where its lower bound was a join or a product, or else cited its example's label.)
   const PARTS = {
     p: (N, claim) => {                                             // the best known sequence of length N
       assert(1n <= N && N <= BigInt(MSTAR.nmax), claim, String(N));
-      const [lo, , why] = MSTAR.cols[Number(N) - 1], code = document.getElementById(`${N}:${lo}`);
-      assert(code === null ? ['example', 'join', 'product'].includes(why[0]) : sequences.has(code), claim, String(N), why);
-      const built = code === null && why[0] !== 'example';
-      return {n: N, m: lo, link: code ? `#${code.id}` : built ? `#${entries(N)[0].querySelector('p.entry').id}` : null,
-              cite: code || built ? null : why[1]};
+      const [lo, , why] = MSTAR.cols[Number(N) - 1];
+      assert(['none', 'example', 'join', 'product'].includes(why[0]), claim, String(N), why);
+      return {n: N, m: lo, link: `#${entries(N)[0].querySelector('p.entry').id}`};
     },
-    tau: j => ({n: 2n ** BigInt(j), m: j, link: null, cite: THUE_MORSE}),
+    tau: j => ({n: 2n ** BigInt(j), m: j, link: THUE_MORSE}),
     name: (x, claim) => {                                          // a construction of the page, which x names
       const e = defined.get(x), other = document.getElementById(x);
       assert(e !== undefined && (other === null || other === e), claim, x);
       e.id = x;
       const {n, m} = derived(e);
-      return {n, m, link: `#${x}`, cite: null};
+      return {n, m, link: `#${x}`};
     },
   };
   function step(node, claim) {                                     // a part's step, or an operation's, with its parts'
@@ -193,29 +197,41 @@
     assert(derivations.get(e) !== null, claim);
     return derivations.get(e);
   }
-  // How a derivation writes a part's name, a step's formula and a length (2^k for a power of 2 greater than 2, as the
-  // page's formulas write 2^2 and 2^8 but 2), as nodes
+  // How a derivation writes a part's name and a length: 2^k for a power of 2 past the m*(n) chart's last n, as the page
+  // names those lengths (2^{12} to 2^{72}), a number otherwise (since 2026-11-18, when a derivation came to write a
+  // join's length as 8 + 36 + 8 = 52: 2^k for every power of 2 greater than 2 until then, as the page's formulas
+  // write 2^2 and 2^8), as nodes
   const NAMES = {p: N => [el('i', 'p'), el('sub', String(N))], tau: j => ['τ', el('sub', String(j))], name: x => [el('i', x)]};
-  const formula = ([kind, x]) => kind in RULES
-    ? x.flatMap((k, i) => [...(i ? [` ${kind} `] : []), ...(k[0] in RULES ? ['(', ...formula(k), ')'] : formula(k))])
-    : NAMES[kind](x);
-  const length = n => n > 2n && (n & (n - 1n)) === 0n ? ['2', el('sup', String(n.toString(2).length - 1))] : [String(n)];
-  const rows = s => [...(s.kids ?? []).flatMap(rows), s];         // a step's, its parts' first
-  function row(s) {
-    const name = s.link ? [Object.assign(el('a', ...formula(s.node)), {href: s.link})] : formula(s.node);
-    const cite = s.cite ? [' ', Object.assign(el('span', `(${s.cite})`), {className: 'nw'})] : [];    // kept on one line
-    const tr = el('tr', el('th', ...name, ...cite));
-    const rule = RULES[s.node[0]];
-    tr.append(el('td', ...(rule ? [...s.kids.flatMap((k, i) => [...(i ? [rule.ns] : []), ...length(k.n)]), ' =\u00a0'] : []), ...length(s.n)),
-              el('td', ...(rule ? [`${rule.ms(s.kids.map(k => k.m))} =\u00a0`] : []), String(s.m)));
-    Object.assign(tr.dataset, {n: s.n, m: s.m});
-    return tr;
-  }
-  function derivation(e) {                                         // e's box: its derivation
-    const last = derived(e), box = steps.querySelector('.derivation').cloneNode(true);
-    box.querySelector('[data-steps]').append(...rows(last).map(row));
-    box.querySelector('[data-bound-n]').append(...length(last.n));
-    box.querySelector('[data-bound-m]').textContent = last.m;
+  const length = n => n > BigInt(MSTAR.nmax) && (n & (n - 1n)) === 0n ? ['2', el('sup', String(n.toString(2).length - 1))] : [String(n)];
+  // A step's length (f = 'n') or order ('m') as a tree: a part's number, or an operation, [its rule, its operands'
+  // trees]; a level of it evaluated, each operation whose operands are all numbers; and a tree written as nodes, a
+  // number as a length or an order, an operation by its rule
+  const tree = (s, f) => s.kids ? [s.node[0], s.kids.map(k => tree(k, f))] : s[f];
+  const level = (t, f) => !Array.isArray(t) ? t : t[1].some(Array.isArray) ? [t[0], t[1].map(k => level(k, f))] : RULES[t[0]][f](t[1]);
+  const written = (t, f) => !Array.isArray(t) ? (f === 'n' ? length(t) : [String(t)])
+    : RULES[t[0]][`w${f}`](t[1].map(k => f === 'n' && Array.isArray(k) && k[0] === RULES[t[0]].paren ? ['(', ...written(k, f), ')'] : written(k, f)));
+  const worked = (s, f) => {                                       // the tree, then each level evaluated, to the number
+    const out = [];
+    for (let t = tree(s, f); out.push(...(out.length ? [' =\u00a0'] : []), ...written(t, f)), Array.isArray(t); t = level(t, f));
+    return out;
+  };
+  const leaves = s => s.kids ? s.kids.flatMap(leaves) : [s];
+  const joined = s => s.node[0] === '∨' || (s.kids ?? []).some(joined);   // a join in it: its order is at least that worked out
+  // e's box: its derivation (2026-11-18): its parts, each once, in order, each's order with the part linked; then its
+  // length, = what it works out to, and its order, = or ≥ (a join in it) what it works out to
+  function derivation(e) {
+    const last = derived(e), box = steps.querySelector('.derivation').cloneNode(true), item = steps.querySelector('[data-part-order]');
+    const parts = [...new Map(leaves(last).map(s => [s.node.join(':'), s])).values()];
+    box.querySelector('[data-parts]').append(...parts.flatMap((s, i) => {
+      const x = item.cloneNode(true);
+      x.querySelector('[data-name]').replaceWith(Object.assign(el('a', ...NAMES[s.node[0]](s.node[1])), {href: s.link}));
+      x.querySelector('[data-m]').textContent = s.m;
+      Object.assign(x.dataset, {n: s.n, m: s.m});
+      return [...(i ? [', '] : []), x];
+    }));
+    box.querySelector('[data-length]').append(' =\u00a0', ...worked(last, 'n'));
+    box.querySelector('[data-order]').append(joined(last) ? ' ≥\u00a0' : ' =\u00a0', ...worked(last, 'm'));
+    Object.assign(box.dataset, {n: last.n, m: last.m});
     return box;
   }
 

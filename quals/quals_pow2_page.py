@@ -475,7 +475,7 @@ const LOADED = () => new Promise(r => { const t0 = Date.now(); const f = () => {
 const DERIVED = () => [...document.querySelectorAll('#pow2-panel [data-panel-entries] > li > [data-why] [data-construction], #pow2-panel [data-panel-body] > [data-why] [data-construction]')].map(e => {
   e.click();
   const box = document.getElementById(e.getAttribute('aria-controls'));
-  return [e.dataset.construction, box.querySelector('[data-bound]').textContent.replace(/\s+/g, ' ').trim(), box.checkVisibility()];
+  return [e.dataset.construction, `${box.dataset.n}:${box.dataset.m}`, box.checkVisibility()];   // (its own n and m since 2026-11-18: its bound's text until then)
 });
 // The table of record gaps as the page draws it: its head's and its rows' cells, the math written back as TeX
 const GAPS = () => [...document.querySelector('[data-record-gaps]').querySelectorAll('thead tr, tbody tr')].map(tr => [...tr.cells].map(c => {
@@ -1889,7 +1889,10 @@ def q_every_column_s_construction_derives_its_bound():
     for k, (lo, _, lw, _) in enumerate(cols, 1):
         n = 2 ** k
         mine = mcols[n - 1] if n <= qi.DATA_NMAX else None
-        bound = (lambda x: f'm*(2{k}) ≥ {x}' if k > 1 else f'm*(2) ≥ {x}')   # codes.js writes a power of 2 as 2^k
+        # (since 2026-11-18, when the derivation's bound went at dreeves's word, "it seems to have redundancies like
+        # repeating the formula and m* inequality", the derivation's own length and order, n:lo; until then its bound,
+        # m*(2^k) >= lo, codes.js writing a power of 2 as 2^k)
+        bound = lambda x: f'{n}:{x}'
         want[k] = ([[f'{n}:{mine[0]}', bound(mine[0]), True]] if mine[2][0] in ('join', 'product') else []) if mine \
             else [[f'{n}:{lo}', bound(lo), True]] if lw[0] == 'joins' else []
     for D in R['derived']:

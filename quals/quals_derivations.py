@@ -114,9 +114,10 @@ def text_of(node):
 
 
 def length_text(n):
-    """A length as the derivations write it: 2^k for a power of 2 greater than 2 (as the page's formulas write 2^2 and
-    2^8, and 2 itself), else its digits."""
-    return f'2^{n.bit_length() - 1}' if n > 2 and n & (n - 1) == 0 else str(n)
+    """A length as the derivations write it: 2^k for a power of 2 past the m*(n) chart's last n, as the page names those
+    lengths, else its digits (since 2026-11-18; until then 2^k for every power of 2 greater than 2, as the page's
+    formulas write 2^2 and 2^8, and 2 itself)."""
+    return f'2^{n.bit_length() - 1}' if n > qi.DATA_NMAX and n & (n - 1) == 0 else str(n)
 
 
 def constructions(text=None):
@@ -127,64 +128,77 @@ def constructions(text=None):
 
 
 def thue_morse(text=None):
-    """What a derivation writes in parentheses beside a τ_j, the source of its sequence: the words of the page's
-    derivation template, <span data-thue-morse>, read from index.html (or from text).  (Asked for as "Thue–Morse" until
-    2026-11-09; dreeves that day: "i stand by the point about quals enforcing specific prose on the page being pretty
-    useless".)"""
-    [words] = re.findall(r'<span data-thue-morse>([^<]*)</span>', qi.blank_comments(qi.page() if text is None else text))
-    return words
+    """Where a derivation links a τ_j, the source of its sequence: the href of the page's derivation template's
+    <a data-thue-morse>, read from index.html (or from text).  (Since 2026-11-18, dreeves: "just make every one a link";
+    until then the words it wrote in parentheses beside a τ_j, asked for as "Thue–Morse" until 2026-11-09.)"""
+    [href] = re.findall(r'<a data-thue-morse href="([^"]*)"></a>', qi.blank_comments(qi.page() if text is None else text))
+    return href
 
 
 def derivations(text=None):
-    """[(claim, rows, (n, m))] for each construction of index.html (or of text), in page order: rows its derivation's
-    steps, each {th, n_text, m_text, n, m, links, kind}, a part's before the product or join that uses it, the last
-    the whole formula's; and (n, m) its length and order.  A part p_N has length N and mstar.js's lower bound at N as
-    its order, and its source is the page's code N:M (a link to it, links [(#N:M, p_N)]) or else mstar.js's example
-    label, cited (an example the page does not show); τ_j has length 2^j and order j, from Thue–Morse; a letter is the
-    construction of the page whose formula defines it (x = ...), a link to it, #x.  A product's length is the
-    product of its parts', its order the sum; a join's length the sum, its order the least of its parts'."""
+    """[(claim, box, (n, m))] for each construction of index.html (or of text), in page order: box what its derivation
+    shows (since 2026-11-18; dreeves, of the table of a step per row: "the first table is confusing and looks
+    misaligned", "it seems to have redundancies like repeating the formula and m* inequality", "just make every one a
+    link"): parts, its parts once each, in order of first appearance, each {n, m, text, kind, href}, and lines, the texts
+    of its three lines: the parts' orders; length = what it works out to; order = (≥, a join in it) what it works out
+    to, each worked out a level of the formula at a time; and (n, m) its length and order.  A part p_N has length N and
+    mstar.js's lower bound at N as its order, and links to N's entry in the appendix (href None here: its link's target
+    is checked to be that entry); τ_j has length 2^j and order j, and links to Thue–Morse (thue_morse); a letter is the
+    construction of the page whose formula defines it (x = ...), a link to it, #x.  A product's length is the product of
+    its parts', its order their sum; a join's length their sum, its order at least the least of theirs.  (Until that
+    day a row per step, a part's before the operation that uses it, each with its formula, its length's arithmetic and
+    its order's, and each p_N a link to its code or a citation of its example's label.)"""
     built, cols = constructions(text), qi.mstar_data()['cols']
-    blank = qi.blank_comments(qi.page() if text is None else text)
-    ids = {f'{x[1]}:{x[2]}' for x in qc.CODE.finditer(blank)}
     defined = {lhs: i for i, (_, _, lhs, _) in enumerate(built) if lhs}
     assert len(defined) == sum(1 for c in built if c[2]), [c[2] for c in built]
     done = {}
 
-    def part(node, rows):
+    def part(node):
         kind, x = node
-        if kind == 'p':
-            lo, _, why, _ = cols[x - 1]
-            key = f'{x}:{lo}'
-            here = key in ids
-            assert here or why[0] == 'example', (x, why)
-            out = (x, lo, f'p_{x}' if here else f'p_{x} ({why[1]})', [(f'#{key}', f'p_{x}')] * here,
-                   'code' if here else 'cited')
-        elif kind == 'tau':
-            out = (2 ** x, x, f'τ_{x} ({thue_morse(text)})', [], 'tau')
-        else:
-            n, m = value(defined[node])
-            out = (n, m, x, [(f'#{x}', x)], 'name')
-        n, m, th, links, how = out
-        rows.append(dict(th=th, n_text=length_text(n), m_text=str(m), n=n, m=m, links=links, kind=how))
-        return n, m
+        return {'p': lambda: dict(n=x, m=cols[x - 1][0], text=f'order(p_{x}) = {cols[x - 1][0]}', kind='p', href=None),
+                'tau': lambda: dict(n=2 ** x, m=x, text=f'order(τ_{x}) = {x}', kind='tau', href=thue_morse(text)),
+                'name': lambda: (lambda n, m: dict(n=n, m=m, text=f'order({x}) = {m}', kind='name', href=f'#{x}'))(*value(defined[node]))}[kind]()
 
-    def step(node, rows):
+    def tree(node, f):                     # its length (f = 0) or order (1): a number at a part, (operator, operands) above
         kind, x = node
-        if kind not in ('#', '∨'):
-            return part(node, rows)
-        values = [step(k, rows) for k in x]
-        ns, ms = [v[0] for v in values], [v[1] for v in values]
-        n, m = (math.prod(ns), sum(ms)) if kind == '#' else (sum(ns), min(ms))
-        n_text = (' · ' if kind == '#' else ' + ').join(map(length_text, ns)) + f' = {length_text(n)}'
-        m_text = (' + '.join(map(str, ms)) if kind == '#' else f'min({", ".join(map(str, ms))})') + f' = {m}'
-        rows.append(dict(th=text_of(node), n_text=n_text, m_text=m_text, n=n, m=m, links=[], kind=kind))
-        return n, m
+        return (kind, [tree(k, f) for k in x]) if kind in ('#', '∨') else (part(node)['n'], part(node)['m'])[f]
+
+    RULE = {('#', 0): math.prod, ('∨', 0): sum, ('#', 1): sum, ('∨', 1): min}
+    WRITE = {('#', 0): ' · '.join, ('∨', 0): ' + '.join, ('#', 1): ' + '.join, ('∨', 1): lambda xs: f'min({", ".join(xs)})'}
+
+    def level(t, f):                       # each operation whose operands are all numbers, evaluated
+        if not isinstance(t, tuple): return t
+        kind, ks = t
+        return (kind, [level(k, f) for k in ks]) if any(isinstance(k, tuple) for k in ks) else RULE[kind, f](ks)
+
+    def written(t, f):                     # a join inside a product's length in parentheses
+        if not isinstance(t, tuple): return length_text(t) if f == 0 else str(t)
+        kind, ks = t
+        return WRITE[kind, f]([f'({written(k, f)})' if f == 0 and kind == '#' and isinstance(k, tuple) and k[0] == '∨'
+                               else written(k, f) for k in ks])
+
+    def worked(node, f):
+        t, out = tree(node, f), []
+        while isinstance(t, tuple):
+            out.append(written(t, f))
+            t = level(t, f)
+        return ' = '.join(out + [written(t, f)]), t
+
+    def leaves(node):
+        kind, x = node
+        return [l for k in x for l in leaves(k)] if kind in ('#', '∨') else [node]
+
+    def joined(node):
+        return node[0] == '∨' or (node[0] == '#' and any(joined(k) for k in node[1]))
 
     def value(i):
         if i not in done:
             done[i] = None                                             # a formula that names itself never ends
-            rows = []
-            done[i] = (rows, step(built[i][3], rows))
+            node = built[i][3]
+            (length, n), (order, m) = worked(node, 0), worked(node, 1)
+            parts = [part(l) for l in dict.fromkeys(leaves(node))]
+            lines = [', '.join(p['text'] for p in parts), f'length = {length}', f'order {"≥" if joined(node) else "="} {order}']
+            done[i] = (dict(parts=parts, lines=lines), (n, m))
         assert done[i] is not None, built[i]
         return done[i][1]
 
@@ -212,11 +226,11 @@ LOOK = """() => ({active: qualsItems().indexOf(document.activeElement), scrollX,
   items: qualsItems().map(e => [e.dataset.construction, e.getAttribute('role'), e.tabIndex, e.getAttribute('aria-expanded')]),
   shown: [...document.querySelectorAll('.derivation')].filter(e => e.checkVisibility()).length})"""
 # Construction i and the element its aria-controls names: if that is a derivation (class derivation), whether it shows,
-# its box,
-# each step of it (each row of [data-steps]: its data-n and data-m, its cells' texts, and its links, each [its href,
-# its text, the tag and data-construction of the element whose id the href names]), the text of its bound
-# ([data-bound]), and how far any element of it reaches past its right edge (spill, CSS px).  A text is written as
-# this file writes math: each sup as ^ and its text, each sub as _ and its text, runs of spaces as one.
+# its box, each part of it (each [data-part-order]: its data-n and data-m, its text, and its links, each [its href, its
+# text, and for an href #id the tag, data-construction and data-lengths of the element that id names]), the texts of
+# its lines (its p's), its length and order (its data-n and data-m: claim), and how far any element of it reaches past
+# its right edge (spill, CSS px).  A text is written as this file writes math: each sup as ^ and its text, each sub as
+# _ and its text, runs of spaces as one.  (Since 2026-11-18; until then each row of its table of steps and its bound.)
 READ = """i => {
   const e = qualsItems()[i], next = document.getElementById(e.getAttribute('aria-controls'));
   const rect = x => { const b = x.getBoundingClientRect(); return [b.left, b.top, b.right, b.bottom]; };
@@ -224,13 +238,14 @@ READ = """i => {
     c.querySelectorAll('sup').forEach(s => s.replaceWith('^' + s.textContent));
     c.querySelectorAll('sub').forEach(s => s.replaceWith('_' + s.textContent));
     return c.textContent.replace(/\\s+/g, ' ').trim(); };
-  const target = h => { const t = document.getElementById(h.slice(1)); return t && [t.tagName, t.dataset.construction ?? null]; };
+  const target = h => { const t = h.startsWith('#') && document.getElementById(h.slice(1));
+    return t ? [t.tagName, t.dataset.construction ?? null, t.dataset.lengths ?? null] : null; };
   const box = next && next.classList.contains('derivation') ? next : null;
   return {claim: e.dataset.construction, expanded: e.getAttribute('aria-expanded'), rect: rect(e),
     box: box && {shown: box.checkVisibility(), rect: rect(box),
-      rows: [...box.querySelectorAll('[data-steps] > tr')].map(r => ({n: r.dataset.n, m: r.dataset.m, cells: [...r.cells].map(text),
-        links: [...r.querySelectorAll('a')].map(a => [a.getAttribute('href'), text(a), target(a.getAttribute('href'))])})),
-      bound: box.querySelector('[data-bound]') && text(box.querySelector('[data-bound]')),
+      parts: [...box.querySelectorAll('[data-part-order]')].map(x => ({n: x.dataset.n, m: x.dataset.m, text: text(x),
+        links: [...x.querySelectorAll('a')].map(a => [a.getAttribute('href'), text(a), target(a.getAttribute('href'))])})),
+      lines: [...box.querySelectorAll(':scope > p')].map(text), claim: [box.dataset.n, box.dataset.m],
       spill: Math.max(...[...box.querySelectorAll('*')].map(x => x.getBoundingClientRect().right)) - rect(box)[2]}};
 }"""
 # Every formula KaTeX drew, as [its TeX (KaTeX's annotation), and of the construction or join it is in, if any: its
@@ -268,8 +283,9 @@ def changed(name):
 
 
 def largest():
-    """The index of the construction with the most steps in its derivation."""
-    sizes = [len(rows) for _, rows, _ in derivations()]
+    """The index of the construction with the longest derivation, by its lines' characters (since 2026-11-18; the most
+    steps until then)."""
+    sizes = [sum(map(len, box['lines'])) for _, box, _ in derivations()]
     return sizes.index(max(sizes))
 
 
@@ -323,7 +339,7 @@ def q_every_construction_of_the_appendix_derives_its_claim():
     probe = ('<script>addEventListener("load", () => setTimeout(() => { const errs = []; addEventListener("error", e => errs.push(String(e.message)));'
              ' const out = [...document.querySelectorAll("section.appendix [data-why] [data-construction]")].map(e => { e.click();'
              ' const box = document.getElementById(e.getAttribute("aria-controls") || "");'
-             ' return [e.dataset.construction, box ? box.querySelector("[data-bound-n]").textContent + ":" + box.querySelector("[data-bound-m]").textContent : null]; });'
+             ' return [e.dataset.construction, box ? box.dataset.n + ":" + box.dataset.m : null]; });'
              ' document.documentElement.dataset.derived = JSON.stringify({out, errs}); }, 1500));</script>')
     d = tempfile.mkdtemp(prefix='derivations-quals-')
     try:
@@ -340,9 +356,9 @@ def q_every_construction_of_the_appendix_derives_its_claim():
     cols, pcols = qi.mstar_data()['cols'], qi.pow2_data()['cols']
     want = ([f'{n}:{c[0]}' for n, c in enumerate(cols, 1) if c[2][0] in ('join', 'product') and n % 4 == 0]
             + [f'{2 ** k}:{c[0]}' for k, c in enumerate(pcols, 1) if 2 ** k > qi.DATA_NMAX and c[2][0] == 'joins'])
-    power = lambda n: f'2{n.bit_length() - 1}' if n > 2 and n & (n - 1) == 0 else str(n)    # codes.js writes 2^k past 2
     assert got['errs'] == [] and sorted(c for c, _ in got['out']) == sorted(want), (got['errs'][:3], len(got['out']), len(want))   # (an entry by hand of several lengths holds their facts at its first)
-    bad = [(c, b) for c, b in got['out'] if b != f'{power(int(c.split(":")[0]))}:{c.split(":")[1]}']
+    # (the box's data-n and data-m since 2026-11-18, when its bound under the steps went: until then that bound's text)
+    bad = [(c, b) for c, b in got['out'] if b != c]
     assert bad == [], bad[:5]
 
 
@@ -398,18 +414,21 @@ def q_derivations_total_the_stated_bounds():
     # file derives, in the same order, each with the same texts (its formula, its length's arithmetic and its order's)
     # and the same exact n and m (data-n, data-m); its last step's n and m are N and M, and its bound reads m^*(N) ≥ M;
     # and M is the data's lower bound at N and the new results' lower bound there, except for SUPERSEDED, where M is less
-    # than both.
+    # than both.  Spec change (Opus 5.5, 2026-11-18, the box redone at dreeves's word: "the first table is confusing and
+    # looks misaligned", "it seems to have redundancies like repeating the formula and m* inequality"): the derivation
+    # shows its parts and its lines as this file derives them (each part's text, n and m; the parts' orders, its length
+    # worked out, its order worked out), and its own length and order (data-n, data-m) are N and M; no steps, no bound.
     # Resultata before: no construction and no derivation.
     R = run('light')
     shown, mine = opened(R), derivations()
     assert mine, 'no construction'
     bad = []
-    for i, (claim, rows, (n, m)) in enumerate(mine):
+    for i, (claim, made, (n, m)) in enumerate(mine):
         box = shown[i]['box']
-        got = box and [(r['cells'], r['n'], r['m']) for r in box['rows']]
-        want = [([r['th'], r['n_text'], r['m_text']], str(r['n']), str(r['m'])) for r in rows]
-        if got != want or box['bound'] != f'm^*({length_text(n)}) ≥ {m}' or claim != f'{n}:{m}':
-            bad.append((claim, got and got[-1], want[-1], box and box['bound']))
+        got = box and ([(x['text'], x['n'], x['m']) for x in box['parts']], box['lines'], box['claim'])
+        want = ([(x['text'], str(x['n']), str(x['m'])) for x in made['parts']], made['lines'], [str(n), str(m)])
+        if got != want or claim != f'{n}:{m}':
+            bad.append((claim, got, want))
     assert bad == [], bad
     below = [(claim, data_lo(n), mstar.NEW[n][0]) for claim, _, (n, m) in mine if not m == data_lo(n) == mstar.NEW[n][0]]
     assert sorted(claim for claim, *_ in below) == sorted(SUPERSEDED), below
@@ -427,27 +446,26 @@ def q_leaves_resolve():
     # from Thue–Morse, with no link; a part p_N whose code the page does not show has no link, its name is in OFF_PAGE,
     # and it cites mstar.js's example label at N, its order mstar.js's lower bound there; a letter is a link to the
     # construction of the page that defines it; and the parts cited are exactly OFF_PAGE's.
+    # Spec change (Opus 5.5, 2026-11-18; dreeves: "why do we need to specify inline in the expansion where the
+    # littlewood polynomials come from? just make every one a link. the entry linked to can say where it came from (BGPW
+    # table 4 or whatever). consistency/anti-magic"): every part one link, which lands: p_N on N's entry in the appendix
+    # (a p.entry whose data-lengths lists N), its order mstar.js's lower bound at N; τ_j on Thue–Morse at the OEIS
+    # (thue_morse), its length 2^j; a letter on the construction that defines it.  No part cited (OFF_PAGE).
     # Resultata before: no derivation, so no part.
     R = run('light')
     shown, mine = opened(R), derivations()
     cols = qi.mstar_data()['cols']
     defines = {lhs[1]: claim for claim, _, lhs, _ in constructions() if lhs}
-    bad, cited = [], set()
-    for i, (claim, rows, _) in enumerate(mine):
-        for r, got in zip(rows, shown[i]['box']['rows']):
-            n, m, how = r['n'], r['m'], r['kind']
-            links = [(h, t) for h, t, _ in got['links']]
-            targets = [x for _, _, x in got['links']]
-            ok = {'code': lambda: links == [(f'#{n}:{m}', f'p_{n}')] and targets == [['CODE', None]] and cols[n - 1][0] == m,
-                  'tau': lambda: links == [] and got['cells'][0].endswith(f'({thue_morse()})') and n == 2 ** m,
-                  'cited': lambda: (links == [] and f'p_{{{n}}}' in qi.OFF_PAGE and cols[n - 1][0] == m
-                                    and got['cells'][0] == f'p_{n} ({cols[n - 1][2][1]})'),
-                  'name': lambda: links == [(f'#{r["th"]}', r['th'])] and targets == [['SPAN', defines[r['th']]]],
-                  }.get(how, lambda: links == [])()
-            if not ok: bad.append((claim, r['th'], how, got))
-            cited |= {f'p_{{{n}}}'} if how == 'cited' else set()
+    bad = []
+    for i, (claim, made, _) in enumerate(mine):
+        for x, got in zip(made['parts'], shown[i]['box']['parts'], strict=True):
+            n, m, kind, links = x['n'], x['m'], x['kind'], got['links']
+            lands = {'p': lambda h, t, at: (t == f'p_{n}' and h.startswith('#entry-') and at is not None and at[0] == 'P'
+                                            and str(n) in at[2].split() and cols[n - 1][0] == m),
+                     'tau': lambda h, t, at: t == f'τ_{m}' and h == thue_morse() and n == 2 ** m,
+                     'name': lambda h, t, at: h == x['href'] and at == ['SPAN', defines[h[1:]], None]}[kind]
+            if not (len(links) == 1 and lands(*links[0])): bad.append((claim, x['text'], got))
     assert bad == [], bad
-    assert sorted(cited) == sorted(qi.OFF_PAGE), (cited, qi.OFF_PAGE)
 
 
 def q_constructions_take_tab_enter_and_space():
@@ -482,7 +500,7 @@ def q_derivations_fit_a_phone():
     assert R['errors'] == [], R['errors'][:5]
     read, look, last = R['steps'][2], R['steps'][3], R['steps'][-1]
     box = read['box']
-    assert box and box['shown'] and len(box['rows']) == max(len(rows) for _, rows, _ in derivations()), read
+    assert box and box['shown'] and box['lines'] == derivations()[largest()][1]['lines'], read   # (its lines since 2026-11-18: its steps until then)
     left, top, right, bottom = box['rect']
     assert 0 <= left and right <= look['innerWidth'] == 390 and look['scrollW'] <= look['innerWidth'], (box['rect'], look['scrollW'])
     reads = [read] + R['steps'][5:-1:2]
@@ -534,9 +552,11 @@ def q_a_join_has_the_least_order_of_its_parts():
     assert R['errors'] == [], R['errors'][:5]
     read = R['steps'][3]
     assert read['claim'] == '172544:18' and read['box'] and read['box']['shown'], read
-    rows = read['box']['rows']
-    assert rows[-1]['cells'][1:] == ['89600 + 82944 = 172544', 'min(18, 19) = 18'] and rows[-1]['m'] == '18', rows[-1]
-    assert read['box']['bound'] == 'm^*(172544) ≥ 18', read['box']['bound']
+    # (Spec change, 2026-11-18, the box redone at dreeves's word: its length and order worked out, and its own data-n and
+    # data-m, in place of its last step's cells and its bound, m^*(172544) ≥ 18.)
+    lines = read['box']['lines']
+    assert lines[1:] == ['length = 112 · 800 + 48 · 432 · 4 = 89600 + 82944 = 172544',
+                         'order ≥ min(7 + 11, 6 + 11 + 2) = min(18, 19) = 18'] and read['box']['claim'] == ['172544', '18'], (lines, read['box']['claim'])
     R = run('larger')                         # steps: load, look, click (step 2), read
     assert R['errors'] and all(k >= 2 for k, _ in R['errors']) and any('172544:19' in line for _, line in R['errors']), R['errors']
     assert R['steps'][3]['expanded'] == 'false' and R['steps'][3]['box'] is None, R['steps'][3]
