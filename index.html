@@ -372,7 +372,8 @@
   <!-- A row's box of the m*(n) chart, then (2026-11-18): that term if BGPW's Symmetry Conjecture holds, after the conjecture's name, linked to the page's section on it, as proof-ifsym has it -->
   <template data-panel="row-ifsym"><p><a href="#symmetry-title">Symmetry Conjecture</a> \(\Rightarrow\) <span data-slot="term"></span></p></template>
   <!-- A row's box of the m*(n) chart, then (2026-11-18): from which length the Symmetry Conjecture holds at its order, Table 5's N for it, in dreeves's words ("for the box when it's quoting table 5, can we have the following webcopy, using m=13 as an example: The Symmetry Conjecture is proven to hold for n>=3665. "proven" can be an anchor link to the proof"; until then Table 5's head and row), "proven" linked to the proof that Table 5's row names (data-proof) -->
-  <template data-panel="row-symmetry"><p>The Symmetry Conjecture is <a data-proven>proven</a> to hold for \(n \ge\) <span data-slot="from"></span>.</p></template>
+  <!-- (since that night, dreeves's README, [SOG]: "It should be clearer that that's specific to the order. So like this: For order 13, the Symmetry Conjecture is proven to hold for n>=3665."; the order in the slot order) -->
+  <template data-panel="row-symmetry"><p>For order <span data-slot="order"></span>, the Symmetry Conjecture is <a data-proven>proven</a> to hold for \(n \ge\) <span data-slot="from"></span>.</p></template>
   <!-- A cell of a row of a chart: the legend's swatch and words for it, and its column (k, or n), linked to its cell's box; the gold-ringed cells of a row of the chart of powers of 2, and since 2026-11-18 the open cells of a row of the m*(n) chart (row-ring until then) -->
   <template data-panel="row-cell"><p><span data-slot="item"></span>: <span class="nw" data-slot="at"></span></p></template>
   <!-- A row's row of the table of record gaps, under that table's head (cloned) -->

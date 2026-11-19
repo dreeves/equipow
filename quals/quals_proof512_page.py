@@ -25,19 +25,12 @@ def proof_math():
 
 
 def displayed_moments():
-    # Equations in one display can share its last modulus. Read each display
-    # separately so interchanging the two lengths' cube targets is detected.
-    displays = []
-    for formula in proof_math():
-        targets = []
-        for m in re.finditer(r'\^\{?([23])\}?\\equiv(-?\d+)', formula):
-            modulus = re.search(r'\\pmod\{?(\d+)\}?', formula[m.end():])
-            if modulus:
-                mod = int(modulus[1])
-                targets.append((int(m[1]), int(m[2]) % mod, mod))
-        if targets:
-            displays.append(targets)
-    return displays
+    # Look ahead to the next modulus without consuming it: both sums in
+    # the 512 equation share one modulus. Keep each display's sums together.
+    moment = r'\^\{?([23])\}?\\equiv(-?\d+)(?=.*?\\pmod\{?(\d+)\}?)'
+    return [[(int(power), int(value) % int(mod), int(mod))
+             for power, value, mod in re.findall(moment, formula)]
+            for formula in proof_math()]
 
 
 def exceptional_count(start, n):
@@ -80,6 +73,7 @@ class Proof512PageQuals(unittest.TestCase):
     def test_four_exceptional_squares_and_cubes_at_512(self):
         count = exceptional_count(1, 512)
         self.assertEqual(count, 4)
+        # Twice the positive indices' moment is the unsigned moment; 2⁻¹ = 5 mod 9.
         targets = tuple(5 * sum(t**k for t in range(1, 171)) % 9 for k in (2, 3))
         self.assertEqual(targets, (3, 0))
         self.assertIn([(2, targets[0], 9), (3, targets[1], 9)], displayed_moments())

@@ -5720,7 +5720,9 @@ def q_row_box_is_its_row_of_the_smallest_lengths():
     # webcopy, using m=13 as an example: The Symmetry Conjecture is proven to hold for n>=3665. "proven" can be an
     # anchor link to the proof ... i think the above sentence can be instead of that"): in place of Table 5's head and
     # row, a sentence that ends with that row's N, its link the proof that the row names (data-proof: the Symmetry
-    # section's first quote, symsmall, through order 14; Fable 5.2's proof, symlarge, from 15).
+    # section's first quote, symsmall, through order 14; Fable 5.2's proof, symlarge, from 15).  Spec change (later that
+    # night; dreeves's README, [SOG]: "It should be clearer that that's specific to the order. So like this: For order 13,
+    # the Symmetry Conjecture is proven to hold for n>=3665."): the sentence names the row's order M first.
     # Resultata before: nothing opened.
     R, B = boxes_run()
     table, table5, data = R['table3'], R['table5'], mstar_data()
@@ -5740,7 +5742,7 @@ def q_row_box_is_its_row_of_the_smallest_lengths():
         assert P['tables'] == [[table[0], table[m]]], (m, P['tables'], table[0], table[m])
         said = {why: t for why, t, _ in P['parts']}
         assert said['row-smallest'].endswith(f'A323395: {term}') and said['row-ifsym'].endswith(ifterm), (m, said)
-        assert figures(said['row-symmetry']) == figures(f'\\(n \\ge\\) {five[1]}.'), (m, said['row-symmetry'], five)   # n >= N, N Table 5's
+        assert figures(said['row-symmetry']) == figures(f'{m}, \\(n \\ge\\) {five[1]}.'), (m, said['row-symmetry'], five)   # M, then n >= N, N Table 5's
         assert P['links'] == ['https://oeis.org/A323395', '#symmetry-title', f'#{proof}'] + [f'#n{n}m{m}' for n in opened], (m, P['links'])
         assert [(cls.split()[1], href) for cls, href in P['cells']] == [(kind_of(cols, n, m, data['ifsym']), f'#n{n}m{m}') for n in opened], (m, P['cells'])
     assert [n for n in range(1, DATA_NMAX + 1) if cols[n - 1][0] < 13 <= cols[n - 1][1]] == [480, 864], 'the open cells of row 13'

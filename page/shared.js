@@ -507,7 +507,7 @@ const symmetryRow = m => {
   if (firsts[0] !== 1 || !firsts.every((x, i) => i === 0 || x > firsts[i - 1])) throw new Error(`Table 5's orders: ${firsts}`);
   const row = rows.filter((_, i) => firsts[i] <= m).at(-1);
   if (document.getElementById(row.dataset.proof ?? '') === null) throw new Error(`Table 5's row ${m}: no proof ${row.dataset.proof}`);
-  const part = filled('row-symmetry', {from: [...row.cells[1].cloneNode(true).childNodes]});
+  const part = filled('row-symmetry', {order: String(m), from: [...row.cells[1].cloneNode(true).childNodes]});   // (its order since 2026-11-18, [SOG])
   part.querySelector('[data-proven]').setAttribute('href', `#${row.dataset.proof}`);
   return part;
 };
