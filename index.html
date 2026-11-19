@@ -1399,55 +1399,34 @@ such that the Symmetry Conjecture holds for lengths \(n \ge N\).
       <span class="mk" aria-hidden="true">◆</span>
       <p class="entry">\(n = 512\): &nbsp;\(m^* = 9\)</p>
       <p>Order 10 is ruled out by the residue conditions mod 3, 9 and 27.</p>
-      <!-- TODO: a typeset, tightened presentation of Opus 5.5's manual proof for 512 and 496; retains its residue profile, monic-LCM step, mod-9 polynomial congruence and contradiction. Credits the proof to Opus 5.5 and the revision to Astra. Original proof texts and certificate checker remain available. -->
+      <!-- TODO: Astra's revision of Opus 5.5's joint proof. Equal sums in the two odd-sized classes give the fourth factor at 1 modulo 9. At 512 the four positive indices have incompatible square and cube sums; at 496 two cubes suffice. -->
       <details class="proof-exposition" id="proof512-exposition">
         <summary>Astra: “A typeset proof for 512 and 496”</summary>
         <div class="proof-body">
-          <p>Astra: “Claude Opus 5.5’s manual proof, with notation and exposition tightened.</p>
+          <p>Astra: “The mod-3 residue profile comes from Claude Opus 5.5’s manual proof.</p>
           <p><strong>Theorem.</strong> No sequence of 512 or 496 signs has order at least 10. Consequently \(m^*(512)=m^*(496)=9\).</p>
-          <p><strong>Proof.</strong> Suppose \(f(x)=\sum_{i=0}^{n-1}a_ix^i\), with \(a_i\in\{-1,+1\}\), has order at least 10. The first ten power moments vanish exactly when the first ten binomial moments vanish, so</p>
-          <p class="proof-equation">\(\displaystyle f=(x-1)^{10}g,\qquad g\in\mathbb Z[x].\)</p>
-          <p>These binomial moments are the Taylor coefficients at 1; the quotient is integral because the divisor is monic.</p>
+          <p><strong>Proof.</strong> Suppose 512 signs \(a_1,\ldots,a_{512}\) witness order at least 10. Write</p>
+          <p class="proof-equation">\(\displaystyle f(x)=\sum_{j=1}^{512}a_jx^j=(x-1)^9g(x),\qquad g(1)=0,\qquad g(x)=\sum_{j\ge0}g_jx^j\in\mathbb Z[x].\)</p>
 
-          <h4>1. The residue profile</h4>
-          <p>Put \(S_r=\sum_{i\equiv r\pmod3}a_i\). Grouping the binomial expansion by exponents modulo 3 gives</p>
-          <p class="proof-equation">\(\displaystyle (x-1)^{10}\equiv81(1+x+x^2)-243x^2\pmod{x^3-1}.\)</p>
-          <p>Since \((1+x+x^2)g\equiv g(1)(1+x+x^2)\pmod{x^3-1}\),</p>
-          <p class="proof-equation">\(\displaystyle S_0\equiv S_1\equiv S_2\pmod{243},\qquad S_0+S_1+S_2=0.\)</p>
-          <p>For \(n=512\), the class sizes are \(171,171,170\). Thus \(S_0-S_1\) is even, divisible by 243, and at most 342 in absolute value. It must be zero. Writing \(S_0=S_1=u\), we obtain \(S_2=-2u\) and \(81\mid u\). Since \(u\) is odd and \(|u|\le171\), \(u=\pm81\). After negating all signs if necessary,</p>
-          <p class="proof-equation">\(\displaystyle (S_0,S_1,S_2)=(81,81,-162).\)</p>
-          <p>Exactly four of the 170 signs at positions \(3m+2\) are therefore positive. Write their indices within this class as \(m_1,\ldots,m_4\in\{0,\ldots,169\}\), and set</p>
-          <p class="proof-equation">\(\displaystyle F(y)=\sum_{m=0}^{169}a_{3m+2}y^m=-\sum_{m=0}^{169}y^m+2\sum_{k=1}^4y^{m_k}.\)</p>
+          <h4>1. Four positive signs</h4>
+          <p>Let \(S_r,G_r\) be the coefficient sums of \(f,g\) in class \(r\bmod3\), so \(\sum_r S_r=f(1)=0\) and \(\sum_r G_r=g(1)=0\). Modulo \(x^3-1\), we have \((x-1)^3\equiv-3x(x-1)\), hence \((x-1)^9\equiv81(x^2-x)\). So every \(S_r\) is divisible by 81, and</p>
+          <p class="proof-equation">\(\displaystyle S_1-S_2=81(G_1+G_2-2G_0)=-243G_0.\)</p>
+          <p>Both \(S_1\) and \(S_2\) are sums of 171 signs. Their difference is even and has magnitude at most \(342&lt;2\cdot243\), so \(S_1=S_2\) and \(G_0=0\). Their common value is an odd multiple of 81 with magnitude \(|S_0|/2\le85\). Flipping all signs if necessary gives \(S_0=-162\). Thus exactly <strong>four</strong> of the 170 signs \(a_{3t}\) are positive.</p>
 
-          <h4>2. A stronger divisibility condition</h4>
-          <p>The profile gives \(f\equiv(x-1)^{10}\pmod{x^3-1}\). Hence \(f-(x-1)^{10}\) is divisible by both \((x-1)^{10}\) and \(x^3-1\), and therefore by their monic least common multiple:</p>
-          <p class="proof-equation">\(\displaystyle f=(x-1)^{10}+(x-1)^9(x^3-1)h,\qquad h\in\mathbb Z[x].\)</p>
-          <p>Congruences modulo integers in what follows are coefficientwise. Using</p>
-          <p class="proof-equation">\(\displaystyle (x-1)^9=\bigl((x^3-1)-3x(x-1)\bigr)^3\equiv(x^3-1)^3\pmod9,\)</p>
-          <p>we get</p>
-          <p class="proof-equation">\(\displaystyle f\equiv(x-1)(x^3-1)^3+(x^3-1)^4h\pmod9.\)</p>
-          <p>The first term has no exponents congruent to 2 modulo 3. Collecting that class, with \(y=x^3\), gives</p>
-          <p class="proof-equation">\(\displaystyle F(y)\equiv(y-1)^4H(y)\pmod9,\qquad H\in\mathbb Z[y].\)</p>
+          <h4>2. Their squares and cubes</h4>
+          <p>Cubing \((x-1)^3=(x^3-1)-3x(x-1)\) gives \((x-1)^9\equiv(x^3-1)^3\pmod9\). Collecting the exponents divisible by 3 gives</p>
+          <p class="proof-equation">\(\sum_{t=1}^{170}a_{3t}y^t\equiv(y-1)^3\sum_{t\ge0}g_{3t}y^t\pmod9.\)</p>
+          <p>The last factor vanishes at \(1\) because \(G_0=0\). Thus the left side has a factor \((y-1)^4\) modulo 9, so its signed square and cube sums both vanish modulo 9.</p>
+          <p class="proof-equation">\(\displaystyle \sum_t a_{3t}t^k=\left.\left(y\frac{d}{dy}\right)^k\sum_t a_{3t}y^t\right|_{y=1}\equiv0\pmod9\qquad(k=2,3).\)</p>
+          <p>The unsigned sums over \(t=1,\ldots,170\) are respectively \(6\) and \(0\) modulo 9. Hence the four positive indices satisfy</p>
+          <p class="proof-equation">\(\displaystyle \sum_{i=1}^4 t_i^2\equiv3,\qquad \sum_{i=1}^4 t_i^3\equiv0\pmod9.\)</p>
+          <p>The square congruence forces <strong>exactly three</strong> of the four \(t_i\) to be coprime to 3. Their count is a multiple of 3 by reduction modulo 3, and it cannot be zero since then every square would vanish modulo 9. But those three cubes are each \(\pm1\bmod9\), and the fourth is zero. Three signs cannot sum to zero modulo 9.</p>
 
-          <h4>3. Two incompatible consequences</h4>
-          <p>Let \(e_0,e_2\) count the exceptional indices \(m_k\) congruent to 0 and 2 modulo 3. Since</p>
-          <p class="proof-equation">\(\displaystyle (y-1)^4\equiv-3(1+y+y^2)\pmod{9,\ y^3-1},\)</p>
-          <p>the three residue-class sums of \(F\) are equal modulo 9. Their class sizes are \(57,57,56\), so</p>
-          <p class="proof-equation">\(\displaystyle 2e_0-57\equiv2e_2-56\pmod9,\qquad e_2-e_0\equiv4\pmod9.\)</p>
-          <p>With \(e_0+e_2\le4\), this forces \(e_2=4\): every \(m_k\) is 2 modulo 3.</p>
-          <p>But the coefficient of \((y-1)^2\) in \(F\) must also vanish modulo 9. By the binomial theorem and \(\sum_{m=0}^{169}\binom m2=\binom{170}3\), it is</p>
-          <p class="proof-equation">\(\displaystyle T_2=-\binom{170}3+2\sum_{k=1}^4\binom{m_k}2.\)</p>
-          <p>Now \(\binom{170}3=804440\equiv2\pmod9\), and</p>
-          <p class="proof-equation">\(\displaystyle \binom{3\ell+2}2=1+9\frac{\ell(\ell+1)}2\equiv1\pmod9.\)</p>
-          <p>Thus \(T_2\equiv-2+2\cdot4=6\pmod9\), a contradiction.</p>
-
-          <h4>4. The shorter contradiction at 496</h4>
-          <p>The class sizes are now \(166,165,165\). Applying Step 1 to the two odd-sized classes gives, up to sign, \((S_0,S_1,S_2)=(-162,81,81)\). There are exactly two positive signs among the 166 positions \(i=3m\).</p>
-          <p>This time \(f\equiv x(x-1)^{10}\pmod{x^3-1}\). The same least-common-multiple argument and reduction modulo 9 give</p>
-          <p class="proof-equation">\(\displaystyle f\equiv x(x-1)(x^3-1)^3+(x^3-1)^4h\pmod9.\)</p>
-          <p>The first term has no exponents divisible by 3. Hence \(F(y)=\sum_{m=0}^{165}a_{3m}y^m\) again satisfies \(F\equiv(y-1)^4H\pmod9\), so its three residue-class sums are equal modulo 9. Their sizes are \(56,55,55\). If \(e_0,e_1\) count the positive signs in the first two classes,</p>
-          <p class="proof-equation">\(\displaystyle 2e_0-56\equiv2e_1-55\pmod9,\qquad e_0-e_1\equiv5\pmod9,\)</p>
-          <p>impossible because \(|e_0-e_1|\le2\).</p>
+          <h4>3. The shorter contradiction at 496</h4>
+          <p>Numbering the positions \(3,\ldots,498\) instead of \(0,\ldots,495\) multiplies \(f\) by \(x^3\) and preserves its order at 1. The class sizes are now \(166,165,165\). Applying Step 1 to the two odd-sized classes gives, up to sign, \((S_0,S_1,S_2)=(-162,81,81)\). There are exactly two positive signs among the 166 positions \(j=3t\).</p>
+          <p>The signed cube sum again vanishes modulo 9. The cubes \(t^3\bmod9\) repeat \(1,-1,0\), so their sum from 1 to 166 is \(1\bmod9\). The two positive indices would therefore satisfy</p>
+          <p class="proof-equation">\(\displaystyle 2(t_1^3+t_2^3)\equiv1\pmod9,\qquad t_1^3+t_2^3\equiv5\pmod9,\)</p>
+          <p>impossible because \(t_i^3\equiv0,\pm1\pmod9\).</p>
           <p>Finally, order 9 is attained at 512 by \(\prod_{j=0}^{8}(1-x^{2^j})\): binary expansion gives its 512 coefficients \(\pm1\), and its nine factors vanish simply at 1. BGPW’s order-9 example at 496, \(\href{#496:9}{p_{496}}\), supplies the other lower bound. \(\square\)”</p>
         </div>
       </details>

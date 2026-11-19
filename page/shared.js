@@ -205,13 +205,16 @@ const entries = n => { const li = ENTRY.get(String(n)); if (li === undefined) th
 // click on the link here ... yes, please fix that!"): a copy, so that the entry itself never leaves the appendix's
 // list, where every link to it or into it lands (from 2026-11-03 a box moved the entry in, and the links followed it
 // there).  The copy has no id (its heading's entry-N, its codes' N:M, its anchors'), a code's N:M its data-code, as a
-// copy of a code has it; no box that a click opened in the entry; and none of its buttons' boxes named, the box making
-// them buttons anew (chartPanel), as it does its parts.
+// copy of a code has it; no box that a click opened in the entry; none of its buttons' boxes named, the box making
+// them buttons anew (chartPanel), as it does its parts; and its math as TeX, \( ... \), as written, where KaTeX had
+// drawn it, which the box draws again once its buttons are made (a construction is read from its TeX: dreeves, "links
+// not working for me still", when a box that copied a drawn entry threw at its first construction).
 const copied = li => {
   const c = li.cloneNode(true);
   c.querySelectorAll('.partition, .derivation').forEach(x => x.remove());
+  c.querySelectorAll('.katex').forEach(k => k.replaceWith(`\\(${k.querySelector('annotation').textContent}\\)`));
   c.querySelectorAll('code[id]').forEach(x => { x.dataset.code = x.id; });
-  c.querySelectorAll('[id]').forEach(x => x.removeAttribute('id'));
+  [c, ...c.querySelectorAll('[id]')].forEach(x => x.removeAttribute('id'));   // its own too (384's li is #proof384)
   c.querySelectorAll('[aria-controls]').forEach(x => x.removeAttribute('aria-controls'));
   return c;
 };

@@ -999,12 +999,14 @@ async function fragment(R) {
   R.closed = panelReport();
   await hashed('#n1024');
   R.again = panelReport();
-  const code = document.querySelector('code[id="1024:11"]');
+  // (the panel's copy of the entry's code since 2026-11-18, data-code 1024:11, the code itself staying in the appendix;
+  // until then the code, by its id, moved into the panel with its entry; connected: whether it is still in the page)
+  const code = region.querySelector('code[data-code="1024:11"]');
   code.click();
   const box = () => document.getElementById(code.getAttribute('aria-controls'));
-  const boxReport = () => ({expanded: code.getAttribute('aria-expanded'), inMstar: region.contains(box()),
-    inPow2: document.getElementById('pow2-panel').contains(box()), inEntry: code.closest(HELD).contains(box()), shown: box().checkVisibility(),
-    ks: [...box().querySelectorAll('[data-k]')].map(c => c.textContent), relations: [...box().querySelectorAll('[data-relation]')].map(c => c.textContent)});
+  const boxReport = () => ({expanded: code.getAttribute('aria-expanded'), connected: code.isConnected, inMstar: region.contains(box()),
+    inPow2: document.getElementById('pow2-panel').contains(box()), inEntry: code.closest(HELD).contains(box()), shown: box()?.checkVisibility() ?? false,
+    ks: [...box()?.querySelectorAll('[data-k]') ?? []].map(c => c.textContent), relations: [...box()?.querySelectorAll('[data-relation]') ?? []].map(c => c.textContent)});
   R.expanded = boxReport();
   await hashed('#k10');
   R.crossed = {mstar: panelReport(), pow2: panelReport('pow2-panel'), box: boxReport()};
@@ -5027,7 +5029,7 @@ def q_panel_shows_its_entry_and_gives_it_back():
         steps = [('fragment', R['fragment'], ['entry-1024']), ('escaped', R['escaped'], []), ('reopened', R['reopened'], ['entry-512']),
                  ('closed', R['closed'], []), ('again', R['again'], ['entry-1024']),
                  ('crossed mstar', R['crossed']['mstar'], ['entry-1024']), ('crossed pow2', R['crossed']['pow2'], ['entry-1024']),
-                 ('crossClosed mstar', R['crossClosed']['mstar'], []), ('crossClosed pow2', R['crossClosed']['pow2'], []),
+                 ('crossClosed mstar', R['crossClosed']['mstar'], ['entry-1024']), ('crossClosed pow2', R['crossClosed']['pow2'], []),
                  ('switched', R['switched'], ['entry-1024']), ('allClosed', R['allClosed']['mstar'], [])]
         for step, P, want in steps:
             assert P['entries'] == want, (name, step, P['entries'], want)
@@ -5053,18 +5055,22 @@ def q_entry_ids_stay_unique_and_codes_expand_in_a_panel():
     # the code in the panel (aria-expanded true), its box right there, shown, inside the entry: the power sums for k = 0
     # to 11, equal below 11 and unequal at 11; the box moves with the entry into the other panel, still shown, and back
     # into the list with it.
+    # Spec change (Opus 5.5, 2026-11-18, for dreeves's sign-off; his "yes, please fix that!", of a link into an entry
+    # that landed in the box showing it): a panel shows a copy of the entry, with no id, so no id is on two elements
+    # still; the click is on the copy's code, data-code 1024:11, which expands in the panel as before; the powers-of-2
+    # chart's panel shows a copy of its own, so the expanded one stays in the m*(n) chart's panel, shown; and with both
+    # panels closed the copy is gone from the page, its box with it.
     # Resultata before: the code was in the list, and its box opened there, outside the panel.
     for name in ('fragment', 'phone fragment'):
         R = valid_run(name)
         reports = [R[k] for k in ('fragment', 'escaped', 'reopened', 'closed', 'again', 'switched')] + [
             R[k][c] for k in ('crossed', 'crossClosed', 'allClosed') for c in ('mstar', 'pow2')]
         assert all(P['dups'] == [] for P in reports), (name, [P['dups'] for P in reports])
-        want = {'expanded': 'true', 'inEntry': True, 'ks': [str(k) for k in range(12)], 'relations': ['='] * 11 + ['≠']}
-        for step, at in (('expanded', {'inMstar': True, 'inPow2': False, 'shown': True}),
-                         ('crossed', {'inMstar': False, 'inPow2': True, 'shown': True}),
-                         ('allClosed', {'inMstar': False, 'inPow2': False})):
+        shown = {'expanded': 'true', 'connected': True, 'inEntry': True, 'inMstar': True, 'inPow2': False, 'shown': True,
+                 'ks': [str(k) for k in range(12)], 'relations': ['='] * 11 + ['≠']}
+        for step, want in (('expanded', shown), ('crossed', shown), ('allClosed', {'connected': False, 'inMstar': False, 'inPow2': False})):
             B = R[step] if step == 'expanded' else R[step]['box']
-            assert {k: B[k] for k in [*want, *at]} == want | at, (name, step, B)
+            assert {k: B[k] for k in want} == want, (name, step, B)
     for name in ('panels', 'phone panels'):
         assert all(P['dups'] == [] for P in valid_run(name)['panels']), name
 
@@ -8155,18 +8161,25 @@ sys.exit(2 if mode == 'exit2' else 0)
 def q_links_into_an_entry_land_in_the_appendix_while_a_box_shows_it():
     # 2026-11-18 (Opus 5.5; dreeves, of a link from a derivation: "something's wrong when i click on the link here. it
     # goes to the column version of the box? ... is this qualsifiable?", then "yes, please fix that!").
-    # Replicata: index.html loaded on its own (headless Chrome, 1280 px); the box of column 432 opened by its fragment,
-    # #n432, so that it shows 432's entry; then, with it open, a click on the first link to the code 432:11 outside the
-    # appendix and the boxes (the page's \href{#432:11}{p_{432}}), and then a click on 2^20's construction in the
-    # appendix and, in its derivation, on its part p_432, a link to 432's entry (#entry-432).
+    # Replicata: index.html loaded on its own (headless Chrome, 1280 px); the appendix's fold opened and closed, so that
+    # KaTeX has drawn its entries' math (later that night: dreeves, "links not working for me still"); the box of column
+    # 432 opened by its fragment, #n432, so that it shows 432's entry; then, with it open, a click on the first link to
+    # the code 432:11 outside the appendix and the boxes (the page's \href{#432:11}{p_{432}}), and then a click on 2^20's
+    # construction in the appendix and, in its derivation, on its part p_432, a link to 432's entry (#entry-432); then
+    # the box of column 80, whose entry's witness is the construction p_2 # p_40, and a click on that construction in
+    # the box.
     # Expectata: the box shows 432's entry the whole time, and each link lands in the appendix: its target, the code
     # 432:11 and then 432's entry, is in the section of class appendix, not in a box, the appendix's fold open and the
     # target in the viewport.  A box shows a copy of an entry, so that every link to the entry or into it lands in the
-    # appendix.
+    # appendix.  The construction in 80's box, a copy of the drawn entry's, expands: its derivation shows; and nothing
+    # is thrown.
     # Resultata before: since 2026-11-03 a box moved the entry itself out of the list: both targets were in the box,
-    # and each click scrolled the page to the box, the appendix left shut.
+    # and each click scrolled the page to the box, the appendix left shut.  Then (the copy's first version) a box that
+    # copied an entry whose math KaTeX had drawn threw, its construction read as drawn math, not TeX, and its buttons
+    # after it went unmade.
     probe = ('<script>addEventListener("load", () => setTimeout(async () => { const errs = []; addEventListener("error", e => errs.push(String(e.message)));'
-             ' const wait = t => new Promise(r => setTimeout(r, t)); location.hash = "#n432"; await wait(600);'
+             ' const wait = t => new Promise(r => setTimeout(r, t)); const fold = document.querySelector("section.appendix details");'
+             ' fold.open = true; await wait(800); fold.open = false; await wait(100); location.hash = "#n432"; await wait(600);'
              ' const region = document.getElementById("mstar-panel"), shows = () => !region.hidden && [...region.querySelectorAll("[data-panel-entries] p.entry")].some(p => p.dataset.lengths === "432");'
              ' const at = id => { const t = document.getElementById(id), r = t && t.getBoundingClientRect();'
              '   return t && {appendix: t.closest("section.appendix") !== null, box: t.closest(".column-panel") !== null, inView: r.top >= 0 && r.top < innerHeight,'
@@ -8175,7 +8188,9 @@ def q_links_into_an_entry_land_in_the_appendix_while_a_box_shows_it():
              ' link.click(); await wait(500); out.code = at("432:11");'
              ' const f = document.querySelector(\'section.appendix [data-construction="1048576:22"]\'); f.click(); await wait(300);'
              ' const part = [...document.getElementById(f.getAttribute("aria-controls")).querySelectorAll("a")].find(a => a.getAttribute("href") === "#entry-432");'
-             ' part.click(); await wait(500); out.entry = at("entry-432"); out.errs = errs;'
+             ' part.click(); await wait(500); out.entry = at("entry-432");'
+             ' location.hash = "#n80"; await wait(600); const built = region.querySelector("[data-panel-entries] [data-construction]"); built.click(); await wait(300);'
+             ' const shown = document.getElementById(built.getAttribute("aria-controls") || ""); out.derived = [built.getAttribute("aria-expanded"), !!shown && shown.checkVisibility()]; out.errs = errs;'
              ' document.documentElement.dataset.landed = JSON.stringify(out); }, 1500));</script>')
     d = tempfile.mkdtemp(prefix='landing-quals-')
     try:
@@ -8190,7 +8205,7 @@ def q_links_into_an_entry_land_in_the_appendix_while_a_box_shows_it():
     assert m, dom[:300]
     got = json.loads(html.unescape(m[1]))
     want = {'appendix': True, 'box': False, 'inView': True, 'fold': True, 'shows': True}
-    assert got['errs'] == [] and got['before'] and got['code'] == want and got['entry'] == want, got
+    assert got['errs'] == [] and got['before'] and got['code'] == want and got['entry'] == want and got['derived'] == ['true', True], got
 
 
 def main():
