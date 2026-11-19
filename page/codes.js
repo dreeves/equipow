@@ -163,15 +163,16 @@
   // sequence behind its column's lower bound (none, the N ones of an odd N, among them), links to N's entry in the
   // appendix; τ_j to Thue–Morse at the OEIS; a letter to its construction.  (Until that day a p_N linked to its code on
   // the page, or to its entry where its lower bound was a join or a product, or else cited its example's label.)
-  // A p_N past the chart (Opus 5.5, 2026-11-19, when the joins of powers of 2 first used them) is one of mstar.js's
-  // past, the Symmetry section's codes longer than nmax, which have no entry: it links to its code there, which says
-  // where it came from.
-  const PAST = new Map(MSTAR.past.map(([n, m]) => [BigInt(n), m]));
+  // A p_N's row is the m*(n) chart's data's (mstarRows, page/shared.js): a column's, or since 2026-11-19 one of past's,
+  // a length past the chart that the page has a sequence of, which has its entry as a column's length does (Opus 5.5;
+  // dreeves: "yes, full anti-magic, add the new entries").  From that morning, when the joins of powers of 2 first used
+  // such parts, until the rows came, each linked to its code in the Symmetry section.
+  const ROWS = mstarRows();
   const PARTS = {
     p: (N, claim) => {                                             // the best known sequence of length N
-      if (PAST.has(N)) return {n: N, m: PAST.get(N), link: `#${N}:${PAST.get(N)}`};
-      assert(1n <= N && N <= BigInt(MSTAR.nmax), claim, String(N));
-      const [lo, , why] = MSTAR.cols[Number(N) - 1];
+      const row = ROWS.get(Number(N));
+      assert(row !== undefined, claim, String(N));
+      const [lo, , why] = row;
       assert(['none', 'example', 'join', 'product'].includes(why[0]), claim, String(N), why);
       return {n: N, m: lo, link: `#${entries(N)[0].querySelector('p.entry').id}`};
     },

@@ -225,10 +225,17 @@ const copied = li => {
 const shown = (parts = [], entries = []) => ({parts, entries});
 // The facts of a length (Opus 5.5, 2026-11-18; dreeves: "make everything consistent and complete"), by the chart whose
 // data covers the length, each registered by its chart's script, as functions that give what shown gives: its witness
-// and its proof, FACTS.mstar.witness(n) and .proof(n) for n up to MSTAR's nmax, with .ifproofs(n), the bound that holds
-// if BGPW's Symmetry Conjecture does where the data lists one, and FACTS.pow2.witness(k) and .proof(k) for each 2^k past
-// it.  page/appendix.js puts them in the lengths' entries; the charts' boxes of cells show them by the cell's kind.
+// and its proof, FACTS.mstar.witness(n) and .proof(n) for each length of MSTAR's rows (mstarRows; n up to its nmax until
+// 2026-11-19), with .ifproofs(n), the bound that holds if BGPW's Symmetry Conjecture does where the data lists one, and
+// FACTS.pow2.witness(k) and .proof(k) for each 2^k past nmax.  page/appendix.js puts them in the lengths' entries; the
+// charts' boxes of cells show them by the cell's kind.
 const FACTS = {};
+// The m*(n) chart's data by length (Opus 5.5, 2026-11-19; dreeves, of entries for the sequences longer than the chart:
+// "yes, full anti-magic, add the new entries"): a Map of each length n to its row, [lo, hi, loWhy, hiWhy], each column's,
+// n from 1 to MSTAR.nmax, then each of MSTAR.past's, [n, lo, hi, loWhy, hiWhy], a length past the chart that the page has
+// a sequence of, its row found as a column's (pagegen/mstar.py's rows).  Figure 1's facts, the appendix's entries and
+// page/codes.js's parts p_N read a length's row here, the same way for every length.
+const mstarRows = () => new Map([...MSTAR.cols.map((c, i) => [i + 1, c]), ...MSTAR.past.map(([n, ...c]) => [n, c])]);
 // Claude's English, quoted (2026-11-04; in runs since 2026-11-16): one quote from the first paragraph of the parts of
 // Claude's English (data-claude) to the last, in each run of parts between parts that quote someone else (data-quote:
 // Stan Wagon's words), so that no quote of Claude's holds another's; parts with no such part are one run.  Since

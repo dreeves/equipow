@@ -1263,11 +1263,14 @@ def kinds_data(violation=None):
     # example, not the product of 16, cited, and 2.)
     # codes (2026-11-18): one for each example, of its form: n/8 hex digits rounded up, the left half all +1, the padding
     # 0 (page/codes.js checks the form as the page loads, the power sums only at a click, which no run of this data makes)
-    # (past: the real one since 2026-11-19, real_past(); [] until then)
-    data = {'nmax': DATA_NMAX, 'mtop': max(c[1] for c in cols) + 1, 'mtopAt': [DATA_NMAX + 2], 'past': real_past(),
+    # (past: the real one since 2026-11-19, real_past(); [] until then.  Its rows' examples have codes of that form too,
+    # since that day's rows, [n, lo, hi, loWhy, hiWhy], each of a column's form, whose examples examples lists: past's
+    # loWhy is an example at each of its lengths)
+    past = real_past()
+    data = {'nmax': DATA_NMAX, 'mtop': max(c[1] for c in cols) + 1, 'mtopAt': [DATA_NMAX + 2], 'past': past,
             'ifsym': [[24, 4, IFSYM_FILE], [48, 6, IFSYM_FILE]],
             'examples': [[n, f"{int('1' * (n // 2) + '0' * (-(n // 2) % 4), 2):0{-(-n // 8)}X}", 'https://oeis.org/A010060']
-                         for n, c in enumerate(cols, 1) if c[2][0] == 'example'],   # (codes, [n, code], until point 10 that night)
+                         for n, c in [*enumerate(cols, 1), *((n, c) for n, *c in past)] if c[2][0] == 'example'],   # (codes, [n, code], until point 10 that night)
             'cols': cols}
     VIOLATIONS.get(violation, (lambda data: None,))[0](data)
     return 'const MSTAR = ' + json.dumps(data) + ';\n'
@@ -1308,9 +1311,11 @@ VIOLATIONS = {   # name: (a change that breaks the contract, what the page's err
     'mtopAt': (lambda data: data.update(mtopAt=[NMAX]), f'[[{NMAX}]]'),   # not past the chart (since 2026-11-03, [LIN])
     # since 2026-11-04 ([M17]) a list, one n per order from mtop on, which cannot fall: order m + 1 at n has order m there
     'mtopAt falls': (lambda data: data.update(mtopAt=[NMAX + 4, NMAX + 2]), f'[[{NMAX + 4},{NMAX + 2}]]'),
-    # an example not past the chart (since 2026-11-04), after the real ones since 2026-11-19 (real_past; alone until then)
-    'past': (lambda data: data.update(past=data['past'] + [[NMAX, 3, 'x']]),
-             '[' + json.dumps(real_past() + [[NMAX, 3, 'x']], separators=(',', ':')).replace('"', "'") + ']'),
+    # an example not past the chart (since 2026-11-04), after the real ones since 2026-11-19 (real_past; alone until then);
+    # a row of a column's form since that day (Opus 5.5; dreeves: "yes, full anti-magic, add the new entries"), [n, m,
+    # label] until then
+    'past': (lambda data: data.update(past=data['past'] + [[NMAX, 3, 3, ['example', 'x'], ['residue', 3]]]),
+             '[' + json.dumps(real_past() + [[NMAX, 3, 3, ['example', 'x'], ['residue', 3]]], separators=(',', ':')).replace('"', "'") + ']'),
     # ifsym (since 2026-11-11, [SYC]): the key missing; a bound not below the column's own (48: 6 to 7); one below its
     # lower bound; a file that is no program of proofs/; and the columns not rising
     'ifsym missing': (lambda data: data.pop('ifsym'), "['ifsym',null]"),
@@ -1503,7 +1508,7 @@ def smallest_rows(data):
     rows = [(m, possible) for m, _, possible in least_columns(cols)] + [(top + i, n) for i, n in enumerate(at)]
     assert [m for m, _ in rows] == list(range(1, len(rows) + 1)), rows
     known = {m: n for m, n, _ in least_columns(cols) if n is not None}
-    for n, m, _ in data['past']: known[m] = min(known.get(m, math.inf), n)
+    for n, m, *_ in data['past']: known[m] = min(known.get(m, math.inf), n)   # (past's rows, [n, lo, ...], since 2026-11-19)
     best = {}
     for m, _ in rows: best[m] = min([known.get(m, math.inf)] + [best[a] * best[m - a] for a in range(1, m)])
     assert all(type(b) is int for b in best.values()), best
@@ -1660,11 +1665,13 @@ def q_changelog_brings_every_new_result_up_to_date():
         moved = [(n, state.get(n, (0, math.inf)), after[n]) for n in said]
         assert all(a != b and b[0] <= a[0] <= a[1] <= b[1] for _, b, a in moved), (d, moved)
         state = after
-    cells, cols = new_cells(page()), mstar_data()['cols']
+    cells, cols, rows = new_cells(page()), mstar_data()['cols'], mstar_rows(mstar_data())
     # Since 2026-11-11 the changelog also states new bounds at lengths of the chart past the block's 1024 (the chart
     # reaches 2048 since 2026-11-10, and the first such bounds came that night: 1104 to 1776): those are held to the
     # chart's columns, as the block's are to the block.
-    past = {n: tuple(cols[n - 1][:2]) for n in state if n not in cells and NMAX < n <= DATA_NMAX}
+    # Spec change (Opus 5.5, 2026-11-19; dreeves: "yes, full anti-magic, add the new entries"): and the lengths of past's
+    # rows, past the chart, to their rows, as the columns' (mstar_rows); that day's statements at 2096 to 2992 among them.
+    past = {n: tuple(rows[n][:2]) for n in state if n not in cells and n > NMAX and n in rows}
     assert set(state) <= set(cells) | set(past), set(state) - set(cells) - set(past)
     known = cells | past
     false = {n: (state[n], known[n]) for n in state if not state[n][0] <= known[n][0] <= known[n][1] <= state[n][1]}
@@ -3365,7 +3372,7 @@ def q_example_at_1440_settles_a_15():
     # Since 2026-11-11 past is not empty: the Symmetry section has symmetric sequences of order 12 at 2096, 2128 and
     # 2192, longer than the chart (quals_mstar's q_past_lists_the_example_of_order_16_at_1440 holds the list).  What
     # this qual needs of past is that none of them reaches order 16, so that 1440 stays the least length known there.
-    assert all(m < 16 for _, m, _ in mstar_data()['past']), mstar_data()['past']
+    assert all(m < 16 for _, m, *_ in mstar_data()['past']), mstar_data()['past']   # (past's rows, [n, lo, ...], since 2026-11-19)
     assert any(d == '2026-11-04' and '\\(a(15) = 1440\\)' in rest for d, rest in changelog()), changelog()[:3]
     # Spec change (2026-11-07; dreeves, of quals that failed on his rewrite of the OEIS notes: "if i wrote something, that
     # shouldn't make a qual fail, right?"): this qual no longer asks the OEIS note on A323395 to state a(15) = 1440.
@@ -3417,7 +3424,7 @@ def q_oeis_notes_hold_on_the_chart():
     data = mstar_data()
     cols = data['cols']
     lo, hi = (lambda n: cols[n - 1][0]), (lambda n: cols[n - 1][1])
-    known = lambda m: min([n for n in range(2, NMAX + 1, 2) if lo(n) >= m] + [n for n, o, _ in data['past'] if o >= m])
+    known = lambda m: min([n for n in range(2, NMAX + 1, 2) if lo(n) >= m] + [n for n, o, *_ in data['past'] if o >= m])   # (past's rows, [n, lo, ...], since 2026-11-19)
     allowed = lambda m: next((n for n in range(2, NMAX + 1, 2) if hi(n) >= m), None) or data['mtopAt'][m - data['mtop']]
     said = ' '.join(note.split('Claude:', 1)[1] for note in notes.values() if 'Claude:' in note)   # Claude's words alone
     for k, rel, N in re.findall(r'\\\(a\((\d+)\) (=|\\le) (\d+)\\\)', said):
@@ -5408,7 +5415,7 @@ def box_parts(cols, n, m=None, ifsym=()):
     column's box shows its length's entry of the appendix, with its facts (fact_kinds: a class's for a length of a
     class, and the bound that holds if the Symmetry Conjecture does where ifsym lists the length); a cell's box is as
     before, the entry it shows for a bound of the page's own with its facts hidden (page/style.css)."""
-    if m is None: return fact_kinds(cols, n, ifsym)
+    if m is None: return fact_kinds(cols[n - 1], n, ifsym)
     lo, hi, lw, hw = cols[n - 1]
     kind = kind_of(cols, n, m, ifsym)
     witness, proof = SHOWS[kind]
@@ -5482,13 +5489,14 @@ def class_of(n):
 CLASS_FACTS = {'odd': ['proof-odd'], 'singly-even': ['witness-alternating', 'proof-two']}
 
 
-def fact_kinds(cols, n, ifsym=()):
-    """The kinds of the facts of the length n of the m*(n) chart in its entry of the appendix, in order (Opus 5.5,
-    2026-11-18): its class's (CLASS_FACTS) for a length of a class; else the witness of its lower bound (WITNESSES), then
+def fact_kinds(row, n, ifsym=()):
+    """The kinds of the facts of the length n of the m*(n) chart's data, of its row [lo, hi, loWhy, hiWhy] (a column's,
+    or since 2026-11-19 one of past's: mstar_rows), in its entry of the appendix, in order (Opus 5.5, 2026-11-18): its
+    class's (CLASS_FACTS) for a length of a class; else the witness of its lower bound (WITNESSES), then
     a copy of the page's code of the length n and the order lo where the page has one and the entry does not hold it
     itself (witness-code); the proof of its upper bound (PROOF_PARTS, or Stan Wagon's words, proof-stan, where his
     argument holds); and where ifsym (the data's) lists n, the bound that holds if BGPW's Symmetry Conjecture does."""
-    lo, hi, lw, hw = cols[n - 1]
+    lo, hi, lw, hw = row
     upper = ['proof-stan'] if hw == ['residue', 3] and stan_holds(n, hi + 1) else [PROOF_PARTS[hw[0]]]
     return CLASS_FACTS.get(class_of(n)) or ([WITNESSES[lw[0]]] + upper   # (no witness-code since 2026-11-18: its codes in its part)
                                             + ['proof-ifsym'] * any(x == n for x, _, _ in ifsym))
@@ -5507,11 +5515,20 @@ def pow2_fact_kinds(pcols, k):
             + ['proof-stan' if hw in (['residue', [3]], ['mstar', ['residue', 3]]) and stan_holds(2 ** k, hi + 1) else f'proof-{upper}'])
 
 
+def mstar_rows(data):
+    """The m*(n) chart's data by length, {n: [lo, hi, loWhy, hiWhy]}: each column's, n from 1 to its nmax, and since
+    2026-11-19 each row of past's, [n, lo, hi, loWhy, hiWhy], a length past the chart that the page has a sequence of
+    (dreeves: "yes, full anti-magic, add the new entries")."""
+    return {**dict(enumerate(data['cols'], 1)), **{n: c for n, *c in data['past']}}
+
+
 def appendix_lengths(kmax):
     """The lengths the appendix has an entry for (dreeves, 2026-11-18: "we want an entry for every n from 1 thru 2048,
     plus 2^12 thru 2^72"): every n of the m*(n) chart, 1 to DATA_NMAX, then each 2^k past it up to 2^kmax, the
-    powers-of-2 chart's last."""
-    return list(range(1, DATA_NMAX + 1)) + [2 ** k for k in range(DATA_NMAX.bit_length(), kmax + 1)]
+    powers-of-2 chart's last.  Spec change (Opus 5.5, 2026-11-19; dreeves, of entries for the sequences longer than the
+    chart: "yes, full anti-magic, add the new entries"): every length of the chart's data, its columns' and past's
+    (mstar_rows), so the seven lengths of past too, between 2048 and 2^12."""
+    return sorted([*mstar_rows(mstar_data()), *(2 ** k for k in range(DATA_NMAX.bit_length(), kmax + 1))])
 
 
 def q_appendix_has_an_entry_for_every_length():
@@ -5540,8 +5557,10 @@ def q_appendix_has_an_entry_for_every_length():
     assert A is not None, 'no section.appendix'
     assert (A['prev'], A['next'], A['open'], A['remarks']) == ('symmetry', 'progress', False, 0), {k: A[k] for k in ('prev', 'next', 'open', 'remarks')}
     assert A['title'] == 'Appendix: Everything Known About Every Length', A['title']
+    # Spec change (Opus 5.5, 2026-11-19; dreeves: "yes, full anti-magic, add the new entries"): the lengths of past's
+    # rows have their entries too (appendix_lengths), each with its row's facts, as a column's (fact_kinds).
     data, pcols = mstar_data(), pow2_data()['cols']
-    cols, ifsym, kmax = data['cols'], data['ifsym'], len(pcols)
+    rows, ifsym, kmax = mstar_rows(data), data['ifsym'], len(pcols)
     lengths = [[int(x) for x in e['lengths'].split()] for e in A['entries']]
     classes = [[n for n in appendix_lengths(kmax) if class_of(n) == c] for c in CLASS_FACTS]
     assert lengths[:2] == classes and [e['facts'] for e in A['entries'][:2]] == [[[k, c] for k in CLASS_FACTS[c]] for c in CLASS_FACTS], \
@@ -5551,7 +5570,7 @@ def q_appendix_has_an_entry_for_every_length():
     assert all(len(ls) == 1 for ls in lengths[2:]), [ls for ls in lengths[2:] if len(ls) > 1]
     for ls, e in zip(lengths[2:], A['entries'][2:]):
         want = [[kind, str(n)] for n in ls
-                for kind in (fact_kinds(cols, n, ifsym) if n <= DATA_NMAX else pow2_fact_kinds(pcols, n.bit_length() - 1))]
+                for kind in (fact_kinds(rows[n], n, ifsym) if n in rows else pow2_fact_kinds(pcols, n.bit_length() - 1))]
         assert e['facts'] == want, (ls, e['facts'], want)
     assert O['before'] == 0 and O['after'] >= 2 * len(A['entries']) and O['errors'] == 0, O
 
@@ -6374,18 +6393,21 @@ def smallest_table():
 def q_page_statements_agree_with_the_chart():
     # Replicata: the page's math, its comments aside: every statement m^*(N) = V, \le V, \ge V or \in \{A, ..., B\}
     # with N in digits or 2^k, N up to mstar.js's last n; and mstar.js's column [lo, hi] at N.
+    # Spec change (Opus 5.5, 2026-11-19; dreeves: "yes, full anti-magic, add the new entries"): N a length of mstar.js's
+    # rows, its columns' or past's (mstar_rows), each statement held to N's row: the lengths past the chart that the
+    # page has a sequence of are stated in their entries and the changelog since then.
     # Expectata (dreeves, 2026-11-10, of the chart's column 1456, open at order 12 while the changelog and the section
     # on asymptotics state m*(1456) = 11: "first get the chart in sync with all the known results"): the chart knows
     # what the page states: lo = hi = V, hi <= V, lo >= V, or A <= lo and hi <= B (a range of an earlier day may be
     # wider than the chart's); and the statements are a hundred or more.
     # Resultata before: at 1456 the chart had [11, 12], its upper bound the norm lemma's.
-    cols, said = mstar_data()['cols'], []
+    rows, said = mstar_rows(mstar_data()), []
     for n, rel, v in re.findall(r'm\^\*\((\d+|2\^\{?\d+\}?)\)\s*(=|\\le|\\ge|\\in)\s*(\\\{[\d, ]+\\\}|\d+)', blank_comments(page())):
         n = int(n) if n.isdigit() else 2 ** int(re.sub(r'\D', '', n[1:]))
-        if n <= DATA_NMAX: said.append((n, rel, [int(x) for x in re.findall(r'\d+', v)]))
+        if n in rows: said.append((n, rel, [int(x) for x in re.findall(r'\d+', v)]))
     holds = {'=': lambda lo, hi, vs: lo == hi == vs[0], '\\le': lambda lo, hi, vs: hi <= vs[0],
              '\\ge': lambda lo, hi, vs: lo >= vs[0], '\\in': lambda lo, hi, vs: min(vs) <= lo and hi <= max(vs)}
-    bad = [(n, rel, vs, cols[n - 1][:2]) for n, rel, vs in said if not holds[rel](*cols[n - 1][:2], vs)]
+    bad = [(n, rel, vs, rows[n][:2]) for n, rel, vs in said if not holds[rel](*rows[n][:2], vs)]
     assert len(said) >= 100 and bad == [], (len(said), bad)
 
 
@@ -6423,11 +6445,11 @@ def least_columns(cols):
 
 def products_least(cols, m, past=()):
     """By brute force over the chart's data: the least product n_1 n_2 ... n_k (k >= 1) of lengths of the chart, and of
-    the examples past it in past (mstar.js's past, [n, order, label]; since 2026-11-04), whose lower bounds sum to at
-    least m, a product f(x) g(x^n) (f of length n) having order at least the sum of its factors'.  A depth-first search
-    over the multisets of lengths with a lower bound of at least 1, in rising order, cut off where the product already
-    exceeds the least found."""
-    lengths = sorted([(n, c[0]) for n, c in enumerate(cols, 1) if c[0] >= 1] + [(n, k) for n, k, _ in past])
+    the examples past it in past (mstar.js's past, [n, order, ...]; since 2026-11-04, its rows [n, lo, hi, loWhy, hiWhy]
+    since 2026-11-19), whose lower bounds sum to at least m, a product f(x) g(x^n) (f of length n) having order at least
+    the sum of its factors'.  A depth-first search over the multisets of lengths with a lower bound of at least 1, in
+    rising order, cut off where the product already exceeds the least found."""
+    lengths = sorted([(n, c[0]) for n, c in enumerate(cols, 1) if c[0] >= 1] + [(n, k) for n, k, *_ in past])
     best = math.inf
     def go(start, product, order):
         nonlocal best
@@ -7553,7 +7575,7 @@ def q_asymptotics_states_the_records_in_the_data():
     text = re.sub(r'<!--.*?-->', '', found.group(0), flags=re.S)   # what the reader sees, not the TODO recaps
     M = mstar_data()
     known = [(c[0] / math.log2(n), n, c[0]) for n, c in enumerate(M['cols'], 1) if c[0] > 0 and n > 1]
-    known += [(m / math.log2(n), n, m) for n, m, _ in M['past']]
+    known += [(m / math.log2(n), n, m) for n, m, *_ in M['past']]   # (past's rows, [n, lo, ...], since 2026-11-19)
     ratio, n, m = max(known)
     assert f'{n}:{m}' in text and f'{ratio:.3f}' in text, (n, m, ratio)
     best, lo, k = max((Fraction(c[0], k), c[0], k) for k, c in enumerate(pow2_data()['cols'], 1))

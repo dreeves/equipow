@@ -233,7 +233,7 @@ def firsts_blocks():
     M = node_global(os.path.join(HERE, 'pagedata', 'mstar.js'), 'MSTAR')[2]
     is_tau = lambda n, m: n & (n - 1) == 0 and m == n.bit_length() - 1
     blocks = {n: c[0] for n, c in enumerate(M['cols'], 1) if c[0] >= 1 and not is_tau(n, c[0])}
-    for n, m, _ in M['past']: blocks[n] = max(blocks.get(n, 0), m)
+    for n, m, *_ in M['past']: blocks[n] = max(blocks.get(n, 0), m)   # (past's rows, [n, lo, ...], since 2026-11-19)
     return blocks
 
 

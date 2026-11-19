@@ -1067,7 +1067,7 @@ def long_blocks():
     as the script reads it (spec change, Opus 5.5, 2026-11-19, when the joins of powers of 2 first used sequences past the
     chart, quals_index's q_sequences_past_the_chart_move_seven_firsts; a list written in the script, JSON, until then)."""
     assert '\n  const LONG = MSTAR.past.map(([n, m]) => [n, m]);\n' in chart_script(), 'no const LONG from mstar.js\'s past'
-    return [[n, m] for n, m, _ in qi.mstar_data()['past']]
+    return [[n, m] for n, m, *_ in qi.mstar_data()['past']]   # (past's rows, [n, lo, ...], since 2026-11-19)
 
 
 def q_long_blocks_are_the_remarks_examples():
@@ -1086,7 +1086,7 @@ def q_long_blocks_are_the_remarks_examples():
     # Spec change (Opus 5.5, 2026-11-19; quals_index's q_sequences_past_the_chart_move_seven_firsts): LONG is mstar.js's past since
     # then, the Symmetry section's codes longer than NMAX (whose orders quals_mstar holds), as the joins at 2^22 and up use those at
     # 2096, 2528 and 2608; the remarks still have no example longer than NMAX (LONG was [] until then).
-    assert long_blocks() == [[n, m] for n, m, _ in qi.mstar_data()['past']] and [[n, m] for n, m, _ in long] == [], (long_blocks(), long)
+    assert long_blocks() == [[n, m] for n, m, *_ in qi.mstar_data()['past']] and [[n, m] for n, m, _ in long] == [], (long_blocks(), long)
     assert NMAX == 2048 and [n for n, *_ in codes].count('1024') == 1, (NMAX, [n for n, *_ in codes])
     for n, m, h in long:
         left = [2 * int(b) - 1 for b in bin(int(h, 16))[2:].zfill(4 * len(h))]

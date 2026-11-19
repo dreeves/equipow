@@ -21,6 +21,7 @@ at each power of 2 beyond, and the page's new results (mstar.NEW).
 import sys
 sys.dont_write_bytecode = True
 import os, re, math, time, traceback
+from functools import lru_cache
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # the repository's root, above quals/
 sys.path.insert(0, os.path.join(HERE, 'pagegen'))   # mstar.py's directory since 2026-11-10 ([REF]); the root until then
 import mstar
@@ -348,11 +349,31 @@ def q_every_construction_of_the_appendix_derives_its_claim():
     # p_N with no code on the page whose own lower bound is a join or a product links to N's entry (page/codes.js).
     # Resultata before: a click on 356's construction, p_8 ∨ p_348, threw ['356:3','348',['join',8,340]]: codes.js
     # could only cite an example for a part with no code, and 348's lower bound is a join.
+    got = appendix_derivations()
+    cols, pcols = qi.mstar_data()['cols'], qi.pow2_data()['cols']
+    want = ([f'{n}:{c[0]}' for n, c in enumerate(cols, 1) if c[2][0] in ('join', 'product') and n % 4 == 0]
+            + [f'{2 ** k}:{c[0]}' for k, c in enumerate(pcols, 1) if 2 ** k > qi.DATA_NMAX and c[2][0] == 'joins'])
+    assert got['errs'] == [] and sorted(c for c, _, _ in got['out']) == sorted(want), (got['errs'][:3], len(got['out']), len(want))   # (an entry by hand of several lengths holds their facts at its first)
+    # (the box's data-n and data-m since 2026-11-18, when its bound under the steps went: until then that bound's text)
+    bad = [(c, b) for c, b, _ in got['out'] if b != c]
+    assert bad == [], bad[:5]
+
+
+@lru_cache(maxsize=None)
+def appendix_derivations():
+    """index.html loaded on its own (headless Chrome, its own profile), and in the page, once it has loaded, a click (the
+    element's click()) on each construction of the facts that page/appendix.js puts in the appendix's entries, one
+    after another, each read: {out: [[its claim, the bound n:m of the derivation it shows, its parts' links], ...],
+    errs: what was thrown}, a part's link [its words, its href, the element that the href names, as [its tag, its
+    classes, its data-lengths], or null].  (Shared since 2026-11-19 by the two quals of the appendix's derivations; the
+    first's own run, without the links, until then.)"""
     import json, html, shutil, tempfile
     probe = ('<script>addEventListener("load", () => setTimeout(() => { const errs = []; addEventListener("error", e => errs.push(String(e.message)));'
+             ' const at = h => { const t = h.startsWith("#") ? document.getElementById(h.slice(1)) : null; return t ? [t.tagName, t.className, t.dataset.lengths ?? null] : null; };'
              ' const out = [...document.querySelectorAll("section.appendix [data-why] [data-construction]")].map(e => { e.click();'
              ' const box = document.getElementById(e.getAttribute("aria-controls") || "");'
-             ' return [e.dataset.construction, box ? box.dataset.n + ":" + box.dataset.m : null]; });'
+             ' return [e.dataset.construction, box ? box.dataset.n + ":" + box.dataset.m : null,'
+             ' box ? [...box.querySelectorAll("[data-parts] a")].map(a => [a.textContent, a.getAttribute("href"), at(a.getAttribute("href"))]) : null]; });'
              ' document.documentElement.dataset.derived = JSON.stringify({out, errs}); }, 1500));</script>')
     d = tempfile.mkdtemp(prefix='derivations-quals-')
     try:
@@ -365,14 +386,25 @@ def q_every_construction_of_the_appendix_derives_its_claim():
         shutil.rmtree(d)
     m = re.search(r'<html[^>]* data-derived="([^"]*)"', dom)
     assert m, dom[:300]
-    got = json.loads(html.unescape(m[1]))
-    cols, pcols = qi.mstar_data()['cols'], qi.pow2_data()['cols']
-    want = ([f'{n}:{c[0]}' for n, c in enumerate(cols, 1) if c[2][0] in ('join', 'product') and n % 4 == 0]
-            + [f'{2 ** k}:{c[0]}' for k, c in enumerate(pcols, 1) if 2 ** k > qi.DATA_NMAX and c[2][0] == 'joins'])
-    assert got['errs'] == [] and sorted(c for c, _ in got['out']) == sorted(want), (got['errs'][:3], len(got['out']), len(want))   # (an entry by hand of several lengths holds their facts at its first)
-    # (the box's data-n and data-m since 2026-11-18, when its bound under the steps went: until then that bound's text)
-    bad = [(c, b) for c, b in got['out'] if b != c]
-    assert bad == [], bad[:5]
+    return json.loads(html.unescape(m[1]))
+
+
+def q_every_part_p_n_of_the_appendix_links_to_its_entry():
+    # Replicata: the appendix's derivations, each clicked (appendix_derivations), and in each its parts' links: their
+    # words, their hrefs and the elements those name.
+    # Expectata (Opus 5.5, 2026-11-19; dreeves, of the parts past the chart, which linked to their codes in the Symmetry
+    # section: "yes, full anti-magic, add the new entries"): every part p_N of every derivation links to N's entry in
+    # the appendix, a p.entry whose data-lengths lists N, as q_leaves_resolve has the page's own derivations do since
+    # 2026-11-18; the parts past the chart among them (p_2096, p_2528 and p_2608, of the joins of powers of 2 from 2^22
+    # on), the control that the run reaches them.  Nothing is thrown.
+    # Resultata before: p_2096, p_2528 and p_2608 linked to their codes in the Symmetry section, #2096:12, #2528:13 and
+    # #2608:13 (page/codes.js), the appendix having no entry past 2048 but those of powers of 2.
+    got = appendix_derivations()
+    ps = [(claim, int(text[1:]), href, at) for claim, _, links in got['out'] for text, href, at in links if re.fullmatch(r'p\d+', text)]
+    lands = lambda n, at: at is not None and at[0] == 'P' and 'entry' in at[1].split() and str(n) in (at[2] or '').split()
+    bad = [x for x in ps if not lands(x[1], x[3])]
+    assert got['errs'] == [] and bad == [], (got['errs'][:3], len(bad), bad[:5])
+    assert {2096, 2528, 2608} <= {n for _, n, _, _ in ps}, sorted({n for _, n, _, _ in ps if n > qi.DATA_NMAX})
 
 
 def q_every_construction_formula_is_expandable():

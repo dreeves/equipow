@@ -44,7 +44,7 @@ try {
   const assert = (ok, ...what) => { if (!ok) throw new Error(JSON.stringify(what).replace(/"/g, "'")); };
   const prime = p => { for (let d = 2; d * d <= p; d++) if (p % d === 0) return false; return p >= 2; };
   const sub = k => String(k).replace(/\d/g, d => '₀₁₂₃₄₅₆₇₈₉'[d]);
-  const loOf = n => D.cols[n - 1][0];
+  const loOf = n => ROWS.get(n)[0];                               // a length's lo, by its row (a column's until 2026-11-19)
   const EXPLICIT = new Set(['none', 'example', 'join', 'product']);   // the kinds of lower bound with a sequence behind them (2026-11-18)
   // The reasons of the data contract.  ok(n, lo or hi, ...its arguments) checks one; text(n, lo or hi, ...) gives it in
   // Claude's words, starting "order lo" or "order hi + 1"; and witness(n, lo, ...) or proof(n, hi, ...) what a box
@@ -66,14 +66,14 @@ try {
       witness: (n, lo, label) => example(n, lo, linked(SOURCES.get(n), label), coded(BigInt(n), lo, CODES.get(n))),   // its code and source, the data's (2026-11-18)
     },
     join: {
-      ok: (n, lo, a, b, c) => [a, b, c].every(k => Number.isInteger(k) && 1 <= k && EXPLICIT.has(D.cols[k - 1]?.[2][0])) && a + b + c === n
+      ok: (n, lo, a, b, c) => [a, b, c].every(k => Number.isInteger(k) && 1 <= k && EXPLICIT.has(ROWS.get(k)?.[2][0])) && a + b + c === n
         && lo <= Math.min(loOf(a), loOf(b), loOf(c)),
       // readout reason; says order lo is known from the join of the examples of lengths a, b and c
       text: (n, lo, a, b, c) => `order ${lo} from the join p${sub(a)}\u00a0∨\u00a0p${sub(b)}\u00a0∨\u00a0p${sub(c)}`,
       witness: (n, lo, a, b, c) => construction(BigInt(n), n, lo, `p_{${a}} \\vee p_{${b}} \\vee p_{${c}}`, coded(BigInt(n), lo, codeOf(columnSigns(n), lo))),
     },
     product: {
-      ok: (n, lo, a, b) => [a, b].every(k => Number.isInteger(k) && 2 <= k && EXPLICIT.has(D.cols[k - 1]?.[2][0])) && a * b === n
+      ok: (n, lo, a, b) => [a, b].every(k => Number.isInteger(k) && 2 <= k && EXPLICIT.has(ROWS.get(k)?.[2][0])) && a * b === n
         && lo <= loOf(a) + loOf(b),
       // readout reason; says order lo is known from the expanded product of the examples of lengths a and b
       text: (n, lo, a, b) => `order ${lo} from the product p${sub(a)}\u00a0#\u00a0p${sub(b)}`,
@@ -148,15 +148,24 @@ try {
   // the page's caps: integers from 2 to nmax, the largest nmax itself, and one of them pressed
   assert(CAPS.every(c => Number.isInteger(c.cap) && 2 <= c.cap && c.cap <= D.nmax) && Math.max(...CAPS.map(c => c.cap)) === D.nmax
     && pressed().length === 1, CAPS.map(c => c.cap), pressed());
-  D.cols.forEach((c, i) => {
-    const n = i + 1, [lo, hi, lw, hw] = c;
-    assert(c.length === 4 && Number.isInteger(lo) && Number.isInteger(hi) && 0 <= lo && lo <= hi && hi < D.mtop, n, c);
+  // past (since 2026-11-04, for the table of smallest lengths: 1440:16 until 2026-11-10; the Symmetry section's codes
+  // longer than nmax since 2026-11-11): [n, lo, hi, loWhy, hiWhy] since 2026-11-19 (Opus 5.5; dreeves: "yes, full
+  // anti-magic, add the new entries"), the row of a length past the chart that the page has a sequence of, rising in n,
+  // which ROWS gives as it gives a column's ([n, m, label] until then, m the sequence's exact order)
+  assert(Array.isArray(D.past) && D.past.every((p, i) => Array.isArray(p) && p.length === 5 && Number.isInteger(p[0]) && p[0] > D.nmax
+    && (i === 0 || D.past[i - 1][0] < p[0])), D.past);
+  const ROWS = mstarRows();                                       // each length's row, a column's or past's (page/shared.js)
+  // each row, a column's or past's, by the same contract: its reasons', and the boxes' statements
+  ROWS.forEach((c, n) => {
+    const [lo, hi, lw, hw] = c;
+    assert(c.length === 4 && Number.isInteger(lo) && Number.isInteger(hi) && 0 <= lo && lo <= hi, n, c);
     for (const [K, w, v] of [[LO, lw, lo], [HI, hw, hi]]) {
       assert(Object.hasOwn(K, w[0]) && K[w[0]].ok.length === w.length + 1 && K[w[0]].ok(n, v, ...w.slice(1)), n, c);
     }
     assert((lw[0] === 'none') === (n % 2 === 1) && (hw[0] === 'odd') === (n % 2 === 1), n, c);
     OMIT.forEach(o => assert(stated(n, c, o), n, c));              // why a checked box may leave n out
   });
+  D.cols.forEach((c, i) => assert(c[1] < D.mtop, i + 1, c));      // the chart's top row above every column's upper bound
   assert(D.mtop === Math.max(...D.cols.map(c => c[1])) + 1, D.mtop);
   // ifsym ([SYC], 2026-11-11): [n, hi, file], rising in n: m*(n) <= hi if BGPW's Symmetry Conjecture holds, hi from the
   // column's lower bound to one below its upper bound, by the proofs that the program file, of proofs/, checks
@@ -168,16 +177,15 @@ try {
   // [M17]), which cannot fall: order m + 1 at n has order m there
   assert(Array.isArray(D.mtopAt) && D.mtopAt.length > 0 && D.mtopAt.every(n => Number.isInteger(n) && n > D.nmax && n % 2 === 0), D.mtopAt);
   assert(D.mtopAt.slice(1).every((n, i) => D.mtopAt[i] <= n), D.mtopAt);
-  // the explicit sequences longer than the chart reaches, for the table of smallest lengths (since 2026-11-04: 1440:16)
-  assert(Array.isArray(D.past) && D.past.every(([n, m, label]) => Number.isInteger(n) && n > D.nmax && n % 2 === 0 && Number.isInteger(m) && m > 0 && label), D.past);
   // examples (2026-11-18; dreeves: "show the expandable hex code for everything"; codes, [n, code], until point 10 of
   // his that night): [n, code, source], rising in n, for exactly the columns whose lower bound is an example, each the
   // code of that example, ceil(n/8) hex digits (page/codes.js checks its bits as it expands it), and where it comes
-  // from, a page (https) or, for one of this page, its entry in the appendix (#entry-N), to which its label links
+  // from, a page (https) or, for one of this page, its entry in the appendix (#entry-N), to which its label links; for
+  // past's rows too since 2026-11-19, so for every row whose lower bound is an example
   assert(Array.isArray(D.examples) && D.examples.every(([n, code, source], i) => Number.isInteger(n) && (i === 0 || D.examples[i - 1][0] < n)
     && typeof code === 'string' && /^[0-9A-F]+$/.test(code) && code.length === Math.ceil(n / 8)
     && typeof source === 'string' && /^(https:\/\/|#entry-\d+$)/.test(source)), 'examples');
-  assert(D.examples.map(([n]) => n).join() === D.cols.flatMap(([, , lw], i) => lw[0] === 'example' ? [i + 1] : []).join(), 'examples of the columns');
+  assert(D.examples.map(([n]) => n).join() === [...ROWS].flatMap(([n, [, , lw]]) => lw[0] === 'example' ? [n] : []).join(), 'examples of the rows');
   const CODES = new Map(D.examples.map(([n, code]) => [n, code])), SOURCES = new Map(D.examples.map(([n, , source]) => [n, source]));
 
   const KIND = ['exists', 'open', 'impossible', 'ifsym'];         // the kinds of cell
@@ -244,8 +252,8 @@ try {
   // heading leads with its swatch, kind and gold ring alike, and the legend's words for that swatch, the legend's own
   // item cloned; its n and m link to the boxes of its column and its row.
   const panel = document.getElementById('mstar-panel'), legend = [...cv.closest('section').querySelectorAll('.legend li')];
-  const witness = n => { const [lo, , lw] = D.cols[n - 1]; return LO[lw[0]].witness(n, lo, ...lw.slice(1)); };
-  const proof = n => { const [, hi, , hw] = D.cols[n - 1]; return HI[hw[0]].proof(n, hi, ...hw.slice(1)); };
+  const witness = n => { const [lo, , lw] = ROWS.get(n); return LO[lw[0]].witness(n, lo, ...lw.slice(1)); };   // by its row (2026-11-19)
+  const proof = n => { const [, hi, , hw] = ROWS.get(n); return HI[hw[0]].proof(n, hi, ...hw.slice(1)); };
   const ifproof = n => PROOF.ifsym(BigInt(n), `${n}`, IFHI[n - 1], D.ifsym.find(e => e[0] === n)[2]);   // of a column that ifsym lists
   FACTS.mstar = {witness, proof, ifproofs: n => D.ifsym.filter(e => e[0] === n).map(() => ifproof(n))};
   // The legend's item of the cell (n, m), by its kind and the role of its gold ring, if any

@@ -7,8 +7,10 @@
 // every entry: after both charts' scripts have registered their facts (FACTS, page/shared.js), and before page/codes.js
 // makes the page's codes and constructions buttons.
 //
-// Its lengths are every n of the m*(n) chart and each 2^k past it to the powers-of-2 chart's last; the chart whose data
-// covers a length gives its name, its bounds and its facts (source).  Their entries, in order of their first lengths:
+// Its lengths are every n of the m*(n) chart, each length past it that the page has a sequence of (MSTAR.past, since
+// 2026-11-19; dreeves, of the parts p_N past the chart that linked to their codes in the Symmetry section: "yes, full
+// anti-magic, add the new entries"), and each 2^k past it to the powers-of-2 chart's last; the chart whose data covers a
+// length gives its name, its bounds and its facts (SOURCES: the m*(n) chart's rows, mstarRows, and the powers of 2).  Their entries, in order of their first lengths:
 // one entry for each class of CLASSES, its facts stated for any of its lengths at once; the entries written by hand,
 // the li of the list, each of the lengths its heading lists (listed); and an entry made here for every other length,
 // headed by its length and its bounds, as a column's box is.  Each entry gets, right after its heading, the facts of each
@@ -21,12 +23,16 @@
   const assert = (ok, ...what) => { if (!ok) throw new Error(JSON.stringify(what, (_, v) => typeof v === 'bigint' ? `${v}` : v).replace(/"/g, "'")); };
   const list = document.querySelector('section.appendix ul.entries');
   assert(['mstar', 'pow2'].every(c => FACTS[c] !== undefined), 'the facts of each chart', Object.keys(FACTS));   // a chart's script stopped
-  const nmax = BigInt(MSTAR.nmax), kOf = n => n.toString(2).length - 1;
-  const lengths = [...Array.from({length: MSTAR.nmax}, (_, i) => BigInt(i + 1)),
-                   ...Array.from({length: POW2.kmax}, (_, i) => 2n ** BigInt(i + 1)).filter(n => n > nmax)];
-  const source = n => n <= nmax
-    ? {name: `${n}`, cols: MSTAR.cols[Number(n) - 1], facts: () => together(FACTS.mstar.witness(Number(n)), FACTS.mstar.proof(Number(n)), ...FACTS.mstar.ifproofs(Number(n)))}
-    : {name: `2^{${kOf(n)}}`, cols: POW2.cols[kOf(n) - 1], facts: () => together(FACTS.pow2.witness(kOf(n)), FACTS.pow2.proof(kOf(n)))};
+  const nmax = BigInt(MSTAR.nmax);
+  // each length's source, by the data that covers it (a Map since 2026-11-19; a test of n <= nmax until then): the m*(n)
+  // chart's for each of its rows, its columns' and past's, and the powers-of-2 chart's for each 2^k past nmax
+  const mstar = [...mstarRows()].map(([n, c]) => [BigInt(n), {name: `${n}`, cols: c,
+    facts: () => together(FACTS.mstar.witness(n), FACTS.mstar.proof(n), ...FACTS.mstar.ifproofs(n))}]);
+  const pow2 = Array.from({length: POW2.kmax}, (_, i) => i + 1).filter(k => 2n ** BigInt(k) > nmax).map(k => [2n ** BigInt(k),
+    {name: `2^{${k}}`, cols: POW2.cols[k - 1], facts: () => together(FACTS.pow2.witness(k), FACTS.pow2.proof(k))}]);
+  const SOURCES = new Map([...mstar, ...pow2]);
+  assert(SOURCES.size === mstar.length + pow2.length, 'a length of both charts', mstar.length, pow2.length);
+  const lengths = [...SOURCES.keys()], source = n => SOURCES.get(n);
   const made = heading => {
     const li = document.createElement('li'), p = Object.assign(document.createElement('p'), {className: 'entry', textContent: heading});
     li.append(p);
@@ -60,7 +66,7 @@
   // [li, lengths, [[the length's data-n, its facts' parts], ...]], in order of first length
   const order = CLASSES.map(c => {
     const ns = lengths.filter(c.of);
-    ns.forEach(n => assert(c.holds(MSTAR.cols[Number(n) - 1]), c.key, n, MSTAR.cols[Number(n) - 1]));
+    ns.forEach(n => assert(c.holds(source(n).cols), c.key, n, source(n).cols));
     return [made(c.heading), ns, [[c.key, c.facts()]]];
   });
   for (const n of lengths.filter(n => !CLASSES.some(c => c.of(n)))) {

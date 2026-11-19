@@ -440,7 +440,12 @@ def q_schema():
     assert all(type(n) is int and 2 <= n <= M['nmax'] and n % 2 == 0 and type(hi) is int and M['cols'][n - 1][0] <= hi < M['cols'][n - 1][1]
                and re.fullmatch(r'proofs/[\w.]+\.py', file) and os.path.isfile(os.path.join(HERE, file)) for n, hi, file in M['ifsym']), M['ifsym']
     assert [n for n, _, _ in M['ifsym']] == sorted({n for n, _, _ in M['ifsym']}), M['ifsym']
-    assert all(type(n) is int and n > M['nmax'] and type(m) is int and type(label) is str for n, m, label in M['past']), M['past']
+    # Spec change (Opus 5.5, 2026-11-19; dreeves: "yes, full anti-magic, add the new entries"): past holds rows, [n, lo,
+    # hi, loWhy, hiWhy], rising in n past nmax, each [lo, hi, loWhy, hiWhy] of a column's form (checked with the columns
+    # below), so that each such length has its entry in the appendix (q_lengths_past_the_chart_have_rows); [n, m,
+    # label] until then, m the exact order of the sequence and label its example's.
+    assert all(type(n) is int and n > M['nmax'] for n, *_ in M['past']), M['past']
+    assert [n for n, *_ in M['past']] == sorted({n for n, *_ in M['past']}), M['past']
     at = M['mtopAt']
     assert type(at) is list and at and all(type(n) is int and n > M['nmax'] and n % 2 == 0 for n in at), at
     assert at == sorted(at), at                  # order m + 1 at n has order m there
@@ -450,10 +455,10 @@ def q_schema():
     forms_lo = {'none': (), 'example': (str,), 'join': (int, int, int), 'product': (int, int), 'table2': (),
                 'page': (str,)}
     forms_hi = {'odd': (), 'two': (), 'norm': (int,), 'residue': (int,), 'proof': (str,), 'prop44': (), 'table2': (), 'page': (str,)}   # proof: since 2026-11-10 (mstar.PROOFS); prop44: since 2026-11-11 (mstar.prop44)
-    for n, c in enumerate(M['cols'], 1):
+    for n, c in [*enumerate(M['cols'], 1), *((n, c) for n, *c in M['past'])]:   # (past's rows too since 2026-11-19)
         assert len(c) == 4, n
         lo, hi, lw, hw = c
-        assert type(lo) is int and type(hi) is int and 0 <= lo <= hi < T, (n, c)
+        assert type(lo) is int and type(hi) is int and 0 <= lo <= hi, (n, c)   # (a column's hi < T: T is max hi + 1, above)
         for why, forms in ((lw, forms_lo), (hw, forms_hi)):
             assert type(why) is list and why and why[0] in forms, (n, why)
             assert tuple(type(x) for x in why[1:]) == forms[why[0]], (n, why)
@@ -482,16 +487,19 @@ def q_every_example_has_its_code():
     # Spec change (later that night, for dreeves's sign-off; his "making all witnesses conforming sounds great"): 130
     # examples, not 124: the six of mstar.FOUND that no product or join of conforming columns reaches (136, 152, 1328,
     # 1360, 1424, 1456).
+    # Spec change (Opus 5.5, 2026-11-19; dreeves: "yes, full anti-magic, add the new entries"): examples lists the rows
+    # whose lower bound is an example, past's rows too, as each such length has its entry: 137, the seven sequences
+    # longer than NMAX among them (the columns' alone, 130, until then).
     _, got = disk()
     M = got['m']
-    cols, ex = M['cols'], mstar.explicit()
-    examples = [n for n, c in enumerate(cols, 1) if c[2][0] == 'example']
-    assert [n for n, _, _ in M['examples']] == examples and len(examples) == 130, (len(M['examples']), len(examples))
+    rows, ex = {**dict(enumerate(M['cols'], 1)), **{n: c for n, *c in M['past']}}, mstar.explicit()
+    examples = [n for n, c in rows.items() if c[2][0] == 'example']
+    assert [n for n, _, _ in M['examples']] == examples and len(examples) == 137, (len(M['examples']), len(examples))
     for n, _, source in M['examples']:
-        label = cols[n - 1][2][1]
+        label = rows[n][2][1]
         assert source == mstar.SOURCES.get(label, f'#entry-{n}') and (label in mstar.SOURCES or n % 4 == 0), (n, label, source)
     for n, code, _ in M['examples']:
-        lo, label = cols[n - 1][0], cols[n - 1][2][1]
+        lo, label = rows[n][0], rows[n][2][1]
         bits = bin(int(code, 16))[2:].zfill(4 * len(code))
         a = mstar.from_rp(code, lo, n)
         assert len(code) == -(-n // 8) and set(bits[n // 2:]) <= {'0'} and a == ex[n, label] and exact_order_div(a) == lo, (n, code)
@@ -1153,16 +1161,50 @@ def q_past_lists_the_example_of_order_16_at_1440():
     # longer than NMAX, so past lists those three.
     # Spec change (Opus 5.5, 2026-11-19; quals_index's q_sequences_past_the_chart_move_seven_firsts): the section has the
     # antisymmetric sequences of order 13 at 2528, 2608, 2800 and 2992 since then, past the chart too, so past lists seven.
+    # Spec change (Opus 5.5, 2026-11-19; dreeves: "yes, full anti-magic, add the new entries"): past's rows are [n, lo,
+    # hi, loWhy, hiWhy] since then (q_lengths_past_the_chart_have_rows), so its n, lo and label are read from them.
     _, got = disk()
     M = got['m']
-    assert M['past'] == [[2096, 12, 'equipow p2096'], [2128, 12, 'equipow p2128'], [2192, 12, 'equipow p2192'], [2528, 13, 'equipow p2528'],
-                         [2608, 13, 'equipow p2608'], [2800, 13, 'equipow p2800'], [2992, 13, 'equipow p2992']], M['past']
+    listed = [[n, lo, lw[1]] for n, lo, _, lw, _ in M['past']]
+    assert listed == [[2096, 12, 'equipow p2096'], [2128, 12, 'equipow p2128'], [2192, 12, 'equipow p2192'], [2528, 13, 'equipow p2528'],
+                      [2608, 13, 'equipow p2608'], [2800, 13, 'equipow p2800'], [2992, 13, 'equipow p2992']], M['past']
     assert M['cols'][1439][:3] == [16, 17, ['example', 'equipow p1440']], M['cols'][1439]
     assert max(c[1] for c in M['cols'][:1439]) == 15, max(c[1] for c in M['cols'][:1439])
     far = {key: a for key, a in mstar.explicit().items() if key[0] > mstar.NMAX}
-    assert [[n, mstar.order(a), label] for (n, label), a in far.items()] == M['past'], list(far)
+    assert [[n, mstar.order(a), label] for (n, label), a in far.items()] == listed, list(far)
     at = [a for (n, label), a in mstar.explicit().items() if (n, label) == (1440, 'equipow p1440')]
     assert len(at) == 1 and all(mstar.order(a) == 16 and len(a) == 1440 and a == a[::-1] for a in at), len(at)
+
+
+def q_lengths_past_the_chart_have_rows():
+    # Replicata: mstar.js on disk, its past and its examples; mstar.explicit(); the chart's tests of an upper bound, each
+    # called here on its own: two, the residue condition mod 3 (residue3, at an even n that 3 does not divide), the
+    # norm bound at each prime of PRIMES not dividing n, and BGPW's Proposition 4.4 (prop44).
+    # Expectata (Opus 5.5, 2026-11-19; dreeves: "yes, full anti-magic, add the new entries", of entries in the appendix
+    # for the lengths past the chart that the page has a sequence of, so that every p_N of a derivation links to N's
+    # entry): past holds one row for each length of an explicit sequence longer than NMAX, rising in n, [n, lo, hi,
+    # loWhy, hiWhy], as a column of that length would have it: lo the exact order of its example (synthetic division),
+    # loWhy that example; hi the least of the tests at n and hiWhy the first of them to give it, in the chart's order;
+    # and examples has the example's code, as for a column (q_every_example_has_its_code).  So m*(2096) = m*(2128) =
+    # 12, 12 <= m*(2192) <= 13, and m*(n) = 13 at 2528, 2608, 2800 and 2992, each upper bound the residue condition's
+    # mod 3.  Control: the norm bound for 3, the bound that the residue condition comes before, leaves 13 at 2096 and
+    # 2128.
+    # Resultata before: past was [n, m, label] for each sequence: no upper bound past the chart, and no entry there.
+    _, got = disk()
+    M = got['m']
+    far = sorted({n for n, _ in mstar.explicit() if n > mstar.NMAX})
+    tests = lambda n: ([(mstar.two(n), ['two'])] + [(mstar.residue3(n), ['residue', 3]) for _ in [0] if n % 2 == 0 and n % 3]
+                       + [(mstar.norm(n, p), ['norm', p]) for p in mstar.PRIMES if n % p] + [(mstar.prop44(n), ['prop44'])])
+    rows = []
+    for n in far:
+        [(label, a)] = [(label, a) for (k, label), a in mstar.explicit().items() if k == n]
+        hi, hw = min(tests(n), key=lambda t: t[0])
+        rows.append([n, exact_order_div(a), hi, ['example', label], hw])
+    assert M['past'] == rows, (M['past'], rows)
+    assert [r[:3] for r in rows] == [[2096, 12, 12], [2128, 12, 12], [2192, 12, 13], [2528, 13, 13], [2608, 13, 13],
+                                     [2800, 13, 13], [2992, 13, 13]] and all(r[4] == ['residue', 3] for r in rows), rows
+    assert [n for n, _, _ in M['examples'] if n > M['nmax']] == far, [n for n, _, _ in M['examples'] if n > M['nmax']]
+    assert [mstar.norm(n, 3) for n in (2096, 2128)] == [13, 13]
 
 
 # ---------- residue tests ----------

@@ -58,14 +58,17 @@ The two lemmas behind hi (each checked against brute force by quals_mstar.py):
         <= p sum_r size(p, r)^2 (f(1) = 0 for m >= 1), and by AM-GM, N^2 <= (p sum_r size(p, r)^2 / (p-1))^(p-1).
 
 The data contract.  mstar.js is a classic script (no modules, so the page also works from file://) defining one global:
-    const MSTAR = {"nmax": 2048, "mtop": T, "mtopAt": [N, ...], "past": [[n, m, label], ...], "ifsym": [[n, hi, file], ...], "examples": [[n, code, source], ...], "cols": [[lo, hi, loWhy, hiWhy], ...]};
+    const MSTAR = {"nmax": 2048, "mtop": T, "mtopAt": [N, ...], "past": [[n, lo, hi, loWhy, hiWhy], ...], "ifsym": [[n, hi, file], ...], "examples": [[n, code, source], ...], "cols": [[lo, hi, loWhy, hiWhy], ...]};
 cols[n-1] is column n.  0 <= lo <= hi < T = max hi + 1.  Cell (n, m), m = 1..T, is green when m <= lo, gray when
 lo < m <= hi, and red when m > hi; row T is red in every column.  mtopAt lists, for each order from T to MMAX (T's
 alone where T is past MMAX), the
 least n past nmax that the chart's own upper-bound tests leave open at that order (mtop_at; T's alone, a number, from
 2026-11-03, a list since 2026-11-04), even integers above nmax that never fall: the table of smallest lengths' least n
-not ruled out at those orders.  past (since 2026-11-04) lists the explicit sequences longer than nmax, each
-[n, m, label] with m its exact order: the table of smallest lengths' lengths known past the chart, which has no column for them.
+not ruled out at those orders.  past (since 2026-11-04) lists the lengths of the explicit sequences longer than nmax,
+which the chart has no column for, rising in n: the table of smallest lengths' lengths known past the chart, and since
+2026-11-19 (dreeves: "yes, full anti-magic, add the new entries") the appendix's lengths past it but the powers of 2,
+each with its entry; each [n, lo, hi, loWhy, hiWhy], its row as a column's (rows), [n, m, label] until then, m the exact
+order of the sequence.
 ifsym (since 2026-11-11; dreeves's README, [SYC]: "a different styling on the chart ... for cells for which we know they're
 red conditional on the Symmetry Conjecture being true, i.e., we've proven there's no symmetric or antisymmetric
 bipartition") lists the columns whose upper bound is lower if BGPW's Symmetry Conjecture holds, each [n, hi, file], rising
@@ -74,7 +77,7 @@ in n: m*(n) <= hi then, hi from the column's lo to one below its own hi, by the 
 conjecture holds.
 examples (since 2026-11-18; dreeves: "there should be no "found here". what does "here" mean? totally ambiguous. show
 the expandable hex code for everything"; codes, [n, code], until his point 10 of that night) lists [n, code, source] for
-each column whose loWhy is an example, rising in n: the code of its sequence (to_hex), which is (-1)^lo-symmetric, in
+each column whose loWhy is an example, and since 2026-11-19 each row of past's, rising in n: the code of its sequence (to_hex), which is (-1)^lo-symmetric, in
 BGPW's Table 5 convention: the bits of its left half, 1 = +1, padded on the right with 0 to whole hex digits, ceil(n/8)
 of them, which page/codes.js expands; and where it comes from, to which its label links (source_of).
   loWhy  ["none"] (lo = 0, n odd); ["example", label] (an explicit sequence of length n, label saying where it is
@@ -760,7 +763,9 @@ def open_past(T):
 
 @lru_cache(maxsize=None)
 def explicit_lo():
-    """lo and loWhy from explicit sequences alone, for n = 1..NMAX (index n; index 0 unused): the best of the examples
+    """lo and loWhy from explicit sequences alone, for n = 1..NMAX (index n; index 0 unused), and on to the longest
+    explicit sequence (since 2026-11-19, when the lengths past the chart got rows, rows: a row of such a length is
+    found as a column's is, its joins' and its products' parts from the lengths below it): the best of the examples
     at n, the products a b (a, b >= 2) and the joins a + b + a whose parts' lo have one parity, each part valued at its
     own explicit lo; the first best in that order, so an example beats a product and a product a join, the least a
     first, and ["none"] (lo 0) stays only when nothing beats it, which is exactly at odd n.  A column whose explicit lo
@@ -771,8 +776,9 @@ def explicit_lo():
     whose parts are of one symmetry is of it too, its order the least of theirs."""
     ex = explicit()
     orders = {key: order(a) for key, a in ex.items()}
-    lo, why, part = [0] * (NMAX + 1), [['none']] * (NMAX + 1), [False] * (NMAX + 1)
-    for n in range(1, NMAX + 1):
+    top = max(NMAX, *(n for n, _ in ex))
+    lo, why, part = [0] * (top + 1), [['none']] * (top + 1), [False] * (top + 1)
+    for n in range(1, top + 1):
         cands = ([(0, ['none'])] + [(o, ['example', label]) for (k, label), o in orders.items() if k == n]
                  + [(lo[a] + lo[n // a], ['product', a, n // a]) for a in range(2, n // 2 + 1)
                     if n % a == 0 and part[a] and part[n // a]]
@@ -793,44 +799,67 @@ def build(n):
     return rule[why[0]]()
 
 
-@lru_cache(maxsize=None)
-def columns():
-    """[lo, hi, loWhy, hiWhy] for n = 1..NMAX (index n-1), asserting along the way: every claim of RESIDUE, every proof
-    of PROOFS, every built sequence's order, lo <= hi, the page's exact values and ranges, brute force, that no join or product
-    leans on a column whose lo is a citation, and that EXAMPLE_BY names exactly the columns whose lo is the new
-    results'."""
+def row(n):
+    """[lo, hi, loWhy, hiWhy] of the length n: lo the best of its explicit lo, Table 2's and the new results', hi the
+    least of the upper bounds that its tests, claims, proofs and citations give, each with its reason, the first of the
+    best in that order; asserting its built sequence's length and order, that the sequence is (-1)^lo-symmetric, lo <=
+    hi, and the page's exact values and ranges (CITED).  A column's (columns' loop until 2026-11-19), and since then a
+    length's past the chart that has an explicit sequence (rows)."""
     lo_x, why_x = explicit_lo()
+    a = build(n)
+    assert len(a) == n and order(a) >= lo_x[n], n
+    assert all(a[-1 - i] == (-1) ** lo_x[n] * t for i, t in enumerate(a)), n      # (-1)^lo-symmetric (2026-11-18)
+    cited = CITED.get(n, [])
+    lo, lw = max([(lo_x[n], list(why_x[n]))] + [(v[0], ['table2']) for k, v in TABLE2.items() if k == n]
+                 + [(NEW[k][0], ['page', who]) for k, who in EXAMPLE_BY.items() if k == n], key=lambda c: c[0])
+    his = ([(0, ['odd'])] * (n % 2) + [(two(n), ['two'])]
+           + [(residue3(n), ['residue', 3]) for _ in [0] if n % 2 == 0 and n % 3]
+           + [(norm(n, p), ['norm', p]) for p in PRIMES if n % p]
+           + [(m - 1, ['residue', chain[-1]]) for k, (m, chain, _) in RESIDUE.items() if k == n]
+           + [(hi, ['proof', file]) for k, (hi, file) in PROOFS.items() if k == n]
+           + [(prop44(n), ['prop44'])]
+           + [(c[1], c[2]) for c in cited if c[1] is not None])
+    hi, hw = min(his, key=lambda c: c[0])
+    assert lo <= hi, (n, lo, hi, lw, hw)
+    assert all(c[0] <= lo <= hi <= (hi if c[1] is None else c[1]) for c in cited), (n, cited, lo, hi)
+    return [lo, hi, lw, hw]
+
+
+@lru_cache(maxsize=None)
+def rows():
+    """{n: row(n)} for every length of the chart's data, in rising order: each column, n = 1..NMAX, then each length
+    past the chart that has an explicit sequence, far (since 2026-11-19; dreeves: "yes, full anti-magic, add the new
+    entries", so that each has its entry in the appendix and every p_N of a derivation links to N's entry), asserting
+    along the way: every claim of RESIDUE, every proof of PROOFS, each row's own (row), brute force, that no join or
+    product leans on a length whose lo is a citation or that has no row, and that EXAMPLE_BY names exactly the lengths
+    whose lo is the new results'."""
+    _, why_x = explicit_lo()
     for n, (m, chain, sweep) in RESIDUE.items(): assert chain_none(n, m, chain, sweep, RESIDUE_CAP), (n, m, chain)
     for n, (hi, file) in PROOFS.items(): proved(n, hi, file)
-    out = []
-    for n in range(1, NMAX + 1):
-        a = build(n)
-        assert len(a) == n and order(a) >= lo_x[n], n
-        assert all(a[-1 - i] == (-1) ** lo_x[n] * t for i, t in enumerate(a)), n      # (-1)^lo-symmetric (2026-11-18)
-        cited = CITED.get(n, [])
-        lo, lw = max([(lo_x[n], list(why_x[n]))] + [(v[0], ['table2']) for k, v in TABLE2.items() if k == n]
-                     + [(NEW[k][0], ['page', who]) for k, who in EXAMPLE_BY.items() if k == n], key=lambda c: c[0])
-        his = ([(0, ['odd'])] * (n % 2) + [(two(n), ['two'])]
-               + [(residue3(n), ['residue', 3]) for _ in [0] if n % 2 == 0 and n % 3]
-               + [(norm(n, p), ['norm', p]) for p in PRIMES if n % p]
-               + [(m - 1, ['residue', chain[-1]]) for k, (m, chain, _) in RESIDUE.items() if k == n]
-               + [(hi, ['proof', file]) for k, (hi, file) in PROOFS.items() if k == n]
-               + [(prop44(n), ['prop44'])]
-               + [(c[1], c[2]) for c in cited if c[1] is not None])
-        hi, hw = min(his, key=lambda c: c[0])
-        assert lo <= hi, (n, lo, hi, lw, hw)
-        assert all(c[0] <= lo <= hi <= (hi if c[1] is None else c[1]) for c in cited), (n, cited, lo, hi)
-        out.append([lo, hi, lw, hw])
-    for n, (lo, hi, lw, hw) in enumerate(out, 1):
-        assert lw[0] not in ('join', 'product') or all(out[k - 1][2] == list(why_x[k]) for k in lw[1:]), n
+    out = {n: row(n) for n in [*range(1, NMAX + 1), *far()]}
+    for n, (lo, hi, lw, hw) in out.items():
+        assert lw[0] not in ('join', 'product') or all(out[k][2] == list(why_x[k]) for k in lw[1:]), n
         assert n > BRUTE_MAX or lo == hi == brute(n)[0], n
-    assert {n for n, c in enumerate(out, 1) if c[2][0] == 'page'} == set(EXAMPLE_BY), EXAMPLE_BY
-    return tuple(out)
+    assert {n for n, c in out.items() if c[2][0] == 'page'} == set(EXAMPLE_BY), EXAMPLE_BY
+    return out
+
+
+def far():
+    """The lengths past the chart that have an explicit sequence, rising: 2096, 2128, 2192, 2528, 2608, 2800 and 2992
+    on 2026-11-19, the Symmetry section's codes longer than NMAX."""
+    return sorted({n for n, _ in explicit() if n > NMAX})
+
+
+@lru_cache(maxsize=None)
+def columns():
+    """[lo, hi, loWhy, hiWhy] for n = 1..NMAX (index n-1): rows' columns (each found here until 2026-11-19)."""
+    return tuple(rows()[n] for n in range(1, NMAX + 1))
 
 
 def past():
-    """mstar.js's past: the explicit sequences longer than NMAX, as [n, m, label], m the exact order, rising in n."""
-    return [[n, order(a), label] for (n, label), a in sorted(explicit().items(), key=lambda item: item[0]) if n > NMAX]
+    """mstar.js's past: [n, lo, hi, loWhy, hiWhy] for each length of far(), rising in n, its row as a column's
+    (since 2026-11-19; [n, m, label] until then, m the exact order of the sequence and label its example's)."""
+    return [[n, *rows()[n]] for n in far()]
 
 
 # Where the examples of each label not of this page come from (2026-11-18, dreeves's point 10: every source linked):
@@ -851,20 +880,21 @@ def source_of(n, label):
     return href
 
 
-def examples_of(cols):
-    """mstar.js's examples (2026-11-18): [n, code, source] for each column whose lower bound is an example, rising in
-    n: the code of the sequence behind it (build), which to_hex asserts (-1)^lo-symmetric, and where it comes from."""
-    return [[n, to_hex(build(n), lo), source_of(n, lw[1])] for n, (lo, _, lw, _) in enumerate(cols, 1) if lw[0] == 'example']
+def examples_of(rows):
+    """mstar.js's examples (2026-11-18): [n, code, source] for each row (n, [lo, hi, loWhy, hiWhy]) of rows, rising in
+    n, whose lower bound is an example, a column's and since 2026-11-19 past's: the code of the sequence behind it
+    (build), which to_hex asserts (-1)^lo-symmetric, and where it comes from."""
+    return [[n, to_hex(build(n), lo), source_of(n, lw[1])] for n, (lo, _, lw, _) in rows if lw[0] == 'example']
 
 
 def js_text(cols):
     """mstar.js: a comment line, then const MSTAR = {...}; with one example and one column per line."""
     T = max(c[1] for c in cols) + 1
-    rows = ',\n'.join(json.dumps(c) for c in cols)
-    examples = ',\n'.join(json.dumps(c, ensure_ascii=False) for c in examples_of(cols))
+    lines, far_rows = ',\n'.join(json.dumps(c) for c in cols), past()
+    examples = ',\n'.join(json.dumps(c, ensure_ascii=False) for c in examples_of([*enumerate(cols, 1), *((n, c) for n, *c in far_rows)]))
     return ('// Generated by mstar.py from index.html and the sources it names; edit mstar.py, not this file.\n'
-            f'const MSTAR = {{"nmax": {NMAX}, "mtop": {T}, "mtopAt": {json.dumps(open_past(T))}, "past": {json.dumps(past())}, '
-            f'"ifsym": {json.dumps(ifsym_of(cols, symtrees()))}, "examples": [\n{examples}\n], "cols": [\n{rows}\n]}};\n')
+            f'const MSTAR = {{"nmax": {NMAX}, "mtop": {T}, "mtopAt": {json.dumps(open_past(T))}, "past": {json.dumps(far_rows)}, '
+            f'"ifsym": {json.dumps(ifsym_of(cols, symtrees()))}, "examples": [\n{examples}\n], "cols": [\n{lines}\n]}};\n')
 
 
 def main():
