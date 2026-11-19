@@ -294,5 +294,13 @@
   window.expandable = {
     partition: e => { buttons.push(e); const s = sequence(e); button(e, () => partition(e, s)); },
     derivation: e => { buttons.push(e); parsed.set(e, parse(e)); button(e, () => derivation(e)); },
+    // (2026-11-18) a text of a box's copy of an entry, its box the copy's box of that name, closed until found as the
+    // page's are
+    text: e => {
+      const box = e.closest('li').querySelector(`[data-text-box="${e.dataset.text}"]`);
+      assert(box !== null, e.dataset.text);
+      buttons.push(e);
+      button(e, () => box, 'until-found')();
+    },
   };
 })();

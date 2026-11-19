@@ -184,25 +184,37 @@ function filled(name, values) {
 // hand lists, puts each length's facts in its entry (FACTS, below), and enters each (enter).  An entry by hand lists its
 // lengths in its heading's TeX, read before KaTeX draws it, \(n = 320, 352, ...\): or \(n = 2^{11}\): (listed).  Every
 // entry gets its lengths in decimal digits as its p.entry's data-lengths, and the id entry-N, N the first of them.
-// HOMES keeps each entry's place in the list, a comment right before its li, where the li goes back when a box that
-// showed it is done with it (chartPanel, below); ENTRY, the entry of each length, by its digits.  entries(n) gives the
-// entry of the length n (a BigInt), a list of one; it throws for a length that has none, as enter does for a length
-// entered twice.
-const HOMES = new Map(), ENTRY = new Map();
+// ENTRY, the entry of each length, by its digits.  entries(n) gives the entry of the length n (a BigInt), a list of
+// one; it throws for a length that has none, as enter does for a length entered twice.  (Until 2026-11-18 HOMES kept
+// each entry's place in the list, a comment right before its li, where the li went back when a box that had moved it
+// in was done with it: copied, below.)
+const ENTRY = new Map();
 const listed = p => {
   const x = /^\\\(n = (.+?)\\\):/.exec(p.textContent);
   if (x === null || p.parentElement.tagName !== 'LI') throw new Error(`an entry outside the form: ${p.textContent.slice(0, 80)}`);
   return x[1].split(', ').map(s => BigInt(s.replace(/^2\^\{(\d+)\}$/, (_, k) => String(2n ** BigInt(k)))));
 };
 const enter = (li, ns) => {
-  const p = li.querySelector(':scope > p.entry'), home = document.createComment(` the place of entry-${ns[0]} in the list, where it goes back from a box `);
+  const p = li.querySelector(':scope > p.entry');
   p.dataset.lengths = ns.join(' ');
   p.id = `entry-${ns[0]}`;
-  li.before(home);
-  HOMES.set(li, home);
   ns.forEach(n => { if (ENTRY.has(String(n))) throw new Error(`two entries of ${n}`); ENTRY.set(String(n), li); });
 };
 const entries = n => { const li = ENTRY.get(String(n)); if (li === undefined) throw new Error(`no entry of ${n}`); return [li]; };
+// An entry as a box shows it (since 2026-11-18; dreeves, of a link that landed in a box: "something's wrong when i
+// click on the link here ... yes, please fix that!"): a copy, so that the entry itself never leaves the appendix's
+// list, where every link to it or into it lands (from 2026-11-03 a box moved the entry in, and the links followed it
+// there).  The copy has no id (its heading's entry-N, its codes' N:M, its anchors'), a code's N:M its data-code, as a
+// copy of a code has it; no box that a click opened in the entry; and none of its buttons' boxes named, the box making
+// them buttons anew (chartPanel), as it does its parts.
+const copied = li => {
+  const c = li.cloneNode(true);
+  c.querySelectorAll('.partition, .derivation').forEach(x => x.remove());
+  c.querySelectorAll('code[id]').forEach(x => { x.dataset.code = x.id; });
+  c.querySelectorAll('[id]').forEach(x => x.removeAttribute('id'));
+  c.querySelectorAll('[aria-controls]').forEach(x => x.removeAttribute('aria-controls'));
+  return c;
+};
 
 // What a box shows (2026-11-04): parts, its parts, in order; and entries, the lengths whose entries it shows (above its
 // parts since 2026-11-18: a column's box shows its length's entry, a cell's where its bound shown is the page's own).
@@ -523,27 +535,30 @@ const searches = (n, m) => {
 // The box of a chart: region, its element (hidden until it opens); chart, the chart's element, which gets the focus
 // back; ncol() columns and nrow rows; fragment(column, row), a target's fragment; fill(column, row), what its box shows:
 // {kind, heading, parts, entries}; and pin(targets), which has the chart outline the targets, none or one.  The
-// entries it shows go in its [data-panel-entries], above its parts since 2026-11-18 (below them until then), each moved
-// there from wherever it is: its place in the appendix's list or the other chart's box, which then shows none; a copy
-// of a code goes when the box shows the code itself, in an entry; and its parts' Claude's English is quoted
-// (quoteRuns).  It returns open(target), which opens the box of the target, as panZoom's open does.
+// entries it shows go in its [data-panel-entries], above its parts since 2026-11-18 (below them until then), each a
+// copy (copied; until that night the entry itself, moved there from wherever it was: its place in the appendix's list
+// or the other chart's box, which then showed none); a copy of a code goes when the box shows the code itself, in an
+// entry; its parts' Claude's English is quoted (quoteRuns); and the codes, joins, constructions and texts of its
+// entries and parts are buttons.  It returns open(target), which opens the box of the target, as panZoom's open does.
 function chartPanel({region, chart, ncol, nrow, fragment, fill, pin}) {
   const title = region.querySelector('[data-panel-title]'), body = region.querySelector('[data-panel-body]');
   const shelf = region.querySelector('[data-panel-entries]');
-  const back = () => [...shelf.children].forEach(li => HOMES.get(li).after(li));   // its entries, each back in its place
   let last = null;                                                 // the target shown last
   function open(t) {
     const {kind, heading, parts, entries: lengths} = fill(...t);
-    back();
-    shelf.append(...lengths.flatMap(entries));
+    const held = lengths.flatMap(entries);
+    shelf.replaceChildren(...held.map(copied));
     const kept = parts;
-    dropHeld(kept, new Set([...shelf.querySelectorAll('code[id]')].map(c => c.id)));
+    dropHeld(kept, new Set(held.flatMap(li => [...li.querySelectorAll('code[id]')].map(c => c.id))));
     quoteRuns(kept);                                               // the entry's facts were quoted as the page loaded
     region.dataset.kind = kind;
     title.replaceChildren(...heading);
     body.replaceChildren(...kept);
-    body.querySelectorAll('[data-join], code[data-code]').forEach(e => expandable.partition(e));   // its copies of codes and codes, and its
-    body.querySelectorAll('[data-construction]').forEach(e => expandable.derivation(e));   // constructions, buttons
+    [shelf, body].forEach(x => {                                   // its copies of codes and codes, constructions and texts, buttons
+      x.querySelectorAll('[data-join], code[data-code]').forEach(e => expandable.partition(e));
+      x.querySelectorAll('[data-construction]').forEach(e => expandable.derivation(e));
+      x.querySelectorAll('[data-text]').forEach(e => expandable.text(e));
+    });
     region.hidden = false;
     last = t;
     history.replaceState(null, '', `#${fragment(...t)}`);
@@ -552,7 +567,7 @@ function chartPanel({region, chart, ncol, nrow, fragment, fill, pin}) {
     title.focus({preventScroll: true});
   }
   function close() {
-    back();
+    shelf.replaceChildren();
     region.hidden = true;
     pin([]);
     if (location.hash === `#${fragment(...last)}`) history.replaceState(null, '', location.pathname + location.search);

@@ -408,7 +408,7 @@ const PANEL = () => {                              // (each function here is eva
   const hid = [...region.querySelectorAll('[data-why]')].map(e => !showing(e));   // in document order, as the clone's
   c.querySelectorAll('.katex').forEach(k => k.replaceWith(`\\(${k.querySelector('annotation').textContent}\\)`));
   const held = [...c.querySelectorAll(HELD)], ids = [...document.querySelectorAll('[id]')].map(e => e.id);
-  const entries = held.map(li => li.querySelector('p.entry').id), entryText = held.map(li => li.textContent.replace(/\s+/g, ' ').trim());
+  const entries = held.map(li => `entry-${li.querySelector('p.entry').dataset.lengths.split(' ')[0]}`), entryText = held.map(li => li.textContent.replace(/\s+/g, ' ').trim());
   [...c.querySelectorAll('[data-why]')].filter((_, i) => hid[i]).forEach(e => e.remove());
   held.forEach(li => [...li.children].filter(e => !e.hasAttribute('data-why')).forEach(e => e.remove()));
   c.querySelectorAll(PARTS).forEach(e => e.append(' '));         // parts are blocks: their texts apart, as on the page

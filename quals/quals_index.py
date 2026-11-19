@@ -947,7 +947,8 @@ function panelReport(id = 'mstar-panel') {
   const hid = [...region.querySelectorAll('[data-why]')].map(e => !showing(e));   // in document order, as the clone's
   c.querySelectorAll('.katex').forEach(k => k.replaceWith(`\\(${k.querySelector('annotation').textContent}\\)`));
   const held = [...c.querySelectorAll(HELD)], entryText = held.map(li => li.textContent.replace(/\s+/g, ' ').trim());
-  const entries = held.map(li => li.querySelector('p.entry').id);   // before the headings go
+  // (by its first length since 2026-11-18, entry-N, when a box came to show a copy of the entry, with no id: its id until then)
+  const entries = held.map(li => `entry-${li.querySelector('p.entry').dataset.lengths.split(' ')[0]}`);   // before the headings go
   [...c.querySelectorAll('[data-why]')].filter((_, i) => hid[i]).forEach(e => e.remove());
   held.forEach(li => [...li.children].filter(e => !e.hasAttribute('data-why')).forEach(e => e.remove()));
   c.querySelectorAll(PARTS).forEach(e => e.append(' '));         // parts are blocks: their texts apart, as on the page
@@ -4999,11 +5000,6 @@ def q_made_up_data_opens_every_kind_of_panel():
 # list when the panel closes or opens another column; the list, the entries' source text, stays in the page in one
 # fold, closed until clicked, which find in page opens; and no entry repeats a sentence of its panel's generated text.
 
-def held(order, *gone):
-    """The list's order with the entries gone shown elsewhere."""
-    return [e for e in order if e not in gone]
-
-
 def q_panel_shows_its_entry_and_gives_it_back():
     # Replicata: the fragment runs (1280 and 390 px): the page loaded with #n1024; Escape; #n512; its close button;
     # #n1024 again; the powers-of-2 chart's #k10 (n = 1024 there too); that panel's close button; #n512, then #n1024
@@ -5018,6 +5014,11 @@ def q_panel_shows_its_entry_and_gives_it_back():
     # both panels closed the list is whole, in order.
     # Spec change (Opus 5.5, 2026-11-18): the list is the appendix's, with an entry for every length (entry_order), so
     # every panel shows one (panel_entries); the rest as before.
+    # Spec change (later that night, for dreeves's sign-off; his "yes, please fix that!", of a link into an entry that
+    # landed in the box showing it: q_links_into_an_entry_land_in_the_appendix_while_a_box_shows_it): a panel shows a
+    # copy of the entry, so the list stays whole, in order, at every step (until then it lacked the entries shown,
+    # held), and the m*(n) chart's panel keeps showing 1024's entry when the powers-of-2 chart's panel of 2^10 shows it
+    # too (until then it showed none, the entry taken from it).
     # Resultata before: panels linked their entries ("Its entry in the remarks below"), which stayed in the list.
     order = entry_order()
     assert len(order) == len(set(order)) > 500 and 'entry-1024' in order and 'entry-512' in order, order[:10]
@@ -5025,23 +5026,20 @@ def q_panel_shows_its_entry_and_gives_it_back():
         R = valid_run(name)
         steps = [('fragment', R['fragment'], ['entry-1024']), ('escaped', R['escaped'], []), ('reopened', R['reopened'], ['entry-512']),
                  ('closed', R['closed'], []), ('again', R['again'], ['entry-1024']),
-                 ('crossed mstar', R['crossed']['mstar'], []), ('crossed pow2', R['crossed']['pow2'], ['entry-1024']),
+                 ('crossed mstar', R['crossed']['mstar'], ['entry-1024']), ('crossed pow2', R['crossed']['pow2'], ['entry-1024']),
                  ('crossClosed mstar', R['crossClosed']['mstar'], []), ('crossClosed pow2', R['crossClosed']['pow2'], []),
                  ('switched', R['switched'], ['entry-1024']), ('allClosed', R['allClosed']['mstar'], [])]
         for step, P, want in steps:
             assert P['entries'] == want, (name, step, P['entries'], want)
-        shown = {'fragment': ['entry-1024'], 'escaped': [], 'reopened': ['entry-512'], 'closed': [], 'again': ['entry-1024'],
-                 'crossed mstar': ['entry-1024'], 'crossed pow2': ['entry-1024'], 'crossClosed mstar': [], 'crossClosed pow2': [],
-                 'switched': ['entry-1024'], 'allClosed': []}
         for step, P, _ in steps:
-            assert P['listed'] == held(order, *shown[step]), (name, step, sorted(set(order) ^ set(P['listed'])))
+            assert P['listed'] == order, (name, step, sorted(set(order) ^ set(P['listed'])))
         assert not R['crossed']['mstar']['hidden'] and not R['crossed']['pow2']['hidden'], R['crossed']
         assert R['crossClosed']['pow2']['hidden'] and not R['crossClosed']['mstar']['hidden'], R['crossClosed']
         assert R['allClosed']['mstar']['hidden'] and R['allClosed']['pow2']['hidden'], R['allClosed']
     for name in ('panels', 'phone panels'):
         R = valid_run(name)
         for P in R['panels']:
-            assert P['entries'] == panel_entries(P['n']) and P['listed'] == held(order, *P['entries']), (name, P['n'], P['entries'])
+            assert P['entries'] == panel_entries(P['n']) and P['listed'] == order, (name, P['n'], P['entries'])
         assert R['after']['hidden'] and R['after']['entries'] == [] and R['after']['listed'] == order, (name, R['after']['entries'])
     assert {P['n'] for P in valid_run('panels')['panels'] if P['entries']} >= {320, 352, 416, 512, 1024}
 
@@ -8152,6 +8150,47 @@ sys.exit(2 if mode == 'exit2' else 0)
         preview.CHROME = real
         os.environ.pop('PREVIEW_QUAL_MODE', None)
         shutil.rmtree(d)
+
+
+def q_links_into_an_entry_land_in_the_appendix_while_a_box_shows_it():
+    # 2026-11-18 (Opus 5.5; dreeves, of a link from a derivation: "something's wrong when i click on the link here. it
+    # goes to the column version of the box? ... is this qualsifiable?", then "yes, please fix that!").
+    # Replicata: index.html loaded on its own (headless Chrome, 1280 px); the box of column 432 opened by its fragment,
+    # #n432, so that it shows 432's entry; then, with it open, a click on the first link to the code 432:11 outside the
+    # appendix and the boxes (the page's \href{#432:11}{p_{432}}), and then a click on 2^20's construction in the
+    # appendix and, in its derivation, on its part p_432, a link to 432's entry (#entry-432).
+    # Expectata: the box shows 432's entry the whole time, and each link lands in the appendix: its target, the code
+    # 432:11 and then 432's entry, is in the section of class appendix, not in a box, the appendix's fold open and the
+    # target in the viewport.  A box shows a copy of an entry, so that every link to the entry or into it lands in the
+    # appendix.
+    # Resultata before: since 2026-11-03 a box moved the entry itself out of the list: both targets were in the box,
+    # and each click scrolled the page to the box, the appendix left shut.
+    probe = ('<script>addEventListener("load", () => setTimeout(async () => { const errs = []; addEventListener("error", e => errs.push(String(e.message)));'
+             ' const wait = t => new Promise(r => setTimeout(r, t)); location.hash = "#n432"; await wait(600);'
+             ' const region = document.getElementById("mstar-panel"), shows = () => !region.hidden && [...region.querySelectorAll("[data-panel-entries] p.entry")].some(p => p.dataset.lengths === "432");'
+             ' const at = id => { const t = document.getElementById(id), r = t && t.getBoundingClientRect();'
+             '   return t && {appendix: t.closest("section.appendix") !== null, box: t.closest(".column-panel") !== null, inView: r.top >= 0 && r.top < innerHeight,'
+             '     fold: document.querySelector("section.appendix details").open, shows: shows()}; };'
+             ' const out = {before: shows()}; const link = [...document.querySelectorAll(\'a[href="#432:11"]\')].find(a => !a.closest("section.appendix, .column-panel"));'
+             ' link.click(); await wait(500); out.code = at("432:11");'
+             ' const f = document.querySelector(\'section.appendix [data-construction="1048576:22"]\'); f.click(); await wait(300);'
+             ' const part = [...document.getElementById(f.getAttribute("aria-controls")).querySelectorAll("a")].find(a => a.getAttribute("href") === "#entry-432");'
+             ' part.click(); await wait(500); out.entry = at("entry-432"); out.errs = errs;'
+             ' document.documentElement.dataset.landed = JSON.stringify(out); }, 1500));</script>')
+    d = tempfile.mkdtemp(prefix='landing-quals-')
+    try:
+        open(os.path.join(d, 'index.html'), 'w', encoding='utf-8').write(page().replace('</body>', probe + '</body>'))
+        copy_page_dir(d)
+        shutil.copy(DATA, data_file(d, 'mstar.js'))
+        shutil.copy(POW2, data_file(d, 'pow2.js'))
+        dom = chrome(d, ['--window-size=1280,900', '--virtual-time-budget=20000', '--dump-dom', 'file://' + os.path.join(d, 'index.html')])
+    finally:
+        shutil.rmtree(d)
+    m = re.search(r'<html[^>]* data-landed="([^"]*)"', dom)
+    assert m, dom[:300]
+    got = json.loads(html.unescape(m[1]))
+    want = {'appendix': True, 'box': False, 'inView': True, 'fold': True, 'shows': True}
+    assert got['errs'] == [] and got['before'] and got['code'] == want and got['entry'] == want, got
 
 
 def main():
