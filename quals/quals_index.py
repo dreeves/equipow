@@ -8210,6 +8210,53 @@ def q_links_into_an_entry_land_in_the_appendix_while_a_box_shows_it():
     assert got['errs'] == [] and got['before'] and got['code'] == want and got['entry'] == want and got['derived'] == ['true', True], got
 
 
+def q_box_heading_links_keep_the_page_still_and_each_box_links_its_entry():
+    # 2026-11-18 (Opus 5.5; dreeves: "having a link from a cell popup box to the corresponding ones for the column and for
+    # the row makes sense. (sub-bug: the page scrolls when i click those, making the box flush with the top of the
+    # screen. i expect it to not cause scrolling). what i *also* want is a link to take me to the corresponding entry in
+    # the appendix.").
+    # Replicata: index.html loaded on its own (headless Chrome, 1280 x 900); the m*(n) chart's box of the cell (80, 13)
+    # opened by its fragment, the page scrolled so that the box's top is 150 px down the viewport; a click on its
+    # heading's n = 80 (to its column's box), then the cell's box again, its top again 150 px down, and a click on its
+    # heading's m = 13 (to its row's box); then, in turn, the boxes #n80m13, #n80, #m13, #k10 and #k30, each read: its
+    # link to the appendix (data-panel-entry), and for each one with an href, a click on it.
+    # Expectata: each heading click switches the box (to the column's, to the row's) and leaves the page where it was;
+    # a cell's or a column's box links its length's entry in the appendix, #entry-N (80's from #n80m13 and #n80, 1024's
+    # from #k10, 2^30's from #k30), and the link lands there, the appendix's fold open and the entry in the viewport;
+    # a row's box has that link grayed out (no href, aria-disabled), a row having no entry; nothing thrown.
+    # Resultata before: each heading click scrolled the box's top to the viewport's top; no box linked its entry.
+    probe = ('<script>addEventListener("load", () => setTimeout(async () => { const errs = []; addEventListener("error", e => errs.push(String(e.message)));'
+             ' const wait = t => new Promise(r => setTimeout(r, t)); const panel = id => document.getElementById(id);'
+             ' const at150 = r => { scrollBy(0, r.getBoundingClientRect().top - 150); }; const out = {};'
+             ' const heading = async (href, key) => { location.hash = "#n80m13"; await wait(600); const r = panel("mstar-panel"); at150(r); await wait(100);'
+             '   const y = scrollY; r.querySelector(`[data-panel-title] a[href="${href}"]`).click(); await wait(600);'
+             '   out[key] = {kind: r.dataset.kind, moved: Math.abs(scrollY - y) > 1}; };'
+             ' await heading("#n80", "column"); await heading("#m13", "row");'
+             ' out.links = []; for (const [frag, id] of [["n80m13", "mstar-panel"], ["n80", "mstar-panel"], ["m13", "mstar-panel"], ["k10", "pow2-panel"], ["k30", "pow2-panel"]]) {'
+             '   location.hash = "#" + frag; await wait(600); const a = panel(id).querySelector("[data-panel-entry]"); const href = a && a.getAttribute("href");'
+             '   const row = [frag, href, a && a.getAttribute("aria-disabled")];'
+             '   if (href) { a.click(); await wait(500); const t = document.getElementById(href.slice(1)), b = t && t.getBoundingClientRect();'
+             '     row.push(!!t && t.closest("section.appendix") !== null && document.querySelector("section.appendix details").open && b.top > -2 && b.top < innerHeight); }'
+             '   out.links.push(row); }'
+             ' out.errs = errs; document.documentElement.dataset.boxes = JSON.stringify(out); }, 1500));</script>')
+    d = tempfile.mkdtemp(prefix='boxlinks-quals-')
+    try:
+        open(os.path.join(d, 'index.html'), 'w', encoding='utf-8').write(page().replace('</body>', probe + '</body>'))
+        copy_page_dir(d)
+        shutil.copy(DATA, data_file(d, 'mstar.js'))
+        shutil.copy(POW2, data_file(d, 'pow2.js'))
+        dom = chrome(d, ['--window-size=1280,900', '--virtual-time-budget=30000', '--dump-dom', 'file://' + os.path.join(d, 'index.html')])
+    finally:
+        shutil.rmtree(d)
+    m = re.search(r'<html[^>]* data-boxes="([^"]*)"', dom)
+    assert m, dom[:300]
+    got = json.loads(html.unescape(m[1]))
+    assert got['errs'] == [] and got['column'] == {'kind': 'column', 'moved': False} and got['row'] == {'kind': 'row', 'moved': False}, got
+    # (an entry's top within 2 px of the viewport's: the scroll to it rounds, -0.44 px at 80's)
+    assert got['links'] == [['n80m13', '#entry-80', 'false', True], ['n80', '#entry-80', 'false', True], ['m13', None, 'true'],
+                            ['k10', '#entry-1024', 'false', True], ['k30', f'#entry-{2 ** 30}', 'false', True]], got['links']
+
+
 def main():
     names = sys.argv[1:] or [n for n in globals() if n.startswith('q_')]
     failed = 0

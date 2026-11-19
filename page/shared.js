@@ -545,10 +545,15 @@ const searches = (n, m) => {
 // entries and parts are buttons.  It returns open(target), which opens the box of the target, as panZoom's open does.
 function chartPanel({region, chart, ncol, nrow, fragment, fill, pin}) {
   const title = region.querySelector('[data-panel-title]'), body = region.querySelector('[data-panel-body]');
-  const shelf = region.querySelector('[data-panel-entries]');
+  const shelf = region.querySelector('[data-panel-entries]'), home = region.querySelector('[data-panel-entry]');
   let last = null;                                                 // the target shown last
   function open(t) {
-    const {kind, heading, parts, entries: lengths} = fill(...t);
+    const {kind, heading, parts, entries: lengths, length} = fill(...t);
+    // its link to the entry of its length in the appendix (2026-11-18; dreeves: "what i *also* want is a link to take
+    // me to the corresponding entry in the appendix"), grayed out in a row's box, which has no length and so no entry
+    const href = length === null ? null : `#${entries(length)[0].querySelector('p.entry').id}`;
+    if (href === null) home.removeAttribute('href'); else home.setAttribute('href', href);
+    home.setAttribute('aria-disabled', String(href === null));
     const held = lengths.flatMap(entries);
     shelf.replaceChildren(...held.map(copied));
     const kept = parts;
@@ -586,7 +591,14 @@ function chartPanel({region, chart, ncol, nrow, fragment, fill, pin}) {
   // it names, if any, opens and shows.  The targets: every cell, every column (row null) and every row (column null).
   const all = (k, from) => [null, ...Array.from({length: k}, (_, i) => i + from)];
   const targets = () => all(ncol(), 0).flatMap(c => all(nrow, 1).map(r => [c, r])).filter(t => !t.every(x => x === null));
-  const visit = () => targets().filter(t => location.hash === `#${fragment(...t)}`).forEach(t => { open(t); region.scrollIntoView(); });
+  // The page scrolls to the box only when the box's top is off screen, as when the page loads with a fragment (since
+  // 2026-11-18; dreeves, of a box's heading's links to its column's and its row's boxes: "the page scrolls when i click
+  // those, making the box flush with the top of the screen. i expect it to not cause scrolling"; until then always).
+  const offscreen = r => r.top < 0 || r.top >= innerHeight;
+  const visit = () => targets().filter(t => location.hash === `#${fragment(...t)}`).forEach(t => {
+    open(t);
+    if (offscreen(region.getBoundingClientRect())) region.scrollIntoView();
+  });
   addEventListener('hashchange', visit);
   addEventListener('DOMContentLoaded', visit);
   return open;

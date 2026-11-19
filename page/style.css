@@ -626,6 +626,10 @@ blockquote.claude .attrib { color: var(--muted); }
 .column-panel .swatch { margin-right: 0.5rem; vertical-align: -0.1em; }
 .column-panel[hidden] { display: none; }
 .column-panel-bar { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }
+/* A box's link to its length's entry in the appendix (2026-11-18), right of its heading, before its close button;
+   grayed out in a row's box, which has no entry */
+.column-panel-bar [data-panel-entry] { margin-left: auto; font-size: 0.85rem; }
+.column-panel-bar [data-panel-entry][aria-disabled="true"] { color: var(--muted); text-decoration: none; cursor: default; }
 .column-panel h3 { margin: 0; font-size: 1.1rem; font-weight: 600; }
 .column-panel-bar [data-panel-close] { font: inherit; color: var(--ink); background: var(--paper); border: 1px solid var(--rule);
                            padding: 0 0.6rem; cursor: pointer; }

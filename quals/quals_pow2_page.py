@@ -1742,19 +1742,23 @@ def q_panels_show_their_entries_and_give_them_back():
     # (quals_index.panel_entries), with no id on two elements of the page, while the list holds the others in their
     # order (quals_index.entry_order); with the panel closed the list is whole, in order; and no panel's text, the
     # entry's included, says "remarks below".
+    # Spec change (Opus 5.5, 2026-11-18, the twin of quals_index's q_panel_shows_its_entry_and_gives_it_back, dreeves's
+    # "those spec (qual) changes about copying vs moving the entries or whatever is fine if you're certain the quals are
+    # wrong"): a panel shows a copy of the entry, with no id, so the list stays whole, in order, at every step (until
+    # then it lacked the entries shown).
     # Resultata before: the panels linked their entries ("Its entry in the remarks below"), which stayed in the list.
     order = qi.entry_order()
     for name in ('light', 'phone'):
         R = valid(name)
         for P in R['panels']:
-            assert P['entries'] == qi.panel_entries(2 ** P['k']) and P['listed'] == qi.held(order, *P['entries']), (name, P['k'], P['entries'])
+            assert P['entries'] == qi.panel_entries(2 ** P['k']) and P['listed'] == order, (name, P['k'], P['entries'])
             assert P['dups'] == [] and 'remarks below' not in ' '.join([P['text'], *P['entryText']]), (name, P['k'], P['dups'])
         assert R['after']['hidden'] and R['after']['entries'] == [] and R['after']['listed'] == order, (name, R['after']['entries'])
         assert sum(1 for P in R['panels'] if P['entries']) >= 30, name    # 36 on 2026-11-03: 2^9, 2^10 and 34 entries of their own
     [R] = run('fragment')
     assert R['errors'] == [], R['errors']
     for step, want in (('fragment', ['entry-1073741824']), ('escaped', []), ('reopened', ['entry-1024']), ('closed', [])):
-        assert R[step]['entries'] == want and R[step]['listed'] == qi.held(order, *want) and R[step]['dups'] == [], (step, R[step]['entries'])
+        assert R[step]['entries'] == want and R[step]['listed'] == order and R[step]['dups'] == [], (step, R[step]['entries'])
 
 
 # ---------------------------------------------------------------------------------------------------------------------

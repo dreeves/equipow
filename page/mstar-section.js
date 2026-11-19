@@ -270,7 +270,7 @@ try {
     fragment: (c, m) => `${c === null ? '' : `n${NS[c]}`}${m === null ? '' : `m${m}`}`,
     fill: (c, m) => {
       const n = NS[c], kind = c === null ? 'row' : m === null ? 'column' : KIND[kindOf(n, m)];
-      return {kind, heading: HEADINGS[kind](n, m), ...SAYS[kind](n, m)};
+      return {kind, heading: HEADINGS[kind](n, m), length: c === null ? null : BigInt(n), ...SAYS[kind](n, m)};   // (length since 2026-11-18)
     }});
   const view = panZoom({el: cv, out: document.getElementById('mstar-zoom-out'), in: document.getElementById('mstar-zoom-in'),
     resets: [], ncol: () => NS.length, plot: () => ({left: geo.L / geo.dpr, width: geo.W / geo.dpr}),

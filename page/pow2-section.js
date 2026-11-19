@@ -284,7 +284,7 @@ try {
     fragment: (c, e) => `${c === null ? '' : `k${c + 1}`}${e === null ? '' : `d${e}`}`,
     fill: (c, e) => {
       const k = c + 1, kind = c === null ? 'row' : e === null ? 'column' : KIND[kindOf(k, e)];
-      return {kind, heading: HEADINGS[kind](k, e), ...SAYS[kind](k, e)};
+      return {kind, heading: HEADINGS[kind](k, e), length: c === null ? null : 2n ** BigInt(k), ...SAYS[kind](k, e)};   // (length since 2026-11-18)
     }});
   const view = panZoom({el: chart, out: document.getElementById('pow2-zoom-out'), in: document.getElementById('pow2-zoom-in'),
     resets: [document.getElementById('pow2-reset')], ncol: () => K, plot: plotBox, targetAt, readout, draw, open});
