@@ -44,7 +44,9 @@ def gap(dpr):
 KINDS = ('exists', 'open', 'impossible')      # the kinds of cell, as the tokens of their colors name them
 F = [2 ** 24, 25]                             # f, the 2^24 construction, as [n, m]: a block until 2026-10-29, now none
 KLABELS = list(range(10, K + 1, 10))          # the k labels below the plot
-OUTLINE = (36, 5)                             # the cell whose outline the screenshots check
+# the cell whose outline the screenshots check, an open cell; (36, 5) until 2026-11-19, when the join at 2^35 made m*(2^36) >= 41 known,
+# that cell green (spec change, Opus 5.5; quals_index's q_sequences_past_the_chart_move_seven_firsts)
+OUTLINE = (36, 6)
 # the targets of the boxes' clicks (2026-11-04, [CEL] and [ROC]): cells [k, δ], a column's k label [k, None] and rows' δ
 # labels [None, δ]; and the progress.js of the page copies, with no runs (an open cell's box loads it)
 BOX_TARGETS = [[30, 2], [30, 8], [30, 5], [10, 1], [9, 1], [20, 2], [13, 2], [30, None], [None, 3], [None, 12]]
@@ -1050,18 +1052,22 @@ def q_caption_defines_readout_symbols():
     blocks = [tuple(b) for w in whys if w[0] == 'joins' for p in w[1] for b in p]
     tau = any(w[0] == 'thue-morse' for w in whys) or any(n == 2 ** k for n, k in blocks)
     columns = any(n <= NMAX and n != 2 ** k for n, k in blocks)
-    symbols = ['\\(\\tau_j\\)'] * tau + ['\\(p_n\\)'] * columns + [f'\\(p_{{{n}}}\\)' for n, _ in long_blocks()]
+    # Spec change (Opus 5.5, 2026-11-19; quals_index's q_sequences_past_the_chart_move_seven_firsts): the caption's p_n, "the best
+    # known sequence of length n" (dreeves's words), names the sequences past the chart that the joins use since then too, so it
+    # names no p_N of its own, as it named none while LONG was [] (until then each N of LONG was to be named, \(p_{N}\)).
+    symbols = ['\\(\\tau_j\\)'] * tau + ['\\(p_n\\)'] * columns
     missing = [s for s in symbols if s not in m[1]]
     named = [int(n) for n in re.findall(r'\\\(p_\{(\d+)\}\\\)', m[1])]
     assert tau and columns and not missing and '\\(f\\)' not in m[1], (missing, m[1])
-    assert sorted(set(named)) == sorted(n for n, _ in long_blocks()), (named, long_blocks())
+    assert named == [], (named, long_blocks())
 
 
 def long_blocks():
-    """The chart script's LONG, the examples longer than NMAX that its blocks may use, as [[n, m], ...] (JSON)."""
-    m = re.search(r'\n  const LONG = (\[[^\n;]*\]);', chart_script())
-    assert m, 'no const LONG in the chart script'
-    return json.loads(m.group(1))
+    """The chart script's LONG, the sequences longer than NMAX that its blocks may use, as [[n, m], ...]: mstar.js's past,
+    as the script reads it (spec change, Opus 5.5, 2026-11-19, when the joins of powers of 2 first used sequences past the
+    chart, quals_index's q_sequences_past_the_chart_move_seven_firsts; a list written in the script, JSON, until then)."""
+    assert '\n  const LONG = MSTAR.past.map(([n, m]) => [n, m]);\n' in chart_script(), 'no const LONG from mstar.js\'s past'
+    return [[n, m] for n, m, _ in qi.mstar_data()['past']]
 
 
 def q_long_blocks_are_the_remarks_examples():
@@ -1077,7 +1083,10 @@ def q_long_blocks_are_the_remarks_examples():
                        page())
     long = [(int(n), int(m), h) for n, m, h in codes if int(n) > NMAX]
     # Since 2026-11-10 the m*(n) chart's data reach 2048 ([BOU]), so 1440 is one of its columns and no example is longer.
-    assert long_blocks() == [] and [[n, m] for n, m, _ in long] == [], (long_blocks(), long)
+    # Spec change (Opus 5.5, 2026-11-19; quals_index's q_sequences_past_the_chart_move_seven_firsts): LONG is mstar.js's past since
+    # then, the Symmetry section's codes longer than NMAX (whose orders quals_mstar holds), as the joins at 2^22 and up use those at
+    # 2096, 2528 and 2608; the remarks still have no example longer than NMAX (LONG was [] until then).
+    assert long_blocks() == [[n, m] for n, m, _ in qi.mstar_data()['past']] and [[n, m] for n, m, _ in long] == [], (long_blocks(), long)
     assert NMAX == 2048 and [n for n, *_ in codes].count('1024') == 1, (NMAX, [n for n, *_ in codes])
     for n, m, h in long:
         left = [2 * int(b) - 1 for b in bin(int(h, 16))[2:].zfill(4 * len(h))]
@@ -1674,10 +1683,10 @@ def q_residue_panels_at_3_give_a_mathematica_line_elsewhere_at_powers_of_2():
 
 
 def q_click_opens_its_cell_s_box():
-    # Replicata: the light run: a real mouse click on cell OUTLINE (k = 36, δ = 5), in the full view.
+    # Replicata: the light run: a real mouse click on cell OUTLINE (k = 36, δ = 6; δ = 5 until 2026-11-19), in the full view.
     # Expectata: the box of the cell opens, its fragment k36d5 set and its heading focused, a black cell's (its kind
     # open), the heading the cell's k and δ and the legend's word for its swatch, open; its parts its column's witness
-    # and proof, and the searches at n = 2^36 and m = 41 (pow2_whys).
+    # and proof, and the searches at n = 2^36 and m = 42 (pow2_whys; m = 41 until 2026-11-19).
     # Spec change (2026-11-04, [CEL]: "the info box for a cell should focus on that cell"; until then
     # q_click_opens_its_column_s_panel): the panel of column 36 opened, its fragment k36, starting with the cell's
     # status: "The cell clicked, order 41, is open".
@@ -1871,10 +1880,12 @@ def q_column_and_row_boxes_open_from_their_labels():
         assert P['whys'] == ['row-cell'] * len(mine) + ['row-gaps'] * (e == 3), (e, P['whys'])
         assert [f'#k{k}d{e}' for k, _ in mine] == [h for h in P['links'] if h.startswith('#k')], (e, P['links'])
         assert all(f'\\(k = {k}\\)' in P['text'] for k, _ in mine), (e, P['text'])
-    assert [k for k, g, _ in rings if g == 3] == [16, 28], rings
+    # (Spec change, Opus 5.5, 2026-11-19; quals_index's q_sequences_past_the_chart_move_seven_firsts: the least k known to beat Thue–Morse by 3 is 22 since then,
+    # its join of two products, and the table's row for 3 has two lines; 28 and three until then.)
+    assert [k for k, g, _ in rings if g == 3] == [16, 22], rings
     gaps = R['gaps']
-    i = [j for j, row in enumerate(gaps) if row[0].startswith('\\(m^*(2^{28}) \\ge 31\\)')][0]
-    assert B[(None, 3)]['tables'] == [[gaps[0]] + gaps[i:i + 3]], (B[(None, 3)]['tables'], gaps[i:i + 3])
+    i = [j for j, row in enumerate(gaps) if row[0].startswith('\\(m^*(2^{22}) \\ge 25\\)')][0]
+    assert B[(None, 3)]['tables'] == [[gaps[0]] + gaps[i:i + 2]], (B[(None, 3)]['tables'], gaps[i:i + 2])
 
 
 def q_every_column_s_construction_derives_its_bound():

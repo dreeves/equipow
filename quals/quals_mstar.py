@@ -250,10 +250,12 @@ def q_page_parse():
     # when 2^29 joined them, once 912 reached order 12; 76 from that evening, when 2^39 joined them, once 768 reached
     # order 12; 79 from 2026-11-03, when 2^28, 2^36 and 2^47 joined them, once that day's examples moved their firsts;
     # 81 from later that day, when 2^56 and 2^58 joined them, once the search found firsts there among those examples;
-    # 82 since 2026-11-08, when 288 joined them, settled at 9 by the form-tree proof).
+    # 82 from 2026-11-08, when 288 joined them, settled at 9 by the form-tree proof; 88 since 2026-11-19, when 2^22, 2^35,
+    # 2^42, 2^50, 2^55 and 2^63 joined them, the new firsts that the sequences of order 13 past the chart gave: spec change,
+    # Opus 5.5, quals_index's q_sequences_past_the_chart_move_seven_firsts).
     src = mstar.page_sources(open(os.path.join(HERE, 'index.html'), encoding='utf-8').read())
     assert src['table2'] == mstar.TABLE2 and len(mstar.TABLE2) == 39
-    assert src['new'] == mstar.NEW and len(mstar.NEW) == 82
+    assert src['new'] == mstar.NEW and len(mstar.NEW) == 88
     # Spec change (Fable 5.2, 2026-11-11; dreeves, of the cells whose lower bounds Fable 5.2 raised that day: "yes, please make the legend accurate"): the class
     # cf, Opus 5.5 and Fable 5.2, is among NEW's credits (quals_index's q_opus_and_fable_is_a_category_of_its_own); the set was {'s', 'c', 'j', 'a', 'ca'}.
     assert set(who for _, _, who in mstar.NEW.values()) == {'s', 'c', 'j', 'a', 'ca', 'cf'}
@@ -1149,9 +1151,12 @@ def q_past_lists_the_example_of_order_16_at_1440():
     # Since 2026-11-11 (the day's second round) the page's Symmetry section has symmetric sequences of order 12 at
     # 2096, 2128 and 2192, the lengths prime to 3 past the chart that BGPW's conjecture at order 12 still owed; each is
     # longer than NMAX, so past lists those three.
+    # Spec change (Opus 5.5, 2026-11-19; quals_index's q_sequences_past_the_chart_move_seven_firsts): the section has the
+    # antisymmetric sequences of order 13 at 2528, 2608, 2800 and 2992 since then, past the chart too, so past lists seven.
     _, got = disk()
     M = got['m']
-    assert M['past'] == [[2096, 12, 'equipow p2096'], [2128, 12, 'equipow p2128'], [2192, 12, 'equipow p2192']], M['past']
+    assert M['past'] == [[2096, 12, 'equipow p2096'], [2128, 12, 'equipow p2128'], [2192, 12, 'equipow p2192'], [2528, 13, 'equipow p2528'],
+                         [2608, 13, 'equipow p2608'], [2800, 13, 'equipow p2800'], [2992, 13, 'equipow p2992']], M['past']
     assert M['cols'][1439][:3] == [16, 17, ['example', 'equipow p1440']], M['cols'][1439]
     assert max(c[1] for c in M['cols'][:1439]) == 15, max(c[1] for c in M['cols'][:1439])
     far = {key: a for key, a in mstar.explicit().items() if key[0] > mstar.NMAX}

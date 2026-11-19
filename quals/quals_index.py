@@ -1232,6 +1232,14 @@ addEventListener('message', e => {
 IFSYM_FILE = 'proofs/symtree.py'              # the program that checks the symmetric-only proofs (mstar.SYMTREE), for made-up data
 
 
+def real_past():
+    """mstar.js's past, the sequences past the chart, as the page's data has it.  The made-up data takes it, as it takes
+    the real nmax, for the real pow2.js beside it, whose joins use sequences past the chart since 2026-11-19 (Opus 5.5;
+    page/pow2-section.js's LONG; q_sequences_past_the_chart_move_seven_firsts)."""
+    s = open(DATA, encoding='utf-8').read()
+    return json.loads(s[s.index('{'):s.rindex('}') + 1])['past']
+
+
 def kinds_data(violation=None):
     """Made-up data that follows the contract and uses every kind of reason: odd columns are ["none"] and ["odd"]; an even
     n has lo = 1 from an example and hi = 2^v - 1 ("two") if that is at most 7, else 7 by the residue condition mod 3;
@@ -1255,7 +1263,8 @@ def kinds_data(violation=None):
     # example, not the product of 16, cited, and 2.)
     # codes (2026-11-18): one for each example, of its form: n/8 hex digits rounded up, the left half all +1, the padding
     # 0 (page/codes.js checks the form as the page loads, the power sums only at a click, which no run of this data makes)
-    data = {'nmax': DATA_NMAX, 'mtop': max(c[1] for c in cols) + 1, 'mtopAt': [DATA_NMAX + 2], 'past': [],
+    # (past: the real one since 2026-11-19, real_past(); [] until then)
+    data = {'nmax': DATA_NMAX, 'mtop': max(c[1] for c in cols) + 1, 'mtopAt': [DATA_NMAX + 2], 'past': real_past(),
             'ifsym': [[24, 4, IFSYM_FILE], [48, 6, IFSYM_FILE]],
             'examples': [[n, f"{int('1' * (n // 2) + '0' * (-(n // 2) % 4), 2):0{-(-n // 8)}X}", 'https://oeis.org/A010060']
                          for n, c in enumerate(cols, 1) if c[2][0] == 'example'],   # (codes, [n, code], until point 10 that night)
@@ -1299,7 +1308,9 @@ VIOLATIONS = {   # name: (a change that breaks the contract, what the page's err
     'mtopAt': (lambda data: data.update(mtopAt=[NMAX]), f'[[{NMAX}]]'),   # not past the chart (since 2026-11-03, [LIN])
     # since 2026-11-04 ([M17]) a list, one n per order from mtop on, which cannot fall: order m + 1 at n has order m there
     'mtopAt falls': (lambda data: data.update(mtopAt=[NMAX + 4, NMAX + 2]), f'[[{NMAX + 4},{NMAX + 2}]]'),
-    'past': (lambda data: data.update(past=[[NMAX, 3, 'x']]), f"[[[{NMAX},3,'x']]]"),   # an example not past the chart (since 2026-11-04)
+    # an example not past the chart (since 2026-11-04), after the real ones since 2026-11-19 (real_past; alone until then)
+    'past': (lambda data: data.update(past=data['past'] + [[NMAX, 3, 'x']]),
+             '[' + json.dumps(real_past() + [[NMAX, 3, 'x']], separators=(',', ':')).replace('"', "'") + ']'),
     # ifsym (since 2026-11-11, [SYC]): the key missing; a bound not below the column's own (48: 6 to 7); one below its
     # lower bound; a file that is no program of proofs/; and the columns not rising
     'ifsym missing': (lambda data: data.pop('ifsym'), "['ifsym',null]"),
@@ -1997,7 +2008,9 @@ def q_new_results_n_cells_line_up():
     # reached 1024 in six upper rows) line up within half a pixel, the uncolored copies of Table 2's entries among
     # them: every n cell of the new results takes the same room above its n, glyph or no glyph.
     rows = valid_run('light')['nTextBottoms']
-    assert len(rows) == 9 and all(len(r) >= 5 for r in rows), rows
+    # (Spec change, Opus 5.5, 2026-11-19; q_sequences_past_the_chart_move_seven_firsts: ten rows since then, the powers of 2 in
+    # four, the new firsts' cells having made three too wide for the column; nine until then.)
+    assert len(rows) == 10 and all(len(r) >= 5 for r in rows), rows
     assert all(max(r) - min(r) <= 0.5 for r in rows), rows
 
 
@@ -2024,7 +2037,9 @@ def q_new_results_fit_unscrolled_at_945_px():
     m = re.search(r'<pre id="fit">(.*?)</pre>', dom)
     assert m, dom[-500:]
     R = json.loads(m.group(1))
-    assert [len(f['tables']) for f in R] == [6, 3], R
+    # (Spec change, Opus 5.5, 2026-11-19; q_sequences_past_the_chart_move_seven_firsts: the powers of 2 in four tables since
+    # then; three until then.)
+    assert [len(f['tables']) for f in R] == [6, 4], R
     assert all(f['scroll'] <= f['frame'] and max(f['tables']) <= f['frame'] for f in R), R
 
 
@@ -2286,8 +2301,9 @@ def q_citations_match_the_page():
     # day, 2^10, 2^11 and 2^12; and since 2026-10-27, when the block reached 1024, 1008.  The unclassed cells, Table
     # 2's powers of 2 (2^3 to 2^8) until then, copy every entry of Table 2 that stands: up to 304 but 240, 288 and 304.
     # (1 + 44 + 33 + 1 until 2^56 and 2^58 joined them, later on 2026-11-03; 1 + 44 + 35 + 1 until 288 joined them,
-    # on 2026-11-08.)
-    assert len(classes) == 2 + 44 + 35 + 1, len(classes)
+    # on 2026-11-08.)  Spec change (Opus 5.5, 2026-11-19; q_sequences_past_the_chart_move_seven_firsts): 41 powers of 2 since
+    # then, 2^22, 2^35, 2^42, 2^50, 2^55 and 2^63 the new firsts (35 until then).
+    assert len(classes) == 2 + 44 + 41 + 1, len(classes)
     assert sorted(n for n in titled if n not in classes) == [n for n in range(8, 305, 8) if n not in (240, 288, 304)], titled
     table2 = {n for n, *_ in table_entries()} - set(classes)
     assert len(table2) == 35, sorted(table2)          # 240, 288 and 304 are in both (36 until 288 joined them, 2026-11-08)
@@ -2331,8 +2347,13 @@ def q_claude_and_astra_is_a_category_like_claude_and_bgpw():
         for (a, n), (b, v) in zip(ns, vs):
             assert bool(re.fullmatch(r' class="ca" title=\'[^\']+\'', a)) == (b == ' class="ca"'), (n, a, b)   # the class, whatever its title's words (2026-11-09)
             if b == ' class="ca"': ca.append((n, v))
-    assert ca == [('592', '10'), ('608', '10'), ('656', '10'), ('752', '10'), ('784', '10')], ca
-    for n in (592, 608, 656, 752, 784):
+    # Spec change (Opus 5.5, 2026-11-19; q_sequences_past_the_chart_move_seven_firsts): the cells whose lows Astra's joins at 2^63 and 2^68 give, of the
+    # sequences of order 13 past the chart, are of class ca too: 2^63, 2^65, 2^66, 2^67, 2^68, 2^71 and 2^72, each of their remarks an <li class="ca"> marked ◆✦
+    # (592, 608, 656, 752 and 784 alone until then).
+    assert ca == [('592', '10'), ('608', '10'), ('656', '10'), ('752', '10'), ('784', '10'),
+                  ('\\(2^{63}\\)', '72–78'), ('\\(2^{65}\\)', '74–81'), ('\\(2^{66}\\)', '75–82'), ('\\(2^{67}\\)', '76–83'),
+                  ('\\(2^{68}\\)', '78–84'), ('\\(2^{71}\\)', '81–88'), ('\\(2^{72}\\)', '82–89')], ca
+    for n in (592, 608, 656, 752, 784) + tuple(f'2\\^\\{{{k}\\}}' for k in (63, 65, 66, 67, 68, 71, 72)):
         li = re.search(r'<li class="(\w+)">\n      <span class="mk" aria-hidden="true">([^<]*)</span>\n      <p class="entry">\\\(n = '
                        + str(n) + r'\\\): ', text)
         assert li and li.groups() == ('ca', '◆✦'), (n, li and li.groups())
@@ -2366,8 +2387,12 @@ def q_opus_and_fable_is_a_category_of_its_own():
         for (a, n), (b, v) in zip(ns, vs):
             assert bool(re.fullmatch(r' class="cf" title=\'[^\']+\'', a)) == (b == ' class="cf"'), (n, a, b)
             if b == ' class="cf"': cf.append(n)
-    assert cf == ['480'] + [f'\\(2^{{{k}}}\\)' for k in (30, 33, 34, 51, 52)], cf
-    for name in ['480'] + [f'2\\^\\{{{k}\\}}' for k in (30, 33, 34, 51, 52)]:
+    # Spec change (Opus 5.5, 2026-11-19; q_sequences_past_the_chart_move_seven_firsts): the cells whose lows the joins past the chart give or raise, each a join
+    # with a product of the sequences at 2528 or 2608, Fable 5.2's of 2026-11-11, are of class cf too: 2^22, 2^24, 2^27, 2^35, 2^36, 2^37, 2^38, 2^42, 2^43,
+    # 2^46, 2^50, 2^55, 2^56 and 2^57 (2^24 of class j until then; (30, 33, 34, 51, 52) alone until then).
+    cfk = (22, 24, 27, 30, 33, 34, 35, 36, 37, 38, 42, 43, 46, 50, 51, 52, 55, 56, 57)
+    assert cf == ['480'] + [f'\\(2^{{{k}}}\\)' for k in cfk], cf
+    for name in ['480'] + [f'2\\^\\{{{k}\\}}' for k in cfk]:
         li = re.search(r'<li class="(\w+)">\n      <span class="mk" aria-hidden="true">([^<]*)</span>\n      <p class="entry">\\\(n = %s\\\): ' % name, text)
         assert li and li.groups() == ('cf', '◆◇'), (name, li and li.groups())
 
@@ -2921,19 +2946,20 @@ def q_firsts_of_2026_11_03():
     # its entry and those of 2^37 and 2^38 name the base at 2^30, the theorem states 2^30's bound in place of 2^36's, and the list is 10, 20, 28, 30, 39, 47, ...; the
     # entries of 2^30, 2^33 and 2^34 name no base at 2^28 any more.  What stands here: 2^28 and 2^47, their lifts at 2^29, 2^48, 2^49 and 2^52, and those cells.
     # Resultata before: the firsts were 10, 20, 29, 37, 39, 48, 57, 65, 68.
+    # Spec change (Opus 5.5, 2026-11-19; q_sequences_past_the_chart_move_seven_firsts): excess 3 is first at 2^22 and excess 6 at 2^42 since then, so 2^28 and 2^47
+    # are no firsts: their entries and those of 2^29, 2^48 and 2^49 name the 2^22 and 2^42 entries, the theorem states 2^22's and 2^42's bounds in place of
+    # theirs, and the cell of 2^37 reads 42–45.  What stands here: the cells of 2^29 and 2^48, and no statement of the theorem at 2^29, 2^37 or 2^48.
     cols, text = pow2_data()['cols'], page()
-    for k, lo, hi in ((28, 31, 34), (47, 53, 58)): first_entry(cols, text, k, lo, hi)       # and (36, 40, 44) until 2026-11-11
+    # (first_entry at (28, 31, 34) and (47, 53, 58) until 2026-11-19, and at (36, 40, 44) until 2026-11-11)
     cells = new_cells(text)
-    assert [cells[2 ** k] for k in (29, 37, 48)] == [(32, 35), (41, 45), (54, 59)]
+    assert [cells[2 ** k] for k in (29, 48)] == [(32, 35), (54, 59)]       # and 2^37 (41, 45) until 2026-11-19
     theorem = the_theorem(text)
-    for k, lo in ((28, 31), (47, 53)): assert f'(2^{{{k}}}) \\ge {lo}' in theorem, theorem       # and (36, 40) until 2026-11-11
+    # (2^28 >= 31 and 2^47 >= 53 until 2026-11-19, and 2^36 >= 40 until 2026-11-11)
     for k in (29, 37, 48): assert f'(2^{{{k}}})' not in theorem, theorem
-    assert re.search(r'(?<![\d.])10, 20, 28, 30, 39, 47, ', text)      # '10, 20, 28, 36, 39, 47, ' until 2026-11-11; '10, 20, 28, 36, 39, 47, 57, 65, 68' until later on 2026-11-03
-    # and (30, 28, 2, 33), (33, 28, 5, 36), (34, 28, 6, 37), (37, 36, 1, 41), (38, 36, 2, 42) until 2026-11-11
-    # Spec change (Fable 5.2, later on 2026-11-11; q_first_for_excess_7_moves_to_2_51): excess 7 is first at 2^51 since then, so 2^52's entry names the base at
-    # 2^51, not the one at 2^47: (52, 47, 5, 58) left this list.
-    for k, base, t, order in ((29, 28, 1, 32), (48, 47, 1, 54), (49, 47, 2, 55)):
-        names_base(text, k, base, t, order)
+    # (the list's '10, 20, 28, 30, 39, 47, ' until 2026-11-19, '10, 20, 28, 36, 39, 47, ' until 2026-11-11 and '10, 20, 28, 36, 39, 47, 57, 65, 68' until
+    # later on 2026-11-03; names_base at (29, 28, 1, 32), (48, 47, 1, 54) and (49, 47, 2, 55) until 2026-11-19, which q_sequences_past_the_chart_move_seven_firsts
+    # asks of the new firsts' entries; (30, 28, 2, 33), (33, 28, 5, 36), (34, 28, 6, 37), (37, 36, 1, 41) and (38, 36, 2, 42) until 2026-11-11; (52, 47, 5, 58)
+    # until later that day, when excess 7 came to be first at 2^51: q_first_for_excess_7_moves_to_2_51)
 
 
 def q_firsts_move_to_2_56_and_2_58():
@@ -2952,21 +2978,18 @@ def q_firsts_move_to_2_56_and_2_58():
     # 2^57's name the base at 2^51, the theorem states 2^51's bound in place of 2^56's, and the list is 10, 20, 28, 30, 39, 47, 51, 58, 68.  What stands here:
     # 2^58, its entry's link and powers, its lifts at 2^61 and 2^65 to 2^67, and the cells.
     cols, text = pow2_data()['cols'], page()
-    for k, lo, hi in ((58, 66, 71),): first_entry(cols, text, k, lo, hi)       # and (56, 63, 69) until 2026-11-11
-    for k, ks in ((58, (58, 60, 62)),):                                         # and (56, (56,)) until 2026-11-11
-        li = re.search(r'<p class="entry">\\\(n = 2\^\{%d\}\\\): .*?</li>' % k, text, re.S).group(0)
-        assert 'href="https://github.com/dreeves/equipow/tree/main/searches/pinned"' in li and all(f'\\(2^{{{j}}}\\)' in li for j in ks), li
+    # Spec change (Opus 5.5, 2026-11-19; q_sequences_past_the_chart_move_seven_firsts): excess 8 is first at 2^55 and excess 9 at 2^63 since then, so 2^58 is no
+    # first: its entry names the 2^55 entry (its join and its note on searches/pinned left it, kept in its TODO comment), as does that of 2^61, those of 2^65 to
+    # 2^67 name the 2^63 entry, the theorem states 2^55's bound in place of 2^58's, and the cells of 2^57 and 2^65 read 65–70 and 74–81.  What stands here: the
+    # cell of 2^61, and no statement at 2^57 or 2^65.  (Until then: first_entry at (58, 66, 71), and at (56, 63, 69) until 2026-11-11; 2^58's entry linking
+    # searches/pinned and naming 2^58, 2^60 and 2^62; the cells of 2^57 and 2^65 64–70 and 73–81; m*(2^58) >= 66 in the theorem; the list 10, 20, 28, 30, 39,
+    # 47, 51, 58, 68, which q_sequences_past_the_chart_move_seven_firsts asks now as 10, 20, 22, 30, 35, 42, 50, 55, 63, 68; names_base at (61, 58, 3, 69), (65,
+    # 58, 7, 73),
+    # (66, 58, 8, 74) and (67, 58, 9, 75), which that qual asks of the 2^55 and 2^63 entries; and (57, 56, 1, 64) until 2026-11-11.)
     cells = new_cells(text)
-    assert [cells[2 ** k] for k in (57, 61, 65)] == [(64, 70), (69, 75), (73, 81)], [cells.get(2 ** k) for k in (57, 61, 65)]
+    assert [cells[2 ** k] for k in (61,)] == [(69, 75)], [cells.get(2 ** k) for k in (61,)]
     theorem = the_theorem(text)
-    for k, lo in ((58, 66),): assert f'(2^{{{k}}}) \\ge {lo}' in theorem, theorem       # and (56, 63) until 2026-11-11
     for k in (57, 65): assert f'(2^{{{k}}})' not in theorem, theorem
-    # (10, 20, 28, 36, 39, 47, 56, 58, 68 until 2026-11-11, when excess 4 came to be first at 2^30: q_first_for_excess_4_moves_to_2_30;
-    #  10, 20, 28, 30, 39, 47, 56, 58, 68 until later that day, when excess 7 came to be first at 2^51: q_first_for_excess_7_moves_to_2_51)
-    assert re.search(r'(?<![\d.])10, 20, 28, 30, 39, 47, 51, 58, 68(?![\d,])', text)      # the list, whole
-    # and (57, 56, 1, 64) until 2026-11-11
-    for k, base, t, order in ((61, 58, 3, 69), (65, 58, 7, 73), (66, 58, 8, 74), (67, 58, 9, 75)):
-        names_base(text, k, base, t, order)
 
 
 def q_first_for_excess_4_moves_to_2_30():
@@ -2985,14 +3008,17 @@ def q_first_for_excess_4_moves_to_2_30():
     first_entry(cols, text, 30, 34, 36)
     base = [[[1504, 12], [800, 11], [800, 11]], [[1488, 14], [1440, 16], [32, 5]], [[1632, 15], [1632, 15], [16, 4]]]
     assert cols[29][2] == ['joins', base], cols[29][2]
-    assert [c[0] - k for k, c in enumerate(cols[27:39], 28)] == [3, 3] + [4] * 9 + [5], [c[:2] for c in cols[27:39]]
+    # Spec change (Opus 5.5, 2026-11-19; q_sequences_past_the_chart_move_seven_firsts): excess 5 is first at 2^35 since then, so the lift of this join gives
+    # 2^30 to 2^34 alone, 2^35 to 2^38 having k + 5, their cells 41–44, 42–45 and 43–46 and their entries naming the 2^35 entry ([3, 3] + [4] * 9 + [5], the
+    # cells 40–44, 41–45 and 42–46, names_base at (36, 6, 40), (37, 7, 41) and (38, 8, 42), and the list 10, 20, 28, 30, 39, 47, 51, 58, 68, until then).
+    assert [c[0] - k for k, c in enumerate(cols[27:39], 28)] == [3, 3] + [4] * 5 + [5] * 5, [c[:2] for c in cols[27:39]]
     cells = new_cells(text)
-    assert [cells[2 ** k] for k in (30, 33, 34, 36, 37, 38)] == [(34, 36), (37, 40), (38, 41), (40, 44), (41, 45), (42, 46)], [cells.get(2 ** k) for k in (30, 33, 34, 36, 37, 38)]
+    assert [cells[2 ** k] for k in (30, 33, 34, 36, 37, 38)] == [(34, 36), (37, 40), (38, 41), (41, 44), (42, 45), (43, 46)], [cells.get(2 ** k) for k in (30, 33, 34, 36, 37, 38)]
     theorem = the_theorem(text)
     assert '(2^{30}) \\ge 34' in theorem and '(2^{36})' not in theorem, theorem
     # (10, 20, 28, 30, 39, 47, 56, 58, 68 until later that day, when excess 7 came to be first at 2^51: q_first_for_excess_7_moves_to_2_51)
-    assert re.search(r'(?<![\d.])10, 20, 28, 30, 39, 47, 51, 58, 68(?![\d,])', text)      # the list, whole
-    for k, t, order in ((33, 3, 37), (34, 4, 38), (36, 6, 40), (37, 7, 41), (38, 8, 42)): names_base(text, k, 30, t, order)
+    assert re.search(r'(?<![\d.])10, 20, 22, 30, 35, 42, 50, 55, 63, 68(?![\d,])', text)      # the list, whole
+    for k, t, order in ((33, 3, 37), (34, 4, 38)): names_base(text, k, 30, t, order)
     assert changelog_by_day().get('2026-11-11', {}).get(2 ** 30) == (34, None), changelog_by_day().get('2026-11-11', {}).get(2 ** 30)
 
 
@@ -3010,19 +3036,77 @@ def q_first_for_excess_7_moves_to_2_51():
     # times τ1, τ5 and τ6; the theorem states m*(2^51) >= 58 in place of 2^56's bound, and its list of firsts is 10, 20, 28, 30, 39, 47, 51, 58, 68; and the
     # changelog states m*(2^51) >= 58 on 2026-11-11.
     # Resultata before: the firsts were 10, 20, 28, 30, 39, 47, 56, 58, 68, and the cell of 2^51 read 57–63.
+    # Spec change (Opus 5.5, 2026-11-19; q_sequences_past_the_chart_move_seven_firsts): excess 7 is first at 2^50 and excess 8 at 2^55 since then, so this join is
+    # gone, 2^51 being the lift of the one at 2^50 (of order 58, as this one), 2^52's entry names the 2^50 entry, and those of 2^56 and 2^57 name the 2^55
+    # entry.  What stands here: the cells of 2^51 and 2^52, and the changelog's statement of 2026-11-11.  (Until then: first_entry at (51, 58, 63), this
+    # join at 2^51, k + 7 from 2^51 to 2^57, the cells of 2^56 and 2^57 63–69 and 64–70, m*(2^51) >= 58 in the theorem, the list 10, 20, 28, 30, 39, 47, 51,
+    # 58, 68, and names_base at (52, 1, 59), (56, 5, 63) and (57, 6, 64) of the 2^51 entry.)
     cols, text = pow2_data()['cols'], page()
-    first_entry(cols, text, 51, 58, 63)
-    base = [[[1520, 12], [1504, 12], [1504, 12], [800, 11], [800, 11]], [[1808, 12], [1520, 12], [960, 15], [960, 15], [16, 4]],
-            [[1728, 15], [1728, 15], [672, 13], [672, 13], [8, 3]]]
-    assert cols[50][2] == ['joins', base], cols[50][2]
-    assert [c[0] - k for k, c in enumerate(cols[46:58], 47)] == [6] * 4 + [7] * 7 + [8], [c[:2] for c in cols[46:58]]
     cells = new_cells(text)
-    assert [cells[2 ** k] for k in (51, 52, 56, 57)] == [(58, 63), (59, 64), (63, 69), (64, 70)], [cells.get(2 ** k) for k in (51, 52, 56, 57)]
-    theorem = the_theorem(text)
-    assert '(2^{51}) \\ge 58' in theorem and '(2^{56})' not in theorem, theorem
-    assert re.search(r'(?<![\d.])10, 20, 28, 30, 39, 47, 51, 58, 68(?![\d,])', text)      # the list, whole
-    for k, t, order in ((52, 1, 59), (56, 5, 63), (57, 6, 64)): names_base(text, k, 51, t, order)
+    assert [cells[2 ** k] for k in (51, 52)] == [(58, 63), (59, 64)], [cells.get(2 ** k) for k in (51, 52)]
     assert changelog_by_day().get('2026-11-11', {}).get(2 ** 51) == (58, None), changelog_by_day().get('2026-11-11', {}).get(2 ** 51)
+
+
+def q_sequences_past_the_chart_move_seven_firsts():
+    # 2026-11-19 (Opus 5.5; recorded as the firsts at 2^30 and 2^51 were on 2026-11-11, dreeves then: "go ahead, with a TODO comment each place where you tamper
+    # with my words so i can review it"; of these, that day: "yes to those qual changes").
+    # Replicata: pow2.js's columns 2^20 to 2^72, the new results' cells of the powers of 2, the remarks' entries, the theorem's statement and its list of
+    # firsts, the Symmetry section's codes, and the changelog.
+    # Expectata (scratch/rethink-20261119/firsts/: the antisymmetric sequences of order 13 at 2528, 2608, 2800 and 2992, which the tilted search found past the
+    # chart on 2026-11-11, are blocks prime to 3 with a better ratio of order to log2 of length than any column's, 13 / log2 2528 = 1.150 against 800's 1.141;
+    # quals_pow2.excess_reached, over the chart's blocks and those four, says no at the power of 2 just below each new first): the first powers of 2 known to
+    # beat Thue-Morse by 3, 5, 6, 7, 8 and 9 are 2^22, 2^35, 2^42, 2^50, 2^55 and 2^63 (2^28, 2^39, 2^47, 2^51, 2^58 and 2^68 until then), and by 10 2^68 (none
+    # known up to 2^72 until then), each a join of the products below (those at 2^63 and 2^68 Astra's), its order the least of theirs, k + e; pow2.js's excess
+    # from 2^20 to 2^72 is each first's from that first to the next, each column the lift of its first's join; the four codes are in the Symmetry section, each
+    # (-1)^13-symmetric and of exact order 13; the cells of the new firsts read 2^22 25–26, 2^35 40–43, 2^42 48–51, 2^50 57–61, 2^55 63–68, 2^63 72–78 and 2^68
+    # 78–84, and those whose lows the lifts raise 2^24 27–29, 2^27 30–33, 2^36 41–44, 2^37 42–45, 2^38 43–46, 2^43 49–53, 2^46 52–57, 2^56 64–69, 2^57 65–70,
+    # 2^65 74–81, 2^66 75–82, 2^67 76–83, 2^71 81–88 and 2^72 82–89; each new first's entry writes its join out, as pow2.js has it, with its products' orders;
+    # every other entry that a new first's join lifts to names that first's entry, each product times tau_(k - first), with its order; the theorem states the
+    # new bounds in place of the old ones and adds 2^68's, and its list of firsts is 10, 20, 22, 30, 35, 42, 50, 55, 63, 68; and the changelog states the new
+    # bounds on 2026-11-19.  (The sequence at 2^22, built in full, has order 25 by its power sums: build22.py there.)
+    # Resultata before: the firsts were 10, 20, 28, 30, 39, 47, 51, 58, 68, and the four sequences were in scratch only.
+    cols, text = pow2_data()['cols'], page()
+    bases = {22: [[[2528, 13], [1568, 12]], [[960, 15], [240, 10]]],
+             35: [[[2608, 13], [2528, 13], [2528, 13], [2, 1]], [[768, 13], [672, 13], [672, 13], [2, 1]], [[1440, 16], [960, 15], [240, 10]]],
+             42: [[[2528, 13], [2528, 13], [800, 11], [800, 11]], [[1440, 16], [960, 15], [368, 9], [304, 8]],
+                  [[1632, 15], [672, 13], [672, 13], [208, 8]]],
+             50: [[[2528, 13], [832, 11], [800, 11], [800, 11], [800, 11]], [[2528, 13], [1936, 12], [1200, 14], [960, 15], [8, 3]],
+                  [[1728, 15], [1728, 15], [1488, 14], [672, 13]], [[1488, 14], [960, 15], [960, 15], [672, 13]]],
+             55: [[[2528, 13], [2528, 13], [2528, 13], [2528, 13], [848, 11]], [[2096, 12], [1328, 11], [960, 15], [768, 13], [672, 13]],
+                  [[1728, 15], [1632, 15], [1440, 16], [960, 15], [4, 2]]],
+             63: [[[2608, 13], [2608, 13], [2608, 13], [800, 11], [800, 11], [800, 11]],
+                  [[2608, 13], [2608, 13], [2608, 13], [960, 15], [960, 15], [8, 3]], [[1632, 15], [1504, 12], [960, 15], [960, 15], [960, 15]],
+                  [[1632, 15], [1632, 15], [1488, 14], [768, 13], [672, 13], [4, 2]]],
+             68: [[[2608, 13], [2608, 13], [2528, 13], [2528, 13], [2528, 13], [2528, 13]],
+                  [[2608, 13], [2608, 13], [960, 15], [960, 15], [832, 11], [832, 11]],
+                  [[1648, 12], [1632, 15], [1568, 12], [1568, 12], [1504, 12], [960, 15]],
+                  [[2016, 15], [1728, 15], [1632, 15], [848, 11], [848, 11], [848, 11]]]}
+    for k, lo, hi in ((22, 25, 26), (35, 40, 43), (42, 48, 51), (50, 57, 61), (55, 63, 68), (63, 72, 78), (68, 78, 84),):
+        first_entry(cols, text, k, lo, hi)
+        assert cols[k - 1][2] == ['joins', bases[k]], cols[k - 1][2]
+    assert [c[0] - k for k, c in enumerate(cols[19:72], 20)] == [2] * 2 + [3] * 8 + [4] * 5 + [5] * 7 + [6] * 8 + [7] * 5 + [8] * 8 + [9] * 5 + [10] * 5, [c[:2] for c in cols[19:72]]
+    sec = re.search(r'<section class="symmetry".*?</section>', text, re.S).group(0)
+    for n in (2528, 2608, 2800, 2992):
+        [h] = re.findall(r'<code id="%d:13">([0-9A-F]+)</code>' % n, sec)
+        left = [2 * int(b) - 1 for b in bin(int(h, 16))[2:].zfill(4 * len(h))][:n // 2]
+        a = left + [-s for s in reversed(left)]
+        sums = [sum(s * i ** j for i, s in enumerate(a)) for j in range(14)]
+        assert len(a) == n and not any(sums[:13]) and sums[13], (n, sums)
+    cells = new_cells(text)
+    ks = (22, 24, 27, 35, 36, 37, 38, 42, 43, 46, 50, 55, 56, 57, 63, 65, 66, 67, 68, 71, 72)
+    assert [cells[2 ** k] for k in ks] == [(25, 26), (27, 29), (30, 33), (40, 43), (41, 44), (42, 45), (43, 46), (48, 51), (49, 53), (52, 57), (57, 61),
+                                       (63, 68), (64, 69), (65, 70), (72, 78), (74, 81), (75, 82), (76, 83), (78, 84), (81, 88), (82, 89)], [cells.get(2 ** k) for k in ks]
+    theorem = the_theorem(text)
+    for k, lo in ((22, 25), (35, 40), (42, 48), (50, 57), (55, 63), (63, 72), (68, 78)): assert f'(2^{{{k}}}) \\ge {lo}' in theorem, theorem
+    for k in (28, 39, 47, 51, 58): assert f'(2^{{{k}}})' not in theorem, theorem
+    assert re.search(r'(?<![\d.])10, 20, 22, 30, 35, 42, 50, 55, 63, 68(?![\d,])', text)      # the list, whole
+    for k, base, t, order in ((24, 22, 2, 27), (27, 22, 5, 30), (28, 22, 6, 31), (29, 22, 7, 32), (36, 35, 1, 41), (37, 35, 2, 42), (38, 35, 3, 43),
+                              (39, 35, 4, 44), (41, 35, 6, 46), (43, 42, 1, 49), (46, 42, 4, 52), (47, 42, 5, 53), (48, 42, 6, 54), (49, 42, 7, 55),
+                              (51, 50, 1, 58), (52, 50, 2, 59), (56, 55, 1, 64), (57, 55, 2, 65), (58, 55, 3, 66), (61, 55, 6, 69), (65, 63, 2, 74),
+                              (66, 63, 3, 75), (67, 63, 4, 76), (71, 68, 3, 81), (72, 68, 4, 82)):
+        names_base(text, k, base, t, order)
+    said = changelog_by_day().get('2026-11-19', {})
+    assert [said.get(2 ** k) for k in (22, 35, 42, 50, 55, 63, 68)] == [(25, None), (40, None), (48, None), (57, None), (63, None), (72, None), (78, None)], said
 
 
 def q_example_at_720_has_its_code_of_order_13():
@@ -3366,7 +3450,10 @@ def q_912_moves_excess_3_to_2_29():
     # 2^28 and 2^29 only, the cells of 2^30, 2^33 and 2^34 read 34–36, 37–40 and 38–41, and the theorem states 2^30's bound.  What stands of this qual: 2^29's
     # column and cell, and no K below 2^28 beating Thue-Morse by 3.
     cols, text = pow2_data()['cols'], page()
-    assert cols[26][0] == 29 and [c[0] - k for k, c in enumerate(cols[27:29], 28)] == [3] * 2, [c[:2] for c in cols[26:29]]
+    # Spec change (Opus 5.5, 2026-11-19; q_sequences_past_the_chart_move_seven_firsts): excess 3 is first at 2^22 since then, so
+    # 2^27 is k + 3 too; what stands: k + 3 at 2^28 and 2^29, 2^29's cell, and no statement of it (cols[26][0] == 29, no K below
+    # 2^28 beating Thue-Morse by 3, until then).
+    assert [c[0] - k for k, c in enumerate(cols[27:29], 28)] == [3] * 2, [c[:2] for c in cols[26:29]]
     cells = new_cells(text)
     assert cells[2 ** 29] == (32, 35), cells.get(2 ** 29)
     theorem = the_theorem(text)
@@ -3386,19 +3473,17 @@ def q_768_moves_excess_5_to_2_39():
     # first was 2^41 = (800^2 # 832 # 848 # τ2) ∨ (432^3 # 816 # τ2) ∨ (480^3 # 784) ∨ (432^2 # 480^2), each product
     # of order 46, 816's of order 47 after 816's example of order 12 that afternoon: q_816_moves_excess_5_to_2_41.)  (Since 2026-11-03, q_firsts_of_2026_11_03: k + 5 from
     # 2^39 to 2^46, 2^47 at k + 6.)
+    # Spec change (Opus 5.5, 2026-11-19; q_sequences_past_the_chart_move_seven_firsts): excess 5 is first at 2^35 and excess 6 at 2^42 since then, so this join is
+    # gone (2^39 is the lift of the one at 2^35, of order 44 as this one was), the excess is 5 from 2^35 to 2^41 and 6 from 2^42, the cells of 2^43 and 2^46
+    # read 49–53 and 52–57, and the theorem states 2^35's bound in place of 2^39's.  What stands here: the cells of 2^39 and 2^41, and no statement at 2^41.
+    # (Until then: column 39 this join, cols[37][0] 42 and k + 5 from 2^39 to 2^46, the cells 48–53 and 51–57, and m*(2^39) >= 44 in the theorem.)
     cols, text = pow2_data()['cols'], page()
-    base = cols[38][2]
-    assert cols[37][0] == 42 and [c[0] - k for k, c in enumerate(cols[38:46], 39)] == [5] * 8, [c[:2] for c in cols[37:46]]
-    # 768 is a block of order 13 since 2026-11-03 (the beam campaign's plan 6; 12 before): the two products holding it
-    # have order 45, and the join stays 44, the first product's.
-    assert base[0] == 'joins' and sorted(map(sorted, base[1])) == sorted(map(sorted, [
-        [[800, 11], [832, 11], [832, 11], [832, 11]], [[192, 9], [432, 11], [432, 11], [768, 13], [2, 1]],
-        [[48, 6], [480, 12], [480, 12], [768, 13], [4, 2]]])), base
+    assert cols[37][0] == 43 and [c[0] - k for k, c in enumerate(cols[38:41], 39)] == [5] * 3, [c[:2] for c in cols[37:46]]
     cells = new_cells(text)
-    assert [cells[2 ** k] for k in (39, 41, 43, 46)] == [(44, 47), (46, 50), (48, 53), (51, 57)], [cells.get(2 ** k) for k in (39, 41, 43, 46)]
+    assert [cells[2 ** k] for k in (39, 41)] == [(44, 47), (46, 50)], [cells.get(2 ** k) for k in (39, 41)]
     # the entries' wording unpinned since 2026-10-30
     theorem = the_theorem(text)
-    assert '(2^{39}) \\ge 44' in theorem and '(2^{41})' not in theorem, theorem
+    assert '(2^{41})' not in theorem, theorem
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -5197,8 +5282,10 @@ def q_no_entry_repeats_its_panel_s_reasons():
     reasons, cols, pcols = {}, mstar_data()['cols'], pow2_data()['cols']
     lis = entry_lis()
     # (Spec change, Opus 5.5, 2026-11-18: the entries by hand are some of the appendix's, which has one for every length,
-    # 82 of them since the two that listed several lengths, 320 to 464 and 640 to 736, were split, one length each.)
-    assert len(lis) == 82 and {f'entry-{lengths[0]}' for lengths, _ in lis} <= set(entry_order()), len(lis)
+    # 82 of them since the two that listed several lengths, 320 to 464 and 640 to 736, were split, one length each; 88
+    # since 2026-11-19, the entries of the new firsts 2^22, 2^35, 2^42, 2^50, 2^55 and 2^63 added: spec change, Opus 5.5,
+    # q_sequences_past_the_chart_move_seven_firsts.)
+    assert len(lis) == 88 and {f'entry-{lengths[0]}' for lengths, _ in lis} <= set(entry_order()), len(lis)
     found = []
     for lengths, li in lis:
         for n in lengths:
@@ -6259,7 +6346,9 @@ def q_smallest_section_sits_between_the_remarks_and_the_counts():
     assert '<h2 id="smallest-title">' in body, body[:300]
     assert 'href="https://oeis.org/A323395"' in body, body
     assert '<table>' in body and '<tbody data-smallest></tbody>' in body, body
-    assert text.count('<table class="block">') == 12, text.count('<table class="block">')
+    # Spec change (Opus 5.5, 2026-11-19; q_sequences_past_the_chart_move_seven_firsts): thirteen since then, the powers of 2 in four rows of 12 cells, the
+    # new firsts' cells having made the three rows 15 to 17 cells wide, wider than the column (twelve until then).
+    assert text.count('<table class="block">') == 13, text.count('<table class="block">')
 
 
 SMALLEST_TABLE = []    # the table of smallest lengths as the page draws it, made once per process (smallest_table)
@@ -8175,6 +8264,9 @@ def q_links_into_an_entry_land_in_the_appendix_while_a_box_shows_it():
     # target in the viewport.  A box shows a copy of an entry, so that every link to the entry or into it lands in the
     # appendix.  The construction in 80's box, a copy of the drawn entry's, expands: its derivation shows; and nothing
     # is thrown.
+    # (In view: its top less than a pixel above the viewport's or below it, since 2026-11-19, when the scroll to 432's entry
+    # stopped on a whole pixel 0.3125 px past the entry's top, which the page's new content above it had put at a fraction:
+    # r.top >= 0 until then; Opus 5.5.)
     # Resultata before: since 2026-11-03 a box moved the entry itself out of the list: both targets were in the box,
     # and each click scrolled the page to the box, the appendix left shut.  Then (the copy's first version) a box that
     # copied an entry whose math KaTeX had drawn threw, its construction read as drawn math, not TeX, and its buttons
@@ -8184,7 +8276,7 @@ def q_links_into_an_entry_land_in_the_appendix_while_a_box_shows_it():
              ' fold.open = true; await wait(800); fold.open = false; await wait(100); location.hash = "#n432"; await wait(600);'
              ' const region = document.getElementById("mstar-panel"), shows = () => !region.hidden && [...region.querySelectorAll("[data-panel-entries] p.entry")].some(p => p.dataset.lengths === "432");'
              ' const at = id => { const t = document.getElementById(id), r = t && t.getBoundingClientRect();'
-             '   return t && {appendix: t.closest("section.appendix") !== null, box: t.closest(".column-panel") !== null, inView: r.top >= 0 && r.top < innerHeight,'
+             '   return t && {appendix: t.closest("section.appendix") !== null, box: t.closest(".column-panel") !== null, inView: r.top > -1 && r.top < innerHeight,'
              '     fold: document.querySelector("section.appendix details").open, shows: shows()}; };'
              ' const out = {before: shows()}; const link = [...document.querySelectorAll(\'a[href="#432:11"]\')].find(a => !a.closest("section.appendix, .column-panel"));'
              ' link.click(); await wait(500); out.code = at("432:11");'

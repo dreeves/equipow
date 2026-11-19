@@ -278,10 +278,13 @@ def q_order_12_is_down_to_528():
 # The account's table of lengths from which each order holds (Opus 5.5, 2026-11-12), found by its caption's id: the
 # tails of orders 13 and 14 behind its values, A, b and threshold, order 14's A from order 13's tail (every
 # multiple of 16 from 3696 on, and 3680, the wrap of 1840:12, has an antisymmetric sequence of order 13); and the
-# closure's lengths for it, one multiple of 16 past order 14's threshold.
+# closure's lengths for it, one multiple of 16 past order 14's threshold.  Spec change (Opus 5.5, 2026-11-19;
+# quals_index's q_sequences_past_the_chart_move_seven_firsts): with the antisymmetric sequences of order 13 at 2528, 2608,
+# 2800 and 2992 in the account since then, order 14's tail has A = 3360 and threshold 7920, and FROM is 7936 (3680, 8560
+# and 8576 until then); order 13's tail is as it was.
 ORDER_13 = (1488, 720, 3696)
-ORDER_14 = (3680, 1200, 8560)
-FROM = 8576
+ORDER_14 = (3360, 1200, 7920)
+FROM = 7936
 FROM_TABLE = re.compile(r'<table>\s*<caption id="symmetry-table">.*?</table>', re.S)
 
 
@@ -306,7 +309,8 @@ def q_symmetry_table_gives_each_order_s_length():
     # for each order m, the N such that the symmetry conjecture holds for lengths n>=N"): the rows take the orders 1 to
     # 19 in turn, then every order from 20 on; for each order m up to 14, N is one more than the largest multiple of
     # period(m) that the reduction leaves uncovered, or 1 if it leaves none: 1 through order 11, 529 at 12 (528 left),
-    # 3665 at 13 and 7329 at 14, the tails of 13 and 14 being ORDER_13 and ORDER_14; for each order from 15 to 19, which
+    # 3665 at 13 and 7121 at 14 (7329 until 2026-11-19, ORDER_14's spec change), the tails of 13 and 14 being ORDER_13 and
+    # ORDER_14; for each order from 15 to 19, which
     # have no tail from the page's sequences, N is 2^(threshold_log2(m) + 1), from which Fable 5.2's theorem gives a
     # (-1)^m-symmetric sequence of order m at every length that Divisibility allows.  Without 2192:12, 2192 is left at
     # order 12 too, and order 12's N would be 2193: the table's numbers follow the page's sequences.
@@ -316,7 +320,7 @@ def q_symmetry_table_gives_each_order_s_length():
     got = reduction(text, MAXM=14, N=FROM)
     assert (got[13][:3], got[14][:3]) == (ORDER_13, ORDER_14), (got[13][:3], got[14][:3])
     want = [(m, max(got[m][3], default=0) + 1) for m in range(1, 15)] + [(m, 2 ** (symlarge.threshold_log2(m) + 1)) for m in range(15, 20)]
-    assert [w for m, w in want[11:14]] == [529, 3665, 7329], want[11:14]
+    assert [w for m, w in want[11:14]] == [529, 3665, 7121], want[11:14]
     rows = from_table(account(text))
     said = [(m, n) for a, z, n in rows[:-1] for m in range(a, z + 1)]
     assert said == want, ([(m, n, w) for (m, n), (_, w) in zip(said, want) if n != w], said[:3], len(said))

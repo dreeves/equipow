@@ -163,8 +163,13 @@
   // sequence behind its column's lower bound (none, the N ones of an odd N, among them), links to N's entry in the
   // appendix; τ_j to Thue–Morse at the OEIS; a letter to its construction.  (Until that day a p_N linked to its code on
   // the page, or to its entry where its lower bound was a join or a product, or else cited its example's label.)
+  // A p_N past the chart (Opus 5.5, 2026-11-19, when the joins of powers of 2 first used them) is one of mstar.js's
+  // past, the Symmetry section's codes longer than nmax, which have no entry: it links to its code there, which says
+  // where it came from.
+  const PAST = new Map(MSTAR.past.map(([n, m]) => [BigInt(n), m]));
   const PARTS = {
     p: (N, claim) => {                                             // the best known sequence of length N
+      if (PAST.has(N)) return {n: N, m: PAST.get(N), link: `#${N}:${PAST.get(N)}`};
       assert(1n <= N && N <= BigInt(MSTAR.nmax), claim, String(N));
       const [lo, , why] = MSTAR.cols[Number(N) - 1];
       assert(['none', 'example', 'join', 'product'].includes(why[0]), claim, String(N), why);

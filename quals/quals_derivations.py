@@ -34,9 +34,12 @@ CONSTRUCTIONS = '[data-construction]:not([data-why] *)'
 CONSTRUCTION = re.compile(r'<span data-construction="([^"]*)">\\\((.*?)\\\)</span>', re.S)
 # The page's constructions whose orders are less than the lower bounds that the data and the new results give at their
 # lengths, by their claims N:M: f, the 2^24 construction of the remarks ("Joint construction", order 25, where the join
-# of the 2^20 entry times τ_4 gives 26), and two products of it, f # f at 2^48 (order 50; 54 there) and f # f # τ_3 at
-# 2^51 (order 53; 57 there).  Every other construction has exactly the lower bound at its length.
-SUPERSEDED = ('16777216:25', '281474976710656:50', '2251799813685248:53')
+# of the 2^22 entry times τ_2 gives 27), and f # f # τ_3 at 2^51 (order 53; 58 there).  Every other construction has
+# exactly the lower bound at its length.  Spec change (Opus 5.5, 2026-11-19; quals_index's
+# q_sequences_past_the_chart_move_seven_firsts): f # f at 2^48 (order 50; 54 there) left the page with the 2^27 entry's
+# sentence, which compared its own join with it and became the lift of the 2^22 entry's join (that sentence kept in its
+# TODO comment); until then three, with 26 and 57 the bounds at 2^24 and 2^51.
+SUPERSEDED = ('16777216:25', '2251799813685248:53')
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -258,7 +261,8 @@ SCAN = """() => [...document.querySelectorAll('.katex annotation[encoding="appli
 })"""
 
 # The page changed, each change with the index of the construction it changes (the 2^17 construction's is 4, f # f #
-# τ_3's 9), for the quals that it fails loudly: claim says the 2^17 construction has order 19 (its rules give 18);
+# τ_3's 8; 9 until 2026-11-19, when the 2^27 entry's sentence, which held f # f, became the lift of the 2^22 entry's join:
+# since then at() reads each index off the page, Opus 5.5), for the quals that it fails loudly: claim says the 2^17 construction has order 19 (its rules give 18);
 # undefined names g, which no construction defines, in dreeves's f # f # τ_3 of the 2^51 entry; mixed drops the
 # parentheses around the 2^17 construction's first product, so that # and ∨ meet with no parentheses between them.  And
 # for the qual of a join's order: unequal makes the 2^17 construction's second product times τ_2 in place of τ_1, so
@@ -267,11 +271,20 @@ SCAN = """() => [...document.querySelectorAll('.katex annotation[encoding="appli
 F17 = '<span data-construction="131072:18">\\((p_{112} \\mathbin{\\#} p_{800}) \\vee'
 F51 = '<span data-construction="2251799813685248:53">\\(f \\mathbin{\\#} f'
 F17_ALL = F17 + ' (p_{48} \\mathbin{\\#} p_{432} \\mathbin{\\#} \\tau_1)\\)</span>'
-CHANGES = {'claim': (F17, F17.replace('131072:18', '131072:19'), 4),
-           'undefined': (F51, F51.replace('\\(f \\mathbin', '\\(g \\mathbin'), 9),
-           'mixed': (F17, F17.replace('\\((p_{112} \\mathbin{\\#} p_{800})', '\\(p_{112} \\mathbin{\\#} p_{800}'), 4),
-           'unequal': (F17_ALL, F17_ALL.replace('131072:18', '172544:18').replace('\\tau_1', '\\tau_2'), 4),
-           'larger': (F17_ALL, F17_ALL.replace('131072:18', '172544:19').replace('\\tau_1', '\\tau_2'), 4)}
+
+
+def at(claim):
+    """The index of the page's construction of that claim among the constructions written in index.html, in page order."""
+    claims = [m.group(1) for m in CONSTRUCTION.finditer(qi.page())]
+    assert claims.count(claim) == 1, (claim, claims)
+    return claims.index(claim)
+
+
+CHANGES = {'claim': (F17, F17.replace('131072:18', '131072:19'), at('131072:18')),
+           'undefined': (F51, F51.replace('\\(f \\mathbin', '\\(g \\mathbin'), at('2251799813685248:53')),
+           'mixed': (F17, F17.replace('\\((p_{112} \\mathbin{\\#} p_{800})', '\\(p_{112} \\mathbin{\\#} p_{800}'), at('131072:18')),
+           'unequal': (F17_ALL, F17_ALL.replace('131072:18', '172544:18').replace('\\tau_1', '\\tau_2'), at('131072:18')),
+           'larger': (F17_ALL, F17_ALL.replace('131072:18', '172544:19').replace('\\tau_1', '\\tau_2'), at('131072:18'))}
 
 
 def changed(name):

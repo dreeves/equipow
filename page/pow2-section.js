@@ -23,12 +23,13 @@ try {
     return Number(m);
   };
   // A block [n, m] of a join's product: τ_j, Thue–Morse of length 2^j; or p_n, the sequence behind column n <= NMAX of
-  // the m*(n) chart, or one of LONG, the examples longer than NMAX in the remarks below, as [n, m] (none since
-  // 2026-10-27, when the m*(n) chart reached the one there was, at 1024).  name gives its symbol in the readout, and ''
-  // for anything else, which the contract rules out: f, the 2^24 construction of the remarks below, among them since
-  // 2026-10-29 (dreeves: "ok", to dropping f, which no reason had used since 2026-10-25).
+  // the m*(n) chart, or one of LONG, the sequences past the chart, as [n, m]: mstar.js's past, the Symmetry section's
+  // codes longer than NMAX (Opus 5.5, 2026-11-19, when joins first used them, 2096, 2528 and 2608; an empty list here
+  // from 2026-10-27, when the m*(n) chart reached the one example there was, at 1024).  name gives its symbol in the
+  // readout, and '' for anything else, which the contract rules out: f, the 2^24 construction of the remarks below,
+  // among them since 2026-10-29 (dreeves: "ok", to dropping f, which no reason had used since 2026-10-25).
   const NMAX = MSTAR.nmax;                                          // the m*(n) chart's last n, as its data have it (1024, a number here, until 2026-11-10: 2048 since, [BOU])
-  const LONG = [];
+  const LONG = MSTAR.past.map(([n, m]) => [n, m]);
   const name = ([n, m]) => n === 2 ** m ? `τ${sub(m)}`
     : n <= NMAX || LONG.some(b => b[0] === n && b[1] === m) ? `p${sub(n)}` : '';
   const isBlock = b => Array.isArray(b) && b.length === 2 && b.every(Number.isInteger) && b[0] >= 1 && b[1] >= 0

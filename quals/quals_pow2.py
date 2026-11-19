@@ -188,28 +188,40 @@ def q_new_lower_bounds():
     # before 2026-10-17's example of order 11 at 800: 0 below 18, 1 from 18, 2 from 33, 3 from
     # 41, 4 from 48, 5 from 61 and 6 from 71; before 2026-10-12's of order 10 at 560: 1 from 24 by f, 2 from 33, 3 from
     # 49, 4 from 57 and 5 from 67.)
-    want = {k: 0 if k < 10 else 1 if k < 20 else 2 if k < 28 else 3 if k < 30 else 4 if k < 39 else 5 if k < 47 else 6
-            if k < 51 else 7 if k < 58 else 8 if k < 68 else 9 for k in range(1, KMAX + 1)}      # 6 if k < 56 until 2026-11-11; 6 if k < 57 else 7 if k < 65 until later on 2026-11-03
+    # Spec change (Opus 5.5, 2026-11-19; quals_index's q_sequences_past_the_chart_move_seven_firsts): the antisymmetric sequences of order 13 at 2528 and 2608,
+    # past the chart, give 3 for 22..29 (BASES[22]), 5 for 35..41 (BASES[35]), 6 for 42..49 (BASES[42]), 7 for 50..54 (BASES[50]), 8 for 55..62 (BASES[55]) and
+    # 9 for 63..67 (BASES[63]); until then 2 for 20..27, 3 for 28..29 (BASES[28], with the example of order 15 at 960), 4 for 30..38, 5 for 39..46
+    # (BASES[39], with the example of order 12 at 768), 6 for 47..50 (BASES[47]), 7 for 51..57 (BASES[51]), 8 for 58..67 (BASES[58]) and 9 for 68..72
+    # (BASES[68]).
+    # (2 if k < 28 ... 8 if k < 68 until 2026-11-19; 6 if k < 56 until 2026-11-11; 6 if k < 57 else 7 if k < 65 until later on 2026-11-03)
+    want = {k: 0 if k < 10 else 1 if k < 20 else 2 if k < 22 else 3 if k < 30 else 4 if k < 35 else 5 if k < 42 else 6
+            if k < 50 else 7 if k < 55 else 8 if k < 63 else 9 if k < 68 else 10 for k in range(1, KMAX + 1)}
     kind = {k: 'thue-morse' if k < 10 else 'joins' for k in range(1, KMAX + 1)}
     for k, (lo, hi, lw, hw) in enumerate(cols(), 1): assert (lo - k, lw[0]) == (want[k], kind[k]), (k, lo, lw[0])
     orders = {K0: pow2.join_lo(K0, ps) for K0, ps in pow2.BASES.items()}
-    assert orders == {10: 11, 20: 22, 28: 31, 30: 34, 39: 44, 47: 53, 51: 58, 58: 66, 68: 77}, orders   # 36: 40 and 56: 63 until 2026-11-11; 57: 64, 65: 73 until later on 2026-11-03
-    # 768 is a block of order 13 since 2026-11-03 (the beam campaign's plan 6 found an example of order 13; 12 before):
-    # its products in BASES[28], [39] and [58] gain 1, and no join's least product changes, so no lo moves.
-    assert [768, 13] in (b for p in pow2.BASES[39] for b in p), pow2.BASES[39]
-    assert [960, 15] in (b for p in pow2.BASES[28] for b in p), pow2.BASES[28]
+    # (28: 31, 39: 44, 47: 53, 51: 58, 58: 66 and 68: 77 until 2026-11-19; 36: 40 and 56: 63 until 2026-11-11; 57: 64, 65: 73 until later on 2026-11-03)
+    assert orders == {10: 11, 20: 22, 22: 25, 30: 34, 35: 40, 42: 48, 50: 57, 55: 63, 63: 72, 68: 78}, orders
+    # 768 is a block of order 13 since 2026-11-03 (the beam campaign's plan 6 found an example of order 13; 12 before): its products in BASES[28], [39] and [58]
+    # gained 1, and no join's least product changed, so no lo moved.  (BASES[39] and [28] held 768 and 960 until
+    # 2026-11-19; BASES[35] and [22] hold them since.)
+    assert [768, 13] in (b for p in pow2.BASES[35] for b in p), pow2.BASES[35]
+    assert [960, 15] in (b for p in pow2.BASES[22] for b in p), pow2.BASES[22]
+    # the bases of 2026-11-19 are built on the sequences of order 13 past the chart, at 2528 or 2608
+    assert all(any(b in ([2528, 13], [2608, 13]) for p in pow2.BASES[K0] for b in p) for K0 in (22, 35, 42, 50, 55, 63, 68)), pow2.BASES
     # ([912, 13] in BASES[36] until 2026-11-11) the base at 2^30 is built on that day's sequences
     assert all(b in [b for p in pow2.BASES[30] for b in p] for b in ([1504, 12], [1488, 14], [1632, 15])), pow2.BASES[30]
-    assert all([960, 15] in (b for p in pow2.BASES[K0] for b in p) for K0 in (51, 58)), (pow2.BASES[51], pow2.BASES[58])   # K0 56 for 51 until 2026-11-11
-    # the base at 2^51 is built on that day's sequences
-    assert all(b in [b for p in pow2.BASES[51] for b in p] for b in ([1504, 12], [1520, 12], [1808, 12], [1728, 15])), pow2.BASES[51]
+    assert all([960, 15] in (b for p in pow2.BASES[K0] for b in p) for K0 in (50, 55)), (pow2.BASES[50], pow2.BASES[55])   # K0 (51, 58) until 2026-11-19; 56 for 51 until 2026-11-11
+    # (until 2026-11-19 the base at 2^51 was built on the sequences of 2026-11-11 of order 12 at 1504, 1520 and 1808 and 15 at 1728)
     assert pow2.BASES[10] == [[[1024, 11]]], pow2.BASES[10]
     # lo = hi through k = 12 (the norm bound for 3 at 2^10, the residue condition mod 3 at 2^11 and 2^12), and not at 13
     assert [k for k, (lo, hi, lw, hw) in enumerate(cols(), 1) if lo == hi] == list(range(1, 13)), cols()[9:13]
     # (56, 47), (57, 57), (64, 57), (65, 65), (67, 65) until later on 2026-11-03
     # (35, 28), (36, 36), (38, 36) until 2026-11-11
-    pairs = ((10, 10), (19, 10), (20, 20), (27, 20), (28, 28), (29, 28), (30, 30), (38, 30), (39, 39), (46, 39), (47, 47),
-             (50, 47), (51, 51), (57, 51), (58, 58), (67, 58), (68, 68), (72, 68))      # (55, 47), (56, 56), (57, 56) until 2026-11-11
+    # (27, 20), (28, 28), (29, 28), (38, 30), (39, 39), (46, 39), (47, 47), (50, 47), (51, 51), (57, 51), (58, 58), (67, 58), (68, 68) and (72, 68) until
+    # 2026-11-19
+    # ((55, 47), (56, 56), (57, 56) until 2026-11-11)
+    pairs = ((10, 10), (19, 10), (20, 20), (21, 20), (22, 22), (29, 22), (30, 30), (34, 30), (35, 35), (41, 35), (42, 42), (49, 42), (50, 50),
+             (54, 50), (55, 55), (62, 55), (63, 63), (67, 63), (68, 68), (72, 68))
     assert [cols()[k - 1][2][1] == pow2.lifted(pow2.BASES[K0], k - K0) for k, K0 in pairs] == [True] * len(pairs)
 
 
@@ -345,8 +357,11 @@ def q_base_blocks_and_their_sources():
     # Since 2026-11-10 NMAX is 2048 (dreeves's README, [BOU]), so 1440:16 is a column's block and no example is longer.
     # Since 2026-11-11 the page has three examples longer than NMAX, the Symmetry section's symmetric sequences of
     # order 12 at 2096, 2128 and 2192; no base uses them.
-    assert set().union(*blocks.values()) - set().union(*short.values()) == set(), blocks
-    assert long_examples() == {(2096, 12), (2128, 12), (2192, 12)}, long_examples()
+    # Spec change (Opus 5.5, 2026-11-19; quals_index's q_sequences_past_the_chart_move_seven_firsts): the section also has the antisymmetric sequences of order 13
+    # at 2528, 2608, 2800 and 2992 since then, and the bases of that day use those at 2528 and 2608 and the one of order 12 at 2096, each a long example decoded
+    # here at exactly its order (no base used a long example until then).
+    assert set().union(*blocks.values()) - set().union(*short.values()) == {(2096, 12), (2528, 13), (2608, 13)}, blocks
+    assert long_examples() == {(2096, 12), (2128, 12), (2192, 12), (2528, 13), (2608, 13), (2800, 13), (2992, 13)}, long_examples()
     assert (1024, 11) in short[10] and mstar.NMAX == 2048
     assert {(n, m) for n, m in pow2.blocks() if n > mstar.NMAX and n != 2 ** m} == long_examples()
     cited = {K0: {(n, m) for n, m in bs if mstar_disk()[n - 1][2] == ['page', 'BGPW']} for K0, bs in short.items()}
