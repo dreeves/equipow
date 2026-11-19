@@ -449,6 +449,29 @@ def q_the_earlier_searches_follow_the_live_ones():
         shutil.rmtree(d)
 
 
+def q_earlier_form_tree_search_graphs_its_pending_nodes():
+    # 2026-11-19 (Opus 5.5; dreeves's README, [TRE]: "We now have a time series of the number of pending nodes in the
+    # search ... (Also this was missing from the 288:10 search for some reason.)").
+    # Replicata: the frozen entries (pagedata/progress-earlier.json) whose estimates were a form tree's (basis formtree):
+    # 288:10's, the run that proved m*(288) = 9.
+    # Expectata: its nodes pending and its tasks finished, as the live searches' are graphed (watch.py's pending and
+    # finished): rows [time, seconds of running, count], at times of its own estimates (etas) and with their seconds of
+    # running, counts whole and at least 0, tasks finished never falling; read from the driver's log of the runs that
+    # logged ("done D, left L" every minute), which the first two short runs did not.
+    # Resultata before: none, as the page's backfill of 2026-11-12 took only the searches then running.
+    with open(os.path.join(HERE, 'pagedata', 'progress-earlier.json'), encoding='utf-8') as f:
+        entries = [e for e in json.load(f) if e['basis'] == 'formtree']
+    assert [(e['search'], e['n'], e['order']) for e in entries] == [('ftree.py', 288, 10)], entries
+    for e in entries:
+        eta = {r[0]: r[1] for r in e['etas']}
+        for k in ('pending', 'finished'):
+            rows = e[k]
+            assert len(rows) > 300 and all(len(r) == 3 and r[0] in eta and r[1] == eta[r[0]] and type(r[2]) is int and r[2] >= 0
+                                           for r in rows), (k, len(rows), rows[:2])
+        done = [r[2] for r in e['finished']]
+        assert done == sorted(done) and done[-1] > 200000, done[-3:]
+
+
 def main():
     names = sys.argv[1:] or [n for n in globals() if n.startswith('q_')]
     failed = 0
