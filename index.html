@@ -138,7 +138,9 @@
     We extend the results of Table 2 of the paper by Buhler, Golan, Pratt, and Wagon (<i>Math. Comp.</i> 90, 2021) aka BGPW.</p>
   <p>Background: \(m^*(n)\) 
     is the largest number \(m\) such that 
-    \(\{1, \ldots, n\}\) can be split into two parts whose power sums are equal for every exponent 
+    \(\{1, \ldots, n\}\) can be split into two parts whose power sums are equal 
+    &mdash; an <i>equipowerful partition</i> &mdash; 
+    for every exponent 
     \(k = 0, \ldots, m - 1\).</p>
   <p>
   For example, if \(\{1, 2, 3, 4\}\) is partitioned into \(\{1, 4\}\) and \(\{2, 3\}\) then we have these power sums:</p>
@@ -274,14 +276,20 @@
     The following chart shows bounds on \(m^*(n)\) for every \(n\) up to the specified cap, with the specified exceptions.
   </p>
   <p>
-    See the introduction for why odd numbers have order 0.
+    As mentioned above, odd numbers have order 0.
+    Even numbers have order at least 1, because \(2k\) numbers can be partitioned into two equal-sized sets, i.e., an equipowerful partition for exponent 0.
+  </p>
+  <p>
     A short proof for why odd multiples of 2 have order 1 is as follows.
     For \(n\) to be an odd multiple of 2 means it's even but not divisible by 4, so twice an odd number.
     I.e., \(n = 2(2k+1)=4k+2\) for some \(k \ge 0\).
-    As usual, we take our set of \(n\) numbers to be \(\{0, 1, \ldots, n-1\}\).
+    As usual, we take our set of \(n\) numbers to be 
+    \(\{0, \ldots, n-1\}\).
     In this case that's \(\{0, 1, \ldots, 4k+1\}\).
-    The sum of that set, by the standard formula for the sum of consecutive numbers, is \((4k+1)(4k+2)/2 = (4k+1)(2k+1)\).
+    The sum of that set, by the standard formula for the sum of consecutive numbers, is 
+    \((4k+1)(4k+2)/2 = (4k+1)(2k+1)\).
     That's an odd times an odd, which is odd.
+    (Simpler: Half of the numbers in \(\{0, \ldots, n-1\}\) are odd and the sum of any number of evens and an odd number of odds is odd.)
     So there's no bipartition that splits the sum in half, which means there's no equipowerful partition for exponent 1.
   </p>
   <p>
