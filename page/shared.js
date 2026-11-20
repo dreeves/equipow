@@ -558,7 +558,7 @@ const searches = (n, m) => {
 // entries it shows go in its [data-panel-entries], above its parts since 2026-11-18 (below them until then), each a
 // copy (copied; until that night the entry itself, moved there from wherever it was: its place in the appendix's list
 // or the other chart's box, which then showed none); a copy of a code goes when the box shows the code itself, in an
-// entry; its parts' Claude's English is quoted (quoteRuns); and the codes, joins, constructions and texts of its
+// entry; its parts' Claude's English is quoted (quoteRuns); and the codes, joins and constructions of its
 // entries and parts are buttons.  It returns open(target), which opens the box of the target, as panZoom's open does.
 function chartPanel({region, chart, ncol, nrow, fragment, fill, pin}) {
   const title = region.querySelector('[data-panel-title]'), body = region.querySelector('[data-panel-body]');
@@ -579,10 +579,9 @@ function chartPanel({region, chart, ncol, nrow, fragment, fill, pin}) {
     region.dataset.kind = kind;
     title.replaceChildren(...heading);
     body.replaceChildren(...kept);
-    [shelf, body].forEach(x => {                                   // its copies of codes and codes, constructions and texts, buttons
+    [shelf, body].forEach(x => {                                   // its copies of codes and codes, and constructions, buttons
       x.querySelectorAll('[data-join], code[data-code]').forEach(e => expandable.partition(e));
       x.querySelectorAll('[data-construction]').forEach(e => expandable.derivation(e));
-      x.querySelectorAll('[data-text]').forEach(e => expandable.text(e));
     });
     region.hidden = false;
     last = t;

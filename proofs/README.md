@@ -18,7 +18,6 @@ A *sequence* is n signs, +1 or −1. It *has order m* when its power sums vanish
 | [proof752.py](proof752.py) | m\*(752) ≤ 10 (2026-10-25). |
 | [proof1248.py](proof1248.py) | Codex: m\*(1248) ≤ 13, so m\*(1248) = 13, with no symmetry assumption (2026-11-11). |
 | [proof1456.py](proof1456.py) | m\*(1456) ≤ 11, so m\*(1456) = 11 (2026-11-07). |
-| [proof512.wl](proof512.wl) | The computations of the page's proof that no sequence of length 512 or 496 has order 10, in Mathematica. |
 
     python3 -B proofs/proof288.py
     python3 -B -I -S proofs/pintree.py proofs/pintree_432_12.json.gz

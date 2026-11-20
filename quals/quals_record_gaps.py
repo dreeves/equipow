@@ -170,7 +170,7 @@ def q_page_links_the_wl():
     # Replicata: index.html's section "Bounds on m*(2^k) − k" (pow2), and the repository's files.
     # Expectata (dreeves, 2026-10-29: "yes to updating the qual in light of my edit of theorem 1", whose rewrite in
     # 699517e moved the link out of Claude's sentence after the theorem into dreeves's paragraph on the table): the
-    # section links record_gaps.wl once, at its raw GitHub address (as the page links proof512.wl and lattice_search.wl),
+    # section links record_gaps.wl once, at its raw GitHub address (as the page links lattice_search.wl, and linked proof512.wl until 2026-11-20),
     # in the paragraph right before the frame of the record-gaps table; the file is in the repository's working
     # directory.
     # Resultata before (699517e to 2026-10-29): this qual still wanted Claude's sentence after the theorem.

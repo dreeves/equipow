@@ -140,7 +140,7 @@ def results():
 
 def q_section_links_the_wl():
     # Replicata: the section's links, and the repository's files.
-    # Expectata: one link to lattice_search.wl, at its raw GitHub address (as the page links proof512.wl), and the
+    # Expectata: one link to lattice_search.wl, at its raw GitHub address (as the page linked proof512.wl until 2026-11-20), and the
     # file is in the repository's working directory.
     links = re.findall(r'href="([^"]*lattice_search[^"]*)"', section())
     assert links == [WL_URL], links

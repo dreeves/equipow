@@ -1,4 +1,4 @@
-// The page's codes, joins, constructions and texts as buttons (dreeves's spec [REO] in index.html, item 2, 2026-10-31: "When
+// The page's codes, joins and constructions as buttons (dreeves's spec [REO] in index.html, item 2, 2026-10-31: "When
 // you click the hex code, we expand it to an explicit partition and check the arithmetic so show exactly which exponents
 // are equipowerful"; later that day, as the page's sets left it: "every bipartition we give should be presented the
 // same way as an expandable hex code"; and then, agreeing that the page's construction formulas be clickable like codes
@@ -46,15 +46,10 @@
 // derivation whose length and order are not N:M.  As a code's, a construction's form is checked as the page loads
 // (its TeX is read then, before KaTeX draws it) and its arithmetic at its first click, which reads mstar.js.
 //
-// A text is data-text, NAME, the name of its box, the page's <pre data-text-box="NAME"> of every character of it as
-// written, right after the block that holds the text: a proof that until 2026-11-05 was a file the page linked
-// (dreeves's README: "[MAI] Let's get more things as expandable sections of the main equipow page instead of linking to
-// separate pages. Proofs currently in txt files for starters").  Its box is in the page from the start and becomes its
-// button's box as the page loads; closed, it is hidden until found (hidden="until-found"), as the page loads and after
-// its button closes it, so that find in page reaches its text and opens it, firing beforematch, which marks the text expanded
-// (dreeves, 2026-11-05, of the first design, a template copied at the first click: "defeats part of the point of
-// bringing the proof inline -- i can't grep the page for things in the proof").  It throws, as the page loads, unless
-// the texts and the boxes pair one to one, each box hidden until found.
+// From 2026-11-05 to 2026-11-20 a text, a proof the page held as written (the 512 entry's proof512.txt and
+// proof512_short.txt), was a button too, its box a <pre data-text-box> hidden until found; both proofs went with their
+// buttons (dreeves, 2026-11-20: "can we get rid of the plain text proofs and get everything deduplicated and typeset
+// properly?").
 (() => {
   const assert = (ok, ...what) => { if (!ok) throw new Error(JSON.stringify(what).replace(/"/g, "'")); };
   const el = (tag, ...children) => { const x = document.createElement(tag); x.append(...children); return x; };
@@ -241,42 +236,29 @@
     return box;
   }
 
-  // ---------- texts ----------
-  const texts = [...document.querySelectorAll('[data-text]')], held = [...document.querySelectorAll('[data-text-box]')];
-  const names = texts.map(e => e.dataset.text), boxNames = held.map(x => x.dataset.textBox);
-  // the texts' names distinct, and the boxes' names exactly those names: one box for each text
-  assert(new Set(names).size === names.length && JSON.stringify(names.toSorted()) === JSON.stringify(boxNames.toSorted()),
-         names, boxNames);
-  // each box hidden until found as the page loads
-  assert(held.every(x => x.getAttribute('hidden') === 'until-found'), held.map(x => [x.dataset.textBox, x.getAttribute('hidden')]));
-  const holding = new Map(held.map(x => [x.dataset.textBox, x]));  // each text's name: its box
-
   // ---------- the buttons ----------
   // A button's box opens right after the block that holds the button, its nearest p or li, never inside running text
   // (the coordinator, 2026-10-31: "an expansion opens right after the block element (the nearest p or li ancestor) that
   // holds its button, never inside running text"), the boxes of one block in the order of its buttons, whatever order
   // they were made in.  A box's id is expansion-K, K its button's place among the page's buttons, and its button's
-  // aria-controls names it once it is made.  A box is made at its button's first click, or, a text's, as the page loads
-  // (button returns made, which makes it).  Closed, a box's hidden is closed: true, or a text's "until-found", which find
-  // in page opens, firing beforematch on the box, which marks its button expanded (2026-11-05).
-  const buttons = [...document.querySelectorAll('code[id], code[data-code], [data-join], [data-construction], [data-text]')];
+  // aria-controls names it once it is made.  A box is made at its button's first click.
+  const buttons = [...document.querySelectorAll('code[id], code[data-code], [data-join], [data-construction]')];
   const outside = buttons.filter(e => e.closest('p, li') === null);
   assert(outside.length === 0, outside.map(e => e.outerHTML.slice(0, 80)));
   const boxes = new Map();                                         // each button: its box, once made
-  function button(e, make, closed = true) {                        // e shows and hides make()'s box, after e's block
+  function button(e, make) {                                       // e shows and hides make()'s box, after e's block
     const block = e.closest('p, li');
     assert(block !== null, e.outerHTML.slice(0, 80));
     const toggle = () => {
       const box = boxes.get(e) ?? made();
-      box.hidden = box.hidden ? false : closed;                    // open if closed, else closed
+      box.hidden = !box.hidden;                                    // open if closed, else closed
       e.setAttribute('aria-expanded', String(!box.hidden));
     };
     const made = () => {
-      const box = Object.assign(make(), {hidden: closed, id: `expansion-${buttons.indexOf(e) + 1}`});
+      const box = Object.assign(make(), {hidden: true, id: `expansion-${buttons.indexOf(e) + 1}`});
       boxes.set(e, box);
       block.after(...buttons.filter(b => b.closest('p, li') === block && boxes.has(b)).map(b => boxes.get(b)));   // its block's, in order
       e.setAttribute('aria-controls', box.id);
-      box.addEventListener('beforematch', () => e.setAttribute('aria-expanded', 'true'));   // find in page opens it
       return box;
     };
     e.setAttribute('role', 'button');
@@ -288,11 +270,9 @@
       ev.preventDefault();                                         // Space would scroll the page
       toggle();
     });
-    return made;
   }
   sequences.forEach((s, e) => button(e, () => partition(e, s)));
   built.forEach(e => button(e, () => derivation(e)));
-  texts.forEach(e => button(e, () => holding.get(e.dataset.text), 'until-found')());   // made now, for find in page
   // The joins and constructions a chart's box makes after the page has loaded (page/shared.js, 2026-11-04), buttons as
   // the page's own: expandable.partition(e), a join (a box's copy of a code is a join of that one code), and
   // expandable.derivation(e), a construction, each checked as the page's are as it loads, its box numbered after every
@@ -300,13 +280,5 @@
   window.expandable = {
     partition: e => { buttons.push(e); const s = sequence(e); button(e, () => partition(e, s)); },
     derivation: e => { buttons.push(e); parsed.set(e, parse(e)); button(e, () => derivation(e)); },
-    // (2026-11-18) a text of a box's copy of an entry, its box the copy's box of that name, closed until found as the
-    // page's are
-    text: e => {
-      const box = e.closest('li').querySelector(`[data-text-box="${e.dataset.text}"]`);
-      assert(box !== null, e.dataset.text);
-      buttons.push(e);
-      button(e, () => box, 'until-found')();
-    },
   };
 })();

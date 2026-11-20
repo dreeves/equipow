@@ -33,7 +33,10 @@ SIZES = (77, 77, 77, 77, 76)
 
 
 def text(fragment):
-    return unescape(re.sub(r'<[^>]*>', '', fragment)).strip()
+    # Since 2026-11-20 (Opus 5.5; dreeves: "can we get rid of the plain text proofs and get everything deduplicated and
+    # typeset properly?") the proof's math is KaTeX, so a cell may be TeX between \( and \), as the reduced table's
+    # polynomials are; those delimiters are dropped here, so that the qual reads the same expressions as before.
+    return unescape(re.sub(r'<[^>]*>', '', fragment)).replace('\\(', '').replace('\\)', '').strip()
 
 
 def table(page, name):

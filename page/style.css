@@ -273,7 +273,7 @@ code {
    math, in the codes' ink, is ruled below, since an underline does not reach into KaTeX's boxes.  A construction, a
    formula built with # and ∨, is a button too (2026-10-31), ruled as a join, and its derivation is framed as a
    partition is. */
-code[aria-expanded], [data-text][aria-expanded] { cursor: pointer; text-decoration: underline dotted var(--muted); text-underline-offset: 0.2em; }
+code[aria-expanded] { cursor: pointer; text-decoration: underline dotted var(--muted); text-underline-offset: 0.2em; }
 [data-join][aria-expanded], [data-construction][aria-expanded] { cursor: pointer; color: var(--ink); border-bottom: 1px dotted var(--muted); }
 .code > [aria-expanded] { justify-self: start; }
 .partition, .derivation { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.35rem; margin-block: 0.3rem 0.5rem; padding-left: 0.75rem; border-left: 1px solid var(--muted);
@@ -309,23 +309,6 @@ code[aria-expanded], [data-text][aria-expanded] { cursor: pointer; text-decorati
    confusing and looks misaligned"): its parts' orders, its length, its order, each a line in ink */
 .derivation > p { margin: 0; color: var(--ink); line-height: 1.4; }
 .derivation a { text-underline-offset: 0.45em; }            /* below a name's subscript, as KaTeX underlines its links */
-/* A text (2026-11-05, dreeves's README: "[MAI] Let's get more things as expandable sections of the main equipow page
-   instead of linking to separate pages. Proofs currently in txt files for starters"): its name a button, ruled as a
-   code is (above), and its box (page/codes.js), a <pre> of every character as written, framed as a partition is, in the
-   codes' monospace, size and ink, ragged and unhyphenated.  Its long lines wrap at the frame's edge, as a browser shows
-   a .txt file, so that it never scrolls sideways (on a phone, a line scrolled sideways is out of view, as = and ≠ were
-   for the power sums); and it shows in full, with no scrolling inside it, as the typeset proof above it does (since
-   2026-11-06; until then it scrolled past 60% of the viewport's height, as the power sums do). */
-.verbatim { margin-block: 0.3rem 0.5rem; padding-left: 0.75rem; border-left: 1px solid var(--muted);
-            font: 0.8125rem/1.4 var(--mono); color: var(--ink); white-space: pre-wrap; overflow-wrap: anywhere;
-            text-align: start; hyphens: manual; -webkit-hyphens: manual; }
-.verbatim:not(pre) { font: inherit; white-space: normal; }
-/* Closed, a text's box is hidden until found (2026-11-05; dreeves, of a closed text kept in a template: "defeats part of
-   the point of bringing the proof inline -- i can't grep the page for things in the proof"), so that find in page
-   reaches it.  The browser then hides its content (content-visibility: hidden) but still lays the box out, in its
-   entry's grid a row of its own with a gap and margins; out of the flow, it takes no room, as a box hidden plainly
-   takes none. */
-[hidden="until-found"] { position: absolute; }
 
 /* Typeset proofs in native disclosures retain ordinary prose and let wide mathematics scroll within the entry. */
 .proof-exposition { min-width: 0; margin-block: 0.5rem; }
@@ -340,7 +323,7 @@ details.ai > * + * { margin-top: 0.8rem; }
 .proof-body h4 { font-size: 1em; margin-block: 1.1rem 0.4rem; }
 .proof-body > :first-child { margin-top: 0; }
 .proof-body > :last-child { margin-bottom: 0; }
-.proof-body .proof-equation, .proof-body .math { max-width: 100%; overflow-x: auto; padding-block: 0.2rem; white-space: nowrap; text-align: start; }
+.proof-body .proof-equation { max-width: 100%; overflow-x: auto; padding-block: 0.2rem; white-space: nowrap; text-align: start; }
 /* KaTeX's positioning boxes can exceed its visible notation by a pixel. Keep only horizontal scrolling. */
 .proof-body .proof-equation { overflow-y: hidden; }
 .proof-body pre { max-width: 100%; overflow-x: auto; }
