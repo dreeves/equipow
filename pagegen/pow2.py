@@ -160,6 +160,14 @@ JS = os.path.join(HERE, 'pagedata', 'pow2.js')
 # 2^50 and 2^55 are one sum read back from the exact decider's bit set (witness.py), fewer products not sought, and those at 2^63
 # and 2^68 are Astra's (scratch/codex-omg-20261119/verify_joins.py).  The sequence at 2^22,
 # built in full, has order 25 by its power sums (build22.py).
+# Two more of that kind, at 2480 and 2512 (the tilted search's of 2026-11-21, in the Symmetry section since), moved the first K0 for
+# e = 5 from 35 to 34: BASES[34], which lifted matches the superseded BASES[35] (2608 2528^2 2 + 768 672^2 2 + 1440 960 240) at every k
+# above it.  quals_pow2.excess_reached says no at 2^33 (no coin prime to 3 fits); the join is witness5.py's in
+# scratch/next-20261120/firsts, one sum read back from the exact decider's bit set, fewer products not sought.
+# And the one at 2480 moved the first for e = 10 from 68 to 67: BASES[67], which lifted matches the superseded BASES[68] (Astra's
+# 2608^2 2528^4 + 2608^2 960^2 832^2 + 1648 1632 1568^2 1504 960 + 2016 1728 1632 848^3) at every k above it.  No coin prime to 3
+# fits at 2^66.  The join is the one that Astra's search for joins of few products (scratch/codex-omg-20261119/e10short.py, run as
+# firsts/e10short_b.py 67 40 3 10 there with the two new blocks) found, its 1920 and 864 written as 960 2 and 432 2.
 # (The examples of order 10 at 592, 608 and 656 and of order 11 at 848, 880, 896, 928, 944, 976 and 992, 2026-10-25,
 # had moved the first K0 for e = 2 from 27 to 20 (BASES[20] is 848 # 992 joined to 240 # 432 # tau_1), for e = 3 from
 # 34 to 30, for e = 4 from 38 to 37, for e = 6 from 52 to 49 and for e = 8 from 66 to 65, and given e = 9 at 72; the
@@ -175,9 +183,9 @@ BASES = {10: [[[1024, 11]]],
          30: [[[1504, 12], [800, 11], [800, 11]],
               [[1488, 14], [1440, 16], [32, 5]],
               [[1632, 15], [1632, 15], [16, 4]]],
-         35: [[[2608, 13], [2528, 13], [2528, 13], [2, 1]],
-              [[768, 13], [672, 13], [672, 13], [2, 1]],
-              [[1440, 16], [960, 15], [240, 10]]],
+         34: [[[2512, 13], [2480, 13], [2480, 13]],
+              [[1968, 14], [1296, 14], [528, 11]],
+              [[960, 15], [960, 15], [208, 8], [2, 1]]],
          42: [[[2528, 13], [2528, 13], [800, 11], [800, 11]],
               [[1440, 16], [960, 15], [368, 9], [304, 8]],
               [[1632, 15], [672, 13], [672, 13], [208, 8]]],
@@ -192,10 +200,10 @@ BASES = {10: [[[1024, 11]]],
               [[2608, 13], [2608, 13], [2608, 13], [960, 15], [960, 15], [8, 3]],
               [[1632, 15], [1504, 12], [960, 15], [960, 15], [960, 15]],
               [[1632, 15], [1632, 15], [1488, 14], [768, 13], [672, 13], [4, 2]]],
-         68: [[[2608, 13], [2608, 13], [2528, 13], [2528, 13], [2528, 13], [2528, 13]],
-              [[2608, 13], [2608, 13], [960, 15], [960, 15], [832, 11], [832, 11]],
-              [[1648, 12], [1632, 15], [1568, 12], [1568, 12], [1504, 12], [960, 15]],
-              [[2016, 15], [1728, 15], [1632, 15], [848, 11], [848, 11], [848, 11]]]}
+         67: [[[2480, 13], [2480, 13], [2480, 13], [2480, 13], [2480, 13], [1504, 12]],
+              [[1968, 14], [1776, 14], [1104, 13], [1104, 13], [1104, 13], [432, 11], [2, 1]],
+              [[1968, 14], [1648, 12], [960, 15], [960, 15], [832, 11], [832, 11]],
+              [[2480, 13], [2480, 13], [960, 15], [960, 15], [960, 15], [64, 6]]]}
 
 
 # ---------- mstar.js ----------

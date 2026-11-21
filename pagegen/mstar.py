@@ -242,7 +242,7 @@ NEW = {240: (10, 10, 'c'), 288: (9, 9, 'j'),
        2 ** 20: (22, 23, 'c'), 2 ** 22: (25, 26, 'cf'), 2 ** 24: (27, 29, 'cf'),
        2 ** 27: (30, 33, 'cf'), 2 ** 28: (31, 34, 'c'), 2 ** 29: (32, 35, 'c'),
        2 ** 30: (34, 36, 'cf'),               # 33 to 36 until 2026-11-11, when that day's sequences made 2^30 the first power of 2 known to beat Thue-Morse by 4
-       2 ** 33: (37, 40, 'cf'), 2 ** 34: (38, 41, 'cf'), 2 ** 35: (40, 43, 'cf'), 2 ** 36: (41, 44, 'cf'),   # 2^33 and 2^34: 36 and 37 below until then
+       2 ** 33: (37, 40, 'cf'), 2 ** 34: (39, 41, 'cf'), 2 ** 35: (40, 43, 'cf'), 2 ** 36: (41, 44, 'cf'),   # 2^33 and 2^34: 36 and 37 below until then; 2^34: 38 until 2026-11-21, when it became the first for excess 5
        2 ** 37: (42, 45, 'cf'), 2 ** 38: (43, 46, 'cf'),
        2 ** 39: (44, 47, 'c'),
        2 ** 41: (46, 50, 'c'), 2 ** 42: (48, 51, 'cf'), 2 ** 43: (49, 53, 'cf'),
@@ -250,7 +250,7 @@ NEW = {240: (10, 10, 'c'), 288: (9, 9, 'j'),
        2 ** 49: (55, 60, 'c'), 2 ** 50: (57, 61, 'cf'), 2 ** 51: (58, 63, 'cf'),               # 57 to 63 until later on 2026-11-11, when that day's sequences made 2^51 the first power of 2 known to beat Thue-Morse by 7
        2 ** 52: (59, 64, 'cf'), 2 ** 55: (63, 68, 'cf'), 2 ** 56: (64, 69, 'cf'), 2 ** 57: (65, 70, 'cf'),   # 2^52: 58 below until then
        2 ** 58: (66, 71, 'c'), 2 ** 61: (69, 75, 'c'), 2 ** 63: (72, 78, 'ca'), 2 ** 65: (74, 81, 'ca'),
-       2 ** 66: (75, 82, 'ca'), 2 ** 67: (76, 83, 'ca'),
+       2 ** 66: (75, 82, 'ca'), 2 ** 67: (77, 83, 'ca'),   # 2^67: 76 until 2026-11-21, when it became the first for excess 10
        2 ** 68: (78, 84, 'ca'), 2 ** 71: (81, 88, 'ca'),
        2 ** 72: (82, 89, 'ca')}
 # EXAMPLE_BY[n]: who found the example of order NEW[n][0] at n, as the page's remarks credit it, for each n whose lo

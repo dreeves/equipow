@@ -3108,9 +3108,18 @@ def q_sequences_past_the_chart_move_seven_firsts():
     # new bounds in place of the old ones and adds 2^68's, and its list of firsts is 10, 20, 22, 30, 35, 42, 50, 55, 63, 68; and the changelog states the new
     # bounds on 2026-11-19.  (The sequence at 2^22, built in full, has order 25 by its power sums: build22.py there.)
     # Resultata before: the firsts were 10, 20, 28, 30, 39, 47, 51, 58, 68, and the four sequences were in scratch only.
+    # Spec change (Fable 5.2, 2026-11-21; dreeves: "you can change thm 1 etc if you're only changing numbers; no TODO needed in that case"): two more
+    # antisymmetric sequences of order 13 past the chart, at 2480 and 2512 (the tilted search's of that day), are in the Symmetry section, and with them the
+    # first powers of 2 known to beat Thue-Morse by 5 and by 10 are 2^34 and 2^67 (2^35 and 2^68 until then): 2^34 = 2512 2480^2 + 1968 1296 528 + 960^2 208 2
+    # (orders 39, 39, 39) and 2^67 = 2480^5 1504 + 1968 1776 1104^3 432 2 + 1968 1648 960^2 832^2 + 2480^2 960^3 2^6 (77, 79, 78, 77; found by Astra's
+    # e10short.py), with no coin prime to 3 at 2^33 or 2^66 (scratch/next-20261120/NOTES.md).  So below: the bases and first entries at 34 and 67 for 35 and
+    # 68; the profile [4] * 4 + [5] * 8 and [9] * 4 + [10] * 6 for [4] * 5 + [5] * 7 and [9] * 5 + [10] * 5; the six codes; the cells of 2^34 39–41 (not
+    # listed until then) and 2^67 77–83 (76–83); the theorem's (34, 39) and (67, 77) for (35, 40) and (68, 78), with 2^35 and 2^68 gone from it; the list
+    # 10, 20, 22, 30, 34, 42, 50, 55, 63, 67; the entries of 2^35 to 2^41 naming 2^34's (2^36 to 2^41 named 2^35's), 2^67's no longer naming 2^63's, and
+    # those of 2^68, 2^71 and 2^72 naming 2^67's (2^71 and 2^72 named 2^68's); and the changelog's statements of 2026-11-21.
     cols, text = pow2_data()['cols'], page()
     bases = {22: [[[2528, 13], [1568, 12]], [[960, 15], [240, 10]]],
-             35: [[[2608, 13], [2528, 13], [2528, 13], [2, 1]], [[768, 13], [672, 13], [672, 13], [2, 1]], [[1440, 16], [960, 15], [240, 10]]],
+             34: [[[2512, 13], [2480, 13], [2480, 13]], [[1968, 14], [1296, 14], [528, 11]], [[960, 15], [960, 15], [208, 8], [2, 1]]],
              42: [[[2528, 13], [2528, 13], [800, 11], [800, 11]], [[1440, 16], [960, 15], [368, 9], [304, 8]],
                   [[1632, 15], [672, 13], [672, 13], [208, 8]]],
              50: [[[2528, 13], [832, 11], [800, 11], [800, 11], [800, 11]], [[2528, 13], [1936, 12], [1200, 14], [960, 15], [8, 3]],
@@ -3120,36 +3129,38 @@ def q_sequences_past_the_chart_move_seven_firsts():
              63: [[[2608, 13], [2608, 13], [2608, 13], [800, 11], [800, 11], [800, 11]],
                   [[2608, 13], [2608, 13], [2608, 13], [960, 15], [960, 15], [8, 3]], [[1632, 15], [1504, 12], [960, 15], [960, 15], [960, 15]],
                   [[1632, 15], [1632, 15], [1488, 14], [768, 13], [672, 13], [4, 2]]],
-             68: [[[2608, 13], [2608, 13], [2528, 13], [2528, 13], [2528, 13], [2528, 13]],
-                  [[2608, 13], [2608, 13], [960, 15], [960, 15], [832, 11], [832, 11]],
-                  [[1648, 12], [1632, 15], [1568, 12], [1568, 12], [1504, 12], [960, 15]],
-                  [[2016, 15], [1728, 15], [1632, 15], [848, 11], [848, 11], [848, 11]]]}
-    for k, lo, hi in ((22, 25, 26), (35, 40, 43), (42, 48, 51), (50, 57, 61), (55, 63, 68), (63, 72, 78), (68, 78, 84),):
+             67: [[[2480, 13], [2480, 13], [2480, 13], [2480, 13], [2480, 13], [1504, 12]],
+                  [[1968, 14], [1776, 14], [1104, 13], [1104, 13], [1104, 13], [432, 11], [2, 1]],
+                  [[1968, 14], [1648, 12], [960, 15], [960, 15], [832, 11], [832, 11]],
+                  [[2480, 13], [2480, 13], [960, 15], [960, 15], [960, 15], [64, 6]]]}
+    for k, lo, hi in ((22, 25, 26), (34, 39, 41), (42, 48, 51), (50, 57, 61), (55, 63, 68), (63, 72, 78), (67, 77, 83),):
         first_entry(cols, text, k, lo, hi)
         assert cols[k - 1][2] == ['joins', bases[k]], cols[k - 1][2]
-    assert [c[0] - k for k, c in enumerate(cols[19:72], 20)] == [2] * 2 + [3] * 8 + [4] * 5 + [5] * 7 + [6] * 8 + [7] * 5 + [8] * 8 + [9] * 5 + [10] * 5, [c[:2] for c in cols[19:72]]
+    assert [c[0] - k for k, c in enumerate(cols[19:72], 20)] == [2] * 2 + [3] * 8 + [4] * 4 + [5] * 8 + [6] * 8 + [7] * 5 + [8] * 8 + [9] * 4 + [10] * 6, [c[:2] for c in cols[19:72]]
     sec = re.search(r'<section class="symmetry".*?</section>', text, re.S).group(0)
-    for n in (2528, 2608, 2800, 2992):
+    for n in (2480, 2512, 2528, 2608, 2800, 2992):
         [h] = re.findall(r'<code id="%d:13">([0-9A-F]+)</code>' % n, sec)
         left = [2 * int(b) - 1 for b in bin(int(h, 16))[2:].zfill(4 * len(h))][:n // 2]
         a = left + [-s for s in reversed(left)]
         sums = [sum(s * i ** j for i, s in enumerate(a)) for j in range(14)]
         assert len(a) == n and not any(sums[:13]) and sums[13], (n, sums)
     cells = new_cells(text)
-    ks = (22, 24, 27, 35, 36, 37, 38, 42, 43, 46, 50, 55, 56, 57, 63, 65, 66, 67, 68, 71, 72)
-    assert [cells[2 ** k] for k in ks] == [(25, 26), (27, 29), (30, 33), (40, 43), (41, 44), (42, 45), (43, 46), (48, 51), (49, 53), (52, 57), (57, 61),
-                                       (63, 68), (64, 69), (65, 70), (72, 78), (74, 81), (75, 82), (76, 83), (78, 84), (81, 88), (82, 89)], [cells.get(2 ** k) for k in ks]
+    ks = (22, 24, 27, 34, 35, 36, 37, 38, 42, 43, 46, 50, 55, 56, 57, 63, 65, 66, 67, 68, 71, 72)
+    assert [cells[2 ** k] for k in ks] == [(25, 26), (27, 29), (30, 33), (39, 41), (40, 43), (41, 44), (42, 45), (43, 46), (48, 51), (49, 53), (52, 57), (57, 61),
+                                       (63, 68), (64, 69), (65, 70), (72, 78), (74, 81), (75, 82), (77, 83), (78, 84), (81, 88), (82, 89)], [cells.get(2 ** k) for k in ks]
     theorem = the_theorem(text)
-    for k, lo in ((22, 25), (35, 40), (42, 48), (50, 57), (55, 63), (63, 72), (68, 78)): assert f'(2^{{{k}}}) \\ge {lo}' in theorem, theorem
-    for k in (28, 39, 47, 51, 58): assert f'(2^{{{k}}})' not in theorem, theorem
-    assert re.search(r'(?<![\d.])10, 20, 22, 30, 35, 42, 50, 55, 63, 68(?![\d,])', text)      # the list, whole
-    for k, base, t, order in ((24, 22, 2, 27), (27, 22, 5, 30), (28, 22, 6, 31), (29, 22, 7, 32), (36, 35, 1, 41), (37, 35, 2, 42), (38, 35, 3, 43),
-                              (39, 35, 4, 44), (41, 35, 6, 46), (43, 42, 1, 49), (46, 42, 4, 52), (47, 42, 5, 53), (48, 42, 6, 54), (49, 42, 7, 55),
-                              (51, 50, 1, 58), (52, 50, 2, 59), (56, 55, 1, 64), (57, 55, 2, 65), (58, 55, 3, 66), (61, 55, 6, 69), (65, 63, 2, 74),
-                              (66, 63, 3, 75), (67, 63, 4, 76), (71, 68, 3, 81), (72, 68, 4, 82)):
+    for k, lo in ((22, 25), (34, 39), (42, 48), (50, 57), (55, 63), (63, 72), (67, 77)): assert f'(2^{{{k}}}) \\ge {lo}' in theorem, theorem
+    for k in (28, 35, 39, 47, 51, 58, 68): assert f'(2^{{{k}}})' not in theorem, theorem
+    assert re.search(r'(?<![\d.])10, 20, 22, 30, 34, 42, 50, 55, 63, 67(?![\d,])', text)      # the list, whole
+    for k, base, t, order in ((24, 22, 2, 27), (27, 22, 5, 30), (28, 22, 6, 31), (29, 22, 7, 32), (35, 34, 1, 40), (36, 34, 2, 41), (37, 34, 3, 42),
+                              (38, 34, 4, 43), (39, 34, 5, 44), (41, 34, 7, 46), (43, 42, 1, 49), (46, 42, 4, 52), (47, 42, 5, 53), (48, 42, 6, 54),
+                              (49, 42, 7, 55), (51, 50, 1, 58), (52, 50, 2, 59), (56, 55, 1, 64), (57, 55, 2, 65), (58, 55, 3, 66), (61, 55, 6, 69),
+                              (65, 63, 2, 74), (66, 63, 3, 75), (68, 67, 1, 78), (71, 67, 4, 81), (72, 67, 5, 82)):
         names_base(text, k, base, t, order)
     said = changelog_by_day().get('2026-11-19', {})
     assert [said.get(2 ** k) for k in (22, 35, 42, 50, 55, 63, 68)] == [(25, None), (40, None), (48, None), (57, None), (63, None), (72, None), (78, None)], said
+    said = changelog_by_day().get('2026-11-21', {})
+    assert [said.get(2 ** k) for k in (34, 67)] == [(39, None), (77, None)] and [said.get(n) for n in (2480, 2512)] == [(13, 13), (13, 13)], said
 
 
 def q_example_at_720_has_its_code_of_order_13():

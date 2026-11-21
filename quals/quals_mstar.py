@@ -490,11 +490,13 @@ def q_every_example_has_its_code():
     # Spec change (Opus 5.5, 2026-11-19; dreeves: "yes, full anti-magic, add the new entries"): examples lists the rows
     # whose lower bound is an example, past's rows too, as each such length has its entry: 137, the seven sequences
     # longer than NMAX among them (the columns' alone, 130, until then).
+    # (139 since 2026-11-21, Fable 5.2: the sequences of order 13 at 2480 and 2512, past the chart, are in the Symmetry section; dreeves: "you can change thm 1
+    # etc if you're only changing numbers".)
     _, got = disk()
     M = got['m']
     rows, ex = {**dict(enumerate(M['cols'], 1)), **{n: c for n, *c in M['past']}}, mstar.explicit()
     examples = [n for n, c in rows.items() if c[2][0] == 'example']
-    assert [n for n, _, _ in M['examples']] == examples and len(examples) == 137, (len(M['examples']), len(examples))
+    assert [n for n, _, _ in M['examples']] == examples and len(examples) == 139, (len(M['examples']), len(examples))
     for n, _, source in M['examples']:
         label = rows[n][2][1]
         assert source == mstar.SOURCES.get(label, f'#entry-{n}') and (label in mstar.SOURCES or n % 4 == 0), (n, label, source)
@@ -1166,12 +1168,16 @@ def q_past_lists_the_example_of_order_16_at_1440():
     _, got = disk()
     M = got['m']
     listed = [[n, lo, lw[1]] for n, lo, _, lw, _ in M['past']]
-    assert listed == [[2096, 12, 'equipow p2096'], [2128, 12, 'equipow p2128'], [2192, 12, 'equipow p2192'], [2528, 13, 'equipow p2528'],
-                      [2608, 13, 'equipow p2608'], [2800, 13, 'equipow p2800'], [2992, 13, 'equipow p2992']], M['past']
+    # Spec change (Fable 5.2, 2026-11-21; dreeves: "you can change thm 1 etc if you're only changing numbers"): the section has two more antisymmetric
+    # sequences of order 13 past the chart, at 2480 and 2512, since then, so past lists nine.
+    assert listed == [[2096, 12, 'equipow p2096'], [2128, 12, 'equipow p2128'], [2192, 12, 'equipow p2192'], [2480, 13, 'equipow p2480'],
+                      [2512, 13, 'equipow p2512'], [2528, 13, 'equipow p2528'], [2608, 13, 'equipow p2608'], [2800, 13, 'equipow p2800'],
+                      [2992, 13, 'equipow p2992']], M['past']
     assert M['cols'][1439][:3] == [16, 17, ['example', 'equipow p1440']], M['cols'][1439]
     assert max(c[1] for c in M['cols'][:1439]) == 15, max(c[1] for c in M['cols'][:1439])
     far = {key: a for key, a in mstar.explicit().items() if key[0] > mstar.NMAX}
-    assert [[n, mstar.order(a), label] for (n, label), a in far.items()] == listed, list(far)
+    # (sorted since 2026-11-21, Fable 5.2: past rises in n, and the page's codes past the chart no longer do, 2480 and 2512 coming after 2992)
+    assert sorted([n, mstar.order(a), label] for (n, label), a in far.items()) == listed, list(far)
     at = [a for (n, label), a in mstar.explicit().items() if (n, label) == (1440, 'equipow p1440')]
     assert len(at) == 1 and all(mstar.order(a) == 16 and len(a) == 1440 and a == a[::-1] for a in at), len(at)
 
@@ -1201,8 +1207,9 @@ def q_lengths_past_the_chart_have_rows():
         hi, hw = min(tests(n), key=lambda t: t[0])
         rows.append([n, exact_order_div(a), hi, ['example', label], hw])
     assert M['past'] == rows, (M['past'], rows)
-    assert [r[:3] for r in rows] == [[2096, 12, 12], [2128, 12, 12], [2192, 12, 13], [2528, 13, 13], [2608, 13, 13],
-                                     [2800, 13, 13], [2992, 13, 13]] and all(r[4] == ['residue', 3] for r in rows), rows
+    # (Fable 5.2, 2026-11-21: and m*(n) = 13 at 2480 and 2512, whose sequences the Symmetry section has since then.)
+    assert [r[:3] for r in rows] == [[2096, 12, 12], [2128, 12, 12], [2192, 12, 13], [2480, 13, 13], [2512, 13, 13], [2528, 13, 13],
+                                     [2608, 13, 13], [2800, 13, 13], [2992, 13, 13]] and all(r[4] == ['residue', 3] for r in rows), rows
     assert [n for n, _, _ in M['examples'] if n > M['nmax']] == far, [n for n, _, _ in M['examples'] if n > M['nmax']]
     assert [mstar.norm(n, 3) for n in (2096, 2128)] == [13, 13]
 

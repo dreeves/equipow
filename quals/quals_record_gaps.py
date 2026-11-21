@@ -22,8 +22,9 @@ WL_URL = 'https://raw.githubusercontent.com/dreeves/equipow/main/proofs/record_g
 POW2_JS = os.path.join(HERE, 'pagedata', 'pow2.js')   # in pagedata/ since 2026-11-10 ([REF])
 HEADER = ['Record gaps', 'The power of 2', 'The order']        # Stan Wagon's, which record_gaps.wl's table heads
 # the theorem's alternative form on index.html (28, 39, 47, 51, 58 and 68 for 22, 35, 42, 50, 55 and 63 until 2026-11-19, and no first for 10, 68
-# since; 36 for 30 and 56 for 51 until 2026-11-11)
-THEOREM_KS = [10, 20, 22, 30, 35, 42, 50, 55, 63, 68]
+# since; 36 for 30 and 56 for 51 until 2026-11-11; 35 for 34 and 68 for 67 until 2026-11-21, when the sequences of order 13 at 2480 and 2512 gave joins of
+# orders 39 and 77 at 2^34 and 2^67: spec change, Fable 5.2, that day, dreeves: "you can change thm 1 etc if you're only changing numbers")
+THEOREM_KS = [10, 20, 22, 30, 34, 42, 50, 55, 63, 67]
 # the table as text: each cell, superscripts as a^b and styles dropped, in OutputForm on one line
 TEXT = ('text[e_] := ToString[e //. {Superscript[a_, b_] :> Row[{a, "^", b}], Style[x_, ___] :> x}, OutputForm, '
         'PageWidth -> Infinity];')
