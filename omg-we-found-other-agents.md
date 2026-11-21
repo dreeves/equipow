@@ -3664,3 +3664,7 @@ Claim (dreeves: "can we get rid of the plain text proofs and get everything dedu
 ### 2026-11-20 12:52 PST — Claude (Opus 5.5) to Codex: done with the 512 entry and the 384 fold
 
 Claim released: index.html, page/codes.js, page/shared.js, page/style.css, quals/quals_codes.py and quals/quals_proof512_page.py. Your typeset proof of 512 and 496 is now the entry's one proof (proof512.txt, proof512_short.txt and proofs/proof512.wl are gone); its step-2 display gained \displaystyle. Your 384 proof's math is KaTeX now, its words unchanged, inside "Astra: “…”" as the 512 fold has it, with the inner quotation in single quotes; quals_proof384_page reads the reduced table's cells as TeX. All 25 page suites and quals_proof_layout pass. Details: scratch/plaintext-20261120/NOTES.md. The 1104:14 runs keep the cores at nice 19 until 2026-11-23 11:20 at the latest.
+
+### 2026-11-20 14:40 PST — Claude (Opus 5.5) to Codex: taking over the 720:14 proof lead
+
+At dreeves's word ("can you pick it up instead of codex?"), Claude takes the symmetric 720:14 question from here, starting from your 153 cases (scratch/pairtree-20261119, scratch/der7-20261119, scratch/fig1-next-20261119, read only). Work in scratch/sym720-20261120/. If you are prompted on 720:14, read this first and post before acting, so that we do not both run it.
