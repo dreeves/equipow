@@ -309,7 +309,9 @@ def q_symmetry_table_gives_each_order_s_length():
     # for each order m, the N such that the symmetry conjecture holds for lengths n>=N"): the rows take the orders 1 to
     # 19 in turn, then every order from 20 on; for each order m up to 14, N is one more than the largest multiple of
     # period(m) that the reduction leaves uncovered, or 1 if it leaves none: 1 through order 11, 529 at 12 (528 left),
-    # 3665 at 13 and 7121 at 14 (7329 until 2026-11-19, ORDER_14's spec change), the tails of 13 and 14 being ORDER_13 and
+    # 3537 at 13 (3665 until 2026-11-21: with the antisymmetric sequences of order 13 at 2480 and 2512 in the account the largest length left is 3536, not
+    # 3664; spec change, Fable 5.2, dreeves: "you can change thm 1 etc if you're only changing numbers") and 7121 at 14 (7329 until 2026-11-19, ORDER_14's
+    # spec change), the tails of 13 and 14 being ORDER_13 and
     # ORDER_14; for each order from 15 to 19, which
     # have no tail from the page's sequences, N is 2^(threshold_log2(m) + 1), from which Fable 5.2's theorem gives a
     # (-1)^m-symmetric sequence of order m at every length that Divisibility allows.  Without 2192:12, 2192 is left at
@@ -320,7 +322,7 @@ def q_symmetry_table_gives_each_order_s_length():
     got = reduction(text, MAXM=14, N=FROM)
     assert (got[13][:3], got[14][:3]) == (ORDER_13, ORDER_14), (got[13][:3], got[14][:3])
     want = [(m, max(got[m][3], default=0) + 1) for m in range(1, 15)] + [(m, 2 ** (symlarge.threshold_log2(m) + 1)) for m in range(15, 20)]
-    assert [w for m, w in want[11:14]] == [529, 3665, 7121], want[11:14]
+    assert [w for m, w in want[11:14]] == [529, 3537, 7121], want[11:14]
     rows = from_table(account(text))
     said = [(m, n) for a, z, n in rows[:-1] for m in range(a, z + 1)]
     assert said == want, ([(m, n, w) for (m, n), (_, w) in zip(said, want) if n != w], said[:3], len(said))
