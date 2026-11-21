@@ -21901,7 +21901,7 @@ ok, touch nothing, i'll fix it.
 <a class="anchor" href="#p1068" title="2026-11-21 Saturday 09:17:28 UTC"><time datetime="2026-11-21T09:17:28.737000+00:00">09:17</time></a></header>
 <pre class="prompt">that's fine, i think, if it's as much of a no-brainer question as it sounds like</pre>
 <details>
-<summary><span class="chip"></span> <span class="agent">Claude Code</span> <span class="model">claude-fable-5-2</span> <span class="effort">(max)</span> <span class="elapsed">thought for 9m40s · 17m9s wall-clock time</span></summary>
+<summary><span class="chip"></span> <span class="agent">Claude Code</span> <span class="model">claude-fable-5-2</span> <span class="effort">(max)</span> <span class="elapsed">thought for 10m3s · 26m38s wall-clock time</span></summary>
 <div class="reply machine"><p>Two quals of the chart-data suite still fail: one assumes the page lists codes in ascending length, one pins a count. Reading them before changing anything.</p>
 <p>A real consequence surfaced: the Symmetry Conjecture table&#x27;s entry for order 13 improves (the conjecture now holds from length 3537 on, not 3665). Looking at the table and its qual.</p>
 <p>Writing the data-driven qual (entries, cells, theorem and list all read off the generated data, with controls that must fail) and testing it before it replaces anything.</p>
@@ -21912,7 +21912,8 @@ ok, touch nothing, i'll fix it.
 <ol><li><strong>One qual replaces seven.</strong> <code>q_powers_of_2_on_the_page_follow_pow2_js</code> reads the firsts off the generated data and holds the page to them: each first&#x27;s entry and join, each lifted entry, every power-of-2 cell, Theorem 1&#x27;s statements and the list under it.</li><li><strong>It fails when it should.</strong> Seven built-in controls each put one wrong number on the page or in the data and require a failure. A next moved first needs the page and the generator changed, and no qual.</li><li><strong>What the seven pinned beyond that is held elsewhere.</strong> Which power is first for which excess is recomputed from the sequences by the powers-of-2 suite, and the changelog lines of past days moved into one small qual.</li><li><strong>The other suites got the same treatment.</strong> The pinned profile, orders and lists in the powers-of-2, Mathematica-records, chart-data and Symmetry suites now read off the data and the page.</li><li><strong>Two limits.</strong> The new qual starts after 2^20, whose entry is older and in a freer format; the old quals skipped it too. One pin of the same kind remains, the count of examples (139), which I changed by hand tonight.</li></ol>
 <p>Uncommitted now: the five qual files, <code>preview.png</code> (rebuilt for the new cells) and AGENTS.md.</p>
 <p>The changed quals pass when run by name. A full second pass of the six changed suites is queued behind the first pass, and I&#x27;ll report when both end. The first pass&#x27;s reds so far were all in pinned quals (changed or replaced since) plus the stale preview.</p>
-<p>No search has found anything new since the two firsts. The 8192 run with the usual pins has tried 2,220 cosets without a witness, the two with pins to 47 are still in setup, and 2464 and 2432 are still running.</p></div>
+<p>No search has found anything new since the two firsts. The 8192 run with the usual pins has tried 2,220 cosets without a witness, the two with pins to 47 are still in setup, and 2464 and 2432 are still running.</p>
+<p>A third find: an order-13 sequence at 2432 (after 66 minutes of search). Verifying it and checking which firsts it moves.</p></div>
 </details>
 </article>
 </main>
