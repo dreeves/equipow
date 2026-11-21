@@ -255,7 +255,8 @@ def q_page_parse():
     # Opus 5.5, quals_index's q_sequences_past_the_chart_move_seven_firsts).
     src = mstar.page_sources(open(os.path.join(HERE, 'index.html'), encoding='utf-8').read())
     assert src['table2'] == mstar.TABLE2 and len(mstar.TABLE2) == 39
-    assert src['new'] == mstar.NEW and len(mstar.NEW) == 88
+    # (Fable 5.2, 2026-11-21, with quals_index's q_powers_of_2_on_the_page_follow_pow2_js: NEW is the page's cells, however many; 88 of them until then, a count changed at every new cell.)
+    assert src['new'] == mstar.NEW and mstar.NEW
     # Spec change (Fable 5.2, 2026-11-11; dreeves, of the cells whose lower bounds Fable 5.2 raised that day: "yes, please make the legend accurate"): the class
     # cf, Opus 5.5 and Fable 5.2, is among NEW's credits (quals_index's q_opus_and_fable_is_a_category_of_its_own); the set was {'s', 'c', 'j', 'a', 'ca'}.
     assert set(who for _, _, who in mstar.NEW.values()) == {'s', 'c', 'j', 'a', 'ca', 'cf'}
@@ -496,7 +497,8 @@ def q_every_example_has_its_code():
     M = got['m']
     rows, ex = {**dict(enumerate(M['cols'], 1)), **{n: c for n, *c in M['past']}}, mstar.explicit()
     examples = [n for n, c in rows.items() if c[2][0] == 'example']
-    assert [n for n, _, _ in M['examples']] == examples and len(examples) == 139, (len(M['examples']), len(examples))
+    # (Fable 5.2, 2026-11-21, with quals_index's q_powers_of_2_on_the_page_follow_pow2_js: however many examples there are; 139 until then, a count changed at every new sequence.)
+    assert [n for n, _, _ in M['examples']] == examples and examples, (len(M['examples']), len(examples))
     for n, _, source in M['examples']:
         label = rows[n][2][1]
         assert source == mstar.SOURCES.get(label, f'#entry-{n}') and (label in mstar.SOURCES or n % 4 == 0), (n, label, source)
@@ -848,7 +850,8 @@ def q_example_at_816_raises_its_lo():
     _, got = disk()
     cs = got['m']['cols']
     assert mstar.NEW[816] == (12, 12, 'c') and cs[816 - 1] == [12, 12, ['example', 'equipow p816'], ['page', 'c']], cs[816 - 1]
-    assert mstar.NEW[2 ** 41] == (46, 50, 'c'), mstar.NEW[2 ** 41]
+    # (Fable 5.2, 2026-11-21, with quals_index's q_powers_of_2_on_the_page_follow_pow2_js: the cell of 2^41, (46, 50, 'c') until then, is no longer asked here: its low is 47 since the sequence at 2^13, and
+    # the cells of the powers of 2 are held to pow2.js there.)
 
 
 def q_examples_at_720_and_1008_raise_their_lo():

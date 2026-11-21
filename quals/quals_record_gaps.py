@@ -157,12 +157,17 @@ def q_wl_stops_on_a_wrong_row():
     # {480, 11} for {480, 12}, when 2^20 took 2^27's record gap, dreeves, 2026-10-25: "yes please").
     # Expectata: each prints its error line naming the row and returns no table (it aborts).
     src = open(WL, encoding='utf-8').read()
+    # (Fable 5.2, 2026-11-21, with quals_index's q_powers_of_2_on_the_page_follow_pow2_js: the second wrong datum is made from the second record gap's row
+    # as pow2.js has it, the first block of its first product one order short, 2^13's {8192, 15} that day; 2^20's {992, 11} as a literal until then.)
+    K, ps = records()[1]
+    (n, m), lo = ps[0][0], min(sum(b[1] for b in q) for q in ps)
+    assert sum(b[1] for b in ps[0]) == lo, (K, ps)
     d = tempfile.mkdtemp(prefix='record-gaps-quals-')
     try:
         for old, new, says in (('{10, {{{1024, 11}}}}', '{10, {{{1025, 11}}}}',
                                 "the products' lengths in the row of 2^10 do not sum to 2^10"),
-                               ('{{848, 11}, {992, 11}}', '{{848, 11}, {992, 10}}',
-                                'the least order in the row of 2^20 is 21, not 22')):
+                               ('{%d, {{{%d, %d}' % (K, n, m), '{%d, {{{%d, %d}' % (K, n, m - 1),
+                                f'the least order in the row of 2^{K} is {lo - 1}, not {lo}')):
             assert src.count(old) == 1, old
             path = os.path.join(d, f'wrong{len(says)}.wl')
             open(path, 'w', encoding='utf-8').write(src.replace(old, new))

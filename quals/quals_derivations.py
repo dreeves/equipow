@@ -40,7 +40,9 @@ CONSTRUCTION = re.compile(r'<span data-construction="([^"]*)">\\\((.*?)\\\)</spa
 # q_sequences_past_the_chart_move_seven_firsts): f # f at 2^48 (order 50; 54 there) left the page with the 2^27 entry's
 # sentence, which compared its own join with it and became the lift of the 2^22 entry's join (that sentence kept in its
 # TODO comment); until then three, with 26 and 57 the bounds at 2^24 and 2^51.
-SUPERSEDED = ('16777216:25', '2251799813685248:53')
+# Spec change (Fable 5.2, 2026-11-21): and the joins of the 2^17 and 2^18 entries (orders 18 and 19), where the sequence of order 15 at 2^13 times tau_4 and
+# tau_5 gives 19 and 20 since that day; each entry says so in a paragraph after its join.
+SUPERSEDED = ('131072:18', '262144:19', '16777216:25', '2251799813685248:53')
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -404,7 +406,10 @@ def q_every_part_p_n_of_the_appendix_links_to_its_entry():
     lands = lambda n, at: at is not None and at[0] == 'P' and 'entry' in at[1].split() and str(n) in (at[2] or '').split()
     bad = [x for x in ps if not lands(x[1], x[3])]
     assert got['errs'] == [] and bad == [], (got['errs'][:3], len(bad), bad[:5])
-    assert {2096, 2528, 2608} <= {n for _, n, _, _ in ps}, sorted({n for _, n, _, _ in ps if n > qi.DATA_NMAX})
+    # (Fable 5.2, 2026-11-21, with quals_index's q_powers_of_2_on_the_page_follow_pow2_js: the parts past the chart are those of pow2.js's joins,
+    # whichever they are; {2096, 2528, 2608} as a literal until then, of which the firsts of that day left 2528 alone.)
+    long = {n for c in qi.pow2_data()['cols'] if c[2][0] == 'joins' for q in c[2][1] for n, m in q if n > qi.DATA_NMAX and n != 2 ** m}
+    assert long and long <= {n for _, n, _, _ in ps}, (sorted(long), sorted({n for _, n, _, _ in ps if n > qi.DATA_NMAX}))
 
 
 def q_every_construction_formula_is_expandable():

@@ -237,22 +237,26 @@ NEW = {240: (10, 10, 'c'), 288: (9, 9, 'j'),
        # (2^24, 2^27, 2^36, 2^37, 2^38, 2^43, 2^46, 2^56, 2^57, 2^65, 2^66, 2^67, 2^68, 2^71 and 2^72: lows one less until 2026-11-19, 2^24 of class j and the others c, when the sequences
        # of order 13 past the chart made 2^22, 2^35, 2^42, 2^50, 2^55, 2^63 and 2^68 the firsts for excesses 3, 5, 6, 7, 8, 9 and 10, 2^22, 2^35, 2^42, 2^50, 2^55 and 2^63
        # with cells since; of class ca those whose lows come from Astra's joins at 2^63 and 2^68: 2^63, 2^65, 2^66, 2^67, 2^68, 2^71 and 2^72)
-       2 ** 10: (11, 11, 'c'), 2 ** 11: (12, 12, 'c'), 2 ** 12: (13, 13, 'c'),
-       2 ** 17: (18, 20, 'c'), 2 ** 18: (19, 21, 'c'),
-       2 ** 20: (22, 23, 'c'), 2 ** 22: (25, 26, 'cf'), 2 ** 24: (27, 29, 'cf'),
-       2 ** 27: (30, 33, 'cf'), 2 ** 28: (31, 34, 'c'), 2 ** 29: (32, 35, 'c'),
+       # (Later on 2026-11-21, Fable 5.2: 2^13, 2^26 and 2^60 have cells, firsts since that day, 2^14 and 2^15 too, settled that day, and the lows of the cells from 2^17 to 2^66 that the
+       # sequences of that day at 2^13 and 2432 raise are one more; of class ca those under the firsts at 2^47 and 2^60, whose joins Astra's search found.)
+       # (Later that morning, 2026-11-21, Fable 5.2: 2^59 has a cell, a first since then; the lows of the cells among 2^59, 2^63 and 2^64 are one more, by the sequence of that day at 7712.)
+       # (At 08:02, 2026-11-21, Fable 5.2: 2^45 and 2^69 have cells, a first since then; the lows of the cells among 2^45, 2^46, 2^50, 2^51, 2^58, 2^69 and 2^70 are one more, by the sequences of that day at 2368 and 7744.)
+       2 ** 10: (11, 11, 'c'), 2 ** 11: (12, 12, 'c'), 2 ** 12: (13, 13, 'c'), 2 ** 13: (15, 15, 'cf'), 2 ** 14: (16, 16, 'cf'), 2 ** 15: (17, 17, 'cf'),
+       2 ** 17: (19, 20, 'cf'), 2 ** 18: (20, 21, 'cf'),
+       2 ** 20: (22, 23, 'c'), 2 ** 22: (25, 26, 'cf'), 2 ** 24: (27, 29, 'cf'), 2 ** 26: (30, 31, 'cf'),
+       2 ** 27: (31, 33, 'cf'), 2 ** 28: (32, 34, 'cf'), 2 ** 29: (33, 35, 'cf'),
        2 ** 30: (34, 36, 'cf'),               # 33 to 36 until 2026-11-11, when that day's sequences made 2^30 the first power of 2 known to beat Thue-Morse by 4
        2 ** 33: (37, 40, 'cf'), 2 ** 34: (39, 41, 'cf'), 2 ** 35: (40, 43, 'cf'), 2 ** 36: (41, 44, 'cf'),   # 2^33 and 2^34: 36 and 37 below until then; 2^34: 38 until 2026-11-21, when it became the first for excess 5
        2 ** 37: (42, 45, 'cf'), 2 ** 38: (43, 46, 'cf'),
-       2 ** 39: (44, 47, 'c'),
-       2 ** 41: (46, 50, 'c'), 2 ** 42: (48, 51, 'cf'), 2 ** 43: (49, 53, 'cf'),
-       2 ** 46: (52, 57, 'cf'), 2 ** 47: (53, 58, 'c'), 2 ** 48: (54, 59, 'c'),
-       2 ** 49: (55, 60, 'c'), 2 ** 50: (57, 61, 'cf'), 2 ** 51: (58, 63, 'cf'),               # 57 to 63 until later on 2026-11-11, when that day's sequences made 2^51 the first power of 2 known to beat Thue-Morse by 7
-       2 ** 52: (59, 64, 'cf'), 2 ** 55: (63, 68, 'cf'), 2 ** 56: (64, 69, 'cf'), 2 ** 57: (65, 70, 'cf'),   # 2^52: 58 below until then
-       2 ** 58: (66, 71, 'c'), 2 ** 61: (69, 75, 'c'), 2 ** 63: (72, 78, 'ca'), 2 ** 65: (74, 81, 'ca'),
-       2 ** 66: (75, 82, 'ca'), 2 ** 67: (77, 83, 'ca'),   # 2^67: 76 until 2026-11-21, when it became the first for excess 10
-       2 ** 68: (78, 84, 'ca'), 2 ** 71: (81, 88, 'ca'),
-       2 ** 72: (82, 89, 'ca')}
+       2 ** 39: (45, 47, 'cf'),
+       2 ** 41: (47, 50, 'cf'), 2 ** 42: (48, 51, 'cf'), 2 ** 43: (49, 53, 'cf'), 2 ** 45: (52, 55, 'ca'),
+       2 ** 46: (53, 57, 'ca'), 2 ** 47: (54, 58, 'ca'), 2 ** 48: (55, 59, 'ca'),
+       2 ** 49: (56, 60, 'ca'), 2 ** 50: (58, 61, 'ca'), 2 ** 51: (59, 63, 'ca'),               # 57 to 63 until later on 2026-11-11, when that day's sequences made 2^51 the first power of 2 known to beat Thue-Morse by 7
+       2 ** 52: (60, 64, 'cf'), 2 ** 55: (63, 68, 'cf'), 2 ** 56: (64, 69, 'cf'), 2 ** 57: (65, 70, 'cf'),   # 2^52: 58 below until then
+       2 ** 58: (67, 71, 'ca'), 2 ** 59: (68, 73, 'ca'), 2 ** 60: (69, 74, 'ca'), 2 ** 61: (70, 75, 'ca'), 2 ** 63: (73, 78, 'ca'), 2 ** 65: (75, 81, 'cf'),
+       2 ** 66: (76, 82, 'cf'), 2 ** 67: (77, 83, 'ca'),   # 2^67: 76 until 2026-11-21, when it became the first for excess 10
+       2 ** 68: (78, 84, 'ca'), 2 ** 69: (80, 85, 'ca'), 2 ** 71: (82, 88, 'ca'),   # 81 until the morning of 2026-11-21, when 2^71 became the first for excess 11 (2^72: 82 until then)
+       2 ** 72: (83, 89, 'ca')}
 # EXAMPLE_BY[n]: who found the example of order NEW[n][0] at n, as the page's remarks credit it, for each n whose lo
 # is that cited value (no sequence of that order is here; columns() asserts that these are exactly those n).  A cited
 # lo's ["page", who] names whose example it is, and a cited hi's whose proof, the cell's class.  At 496 they differ:

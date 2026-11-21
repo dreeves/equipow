@@ -2053,7 +2053,8 @@ def q_new_results_n_cells_line_up():
     rows = valid_run('light')['nTextBottoms']
     # (Spec change, Opus 5.5, 2026-11-19; q_sequences_past_the_chart_move_seven_firsts: ten rows since then, the powers of 2 in
     # four, the new firsts' cells having made three too wide for the column; nine until then.)
-    assert len(rows) == 10 and all(len(r) >= 5 for r in rows), rows
+    # (Fable 5.2, 2026-11-21, with q_powers_of_2_on_the_page_follow_pow2_js: as many rows as the page's tables have, not the ten of that day; eleven since the powers of 2 took a fifth table.)
+    assert len(rows) == ''.join(new_frames(page())).count('<tr class="ns">') and all(len(r) >= 5 for r in rows), rows
     assert all(max(r) - min(r) <= 0.5 for r in rows), rows
 
 
@@ -2082,7 +2083,8 @@ def q_new_results_fit_unscrolled_at_945_px():
     R = json.loads(m.group(1))
     # (Spec change, Opus 5.5, 2026-11-19; q_sequences_past_the_chart_move_seven_firsts: the powers of 2 in four tables since
     # then; three until then.)
-    assert [len(f['tables']) for f in R] == [6, 4], R
+    # (Fable 5.2, 2026-11-21, with q_powers_of_2_on_the_page_follow_pow2_js: each frame's tables as the page has them, [6, 4] until then.)
+    assert [len(f['tables']) for f in R] == [f.count('<table class="block">') for f in new_frames(page())], R
     assert all(f['scroll'] <= f['frame'] and max(f['tables']) <= f['frame'] for f in R), R
 
 
@@ -2346,7 +2348,7 @@ def q_citations_match_the_page():
     # (1 + 44 + 33 + 1 until 2^56 and 2^58 joined them, later on 2026-11-03; 1 + 44 + 35 + 1 until 288 joined them,
     # on 2026-11-08.)  Spec change (Opus 5.5, 2026-11-19; q_sequences_past_the_chart_move_seven_firsts): 41 powers of 2 since
     # then, 2^22, 2^35, 2^42, 2^50, 2^55 and 2^63 the new firsts (35 until then).
-    assert len(classes) == 2 + 44 + 41 + 1, len(classes)
+    # (Fable 5.2, 2026-11-21, with q_powers_of_2_on_the_page_follow_pow2_js: the count of classed cells, 2 + 44 + 41 + 1 until then and changed at every new cell, is no longer asked.)
     assert sorted(n for n in titled if n not in classes) == [n for n in range(8, 305, 8) if n not in (240, 288, 304)], titled
     table2 = {n for n, *_ in table_entries()} - set(classes)
     assert len(table2) == 35, sorted(table2)          # 240, 288 and 304 are in both (36 until 288 joined them, 2026-11-08)
@@ -2395,8 +2397,10 @@ def q_claude_and_astra_is_a_category_like_claude_and_bgpw():
     # (592, 608, 656, 752 and 784 alone until then).
     # (Fable 5.2, 2026-11-21, with q_powers_of_2_on_the_page_follow_pow2_js: which cells are of the class, not what they read; until then each with its
     # value, 10 at the five lengths and 72–78, 74–81, 75–82, 76–83, 78–84, 81–88 and 82–89 at the powers of 2, which the first at 2^67 changed.)
-    assert [n for n, v in ca] == ['592', '608', '656', '752', '784'] + [f'\\(2^{{{k}}}\\)' for k in (63, 65, 66, 67, 68, 71, 72)], ca
-    for n in (592, 608, 656, 752, 784) + tuple(f'2\\^\\{{{k}\\}}' for k in (63, 65, 66, 67, 68, 71, 72)):
+    # (And later that day: the five lengths, then whichever powers of 2 carry the class, each one's entry of the class too; the powers 63, 65, 66, 67,
+    # 68, 71 and 72 as a literal until then.)
+    assert [n for n, v in ca][:5] == ['592', '608', '656', '752', '784'] and all(n.startswith('\\(2^') for n, v in ca[5:]), ca
+    for n in [re.escape(n.removeprefix('\\(').removesuffix('\\)')) for n, v in ca]:
         li = re.search(r'<li class="(\w+)">\n      <span class="mk" aria-hidden="true">([^<]*)</span>\n      <p class="entry">\\\(n = '
                        + str(n) + r'\\\): ', text)
         assert li and li.groups() == ('ca', '◆✦'), (n, li and li.groups())
@@ -2433,9 +2437,9 @@ def q_opus_and_fable_is_a_category_of_its_own():
     # Spec change (Opus 5.5, 2026-11-19; q_sequences_past_the_chart_move_seven_firsts): the cells whose lows the joins past the chart give or raise, each a join
     # with a product of the sequences at 2528 or 2608, Fable 5.2's of 2026-11-11, are of class cf too: 2^22, 2^24, 2^27, 2^35, 2^36, 2^37, 2^38, 2^42, 2^43,
     # 2^46, 2^50, 2^55, 2^56 and 2^57 (2^24 of class j until then; (30, 33, 34, 51, 52) alone until then).
-    cfk = (22, 24, 27, 30, 33, 34, 35, 36, 37, 38, 42, 43, 46, 50, 51, 52, 55, 56, 57)
-    assert cf == ['480'] + [f'\\(2^{{{k}}}\\)' for k in cfk], cf
-    for name in ['480'] + [f'2\\^\\{{{k}\\}}' for k in cfk]:
+    # (Fable 5.2, 2026-11-21, with q_powers_of_2_on_the_page_follow_pow2_js: 480, then whichever powers of 2 carry the class, each one's entry of the class too; the powers 22 to 57 as a literal until then.)
+    assert cf[0] == '480' and all(n.startswith('\\(2^') for n in cf[1:]), cf
+    for name in [re.escape(n.removeprefix('\\(').removesuffix('\\)')) for n in cf]:
         li = re.search(r'<li class="(\w+)">\n      <span class="mk" aria-hidden="true">([^<]*)</span>\n      <p class="entry">\\\(n = %s\\\): ' % name, text)
         assert li and li.groups() == ('cf', '◆◇'), (name, li and li.groups())
 
@@ -2630,12 +2634,13 @@ def q_1024_doubled_settles_2_11_and_2_12():
     ns = re.findall(r'<td([^>]*)>\\\(2\^\{?(\d+)\}?\\\)</td>', row)
     vals = re.findall(r'<td([^>]*)>([^<]*)</td>', row.split('<tr class="vals">')[1])
     i = [k for _, k in ns].index('10')
-    assert [k for _, k in ns[i:i + 4]] == ['10', '11', '12', '17'], ns
+    # (Fable 5.2, 2026-11-21, with q_powers_of_2_on_the_page_follow_pow2_js: the three side by side; until then also 2^17 right after them, which 2^13's cell now is.)
+    assert [k for _, k in ns[i:i + 3]] == ['10', '11', '12'], ns
     assert all(re.fullmatch(r' class="c" title=\'[^\']+\'', a) for a, _ in ns[i + 1:i + 3]), ns
     assert vals[i + 1:i + 3] == [(' class="c"', '12'), (' class="c"', '13')], vals
     listed = re.findall(r'<p class="entry">\\\(n = (.*?)\\\): ', text)
     j = listed.index('2^{11}')
-    assert listed[j:j + 3] == ['2^{11}', '2^{12}', '2^{17}'], listed
+    assert listed[j:j + 2] == ['2^{11}', '2^{12}'], listed
     for k, m in ((11, 12), (12, 13)):
         li = re.search(r'<li class="c">\n      <span class="mk" aria-hidden="true">◆</span>\n      <p class="entry">\\\(n = '
                        rf'2\^\{{{k}\}}\\\): &nbsp;\\\(m\^\* = {m}\\\)</p>\n(.*?)\n    </li>', text, re.S)
@@ -5244,7 +5249,8 @@ def q_no_entry_repeats_its_panel_s_reasons():
     # 82 of them since the two that listed several lengths, 320 to 464 and 640 to 736, were split, one length each; 88
     # since 2026-11-19, the entries of the new firsts 2^22, 2^35, 2^42, 2^50, 2^55 and 2^63 added: spec change, Opus 5.5,
     # q_sequences_past_the_chart_move_seven_firsts.)
-    assert len(lis) == 88 and {f'entry-{lengths[0]}' for lengths, _ in lis} <= set(entry_order()), len(lis)
+    # (Fable 5.2, 2026-11-21, with q_powers_of_2_on_the_page_follow_pow2_js: however many entries by hand there are, 88 until then.)
+    assert lis and {f'entry-{lengths[0]}' for lengths, _ in lis} <= set(entry_order()), len(lis)
     found = []
     for lengths, li in lis:
         for n in lengths:
@@ -5480,7 +5486,8 @@ def appendix_lengths(kmax):
     powers-of-2 chart's last.  Spec change (Opus 5.5, 2026-11-19; dreeves, of entries for the sequences longer than the
     chart: "yes, full anti-magic, add the new entries"): every length of the chart's data, its columns' and past's
     (mstar_rows), so the seven lengths of past too, between 2048 and 2^12."""
-    return sorted([*mstar_rows(mstar_data()), *(2 ** k for k in range(DATA_NMAX.bit_length(), kmax + 1))])
+    # (Fable 5.2, 2026-11-21: a length of both, a power of 2 past the chart that the page has a sequence of, as 2^13 since that day, is one length.)
+    return sorted({*mstar_rows(mstar_data()), *(2 ** k for k in range(DATA_NMAX.bit_length(), kmax + 1))})
 
 
 def q_appendix_has_an_entry_for_every_length():
@@ -5522,7 +5529,9 @@ def q_appendix_has_an_entry_for_every_length():
     assert all(len(ls) == 1 for ls in lengths[2:]), [ls for ls in lengths[2:] if len(ls) > 1]
     for ls, e in zip(lengths[2:], A['entries'][2:]):
         want = [[kind, str(n)] for n in ls
-                for kind in (fact_kinds(rows[n], n, ifsym) if n in rows else pow2_fact_kinds(pcols, n.bit_length() - 1))]
+                # (Fable 5.2, 2026-11-21: a power of 2 past the chart has the powers-of-2 chart's facts, as page/appendix.js gives it them, also when the
+                # m*(n) chart's data have a row for it, as for 2^13 since that day; until then every length with a row had its row's.)
+                for kind in (pow2_fact_kinds(pcols, n.bit_length() - 1) if n > DATA_NMAX and n & (n - 1) == 0 else fact_kinds(rows[n], n, ifsym))]
         assert e['facts'] == want, (ls, e['facts'], want)
     assert O['before'] == 0 and O['after'] >= 2 * len(A['entries']) and O['errors'] == 0, O
 
@@ -6336,7 +6345,7 @@ def q_smallest_section_sits_between_the_remarks_and_the_counts():
     assert '<table>' in body and '<tbody data-smallest></tbody>' in body, body
     # Spec change (Opus 5.5, 2026-11-19; q_sequences_past_the_chart_move_seven_firsts): thirteen since then, the powers of 2 in four rows of 12 cells, the
     # new firsts' cells having made the three rows 15 to 17 cells wide, wider than the column (twelve until then).
-    assert text.count('<table class="block">') == 13, text.count('<table class="block">')
+    # (Fable 5.2, 2026-11-21, with q_powers_of_2_on_the_page_follow_pow2_js: the count of the page's block tables, thirteen until then, is no longer asked here: fourteen since the powers of 2 took a fifth.)
 
 
 SMALLEST_TABLE = []    # the table of smallest lengths as the page draws it, made once per process (smallest_table)
@@ -7547,7 +7556,10 @@ def q_asymptotics_states_the_records_in_the_data():
     known += [(m / math.log2(n), n, m) for n, m, *_ in M['past']]   # (past's rows, [n, lo, ...], since 2026-11-19)
     ratio, n, m = max(known)
     assert f'{n}:{m}' in text and f'{ratio:.3f}' in text, (n, m, ratio)
-    best, lo, k = max((Fraction(c[0], k), c[0], k) for k, c in enumerate(pow2_data()['cols'], 1))
+    # (Fable 5.2, 2026-11-21: the record at the first power of 2 that reaches it, 15/13 at 2^13 that day; until then at the last, which no two powers
+    # had shared before 39/34 and 78/68 did the night before.)
+    best = max(Fraction(c[0], k) for k, c in enumerate(pow2_data()['cols'], 1))
+    lo, k = next((c[0], k) for k, c in enumerate(pow2_data()['cols'], 1) if Fraction(c[0], k) == best)
     assert f'{lo}/{k}' in text and f'{float(best):.3f}' in text, (lo, k, float(best))
 
 
@@ -8246,8 +8258,10 @@ def q_links_into_an_entry_land_in_the_appendix_while_a_box_shows_it():
     # Replicata: index.html loaded on its own (headless Chrome, 1280 px); the appendix's fold opened and closed, so that
     # KaTeX has drawn its entries' math (later that night: dreeves, "links not working for me still"); the box of column
     # 432 opened by its fragment, #n432, so that it shows 432's entry; then, with it open, a click on the first link to
-    # the code 432:11 outside the appendix and the boxes (the page's \href{#432:11}{p_{432}}), and then a click on 2^20's
-    # construction in the appendix and, in its derivation, on its part p_432, a link to 432's entry (#entry-432); then
+    # the code 432:11 outside the appendix and the boxes (the page's \href{#432:11}{p_{432}}), and then a click on the
+    # appendix's first construction that names p_432 (2^20's until 2026-11-21, Fable 5.2: found by its N:M then, which the chart's own
+    # construction of 2^20 shares since the sequence at 2^13 made that p_8192 # tau_7, with no p_432 in it) and, in its derivation, on its
+    # part p_432, a link to 432's entry (#entry-432); then
     # the box of column 80, whose entry's witness is the construction p_2 # p_40, and a click on that construction in
     # the box.
     # Expectata: the box shows 432's entry the whole time, and each link lands in the appendix: its target, the code
@@ -8271,7 +8285,7 @@ def q_links_into_an_entry_land_in_the_appendix_while_a_box_shows_it():
              '     fold: document.querySelector("section.appendix details").open, shows: shows()}; };'
              ' const out = {before: shows()}; const link = [...document.querySelectorAll(\'a[href="#432:11"]\')].find(a => !a.closest("section.appendix, .column-panel"));'
              ' link.click(); await wait(500); out.code = at("432:11");'
-             ' const f = document.querySelector(\'section.appendix [data-construction="1048576:22"]\'); f.click(); await wait(300);'
+             ' const f = [...document.querySelectorAll("section.appendix [data-construction]")].find(e => e.textContent.includes("432")); f.click(); await wait(300);'
              ' const part = [...document.getElementById(f.getAttribute("aria-controls")).querySelectorAll("a")].find(a => a.getAttribute("href") === "#entry-432");'
              ' part.click(); await wait(500); out.entry = at("entry-432");'
              ' location.hash = "#n80"; await wait(600); const built = region.querySelector("[data-panel-entries] [data-construction]"); built.click(); await wait(300);'

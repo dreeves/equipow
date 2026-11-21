@@ -320,7 +320,10 @@ def q_symmetry_table_gives_each_order_s_length():
     # up only that they hold at every sufficiently large length.
     text = qi.page()
     got = reduction(text, MAXM=14, N=FROM)
-    assert (got[13][:3], got[14][:3]) == (ORDER_13, ORDER_14), (got[13][:3], got[14][:3])
+    # (Fable 5.2, 2026-11-21, with quals_index's q_powers_of_2_on_the_page_follow_pow2_js: the tails are whatever the reduction gives, each threshold within the closure's lengths; until then held to
+    # ORDER_13 and ORDER_14 above, which each new sequence of order 13 past the chart may change: order 14's was (3360, 1200, 7920) and is (3104, 1200, 7408)
+    # since the one at 2432.)
+    assert got[13][2] < FROM and got[14][2] < FROM, (got[13][:3], got[14][:3])
     want = [(m, max(got[m][3], default=0) + 1) for m in range(1, 15)] + [(m, 2 ** (symlarge.threshold_log2(m) + 1)) for m in range(15, 20)]
     # Spec change (Fable 5.2, 2026-11-21; dreeves, of replacing the pins of each day's firsts by quals that hold the page to the generated data: "that's fine, i think, if it's as much of a no-brainer question as it sounds like"; quals_index's q_powers_of_2_on_the_page_follow_pow2_js): the table is held to the reduction, below,
     # whatever it gives (until then also to the literals [529, 3537, 7121] for orders 12 to 14, which each new sequence past the chart may lower).

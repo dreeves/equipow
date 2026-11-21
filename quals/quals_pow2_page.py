@@ -49,7 +49,9 @@ KLABELS = list(range(10, K + 1, 10))          # the k labels below the plot
 OUTLINE = (36, 6)
 # the targets of the boxes' clicks (2026-11-04, [CEL] and [ROC]): cells [k, δ], a column's k label [k, None] and rows' δ
 # labels [None, δ]; and the progress.js of the page copies, with no runs (an open cell's box loads it)
-BOX_TARGETS = [[30, 2], [30, 8], [30, 5], [10, 1], [9, 1], [20, 2], [13, 2], [30, None], [None, 3], [None, 12]]
+# (Fable 5.2, 2026-11-21, with quals_index's q_powers_of_2_on_the_page_follow_pow2_js: the ringed cells among them are one of each role as pow2.js has them, ringed_targets below; until then
+# the literals [10, 1], [20, 2] and [13, 2], of roles 3, 1 and 2 until the sequence at 2^13 made (13, 2) the proven first and (20, 2) no first.)
+BOX_FIXED = [[30, 2], [30, 8], [30, 5], [9, 1]]
 NO_RUNS = {'made': 1792200000, 'runs': []}
 SWIPE = (29, 8)                               # the cell a phone's swipe starts on, after the outline's tap
 # The m*(n) chart's plot: left and right gutters, top, and height, which its rows share (CSS px; since 2026-11-10 the rows
@@ -165,6 +167,17 @@ def ring_cells(data):
 
 
 NOTES = {1: 1, 2: 1, 3: 2}      # the notes a ringed cell's readout adds after its reasons, by role
+
+
+def ringed_targets():
+    """One ringed cell of each role, [k, e], as pow2.js has them: the first known but not the least allowed (1), the first allowed but not known (2),
+    and the first that is both (3)."""
+    first = {}
+    for k, e, role in ring_cells(qi.pow2_data()): first.setdefault(role, [k, e])
+    return [first[role] for role in (3, 1, 2)]
+
+
+BOX_TARGETS = BOX_FIXED + ringed_targets() + [[30, None], [None, 3], [None, 12]]
 
 
 def check_readouts(data, reads):
@@ -1918,7 +1931,8 @@ def q_pow2_boxes_show_witness_proof_and_searches_by_kind():
     # Resultata before: a click opened the column's panel: the cell's status sentence and both bounds' sentences.
     R, B = pow2_boxes()
     cols = R['data']['cols']
-    for t in ((30, 2), (20, 2), (10, 1), (30, 8), (9, 1), (30, 5), (13, 2)):
+    # (Fable 5.2, 2026-11-21, with quals_index's q_powers_of_2_on_the_page_follow_pow2_js: every cell clicked, whichever they are; the seven of that day as a literal until then.)
+    for t in [t for t in B if None not in t]:
         assert B[t]['whys'] == pow2_whys(R['data'], *t[:1], [t[1]]), (t, B[t]['whys'], pow2_whys(R['data'], t[0], [t[1]]))
     # (Spec change, Opus 5.5, 2026-11-18: the box of the cell (10, 1) shows the m*(n) chart's witness of 1024, the example
     # and a copy of its code 1024:11, as that chart's box of (1024, 11) does; until then this chart's construction
@@ -1927,9 +1941,11 @@ def q_pow2_boxes_show_witness_proof_and_searches_by_kind():
     assert B[(10, 1)]['copies'] == [['1024:11', '11', 'button', qi.code_digits('1024:11')]], B[(10, 1)]['copies']
     # Since 2026-11-11 the join at 2^30 is the base of excess 4, of order 34 (pow2.BASES[30]; dreeves, of recording it: "go ahead"); until then the lift of the base
     # at 2^28, a button claiming '1073741824:33' with (p_960 # p_768 # tau_7) v (p_576 # p_576 # p_48 # tau_3) v (p_800 # p_832 # p_320 # tau_2)
-    assert B[(30, 2)]['constructions'] == [['1073741824:34', 'button', '\\((p_{1504} \\mathbin{\\#} p_{800} \\mathbin{\\#} p_{800}) \\vee '
-                                            '(p_{1488} \\mathbin{\\#} p_{1440} \\mathbin{\\#} \\tau_{5}) \\vee '
-                                            '(p_{1632} \\mathbin{\\#} p_{1632} \\mathbin{\\#} \\tau_{4})\\)']], B[(30, 2)]['constructions']
+    # (Fable 5.2, 2026-11-21, with quals_index's q_powers_of_2_on_the_page_follow_pow2_js: the construction as pow2.js's column 30 has it, each product in parentheses, a block p_{n}, a Thue-Morse factor
+    # tau_{j}; until then the join of 2026-11-11 as a literal, (p_1504 # p_800 # p_800) v (p_1488 # p_1440 # tau_5) v (p_1632 # p_1632 # tau_4), of order 34,
+    # which the lift of the sequence at 2^13, (p_8192 # p_8192 # tau_4), of order 34 too, replaced in the data that day.)
+    written = ' \\vee '.join('(' + ' \\mathbin{\\#} '.join(f'\\tau_{{{m}}}' if n == 2 ** m else f'p_{{{n}}}' for n, m in q) + ')' for q in cols[29][2][1])
+    assert B[(30, 2)]['constructions'] == [[f'1073741824:{cols[29][0]}', 'button', f'\\({written}\\)']], B[(30, 2)]['constructions']
     # (spec change, 2026-11-16 evening, dreeves's "ok go": the line of Mathematica at 2^30's order 37, odd, so not
     # Stan Wagon's argument, where the box named pow2.py until then)
     assert cols[29][3] == ['residue', [3]] and not qi.stan_holds(2 ** 30, 37) and '\\(M = 3\\)' in B[(30, 8)]['said'], B[(30, 8)]['said']
@@ -1938,7 +1954,9 @@ def q_pow2_boxes_show_witness_proof_and_searches_by_kind():
     assert re.match(re.escape('\\(m^*(2^{30}) \\le 36\\): ') + qi.OPENING, B[(30, 8)]['said']), B[(30, 8)]['said']
     assert cols[8][3] == ['mstar', ['residue', 27]] and re.match(re.escape('\\(m^*(512) \\le 9\\): ') + qi.OPENING, B[(9, 1)]['said']), B[(9, 1)]['said']
     assert '\\(M = 27\\)' in B[(9, 1)]['said'], B[(9, 1)]['said']
-    for t in ((30, 5), (13, 2)):          # a dash under the section's heading, whatever the heading says (2026-11-09)
+    black = [t for t in B if None not in t and KINDS[kind_of(cols[t[0] - 1], *t)] == 'open']   # ((30, 5) and (13, 2) as a literal until 2026-11-21)
+    assert black, B.keys()
+    for t in black:                       # a dash under the section's heading, whatever the heading says (2026-11-09)
         assert [qi.figures(x) for x in B[t]['searches']] == ['—'], (t, B[t].get('searches'))
 
 

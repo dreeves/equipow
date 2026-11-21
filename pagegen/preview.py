@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """preview.png, the picture a shared link to the page shows (index.html's og:image): the page's title and main's figure
-(BGPW's Table 2 and the tables of new results, with their legend), drawn by headless Chrome at 37% of their size.
+(BGPW's Table 2 and the tables of new results, with their legend), drawn by headless Chrome at 34.5% of their size.
 
     python3 -B pagegen/preview.py    # a few seconds; writes preview.png beside index.html
 
@@ -26,7 +26,7 @@ only after CHECK, the flags below, and STYLE's rule by structure in place of its
 2026-10-25; 0.5 from 2026-10-26, when the powers of 2 took three rows; 0.44 from 2026-10-27, when the new results took
 in Table 2 and reached 1024; 0.43 that night, when dreeves's note between the two tables of new results grew a line;
 0.41 from 2026-10-29 (the LaTeX look's 19 px text, then the note's 46rem measure); 0.40 from 2026-10-31, when the note
-had grown to five lines; 0.37 since 2026-11-19, when the powers of 2 took a fourth row (Opus 5.5). Its top padding: 1.6rem until 2026-11-13, when 1.4rem moved the shot up a pixel, so that the
+had grown to five lines; 0.37 from 2026-11-19, when the powers of 2 took a fourth row (Opus 5.5); 0.345 since 2026-11-21, when they took a fifth (Fable 5.2). Its top padding: 1.6rem until 2026-11-13, when 1.4rem moved the shot up a pixel, so that the
 legend's second row keeps its bottom row of pixels (y 629 had cut its keys' lower edges). It hides #page-errors since 2026-11-12 (page/errors.js's box: the hidden m*(n) chart fails its
 own assert of a width above 0, which the box would show over the shot). Twice its Chrome wrote a good shot and then
 exited 2 (2026-10-27, 2026-11-03): "Teardown watchdog expired", which a sleeping display brings on without
@@ -41,7 +41,7 @@ import os, re, html, json, shutil, subprocess, tempfile
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # the repository's root, above pagegen/
 PREVIEW = os.path.join(ROOT, 'preview.png')
 SIZE = (1200, 630)                                                   # index.html's og:image:width and og:image:height
-ZOOM = '0.37'
+ZOOM = '0.345'
 STYLE = ('<style>header > :not(h1), main > :not(header, figure), #page-errors { display: none !important; } '
          'main { padding-block: 1.4rem 0; gap: 1.4rem; } html { zoom: %s; }</style>' % ZOOM)
 HEARD = """<script>

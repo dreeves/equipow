@@ -30,9 +30,12 @@
     facts: () => together(FACTS.mstar.witness(n), FACTS.mstar.proof(n), ...FACTS.mstar.ifproofs(n))}]);
   const pow2 = Array.from({length: POW2.kmax}, (_, i) => i + 1).filter(k => 2n ** BigInt(k) > nmax).map(k => [2n ** BigInt(k),
     {name: `2^{${k}}`, cols: POW2.cols[k - 1], facts: () => together(FACTS.pow2.witness(k), FACTS.pow2.proof(k))}]);
+  // A length of both charts is a power of 2 past nmax that the page has a sequence of (2^13 since 2026-11-21, Fable 5.2; until then the two lists were
+  // asserted to share no length): the powers-of-2 chart is its source, as of every power of 2 past nmax (the later of two entries of a Map stands), its
+  // witness there naming the sequence, p_N, whose code the m*(n) chart's row holds.  Its place among the lengths is its size's (the lengths were the two
+  // lists in turn until then).
   const SOURCES = new Map([...mstar, ...pow2]);
-  assert(SOURCES.size === mstar.length + pow2.length, 'a length of both charts', mstar.length, pow2.length);
-  const lengths = [...SOURCES.keys()], source = n => SOURCES.get(n);
+  const lengths = [...SOURCES.keys()].sort((a, b) => Number(a - b)), source = n => SOURCES.get(n);
   const made = heading => {
     const li = document.createElement('li'), p = Object.assign(document.createElement('p'), {className: 'entry', textContent: heading});
     li.append(p);
