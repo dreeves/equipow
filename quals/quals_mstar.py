@@ -1170,9 +1170,9 @@ def q_past_lists_the_example_of_order_16_at_1440():
     listed = [[n, lo, lw[1]] for n, lo, _, lw, _ in M['past']]
     # Spec change (Fable 5.2, 2026-11-21; dreeves: "you can change thm 1 etc if you're only changing numbers"): the section has two more antisymmetric
     # sequences of order 13 past the chart, at 2480 and 2512, since then, so past lists nine.
-    assert listed == [[2096, 12, 'equipow p2096'], [2128, 12, 'equipow p2128'], [2192, 12, 'equipow p2192'], [2480, 13, 'equipow p2480'],
-                      [2512, 13, 'equipow p2512'], [2528, 13, 'equipow p2528'], [2608, 13, 'equipow p2608'], [2800, 13, 'equipow p2800'],
-                      [2992, 13, 'equipow p2992']], M['past']
+    # Spec change (Fable 5.2, 2026-11-21; dreeves, of replacing the pins of each day's firsts by quals that hold the page to the generated data: "that's fine, i think, if it's as much of a no-brainer question as it sounds like"; quals_index's q_powers_of_2_on_the_page_follow_pow2_js): past is held to the page's sequences longer
+    # than NMAX, below, whichever they are (until then also to a literal list of them, nine that day).
+    assert listed == sorted(listed), M['past']
     assert M['cols'][1439][:3] == [16, 17, ['example', 'equipow p1440']], M['cols'][1439]
     assert max(c[1] for c in M['cols'][:1439]) == 15, max(c[1] for c in M['cols'][:1439])
     far = {key: a for key, a in mstar.explicit().items() if key[0] > mstar.NMAX}
@@ -1208,8 +1208,8 @@ def q_lengths_past_the_chart_have_rows():
         rows.append([n, exact_order_div(a), hi, ['example', label], hw])
     assert M['past'] == rows, (M['past'], rows)
     # (Fable 5.2, 2026-11-21: and m*(n) = 13 at 2480 and 2512, whose sequences the Symmetry section has since then.)
-    assert [r[:3] for r in rows] == [[2096, 12, 12], [2128, 12, 12], [2192, 12, 13], [2480, 13, 13], [2512, 13, 13], [2528, 13, 13],
-                                     [2608, 13, 13], [2800, 13, 13], [2992, 13, 13]] and all(r[4] == ['residue', 3] for r in rows), rows
+    # Spec change (Fable 5.2, 2026-11-21; dreeves, of replacing the pins of each day's firsts by quals that hold the page to the generated data: "that's fine, i think, if it's as much of a no-brainer question as it sounds like"; quals_index's q_powers_of_2_on_the_page_follow_pow2_js): the rows are held to the page's sequences and
+    # the chart's tests, above, whichever they are (until then also to a literal list of the nine of that day, each upper bound the residue condition's).
     assert [n for n, _, _ in M['examples'] if n > M['nmax']] == far, [n for n, _, _ in M['examples'] if n > M['nmax']]
     assert [mstar.norm(n, 3) for n in (2096, 2128)] == [13, 13]
 

@@ -24,7 +24,14 @@ HEADER = ['Record gaps', 'The power of 2', 'The order']        # Stan Wagon's, w
 # the theorem's alternative form on index.html (28, 39, 47, 51, 58 and 68 for 22, 35, 42, 50, 55 and 63 until 2026-11-19, and no first for 10, 68
 # since; 36 for 30 and 56 for 51 until 2026-11-11; 35 for 34 and 68 for 67 until 2026-11-21, when the sequences of order 13 at 2480 and 2512 gave joins of
 # orders 39 and 77 at 2^34 and 2^67: spec change, Fable 5.2, that day, dreeves: "you can change thm 1 etc if you're only changing numbers")
-THEOREM_KS = [10, 20, 22, 30, 34, 42, 50, 55, 63, 67]
+# Spec change (Fable 5.2, 2026-11-21; dreeves, of replacing the pins of each day's firsts by quals that hold the page to the generated data: "that's fine, i think, if it's as much of a no-brainer question as it sounds like"; quals_index's q_powers_of_2_on_the_page_follow_pow2_js): read from the page, not written here
+# ([10, 20, 22, 30, 34, 42, 50, 55, 63, 67] that day).
+def theorem_ks():
+    """The list of firsts under the theorem on index.html: the one run of five or more whole numbers, separated by commas and closed by a period, in the
+    section of the powers of 2."""
+    sec = re.search(r'<section class="pow2".*?</section>', page(), re.S).group(0)
+    [ks] = re.findall(r'(?<![\d.,] )(?<![\d.])(\d+(?:, \d+){4,})\.(?!\d)', sec)
+    return [int(k) for k in ks.split(', ')]
 # the table as text: each cell, superscripts as a^b and styles dropped, in OutputForm on one line
 TEXT = ('text[e_] := ToString[e //. {Superscript[a_, b_] :> Row[{a, "^", b}], Style[x_, ___] :> x}, OutputForm, '
         'PageWidth -> Infinity];')
@@ -121,7 +128,7 @@ def q_wl_records_are_pow2_s():
     assert m, 'no records = {...}; line'
     got = json.loads(m.group(1).replace('{', '[').replace('}', ']'))
     assert got == records(), (got, records())
-    assert [k for k, _ in got] == THEOREM_KS, [k for k, _ in got]
+    assert [k for k, _ in got] == theorem_ks(), ([k for k, _ in got], theorem_ks())
 
 
 def q_wl_returns_the_table():

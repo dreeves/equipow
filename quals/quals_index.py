@@ -2393,9 +2393,9 @@ def q_claude_and_astra_is_a_category_like_claude_and_bgpw():
     # Spec change (Opus 5.5, 2026-11-19; q_sequences_past_the_chart_move_seven_firsts): the cells whose lows Astra's joins at 2^63 and 2^68 give, of the
     # sequences of order 13 past the chart, are of class ca too: 2^63, 2^65, 2^66, 2^67, 2^68, 2^71 and 2^72, each of their remarks an <li class="ca"> marked ◆✦
     # (592, 608, 656, 752 and 784 alone until then).
-    assert ca == [('592', '10'), ('608', '10'), ('656', '10'), ('752', '10'), ('784', '10'),
-                  ('\\(2^{63}\\)', '72–78'), ('\\(2^{65}\\)', '74–81'), ('\\(2^{66}\\)', '75–82'), ('\\(2^{67}\\)', '76–83'),
-                  ('\\(2^{68}\\)', '78–84'), ('\\(2^{71}\\)', '81–88'), ('\\(2^{72}\\)', '82–89')], ca
+    # (Fable 5.2, 2026-11-21, with q_powers_of_2_on_the_page_follow_pow2_js: which cells are of the class, not what they read; until then each with its
+    # value, 10 at the five lengths and 72–78, 74–81, 75–82, 76–83, 78–84, 81–88 and 82–89 at the powers of 2, which the first at 2^67 changed.)
+    assert [n for n, v in ca] == ['592', '608', '656', '752', '784'] + [f'\\(2^{{{k}}}\\)' for k in (63, 65, 66, 67, 68, 71, 72)], ca
     for n in (592, 608, 656, 752, 784) + tuple(f'2\\^\\{{{k}\\}}' for k in (63, 65, 66, 67, 68, 71, 72)):
         li = re.search(r'<li class="(\w+)">\n      <span class="mk" aria-hidden="true">([^<]*)</span>\n      <p class="entry">\\\(n = '
                        + str(n) + r'\\\): ', text)
@@ -2953,8 +2953,8 @@ def q_results_of_2026_11_03_have_entries_and_codes():
 
 
 def first_entry(cols, text, k, lo, hi):
-    """Asserts what q_firsts_of_2026_11_03 asks of each new first 2^k (and q_firsts_move_to_2_56_and_2_58, which shares
-    it since later that day): pow2.js's [lo, hi] at 2^k, its column before at lo - 2, its cell, and its entry writing out
+    """Asserts of a first 2^k (for q_powers_of_2_on_the_page_follow_pow2_js since 2026-11-21; for the quals of each day's firsts until
+    then): pow2.js's [lo, hi] at 2^k, its column before at lo - 2, its cell, and its entry writing out
     its join, as pow2.js has it (each product's blocks in order, a run of one length as a power, tau_j as 2 or 2^j), with
     its products' orders, the least of them lo."""
     assert cols[k - 1][:2] == [lo, hi] and cols[k - 2][0] == lo - 2, cols[k - 2:k]
@@ -2977,190 +2977,117 @@ def names_base(text, k, base, t, order):
     assert f'\\(2^{{{base}}}\\)' in li and f'\\tau_{t}\\)' in li and re.search(rf'(?<![\d.]){order}(?![\d.])', li), li
 
 
-def q_firsts_of_2026_11_03():
-    # Replicata: pow2.js's columns, the new results' cells of the powers of 2, the remarks' entries, and the theorem's statement and its list of firsts.
-    # Expectata (coins, searches/pinned/, with the blocks of 2026-11-03): excess 3 first at 2^28, excess 4 at 2^36 and excess 6 at 2^47, each a join whose products have
-    # order at least k + e, one of order exactly k + e: lo is 31 at 2^28, 40 at 2^36 and 53 at 2^47, one more than each column before it had; the cells read 2^28 31–34, 2^36 40–44
-    # and 2^47 53–58, 2^29 32–35, 2^37 41–45 and 2^48 54–59 as before; each new entry writes its join out, as pow2.js has it, with its products' orders; the entries that named the
-    # bases at 2^29, 2^37 and 2^48 name the new ones; the theorem states m*(2^28) >= 31, m*(2^36) >= 40 and m*(2^47) >= 53 in place of 2^29's, 2^37's and 2^48's, and
-    # its list of firsts is 10, 20, 28, 36, 39, 47, 57, 65, 68.  (Since later on 2026-11-03, q_firsts_move_to_2_56_and_2_58, the list ends 56, 58, 68; what stands
-    # of it here: its first six, 10, 20, 28, 36, 39, 47.)
-    # Spec change (Fable 5.2, 2026-11-11, on dreeves's "go ahead"; q_first_for_excess_4_moves_to_2_30): excess 4 is first at 2^30 since that day, so 2^36 is no first:
-    # its entry and those of 2^37 and 2^38 name the base at 2^30, the theorem states 2^30's bound in place of 2^36's, and the list is 10, 20, 28, 30, 39, 47, ...; the
-    # entries of 2^30, 2^33 and 2^34 name no base at 2^28 any more.  What stands here: 2^28 and 2^47, their lifts at 2^29, 2^48, 2^49 and 2^52, and those cells.
-    # Resultata before: the firsts were 10, 20, 29, 37, 39, 48, 57, 65, 68.
-    # Spec change (Opus 5.5, 2026-11-19; q_sequences_past_the_chart_move_seven_firsts): excess 3 is first at 2^22 and excess 6 at 2^42 since then, so 2^28 and 2^47
-    # are no firsts: their entries and those of 2^29, 2^48 and 2^49 name the 2^22 and 2^42 entries, the theorem states 2^22's and 2^42's bounds in place of
-    # theirs, and the cell of 2^37 reads 42–45.  What stands here: the cells of 2^29 and 2^48, and no statement of the theorem at 2^29, 2^37 or 2^48.
+# Cut on 2026-11-21 (Fable 5.2, at dreeves's word, quoted in q_powers_of_2_on_the_page_follow_pow2_js below): seven quals that pinned the powers-of-2 firsts as
+# they stood on the day each was written, and had been cut back and re-pinned at every first that moved since: q_912_moves_excess_3_to_2_29 and
+# q_768_moves_excess_5_to_2_39 (2026-10-28), q_firsts_of_2026_11_03, q_firsts_move_to_2_56_and_2_58, q_first_for_excess_4_moves_to_2_30 and
+# q_first_for_excess_7_moves_to_2_51 (2026-11-11), and q_sequences_past_the_chart_move_seven_firsts (2026-11-19).  What they asked of the page (each first's
+# entry and join, the lifted entries, the cells, the theorem's statements and the list of firsts) q_powers_of_2_on_the_page_follow_pow2_js asks of whatever
+# pow2.js holds; what they pinned of pow2.js itself (which power is first for which excess, by which join) quals_pow2 holds to the sequences
+# (q_each_first_is_the_least, q_every_lo_recomputes, q_new_lower_bounds); the codes past the chart they decoded quals_symmetry decodes
+# (q_symmetry_codes_have_their_orders_and_symmetries); and the changelog's statements of those days are in q_changelog_keeps_the_firsts_of_their_days.  Other
+# quals' comments still name them as the dates of their own spec changes.
+
+
+def pow2_firsts(cols):
+    """{e: K}: for e = 1, 2, ..., the least k at which pow2.js's lo - k reaches e (the first power of 2 known to beat
+    Thue-Morse by e), and first_of(k), the largest of them up to k."""
+    excess = [c[0] - k for k, c in enumerate(cols, 1)]
+    assert excess == sorted(excess), excess                    # a join at 2^k, each product times tau_1, is one at 2^(k + 1)
+    firsts = {e: next(k for k, x in enumerate(excess, 1) if x >= e) for e in range(1, max(excess) + 1)}
+    return firsts, lambda k: max(K for K in firsts.values() if K <= k)
+
+
+def pow2_page_follows(cols, text):
+    """Asserts that the page's powers of 2 are what cols (pow2.js's columns) give: q_powers_of_2_on_the_page_follow_pow2_js."""
+    firsts, first_of = pow2_firsts(cols)
+    def lifted(ps, t):
+        """Each product of ps times tau_t: its tau_j, if it has one, becomes tau_(j + t)."""
+        return [[b for b in p if b[0] != 2 ** b[1]] + [[2 ** j, j] for j in [t + sum(m for n, m in p if n == 2 ** m)] if j] for p in ps]
+    for k in range(min(firsts.values()), len(cols) + 1):       # each column from the first first on: the lift of its first's join
+        K0 = first_of(k)
+        assert cols[k - 1][2] == ['joins', lifted(cols[K0 - 1][2][1], k - K0)], (k, K0, cols[k - 1][2])
+    entries = pow2_entries(text)
+    assert {K for K in firsts.values() if K >= ENTRIES_FROM} <= set(entries), (firsts, entries)
+    for k in entries:
+        lo, hi = cols[k - 1][:2]
+        if k in firsts.values(): first_entry(cols, text, k, lo, hi)          # its join written out, with its products' orders
+        else: names_base(text, k, first_of(k), k - first_of(k), lo)          # names its first's entry, times tau_(k - first), and its order
+    for n, cell in new_cells(text).items():                                  # every cell of a power of 2
+        k = n.bit_length() - 1
+        assert n != 2 ** k or cell == tuple(cols[k - 1][:2]), (k, cell, cols[k - 1][:2])
+    said = [(int(k), rel, int(v)) for k, rel, v in re.findall(r'\(2\^\{?(\d+)\}?\) (=|\\ge) (\d+)', the_theorem(text))]
+    assert said and len({k for k, _, _ in said}) == len(said), said
+    for k, rel, v in said:                                                   # each statement of the theorem: true, and a bound only at a first
+        assert (cols[k - 1][:2] == [v, v]) if rel == '=' else (cols[k - 1][0] == v and firsts.get(v - k) == k), (k, rel, v, cols[k - 1][:2])
+    assert set(firsts.values()) <= {k for k, _, _ in said}, (firsts, said)   # and every first is stated
+    assert re.search(r'(?<![\d.])' + ', '.join(str(firsts[e]) for e in sorted(firsts)) + r'(?![\d,])', text), firsts      # the list under it, whole
+
+
+ENTRIES_FROM = 21      # the entries of the powers of 2 past 2^20 follow the scheme; 2^20's and those below it (2^11, 2^12, 2^17, 2^18) are older and freer
+
+
+def pow2_entries(text):
+    """The k of the remarks' entries of 2^k that follow the scheme, rising."""
+    return sorted(k for k in map(int, re.findall(r'<p class="entry">\\\(n = 2\^\{(\d+)\}\\\)', text)) if k >= ENTRIES_FROM)
+
+
+def q_powers_of_2_on_the_page_follow_pow2_js():
+    # 2026-11-21 (Fable 5.2; dreeves, 2026-11-20, of quals that had to be changed for a page improvement: "i wish we could be more thoughtful about adding more
+    # quals that might catch real regressions and fewer that merely wolf-cry when make improvements to the page", then "let's not cut things preemptively. when
+    # they cry wolf, let's remember this conversation"; and that night, when two moved firsts had needed about 15 pinned numbers changed, of replacing those
+    # pins by one qual that holds every entry, cell and theorem number to the generated data: "that's fine, i think, if it's as much of a no-brainer question as
+    # it sounds like").
+    # Replicata: pow2.js's columns; the remarks' entries of the powers of 2 past 2^20; the new results' cells of the powers of 2; the theorem's statement and
+    # the list of firsts under it.
+    # Expectata: with the firsts read off pow2.js (for e = 1, 2, ..., the least k at which lo - k reaches e): every column from the first first on is the lift
+    # of its first's join, each product times tau_(k - first); each first past 2^20 has an entry that writes its join out as pow2.js has it, with its products'
+    # orders, the least of them lo, the column before it at lo - 2 (first_entry); every other entry past 2^20 names its first's entry, tau_(k - first) and its
+    # order (names_base); every cell of a power of 2 reads pow2.js's lo and hi; each statement of the theorem is true of pow2.js, a bound only at a first, and
+    # every first is stated; and the list under it is the firsts.  Controls, made from the data as it is: a wrong number in the list, in the theorem's bound,
+    # a bound at a power that is no first, a wrong join in a first's entry, a wrong tau in a lifted entry, a wrong cell, or a first one later in the data,
+    # and it fails.  (On 2026-11-21 it passed on the page of that night and on the page before it with its data, and failed on either page with the other's.)
+    # Resultata before: seven quals pinned those numbers as the firsts stood on the day of each (the note below), so every moved first turned them red until
+    # their numbers were changed by hand; no qual held an entry, a cell or the theorem to the data.
     cols, text = pow2_data()['cols'], page()
-    # (first_entry at (28, 31, 34) and (47, 53, 58) until 2026-11-19, and at (36, 40, 44) until 2026-11-11)
-    cells = new_cells(text)
-    assert [cells[2 ** k] for k in (29, 48)] == [(32, 35), (54, 59)]       # and 2^37 (41, 45) until 2026-11-19
+    pow2_page_follows(cols, text)
+    # Controls, each from the data as it is: one wrong number on the page, or in the data, and it fails.
+    firsts, first_of = pow2_firsts(cols)
+    K = max(firsts.values()); lo, hi = cols[K - 1][:2]
+    def fails(cols, text):
+        try: pow2_page_follows(cols, text)
+        except AssertionError: return True
+        return False
+    def swap(old, new, t=None):
+        t = text if t is None else t
+        assert t.count(old) == 1, (old, t.count(old))
+        return t.replace(old, new)
+    listed = ', '.join(str(firsts[e]) for e in sorted(firsts))
+    assert fails(cols, swap(listed + '.', listed[:-len(str(K))] + str(K + 1) + '.'))                                   # the list's last first
     theorem = the_theorem(text)
-    # (2^28 >= 31 and 2^47 >= 53 until 2026-11-19, and 2^36 >= 40 until 2026-11-11)
-    for k in (29, 37, 48): assert f'(2^{{{k}}})' not in theorem, theorem
-    # (the list's '10, 20, 28, 30, 39, 47, ' until 2026-11-19, '10, 20, 28, 36, 39, 47, ' until 2026-11-11 and '10, 20, 28, 36, 39, 47, 57, 65, 68' until
-    # later on 2026-11-03; names_base at (29, 28, 1, 32), (48, 47, 1, 54) and (49, 47, 2, 55) until 2026-11-19, which q_sequences_past_the_chart_move_seven_firsts
-    # asks of the new firsts' entries; (30, 28, 2, 33), (33, 28, 5, 36), (34, 28, 6, 37), (37, 36, 1, 41) and (38, 36, 2, 42) until 2026-11-11; (52, 47, 5, 58)
-    # until later that day, when excess 7 came to be first at 2^51: q_first_for_excess_7_moves_to_2_51)
+    assert fails(cols, swap(theorem, swap(f'(2^{{{K}}}) \\ge {lo}\\)', f'(2^{{{K}}}) \\ge {lo + 1}\\)', theorem)))            # the theorem's bound at it
+    assert fails(cols, swap(theorem, swap(f'(2^{{{K}}}) \\ge {lo}\\)', f'(2^{{{K + 1}}}) \\ge {lo + 1}\\)', theorem)))        # a bound at a power that is no first
+    assert fails(cols, swap(f'\\(2^{{{K}}} = ', f'\\(2^{{{K}}} = 2\\cdot '))                                           # the first's entry: its join
+    k = max(k for k in pow2_entries(text) if k not in firsts.values()); t = k - first_of(k)
+    li = re.search(r'<p class="entry">\\\(n = 2\^\{%d\}\\\): .*?</li>' % k, text, re.S).group(0)
+    assert fails(cols, swap(li, swap(f'\\tau_{t}\\)', f'\\tau_{t + 1}\\)', li)))                                       # a lifted entry: its tau
+    wrong = json.loads(json.dumps(cols)); wrong[k - 1][1] += 1
+    assert fails(wrong, text)                                                                                         # a cell: its high end
+    wrong = json.loads(json.dumps(cols)); wrong[K - 1][0] -= 1
+    assert fails(wrong, text)                                                                                         # the data: a first one later
 
 
-def q_firsts_move_to_2_56_and_2_58():
-    # Replicata: pow2.js's columns, the new results' cells of the powers of 2, the remarks' entries, and the theorem's statement and its list of firsts.
-    # Expectata (later on 2026-11-03: scratch/w11-624-576/firsts_now.py, the exhaustive search of scratch/wish5 over the blocks of that day, rerun with 1008 at its order
-    # 13 in scratch/firsts-56-58/): excess 7 first at 2^56 and excess 8 at 2^58, each a join whose products have order at least k + e, one of order exactly k + e: lo is 63
-    # at 2^56 and 66 at 2^58, one more than each column before it had (BASES[47] lifted gave 62 at 2^56, BASES[57] lifted 65 at 2^58); the cells read 2^56 63–69
-    # and 2^58 66–71, 2^57 64–70 and 2^65 73–81 as before, and 2^61 69–75, its low one more than before; each new entry writes its join out, as pow2.js has it,
-    # with its products' orders; the entries that named the bases at 2^57 and 2^65, and 2^65's at 2^66 and 2^67, name the new ones, each product times τ1 at 2^57
-    # and τ3, τ7, τ8 and τ9 at 2^61, 2^65, 2^66 and 2^67; the theorem states m*(2^56) >= 63 and m*(2^58) >= 66 in place of 2^57's and 2^65's, and its list of
-    # firsts is 10, 20, 28, 36, 39, 47, 56, 58, 68.  And as searches/pinned/README.md says, its coins had left 2^56 (excess 7) and 2^58, 2^60 and 2^62 (excess 8)
-    # undecided at its time limit: the new entries say so, each linking searches/pinned and naming those powers (main session, 2026-11-03: "Say so on the page in
-    # the same way the README does"; their wording unpinned).
-    # Resultata before: the firsts were 10, 20, 28, 36, 39, 47, 57, 65, 68, and the cell of 2^61 read 68–75.
-    # Spec change (Fable 5.2, later on 2026-11-11; q_first_for_excess_7_moves_to_2_51): excess 7 is first at 2^51 since then, so 2^56 is no first: its entry and
-    # 2^57's name the base at 2^51, the theorem states 2^51's bound in place of 2^56's, and the list is 10, 20, 28, 30, 39, 47, 51, 58, 68.  What stands here:
-    # 2^58, its entry's link and powers, its lifts at 2^61 and 2^65 to 2^67, and the cells.
-    cols, text = pow2_data()['cols'], page()
-    # Spec change (Opus 5.5, 2026-11-19; q_sequences_past_the_chart_move_seven_firsts): excess 8 is first at 2^55 and excess 9 at 2^63 since then, so 2^58 is no
-    # first: its entry names the 2^55 entry (its join and its note on searches/pinned left it, kept in its TODO comment), as does that of 2^61, those of 2^65 to
-    # 2^67 name the 2^63 entry, the theorem states 2^55's bound in place of 2^58's, and the cells of 2^57 and 2^65 read 65–70 and 74–81.  What stands here: the
-    # cell of 2^61, and no statement at 2^57 or 2^65.  (Until then: first_entry at (58, 66, 71), and at (56, 63, 69) until 2026-11-11; 2^58's entry linking
-    # searches/pinned and naming 2^58, 2^60 and 2^62; the cells of 2^57 and 2^65 64–70 and 73–81; m*(2^58) >= 66 in the theorem; the list 10, 20, 28, 30, 39,
-    # 47, 51, 58, 68, which q_sequences_past_the_chart_move_seven_firsts asks now as 10, 20, 22, 30, 35, 42, 50, 55, 63, 68; names_base at (61, 58, 3, 69), (65,
-    # 58, 7, 73),
-    # (66, 58, 8, 74) and (67, 58, 9, 75), which that qual asks of the 2^55 and 2^63 entries; and (57, 56, 1, 64) until 2026-11-11.)
-    cells = new_cells(text)
-    assert [cells[2 ** k] for k in (61,)] == [(69, 75)], [cells.get(2 ** k) for k in (61,)]
-    theorem = the_theorem(text)
-    for k in (57, 65): assert f'(2^{{{k}}})' not in theorem, theorem
-
-
-def q_first_for_excess_4_moves_to_2_30():
-    # 2026-11-11 (Fable 5.2; dreeves, of recording it: "go ahead, with a TODO comment each place where you tamper with my words so i can review it").
-    # Replicata: pow2.js's columns 2^28 to 2^39, the new results' cells of the powers of 2, the remarks' entries, the theorem's statement and its list of firsts, and
-    # the changelog.
-    # Expectata (searches/pinned/coins over the atoms of 2026-11-06 and the sequences of 2026-11-11, and scratch/q1920-20261111/firsts/k29.py, an exact check written
-    # apart from it): excess 4 first at 2^30, a join of three products, 1504 # 800^2, 1488 # 1440 # tau_5 and 1632^2 # tau_4, of orders 34, 35 and 34 (1504 at order 12,
-    # 1488 at 14 and 1632 at 15 are sequences of that day): lo is 34 at 2^30, one more than the lift of the base of 2^28 gave it, and k + 4 from there to 2^38, each
-    # column that join's lift (the base at 2^36 is gone); the cells read 2^30 34–36, 2^33 37–40 and 2^34 38–41, and 2^36 40–44, 2^37 41–45 and 2^38 42–46 as before;
-    # 2^30's entry writes its join out, as pow2.js has it, with its products' orders; the entries of 2^33, 2^34, 2^36, 2^37 and 2^38 name the 2^30 entry, each product
-    # times τ3, τ4, τ6, τ7 and τ8; the theorem states m*(2^30) >= 34 in place of 2^36's bound, and its list of firsts is 10, 20, 28, 30, 39, 47, 56, 58, 68; and the
-    # changelog states m*(2^30) >= 34 on 2026-11-11.
-    # Resultata before: the firsts were 10, 20, 28, 36, 39, 47, 56, 58, 68, and the cell of 2^30 read 33–36.
-    cols, text = pow2_data()['cols'], page()
-    first_entry(cols, text, 30, 34, 36)
-    base = [[[1504, 12], [800, 11], [800, 11]], [[1488, 14], [1440, 16], [32, 5]], [[1632, 15], [1632, 15], [16, 4]]]
-    assert cols[29][2] == ['joins', base], cols[29][2]
-    # Spec change (Opus 5.5, 2026-11-19; q_sequences_past_the_chart_move_seven_firsts): excess 5 is first at 2^35 since then, so the lift of this join gives
-    # 2^30 to 2^34 alone, 2^35 to 2^38 having k + 5, their cells 41–44, 42–45 and 43–46 and their entries naming the 2^35 entry ([3, 3] + [4] * 9 + [5], the
-    # cells 40–44, 41–45 and 42–46, names_base at (36, 6, 40), (37, 7, 41) and (38, 8, 42), and the list 10, 20, 28, 30, 39, 47, 51, 58, 68, until then).
-    assert [c[0] - k for k, c in enumerate(cols[27:39], 28)] == [3, 3] + [4] * 5 + [5] * 5, [c[:2] for c in cols[27:39]]
-    cells = new_cells(text)
-    assert [cells[2 ** k] for k in (30, 33, 34, 36, 37, 38)] == [(34, 36), (37, 40), (38, 41), (41, 44), (42, 45), (43, 46)], [cells.get(2 ** k) for k in (30, 33, 34, 36, 37, 38)]
-    theorem = the_theorem(text)
-    assert '(2^{30}) \\ge 34' in theorem and '(2^{36})' not in theorem, theorem
-    # (10, 20, 28, 30, 39, 47, 56, 58, 68 until later that day, when excess 7 came to be first at 2^51: q_first_for_excess_7_moves_to_2_51)
-    assert re.search(r'(?<![\d.])10, 20, 22, 30, 35, 42, 50, 55, 63, 68(?![\d,])', text)      # the list, whole
-    for k, t, order in ((33, 3, 37), (34, 4, 38)): names_base(text, k, 30, t, order)
-    assert changelog_by_day().get('2026-11-11', {}).get(2 ** 30) == (34, None), changelog_by_day().get('2026-11-11', {}).get(2 ** 30)
-
-
-def q_first_for_excess_7_moves_to_2_51():
-    # 2026-11-11, later (Fable 5.2; recorded as the first at 2^30 was that morning, dreeves then: "go ahead, with a TODO comment each place where you tamper with my
-    # words so i can review it").
-    # Replicata: pow2.js's columns 2^47 to 2^58, the new results' cells of the powers of 2, the remarks' entries, the theorem's statement and its list of firsts, and
-    # the changelog.
-    # Expectata (searches/pinned/coins over the atoms of 2026-11-06 and the sequences of 2026-11-11 found a join at 2^51; scratch/q1920-20261111/firsts/decide.py, an
-    # exact check written apart from it: a sum of coins equal to 2^K has a coin prime to 3, and for K <= 50 no product of blocks prime to 3 has order K + 7 within
-    # 2^K): excess 7 first at 2^51, a join of three products, 1520 # 1504^2 # 800^2, 1808 # 1520 # 960^2 # tau_4 and 1728^2 # 672^2 # tau_3, of orders 58, 58 and 59
-    # (1504, 1520 and 1808 at order 12 and 1728 at 15 are sequences of that day): lo is 58 at 2^51, one more than the lift of the base of 2^47 gave it, and k + 7
-    # from there to 2^57, each column that join's lift (the base at 2^56 is gone); the cells read 2^51 58–63 and 2^52 59–64, and 2^56 63–69 and 2^57 64–70 as
-    # before; 2^51's entry writes its join out, as pow2.js has it, with its products' orders; the entries of 2^52, 2^56 and 2^57 name the 2^51 entry, each product
-    # times τ1, τ5 and τ6; the theorem states m*(2^51) >= 58 in place of 2^56's bound, and its list of firsts is 10, 20, 28, 30, 39, 47, 51, 58, 68; and the
-    # changelog states m*(2^51) >= 58 on 2026-11-11.
-    # Resultata before: the firsts were 10, 20, 28, 30, 39, 47, 56, 58, 68, and the cell of 2^51 read 57–63.
-    # Spec change (Opus 5.5, 2026-11-19; q_sequences_past_the_chart_move_seven_firsts): excess 7 is first at 2^50 and excess 8 at 2^55 since then, so this join is
-    # gone, 2^51 being the lift of the one at 2^50 (of order 58, as this one), 2^52's entry names the 2^50 entry, and those of 2^56 and 2^57 name the 2^55
-    # entry.  What stands here: the cells of 2^51 and 2^52, and the changelog's statement of 2026-11-11.  (Until then: first_entry at (51, 58, 63), this
-    # join at 2^51, k + 7 from 2^51 to 2^57, the cells of 2^56 and 2^57 63–69 and 64–70, m*(2^51) >= 58 in the theorem, the list 10, 20, 28, 30, 39, 47, 51,
-    # 58, 68, and names_base at (52, 1, 59), (56, 5, 63) and (57, 6, 64) of the 2^51 entry.)
-    cols, text = pow2_data()['cols'], page()
-    cells = new_cells(text)
-    assert [cells[2 ** k] for k in (51, 52)] == [(58, 63), (59, 64)], [cells.get(2 ** k) for k in (51, 52)]
-    assert changelog_by_day().get('2026-11-11', {}).get(2 ** 51) == (58, None), changelog_by_day().get('2026-11-11', {}).get(2 ** 51)
-
-
-def q_sequences_past_the_chart_move_seven_firsts():
-    # 2026-11-19 (Opus 5.5; recorded as the firsts at 2^30 and 2^51 were on 2026-11-11, dreeves then: "go ahead, with a TODO comment each place where you tamper
-    # with my words so i can review it"; of these, that day: "yes to those qual changes").
-    # Replicata: pow2.js's columns 2^20 to 2^72, the new results' cells of the powers of 2, the remarks' entries, the theorem's statement and its list of
-    # firsts, the Symmetry section's codes, and the changelog.
-    # Expectata (scratch/rethink-20261119/firsts/: the antisymmetric sequences of order 13 at 2528, 2608, 2800 and 2992, which the tilted search found past the
-    # chart on 2026-11-11, are blocks prime to 3 with a better ratio of order to log2 of length than any column's, 13 / log2 2528 = 1.150 against 800's 1.141;
-    # quals_pow2.excess_reached, over the chart's blocks and those four, says no at the power of 2 just below each new first): the first powers of 2 known to
-    # beat Thue-Morse by 3, 5, 6, 7, 8 and 9 are 2^22, 2^35, 2^42, 2^50, 2^55 and 2^63 (2^28, 2^39, 2^47, 2^51, 2^58 and 2^68 until then), and by 10 2^68 (none
-    # known up to 2^72 until then), each a join of the products below (those at 2^63 and 2^68 Astra's), its order the least of theirs, k + e; pow2.js's excess
-    # from 2^20 to 2^72 is each first's from that first to the next, each column the lift of its first's join; the four codes are in the Symmetry section, each
-    # (-1)^13-symmetric and of exact order 13; the cells of the new firsts read 2^22 25–26, 2^35 40–43, 2^42 48–51, 2^50 57–61, 2^55 63–68, 2^63 72–78 and 2^68
-    # 78–84, and those whose lows the lifts raise 2^24 27–29, 2^27 30–33, 2^36 41–44, 2^37 42–45, 2^38 43–46, 2^43 49–53, 2^46 52–57, 2^56 64–69, 2^57 65–70,
-    # 2^65 74–81, 2^66 75–82, 2^67 76–83, 2^71 81–88 and 2^72 82–89; each new first's entry writes its join out, as pow2.js has it, with its products' orders;
-    # every other entry that a new first's join lifts to names that first's entry, each product times tau_(k - first), with its order; the theorem states the
-    # new bounds in place of the old ones and adds 2^68's, and its list of firsts is 10, 20, 22, 30, 35, 42, 50, 55, 63, 68; and the changelog states the new
-    # bounds on 2026-11-19.  (The sequence at 2^22, built in full, has order 25 by its power sums: build22.py there.)
-    # Resultata before: the firsts were 10, 20, 28, 30, 39, 47, 51, 58, 68, and the four sequences were in scratch only.
-    # Spec change (Fable 5.2, 2026-11-21; dreeves: "you can change thm 1 etc if you're only changing numbers; no TODO needed in that case"): two more
-    # antisymmetric sequences of order 13 past the chart, at 2480 and 2512 (the tilted search's of that day), are in the Symmetry section, and with them the
-    # first powers of 2 known to beat Thue-Morse by 5 and by 10 are 2^34 and 2^67 (2^35 and 2^68 until then): 2^34 = 2512 2480^2 + 1968 1296 528 + 960^2 208 2
-    # (orders 39, 39, 39) and 2^67 = 2480^5 1504 + 1968 1776 1104^3 432 2 + 1968 1648 960^2 832^2 + 2480^2 960^3 2^6 (77, 79, 78, 77; found by Astra's
-    # e10short.py), with no coin prime to 3 at 2^33 or 2^66 (scratch/next-20261120/NOTES.md).  So below: the bases and first entries at 34 and 67 for 35 and
-    # 68; the profile [4] * 4 + [5] * 8 and [9] * 4 + [10] * 6 for [4] * 5 + [5] * 7 and [9] * 5 + [10] * 5; the six codes; the cells of 2^34 39–41 (not
-    # listed until then) and 2^67 77–83 (76–83); the theorem's (34, 39) and (67, 77) for (35, 40) and (68, 78), with 2^35 and 2^68 gone from it; the list
-    # 10, 20, 22, 30, 34, 42, 50, 55, 63, 67; the entries of 2^35 to 2^41 naming 2^34's (2^36 to 2^41 named 2^35's), 2^67's no longer naming 2^63's, and
-    # those of 2^68, 2^71 and 2^72 naming 2^67's (2^71 and 2^72 named 2^68's); and the changelog's statements of 2026-11-21.
-    cols, text = pow2_data()['cols'], page()
-    bases = {22: [[[2528, 13], [1568, 12]], [[960, 15], [240, 10]]],
-             34: [[[2512, 13], [2480, 13], [2480, 13]], [[1968, 14], [1296, 14], [528, 11]], [[960, 15], [960, 15], [208, 8], [2, 1]]],
-             42: [[[2528, 13], [2528, 13], [800, 11], [800, 11]], [[1440, 16], [960, 15], [368, 9], [304, 8]],
-                  [[1632, 15], [672, 13], [672, 13], [208, 8]]],
-             50: [[[2528, 13], [832, 11], [800, 11], [800, 11], [800, 11]], [[2528, 13], [1936, 12], [1200, 14], [960, 15], [8, 3]],
-                  [[1728, 15], [1728, 15], [1488, 14], [672, 13]], [[1488, 14], [960, 15], [960, 15], [672, 13]]],
-             55: [[[2528, 13], [2528, 13], [2528, 13], [2528, 13], [848, 11]], [[2096, 12], [1328, 11], [960, 15], [768, 13], [672, 13]],
-                  [[1728, 15], [1632, 15], [1440, 16], [960, 15], [4, 2]]],
-             63: [[[2608, 13], [2608, 13], [2608, 13], [800, 11], [800, 11], [800, 11]],
-                  [[2608, 13], [2608, 13], [2608, 13], [960, 15], [960, 15], [8, 3]], [[1632, 15], [1504, 12], [960, 15], [960, 15], [960, 15]],
-                  [[1632, 15], [1632, 15], [1488, 14], [768, 13], [672, 13], [4, 2]]],
-             67: [[[2480, 13], [2480, 13], [2480, 13], [2480, 13], [2480, 13], [1504, 12]],
-                  [[1968, 14], [1776, 14], [1104, 13], [1104, 13], [1104, 13], [432, 11], [2, 1]],
-                  [[1968, 14], [1648, 12], [960, 15], [960, 15], [832, 11], [832, 11]],
-                  [[2480, 13], [2480, 13], [960, 15], [960, 15], [960, 15], [64, 6]]]}
-    for k, lo, hi in ((22, 25, 26), (34, 39, 41), (42, 48, 51), (50, 57, 61), (55, 63, 68), (63, 72, 78), (67, 77, 83),):
-        first_entry(cols, text, k, lo, hi)
-        assert cols[k - 1][2] == ['joins', bases[k]], cols[k - 1][2]
-    assert [c[0] - k for k, c in enumerate(cols[19:72], 20)] == [2] * 2 + [3] * 8 + [4] * 4 + [5] * 8 + [6] * 8 + [7] * 5 + [8] * 8 + [9] * 4 + [10] * 6, [c[:2] for c in cols[19:72]]
-    sec = re.search(r'<section class="symmetry".*?</section>', text, re.S).group(0)
-    for n in (2480, 2512, 2528, 2608, 2800, 2992):
-        [h] = re.findall(r'<code id="%d:13">([0-9A-F]+)</code>' % n, sec)
-        left = [2 * int(b) - 1 for b in bin(int(h, 16))[2:].zfill(4 * len(h))][:n // 2]
-        a = left + [-s for s in reversed(left)]
-        sums = [sum(s * i ** j for i, s in enumerate(a)) for j in range(14)]
-        assert len(a) == n and not any(sums[:13]) and sums[13], (n, sums)
-    cells = new_cells(text)
-    ks = (22, 24, 27, 34, 35, 36, 37, 38, 42, 43, 46, 50, 55, 56, 57, 63, 65, 66, 67, 68, 71, 72)
-    assert [cells[2 ** k] for k in ks] == [(25, 26), (27, 29), (30, 33), (39, 41), (40, 43), (41, 44), (42, 45), (43, 46), (48, 51), (49, 53), (52, 57), (57, 61),
-                                       (63, 68), (64, 69), (65, 70), (72, 78), (74, 81), (75, 82), (77, 83), (78, 84), (81, 88), (82, 89)], [cells.get(2 ** k) for k in ks]
-    theorem = the_theorem(text)
-    for k, lo in ((22, 25), (34, 39), (42, 48), (50, 57), (55, 63), (63, 72), (67, 77)): assert f'(2^{{{k}}}) \\ge {lo}' in theorem, theorem
-    for k in (28, 35, 39, 47, 51, 58, 68): assert f'(2^{{{k}}})' not in theorem, theorem
-    assert re.search(r'(?<![\d.])10, 20, 22, 30, 34, 42, 50, 55, 63, 67(?![\d,])', text)      # the list, whole
-    for k, base, t, order in ((24, 22, 2, 27), (27, 22, 5, 30), (28, 22, 6, 31), (29, 22, 7, 32), (35, 34, 1, 40), (36, 34, 2, 41), (37, 34, 3, 42),
-                              (38, 34, 4, 43), (39, 34, 5, 44), (41, 34, 7, 46), (43, 42, 1, 49), (46, 42, 4, 52), (47, 42, 5, 53), (48, 42, 6, 54),
-                              (49, 42, 7, 55), (51, 50, 1, 58), (52, 50, 2, 59), (56, 55, 1, 64), (57, 55, 2, 65), (58, 55, 3, 66), (61, 55, 6, 69),
-                              (65, 63, 2, 74), (66, 63, 3, 75), (68, 67, 1, 78), (71, 67, 4, 81), (72, 67, 5, 82)):
-        names_base(text, k, base, t, order)
-    said = changelog_by_day().get('2026-11-19', {})
-    assert [said.get(2 ** k) for k in (22, 35, 42, 50, 55, 63, 68)] == [(25, None), (40, None), (48, None), (57, None), (63, None), (72, None), (78, None)], said
-    said = changelog_by_day().get('2026-11-21', {})
-    assert [said.get(2 ** k) for k in (34, 67)] == [(39, None), (77, None)] and [said.get(n) for n in (2480, 2512)] == [(13, 13), (13, 13)], said
+def q_changelog_keeps_the_firsts_of_their_days():
+    # 2026-11-21 (Fable 5.2): the changelog's statements that the quals cut above held, in one place.
+    # Replicata: the changelog's statements by day.
+    # Expectata: on 2026-11-11, m*(2^30) >= 34 and m*(2^51) >= 58; on 2026-11-19, the bounds at 2^22, 2^35, 2^42, 2^50, 2^55, 2^63 and 2^68; on 2026-11-21,
+    # m*(2^34) >= 39 and m*(2^67) >= 77, and m*(2480) = m*(2512) = 13.  A past day's line does not change when a later result moves a first.
+    # Resultata before: the same assertions, in the quals of those days' firsts.
+    said = changelog_by_day()
+    for day, bounds in (('2026-11-11', {2 ** 30: (34, None), 2 ** 51: (58, None)}),
+                        ('2026-11-19', {2 ** 22: (25, None), 2 ** 35: (40, None), 2 ** 42: (48, None), 2 ** 50: (57, None), 2 ** 55: (63, None),
+                                        2 ** 63: (72, None), 2 ** 68: (78, None)}),
+                        ('2026-11-21', {2 ** 34: (39, None), 2 ** 67: (77, None), 2480: (13, 13), 2512: (13, 13)})):
+        assert {n: said.get(day, {}).get(n) for n in bounds} == bounds, (day, said.get(day))
 
 
 def q_example_at_720_has_its_code_of_order_13():
@@ -3487,57 +3414,6 @@ def q_oeis_notes_hold_on_the_chart():
     for a, (m, rule) in rules.items():
         assert 'description through 1024' not in notes[a].split('Claude:', 1)[-1] or (NMAX == 1024 and all(
             (lo(n) >= m) == rule(n) and (hi(n) >= m) == rule(n) for n in range(2, NMAX + 1, 2))), a
-
-
-def q_912_moves_excess_3_to_2_29():
-    # Replicata: pow2.js's columns 2^28 to 2^35, the new results' cells of 2^29, 2^30, 2^33 and 2^34 and their remarks'
-    # entries, and the theorem's statement and its list of firsts.
-    # Expectata (2026-10-28: with 912 at order 12 among the blocks, the exhaustive search of scratch/wish4 finds 2^29 =
-    # (608 # 800^2) ∨ (336^2 # 912) ∨ (240 # 432^2), each product of order 32, and no K <= 28 beating Thue-Morse by 3):
-    # pow2.js's lo is k + 2 at 2^28 and k + 3 from 2^29 to 2^35, column 29 that join; the cells read 2^29 32–35, 2^30
-    # 33–36, 2^33 36–40 and 2^34 37–41; 2^29's entry gives 2^29 = 608·800² + 336²·912 + 240·432², a join of three
-    # products of examples above, each of order 32, that beats Thue–Morse by 3; 2^30's, 2^33's and 2^34's each name the
-    # 2^29 entry, each product times τ1, τ4 and τ5, of orders 33, 36 and 37; the theorem states m*(2^29) ≥ 32 in place
-    # of m*(2^30) ≥ 33, and its list of firsts is 10, 20, 29, 37, 41, 48, 57, 65, 68.  Since 2026-11-03 (q_firsts_of_2026_11_03) excess 3 is first at 2^28 and column 29 is
-    # that join's lift; what stands of this qual: lo is k + 3 from 2^29 to 2^35, those cells, and no K below 2^28 beating Thue-Morse by 3.
-    # Spec change (Fable 5.2, 2026-11-11, on dreeves's "go ahead"; q_first_for_excess_4_moves_to_2_30): excess 4 is first at 2^30 since that day, so lo is k + 3 at
-    # 2^28 and 2^29 only, the cells of 2^30, 2^33 and 2^34 read 34–36, 37–40 and 38–41, and the theorem states 2^30's bound.  What stands of this qual: 2^29's
-    # column and cell, and no K below 2^28 beating Thue-Morse by 3.
-    cols, text = pow2_data()['cols'], page()
-    # Spec change (Opus 5.5, 2026-11-19; q_sequences_past_the_chart_move_seven_firsts): excess 3 is first at 2^22 since then, so
-    # 2^27 is k + 3 too; what stands: k + 3 at 2^28 and 2^29, 2^29's cell, and no statement of it (cols[26][0] == 29, no K below
-    # 2^28 beating Thue-Morse by 3, until then).
-    assert [c[0] - k for k, c in enumerate(cols[27:29], 28)] == [3] * 2, [c[:2] for c in cols[26:29]]
-    cells = new_cells(text)
-    assert cells[2 ** 29] == (32, 35), cells.get(2 ** 29)
-    theorem = the_theorem(text)
-    assert '(2^{29})' not in theorem, theorem   # 2^29's bound in it until 2026-11-03
-
-
-def q_768_moves_excess_5_to_2_39():
-    # Replicata: pow2.js's columns 2^38 to 2^47, the new results' cells of 2^39, 2^41, 2^43 and 2^46 and their remarks'
-    # entries, and the theorem's statement and its list of firsts.
-    # Expectata (2026-10-28 evening: with 768 at order 12 among the blocks, the exhaustive search of scratch/wish5 finds
-    # 2^39 = (800 # 832^3) ∨ (192 # 432^2 # 768 # τ1) ∨ (48 # 480^2 # 768 # τ2), each product of order 44, and no K <=
-    # 38 beating Thue-Morse by 5): pow2.js's lo is k + 4 at 2^38 and k + 5 from 2^39 to 2^47, column 39 that join; the
-    # cells read 2^39 44–47, 2^41 46–50, 2^43 48–53 and 2^46 51–57; 2^39's entry says a join of three products of
-    # examples above and Thue–Morse, each of order 44, beats Thue–Morse by 5; 2^41's, 2^43's and 2^46's each name the
-    # 2^39 entry, each product times τ2, τ4 and τ7, of orders 46, 48 and 51; the theorem states m*(2^39) ≥ 44 in place
-    # of m*(2^41) ≥ 46.  (From 2026-10-26, when 816's example of order 11 moved it from 2^43, until then, excess 5's
-    # first was 2^41 = (800^2 # 832 # 848 # τ2) ∨ (432^3 # 816 # τ2) ∨ (480^3 # 784) ∨ (432^2 # 480^2), each product
-    # of order 46, 816's of order 47 after 816's example of order 12 that afternoon: q_816_moves_excess_5_to_2_41.)  (Since 2026-11-03, q_firsts_of_2026_11_03: k + 5 from
-    # 2^39 to 2^46, 2^47 at k + 6.)
-    # Spec change (Opus 5.5, 2026-11-19; q_sequences_past_the_chart_move_seven_firsts): excess 5 is first at 2^35 and excess 6 at 2^42 since then, so this join is
-    # gone (2^39 is the lift of the one at 2^35, of order 44 as this one was), the excess is 5 from 2^35 to 2^41 and 6 from 2^42, the cells of 2^43 and 2^46
-    # read 49–53 and 52–57, and the theorem states 2^35's bound in place of 2^39's.  What stands here: the cells of 2^39 and 2^41, and no statement at 2^41.
-    # (Until then: column 39 this join, cols[37][0] 42 and k + 5 from 2^39 to 2^46, the cells 48–53 and 51–57, and m*(2^39) >= 44 in the theorem.)
-    cols, text = pow2_data()['cols'], page()
-    assert cols[37][0] == 43 and [c[0] - k for k, c in enumerate(cols[38:41], 39)] == [5] * 3, [c[:2] for c in cols[37:46]]
-    cells = new_cells(text)
-    assert [cells[2 ** k] for k in (39, 41)] == [(44, 47), (46, 50)], [cells.get(2 ** k) for k in (39, 41)]
-    # the entries' wording unpinned since 2026-10-30
-    theorem = the_theorem(text)
-    assert '(2^{41})' not in theorem, theorem
 
 
 # ---------------------------------------------------------------------------------------------------------------------

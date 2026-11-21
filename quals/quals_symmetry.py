@@ -322,7 +322,8 @@ def q_symmetry_table_gives_each_order_s_length():
     got = reduction(text, MAXM=14, N=FROM)
     assert (got[13][:3], got[14][:3]) == (ORDER_13, ORDER_14), (got[13][:3], got[14][:3])
     want = [(m, max(got[m][3], default=0) + 1) for m in range(1, 15)] + [(m, 2 ** (symlarge.threshold_log2(m) + 1)) for m in range(15, 20)]
-    assert [w for m, w in want[11:14]] == [529, 3537, 7121], want[11:14]
+    # Spec change (Fable 5.2, 2026-11-21; dreeves, of replacing the pins of each day's firsts by quals that hold the page to the generated data: "that's fine, i think, if it's as much of a no-brainer question as it sounds like"; quals_index's q_powers_of_2_on_the_page_follow_pow2_js): the table is held to the reduction, below,
+    # whatever it gives (until then also to the literals [529, 3537, 7121] for orders 12 to 14, which each new sequence past the chart may lower).
     rows = from_table(account(text))
     said = [(m, n) for a, z, n in rows[:-1] for m in range(a, z + 1)]
     assert said == want, ([(m, n, w) for (m, n), (_, w) in zip(said, want) if n != w], said[:3], len(said))
