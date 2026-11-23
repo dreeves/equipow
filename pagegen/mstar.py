@@ -673,7 +673,12 @@ RESIDUE = {24: (5, (5, 25), 'digits'), 48: (7, (5, 25), 'digits'), 72: (7, (4, 8
            1296: (15, (5,), 'natural'), 1344: (15, (5,), 'natural'), 1440: (18, (7,), 'natural'),
            1472: (12, (3, 9), 'natural'), 1536: (15, (5,), 'natural'), 1584: (15, (5,), 'natural'),
            1632: (16, (5,), 'natural'), 1728: (16, (5,), 'natural'), 1776: (15, (5,), 'natural'),
-           1824: (15, (5,), 'natural'), 1920: (19, (7,), 'natural'), 2016: (16, (5,), 'natural')}
+           1824: (15, (5,), 'natural'), 1920: (19, (7,), 'natural'), 2016: (16, (5,), 'natural'),
+           # Past the chart (found by Fable 5.2 on 2026-11-21, recorded by Opus 5.5 on 2026-11-22 at dreeves's word): 2192, whose row
+           # comes from the Symmetry section's code of order 12 there.  At order 13 the residue condition mod 3 leaves the sums
+           # +-(729, -729, 0), and under each no vector mod 9 is admissible (both sweeps, at once): m*(2192) = 12.  (2224, which has
+           # no row, falls the same way; from 2240 to 2416 the chain (3, 9) finds a vector: scratch/next-20261120/NOTES.md.)
+           2192: (13, (3, 9), 'natural')}
 
 
 # PROOFS[n] = (hi, file): the upper bounds that a program of proofs/ proves with a proof of its own, at lengths outside

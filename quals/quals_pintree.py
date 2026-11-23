@@ -42,7 +42,8 @@ def order(a):
 
 
 def sequences():
-    """The sequences in hand of order >= 7, as (n, order, signs, whether symmetric or antisymmetric): mstar.py's explicit ones and its built columns, which include asymmetric joins."""
+    """The sequences in hand of order >= 7, as (n, order, signs, whether symmetric or antisymmetric): mstar.py's explicit ones and its built columns, which included asymmetric joins
+    until 2026-11-18, when every witness became symmetric or antisymmetric (q_the_coset_holds_on_every_sequence_in_hand makes its own since then: joins)."""
     import mstar
     out, seen = [], set()
     for a in itertools.chain(mstar.explicit().values(), (mstar.build(n) for n in range(96, 1025, 8))):
@@ -192,11 +193,30 @@ def q_the_coset_holds_by_brute_force():
     assert asym >= 200, asym
 
 
+def joins(seqs):
+    """Sequences that are neither symmetric nor antisymmetric, made from seqs (Opus 5.5, 2026-11-22): within each class of lengths that share their
+    power of 2, sorted by (length, order, signs), each sequence followed by the next (a join: its order at least the lesser of theirs, its
+    length a multiple of twice that power), up to length 2048; as (n, order, signs, whether symmetric or antisymmetric)."""
+    by, out = {}, []
+    for n, o, a, _ in seqs: by.setdefault(n & -n, []).append((n, o, a))
+    for t in sorted(by):
+        group = sorted(by[t])
+        for (n1, o1, a), (n2, o2, b) in zip(group, group[1:]):
+            c = a + b
+            if len(c) <= 2048: out.append((len(c), order(c), c, c == c[::-1] or c == [-t for t in c[::-1]]))
+    return out
+
+
 def q_the_coset_holds_on_every_sequence_in_hand():
     # Replicata: every sequence that mstar.py holds of length a multiple of 8 from 96 and order >= 7, at its own order and one below; residue sums mod 4, 8, 16 and 32.
     # Expectata: more than 100 sequences, more than 30 of them neither symmetric nor antisymmetric; every vector in rep + 2 L(M).
     # Resultata before: new.
+    # Spec change (Opus 5.5, 2026-11-22; dreeves, of making its own non-symmetric sequences or cutting it: "if that's the conservative, careful
+    # thing to do, then yes"): the sequences in hand and their joins (joins): since 2026-11-18 every witness in hand is symmetric or antisymmetric,
+    # and this qual, red since then with (179, 1), had no supply of the general sequences the pin-tree proofs reason about.  117 joins, all
+    # neither, on 2026-11-22.
     seqs = sequences()
+    seqs += joins(seqs)
     assert len(seqs) > 100 and sum(not s for *_, s in seqs) > 30, (len(seqs), sum(not s for *_, s in seqs))
     for n, o, a, _ in seqs:
         t = (n & -n)

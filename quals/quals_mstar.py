@@ -1168,8 +1168,12 @@ def q_lengths_past_the_chart_have_rows():
     _, got = disk()
     M = got['m']
     far = sorted({n for n, _ in mstar.explicit() if n > mstar.NMAX})
+    # Spec change (Opus 5.5, 2026-11-22; dreeves: "i see no reason not to record 2192:12 but tell me if those quals are non-wolfcrying", then "sure"): a length past the chart can have a claim of mstar.RESIDUE (2192's, at order
+    # 13 mod 9, the first), among its tests in the chart's order, after the norm bounds; so m*(2192) = 12, where the comment above
+    # has 12 <= m*(2192) <= 13.  q_residue_claims proves each claim.
     tests = lambda n: ([(mstar.two(n), ['two'])] + [(mstar.residue3(n), ['residue', 3]) for _ in [0] if n % 2 == 0 and n % 3]
-                       + [(mstar.norm(n, p), ['norm', p]) for p in mstar.PRIMES if n % p] + [(mstar.prop44(n), ['prop44'])])
+                       + [(mstar.norm(n, p), ['norm', p]) for p in mstar.PRIMES if n % p]
+                       + [(m - 1, ['residue', chain[-1]]) for k, (m, chain, _) in mstar.RESIDUE.items() if k == n] + [(mstar.prop44(n), ['prop44'])])
     rows = []
     for n in far:
         [(label, a)] = [(label, a) for (k, label), a in mstar.explicit().items() if k == n]
@@ -1271,12 +1275,22 @@ def q_residue_vectors_match_v5():
         for n, m, M in ((304, 9, 3), (512, 10, 3), (240, 11, 5), (240, 11, 7), (64, 6, 8), (48, 6, 9), (40, 5, 7),
                         (480, 13, 7)):
             assert ours(n, m, M, None, sweep) == v5_admissible(n, m, M, ()), (n, m, M, sweep)
-        for n, m, P, M in ((304, 9, 3, 9), (240, 11, 4, 8), (48, 6, 5, 25), (24, 4, 5, 25), (40, 5, 9, 27)):
+        # (Opus 5.5, 2026-11-22; dreeves: "i see no reason not to record 2192:12 but tell me if those quals are non-wolfcrying", then "sure": five parent cases more, the lattice setups (modulus, order, plain or plus) that only
+        # q_residue_controls' brute force at a claim's later moduli ran until then: mod 8 at order 6, mod 9 at orders 6, 7 and 8
+        # (plain) and at order 10 (plus).  About 9 s in all.)
+        for n, m, P, M in ((304, 9, 3, 9), (240, 11, 4, 8), (48, 6, 5, 25), (24, 4, 5, 25), (40, 5, 9, 27),
+                           (64, 6, 4, 8), (64, 6, 3, 9), (128, 7, 3, 9), (256, 8, 3, 9), (240, 10, 3, 9)):
             for W in v5_admissible(n, m, P, ()):
                 assert ours(n, m, M, (P, W), sweep) == v5_admissible(n, m, M, ((P, counts(n, P, W)),)), (n, M, W, sweep)
 
 
 def q_residue_controls():
+    # Spec change (Opus 5.5, 2026-11-22; dreeves: "i see no reason not to record 2192:12 but tell me if those quals are non-wolfcrying", then "sure"): (a) is every claim at a row (a column, or a length past the chart, as 2192)
+    # settled at lo = m - 1 with an explicit loWhy, by one path: its first modulus enumerated as below, and each later modulus
+    # followed along the sequence's own vector under its own vector of the level before (walk, 624's alone until then).  So the
+    # skip list (512, 784, 1472) and 624's special case are gone, and 512, 784, 1472 and 2192 are controlled; the enumeration's
+    # traversal at the later moduli is held to overnight_v5 by q_residue_vectors_match_v5, which has the lattice setups that
+    # the brute-force controls at the later moduli ran until then.  The account below is of before that day.
     # Replicata: (a) every claim (m, chain, sweep) of mstar.RESIDUE at a column settled at lo = m - 1 with an explicit
     # loWhy, but 512's (at order 9 the enumeration mod 27 under Thue-Morse's own vector mod 9 passes 10^8 nodes) and,
     # since 2026-10-26, when its example of order 10 settled it, 784's (at order 10 the enumeration mod 9 under the
@@ -1324,14 +1338,14 @@ def q_residue_controls():
     # that q_residue_condition_mod_3_has_its_closed_form holds the closed form to finds each such column's own
     # sequence at its order)
     claims = {n: (c[1] + 1, (3,), 'natural') for n, c in enumerate(got['m']['cols'], 1) if c[3] == ['residue', 3]} | mstar.RESIDUE
+    row_of = {n: c for n, c in enumerate(got['m']['cols'], 1)} | {r[0]: r[1:] for r in got['m']['past']}
     for n, (m, chain, sweep) in claims.items():
-        lo, hi, why, _ = got['m']['cols'][n - 1]
-        # 1472 (since 2026-11-10, [BOU]): at order 11 the enumeration mod 9 under its join's own vector mod 3 passes
-        # 2*10^6 nodes (measured that day); the other 27 claims past 1024 at settled columns find theirs within 18 nodes
-        if [lo, hi] != [m - 1, m - 1] or why[0] not in EXPLICIT or n in (512, 784, 1472): continue
-        assert mstar.order(mstar.build(n)) >= m - 1, n
-        control(mstar.build(n), m - 1, chain[:1] if n == 624 else chain, sweep)
-        if n == 624: walk(mstar.build(n), m - 1, 25, 5, sweep)
+        lo, hi, why, _ = row_of[n]
+        if [lo, hi] != [m - 1, m - 1] or why[0] not in EXPLICIT: continue
+        a = mstar.build(n)
+        assert mstar.order(a) >= m - 1, n
+        control(a, m - 1, chain[:1], sweep)
+        for P, M in zip(chain, chain[1:]): walk(a, m - 1, M, P, sweep)
         done += 1
     assert done >= 15, done
     for chain, sweep in sorted(set((chain, sweep) for _, chain, sweep in claims.values())):
@@ -1360,7 +1374,8 @@ def q_residue_claims():
         assert level == [], (n, m, chain)
         assert m - 1 < min([mstar.two(n)] + [mstar.norm(n, p) for p in mstar.PRIMES if n % p]), n
         assert n % 3 == 0 or m - 1 < mstar.residue3(n), n     # (2026-11-16) nor does the closed form mod 3 give it
-        assert m - 1 >= got['m']['cols'][n - 1][0], n
+        # (Spec change, Opus 5.5, 2026-11-22; dreeves: "i see no reason not to record 2192:12 but tell me if those quals are non-wolfcrying", then "sure": the claim's row, a column's or a past length's; cols[n - 1] until then.)
+        assert m - 1 >= ({k: c for k, c in enumerate(got['m']['cols'], 1)} | {r[0]: r[1:] for r in got['m']['past']})[n][0], n
 
 
 def box_in_plain_lattice(n, M, m):
