@@ -186,6 +186,11 @@ JS = os.path.join(HERE, 'pagedata', 'pow2.js')
 # BASES[45] (e10short_g.py 45 40 3 7, its 1248 written 624 2 and its 1920 as 960 2), BASES[50] (e10short_g.py 50 40 3 8, its 1536 written 768 2 and its 1920 as 960 2), BASES[58] (e10short_g.py 58 40 3 9, likewise) and BASES[69] (e10short_g.py 69 40 3 11, likewise),
 # found by Astra's search for joins of few products (scratch/next-20261120/firsts).  Below them no coin prime to 3 fits (2^44, 2^49, 2^57, 2^68); (3, 21) and (5, 33) have heads and are exact noes (layers.py), and excess 12 has no coin prime to 3 up to 2^72.
 # The superseded BASES[47], BASES[52], BASES[59] and BASES[71] are matched or beaten at every k by the lifts of these.
+# At 03:57 (2026-11-23): the antisymmetric sequence of order 15 at 7360 (the tilted search's; in the Symmetry section) moved
+# the first K0 for e = 6 from 39 to 37 and e = 10 from 63 to 61:
+# BASES[37] (e10short_h.py 37 40 3 6) and BASES[61] (e10short_h.py 61 40 3 10, its 1536 written 768 2),
+# found by Astra's search for joins of few products (scratch/next-20261120/firsts).  2^36 and 2^60 have no coin prime to 3.
+# The superseded BASES[39] and BASES[63] are matched or beaten at every k by the lifts of these.
 # (The examples of order 10 at 592, 608 and 656 and of order 11 at 848, 880, 896, 928, 944, 976 and 992, 2026-10-25,
 # had moved the first K0 for e = 2 from 27 to 20 (BASES[20] is 848 # 992 joined to 240 # 432 # tau_1), for e = 3 from
 # 34 to 30, for e = 4 from 38 to 37, for e = 6 from 52 to 49 and for e = 8 from 66 to 65, and given e = 9 at 72; the
@@ -201,7 +206,9 @@ BASES = {10: [[[1024, 11]]],
          34: [[[2512, 13], [2480, 13], [2480, 13]],
               [[1968, 14], [1296, 14], [528, 11]],
               [[960, 15], [960, 15], [208, 8], [2, 1]]],
-         39: [[[8192, 15], [8192, 15], [8192, 15]]],
+         37: [[[7360, 15], [7360, 15], [2480, 13]],
+              [[1632, 15], [1632, 15], [768, 13]],
+              [[1632, 15], [960, 15], [672, 13]]],
          45: [[[2528, 13], [2368, 13], [2368, 13], [2368, 13]],
               [[1728, 15], [1632, 15], [624, 12], [192, 9], [2, 1]],
               [[960, 15], [960, 15], [800, 11], [800, 11]],
@@ -214,10 +221,10 @@ BASES = {10: [[[1024, 11]]],
               [[2432, 13], [2368, 13], [2368, 13], [2368, 13], [960, 15]],
               [[1776, 14], [1632, 15], [1504, 12], [960, 15], [768, 13], [4, 2]],
               [[7744, 15], [960, 15], [960, 15], [960, 15], [128, 7]]],
-         63: [[[7712, 15], [7712, 15], [7712, 15], [7712, 15], [2528, 13]],
-              [[7712, 15], [7712, 15], [2432, 13], [960, 15], [960, 15]],
-              [[1440, 16], [1008, 13], [912, 13], [912, 13], [336, 10], [240, 10]],
-              [[7936, 15], [2480, 13], [1392, 14], [960, 15], [960, 15], [2, 1]]],
+         61: [[[7360, 15], [7360, 15], [7360, 15], [2432, 13], [2368, 13]],
+              [[2016, 15], [1728, 15], [1488, 14], [768, 13], [768, 13], [2, 1]],
+              [[2608, 13], [1632, 15], [960, 15], [960, 15], [768, 13]],
+              [[960, 15], [960, 15], [960, 15], [960, 15], [800, 11]]],
          69: [[[7712, 15], [2368, 13], [2368, 13], [2368, 13], [2368, 13], [2368, 13]],
               [[2432, 13], [2368, 13], [2368, 13], [960, 15], [960, 15], [800, 11]],
               [[1968, 14], [1632, 15], [1392, 14], [1056, 13], [768, 13], [768, 13], [2, 1]],
