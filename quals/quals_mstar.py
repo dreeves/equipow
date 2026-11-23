@@ -724,45 +724,11 @@ def q_known_shape():
         else: assert lo == hi or n in USER_GRAY + PAST_GRAY, n
 
 
-def q_gray_columns():
-    # Replicata (regression): the gray columns of mstar.js.
-    # Expectata: the user's 35 less 640, which the residue condition mod 3 settles at 10 (lo 10 from 2 x 320), less
-    # 704 and 736, settled at 10 on 2026-10-12 (lo 10 from 2 x 352 and 2 x 368, mstar.FOUND's; hi by mod 3 and mod 9),
-    # and less 560, settled at 10 the same day (lo 10 from the page's p560, found by a lattice search; hi by the norm
-    # bound mod 3), and less 800, settled at 11 on 2026-10-17 (lo 11 from the page's p800, found by a lattice search;
-    # hi by the norm bound mod 3), and less 240, settled at 10 on 2026-10-20 (lo 10 from the paper's Table 5 example; hi
-    # by the certified search, overnight_v5.py and then boxsplit.py by 17 and 19, the page's new result), and less
-    # 384, settled at 10 by Astra's exact modular certificate (2026-10-20, proof384.py), and less 592, 608 and 656,
-    # settled at 10, and 848, 880, 896, 928, 944, 976 and 992, settled at 11, on 2026-10-25 (lo from the page's
-    # examples p592 to p992; hi by the norm bound mod 3, or the residue condition mod 3 at 608 and 656), and less 752
-    # and 784, settled at 10, and 832, settled at 11, on 2026-10-26 (lo from the page's examples p752, p784 and p832;
-    # hi by proof752.py at 752, the page's, the residue condition mod 27 at 784 and the norm bound mod 3 at 832); and
-    # since 2026-10-27, when the chart reached 1024, 1008 last, at 10 to 13 (lo from 240 + 768, a join; hi by the
-    # residue condition mod 5 at order 14), at 11 to 13 from that night (lo from the page's example p1008 of order 11,
-    # found by w11.py: q_examples_at_720_and_1008_raise_their_lo), and at 12 to 13 since 2026-10-28 (lo from the
-    # symmetric example of order 12 that replaced it as p1008, found by w12.py); and less 688, settled at 10 on
-    # 2026-11-01 (lo from the page's example p688, found by w10s.py: q_example_at_688_settles_it; hi by the residue
-    # condition mod 3); and less 544, settled at 10, 576 and 624 at 12, 912 and 1008 at 13 and 960 at 15 on 2026-11-03 (lo from the page's examples, found by
-    # searches/pinned/: q_results_of_2026_11_03; hi as before); and less 432, settled at 11, and 816, settled at 12, later that day (lo as before; hi by their pin trees: q_pin_trees_settle_432_and_816).
-    _, got = disk()
-    # Since 2026-11-10 the chart reaches 2048 ([BOU]): up to 1024 the gray columns are as before, and past it PAST_GRAY.
-    grays = tuple(n for n, c in enumerate(got['m']['cols'], 1) if c[0] < c[1])
-    gray = tuple(n for n in grays if n <= 1024)
-    assert tuple(n for n in grays if n > 1024) == PAST_GRAY, grays
-    tens, elevens = (592, 608, 656, 688, 752, 784), (832, 848, 880, 896, 928, 944, 976, 992)
-    # 768 settled at 13 on 2026-11-03 (the beam campaign's plan 6), and left the gray columns.
-    # 672 settled at 13 on 2026-11-04 (searches/tilted/: q_example_at_672_reaches_order_13), and left them too.
-    # 288 settled at 9 on 2026-11-08 (the form-tree proof: q_288_is_settled_at_9), and left them too.
-    assert gray == tuple(n for n in USER_GRAY if n not in (240, 384, 560, 640, 704, 736, 800) + tens + elevens + (288, 432, 544, 576, 624, 672, 768, 816, 912, 960, 1008)), gray
-    assert [got['m']['cols'][n - 1][:2] for n in (240, 384, 560, 640, 704, 736, 800)] == [[10, 10]] * 6 + [[11, 11]]
-    assert [got['m']['cols'][n - 1][:3] for n in tens + elevens] == [[10, 10, ['example', f'equipow p{n}']] for n in tens] \
-        + [[11, 11, ['example', f'equipow p{n}']] for n in elevens]
-    assert got['m']['cols'][240 - 1][2:] == [['example', 'BGPW Table 5'], ['page', 'c']]
-    assert got['m']['cols'][560 - 1][2] == ['example', 'equipow p560']
-    # (2026-11-16: 800's hi by the residue condition mod 3, which comes before the norm bound since that day, a spec
-    # change that q_hi_reasons records; ['norm', 3] until then)
-    assert got['m']['cols'][800 - 1][2:] == [['example', 'equipow p800'], ['residue', 3]]
-    assert gray[-1] == 864 and got['m']['cols'][1008 - 1] == [13, 13, ['example', 'equipow p1008'], ['residue', 5]]   # 1008 the last, at 12 to 13, until 2026-11-03
+# q_gray_columns, cut on 2026-11-22 (Opus 5.5; dreeves, when it went red only because 1104 was settled at 14: "what was ever
+# the point of that qual?", then "ok, i endorse that"): it held mstar.js's gray columns to a hand-kept list (the user's 35 of
+# October less each column settled since, and PAST_GRAY past 1024), so it went red at every settled cell, while q_lo_reasons,
+# q_hi_reasons and q_columns_rebuilt re-derive every column's bounds from their reasons.  PAST_GRAY stays as q_known_shape's
+# allowance.
 
 
 def q_results_of_2026_10_25():
