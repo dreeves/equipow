@@ -56,7 +56,9 @@ import sympy as sp
 import mstar                                 # read only: the residue condition mod 3 (residue3), its lemmas, and the
                                              # explicit sequences longer than mstar.js's columns
 
-KMAX = 72
+# The chart's last power of 2: 2^72 from 2026-10-12, when 2^72 was the first power of 2 known to beat Thue-Morse by 5, until
+# 2026-11-23 (dreeves: "it never made sense to hard-code 72"); every other part of the page and its quals reads it from pow2.js.
+KMAX = 128
 NORM_PRIMES = tuple(sp.primerange(3, 32))    # the odd primes the norm lemma is tried with (weak_norm: no larger one
                                              # can do better at any 2^k, k >= 10)
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # the repository's root, above pagegen/ (this file was at the root until 2026-11-10, dreeves's README [REF])
@@ -331,16 +333,29 @@ def hi_of(k, why): return HI_RULES[why[0]](k, *why[1:])
 
 # ---------- the columns ----------
 
+def times(p, q):
+    """The product of two products (lists of blocks): their blocks, longest first, and their tau factors merged into one,
+    as lifted() merges them (tau_a # tau_b = tau_(a+b))."""
+    t = sum(m for n, m in p + q if n == 2 ** m)
+    return sorted([b for b in p + q if b[0] != 2 ** b[1]], key=lambda b: -b[0]) + [[2 ** t, t]] * (t > 0)
+
+
 @lru_cache(maxsize=None)
 def columns():
-    """[lo, hi, loWhy, hiWhy] for k = 1..KMAX (index k-1): lo the best of Thue-Morse and BASES lifted; hi the least of
+    """[lo, hi, loWhy, hiWhy] for k = 1..KMAX (index k-1): lo the best of Thue-Morse, BASES lifted and the product of
+    two lower columns' constructions (2^a 2^b = 2^k, so m*(2^k) >= m*(2^a) + m*(2^b): the join of all pairwise products of
+    their joins, largest first; since 2026-11-23, when the chart came to reach past 2^72, up to which none beats a lift),
+    the first of the best in that order; hi the least of
     mstar.js's column 2^k (2^k <= mstar.NMAX), the residue condition mod 3 (mstar.residue3) and the norm lemma for
     each of NORM_PRIMES, the first of them in that order.
     Asserts k <= lo <= hi, that no prime beyond NORM_PRIMES gives a lower norm bound, lo =
     hi = k for k <= 9, and lo and hi equal to mstar.js's wherever 2^k is one of its columns."""
     out = []
     for k in range(1, KMAX + 1):
-        los = [['thue-morse']] + [['joins', lifted(ps, k - K0)] for K0, ps in BASES.items() if K0 <= k]
+        join = lambda c, a: [[[2 ** a, a]]] if c[2][0] == 'thue-morse' else c[2][1]          # column a's construction as a join
+        los = ([['thue-morse']] + [['joins', lifted(ps, k - K0)] for K0, ps in BASES.items() if K0 <= k]
+               + [['joins', sorted((times(p, q) for p in join(out[a - 1], a) for q in join(out[k - a - 1], k - a)),
+                                   key=lambda r: -prod(n for n, _ in r))] for a in range(1, k // 2 + 1)])
         his = ([['mstar', c[3]] for n, c in enumerate(mstar_cols(), 1) if n == 2 ** k] + [['residue', [3]]]
                + [['norm', p] for p in NORM_PRIMES])
         lw, hw = max(los, key=lambda w: lo_of(k, w)), min(his, key=lambda w: hi_of(k, w))

@@ -19,7 +19,7 @@ sys.path.insert(0, os.path.join(HERE, 'pagegen'))   # mstar.py, pow2.py's direct
 import mstar
 import pow2
 
-KMAX = 72
+KMAX = pow2.KMAX     # (Spec change, Opus 5.5, 2026-11-23; dreeves: "it never made sense to hard-code 72": the chart's last k, pow2.py's; 72 written here until then)
 F_PARTS = (((112, 7), (320, 9), (320, 9)), ((432, 11), (48, 6), (256, 8)))   # f, as the remarks on index.html give it
 F = (2 ** 24, 25)       # f's length and order: a block of pow2.py until 2026-10-29, when it left pow2.py with its reasons
 
@@ -208,9 +208,22 @@ def q_new_lower_bounds():
     assert [orders[K0] - K0 for K0 in K0s] == list(range(1, len(K0s) + 1)), orders
     below = [k for k in range(1, KMAX + 1) if k < K0s[0]]
     assert [(cols()[k - 1][0] - k, cols()[k - 1][2]) for k in below] == [(0, ['thue-morse'])] * len(below), cols()[:K0s[0]]
+    # Spec change (Opus 5.5, 2026-11-23; dreeves: "it never made sense to hard-code 72"): past the last k at which the lift of the last base is the best
+    # (72 until the chart came to reach 2^128 that day), a column's construction is the product of two lower columns' (2^a 2^b = 2^k): lo is the larger of
+    # the lift's and the best such product's, lo(a) + lo(b), and the reason the lift's when it is that large, else the join of all pairwise products of the
+    # two lower columns' joins, at a split that reaches it.
+    join = lambda c, a: [[[2 ** a, a]]] if c[2][0] == 'thue-morse' else c[2][1]
     for k in range(K0s[0], KMAX + 1):
         K0 = max(K for K in K0s if K <= k)
-        assert (cols()[k - 1][0] - k, cols()[k - 1][2]) == (orders[K0] - K0, ['joins', pow2.lifted(pow2.BASES[K0], k - K0)]), (k, K0, cols()[k - 1])
+        lift = orders[K0] + (k - K0)
+        best = max([lift] + [cols()[a - 1][0] + cols()[k - a - 1][0] for a in range(1, k // 2 + 1)])
+        assert cols()[k - 1][0] == best, (k, cols()[k - 1][0], best)
+        if lift == best:
+            assert cols()[k - 1][2] == ['joins', pow2.lifted(pow2.BASES[K0], k - K0)], (k, K0, cols()[k - 1])
+        else:
+            ps = sorted(map(sorted, cols()[k - 1][2][1]))
+            assert any(ps == sorted(sorted(pow2.times(p, q)) for p in join(cols()[a - 1], a) for q in join(cols()[k - a - 1], k - a))
+                       for a in range(1, k // 2 + 1) if cols()[a - 1][0] + cols()[k - a - 1][0] == best), (k, cols()[k - 1][2])
     assert pow2.BASES[10] == [[[1024, 11]]], pow2.BASES[10]
     # lo = hi through k = 12 (the norm bound for 3 at 2^10, the residue condition mod 3 at 2^11 and 2^12): a settled power stays settled.  (Until
     # 2026-11-21 also "and not at 13", which a sequence of order 15 at 2^13 would have turned red.)
@@ -455,12 +468,14 @@ def q_mod3_residue_lowers_hi_at_32_columns():
     # Spec change (2026-11-16; q_every_hi_recomputes has dreeves's words): the reason is ["residue", [3]] at every such
     # k, the closed form (mstar.residue3) coming before the norm bound; until then ["residue", [3]] at these 32 k,
     # each a claim of pow2.RESIDUE, which is gone, and ["norm", 3] elsewhere.
+    # Spec change (Opus 5.5, 2026-11-23; dreeves: "it never made sense to hard-code 72"): the 32 k are those up to 72, the range of that verification; past
+    # it (the chart reaches 2^128 since that day) the residue condition is the norm bound or one less at every k (one less at 30 more k up to 128).
     K = (11, 12, 14, 15, 18, 19, 20, 22, 23, 26, 30, 31, 33, 34, 37, 38, 39, 41, 42, 45, 49, 50, 53, 56, 57, 58, 60, 61,
          64, 68, 69, 72)
     for k, (lo, hi, lw, hw) in enumerate(cols(), 1):
-        assert mstar.residue3(2 ** k) == pow2.norm(2 ** k, 3) - (k in K) or k < 11, (k, mstar.residue3(2 ** k))
+        assert k < 11 or mstar.residue3(2 ** k) == pow2.norm(2 ** k, 3) - (k in K) or (k > 72 and pow2.norm(2 ** k, 3) - mstar.residue3(2 ** k) in (0, 1)), (k, mstar.residue3(2 ** k))
         if 2 ** k <= mstar.NMAX: continue
-        assert (hw, hi) == (['residue', [3]], pow2.norm(2 ** k, 3) - (k in K)), (k, hw, hi)
+        assert (hw, hi) == (['residue', [3]], mstar.residue3(2 ** k)), (k, hw, hi)   # (pow2.norm(2 ** k, 3) - (k in K) until 2026-11-23: the same up to 72, by the line above)
 
 
 def q_residue_condition_mod_3_matches_the_enumeration():
@@ -490,7 +505,7 @@ def q_pow2_js_is_current():
 def q_schema():
     # Replicata: pow2.js on disk: its text, and the file run as a classic script by node.
     # Expectata: one comment line, then the single statement "const POW2 = {...};" whose object is JSON, so the file
-    # defines exactly one global (node sees no enumerable one); keys kmax, etop, cols in that order; kmax = 72; 72
+    # defines exactly one global (node sees no enumerable one); keys kmax, etop, cols in that order; kmax = pow2.KMAX (72 until 2026-11-23); kmax
     # columns [lo, hi, loWhy, hiWhy] with integers k <= lo <= hi < k + etop; etop = max over k of (hi - k) + 1, so row
     # etop is red in every column and some column reaches row etop - 1; each reason in its contract form.
     js, keys, P = pow2_disk()

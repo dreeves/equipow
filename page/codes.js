@@ -199,7 +199,7 @@
     return derivations.get(e);
   }
   // How a derivation writes a part's name and a length: 2^k for a power of 2 past the m*(n) chart's last n, as the page
-  // names those lengths (2^{12} to 2^{72}), a number otherwise (since 2026-11-18, when a derivation came to write a
+  // names those lengths (2^{12} to 2^{POW2.kmax}), a number otherwise (since 2026-11-18, when a derivation came to write a
   // join's length as 8 + 36 + 8 = 52: 2^k for every power of 2 greater than 2 until then, as the page's formulas
   // write 2^2 and 2^8), as nodes
   const NAMES = {p: N => [el('i', 'p'), el('sub', String(N))], tau: j => ['τ', el('sub', String(j))], name: x => [el('i', x)]};

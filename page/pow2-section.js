@@ -1,18 +1,16 @@
-// Claude's chart of the bounds on m*(2^k) − k for k up to 72, drawn from POW2, which pow2.js defines (pow2.py makes
+// Claude's chart of the bounds on m*(2^k) − k for k up to K = POW2.kmax (72 until 2026-11-23), drawn from POW2, which pow2.js defines (pow2.py makes
 // it and states its contract).  Column k is n = 2^k; row e is order k + e, an excess of e over Thue–Morse's order k.
-// Cell (k, e) is green (exists) when k + e <= lo, gray (open) when lo < k + e <= hi, and red (impossible) above, up to
-// row E = POW2.etop.  The plot is one svg with a rect per cell, its viewBox the columns in view (all K until it is
-// zoomed) and E * ROW px tall, stretched to the plot's width.  It pans and zooms as the m*(n) chart does, by the same
-// code (panZoom, 2026-10-30), and a cell reads itself out on a hover, a tap or a click.  Its grid is hairlines of page
-// surface (dreeves, 2026-10-29: "this with hairline grid looks great to me"): the bottom GAP of each row, one device
-// pixel, and a line one device pixel wide between every two columns.
+// Cell (k, e) is green (exists) when k + e <= lo, gray (open) when lo < k + e <= hi, and red (impossible) above; its rows
+// follow the view, up to row E = POW2.etop at the full view.  page/shared.js draws it as it draws the m*(n) chart
+// (gridChart, since 2026-11-23; dreeves: "please DRY up as much as possible between the 2 figures", and "figure 2
+// loses the automatic y-axis zooming that figure 1 has"; until then one svg with a rect per cell, E rows of 14 px, and
+// its own rings, labels and tags): this script holds its data's contract, its columns and rows, and what its readout
+// and its boxes say.
 (() => {
-const chart = document.getElementById('pow2-chart'), ro = document.getElementById('pow2-readout');
+const cv = document.getElementById('pow2-chart'), ro = document.getElementById('pow2-readout');
+const fail = chartFail(ro);                                       // loudly: in the readout, and uncaught
 try {
-  const D = POW2, K = 72, ROW = 14, GAP = 1 / devicePixelRatio, NS = 'http://www.w3.org/2000/svg';
-  const assert = (ok, ...what) => { if (!ok) throw new Error(JSON.stringify(what).replace(/"/g, "'")); };
-  const prime = p => { for (let d = 2; d * d <= p; d++) if (p % d === 0) return false; return p >= 2; };
-  const sub = k => String(k).replace(/\d/g, d => '₀₁₂₃₄₅₆₇₈₉'[d]);
+  const D = POW2, K = D.kmax;                                     // K a constant 72 until 2026-11-23 (dreeves: "it never made sense to hard-code 72")
   // The norm lemma's bound at n = 2^k for an odd prime p, in exact integers (mstar.py's norm): the largest m with
   // p^(2m) (p-1)^(p-1) <= (p sum_r size(p, r)^2)^(p-1), size(p, r) the number of i in 0..n-1 with i = r (mod p).
   const normBound = (k, p) => {
@@ -110,7 +108,7 @@ try {
     },
   };
   assert(Object.keys(D).sort().join() === 'cols,etop,kmax', Object.keys(D));
-  assert(D.kmax === K && Array.isArray(D.cols) && D.cols.length === K && Number.isInteger(D.etop), D.kmax, D.etop);
+  assert(Number.isInteger(K) && K >= 1 && Array.isArray(D.cols) && D.cols.length === K && Number.isInteger(D.etop), D.kmax, D.etop);
   D.cols.forEach((c, i) => {
     const k = i + 1, [lo, hi, lw, hw] = c;
     assert(c.length === 4 && Number.isInteger(lo) && Number.isInteger(hi) && k <= lo && lo <= hi && hi < k + D.etop,
@@ -122,34 +120,21 @@ try {
   });
   assert(D.etop === Math.max(...D.cols.map((c, i) => c[1] - i)), D.etop);   // E = max(hi - k) + 1
 
-  const E = D.etop, KIND = ['exists', 'open', 'impossible'];       // the kinds of cell, by the tokens of their colors
-  const kindOf = (k, e) => (k + e > D.cols[k - 1][0]) + (k + e > D.cols[k - 1][1]);
-  // A target's kind, its box's and since 2026-11-19 its readout's: a cell's by its column's bounds, a column's or a row's
-  const kindAt = (c, e) => c === null ? 'row' : e === null ? 'column' : KIND[kindOf(c + 1, e)];
-  const MEANING = ['known', 'open', 'impossible'];                 // what a cell of each kind says, in the readout (dreeves's words)
-  const el = (tag, cls, text) => Object.assign(document.createElement(tag), {className: cls, textContent: text});
-  const at = (node, style) => { Object.assign(node.style, style); return node; };
-  const nw = (...parts) => { const s = el('span', 'nw', ''); s.append(...parts); return s; };   // no wrap
-  // A text as the readout's nodes: each run of sub's subscript digits becomes a <sub> of plain digits, which the page's
-  // font draws; it has no glyphs for U+2080–2089, and the fallback fonts that drew them differed from digit to digit.
-  const subbed = s => s.split(/([₀-₉]+)/).map((t, i) => i % 2
-    ? el('sub', '', [...t].map(d => '₀₁₂₃₄₅₆₇₈₉'.indexOf(d)).join('')) : t);
-  const svg = document.createElementNS(NS, 'svg'), outline = el('div', 'pow2-outline', ''), swatch = el('span', '', '');
-  svg.setAttribute('preserveAspectRatio', 'none');
-  svg.style.height = `${E * ROW}px`;
+  const E = D.etop;
+  const rowsOf = k => [D.cols[k - 1][0] - k, D.cols[k - 1][1] - k, D.cols[k - 1][1] - k];   // a column's bounds in rows, which are excesses δ = m − k
+  const kindOf = (k, e) => cellKind(rowsOf(k), e);
+  const MEANING = {exists: 'known', open: 'open', impossible: 'impossible'};   // what a cell of each kind says, in the readout (dreeves's words)
+  const swatch = el('span', '', '');
   // The smallest cells of each row, ringed in gold just outside them as the m*(n) chart rings its own (dreeves's README,
   // 2026-10-28: "[GTR] Gold trim for the powers-of-2 chart to highlight the values in the theorem"; then 2026-10-30:
   // "[GLT] ... match the "smallest length known" table: green+gold is the smallest *known* n (resp. 2^k) for a give m
   // (resp. delta) and black+gold is the smallest n (resp. 2^k) not ruled out"): for each record gap g, [k, g, role] for
   // the least k with lo >= k + g, a bound the theorem states (the table below has the same), and the least k with
   // hi >= k + g, one cell when they agree; role 1 known, 2 not ruled out, 3 both, proven the least, which also gets a
-  // gold dot (Claude's proposal for the indicator, 2026-10-30).  The ring is 2 px above and below the cell, over the
-  // hairlines there and the neighbors' edges, and 1 px at its sides, where a phone's columns are about 4 px wide; it
-  // lies over the grid and under the outline of the cell read out, whose swatch it rings too, with a note (dreeves,
-  // 2026-10-28: "don't forget the gold trim on the hover version"), as the m*(n) chart's readout does for its rings.
-  const trims = raised(D.cols, j => j + 1).flatMap(([known, possible], j) => [...new Set([...known, ...possible])]
-    .sort((x, y) => x - y).map(g => [j + 1, g, known.includes(g) + 2 * possible.includes(g)]));  // [k, δ, role], the rows k raises
-  assert(trims.every(([, g]) => g <= E), trims);
+  // gold dot (Claude's proposal for the indicator, 2026-10-30); a ringed cell's swatch in the readout is ringed too, with a
+  // note (dreeves, 2026-10-28: "don't forget the gold trim on the hover version"), as the m*(n) chart's readout does.
+  const RINGS = raised(D.cols, j => j + 1).flatMap(([known, possible], j) => [...new Set([...known, ...possible])]
+    .sort((x, y) => x - y).map(g => ({key: j + 1, r: g, role: known.includes(g) + 2 * possible.includes(g)})));   // the rows k raises
   // readout note on a cell ringed in gold; says 2^k is the least power of 2 known to beat Thue–Morse by δ, a bound the theorem below states
   const knownNote = e => `the smallest k known to beat Thue–Morse by ${e} (see theorem below)`;
   const NOTES = {1: [knownNote],                                   // the readout's notes on a ringed cell, by its role
@@ -162,101 +147,19 @@ try {
   const bounds = k => { const [lo, hi] = D.cols[k - 1]; return nw(`${lo} ≤ `, el('i', '', 'm'), el('sup', '', '*'), '(', ...two(k), `) ≤ ${hi}`); };
   function cellOut(k, e) {                                         // the readout of the cell of k and e
     const [lo, hi, lw, hw] = D.cols[k - 1], kind = kindOf(k, e);
-    const gold = trims.filter(([tk, te]) => tk === k && te === e);  // none or one
+    const gold = RINGS.filter(r => r.key === k && r.r === e);       // none or one
     const why = [() => LO[lw[0]].text(k, lo, ...lw.slice(1)), () => HI[hw[0]].text(k, hi, ...hw.slice(1))];
-    swatch.className = `swatch ${KIND[kind]}`;
+    swatch.className = `swatch ${kind}`;
     swatch.classList.toggle('record', gold.length > 0);
-    swatch.classList.toggle('proven', gold.some(([, , role]) => role === 3));
+    swatch.classList.toggle('proven', gold.some(r => r.role === 3));
     return [swatch, nw(...kn(k), ', ', el('i', '', 'm'), ` = ${k} + ${e} = ${k + e}`), ' · ', MEANING[kind], ' · ', bounds(k),
-      ' · ', ...subbed([[why[0]], why, [why[1]]][kind].map(f => f()).join(' · ')), ...gold.flatMap(([, , role]) => NOTES[role].map(f => ` · ${f(e)}`))];
+      ' · ', ...subbed({exists: [why[0]], open: why, impossible: [why[1]]}[kind].map(f => f()).join(' · ')), ...gold.flatMap(r => NOTES[r.role].map(f => ` · ${f(e)}`))];
   }
   // What the readout says of the target read out, by its kind (since 2026-11-19, when a hover on a strip came to read out
   // its column or its row, what a click there opens): a cell's k, n and m, meaning, bounds, reasons and ring's notes; a
   // column's k, n and bounds, and a row's δ, as their boxes' headings have them
   const READS = {exists: cellOut, open: cellOut, impossible: cellOut,
                 column: k => [nw(...kn(k)), ' · ', bounds(k)], row: (k, e) => [nw(el('i', '', 'δ'), ` = ${e}`)]};
-  function readout(c, e) {                                         // read out the target of column c, k = c + 1, and row e
-    ro.replaceChildren(...READS[kindAt(c, e)](c + 1, e));
-  }
-  for (let k = 1; k <= K; k++) for (let e = 1; e <= E; e++) {
-    const r = document.createElementNS(NS, 'rect');
-    const attributes = {x: k - 1, y: (E - e) * ROW, width: 1, height: ROW - GAP, class: KIND[kindOf(k, e)]};
-    for (const [a, v] of Object.entries(attributes)) r.setAttribute(a, v);
-    svg.append(r);
-  }
-  for (let k = 1; k < K; k++) {                                    // the lines between columns, over the cells
-    const l = document.createElementNS(NS, 'line');
-    for (const [a, v] of Object.entries({x1: k, y1: 0, x2: k, y2: E * ROW, 'stroke-width': GAP})) l.setAttribute(a, v);
-    svg.append(l);
-  }
-  // The axes: every e left of the plot, beside the letter δ (dreeves's README, 2026-10-28: "[DLT] Change "excess e" to
-  // delta unless e is following precedent from BGPW", and BGPW name no excess); below it, the letter k and every tenth
-  // k under its column
-  const es = el('div', 'pow2-es', ''), plot = el('div', 'pow2-plot', ''), ks = el('div', 'pow2-ks', '');
-  for (let e = 1; e <= E; e++) {                                   // centered on its row's colored part
-    es.append(at(el('span', '', String(e)), {top: `${(E - e) * ROW}px`, lineHeight: `${ROW - GAP}px`}));
-  }
-  // The cell read out on the axes (dreeves's README, 2026-11-02: "[HOV] When hovering/clicking on cells in the charts
-  // it'd be nice to highlight the values of m and n (resp., delta and k) on the axes of the chart"), as the m*(n) chart
-  // tags its m and n: its δ over its row's δ label (etag) and its k on the k labels' line under its column's middle
-  // (ktag, last in ks, over any label there), each in paper on ink, as tall as a row's colored part; both hidden until a
-  // cell is read out, and the k also while its column's middle is out of view, as the k labels are (shows).
-  const [etag, ktag] = Array.from({length: 2}, () => at(el('span', 'pow2-tag', ''), {lineHeight: `${ROW - GAP}px`}));
-  es.append(el('i', '', 'δ'), etag);
-  // The rings and the outlines lie in a frame 2 px larger than the plot on every side, which clips them where the view
-  // ends, as the m*(n) chart clips its rings.  place(div, [c, e], side, u0, span) puts div around the cells of column
-  // c and row e in the view [u0, u0 + span), c null for every column and e for every row (since 2026-11-04, for the
-  // target of the box open, pin, outlined as the cell read out is): side px out at its sides, 2 px above and below.
-  const frame = el('div', 'pow2-frame', ''), rings = trims.map(() => el('div', 'pow2-trim', ''));
-  const proven = trims.filter(([, , role]) => role === 3), dots = proven.map(() => el('div', 'pow2-dot', ''));
-  const pin = el('div', 'pow2-outline', ''), panel = document.getElementById('pow2-panel');
-  const place = (div, [c, e], side, u0, span) => {
-    const [c0, c1] = c === null ? [0, K] : [c, c + 1], [e0, e1] = e === null ? [1, E] : [e, e];
-    return at(div, {left: `calc(${(c0 - u0) / span} * (100% - 4px) + ${2 - side}px)`,
-      width: `calc(${(c1 - c0) / span} * (100% - 4px) + ${2 * side}px)`, top: `${(E - e1) * ROW}px`, height: `${(e1 - e0 + 1) * ROW - GAP + 4}px`});
-  };
-  frame.append(...rings, ...dots, outline, pin);
-  plot.append(svg, frame);
-  chart.append(es, plot, el('i', 'pow2-k', 'k'), ks);
-  const TENS = Array.from({length: Math.floor(K / 10)}, (_, i) => 10 * i + 10);     // the k labeled below the plot
-  // the view [u0, u0 + span), the cell read out (picked) and the target of the box open (pinned)
-  function draw(u0, span, picked, pinned) {
-    const shows = k => u0 <= k - 0.5 && k - 0.5 <= u0 + span;      // whether column k's middle is in view
-    svg.setAttribute('viewBox', `${u0} 0 ${span} ${E * ROW}`);
-    trims.forEach(([k, e], i) => place(rings[i], [k - 1, e], 1, u0, span));
-    proven.forEach(([k, e], i) => at(dots[i], {left: `calc(${(k - 0.5 - u0) / span} * (100% - 4px) + 2px)`,   // its middle,
-      top: `${(E - e) * ROW + 2 + (ROW - GAP) / 2}px`, width: `min(${0.5 / span} * (100% - 4px), ${(ROW - GAP) / 2}px)`}));
-    // the target read out, outlined, and each number it has tagged: a cell's δ and k, a column's k, a row's δ (since
-    // 2026-11-19, when a hover on a strip came to read out its column or its row)
-    const tagged = {e: picked.map(([, e]) => e).filter(Number.isInteger), c: picked.map(([c]) => c).filter(c => Number.isInteger(c) && shows(c + 1))};
-    outline.hidden = picked.length === 0;
-    etag.hidden = tagged.e.length === 0;
-    ktag.hidden = tagged.c.length === 0;
-    pin.hidden = pinned.length === 0;
-    pinned.forEach(t => place(pin, t, 2, u0, span));
-    // The box's caret under its target's column's middle, kept within the plot, or under its row's δ label (--caret, in
-    // CSS px from the box's left edge inside its border)
-    const p = plotBox(), left = chart.getBoundingClientRect().left - panel.getBoundingClientRect().left - panel.clientLeft;
-    pinned.forEach(([c]) => panel.style.setProperty('--caret', `${left + (c === null ? p.left / 2
-      : p.left + Math.min(Math.max((c + 0.5 - u0) / span, 0), 1) * p.width)}px`));
-    picked.forEach(t => place(outline, t, 2, u0, span));
-    tagged.e.forEach(e => { at(etag, {top: `${(E - e) * ROW}px`}).textContent = String(e); });
-    tagged.c.forEach(c => { at(ktag, {left: `${(c + 0.5 - u0) / span * 100}%`}).textContent = String(c + 1); });
-    ks.replaceChildren(...TENS.filter(shows).flatMap(k => {
-      const left = `${(k - 0.5 - u0) / span * 100}%`;              // under the middle of column k
-      return [at(el('span', 'pow2-tick', ''), {left}), at(el('span', 'pow2-klabel', String(k)), {left})];
-    }), ktag);
-  }
-  const plotBox = () => { const a = chart.getBoundingClientRect(), b = svg.getBoundingClientRect();
-    return {left: b.left - a.left, top: b.top - a.top, width: b.width}; };
-  // What is at CSS x, y (panZoom's targetAt): a cell, [column, e]; the strip of the k labels under the plot, [column,
-  // null]; the strip of the δ labels left of it, [null, e]; or null: the corner between those strips and the margin
-  // right of the plot.
-  function targetAt(x, y) {
-    const p = plotBox(), e = E - Math.floor((y - p.top) / ROW);
-    const t = [x < p.left ? null : x < p.left + p.width ? Math.floor(view.uAt(x)) : undefined, y < p.top ? undefined : e >= 1 ? e : null];
-    return t.includes(undefined) || t.every(v => v === null) ? null : t;
-  }
   // The boxes under the chart (chartPanel, in page/shared.js), as the m*(n) chart's: the target [c, e] is the cell of
   // column c, k = c + 1, and row e, order k + e; [c, null] the column, at its k label; [null, e] the row, at its δ
   // label; their fragments kK, dD and kKdD.  A cell's box and a column's show what the m*(n) chart's do: a cell's its
@@ -266,10 +169,10 @@ try {
   // its cell's box: the least k known to beat Thue–Morse by e and the least not ruled out to, or the one cell, proven,
   // where they agree; and, where e is a record gap, its row of the table of record gaps, under that table's own head
   // (recordGaps, below; the main session's design of 2026-11-04 for [ROC], whose rows dreeves named for the m*(n) chart).
-  const legend = [...chart.closest('section').querySelectorAll('.legend li')];
+  const legend = [...cv.closest('section').querySelectorAll('.legend li')];
   const witness = k => { const [lo, , lw] = D.cols[k - 1]; return LO[lw[0]].witness(k, lo, ...lw.slice(1)); };
   const proof = k => { const [, hi, , hw] = D.cols[k - 1]; return HI[hw[0]].proof(k, hi, ...hw.slice(1)); };
-  const rowBox = e => shown([...trims.filter(([, te]) => te === e).map(([k, , role]) => filled('row-cell',
+  const rowBox = e => shown([...RINGS.filter(r => r.r === e).map(({key: k, role}) => filled('row-cell',
     {item: legendItem(legend, ['', 'exists', 'open', 'exists'][role], role), at: linked(`#k${k}d${e}`, `\\(k = ${k}\\)`)})),
     ...recordGaps().slice(e - 1, e).map(body => {
       const part = filled('row-gaps', {});
@@ -284,25 +187,21 @@ try {
   const SAYS = {exists: factWitness, impossible: factProof, open: (k, e) => together(factWitness(k), factProof(k), searches(2n ** BigInt(k), k + e)),
                 column: k => shown([], [2n ** BigInt(k)]), row: (k, e) => rowBox(e)};
   const cell = (k, e) => {
-    const [swatch, ...words] = legendItem(legend, KIND[kindOf(k, e)], Math.max(0, ...trims.filter(([tk, te]) => tk === k && te === e).map(([, , role]) => role)));
+    const [swatch, ...words] = legendItem(legend, kindOf(k, e), Math.max(0, ...RINGS.filter(r => r.key === k && r.r === e).map(r => r.role)));
     return [swatch, linked(`#k${k}`, `\\(k = ${k}\\)`), ', ', linked(`#d${e}`, `\\(\\delta = ${e}\\)`), ': ', ...words];
   };
   const HEADINGS = {exists: cell, open: cell, impossible: cell, row: (k, e) => [`\\(\\delta = ${e}\\)`], column: k => {
     const [lo, hi] = D.cols[k - 1];
     return [`\\(k = ${k}\\)`, ', ', `\\(n = 2^{${k}}\\)`, ': ', `\\(${lo === hi ? `m^*(2^{${k}}) = ${lo}` : `${lo} \\le m^*(2^{${k}}) \\le ${hi}`}\\)`];
   }};
-  const open = chartPanel({region: panel, chart, ncol: () => K, nrow: E, pin: ts => view.pin(ts),
-    fragment: (c, e) => `${c === null ? '' : `k${c + 1}`}${e === null ? '' : `d${e}`}`,
-    fill: (c, e) => {
-      const k = c + 1, kind = kindAt(c, e);
-      return {kind, heading: HEADINGS[kind](k, e), length: c === null ? null : 2n ** BigInt(k), ...SAYS[kind](k, e)};   // (length since 2026-11-18)
-    }});
-  const view = panZoom({el: chart, out: document.getElementById('pow2-zoom-out'), in: document.getElementById('pow2-zoom-in'),
-    resets: [document.getElementById('pow2-reset')], ncol: () => K, plot: plotBox, targetAt, readout, draw, open});
-  view.redraw();
+  // What a box shows: its heading and its parts, by the target's kind, and its length, a row's none (since 2026-11-18)
+  const box = (k, e, kind) => ({heading: HEADINGS[kind](k, e), length: kind === 'row' ? null : 2n ** BigInt(k), ...SAYS[kind](k, e)});
+  gridChart({cv, ro, panel: document.getElementById('pow2-panel'), zoomIn: document.getElementById('pow2-zoom-in'),
+    zoomOut: document.getElementById('pow2-zoom-out'), caps: document.querySelectorAll('#pow2-caps button'), last: K,
+    columns: cap => Array.from({length: cap}, (_, i) => i + 1), rowsOf, rings: RINGS, nrow: E, letters: ['k', 'δ'], reads: READS, box,
+    fragment: (k, e) => `${k === null ? '' : `k${k}`}${e === null ? '' : `d${e}`}`});
 } catch (e) {
-  ro.textContent = `Error drawing this chart: ${e}`;
-  throw e;
+  fail(e);
 }
 })();
 // Claude's table of the construction behind each inequality of the theorem (Stan Wagon's table, extended, 2026-10-18;
@@ -312,7 +211,6 @@ try {
 // product is a row: its blocks ascending by length, a repeated one written once, as a power (368²) in the power of 2
 // and as count·order (2·9) in the order; a + before every product but the first; the bound's cell spans its rows.
 function recordGaps() {
-  const assert = (ok, ...what) => { if (!ok) throw new Error(JSON.stringify(what).replace(/"/g, "'")); };
   const at = g => POW2.cols.findIndex((c, i) => c[0] >= i + 1 + g) + 1;      // the least k with lo >= k + g; 0 if none
   const factors = p => {                               // a product's blocks, ascending by length, each with its count
     const b = [...p].sort((x, y) => x[0] - y[0] || x[1] - y[1]);

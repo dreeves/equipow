@@ -620,6 +620,300 @@ function chartPanel({region, chart, ncol, nrow, fragment, fill, pin}) {
   return open;
 }
 
+// ---------- what both charts' scripts use (2026-11-23, Opus 5.5: one copy of what each figure's script had its own of) ----------
+// An assertion: when ok is false it throws what, as JSON with ' for " (and BigInts as their digits, as page/appendix.js's)
+const assert = (ok, ...what) => { if (!ok) throw new Error(JSON.stringify(what, (_, v) => typeof v === 'bigint' ? `${v}` : v).replace(/"/g, "'")); };
+const prime = p => { for (let d = 2; d * d <= p; d++) if (p % d === 0) return false; return p >= 2; };
+const sub = k => String(k).replace(/\d/g, d => '₀₁₂₃₄₅₆₇₈₉'[d]);   // a number in subscript digits
+const el = (tag, cls, text) => Object.assign(document.createElement(tag), {className: cls, textContent: text});
+const nw = (...parts) => { const s = el('span', 'nw', ''); s.append(...parts); return s; };   // no wrap
+// A text as a readout's nodes: each run of sub's subscript digits becomes a <sub> of plain digits, which the page's font
+// draws; it has no glyphs for U+2080–2089, and the fallback fonts that drew them differed from digit to digit (Figure
+// 2's readout's own until 2026-11-23, when Figure 1's, which wrote them as they were, came to use it too).
+const subbed = s => s.split(/([₀-₉]+)/).map((t, i) => i % 2 ? el('sub', '', [...t].map(d => '₀₁₂₃₄₅₆₇₈₉'.indexOf(d)).join('')) : t);
+
+// ---------- the charts ----------
+// Both figures' chart (Opus 5.5, 2026-11-23; dreeves: "please DRY up as much as possible between the 2 figures", and "figure
+// 2 loses the automatic y-axis zooming that figure 1 has"): Figure 1's drawing until then (page/mstar-section.js), which
+// Figure 2 did its own way, an svg rect per cell under rows that stayed put.  A chart's columns are keys, rising (n in
+// Figure 1, k in Figure 2): columns(cap), those up to the cap pressed of its caps, whose largest is the data's last key,
+// last (dreeves's README, [BOU], 2026-11-10: "replace the reset-zoom button with "cap:" and then buttons"; a click on a
+// cap makes its key the last column and presses it alone, and on the cap pressed shows every column again, as the reset
+// button did).  Its rows r are counted up from the bottom (m in Figure 1, δ = m − k in Figure 2), and rowsOf(key) gives a
+// column's bounds in rows, [lo, ifhi, hi]: cell (key, r) is green (exists) for r <= lo, gray (open) up to ifhi, open with
+// its upper right triangle in the red of an impossible cell (ifsym: [SYC], 2026-11-11) up to hi, and red (impossible)
+// above.  The rows follow the view (dreeves, 2026-11-10: "however the chart is zoomed, make there always be exactly one
+// fully pink row, ie, zoom in the y direction automatically as a function of the x zoom"): rows 1 to one more than the
+// largest upper bound among the columns in view, sharing the plot's height, so that the top row, and it alone, is
+// impossible in every column of the view; nrow is the most rows a view has.  Pan and zoom act on columns only
+// (panZoom): the view is the interval [u0, u0 + span) of u, column c (from 0), key NS[c], spanning u from c to c + 1.
+// Each device pixel of the plot mixes the colors of the cells it covers, weighted by how much of it each covers, so all
+// the columns can show at once even where they are narrower than a pixel.  rings are the cells ringed in gold, {key, r,
+// role}: the least column known to reach row r (role 1), the least not ruled out (2), or both (3, proven the least, with
+// a gold dot; dreeves's README, 2026-10-30, [GLT]); letters, the columns' letter and the rows'; reads[kind](key, r), what
+// the readout says of a target of each kind, a cell's (exists, open, impossible, ifsym), a column's or a row's (key
+// undefined); box(key, r, kind, keys), what its box shows (chartPanel's fill, less its kind; keys, the columns shown);
+// and fragment(key, r), its box's fragment, key null for a row.  It returns recolumn(control), for a figure's own change
+// of its columns (Figure 1's boxes of what it leaves out, [COM]), as a cap's click does.
+function gridChart({cv, ro, panel, zoomIn, zoomOut, caps, last, columns, rowsOf, rings: RINGS, nrow, letters, reads, box, fragment}) {
+  const fail = chartFail(ro);
+  const CAPS = [...caps].map(button => ({button, cap: +button.dataset.cap}));
+  const pressed = () => CAPS.filter(c => c.button.getAttribute('aria-pressed') === 'true').map(c => c.cap);
+  // the chart's caps: integers from 2 to last, the largest last itself, and one of them pressed
+  assert(CAPS.every(c => Number.isInteger(c.cap) && 2 <= c.cap && c.cap <= last) && Math.max(...CAPS.map(c => c.cap)) === last
+    && pressed().length === 1, CAPS.map(c => c.cap), pressed());
+  let CAP = pressed()[0], NS = columns(CAP);                       // they change when a cap does, or recolumn's caller
+  // Layout in CSS px: the row labels left of the plot, room right of it for the last column label, the plot PLOT tall,
+  // which its rows share (16 rows of ROW until 2026-11-10, as a view whose largest upper bound is 15 still has them), the
+  // tags of the cell read out ROW tall, and the column axis below.
+  const LEFT = 44, RIGHT = 16, TOP = 2, ROW = 14, PLOT = 16 * ROW, AXIS = 30;
+  const UNDER = ['exists', 'open', 'impossible', 'open'];         // the token of a cell's color, by kind: an ifsym cell is an open one with a triangle over it
+  // A target's kind, its box's and since 2026-11-19 its readout's: a cell's by its column's bounds, a column's or a row's
+  const kindAt = (c, r) => c === null ? 'row' : r === null ? 'column' : cellKind(rowsOf(NS[c]), r);
+  const style = getComputedStyle(cv), token = name => style.getPropertyValue(name).trim();
+  const rgb = name => {
+    const h = token(name);
+    assert(/^#[0-9a-f]{6}$/i.test(h), name, h);
+    return [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+  };
+  const cssH = TOP + PLOT + AXIS;
+  const ringed = () => assert(RINGS.every(({key, r}) => (key > CAP || NS.includes(key)) && r <= nrow), RINGS);   // no column ringed up to the cap is left out
+  ringed();
+  // The steps of the column labels: 1, 5, 10, 25, 50, 125, 250 and 500 times the least key all of whose multiples up to
+  // the cap are columns (1 in Figure 2; in Figure 1, 4 for n = 2 and the multiples of 4, 16 for the columns as the page
+  // loads), those of them that label a column (4, 20, 40, 100, 200, 500 and 1000 there, up to 1024; 16, 80, 160, 400,
+  // 800 and 2000 as Figure 1 loads, up to 2048), each with the columns it labels, its multiples, and the least distance
+  // between two of them next to each other, in columns (none for a step with one label, which so has room wherever it
+  // is: under the cap 64 with the multiples of 8 for columns, a phone has room for no two labels of the step 8, and the
+  // step 40 has the one).  Until 2026-11-10 Figure 1's steps were 1 to 125 times the spacing of the last two columns: with
+  // every n a column none of them left room for its labels on a phone, and where few multiples of a step were columns the
+  // labels were few (400 and 800 alone, 1280 px wide, with the odd n shown and the other three boxes checked); Figure 2
+  // labeled every tenth k until 2026-11-23.
+  const ladder = () => {
+    const shown = new Set(NS);
+    const base = NS.find(b => Array.from({length: Math.floor(CAP / b)}, (_, i) => (i + 1) * b).every(n => shown.has(n)));
+    assert(base, NS.length);
+    return [1, 5, 10, 25, 50, 125, 250, 500].map(x => {
+      const at = NS.flatMap((n, c) => n % (x * base) === 0 ? [c] : []);
+      return {step: x * base, at, gap: Math.min(...at.slice(1).map((c, i) => c - at[i]))};
+    }).filter(r => r.at.length > 0);
+  };
+  let LADDER = ladder();
+  cv.style.height = `${cssH}px`;
+  const ctx = cv.getContext('2d'), strip = document.createElement('canvas'), sctx = strip.getContext('2d');
+  let geo = null;                                                  // the last draw's layout
+  const open = chartPanel({region: panel, chart: cv, ncol: () => NS.length, nrow, pin: ts => view.pin(ts),
+    fragment: (c, r) => fragment(c === null ? null : NS[c], r),
+    fill: (c, r) => { const kind = kindAt(c, r); return {kind, ...box(NS[c], r, kind, NS)}; }});
+  const view = panZoom({el: cv, out: zoomOut, in: zoomIn, resets: [], ncol: () => NS.length,
+    plot: () => ({left: geo.L / geo.dpr, width: geo.W / geo.dpr}), targetAt, readout, draw, open});
+
+  // the view [u0, u0 + span), the cell read out (picked) and the target of the box open (pinned)
+  function draw(u0, span, picked, pinned) {
+    const dpr = devicePixelRatio, L = Math.round(LEFT * dpr), R = Math.round(RIGHT * dpr), top = Math.round(TOP * dpr);
+    const tall = Math.round(PLOT * dpr), gap = 1;                  // the plot's height; a row's bottom device px is page surface
+    const W = Math.round(cv.getBoundingClientRect().width * dpr) - L - R;   // the plot's width in device px
+    assert(W > 0, W);
+    cv.width = L + W + R;
+    cv.height = Math.round(cssH * dpr);
+    const B = NS.map(rowsOf);                                      // each column's bounds in rows
+    // The rows of this view, 1 to rows: one more than the largest upper bound among its columns, those it shows any
+    // part of.  Row r runs from Y(r) down to Y(r - 1), in device px, Y(0) being the plot's bottom.
+    const rows = 1 + Math.max(...B.slice(Math.floor(u0), Math.ceil(u0 + span)).map(b => b[2]));
+    const Y = m => top + Math.round((rows - m) * tall / rows);
+    const mid = m => (Y(m) + Y(m - 1) - gap) / 2;                  // the middle of row m's colored part
+    geo = {dpr, L, W, top, tall, rows};
+    // The plot as a strip one device pixel per row, each row then stretched to its height: pixel x covers u from
+    // u0 + x k to u0 + (x + 1) k.
+    const colors = UNDER.map(t => rgb(`--${t}`)), k = span / W, img = sctx.createImageData(W, rows);
+    const mix = new Float64Array(3 * rows);
+    for (let x = 0; x < W; x++) {
+      const a = u0 + x * k, b = Math.min(a + k, NS.length);
+      mix.fill(0);
+      for (let c = Math.floor(a); c < b; c++) {                   // u from c to c + 1: column NS[c]
+        const w = (Math.min(b, c + 1) - Math.max(a, c)) / k;
+        for (let m = 1; m <= rows; m++) {
+          const col = colors[kindIndex(B[c], m)];
+          for (let j = 0; j < 3; j++) mix[3 * (m - 1) + j] += w * col[j];
+        }
+      }
+      for (let m = 1; m <= rows; m++) {
+        const i = 4 * ((rows - m) * W + x);
+        for (let j = 0; j < 3; j++) img.data[i + j] = Math.round(mix[3 * (m - 1) + j]);
+        img.data[i + 3] = 255;
+      }
+    }
+    strip.width = W;
+    strip.height = rows;
+    sctx.putImageData(img, 0, 0);
+    ctx.fillStyle = token('--paper');
+    ctx.fillRect(0, 0, cv.width, cv.height);
+    ctx.imageSmoothingEnabled = false;
+    for (let m = 1; m <= rows; m++) {
+      ctx.drawImage(strip, 0, rows - m, W, 1, L, Y(m), W, Y(m - 1) - Y(m));
+      ctx.fillRect(L, Y(m - 1) - gap, W, gap);
+    }
+    // The ifsym cells ([SYC], 2026-11-11): over each, an open cell in the strip, its upper right triangle in the color
+    // of an impossible cell, within the plot: every cell from the column's ifsym bound up to its upper bound, in the
+    // view's rows, of the columns shown.
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(L, top, W, tall);
+    ctx.clip();
+    ctx.fillStyle = token('--impossible');
+    B.forEach(([, ifhi, hi], c) => {
+      const x0 = L + (c - u0) / k, x1 = L + (c + 1 - u0) / k;
+      for (let m = ifhi + 1; m <= Math.min(hi, rows); m++) {
+        ctx.beginPath();
+        ctx.moveTo(x0, Y(m));
+        ctx.lineTo(x1, Y(m));
+        ctx.lineTo(x1, Y(m - 1) - gap);
+        ctx.closePath();
+        ctx.fill();
+      }
+    });
+    ctx.restore();
+    // A hairline grid (dreeves, 2026-10-29: "maybe when zoomed in enough the full grid could become visible", then of
+    // Figure 2's: "this with hairline grid looks great to me"): with the rows' gaps, a line of page surface one device
+    // px wide at each boundary of whole columns, fading in as columns widen from 4 CSS px to 8, so none shows where they
+    // are narrower (in Figure 2 at every width until 2026-11-23).
+    ctx.globalAlpha = Math.min(Math.max((1 / k / dpr - 4) / 4, 0), 1);
+    for (let c = Math.floor(u0) + 1; c < u0 + span; c++) ctx.fillRect(L + Math.floor((c - u0) / k), top, 1, tall);
+    ctx.globalAlpha = 1;
+    // Axes: on the left, the rows of the first of the steps 1, 5, 10, 25, ... that leaves at least a digit's height and a
+    // CSS px between two labels (every row in Figure 1, whose views have at most 20 rows, 11 CSS px each; in Figure 2,
+    // 33 rows at its full view since 2026-11-23, every fifth there); below, the key under the middle of its column, for
+    // the columns of the first step of LADDER that leaves room for each label: 48 CSS px or more between any two of its
+    // columns next to each other.
+    const serif = token('--serif'), base = top + tall;
+    ctx.fillStyle = token('--muted');
+    ctx.font = `${12 * dpr}px ${serif}`;
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    const digit = ctx.measureText('0'), ink = digit.actualBoundingBoxAscent + digit.actualBoundingBoxDescent;
+    const every = [1, 5, 10, 25, 50, 125, 250, 500].find(s => s * tall / rows >= ink + dpr);
+    for (let m = every; m <= rows; m += every) ctx.fillText(String(m), L - 7 * dpr, mid(m));
+    const rung = LADDER.find(r => r.gap / k >= 48 * dpr);
+    assert(rung, W, span);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    rung.at.filter(c => u0 <= c + 0.5 && c + 0.5 <= u0 + span).forEach(c => {
+      const x = L + (c + 0.5 - u0) / k;
+      ctx.fillRect(Math.round(x - dpr / 2), base, dpr, 4 * dpr);
+      ctx.fillText(String(NS[c]), x, base + 7 * dpr);
+    });
+    ctx.fillStyle = token('--ink');
+    ctx.font = `italic ${15 * dpr}px ${serif}`;
+    ctx.textAlign = 'left';
+    ctx.fillText(letters[0], 2 * dpr, base + 6 * dpr);
+    ctx.textBaseline = 'middle';
+    ctx.fillText(letters[1], 2 * dpr, top + tall / 2);
+    // Rings just outside cells, 2 device px wide: each of RINGS in gold, with a gold dot half the cell's smaller side
+    // across in each proven the least, then the cell read out in ink, and the target of the box open, its cell, column
+    // or row (since 2026-11-04: [c, r], null for every column or every row), each while its row is one of the view's.
+    const ring = ([c, m]) => {
+      const [c0, c1] = c === null ? [0, NS.length] : [c, c + 1], [m0, m1] = m === null ? [1, rows] : [m, m];
+      const x0 = L + (c0 - u0) / k, x1 = L + (c1 - u0) / k;
+      ctx.strokeRect(x0 - dpr, Y(m1) - dpr, x1 - x0 + 2 * dpr, Y(m0 - 1) - Y(m1) - gap + 2 * dpr);
+    };
+    const inRows = ([, m]) => m === null || m <= rows;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(L - 2 * dpr, 0, W + 4 * dpr, base);
+    ctx.clip();
+    ctx.lineWidth = 2 * dpr;
+    ctx.strokeStyle = ctx.fillStyle = token('--record');
+    const rings = RINGS.filter(r => r.key <= CAP && r.r <= rows);   // those of the columns up to the cap, in the view's rows
+    rings.forEach(({key, r}) => ring([NS.indexOf(key), r]));
+    rings.filter(r => r.role === 3).forEach(({key, r}) => {
+      ctx.beginPath();
+      ctx.arc(L + (NS.indexOf(key) + 0.5 - u0) / k, mid(r), Math.min(1 / k, Y(r - 1) - Y(r) - gap) / 4, 0, 2 * Math.PI);
+      ctx.fill();
+    });
+    ctx.strokeStyle = token('--ink');
+    picked.filter(inRows).forEach(ring);                           // outline the cell read out, just outside it
+    pinned.filter(inRows).forEach(ring);                           // and the target of the box open
+    ctx.restore();
+    // The box's caret under its target's column's middle, kept within the plot, or under its row's label (--caret, in
+    // CSS px from the box's left edge inside its border)
+    const left = cv.getBoundingClientRect().left - panel.getBoundingClientRect().left - panel.clientLeft;
+    pinned.forEach(([c]) => panel.style.setProperty('--caret', `${left + (c === null ? LEFT / 2
+      : Math.min(Math.max(L + (c + 0.5 - u0) / k, L), L + W) / dpr)}px`));
+    // The cell read out on the axes (dreeves's README, 2026-11-02: "[HOV] When hovering/clicking on cells in the charts
+    // it'd be nice to highlight the values of m and n (resp., delta and k) on the axes of the chart"): its row and its
+    // key, each in paper on a box of ink as tall as the colored part of a row ROW tall and 3 px wider than the number on
+    // either side, the row over its row's label's place, while its row is one of the view's, and the key on the column
+    // labels' line, under its column's middle while that is in view, as a label's must be, over any label there.  The
+    // row's box is no taller than its row's colored part (since 2026-11-12, when Figure 1 came to open with 19 rows,
+    // under ROW each, and a box ROW tall reached past the plot's bottom).
+    ctx.font = `${12 * dpr}px ${serif}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const pitch = Math.round(ROW * dpr);
+    const tag = (t, x, y, h) => {                                  // the number t, centered at x, y, on a box h tall
+      const w = ctx.measureText(t).width + 6 * dpr;
+      ctx.fillStyle = token('--ink');
+      ctx.fillRect(Math.round(x - w / 2), Math.round(y - h / 2), Math.round(w), h);
+      ctx.fillStyle = token('--paper');
+      ctx.fillText(t, x, y);
+    };
+    // (since 2026-11-19, when a hover on a strip came to read out its column or its row: each number the target read
+    // out has, a cell's row and key, a column's key, a row's row)
+    picked.map(([, m]) => m).filter(m => Number.isInteger(m) && m <= rows)
+      .forEach(m => tag(String(m), L - 7 * dpr - ctx.measureText(String(m)).width / 2, mid(m), Math.min(pitch, Y(m - 1) - Y(m)) - gap));
+    picked.map(([c]) => c).filter(c => Number.isInteger(c) && u0 <= c + 0.5 && c + 0.5 <= u0 + span)   // 13 px down: the column labels' middle, 7 + 12 / 2
+      .forEach(c => tag(String(NS[c]), L + (c + 0.5 - u0) / k, base + 13 * dpr, pitch - gap));
+  }
+
+  // What is at CSS x, y (panZoom's targetAt): a cell, [column, row]; the strip of the column labels under the plot,
+  // [column, null]; the strip of the row labels left of it, [null, row]; or null: the corner between those strips, the
+  // margin right of the plot, the gap above its rows.
+  function targetAt(x, y) {
+    const X = x * geo.dpr - geo.L, Y = y * geo.dpr - geo.top;
+    // the row at Y: as many rows from the top as the view's row boundaries at or above Y, less the plot's top edge
+    const m = geo.rows + 1 - Array.from({length: geo.rows + 1}, (_, j) => Math.round(j * geo.tall / geo.rows)).filter(b => b <= Y).length;
+    const t = [X < 0 ? null : X < geo.W ? Math.floor(view.uAt(x)) : undefined, Y < 0 ? undefined : m >= 1 ? m : null];
+    return t.includes(undefined) || t.every(v => v === null) ? null : t;
+  }
+  function readout(c, r) {                                         // read out the target of column c, key NS[c], and row r
+    ro.replaceChildren(...reads[kindAt(c, r)](NS[c], r));
+  }
+  // The columns changed, with a cap or with the figure's own control (recolumn's caller), at the control clicked: the
+  // columns must hold what the figure checks of them (columns' checks, which fail as at load); the box open under the
+  // chart, whose target is a column of the columns that were, closes as its close button closes it, the focus staying
+  // on the control; then the columns are the new ones, the readout the words it had as the page loaded, and the view
+  // every column.  A click on the cap pressed so shows every column again, as the reset button did.
+  const hint = [...ro.childNodes];
+  const recolumn = control => {
+    try {
+      const ns = columns(CAP);
+      if (!panel.hidden) { panel.querySelector('[data-panel-close]').click(); control.focus(); }
+      NS = ns;
+      LADDER = ladder();
+      ringed();
+      ro.replaceChildren(...hint);
+      view.recolumn();
+    } catch (e) {
+      fail(e);
+    }
+  };
+  CAPS.forEach(({button, cap}) => button.addEventListener('click', () => {
+    CAP = cap;
+    CAPS.forEach(c => c.button.setAttribute('aria-pressed', String(c.cap === CAP)));
+    recolumn(button);
+  }));
+  view.redraw();
+  new ResizeObserver(() => view.redraw()).observe(cv);
+  document.fonts.ready.then(() => view.redraw());
+  return {recolumn};
+}
+// The kinds of a chart's cell, by its column's bounds in rows, [lo, ifhi, hi], and its row r (gridChart, above)
+const KINDS = ['exists', 'open', 'impossible', 'ifsym'];
+const kindIndex = ([lo, ifhi, hi], r) => r <= lo ? 0 : r <= ifhi ? 1 : r <= hi ? 3 : 2;
+const cellKind = (bounds, r) => KINDS[kindIndex(bounds, r)];
+// A chart's failure, loudly: in its readout, and uncaught
+const chartFail = ro => e => { ro.textContent = `Error drawing the chart: ${e}`; throw e; };
+
 // The contents links use each main section's first heading, before deferred KaTeX renders its math. Nested proof
 // headings stay within their section. The labels have one source, and navigation uses the browser's native anchors.
 for (const section of document.querySelectorAll('main > section')) {

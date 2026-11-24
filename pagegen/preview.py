@@ -41,7 +41,7 @@ import os, re, html, json, shutil, subprocess, tempfile
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # the repository's root, above pagegen/
 PREVIEW = os.path.join(ROOT, 'preview.png')
 SIZE = (1200, 630)                                                   # index.html's og:image:width and og:image:height
-ZOOM = '0.345'
+ZOOM = '0.33'           # 0.345 until 2026-11-23, when Table 2 of the powers of 2 gained a sixth table, the firsts past 2^72
 STYLE = ('<style>header > :not(h1), main > :not(header, figure), #page-errors { display: none !important; } '
          'main { padding-block: 1.4rem 0; gap: 1.4rem; } html { zoom: %s; }</style>' % ZOOM)
 HEARD = """<script>

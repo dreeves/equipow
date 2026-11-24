@@ -19,31 +19,26 @@
 // function of the x zoom"): rows 1 to one more than the largest upper bound among the columns in view, sharing the
 // plot's height, so that the top row, and it alone, is impossible in every column of the view.  Each device pixel of the plot mixes the colors of the
 // cells it covers, weighted by how much of it each covers, so all the columns (142 as the page loads) can show at once
-// even where they are narrower than a pixel.
+// even where they are narrower than a pixel.  Since 2026-11-23 page/shared.js draws it (gridChart), and Figure 2 the
+// same way (dreeves: "please DRY up as much as possible between the 2 figures"): this script holds its data's
+// contract, its columns and rows, and what its readout and its boxes say.
 (() => {
 const cv = document.getElementById('mstar-chart'), ro = document.getElementById('mstar-readout');
-const fail = e => { ro.textContent = `Error drawing the chart: ${e}`; throw e; };   // loudly: in the readout, and uncaught
+const fail = chartFail(ro);                                       // loudly: in the readout, and uncaught
 try {
   const D = MSTAR;
-  // The caps ([BOU]): a click on one makes its n the chart's last column, CAP, and presses it alone.
-  const CAPS = [...document.querySelectorAll('#mstar-caps button')].map(button => ({button, cap: +button.dataset.cap}));
-  const pressed = () => CAPS.filter(c => c.button.getAttribute('aria-pressed') === 'true').map(c => c.cap);
-  let CAP = pressed()[0];
   // A box of the list leaves out, while checked, the odd multiples of its factor from its start on, each of which
   // has m*(n) = the order it states.
   const OMIT = [...document.querySelectorAll('#mstar-omit input')].map(box =>
     ({box, factor: +box.dataset.factor, from: +box.dataset.from, order: +box.dataset.order}));
   const leftOut = (n, {factor, from}) => n >= from && n % (2 * factor) === factor;
   const stated = (n, [lo, hi], o) => !o.box.checked || !leftOut(n, o) || (lo === o.order && hi === o.order);
-  const columns = () => Array.from({length: CAP}, (_, i) => i + 1).filter(n => !OMIT.some(o => o.box.checked && leftOut(n, o)));
-  let NS = columns();                                             // it changes when a box or the cap does (the end of this file)
-  // Layout in CSS px: the m labels left of the plot, room right of it for the last n label, the plot PLOT tall, which
-  // its rows share (16 rows of ROW until 2026-11-10, as a view whose largest upper bound is 15 still has them), the
-  // tags of the cell read out ROW tall, and the n axis below.
-  const LEFT = 44, RIGHT = 16, TOP = 2, ROW = 14, PLOT = 16 * ROW, AXIS = 30;
-  const assert = (ok, ...what) => { if (!ok) throw new Error(JSON.stringify(what).replace(/"/g, "'")); };
-  const prime = p => { for (let d = 2; d * d <= p; d++) if (p % d === 0) return false; return p >= 2; };
-  const sub = k => String(k).replace(/\d/g, d => '₀₁₂₃₄₅₆₇₈₉'[d]);
+  // The columns up to the cap (the engine's), which hold what the checked boxes state, as the page loaded (a check that
+  // fails fails loudly then too); they change when a box or the cap does (the end of this file)
+  const columns = cap => {
+    D.cols.forEach((c, i) => OMIT.forEach(o => assert(stated(i + 1, c, o), i + 1, c)));
+    return Array.from({length: cap}, (_, i) => i + 1).filter(n => !OMIT.some(o => o.box.checked && leftOut(n, o)));
+  };
   const loOf = n => ROWS.get(n)[0];                               // a length's lo, by its row (a column's until 2026-11-19)
   const EXPLICIT = new Set(['none', 'example', 'join', 'product']);   // the kinds of lower bound with a sequence behind them (2026-11-18)
   // The reasons of the data contract.  ok(n, lo or hi, ...its arguments) checks one; text(n, lo or hi, ...) gives it in
@@ -145,9 +140,6 @@ try {
   };
   assert(OMIT.length > 0, OMIT.length);                           // the page's list has its boxes
   assert(Number.isInteger(D.nmax) && Number.isInteger(D.mtop) && Array.isArray(D.cols) && D.cols.length === D.nmax, D.nmax, D.mtop);
-  // the page's caps: integers from 2 to nmax, the largest nmax itself, and one of them pressed
-  assert(CAPS.every(c => Number.isInteger(c.cap) && 2 <= c.cap && c.cap <= D.nmax) && Math.max(...CAPS.map(c => c.cap)) === D.nmax
-    && pressed().length === 1, CAPS.map(c => c.cap), pressed());
   // past (since 2026-11-04, for the table of smallest lengths: 1440:16 until 2026-11-10; the Symmetry section's codes
   // longer than nmax since 2026-11-11): [n, lo, hi, loWhy, hiWhy] since 2026-11-19 (Opus 5.5; dreeves: "yes, full
   // anti-magic, add the new entries"), the row of a length past the chart that the page has a sequence of, rising in n,
@@ -188,20 +180,10 @@ try {
   assert(D.examples.map(([n]) => n).join() === [...ROWS].flatMap(([n, [, , lw]]) => lw[0] === 'example' ? [n] : []).join(), 'examples of the rows');
   const CODES = new Map(D.examples.map(([n, code]) => [n, code])), SOURCES = new Map(D.examples.map(([n, , source]) => [n, source]));
 
-  const KIND = ['exists', 'open', 'impossible', 'ifsym'];         // the kinds of cell
-  const UNDER = ['exists', 'open', 'impossible', 'open'];         // the token of a cell's color, by kind: an ifsym cell is an open one with a triangle over it
   const IFHI = D.cols.map(c => c[1]);                             // each column's upper bound if the Symmetry Conjecture holds: its own, or ifsym's
   D.ifsym.forEach(([n, hi]) => { IFHI[n - 1] = hi; });
-  const kindOf = (n, m) => m <= D.cols[n - 1][0] ? 0 : m <= IFHI[n - 1] ? 1 : m <= D.cols[n - 1][1] ? 3 : 2;
-  // A target's kind, its box's and since 2026-11-19 its readout's: a cell's by its column's bounds, a column's or a row's
-  const kindAt = (c, m) => c === null ? 'row' : m === null ? 'column' : KIND[kindOf(NS[c], m)];
-  const style = getComputedStyle(cv), token = name => style.getPropertyValue(name).trim();
-  const rgb = name => {
-    const h = token(name);
-    assert(/^#[0-9a-f]{6}$/i.test(h), name, h);
-    return [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
-  };
-  const T = D.mtop, cssH = TOP + PLOT + AXIS;
+  const rowsOf = n => [D.cols[n - 1][0], IFHI[n - 1], D.cols[n - 1][1]];   // a column's bounds in rows, which are orders m
+  const kindOf = (n, m) => cellKind(rowsOf(n), m);
   // The cells of the table of smallest lengths below, ringed in gold (dreeves's README, 2026-10-30: "[GLT] ... match the
   // "smallest length known" table: green+gold is the smallest *known* n (resp. 2^k) for a give m (resp. delta) and
   // black+gold is the smallest n (resp. 2^k) not ruled out"; a(m − 1) of OEIS A323395 alone from 2026-10-19, dreeves:
@@ -209,65 +191,23 @@ try {
   // the least n whose upper bound allows m, role 2, or both, role 3: the least n of order m, proven, a(m − 1), which
   // also gets a gold dot (Claude's proposal for the indicator, 2026-10-30).
   const RINGS = raised(D.cols, () => 0).flatMap(([known, possible], i) => [...new Set([...known, ...possible])]
-    .sort((x, y) => x - y).map(m => ({n: i + 1, m, role: known.includes(m) + 2 * possible.includes(m)})));
-  const ringed = () => assert(RINGS.every(({n, m}) => (n > CAP || NS.includes(n)) && m <= T), RINGS);   // no box leaves a ringed n out
-  ringed();
-  // The steps of the n labels: 1, 5, 10, 25, 50, 125, 250 and 500 times the least n all of whose multiples up to the cap
-  // are columns (4 for n = 2 and the multiples of 4, 16 for the columns as the page loads), those of them that label
-  // a column (4, 20, 40, 100, 200, 500 and 1000 there, up to 1024; 16, 80, 160, 400, 800 and 2000 as the page loads,
-  // up to 2048), each with the columns it labels, its multiples, and the least distance between two of
-  // them next to each other, in columns (none for a step with one label, which so has room wherever it is: under the
-  // cap 64 with the multiples of 8 for columns, a phone has room for no two labels of the step 8, and the step 40 has
-  // the one).  Until 2026-11-10 the steps were 1 to 125 times the spacing of the last two columns: with every n a
-  // column none of them left room for its labels on a phone, and where few multiples of a step were columns the labels
-  // were few (400 and 800 alone, 1280 px wide, with the odd n shown and the other three boxes checked).
-  const ladder = () => {
-    const shown = new Set(NS);
-    const base = NS.find(b => Array.from({length: Math.floor(CAP / b)}, (_, i) => (i + 1) * b).every(n => shown.has(n)));
-    assert(base, NS.length);
-    return [1, 5, 10, 25, 50, 125, 250, 500].map(x => {
-      const at = NS.flatMap((n, c) => n % (x * base) === 0 ? [c] : []);
-      return {step: x * base, at, gap: Math.min(...at.slice(1).map((c, i) => c - at[i]))};
-    }).filter(r => r.at.length > 0);
-  };
-  let LADDER = ladder();
-  cv.style.height = `${cssH}px`;
-  const ctx = cv.getContext('2d'), strip = document.createElement('canvas'), sctx = strip.getContext('2d');
-  let geo = null;                                                  // the last draw's layout
-  // The boxes under the chart (chartPanel, in page/shared.js; dreeves's README, 2026-11-03, [CEL] and [ROC]): the target
-  // [c, m] is the cell of column c, n = NS[c], and row m; [c, null] the column, at its n label; [null, m] the row, at
-  // its m label; their fragments nN, mM and nNmM.  A cell's box shows that cell's facts, by its kind (dreeves,
-  // 2026-11-18, when for an afternoon every cell's box showed its whole column's entry: "the whole point was to show just
-  // the information for the cell (unless you click the number for the whole column)"): the witness of its column's lower
-  // bound (green: "just give the partition (expandable hex code) for the highest green cell in that cell's column"),
-  // the proof of its upper bound (red: "show the proof for the lowest red cell"), or both, with the searches of its n
-  // and m (black: "maybe just summarize the search efforts so far?"), and an ifsym cell's the bound that holds if the
-  // Symmetry Conjecture does too; a cell whose bound shown is the page's own also shows the entry of n, for its proof
-  // (its facts there hidden in a cell's box, page/style.css, as the box's own parts state them).  A column's box shows
-  // the entry of n in the appendix, its facts and all (since 2026-11-18: page/appendix.js; until then both bounds' parts
-  // and the remarks' entry of n).  The facts are FACTS.mstar's, which the appendix puts in each entry: one code for both.
-  // A row's box shows the row of the order m in the table of smallest lengths, as that table has it (smallestRow), and
-  // the term a(m - 1) of OEIS A323395, which is that order's smallest length ("like a row in [the table of smallest
-  // lengths], giving the smallest n not ruled out and the smallest known n, mention the A323395 sequence"); since
-  // 2026-11-18 also that term if BGPW's Symmetry Conjecture holds, the order's row of Table 5 (smallestBox, in
-  // page/shared.js), and the row's open cells (opened, below), each linked to its box.  A cell's
-  // heading leads with its swatch, kind and gold ring alike, and the legend's words for that swatch, the legend's own
-  // item cloned; its n and m link to the boxes of its column and its row.
+    .sort((x, y) => x - y).map(m => ({key: i + 1, r: m, role: known.includes(m) + 2 * possible.includes(m)})));
   const panel = document.getElementById('mstar-panel'), legend = [...cv.closest('section').querySelectorAll('.legend li')];
   const witness = n => { const [lo, , lw] = ROWS.get(n); return LO[lw[0]].witness(n, lo, ...lw.slice(1)); };   // by its row (2026-11-19)
   const proof = n => { const [, hi, , hw] = ROWS.get(n); return HI[hw[0]].proof(n, hi, ...hw.slice(1)); };
   const ifproof = n => PROOF.ifsym(BigInt(n), `${n}`, IFHI[n - 1], D.ifsym.find(e => e[0] === n)[2]);   // of a column that ifsym lists
   FACTS.mstar = {witness, proof, ifproofs: n => D.ifsym.filter(e => e[0] === n).map(() => ifproof(n))};
   // The legend's item of the cell (n, m), by its kind and the role of its gold ring, if any
-  const item = (n, m) => legendItem(legend, KIND[kindOf(n, m)], Math.max(0, ...RINGS.filter(r => r.n === n && r.m === m).map(r => r.role)));
+  const item = (n, m) => legendItem(legend, kindOf(n, m), Math.max(0, ...RINGS.filter(r => r.key === n && r.r === m).map(r => r.role)));
   // A row's open cells (2026-11-18; dreeves: "clicking the m for a whole row in a chart should gather up all the relevant
   // things for that row"): each column shown whose cell of the row is above its lower bound and at or below its upper
-  // bound, open or ifsym, in order of n: the legend's item for the cell, and n, linked to the cell's box
-  const opened = m => shown(NS.filter(n => D.cols[n - 1][0] < m && m <= D.cols[n - 1][1])
+  // bound, open or ifsym, in order of n: the legend's item for the cell, and n, linked to the cell's box; keys, the
+  // columns shown
+  const opened = (m, keys) => shown(keys.filter(n => D.cols[n - 1][0] < m && m <= D.cols[n - 1][1])
     .map(n => filled('row-cell', {item: item(n, m), at: linked(`#n${n}m${m}`, `\\(n = ${n}\\)`)})));
   const SAYS = {exists: witness, impossible: proof, open: (n, m) => together(witness(n), proof(n), searches(BigInt(n), m)),
                 ifsym: (n, m) => together(witness(n), proof(n), ifproof(n), searches(BigInt(n), m)),   // an open cell's, with the bound if the conjecture holds
-                column: n => shown([], [BigInt(n)]), row: (n, m) => together(smallestBox(m), opened(m))};
+                column: n => shown([], [BigInt(n)]), row: (n, m, keys) => together(smallestBox(m), opened(m, keys))};
   const cell = (n, m) => {
     const [swatch, ...words] = item(n, m);
     return [swatch, linked(`#n${n}`, `\\(n = ${n}\\)`), ', ', linked(`#m${m}`, `\\(m = ${m}\\)`), ': ', ...words];
@@ -276,179 +216,6 @@ try {
     const [lo, hi] = D.cols[n - 1];
     return [`\\(n = ${n}\\)`, ': ', `\\(${lo === hi ? `m^*(${n}) = ${lo}` : `${lo} \\le m^*(${n}) \\le ${hi}`}\\)`];
   }};
-  const open = chartPanel({region: panel, chart: cv, ncol: () => NS.length, nrow: T, pin: ts => view.pin(ts),
-    fragment: (c, m) => `${c === null ? '' : `n${NS[c]}`}${m === null ? '' : `m${m}`}`,
-    fill: (c, m) => {
-      const n = NS[c], kind = kindAt(c, m);
-      return {kind, heading: HEADINGS[kind](n, m), length: c === null ? null : BigInt(n), ...SAYS[kind](n, m)};   // (length since 2026-11-18)
-    }});
-  const view = panZoom({el: cv, out: document.getElementById('mstar-zoom-out'), in: document.getElementById('mstar-zoom-in'),
-    resets: [], ncol: () => NS.length, plot: () => ({left: geo.L / geo.dpr, width: geo.W / geo.dpr}),
-    targetAt, readout, draw, open});
-
-  // the view [u0, u0 + span), the cell read out (picked) and the target of the box open (pinned)
-  function draw(u0, span, picked, pinned) {
-    const dpr = devicePixelRatio, L = Math.round(LEFT * dpr), R = Math.round(RIGHT * dpr), top = Math.round(TOP * dpr);
-    const tall = Math.round(PLOT * dpr), gap = 1;                  // the plot's height; a row's bottom device px is page surface
-    const W = Math.round(cv.getBoundingClientRect().width * dpr) - L - R;   // the plot's width in device px
-    assert(W > 0, W);
-    cv.width = L + W + R;
-    cv.height = Math.round(cssH * dpr);
-    // The rows of this view, 1 to rows: one more than the largest upper bound among its columns, those it shows any
-    // part of.  Row m runs from Y(m) down to Y(m - 1), in device px, Y(0) being the plot's bottom.
-    const rows = 1 + Math.max(...NS.slice(Math.floor(u0), Math.ceil(u0 + span)).map(n => D.cols[n - 1][1]));
-    const Y = m => top + Math.round((rows - m) * tall / rows);
-    const mid = m => (Y(m) + Y(m - 1) - gap) / 2;                  // the middle of row m's colored part
-    geo = {dpr, L, W, top, tall, rows};
-    // The plot as a strip one device pixel per row, each row then stretched to its height: pixel x covers u from
-    // u0 + x k to u0 + (x + 1) k.
-    const colors = UNDER.map(t => rgb(`--${t}`)), k = span / W, img = sctx.createImageData(W, rows);
-    const mix = new Float64Array(3 * rows);
-    for (let x = 0; x < W; x++) {
-      const a = u0 + x * k, b = Math.min(a + k, NS.length);
-      mix.fill(0);
-      for (let c = Math.floor(a); c < b; c++) {                   // u from c to c + 1: column n = NS[c]
-        const w = (Math.min(b, c + 1) - Math.max(a, c)) / k;
-        for (let m = 1; m <= rows; m++) {
-          const col = colors[kindOf(NS[c], m)];
-          for (let j = 0; j < 3; j++) mix[3 * (m - 1) + j] += w * col[j];
-        }
-      }
-      for (let m = 1; m <= rows; m++) {
-        const i = 4 * ((rows - m) * W + x);
-        for (let j = 0; j < 3; j++) img.data[i + j] = Math.round(mix[3 * (m - 1) + j]);
-        img.data[i + 3] = 255;
-      }
-    }
-    strip.width = W;
-    strip.height = rows;
-    sctx.putImageData(img, 0, 0);
-    ctx.fillStyle = token('--paper');
-    ctx.fillRect(0, 0, cv.width, cv.height);
-    ctx.imageSmoothingEnabled = false;
-    for (let m = 1; m <= rows; m++) {
-      ctx.drawImage(strip, 0, rows - m, W, 1, L, Y(m), W, Y(m - 1) - Y(m));
-      ctx.fillRect(L, Y(m - 1) - gap, W, gap);
-    }
-    // The ifsym cells ([SYC], 2026-11-11): over each, an open cell in the strip, its upper right triangle in the color
-    // of an impossible cell, within the plot: every cell from the column's ifsym bound up to its upper bound, in the
-    // view's rows, of the columns shown.
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(L, top, W, tall);
-    ctx.clip();
-    ctx.fillStyle = token('--impossible');
-    D.ifsym.filter(([n]) => NS.includes(n)).forEach(([n, hi]) => {
-      const c = NS.indexOf(n), x0 = L + (c - u0) / k, x1 = L + (c + 1 - u0) / k;
-      for (let m = hi + 1; m <= Math.min(D.cols[n - 1][1], rows); m++) {
-        ctx.beginPath();
-        ctx.moveTo(x0, Y(m));
-        ctx.lineTo(x1, Y(m));
-        ctx.lineTo(x1, Y(m - 1) - gap);
-        ctx.closePath();
-        ctx.fill();
-      }
-    });
-    ctx.restore();
-    // A hairline grid (dreeves, 2026-10-29: "maybe when zoomed in enough the full grid could become visible", then of
-    // the powers-of-2 chart's: "this with hairline grid looks great to me"): with the rows' gaps, a line of page
-    // surface one device px wide at each boundary of whole columns, fading in as columns widen from 4 CSS px to 8, so
-    // none shows at the full view.
-    ctx.globalAlpha = Math.min(Math.max((1 / k / dpr - 4) / 4, 0), 1);
-    for (let c = Math.floor(u0) + 1; c < u0 + span; c++) ctx.fillRect(L + Math.floor((c - u0) / k), top, 1, tall);
-    ctx.globalAlpha = 1;
-    // Axes: every m on the left; below, n under the middle of its column, for the columns of the first step of LADDER
-    // that leaves room for each label: 48 CSS px or more between any two of its columns next to each other.
-    const serif = token('--serif'), base = top + tall;
-    ctx.fillStyle = token('--muted');
-    ctx.font = `${12 * dpr}px ${serif}`;
-    ctx.textAlign = 'right';
-    ctx.textBaseline = 'middle';
-    for (let m = 1; m <= rows; m++) ctx.fillText(String(m), L - 7 * dpr, mid(m));
-    const rung = LADDER.find(r => r.gap / k >= 48 * dpr);
-    assert(rung, W, span);
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'top';
-    rung.at.filter(c => u0 <= c + 0.5 && c + 0.5 <= u0 + span).forEach(c => {
-      const x = L + (c + 0.5 - u0) / k;
-      ctx.fillRect(Math.round(x - dpr / 2), base, dpr, 4 * dpr);
-      ctx.fillText(String(NS[c]), x, base + 7 * dpr);
-    });
-    ctx.fillStyle = token('--ink');
-    ctx.font = `italic ${15 * dpr}px ${serif}`;
-    ctx.textAlign = 'left';
-    ctx.fillText('n', 2 * dpr, base + 6 * dpr);
-    ctx.textBaseline = 'middle';
-    ctx.fillText('m', 2 * dpr, top + tall / 2);
-    // Rings just outside cells, 2 device px wide: each of RINGS in gold, with a gold dot half the cell's smaller side
-    // across in each proven the least, then the cell read out in ink, and the target of the box open, its cell, column
-    // or row (since 2026-11-04: [c, m], null for every column or every row), each while its row is one of the view's.
-    const ring = ([c, m]) => {
-      const [c0, c1] = c === null ? [0, NS.length] : [c, c + 1], [m0, m1] = m === null ? [1, rows] : [m, m];
-      const x0 = L + (c0 - u0) / k, x1 = L + (c1 - u0) / k;
-      ctx.strokeRect(x0 - dpr, Y(m1) - dpr, x1 - x0 + 2 * dpr, Y(m0 - 1) - Y(m1) - gap + 2 * dpr);
-    };
-    const inRows = ([, m]) => m === null || m <= rows;
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(L - 2 * dpr, 0, W + 4 * dpr, base);
-    ctx.clip();
-    ctx.lineWidth = 2 * dpr;
-    ctx.strokeStyle = ctx.fillStyle = token('--record');
-    const rings = RINGS.filter(r => r.n <= CAP && r.m <= rows);     // those of the columns up to the cap, in the view's rows
-    rings.forEach(({n, m}) => ring([NS.indexOf(n), m]));
-    rings.filter(r => r.role === 3).forEach(({n, m}) => {
-      ctx.beginPath();
-      ctx.arc(L + (NS.indexOf(n) + 0.5 - u0) / k, mid(m), Math.min(1 / k, Y(m - 1) - Y(m) - gap) / 4, 0, 2 * Math.PI);
-      ctx.fill();
-    });
-    ctx.strokeStyle = token('--ink');
-    picked.filter(inRows).forEach(ring);                           // outline the cell read out, just outside it
-    pinned.filter(inRows).forEach(ring);                           // and the target of the box open
-    ctx.restore();
-    // The box's caret under its target's column's middle, kept within the plot, or under its row's m label (--caret, in
-    // CSS px from the box's left edge inside its border)
-    const left = cv.getBoundingClientRect().left - panel.getBoundingClientRect().left - panel.clientLeft;
-    pinned.forEach(([c]) => panel.style.setProperty('--caret', `${left + (c === null ? LEFT / 2
-      : Math.min(Math.max(L + (c + 0.5 - u0) / k, L), L + W) / dpr)}px`));
-    // The cell read out on the axes (dreeves's README, 2026-11-02: "[HOV] When hovering/clicking on cells in the charts
-    // it'd be nice to highlight the values of m and n (resp., delta and k) on the axes of the chart"): its m and its n,
-    // each in paper on a box of ink as tall as the colored part of a row ROW tall and 3 px wider than the number on
-    // either side, the m over its row's m label, while its row is one of the view's, and the n on the n labels' line,
-    // under its column's middle while that is in view, as a label's must be, over any label there.  The m's box is
-    // no taller than its row's colored part (since 2026-11-12, when the chart came to open with 19 rows, under ROW
-    // each, and a box ROW tall reached past the plot's bottom).  The chart of powers of 2 tags its δ and k the same way.
-    ctx.font = `${12 * dpr}px ${serif}`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    const pitch = Math.round(ROW * dpr);
-    const tag = (t, x, y, h) => {                                  // the number t, centered at x, y, on a box h tall
-      const w = ctx.measureText(t).width + 6 * dpr;
-      ctx.fillStyle = token('--ink');
-      ctx.fillRect(Math.round(x - w / 2), Math.round(y - h / 2), Math.round(w), h);
-      ctx.fillStyle = token('--paper');
-      ctx.fillText(t, x, y);
-    };
-    // (since 2026-11-19, when a hover on a strip came to read out its column or its row: each number the target read
-    // out has, a cell's m and n, a column's n, a row's m)
-    picked.map(([, m]) => m).filter(m => Number.isInteger(m) && m <= rows)
-      .forEach(m => tag(String(m), L - 7 * dpr - ctx.measureText(String(m)).width / 2, mid(m), Math.min(pitch, Y(m - 1) - Y(m)) - gap));
-    picked.map(([c]) => c).filter(c => Number.isInteger(c) && u0 <= c + 0.5 && c + 0.5 <= u0 + span)   // 13 px down: the n labels' middle, 7 + 12 / 2
-      .forEach(c => tag(String(NS[c]), L + (c + 0.5 - u0) / k, base + 13 * dpr, pitch - gap));
-  }
-
-  // What is at CSS x, y (panZoom's targetAt): a cell, [column, m]; the strip of the n labels under the plot, [column,
-  // null]; the strip of the m labels left of it, [null, m]; or null: the corner between those strips, the margin right
-  // of the plot, the gap above its rows.
-  function targetAt(x, y) {
-    const X = x * geo.dpr - geo.L, Y = y * geo.dpr - geo.top;
-    // the row at Y: as many rows from the top as the view's row boundaries at or above Y, less the plot's top edge
-    const m = geo.rows + 1 - Array.from({length: geo.rows + 1}, (_, j) => Math.round(j * geo.tall / geo.rows)).filter(b => b <= Y).length;
-    const t = [X < 0 ? null : X < geo.W ? Math.floor(view.uAt(x)) : undefined, Y < 0 ? undefined : m >= 1 ? m : null];
-    return t.includes(undefined) || t.every(v => v === null) ? null : t;
-  }
-  const el = (tag, text) => Object.assign(document.createElement(tag), {textContent: text});
-  const nw = (...parts) => { const s = el('span', ''); s.className = 'nw'; s.append(...parts); return s; };   // no wrap
   const swatch = document.createElement('span');
   const NOTES = {                                                  // the readout's note on a ringed cell, by its role
     // Readout note on a green cell ringed in gold; says its n is the least known to reach order m
@@ -459,7 +226,7 @@ try {
     3: m => `the smallest n of order ${m}: a(${m - 1}) of OEIS A323395`,
   };
   const bounds = n => {                                            // m*(n)'s bounds as the readout writes them
-    const [lo, hi] = D.cols[n - 1], mstar = [el('i', 'm'), el('sup', '*'), `(${n})`];
+    const [lo, hi] = D.cols[n - 1], mstar = [el('i', '', 'm'), el('sup', '', '*'), `(${n})`];
     return nw(...(lo === hi ? [...mstar, ` = ${lo}`] : [`${lo} ≤ `, ...mstar, ` ≤ ${hi}`]));
   };
   function cellOut(n, m) {                                         // the readout of the cell of n and m
@@ -467,49 +234,24 @@ try {
     const why = [() => LO[lw[0]].text(n, lo, ...lw.slice(1)), () => HI[hw[0]].text(n, hi, ...hw.slice(1))];
     // TODO: readout reason by Fable 5.2 (2026-11-11, [SYC]), of an ifsym cell; says the order above the column's bound under BGPW's Symmetry Conjecture is ruled out if that conjecture holds, naming the program that checks the proofs
     const ifwhy = () => `order ${IFHI[n - 1] + 1} ruled out if the Symmetry Conjecture holds (${D.ifsym.find(e => e[0] === n)[2]})`;
-    const rings = RINGS.filter(r => r.n === n && r.m === m);        // none or one
-    swatch.className = `swatch ${KIND[kind]}`;
+    const rings = RINGS.filter(r => r.key === n && r.r === m);      // none or one
+    swatch.className = `swatch ${kind}`;
     swatch.classList.toggle('record', rings.length > 0);
     swatch.classList.toggle('proven', rings.some(r => r.role === 3));
-    return [swatch, nw(el('i', 'n'), ` = ${n}, `, el('i', 'm'), ` = ${m}`), ' · ', bounds(n), ' · ',
-      [[why[0]], why, [why[1]], [...why, ifwhy]][kind].map(f => f()).join(' · '), ...rings.map(r => ` · ${NOTES[r.role](m)}`)];
+    return [swatch, nw(el('i', '', 'n'), ` = ${n}, `, el('i', '', 'm'), ` = ${m}`), ' · ', bounds(n), ' · ',
+      ...subbed({exists: [why[0]], open: why, impossible: [why[1]], ifsym: [...why, ifwhy]}[kind].map(f => f()).join(' · ')), ...rings.map(r => ` · ${NOTES[r.role](m)}`)];
   }
   // What the readout says of the target read out, by its kind (since 2026-11-19, when a hover on a strip came to read out
   // its column or its row, what a click there opens): a cell's n and m, bounds, reasons and ring's note; a column's n and
   // bounds, and a row's m, as their boxes' headings have them
   const READS = {exists: cellOut, open: cellOut, impossible: cellOut, ifsym: cellOut,
-                column: n => [nw(el('i', 'n'), ` = ${n}`), ' · ', bounds(n)], row: (n, m) => [nw(el('i', 'm'), ` = ${m}`)]};
-  function readout(c, m) {                                         // read out the target of column c, n = NS[c], and row m
-    ro.replaceChildren(...READS[kindAt(c, m)](NS[c], m));
-  }
-  // The columns changed, with a box of the list ([COM]) or with the cap ([BOU]), at the control clicked: the data must
-  // hold what the checked boxes state, as when the page loaded, or the change fails as that does; the box open under
-  // the chart, whose target is a column of the columns that were, closes as its close button closes it, the focus
-  // staying on the control; then the columns are the new ones, the readout the words it had as the page loaded, and
-  // the view every column.  A click on the cap pressed so shows every column again, as the reset button did.
-  const hint = [...ro.childNodes];
-  const recolumn = control => {
-    try {
-      D.cols.forEach((c, i) => OMIT.forEach(o => assert(stated(i + 1, c, o), i + 1, c)));
-      if (!panel.hidden) { panel.querySelector('[data-panel-close]').click(); control.focus(); }
-      NS = columns();
-      LADDER = ladder();
-      ringed();
-      ro.replaceChildren(...hint);
-      view.recolumn();
-    } catch (e) {
-      fail(e);
-    }
-  };
-  OMIT.forEach(({box}) => box.addEventListener('change', () => recolumn(box)));
-  CAPS.forEach(({button, cap}) => button.addEventListener('click', () => {
-    CAP = cap;
-    CAPS.forEach(c => c.button.setAttribute('aria-pressed', String(c.cap === CAP)));
-    recolumn(button);
-  }));
-  view.redraw();
-  new ResizeObserver(() => view.redraw()).observe(cv);
-  document.fonts.ready.then(() => view.redraw());
+                column: n => [nw(el('i', '', 'n'), ` = ${n}`), ' · ', bounds(n)], row: (n, m) => [nw(el('i', '', 'm'), ` = ${m}`)]};
+  // What a box shows: its heading and its parts, by the target's kind, and its length, a row's none (since 2026-11-18)
+  const box = (n, m, kind, keys) => ({heading: HEADINGS[kind](n, m), length: kind === 'row' ? null : BigInt(n), ...SAYS[kind](n, m, keys)});
+  const chart = gridChart({cv, ro, panel, zoomIn: document.getElementById('mstar-zoom-in'), zoomOut: document.getElementById('mstar-zoom-out'),
+    caps: document.querySelectorAll('#mstar-caps button'), last: D.nmax, columns, rowsOf, rings: RINGS, nrow: D.mtop,
+    letters: ['n', 'm'], reads: READS, box, fragment: (n, m) => `${n === null ? '' : `n${n}`}${m === null ? '' : `m${m}`}`});
+  OMIT.forEach(o => o.box.addEventListener('change', () => chart.recolumn(o.box)));   // a box of the list changes the columns ([COM])
 } catch (e) {
   fail(e);
 }

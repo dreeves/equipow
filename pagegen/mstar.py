@@ -257,7 +257,9 @@ NEW = {240: (10, 10, 'c'), 288: (9, 9, 'j'),
        2 ** 58: (67, 71, 'ca'), 2 ** 59: (68, 73, 'ca'), 2 ** 60: (69, 74, 'ca'), 2 ** 61: (71, 75, 'ca'), 2 ** 63: (73, 78, 'ca'), 2 ** 65: (75, 81, 'cf'),
        2 ** 66: (76, 82, 'cf'), 2 ** 67: (77, 83, 'ca'),   # 2^67: 76 until 2026-11-21, when it became the first for excess 10
        2 ** 68: (78, 84, 'ca'), 2 ** 69: (80, 85, 'ca'), 2 ** 71: (82, 88, 'ca'),   # 81 until the morning of 2026-11-21, when 2^71 became the first for excess 11 (2^72: 82 until then)
-       2 ** 72: (83, 89, 'ca')}
+       2 ** 72: (83, 89, 'ca'),
+       # (Opus 5.5, 2026-11-23: the firsts for excess 12 to 20, once Figure 2 reaches 2^128, each a product of two lower columns' joins)
+       2 ** 74: (86, 92, 'ca'), 2 ** 82: (95, 102, 'ca'), 2 ** 87: (101, 108, 'ca'), 2 ** 95: (110, 118, 'ca'), 2 ** 98: (114, 122, 'ca'), 2 ** 106: (123, 132, 'ca'), 2 ** 111: (129, 139, 'ca'), 2 ** 119: (138, 149, 'ca'), 2 ** 122: (142, 152, 'ca')}
 # EXAMPLE_BY[n]: who found the example of order NEW[n][0] at n, as the page's remarks credit it, for each n whose lo
 # is that cited value (no sequence of that order is here; columns() asserts that these are exactly those n).  A cited
 # lo's ["page", who] names whose example it is, and a cited hi's whose proof, the cell's class.  At 496 they differ:

@@ -481,10 +481,13 @@ for (const k of ['error', 'warn']) {
   const f = console[k].bind(console);
   console[k] = (...a) => { __errors.push(k + ': ' + a.map(String).join(' ')); f(...a); };
 }
+// (the m*(n) chart's canvas alone since 2026-11-23, Opus 5.5, a harness fix, not a spec change: Figure 2 is drawn on a canvas
+// of its own by the same code since then, and its texts are its own)
 const __fillText = CanvasRenderingContext2D.prototype.fillText;
 CanvasRenderingContext2D.prototype.fillText = function (t, x, y, ...rest) {
   if (this.canvas.id === 'mstar-chart' && this.textAlign === 'right' && /^\d+$/.test(t)) __rows.push(y);
-  __texts.push(String(t)); __fills.push([String(t), x, y, this.fillStyle]); return __fillText.call(this, t, x, y, ...rest); };
+  if (this.canvas.id === 'mstar-chart') { __texts.push(String(t)); __fills.push([String(t), x, y, this.fillStyle]); }
+  return __fillText.call(this, t, x, y, ...rest); };
 // The rows of the m*(n) chart as its last draw left them.  Since 2026-11-10 they follow the view (dreeves: "however the
 // chart is zoomed, make there always be exactly one fully pink row, ie, zoom in the y direction automatically as a
 // function of the x zoom"): rows 1 to one more than the largest upper bound among the columns in view, sharing the
@@ -3008,9 +3011,17 @@ def pow2_page_follows(cols, text):
     def lifted(ps, t):
         """Each product of ps times tau_t: its tau_j, if it has one, becomes tau_(j + t)."""
         return [[b for b in p if b[0] != 2 ** b[1]] + [[2 ** j, j] for j in [t + sum(m for n, m in p if n == 2 ** m)] if j] for p in ps]
-    for k in range(min(firsts.values()), len(cols) + 1):       # each column from the first first on: the lift of its first's join
+    # Spec change (Opus 5.5, 2026-11-23; dreeves: "it never made sense to hard-code 72"): each column from the first first on is the lift of its first's
+    # join, or (past the lifts, as from 2^74 once the chart reaches 2^128) the product of two lower columns' joins, all their pairwise products, at the
+    # sum of their bounds; until then the lift alone.  (times: pow2.py's product of two products, the tau factors merged.)
+    join = lambda c, a: [[[2 ** a, a]]] if c[2][0] == 'thue-morse' else c[2][1]
+    times = lambda p, q: sorted([b for b in p + q if b[0] != 2 ** b[1]], key=lambda b: -b[0]) + [[2 ** t, t] for t in [sum(m for n, m in p + q if n == 2 ** m)] if t]
+    for k in range(min(firsts.values()), len(cols) + 1):
         K0 = first_of(k)
-        assert cols[k - 1][2] == ['joins', lifted(cols[K0 - 1][2][1], k - K0)], (k, K0, cols[k - 1][2])
+        products = sorted(map(sorted, cols[k - 1][2][1]))
+        assert cols[k - 1][2] == ['joins', lifted(cols[K0 - 1][2][1], k - K0)] or any(
+            cols[a - 1][0] + cols[k - a - 1][0] == cols[k - 1][0] and products == sorted(sorted(times(p, q)) for p in join(cols[a - 1], a) for q in join(cols[k - a - 1], k - a))
+            for a in range(1, k // 2 + 1)), (k, K0, cols[k - 1][2])
     entries = pow2_entries(text)
     assert {K for K in firsts.values() if K >= ENTRIES_FROM} <= set(entries), (firsts, entries)
     for k in entries:
@@ -4138,21 +4149,20 @@ def q_zoom_buttons_sit_beside_show_all():
 
 # The reset buttons that each chart's script hands to panZoom, as its source has them: the chart of powers of 2 its ↺,
 # the m*(n) chart none since 2026-11-10, when its caps took that button's place ([BOU]).
-RESETS = {'mstar': '', 'pow2': "document.getElementById('pow2-reset')"}
-
-
 def q_both_charts_share_one_pan_and_zoom():
     # Replicata: index.html: its scripts, the sections of the two charts (mstar and pow2) and its stylesheet (the
     # scripts and the stylesheet files in page/ since 2026-10-31, inline before).
     # Expectata (dreeves's README, 2026-10-30: "[ZOO] For anti-magic/consistency, have the same zoom controls on both
-    # charts"): one script, the first after </main>, defines function panZoom, the pan and zoom of both charts,
-    # and nothing else; each chart's script calls it once, with its own chart (#mstar-chart, #pow2-chart) and its own
-    # buttons; each section holds a div of class zoom that starts with the same two buttons, − and +, the same but for
-    # their ids' prefixes (mstar- and pow2-), and then has the reset button ↺ (the chart of powers of 2) or the caps
-    # (the m*(n) chart, since 2026-11-10 at dreeves's word, README [BOU]: "replace the reset-zoom button with "cap:" and
-    # then buttons"; the same three buttons in both until then), the reset buttons that each chart hands to panZoom being
-    # those; one rule styles those buttons, .zoom button (one their grayed-out look, and one the cap pressed); and
-    # each chart takes the keys (tabindex 0).  Which of the two charts each zooms is quals_pow2_page's
+    # charts"): one script, the first after </main>, defines function panZoom, the pan and zoom of both charts; it
+    # also defines gridChart, the drawing of both charts, which calls panZoom once, with no reset button, and each
+    # chart's script calls gridChart once, with its own chart (#mstar-chart, #pow2-chart), its own buttons and its own
+    # caps (Spec change, Opus 5.5, 2026-11-23; dreeves: "please DRY up as much as possible between the 2 figures": until
+    # then each chart's script called panZoom itself, and the chart of powers of 2 handed it its reset button ↺); each
+    # section holds a div of class zoom that starts with the same two buttons, − and +, the same but for their ids'
+    # prefixes (mstar- and pow2-), and then has the caps (the m*(n) chart's since 2026-11-10 at dreeves's word, README
+    # [BOU]: "replace the reset-zoom button with "cap:" and then buttons", the chart of powers of 2's since 2026-11-23,
+    # in place of its ↺); one rule styles those buttons, .zoom button (one their grayed-out look, and one the cap
+    # pressed); and each chart takes the keys (tabindex 0).  Which of the two charts each zooms is quals_pow2_page's
     # q_zoom_controls_zoom_their_own_chart; how the m*(n) chart pans and zooms is the browser quals here.
     # Resultata before: only the m*(n) chart could zoom, from code of its own.
     text = page()
@@ -4160,20 +4170,22 @@ def q_both_charts_share_one_pan_and_zoom():
     own = page_scripts(body)
     shared = re.fullmatch(r'(?://[^\n]*\n)*function panZoom\(\{[^\n]*\}\) \{\n.*\n\}\n', own[0], re.S)
     assert shared and sum('function panZoom(' in js for js in own) == 1, own[0][:400]
+    assert re.findall(r'panZoom\(\{el: cv, out: zoomOut, in: zoomIn, resets: \[\],', own[0]) != [] and sum(js.count('panZoom({el:') for js in own) == 1, 'panZoom'
     for chart, prefix in (('mstar-chart', 'mstar'), ('pow2-chart', 'pow2')):
         [js] = [s for s in own if f"getElementById('{chart}')" in s]
-        calls = re.findall(r'panZoom\(\{el: (\w+), out: document\.getElementById\(\'([\w-]+)\'\), in: document\.getElementById\(\'([\w-]+)\'\),\s*'
-                           r'resets: \[([^\]]*)\]', js)
-        assert js.count('panZoom(') == 1 and len(calls) == 1, (chart, calls)
-        assert calls[0][1:] == (f'{prefix}-zoom-out', f'{prefix}-zoom-in', RESETS[prefix]), (chart, calls)
-        assert re.search(rf'\b{calls[0][0]} = document\.getElementById\(\'{chart}\'\)', js), (chart, calls)
+        calls = re.findall(r'gridChart\(\{cv, ro, panel[^,]*, zoomIn: document\.getElementById\(\'([\w-]+)\'\),\s*'
+                           r'zoomOut: document\.getElementById\(\'([\w-]+)\'\),\s*caps: document\.querySelectorAll\(\'#([\w-]+) button\'\)', js)
+        assert js.count('gridChart(') == 1 and len(calls) == 1, (chart, calls)
+        assert calls[0] == (f'{prefix}-zoom-in', f'{prefix}-zoom-out', f'{prefix}-caps'), (chart, calls)
+        assert re.search(rf'\bcv = document\.getElementById\(\'{chart}\'\)', js), chart
     groups = []
     for prefix in ('mstar', 'pow2'):
         sec = re.search(rf'<section class="{prefix}" .*?</section>', text, re.S).group(0)
         [z] = re.findall(r'<div class="zoom">(.*?)</div>', sec, re.S)
         z = ' '.join(re.sub(r'<!--.*?-->', '', z, flags=re.S).split()).replace(f'id="{prefix}-', 'id="')
         assert re.findall(r'<button type="button" id="([\w-]+)"[^>]*>([^<]*)</button>', z) == [
-            ('zoom-out', '−'), ('zoom-in', '+')] + [('reset', '↺')] * (prefix == 'pow2'), (prefix, z)
+            ('zoom-out', '−'), ('zoom-in', '+')], (prefix, z)
+        assert f'<span class="caps" id="{prefix}-caps">' in sec, prefix
         groups.append(z[:z.index('</button>', z.index('zoom-in'))])
         assert re.search(rf'<(?:canvas|div) id="{prefix}-chart"[^>]* tabindex="0"', sec), prefix
     assert groups[0] == groups[1], groups

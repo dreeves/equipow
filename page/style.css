@@ -537,15 +537,15 @@ blockquote.claude .attrib { color: var(--muted); }
 #mstar-chart, #pow2-chart { touch-action: pan-y; cursor: grab; }
 #mstar-chart:active, #pow2-chart:active { cursor: grabbing; }
 #mstar-chart:focus-visible, #pow2-chart:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
-#mstar-chart { display: block; width: 100%; }
-#mstar-readout { min-height: 3lh; max-width: none; font-size: 0.9375rem; font-variant-numeric: tabular-nums lining-nums; }
-#mstar-readout .swatch { margin-right: 0.5rem; vertical-align: -0.1em; }
+/* Both charts' canvases, drawn by page/shared.js (gridChart; Figure 2's since 2026-11-23, an svg and its labels' own
+   elements until then), and their readouts */
+#mstar-chart, #pow2-chart { display: block; width: 100%; }
+#mstar-readout, #pow2-readout { min-height: 3lh; max-width: none; font-size: 0.9375rem; font-variant-numeric: tabular-nums lining-nums; }
+#mstar-readout .swatch, #pow2-readout .swatch { margin-right: 0.5rem; vertical-align: -0.1em; }
 
-/* Claude's chart of the bounds on m*(2^k) − k for k up to 72: one svg of 72 columns, those in view (all, until it is
-   zoomed) stretched to the plot's width, drawn by the script at the end from pow2.js, with the e labels left of it and the k labels below.  As in the m*(n)
-   chart, rows are 14 px tall, the bottom device pixel of each page surface, as is a line one device pixel wide between
-   columns (a hairline grid, 2026-10-29), and the plot has 44 px of gutter on its left and 16 px on its right, so the
-   two plots line up. */
+/* Claude's chart of the bounds on m*(2^k) − k: a canvas that page/shared.js draws as it draws the m*(n) chart's (since
+   2026-11-23; until then one svg of a rect per cell, its labels, rings and tags elements of their own, styled here),
+   so the two plots line up. */
 .pow2 { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; }
 /* Claude's table of the construction behind each inequality of the theorem, ruled as the table of smallest lengths: a record
    gap's products one per row, its bound's cell spanning them, each gap a tbody of its own so that the rules fall
@@ -554,39 +554,6 @@ blockquote.claude .attrib { color: var(--muted); }
 .pow2-gaps th, .pow2-gaps td { border-left: 1px solid var(--rule); padding: 0.3rem 0.7rem; text-align: left; vertical-align: baseline; white-space: nowrap; }
 .pow2-gaps th { font-weight: 400; }
 .pow2-gaps thead, .pow2-gaps tbody { border-bottom: 1px solid var(--rule); }
-#pow2-chart {
-  display: grid;
-  grid-template-columns: 44px minmax(0, 1fr) 16px;
-  grid-template-rows: auto 30px;
-  font-size: 12px;
-  line-height: 12px;
-  color: var(--muted);
-}
-#pow2-chart svg { display: block; width: 100%; shape-rendering: crispEdges; }
-#pow2-chart rect.exists { fill: var(--exists); }
-#pow2-chart rect.open { fill: var(--open); }
-#pow2-chart rect.impossible { fill: var(--impossible); }
-#pow2-chart line { stroke: var(--paper); vector-effect: non-scaling-stroke; pointer-events: none; }  /* between columns */
-.pow2-es { grid-area: 1 / 1; position: relative; }
-.pow2-es span { position: absolute; right: 7px; }
-.pow2-es i { position: absolute; left: 2px; top: 50%; transform: translateY(-50%); font-size: 15px; color: var(--ink); }
-.pow2-plot { grid-area: 1 / 2; position: relative; }
-.pow2-frame { position: absolute; inset: -2px; overflow: hidden; pointer-events: none; }  /* 2 px around the plot, it clips the rings and the outline where the view ends */
-.pow2-outline { position: absolute; border: 2px solid var(--ink); pointer-events: none; }  /* the cell read out */
-.pow2-dot { position: absolute; aspect-ratio: 1; border-radius: 50%; background: var(--record); transform: translate(-50%, -50%); pointer-events: none; }  /* in a cell proven the least */
-.pow2-trim { position: absolute; border: solid var(--record); border-width: 2px 1px; pointer-events: none; }  /* a bound the theorem states: in the gaps above and below, 1 px at the sides */
-.pow2-k { grid-area: 2 / 1; padding: 6px 0 0 2px; font-size: 15px; color: var(--ink); }
-.pow2-ks { grid-area: 2 / 2; position: relative; }
-.pow2-ks span { position: absolute; transform: translateX(-50%); }
-.pow2-tick { top: 0; width: 1px; height: 4px; background: var(--muted); }
-.pow2-klabel { top: 7px; }
-/* The cell read out on the axes (dreeves's README, 2026-11-02, [HOV]), as the m*(n) chart draws its own: its δ over
-   its row's label and its k under its column's middle, each in paper on ink, 3 px of ink either side of the number. */
-.pow2-tag { background: var(--ink); color: var(--paper); padding: 0 3px; }
-.pow2-es .pow2-tag { right: 4px; }                                     /* its number where the label's is, 7 px from the plot */
-.pow2-ks .pow2-tag { top: 13px; transform: translate(-50%, -50%); }   /* its middle on the k labels' middle, 7 + 12 / 2 px down */
-#pow2-readout { min-height: 3lh; max-width: none; font-size: 0.9375rem; font-variant-numeric: tabular-nums lining-nums; }
-#pow2-readout .swatch { margin-right: 0.5rem; vertical-align: -0.1em; }
 
 /* The box under a chart ([REO], 2026-11-03, a column's panel at the running text's measure; since 2026-11-04 a cell's,
    a column's or a row's box, dreeves's README items [CEL] and [ROC]): as wide as its chart, so that the caret on its
@@ -619,7 +586,9 @@ blockquote.claude .attrib { color: var(--muted); }
 .column-panel-body { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.6rem; }
 .column-panel-body [data-why] { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.3rem; }
 .column-panel-body ul { margin: 0; padding-left: 1.25rem; display: grid; gap: 0.25rem; }
-.column-panel .big { overflow-wrap: anywhere; font-variant-numeric: tabular-nums lining-nums; }
+/* A big number (bigNum in page/shared.js) wraps anywhere wherever it shows, the appendix's entries too (Opus 5.5, 2026-11-23:
+   inside .column-panel only until then, before the appendix; at 2^128 a class size has 39 digits, wider than a phone) */
+.big { overflow-wrap: anywhere; font-variant-numeric: tabular-nums lining-nums; }
 /* The panel's entry of the remarks ([REO] step 2, 2026-11-03), styled as in the list by the rules of .remarks, set off
    from the explanations above it by a hairline; gone, gap and all, when the panel shows no entry. */
 .column-panel .remarks { padding-top: 0.75rem; border-top: 1px solid color-mix(in oklab, var(--rule) 30%, var(--paper)); }
