@@ -205,7 +205,13 @@ def q_new_lower_bounds():
     # excess, q_each_first_is_the_least holds to the sequences; that every block is a sequence in hand, q_base_blocks_and_their_sources.
     orders = {K0: pow2.join_lo(K0, ps) for K0, ps in pow2.BASES.items()}
     K0s = sorted(orders)
-    assert [orders[K0] - K0 for K0 in K0s] == list(range(1, len(K0s) + 1)), orders
+    # Spec change (Opus 5.5, 2026-11-24; dreeves, of the firsts past 2^72 that the page says are the smallest known: "what would the reader expect
+    # there?", then "ok" to this change): each base is at the first of its excess, the chart's excess there its order's and one less just below it; the bases' excesses so
+    # rise with K0, 1 to 11 and then 17 at 2^103, a join of three products that no product of two lower columns gives.  Until then the bases'
+    # excesses were 1, 2, ..., as many as the bases, every first a base, which stopped being so on 2026-11-23, when products of two lower columns
+    # gave the firsts for excess 12 to 20 and no base (that assertion is red with BASES[103]: 1 to 11, then 17).
+    excess = [c[0] - k for k, c in enumerate(cols(), 1)]
+    assert all(excess[K0 - 1] == orders[K0] - K0 > excess[K0 - 2] for K0 in K0s), orders
     below = [k for k in range(1, KMAX + 1) if k < K0s[0]]
     assert [(cols()[k - 1][0] - k, cols()[k - 1][2]) for k in below] == [(0, ['thue-morse'])] * len(below), cols()[:K0s[0]]
     # Spec change (Opus 5.5, 2026-11-23; dreeves: "it never made sense to hard-code 72"): past the last k at which the lift of the last base is the best
@@ -321,9 +327,17 @@ def q_each_first_is_the_least():
     # sequences of 2026-11-11 moved two firsts, 36 to 30 and 56 to 51, which a search of five hours found; this decides all nine in a second).  The decider
     # answers yes where a join exists: at the firsts of e = 4 and 5; and at 2^29 for e = 4 if 1504 had order 13 instead of 12.
     # Resultata before: no qual asked whether a first is the least.
+    # Spec change (Opus 5.5, 2026-11-24; dreeves, of the page's "smallest known values" past 2^72: "what would the reader expect there?", then "ok" to this
+    # change): the firsts are
+    # read off the chart, pow2.js, at every excess it reaches (1 to 20), not off pow2.BASES's keys (1 to 11), which since 2026-11-23 are not all of them: the
+    # products of two lower columns gave excess 12 to 20 their firsts, which nothing asked about.  Resultata before: on that chart the decider gave no at
+    # every first's power just below but excess 17's (2^105, below the chart's 2^106), where it asserted "too many coins" after 6 CPU-minutes
+    # (scratch/careful-20261124/firsts.out), and 19's (2^118), which it did not finish; and a join of three products at 2^105 exists (pair.py there), and
+    # one at 2^103 (pow2.BASES[103]), so 2^106 and 2^119 were not the least.  On the chart with BASES[103] the firsts of 17 and 19 are 2^103 and 2^116, and
+    # below each the decider says no in no time: no coin prime to 3 fits at 2^102, and at 2^115 none fits the one rest.
     blocks = firsts_blocks()
-    firsts = {pow2.join_lo(K0, ps) - K0: K0 for K0, ps in pow2.BASES.items()}
-    assert sorted(firsts) == list(range(1, len(firsts) + 1)), firsts
+    excess = [c[0] - k for k, c in enumerate(cols(), 1)]
+    firsts = {e: next(k for k, x in enumerate(excess, 1) if x >= e) for e in range(1, max(excess) + 1)}
     early = {e: excess_reached(e, K0 - 1, blocks) for e, K0 in firsts.items()}
     assert set(early.values()) == {'no'}, early
     assert [excess_reached(e, firsts[e], blocks) for e in (4, 5)] == ['yes', 'yes']

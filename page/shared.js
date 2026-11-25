@@ -118,7 +118,8 @@ function panZoom({el, out: zoomOut, in: zoomIn, resets, ncol, plot, targetAt, re
   // the chart's columns changed (the m*(n) chart's, with a box of its list): no cell is read out and none pinned, and
   // the view is every column
   const recolumn = () => { picked = []; pinned = []; setView(0, ncol()); };
-  return {redraw, uAt, pin, recolumn};
+  // (show and clampSpan since 2026-11-23: a cap shows its view, and is pressed while the view is the one it shows)
+  return {redraw, uAt, pin, recolumn, show: setView, clampSpan};
 }
 
 // The rows each column raises, for both charts' gold rings and the table of smallest lengths (dreeves's README,
@@ -636,10 +637,12 @@ const subbed = s => s.split(/([₀-₉]+)/).map((t, i) => i % 2 ? el('sub', '', 
 // Both figures' chart (Opus 5.5, 2026-11-23; dreeves: "please DRY up as much as possible between the 2 figures", and "figure
 // 2 loses the automatic y-axis zooming that figure 1 has"): Figure 1's drawing until then (page/mstar-section.js), which
 // Figure 2 did its own way, an svg rect per cell under rows that stayed put.  A chart's columns are keys, rising (n in
-// Figure 1, k in Figure 2): columns(cap), those up to the cap pressed of its caps, whose largest is the data's last key,
-// last (dreeves's README, [BOU], 2026-11-10: "replace the reset-zoom button with "cap:" and then buttons"; a click on a
-// cap makes its key the last column and presses it alone, and on the cap pressed shows every column again, as the reset
-// button did).  Its rows r are counted up from the bottom (m in Figure 1, δ = m − k in Figure 2), and rowsOf(key) gives a
+// Figure 1, k in Figure 2): columns(), up to the data's last key, last.  Its caps (dreeves's README, [BOU], 2026-11-10:
+// "replace the reset-zoom button with "cap:" and then buttons") are views: a click on one shows the columns from the
+// first to its key, or the first 12 where those are fewer (the most a view zooms in), and it is pressed while the view
+// is that one; the largest shows every column, as the reset button did (since 2026-11-23, dreeves, 2026-11-23: "could we kill more if-statements if the zoom-out button always worked unless you're already seeing the full x-range?", then "whatever has the least if-statements / is otherwise most anti-magic per AGENTS.md";
+// until then a cap made its key the last column, so that − stopped there and its click closed the box open).  Its
+// rows r are counted up from the bottom (m in Figure 1, δ = m − k in Figure 2), and rowsOf(key) gives a
 // column's bounds in rows, [lo, ifhi, hi]: cell (key, r) is green (exists) for r <= lo, gray (open) up to ifhi, open with
 // its upper right triangle in the red of an impossible cell (ifsym: [SYC], 2026-11-11) up to hi, and red (impossible)
 // above.  The rows follow the view (dreeves, 2026-11-10: "however the chart is zoomed, make there always be exactly one
@@ -654,15 +657,17 @@ const subbed = s => s.split(/([₀-₉]+)/).map((t, i) => i % 2 ? el('sub', '', 
 // the readout says of a target of each kind, a cell's (exists, open, impossible, ifsym), a column's or a row's (key
 // undefined); box(key, r, kind, keys), what its box shows (chartPanel's fill, less its kind; keys, the columns shown);
 // and fragment(key, r), its box's fragment, key null for a row.  It returns recolumn(control), for a figure's own change
-// of its columns (Figure 1's boxes of what it leaves out, [COM]), as a cap's click does.
+// of its columns (Figure 1's boxes of what it leaves out, [COM]).
 function gridChart({cv, ro, panel, zoomIn, zoomOut, caps, last, columns, rowsOf, rings: RINGS, nrow, letters, reads, box, fragment}) {
   const fail = chartFail(ro);
   const CAPS = [...caps].map(button => ({button, cap: +button.dataset.cap}));
-  const pressed = () => CAPS.filter(c => c.button.getAttribute('aria-pressed') === 'true').map(c => c.cap);
-  // the chart's caps: integers from 2 to last, the largest last itself, and one of them pressed
+  const pressed = CAPS.filter(c => c.button.getAttribute('aria-pressed') === 'true').map(c => c.cap);   // as the page loads
+  // the chart's caps: integers from 2 to last, the largest last itself, and one of them pressed as the page loads, whose
+  // view the chart opens with
   assert(CAPS.every(c => Number.isInteger(c.cap) && 2 <= c.cap && c.cap <= last) && Math.max(...CAPS.map(c => c.cap)) === last
-    && pressed().length === 1, CAPS.map(c => c.cap), pressed());
-  let CAP = pressed()[0], NS = columns(CAP);                       // they change when a cap does, or recolumn's caller
+    && pressed.length === 1, CAPS.map(c => c.cap), pressed);
+  let NS = columns();                                              // they change with recolumn's caller
+  const upto = cap => NS.filter(n => n <= cap).length;            // the columns up to a cap
   // Layout in CSS px: the row labels left of the plot, room right of it for the last column label, the plot PLOT tall,
   // which its rows share (16 rows of ROW until 2026-11-10, as a view whose largest upper bound is 15 still has them), the
   // tags of the cell read out ROW tall, and the column axis below.
@@ -677,10 +682,11 @@ function gridChart({cv, ro, panel, zoomIn, zoomOut, caps, last, columns, rowsOf,
     return [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
   };
   const cssH = TOP + PLOT + AXIS;
-  const ringed = () => assert(RINGS.every(({key, r}) => (key > CAP || NS.includes(key)) && r <= nrow), RINGS);   // no column ringed up to the cap is left out
+  const ringed = () => assert(RINGS.every(({key, r}) => NS.includes(key) && r <= nrow), RINGS);   // no ringed column is left out
   ringed();
   // The steps of the column labels: 1, 5, 10, 25, 50, 125, 250 and 500 times the least key all of whose multiples up to
-  // the cap are columns (1 in Figure 2; in Figure 1, 4 for n = 2 and the multiples of 4, 16 for the columns as the page
+  // the last column are columns (up to the cap until caps became views of every column, 2026-11-23; 1 in Figure 2; in
+  // Figure 1, 4 for n = 2 and the multiples of 4, 16 for the columns as the page
   // loads), those of them that label a column (4, 20, 40, 100, 200, 500 and 1000 there, up to 1024; 16, 80, 160, 400,
   // 800 and 2000 as Figure 1 loads, up to 2048), each with the columns it labels, its multiples, and the least distance
   // between two of them next to each other, in columns (none for a step with one label, which so has room wherever it
@@ -691,7 +697,7 @@ function gridChart({cv, ro, panel, zoomIn, zoomOut, caps, last, columns, rowsOf,
   // labeled every tenth k until 2026-11-23.
   const ladder = () => {
     const shown = new Set(NS);
-    const base = NS.find(b => Array.from({length: Math.floor(CAP / b)}, (_, i) => (i + 1) * b).every(n => shown.has(n)));
+    const base = NS.find(b => Array.from({length: Math.floor(NS.at(-1) / b)}, (_, i) => (i + 1) * b).every(n => shown.has(n)));
     assert(base, NS.length);
     return [1, 5, 10, 25, 50, 125, 250, 500].map(x => {
       const at = NS.flatMap((n, c) => n % (x * base) === 0 ? [c] : []);
@@ -716,6 +722,9 @@ function gridChart({cv, ro, panel, zoomIn, zoomOut, caps, last, columns, rowsOf,
     assert(W > 0, W);
     cv.width = L + W + R;
     cv.height = Math.round(cssH * dpr);
+    // A cap is pressed while the view is its every column, none while the chart is zoomed in (dreeves, 2026-11-23: "if
+    // you zoom with the + button, the cap buttons should all become unselected"; the cap clicked last until then)
+    CAPS.forEach(c => c.button.setAttribute('aria-pressed', String(u0 === 0 && span === view.clampSpan(upto(c.cap)))));
     const B = NS.map(rowsOf);                                      // each column's bounds in rows
     // The rows of this view, 1 to rows: one more than the largest upper bound among its columns, those it shows any
     // part of.  Row r runs from Y(r) down to Y(r - 1), in device px, Y(0) being the plot's bottom.
@@ -777,12 +786,16 @@ function gridChart({cv, ro, panel, zoomIn, zoomOut, caps, last, columns, rowsOf,
     // Figure 2's: "this with hairline grid looks great to me"): with the rows' gaps, a line of page surface one device
     // px wide at each boundary of whole columns, fading in as columns widen from 4 CSS px to 8, so none shows where they
     // are narrower (in Figure 2 at every width until 2026-11-23).
+    // edge(c): the device px that holds the boundary at u = c, one expression for these lines and the rings' sides (two
+    // ways of writing it, floor(L + x) and L + floor(x), differed by a px where x fell a hair short of a whole number)
+    const edge = c => L + Math.floor((c - u0) / k);
     ctx.globalAlpha = Math.min(Math.max((1 / k / dpr - 4) / 4, 0), 1);
-    for (let c = Math.floor(u0) + 1; c < u0 + span; c++) ctx.fillRect(L + Math.floor((c - u0) / k), top, 1, tall);
+    for (let c = Math.floor(u0) + 1; c < u0 + span; c++) ctx.fillRect(edge(c), top, 1, tall);
     ctx.globalAlpha = 1;
-    // Axes: on the left, the rows of the first of the steps 1, 5, 10, 25, ... that leaves at least a digit's height and a
-    // CSS px between two labels (every row in Figure 1, whose views have at most 20 rows, 11 CSS px each; in Figure 2,
-    // 33 rows at its full view since 2026-11-23, every fifth there); below, the key under the middle of its column, for
+    // Axes: on the left, the rows of the first of the steps 1, 5, 10, 25, ... that leaves a label its room, a digit's
+    // height and 2 CSS px (every row in Figure 1, whose views have at most 19 rows, 11.8 CSS px each; in Figure 2 every
+    // fifth at its full view's 33 rows, and at 24, which left the labels touching with a CSS px; dreeves, 2026-11-23: "can you do the experiments to pick the best answer to that question? if it should be adaptive, that's ok. go ahead and make sure it looks nice on all devices and zoom levels"; scratch/rings-20261123);
+    // below, the key under the middle of its column, for
     // the columns of the first step of LADDER that leaves room for each label: 48 CSS px or more between any two of its
     // columns next to each other.
     const serif = token('--serif'), base = top + tall;
@@ -790,9 +803,19 @@ function gridChart({cv, ro, panel, zoomIn, zoomOut, caps, last, columns, rowsOf,
     ctx.font = `${12 * dpr}px ${serif}`;
     ctx.textAlign = 'right';
     ctx.textBaseline = 'middle';
-    const digit = ctx.measureText('0'), ink = digit.actualBoundingBoxAscent + digit.actualBoundingBoxDescent;
-    const every = [1, 5, 10, 25, 50, 125, 250, 500].find(s => s * tall / rows >= ink + dpr);
-    for (let m = every; m <= rows; m += every) ctx.fillText(String(m), L - 7 * dpr, mid(m));
+    const digit = ctx.measureText('0'), ink = digit.actualBoundingBoxAscent + digit.actualBoundingBoxDescent, room = ink + 2 * dpr;
+    const every = [1, 5, 10, 25, 50, 125, 250, 500].find(s => s * tall / rows >= room);
+    // the row read out, tagged over its label's place (below): its box's height and its middle
+    const pitch = Math.round(ROW * dpr);
+    const tagged = picked.map(([, m]) => m).filter(m => Number.isInteger(m) && m <= rows).map(m => {
+      const h = Math.min(pitch, Math.max(Y(m - 1) - Y(m), room)) - gap;
+      return {m, h, y: Math.min(Math.max(mid(m), top + h / 2), base - h / 2)};
+    });
+    // a tag hides the labels of other rows that it would overlap (dreeves, 2026-11-23: "make sure it looks nice on all devices and zoom levels": a tag of a row next to a
+    // labeled one half covered that label where rows are shorter than a label)
+    Array.from({length: Math.floor(rows / every)}, (_, i) => (i + 1) * every)
+      .filter(m => tagged.every(t => t.m === m || Math.abs(mid(m) - t.y) >= (ink + t.h) / 2))
+      .forEach(m => ctx.fillText(String(m), L - 7 * dpr, mid(m)));
     const rung = LADDER.find(r => r.gap / k >= 48 * dpr);
     assert(rung, W, span);
     ctx.textAlign = 'center';
@@ -808,31 +831,45 @@ function gridChart({cv, ro, panel, zoomIn, zoomOut, caps, last, columns, rowsOf,
     ctx.fillText(letters[0], 2 * dpr, base + 6 * dpr);
     ctx.textBaseline = 'middle';
     ctx.fillText(letters[1], 2 * dpr, top + tall / 2);
-    // Rings just outside cells, 2 device px wide: each of RINGS in gold, with a gold dot half the cell's smaller side
-    // across in each proven the least, then the cell read out in ink, and the target of the box open, its cell, column
-    // or row (since 2026-11-04: [c, r], null for every column or every row), each while its row is one of the view's.
+    // Rings just outside cells: each of RINGS in gold, with a gold dot half the cell's smaller side across in each proven
+    // the least, then the cell read out in ink, and the target of the box open, its cell, column or row (since
+    // 2026-11-04: [c, r], null for every column or every row), each while its row is one of the view's.  A ring is a band
+    // on every side as wide as a quarter of a cell's smaller side, the dot's radius, but at least 1 CSS px and at most 2
+    // (dreeves, 2026-11-23: "can you do the experiments to pick the best answer to that question? if it should be adaptive, that's ok. go ahead and make sure it looks nice on all devices and zoom levels"; scratch/rings-20261123: 2 CSS px until then, which on a phone, its columns 2.3 px wide, covered most of each
+    // neighbor and ran the rings of next cells together; 1 at the sides in Figure 2's own drawing before the engine).
+    const band = Math.min(2 * dpr, Math.max(dpr, Math.round(Math.min(1 / k, tall / rows - gap) / 4)));
+    // Each band holds the device px of the hairline between the target and its neighbor, and band - 1 more beyond it,
+    // on all four sides alike: above, the gap of the row over it; below, its own gap; at the sides, the px that holds the
+    // column boundary, where the grid's line between columns is drawn (dreeves, 2026-11-23, of a ring with that line
+    // inside it on its left and under it on its right: "looks different on right vs left side?"; until then the sides'
+    // inner edges were the boundaries rounded, which left the line inside the band on one side and under it on the other).
     const ring = ([c, m]) => {
       const [c0, c1] = c === null ? [0, NS.length] : [c, c + 1], [m0, m1] = m === null ? [1, rows] : [m, m];
-      const x0 = L + (c0 - u0) / k, x1 = L + (c1 - u0) / k;
-      ctx.strokeRect(x0 - dpr, Y(m1) - dpr, x1 - x0 + 2 * dpr, Y(m0 - 1) - Y(m1) - gap + 2 * dpr);
+      const x0 = edge(c0), x1 = edge(c1), y0 = Y(m1), y1 = Y(m0 - 1) - gap;
+      ctx.fillRect(x0 + 1 - band, y0 - band, x1 - x0 + 2 * band - 1, band);   // above
+      ctx.fillRect(x0 + 1 - band, y1, x1 - x0 + 2 * band - 1, band);          // below
+      ctx.fillRect(x0 + 1 - band, y0, band, y1 - y0);                         // left, through px x0
+      ctx.fillRect(x1, y0, band, y1 - y0);                                    // right, from px x1
     };
-    const inRows = ([, m]) => m === null || m <= rows;
+    // a target is drawn while its column meets the view and its row is one of the view's (the column's meeting the view
+    // since 2026-11-23, dreeves, 2026-11-23: "make sure it looks nice on all devices and zoom levels": a ring of a cell just out of view left a sliver of gold at the plot's
+    // edge, which the clip 2 px past it let through)
+    const shown = ([c, m]) => (c === null || (c + 1 > u0 && c < u0 + span)) && (m === null || m <= rows);
     ctx.save();
     ctx.beginPath();
-    ctx.rect(L - 2 * dpr, 0, W + 4 * dpr, base);
+    ctx.rect(L - 2 * dpr, 0, W + 4 * dpr, base + 2 * dpr);        // 2 px past the plot on every side, a band's most (below since 2026-11-23: a ring of row 1 lost its bottom band)
     ctx.clip();
-    ctx.lineWidth = 2 * dpr;
-    ctx.strokeStyle = ctx.fillStyle = token('--record');
-    const rings = RINGS.filter(r => r.key <= CAP && r.r <= rows);   // those of the columns up to the cap, in the view's rows
+    ctx.fillStyle = token('--record');
+    const rings = RINGS.filter(r => shown([NS.indexOf(r.key), r.r]));   // those the view shows
     rings.forEach(({key, r}) => ring([NS.indexOf(key), r]));
     rings.filter(r => r.role === 3).forEach(({key, r}) => {
       ctx.beginPath();
       ctx.arc(L + (NS.indexOf(key) + 0.5 - u0) / k, mid(r), Math.min(1 / k, Y(r - 1) - Y(r) - gap) / 4, 0, 2 * Math.PI);
       ctx.fill();
     });
-    ctx.strokeStyle = token('--ink');
-    picked.filter(inRows).forEach(ring);                           // outline the cell read out, just outside it
-    pinned.filter(inRows).forEach(ring);                           // and the target of the box open
+    ctx.fillStyle = token('--ink');
+    picked.filter(shown).forEach(ring);                            // outline the cell read out, just outside it
+    pinned.filter(shown).forEach(ring);                            // and the target of the box open
     ctx.restore();
     // The box's caret under its target's column's middle, kept within the plot, or under its row's label (--caret, in
     // CSS px from the box's left edge inside its border)
@@ -845,11 +882,12 @@ function gridChart({cv, ro, panel, zoomIn, zoomOut, caps, last, columns, rowsOf,
     // either side, the row over its row's label's place, while its row is one of the view's, and the key on the column
     // labels' line, under its column's middle while that is in view, as a label's must be, over any label there.  The
     // row's box is no taller than its row's colored part (since 2026-11-12, when Figure 1 came to open with 19 rows,
-    // under ROW each, and a box ROW tall reached past the plot's bottom).
+    // under ROW each, and a box ROW tall reached past the plot's bottom), but no shorter than a label's room, and within
+    // the plot's height (dreeves, 2026-11-23: "can you do the experiments to pick the best answer to that question? if it should be adaptive, that's ok. go ahead and make sure it looks nice on all devices and zoom levels"; scratch/rings-20261123: at Figure 2's rows of 6.8 CSS px the number ran out of its box
+    // and over the label below).
     ctx.font = `${12 * dpr}px ${serif}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    const pitch = Math.round(ROW * dpr);
     const tag = (t, x, y, h) => {                                  // the number t, centered at x, y, on a box h tall
       const w = ctx.measureText(t).width + 6 * dpr;
       ctx.fillStyle = token('--ink');
@@ -859,8 +897,7 @@ function gridChart({cv, ro, panel, zoomIn, zoomOut, caps, last, columns, rowsOf,
     };
     // (since 2026-11-19, when a hover on a strip came to read out its column or its row: each number the target read
     // out has, a cell's row and key, a column's key, a row's row)
-    picked.map(([, m]) => m).filter(m => Number.isInteger(m) && m <= rows)
-      .forEach(m => tag(String(m), L - 7 * dpr - ctx.measureText(String(m)).width / 2, mid(m), Math.min(pitch, Y(m - 1) - Y(m)) - gap));
+    tagged.forEach(t => tag(String(t.m), L - 7 * dpr - ctx.measureText(String(t.m)).width / 2, t.y, t.h));
     picked.map(([c]) => c).filter(c => Number.isInteger(c) && u0 <= c + 0.5 && c + 0.5 <= u0 + span)   // 13 px down: the column labels' middle, 7 + 12 / 2
       .forEach(c => tag(String(NS[c]), L + (c + 0.5 - u0) / k, base + 13 * dpr, pitch - gap));
   }
@@ -878,15 +915,15 @@ function gridChart({cv, ro, panel, zoomIn, zoomOut, caps, last, columns, rowsOf,
   function readout(c, r) {                                         // read out the target of column c, key NS[c], and row r
     ro.replaceChildren(...reads[kindAt(c, r)](NS[c], r));
   }
-  // The columns changed, with a cap or with the figure's own control (recolumn's caller), at the control clicked: the
-  // columns must hold what the figure checks of them (columns' checks, which fail as at load); the box open under the
-  // chart, whose target is a column of the columns that were, closes as its close button closes it, the focus staying
-  // on the control; then the columns are the new ones, the readout the words it had as the page loaded, and the view
-  // every column.  A click on the cap pressed so shows every column again, as the reset button did.
+  // The columns changed, with the figure's own control (recolumn's caller; a cap too until caps became views,
+  // 2026-11-23), at the control clicked: the columns must hold what the figure checks of them (columns' checks, which
+  // fail as at load); the box open under the chart, whose target is a column of the columns that were, closes as its
+  // close button closes it, the focus staying on the control; then the columns are the new ones, the readout the words
+  // it had as the page loaded, and the view every column.
   const hint = [...ro.childNodes];
   const recolumn = control => {
     try {
-      const ns = columns(CAP);
+      const ns = columns();
       if (!panel.hidden) { panel.querySelector('[data-panel-close]').click(); control.focus(); }
       NS = ns;
       LADDER = ladder();
@@ -897,12 +934,8 @@ function gridChart({cv, ro, panel, zoomIn, zoomOut, caps, last, columns, rowsOf,
       fail(e);
     }
   };
-  CAPS.forEach(({button, cap}) => button.addEventListener('click', () => {
-    CAP = cap;
-    CAPS.forEach(c => c.button.setAttribute('aria-pressed', String(c.cap === CAP)));
-    recolumn(button);
-  }));
-  view.redraw();
+  CAPS.forEach(({button, cap}) => button.addEventListener('click', () => view.show(0, upto(cap))));
+  view.show(0, upto(pressed[0]));                                 // the view of the cap pressed as the page loads
   new ResizeObserver(() => view.redraw()).observe(cv);
   document.fonts.ready.then(() => view.redraw());
   return {recolumn};

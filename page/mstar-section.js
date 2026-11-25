@@ -1,5 +1,6 @@
 // Claude's chart of m*(n), drawn from MSTAR, which mstar.js defines (mstar.py makes it and states its contract), for n
-// up to the cap, the one pressed of the page's caps (dreeves's README, [BOU], 2026-11-10: "Let's try having Figure 1
+// up to MSTAR.nmax, whose caps show views of it since 2026-11-23 (page/shared.js; until then for n up to the cap, the
+// one pressed of the page's caps; dreeves's README, [BOU], 2026-11-10: "Let's try having Figure 1
 // go up to 2048. Actually, let's try this: replace the reset-zoom button with "cap:" and then buttons for 2^6, 2^7,
 // 2^8, 2^9, 2^10, 2^11"; n up to 1024 until then, which was the cap pressed as the page loads until 2026-11-12, when
 // dreeves asked for 2^11: "let's default to all checkboxes checked and cap=2^11 for figure 1").  Column n is green (exists) in rows m = 1 to lo, gray (open) up to hi and red (impossible) above, up to row
@@ -33,11 +34,12 @@ try {
     ({box, factor: +box.dataset.factor, from: +box.dataset.from, order: +box.dataset.order}));
   const leftOut = (n, {factor, from}) => n >= from && n % (2 * factor) === factor;
   const stated = (n, [lo, hi], o) => !o.box.checked || !leftOut(n, o) || (lo === o.order && hi === o.order);
-  // The columns up to the cap (the engine's), which hold what the checked boxes state, as the page loaded (a check that
-  // fails fails loudly then too); they change when a box or the cap does (the end of this file)
-  const columns = cap => {
+  // The columns, every n up to nmax that no checked box leaves out (up to the cap pressed until caps became views,
+  // 2026-11-23), which hold what the checked boxes state, as the page loaded (a check that fails fails loudly then too);
+  // they change when a box does (the end of this file)
+  const columns = () => {
     D.cols.forEach((c, i) => OMIT.forEach(o => assert(stated(i + 1, c, o), i + 1, c)));
-    return Array.from({length: cap}, (_, i) => i + 1).filter(n => !OMIT.some(o => o.box.checked && leftOut(n, o)));
+    return Array.from({length: D.nmax}, (_, i) => i + 1).filter(n => !OMIT.some(o => o.box.checked && leftOut(n, o)));
   };
   const loOf = n => ROWS.get(n)[0];                               // a length's lo, by its row (a column's until 2026-11-19)
   const EXPLICIT = new Set(['none', 'example', 'join', 'product']);   // the kinds of lower bound with a sequence behind them (2026-11-18)

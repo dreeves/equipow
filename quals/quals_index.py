@@ -635,7 +635,9 @@ function battery(R) {
     return b;
   };
   const tags = () => { snap(); return {paper: __fills.filter(f => f[3] === C.paper).map(f => f.slice(0, 3)),
-    left: inkBox(PL - 26 * dpr, PL - 3 * dpr, 0, axisTop), below: inkBox(PL - 25 * dpr, cv.width, axisTop, cv.height)}; };
+    // (below from 2 px under the plot since 2026-11-23, a harness fix: the bands of rings and outlines reach 2 px past the
+    // plot on every side since then, below it too, and an outline's there is ink; the tags start 6 px under it)
+    left: inkBox(PL - 26 * dpr, PL - 3 * dpr, 0, axisTop), below: inkBox(PL - 25 * dpr, cv.width, axisTop + 2 * dpr, cv.height)}; };
   R.axisTop = axisTop;
   R.tags0 = tags();
   const L = PL / dpr, W = (PR - PL) / dpr, yProbe = rowY(1) / dpr;      // CSS px
@@ -664,6 +666,13 @@ function battery(R) {
   }
   const first = v => Math.ceil(v.u0 - 1e-3) + 1, final = v => Math.floor(v.u0 + v.span + 1e-3);   // whole columns in view
   const middleX = (v, j) => L + (j - 0.5 - v.u0) * W / v.span;                                      // CSS px
+  // (Spec change, Opus 5.5, 2026-11-23; dreeves: "can you do the experiments to pick the best answer to that question? if
+  // it should be adaptive, that's ok": an outline's bands are a quarter of a cell's smaller side wide, from 1 to 2 CSS px,
+  // probed at their middles, the band's edge rounded to a device px; 2 CSS px wide, probed 1 CSS px out, until then)
+  const bandAt = k => Math.min(2 * dpr, Math.max(dpr, Math.round(Math.min(1 / k, Math.round(224 * dpr) / T - 1) / 4)));
+  // the middles of a band left of the boundary at device x and right of it: its bands hold the px floor(x) and b - 1 more
+  // beyond it (since 2026-11-23, when dreeves saw a ring's sides differ; until then the boundary rounded, then b px)
+  const leftBand = (x, b) => Math.floor(x + 0.5 - b / 2), rightBand = (x, b) => Math.floor(x - 0.5 + b / 2);
   function checkPixels(v) {    // every column at least 3 device px wide: its middle pixel has its color in every row,
     const k = v.span / (PR - PL);   // and the pixel just below each row is paper.  The outline of the cell read out
     if (1 / k < 3) return;          // spoils its neighbors, so the view is checked twice: outlining its first column,
@@ -690,7 +699,11 @@ function battery(R) {
         const Y = Math.floor(rowY(r)), x0 = PL + (j - 1 - v.u0) / k, x1 = PL + (j - v.u0) / k, xm = PL + Math.floor((j - 0.5 - v.u0) / k);
         // inside it: gold at its middle where it is proven the least, else its own samples (an ifsym cell's two, 2026-11-11)
         const inside = role === 3 ? [[0.5, C.record]] : samplesOf(n, r);
-        const got = [pix(Math.floor(x0 - dpr), Y), pix(Math.floor(x1 + dpr), Y), pix(xm, rows[T - r][1]), ...inside.map(([f]) => pix(xm, Math.floor(yAt(r, f))))];
+        // its bands as wide as a quarter of a cell's smaller side, from 1 to 2 CSS px, probed at their middles (Spec change,
+        // Opus 5.5, 2026-11-23; dreeves: "can you do the experiments to pick the best answer to that question? if it should be
+        // adaptive, that's ok": 2 CSS px wide, probed 1 CSS px out, until then)
+        const b = bandAt(k);
+        const got = [pix(leftBand(x0, b), Y), pix(rightBand(x1, b), Y), pix(xm, rows[T - r][1]), ...inside.map(([f]) => pix(xm, Math.floor(yAt(r, f))))];
         const want = [C.record, C.record, C.record, ...inside.map(([, c]) => c)];
         R.ringChecks++; R.ringed[`${n},${r}`] = 1; R.ifsymChecks += isIfsym(n, r);
         if (got.some((c, i) => c !== want[i])) R.ringBad.push([n, r, role, got, want]);
@@ -836,8 +849,8 @@ function battery(R) {
     R.outlineText = hover((PL + (j - 0.5 - v.u0) / k) / dpr, rowY(m) / dpr);
     snap();
     R.outline = {n, m, want: colorOf(n, m), ink: C.ink, middle: pix(PL + Math.floor((j - 0.5 - v.u0) / k), Math.floor(rowY(m))),
-                 left: pix(Math.floor(PL + (j - 1 - v.u0) / k - dpr), Math.floor(rowY(m))),
-                 right: pix(Math.floor(PL + (j - v.u0) / k + dpr), Math.floor(rowY(m)))};
+                 left: pix(leftBand(PL + (j - 1 - v.u0) / k, bandAt(k)), Math.floor(rowY(m))),
+                 right: pix(rightBand(PL + (j - v.u0) / k, bandAt(k)), Math.floor(rowY(m)))};
   }
   // Interactions, each from a view zoomed in 3 steps about the middle unless said otherwise.
   const zoomed = () => { reset.click(); for (let i = 0; i < 3; i++) key('+'); };
@@ -934,9 +947,11 @@ function battery(R) {
     const v = view(), x = L + W / 2, text = hover(x, rowY(3) / dpr), [n0] = cellOf(text), j = colOf.get(n0);
     const x0 = PL + (j - 1 - v.u0) * (PR - PL) / v.span, xm = PL + (j - 0.5 - v.u0) * (PR - PL) / v.span;
     const rings = () => { snap(); return {
-      cell: [pix(Math.floor(xm), rows[T - 3][0] - dpr), pix(Math.floor(x0 - dpr), Math.floor(rowY(3)))],   // (pix here takes whole px)
-      column: [pix(Math.floor(x0 - dpr), Math.floor(rowY(1))), pix(Math.floor(x0 - dpr), Math.floor(rowY(T)))],
-      row: [pix(Math.floor((PL + PR) / 2), rows[T - 12][0] - dpr), pix(Math.floor(PL + (PR - PL) / 4), rows[T - 12][0] - dpr)]}; };
+      cell: [pix(Math.floor(xm), rows[T - 3][0] - dpr), pix(leftBand(x0, bandAt(v.span / (PR - PL))), Math.floor(rowY(3)))],   // (pix here takes whole px)
+      column: [pix(leftBand(x0, bandAt(v.span / (PR - PL))), Math.floor(rowY(1))), pix(leftBand(x0, bandAt(v.span / (PR - PL))), Math.floor(rowY(T)))],
+      // (a quarter and three quarters of the way across since 2026-11-23, a harness fix: at the plot's middle, until then,
+      // column N, hovered there, has its outline, which since then is filled in whole device px and can reach the probe)
+      row: [pix(Math.floor(PL + 3 * (PR - PL) / 4), rows[T - 12][0] - dpr), pix(Math.floor(PL + (PR - PL) / 4), rows[T - 12][0] - dpr)]}; };
     R.strips = {n: n0, cell: {text, ...rings()}};
     __fills.length = 0;
     R.strips.column = {text: hover(x, axisTop / dpr + 10), ...tags(), ...rings()};
@@ -1085,6 +1100,13 @@ async function boxes(R) {
   while (pix(PR, rowY(T)) !== C.impossible) PR--;
   PR++;
   const k = NCOL / (PR - PL), colOf = n => COLS.indexOf(n) + 1;     // columns per device px; column j from 1
+  // (Spec change, Opus 5.5, 2026-11-23; dreeves: "can you do the experiments to pick the best answer to that question? if
+  // it should be adaptive, that's ok": an outline's bands are a quarter of a cell's smaller side wide, from 1 to 2 CSS px,
+  // probed at their middles, the band's edge rounded to a device px; 2 CSS px wide, probed 1 CSS px out, until then)
+  const bandAt = k => Math.min(2 * dpr, Math.max(dpr, Math.round(Math.min(1 / k, Math.round(224 * dpr) / T - 1) / 4)));
+  // the middles of a band left of the boundary at device x and right of it: its bands hold the px floor(x) and b - 1 more
+  // beyond it (since 2026-11-23, when dreeves saw a ring's sides differ; until then the boundary rounded, then b px)
+  const leftBand = (x, b) => Math.floor(x + 0.5 - b / 2), rightBand = (x, b) => Math.floor(x - 0.5 + b / 2);
   const x0 = j => PL + (j - 1) / k, x1 = j => PL + j / k;
   // where a target is, in device px of the canvas: a cell's middle; under column n, 10 CSS px below the plot; left of
   // row m, the middle of the strip left of the plot
@@ -1101,8 +1123,8 @@ async function boxes(R) {
   // for a column, left of it in rows 1 and T; for a row, above it at the plot's middle and a quarter of the way in
   const outlinePixels = ([n, m]) => { snap(); return n === null
     ? [pix((PL + PR) / 2, rows[T - m][0] - dpr), pix(PL + (PR - PL) / 4, rows[T - m][0] - dpr)]
-    : m === null ? [pix(x0(colOf(n)) - dpr, rowY(1)), pix(x0(colOf(n)) - dpr, rowY(T))]
-    : [pix(x0(colOf(n)) - dpr, rowY(m)), pix(x1(colOf(n)) + dpr, rowY(m))]; };
+    : m === null ? [pix(leftBand(x0(colOf(n)), bandAt(k)), rowY(1)), pix(leftBand(x0(colOf(n)), bandAt(k)), rowY(T))]
+    : [pix(leftBand(x0(colOf(n)), bandAt(k)), rowY(m)), pix(rightBand(x1(colOf(n)), bandAt(k)), rowY(m))]; };
   const body = () => region.querySelector('[data-panel-body]');
   // A table's look (2026-11-18, when Table 5's row in a row's box came out unruled and stretched): how it collapses
   // its borders and sits in its grid, and its first th's and td's border, padding, alignment and weight
@@ -1368,15 +1390,15 @@ VIOLATIONS = {   # name: (a change that breaks the contract, what the page's err
 # The state a configuration's page loads the m*(n) chart in (2026-11-12): (its cap, its columns, the edits to the page
 # that make it).  NOW is the page as it is: every box of the chart's list checked and the cap 2048 pressed (dreeves:
 # "let's default to all checkboxes checked and cap=2^11 for figure 1").  BEFORE is every page until then, the first two
-# boxes checked and the cap 1024, the state that made-up data and the boxes' targets were made for: kinds_data's odd
-# multiples of 4 and of 8 have the orders that the bound 'two' allows, not the 3 and 7 that the third and fourth boxes
-# state, so that the page refuses it as it loads under NOW; and the targets (36, 2) and (1020, 4) are cells of odd
-# multiples of 4, which the third box leaves out.
+# boxes checked, the state that made-up data and the boxes' targets were made for: kinds_data's odd multiples of 4 and
+# of 8 have the orders that the bound 'two' allows, not the 3 and 7 that the third and fourth boxes state, so that the
+# page refuses it as it loads under NOW; and the targets (36, 2) and (1020, 4) are cells of odd multiples of 4, which the
+# third box leaves out.  (Its cap was 1024 until 2026-11-23, when caps became views of every column, Opus 5.5, a harness
+# fix: a page that loads under a lower cap opens with that cap's view of columns up to 2048, which the harness's columns,
+# the chart's, would not match; BEFORE's columns are so every n up to 2048 that its two boxes leave in.)
 NOW = (CAP, COLUMNS, ())
-BEFORE = (NMAX, [2] + list(range(4, NMAX + 1, 4)), (
-    (' data-order="3" checked>', ' data-order="3">'), (' data-order="7" checked>', ' data-order="7">'),
-    ('data-cap="1024" aria-pressed="false"', 'data-cap="1024" aria-pressed="true"'),
-    ('data-cap="2048" aria-pressed="true"', 'data-cap="2048" aria-pressed="false"')))
+BEFORE = (CAP, [2] + list(range(4, CAP + 1, 4)), (
+    (' data-order="3" checked>', ' data-order="3">'), (' data-order="7" checked>', ' data-order="7">')))
 CONFIGS = {   # name: (mstar.js, window width, device pixel ratio, theme, hover every this many columns, state)
     'light': ('real', 1280, 2, None, 1, NOW),
     'phone': ('real', 390, 3, None, 5, NOW),
@@ -3854,9 +3876,10 @@ GRAY = [2, 3, 2, 1, 2, 3, 2, 0, 2, 3, 2, 1, 2, 3, 2]
 
 def columns_follow_the_controls(width, order):
     """What the m*(n) chart shows, the page width px wide, as its controls are clicked: each cap of order in turn, and
-    under each the boxes one at a time through all 16 of their states (GRAY) and back to the state as loaded.  In each
+    under each the boxes one at a time through all 16 of their states (GRAY), the cap clicked again after each (a box's
+    change shows every column since 2026-11-23, when caps became views), and back to the state as loaded.  In each
     state (states): hovers in row 1 at the middle of 30 columns' places (the first three, the last three and 24 spread
-    evenly), were the columns the n up to the cap that no checked box leaves out, side by side over the whole plot
+    evenly), were the columns those the cap pressed shows (expected), side by side over the whole plot
     (bad: the probes that read out another n); the caps pressed; the zoom buttons; the chart's height; and the n
     labels of one draw.  Then, with none checked: a hover and a click on the column of n = 7, and a click on the first
     box of the list, which has the focus (odd, opened, closed, focus); a click on the column of n = 8 and one on the
@@ -3873,8 +3896,11 @@ def columns_follow_the_controls(width, order):
   const fills = [], fillText = CanvasRenderingContext2D.prototype.fillText;
   CanvasRenderingContext2D.prototype.fillText = function (t, x, y, ...rest) { fills.push([String(t), x, y, this.textAlign]); return fillText.call(this, t, x, y, ...rest); };
   const pressed = () => caps.filter(b => b.getAttribute('aria-pressed') === 'true');
-  const expected = () => Array.from({length: +pressed()[0].dataset.cap}, (_, i) => i + 1).filter(n =>
+  // the columns the cap pressed shows: those up to it of the n no checked box leaves out, or the first 12 where those
+  // are fewer (since 2026-11-23, when caps became views of every column; until then the n up to it, the chart's columns)
+  const expected = () => { const all = Array.from({length: MSTAR.nmax}, (_, i) => i + 1).filter(n =>
     !boxes.some(b => b.checked && n >= +b.dataset.from && n % (2 * b.dataset.factor) === +b.dataset.factor));
+    return all.slice(0, Math.max(all.filter(n => n <= +pressed()[0].dataset.cap).length, 12)); };
   const ptr = (type, x, y) => { const r = cv.getBoundingClientRect(); cv.dispatchEvent(new PointerEvent(type,
     {clientX: r.left + x, clientY: r.top + y, pointerId: 1, pointerType: 'mouse', buttons: 0, bubbles: true, cancelable: true})); };
   const nAt = x => { ptr('pointermove', x, y1); const m = ro.textContent.match(/^n = (\\d+), m = (\\d+)/); return m ? +m[1] : null; };
@@ -3894,9 +3920,10 @@ def columns_follow_the_controls(width, order):
   const set = want => boxes.forEach((b, i) => { if (b.checked !== want[i]) b.click(); });
   const start = boxes.map(b => b.checked), R = {states: []};
   for (const c of ORDER) {
-    caps.find(b => +b.dataset.cap === c).click();
+    const cap = caps.find(b => +b.dataset.cap === c);
+    cap.click();
     look();
-    for (const b of GRAY) { boxes[b].click(); look(); }
+    for (const b of GRAY) { boxes[b].click(); cap.click(); look(); }   // (a box shows every column: its cap again, since caps are views)
     set(start);
   }
   set([false, false, false, false]);
@@ -3913,10 +3940,11 @@ def columns_follow_the_controls(width, order):
   R.capOpened = !panel.hidden;
   pressed()[0].focus(); pressed()[0].click();
   R.capClosed = panel.hidden; R.capFocus = document.activeElement === pressed()[0];
+  const cap = pressed()[0];                                  // the cap of these columns, clicked again once zoomed in
   zin.click();
-  R.zoomed = !out.disabled;
-  pressed()[0].click();
-  R.reset = out.disabled;
+  R.zoomed = !out.disabled; R.zoomedCaps = pressed().length;
+  cap.click();
+  R.reset = out.disabled; R.resetCaps = pressed().map(b => +b.dataset.cap);
   set(start); look();
   // The views: 8 clicks on +, then 40 presses of ArrowLeft and 80 of ArrowRight, an eighth of the view each: in each,
   // the n read out just inside the plot's two edges, and the rows that the draw labelled.
@@ -3935,10 +3963,13 @@ def columns_follow_the_controls(width, order):
 
 def columns_as_stated(got, width, order, least):
     """columns_follow_the_controls's states, as they must be: 17 per cap of order, all 16 states of the boxes under
-    it; in each, one cap pressed, the chart showing all its columns, exactly the n up to that cap that no checked box
-    leaves out (every probe reads out the n expected there, − is disabled, and + exactly when the columns are at most
-    the 12 of the closest view); its rows 1 to one more than the largest upper bound among its columns; its n labels the multiples of one step, all of them up to the cap, each a column, at
-    least `least` of them, each two at least 48 CSS px apart; and the chart as tall in every state."""
+    it; in each, one cap pressed, the chart showing the n up to that cap that no checked box leaves out, or the first 12
+    of them where those are fewer (every probe reads out the n expected there, − is disabled at the largest cap alone, and
+    + exactly when those columns are at most the 12 of the closest view); its rows 1 to one more than the largest upper
+    bound among its columns; its n labels the multiples of one step, all of them up to its last column, each a column, at
+    least `least` of them, each two at least 48 CSS px apart; and the chart as tall in every state.  (Spec change, Opus 5.5, 2026-11-23; dreeves: "could we kill more if-statements if the zoom-out button always worked unless you're already seeing the full x-range?", then "whatever has the least if-statements / is otherwise most anti-magic":
+    until then a cap was the chart's last column, so that − was disabled under every cap and the view never more than
+    the n up to it.)"""
     boxes, states, cols = omit_boxes(), got['states'], mstar_data()['cols']
     start = [b[3] for b in boxes]
     assert len(boxes) == 4 and len(states) == 16 * len(order) + 1 and states[-1]['checked'] == start, (len(states), states[-1]['checked'])
@@ -3948,12 +3979,13 @@ def columns_as_stated(got, width, order, least):
         assert len({tuple(s['checked']) for s in under}) == 16, (width, cap)
     for s in states:
         [cap] = s['caps']
-        want = [n for n in range(1, cap + 1) if not any(c and n >= b[1] and n % (2 * b[0]) == b[0] for b, c in zip(boxes, s['checked']))]
-        assert s['ncol'] == len(want) and s['bad'] == [] and s['out'] and s['zin'] == (len(want) <= MIN_SPAN), (
+        every = [n for n in range(1, DATA_NMAX + 1) if not any(c and n >= b[1] and n % (2 * b[0]) == b[0] for b, c in zip(boxes, s['checked']))]
+        want = every[:max(len([n for n in every if n <= cap]), MIN_SPAN)]
+        assert s['ncol'] == len(want) and s['bad'] == [] and s['out'] == (cap == max(order)) and s['zin'] == (len(want) <= MIN_SPAN), (
             width, cap, s['checked'], s['ncol'], len(want), s['bad'][:5], s['out'], s['zin'])
         assert s['rows'] == list(range(1, max(cols[n - 1][1] for n in want) + 2)), (width, cap, s['checked'], s['rows'])
         ns, xs = [n for n, _ in s['labels']], [x for _, x in s['labels']]
-        assert len(ns) >= least and ns == list(range(ns[0], cap + 1, ns[0])), (width, cap, s['checked'], ns)
+        assert len(ns) >= least and ns == list(range(ns[0], want[-1] + 1, ns[0])), (width, cap, s['checked'], ns)
         assert s['strangers'] == [] and all(b - a >= 48 for a, b in zip(xs, xs[1:])), (width, cap, s['checked'], s['labels'])
     assert len({s['height'] for s in states}) == 1, sorted({s['height'] for s in states})
     return {(s['caps'][0], tuple(s['checked'])): s['ncol'] for s in states}
@@ -4005,14 +4037,17 @@ def q_caps_change_the_columns():
     # then 2048, the one pressed as the page loads (since 2026-11-12; 2048 and then 1024 before); under each, the boxes
     # through all 16 of their states; then, with
     # none checked, a click on the column of n = 8 and one on the cap pressed, which has the focus; a click on + and
-    # one more on the cap pressed (columns_follow_the_controls).
+    # one more on that cap (columns_follow_the_controls).
     # Expectata (dreeves's README, [BOU], 2026-11-10: "replace the reset-zoom button with "cap:" and then buttons"): a
     # click on a cap presses it alone and makes it the chart's last column: in each state the chart shows all its
     # columns, exactly the n up to the cap that no checked box leaves out, with − disabled, and + too where they are
     # at most 12; its n labels are the multiples of one step, all of them up to the cap, each a column, each two at
     # least 48 CSS px apart, three or more at 1280 px and one or more at 390 px; the chart is as tall under every cap;
-    # the click on the cap closes the box that the click on the column opened, the focus staying on the cap; the click
-    # on the cap pressed shows every column again, as the reset button did; and no script error anywhere.
+    # the click on the cap leaves open the box that the click on the column opened, as a zoom does, the focus staying on
+    # the cap (Spec change, Opus 5.5, 2026-11-23; dreeves: "could we kill more if-statements if the zoom-out button always worked unless you're already seeing the full x-range?", then "whatever has the least if-statements / is otherwise most anti-magic": it closed the box until then, a cap changing the columns); the click
+    # on the largest cap shows every column again, as the reset button did, and a cap is pressed while the view is its
+    # every column, none once + zooms in (Spec change, Opus 5.5, 2026-11-23; dreeves: "if you zoom with the + button, the cap buttons should all become unselected": the cap clicked last stayed pressed until then); and no script error
+    # anywhere.
     # Resultata before: no caps: the chart ended at 1024 and a reset button showed every column.
     order = [64, 128, 256, 512, 1024, 2048]               # the one pressed as the page loads last: 1024 until 2026-11-12
     assert sorted(order) == [c for c, _, _ in caps()] and order[-1] == CAP, caps()
@@ -4020,8 +4055,9 @@ def q_caps_change_the_columns():
         got = columns_follow_the_controls(width, order)
         ncol = columns_as_stated(got, width, order, least)
         assert all(ncol[cap, (False,) * 4] == cap for cap in order), ncol
-        assert got['capOpened'] and got['capClosed'] and got['capFocus'] and got['zoomed'] and got['reset'], (
+        assert got['capOpened'] and not got['capClosed'] and got['capFocus'] and got['zoomed'] and got['reset'], (
             got['capOpened'], got['capClosed'], got['capFocus'], got['zoomed'], got['reset'])
+        assert (got['zoomedCaps'], got['resetCaps']) == (0, [CAP]), (got['zoomedCaps'], got['resetCaps'])
 
 
 def q_a_box_whose_statement_fails_says_so():
@@ -4475,7 +4511,7 @@ def q_strips_read_out_their_column_or_row():
     # N; then straight down onto the strip of the n labels, 10 CSS px below the plot; then onto the strip of the m labels
     # at row 12, 10 CSS px left of the plot.  After each, the readout, the tags (what each draw wrote in paper, and the
     # boxes of ink left of the plot and below it: q_axes_tag_the_cell_read_out's), and the pixels where the outlines go:
-    # above the cell in its column, left of column N in rows 1 and T, and above row 12 across the plot.
+    # above the cell in its column, left of column N in rows 1 and T, and above row 12 a quarter and three quarters across.
     # Expectata (dreeves, 2026-11-19, of clicks on the strips: "you have to first get the mouse in the interior and then
     # carefully move it left or down before clicking for row or column"): a hover reads out what a click at the same
     # place opens.  On the strip of the n labels, column N: the readout "n = N · BOUNDS", BOUNDS as a cell's readout

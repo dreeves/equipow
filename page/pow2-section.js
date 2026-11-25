@@ -198,7 +198,7 @@ try {
   const box = (k, e, kind) => ({heading: HEADINGS[kind](k, e), length: kind === 'row' ? null : 2n ** BigInt(k), ...SAYS[kind](k, e)});
   gridChart({cv, ro, panel: document.getElementById('pow2-panel'), zoomIn: document.getElementById('pow2-zoom-in'),
     zoomOut: document.getElementById('pow2-zoom-out'), caps: document.querySelectorAll('#pow2-caps button'), last: K,
-    columns: cap => Array.from({length: cap}, (_, i) => i + 1), rowsOf, rings: RINGS, nrow: E, letters: ['k', 'δ'], reads: READS, box,
+    columns: () => Array.from({length: K}, (_, i) => i + 1), rowsOf, rings: RINGS, nrow: E, letters: ['k', 'δ'], reads: READS, box,
     fragment: (k, e) => `${k === null ? '' : `k${k}`}${e === null ? '' : `d${e}`}`});
 } catch (e) {
   fail(e);

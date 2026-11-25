@@ -404,7 +404,6 @@ const HOOKS = () => {
     const X = x => b.left + x / dpr, Y = y => b.top + y / dpr, calls = d.calls;
     const rows = calls.filter(c => c[0] === 'row').map(([, r, , dy, , dh]) => [r, Y(dy), Y(dy + dh)]).sort((p, q) => p[0] - q[0]);
     const [, , dx, , dw] = calls.find(c => c[0] === 'row'), top = Math.min(...rows.map(r => r[1])), bottom = Math.max(...rows.map(r => r[2]));
-    const painted = ([, x, y, w, h, , lw]) => [X(x - lw / 2), Y(y - lw / 2), (w + lw) / dpr, (h + lw) / dpr];
     const texts = [], tags = [];
     calls.forEach((c, i) => {
       if (c[0] !== 'text') return;
@@ -413,8 +412,15 @@ const HOOKS = () => {
       else texts.push([c[1], box, c[6], c[7]]);
     });
     const line = calls.find(c => c[0] === 'rect' && c[3] === 1 && c[5] === paper && c[4] > 1);
-    return {plot: [X(dx), top, dw / dpr, bottom - top], rows, texts, tags,
-      rings: calls.filter(c => c[0] === 'stroke' && c[5] === record).map(painted), outlines: calls.filter(c => c[0] === 'stroke' && c[5] === ink).map(painted),
+    // the rings in gold and the outlines in ink: each four rects of its color in a row, the bands above, below, left and
+    // right of its target, as [the box they paint, the bands' width] (strokes until the rings came to adapt their width,
+    // 2026-11-23); an ink rect just before a number in paper is a tag's box
+    const bands = color => {
+      const rs = calls.filter((c, i) => c[0] === 'rect' && c[5] === color && !(calls[i + 1]?.[0] === 'text' && calls[i + 1][7] === paper)), out = [];
+      for (let i = 0; i < rs.length; i += 4) out.push([[X(rs[i][1]), Y(rs[i][2]), rs[i][3] / dpr, (rs[i + 1][2] + rs[i + 1][4] - rs[i][2]) / dpr], rs[i][4] / dpr, rs.length % 4]);
+      return out;
+    };
+    return {plot: [X(dx), top, dw / dpr, bottom - top], rows, texts, tags, rings: bands(record), outlines: bands(ink),
       dots: calls.filter(c => c[0] === 'arc').map(([, x, y, r, color]) => [X(x), Y(y), r / dpr, color]), lines: line ? line[6] : null, record, ink, paper};
   };
 };
@@ -514,8 +520,8 @@ const BOX = (t, PLACE, PANEL, PIXELS) => {         // PLACE, PANEL and PIXELS pa
   const [x, y] = PLACE(t), under = t.includes(null) ? null : PIXELS([[k, e, x, y]])[0][2];
   return {target: t, ...PANEL(), frame: hex(getComputedStyle(region).borderTopColor),
     caret: b.left + region.clientLeft + parseFloat(before.left) + parseFloat(before.borderLeftWidth), column: x,
-    pin: pin && [pin[0], pin[1], pin[0] + pin[2], pin[1] + pin[3]], pinHidden: pin === undefined,
-    want: [L + c0 * W / n - 2, row(e1)[1] - 2, L + c1 * W / n + 2, row(e0)[2] - g + 2],
+    pin: pin && [pin[0][0], pin[0][1], pin[0][0] + pin[0][2], pin[0][1] + pin[0][3]], pinHidden: pin === undefined,
+    cells: [L + c0 * W / n, row(e1)[1], L + c1 * W / n, row(e0)[2] - g],   // the target's cells, which its outline surrounds
     swatch: sw && {cls: sw.className, color: hex(getComputedStyle(sw).backgroundColor), ring: getComputedStyle(sw).boxShadow},
     fill: under,
     said: [...region.querySelectorAll('[data-panel-entries] > li > [data-why], [data-panel-body] > [data-why]')]
@@ -706,9 +712,10 @@ async function main() {
       // (2026-11-19) the mouse onto cell OUTLINE, then straight down onto the strip of the k labels, 10 px below the
       // plot, then onto the strip of the δ labels at row 3, 10 px left of the plot: after each (strips.cell, .column,
       // .row), the readout, the outline of what is read out (its box from the plot's top left corner) and the tags
-      const strip = () => { const d = __drawn(), [L, T, W, H] = d.plot, o = d.outlines.at(-1);
+      const strip = () => { const d = __drawn(), [L, T, W, H] = d.plot, o = d.outlines.at(-1), c = document.getElementById('pow2-chart').getBoundingClientRect();
         return {text: document.getElementById('pow2-readout').textContent, hidden: o === undefined,
-          outline: o && [o[0] - L, o[1] - T, o[2], o[3]], plot: [W, H], rows: d.rows.map(([r, top, bottom]) => [r, top - T, bottom - T]),
+          outline: o && [o[0][0] - L, o[0][1] - T, o[0][2], o[0][3]], plot: [W, H], rows: d.rows.map(([r, top, bottom]) => [r, top - T, bottom - T]),
+          box: o && o[0], geo: {plot: d.plot, rows: d.rows, chart: [c.left, c.top, c.width, c.height]},   // (2026-11-23) the outline's box and the draw, in the viewport
           tags: d.tags.map(t => t[0])}; };
       const G = await ev(GEOMETRY), [PL, PT, , PH] = G.plot, [, t3, b3] = G.rows.find(r => r[0] === 3);
       R.strips = {};
@@ -782,7 +789,10 @@ async function main() {
           mstar.push(await ev(() => document.getElementById('mstar-readout').textContent));
         }
         const disabled = await ev(() => ['pow2-zoom-in', 'pow2-zoom-out', 'mstar-zoom-in', 'mstar-zoom-out'].map(i => document.getElementById(i).disabled));
-        return {pow2, mstar, disabled, pow2Tags, pow2Plot: [L, T, W], pow2Rows: G.rows};
+        // each chart's caps pressed (2026-11-23): their data-cap
+        const caps = await ev(() => ['mstar', 'pow2'].map(p => [...document.querySelectorAll(`#${p}-caps button`)]
+          .filter(b => b.getAttribute('aria-pressed') === 'true').map(b => +b.dataset.cap)));
+        return {pow2, mstar, disabled, caps, pow2Tags, pow2Plot: [L, T, W], pow2Rows: G.rows};
       };
       const step = async (name, act) => { const x = await act(); R.zoom.steps.push({name, x, ...await edges()}); };
       await step('load', async () => {});
@@ -802,14 +812,15 @@ async function main() {
         const inView = cells.filter(([, , x]) => x > L && x < L + W);
         return {clicks: n, geo: g, dom: await ev(PIXELS, inView)};
       });
-      // this chart's cap pressed, which shows every column as its ↺ did until 2026-11-23 (when its caps took that button's
-      // place, as the m*(n) chart's had on 2026-11-10); it gets an id here for click
-      await ev(() => { document.querySelector('#pow2-caps button[aria-pressed="true"]').id = 'pow2-cap-pressed'; });
-      await step('pow2 cap', () => click('pow2-cap-pressed'));
+      // this chart's largest cap, the one pressed as the page loads, which shows every column as its ↺ did until 2026-11-23
+      // (when its caps took that button's place, as the m*(n) chart's had on 2026-11-10); it gets an id here for click
+      await ev(() => { [...document.querySelectorAll('#pow2-caps button')].at(-1).id = 'pow2-cap-last'; });
+      await step('pow2 cap', () => click('pow2-cap-last'));
       // the m*(n) chart's cap pressed, a click on which shows every column as its ↺ did until 2026-11-10 (dreeves's
       // README, [BOU]: "replace the reset-zoom button with "cap:" and then buttons"); it gets an id here for click
-      await ev(() => { document.querySelector('#mstar-caps button[aria-pressed="true"]').id = 'mstar-cap-pressed'; });
-      await step('mstar cap', () => click('mstar-cap-pressed'));
+      // (the largest since 2026-11-23, when a zoomed-in chart came to have no cap pressed: the one pressed until then)
+      await ev(() => { [...document.querySelectorAll('#mstar-caps button')].at(-1).id = 'mstar-cap-last'; });
+      await step('mstar cap', () => click('mstar-cap-last'));
       // A corner of a zoomed view read out, then that view panned by the keys alone until the corner's column is out of
       // view (2026-11-02, [HOV], q_axes_tag_the_cell_read_out): a click of this chart's + from the full view that its ↺
       // left ((12, 48) with 72 columns, until 2026-11-23); a click on the chart, for the keys; a mouse move to the top-left
@@ -827,7 +838,7 @@ async function main() {
     if (C.panels) {                   // a real click on cell C.outline opens its panel; then every column's, by its fragment
       await ev(() => { document.getElementById('pow2-chart').scrollIntoView({block: 'center'}); });
       await ev(FRAMES);
-      await ev(() => document.querySelector('#pow2-caps button[aria-pressed="true"]').click());   // every column (its ↺ until 2026-11-23)
+      await ev(() => [...document.querySelectorAll('#pow2-caps button')].at(-1).click());   // every column, its largest cap (its ↺ until 2026-11-23)
       const G = await ev(GEOMETRY), [L, T, W] = G.plot, [k, e] = C.outline, [, top, bottom] = G.rows.find(r => r[0] === e);
       const x = L + (k - 0.5) * W / C.K, y = (top + bottom - C.GAP) / 2;
       for (const type of ['mousePressed', 'mouseReleased']) {
@@ -1019,14 +1030,45 @@ def swatch_words(classes):
     return re.sub(r'<[^>]+>', '', words)
 
 
+def band(R, G, view=None):
+    """The width in CSS px of a ring's bands (and an outline's) in the view of a draw's geometry G (the full view if none):
+    a quarter of a cell's smaller side, in device px, rounded, but at least 1 CSS px and at most 2 (Spec change, Opus 5.5, 2026-11-23; dreeves: "can you do the experiments to pick the best answer to that question? if it should be adaptive, that's ok":
+    2 CSS px until then)."""
+    dpr, (_, _, W, H) = R['load']['dpr'], G['plot']
+    span = (view or (0, len(R['data']['cols'])))[1]
+    return min(2 * dpr, max(dpr, floor(min(W * dpr / span, H * dpr / len(G['rows']) - 1) / 4 + 0.5))) / dpr
+
+
+def ring_box(R, G, k, e, view=None):
+    """The box (x, y, w, h), CSS px of the viewport, that the bands of a ring or an outline around target (k, e) paint in
+    the view of a draw's geometry G (the full view if none): k None for every column, e None for every row.  Each band
+    holds the device px of the hairline between the target and its neighbor and band - 1 more beyond it, the sides' px
+    those that hold the column boundaries as gridChart computes them (edge: L + floor((c - u0) / k), k columns per device
+    px), above the gap of the row over it, below the target's own gap (Spec change, Opus 5.5, 2026-11-23; dreeves, of a ring whose sides differed: "make it look just right": until then
+    the target grown by the band's width each way, its sides rounded)."""
+    dpr, (L, T, W, H), (C, CT, _, _) = R['load']['dpr'], G['plot'], G['chart']
+    n, rows = len(R['data']['cols']), {r: (t, b) for r, t, b in G['rows']}
+    u0, span = view or (0, n)
+    Ld, Wd, b = round((L - C) * dpr), round(W * dpr), round(band(R, G, view) * dpr)
+    per = span / Wd
+    edge = lambda c: Ld + floor((c - u0) / per)
+    c0, c1 = (0, n) if k is None else (k - 1, k)
+    e0, e1 = (1, len(rows)) if e is None else (e, e)
+    y0, y1 = round((rows[e1][0] - CT) * dpr), round((rows[e0][1] - CT) * dpr) - 1   # the target's first px, and its last row's gap
+    X0, X1, Y0, Y1 = edge(c0) + 1 - b, edge(c1) + b, y0 - b, y1 + b
+    return C + X0 / dpr, CT + Y0 / dpr, (X1 - X0) / dpr, (Y1 - Y0) / dpr
+
+
 def ringed(R, x, y):
-    """Whether CSS point (x, y) lies on a ring of the chart's draw at load (R['geo']['rings']: the boxes its gold strokes
-    paint, 2 px wide around their cells), within a device px of its edges, where the browser blends it.  (Since
-    2026-11-23, when the chart came to be a canvas: within 1 px outside a ringed cell at its sides and 2 px above or
-    below it, by the ring's own div, until then.)"""
-    t, w = 1 / R['load']['dpr'], 2
-    return any(X - t <= x <= X + Wd + t and Y - t <= y <= Y + H + t and not (X + w + t < x < X + Wd - w - t and Y + w + t < y < Y + H - w - t)
-               for X, Y, Wd, H in R['geo']['rings'])
+    """Whether the device pixel at CSS point (x, y) lies on a ring of the chart's draw at load (R['geo']['rings']: the
+    boxes its gold bands paint around their cells, and the bands' width), the bands filled in whole device pixels (since
+    2026-11-23: until then strokes, which the browser blended a device pixel past their edges, and within 1 px outside a
+    ringed cell at its sides and 2 px above or below it, by the ring's own div, before the chart was a canvas)."""
+    dpr = R['load']['dpr']
+    X0, Y0 = R['geo']['chart'][:2]                                  # the canvas's corner, its device pixels' origin
+    px, py = (floor((x - X0) * dpr + 1e-9) + 0.5) / dpr + X0, (floor((y - Y0) * dpr + 1e-9) + 0.5) / dpr + Y0   # the pixel's middle
+    return any(X < px < X + Wd and Y < py < Y + H and not (X + w < px < X + Wd - w and Y + w < py < Y + H - w)
+               for (X, Y, Wd, H), w, _ in R['geo']['rings'])
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -1369,17 +1411,20 @@ def q_strips_read_out_their_column_or_row():
         g = gap(CONFIGS[name]['dpr'])
         # a column's width; each row's top and its outline's height, from the plot's top, by the draw's rows (Spec change, Opus 5.5, 2026-11-23; dreeves: "please DRY up as much as possible between the 2 figures":
         # rows 14 px apart until then); the tags drawn, in order (until then both tags' elements, showing or not)
-        one, rows = W / len(R['data']['cols']), {r: (t, b - g - t + 4) for r, t, b in S['cell']['rows']}
+        # (the outline's bands w wide, Spec change, Opus 5.5, 2026-11-23; dreeves: "can you do the experiments to pick the best answer to that question? if it should be adaptive, that's ok": 2 px until then)
+        w = band(R, {'plot': [0, 0, W, H], 'rows': S['cell']['rows']})
+        one, rows = W / len(R['data']['cols']), {r: (t, b - g - t + 2 * w) for r, t, b in S['cell']['rows']}
         assert S['cell']['tags'] == [str(e), str(k)] and not S['cell']['hidden'], (name, S['cell'])
-        assert near(S['cell']['outline'], [(k - 1) * one - 2, rows[e][0] - 2, one + 4, rows[e][1]]), (name, S['cell'])
+        exact = lambda P, t: all(abs(a - b) < 1e-6 for a, b in zip(P['box'], ring_box(R, P['geo'], *t)))   # (2026-11-23: within 1 px of the target grown until then)
+        assert exact(S['cell'], (k, e)), (name, S['cell']['box'], ring_box(R, S['cell']['geo'], k, e))
         C = S['column']
         assert C['text'] == f'k = {k}, n = 2{k} · {lo} ≤ m*(2{k}) ≤ {hi}', (name, C['text'])
         assert C['tags'] == [str(k)], (name, C['tags'])
-        assert near(C['outline'], [(k - 1) * one - 2, -2, one + 4, H - g + 4]), (name, C['outline'], H)
+        assert exact(C, (k, None)), (name, C['box'], ring_box(R, C['geo'], k, None))
         Rw = S['row']
         assert Rw['text'] == 'δ = 3', (name, Rw['text'])
         assert Rw['tags'] == ['3'], (name, Rw['tags'])
-        assert near(Rw['outline'], [-2, rows[3][0] - 2, W + 4, rows[3][1]]), (name, Rw['outline'])
+        assert exact(Rw, (None, 3)), (name, Rw['box'], ring_box(R, Rw['geo'], None, 3))
 
 
 def q_outline_marks_the_cell():
@@ -1397,7 +1442,9 @@ def q_outline_marks_the_cell():
         x0, y0, x1, y1 = cell_box(R, R['outlineGeo'], k, e)
         xm, ym = (x0 + x1) / 2, (y0 + y1) / 2
         cols, tok = R['data']['cols'], R['load']['tokens']
-        got = [pixel(R, 1, x, y) for x, y in ((x0 - 1, ym), (x1 + 1, ym), (xm, y0 - 1), (xm, y1 + 1), (xm, ym))]
+        w = band(R, R['outlineGeo'])                                # the outline's bands' width (Spec change, Opus 5.5, 2026-11-23; dreeves: "can you do the experiments to pick the best answer to that question? if it should be adaptive, that's ok": 2 px, probed 1 px out, until then)
+        X, Y, Wb, Hb = ring_box(R, R['outlineGeo'], k, e)               # its bands' middles: w / 2 in from the box's edges
+        got = [pixel(R, 1, x, y) for x, y in ((X + w / 2, ym), (X + Wb - w / 2, ym), (xm, Y + w / 2), (xm, Y + Hb - w / 2), (xm, ym))]
         # its middle a ring's gold where a neighbor's ring covers it, as on a phone, whose columns are 2.3 px wide at 128 of
         # them, and the m*(n) chart's rings, which this chart's are since then, 2 px wide at the sides (Spec change, Opus 5.5, 2026-11-23; dreeves: "please DRY up as much as possible between the 2 figures": 1 px at the
         # sides until then, which kept a neighbor's middle its own)
@@ -1420,7 +1467,9 @@ def check_tags(R, read, plot, rows, view, k, e):
     assert len(left) == 1 and len(below) == in_view and len(tags) == 1 + in_view, (k, e, view, tags)
     [(top, end)] = [(t, b) for r, t, b in rows if r == e]
     text, (x, y, w, h), *_ = left[0]
-    assert text == str(e) and top - 0.5 <= y and y + h <= end - g + 0.5, (k, e, left, top)
+    # its box at least its row's colored part (or 14 px) tall, over its row's middle, within the plot (Spec change, Opus 5.5, 2026-11-23; dreeves: "make sure it looks nice on all devices and zoom levels":
+    # within its row's colored part until then, where a number taller than a short row ran out of its box)
+    assert text == str(e) and h >= min(14, end - top) - g - 0.5 and min(t for _, t, _ in rows) - 0.5 <= y and y + h <= bottom + 0.5, (k, e, left, top)
     # over the place of row e's label, right-aligned 7 px left of the plot: 3 px of ink past it, and its row's middle
     # within (Spec change, Opus 5.5, 2026-11-23; dreeves: "please DRY up as much as possible between the 2 figures": until then over the label's own box, every row being labeled)
     assert abs(x + w - (L - 4)) <= 1 and y <= (top + end - g) / 2 <= y + h, (k, e, left, L)
@@ -1533,8 +1582,9 @@ def q_gold_trim_rings_the_smallest_cells():
     # maybe we want an additional visual indicator for when those coincide"): one ring per cell of ring_cells and no
     # other, in its order: for each δ the least k known to beat Thue-Morse by δ, a green cell, these being the cells the
     # theorem states; and the least k not ruled out, an open cell, where it is another.  Each ring is gold just outside
-    # its cell, 2 px wide all round, as the m*(n) chart's rings (Spec change, Opus 5.5, 2026-11-23; dreeves: "please DRY up as much as possible between the 2 figures": 2 px above and below and 1 px at its sides,
-    # a div of its own, until then), the box it paints the cell's grown by 2 px each way (within 0.5 px).  And one dot
+    # its cell, bands on every side a quarter of a cell's smaller side wide, from 1 to 2 px (band; 2026-11-23, at dreeves's
+    # "can you do the experiments..."), as the m*(n) chart's rings (Spec change, Opus 5.5, 2026-11-23; dreeves: "please DRY up as much as possible between the 2 figures": 2 px above and below and 1 px at its sides,
+    # a div of its own, until then), the box it paints the cell's grown by that width each way (within 0.5 px).  And one dot
     # per cell where the two agree (role 3, proven the least; Claude's proposal for the indicator), gold, centered on
     # its cell and half as wide as the cell's smaller side (within 0.5 px).
     # Resultata before: rings at the theorem's cells alone, and no dots.
@@ -1544,10 +1594,10 @@ def q_gold_trim_rings_the_smallest_cells():
         rings = ring_cells(R['data'])
         assert sorted((k, e) for k, e, role in rings if role & 1) == theorem_cells(), (name, rings)
         assert len(painted) == len(rings), (name, len(painted), rings)
-        for (k, e, role), box in zip(rings, painted):
-            x0, y0, x1, y1 = cell_box(R, R['geo'], k, e)
-            want = (x0 - 2, y0 - 2, x1 - x0 + 4, y1 - y0 + 4)
-            assert all(abs(a - b) <= 0.5 for a, b in zip(box, want)), (name, k, e, box, want)
+        w = band(R, R['geo'])
+        for (k, e, role), (box, width, rest) in zip(rings, painted):
+            want = ring_box(R, R['geo'], k, e)
+            assert abs(width - w) < 1e-9 and rest == 0 and all(abs(a - b) < 1e-6 for a, b in zip(box, want)), (name, k, e, box, want, width, w)
             assert kind_of(cols[k - 1], k, e) == (None, 0, 1, 0)[role], (name, k, e, role)
         proven = [(k, e) for k, e, role in rings if role == 3]
         assert proven and len(dots) == len(proven), (name, proven, dots)
@@ -1592,6 +1642,13 @@ def q_zoom_controls_zoom_their_own_chart():
     got = [(s['name'], tuple(int(re.match(r'k = (\d+),', t)[1]) for t in s['pow2']),
             tuple(int(re.match(r'n = (\d+),', t)[1]) for t in s['mstar']), s['disabled']) for s in Z['steps']]
     assert got == list(zip(names, ks, ns, disabled)), got
+    # A chart's cap is pressed while its view is that cap's every column, and none while it is zoomed in (dreeves,
+    # 2026-11-23: "if you zoom with the + button, the cap buttons should all become unselected"; the cap clicked last
+    # stayed pressed until then): the m*(n) chart's 2048 and this chart's last k, K, as the page loads; this chart's none
+    # from its first + on until its largest cap is clicked; the m*(n) chart's none from its + until its own is.
+    full = [True, False, False, False, False, False, False, True, True]          # this chart's view every column
+    mfull = [True, True, False, False, False, False, False, False, True]         # the m*(n) chart's
+    assert [s['caps'] for s in Z['steps']] == [[[2048] * f, [len(cols)] * g] for f, g in zip(mfull, full)], [s['caps'] for s in Z['steps']]
     limit = Z['steps'][6]['x']
     assert limit['clicks'] == clicks, (limit['clicks'], clicks)
     u0, span = views[6]
@@ -1605,12 +1662,12 @@ def q_zoom_controls_zoom_their_own_chart():
     assert seen == [(k, e) for k in range(1, len(cols) + 1) if 0 < k - 0.5 - u0 < span for e in range(1, E + 1)], seen
     bad = [(k, e, color) for k, e, color in limit['dom'] if color != (tok['record'] if (k, e) in proven else tok[KINDS[kind_of(cols[k - 1], k, e)]])]
     assert bad == [], bad[:5]
-    drawn = [(k, e) for k, e, _ in ring_cells(R['data']) if e <= E]
+    drawn = [(k, e) for k, e, _ in ring_cells(R['data']) if e <= E and u0 < k and k - 1 < u0 + span]   # (a column meeting the view, Spec change, Opus 5.5, 2026-11-23; dreeves: "make sure it looks nice on all devices and zoom levels")
     assert len(G['rings']) == len(drawn), (len(G['rings']), drawn)
-    for (k, e), box in zip(drawn, G['rings']):
-        x0, y0, x1, y1 = cell_box(R, G, k, e, (u0, span))
-        want = (x0 - 2, y0 - 2, x1 - x0 + 4, y1 - y0 + 4)
-        assert all(abs(a - b) <= 0.5 for a, b in zip(box, want)), (k, e, box, want)
+    w = band(R, G, (u0, span))
+    for (k, e), (box, width, _) in zip(drawn, G['rings']):
+        want = ring_box(R, G, k, e, (u0, span))
+        assert abs(width - w) < 1e-9 and all(abs(a - b) < 1e-6 for a, b in zip(box, want)), (k, e, box, want)
 
 
 def q_phone_has_no_sideways_scroll():
@@ -2010,7 +2067,9 @@ def q_box_outline_and_caret_mark_the_target():
     # the middle of the target's column, or of the δ labels' strip for a row.
     # Resultata before: only the cell read out was outlined, and there was no caret.
     R, B = pow2_boxes()
-    bad = [(t, P['pin'], P['want']) for t, P in B.items() if P['pinHidden'] or max(abs(a - b) for a, b in zip(P['pin'], P['want'])) > 1]
+    # its outline's box, as its bands paint it in the full view (ring_box; 2026-11-23: within 1 px of its cells grown by 2 px until then)
+    want = lambda t: (lambda x, y, w, h: [x, y, x + w, y + h])(*ring_box(R, R['geo'], *t))
+    bad = [(t, P['pin'], want(t)) for t, P in B.items() if P['pinHidden'] or max(abs(a - b) for a, b in zip(P['pin'], want(t))) > 1e-6]
     assert bad == [], bad
     bad = [(t, P['caret'], P['column']) for t, P in B.items() if P['caret'] is None or abs(P['caret'] - P['column']) > 2]   # None: no caret
     assert bad == [], bad
