@@ -7599,6 +7599,7 @@ def q_asymptotics_states_the_records_in_the_data():
     found = re.search(r'<section class="asymptotics".*?</section>', page(), re.S)
     assert found, 'no section asymptotics'
     text = re.sub(r'<!--.*?-->', '', found.group(0), flags=re.S)   # what the reader sees, not the TODO recaps
+    text, quote = text.split('<blockquote class="claude">')
     M = mstar_data()
     known = [(c[0] / math.log2(n), n, c[0]) for n, c in enumerate(M['cols'], 1) if c[0] > 0 and n > 1]
     known += [(m / math.log2(n), n, m) for n, m, *_ in M['past']]   # (past's rows, [n, lo, ...], since 2026-11-19)
@@ -7609,6 +7610,13 @@ def q_asymptotics_states_the_records_in_the_data():
     best = max(Fraction(c[0], k) for k, c in enumerate(pow2_data()['cols'], 1))
     lo, k = next((c[0], k) for k, c in enumerate(pow2_data()['cols'], 1) if Fraction(c[0], k) == best)
     assert f'{lo}/{k}' in text and f'{float(best):.3f}' in text, (lo, k, float(best))
+    # Replicata: the same two records in the attributed explanation below the section's opening paragraphs.
+    # Expectata: its lower end for c is the current fraction, and its inequality for U bounds U by the exact
+    # record, with the three-decimal number as an approximation. Resultata before: 71/61 and U ≥ 1.525,
+    # though 16/log2(1440) is strictly below 1.525.
+    expected = {f'{lo}/{k}', rf'U \ge {m}/\log_2 {n} \approx {ratio:.3f}'}
+    formulas = {' '.join(eq.split()) for eq in re.findall(r'\\\((.*?)\\\)', quote.split('</blockquote>')[0], re.S)}
+    assert expected <= formulas, expected - formulas
 
 
 def q_progress_lists_running_runs_first():
