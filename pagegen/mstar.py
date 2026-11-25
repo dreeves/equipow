@@ -261,7 +261,9 @@ NEW = {240: (10, 10, 'c'), 288: (9, 9, 'j'),
        # (Opus 5.5, 2026-11-23: the firsts for excess 12 to 20, once Figure 2 reaches 2^128, each a product of two lower columns' joins)
        2 ** 74: (86, 92, 'ca'), 2 ** 82: (95, 102, 'ca'), 2 ** 87: (101, 108, 'ca'), 2 ** 95: (110, 118, 'ca'), 2 ** 98: (114, 122, 'ca'), 2 ** 106: (123, 132, 'ca'), 2 ** 111: (129, 139, 'ca'), 2 ** 119: (138, 149, 'ca'), 2 ** 122: (142, 152, 'ca'),
        # (Opus 5.5, 2026-11-24: 2^103 and 2^116, the firsts for excess 17 and 19 since then, by the join of three products of that day at 2^103 and its product with 2^13's; 2^106 and 2^119, firsts until then, keep their cells, and the lows of 2^104, 2^105, 2^117 and 2^118, which have none, are one more)
-       2 ** 103: (120, 128, 'cf'), 2 ** 116: (135, 145, 'cf')}
+       2 ** 103: (120, 128, 'cf'), 2 ** 116: (135, 145, 'cf'),
+       # (Opus 5.5, 2026-11-24, later: 2^127, the first for excess 21, by Codex's join of 4 products of that night)
+       2 ** 127: (148, 159, 'ca')}
 # EXAMPLE_BY[n]: who found the example of order NEW[n][0] at n, as the page's remarks credit it, for each n whose lo
 # is that cited value (no sequence of that order is here; columns() asserts that these are exactly those n).  A cited
 # lo's ["page", who] names whose example it is, and a cited hi's whose proof, the cell's class.  At 496 they differ:
