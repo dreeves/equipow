@@ -304,8 +304,13 @@
         </table>
         <!-- Opus 5.5, 2026-11-23: the cells of 2^74, 2^82, 2^87, 2^95, 2^98, 2^106, 2^111, 2^119 and 2^122, the firsts for excess 12 to 20 once the chart reaches 2^128, each a product of two lower columns' joins; and on 2026-11-24 the cells of 2^103 and 2^116, of class cf, the firsts for excess 17 and 19 since then (2^106 and 2^119, which keep their cells, until then): a join of three products found that day, and its product with 2^13's; and later that day the cell of 2^127, of class ca, the first for excess 21: a join of 4 products that Codex found -->
         <table class="block">
-          <tr class="ns"><th scope="row">\(n\)</th><td class="ca" title='Opus 5.5 and Astra'>\(2^{74}\)</td><td class="ca" title='Opus 5.5 and Astra'>\(2^{82}\)</td><td class="ca" title='Opus 5.5 and Astra'>\(2^{87}\)</td><td class="ca" title='Opus 5.5 and Astra'>\(2^{95}\)</td><td class="ca" title='Opus 5.5 and Astra'>\(2^{98}\)</td><td class="cf" title='Opus 5.5 and Fable 5.2'>\(2^{103}\)</td><td class="ca" title='Opus 5.5 and Astra'>\(2^{106}\)</td><td class="ca" title='Opus 5.5 and Astra'>\(2^{111}\)</td><td class="cf" title='Opus 5.5 and Fable 5.2'>\(2^{116}\)</td><td class="ca" title='Opus 5.5 and Astra'>\(2^{119}\)</td><td class="ca" title='Opus 5.5 and Astra'>\(2^{122}\)</td><td class="ca" title='Opus 5.5 and Astra'>\(2^{127}\)</td></tr>
-          <tr class="vals"><th scope="row">\(m^*(n)\)</th><td class="ca">86–92</td><td class="ca">95–102</td><td class="ca">101–108</td><td class="ca">110–118</td><td class="ca">114–122</td><td class="cf">120–128</td><td class="ca">123–132</td><td class="ca">129–139</td><td class="cf">135–145</td><td class="ca">138–149</td><td class="ca">142–152</td><td class="ca">148–159</td></tr>
+          <tr class="ns"><th scope="row">\(n\)</th><td class="ca" title='Opus 5.5 and Astra'>\(2^{74}\)</td><td class="ca" title='Opus 5.5 and Astra'>\(2^{82}\)</td><td class="ca" title='Opus 5.5 and Astra'>\(2^{87}\)</td><td class="ca" title='Opus 5.5 and Astra'>\(2^{95}\)</td><td class="ca" title='Opus 5.5 and Astra'>\(2^{98}\)</td><td class="cf" title='Opus 5.5 and Fable 5.2'>\(2^{103}\)</td></tr>
+          <tr class="vals"><th scope="row">\(m^*(n)\)</th><td class="ca">86–92</td><td class="ca">95–102</td><td class="ca">101–108</td><td class="ca">110–118</td><td class="ca">114–122</td><td class="cf">120–128</td></tr>
+        </table>
+        <!-- Opus 5.5, 2026-11-24: those cells continued, from 2^106 (one table of twelve was wider than its frame at 945 px) -->
+        <table class="block">
+          <tr class="ns"><th scope="row">\(n\)</th><td class="ca" title='Opus 5.5 and Astra'>\(2^{106}\)</td><td class="ca" title='Opus 5.5 and Astra'>\(2^{111}\)</td><td class="cf" title='Opus 5.5 and Fable 5.2'>\(2^{116}\)</td><td class="ca" title='Opus 5.5 and Astra'>\(2^{119}\)</td><td class="ca" title='Opus 5.5 and Astra'>\(2^{122}\)</td><td class="ca" title='Opus 5.5 and Astra'>\(2^{127}\)</td></tr>
+          <tr class="vals"><th scope="row">\(m^*(n)\)</th><td class="ca">123–132</td><td class="ca">129–139</td><td class="cf">135–145</td><td class="ca">138–149</td><td class="ca">142–152</td><td class="ca">148–159</td></tr>
         </table>
       </div>
     </div>
@@ -559,7 +564,7 @@
   <h2 id="asymptotics-title">Asymptotics</h2>
   <!-- dreeves's words, from README.md's [APP] item, with Claude's corrections at his request (2026-11-06: "Can you add an "Asymptotics" section that uses my words with your corrections?"): the math typeset; m*(2^k) = c*log2(n) became m*(2^k)/k → c; "c is at least 77/68 and at most 2/log2(3)" became "c is at most 2/log2(3)", joined to his later sentence "Also 2^58 gives us 66/58 ≈ 1.138 as the lower bound" without its "Also"; "~= 1.347" became ≈ 1.347 log2 n; "Currently the best we have is 480:12. The following would beat that: 432:12, 672:13, 720: 13, 960:14. Update: We got 960:15! So 15/log2(960) ≈ 1.514 is the new bound on the upper envelope." became the two sentences with 1440:16 and 1.525 -->
 <p>
-Eyeballing the Figures <a href="#mstar-figure">1</a> and <a href="#pow2-figure">2</a>, it looks like maybe \(m^*(n) \approx 1.2\log_2 n\).
+Eyeballing Figures <a href="#mstar-figure">1</a> and <a href="#pow2-figure">2</a>, it looks like maybe \(m^*(n) \approx 1.2\log_2 n\).
 What can we say about the asymptotics?
 For powers of two we already have this: 
 \(m^*(2^k)/k \to c\) where \(c\) is at most 
