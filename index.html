@@ -236,11 +236,8 @@ Finally, treat the remaining bits (after right-padding) as a base-2 number and c
 </p>
 <p>
 Recovering a partition from a hex code reverses all that.
-<!-- TODO3: Opus 5.5 correction to the next sentence, with only its end changed, from "the integers to include in the first half of the first part of the bipartition" (half of an antisymmetric witness's first part can differ from its members below n/2: at n = 20, A3C's 1s give six of the ten):
-Expand the hex code into binary, consider the first \(n/2\) bits, and take the positions of the 1s as the integers below \(n/2\) to include in the first part of the bipartition.
--->
-Expand the hex code into binary, consider the first \(n/2\) bits, and take the positions of the 1s as the integers to include in the first half of the first part of the bipartition.
-The second half is by symmetry (if the order \(m\) is even) or by antisymmetry (if the order \(m\) is odd).
+Expand the hex code into \(n/2\) bits and take the positions of the 1s as the integers up to \(n/2\) to include in the first part of the bipartition.
+The integers past \(n/2\) to include in the first part are found by symmetry (if the order \(m\) is even) or by antisymmetry (if the order \(m\) is odd).
 By symmetry means duplicate the list of bits, reverse it, and append it to the original list of bits, i.e., mirror it to the right.
 By antisymmetry means duplicate, reverse, <i>flip each bit</i>, and append it, i.e., mirror the complement.
 Following is Mathematica code to do all that.
@@ -1236,10 +1233,11 @@ such that the Symmetry Conjecture holds for lengths \(n \ge N\).
   <details>
     <summary><h2 id="appendix-title">Appendix: Everything Known About Every Length</h2></summary>
     <p>
-      We start with odd lengths, which trivially have order 0.
-      Then come the odd multiples of 2, which almost as trivially all have order 1.
-      (See the intro.)
-      Then we list every length individually, following Figures <a href="#mstar-figure">1</a> and <a href="#pow2-figure">2</a>.
+      We start with odd lengths, which trivially have order 0 
+      (see the introduction).
+      Then come the odd multiples of 2, which almost as trivially all have order 1
+      (see the proof above Figure <a href="#mstar-figure">1</a>).
+      Then we list lengths individually, following Figures <a href="#mstar-figure">1</a> and <a href="#pow2-figure">2</a> and then going beyond them for some lengths as needed to derive various results.
     </p>
     <!-- A code's or a join's partition (dreeves's [REO] item 2), which page/codes.js puts right below it at its first click and fills in with numbers and the marks = and ≠: its two parts as sets, and their power sums -->
     <template data-partition>
