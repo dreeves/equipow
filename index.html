@@ -236,6 +236,9 @@ Finally, treat the remaining bits (after right-padding) as a base-2 number and c
 </p>
 <p>
 Recovering a partition from a hex code reverses all that.
+<!-- TODO3: Opus 5.5 correction to the next sentence, with only its end changed, from "the integers to include in the first half of the first part of the bipartition" (half of an antisymmetric witness's first part can differ from its members below n/2: at n = 20, A3C's 1s give six of the ten):
+Expand the hex code into binary, consider the first \(n/2\) bits, and take the positions of the 1s as the integers below \(n/2\) to include in the first part of the bipartition.
+-->
 Expand the hex code into binary, consider the first \(n/2\) bits, and take the positions of the 1s as the integers to include in the first half of the first part of the bipartition.
 The second half is by symmetry (if the order \(m\) is even) or by antisymmetry (if the order \(m\) is odd).
 By symmetry means duplicate the list of bits, reverse it, and append it to the original list of bits, i.e., mirror it to the right.
