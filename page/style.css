@@ -55,7 +55,7 @@ body {
    under the charts (2026-11-04: lines mostly of math, which justified spread wide).  The title and byline are centered, as \maketitle sets them, the title in regular weight. */
 table { font-size: 1.0625rem; }
 main p, main li { hyphens: auto; -webkit-hyphens: auto; }
-main p, main ul:not(.legend) { max-width: var(--measure); }
+main p, main ul:not(.legend), main pre { max-width: var(--measure); }
 @media (min-width: 40rem) { main p, main li { text-align: justify; } }
 .changelog p, .progress p, p.code, #mstar-readout, #pow2-readout, .column-panel-body p { text-align: start; hyphens: manual; -webkit-hyphens: manual; }
 header h1 { text-align: center; font-weight: 400; font-size: 2.1rem; }
@@ -326,7 +326,7 @@ details.ai > * + * { margin-top: 0.8rem; }
 .proof-body .proof-equation { max-width: 100%; overflow-x: auto; padding-block: 0.2rem; white-space: nowrap; text-align: start; }
 /* KaTeX's positioning boxes can exceed its visible notation by a pixel. Keep only horizontal scrolling. */
 .proof-body .proof-equation { overflow-y: hidden; }
-.proof-body pre { max-width: 100%; overflow-x: auto; }
+pre { max-width: 100%; overflow-x: auto; font-size: 0.8125rem; }   /* every pre scrolls sideways in its column, its lines spaced for code's size: the proofs' and, since 2026-11-25, the appendix's Mathematica ([MMA]) */
 .proof-body table { border-collapse: collapse; margin-inline: auto; font-variant-numeric: tabular-nums lining-nums; }
 .proof-body th, .proof-body td { padding: 0.25rem 0.5rem; text-align: right; white-space: nowrap; }
 .proof-body th:first-child, .proof-body td:first-child { text-align: left; }

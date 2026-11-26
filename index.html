@@ -43,6 +43,7 @@
   <!-- The changelog, newest first, as in dreeves's spec FreshAt (doc.bmndr.co/freshat) -->
   <details class="changelog">
     <summary><i>Changelog</i></summary>
+    <p>2026-11-25: More prose and code in the intro</p>
     <p>2026-11-24: \(m^*(2^{127}) \ge 148\)</p>
     <p>2026-11-24: \(m^*(2^{103}) \ge 120\)</p>
     <p>2026-11-24: \(m^*(2^{116}) \ge 135\)</p>
@@ -208,15 +209,76 @@
     Notice how the sum of the zeroth powers is just the number of elements.
     From that we see immediately that every odd \(n\) has order 0 because with an odd number of elements a set can't be partitioned into equal-size subsets, so \(k=0\) already fails.
   </p>
-  <p>
-    Fun fact, this property of having equal power sums for exponents from 0 up to some \(k\) is invariant under translating and scaling.
-    In particular that means it doesn't matter if we use \(\{1, \ldots, n\}\) or \(\{0, \ldots, n - 1\}\) as the set to be partitioned &mdash;
-    the \(m^*(n)\) values are the same.
-    You can in fact start with any set of \(n\) equally spaced integers.
-  </p>
-  <p>
-    From here on we use the convention that the \(n\)-element set to be partitioned is \(\{0, \ldots, n - 1\}\).
-  </p>
+<p>
+Fun fact, this property of having equal power sums for exponents from 0 up to some \(k\) is invariant under translating and scaling.
+In particular that means it doesn't matter if we use \(\{1, \ldots, n\}\) or \(\{0, \ldots, n - 1\}\) as the set to be partitioned &mdash;
+the \(m^*(n)\) values are the same.
+You can in fact start with any set of \(n\) equally spaced integers.
+From here on we use the convention that the \(n\)-element set to be partitioned is \(\{0, \ldots, n - 1\}\).
+</p>
+<p>
+So consider a bipartition of an \(n\)-element set that's equipowerful for all exponents \(\{0,\ldots,m-1\}\).
+We call such a bipartition a <i>witness</i> for order \(m\) because it establishes that a given length \(n\) has at least order \(m\).
+</p>
+<p>
+BGPW's Symmetry Conjecture:
+If a length \(n\) has order \(m\), there exists a witness for order \(m\) that is <i>symmetric</i> if \(m\) is even and <i>antisymmetric</i> if \(m\) is odd.
+Symmetry and antisymmetry are defined as follows.
+Start with \(\{0, \ldots, n-1\}\) and construct a parallel list of bits where a bit is 0 if the corresponding integer is in the first partition and 1 if it's in the second.
+If the second half of that list of bits is the mirror image of the first half, the witness is symmetric.
+If the second half of that list of bits is the mirror image except with each bit flipped, the witness is antisymmetric.
+From here on, we only use symmetric or antisymmetric witnesses.
+</p>
+<p>
+We represent witnesses as hex codes, following Table 5 of BGPW.
+Namely, take the partition containing 0 as the first partition and construct the list of bits described above.
+Throw away the second half, since it's reconstructible by (anti)symmetry.
+Finally, treat the remaining bits as a base-2 number and convert it to hexadecimal.
+</p>
+<p>
+Recovering a partition from a hex code reverses all that.
+Expand the hex code into binary and take the 0-indexed positions of the 1s as the left half of integers to include in the first partition.
+The right half is by symmetry (if the order \(m\) is even) or by antisymmetry (if the order \(m\) is odd).
+By symmetry means duplicate the list of bits, reverse it, and append it to the original list of bits, i.e., mirror it to the right.
+By antisymmetry means duplicate, reverse, <i>flip each bit</i>, and append it, i.e., mirror the complement.
+Following is Mathematica code to do all that.
+</p>
+<p><pre><code>(* Find the order of witness A: the first exponent that's not equipowerful *)
+wo[A_, n_] := NestWhile[#+1&, 0, 2*Total[(A+1)^#] == Total[Range[n]^#]&]
+
+(* Turn a hex code into a witness when we know the order m *)
+HexDecode[c_String, m_Integer] := With[
+  {bits = IntegerDigits[FromDigits[c, 16], 2, 4*StringLength[c]]},
+  -1 + Flatten[Position[Join[bits, Reverse[If[EvenQ[m], bits, 1-bits]]], 1]]]
+
+(* Turn a hex code into a set of integers without knowing the order *)
+HexDecode[c_String] := First@MaximalBy[HexDecode[c, #]& /@ {0,1},
+  wo[#, 8*StringLength[c]]&]</code></pre>
+</p>
+<p>
+Click any hex code on this page to see the explicit bipartition and the power sums.
+</p>
+<p>
+See BGPW for how a bipartition can be encoded as a Littlewood polynomial, meaning all coefficients are either \(+1\) or \(-1\), and how that's helpful for finding the orders for given lengths.
+The symbols \(\mathbin{\#}\) and \(\vee\) denote the expanded product and the join operation on Littlewood polynomials:<br>
+\(f \mathbin{\#} g = f(x)\cdot g(x^{n_f})\)<br>
+\(f \vee g = f(x) + x^{n_f} g(x)\),<br>
+where \(n_f\) is the length of \(f\). 
+</p>
+<p>
+The length of a Littlewood polynomial refers to the the number of terms and the order is the multiplicity of the \(x=1\) root, i.e., the largest power of \(x-1\) that can be factored out of the polynomial.
+The expanded product and the join have these properties:
+</p>
+<ul>
+<li>\(\operatorname{length}(f \mathbin{\#} g) = \operatorname{length}(f)\operatorname{length}(g)\)</li>
+<li>\(\operatorname{order}(f \mathbin{\#} g) = \operatorname{order}(f)+\operatorname{order}(g)\)</li>
+<li>\(\operatorname{length}(f \vee g) = \operatorname{length}(f)+\operatorname{length}(g)\)</li>
+<li>\(\operatorname{order}(f \vee g) \ge \min(\operatorname{order}(f),\operatorname{order}(g))\)</li>
+</ul>
+<p>
+Click any formula using those operators to see its derivation.
+</p>
+
 </header>
 
 <figure>
@@ -1170,28 +1232,11 @@ such that the Symmetry Conjecture holds for lengths \(n \ge N\).
   <details>
     <summary><h2 id="appendix-title">Appendix: Everything Known About Every Length</h2></summary>
     <p>
-      The hex codes shown below follow Table 5 of BGPW: 
-      the left half of the signs \((1 = +1, 0 = -1)\), then the rest by \((-1)^m\) symmetry.
-      Click to expand them into the actual bipartitions.
-      We also refer to such a bipartition as a <i>witness</i> becauses it establishes that a given length \(n\) has at least a certain order \(m\).
+      We start with odd lengths, which trivially have order 0.
+      Then come the odd multiples of 2, which almost as trivially all have order 1.
+      (See the intro.)
+      Then we list every length individually, following Figures <a href="#mstar-figure">1</a> and <a href="#pow2-figure">2</a>.
     </p>
-    <p>
-      The symbols \(\mathbin{\#}\) and \(\vee\) denote the expanded product and the join operation on Littlewood polynomials:<br>
-      \(f \mathbin{\#} g = f(x)\cdot g(x^{n_f})\)<br>
-      \(f \vee g = f(x) + x^{n_f} g(x)\),<br>
-      where \(n_f\) is the length of \(f\). 
-    </p>
-    <p>
-      The length of a Littlewood polynomial refers to the the number of terms and the order is the multiplicity of the \(x=1\) root, i.e., the largest power of \(x-1\) that can be factored out of the polynomial.
-      The expanded product and the join have these properties:
-    </p>
-    <ul>
-      <li>\(\operatorname{length}(f \mathbin{\#} g) = \operatorname{length}(f)\operatorname{length}(g)\)</li>
-      <li>\(\operatorname{order}(f \mathbin{\#} g) = \operatorname{order}(f)+\operatorname{order}(g)\)</li>
-      <li>\(\operatorname{length}(f \vee g) = \operatorname{length}(f)+\operatorname{length}(g)\)</li>
-      <li>\(\operatorname{order}(f \vee g) \ge \min(\operatorname{order}(f),\operatorname{order}(g))\)</li>
-    </ul>
-    <p>In the formulas below you can click to see its derivation.</p>
     <!-- A code's or a join's partition (dreeves's [REO] item 2), which page/codes.js puts right below it at its first click and fills in with numbers and the marks = and ≠: its two parts as sets, and their power sums -->
     <template data-partition>
       <div class="partition">
