@@ -43,6 +43,8 @@
   <!-- The changelog, newest first, as in dreeves's spec FreshAt (doc.bmndr.co/freshat) -->
   <details class="changelog">
     <summary><i>Changelog</i></summary>
+    <p>2026-11-26: <a href="#entry-530544">\(m^*(530544)=15\)</a>, <a href="#sym15-current">\(n_0(15)\le542321\)</a></p>
+    <p>2026-11-26: <a href="#entry-535440">\(m^*(535440)=15\)</a>, <a href="#sym15-current">\(n_0(15)\le547665\)</a></p>
     <p>2026-11-26: \(m^*(795280) = 15\)</p>
     <!-- TODO: link the constructive bound at all orders, the order-15 tail, and its first remaining length at odd multiples of 16. -->
     <p>2026-11-26: <a href="#symtransport">\(n_0(m)\le 2^{Cm}\)</a>, <a href="#sym15">\(n_0(15)\le 807536\)</a>, <a href="#sym33360">\(m^*(n)=15,\ n\equiv16\pmod{32}\ \Rightarrow\ n\ge33360\)</a></p>
@@ -1255,7 +1257,7 @@ at one \(\theta\) every factor is \(\pm\cos(\pi/16)\), which leaves \(0.39\) at 
 </details>
 <!-- TODO: dreeves to review. The order-15 witness at an odd multiple of 16, its checker and the exact-order tail, using all 60 order-14 side lengths and either of two antisymmetric centers. -->
 <details class="ai" lang="en">
-<summary>Astra on the order-15 sequence of length 795,280 and the cutoff in Table 5</summary>
+<summary>Astra on the order-15 sequences at odd multiples of 16 and the cutoff in Table 5</summary>
 <blockquote class="claude">
 <div class="proof-body" id="sym15">
 <p><b>The witness.</b> For a sign sequence \(P\) of order at least 13, let \(c(P)\) be the coefficient of \((x-1)^{13}\) in the expansion of its Littlewood polynomial about \(x=1\). Joining sequences adds their \(c\) values. Repeating each sign \(b\) times multiplies \(c\) by \(b^{14}\), since the expanded polynomial is \((1+x+\cdots+x^{b-1})P(x^b)\).</p>
@@ -1266,7 +1268,11 @@ at one \(\theta\) every factor is \(\pm\cos(\pi/16)\), which leaves \(0.39\) at 
 <p><b>The cutoff.</b> The existing codes give order at least 14 at lengths \(6128,6144,\ldots,7072\). These 60 lengths represent every multiple of 16 modulo 960. Adding copies of the <a href="#entry-960">length-960 sequence</a> therefore gives a sequence of order at least 14 for one side at every multiple of 16 from 6,128 on.</p>
 <p>For \(n\equiv16\pmod{32}\), use the length-795,280 sequence as center. For \(n\equiv0\pmod{32}\), use the antisymmetric length-960 sequence of exact order 15. In either case, when \(n\ge795280+2\cdot6128=807536\), the required side length is a multiple of 16 at least 6,128. Put a sequence of order at least 14 on one side and its negated reversal on the other. The result is antisymmetric and has order at least 15. The two choices of sign for the center give different degree-15 Taylor coefficients because its order is exactly 15. At least one choice gives exact order 15. BGPW’s divisibility bound then gives \(m^*(n)=15\) for every \(n\ge807536\) with \(n\equiv16\pmod{32}\).</p>
 <!-- TODO: explain the difference between the table cutoff and the first admissible odd multiple of 16 in the tail, then give the independent order-16 bound. -->
-<p>The preceding length in the residue class of 807,536 is 807,504. The other class is already covered from \(960+2\cdot6128\) on. Thus every admissible length above 807,504 is covered, and <a href="#symmetry-table">Table 5</a> gives 807,505.</p>
+<p>The preceding length in the residue class of 807,536 is 807,504. The other class is already covered from \(960+2\cdot6128\) on. Thus the original center gave a cutoff of 807,505.</p>
+<!-- TODO: Astra's updated order-15 center and cutoff. Each batch keeps its earlier examples in the appendix. -->
+<p>There is also a direct shortening. If the side contains a copy of \(-q\), remove that copy and change the center from \(q\) to \(-q\). The side’s coefficient increases by \(c(q)\), so \(2c(P)+c(q)\) stays zero after the change. The full sequence loses twice the length of \(q\).</p>
+<p>A longer center can fill a gap left by a shorter one. For each multiple of 16 modulo 960, take the shortest available side of order at least 14, allowing the empty side. For each center of length \(L\) and each such side of length \(s\), the construction covers \(L+2s\) and every length 1,920 greater in succession, by adding 960 on both sides. In each admissible residue class modulo 1,920, keep the least of these starting lengths. Subtracting 1,920 from the largest start gives the last length these constructions could miss. The cutoff is one more than that length.</p>
+<p id="sym15-current">The shortest verified center at an odd multiple of 16 now has length <a href="#entry-530544">530,544</a> (<a href="pagedata/530544.hex" download>download the sequence</a>). The search varies the signed block counts to shorten the side while keeping \(2c(P)=-c(q)\). The checker expands each <a href="proofs/sym15.json">recorded construction</a> and verifies exact order 15 from its signs. Together these centers give Table 5’s cutoff of <a href="#symmetry-table">542,321</a>.</p>
 <p><b>Order 16.</b> Sequences of order at least 15 exist at lengths \(960\), \(1440\), \(1632\), \(1728\), \(2016\), \(2784\), \(7360\), \(7712\) and \(8192\). For \(2784=2\cdot1392\), join the order-14 sequence to its negated reversal. The other lengths already have witnesses on this page. Nonnegative sums of these lengths give every multiple of 32 from 10,048 through 10,976. Adding copies of 960 covers every larger multiple of 32. The checks for these sums and the 60 order-14 side lengths are in <a href="https://github.com/dreeves/equipow/blob/main/quals/quals_symmetry.py">quals_symmetry.py</a> and <a href="https://github.com/dreeves/equipow/blob/main/quals/quals_sym15.py">quals_sym15.py</a>.</p>
 <p>For \(n\equiv0\pmod{64}\), leave the center empty. For \(n\equiv32\pmod{64}\), use the symmetric length-1,440 sequence of order 16 as center. Reflect the side across the center with its signs unchanged. The whole sequence is symmetric, so its order is even. It already has order at least 15, hence at least 16. The largest length this calculation could miss is \(1440+2(10048-32)=21472\), giving \(B_{16}=21473\).</p>
 </div>
@@ -1307,7 +1313,7 @@ such that the Symmetry Conjecture holds for lengths \(n \ge N\).
 <!-- Opus 5.5, 2026-11-19: order 14's N fell from 7329 to 7121 with the antisymmetric sequences of order 13 at 2528, 2608, 2800 and 2992 above (its tail's A from 3680 to 3360, its threshold from 8560 to 7920; quals_symmetry.q_symmetry_table_gives_each_order_s_length) -->
 <!-- Opus 5.5, 2026-11-22: order 14's N fell from 7121 to 6113 with the symmetric sequence of order 14 at 1104 above, an odd multiple of 16 (its tail's b from 1200 to 1104, A from 3104 to 3072, its threshold from 7408 to 7248; the largest length left open below it is 6112; quals_symmetry.q_symmetry_table_gives_each_order_s_length) -->
 <tr data-proof="symsmall"><td>14</td><td>6113</td></tr>
-<tr data-proof="sym15"><td>15</td><td>807,505</td></tr>
+<tr data-proof="sym15"><td>15</td><td>542,321</td></tr>
 <tr data-proof="sym15"><td>16</td><td>21,473</td></tr>
 <tr data-proof="symtransport"><td>17</td><td>31,<wbr>025,<wbr>947,<wbr>785,<wbr>229,<wbr>777,<wbr>659,<wbr>537,<wbr>377</td></tr>
 <tr data-proof="symtransport"><td>18</td><td>133,<wbr>054,<wbr>115,<wbr>707,<wbr>288,<wbr>645,<wbr>946,<wbr>920,<wbr>929</td></tr>

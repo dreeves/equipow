@@ -89,8 +89,11 @@ def long_examples():
     # 12, the day's second round), which mstar.explicit() reads as examples (mstar.symmetry_codes): the same decoding.
     long += [(n, m, h) for n, m, h in mstar.symmetry_codes(page) if n > mstar.NMAX]
     # 2026-11-26: the large example's code is published separately from the page's codes.
-    with open(os.path.join(HERE, 'pagedata', '795280.hex'), encoding='ascii') as f:
-        long.append((795280, 15, f.read().rstrip('\n')))
+    with open(os.path.join(HERE, 'proofs', 'sym15.json'), encoding='utf-8') as f:
+        lengths = [r['n'] for r in json.load(f)]
+    for n in lengths:
+        with open(os.path.join(HERE, 'pagedata', f'{n}.hex'), encoding='ascii') as f:
+            long.append((n, 15, f.read().rstrip('\n')))
     for n, m, h in long:
         left = [2 * int(b) - 1 for b in bin(int(h, 16))[2:].zfill(4 * len(h))]
         a = left + [(-1) ** m * s for s in reversed(left)]

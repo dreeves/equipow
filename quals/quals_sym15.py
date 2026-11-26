@@ -24,6 +24,25 @@ class SymmetryConstruction(unittest.TestCase):
         word[0], word[-1] = -word[0], -word[-1]
         self.assertNotEqual(sym15.moments(word, 1)[1], 0)
 
+    def test_published_records(self):
+        # Replicata: reconstruct the signed coefficients of every published length.
+        # Expectata: both historical records survive and every recipe gives its stated degree-15 coefficient.
+        # Resultata before this batch: only the 795280 construction had a public recipe.
+        import sym15
+        self.assertEqual(list(sym15.RECIPES)[:2], [795280, 535440])
+        self.assertEqual(sym15.witness(), sym15.witness(795280))
+        self.assertEqual(int(sym15.RECIPES[535440]['degree15']), 112974298723519664321204344733170699234071982509351)
+        for n, recipe in sym15.RECIPES.items():
+            signs = sym15.witness(n)
+            self.assertEqual(n % 32, 16)
+            self.assertEqual(len(signs), n)
+            self.assertEqual(sym15.check(signs), [0]*15 + [int(recipe['degree15'])])
+            signs[0], signs[-1] = -signs[0], -signs[-1]
+            with self.assertRaises(AssertionError):
+                sym15.check(signs)
+        with self.assertRaises(KeyError):
+            sym15.witness(16)
+
     def test_transport_on_literal_words(self):
         # Replicata: construct both possible symmetries and undo a mirror pair.
         # Expectata: all moments through degree m-1 vanish only before the change.
@@ -67,6 +86,7 @@ class SymmetryConstruction(unittest.TestCase):
             self.assertTrue(qs.holds(a, 14), n)
         self.assertTrue(qs.holds(build(None, 960), 15))
         self.assertEqual(len(sym15.witness()) + 2*lengths.start, 807536)
+        self.assertEqual(len(sym15.witness(535440)) + 2*lengths.start, 547696)
 
 
 if __name__ == '__main__':

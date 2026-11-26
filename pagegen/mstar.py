@@ -845,16 +845,19 @@ def row(n):
 
 
 @lru_cache(maxsize=None)
-def file_example():
-    """The long witness as an appendix row and its downloadable left-half hex code."""
+def file_examples():
+    """The long witnesses as appendix rows with downloadable left-half hex codes."""
     source = 'proofs/sym15.py'
     proof = runpy.run_path(os.path.join(HERE, source))
-    n, m = proof['N'], proof['M']
-    signs = proof['witness']()
-    proof['check'](signs)
-    assert n > NMAX and two(n) == m
-    path = f'pagedata/{n}.hex'
-    return n, [m, two(n), ['file', source, path], ['two']], to_hex(signs, m)
+    m = proof['M']
+    out = []
+    for n, recipe in proof['RECIPES'].items():
+        signs = proof['witness'](n)
+        assert proof['check'](signs)[m] == int(recipe['degree15'])
+        assert n > NMAX and two(n) == m
+        path = f'pagedata/{n}.hex'
+        out.append((n, [m, two(n), ['file', source, path], ['two']], to_hex(signs, m)))
+    return out
 
 
 @lru_cache(maxsize=None)
@@ -869,14 +872,14 @@ def rows():
     for n, (m, chain, sweep) in RESIDUE.items(): assert chain_none(n, m, chain, sweep, RESIDUE_CAP), (n, m, chain)
     for n, (hi, file) in PROOFS.items(): proved(n, hi, file)
     out = {n: row(n) for n in sorted({*range(1, NMAX + 1), *(n for n, _ in explicit())})}
-    n, file_row, _ = file_example()
-    assert n not in out
-    out[n] = file_row
+    for n, file_row, _ in file_examples():
+        assert n not in out
+        out[n] = file_row
     for n, (lo, hi, lw, hw) in out.items():
         assert lw[0] not in ('join', 'product') or all(out[k][2] == list(why_x[k]) for k in lw[1:]), n
         assert n > BRUTE_MAX or lo == hi == brute(n)[0], n
     assert {n for n, c in out.items() if c[2][0] == 'page'} == set(EXAMPLE_BY), EXAMPLE_BY
-    return out
+    return dict(sorted(out.items()))
 
 
 def far():
@@ -936,9 +939,9 @@ def main():
     # TODO: error copy; says the script refuses to run under python -O, which would strip its assertions
     if not __debug__: raise SystemExit('Claude: "refusing to run without assertions (python -O)"')
     cols = columns()
-    _, file_row, code = file_example()
-    with open(os.path.join(HERE, file_row[2][2]), 'w', encoding='ascii') as f:
-        f.write(code + '\n')
+    for _, file_row, code in file_examples():
+        with open(os.path.join(HERE, file_row[2][2]), 'w', encoding='ascii') as f:
+            f.write(code + '\n')
     Path(JS).write_text(js_text(cols), encoding='utf-8')
     settled = sum(c[0] == c[1] for c in cols)
     gray = [n for n, c in enumerate(cols, 1) if c[0] < c[1]]

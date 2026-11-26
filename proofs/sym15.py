@@ -1,53 +1,67 @@
 #!/usr/bin/env python3
-"""Verify the antisymmetric sign sequence of length 795280 and exact order 15 in index.html#sym15.
+"""Reconstruct and verify the antisymmetric order-15 sequences in index.html#sym15.
 
-Run python3 -B proofs/sym15.py from a checkout. The code uses only the standard
-library. witness() returns its signs in index order, with the part containing 0 first.
+sym15.json lists the lengths in publication order. Each setup gives the width of
+a Thue–Morse block, a mask for the negative offsets of the flipped positions,
+and the signed length of the central sequence. Each triple in blocks gives an
+order-13 source length, its stretch and its signed multiplicity, in join order.
+degree15 gives the normalized sequence's coefficient of (x-1)^15 in decimal.
+
+Run python3 -B proofs/sym15.py to check every record. witness(n) returns the
+signs in index order, with the part containing 0 first. witness() retains the
+original length 795280.
 """
 from itertools import accumulate
+import json
 from pathlib import Path
 import re
 
 
 N, M = 795280, 15
-
-# (length of order-13 source, number of times to repeat each sign, signed multiplicity)
-BLOCKS = [
-    (1200, 12, -1), (2368, 5, 1), (720, 12, -1), (2528, 3, 1), (1104, 5, -1),
-    (672, 7, 1), (912, 4, 1), (672, 4, -1), (768, 2, -1),
-    (672, 1, -3), (720, 1, -5), (768, 1, -4), (912, 1, 6), (1008, 1, 9),
-    (1056, 1, -3), (1104, 1, 20), (1200, 1, 7), (1296, 1, -7), (1392, 1, 3),
-    (1488, 1, -16), (1584, 1, -13), (1776, 1, 12), (2368, 1, -8), (2432, 1, -2),
-    (2480, 1, 6), (2512, 1, -2), (2528, 1, 5), (2608, 1, -6), (2800, 1, -4),
-    (2992, 1, 1)
-]
+_records = json.loads(Path(__file__).with_suffix('.json').read_text(encoding='utf-8'))
+RECIPES = {r['n']: r for r in _records}
+assert len(RECIPES) == len(_records)
+BLOCKS = [tuple(b) for b in RECIPES[N]['blocks']]
 
 
-def witness():
-    """Join the stretched order-13 blocks around the length-720 center and normalize."""
+def witness(n=N):
+    """Join the stretched order-13 blocks around the specified center and normalize."""
+    recipe = RECIPES[n]
+    width, mask, center = recipe['setup']
+    assert 0 <= mask < 2**13 and center % 32 == n % 32 == 16
     side = [1]
     for _ in range(13):
         side += [-a for a in side]
-    side = [a for a in side for _ in range(14)]
-    for u in range(1 << 13):
-        pos = 14*u + bin(u).count("1")
-        side[pos] *= -1
+    side = [a for a in side for _ in range(width)]
+
+    # Flip one position per block. A subset of the 13 steps chooses its block.
+    starts = [width * 2**i for i in range(13)]
+    offsets = [(1 - 2*((mask >> i) & 1)) * (step % 2 == 0) for i, step in enumerate(starts)]
+    assert sum(map(abs, offsets)) < width
+    positions = [-sum(min(t, 0) for t in offsets)]
+    for step, t in zip(starts, offsets):
+        positions += [x + step + t for x in positions]
+    for u, x in enumerate(positions):
+        assert x // width == u
+        side[x] *= -1
 
     page = (Path(__file__).resolve().parents[1] / 'index.html').read_text(encoding='utf-8')
     codes = {}
-    for n, digits in re.findall(r'<code id="(\d+):13">([0-9A-F]+)</code>', page):
+    for source, digits in re.findall(r'<code id="(\d+):13">([0-9A-F]+)</code>', page):
         bits = bin(int(digits, 16))[2:].zfill(4 * len(digits))
         left = [2*int(bit) - 1 for bit in bits]
-        word = left + [-a for a in reversed(left)]
-        assert len(word) == int(n) and int(n) not in codes
-        codes[int(n)] = word
-    for n, stretch, copies in BLOCKS:
+        signs = left + [-a for a in reversed(left)]
+        assert len(signs) == int(source) and int(source) not in codes
+        codes[int(source)] = signs
+    for source, stretch, copies in recipe['blocks']:
+        assert stretch > 0 and copies != 0
         sign = copies // abs(copies)
-        block = [sign*a for a in codes[n] for _ in range(stretch)]
+        block = [sign*a for a in codes[source] for _ in range(stretch)]
         side.extend(block * abs(copies))
-    assert len(side) == 397280
-    word = side + codes[720] + [-a for a in reversed(side)]
-    return [a * word[0] for a in word]
+    middle = [(center // abs(center))*a for a in codes[abs(center)]]
+    signs = side + middle + [-a for a in reversed(side)]
+    assert len(signs) == n
+    return [a * signs[0] for a in signs]
 
 
 def moments(word, order):
@@ -61,7 +75,7 @@ def moments(word, order):
 
 
 def check(word):
-    assert len(word) == N and word[0] == 1 and set(word) == {-1, 1}
+    assert len(word) in RECIPES and word[0] == 1 and set(word) == {-1, 1}
     assert all(a == -b for a, b in zip(word, reversed(word)))
     jet = moments(word, M)
     assert jet[:M] == [0]*M and jet[M] != 0
@@ -69,4 +83,7 @@ def check(word):
 
 
 if __name__ == '__main__':
-    print(N, check(witness()))
+    for length, recipe in RECIPES.items():
+        coefficients = check(witness(length))
+        assert coefficients[M] == int(recipe['degree15'])
+        print(length, coefficients)

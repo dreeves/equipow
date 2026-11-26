@@ -1171,27 +1171,44 @@ def q_past_lists_the_example_of_order_16_at_1440():
     # (sorted since 2026-11-21, Fable 5.2: past rises in n, and the page's codes past the chart no longer do, 2480 and 2512 coming after 2992)
     # 2026-11-26: 795280:15 is stored separately from the page's inline examples.
     assert sorted([[n, mstar.order(a), label] for (n, label), a in far.items()]
-                  + [[795280, 15, 'proofs/sym15.py']]) == listed, list(far)
+                  + [[n, 15, 'proofs/sym15.py'] for n in published_lengths()]) == listed, list(far)
     at = [a for (n, label), a in mstar.explicit().items() if (n, label) == (1440, 'equipow p1440')]
     assert len(at) == 1 and all(mstar.order(a) == 16 and len(a) == 1440 and a == a[::-1] for a in at), len(at)
 
 
+def published_lengths():
+    with open(os.path.join(HERE, 'proofs', 'sym15.json'), encoding='utf-8') as f:
+        return sorted(row['n'] for row in json.load(f))
+
+
+def q_published_rows_follow_length_order():
+    # Replicata: take the lengths returned by rows(), including successive record improvements.
+    # Expectata: the row iterator preserves its documented ascending order.
+    # Resultata before this batch: appending shorter records returned them after the first, longer record.
+    lengths = list(mstar.rows())
+    assert lengths == sorted(lengths)
+
+
 def q_large_witness_has_a_downloadable_code():
-    # Replicata: read the sparse appendix row, its hex file and the normalized witness from its verifier.
-    # Expectata: divisibility and the witness settle the same order; downloading the hex recovers every sign.
-    # Resultata before 2026-11-26: the row and hex file were missing.
-    _, got = disk()
-    row, = [r for r in got['m']['past'] if r[0] == 795280]
-    n, m, hi, (kind, source, path), hw = row
-    assert (m, hi, kind, source, path, hw) == (15, mstar.two(n), 'file', 'proofs/sym15.py', 'pagedata/795280.hex', ['two'])
+    # Replicata: read every published recipe, its appendix row, its hex download and its reconstructed signs.
+    # Expectata: each code contains all signs of its exact-order witness, with the original download intact.
+    # Resultata before 2026-11-26: only the first witness had an appendix row and a download.
+    import hashlib
     from runpy import run_path
-    proof = run_path(os.path.join(HERE, source))
-    with open(os.path.join(HERE, path), encoding='ascii') as f:
-        h = f.read()
-    assert re.fullmatch(r'[89A-F][0-9A-F]*\n', h) and len(h)-1 == n//8
-    signs = mstar.from_rp(h[:-1], m, n)
-    assert signs == proof['witness']() and proof['check'](signs)[:m] == [0]*m
-    assert n not in {k for k, _, _ in got['m']['examples']}
+    _, got = disk()
+    rows = [r for r in got['m']['past'] if r[3][0] == 'file']
+    assert [r[0] for r in rows] == published_lengths()
+    for n, m, hi, (kind, source, path), hw in rows:
+        assert (m, hi, source, path, hw) == (15, mstar.two(n), 'proofs/sym15.py', f'pagedata/{n}.hex', ['two'])
+        proof = run_path(os.path.join(HERE, source))
+        with open(os.path.join(HERE, path), encoding='ascii') as f:
+            h = f.read()
+        assert re.fullmatch(r'[89A-F][0-9A-F]*\n', h) and len(h)-1 == n//8
+        signs = mstar.from_rp(h[:-1], m, n)
+        assert signs == proof['witness'](n) and proof['check'](signs)[:m] == [0]*m
+        assert n not in {k for k, _, _ in got['m']['examples']}
+    with open(os.path.join(HERE, 'pagedata', '795280.hex'), 'rb') as f:
+        assert hashlib.sha256(f.read()).hexdigest() == 'ac1faac4a4a149dab255db00a4fd9a6bb1da2f6e66a8e069d0b1d75b60d47f59'
 
 
 def q_lengths_past_the_chart_have_rows():
@@ -1223,7 +1240,7 @@ def q_lengths_past_the_chart_have_rows():
         hi, hw = min(tests(n), key=lambda t: t[0])
         rows.append([n, exact_order_div(a), hi, ['example', label], hw])
     # 2026-11-26: the file-backed example has a separate hex download, checked sign by sign above.
-    assert M['past'] == rows + [[795280, 15, 15, ['file', 'proofs/sym15.py', 'pagedata/795280.hex'], ['two']]], M['past']
+    assert M['past'] == rows + [[n, 15, 15, ['file', 'proofs/sym15.py', f'pagedata/{n}.hex'], ['two']] for n in published_lengths()], M['past']
     # (Fable 5.2, 2026-11-21: and m*(n) = 13 at 2480 and 2512, whose sequences the Symmetry section has since then.)
     # Spec change (Fable 5.2, 2026-11-21; dreeves, of replacing the pins of each day's firsts by quals that hold the page to the generated data: "that's fine, i think, if it's as much of a no-brainer question as it sounds like"; quals_index's q_powers_of_2_on_the_page_follow_pow2_js): the rows are held to the page's sequences and
     # the chart's tests, above, whichever they are (until then also to a literal list of the nine of that day, each upper bound the residue condition's).

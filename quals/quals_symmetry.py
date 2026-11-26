@@ -32,6 +32,7 @@ Vocabulary, each term defined once here:
 import sys
 sys.dont_write_bytecode = True
 import os, re, json, html, time, shutil, tempfile, traceback, subprocess
+from functools import lru_cache
 sys.setrecursionlimit(10000)                  # built()'s recipes nest a join or a wrap per level
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # the repository's root, above quals/
 sys.path.insert(0, os.path.join(HERE, 'pagegen'))   # mstar.py's directory since 2026-11-10 ([REF]); the root until then
@@ -329,7 +330,8 @@ def q_symmetry_table_gives_each_order_s_length():
     import sym15
     import symtransport
     want = [(m, max(got[m][3], default=0) + 1) for m in range(1, 15)]
-    want.append((15, len(sym15.witness()) + 2*(6128 - 16) + 1))
+    # 2026-11-26, dreeves: "Update the page and quals in batches, preserving earlier witnesses".
+    want.append((15, order15_cutoff(sym15.RECIPES)))
     # Each length here has a checked source of order >=15, so any sum of them does too.
     src = sources(text)
     available = {len(a) for _, a, m in src if m >= 15}
@@ -354,6 +356,53 @@ def q_symmetry_table_gives_each_order_s_length():
     assert rows[-1][:2] == (20, None) and r'2^{O(m)}' in FROM_TABLE.search(account(text))[0], rows[-1]
     bare = re.sub(r'<code id="2192:12">[0-9A-F]+</code>', '', text)
     assert bare != text and reduction(bare, MAXM=12, N=2240)[12][3] == [528, 2192]
+
+
+@lru_cache(maxsize=1)
+def order14_sides():
+    """An order-14-or-higher side for every multiple-of-16 residue modulo 960."""
+    limit = 7072   # The previous proof already gives sides of every residue by this length.
+    lo, _, build = closure(sources(N=limit), N=limit)
+    assert holds(build(None, 960), 14)
+    sides = [0]   # The center alone
+    for r in range(16, 960, 16):
+        n = next(n for n in range(r, limit + 1, 960) if lo[n] >= 14)
+        assert holds(build(None, n), 14)
+        sides.append(n)
+    return sides
+
+
+def order15_cutoff(centers):
+    """One more than the last length missed by these centers and the 60 verified sides."""
+    odd = tuple(centers)
+    assert odd and all(n % 32 == 16 for n in odd)
+    wraps = [n + 2*s for n in (960, *odd) for s in order14_sides()]
+    first = [min(n for n in wraps if n % 1920 == r) for r in range(0, 1920, 16)]
+    return max(first) - 1920 + 1
+
+
+def q_order_15_centers_can_cover_each_others_gaps():
+    # Replicata: use one center from the earlier batch, then the two nearby centers
+    # found in the next run. Expectata: each may cover a gap left by the other.
+    # Resultata before: a calculation using the shortest center alone overshot the cutoff by 672.
+    assert order15_cutoff([795280]) == 807505
+    assert order15_cutoff([795280, 535440]) == 547665
+    assert order15_cutoff([535440, 531920]) == 544145
+    assert order15_cutoff([535440, 531984, 531920]) == 543473
+
+
+def q_order_15_cutoff_links_the_shortest_checked_center():
+    # Replicata: read the current center and the order-15 bound from the proof fold.
+    # Expectata: the length links to its appendix entry and its actual downloadable signs.
+    # Resultata before: the only center and download on the page were for 795280.
+    import sym15
+    text = account()
+    n = min(sym15.RECIPES)
+    line, = re.findall(r'<p id="sym15-current">(.*?)</p>', text, re.S)
+    assert f'href="#entry-{n}">{n:,}</a>' in line
+    assert f'href="pagedata/{n}.hex" download' in line
+    cutoff, = [z for m, _, z in from_table(text) if m == 15]
+    assert f'href="#symmetry-table">{cutoff:,}</a>' in line
 
 
 def q_every_known_order_has_its_symmetric_sequence():
