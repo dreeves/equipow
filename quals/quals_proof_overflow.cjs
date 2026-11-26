@@ -6,6 +6,10 @@
 // place of its div.math (whose rule, .proof-body .math, went with them); and the text panels (.verbatim, hidden until
 // found) went with the 512 entry's plain-text proofs, so this no longer asks for their three rules.  Until then it also
 // asked that the proof have class="math" and that "original text-panel support" remain.
+// Spec change, 2026-11-25 (Opus 5.5; dreeves: "for the css qual, i guess i agree the qual is wrong?"): no rule with
+// the selector .proof-body pre is asked for.  That day one rule, pre, gave every pre on the page (the proofs' and the
+// intro's Mathematica) the max-width and overflow-x the proofs' rule had, so the proofs' code blocks still scroll
+// inside the proof, which quals_proof_layout checks in Chrome; this asked for the old rule by its text.
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -19,7 +23,7 @@ assert.match(copied, /<pre>/);
 const declarations = selector => Object.fromEntries([...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
   .filter(([, names]) => names.trim().split(',').map(s => s.trim()).includes(selector))
   .flatMap(([, , body]) => body.split(';').filter(s => s.trim()).map(s => s.split(':').map(x => x.trim()))));
-for (const selector of ['.proof-body .proof-equation', '.proof-body pre']) {
+for (const selector of ['.proof-body .proof-equation']) {
   const d = declarations(selector);
   assert.equal(d['overflow-x'], 'auto', selector);
   assert.equal(d['max-width'], '100%', selector);

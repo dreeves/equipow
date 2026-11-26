@@ -226,35 +226,35 @@ If a length \(n\) has order \(m\), there exists a witness for order \(m\) that i
 Symmetry and antisymmetry are defined as follows.
 Start with \(\{0, \ldots, n-1\}\) and construct a parallel list of bits where a bit is 1 if the corresponding integer is in the first partition and 0 if it's in the second.
 If the second half of that list of bits is the mirror image of the first half, the witness is symmetric.
-If the second half of that list of bits is the mirror image except with each bit flipped, the witness is antisymmetric.
+If the second half is the mirror image except with each bit flipped, the witness is antisymmetric.
 From here on, we only use symmetric or antisymmetric witnesses.
 </p>
 <p>
 We represent witnesses as hex codes, following Table 5 of BGPW.
 Namely, take the partition containing 0 as the first partition and construct the list of bits described above.
 Throw away the second half, since it's reconstructible by (anti)symmetry.
-Finally, treat the remaining bits as a base-2 number and convert it to hexadecimal.
+Finally, treat the remaining bits (after padding; details below) as a base-2 number and convert it to hexadecimal.
 </p>
 <p>
 Recovering a partition from a hex code reverses all that.
-Expand the hex code into binary and take the 0-indexed positions of the 1s as the left half of integers to include in the first partition.
+Expand the hex code into binary, consider the first \(n/2\) bits, and take the 0-indexed positions of the 1s as the left half of integers to include in the first partition.
 The right half is by symmetry (if the order \(m\) is even) or by antisymmetry (if the order \(m\) is odd).
 By symmetry means duplicate the list of bits, reverse it, and append it to the original list of bits, i.e., mirror it to the right.
 By antisymmetry means duplicate, reverse, <i>flip each bit</i>, and append it, i.e., mirror the complement.
 Following is Mathematica code to do all that.
 </p>
-<p><pre><code>(* Find the order of witness A: the first exponent that's not equipowerful *)
+<pre><code>(* Find the order of witness A: the first exponent that's not equipowerful *)
 wo[A_, n_] := NestWhile[#+1&, 0, 2*Total[(A+1)^#] == Total[Range[n]^#]&]
 
-(* Turn a hex code into a witness when we know the order m *)
-HexDecode[c_String, m_Integer] := With[
-  {bits = IntegerDigits[FromDigits[c, 16], 2, 4*StringLength[c]]},
+(* Turn a hex code into a witness, given an even length n and order m *)
+HexDecode[c_String, n_Integer, m_Integer] := With[
+  {bits = Take[IntegerDigits[FromDigits[c, 16], 2, 4*StringLength[c]], n/2]},
   -1 + Flatten[Position[Join[bits, Reverse[If[EvenQ[m], bits, 1-bits]]], 1]]]
 
 (* Turn a hex code into a set of integers without knowing the order *)
-HexDecode[c_String] := First@MaximalBy[HexDecode[c, #]& /@ {0,1},
-  wo[#, 8*StringLength[c]]&]</code></pre>
-</p>
+HexDecode[c_String, n_Integer] := First@MaximalBy[HexDecode[c, n, #]& /@ {0,1},
+  wo[#, n]&]
+</code></pre>
 <p>
 Click any hex code on this page to see the explicit bipartition and the power sums.
 </p>
