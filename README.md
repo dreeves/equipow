@@ -14,10 +14,6 @@ Potential tasks:
 * [CRO] This might be fun: Let people contribute computation by just having the equipow page open in their browser. Claude thinks this could work. (More boringly, Claude is estimating we could bring the next two searches down from a total of 90 days on my laptop to about 4 days on cloud compute costing around $300.)
 * [TRE] We now have a time series of the number of pending nodes in the search. Seeing when that plateaus or starts to actually go down should improve our search ETAs. Can we incorporate that in the ETA graph? (Also this time series was missing from the 288:10 search for some reason.)
 * [SOG] Row box revamp, ie, the box you see when you click on a row in the chart. What if we had a checkbox for "Assume the Symmetry Conjecture is true"? You could toggle it and see what changes. I'm not sure if that's a good idea yet but the status quo with "unless Symmetry Conjecture true" etc is more confusing than it should be.
-* [MMA] Get this code on the page somewhere for reference:
-  HexDecode[c_String] := -1 + Flatten[Position[IntegerDigits[FromDigits[c,16], 2, 4*StringLength[c]], 1]]
-  MakeAntisymmetric[A_, n_] :=  Union[A, Complement[Range[n/2, n-1], n-1-A]]
-  MakeSymmetric[A_, n_] := Union[A, n-1-A]
 
 ---
 

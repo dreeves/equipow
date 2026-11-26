@@ -145,7 +145,7 @@ SETTLED = ('INFEASIBLE', 'CLOSED')        # the verdicts that close a node's sub
 # Known sequences for control(), by (length, exact order): hex codes in the paper's Table 5 convention (see from_hex).
 EXAMPLES = {
     (240, 10): "C394E65AB989457A86B7D0D921636E",                              # the paper's Table 5
-    (432, 11): "5A56B0EE234E8794ADE3D0C384F72A5C63A8BD65035EF015B78B46",      # Claude's p432 (index.html)
+    (432, 11): "A5A94F11DCB1786B521C2F3C7B08D5A39C57429AFCA10FEA4874B9",      # Claude's p432 (index.html)
     (192, 9): "C1BE1E21CD63D295A7887A59",                                     # p192 (index.html)
     (384, 10): "C1BE1E21CD63D295A7887A5965A1EE1A56B4394C7B87827C",            # p192 # tau_1: p192, then -p192
     (320, 9): "B24B649ED92CD2C36496CB2DB6295D974138BA41",                      # Claude's p320 (index.html)

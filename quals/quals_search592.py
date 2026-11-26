@@ -35,7 +35,7 @@ class RunnerQuals(unittest.TestCase):
         context.start()
         self.addCleanup(context.stop)
         # Known 560 witness is confined to this qual; it must never seed production preparation.
-        self.control = ov.from_hex('34D2E9F0DA19EC92492D966936ABCA25FAD924D26F2591EB64926924925D6E1A4BFE92', 10)
+        self.control = ov.from_hex('CB2D160F25E6136DB6D26996C95435DA0526DB2D90DA6E149B6D96DB6DA291E5B4016D', 10)
 
     def identity(self, phase):
         return dict(basis_hash='b' * 64, profile_hash=self.S.INPUT[phase], plan_hash='c' * 64)
