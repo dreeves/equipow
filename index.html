@@ -236,8 +236,8 @@ Finally, treat the remaining bits (after right-padding) as a base-2 number and c
 </p>
 <p>
 Recovering a partition from a hex code reverses all that.
-Expand the hex code into binary, consider the first \(n/2\) bits, and take the positions of the 1s as the integers to include in the first part of the bipartition.
-The second part of the bipartition is by symmetry (if the order \(m\) is even) or by antisymmetry (if the order \(m\) is odd).
+Expand the hex code into binary, consider the first \(n/2\) bits, and take the positions of the 1s as the integers to include in the first half of the first part of the bipartition.
+The second half is by symmetry (if the order \(m\) is even) or by antisymmetry (if the order \(m\) is odd).
 By symmetry means duplicate the list of bits, reverse it, and append it to the original list of bits, i.e., mirror it to the right.
 By antisymmetry means duplicate, reverse, <i>flip each bit</i>, and append it, i.e., mirror the complement.
 Following is Mathematica code to do all that.
