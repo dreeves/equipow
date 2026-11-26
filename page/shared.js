@@ -381,18 +381,33 @@ const searchedPart = (n, name, hi, source, moduli) => [filled('proof-residue', {
   check: phrase('check-search', {source: repoFile(source)})})];
 const closedPart = (n, name, hi) => {
   const m = hi + 1, a = Math.floor(m / 2), b = Math.floor((m - 1) / 2), sizes = classSizes(n, 3);
-  return [filled('proof-residue', {...residueSlots(name, hi, [3]),
+  const part = filled('proof-residue', {...residueSlots(name, hi, [3]),
     sizes: [' = ', bigNum(sizes.map(s => s.toLocaleString('en-US')).join(', '))],
     closed: [` (\\(\\Leftrightarrow D_0 + D_1 + D_2 = 0\\), \\(D_0 \\equiv D_1 \\equiv D_2 \\pmod{3^{${a}}}\\), \\(3^{${b}} \\mid D_r\\); `,
       ...[...new Set([a, b])].flatMap((e, i) => [`${i ? ', ' : ''}\\(3^{${e}} =\\) `, bigNum(3n ** BigInt(e))]), ')'],
-    check: phrase('check-mathematica', {line: mod3Line(sizes, a, b)})})];
+    check: phrase('check-mathematica', {line: mod3Line(sizes, a, b)})});
+  // An odd class sum cannot vanish. When its size is smaller than its required
+  // divisor, class 1 alone proves the bound. Show its count using the length's name.
+  if (sizes[1] % 2n === 1n && sizes[1] < 3n ** BigInt(b)) {
+    const offset = n % 3n === 1n ? '-1' : '+1';
+    const size = `\\frac{${name}${offset}}{3}`;
+    const calculation = part.querySelector('.residue-argument');
+    const result = calculation.querySelector('.residue-result');
+    result.remove();
+    calculation.replaceWith(...phrase('residue-odd', {
+      parity: `\\(D_1\\equiv ${size}\\equiv1\\pmod2\\)`,
+      m: `\\(m=${m}\\)`, divides: `\\(3^{${b}}\\mid D_1\\)`,
+      size: `\\(0<|D_1|\\le ${size}<3^{${b}}\\)`, calculation
+    }), result);
+  }
+  return [part];
 };
 // The line of Mathematica for the class sizes mod 3, sizes (BigInts), and the exponents a and b: the multiples of 3^b
 // within each size, every triple of them, and of those the ones of zero sum, each of its size's parity, all congruent
 // to the first mod 3^a: the closed form's triples (quals_index's mod3_line, whose quals run it: {} at each box's order,
 // and one order lower the sums Python finds).
-const mod3Line = (sizes, a, b) => `s = {${sizes.join(', ')}}; Select[Tuples[3^${b} Range[-Quotient[s, 3^${b}], Quotient[s, 3^${b}]]], ` +
-  `Total[#] == 0 && Mod[# - s, 2] == {0, 0, 0} && Mod[# - #[[1]], 3^${a}] == {0, 0, 0} &]`;
+const mod3Line = (sizes, a, b) => `s = {${sizes.join(', ')}};\nSelect[Tuples[3^${b} Range[-Quotient[s, 3^${b}], Quotient[s, 3^${b}]]],\n  ` +
+  `Total[#] == 0 &&\n  Mod[# - s, 2] == {0, 0, 0} &&\n  Mod[# - #[[1]], 3^${a}] == {0, 0, 0} &]`;
 // Whether Stan Wagon's argument (his note of 2026-11-16, that m*(1024) <= 11) rules out the order m at the length n, a
 // BigInt: m even, so that BGPW's Proposition 4.3 (r = 0) makes the three class sums congruent mod 3^(m/2); the classes
 // 0 and 2 of sizes of different parities, so of sums of different parities; and those sizes adding to less than

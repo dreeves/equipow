@@ -1867,6 +1867,36 @@ def q_residue_panels_at_3_give_the_closed_form_at_powers_of_2():
     assert found > 30, found
 
 
+def q_short_mod3_proof_checks_the_odd_class():
+    # Replicata: read the visible typeset proof in the appendix at 2^125 and 2^128, one length in each
+    # nonzero residue class mod 3, and at 40, where the excluded order is even.
+    # Expectata: class 1 has odd size and its sum is too small to be a nonzero multiple of the stated
+    # power of 3. Resultata before: the full calculation was displayed with no such short argument.
+    import quals_codes as qc
+    cases = [(125, 157), (128, 161)]
+    lengths = [str(2**k) for k, _ in cases] + ['40']
+    read = """lengths => lengths.map(n => {
+      const proof = document.querySelector('.appendix [data-n="' + n + '"][data-why^="proof-"]');
+      const math = [...proof.querySelectorAll('.katex')].filter(e => e.checkVisibility());
+      return math.map(e => e.querySelector('annotation').textContent).join(' ');
+    })"""
+    report = qc.drive(qc.DESKTOP, [['load'], ['js', read, lengths]])
+    assert not report.get('error') and not report['errors'], report
+    *proofs, control = report['steps'][-1]
+    for (k, m), proof in zip(cases, proofs, strict=True):
+        n, b = 2**k, (m-1)//2
+        size = (n-2)//3 + 1                 # indices 1, 4, ... up to n-1
+        adjustment = 3*size-n
+        assert adjustment in (-1, 1) and size % 2 == 1 and 3**(b-1) <= size < 3**b
+        math = re.sub(r'\s+|\\left|\\right', '', proof)
+        numerator = f'2^{{{k}}}{adjustment:+d}'
+        count = rf'\frac{{{numerator}}}{{3}}'
+        assert r'D_1=\sum' in math and r'i\equiv1' in math, (k, proof)
+        assert rf'D_1\equiv{count}\equiv1\pmod2' in math and f'm={m}' in math, (k, proof)
+        assert rf'3^{{{b}}}\midD_1' in math and rf'0<|D_1|\le{count}<3^{{{b}}}' in math, (k, proof)
+    assert 'M=3' in control.replace(' ', '') and r'D_1=\sum' not in control.replace(' ', ''), control
+
+
 def q_residue_panels_at_3_give_stan_s_words_where_they_hold_at_powers_of_2():
     # Replicata: the light run: the panel of each column whose upper bound is the residue condition of the single
     # modulus 3, its own (["residue", [3]]) or the m*(n) chart's (["mstar", ["residue", 3]]), at n = 2^k up to 2^kmax,

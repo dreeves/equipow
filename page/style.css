@@ -262,6 +262,15 @@ code {
    to try to space out the formulas and witnesses went a bit wrong"): a long code goes to the next line, and justifying
    the line it leaves stretched its few spaces across the column, "equipow" at one end and "p1904" at the other */
 [data-why^="witness-"] p { text-align: start; }
+[data-why^="proof-"], [data-why^="proof-"] p { text-align: start; hyphens: manual; -webkit-hyphens: manual; }
+.residue-proof { max-width: var(--measure); }
+.residue-proof > [data-words], .residue-argument { display: inline; }
+.residue-steps { margin-block: 0.25rem; }
+.residue-steps > div + div { margin-top: 0.15rem; }
+.residue-proof details:not([open]) { display: inline-block; }
+.residue-proof summary { cursor: pointer; }
+.residue-proof details > [data-slot="calculation"] { margin-block: 0.35rem; padding-inline-start: 0.75rem; border-inline-start: 1px solid var(--rule); }
+.residue-proof code[data-slot="line"] { display: block; margin-block: 0.35rem; padding: 0.4rem 0.65rem; background: var(--paper); border-inline-start: 1px solid var(--rule); white-space: pre-wrap; overflow-wrap: anywhere; }
 /* The codes and joins as buttons (2026-10-31, dreeves's [REO] item 2; page/codes.js marks each with aria-expanded): a
    click shows its partition below it, after the block that holds it (page/codes.js), ruled at its left; each part's
    numbers wrap in a box four and a half lines
