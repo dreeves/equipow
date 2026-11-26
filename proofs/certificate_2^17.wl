@@ -7,7 +7,7 @@ fromHex[h_String, m_Integer] := Module[{left = 2 IntegerDigits[FromDigits[h, 16]
 p112 = fromHex["A5994DB29B45A0", 7];   (* order 7, antisymmetric; BGPW Table 5 *)
 p800 = fromHex["966965968F2C965B25B44B25B3596D924B6D96496C964B65B2CB24B25B2C96CB6C97496CB2CD6E960B243A59A592DB2DB6D9", 11];   (* order 11, antisymmetric; found by lattice search *)
 p48 = fromHex["C27D8C", 6];   (* order 6; Boyd; BGPW Table 5 *)
-p432 = fromHex["5A56B0EE234E8794ADE3D0C384F72A5C63A8BD65035EF015B78B46", 11];   (* order 11, antisymmetric; the page's p432 *)
+p432 = fromHex["A5A94F11DCB1786B521C2F3C7B08D5A39C57429AFCA10FEA4874B9", 11];   (* order 11, antisymmetric; the page's p432 *)
 tm2 = {1, -1};   (* Thue-Morse, order 1 *)
 (* positions run 0..n-1; the 0th power sum of a set is its size (0^0 = 1), which Mathematica leaves Indeterminate,
    so k = 0 compares sizes and k >= 1 compares Total[set^k] *)

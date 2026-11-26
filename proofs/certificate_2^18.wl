@@ -5,8 +5,8 @@
 fromHex[h_String, m_Integer] := Module[{left = 2 IntegerDigits[FromDigits[h, 16], 2, 4 StringLength[h]] - 1},
   Join[left, (-1)^m Reverse[left]]];
 p320 = fromHex["B24B649ED92CD2C36496CB2DB6295D974138BA41", 9];   (* order 9, antisymmetric; the page's p320 *)
-p560 = fromHex["34D2E9F0DA19EC92492D966936ABCA25FAD924D26F2591EB64926924925D6E1A4BFE92", 10];   (* order 10, symmetric; found by lattice search *)
-p432 = fromHex["5A56B0EE234E8794ADE3D0C384F72A5C63A8BD65035EF015B78B46", 11];   (* order 11, antisymmetric; the page's p432 *)
+p560 = fromHex["CB2D160F25E6136DB6D26996C95435DA0526DB2D90DA6E149B6D96DB6DA291E5B4016D", 10];   (* order 10, symmetric; found by lattice search *)
+p432 = fromHex["A5A94F11DCB1786B521C2F3C7B08D5A39C57429AFCA10FEA4874B9", 11];   (* order 11, antisymmetric; the page's p432 *)
 p48 = fromHex["C27D8C", 6];   (* order 6; Boyd; BGPW Table 5 *)
 tm4 = Table[(-1)^DigitCount[i, 2, 1], {i, 0, 3}];   (* Thue-Morse, order 2 *)
 (* positions run 0..n-1; the 0th power sum of a set is its size (0^0 = 1), which Mathematica leaves Indeterminate,

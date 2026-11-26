@@ -224,7 +224,7 @@ We call such a bipartition a <i>witness</i> for order \(m\) because it establish
 BGPW's Symmetry Conjecture:
 If a length \(n\) has order \(m\), there exists a witness for order \(m\) that is <i>symmetric</i> if \(m\) is even and <i>antisymmetric</i> if \(m\) is odd.
 Symmetry and antisymmetry are defined as follows.
-Start with \(\{0, \ldots, n-1\}\) and construct a parallel list of bits where a bit is 0 if the corresponding integer is in the first partition and 1 if it's in the second.
+Start with \(\{0, \ldots, n-1\}\) and construct a parallel list of bits where a bit is 1 if the corresponding integer is in the first partition and 0 if it's in the second.
 If the second half of that list of bits is the mirror image of the first half, the witness is symmetric.
 If the second half of that list of bits is the mirror image except with each bit flipped, the witness is antisymmetric.
 From here on, we only use symmetric or antisymmetric witnesses.
@@ -1491,7 +1491,7 @@ such that the Symmetry Conjecture holds for lengths \(n \ge N\).
       <p>Examples of order 9 found by BGPW. Order 10 is ruled out by BGPW's Proposition 4.3 \((p = 3)\).</p>
       <p class="code">
         <span>\(p_{400}\) \((m = 9)\):</span>
-        <code id="400:9">34DB69269A69269A6D379A8D1C57459C5B45E5100DBAF7EAAA</code>
+        <code id="400:9">CB2496D96596D96592C86572E3A8BA63A4BA1AEFF245081555</code>
       </p>
     </li>
     <li class="s">
@@ -1518,7 +1518,7 @@ such that the Symmetry Conjecture holds for lengths \(n \ge N\).
       <p>Opus 5.5: “Order 12 is ruled out too, by <a href="https://github.com/dreeves/equipow/blob/main/proofs/pintree_432_12.json.gz">a proof</a> that two separate programs check in exact integer arithmetic; the section ‘How Opus 5.5 ruled out order 12 at 432 and order 13 at 816’ says how it works. So \(m^* = 11\), and \(a(11) = 480\) of OEIS <a href="https://oeis.org/A323395">A323395</a>.”</p>
       <p class="code">
         <span>\(p_{432}\) \((m = 11)\):</span>
-        <code id="432:11">5A56B0EE234E8794ADE3D0C384F72A5C63A8BD65035EF015B78B46</code>
+        <code id="432:11">A5A94F11DCB1786B521C2F3C7B08D5A39C57429AFCA10FEA4874B9</code>
       </p>
       <div id="lemma432">
         <!-- TODO: says what follows is the other route to the same answer, the exhaustive search in the Search progress section, which came first and was still running on 2026-11-03, and that its lemma holds at any length -->
@@ -1655,7 +1655,7 @@ such that the Symmetry Conjecture holds for lengths \(n \ge N\).
       <p>A symmetric example of order 10.</p>
       <p class="code">
         <span>\(p_{560}\) \((m = 10)\):</span>
-        <code id="560:10">34D2E9F0DA19EC92492D966936ABCA25FAD924D26F2591EB64926924925D6E1A4BFE92</code>
+        <code id="560:10">CB2D160F25E6136DB6D26996C95435DA0526DB2D90DA6E149B6D96DB6DA291E5B4016D</code>
       </p>
     </li>
     <li class="c">

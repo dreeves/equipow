@@ -609,6 +609,29 @@ def q_every_witness_is_conforming():
     assert not mirrored(control, 1) and not mirrored(control, -1) and holds(rebuild(36, cs, ex), 3) and not holds(rebuild(36, cs, ex), 2)
 
 
+def q_every_witness_starts_with_plus():
+    # 2026-11-25 (Opus 5.5; dreeves, of the intro's hex codes, whose 1 bits mark one part of a witness, as BGPW's
+    # characteristic function of A does: "can we make it be true that partition A of every witness is the one
+    # containing 0?").
+    # Replicata: every code of mstar.js's examples (the page's, BGPW's tables', the generator's, those past the
+    # chart), and every column's sequence rebuilt from mstar.js's columns alone (rebuild); for a control, the code of
+    # 432 with every hex digit complemented.
+    # Expectata: each code's first bit 1 and each sequence's first sign +1, so that A, the part its 1 bits and +1s
+    # mark, holds 0.  A product's first sign is the product of its parts' first signs and a join's is its first
+    # part's, so the joins of Figure 2, of products of these sequences and Thue-Morse's, start with +1 too.  The
+    # control decodes to 432's sequence negated, the same bipartition with its parts swapped, and its first bit is 0.
+    # Resultata before: the codes of 400:9, 432:11 and 560:10 began with a 0 bit, and the sequences of the columns
+    # 400, 432, 560, 864 (2 # 432) and 1120 (2 # 560) with -1.
+    _, got = disk()
+    cs, ex = got['m']['cols'], mstar.explicit()
+    bad = [(n, h[:8]) for n, h, _ in got['m']['examples'] if int(h[0], 16) < 8]
+    bad += [n for n, (lo, _, why, _) in enumerate(cs, 1) if why[0] in EXPLICIT and rebuild(n, cs, ex)[0] != 1]
+    assert bad == [], bad
+    h, = (h for n, h, _ in got['m']['examples'] if n == 432)
+    flip = ''.join('%X' % (15 - int(d, 16)) for d in h)
+    assert int(flip[0], 16) < 8 and v5.from_hex(flip, 11) == [-t for t in v5.from_hex(h, 11)], flip[:8]
+
+
 def q_lo_reasons():
     # Replicata: every column's lo and loWhy, against the page's values and the explicit sources.
     # Expectata: a table2 or page lo equals the cited lower value, a page lo's who is mstar.EXAMPLE_BY's (whose
