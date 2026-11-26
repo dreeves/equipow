@@ -253,21 +253,25 @@ def mstar_text():
     return open(MSTAR_JS, encoding='utf-8').read()
 
 
-def mstar_cols():
-    """mstar.js's columns, cols[n-1] for n = 1..mstar.NMAX, parsed from its text."""
+@lru_cache(maxsize=None)
+def mstar_data():
+    """The chart's columns and the explicit lengths beyond them, from the same generated data."""
     head, body = mstar_text().split('const MSTAR = ')
     assert head.startswith('//') and head.count('\n') == 1 and body.endswith('};\n') and body.count(';') == 1, head
     M = json.loads(body[:-2])
     assert M['nmax'] == mstar.NMAX == len(M['cols']), M['nmax']
-    return M['cols']
+    return M
+
+
+def mstar_cols():
+    return mstar_data()['cols']
 
 
 @lru_cache(maxsize=None)
 def blocks():
-    """Every block as (n, m): mstar.js's columns at their lo, mstar.explicit()'s sequences longer than mstar.NMAX at
-    their orders (explicit() asserts each one's), and tau_j for j = 0..KMAX."""
+    """Every block as (n, m): mstar.js's columns and explicit longer examples at their lo, and tau_j for j = 0..KMAX."""
     return frozenset([(n, c[0]) for n, c in enumerate(mstar_cols(), 1)]
-                     + [(n, mstar.order(a)) for (n, _), a in mstar.explicit().items() if n > mstar.NMAX]
+                     + [(n, m) for n, m, *_ in mstar_data()['past']]
                      + [(2 ** j, j) for j in range(KMAX + 1)])
 
 
@@ -389,7 +393,9 @@ def js_text(cols):
 
 def main():
     cols = columns()
-    open(JS, 'w', encoding='utf-8').write(js_text(cols))
+    text = js_text(cols)
+    with open(JS, 'w', encoding='utf-8') as f:
+        f.write(text)
     better = [k for k, c in enumerate(cols, 1) if c[2][0] == 'joins' or c[1] < norm(2 ** k, 3)]
     # TODO: summary line; says pow2.js was written, its top row, and the columns whose lo is a join or whose hi is below the norm bound for 3
     print(f'Claude: "wrote pow2.js: etop {max(c[1] - k for k, c in enumerate(cols, 1)) + 1}; joins or below the norm bound for 3 at k = {better}"')

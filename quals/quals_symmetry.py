@@ -295,7 +295,7 @@ def from_table(sec):
     [table] = FROM_TABLE.findall(sec)
     rows = re.findall(r'<tr[^>]*><td>(.*?)</td><td>(.*?)</td></tr>', table, re.S)   # (a row's attributes since 2026-11-18: its proof, data-proof)
     assert rows, table
-    cell = lambda t: re.fullmatch(r'\\\(2\^\{(\d+)\}\\\)|([\d,]+)', t.strip())
+    cell = lambda t: re.fullmatch(r'\\\(2\^\{(\d+)\}\\\)|([\d,]+)', t.replace('<wbr>', '').strip())
     value = lambda c: c and (2 ** int(c[1]) if c[1] else int(c[2].replace(',', '')))
     return [(int(re.findall(r'\d+', a)[0]), None if '\\ge' in a else int(re.findall(r'\d+', a)[-1]), value(cell(n))) for a, n in rows]
 
@@ -324,13 +324,34 @@ def q_symmetry_table_gives_each_order_s_length():
     # ORDER_13 and ORDER_14 above, which each new sequence of order 13 past the chart may change: order 14's was (3360, 1200, 7920) and is (3104, 1200, 7408)
     # since the one at 2432.)
     assert got[13][2] < FROM and got[14][2] < FROM, (got[13][:3], got[14][:3])
-    want = [(m, max(got[m][3], default=0) + 1) for m in range(1, 15)] + [(m, 2 ** (symlarge.threshold_log2(m) + 1)) for m in range(15, 20)]
+    # Spec change (2026-11-26, dreeves: "get all that on the page"): the constructive
+    # proof replaces the Fourier threshold. Recompute the finite thresholds from the words.
+    import sym15
+    import symtransport
+    want = [(m, max(got[m][3], default=0) + 1) for m in range(1, 15)]
+    want.append((15, len(sym15.witness()) + 2*(6128 - 16) + 1))
+    # Each length here has a checked source of order >=15, so any sum of them does too.
+    src = sources(text)
+    available = {len(a) for _, a, m in src if m >= 15}
+    available |= {2*len(a) for _, a, m in src if m >= 14}
+    seeds = {960, 1440, 1632, 1728, 2016, 2784, 7360, 7712, 8192}
+    assert seeds <= available, seeds - available
+    sums = {0}
+    for n in range(32, 10048 + 960, 32):
+        if any(n-k in sums for k in seeds):
+            sums.add(n)
+    assert 960 in seeds and all(n in sums for n in range(10048, 10048 + 960, 32))
+    bound = 2*(10048 - 32) + 1440 + 1
+    want.append((16, bound))
+    for m in range(17, 20):
+        bound = symtransport.seed_length(m) + 64*((bound - 1)//32) + 1
+        want.append((m, bound))
     # Spec change (Fable 5.2, 2026-11-21; dreeves, of replacing the pins of each day's firsts by quals that hold the page to the generated data: "that's fine, i think, if it's as much of a no-brainer question as it sounds like"; quals_index's q_powers_of_2_on_the_page_follow_pow2_js): the table is held to the reduction, below,
     # whatever it gives (until then also to the literals [529, 3537, 7121] for orders 12 to 14, which each new sequence past the chart may lower).
     rows = from_table(account(text))
     said = [(m, n) for a, z, n in rows[:-1] for m in range(a, z + 1)]
     assert said == want, ([(m, n, w) for (m, n), (_, w) in zip(said, want) if n != w], said[:3], len(said))
-    assert rows[-1][:2] == (20, None), rows[-1]
+    assert rows[-1][:2] == (20, None) and r'2^{O(m)}' in FROM_TABLE.search(account(text))[0], rows[-1]
     bare = re.sub(r'<code id="2192:12">[0-9A-F]+</code>', '', text)
     assert bare != text and reduction(bare, MAXM=12, N=2240)[12][3] == [528, 2192]
 

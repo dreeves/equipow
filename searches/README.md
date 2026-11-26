@@ -32,3 +32,7 @@ A cell n:m is the question whether some sequence of length n has order m: n sign
 | [tilted/](tilted/) | two cells | 2026-11-04 | Found 672:13 and 1440:16. |
 
 One more witness search, at 288:10, has its program and its record in [../engine/](../engine/): lattice288.py.
+
+## Search at the order-15 endpoint
+
+[sparseflips/](sparseflips/) searches 33360:15 by reversing 148 mirror pairs in the alternating sign sequence. Each single-threaded CP-SAT trial chooses a pool of pairs, imposes the seven odd centered moment equations and fixes the class sums mod 3, 5 and 7. Successive trials rotate through all six possible mod-7 profiles. A reported witness is checked against ordinary power sums at every position. The invocation is in [sparseflips.py](sparseflips/sparseflips.py). The [quals](../quals/quals_sparseflips.py) use BGPW’s 200:7 sequence as a positive control.

@@ -80,6 +80,8 @@ the expandable hex code for everything"; codes, [n, code], until his point 10 of
 each column whose loWhy is an example, and since 2026-11-19 each row of past's, rising in n: the code of its sequence (to_hex), which is (-1)^lo-symmetric, in
 BGPW's Table 5 convention: the bits of its left half, 1 = +1, padded on the right with 0 to whole hex digits, ceil(n/8)
 of them, which page/codes.js expands; and where it comes from, to which its label links (source_of).
+         A long witness stored separately uses ["file", checker, hex] as loWhy in its appendix row. The hex
+         file uses the same left-half convention. Its digits are downloaded when requested.
   loWhy  ["none"] (lo = 0, n odd); ["example", label] (an explicit sequence of length n, label saying where it is
          from); ["join", a, b, ...] (the sequences for a, b, ... one after the other; lo is the least of theirs; since
          2026-11-18 a, b, a, whose sequence is (-1)^lo-symmetric when theirs are, and a, b until then); ["product", a, b]
@@ -109,6 +111,7 @@ sys.dont_write_bytecode = True
 import os, re, json, runpy
 from functools import lru_cache, reduce
 from operator import mul
+from pathlib import Path
 import numpy as np
 import sympy as sp
 # the engine's modules, overnight_v5 and residues, in engine/ since [FAC] stage 3b (2026-11-04)
@@ -842,6 +845,19 @@ def row(n):
 
 
 @lru_cache(maxsize=None)
+def file_example():
+    """The long witness as an appendix row and its downloadable left-half hex code."""
+    source = 'proofs/sym15.py'
+    proof = runpy.run_path(os.path.join(HERE, source))
+    n, m = proof['N'], proof['M']
+    signs = proof['witness']()
+    proof['check'](signs)
+    assert n > NMAX and two(n) == m
+    path = f'pagedata/{n}.hex'
+    return n, [m, two(n), ['file', source, path], ['two']], to_hex(signs, m)
+
+
+@lru_cache(maxsize=None)
 def rows():
     """{n: row(n)} for every length of the chart's data, in rising order: each column, n = 1..NMAX, then each length
     past the chart that has an explicit sequence, far (since 2026-11-19; dreeves: "yes, full anti-magic, add the new
@@ -852,7 +868,10 @@ def rows():
     _, why_x = explicit_lo()
     for n, (m, chain, sweep) in RESIDUE.items(): assert chain_none(n, m, chain, sweep, RESIDUE_CAP), (n, m, chain)
     for n, (hi, file) in PROOFS.items(): proved(n, hi, file)
-    out = {n: row(n) for n in [*range(1, NMAX + 1), *far()]}
+    out = {n: row(n) for n in sorted({*range(1, NMAX + 1), *(n for n, _ in explicit())})}
+    n, file_row, _ = file_example()
+    assert n not in out
+    out[n] = file_row
     for n, (lo, hi, lw, hw) in out.items():
         assert lw[0] not in ('join', 'product') or all(out[k][2] == list(why_x[k]) for k in lw[1:]), n
         assert n > BRUTE_MAX or lo == hi == brute(n)[0], n
@@ -863,7 +882,7 @@ def rows():
 def far():
     """The lengths past the chart that have an explicit sequence, rising: 2096, 2128, 2192, 2528, 2608, 2800 and 2992
     on 2026-11-19, the Symmetry section's codes longer than NMAX."""
-    return sorted({n for n, _ in explicit() if n > NMAX})
+    return sorted(n for n in rows() if n > NMAX)
 
 
 @lru_cache(maxsize=None)
@@ -917,7 +936,10 @@ def main():
     # TODO: error copy; says the script refuses to run under python -O, which would strip its assertions
     if not __debug__: raise SystemExit('Claude: "refusing to run without assertions (python -O)"')
     cols = columns()
-    open(JS, 'w', encoding='utf-8').write(js_text(cols))
+    _, file_row, code = file_example()
+    with open(os.path.join(HERE, file_row[2][2]), 'w', encoding='ascii') as f:
+        f.write(code + '\n')
+    Path(JS).write_text(js_text(cols), encoding='utf-8')
     settled = sum(c[0] == c[1] for c in cols)
     gray = [n for n, c in enumerate(cols, 1) if c[0] < c[1]]
     # TODO: summary line; says mstar.js was written: how many of the columns are settled (lo = hi), the gray columns, the top row, and where each order from it to MMAX is first open

@@ -43,6 +43,9 @@
   <!-- The changelog, newest first, as in dreeves's spec FreshAt (doc.bmndr.co/freshat) -->
   <details class="changelog">
     <summary><i>Changelog</i></summary>
+    <p>2026-11-26: \(m^*(795280) = 15\)</p>
+    <!-- TODO: link the constructive bound at all orders, the order-15 tail, and its first remaining length at odd multiples of 16. -->
+    <p>2026-11-26: <a href="#symtransport">\(n_0(m)\le 2^{Cm}\)</a>, <a href="#sym15">\(n_0(15)\le 807536\)</a>, <a href="#sym33360">\(m^*(n)=15,\ n\equiv16\pmod{32}\ \Rightarrow\ n\ge33360\)</a></p>
     <p>2026-11-25: More prose and code in the intro</p>
     <p>2026-11-24: \(m^*(2^{127}) \ge 148\)</p>
     <p>2026-11-24: \(m^*(2^{103}) \ge 120\)</p>
@@ -883,7 +886,8 @@ Where that leaves the conjecture:
   <li><b>Order 10 at 288:</b> settled on 2026-11-08. The form-tree proof shows that no sequence of length 288 has order 10, so orders 9 to 11 are done, given those bounds.</li>
   <!-- TODO: the last item's closing sentence, by Fable 5.2 (2026-11-09): every order now holds at every sufficiently large length with no example needed, by the theorem in this section's last block quote -->
   <li><b>Orders 12 and up:</b> open. 
-  Orders 12, 13, and 16 hold at every sufficiently large length, and orders 14, 15, and 17 and up would each follow at large lengths from one more example (the last paragraphs below). 
+  <!-- TODO: dreeves to review. The constructive proof supersedes this earlier assessment: "Orders 12, 13, and 16 hold at every sufficiently large length, and orders 14, 15, and 17 and up would each follow at large lengths from one more example (the last paragraphs below)." -->
+  <span>Astra’s construction gives a symmetric or antisymmetric sequence of exact order \(m\) at every admissible length <a href="#symtransport">\(n \ge 2^{Cm}\)</a>, for an absolute constant \(C\).</span>
   At every order, finitely many small lengths remain, each needing its own computation. 
   (Fable 5.2 chimes in: “Every order holds at every sufficiently large length, with no example needed: the theorem at the end of this section.”)</li>
 </ul>
@@ -1078,6 +1082,8 @@ Orders 14 and 15 would follow from one such sequence each, at a length 16 times 
 (Fable 5.2: “Since 2026-11-11 order 14 has nine, the symmetric sequences of order 14 at \(1200 = 16 \cdot 75\), \(1296 = 16 \cdot 81\), \(1392 = 16 \cdot 87\), \(1488 = 16 \cdot 93\), \(1584 = 16 \cdot 99\), \(1680 = 16 \cdot 105\), \(1776 = 16 \cdot 111\), \(1872 = 16 \cdot 117\) and \(1968 = 16 \cdot 123\) in the lists of codes above, so order 14 joins orders 12, 13 and 16. Order 15 still has none, and by BGPW's Proposition 4.4 such a sequence is 32784 long or longer.”)
 Below those lengths, each order leaves finitely many lengths, and where no symmetric sequence exists, as BGPW found at 288 for order 10, the conjecture there says that no sequence of that order exists at all.
 </p>
+<!-- TODO: Date the correction to the historical quotations above and link the order-15 witness and lower bound. -->
+<p>2026-11-26 · Astra: “There is now an antisymmetric sequence of exact order 15 at length <a href="#sym15">\(795280 = 16 \cdot 49705\)</a>. The least odd multiple of 16 admitting a sequence of order 15 is at least <a href="#sym33360">\(33360\)</a>.”</p>
 <p class="attrib">— Claude</p>
 </blockquote>
 </details>
@@ -1202,6 +1208,82 @@ at one \(\theta\) every factor is \(\pm\cos(\pi/16)\), which leaves \(0.39\) at 
 <p class="attrib">— Fable 5.2</p>
 </blockquote>
 </details>
+<!-- TODO: dreeves to review. A constructive exponential threshold at all orders. Lemmas 1–3 give even moments and an integral basis. Interpolation bounds the initial defect. Thue–Morse differences move it to distinct signs of a zero-moment extension. Reflection and two coprime lengths give the tail; the final choice makes the order exact. -->
+<details class="ai" lang="en">
+<summary>Astra on constructing sign sequences with the required symmetry at every sufficiently large admissible length, \(n_0(m)\le 2^{Cm}\)</summary>
+<blockquote class="claude">
+<div class="proof-body" id="symtransport">
+<p>For some absolute constant \(C\), every order \(m\ge1\) and every multiple \(n\ge 2^{Cm}\) of the least power of two \(T\gt m\) admit a \((-1)^m\)-symmetric sequence of <strong>exact</strong> order \(m\), with each term either \(+1\) or \(-1\). The project’s Fourier argument gives a threshold \(2^{O(m^2)}\) and an asymptotic count. The construction here gives an explicit sequence. The finite-length Symmetry Conjecture remains open.</p>
+<h4>A small initial defect</h4>
+<p>Write \(s=(-1)^m\), \(d=\lfloor m/2\rfloor\). For a sequence of even length \(2N\), write the signs on the right half as \(e_1,\ldots,e_N\), counting outwards from the center. The left half is determined by reflection with sign \(s\). By Lemmas 1–3 of the <a href="#symlarge-s1">project proof</a>, the sequence has order at least \(m\) precisely when</p>
+<p class="proof-equation">\(\displaystyle \sum_{t=1}^N e_t u(t)=0.\)</p>
+<p>Here \(u\) is an integer-valued vector polynomial of degree at most \(m-2\) with \(u(1-t)=s u(t)\). The vectors \(u(1),\ldots,u(d)\) form a basis of \(\mathbb Z^d\). At each admissible \(2N\), the sum of all \(u(t)\) is coordinatewise even. These facts come from the <a href="#symlarge-s2">binomial basis</a> in the linked lemmas. For order one, take all signs in the left half positive and all signs in the right half negative.</p>
+<p>Take \(m\ge2\), \(N_0=T/2\le m\), and set the first \(N_0\) signs to \(+1\). Their moment sum \(S\) is even. Write</p>
+<p class="proof-equation">\(\displaystyle S/2=\sum_{j=1}^{d} c_j u(j),\qquad Q=\sum_j |c_j|.\)</p>
+<p>The basis property gives integer \(c_j\). To bound \(Q\), interpolate \(u(t)\) on the \(2d\) consecutive nodes \(1-d,\ldots,d\). Fold each node \(1-j\) onto \(j\) using the reflection identity. For \(1\le t\le d\) the interpolation coefficients have absolute sum one. For \(d\lt t\le N_0\) put \(y=t+d-1\), \(M=2d-1\). At node \(i\) in coordinates \(0,\ldots,M\), the absolute Lagrange coefficient is</p>
+<p class="proof-equation">\(\displaystyle \binom yi\binom{y-i-1}{M-i}\le \binom yM\binom Mi.\)</p>
+<p>Thus the absolute sum is at most \(2^{y+M}\le 2^{5m/2}\). Folding can only decrease it. Summing over \(t\) and dividing by two gives \(Q\le (m/2)2^{5m/2}\).</p>
+<h4>Cancel the defect using distinct signs</h4>
+<p>Put \(K=2^{m-1}\) and \(a_k=(-1)^{\operatorname{popcount}(k)}\). For each positive integer \(h\),</p>
+<p class="proof-equation">\(\displaystyle \sum_{k=0}^{K-1} a_k u(j+kh)=0.\)</p>
+<p>Indeed the left side applies \(m-1\) finite differences with step sizes \(h,2h,\ldots,2^{m-2}h\) to a polynomial of degree at most \(m-2\), up to an overall sign. Hence each occurrence of \(\sigma u(j)\) in \(S/2\), with \(\sigma=\pm1\), can be replaced by the sum of \(-\sigma a_k u(j+kh)\) over \(1\le k\lt K\).</p>
+<p>Number the \(Q\) occurrences by \(\ell=1,\ldots,Q\) and give each one step \(h_\ell=(d+1)(KQ+\ell)\). When \(Q\gt 0\), all positions \(j+kh_\ell\) used in these replacements exceed \(N_0\), since \(K\ge N_0\). They are distinct. Reduction modulo \(d+1\) determines \(j\). After subtracting \(j\) and dividing by \(d+1\), the remaining number lies in the band \(k(KQ+1),\ldots,k(KQ+Q)\). Successive bands are disjoint because \(kQ \lt  KQ\) for \(k\lt K\). Within a band the number determines \(\ell\).</p>
+<p>Immediately after the first \(N_0\) signs, place a block \(W\) long enough to include every replacement position, rounding its length up to a positive multiple of \(T\). Prescribe the sign at each replacement position to be \(-\sigma a_k\). Choose the other signs arbitrarily. Append a total of \(K\) copies of \(W\) signed \(a_0,\ldots,a_{K-1}\), counting the first copy among the \(K\). For each offset in \(W\), the \(K\) occurrences form a Thue–Morse sum with step \(|W|\), so the appended part has zero moment sum. Now flip the prescribed signs in its <strong>first copy only</strong>. Their pre-flip sum was exactly \(S/2\). Flipping changes the sum by \(-S\).</p>
+<p>Reflect this completed right half with sign \(s\). Its full length \(L=2(N_0+K|W|)\) satisfies \(L\equiv T\pmod{2T}\). The largest replacement position is at most \(d+(K-1)(d+1)(KQ+Q)\), so both \(|W|\) and \(L\) are \(2^{O(m)}\) with absolute constants. The same construction works with an empty set of replacements.</p>
+<h4>From one length to all large lengths</h4>
+<p>Let \(H=2^m\), the length of the order-\(m\) Thue–Morse sequence. The integers \(L/T\) and \(H/T\) are coprime because the first is odd and the second is a power of two. Given an admissible \(n\), use an empty center when \(n/T\) is even, or one length-\(L\) sequence when it is odd. Write \(b\) for this center length. For \((n-b)/(2T)\ge (L/T)(H/T)\), it is a nonnegative combination of \(L/T\) and \(H/T\). Indeed some coefficient from \(0\) through \(H/T-1\) of \(L/T\) gives the required residue modulo \(H/T\), and the remainder is nonnegative.</p>
+<p>Concatenate the corresponding length-\(L\) and length-\(H\) sequences on one side, with their \(s\)-times reversal on the other. Every block has order at least \(m\), and the full sequence has the required symmetry. The uniform threshold \(L+2LH/T\) is \(2^{O(m)}\).</p>
+<p>For exact order, reserve a further \(2H\) positions, then put an order-\(m\) Thue–Morse block at each end of the resulting sequence with reflected signs. The degree-\(m\) Taylor coefficient at \(x=1\) changes by \(+2c\) or \(-2c\) according to the common sign chosen, where \(c\ne0\) is that coefficient of Thue–Morse. Translation of a block preserves its first nonzero Taylor coefficient. At least one choice gives a nonzero coefficient.</p>
+<p class="proof-equation">\(\displaystyle n_0(m)\le L+2LH/T+2H=2^{O(m)}.\)</p>
+<p>The exponential scale is necessary for a uniform <strong>existence</strong> threshold. Take \(m=2^v-1\), \(v\ge2\). The admissible length \(2^m-2^v\) is an odd multiple of \(2^v\) below \(2^m\). <a href="https://arxiv.org/html/1912.03491v1#S4.Thmthm4">BGPW’s Proposition 4.4</a> rules out any order-\(m\) sequence there. The conditional Symmetry Conjecture holds vacuously at such lengths.</p>
+<p>The Thue–Morse completion of a prescribed prefix and changes of selected signs have precedents in Roth, Siegel and Vardy. The project’s centered basis supplies the parity at the starting length. The quantitative step here is to realize its entire half-moment defect at distinct positions of a single completion. Publication priority for the resulting bound has not been established. <a href="https://ronny.cswp.cs.technion.ac.il/wp-content/uploads/sites/54/2016/05/spect.pdf">Roth, Siegel and Vardy, Lemma 2.5 and §5.2</a> · <a href="https://arxiv.org/abs/1912.03491">Buhler, Golan, Pratt and Wagon, §§4 and 6</a></p>
+<!-- TODO: the numerical rows at orders 17 through 19 use the lengths produced by the construction and the previous order's threshold. -->
+<h4>The thresholds for orders 17 through 19</h4>
+<p>At orders \(17,18,19\), every admissible length is a multiple of 32. Let \(L_m\) be the length of the seed constructed above, computed by <a href="https://github.com/dreeves/equipow/blob/main/proofs/symtransport.py">symtransport.py</a>. Use that seed as the center when \(n\equiv32\pmod{64}\), and an empty center when \(n\equiv0\pmod{64}\). In either case the side length is a multiple of 32. Choose a side of order at least \(m-1\) and put its \((-1)^m\)-times reversal on the other side. The whole sequence has order at least \(m-1\). Its symmetry forces its exact order to have the same parity as \(m\), so the order is at least \(m\).</p>
+<p>If \(B_{m-1}\) guarantees a sequence at every admissible length at the previous order, the largest multiple of 32 below that threshold is \(32\lfloor(B_{m-1}-1)/32\rfloor\). With the longer center, the last length the argument could miss is twice that multiple plus \(L_m\). Starting with <a href="#sym15">\(B_{16}=21473\)</a>, this gives the rows of Table <a href="#symmetry-table">5</a> by</p>
+<p class="proof-equation">\(\displaystyle B_m=L_m+64\lfloor(B_{m-1}-1)/32\rfloor+1.\)</p>
+</div>
+<p class="attrib">— Astra</p>
+</blockquote>
+</details>
+<!-- TODO: dreeves to review. The order-15 witness at an odd multiple of 16, its checker and the exact-order tail, using all 60 order-14 side lengths and either of two antisymmetric centers. -->
+<details class="ai" lang="en">
+<summary>Astra on the order-15 sequence of length 795,280 and the cutoff in Table 5</summary>
+<blockquote class="claude">
+<div class="proof-body" id="sym15">
+<p><b>The witness.</b> For a sign sequence \(P\) of order at least 13, let \(c(P)\) be the coefficient of \((x-1)^{13}\) in the expansion of its Littlewood polynomial about \(x=1\). Joining sequences adds their \(c\) values. Repeating each sign \(b\) times multiplies \(c\) by \(b^{14}\), since the expanded polynomial is \((1+x+\cdots+x^{b-1})P(x^b)\).</p>
+<p>Take the antisymmetric order-13 sequence \(q\) of <a href="#entry-720">length 720</a>, which has \(c(q)=-514381806526611130380\). If the sequence \(P\) on one side has \(2c(P)=-c(q)\), then \(P\), followed by \(q\), followed by the negated reversal of \(P\), has degree-13 coefficient zero. It has order at least 14. Its antisymmetry forces its order to be odd, hence at least 15.</p>
+<p>The side starts with the order-13 Thue–Morse sequence, each sign repeated 14 times. Flip the sign at each of the 8,192 positions \(14u+w(u)\), \(0\le u\lt8192\), where \(w(u)\) counts the ones in the binary expansion of \(u\). Each position lies in its own block \(u\). The positions are the subset sums of the thirteen odd integers \(14\cdot2^i+1\), \(0\le i\lt13\), so the change to the polynomial is</p>
+<p class="proof-equation">\(\displaystyle -2\prod_{i=0}^{12}\bigl(1-x^{14\cdot2^i+1}\bigr).\)</p>
+<p>This preserves order 13 and gives \(c\equiv2\pmod4\). The remaining side blocks are signed, expanded copies of existing order-13 sequences. Together they give the required \(c(P)\) at side length 397,280. The full length is \(2\cdot397280+720=795280\), an odd multiple of 16. The <a href="https://github.com/dreeves/equipow/blob/main/proofs/sym15.py">witness checker</a> gives the block multiplicities, expands the sequence and verifies its antisymmetry, 15 exact divisions by \(x-1\), and a nonzero remainder on the next division. <a href="#entry-795280">Appendix entry</a> · <a href="pagedata/795280.hex" download>Download the sequence</a>.</p>
+<p><b>The cutoff.</b> The existing codes give order at least 14 at lengths \(6128,6144,\ldots,7072\). These 60 lengths represent every multiple of 16 modulo 960. Adding copies of the <a href="#entry-960">length-960 sequence</a> therefore gives a sequence of order at least 14 for one side at every multiple of 16 from 6,128 on.</p>
+<p>For \(n\equiv16\pmod{32}\), use the length-795,280 sequence as center. For \(n\equiv0\pmod{32}\), use the antisymmetric length-960 sequence of exact order 15. In either case, when \(n\ge795280+2\cdot6128=807536\), the required side length is a multiple of 16 at least 6,128. Put a sequence of order at least 14 on one side and its negated reversal on the other. The result is antisymmetric and has order at least 15. The two choices of sign for the center give different degree-15 Taylor coefficients because its order is exactly 15. At least one choice gives exact order 15. BGPW’s divisibility bound then gives \(m^*(n)=15\) for every \(n\ge807536\) with \(n\equiv16\pmod{32}\).</p>
+<!-- TODO: explain the difference between the table cutoff and the first admissible odd multiple of 16 in the tail, then give the independent order-16 bound. -->
+<p>The preceding length in the residue class of 807,536 is 807,504. The other class is already covered from \(960+2\cdot6128\) on. Thus every admissible length above 807,504 is covered, and <a href="#symmetry-table">Table 5</a> gives 807,505.</p>
+<p><b>Order 16.</b> Sequences of order at least 15 exist at lengths \(960\), \(1440\), \(1632\), \(1728\), \(2016\), \(2784\), \(7360\), \(7712\) and \(8192\). For \(2784=2\cdot1392\), join the order-14 sequence to its negated reversal. The other lengths already have witnesses on this page. Nonnegative sums of these lengths give every multiple of 32 from 10,048 through 10,976. Adding copies of 960 covers every larger multiple of 32. The checks for these sums and the 60 order-14 side lengths are in <a href="https://github.com/dreeves/equipow/blob/main/quals/quals_symmetry.py">quals_symmetry.py</a> and <a href="https://github.com/dreeves/equipow/blob/main/quals/quals_sym15.py">quals_sym15.py</a>.</p>
+<p>For \(n\equiv0\pmod{64}\), leave the center empty. For \(n\equiv32\pmod{64}\), use the symmetric length-1,440 sequence of order 16 as center. Reflect the side across the center with its signs unchanged. The whole sequence is symmetric, so its order is even. It already has order at least 15, hence at least 16. The largest length this calculation could miss is \(1440+2(10048-32)=21472\), giving \(B_{16}=21473\).</p>
+</div>
+<p class="attrib">— Astra</p>
+</blockquote>
+</details>
+<!-- TODO: dreeves to review. Eighteen odd multiples of 16 are excluded unconditionally from order 15. At the next candidate explain and specify the sparse antisymmetric search and distinguish the order-12 target at 528. -->
+<details class="ai" lang="en">
+<summary>Astra on the first candidate for order 15 at an odd multiple of 16</summary>
+<blockquote class="claude">
+<div class="proof-body" id="sym33360">
+<p><b>Order 15 at an odd multiple of 16 requires length at least 33,360.</b>
+Suppose \(F(x)=\sum_{i=0}^{n-1} f_i x^i\) has coefficients \(\pm1\) at positions 0 through \(n-1\), with \(n\equiv16\pmod{32}\) and \((x-1)^{15}\mid F(x)\). Negate all the signs if necessary so that \(F(-1)\ge2^{15}=32768\). This is <a href="https://arxiv.org/html/1912.03491v1#S4.Thmthm4">Proposition 4.4 of Buhler, Golan, Pratt and Wagon</a>, with 16 dividing the length exactly. The alternating sequence \(a_i=(-1)^i\) then differs from the given sequence in exactly \((n-F(-1))/2\) positions.</p>
+<p>For any odd prime \(p\), let \(A_r\) and \(D_r\) be the class sums modulo \(p\) of the alternating sequence and of the given sequence. The signs alternate within each class of the alternating sequence, so \(|A_r|\le1\). Each flipped sign changes one class sum by two. Consequently</p>
+<p class="proof-equation">\(\sum_r |D_r-A_r|\le n-32768,\qquad \sum_r|D_r|\le n-32768+p.\)</p>
+<p>If \(p\nmid n\), two class sizes differ by one, so an odd class size forces \(D\ne0\). Also \(\sum_r D_r=0\). For \(p=3\), <a href="https://arxiv.org/html/1912.03491v1#S4.Thmthm3">Proposition 4.3</a> gives \(3^7\mid D_r\). Any nonzero profile therefore has \(\sum_r|D_r|\ge2\cdot3^7\). For \(p=5,7\), divide the class sums by 125 and 49 respectively and call the quotients \(d_r\). The same proposition gives integer quotients with \(\sum_r r d_r\equiv\sum_r r^2d_r\equiv0\pmod p\), since \(15=3\cdot4+3=2\cdot6+3\).</p>
+<p>Form the positive and negative multisets of residues with multiplicities \(|d_r|\). They have equal size and equal first and second power sums modulo \(p\). Two multisets of size two with these properties agree. Indeed, the sum and sum of squares of a pair determine its product modulo \(p\), and the sum and product determine its monic quadratic over the field. The same conclusion holds at sizes zero and one. Thus \(d\ne0\) requires at least three positive and three negative units.</p>
+<p>It follows that \(n-32768\) is at least \(2\cdot3^7-3=4371\) if \(3\nmid n\), at least \(6\cdot125-5=745\) if \(5\nmid n\), and at least \(6\cdot49-7=287\) if \(7\nmid n\). Between 32,768 and 33,360 every length under consideration has gap at most 560. Both 3 and 5 must divide it. Of the 18 candidates from 32,784 through 33,328, this leaves only 32,880, with gap 112. That gap would require 7 to divide 32,880, which it does not. This proves \(n\ge33360\) for all sign sequences.</p>
+<p><b>The first surviving candidate.</b> At 33,360 the multiple of 32,768 given by \(F(-1)\) must equal 32,768. Exactly 296 signs of the alternating sequence are flipped. An antisymmetric sequence therefore flips 148 of the \(16680\) mirror pairs, since \(33360-32768=4\cdot148\). Its even centered moments vanish automatically, leaving the seven odd moments of degrees \(1,3,\ldots,13\) to check. The preceding inequalities force all the mod-3 and mod-5 class sums to vanish even though both primes divide 33,360.</p>
+<p>Reflection takes residue \(r\) to \(4-r\pmod7\), so antisymmetry gives \(D=49(a,b,0,-b,-a,c,-c)\). Since each \(|D_r|\le593\) by the flip bound, \(a,b,c\in[-12,12]\). Each \(D_r\) has the parity of its class size. Checking these parities, the two moment congruences, and \(\sum_r|D_r-A_r|\le592\), with \(A=(0,0,0,0,0,-1,1)\), leaves six profiles. Their values of \(\sum_r|D_r-A_r|\) are \(292,296,488,488,492,492\). One example is \(D=(98,0,0,0,-98,-49,49)\). Existence at 33,360 is open. The search program is <a href="https://github.com/dreeves/equipow/blob/main/searches/sparseflips/sparseflips.py">sparseflips.py</a>. For settling the Symmetry Conjecture through order 12, only <a href="#entry-528">\(528:12\)</a> remains. <a href="#progress-title">Search progress</a>.</p>
+</div>
+<p class="attrib">— Astra</p>
+</blockquote>
+</details>
 <p>
 Assuming the above proof is correct, Table <a href="#symmetry-table">5</a>
 gives, for each order \(m\), the smallest known \(N\) 
@@ -1218,12 +1300,12 @@ such that the Symmetry Conjecture holds for lengths \(n \ge N\).
 <!-- Opus 5.5, 2026-11-19: order 14's N fell from 7329 to 7121 with the antisymmetric sequences of order 13 at 2528, 2608, 2800 and 2992 above (its tail's A from 3680 to 3360, its threshold from 8560 to 7920; quals_symmetry.q_symmetry_table_gives_each_order_s_length) -->
 <!-- Opus 5.5, 2026-11-22: order 14's N fell from 7121 to 6113 with the symmetric sequence of order 14 at 1104 above, an odd multiple of 16 (its tail's b from 1200 to 1104, A from 3104 to 3072, its threshold from 7408 to 7248; the largest length left open below it is 6112; quals_symmetry.q_symmetry_table_gives_each_order_s_length) -->
 <tr data-proof="symsmall"><td>14</td><td>6113</td></tr>
-<tr data-proof="symlarge"><td>15</td><td>\(2^{1579}\)</td></tr>
-<tr data-proof="symlarge"><td>16</td><td>\(2^{1773}\)</td></tr>
-<tr data-proof="symlarge"><td>17</td><td>\(2^{1974}\)</td></tr>
-<tr data-proof="symlarge"><td>18</td><td>\(2^{2188}\)</td></tr>
-<tr data-proof="symlarge"><td>19</td><td>\(2^{2409}\)</td></tr>
-<tr data-proof="symlarge"><td>\(\ge 20\)</td><td>\(2^{O(m^2)}\)</td></tr>
+<tr data-proof="sym15"><td>15</td><td>807,505</td></tr>
+<tr data-proof="sym15"><td>16</td><td>21,473</td></tr>
+<tr data-proof="symtransport"><td>17</td><td>31,<wbr>025,<wbr>947,<wbr>785,<wbr>229,<wbr>777,<wbr>659,<wbr>537,<wbr>377</td></tr>
+<tr data-proof="symtransport"><td>18</td><td>133,<wbr>054,<wbr>115,<wbr>707,<wbr>288,<wbr>645,<wbr>946,<wbr>920,<wbr>929</td></tr>
+<tr data-proof="symtransport"><td>19</td><td>5,<wbr>323,<wbr>951,<wbr>629,<wbr>153,<wbr>680,<wbr>793,<wbr>207,<wbr>480,<wbr>289</td></tr>
+<tr data-proof="symtransport"><td>\(\ge 20\)</td><td>\(2^{O(m)}\)</td></tr>
 </tbody>
 </table>
 </section>

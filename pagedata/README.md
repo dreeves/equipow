@@ -9,6 +9,7 @@ The three data files that [index.html](../index.html) loads, and one that feeds 
 | [mstar.js](mstar.js) | `MSTAR`: for each n up to 2048, the lower and the upper bound on m\*(n) and the reason for each | [../pagegen/mstar.py](../pagegen/mstar.py) |
 | [pow2.js](pow2.js) | `POW2`: the same for the powers of 2, n = 2^k for k up to 72 | [../pagegen/pow2.py](../pagegen/pow2.py) |
 | [progress.js](progress.js) | the state of every search, for the section "Search progress" | [../searchwatch/watch.py](../searchwatch/watch.py), whose watcher rewrites it when a search's entry changes |
+| [795280.hex](795280.hex) | The left half of the antisymmetric length-795280 witness of exact order 15, in BGPW’s hex notation | [../pagegen/mstar.py](../pagegen/mstar.py) from [../proofs/sym15.py](../proofs/sym15.py) |
 | [progress-earlier.json](progress-earlier.json) | the 26 searches of before 2026-11-11 that ran an hour or more, in the same form, frozen; the page does not load it: the watcher adds its entries to progress.js | made once, from the last data file of the watcher before watch.py |
 
 Each writer states its file's format in its docstring.

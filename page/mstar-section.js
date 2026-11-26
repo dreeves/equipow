@@ -62,6 +62,10 @@ try {
       text: (n, lo, label) => `order ${lo} from an example (${label})`,
       witness: (n, lo, label) => example(n, lo, linked(SOURCES.get(n), label), coded(BigInt(n), lo, CODES.get(n))),   // its code and source, the data's (2026-11-18)
     },
+    file: {
+      ok: (n, lo, source, hex) => n > D.nmax && lo > 0 && /^proofs\/[\w.]+\.py$/.test(source) && hex === 'pagedata/' + n + '.hex',
+      witness: (n, lo, source, hex) => example(n, lo, repoFile(source), [Object.assign(linked(hex, hex), {download: ''})]),
+    },
     join: {
       ok: (n, lo, a, b, c) => [a, b, c].every(k => Number.isInteger(k) && 1 <= k && EXPLICIT.has(ROWS.get(k)?.[2][0])) && a + b + c === n
         && lo <= Math.min(loOf(a), loOf(b), loOf(c)),

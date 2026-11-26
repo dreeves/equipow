@@ -5364,7 +5364,7 @@ def q_find_in_page_opens_the_fold():
 # 2026-11-04): a click on a cell of the m*(n) chart, on the strip of its n labels or on the strip of its m labels opens,
 # under the chart, the box of that cell, column or row (the boxes runs, the harness's boxes).
 
-WITNESSES = {'example': 'witness-example', 'join': 'witness-construction', 'product': 'witness-construction',
+WITNESSES = {'example': 'witness-example', 'file': 'witness-example', 'join': 'witness-construction', 'product': 'witness-construction',
              'table2': 'witness-table2', 'page': 'witness-page'}    # a box's part of a lower bound, by its reason's kind
 # A box's part of an upper bound, by its reason's kind: proof-KIND, but proof-file for a program of proofs/ (the kind
 # proof, since 2026-11-10; written down here on 2026-11-12, when the chart came to open up to 2048, with 1248 and 1456)
@@ -5862,7 +5862,9 @@ def q_row_box_is_its_row_of_the_smallest_lengths():
     firsts = [int(re.search(r'\d+', row[0])[0]) for row in table5[1:]]
     assert firsts[0] == 1 and firsts == sorted(set(firsts)), firsts         # the orders of Table 5's rows, from 1 up
     # each row's proof: the first quote of the Symmetry section through order 14, Fable 5.2's proof from 15 (2026-11-18)
-    assert R['table5proofs'] == ['symsmall' if first <= 14 else 'symlarge' for first in firsts], R['table5proofs']
+    # The constructive thresholds (2026-11-26, dreeves: "get all that on the page") have their own linked proofs.
+    proofs = dict.fromkeys(range(1, 15), 'symsmall') | dict.fromkeys((15, 16), 'sym15') | dict.fromkeys(range(17, 21), 'symtransport')
+    assert R['table5proofs'] == [proofs[first] for first in firsts], R['table5proofs']
     for m, term, ifterm in ((12, '\\(a(11) = 480\\)', '\\(a(11) = 480\\)'), (13, '\\(480 \\le a(12) \\le 672\\)', '\\(a(12) = 672\\)'),
                             (16, '\\(a(15) = 1440\\)', '\\(a(15) = 1440\\)')):
         P = B[(None, m)]

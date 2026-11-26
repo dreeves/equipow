@@ -453,7 +453,7 @@ def q_schema():
     T = M['mtop']
     assert type(T) is int and T == max(c[1] for c in M['cols']) + 1
     # (a join a, b, a since 2026-11-18, whose sequence is (-1)^lo-symmetric: mstar.explicit_lo; a, b until then)
-    forms_lo = {'none': (), 'example': (str,), 'join': (int, int, int), 'product': (int, int), 'table2': (),
+    forms_lo = {'none': (), 'example': (str,), 'file': (str, str), 'join': (int, int, int), 'product': (int, int), 'table2': (),
                 'page': (str,)}
     forms_hi = {'odd': (), 'two': (), 'norm': (int,), 'residue': (int,), 'proof': (str,), 'prop44': (), 'table2': (), 'page': (str,)}   # proof: since 2026-11-10 (mstar.PROOFS); prop44: since 2026-11-11 (mstar.prop44)
     for n, c in [*enumerate(M['cols'], 1), *((n, c) for n, *c in M['past'])]:   # (past's rows too since 2026-11-19)
@@ -1169,9 +1169,29 @@ def q_past_lists_the_example_of_order_16_at_1440():
     assert max(c[1] for c in M['cols'][:1439]) == 15, max(c[1] for c in M['cols'][:1439])
     far = {key: a for key, a in mstar.explicit().items() if key[0] > mstar.NMAX}
     # (sorted since 2026-11-21, Fable 5.2: past rises in n, and the page's codes past the chart no longer do, 2480 and 2512 coming after 2992)
-    assert sorted([n, mstar.order(a), label] for (n, label), a in far.items()) == listed, list(far)
+    # 2026-11-26: 795280:15 is stored separately from the page's inline examples.
+    assert sorted([[n, mstar.order(a), label] for (n, label), a in far.items()]
+                  + [[795280, 15, 'proofs/sym15.py']]) == listed, list(far)
     at = [a for (n, label), a in mstar.explicit().items() if (n, label) == (1440, 'equipow p1440')]
     assert len(at) == 1 and all(mstar.order(a) == 16 and len(a) == 1440 and a == a[::-1] for a in at), len(at)
+
+
+def q_large_witness_has_a_downloadable_code():
+    # Replicata: read the sparse appendix row, its hex file and the normalized witness from its verifier.
+    # Expectata: divisibility and the witness settle the same order; downloading the hex recovers every sign.
+    # Resultata before 2026-11-26: the row and hex file were missing.
+    _, got = disk()
+    row, = [r for r in got['m']['past'] if r[0] == 795280]
+    n, m, hi, (kind, source, path), hw = row
+    assert (m, hi, kind, source, path, hw) == (15, mstar.two(n), 'file', 'proofs/sym15.py', 'pagedata/795280.hex', ['two'])
+    from runpy import run_path
+    proof = run_path(os.path.join(HERE, source))
+    with open(os.path.join(HERE, path), encoding='ascii') as f:
+        h = f.read()
+    assert re.fullmatch(r'[89A-F][0-9A-F]*\n', h) and len(h)-1 == n//8
+    signs = mstar.from_rp(h[:-1], m, n)
+    assert signs == proof['witness']() and proof['check'](signs)[:m] == [0]*m
+    assert n not in {k for k, _, _ in got['m']['examples']}
 
 
 def q_lengths_past_the_chart_have_rows():
@@ -1202,7 +1222,8 @@ def q_lengths_past_the_chart_have_rows():
         [(label, a)] = [(label, a) for (k, label), a in mstar.explicit().items() if k == n]
         hi, hw = min(tests(n), key=lambda t: t[0])
         rows.append([n, exact_order_div(a), hi, ['example', label], hw])
-    assert M['past'] == rows, (M['past'], rows)
+    # 2026-11-26: the file-backed example has a separate hex download, checked sign by sign above.
+    assert M['past'] == rows + [[795280, 15, 15, ['file', 'proofs/sym15.py', 'pagedata/795280.hex'], ['two']]], M['past']
     # (Fable 5.2, 2026-11-21: and m*(n) = 13 at 2480 and 2512, whose sequences the Symmetry section has since then.)
     # Spec change (Fable 5.2, 2026-11-21; dreeves, of replacing the pins of each day's firsts by quals that hold the page to the generated data: "that's fine, i think, if it's as much of a no-brainer question as it sounds like"; quals_index's q_powers_of_2_on_the_page_follow_pow2_js): the rows are held to the page's sequences and
     # the chart's tests, above, whichever they are (until then also to a literal list of the nine of that day, each upper bound the residue condition's).
