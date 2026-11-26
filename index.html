@@ -224,24 +224,24 @@ We call such a bipartition a <i>witness</i> for order \(m\) because it establish
 BGPW's Symmetry Conjecture:
 If a length \(n\) has a witness for order \(m\) then there exists a witness for order \(m\) that is <i>symmetric</i> (if \(m\) is even) or <i>antisymmetric</i> (if \(m\) is odd).
 Symmetry and antisymmetry are defined as follows.
-Start with \(\{0, \ldots, n-1\}\) and construct a parallel list of bits where a bit is 1 if the corresponding integer is in the first partition and 0 if it's in the second.
+Start with \(\{0, \ldots, n-1\}\) and construct a parallel list of bits where a bit is 1 if the corresponding integer is in the first part of the bipartition and 0 if it's in the second.
 If the second half of that list of bits is the mirror image of the first half, the witness is symmetric.
 If the second half is the mirror image except with each bit flipped, the witness is antisymmetric.
 </p>
 <p>
 We represent (anti)symmetric witnesses as hex codes, following Table 5 of BGPW.
-Namely, take whichever of the two partitions contains 0 to be the first partition and construct the list of bits described above.
+Namely, take whichever of the two parts contains 0 to be the first part of the bipartition and construct the list of bits described above.
 Throw away the second half, since it's reconstructible by (anti)symmetry.
 Finally, treat the remaining bits (after right-padding) as a base-2 number and convert it to hexadecimal.
 </p>
 <p>
 Recovering a partition from a hex code reverses all that.
-Expand the hex code into binary, consider the first \(n/2\) bits, and take the 0-indexed positions of the 1s as the left half of integers to include in the first partition.
+Expand the hex code into binary, consider the first \(n/2\) bits, and take the positions of the 1s as the integers to include in the left half of the bipartition.
 The right half is by symmetry (if the order \(m\) is even) or by antisymmetry (if the order \(m\) is odd).
 By symmetry means duplicate the list of bits, reverse it, and append it to the original list of bits, i.e., mirror it to the right.
 By antisymmetry means duplicate, reverse, <i>flip each bit</i>, and append it, i.e., mirror the complement.
 Following is Mathematica code to do all that.
-When the code refers to a witness, it means the set of integers in the first half of a bipartition.
+When the code refers to a witness, it means a set of integers &mdash; the first part of a bipartition aka a witnessing set.
 </p>
 <pre><code>(* Find the order of witness A: the first exponent that's not equipowerful *)
 wo[A_List, n_Integer] := 
