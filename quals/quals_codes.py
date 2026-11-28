@@ -169,6 +169,10 @@ const SCAN = () => {
   // (and since 2026-11-18 the facts that page/appendix.js puts in the appendix's entries, generated as the boxes' parts
   // were, which this scan never saw open: past 2^60 their class sizes, with their thousands separators, read as runs)
   main.querySelectorAll('[data-why]').forEach(p => p.remove());
+  // (and since 2026-11-27 the copies of each formula that KaTeX keeps out of sight beside the one it draws, its MathML
+  // and its TeX: with them a number in a formula read three times, and the 19 lengths from 576 to 1440 of the table of
+  // each order's lengths, a formula each since that table took the form of BGPW's Table 1, read as a run of 55)
+  main.querySelectorAll('.katex-mathml').forEach(p => p.remove());
   // (a code inside a join is that join's: a copy of a code, a join of one code, which the appendix's facts hold since
   // 2026-11-18 as the boxes' did, so the joins' check covers it)
   return {hex: [...document.querySelectorAll('code')].filter(c => /^[0-9A-F]{2,}$/.test(c.textContent) && !c.closest('[data-join]'))
