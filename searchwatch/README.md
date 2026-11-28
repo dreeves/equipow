@@ -26,6 +26,10 @@ The launcher, the estimators and the watcher of the long searches, behind the se
 
       python3 -B searchwatch/track.py run NAME SEARCH N:M searchwatch/formtree_eta.py VERDICTS MODEL PRIOR -- COMMAND ...
 
+- [sweep_eta.py](sweep_eta.py): for a sweep, [../searches/tilted/sweep.py](../searches/tilted/sweep.py), which enumerates fixed lists of cosets, each coset once. Its work is the nodes of the lists: those done, and those to come from the latest cosets' cost, which falls down a list. Its probability starts at the count model's (LAMBDA expected witnesses, taken as Poisson) and falls by the expected witnesses in the cosets swept (each list's curve), at the enumeration's RECOVERY. The sweep is the lists of its directory DIR, a curve `X.curve.json` with its log `X.jsonl` each, so every run of one sweep gives the same estimate.
+
+      python3 -B searchwatch/track.py run NAME SEARCH N:M --found DIR/found.jsonl searchwatch/sweep_eta.py LAMBDA RECOVERY DIR -- COMMAND ...
+
 ## Updating a form-tree model (Codex, 2026-11-15)
 
 An explicit model-change event can activate a new immutable file for a running search:

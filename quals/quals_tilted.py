@@ -51,6 +51,77 @@ def q_the_page_shows_the_witnesses():
         assert re.findall(rf'<code id="{id_}">([0-9A-F]+)</code>', page) == [witness_lines(name)[0]['code']], id_
 
 
+def q_the_repeat_filter_is_exact_and_small():
+    # Replicata: tilted.first_sight, fed 200,000 distinct 16-byte sign words (the two 64-bit words of 74 outer signs, as at 528:12 with W = 190), each twice, under tracemalloc.
+    # Expectata: True exactly the first time a word is offered, so a repeat within one beam's batch or a later one is dropped and nothing new is; the filter holds under 64 MiB.
+    # Resultata before (2026-11-27): a bitmap over 31 bits of a hash, 256 MiB in every process, with collisions. Its pages hold a few set bits each, so the system compressed them, and every lookup could fault: the ten 528:12 solvers ran at 0.21-0.25 of a core each.
+    import tracemalloc
+    sys.path.insert(0, TILTED)
+    import numpy as np
+    import tilted
+    words = np.random.default_rng(1).integers(0, 1 << 63, size=(200_000, 2), dtype=np.uint64)
+    assert len({w.tobytes() for w in words}) == len(words)
+    seen = set()
+    tracemalloc.start()
+    first = [tilted.first_sight(seen, w.tobytes()) for w in words]
+    again = [tilted.first_sight(seen, w.tobytes()) for w in words]
+    held = tracemalloc.get_traced_memory()[1]
+    tracemalloc.stop()
+    assert all(first) and not any(again), (sum(first), sum(again))
+    assert held < 64 << 20, held
+    batch = [words[0], words[1], words[0], words[2]]
+    fresh = set()
+    assert [tilted.first_sight(fresh, w.tobytes()) for w in batch] == [True, True, False, True]
+
+
+def sweeps(d, n, m, W, qs, K, count, cap, floor, sag):
+    """Runs sweep.py in the directory d on the least-cost pins and returns its exit status, its log's lines and its found file's."""
+    sys.path.insert(0, os.path.join(ROOT, 'searches', 'pinned'))
+    import pinned_problem
+    prof = os.path.join(d, 'profile.json')
+    with open(prof, 'w', encoding='utf-8') as f:
+        json.dump({str(q): ds for q, ds in pinned_problem.default_profiles(n, m, [int(q) for q in qs.split(',')], log=lambda *x: None)}, f)
+    log, found = os.path.join(d, 'sweep.jsonl'), os.path.join(d, 'found.jsonl')
+    r = subprocess.run([sys.executable, '-B', os.path.join(TILTED, 'sweep.py'), str(n), str(m), str(W), qs, prof, str(K), str(count), log, found,
+                        '--floor', str(floor), '--sag', str(sag), '--cap', str(cap)],
+                       cwd=d, capture_output=True, text=True, timeout=900, env=dict(os.environ, OMP_NUM_THREADS='1', OPENBLAS_NUM_THREADS='1'))
+    lines = lambda path: [json.loads(line) for line in open(path, encoding='utf-8')] if os.path.exists(path) else []
+    return r, lines(log), lines(found)
+
+
+def q_the_sweep_takes_each_coset_once_and_resumes():
+    # Replicata: sweep.py at 480, order 14, a symmetric cell with no symmetric sequence (searches/formtree/cells/480_14_sym), W = 190, pins 8, 9, 5, 7, 11, 13, a list of the 600 best cosets, a node budget of 100,000 each: 250 cosets, then 600 on the same log; and 600 in one run in another directory.
+    # Expectata: every run ends with status 0 and no witness. A log's chunks start at 0 and each begins where the last ended, 600 cosets in all; every line names one list (digest, K) and the profile's whole mass, and the masses swept add to less than it. The run that went on from 250 has the one run's chunks, node for node: the list is the same list each time, and nothing is enumerated twice.
+    # Resultata before (2026-11-27): the search drew its cosets at random, a visit at a time, and by the ninth visit to a profile 72% of them were cosets it had enumerated before.
+    def same(rows): return [(r['first'], r['last'], r['nodes'], r['capped'], r['mass'], r['digest'], r['K'], r['total']) for r in rows]
+    with tempfile.TemporaryDirectory() as a, tempfile.TemporaryDirectory() as b:
+        r1, part, f1 = sweeps(a, 480, 14, 190, '8,9,5,7,11,13', 600, 250, 100000, 4, 0.4)
+        assert r1.returncode == 0 and [(x['first'], x['last']) for x in part] == [(0, 249)] and not f1, (r1.stderr[-2000:], part)
+        r2, resumed, f2 = sweeps(a, 480, 14, 190, '8,9,5,7,11,13', 600, 600, 100000, 4, 0.4)
+        r3, whole, f3 = sweeps(b, 480, 14, 190, '8,9,5,7,11,13', 600, 600, 100000, 4, 0.4)
+        assert r2.returncode == 0 and r3.returncode == 0 and not f2 and not f3, (r2.stderr[-2000:], r3.stderr[-2000:])
+    assert [(x['first'], x['last']) for x in whole] == [(0, 249), (250, 499), (500, 599)], whole
+    assert same(resumed) == same(whole) and same(resumed[:1]) == same(part)
+    assert len({(x['digest'], x['K'], x['total']) for x in resumed}) == 1 and [x['count'] for x in resumed] == [250, 600, 600], resumed
+    assert all(x['nodes'] > 0 and x['mass'] > 0 for x in whole) and 0 < sum(x['mass'] for x in whole) < whole[0]['total']
+    assert whole[0]['mass'] > whole[1]['mass'], 'the list is in order of mass'
+
+
+def q_the_sweep_finds_544_10():
+    # Replicata: sweep.py at 544, order 10, a symmetric cell, W = 110, pins 8, 9, 5, 7, 11, 13, 17, 19, the 3,000 best cosets, each to the end of its tree (floor 4, sag 0.4, a budget of 1e9 nodes), in an empty directory.
+    # Expectata: status 0, every coset of the list in the log once, none at the cap, and at least one witness: each a different coset's, of order at least 10 in plain integers here, listed in its coset's chunk of the log.  (On 2026-11-27 the 20,000 best held 42 cosets with a witness, 14 of them among the first 2,000; at floor 1 and sag 0.3, the random search's settings here, 4 and 1.)
+    # Resultata before (2026-11-27): there was no sweep; the random search finds this cell in 11 to 81 s (README).
+    with tempfile.TemporaryDirectory() as d:
+        r, log, found = sweeps(d, 544, 10, 110, '8,9,5,7,11,13,17,19', 3000, 3000, 10 ** 9, 4, 0.4)
+    assert r.returncode == 0 and found, (r.stderr[-2000:], len(log), found)
+    assert [x['first'] for x in log] == [0] + [x['last'] + 1 for x in log[:-1]] and log[-1]['last'] == 2999 and not any(x['capped'] for x in log), log
+    assert len({w['coset'] for w in found}) == len(found) == sum(len(x['found']) for x in log)
+    for w in found:
+        f = decode(w['code'], 544, 10)
+        assert len(f) == 544 and sum(f) == 0 and order_div(f) == w['order'] >= 10, w
+        assert [w['code'] in x['found'] for x in log if x['first'] <= w['coset'] <= x['last']] == [True], w
+
+
 def rediscovers(n, m, W, qs, sag, seed):
     """Runs the search from an empty directory until its first witness (at most 260 s of search) and returns the witnesses' records, checked here in plain integers."""
     with tempfile.TemporaryDirectory() as d:

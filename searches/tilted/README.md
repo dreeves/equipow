@@ -57,9 +57,24 @@ so a positive `--sag` runs below the straight line through the middle of the tre
 
 **How many pins.** The run at 1440:16 pinned primes to 29. At 1440:15, W = 230, sag 0.4, in a fixed 285 s of wall time, setup included, a process found 14 witnesses with pins to 29, 2 to 31 and 0 to 37.
 
+## The sweep (Fable 5.2, 2026-11-27)
+
+`sweep.py` is the same search without its chance: one beam call with no noise and no field lists a profile's K best cosets by the estimate, and they are enumerated in that order, each once, with a node budget large enough to end every tree. `tilted.py` draws cosets at random, so a later run mostly draws an earlier run's cosets again (at 528:12, 72% of a ninth visit's), and gives each the same budget.
+
+    python3 -B searches/tilted/sweep.py n m W qs PROF K COUNT LOG FOUND --floor F --sag S --cap C
+
+It goes on from its log, so the same command restarts it. Measured at 528:12, W = 190, floor 4, sag 0.4 (`scratch/rethink528-20261127/NOTES.md`):
+
+- A coset's tree ends within 1.5e8 nodes. Of 71 planted solutions the enumerator found 19 within 1e7 nodes, 62 within 1e8 and 68 within 1e9.
+- The top profile's best 1,000 cosets hold 2.7% of its sum of E, its best 1,000,000 hold 33%, and a tree costs 6e6 nodes at the top of the list and 6e5 at position 900,000.
+- E is far above the witnesses found (Limits, below), but the count corrected by a refit to each coset's own target and the first Edgeworth term is not: at 544:10 a sweep of the 20,000 best cosets to the end of every tree found 46 cosets with a witness, where that count predicted 57 and E 11,467.
+
+`searchwatch/sweep_eta.py` is its estimator: its work is countable, so its time to go is no longer Lindy's rule.
+
 ## Files
 
 - `tilted.py`: the search.
+- `sweep.py`: the search as a sweep of a profile's best cosets.
 - `tbeam.cpp`: the beam and the enumerator. `make` builds `libtbeam.so`.
 - `entropy.py`: the tilts and the tilted estimate (`Rows`).
 - `profsearch.py`: pins by the tilted estimate.

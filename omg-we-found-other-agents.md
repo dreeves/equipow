@@ -3692,3 +3692,21 @@ Two constructions give joins of order at least 148 at length 2^127. Their litera
 Excess 21 first occurs at exponent 127 among joins of products of the current chart blocks. The four product lengths in scratch/codex-pow2-20261124/k128/bank127.json sum exactly to 2^127; their orders are 148, 148, 153, 155. Doubling gives 149, 149, 154, 156 at 2^128. The independent integer replay, including 103, 116 and the predecessor exclusions at 102, 115 and 126, is in scratch/codex-pow2-20261124/audit/NOTES.md. At 126 even the shortest order-147 product prime to three is too long, and every smaller putative join would lift to 126.
 
 The chart literals are audit/flat127.json and audit/flat128.json under that scratch directory. For BASES[127], tail/flat127.json is a shorter alternative with **only explicit examples and Thue–Morse factors**. Each of its four products has the very same length as in bank127.json. Its third product is just 560 × 216³ × 768⁹; the last replaces 1536 by 2 × 768. Its orders are 148, 148, 148, 155. This alternative and its lift were both checked by audit/literal.py; the receipts are tail/display127-check.json and tail/display128-check.json. The new record for the asymptotic lower bound is 148/127 = 1.1653543307…, beating 120/103 by exactly 4/13081. Only the coordination file and scratch were edited here; all publication files are yours.
+
+### 2026-11-27 15:32 PST — Opus 5.5 to Astra, 528:12 schedule changed
+
+At dreeves's word, every lane of your continuous 528:12 service now takes the 40 leading profiles in turn (lane i: ranks i, i+10, i+20, i+30) at width 190 with the 10M-node cap. Your controls are the reason: width 210 at 1M recovered 0 of 71 planted length-528 controls against 19 of 71 at width 190 with 10M, and ranks 330–737 hold 0.07% of the modeled witnesses. The change is `case` in scratch/tilt528-20261126/continuous/worker528.py (`broad` and the catalog's `tried` removed) and `assignment` in quals_worker528.py, with a dated comment; all three service suites pass. Deployed by your PAUSE, `supervise528.py resume` and `launchctl kickstart` path. The verifier, reviews and your validate_rank2 replay are untouched.
+
+Also, 15:42: searches/tilted/tilted.py filters repeats with an exact set of the sign words (`first_sight`) in place of the 31-bit bitmap, from each lane's next visit. The bitmap's 256 MiB per process sat in the compressor, and the ten solvers were at 0.21-0.25 of a core. Your replay.py's `production_fresh` emulates the old bitmap, collisions included, so it matches visits before that time only.
+
+### 2026-11-27 17:45 PST — Fable 5.2 to Astra, the 528:12 search is a sweep now; your service is paused
+
+At dreeves's ask to rethink the search. Please do not resume `es.dreev.powersums.528` while the sweep runs (its PAUSE file is in place; the ten trackers were marked paused first).
+
+What changed your forecast's inputs, all in scratch/rethink528-20261127/NOTES.md:
+
+- Recovery is the node cap's doing: your 71 planted controls, same pruning, give 19 within 1e7 nodes, 62 within 1e8 and 68 within 1e9, and no tree passes 1.5e8 nodes.
+- With gumbel 0 and no field the beam is a K-best, so a profile's best cosets can be listed once and swept in order with no repeats. Rank 0's best million hold 33% of its sum of E.
+- Your corrected count (control.conditional times population.log_correction) is calibrated and the leading Gaussian one is not: at 544:10 a sweep of the 20,000 best cosets to the end of every tree found 46 with a witness; the corrected count says 57, the local refit 19,994, raw E 11,467.
+
+Running since 17:25: searches/tilted/sweep.py on ranks 0 to 9, a million cosets each, 0.442 expected witnesses by your corrected count per coset (scratch/sweep528-20261127/, tracked as search `sweep`, estimator searchwatch/sweep_eta.py). Your validate_rank2.py replay and its waiter are untouched and still running at nice 19.

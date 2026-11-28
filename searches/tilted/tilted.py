@@ -156,6 +156,11 @@ class Tilted:
         b.update({x: int(v) for x, v in zip(self.P.F, sg)})
         fs = sequence(self.n, s_, b); o = exact_order(fs); assert o >= self.m, o
         return o, hexcode(fs, self.n)
+def first_sight(seen, key):
+    """True the first time key is offered; seen remembers it from then on."""
+    new = key not in seen
+    seen.add(key)
+    return new
 if __name__ == '__main__':
     ap = argparse.ArgumentParser()
     ap.add_argument('n', type=int); ap.add_argument('m', type=int); ap.add_argument('W', type=int); ap.add_argument('th', type=float); ap.add_argument('qs'); ap.add_argument('K', type=float); ap.add_argument('seconds', type=float)
@@ -173,17 +178,12 @@ if __name__ == '__main__':
     else:
         pf = default_profiles(n, m, qs, log=lambda *x: None)
     T = Tilted(n, m, a.W, a.th, pf, beta=a.beta, log=log, lev=a.lev)
-    BITS = 31; bitmap = np.zeros(1 << (BITS - 3), dtype=np.uint8); seen_tot = seen_dup = 0; rng = np.random.default_rng(a.seed); T0 = time.time(); last = T0; found = []; cosets = nodes = big = trunc = 0; tb = te = 0.0; sumE = 0.0; runs = 0; Kout = int(a.kout) or K
+    seen = set(); seen_tot = seen_dup = 0; rng = np.random.default_rng(a.seed); T0 = time.time(); last = T0; found = []; cosets = nodes = big = trunc = 0; tb = te = 0.0; sumE = 0.0; runs = 0; Kout = int(a.kout) or K
     while time.time() - T0 < a.seconds and not (found and a.stop):
         runs += 1
         t1 = time.time(); S, G, Pi = T.beam(K, Kout, a.gumbel, int(rng.integers(1 << 62)), a.ktop or None, a.last or None, a.field * rng.logistic(0.0, 2.0, size=T.L) if a.field > 0 else None); t2 = time.time(); tb += t2 - t1
-        # first sight only: a bitmap over a hash of the signs
-        h = np.zeros(len(S), dtype=np.uint64)
-        for w_ in range(S.shape[1]): h = (h ^ S[:, w_]) * np.uint64(0x9E3779B97F4A7C15); h ^= h >> np.uint64(29)
-        pos = (h >> np.uint64(64 - BITS)).astype(np.int64); byte, bit = pos >> 3, (pos & 7).astype(np.uint8)
-        fresh = (bitmap[byte] >> bit) & 1 == 0
-        _, first = np.unique(pos, return_index=True); mask = np.zeros(len(S), dtype=bool); mask[first] = True; fresh &= mask
-        bitmap[byte[fresh]] |= (np.uint8(1) << bit[fresh])
+        # first sight only: the exact signs, remembered for the rest of the run
+        fresh = np.array([first_sight(seen, row.tobytes()) for row in S], dtype=bool)
         seen_tot += len(S); seen_dup += int((~fresh).sum())
         S = S[fresh]; G = G[fresh]; Pi = Pi[fresh]
         if len(S) == 0: continue
