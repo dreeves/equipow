@@ -498,6 +498,8 @@ blockquote.claude .attrib { color: var(--muted); }
 .smallest table, [data-why="row-smallest"] table, .symmetry > table { justify-self: start; border-collapse: collapse; font-variant-numeric: tabular-nums lining-nums; }
 .smallest th, .smallest td, [data-why="row-smallest"] th, [data-why="row-smallest"] td, .symmetry > table th, .symmetry > table td { border: 1px solid var(--rule); padding: 0.3rem 0.7rem; text-align: center; }
 .smallest th, [data-why="row-smallest"] th, .symmetry > table th { font-weight: 400; }   /* and a row's box of the m*(n) chart, a row of the table (2026-11-04) */
+/* The table of each order's lengths (Fable 5.2, 2026-11-27), in the form of BGPW's Table 1: its lengths from the left, as theirs. */
+.tails th:last-child, .tails td:last-child { text-align: left; }
 .oeis ul, .mstar > ul { margin: 0; padding-left: 1.25rem; display: grid; gap: 0.35rem; }   /* lists of text */
 /* What the m*(n) chart leaves out ([COM], 2026-11-10): a list of boxes, each in the place of its item's bullet.
    dreeves moved it into the chart's bar that day, under a sentence of his: there each of the two takes a row of the

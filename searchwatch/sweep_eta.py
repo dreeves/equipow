@@ -17,8 +17,8 @@ and each time it is run it appends one estimate, of the whole sweep, to the reco
             which the count and the curves are multiplied; recovery, the chance that the enumeration finds a witness
             in a coset it sweeps (at 528:12, 68 of 71 planted ones); why, where the three come from.  LAMBDA below is
             calibration times count.
-  log       a profile's, sweep.py's: a line a chunk of cosets, with the list's digest and length K, the cosets to
-            sweep (count), the chunk's first and last coset, its nodes and the time it ended.
+  log       a list's, sweep.py's: a line a chunk of cosets, with the list's digest and length K, the cosets to
+            sweep (count, at most K), the chunk's first and last coset, its nodes and the time it ended.
   curve     that list's expected witnesses, JSON {digest, K, curve: [[k, the witnesses expected in its best k cosets],
             ...]}, k rising to K; read by straight lines, from 0 at k = 0.  One of another list stops the estimator.
 
@@ -35,7 +35,8 @@ and each time it is run it appends one estimate, of the whole sweep, to the reco
   prior     1 - exp(-LAMBDA): the witnesses are taken as Poisson.
   exists    1 - exp(-(LAMBDA - recovery c)), c the curves' expected witnesses at the cosets swept, calibrated: what the
             sweep has not found, of what it would have; 1 once found.jsonl has a line.
-  finds     1 - exp(-recovery (C - c)), C the curves' expected witnesses in the whole lists, calibrated: the chance that the sweep
+  finds     1 - exp(-recovery (C - c)), C the curves' expected witnesses in the cosets the sweep takes (each log's count: a
+            long list may be swept a part at a time, 2026-11-27 night; the whole lists until then), calibrated: the chance that the sweep
             itself finds a witness in the cosets it has left (2026-11-27; dreeves: "if the chance that the current
             search ... finds a witness is very different from that then that should also be shown on the page"); 1 once
             found.jsonl has a line.  It rises when a list joins the sweep.
@@ -53,7 +54,7 @@ LATEST = 0.9                     # a log's latest chunks end past this share of 
 
 
 def log_work(rows, curve):
-    """A log's (nodes done, cosets swept, cosets left, nodes to come at each of DECAY, wall seconds a node, expected witnesses swept, expected witnesses in its whole list)."""
+    """A log's (nodes done, cosets swept, cosets left, nodes to come at each of DECAY, wall seconds a node, expected witnesses swept, expected witnesses in the cosets the sweep takes: its count's, of a list swept in part)."""
     assert len({(r['digest'], r['K']) for r in rows} | {(curve['digest'], curve['K'])}) == 1, 'the curve is of another list'
     ks, cs = zip(*curve['curve'])
     assert list(ks) == sorted(set(ks)) and ks[-1] == curve['K'] and all(c >= 0 for c in cs), 'the curve does not cover its list'
@@ -63,7 +64,8 @@ def log_work(rows, curve):
     nodes, cosets, wall = (sum(v) for v in zip(*((r['nodes'], r['last'] + 1 - r['first'], w) for r, w in late)))
     mid = (late[0][0]['first'] + swept) / 2
     come = [nodes / cosets * mid ** b * (count ** (1 - b) - swept ** (1 - b)) / (1 - b) for b in DECAY]
-    return sum(r['nodes'] for r in rows), swept, count - swept, come, wall / nodes, float(np.interp(swept, (0,) + ks, (0.0,) + cs)), cs[-1]
+    at = lambda k: float(np.interp(k, (0,) + ks, (0.0,) + cs))
+    return sum(r['nodes'] for r in rows), swept, count - swept, come, wall / nodes, at(swept), at(count)
 
 
 def estimate(model, witnesses, works):

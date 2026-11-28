@@ -563,16 +563,19 @@ Click a formula using those operators to see its derivation.
     <span>\(p_{1440}\) \((m = 16)\):</span>
     <code id="1440:16">9E21C6F54B340E3CAF46C59F362A518761CD3896A8DAB346DC58D731D72B46AC9A3630DAA94E91D235364CD316F68A7B8AF8E336A449B12CD9E0D6D51AA55C49AC65CCCB90F2D5EA2A166DB9936D0369D05CF5A95CA006EF87B2</code>
   </p>
-  <!-- Which lengths reach each order: BGPW's Table 1 (orders 1 to 8), carried on by the script from mstar.js (page/smallest-section.js, tails in page/shared.js), at dreeves's word (2026-11-27, of Stan Wagon's table of orders 9 and 10 with a conjecture for 11: "should we add a table like in the screenshot from stan?", then "sounds good. yes to stan's phrasing"). The head's words are Stan Wagon's, of his rows ("m*(n) ≥ 11   n is divisible by 16.   get 16ℕ starting at 800 (and 432, ...)") -->
-  <table>
+  <!-- Which lengths reach each order: BGPW's Table 1 (orders 1 to 8), carried on by the script from mstar.js (page/smallest-section.js, tails in page/shared.js), at dreeves's word (2026-11-27, of Stan Wagon's table of orders 9 and 10 with a conjecture for 11: "should we add a table like in the screenshot from stan?"), in the form of BGPW's Table 1 (his "why not follow the format of BGPW's Table 1?", of its first form, four columns under Stan Wagon's phrasing): m, and L_m as start + gℕ or {lengths} ∪ (start + gℕ), its lengths from the left as theirs (class tails). The head defines L_m, which the page does nowhere else -->
+<p>
+  Next we extend BGPW's Table 1:
+</p>
+  <table class="tails">
   <caption id="tails-table"><span class="sc">Table 4.</span></caption>
-  <thead><tr><th>\(m^*(n) \ge\)</th><th>\(n\) is divisible by</th><th>starting at</th><th>and</th></tr></thead>
+  <thead><tr><th>\(m\)</th><th>\(L_m = \{n : m^*(n) \ge m\}\)</th></tr></thead>
   <tbody data-tails></tbody>
   </table>
-  <!-- TODO: says how to read the table above: a row says exactly which lengths n have a sequence of order at least its first number: every multiple of its second number from its third number on, and the lengths of its last cell, where a question mark marks a length at which that order is neither found nor ruled out; that rows 1 to 8 are BGPW's Table 1 and the later rows go beyond it; and why each row follows from Figure 1's bounds: a length with a sequence of order at least m is a multiple of the least power of 2 above m (BGPW's Theorem 4.1), two sequences of order at least m one after the other form one of order at least m, so if every such multiple in a stretch as long as the order's smallest length has such a sequence, so does every later multiple, and below that stretch each multiple is ruled out or listed -->
-  <details class="ai"><!-- TODO: the fold's line, Fable 5.2's words: says it holds Fable 5.2's block quote on how to read the table above and why its rows hold --><summary>Fable 5.2 on how to read the table above, BGPW's Table 1 carried on</summary>
+  <!-- TODO: says how to read the table above: a row gives L_m, the lengths that have a sequence of order at least m, written as in BGPW's Table 1, ℕ being the nonnegative integers, so that 800 + 16ℕ is every multiple of 16 from 800 on; a question mark marks a length at which that order is neither found nor ruled out; rows 1 to 8 are BGPW's Table 1 and the later rows go beyond it; and why each row follows from Figure 1's bounds: a length with a sequence of order at least m is a multiple of the least power of 2 above m (BGPW's Theorem 4.1), two sequences of order at least m one after the other form one of order at least m, so if every such multiple in a stretch as long as the order's smallest length has such a sequence, so does every later multiple, and below that stretch each multiple is ruled out or listed -->
+  <details class="ai"><!-- the fold's line, Fable 5.2's words: says it holds Fable 5.2's block quote on how to read the table above and why its rows hold --><summary>Fable 5.2 has notes</summary>
   <blockquote class="claude">
-  <p>A row says exactly which lengths \(n\) have a sequence of order at least its first number: every multiple of its second number from its third number on, and the lengths in its last cell.
+  <p>A row gives \(L_m\), the lengths that have a sequence of order at least \(m\), written as in BGPW's Table 1: \(\mathbb{N}\) is the nonnegative integers, so \(800 + 16\,\mathbb{N}\) is every multiple of 16 from 800 on.
     A question mark marks a length where that order is neither found nor ruled out.
     Rows 1 to 8 are BGPW's Table 1; the later rows go beyond it.</p>
   <p>Each row follows from the bounds in Figure <a href="#mstar-figure">1</a>.

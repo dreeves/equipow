@@ -6399,19 +6399,27 @@ def q_smallest_section_sits_between_the_remarks_and_the_counts():
 
 
 DRAWN = []    # the page's DOM once its scripts ran, dumped once per process (drawn_rows)
+# In the page whose DOM drawn_rows dumps: once the page has loaded and KaTeX has drawn its math, each formula is put
+# back as its TeX between \( and \), as the harnesses' boxes do, so that a cell's text is its words and its formulas.
+TEX_BACK = """<script>addEventListener('load', () => setTimeout(() => document.querySelectorAll('.katex').forEach(k =>
+  k.replaceWith(`\\\\(${k.querySelector('annotation').textContent}\\\\)`)), 300));</script>"""
 
 
 def drawn_rows(attr):
-    """The rows of the page's table whose body carries the attribute attr, each as the texts of its cells: index.html in
-    headless Chrome beside page/, mstar.js and pow2.js, its DOM dumped once its scripts ran; the dump made once per
-    process.  (Until 2026-11-27 smallest_table alone, of the one table a script filled.)"""
+    """The rows of the page's table whose body carries the attribute attr, each as the texts of its cells, a formula as
+    its TeX between \\( and \\) (TEX_BACK): index.html in headless Chrome beside page/, mstar.js and pow2.js, its DOM
+    dumped once its scripts ran and its math was drawn; the dump made once per process.  (Until 2026-11-27
+    smallest_table alone, of the one table a script filled, whose cells hold no formula.)"""
     if not DRAWN:
         d = tempfile.mkdtemp(prefix='index-quals-')
-        shutil.copy(INDEX, os.path.join(d, 'index.html'))
+        text = page()
+        assert text.count('</body>') == 1
+        with open(os.path.join(d, 'index.html'), 'w', encoding='utf-8') as f: f.write(text.replace('</body>', TEX_BACK + '</body>'))
         for src, name in ((DATA, 'mstar.js'), (POW2, 'pow2.js')): shutil.copy(src, data_file(d, name))
         copy_page_dir(d)
         DRAWN.append(chrome(d, ['--virtual-time-budget=5000', '--dump-dom', 'file://' + os.path.join(d, 'index.html')]))
         shutil.rmtree(d)
+        assert 'class="katex"' not in DRAWN[0] and '\\(m\\)' in DRAWN[0], 'the dump keeps drawn formulas, or the page drew none'
     body = re.search(rf'<tbody {attr}="">(.*?)</tbody>', DRAWN[0], re.S)
     assert body, (attr, DRAWN[0][-2000:])
     return [[html.unescape(re.sub(r'<[^>]+>', '', c)) for c in re.findall(r'<td>(.*?)</td>', tr, re.S)]
@@ -6424,8 +6432,16 @@ def smallest_table():
 
 
 def tails_table():
-    """The rows of the table of each order's lengths (BGPW's Table 1, carried on), as the page draws it."""
-    return drawn_rows('data-tails')
+    """The rows of the table of each order's lengths (BGPW's Table 1, carried on), as the page draws it, read back from
+    its two cells, m and L_m in the form of BGPW's Table 1, as [m, g, start, others]: "start + g N" (others empty) or
+    "{others} ∪ (start + g N)", each of the others a length, with its question mark where the page puts one."""
+    def read(m, lengths):
+        tex = re.sub(r'\\[()]|\\,|\s', '', lengths)                # the formulas' TeX less their delimiters and spaces
+        # ("{(" and ")}" around the progression after a union: a TeX group, which KaTeX does not break across lines)
+        got = re.fullmatch(r'(?:\\\{([\d,?]+)\\\}\\cup\{\((?=.*\)\}$))?(\d+)\+(\d+)\\mathbb\{N\}(?:\)\})?', tex)
+        assert got and tex.endswith(')}') == (got.group(1) is not None), lengths
+        return [int(m), int(got.group(3)), int(got.group(2)), [x for x in (got.group(1) or '').split(',') if x]]
+    return [read(*row) for row in drawn_rows('data-tails')]
 
 
 def q_page_statements_agree_with_the_chart():
@@ -6588,12 +6604,12 @@ BGPW_TABLE1 = [(1, 2, 2, []), (2, 4, 4, []), (3, 4, 8, []), (4, 8, 16, []), (5, 
 
 def tails_rows(cols):
     """The rows of the table of each order's lengths, computed here from the chart's columns cols, [lo, hi, ...] each: for
-    each order m from 1, the texts of m; of g, the least power of 2 above m, which every length that reaches order m (has
-    a sequence of order at least m) is a multiple of (BGPW's Theorem 4.1); of the least multiple t of g such that every
-    multiple of g from t to below t + a is known to reach order m, a the least length known to reach it (two sequences
-    of order at least m, one after the other, are one of order at least m, so from that stretch on every multiple of g
-    reaches it: a length of the stretch plus copies of a); and of the multiples of g below t that order m is not ruled
-    out at, those not known to reach it with a question mark.  An order with no such stretch inside
+    each order m from 1, [m; g, the least power of 2 above m, which every length that reaches order m (has a sequence of
+    order at least m) is a multiple of (BGPW's Theorem 4.1); the least multiple t of g such that every multiple of g
+    from t to below t + a is known to reach order m, a the least length known to reach it (two sequences of order at
+    least m, one after the other, are one of order at least m, so from that stretch on every multiple of g reaches it:
+    a length of the stretch plus copies of a); and the multiples of g below t that order m is not ruled out at, as
+    texts, those not known to reach it with a question mark].  An order with no such stretch inside
     the chart has no row."""
     def row(m):
         g = 1 << m.bit_length()
@@ -6601,33 +6617,33 @@ def tails_rows(cols):
         a = next(n for n in range(g, len(cols) + 1, g) if known(n))
         return m, g, next((t for t in range(g, len(cols) - a + g + 1, g) if all(known(n) for n in range(t, t + a, g))), None)
     rows = [r for r in map(row, range(1, max(c[0] for c in cols) + 1)) if r[2] is not None]
-    return [[str(m), str(g), str(t), ', '.join(str(n) + '?' * (cols[n - 1][0] < m) for n in range(g, t, g) if cols[n - 1][1] >= m)] for m, g, t in rows]
+    return [[m, g, t, [str(n) + '?' * (cols[n - 1][0] < m) for n in range(g, t, g) if cols[n - 1][1] >= m]] for m, g, t in rows]
 
 
 def q_tails_table_matches_mstar():
     # Replicata: the table of each order's lengths as the page draws it (tails_table); tails_rows of MSTAR's columns,
     # computed here; BGPW's Table 1 as printed; and the columns with one bound changed, three times.
     # Expectata (dreeves, 2026-11-27, of Stan Wagon's table of the lengths of orders 9 to 11, with a conjecture for 11:
-    # "do we already have all this on equipow? should we add a table like in the screenshot from stan?", then "sounds
-    # good. yes to stan's phrasing"): a table after the table of smallest lengths whose body the script fills from
-    # mstar.js; its rows are tails_rows', in order; the first eight are BGPW's Table 1; and each row is a theorem of
-    # the chart's bounds: every multiple of its second cell from its third to below that plus the order's least known
-    # length is known to reach the order, the multiple below the third is not, the fourth lists exactly the smaller
-    # multiples that the order is not ruled out at, a question mark on those not known to reach it, and the order is
-    # ruled out at every length that is no multiple of the second cell.  The orders are 1, 2, 3, ... with none left
-    # out.  The rule answers
-    # to the data: with m*(528) >= 12 the question mark at 528 in row 12 goes; with m*(784) >= 11 row 11 starts at 768
-    # (784 joins the stretch, 768 was known, and 752 is ruled out) and its last cell ends at 720; with order 11 unknown
-    # at 800, it starts later and 800 is listed with a question mark.
+    # "do we already have all this on equipow? should we add a table like in the screenshot from stan?"; then, of its
+    # first form, four columns in Stan's phrasing: "why not follow the format of BGPW's Table 1?"): a table after the
+    # table of smallest lengths whose body the script fills from mstar.js, two cells a row as BGPW's Table 1 has them:
+    # m, and L_m as "start + g N" or "{lengths} ∪ (start + g N)" (tails_table reads them back, and stops on any other
+    # form).  Its rows are tails_rows', in order, the orders 1, 2, 3, ... with none left out; the first eight are
+    # BGPW's Table 1; and each row is a theorem of the chart's bounds: every multiple of g from start to below that
+    # plus the order's least known length is known to reach the order, the multiple below start is not, the braces
+    # list exactly the smaller multiples that the order is not ruled out at, a question mark on those not known to
+    # reach it, and the order is ruled out at every length that is no multiple of g.  The rule answers to the data:
+    # with m*(528) >= 12 the question mark at 528 in row 12 goes; with m*(784) >= 11 row 11 starts at 768 (784 joins
+    # the stretch, 768 was known, and 752 is ruled out) and its braces end at 720; with order 11 unknown at 800, it
+    # starts later and 800 is listed with a question mark.
     # Resultata before: the page had each cell (Figure 1) and each order's least length (the table above), and the
     # starts 192, 320 and 528 inside the Symmetry section's reductions, but no statement of which lengths have a
     # sequence of order m.
     cols = mstar_data()['cols']
     got, want = tails_table(), tails_rows(cols)
-    assert got == want and len(got) >= 11 and [r[0] for r in got] == [str(i + 1) for i in range(len(got))], (got, want)
-    read = lambda row: (int(row[0]), int(row[1]), int(row[2]), [x for x in row[3].split(', ') if x])
-    assert [(m, g, t, [int(x) for x in also]) for m, g, t, also in map(read, got[:8])] == BGPW_TABLE1, got[:8]
-    for m, g, t, also in map(read, got):
+    assert got == want and len(got) >= 11 and [r[0] for r in got] == list(range(1, len(got) + 1)), (got, want)
+    assert [(m, g, t, [int(x) for x in also]) for m, g, t, also in got[:8]] == BGPW_TABLE1, got[:8]
+    for m, g, t, also in got:
         known, open_ = (lambda n: cols[n - 1][0] >= m), (lambda n: cols[n - 1][1] >= m)
         a = min(n for n in range(g, len(cols) + 1, g) if known(n))
         assert g == 1 << m.bit_length() and t % g == 0 and t + a - g <= len(cols), (m, g, t, a)
@@ -6636,11 +6652,11 @@ def q_tails_table_matches_mstar():
         assert not any(open_(n) for n in range(1, len(cols) + 1) if n % g), (m, g)
     changed = lambda n, lo: [[lo, max(lo, c[1])] + list(c[2:]) if i == n - 1 else c for i, c in enumerate(cols)]
     row = lambda data, m: tails_rows(data)[m - 1]
-    assert '528?' in row(cols, 12)[3].split(', ') and '528' in row(changed(528, 12), 12)[3].split(', '), row(cols, 12)
-    assert row(cols, 11)[2:] == ['800', '432, 480, 528, 576, 624, 672, 720, 768'], row(cols, 11)
-    assert row(changed(784, 11), 11)[2:] == ['768', '432, 480, 528, 576, 624, 672, 720'], row(changed(784, 11), 11)
+    assert '528?' in row(cols, 12)[3] and '528' in row(changed(528, 12), 12)[3], row(cols, 12)
+    assert row(cols, 11)[2:] == [800, ['432', '480', '528', '576', '624', '672', '720', '768']], row(cols, 11)
+    assert row(changed(784, 11), 11)[2:] == [768, ['432', '480', '528', '576', '624', '672', '720']], row(changed(784, 11), 11)
     lost = [[10, c[1]] + list(c[2:]) if i == 799 else c for i, c in enumerate(cols)]
-    assert int(row(lost, 11)[2]) > 800 and '800?' in row(lost, 11)[3].split(', '), row(lost, 11)
+    assert row(lost, 11)[2] > 800 and '800?' in row(lost, 11)[3], row(lost, 11)
 
 
 def q_tables_and_figures_are_numbered():

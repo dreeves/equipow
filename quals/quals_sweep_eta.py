@@ -201,6 +201,29 @@ def q_the_model_is_the_directory_s_and_its_calibration_scales_every_count():
         shutil.rmtree(d)
 
 
+def q_a_list_swept_in_part_counts_its_part():
+    # Replicata: the estimator on a list of 4,000 cosets of which the sweep takes the first 1,000 (its log's count),
+    # 500 of them swept; the list's curve, to its 4,000.
+    # Expectata (Fable 5.2, 2026-11-27, for lists at width 210, long ones swept a part at a time: sweep.py's "a larger
+    # COUNT extends it"): the sweep is the part it takes.  pending the cosets left of the part, 500; finds
+    # 1 - exp(-0.9 (0.16 - 0.10)), the witnesses expected in the part's cosets not yet swept, the curve read at the
+    # count; exists as for any list, 1 - exp(-(2.5 - 0.9 0.10)).
+    # Resultata before: finds counted the whole list's witnesses, 1 - exp(-0.9 (0.30 - 0.10)), which the sweep would
+    # never reach.
+    d = sandbox()
+    try:
+        part = [chunk('aa', 4000, 1000, 0, 249, 8000, 1010.0, cpu=9.0), chunk('aa', 4000, 1000, 250, 499, 6000, 1030.0)]
+        args, rec = lay(d, [part], [CA])
+        p, ests = estimates(d, args, rec)
+        assert p.returncode == 0 and len(ests) == 1, (p.returncode, p.stderr[-2000:], ests)
+        e = ests[0]
+        assert (e['finished'], e['pending']) == (500, 500), e
+        assert close(e['finds'], 1 - math.exp(-0.9 * (0.16 - 0.10))), e
+        assert close(e['exists'], 1 - math.exp(-(2.5 - 0.9 * 0.10))), e
+    finally:
+        shutil.rmtree(d)
+
+
 def q_a_curve_of_another_list_stops_it():
     # Replicata: the first log above with a curve whose digest is another list's; then with a curve that ends before
     # the list does.

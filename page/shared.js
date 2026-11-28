@@ -534,8 +534,11 @@ function tableRow(texts) {
 //           is known at n; where it is not, it is neither known nor ruled out there.
 // So a row is a theorem of the chart's bounds: order m is reached at every multiple of g from start on and at the
 // others known, at no other length but the others not known.  An order with no start inside the chart has no row.
-// tailsRow(row) is its row of the table: m, g, start, and the others, a question mark after each not known (the one
-// branch here: a mark for a state of the data).
+// tailsRow(row) is its row of the table, in the form of BGPW's Table 1 (dreeves, 2026-11-27, of the first form, four
+// cells under Stan Wagon's phrasing: "why not follow the format of BGPW's Table 1?"): m, and the lengths as
+// start + g N, after {the others} ∪ where there are others (that form's own branch), a question mark after each of the
+// others not known (the other branch: a mark for a state of the data).  Each of the others is a formula of its own, so
+// that a long row breaks between them: KaTeX breaks a formula at no comma.
 function tails(cols) {
   const last = g => cols.length - cols.length % g;                 // the chart's largest multiple of g
   const multiples = (g, from, to) => Array.from({length: (to - from) / g + 1}, (_, i) => from + i * g);   // from and to are multiples of g
@@ -549,7 +552,8 @@ function tails(cols) {
     .map(([m, g, start]) => [m, g, start, multiples(g, g, start - g).filter(n => cols[n - 1][1] >= m).map(n => [n, cols[n - 1][0] >= m])]);
 }
 function tailsRow([m, g, start, others]) {
-  return tableRow([m, g, start, others.map(([n, known]) => `${n}${known ? '' : '?'}`).join(', ')]);
+  const tail = `${start} + ${g}\\,\\mathbb{N}`, listed = others.map(([n, known]) => `${n}${known ? '' : '?'}`);
+  return tableRow([m, listed.length > 0 ? `\\(\\{${listed.join(',\\) \\(')}\\} \\cup {(${tail})}\\)` : `\\(${tail}\\)`]);   // {( )}: KaTeX breaks no group, so the progression stays whole
 }
 // The m*(n) chart's columns if BGPW's Symmetry Conjecture holds (2026-11-18): each upper bound that mstar.js's ifsym
 // lowers, lowered.
