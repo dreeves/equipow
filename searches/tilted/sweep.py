@@ -12,12 +12,13 @@ solutions the enumerator found 19 within 1e7 nodes and 68 within 1e9 (scratch/re
   LOG    JSON lines, one a chunk, appended: the list (digest of its signs, K), COUNT, the profile's whole mass (total: the sum of E
          over every coset, its leading Gaussian count), the chunk's first and last coset, its nodes, how many cosets met the cap, the
          sum of E over its cosets (mass), its CPU seconds, the time, and the codes found in it.  A run goes on from the log's last
-         chunk, so a stopped sweep is restarted by the same command, and a larger COUNT extends it.  A log of another list stops it.
+         chunk, so a stopped sweep is restarted by the same command, and a larger COUNT extends it.  A log of another list stops it,
+         and so does a log that another sweep holds: a sweep keeps its log locked while it runs.
   FOUND  JSON lines, one a witness, appended: each checked by the search's own exact order and by verify_witness.py.
 
 Every coset of the list is enumerated, witness or not, so the witnesses found measure the estimate.  Quals: quals_tilted.py.
 """
-import sys, os, json, math, time, hashlib, argparse, subprocess
+import sys, os, json, math, time, fcntl, hashlib, argparse, subprocess
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import numpy as np, mpmath as mp
@@ -63,6 +64,7 @@ if __name__ == '__main__':
     digest = hashlib.sha256(S.tobytes()).hexdigest()[:16]
     E = 2.0 ** (t.E0 - G / (2 * math.log(2))); total = 2.0 ** whole_bits(t)
     with open(a.log, 'a+') as log:
+        fcntl.flock(log, fcntl.LOCK_EX | fcntl.LOCK_NB)        # one sweep a log: a second one on this list stops here
         log.seek(0); rows = [json.loads(line) for line in log]
         assert all((r['digest'], r['K']) == (digest, a.K) for r in rows), 'the log is of another list'
         starts = [0] + [r['last'] + 1 for r in rows]

@@ -239,7 +239,7 @@ def estimate(model, roots, points, prior, pending, finished, offset=0):
         samples = sampled(model, work)
         forecast = chance.work(prior, offset + samples['total'], done, samples['rate'] * 3600, samples['weight'])
     return dict(event='estimate', basis='formtree', unit='nodes', done=done, rate=work['rate'], total=forecast['total'],
-                to_go=forecast['to_go'], prior=prior, exists=forecast['exists'], pending=pending, finished=finished)
+                to_go=forecast['to_go'], prior=prior, exists=forecast['exists'], finds=forecast['exists'], pending=pending, finished=finished)
 
 
 def history(points, current, now, period=900):

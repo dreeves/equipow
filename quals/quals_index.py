@@ -151,7 +151,7 @@ def uniform(r, made):
                 statuses=r['statuses'], depth=r['depth'], keys=r['keys'], groups=r['groups'], counts=r['counts'],
                 to_go=to_go, basis='formtree' if model else 'lindy' if r.get('lindy') else r['program'], work=(nodes + [seconds])[0],
                 etas=etas, odds=dict(prior=odds['prior'], since=odds['since'] if odds['since'] is not None else etas[0][0] - etas[0][1],
-                                     exists=exists),
+                                     exists=exists, finds=[]),   # finds: 2026-11-27, none in these made-up searches
                 pending=[], finished=[], rates=[], cpu=r['cpu'], stale=r.get('stale'))
 
 
@@ -7798,7 +7798,11 @@ def q_progress_states_each_run_s_prior():
   out(runs().map(box => { const field = box.querySelector('.progress-odds [data-odds-prior]'), line = field && field.closest('p');
     const f = box.querySelector('.progress-odds'), title = f.querySelector('.progress-odds-title'), svg = f.querySelector('svg');
     return field && {prior: field.textContent, shown: line.checkVisibility(), afterEta: after(box.querySelector('.progress-eta'), line),
-                     afterStatus: after(box.querySelector('.progress-status'), line), next: line.nextElementSibling === title,
+                     afterStatus: after(box.querySelector('.progress-status'), line),
+                     // Spec change, 2026-11-27 (dreeves, of the search's own line, which stood over this one: "the line with the prior should come
+                     // first"): the prior's line is the figure's first, the search's own line follows it, and the title follows that (until then
+                     // the prior's line stood right before the title).
+                     next: line === f.firstElementChild && line.nextElementSibling.matches('.progress-finds-title') && line.nextElementSibling.nextElementSibling === title,
                      graph: title.nextElementSibling === svg && svg === f.lastElementChild}; }));""")
     assert [g and g['prior'] for g in got] == ['0.3', '0.5', '0.01', '0.3'], got
     assert all(g['shown'] and g['afterEta'] and g['afterStatus'] and g['next'] and g['graph'] for g in got), got

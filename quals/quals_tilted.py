@@ -107,6 +107,20 @@ def q_the_sweep_takes_each_coset_once_and_resumes():
     assert whole[0]['mass'] > whole[1]['mass'], 'the list is in order of mass'
 
 
+def q_two_sweeps_cannot_share_a_log():
+    # Replicata: sweep.py at 480, order 14 (as above: 250 cosets of the 600 best, 100,000 nodes each) on a log that this process holds locked; then again with the lock let go.
+    # Expectata: the first run fails and writes nothing to the log: a sweep holds its log locked while it runs, so a second one started on the same list by mistake stops at once and no coset is enumerated twice or written out of order.  The second run ends with status 0 and the log's one chunk.
+    # Resultata before (2026-11-27): nothing stopped it; ten sweeps were restarted by a launcher that could have named a list already running.
+    import fcntl
+    with tempfile.TemporaryDirectory() as d:
+        with open(os.path.join(d, 'sweep.jsonl'), 'a') as held:
+            fcntl.flock(held, fcntl.LOCK_EX)
+            r1, log1, _ = sweeps(d, 480, 14, 190, '8,9,5,7,11,13', 600, 250, 100000, 4, 0.4)
+        r2, log2, _ = sweeps(d, 480, 14, 190, '8,9,5,7,11,13', 600, 250, 100000, 4, 0.4)
+    assert r1.returncode != 0 and not log1, (r1.returncode, log1)
+    assert r2.returncode == 0 and [(x['first'], x['last']) for x in log2] == [(0, 249)], (r2.stderr[-2000:], log2)
+
+
 def q_the_sweep_finds_544_10():
     # Replicata: sweep.py at 544, order 10, a symmetric cell, W = 110, pins 8, 9, 5, 7, 11, 13, 17, 19, the 3,000 best cosets, each to the end of its tree (floor 4, sag 0.4, a budget of 1e9 nodes), in an empty directory.
     # Expectata: status 0, every coset of the list in the log once, none at the cap, and at least one witness: each a different coset's, of order at least 10 in plain integers here, listed in its coset's chunk of the log.  (On 2026-11-27 the 20,000 best held 42 cosets with a witness, 14 of them among the first 2,000; at floor 1 and sag 0.3, the random search's settings here, 4 and 1.)

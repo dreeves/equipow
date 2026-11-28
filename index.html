@@ -2570,16 +2570,20 @@ such that the Symmetry Conjecture holds for lengths \(n \ge N\).
           <p class="progress-readout" data-readout></p>
           <!-- every run's prior P(exists), then its graph of P(exists) given none found so far (progress.py's odds; dreeves, 2026-11-06: "for anti-magic i don't want to conditionally include or exclude graphs", and "after the ETA graph, explicitly state the prior probability a bipartition exists. we can go back to 1% or whatever makes sense for 288:10. then show the first probability graph, even though for 288:10 it's uninteresting. then kill everything below that"; until then three graphs and a note on their basis, for a search with a model of its odds alone): the prior, in dreeves's words, then the chance that a bipartition exists, given none found so far, over the hours of the search; for a run with no model of its search the ignorant prior (progress.py's IGNORANT, 0.5: dreeves, 2026-11-06, "go with 50% as the ignorant prior when there's no model or whatever") -->
           <div class="progress-odds">
-            <!-- after the prior, an arrow and P(exists) now, or at the point under the pointer on the graph below (2026-11-13; dreeves: "append a right arrow and then the current probability, and have it update on hover for the graph") -->
-            <p>Prior probability a bipartition exists: <b data-odds-prior></b> → <b data-odds-now></b></p>
-            <!-- title; says the graph below is the chance that a bipartition exists, given that the search has found none so far -->
-            <p class="progress-odds-title">Probability a bipartition exists, given none found so far, plotted vs time:</p>
-            <!-- aria label; says the chart shows the chance that a bipartition exists, given none found so far, over the hours of the search -->
-            <svg viewBox="0 0 640 160" role="img" aria-label="Pr(bipartition exists | none found so far) plotted vs time">
+            <!-- after the prior, an arrow and P(exists) now, or at the point under the pointer on the graph below (2026-11-13; dreeves: "append a right arrow and then the current probability, and have it update on hover for the graph"), both to 2 significant figures, then a swatch in the color of that probability's line in the graph (2026-11-27; dreeves: "the line with the prior should come first. and let's add a black swatch after the posterier (so the end of the line stating the prior)", and "round to a reasonable number of decimal places for probablities, or sigfigs, rather") -->
+            <p>Prior probability a bipartition exists: <b data-odds-prior></b> → <b data-odds-now></b><span class="progress-odds-key progress-odds-exists" aria-hidden="true"></span></p>
+            <!-- the search's own line, in the form of the prior's, in dreeves's words (2026-11-27: "if the chance that the current search, the thing we're showing the ETA for, finds a witness is very different from that then that should also be shown on the page. maybe the probability graph could show both, with different colors?", then "also, wait, consistency. it should be like this: Prior probability a bipartition exists: 0.91 -> 0.87 [black swatch] / Prior probability this search finds one: 0.099 -> 0.089 [blue swatch]"): the probability, before the search, that this search, the one whose time to go the box gives, finds a bipartition before it has run its course; an arrow and that probability now, given none found so far, or at the point under the pointer on the graph below; then a swatch in the color of its line in the graph; dashes for a search that states no such chance -->
+            <p class="progress-finds-title">Prior probability this search finds one: <b data-finds-prior></b> → <b data-finds-now></b><span class="progress-odds-key progress-odds-finds" aria-hidden="true"></span></p>
+            <!-- title, in dreeves's words (2026-11-27: "and then the line directly above the plot"); says the graph below is of both probabilities, each given that the search has found nothing so far, over its hours -->
+            <p class="progress-odds-title">Probabilities given nothing found so far vs time:</p>
+            <!-- aria label; the title's words -->
+            <svg viewBox="0 0 640 160" role="img" aria-label="Probabilities given nothing found so far vs time">
               <g data-exists-grid></g>
               <polygon class="wash" data-exists-wash></polygon>
               <polyline data-exists-line></polyline>
+              <polyline class="finds" data-finds-line></polyline>
               <g data-exists-marks></g>
+              <g data-finds-marks></g>
               <g data-exists-ticks="p"></g>
               <g data-exists-ticks="t"></g>
               <line class="cross" visibility="hidden" data-exists-cross></line>

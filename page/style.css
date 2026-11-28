@@ -632,3 +632,10 @@ footer {
 .progress-odds .yaxis, .progress-cpu .yaxis, .progress-pending .yaxis, .progress-rates .yaxis { stroke: var(--muted); stroke-width: 1; vector-effect: non-scaling-stroke; }
 .progress-odds text, .progress-pending text, .progress-rates text { fill: var(--muted); stroke: none; font-variant-numeric: tabular-nums lining-nums; }
 .progress-odds .mark, .progress-pending .mark, .progress-rates .mark { fill: var(--ink); stroke: var(--paper); stroke-width: 2; vector-effect: non-scaling-stroke; }
+/* the probability graph's second line, the search's own chance of a find, in the blue of the search's time spent and of its share of the CPU (2026-11-27) */
+.progress-odds polyline.finds { stroke: var(--progress-spent); }
+.progress-odds .mark.finds { fill: var(--progress-spent); }
+/* a swatch at the end of each of the two lines over the graph, in its line's color (dreeves, 2026-11-27) */
+.progress-odds-key { display: inline-block; width: 0.75em; height: 0.75em; border-radius: 2px; margin-left: 0.4em; vertical-align: -0.05em; }
+.progress-odds-exists { background: var(--ink); }
+.progress-odds-finds { background: var(--progress-spent); }

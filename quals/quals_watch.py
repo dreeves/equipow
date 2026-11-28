@@ -21,12 +21,12 @@ def start(name, search, target, t, pid, found=None):
                 adopted=False, pid=pid, tracker=1, time=t)
 
 
-def estimate(t, done, total, to_go, exists=0.4, basis='formtree', unit='nodes', prior=0.5, rate=2.0, pending=None, finished=None):
+def estimate(t, done, total, to_go, exists=0.4, basis='formtree', unit='nodes', prior=0.5, rate=2.0, pending=None, finished=None, finds=None):
     """An estimate at time t: done, the total's and to_go's medians (their bands 10% below and 50% above, the total's
     lower end no lower than done)."""
     band = lambda m, floor=0.0: dict(median=m, lo=max(floor, 0.9 * m), hi=1.5 * m)
     return dict(event='estimate', time=t, basis=basis, unit=unit, done=done, rate=rate, total=band(total, done), to_go=band(to_go),
-                prior=prior, exists=exists, pending=pending, finished=finished)
+                prior=prior, exists=exists, finds=finds, pending=pending, finished=finished)
 
 
 def end(t, status=0): return dict(event='end', time=t, status=status)
@@ -64,9 +64,9 @@ def q_an_entry_is_its_search_s_records():
     # anywhere but the records.  (Spec change, 2026-11-13: the counts hold 0 paused too, a run's state since that day;
     # dreeves: "go ahead and generalize track.py to record pause vs abort or whatever".)
     import watch
-    last = estimate(3400, 700, 5000, 2150, exists=0.31, pending=50, finished=12)
-    r1 = [start('r1', 'tree', '480:14', 1000, 55), estimate(1100, 100, 4000, 3000, exists=0.49, pending=30, finished=4),
-          estimate(1900, 400, 4500, 2500, exists=0.45, pending=40, finished=9), end(2000)]
+    last = estimate(3400, 700, 5000, 2150, exists=0.31, pending=50, finished=12, finds=0.05)
+    r1 = [start('r1', 'tree', '480:14', 1000, 55), estimate(1100, 100, 4000, 3000, exists=0.49, pending=30, finished=4, finds=0.2),
+          estimate(1900, 400, 4500, 2500, exists=0.45, pending=40, finished=9, finds=0.15), end(2000)]
     r2 = [start('r2', 'tree', '480:14', 3000, 77), estimate(3100, 450, 4800, 2400, exists=0.44), last]
     e = watch.entry(('tree', '480:14'), [r1, r2], {77: 'S'}, 3500, [])
     # Spec change, 2026-11-14: dreeves requested nodes/s over time; rates holds the recorded node rates.
@@ -79,7 +79,10 @@ def q_an_entry_is_its_search_s_records():
     assert [row[:2] for row in e['etas']] == [[1100, 100], [1900, 900], [3100, 1100], [3400, 1400]], e['etas']
     assert e['etas'][-1][2:] == [2150, 0.9 * 2150, 1.5 * 2150], e['etas'][-1]
     # Spec change, 2026-11-14: dreeves approved comparable graphs; odds shares the ETA's active-time coordinate.
-    assert e['odds'] == dict(prior=0.5, since=1000, exists=[[1100, 100, 0.49], [1900, 900, 0.45], [3100, 1100, 0.44], [3400, 1400, 0.31]]), e['odds']
+    # Spec change, 2026-11-27 (dreeves: the chance that the search itself finds a witness "should also be shown on the page"):
+    # odds also holds finds, a row for each estimate that states it (the third, with none, has no row).
+    assert e['odds'] == dict(prior=0.5, since=1000, exists=[[1100, 100, 0.49], [1900, 900, 0.45], [3100, 1100, 0.44], [3400, 1400, 0.31]],
+                             finds=[[1100, 100, 0.2], [1900, 900, 0.15], [3400, 1400, 0.05]]), e['odds']
     assert e['pending'] == [[1100, 100, 30], [1900, 900, 40], [3400, 1400, 50]], e['pending']
     assert e['runs'] == dict(runs=2, running=1, frozen=0, ended=1, aborted=0, paused=0, found=0), e['runs']
     assert (e['statuses'], e['depth'], e['keys'], e['groups']) == (['settled', 'open', 'pending', 'running'], 0, ['480:14'], ['03']), e

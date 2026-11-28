@@ -90,6 +90,7 @@ near = lambda a, b: abs(a - b) <= 1e-3 * b
 assert (e['event'], e['basis'], e['unit'], e['done'], e['rate'], e['prior']) == ('estimate', 'formtree', 'nodes', 400, 2, 0.5), e
 assert all(near(e['total'][k], 1000) and near(e['to_go'][k], 300) for k in ('median', 'lo', 'hi')), e
 assert near(e['exists'], 0.375) and e['pending'] == 3 and e['finished'] == 5, e
+assert e['finds'] == e['exists'], e   # 2026-11-27: a form tree covers every case, so it finds a witness if one exists
 assert near(eta.estimate(model, roots, points, 0.01, 3, 5)['exists'], 0.006 / 0.996)
 start = dict(event='start', name='r', search='S', target='16:4', estimator='e', command='job', cwd='/', found=None, adopted=False, pid=7, tracker=8, time=100.0)
 track.checked([start, dict(e, time=300.0)])
@@ -125,7 +126,7 @@ def q_the_estimator_appends_the_search_s_estimate():
         now = time.time()
         write(os.path.join(d, 'verdicts.jsonl'), [verdict('a', 600, ['c']), verdict('c', 401, []), verdict('b', 250, ['d'])])
         old = dict(event='estimate', time=now - 800, basis='formtree', unit='nodes', done=200, rate=1.0, total=dict(median=2000.0, lo=2000.0, hi=2000.0),
-                   to_go=dict(median=1800.0, lo=1800.0, hi=1800.0), prior=0.5, exists=0.47, pending=2, finished=1)
+                   to_go=dict(median=1800.0, lo=1800.0, hi=1800.0), prior=0.5, exists=0.47, finds=0.47, pending=2, finished=1)
         write(os.path.join(d, 'runs', 't1.jsonl'), [start('t1', now - 1000, 11), old, dict(event='end', time=now - 600, status=0)])
         write(os.path.join(d, 'runs', 't2.jsonl'), [start('t2', now - 400, os.getpid())])
         before = record(d, 't1')
@@ -142,6 +143,7 @@ def q_the_estimator_appends_the_search_s_estimate():
         assert all(near(e['total'][k], 2000, 1e-3) and near(e['to_go'][k], 751 / e['rate'], 1e-3) for k in ('median', 'lo', 'hi')), e
         q = 751 / 2000
         assert near(e['exists'], 0.5 * q / (0.5 + 0.5 * q), 1e-3) and e['pending'] == 1 and e['finished'] == 3, e
+        assert e['finds'] == e['exists'], e   # 2026-11-27
         inside(d, "import track\ntrack.checked(track.lines('runs/t2.jsonl'))\nprint('ok')\n")
     finally:
         shutil.rmtree(d)
@@ -194,13 +196,14 @@ roots, points = [dict(name='a', done=300, complete=True), dict(name='b', done=25
 for prior in (0.5, 0.01):
     e = eta.estimate({MODEL!r}, roots, points, prior, 0, 2)
     assert (e['event'], e['basis'], e['unit'], e['done'], e['rate'], e['prior'], e['exists']) == ('estimate', 'formtree', 'nodes', 550, 2, prior, 0), e
+    assert e['finds'] == 0, e   # 2026-11-27: a closed tree finds nothing more
     assert e['total'] == dict(median=550, lo=550, hi=550) and e['to_go'] == dict(median=0, lo=0, hi=0) and (e['pending'], e['finished']) == (0, 2), e
 print('ok')
 """)
         now = time.time()
         write(os.path.join(d, 'verdicts.jsonl'), [verdict('a', 300, []), verdict('b', 250, [])])
         old = dict(event='estimate', time=now - 800, basis='formtree', unit='nodes', done=200, rate=1.0, total=dict(median=2000.0, lo=2000.0, hi=2000.0),
-                   to_go=dict(median=1800.0, lo=1800.0, hi=1800.0), prior=0.5, exists=0.47, pending=2, finished=1)
+                   to_go=dict(median=1800.0, lo=1800.0, hi=1800.0), prior=0.5, exists=0.47, finds=0.47, pending=2, finished=1)
         write(os.path.join(d, 'runs', 't1.jsonl'), [start('t1', now - 1000, 11), old, dict(event='end', time=now - 600, status=0)])
         write(os.path.join(d, 'runs', 't2.jsonl'), [start('t2', now - 400, os.getpid())])
         before = record(d, 't1')

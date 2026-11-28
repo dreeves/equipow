@@ -475,7 +475,7 @@
     return {ticks, labels: ticks.map(v => compact.format(v))};
   };
   const oddsAxis = run => {
-    const top = Math.max(0.01, ...run.odds.exists.map(([, , p]) => p)), step = tickStep(top);
+    const top = Math.max(0.01, ...run.odds.exists.map(([, , p]) => p), ...run.odds.finds.map(([, , p]) => p)), step = tickStep(top);
     const ticks = Array.from({length: Math.ceil(top / step - 1e-9) + 1}, (_, i) => i * step);
     return {ticks, labels: ticks.map((v, i) => num(100 * v) + (i === ticks.length - 1 ? '%' : ''))};
   };
@@ -630,7 +630,7 @@
   // explicitly state the prior probability a bipartition exists ... then show the first probability graph, even though
   // for 288:10 it's uninteresting. then kill everything below that", and "go with 50% as the ignorant prior when there's
   // no model or whatever"; until then, for a run with odds alone, two more graphs, P(found by t | exists) and the
-  // chance of a find within 24 h, and a note on their basis), from its odds (watch.py's), {prior, since, exists}:
+  // chance of a find within 24 h, and a note on their basis), from its odds (watch.py's), {prior, since, exists, finds}:
   // the prior stated as the page writes numbers, and P(exists) at each [t, running seconds, p] of exists, a
   // line over a wash down to 0, a dot on its last point, on round ticks of percent up to 1% at least and of hours up to
   // the projected finish, on the same scale as every other chart.  Every search has a point at least: it shows from
@@ -757,14 +757,30 @@
 
   function oddsChart(fig, run, L, a) {
     assert(run.odds, 'a run without odds', run.search, run.n, run.order);
-    const {prior, since, exists} = run.odds;
-    assert(typeof prior === 'number' && 0 <= prior && prior <= 1 && Array.isArray(exists) && (Number.isFinite(since) || (since === null && !exists.length))
-           && exists.every(r => r.length === 3 && r.every(Number.isFinite) && r[1] >= 0 && 0 <= r[2] && r[2] <= 1), 'malformed odds', run.odds);
-    fill(fig, 'odds-prior', num(prior));
+    const {prior, since, exists, finds} = run.odds;
+    const rows = a => Array.isArray(a) && a.every(r => r.length === 3 && r.every(Number.isFinite) && r[1] >= 0 && 0 <= r[2] && r[2] <= 1);
+    assert(typeof prior === 'number' && 0 <= prior && prior <= 1 && rows(exists) && rows(finds) && (Number.isFinite(since) || (since === null && !exists.length)), 'malformed odds', run.odds);
     // after the prior, an arrow and P(exists) now, the last point's, to 2 significant figures, or over the graph the point
     // under the pointer's (2026-11-13; dreeves: "append a right arrow and then the current probability, and have it update
     // on hover for the graph"): of the prior and the points, the (k + 1)th, k the point heard (hoverPoints), -1 the prior
-    const series = [prior, ...exists.map(([, , p]) => p)], now = k => fill(fig, 'odds-now', String(Number(series[k + 1].toPrecision(2))));
+    // and the search's own chance of a find (finds; dreeves, 2026-11-27: "if the chance that the current search, the thing
+    // we're showing the ETA for, finds a witness is very different from that then that should also be shown on the page.
+    // maybe the probability graph could show both, with different colors?"): a second line, and after its label the chance
+    // at the same estimate as the first line's number, a dash where that estimate states none.  That evening ("the line
+    // with the prior should come first ... it should be like this: Prior probability a bipartition exists: 0.91 -> 0.87
+    // [black swatch] / Prior probability this search finds one: 0.099 -> 0.089 [blue swatch]", and "round to a reasonable
+    // number of decimal places for probablities, or sigfigs, rather"): all four numbers to 2 significant figures, and
+    // before the second line's arrow the search's chance before the search, 1 - (1 - finds)(1 - prior) / (1 - exists) of
+    // the latest estimate that states finds with none found: none found so far has probability (1 - prior) / (1 - exists),
+    // and the search finds one unless none is found so far and it finds none later
+    const two = p => String(Number(p.toPrecision(2))), chance = new Map(finds.map(([t, , p]) => [t, two(p)]));
+    const at = new Map(exists.map(([t, , e]) => [t, e]));
+    const before = finds.filter(([t]) => at.get(t) < 1).slice(-1).map(([t, , f]) => 1 - (1 - f) * (1 - prior) / (1 - at.get(t)));
+    assert(before.every(v => v > -1e-9 && v <= 1), 'a chance before the search out of range', run.odds);
+    fill(fig, 'odds-prior', two(prior));
+    fill(fig, 'finds-prior', before.map(v => two(Math.max(0, v))).concat('—')[0]);
+    const series = [prior, ...exists.map(([, , p]) => p)], own = ['—', ...exists.map(([t]) => chance.get(t) ?? '—')];
+    const now = k => { fill(fig, 'odds-now', two(series[k + 1])); fill(fig, 'finds-now', own[k + 1]); };
     now(exists.length - 1);
     const W = chartWidth(), H = 160, R = ETA_R, T = 14, B = 30, q = sel => fig.querySelector(sel);   // the ETA chart's margins (2026-11-12)
     sized(fig.querySelector('svg'), W, H);
@@ -783,6 +799,9 @@
     set(q('[data-exists-line]'), {points: xy(line)});
     set(q('[data-exists-wash]'), {points: xy([...ends[0].map(([x]) => [x, Y(0)]), ...line, ...ends[1].map(([x]) => [x, Y(0)])])});
     q('[data-exists-marks]').replaceChildren(...ends[1].map(([cx, cy]) => make('circle', {class: 'mark', r: 4, cx, cy})));
+    const second = finds.map(([, x, p]) => [X(x / 3600), Y(p)]);
+    set(q('[data-finds-line]'), {points: xy(second)});
+    q('[data-finds-marks]').replaceChildren(...second.slice(-1).map(([cx, cy]) => make('circle', {class: 'mark finds', r: 4, cx, cy})));
     const xs = line.map(([x]) => x);
     hoverPoints(fig, xs, exists.map(([t]) => t), T, Y(0), H - 8, now);   // the hover of the pending chart (2026-11-12), and the readout above
     return xs;

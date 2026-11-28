@@ -63,6 +63,7 @@ e = lindy.estimate(3600.0)
 close = lambda a, b: abs(a - b) < 1e-6
 assert (e['event'], e['basis'], e['unit'], e['done'], e['rate'], e['prior'], e['exists'], lindy.IGNORANT) == ('estimate', 'lindy', 'seconds', 3600.0, 1.0, 0.5, 0.5, 0.5), e
 assert e['pending'] is None and e['finished'] is None, e
+assert e['finds'] is None, e   # 2026-11-27: nor a chance of finding that it can state (dreeves: the box should show it where a search has one)
 assert all(close(e['to_go'][k], v) for k, v in dict(median=3600, lo=400, hi=32400).items()), e['to_go']
 assert all(close(e['total'][k], v) for k, v in dict(median=7200, lo=4000, hi=36000).items()), e['total']
 start = dict(event='start', name='r', search='S', target='16:4', estimator='lindy.py', command='job', cwd='/', found=None, adopted=False, pid=7, tracker=8, time=100.0)

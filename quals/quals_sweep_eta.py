@@ -5,7 +5,9 @@ Run from the repo:
     python3 -B quals/quals_sweep_eta.py [name ...]
 Each qual is a function q_*: a passing qual returns, a failing one raises; each comment gives its replicata and
 expectata; a failure's message or traceback gives the resultata.  Each copies searchwatch's track.py and sweep_eta.py
-into a temporary directory and runs the estimator there on made-up logs, as the tracker runs it.
+into a temporary directory and runs the estimator there on made-up logs, as the tracker runs it: on a sweep's
+directory, which holds its lists and its model (model.json: the count model's witnesses, its calibration, the
+enumeration's recovery).  Until the evening of 2026-11-27 the count and the recovery were arguments.
 """
 import sys
 sys.dont_write_bytecode = True
@@ -13,6 +15,7 @@ import os, json, math, shutil, subprocess, tempfile, traceback
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # the repository's root, above quals/
 PY = sys.executable
 LAMBDA, RECOVERY = 2.5, 0.9
+MODEL = dict(count=LAMBDA, calibration=1.0, recovery=RECOVERY, why='made up')   # the sweep's model.json (2026-11-27, evening)
 
 
 def sandbox():
@@ -26,11 +29,12 @@ def chunk(digest, K, count, first, last, nodes, time, cpu=1.0):
     return dict(digest=digest, K=K, count=count, total=1.0, first=first, last=last, nodes=nodes, capped=0, mass=0.01, cpu_s=cpu, time=time, found=[])
 
 
-def lay(d, logs, curves, found=()):
+def lay(d, logs, curves, found=(), model=MODEL):
     """Makes d's sweep directory anew: the logs (pI.jsonl), their curves (pI.curve.json) and the found file; and a record with its start line.  Returns the estimator's arguments and the record's path."""
     sweep = os.path.join(d, 'sweep')
     shutil.rmtree(sweep, ignore_errors=True); os.mkdir(sweep)
-    args = [str(LAMBDA), str(RECOVERY), sweep]
+    args = [sweep]
+    with open(os.path.join(sweep, 'model.json'), 'w') as f: json.dump(model, f)
     with open(os.path.join(sweep, 'found.jsonl'), 'w') as f: f.write(''.join(json.dumps(x) + '\n' for x in found))
     for i, (rows, curve) in enumerate(zip(logs, curves)):
         log, cur = os.path.join(sweep, f'p{i}.jsonl'), os.path.join(sweep, f'p{i}.curve.json')
@@ -74,7 +78,9 @@ def q_the_estimate_is_the_logs_work():
     # of its list, with b 0.3 for the median and 0.4 and 0.2 for the band (measured at 528:12: 0.28 to 0.35).  total is
     # done plus both logs' nodes to come; to_go the longer of the two logs' times, nodes to come at the wall seconds a
     # node of its latest chunks (80 / 4000 and 40 / 2000); rate the nodes a second of those chunks together, 100.  prior
-    # 1 - exp(-2.5); exists 1 - exp(-(2.5 - 0.9 (0.16 + 0.03))), the curves read at the cosets swept.
+    # 1 - exp(-2.5); exists 1 - exp(-(2.5 - 0.9 (0.16 + 0.03))), the curves read at the cosets swept; and (2026-11-27;
+    # dreeves: the chance that the search itself finds a witness "should also be shown on the page") finds
+    # 1 - exp(-0.9 (0.30 + 0.04 - 0.19)), from the witnesses expected in the cosets the lists have left.
     d = sandbox()
     try:
         args, rec = lay(d, [A, B], [CA, CB])
@@ -91,6 +97,7 @@ def q_the_estimate_is_the_logs_work():
             assert close(e['to_go'][key], max(come[b][0] * 80 / 4000, come[b][1] * 40 / 2000)), (key, e['to_go'], come[b])
         assert e['total']['lo'] < e['total']['median'] < e['total']['hi'] and close(e['rate'], 4000 / 80 + 2000 / 40), e
         assert close(e['prior'], 1 - math.exp(-2.5)) and close(e['exists'], 1 - math.exp(-(2.5 - 0.9 * 0.19))), e
+        assert close(e['finds'], 1 - math.exp(-0.9 * (0.30 + 0.04 - 0.19))), e
     finally:
         shutil.rmtree(d)
 
@@ -113,6 +120,7 @@ def q_a_finished_sweep_has_nothing_to_go():
         import track
         track.checked(track.lines(rec))
         assert close(e['exists'], 1 - math.exp(-(2.5 - 0.45))) and e['exists'] < e['prior'], e
+        assert e['finds'] == 0, e   # 2026-11-27: nothing is left in which to find one
     finally:
         shutil.rmtree(d)
 
@@ -132,10 +140,11 @@ def q_exists_falls_with_the_cosets_swept_and_is_1_at_a_witness():
             seen.append(ests[0])
         for e, c in zip(seen, (0.05, 0.10, 0.16)):
             assert close(e['exists'], 1 - math.exp(-(2.5 - 0.9 * c))) and e['exists'] < e['prior'], (e, c)
-        assert seen[0]['exists'] > seen[1]['exists'] > seen[2]['exists']
+            assert close(e['finds'], 1 - math.exp(-0.9 * (0.30 - c))), (e, c)   # 2026-11-27: the list's 0.30, less what is swept
+        assert seen[0]['exists'] > seen[1]['exists'] > seen[2]['exists'] and seen[0]['finds'] > seen[1]['finds'] > seen[2]['finds']
         args, rec = lay(d, [A], [CA], found=[dict(code='0F', order=12)])
         p, ests = estimates(d, args, rec)
-        assert p.returncode == 0 and ests[0]['exists'] == 1 and close(ests[0]['prior'], 1 - math.exp(-2.5)), (p.stderr[-2000:], ests)
+        assert p.returncode == 0 and ests[0]['exists'] == 1 and ests[0]['finds'] == 1 and close(ests[0]['prior'], 1 - math.exp(-2.5)), (p.stderr[-2000:], ests)
     finally:
         shutil.rmtree(d)
 
@@ -152,11 +161,42 @@ def q_the_sweep_is_its_directory_s_lists():
         _, one = estimates(d, args, rec)
         args, rec = lay(d, [A, B], [CA, CB])
         _, two = estimates(d, args, rec)
-        with open(os.path.join(args[2], 'p2.jsonl'), 'w') as f: f.write(json.dumps(chunk('dd', 500, 500, 0, 249, 900, 1015.0)) + '\n')
+        with open(os.path.join(args[0], 'p2.jsonl'), 'w') as f: f.write(json.dumps(chunk('dd', 500, 500, 0, 249, 900, 1015.0)) + '\n')
         p, three = estimates(d, args, rec)
         assert p.returncode == 0 and [len(x) for x in (one, two, three)] == [1, 1, 2], (p.stderr[-2000:], one, two, three)
         assert (one[0]['finished'], two[0]['finished'], three[1]['finished']) == (1000, 1500, 1500)
         assert {k: v for k, v in three[1].items() if k != 'time'} == {k: v for k, v in two[0].items() if k != 'time'}
+    finally:
+        shutil.rmtree(d)
+
+
+def q_the_model_is_the_directory_s_and_its_calibration_scales_every_count():
+    # Replicata: the two logs of the first qual, with a model.json of count 2.5, recovery 0.9 and calibration 0.8 (a
+    # control's witnesses found over those the count model predicted); then with a model.json that lacks its
+    # calibration, and with one that has a field more.
+    # Expectata (dreeves, 2026-11-27, asked whether the box should use the count as calibrated on the one cell where it
+    # could be counted: "can-opener question"): the model is a file of the sweep's directory, read at every estimate,
+    # so that a revised model needs no relaunch; every count of the model is taken at 0.8 of its value: prior
+    # 1 - exp(-0.8 * 2.5), exists 1 - exp(-0.8 (2.5 - 0.9 * 0.19)), finds 1 - exp(-0.8 * 0.9 (0.34 - 0.19)); the work
+    # and the time to go are as with any calibration.  A model.json without a field, or with one more, stops the
+    # estimator, which then appends nothing.
+    # Resultata before: the count and the recovery were arguments of each launch, so the ten runs already going kept
+    # the count they were started with.
+    d = sandbox()
+    try:
+        args, rec = lay(d, [A, B], [CA, CB])
+        _, plain = estimates(d, args, rec)
+        args, rec = lay(d, [A, B], [CA, CB], model=dict(MODEL, calibration=0.8))
+        p, ests = estimates(d, args, rec)
+        assert p.returncode == 0 and len(ests) == 1, (p.returncode, p.stderr[-2000:])
+        e = ests[0]
+        assert close(e['prior'], 1 - math.exp(-0.8 * 2.5)) and close(e['exists'], 1 - math.exp(-0.8 * (2.5 - 0.9 * 0.19))), e
+        assert close(e['finds'], 1 - math.exp(-0.8 * 0.9 * (0.34 - 0.19))), e
+        assert all(e[k] == plain[0][k] for k in ('done', 'total', 'to_go', 'rate', 'pending', 'finished')), (e, plain[0])
+        for model in ({k: v for k, v in MODEL.items() if k != 'calibration'}, dict(MODEL, more=1)):
+            args, rec = lay(d, [A, B], [CA, CB], model=model)
+            p, ests = estimates(d, args, rec)
+            assert p.returncode != 0 and not ests, (model, p.returncode, ests)
     finally:
         shutil.rmtree(d)
 

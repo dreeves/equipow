@@ -26,9 +26,11 @@ The launcher, the estimators and the watcher of the long searches, behind the se
 
       python3 -B searchwatch/track.py run NAME SEARCH N:M searchwatch/formtree_eta.py VERDICTS MODEL PRIOR -- COMMAND ...
 
-- [sweep_eta.py](sweep_eta.py): for a sweep, [../searches/tilted/sweep.py](../searches/tilted/sweep.py), which enumerates fixed lists of cosets, each coset once. Its work is the nodes of the lists: those done, and those to come from the latest cosets' cost, which falls down a list. Its probability starts at the count model's (LAMBDA expected witnesses, taken as Poisson) and falls by the expected witnesses in the cosets swept (each list's curve), at the enumeration's RECOVERY. The sweep is the lists of its directory DIR, a curve `X.curve.json` with its log `X.jsonl` each, so every run of one sweep gives the same estimate.
+- [sweep_eta.py](sweep_eta.py): for a sweep, [../searches/tilted/sweep.py](../searches/tilted/sweep.py), which enumerates fixed lists of cosets, each coset once. Its work is the nodes of the lists: those done, and those to come from the latest cosets' cost, which falls down a list. Its probability starts at the count model's (its expected witnesses, taken as Poisson) and falls by the expected witnesses in the cosets swept (each list's curve), at the enumeration's recovery. The sweep is the lists of its directory DIR, a curve `X.curve.json` with its log `X.jsonl` each, so every run of one sweep gives the same estimate; its model is `DIR/model.json` (the count, its calibration on a control that could be counted, the recovery, and where they come from), read at every estimate, so a revised model needs no relaunch.
 
-      python3 -B searchwatch/track.py run NAME SEARCH N:M --found DIR/found.jsonl searchwatch/sweep_eta.py LAMBDA RECOVERY DIR -- COMMAND ...
+      python3 -B searchwatch/track.py run NAME SEARCH N:M --found DIR/found.jsonl searchwatch/sweep_eta.py DIR -- COMMAND ...
+
+Every estimate states two probabilities besides its prior: `exists`, that what is searched for exists given none found so far, and since 2026-11-27 `finds`, that this search itself finds it before it has run its course. A form tree covers every case, so its `finds` is its `exists`; a sweep's is the chance in the cosets its lists have left, far below its `exists`; `lindy.py` states none (null). The page draws both in the probability graph.
 
 ## Updating a form-tree model (Codex, 2026-11-15)
 

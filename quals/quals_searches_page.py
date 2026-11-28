@@ -18,7 +18,7 @@ MADE = 1794450000
 band = lambda m, lo, hi: dict(median=m, lo=lo, hi=hi)
 
 
-def entry(search, n, order, state, outcome, basis, work, so_far, to_go, runs, dots, exists, pending, finished, rates):
+def entry(search, n, order, state, outcome, basis, work, so_far, to_go, runs, dots, exists, pending, finished, rates, finds=(None, None, None)):
     """An entry as watch.py writes it: three estimates, a third of its time so far apart, the last at MADE, with these nodes
     pending and these recorded nodes/s rates (None: none measured).  (Until 2026-11-12 five minutes apart: a pixel or two on a
     chart of tens of hours, too close for a pointer to tell apart.)"""
@@ -28,7 +28,8 @@ def entry(search, n, order, state, outcome, basis, work, so_far, to_go, runs, do
                 counts={s: dots.count(str(i)) for i, s in enumerate(['settled', 'open', 'pending', 'running'])},
                 to_go=to_go, basis=basis, work=work,
                 etas=[[t, so_far - (MADE - t), to_go['median'] + (MADE - t), to_go['lo'] + (MADE - t), to_go['hi'] + (MADE - t)] for t in times],
-                odds=dict(prior=0.5, since=MADE - so_far, exists=[[t, so_far - (MADE - t), p] for t, p in zip(times, exists)]),
+                odds=dict(prior=0.5, since=MADE - so_far, exists=[[t, so_far - (MADE - t), p] for t, p in zip(times, exists)],
+                          finds=[[t, so_far - (MADE - t), p] for t, p in zip(times, finds) if p is not None]),   # finds: 2026-11-27, a row for each estimate that states it
                 cpu=[[(so_far - 120) / 3600, (so_far - 60) / 3600, MADE - 60, 0.6, 0.3, 0.1], [(so_far - 60) / 3600, so_far / 3600, MADE, 0.7, 0.2, 0.1]],
                 pending=[[t, so_far - (MADE - t), k] for t, k in zip(times, pending) if k is not None],
                 finished=[[t, so_far - (MADE - t), k] for t, k in zip(times, finished) if k is not None],
@@ -37,13 +38,13 @@ def entry(search, n, order, state, outcome, basis, work, so_far, to_go, runs, do
 
 TREE = entry('formtree', 480, 14, 'running', None, 'formtree', dict(unit='nodes', done=4200000, rate=510.25, total=band(9.1e7, 2.2e7, 4.1e8)),
              11000.0, band(170000.0, 35000.0, 800000.0), dict(runs=4, running=1, frozen=0, ended=2, aborted=1, paused=0, found=0), '0103', [0.49, 0.485, 0.48],
-             [700, 740, 760], [3000, 3600, 4100], [250.5, 780.75, 510.25])
+             [700, 740, 760], [3000, 3600, 4100], [250.5, 780.75, 510.25], finds=[0.49, 0.485, 0.48])   # a form tree finds a witness if one exists
 TILT = entry('tilt', 2016, 15, 'running', None, 'lindy', dict(unit='seconds', done=3600.0, rate=1.0, total=band(7200.0, 4000.0, 36000.0)),
              3600.0, band(3600.0, 400.0, 32400.0), dict(runs=2, running=2, frozen=0, ended=0, aborted=0, paused=0, found=0), '33', [0.5, 0.5, 0.5],
              [None] * 3, [None] * 3, [None] * 3)
 SYM = entry('formtree-sym', 480, 14, 'ended', 'none', 'formtree', dict(unit='nodes', done=145427, rate=35.5, total=band(145427, 145427, 145427)),
             4100.0, band(0.0, 0.0, 0.0), dict(runs=4, running=0, frozen=0, ended=2, aborted=2, paused=0, found=0), '1100', [0.3, 0.1, 0.0],
-            [30, 10, 0], [120, 160, 170], [10.25, 50.75, 35.5])
+            [30, 10, 0], [120, 160, 170], [10.25, 50.75, 35.5], finds=[0.3, 0.1, 0.0])
 OLDTILT = dict(entry('tilt', 1104, 14, 'ended', None, 'lindy', dict(unit='seconds', done=1500.0, rate=1.0, total=band(3000.0, 1666.0, 15000.0)),
                      1500.0, band(1500.0, 166.0, 13500.0), dict(runs=3, running=0, frozen=0, ended=2, aborted=1, paused=0, found=0), '001', [0.5, 0.5, 0.5],
                      [None] * 3, [None] * 3, [None] * 3))
@@ -97,6 +98,13 @@ HARNESS = r"""<script>
         // the prior line from the prior's number on, its words before it left unread (2026-11-13)
         oddsTail: (() => { let t = '', e = q('[data-odds-prior]'); for (; e; e = e.nextSibling) t += e.textContent; return t.replace(/\s+/g, ' ').trim(); })(),
         oddsPoints: q('[data-exists-line]').getAttribute('points').trim().split(/\s+/).length,
+        findsPoints: q('[data-finds-line]').getAttribute('points').trim().split(/\s+/).filter(Boolean).length,
+        findsNow: q('[data-finds-now]').textContent,
+        findsPrior: q('[data-finds-prior]')?.textContent ?? null,
+        oddsOrder: [...q('.progress-odds').children].map(e => e.matches('svg') ? 'graph' : e.matches('.progress-odds-title') ? 'title' : e.matches('.progress-finds-title') ? 'own' : e.querySelector('[data-odds-prior]') ? 'prior' : 'other'),
+        // each line's swatch: its color, whether it ends its line, after that line's last number, and whether it has a size
+        swatches: ['exists', 'finds'].map(k => { const w = q('.progress-odds-key.progress-odds-' + k); return w && [getComputedStyle(w).backgroundColor, w.parentElement.lastElementChild === w && w.previousElementSibling.matches('b'), w.getBoundingClientRect().width > 4]; }),
+        strokes: [getComputedStyle(q('[data-exists-line]')).stroke, getComputedStyle(q('[data-finds-line]')).stroke],
         oddsEmpty: q('.progress-odds').hasAttribute('data-empty'),
         etaPoints: q('[data-togo]').getAttribute('points').trim().split(/\s+/).length,
         cpuBands: q('[data-cpu-bands]').children.length,
@@ -163,13 +171,13 @@ HARNESS = r"""<script>
                     box: (r => [+r.getAttribute('x'), +r.getAttribute('width')])(g.querySelector('rect')),
                     tip: box.querySelector('[data-tip]').innerText.replace(/\s+/g, ' ').trim(),
                     cpu: box.querySelector('.progress-cpu-key').innerText.replace(/\s+/g, ' ').trim(),
-                    now: box.querySelector('[data-odds-now]')?.textContent ?? null,
+                    now: box.querySelector('[data-odds-now]')?.textContent ?? null, finds: box.querySelector('[data-finds-now]').textContent,
                     counts: ['pending', 'rates'].map(k => box.querySelector(`.progress-${k} [data-count-now]`)?.textContent ?? null),
                     otherVisible: [...section.querySelectorAll('.progress-run')].filter(b => b !== box).reduce((n,b) => n + b.querySelectorAll('svg line.cross[visibility="visible"]').length, 0),
                     linked: [...box.querySelectorAll('.progress-eta svg, .progress-cpu svg, .progress-pending svg, .progress-rates svg, .progress-odds svg')].map(s => {
                       const c = s.querySelector('line.cross'); return [c.getAttribute('visibility'), +c.getAttribute('x1')]; })};
       svg.dispatchEvent(new MouseEvent('mouseleave', {bubbles: true}));
-      read.after = {shown: g.getAttribute('visibility') === 'visible', now: box.querySelector('[data-odds-now]')?.textContent ?? null,
+      read.after = {shown: g.getAttribute('visibility') === 'visible', now: box.querySelector('[data-odds-now]')?.textContent ?? null, finds: box.querySelector('[data-finds-now]').textContent,
                     counts: ['pending', 'rates'].map(k => box.querySelector(`.progress-${k} [data-count-now]`)?.textContent ?? null),
                     visible: box.querySelectorAll('svg line.cross[visibility="visible"]').length};
       return read;
@@ -476,6 +484,52 @@ def q_the_prior_line_says_the_probability_now():
     assert [(float(a), float(b)) for a, b in tails] == want, (tails, want)
     first, last, h = two(TREE['odds']['exists'][0][2]), two(TREE['odds']['exists'][-1][2]), r['oddsFirst']   # TREE: the first box
     assert first != last and (float(h['now']), float(h['after']['now'])) == (first, last), (first, last, h['now'], h['after']['now'])
+
+
+def q_the_probability_graph_also_draws_the_search_s_own_chance():
+    # Replicata: the page 1280 px wide with SEARCHES and a sweep, whose estimates give P(exists) 0.945, 0.94, 0.93 and the
+    # chance that the sweep itself finds a witness 0.36, 0.3, 0.18; then a hover over the running form tree's probability
+    # graph at its first point, then away.
+    # Expectata (dreeves, 2026-11-27: "if the chance that the current search, the thing we're showing the ETA for, finds a
+    # witness is very different from that then that should also be shown on the page. maybe the probability graph could
+    # show both, with different colors?"): every box's probability graph has a second line, in another color than the
+    # first, with a point for each estimate that states the search's chance (3 for the form trees and the sweep, none for
+    # the searches that know only their age), and a number after its label: the latest chance to 2 significant figures,
+    # a dash where the search states none; over a point of the graph, that point's; away, the latest again.  The sweep's
+    # two lines are apart: 0.93 and 0.18.  The label's words are not read.
+    # Resultata before: one line, P(exists); a sweep's box said 0.93 while the sweep had an 18% chance of a find.
+    # Spec change that evening (dreeves, of the two lines of text over the graph: "the line with the prior should come first.
+    # and let's add a black swatch after the posterier (so the end of the line stating the prior). also, wait, consistency.
+    # it should be like this: Prior probability a bipartition exists: 0.91 -> 0.87 [black swatch] / Prior probability this
+    # search finds one: 0.099 -> 0.089 [blue swatch]", and "round to a reasonable number of decimal places for
+    # probablities, or sigfigs, rather"): the figure is the prior's line, the search's own line, the graph's title and
+    # the graph, in that order; each of the two lines ends, after its last number, with a swatch in its graph line's
+    # color; the search's own line gives its chance before the search and now, as the prior's line gives P(exists);
+    # and all four numbers are to 2 significant figures (a prior of 0.945385133116 reads 0.95).  The chance before the
+    # search is 1 - (1 - finds)(1 - prior) / (1 - exists) of the latest estimate: none found so far has probability
+    # (1 - prior) / (1 - exists), and the search finds one unless none is found so far and it finds none later.
+    sweep = entry('sweep', 528, 12, 'running', None, 'sweep', dict(unit='nodes', done=9.0e11, rate=4.8e8, total=band(5.6e12, 4.9e12, 6.5e12)),
+                  2700.0, band(19000.0, 16000.0, 24000.0), dict(runs=11, running=11, frozen=0, ended=0, aborted=0, paused=0, found=0), '3' * 11,
+                  [0.945, 0.94, 0.93], [9.6e6, 9.3e6, 9.0e6], [None] * 3, [4.7e8, 5.1e8, 4.8e8], finds=[0.36, 0.3, 0.18])
+    sweep['odds']['prior'] = 0.945385133116
+    searches = dict(SEARCHES, runs=SEARCHES['runs'] + [sweep])
+    r = render(1280, searches)
+    two = lambda p: float(format(p, '.2g'))
+    runs = [x for x in searches['runs'] if x['state'] == 'running'] + [x for x in searches['runs'] if x['state'] != 'running']   # the boxes' order
+    assert [b['findsPoints'] for b in r['boxes']] == [len(e['odds']['finds']) for e in runs] and sorted(b['findsPoints'] for b in r['boxes']) == [0, 0, 3, 3, 3], [b['findsPoints'] for b in r['boxes']]
+    assert [b['findsNow'] for b in r['boxes'] if not b['findsPoints']] == ['—', '—'], [b['findsNow'] for b in r['boxes']]
+    assert [float(b['findsNow']) for b in r['boxes'] if b['findsPoints']] == [two(e['odds']['finds'][-1][2]) for e in runs if e['odds']['finds']], [b['findsNow'] for b in r['boxes']]
+    assert all(b['strokes'][0] != b['strokes'][1] for b in r['boxes']), r['boxes'][0]['strokes']
+    box = next(b for b, e in zip(r['boxes'], runs) if e['search'] == 'sweep')
+    assert (float(box['now']), float(box['findsNow'])) == (0.93, 0.18), (box['now'], box['findsNow'])
+    assert all(b['oddsOrder'] == ['prior', 'own', 'title', 'graph'] for b in r['boxes']), r['boxes'][0]['oddsOrder']
+    assert all(b['swatches'] == [[b['strokes'][0], True, True], [b['strokes'][1], True, True]] for b in r['boxes']), (r['boxes'][0]['swatches'], r['boxes'][0]['strokes'])
+    before = lambda e: 1 - (1 - e['odds']['finds'][-1][2]) * (1 - e['odds']['prior']) / (1 - e['odds']['exists'][-1][2])
+    assert [b['findsPrior'] for b, e in zip(r['boxes'], runs) if not e['odds']['finds']] == ['—', '—'], [b['findsPrior'] for b in r['boxes']]
+    assert [float(b['findsPrior']) for b, e in zip(r['boxes'], runs) if e['odds']['finds']] == [two(before(e)) for e in runs if e['odds']['finds']], [b['findsPrior'] for b in r['boxes']]
+    assert (box['prior'], box['findsPrior']) == ('0.95', '0.36'), (box['prior'], box['findsPrior'])
+    first, last, h = two(TREE['odds']['finds'][0][2]), two(TREE['odds']['finds'][-1][2]), r['oddsFirst']   # TREE: the first box
+    assert first != last and (float(h['finds']), float(h['after']['finds'])) == (first, last), (first, last, h['finds'], h['after']['finds'])
 
 
 # a search whose last run to stop was paused (track.py pause, 2026-11-13), as the watcher writes it: 480:14's form tree of

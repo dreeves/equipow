@@ -36,8 +36,10 @@ CPU intervals (cpu.py): a search's estimator says how far along it is, and this 
                etas               its estimates' history, [time, its seconds of running before then, to_go's median,
                                   lo, hi] of each, thinned evenly to at most ETA_POINTS, the last kept;
                odds               {prior: its latest estimate's, since: its first start, exists: [time, seconds of
-                                  running, P(exists)] of the same estimates as etas}; the common active-time clock
-                                  (2026-11-14; dreeves: "yes, comparable graphs sounds good");
+                                  running, P(exists)] of the same estimates as etas, finds: the same of those that
+                                  state the search's own chance of a find (2026-11-27, Fable 5.2; dreeves: "maybe the
+                                  probability graph could show both, with different colors?")}; the common
+                                  active-time clock (2026-11-14; dreeves: "yes, comparable graphs sounds good");
                pending            [time, its seconds of running before then, nodes pending] of the same estimates
                                   as etas that count them (2026-11-12, Opus 5.5; dreeves: "we used to have number of
                                   open nodes as a graph"; none for a search that counts none, lindy.py's);
@@ -131,7 +133,8 @@ def entry(key, runs, procs, now, rows):
         statuses=STATUSES, depth=0, keys=[key[1]], groups=[dots], counts={s: dots.count(str(i)) for i, s in enumerate(STATUSES)},
         to_go=latest['to_go'], basis=latest['basis'], work={k: latest[k] for k in ('unit', 'done', 'rate', 'total')},
         etas=[[int(x['time']), round(track.running(passes, x['time']), 1)] + [round(x['to_go'][k], 1) for k in ('median', 'lo', 'hi')] for x in history],
-        odds=dict(prior=latest['prior'], since=runs[0][0]['time'], exists=[[int(x['time']), round(track.running(passes, x['time']), 1), x['exists']] for x in history]),
+        odds=dict(prior=latest['prior'], since=runs[0][0]['time'], exists=[[int(x['time']), round(track.running(passes, x['time']), 1), x['exists']] for x in history],
+                  finds=[[int(x['time']), round(track.running(passes, x['time']), 1), x['finds']] for x in history if x['finds'] is not None]),
         **{k: [[int(x['time']), round(track.running(passes, x['time']), 1), x[k]] for x in history if x[k] is not None] for k in ('pending', 'finished')},
         rates=[[int(x['time']), round(track.running(passes, x['time']), 1), x['rate']] for x in history if x['unit'] == 'nodes'],
         cpu=cpu_series(rows, passes, {r[0]['name'] for r in runs}), stale=None)
