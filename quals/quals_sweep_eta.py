@@ -29,13 +29,14 @@ def chunk(digest, K, count, first, last, nodes, time, cpu=1.0):
     return dict(digest=digest, K=K, count=count, total=1.0, first=first, last=last, nodes=nodes, capped=0, mass=0.01, cpu_s=cpu, time=time, found=[])
 
 
-def lay(d, logs, curves, found=(), model=MODEL):
+def lay(d, logs, curves, found=(), model=MODEL, plan=()):
     """Makes d's sweep directory anew: the logs (pI.jsonl), their curves (pI.curve.json) and the found file; and a record with its start line.  Returns the estimator's arguments and the record's path."""
     sweep = os.path.join(d, 'sweep')
     shutil.rmtree(sweep, ignore_errors=True); os.mkdir(sweep)
     args = [sweep]
     with open(os.path.join(sweep, 'model.json'), 'w') as f: json.dump(model, f)
     with open(os.path.join(sweep, 'found.jsonl'), 'w') as f: f.write(''.join(json.dumps(x) + '\n' for x in found))
+    with open(os.path.join(sweep, 'plan.jsonl'), 'w') as f: f.write(''.join(json.dumps(x) + '\n' for x in plan))   # the lists the sweep is to take (2026-11-28)
     for i, (rows, curve) in enumerate(zip(logs, curves)):
         log, cur = os.path.join(sweep, f'p{i}.jsonl'), os.path.join(sweep, f'p{i}.curve.json')
         with open(log, 'w') as f: f.write(''.join(json.dumps(x) + '\n' for x in rows))
@@ -66,8 +67,9 @@ def to_come(cost, mid, done, count, b):
 A = [chunk('aa', 4000, 4000, 0, 249, 8000, 1010.0, cpu=9.0), chunk('aa', 4000, 4000, 250, 499, 6000, 1030.0),
      chunk('aa', 4000, 4000, 500, 749, 5000, 1070.0), chunk('aa', 4000, 4000, 750, 999, 4000, 1150.0)]
 B = [chunk('bb', 1000, 1000, 0, 249, 3000, 1020.0, cpu=5.0), chunk('bb', 1000, 1000, 250, 499, 2000, 1060.0)]
-CA = dict(digest='aa', K=4000, curve=[[500, 0.10], [1000, 0.16], [4000, 0.30]])
-CB = dict(digest='bb', K=1000, curve=[[250, 0.02], [500, 0.03], [1000, 0.04]])
+CA = dict(digest='aa', K=4000, W=190, floor=4, curve=[[500, 0.10], [1000, 0.16], [4000, 0.30]])
+CB = dict(digest='bb', K=1000, W=190, floor=4, curve=[[250, 0.02], [500, 0.03], [1000, 0.04]])
+SPEED = dict(lo=0.8, median=1.0, hi=1.7)     # what a time to go is multiplied by (2026-11-28): a tenth of the lists' rests took under 0.8 of the time forecast, a tenth over 1.7
 
 
 def q_the_estimate_is_the_logs_work():
@@ -94,7 +96,8 @@ def q_the_estimate_is_the_logs_work():
         come = {b: (to_come(16.0, 875.0, 1000, 4000, b), to_come(8.0, 375.0, 500, 1000, b)) for b in (0.2, 0.3, 0.4)}
         for key, b in (('lo', 0.4), ('median', 0.3), ('hi', 0.2)):
             assert close(e['total'][key], 28000 + sum(come[b])), (key, e['total'], come[b])
-            assert close(e['to_go'][key], max(come[b][0] * 80 / 4000, come[b][1] * 40 / 2000)), (key, e['to_go'], come[b])
+            # (times SPEED since 2026-11-28: the band of a time to go holds the speed's spread too; a spec change with the estimator's)
+            assert close(e['to_go'][key], SPEED[key] * max(come[b][0] * 80 / 4000, come[b][1] * 40 / 2000)), (key, e['to_go'], come[b])
         assert e['total']['lo'] < e['total']['median'] < e['total']['hi'] and close(e['rate'], 4000 / 80 + 2000 / 40), e
         assert close(e['prior'], 1 - math.exp(-2.5)) and close(e['exists'], 1 - math.exp(-(2.5 - 0.9 * 0.19))), e
         assert close(e['finds'], 1 - math.exp(-0.9 * (0.30 + 0.04 - 0.19))), e
@@ -110,7 +113,7 @@ def q_a_finished_sweep_has_nothing_to_go():
     d = sandbox()
     try:
         rows = [chunk('cc', 500, 500, 0, 249, 3000, 1010.0), chunk('cc', 500, 500, 250, 499, 2000, 1030.0)]
-        args, rec = lay(d, [rows], [dict(digest='cc', K=500, curve=[[250, 0.3], [500, 0.5]])])
+        args, rec = lay(d, [rows], [dict(digest='cc', K=500, W=190, floor=4, curve=[[250, 0.3], [500, 0.5]])])
         p, ests = estimates(d, args, rec)
         assert p.returncode == 0 and len(ests) == 1, (p.returncode, p.stderr[-2000:])
         e = ests[0]
@@ -220,6 +223,117 @@ def q_a_list_swept_in_part_counts_its_part():
         assert (e['finished'], e['pending']) == (500, 500), e
         assert close(e['finds'], 1 - math.exp(-0.9 * (0.16 - 0.10))), e
         assert close(e['exists'], 1 - math.exp(-(2.5 - 0.9 * 0.10))), e
+    finally:
+        shutil.rmtree(d)
+
+
+# A list of 1,000 cosets swept whole, 10,000 nodes, its last chunk at time 960; and a list of 100,000 swept whole in two
+# chunks, a million nodes.
+F = [chunk('ff', 1000, 1000, 0, 249, 4000, 900.0, cpu=5.0), chunk('ff', 1000, 1000, 250, 499, 3000, 920.0),
+     chunk('ff', 1000, 1000, 500, 749, 2000, 940.0), chunk('ff', 1000, 1000, 750, 999, 1000, 960.0)]
+CF = dict(digest='ff', K=1000, W=190, floor=4, curve=[[500, 0.02], [1000, 0.03]])
+G = [chunk('gg', 100000, 100000, 0, 49999, 600000, 900.0, cpu=50.0), chunk('gg', 100000, 100000, 50000, 99999, 400000, 950.0)]
+CG = dict(digest='gg', K=100000, W=190, floor=4, curve=[[50000, 0.2], [100000, 0.3]])
+LIST = dict(W=190, floor=4, count=1000)
+
+
+def q_planned_lists_count_before_they_start():
+    # Replicata: a sweep directory with the finished list F, the second log above (500 of its 1,000 cosets swept) and a
+    # plan that names those two and two more lists of their kind (width 190, floor 4, 1,000 cosets) with no curve yet.
+    # Expectata (dreeves, 2026-11-28, of the sweep's ETA chart, whose time to go had jumped at every list a launcher
+    # started: "these ETAs sure don't look calibrated"): the sweep is its plan.  A planned list not yet begun takes
+    # what the finished lists of its kind took, 10,000 nodes: total is the nodes done, the running list's to come and
+    # 20,000; pending the running list's 500 cosets and the two lists' 2,000.  The time to go is the nodes to come over
+    # the nodes a second of the lists running (one, 2,000 nodes in 40 s), since the planned lists wait for them, or
+    # the running list's own time where that is longer; times SPEED.  rate is the running list's, 50: a finished list
+    # adds none.
+    # Resultata before: the estimator read the lists begun alone, so the two planned lists added nothing until each
+    # began, and rate summed every list's last, the finished one's too.
+    d = sandbox()
+    try:
+        plan = [dict(LIST, name='p0'), dict(LIST, name='p1'), dict(LIST, name='q0'), dict(LIST, name='q1')]
+        args, rec = lay(d, [F, B], [CF, CB], plan=plan)
+        p, ests = estimates(d, args, rec)
+        assert p.returncode == 0 and len(ests) == 1, (p.returncode, p.stderr[-2000:], ests)
+        e = ests[0]
+        assert (e['done'], e['finished'], e['pending'], e['rate']) == (15000, 1500, 2500, 50), e
+        for key, b in (('lo', 0.4), ('median', 0.3), ('hi', 0.2)):
+            mine = to_come(8.0, 375.0, 500, 1000, b)
+            assert close(e['total'][key], 15000 + mine + 20000), (key, e['total'], mine)
+            assert close(e['to_go'][key], SPEED[key] * max(mine * 40 / 2000, (mine + 20000) / 50)), (key, e['to_go'], mine)
+        sys.path.insert(0, os.path.join(d, 'searchwatch'))
+        import track
+        track.checked(track.lines(rec))
+    finally:
+        shutil.rmtree(d)
+
+
+def q_a_list_just_begun_is_forecast_by_its_kind():
+    # Replicata: the finished list G (100,000 cosets, a million nodes) and a list of its kind with 500 cosets swept,
+    # 80,000 nodes, its top cosets the dearest; then that list alone.
+    # Expectata (2026-11-28): a list under a fiftieth swept says little of its own cost (a width-220 list's forecast
+    # from its first 4,500 cosets was 2.3 times what its positions measured before gave), so beside a finished list of
+    # its kind it is forecast by that one: a million nodes in all, 920,000 to come at all three levels.  Alone, it is
+    # forecast by its own cost as any list, the three levels apart.
+    # Resultata before: its own cost alone, which puts 2.1 to 4.9 million nodes on it here.
+    d = sandbox()
+    try:
+        J = [chunk('jj', 100000, 100000, 0, 249, 50000, 1100.0, cpu=5.0), chunk('jj', 100000, 100000, 250, 499, 30000, 1120.0)]
+        CJ = dict(digest='jj', K=100000, W=190, floor=4, curve=[[50000, 0.2], [100000, 0.3]])
+        args, rec = lay(d, [G, J], [CG, CJ])
+        p, ests = estimates(d, args, rec)
+        assert p.returncode == 0 and len(ests) == 1, (p.returncode, p.stderr[-2000:], ests)
+        e = ests[0]
+        assert all(close(e['total'][key], 1000000 + 1000000) for key in ('lo', 'median', 'hi')) and e['pending'] == 99500, e
+        assert all(close(e['to_go'][key], SPEED[key] * 920000 * 20 / 30000) for key in ('lo', 'median', 'hi')), e
+        args, rec = lay(d, [J], [CJ])
+        p, ests = estimates(d, args, rec)
+        assert p.returncode == 0 and len(ests) == 1, (p.returncode, p.stderr[-2000:], ests)
+        alone = ests[0]
+        assert 2e6 < alone['total']['lo'] < alone['total']['median'] < alone['total']['hi'], alone
+    finally:
+        shutil.rmtree(d)
+
+
+def q_a_kind_is_measured_by_its_latest_lists():
+    # Replicata: seven finished lists of one kind, two that took 10,000 nodes and ended first, then five that took 2,000
+    # each; the running second log above; and a plan with one more list of the kind.
+    # Expectata (2026-11-28): lists run in the order of their profiles' ranks and a later rank's list is cheaper (at
+    # 528:12, 3.5e11 nodes at rank 0 and 3e10 at rank 30), so the planned list takes what the five latest to end took,
+    # 2,000 nodes, not the 10,000 of the first two.
+    d = sandbox()
+    try:
+        ended = lambda i, nodes, t: [chunk(f'e{i}', 1000, 1000, 0, 999, nodes, t, cpu=5.0)]
+        logs = [ended(i, 10000, 100.0 + i) for i in range(2)] + [ended(i, 2000, 200.0 + i) for i in range(2, 7)] + [B]
+        curves = [dict(CF, digest=f'e{i}') for i in range(7)] + [CB]
+        args, rec = lay(d, logs, curves, plan=[dict(LIST, name=f'p{i}') for i in range(8)] + [dict(LIST, name='q0')])
+        p, ests = estimates(d, args, rec)
+        assert p.returncode == 0 and len(ests) == 1, (p.returncode, p.stderr[-2000:], ests)
+        e = ests[0]
+        done = 2 * 10000 + 5 * 2000 + 5000
+        assert e['done'] == done and close(e['total']['median'], done + to_come(8.0, 375.0, 500, 1000, 0.3) + 2000), e
+    finally:
+        shutil.rmtree(d)
+
+
+def q_a_cut_list_is_no_measure_of_its_kind():
+    # Replicata: the list F cut after 500 of its 1,000 cosets (its last line's count 500, was 1,000), the running
+    # second log above, and a plan with one more list of 1,000 cosets.
+    # Expectata (2026-11-28): the cut list is done (nothing pending for it) but is no whole list of the planned one's
+    # kind, so the planned list takes what the running list of its kind is forecast to take in all, by its own cost
+    # at the median: 5,000 and its nodes to come.
+    # Resultata before: no planned list counted at all.
+    d = sandbox()
+    try:
+        cut = F[:1] + [dict(F[1], count=500, was=1000)]
+        args, rec = lay(d, [cut, B], [CF, CB], plan=[dict(LIST, name='p0'), dict(LIST, name='p1'), dict(LIST, name='q0')])
+        p, ests = estimates(d, args, rec)
+        assert p.returncode == 0 and len(ests) == 1, (p.returncode, p.stderr[-2000:], ests)
+        e = ests[0]
+        whole = 5000 + to_come(8.0, 375.0, 500, 1000, 0.3)
+        assert (e['done'], e['pending'], e['rate']) == (12000, 1500, 50), e
+        for key, b in (('lo', 0.4), ('median', 0.3), ('hi', 0.2)):
+            assert close(e['total'][key], 12000 + to_come(8.0, 375.0, 500, 1000, b) + whole), (key, e['total'], whole)
     finally:
         shutil.rmtree(d)
 
