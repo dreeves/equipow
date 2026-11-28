@@ -166,6 +166,44 @@ def q_the_search_finds_544_10():
     assert rediscovers(544, 10, 110, '8,9,5,7,11,13,17,19', 0.3, 3)
 
 
+def q_enumeration_preserves_the_first_witness_and_node_budget():
+    # Replicata: six cosets of a triangular integer basis with half-integer centers
+    # and nonzero off-diagonal coefficients. The last two coordinates are fixed.
+    # Expectata: the original enumerator's exact first witness in each coset,
+    # node count, cap status and squared perpendicular lengths at both pruning floors.
+    # Resultata before: these outputs, including the mixed capped search, were unpinned.
+    from types import SimpleNamespace
+    import numpy as np
+    sys.path.insert(0, TILTED)
+    from tilted import Tilted
+    d, f = 8, 10
+    b = np.zeros((d, f), dtype=np.int32)
+    diag = np.array([4, 1, 2, 1] * 2)
+    for i in range(d):
+        b[i, i] = diag[i]
+        for j in range(i): b[i, j] = (i + 2 * j) % 5 - 2
+    shift = np.arange(d) % 3 - 1
+    z = np.zeros((6, f), dtype=np.int64)
+    z[1] = z[4] = 1
+    z[2] = np.arange(f) % 2 + shift @ b
+    z[3, :d] = (np.arange(d) ** 2 + 2) % 7
+    z[4, -1] = 3
+    z[5] = (shift + 1) @ b
+    problem = SimpleNamespace(L=6, d=d, f=f, B=b, z0=np.zeros(f, dtype=np.int64), zx=z,
+                              mu=np.ascontiguousarray(b[:, :d] / diag), rr=diag.astype(float)**2,
+                              Q=np.eye(d, f))
+    signs = np.array([[63 ^ (1 << i)] for i in range(6)], dtype=np.uint64)
+    expected = {0: '-----+-+--', 1: '+++++-+-++', 2: '++-------+', 3: '+-+-+-+---', 5: '----------'}
+    for floor, cap, keep, indices, nodes, truncated in (
+            (4, 0, 6, [], 5, 5), (4, 8, 6, [3], 44, 4),
+            (4, 100, 6, [0, 1, 2, 3, 5], 74, 0), (4, 100, 2, [0, 1], 74, 0),
+            (0.1, 100, 6, [], 25, 0)):
+        out, idx, stats, perp = Tilted.enum(problem, signs, floor, cap, maxsol=keep, sag=0.4)
+        assert idx.tolist() == indices and stats.tolist() == [6, nodes, 0, truncated]
+        assert perp.tolist() == [2, 2, 2, 2, 26, 2]
+        assert out.tolist() == [[1 if c == '+' else -1 for c in expected[i]] for i in indices]
+
+
 if __name__ == '__main__':
     # TODO: error copy; says the script refuses to run under python -O, which would strip its assertions
     if not __debug__: raise SystemExit('Claude: "refusing to run without assertions (python -O)"')

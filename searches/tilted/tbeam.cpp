@@ -75,41 +75,63 @@ extern "C" long long tbeam(int L, int rho, const double *g, const double *u, con
 namespace {
 struct E {
     int d, f; const double *mu, *rr; double *tau; double *bound; const int32_t *B; const int64_t *a1; long long max_nodes, maxsol; int8_t *out;
-    long long nodes = 0, nsol = 0; bool stop = false; std::vector<double> sigma; std::vector<long long> x; std::vector<int> begin; std::vector<int64_t> a;
-    inline double M(int l, int i) const { return mu[(size_t)l * d + i]; }
+    long long nodes = 0, nsol = 0; bool stop = false; std::vector<double> sigma; std::vector<double> x; std::vector<int> begin; std::vector<int64_t> a;
+    struct Level {
+        double above, center, cur, step;
+        void enter(double p, double c) {
+            above = p;
+            center = c;
+            cur = std::round(c);
+            step = cur <= c ? 1.0 : -1.0;
+        }
+    };
+    std::vector<Level> stack;
     inline double &S(int row, int j) { return sigma[(size_t)row * (d + 1) + j]; }
     void leaf() {
         for (int k = 0; k < f; k++) a[k] = a1[k];
-        for (int l = 0; l < d; l++) if (x[l]) { const int32_t *row = B + (size_t)l * f; long long cl = 2 * x[l]; for (int k = 0; k < f; k++) a[k] += cl * row[k]; }
+        for (int l = 0; l < d; l++) if (x[l]) { const int32_t *row = B + (size_t)l * f; long long cl = 2 * (long long)x[l]; for (int k = 0; k < f; k++) a[k] += cl * row[k]; }
         for (int k = 0; k < f; k++) if (a[k] != 1 && a[k] != -1) return;
         if (nsol < maxsol) for (int k = 0; k < f; k++) out[nsol * f + k] = (int8_t)a[k];
         nsol++;
         if (nsol >= maxsol) stop = true;
     }
-    void rec(int i, double above, double center) {
-        double c0 = std::round(center), y = c0 - center, dd = (y <= 0) ? 1.0 : -1.0, cur = c0, step = dd;
-        const double b = bound[d - 1 - i], r = rr[i];
-        for (int first = 1;; first = 0) {
-            double diff = cur - center, p = above + diff * diff * r;
-            nodes++;
-            if (nodes > max_nodes) { stop = true; return; }
-            if (p > b) return;
-            x[i] = (long long)cur;
-            if (i == 0) { leaf(); if (stop) return; }
-            else {
-                int row = i - 1;
-                if (first) {
-                    for (int l = begin[i]; l >= i; l--) S(row, l) = S(row, l + 1) + x[l] * M(l, row);
-                    if (begin[i] > begin[row]) begin[row] = begin[i];
+    void enumerate() {
+        int i = d - 1;
+        Level level;
+        level.enter(0.0, -tau[i]);
+        for (;;) {
+            const double diff = level.cur - level.center;
+            const double p = level.above + diff * diff * rr[i];
+            if (++nodes > max_nodes) return;
+            if (p > bound[d - 1 - i]) {
+                if (++i == d) return;
+                level = stack[i];
+            } else {
+                x[i] = level.cur;
+                if (i > 0) {
+                    stack[i] = level;
+                    const int row = i - 1, last = begin[i];
+                    // Only the changed coordinates contribute new suffix sums for this row.
+                    const double *m = mu + (size_t)row * d;
+                    double *cache = &S(row, 0);
+                    double sum = cache[last + 1];
+                    for (int k = last; k > i; --k) {
+                        sum += x[k] * m[k];
+                        cache[k] = sum;
+                    }
+                    sum += level.cur * m[i];
+                    cache[i] = sum;
+                    begin[row] = std::max(begin[row], last);
                     begin[i] = i;
-                } else {
-                    S(row, i) = S(row, i + 1) + x[i] * M(i, row);
-                    if (i > begin[row]) begin[row] = i;
+                    level.enter(p, -(tau[row] + sum));
+                    i = row;
+                    continue;
                 }
-                rec(row, p, -(tau[row] + S(row, i)));
+                leaf();
                 if (stop) return;
             }
-            cur += step; step = -step; step = (step > 0) ? step + 1.0 : step - 1.0;
+            level.cur += level.step;
+            level.step = -level.step - std::copysign(1.0, level.step);
         }
     }
 };
@@ -118,8 +140,12 @@ struct E {
 extern "C" long long batch(int L, int f, int d, const uint64_t *signs, long long K, const int64_t *zx, const int64_t *z0, const int32_t *B, const double *mu, const double *rr, const double *Q,
                            double floor_, double sag, double tail, long long max_nodes, long long maxsol, int8_t *out_sol, long long *out_idx, double *stats, double *perp_out) {
     int W = (L + 63) / 64;
-    E e; e.d = d; e.f = f; e.mu = mu; e.rr = rr; e.B = B; e.max_nodes = max_nodes; e.maxsol = 1;
-    e.sigma.assign((size_t)d * (d + 1), 0.0); e.x.assign(d, 0); e.begin.resize(d); e.a.resize(f);
+    // Store each row used in the suffix-sum loop contiguously.
+    std::vector<double> mt((size_t)d * d);
+    for (int i = 0; i < d; ++i)
+        for (int j = 0; j < d; ++j) mt[(size_t)i * d + j] = mu[(size_t)j * d + i];
+    E e; e.d = d; e.f = f; e.mu = mt.data(); e.rr = rr; e.B = B; e.max_nodes = max_nodes; e.maxsol = 1;
+    e.sigma.assign((size_t)d * (d + 1), 0.0); e.x.assign(d, 0); e.stack.resize(d); e.begin.resize(d); e.a.resize(f);
     std::vector<int64_t> z(f); std::vector<int64_t> a1(f); std::vector<double> v(f), tau(d), bound(d); std::vector<int8_t> one(f);
     long long nsol = 0; double cosets = 0, nodes = 0, big = 0, trunc = 0;
     for (long long c = 0; c < K; c++) {
@@ -141,7 +167,7 @@ extern "C" long long batch(int L, int f, int d, const uint64_t *signs, long long
         for (int k = 0; k < d; k++) { double x_ = (k + 1.0) / d; bound[k] = std::min(R2 + 1e-6, x_ * R2 * (1.0 - sag * (1.0 - x_)) + floor_ + tail * std::exp(-x_ * 10.0)); }
         e.tau = tau.data(); e.bound = bound.data(); e.a1 = a1.data(); e.nodes = 0; e.nsol = 0; e.stop = false; e.out = one.data();
         for (int i = 0; i < d; i++) e.begin[i] = d - 1;
-        e.rec(d - 1, 0.0, -tau[d - 1]);
+        e.enumerate();
         nodes += e.nodes; big += e.nodes >= 1000; trunc += e.nodes > max_nodes;
         if (e.nsol > 0 && nsol < maxsol) { std::memcpy(out_sol + nsol * f, one.data(), f); out_idx[nsol] = c; nsol++; }
     }

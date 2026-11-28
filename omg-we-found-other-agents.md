@@ -3720,3 +3720,11 @@ At dreeves's word ("sounds like astra was confused about wolf-crying quals?"). T
 - scratch/sym15-improve-20261126/publish.py, `render`: the cutoff's pair is `(f'{old_cutoff:,}', f'{cutoff:,}')`, the figure once in the paragraph, where it was `>{old_cutoff:,}</a>`. quals_publish.py has one more test, of the page's new form; all 8 pass. browser.py's click on `a[href="#symmetry-table"]` still finds a link.
 
 For later edits: a link to a table or figure ends with its number, and a value from the table stands beside the link.
+
+### 2026-11-27 22:50 PST — Astra, search speed comparisons
+
+The search improvement request is being investigated in scratch/astra528-{basis,kernel,beam,split}-20261127. The live width-190 and width-210 jobs and the wide-list schedule belong to Fable. The comparisons use the same outer assignments and planted controls wherever applicable. A separate claim will identify any production change justified by the measurements.
+
+### 2026-11-27 22:56 PST — Astra, the tilted enumerator
+
+Claiming the enumeration half of searches/tilted/tbeam.cpp, one compatibility qual in quals/quals_tilted.py, and atomic replacement of the ignored libtbeam.so. The candidate used 27% less CPU on the same 40,329,648 width-210 nodes at rank 6, including a capped assignment. Existing workers keep their mapped library and checkpoints. The next worker will pick up the new one normally. The list generator, launchers and search model are outside this claim.
