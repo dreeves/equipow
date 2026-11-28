@@ -43,6 +43,7 @@
   <!-- The changelog, newest first, as in dreeves's spec FreshAt (doc.bmndr.co/freshat) -->
   <details class="changelog">
     <summary><i>Changelog</i></summary>
+    <p>2026-11-27: New <a href="#tails-table">Table 4</a> extends BGPW's Table 1 through order 12</p>
     <p>2026-11-26: <a href="#entry-530544">\(m^*(530544)=15\)</a>, <a href="#sym15-current">\(n_0(15)\le542321\)</a></p>
     <p>2026-11-26: <a href="#entry-535440">\(m^*(535440)=15\)</a>, <a href="#sym15-current">\(n_0(15)\le547665\)</a></p>
     <p>2026-11-26: \(m^*(795280) = 15\)</p>
@@ -526,7 +527,7 @@ Click a formula using those operators to see its derivation.
   <template data-panel="row-smallest"><table><tbody data-slot="row"></tbody></table><p>OEIS <a href="https://oeis.org/A323395">A323395</a>: <span data-slot="term"></span></p></template>
   <!-- A row's box of the m*(n) chart, then (2026-11-18): that term if BGPW's Symmetry Conjecture holds, after the conjecture's name, linked to the page's section on it, as proof-ifsym has it -->
   <template data-panel="row-ifsym"><p><a href="#symmetry-title">Symmetry Conjecture</a> \(\Rightarrow\) <span data-slot="term"></span></p></template>
-  <!-- A row's box of the m*(n) chart, then (2026-11-18): from which length the Symmetry Conjecture holds at its order, Table 5's N for it, in dreeves's words ("for the box when it's quoting table 5, can we have the following webcopy, using m=13 as an example: The Symmetry Conjecture is proven to hold for n>=3665. "proven" can be an anchor link to the proof"; until then Table 5's head and row), "proven" linked to the proof that Table 5's row names (data-proof) -->
+  <!-- A row's box of the m*(n) chart, then (2026-11-18): from which length the Symmetry Conjecture holds at its order, the N of the table #symmetry-table (Table 6; Table 5 until 2026-11-27) for it, in dreeves's words ("for the box when it's quoting table 5, can we have the following webcopy, using m=13 as an example: The Symmetry Conjecture is proven to hold for n>=3665. "proven" can be an anchor link to the proof"; until then that table's head and row), "proven" linked to the proof that the table's row names (data-proof) -->
   <!-- (since that night, dreeves's README, [SOG]: "It should be clearer that that's specific to the order. So like this: For order 13, the Symmetry Conjecture is proven to hold for n>=3665."; the order in the slot order) -->
   <template data-panel="row-symmetry"><p>For order <span data-slot="order"></span>, the Symmetry Conjecture is <a data-proven>proven</a> to hold for \(n \ge\) <span data-slot="from"></span>.</p></template>
   <!-- A cell of a row of a chart: the legend's swatch and words for it, and its column (k, or n), linked to its cell's box; the gold-ringed cells of a row of the chart of powers of 2, and since 2026-11-18 the open cells of a row of the m*(n) chart (row-ring until then) -->
@@ -562,6 +563,26 @@ Click a formula using those operators to see its derivation.
     <span>\(p_{1440}\) \((m = 16)\):</span>
     <code id="1440:16">9E21C6F54B340E3CAF46C59F362A518761CD3896A8DAB346DC58D731D72B46AC9A3630DAA94E91D235364CD316F68A7B8AF8E336A449B12CD9E0D6D51AA55C49AC65CCCB90F2D5EA2A166DB9936D0369D05CF5A95CA006EF87B2</code>
   </p>
+  <!-- Which lengths reach each order: BGPW's Table 1 (orders 1 to 8), carried on by the script from mstar.js (page/smallest-section.js, tails in page/shared.js), at dreeves's word (2026-11-27, of Stan Wagon's table of orders 9 and 10 with a conjecture for 11: "should we add a table like in the screenshot from stan?", then "sounds good. yes to stan's phrasing"). The head's words are Stan Wagon's, of his rows ("m*(n) ≥ 11   n is divisible by 16.   get 16ℕ starting at 800 (and 432, ...)") -->
+  <table>
+  <caption id="tails-table"><span class="sc">Table 4.</span></caption>
+  <thead><tr><th>\(m^*(n) \ge\)</th><th>\(n\) is divisible by</th><th>starting at</th><th>and</th></tr></thead>
+  <tbody data-tails></tbody>
+  </table>
+  <!-- TODO: says how to read the table above: a row says exactly which lengths n have a sequence of order at least its first number: every multiple of its second number from its third number on, and the lengths of its last cell, where a question mark marks a length at which that order is neither found nor ruled out; that rows 1 to 8 are BGPW's Table 1 and the later rows go beyond it; and why each row follows from Figure 1's bounds: a length with a sequence of order at least m is a multiple of the least power of 2 above m (BGPW's Theorem 4.1), two sequences of order at least m one after the other form one of order at least m, so if every such multiple in a stretch as long as the order's smallest length has such a sequence, so does every later multiple, and below that stretch each multiple is ruled out or listed -->
+  <details class="ai"><!-- TODO: the fold's line, Fable 5.2's words: says it holds Fable 5.2's block quote on how to read the table above and why its rows hold --><summary>Fable 5.2 on how to read the table above, BGPW's Table 1 carried on</summary>
+  <blockquote class="claude">
+  <p>A row says exactly which lengths \(n\) have a sequence of order at least its first number: every multiple of its second number from its third number on, and the lengths in its last cell.
+    A question mark marks a length where that order is neither found nor ruled out.
+    Rows 1 to 8 are BGPW's Table 1; the later rows go beyond it.</p>
+  <p>Each row follows from the bounds in Figure <a href="#mstar-figure">1</a>.
+    A length with a sequence of order at least \(m\) is a multiple of the least power of 2 above \(m\) (BGPW's Theorem 4.1).
+    Two sequences of order at least \(m\), one after the other, form one of order at least \(m\).
+    So if every such multiple in a stretch as long as the order's smallest length has such a sequence, so does every later multiple: a length in the stretch plus copies of the smallest.
+    Below the stretch, each multiple is ruled out or listed.</p>
+  <p class="attrib">— Fable 5.2</p>
+  </blockquote>
+  </details>
 </section>
 
 <!-- Chart of what is known about m*(2^k) − k, the excess over Thue–Morse, for every k up to 128 (72 until 2026-11-23), drawn by the script at the end from pow2.js -->
@@ -629,7 +650,7 @@ Click a formula using those operators to see its derivation.
     generates this table and checks all the arithmetic.</p>
   <div class="scroll">
     <table class="pow2-gaps" data-record-gaps>
-      <caption id="gaps-table"><span class="sc">Table 4.</span></caption>
+      <caption id="gaps-table"><span class="sc">Table 5.</span></caption>
       <thead><tr><th>Record gaps</th><th>The power of 2</th><th>The order</th></tr></thead>
     </table>
   </div>
@@ -878,7 +899,7 @@ Or just start identifying redundancies and repetition on the page and fix them o
 The following is mostly Claude Opus 5.5 and maybe some Fable 5.1, before Fable 5.2:
 </p>
 <details class="ai"><!-- TODO: the fold's line, Opus 5.5's words: says it holds Claude's block quote, with Fable 5.2's parentheses, on the conjecture through order 11 and at orders 12 to 16 --><summary>Claude on how the conjecture holds through order 11, and how far it reaches at orders 12 to 16</summary>
-<!-- symsmall (2026-11-18), the id of the quote's first paragraph: the proof of Table 5's rows through order 14 (data-proof), to which a row's box of the m*(n) chart links; inside the fold, so that the link opens it -->
+<!-- symsmall (2026-11-18), the id of the quote's first paragraph: the proof of the rows of #symmetry-table (Table 6; Table 5 until 2026-11-27) through order 14 (data-proof), to which a row's box of the m*(n) chart links; inside the fold, so that the link opens it -->
 <blockquote class="claude">
 <p id="symsmall">
 BGPW conjecture (their §6) that if some sequence of length \(n\) has order \(m\), then some \((-1)^m\)-symmetric one does, with \(f_{n-1-i} = (-1)^m f_i\): 
@@ -1249,7 +1270,7 @@ at one \(\theta\) every factor is \(\pm\cos(\pi/16)\), which leaves \(0.39\) at 
 <!-- TODO: the numerical rows at orders 17 through 19 use the lengths produced by the construction and the previous order's threshold. -->
 <h4>The thresholds for orders 17 through 19</h4>
 <p>At orders \(17,18,19\), every admissible length is a multiple of 32. Let \(L_m\) be the length of the seed constructed above, computed by <a href="https://github.com/dreeves/equipow/blob/main/proofs/symtransport.py">symtransport.py</a>. Use that seed as the center when \(n\equiv32\pmod{64}\), and an empty center when \(n\equiv0\pmod{64}\). In either case the side length is a multiple of 32. Choose a side of order at least \(m-1\) and put its \((-1)^m\)-times reversal on the other side. The whole sequence has order at least \(m-1\). Its symmetry forces its exact order to have the same parity as \(m\), so the order is at least \(m\).</p>
-<p>If \(B_{m-1}\) guarantees a sequence at every admissible length at the previous order, the largest multiple of 32 below that threshold is \(32\lfloor(B_{m-1}-1)/32\rfloor\). With the longer center, the last length the argument could miss is twice that multiple plus \(L_m\). Starting with <a href="#sym15">\(B_{16}=21473\)</a>, this gives the rows of Table <a href="#symmetry-table">5</a> by</p>
+<p>If \(B_{m-1}\) guarantees a sequence at every admissible length at the previous order, the largest multiple of 32 below that threshold is \(32\lfloor(B_{m-1}-1)/32\rfloor\). With the longer center, the last length the argument could miss is twice that multiple plus \(L_m\). Starting with <a href="#sym15">\(B_{16}=21473\)</a>, this gives the rows of Table <a href="#symmetry-table">6</a> by</p>
 <p class="proof-equation">\(\displaystyle B_m=L_m+64\lfloor(B_{m-1}-1)/32\rfloor+1.\)</p>
 </div>
 <p class="attrib">— Astra</p>
@@ -1257,7 +1278,7 @@ at one \(\theta\) every factor is \(\pm\cos(\pi/16)\), which leaves \(0.39\) at 
 </details>
 <!-- TODO: dreeves to review. The order-15 witness at an odd multiple of 16, its checker and the exact-order tail, using all 60 order-14 side lengths and either of two antisymmetric centers. -->
 <details class="ai" lang="en">
-<summary>Astra on the order-15 sequences at odd multiples of 16 and the cutoff in Table 5</summary>
+<summary>Astra on the order-15 sequences at odd multiples of 16 and the cutoff in Table 6</summary>
 <blockquote class="claude">
 <div class="proof-body" id="sym15">
 <p><b>The witness.</b> For a sign sequence \(P\) of order at least 13, let \(c(P)\) be the coefficient of \((x-1)^{13}\) in the expansion of its Littlewood polynomial about \(x=1\). Joining sequences adds their \(c\) values. Repeating each sign \(b\) times multiplies \(c\) by \(b^{14}\), since the expanded polynomial is \((1+x+\cdots+x^{b-1})P(x^b)\).</p>
@@ -1272,7 +1293,7 @@ at one \(\theta\) every factor is \(\pm\cos(\pi/16)\), which leaves \(0.39\) at 
 <!-- TODO: Astra's updated order-15 center and cutoff. Each batch keeps its earlier examples in the appendix. -->
 <p>There is also a direct shortening. If the side contains a copy of \(-q\), remove that copy and change the center from \(q\) to \(-q\). The side’s coefficient increases by \(c(q)\), so \(2c(P)+c(q)\) stays zero after the change. The full sequence loses twice the length of \(q\).</p>
 <p>A longer center can fill a gap left by a shorter one. For each multiple of 16 modulo 960, take the shortest available side of order at least 14, allowing the empty side. For each center of length \(L\) and each such side of length \(s\), the construction covers \(L+2s\) and every length 1,920 greater in succession, by adding 960 on both sides. In each admissible residue class modulo 1,920, keep the least of these starting lengths. Subtracting 1,920 from the largest start gives the last length these constructions could miss. The cutoff is one more than that length.</p>
-<p id="sym15-current">The shortest verified center at an odd multiple of 16 now has length <a href="#entry-530544">530,544</a> (<a href="pagedata/530544.hex" download>download the sequence</a>). The search varies the signed block counts to shorten the side while keeping \(2c(P)=-c(q)\). The checker expands each <a href="proofs/sym15.json">recorded construction</a> and verifies exact order 15 from its signs. Together these centers give Table 5’s cutoff of <a href="#symmetry-table">542,321</a>.</p>
+<p id="sym15-current">The shortest verified center at an odd multiple of 16 now has length <a href="#entry-530544">530,544</a> (<a href="pagedata/530544.hex" download>download the sequence</a>). The search varies the signed block counts to shorten the side while keeping \(2c(P)=-c(q)\). The checker expands each <a href="proofs/sym15.json">recorded construction</a> and verifies exact order 15 from its signs. Together these centers give Table <a href="#symmetry-table">6</a>’s cutoff of 542,321.</p>
 <p><b>Order 16.</b> Sequences of order at least 15 exist at lengths \(960\), \(1440\), \(1632\), \(1728\), \(2016\), \(2784\), \(7360\), \(7712\) and \(8192\). For \(2784=2\cdot1392\), join the order-14 sequence to its negated reversal. The other lengths already have witnesses on this page. Nonnegative sums of these lengths give every multiple of 32 from 10,048 through 10,976. Adding copies of 960 covers every larger multiple of 32. The checks for these sums and the 60 order-14 side lengths are in <a href="https://github.com/dreeves/equipow/blob/main/quals/quals_symmetry.py">quals_symmetry.py</a> and <a href="https://github.com/dreeves/equipow/blob/main/quals/quals_sym15.py">quals_sym15.py</a>.</p>
 <p>For \(n\equiv0\pmod{64}\), leave the center empty. For \(n\equiv32\pmod{64}\), use the symmetric length-1,440 sequence of order 16 as center. Reflect the side across the center with its signs unchanged. The whole sequence is symmetric, so its order is even. It already has order at least 15, hence at least 16. The largest length this calculation could miss is \(1440+2(10048-32)=21472\), giving \(B_{16}=21473\).</p>
 </div>
@@ -1298,12 +1319,12 @@ Suppose \(F(x)=\sum_{i=0}^{n-1} f_i x^i\) has coefficients \(\pm1\) at positions
 </blockquote>
 </details>
 <p>
-Assuming the above proof is correct, Table <a href="#symmetry-table">5</a>
+Assuming the above proof is correct, Table <a href="#symmetry-table">6</a>
 gives, for each order \(m\), the smallest known \(N\) 
 such that the Symmetry Conjecture holds for lengths \(n \ge N\).
 </p>
 <table>
-<caption id="symmetry-table"><span class="sc">Table 5.</span></caption>
+<caption id="symmetry-table"><span class="sc">Table 6.</span></caption>
 <thead><tr><th>\(m\)</th><th>\(N\)</th></tr></thead>
 <tbody>
 <tr data-proof="symsmall"><td>1–11</td><td>1</td></tr>

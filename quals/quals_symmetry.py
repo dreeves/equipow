@@ -402,7 +402,13 @@ def q_order_15_cutoff_links_the_shortest_checked_center():
     assert f'href="#entry-{n}">{n:,}</a>' in line
     assert f'href="pagedata/{n}.hex" download' in line
     cutoff, = [z for m, _, z in from_table(text) if m == 15]
-    assert f'href="#symmetry-table">{cutoff:,}</a>' in line
+    # Spec change (Fable 5.2, 2026-11-27; dreeves, of this line against quals_index.q_tables_and_figures_are_numbered,
+    # his rule that a link to a table ends with the table's number, which it had kept red since 2026-11-26: "sounds like
+    # astra was confused about wolf-crying quals?").  The paragraph states the cutoff of the table's row of order 15,
+    # as a number of its own, and links to the table.  Until then the cutoff had to be that link's words,
+    # `href="#symmetry-table">{cutoff:,}</a>`: markup, where a reader is misled by a stale cutoff or a missing link.
+    assert re.search(rf'(?<![\d,]){cutoff:,}(?!,?\d)', re.sub(r'<[^>]+>', '', line)), (cutoff, line)
+    assert 'href="#symmetry-table"' in line, line
 
 
 def q_every_known_order_has_its_symmetric_sequence():

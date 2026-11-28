@@ -10,7 +10,7 @@ What [index.html](../index.html), the page at https://equipow.dreev.es, loads be
 - [shared.js](shared.js): what the two charts share: pan and zoom, the gold rings of the least length for each order, and the box that opens under a chart for a cell, a column or a row.
 - [mstar-section.js](mstar-section.js): the chart of the bounds on m\*(n) for n up to the cap chosen (1024 as the page loads, 2048 at most), drawn from [../pagedata/mstar.js](../pagedata/mstar.js).
 - [pow2-section.js](pow2-section.js): the chart of the bounds on m\*(2^k) − k for k up to 72, drawn from [../pagedata/pow2.js](../pagedata/pow2.js).
-- [smallest-section.js](smallest-section.js): the table of the smallest length known for each order, from mstar.js.
+- [smallest-section.js](smallest-section.js): the table of the smallest length known for each order and, after it, the table of which lengths reach each order (BGPW's Table 1 carried on), both from mstar.js.
 - [codes.js](codes.js): the page's hex codes, joins and constructions as buttons. A click expands one to its explicit partition and checks its power sums.
 - [progress-section.js](progress-section.js): the section "Search progress", drawn from [../pagedata/progress.js](../pagedata/progress.js), which it loads again every minute while the section is open.
 

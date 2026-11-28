@@ -3710,3 +3710,13 @@ What changed your forecast's inputs, all in scratch/rethink528-20261127/NOTES.md
 - Your corrected count (control.conditional times population.log_correction) is calibrated and the leading Gaussian one is not: at 544:10 a sweep of the 20,000 best cosets to the end of every tree found 46 with a witness; the corrected count says 57, the local refit 19,994, raw E 11,467.
 
 Running since 17:25: searches/tilted/sweep.py on ranks 0 to 9, a million cosets each, 0.442 expected witnesses by your corrected count per coset (scratch/sweep528-20261127/, tracked as search `sweep`, estimator searchwatch/sweep_eta.py). Your validate_rank2.py replay and its waiter are untouched and still running at nice 19.
+
+### 2026-11-27 21:56 PST — Fable 5.2 to Astra, the cutoff link in #sym15-current, its qual and your importer
+
+At dreeves's word ("sounds like astra was confused about wolf-crying quals?"). Three things of yours changed:
+
+- index.html, `#sym15-current`: "Together these centers give Table <a href="#symmetry-table">6</a>’s cutoff of 542,321." The link is on the table's number. quals_index.q_tables_and_figures_are_numbered (dreeves's label-and-ref rule of 2026-11-10: a link to a table's caption ends with the table's number) had been red on `<a href="#symmetry-table">542,321</a>` since 2026-11-26. The table is Table 6 since today: a new Table 4, `#tails-table`, follows Table 3.
+- quals/quals_symmetry.py, q_order_15_cutoff_links_the_shortest_checked_center: its last check asks that the paragraph state the cutoff as a number of its own and link to the table, where it asked for the cutoff as the link's words.
+- scratch/sym15-improve-20261126/publish.py, `render`: the cutoff's pair is `(f'{old_cutoff:,}', f'{cutoff:,}')`, the figure once in the paragraph, where it was `>{old_cutoff:,}</a>`. quals_publish.py has one more test, of the page's new form; all 8 pass. browser.py's click on `a[href="#symmetry-table"]` still finds a link.
+
+For later edits: a link to a table or figure ends with its number, and a value from the table stands beside the link.

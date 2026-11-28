@@ -512,9 +512,44 @@ function smallest(cols) {
 // "[FLP] I think the smallest-known and smallest-not-ruled-out columns should be swapped, so the numbers in that table
 // are in the same order they're in in the chart. And then I think the checkmarks should be the last column")
 function smallestRow([m, possible, best]) {
+  return tableRow([m, possible, best, best === possible ? '✓' : '']);
+}
+// A table's row of cells of the texts texts (smallestRow's body until 2026-11-27, when tailsRow came to share it).
+function tableRow(texts) {
   const row = document.createElement('tr');
-  row.append(...[m, possible, best, best === possible ? '✓' : ''].map(text => Object.assign(document.createElement('td'), {textContent: text})));
+  row.append(...texts.map(text => Object.assign(document.createElement('td'), {textContent: text})));
   return row;
+}
+// Which lengths reach each order: BGPW's Table 1 (orders 1 to 8), carried on from the chart's columns (Fable 5.2,
+// 2026-11-27; dreeves, of Stan Wagon's table of the lengths of orders 9 and 10 with a conjecture for 11: "should we add
+// a table like in the screenshot from stan?"; page/smallest-section.js).  tails(cols) gives, by the chart's columns
+// cols, [lo, hi] each, for each order m from 1 that has a start inside the chart, [m, g, start, others]:
+//   g       the least power of 2 above m, which every length that reaches order m is a multiple of (BGPW's Theorem
+//           4.1; a length reaches order m when some sequence of that length has order at least m);
+//   start   the least multiple t of g such that every multiple of g from t to below t + a is known to reach order m,
+//           a the least length known to reach it.  Two sequences of order at least m, one after the other, are one
+//           of order at least m, so every multiple of g from start on reaches it: a length of that stretch, then
+//           copies of a;
+//   others  the multiples of g below start that order m is not ruled out at, [n, known] each: known says that order m
+//           is known at n; where it is not, it is neither known nor ruled out there.
+// So a row is a theorem of the chart's bounds: order m is reached at every multiple of g from start on and at the
+// others known, at no other length but the others not known.  An order with no start inside the chart has no row.
+// tailsRow(row) is its row of the table: m, g, start, and the others, a question mark after each not known (the one
+// branch here: a mark for a state of the data).
+function tails(cols) {
+  const last = g => cols.length - cols.length % g;                 // the chart's largest multiple of g
+  const multiples = (g, from, to) => Array.from({length: (to - from) / g + 1}, (_, i) => from + i * g);   // from and to are multiples of g
+  const stretch = m => {
+    const g = 1 << (32 - Math.clz32(m)), known = n => cols[n - 1][0] >= m;
+    const a = multiples(g, g, last(g)).find(known);
+    assert(a !== undefined, 'no multiple of', g, 'is known to reach order', m);
+    return [m, g, multiples(g, g, last(g) - a + g).find(t => multiples(g, t, t + a - g).every(known))];
+  };
+  return Array.from({length: Math.max(...cols.map(([lo]) => lo))}, (_, i) => stretch(i + 1)).filter(([, , start]) => start !== undefined)
+    .map(([m, g, start]) => [m, g, start, multiples(g, g, start - g).filter(n => cols[n - 1][1] >= m).map(n => [n, cols[n - 1][0] >= m])]);
+}
+function tailsRow([m, g, start, others]) {
+  return tableRow([m, g, start, others.map(([n, known]) => `${n}${known ? '' : '?'}`).join(', ')]);
 }
 // The m*(n) chart's columns if BGPW's Symmetry Conjecture holds (2026-11-18): each upper bound that mstar.js's ifsym
 // lowers, lowered.
@@ -528,18 +563,18 @@ const orderRow = (rows, m) => {
   if (mine.length !== 1) throw new Error(`the rows of order ${m}: ${mine.length}`);
   return mine[0];
 };
-// From which length the Symmetry Conjecture holds at the order m, by the row of the order m of Table 5, the Symmetry
+// From which length the Symmetry Conjecture holds at the order m, by the row of the order m of the table #symmetry-table (Table 6; Table 5 until 2026-11-27), the Symmetry
 // section's (for each order, the least N known from which it holds at every length): the last of its rows whose
 // first order, the first number of its first cell, is at most m; its N, cloned, in dreeves's sentence (row-symmetry),
 // whose "proven" links to the proof that the row names (data-proof, an id of the page).  It throws unless the rows'
 // first orders rise from 1, or where the row's proof is no element of the page.  (Until later on 2026-11-18 the row
-// itself, under Table 5's head; dreeves: "i think the above sentence can be instead of that".)
+// itself, under that table's head; dreeves: "i think the above sentence can be instead of that".)
 const symmetryRow = m => {
   const table = document.getElementById('symmetry-table').closest('table'), rows = [...table.tBodies[0].rows];
   const firsts = rows.map(r => Number(/\d+/.exec(r.cells[0].textContent)[0]));
-  if (firsts[0] !== 1 || !firsts.every((x, i) => i === 0 || x > firsts[i - 1])) throw new Error(`Table 5's orders: ${firsts}`);
+  if (firsts[0] !== 1 || !firsts.every((x, i) => i === 0 || x > firsts[i - 1])) throw new Error(`#symmetry-table's orders: ${firsts}`);
   const row = rows.filter((_, i) => firsts[i] <= m).at(-1);
-  if (document.getElementById(row.dataset.proof ?? '') === null) throw new Error(`Table 5's row ${m}: no proof ${row.dataset.proof}`);
+  if (document.getElementById(row.dataset.proof ?? '') === null) throw new Error(`#symmetry-table's row ${m}: no proof ${row.dataset.proof}`);
   const part = filled('row-symmetry', {order: String(m), from: [...row.cells[1].cloneNode(true).childNodes]});   // (its order since 2026-11-18, [SOG])
   part.querySelector('[data-proven]').setAttribute('href', `#${row.dataset.proof}`);
   return part;
@@ -547,12 +582,12 @@ const symmetryRow = m => {
 // A row's box of the m*(n) chart: its row of the table of smallest lengths, under that table's own head, and the term
 // a(m - 1) of OEIS A323395; then (Opus 5.5, 2026-11-18; dreeves: "clicking the m for a whole row in a chart should
 // gather up all the relevant things for that row, including what we know conditional on the symmetry conjecture being
-// true") that term if BGPW's Symmetry Conjecture holds (ifsymCols), and its order's row of Table 5 (symmetryRow).  The
+// true") that term if BGPW's Symmetry Conjecture holds (ifsymCols), and its order's row of #symmetry-table (symmetryRow).  The
 // chart's script adds the row's open cells (page/mstar-section.js).
 const smallestBox = m => {
   const [r, possible, best] = orderRow(smallest(MSTAR.cols), m), [, ifPossible] = orderRow(smallest(ifsymCols()), m);
   const part = filled('row-smallest', {row: smallestRow([r, possible, best]), term: term(r, possible, best)});
-  part.querySelector('table').prepend(document.querySelector('section.smallest thead').cloneNode(true));
+  part.querySelector('table').prepend(document.getElementById('smallest-table').closest('table').tHead.cloneNode(true));   // by its caption's id since 2026-11-27, when its section got a second table
   return shown([part, filled('row-ifsym', {term: term(r, ifPossible, best)}), symmetryRow(m)]);
 };
 
